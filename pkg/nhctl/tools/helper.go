@@ -1,8 +1,8 @@
-package sys
+package tools
 
 import (
+	"context"
 	"go.uber.org/zap"
-	zaplog "coding-deploy-cli/libs/log"
 	"runtime"
 	"os/exec"
 	"encoding/json"
@@ -18,14 +18,14 @@ import (
 var logger *zap.Logger
 
 //init
-func init() {
-    logger = zaplog.InitLogger()
-}
+//func init() {
+//    logger = zaplog.InitLogger()
+//}
 
 //check os
 func CheckOS() string{
 	sysType := runtime.GOOS
-	logger.Info("OS name", zap.String("type", sysType))
+	//logger.Info("OS name", zap.String("type", sysType))
 	switch(sysType) {
 	case "linux":
 	case "windows":
@@ -52,20 +52,20 @@ func CheckK8s() (string,bool){
 
     ///home/coding-cli/
     //exec command
-    command := exec.Command("tools/"+kubectl, "version", "-o", "json")
+    command := exec.Command("utils/"+kubectl, "version", "-o", "json")
     versionJson, err := command.CombinedOutput()
     if err != nil {
-        fmt.Println("cmd.Run() failed with %s\n", err)
+        fmt.Printf("cmd.Run() failed with %s\n", err)
     }
     var k8sVersion interface{}
 	errVersion := json.Unmarshal(versionJson, &k8sVersion)
 	if errVersion != nil {
-		logger.Error("Kubernetes api-server is not connected or Kubernetes is not installed", zap.Error(errVersion))
+		//logger.Error("Kubernetes api-server is not connected or Kubernetes is not installed", zap.Error(errVersion))
 		fmt.Println("error: Kubernetes api-server is not connected or Kubernetes is not installed")
 		return "",false
 	}
 
-	logger.Info("Kubernetes", zap.String("version", string(versionJson)))
+	//logger.Info("Kubernetes", zap.String("version", string(versionJson)))
 	version := k8sVersion.(map[string]interface{})["serverVersion"].(map[string]interface{})["gitVersion"].(string)
     return version, true
 }
@@ -90,25 +90,39 @@ func CheckNode(nodeType string) {
     }
 }
 
+func ExecKubeCtlCommand(ctx context.Context, params ...string) error {
+
+	err := ExecCommand(ctx, "kubectl", params...)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	}
+	return err
+}
 
 //execute command
-func ExecCommand(commandName string, params ...string) error{
-	//debug mode
-	execCommand := commandName
-	basePath := "tools/"
-	execCommand = basePath + commandName
-	// check command 
+func ExecCommand(ctx context.Context, commandName string, params ...string) error{
+	osName := CheckOS()
+	basePath := "utils/" + osName + "/"
+	execCommand := basePath + commandName
+
+	// check command
 	if CheckCommand(commandName) {
 		if !CheckFile(execCommand) {
-			return errors.New("error: 执行文件不存在 !")
+			return errors.New("error: command not exists")
 		}
 	}
-	cmd := exec.Command(execCommand, params...)
+	var cmd *exec.Cmd
+	if ctx == nil {
+		cmd = exec.Command(execCommand, params...)
+	} else {
+		fmt.Println("command with ctx")
+		cmd = exec.CommandContext(ctx,execCommand, params...)
+	}
 	fmt.Println(cmd.Args)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		fmt.Println(err)
-		return errors.New("error: 命令执行错误 !")
+		return errors.New("error: command failed to execute")
 	}
 	//start
 	cmd.Start()
