@@ -15,5 +15,8 @@
 # vendor/
 
 # Mac
+
 .DS_Store
 .idea
+
+/cmd/nhctl/utils/darwin/*
