@@ -127,7 +127,7 @@ func ExecCommand(ctx context.Context, commandName string, params ...string) erro
 	//start
 	cmd.Start()
 	reader := bufio.NewReader(stdout)
-	//实时循环读取输出流中的一行内容
+	//print output
 	for {
 		line, err2 := reader.ReadString('\n')
 		if err2 != nil || io.EOF == err2 {
