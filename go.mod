@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/imdario/mergo v0.3.11 // indirect
+	github.com/pkg/errors v0.9.1
 	github.com/satori/go.uuid v1.2.0
 	github.com/spf13/cobra v1.0.0
 	go.uber.org/zap v1.10.0

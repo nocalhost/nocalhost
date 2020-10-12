@@ -21,4 +21,4 @@
 
 /cmd/nhctl/utils/darwin/*
 /cmd/nhctl/build/
-/cmd/nhctl/aaa/
+/cmd/nhctl/sync/
