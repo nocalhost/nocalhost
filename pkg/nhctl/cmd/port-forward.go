@@ -39,7 +39,9 @@ var portForwardCmd = &cobra.Command{
 			fmt.Println("stop port forward")
 		}()
 
-		kubectl.PortForward(ctx , deployment, localPort, remotePort) // eg : ./utils/darwin/kubectl port-forward --address 0.0.0.0 deployment/coding  12345:22
-
+		err := kubectl.PortForward(ctx , deployment, localPort, remotePort) // eg : ./utils/darwin/kubectl port-forward --address 0.0.0.0 deployment/coding  12345:22
+		if err != nil {
+			fmt.Printf("failed to forward port : %v\n", err)
+		}
 	},
 }
