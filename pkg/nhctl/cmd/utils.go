@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"k8s.io/client-go/kubernetes"
 	v1 "k8s.io/client-go/kubernetes/typed/apps/v1"
+	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -31,4 +32,15 @@ func GetDeploymentClient(nameSpace string) (v1.DeploymentInterface, error){
 
 	deploymentsClient := clientSet.AppsV1().Deployments(nameSpace)
 	return deploymentsClient, nil
+}
+
+func GetPodClient(nameSpace string) (coreV1.PodInterface, error){
+	clientSet, err := getClientSet()
+	if err != nil {
+		fmt.Printf("%v",err)
+		return nil , err
+	}
+
+	podClient := clientSet.CoreV1().Pods(nameSpace)
+	return podClient, nil
 }
