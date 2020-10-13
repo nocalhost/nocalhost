@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"time"
 )
 
 var nameSpace, lang, image string
@@ -20,7 +21,7 @@ func init() {
 var debugStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "enter debug model",
-	Long: `enter debug model`,
+	Long:  `enter debug model`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if nameSpace == "" {
 			fmt.Println("error: please use -n to specify a kubernetes namespace")
@@ -35,12 +36,11 @@ var debugStartCmd = &cobra.Command{
 			return
 		}
 		fmt.Println("enter debug...")
-		ReplaceImage(nameSpace,deployment)
+		ReplaceImage(nameSpace, deployment)
 	},
 }
 
-
-func ReplaceImage(nameSpace string, deployment string)  {
+func ReplaceImage(nameSpace string, deployment string) {
 	var debugImage string
 
 	switch lang {
@@ -55,16 +55,15 @@ func ReplaceImage(nameSpace string, deployment string)  {
 		debugImage = image
 	}
 
-
 	deploymentsClient, err := GetDeploymentClient(nameSpace)
 	if err != nil {
-		fmt.Printf("%v",err)
+		fmt.Printf("%v", err)
 		return
 	}
 
 	scale, err := deploymentsClient.GetScale(context.TODO(), deployment, metav1.GetOptions{})
 	if err != nil {
-		fmt.Printf("%v",err)
+		fmt.Printf("%v", err)
 		return
 	}
 
@@ -76,7 +75,8 @@ func ReplaceImage(nameSpace string, deployment string)  {
 		_, err = deploymentsClient.UpdateScale(context.TODO(), deployment, scale, metav1.UpdateOptions{})
 		if err != nil {
 			fmt.Println("failed to scale replicas to 1")
-		}else {
+		} else {
+			time.Sleep(time.Second * 5)
 			fmt.Println("replicas has been scaled to 1")
 		}
 	} else {
@@ -91,12 +91,55 @@ func ReplaceImage(nameSpace string, deployment string)  {
 
 	// default : replace the first container
 	dep.Spec.Template.Spec.Containers[0].Image = debugImage
-	dep.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c",  "service ssh start; mutagen daemon start; mutagen-agent install; tail -f /dev/null"}
+	dep.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "service ssh start; mutagen daemon start; mutagen-agent install; tail -f /dev/null"}
 
 	_, err = deploymentsClient.Update(context.TODO(), dep, metav1.UpdateOptions{})
 	if err != nil {
 		fmt.Printf("update develop container failed : %v \n", err)
-	}else {
-		fmt.Println("develop container has been updated")
+		return
 	}
+
+	<-time.NewTimer(time.Second * 3).C
+
+	// find deployment's podList name
+	podClient, err := GetPodClient(nameSpace)
+	if err != nil {
+		fmt.Printf("failed to get podList client: %v\n", err)
+		return
+	}
+
+	labels := ""
+	for k, v := range dep.Spec.Template.ObjectMeta.Labels {
+		labels = labels + k + "=" + v
+		break
+	}
+	//labels = labels[:len(labels)-1]
+	fmt.Println("finding podList with labels : " + labels)
+
+	podList, err := podClient.List(context.TODO(), metav1.ListOptions{LabelSelector: labels})
+	if err != nil {
+		fmt.Printf("failed to get pods, err: %v\n", err)
+		return
+	}
+
+	fmt.Printf("find %d pods\n", len(podList.Items)) // should be 2
+
+	//pod := podList.Items[0]
+	// wait podList to be ready
+	fmt.Printf("waiting pod to start.")
+	for {
+		<-time.NewTimer(time.Second * 2).C
+		podList, err = podClient.List(context.TODO(), metav1.ListOptions{LabelSelector: labels})
+		if err != nil {
+			fmt.Printf("failed to get pods, err: %v\n", err)
+			return
+		}
+		if len(podList.Items) == 1 {
+			// todo check container status
+			break
+		}
+		fmt.Print(".")
+	}
+
+	fmt.Println("develop container has been updated")
 }
