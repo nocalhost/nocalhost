@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/spf13/cobra"
+	"io/ioutil"
 	"nocalhost/pkg/nhctl/third_party/kubectl"
 	"os"
 	"os/signal"
@@ -37,11 +38,34 @@ var portForwardCmd = &cobra.Command{
 			<-c
 			cancel()
 			fmt.Println("stop port forward")
+			err := os.Remove(".pid")
+			if err != nil {
+				fmt.Printf("removing .pid failed, please remove it manually, err:%v\n", err)
+			} else {
+				fmt.Println(".pid removed.")
+			}
 		}()
 
-		err := kubectl.PortForward(ctx , deployment, localPort, remotePort) // eg : ./utils/darwin/kubectl port-forward --address 0.0.0.0 deployment/coding  12345:22
+		// check if there is a active port-forward
+		_, err := os.Stat(".pid")
+		if err == nil {
+			fmt.Println("a port-forward process already existed")
+			return
+		} else {
+			// record pid
+			fmt.Println("recording pid...")
+			pid := os.Getpid()
+			ioutil.WriteFile(".pid", []byte(fmt.Sprintf("%d", pid)), 0644 )
+		}
+		err = kubectl.PortForward(ctx , deployment, localPort, remotePort) // eg : ./utils/darwin/kubectl port-forward --address 0.0.0.0 deployment/coding  12345:22
 		if err != nil {
 			fmt.Printf("failed to forward port : %v\n", err)
+			err = os.Remove(".pid")
+			if err != nil {
+				fmt.Printf("removing .pid failed, please remove it manually, err:%v\n", err)
+			} else {
+				fmt.Println(".pid removed.")
+			}
 		}
 	},
 }
