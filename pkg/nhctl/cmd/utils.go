@@ -1,11 +1,15 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	v1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	v1 "k8s.io/client-go/kubernetes/typed/apps/v1"
+	appsV1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
+	"strconv"
 )
 
 func getClientSet() (*kubernetes.Clientset, error) {
@@ -23,7 +27,7 @@ func getClientSet() (*kubernetes.Clientset, error) {
 	return clientSet, nil
 }
 
-func GetDeploymentClient(nameSpace string) (v1.DeploymentInterface, error){
+func GetDeploymentClient(nameSpace string) (appsV1.DeploymentInterface, error){
 	clientSet, err := getClientSet()
 	if err != nil {
 		fmt.Printf("%v",err)
@@ -44,3 +48,37 @@ func GetPodClient(nameSpace string) (coreV1.PodInterface, error){
 	podClient := clientSet.CoreV1().Pods(nameSpace)
 	return podClient, nil
 }
+
+func GetReplicaSetsControlledByDeployment(deployment string) (map[int]*v1.ReplicaSet,error) {
+	var rsList *v1.ReplicaSetList
+	clientSet, err := getClientSet()
+	if err == nil {
+		replicaSetsClient := clientSet.AppsV1().ReplicaSets(nameSpace)
+		rsList, err = replicaSetsClient.List(context.TODO(),metav1.ListOptions{})
+	}
+	if err != nil {
+		fmt.Printf("failed to get rs: %v\n", err)
+		return nil,err
+	}
+
+	rsMap := make(map[int]*v1.ReplicaSet)
+	for _, item := range rsList.Items {
+		if item.OwnerReferences != nil {
+			for _, owner := range item.OwnerReferences {
+				if owner.Name == deployment && item.Annotations["deployment.kubernetes.io/revision"] != "" {
+					fmt.Printf("%s %s\n", item.Name, item.Annotations["deployment.kubernetes.io/revision"] )
+					revision, err := strconv.Atoi(item.Annotations["deployment.kubernetes.io/revision"])
+					if err == nil {
+						rsMap[revision] = item.DeepCopy()
+					}
+				}
+			}
+		}
+	}
+	return rsMap, nil
+}
+
+func printlnErr(info string, err error) {
+	fmt.Printf("%s, err: %v\n", info, err)
+}
+

@@ -1,17 +1,16 @@
 package tools
 
 import (
-	"context"
-	"go.uber.org/zap"
-	"runtime"
-	"os/exec"
-	"encoding/json"
-	"net"
-	"os"
-	"io"
 	"bufio"
-	"fmt"
+	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"go.uber.org/zap"
+	"io"
+	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 )
 
@@ -70,29 +69,9 @@ func CheckK8s() (string,bool){
     return version, true
 }
 
-
-//check ip
-func CheckIp(ip string) {
-    address := net.ParseIP(ip)
-    if address == nil {
-         fmt.Println("ip 地址格式不正确")
-         os.Exit(0)
-     }
-}
-
-
-//check node type
-func CheckNode(nodeType string) {
-	nodeTypes := map[string]string{"worker":"slave node", "master":"master node"}
-    if _, err:= nodeTypes[nodeType] ; !err {
-    	fmt.Println("node type 不正确, 请选择 master 或者 worker")
-    	os.Exit(0)
-    }
-}
-
 func ExecKubeCtlCommand(ctx context.Context, params ...string) error {
 
-	err := ExecCommand(ctx, "kubectl", params...)
+	_, err := ExecCommand(ctx, true,"kubectl",  params...)
 	if err != nil {
 		fmt.Printf("%v\n", err)
 	}
@@ -100,7 +79,7 @@ func ExecKubeCtlCommand(ctx context.Context, params ...string) error {
 }
 
 //execute command
-func ExecCommand(ctx context.Context, commandName string, params ...string) error{
+func ExecCommand(ctx context.Context, isDisplay bool , commandName string,  params ...string) (string,error){
 	osName := CheckOS()
 	basePath := "utils/" + osName + "/"
 	execCommand := basePath + commandName
@@ -108,7 +87,7 @@ func ExecCommand(ctx context.Context, commandName string, params ...string) erro
 	// check command
 	if CheckCommand(commandName) {
 		if !CheckFile(execCommand) {
-			return errors.New("error: command not exists")
+			return "", errors.New("error: command not exists")
 		}
 	}
 	var cmd *exec.Cmd
@@ -122,21 +101,25 @@ func ExecCommand(ctx context.Context, commandName string, params ...string) erro
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		fmt.Println(err)
-		return errors.New("error: command failed to execute")
+		return "", errors.New("error: command failed to execute")
 	}
 	//start
 	cmd.Start()
 	reader := bufio.NewReader(stdout)
 	//print output
+	output := ""
 	for {
 		line, err2 := reader.ReadString('\n')
 		if err2 != nil || io.EOF == err2 {
 			break
 		}
-		fmt.Print(line+"\n")
+		output = output + line + "\n"
+		if isDisplay {
+			fmt.Print(line+"\n")
+		}
 	}
 	cmd.Wait()
-	return nil
+	return output, nil
 }
 
 
