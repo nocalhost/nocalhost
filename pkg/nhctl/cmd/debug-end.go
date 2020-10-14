@@ -4,17 +4,15 @@ import (
 	"context"
 	"fmt"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"nocalhost/pkg/nhctl/tools"
 	"sort"
-	"strconv"
+	"strings"
 )
 
 func init() {
 	debugEndCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	debugEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
-	//debugEndCmd.Flags().StringVarP(&lang, "type", "l", "", "the development language, eg: java go python")
-	//debugEndCmd.Flags().StringVarP(&image, "image", "i", "", "image of development container")
 	debugCmd.AddCommand(debugEndCmd)
 }
 
@@ -32,8 +30,35 @@ var debugEndCmd = &cobra.Command{
 			return
 		}
 		fmt.Println("end debug...")
-		DeploymentRollBackToPreviousRevision()
+		// end file sync
+		fmt.Println("ending file sync...")
+		EndFileSync()
+		fmt.Println("roll back deployment...")
+		//DeploymentRollBackToPreviousRevision()
 	},
+}
+
+func EndFileSync() {
+	output , _ := tools.ExecCommand(nil, false ,"mutagen", "sync", "list")
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "Name") {
+			strs := strings.Split(line, ":")
+			if len(strs) >= 2 {
+				sessionName := strings.TrimLeft(strs[1]," ")
+				fmt.Printf("terminate sync session :%s \n", sessionName)
+				_, err := tools.ExecCommand(nil,true,"mutagen", "sync", "terminate", sessionName)
+				if err != nil {
+					printlnErr("failed to terminate sync session", err)
+				}else {
+					// todo
+					fmt.Println("sync session has been terminated.")
+				}
+
+			}
+			//fmt.Println(line)
+		}
+	}
 }
 
 func DeploymentRollBackToPreviousRevision(){
@@ -62,17 +87,11 @@ func DeploymentRollBackToPreviousRevision(){
 	}
 
 	keys := make([]int,0)
-
 	for rs := range rss {
 		keys = append(keys, rs)
 	}
-
 	sort.Ints(keys)
-	//for _, key := range keys {
-	//	fmt.Printf("%d %s\n", key, rss[key].Name)
-	//}
 
-	fmt.Println(rss[keys[len(keys)-2]].Name)
 	dep.Spec.Template = rss[keys[len(keys)-2]].Spec.Template // previous replicaSet is the second largest revision number : keys[len(keys)-2]
 	_, err = deploymentsClient.Update(context.TODO(), dep, metav1.UpdateOptions{})
 	if err != nil {
@@ -83,31 +102,3 @@ func DeploymentRollBackToPreviousRevision(){
 
 }
 
-func GetReplicaSetsControlledByDeployment(deployment string) (map[int]*v1.ReplicaSet,error) {
-	var rsList *v1.ReplicaSetList
-	clientSet, err := getClientSet()
-	if err == nil {
-		replicaSetsClient := clientSet.AppsV1().ReplicaSets(nameSpace)
-		rsList, err = replicaSetsClient.List(context.TODO(),metav1.ListOptions{})
-	}
-	if err != nil {
-		fmt.Printf("failed to get rs: %v\n", err)
-		return nil,err
-	}
-
-	rsMap := make(map[int]*v1.ReplicaSet)
-	for _, item := range rsList.Items {
-		if item.OwnerReferences != nil {
-			for _, owner := range item.OwnerReferences {
-				if owner.Name == deployment && item.Annotations["deployment.kubernetes.io/revision"] != "" {
-					fmt.Printf("%s %s\n", item.Name, item.Annotations["deployment.kubernetes.io/revision"] )
-					revision, err := strconv.Atoi(item.Annotations["deployment.kubernetes.io/revision"])
-					if err == nil {
-						rsMap[revision] = item.DeepCopy()
-					}
-				}
-			}
-		}
-	}
-	return rsMap, nil
-}
