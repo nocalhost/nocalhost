@@ -70,26 +70,23 @@ func CheckK8s() (string,bool){
 }
 
 func ExecKubeCtlCommand(ctx context.Context, params ...string) error {
-
 	_, err := ExecCommand(ctx, true,"kubectl",  params...)
-	if err != nil {
-		fmt.Printf("%v\n", err)
-	}
 	return err
 }
 
 //execute command
 func ExecCommand(ctx context.Context, isDisplay bool , commandName string,  params ...string) (string,error){
-	osName := CheckOS()
-	basePath := "utils/" + osName + "/"
-	execCommand := basePath + commandName
+	//osName := CheckOS()
+	//basePath := "utils/" + osName + "/"
+	//execCommand := basePath + commandName
+	execCommand := commandName
 
 	// check command
-	if CheckCommand(commandName) {
-		if !CheckFile(execCommand) {
-			return "", errors.New("error: command not exists")
-		}
-	}
+	//if CheckCommand(commandName) {
+	//	if !CheckFile(execCommand) {
+	//		return "", errors.New("error: command not exists")
+	//	}
+	//}
 	var cmd *exec.Cmd
 	if ctx == nil {
 		cmd = exec.Command(execCommand, params...)
@@ -104,7 +101,11 @@ func ExecCommand(ctx context.Context, isDisplay bool , commandName string,  para
 		return "", errors.New("error: command failed to execute")
 	}
 	//start
-	cmd.Start()
+	err = cmd.Start()
+	if err != nil {
+		fmt.Printf("failed to start cmd, err:%v\n", err)
+		return "", err
+	}
 	reader := bufio.NewReader(stdout)
 	//print output
 	output := ""
@@ -118,7 +119,10 @@ func ExecCommand(ctx context.Context, isDisplay bool , commandName string,  para
 			fmt.Print(line+"\n")
 		}
 	}
-	cmd.Wait()
+	err = cmd.Wait()
+	if err != nil {
+		return "", err
+	}
 	return output, nil
 }
 

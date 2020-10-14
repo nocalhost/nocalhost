@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/spf13/cobra"
+	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/pkg/nhctl/tools"
+	"os"
 	"sort"
 	"strings"
 )
@@ -33,9 +35,37 @@ var debugEndCmd = &cobra.Command{
 		// end file sync
 		fmt.Println("ending file sync...")
 		EndFileSync()
+
+		fmt.Println("stopping port-forward...")
+		StopPortForward()
+
 		fmt.Println("roll back deployment...")
-		//DeploymentRollBackToPreviousRevision()
+		DeploymentRollBackToPreviousRevision()
 	},
+}
+
+func StopPortForward(){
+
+
+	_, err := os.Stat(".pid")
+	var bys []byte
+	if err == nil {
+		bys, err = ioutil.ReadFile(".pid")
+	}
+	if err != nil {
+		printlnErr("failed to get pid", err)
+		return
+	}
+
+	pid := string(bys)
+
+	_, err = tools.ExecCommand(nil,true, "kill", "-1", pid)
+	if err != nil {
+		printlnErr("failed to stop port forward",err)
+		return
+	} else {
+		fmt.Println("port-forward stopped.")
+	}
 }
 
 func EndFileSync() {
@@ -51,7 +81,7 @@ func EndFileSync() {
 				if err != nil {
 					printlnErr("failed to terminate sync session", err)
 				}else {
-					// todo
+					// todo confirm session's status
 					fmt.Println("sync session has been terminated.")
 				}
 
