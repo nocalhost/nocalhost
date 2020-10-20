@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/spf13/cobra"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 )
@@ -15,6 +16,7 @@ func init() {
 	debugStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
 	debugStartCmd.Flags().StringVarP(&lang, "type", "l", "", "the development language, eg: java go python")
 	debugStartCmd.Flags().StringVarP(&image, "image", "i", "", "image of development container")
+	debugStartCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubernetes cluster config")
 	debugCmd.AddCommand(debugStartCmd)
 }
 
@@ -101,40 +103,25 @@ func ReplaceImage(nameSpace string, deployment string) {
 
 	<-time.NewTimer(time.Second * 3).C
 
-	// find deployment's podList name
-	podClient, err := GetPodClient(nameSpace)
-	if err != nil {
-		fmt.Printf("failed to get podList client: %v\n", err)
-		return
-	}
-
-	labels := ""
-	for k, v := range dep.Spec.Template.ObjectMeta.Labels {
-		labels = labels + k + "=" + v
-		break
-	}
-	//labels = labels[:len(labels)-1]
-	fmt.Println("finding podList with labels : " + labels)
-
-	podList, err := podClient.List(context.TODO(), metav1.ListOptions{LabelSelector: labels})
+	podList, err := findPodListOfDeployment(dep.Name)
 	if err != nil {
 		fmt.Printf("failed to get pods, err: %v\n", err)
 		return
 	}
 
-	fmt.Printf("find %d pods\n", len(podList.Items)) // should be 2
+	fmt.Printf("%d pod found\n", len(podList)) // should be 2
 
 	//pod := podList.Items[0]
 	// wait podList to be ready
 	fmt.Printf("waiting pod to start.")
 	for {
 		<-time.NewTimer(time.Second * 2).C
-		podList, err = podClient.List(context.TODO(), metav1.ListOptions{LabelSelector: labels})
+		podList, err = findPodListOfDeployment(dep.Name)
 		if err != nil {
 			fmt.Printf("failed to get pods, err: %v\n", err)
 			return
 		}
-		if len(podList.Items) == 1 {
+		if len(podList) == 1 {
 			// todo check container status
 			break
 		}
@@ -142,4 +129,40 @@ func ReplaceImage(nameSpace string, deployment string) {
 	}
 
 	fmt.Println("develop container has been updated")
+}
+
+func findPodListOfDeployment(deploy string) ([]v1.Pod, error) {
+	podClient, err := GetPodClient(nameSpace)
+	if err != nil {
+		fmt.Printf("failed to get podList client: %v\n", err)
+		return nil, err
+	}
+
+	podList, err := podClient.List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		fmt.Printf("failed to get pods, err: %v\n", err)
+		return nil, err
+	}
+
+	result := make([]v1.Pod, 0)
+
+	OuterLoop:
+	for _, pod := range podList.Items {
+		if pod.OwnerReferences != nil {
+			for _, ref := range pod.OwnerReferences {
+				if ref.Kind == "ReplicaSet" {
+					rss, _ := GetReplicaSetsControlledByDeployment(deploy)
+					if rss != nil {
+						for _, rs := range rss {
+							if rs.Name == ref.Name {
+								result = append(result, pod)
+								continue OuterLoop
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return result,nil
 }

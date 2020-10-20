@@ -4,6 +4,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var kubeconfig string
+
 
 func init() {
 	rootCmd.AddCommand(debugCmd)

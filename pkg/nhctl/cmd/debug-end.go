@@ -15,6 +15,7 @@ import (
 func init() {
 	debugEndCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	debugEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
+	debugEndCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubernetes cluster config")
 	debugCmd.AddCommand(debugEndCmd)
 }
 
@@ -126,9 +127,10 @@ func DeploymentRollBackToPreviousRevision(){
 	_, err = deploymentsClient.Update(context.TODO(), dep, metav1.UpdateOptions{})
 	if err != nil {
 		fmt.Println("failed rolling back")
-	}else {
+	} else {
 		fmt.Println("rolling back!")
 	}
+	// todo wait util rollback completed
 
 }
 
