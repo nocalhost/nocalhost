@@ -9,11 +9,23 @@ import (
 	appsV1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
+	"os/user"
 	"strconv"
 )
 
 func getClientSet() (*kubernetes.Clientset, error) {
-	k8sConfig, err := clientcmd.BuildConfigFromFlags("", "/Users/xinxinhuang/.kube/config")
+	home := GetHomePath()
+	kubeconfigPath := fmt.Sprintf("%s/.kube/config", home)  // default kubeconfig
+	if kubeconfig != "" {
+		//if strings.HasPrefix(kubeconfig, "/") {
+		//	kubeconfigPath = kubeconfig
+		//} else {
+		//
+		//}
+		kubeconfigPath = kubeconfig
+	}
+
+	k8sConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	if err != nil {
 		fmt.Printf("%v",err)
 		return nil, err
@@ -49,6 +61,7 @@ func GetPodClient(nameSpace string) (coreV1.PodInterface, error){
 	return podClient, nil
 }
 
+// revision:ReplicaSet
 func GetReplicaSetsControlledByDeployment(deployment string) (map[int]*v1.ReplicaSet,error) {
 	var rsList *v1.ReplicaSetList
 	clientSet, err := getClientSet()
@@ -80,5 +93,14 @@ func GetReplicaSetsControlledByDeployment(deployment string) (map[int]*v1.Replic
 
 func printlnErr(info string, err error) {
 	fmt.Printf("%s, err: %v\n", info, err)
+}
+
+
+func GetHomePath() string {
+	u , err := user.Current()
+	if err == nil {
+		return u.HomeDir
+	}
+	return ""
 }
 

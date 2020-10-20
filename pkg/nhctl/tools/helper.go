@@ -69,8 +69,15 @@ func CheckK8s() (string,bool){
     return version, true
 }
 
-func ExecKubeCtlCommand(ctx context.Context, params ...string) error {
-	_, err := ExecCommand(ctx, true,"kubectl",  params...)
+func ExecKubeCtlCommand(ctx context.Context, kubeconfig string,  params ...string) error {
+	var err error
+	if kubeconfig != "" {
+		params = append(params, "--kubeconfig")
+		params = append(params, kubeconfig)
+		_, err = ExecCommand(ctx, true,"kubectl", params...)
+	} else {
+		_, err = ExecCommand(ctx, true,"kubectl", params...)
+	}
 	return err
 }
 

@@ -14,13 +14,15 @@ import (
 var deployment,localPort,remotePort string
 
 func init() {
+	portForwardCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
+	portForwardCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubernetes cluster config")
 	portForwardCmd.Flags().StringVarP(&localPort, "local-port", "l", "10000", "local port to forward")
 	portForwardCmd.Flags().StringVarP(&remotePort, "remote-port", "r", "22", "remote port to be forwarded")
 	portForwardCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
 	rootCmd.AddCommand(portForwardCmd)
 }
 
-var portForwardCmd = &cobra.Command{
+var portForwardCmd = &cobra.Command {
 	Use:   "port-forward",
 	Short: "Forward local port to remote pod'port",
 	Long: `Forward local port to remote pod'port`,
@@ -57,7 +59,7 @@ var portForwardCmd = &cobra.Command{
 			pid := os.Getpid()
 			ioutil.WriteFile(".pid", []byte(fmt.Sprintf("%d", pid)), 0644 )
 		}
-		err = kubectl.PortForward(ctx , deployment, localPort, remotePort) // eg : ./utils/darwin/kubectl port-forward --address 0.0.0.0 deployment/coding  12345:22
+		err = kubectl.PortForward(ctx , kubeconfig, deployment, localPort, remotePort) // eg : ./utils/darwin/kubectl port-forward --address 0.0.0.0 deployment/coding  12345:22
 		if err != nil {
 			fmt.Printf("failed to forward port : %v\n", err)
 			err = os.Remove(".pid")
