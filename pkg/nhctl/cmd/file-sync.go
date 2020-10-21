@@ -32,7 +32,7 @@ var fileSyncCmd = &cobra.Command{
 			return
 		}
 		//TO-DO
-		fmt.Println("file syncing...")  // tools/darwin/mutagen sync create --sync-mode=one-way-safe --name=$1  $2  $3
+		fmt.Println("file syncing...")  // tools/darwin/mutagen sync create --sync-mode=one-way-safe --releaseName=$1  $2  $3
 											// ./tools/script/file-sync.sh coding dir01 root@127.0.0.1:12345:/home/code
 		mutagen.FileSync(localFolderName, remoteFolder, sshPort)
 	},
