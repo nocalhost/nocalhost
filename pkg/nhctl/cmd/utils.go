@@ -79,7 +79,7 @@ func GetReplicaSetsControlledByDeployment(deployment string) (map[int]*v1.Replic
 		if item.OwnerReferences != nil {
 			for _, owner := range item.OwnerReferences {
 				if owner.Name == deployment && item.Annotations["deployment.kubernetes.io/revision"] != "" {
-					fmt.Printf("%s %s\n", item.Name, item.Annotations["deployment.kubernetes.io/revision"] )
+					//fmt.Printf("%s %s\n", item.Name, item.Annotations["deployment.kubernetes.io/revision"] )
 					revision, err := strconv.Atoi(item.Annotations["deployment.kubernetes.io/revision"])
 					if err == nil {
 						rsMap[revision] = item.DeepCopy()

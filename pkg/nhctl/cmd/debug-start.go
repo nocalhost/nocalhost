@@ -47,7 +47,9 @@ func ReplaceImage(nameSpace string, deployment string) {
 
 	switch lang {
 	case "java":
-		debugImage = "roandocker/share-container-java:v2"
+		debugImage = "roandocker/share-container-java:v3"
+	case "ruby":
+		debugImage = "share-container-ruby:v1"
 	default:
 		fmt.Printf("unsupported language : %s\n", lang)
 		return
