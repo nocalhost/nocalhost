@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nocalhost-mutating-dependents
+  namespace: nocalhost-reserved
+  labels:
+    app: nocalhost-mutating-dependents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nocalhost-mutating-dependents
+  template:
+    metadata:
+      labels:
+        app: nocalhost-mutating-dependents
+    spec:
+      containers:
+        - name: nocalhost-mutating-dependents
+          image: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-admission-webhook:v52
+          imagePullPolicy: Always
+          # dev mode
+          #command: ["/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/server", "--"]
+          args:
+            - -sidecarCfgFile=/etc/webhook/config/sidecarconfig.yaml
+            - -tlsCertFile=/etc/webhook/certs/cert.pem
+            - -tlsKeyFile=/etc/webhook/certs/key.pem
+            - -alsologtostderr
+            - -v=4
+            - 2>&1
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+            - name: kubeconfig
+              mountPath: /.kube/config
+              subPath: config
+            - name: webhook-config
+              mountPath: /etc/webhook/config
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: nocalhost-sidecar-injector-certs
+        - name: kubeconfig
+          configMap:
+            name: nocalhost-kubeconfig
+        - name: webhook-config
+          configMap:
+            name: sidecar-injector-webhook-configmap
