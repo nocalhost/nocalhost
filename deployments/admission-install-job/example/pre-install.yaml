@@ -1,0 +1,9 @@
+# 前置执行的 manifest 执行熟顺序，用于处理核心的服务
+# 对于 helm 则使用 pre-install 和 weight 的注解来解决
+pre-install:
+  - path: deployment/mysql.yaml
+    weight: 0  # 权重，约小约靠前，可不填默认是0
+  - path: deployment/redis.yaml
+    weight: 1  # 权重，约小约靠前
+  - path: deployment/rabbitmq.yaml
+    weight: 2  # 权重，约小约靠前
