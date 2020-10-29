@@ -3,29 +3,31 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	appsV1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"os"
 	"os/user"
 	"strconv"
+	"strings"
 )
 
-func getClientSet() (*kubernetes.Clientset, error) {
+func GetK8sRestClientConfig () 	(*restclient.Config, error) {
 	home := GetHomePath()
 	kubeconfigPath := fmt.Sprintf("%s/.kube/config", home)  // default kubeconfig
 	if kubeconfig != "" {
-		//if strings.HasPrefix(kubeconfig, "/") {
-		//	kubeconfigPath = kubeconfig
-		//} else {
-		//
-		//}
 		kubeconfigPath = kubeconfig
 	}
+	return clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+}
 
-	k8sConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+func getClientSet() (*kubernetes.Clientset, error) {
+	k8sConfig, err := GetK8sRestClientConfig()
 	if err != nil {
 		fmt.Printf("%v",err)
 		return nil, err
@@ -48,6 +50,15 @@ func GetDeploymentClient(nameSpace string) (appsV1.DeploymentInterface, error){
 
 	deploymentsClient := clientSet.AppsV1().Deployments(nameSpace)
 	return deploymentsClient, nil
+}
+
+func GetRestClient() (*restclient.RESTClient, error){
+	k8sConfig, err := GetK8sRestClientConfig()
+	if err != nil {
+		fmt.Printf("%v",err)
+		return nil, err
+	}
+	return restclient.RESTClientFor(k8sConfig)
 }
 
 func GetPodClient(nameSpace string) (coreV1.PodInterface, error){
@@ -103,4 +114,35 @@ func GetHomePath() string {
 	}
 	return ""
 }
+
+func GetFilesAndDirs(dirPth string) (files []string, dirs []string, err error) {
+	dir, err := ioutil.ReadDir(dirPth)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	PthSep := string(os.PathSeparator)
+
+	for _, fi := range dir {
+		if fi.IsDir() {
+			dirs = append(dirs, dirPth+PthSep+fi.Name())
+			fs, ds, err := GetFilesAndDirs(dirPth + PthSep + fi.Name())
+			if err != nil {
+				return files, dirs, err
+			}
+			dirs = append(dirs, ds...)
+			files = append(files, fs...)
+		} else {
+			ok := strings.HasSuffix(fi.Name(), ".yaml")
+			if ok {
+				files = append(files, dirPth+PthSep+fi.Name())
+			} else if strings.HasSuffix(fi.Name(), ".yml") {
+				files = append(files, dirPth+PthSep+fi.Name())
+			}
+		}
+	}
+
+	return files, dirs, nil
+}
+
 
