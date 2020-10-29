@@ -86,7 +86,14 @@ func InstallApplication() {
 	}
 	fmt.Printf("resources path is %s\n", resourcesPath)
 	if appType == "helm" {
-		_, err = tools.ExecCommand(nil, true, "helm", "upgrade", "--install", "--wait", releaseName, resourcesPath, "-n", nameSpace, "--kubeconfig", kubeconfig)
+		params := []string {"upgrade", "--install", "--wait", releaseName, resourcesPath  }
+		if nameSpace != "" {
+			params = append(params, "-n", nameSpace)
+		}
+		if kubeconfig != "" {
+			params = append(params, "--kubeconfig", kubeconfig)
+		}
+		_, err = tools.ExecCommand(nil, true, "helm", params...)
 		if err != nil {
 			printlnErr("fail to install helm app", err)
 			return
