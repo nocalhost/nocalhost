@@ -10,7 +10,7 @@ spec:
     spec:
       containers:
         - name: admission-installer
-          image: codingcorp-docker.pkg.coding.net/nocalhost/public/admission-installer:v27
+          image: codingcorp-docker.pkg.coding.net/nocalhost/public/admission-installer:v29
           volumeMounts:
             - name: kubeconfig
               mountPath: /.kube/config
