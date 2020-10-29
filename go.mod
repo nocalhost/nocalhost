@@ -55,9 +55,10 @@ require (
 	google.golang.org/grpc v1.27.0
 	google.golang.org/protobuf v1.24.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
+	gopkg.in/yaml.v2 v2.3.0
 	honnef.co/go/tools v0.0.1-2020.1.3 // indirect
-	k8s.io/api v0.19.2
-	k8s.io/apimachinery v0.19.2
-	k8s.io/client-go v0.19.2
+	k8s.io/api v0.19.3
+	k8s.io/apimachinery v0.19.3
+	k8s.io/client-go v0.19.3
 	k8s.io/utils v0.0.0-20201005171033-6301aaf42dc7 // indirect
 )
