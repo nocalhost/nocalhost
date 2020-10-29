@@ -1,0 +1,30 @@
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: nocalhost-mutating.coding.net
+  labels:
+    app: nocalhost-mutating-dependents
+webhooks:
+  - name: nocalhost-mutating.coding.net
+    failurePolicy: Fail # 调用 webhook 的错误导致准入失败并且 API 请求被拒绝，默认 Ignore
+    namespaceSelector:
+      matchExpressions:
+        - key: env
+          operator: In
+          values: [ "nocalhost" ]  # 只对有 label env=nocalhost 的 namespace 处理，避免 kube-system istio-system
+    clientConfig:
+      service:
+        name: nocalhost-sidecar-injector-svc
+        namespace: nocalhost-reserved
+        path: "/mutate"
+      caBundle: ${CA_BUNDLE}
+    admissionReviewVersions: ["v1beta1"]
+    #sideEffects: None  # only v1 没有副作用，如果处理失败则略过
+    timeoutSeconds: 5  # 超时时间
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: ["apps"] # 如果是 pods 没有 apiGroups ，留空
+        apiVersions: ["v1", "v1beta1"]
+        resources: ["deployments", "daemonsets", "replicasets", "statefulsets", "cronjobs", "jobs"]
+        #resources: ["pods"]
+

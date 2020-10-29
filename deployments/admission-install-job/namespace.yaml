@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nocalhost-reserved
+
+# 注意需要自动注入 sidecar 的 namespace 需要添加 env=nocalhost 的 label ，否则不会自动注入
+# kubectl label namespace default env=nocalhost
