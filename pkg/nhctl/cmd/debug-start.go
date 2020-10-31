@@ -49,7 +49,7 @@ func ReplaceImage(nameSpace string, deployment string) {
 	case "java":
 		debugImage = "roandocker/share-container-java:v3"
 	case "ruby":
-		debugImage = "share-container-ruby:v1"
+		debugImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/share-container-ruby:v1"
 	default:
 		fmt.Printf("unsupported language : %s\n", lang)
 		return

@@ -86,7 +86,7 @@ func InstallApplication() {
 	}
 	fmt.Printf("resources path is %s\n", resourcesPath)
 	if appType == "helm" {
-		params := []string {"upgrade", "--install", "--wait", releaseName, resourcesPath  }
+		params := []string {"upgrade", "--install", "--wait", releaseName, resourcesPath, "--debug"  }
 		if nameSpace != "" {
 			params = append(params, "-n", nameSpace)
 		}
