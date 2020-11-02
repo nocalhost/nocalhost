@@ -1,7 +1,7 @@
 package main
 
-import "nocalhost/pkg/nhctl/cmd"
+import "nocalhost/cmd/nhctl/cmds"
 
 func main() {
-	cmd.Execute()
+	cmds.Execute()
 }
