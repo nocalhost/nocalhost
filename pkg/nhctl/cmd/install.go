@@ -1,12 +1,32 @@
+/*
+Copyright 2020 The Nocalhost Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package cmd
 
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/tools"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -15,12 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	cachetools "k8s.io/client-go/tools/cache"
 	watchtools "k8s.io/client-go/tools/watch"
-	"nocalhost/pkg/nhctl/clientgoutils"
-	"nocalhost/pkg/nhctl/tools"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var releaseName, gitUrl, resourcesDir, helmValueFile, appType, preInstallConfigPath string
@@ -76,7 +90,7 @@ func InstallApplication() {
 	}
 
 	// helm install
-	gitSuffix := gitUrl[:len(gitUrl) - 4]
+	gitSuffix := gitUrl[:len(gitUrl)-4]
 	fmt.Println("git dir : " + gitSuffix)
 	strs := strings.Split(gitSuffix, "/")
 	gitSuffix = strs[len(strs)-1]
@@ -116,6 +130,7 @@ type Item struct {
 }
 
 type ComparableItems []Item
+
 func (a ComparableItems) Len() int      { return len(a) }
 func (a ComparableItems) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ComparableItems) Less(i, j int) bool {
@@ -131,16 +146,16 @@ func (a ComparableItems) Less(i, j int) bool {
 	return iW < jW
 }
 
-func InstallManifestRecursively(dir string, excludeFiles []string) error{
+func InstallManifestRecursively(dir string, excludeFiles []string) error {
 
 	files, _, err := GetFilesAndDirs(dir)
 	if err != nil {
 		return err
 	}
 
-	outer:
+outer:
 	for _, file := range files {
-		for _, ex := range excludeFiles{
+		for _, ex := range excludeFiles {
 			if ex == file {
 				fmt.Println("ignore file : " + file)
 				continue outer
@@ -151,12 +166,12 @@ func InstallManifestRecursively(dir string, excludeFiles []string) error{
 		if err != nil {
 			return err
 		}
-		clientUtil.Create(file,nameSpace,false)
+		clientUtil.Create(file, nameSpace, false)
 	}
 	return err
 }
 
-func PreInstall(basePath string) ([]string, error){
+func PreInstall(basePath string) ([]string, error) {
 	fmt.Println("run pre-install....")
 	//  读取一个yaml文件
 	pConf := &PreInstallConfig{}
@@ -179,12 +194,12 @@ func PreInstall(basePath string) ([]string, error){
 	if err != nil {
 		return nil, err
 	}
-	files := make([]string,0)
+	files := make([]string, 0)
 	for _, item := range pConf.Items {
 		fmt.Println(item.Path + " : " + item.Weight)
-		files = append(files, basePath + "/"+ item.Path)
+		files = append(files, basePath+"/"+item.Path)
 		// todo check if item.Path is a valid file
-		err = clientUtils.Create(basePath + "/" + item.Path, nameSpace, true)
+		err = clientUtils.Create(basePath+"/"+item.Path, nameSpace, true)
 		if err != nil {
 			return files, err
 		}

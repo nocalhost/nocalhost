@@ -1,17 +1,31 @@
+/*
+Copyright 2020 The Nocalhost Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package cmd
 
 import (
 	"context"
 	"fmt"
-	"github.com/spf13/cobra"
 	"io/ioutil"
 	"nocalhost/pkg/nhctl/third_party/kubectl"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/spf13/cobra"
 )
 
-var deployment,localPort,remotePort string
+var deployment, localPort, remotePort string
 
 func init() {
 	portForwardCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
@@ -22,10 +36,10 @@ func init() {
 	rootCmd.AddCommand(portForwardCmd)
 }
 
-var portForwardCmd = &cobra.Command {
+var portForwardCmd = &cobra.Command{
 	Use:   "port-forward",
 	Short: "Forward local port to remote pod'port",
-	Long: `Forward local port to remote pod'port`,
+	Long:  `Forward local port to remote pod'port`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if deployment == "" {
 			fmt.Println("error: please use -d to specify a kubernetes deployment")
@@ -37,7 +51,7 @@ var portForwardCmd = &cobra.Command {
 		}
 		// todo local port should be specificed ?
 		c := make(chan os.Signal)
-		signal.Notify(c, syscall.SIGHUP)  // kill -1
+		signal.Notify(c, syscall.SIGHUP) // kill -1
 		ctx, cancel := context.WithCancel(context.TODO())
 
 		go func() {
@@ -61,9 +75,9 @@ var portForwardCmd = &cobra.Command {
 			// record pid
 			fmt.Println("recording pid...")
 			pid := os.Getpid()
-			ioutil.WriteFile(".pid", []byte(fmt.Sprintf("%d", pid)), 0644 )
+			ioutil.WriteFile(".pid", []byte(fmt.Sprintf("%d", pid)), 0644)
 		}
-		err = kubectl.PortForward(ctx , kubeconfig, nameSpace, deployment, localPort, remotePort) // eg : ./utils/darwin/kubectl port-forward --address 0.0.0.0 deployment/coding  12345:22
+		err = kubectl.PortForward(ctx, kubeconfig, nameSpace, deployment, localPort, remotePort) // eg : ./utils/darwin/kubectl port-forward --address 0.0.0.0 deployment/coding  12345:22
 		if err != nil {
 			fmt.Printf("failed to forward port : %v\n", err)
 			err = os.Remove(".pid")

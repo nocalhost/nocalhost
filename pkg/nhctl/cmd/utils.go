@@ -1,9 +1,27 @@
+/*
+Copyright 2020 The Nocalhost Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package cmd
 
 import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"os/user"
+	"strconv"
+	"strings"
+
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -11,15 +29,11 @@ import (
 	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"os/user"
-	"strconv"
-	"strings"
 )
 
-func GetK8sRestClientConfig () 	(*restclient.Config, error) {
+func GetK8sRestClientConfig() (*restclient.Config, error) {
 	home := GetHomePath()
-	kubeconfigPath := fmt.Sprintf("%s/.kube/config", home)  // default kubeconfig
+	kubeconfigPath := fmt.Sprintf("%s/.kube/config", home) // default kubeconfig
 	if kubeconfig != "" {
 		kubeconfigPath = kubeconfig
 	}
@@ -29,43 +43,43 @@ func GetK8sRestClientConfig () 	(*restclient.Config, error) {
 func getClientSet() (*kubernetes.Clientset, error) {
 	k8sConfig, err := GetK8sRestClientConfig()
 	if err != nil {
-		fmt.Printf("%v",err)
+		fmt.Printf("%v", err)
 		return nil, err
 	}
 
 	clientSet, err := kubernetes.NewForConfig(k8sConfig)
 	if err != nil {
-		fmt.Printf("%v",err)
+		fmt.Printf("%v", err)
 		return nil, err
 	}
 	return clientSet, nil
 }
 
-func GetDeploymentClient(nameSpace string) (appsV1.DeploymentInterface, error){
+func GetDeploymentClient(nameSpace string) (appsV1.DeploymentInterface, error) {
 	clientSet, err := getClientSet()
 	if err != nil {
-		fmt.Printf("%v",err)
-		return nil , err
+		fmt.Printf("%v", err)
+		return nil, err
 	}
 
 	deploymentsClient := clientSet.AppsV1().Deployments(nameSpace)
 	return deploymentsClient, nil
 }
 
-func GetRestClient() (*restclient.RESTClient, error){
+func GetRestClient() (*restclient.RESTClient, error) {
 	k8sConfig, err := GetK8sRestClientConfig()
 	if err != nil {
-		fmt.Printf("%v",err)
+		fmt.Printf("%v", err)
 		return nil, err
 	}
 	return restclient.RESTClientFor(k8sConfig)
 }
 
-func GetPodClient(nameSpace string) (coreV1.PodInterface, error){
+func GetPodClient(nameSpace string) (coreV1.PodInterface, error) {
 	clientSet, err := getClientSet()
 	if err != nil {
-		fmt.Printf("%v",err)
-		return nil , err
+		fmt.Printf("%v", err)
+		return nil, err
 	}
 
 	podClient := clientSet.CoreV1().Pods(nameSpace)
@@ -73,16 +87,16 @@ func GetPodClient(nameSpace string) (coreV1.PodInterface, error){
 }
 
 // revision:ReplicaSet
-func GetReplicaSetsControlledByDeployment(deployment string) (map[int]*v1.ReplicaSet,error) {
+func GetReplicaSetsControlledByDeployment(deployment string) (map[int]*v1.ReplicaSet, error) {
 	var rsList *v1.ReplicaSetList
 	clientSet, err := getClientSet()
 	if err == nil {
 		replicaSetsClient := clientSet.AppsV1().ReplicaSets(nameSpace)
-		rsList, err = replicaSetsClient.List(context.TODO(),metav1.ListOptions{})
+		rsList, err = replicaSetsClient.List(context.TODO(), metav1.ListOptions{})
 	}
 	if err != nil {
 		fmt.Printf("failed to get rs: %v\n", err)
-		return nil,err
+		return nil, err
 	}
 
 	rsMap := make(map[int]*v1.ReplicaSet)
@@ -106,9 +120,8 @@ func printlnErr(info string, err error) {
 	fmt.Printf("%s, err: %v\n", info, err)
 }
 
-
 func GetHomePath() string {
-	u , err := user.Current()
+	u, err := user.Current()
 	if err == nil {
 		return u.HomeDir
 	}
@@ -144,5 +157,3 @@ func GetFilesAndDirs(dirPth string) (files []string, dirs []string, err error) {
 
 	return files, dirs, nil
 }
-
-
