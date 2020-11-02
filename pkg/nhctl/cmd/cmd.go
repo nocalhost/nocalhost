@@ -11,11 +11,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cluster
+package cmd
 
-// 创建集群请求
-type CreateClusterRequest struct {
-	Name       string `json:"name" binding:"required"`
-	Marks      string `json:"marks"`
-	KubeConfig string `json:"kubeconfig" binding:"required"`
-}
+var enableDebug string

@@ -1,25 +1,40 @@
+/*
+Copyright 2020 The Nocalhost Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package webhook
+
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	nocalhost "nocalhost/pkg/nocalhost-dep/go-client"
+	"strings"
+
 	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
-	"io/ioutil"
 	"k8s.io/api/admission/v1beta1"
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
-	"k8s.io/api/core/v1"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
-	"net/http"
-	nocalhost "nocalhost/pkg/nocalhost-dep/go-client"
-	"strings"
 )
 
 var (
@@ -92,7 +107,6 @@ type depApp struct {
 type depJobs struct {
 	Jobs []string `yaml:"jobs"`
 }
-
 
 var clientset *kubernetes.Clientset
 
@@ -168,13 +182,35 @@ func mutationRequired(ignoredList []string, metadata *metav1.ObjectMeta) bool {
 }
 
 // add initContainers
-func addInitContainer(initContainers []map[string]interface{}, path string) (patch []patchOperation) {
-	patch = append(patch, patchOperation{
-		Op:    "add",
-		Path:  path,
-		Value: initContainers,
-	})
+func addInitContainer(objectMeta []corev1.Container, initContainers []corev1.Container, path string) (patch []patchOperation) {
+	first := len(objectMeta) == 0
+	var value interface{}
+	for _, add := range initContainers {
+		value = add
+		path := path
+		if first {
+			first = false
+			value = []corev1.Container{add}
+		} else {
+			path = path + "/-"
+		}
+		patch = append(patch, patchOperation{
+			Op:    "add",
+			Path:  path,
+			Value: value,
+		})
+	}
 	return patch
+
+	//if len(objectMeta) > 0 {
+	//	path = path + "/-"
+	//}
+	//patch = append(patch, patchOperation{
+	//	Op:    "add",
+	//	Path:  path,
+	//	Value: initContainers,
+	//})
+	//return patch
 }
 
 func addContainer(target, added []corev1.Container, basePath string) (patch []patchOperation) {
@@ -253,19 +289,19 @@ func updateAnnotation(target map[string]string, added map[string]string) (patch 
 //}
 
 // create patch for all
-func createPatchAny(initContainers []map[string]interface{}) ([]byte, error){
+func createPatchAny(objectInitContainer []corev1.Container, initContainers []corev1.Container) ([]byte, error) {
 	// /spec/template/spec/initContainers 经核实 6 种工作负载路径一致
 	var patch []patchOperation
-	if initContainers != nil {
-		patch = append(patch, addInitContainer(initContainers, "/spec/template/spec/initContainers")...)
+	if initContainers != nil && len(initContainers) > 0 {
+		patch = append(patch, addInitContainer(objectInitContainer, initContainers, "/spec/template/spec/initContainers")...)
 	}
 	return json.Marshal(patch)
 }
 
 // get nocalhost dependents configmaps 多个应用可能存在多个，需要遍历
-func nocalhostDepConfigmap(namespace string, resourceName string, resourceType string) ([]map[string]interface{}, error) {
-	configMaps, err := clientset.CoreV1().ConfigMaps(namespace).List(metav1.ListOptions{})
-	var initContainers []map[string]interface{}
+func nocalhostDepConfigmap(namespace string, resourceName string, resourceType string) ([]corev1.Container, error) {
+	configMaps, err := clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
+	initContainers := make([]corev1.Container, 0)
 	if err != nil {
 		glog.Fatalln("failed to get config map:", err)
 		return initContainers, err
@@ -286,11 +322,21 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 					if dependency.Name == resourceName && strings.ToLower(dependency.Type) == strings.ToLower(resourceType) {
 						// 组装 initContainer
 						if dependency.Pods != nil {
-							initContainer := make(map[string]interface{})
-							initContainer["name"] = "wait-for-pods"
-							initContainer["image"] = waitImages
-							initContainer["imagePullPolicy"] = imagePullPolicy
-							initContainer["args"] = func(podsList []string) []string {
+							//initContainer := make(map[string]interface{})
+							//initContainer["name"] = "wait-for-pods"
+							//initContainer["image"] = waitImages
+							//initContainer["imagePullPolicy"] = imagePullPolicy
+							//initContainer["args"] = func(podsList []string) []string {
+							//	var args []string
+							//	args = append(args, "pod")
+							//	for _, pod := range podsList {
+							//		args = append(args, fmt.Sprintf("-lapp=%s", pod))
+							//	}
+							//	return args
+							//}(dependency.Pods)
+							//initContainers = append(initContainers, initContainer)
+
+							args := func(podsList []string) []string {
 								var args []string
 								args = append(args, "pod")
 								for _, pod := range podsList {
@@ -298,14 +344,31 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 								}
 								return args
 							}(dependency.Pods)
+
+							initContainer := corev1.Container{
+								Name:            "wait-for-pods",
+								Image:           waitImages,
+								ImagePullPolicy: corev1.PullPolicy("Always"),
+								Args:            args,
+							}
 							initContainers = append(initContainers, initContainer)
 						}
 						if dependency.Jobs != nil {
-							initContainer := make(map[string]interface{})
-							initContainer["name"] = "wait-for-jobs"
-							initContainer["image"] = waitImages
-							initContainer["imagePullPolicy"] = imagePullPolicy
-							initContainer["args"] = func(jobsList []string) []string {
+							//initContainer := make(map[string]interface{})
+							//initContainer["name"] = "wait-for-jobs"
+							//initContainer["image"] = waitImages
+							//initContainer["imagePullPolicy"] = imagePullPolicy
+							//initContainer["args"] = func(jobsList []string) []string {
+							//	var args []string
+							//	args = append(args, "job")
+							//	for _, job := range jobsList {
+							//		args = append(args, job)
+							//	}
+							//	return args
+							//}(dependency.Jobs)
+							//initContainers = append(initContainers, initContainer)
+
+							args := func(jobsList []string) []string {
 								var args []string
 								args = append(args, "job")
 								for _, job := range jobsList {
@@ -313,6 +376,13 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 								}
 								return args
 							}(dependency.Jobs)
+
+							initContainer := corev1.Container{
+								Name:            "wait-for-jobs",
+								Image:           waitImages,
+								ImagePullPolicy: corev1.PullPolicy("Always"),
+								Args:            args,
+							}
 							initContainers = append(initContainers, initContainer)
 						}
 					}
@@ -327,8 +397,9 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
 	req := ar.Request
 	var (
-		objectMeta *metav1.ObjectMeta
-		resourceName string
+		objectMeta    *metav1.ObjectMeta
+		resourceName  string
+		initContainer []corev1.Container
 	)
 	resourceType := req.Kind.Kind
 	glog.Infof("AdmissionReview for Kind=%v, Namespace=%v Name=%v UID=%v patchOperation=%v UserInfo=%v",
@@ -346,7 +417,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 				},
 			}
 		}
-		resourceName, objectMeta = deployment.Name, &deployment.ObjectMeta
+		resourceName, objectMeta, initContainer = deployment.Name, &deployment.ObjectMeta, deployment.Spec.Template.Spec.InitContainers
 	case "DaemonSet":
 		var daemonSet appsv1.DaemonSet
 		if err := json.Unmarshal(req.Object.Raw, &daemonSet); err != nil {
@@ -357,7 +428,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 				},
 			}
 		}
-		resourceName, objectMeta = daemonSet.Name, &daemonSet.ObjectMeta
+		resourceName, objectMeta, initContainer = daemonSet.Name, &daemonSet.ObjectMeta, daemonSet.Spec.Template.Spec.InitContainers
 	case "ReplicaSet":
 		var replicaSet appsv1.ReplicaSet
 		if err := json.Unmarshal(req.Object.Raw, &replicaSet); err != nil {
@@ -368,7 +439,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 				},
 			}
 		}
-		resourceName, objectMeta = replicaSet.Name, &replicaSet.ObjectMeta
+		resourceName, objectMeta, initContainer = replicaSet.Name, &replicaSet.ObjectMeta, replicaSet.Spec.Template.Spec.InitContainers
 	case "StatefulSet":
 		var statefulSet appsv1.StatefulSet
 		if err := json.Unmarshal(req.Object.Raw, &statefulSet); err != nil {
@@ -379,7 +450,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 				},
 			}
 		}
-		resourceName, objectMeta = statefulSet.Name, &statefulSet.ObjectMeta
+		resourceName, objectMeta, initContainer = statefulSet.Name, &statefulSet.ObjectMeta, statefulSet.Spec.Template.Spec.InitContainers
 	case "Job":
 		var job batchv1.Job
 		if err := json.Unmarshal(req.Object.Raw, &job); err != nil {
@@ -390,7 +461,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 				},
 			}
 		}
-		resourceName, objectMeta = job.Name, &job.ObjectMeta
+		resourceName, objectMeta, initContainer = job.Name, &job.ObjectMeta, job.Spec.Template.Spec.InitContainers
 	case "CronJob":
 		var cronJob batchv1beta1.CronJob
 		if err := json.Unmarshal(req.Object.Raw, &cronJob); err != nil {
@@ -401,7 +472,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 				},
 			}
 		}
-		resourceName, objectMeta = cronJob.Name, &cronJob.ObjectMeta
+		resourceName, objectMeta, initContainer = cronJob.Name, &cronJob.ObjectMeta, cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers
 	}
 
 	glog.Infof("unmarshal for Kind=%v, Namespace=%v Name=%v",
@@ -421,7 +492,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 
 	// Workaround: https://github.com/kubernetes/kubernetes/issues/57982
 	applyDefaultsWorkaround(whsvr.SidecarConfig.Containers, whsvr.SidecarConfig.Volumes)
-	patchBytes, err := createPatchAny(initContainers)
+	patchBytes, err := createPatchAny(initContainer, initContainers)
 	glog.Infof("initContainers %s", string(patchBytes))
 	if err != nil {
 		return &v1beta1.AdmissionResponse{
