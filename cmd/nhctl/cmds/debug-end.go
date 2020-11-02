@@ -15,14 +15,14 @@ import (
 func init() {
 	debugEndCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	debugEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
-	debugEndCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubernetes cluster config")
+	//debugEndCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubernetes cluster config")
 	debugCmd.AddCommand(debugEndCmd)
 }
 
 var debugEndCmd = &cobra.Command{
 	Use:   "end",
 	Short: "end debug model",
-	Long: `end debug model`,
+	Long:  `end debug model`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if nameSpace == "" {
 			fmt.Println("error: please use -n to specify a kubernetes namespace")
@@ -45,8 +45,7 @@ var debugEndCmd = &cobra.Command{
 	},
 }
 
-func StopPortForward(){
-
+func StopPortForward() {
 
 	_, err := os.Stat(".pid")
 	var bys []byte
@@ -60,9 +59,9 @@ func StopPortForward(){
 
 	pid := string(bys)
 
-	_, err = tools.ExecCommand(nil,true, "kill", "-1", pid)
+	_, err = tools.ExecCommand(nil, true, "kill", "-1", pid)
 	if err != nil {
-		printlnErr("failed to stop port forward",err)
+		printlnErr("failed to stop port forward", err)
 		return
 	} else {
 		fmt.Println("port-forward stopped.")
@@ -70,18 +69,18 @@ func StopPortForward(){
 }
 
 func EndFileSync() {
-	output , _ := tools.ExecCommand(nil, false ,"mutagen", "sync", "list")
+	output, _ := tools.ExecCommand(nil, false, "mutagen", "sync", "list")
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "Name") {
 			strs := strings.Split(line, ":")
 			if len(strs) >= 2 {
-				sessionName := strings.TrimLeft(strs[1]," ")
+				sessionName := strings.TrimLeft(strs[1], " ")
 				fmt.Printf("terminate sync session :%s \n", sessionName)
-				_, err := tools.ExecCommand(nil,true,"mutagen", "sync", "terminate", sessionName)
+				_, err := tools.ExecCommand(nil, true, "mutagen", "sync", "terminate", sessionName)
 				if err != nil {
 					printlnErr("failed to terminate sync session", err)
-				}else {
+				} else {
 					// todo confirm session's status
 					fmt.Println("sync session has been terminated.")
 				}
@@ -92,10 +91,10 @@ func EndFileSync() {
 	}
 }
 
-func DeploymentRollBackToPreviousRevision(){
+func DeploymentRollBackToPreviousRevision() {
 	deploymentsClient, err := GetDeploymentClient(nameSpace)
 	if err != nil {
-		fmt.Printf("%v",err)
+		fmt.Printf("%v", err)
 		return
 	}
 
@@ -117,7 +116,7 @@ func DeploymentRollBackToPreviousRevision(){
 		return
 	}
 
-	keys := make([]int,0)
+	keys := make([]int, 0)
 	for rs := range rss {
 		keys = append(keys, rs)
 	}
@@ -133,4 +132,3 @@ func DeploymentRollBackToPreviousRevision(){
 	// todo wait util rollback completed
 
 }
-

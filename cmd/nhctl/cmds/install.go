@@ -31,7 +31,7 @@ func init() {
 	installCmd.Flags().StringVarP(&gitUrl, "git-url", "u", "", "url of git")
 	installCmd.Flags().StringVarP(&resourcesDir, "dir", "d", "", "the dir of helm package or manifest")
 	installCmd.Flags().StringVarP(&helmValueFile, "", "f", "", "helm's Value.yaml")
-	installCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubernetes cluster config")
+	//installCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubernetes cluster config")
 	installCmd.Flags().StringVarP(&appType, "type", "t", "helm", "app type: helm or manifest")
 	installCmd.Flags().StringVarP(&preInstallConfigPath, "pre-install", "p", "", "resources to be installed before application install, should be a yaml file path")
 	rootCmd.AddCommand(installCmd)
@@ -76,7 +76,7 @@ func InstallApplication() {
 	}
 
 	// helm install
-	gitSuffix := gitUrl[:len(gitUrl) - 4]
+	gitSuffix := gitUrl[:len(gitUrl)-4]
 	fmt.Println("git dir : " + gitSuffix)
 	strs := strings.Split(gitSuffix, "/")
 	gitSuffix = strs[len(strs)-1]
@@ -86,12 +86,12 @@ func InstallApplication() {
 	}
 	fmt.Printf("resources path is %s\n", resourcesPath)
 	if appType == "helm" {
-		params := []string {"upgrade", "--install", "--wait", releaseName, resourcesPath, "--debug"  }
+		params := []string{"upgrade", "--install", "--wait", releaseName, resourcesPath, "--debug"}
 		if nameSpace != "" {
 			params = append(params, "-n", nameSpace)
 		}
-		if kubeconfig != "" {
-			params = append(params, "--kubeconfig", kubeconfig)
+		if settings.KubeConfig != "" {
+			params = append(params, "--kubeconfig", settings.KubeConfig)
 		}
 		_, err = tools.ExecCommand(nil, true, "helm", params...)
 		if err != nil {
@@ -123,6 +123,7 @@ type Item struct {
 }
 
 type ComparableItems []Item
+
 func (a ComparableItems) Len() int      { return len(a) }
 func (a ComparableItems) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ComparableItems) Less(i, j int) bool {
@@ -138,32 +139,32 @@ func (a ComparableItems) Less(i, j int) bool {
 	return iW < jW
 }
 
-func InstallManifestRecursively(dir string, excludeFiles []string) error{
+func InstallManifestRecursively(dir string, excludeFiles []string) error {
 
 	files, _, err := GetFilesAndDirs(dir)
 	if err != nil {
 		return err
 	}
 
-	outer:
+outer:
 	for _, file := range files {
-		for _, ex := range excludeFiles{
+		for _, ex := range excludeFiles {
 			if ex == file {
 				fmt.Println("ignore file : " + file)
 				continue outer
 			}
 		}
 		fmt.Println("create " + file)
-		clientUtil, err := clientgoutils.NewClientGoUtils(kubeconfig)
+		clientUtil, err := clientgoutils.NewClientGoUtils(settings.KubeConfig)
 		if err != nil {
 			return err
 		}
-		clientUtil.Create(file, nameSpace,false)
+		clientUtil.Create(file, nameSpace, false)
 	}
 	return err
 }
 
-func PreInstall(basePath string) ([]string, error){
+func PreInstall(basePath string) ([]string, error) {
 	fmt.Println("run pre-install....")
 	//  读取一个yaml文件
 	pConf := &PreInstallConfig{}
@@ -182,16 +183,16 @@ func PreInstall(basePath string) ([]string, error){
 	// sort
 	sort.Sort(ComparableItems(pConf.Items))
 
-	clientUtils, err := clientgoutils.NewClientGoUtils(kubeconfig)
+	clientUtils, err := clientgoutils.NewClientGoUtils(settings.KubeConfig)
 	if err != nil {
 		return nil, err
 	}
-	files := make([]string,0)
+	files := make([]string, 0)
 	for _, item := range pConf.Items {
 		fmt.Println(item.Path + " : " + item.Weight)
-		files = append(files, basePath + "/"+ item.Path)
+		files = append(files, basePath+"/"+item.Path)
 		// todo check if item.Path is a valid file
-		err = clientUtils.Create(basePath + "/" + item.Path, nameSpace, true)
+		err = clientUtils.Create(basePath+"/"+item.Path, nameSpace, true)
 		if err != nil {
 			return files, err
 		}
