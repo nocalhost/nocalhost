@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: nocalhost-mutating-dependents
-          image: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-admission-webhook:v52
+          image: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-admission-webhook:v57
           imagePullPolicy: Always
           # dev mode
           #command: ["/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/server", "--"]
