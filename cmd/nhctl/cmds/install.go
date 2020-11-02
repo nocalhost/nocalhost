@@ -1,4 +1,4 @@
-package cmd
+package cmds
 
 import (
 	"context"
@@ -158,7 +158,7 @@ func InstallManifestRecursively(dir string, excludeFiles []string) error{
 		if err != nil {
 			return err
 		}
-		clientUtil.Create(file,nameSpace,false)
+		clientUtil.Create(file, nameSpace,false)
 	}
 	return err
 }

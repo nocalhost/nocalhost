@@ -1,4 +1,4 @@
-package cmd
+package cmds
 
 import (
 	"context"
@@ -37,7 +37,7 @@ var portForwardCmd = &cobra.Command {
 		}
 		// todo local port should be specificed ?
 		c := make(chan os.Signal)
-		signal.Notify(c, syscall.SIGHUP)  // kill -1
+		signal.Notify(c, syscall.SIGHUP) // kill -1
 		ctx, cancel := context.WithCancel(context.TODO())
 
 		go func() {
@@ -63,7 +63,7 @@ var portForwardCmd = &cobra.Command {
 			pid := os.Getpid()
 			ioutil.WriteFile(".pid", []byte(fmt.Sprintf("%d", pid)), 0644 )
 		}
-		err = kubectl.PortForward(ctx , kubeconfig, nameSpace, deployment, localPort, remotePort) // eg : ./utils/darwin/kubectl port-forward --address 0.0.0.0 deployment/coding  12345:22
+		err = kubectl.PortForward(ctx, kubeconfig, nameSpace, deployment, localPort, remotePort) // eg : ./utils/darwin/kubectl port-forward --address 0.0.0.0 deployment/coding  12345:22
 		if err != nil {
 			fmt.Printf("failed to forward port : %v\n", err)
 			err = os.Remove(".pid")
