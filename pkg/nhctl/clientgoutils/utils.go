@@ -1,11 +1,26 @@
+/*
+Copyright 2020 The Nocalhost Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package clientgoutils
 
 import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"io/ioutil"
+	"log"
+
+	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,32 +33,29 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
-	"log"
 )
 
 type ClientGoUtils struct {
 	kubeConfigFilePath string
 	ClientSet          *kubernetes.Clientset
-	dynamicClient      dynamic.Interface//
+	dynamicClient      dynamic.Interface //
 	RestClient         *restclient.RESTClient
 }
 
-
 func NewClientGoUtils(kubeConfigPath string) (*ClientGoUtils, error) {
 	var (
-		err error
-		restConfig         *restclient.Config
+		err        error
+		restConfig *restclient.Config
 	)
 
-
-	if kubeConfigPath == "" {  // use kubectl default config
+	if kubeConfigPath == "" { // use kubectl default config
 		kubeConfigPath = fmt.Sprintf("%s/.kube/config", getHomePath())
 	}
 	client := &ClientGoUtils{
 		kubeConfigFilePath: kubeConfigPath,
 	}
 
-	if restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfigPath); err != nil{
+	if restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfigPath); err != nil {
 		printlnErr("fail to build rest config", err)
 		return nil, err
 	}
@@ -60,11 +72,11 @@ func NewClientGoUtils(kubeConfigPath string) (*ClientGoUtils, error) {
 	return client, nil
 }
 
-func (c *ClientGoUtils)getRestConfigFromKubeConfig() (*restclient.Config, error){
+func (c *ClientGoUtils) getRestConfigFromKubeConfig() (*restclient.Config, error) {
 	return clientcmd.BuildConfigFromFlags("", c.kubeConfigFilePath)
 }
 
-func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool) error{
+func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool) error {
 	if yamlPath == "" {
 		return errors.New("yaml path can not be empty")
 	}
@@ -117,12 +129,12 @@ func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool) err
 		}
 
 		obj2, err := dri.Create(context.Background(), unstructuredObj, metav1.CreateOptions{})
-		if  err != nil {
+		if err != nil {
 			log.Print(err)
 			return err
 		}
 
-		fmt.Printf("%s/%s created\n",obj2.GetKind(), obj2.GetName())
+		fmt.Printf("%s/%s created\n", obj2.GetKind(), obj2.GetName())
 
 		if wait {
 			err = c.WaitJobToBeReady(obj2.GetNamespace(), obj2.GetName())
@@ -140,16 +152,16 @@ func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool) err
 	// NamespaceParam(namespace string).  // namespace 就可以，设置namespace参数
 	// DefaultNamespace().  // 如果没有指定namespace，则自动设置namespace为NamespaceParam中设置的参数
 	// Unstructured(). // update 一下 builder，让它会请求和发送 unstructured 的对象， unstructured 对象保存服务端发送过来的所有字段在一个map中，
-						//基于对象的JSON结构，这意味着当 client 去读的时候，没有数据会丢失。一般只在内部使用这种模式
+	//基于对象的JSON结构，这意味着当 client 去读的时候，没有数据会丢失。一般只在内部使用这种模式
 	// Schema().
 	// Stream(reader, "").  //  解析 reader 成一个对象吧？？？
-						// reader 是一个 manifest 的 buffer！
+	// reader 是一个 manifest 的 buffer！
 	// Do().      // 		返回一个 Result
 	// Infos() 返回所有资源对象的info
 	return nil
 }
 
-func (c *ClientGoUtils)waitUtilReady(kind string, namespace string, name string,uns *unstructured.Unstructured) error {
+func (c *ClientGoUtils) waitUtilReady(kind string, namespace string, name string, uns *unstructured.Unstructured) error {
 	//
 	//var err error
 	//restClient := c.RestClient
@@ -163,7 +175,6 @@ func (c *ClientGoUtils)waitUtilReady(kind string, namespace string, name string,
 	//	fmt.Println("no waiting for " + kind)
 	//	return nil
 	//}
-
 
 	//selector, err := fields.ParseSelector(fmt.Sprintf("metadata.name=%s", name))
 	//if err != nil {
@@ -222,6 +233,3 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 
 	return false, nil
 }
-
-
-

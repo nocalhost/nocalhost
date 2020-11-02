@@ -1,26 +1,40 @@
+/*
+Copyright 2020 The Nocalhost Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package webhook
+
 import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	nocalhost "nocalhost/pkg/nocalhost-dep/go-client"
+	"strings"
+
 	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
-	"io/ioutil"
 	"k8s.io/api/admission/v1beta1"
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
-	"k8s.io/api/core/v1"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
-	"net/http"
-	nocalhost "nocalhost/pkg/nocalhost-dep/go-client"
-	"strings"
 )
 
 var (
@@ -93,7 +107,6 @@ type depApp struct {
 type depJobs struct {
 	Jobs []string `yaml:"jobs"`
 }
-
 
 var clientset *kubernetes.Clientset
 
@@ -276,11 +289,11 @@ func updateAnnotation(target map[string]string, added map[string]string) (patch 
 //}
 
 // create patch for all
-func createPatchAny(objectInitContainer []corev1.Container, initContainers []corev1.Container) ([]byte, error){
+func createPatchAny(objectInitContainer []corev1.Container, initContainers []corev1.Container) ([]byte, error) {
 	// /spec/template/spec/initContainers 经核实 6 种工作负载路径一致
 	var patch []patchOperation
 	if initContainers != nil && len(initContainers) > 0 {
-		patch = append(patch, addInitContainer(objectInitContainer ,initContainers, "/spec/template/spec/initContainers")...)
+		patch = append(patch, addInitContainer(objectInitContainer, initContainers, "/spec/template/spec/initContainers")...)
 	}
 	return json.Marshal(patch)
 }
@@ -333,10 +346,10 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 							}(dependency.Pods)
 
 							initContainer := corev1.Container{
-								Name: "wait-for-pods",
-								Image: waitImages,
+								Name:            "wait-for-pods",
+								Image:           waitImages,
 								ImagePullPolicy: corev1.PullPolicy("Always"),
-								Args: args,
+								Args:            args,
 							}
 							initContainers = append(initContainers, initContainer)
 						}
@@ -365,10 +378,10 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 							}(dependency.Jobs)
 
 							initContainer := corev1.Container{
-								Name: "wait-for-jobs",
-								Image: waitImages,
+								Name:            "wait-for-jobs",
+								Image:           waitImages,
 								ImagePullPolicy: corev1.PullPolicy("Always"),
-								Args: args,
+								Args:            args,
 							}
 							initContainers = append(initContainers, initContainer)
 						}
@@ -384,8 +397,8 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
 	req := ar.Request
 	var (
-		objectMeta *metav1.ObjectMeta
-		resourceName string
+		objectMeta    *metav1.ObjectMeta
+		resourceName  string
 		initContainer []corev1.Container
 	)
 	resourceType := req.Kind.Kind
