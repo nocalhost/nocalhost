@@ -1,15 +1,29 @@
+/*
+Copyright 2020 The Nocalhost Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package cmd
 
 import (
 	"context"
 	"fmt"
-	"github.com/spf13/cobra"
 	"io/ioutil"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func init() {
@@ -22,7 +36,7 @@ func init() {
 var debugEndCmd = &cobra.Command{
 	Use:   "end",
 	Short: "end debug model",
-	Long: `end debug model`,
+	Long:  `end debug model`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if nameSpace == "" {
 			fmt.Println("error: please use -n to specify a kubernetes namespace")
@@ -45,8 +59,7 @@ var debugEndCmd = &cobra.Command{
 	},
 }
 
-func StopPortForward(){
-
+func StopPortForward() {
 
 	_, err := os.Stat(".pid")
 	var bys []byte
@@ -60,9 +73,9 @@ func StopPortForward(){
 
 	pid := string(bys)
 
-	_, err = tools.ExecCommand(nil,true, "kill", "-1", pid)
+	_, err = tools.ExecCommand(nil, true, "kill", "-1", pid)
 	if err != nil {
-		printlnErr("failed to stop port forward",err)
+		printlnErr("failed to stop port forward", err)
 		return
 	} else {
 		fmt.Println("port-forward stopped.")
@@ -70,18 +83,18 @@ func StopPortForward(){
 }
 
 func EndFileSync() {
-	output , _ := tools.ExecCommand(nil, false ,"mutagen", "sync", "list")
+	output, _ := tools.ExecCommand(nil, false, "mutagen", "sync", "list")
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "Name") {
 			strs := strings.Split(line, ":")
 			if len(strs) >= 2 {
-				sessionName := strings.TrimLeft(strs[1]," ")
+				sessionName := strings.TrimLeft(strs[1], " ")
 				fmt.Printf("terminate sync session :%s \n", sessionName)
-				_, err := tools.ExecCommand(nil,true,"mutagen", "sync", "terminate", sessionName)
+				_, err := tools.ExecCommand(nil, true, "mutagen", "sync", "terminate", sessionName)
 				if err != nil {
 					printlnErr("failed to terminate sync session", err)
-				}else {
+				} else {
 					// todo confirm session's status
 					fmt.Println("sync session has been terminated.")
 				}
@@ -92,10 +105,10 @@ func EndFileSync() {
 	}
 }
 
-func DeploymentRollBackToPreviousRevision(){
+func DeploymentRollBackToPreviousRevision() {
 	deploymentsClient, err := GetDeploymentClient(nameSpace)
 	if err != nil {
-		fmt.Printf("%v",err)
+		fmt.Printf("%v", err)
 		return
 	}
 
@@ -117,7 +130,7 @@ func DeploymentRollBackToPreviousRevision(){
 		return
 	}
 
-	keys := make([]int,0)
+	keys := make([]int, 0)
 	for rs := range rss {
 		keys = append(keys, rs)
 	}
@@ -133,4 +146,3 @@ func DeploymentRollBackToPreviousRevision(){
 	// todo wait util rollback completed
 
 }
-
