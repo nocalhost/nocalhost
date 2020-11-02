@@ -16,7 +16,7 @@ func init() {
 	debugStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
 	debugStartCmd.Flags().StringVarP(&lang, "type", "l", "", "the development language, eg: java go python")
 	debugStartCmd.Flags().StringVarP(&image, "image", "i", "", "image of development container")
-	debugStartCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubernetes cluster config")
+	//debugStartCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubernetes cluster config")
 	debugCmd.AddCommand(debugStartCmd)
 }
 
@@ -148,7 +148,7 @@ func findPodListOfDeployment(deploy string) ([]v1.Pod, error) {
 
 	result := make([]v1.Pod, 0)
 
-	OuterLoop:
+OuterLoop:
 	for _, pod := range podList.Items {
 		if pod.OwnerReferences != nil {
 			for _, ref := range pod.OwnerReferences {
@@ -166,5 +166,5 @@ func findPodListOfDeployment(deploy string) ([]v1.Pod, error) {
 			}
 		}
 	}
-	return result,nil
+	return result, nil
 }

@@ -1,33 +1,37 @@
-
-
-
-
 ## Bookinfo 示例程序
+
+### 编译
+
+```shell
+go build nocalhost/cmd/nhctl/nhctl.go
+```
+
+将 nhctl 可执行文件拷贝到 /usr/local/bin 目录下
 
 ### 前置工作
 
-将 kubeconfig 文件拷贝到`~/.kube/config`，k8s 集群应该提前安装好 webhook admission。
+将 kubeconfig 文件拷贝到`~/.kube/config`，k8s 集群应该提前安装好 webhook admission，如果没有的话服务依赖将无法处理（不影响服务启动）。
 
 创建一个 namespace 用于测试：
 
 ```shell
 NOCALHOST_NS=demo20
 kubectl create ns $NOCALHOST_NS
-kubectl label namespace $NOCALHOST_NS env=nocalhost # 使 webook admission 生效
+kubectl label namespace $NOCALHOST_NS env=nocalhost
 kubectl create rolebinding default-view \
   --clusterrole=view \
-  --serviceaccount=demo20:default \
+  --serviceaccount=$NOCALHOST_NS:default \
   --namespace=$NOCALHOST_NS
 ```
 
-将 nhctl 可执行文件拷贝到 /usr/local/bin 目录下。
+
 
 ### 安装应用
 
 #### 安装 helm 应用
 
 ```shell
-nhctl install -n $NOCALHOST_NS -r bookinfo-04 -u git@e.coding.net:codingcorp/bookinfo/bookinfo-charts.git -t helm
+nhctl install -n $NOCALHOST_NS -r bookinfo-04 -u https://e.coding.net/codingcorp/bookinfo/bookinfo-charts.git -t helm
 ```
 
 参数说明：
@@ -43,17 +47,19 @@ nhctl install -n $NOCALHOST_NS -r bookinfo-04 -u git@e.coding.net:codingcorp/boo
 helm -n $NOCALHOST_NS uninstall bookinfo-04
 ```
 
-
-
 #### 安装 manifest 应用
 
 ```shell
-nhctl install -u git@e.coding.net:codingcorp/bookinfo/bookinfo-manifest.git -d deployment -t manifest --pre-install bookinfo-manifest/pre-install.yaml -n $NOCALHOST_NS
+nhctl install -u https://e.coding.net/codingcorp/nocalhost/bookinfo-manifest.git -d deployment -t manifest --pre-install bookinfo-manifest/pre-install.yaml -n $NOCALHOST_NS
 ```
 
 安装完即可通过：`http://HOST_IP:30001/productpage` 访问 bookinfo 应用。
 
+注意：确保主机的 30001 端口没有被别的程序占用
+
 ### 开发调试 details 服务
+
+#### 替换开发镜像
 
 替换 details 容器的镜像为开发容器镜像 : 
 
@@ -61,92 +67,67 @@ nhctl install -u git@e.coding.net:codingcorp/bookinfo/bookinfo-manifest.git -d d
 nhctl debug  start -d details-v1  -l ruby  -n $NOCALHOST_NS -i codingcorp-docker.pkg.coding.net/nocalhost/public/share-container-ruby:v2
 ```
 
+- -d : 指定要替换的服务对应的 deployment 的名字
+- -l : 指定服务的语言类型，如 ruby, java
+- -i : (可选)显式指定要替换的开发容器镜像
 
+此时访问 bookinfo 应用，可以看到 details 服务已经无法访问。
+
+#### 转发端口
+
+转发本地端口到开发容器端口：
 
 ```shell
 nhctl port-forward -d details-v1 -n $NOCALHOST_NS  -l 12345 -r 22
-
-ssh root@127.0.0.1 -p 12345
 ```
+
+- -d : 指定要替换的服务对应的 deployment 的名字
+- -l : 指定要转发的本地端口
+- -l : 指定开发容器的端口
+
+该命令在端口转发过程中会一直阻塞，需要重新打开一个新的界面进行后续的操作，此时，在新打开的窗口使用以下命令可以登上开发容器：
 
 ```shell
-nhctl sync -l cccc -r /opt/microservicess -p 12345
-
-# 以下命令在容器中运行
-ruby details.rb 9080 # 运行 details 服务
-
-rdebug-ide details.rb 9080 # debug 模式运行 details 服务
-
-kubectl port-forward pod/details-v1-f95c5cdc-dhlt5 -n $NOCALHOST_NS 12347:1234
+ssh root@127.0.0.1 -p 12345 -i ~/.nhctl/key/id_rsa
 ```
 
 
+
+#### 同步文件
+
+同步文件目录：
+
+```shell
+mkdir cccc
+nhctl sync -l cccc -r /opt/microservicess -p 12345
+```
+
+- -l : 要同步的本地文件目录
+- -r : 目标容器内的目录
+
+ruby 程序源代码可以从这里下载：https://github.com/istio/istio/blob/master/samples/bookinfo/src/details/details.rb
+
+将该文件放到本地同步目录中，同步完可在容器内执行以下命令将服务跑起来：
+
+```shell
+ruby details.rb 9080 
+```
+
+此时访问 bookinfo 应用应该能看到 details 服务已经恢复正常。
+
+或者进行 debug ：
+
+```shell
+rdebug-ide details.rb 9080 # debug 模式运行 details 服务
+
+# 要在本地脸上容器的 debug 端口需要将本地端口转发到容器的 debug 端口
+# kubectl port-forward pod/details-v1-f95c5cdc-dhlt5 -n $NOCALHOST_NS 12347:1234
+```
+
+#### 结束开发
+
+结束后运行以下命令可以将服务恢复为正常模式：
 
 ```shell
 nhctl debug end -d  details-v1  -n $NOCALHOST_NS
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#### productpage
-
-debug 
-
-```shell
-nhctl debug  start -d productpage-v1  -l ruby  -n demo20 -i codingcorp-docker.pkg.coding.net/nocalhost/public/share-container-ruby:v2
-```
-
-
-
-```shell
-nhctl port-forward -d productpage-v1 -n demo20  -l 12346 -r 22
-
-ssh root@127.0.0.1 -p 12346
-```
-
-
-
-```shell
-nhctl sync -l dddd -r /opt/microservicess -p 12346
-```
-
-```shell
-nhctl debug end -d  productpage-v1  -n demo20
-```
-
-
-
-#### 
-
-```shell
-#!/bin/bash
-
-# ./nhctl install -n demo -r bookinfo-04 -u git@e.coding.net:codingcorp/bookinfo/bookinfo-charts.git -k ~/.kube/admin-config # -t helm
-./nhctl install -u git@e.coding.net:codingcorp/bookinfo/bookinfo-manifest.git -d deployment -k ~/.kube/admin-config -t manifest --pre-install items.yaml -n demo4
-./nhctl debug  start -d details-v1  -l ruby  -n demo --kubeconfig /Users/xinxinhuang/.kube/admin-config
-./nhctl port-forward -d details-v1 -n demo  -l 12345 -r 22 -k ~/.kube/admin-config
-./nhctl sync -l share1 -r /opt/microservicess -p 12345
-./nhctl debug end -d  details-v1  -n demo --kubeconfig  /Users/xinxinhuang/.kube/admin-config
 ```

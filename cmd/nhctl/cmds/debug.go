@@ -4,8 +4,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var kubeconfig string
-
+//var kubeconfig string
 
 func init() {
 	rootCmd.AddCommand(debugCmd)
@@ -14,5 +13,5 @@ func init() {
 var debugCmd = &cobra.Command{
 	Use:   "debug",
 	Short: "enter debug model",
-	Long: `enter debug model`,
+	Long:  `enter debug model`,
 }
