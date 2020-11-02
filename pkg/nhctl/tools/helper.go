@@ -54,7 +54,7 @@ func CheckK8s() (string,bool){
     command := exec.Command("utils/"+kubectl, "version", "-o", "json")
     versionJson, err := command.CombinedOutput()
     if err != nil {
-        fmt.Printf("cmd.Run() failed with %s\n", err)
+        fmt.Printf("cmds.Run() failed with %s\n", err)
     }
     var k8sVersion interface{}
 	errVersion := json.Unmarshal(versionJson, &k8sVersion)
@@ -110,7 +110,7 @@ func ExecCommand(ctx context.Context, isDisplay bool , commandName string,  para
 	//start
 	err = cmd.Start()
 	if err != nil {
-		fmt.Printf("failed to start cmd, err:%v\n", err)
+		fmt.Printf("failed to start cmds, err:%v\n", err)
 		return "", err
 	}
 	reader := bufio.NewReader(stdout)
@@ -169,7 +169,7 @@ func CheckFile(file string) bool{
 }
 
 
-//check cmd exist
+//check cmds exist
 func CheckCmdExists(cmd string) bool{
     path, err := exec.LookPath(cmd)
     if err != nil {
@@ -197,7 +197,7 @@ func CheckNS(namespace string) error{
 	command := exec.Command("tools/"+kubectl, "get", "ns", "-o", "json")
     namespacesJson, err := command.CombinedOutput()
     if err != nil {
-        fmt.Println("cmd.Run() failed with %s\n", err)
+        fmt.Println("cmds.Run() failed with %s\n", err)
     }
     var namespaces interface{}
 	errns := json.Unmarshal(namespacesJson, &namespaces)
