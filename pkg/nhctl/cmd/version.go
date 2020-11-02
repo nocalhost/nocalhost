@@ -11,11 +11,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cluster
+package cmd
 
-// 创建集群请求
-type CreateClusterRequest struct {
-	Name       string `json:"name" binding:"required"`
-	Marks      string `json:"marks"`
-	KubeConfig string `json:"kubeconfig" binding:"required"`
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+)
+
+func init() {
+	rootCmd.AddCommand(versionCmd)
+}
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print the version number of nhctl",
+	Long:  `All software has versions. This is nhctl's`,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("nhctl version is v1.0")
+		fmt.Println("kubeconfig is " + kubeconfig)
+	},
 }
