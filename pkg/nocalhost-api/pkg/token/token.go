@@ -37,6 +37,7 @@ type Context struct {
 	Username string
 	Uuid     string
 	Email    string
+	IsAdmin  uint64
 }
 
 // secretFunc validates the secret format.
@@ -69,6 +70,7 @@ func Parse(tokenString string, secret string) (*Context, error) {
 		ctx.Username = claims["username"].(string)
 		ctx.Uuid = claims["uuid"].(string)
 		ctx.Email = claims["email"].(string)
+		ctx.IsAdmin = uint64(claims["is_admin"].(float64))
 		return ctx, nil
 
 		// Other errors.
@@ -118,6 +120,7 @@ func Sign(ctx context.Context, c Context, secret string) (tokenString string, er
 		"username": c.Username,
 		"uuid":     c.Uuid,
 		"email":    c.Email,
+		"is_admin": c.IsAdmin,
 		"nbf":      time.Now().Unix(),
 		"iat":      time.Now().Unix(),
 		"exp":      time.Now().AddDate(0, 0, 15).Unix(), //默认 15 天过期

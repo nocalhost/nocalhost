@@ -45,12 +45,12 @@ func Create(c *gin.Context) {
 	applicationId := cast.ToUint64(c.Param("id"))
 	// check application
 	if _, err := service.Svc.ApplicationSvc().Get(c, applicationId, userId.(uint64)); err != nil {
-		api.SendResponse(c, errno.ErrBindApplicationClsuter, nil)
+		api.SendResponse(c, errno.ErrPermissionApplication, nil)
 		return
 	}
 	// check cluster
 	if _, err := service.Svc.ClusterSvc().Get(c, *req.ClusterId, userId.(uint64)); err != nil {
-		api.SendResponse(c, errno.ErrBindApplicationClsuter, nil)
+		api.SendResponse(c, errno.ErrPermissionCluster, nil)
 		return
 	}
 	err := service.Svc.ApplicationClusterSvc().Create(c, applicationId, *req.ClusterId, userId.(uint64))

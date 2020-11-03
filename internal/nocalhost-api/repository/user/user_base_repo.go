@@ -27,6 +27,7 @@ import (
 type BaseRepo interface {
 	Create(ctx context.Context, user model.UserBaseModel) (id uint64, err error)
 	Update(ctx context.Context, id uint64, userMap map[string]interface{}) error
+	Delete(ctx context.Context, id uint64) error
 	GetUserByID(ctx context.Context, id uint64) (*model.UserBaseModel, error)
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
@@ -43,6 +44,17 @@ func NewUserRepo(db *gorm.DB) BaseRepo {
 	return &userBaseRepo{
 		db: db,
 	}
+}
+
+// Delete 删除用户
+func (repo *userBaseRepo) Delete(ctx context.Context, id uint64) error {
+	users := model.UserBaseModel{
+		ID: id,
+	}
+	if result := repo.db.Where("id=?", id).Delete(&users); result.RowsAffected > 0 {
+		return nil
+	}
+	return errors.New("user delete fail")
 }
 
 // Create 创建用户
