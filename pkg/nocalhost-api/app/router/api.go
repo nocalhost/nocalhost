@@ -17,6 +17,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/api/v1/application_cluster"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/applications"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster"
+	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster_user"
 	"nocalhost/pkg/nocalhost-api/napp"
 
 	"github.com/gin-contrib/pprof"
@@ -73,8 +74,10 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	u := g.Group("/v1/users")
 	u.Use(middleware.AuthMiddleware())
 	{
-		//u.PUT("/:id", user.Update)
 		u.GET("", user.Get)
+		u.POST("", user.Create)
+		u.PUT("/:id", user.Update)
+		u.DELETE("/:id", user.Delete)
 	}
 
 	// 集群
@@ -91,8 +94,9 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		a.POST("", applications.Create)
 		a.GET("", applications.Get)
 		a.DELETE("/:id", applications.Delete)
-		a.POST("/:id", applications.Update)
+		a.PUT("/:id", applications.Update)
 		a.POST("/:id/bind_cluster", application_cluster.Create)
+		a.POST("/:id/create_space", cluster_user.Create)
 	}
 
 	return g

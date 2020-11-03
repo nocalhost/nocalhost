@@ -37,22 +37,21 @@ definitions:
     - kubeconfig
     - name
     type: object
-  model.UserBaseModel:
+  cluster_user.ClusterUserCreateRequest:
     properties:
-      avatar:
-        type: string
-      email:
-        type: string
-      id:
+      cluster_id:
         type: integer
-      password:
-        type: string
-      phone:
+      cpu:
         type: integer
-      username:
-        type: string
+      memory:
+        type: integer
+      user_id:
+        type: integer
     required:
-    - password
+    - cluster_id
+    - cpu
+    - memory
+    - user_id
     type: object
   model.UserInfo:
     properties:
@@ -64,6 +63,25 @@ definitions:
         type: integer
       username:
         type: string
+    type: object
+  user.CreateUserRequest:
+    properties:
+      confirm_password:
+        type: string
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      status:
+        type: integer
+    required:
+    - confirm_password
+    - email
+    - name
+    - password
+    - status
     type: object
   user.LoginCredentials:
     properties:
@@ -149,35 +167,6 @@ paths:
       summary: 通过用户id获取用户信息
       tags:
       - 用户
-  /users/{id}:
-    put:
-      consumes:
-      - application/json
-      description: Update a user by ID
-      parameters:
-      - description: The user's database id index num
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: The user info
-        in: body
-        name: user
-        required: true
-        schema:
-          $ref: '#/definitions/model.UserBaseModel'
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: '{"code":0,"message":"OK","data":null}'
-          schema:
-            $ref: '#/definitions/api.Response'
-            type: object
-      summary: 更新用户信息
-      tags:
-      - 用户
   /v1/application:
     get:
       consumes:
@@ -256,7 +245,7 @@ paths:
       summary: 删除应用
       tags:
       - 应用
-    post:
+    put:
       consumes:
       - application/json
       description: 用户编辑应用
@@ -323,6 +312,40 @@ paths:
       summary: 关联集群
       tags:
       - 应用
+  /v1/application/{id}/create_space:
+    post:
+      consumes:
+      - application/json
+      description: 为用户创建开发环境 - 集群授权
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: cluster user info
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/cluster_user.ClusterUserCreateRequest'
+          type: object
+      - description: 应用 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: 应用管理 - 创建开发环境
+      tags:
+      - 应用
   /v1/cluster:
     post:
       consumes:
@@ -352,3 +375,89 @@ paths:
       summary: 添加集群
       tags:
       - 集群
+  /v1/users:
+    post:
+      description: 管理员添加开发者
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Reg user info
+        in: body
+        name: register
+        required: true
+        schema:
+          $ref: '#/definitions/user.CreateUserRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            type: string
+      summary: 添加开发者
+      tags:
+      - 用户
+  /v1/users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 管理员删除用户
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: 删除用户
+      tags:
+      - 用户
+    put:
+      consumes:
+      - application/json
+      description: Update a user by ID
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: The user's database id index num
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update user info
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/user.CreateUserRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: 更新用户信息（含禁用用户）
+      tags:
+      - 用户
