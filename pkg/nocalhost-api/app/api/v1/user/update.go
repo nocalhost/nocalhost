@@ -15,6 +15,7 @@ package user
 
 import (
 	"context"
+	"nocalhost/pkg/nocalhost-api/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
@@ -26,37 +27,57 @@ import (
 )
 
 // Update 更新用户信息
-// @Summary 更新用户信息
+// @Summary 更新用户信息（含禁用用户）
 // @Description Update a user by ID
 // @Tags 用户
 // @Accept  json
 // @Produce  json
+// @param Authorization header string true "Authorization"
 // @Param id path uint64 true "The user's database id index num"
-// @Param user body model.UserBaseModel true "The user info"
+// @Param user body user.CreateUserRequest true "Update user info"
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
-// @Router /users/{id} [put]
+// @Router /v1/users/{id} [put]
 func Update(c *gin.Context) {
 	// Get the user id from the url parameter.
-	userID := cast.ToUint64(c.Param("id"))
+	userId := cast.ToUint64(c.Param("id"))
 
 	// Binding the user data.
-	var req UpdateRequest
+	var req CreateUserRequest
 	if err := c.Bind(&req); err != nil {
 		log.Warnf("bind request param err: %+v", err)
 		api.SendResponse(c, errno.ErrBind, nil)
 		return
 	}
-	log.Infof("user update req: %#v", req)
+
+	if req.Password != req.ConfirmPassword {
+		log.Warnf("twice password is not same")
+		api.SendResponse(c, errno.ErrTwicePasswordNotMatch, nil)
+		return
+	}
+
+	isAdmin, _ := c.Get("isAdmin")
+	if isAdmin.(uint64) != 1 {
+		api.SendResponse(c, errno.ErrUpdateUserDenied, nil)
+		return
+	}
+
+	pwd, err := auth.Encrypt(req.Password)
+	if err != nil {
+		api.SendResponse(c, errno.InternalServerError, nil)
+		return
+	}
 
 	userMap := make(map[string]interface{})
-	userMap["avatar"] = req.Avatar
-	userMap["sex"] = req.Sex
-	err := service.Svc.UserSvc().UpdateUser(context.TODO(), uint64(userID), userMap)
+	userMap["email"] = req.Email
+	userMap["name"] = req.Name
+	userMap["password"] = pwd
+	userMap["status"] = req.Status
+	err = service.Svc.UserSvc().UpdateUser(context.TODO(), userId, &userMap)
 	if err != nil {
 		log.Warnf("[user] update user err, %v", err)
 		api.SendResponse(c, errno.InternalServerError, nil)
 		return
 	}
 
-	api.SendResponse(c, nil, userID)
+	api.SendResponse(c, nil, nil)
 }

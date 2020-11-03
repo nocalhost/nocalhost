@@ -39,12 +39,14 @@ var _ UserService = (*userService)(nil)
 // UserService 用户服务接口定义
 // 使用大写对外暴露方法
 type UserService interface {
+	Create(ctx context.Context, email, password, name string, status uint64) error
+	Delete(ctx context.Context, id uint64) error
 	Register(ctx context.Context, email, password string) error
 	EmailLogin(ctx context.Context, email, password string) (tokenStr string, err error)
 	GetUserByID(ctx context.Context, id uint64) (*model.UserBaseModel, error)
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
-	UpdateUser(ctx context.Context, id uint64, userMap map[string]interface{}) error
+	UpdateUser(ctx context.Context, id uint64, user *map[string]interface{}) error
 	Close()
 }
 
@@ -61,6 +63,38 @@ func NewUserService() UserService {
 	return &userService{
 		userRepo: user.NewUserRepo(db),
 	}
+}
+
+// Delete 删除用户
+func (srv *userService) Delete(ctx context.Context, id uint64) error {
+	err := srv.userRepo.Delete(ctx, id)
+	if err != nil {
+		return errors.Wrapf(err, "delete user fail")
+	}
+	return nil
+}
+
+// Create 创建用户
+func (srv *userService) Create(ctx context.Context, email, password, name string, status uint64) error {
+	pwd, err := auth.Encrypt(password)
+	if err != nil {
+		return errors.Wrapf(err, "encrypt password err")
+	}
+
+	u := model.UserBaseModel{
+		Password:  pwd,
+		Email:     email,
+		Name:      name,
+		Status:    &status,
+		CreatedAt: time.Time{},
+		UpdatedAt: time.Time{},
+		Uuid:      uuid.NewV4().String(),
+	}
+	_, err = srv.userRepo.Create(ctx, u)
+	if err != nil {
+		return errors.Wrapf(err, "create user")
+	}
+	return nil
 }
 
 // Register 注册用户
@@ -97,8 +131,12 @@ func (srv *userService) EmailLogin(ctx context.Context, email, password string) 
 		return "", errors.Wrapf(err, "password compare err")
 	}
 
+	if *u.Status == 0 {
+		return "", errors.New("user not allow")
+	}
+
 	// 签发签名 Sign the json web token.
-	tokenStr, err = token.Sign(ctx, token.Context{UserID: u.ID, Username: u.Username, Uuid: u.Uuid, Email: u.Email}, "")
+	tokenStr, err = token.Sign(ctx, token.Context{UserID: u.ID, Username: u.Username, Uuid: u.Uuid, Email: u.Email, IsAdmin: u.IsAdmin}, "")
 	if err != nil {
 		return "", errors.Wrapf(err, "gen token sign err")
 	}
@@ -107,8 +145,8 @@ func (srv *userService) EmailLogin(ctx context.Context, email, password string) 
 }
 
 // UpdateUser update user info
-func (srv *userService) UpdateUser(ctx context.Context, id uint64, userMap map[string]interface{}) error {
-	err := srv.userRepo.Update(ctx, id, userMap)
+func (srv *userService) UpdateUser(ctx context.Context, id uint64, user *map[string]interface{}) error {
+	err := srv.userRepo.Update(ctx, id, *user)
 
 	if err != nil {
 		return err
