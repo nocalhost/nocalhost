@@ -35,6 +35,15 @@ type RegisterRequest struct {
 	ConfirmPassword string `json:"confirm_password" form:"confirm_password"`
 }
 
+// CreateUserRequest 添加用户
+type CreateUserRequest struct {
+	Email           string  `json:"email" form:"email" binding:"required"`
+	Name            string  `json:"name" form:"name" binding:"required"`
+	Password        string  `json:"password" form:"password" binding:"required"`
+	ConfirmPassword string  `json:"confirm_password" form:"confirm_password" binding:"required"`
+	Status          *uint64 `json:"status" form:"status" binding:"required"`
+}
+
 // LoginCredentials 默认登录方式-邮箱
 type LoginCredentials struct {
 	Email    string `json:"email" form:"email"`
