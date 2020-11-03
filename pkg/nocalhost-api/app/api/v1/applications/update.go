@@ -34,7 +34,7 @@ import (
 // @Param id path uint64 true "应用 ID"
 // @Param CreateAppRequest body applications.CreateAppRequest true "The application info"
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
-// @Router /v1/application/{id} [post]
+// @Router /v1/application/{id} [put]
 func Update(c *gin.Context) {
 	var req CreateAppRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

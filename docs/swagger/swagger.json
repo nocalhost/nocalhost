@@ -101,49 +101,6 @@
                 }
             }
         },
-        "/users/{id}": {
-            "put": {
-                "description": "Update a user by ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "用户"
-                ],
-                "summary": "更新用户信息",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "The user's database id index num",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "The user info",
-                        "name": "user",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/model.UserBaseModel"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/api.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/v1/application": {
             "get": {
                 "description": "用户获取应用",
@@ -219,7 +176,7 @@
             }
         },
         "/v1/application/{id}": {
-            "post": {
+            "put": {
                 "description": "用户编辑应用",
                 "consumes": [
                     "application/json"
@@ -356,6 +313,56 @@
                 }
             }
         },
+        "/v1/application/{id}/create_space": {
+            "post": {
+                "description": "为用户创建开发环境 - 集群授权",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "应用"
+                ],
+                "summary": "应用管理 - 创建开发环境",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "cluster user info",
+                        "name": "CreateAppRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster_user.ClusterUserCreateRequest"
+                        }
+                    },
+                    {
+                        "type": "integer",
+                        "description": "应用 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/cluster": {
             "post": {
                 "description": "用户添加集群，暂时不考虑验证集群的 kubeconfig",
@@ -386,6 +393,133 @@
                             "type": "object",
                             "$ref": "#/definitions/cluster.CreateClusterRequest"
                         }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users": {
+            "post": {
+                "description": "管理员添加开发者",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户"
+                ],
+                "summary": "添加开发者",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Reg user info",
+                        "name": "register",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/user.CreateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/{id}": {
+            "put": {
+                "description": "Update a user by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户"
+                ],
+                "summary": "更新用户信息（含禁用用户）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "The user's database id index num",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update user info",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/user.CreateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "管理员删除用户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户"
+                ],
+                "summary": "删除用户",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "用户 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -459,29 +593,26 @@
                 }
             }
         },
-        "model.UserBaseModel": {
+        "cluster_user.ClusterUserCreateRequest": {
             "type": "object",
             "required": [
-                "password"
+                "cluster_id",
+                "cpu",
+                "memory",
+                "user_id"
             ],
             "properties": {
-                "avatar": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "id": {
+                "cluster_id": {
                     "type": "integer"
                 },
-                "password": {
-                    "type": "string"
-                },
-                "phone": {
+                "cpu": {
                     "type": "integer"
                 },
-                "username": {
-                    "type": "string"
+                "memory": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -499,6 +630,33 @@
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "user.CreateUserRequest": {
+            "type": "object",
+            "required": [
+                "confirm_password",
+                "email",
+                "name",
+                "password",
+                "status"
+            ],
+            "properties": {
+                "confirm_password": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
                 }
             }
         },

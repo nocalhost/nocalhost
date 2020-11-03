@@ -38,6 +38,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// set uid to context
 		c.Set("uid", ctx.Uuid)
 		c.Set("userId", ctx.UserID)
+		c.Set("isAdmin", ctx.IsAdmin)
 
 		c.Next()
 	}

@@ -17,6 +17,7 @@ import (
 	"nocalhost/internal/nocalhost-api/service/application"
 	"nocalhost/internal/nocalhost-api/service/application_cluster"
 	"nocalhost/internal/nocalhost-api/service/cluster"
+	"nocalhost/internal/nocalhost-api/service/cluster_user"
 	"nocalhost/internal/nocalhost-api/service/user"
 )
 
@@ -31,6 +32,7 @@ type Service struct {
 	clusterSvc            cluster.ClusterService
 	applicationSvc        application.ApplicationService
 	applicationClusterSvc application_cluster.ApplicationClusterService
+	clusterUser           cluster_user.ClusterUserService
 }
 
 // New init service
@@ -40,6 +42,7 @@ func New() (s *Service) {
 		clusterSvc:            cluster.NewClusterService(),
 		applicationSvc:        application.NewApplicationService(),
 		applicationClusterSvc: application_cluster.NewApplicationClusterService(),
+		clusterUser:           cluster_user.NewClusterUserService(),
 	}
 	return s
 }
@@ -59,6 +62,10 @@ func (s *Service) ApplicationSvc() application.ApplicationService {
 
 func (s *Service) ApplicationClusterSvc() application_cluster.ApplicationClusterService {
 	return s.applicationClusterSvc
+}
+
+func (s *Service) ClusterUser() cluster_user.ClusterUserService {
+	return s.clusterUser
 }
 
 // Ping service
