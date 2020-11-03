@@ -22,7 +22,7 @@ import (
 )
 
 type ClusterUserService interface {
-	Create(ctx context.Context, clusterId uint64, userId uint64) error
+	Create(ctx context.Context, clusterId, userId, memory, cpu uint64) error
 	Close()
 }
 
@@ -35,7 +35,7 @@ func NewClusterUserService() ClusterUserService {
 	return &clusterUserService{clusterUserRepo: cluster_user.NewApplicationClusterRepo(db)}
 }
 
-func (srv *clusterUserService) Create(ctx context.Context, clusterId, userId uint64) error {
+func (srv *clusterUserService) Create(ctx context.Context, clusterId, userId, memory, cpu uint64) error {
 	c := model.ClusterUserModel{
 		UserId:    userId,
 		ClusterId: clusterId,

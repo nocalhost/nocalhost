@@ -28,6 +28,10 @@ var (
 	ErrEmailOrPassword       = &Errno{Code: 20111, Message: "邮箱或密码错误"}
 	ErrTwicePasswordNotMatch = &Errno{Code: 20112, Message: "两次密码输入不一致"}
 	ErrRegisterFailed        = &Errno{Code: 20113, Message: "注册失败"}
+	ErrUserNotAllow          = &Errno{Code: 20114, Message: "用户被禁用"}
+	ErrCreateUserDenied      = &Errno{Code: 20114, Message: "无创建用户权限"}
+	ErrUpdateUserDenied      = &Errno{Code: 20114, Message: "无修改用户权限"}
+	ErrDeleteUser            = &Errno{Code: 20115, Message: "删除用户失败"}
 
 	// cluster errors
 	ErrClusterCreate = &Errno{Code: 30100, Message: "添加集群失败，请重试"}
@@ -38,4 +42,6 @@ var (
 	ErrApplicationDelete      = &Errno{Code: 40102, Message: "删除应用失败，请重试"}
 	ErrApplicationUpdate      = &Errno{Code: 40103, Message: "更新应用失败，请重试"}
 	ErrBindApplicationClsuter = &Errno{Code: 40104, Message: "绑定集群失败，请重试"}
+	ErrPermissionApplication  = &Errno{Code: 40105, Message: "无此应用权限"}
+	ErrPermissionCluster      = &Errno{Code: 40106, Message: "无此集群权限"}
 )

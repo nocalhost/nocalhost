@@ -15,6 +15,7 @@ package user
 
 import (
 	"github.com/gin-gonic/gin"
+	"strings"
 
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
@@ -50,6 +51,10 @@ func Login(c *gin.Context) {
 
 	t, err := service.Svc.UserSvc().EmailLogin(c, req.Email, req.Password)
 	if err != nil {
+		if strings.Contains(err.Error(), "allow") {
+			api.SendResponse(c, errno.ErrUserNotAllow, nil)
+			return
+		}
 		log.Warnf("email login err: %v", err)
 		api.SendResponse(c, errno.ErrEmailOrPassword, nil)
 		return
