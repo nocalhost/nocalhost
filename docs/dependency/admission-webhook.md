@@ -51,6 +51,7 @@ InitContainer 的原理是使用 [k8s-wait-for](https://github.com/groundnuty/k8
    nocalhost-sidecar-injector-svc   ClusterIP   172.16.255.156   <none>        443/TCP   3m50s
    ```
 7. 手动 apply `bookinfo` 依赖的声明式依赖，apply 后，使用 nhctl 部署 Manifest 类型 `bookinfo` 观察结果。
+
 ```
 apiVersion: v1
 kind: ConfigMap
