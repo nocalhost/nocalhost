@@ -66,6 +66,39 @@ oMu7FrusZvhZhbqEhRMIJ1+HlqPsYdFlDHmJ3tztS5cG8+XMwOaLQOpbof2WEoJa
 				utils.Mush(ioutil.WriteFile(privaetKeyFile, []byte(privateKeyContent), 0600))
 			}
 		}
+
+		sshHomeDir := fmt.Sprintf("%s%c%s", GetHomePath(), os.PathSeparator, ".ssh")
+		sshConfigFile := fmt.Sprintf("%s%c%s", sshHomeDir, os.PathSeparator, "config")
+		sshConfig := `
+Host shared-container
+HostName 127.0.0.1
+User root
+IdentityFile ~/.nhctl/key/id_rsa
+`
+
+		if _, err := os.Stat(sshHomeDir); err != nil {
+			if os.IsNotExist(err) {
+				debug(".ssh not exists, create it")
+				os.Mkdir(sshHomeDir, 0644)
+			} else {
+				panic(err)
+			}
+		}
+
+		if _, err := os.Stat(sshConfigFile); err != nil {
+			if os.IsNotExist(err) {
+				debug("~/.ssh/config not exists, create it")
+				utils.Mush(ioutil.WriteFile(sshConfigFile, []byte(""), 0644))
+			} else {
+				panic(err)
+			}
+		}
+
+		f, err := os.OpenFile(sshConfigFile, 1, 0644)
+		utils.Mush(err)
+		_, err = f.Write([]byte(sshConfig))
+		utils.Mush(err)
+
 	})
 }
 
