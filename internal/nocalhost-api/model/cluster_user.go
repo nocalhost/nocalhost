@@ -21,15 +21,16 @@ import (
 
 // ClusterUserModel
 type ClusterUserModel struct {
-	ID        uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
-	UserId    uint64     `gorm:"column:user_id;not null" json:"user_id"`
-	ClusterId uint64     `gorm:"column:cluster_id;not null" json:"cluster_id"`
-	Memory    uint64     `gorm:"column:memory;not null" json:"memory"`
-	Cpu       uint64     `gorm:"column:cpu;not null" json:"cpu"`
-	Namespace string     `gorm:"column:namespace;not null" json:"-"`
-	CreatedAt time.Time  `gorm:"column:created_at" json:"-"`
-	UpdatedAt time.Time  `gorm:"column:updated_at" json:"-"`
-	DeletedAt *time.Time `gorm:"column:deleted_at" json:"-"`
+	ID         uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
+	UserId     uint64     `gorm:"column:user_id;not null" json:"user_id"`
+	ClusterId  uint64     `gorm:"column:cluster_id;not null" json:"cluster_id"`
+	KubeConfig string     `gorm:"column:kubeconfig;not null" json:"kubeconfig"`
+	Memory     uint64     `gorm:"column:memory;not null" json:"memory"`
+	Cpu        uint64     `gorm:"column:cpu;not null" json:"cpu"`
+	Namespace  string     `gorm:"column:namespace;not null" json:"-"`
+	CreatedAt  time.Time  `gorm:"column:created_at" json:"-"`
+	UpdatedAt  time.Time  `gorm:"column:updated_at" json:"-"`
+	DeletedAt  *time.Time `gorm:"column:deleted_at" json:"-"`
 }
 
 // Validate the fields.

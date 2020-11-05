@@ -22,10 +22,8 @@ import (
 	"syscall"
 	"time"
 
-	"nocalhost/pkg/nocalhost-api/conf"
-	redis2 "nocalhost/pkg/nocalhost-api/pkg/redis"
-
 	"nocalhost/internal/nocalhost-api/model"
+	"nocalhost/pkg/nocalhost-api/conf"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
@@ -62,7 +60,7 @@ func New(cfg *conf.Config) *Application {
 	app.DB = model.Init()
 
 	// init redis
-	app.RedisClient = redis2.Init()
+	// app.RedisClient = redis2.Init()
 
 	// init router
 	app.Router = gin.Default()

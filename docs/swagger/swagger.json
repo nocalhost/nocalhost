@@ -406,6 +406,39 @@
                 }
             }
         },
+        "/v1/cluster/list": {
+            "get": {
+                "description": "获取集群列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "集群"
+                ],
+                "summary": "获取集群列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":model.ClusterList}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterList"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/users": {
             "post": {
                 "description": "管理员添加开发者",
@@ -440,6 +473,39 @@
                         "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/list": {
+            "get": {
+                "description": "Get userlist",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户"
+                ],
+                "summary": "获取用户列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "用户列表",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.UserList"
                         }
                     }
                 }
@@ -616,6 +682,29 @@
                 }
             }
         },
+        "model.ClusterList": {
+            "type": "object",
+            "properties": {
+                "cluster_mark": {
+                    "type": "string"
+                },
+                "cluster_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "info": {
+                    "type": "string"
+                },
+                "users_count": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.UserInfo": {
             "type": "object",
             "properties": {
@@ -630,6 +719,26 @@
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "model.UserList": {
+            "type": "object",
+            "properties": {
+                "cluster_count": {
+                    "type": "integer"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
                 }
             }
         },

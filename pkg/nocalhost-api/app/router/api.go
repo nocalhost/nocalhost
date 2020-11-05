@@ -75,6 +75,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	u.Use(middleware.AuthMiddleware())
 	{
 		u.GET("", user.Get)
+		u.GET("/list", user.GetList)
 		u.POST("", user.Create)
 		u.PUT("/:id", user.Update)
 		u.DELETE("/:id", user.Delete)
@@ -85,6 +86,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	c.Use(middleware.AuthMiddleware())
 	{
 		c.POST("", cluster.Create)
+		c.GET("/list", cluster.GetList)
 	}
 
 	// 应用
