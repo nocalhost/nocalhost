@@ -47,6 +47,7 @@ type UserService interface {
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
 	UpdateUser(ctx context.Context, id uint64, user *map[string]interface{}) error
+	GetUserList(ctx context.Context) ([]*model.UserList, error)
 	Close()
 }
 
@@ -63,6 +64,10 @@ func NewUserService() UserService {
 	return &userService{
 		userRepo: user.NewUserRepo(db),
 	}
+}
+
+func (srv *userService) GetUserList(ctx context.Context) ([]*model.UserList, error) {
+	return srv.userRepo.GetUserList(ctx)
 }
 
 // Delete 删除用户

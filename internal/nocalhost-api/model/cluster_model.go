@@ -23,12 +23,22 @@ import (
 type ClusterModel struct {
 	ID         uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
 	Name       string     `json:"name" gorm:"column:name;not null" binding:"required" validate:"min=1,max=32"`
-	Marks      string     `json:"marks" gorm:"column:marks;not null" json:"marks"`
+	Marks      string     `json:"marks" gorm:"column:marks;not null"`
+	Info       string     `json:"info" gorm:"column:info;"`
 	UserId     uint64     `gorm:"column:user_id;not null" json:"-"`
 	KubeConfig string     `json:"kubeconfig" gorm:"column:kubeconfig;not null" binding:"required"`
 	CreatedAt  time.Time  `gorm:"column:created_at" json:"-"`
 	UpdatedAt  time.Time  `gorm:"column:updated_at" json:"-"`
 	DeletedAt  *time.Time `gorm:"column:deleted_at" json:"-"`
+}
+
+type ClusterList struct {
+	ID          uint64    `gorm:"column:id" json:"id"`
+	ClusterName string    `gorm:"column:name" json:"cluster_name"`
+	ClusterMark string    `gorm:"column:mark" json:"cluster_mark"`
+	UsersCount  uint64    `gorm:"column:users_count" json:"users_count"`
+	Info        string    `gorm:"column:info" json:"info"`
+	CreatedAt   time.Time `gorm:"column:created_at" json:"created_at"`
 }
 
 // Validate the fields.

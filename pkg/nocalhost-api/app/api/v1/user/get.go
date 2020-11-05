@@ -52,3 +52,17 @@ func Get(c *gin.Context) {
 
 	api.SendResponse(c, nil, u)
 }
+
+// Get 获取用户列表
+// @Summary 获取用户列表
+// @Description Get userlist
+// @Tags 用户
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Success 200 {object} model.UserList "用户列表"
+// @Router /v1/users/list [get]
+func GetList(c *gin.Context) {
+	u, _ := service.Svc.UserSvc().GetUserList(context.TODO())
+	api.SendResponse(c, nil, u)
+}
