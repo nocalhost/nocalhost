@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
 	"sort"
@@ -28,7 +29,6 @@ import (
 func init() {
 	debugEndCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	debugEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
-	//debugEndCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubernetes cluster config")
 	debugCmd.AddCommand(debugEndCmd)
 }
 
@@ -97,28 +97,24 @@ func EndFileSync() {
 					// todo confirm session's status
 					fmt.Println("sync session has been terminated.")
 				}
-
 			}
-			//fmt.Println(line)
 		}
 	}
 }
 
 func DeploymentRollBackToPreviousRevision() {
-	deploymentsClient, err := GetDeploymentClient(nameSpace)
-	if err != nil {
-		fmt.Printf("%v", err)
-		return
-	}
 
-	dep, err := deploymentsClient.Get(context.TODO(), deployment, metav1.GetOptions{})
+	clientUtils, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
+	clientgoutils.Must(err)
+
+	dep, err := clientUtils.GetDeployment(context.TODO(), nameSpace, deployment)
 	if err != nil {
 		fmt.Printf("failed to get deployment %s , err : %v\n", dep.Name, err)
 		return
 	}
 
 	fmt.Printf("rolling deployment back to previous revision\n")
-	rss, err := GetReplicaSetsControlledByDeployment(deployment)
+	rss, err := clientUtils.GetReplicaSetsControlledByDeployment(context.TODO(), nameSpace, deployment)
 	if err != nil {
 		fmt.Printf("failed to get rs list, err:%v\n", err)
 		return
@@ -136,12 +132,12 @@ func DeploymentRollBackToPreviousRevision() {
 	sort.Ints(keys)
 
 	dep.Spec.Template = rss[keys[len(keys)-2]].Spec.Template // previous replicaSet is the second largest revision number : keys[len(keys)-2]
-	_, err = deploymentsClient.Update(context.TODO(), dep, metav1.UpdateOptions{})
+	//_, err = deploymentsClient.Update(context.TODO(), dep, metav1.UpdateOptions{})
+	_, err = clientUtils.UpdateDeployment(context.TODO(), nameSpace, dep, metav1.UpdateOptions{}, true)
 	if err != nil {
 		fmt.Println("failed rolling back")
 	} else {
 		fmt.Println("rolling back!")
 	}
-	// todo wait util rollback completed
 
 }
