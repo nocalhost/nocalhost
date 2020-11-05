@@ -24,6 +24,7 @@ import (
 type ClusterService interface {
 	Create(ctx context.Context, name, marks, kubeconfig string, userId uint64) error
 	Get(ctx context.Context, id, userId uint64) (model.ClusterModel, error)
+	GetList(ctx context.Context) ([]*model.ClusterList, error)
 	Close()
 }
 
@@ -50,6 +51,11 @@ func (srv *clusterService) Create(ctx context.Context, name, marks, kubeconfig s
 		return errors.Wrapf(err, "create cluster")
 	}
 	return nil
+}
+
+func (srv *clusterService) GetList(ctx context.Context) ([]*model.ClusterList, error) {
+	result, _ := srv.clusterRepo.GetList(ctx)
+	return result, nil
 }
 
 func (srv *clusterService) Get(ctx context.Context, id, userId uint64) (model.ClusterModel, error) {

@@ -53,6 +53,21 @@ definitions:
     - memory
     - user_id
     type: object
+  model.ClusterList:
+    properties:
+      cluster_mark:
+        type: string
+      cluster_name:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      info:
+        type: string
+      users_count:
+        type: integer
+    type: object
   model.UserInfo:
     properties:
       avatar:
@@ -63,6 +78,19 @@ definitions:
         type: integer
       username:
         type: string
+    type: object
+  model.UserList:
+    properties:
+      cluster_count:
+        type: integer
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      status:
+        type: integer
     type: object
   user.CreateUserRequest:
     properties:
@@ -375,6 +403,28 @@ paths:
       summary: 添加集群
       tags:
       - 集群
+  /v1/cluster/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取集群列表
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":model.ClusterList}'
+          schema:
+            $ref: '#/definitions/model.ClusterList'
+            type: object
+      summary: 获取集群列表
+      tags:
+      - 集群
   /v1/users:
     post:
       description: 管理员添加开发者
@@ -459,5 +509,27 @@ paths:
             $ref: '#/definitions/api.Response'
             type: object
       summary: 更新用户信息（含禁用用户）
+      tags:
+      - 用户
+  /v1/users/list:
+    get:
+      consumes:
+      - application/json
+      description: Get userlist
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 用户列表
+          schema:
+            $ref: '#/definitions/model.UserList'
+            type: object
+      summary: 获取用户列表
       tags:
       - 用户
