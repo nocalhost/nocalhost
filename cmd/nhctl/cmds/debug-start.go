@@ -17,18 +17,20 @@ import (
 	"context"
 	"fmt"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"time"
 )
 
-var nameSpace, lang, image string
+var nameSpace, lang, image, proxyImage string
 
 func init() {
 	debugStartCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	debugStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
 	debugStartCmd.Flags().StringVarP(&lang, "type", "l", "", "the development language, eg: java go python")
 	debugStartCmd.Flags().StringVarP(&image, "image", "i", "", "image of development container")
+	debugStartCmd.Flags().StringVarP(&proxyImage, "proxy-image", "p", "", "proxy image of development container")
 	//debugStartCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubernetes cluster config")
 	debugCmd.AddCommand(debugStartCmd)
 }
@@ -72,6 +74,10 @@ func ReplaceImage(nameSpace string, deployment string) {
 		debugImage = image
 	}
 
+	if proxyImage == "" {
+		proxyImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:v1"
+	}
+
 	clientUtils, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
 	clientgoutils.Must(err)
 
@@ -106,9 +112,40 @@ func ReplaceImage(nameSpace string, deployment string) {
 		return
 	}
 
+	volName := "nocalhost-shared-volume"
+	mountPath := "/home/code"
+	// shared volume
+	vol := corev1.Volume{
+		Name: volName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+	if dep.Spec.Template.Spec.Volumes == nil {
+		debug("volume slice define is nil, init slice")
+		dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
+	}
+	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol)
+
+	// volume mount
+	volMount := corev1.VolumeMount{
+		Name:      volName,
+		MountPath: mountPath,
+	}
+
 	// default : replace the first container
 	dep.Spec.Template.Spec.Containers[0].Image = debugImage
-	dep.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "service ssh start; mutagen daemon start; mutagen-agent install; tail -f /dev/null"}
+	//dep.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "service ssh start; mutagen daemon start; mutagen-agent install; tail -f /dev/null"}
+	dep.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
+	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, volMount)
+
+	sideCarContainer := corev1.Container{
+		Name:    "nocalhost-sidecar",
+		Image:   proxyImage,
+		Command: []string{"/bin/sh", "-c", "service ssh start; mutagen daemon start; mutagen-agent install; tail -f /dev/null"},
+	}
+	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, volMount)
+	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
 
 	//_, err = deploymentsClient.Update(context.TODO(), dep, metav1.UpdateOptions{})
 	_, err = clientUtils.UpdateDeployment(context.TODO(), nameSpace, dep, metav1.UpdateOptions{}, true)
