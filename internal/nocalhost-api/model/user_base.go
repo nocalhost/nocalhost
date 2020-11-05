@@ -14,7 +14,6 @@ limitations under the License.
 package model
 
 import (
-	"sync"
 	"time"
 
 	"nocalhost/pkg/nocalhost-api/pkg/auth"
@@ -45,7 +44,7 @@ func (u *UserBaseModel) Validate() error {
 	return validate.Struct(u)
 }
 
-// UserInfo 对外暴露的结构体
+// UserInfo
 type UserInfo struct {
 	ID       uint64 `json:"id"`
 	Username string `json:"username"`
@@ -53,15 +52,18 @@ type UserInfo struct {
 	Email    int    `json:"email"`
 }
 
+// UserList
+type UserList struct {
+	ID           uint64 `gorm:"column:id" json:"id"`
+	Name         string `gorm:"column:name" json:"name"`
+	Email        string `gorm:"column:email" json:"email"`
+	ClusterCount uint64 `gorm:"column:cluster_count" json:"cluster_count"`
+	Status       uint64 `gorm:"column:status" json:"status"`
+}
+
 // TableName 表名
 func (u *UserBaseModel) TableName() string {
 	return "users"
-}
-
-// UserList 用户列表结构体
-type UserList struct {
-	Lock  *sync.Mutex
-	IDMap map[uint64]*UserInfo
 }
 
 // Token represents a JSON web token.

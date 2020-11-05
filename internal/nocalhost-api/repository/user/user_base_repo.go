@@ -31,6 +31,7 @@ type BaseRepo interface {
 	GetUserByID(ctx context.Context, id uint64) (*model.UserBaseModel, error)
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
+	GetUserList(ctx context.Context) ([]*model.UserList, error)
 	Close()
 }
 
@@ -44,6 +45,13 @@ func NewUserRepo(db *gorm.DB) BaseRepo {
 	return &userBaseRepo{
 		db: db,
 	}
+}
+
+// GetUserList
+func (repo *userBaseRepo) GetUserList(ctx context.Context) ([]*model.UserList, error) {
+	var result []*model.UserList
+	repo.db.Raw("select u.id as id,u.name as name,u.email as email,count(distinct cu.id) as cluster_count,u.status as status from users as u left join clusters_users as cu on cu.user_id=u.id where u.deleted_at is null and cu.deleted_at is null group by u.id").Scan(&result)
+	return result, nil
 }
 
 // Delete 删除用户

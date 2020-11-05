@@ -25,6 +25,7 @@ import (
 type ClusterRepo interface {
 	Create(ctx context.Context, user model.ClusterModel) (id uint64, err error)
 	Get(ctx context.Context, clusterId uint64, userId uint64) (model.ClusterModel, error)
+	GetList(ctx context.Context) ([]*model.ClusterList, error)
 	Close()
 }
 
@@ -36,6 +37,12 @@ func NewClusterRepo(db *gorm.DB) ClusterRepo {
 	return &clusterBaseRepo{
 		db: db,
 	}
+}
+
+func (repo *clusterBaseRepo) GetList(ctx context.Context) ([]*model.ClusterList, error) {
+	var result []*model.ClusterList
+	repo.db.Raw("select c.id,c.name,c.marks,c.info,c.created_at,count(distinct cu.id) as users_count from clusters as c left join clusters_users as cu on c.id=cu.cluster_id where c.deleted_at is null and cu.deleted_at is null group by c.id").Scan(&result)
+	return result, nil
 }
 
 func (repo *clusterBaseRepo) Create(ctx context.Context, cluster model.ClusterModel) (id uint64, err error) {
