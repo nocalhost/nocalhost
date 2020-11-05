@@ -26,7 +26,7 @@ func getHomePath() string {
 	return ""
 }
 
-func printlnErr(info string, err error) {
+func PrintlnErr(info string, err error) {
 	fmt.Printf("%s, err: %v\n", info, err)
 }
 
