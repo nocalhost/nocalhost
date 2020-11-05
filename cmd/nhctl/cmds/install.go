@@ -168,7 +168,7 @@ outer:
 			}
 		}
 		fmt.Println("create " + file)
-		clientUtil, err := clientgoutils.NewClientGoUtils(settings.KubeConfig)
+		clientUtil, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
 		if err != nil {
 			return err
 		}
@@ -196,7 +196,7 @@ func PreInstall(basePath string) ([]string, error) {
 	// sort
 	sort.Sort(ComparableItems(pConf.Items))
 
-	clientUtils, err := clientgoutils.NewClientGoUtils(settings.KubeConfig)
+	clientUtils, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
 	if err != nil {
 		return nil, err
 	}

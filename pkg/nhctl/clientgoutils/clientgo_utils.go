@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	v1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -17,58 +19,67 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	appsV1 "k8s.io/client-go/kubernetes/typed/apps/v1"
+	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	"log"
+	"strconv"
+	"time"
 )
 
 type ClientGoUtils struct {
 	kubeConfigFilePath string
 	//restConfig *restclient.Config
-	ClientSet          *kubernetes.Clientset
-	dynamicClient      dynamic.Interface//
+	ClientSet     *kubernetes.Clientset
+	dynamicClient dynamic.Interface //
+	TimeOut       time.Duration
 	//RestClient         *restclient.RESTClient
 }
 
-
-func NewClientGoUtils(kubeConfigPath string) (*ClientGoUtils, error) {
+// if timeout is set to 0, default timeout 5 minutes is used
+func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUtils, error) {
 	var (
-		err error
-		restConfig         *restclient.Config
+		err        error
+		restConfig *restclient.Config
 	)
 
-
-	if kubeConfigPath == "" {  // use kubectl default config
+	if kubeConfigPath == "" { // use kubectl default config
 		kubeConfigPath = fmt.Sprintf("%s/.kube/config", getHomePath())
+	}
+
+	if timeout <= 0 {
+		timeout = time.Minute * 5
 	}
 	client := &ClientGoUtils{
 		kubeConfigFilePath: kubeConfigPath,
+		TimeOut:            timeout,
 	}
 
-	if restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfigPath); err != nil{
-		printlnErr("fail to build rest config", err)
+	if restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfigPath); err != nil {
+		PrintlnErr("fail to build rest config", err)
 		return nil, err
 	}
 
 	if client.ClientSet, err = kubernetes.NewForConfig(restConfig); err != nil {
-		printlnErr("fail to get clientset", err)
+		PrintlnErr("fail to get clientset", err)
 		return nil, err
 	}
 
 	if client.dynamicClient, err = dynamic.NewForConfig(restConfig); err != nil {
-		printlnErr("fail to get dynamicClient", err)
+		PrintlnErr("fail to get dynamicClient", err)
 		return nil, err
 	}
 
 	return client, nil
 }
 
-func (c *ClientGoUtils) getRestConfig() (*restclient.Config, error){
+func (c *ClientGoUtils) getRestConfig() (*restclient.Config, error) {
 	return clientcmd.BuildConfigFromFlags("", c.kubeConfigFilePath)
 }
 
-func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool) error{
+func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool) error {
 	if yamlPath == "" {
 		return errors.New("yaml path can not be empty")
 	}
@@ -123,17 +134,17 @@ func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool) err
 		}
 
 		obj2, err := dri.Create(context.Background(), unstructuredObj, metav1.CreateOptions{})
-		if  err != nil {
+		if err != nil {
 			log.Print(err)
 			return err
 		}
 
-		fmt.Printf("%s/%s created\n",obj2.GetKind(), obj2.GetName())
+		fmt.Printf("%s/%s created\n", obj2.GetKind(), obj2.GetName())
 
 		if wait {
 			err = c.WaitJobToBeReady(obj2.GetNamespace(), obj2.GetName())
 			if err != nil {
-				printlnErr("fail to wait", err)
+				PrintlnErr("fail to wait", err)
 				return err
 			}
 		}
@@ -142,7 +153,7 @@ func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool) err
 	return nil
 }
 
-func (c *ClientGoUtils)GetDiscoveryClient() (*discovery.DiscoveryClient, error){
+func (c *ClientGoUtils) GetDiscoveryClient() (*discovery.DiscoveryClient, error) {
 	config, err := c.getRestConfig()
 	if err != nil {
 		return nil, err
@@ -150,7 +161,7 @@ func (c *ClientGoUtils)GetDiscoveryClient() (*discovery.DiscoveryClient, error){
 	return discovery.NewDiscoveryClientForConfig(config)
 }
 
-func (c *ClientGoUtils)Discovery(){
+func (c *ClientGoUtils) Discovery() {
 	discoveryClient, err := c.GetDiscoveryClient()
 	if err != nil {
 		fmt.Println("failed to get discovery client")
@@ -179,57 +190,83 @@ func (c *ClientGoUtils)Discovery(){
 	}
 }
 
-func (c *ClientGoUtils)waitUtilReady(kind string, namespace string, name string,uns *unstructured.Unstructured) error {
-	//
-	//var err error
-	//restClient := c.RestClient
-	//switch kind {
-	//case "Job":
-	//	fmt.Println("waiting job")
-	//	restClient, err = c.GetRestClient(BatchV1)
-	//case "Pod": // only wait for job and pod
-	//	fmt.Println("waiting for " + kind)
-	//default:
-	//	fmt.Println("no waiting for " + kind)
-	//	return nil
-	//}
+func (c *ClientGoUtils) GetDeploymentClient(namespace string) appsV1.DeploymentInterface {
+	return c.ClientSet.AppsV1().Deployments(namespace)
+}
 
+func (c *ClientGoUtils) GetPodClient(namespace string) coreV1.PodInterface {
+	return c.ClientSet.CoreV1().Pods(namespace)
+}
 
-	//selector, err := fields.ParseSelector(fmt.Sprintf("metadata.name=%s", name))
-	//if err != nil {
-	//	return err
-	//}
+func (c *ClientGoUtils) GetDeployment(ctx context.Context, namespace string, name string) (*v1.Deployment, error) {
+	return c.GetDeploymentClient(namespace).Get(ctx, name, metav1.GetOptions{})
+}
 
-	//lw := cachetools.NewListWatchFromClient(restClient, "jobs", namespace, selector)
-	//ctx, cancel := watchtools.ContextWithOptionalTimeout(context.Background(), time.Minute*5)
-	//defer cancel()
-	//_, err = watchtools.UntilWithSync(ctx, lw, uns, nil, func(e watch.Event) (bool, error) {
-	//	switch e.Type {
-	//	case watch.Added, watch.Modified:
-	//		// For things like a secret or a config map, this is the best indicator
-	//		// we get. We care mostly about jobs, where what we want to see is
-	//		// the status go into a good state. For other types, like ReplicaSet
-	//		// we don't really do anything to support these as hooks.
-	//		switch kind {
-	//		case "Job":
-	//			return waitForJob(e.Object, name)
-	//		//case "Pod":
-	//		//	return waitForPodSuccess(e.Object, resourceName)
-	//		}
-	//		return true, nil
-	//	case watch.Deleted:
-	//		fmt.Printf("Deleted event for %s", name)
-	//		return true, nil
-	//	case watch.Error:
-	//		// Handle error and return with an error.
-	//		fmt.Printf("Error event for %s", name)
-	//		return true, errors.New("failed to deploy " + name)
-	//	default:
-	//		return false, nil
-	//	}
-	//})
+func (c *ClientGoUtils) UpdateDeployment(ctx context.Context, namespace string, deployment *v1.Deployment, opts metav1.UpdateOptions, wait bool) (*v1.Deployment, error) {
+	dep, err := c.GetDeploymentClient(namespace).Update(ctx, deployment, opts)
+	if err != nil {
+		return nil, err
+	}
+	if wait {
+		err = c.WaitDeploymentToBeReady(namespace, dep.Name, c.TimeOut)
+	}
+	return dep, err
+}
 
-	return nil
+func (c *ClientGoUtils) ListPodsOfDeployment(namespace string, deployName string) ([]corev1.Pod, error) {
+	podClient := c.GetPodClient(namespace)
+
+	podList, err := podClient.List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		fmt.Printf("failed to get pods, err: %v\n", err)
+		return nil, err
+	}
+
+	result := make([]corev1.Pod, 0)
+
+OuterLoop:
+	for _, pod := range podList.Items {
+		if pod.OwnerReferences != nil {
+			for _, ref := range pod.OwnerReferences {
+				if ref.Kind == "ReplicaSet" {
+					rss, _ := c.GetReplicaSetsControlledByDeployment(context.TODO(), namespace, deployName)
+					if rss != nil {
+						for _, rs := range rss {
+							if rs.Name == ref.Name {
+								result = append(result, pod)
+								continue OuterLoop
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return result, nil
+
+}
+
+func (c *ClientGoUtils) GetReplicaSetsControlledByDeployment(ctx context.Context, namespace string, deploymentName string) (map[int]*v1.ReplicaSet, error) {
+	var rsList *v1.ReplicaSetList
+	replicaSetsClient := c.ClientSet.AppsV1().ReplicaSets(namespace)
+	rsList, err := replicaSetsClient.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	rsMap := make(map[int]*v1.ReplicaSet)
+	for _, item := range rsList.Items {
+		if item.OwnerReferences != nil {
+			for _, owner := range item.OwnerReferences {
+				if owner.Name == deploymentName && item.Annotations["deployment.kubernetes.io/revision"] != "" {
+					if revision, err := strconv.Atoi(item.Annotations["deployment.kubernetes.io/revision"]); err == nil {
+						rsMap[revision] = item.DeepCopy()
+					}
+				}
+			}
+		}
+	}
+	return rsMap, nil
 }
 
 func waitForJob(obj runtime.Object, name string) (bool, error) {
@@ -251,6 +288,3 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 
 	return false, nil
 }
-
-
-

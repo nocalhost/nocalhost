@@ -17,8 +17,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"time"
 )
 
@@ -72,11 +72,10 @@ func ReplaceImage(nameSpace string, deployment string) {
 		debugImage = image
 	}
 
-	deploymentsClient, err := GetDeploymentClient(nameSpace)
-	if err != nil {
-		fmt.Printf("%v", err)
-		return
-	}
+	clientUtils, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
+	clientgoutils.Must(err)
+
+	deploymentsClient := clientUtils.GetDeploymentClient(nameSpace)
 
 	scale, err := deploymentsClient.GetScale(context.TODO(), deployment, metav1.GetOptions{})
 	if err != nil {
@@ -101,16 +100,18 @@ func ReplaceImage(nameSpace string, deployment string) {
 	}
 
 	fmt.Println("Updating develop container...")
-	dep, err := deploymentsClient.Get(context.TODO(), deployment, metav1.GetOptions{})
+	dep, err := clientUtils.GetDeployment(context.TODO(), nameSpace, deployment)
 	if err != nil {
 		fmt.Printf("failed to get deployment %s , err : %v\n", deployment, err)
+		return
 	}
 
 	// default : replace the first container
 	dep.Spec.Template.Spec.Containers[0].Image = debugImage
 	dep.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "service ssh start; mutagen daemon start; mutagen-agent install; tail -f /dev/null"}
 
-	_, err = deploymentsClient.Update(context.TODO(), dep, metav1.UpdateOptions{})
+	//_, err = deploymentsClient.Update(context.TODO(), dep, metav1.UpdateOptions{})
+	_, err = clientUtils.UpdateDeployment(context.TODO(), nameSpace, dep, metav1.UpdateOptions{}, true)
 	if err != nil {
 		fmt.Printf("update develop container failed : %v \n", err)
 		return
@@ -118,7 +119,7 @@ func ReplaceImage(nameSpace string, deployment string) {
 
 	<-time.NewTimer(time.Second * 3).C
 
-	podList, err := findPodListOfDeployment(dep.Name)
+	podList, err := clientUtils.ListPodsOfDeployment(nameSpace, dep.Name)
 	if err != nil {
 		fmt.Printf("failed to get pods, err: %v\n", err)
 		return
@@ -131,7 +132,7 @@ func ReplaceImage(nameSpace string, deployment string) {
 	fmt.Printf("waiting pod to start.")
 	for {
 		<-time.NewTimer(time.Second * 2).C
-		podList, err = findPodListOfDeployment(dep.Name)
+		podList, err = clientUtils.ListPodsOfDeployment(nameSpace, dep.Name)
 		if err != nil {
 			fmt.Printf("failed to get pods, err: %v\n", err)
 			return
@@ -146,38 +147,39 @@ func ReplaceImage(nameSpace string, deployment string) {
 	fmt.Println("develop container has been updated")
 }
 
-func findPodListOfDeployment(deploy string) ([]v1.Pod, error) {
-	podClient, err := GetPodClient(nameSpace)
-	if err != nil {
-		fmt.Printf("failed to get podList client: %v\n", err)
-		return nil, err
-	}
-
-	podList, err := podClient.List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		fmt.Printf("failed to get pods, err: %v\n", err)
-		return nil, err
-	}
-
-	result := make([]v1.Pod, 0)
-
-OuterLoop:
-	for _, pod := range podList.Items {
-		if pod.OwnerReferences != nil {
-			for _, ref := range pod.OwnerReferences {
-				if ref.Kind == "ReplicaSet" {
-					rss, _ := GetReplicaSetsControlledByDeployment(deploy)
-					if rss != nil {
-						for _, rs := range rss {
-							if rs.Name == ref.Name {
-								result = append(result, pod)
-								continue OuterLoop
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return result, nil
-}
+//
+//func findPodListOfDeployment(deploy string) ([]v1.Pod, error) {
+//	podClient, err := GetPodClient(nameSpace)
+//	if err != nil {
+//		fmt.Printf("failed to get podList client: %v\n", err)
+//		return nil, err
+//	}
+//
+//	podList, err := podClient.List(context.TODO(), metav1.ListOptions{})
+//	if err != nil {
+//		fmt.Printf("failed to get pods, err: %v\n", err)
+//		return nil, err
+//	}
+//
+//	result := make([]v1.Pod, 0)
+//
+//OuterLoop:
+//	for _, pod := range podList.Items {
+//		if pod.OwnerReferences != nil {
+//			for _, ref := range pod.OwnerReferences {
+//				if ref.Kind == "ReplicaSet" {
+//					rss, _ := GetReplicaSetsControlledByDeployment(deploy)
+//					if rss != nil {
+//						for _, rs := range rss {
+//							if rs.Name == ref.Name {
+//								result = append(result, pod)
+//								continue OuterLoop
+//							}
+//						}
+//					}
+//				}
+//			}
+//		}
+//	}
+//	return result, nil
+//}

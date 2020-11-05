@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"nocalhost/pkg/nhctl/utils"
 	"os"
+	"strings"
 )
 
 var settings *EnvSettings
@@ -94,11 +95,20 @@ IdentityFile ~/.nhctl/key/id_rsa
 			}
 		}
 
-		f, err := os.OpenFile(sshConfigFile, 1, 0644)
-		utils.Mush(err)
-		_, err = f.Write([]byte(sshConfig))
+		f, err := ioutil.ReadFile(sshConfigFile)
 		utils.Mush(err)
 
+		if strings.Contains(string(f), "Host shared-container") {
+			debug("~/.ssh/config already config, ignore it")
+			return
+		}
+
+		file, err := os.OpenFile(sshConfigFile, os.O_WRONLY|os.O_APPEND, 0644)
+		utils.Mush(err)
+		defer file.Close()
+
+		_, err = file.Write([]byte(sshConfig))
+		utils.Mush(err)
 	})
 }
 
