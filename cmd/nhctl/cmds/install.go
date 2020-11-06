@@ -111,11 +111,13 @@ func InstallApplication() {
 		if settings.KubeConfig != "" {
 			params = append(params, "--kubeconfig", settings.KubeConfig)
 		}
-		_, err = tools.ExecCommand(nil, true, "helm", params...)
+		output, err := tools.ExecCommand(nil, false, "helm", params...)
 		if err != nil {
 			printlnErr("fail to install helm app", err)
 			return
 		}
+		debug(output)
+		fmt.Printf(`helm app installed, use "helm list -n %s" to get the information of the helm release`+"\n", nameSpace)
 	} else if appType == "manifest" {
 		excludeFiles := make([]string, 0)
 		if preInstallConfigPath != "" {
