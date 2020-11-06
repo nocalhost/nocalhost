@@ -23,15 +23,19 @@ import (
 	"time"
 )
 
-var nameSpace, lang, image, proxyImage string
+var (
+	nameSpace, lang, image string
+	mountPath              = "/home/code"
+	sidecarImage           = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:v1"
+)
 
 func init() {
 	debugStartCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	debugStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
-	debugStartCmd.Flags().StringVarP(&lang, "type", "l", "", "the development language, eg: java go python")
+	debugStartCmd.Flags().StringVarP(&lang, "lang", "l", "", "the development language, eg: java go python")
 	debugStartCmd.Flags().StringVarP(&image, "image", "i", "", "image of development container")
-	debugStartCmd.Flags().StringVarP(&proxyImage, "proxy-image", "p", "", "proxy image of development container")
-	//debugStartCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubernetes cluster config")
+	debugStartCmd.Flags().StringVar(&mountPath, "mount-path", mountPath, "path mounted for sync files")
+	debugStartCmd.Flags().StringVar(&sidecarImage, "sidecar-image", sidecarImage, "image of sidecar container")
 	debugCmd.AddCommand(debugStartCmd)
 }
 
@@ -74,10 +78,6 @@ func ReplaceImage(nameSpace string, deployment string) {
 		debugImage = image
 	}
 
-	if proxyImage == "" {
-		proxyImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:v1"
-	}
-
 	clientUtils, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
 	clientgoutils.Must(err)
 
@@ -113,7 +113,6 @@ func ReplaceImage(nameSpace string, deployment string) {
 	}
 
 	volName := "nocalhost-shared-volume"
-	mountPath := "/home/code"
 	// shared volume
 	vol := corev1.Volume{
 		Name: volName,
@@ -135,13 +134,12 @@ func ReplaceImage(nameSpace string, deployment string) {
 
 	// default : replace the first container
 	dep.Spec.Template.Spec.Containers[0].Image = debugImage
-	//dep.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "service ssh start; mutagen daemon start; mutagen-agent install; tail -f /dev/null"}
 	dep.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, volMount)
 
 	sideCarContainer := corev1.Container{
 		Name:    "nocalhost-sidecar",
-		Image:   proxyImage,
+		Image:   sidecarImage,
 		Command: []string{"/bin/sh", "-c", "service ssh start; mutagen daemon start; mutagen-agent install; tail -f /dev/null"},
 	}
 	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, volMount)
