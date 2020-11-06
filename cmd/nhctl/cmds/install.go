@@ -89,8 +89,13 @@ func InstallApplication() {
 	}
 
 	// helm install
-	gitSuffix := gitUrl[:len(gitUrl)-4]
-	fmt.Println("git dir : " + gitSuffix)
+	var gitSuffix string
+	if strings.HasSuffix(gitUrl, ".git") {
+		gitSuffix = gitUrl[:len(gitUrl)-4]
+	} else {
+		gitSuffix = gitUrl
+	}
+	debug("git dir : " + gitSuffix)
 	strs := strings.Split(gitSuffix, "/")
 	gitSuffix = strs[len(strs)-1]
 	resourcesPath := gitSuffix
