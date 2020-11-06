@@ -97,17 +97,8 @@ func ExecKubeCtlCommand(ctx context.Context, kubeconfig string, params ...string
 
 //execute command
 func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params ...string) (string, error) {
-	//osName := CheckOS()
-	//basePath := "utils/" + osName + "/"
-	//execCommand := basePath + commandName
 	execCommand := commandName
 
-	// check command
-	//if CheckCommand(commandName) {
-	//	if !CheckFile(execCommand) {
-	//		return "", errors.New("error: command not exists")
-	//	}
-	//}
 	var cmd *exec.Cmd
 	if ctx == nil {
 		cmd = exec.Command(execCommand, params...)
@@ -135,9 +126,9 @@ func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params
 		if err2 != nil || io.EOF == err2 {
 			break
 		}
-		output = output + line + "\n"
+		output = output + line
 		if isDisplay {
-			fmt.Print(line + "\n")
+			fmt.Print(line)
 		}
 	}
 	err = cmd.Wait()
