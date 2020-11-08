@@ -30,6 +30,7 @@ import (
 	watchtools "k8s.io/client-go/tools/watch"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/tools"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -81,15 +82,10 @@ var installCmd = &cobra.Command{
 
 func InstallApplication() {
 
-	// clone git
-	_, err := tools.ExecCommand(nil, true, "git", "clone", gitUrl)
-	if err != nil {
-		printlnErr("fail to clone git", err)
-		return
-	}
-
-	// helm install
-	var gitSuffix string
+	var (
+		gitSuffix string
+		err       error
+	)
 	if strings.HasSuffix(gitUrl, ".git") {
 		gitSuffix = gitUrl[:len(gitUrl)-4]
 	} else {
@@ -98,6 +94,19 @@ func InstallApplication() {
 	debug("git dir : " + gitSuffix)
 	strs := strings.Split(gitSuffix, "/")
 	gitSuffix = strs[len(strs)-1]
+	// check if git dir is already exists
+	if _, err = os.Stat(gitSuffix); err != nil && os.IsNotExist(err) {
+		// clone git
+		_, err := tools.ExecCommand(nil, true, "git", "clone", gitUrl)
+		if err != nil {
+			printlnErr("fail to clone git", err)
+			return
+		}
+	} else {
+		debug("git dir is already exist, pass the clone action")
+	}
+
+	// helm install
 	resourcesPath := gitSuffix
 	if resourcesDir != "" {
 		resourcesPath += "/" + resourcesDir
