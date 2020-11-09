@@ -1,4 +1,4 @@
-# admission webhook 部署备忘
+# nocalhost-dep 部署备忘
 1. 创建 nocalhost-reserved 命名空间，作为 nocalhost 系统命名空间（服务端添加集群时处理）
 2. 使用用户 admin 用户权限的 kubeconfig 创建 example/kube-confiamap-example.yaml configmap，用于凭据挂载（服务端添加集群时处理）
 3. 创建用户态 namespace，并标记 label env=nocalhost ，用于自动注入（授权用户时处理）
@@ -10,16 +10,16 @@
 4. 部署 webhook/mutating-webhook-ca-bundle.yaml、webhook/sidecar-configmap.yaml、webhook/deployment.yaml 和 webhook/service.yaml
 
 # 构建
-## nocalhost-admission-webhook
+## nocalhost-dep
 需要从项目根目录构建，并向 docker 手动传递上下文：
 ```
-docker build -t nocalhost-admission-webhook:v51 -f deployments/dep-install-job/webhook/Dockerfile .
+docker build -t nocalhost-dep:v51 -f deployments/dep-install-job/webhook/Dockerfile .
 ```
-对应镜像：codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-admission-webhook
+对应镜像：codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep
 
-## admission-installer
+## dep-installer
 在 deployment/dep-install-job 目录构建：
 ```
-docker build -t admission-installer:v27 . 
+docker build -t dep-installer-job:v27 . 
 ```
-对应镜像：codingcorp-docker.pkg.coding.net/nocalhost/public/admission-installer
+对应镜像：codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job
