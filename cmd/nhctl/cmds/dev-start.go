@@ -137,6 +137,11 @@ func ReplaceImage(nameSpace string, deployment string) {
 	dep.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, volMount)
 
+	debug("disable readiness probes")
+	dep.Spec.Template.Spec.Containers[0].LivenessProbe = nil
+	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = nil
+	dep.Spec.Template.Spec.Containers[0].StartupProbe = nil
+
 	sideCarContainer := corev1.Container{
 		Name:    "nocalhost-sidecar",
 		Image:   sidecarImage,
