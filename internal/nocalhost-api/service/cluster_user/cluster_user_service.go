@@ -22,7 +22,8 @@ import (
 )
 
 type ClusterUserService interface {
-	Create(ctx context.Context, clusterId, userId, memory, cpu uint64) error
+	Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64) error
+	GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error)
 	Close()
 }
 
@@ -35,10 +36,19 @@ func NewClusterUserService() ClusterUserService {
 	return &clusterUserService{clusterUserRepo: cluster_user.NewApplicationClusterRepo(db)}
 }
 
-func (srv *clusterUserService) Create(ctx context.Context, clusterId, userId, memory, cpu uint64) error {
+func (srv *clusterUserService) GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error) {
+	result, err := srv.clusterUserRepo.GetFirst(ctx, models)
+	if err != nil {
+		return nil, errors.Wrapf(err, "GetFirst users_cluster error")
+	}
+	return result, nil
+}
+
+func (srv *clusterUserService) Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64) error {
 	c := model.ClusterUserModel{
-		UserId:    userId,
-		ClusterId: clusterId,
+		ApplicationId: applicationId,
+		UserId:        userId,
+		ClusterId:     clusterId,
 	}
 	_, err := srv.clusterUserRepo.Create(ctx, c)
 	if err != nil {

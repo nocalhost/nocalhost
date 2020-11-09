@@ -79,7 +79,7 @@ go build cmd/nocalhost-api/nocalhost-api.go
 ## 构建 nocalhost-dep
 
 ```
-docker build -t nocalhost-dep:latest -f deployments/admission-install-job/webhook/Dockerfile .
+docker build -t nocalhost-dep:latest -f deployments/dep-install-job/webhook/Dockerfile .
 ```
 
 ## 生成 API 文档

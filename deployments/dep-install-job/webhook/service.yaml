@@ -4,10 +4,10 @@ metadata:
   name: nocalhost-sidecar-injector-svc
   namespace: nocalhost-reserved
   labels:
-    app: nocalhost-mutating-dependents
+    app: nocalhost-dep
 spec:
   ports:
     - port: 443
       targetPort: 8443
   selector:
-    app: nocalhost-mutating-dependents
+    app: nocalhost-dep

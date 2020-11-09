@@ -44,4 +44,7 @@ var (
 	ErrBindApplicationClsuter = &Errno{Code: 40104, Message: "绑定集群失败，请重试"}
 	ErrPermissionApplication  = &Errno{Code: 40105, Message: "无此应用权限"}
 	ErrPermissionCluster      = &Errno{Code: 40106, Message: "无此集群权限"}
+
+	// cluster-user errors
+	ErrBindUserClsuterRepeat = &Errno{Code: 50100, Message: "该用户已授权此应用"}
 )
