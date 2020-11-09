@@ -363,6 +363,46 @@
                 }
             }
         },
+        "/v1/application/{id}/dev_space": {
+            "get": {
+                "description": "Get user's application dev space",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "应用"
+                ],
+                "summary": "Plugin - 获取个人应用开发环境(kubeconfig)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "应用 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "应用开发环境参数，含 kubeconfig",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/cluster": {
             "post": {
                 "description": "用户添加集群，暂时不考虑验证集群的 kubeconfig",
@@ -701,6 +741,32 @@
                     "type": "string"
                 },
                 "users_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ClusterUserModel": {
+            "type": "object",
+            "properties": {
+                "application_id": {
+                    "type": "integer"
+                },
+                "cluster_id": {
+                    "type": "integer"
+                },
+                "cpu": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "kubeconfig": {
+                    "type": "string"
+                },
+                "memory": {
+                    "type": "integer"
+                },
+                "user_id": {
                     "type": "integer"
                 }
             }

@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nocalhost-mutating-dependents
+  name: nocalhost-dep
   namespace: nocalhost-reserved
   labels:
-    app: nocalhost-mutating-dependents
+    app: nocalhost-dep
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: nocalhost-mutating-dependents
+      app: nocalhost-dep
   template:
     metadata:
       labels:
-        app: nocalhost-mutating-dependents
+        app: nocalhost-dep
     spec:
       containers:
-        - name: nocalhost-mutating-dependents
-          image: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-admission-webhook:v57
+        - name: nocalhost-dep
+          image: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep:v57
           imagePullPolicy: Always
           # dev mode
           #command: ["/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/server", "--"]

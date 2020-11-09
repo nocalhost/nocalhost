@@ -68,6 +68,23 @@ definitions:
       users_count:
         type: integer
     type: object
+  model.ClusterUserModel:
+    properties:
+      application_id:
+        type: integer
+      cluster_id:
+        type: integer
+      cpu:
+        type: integer
+      id:
+        type: integer
+      kubeconfig:
+        type: string
+      memory:
+        type: integer
+      user_id:
+        type: integer
+    type: object
   model.UserInfo:
     properties:
       avatar:
@@ -372,6 +389,33 @@ paths:
             $ref: '#/definitions/api.Response'
             type: object
       summary: 应用管理 - 创建开发环境
+      tags:
+      - 应用
+  /v1/application/{id}/dev_space:
+    get:
+      consumes:
+      - application/json
+      description: Get user's application dev space
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 应用 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 应用开发环境参数，含 kubeconfig
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Plugin - 获取个人应用开发环境(kubeconfig)
       tags:
       - 应用
   /v1/cluster:

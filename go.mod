@@ -2,7 +2,7 @@ module nocalhost
 
 go 1.15
 
-//require k8s.io/kubernetes v1.16.10
+// require k8s.io/kubernetes v1.16.10
 
 require (
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751

@@ -23,6 +23,7 @@ import (
 
 type ClusterUserRepo interface {
 	Create(ctx context.Context, model model.ClusterUserModel) (uint64, error)
+	GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error)
 	Close()
 }
 
@@ -34,6 +35,15 @@ func NewApplicationClusterRepo(db *gorm.DB) ClusterUserRepo {
 	return &clusterUserRepo{
 		db: db,
 	}
+}
+
+func (repo *clusterUserRepo) GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error) {
+	cluster := model.ClusterUserModel{}
+	result := repo.db.Where(&models).First(&cluster)
+	if result.Error != nil {
+		return &cluster, result.Error
+	}
+	return &cluster, nil
 }
 
 func (repo *clusterUserRepo) Create(ctx context.Context, model model.ClusterUserModel) (id uint64, err error) {
