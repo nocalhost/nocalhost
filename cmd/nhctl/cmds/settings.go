@@ -10,6 +10,8 @@ type EnvSettings struct {
 
 	// the path to the kubeconfig file
 	KubeConfig string
+
+	Namespace string
 }
 
 func NewEnvSettings() *EnvSettings {
