@@ -37,17 +37,29 @@ import (
 	"time"
 )
 
-var releaseName, gitUrl, resourcesDir, helmValueFile, appType, preInstallConfigPath string
+type InstallFlags struct {
+	*EnvSettings
+	ReleaseName          string
+	Url                  string // resource url
+	AppType              string
+	ResourcesDir         string
+	HelmValueFile        string
+	PreInstallConfigPath string
+}
+
+var installFlags = InstallFlags{
+	EnvSettings: settings,
+}
 
 func init() {
 	installCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
-	installCmd.Flags().StringVarP(&releaseName, "release-releaseName", "r", "", "release releaseName of helm")
-	installCmd.Flags().StringVarP(&gitUrl, "git-url", "u", "", "url of git")
-	installCmd.Flags().StringVarP(&resourcesDir, "dir", "d", "", "the dir of helm package or manifest")
-	installCmd.Flags().StringVarP(&helmValueFile, "", "f", "", "helm's Value.yaml")
+	installCmd.Flags().StringVarP(&installFlags.ReleaseName, "release-releaseName", "r", "", "release releaseName of helm")
+	installCmd.Flags().StringVarP(&installFlags.Url, "url", "u", "", "resource url")
+	installCmd.Flags().StringVarP(&installFlags.ResourcesDir, "dir", "d", "", "the dir of helm package or manifest")
+	installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "", "f", "", "helm's Value.yaml")
 	//installCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubernetes cluster config")
-	installCmd.Flags().StringVarP(&appType, "type", "t", "helm", "app type: helm or manifest")
-	installCmd.Flags().StringVarP(&preInstallConfigPath, "pre-install", "p", "", "resources to be installed before application install, should be a yaml file path")
+	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "helm", "app type: helm or manifest")
+	installCmd.Flags().StringVarP(&installFlags.PreInstallConfigPath, "pre-install", "p", "", "resources to be installed before application install, should be a yaml file path")
 	rootCmd.AddCommand(installCmd)
 }
 
@@ -60,7 +72,7 @@ var installCmd = &cobra.Command{
 			fmt.Println("error: please use -n to specify a kubernetes namespace")
 			return
 		}
-		if appType == "helm" && releaseName == "" {
+		if installFlags.AppType == "helm" && installFlags.ReleaseName == "" {
 			fmt.Println("error: please use -r to specify the release name of helm")
 			return
 		}
@@ -68,7 +80,7 @@ var installCmd = &cobra.Command{
 		//	fmt.Println("error: please use -d to specify the dir of helm package")
 		//	return
 		//}
-		if gitUrl == "" {
+		if installFlags.Url == "" {
 			fmt.Println("error: please use -u to specify url of git")
 			return
 		}
@@ -83,37 +95,43 @@ var installCmd = &cobra.Command{
 func InstallApplication() {
 
 	var (
-		gitSuffix string
-		err       error
+		resourcesPath string
+		gitDir        string
+		err           error
 	)
-	if strings.HasSuffix(gitUrl, ".git") {
-		gitSuffix = gitUrl[:len(gitUrl)-4]
-	} else {
-		gitSuffix = gitUrl
-	}
-	debug("git dir : " + gitSuffix)
-	strs := strings.Split(gitSuffix, "/")
-	gitSuffix = strs[len(strs)-1]
-	// check if git dir is already exists
-	if _, err = os.Stat(gitSuffix); err != nil && os.IsNotExist(err) {
-		// clone git
-		_, err := tools.ExecCommand(nil, true, "git", "clone", gitUrl)
-		if err != nil {
-			printlnErr("fail to clone git", err)
-			return
+
+	if strings.HasPrefix(installFlags.Url, "https") || strings.HasPrefix(installFlags.Url, "git") || strings.HasPrefix(installFlags.Url, "http") {
+		if strings.HasSuffix(installFlags.Url, ".git") {
+			gitDir = installFlags.Url[:len(installFlags.Url)-4]
+		} else {
+			gitDir = installFlags.Url
 		}
+		debug("git dir : " + gitDir)
+		strs := strings.Split(gitDir, "/")
+		gitDir = strs[len(strs)-1]
+		// check if git dir is already exists
+		if _, err = os.Stat(gitDir); err != nil && os.IsNotExist(err) {
+			// clone git
+			_, err := tools.ExecCommand(nil, true, "git", "clone", installFlags.Url)
+			if err != nil {
+				printlnErr("fail to clone git", err)
+				return
+			}
+		} else {
+			debug("git dir is already exist, pass the clone action")
+		}
+		// helm install
+		resourcesPath = gitDir
 	} else {
-		debug("git dir is already exist, pass the clone action")
+		resourcesPath = installFlags.Url
 	}
 
-	// helm install
-	resourcesPath := gitSuffix
-	if resourcesDir != "" {
-		resourcesPath += "/" + resourcesDir
+	if installFlags.ResourcesDir != "" {
+		resourcesPath += "/" + installFlags.ResourcesDir
 	}
-	fmt.Printf("resources path is %s\n", resourcesPath)
-	if appType == "helm" {
-		params := []string{"upgrade", "--install", "--wait", releaseName, resourcesPath, "--debug"}
+	debug("resources path is %s\n", resourcesPath)
+	if installFlags.AppType == "helm" {
+		params := []string{"upgrade", "--install", "--wait", installFlags.ReleaseName, resourcesPath, "--debug"}
 		if nameSpace != "" {
 			params = append(params, "-n", nameSpace)
 		}
@@ -127,9 +145,9 @@ func InstallApplication() {
 		}
 		debug(output)
 		fmt.Printf(`helm app installed, use "helm list -n %s" to get the information of the helm release`+"\n", nameSpace)
-	} else if appType == "manifest" {
+	} else if installFlags.AppType == "manifest" {
 		excludeFiles := make([]string, 0)
-		if preInstallConfigPath != "" {
+		if installFlags.PreInstallConfigPath != "" {
 			excludeFiles, err = PreInstall(resourcesPath)
 			if err != nil {
 				panic(err)
@@ -197,7 +215,7 @@ func PreInstall(basePath string) ([]string, error) {
 	fmt.Println("run pre-install....")
 	//  读取一个yaml文件
 	pConf := &PreInstallConfig{}
-	yamlFile, err := ioutil.ReadFile(preInstallConfigPath)
+	yamlFile, err := ioutil.ReadFile(installFlags.PreInstallConfigPath)
 	if err != nil {
 		printlnErr("fail to read pre-install config", err)
 		return nil, err
