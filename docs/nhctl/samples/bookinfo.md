@@ -36,15 +36,16 @@ nhctl 支持两种类型的应用安装：helm 和 mainfest，两种类型的安
 #### 安装 helm 应用
 
 ```shell
-nhctl install -n $NOCALHOST_NS -r bookinfo-04 -u https://e.coding.net/codingcorp/bookinfo/bookinfo-charts.git -t helm
+nhctl install -n $NOCALHOST_NS -r bookinfo-04 -u https://e.coding.net/codingcorp/bookinfo/bookinfo-charts.git -t helm --debug
 ```
 
 参数说明：
 
 - -n ：namespace
 - -r : helm release 的名字
-- -u : helm chart 文件所在的 git 地址
+- -u : helm chart 文件所在的 git 地址, 或本地文件目录地址，或 helm 仓库中 chart 的地址
 - -t : 应用类型
+- --debug : 打印 debug 日志输出
 
 环境清理：
 
