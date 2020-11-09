@@ -18,10 +18,10 @@ InitContainer 的原理是使用 [k8s-wait-for](https://github.com/groundnuty/k8
    ```
    kubectl create ns nocalhost-reserved
    ```
-2. 修改项目目录 `/deployments/admission-install-job/example/kube-configmap-example.yaml`，将内容替换为自己集群`管理员`的 `Kubeconfig` 配置
+2. 修改项目目录 `/deployments/dep-install-job/example/kube-configmap-example.yaml`，将内容替换为自己集群`管理员`的 `Kubeconfig` 配置
    ```
    修改完成后，在项目根目录执行
-   kubectl apply -f deployments/admission-install-job/example/kube-configmap-example.yaml
+   kubectl apply -f deployments/dep-install-job/example/kube-configmap-example.yaml
    ```
 3. 创建用户开发命名空间后，对命名空间打标签（注入 Sidecar 标记）
    ```
@@ -34,10 +34,10 @@ InitContainer 的原理是使用 [k8s-wait-for](https://github.com/groundnuty/k8
         --serviceaccount={namespace}:default \
         --namespace={namespace}
    ```
-5. 应用 admission-install-job ，该 Job 将会自动安装 Admission Webhook
+5. 应用 dep-install-job ，该 Job 将会自动安装 Admission Webhook
    ```
    在项目根目录下执行：
-   kubectl create -f deployments/admission-install-job/installer-job.yaml
+   kubectl create -f deployments/dep-install-job/installer-job.yaml
    ```
 6. 查看安装状态
    ```

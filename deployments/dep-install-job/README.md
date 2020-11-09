@@ -13,12 +13,12 @@
 ## nocalhost-admission-webhook
 需要从项目根目录构建，并向 docker 手动传递上下文：
 ```
-docker build -t nocalhost-admission-webhook:v51 -f deployments/admission-install-job/webhook/Dockerfile .
+docker build -t nocalhost-admission-webhook:v51 -f deployments/dep-install-job/webhook/Dockerfile .
 ```
 对应镜像：codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-admission-webhook
 
 ## admission-installer
-在 deployment/admission-install-job 目录构建：
+在 deployment/dep-install-job 目录构建：
 ```
 docker build -t admission-installer:v27 . 
 ```

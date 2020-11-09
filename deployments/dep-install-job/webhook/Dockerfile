@@ -24,7 +24,7 @@
 ## switch to non-root user
 ##USER ${USER_UID}
 
-# 从项目根目录 build ：docker build -t nocalhost-admission-webhook:v51 -f deployments/admission-install-job/webhook/Dockerfile .
+# 从项目根目录 build ：docker build -t nocalhost-admission-webhook:v51 -f deployments/dep-install-job/webhook/Dockerfile .
 
 # Compile stage
 FROM golang:1.13.8 AS build-env

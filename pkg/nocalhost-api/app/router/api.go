@@ -99,6 +99,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		a.PUT("/:id", applications.Update)
 		a.POST("/:id/bind_cluster", application_cluster.Create)
 		a.POST("/:id/create_space", cluster_user.Create)
+		a.GET("/:id/dev_space", cluster_user.GetFirst)
 	}
 
 	return g
