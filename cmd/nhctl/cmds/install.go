@@ -57,7 +57,6 @@ func init() {
 	installCmd.Flags().StringVarP(&installFlags.Url, "url", "u", "", "resource url")
 	installCmd.Flags().StringVarP(&installFlags.ResourcesDir, "dir", "d", "", "the dir of helm package or manifest")
 	installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "", "f", "", "helm's Value.yaml")
-	//installCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubernetes cluster config")
 	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "helm", "app type: helm or manifest")
 	installCmd.Flags().StringVarP(&installFlags.PreInstallConfigPath, "pre-install", "p", "", "resources to be installed before application install, should be a yaml file path")
 	rootCmd.AddCommand(installCmd)
@@ -76,18 +75,11 @@ var installCmd = &cobra.Command{
 			fmt.Println("error: please use -r to specify the release name of helm")
 			return
 		}
-		//if resourcesDir == "" {
-		//	fmt.Println("error: please use -d to specify the dir of helm package")
-		//	return
-		//}
 		if installFlags.Url == "" {
 			fmt.Println("error: please use -u to specify url of git")
 			return
 		}
 		fmt.Println("install application...")
-		//if preInstallConfigPath != "" {
-		//	PreInstall()
-		//}
 		InstallApplication()
 	},
 }
