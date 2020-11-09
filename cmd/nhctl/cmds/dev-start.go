@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"time"
 )
@@ -138,9 +139,11 @@ func ReplaceImage(nameSpace string, deployment string) {
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, volMount)
 
 	debug("disable readiness probes")
-	dep.Spec.Template.Spec.Containers[0].LivenessProbe = nil
-	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = nil
-	dep.Spec.Template.Spec.Containers[0].StartupProbe = nil
+	for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
+		dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
+		dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
+		dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
+	}
 
 	sideCarContainer := corev1.Container{
 		Name:    "nocalhost-sidecar",
@@ -148,6 +151,17 @@ func ReplaceImage(nameSpace string, deployment string) {
 		Command: []string{"/bin/sh", "-c", "service ssh start; mutagen daemon start; mutagen-agent install; tail -f /dev/null"},
 	}
 	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, volMount)
+	sideCarContainer.LivenessProbe = &corev1.Probe{
+		InitialDelaySeconds: 10,
+		PeriodSeconds:       10,
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{
+					IntVal: 22,
+				},
+			},
+		},
+	}
 	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
 
 	//_, err = deploymentsClient.Update(context.TODO(), dep, metav1.UpdateOptions{})
