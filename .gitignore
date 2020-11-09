@@ -25,5 +25,4 @@
 
 # nocalhost-api
 /cmd/nocalhost-api/build/
-nhctl
 nocalhost-api
