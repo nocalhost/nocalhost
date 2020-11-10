@@ -1,4 +1,5 @@
 # Binaries for programs and plugins
+.pid
 *.exe
 *.exe~
 *.dll
@@ -26,3 +27,4 @@
 # nocalhost-api
 /cmd/nocalhost-api/build/
 nocalhost-api
+nhctl
