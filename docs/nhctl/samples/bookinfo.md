@@ -36,13 +36,12 @@ nhctl 支持两种类型的应用安装：helm 和 mainfest，两种类型的安
 #### 安装 helm 应用
 
 ```shell
-nhctl install -n $NOCALHOST_NS -r bookinfo-04 -u https://e.coding.net/codingcorp/bookinfo/bookinfo-charts.git -t helm --debug
+nhctl install aaa -u https://e.coding.net/codingcorp/bookinfo/bookinfo-charts.git -t helm --debug -n $NOCALHOST_NS
 ```
 
 参数说明：
 
 - -n ：namespace
-- -r : helm release 的名字
 - -u : helm chart 文件所在的 git 地址, 或本地文件目录地址，或 helm 仓库中 chart 的地址
 - -t : 应用类型
 - --debug : 打印 debug 日志输出
@@ -56,7 +55,7 @@ helm -n $NOCALHOST_NS uninstall bookinfo-04
 #### 安装 manifest 应用
 
 ```shell
-nhctl install -u https://e.coding.net/codingcorp/nocalhost/bookinfo-manifest.git -d deployment -t manifest --pre-install bookinfo-manifest/pre-install.yaml -n $NOCALHOST_NS
+nhctl install bbb -u https://e.coding.net/codingcorp/nocalhost/bookinfo-manifest.git -d deployment -t manifest --pre-install bookinfo-manifest/pre-install.yaml -n $NOCALHOST_NS --debug
 ```
 
 安装完即可通过：`http://HOST_IP:30001/productpage` 访问 bookinfo 应用。

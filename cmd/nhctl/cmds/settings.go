@@ -19,3 +19,6 @@ func NewEnvSettings() *EnvSettings {
 	settings.Debug, _ = strconv.ParseBool(os.Getenv("NOCALHOST_DEBUG"))
 	return &settings
 }
+
+//type NocalhostConfig struct {
+//}
