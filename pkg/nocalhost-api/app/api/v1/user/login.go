@@ -31,7 +31,7 @@ import (
 // @Produce  json
 // @Param login body user.LoginCredentials true "Login user info"
 // @Success 200 {string} json "{"code":0,"message":"OK","data":{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"}}"
-// @Router /login [post]
+// @Router /v1/login [post]
 func Login(c *gin.Context) {
 	// Binding the data with the u struct.
 	var req LoginCredentials
