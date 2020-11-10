@@ -11,57 +11,44 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package applications
+package cluster
 
 import (
+	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
-	"nocalhost/pkg/nocalhost-api/pkg/errno"
-	"nocalhost/pkg/nocalhost-api/pkg/log"
-
-	"github.com/gin-gonic/gin"
 )
 
-// Create 获取应用
-// @Summary 获取应用
-// @Description 用户获取应用
-// @Tags 应用
+// GetList 获取集群列表
+// @Summary 获取集群列表
+// @Description 获取集群列表
+// @Tags 集群
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":[{"id":1,"context":"application info","status":"1"}]}"
-// @Router /v1/application [get]
-func Get(c *gin.Context) {
-	userId, _ := c.Get("userId")
-	result, err := service.Svc.ApplicationSvc().GetList(c, userId.(uint64))
-	if err != nil {
-		log.Warnf("get Application err: %v", err)
-		api.SendResponse(c, errno.ErrApplicationGet, nil)
-		return
-	}
-
-	api.SendResponse(c, errno.OK, result)
+// @Success 200 {object} model.ClusterList "{"code":0,"message":"OK","data":model.ClusterList}"
+// @Router /v1/cluster/list [get]
+func GetList(c *gin.Context) {
+	result, _ := service.Svc.ClusterSvc().GetList(c)
+	api.SendResponse(c, nil, result)
 }
 
-// @Summary 获取应用已授权详情
-// @Description 应用入口获取应用所属集群已授权详情
-// @Tags 应用
+// @Summary 获取集群已授权详情
+// @Description 集群入口获取集群详情
+// @Tags 集群
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param clusterId path string true "集群 ID"
-// @Param id path string true "应用 ID"
+// @Param id path string true "集群 ID"
 // @Success 200 {object} model.ClusterUserModel "应用开发环境参数，含 kubeconfig"
-// @Router /v1/application/{id}/cluster/{clusterId} [get]
+// @Router /v1/cluster/{id} [get]
 func GetDetail(c *gin.Context) {
 	userId, _ := c.Get("userId")
-	clusterId := cast.ToUint64(c.Param("clusterId"))
-	applicationId := cast.ToUint64(c.Param("id"))
+	clusterId := cast.ToUint64(c.Param("id"))
 	where := make(map[string]interface{}, 0)
 	where["user_id"] = userId.(uint64)
 	where["cluster_id"] = clusterId
-	where["application_id"] = applicationId
 	result, err := service.Svc.ClusterUser().GetList(c, where)
 	if err != nil {
 		api.SendResponse(c, nil, make([]interface{}, 0))

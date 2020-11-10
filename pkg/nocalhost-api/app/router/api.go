@@ -86,7 +86,8 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	c.Use(middleware.AuthMiddleware())
 	{
 		c.POST("", cluster.Create)
-		c.GET("/list", cluster.GetList)
+		c.GET("", cluster.GetList)
+		c.GET("/:id", cluster.GetDetail)
 	}
 
 	// 应用
@@ -100,6 +101,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		a.POST("/:id/bind_cluster", application_cluster.Create)
 		a.POST("/:id/create_space", cluster_user.Create)
 		a.GET("/:id/dev_space", cluster_user.GetFirst)
+		a.GET("/:id/cluster/:clusterId", applications.GetDetail)
 	}
 
 	return g
