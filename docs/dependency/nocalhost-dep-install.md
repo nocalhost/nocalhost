@@ -1,5 +1,5 @@
-# Nocalhost-Dep
-Nocalhost-Dep 项目为开发应用在 Kubernetes 集群安装提供依赖处理。
+# nocalhost-dep
+nocalhost-dep 项目为开发应用在 Kubernetes 集群安装提供依赖处理。
 
 ## 解决什么问题？
 当应用的微服务使用 Manifest 的方式部署在 Kubernetes 集群时，无法控制这些微服务的启动顺序和依赖的问题。
@@ -8,7 +8,7 @@ Nocalhost-Dep 项目为开发应用在 Kubernetes 集群安装提供依赖处理
 除了像 Mysql 等所有服务都依赖的基础服务外，服务与服务之间还可能产生依赖关系，如果微服务数量非常多，那么梳理手动重启顺序将变得非常复杂且耗时。
 
 ## 如何解决
-Nocalhost-Dep 使用与 Istio 注入 Sidecar 相同的技术选型，实现了 [Kubernetes Admission Webhook](https://kubernetes.io/zh/docs/reference/access-authn-authz/extensible-admission-controllers/)
+nocalhost-dep 使用与 Istio 注入 Sidecar 相同的技术选型，实现了 [Kubernetes Admission Webhook](https://kubernetes.io/zh/docs/reference/access-authn-authz/extensible-admission-controllers/)
 。当新的应用部署到集群时，Nocalhost-Dep 会根据声明的依赖关系自动对工作负载注入 InitContainer Sidecar，
 并在 InitContainer 内查询并等待被依赖服务直至启动完成，利用 InitContainer 的特性进而启动真正的业务容器，实现服务的依赖处理。
 InitContainer 的原理是使用 [k8s-wait-for](https://github.com/groundnuty/k8s-wait-for) 实现。
@@ -18,9 +18,9 @@ InitContainer 的原理是使用 [k8s-wait-for](https://github.com/groundnuty/k8
    ```
    kubectl create ns nocalhost-reserved
    ```
-2. 修改项目目录 `/deployments/dep-install-job/example/kube-configmap-example.yaml`，将内容替换为自己集群`管理员`的 `Kubeconfig` 配置
+2. 修改项目目录 `/deployments/dep-install-job/example/kube-configmap-example.yaml`，将内容替换为自己集群`管理员`的 `Kubeconfig` 配置，修改完成后，在项目根目录执行
+
    ```
-   修改完成后，在项目根目录执行
    kubectl apply -f deployments/dep-install-job/example/kube-configmap-example.yaml
    ```
 3. 创建用户开发命名空间后，对命名空间打标签（注入 Sidecar 标记）
@@ -34,9 +34,8 @@ InitContainer 的原理是使用 [k8s-wait-for](https://github.com/groundnuty/k8
         --serviceaccount={namespace}:default \
         --namespace={namespace}
    ```
-5. 应用 dep-install-job ，该 Job 将会自动安装 Admission Webhook
+5. 应用 dep-install-job ，该 Job 将会自动安装和配置 nocalhost-dep，在项目根目录下执行：
    ```
-   在项目根目录下执行：
    kubectl create -f deployments/dep-install-job/installer-job.yaml
    ```
 6. 查看安装状态
@@ -61,17 +60,17 @@ metadata:
 data:
   nocalhost: |
     dependency:
-      - name: ratings-v1
+      - name: ratings
         type: deployment
         jobs:
         - "dep-job"
         pods:
         - "productpage"
-      - name: productpage-v1
+      - name: productpage
         type: deployment
         jobs:
         - "dep-job"
-      - name: reviews-v1
+      - name: reviews
         type: deployment
         pods:
         - "productpage"
