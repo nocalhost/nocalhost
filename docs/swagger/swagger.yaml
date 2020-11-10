@@ -148,70 +148,6 @@ info:
   contact: {}
   license: {}
 paths:
-  /login:
-    post:
-      description: 邮箱登录
-      parameters:
-      - description: Login user info
-        in: body
-        name: login
-        required: true
-        schema:
-          $ref: '#/definitions/user.LoginCredentials'
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: '{"code":0,"message":"OK","data":{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"}}'
-          schema:
-            type: string
-      summary: 用户登录
-      tags:
-      - 用户
-  /register:
-    post:
-      description: 用户注册
-      parameters:
-      - description: Reg user info
-        in: body
-        name: register
-        required: true
-        schema:
-          $ref: '#/definitions/user.RegisterRequest'
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: '{"code":0,"message":"OK","data":{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"}}'
-          schema:
-            type: string
-      summary: 注册
-      tags:
-      - 用户
-  /users:
-    get:
-      consumes:
-      - application/json
-      description: Get an user by user id
-      parameters:
-      - description: 用户id
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 用户信息
-          schema:
-            $ref: '#/definitions/model.UserInfo'
-            type: object
-      summary: 通过用户id获取用户信息
-      tags:
-      - 用户
   /v1/application:
     get:
       consumes:
@@ -357,6 +293,38 @@ paths:
       summary: 关联集群
       tags:
       - 应用
+  /v1/application/{id}/cluster/{clusterId}:
+    get:
+      consumes:
+      - application/json
+      description: 应用入口获取应用所属集群已授权详情
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 集群 ID
+        in: path
+        name: clusterId
+        required: true
+        type: string
+      - description: 应用 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 应用开发环境参数，含 kubeconfig
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: 获取应用已授权详情
+      tags:
+      - 应用
   /v1/application/{id}/create_space:
     post:
       consumes:
@@ -447,6 +415,33 @@ paths:
       summary: 添加集群
       tags:
       - 集群
+  /v1/cluster/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 集群入口获取集群详情
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 集群 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 应用开发环境参数，含 kubeconfig
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: 获取集群已授权详情
+      tags:
+      - 集群
   /v1/cluster/list:
     get:
       consumes:
@@ -469,7 +464,70 @@ paths:
       summary: 获取集群列表
       tags:
       - 集群
+  /v1/login:
+    post:
+      description: 邮箱登录
+      parameters:
+      - description: Login user info
+        in: body
+        name: login
+        required: true
+        schema:
+          $ref: '#/definitions/user.LoginCredentials'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"}}'
+          schema:
+            type: string
+      summary: 用户登录
+      tags:
+      - 用户
+  /v1/register:
+    post:
+      description: 用户注册
+      parameters:
+      - description: Reg user info
+        in: body
+        name: register
+        required: true
+        schema:
+          $ref: '#/definitions/user.RegisterRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"}}'
+          schema:
+            type: string
+      summary: 管理员添加用户，用户无法自行注册
+      tags:
+      - 用户
   /v1/users:
+    get:
+      consumes:
+      - application/json
+      description: Get an user by user id
+      parameters:
+      - description: 用户id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 用户信息
+          schema:
+            $ref: '#/definitions/model.UserInfo'
+            type: object
+      summary: 通过用户id获取用户信息
+      tags:
+      - 用户
     post:
       description: 管理员添加开发者
       parameters:

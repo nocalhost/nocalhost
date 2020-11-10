@@ -29,9 +29,9 @@ var (
 	ErrTwicePasswordNotMatch = &Errno{Code: 20112, Message: "两次密码输入不一致"}
 	ErrRegisterFailed        = &Errno{Code: 20113, Message: "注册失败"}
 	ErrUserNotAllow          = &Errno{Code: 20114, Message: "用户被禁用"}
-	ErrCreateUserDenied      = &Errno{Code: 20114, Message: "无创建用户权限"}
-	ErrUpdateUserDenied      = &Errno{Code: 20114, Message: "无修改用户权限"}
-	ErrDeleteUser            = &Errno{Code: 20115, Message: "删除用户失败"}
+	ErrCreateUserDenied      = &Errno{Code: 20115, Message: "无创建用户权限"}
+	ErrUpdateUserDenied      = &Errno{Code: 20116, Message: "无修改用户权限"}
+	ErrDeleteUser            = &Errno{Code: 20117, Message: "删除用户失败"}
 
 	// cluster errors
 	ErrClusterCreate = &Errno{Code: 30100, Message: "添加集群失败，请重试"}

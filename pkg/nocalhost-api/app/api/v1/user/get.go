@@ -32,7 +32,7 @@ import (
 // @Produce  json
 // @Param id path string true "用户id"
 // @Success 200 {object} model.UserInfo "用户信息"
-// @Router /users [get]
+// @Router /v1/users [get]
 func Get(c *gin.Context) {
 	log.Info("Get function called.")
 

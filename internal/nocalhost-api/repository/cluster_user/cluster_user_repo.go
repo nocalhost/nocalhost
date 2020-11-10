@@ -15,15 +15,15 @@ package cluster_user
 
 import (
 	"context"
-	"nocalhost/internal/nocalhost-api/model"
-
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
+	"nocalhost/internal/nocalhost-api/model"
 )
 
 type ClusterUserRepo interface {
 	Create(ctx context.Context, model model.ClusterUserModel) (uint64, error)
 	GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error)
+	GetList(ctx context.Context, c map[string]interface{}) ([]*model.ClusterUserModel, error)
 	Close()
 }
 
@@ -35,6 +35,15 @@ func NewApplicationClusterRepo(db *gorm.DB) ClusterUserRepo {
 	return &clusterUserRepo{
 		db: db,
 	}
+}
+
+func (repo *clusterUserRepo) GetList(ctx context.Context, c map[string]interface{}) ([]*model.ClusterUserModel, error) {
+	result := make([]*model.ClusterUserModel, 0)
+	repo.db.Where(c).Find(&result)
+	if len(result) > 0 {
+		return result, nil
+	}
+	return nil, errors.New("users cluster not found")
 }
 
 func (repo *clusterUserRepo) GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error) {
