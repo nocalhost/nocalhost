@@ -25,6 +25,7 @@ import (
 type ClusterRepo interface {
 	Create(ctx context.Context, user model.ClusterModel) (id uint64, err error)
 	Get(ctx context.Context, clusterId uint64, userId uint64) (model.ClusterModel, error)
+	GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error)
 	GetList(ctx context.Context) ([]*model.ClusterList, error)
 	Close()
 }
@@ -37,6 +38,18 @@ func NewClusterRepo(db *gorm.DB) ClusterRepo {
 	return &clusterBaseRepo{
 		db: db,
 	}
+}
+
+func (repo *clusterBaseRepo) GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error) {
+	cluster := make([]*model.ClusterModel, 0)
+	result := repo.db.Where(where).Find(&cluster)
+	if result.Error != nil {
+		return cluster, result.Error
+	}
+	if len(cluster) == 0 {
+		return cluster, errors.New("cluster not found")
+	}
+	return cluster, nil
 }
 
 func (repo *clusterBaseRepo) GetList(ctx context.Context) ([]*model.ClusterList, error) {
