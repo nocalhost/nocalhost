@@ -17,6 +17,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var nocalhostConfig *NocalHostConfig
+
 func init() {
 	rootCmd.AddCommand(debugCmd)
 }
