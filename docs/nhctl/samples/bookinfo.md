@@ -36,7 +36,7 @@ nhctl 支持两种类型的应用安装：helm 和 mainfest，两种类型的安
 #### 安装 helm 应用
 
 ```shell
-nhctl install aaa -u https://e.coding.net/codingcorp/bookinfo/bookinfo-charts.git -t helm --debug -n $NOCALHOST_NS
+nhctl install ddd -u https://github.com/nocalhost/bookinfo.git --debug -n $NOCALHOST_NS
 ```
 
 参数说明：
