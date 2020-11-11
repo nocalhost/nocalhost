@@ -90,7 +90,7 @@ func InstallApplication(applicationName string) {
 	)
 
 	// create application dir
-	applicationDir := GetHomePath() + "/.nhctl/" + "application/" + applicationName
+	applicationDir := GetApplicationHomePath(applicationName)
 	if _, err = os.Stat(applicationDir); err != nil {
 		if os.IsNotExist(err) {
 			debug("%s not exists, create application dir", applicationDir)
@@ -109,7 +109,7 @@ func InstallApplication(applicationName string) {
 		utils.Mush(DownloadApplicationToNhctlHome(applicationDir))
 	}
 
-	appConfigPath := fmt.Sprintf("%s%c%s%c%s", applicationDir, os.PathSeparator, ".nocalhost", os.PathSeparator, "config.yaml")
+	appConfigPath := GetApplicationNocalhostConfigPath(applicationName)
 	config := NewNocalHostConfig(appConfigPath)
 
 	if installFlags.ResourcesDir != "" {
@@ -311,6 +311,5 @@ func waitForPodSuccess(obj runtime.Object, name string) (bool, error) {
 	case v1.PodRunning:
 		fmt.Printf("Pod %s running", o.Name)
 	}
-
 	return false, nil
 }
