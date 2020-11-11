@@ -1,15 +1,14 @@
 package cmds
 
 import (
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
-	"nocalhost/pkg/nhctl/utils"
 	"strconv"
 )
 
 const (
-	DefaultSideCarImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:v1"
-	DefalutMountPath    = "/home/code"
+	DefaultSideCarImage      = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:v1"
+	DefaultMountPath         = "/home/code"
+	DefaultPortForwardDir    = "port-forward"
+	DefaultForwardRemotePort = 22
 )
 
 type NocalHostConfig struct {
@@ -45,13 +44,16 @@ type ServiceDevOptions struct {
 	Pods         []string `json:"pods" yaml:"pods"`
 }
 
-func NewNocalHostConfig(configPath string) *NocalHostConfig {
-	config := &NocalHostConfig{}
-	fileBytes, err := ioutil.ReadFile(configPath)
-	utils.Mush(err)
-	utils.Mush(yaml.Unmarshal(fileBytes, config))
-	return config
-}
+//func NewNocalHostConfigByAppName(appName string) *NocalHostConfig {
+//	return NewNocalHostConfig(GetAppConfigPath(appName))
+//}
+//func NewNocalHostConfig(configPath string) *NocalHostConfig {
+//	config := &NocalHostConfig{}
+//	fileBytes, err := ioutil.ReadFile(configPath)
+//	utils.Mush(err)
+//	utils.Mush(yaml.Unmarshal(fileBytes, config))
+//	return config
+//}
 
 type ComparableItems []*PreInstallItem
 
