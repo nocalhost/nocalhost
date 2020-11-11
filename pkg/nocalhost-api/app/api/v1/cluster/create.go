@@ -14,10 +14,15 @@ limitations under the License.
 package cluster
 
 import (
+	"encoding/base64"
+	"gopkg.in/yaml.v2"
+	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,8 +44,51 @@ func Create(c *gin.Context) {
 		api.SendResponse(c, errno.ErrBind, nil)
 		return
 	}
+	// decode kubeconfig
+	DecKubeconfig, err := base64.StdEncoding.DecodeString(req.KubeConfig)
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		return
+	}
+	// check kubeconfig server already exist
+	t := KubeConfig{}
+	yaml.Unmarshal(DecKubeconfig, &t)
+	// only allow one cluster kubeconfig
+	if len(t.Clusters) > 1 {
+		api.SendResponse(c, errno.ErrClusterKubeCreate, nil)
+		return
+	}
+	where := make(map[string]interface{}, 0)
+	where["server"] = t.Clusters[0].Cluster.Server
+	_, err = service.Svc.ClusterSvc().GetAny(c, where)
+	if err == nil {
+		api.SendResponse(c, errno.ErrClusterExistCreate, nil)
+		return
+	}
+
+	// get client go
+	goClient, err := clientgo.NewGoClient(DecKubeconfig)
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		return
+	}
+
+	// 1. check is admin Kubeconfig
+	// 2. check if Namespace nocalhost-reserved already exist, ignore cause by nocalhost-dep-job installer.sh has checkout this condition and will exit
+	// 3. use admin Kubeconfig create configmap for nocalhost-dep-job to create admission webhook cert
+	// 4. deploy nocalhost-dep-job and pull on nocalhost-dep
+	// see https://codingcorp.coding.net/p/nocalhost/wiki/115
+	clusterSetUp := setupcluster.NewSetUpCluster(goClient)
+	err, errRes := clusterSetUp.IsAdmin().CreateNs(global.NocalhostSystemNamespace, "").CreateConfigMap(global.NocalhostDepKubeConfigMapName, global.NocalhostSystemNamespace, global.NocalhostDepKubeConfigMapKey, string(DecKubeconfig)).DeployNocalhostDep("", global.NocalhostSystemNamespace).GetErr()
+	if err != nil {
+		api.SendResponse(c, errRes, nil)
+		return
+	}
+
+	// TODO 异步获取集群信息例如 NODE 节点、版本号等
+
 	userId, _ := c.Get("userId")
-	err := service.Svc.ClusterSvc().Create(c, req.Name, req.Marks, req.KubeConfig, userId.(uint64))
+	err = service.Svc.ClusterSvc().Create(c, req.Name, req.Marks, string(DecKubeconfig), t.Clusters[0].Cluster.Server, userId.(uint64))
 	if err != nil {
 		log.Warnf("create cluster err: %v", err)
 		api.SendResponse(c, errno.ErrClusterCreate, nil)

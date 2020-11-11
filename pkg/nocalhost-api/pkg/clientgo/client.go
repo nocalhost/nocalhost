@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"math/rand"
+	"nocalhost/internal/nocalhost-api/global"
 	"strconv"
 	"time"
 )
@@ -49,6 +50,13 @@ func NewGoClient(kubeconfig []byte) (*GoClient, error) {
 // When create sub namespace for developer, label should set "nocalhost" for nocalhost-dep admission webhook muting
 // when create nocalhost-reserved namesapce, label should set "nocalhost-reserved"
 func (c *GoClient) CreateNS(namespace, label string) (bool, error) {
+	if label == "" {
+		if namespace == global.NocalhostSystemNamespace {
+			label = global.NocalhostSystemNamespaceLabel
+		} else {
+			label = global.NocalhostDevNamespaceLabel
+		}
+	}
 	labels := make(map[string]string, 0)
 	labels["env"] = label
 	nsSpec := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace, Labels: labels}}
@@ -97,7 +105,7 @@ func (c *GoClient) IsAdmin() (bool, error) {
 // default name is nocalhost
 func (c *GoClient) CreateServiceAccount(name, namespace string) (bool, error) {
 	if name == "" {
-		name = "nocalhost"
+		name = global.NocalhostDevServiceAccountName
 	}
 	arg := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
@@ -173,7 +181,7 @@ func (c *GoClient) CreateRole(name, namespace string) (bool, error) {
 
 // deploy nocalhost-dep
 // now all value has set by default
-// TODO this might better read from database mainfest
+// TODO this might better read from database manfest
 func (c *GoClient) DeployNocalhostDep(image, namespace string) (bool, error) {
 	if image == "" {
 		image = "codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job:latest"
@@ -182,8 +190,8 @@ func (c *GoClient) DeployNocalhostDep(image, namespace string) (bool, error) {
 	var backOff int32 = 1
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "admission-installer-",
-			Namespace:    "nocalhost-reserved",
+			GenerateName: "nocalhost-dep-installer-",
+			Namespace:    global.NocalhostSystemNamespace,
 		},
 		Spec: batchv1.JobSpec{
 			TTLSecondsAfterFinished: &ttl,
@@ -205,7 +213,7 @@ func (c *GoClient) DeployNocalhostDep(image, namespace string) (bool, error) {
 					},
 					Containers: []corev1.Container{
 						{
-							Name:  "admission-installer",
+							Name:  "nocalhost-dep-installer",
 							Image: image,
 							VolumeMounts: []corev1.VolumeMount{
 								{
@@ -228,4 +236,35 @@ func (c *GoClient) DeployNocalhostDep(image, namespace string) (bool, error) {
 	return true, nil
 }
 
-// TODO set admin configmap to nocalhost-reserved
+// create admin kubeconfig in cluster for admission webhook
+func (c *GoClient) CreateConfigMap(name, namespace, key, value string) (bool, error) {
+	configMapData := make(map[string]string, 0)
+	configMapData[key] = value
+
+	configMap := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: configMapData,
+	}
+	_, err := c.client.CoreV1().ConfigMaps(namespace).Create(context.TODO(), configMap, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// get serviceAccount secret
+func (c *GoClient) GetSecret(name, namespace string) (*corev1.Secret, error) {
+	return c.client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}
+
+// get serviceAccount
+func (c *GoClient) GetServiceAccount(name, namespace string) (*corev1.ServiceAccount, error) {
+	return c.client.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}

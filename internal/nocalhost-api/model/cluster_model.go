@@ -26,6 +26,7 @@ type ClusterModel struct {
 	Marks      string     `json:"marks" gorm:"column:marks;not null"`
 	Info       string     `json:"info" gorm:"column:info;"`
 	UserId     uint64     `gorm:"column:user_id;not null" json:"-"`
+	Server     string     `gorm:"column:server;not null" json:"-"`
 	KubeConfig string     `json:"kubeconfig" gorm:"column:kubeconfig;not null" binding:"required"`
 	CreatedAt  time.Time  `gorm:"column:created_at" json:"-"`
 	UpdatedAt  time.Time  `gorm:"column:updated_at" json:"-"`
