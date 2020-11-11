@@ -120,6 +120,19 @@ func GetHomePath() string {
 	return ""
 }
 
+func GetNocalhostConfigPath(appName string) {
+
+}
+
+func GetApplicationHomePath(appName string) string {
+	// GetHomePath() + "/.nhctl/" + "application/" + applicationName
+	return fmt.Sprintf("%s%c%s%c%s%c%s", GetHomePath(), os.PathSeparator, ".nhctl", os.PathSeparator, "application", os.PathSeparator, appName)
+}
+
+func GetApplicationNocalhostConfigPath(appName string) string {
+	return fmt.Sprintf("%s%c%s%c%s", GetApplicationHomePath(appName), os.PathSeparator, ".nocalhost", os.PathSeparator, "config.yaml")
+}
+
 func GetFilesAndDirs(dirPth string) (files []string, dirs []string, err error) {
 	dir, err := ioutil.ReadDir(dirPth)
 	if err != nil {

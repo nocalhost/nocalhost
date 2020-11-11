@@ -7,6 +7,11 @@ import (
 	"strconv"
 )
 
+const (
+	DefaultSideCarImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:v1"
+	DefalutMountPath    = "/home/code"
+)
+
 type NocalHostConfig struct {
 	PreInstall []*PreInstallItem    `json:"pre_install" yaml:"preInstalls"`
 	SvcConfig  []*ServiceDevOptions `json:"svc_config" yaml:"svcConfigs"`
@@ -25,17 +30,19 @@ type AppConfig struct {
 }
 
 type ServiceDevOptions struct {
-	Name     string   `json:"name" yaml:"name"`
-	Type     string   `json:"type" yaml:"type"`
-	GitUrl   string   `json:"git_url" yaml:"gitUrl"`
-	DevEnv   string   `json:"dev_env" yaml:"devEnv"` // java|go|node
-	DevImage string   `json:"dev_image" yaml:"devImage"`
-	Sync     []string `json:"sync" yaml:"sync"`
-	Ignore   []string `json:"ignore" yaml:"ignore"`
-	DevPort  []string `json:"dev_port" yaml:"devPort"`
-	Command  []string `json:"command" yaml:"command"`
-	Jobs     []string `json:"jobs" yaml:"jobs"`
-	Pods     []string `json:"pods" yaml:"pods"`
+	Name         string   `json:"name" yaml:"name"`
+	Type         string   `json:"type" yaml:"type"`
+	GitUrl       string   `json:"git_url" yaml:"gitUrl"`
+	DevLang      string   `json:"dev_env" yaml:"devLang"` // java|go|node
+	DevImage     string   `json:"dev_image" yaml:"devImage"`
+	SideCarImage string   `json:"side_car_image" yaml:"sideCarImage"`
+	MountPath    string   `json:"mount_path" yaml:"mountPath"`
+	Sync         []string `json:"sync" yaml:"sync"`
+	Ignore       []string `json:"ignore" yaml:"ignore"`
+	DevPort      []string `json:"dev_port" yaml:"devPort"`
+	Command      []string `json:"command" yaml:"command"`
+	Jobs         []string `json:"jobs" yaml:"jobs"`
+	Pods         []string `json:"pods" yaml:"pods"`
 }
 
 func NewNocalHostConfig(configPath string) *NocalHostConfig {
@@ -61,4 +68,16 @@ func (a ComparableItems) Less(i, j int) bool {
 		jW = 0
 	}
 	return iW < jW
+}
+
+func (n *NocalHostConfig) GetSvcConfig(name string) *ServiceDevOptions {
+	if n.SvcConfig == nil {
+		return nil
+	}
+	for _, svc := range n.SvcConfig {
+		if svc.Name == name {
+			return svc
+		}
+	}
+	return nil
 }

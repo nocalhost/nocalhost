@@ -69,7 +69,7 @@ nhctl install bbb -u https://e.coding.net/codingcorp/nocalhost/bookinfo-manifest
 替换 details 容器的镜像为开发容器镜像 : 
 
 ```shell
-nhctl dev  start -d details-v1  -l ruby  -n $NOCALHOST_NS -i codingcorp-docker.pkg.coding.net/nocalhost/public/share-container-ruby:v2
+nhctl dev  start -d details-v1 -n $NOCALHOST_NS
 ```
 
 - -d : 指定要替换的服务对应的 deployment 的名字

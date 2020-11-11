@@ -16,6 +16,7 @@ package cmds
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,59 +26,109 @@ import (
 )
 
 var (
-	nameSpace, lang, image string
-	mountPath              = "/home/code"
-	sidecarImage           = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:v1"
+	nameSpace string
 )
 
+type DevFlags struct {
+	*EnvSettings
+	SideCarImage string
+	DevImage     string
+	DevLang      string
+	MountPath    string
+	Deployment   string
+}
+
+var devFlags = DevFlags{
+	EnvSettings: settings,
+}
+
 func init() {
+
 	devStartCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
-	devStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
-	devStartCmd.Flags().StringVarP(&lang, "lang", "l", "", "the development language, eg: java go python")
-	devStartCmd.Flags().StringVarP(&image, "image", "i", "", "image of development container")
-	devStartCmd.Flags().StringVar(&mountPath, "mount-path", mountPath, "path mounted for sync files")
-	devStartCmd.Flags().StringVar(&sidecarImage, "sidecar-image", sidecarImage, "image of sidecar container")
+	devStartCmd.Flags().StringVarP(&devFlags.Deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
+	devStartCmd.Flags().StringVarP(&devFlags.DevLang, "lang", "l", "", "the development language, eg: java go python")
+	devStartCmd.Flags().StringVarP(&devFlags.DevImage, "image", "i", "", "image of development container")
+	devStartCmd.Flags().StringVar(&devFlags.MountPath, "mount-path", devFlags.MountPath, "path mounted for sync files")
+	devStartCmd.Flags().StringVar(&devFlags.SideCarImage, "sidecar-image", devFlags.SideCarImage, "image of sidecar container")
 	debugCmd.AddCommand(devStartCmd)
 }
 
 var devStartCmd = &cobra.Command{
-	Use:   "start",
+	Use:   "start [NAME]",
 	Short: "enter dev model",
 	Long:  `enter dev model`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
+		applicationName := args[0]
+		nocalhostConfig = NewNocalHostConfig(GetApplicationNocalhostConfigPath(applicationName))
 		if nameSpace == "" {
 			fmt.Println("error: please use -n to specify a kubernetes namespace")
 			return
 		}
-		if deployment == "" {
+		if devFlags.Deployment == "" {
 			fmt.Println("error: please use -d to specify a k8s deployment")
 			return
 		}
-		if lang == "" {
-			fmt.Println("error: please use -l to specify your development language")
-			return
+		svcConfig := nocalhostConfig.GetSvcConfig(devFlags.Deployment)
+		if devFlags.DevLang == "" {
+			if svcConfig != nil && svcConfig.DevLang != "" {
+				debug("[nocalhost config] reading devLang from config file")
+				devFlags.DevLang = svcConfig.DevLang
+			} else {
+				fmt.Println("[warning] no development language specified")
+			}
 		}
+
+		if devFlags.DevImage == "" {
+			if svcConfig != nil && svcConfig.DevImage != "" {
+				devFlags.DevImage = svcConfig.DevImage
+			} else if devFlags.DevLang != "" {
+				switch devFlags.DevLang {
+				case "java":
+					devFlags.DevImage = "roandocker/share-container-java:v3"
+				case "ruby":
+					devFlags.DevImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/share-container-ruby:v1"
+				default:
+					fmt.Printf("unsupported language : %s\n", devFlags.DevLang)
+					return
+				}
+			} else {
+				fmt.Println("[error] you mush specify a devImage by using -i flag or setting devImage in config or specifying a development language")
+				return
+			}
+		}
+
+		if devFlags.SideCarImage == "" {
+			if svcConfig != nil && svcConfig.SideCarImage != "" {
+				debug("[nocalhost config] reading sideCarImage config")
+				devFlags.SideCarImage = svcConfig.SideCarImage
+			} else {
+				debug("[default config] sideCarImage uses default value")
+				devFlags.SideCarImage = DefaultSideCarImage
+			}
+		}
+
+		if devFlags.MountPath == "" {
+			if svcConfig != nil && svcConfig.MountPath != "" {
+				debug("[nocalhost config] reading mountPath config")
+				devFlags.MountPath = svcConfig.MountPath
+			} else {
+				debug("[default config] mountPath uses default value")
+				devFlags.MountPath = DefalutMountPath
+			}
+		}
+
 		fmt.Println("entering development model...")
-		ReplaceImage(nameSpace, deployment)
+		ReplaceImage(nameSpace, devFlags.Deployment)
 	},
 }
 
 func ReplaceImage(nameSpace string, deployment string) {
-	var debugImage string
-
-	switch lang {
-	case "java":
-		debugImage = "roandocker/share-container-java:v3"
-	case "ruby":
-		debugImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/share-container-ruby:v1"
-	default:
-		fmt.Printf("unsupported language : %s\n", lang)
-		return
-	}
-
-	if image != "" {
-		debugImage = image
-	}
 
 	clientUtils, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
 	clientgoutils.Must(err)
@@ -130,11 +181,11 @@ func ReplaceImage(nameSpace string, deployment string) {
 	// volume mount
 	volMount := corev1.VolumeMount{
 		Name:      volName,
-		MountPath: mountPath,
+		MountPath: devFlags.MountPath,
 	}
 
 	// default : replace the first container
-	dep.Spec.Template.Spec.Containers[0].Image = debugImage
+	dep.Spec.Template.Spec.Containers[0].Image = devFlags.DevImage
 	dep.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, volMount)
 
@@ -147,7 +198,7 @@ func ReplaceImage(nameSpace string, deployment string) {
 
 	sideCarContainer := corev1.Container{
 		Name:    "nocalhost-sidecar",
-		Image:   sidecarImage,
+		Image:   devFlags.SideCarImage,
 		Command: []string{"/bin/sh", "-c", "service ssh start; mutagen daemon start; mutagen-agent install; tail -f /dev/null"},
 	}
 	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, volMount)
@@ -181,7 +232,6 @@ func ReplaceImage(nameSpace string, deployment string) {
 
 	fmt.Printf("%d pod found\n", len(podList)) // should be 2
 
-	//pod := podList.Items[0]
 	// wait podList to be ready
 	fmt.Printf("waiting pod to start.")
 	for {
