@@ -14,12 +14,14 @@ limitations under the License.
 package cluster_user
 
 import (
+	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
@@ -74,10 +76,15 @@ func Create(c *gin.Context) {
 	if err != nil {
 		log.Errorf("client go got err %v", err)
 	}
-	//goClient.CreateNS("test", "nocalhost")
-	goClient.IsAdmin()
-	// create serviceAccount
-
+	// create cluster devs
+	devNamespace := goClient.GenerateNsName(userId.(uint64))
+	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
+	secret, err := clusterDevsSetUp.CreateNS(devNamespace, global.NocalhostDevNamespaceLabel).CreateServiceAccount("", devNamespace).CreateRole(global.NocalhostDevRoleName, devNamespace).CreateRoleBinding(global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevServiceAccountName).GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).GetServiceAccountSecret("", devNamespace)
+	devToken := secret.StringData["token"]
+	devCa := setupcluster.GetServiceAccountSecretByKey(secret, global.NocalhostDevServiceAccountSecretCaKey)
+	log.Infof("devToken %s, devCA %s", devToken, devCa)
+	// TODO config struct 在 api.Config
+	// TODO 组装 api.Config 然后转成 Yaml
 	err = service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId.(uint64), *req.Memory, *req.Cpu)
 	if err != nil {
 		log.Warnf("create ApplicationCluster err: %v", err)

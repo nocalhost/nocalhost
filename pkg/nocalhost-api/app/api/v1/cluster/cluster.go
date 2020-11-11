@@ -17,5 +17,19 @@ package cluster
 type CreateClusterRequest struct {
 	Name       string `json:"name" binding:"required"`
 	Marks      string `json:"marks"`
-	KubeConfig string `json:"kubeconfig" binding:"required"`
+	KubeConfig string `json:"kubeconfig" binding:"required" example:"base64encode(value)"`
+}
+
+type KubeConfig struct {
+	Clusters []Clusters
+}
+
+type Clusters struct {
+	Cluster Cluster
+	Name    string
+}
+
+type Cluster struct {
+	CertificateAuthorityData string
+	Server                   string
 }

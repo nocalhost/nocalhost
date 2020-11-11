@@ -28,6 +28,7 @@ definitions:
   cluster.CreateClusterRequest:
     properties:
       kubeconfig:
+        example: base64encode(value)
         type: string
       marks:
         type: string
@@ -92,6 +93,8 @@ definitions:
       email:
         type: integer
       id:
+        type: integer
+      status:
         type: integer
       username:
         type: string
@@ -387,6 +390,27 @@ paths:
       tags:
       - 应用
   /v1/cluster:
+    get:
+      consumes:
+      - application/json
+      description: 获取集群列表
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":model.ClusterList}'
+          schema:
+            $ref: '#/definitions/model.ClusterList'
+            type: object
+      summary: 获取集群列表
+      tags:
+      - 集群
     post:
       consumes:
       - application/json
@@ -442,28 +466,6 @@ paths:
       summary: 获取集群已授权详情
       tags:
       - 集群
-  /v1/cluster/list:
-    get:
-      consumes:
-      - application/json
-      description: 获取集群列表
-      parameters:
-      - description: Authorization
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: '{"code":0,"message":"OK","data":model.ClusterList}'
-          schema:
-            $ref: '#/definitions/model.ClusterList'
-            type: object
-      summary: 获取集群列表
-      tags:
-      - 集群
   /v1/login:
     post:
       description: 邮箱登录
@@ -483,6 +485,28 @@ paths:
           schema:
             type: string
       summary: 用户登录
+      tags:
+      - 用户
+  /v1/me:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户个人信息
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 用户信息
+          schema:
+            $ref: '#/definitions/model.UserInfo'
+            type: object
+      summary: 获取用户个人信息
       tags:
       - 用户
   /v1/register:
@@ -510,22 +534,22 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get an user by user id
+      description: Get userlist
       parameters:
-      - description: 用户id
-        in: path
-        name: id
+      - description: Authorization
+        in: header
+        name: Authorization
         required: true
         type: string
       produces:
       - application/json
       responses:
         "200":
-          description: 用户信息
+          description: 用户列表
           schema:
-            $ref: '#/definitions/model.UserInfo'
+            $ref: '#/definitions/model.UserList'
             type: object
-      summary: 通过用户id获取用户信息
+      summary: 获取用户列表
       tags:
       - 用户
     post:
@@ -580,6 +604,32 @@ paths:
       summary: 删除用户
       tags:
       - 用户
+    get:
+      consumes:
+      - application/json
+      description: 通过 ID 获取用户详情
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 用户信息
+          schema:
+            $ref: '#/definitions/model.UserInfo'
+            type: object
+      summary: 通过 ID 获取用户详情
+      tags:
+      - 用户
     put:
       consumes:
       - application/json
@@ -611,27 +661,5 @@ paths:
             $ref: '#/definitions/api.Response'
             type: object
       summary: 更新用户信息（含禁用用户）
-      tags:
-      - 用户
-  /v1/users/list:
-    get:
-      consumes:
-      - application/json
-      description: Get userlist
-      parameters:
-      - description: Authorization
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 用户列表
-          schema:
-            $ref: '#/definitions/model.UserList'
-            type: object
-      summary: 获取用户列表
       tags:
       - 用户
