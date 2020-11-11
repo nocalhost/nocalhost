@@ -28,7 +28,7 @@ import (
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Success 200 {object} model.ClusterList "{"code":0,"message":"OK","data":model.ClusterList}"
-// @Router /v1/cluster/list [get]
+// @Router /v1/cluster [get]
 func GetList(c *gin.Context) {
 	result, _ := service.Svc.ClusterSvc().GetList(c)
 	api.SendResponse(c, nil, result)

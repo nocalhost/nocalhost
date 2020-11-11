@@ -74,11 +74,17 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	u := g.Group("/v1/users")
 	u.Use(middleware.AuthMiddleware())
 	{
-		u.GET("", user.Get)
-		u.GET("/list", user.GetList)
+		u.GET("/:id", user.Get)
+		u.GET("", user.GetList)
 		u.POST("", user.Create)
 		u.PUT("/:id", user.Update)
 		u.DELETE("/:id", user.Delete)
+	}
+
+	m := g.Group("/v1/me")
+	m.Use(middleware.AuthMiddleware())
+	{
+		m.GET("", user.GetMe)
 	}
 
 	// 集群
