@@ -90,7 +90,7 @@ func InstallApplication(applicationName string) {
 	)
 
 	// create application dir
-	applicationDir := GetApplicationHomePath(applicationName)
+	applicationDir := GetApplicationHomeDir(applicationName)
 	if _, err = os.Stat(applicationDir); err != nil {
 		if os.IsNotExist(err) {
 			debug("%s not exists, create application dir", applicationDir)
@@ -109,8 +109,9 @@ func InstallApplication(applicationName string) {
 		utils.Mush(DownloadApplicationToNhctlHome(applicationDir))
 	}
 
-	appConfigPath := GetApplicationNocalhostConfigPath(applicationName)
-	config := NewNocalHostConfig(appConfigPath)
+	app, err = NewApplication(applicationName)
+	utils.Mush(err)
+	config := app.Config
 
 	if installFlags.ResourcesDir != "" {
 		resourcesPath = fmt.Sprintf("%s%c%s", applicationDir, os.PathSeparator, installFlags.ResourcesDir)
