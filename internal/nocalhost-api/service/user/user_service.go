@@ -51,14 +51,10 @@ type UserService interface {
 	Close()
 }
 
-// userService 用小写的 service 实现接口中定义的方法
 type userService struct {
 	userRepo user.BaseRepo
 }
 
-// NewUserService 实例化一个userService
-// 通过 NewService 函数初始化 Service 接口
-// 依赖接口，不要依赖实现，面向接口编程
 func NewUserService() UserService {
 	db := model.GetDB()
 	return &userService{
