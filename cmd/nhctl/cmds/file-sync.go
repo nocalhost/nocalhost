@@ -22,9 +22,7 @@ import (
 var localFolderName, remoteFolder, sshPort string
 
 func init() {
-	//install k8s
-	//fileSyncCmd.Flags().StringVarP(&sessionName, "session", "s", "", "sync session")
-	fileSyncCmd.Flags().StringVarP(&localFolderName, "local-folder", "l", "", "local folder path")
+	fileSyncCmd.Flags().StringVarP(&localFolderName, "local-folder", "l", "", "local folder to sync")
 	fileSyncCmd.Flags().StringVarP(&remoteFolder, "remote-folder", "r", "/home/code", "remote folder path")
 	fileSyncCmd.Flags().StringVarP(&sshPort, "port", "p", "22", "ssh port")
 	//fileSyncCmd.Flags().StringVarP(&remoteFolder, "ssh passwd", "p", "", "ssh passwd")

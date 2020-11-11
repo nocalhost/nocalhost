@@ -65,7 +65,9 @@ var devStartCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		nocalhostConfig = NewNocalHostConfig(GetApplicationNocalhostConfigPath(applicationName))
+		app, err := NewApplication(applicationName)
+		clientgoutils.Must(err)
+		nocalhostConfig = app.Config
 		if nameSpace == "" {
 			fmt.Println("error: please use -n to specify a kubernetes namespace")
 			return
@@ -119,7 +121,7 @@ var devStartCmd = &cobra.Command{
 				devFlags.MountPath = svcConfig.MountPath
 			} else {
 				debug("[default config] mountPath uses default value")
-				devFlags.MountPath = DefalutMountPath
+				devFlags.MountPath = DefaultMountPath
 			}
 		}
 
