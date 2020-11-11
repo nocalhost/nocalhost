@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -33,20 +31,17 @@ import (
 	"nocalhost/pkg/nhctl/utils"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 )
 
 type InstallFlags struct {
 	*EnvSettings
-	//Name                 string
-	Url                  string // resource url
-	AppType              string
-	ResourcesDir         string
-	HelmValueFile        string
-	PreInstallConfigPath string
-	ForceInstall         bool
+	Url           string // resource url
+	AppType       string
+	ResourcesDir  string
+	HelmValueFile string
+	ForceInstall  bool
 }
 
 var installFlags = InstallFlags{
@@ -58,9 +53,8 @@ func init() {
 	installCmd.Flags().StringVarP(&installFlags.Url, "url", "u", "", "resource url")
 	installCmd.Flags().StringVarP(&installFlags.ResourcesDir, "dir", "d", "", "the dir of helm package or manifest")
 	installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "", "f", "", "helm's Value.yaml")
-	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "helm", "app type: helm or manifest")
+	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", "app type: helm or manifest")
 	installCmd.Flags().BoolVar(&installFlags.ForceInstall, "force", installFlags.ForceInstall, "force install")
-	installCmd.Flags().StringVarP(&installFlags.PreInstallConfigPath, "pre-install", "p", "", "resources to be installed before application install, should be a yaml file path")
 	rootCmd.AddCommand(installCmd)
 }
 
@@ -79,10 +73,6 @@ var installCmd = &cobra.Command{
 			fmt.Println("error: please use -n to specify a kubernetes namespace")
 			return
 		}
-		//if installFlags.Name == "" {
-		//	fmt.Println("error: please use --name to specify the name of nocalhost application")
-		//	return
-		//}
 		if installFlags.Url == "" {
 			fmt.Println("error: please use -u to specify url of git")
 			return
@@ -119,12 +109,19 @@ func InstallApplication(applicationName string) {
 		utils.Mush(DownloadApplicationToNhctlHome(applicationDir))
 	}
 
+	appConfigPath := fmt.Sprintf("%s%c%s%c%s", applicationDir, os.PathSeparator, ".nocalhost", os.PathSeparator, "config.yaml")
+	config := NewNocalHostConfig(appConfigPath)
+
 	if installFlags.ResourcesDir != "" {
 		resourcesPath = fmt.Sprintf("%s%c%s", applicationDir, os.PathSeparator, installFlags.ResourcesDir)
 	} else {
-		resourcesPath = applicationDir
+		resourcesPath = fmt.Sprintf("%s%c%s", applicationDir, os.PathSeparator, config.AppConfig.ResourcePath)
 	}
 	debug("resources path is %s\n", resourcesPath)
+	if installFlags.AppType == "" {
+		installFlags.AppType = config.AppConfig.Type
+		debug("[nocalhost config] app type: %s", config.AppConfig.Type)
+	}
 	if installFlags.AppType == "helm" {
 		params := []string{"upgrade", "--install", "--wait", applicationName, resourcesPath, "--debug"}
 		if nameSpace != "" {
@@ -143,16 +140,16 @@ func InstallApplication(applicationName string) {
 		fmt.Printf(`helm app installed, use "helm list -n %s" to get the information of the helm release`+"\n", nameSpace)
 	} else if installFlags.AppType == "manifest" {
 		excludeFiles := make([]string, 0)
-		if installFlags.PreInstallConfigPath != "" {
-			excludeFiles, err = PreInstall(resourcesPath)
-			if err != nil {
-				panic(err)
-			}
+		if config.PreInstall != nil {
+			debug("[nocalhost config] reading pre-install hook")
+			excludeFiles, err = PreInstall(resourcesPath, config.PreInstall)
+			utils.Mush(err)
 		}
-		// install manifest recursively
+
+		// install manifest recursively, don't install pre-install workload again
 		InstallManifestRecursively(resourcesPath, excludeFiles)
 	} else {
-		fmt.Println("unsupported type")
+		fmt.Println("unsupported application type, it mush be helm or manifest")
 	}
 }
 
@@ -171,8 +168,7 @@ func DownloadApplicationToNhctlHome(homePath string) error {
 		debug("git dir : " + gitDirName)
 		strs := strings.Split(gitDirName, "/")
 		gitDirName = strs[len(strs)-1] // todo : for default application anme
-		// clone git
-		//gitPath := fmt.Sprintf("%s%c%s", homePath, os.PathSeparator, gitDirName)
+		// clone git to homePath
 		_, err = tools.ExecCommand(nil, true, "git", "clone", installFlags.Url, homePath)
 		if err != nil {
 			printlnErr("fail to clone git", err)
@@ -183,32 +179,6 @@ func DownloadApplicationToNhctlHome(homePath string) error {
 		return nil
 	}
 	return nil
-}
-
-type PreInstallConfig struct {
-	Items []Item `yaml:"items"`
-}
-
-type Item struct {
-	Path   string `yaml:"path"`
-	Weight string `yaml:"weight"`
-}
-
-type ComparableItems []Item
-
-func (a ComparableItems) Len() int      { return len(a) }
-func (a ComparableItems) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a ComparableItems) Less(i, j int) bool {
-	iW, err := strconv.Atoi(a[i].Weight)
-	if err != nil {
-		iW = 0
-	}
-
-	jW, err := strconv.Atoi(a[j].Weight)
-	if err != nil {
-		jW = 0
-	}
-	return iW < jW
 }
 
 func InstallManifestRecursively(dir string, excludeFiles []string) error {
@@ -236,42 +206,18 @@ outer:
 	return err
 }
 
-func PreInstall(basePath string) ([]string, error) {
-	var (
-		configFilePath string
-	)
-
+func PreInstall(basePath string, items []*PreInstallItem) ([]string, error) {
 	fmt.Println("run pre-install....")
-	//  读取一个yaml文件
-	pConf := &PreInstallConfig{}
-
-	if installFlags.PreInstallConfigPath != "" {
-		configFilePath = fmt.Sprintf("%s%c%s", basePath, os.PathSeparator, installFlags.PreInstallConfigPath)
-	} else {
-		// read from configuration
-	}
-
-	yamlFile, err := ioutil.ReadFile(configFilePath)
-	if err != nil {
-		printlnErr("fail to read pre-install config", err)
-		return nil, err
-	}
-
-	err = yaml.Unmarshal(yamlFile, pConf)
-	if err != nil {
-		printlnErr("fail to unmarshal pre-install config", err)
-		return nil, err
-	}
 
 	// sort
-	sort.Sort(ComparableItems(pConf.Items))
+	sort.Sort(ComparableItems(items))
 
 	clientUtils, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
 	if err != nil {
 		return nil, err
 	}
 	files := make([]string, 0)
-	for _, item := range pConf.Items {
+	for _, item := range items {
 		fmt.Println(item.Path + " : " + item.Weight)
 		files = append(files, basePath+"/"+item.Path)
 		// todo check if item.Path is a valid file
