@@ -120,6 +120,39 @@ func GetHomePath() string {
 	return ""
 }
 
+func GetNocalhostConfigPath(appName string) {
+
+}
+
+func GetApplicationHomeDir(appName string) string {
+	// GetHomePath() + "/.nhctl/" + "application/" + applicationName
+	return fmt.Sprintf("%s%c%s%c%s%c%s", GetHomePath(), os.PathSeparator, ".nhctl", os.PathSeparator, "application", os.PathSeparator, appName)
+}
+
+//func GetAppPortForwardDir(appName string) string {
+//	dir := fmt.Sprintf("%s%c%s", GetApplicationHomeDir(appName), os.PathSeparator, DefaultPortForwardDir)
+//	return dir
+//}
+
+// .nhctl/application/xxx/port-forward/pid/
+//func GetAppPortForwardPidDir(appName string, pid int) string {
+//	return fmt.Sprintf("%s%c%d", GetAppPortForwardDir(appName), os.PathSeparator, pid)
+//}
+
+// .nhctl/application/xxx/port-forward/{pid}/{local_port}_{remote_port}
+//func SavePortForwardInfo(appName string, localPort string, remotePort string) {
+//	pid := os.Getpid()
+//	pidDir := GetAppPortForwardPidDir(appName, pid)
+//	fileName := fmt.Sprintf("%s%c%s_%s", pidDir, os.PathSeparator, localPort, remotePort)
+//	f, err := os.Create(fileName)
+//	utils.Mush(err)
+//	utils.Mush(f.Close())
+//}
+
+//func GetAppConfigPath(appName string) string {
+//	return fmt.Sprintf("%s%c%s%c%s", GetApplicationHomeDir(appName), os.PathSeparator, ".nocalhost", os.PathSeparator, "config.yaml")
+//}
+
 func GetFilesAndDirs(dirPth string) (files []string, dirs []string, err error) {
 	dir, err := ioutil.ReadDir(dirPth)
 	if err != nil {

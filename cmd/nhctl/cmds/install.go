@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -30,21 +28,20 @@ import (
 	watchtools "k8s.io/client-go/tools/watch"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/tools"
+	"nocalhost/pkg/nhctl/utils"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 )
 
 type InstallFlags struct {
 	*EnvSettings
-	ReleaseName          string
-	Url                  string // resource url
-	AppType              string
-	ResourcesDir         string
-	HelmValueFile        string
-	PreInstallConfigPath string
+	Url           string // resource url
+	AppType       string
+	ResourcesDir  string
+	HelmValueFile string
+	ForceInstall  bool
 }
 
 var installFlags = InstallFlags{
@@ -53,26 +50,27 @@ var installFlags = InstallFlags{
 
 func init() {
 	installCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
-	installCmd.Flags().StringVarP(&installFlags.ReleaseName, "release-releaseName", "r", "", "release releaseName of helm")
 	installCmd.Flags().StringVarP(&installFlags.Url, "url", "u", "", "resource url")
 	installCmd.Flags().StringVarP(&installFlags.ResourcesDir, "dir", "d", "", "the dir of helm package or manifest")
 	installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "", "f", "", "helm's Value.yaml")
-	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "helm", "app type: helm or manifest")
-	installCmd.Flags().StringVarP(&installFlags.PreInstallConfigPath, "pre-install", "p", "", "resources to be installed before application install, should be a yaml file path")
+	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", "app type: helm or manifest")
+	installCmd.Flags().BoolVar(&installFlags.ForceInstall, "force", installFlags.ForceInstall, "force install")
 	rootCmd.AddCommand(installCmd)
 }
 
 var installCmd = &cobra.Command{
-	Use:   "install",
+	Use:   "install [NAME]",
 	Short: "install k8s application",
 	Long:  `install k8s application`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		if nameSpace == "" {
 			fmt.Println("error: please use -n to specify a kubernetes namespace")
-			return
-		}
-		if installFlags.AppType == "helm" && installFlags.ReleaseName == "" {
-			fmt.Println("error: please use -r to specify the release name of helm")
 			return
 		}
 		if installFlags.Url == "" {
@@ -80,56 +78,60 @@ var installCmd = &cobra.Command{
 			return
 		}
 		fmt.Println("install application...")
-		InstallApplication()
+		InstallApplication(args[0])
 	},
 }
 
-func InstallApplication() {
+func InstallApplication(applicationName string) {
 
 	var (
 		resourcesPath string
-		gitDir        string
 		err           error
 	)
 
-	if strings.HasPrefix(installFlags.Url, "https") || strings.HasPrefix(installFlags.Url, "git") || strings.HasPrefix(installFlags.Url, "http") {
-		if strings.HasSuffix(installFlags.Url, ".git") {
-			gitDir = installFlags.Url[:len(installFlags.Url)-4]
+	// create application dir
+	applicationDir := GetApplicationHomeDir(applicationName)
+	if _, err = os.Stat(applicationDir); err != nil {
+		if os.IsNotExist(err) {
+			debug("%s not exists, create application dir", applicationDir)
+			utils.Mush(os.Mkdir(applicationDir, 0755))
+			utils.Mush(DownloadApplicationToNhctlHome(applicationDir))
 		} else {
-			gitDir = installFlags.Url
+			panic(err)
 		}
-		debug("git dir : " + gitDir)
-		strs := strings.Split(gitDir, "/")
-		gitDir = strs[len(strs)-1]
-		// check if git dir is already exists
-		if _, err = os.Stat(gitDir); err != nil && os.IsNotExist(err) {
-			// clone git
-			_, err := tools.ExecCommand(nil, true, "git", "clone", installFlags.Url)
-			if err != nil {
-				printlnErr("fail to clone git", err)
-				return
-			}
-		} else {
-			debug("git dir is already exist, pass the clone action")
-		}
-		// helm install
-		resourcesPath = gitDir
-	} else {
-		resourcesPath = installFlags.Url
+	} else if !installFlags.ForceInstall {
+		fmt.Printf("%s already exists, please use --force to force it to be reinstalled\n", applicationName)
+		return
+	} else if installFlags.ForceInstall {
+		fmt.Printf("force to reinstall %s\n", applicationName)
+		utils.Mush(os.RemoveAll(applicationDir))
+		utils.Mush(os.Mkdir(applicationDir, 0755))
+		utils.Mush(DownloadApplicationToNhctlHome(applicationDir))
 	}
 
+	app, err = NewApplication(applicationName)
+	utils.Mush(err)
+	config := app.Config
+
 	if installFlags.ResourcesDir != "" {
-		resourcesPath += "/" + installFlags.ResourcesDir
+		resourcesPath = fmt.Sprintf("%s%c%s", applicationDir, os.PathSeparator, installFlags.ResourcesDir)
+	} else {
+		resourcesPath = fmt.Sprintf("%s%c%s", applicationDir, os.PathSeparator, config.AppConfig.ResourcePath)
 	}
 	debug("resources path is %s\n", resourcesPath)
+	if installFlags.AppType == "" {
+		installFlags.AppType = config.AppConfig.Type
+		debug("[nocalhost config] app type: %s", config.AppConfig.Type)
+	}
 	if installFlags.AppType == "helm" {
-		params := []string{"upgrade", "--install", "--wait", installFlags.ReleaseName, resourcesPath, "--debug"}
+		params := []string{"upgrade", "--install", "--wait", applicationName, resourcesPath, "--debug"}
 		if nameSpace != "" {
 			params = append(params, "-n", nameSpace)
 		}
 		if settings.KubeConfig != "" {
 			params = append(params, "--kubeconfig", settings.KubeConfig)
 		}
+		fmt.Println("install helm application, this may take several minutes, please waiting...")
 		output, err := tools.ExecCommand(nil, false, "helm", params...)
 		if err != nil {
 			printlnErr("fail to install helm app", err)
@@ -139,43 +141,45 @@ func InstallApplication() {
 		fmt.Printf(`helm app installed, use "helm list -n %s" to get the information of the helm release`+"\n", nameSpace)
 	} else if installFlags.AppType == "manifest" {
 		excludeFiles := make([]string, 0)
-		if installFlags.PreInstallConfigPath != "" {
-			excludeFiles, err = PreInstall(resourcesPath)
-			if err != nil {
-				panic(err)
-			}
+		if config.PreInstall != nil {
+			debug("[nocalhost config] reading pre-install hook")
+			excludeFiles, err = PreInstall(resourcesPath, config.PreInstall)
+			utils.Mush(err)
 		}
-		// install manifest recursively
+
+		// install manifest recursively, don't install pre-install workload again
 		InstallManifestRecursively(resourcesPath, excludeFiles)
 	} else {
-		fmt.Println("unsupported type")
+		fmt.Println("unsupported application type, it mush be helm or manifest")
 	}
 }
 
-type PreInstallConfig struct {
-	Items []Item `yaml:"items"`
-}
+func DownloadApplicationToNhctlHome(homePath string) error {
+	var (
+		err        error
+		gitDirName string
+	)
 
-type Item struct {
-	Path   string `yaml:"path"`
-	Weight string `yaml:"weight"`
-}
-
-type ComparableItems []Item
-
-func (a ComparableItems) Len() int      { return len(a) }
-func (a ComparableItems) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a ComparableItems) Less(i, j int) bool {
-	iW, err := strconv.Atoi(a[i].Weight)
-	if err != nil {
-		iW = 0
+	if strings.HasPrefix(installFlags.Url, "https") || strings.HasPrefix(installFlags.Url, "git") || strings.HasPrefix(installFlags.Url, "http") {
+		if strings.HasSuffix(installFlags.Url, ".git") {
+			gitDirName = installFlags.Url[:len(installFlags.Url)-4]
+		} else {
+			gitDirName = installFlags.Url
+		}
+		debug("git dir : " + gitDirName)
+		strs := strings.Split(gitDirName, "/")
+		gitDirName = strs[len(strs)-1] // todo : for default application anme
+		// clone git to homePath
+		_, err = tools.ExecCommand(nil, true, "git", "clone", installFlags.Url, homePath)
+		if err != nil {
+			printlnErr("fail to clone git", err)
+			return err
+		}
+	} else { // todo: for no git url
+		fmt.Println("installing ")
+		return nil
 	}
-
-	jW, err := strconv.Atoi(a[j].Weight)
-	if err != nil {
-		jW = 0
-	}
-	return iW < jW
+	return nil
 }
 
 func InstallManifestRecursively(dir string, excludeFiles []string) error {
@@ -203,31 +207,18 @@ outer:
 	return err
 }
 
-func PreInstall(basePath string) ([]string, error) {
+func PreInstall(basePath string, items []*PreInstallItem) ([]string, error) {
 	fmt.Println("run pre-install....")
-	//  读取一个yaml文件
-	pConf := &PreInstallConfig{}
-	yamlFile, err := ioutil.ReadFile(installFlags.PreInstallConfigPath)
-	if err != nil {
-		printlnErr("fail to read pre-install config", err)
-		return nil, err
-	}
-
-	err = yaml.Unmarshal(yamlFile, pConf)
-	if err != nil {
-		printlnErr("fail to unmarshal pre-install config", err)
-		return nil, err
-	}
 
 	// sort
-	sort.Sort(ComparableItems(pConf.Items))
+	sort.Sort(ComparableItems(items))
 
 	clientUtils, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
 	if err != nil {
 		return nil, err
 	}
 	files := make([]string, 0)
-	for _, item := range pConf.Items {
+	for _, item := range items {
 		fmt.Println(item.Path + " : " + item.Weight)
 		files = append(files, basePath+"/"+item.Path)
 		// todo check if item.Path is a valid file
@@ -248,7 +239,7 @@ func waitUtilReady() error {
 		return nil
 	}
 
-	selector, err := fields.ParseSelector(fmt.Sprintf("metadata.name=%s", resourceName))
+	selector, err := fields.ParseSelector(fmt.Sprintf("metadata.Name=%s", resourceName))
 	if err != nil {
 		return err
 	}
@@ -321,6 +312,5 @@ func waitForPodSuccess(obj runtime.Object, name string) (bool, error) {
 	case v1.PodRunning:
 		fmt.Printf("Pod %s running", o.Name)
 	}
-
 	return false, nil
 }
