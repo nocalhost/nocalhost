@@ -16,70 +16,84 @@ package cmds
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/tools"
-	"os"
 	"sort"
 	"strings"
 )
 
 func init() {
 	devEndCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
-	devEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
+	devEndCmd.Flags().StringVarP(&devFlags.Deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	debugCmd.AddCommand(devEndCmd)
 }
 
 var devEndCmd = &cobra.Command{
-	Use:   "end",
+	Use:   "end [NAME]",
 	Short: "end dev model",
 	Long:  `end dev model`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
+		var err error
+		applicationName := args[0]
+		app, err = NewApplication(applicationName)
+		clientgoutils.Must(err)
+		// todo check if application exists
 		if nameSpace == "" {
 			fmt.Println("error: please use -n to specify a kubernetes namespace")
 			return
 		}
-		if deployment == "" {
+		if devFlags.Deployment == "" {
 			fmt.Println("error: please use -d to specify a k8s deployment")
 			return
 		}
 		fmt.Println("exiting dev model...")
 		// end file sync
-		fmt.Println("ending file sync...")
+		debug("ending file sync...")
 		EndFileSync()
 
-		fmt.Println("stopping port-forward...")
-		StopPortForward()
+		debug("stopping port-forward...")
+		//StopPortForward()
+		err = app.StopAllPortForward()
+		if err != nil {
+			fmt.Printf("[warning] fail to stop port forward, %v\n", err)
+		}
 
-		fmt.Println("roll back deployment...")
+		debug("roll back deployment...")
 		DeploymentRollBackToPreviousRevision()
 	},
 }
 
-func StopPortForward() {
-
-	_, err := os.Stat(".pid")
-	var bys []byte
-	if err == nil {
-		bys, err = ioutil.ReadFile(".pid")
-	}
-	if err != nil {
-		printlnErr("failed to get pid", err)
-		return
-	}
-
-	pid := string(bys)
-
-	_, err = tools.ExecCommand(nil, true, "kill", "-1", pid)
-	if err != nil {
-		printlnErr("failed to stop port forward", err)
-		return
-	} else {
-		fmt.Println("port-forward stopped.")
-	}
-}
+//func StopPortForward() {
+//
+//	_, err := os.Stat(".pid")
+//	var bys []byte
+//	if err == nil {
+//		bys, err = ioutil.ReadFile(".pid")
+//	}
+//	if err != nil {
+//		printlnErr("failed to get pid", err)
+//		return
+//	}
+//
+//	pid := string(bys)
+//
+//	_, err = tools.ExecCommand(nil, true, "kill", "-1", pid)
+//	if err != nil {
+//		printlnErr("failed to stop port forward", err)
+//		return
+//	} else {
+//		fmt.Println("port-forward stopped.")
+//	}
+//}
 
 func EndFileSync() {
 	output, _ := tools.ExecCommand(nil, false, "mutagen", "sync", "list")
@@ -107,14 +121,14 @@ func DeploymentRollBackToPreviousRevision() {
 	clientUtils, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
 	clientgoutils.Must(err)
 
-	dep, err := clientUtils.GetDeployment(context.TODO(), nameSpace, deployment)
+	dep, err := clientUtils.GetDeployment(context.TODO(), nameSpace, devFlags.Deployment)
 	if err != nil {
 		fmt.Printf("failed to get deployment %s , err : %v\n", dep.Name, err)
 		return
 	}
 
 	fmt.Printf("rolling deployment back to previous revision\n")
-	rss, err := clientUtils.GetReplicaSetsControlledByDeployment(context.TODO(), nameSpace, deployment)
+	rss, err := clientUtils.GetReplicaSetsControlledByDeployment(context.TODO(), nameSpace, devFlags.Deployment)
 	if err != nil {
 		fmt.Printf("failed to get rs list, err:%v\n", err)
 		return
