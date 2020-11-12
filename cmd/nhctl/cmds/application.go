@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"nocalhost/pkg/nhctl/tools"
 	"os"
+	"strconv"
 )
 
 type Application struct {
@@ -80,6 +82,47 @@ func (a *Application) SavePortForwardInfo(localPort int, remotePort int) error {
 	defer f.Close()
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func (a *Application) ListPortForwardPid() ([]int, error) {
+	result := make([]int, 0)
+	pidDir := a.GetPortForwardDir()
+	dir, err := ioutil.ReadDir(pidDir)
+	if err != nil {
+		fmt.Printf("fail to get dirs in port-forward:%v\n", err)
+		return nil, err
+	}
+	for _, fi := range dir {
+		pid, err := strconv.Atoi(fi.Name())
+		if err != nil {
+			fmt.Printf("fail to get file name:%v\n", err)
+		} else {
+			result = append(result, pid)
+		}
+
+	}
+	return result, nil
+}
+
+func (a *Application) StopAllPortForward() error {
+	pids, err := a.ListPortForwardPid()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("pids:%v\n", pids)
+	for _, pid := range pids {
+		_, err = tools.ExecCommand(nil, true, "kill", "-1", fmt.Sprintf("%d", pid))
+		if err != nil {
+			fmt.Printf("failed to stop port forward pid %d, err: %v\n", pid, err)
+		}
+		// remove pid dir
+		pidDir := a.GetPortForwardPidDir(pid)
+		err = os.RemoveAll(pidDir)
+		if err != nil {
+			fmt.Printf("fail to remove %s\n", pidDir)
+		}
 	}
 	return nil
 }
