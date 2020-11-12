@@ -67,9 +67,10 @@ func (c *GoClient) CreateNS(namespace, label string) (bool, error) {
 	return true, nil
 }
 
-// nocalhost create namespace use the rule: nocal+userId+4 random word, exp: nocal4esZc
+// nocalhost create namespace use the rule: nocal+userId+4 random word, exp: nocal4esac
+// namespace rules must match DNS-1123 label, capital doesn't allow
 func (c *GoClient) GenerateNsName(userId uint64) string {
-	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
 	rand.Seed(time.Now().UnixNano())
 	b := make([]rune, 4)
 	for i := range b {
