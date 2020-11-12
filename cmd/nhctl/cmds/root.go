@@ -11,6 +11,8 @@ import (
 
 var settings *EnvSettings
 
+//var nocalhostConfig *NocalhostConfig
+
 func init() {
 
 	settings = NewEnvSettings()
@@ -27,6 +29,8 @@ func init() {
 			if os.IsNotExist(err) {
 				debug("init nhctl...")
 				utils.Mush(os.Mkdir(nhctlHomeDir, 0755))
+				applicationDir := fmt.Sprintf("%s%c%s", nhctlHomeDir, os.PathSeparator, "application")
+				utils.Mush(os.Mkdir(applicationDir, 0755)) // create .nhctl/application
 				keyDir := fmt.Sprintf("%s%c%s", nhctlHomeDir, os.PathSeparator, "key")
 				utils.Mush(os.Mkdir(keyDir, 0755)) // create .nhctl/key
 				// ssh public key
