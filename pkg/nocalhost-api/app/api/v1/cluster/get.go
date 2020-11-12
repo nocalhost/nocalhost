@@ -16,6 +16,7 @@ package cluster
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
 )
@@ -46,10 +47,11 @@ func GetList(c *gin.Context) {
 func GetDetail(c *gin.Context) {
 	userId, _ := c.Get("userId")
 	clusterId := cast.ToUint64(c.Param("id"))
-	where := make(map[string]interface{}, 0)
-	where["user_id"] = userId.(uint64)
-	where["cluster_id"] = clusterId
-	result, err := service.Svc.ClusterUser().GetList(c, where)
+	where := model.ClusterUserModel{
+		UserId:    userId.(uint64),
+		ClusterId: clusterId,
+	}
+	result, err := service.Svc.ClusterUser().GetFirst(c, where)
 	if err != nil {
 		api.SendResponse(c, nil, make([]interface{}, 0))
 		return
