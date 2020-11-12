@@ -344,10 +344,67 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "应用开发环境参数，含 kubeconfig",
+                        "description": "应用开发环境参数，含 kubeconfig，status=0应用未安装，1已安装",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/application/{id}/dev_space/{spaceId}/plugin_sync": {
+            "put": {
+                "description": "Plugin - 更新应用安装状态",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "应用"
+                ],
+                "summary": "Plugin - 更新应用安装状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "应用 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "开发空间 ID",
+                        "name": "spaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "The application update info",
+                        "name": "CreateAppRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/applications.UpdateApplicationInstallRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
                         }
                     }
                 }
@@ -802,6 +859,17 @@
                 }
             }
         },
+        "applications.UpdateApplicationInstallRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
         "cluster.CreateClusterRequest": {
             "type": "object",
             "required": [
@@ -886,6 +954,9 @@
                     "type": "string"
                 },
                 "memory": {
+                    "type": "integer"
+                },
+                "status": {
                     "type": "integer"
                 },
                 "user_id": {

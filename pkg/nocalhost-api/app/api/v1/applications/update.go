@@ -59,3 +59,41 @@ func Update(c *gin.Context) {
 
 	api.SendResponse(c, errno.OK, nil)
 }
+
+// Create Plugin - 更新应用安装状态
+// @Summary Plugin - 更新应用安装状态
+// @Description Plugin - 更新应用安装状态
+// @Tags 应用
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path uint64 true "应用 ID"
+// @Param spaceId path uint64 true "开发空间 ID"
+// @Param CreateAppRequest body applications.UpdateApplicationInstallRequest true "The application update info"
+// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
+// @Router /v1/application/{id}/dev_space/{spaceId}/plugin_sync [put]
+func UpdateApplicationInstall(c *gin.Context) {
+	var req UpdateApplicationInstallRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Warnf("update application bind err: %s", err)
+		api.SendResponse(c, errno.ErrBind, nil)
+		return
+	}
+	userId, _ := c.Get("userId")
+	applicationId := cast.ToUint64(c.Param("id"))
+	devSpaceId := cast.ToUint64(c.Param("spaceId"))
+	model := model.ClusterUserModel{
+		ID:            devSpaceId,
+		ApplicationId: applicationId,
+		UserId:        userId.(uint64),
+		Status:        req.Status,
+	}
+	err := service.Svc.ClusterUser().Update(c, &model)
+	if err != nil {
+		log.Warnf("update Application err: %v", err)
+		api.SendResponse(c, errno.ErrApplicationInstallUpdate, nil)
+		return
+	}
+
+	api.SendResponse(c, errno.OK, nil)
+}

@@ -25,6 +25,13 @@ definitions:
     - context
     - status
     type: object
+  applications.UpdateApplicationInstallRequest:
+    properties:
+      status:
+        type: integer
+    required:
+    - status
+    type: object
   cluster.CreateClusterRequest:
     properties:
       kubeconfig:
@@ -82,6 +89,8 @@ definitions:
       kubeconfig:
         type: string
       memory:
+        type: integer
+      status:
         type: integer
       user_id:
         type: integer
@@ -382,11 +391,50 @@ paths:
       - application/json
       responses:
         "200":
-          description: 应用开发环境参数，含 kubeconfig
+          description: 应用开发环境参数，含 kubeconfig，status=0应用未安装，1已安装
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
       summary: Plugin - 获取个人应用开发环境(kubeconfig)
+      tags:
+      - 应用
+  /v1/application/{id}/dev_space/{spaceId}/plugin_sync:
+    put:
+      consumes:
+      - application/json
+      description: Plugin - 更新应用安装状态
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 应用 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 开发空间 ID
+        in: path
+        name: spaceId
+        required: true
+        type: integer
+      - description: The application update info
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/applications.UpdateApplicationInstallRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: Plugin - 更新应用安装状态
       tags:
       - 应用
   /v1/cluster:

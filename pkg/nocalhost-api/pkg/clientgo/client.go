@@ -81,6 +81,7 @@ func (c *GoClient) GenerateNsName(userId uint64) string {
 
 // check if admin for kubeconfig use SelfSubjectAccessReview
 // check https://kubernetes.io/zh/docs/reference/access-authn-authz/authorization/
+// kubectl auth can-i '*' '*'
 func (c *GoClient) IsAdmin() (bool, error) {
 	arg := &authorizationv1.SelfSubjectAccessReview{
 		Spec: authorizationv1.SelfSubjectAccessReviewSpec{
@@ -129,7 +130,7 @@ kubectl create rolebinding default-view \
         --serviceaccount={namespace}:default \
         --namespace={namespace}
 */
-func (c *GoClient) CreateRoleBinding(name, namespace, clusterRole, toServiceAccount string) (bool, error) {
+func (c *GoClient) CreateRoleBinding(name, namespace, role, toServiceAccount string) (bool, error) {
 	roleBinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "RoleBinding"},
 		ObjectMeta: metav1.ObjectMeta{
@@ -137,11 +138,11 @@ func (c *GoClient) CreateRoleBinding(name, namespace, clusterRole, toServiceAcco
 			Namespace: namespace,
 		},
 	}
-	if clusterRole != "" {
+	if role != "" {
 		roleBinding.RoleRef = rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
-			Kind:     "ClusterRole",
-			Name:     clusterRole,
+			Kind:     "Role",
+			Name:     role,
 		}
 	}
 	if toServiceAccount != "" {
@@ -169,9 +170,9 @@ func (c *GoClient) CreateRole(name, namespace string) (bool, error) {
 		Namespace: namespace,
 	}
 	role.Rules = append(role.Rules, rbacv1.PolicyRule{
-		Verbs:     []string{""},
-		Resources: []string{""},
-		APIGroups: []string{""},
+		Verbs:     []string{"*"},
+		Resources: []string{"*"},
+		APIGroups: []string{"*"},
 	})
 	_, err := c.client.RbacV1().Roles(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
 	if err != nil {
