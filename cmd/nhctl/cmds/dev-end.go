@@ -18,11 +18,9 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/tools"
-	"os"
 	"sort"
 	"strings"
 )
@@ -44,6 +42,10 @@ var devEndCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		var err error
+		applicationName := args[0]
+		app, err = NewApplication(applicationName)
+		clientgoutils.Must(err)
 		// todo check if application exists
 		if nameSpace == "" {
 			fmt.Println("error: please use -n to specify a kubernetes namespace")
@@ -59,35 +61,39 @@ var devEndCmd = &cobra.Command{
 		EndFileSync()
 
 		debug("stopping port-forward...")
-		StopPortForward()
+		//StopPortForward()
+		err = app.StopAllPortForward()
+		if err != nil {
+			fmt.Printf("[warning] fail to stop port forward, %v\n", err)
+		}
 
 		debug("roll back deployment...")
 		DeploymentRollBackToPreviousRevision()
 	},
 }
 
-func StopPortForward() {
-
-	_, err := os.Stat(".pid")
-	var bys []byte
-	if err == nil {
-		bys, err = ioutil.ReadFile(".pid")
-	}
-	if err != nil {
-		printlnErr("failed to get pid", err)
-		return
-	}
-
-	pid := string(bys)
-
-	_, err = tools.ExecCommand(nil, true, "kill", "-1", pid)
-	if err != nil {
-		printlnErr("failed to stop port forward", err)
-		return
-	} else {
-		fmt.Println("port-forward stopped.")
-	}
-}
+//func StopPortForward() {
+//
+//	_, err := os.Stat(".pid")
+//	var bys []byte
+//	if err == nil {
+//		bys, err = ioutil.ReadFile(".pid")
+//	}
+//	if err != nil {
+//		printlnErr("failed to get pid", err)
+//		return
+//	}
+//
+//	pid := string(bys)
+//
+//	_, err = tools.ExecCommand(nil, true, "kill", "-1", pid)
+//	if err != nil {
+//		printlnErr("failed to stop port forward", err)
+//		return
+//	} else {
+//		fmt.Println("port-forward stopped.")
+//	}
+//}
 
 func EndFileSync() {
 	output, _ := tools.ExecCommand(nil, false, "mutagen", "sync", "list")
