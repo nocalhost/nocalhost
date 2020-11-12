@@ -14,6 +14,8 @@ limitations under the License.
 package cluster_user
 
 import (
+	"github.com/gin-gonic/gin"
+	"github.com/spf13/cast"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
@@ -22,9 +24,6 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
-
-	"github.com/gin-gonic/gin"
-	"github.com/spf13/cast"
 )
 
 // Create 创建开发环境
@@ -82,13 +81,13 @@ func Create(c *gin.Context) {
 	devNamespace := goClient.GenerateNsName(userId.(uint64))
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
 	secret, err := clusterDevsSetUp.CreateNS(devNamespace, "").CreateServiceAccount("", devNamespace).CreateRole(global.NocalhostDevRoleName, devNamespace).CreateRoleBinding(global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevServiceAccountName).GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).GetServiceAccountSecret("", devNamespace)
-	devToken := secret.StringData["token"]
-	devCa := setupcluster.GetServiceAccountSecretByKey(secret, global.NocalhostDevServiceAccountSecretCaKey)
-	log.Infof("devToken %s, devCA %s", devToken, devCa)
+	KubeConfigYaml, err, nerrno := setupcluster.NewDevKubeConfigReader(secret, clusterData.Server, devNamespace).GetCA().GetToken().AssembleDevKubeConfig().ToYamlString()
+	if err != nil {
+		api.SendResponse(c, nerrno, nil)
+		return
+	}
 
-	//TODO config struct 在 api.Config
-	// TODO 组装 api.Config 然后转成 Yaml
-	err = service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId.(uint64), *req.Memory, *req.Cpu)
+	err = service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId.(uint64), *req.Memory, *req.Cpu, KubeConfigYaml, devNamespace)
 	if err != nil {
 		log.Warnf("create ApplicationCluster err: %v", err)
 		api.SendResponse(c, errno.ErrBindApplicationClsuter, nil)
