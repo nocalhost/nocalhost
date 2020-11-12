@@ -14,8 +14,12 @@ limitations under the License.
 package api
 
 import (
+	"github.com/spf13/viper"
 	"net/http"
+	"nocalhost/pkg/nocalhost-api/napp"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"os"
+	"runtime/debug"
 
 	"github.com/gin-gonic/gin"
 
@@ -61,7 +65,9 @@ func GetUserID(c *gin.Context) uint64 {
 
 // RouteNotFound 未找到相关路由
 func RouteNotFound(c *gin.Context) {
-	c.String(http.StatusNotFound, "the route not found")
+	//c.String(http.StatusNotFound, "the route not found")
+	SendResponse(c, errno.RouterNotFound, nil)
+	return
 }
 
 // getHostname 获取主机名
@@ -82,4 +88,21 @@ type healthCheckResponse struct {
 // HealthCheck will return OK if the underlying BoltDB is healthy. At least healthy enough for demoing purposes.
 func HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, healthCheckResponse{Status: "UP", Hostname: getHostname()})
+}
+
+// global handle 500 error
+func Recover(c *gin.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+
+			log.Errorf("panic: %v\n", r)
+			// debug 打印错误堆栈信息
+			if viper.GetString("app.run_mode") == napp.ModeDebug {
+				debug.PrintStack()
+			}
+			SendResponse(c, errno.InternalServerError, nil)
+			return
+		}
+	}()
+	c.Next()
 }

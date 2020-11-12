@@ -19,44 +19,50 @@ var (
 	OK                  = &Errno{Code: 0, Message: "OK"}
 	InternalServerError = &Errno{Code: 10001, Message: "Internal server error"}
 	ErrBind             = &Errno{Code: 10002, Message: "Error occurred while binding the request body to the struct."}
-	ErrParam            = &Errno{Code: 10003, Message: "参数有误"}
-	ErrSignParam        = &Errno{Code: 10004, Message: "签名参数有误"}
+	ErrParam            = &Errno{Code: 10003, Message: "parameters Incorrect"}
+	ErrSignParam        = &Errno{Code: 10004, Message: "signature parameters Incorrect"}
+	RouterNotFound      = &Errno{Code: 10005, Message: "router not found"}
 
 	// user errors
 	ErrUserNotFound          = &Errno{Code: 20102, Message: "The user was not found."}
-	ErrTokenInvalid          = &Errno{Code: 20103, Message: "token 无效或登陆过期，请重新登陆"}
-	ErrEmailOrPassword       = &Errno{Code: 20111, Message: "邮箱或密码错误"}
-	ErrTwicePasswordNotMatch = &Errno{Code: 20112, Message: "两次密码输入不一致"}
-	ErrRegisterFailed        = &Errno{Code: 20113, Message: "注册失败"}
-	ErrUserNotAllow          = &Errno{Code: 20114, Message: "用户被禁用"}
-	ErrCreateUserDenied      = &Errno{Code: 20115, Message: "无创建用户权限"}
-	ErrUpdateUserDenied      = &Errno{Code: 20116, Message: "无修改用户权限"}
-	ErrDeleteUser            = &Errno{Code: 20117, Message: "删除用户失败"}
+	ErrTokenInvalid          = &Errno{Code: 20103, Message: "Token is invalid or login expired, please log in again"}
+	ErrEmailOrPassword       = &Errno{Code: 20111, Message: "Mail or password is incorrect"}
+	ErrTwicePasswordNotMatch = &Errno{Code: 20112, Message: "Two password entries are inconsistent"}
+	ErrRegisterFailed        = &Errno{Code: 20113, Message: "Registration failed"}
+	ErrUserNotAllow          = &Errno{Code: 20114, Message: "User is disabled"}
+	ErrCreateUserDenied      = &Errno{Code: 20115, Message: "No user creation permission"}
+	ErrUpdateUserDenied      = &Errno{Code: 20116, Message: "No modify user permission"}
+	ErrDeleteUser            = &Errno{Code: 20117, Message: "Failed to delete user"}
 
 	// cluster errors
-	ErrClusterCreate      = &Errno{Code: 30100, Message: "添加集群失败，请重试"}
-	ErrClusterExistCreate = &Errno{Code: 30101, Message: "该集群已存在（Server 重复）"}
-	ErrClusterKubeCreate  = &Errno{Code: 30102, Message: "不允许创建此类型的集群（Kubeconfig Cluster 有多个）"}
-	ErrClusterKubeErr     = &Errno{Code: 30103, Message: "Kubeconfig 解析错误，请检查"}
-	ErrClusterKubeAdmin   = &Errno{Code: 30104, Message: "请检查 Kubeconfig 权限（Admin）和集群连通性"}
-	ErrClusterDepSetup    = &Errno{Code: 30105, Message: "初始化集群：创建依赖组件 Configmap 失败"}
-	ErrClusterDepJobSetup = &Errno{Code: 30106, Message: "初始化集群：创建依赖组件 Job 失败"}
+	ErrClusterCreate      = &Errno{Code: 30100, Message: "Failed to add cluster, please try again"}
+	ErrClusterExistCreate = &Errno{Code: 30101, Message: "The cluster already exists (Duplicate Server)"}
+	ErrClusterKubeCreate  = &Errno{Code: 30102, Message: "It is not allowed to create this type of cluster (there are multiple Kubeconfig Clusters)"}
+	ErrClusterKubeErr     = &Errno{Code: 30103, Message: "Kubeconfig parsing error, please check"}
+	ErrClusterKubeAdmin   = &Errno{Code: 30104, Message: "Please check Kubeconfig permissions (Admin) and cluster connectivity"}
+	ErrClusterDepSetup    = &Errno{Code: 30105, Message: "Initialize cluster: Failed to create dependent component Configmap"}
+	ErrClusterDepJobSetup = &Errno{Code: 30106, Message: "Initialize the cluster: Create dependent component Job failed"}
 
 	// application errors
-	ErrApplicationCreate      = &Errno{Code: 40100, Message: "添加应用失败，请重试"}
-	ErrApplicationGet         = &Errno{Code: 40101, Message: "获取应用失败，请重试"}
-	ErrApplicationDelete      = &Errno{Code: 40102, Message: "删除应用失败，请重试"}
-	ErrApplicationUpdate      = &Errno{Code: 40103, Message: "更新应用失败，请重试"}
-	ErrBindApplicationClsuter = &Errno{Code: 40104, Message: "绑定集群失败，请重试"}
-	ErrPermissionApplication  = &Errno{Code: 40105, Message: "无此应用权限"}
-	ErrPermissionCluster      = &Errno{Code: 40106, Message: "无此集群权限"}
+	ErrApplicationCreate        = &Errno{Code: 40100, Message: "Failed to add app, please try again"}
+	ErrApplicationGet           = &Errno{Code: 40101, Message: "Failed to get app, please try again"}
+	ErrApplicationDelete        = &Errno{Code: 40102, Message: "Failed to delete application, please try again"}
+	ErrApplicationUpdate        = &Errno{Code: 40103, Message: "Update application failed, please try again"}
+	ErrBindApplicationClsuter   = &Errno{Code: 40104, Message: "Failed to bind cluster, please try again"}
+	ErrPermissionApplication    = &Errno{Code: 40105, Message: "No permission for this application"}
+	ErrPermissionCluster        = &Errno{Code: 40106, Message: "No permission for this cluster"}
+	ErrApplicationInstallUpdate = &Errno{Code: 40107, Message: "Failed to update app installation status, please try again"}
 
 	// cluster-user errors
-	ErrBindUserClsuterRepeat       = &Errno{Code: 50100, Message: "该用户已授权此应用"}
-	ErrBindNameSpaceCreate         = &Errno{Code: 50101, Message: "授权失败：创建命名空间失败"}
-	ErrBindServiceAccountCreateErr = &Errno{Code: 50102, Message: "授权失败：创建 ServiceAccount 失败"}
-	ErrBindRoleCreateErr           = &Errno{Code: 50103, Message: "授权失败：创建 Role 失败"}
-	ErrBindRoleBindingCreateErr    = &Errno{Code: 50105, Message: "授权失败：创建 RoleBinding 失败"}
-	ErrBindSecretGetErr            = &Errno{Code: 50106, Message: "授权失败：获取 ServiceAccount Secret 失败"}
-	ErrBindSecretNameGetErr        = &Errno{Code: 50107, Message: "授权失败：获取 ServiceAccount SecretName 失败"}
+	ErrBindUserClsuterRepeat                     = &Errno{Code: 50100, Message: "The user has authorized this application"}
+	ErrBindNameSpaceCreate                       = &Errno{Code: 50101, Message: "Cluster user authorization failed: failed to create namespace"}
+	ErrBindServiceAccountCreateErr               = &Errno{Code: 50102, Message: "Cluster user authorization failed: Failed to create ServiceAccount"}
+	ErrBindRoleCreateErr                         = &Errno{Code: 50103, Message: "Cluster user authorization failed: failed to create a role"}
+	ErrBindRoleBindingCreateErr                  = &Errno{Code: 50105, Message: "Cluster user authorization failed: failed to create RoleBinding"}
+	ErrBindSecretGetErr                          = &Errno{Code: 50106, Message: "Cluster user authorization failed: Failed to obtain ServiceAccount Secret"}
+	ErrBindSecretNameGetErr                      = &Errno{Code: 50107, Message: "Cluster user authorization failed: Failed to obtain ServiceAccount SecretName"}
+	ErrBindSecretTokenGetErr                     = &Errno{Code: 50108, Message: "Cluster user authorization failed: Failed to obtain ServiceAccount Token"}
+	ErrBindSecretCAGetErr                        = &Errno{Code: 50109, Message: "Cluster user authorization failed: Failed to obtain ServiceAccount CA"}
+	ErrBindServiceAccountStructEncodeErr         = &Errno{Code: 50110, Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Json to Yaml failed"}
+	ErrBindServiceAccountKubeConfigJsonEncodeErr = &Errno{Code: 50110, Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Struct to Json failed"}
 )

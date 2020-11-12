@@ -29,7 +29,7 @@ import (
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param id path string true "应用 ID"
-// @Success 200 {object} model.ClusterUserModel "应用开发环境参数，含 kubeconfig"
+// @Success 200 {object} model.ClusterUserModel "应用开发环境参数，含 kubeconfig，status=0应用未安装，1已安装"
 // @Router /v1/application/{id}/dev_space [get]
 func GetFirst(c *gin.Context) {
 	userId, _ := c.Get("userId")

@@ -81,14 +81,14 @@ func main() {
 	// Create the Gin engine.
 	router := napp.App.Router
 
-	// Health 健康检查
+	// Health Check
 	router.GET("/health", api.HealthCheck)
 	// metrics prometheus
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// API Routes.
 	routers.Load(router)
-	// 加载 router
+	// Load router
 	//routers.LoadWebRouter(router)
 
 	// init service
@@ -97,7 +97,7 @@ func main() {
 	// set global service
 	service.Svc = svc
 
-	// start grpc server 预留
+	// start grpc server reserved
 	//go server.New(svc)
 
 	// start server

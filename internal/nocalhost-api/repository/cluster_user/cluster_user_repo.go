@@ -24,6 +24,7 @@ type ClusterUserRepo interface {
 	Create(ctx context.Context, model model.ClusterUserModel) (uint64, error)
 	GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error)
 	GetList(ctx context.Context, c map[string]interface{}) ([]*model.ClusterUserModel, error)
+	Update(ctx context.Context, models *model.ClusterUserModel) error
 	Close()
 }
 
@@ -35,6 +36,24 @@ func NewApplicationClusterRepo(db *gorm.DB) ClusterUserRepo {
 	return &clusterUserRepo{
 		db: db,
 	}
+}
+
+func (repo *clusterUserRepo) Update(ctx context.Context, models *model.ClusterUserModel) error {
+	where := model.ClusterUserModel{
+		ApplicationId: models.ApplicationId,
+		ID:            models.ID,
+		UserId:        models.UserId,
+	}
+	_, err := repo.GetFirst(ctx, where)
+	if err != nil {
+		return errors.Wrap(err, "[clsuter_user_repo] get clsuter_user denied")
+	}
+	emptyModel := model.ClusterUserModel{}
+	affectRow := repo.db.Model(&emptyModel).Update(models).RowsAffected
+	if affectRow > 0 {
+		return nil
+	}
+	return errors.Wrap(err, "[clsuter_user_repo] update clsuter_user err")
 }
 
 func (repo *clusterUserRepo) GetList(ctx context.Context, c map[string]interface{}) ([]*model.ClusterUserModel, error) {
