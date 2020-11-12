@@ -64,8 +64,9 @@ var devStartCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		var err error
 		applicationName := args[0]
-		app, err := NewApplication(applicationName)
+		app, err = NewApplication(applicationName)
 		clientgoutils.Must(err)
 		nocalhostConfig = app.Config
 		if nameSpace == "" {

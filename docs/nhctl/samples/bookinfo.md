@@ -31,32 +31,16 @@ kubectl create rolebinding default-view \
 
 ### 安装应用
 
-nhctl 支持两种类型的应用安装：helm 和 mainfest，两种类型的安装分别如下：
-
-#### 安装 helm 应用
-
 ```shell
-nhctl install ddd -u https://github.com/nocalhost/bookinfo.git --debug -n $NOCALHOST_NS
+nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $NOCALHOST_NS
 ```
 
 参数说明：
 
 - -n ：namespace
-- -u : helm chart 文件所在的 git 地址, 或本地文件目录地址，或 helm 仓库中 chart 的地址
-- -t : 应用类型
+- -u : git url 地址
+- -t : 应用类型 (可选)
 - --debug : 打印 debug 日志输出
-
-环境清理：
-
-```shell
-helm -n $NOCALHOST_NS uninstall bookinfo-04
-```
-
-#### 安装 manifest 应用
-
-```shell
-nhctl install bbb -u https://e.coding.net/codingcorp/nocalhost/bookinfo-manifest.git -d deployment -t manifest --pre-install bookinfo-manifest/pre-install.yaml -n $NOCALHOST_NS --debug
-```
 
 安装完即可通过：`http://HOST_IP:30001/productpage` 访问 bookinfo 应用。
 
@@ -69,7 +53,7 @@ nhctl install bbb -u https://e.coding.net/codingcorp/nocalhost/bookinfo-manifest
 替换 details 容器的镜像为开发容器镜像 : 
 
 ```shell
-nhctl dev  start -d details-v1 -n $NOCALHOST_NS
+nhctl dev start $APPNAME -d details-v1 -n $NOCALHOST_NS
 ```
 
 - -d : 指定要替换的服务对应的 deployment 的名字
@@ -83,7 +67,7 @@ nhctl dev  start -d details-v1 -n $NOCALHOST_NS
 转发本地端口到开发容器端口：
 
 ```shell
-nhctl port-forward -d details-v1 -n $NOCALHOST_NS  -l 12345 -r 22
+nhctl port-forward $APPNAME -d  details-v1 -n $NOCALHOST_NS 
 ```
 
 - -d : 指定要替换的服务对应的 deployment 的名字
@@ -93,7 +77,7 @@ nhctl port-forward -d details-v1 -n $NOCALHOST_NS  -l 12345 -r 22
 该命令在端口转发过程中会一直阻塞，需要重新打开一个新的界面进行后续的操作，此时，在新打开的窗口使用以下命令可以登上开发容器：
 
 ```shell
-ssh root@127.0.0.1 -p 12345 -i ~/.nhctl/key/id_rsa
+ssh root@shared-container -p 12347
 ```
 
 
@@ -104,7 +88,7 @@ ssh root@127.0.0.1 -p 12345 -i ~/.nhctl/key/id_rsa
 
 ```shell
 mkdir cccc
-nhctl sync -l cccc -r /opt/microservicess -p 12345
+nhctl sync $APPNAME -d details-v1
 ```
 
 - -l : 要同步的本地文件目录
@@ -134,5 +118,5 @@ rdebug-ide details.rb 9080 # debug 模式运行 details 服务
 结束后运行以下命令可以将服务恢复为正常模式：
 
 ```shell
-nhctl dev end -d  details-v1  -n $NOCALHOST_NS
+nhctl dev end $APPNAME -d  details-v1  -n $NOCALHOST_NS
 ```

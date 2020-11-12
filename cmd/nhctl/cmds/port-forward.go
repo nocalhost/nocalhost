@@ -24,8 +24,6 @@ import (
 	"nocalhost/pkg/nhctl/utils"
 	"os"
 	"os/signal"
-	"strconv"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -80,11 +78,15 @@ var portForwardCmd = &cobra.Command{
 
 		svcConfig := nocalhostConfig.GetSvcConfig(portForwardFlags.Deployment)
 		var configLocalPort, configRemotePort int
-		if svcConfig != nil && svcConfig.DevPort != nil && len(svcConfig.DevPort) > 0 {
-			configLocalPort, err = strconv.Atoi(strings.Trim(strings.Split(svcConfig.DevPort[0], ":")[0], " "))
-			utils.Mush(err)
-			configRemotePort, err = strconv.Atoi(strings.Trim(strings.Split(svcConfig.DevPort[0], ":")[1], " "))
-			utils.Mush(err)
+		//if svcConfig != nil && svcConfig.SshPort != nil {
+		//	configLocalPort, err = strconv.Atoi(strings.Trim(strings.Split(svcConfig.DevPort[0], ":")[0], " "))
+		//	utils.Mush(err)
+		//	configRemotePort, err = strconv.Atoi(strings.Trim(strings.Split(svcConfig.DevPort[0], ":")[1], " "))
+		//	utils.Mush(err)
+		//}
+		if svcConfig != nil && svcConfig.SshPort != nil {
+			configLocalPort = svcConfig.SshPort.LocalPort
+			configRemotePort = svcConfig.SshPort.SshPort
 		}
 
 		if portForwardFlags.LocalPort == 0 {
