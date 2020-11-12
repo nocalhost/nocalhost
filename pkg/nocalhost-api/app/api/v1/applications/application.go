@@ -18,3 +18,8 @@ type CreateAppRequest struct {
 	Context string `json:"context" binding:"required"`
 	Status  *uint8 `json:"status" binding:"required"`
 }
+
+// 插件 - 更新应用安装状态
+type UpdateApplicationInstallRequest struct {
+	Status *uint64 `json:"status" binding:"required"`
+}
