@@ -29,6 +29,7 @@ type ClusterUserModel struct {
 	Memory        uint64     `gorm:"column:memory;not null" json:"memory"`
 	Cpu           uint64     `gorm:"column:cpu;not null" json:"cpu"`
 	Namespace     string     `gorm:"column:namespace;not null" json:"-"`
+	Status        *uint64    `gorm:"column:status;default:0" json:"status"`
 	CreatedAt     time.Time  `gorm:"column:created_at" json:"-"`
 	UpdatedAt     time.Time  `gorm:"column:updated_at" json:"-"`
 	DeletedAt     *time.Time `gorm:"column:deleted_at" json:"-"`

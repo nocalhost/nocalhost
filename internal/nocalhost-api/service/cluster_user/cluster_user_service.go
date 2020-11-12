@@ -22,9 +22,10 @@ import (
 )
 
 type ClusterUserService interface {
-	Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64) error
+	Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace string) error
 	GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error)
 	GetList(ctx context.Context, c map[string]interface{}) ([]*model.ClusterUserModel, error)
+	Update(ctx context.Context, models *model.ClusterUserModel) error
 	Close()
 }
 
@@ -35,6 +36,14 @@ type clusterUserService struct {
 func NewClusterUserService() ClusterUserService {
 	db := model.GetDB()
 	return &clusterUserService{clusterUserRepo: cluster_user.NewApplicationClusterRepo(db)}
+}
+
+func (srv *clusterUserService) Update(ctx context.Context, models *model.ClusterUserModel) error {
+	err := srv.clusterUserRepo.Update(ctx, models)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (srv *clusterUserService) GetList(ctx context.Context, c map[string]interface{}) ([]*model.ClusterUserModel, error) {
@@ -53,11 +62,13 @@ func (srv *clusterUserService) GetFirst(ctx context.Context, models model.Cluste
 	return result, nil
 }
 
-func (srv *clusterUserService) Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64) error {
+func (srv *clusterUserService) Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace string) error {
 	c := model.ClusterUserModel{
 		ApplicationId: applicationId,
 		UserId:        userId,
 		ClusterId:     clusterId,
+		KubeConfig:    kubeConfig,
+		Namespace:     devNameSpace,
 	}
 	_, err := srv.clusterUserRepo.Create(ctx, c)
 	if err != nil {
