@@ -8,6 +8,7 @@ const (
 	NocalhostDevRoleName                  = "nocalhost-dev-role"
 	NocalhostDevRoleBindingName           = "nocalhost-role-biding"
 	NocalhostDevServiceAccountSecretCaKey = "ca.crt"
+	NocalhostDevServiceAccountTokenKey    = "token"
 	NocalhostDepKubeConfigMapName         = "nocalhost-kubeconfig"
 	NocalhostDepKubeConfigMapKey          = "config"
 )

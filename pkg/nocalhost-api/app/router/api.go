@@ -48,6 +48,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	// 404 Handler.
 	g.NoRoute(api.RouteNotFound)
 	g.NoMethod(api.RouteNotFound)
+	g.Use(api.Recover)
 
 	// 静态资源
 	//g.Static("/static", "./static")
@@ -104,6 +105,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		a.GET("", applications.Get)
 		a.DELETE("/:id", applications.Delete)
 		a.PUT("/:id", applications.Update)
+		a.PUT("/:id/dev_space/:spaceId/plugin_sync", applications.UpdateApplicationInstall)
 		a.POST("/:id/bind_cluster", application_cluster.Create)
 		a.POST("/:id/create_space", cluster_user.Create)
 		a.GET("/:id/dev_space", cluster_user.GetFirst)
