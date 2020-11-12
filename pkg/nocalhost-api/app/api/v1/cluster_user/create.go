@@ -75,15 +75,18 @@ func Create(c *gin.Context) {
 	goClient, err := clientgo.NewGoClient(KubeConfig)
 	if err != nil {
 		log.Errorf("client go got err %v", err)
+		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		return
 	}
 	// create cluster devs
 	devNamespace := goClient.GenerateNsName(userId.(uint64))
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
-	secret, err := clusterDevsSetUp.CreateNS(devNamespace, global.NocalhostDevNamespaceLabel).CreateServiceAccount("", devNamespace).CreateRole(global.NocalhostDevRoleName, devNamespace).CreateRoleBinding(global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevServiceAccountName).GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).GetServiceAccountSecret("", devNamespace)
+	secret, err := clusterDevsSetUp.CreateNS(devNamespace, "").CreateServiceAccount("", devNamespace).CreateRole(global.NocalhostDevRoleName, devNamespace).CreateRoleBinding(global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevServiceAccountName).GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).GetServiceAccountSecret("", devNamespace)
 	devToken := secret.StringData["token"]
 	devCa := setupcluster.GetServiceAccountSecretByKey(secret, global.NocalhostDevServiceAccountSecretCaKey)
 	log.Infof("devToken %s, devCA %s", devToken, devCa)
-	// TODO config struct 在 api.Config
+
+	//TODO config struct 在 api.Config
 	// TODO 组装 api.Config 然后转成 Yaml
 	err = service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId.(uint64), *req.Memory, *req.Cpu)
 	if err != nil {
