@@ -113,6 +113,8 @@ func InstallApplication(applicationName string) {
 	utils.Mush(err)
 	config := app.Config
 
+	// install dependence config map
+
 	if installFlags.ResourcesDir != "" {
 		resourcesPath = fmt.Sprintf("%s%c%s", applicationDir, os.PathSeparator, installFlags.ResourcesDir)
 	} else {
