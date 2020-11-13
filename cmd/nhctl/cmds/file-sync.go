@@ -56,7 +56,7 @@ var fileSyncCmd = &cobra.Command{
 		applicationName := args[0]
 		app, err = NewApplication(applicationName)
 		clientgoutils.Must(err)
-		nocalhostConfig = app.Config
+		//nocalhostConfig = app.Config
 		//if nameSpace == "" {
 		//	fmt.Println("error: please use -n to specify a kubernetes namespace")
 		//	return
@@ -66,7 +66,7 @@ var fileSyncCmd = &cobra.Command{
 			fmt.Println("error: please use -d to specify a k8s deployment")
 			return
 		}
-		svcConfig := nocalhostConfig.GetSvcConfig(fileSyncFlags.Deployment)
+		svcConfig := app.Config.GetSvcConfig(fileSyncFlags.Deployment)
 		if fileSyncFlags.LocalSharedFolder == "" {
 			// reading from config
 			if svcConfig != nil && svcConfig.LocalSharedFolder != "" {

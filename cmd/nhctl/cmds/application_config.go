@@ -5,10 +5,12 @@ import (
 )
 
 const (
-	DefaultSideCarImage      = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:v1"
-	DefaultMountPath         = "/home/code"
-	DefaultPortForwardDir    = "port-forward"
-	DefaultForwardRemotePort = 22
+	DefaultSideCarImage       = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:v1"
+	DefaultMountPath          = "/home/code"
+	DefaultPortForwardDir     = "port-forward"
+	DefaultForwardRemotePort  = 22
+	DefaultNhctlHomeDirName   = ".nhctl"
+	DefaultApplicationDirName = "application"
 )
 
 type NocalHostConfig struct {
