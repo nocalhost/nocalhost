@@ -117,9 +117,9 @@ var devStartCmd = &cobra.Command{
 		}
 
 		if devFlags.MountPath == "" {
-			if svcConfig != nil && svcConfig.MountPath != "" {
+			if svcConfig != nil && svcConfig.WorkDir != "" {
 				debug("[nocalhost config] reading mountPath config")
-				devFlags.MountPath = svcConfig.MountPath
+				devFlags.MountPath = svcConfig.WorkDir
 			} else {
 				debug("[default config] mountPath uses default value")
 				devFlags.MountPath = DefaultMountPath
