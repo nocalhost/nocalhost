@@ -14,6 +14,10 @@ type Application struct {
 	Config *NocalHostConfig
 }
 
+type DependenceConfigMap struct {
+	ApiVersion string `json:"api_version "`
+}
+
 func NewApplication(name string) (*Application, error) {
 	app := &Application{
 		Name: name,
