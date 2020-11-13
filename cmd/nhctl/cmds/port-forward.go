@@ -66,7 +66,7 @@ var portForwardCmd = &cobra.Command{
 		applicationName := args[0]
 		app, err = NewApplication(applicationName)
 		clientgoutils.Must(err)
-		nocalhostConfig = app.Config
+		//nocalhostConfig = app.Config
 		if portForwardFlags.Deployment == "" {
 			fmt.Println("error: please use -d to specify a kubernetes deployment")
 			return
@@ -76,7 +76,7 @@ var portForwardCmd = &cobra.Command{
 			return
 		}
 
-		svcConfig := nocalhostConfig.GetSvcConfig(portForwardFlags.Deployment)
+		svcConfig := app.Config.GetSvcConfig(portForwardFlags.Deployment)
 		var configLocalPort, configRemotePort int
 		//if svcConfig != nil && svcConfig.SshPort != nil {
 		//	configLocalPort, err = strconv.Atoi(strings.Trim(strings.Split(svcConfig.DevPort[0], ":")[0], " "))
