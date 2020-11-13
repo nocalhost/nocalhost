@@ -192,6 +192,12 @@ func ReplaceImage(nameSpace string, deployment string) {
 	dep.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, volMount)
 
+	// set the entry
+	svcConfig := app.Config.GetSvcConfig(deployment)
+	if svcConfig != nil && svcConfig.WorkDir != "" {
+		dep.Spec.Template.Spec.Containers[0].WorkingDir = svcConfig.WorkDir
+	}
+
 	debug("disable readiness probes")
 	for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
 		dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
@@ -253,40 +259,3 @@ func ReplaceImage(nameSpace string, deployment string) {
 
 	fmt.Println("develop container has been updated")
 }
-
-//
-//func findPodListOfDeployment(deploy string) ([]v1.Pod, error) {
-//	podClient, err := GetPodClient(nameSpace)
-//	if err != nil {
-//		fmt.Printf("failed to get podList client: %v\n", err)
-//		return nil, err
-//	}
-//
-//	podList, err := podClient.List(context.TODO(), metav1.ListOptions{})
-//	if err != nil {
-//		fmt.Printf("failed to get pods, err: %v\n", err)
-//		return nil, err
-//	}
-//
-//	result := make([]v1.Pod, 0)
-//
-//OuterLoop:
-//	for _, pod := range podList.Items {
-//		if pod.OwnerReferences != nil {
-//			for _, ref := range pod.OwnerReferences {
-//				if ref.Kind == "ReplicaSet" {
-//					rss, _ := GetReplicaSetsControlledByDeployment(deploy)
-//					if rss != nil {
-//						for _, rs := range rss {
-//							if rs.Name == ref.Name {
-//								result = append(result, pod)
-//								continue OuterLoop
-//							}
-//						}
-//					}
-//				}
-//			}
-//		}
-//	}
-//	return result, nil
-//}
