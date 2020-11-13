@@ -24,6 +24,8 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	//clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 	"log"
 	"strconv"
 	"time"
@@ -35,6 +37,7 @@ type ClientGoUtils struct {
 	ClientSet     *kubernetes.Clientset
 	dynamicClient dynamic.Interface //
 	TimeOut       time.Duration
+	ClientConfig  clientcmd.ClientConfig
 	//RestClient         *restclient.RESTClient
 }
 
@@ -56,6 +59,10 @@ func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUt
 		kubeConfigFilePath: kubeConfigPath,
 		TimeOut:            timeout,
 	}
+
+	client.ClientConfig = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfigPath},
+		&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: ""}})
 
 	if restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfigPath); err != nil {
 		//restConfig.ContentConfig.ContentType
