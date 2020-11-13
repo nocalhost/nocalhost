@@ -31,38 +31,27 @@ type AppConfig struct {
 }
 
 type ServiceDevOptions struct {
-	Name              string                `json:"name" yaml:"name"`
-	Type              string                `json:"type" yaml:"type"`
-	GitUrl            string                `json:"git_url" yaml:"gitUrl"`
-	DevLang           string                `json:"dev_env" yaml:"devLang"` // java|go|node
-	DevImage          string                `json:"dev_image" yaml:"devImage"`
-	SideCarImage      string                `json:"side_car_image" yaml:"sideCarImage"`
-	MountPath         string                `json:"mount_path" yaml:"mountPath"`
-	LocalSharedFolder string                `json:"local_shared_folder" yaml:"localSharedFolder"`
-	Sync              []string              `json:"sync" yaml:"sync"`
-	Ignore            []string              `json:"ignore" yaml:"ignore"`
-	SshPort           *SshPortForwardConfig `json:"ssh_port" yaml:"sshPort"`
-	DevPort           []string              `json:"dev_port" yaml:"devPort"`
-	Command           []string              `json:"command" yaml:"command"`
-	Jobs              []string              `json:"jobs" yaml:"jobs"`
-	Pods              []string              `json:"pods" yaml:"pods"`
+	Name         string                `json:"name" yaml:"name"`
+	Type         string                `json:"type" yaml:"type"`
+	GitUrl       string                `json:"git_url" yaml:"gitUrl"`
+	DevLang      string                `json:"dev_env" yaml:"devLang"` // java|go|node
+	DevImage     string                `json:"dev_image" yaml:"devImage"`
+	SideCarImage string                `json:"side_car_image" yaml:"sideCarImage"`
+	WorkDir      string                `json:"work_dir" yaml:"workDir"`
+	LocalWorkDir string                `json:"local_work_dir" yaml:""`
+	Sync         []string              `json:"sync" yaml:"sync"`
+	Ignore       []string              `json:"ignore" yaml:"ignore"`
+	SshPort      *SshPortForwardConfig `json:"ssh_port" yaml:"sshPort"`
+	DevPort      []string              `json:"dev_port" yaml:"devPort"`
+	Command      []string              `json:"command" yaml:"command"`
+	Jobs         []string              `json:"jobs" yaml:"jobs"`
+	Pods         []string              `json:"pods" yaml:"pods"`
 }
 
 type SshPortForwardConfig struct {
 	LocalPort int `json:"local_port" yaml:"localPort"`
 	SshPort   int `json:"ssh_port" yaml:"sshPort"`
 }
-
-//func NewNocalHostConfigByAppName(appName string) *NocalHostConfig {
-//	return NewNocalHostConfig(GetAppConfigPath(appName))
-//}
-//func NewNocalHostConfig(configPath string) *NocalHostConfig {
-//	config := &NocalHostConfig{}
-//	fileBytes, err := ioutil.ReadFile(configPath)
-//	utils.Mush(err)
-//	utils.Mush(yaml.Unmarshal(fileBytes, config))
-//	return config
-//}
 
 type ComparableItems []*PreInstallItem
 
