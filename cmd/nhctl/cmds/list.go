@@ -14,17 +14,36 @@ limitations under the License.
 package cmds
 
 import (
+	"fmt"
 	"github.com/spf13/cobra"
+	"nocalhost/pkg/nhctl/utils"
 )
 
-//var nocalhostConfig *NocalHostConfig
-
 func init() {
-	rootCmd.AddCommand(debugCmd)
+	rootCmd.AddCommand(listCmd)
 }
 
-var debugCmd = &cobra.Command{
-	Use:   "dev",
-	Short: "enter dev model",
-	Long:  `enter dev model`,
+var listCmd = &cobra.Command{
+	Use:   "list",
+	Short: "list applications",
+	Long:  `list applications`,
+	Run: func(cmd *cobra.Command, args []string) {
+		ListApplications()
+	},
+}
+
+func ListApplications() {
+	n := NocalHost{}
+	apps, err := n.GetApplications()
+	utils.Mush(err)
+	maxLen := 0
+	for _, app := range apps {
+		if len(app) > maxLen {
+			maxLen = len(app)
+		}
+	}
+	fmt.Printf("%-10s\n", "NAME")
+	for _, app := range apps {
+		fmt.Printf("%-10s\n", app)
+	}
 }

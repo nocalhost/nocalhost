@@ -1,0 +1,36 @@
+package cmds
+
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+)
+
+type NocalHost struct {
+}
+
+func (n *NocalHost) GetHomeDir() string {
+	return fmt.Sprintf("%s%c%s", GetHomePath(), os.PathSeparator, DefaultNhctlHomeDirName)
+}
+
+func (n *NocalHost) GetApplicationDir() string {
+	return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, DefaultApplicationDirName)
+}
+
+func (n *NocalHost) GetApplications() ([]string, error) {
+	appDir := n.GetApplicationDir()
+	fs, err := ioutil.ReadDir(appDir)
+	if err != nil {
+		return nil, err
+	}
+	app := make([]string, 0)
+	if fs == nil || len(fs) < 1 {
+		return app, nil
+	}
+	for _, file := range fs {
+		if file.IsDir() {
+			app = append(app, file.Name())
+		}
+	}
+	return app, err
+}
