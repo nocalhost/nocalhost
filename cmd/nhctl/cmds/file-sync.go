@@ -56,31 +56,33 @@ var fileSyncCmd = &cobra.Command{
 		applicationName := args[0]
 		app, err = NewApplication(applicationName)
 		clientgoutils.Must(err)
-		//nocalhostConfig = app.Config
-		//if nameSpace == "" {
-		//	fmt.Println("error: please use -n to specify a kubernetes namespace")
-		//	return
-		//}
 		if fileSyncFlags.Deployment == "" {
 			// todo record default deployment
 			fmt.Println("error: please use -d to specify a k8s deployment")
 			return
 		}
 		svcConfig := app.Config.GetSvcConfig(fileSyncFlags.Deployment)
+		localDirsToSync := make([]string, 0)
 		if fileSyncFlags.LocalSharedFolder == "" {
 			// reading from config
-			if svcConfig != nil && svcConfig.LocalSharedFolder != "" {
+			if svcConfig != nil && svcConfig.Sync != nil && len(svcConfig.Sync) > 0 {
 				debug("[nocalhost config] reading local shared folder config ...")
-				fileSyncFlags.LocalSharedFolder = svcConfig.LocalSharedFolder
+				//fileSyncFlags.LocalSharedFolder = svcConfig.LocalWorkDir
+				for _, dir := range svcConfig.Sync {
+					localDirsToSync = append(localDirsToSync, dir)
+				}
 			} else {
 				fmt.Println("error: please use -l flag or set localSharedFolder config to specify a local directory to sync with remote")
 				return
 			}
+		} else {
+			localDirsToSync = append(localDirsToSync, fileSyncFlags.LocalSharedFolder)
 		}
+
 		if fileSyncFlags.RemoteFolder == "" {
-			if svcConfig != nil && svcConfig.MountPath != "" {
+			if svcConfig != nil && svcConfig.WorkDir != "" {
 				debug("[nocalhost config] reading mountPath config ...")
-				fileSyncFlags.RemoteFolder = svcConfig.MountPath
+				fileSyncFlags.RemoteFolder = svcConfig.WorkDir
 			} else {
 				fmt.Println("error: please use -r flag or set mountPath config to specify a remote folder")
 				return
@@ -99,6 +101,9 @@ var fileSyncCmd = &cobra.Command{
 		}
 		fmt.Println("file syncing...") // tools/darwin/mutagen sync create --sync-mode=one-way-safe --releaseName=$1  $2  $3
 		// ./tools/script/file-sync.sh coding dir01 root@127.0.0.1:12345:/home/code
-		mutagen.FileSync(fileSyncFlags.LocalSharedFolder, fileSyncFlags.RemoteFolder, fmt.Sprintf("%d", fileSyncFlags.SshPort))
+		for _, dir := range localDirsToSync {
+			fmt.Printf("syncing %s ...\n", dir)
+			mutagen.FileSync(dir, fileSyncFlags.RemoteFolder, fmt.Sprintf("%d", fileSyncFlags.SshPort))
+		}
 	},
 }
