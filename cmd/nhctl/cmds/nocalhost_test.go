@@ -1,0 +1,25 @@
+package cmds
+
+import (
+	"fmt"
+	"nocalhost/pkg/nhctl/utils"
+	"testing"
+)
+
+func TestNocalHost_GetApplicationDir(t *testing.T) {
+	n := NocalHost{}
+	fmt.Println(n.GetApplicationDir())
+}
+
+func TestNocalHost_GetApplications(t *testing.T) {
+	n := NocalHost{}
+	apps, err := n.GetApplications()
+	utils.Mush(err)
+	for _, app := range apps {
+		fmt.Println(app)
+	}
+}
+
+func TestListApplications(t *testing.T) {
+	ListApplications()
+}

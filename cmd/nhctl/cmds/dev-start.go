@@ -68,7 +68,7 @@ var devStartCmd = &cobra.Command{
 		applicationName := args[0]
 		app, err = NewApplication(applicationName)
 		clientgoutils.Must(err)
-		nocalhostConfig = app.Config
+		//nocalhostConfig = app.Config
 		if nameSpace == "" {
 			fmt.Println("error: please use -n to specify a kubernetes namespace")
 			return
@@ -77,7 +77,7 @@ var devStartCmd = &cobra.Command{
 			fmt.Println("error: please use -d to specify a k8s deployment")
 			return
 		}
-		svcConfig := nocalhostConfig.GetSvcConfig(devFlags.Deployment)
+		svcConfig := app.Config.GetSvcConfig(devFlags.Deployment)
 		if devFlags.DevLang == "" {
 			if svcConfig != nil && svcConfig.DevLang != "" {
 				debug("[nocalhost config] reading devLang from config file")

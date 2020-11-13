@@ -58,6 +58,7 @@ func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUt
 	}
 
 	if restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfigPath); err != nil {
+		//restConfig.ContentConfig.ContentType
 		PrintlnErr("fail to build rest config", err)
 		return nil, err
 	}
