@@ -37,7 +37,7 @@ nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $
 
 参数说明：
 
-- -n ：namespace
+- -n ：namespace(可选)
 - -u : git url 地址
 - -t : 应用类型 (可选)
 - --debug : 打印 debug 日志输出
@@ -53,7 +53,7 @@ nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $
 替换 details 容器的镜像为开发容器镜像 : 
 
 ```shell
-nhctl dev start $APPNAME -d details-v1 -n $NOCALHOST_NS
+nhctl dev start $APPNAME -d details-v1
 ```
 
 - -d : 指定要替换的服务对应的 deployment 的名字
@@ -67,7 +67,7 @@ nhctl dev start $APPNAME -d details-v1 -n $NOCALHOST_NS
 转发本地端口到开发容器端口：
 
 ```shell
-nhctl port-forward $APPNAME -d  details-v1 -n $NOCALHOST_NS 
+nhctl port-forward $APPNAME -d  details-v1
 ```
 
 - -d : 指定要替换的服务对应的 deployment 的名字
@@ -118,5 +118,5 @@ rdebug-ide details.rb 9080 # debug 模式运行 details 服务
 结束后运行以下命令可以将服务恢复为正常模式：
 
 ```shell
-nhctl dev end $APPNAME -d  details-v1  -n $NOCALHOST_NS
+nhctl dev end $APPNAME -d  details-v1 
 ```

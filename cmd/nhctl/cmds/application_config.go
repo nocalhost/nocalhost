@@ -2,18 +2,21 @@ package cmds
 
 import (
 	"strconv"
+	"time"
 )
 
 const (
-	DefaultSideCarImage       = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:v1"
-	DefaultMountPath          = "/home/code"
-	DefaultPortForwardDir     = "port-forward"
-	DefaultForwardRemotePort  = 22
-	DefaultNhctlHomeDirName   = ".nhctl"
-	DefaultApplicationDirName = "application"
+	DefaultSideCarImage           = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:v1"
+	DefaultMountPath              = "/home/code"
+	DefaultPortForwardDir         = "port-forward"
+	DefaultForwardRemotePort      = 22
+	DefaultNhctlHomeDirName       = ".nhctl"
+	DefaultApplicationDirName     = "application"
+	DefaultApplicationProfilePath = ".profile.yaml"
+	DefaultClientGoTimeOut        = time.Minute * 5
 )
 
-type NocalHostConfig struct {
+type NocalHostAppConfig struct {
 	PreInstall []*PreInstallItem    `json:"pre_install" yaml:"preInstalls"`
 	SvcConfig  []*ServiceDevOptions `json:"svc_config" yaml:"svcConfigs"`
 	AppConfig  AppConfig            `json:"app_config" yaml:"appConfig"`
@@ -70,7 +73,7 @@ func (a ComparableItems) Less(i, j int) bool {
 	return iW < jW
 }
 
-func (n *NocalHostConfig) GetSvcConfig(name string) *ServiceDevOptions {
+func (n *NocalHostAppConfig) GetSvcConfig(name string) *ServiceDevOptions {
 	if n.SvcConfig == nil {
 		return nil
 	}

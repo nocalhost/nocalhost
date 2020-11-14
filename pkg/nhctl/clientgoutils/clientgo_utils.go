@@ -65,18 +65,14 @@ func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUt
 		&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: ""}})
 
 	if restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfigPath); err != nil {
-		//restConfig.ContentConfig.ContentType
-		PrintlnErr("fail to build rest config", err)
 		return nil, err
 	}
 
 	if client.ClientSet, err = kubernetes.NewForConfig(restConfig); err != nil {
-		PrintlnErr("fail to get clientset", err)
 		return nil, err
 	}
 
 	if client.dynamicClient, err = dynamic.NewForConfig(restConfig); err != nil {
-		PrintlnErr("fail to get dynamicClient", err)
 		return nil, err
 	}
 
@@ -85,6 +81,24 @@ func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUt
 
 func (c *ClientGoUtils) getRestConfig() (*restclient.Config, error) {
 	return clientcmd.BuildConfigFromFlags("", c.kubeConfigFilePath)
+}
+
+// todo check use something more accurate
+func (c *ClientGoUtils) CheckIfNamespaceIsAccessible(ctx context.Context, namespace string) (bool, error) {
+	if namespace == "" {
+		namespace, _ = c.GetDefaultNamespace()
+	}
+	_, err := c.GetDeployments(ctx, namespace)
+	if err != nil {
+		return false, errors.New(fmt.Sprintf("namespace \"%s\" is unaccessible", namespace))
+	} else {
+		return true, nil
+	}
+}
+
+func (c *ClientGoUtils) GetDefaultNamespace() (string, error) {
+	ns, _, err := c.ClientConfig.Namespace()
+	return ns, err
 }
 
 func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool) error {
@@ -208,6 +222,14 @@ func (c *ClientGoUtils) GetPodClient(namespace string) coreV1.PodInterface {
 
 func (c *ClientGoUtils) GetDeployment(ctx context.Context, namespace string, name string) (*v1.Deployment, error) {
 	return c.GetDeploymentClient(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+func (c *ClientGoUtils) GetDeployments(ctx context.Context, namespace string) ([]v1.Deployment, error) {
+	deps, err := c.GetDeploymentClient(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return deps.Items, nil
 }
 
 func (c *ClientGoUtils) UpdateDeployment(ctx context.Context, namespace string, deployment *v1.Deployment, opts metav1.UpdateOptions, wait bool) (*v1.Deployment, error) {
