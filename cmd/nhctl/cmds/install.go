@@ -69,6 +69,7 @@ var installCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		applicationName := args[0]
 		if nameSpace == "" {
 			fmt.Println("error: please use -n to specify a kubernetes namespace")
 			return
@@ -77,8 +78,17 @@ var installCmd = &cobra.Command{
 			fmt.Println("error: please use -u to specify url of git")
 			return
 		}
+		apps, err := nocalhost.GetApplications()
+		utils.Mush(err)
+		for _, app := range apps {
+			if app == applicationName {
+				err = errors.New(fmt.Sprintf("application %s already exists", app))
+				panic(err)
+			}
+		}
+
 		fmt.Println("install application...")
-		InstallApplication(args[0])
+		InstallApplication(applicationName)
 	},
 }
 
@@ -100,7 +110,7 @@ func InstallApplication(applicationName string) {
 			panic(err)
 		}
 	} else if !installFlags.ForceInstall {
-		fmt.Printf("%s already exists, please use --force to force it to be reinstalled\n", applicationName)
+		fmt.Printf("application %s already exists, please use --force to force it to be reinstalled\n", applicationName)
 		return
 	} else if installFlags.ForceInstall {
 		fmt.Printf("force to reinstall %s\n", applicationName)

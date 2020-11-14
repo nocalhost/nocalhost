@@ -11,7 +11,7 @@ import (
 
 var settings *EnvSettings
 
-//var nocalhostConfig *NocalhostConfig
+var nocalhost = &NocalHost{}
 
 func init() {
 
