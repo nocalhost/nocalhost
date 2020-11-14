@@ -125,17 +125,10 @@ func InstallApplication(applicationName string) error {
 	// check if namespace is available
 	timeOutCtx, _ := context.WithTimeout(context.TODO(), DefaultClientGoTimeOut)
 	ava, err := client.CheckIfNamespaceIsAccessible(timeOutCtx, nameSpace)
-	if err != nil && ava {
+	if err == nil && ava {
 		debug("[check] %s is available", nameSpace)
 	} else {
 		fmt.Printf("[error] \"%s\" is unavailable\n", nameSpace)
-		return err
-	}
-
-	if err != nil {
-		return err
-	}
-	if ava {
 		return err
 	}
 
@@ -205,6 +198,15 @@ func InstallApplication(applicationName string) error {
 		fmt.Println("unsupported application type, it mush be helm or manifest")
 	}
 
+	app.AppProfile = &AppProfile{
+		Namespace:  nameSpace,
+		Kubeconfig: settings.KubeConfig,
+	}
+	// save application info
+	err = app.SaveProfile()
+	if err != nil {
+		fmt.Println("[error] fail to save app profile")
+	}
 	return err
 }
 

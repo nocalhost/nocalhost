@@ -6,13 +6,14 @@ import (
 )
 
 const (
-	DefaultSideCarImage       = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:v1"
-	DefaultMountPath          = "/home/code"
-	DefaultPortForwardDir     = "port-forward"
-	DefaultForwardRemotePort  = 22
-	DefaultNhctlHomeDirName   = ".nhctl"
-	DefaultApplicationDirName = "application"
-	DefaultClientGoTimeOut    = time.Minute * 5
+	DefaultSideCarImage           = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:v1"
+	DefaultMountPath              = "/home/code"
+	DefaultPortForwardDir         = "port-forward"
+	DefaultForwardRemotePort      = 22
+	DefaultNhctlHomeDirName       = ".nhctl"
+	DefaultApplicationDirName     = "application"
+	DefaultApplicationProfilePath = ".profile.yaml"
+	DefaultClientGoTimeOut        = time.Minute * 5
 )
 
 type NocalHostAppConfig struct {
