@@ -48,8 +48,9 @@ var devEndCmd = &cobra.Command{
 		clientgoutils.Must(err)
 		// todo check if application exists
 		if nameSpace == "" {
-			fmt.Println("error: please use -n to specify a kubernetes namespace")
-			return
+			nameSpace = app.AppProfile.Namespace
+			//fmt.Println("error: please use -n to specify a kubernetes namespace")
+			//return
 		}
 		if devFlags.Deployment == "" {
 			fmt.Println("error: please use -d to specify a k8s deployment")

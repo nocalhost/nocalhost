@@ -72,8 +72,9 @@ var portForwardCmd = &cobra.Command{
 			return
 		}
 		if nameSpace == "" {
-			fmt.Println("error: please use -n to specify a kubernetes namespace")
-			return
+			nameSpace = app.AppProfile.Namespace
+			//fmt.Println("error: please use -n to specify a kubernetes namespace")
+			//return
 		}
 
 		svcConfig := app.Config.GetSvcConfig(portForwardFlags.Deployment)
