@@ -8,3 +8,10 @@ func Mush(err error) {
 		panic(err)
 	}
 }
+
+func MushWithErrInfo(info string, err error) {
+	if err != nil {
+		fmt.Printf("%s, err : %v\n", info, err)
+		panic(err)
+	}
+}
