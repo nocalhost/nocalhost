@@ -70,8 +70,10 @@ var devStartCmd = &cobra.Command{
 		clientgoutils.Must(err)
 		//nocalhostConfig = app.Config
 		if nameSpace == "" {
-			fmt.Println("error: please use -n to specify a kubernetes namespace")
-			return
+			debug("[profile] reading app's namespace")
+			nameSpace = app.AppProfile.Namespace
+			//fmt.Println("error: please use -n to specify a kubernetes namespace")
+			//return
 		}
 		if devFlags.Deployment == "" {
 			fmt.Println("error: please use -d to specify a k8s deployment")

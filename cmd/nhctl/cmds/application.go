@@ -10,8 +10,14 @@ import (
 )
 
 type Application struct {
-	Name   string
-	Config *NocalHostAppConfig
+	Name       string
+	Config     *NocalHostAppConfig
+	AppProfile *AppProfile
+}
+
+type AppProfile struct {
+	Namespace  string `json:"namespace" yaml:"namespace"`
+	Kubeconfig string `json:"kubeconfig" yaml:"kubeconfig"`
 }
 
 type DependenceConfigMap struct {
@@ -57,7 +63,37 @@ func (a *Application) Init() error {
 	}
 	err = yaml.Unmarshal(fileBytes, a.Config)
 
+	a.loadProfile()
+
 	return err
+}
+
+func (a *Application) loadProfile() {
+
+	fBytes, err := ioutil.ReadFile(a.getProfilePath())
+	if err != nil {
+		return
+	}
+	a.AppProfile = &AppProfile{}
+	yaml.Unmarshal(fBytes, a.AppProfile)
+	return
+}
+
+func (a *Application) SaveProfile() error {
+	if a.AppProfile == nil {
+		return nil
+	}
+	bytes, err := yaml.Marshal(a.AppProfile)
+	if err != nil {
+		return err
+	}
+	profile := a.getProfilePath()
+	err = ioutil.WriteFile(profile, bytes, 0755)
+	return err
+}
+
+func (a *Application) getProfilePath() string {
+	return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultApplicationProfilePath)
 }
 
 func (a *Application) GetHomeDir() string {
