@@ -70,7 +70,7 @@ func GetPodClient(nameSpace string) (coreV1.PodInterface, error) {
 }
 
 func printlnErr(info string, err error) {
-	fmt.Printf("%s, err: %v\n", info, err)
+	fmt.Printf("[error] %s, info: %v\n", info, err)
 }
 
 func GetHomePath() string {

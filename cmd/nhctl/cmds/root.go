@@ -113,6 +113,7 @@ IdentityFile ~/.nhctl/key/id_rsa
 
 		_, err = file.Write([]byte(sshConfig))
 		utils.Mush(err)
+
 	})
 }
 
@@ -122,6 +123,7 @@ var rootCmd = &cobra.Command{
 	Long:  `nhctl can deploy project on Kubernetes. `,
 	Run: func(cmd *cobra.Command, args []string) {
 		debug("hello nhctl")
+		//fmt.Printf("kubeconfig is %s", settings.KubeConfig)
 	},
 }
 

@@ -70,10 +70,10 @@ var installCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		if nameSpace == "" {
-			fmt.Println("error: please use -n to specify a kubernetes namespace")
-			return
-		}
+		//if nameSpace == "" {
+		//	fmt.Println("error: please use -n to specify a kubernetes namespace")
+		//	return
+		//}
 		if installFlags.Url == "" {
 			fmt.Println("error: please use -u to specify url of git")
 			return
@@ -82,22 +82,62 @@ var installCmd = &cobra.Command{
 		utils.Mush(err)
 		for _, app := range apps {
 			if app == applicationName {
-				err = errors.New(fmt.Sprintf("application %s already exists", app))
-				panic(err)
+				//err = errors.New(fmt.Sprintf("application %s already exists", app))
+				fmt.Printf("[error] application \"%s\" already exists\n", app)
+				os.Exit(1)
 			}
 		}
 
 		fmt.Println("install application...")
-		InstallApplication(applicationName)
+		err = InstallApplication(applicationName)
+		if err != nil {
+			printlnErr("failed to install application", err)
+			os.Exit(1)
+		} else {
+			fmt.Printf("application \"%s\" is installed", applicationName)
+		}
 	},
 }
 
-func InstallApplication(applicationName string) {
+func InstallApplication(applicationName string) error {
 
 	var (
 		resourcesPath string
 		err           error
 	)
+
+	// check if kubernetes is available
+	client, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, DefaultClientGoTimeOut)
+	if err != nil {
+		printlnErr("kubernetes is unavailable, please check your cluster kubeconfig", err)
+		return err
+	}
+
+	if nameSpace == "" {
+		ns, err := client.GetDefaultNamespace()
+		if err != nil {
+			fmt.Println("[error] fail to get default namespace, you can use -n to specify a kubernetes namespace")
+			return err
+		}
+		nameSpace = ns
+		debug("use default namespace \"%s\"", ns)
+	}
+	// check if namespace is available
+	timeOutCtx, _ := context.WithTimeout(context.TODO(), DefaultClientGoTimeOut)
+	ava, err := client.CheckIfNamespaceIsAccessible(timeOutCtx, nameSpace)
+	if err != nil && ava {
+		debug("[check] %s is available", nameSpace)
+	} else {
+		fmt.Printf("[error] \"%s\" is unavailable\n", nameSpace)
+		return err
+	}
+
+	if err != nil {
+		return err
+	}
+	if ava {
+		return err
+	}
 
 	// create application dir
 	applicationDir := GetApplicationHomeDir(applicationName)
@@ -111,7 +151,7 @@ func InstallApplication(applicationName string) {
 		}
 	} else if !installFlags.ForceInstall {
 		fmt.Printf("application %s already exists, please use --force to force it to be reinstalled\n", applicationName)
-		return
+		return err
 	} else if installFlags.ForceInstall {
 		fmt.Printf("force to reinstall %s\n", applicationName)
 		utils.Mush(os.RemoveAll(applicationDir))
@@ -147,7 +187,7 @@ func InstallApplication(applicationName string) {
 		output, err := tools.ExecCommand(nil, false, "helm", params...)
 		if err != nil {
 			printlnErr("fail to install helm app", err)
-			return
+			return err
 		}
 		debug(output)
 		fmt.Printf(`helm app installed, use "helm list -n %s" to get the information of the helm release`+"\n", nameSpace)
@@ -164,6 +204,8 @@ func InstallApplication(applicationName string) {
 	} else {
 		fmt.Println("unsupported application type, it mush be helm or manifest")
 	}
+
+	return err
 }
 
 func DownloadApplicationToNhctlHome(homePath string) error {
