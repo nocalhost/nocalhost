@@ -11,7 +11,7 @@ import (
 
 type Application struct {
 	Name   string
-	Config *NocalHostConfig
+	Config *NocalHostAppConfig
 }
 
 type DependenceConfigMap struct {
@@ -27,7 +27,6 @@ func NewApplication(name string) (*Application, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return app, nil
 }
 
@@ -51,12 +50,13 @@ func (a *Application) Init() error {
 		}
 	}
 
-	a.Config = &NocalHostConfig{}
+	a.Config = &NocalHostAppConfig{}
 	fileBytes, err := ioutil.ReadFile(a.GetConfigPath())
 	if err != nil {
 		return err
 	}
 	err = yaml.Unmarshal(fileBytes, a.Config)
+
 	return err
 }
 
