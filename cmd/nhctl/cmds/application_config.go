@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"strconv"
+	"time"
 )
 
 const (
@@ -11,6 +12,7 @@ const (
 	DefaultForwardRemotePort  = 22
 	DefaultNhctlHomeDirName   = ".nhctl"
 	DefaultApplicationDirName = "application"
+	DefaultClientGoTimeOut    = time.Minute * 5
 )
 
 type NocalHostAppConfig struct {
