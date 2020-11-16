@@ -22,7 +22,7 @@ import (
 )
 
 type ClusterService interface {
-	Create(ctx context.Context, name, marks, kubeconfig, server string, userId uint64) error
+	Create(ctx context.Context, name, marks, kubeconfig, server, clusterInfo string, userId uint64) error
 	Get(ctx context.Context, id, userId uint64) (model.ClusterModel, error)
 	GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error)
 	GetList(ctx context.Context) ([]*model.ClusterList, error)
@@ -44,13 +44,14 @@ func (srv *clusterService) GetAny(ctx context.Context, where map[string]interfac
 	return srv.clusterRepo.GetAny(ctx, where)
 }
 
-func (srv *clusterService) Create(ctx context.Context, name, marks, kubeconfig string, server string, userId uint64) error {
+func (srv *clusterService) Create(ctx context.Context, name, marks, kubeconfig, server, clusterInfo string, userId uint64) error {
 	c := model.ClusterModel{
 		Name:       name,
 		Marks:      marks,
 		UserId:     userId,
 		Server:     server,
 		KubeConfig: kubeconfig,
+		Info:       clusterInfo,
 	}
 	_, err := srv.clusterRepo.Create(ctx, c)
 	if err != nil {

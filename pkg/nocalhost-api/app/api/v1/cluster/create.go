@@ -79,16 +79,21 @@ func Create(c *gin.Context) {
 	// 4. deploy nocalhost-dep-job and pull on nocalhost-dep
 	// see https://codingcorp.coding.net/p/nocalhost/wiki/115
 	clusterSetUp := setupcluster.NewSetUpCluster(goClient)
-	err, errRes := clusterSetUp.IsAdmin().CreateNs(global.NocalhostSystemNamespace, "").CreateConfigMap(global.NocalhostDepKubeConfigMapName, global.NocalhostSystemNamespace, global.NocalhostDepKubeConfigMapKey, string(DecKubeconfig)).DeployNocalhostDep("", global.NocalhostSystemNamespace).GetErr()
+	clusterInfo, err, errRes := clusterSetUp.IsAdmin().CreateNs(global.NocalhostSystemNamespace, "").CreateConfigMap(global.NocalhostDepKubeConfigMapName, global.NocalhostSystemNamespace, global.NocalhostDepKubeConfigMapKey, string(DecKubeconfig)).DeployNocalhostDep("", global.NocalhostSystemNamespace).GetClusterNode().GetClusterVersion().GetClusterInfo().GetErr()
 	if err != nil {
 		api.SendResponse(c, errRes, nil)
 		return
 	}
 
-	// TODO 异步获取集群信息例如 NODE 节点、版本号等
+	// Pre pull images DaemonSet
+	prePullImages, _ := service.Svc.PrePull().GetAll(c)
+	_, err = goClient.DeployPrePullImages(prePullImages, "")
+	if err != nil {
+		log.Warnf("deploy pre pull images err: %v", err)
+	}
 
 	userId, _ := c.Get("userId")
-	err = service.Svc.ClusterSvc().Create(c, req.Name, req.Marks, string(DecKubeconfig), t.Clusters[0].Cluster.Server, userId.(uint64))
+	err = service.Svc.ClusterSvc().Create(c, req.Name, req.Marks, string(DecKubeconfig), t.Clusters[0].Cluster.Server, clusterInfo, userId.(uint64))
 	if err != nil {
 		log.Warnf("create cluster err: %v", err)
 		api.SendResponse(c, errno.ErrClusterCreate, nil)
