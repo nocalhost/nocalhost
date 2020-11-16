@@ -14,8 +14,12 @@ limitations under the License.
 package setupcluster
 
 import (
+	"encoding/json"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/version"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"strconv"
 )
 
 type SetUpCluster interface {
@@ -23,13 +27,19 @@ type SetUpCluster interface {
 	CreateNs(namespace, label string) *setUpCluster
 	CreateConfigMap(name, namespace, key, value string) *setUpCluster
 	DeployNocalhostDep(image, namespace string) *setUpCluster
-	GetErr() (error, error)
+	GetClusterNode() *setUpCluster
+	GetClusterVersion() *setUpCluster
+	GetClusterInfo() *setUpCluster
+	GetErr() (string, error, error)
 }
 
 type setUpCluster struct {
-	clientGo *clientgo.GoClient
-	err      error
-	errCode  error
+	clientGo      *clientgo.GoClient
+	err           error
+	errCode       error
+	nodeList      *corev1.NodeList
+	serverVersion *version.Info
+	clusterInfo   string
 }
 
 func NewSetUpCluster(client *clientgo.GoClient) SetUpCluster {
@@ -38,8 +48,8 @@ func NewSetUpCluster(client *clientgo.GoClient) SetUpCluster {
 	}
 }
 
-func (c *setUpCluster) GetErr() (error, error) {
-	return c.err, c.errCode
+func (c *setUpCluster) GetErr() (string, error, error) {
+	return c.clusterInfo, c.err, c.errCode
 }
 
 func (c *setUpCluster) IsAdmin() *setUpCluster {
@@ -68,5 +78,33 @@ func (c *setUpCluster) DeployNocalhostDep(image, namespace string) *setUpCluster
 	if c.err != nil {
 		c.errCode = errno.ErrClusterDepJobSetup
 	}
+	return c
+}
+
+func (c *setUpCluster) GetClusterNode() *setUpCluster {
+	nodeList, err := c.clientGo.GetClusterNode()
+	if err != nil {
+		c.err = err
+	}
+	c.nodeList = nodeList
+	return c
+}
+
+func (c *setUpCluster) GetClusterVersion() *setUpCluster {
+	version, err := c.clientGo.GetClusterVersion()
+	if err != nil {
+		c.err = err
+	}
+	c.serverVersion = version
+	return c
+}
+
+func (c *setUpCluster) GetClusterInfo() *setUpCluster {
+	info := map[string]interface{}{
+		"cluster_version": c.serverVersion.GitVersion,
+		"nodes":           strconv.Itoa(len(c.nodeList.Items)),
+	}
+	b, _ := json.Marshal(info)
+	c.clusterInfo = string(b)
 	return c
 }

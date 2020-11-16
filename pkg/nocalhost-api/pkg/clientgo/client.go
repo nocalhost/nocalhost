@@ -15,11 +15,13 @@ package clientgo
 
 import (
 	"context"
+	v1 "k8s.io/api/apps/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"math/rand"
@@ -183,7 +185,7 @@ func (c *GoClient) CreateRole(name, namespace string) (bool, error) {
 
 // deploy nocalhost-dep
 // now all value has set by default
-// TODO this might better read from database manfest
+// TODO this might better read from database manifest
 func (c *GoClient) DeployNocalhostDep(image, namespace string) (bool, error) {
 	if image == "" {
 		image = "codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job:latest"
@@ -238,7 +240,77 @@ func (c *GoClient) DeployNocalhostDep(image, namespace string) (bool, error) {
 	return true, nil
 }
 
-// create admin kubeconfig in cluster for admission webhook
+// deploy pre pull images
+// use DaemonSet InitContainer make sure every Node pull images https://kubernetes.io/zh/docs/concepts/workloads/controllers/daemonset/
+// when started it should kill himself
+func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool, error) {
+	if namespace == "" {
+		namespace = global.NocalhostSystemNamespace
+	}
+	// initContainer
+	initContainer := make([]corev1.Container, 0)
+	for key, image := range images {
+		sContainer := corev1.Container{
+			Name:    "prepull" + strconv.Itoa(key),
+			Image:   image,
+			Command: []string{"echo", "done"},
+		}
+		initContainer = append(initContainer, sContainer)
+	}
+
+	daemonSet := &v1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      global.NocalhostPrePullDSName,
+			Namespace: namespace,
+		},
+		Spec: v1.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"name": global.NocalhostPrePullDSName},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"name": global.NocalhostPrePullDSName},
+				},
+				Spec: corev1.PodSpec{
+					InitContainers: initContainer,
+					Containers: []corev1.Container{
+						{
+							Name:  "kubectl",
+							Image: "codingcorp-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "kubeconfig",
+									MountPath: "/.kube/config",
+									SubPath:   "config",
+								},
+							},
+							Command: []string{"kubectl", "delete", "ds", global.NocalhostPrePullDSName, "-n", global.NocalhostSystemNamespace},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "kubeconfig",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: "nocalhost-kubeconfig",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	_, err := c.client.AppsV1().DaemonSets(namespace).Create(context.TODO(), daemonSet, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// Create admin kubeconfig in cluster for admission webhook
 func (c *GoClient) CreateConfigMap(name, namespace, key, value string) (bool, error) {
 	configMapData := make(map[string]string, 0)
 	configMapData[key] = value
@@ -261,12 +333,22 @@ func (c *GoClient) CreateConfigMap(name, namespace, key, value string) (bool, er
 	return true, nil
 }
 
-// get serviceAccount secret
+// Get serviceAccount secret
 func (c *GoClient) GetSecret(name, namespace string) (*corev1.Secret, error) {
 	return c.client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
 
-// get serviceAccount
+// Get serviceAccount
 func (c *GoClient) GetServiceAccount(name, namespace string) (*corev1.ServiceAccount, error) {
 	return c.client.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}
+
+// Get cluster node
+func (c *GoClient) GetClusterNode() (*corev1.NodeList, error) {
+	return c.client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+}
+
+// Get cluster version
+func (c *GoClient) GetClusterVersion() (*version.Info, error) {
+	return c.client.DiscoveryClient.ServerVersion()
 }

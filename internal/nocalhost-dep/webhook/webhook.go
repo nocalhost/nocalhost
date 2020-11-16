@@ -404,7 +404,8 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 	resourceType := req.Kind.Kind
 	glog.Infof("AdmissionReview for Kind=%v, Namespace=%v Name=%v UID=%v patchOperation=%v UserInfo=%v",
 		req.Kind, req.Namespace, req.Name, req.UID, req.Operation, req.UserInfo)
-
+	// overwrite nocalhostNamespace for get dep config from devs namespace
+	nocalhostNamespace = req.Namespace
 	// admission webhook 特定的 6 种资源拦截
 	switch req.Kind.Kind {
 	case "Deployment":
