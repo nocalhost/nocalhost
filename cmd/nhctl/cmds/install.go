@@ -40,9 +40,9 @@ import (
 
 type InstallFlags struct {
 	*EnvSettings
-	Url           string // resource url
-	AppType       string
-	ResourcesDir  string
+	Url     string // resource url
+	AppType string
+	//ResourcesDir  string
 	HelmValueFile string
 	ForceInstall  bool
 }
@@ -54,7 +54,7 @@ var installFlags = InstallFlags{
 func init() {
 	installCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	installCmd.Flags().StringVarP(&installFlags.Url, "url", "u", "", "resource url")
-	installCmd.Flags().StringVarP(&installFlags.ResourcesDir, "dir", "d", "", "the dir of helm package or manifest")
+	//installCmd.Flags().StringVarP(&installFlags.ResourcesDir, "dir", "d", "", "the dir of helm package or manifest")
 	installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "", "f", "", "helm's Value.yaml")
 	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", "app type: helm or manifest")
 	installCmd.Flags().BoolVar(&installFlags.ForceInstall, "force", installFlags.ForceInstall, "force install")
@@ -161,11 +161,11 @@ func InstallApplication(applicationName string) error {
 
 	// install dependence config map
 
-	if installFlags.ResourcesDir != "" {
-		resourcesPath = fmt.Sprintf("%s%c%s", applicationDir, os.PathSeparator, installFlags.ResourcesDir)
-	} else {
-		resourcesPath = fmt.Sprintf("%s%c%s", applicationDir, os.PathSeparator, config.AppConfig.ResourcePath)
-	}
+	//if installFlags.ResourcesDir != "" {
+	//	resourcesPath = fmt.Sprintf("%s%c%s", applicationDir, os.PathSeparator, installFlags.ResourcesDir)
+	//} else {
+	resourcesPath = app.GetResourceDir()
+	//}
 
 	debug("install dependency config map")
 	appDep := app.GetDependencies()
@@ -291,6 +291,7 @@ func InstallManifestRecursively(dir string, excludeFiles []string) error {
 		return err
 	}
 
+	clientUtil, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
 outer:
 	for _, file := range files {
 		for _, ex := range excludeFiles {
@@ -300,7 +301,6 @@ outer:
 			}
 		}
 		fmt.Println("create " + file)
-		clientUtil, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
 		if err != nil {
 			return err
 		}
