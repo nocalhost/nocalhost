@@ -18,6 +18,7 @@ import (
 	"nocalhost/internal/nocalhost-api/service/application_cluster"
 	"nocalhost/internal/nocalhost-api/service/cluster"
 	"nocalhost/internal/nocalhost-api/service/cluster_user"
+	"nocalhost/internal/nocalhost-api/service/pre_pull"
 	"nocalhost/internal/nocalhost-api/service/user"
 )
 
@@ -32,7 +33,8 @@ type Service struct {
 	clusterSvc            cluster.ClusterService
 	applicationSvc        application.ApplicationService
 	applicationClusterSvc application_cluster.ApplicationClusterService
-	clusterUser           cluster_user.ClusterUserService
+	clusterUserSvc        cluster_user.ClusterUserService
+	prePullSvc            pre_pull.PrePullService
 }
 
 // New init service
@@ -42,7 +44,8 @@ func New() (s *Service) {
 		clusterSvc:            cluster.NewClusterService(),
 		applicationSvc:        application.NewApplicationService(),
 		applicationClusterSvc: application_cluster.NewApplicationClusterService(),
-		clusterUser:           cluster_user.NewClusterUserService(),
+		clusterUserSvc:        cluster_user.NewClusterUserService(),
+		prePullSvc:            pre_pull.NewPrePullService(),
 	}
 	return s
 }
@@ -65,7 +68,11 @@ func (s *Service) ApplicationClusterSvc() application_cluster.ApplicationCluster
 }
 
 func (s *Service) ClusterUser() cluster_user.ClusterUserService {
-	return s.clusterUser
+	return s.clusterUserSvc
+}
+
+func (s *Service) PrePull() pre_pull.PrePullService {
+	return s.prePullSvc
 }
 
 // Ping service
