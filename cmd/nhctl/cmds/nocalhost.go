@@ -34,3 +34,22 @@ func (n *NocalHost) GetApplications() ([]string, error) {
 	}
 	return app, err
 }
+
+func (n *NocalHost) CheckIfApplicationExist(appName string) bool {
+	apps, err := n.GetApplications()
+	if err != nil || apps == nil {
+		return false
+	}
+
+	for _, app := range apps {
+		if app == appName {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (n *NocalHost) GetApplication(appName string) (*Application, error) {
+	return NewApplication(appName)
+}
