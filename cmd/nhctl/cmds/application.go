@@ -20,8 +20,11 @@ type AppProfile struct {
 	Kubeconfig string `json:"kubeconfig" yaml:"kubeconfig"`
 }
 
-type DependenceConfigMap struct {
-	ApiVersion string `json:"api_version "`
+type SvcDependency struct {
+	Name string   `json:"name" yaml:"name"`
+	Type string   `json:"type" yaml:"type"`
+	Jobs []string `json:"jobs" yaml:"jobs,omitempty"`
+	Pods []string `json:"pods" yaml:"pods,omitempty"`
 }
 
 type DependenceConfigMap struct {
@@ -38,6 +41,33 @@ func NewApplication(name string) (*Application, error) {
 		return nil, err
 	}
 	return app, nil
+}
+
+func (a *Application) GetDependencies() []*SvcDependency {
+	result := make([]*SvcDependency, 0)
+
+	if a.Config == nil {
+		return nil
+	}
+
+	svcConfigs := a.Config.SvcConfigs
+	if svcConfigs == nil || len(svcConfigs) == 0 {
+		return nil
+	}
+
+	for _, svcConfig := range svcConfigs {
+		if svcConfig.Pods == nil && svcConfig.Jobs == nil {
+			continue
+		}
+		svcDep := &SvcDependency{
+			Name: svcConfig.Name,
+			Type: svcConfig.Type,
+			Jobs: svcConfig.Jobs,
+			Pods: svcConfig.Pods,
+		}
+		result = append(result, svcDep)
+	}
+	return result
 }
 
 func (a *Application) Init() error {
