@@ -18,14 +18,17 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	cachetools "k8s.io/client-go/tools/cache"
 	watchtools "k8s.io/client-go/tools/watch"
+	"math/rand"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/tools"
 	"nocalhost/pkg/nhctl/utils"
@@ -162,6 +165,49 @@ func InstallApplication(applicationName string) error {
 		resourcesPath = fmt.Sprintf("%s%c%s", applicationDir, os.PathSeparator, installFlags.ResourcesDir)
 	} else {
 		resourcesPath = fmt.Sprintf("%s%c%s", applicationDir, os.PathSeparator, config.AppConfig.ResourcePath)
+	}
+
+	debug("install dependency config map")
+	appDep := app.GetDependencies()
+	if appDep != nil {
+		var depForYaml = &struct {
+			Dependency []*SvcDependency `json:"dependency" yaml:"dependency"`
+		}{
+			Dependency: appDep,
+		}
+
+		yamlBytes, err := yaml.Marshal(depForYaml)
+		if err != nil {
+			return err
+		}
+
+		dataMap := make(map[string]string, 0)
+		dataMap["nocalhost"] = string(yamlBytes)
+
+		configMap := &v1.ConfigMap{
+			Data: dataMap,
+		}
+		//if nameSpace == "" {
+		//	nameSpace, err = client.GetDefaultNamespace()
+		//	if err != nil {
+		//		return err
+		//	}
+		//}
+		var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
+		rand.Seed(time.Now().UnixNano())
+		b := make([]rune, 4)
+		for i := range b {
+			b[i] = letterRunes[rand.Intn(len(letterRunes))]
+		}
+		generateName := fmt.Sprintf("nocalhost-depends-do-not-overwrite-%s", string(b))
+		configMap.Name = generateName
+		_, err = client.ClientSet.CoreV1().ConfigMaps(nameSpace).Create(context.TODO(), configMap, metav1.CreateOptions{})
+		if err != nil {
+			fmt.Printf("[error] fail to create dependency config")
+			return err
+		} else {
+			debug("config map %s has been installed", configMap.Name)
+		}
 	}
 	debug("resources path is %s\n", resourcesPath)
 	if installFlags.AppType == "" {
