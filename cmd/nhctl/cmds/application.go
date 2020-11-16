@@ -70,6 +70,22 @@ func (a *Application) GetDependencies() []*SvcDependency {
 	return result
 }
 
+func (a *Application) IsHelm() bool {
+	return a.Config.AppConfig.Type == "helm"
+}
+
+func (a *Application) IsManifest() bool {
+	return a.Config.AppConfig.Type == "manifest"
+}
+
+func (a *Application) GetResourceDir() string {
+	return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, a.Config.AppConfig.ResourcePath)
+}
+
+func (a *Application) GetNamespace() string {
+	return a.AppProfile.Namespace
+}
+
 func (a *Application) Init() error {
 	var err error
 	// init application dir
