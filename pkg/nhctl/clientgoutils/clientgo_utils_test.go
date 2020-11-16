@@ -18,3 +18,9 @@ func TestNewClientGoUtils(t *testing.T) {
 	}
 	fmt.Printf("%v %v \n", n, b)
 }
+
+func TestClientGoUtils_Delete(t *testing.T) {
+	client, err := NewClientGoUtils("", time.Minute)
+	Must(err)
+	client.Delete("/Users/xinxinhuang/.nhctl/application/gggg/manifest/templates/ratings.yaml", "demo30")
+}
