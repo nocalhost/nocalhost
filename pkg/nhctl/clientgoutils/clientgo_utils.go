@@ -155,7 +155,8 @@ func (c *ClientGoUtils) Delete(yamlPath string, namespace string) error {
 			dri = c.dynamicClient.Resource(mapping.Resource)
 		}
 
-		err = dri.Delete(context.Background(), unstructuredObj.GetName(), metav1.DeleteOptions{})
+		propagationPolicy := metav1.DeletePropagationBackground
+		err = dri.Delete(context.Background(), unstructuredObj.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 		if err != nil {
 			log.Print(err)
 			return err
