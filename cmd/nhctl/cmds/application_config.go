@@ -18,7 +18,7 @@ const (
 
 type NocalHostAppConfig struct {
 	PreInstall []*PreInstallItem    `json:"pre_install" yaml:"preInstalls"`
-	SvcConfig  []*ServiceDevOptions `json:"svc_config" yaml:"svcConfigs"`
+	SvcConfigs []*ServiceDevOptions `json:"svc_config" yaml:"svcConfigs"`
 	AppConfig  AppConfig            `json:"app_config" yaml:"appConfig"`
 }
 
@@ -47,8 +47,8 @@ type ServiceDevOptions struct {
 	SshPort      *SshPortForwardConfig `json:"ssh_port" yaml:"sshPort"`
 	DevPort      []string              `json:"dev_port" yaml:"devPort"`
 	Command      []string              `json:"command" yaml:"command"`
-	Jobs         []string              `json:"jobs" yaml:"jobs"`
-	Pods         []string              `json:"pods" yaml:"pods"`
+	Jobs         []string              `json:"jobs" yaml:"jobs,omitempty"`
+	Pods         []string              `json:"pods" yaml:"pods,omitempty"`
 }
 
 type SshPortForwardConfig struct {
@@ -74,10 +74,10 @@ func (a ComparableItems) Less(i, j int) bool {
 }
 
 func (n *NocalHostAppConfig) GetSvcConfig(name string) *ServiceDevOptions {
-	if n.SvcConfig == nil {
+	if n.SvcConfigs == nil {
 		return nil
 	}
-	for _, svc := range n.SvcConfig {
+	for _, svc := range n.SvcConfigs {
 		if svc.Name == name {
 			return svc
 		}
