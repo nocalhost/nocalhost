@@ -101,12 +101,78 @@ func (c *ClientGoUtils) GetDefaultNamespace() (string, error) {
 	return ns, err
 }
 
-func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool) error {
+func (c *ClientGoUtils) Delete(yamlPath string, namespace string) error {
 	if yamlPath == "" {
 		return errors.New("yaml path can not be empty")
 	}
 	if namespace == "" {
 		namespace = "default"
+	}
+
+	filebytes, err := ioutil.ReadFile(yamlPath)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		return err
+	}
+
+	decoder := yamlutil.NewYAMLOrJSONDecoder(bytes.NewReader(filebytes), 100)
+	for {
+		var rawObj runtime.RawExtension
+		if err = decoder.Decode(&rawObj); err != nil {
+			break
+		}
+
+		obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).Decode(rawObj.Raw, nil, nil)
+		unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: unstructuredMap}
+
+		gr, err := restmapper.GetAPIGroupResources(c.ClientSet.Discovery())
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		mapper := restmapper.NewDiscoveryRESTMapper(gr)
+		mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var dri dynamic.ResourceInterface
+		if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
+			if namespace != "" {
+				unstructuredObj.SetNamespace(namespace)
+			} else if unstructuredObj.GetNamespace() == "" {
+				unstructuredObj.SetNamespace("default")
+			}
+			dri = c.dynamicClient.Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
+		} else {
+			dri = c.dynamicClient.Resource(mapping.Resource)
+		}
+
+		err = dri.Delete(context.Background(), unstructuredObj.GetName(), metav1.DeleteOptions{})
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		fmt.Printf("%s/%s deleted\n", unstructuredObj.GetKind(), unstructuredObj.GetName())
+
+	}
+	return nil
+}
+
+func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool) error {
+	if yamlPath == "" {
+		return errors.New("yaml path can not be empty")
+	}
+	if namespace == "" {
+		namespace, _ = c.GetDefaultNamespace()
 	}
 
 	filebytes, err := ioutil.ReadFile(yamlPath)
