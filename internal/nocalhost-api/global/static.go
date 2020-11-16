@@ -11,4 +11,5 @@ const (
 	NocalhostDevServiceAccountTokenKey    = "token"
 	NocalhostDepKubeConfigMapName         = "nocalhost-kubeconfig"
 	NocalhostDepKubeConfigMapKey          = "config"
+	NocalhostPrePullDSName                = "nocalhost-prepull"
 )
