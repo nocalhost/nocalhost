@@ -731,7 +731,7 @@
                 }
             },
             "put": {
-                "description": "Update a user by ID",
+                "description": "Update a user by ID，Only status is required",
                 "consumes": [
                     "application/json"
                 ],
@@ -764,7 +764,7 @@
                         "required": true,
                         "schema": {
                             "type": "object",
-                            "$ref": "#/definitions/user.CreateUserRequest"
+                            "$ref": "#/definitions/user.UpdateUserRequest"
                         }
                     }
                 ],
@@ -1053,6 +1053,26 @@
                 },
                 "password": {
                     "type": "string"
+                }
+            }
+        },
+        "user.UpdateUserRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
                 }
             }
         }
