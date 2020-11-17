@@ -10,7 +10,7 @@ const (
 	DefaultDevImage               = "centos:latest"
 	DefaultWorkDir                = "/home/code"
 	DefaultPortForwardDir         = "port-forward"
-	DefaultForwardRemotePort      = 22
+	DefaultForwardRemoteSshPort   = 22
 	DefaultNhctlHomeDirName       = ".nhctl"
 	DefaultSshKeyDirName          = "key"
 	DefaultApplicationDirName     = "application"
