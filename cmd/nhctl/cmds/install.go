@@ -210,6 +210,14 @@ func InstallApplication(applicationName string) error {
 			params = append(params, "--kubeconfig", settings.KubeConfig)
 		}
 		fmt.Println("install helm application, this may take several minutes, please waiting...")
+		depParams := []string{"dependency", "build", resourcesPath, "--debug"}
+		depBuildOutput, err := tools.ExecCommand(nil, false, "helm", depParams...)
+		if err != nil {
+			printlnErr("fail to build dependency for helm app", err)
+			return err
+		}
+		debug(depBuildOutput)
+
 		output, err := tools.ExecCommand(nil, false, "helm", params...)
 		if err != nil {
 			printlnErr("fail to install helm nocalhostApp", err)
