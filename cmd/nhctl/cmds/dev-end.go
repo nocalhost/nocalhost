@@ -14,20 +14,18 @@ limitations under the License.
 package cmds
 
 import (
-	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"nocalhost/internal/nhctl"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/tools"
-	"sort"
+	"os"
 	"strings"
 )
 
 func init() {
-	devEndCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
-	devEndCmd.Flags().StringVarP(&devFlags.Deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
+	devEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	debugCmd.AddCommand(devEndCmd)
 }
 
@@ -44,17 +42,16 @@ var devEndCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		app, err = NewApplication(applicationName)
-		clientgoutils.Must(err)
-		// todo check if application exists
-		if nameSpace == "" {
-			nameSpace = app.AppProfile.Namespace
-			//fmt.Println("error: please use -n to specify a kubernetes namespace")
-			//return
+		if !nocalhost.CheckIfApplicationExist(applicationName) {
+			fmt.Printf("[error] application \"%s\" not found\n", applicationName)
+			os.Exit(1)
 		}
-		if devFlags.Deployment == "" {
+		nocalhostApp, err = nhctl.NewApplication(applicationName)
+		clientgoutils.Must(err)
+
+		if deployment == "" {
 			fmt.Println("error: please use -d to specify a k8s deployment")
-			return
+			os.Exit(1)
 		}
 		fmt.Println("exiting dev model...")
 		// end file sync
@@ -63,38 +60,20 @@ var devEndCmd = &cobra.Command{
 
 		debug("stopping port-forward...")
 		//StopPortForward()
-		err = app.StopAllPortForward()
+		err = nocalhostApp.StopAllPortForward()
 		if err != nil {
 			fmt.Printf("[warning] fail to stop port forward, %v\n", err)
 		}
 
 		debug("roll back deployment...")
-		DeploymentRollBackToPreviousRevision()
+		err = nocalhostApp.RollBack(deployment)
+		if err != nil {
+			fmt.Println("[error] fail to rollback")
+			os.Exit(1)
+		}
+		//DeploymentRollBackToPreviousRevision()
 	},
 }
-
-//func StopPortForward() {
-//
-//	_, err := os.Stat(".pid")
-//	var bys []byte
-//	if err == nil {
-//		bys, err = ioutil.ReadFile(".pid")
-//	}
-//	if err != nil {
-//		printlnErr("failed to get pid", err)
-//		return
-//	}
-//
-//	pid := string(bys)
-//
-//	_, err = tools.ExecCommand(nil, true, "kill", "-1", pid)
-//	if err != nil {
-//		printlnErr("failed to stop port forward", err)
-//		return
-//	} else {
-//		fmt.Println("port-forward stopped.")
-//	}
-//}
 
 func EndFileSync() {
 	output, _ := tools.ExecCommand(nil, false, "mutagen", "sync", "list")
@@ -115,44 +94,4 @@ func EndFileSync() {
 			}
 		}
 	}
-}
-
-func DeploymentRollBackToPreviousRevision() {
-
-	clientUtils, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
-	clientgoutils.Must(err)
-
-	dep, err := clientUtils.GetDeployment(context.TODO(), nameSpace, devFlags.Deployment)
-	if err != nil {
-		fmt.Printf("failed to get deployment %s , err : %v\n", dep.Name, err)
-		return
-	}
-
-	fmt.Printf("rolling deployment back to previous revision\n")
-	rss, err := clientUtils.GetReplicaSetsControlledByDeployment(context.TODO(), nameSpace, devFlags.Deployment)
-	if err != nil {
-		fmt.Printf("failed to get rs list, err:%v\n", err)
-		return
-	}
-	// find previous replicaSet
-	if len(rss) < 2 {
-		fmt.Println("no history to roll back")
-		return
-	}
-
-	keys := make([]int, 0)
-	for rs := range rss {
-		keys = append(keys, rs)
-	}
-	sort.Ints(keys)
-
-	dep.Spec.Template = rss[keys[len(keys)-2]].Spec.Template // previous replicaSet is the second largest revision number : keys[len(keys)-2]
-	//_, err = deploymentsClient.Update(context.TODO(), dep, metav1.UpdateOptions{})
-	_, err = clientUtils.UpdateDeployment(context.TODO(), nameSpace, dep, metav1.UpdateOptions{}, true)
-	if err != nil {
-		fmt.Println("failed rolling back")
-	} else {
-		fmt.Println("rolling back!")
-	}
-
 }
