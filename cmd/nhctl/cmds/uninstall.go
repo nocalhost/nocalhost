@@ -19,6 +19,8 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
+	"sync"
+	"time"
 )
 
 func init() {
@@ -80,7 +82,8 @@ func UninstallApplication(applicationName string) error {
 	if app.IsHelm() {
 		// todo
 	} else if app.IsManifest() {
-		//
+		start := time.Now()
+		wg := sync.WaitGroup{}
 		resourceDir := app.GetResourceDir()
 		files, _, err := GetFilesAndDirs(resourceDir)
 		if err != nil {
@@ -88,13 +91,19 @@ func UninstallApplication(applicationName string) error {
 		}
 		clientUtil, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
 		for _, file := range files {
+			wg.Add(1)
 			fmt.Println("delete " + file)
-			if err != nil {
-				return err
-			}
-			clientUtil.Delete(file, app.GetNamespace())
+			go func(fileName string) {
+				clientUtil.Delete(fileName, app.GetNamespace())
+				wg.Done()
+			}(file)
+
 		}
+		wg.Wait()
+		end := time.Now()
+		debug("installing takes %f seconds", end.Sub(start).Seconds())
 		return err
 	}
+
 	return nil
 }
