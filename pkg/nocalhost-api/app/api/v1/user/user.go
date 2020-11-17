@@ -44,6 +44,14 @@ type CreateUserRequest struct {
 	Status          *uint64 `json:"status" form:"status" binding:"required"`
 }
 
+// UpdateUserRequest 更新用户
+type UpdateUserRequest struct {
+	Email    string  `json:"email" form:"email" binding:""`
+	Name     string  `json:"name" form:"name" binding:""`
+	Password string  `json:"password" form:"password" binding:""`
+	Status   *uint64 `json:"status" form:"status" binding:"required"`
+}
+
 // LoginCredentials 默认登录方式-邮箱
 type LoginCredentials struct {
 	Email    string `json:"email" form:"email"`
