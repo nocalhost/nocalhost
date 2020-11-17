@@ -28,7 +28,7 @@ func init() {
 	//installCmd.Flags().StringVarP(&installFlags.Url, "url", "u", "", "resource url")
 	//installCmd.Flags().StringVarP(&installFlags.ResourcesDir, "dir", "d", "", "the dir of helm package or manifest")
 	//installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "", "f", "", "helm's Value.yaml")
-	//installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", "app type: helm or manifest")
+	//installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", "nocalhostApp type: helm or manifest")
 	//installCmd.Flags().BoolVar(&installFlags.ForceInstall, "force", installFlags.ForceInstall, "force install")
 	rootCmd.AddCommand(uninstallCmd)
 }
@@ -65,7 +65,7 @@ var uninstallCmd = &cobra.Command{
 		homeDir := app.GetHomeDir()
 		err = os.RemoveAll(homeDir)
 		if err != nil {
-			fmt.Printf("[error] fail to remove app dir %s\n", homeDir)
+			fmt.Printf("[error] fail to remove nocalhostApp dir %s\n", homeDir)
 			os.Exit(1)
 		}
 		fmt.Printf("application \"%s\" is uninstalled", applicationName)
@@ -79,6 +79,18 @@ func UninstallApplication(applicationName string) error {
 		return err
 	}
 
+	clientUtil, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
+
+	if app.AppProfile.DependencyConfigMapName != "" {
+		debug("delete config map %s\n", app.AppProfile.DependencyConfigMapName)
+		err = clientUtil.DeleteConfigMapByName(app.AppProfile.DependencyConfigMapName, app.AppProfile.Namespace)
+		if err != nil {
+			return err
+		}
+	} else {
+		debug("no config map found")
+	}
+
 	if app.IsHelm() {
 		// todo
 	} else if app.IsManifest() {
@@ -89,7 +101,6 @@ func UninstallApplication(applicationName string) error {
 		if err != nil {
 			return err
 		}
-		clientUtil, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
 		for _, file := range files {
 			wg.Add(1)
 			fmt.Println("delete " + file)

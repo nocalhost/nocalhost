@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/third_party/mutagen"
 )
@@ -54,14 +55,14 @@ var fileSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		app, err = NewApplication(applicationName)
+		nocalhostApp, err = nhctl.NewApplication(applicationName)
 		clientgoutils.Must(err)
 		if fileSyncFlags.Deployment == "" {
 			// todo record default deployment
 			fmt.Println("error: please use -d to specify a k8s deployment")
 			return
 		}
-		svcConfig := app.Config.GetSvcConfig(fileSyncFlags.Deployment)
+		svcConfig := nocalhostApp.Config.GetSvcConfig(fileSyncFlags.Deployment)
 		localDirsToSync := make([]string, 0)
 		if fileSyncFlags.LocalSharedFolder == "" {
 			// reading from config

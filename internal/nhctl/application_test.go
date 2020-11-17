@@ -1,7 +1,8 @@
-package cmds
+package nhctl
 
 import (
 	"fmt"
+	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	"math/rand"
 	"sync"
@@ -12,13 +13,13 @@ import (
 func TestApplication_StopAllPortForward(t *testing.T) {
 	application, err := NewApplication("eeee")
 	if err != nil {
-		printlnErr("fail to create application", err)
+		//cmds.printlnErr("fail to create application", err)
 		return
 	}
 
 	err = application.StopAllPortForward()
 	if err != nil {
-		printlnErr("fail to stop port-forward", err)
+		//cmds.printlnErr("fail to stop port-forward", err)
 	}
 }
 
@@ -45,4 +46,14 @@ func TestWaitGroup(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestIoUtilWriteFile(t *testing.T) {
+	context := `
+aaaa
+`
+	err := ioutil.WriteFile("aa.txt", []byte(context), 0755)
+	if err != nil {
+		panic(err)
+	}
 }

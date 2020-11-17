@@ -29,6 +29,7 @@ import (
 	cachetools "k8s.io/client-go/tools/cache"
 	watchtools "k8s.io/client-go/tools/watch"
 	"math/rand"
+	"nocalhost/internal/nhctl"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/tools"
 	"nocalhost/pkg/nhctl/utils"
@@ -58,7 +59,7 @@ func init() {
 	installCmd.Flags().StringVarP(&installFlags.Url, "url", "u", "", "resource url")
 	//installCmd.Flags().StringVarP(&installFlags.ResourcesDir, "dir", "d", "", "the dir of helm package or manifest")
 	installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "", "f", "", "helm's Value.yaml")
-	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", "app type: helm or manifest")
+	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", "nocalhostApp type: helm or manifest")
 	installCmd.Flags().BoolVar(&installFlags.ForceInstall, "force", installFlags.ForceInstall, "force install")
 	installCmd.Flags().BoolVar(&installFlags.IgnorePreInstall, "ignore-pre-install", installFlags.IgnorePreInstall, "ignore pre-install")
 	rootCmd.AddCommand(installCmd)
@@ -76,22 +77,14 @@ var installCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		//if nameSpace == "" {
-		//	fmt.Println("error: please use -n to specify a kubernetes namespace")
-		//	return
-		//}
+		var err error
 		if installFlags.Url == "" {
 			fmt.Println("error: please use -u to specify url of git")
 			return
 		}
-		apps, err := nocalhost.GetApplications()
-		utils.Mush(err)
-		for _, app := range apps {
-			if app == applicationName {
-				//err = errors.New(fmt.Sprintf("application %s already exists", app))
-				fmt.Printf("[error] application \"%s\" already exists\n", app)
-				os.Exit(1)
-			}
+		if nocalhost.CheckIfApplicationExist(applicationName) {
+			fmt.Printf("[error] application \"%s\" already exists\n", applicationName)
+			os.Exit(1)
 		}
 
 		fmt.Println("install application...")
@@ -113,7 +106,7 @@ func InstallApplication(applicationName string) error {
 	)
 
 	// check if kubernetes is available
-	client, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, DefaultClientGoTimeOut)
+	client, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, nhctl.DefaultClientGoTimeOut)
 	if err != nil {
 		printlnErr("kubernetes is unavailable, please check your cluster kubeconfig", err)
 		return err
@@ -129,7 +122,7 @@ func InstallApplication(applicationName string) error {
 		debug("use default namespace \"%s\"", ns)
 	}
 	// check if namespace is available
-	timeOutCtx, _ := context.WithTimeout(context.TODO(), DefaultClientGoTimeOut)
+	timeOutCtx, _ := context.WithTimeout(context.TODO(), nhctl.DefaultClientGoTimeOut)
 	ava, err := client.CheckIfNamespaceIsAccessible(timeOutCtx, nameSpace)
 	if err == nil && ava {
 		debug("[check] %s is available", nameSpace)
@@ -158,23 +151,17 @@ func InstallApplication(applicationName string) error {
 		utils.Mush(DownloadApplicationToNhctlHome(applicationDir))
 	}
 
-	app, err = NewApplication(applicationName)
+	nocalhostApp, err = nhctl.NewApplication(applicationName)
 	utils.Mush(err)
-	config := app.Config
+	config := nocalhostApp.Config
 
-	// install dependence config map
-
-	//if installFlags.ResourcesDir != "" {
-	//	resourcesPath = fmt.Sprintf("%s%c%s", applicationDir, os.PathSeparator, installFlags.ResourcesDir)
-	//} else {
-	resourcesPath = app.GetResourceDir()
-	//}
+	resourcesPath = nocalhostApp.GetResourceDir()
 
 	debug("install dependency config map")
-	appDep := app.GetDependencies()
+	appDep := nocalhostApp.GetDependencies()
 	if appDep != nil {
 		var depForYaml = &struct {
-			Dependency []*SvcDependency `json:"dependency" yaml:"dependency"`
+			Dependency []*nhctl.SvcDependency `json:"dependency" yaml:"dependency"`
 		}{
 			Dependency: appDep,
 		}
@@ -190,12 +177,7 @@ func InstallApplication(applicationName string) error {
 		configMap := &v1.ConfigMap{
 			Data: dataMap,
 		}
-		//if nameSpace == "" {
-		//	nameSpace, err = client.GetDefaultNamespace()
-		//	if err != nil {
-		//		return err
-		//	}
-		//}
+
 		var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
 		rand.Seed(time.Now().UnixNano())
 		b := make([]rune, 4)
@@ -209,13 +191,15 @@ func InstallApplication(applicationName string) error {
 			fmt.Printf("[error] fail to create dependency config")
 			return err
 		} else {
-			debug("config map %s has been installed", configMap.Name)
+			debug("config map %s has been installed, record it", configMap.Name)
+			nocalhostApp.AppProfile.DependencyConfigMapName = configMap.Name
+			nocalhostApp.SaveProfile()
 		}
 	}
 	debug("resources path is %s\n", resourcesPath)
 	if installFlags.AppType == "" {
 		installFlags.AppType = config.AppConfig.Type
-		debug("[nocalhost config] app type: %s", config.AppConfig.Type)
+		debug("[nocalhost config] nocalhostApp type: %s", config.AppConfig.Type)
 	}
 	if installFlags.AppType == "helm" {
 		params := []string{"upgrade", "--install", "--wait", applicationName, resourcesPath, "--debug"}
@@ -228,11 +212,11 @@ func InstallApplication(applicationName string) error {
 		fmt.Println("install helm application, this may take several minutes, please waiting...")
 		output, err := tools.ExecCommand(nil, false, "helm", params...)
 		if err != nil {
-			printlnErr("fail to install helm app", err)
+			printlnErr("fail to install helm nocalhostApp", err)
 			return err
 		}
 		debug(output)
-		fmt.Printf(`helm app installed, use "helm list -n %s" to get the information of the helm release`+"\n", nameSpace)
+		fmt.Printf(`helm nocalhostApp installed, use "helm list -n %s" to get the information of the helm release`+"\n", nameSpace)
 	} else if installFlags.AppType == "manifest" {
 		excludeFiles := make([]string, 0)
 		if config.PreInstall != nil && !installFlags.IgnorePreInstall {
@@ -247,14 +231,13 @@ func InstallApplication(applicationName string) error {
 		fmt.Println("unsupported application type, it mush be helm or manifest")
 	}
 
-	app.AppProfile = &AppProfile{
-		Namespace:  nameSpace,
-		Kubeconfig: settings.KubeConfig,
-	}
+	nocalhostApp.AppProfile.Namespace = nameSpace
+	nocalhostApp.AppProfile.Kubeconfig = settings.KubeConfig
+
 	// save application info
-	err = app.SaveProfile()
+	err = nocalhostApp.SaveProfile()
 	if err != nil {
-		fmt.Println("[error] fail to save app profile")
+		fmt.Println("[error] fail to save nocalhostApp profile")
 	}
 	return err
 }
@@ -306,9 +289,6 @@ outer:
 			}
 		}
 
-		//fmt.Println("create " + file)
-		//clientUtil.Create(file, nameSpace, false)
-
 		// parallel
 		wg.Add(1)
 		go func(fileName string) {
@@ -323,11 +303,11 @@ outer:
 	return err
 }
 
-func PreInstall(basePath string, items []*PreInstallItem) ([]string, error) {
+func PreInstall(basePath string, items []*nhctl.PreInstallItem) ([]string, error) {
 	fmt.Println("run pre-install....")
 
 	// sort
-	sort.Sort(ComparableItems(items))
+	sort.Sort(nhctl.ComparableItems(items))
 
 	clientUtils, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
 	if err != nil {

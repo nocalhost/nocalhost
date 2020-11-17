@@ -1,4 +1,4 @@
-package cmds
+package nhctl
 
 import (
 	"testing"
