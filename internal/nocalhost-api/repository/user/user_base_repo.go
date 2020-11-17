@@ -26,7 +26,7 @@ import (
 // BaseRepo 定义接口
 type BaseRepo interface {
 	Create(ctx context.Context, user model.UserBaseModel) (id uint64, err error)
-	Update(ctx context.Context, id uint64, userMap map[string]interface{}) error
+	Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) error
 	Delete(ctx context.Context, id uint64) error
 	GetUserByID(ctx context.Context, id uint64) (*model.UserBaseModel, error)
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
@@ -76,12 +76,12 @@ func (repo *userBaseRepo) Create(ctx context.Context, user model.UserBaseModel) 
 }
 
 // Update 更新用户信息
-func (repo *userBaseRepo) Update(ctx context.Context, id uint64, userMap map[string]interface{}) error {
+func (repo *userBaseRepo) Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) error {
 	user, err := repo.GetUserByID(ctx, id)
 	if err != nil {
 		return errors.Wrap(err, "[user_repo] update user data err")
 	}
-	return repo.db.Model(user).Updates(userMap).Error
+	return repo.db.Model(&user).Updates(&userMap).Error
 }
 
 // GetUserByID 获取用户
