@@ -12,12 +12,13 @@ import (
 type Application struct {
 	Name       string
 	Config     *NocalHostAppConfig
-	AppProfile *AppProfile
+	AppProfile *AppProfile // runtime info
 }
 
 type AppProfile struct {
-	Namespace  string `json:"namespace" yaml:"namespace"`
-	Kubeconfig string `json:"kubeconfig" yaml:"kubeconfig"`
+	Namespace               string `json:"namespace" yaml:"namespace"`
+	Kubeconfig              string `json:"kubeconfig" yaml:"kubeconfig"`
+	DependencyConfigMapName string `json:"dependency_config_map_name" yaml:"dependencyConfigMapName"`
 }
 
 type SvcDependency struct {
@@ -25,10 +26,6 @@ type SvcDependency struct {
 	Type string   `json:"type" yaml:"type"`
 	Jobs []string `json:"jobs" yaml:"jobs,omitempty"`
 	Pods []string `json:"pods" yaml:"pods,omitempty"`
-}
-
-type DependenceConfigMap struct {
-	ApiVersion string `json:"api_version "`
 }
 
 func NewApplication(name string) (*Application, error) {
@@ -119,12 +116,11 @@ func (a *Application) Init() error {
 }
 
 func (a *Application) loadProfile() {
-
+	a.AppProfile = &AppProfile{}
 	fBytes, err := ioutil.ReadFile(a.getProfilePath())
 	if err != nil {
 		return
 	}
-	a.AppProfile = &AppProfile{}
 	yaml.Unmarshal(fBytes, a.AppProfile)
 	return
 }

@@ -209,7 +209,9 @@ func InstallApplication(applicationName string) error {
 			fmt.Printf("[error] fail to create dependency config")
 			return err
 		} else {
-			debug("config map %s has been installed", configMap.Name)
+			debug("config map %s has been installed, record it", configMap.Name)
+			app.AppProfile.DependencyConfigMapName = configMap.Name
+			app.SaveProfile()
 		}
 	}
 	debug("resources path is %s\n", resourcesPath)
@@ -247,10 +249,9 @@ func InstallApplication(applicationName string) error {
 		fmt.Println("unsupported application type, it mush be helm or manifest")
 	}
 
-	app.AppProfile = &AppProfile{
-		Namespace:  nameSpace,
-		Kubeconfig: settings.KubeConfig,
-	}
+	app.AppProfile.Namespace = nameSpace
+	app.AppProfile.Kubeconfig = settings.KubeConfig
+
 	// save application info
 	err = app.SaveProfile()
 	if err != nil {
