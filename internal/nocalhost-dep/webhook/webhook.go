@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	nocalhost "nocalhost/pkg/nocalhost-dep/go-client"
+	"strconv"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -317,7 +318,7 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 					glog.Fatalln("failed to unmarshal configmap: %s", cm.GetName())
 				}
 				fmt.Printf("%+v\n", dep)
-				for _, dependency := range dep.Dependency {
+				for key, dependency := range dep.Dependency {
 					// K8S 原生类型区分大小写，依赖描述不区分，统一转成小写
 					if dependency.Name == resourceName && strings.ToLower(dependency.Type) == strings.ToLower(resourceType) {
 						// 组装 initContainer
@@ -346,7 +347,7 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 							}(dependency.Pods)
 
 							initContainer := corev1.Container{
-								Name:            "wait-for-pods",
+								Name:            "wait-for-pods-" + strconv.Itoa(key),
 								Image:           waitImages,
 								ImagePullPolicy: corev1.PullPolicy("Always"),
 								Args:            args,
@@ -378,7 +379,7 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 							}(dependency.Jobs)
 
 							initContainer := corev1.Container{
-								Name:            "wait-for-jobs",
+								Name:            "wait-for-jobs-" + strconv.Itoa(key),
 								Image:           waitImages,
 								ImagePullPolicy: corev1.PullPolicy("Always"),
 								Args:            args,
