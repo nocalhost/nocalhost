@@ -79,6 +79,18 @@ func UninstallApplication(applicationName string) error {
 		return err
 	}
 
+	clientUtil, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
+
+	if app.AppProfile.DependencyConfigMapName != "" {
+		debug("delete config map %s\n", app.AppProfile.DependencyConfigMapName)
+		err = clientUtil.DeleteConfigMapByName(app.AppProfile.DependencyConfigMapName, app.AppProfile.Namespace)
+		if err != nil {
+			return err
+		}
+	} else {
+		debug("no config map found")
+	}
+
 	if app.IsHelm() {
 		// todo
 	} else if app.IsManifest() {
@@ -89,7 +101,6 @@ func UninstallApplication(applicationName string) error {
 		if err != nil {
 			return err
 		}
-		clientUtil, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
 		for _, file := range files {
 			wg.Add(1)
 			fmt.Println("delete " + file)
