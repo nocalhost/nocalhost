@@ -79,6 +79,14 @@ func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUt
 	return client, nil
 }
 
+func (c *ClientGoUtils) GetDynamicClient() dynamic.Interface {
+
+	var restConfig *restclient.Config
+	restConfig, _ = clientcmd.BuildConfigFromFlags("", c.kubeConfigFilePath)
+	dyn, _ := dynamic.NewForConfig(restConfig)
+	return dyn
+}
+
 func (c *ClientGoUtils) getRestConfig() (*restclient.Config, error) {
 	return clientcmd.BuildConfigFromFlags("", c.kubeConfigFilePath)
 }
@@ -217,9 +225,11 @@ func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool) err
 			} else if unstructuredObj.GetNamespace() == "" {
 				unstructuredObj.SetNamespace("default")
 			}
-			dri = c.dynamicClient.Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
+			//dri = c.dynamicClient.Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
+			dri = c.GetDynamicClient().Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
 		} else {
-			dri = c.dynamicClient.Resource(mapping.Resource)
+			//dri = c.dynamicClient.Resource(mapping.Resource)
+			dri = c.GetDynamicClient().Resource(mapping.Resource)
 		}
 
 		obj2, err := dri.Create(context.Background(), unstructuredObj, metav1.CreateOptions{})
@@ -237,6 +247,7 @@ func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool) err
 				return err
 			}
 		}
+
 	}
 
 	return nil

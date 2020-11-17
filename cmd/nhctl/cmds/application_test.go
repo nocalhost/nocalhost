@@ -2,12 +2,11 @@ package cmds
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api/v1"
-	"nocalhost/pkg/nhctl/utils"
+	"math/rand"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestApplication_StopAllPortForward(t *testing.T) {
@@ -29,14 +28,21 @@ func TestForTest(t *testing.T) {
 	//map2.Data
 }
 
-func TestGetNameSpaces(t *testing.T) {
-	fbytes, err := ioutil.ReadFile("/Users/xinxinhuang/.kube/macbook-xinxinhuang-config")
-	utils.Mush(err)
-	NewNonInteractiveDeferredLoadingClientConfig(
-		&ClientConfigLoadingRules{ExplicitPath: kubeconfigPath},
-		&ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: masterUrl}}).ClientConfig()
+func TestWaitGroup(t *testing.T) {
 
-	err = yaml.Unmarshal(fbytes, configMap)
-	utils.Mush(err)
-	fmt.Printf("%v\n", configMap.Data)
+	wg := sync.WaitGroup{}
+	rand.Seed(time.Now().UnixNano())
+
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(ii int) {
+			s := rand.Intn(10) + 1
+			fmt.Printf("%d sleep %d seconds\n", ii, s)
+			time.Sleep(time.Second * time.Duration(s))
+			fmt.Printf("%d exit\n", ii)
+			wg.Done()
+		}(i)
+	}
+
+	wg.Wait()
 }
