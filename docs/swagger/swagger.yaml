@@ -156,6 +156,19 @@ definitions:
       password:
         type: string
     type: object
+  user.UpdateUserRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      status:
+        type: integer
+    required:
+    - status
+    type: object
 info:
   contact: {}
   license: {}
@@ -681,7 +694,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: Update a user by ID
+      description: Update a user by ID，Only status is required
       parameters:
       - description: Authorization
         in: header
@@ -698,7 +711,7 @@ paths:
         name: user
         required: true
         schema:
-          $ref: '#/definitions/user.CreateUserRequest'
+          $ref: '#/definitions/user.UpdateUserRequest'
           type: object
       produces:
       - application/json

@@ -46,7 +46,7 @@ type UserService interface {
 	GetUserByID(ctx context.Context, id uint64) (*model.UserBaseModel, error)
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
-	UpdateUser(ctx context.Context, id uint64, user *map[string]interface{}) error
+	UpdateUser(ctx context.Context, id uint64, user *model.UserBaseModel) error
 	GetUserList(ctx context.Context) ([]*model.UserList, error)
 	Close()
 }
@@ -146,8 +146,8 @@ func (srv *userService) EmailLogin(ctx context.Context, email, password string) 
 }
 
 // UpdateUser update user info
-func (srv *userService) UpdateUser(ctx context.Context, id uint64, user *map[string]interface{}) error {
-	err := srv.userRepo.Update(ctx, id, *user)
+func (srv *userService) UpdateUser(ctx context.Context, id uint64, user *model.UserBaseModel) error {
+	err := srv.userRepo.Update(ctx, id, user)
 
 	if err != nil {
 		return err
