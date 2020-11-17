@@ -8,10 +8,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"math/rand"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/third_party/kubectl"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
+	"os/signal"
+	"sort"
 	"strconv"
+	"syscall"
 	"time"
 )
 
@@ -22,9 +27,10 @@ type Application struct {
 }
 
 type AppProfile struct {
-	Namespace               string `json:"namespace" yaml:"namespace"`
-	Kubeconfig              string `json:"kubeconfig" yaml:"kubeconfig"`
-	DependencyConfigMapName string `json:"dependency_config_map_name" yaml:"dependencyConfigMapName"`
+	Namespace               string              `json:"namespace" yaml:"namespace"`
+	Kubeconfig              string              `json:"kubeconfig" yaml:"kubeconfig"`
+	DependencyConfigMapName string              `json:"dependency_config_map_name" yaml:"dependencyConfigMapName"`
+	SshPortForward          *PortForwardOptions `json:"ssh_port_forward" yaml:"sshPortForward"`
 }
 
 type SvcDependency struct {
@@ -179,7 +185,12 @@ func (a *Application) SavePortForwardInfo(localPort int, remotePort int) error {
 	if err != nil {
 		return err
 	}
-	return nil
+
+	a.AppProfile.SshPortForward = &PortForwardOptions{
+		LocalPort:  localPort,
+		RemotePort: remotePort,
+	}
+	return a.SaveProfile()
 }
 
 func (a *Application) ListPortForwardPid() ([]int, error) {
@@ -270,6 +281,130 @@ func (a *Application) GetDefaultDevImage(svcName string) string {
 	return ""
 }
 
+func (a *Application) RollBack(svcName string) error {
+	clientUtils, err := clientgoutils.NewClientGoUtils(a.GetKubeconfig(), 0)
+	if err != nil {
+		return err
+	}
+
+	dep, err := clientUtils.GetDeployment(context.TODO(), a.GetNamespace(), svcName)
+	if err != nil {
+		fmt.Printf("failed to get deployment %s , err : %v\n", dep.Name, err)
+		return err
+	}
+
+	fmt.Printf("rolling deployment back to previous revision\n")
+	rss, err := clientUtils.GetReplicaSetsControlledByDeployment(context.TODO(), a.GetNamespace(), svcName)
+	if err != nil {
+		fmt.Printf("failed to get rs list, err:%v\n", err)
+		return err
+	}
+	// find previous replicaSet
+	if len(rss) < 2 {
+		fmt.Println("no history to roll back")
+		return nil
+	}
+
+	keys := make([]int, 0)
+	for rs := range rss {
+		keys = append(keys, rs)
+	}
+	sort.Ints(keys)
+
+	dep.Spec.Template = rss[keys[len(keys)-2]].Spec.Template // previous replicaSet is the second largest revision number : keys[len(keys)-2]
+	_, err = clientUtils.UpdateDeployment(context.TODO(), a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
+	if err != nil {
+		fmt.Println("failed rolling back")
+	} else {
+		fmt.Println("rolling back!")
+	}
+	return err
+}
+
+type PortForwardOptions struct {
+	LocalPort  int `json:"local_port" yaml:"localPort"`
+	RemotePort int `json:"remote_port" yaml:"remotePort"`
+}
+
+func (a *Application) CleanupPid() error {
+	pidDir := a.GetPortForwardPidDir(os.Getpid())
+	if _, err2 := os.Stat(pidDir); err2 != nil {
+		if os.IsNotExist(err2) {
+			fmt.Printf("%s not exits, no need to cleanup it\n", pidDir)
+			return nil
+		} else {
+			fmt.Printf("[warning] fails to cleanup %s\n", pidDir)
+		}
+	}
+	err := os.RemoveAll(pidDir)
+	if err != nil {
+		fmt.Printf("removing .pid failed, please remove it manually, err:%v\n", err)
+		return err
+	}
+	fmt.Printf("%s cleanup\n", pidDir)
+	return nil
+}
+
+func (a *Application) SshPortForward(svcName string, ops *PortForwardOptions) error {
+
+	c := make(chan os.Signal)
+	signal.Notify(c, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGINT) // kill -1
+	ctx, cancel := context.WithCancel(context.TODO())
+
+	go func() {
+		<-c
+		cancel()
+		fmt.Println("stop port forward")
+		a.CleanupPid()
+	}()
+
+	// todo check if there is a same port-forward exists
+
+	pid := os.Getpid()
+	pidDir := a.GetPortForwardPidDir(pid)
+	err := os.Mkdir(pidDir, 0755)
+	if err != nil {
+		return err
+	}
+
+	//debug("recording port-forward info...")
+	var localPort, remotePort int
+	config := a.GetSvcConfig(svcName)
+	if config != nil && config.SshPort != nil {
+		if config.SshPort.LocalPort != 0 {
+			localPort = config.SshPort.LocalPort
+		}
+		if config.SshPort.SshPort != 0 {
+			remotePort = config.SshPort.SshPort
+		}
+	}
+
+	if ops.LocalPort != 0 {
+		localPort = ops.LocalPort
+	}
+	if ops.RemotePort != 0 {
+		remotePort = ops.RemotePort
+	}
+
+	if localPort == 0 {
+		// random generate a port
+		rand.Seed(time.Now().UnixNano())
+		localPort = rand.Intn(10000) + 30002
+	}
+	if remotePort == 0 {
+		remotePort = DefaultForwardRemoteSshPort
+	}
+
+	err = a.SavePortForwardInfo(localPort, remotePort)
+	err = kubectl.PortForward(ctx, a.GetKubeconfig(), a.GetNamespace(), svcName, fmt.Sprintf("%d", localPort), fmt.Sprintf("%d", remotePort)) // eg : ./utils/darwin/kubectl port-forward --address 0.0.0.0 deployment/coding  12345:22
+	if err != nil {
+		fmt.Printf("failed to forward port : %v\n", err)
+		return err
+	}
+
+	a.CleanupPid()
+	return nil
+}
 func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) error {
 	clientUtils, err := clientgoutils.NewClientGoUtils(a.GetKubeconfig(), 0)
 	if err != nil {
@@ -339,7 +474,7 @@ func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) erro
 	//fmt.Printf("dev image is %s\n", devImage)
 
 	dep.Spec.Template.Spec.Containers[0].Image = devImage
-
+	dep.Spec.Template.Spec.Containers[0].Name = "nocalhost-dev"
 	dep.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, volMount)
 
