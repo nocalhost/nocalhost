@@ -19,6 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"nocalhost/internal/nhctl"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/tools"
 	"sort"
@@ -44,11 +45,11 @@ var devEndCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		app, err = NewApplication(applicationName)
+		nocalhostApp, err = nhctl.NewApplication(applicationName)
 		clientgoutils.Must(err)
 		// todo check if application exists
 		if nameSpace == "" {
-			nameSpace = app.AppProfile.Namespace
+			nameSpace = nocalhostApp.AppProfile.Namespace
 			//fmt.Println("error: please use -n to specify a kubernetes namespace")
 			//return
 		}
@@ -63,7 +64,7 @@ var devEndCmd = &cobra.Command{
 
 		debug("stopping port-forward...")
 		//StopPortForward()
-		err = app.StopAllPortForward()
+		err = nocalhostApp.StopAllPortForward()
 		if err != nil {
 			fmt.Printf("[warning] fail to stop port forward, %v\n", err)
 		}
