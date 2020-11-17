@@ -19,6 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"math/rand"
+	"nocalhost/internal/nhctl"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/third_party/kubectl"
 	"nocalhost/pkg/nhctl/utils"
@@ -28,8 +29,7 @@ import (
 	"time"
 )
 
-var remotePort string
-var app *Application
+//var remotePort string
 
 type PortForwardFlags struct {
 	*EnvSettings
@@ -64,20 +64,20 @@ var portForwardCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		app, err = NewApplication(applicationName)
+		nocalhostApp, err = nhctl.NewApplication(applicationName)
 		clientgoutils.Must(err)
-		//nocalhostConfig = app.Config
+		//nocalhostConfig = nocalhostApp.Config
 		if portForwardFlags.Deployment == "" {
 			fmt.Println("error: please use -d to specify a kubernetes deployment")
 			return
 		}
 		if nameSpace == "" {
-			nameSpace = app.AppProfile.Namespace
+			nameSpace = nocalhostApp.AppProfile.Namespace
 			//fmt.Println("error: please use -n to specify a kubernetes namespace")
 			//return
 		}
 
-		svcConfig := app.Config.GetSvcConfig(portForwardFlags.Deployment)
+		svcConfig := nocalhostApp.Config.GetSvcConfig(portForwardFlags.Deployment)
 		var configLocalPort, configRemotePort int
 		//if svcConfig != nil && svcConfig.SshPort != nil {
 		//	configLocalPort, err = strconv.Atoi(strings.Trim(strings.Split(svcConfig.DevPort[0], ":")[0], " "))
@@ -105,7 +105,7 @@ var portForwardCmd = &cobra.Command{
 			if configRemotePort != 0 {
 				portForwardFlags.RemotePort = configRemotePort
 			} else {
-				portForwardFlags.RemotePort = DefaultForwardRemotePort
+				portForwardFlags.RemotePort = nhctl.DefaultForwardRemotePort
 				debug("remote port not specify, use default port : %d", portForwardFlags.RemotePort)
 			}
 		}
@@ -124,11 +124,11 @@ var portForwardCmd = &cobra.Command{
 		// todo check if there is a same port-forward exists
 
 		pid := os.Getpid()
-		pidDir := app.GetPortForwardPidDir(pid)
+		pidDir := nocalhostApp.GetPortForwardPidDir(pid)
 		utils.Mush(os.Mkdir(pidDir, 0755))
 
 		debug("recording port-forward info...")
-		clientgoutils.Must(app.SavePortForwardInfo(portForwardFlags.LocalPort, portForwardFlags.RemotePort))
+		clientgoutils.Must(nocalhostApp.SavePortForwardInfo(portForwardFlags.LocalPort, portForwardFlags.RemotePort))
 		err = kubectl.PortForward(ctx, settings.KubeConfig, nameSpace, portForwardFlags.Deployment, fmt.Sprintf("%d", portForwardFlags.LocalPort), fmt.Sprintf("%d", portForwardFlags.RemotePort)) // eg : ./utils/darwin/kubectl port-forward --address 0.0.0.0 deployment/coding  12345:22
 		if err != nil {
 			fmt.Printf("failed to forward port : %v\n", err)
@@ -138,7 +138,7 @@ var portForwardCmd = &cobra.Command{
 }
 
 func CleanupPid() {
-	pidDir := app.GetPortForwardPidDir(os.Getpid())
+	pidDir := nocalhostApp.GetPortForwardPidDir(os.Getpid())
 	if _, err2 := os.Stat(pidDir); err2 != nil {
 		if os.IsNotExist(err2) {
 			debug("%s not exits, no need to cleanup it", pidDir)
