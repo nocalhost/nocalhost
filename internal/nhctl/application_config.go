@@ -1,4 +1,4 @@
-package cmds
+package nhctl
 
 import (
 	"strconv"
@@ -6,11 +6,13 @@ import (
 )
 
 const (
-	DefaultSideCarImage           = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:v1"
-	DefaultMountPath              = "/home/code"
+	DefaultSideCarImage           = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:latest"
+	DefaultDevImage               = "centos:latest"
+	DefaultWorkDir                = "/home/code"
 	DefaultPortForwardDir         = "port-forward"
 	DefaultForwardRemotePort      = 22
 	DefaultNhctlHomeDirName       = ".nhctl"
+	DefaultSshKeyDirName          = "key"
 	DefaultApplicationDirName     = "application"
 	DefaultApplicationProfilePath = ".profile.yaml"
 	DefaultClientGoTimeOut        = time.Minute * 5
