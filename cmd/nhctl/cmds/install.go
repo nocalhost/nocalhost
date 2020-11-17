@@ -35,6 +35,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -43,8 +44,9 @@ type InstallFlags struct {
 	Url     string // resource url
 	AppType string
 	//ResourcesDir  string
-	HelmValueFile string
-	ForceInstall  bool
+	HelmValueFile    string
+	ForceInstall     bool
+	IgnorePreInstall bool
 }
 
 var installFlags = InstallFlags{
@@ -58,6 +60,7 @@ func init() {
 	installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "", "f", "", "helm's Value.yaml")
 	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", "app type: helm or manifest")
 	installCmd.Flags().BoolVar(&installFlags.ForceInstall, "force", installFlags.ForceInstall, "force install")
+	installCmd.Flags().BoolVar(&installFlags.IgnorePreInstall, "ignore-pre-install", installFlags.IgnorePreInstall, "ignore pre-install")
 	rootCmd.AddCommand(installCmd)
 }
 
@@ -232,7 +235,7 @@ func InstallApplication(applicationName string) error {
 		fmt.Printf(`helm app installed, use "helm list -n %s" to get the information of the helm release`+"\n", nameSpace)
 	} else if installFlags.AppType == "manifest" {
 		excludeFiles := make([]string, 0)
-		if config.PreInstall != nil {
+		if config.PreInstall != nil && !installFlags.IgnorePreInstall {
 			debug("[nocalhost config] reading pre-install hook")
 			excludeFiles, err = PreInstall(resourcesPath, config.PreInstall)
 			utils.Mush(err)
@@ -290,6 +293,8 @@ func InstallManifestRecursively(dir string, excludeFiles []string) error {
 	if err != nil {
 		return err
 	}
+	start := time.Now()
+	wg := sync.WaitGroup{}
 
 	clientUtil, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
 outer:
@@ -300,12 +305,21 @@ outer:
 				continue outer
 			}
 		}
-		fmt.Println("create " + file)
-		if err != nil {
-			return err
-		}
-		clientUtil.Create(file, nameSpace, false)
+
+		//fmt.Println("create " + file)
+		//clientUtil.Create(file, nameSpace, false)
+
+		// parallel
+		wg.Add(1)
+		go func(fileName string) {
+			fmt.Println("create " + fileName)
+			clientUtil.Create(fileName, nameSpace, false)
+			wg.Done()
+		}(file)
 	}
+	wg.Wait()
+	end := time.Now()
+	debug("installing takes %f seconds", end.Sub(start).Seconds())
 	return err
 }
 
