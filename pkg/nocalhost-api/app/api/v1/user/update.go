@@ -15,6 +15,7 @@ package user
 
 import (
 	"context"
+	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/pkg/nocalhost-api/pkg/auth"
 
 	"github.com/gin-gonic/gin"
@@ -28,13 +29,13 @@ import (
 
 // Update 更新用户信息
 // @Summary 更新用户信息（含禁用用户）
-// @Description Update a user by ID
+// @Description Update a user by ID，Only status is required
 // @Tags 用户
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param id path uint64 true "The user's database id index num"
-// @Param user body user.CreateUserRequest true "Update user info"
+// @Param user body user.UpdateUserRequest true "Update user info"
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
 // @Router /v1/users/{id} [put]
 func Update(c *gin.Context) {
@@ -42,16 +43,10 @@ func Update(c *gin.Context) {
 	userId := cast.ToUint64(c.Param("id"))
 
 	// Binding the user data.
-	var req CreateUserRequest
+	var req UpdateUserRequest
 	if err := c.Bind(&req); err != nil {
 		log.Warnf("bind request param err: %+v", err)
 		api.SendResponse(c, errno.ErrBind, nil)
-		return
-	}
-
-	if req.Password != req.ConfirmPassword {
-		log.Warnf("twice password is not same")
-		api.SendResponse(c, errno.ErrTwicePasswordNotMatch, nil)
 		return
 	}
 
@@ -61,17 +56,27 @@ func Update(c *gin.Context) {
 		return
 	}
 
-	pwd, err := auth.Encrypt(req.Password)
-	if err != nil {
-		api.SendResponse(c, errno.InternalServerError, nil)
-		return
+	pwd := ""
+	var err error
+	if req.Password != "" {
+		pwd, err = auth.Encrypt(req.Password)
+		if err != nil {
+			api.SendResponse(c, errno.InternalServerError, nil)
+			return
+		}
 	}
 
-	userMap := make(map[string]interface{})
-	userMap["email"] = req.Email
-	userMap["name"] = req.Name
-	userMap["password"] = pwd
-	userMap["status"] = req.Status
+	userMap := model.UserBaseModel{
+		Email:    req.Email,
+		Name:     req.Name,
+		Password: pwd,
+		Status:   req.Status,
+	}
+	//userMap := make(map[string]interface{})
+	//userMap["email"] = req.Email
+	//userMap["name"] = req.Name
+	//userMap["password"] = pwd
+	//userMap["status"] = req.Status
 	err = service.Svc.UserSvc().UpdateUser(context.TODO(), userId, &userMap)
 	if err != nil {
 		log.Warnf("[user] update user err, %v", err)
