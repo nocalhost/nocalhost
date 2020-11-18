@@ -254,7 +254,7 @@ func (a *Application) GetDefaultWorkDir(svcName string) string {
 		}
 		return w
 	}
-	return ""
+	return DefaultWorkDir
 }
 
 func (a *Application) GetDefaultSideCarImage(svcName string) string {
@@ -266,7 +266,7 @@ func (a *Application) GetDefaultSideCarImage(svcName string) string {
 		}
 		return w
 	}
-	return ""
+	return DefaultSideCarImage
 }
 
 func (a *Application) GetDefaultDevImage(svcName string) string {
@@ -278,7 +278,7 @@ func (a *Application) GetDefaultDevImage(svcName string) string {
 		}
 		return w
 	}
-	return ""
+	return DefaultDevImage
 }
 
 func (a *Application) RollBack(svcName string) error {
