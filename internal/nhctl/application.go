@@ -589,3 +589,14 @@ func (a *Application) FileSync(svcName string, ops *FileSyncOptions) error {
 	}
 	return err
 }
+
+func (a *Application) GetDescription() string {
+	desc := ""
+	if a.AppProfile != nil {
+		bytes, err := yaml.Marshal(a.AppProfile)
+		if err == nil {
+			desc = string(bytes)
+		}
+	}
+	return desc
+}
