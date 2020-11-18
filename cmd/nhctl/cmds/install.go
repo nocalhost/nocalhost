@@ -266,7 +266,7 @@ func DownloadApplicationToNhctlHome(homePath string) error {
 		strs := strings.Split(gitDirName, "/")
 		gitDirName = strs[len(strs)-1] // todo : for default application anme
 		// clone git to homePath
-		_, err = tools.ExecCommand(nil, true, "git", "clone", installFlags.Url, homePath)
+		_, err = tools.ExecCommand(nil, true, "git", "clone", "--depth", "1", installFlags.Url, homePath)
 		if err != nil {
 			printlnErr("fail to clone git", err)
 			return err
