@@ -247,6 +247,13 @@ func InstallApplication(applicationName string) error {
 	} else {
 		fmt.Println("unsupported application type, it mush be helm or manifest")
 	}
+
+	if err == nil {
+		err = nocalhostApp.SetInstalledStatus(true)
+		if err != nil {
+			return errors.New("fail to update \"installed\" status")
+		}
+	}
 	return err
 }
 
