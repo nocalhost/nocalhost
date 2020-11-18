@@ -488,14 +488,14 @@ func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) erro
 		dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
 	}
 
-	sideCarImage := a.GetDefaultDevImage(deployment)
+	sideCarImage := a.GetDefaultSideCarImage(deployment)
 	if ops.SideCarImage != "" {
 		sideCarImage = ops.SideCarImage
 	}
 	sideCarContainer := corev1.Container{
-		Name:    "nocalhost-sidecar",
-		Image:   sideCarImage,
-		Command: []string{"/bin/sh", "-c", "service ssh start; mutagen daemon start; mutagen-agent install; tail -f /dev/null"},
+		Name:  "nocalhost-sidecar",
+		Image: sideCarImage,
+		//Command: []string{"/bin/sh", "-c", "service ssh start; mutagen daemon start; mutagen-agent install; tail -f /dev/null"},
 	}
 	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, volMount)
 	sideCarContainer.LivenessProbe = &corev1.Probe{
