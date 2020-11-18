@@ -69,3 +69,23 @@ func GetDetail(c *gin.Context) {
 	}
 	api.SendResponse(c, nil, result)
 }
+
+// Create 插件获取应用（含安装状态）
+// @Summary Plugin - 获取应用（含安装状态）
+// @Description Plugin - 获取应用（含安装状态）
+// @Tags 应用
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Success 200 {object} model.PluginApplicationModel
+// @Router /v1/plugin/applications [get]
+func PluginGet(c *gin.Context) {
+	userId, _ := c.Get("userId")
+	result, err := service.Svc.ApplicationSvc().PluginGetList(c, userId.(uint64))
+	if err != nil {
+		log.Warnf("get Application err: %v", err)
+		api.SendResponse(c, errno.ErrApplicationGet, nil)
+		return
+	}
+	api.SendResponse(c, errno.OK, result)
+}
