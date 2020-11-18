@@ -57,12 +57,22 @@ var devEndCmd = &cobra.Command{
 		// end file sync
 		debug("ending file sync...")
 		EndFileSync()
+		err = nocalhostApp.SetSyncingStatus(false)
+		if err != nil {
+			fmt.Printf("[error] fail to update \"syncing\" status\n")
+			os.Exit(1)
+		}
 
 		debug("stopping port-forward...")
 		//StopPortForward()
 		err = nocalhostApp.StopAllPortForward()
 		if err != nil {
 			fmt.Printf("[warning] fail to stop port forward, %v\n", err)
+		}
+		err = nocalhostApp.SetPortForwardedStatus(false)
+		if err != nil {
+			fmt.Printf("[error] fail to update \"portForwarded\" status\n")
+			os.Exit(1)
 		}
 
 		debug("roll back deployment...")
@@ -71,7 +81,11 @@ var devEndCmd = &cobra.Command{
 			fmt.Println("[error] fail to rollback")
 			os.Exit(1)
 		}
-		//DeploymentRollBackToPreviousRevision()
+		err = nocalhostApp.SetDevelopingStatus(false)
+		if err != nil {
+			fmt.Printf("[error] fail to update \"developing\" status\n")
+			os.Exit(1)
+		}
 	},
 }
 
