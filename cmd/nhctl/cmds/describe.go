@@ -35,10 +35,17 @@ var describeCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		var err error
 		applicationName := args[0]
 		if !nocalhost.CheckIfApplicationExist(applicationName) {
 			fmt.Printf("[error] application \"%s\" not found\n", applicationName)
 			os.Exit(1)
 		}
+		nocalhostApp, err = nocalhost.GetApplication(applicationName)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println(nocalhostApp.GetDescription())
 	},
 }
