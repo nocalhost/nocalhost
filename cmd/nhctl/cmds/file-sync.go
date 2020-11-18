@@ -20,6 +20,7 @@ import (
 	"nocalhost/internal/nhctl"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/third_party/mutagen"
+	"os"
 )
 
 type FileSyncFlags struct {
@@ -55,6 +56,10 @@ var fileSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
+		if !nocalhost.CheckIfApplicationExist(applicationName) {
+			fmt.Printf("[error] application \"%s\" not found\n", applicationName)
+			os.Exit(1)
+		}
 		nocalhostApp, err = nhctl.NewApplication(applicationName)
 		clientgoutils.Must(err)
 		if fileSyncFlags.Deployment == "" {

@@ -45,10 +45,6 @@ var uninstallCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		//if nameSpace == "" {
-		//	fmt.Println("error: please use -n to specify a kubernetes namespace")
-		//	return
-		//}
 		if !nocalhost.CheckIfApplicationExist(applicationName) {
 			fmt.Printf("[error] application \"%s\" not found\n", applicationName)
 			os.Exit(1)
