@@ -95,6 +95,27 @@ definitions:
       user_id:
         type: integer
     type: object
+  model.PluginApplicationModel:
+    properties:
+      cluster_id:
+        type: integer
+      context:
+        type: string
+      cpu:
+        type: integer
+      id:
+        type: integer
+      install_status:
+        type: integer
+      kubeconfig:
+        type: string
+      memory:
+        type: integer
+      namespace:
+        type: string
+      status:
+        type: integer
+    type: object
   model.UserInfo:
     properties:
       avatar:
@@ -570,6 +591,28 @@ paths:
       summary: 获取用户个人信息
       tags:
       - 用户
+  /v1/plugin/applications:
+    get:
+      consumes:
+      - application/json
+      description: Plugin - 获取应用（含安装状态）
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.PluginApplicationModel'
+            type: object
+      summary: Plugin - 获取应用（含安装状态）
+      tags:
+      - 应用
   /v1/register:
     post:
       description: 用户注册

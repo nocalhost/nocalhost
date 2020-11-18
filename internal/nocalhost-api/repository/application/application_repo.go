@@ -26,6 +26,7 @@ type ApplicationRepo interface {
 	Create(ctx context.Context, application model.ApplicationModel) (uint64, error)
 	Get(ctx context.Context, userId uint64, id uint64) (model.ApplicationModel, error)
 	GetList(ctx context.Context, userId uint64) ([]*model.ApplicationModel, error)
+	PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error)
 	Delete(ctx context.Context, userId uint64, id uint64) error
 	Update(ctx context.Context, applicationModel *model.ApplicationModel) error
 	Close()
@@ -39,6 +40,12 @@ func NewClusterRepo(db *gorm.DB) ApplicationRepo {
 	return &applicationRepo{
 		db: db,
 	}
+}
+
+func (repo *applicationRepo) PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error) {
+	var result []*model.PluginApplicationModel
+	repo.db.Table("applications").Select("applications.id,applications.Context,applications.user_id,applications.status,clusters_users.cluster_id,clusters_users.kubeconfig,clusters_users.memory,clusters_users.cpu,clusters_users.namespace,clusters_users.status as install_status").Joins("left join clusters_users on applications.id=clusters_users.application_id and clusters_users.user_id=?", userId).Scan(&result)
+	return result, nil
 }
 
 func (repo *applicationRepo) Create(ctx context.Context, application model.ApplicationModel) (id uint64, err error) {

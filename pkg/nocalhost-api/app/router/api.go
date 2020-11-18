@@ -112,5 +112,12 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		a.GET("/:id/cluster/:clusterId", applications.GetDetail)
 	}
 
+	// 插件接口
+	pa := g.Group("/v1/plugin")
+	pa.Use(middleware.AuthMiddleware())
+	{
+		pa.GET("/applications", applications.PluginGet)
+	}
+
 	return g
 }
