@@ -73,46 +73,10 @@ var fileSyncCmd = &cobra.Command{
 			fmt.Printf("[error] fail to sync files")
 			os.Exit(1)
 		}
-		//svcConfig := nocalhostApp.Config.GetSvcConfig(fileSyncFlags.Deployment)
-		//localDirsToSync := make([]string, 0)
-		//if fileSyncFlags.LocalSharedFolder == "" {
-		//	// reading from config
-		//	if svcConfig != nil && svcConfig.Sync != nil && len(svcConfig.Sync) > 0 {
-		//		debug("[nocalhost config] reading local shared folder config ...")
-		//		//fileSyncFlags.LocalSharedFolder = svcConfig.LocalWorkDir
-		//		for _, dir := range svcConfig.Sync {
-		//			localDirsToSync = append(localDirsToSync, dir)
-		//		}
-		//	} else {
-		//		fmt.Println("error: please use -l flag or set localSharedFolder config to specify a local directory to sync with remote")
-		//		return
-		//	}
-		//} else {
-		//	localDirsToSync = append(localDirsToSync, fileSyncFlags.LocalSharedFolder)
-		//}
-		//
-		//if fileSyncFlags.RemoteDir == "" {
-		//	if svcConfig != nil && svcConfig.WorkDir != "" {
-		//		debug("[nocalhost config] reading mountPath config ...")
-		//		fileSyncFlags.RemoteDir = svcConfig.WorkDir
-		//	}
-		//}
-
-		//if fileSyncFlags.LocalSshPort == 0 {
-		//	if svcConfig != nil && svcConfig.LocalSshPort != nil {
-		//		if svcConfig.LocalSshPort.LocalPort != 0 {
-		//			fileSyncFlags.LocalSshPort = svcConfig.LocalSshPort.LocalPort
-		//		} else {
-		//			fmt.Println("fail to get ssh port, it may be a todo item")
-		//			return
-		//		}
-		//	}
-		//}
-		//fmt.Println("file syncing...") // tools/darwin/mutagen sync create --sync-mode=one-way-safe --releaseName=$1  $2  $3
-		// ./tools/script/file-sync.sh coding dir01 root@127.0.0.1:12345:/home/code
-		//for _, dir := range localDirsToSync {
-		//	fmt.Printf("syncing %s ...\n", dir)
-		//	mutagen.FileSync(dir, fileSyncFlags.RemoteFolder, fmt.Sprintf("%d", fileSyncFlags.SshPort))
-		//}
+		err = nocalhostApp.SetSyncingStatus(true)
+		if err != nil {
+			fmt.Printf("[error] fail to update \"syncing\" status\n")
+			os.Exit(1)
+		}
 	},
 }

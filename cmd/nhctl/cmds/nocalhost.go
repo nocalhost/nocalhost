@@ -152,7 +152,7 @@ func (n *NocalHost) GetSshKeyDir() string {
 	return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, nhctl.DefaultSshKeyDirName)
 }
 
-func (n *NocalHost) GetApplications() ([]string, error) {
+func (n *NocalHost) GetApplicationNames() ([]string, error) {
 	appDir := n.GetApplicationDir()
 	fs, err := ioutil.ReadDir(appDir)
 	if err != nil {
@@ -171,7 +171,7 @@ func (n *NocalHost) GetApplications() ([]string, error) {
 }
 
 func (n *NocalHost) CheckIfApplicationExist(appName string) bool {
-	apps, err := n.GetApplications()
+	apps, err := n.GetApplicationNames()
 	if err != nil || apps == nil {
 		return false
 	}
