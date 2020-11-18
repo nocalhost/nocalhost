@@ -13,7 +13,7 @@ func TestNocalHost_GetApplicationDir(t *testing.T) {
 
 func TestNocalHost_GetApplications(t *testing.T) {
 	n := NocalHost{}
-	apps, err := n.GetApplications()
+	apps, err := n.GetApplicationNames()
 	utils.Mush(err)
 	for _, app := range apps {
 		fmt.Println(app)

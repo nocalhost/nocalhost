@@ -34,7 +34,7 @@ var listCmd = &cobra.Command{
 
 func ListApplications() {
 	n := NocalHost{}
-	apps, err := n.GetApplications()
+	apps, err := n.GetApplicationNames()
 	utils.Mush(err)
 	maxLen := 0
 	for _, app := range apps {
@@ -42,8 +42,14 @@ func ListApplications() {
 			maxLen = len(app)
 		}
 	}
-	fmt.Printf("%-10s\n", "NAME")
+	fmt.Printf("%-14s %-14s %-14s %-14s %-14s\n", "NAME", "INSTALLED", "DEVELOPING", "PORFORWARDED", "SYNCING")
 	for _, app := range apps {
-		fmt.Printf("%-10s\n", app)
+		app2, err := nocalhost.GetApplication(app)
+		if err != nil {
+			fmt.Printf("%-14s\n", app)
+			continue
+		}
+		profile := app2.AppProfile
+		fmt.Printf("%-14s %-14t %-14t %-14t %-14t\n", app, profile.Installed, profile.Developing, profile.PortForwarded, profile.Syncing)
 	}
 }

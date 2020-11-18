@@ -30,9 +30,13 @@ type Application struct {
 
 type AppProfile struct {
 	Namespace               string              `json:"namespace" yaml:"namespace"`
-	Kubeconfig              string              `json:"kubeconfig" yaml:"kubeconfig"`
-	DependencyConfigMapName string              `json:"dependency_config_map_name" yaml:"dependencyConfigMapName"`
-	SshPortForward          *PortForwardOptions `json:"ssh_port_forward" yaml:"sshPortForward"`
+	Kubeconfig              string              `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
+	DependencyConfigMapName string              `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
+	SshPortForward          *PortForwardOptions `json:"ssh_port_forward" yaml:"sshPortForward,omitempty"`
+	Installed               bool                `json:"installed" yaml:"installed"`
+	Developing              bool                `json:"developing" yaml:"developing"`
+	PortForwarded           bool                `json:"port_forwarded" yaml:"portForwarded"`
+	Syncing                 bool                `json:"syncing" yaml:"syncing"`
 }
 
 type SvcDependency struct {
@@ -406,6 +410,9 @@ func (a *Application) SshPortForward(svcName string, ops *PortForwardOptions) er
 	}
 
 	err = a.SavePortForwardInfo(localPort, remotePort)
+	if err != nil {
+		return err
+	}
 	err = kubectl.PortForward(ctx, a.GetKubeconfig(), a.GetNamespace(), svcName, fmt.Sprintf("%d", localPort), fmt.Sprintf("%d", remotePort)) // eg : ./utils/darwin/kubectl port-forward --address 0.0.0.0 deployment/coding  12345:22
 	if err != nil {
 		fmt.Printf("failed to forward port : %v\n", err)
@@ -599,4 +606,24 @@ func (a *Application) GetDescription() string {
 		}
 	}
 	return desc
+}
+
+func (a *Application) SetDevelopingStatus(is bool) error {
+	a.AppProfile.Developing = is
+	return a.SaveProfile()
+}
+
+func (a *Application) SetInstalledStatus(is bool) error {
+	a.AppProfile.Installed = is
+	return a.SaveProfile()
+}
+
+func (a *Application) SetPortForwardedStatus(is bool) error {
+	a.AppProfile.PortForwarded = is
+	return a.SaveProfile()
+}
+
+func (a *Application) SetSyncingStatus(is bool) error {
+	a.AppProfile.Syncing = is
+	return a.SaveProfile()
 }
