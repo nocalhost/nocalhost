@@ -24,6 +24,7 @@ import (
 type ApplicationService interface {
 	Create(ctx context.Context, context string, status uint8, userId uint64) error
 	Get(ctx context.Context, id, userId uint64) (model.ApplicationModel, error)
+	PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error)
 	GetList(ctx context.Context, userId uint64) ([]*model.ApplicationModel, error)
 	Delete(ctx context.Context, userId uint64, id uint64) error
 	Update(ctx context.Context, applicationModel *model.ApplicationModel) error
@@ -39,6 +40,10 @@ func NewApplicationService() ApplicationService {
 	return &applicationService{
 		applicationRepo: application.NewClusterRepo(db),
 	}
+}
+
+func (srv *applicationService) PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error) {
+	return srv.applicationRepo.PluginGetList(ctx, userId)
 }
 
 func (srv *applicationService) Create(ctx context.Context, context string, status uint8, user_id uint64) error {

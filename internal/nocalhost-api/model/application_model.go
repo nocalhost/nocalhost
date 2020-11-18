@@ -30,6 +30,19 @@ type ApplicationModel struct {
 	Status    uint8      `json:"status" gorm:"column:status;not null" binding:"required"`
 }
 
+type PluginApplicationModel struct {
+	ID            uint64 `gorm:"column:id" json:"id"`
+	Context       string `json:"context" gorm:"column:context"`
+	UserId        uint64 `gorm:"column:user_id" json:"-"`
+	Status        uint64 `json:"status" gorm:"column:status"`
+	ClusterId     uint64 `json:"cluster_id" gorm:"column:cluster_id"`
+	KubeConfig    string `json:"kubeconfig" gorm:"column:kubeconfig"`
+	Memory        uint64 `json:"memory" gorm:"column:memory"`
+	Cpu           uint64 `json:"cpu" gorm:"column:cpu"`
+	NameSpace     string `json:"namespace" gorm:"column:namespace"`
+	InstallStatus uint64 `json:"install_status" gorm:"column:install_status"`
+}
+
 // Validate the fields.
 func (u *ApplicationModel) Validate() error {
 	validate := validator.New()
