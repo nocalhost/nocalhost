@@ -589,6 +589,39 @@
                 }
             }
         },
+        "/v1/plugin/applications": {
+            "get": {
+                "description": "Plugin - 获取应用（含安装状态）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "应用"
+                ],
+                "summary": "Plugin - 获取应用（含安装状态）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.PluginApplicationModel"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/register": {
             "post": {
                 "description": "用户注册",
@@ -960,6 +993,38 @@
                     "type": "integer"
                 },
                 "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.PluginApplicationModel": {
+            "type": "object",
+            "properties": {
+                "cluster_id": {
+                    "type": "integer"
+                },
+                "context": {
+                    "type": "string"
+                },
+                "cpu": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "install_status": {
+                    "type": "integer"
+                },
+                "kubeconfig": {
+                    "type": "string"
+                },
+                "memory": {
+                    "type": "integer"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "integer"
                 }
             }
