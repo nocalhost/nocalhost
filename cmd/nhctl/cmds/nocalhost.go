@@ -125,6 +125,7 @@ IdentityFile ~/.nhctl/key/id_rsa
 		debug("~/.ssh/config already config, ignore it")
 		return nil
 	}
+	// todo StrictHostKeyChecking no
 
 	file, err := os.OpenFile(sshConfigFile, os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
