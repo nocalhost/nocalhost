@@ -72,9 +72,9 @@ var portForwardCmd = &cobra.Command{
 
 		//svcConfig := nocalhostApp.Config.GetSvcConfig(portForwardFlags.Deployment)
 		//var configLocalPort, configRemotePort int
-		//if svcConfig != nil && svcConfig.SshPort != nil {
-		//	configLocalPort = svcConfig.SshPort.LocalPort
-		//	configRemotePort = svcConfig.SshPort.SshPort
+		//if svcConfig != nil && svcConfig.LocalSshPort != nil {
+		//	configLocalPort = svcConfig.LocalSshPort.LocalPort
+		//	configRemotePort = svcConfig.LocalSshPort.LocalSshPort
 		//}
 
 		//if portForwardFlags.LocalPort == 0 {
