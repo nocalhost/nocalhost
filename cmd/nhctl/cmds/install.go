@@ -196,6 +196,15 @@ func InstallApplication(applicationName string) error {
 			nocalhostApp.SaveProfile()
 		}
 	}
+
+	// save application info
+	nocalhostApp.AppProfile.Namespace = nameSpace
+	nocalhostApp.AppProfile.Kubeconfig = settings.KubeConfig
+	err = nocalhostApp.SaveProfile()
+	if err != nil {
+		fmt.Println("[error] fail to save nocalhostApp profile")
+	}
+
 	debug("resources path is %s\n", resourcesPath)
 	if installFlags.AppType == "" {
 		installFlags.AppType = config.AppConfig.Type
@@ -237,15 +246,6 @@ func InstallApplication(applicationName string) error {
 		InstallManifestRecursively(resourcesPath, excludeFiles)
 	} else {
 		fmt.Println("unsupported application type, it mush be helm or manifest")
-	}
-
-	nocalhostApp.AppProfile.Namespace = nameSpace
-	nocalhostApp.AppProfile.Kubeconfig = settings.KubeConfig
-
-	// save application info
-	err = nocalhostApp.SaveProfile()
-	if err != nil {
-		fmt.Println("[error] fail to save nocalhostApp profile")
 	}
 	return err
 }

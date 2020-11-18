@@ -7,10 +7,12 @@ import (
 
 const (
 	DefaultSideCarImage           = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:latest"
-	DefaultDevImage               = "centos:latest"
-	DefaultWorkDir                = "/home/code"
+	DefaultDevImage               = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
+	DefaultWorkDir                = "/home/nocalhost-dev"
+	DefaultLocalSyncDirName       = "."
 	DefaultPortForwardDir         = "port-forward"
 	DefaultForwardRemoteSshPort   = 22
+	DefaultForwardLocalSshPort    = 30002
 	DefaultNhctlHomeDirName       = ".nhctl"
 	DefaultSshKeyDirName          = "key"
 	DefaultApplicationDirName     = "application"
