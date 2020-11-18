@@ -2,6 +2,7 @@ package nhctl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -11,6 +12,7 @@ import (
 	"math/rand"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/third_party/kubectl"
+	"nocalhost/pkg/nhctl/third_party/mutagen"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
 	"os/signal"
@@ -247,38 +249,46 @@ func (a *Application) GetSvcConfig(svcName string) *ServiceDevOptions {
 
 func (a *Application) GetDefaultWorkDir(svcName string) string {
 	config := a.GetSvcConfig(svcName)
-	if config != nil {
-		w := config.WorkDir
-		if w == "" {
-			w = DefaultWorkDir
-		}
-		return w
+	result := DefaultWorkDir
+	if config != nil && config.WorkDir != "" {
+		result = config.WorkDir
 	}
-	return DefaultWorkDir
+	return result
 }
 
 func (a *Application) GetDefaultSideCarImage(svcName string) string {
 	config := a.GetSvcConfig(svcName)
-	if config != nil {
-		w := config.SideCarImage
-		if w == "" {
-			w = DefaultSideCarImage
-		}
-		return w
+	result := DefaultSideCarImage
+	if config != nil && config.SideCarImage != "" {
+		result = config.SideCarImage
 	}
-	return DefaultSideCarImage
+	return result
+}
+
+func (a *Application) GetDefaultLocalSyncDirs(svcName string) []string {
+	config := a.GetSvcConfig(svcName)
+	result := []string{DefaultLocalSyncDirName}
+	if config != nil && config.Sync != nil && len(config.Sync) > 0 {
+		result = config.Sync
+	}
+	return result
 }
 
 func (a *Application) GetDefaultDevImage(svcName string) string {
 	config := a.GetSvcConfig(svcName)
-	if config != nil {
-		w := config.DevImage
-		if w == "" {
-			w = DefaultDevImage
-		}
-		return w
+	result := DefaultDevImage
+	if config != nil && config.DevImage != "" {
+		result = config.DevImage
 	}
-	return DefaultDevImage
+	return result
+}
+
+func (a *Application) GetLocalSshPort() int {
+	result := DefaultForwardLocalSshPort
+	if a.AppProfile != nil && a.AppProfile.SshPortForward != nil && a.AppProfile.SshPortForward.LocalPort != 0 {
+		result = a.AppProfile.SshPortForward.LocalPort
+	}
+	return result
 }
 
 func (a *Application) RollBack(svcName string) error {
@@ -504,7 +514,7 @@ func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) erro
 		Handler: corev1.Handler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.IntOrString{
-					IntVal: 22,
+					IntVal: DefaultForwardRemoteSshPort,
 				},
 			},
 		},
@@ -545,4 +555,37 @@ func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) erro
 
 	fmt.Println("develop container has been updated")
 	return nil
+}
+
+type FileSyncOptions struct {
+	RemoteDir         string
+	LocalSharedFolder string
+	LocalSshPort      int
+}
+
+func (a *Application) FileSync(svcName string, ops *FileSyncOptions) error {
+	var err error
+	var localSharedDirs = a.GetDefaultLocalSyncDirs(svcName)
+	localSshPort := ops.LocalSshPort
+	if localSshPort == 0 {
+		localSshPort = a.GetLocalSshPort()
+	}
+	remoteDir := ops.RemoteDir
+	if remoteDir == "" {
+		remoteDir = a.GetDefaultWorkDir(svcName)
+	}
+
+	if ops.LocalSharedFolder != "" {
+		err = mutagen.FileSync(ops.LocalSharedFolder, remoteDir, fmt.Sprintf("%d", localSshPort))
+	} else if len(localSharedDirs) > 0 {
+		for _, dir := range localSharedDirs {
+			err = mutagen.FileSync(dir, remoteDir, fmt.Sprintf("%d", localSshPort))
+			if err != nil {
+				break
+			}
+		}
+	} else {
+		err = errors.New("which dir to sync ?")
+	}
+	return err
 }
