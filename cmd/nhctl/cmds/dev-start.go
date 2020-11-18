@@ -59,27 +59,15 @@ var devStartCmd = &cobra.Command{
 			return
 		}
 
-		//if svcConfig != nil && svcConfig.DevImage != "" {
-		//	devFlags.DevImage = svcConfig.DevImage
-		//} else if devFlags.DevLang != "" {
-		//	switch devFlags.DevLang {
-		//	case "java":
-		//		devFlags.DevImage = "roandocker/share-container-java:v3"
-		//	case "ruby":
-		//		devFlags.DevImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/share-container-ruby:v1"
-		//	default:
-		//		fmt.Printf("unsupported language : %s\n", devFlags.DevLang)
-		//		return
-		//	}
-		//} else {
-		//	fmt.Println("[error] you mush specify a devImage by using -i flag or setting devImage in config or specifying a development language")
-		//	return
-		//}
-
 		fmt.Println("entering development model...")
 		err = nocalhostApp.ReplaceImage(deployment, devStartOps)
 		if err != nil {
 			fmt.Printf("[error] fail to replace dev container: err%v\n", err)
+			os.Exit(1)
+		}
+		err = nocalhostApp.SetDevelopingStatus(true)
+		if err != nil {
+			fmt.Printf("[error] fail to update \"developing\" status\n")
 			os.Exit(1)
 		}
 	},

@@ -70,78 +70,20 @@ var portForwardCmd = &cobra.Command{
 
 		// todo check deployment if exist
 
-		//svcConfig := nocalhostApp.Config.GetSvcConfig(portForwardFlags.Deployment)
-		//var configLocalPort, configRemotePort int
-		//if svcConfig != nil && svcConfig.LocalSshPort != nil {
-		//	configLocalPort = svcConfig.LocalSshPort.LocalPort
-		//	configRemotePort = svcConfig.LocalSshPort.LocalSshPort
-		//}
-
-		//if portForwardFlags.LocalPort == 0 {
-		//	if configLocalPort != 0 {
-		//		portForwardFlags.LocalPort = configLocalPort
-		//	} else {
-		//		// generate a random local port
-		//		rand.Seed(time.Now().Unix())
-		//		portForwardFlags.LocalPort = rand.Intn(10000) + 30001
-		//		debug("local port not specify, use random port : %s", portForwardFlags.LocalPort)
-		//	}
-		//}
-
-		//if portForwardFlags.RemotePort == 0 {
-		//	if configRemotePort != 0 {
-		//		portForwardFlags.RemotePort = configRemotePort
-		//	} else {
-		//		portForwardFlags.RemotePort = nhctl.DefaultForwardRemoteSshPort
-		//		debug("remote port not specify, use default port : %d", portForwardFlags.RemotePort)
-		//	}
-		//}
+		err = nocalhostApp.SetPortForwardedStatus(true)
+		if err != nil {
+			fmt.Printf("[error] fail to update \"portForwarded\" status\n")
+			os.Exit(1)
+		}
 		err = nocalhostApp.SshPortForward(deployment, portForwardOptions)
+		err2 := nocalhostApp.SetPortForwardedStatus(false)
+		if err2 != nil {
+			fmt.Printf("[error] fail to update \"portForwarded\" status\n")
+			os.Exit(1)
+		}
 		if err != nil {
 			os.Exit(1)
 		}
 
-		//c := make(chan os.Signal)
-		//signal.Notify(c, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGINT) // kill -1
-		//ctx, cancel := context.WithCancel(context.TODO())
-		//
-		//go func() {
-		//	<-c
-		//	cancel()
-		//	fmt.Println("stop port forward")
-		//	CleanupPid()
-		//}()
-
-		// todo check if there is a same port-forward exists
-
-		//pid := os.Getpid()
-		//pidDir := nocalhostApp.GetPortForwardPidDir(pid)
-		//utils.Mush(os.Mkdir(pidDir, 0755))
-		//
-		//debug("recording port-forward info...")
-		//clientgoutils.Must(nocalhostApp.SavePortForwardInfo(portForwardFlags.LocalPort, portForwardFlags.RemotePort))
-		//err = kubectl.PortForward(ctx, settings.KubeConfig, nameSpace, portForwardFlags.Deployment, fmt.Sprintf("%d", portForwardFlags.LocalPort), fmt.Sprintf("%d", portForwardFlags.RemotePort)) // eg : ./utils/darwin/kubectl port-forward --address 0.0.0.0 deployment/coding  12345:22
-		//if err != nil {
-		//	fmt.Printf("failed to forward port : %v\n", err)
-		//	CleanupPid()
-		//}
 	},
 }
-
-//func CleanupPid() {
-//	pidDir := nocalhostApp.GetPortForwardPidDir(os.Getpid())
-//	if _, err2 := os.Stat(pidDir); err2 != nil {
-//		if os.IsNotExist(err2) {
-//			debug("%s not exits, no need to cleanup it", pidDir)
-//			return
-//		} else {
-//			fmt.Printf("[warning] fails to cleanup %s\n", pidDir)
-//		}
-//	}
-//	err := os.RemoveAll(pidDir)
-//	if err != nil {
-//		fmt.Printf("removing .pid failed, please remove it manually, err:%v\n", err)
-//	} else {
-//		debug("%s cleanup", pidDir)
-//	}
-//}
