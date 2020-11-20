@@ -62,6 +62,18 @@ definitions:
     - memory
     - user_id
     type: object
+  model.ApplicationModel:
+    properties:
+      context:
+        type: string
+      id:
+        type: integer
+      status:
+        type: integer
+    required:
+    - context
+    - status
+    type: object
   model.ClusterList:
     properties:
       cluster_mark:
@@ -76,6 +88,22 @@ definitions:
         type: string
       users_count:
         type: integer
+    type: object
+  model.ClusterModel:
+    properties:
+      id:
+        type: integer
+      info:
+        type: string
+      kubeconfig:
+        type: string
+      marks:
+        type: string
+      name:
+        type: string
+    required:
+    - kubeconfig
+    - name
     type: object
   model.ClusterUserModel:
     properties:
@@ -273,6 +301,32 @@ paths:
             $ref: '#/definitions/api.Response'
             type: object
       summary: 删除应用
+      tags:
+      - 应用
+    get:
+      consumes:
+      - application/json
+      description: 获取应用详情
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 应用 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ApplicationModel'
+            type: object
+      summary: 获取应用详情
       tags:
       - 应用
     put:
@@ -524,7 +578,34 @@ paths:
       summary: 添加集群
       tags:
       - 集群
-  /v1/cluster/{id}:
+  /v1/cluster/{id}/detail:
+    get:
+      consumes:
+      - application/json
+      description: 获取集群详情
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 集群 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 应用开发环境参数，含 kubeconfig
+          schema:
+            $ref: '#/definitions/model.ClusterModel'
+            type: object
+      summary: 获取集群详情
+      tags:
+      - 集群
+  /v1/cluster/{id}/dev_space:
     get:
       consumes:
       - application/json
