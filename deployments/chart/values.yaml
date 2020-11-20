@@ -58,5 +58,11 @@ affinity: {}
 
 
 mariadb:
-  auth.rootPassword: root
-  auth.database: nocalhost
+  db:
+    name: nocalhost
+  rootUser:
+    password: root
+  auth:
+    rootPassword: root
+    database: nocalhost
+  initdbScripts: sql
