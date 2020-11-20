@@ -44,7 +44,7 @@ func NewClusterRepo(db *gorm.DB) ApplicationRepo {
 
 func (repo *applicationRepo) PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error) {
 	var result []*model.PluginApplicationModel
-	repo.db.Table("applications").Select("applications.id,applications.Context,applications.user_id,applications.status,clusters_users.cluster_id,clusters_users.kubeconfig,clusters_users.memory,clusters_users.cpu,clusters_users.namespace,clusters_users.status as install_status").Joins("left join clusters_users on applications.id=clusters_users.application_id and clusters_users.user_id=?", userId).Scan(&result)
+	repo.db.Table("applications").Select("applications.id,applications.context,applications.user_id,applications.status,clusters_users.cluster_id,clusters_users.kubeconfig,clusters_users.memory,clusters_users.cpu,clusters_users.namespace,clusters_users.status as install_status,clusters_users.id as devspace_id").Joins("join clusters_users on applications.id=clusters_users.application_id and clusters_users.user_id=?", userId).Scan(&result)
 	return result, nil
 }
 
