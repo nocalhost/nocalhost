@@ -41,6 +41,7 @@ type PluginApplicationModel struct {
 	Cpu           uint64 `json:"cpu" gorm:"column:cpu"`
 	NameSpace     string `json:"namespace" gorm:"column:namespace"`
 	InstallStatus uint64 `json:"install_status" gorm:"column:install_status"`
+	DevSpaceId    uint64 `json:"devspace_id" gorm:"column:devspace_id"`
 }
 
 // Validate the fields.
