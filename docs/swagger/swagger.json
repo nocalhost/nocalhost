@@ -79,6 +79,44 @@
             }
         },
         "/v1/application/{id}": {
+            "get": {
+                "description": "获取应用详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "应用"
+                ],
+                "summary": "获取应用详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "应用 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ApplicationModel"
+                        }
+                    }
+                }
+            },
             "put": {
                 "description": "用户编辑应用",
                 "consumes": [
@@ -484,7 +522,47 @@
                 }
             }
         },
-        "/v1/cluster/{id}": {
+        "/v1/cluster/{id}/detail": {
+            "get": {
+                "description": "获取集群详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "集群"
+                ],
+                "summary": "获取集群详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "集群 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "应用开发环境参数，含 kubeconfig",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/cluster/{id}/dev_space": {
             "get": {
                 "description": "集群入口获取集群详情",
                 "consumes": [
@@ -946,6 +1024,24 @@
                 }
             }
         },
+        "model.ApplicationModel": {
+            "type": "object",
+            "required": [
+                "context",
+                "status"
+            ],
+            "properties": {
+                "context": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.ClusterList": {
             "type": "object",
             "properties": {
@@ -966,6 +1062,30 @@
                 },
                 "users_count": {
                     "type": "integer"
+                }
+            }
+        },
+        "model.ClusterModel": {
+            "type": "object",
+            "required": [
+                "kubeconfig",
+                "name"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "info": {
+                    "type": "string"
+                },
+                "kubeconfig": {
+                    "type": "string"
+                },
+                "marks": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },

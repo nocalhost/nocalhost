@@ -44,6 +44,29 @@ func Get(c *gin.Context) {
 	api.SendResponse(c, errno.OK, result)
 }
 
+// Create 获取应用详情
+// @Summary 获取应用详情
+// @Description 获取应用详情
+// @Tags 应用
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path string true "应用 ID"
+// @Success 200 {object} model.ApplicationModel
+// @Router /v1/application/{id} [get]
+func GetDetail(c *gin.Context) {
+	applicationId := cast.ToUint64(c.Param("id"))
+	userId, _ := c.Get("userId")
+	result, err := service.Svc.ApplicationSvc().Get(c, applicationId, userId.(uint64))
+	if err != nil {
+		log.Warnf("get Application err: %v", err)
+		api.SendResponse(c, errno.ErrApplicationGet, nil)
+		return
+	}
+
+	api.SendResponse(c, errno.OK, result)
+}
+
 // @Summary 获取应用已授权详情
 // @Description 应用入口获取应用所属集群已授权详情
 // @Tags 应用
@@ -54,7 +77,7 @@ func Get(c *gin.Context) {
 // @Param id path string true "应用 ID"
 // @Success 200 {object} model.ClusterUserModel "应用开发环境参数，含 kubeconfig"
 // @Router /v1/application/{id}/cluster/{clusterId} [get]
-func GetDetail(c *gin.Context) {
+func GetSpaceDetail(c *gin.Context) {
 	userId, _ := c.Get("userId")
 	clusterId := cast.ToUint64(c.Param("clusterId"))
 	applicationId := cast.ToUint64(c.Param("id"))
