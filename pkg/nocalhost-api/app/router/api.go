@@ -94,7 +94,8 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	{
 		c.POST("", cluster.Create)
 		c.GET("", cluster.GetList)
-		c.GET("/:id", cluster.GetDetail)
+		c.GET("/:id/dev_space", cluster.GetSpaceDetail)
+		c.GET("/:id/detail", cluster.GetDetail)
 	}
 
 	// 应用
@@ -103,13 +104,14 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	{
 		a.POST("", applications.Create)
 		a.GET("", applications.Get)
+		a.GET("/:id", applications.GetDetail)
 		a.DELETE("/:id", applications.Delete)
 		a.PUT("/:id", applications.Update)
 		a.PUT("/:id/dev_space/:spaceId/plugin_sync", applications.UpdateApplicationInstall)
 		a.POST("/:id/bind_cluster", application_cluster.Create)
 		a.POST("/:id/create_space", cluster_user.Create)
 		a.GET("/:id/dev_space", cluster_user.GetFirst)
-		a.GET("/:id/cluster/:clusterId", applications.GetDetail)
+		a.GET("/:id/cluster/:clusterId", applications.GetSpaceDetail)
 	}
 
 	// 插件接口

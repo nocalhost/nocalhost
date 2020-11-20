@@ -3,9 +3,9 @@ kind: ConfigMap
 metadata:
   name: nocalhost-api-config
 data:
-  config.yaml: |
+  config.yaml: |-
     app:
-      run_mode: release                 # gin 开发模式, debug, release, test
+      run_mode: debug                 # gin 开发模式, debug, release, test
       addr: :8080                     # HTTP绑定端口
       name: nocalhost                 # API Server Name
       url: http://127.0.0.1:8080      # pingServer
@@ -14,25 +14,12 @@ data:
     log:
       writers: stdout                 # 有2个可选项：file,stdout, 可以两者同时选择输出位置，有2个可选项：file,stdout。
       logger_level: DEBUG             # 日志级别，DEBUG, INFO, WARN, ERROR, FATAL
-      
     mysql:
       name: nocalhost
-      addr: {{ include "nocalhost-api.fullname" . }}-mariadb:3306
+      addr: mariadb:3306
       username: root
       password: root
       show_log: true                  # 打印 SQL 日志
       max_idle_conn: 10               # 最大闲置的连接数
       max_open_conn: 60               # 最大打开的连接数, 需要小于数据库配置中的 max_connections 数
       conn_max_life_time: 60          # 连接重用的最大时间，单位分钟
-    cache:
-      driver: "redis"                 # 缓存驱动，可以选memory、redis, 默认redis
-      prefix: "nocalhost:"            # cache key前缀
-    redis:
-      addr: "{{ include "nocalhost-api.fullname" . }}-redis-master:6379"
-      password: "" # no password set
-      db: 0 # use default DB
-      dial_timeout: 60s   # 单位：秒
-      read_timeout: 2s   # 单位：秒
-      write_timeout: 2s  # 单位：秒
-      pool_size: 60
-      pool_timeout: 30s
