@@ -494,6 +494,8 @@ func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) erro
 	dep.Spec.Template.Spec.Containers[0].Name = "nocalhost-dev"
 	dep.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, volMount)
+	// delete users SecurityContext
+	dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
 
 	// set the entry
 	dep.Spec.Template.Spec.Containers[0].WorkingDir = workDir
