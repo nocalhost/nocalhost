@@ -15,7 +15,7 @@ package applications
 
 // 创建应用请求体
 type CreateAppRequest struct {
-	Context string `json:"context" binding:"required"`
+	Context string `json:"context" binding:"required" example:"{\"application_url\":\"git@github.com:nocalhost/bookinfo.git\",\"application_name\":\"应用名\",\"source\":\"git/helm_repo\",\"install_type\":\"manifest/helm_chart\",\"resource_dir\":\"路径\"}"`
 	Status  *uint8 `json:"status" binding:"required"`
 }
 
