@@ -17,13 +17,16 @@ const (
 	DefaultSshKeyDirName          = "key"
 	DefaultApplicationDirName     = "application"
 	DefaultApplicationProfilePath = ".profile.yaml"
+	DefaultApplicationConfigDir   = ".nocalhost"
+	DefaultApplicationConfigName  = "config.yaml"
+	DefaultNewFilePermission      = 0755
 	DefaultClientGoTimeOut        = time.Minute * 5
 )
 
 type NocalHostAppConfig struct {
 	PreInstall []*PreInstallItem    `json:"pre_install" yaml:"preInstalls"`
 	SvcConfigs []*ServiceDevOptions `json:"svc_config" yaml:"svcConfigs"`
-	AppConfig  AppConfig            `json:"app_config" yaml:"appConfig"`
+	AppConfig  *AppConfig           `json:"app_config" yaml:"appConfig"`
 }
 
 type PreInstallItem struct {
@@ -32,9 +35,9 @@ type PreInstallItem struct {
 }
 
 type AppConfig struct {
-	Name         string `json:"name" yaml:"name"`
-	Type         string `json:"type" yaml:"type"`
-	ResourcePath string `json:"resource_path" yaml:"resourcePath"`
+	Name         string  `json:"name" yaml:"name"`
+	Type         AppType `json:"type" yaml:"type"`
+	ResourcePath string  `json:"resource_path" yaml:"resourcePath"`
 }
 
 type ServiceDevOptions struct {
