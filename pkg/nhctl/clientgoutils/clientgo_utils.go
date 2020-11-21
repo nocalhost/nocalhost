@@ -98,6 +98,7 @@ func (c *ClientGoUtils) CheckIfNamespaceIsAccessible(ctx context.Context, namesp
 	}
 	_, err := c.GetDeployments(ctx, namespace)
 	if err != nil {
+		fmt.Printf("err:%v\n", err)
 		return false, errors.New(fmt.Sprintf("namespace \"%s\" is unaccessible", namespace))
 	} else {
 		return true, nil
@@ -334,24 +335,26 @@ func (c *ClientGoUtils) ListPodsOfDeployment(namespace string, deployName string
 
 OuterLoop:
 	for _, pod := range podList.Items {
-		if pod.OwnerReferences != nil {
-			for _, ref := range pod.OwnerReferences {
-				if ref.Kind == "ReplicaSet" {
-					rss, _ := c.GetReplicaSetsControlledByDeployment(context.TODO(), namespace, deployName)
-					if rss != nil {
-						for _, rs := range rss {
-							if rs.Name == ref.Name {
-								result = append(result, pod)
-								continue OuterLoop
-							}
-						}
-					}
+		if pod.OwnerReferences == nil {
+			continue
+		}
+		for _, ref := range pod.OwnerReferences {
+			if ref.Kind != "ReplicaSet" {
+				continue
+			}
+			rss, _ := c.GetReplicaSetsControlledByDeployment(context.TODO(), namespace, deployName)
+			if rss == nil {
+				continue
+			}
+			for _, rs := range rss {
+				if rs.Name == ref.Name {
+					result = append(result, pod)
+					continue OuterLoop
 				}
 			}
 		}
 	}
 	return result, nil
-
 }
 
 func (c *ClientGoUtils) GetReplicaSetsControlledByDeployment(ctx context.Context, namespace string, deploymentName string) (map[int]*v1.ReplicaSet, error) {

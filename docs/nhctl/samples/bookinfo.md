@@ -31,8 +31,19 @@ kubectl create rolebinding default-view \
 
 ### 安装应用
 
+对于 git 上存放的应用：
 ```shell
 nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $NOCALHOST_NS
+```
+
+直接从 helm repo 中安装的应用：
+指定 repo name 安装：
+```shell
+nhctl install $APPNAME --debug -n $NOCALHOST_NS -t helm-repo --helm-chart-name jenkins --helm-repo-name https://charts.jenkins.io --set persistence.size=10Gi
+```
+指定 repo url 安装：
+```shell
+nhctl install $APPNAME --debug -n $NOCALHOST_NS -t helm-repo  --helm-chart-name jenkins --helm-repo-url https://charts.jenkins.io --set persistence.size=10Gi
 ```
 
 参数说明：
@@ -41,6 +52,7 @@ nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $
 - -u : git url 地址
 - -t : 应用类型 (可选)
 - --debug : 打印 debug 日志输出
+- --set : 同 helm --set
 
 安装完即可通过：`http://HOST_IP:30001/productpage` 访问 bookinfo 应用。
 
@@ -119,4 +131,10 @@ rdebug-ide details.rb 9080 # debug 模式运行 details 服务
 
 ```shell
 nhctl dev end $APPNAME -d  details-v1 
+```
+
+#### 卸载应用
+
+```shell
+nhctl uninstall $APPNAME
 ```

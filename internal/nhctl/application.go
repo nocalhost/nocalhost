@@ -22,16 +22,25 @@ import (
 	"time"
 )
 
+type AppType string
+
+const (
+	Helm     AppType = "helm"
+	HelmRepo AppType = "helm-repo"
+	Manifest AppType = "manifest"
+)
+
 type Application struct {
 	Name       string
-	Config     *NocalHostAppConfig
-	AppProfile *AppProfile // runtime info
+	Config     *NocalHostAppConfig // if config.yaml not exist, this should be nil
+	AppProfile *AppProfile         // runtime info
 }
 
 type AppProfile struct {
 	Namespace               string              `json:"namespace" yaml:"namespace"`
 	Kubeconfig              string              `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
 	DependencyConfigMapName string              `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
+	AppType                 AppType             `json:"app_type" yaml:"appType"`
 	SshPortForward          *PortForwardOptions `json:"ssh_port_forward" yaml:"sshPortForward,omitempty"`
 	Installed               bool                `json:"installed" yaml:"installed"`
 	Developing              bool                `json:"developing" yaml:"developing"`
@@ -86,19 +95,33 @@ func (a *Application) GetDependencies() []*SvcDependency {
 }
 
 func (a *Application) IsHelm() bool {
-	return a.Config.AppConfig.Type == "helm"
+	return a.AppProfile.AppType == Helm || a.AppProfile.AppType == HelmRepo
 }
 
 func (a *Application) IsManifest() bool {
-	return a.Config.AppConfig.Type == "manifest"
+	return a.Config.AppConfig.Type == Manifest
 }
 
 func (a *Application) GetResourceDir() string {
-	return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, a.Config.AppConfig.ResourcePath)
+	if a.Config != nil {
+		return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, a.Config.AppConfig.ResourcePath)
+	} else {
+		return ""
+	}
 }
 
 func (a *Application) GetNamespace() string {
 	return a.AppProfile.Namespace
+}
+
+func (a *Application) GetType() (AppType, error) {
+	if a.Config == nil {
+		return "", errors.New("config.yaml not found")
+	}
+	if a.Config.AppConfig != nil && a.Config.AppConfig.Type != "" {
+		return a.Config.AppConfig.Type, nil
+	}
+	return "", errors.New("can not get app type from config.yaml")
 }
 
 func (a *Application) GetKubeconfig() string {
@@ -125,12 +148,27 @@ func (a *Application) Init() error {
 		}
 	}
 
-	a.Config = &NocalHostAppConfig{}
-	fileBytes, err := ioutil.ReadFile(a.GetConfigPath())
-	if err != nil {
-		return err
+	configDir := a.GetConfigDir()
+	if _, err2 := os.Stat(configDir); err2 != nil {
+		if os.IsNotExist(err2) {
+			err2 = os.Mkdir(configDir, DefaultNewFilePermission)
+			if err2 != nil {
+				return err2
+			}
+		} else {
+			return err2
+		}
 	}
-	err = yaml.Unmarshal(fileBytes, a.Config)
+
+	configFile := a.GetConfigPath()
+	if _, err2 := os.Stat(configFile); err2 == nil {
+		a.Config = &NocalHostAppConfig{}
+		fileBytes, err := ioutil.ReadFile(a.GetConfigPath())
+		if err != nil {
+			return err
+		}
+		err = yaml.Unmarshal(fileBytes, a.Config)
+	}
 
 	a.loadProfile()
 
@@ -165,11 +203,15 @@ func (a *Application) getProfilePath() string {
 }
 
 func (a *Application) GetHomeDir() string {
-	return fmt.Sprintf("%s%c%s%c%s%c%s", GetHomePath(), os.PathSeparator, ".nhctl", os.PathSeparator, "application", os.PathSeparator, a.Name)
+	return fmt.Sprintf("%s%c%s%c%s%c%s", GetHomePath(), os.PathSeparator, DefaultNhctlHomeDirName, os.PathSeparator, "application", os.PathSeparator, a.Name)
+}
+
+func (a *Application) GetConfigDir() string {
+	return fmt.Sprintf("%s%c%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultApplicationConfigDir)
 }
 
 func (a *Application) GetConfigPath() string {
-	return fmt.Sprintf("%s%c%s%c%s", a.GetHomeDir(), os.PathSeparator, ".nocalhost", os.PathSeparator, "config.yaml")
+	return fmt.Sprintf("%s%c%s", a.GetConfigDir(), os.PathSeparator, DefaultApplicationConfigName)
 }
 
 func (a *Application) GetPortForwardDir() string {
@@ -617,6 +659,11 @@ func (a *Application) SetDevelopingStatus(is bool) error {
 
 func (a *Application) SetInstalledStatus(is bool) error {
 	a.AppProfile.Installed = is
+	return a.SaveProfile()
+}
+
+func (a *Application) SetAppType(t AppType) error {
+	a.AppProfile.AppType = t
 	return a.SaveProfile()
 }
 
