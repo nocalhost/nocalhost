@@ -53,6 +53,9 @@ var (
 	ErrPermissionCluster        = &Errno{Code: 40106, Message: "No permission for this cluster"}
 	ErrApplicationInstallUpdate = &Errno{Code: 40107, Message: "Failed to update app installation status, please try again"}
 
+	// application-cluster
+	ErrApplicationBoundClusterList = &Errno{Code: 40108, Message: "Failed to get application bound cluster list, please try again"}
+
 	// cluster-user errors
 	ErrBindUserClsuterRepeat                     = &Errno{Code: 50100, Message: "The user has authorized this application"}
 	ErrBindNameSpaceCreate                       = &Errno{Code: 50101, Message: "Cluster user authorization failed: failed to create namespace"}

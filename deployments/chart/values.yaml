@@ -56,13 +56,25 @@ tolerations: []
 
 affinity: {}
 
-
 mariadb:
-  db:
-    name: nocalhost
-  rootUser:
-    password: root
+  commonAnnotations: {"helm.sh/hook":"pre-install","helm.sh/hook-weight":"1"}
   auth:
     rootPassword: root
     database: nocalhost
-  initdbScripts: sql
+  primary:
+    persistence:
+      size: "10Gi"
+    extraVolumes:
+    - name: nocalhost-api-sql-config-volume
+      configMap:
+        name: nocalhost-api-sql-init-config
+        defaultMode: 0755
+    extraVolumeMounts:
+    - name: nocalhost-api-sql-config-volume
+      mountPath: /docker-entrypoint-initdb.d/
+
+#  initdbScripts:
+#    my_init_script.sh: |
+#      #!/bin/bash
+#      echo "init database"
+#      mysql -u root -p root nocalhost < /opt/init-sql/nocalhost.sql
