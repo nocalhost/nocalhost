@@ -1,0 +1,32 @@
+preInstalls: []
+
+appConfig:
+  name: nocalhost
+  type: helm
+  resourcePath: deployments/chart
+
+svcConfigs:
+  - name: nocalhost-api
+    type: deployment
+    gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost.git
+    devEnv: go  # java|go|node|php
+    devImage: golang
+    sync: 
+    - .:/home/nocalhost-dev
+    ignore: []
+    devPort:
+    - 8080:8080
+    pods: 
+    - "mariadb"
+  - name: nocalhost-web
+    type: deployment
+    gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost-web.git
+    devEnv: node
+    devImage: node
+    sync: 
+    - .:/home/nocalhost-dev
+    ignore: []
+    devPort:
+    - 8080:8080
+    pods: 
+    - "nocalhost-api"
