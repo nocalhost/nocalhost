@@ -109,6 +109,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		a.PUT("/:id", applications.Update)
 		a.PUT("/:id/dev_space/:spaceId/plugin_sync", applications.UpdateApplicationInstall)
 		a.POST("/:id/bind_cluster", application_cluster.Create)
+		a.GET("/:id/bound_cluster", application_cluster.GetBound)
 		a.POST("/:id/create_space", cluster_user.Create)
 		a.GET("/:id/dev_space", cluster_user.GetFirst)
 		a.GET("/:id/cluster/:clusterId", applications.GetSpaceDetail)

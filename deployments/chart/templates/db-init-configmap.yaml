@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nocalhost-api-sql-init-config
+data:
+  nocalhost.sql: |-
+{{ .Files.Get "sql/nocalhost-api.sql" | indent 4 }}
