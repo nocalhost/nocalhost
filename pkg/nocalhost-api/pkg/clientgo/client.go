@@ -357,8 +357,9 @@ func (c *GoClient) GetClusterVersion() (*version.Info, error) {
 }
 
 // Watch serviceAccount
+// Bug Fix in Tencent TKE servieAccount secret will not return immediately
 func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceAccount, error) {
-	resourceWatchTimeoutSeconds := int64(180)
+	resourceWatchTimeoutSeconds := int64(30)
 	log.Infof("GET ServiceAccount name %s, namespace %s: ", name, namespace)
 	var serviceAccount *corev1.ServiceAccount
 	watcher, err := c.client.CoreV1().ServiceAccounts(namespace).Watch(context.TODO(), metav1.ListOptions{
@@ -372,9 +373,47 @@ func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceA
 	for event := range watcher.ResultChan() {
 		if event.Type == watch.Added {
 			log.Infof("ServiceAccount added")
-			serviceAccount = event.Object.(*corev1.ServiceAccount)
+			//serviceAccount = event.Object.(*corev1.ServiceAccount)
+			//log.Infof("ServiceAccount %s", serviceAccount)
+			// Tencent TKE can not return secrets immediately
 			break
 		}
+	}
+
+	// watch serviceAccount secret
+	// var secret *corev1.Secret
+	// TKE unknow: the server rejected our request for an unknown reason (get secrets) can not watch secret
+	//swatcher, err := c.client.CoreV1().Secrets(namespace).Watch(context.TODO(), metav1.ListOptions{
+	//	//FieldSelector:  fields.Set{"metadata.annotations.kubernetes.io/service-account.name": name}.AsSelector().String(),
+	//	FieldSelector:  "metadata.annotations.kubernetes.io/service-account.name=" + name,
+	//	Watch:          true,
+	//	TimeoutSeconds: &resourceWatchTimeoutSeconds,
+	//})
+	//if err != nil {
+	//	log.Infof("err %s", err)
+	//}
+	//for sevent := range swatcher.ResultChan() {
+	//	if sevent.Type == watch.Added {
+	//		log.Infof("ServiceAccount Secret added")
+	//		//secret = sevent.Object.(*corev1.Secret)
+	//		log.Infof("ServiceAccount Secret added %s")
+	//		break
+	//	}
+	//}
+
+	// loop and wait for serviceAccountToken Create,especially for TKE is slow
+	// wait 30S
+	i := 0
+	for {
+		if i > 300 {
+			break
+		}
+		serviceAccount, err = c.client.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if serviceAccount != nil && len(serviceAccount.Secrets) > 0 {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+		i++
 	}
 	return serviceAccount, nil
 }
