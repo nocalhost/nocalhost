@@ -18,18 +18,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/tools"
 	"os"
 	"sync"
 	"time"
 )
 
 func init() {
-	//installCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
-	//installCmd.Flags().StringVarP(&installFlags.Url, "url", "u", "", "resource url")
-	//installCmd.Flags().StringVarP(&installFlags.ResourcesDir, "dir", "d", "", "the dir of helm package or manifest")
-	//installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "", "f", "", "helm's Value.yaml")
-	//installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", "nocalhostApp type: helm or manifest")
-	//installCmd.Flags().BoolVar(&installFlags.ForceInstall, "force", installFlags.ForceInstall, "force install")
 	rootCmd.AddCommand(uninstallCmd)
 }
 
@@ -87,8 +82,31 @@ func UninstallApplication(applicationName string) error {
 		debug("no config map found")
 	}
 
+	if nameSpace == "" {
+		nameSpace = app.AppProfile.Namespace
+	}
+
 	if app.IsHelm() {
 		// todo
+		commonParams := make([]string, 0)
+		if nameSpace != "" {
+			commonParams = append(commonParams, "--namespace", nameSpace)
+		}
+		if settings.KubeConfig != "" {
+			commonParams = append(commonParams, "--kubeconfig", settings.KubeConfig)
+		}
+		if settings.Debug {
+			commonParams = append(commonParams, "--debug")
+		}
+		installParams := []string{"uninstall", applicationName}
+		installParams = append(installParams, commonParams...)
+		output, err := tools.ExecCommand(nil, false, "helm", installParams...)
+		if err != nil {
+			printlnErr("fail to uninstall helm nocalhostApp", err)
+			return err
+		}
+		debug(output)
+		fmt.Printf("\"%s\" has been uninstalled \n", applicationName)
 	} else if app.IsManifest() {
 		start := time.Now()
 		wg := sync.WaitGroup{}

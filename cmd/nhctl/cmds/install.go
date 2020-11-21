@@ -48,6 +48,11 @@ type InstallFlags struct {
 	HelmValueFile    string
 	ForceInstall     bool
 	IgnorePreInstall bool
+	HelmSet          string
+	HelmRepoName     string
+	HelmRepoUrl      string
+	HelmChartName    string
+	Wait             bool
 }
 
 var installFlags = InstallFlags{
@@ -59,9 +64,14 @@ func init() {
 	installCmd.Flags().StringVarP(&installFlags.Url, "url", "u", "", "resource url")
 	//installCmd.Flags().StringVarP(&installFlags.ResourcesDir, "dir", "d", "", "the dir of helm package or manifest")
 	installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "", "f", "", "helm's Value.yaml")
-	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", "nocalhostApp type: helm or manifest")
+	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", "nocalhostApp type: helm or helm-repo or manifest")
 	installCmd.Flags().BoolVar(&installFlags.ForceInstall, "force", installFlags.ForceInstall, "force install")
+	installCmd.Flags().BoolVar(&installFlags.Wait, "wait", installFlags.Wait, "wait for completion")
 	installCmd.Flags().BoolVar(&installFlags.IgnorePreInstall, "ignore-pre-install", installFlags.IgnorePreInstall, "ignore pre-install")
+	installCmd.Flags().StringVar(&installFlags.HelmSet, "set", "", "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
+	installCmd.Flags().StringVar(&installFlags.HelmRepoName, "helm-repo-name", "", "chart repository name")
+	installCmd.Flags().StringVar(&installFlags.HelmRepoUrl, "helm-repo-url", "", "chart repository url where to locate the requested chart")
+	installCmd.Flags().StringVar(&installFlags.HelmChartName, "helm-chart-name", "", "chart name")
 	rootCmd.AddCommand(installCmd)
 }
 
@@ -78,9 +88,19 @@ var installCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
 		var err error
-		if installFlags.Url == "" {
-			fmt.Println("error: please use -u to specify url of git")
-			return
+		if installFlags.Url == "" && installFlags.AppType != string(nhctl.HelmRepo) {
+			fmt.Println("error: if app type is not helm-repo , --url must be specified")
+			os.Exit(1)
+		}
+		if installFlags.AppType == string(nhctl.HelmRepo) {
+			if installFlags.HelmChartName == "" {
+				fmt.Println("error: --helm-chart-name must be specified")
+				os.Exit(1)
+			}
+			if installFlags.HelmRepoUrl == "" && installFlags.HelmRepoName == "" {
+				fmt.Println("error: --helm-repo-url or --helm-repo-name must be specified")
+				os.Exit(1)
+			}
 		}
 		if nocalhost.CheckIfApplicationExist(applicationName) {
 			fmt.Printf("[error] application \"%s\" already exists\n", applicationName)
@@ -122,14 +142,14 @@ func InstallApplication(applicationName string) error {
 		debug("use default namespace \"%s\"", ns)
 	}
 	// check if namespace is available
-	timeOutCtx, _ := context.WithTimeout(context.TODO(), nhctl.DefaultClientGoTimeOut)
-	ava, err := client.CheckIfNamespaceIsAccessible(timeOutCtx, nameSpace)
-	if err == nil && ava {
-		debug("[check] %s is available", nameSpace)
-	} else {
-		fmt.Printf("[error] \"%s\" is unavailable\n", nameSpace)
-		return err
-	}
+	//timeOutCtx, _ := context.WithTimeout(context.TODO(), nhctl.DefaultClientGoTimeOut)
+	//ava, err := client.CheckIfNamespaceIsAccessible(timeOutCtx, nameSpace)
+	//if err == nil && ava {
+	//	debug("[check] %s is available", nameSpace)
+	//} else {
+	//	fmt.Printf("[error] \"%s\" is unavailable\n", nameSpace)
+	//	return err
+	//}
 
 	// create application dir
 	applicationDir := GetApplicationHomeDir(applicationName)
@@ -137,63 +157,74 @@ func InstallApplication(applicationName string) error {
 		if os.IsNotExist(err) {
 			debug("%s not exists, create application dir", applicationDir)
 			utils.Mush(os.Mkdir(applicationDir, 0755))
-			utils.Mush(DownloadApplicationToNhctlHome(applicationDir))
+			//utils.Mush(DownloadApplicationToNhctlHome(applicationDir))
 		} else {
 			panic(err)
 		}
 	} else if !installFlags.ForceInstall {
 		fmt.Printf("application %s already exists, please use --force to force it to be reinstalled\n", applicationName)
-		return err
+		return errors.New("application already exists, please use --force to force it to be reinstalled")
 	} else if installFlags.ForceInstall {
 		fmt.Printf("force to reinstall %s\n", applicationName)
 		utils.Mush(os.RemoveAll(applicationDir))
 		utils.Mush(os.Mkdir(applicationDir, 0755))
-		utils.Mush(DownloadApplicationToNhctlHome(applicationDir))
+		//utils.Mush(DownloadApplicationToNhctlHome(applicationDir))
+	}
+
+	// init application dir
+	if installFlags.Url != "" {
+		err = DownloadApplicationToNhctlHome(applicationDir)
+		if err != nil {
+			fmt.Printf("[error] failed to clone : %s\n", installFlags.Url)
+			return err
+		}
 	}
 
 	nocalhostApp, err = nhctl.NewApplication(applicationName)
 	utils.Mush(err)
-	config := nocalhostApp.Config
+	//config := nocalhostApp.Config
 
-	resourcesPath = nocalhostApp.GetResourceDir()
+	if installFlags.AppType != string(nhctl.HelmRepo) {
+		resourcesPath = nocalhostApp.GetResourceDir()
 
-	debug("install dependency config map")
-	appDep := nocalhostApp.GetDependencies()
-	if appDep != nil {
-		var depForYaml = &struct {
-			Dependency []*nhctl.SvcDependency `json:"dependency" yaml:"dependency"`
-		}{
-			Dependency: appDep,
-		}
+		debug("install dependency config map")
+		appDep := nocalhostApp.GetDependencies()
+		if appDep != nil {
+			var depForYaml = &struct {
+				Dependency []*nhctl.SvcDependency `json:"dependency" yaml:"dependency"`
+			}{
+				Dependency: appDep,
+			}
 
-		yamlBytes, err := yaml.Marshal(depForYaml)
-		if err != nil {
-			return err
-		}
+			yamlBytes, err := yaml.Marshal(depForYaml)
+			if err != nil {
+				return err
+			}
 
-		dataMap := make(map[string]string, 0)
-		dataMap["nocalhost"] = string(yamlBytes)
+			dataMap := make(map[string]string, 0)
+			dataMap["nocalhost"] = string(yamlBytes)
 
-		configMap := &v1.ConfigMap{
-			Data: dataMap,
-		}
+			configMap := &v1.ConfigMap{
+				Data: dataMap,
+			}
 
-		var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
-		rand.Seed(time.Now().UnixNano())
-		b := make([]rune, 4)
-		for i := range b {
-			b[i] = letterRunes[rand.Intn(len(letterRunes))]
-		}
-		generateName := fmt.Sprintf("nocalhost-depends-do-not-overwrite-%s", string(b))
-		configMap.Name = generateName
-		_, err = client.ClientSet.CoreV1().ConfigMaps(nameSpace).Create(context.TODO(), configMap, metav1.CreateOptions{})
-		if err != nil {
-			fmt.Printf("[error] fail to create dependency config")
-			return err
-		} else {
-			debug("config map %s has been installed, record it", configMap.Name)
-			nocalhostApp.AppProfile.DependencyConfigMapName = configMap.Name
-			nocalhostApp.SaveProfile()
+			var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
+			rand.Seed(time.Now().UnixNano())
+			b := make([]rune, 4)
+			for i := range b {
+				b[i] = letterRunes[rand.Intn(len(letterRunes))]
+			}
+			generateName := fmt.Sprintf("nocalhost-depends-do-not-overwrite-%s", string(b))
+			configMap.Name = generateName
+			_, err = client.ClientSet.CoreV1().ConfigMaps(nameSpace).Create(context.TODO(), configMap, metav1.CreateOptions{})
+			if err != nil {
+				fmt.Printf("[error] fail to create dependency config")
+				return err
+			} else {
+				debug("config map %s has been installed, record it", configMap.Name)
+				nocalhostApp.AppProfile.DependencyConfigMapName = configMap.Name
+				nocalhostApp.SaveProfile()
+			}
 		}
 	}
 
@@ -206,20 +237,43 @@ func InstallApplication(applicationName string) error {
 	}
 
 	debug("resources path is %s\n", resourcesPath)
-	if installFlags.AppType == "" {
-		installFlags.AppType = config.AppConfig.Type
-		debug("[nocalhost config] nocalhostApp type: %s", config.AppConfig.Type)
+	appType, err := nocalhostApp.GetType()
+	if err != nil && installFlags.AppType == "" {
+		return err
 	}
-	if installFlags.AppType == "helm" {
-		params := []string{"upgrade", "--install", "--wait", applicationName, resourcesPath, "--debug"}
+	if installFlags.AppType != "" {
+		appType = nhctl.AppType(installFlags.AppType)
+	}
+	debug("[nocalhost config] nocalhostApp type: %s", appType)
+	switch appType {
+	case nhctl.Helm:
+		commonParams := make([]string, 0)
 		if nameSpace != "" {
-			params = append(params, "-n", nameSpace)
+			commonParams = append(commonParams, "-n", nameSpace)
 		}
 		if settings.KubeConfig != "" {
-			params = append(params, "--kubeconfig", settings.KubeConfig)
+			commonParams = append(commonParams, "--kubeconfig", settings.KubeConfig)
 		}
+		if settings.Debug {
+			commonParams = append(commonParams, "--debug")
+		}
+
+		params := []string{"install", applicationName, resourcesPath}
+		if installFlags.Wait {
+			params = append(params, "--wait")
+		}
+		if installFlags.HelmSet != "" {
+			params = append(params, "--set", installFlags.HelmSet)
+		}
+		if installFlags.HelmValueFile != "" {
+			params = append(params, "-f", installFlags.HelmSet)
+		}
+		params = append(params, commonParams...)
+
 		fmt.Println("install helm application, this may take several minutes, please waiting...")
-		depParams := []string{"dependency", "build", resourcesPath, "--debug"}
+
+		depParams := []string{"dependency", "build", resourcesPath}
+		depParams = append(depParams, commonParams...)
 		depBuildOutput, err := tools.ExecCommand(nil, false, "helm", depParams...)
 		if err != nil {
 			printlnErr("fail to build dependency for helm app", err)
@@ -234,27 +288,77 @@ func InstallApplication(applicationName string) error {
 		}
 		debug(output)
 		fmt.Printf(`helm nocalhostApp installed, use "helm list -n %s" to get the information of the helm release`+"\n", nameSpace)
-	} else if installFlags.AppType == "manifest" {
+	case nhctl.Manifest:
 		excludeFiles := make([]string, 0)
-		if config.PreInstall != nil && !installFlags.IgnorePreInstall {
+		if nocalhostApp.Config.PreInstall != nil && !installFlags.IgnorePreInstall {
 			debug("[nocalhost config] reading pre-install hook")
-			excludeFiles, err = PreInstall(resourcesPath, config.PreInstall)
+			excludeFiles, err = PreInstall(resourcesPath, nocalhostApp.Config.PreInstall)
 			utils.Mush(err)
 		}
 
 		// install manifest recursively, don't install pre-install workload again
-		InstallManifestRecursively(resourcesPath, excludeFiles)
-	} else {
-		fmt.Println("unsupported application type, it mush be helm or manifest")
+		err = InstallManifestRecursively(resourcesPath, excludeFiles)
+	case nhctl.HelmRepo:
+		commonParams := make([]string, 0)
+		if nameSpace != "" {
+			commonParams = append(commonParams, "--namespace", nameSpace)
+		}
+		if settings.KubeConfig != "" {
+			commonParams = append(commonParams, "--kubeconfig", settings.KubeConfig)
+		}
+		if settings.Debug {
+			commonParams = append(commonParams, "--debug")
+		}
+
+		chartName := installFlags.HelmChartName
+		installParams := []string{"install", applicationName}
+		if installFlags.Wait {
+			installParams = append(installParams, "--wait")
+		}
+		//if installFlags.HelmRepoUrl
+		if installFlags.HelmRepoName != "" {
+			installParams = append(installParams, fmt.Sprintf("%s/%s", installFlags.HelmRepoName, chartName))
+		} else if installFlags.HelmRepoUrl != "" {
+			installParams = append(installParams, chartName, "--repo", installFlags.HelmRepoUrl)
+		}
+		if installFlags.HelmSet != "" {
+			installParams = append(installParams, "--set", installFlags.HelmSet)
+		}
+		if installFlags.HelmValueFile != "" {
+			installParams = append(installParams, "-f", installFlags.HelmSet)
+		}
+		installParams = append(installParams, commonParams...)
+
+		fmt.Println("install helm application, this may take several minutes, please waiting...")
+
+		//depParams := []string{"dependency", "build", resourcesPath}
+		//depParams = append(depParams, commonParams...)
+		//depBuildOutput, err := tools.ExecCommand(nil, false, "helm", depParams...)
+		//if err != nil {
+		//	printlnErr("fail to build dependency for helm app", err)
+		//	return err
+		//}
+		//debug(depBuildOutput)
+
+		output, err := tools.ExecCommand(nil, false, "helm", installParams...)
+		if err != nil {
+			printlnErr("fail to install helm nocalhostApp", err)
+			return err
+		}
+		debug(output)
+		fmt.Printf(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`+"\n", nameSpace)
+
+	default:
+		fmt.Println("unsupported application type, it mush be helm or helm-repo or manifest")
+		return errors.New("unsupported application type, it mush be helm or helm-repo or manifest")
 	}
 
-	if err == nil {
-		err = nocalhostApp.SetInstalledStatus(true)
-		if err != nil {
-			return errors.New("fail to update \"installed\" status")
-		}
+	nocalhostApp.SetAppType(appType)
+	err = nocalhostApp.SetInstalledStatus(true)
+	if err != nil {
+		return errors.New("fail to update \"installed\" status")
 	}
-	return err
+	return nil
 }
 
 func DownloadApplicationToNhctlHome(homePath string) error {
