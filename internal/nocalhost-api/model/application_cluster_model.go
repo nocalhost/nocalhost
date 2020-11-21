@@ -29,6 +29,17 @@ type ApplicationClusterModel struct {
 	DeletedAt     *time.Time `gorm:"column:deleted_at" json:"-"`
 }
 
+// ApplicationCluserJoinClusterModel
+type ApplicationClusterJoinModel struct {
+	ApplicationId               uint64    `gorm:"column:application_id" json:"application_id"`
+	ClusterId                   uint64    `gorm:"column:cluster_id" json:"cluster_id"`
+	ClusterName                 string    `gorm:"column:cluster_name" json:"cluster_name"`
+	ClusterDevSpaceCount        uint64    `gorm:"column:dev_space_count" json:"dev_space_count"`
+	ClusterInfo                 string    `gorm:"column:cluster_info" json:"cluster_info"`
+	ClusterStatus               uint64    `gorm:"column:cluster_status" json:"cluster_status"`
+	ApplicationClusterCreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
+}
+
 // Validate the fields.
 func (u *ApplicationClusterModel) Validate() error {
 	validate := validator.New()

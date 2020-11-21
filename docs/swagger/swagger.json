@@ -254,6 +254,46 @@
                 }
             }
         },
+        "/v1/application/{id}/bound_cluster": {
+            "get": {
+                "description": "获取应用已关联集群",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "应用"
+                ],
+                "summary": "获取应用已关联集群",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "应用 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ApplicationClusterModel"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/application/{id}/cluster/{clusterId}": {
             "get": {
                 "description": "应用入口获取应用所属集群已授权详情",
@@ -1020,6 +1060,20 @@
                     "type": "integer"
                 },
                 "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ApplicationClusterModel": {
+            "type": "object",
+            "properties": {
+                "application_id": {
+                    "type": "integer"
+                },
+                "cluster_id": {
+                    "type": "integer"
+                },
+                "id": {
                     "type": "integer"
                 }
             }

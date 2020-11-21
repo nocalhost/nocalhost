@@ -62,6 +62,15 @@ definitions:
     - memory
     - user_id
     type: object
+  model.ApplicationClusterModel:
+    properties:
+      application_id:
+        type: integer
+      cluster_id:
+        type: integer
+      id:
+        type: integer
+    type: object
   model.ApplicationModel:
     properties:
       context:
@@ -394,6 +403,33 @@ paths:
             $ref: '#/definitions/api.Response'
             type: object
       summary: 关联集群
+      tags:
+      - 应用
+  /v1/application/{id}/bound_cluster:
+    get:
+      consumes:
+      - application/json
+      description: 获取应用已关联集群
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 应用 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ApplicationClusterModel'
+            type: object
+      summary: 获取应用已关联集群
       tags:
       - 应用
   /v1/application/{id}/cluster/{clusterId}:

@@ -16,7 +16,7 @@ data:
       logger_level: DEBUG             # 日志级别，DEBUG, INFO, WARN, ERROR, FATAL
     mysql:
       name: nocalhost
-      addr: mariadb:3306
+      addr: {{ .Chart.Name }}-mariadb:3306
       username: root
       password: root
       show_log: true                  # 打印 SQL 日志
