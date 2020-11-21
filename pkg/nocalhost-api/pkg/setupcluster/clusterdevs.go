@@ -71,7 +71,7 @@ func (c *clusterDevsSetUp) CreateRoleBinding(name, namespace, role, toServiceAcc
 }
 
 func (c *clusterDevsSetUp) GetServiceAccount(name, namespace string) *clusterDevsSetUp {
-	serviceAccount, err := c.clientGo.GetServiceAccount(name, namespace)
+	serviceAccount, err := c.clientGo.WatchServiceAccount(name, namespace)
 	if err != nil {
 		c.err = err
 		c.errCode = errno.ErrBindSecretNameGetErr
