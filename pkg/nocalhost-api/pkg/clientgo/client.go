@@ -21,11 +21,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"math/rand"
 	"nocalhost/internal/nocalhost-api/global"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"strconv"
 	"time"
 )
@@ -351,4 +354,27 @@ func (c *GoClient) GetClusterNode() (*corev1.NodeList, error) {
 // Get cluster version
 func (c *GoClient) GetClusterVersion() (*version.Info, error) {
 	return c.client.DiscoveryClient.ServerVersion()
+}
+
+// Watch serviceAccount
+func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceAccount, error) {
+	resourceWatchTimeoutSeconds := int64(180)
+	log.Infof("GET ServiceAccount name %s, namespace %s: ", name, namespace)
+	var serviceAccount *corev1.ServiceAccount
+	watcher, err := c.client.CoreV1().ServiceAccounts(namespace).Watch(context.TODO(), metav1.ListOptions{
+		FieldSelector:  fields.Set{"metadata.name": name}.AsSelector().String(),
+		Watch:          true,
+		TimeoutSeconds: &resourceWatchTimeoutSeconds,
+	})
+	if err != nil {
+
+	}
+	for event := range watcher.ResultChan() {
+		if event.Type == watch.Added {
+			log.Infof("ServiceAccount added")
+			serviceAccount = event.Object.(*corev1.ServiceAccount)
+			break
+		}
+	}
+	return serviceAccount, nil
 }
