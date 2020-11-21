@@ -1,24 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "nocalhost-api.fullname" . }}
+  name: {{ .Chart.Name }}-web
   labels:
-    {{- include "nocalhost-api.labels" . | nindent 4 }}
+    app: {{ .Chart.Name }}-web
 spec:
-{{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-{{- end }}
   selector:
     matchLabels:
-      {{- include "nocalhost-api.selectorLabels" . | nindent 6 }}
+      app: {{ .Chart.Name }}-web
   template:
     metadata:
-    {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-    {{- end }}
       labels:
-        {{- include "nocalhost-api.selectorLabels" . | nindent 8 }}
+        app: {{ .Chart.Name }}-web
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -27,33 +20,32 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ .Chart.Name }}
+        - name: {{ .Chart.Name }}-web
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.web.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: 80
               protocol: TCP
           livenessProbe:
             httpGet:
-              path: /health
+              path: /
               port: http
           readinessProbe:
             httpGet:
-              path: /health
+              path: /
               port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          command: [ "/app/nocalhost-api", "-c", "/app/config/config.yaml"]
           volumeMounts:
-          - name: config-volume
-            mountPath: /app/config
+          - name: nocalhost-nginx-config
+            mountPath: /etc/nginx/conf.d/
       volumes:
-        - name: config-volume
+        - name: nocalhost-nginx-config
           configMap:
-            name: nocalhost-api-config
+            name: nocalhost-nginx-config
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
