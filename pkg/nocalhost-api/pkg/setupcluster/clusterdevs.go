@@ -76,7 +76,9 @@ func (c *clusterDevsSetUp) GetServiceAccount(name, namespace string) *clusterDev
 		c.err = err
 		c.errCode = errno.ErrBindSecretNameGetErr
 	}
-	c.serviceAccountSecretName = serviceAccount.Secrets[0].Name
+	if serviceAccount != nil && len(serviceAccount.Secrets) > 0 {
+		c.serviceAccountSecretName = serviceAccount.Secrets[0].Name
+	}
 	return c
 }
 
