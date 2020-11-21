@@ -4,11 +4,19 @@
 
 replicaCount: 1
 
-image:
-  repository: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-api
-  pullPolicy: Always
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
+api:
+  image:
+    repository: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-api
+    pullPolicy: Always
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: latest
+
+web:
+  image:
+    repository: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-web
+    pullPolicy: Always
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: latest
 
 imagePullSecrets: []
 nameOverride: ""
@@ -28,8 +36,8 @@ securityContext: {}
   # runAsUser: 1000
 
 service:
-  type: NodePort
-  port: 8080
+  type: LoadBalancer
+  port: 80
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
@@ -57,6 +65,7 @@ tolerations: []
 affinity: {}
 
 mariadb:
+  fullnameOverride: nocalhost-mariadb
   commonAnnotations: {"helm.sh/hook":"pre-install","helm.sh/hook-weight":"1"}
   auth:
     rootPassword: root
