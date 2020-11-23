@@ -121,21 +121,27 @@ IdentityFile ~/.nhctl/key/id_rsa
 		return err
 	}
 
-	if strings.Contains(string(f), "Host shared-container") {
-		debug("~/.ssh/config already config, ignore it")
-		return nil
-	}
-	// todo StrictHostKeyChecking no
-
 	file, err := os.OpenFile(sshConfigFile, os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-
-	_, err = file.Write([]byte(sshConfig))
-	if err != nil {
-		return err
+	if strings.Contains(string(f), "Host shared-container") {
+		debug("~/.ssh/config already config, ignore it")
+	} else {
+		_, err = file.Write([]byte(sshConfig))
+		if err != nil {
+			return err
+		}
+	}
+	// todo StrictHostKeyChecking no
+	if strings.Contains(string(f), "StrictHostKeyChecking no") {
+		debug("~/.ssh/config already set StrictHostKeyChecking = no")
+	} else {
+		_, err = file.Write([]byte("StrictHostKeyChecking no"))
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
