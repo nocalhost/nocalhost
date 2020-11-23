@@ -22,10 +22,10 @@ import (
 )
 
 type ClusterUserService interface {
-	Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace string) error
+	Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace string) (model.ClusterUserModel, error)
 	GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error)
 	GetList(ctx context.Context, c map[string]interface{}) ([]*model.ClusterUserModel, error)
-	Update(ctx context.Context, models *model.ClusterUserModel) error
+	Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
 	Close()
 }
 
@@ -38,12 +38,12 @@ func NewClusterUserService() ClusterUserService {
 	return &clusterUserService{clusterUserRepo: cluster_user.NewApplicationClusterRepo(db)}
 }
 
-func (srv *clusterUserService) Update(ctx context.Context, models *model.ClusterUserModel) error {
-	err := srv.clusterUserRepo.Update(ctx, models)
+func (srv *clusterUserService) Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error) {
+	_, err := srv.clusterUserRepo.Update(ctx, models)
 	if err != nil {
-		return err
+		return models, err
 	}
-	return nil
+	return models, nil
 }
 
 func (srv *clusterUserService) GetList(ctx context.Context, c map[string]interface{}) ([]*model.ClusterUserModel, error) {
@@ -62,7 +62,7 @@ func (srv *clusterUserService) GetFirst(ctx context.Context, models model.Cluste
 	return result, nil
 }
 
-func (srv *clusterUserService) Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace string) error {
+func (srv *clusterUserService) Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace string) (model.ClusterUserModel, error) {
 	c := model.ClusterUserModel{
 		ApplicationId: applicationId,
 		UserId:        userId,
@@ -70,11 +70,11 @@ func (srv *clusterUserService) Create(ctx context.Context, applicationId, cluste
 		KubeConfig:    kubeConfig,
 		Namespace:     devNameSpace,
 	}
-	_, err := srv.clusterUserRepo.Create(ctx, c)
+	result, err := srv.clusterUserRepo.Create(ctx, c)
 	if err != nil {
-		return errors.Wrapf(err, "create application_cluster")
+		return result, errors.Wrapf(err, "create application_cluster")
 	}
-	return nil
+	return result, nil
 }
 
 func (srv *clusterUserService) Close() {
