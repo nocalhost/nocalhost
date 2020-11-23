@@ -23,7 +23,7 @@ import (
 )
 
 type ClusterRepo interface {
-	Create(ctx context.Context, user model.ClusterModel) (id uint64, err error)
+	Create(ctx context.Context, user model.ClusterModel) (model.ClusterModel, error)
 	Get(ctx context.Context, clusterId uint64, userId uint64) (model.ClusterModel, error)
 	GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error)
 	GetList(ctx context.Context) ([]*model.ClusterList, error)
@@ -58,13 +58,13 @@ func (repo *clusterBaseRepo) GetList(ctx context.Context) ([]*model.ClusterList,
 	return result, nil
 }
 
-func (repo *clusterBaseRepo) Create(ctx context.Context, cluster model.ClusterModel) (id uint64, err error) {
-	err = repo.db.Create(&cluster).Error
+func (repo *clusterBaseRepo) Create(ctx context.Context, cluster model.ClusterModel) (model.ClusterModel, error) {
+	err := repo.db.Create(&cluster).Error
 	if err != nil {
-		return 0, errors.Wrap(err, "[cluster_repo] create user err")
+		return cluster, errors.Wrap(err, "[cluster_repo] create user err")
 	}
 
-	return cluster.ID, nil
+	return cluster, nil
 }
 
 func (repo *clusterBaseRepo) Get(ctx context.Context, clusterId uint64, userId uint64) (model.ClusterModel, error) {
