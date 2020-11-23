@@ -29,7 +29,7 @@ import (
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param register body user.CreateUserRequest true "Reg user info"
-// @Success 200 {string} json "{"code":0,"message":"OK","data":model.UserInfo}"
+// @Success 200 {object} model.UserInfo
 // @Router /v1/users [post]
 func Create(c *gin.Context) {
 	// Binding the data with the u struct.
