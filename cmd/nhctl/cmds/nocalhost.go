@@ -148,6 +148,19 @@ func (n *NocalHost) GetApplicationDir() string {
 	return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, nhctl.DefaultApplicationDirName)
 }
 
+func (n *NocalHost) CleanupAppFiles(appName string) error {
+	appDir := fmt.Sprintf("%s/%s", n.GetApplicationDir(), appName)
+	if f, err := os.Stat(appDir); err == nil {
+		if f.IsDir() {
+			err = os.RemoveAll(appDir)
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
 func (n *NocalHost) GetSshKeyDir() string {
 	return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, nhctl.DefaultSshKeyDirName)
 }

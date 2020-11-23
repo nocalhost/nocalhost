@@ -161,28 +161,41 @@ func (a *Application) Init() error {
 	}
 
 	configFile := a.GetConfigPath()
+	//fmt.Printf("config file path:%s\n", configFile)
 	if _, err2 := os.Stat(configFile); err2 == nil {
 		a.Config = &NocalHostAppConfig{}
 		fileBytes, err := ioutil.ReadFile(a.GetConfigPath())
+		//fmt.Println("config : " + string(fileBytes))
 		if err != nil {
 			return err
 		}
 		err = yaml.Unmarshal(fileBytes, a.Config)
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Printf("no config : %v\n", err2)
 	}
-
-	a.loadProfile()
-
-	return err
+	profileFile := a.getProfilePath()
+	if _, err2 := os.Stat(profileFile); err2 != nil {
+		if os.IsNotExist(err2) {
+			err2 = ioutil.WriteFile(profileFile, []byte(""), DefaultNewFilePermission)
+			if err2 != nil {
+				return err2
+			}
+		}
+	}
+	return a.loadProfile()
 }
 
-func (a *Application) loadProfile() {
+func (a *Application) loadProfile() error {
 	a.AppProfile = &AppProfile{}
 	fBytes, err := ioutil.ReadFile(a.getProfilePath())
 	if err != nil {
-		return
+		return err
 	}
-	yaml.Unmarshal(fBytes, a.AppProfile)
-	return
+	err = yaml.Unmarshal(fBytes, a.AppProfile)
+	return err
 }
 
 func (a *Application) SaveProfile() error {
@@ -207,7 +220,7 @@ func (a *Application) GetHomeDir() string {
 }
 
 func (a *Application) GetConfigDir() string {
-	return fmt.Sprintf("%s%c%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultApplicationConfigDir)
+	return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultApplicationConfigDir)
 }
 
 func (a *Application) GetConfigPath() string {
