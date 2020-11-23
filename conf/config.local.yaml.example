@@ -20,7 +20,7 @@ mysql:
   name: nocalhost
   addr: 127.0.0.1:3306
   username: root
-  password:
+  password: coding123
   show_log: true                  # 打印 SQL 日志
   max_idle_conn: 10               # 最大闲置的连接数
   max_open_conn: 60               # 最大打开的连接数, 需要小于数据库配置中的 max_connections 数

@@ -36,7 +36,7 @@ import (
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param createCluster body cluster.CreateClusterRequest true "The cluster info"
-// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":model.ClusterModel}"
+// @Success 200 {object} model.ClusterModel
 // @Router /v1/cluster [post]
 func Create(c *gin.Context) {
 	var req CreateClusterRequest
