@@ -24,7 +24,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
-// Login
+// Login Web 和插件端登陆
 // @Summary 用户登录
 // @Description 邮箱登录
 // @Tags 用户
@@ -37,7 +37,7 @@ func Login(c *gin.Context) {
 	var req LoginCredentials
 	if err := c.Bind(&req); err != nil {
 		log.Warnf("email login bind param err: %v", err)
-		api.SendResponse(c, errno.ErrBind, nil)
+		api.SendResponse(c, errno.ErrBind, err)
 		return
 	}
 
@@ -46,6 +46,18 @@ func Login(c *gin.Context) {
 	if req.Email == "" || req.Password == "" {
 		log.Warnf("email or password is empty: %v", req)
 		api.SendResponse(c, errno.ErrParam, nil)
+		return
+	}
+	// 默认 Web 登陆不传 From，禁止普通用户登陆 web 界面
+	users, err := service.Svc.UserSvc().GetUserByEmail(c, req.Email)
+	if err != nil {
+		api.SendResponse(c, errno.ErrEmailOrPassword, nil)
+		return
+	}
+
+	// 登陆网页端
+	if users.IsAdmin != 1 && req.From != "plugin" {
+		api.SendResponse(c, errno.ErrUserLoginWebNotAllow, nil)
 		return
 	}
 

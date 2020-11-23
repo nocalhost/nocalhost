@@ -81,7 +81,7 @@ func (c *GoClient) GenerateNsName(userId uint64) string {
 	for i := range b {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
-	return "nocal" + strconv.Itoa(int(userId)) + string(b)
+	return "nh" + strconv.Itoa(int(userId)) + string(b)
 }
 
 // check if admin for kubeconfig use SelfSubjectAccessReview

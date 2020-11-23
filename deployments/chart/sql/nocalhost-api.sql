@@ -196,7 +196,7 @@ INSERT INTO `users` (`id`, `uuid`, `username`, `name`, `password`, `avatar`, `ph
 VALUES
 	(1,'5c6f2386-b841-4c72-91db-43cd787dcc41','admin','1','$2a$10$WhJY.MCtsp5kmnyl/UAdQuWbbMzxvmLCPeDhcpxyL84lYey829/ym','',1,'a@qq.com',0,1,NULL,'2020-05-05 11:11:11','2020-05-05 11:11:11'),
 	(2,'5c6f2386-b841-4c72-91db-43cd787dcc42','','1','$2a$10$SfAVmftfCrcEP/CgTL3j0uxkzMUr.KEo5DQWmxJk5uvgrSqmp2tuS','',0,'434533508@qq.com',0,1,NULL,'2020-10-13 13:24:42','2020-10-13 13:24:42'),
-	(4,'36882544-3bf5-4065-86a7-9b2188d71a1b','','管理员','$2a$10$XkuHQPH9jJ6GZ3GL9IR8U.7xN0gH6zSiO5fIQIfESZ8eagPo/Jnii','',0,'4345335081@qq.com',1,1,NULL,'2020-10-13 16:22:20','2020-10-13 16:22:20'),
+	(4,'36882544-3bf5-4065-86a7-9b2188d71a1b','','管理员','$2a$10$XkuHQPH9jJ6GZ3GL9IR8U.7xN0gH6zSiO5fIQIfESZ8eagPo/Jnii','',0,'admin@admin.com',1,1,NULL,'2020-10-13 16:22:20','2020-10-13 16:22:20'),
 	(5,'3d6e0510-8a83-42c9-8ac1-a6e28469776f','','王炜2','$2a$10$sHmZNH5eGEqahOkadDwzKePf3sRhOl2tKku/rBj4IlTkxxFLMtFm2','',0,'41@qq.com',0,1,NULL,'2020-11-03 11:38:56','2020-11-17 10:26:28'),
 	(6,'823605c6-e29a-4590-9fc9-3da5e37488d4','','王炜','$2a$10$cDvGNDpg36ih/FIXvUoko.fTaKOgYflacCIIs.OsRais7W5oD1z4K','',0,'412@qq.com',0,1,NULL,'2020-11-03 12:31:16','2020-11-03 12:31:16'),
 	(8,'0c97d745-4de0-4c05-9f3d-e45d802da901','','王炜','$2a$10$CCD0X2GQNBIadxn1d4DjGOJpmQ4/1.qSErKsYv080EQlzsBn1ZHoa','',0,'string1',0,1,'2020-11-03 14:44:38','2020-11-03 12:32:10','2020-11-03 14:20:53');

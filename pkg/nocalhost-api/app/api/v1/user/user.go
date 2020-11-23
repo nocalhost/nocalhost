@@ -54,8 +54,9 @@ type UpdateUserRequest struct {
 
 // LoginCredentials 默认登录方式-邮箱
 type LoginCredentials struct {
-	Email    string `json:"email" form:"email"`
-	Password string `json:"password" form:"password"`
+	Email    string `json:"email" form:"email" binding:"required"`
+	Password string `json:"password" form:"password" binding:"required"`
+	From     string `json:"from" form:"from" example:"web 端不传该字段"`
 }
 
 // UpdateRequest 更新请求

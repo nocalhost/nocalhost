@@ -23,7 +23,7 @@ import (
 )
 
 type SetUpCluster interface {
-	IsAdmin() *setUpCluster
+	IsAdmin() (bool, error)
 	CreateNs(namespace, label string) *setUpCluster
 	CreateConfigMap(name, namespace, key, value string) *setUpCluster
 	DeployNocalhostDep(image, namespace string) *setUpCluster
@@ -52,12 +52,8 @@ func (c *setUpCluster) GetErr() (string, error, error) {
 	return c.clusterInfo, c.err, c.errCode
 }
 
-func (c *setUpCluster) IsAdmin() *setUpCluster {
-	_, c.err = c.clientGo.IsAdmin()
-	if c.err != nil {
-		c.errCode = errno.ErrClusterKubeAdmin
-	}
-	return c
+func (c *setUpCluster) IsAdmin() (bool, error) {
+	return c.clientGo.IsAdmin()
 }
 
 func (c *setUpCluster) CreateNs(namespace, label string) *setUpCluster {
@@ -91,15 +87,18 @@ func (c *setUpCluster) GetClusterNode() *setUpCluster {
 }
 
 func (c *setUpCluster) GetClusterVersion() *setUpCluster {
-	version, err := c.clientGo.GetClusterVersion()
+	cVersion, err := c.clientGo.GetClusterVersion()
 	if err != nil {
 		c.err = err
 	}
-	c.serverVersion = version
+	c.serverVersion = cVersion
 	return c
 }
 
 func (c *setUpCluster) GetClusterInfo() *setUpCluster {
+	if c.err != nil {
+		return c
+	}
 	info := map[string]interface{}{
 		"cluster_version": c.serverVersion.GitVersion,
 		"nodes":           strconv.Itoa(len(c.nodeList.Items)),
