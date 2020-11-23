@@ -59,7 +59,7 @@ func (repo *userBaseRepo) Delete(ctx context.Context, id uint64) error {
 	users := model.UserBaseModel{
 		ID: id,
 	}
-	if result := repo.db.Where("id=?", id).Delete(&users); result.RowsAffected > 0 {
+	if result := repo.db.Where("id=?", id).Unscoped().Delete(&users); result.RowsAffected > 0 {
 		return nil
 	}
 	return errors.New("user delete fail")

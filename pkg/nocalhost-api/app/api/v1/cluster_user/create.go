@@ -45,15 +45,16 @@ func Create(c *gin.Context) {
 		api.SendResponse(c, errno.ErrBind, nil)
 		return
 	}
-	userId, _ := c.Get("userId")
+	userId := cast.ToUint64(req.UserId)
+	webUserId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
 	// check application
-	if _, err := service.Svc.ApplicationSvc().Get(c, applicationId, userId.(uint64)); err != nil {
+	if _, err := service.Svc.ApplicationSvc().Get(c, applicationId, webUserId.(uint64)); err != nil {
 		api.SendResponse(c, errno.ErrPermissionApplication, nil)
 		return
 	}
 	// check cluster
-	clusterData, err := service.Svc.ClusterSvc().Get(c, *req.ClusterId, userId.(uint64))
+	clusterData, err := service.Svc.ClusterSvc().Get(c, *req.ClusterId, webUserId.(uint64))
 	if err != nil {
 		api.SendResponse(c, errno.ErrPermissionCluster, nil)
 		return
@@ -61,7 +62,7 @@ func Create(c *gin.Context) {
 	// check if has auth
 	cu := model.ClusterUserModel{
 		ApplicationId: applicationId,
-		UserId:        userId.(uint64),
+		UserId:        userId,
 	}
 	record, hasRecord := service.Svc.ClusterUser().GetFirst(c, cu)
 	if hasRecord == nil {
@@ -79,16 +80,16 @@ func Create(c *gin.Context) {
 		return
 	}
 	// create cluster devs
-	devNamespace := goClient.GenerateNsName(userId.(uint64))
+	devNamespace := goClient.GenerateNsName(userId)
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
-	secret, err := clusterDevsSetUp.CreateNS(devNamespace, "").CreateServiceAccount("", devNamespace).CreateRole(global.NocalhostDevRoleName, devNamespace).CreateRoleBinding(global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevServiceAccountName).GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).GetServiceAccountSecret("", devNamespace)
+	secret, err := clusterDevsSetUp.CreateNS(devNamespace, "").CreateServiceAccount("", devNamespace).CreateRole(global.NocalhostDevRoleName, devNamespace).CreateRoleBinding(global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevServiceAccountName).CreateRoleBinding(global.NocalhostDevRoleDefaultBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevDefaultServiceAccountName).GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).GetServiceAccountSecret("", devNamespace)
 	KubeConfigYaml, err, nerrno := setupcluster.NewDevKubeConfigReader(secret, clusterData.Server, devNamespace).GetCA().GetToken().AssembleDevKubeConfig().ToYamlString()
 	if err != nil {
 		api.SendResponse(c, nerrno, nil)
 		return
 	}
 
-	result, err := service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId.(uint64), *req.Memory, *req.Cpu, KubeConfigYaml, devNamespace)
+	result, err := service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId, *req.Memory, *req.Cpu, KubeConfigYaml, devNamespace)
 	if err != nil {
 		log.Warnf("create ApplicationCluster err: %v", err)
 		api.SendResponse(c, errno.ErrBindApplicationClsuter, nil)

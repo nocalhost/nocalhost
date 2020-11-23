@@ -18,7 +18,7 @@ var (
 	// Common errors
 	OK                  = &Errno{Code: 0, Message: "OK"}
 	InternalServerError = &Errno{Code: 10001, Message: "Internal server error"}
-	ErrBind             = &Errno{Code: 10002, Message: "Error occurred while binding the request body to the struct."}
+	ErrBind             = &Errno{Code: 10002, Message: "Request fail, Please check request parameters"}
 	ErrParam            = &Errno{Code: 10003, Message: "parameters Incorrect"}
 	ErrSignParam        = &Errno{Code: 10004, Message: "signature parameters Incorrect"}
 	RouterNotFound      = &Errno{Code: 10005, Message: "router not found"}
@@ -33,13 +33,15 @@ var (
 	ErrCreateUserDenied      = &Errno{Code: 20115, Message: "No user creation permission"}
 	ErrUpdateUserDenied      = &Errno{Code: 20116, Message: "No modify user permission"}
 	ErrDeleteUser            = &Errno{Code: 20117, Message: "Failed to delete user"}
+	ErrUserLoginWebNotAllow  = &Errno{Code: 20118, Message: "Normal users are not allowed login web interface"}
 
 	// cluster errors
 	ErrClusterCreate      = &Errno{Code: 30100, Message: "Failed to add cluster, please try again"}
 	ErrClusterExistCreate = &Errno{Code: 30101, Message: "The cluster already exists (Duplicate Server)"}
 	ErrClusterKubeCreate  = &Errno{Code: 30102, Message: "It is not allowed to create this type of cluster (there are multiple Kubeconfig Clusters)"}
 	ErrClusterKubeErr     = &Errno{Code: 30103, Message: "Kubeconfig parsing error, please check"}
-	ErrClusterKubeAdmin   = &Errno{Code: 30104, Message: "Please check Kubeconfig permissions (Admin) and cluster connectivity"}
+	ErrClusterKubeAdmin   = &Errno{Code: 30104, Message: "Please check Kubeconfig Admin permissions"}
+	ErrClusterKubeConnect = &Errno{Code: 30104, Message: "Connect cluster fail, Please check cluster connectivity"}
 	ErrClusterDepSetup    = &Errno{Code: 30105, Message: "Initialize cluster: Failed to create dependent component Configmap"}
 	ErrClusterDepJobSetup = &Errno{Code: 30106, Message: "Initialize the cluster: Create dependent component Job failed"}
 

@@ -341,7 +341,11 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 								var args []string
 								args = append(args, "pod")
 								for _, pod := range podsList {
-									args = append(args, fmt.Sprintf("-lapp=%s", pod))
+									if strings.ContainsAny(pod, "=") { // means define label, such as app.kubernetes.io/name=nginx
+										args = append(args, fmt.Sprintf("-l%s", pod))
+									} else { // has not define label, default app label
+										args = append(args, fmt.Sprintf("-lapp=%s", pod))
+									}
 								}
 								return args
 							}(dependency.Pods)
