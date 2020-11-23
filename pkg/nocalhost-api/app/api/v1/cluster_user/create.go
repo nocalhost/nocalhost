@@ -14,8 +14,6 @@ limitations under the License.
 package cluster_user
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/spf13/cast"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
@@ -24,6 +22,9 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
+
+	"github.com/gin-gonic/gin"
+	"github.com/spf13/cast"
 )
 
 // Create 创建开发环境
@@ -35,7 +36,7 @@ import (
 // @param Authorization header string true "Authorization"
 // @Param CreateAppRequest body cluster_user.ClusterUserCreateRequest true "cluster user info"
 // @Param id path uint64 true "应用 ID"
-// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
+// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":model.ClusterModel}"
 // @Router /v1/application/{id}/create_space [post]
 func Create(c *gin.Context) {
 	var req ClusterUserCreateRequest
@@ -87,12 +88,12 @@ func Create(c *gin.Context) {
 		return
 	}
 
-	err = service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId.(uint64), *req.Memory, *req.Cpu, KubeConfigYaml, devNamespace)
+	result, err := service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId.(uint64), *req.Memory, *req.Cpu, KubeConfigYaml, devNamespace)
 	if err != nil {
 		log.Warnf("create ApplicationCluster err: %v", err)
 		api.SendResponse(c, errno.ErrBindApplicationClsuter, nil)
 		return
 	}
 
-	api.SendResponse(c, nil, nil)
+	api.SendResponse(c, nil, result)
 }

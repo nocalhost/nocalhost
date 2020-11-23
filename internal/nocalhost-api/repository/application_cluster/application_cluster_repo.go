@@ -22,7 +22,7 @@ import (
 )
 
 type ApplicationClusterRepo interface {
-	Create(ctx context.Context, model model.ApplicationClusterModel) (uint64, error)
+	Create(ctx context.Context, model model.ApplicationClusterModel) (model.ApplicationClusterModel, error)
 	GetFirst(ctx context.Context, id uint64) (model.ApplicationClusterModel, error)
 	GetList(ctx context.Context, id uint64) ([]*model.ApplicationClusterModel, error)
 	GetJoinCluster(ctx context.Context, id uint64) ([]*model.ApplicationClusterJoinModel, error)
@@ -67,13 +67,13 @@ func (repo *applicationClusterRepo) GetFirst(ctx context.Context, id uint64) (mo
 	return result, nil
 }
 
-func (repo *applicationClusterRepo) Create(ctx context.Context, clusterModel model.ApplicationClusterModel) (id uint64, err error) {
-	err = repo.db.Create(&clusterModel).Error
+func (repo *applicationClusterRepo) Create(ctx context.Context, clusterModel model.ApplicationClusterModel) (model.ApplicationClusterModel, error) {
+	err := repo.db.Create(&clusterModel).Error
 	if err != nil {
-		return 0, errors.Wrap(err, "[application_cluster_repo] create application_cluster error")
+		return clusterModel, errors.Wrap(err, "[application_cluster_repo] create application_cluster error")
 	}
 
-	return clusterModel.ID, nil
+	return clusterModel, nil
 }
 
 // Close close db

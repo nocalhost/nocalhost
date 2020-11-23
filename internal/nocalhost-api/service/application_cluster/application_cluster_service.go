@@ -22,7 +22,7 @@ import (
 )
 
 type ApplicationClusterService interface {
-	Create(ctx context.Context, applicationId uint64, clusterId uint64, userId uint64) error
+	Create(ctx context.Context, applicationId uint64, clusterId uint64, userId uint64) (model.ApplicationClusterModel, error)
 	GetFirst(ctx context.Context, id uint64) (model.ApplicationClusterModel, error)
 	GetList(ctx context.Context, id uint64) ([]*model.ApplicationClusterModel, error)
 	GetJoinCluster(ctx context.Context, id uint64) ([]*model.ApplicationClusterJoinModel, error)
@@ -50,16 +50,16 @@ func (srv *applicationClusterService) GetFirst(ctx context.Context, id uint64) (
 	return srv.applicationClusterRepo.GetFirst(ctx, id)
 }
 
-func (srv *applicationClusterService) Create(ctx context.Context, applicationId uint64, clusterId uint64, userId uint64) error {
+func (srv *applicationClusterService) Create(ctx context.Context, applicationId uint64, clusterId uint64, userId uint64) (model.ApplicationClusterModel, error) {
 	c := model.ApplicationClusterModel{
 		ApplicationId: applicationId,
 		ClusterId:     clusterId,
 	}
 	_, err := srv.applicationClusterRepo.Create(ctx, c)
 	if err != nil {
-		return errors.Wrapf(err, "create application_cluster")
+		return c, errors.Wrapf(err, "create application_cluster")
 	}
-	return nil
+	return c, nil
 }
 
 func (srv *applicationClusterService) Close() {

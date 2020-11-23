@@ -36,7 +36,7 @@ import (
 // @param Authorization header string true "Authorization"
 // @Param id path uint64 true "The user's database id index num"
 // @Param user body user.UpdateUserRequest true "Update user info"
-// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
+// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":model.UserBaseModel}"
 // @Router /v1/users/{id} [put]
 func Update(c *gin.Context) {
 	// Get the user id from the url parameter.
@@ -77,12 +77,12 @@ func Update(c *gin.Context) {
 	//userMap["name"] = req.Name
 	//userMap["password"] = pwd
 	//userMap["status"] = req.Status
-	err = service.Svc.UserSvc().UpdateUser(context.TODO(), userId, &userMap)
+	result, err := service.Svc.UserSvc().UpdateUser(context.TODO(), userId, &userMap)
 	if err != nil {
 		log.Warnf("[user] update user err, %v", err)
 		api.SendResponse(c, errno.InternalServerError, nil)
 		return
 	}
 
-	api.SendResponse(c, nil, nil)
+	api.SendResponse(c, nil, result)
 }

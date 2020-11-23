@@ -25,8 +25,8 @@ import (
 
 // BaseRepo 定义接口
 type BaseRepo interface {
-	Create(ctx context.Context, user model.UserBaseModel) (id uint64, err error)
-	Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) error
+	Create(ctx context.Context, user model.UserBaseModel) (model.UserBaseModel, error)
+	Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) (*model.UserBaseModel, error)
 	Delete(ctx context.Context, id uint64) error
 	GetUserByID(ctx context.Context, id uint64) (*model.UserBaseModel, error)
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
@@ -66,22 +66,26 @@ func (repo *userBaseRepo) Delete(ctx context.Context, id uint64) error {
 }
 
 // Create 创建用户
-func (repo *userBaseRepo) Create(ctx context.Context, user model.UserBaseModel) (id uint64, err error) {
-	err = repo.db.Create(&user).Error
+func (repo *userBaseRepo) Create(ctx context.Context, user model.UserBaseModel) (model.UserBaseModel, error) {
+	err := repo.db.Create(&user).Error
 	if err != nil {
-		return 0, errors.Wrap(err, "[user_repo] create user err")
+		return user, errors.Wrap(err, "[user_repo] create user err")
 	}
 
-	return user.ID, nil
+	return user, nil
 }
 
 // Update 更新用户信息
-func (repo *userBaseRepo) Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) error {
+func (repo *userBaseRepo) Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) (*model.UserBaseModel, error) {
 	user, err := repo.GetUserByID(ctx, id)
 	if err != nil {
-		return errors.Wrap(err, "[user_repo] update user data err")
+		return user, errors.Wrap(err, "[user_repo] update user data err")
 	}
-	return repo.db.Model(&user).Updates(&userMap).Error
+	err = repo.db.Model(&user).Updates(&userMap).Error
+	if err != nil {
+		return user, errors.Wrap(err, "[user_repo] update user data error")
+	}
+	return user, nil
 }
 
 // GetUserByID 获取用户
