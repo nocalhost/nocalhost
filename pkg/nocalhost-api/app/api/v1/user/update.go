@@ -36,7 +36,7 @@ import (
 // @param Authorization header string true "Authorization"
 // @Param id path uint64 true "The user's database id index num"
 // @Param user body user.UpdateUserRequest true "Update user info"
-// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":model.UserBaseModel}"
+// @Success 200 {object} model.UserBaseModel
 // @Router /v1/users/{id} [put]
 func Update(c *gin.Context) {
 	// Get the user id from the url parameter.
