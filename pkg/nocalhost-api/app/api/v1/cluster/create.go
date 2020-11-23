@@ -15,7 +15,6 @@ package cluster
 
 import (
 	"encoding/base64"
-	"gopkg.in/yaml.v2"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
@@ -23,6 +22,8 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/gin-gonic/gin"
 )
@@ -35,7 +36,7 @@ import (
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param createCluster body cluster.CreateClusterRequest true "The cluster info"
-// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
+// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":model.ClusterModel}"
 // @Router /v1/cluster [post]
 func Create(c *gin.Context) {
 	var req CreateClusterRequest
@@ -93,12 +94,12 @@ func Create(c *gin.Context) {
 	}
 
 	userId, _ := c.Get("userId")
-	err = service.Svc.ClusterSvc().Create(c, req.Name, req.Marks, string(DecKubeconfig), t.Clusters[0].Cluster.Server, clusterInfo, userId.(uint64))
+	cluster, err := service.Svc.ClusterSvc().Create(c, req.Name, req.Marks, string(DecKubeconfig), t.Clusters[0].Cluster.Server, clusterInfo, userId.(uint64))
 	if err != nil {
 		log.Warnf("create cluster err: %v", err)
 		api.SendResponse(c, errno.ErrClusterCreate, nil)
 		return
 	}
 
-	api.SendResponse(c, nil, nil)
+	api.SendResponse(c, nil, cluster)
 }
