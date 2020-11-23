@@ -30,7 +30,7 @@ import (
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param CreateAppRequest body applications.CreateAppRequest true "The application info"
-// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":model.ApplicationModel}"
+// @Success 200 {object} model.ApplicationModel
 // @Router /v1/application [post]
 func Create(c *gin.Context) {
 	var req CreateAppRequest

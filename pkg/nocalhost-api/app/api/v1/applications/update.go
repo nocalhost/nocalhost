@@ -33,7 +33,7 @@ import (
 // @param Authorization header string true "Authorization"
 // @Param id path uint64 true "应用 ID"
 // @Param CreateAppRequest body applications.CreateAppRequest true "The application info"
-// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":model.ApplicationModel}"
+// @Success 200 {object} model.ApplicationModel
 // @Router /v1/application/{id} [put]
 func Update(c *gin.Context) {
 	var req CreateAppRequest

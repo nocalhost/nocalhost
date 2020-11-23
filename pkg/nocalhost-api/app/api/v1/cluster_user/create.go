@@ -36,7 +36,7 @@ import (
 // @param Authorization header string true "Authorization"
 // @Param CreateAppRequest body cluster_user.ClusterUserCreateRequest true "cluster user info"
 // @Param id path uint64 true "应用 ID"
-// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":model.ClusterModel}"
+// @Success 200 {object} model.ClusterModel
 // @Router /v1/application/{id}/create_space [post]
 func Create(c *gin.Context) {
 	var req ClusterUserCreateRequest
