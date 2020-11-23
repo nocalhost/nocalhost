@@ -32,7 +32,7 @@ import (
 // @param Authorization header string true "Authorization"
 // @Param CreateAppRequest body application_cluster.ApplicationClusterRequest true "The application info"
 // @Param id path uint64 true "应用 ID"
-// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":model.ApplicationCluster}"
+// @Success 200 {object} model.ApplicationClusterModel
 // @Router /v1/application/{id}/bind_cluster [post]
 func Create(c *gin.Context) {
 	var req ApplicationClusterRequest

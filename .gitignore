@@ -28,3 +28,5 @@
 /cmd/nocalhost-api/build/
 
 /nocalhost-api
+
+/conf/config.local.yaml
