@@ -111,6 +111,13 @@ var installCmd = &cobra.Command{
 		err = InstallApplication(applicationName)
 		if err != nil {
 			printlnErr("failed to install application", err)
+			debug("clean up resources...")
+			err = nocalhost.CleanupAppFiles(applicationName)
+			if err != nil {
+				fmt.Printf("[error] failed to clean up:%v\n", err)
+			} else {
+				debug("resources have been clean up")
+			}
 			os.Exit(1)
 		} else {
 			fmt.Printf("application \"%s\" is installed", applicationName)
@@ -156,18 +163,26 @@ func InstallApplication(applicationName string) error {
 	if _, err = os.Stat(applicationDir); err != nil {
 		if os.IsNotExist(err) {
 			debug("%s not exists, create application dir", applicationDir)
-			utils.Mush(os.Mkdir(applicationDir, 0755))
+			err = os.Mkdir(applicationDir, 0755)
+			if err != nil {
+				return err
+			}
 			//utils.Mush(DownloadApplicationToNhctlHome(applicationDir))
 		} else {
-			panic(err)
+			return err
 		}
 	} else if !installFlags.ForceInstall {
 		fmt.Printf("application %s already exists, please use --force to force it to be reinstalled\n", applicationName)
 		return errors.New("application already exists, please use --force to force it to be reinstalled")
 	} else if installFlags.ForceInstall {
 		fmt.Printf("force to reinstall %s\n", applicationName)
-		utils.Mush(os.RemoveAll(applicationDir))
-		utils.Mush(os.Mkdir(applicationDir, 0755))
+		err = os.RemoveAll(applicationDir)
+		if err == nil {
+			err = os.Mkdir(applicationDir, 0755)
+		}
+		if err != nil {
+			return err
+		}
 		//utils.Mush(DownloadApplicationToNhctlHome(applicationDir))
 	}
 
@@ -181,15 +196,17 @@ func InstallApplication(applicationName string) error {
 	}
 
 	nocalhostApp, err = nhctl.NewApplication(applicationName)
-	utils.Mush(err)
+	if err != nil {
+		return err
+	}
 	//config := nocalhostApp.Config
 
 	if installFlags.AppType != string(nhctl.HelmRepo) {
 		resourcesPath = nocalhostApp.GetResourceDir()
 
-		debug("install dependency config map")
 		appDep := nocalhostApp.GetDependencies()
 		if appDep != nil {
+			debug("install dependency config map")
 			var depForYaml = &struct {
 				Dependency []*nhctl.SvcDependency `json:"dependency" yaml:"dependency"`
 			}{
@@ -207,6 +224,7 @@ func InstallApplication(applicationName string) error {
 			configMap := &v1.ConfigMap{
 				Data: dataMap,
 			}
+			//fmt.Println("config map : " + string(yamlBytes))
 
 			var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
 			rand.Seed(time.Now().UnixNano())
@@ -218,7 +236,7 @@ func InstallApplication(applicationName string) error {
 			configMap.Name = generateName
 			_, err = client.ClientSet.CoreV1().ConfigMaps(nameSpace).Create(context.TODO(), configMap, metav1.CreateOptions{})
 			if err != nil {
-				fmt.Printf("[error] fail to create dependency config")
+				fmt.Printf("[error] fail to create dependency config %s, err: %v\n", configMap.Name, err)
 				return err
 			} else {
 				debug("config map %s has been installed, record it", configMap.Name)
@@ -226,6 +244,8 @@ func InstallApplication(applicationName string) error {
 				nocalhostApp.SaveProfile()
 			}
 		}
+	} else {
+		debug("no dependency config map defined")
 	}
 
 	// save application info
