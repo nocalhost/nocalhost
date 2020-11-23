@@ -69,10 +69,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
-                            "$ref": "#/definitions/api.Response"
+                            "$ref": "#/definitions/model.ApplicationModel"
                         }
                     }
                 }
@@ -157,10 +157,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
-                            "$ref": "#/definitions/api.Response"
+                            "$ref": "#/definitions/model.ApplicationModel"
                         }
                     }
                 }
@@ -245,10 +245,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
-                            "$ref": "#/definitions/api.Response"
+                            "$ref": "#/definitions/model.ApplicationClusterModel"
                         }
                     }
                 }
@@ -382,10 +382,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
-                            "$ref": "#/definitions/api.Response"
+                            "$ref": "#/definitions/model.ClusterModel"
                         }
                     }
                 }
@@ -553,10 +553,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
-                            "$ref": "#/definitions/api.Response"
+                            "$ref": "#/definitions/model.ClusterModel"
                         }
                     }
                 }
@@ -834,9 +834,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "$ref": "#/definitions/model.UserInfo"
                         }
                     }
                 }
@@ -921,10 +922,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
-                            "$ref": "#/definitions/api.Response"
+                            "$ref": "#/definitions/model.UserBaseModel"
                         }
                     }
                 }
@@ -1207,6 +1208,35 @@
                 }
             }
         },
+        "model.UserBaseModel": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_admin": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "model.UserInfo": {
             "type": "object",
             "properties": {
@@ -1276,9 +1306,17 @@
         },
         "user.LoginCredentials": {
             "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
             "properties": {
                 "email": {
                     "type": "string"
+                },
+                "from": {
+                    "type": "string",
+                    "example": "web 端不传该字段"
                 },
                 "password": {
                     "type": "string"

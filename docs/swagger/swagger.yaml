@@ -156,6 +156,25 @@ definitions:
       status:
         type: integer
     type: object
+  model.UserBaseModel:
+    properties:
+      avatar:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      is_admin:
+        type: integer
+      name:
+        type: string
+      phone:
+        type: integer
+      status:
+        type: integer
+      username:
+        type: string
+    type: object
   model.UserInfo:
     properties:
       avatar:
@@ -205,8 +224,14 @@ definitions:
     properties:
       email:
         type: string
+      from:
+        example: web 端不传该字段
+        type: string
       password:
         type: string
+    required:
+    - email
+    - password
     type: object
   user.RegisterRequest:
     properties:
@@ -278,9 +303,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: '{"code":0,"message":"OK","data":null}'
+          description: OK
           schema:
-            $ref: '#/definitions/api.Response'
+            $ref: '#/definitions/model.ApplicationModel'
             type: object
       summary: 添加应用
       tags:
@@ -364,9 +389,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: '{"code":0,"message":"OK","data":null}'
+          description: OK
           schema:
-            $ref: '#/definitions/api.Response'
+            $ref: '#/definitions/model.ApplicationModel'
             type: object
       summary: 编辑应用
       tags:
@@ -398,9 +423,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: '{"code":0,"message":"OK","data":null}'
+          description: OK
           schema:
-            $ref: '#/definitions/api.Response'
+            $ref: '#/definitions/model.ApplicationClusterModel'
             type: object
       summary: 关联集群
       tags:
@@ -491,9 +516,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: '{"code":0,"message":"OK","data":null}'
+          description: OK
           schema:
-            $ref: '#/definitions/api.Response'
+            $ref: '#/definitions/model.ClusterModel'
             type: object
       summary: 应用管理 - 创建开发环境
       tags:
@@ -607,9 +632,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: '{"code":0,"message":"OK","data":null}'
+          description: OK
           schema:
-            $ref: '#/definitions/api.Response'
+            $ref: '#/definitions/model.ClusterModel'
             type: object
       summary: 添加集群
       tags:
@@ -795,9 +820,10 @@ paths:
       - application/json
       responses:
         "200":
-          description: '{"code":0,"message":"OK","data":null}'
+          description: OK
           schema:
-            type: string
+            $ref: '#/definitions/model.UserInfo'
+            type: object
       summary: 添加开发者
       tags:
       - 用户
@@ -880,9 +906,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: '{"code":0,"message":"OK","data":null}'
+          description: OK
           schema:
-            $ref: '#/definitions/api.Response'
+            $ref: '#/definitions/model.UserBaseModel'
             type: object
       summary: 更新用户信息（含禁用用户）
       tags:
