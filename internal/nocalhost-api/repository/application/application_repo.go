@@ -23,12 +23,12 @@ import (
 )
 
 type ApplicationRepo interface {
-	Create(ctx context.Context, application model.ApplicationModel) (uint64, error)
+	Create(ctx context.Context, application model.ApplicationModel) (model.ApplicationModel, error)
 	Get(ctx context.Context, userId uint64, id uint64) (model.ApplicationModel, error)
 	GetList(ctx context.Context, userId uint64) ([]*model.ApplicationModel, error)
 	PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error)
 	Delete(ctx context.Context, userId uint64, id uint64) error
-	Update(ctx context.Context, applicationModel *model.ApplicationModel) error
+	Update(ctx context.Context, applicationModel *model.ApplicationModel) (*model.ApplicationModel, error)
 	Close()
 }
 
@@ -48,13 +48,13 @@ func (repo *applicationRepo) PluginGetList(ctx context.Context, userId uint64) (
 	return result, nil
 }
 
-func (repo *applicationRepo) Create(ctx context.Context, application model.ApplicationModel) (id uint64, err error) {
-	err = repo.db.Create(&application).Error
+func (repo *applicationRepo) Create(ctx context.Context, application model.ApplicationModel) (model.ApplicationModel, error) {
+	err := repo.db.Create(&application).Error
 	if err != nil {
-		return 0, errors.Wrap(err, "[application_repo] create application err")
+		return application, errors.Wrap(err, "[application_repo] create application err")
 	}
 
-	return application.ID, nil
+	return application, nil
 }
 
 func (repo *applicationRepo) Get(ctx context.Context, userId uint64, id uint64) (model.ApplicationModel, error) {
@@ -92,16 +92,16 @@ func (repo *applicationRepo) Delete(ctx context.Context, userId uint64, id uint6
 	return errors.New("application delete denied")
 }
 
-func (repo *applicationRepo) Update(ctx context.Context, applicationModel *model.ApplicationModel) error {
+func (repo *applicationRepo) Update(ctx context.Context, applicationModel *model.ApplicationModel) (*model.ApplicationModel, error) {
 	_, err := repo.Get(ctx, applicationModel.UserId, applicationModel.ID)
 	if err != nil {
-		return errors.Wrap(err, "[application_repo] get application denied")
+		return applicationModel, errors.Wrap(err, "[application_repo] get application denied")
 	}
 	affectRow := repo.db.Save(&applicationModel).RowsAffected
 	if affectRow > 0 {
-		return nil
+		return applicationModel, nil
 	}
-	return errors.Wrap(err, "[application_repo] update application err")
+	return applicationModel, errors.Wrap(err, "[application_repo] update application err")
 }
 
 // Close close db

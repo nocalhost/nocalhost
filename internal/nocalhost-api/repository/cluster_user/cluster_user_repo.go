@@ -15,16 +15,17 @@ package cluster_user
 
 import (
 	"context"
+	"nocalhost/internal/nocalhost-api/model"
+
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
-	"nocalhost/internal/nocalhost-api/model"
 )
 
 type ClusterUserRepo interface {
-	Create(ctx context.Context, model model.ClusterUserModel) (uint64, error)
+	Create(ctx context.Context, model model.ClusterUserModel) (model.ClusterUserModel, error)
 	GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error)
 	GetList(ctx context.Context, c map[string]interface{}) ([]*model.ClusterUserModel, error)
-	Update(ctx context.Context, models *model.ClusterUserModel) error
+	Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
 	Close()
 }
 
@@ -38,7 +39,7 @@ func NewApplicationClusterRepo(db *gorm.DB) ClusterUserRepo {
 	}
 }
 
-func (repo *clusterUserRepo) Update(ctx context.Context, models *model.ClusterUserModel) error {
+func (repo *clusterUserRepo) Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error) {
 	where := model.ClusterUserModel{
 		ApplicationId: models.ApplicationId,
 		ID:            models.ID,
@@ -46,14 +47,14 @@ func (repo *clusterUserRepo) Update(ctx context.Context, models *model.ClusterUs
 	}
 	_, err := repo.GetFirst(ctx, where)
 	if err != nil {
-		return errors.Wrap(err, "[clsuter_user_repo] get clsuter_user denied")
+		return models, errors.Wrap(err, "[clsuter_user_repo] get clsuter_user denied")
 	}
 	emptyModel := model.ClusterUserModel{}
 	affectRow := repo.db.Model(&emptyModel).Update(models).RowsAffected
 	if affectRow > 0 {
-		return nil
+		return models, nil
 	}
-	return errors.Wrap(err, "[clsuter_user_repo] update clsuter_user err")
+	return models, errors.Wrap(err, "[clsuter_user_repo] update clsuter_user err")
 }
 
 func (repo *clusterUserRepo) GetList(ctx context.Context, c map[string]interface{}) ([]*model.ClusterUserModel, error) {
@@ -74,13 +75,13 @@ func (repo *clusterUserRepo) GetFirst(ctx context.Context, models model.ClusterU
 	return &cluster, nil
 }
 
-func (repo *clusterUserRepo) Create(ctx context.Context, model model.ClusterUserModel) (id uint64, err error) {
-	err = repo.db.Create(&model).Error
+func (repo *clusterUserRepo) Create(ctx context.Context, model model.ClusterUserModel) (model.ClusterUserModel, error) {
+	err := repo.db.Create(&model).Error
 	if err != nil {
-		return 0, errors.Wrap(err, "[application_cluster_repo] create application_cluster error")
+		return model, errors.Wrap(err, "[application_cluster_repo] create application_cluster error")
 	}
 
-	return model.ID, nil
+	return model, nil
 }
 
 // Close close db

@@ -39,14 +39,14 @@ var _ UserService = (*userService)(nil)
 // UserService 用户服务接口定义
 // 使用大写对外暴露方法
 type UserService interface {
-	Create(ctx context.Context, email, password, name string, status uint64) error
+	Create(ctx context.Context, email, password, name string, status uint64) (model.UserBaseModel, error)
 	Delete(ctx context.Context, id uint64) error
 	Register(ctx context.Context, email, password string) error
 	EmailLogin(ctx context.Context, email, password string) (tokenStr string, err error)
 	GetUserByID(ctx context.Context, id uint64) (*model.UserBaseModel, error)
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
-	UpdateUser(ctx context.Context, id uint64, user *model.UserBaseModel) error
+	UpdateUser(ctx context.Context, id uint64, user *model.UserBaseModel) (*model.UserBaseModel, error)
 	GetUserList(ctx context.Context) ([]*model.UserList, error)
 	Close()
 }
@@ -76,12 +76,8 @@ func (srv *userService) Delete(ctx context.Context, id uint64) error {
 }
 
 // Create 创建用户
-func (srv *userService) Create(ctx context.Context, email, password, name string, status uint64) error {
+func (srv *userService) Create(ctx context.Context, email, password, name string, status uint64) (model.UserBaseModel, error) {
 	pwd, err := auth.Encrypt(password)
-	if err != nil {
-		return errors.Wrapf(err, "encrypt password err")
-	}
-
 	u := model.UserBaseModel{
 		Password:  pwd,
 		Email:     email,
@@ -91,11 +87,14 @@ func (srv *userService) Create(ctx context.Context, email, password, name string
 		UpdatedAt: time.Time{},
 		Uuid:      uuid.NewV4().String(),
 	}
-	_, err = srv.userRepo.Create(ctx, u)
 	if err != nil {
-		return errors.Wrapf(err, "create user")
+		return u, errors.Wrapf(err, "encrypt password err")
 	}
-	return nil
+	result, err := srv.userRepo.Create(ctx, u)
+	if err != nil {
+		return result, errors.Wrapf(err, "create user")
+	}
+	return result, nil
 }
 
 // Register 注册用户
@@ -146,14 +145,14 @@ func (srv *userService) EmailLogin(ctx context.Context, email, password string) 
 }
 
 // UpdateUser update user info
-func (srv *userService) UpdateUser(ctx context.Context, id uint64, user *model.UserBaseModel) error {
-	err := srv.userRepo.Update(ctx, id, user)
+func (srv *userService) UpdateUser(ctx context.Context, id uint64, user *model.UserBaseModel) (*model.UserBaseModel, error) {
+	_, err := srv.userRepo.Update(ctx, id, user)
 
 	if err != nil {
-		return err
+		return user, err
 	}
 
-	return nil
+	return user, nil
 }
 
 // GetUserByID 获取用户信息
