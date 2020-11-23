@@ -14,11 +14,12 @@ limitations under the License.
 package user
 
 import (
-	"github.com/gin-gonic/gin"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
+
+	"github.com/gin-gonic/gin"
 )
 
 // Register 添加开发者
@@ -28,7 +29,7 @@ import (
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param register body user.CreateUserRequest true "Reg user info"
-// @Success 200 {string} json "{"code":0,"message":"OK","data":null}"
+// @Success 200 {string} json "{"code":0,"message":"OK","data":model.UserInfo}"
 // @Router /v1/users [post]
 func Create(c *gin.Context) {
 	// Binding the data with the u struct.
@@ -52,12 +53,12 @@ func Create(c *gin.Context) {
 		return
 	}
 
-	err := service.Svc.UserSvc().Create(c, req.Email, req.Password, req.Name, *req.Status)
+	u, err := service.Svc.UserSvc().Create(c, req.Email, req.Password, req.Name, *req.Status)
 	if err != nil {
 		log.Warnf("register err: %v", err)
 		api.SendResponse(c, errno.ErrRegisterFailed, nil)
 		return
 	}
 
-	api.SendResponse(c, nil, nil)
+	api.SendResponse(c, nil, u)
 }

@@ -22,12 +22,12 @@ import (
 )
 
 type ApplicationService interface {
-	Create(ctx context.Context, context string, status uint8, userId uint64) error
+	Create(ctx context.Context, context string, status uint8, userId uint64) (model.ApplicationModel, error)
 	Get(ctx context.Context, id, userId uint64) (model.ApplicationModel, error)
 	PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error)
 	GetList(ctx context.Context, userId uint64) ([]*model.ApplicationModel, error)
 	Delete(ctx context.Context, userId uint64, id uint64) error
-	Update(ctx context.Context, applicationModel *model.ApplicationModel) error
+	Update(ctx context.Context, applicationModel *model.ApplicationModel) (*model.ApplicationModel, error)
 	Close()
 }
 
@@ -46,17 +46,17 @@ func (srv *applicationService) PluginGetList(ctx context.Context, userId uint64)
 	return srv.applicationRepo.PluginGetList(ctx, userId)
 }
 
-func (srv *applicationService) Create(ctx context.Context, context string, status uint8, user_id uint64) error {
+func (srv *applicationService) Create(ctx context.Context, context string, status uint8, user_id uint64) (model.ApplicationModel, error) {
 	c := model.ApplicationModel{
 		Context: context,
 		UserId:  user_id,
 		Status:  status,
 	}
-	_, err := srv.applicationRepo.Create(ctx, c)
+	result, err := srv.applicationRepo.Create(ctx, c)
 	if err != nil {
-		return errors.Wrapf(err, "create application")
+		return result, errors.Wrapf(err, "create application")
 	}
-	return nil
+	return result, nil
 }
 
 func (srv *applicationService) Get(ctx context.Context, id, userId uint64) (model.ApplicationModel, error) {
@@ -83,12 +83,12 @@ func (srv *applicationService) Delete(ctx context.Context, userId uint64, id uin
 	return nil
 }
 
-func (srv *applicationService) Update(ctx context.Context, applicationModel *model.ApplicationModel) error {
-	err := srv.applicationRepo.Update(ctx, applicationModel)
+func (srv *applicationService) Update(ctx context.Context, applicationModel *model.ApplicationModel) (*model.ApplicationModel, error) {
+	_, err := srv.applicationRepo.Update(ctx, applicationModel)
 	if err != nil {
-		return errors.Wrapf(err, "update application error")
+		return applicationModel, errors.Wrapf(err, "update application error")
 	}
-	return nil
+	return applicationModel, nil
 }
 
 func (srv *applicationService) Close() {

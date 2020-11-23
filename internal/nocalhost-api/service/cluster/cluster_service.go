@@ -22,7 +22,7 @@ import (
 )
 
 type ClusterService interface {
-	Create(ctx context.Context, name, marks, kubeconfig, server, clusterInfo string, userId uint64) error
+	Create(ctx context.Context, name, marks, kubeconfig, server, clusterInfo string, userId uint64) (model.ClusterModel, error)
 	Get(ctx context.Context, id, userId uint64) (model.ClusterModel, error)
 	GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error)
 	GetList(ctx context.Context) ([]*model.ClusterList, error)
@@ -44,7 +44,7 @@ func (srv *clusterService) GetAny(ctx context.Context, where map[string]interfac
 	return srv.clusterRepo.GetAny(ctx, where)
 }
 
-func (srv *clusterService) Create(ctx context.Context, name, marks, kubeconfig, server, clusterInfo string, userId uint64) error {
+func (srv *clusterService) Create(ctx context.Context, name, marks, kubeconfig, server, clusterInfo string, userId uint64) (model.ClusterModel, error) {
 	c := model.ClusterModel{
 		Name:       name,
 		Marks:      marks,
@@ -53,11 +53,11 @@ func (srv *clusterService) Create(ctx context.Context, name, marks, kubeconfig, 
 		KubeConfig: kubeconfig,
 		Info:       clusterInfo,
 	}
-	_, err := srv.clusterRepo.Create(ctx, c)
+	result, err := srv.clusterRepo.Create(ctx, c)
 	if err != nil {
-		return errors.Wrapf(err, "create cluster")
+		return c, errors.Wrapf(err, "create cluster")
 	}
-	return nil
+	return result, nil
 }
 
 func (srv *clusterService) GetList(ctx context.Context) ([]*model.ClusterList, error) {

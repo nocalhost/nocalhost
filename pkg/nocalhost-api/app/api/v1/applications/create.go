@@ -30,7 +30,7 @@ import (
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param CreateAppRequest body applications.CreateAppRequest true "The application info"
-// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
+// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":model.ApplicationModel}"
 // @Router /v1/application [post]
 func Create(c *gin.Context) {
 	var req CreateAppRequest
@@ -40,12 +40,12 @@ func Create(c *gin.Context) {
 		return
 	}
 	userId, _ := c.Get("userId")
-	err := service.Svc.ApplicationSvc().Create(c, req.Context, *req.Status, userId.(uint64))
+	a, err := service.Svc.ApplicationSvc().Create(c, req.Context, *req.Status, userId.(uint64))
 	if err != nil {
 		log.Warnf("create Application err: %v", err)
 		api.SendResponse(c, errno.ErrApplicationCreate, nil)
 		return
 	}
 
-	api.SendResponse(c, nil, nil)
+	api.SendResponse(c, nil, a)
 }
