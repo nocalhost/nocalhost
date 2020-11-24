@@ -403,7 +403,7 @@
                 "tags": [
                     "插件"
                 ],
-                "summary": "Plugin - 获取个人应用开发环境(kubeconfig)",
+                "summary": "Plugin - 获取个人应用开发环境(kubeconfig) （废弃）",
                 "parameters": [
                     {
                         "type": "string",
