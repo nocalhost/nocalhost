@@ -15,6 +15,7 @@ package napp
 
 import (
 	"context"
+	"github.com/go-playground/validator/v10"
 	"log"
 	"net/http"
 	"os"
@@ -50,6 +51,7 @@ type Application struct {
 	RedisClient *redis.Client
 	Router      *gin.Engine
 	Debug       bool
+	Validate    *validator.Validate
 }
 
 // New create a app
@@ -71,6 +73,9 @@ func New(cfg *conf.Config) *Application {
 	if viper.GetString("app.run_mode") == ModeDebug {
 		app.Debug = true
 	}
+
+	//init validate
+	app.Validate = validator.New()
 
 	return app
 }
