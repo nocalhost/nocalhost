@@ -17,7 +17,7 @@ svcConfigs:
     devPort:
     - 8080:8080
     pods: 
-    - "mariadb"
+    - "app.kubernetes.io/name=mariadb"
   - name: nocalhost-web
     type: deployment
     gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost-web.git
@@ -29,4 +29,4 @@ svcConfigs:
     devPort:
     - 8080:8080
     pods: 
-    - "nocalhost-api"
+    - "app-nocalhost-api"
