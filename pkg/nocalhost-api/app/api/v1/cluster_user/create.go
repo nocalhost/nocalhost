@@ -28,8 +28,8 @@ import (
 )
 
 // Create 创建开发环境
-// @Summary 应用管理 - 创建开发环境
-// @Description 为用户创建开发环境 - 集群授权
+// @Summary 创建开发环境
+// @Description 为创建应用的开发环境
 // @Tags 应用
 // @Accept  json
 // @Produce  json
@@ -72,7 +72,7 @@ func Create(c *gin.Context) {
 	}
 
 	// create namespace
-	var KubeConfig []byte = []byte(clusterData.KubeConfig)
+	var KubeConfig = []byte(clusterData.KubeConfig)
 	goClient, err := clientgo.NewGoClient(KubeConfig)
 	if err != nil {
 		log.Errorf("client go got err %v", err)

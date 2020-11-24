@@ -21,9 +21,9 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 )
 
-// GetBound 获取应用已关联集群
-// @Summary 获取应用已关联集群
-// @Description 获取应用已关联集群
+// GetBound 获取应用已关联集群列表
+// @Summary 获取应用已关联集群列表（废弃）
+// @Description 获取应用已关联集群列表（废弃）
 // @Tags 应用
 // @Accept  json
 // @Produce  json

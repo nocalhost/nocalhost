@@ -94,7 +94,8 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	{
 		c.POST("", cluster.Create)
 		c.GET("", cluster.GetList)
-		c.GET("/:id/dev_space", cluster.GetSpaceDetail)
+		c.GET("/:id/dev_space", cluster.GetSpaceList)
+		c.GET("/:id/dev_space/:space_id/detail", cluster.GetSpaceDetail)
 		c.GET("/:id/detail", cluster.GetDetail)
 	}
 
@@ -112,7 +113,16 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		a.GET("/:id/bound_cluster", application_cluster.GetBound)
 		a.POST("/:id/create_space", cluster_user.Create)
 		a.GET("/:id/dev_space", cluster_user.GetFirst)
+		a.GET("/:id/dev_space/:space_id/detail", cluster_user.GetDevSpaceDetail)
+		a.GET("/:id/dev_space_list", cluster_user.GetList)
 		a.GET("/:id/cluster/:clusterId", applications.GetSpaceDetail)
+	}
+
+	// 开发环境
+	dv := g.Group("v1/dev_space")
+	dv.Use(middleware.AuthMiddleware())
+	{
+		dv.DELETE("/:id", cluster_user.Delete)
 	}
 
 	// 插件接口
