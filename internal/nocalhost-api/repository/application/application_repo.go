@@ -25,6 +25,7 @@ import (
 type ApplicationRepo interface {
 	Create(ctx context.Context, application model.ApplicationModel) (model.ApplicationModel, error)
 	Get(ctx context.Context, userId uint64, id uint64) (model.ApplicationModel, error)
+	GetByName(ctx context.Context, name string) (model.ApplicationModel, error)
 	GetList(ctx context.Context, userId uint64) ([]*model.ApplicationModel, error)
 	PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error)
 	Delete(ctx context.Context, userId uint64, id uint64) error
@@ -40,6 +41,15 @@ func NewClusterRepo(db *gorm.DB) ApplicationRepo {
 	return &applicationRepo{
 		db: db,
 	}
+}
+
+func (repo *applicationRepo) GetByName(ctx context.Context, name string) (model.ApplicationModel, error) {
+	var record model.ApplicationModel
+	result := repo.db.Where("JSON_CONTAINS(context,JSON_OBJECT('application_name', ?))", name).First(&record)
+	if result.Error != nil {
+		return record, nil
+	}
+	return record, nil
 }
 
 func (repo *applicationRepo) PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error) {

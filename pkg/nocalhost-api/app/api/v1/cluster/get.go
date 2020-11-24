@@ -35,8 +35,8 @@ func GetList(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
-// @Summary 获取集群已授权详情
-// @Description 集群入口获取集群详情
+// @Summary 集群开发环境列表
+// @Description 集群入口获取集群开发环境
 // @Tags 集群
 // @Accept  json
 // @Produce  json
@@ -44,14 +44,13 @@ func GetList(c *gin.Context) {
 // @Param id path string true "集群 ID"
 // @Success 200 {object} model.ClusterUserModel "应用开发环境参数，含 kubeconfig"
 // @Router /v1/cluster/{id}/dev_space [get]
-func GetSpaceDetail(c *gin.Context) {
-	userId, _ := c.Get("userId")
+func GetSpaceList(c *gin.Context) {
+	//userId, _ := c.Get("userId")
 	clusterId := cast.ToUint64(c.Param("id"))
 	where := model.ClusterUserModel{
-		UserId:    userId.(uint64),
 		ClusterId: clusterId,
 	}
-	result, err := service.Svc.ClusterUser().GetFirst(c, where)
+	result, err := service.Svc.ClusterUser().GetList(c, where)
 	if err != nil {
 		api.SendResponse(c, nil, make([]interface{}, 0))
 		return
@@ -74,6 +73,32 @@ func GetDetail(c *gin.Context) {
 	result, err := service.Svc.ClusterSvc().Get(c, clusterId, userId.(uint64))
 	if err != nil {
 		api.SendResponse(c, nil, make([]interface{}, 0))
+		return
+	}
+	api.SendResponse(c, nil, result)
+}
+
+// @Summary 集群某个开发环境的详情
+// @Description 通过集群 id 和开发环境 id 获取集群开发环境详情
+// @Tags 集群
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path string true "集群 ID"
+// @Param space_id path string true "开发空间 ID"
+// @Success 200 {object} model.ClusterUserModel "应用开发环境参数，含 kubeconfig"
+// @Router /v1/cluster/{id}/dev_space/{space_id}/detail [get]
+func GetSpaceDetail(c *gin.Context) {
+	//userId, _ := c.Get("userId")
+	clusterId := cast.ToUint64(c.Param("id"))
+	devSpaceId := cast.ToUint64(c.Param("space_id"))
+	where := model.ClusterUserModel{
+		ID:        devSpaceId,
+		ClusterId: clusterId,
+	}
+	result, err := service.Svc.ClusterUser().GetFirst(c, where)
+	if err != nil {
+		api.SendResponse(c, nil, nil)
 		return
 	}
 	api.SendResponse(c, nil, result)

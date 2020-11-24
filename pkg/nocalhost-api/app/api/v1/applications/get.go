@@ -15,6 +15,7 @@ package applications
 
 import (
 	"github.com/spf13/cast"
+	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
@@ -67,8 +68,8 @@ func GetDetail(c *gin.Context) {
 	api.SendResponse(c, errno.OK, result)
 }
 
-// @Summary 获取应用已授权详情
-// @Description 应用入口获取应用所属集群已授权详情
+// @Summary 获取应用已授权详情（废弃）
+// @Description 应用入口获取应用所属集群已授权详情（废弃）
 // @Tags 应用
 // @Accept  json
 // @Produce  json
@@ -81,11 +82,12 @@ func GetSpaceDetail(c *gin.Context) {
 	userId, _ := c.Get("userId")
 	clusterId := cast.ToUint64(c.Param("clusterId"))
 	applicationId := cast.ToUint64(c.Param("id"))
-	where := make(map[string]interface{}, 0)
-	where["user_id"] = userId.(uint64)
-	where["cluster_id"] = clusterId
-	where["application_id"] = applicationId
-	result, err := service.Svc.ClusterUser().GetList(c, where)
+	models := model.ClusterUserModel{
+		UserId:        userId.(uint64),
+		ClusterId:     clusterId,
+		ApplicationId: applicationId,
+	}
+	result, err := service.Svc.ClusterUser().GetList(c, models)
 	if err != nil {
 		api.SendResponse(c, nil, make([]interface{}, 0))
 		return
@@ -96,7 +98,7 @@ func GetSpaceDetail(c *gin.Context) {
 // Create 插件获取应用（含安装状态）
 // @Summary Plugin - 获取应用（含安装状态）
 // @Description Plugin - 获取应用（含安装状态）
-// @Tags 应用
+// @Tags 插件
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
