@@ -557,7 +557,7 @@ paths:
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
-      summary: Plugin - 获取个人应用开发环境(kubeconfig)
+      summary: Plugin - 获取个人应用开发环境(kubeconfig) （废弃）
       tags:
       - 插件
   /v1/application/{id}/dev_space/{space_id}/detail:
