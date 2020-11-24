@@ -22,7 +22,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/api"
 )
 
-// @Summary Plugin - 获取个人应用开发环境(kubeconfig)
+// @Summary Plugin - 获取个人应用开发环境(kubeconfig) （废弃）
 // @Description Get user's application dev space
 // @Tags 插件
 // @Accept  json
