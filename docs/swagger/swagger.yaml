@@ -100,6 +100,8 @@ definitions:
     type: object
   model.ClusterModel:
     properties:
+      created_at:
+        type: string
       id:
         type: integer
       info:
@@ -110,6 +112,10 @@ definitions:
         type: string
       name:
         type: string
+      server:
+        type: string
+      user_id:
+        type: integer
     required:
     - kubeconfig
     - name
@@ -122,12 +128,16 @@ definitions:
         type: integer
       cpu:
         type: integer
+      created_at:
+        type: string
       id:
         type: integer
       kubeconfig:
         type: string
       memory:
         type: integer
+      namespace:
+        type: string
       status:
         type: integer
       user_id:
@@ -434,7 +444,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: 获取应用已关联集群
+      description: 获取应用已关联集群列表（废弃）
       parameters:
       - description: Authorization
         in: header
@@ -454,14 +464,14 @@ paths:
           schema:
             $ref: '#/definitions/model.ApplicationClusterModel'
             type: object
-      summary: 获取应用已关联集群
+      summary: 获取应用已关联集群列表（废弃）
       tags:
       - 应用
   /v1/application/{id}/cluster/{clusterId}:
     get:
       consumes:
       - application/json
-      description: 应用入口获取应用所属集群已授权详情
+      description: 应用入口获取应用所属集群已授权详情（废弃）
       parameters:
       - description: Authorization
         in: header
@@ -486,14 +496,14 @@ paths:
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
-      summary: 获取应用已授权详情
+      summary: 获取应用已授权详情（废弃）
       tags:
       - 应用
   /v1/application/{id}/create_space:
     post:
       consumes:
       - application/json
-      description: 为用户创建开发环境 - 集群授权
+      description: 为创建应用的开发环境
       parameters:
       - description: Authorization
         in: header
@@ -520,7 +530,7 @@ paths:
           schema:
             $ref: '#/definitions/model.ClusterModel'
             type: object
-      summary: 应用管理 - 创建开发环境
+      summary: 创建开发环境
       tags:
       - 应用
   /v1/application/{id}/dev_space:
@@ -548,6 +558,38 @@ paths:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
       summary: Plugin - 获取个人应用开发环境(kubeconfig)
+      tags:
+      - 插件
+  /v1/application/{id}/dev_space/{space_id}/detail:
+    get:
+      consumes:
+      - application/json
+      description: Get dev space detail from application
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 应用 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 开发空间 ID
+        in: path
+        name: space_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 应用开发环境参数，含 kubeconfig，status=0应用未安装，1已安装
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: 获取应用某个开发环境详情
       tags:
       - 应用
   /v1/application/{id}/dev_space/{spaceId}/plugin_sync:
@@ -587,6 +629,33 @@ paths:
             $ref: '#/definitions/api.Response'
             type: object
       summary: Plugin - 更新应用安装状态
+      tags:
+      - 插件
+  /v1/application/{id}/dev_space_list:
+    get:
+      consumes:
+      - application/json
+      description: Get application dev space list
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 应用 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 应用开发环境参数，含 kubeconfig，status=0 应用未安装，1已安装
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: 获取应用开发环境列表
       tags:
       - 应用
   /v1/cluster:
@@ -670,7 +739,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: 集群入口获取集群详情
+      description: 集群入口获取集群开发环境
       parameters:
       - description: Authorization
         in: header
@@ -690,9 +759,68 @@ paths:
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
-      summary: 获取集群已授权详情
+      summary: 集群开发环境列表
       tags:
       - 集群
+  /v1/cluster/{id}/dev_space/{space_id}/detail:
+    get:
+      consumes:
+      - application/json
+      description: 通过集群 id 和开发环境 id 获取集群开发环境详情
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 集群 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 开发空间 ID
+        in: path
+        name: space_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 应用开发环境参数，含 kubeconfig
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: 集群某个开发环境的详情
+      tags:
+      - 集群
+  /v1/dev_space/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 彻底删除开发环境，包含删除 K8S 命名空间
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 开发环境 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: 彻底删除开发环境
+      tags:
+      - 应用
   /v1/login:
     post:
       description: 邮箱登录
@@ -757,7 +885,7 @@ paths:
             type: object
       summary: Plugin - 获取应用（含安装状态）
       tags:
-      - 应用
+      - 插件
   /v1/register:
     post:
       description: 用户注册
