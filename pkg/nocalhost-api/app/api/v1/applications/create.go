@@ -15,11 +15,12 @@ package applications
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/napp"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
@@ -42,24 +43,31 @@ func Create(c *gin.Context) {
 		return
 	}
 	// check application exist
-	applicationContext := make(map[string]interface{})
+	var applicationContext ApplicationJsonContext
 	err := json.Unmarshal([]byte(req.Context), &applicationContext)
 	if err != nil {
-		api.SendResponse(c, errno.ErrApplicationJsonContext, nil)
+		api.SendResponse(c, &errno.Errno{Code: 40110, Message: err.Error()}, nil)
 		return
 	}
-	if applicationName, ok := applicationContext["application_name"]; ok {
-		// check application name is match DNS-1123
-		errs := validation.IsDNS1123Label(fmt.Sprintf("%v", applicationName))
-		if len(errs) > 0 {
-			api.SendResponse(c, &errno.Errno{Code: 40110, Message: errs[0]}, nil)
+	// check required field
+	sErr := napp.App.Validate.Struct(&applicationContext)
+	if sErr != nil {
+		errs := sErr.(validator.ValidationErrors)
+		for _, err := range errs {
+			api.SendResponse(c, &errno.Errno{Code: 40110, Message: err.StructNamespace() + " is illegal, require: " + err.Param()}, nil)
 			return
 		}
-		existApplication, _ := service.Svc.ApplicationSvc().GetByName(c, fmt.Sprintf("%v", applicationName))
-		if existApplication.ID != 0 {
-			api.SendResponse(c, errno.ErrApplicationNameExist, nil)
-			return
-		}
+	}
+	// check application name is match DNS-1123
+	errs := validation.IsDNS1123Label(applicationContext.ApplicationName)
+	if len(errs) > 0 {
+		api.SendResponse(c, &errno.Errno{Code: 40110, Message: errs[0]}, nil)
+		return
+	}
+	existApplication, _ := service.Svc.ApplicationSvc().GetByName(c, applicationContext.ApplicationName)
+	if existApplication.ID != 0 {
+		api.SendResponse(c, errno.ErrApplicationNameExist, nil)
+		return
 	}
 	userId, _ := c.Get("userId")
 	a, err := service.Svc.ApplicationSvc().Create(c, req.Context, *req.Status, userId.(uint64))
