@@ -72,6 +72,15 @@ func (c *GoClient) CreateNS(namespace, label string) (bool, error) {
 	return true, nil
 }
 
+// delete namespace, this will delete all resource in namespace
+func (c *GoClient) DeleteNS(namespace string) (bool, error) {
+	err := c.client.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // nocalhost create namespace use the rule: nocal+userId+4 random word, exp: nocal4esac
 // namespace rules must match DNS-1123 label, capital doesn't allow
 func (c *GoClient) GenerateNsName(userId uint64) string {

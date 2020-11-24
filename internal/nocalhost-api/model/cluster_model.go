@@ -25,10 +25,10 @@ type ClusterModel struct {
 	Name       string     `json:"name" gorm:"column:name;not null" binding:"required" validate:"min=1,max=32"`
 	Marks      string     `json:"marks" gorm:"column:marks;not null"`
 	Info       string     `json:"info" gorm:"column:info;"`
-	UserId     uint64     `gorm:"column:user_id;not null" json:"-"`
-	Server     string     `gorm:"column:server;not null" json:"-"`
+	UserId     uint64     `gorm:"column:user_id;not null" json:"user_id"`
+	Server     string     `gorm:"column:server;not null" json:"server"`
 	KubeConfig string     `json:"kubeconfig" gorm:"column:kubeconfig;not null" binding:"required"`
-	CreatedAt  time.Time  `gorm:"column:created_at" json:"-"`
+	CreatedAt  time.Time  `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt  time.Time  `gorm:"column:updated_at" json:"-"`
 	DeletedAt  *time.Time `gorm:"column:deleted_at" json:"-"`
 }
