@@ -63,7 +63,7 @@ func Update(c *gin.Context) {
 // Create Plugin - 更新应用安装状态
 // @Summary Plugin - 更新应用安装状态
 // @Description Plugin - 更新应用安装状态
-// @Tags 应用
+// @Tags 插件
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"

@@ -256,7 +256,7 @@
         },
         "/v1/application/{id}/bound_cluster": {
             "get": {
-                "description": "获取应用已关联集群",
+                "description": "获取应用已关联集群列表（废弃）",
                 "consumes": [
                     "application/json"
                 ],
@@ -266,7 +266,7 @@
                 "tags": [
                     "应用"
                 ],
-                "summary": "获取应用已关联集群",
+                "summary": "获取应用已关联集群列表（废弃）",
                 "parameters": [
                     {
                         "type": "string",
@@ -296,7 +296,7 @@
         },
         "/v1/application/{id}/cluster/{clusterId}": {
             "get": {
-                "description": "应用入口获取应用所属集群已授权详情",
+                "description": "应用入口获取应用所属集群已授权详情（废弃）",
                 "consumes": [
                     "application/json"
                 ],
@@ -306,7 +306,7 @@
                 "tags": [
                     "应用"
                 ],
-                "summary": "获取应用已授权详情",
+                "summary": "获取应用已授权详情（废弃）",
                 "parameters": [
                     {
                         "type": "string",
@@ -343,7 +343,7 @@
         },
         "/v1/application/{id}/create_space": {
             "post": {
-                "description": "为用户创建开发环境 - 集群授权",
+                "description": "为创建应用的开发环境",
                 "consumes": [
                     "application/json"
                 ],
@@ -353,7 +353,7 @@
                 "tags": [
                     "应用"
                 ],
-                "summary": "应用管理 - 创建开发环境",
+                "summary": "创建开发环境",
                 "parameters": [
                     {
                         "type": "string",
@@ -401,7 +401,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "应用"
+                    "插件"
                 ],
                 "summary": "Plugin - 获取个人应用开发环境(kubeconfig)",
                 "parameters": [
@@ -441,7 +441,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "应用"
+                    "插件"
                 ],
                 "summary": "Plugin - 更新应用安装状态",
                 "parameters": [
@@ -483,6 +483,93 @@
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/application/{id}/dev_space/{space_id}/detail": {
+            "get": {
+                "description": "Get dev space detail from application",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "应用"
+                ],
+                "summary": "获取应用某个开发环境详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "应用 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "开发空间 ID",
+                        "name": "space_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "应用开发环境参数，含 kubeconfig，status=0应用未安装，1已安装",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/application/{id}/dev_space_list": {
+            "get": {
+                "description": "Get application dev space list",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "应用"
+                ],
+                "summary": "获取应用开发环境列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "应用 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "应用开发环境参数，含 kubeconfig，status=0 应用未安装，1已安装",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
                         }
                     }
                 }
@@ -604,7 +691,7 @@
         },
         "/v1/cluster/{id}/dev_space": {
             "get": {
-                "description": "集群入口获取集群详情",
+                "description": "集群入口获取集群开发环境",
                 "consumes": [
                     "application/json"
                 ],
@@ -614,7 +701,7 @@
                 "tags": [
                     "集群"
                 ],
-                "summary": "获取集群已授权详情",
+                "summary": "集群开发环境列表",
                 "parameters": [
                     {
                         "type": "string",
@@ -637,6 +724,93 @@
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/cluster/{id}/dev_space/{space_id}/detail": {
+            "get": {
+                "description": "通过集群 id 和开发环境 id 获取集群开发环境详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "集群"
+                ],
+                "summary": "集群某个开发环境的详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "集群 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "开发空间 ID",
+                        "name": "space_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "应用开发环境参数，含 kubeconfig",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/dev_space/{id}": {
+            "delete": {
+                "description": "彻底删除开发环境，包含删除 K8S 命名空间",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "应用"
+                ],
+                "summary": "彻底删除开发环境",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "开发环境 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
                         }
                     }
                 }
@@ -717,7 +891,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "应用"
+                    "插件"
                 ],
                 "summary": "Plugin - 获取应用（含安装状态）",
                 "parameters": [
@@ -1127,6 +1301,9 @@
                 "name"
             ],
             "properties": {
+                "created_at": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -1141,6 +1318,12 @@
                 },
                 "name": {
                     "type": "string"
+                },
+                "server": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -1156,6 +1339,9 @@
                 "cpu": {
                     "type": "integer"
                 },
+                "created_at": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -1164,6 +1350,9 @@
                 },
                 "memory": {
                     "type": "integer"
+                },
+                "namespace": {
+                    "type": "string"
                 },
                 "status": {
                     "type": "integer"

@@ -43,12 +43,12 @@ func Create(c *gin.Context) {
 	}
 	userId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
-	// check application
+	// check application auth
 	if _, err := service.Svc.ApplicationSvc().Get(c, applicationId, userId.(uint64)); err != nil {
 		api.SendResponse(c, errno.ErrPermissionApplication, nil)
 		return
 	}
-	// check cluster
+	// check cluster auth
 	if _, err := service.Svc.ClusterSvc().Get(c, *req.ClusterId, userId.(uint64)); err != nil {
 		api.SendResponse(c, errno.ErrPermissionCluster, nil)
 		return

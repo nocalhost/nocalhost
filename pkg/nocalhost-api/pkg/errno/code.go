@@ -36,14 +36,16 @@ var (
 	ErrUserLoginWebNotAllow  = &Errno{Code: 20118, Message: "Normal users are not allowed login web interface"}
 
 	// cluster errors
-	ErrClusterCreate      = &Errno{Code: 30100, Message: "Failed to add cluster, please try again"}
-	ErrClusterExistCreate = &Errno{Code: 30101, Message: "The cluster already exists (Duplicate Server)"}
-	ErrClusterKubeCreate  = &Errno{Code: 30102, Message: "It is not allowed to create this type of cluster (there are multiple Kubeconfig Clusters)"}
-	ErrClusterKubeErr     = &Errno{Code: 30103, Message: "Kubeconfig parsing error, please check"}
-	ErrClusterKubeAdmin   = &Errno{Code: 30104, Message: "Please check Kubeconfig Admin permissions"}
-	ErrClusterKubeConnect = &Errno{Code: 30104, Message: "Connect cluster fail, Please check cluster connectivity"}
-	ErrClusterDepSetup    = &Errno{Code: 30105, Message: "Initialize cluster: Failed to create dependent component Configmap"}
-	ErrClusterDepJobSetup = &Errno{Code: 30106, Message: "Initialize the cluster: Create dependent component Job failed"}
+	ErrClusterCreate          = &Errno{Code: 30100, Message: "Failed to add cluster, please try again"}
+	ErrClusterExistCreate     = &Errno{Code: 30101, Message: "The cluster already exists (Duplicate Server)"}
+	ErrClusterKubeCreate      = &Errno{Code: 30102, Message: "It is not allowed to create this type of cluster (there are multiple Kubeconfig Clusters)"}
+	ErrClusterKubeErr         = &Errno{Code: 30103, Message: "Kubeconfig parsing error, please check"}
+	ErrClusterKubeAdmin       = &Errno{Code: 30104, Message: "Please check Kubeconfig Admin permissions"}
+	ErrClusterKubeConnect     = &Errno{Code: 30104, Message: "Connect cluster fail, Please check cluster connectivity"}
+	ErrClusterDepSetup        = &Errno{Code: 30105, Message: "Initialize cluster: Failed to create dependent component Configmap"}
+	ErrClusterDepJobSetup     = &Errno{Code: 30106, Message: "Initialize the cluster: Create dependent component Job failed"}
+	ErrClusterNotFound        = &Errno{Code: 30107, Message: "Cluster has not found"}
+	ErrDeleteClusterNameSpace = &Errno{Code: 30108, Message: "Delete cluster namespace fail, please try again"}
 
 	// application errors
 	ErrApplicationCreate        = &Errno{Code: 40100, Message: "Failed to add app, please try again"}
@@ -54,6 +56,8 @@ var (
 	ErrPermissionApplication    = &Errno{Code: 40105, Message: "No permission for this application"}
 	ErrPermissionCluster        = &Errno{Code: 40106, Message: "No permission for this cluster"}
 	ErrApplicationInstallUpdate = &Errno{Code: 40107, Message: "Failed to update app installation status, please try again"}
+	ErrApplicationJsonContext   = &Errno{Code: 40108, Message: "Application context Unmarshal JSON fail"}
+	ErrApplicationNameExist     = &Errno{Code: 40109, Message: "Application name already exist"}
 
 	// application-cluster
 	ErrApplicationBoundClusterList = &Errno{Code: 40108, Message: "Failed to get application bound cluster list, please try again"}
@@ -70,4 +74,6 @@ var (
 	ErrBindSecretCAGetErr                        = &Errno{Code: 50109, Message: "Cluster user authorization failed: Failed to obtain ServiceAccount CA"}
 	ErrBindServiceAccountStructEncodeErr         = &Errno{Code: 50110, Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Json to Yaml failed"}
 	ErrBindServiceAccountKubeConfigJsonEncodeErr = &Errno{Code: 50110, Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Struct to Json failed"}
+	ErrClsuterUserNotFound                       = &Errno{Code: 50111, Message: "Dev space has not found"}
+	ErrDeletedClsuterButDatabaseFail             = &Errno{Code: 50112, Message: "Cluster namespace has deleted, but database record delete fail"}
 )
