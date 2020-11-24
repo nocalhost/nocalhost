@@ -19,6 +19,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"math/rand"
 	"net"
 	"regexp"
@@ -159,4 +160,15 @@ func GetRealIP(ctx *gin.Context) (ip string) {
 	}
 	ip, _, _ = net.SplitHostPort(ctx.Request.RemoteAddr)
 	return ip
+}
+
+// is match dns label
+func ReplaceDNS1123(name string) string {
+	var invalidDNS1123Characters = regexp.MustCompile("[^-a-z0-9]+")
+	name = strings.ToLower(name)
+	name = invalidDNS1123Characters.ReplaceAllString(name, "-")
+	if len(name) > validation.DNS1123LabelMaxLength {
+		name = name[0:validation.DNS1123LabelMaxLength]
+	}
+	return strings.Trim(name, "-")
 }

@@ -23,8 +23,9 @@ import (
 
 type ClusterUserRepo interface {
 	Create(ctx context.Context, model model.ClusterUserModel) (model.ClusterUserModel, error)
+	Delete(ctx context.Context, id uint64) error
 	GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error)
-	GetList(ctx context.Context, c map[string]interface{}) ([]*model.ClusterUserModel, error)
+	GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error)
 	Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
 	Close()
 }
@@ -37,6 +38,14 @@ func NewApplicationClusterRepo(db *gorm.DB) ClusterUserRepo {
 	return &clusterUserRepo{
 		db: db,
 	}
+}
+
+func (repo *clusterUserRepo) Delete(ctx context.Context, id uint64) error {
+	result := repo.db.Unscoped().Delete(model.ClusterUserModel{}, id)
+	if result.RowsAffected > 0 {
+		return nil
+	}
+	return result.Error
 }
 
 func (repo *clusterUserRepo) Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error) {
@@ -57,9 +66,9 @@ func (repo *clusterUserRepo) Update(ctx context.Context, models *model.ClusterUs
 	return models, errors.Wrap(err, "[clsuter_user_repo] update clsuter_user err")
 }
 
-func (repo *clusterUserRepo) GetList(ctx context.Context, c map[string]interface{}) ([]*model.ClusterUserModel, error) {
+func (repo *clusterUserRepo) GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error) {
 	result := make([]*model.ClusterUserModel, 0)
-	repo.db.Where(c).Find(&result)
+	repo.db.Where(&models).Find(&result)
 	if len(result) > 0 {
 		return result, nil
 	}
