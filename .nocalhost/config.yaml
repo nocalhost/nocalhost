@@ -29,4 +29,4 @@ svcConfigs:
     devPort:
     - 8080:8080
     pods: 
-    - "app-nocalhost-api"
+    - "app=nocalhost-api"
