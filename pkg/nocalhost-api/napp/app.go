@@ -62,7 +62,7 @@ func New(cfg *conf.Config) *Application {
 	app.DB = model.Init()
 
 	// init redis
-	// app.RedisClient = redis2.Init()
+	// app.RedisClient = redis2.InitDir()
 
 	// init router
 	app.Router = gin.Default()

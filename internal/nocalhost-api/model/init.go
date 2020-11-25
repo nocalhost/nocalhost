@@ -30,7 +30,7 @@ import (
 // DB 数据库全局变量
 var DB *gorm.DB
 
-// Init 初始化数据库
+// InitDir 初始化数据库
 func Init() *gorm.DB {
 	return openDB(viper.GetString("mysql.username"),
 		viper.GetString("mysql.password"),

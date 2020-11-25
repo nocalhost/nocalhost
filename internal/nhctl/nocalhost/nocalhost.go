@@ -1,9 +1,10 @@
-package cmds
+package nocalhost
 
 import (
 	"fmt"
 	"io/ioutil"
-	"nocalhost/internal/nhctl"
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/utils"
 	"os"
 	"strings"
 )
@@ -22,7 +23,7 @@ func NewNocalHost() (*NocalHost, error) {
 
 func (n *NocalHost) Init() error {
 	var err error
-	nhctlHomeDir := nocalhost.GetHomeDir()
+	nhctlHomeDir := n.GetHomeDir()
 	if _, err = os.Stat(nhctlHomeDir); err != nil {
 		if os.IsNotExist(err) {
 			err = os.Mkdir(nhctlHomeDir, 0755)
@@ -30,7 +31,7 @@ func (n *NocalHost) Init() error {
 				return err
 			}
 
-			applicationDir := n.GetApplicationDir()
+			applicationDir := n.GetAppHomeDir()
 			err = os.Mkdir(applicationDir, 0755) // create .nhctl/application
 			if err != nil {
 				return err
@@ -87,7 +88,7 @@ oMu7FrusZvhZhbqEhRMIJ1+HlqPsYdFlDHmJ3tztS5cG8+XMwOaLQOpbof2WEoJa
 		}
 	}
 
-	sshHomeDir := fmt.Sprintf("%s%c%s", GetHomePath(), os.PathSeparator, ".ssh")
+	sshHomeDir := fmt.Sprintf("%s%c%s", utils.GetHomePath(), os.PathSeparator, ".ssh")
 	sshConfigFile := fmt.Sprintf("%s%c%s", sshHomeDir, os.PathSeparator, "config")
 	sshConfig := `
 Host shared-container
@@ -98,7 +99,6 @@ IdentityFile ~/.nhctl/key/id_rsa
 
 	if _, err = os.Stat(sshHomeDir); err != nil {
 		if os.IsNotExist(err) {
-			debug(".ssh not exists, create it")
 			err = os.Mkdir(sshHomeDir, 0644)
 		}
 	}
@@ -108,7 +108,6 @@ IdentityFile ~/.nhctl/key/id_rsa
 
 	if _, err = os.Stat(sshConfigFile); err != nil {
 		if os.IsNotExist(err) {
-			debug("~/.ssh/config not exists, create it")
 			err = ioutil.WriteFile(sshConfigFile, []byte(""), 0644)
 		}
 	}
@@ -127,16 +126,15 @@ IdentityFile ~/.nhctl/key/id_rsa
 	}
 	defer file.Close()
 	if strings.Contains(string(f), "Host shared-container") {
-		debug("~/.ssh/config already config, ignore it")
+		//cmds.debug("~/.ssh/config already config, ignore it")
 	} else {
 		_, err = file.Write([]byte(sshConfig))
 		if err != nil {
 			return err
 		}
 	}
-	// todo StrictHostKeyChecking no
 	if strings.Contains(string(f), "StrictHostKeyChecking no") {
-		debug("~/.ssh/config already set StrictHostKeyChecking = no")
+		//cmds.debug("~/.ssh/config already set StrictHostKeyChecking = no")
 	} else {
 		_, err = file.Write([]byte("StrictHostKeyChecking no"))
 		if err != nil {
@@ -147,15 +145,20 @@ IdentityFile ~/.nhctl/key/id_rsa
 }
 
 func (n *NocalHost) GetHomeDir() string {
-	return fmt.Sprintf("%s%c%s", GetHomePath(), os.PathSeparator, nhctl.DefaultNhctlHomeDirName)
+	return fmt.Sprintf("%s%c%s", utils.GetHomePath(), os.PathSeparator, app.DefaultNhctlHomeDirName)
 }
 
-func (n *NocalHost) GetApplicationDir() string {
-	return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, nhctl.DefaultApplicationDirName)
+func (n *NocalHost) GetAppHomeDir() string {
+	return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, app.DefaultApplicationDirName)
+}
+
+func (n *NocalHost) GetAppDir(appName string) string {
+	// GetHomePath() + "/.nhctl/" + "application/" + applicationName
+	return fmt.Sprintf("%s%c%s", n.GetAppHomeDir(), os.PathSeparator, appName)
 }
 
 func (n *NocalHost) CleanupAppFiles(appName string) error {
-	appDir := fmt.Sprintf("%s/%s", n.GetApplicationDir(), appName)
+	appDir := n.GetAppDir(appName)
 	if f, err := os.Stat(appDir); err == nil {
 		if f.IsDir() {
 			err = os.RemoveAll(appDir)
@@ -168,11 +171,11 @@ func (n *NocalHost) CleanupAppFiles(appName string) error {
 }
 
 func (n *NocalHost) GetSshKeyDir() string {
-	return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, nhctl.DefaultSshKeyDirName)
+	return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, app.DefaultSshKeyDirName)
 }
 
 func (n *NocalHost) GetApplicationNames() ([]string, error) {
-	appDir := n.GetApplicationDir()
+	appDir := n.GetAppHomeDir()
 	fs, err := ioutil.ReadDir(appDir)
 	if err != nil {
 		return nil, err
@@ -204,6 +207,6 @@ func (n *NocalHost) CheckIfApplicationExist(appName string) bool {
 	return false
 }
 
-func (n *NocalHost) GetApplication(appName string) (*nhctl.Application, error) {
-	return nhctl.NewApplication(appName)
+func (n *NocalHost) GetApplication(appName string) (*app.Application, error) {
+	return app.NewApplication(appName)
 }
