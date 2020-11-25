@@ -1,4 +1,4 @@
-package nhctl
+package utils
 
 import "os/user"
 

@@ -1,4 +1,4 @@
-package nhctl
+package app
 
 type DevStartOptions struct {
 	WorkDir      string

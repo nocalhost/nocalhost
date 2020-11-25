@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl"
+	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
@@ -42,11 +42,11 @@ var devEndCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		if !nocalhost.CheckIfApplicationExist(applicationName) {
+		if !nh.CheckIfApplicationExist(applicationName) {
 			fmt.Printf("[error] application \"%s\" not found\n", applicationName)
 			os.Exit(1)
 		}
-		nocalhostApp, err = nhctl.NewApplication(applicationName)
+		nocalhostApp, err = app.NewApplication(applicationName)
 		clientgoutils.Must(err)
 
 		if deployment == "" {

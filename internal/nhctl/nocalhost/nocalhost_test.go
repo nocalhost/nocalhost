@@ -1,18 +1,19 @@
-package cmds
+package nocalhost
 
 import (
 	"fmt"
+	"nocalhost/cmd/nhctl/cmds"
 	"nocalhost/pkg/nhctl/utils"
 	"testing"
 )
 
 func TestNocalHost_GetApplicationDir(t *testing.T) {
-	n := NocalHost{}
+	n := nocalhost2.NocalHost{}
 	fmt.Println(n.GetApplicationDir())
 }
 
 func TestNocalHost_GetApplications(t *testing.T) {
-	n := NocalHost{}
+	n := nocalhost2.NocalHost{}
 	apps, err := n.GetApplicationNames()
 	utils.Mush(err)
 	for _, app := range apps {
@@ -21,5 +22,5 @@ func TestNocalHost_GetApplications(t *testing.T) {
 }
 
 func TestListApplications(t *testing.T) {
-	ListApplications()
+	cmds.ListApplications()
 }

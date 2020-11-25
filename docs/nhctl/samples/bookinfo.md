@@ -39,7 +39,7 @@ nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $
 直接从 helm repo 中安装的应用：
 指定 repo name 安装：
 ```shell
-nhctl install $APPNAME --debug -n $NOCALHOST_NS -t helm-repo --helm-chart-name jenkins --helm-repo-name https://charts.jenkins.io --set persistence.size=10Gi
+nhctl install $APPNAME --debug -n $NOCALHOST_NS -t helm-repo --helm-chart-name jenkins --helm-repo-name jenkins --set persistence.size=10Gi
 ```
 指定 repo url 安装：
 ```shell

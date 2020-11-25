@@ -1,4 +1,4 @@
-package nhctl
+package app
 
 import (
 	"strconv"
@@ -6,21 +6,22 @@ import (
 )
 
 const (
-	DefaultSideCarImage           = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:latest"
-	DefaultDevImage               = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
-	DefaultWorkDir                = "/home/nocalhost-dev"
-	DefaultLocalSyncDirName       = "."
-	DefaultPortForwardDir         = "port-forward"
-	DefaultForwardRemoteSshPort   = 22
-	DefaultForwardLocalSshPort    = 30002
-	DefaultNhctlHomeDirName       = ".nhctl"
-	DefaultSshKeyDirName          = "key"
-	DefaultApplicationDirName     = "application"
-	DefaultApplicationProfilePath = ".profile.yaml"
-	DefaultApplicationConfigDir   = ".nocalhost"
-	DefaultApplicationConfigName  = "config.yaml"
-	DefaultNewFilePermission      = 0755
-	DefaultClientGoTimeOut        = time.Minute * 5
+	DefaultSideCarImage             = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:latest"
+	DefaultDevImage                 = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
+	DefaultWorkDir                  = "/home/nocalhost-dev"
+	DefaultLocalSyncDirName         = "."
+	DefaultPortForwardDir           = "port-forward"
+	DefaultResourcesDir             = "resources"
+	DefaultForwardRemoteSshPort     = 22
+	DefaultForwardLocalSshPort      = 30002
+	DefaultNhctlHomeDirName         = ".nhctl"
+	DefaultSshKeyDirName            = "key"
+	DefaultApplicationDirName       = "application"
+	DefaultApplicationProfilePath   = ".profile.yaml"
+	DefaultApplicationConfigDirName = ".nocalhost"
+	DefaultApplicationConfigName    = "config.yaml"
+	DefaultNewFilePermission        = 0755
+	DefaultClientGoTimeOut          = time.Minute * 5
 )
 
 type NocalHostAppConfig struct {

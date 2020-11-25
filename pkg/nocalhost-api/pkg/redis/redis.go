@@ -29,7 +29,7 @@ var RedisClient *redis.Client
 // Nil redis 返回为空
 const Nil = redis.Nil
 
-// Init 实例化一个redis client
+// InitDir 实例化一个redis client
 func Init() *redis.Client {
 	RedisClient = redis.NewClient(&redis.Options{
 		Addr:         viper.GetString("redis.addr"),
