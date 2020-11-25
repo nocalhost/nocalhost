@@ -390,11 +390,12 @@ func (a *Application) InstallHelmRepo(releaseName string, flags *HelmFlags) erro
 		installParams = append(installParams, "--wait")
 	}
 	//if installFlags.HelmRepoUrl
-	if flags.RepoName != "" {
-		installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
-	} else if flags.RepoUrl != "" {
+	if flags.RepoUrl != "" {
 		installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
+	} else if flags.RepoName != "" {
+		installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
 	}
+
 	if flags.Set != "" {
 		installParams = append(installParams, "--set", flags.Set)
 	}
