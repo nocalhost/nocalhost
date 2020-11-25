@@ -1,0 +1,67 @@
+preInstalls:
+  - path: pre-install/print-num-job-01.yaml
+
+appConfig:
+  name: bookinfo
+  type: helm
+  resourcePath: charts/bookinfo
+
+svcConfigs:
+  - name: details
+    type: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-details.git
+    devLang: ruby  # java|go|node|php
+    devImage: codingcorp-docker.pkg.coding.net/nocalhost/public/share-container-ruby:v2  # 可选参数：自定义开发容器
+    # sideCarImage: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:v1
+    workDir: /home/nocalhost-dev   # sidecar 和业务容器的公共目录，kubectl exec 进去就是家目录 k8s containers.workingDir
+    localWorkDir: /home/coding   # 插件自动拉代码并保存的本地工作空间
+    sync:  # 用户配置的同步目录
+      - /opt/coding   # 本地工作目录同步到远程 workDir 目录（脚本语言推荐），注意需要使用 empty dir 挂载到业务容器和工作容器对应的目录下，实现容器间共享存储。
+      - ~/coding/build   # 本地 build 目录同步到远程 workDir 目录，例如大型 Java 项目不推荐同步源码，应本地 build 之后，同步 jar 包即可
+    ignore:
+      - tests # 忽略本地 /test 目录不同步
+      - .github
+    sshPort:
+      localPort: 12347
+      sshPort: 22
+    devPort:
+      - 12346:22
+      - 5005:5005  # 打通应用的调试端口，使用 port-forward 一致的格式 [locaPort:remotePort]
+    command: ["kill `ps -ef|grep -i gradlew| grep -v grep| awk '{print $2}'`", "gradlew", "bootrun"]
+  - name: ratings
+    type: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-ratings.git
+    devLang: node
+    devImage: node
+    sideCarImage: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:latest
+    workDir: /home/nocalhost-dev
+    localWorkDir: /home/coding
+    sync:
+      - /opt/coding
+      - ~/coding/build
+    pods:
+      - "productpage"
+  - name: productpage
+    type: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-productpage
+    devLang: python
+    devImage: python
+    sideCarImage: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:latest
+    workDir: /home/nocalhost-dev
+    localWorkDir: /home/coding
+    sync:
+      - /opt/coding
+      - ~/coding/build
+  - name: reviews
+    type: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-reviews.git
+    devLang: java
+    devImage: java
+    sideCarImage: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:latest
+    workDir: /home/nocalhost-dev
+    localWorkDir: /home/coding
+    sync:
+      - /opt/coding
+      - ~/coding/build
+    pods:
+      - "productpage"
