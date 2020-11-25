@@ -14,7 +14,6 @@ limitations under the License.
 package tools
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -97,45 +96,68 @@ func ExecKubeCtlCommand(ctx context.Context, kubeconfig string, params ...string
 
 //execute command
 func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params ...string) (string, error) {
-	execCommand := commandName
+	var errStdout, errStderr error
+	//var stdout, stderr []byte
+	//execCommand := commandName
 
 	var cmd *exec.Cmd
 	if ctx == nil {
-		cmd = exec.Command(execCommand, params...)
+		cmd = exec.Command(commandName, params...)
 	} else {
 		fmt.Println("command with ctx")
-		cmd = exec.CommandContext(ctx, execCommand, params...)
+		cmd = exec.CommandContext(ctx, commandName, params...)
 	}
 	fmt.Println(cmd.Args)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		fmt.Println(err)
-		return "", errors.New("error: command failed to execute")
+	stdoutIn, err := cmd.StdoutPipe()
+	stderrIn, err2 := cmd.StderrPipe()
+	if err != nil || err2 != nil {
+		return "", errors.New("error: command failed to get stdout pipe")
 	}
-	//start
 	err = cmd.Start()
 	if err != nil {
 		fmt.Printf("failed to start cmds, err:%v\n", err)
 		return "", err
 	}
-	reader := bufio.NewReader(stdout)
-	//print output
-	output := ""
-	for {
-		line, err2 := reader.ReadString('\n')
-		if err2 != nil || io.EOF == err2 {
-			break
-		}
-		output = output + line
-		if isDisplay {
-			fmt.Print(line)
-		}
+
+	if isDisplay {
+		go func() {
+			_, errStdout = copyAndCapture(os.Stdout, stdoutIn)
+		}()
+		go func() {
+			_, errStderr = copyAndCapture(os.Stderr, stderrIn)
+		}()
 	}
 	err = cmd.Wait()
 	if err != nil {
 		return "", err
 	}
-	return output, nil
+	if errStderr != nil || errStdout != nil {
+		return "", errors.New("error occur when print")
+	}
+	return "", nil
+}
+
+func copyAndCapture(w io.Writer, r io.Reader) ([]byte, error) {
+	var out []byte
+	buf := make([]byte, 1024, 1024)
+	for {
+		n, err := r.Read(buf[:])
+		if n > 0 {
+			d := buf[:n]
+			out = append(out, d...)
+			os.Stdout.Write(d)
+		}
+		if err != nil {
+			// Read returns io.EOF at the end of file, which is not an error for us
+			if err == io.EOF {
+				err = nil
+			}
+			return out, err
+		}
+	}
+	// never reached
+	panic(true)
+	return nil, nil
 }
 
 //Check Command
@@ -181,43 +203,4 @@ func CheckCmdExists(cmd string) bool {
 		logger.Info("check command is exists ", zap.String("command", cmd), zap.String("path", path))
 		return true
 	}
-}
-
-//check namespace
-func CheckNS(namespace string) error {
-	osName := CheckOS()
-	if osName == "unknown" {
-		panic("nonsupport os system. support linux, macos, windows.")
-	}
-	//kubectl command
-	kubectl := osName + "/kubectl"
-	if osName == "windows" {
-		kubectl = osName + "/kubectl.exe"
-	}
-	//exec command
-	command := exec.Command("tools/"+kubectl, "get", "ns", "-o", "json")
-	namespacesJson, err := command.CombinedOutput()
-	if err != nil {
-		fmt.Println("cmds.Run() failed with %s\n", err)
-	}
-	var namespaces interface{}
-	errns := json.Unmarshal(namespacesJson, &namespaces)
-	if errns != nil {
-		logger.Error("get namespace failed", zap.Error(errns))
-		fmt.Println("error: get namespace failed")
-		return errors.New("get namespace failed")
-	}
-
-	logger.Info("Kubernetes", zap.String("namespaces", string(namespacesJson)))
-
-	for _, v := range (namespaces.(map[string]interface{})["items"]).([]interface{}) {
-		metadata := v.(map[string]interface{})["metadata"]
-		ns := metadata.(map[string]interface{})["name"]
-		if namespace == ns.(string) {
-			logger.Error("namespace  exists ", zap.String("namespace", namespace))
-			return errors.New("error: 此用户创建的namespace 已存在, 请更换用户名!")
-		}
-	}
-
-	return nil
 }
