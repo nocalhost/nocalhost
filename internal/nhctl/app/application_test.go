@@ -1,4 +1,4 @@
-package nhctl
+package app
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 )
 
 func TestApplication_StopAllPortForward(t *testing.T) {
-	application, err := NewApplication("eeee")
+	application, err := BuildApplication("eeee")
 	if err != nil {
 		//cmds.printlnErr("fail to create application", err)
 		return

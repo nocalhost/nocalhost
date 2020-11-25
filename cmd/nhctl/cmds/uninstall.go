@@ -17,11 +17,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"nocalhost/pkg/nhctl/clientgoutils"
-	"nocalhost/pkg/nhctl/tools"
 	"os"
-	"sync"
-	"time"
 )
 
 func init() {
@@ -40,95 +36,22 @@ var uninstallCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		if !nocalhost.CheckIfApplicationExist(applicationName) {
+		if !nh.CheckIfApplicationExist(applicationName) {
 			fmt.Printf("[error] application \"%s\" not found\n", applicationName)
 			os.Exit(1)
 		}
 
 		fmt.Println("uninstall application...")
-		err := UninstallApplication(applicationName)
+		app, err := nh.GetApplication(applicationName)
+		if err != nil {
+			printlnErr("failed to get application", err)
+			os.Exit(1)
+		}
+		err = app.Uninstall()
 		if err != nil {
 			printlnErr("failed to uninstall application", err)
 			os.Exit(1)
 		}
-		debug("remove resource files...")
-		app, err := nocalhost.GetApplication(applicationName)
-		homeDir := app.GetHomeDir()
-		err = os.RemoveAll(homeDir)
-		if err != nil {
-			fmt.Printf("[error] fail to remove nocalhostApp dir %s\n", homeDir)
-			os.Exit(1)
-		}
-		fmt.Printf("application \"%s\" is uninstalled", applicationName)
+		fmt.Printf("application \"%s\" is uninstalled\n", applicationName)
 	},
-}
-
-func UninstallApplication(applicationName string) error {
-	// delete k8s resources
-	app, err := nocalhost.GetApplication(applicationName)
-	if err != nil {
-		return err
-	}
-
-	clientUtil, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, 0)
-
-	if app.AppProfile.DependencyConfigMapName != "" {
-		debug("delete config map %s\n", app.AppProfile.DependencyConfigMapName)
-		err = clientUtil.DeleteConfigMapByName(app.AppProfile.DependencyConfigMapName, app.AppProfile.Namespace)
-		if err != nil {
-			return err
-		}
-	} else {
-		debug("no config map found")
-	}
-
-	if nameSpace == "" {
-		nameSpace = app.AppProfile.Namespace
-	}
-
-	if app.IsHelm() {
-		// todo
-		commonParams := make([]string, 0)
-		if nameSpace != "" {
-			commonParams = append(commonParams, "--namespace", nameSpace)
-		}
-		if settings.KubeConfig != "" {
-			commonParams = append(commonParams, "--kubeconfig", settings.KubeConfig)
-		}
-		if settings.Debug {
-			commonParams = append(commonParams, "--debug")
-		}
-		installParams := []string{"uninstall", applicationName}
-		installParams = append(installParams, commonParams...)
-		output, err := tools.ExecCommand(nil, false, "helm", installParams...)
-		if err != nil {
-			printlnErr("fail to uninstall helm nocalhostApp", err)
-			return err
-		}
-		debug(output)
-		fmt.Printf("\"%s\" has been uninstalled \n", applicationName)
-	} else if app.IsManifest() {
-		start := time.Now()
-		wg := sync.WaitGroup{}
-		resourceDir := app.GetResourceDir()
-		files, _, err := GetFilesAndDirs(resourceDir)
-		if err != nil {
-			return err
-		}
-		for _, file := range files {
-			wg.Add(1)
-			fmt.Println("delete " + file)
-			go func(fileName string) {
-				clientUtil.Delete(fileName, app.GetNamespace())
-				wg.Done()
-			}(file)
-
-		}
-		wg.Wait()
-		end := time.Now()
-		debug("installing takes %f seconds", end.Sub(start).Seconds())
-		return err
-	}
-
-	return nil
 }

@@ -16,37 +16,20 @@ package cmds
 import (
 	"fmt"
 	"io/ioutil"
-	"k8s.io/client-go/kubernetes"
-	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"nocalhost/internal/nhctl/utils"
 	"os"
-	"os/user"
 	"strings"
 )
 
 func GetK8sRestClientConfig() (*restclient.Config, error) {
-	home := GetHomePath()
+	home := utils.GetHomePath()
 	kubeconfigPath := fmt.Sprintf("%s/.kube/config", home) // default kubeconfig
 	if settings.KubeConfig != "" {
 		kubeconfigPath = settings.KubeConfig
 	}
 	return clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-}
-
-func getClientSet() (*kubernetes.Clientset, error) {
-	k8sConfig, err := GetK8sRestClientConfig()
-	if err != nil {
-		fmt.Printf("%v", err)
-		return nil, err
-	}
-
-	clientSet, err := kubernetes.NewForConfig(k8sConfig)
-	if err != nil {
-		fmt.Printf("%v", err)
-		return nil, err
-	}
-	return clientSet, nil
 }
 
 func GetRestClient() (*restclient.RESTClient, error) {
@@ -58,32 +41,8 @@ func GetRestClient() (*restclient.RESTClient, error) {
 	return restclient.RESTClientFor(k8sConfig)
 }
 
-func GetPodClient(nameSpace string) (coreV1.PodInterface, error) {
-	clientSet, err := getClientSet()
-	if err != nil {
-		fmt.Printf("%v", err)
-		return nil, err
-	}
-
-	podClient := clientSet.CoreV1().Pods(nameSpace)
-	return podClient, nil
-}
-
 func printlnErr(info string, err error) {
 	fmt.Printf("[error] %s, info: %v\n", info, err)
-}
-
-func GetHomePath() string {
-	u, err := user.Current()
-	if err == nil {
-		return u.HomeDir
-	}
-	return ""
-}
-
-func GetApplicationHomeDir(appName string) string {
-	// GetHomePath() + "/.nhctl/" + "application/" + applicationName
-	return fmt.Sprintf("%s%c%s%c%s%c%s", GetHomePath(), os.PathSeparator, ".nhctl", os.PathSeparator, "application", os.PathSeparator, appName)
 }
 
 func GetFilesAndDirs(dirPth string) (files []string, dirs []string, err error) {
@@ -112,6 +71,5 @@ func GetFilesAndDirs(dirPth string) (files []string, dirs []string, err error) {
 			}
 		}
 	}
-
 	return files, dirs, nil
 }

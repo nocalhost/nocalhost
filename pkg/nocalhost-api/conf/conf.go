@@ -28,7 +28,7 @@ var (
 	Conf *Config
 )
 
-// Init init config
+// InitDir init config
 func Init(confPath string) error {
 	err := initConfig(confPath)
 	if err != nil {

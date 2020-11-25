@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl"
+	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
 )
@@ -27,7 +27,7 @@ var (
 	deployment string
 )
 
-var devStartOps = &nhctl.DevStartOptions{}
+var devStartOps = &app.DevStartOptions{}
 
 func init() {
 
@@ -52,7 +52,7 @@ var devStartCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		nocalhostApp, err = nhctl.NewApplication(applicationName)
+		nocalhostApp, err = app.NewApplication(applicationName)
 		clientgoutils.Must(err)
 		if deployment == "" {
 			fmt.Println("error: please use -d to specify a k8s deployment")

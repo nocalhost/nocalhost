@@ -23,6 +23,7 @@
 /cmd/nhctl/utils/darwin/*
 /cmd/nhctl/build/
 /cmd/nhctl/sync/
+sync_for_test
 
 # nocalhost-api
 /cmd/nocalhost-api/build/
