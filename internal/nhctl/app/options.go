@@ -6,3 +6,9 @@ type DevStartOptions struct {
 	DevImage     string
 	DevLang      string
 }
+
+type FileSyncOptions struct {
+	RemoteDir         string
+	LocalSharedFolder string
+	LocalSshPort      int
+}
