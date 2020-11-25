@@ -59,13 +59,24 @@ var devStartCmd = &cobra.Command{
 			return
 		}
 
+		exist, err := nocalhostApp.CheckIfSvcExist(deployment, app.Deployment)
+		if err != nil {
+			printlnErr("fail to check if svc exist", err)
+			os.Exit(1)
+		} else if !exist {
+			fmt.Printf("\"%s\" not found\n", deployment)
+			os.Exit(1)
+		}
+
+		nocalhostApp.CreateSvcProfile(deployment, app.Deployment)
+
 		fmt.Println("entering development model...")
 		err = nocalhostApp.ReplaceImage(deployment, devStartOps)
 		if err != nil {
 			fmt.Printf("[error] fail to replace dev container: err%v\n", err)
 			os.Exit(1)
 		}
-		err = nocalhostApp.SetDevelopingStatus(true)
+		err = nocalhostApp.SetDevelopingStatus(deployment, true)
 		if err != nil {
 			fmt.Printf("[error] fail to update \"developing\" status\n")
 			os.Exit(1)

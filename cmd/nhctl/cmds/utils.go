@@ -42,7 +42,7 @@ func GetRestClient() (*restclient.RESTClient, error) {
 }
 
 func printlnErr(info string, err error) {
-	fmt.Printf("[error] %s, info: %v\n", info, err)
+	fmt.Printf("[error] %s, err info: %v\n", info, err)
 }
 
 func GetFilesAndDirs(dirPth string) (files []string, dirs []string, err error) {
