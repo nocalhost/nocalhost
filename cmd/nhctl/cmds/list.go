@@ -51,6 +51,6 @@ func ListApplications() {
 			continue
 		}
 		profile := app2.AppProfile
-		fmt.Printf("%-14s %-14tn", app, profile.Installed)
+		fmt.Printf("%-14s %-14t\n", app, profile.Installed)
 	}
 }
