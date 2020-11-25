@@ -70,13 +70,13 @@ var portForwardCmd = &cobra.Command{
 
 		// todo check deployment if exist
 
-		err = nocalhostApp.SetPortForwardedStatus(true)
+		err = nocalhostApp.SetPortForwardedStatus(deployment, true)
 		if err != nil {
 			fmt.Printf("[error] fail to update \"portForwarded\" status\n")
 			os.Exit(1)
 		}
 		err = nocalhostApp.SshPortForward(deployment, portForwardOptions)
-		err2 := nocalhostApp.SetPortForwardedStatus(false)
+		err2 := nocalhostApp.SetPortForwardedStatus(deployment, false)
 		if err2 != nil {
 			fmt.Printf("[error] fail to update \"portForwarded\" status\n")
 			os.Exit(1)

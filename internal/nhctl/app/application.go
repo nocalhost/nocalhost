@@ -588,19 +588,20 @@ func (a *Application) GetPortForwardPidDir(pid int) string {
 }
 
 // .nhctl/application/xxx/port-forward/{pid}/{local_port}_{remote_port}
-func (a *Application) SavePortForwardInfo(localPort int, remotePort int) error {
+func (a *Application) SavePortForwardInfo(svcName string, localPort int, remotePort int) error {
 	pid := os.Getpid()
-	pidDir := a.GetPortForwardPidDir(pid)
-	fileName := fmt.Sprintf("%s%c%d_%d", pidDir, os.PathSeparator, localPort, remotePort)
-	f, err := os.Create(fileName)
-	defer f.Close()
-	if err != nil {
-		return err
-	}
+	//pidDir := a.GetPortForwardPidDir(pid)
+	//fileName := fmt.Sprintf("%s%c%d_%d", pidDir, os.PathSeparator, localPort, remotePort)
+	//f, err := os.Create(fileName)
+	//defer f.Close()
+	//if err != nil {
+	//	return err
+	//}
 
-	a.AppProfile.SshPortForward = &PortForwardOptions{
+	a.GetSvcProfile(svcName).SshPortForward = &PortForwardOptions{
 		LocalPort:  localPort,
 		RemotePort: remotePort,
+		Pid:        pid,
 	}
 	return a.AppProfile.Save()
 }
@@ -663,6 +664,10 @@ func (a *Application) GetSvcConfig(svcName string) *ServiceDevOptions {
 }
 
 func (a *Application) GetDefaultWorkDir(svcName string) string {
+	svcProfile := a.GetSvcProfile(svcName)
+	if svcProfile != nil && svcProfile.WorkDir != "" {
+		return svcProfile.WorkDir
+	}
 	config := a.GetSvcConfig(svcName)
 	result := DefaultWorkDir
 	if config != nil && config.WorkDir != "" {
@@ -698,19 +703,32 @@ func (a *Application) GetDefaultDevImage(svcName string) string {
 	return result
 }
 
-func (a *Application) GetLocalSshPort() int {
+func (a *Application) GetSvcProfile(svcName string) *SvcProfile {
+	if a.AppProfile == nil {
+		return nil
+	}
+	if a.AppProfile.SvcProfile == nil {
+		return nil
+	}
+	for _, svcProfile := range a.AppProfile.SvcProfile {
+		if svcProfile.Name == svcName {
+			return svcProfile
+		}
+	}
+	return nil
+}
+
+func (a *Application) GetLocalSshPort(svcName string) int {
 	result := DefaultForwardLocalSshPort
-	if a.AppProfile != nil && a.AppProfile.SshPortForward != nil && a.AppProfile.SshPortForward.LocalPort != 0 {
-		result = a.AppProfile.SshPortForward.LocalPort
+	svcProfile := a.GetSvcProfile(svcName)
+	if svcProfile != nil && svcProfile.SshPortForward != nil && svcProfile.SshPortForward.LocalPort != 0 {
+		result = svcProfile.SshPortForward.LocalPort
 	}
 	return result
 }
 
 func (a *Application) RollBack(svcName string) error {
-	clientUtils, err := clientgoutils.NewClientGoUtils(a.GetKubeconfig(), 0)
-	if err != nil {
-		return err
-	}
+	clientUtils := a.client
 
 	dep, err := clientUtils.GetDeployment(context.TODO(), a.GetNamespace(), svcName)
 	if err != nil {
@@ -749,29 +767,34 @@ func (a *Application) RollBack(svcName string) error {
 type PortForwardOptions struct {
 	LocalPort  int `json:"local_port" yaml:"localPort"`
 	RemotePort int `json:"remote_port" yaml:"remotePort"`
+	Pid        int `json:"pid" yaml:"pid"`
 }
 
-func (a *Application) CleanupPid() error {
-	pidDir := a.GetPortForwardPidDir(os.Getpid())
-	if _, err2 := os.Stat(pidDir); err2 != nil {
-		if os.IsNotExist(err2) {
-			fmt.Printf("%s not exits, no need to cleanup it\n", pidDir)
-			return nil
-		} else {
-			fmt.Printf("[warning] fails to cleanup %s\n", pidDir)
-		}
-	}
-	err := os.RemoveAll(pidDir)
-	if err != nil {
-		fmt.Printf("removing .pid failed, please remove it manually, err:%v\n", err)
-		return err
-	}
-	fmt.Printf("%s cleanup\n", pidDir)
-	return nil
-}
+//func (a *Application) CleanupPid(svcName string) error {
+//	pidDir := a.GetPortForwardPidDir(os.Getpid())
+//	if _, err2 := os.Stat(pidDir); err2 != nil {
+//		if os.IsNotExist(err2) {
+//			fmt.Printf("%s not exits, no need to cleanup it\n", pidDir)
+//			return nil
+//		} else {
+//			fmt.Printf("[warning] fails to cleanup %s\n", pidDir)
+//		}
+//	}
+//	err := os.RemoveAll(pidDir)
+//	if err != nil {
+//		fmt.Printf("removing .pid failed, please remove it manually, err:%v\n", err)
+//		return err
+//	}
+//	fmt.Printf("%s cleanup\n", pidDir)
+//	return nil
+//}
 
-func (a *Application) CleanupSshPortForwardInfo() error {
-	a.AppProfile.SshPortForward = nil
+func (a *Application) CleanupSshPortForwardInfo(svcName string) error {
+	svcProfile := a.GetSvcProfile(svcName)
+	if svcProfile == nil {
+		return errors.New(fmt.Sprintf("\"%s\" not found", svcName))
+	}
+	svcProfile.SshPortForward = nil
 	return a.AppProfile.Save()
 }
 
@@ -785,8 +808,8 @@ func (a *Application) SshPortForward(svcName string, ops *PortForwardOptions) er
 		<-c
 		cancel()
 		fmt.Println("stop port forward")
-		a.CleanupPid()
-		a.CleanupSshPortForwardInfo()
+		//a.CleanupPid()
+		a.CleanupSshPortForwardInfo(svcName)
 	}()
 
 	// todo check if there is a same port-forward exists
@@ -830,9 +853,9 @@ func (a *Application) SshPortForward(svcName string, ops *PortForwardOptions) er
 		remotePort = DefaultForwardRemoteSshPort
 	}
 
-	err := a.SavePortForwardInfo(localPort, remotePort)
+	err := a.SavePortForwardInfo(svcName, localPort, remotePort)
 	if err != nil {
-		a.CleanupSshPortForwardInfo()
+		a.CleanupSshPortForwardInfo(svcName)
 		return err
 	}
 	err = kubectl.PortForward(ctx, a.GetKubeconfig(), a.GetNamespace(), svcName, fmt.Sprintf("%d", localPort), fmt.Sprintf("%d", remotePort)) // eg : ./utils/darwin/kubectl port-forward --address 0.0.0.0 deployment/coding  12345:22
@@ -841,15 +864,43 @@ func (a *Application) SshPortForward(svcName string, ops *PortForwardOptions) er
 		return err
 	}
 
-	a.CleanupPid()
-	a.CleanupSshPortForwardInfo()
+	//a.CleanupPid()
+	a.CleanupSshPortForwardInfo(svcName)
 	return nil
 }
+
+func (a *Application) CreateSvcProfile(name string, svcType SvcType) {
+	if a.AppProfile.SvcProfile == nil {
+		a.AppProfile.SvcProfile = make([]*SvcProfile, 0)
+	}
+	svcProfile := &SvcProfile{
+		Name: name,
+		Type: svcType,
+	}
+	a.AppProfile.SvcProfile = append(a.AppProfile.SvcProfile, svcProfile)
+}
+
+func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error) {
+	switch svcType {
+	case Deployment:
+		ctx, _ := context.WithTimeout(context.TODO(), DefaultClientGoTimeOut)
+		dep, err := a.client.GetDeployment(ctx, a.GetNamespace(), name)
+		if err != nil {
+			return false, err
+		}
+		if dep == nil {
+			return false, nil
+		} else {
+			return true, nil
+		}
+	default:
+		return false, errors.New("unsupported svc type")
+	}
+	return false, nil
+}
+
 func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) error {
-	//clientUtils, err := clientgoutils.NewClientGoUtils(a.GetKubeconfig(), 0)
-	//if err != nil {
-	//	return err
-	//}
+
 	deploymentsClient := a.client.GetDeploymentClient(a.GetNamespace())
 
 	scale, err := deploymentsClient.GetScale(context.TODO(), deployment, metav1.GetOptions{})
@@ -989,18 +1040,12 @@ func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) erro
 	return nil
 }
 
-type FileSyncOptions struct {
-	RemoteDir         string
-	LocalSharedFolder string
-	LocalSshPort      int
-}
-
 func (a *Application) FileSync(svcName string, ops *FileSyncOptions) error {
 	var err error
 	var localSharedDirs = a.GetDefaultLocalSyncDirs(svcName)
 	localSshPort := ops.LocalSshPort
 	if localSshPort == 0 {
-		localSshPort = a.GetLocalSshPort()
+		localSshPort = a.GetLocalSshPort(svcName)
 	}
 	remoteDir := ops.RemoteDir
 	if remoteDir == "" {
@@ -1033,8 +1078,8 @@ func (a *Application) GetDescription() string {
 	return desc
 }
 
-func (a *Application) SetDevelopingStatus(is bool) error {
-	a.AppProfile.Developing = is
+func (a *Application) SetDevelopingStatus(svcName string, is bool) error {
+	a.GetSvcProfile(svcName).Developing = is
 	return a.AppProfile.Save()
 }
 
@@ -1048,13 +1093,13 @@ func (a *Application) SetAppType(t AppType) error {
 	return a.AppProfile.Save()
 }
 
-func (a *Application) SetPortForwardedStatus(is bool) error {
-	a.AppProfile.PortForwarded = is
+func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
+	a.GetSvcProfile(svcName).PortForwarded = is
 	return a.AppProfile.Save()
 }
 
-func (a *Application) SetSyncingStatus(is bool) error {
-	a.AppProfile.Syncing = is
+func (a *Application) SetSyncingStatus(svcName string, is bool) error {
+	a.GetSvcProfile(svcName).Syncing = is
 	return a.AppProfile.Save()
 }
 
