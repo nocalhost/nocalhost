@@ -53,11 +53,21 @@ var devEndCmd = &cobra.Command{
 			fmt.Println("error: please use -d to specify a k8s deployment")
 			os.Exit(1)
 		}
+
+		exist, err := nocalhostApp.CheckIfSvcExist(deployment, app.Deployment)
+		if err != nil {
+			printlnErr("fail to check if svc exist", err)
+			os.Exit(1)
+		} else if !exist {
+			fmt.Printf("\"%s\" not found\n", deployment)
+			os.Exit(1)
+		}
+
 		fmt.Println("exiting dev model...")
 		// end file sync
 		debug("ending file sync...")
 		EndFileSync()
-		err = nocalhostApp.SetSyncingStatus(false)
+		err = nocalhostApp.SetSyncingStatus(deployment, false)
 		if err != nil {
 			fmt.Printf("[error] fail to update \"syncing\" status\n")
 			os.Exit(1)
@@ -69,7 +79,7 @@ var devEndCmd = &cobra.Command{
 		if err != nil {
 			fmt.Printf("[warning] fail to stop port forward, %v\n", err)
 		}
-		err = nocalhostApp.SetPortForwardedStatus(false)
+		err = nocalhostApp.SetPortForwardedStatus(deployment, false)
 		if err != nil {
 			fmt.Printf("[error] fail to update \"portForwarded\" status\n")
 			os.Exit(1)
@@ -81,7 +91,7 @@ var devEndCmd = &cobra.Command{
 			fmt.Println("[error] fail to rollback")
 			os.Exit(1)
 		}
-		err = nocalhostApp.SetDevelopingStatus(false)
+		err = nocalhostApp.SetDevelopingStatus(deployment, false)
 		if err != nil {
 			fmt.Printf("[error] fail to update \"developing\" status\n")
 			os.Exit(1)

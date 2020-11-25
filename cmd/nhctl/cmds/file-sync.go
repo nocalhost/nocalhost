@@ -73,7 +73,7 @@ var fileSyncCmd = &cobra.Command{
 			fmt.Printf("[error] fail to sync files")
 			os.Exit(1)
 		}
-		err = nocalhostApp.SetSyncingStatus(true)
+		err = nocalhostApp.SetSyncingStatus(deployment, true)
 		if err != nil {
 			fmt.Printf("[error] fail to update \"syncing\" status\n")
 			os.Exit(1)
