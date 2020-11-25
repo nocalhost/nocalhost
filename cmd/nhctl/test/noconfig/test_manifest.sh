@@ -1,22 +1,25 @@
 #!/bin/bash
-APPNAME=test-manifest-02
-kubectl delete ns test-manifest-02 >> /dev/null
-kubectl create ns test-manifest-02
-nhctl uninstall test-manifest-02 >> /dev/null
-nhctl install test-manifest-02 -u https://e.coding.net/codingcorp/nocalhost/mini-bookinfo-noconfig.git --debug -n test-manifest-02 --type manifest --resource-path manifest/templates
+APPNAME=test-manifest-bookinfo-no-config-02
+kubectl delete ns $APPNAME >> /dev/null
+kubectl create ns $APPNAME
+nhctl uninstall $APPNAME >> /dev/null
+nhctl install $APPNAME -u https://e.coding.net/codingcorp/nocalhost/mini-bookinfo-noconfig.git --debug -n $APPNAME --type manifest --resource-path manifest/templates
 if [ "$?" != 0 ]; then
     echo "fail"
     exit 1
 fi
-nhctl dev start test-manifest-02 -d details
+nhctl dev start $APPNAME -d details
 if [ "$?" != 0 ]; then
     echo "fail"
     exit 1
 fi
 nhctl port-forward $APPNAME -d details &
+if [ "$?" != 0 ]; then
+    echo "fail"
+    exit 1
+fi
 sleep 3
 
-mkdir sync_for_test
 nhctl sync $APPNAME -d details
 if [ "$?" != 0 ]; then
     echo "fail"
@@ -31,9 +34,10 @@ if [ "$?" != 0 ]; then
     exit 1
 fi
 
-nhctl uninstall test-manifest-02
+nhctl uninstall $APPNAME
 if [ "$?" != 0 ]; then
     echo "fail"
     exit 1
 fi
+kubectl delete ns $APPNAME
 echo "succeed"
