@@ -24,6 +24,7 @@ import (
 type ClusterService interface {
 	Create(ctx context.Context, name, marks, kubeconfig, server, clusterInfo string, userId uint64) (model.ClusterModel, error)
 	Get(ctx context.Context, id, userId uint64) (model.ClusterModel, error)
+	Delete(ctx context.Context, clusterId uint64) error
 	GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error)
 	GetList(ctx context.Context) ([]*model.ClusterList, error)
 	Close()
@@ -38,6 +39,10 @@ func NewClusterService() ClusterService {
 	return &clusterService{
 		clusterRepo: cluster.NewClusterRepo(db),
 	}
+}
+
+func (srv *clusterService) Delete(ctx context.Context, clusterId uint64) error {
+	return srv.clusterRepo.Delete(ctx, clusterId)
 }
 
 func (srv *clusterService) GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error) {
