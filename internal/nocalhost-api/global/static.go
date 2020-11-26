@@ -8,7 +8,7 @@ const (
 	NocalhostDevDefaultServiceAccountName = "default"
 	NocalhostDevRoleName                  = "nocalhost-dev-role"
 	NocalhostDevDefaultRoleName           = "nocalhost-dev-default-role"
-	NocalhostDevRoleBindingName           = "nocalhost-role-biding"
+	NocalhostDevRoleBindingName           = "nocalhost-role-binding"
 	NocalhostDevRoleDefaultBindingName    = "nocalhost-role-default-biding"
 	NocalhostDevServiceAccountSecretCaKey = "ca.crt"
 	NocalhostDevServiceAccountTokenKey    = "token"
