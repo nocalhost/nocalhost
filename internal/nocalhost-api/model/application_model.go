@@ -23,8 +23,8 @@ import (
 type ApplicationModel struct {
 	ID        uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
 	Context   string     `json:"context" gorm:"column:context;not null" binding:"required"`
-	UserId    uint64     `gorm:"column:user_id;not null" json:"-"`
-	CreatedAt time.Time  `gorm:"column:created_at" json:"-"`
+	UserId    uint64     `gorm:"column:user_id;not null" json:"user_id"`
+	CreatedAt time.Time  `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt time.Time  `gorm:"column:updated_at" json:"-"`
 	DeletedAt *time.Time `gorm:"column:deleted_at" json:"-"`
 	Status    uint8      `json:"status" gorm:"column:status;not null" binding:"required"`
