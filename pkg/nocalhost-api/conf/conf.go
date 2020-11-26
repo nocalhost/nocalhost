@@ -138,19 +138,19 @@ type CacheConfig struct {
 	Prefix string
 }
 
-// init log
+// init coloredoutput
 func InitLog() {
 	config := log.Config{
-		Writers:          viper.GetString("log.writers"),
-		LoggerLevel:      viper.GetString("log.logger_level"),
-		LoggerFile:       viper.GetString("log.logger_file"),
-		LoggerWarnFile:   viper.GetString("log.logger_warn_file"),
-		LoggerErrorFile:  viper.GetString("log.logger_error_file"),
-		LogFormatText:    viper.GetBool("log.log_format_text"),
-		LogRollingPolicy: viper.GetString("log.log_rolling_policy"),
-		LogRotateDate:    viper.GetInt("log.log_rotate_date"),
-		LogRotateSize:    viper.GetInt("log.log_rotate_size"),
-		LogBackupCount:   viper.GetInt("log.log_backup_count"),
+		Writers:          viper.GetString("coloredoutput.writers"),
+		LoggerLevel:      viper.GetString("coloredoutput.logger_level"),
+		LoggerFile:       viper.GetString("coloredoutput.logger_file"),
+		LoggerWarnFile:   viper.GetString("coloredoutput.logger_warn_file"),
+		LoggerErrorFile:  viper.GetString("coloredoutput.logger_error_file"),
+		LogFormatText:    viper.GetBool("coloredoutput.log_format_text"),
+		LogRollingPolicy: viper.GetString("coloredoutput.log_rolling_policy"),
+		LogRotateDate:    viper.GetInt("coloredoutput.log_rotate_date"),
+		LogRotateSize:    viper.GetInt("coloredoutput.log_rotate_size"),
+		LogBackupCount:   viper.GetInt("coloredoutput.log_backup_count"),
 	}
 	err := log.NewLogger(&config, log.InstanceZapLogger)
 	if err != nil {
