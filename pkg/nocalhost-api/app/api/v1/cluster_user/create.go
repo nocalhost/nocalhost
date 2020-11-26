@@ -40,6 +40,9 @@ import (
 // @Router /v1/application/{id}/create_space [post]
 func Create(c *gin.Context) {
 	var req ClusterUserCreateRequest
+	defaultNum := uint64(0)
+	req.Memory = &defaultNum
+	req.Cpu = &defaultNum
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Warnf("bind ApplicationCluster params err: %v", err)
 		api.SendResponse(c, errno.ErrBind, nil)

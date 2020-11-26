@@ -649,6 +649,46 @@
                 }
             }
         },
+        "/v1/cluster/{id}": {
+            "delete": {
+                "description": "彻底删除集群",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "集群"
+                ],
+                "summary": "彻底删除集群",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "集群 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/cluster/{id}/detail": {
             "get": {
                 "description": "获取集群详情",
@@ -1220,8 +1260,6 @@
             "type": "object",
             "required": [
                 "cluster_id",
-                "cpu",
-                "memory",
                 "user_id"
             ],
             "properties": {
@@ -1263,10 +1301,16 @@
                 "context": {
                     "type": "string"
                 },
+                "created_at": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
                 "status": {
+                    "type": "integer"
+                },
+                "user_id": {
                     "type": "integer"
                 }
             }
@@ -1288,6 +1332,9 @@
                 },
                 "info": {
                     "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
                 },
                 "users_count": {
                     "type": "integer"
