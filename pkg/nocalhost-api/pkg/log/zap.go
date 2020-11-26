@@ -142,8 +142,8 @@ func getJSONEncoder() zapcore.Encoder {
 // getLogWriterWithTime 按时间(小时)进行切割
 func getLogWriterWithTime(filename string) io.Writer {
 	logFullPath := filename
-	rotationPolicy := viper.Get("log.log_rolling_policy")
-	backupCount := viper.GetUint("log.log_backup_count")
+	rotationPolicy := viper.Get("coloredoutput.log_rolling_policy")
+	backupCount := viper.GetUint("coloredoutput.log_backup_count")
 	// 默认
 	rotateDuration := time.Hour * 24
 	if rotationPolicy == RotateTimeHourly {

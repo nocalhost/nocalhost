@@ -17,10 +17,8 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/app"
-	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/internal/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
-	"os"
 	"strings"
 )
 
@@ -42,59 +40,39 @@ var devEndCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		if !nh.CheckIfApplicationExist(applicationName) {
-			fmt.Printf("[error] application \"%s\" not found\n", applicationName)
-			os.Exit(1)
-		}
-		nocalhostApp, err = app.NewApplication(applicationName)
-		clientgoutils.Must(err)
+		InitAppAndSvc(applicationName, deployment)
 
-		if deployment == "" {
-			fmt.Println("error: please use -d to specify a k8s deployment")
-			os.Exit(1)
-		}
-
-		exist, err := nocalhostApp.CheckIfSvcExist(deployment, app.Deployment)
-		if err != nil {
-			printlnErr("fail to check if svc exist", err)
-			os.Exit(1)
-		} else if !exist {
-			fmt.Printf("\"%s\" not found\n", deployment)
-			os.Exit(1)
+		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
+			log.Fatalf("\"%s\" is not in developing status", deployment)
 		}
 
 		fmt.Println("exiting dev model...")
 		// end file sync
-		debug("ending file sync...")
+		log.Debug("ending file sync...")
 		EndFileSync()
 		err = nocalhostApp.SetSyncingStatus(deployment, false)
 		if err != nil {
-			fmt.Printf("[error] fail to update \"syncing\" status\n")
-			os.Exit(1)
+			log.Fatal("fail to update \"syncing\" status")
 		}
 
-		debug("stopping port-forward...")
-		//StopPortForward()
-		err = nocalhostApp.StopAllPortForward()
+		log.Debug("stopping port-forward...")
+		err = nocalhostApp.StopAllPortForward(deployment)
 		if err != nil {
 			fmt.Printf("[warning] fail to stop port forward, %v\n", err)
 		}
 		err = nocalhostApp.SetPortForwardedStatus(deployment, false)
 		if err != nil {
-			fmt.Printf("[error] fail to update \"portForwarded\" status\n")
-			os.Exit(1)
+			log.Fatal("fail to update \"portForwarded\" status")
 		}
 
-		debug("roll back deployment...")
+		log.Debug("roll back deployment...")
 		err = nocalhostApp.RollBack(deployment)
 		if err != nil {
-			fmt.Println("[error] fail to rollback")
-			os.Exit(1)
+			log.Fatal("fail to rollback")
 		}
 		err = nocalhostApp.SetDevelopingStatus(deployment, false)
 		if err != nil {
-			fmt.Printf("[error] fail to update \"developing\" status\n")
-			os.Exit(1)
+			log.Fatal("fail to update \"developing\" status")
 		}
 	},
 }
