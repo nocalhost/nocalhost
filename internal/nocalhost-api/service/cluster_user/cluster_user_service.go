@@ -24,6 +24,7 @@ import (
 type ClusterUserService interface {
 	Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace string) (model.ClusterUserModel, error)
 	Delete(ctx context.Context, id uint64) error
+	BatchDelete(ctx context.Context, ids []uint64) error
 	GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error)
 	GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error)
 	Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
@@ -37,6 +38,10 @@ type clusterUserService struct {
 func NewClusterUserService() ClusterUserService {
 	db := model.GetDB()
 	return &clusterUserService{clusterUserRepo: cluster_user.NewApplicationClusterRepo(db)}
+}
+
+func (srv *clusterUserService) BatchDelete(ctx context.Context, ids []uint64) error {
+	return srv.clusterUserRepo.BatchDelete(ctx, ids)
 }
 
 func (srv *clusterUserService) Delete(ctx context.Context, id uint64) error {
