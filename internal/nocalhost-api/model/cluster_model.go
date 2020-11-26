@@ -39,6 +39,7 @@ type ClusterList struct {
 	ClusterMark string    `gorm:"column:mark" json:"cluster_mark"`
 	UsersCount  uint64    `gorm:"column:users_count" json:"users_count"`
 	Info        string    `gorm:"column:info" json:"info"`
+	UserId      uint64    `gorm:"column:user_id;not null" json:"user_id"`
 	CreatedAt   time.Time `gorm:"column:created_at" json:"created_at"`
 }
 
