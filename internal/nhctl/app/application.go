@@ -4,12 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"nocalhost/internal/nhctl/log"
+
+	//"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"math/rand"
+	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/third_party/kubectl"
@@ -18,7 +22,6 @@ import (
 	"os"
 	"os/signal"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -119,11 +122,6 @@ func (a *Application) InitClient(kubeconfig string, namespace string) error {
 func (a *Application) InitDir() error {
 	var err error
 	err = os.Mkdir(a.GetHomeDir(), 0755)
-	if err != nil {
-		return err
-	}
-
-	err = os.Mkdir(a.GetPortForwardDir(), 0755)
 	if err != nil {
 		return err
 	}
@@ -450,7 +448,6 @@ func (a *Application) InstallHelm(releaseName string, flags *HelmFlags) error {
 		fmt.Printf("fail to build dependency for helm app, err: %v\n", err)
 		return err
 	}
-	//debug(depBuildOutput)
 
 	fmt.Println("install helm application, this may take several minutes, please waiting...")
 	_, err = tools.ExecCommand(nil, true, "helm", params...)
@@ -458,7 +455,6 @@ func (a *Application) InstallHelm(releaseName string, flags *HelmFlags) error {
 		fmt.Printf("fail to install helm nocalhostApp, err:%v\n", err)
 		return err
 	}
-	//debug(output)
 	fmt.Printf(`helm nocalhostApp installed, use "helm list -n %s" to get the information of the helm release`+"\n", a.GetNamespace())
 	return nil
 }
@@ -466,7 +462,6 @@ func (a *Application) InstallHelm(releaseName string, flags *HelmFlags) error {
 func (a *Application) InstallDepConfigMap() error {
 	appDep := a.GetDependencies()
 	if appDep != nil {
-		//debug("install dependency config map")
 		var depForYaml = &struct {
 			Dependency []*SvcDependency `json:"dependency" yaml:"dependency"`
 		}{
@@ -484,7 +479,6 @@ func (a *Application) InstallDepConfigMap() error {
 		configMap := &corev1.ConfigMap{
 			Data: dataMap,
 		}
-		//fmt.Println("config map : " + string(yamlBytes))
 
 		var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
 		rand.Seed(time.Now().UnixNano())
@@ -511,10 +505,6 @@ func (a *Application) GetNamespace() string {
 	return a.AppProfile.Namespace
 }
 
-//func (a *Application) GetKubeconfig() string {
-//	return a.AppProfile.Kubeconfig
-//}
-
 func (a *Application) GetType() (AppType, error) {
 	if a.AppProfile != nil && a.AppProfile.AppType != "" {
 		return a.AppProfile.AppType, nil
@@ -532,29 +522,6 @@ func (a *Application) GetKubeconfig() string {
 	return a.AppProfile.Kubeconfig
 }
 
-//func (a *Application) loadProfile() error {
-//	a.AppProfile = &AppProfile{}
-//	fBytes, err := ioutil.ReadFile(a.getProfilePath())
-//	if err != nil {
-//		return err
-//	}
-//	err = yaml.Unmarshal(fBytes, a.AppProfile)
-//	return err
-//}
-
-//func (a *Application) SaveProfile() error {
-//	if a.AppProfile == nil {
-//		return nil
-//	}
-//	bytes, err := yaml.Marshal(a.AppProfile)
-//	if err != nil {
-//		return err
-//	}
-//	profile := a.getProfilePath()
-//	err = ioutil.WriteFile(profile, bytes, 0755)
-//	return err
-//}
-
 func (a *Application) getProfilePath() string {
 	return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultApplicationProfilePath)
 }
@@ -571,9 +538,9 @@ func (a *Application) GetConfigPath() string {
 	return fmt.Sprintf("%s%c%s", a.GetConfigDir(), os.PathSeparator, DefaultApplicationConfigName)
 }
 
-func (a *Application) GetPortForwardDir() string {
-	return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultPortForwardDir)
-}
+//func (a *Application) GetPortForwardDir() string {
+//	return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultPortForwardDir)
+//}
 
 func (a *Application) getGitDir() string {
 	return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultResourcesDir)
@@ -583,21 +550,12 @@ func (a *Application) getConfigPathInGitResourcesDir() string {
 	return fmt.Sprintf("%s%c%s%c%s", a.getGitDir(), os.PathSeparator, DefaultApplicationConfigDirName, os.PathSeparator, DefaultApplicationConfigName)
 }
 
-// .nhctl/application/xxx/port-forward/{pid}
-func (a *Application) GetPortForwardPidDir(pid int) string {
-	return fmt.Sprintf("%s%c%d", a.GetPortForwardDir(), os.PathSeparator, pid)
-}
+//func (a *Application) GetPortForwardPidDir(pid int) string {
+//	return fmt.Sprintf("%s%c%d", a.GetPortForwardDir(), os.PathSeparator, pid)
+//}
 
-// .nhctl/application/xxx/port-forward/{pid}/{local_port}_{remote_port}
 func (a *Application) SavePortForwardInfo(svcName string, localPort int, remotePort int) error {
 	pid := os.Getpid()
-	//pidDir := a.GetPortForwardPidDir(pid)
-	//fileName := fmt.Sprintf("%s%c%d_%d", pidDir, os.PathSeparator, localPort, remotePort)
-	//f, err := os.Create(fileName)
-	//defer f.Close()
-	//if err != nil {
-	//	return err
-	//}
 
 	a.GetSvcProfile(svcName).SshPortForward = &PortForwardOptions{
 		LocalPort:  localPort,
@@ -607,44 +565,25 @@ func (a *Application) SavePortForwardInfo(svcName string, localPort int, remoteP
 	return a.AppProfile.Save()
 }
 
-//func (a *Application)
-
-func (a *Application) ListPortForwardPid() ([]int, error) {
+func (a *Application) ListPortForwardPid(svcName string) []int {
 	result := make([]int, 0)
-	pidDir := a.GetPortForwardDir()
-	dir, err := ioutil.ReadDir(pidDir)
-	if err != nil {
-		fmt.Printf("fail to get dirs in port-forward:%v\n", err)
-		return nil, err
+	profile := a.GetSvcProfile(svcName)
+	if profile == nil || profile.SshPortForward == nil {
+		return result
 	}
-	for _, fi := range dir {
-		pid, err := strconv.Atoi(fi.Name())
-		if err != nil {
-			fmt.Printf("fail to get file name:%v\n", err)
-		} else {
-			result = append(result, pid)
-		}
-
+	if profile.SshPortForward.Pid != 0 {
+		result = append(result, profile.SshPortForward.Pid)
 	}
-	return result, nil
+	return result
 }
 
-func (a *Application) StopAllPortForward() error {
-	pids, err := a.ListPortForwardPid()
-	if err != nil {
-		return err
-	}
-	fmt.Printf("pids:%v\n", pids)
+func (a *Application) StopAllPortForward(svcName string) error {
+	pids := a.ListPortForwardPid(svcName)
 	for _, pid := range pids {
-		_, err = tools.ExecCommand(nil, true, "kill", "-1", fmt.Sprintf("%d", pid))
+		_, err := tools.ExecCommand(nil, true, "kill", "-1", fmt.Sprintf("%d", pid))
 		if err != nil {
 			fmt.Printf("failed to stop port forward pid %d, err: %v\n", pid, err)
-		}
-		// remove pid dir
-		pidDir := a.GetPortForwardPidDir(pid)
-		err = os.RemoveAll(pidDir)
-		if err != nil {
-			fmt.Printf("fail to remove %s\n", pidDir)
+			return err
 		}
 	}
 	return nil
@@ -771,25 +710,6 @@ type PortForwardOptions struct {
 	Pid        int `json:"pid" yaml:"pid"`
 }
 
-//func (a *Application) CleanupPid(svcName string) error {
-//	pidDir := a.GetPortForwardPidDir(os.Getpid())
-//	if _, err2 := os.Stat(pidDir); err2 != nil {
-//		if os.IsNotExist(err2) {
-//			fmt.Printf("%s not exits, no need to cleanup it\n", pidDir)
-//			return nil
-//		} else {
-//			fmt.Printf("[warning] fails to cleanup %s\n", pidDir)
-//		}
-//	}
-//	err := os.RemoveAll(pidDir)
-//	if err != nil {
-//		fmt.Printf("removing .pid failed, please remove it manually, err:%v\n", err)
-//		return err
-//	}
-//	fmt.Printf("%s cleanup\n", pidDir)
-//	return nil
-//}
-
 func (a *Application) CleanupSshPortForwardInfo(svcName string) error {
 	svcProfile := a.GetSvcProfile(svcName)
 	if svcProfile == nil {
@@ -809,22 +729,21 @@ func (a *Application) SshPortForward(svcName string, ops *PortForwardOptions) er
 		<-c
 		cancel()
 		fmt.Println("stop port forward")
-		//a.CleanupPid()
 		a.CleanupSshPortForwardInfo(svcName)
 	}()
 
 	// todo check if there is a same port-forward exists
 
-	pid := os.Getpid()
-	pidDir := a.GetPortForwardPidDir(pid)
-	if _, err2 := os.Stat(pidDir); err2 != nil {
-		if os.IsNotExist(err2) {
-			err2 := os.Mkdir(pidDir, DefaultNewFilePermission)
-			if err2 != nil {
-				return err2
-			}
-		}
-	}
+	//pid := os.Getpid()
+	//pidDir := a.GetPortForwardPidDir(pid)
+	//if _, err2 := os.Stat(pidDir); err2 != nil {
+	//	if os.IsNotExist(err2) {
+	//		err2 := os.Mkdir(pidDir, DefaultNewFilePermission)
+	//		if err2 != nil {
+	//			return err2
+	//		}
+	//	}
+	//}
 
 	//debug("recording port-forward info...")
 	var localPort, remotePort int
@@ -865,7 +784,6 @@ func (a *Application) SshPortForward(svcName string, ops *PortForwardOptions) er
 		return err
 	}
 
-	//a.CleanupPid()
 	a.CleanupSshPortForwardInfo(svcName)
 	return nil
 }
@@ -874,11 +792,25 @@ func (a *Application) CreateSvcProfile(name string, svcType SvcType) {
 	if a.AppProfile.SvcProfile == nil {
 		a.AppProfile.SvcProfile = make([]*SvcProfile, 0)
 	}
+
+	for _, svc := range a.AppProfile.SvcProfile {
+		if svc.Name == name {
+			return
+		}
+	}
 	svcProfile := &SvcProfile{
 		Name: name,
 		Type: svcType,
 	}
 	a.AppProfile.SvcProfile = append(a.AppProfile.SvcProfile, svcProfile)
+}
+
+func (a *Application) CheckIfSvcIsDeveloping(svcName string) bool {
+	profile := a.GetSvcProfile(svcName)
+	if profile == nil {
+		return false
+	}
+	return profile.Developing
 }
 
 func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error) {
@@ -926,7 +858,7 @@ func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) erro
 		fmt.Printf("deployment %s's replicas is already 1\n", deployment)
 	}
 
-	fmt.Println("Updating develop container...")
+	fmt.Println("Updating development container...")
 	dep, err := a.client.GetDeployment(context.TODO(), a.GetNamespace(), deployment)
 	if err != nil {
 		fmt.Printf("failed to get deployment %s , err : %v\n", deployment, err)
@@ -1019,10 +951,12 @@ func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) erro
 		return err
 	}
 
-	fmt.Printf("%d pod found\n", len(podList)) // should be 2
+	log.Debugf("%d pod found", len(podList)) // should be 2
 
 	// wait podList to be ready
-	fmt.Printf("waiting pod to start.")
+	spinner := utils.NewSpinner(" Waiting pod to start")
+	spinner.Start()
+
 	for {
 		<-time.NewTimer(time.Second * 2).C
 		podList, err = a.client.ListPodsOfDeployment(a.GetNamespace(), dep.Name)
@@ -1034,10 +968,9 @@ func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) erro
 			// todo check container status
 			break
 		}
-		fmt.Print(".")
 	}
-
-	fmt.Println("develop container has been updated")
+	spinner.Stop()
+	coloredoutput.Success("Development container has been updated")
 	return nil
 }
 

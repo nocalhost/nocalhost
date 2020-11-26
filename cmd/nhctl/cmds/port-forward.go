@@ -14,11 +14,10 @@ limitations under the License.
 package cmds
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/internal/nhctl/log"
 	"os"
 )
 
@@ -56,30 +55,16 @@ var portForwardCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		if !nh.CheckIfApplicationExist(applicationName) {
-			fmt.Printf("[error] application \"%s\" not found\n", applicationName)
-			os.Exit(1)
-		}
-		nocalhostApp, err = app.NewApplication(applicationName)
-		clientgoutils.Must(err)
-
-		if deployment == "" {
-			fmt.Println("error: please use -d to specify a kubernetes deployment")
-			return
-		}
-
-		// todo check deployment if exist
+		InitAppAndSvc(applicationName, deployment)
 
 		err = nocalhostApp.SetPortForwardedStatus(deployment, true)
 		if err != nil {
-			fmt.Printf("[error] fail to update \"portForwarded\" status\n")
-			os.Exit(1)
+			log.Fatal("fail to update \"portForwarded\" status")
 		}
 		err = nocalhostApp.SshPortForward(deployment, portForwardOptions)
 		err2 := nocalhostApp.SetPortForwardedStatus(deployment, false)
 		if err2 != nil {
-			fmt.Printf("[error] fail to update \"portForwarded\" status\n")
-			os.Exit(1)
+			log.Fatal("fail to update \"portForwarded\" status")
 		}
 		if err != nil {
 			os.Exit(1)

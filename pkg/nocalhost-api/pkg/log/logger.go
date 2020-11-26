@@ -15,7 +15,7 @@ package log
 
 import "errors"
 
-// A global variable so that log functions can be directly accessed
+// A global variable so that coloredoutput functions can be directly accessed
 var log Logger
 
 // Fields Type to pass when we want to call WithFields for structured logging
@@ -133,11 +133,11 @@ func Panicf(format string, args ...interface{}) {
 
 // WithFields logger
 // output more field, eg:
-// 		contextLogger := log.WithFields(log.Fields{"key1": "value1"})
+// 		contextLogger := coloredoutput.WithFields(coloredoutput.Fields{"key1": "value1"})
 // 		contextLogger.Info("print multi field")
 // or more sample to use:
-// 	    log.WithFields(log.Fields{"key1": "value1"}).Info("this is a test log")
-// 	    log.WithFields(log.Fields{"key1": "value1"}).Infof("this is a test log, user_id: %d", userID)
+// 	    coloredoutput.WithFields(coloredoutput.Fields{"key1": "value1"}).Info("this is a test coloredoutput")
+// 	    coloredoutput.WithFields(coloredoutput.Fields{"key1": "value1"}).Infof("this is a test coloredoutput, user_id: %d", userID)
 func WithFields(keyValues Fields) Logger {
 	return log.WithFields(keyValues)
 }

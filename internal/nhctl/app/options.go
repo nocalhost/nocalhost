@@ -5,6 +5,8 @@ type DevStartOptions struct {
 	SideCarImage string
 	DevImage     string
 	DevLang      string
+	Namespace    string
+	Kubeconfig   string
 }
 
 type FileSyncOptions struct {
