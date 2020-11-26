@@ -383,7 +383,7 @@ func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceA
 		if event.Type == watch.Added {
 			log.Infof("ServiceAccount added")
 			//serviceAccount = event.Object.(*corev1.ServiceAccount)
-			//log.Infof("ServiceAccount %s", serviceAccount)
+			//coloredoutput.Infof("ServiceAccount %s", serviceAccount)
 			// Tencent TKE can not return secrets immediately
 			break
 		}
@@ -399,13 +399,13 @@ func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceA
 	//	TimeoutSeconds: &resourceWatchTimeoutSeconds,
 	//})
 	//if err != nil {
-	//	log.Infof("err %s", err)
+	//	coloredoutput.Infof("err %s", err)
 	//}
 	//for sevent := range swatcher.ResultChan() {
 	//	if sevent.Type == watch.Added {
-	//		log.Infof("ServiceAccount Secret added")
+	//		coloredoutput.Infof("ServiceAccount Secret added")
 	//		//secret = sevent.Object.(*corev1.Secret)
-	//		log.Infof("ServiceAccount Secret added %s")
+	//		coloredoutput.Infof("ServiceAccount Secret added %s")
 	//		break
 	//	}
 	//}

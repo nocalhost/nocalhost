@@ -67,7 +67,7 @@ func New(cfg *conf.Config) *Application {
 	// init router
 	app.Router = gin.Default()
 
-	// init log
+	// init coloredoutput
 	conf.InitLog()
 
 	if viper.GetString("app.run_mode") == ModeDebug {

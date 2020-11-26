@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/log"
 	"os"
 )
 
@@ -96,12 +97,12 @@ var installCmd = &cobra.Command{
 		err = InstallApplication(applicationName)
 		if err != nil {
 			printlnErr("failed to install application", err)
-			debug("clean up resources...")
+			log.Debug("clean up resources...")
 			err = nh.CleanupAppFiles(applicationName)
 			if err != nil {
 				fmt.Printf("[error] failed to clean up:%v\n", err)
 			} else {
-				debug("resources have been clean up")
+				log.Debug("resources have been clean up")
 			}
 			os.Exit(1)
 		} else {
@@ -154,7 +155,7 @@ func InstallApplication(applicationName string) error {
 		return errors.New("--type mush be specified")
 	}
 
-	debug("[nh config] nocalhostApp type: %s", appType)
+	log.Debugf("[nh config] nocalhostApp type: %s", appType)
 	flags := &app.HelmFlags{
 		//Debug:  installFlags.Debug,
 		Values:   installFlags.HelmValueFile,

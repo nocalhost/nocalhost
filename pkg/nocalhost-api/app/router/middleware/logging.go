@@ -62,7 +62,7 @@ func Logging() gin.HandlerFunc {
 		method := c.Request.Method
 		ip := c.ClientIP()
 
-		//log.Debugf("New request come in, path: %s, Method: %s, body `%s`", path, method, string(bodyBytes))
+		//coloredoutput.Debugf("New request come in, path: %s, Method: %s, body `%s`", path, method, string(bodyBytes))
 		blw := &bodyLogWriter{
 			body:           bytes.NewBufferString(""),
 			ResponseWriter: c.Writer,

@@ -123,7 +123,7 @@ func (jz JSONGzipEncoding) Marshal(v interface{}) ([]byte, error) {
 	// var bufSizeBefore = len(buf)
 
 	buf, err = GzipEncode(buf)
-	// log.Infof("gzip_json_compress_ratio=%d/%d=%.2f", bufSizeBefore, len(buf), float64(bufSizeBefore)/float64(len(buf)))
+	// coloredoutput.Infof("gzip_json_compress_ratio=%d/%d=%.2f", bufSizeBefore, len(buf), float64(bufSizeBefore)/float64(len(buf)))
 	return buf, err
 }
 
