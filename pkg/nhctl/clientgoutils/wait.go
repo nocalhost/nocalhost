@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/rest"
 	"time"
@@ -39,7 +40,6 @@ func (c *ClientGoUtils) WaitForResourceReady(ctx context.Context, resourceType R
 		runtimeObject = &batchv1.Job{}
 		restClient = c.ClientSet.BatchV1().RESTClient()
 	default:
-		fmt.Printf("can not watch resource type : %v\n", resourceType)
 		return errors.New("can not watch resource type " + string(resourceType))
 	}
 
@@ -110,11 +110,11 @@ func isDeploymentReady(obj runtime.Object) (bool, error) {
 
 	for _, c := range o.Status.Conditions {
 		if c.Type == v1.DeploymentAvailable && c.Status == "True" {
-			fmt.Println("Deployment is Available")
+			log.Debug("Deployment is Available")
 			return true, nil
 		}
 	}
-	fmt.Println("Deployment has not been ready yet")
+	log.Debug("Deployment has not been ready yet")
 	return false, nil
 }
 

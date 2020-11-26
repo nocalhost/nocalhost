@@ -2,8 +2,10 @@ package cmds
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/log"
 	nocalhost2 "nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/utils"
 	"os"
@@ -32,14 +34,41 @@ var rootCmd = &cobra.Command{
 	Short: "nhctl use to deploy coding project",
 	Long:  `nhctl can deploy project on Kubernetes. `,
 	Run: func(cmd *cobra.Command, args []string) {
-		debug("hello nhctl")
+		log.Debug("hello nhctl")
 		//fmt.Printf("kubeconfig is %s", settings.KubeConfig)
 	},
 }
 
 func Execute() {
+	//if settings.Debug {
+	//	log.SetLevel(logrus.DebugLevel)
+	//}
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
+	}
+}
+
+func InitAppAndSvc(appName string, svcName string) {
+	var err error
+	if settings.Debug {
+		log.SetLevel(logrus.DebugLevel)
+	}
+	if !nh.CheckIfApplicationExist(appName) {
+		log.Fatalf("application \"%s\" not found", appName)
+	}
+	nocalhostApp, err = app.NewApplication(appName)
+	if err != nil {
+		log.Fatal("fail to get application info")
+	}
+	if svcName == "" {
+		log.Fatal("please use -d to specify a k8s deployment")
+	}
+
+	exist, err := nocalhostApp.CheckIfSvcExist(svcName, app.Deployment)
+	if err != nil {
+		log.Fatalf("fail to check if svc exist : %v", err)
+	} else if !exist {
+		log.Fatalf("\"%s\" not found", svcName)
 	}
 }

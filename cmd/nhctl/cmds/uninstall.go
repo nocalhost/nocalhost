@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"os"
+	"nocalhost/internal/nhctl/log"
 )
 
 func init() {
@@ -37,20 +37,17 @@ var uninstallCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
 		if !nh.CheckIfApplicationExist(applicationName) {
-			fmt.Printf("[error] application \"%s\" not found\n", applicationName)
-			os.Exit(1)
+			log.Fatalf("application \"%s\" not found\n", applicationName)
 		}
 
 		fmt.Println("uninstall application...")
 		app, err := nh.GetApplication(applicationName)
 		if err != nil {
-			printlnErr("failed to get application", err)
-			os.Exit(1)
+			log.Fatalf("failed to get application, %v", err)
 		}
 		err = app.Uninstall()
 		if err != nil {
-			printlnErr("failed to uninstall application", err)
-			os.Exit(1)
+			log.Fatalf("failed to uninstall application, %v", err)
 		}
 		fmt.Printf("application \"%s\" is uninstalled\n", applicationName)
 	},

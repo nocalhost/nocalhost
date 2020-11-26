@@ -16,10 +16,10 @@ package cmds
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/pkg/nhctl/clientgoutils"
-	"os"
+	"nocalhost/internal/nhctl/log"
 )
 
 var (
@@ -51,35 +51,27 @@ var devStartCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
-		applicationName := args[0]
-		nocalhostApp, err = app.NewApplication(applicationName)
-		clientgoutils.Must(err)
-		if deployment == "" {
-			fmt.Println("error: please use -d to specify a k8s deployment")
-			return
+		if settings.Debug {
+			log.SetLevel(logrus.DebugLevel)
 		}
+		applicationName := args[0]
+		InitAppAndSvc(applicationName, deployment)
 
-		exist, err := nocalhostApp.CheckIfSvcExist(deployment, app.Deployment)
-		if err != nil {
-			printlnErr("fail to check if svc exist", err)
-			os.Exit(1)
-		} else if !exist {
-			fmt.Printf("\"%s\" not found\n", deployment)
-			os.Exit(1)
+		if nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
+			log.Fatalf("\"%s\" is already developing", deployment)
 		}
 
 		nocalhostApp.CreateSvcProfile(deployment, app.Deployment)
 
+		devStartOps.Kubeconfig = settings.KubeConfig
 		fmt.Println("entering development model...")
 		err = nocalhostApp.ReplaceImage(deployment, devStartOps)
 		if err != nil {
-			fmt.Printf("[error] fail to replace dev container: err%v\n", err)
-			os.Exit(1)
+			log.Fatalf("fail to replace dev container: err%v\n", err)
 		}
 		err = nocalhostApp.SetDevelopingStatus(deployment, true)
 		if err != nil {
-			fmt.Printf("[error] fail to update \"developing\" status\n")
-			os.Exit(1)
+			log.Fatal("fail to update \"developing\" status\n")
 		}
 	},
 }
