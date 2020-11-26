@@ -76,4 +76,6 @@ var (
 	ErrBindServiceAccountKubeConfigJsonEncodeErr = &Errno{Code: 50110, Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Struct to Json failed"}
 	ErrClsuterUserNotFound                       = &Errno{Code: 50111, Message: "Dev space has not found"}
 	ErrDeletedClsuterButDatabaseFail             = &Errno{Code: 50112, Message: "Cluster namespace has deleted, but database record delete fail"}
+	ErrDeletedClsuterDBButClusterDone            = &Errno{Code: 50113, Message: "Cluster nocalhost resource has deleted, but cluster record delete fail"}
+	ErrDeletedClsuterDevSpaceDBButClusterDone    = &Errno{Code: 50113, Message: "Cluster nocalhost develop space has deleted, but space record delete fail"}
 )
