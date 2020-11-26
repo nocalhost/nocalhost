@@ -1,10 +1,17 @@
 package cmds
 
-import "fmt"
+import (
+	"nocalhost/internal/nhctl/log"
+)
 
-func debug(format string, v ...interface{}) {
+//func debug(v ...interface{}) {
+//	if settings.Debug {
+//		log.Debug(v)
+//	}
+//}
+
+func debugf(format string, v ...interface{}) {
 	if settings.Debug {
-		format = fmt.Sprintf("[debug] %s\n", format)
-		fmt.Printf(format, v...)
+		log.Debugf(format, v)
 	}
 }

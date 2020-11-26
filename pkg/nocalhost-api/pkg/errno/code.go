@@ -25,7 +25,7 @@ var (
 
 	// user errors
 	ErrUserNotFound          = &Errno{Code: 20102, Message: "The user was not found."}
-	ErrTokenInvalid          = &Errno{Code: 20103, Message: "Token is invalid or login expired, please log in again"}
+	ErrTokenInvalid          = &Errno{Code: 20103, Message: "Token is invalid or login expired, please coloredoutput in again"}
 	ErrEmailOrPassword       = &Errno{Code: 20111, Message: "Mail or password is incorrect"}
 	ErrTwicePasswordNotMatch = &Errno{Code: 20112, Message: "Two password entries are inconsistent"}
 	ErrRegisterFailed        = &Errno{Code: 20113, Message: "Registration failed"}
