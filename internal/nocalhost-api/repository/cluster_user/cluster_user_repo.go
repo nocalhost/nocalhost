@@ -24,6 +24,7 @@ import (
 type ClusterUserRepo interface {
 	Create(ctx context.Context, model model.ClusterUserModel) (model.ClusterUserModel, error)
 	Delete(ctx context.Context, id uint64) error
+	BatchDelete(ctx context.Context, id []uint64) error
 	GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error)
 	GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error)
 	Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
@@ -38,6 +39,14 @@ func NewApplicationClusterRepo(db *gorm.DB) ClusterUserRepo {
 	return &clusterUserRepo{
 		db: db,
 	}
+}
+
+func (repo *clusterUserRepo) BatchDelete(ctx context.Context, ids []uint64) error {
+	result := repo.db.Unscoped().Delete(model.ClusterUserModel{}, ids)
+	if result.RowsAffected > 0 {
+		return nil
+	}
+	return result.Error
 }
 
 func (repo *clusterUserRepo) Delete(ctx context.Context, id uint64) error {

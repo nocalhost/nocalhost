@@ -58,8 +58,6 @@ definitions:
         type: integer
     required:
     - cluster_id
-    - cpu
-    - memory
     - user_id
     type: object
   model.ApplicationClusterModel:
@@ -75,9 +73,13 @@ definitions:
     properties:
       context:
         type: string
+      created_at:
+        type: string
       id:
         type: integer
       status:
+        type: integer
+      user_id:
         type: integer
     required:
     - context
@@ -95,6 +97,8 @@ definitions:
         type: integer
       info:
         type: string
+      user_id:
+        type: integer
       users_count:
         type: integer
     type: object
@@ -706,6 +710,33 @@ paths:
             $ref: '#/definitions/model.ClusterModel'
             type: object
       summary: 添加集群
+      tags:
+      - 集群
+  /v1/cluster/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 彻底删除集群
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 集群 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: 彻底删除集群
       tags:
       - 集群
   /v1/cluster/{id}/detail:

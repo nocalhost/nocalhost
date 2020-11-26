@@ -97,6 +97,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		c.GET("/:id/dev_space", cluster.GetSpaceList)
 		c.GET("/:id/dev_space/:space_id/detail", cluster.GetSpaceDetail)
 		c.GET("/:id/detail", cluster.GetDetail)
+		c.DELETE("/:id", cluster.Delete)
 	}
 
 	// 应用
