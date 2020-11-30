@@ -14,12 +14,11 @@ limitations under the License.
 package cmds
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/log"
 	"nocalhost/pkg/nhctl/clientgoutils"
-	"os"
 )
 
 //type FileSyncFlags struct {
@@ -58,25 +57,21 @@ var fileSyncCmd = &cobra.Command{
 		var err error
 		applicationName := args[0]
 		if !nh.CheckIfApplicationExist(applicationName) {
-			fmt.Printf("[error] application \"%s\" not found\n", applicationName)
-			os.Exit(1)
+			log.Fatalf("application \"%s\" not found\n", applicationName)
 		}
 		nocalhostApp, err = app.NewApplication(applicationName)
 		clientgoutils.Must(err)
 		if deployment == "" {
 			// todo record default deployment
-			fmt.Println("error: please use -d to specify a k8s deployment")
-			return
+			log.Fatal("please use -d to specify a k8s deployment")
 		}
 		err = nocalhostApp.FileSync(deployment, fileSyncOps)
 		if err != nil {
-			fmt.Printf("[error] fail to sync files")
-			os.Exit(1)
+			log.Fatal("fail to sync files")
 		}
 		err = nocalhostApp.SetSyncingStatus(deployment, true)
 		if err != nil {
-			fmt.Printf("[error] fail to update \"syncing\" status\n")
-			os.Exit(1)
+			log.Fatal("fail to update \"syncing\" status\n")
 		}
 	},
 }

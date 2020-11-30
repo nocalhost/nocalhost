@@ -19,7 +19,6 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/log"
-	"os"
 )
 
 type InstallFlags struct {
@@ -75,38 +74,33 @@ var installCmd = &cobra.Command{
 		applicationName := args[0]
 		var err error
 		if installFlags.GitUrl == "" && installFlags.AppType != string(app.HelmRepo) {
-			fmt.Println("error: if app type is not helm-repo , --url must be specified")
-			os.Exit(1)
+			log.Fatal("if app type is not helm-repo , --git-url must be specified")
 		}
 		if installFlags.AppType == string(app.HelmRepo) {
 			if installFlags.HelmChartName == "" {
-				fmt.Println("error: --helm-chart-name must be specified")
-				os.Exit(1)
+				log.Fatalf("--helm-chart-name must be specified when using %s", installFlags.AppType)
 			}
 			if installFlags.HelmRepoUrl == "" && installFlags.HelmRepoName == "" {
-				fmt.Println("error: --helm-repo-url or --helm-repo-name must be specified")
-				os.Exit(1)
+				log.Fatalf("--helm-repo-url or --helm-repo-name must be specified when using %s", installFlags.AppType)
 			}
 		}
 		if nh.CheckIfApplicationExist(applicationName) {
-			fmt.Printf("[error] application \"%s\" already exists\n", applicationName)
-			os.Exit(1)
+			log.Fatalf("application \"%s\" already exists", applicationName)
 		}
 
 		fmt.Println("install application...")
 		err = InstallApplication(applicationName)
 		if err != nil {
-			printlnErr("failed to install application", err)
-			log.Debug("clean up resources...")
+			log.Debug("failed to install application,clean up resources...")
 			err = nh.CleanupAppFiles(applicationName)
 			if err != nil {
-				fmt.Printf("[error] failed to clean up:%v\n", err)
+				fmt.Errorf("failed to clean up:%v\n", err)
 			} else {
 				log.Debug("resources have been clean up")
 			}
-			os.Exit(1)
+			log.Fatalf("failed to install application : %s", err.Error())
 		} else {
-			fmt.Printf("application \"%s\" is installed", applicationName)
+			fmt.Printf("application \"%s\" is installed\n", applicationName)
 		}
 	},
 }
