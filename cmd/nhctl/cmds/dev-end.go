@@ -14,6 +14,7 @@ limitations under the License.
 package cmds
 
 import (
+	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -66,7 +67,7 @@ var devEndCmd = &cobra.Command{
 		}
 
 		log.Debug("roll back deployment...")
-		err = nocalhostApp.RollBack(deployment)
+		err = nocalhostApp.RollBack(context.TODO(), deployment)
 		if err != nil {
 			log.Fatal("fail to rollback")
 		}
@@ -74,6 +75,7 @@ var devEndCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal("fail to update \"developing\" status")
 		}
+		fmt.Printf("%s have exited develop model\n", deployment)
 	},
 }
 

@@ -14,6 +14,7 @@ limitations under the License.
 package cmds
 
 import (
+	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -65,7 +66,7 @@ var devStartCmd = &cobra.Command{
 
 		devStartOps.Kubeconfig = settings.KubeConfig
 		fmt.Println("entering development model...")
-		err = nocalhostApp.ReplaceImage(deployment, devStartOps)
+		err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps)
 		if err != nil {
 			log.Fatalf("fail to replace dev container: err%v\n", err)
 		}

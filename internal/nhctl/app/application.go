@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	v1 "k8s.io/api/apps/v1"
 	"nocalhost/internal/nhctl/log"
 
 	//"github.com/sirupsen/logrus"
@@ -667,17 +668,33 @@ func (a *Application) GetLocalSshPort(svcName string) int {
 	return result
 }
 
-func (a *Application) RollBack(svcName string) error {
+func (a *Application) RollBack(ctx context.Context, svcName string) error {
 	clientUtils := a.client
 
-	dep, err := clientUtils.GetDeployment(context.TODO(), a.GetNamespace(), svcName)
+	dep, err := clientUtils.GetDeployment(ctx, a.GetNamespace(), svcName)
 	if err != nil {
 		fmt.Printf("failed to get deployment %s , err : %v\n", dep.Name, err)
 		return err
 	}
 
-	fmt.Printf("rolling deployment back to previous revision\n")
-	rss, err := clientUtils.GetReplicaSetsControlledByDeployment(context.TODO(), a.GetNamespace(), svcName)
+	//fmt.Printf("rolling deployment back to previous revision\n")
+	//rss, err := clientUtils.GetReplicaSetsControlledByDeployment(context.TODO(), a.GetNamespace(), svcName)
+	//if err != nil {
+	//	fmt.Printf("failed to get rs list, err:%v\n", err)
+	//	return err
+	//}
+	//// find previous replicaSet
+	//if len(rss) < 2 {
+	//	fmt.Println("no history to roll back")
+	//	return nil
+	//}
+	//
+	//keys := make([]int, 0)
+	//for rs := range rss {
+	//	keys = append(keys, rs)
+	//}
+	//sort.Ints(keys)
+	rss, err := clientUtils.GetSortedReplicaSetsByDeployment(ctx, a.GetNamespace(), svcName)
 	if err != nil {
 		fmt.Printf("failed to get rs list, err:%v\n", err)
 		return err
@@ -688,19 +705,32 @@ func (a *Application) RollBack(svcName string) error {
 		return nil
 	}
 
-	keys := make([]int, 0)
-	for rs := range rss {
-		keys = append(keys, rs)
+	var r *v1.ReplicaSet
+	for _, rs := range rss {
+		if rs.Annotations == nil {
+			continue
+		}
+		if rs.Annotations[DevImageFlagAnnotationKey] == DevImageFlagAnnotationValue {
+			r = rs
+		}
 	}
-	sort.Ints(keys)
+	if r == nil {
+		return errors.New("fail to find the proper revision to rollback")
+	}
 
-	dep.Spec.Template = rss[keys[len(keys)-2]].Spec.Template // previous replicaSet is the second largest revision number : keys[len(keys)-2]
-	_, err = clientUtils.UpdateDeployment(context.TODO(), a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
+	dep.Spec.Template = r.Spec.Template // previous replicaSet is the second largest revision number : keys[len(keys)-2]
+
+	spinner := utils.NewSpinner(" Rolling container's revision back...")
+	spinner.Start()
+	_, err = clientUtils.UpdateDeployment(ctx, a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
+	spinner.Stop()
 	if err != nil {
-		fmt.Println("failed rolling back")
+		coloredoutput.Fail("Failed to roll revision back")
+		//fmt.Println("failed rolling back")
 	} else {
-		fmt.Println("rolling back!")
+		coloredoutput.Success("Container has been rollback")
 	}
+
 	return err
 }
 
@@ -832,11 +862,25 @@ func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error
 	return false, nil
 }
 
-func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) error {
+func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *DevStartOptions) error {
 
 	deploymentsClient := a.client.GetDeploymentClient(a.GetNamespace())
 
-	scale, err := deploymentsClient.GetScale(context.TODO(), deployment, metav1.GetOptions{})
+	// mark current revision for rollback
+	rss, err := a.client.GetSortedReplicaSetsByDeployment(ctx, a.GetNamespace(), deployment)
+	if err != nil {
+		return err
+	}
+	if rss != nil && len(rss) > 0 {
+		rs := rss[len(rss)-1]
+		rs.Annotations[DevImageFlagAnnotationKey] = DevImageFlagAnnotationValue
+		_, err = a.client.ClientSet.AppsV1().ReplicaSets(a.GetNamespace()).Update(ctx, rs, metav1.UpdateOptions{})
+		if err != nil {
+			return errors.New("fail to update rs's annotation")
+		}
+	}
+
+	scale, err := deploymentsClient.GetScale(ctx, deployment, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -847,11 +891,11 @@ func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) erro
 	if scale.Spec.Replicas > 1 {
 		fmt.Printf("deployment %s's replicas is %d now\n", deployment, scale.Spec.Replicas)
 		scale.Spec.Replicas = 1
-		_, err = deploymentsClient.UpdateScale(context.TODO(), deployment, scale, metav1.UpdateOptions{})
+		_, err = deploymentsClient.UpdateScale(ctx, deployment, scale, metav1.UpdateOptions{})
 		if err != nil {
 			fmt.Println("failed to scale replicas to 1")
 		} else {
-			time.Sleep(time.Second * 5)
+			time.Sleep(time.Second * 5) // todo check replicas
 			fmt.Println("replicas has been scaled to 1")
 		}
 	} else {
@@ -859,9 +903,9 @@ func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) erro
 	}
 
 	fmt.Println("Updating development container...")
-	dep, err := a.client.GetDeployment(context.TODO(), a.GetNamespace(), deployment)
+	dep, err := a.client.GetDeployment(ctx, a.GetNamespace(), deployment)
 	if err != nil {
-		fmt.Printf("failed to get deployment %s , err : %v\n", deployment, err)
+		//fmt.Printf("failed to get deployment %s , err : %v\n", deployment, err)
 		return err
 	}
 
@@ -874,7 +918,6 @@ func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) erro
 		},
 	}
 	if dep.Spec.Template.Spec.Volumes == nil {
-		//cmds.debug("volume slice define is nil, init slice")
 		dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
 	}
 	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol)
@@ -895,7 +938,6 @@ func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) erro
 	if ops.DevImage != "" {
 		devImage = ops.DevImage
 	}
-	//fmt.Printf("dev image is %s\n", devImage)
 
 	dep.Spec.Template.Spec.Containers[0].Image = devImage
 	dep.Spec.Template.Spec.Containers[0].Name = "nocalhost-dev"
@@ -907,7 +949,7 @@ func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) erro
 	// set the entry
 	dep.Spec.Template.Spec.Containers[0].WorkingDir = workDir
 
-	//cmds.debug("disable readiness probes")
+	// disable readiness probes
 	for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
 		dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
 		dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
@@ -937,7 +979,7 @@ func (a *Application) ReplaceImage(deployment string, ops *DevStartOptions) erro
 	}
 	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
 
-	_, err = a.client.UpdateDeployment(context.TODO(), a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
+	_, err = a.client.UpdateDeployment(ctx, a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
 	if err != nil {
 		fmt.Printf("update develop container failed : %v \n", err)
 		return err
