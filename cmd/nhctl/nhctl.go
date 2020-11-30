@@ -13,7 +13,9 @@ limitations under the License.
 
 package main
 
-import "nocalhost/cmd/nhctl/cmds"
+import (
+	"nocalhost/cmd/nhctl/cmds"
+)
 
 func main() {
 	cmds.Execute()

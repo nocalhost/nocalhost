@@ -32,6 +32,8 @@ import (
 	v "nocalhost/pkg/nocalhost-api/pkg/version"
 )
 
+var GIT_COMMIT_SHA string
+
 var (
 	cfg     = pflag.StringP("config", "c", "", "config file path.")
 	version = pflag.BoolP("version", "v", false, "show version info.")
@@ -96,6 +98,8 @@ func main() {
 
 	// set global service
 	service.Svc = svc
+
+	fmt.Printf("Current run Version is [%s]\n", GIT_COMMIT_SHA)
 
 	// start grpc server reserved
 	//go server.New(svc)
