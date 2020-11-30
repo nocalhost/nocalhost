@@ -28,6 +28,8 @@ import (
 	"github.com/golang/glog"
 )
 
+var GIT_COMMIT_SHA string
+
 func main() {
 	var parameters webhook.WhSvrParameters
 
@@ -37,6 +39,8 @@ func main() {
 	flag.StringVar(&parameters.KeyFile, "tlsKeyFile", "/etc/webhook/certs/key.pem", "File containing the x509 private key to --tlsCertFile.")
 	flag.StringVar(&parameters.SidecarCfgFile, "sidecarCfgFile", "/etc/webhook/config/sidecarconfig.yaml", "File containing the mutation configuration.")
 	flag.Parse()
+
+	glog.Infof("Current Version :[%s]", GIT_COMMIT_SHA)
 
 	sidecarConfig, err := webhook.LoadConfig(parameters.SidecarCfgFile)
 	if err != nil {
