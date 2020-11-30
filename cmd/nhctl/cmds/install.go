@@ -149,7 +149,7 @@ func InstallApplication(applicationName string) error {
 		return errors.New("--type mush be specified")
 	}
 
-	log.Debugf("[nh config] nocalhostApp type: %s", appType)
+	//log.Debugf("[nh config] nocalhostApp type: %s", appType)
 	flags := &app.HelmFlags{
 		//Debug:  installFlags.Debug,
 		Values:   installFlags.HelmValueFile,
@@ -161,18 +161,18 @@ func InstallApplication(applicationName string) error {
 	}
 	switch appType {
 	case app.Helm:
-		dir := nocalhostApp.GetResourceDir()
-		if dir == "" {
-			return errors.New("--resource-path mush be specified")
-		}
+		//dir := nocalhostApp.GetResourceDir()
+		//if dir == "" {
+		//	return errors.New("--resource-path mush be specified")
+		//}
 		err = nocalhostApp.InstallHelm(applicationName, flags)
 	case app.HelmRepo:
 		err = nocalhostApp.InstallHelmRepo(applicationName, flags)
 	case app.Manifest:
-		dir := nocalhostApp.GetResourceDir()
-		if dir == "" {
-			return errors.New("--resource-path mush be specified")
-		}
+		//dir := nocalhostApp.GetResourceDir()
+		//if dir == "" {
+		//	return errors.New("--resource-path mush be specified")
+		//}
 		err = nocalhostApp.InstallManifest()
 	default:
 		return errors.New("unsupported application type, it mush be helm or helm-repo or manifest")
