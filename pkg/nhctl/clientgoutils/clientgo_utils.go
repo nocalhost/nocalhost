@@ -33,19 +33,19 @@ import (
 
 type ClientGoUtils struct {
 	kubeConfigFilePath string
-	//restConfig *restclient.Config
-	ClientSet     *kubernetes.Clientset
-	dynamicClient dynamic.Interface //
-	TimeOut       time.Duration
-	ClientConfig  clientcmd.ClientConfig
+	restConfig         *restclient.Config
+	ClientSet          *kubernetes.Clientset
+	dynamicClient      dynamic.Interface //
+	TimeOut            time.Duration
+	ClientConfig       clientcmd.ClientConfig
 	//RestClient         *restclient.RESTClient
 }
 
 // if timeout is set to 0, default timeout 5 minutes is used
 func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUtils, error) {
 	var (
-		err        error
-		restConfig *restclient.Config
+		err error
+		//restConfig *restclient.Config
 	)
 
 	if kubeConfigPath == "" { // use kubectl default config
@@ -64,15 +64,16 @@ func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUt
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfigPath},
 		&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: ""}})
 
-	if restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfigPath); err != nil {
+	client.restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+	if err != nil {
 		return nil, err
 	}
 
-	if client.ClientSet, err = kubernetes.NewForConfig(restConfig); err != nil {
+	if client.ClientSet, err = kubernetes.NewForConfig(client.restConfig); err != nil {
 		return nil, err
 	}
 
-	if client.dynamicClient, err = dynamic.NewForConfig(restConfig); err != nil {
+	if client.dynamicClient, err = dynamic.NewForConfig(client.restConfig); err != nil {
 		return nil, err
 	}
 
