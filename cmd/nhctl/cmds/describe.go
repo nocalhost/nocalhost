@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"os"
+	"nocalhost/internal/nhctl/log"
 )
 
 func init() {
@@ -38,12 +38,11 @@ var describeCmd = &cobra.Command{
 		var err error
 		applicationName := args[0]
 		if !nh.CheckIfApplicationExist(applicationName) {
-			fmt.Printf("[error] application \"%s\" not found\n", applicationName)
-			os.Exit(1)
+			log.Fatalf("application \"%s\" not found", applicationName)
 		}
 		nocalhostApp, err = nh.GetApplication(applicationName)
 		if err != nil {
-			panic(err)
+			log.Fatalf("fail to get application \"%s\"", applicationName)
 		}
 
 		fmt.Println(nocalhostApp.GetDescription())
