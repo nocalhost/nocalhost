@@ -6,6 +6,7 @@ import (
 	"fmt"
 	v1 "k8s.io/api/apps/v1"
 	"nocalhost/internal/nhctl/log"
+	"path/filepath"
 
 	//"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -524,36 +525,34 @@ func (a *Application) GetKubeconfig() string {
 }
 
 func (a *Application) getProfilePath() string {
-	return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultApplicationProfilePath)
+	return filepath.Join(a.GetHomeDir(), DefaultApplicationProfilePath)
+	//fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultApplicationProfilePath)
 }
 
 func (a *Application) GetHomeDir() string {
-	return fmt.Sprintf("%s%c%s%c%s%c%s", utils.GetHomePath(), os.PathSeparator, DefaultNhctlHomeDirName, os.PathSeparator, "application", os.PathSeparator, a.Name)
+	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultApplicationDirName, a.Name)
+	//return fmt.Sprintf("%s%c%s%c%s%c%s", utils.GetHomePath(), os.PathSeparator, DefaultNhctlHomeDirName, os.PathSeparator, DefaultApplicationDirName, os.PathSeparator, a.Name)
 }
 
 func (a *Application) GetConfigDir() string {
-	return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultApplicationConfigDirName)
+	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigDirName)
+	//return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultApplicationConfigDirName)
 }
 
 func (a *Application) GetConfigPath() string {
-	return fmt.Sprintf("%s%c%s", a.GetConfigDir(), os.PathSeparator, DefaultApplicationConfigName)
+	return filepath.Join(a.GetConfigDir(), DefaultApplicationConfigName)
+	//return fmt.Sprintf("%s%c%s", a.GetConfigDir(), os.PathSeparator, DefaultApplicationConfigName)
 }
 
-//func (a *Application) GetPortForwardDir() string {
-//	return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultPortForwardDir)
-//}
-
 func (a *Application) getGitDir() string {
-	return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultResourcesDir)
+	return filepath.Join(a.GetHomeDir(), DefaultResourcesDir)
+	//return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultResourcesDir)
 }
 
 func (a *Application) getConfigPathInGitResourcesDir() string {
-	return fmt.Sprintf("%s%c%s%c%s", a.getGitDir(), os.PathSeparator, DefaultApplicationConfigDirName, os.PathSeparator, DefaultApplicationConfigName)
+	return filepath.Join(a.getGitDir(), DefaultApplicationConfigDirName, DefaultApplicationConfigName)
+	//return fmt.Sprintf("%s%c%s%c%s", a.getGitDir(), os.PathSeparator, DefaultApplicationConfigDirName, os.PathSeparator, DefaultApplicationConfigName)
 }
-
-//func (a *Application) GetPortForwardPidDir(pid int) string {
-//	return fmt.Sprintf("%s%c%d", a.GetPortForwardDir(), os.PathSeparator, pid)
-//}
 
 func (a *Application) SavePortForwardInfo(svcName string, localPort int, remotePort int) error {
 	pid := os.Getpid()
@@ -677,23 +676,6 @@ func (a *Application) RollBack(ctx context.Context, svcName string) error {
 		return err
 	}
 
-	//fmt.Printf("rolling deployment back to previous revision\n")
-	//rss, err := clientUtils.GetReplicaSetsControlledByDeployment(context.TODO(), a.GetNamespace(), svcName)
-	//if err != nil {
-	//	fmt.Printf("failed to get rs list, err:%v\n", err)
-	//	return err
-	//}
-	//// find previous replicaSet
-	//if len(rss) < 2 {
-	//	fmt.Println("no history to roll back")
-	//	return nil
-	//}
-	//
-	//keys := make([]int, 0)
-	//for rs := range rss {
-	//	keys = append(keys, rs)
-	//}
-	//sort.Ints(keys)
 	rss, err := clientUtils.GetSortedReplicaSetsByDeployment(ctx, a.GetNamespace(), svcName)
 	if err != nil {
 		fmt.Printf("failed to get rs list, err:%v\n", err)
@@ -718,7 +700,7 @@ func (a *Application) RollBack(ctx context.Context, svcName string) error {
 		return errors.New("fail to find the proper revision to rollback")
 	}
 
-	dep.Spec.Template = r.Spec.Template // previous replicaSet is the second largest revision number : keys[len(keys)-2]
+	dep.Spec.Template = r.Spec.Template
 
 	spinner := utils.NewSpinner(" Rolling container's revision back...")
 	spinner.Start()
@@ -763,17 +745,6 @@ func (a *Application) SshPortForward(svcName string, ops *PortForwardOptions) er
 	}()
 
 	// todo check if there is a same port-forward exists
-
-	//pid := os.Getpid()
-	//pidDir := a.GetPortForwardPidDir(pid)
-	//if _, err2 := os.Stat(pidDir); err2 != nil {
-	//	if os.IsNotExist(err2) {
-	//		err2 := os.Mkdir(pidDir, DefaultNewFilePermission)
-	//		if err2 != nil {
-	//			return err2
-	//		}
-	//	}
-	//}
 
 	//debug("recording port-forward info...")
 	var localPort, remotePort int
