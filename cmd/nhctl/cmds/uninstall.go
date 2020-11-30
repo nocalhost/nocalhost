@@ -16,11 +16,15 @@ package cmds
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/log"
 )
 
+var force bool
+
 func init() {
+	uninstallCmd.Flags().BoolVar(&force, "force", false, "force uninstall anyway")
 	rootCmd.AddCommand(uninstallCmd)
 }
 
@@ -35,6 +39,9 @@ var uninstallCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		if settings.Debug {
+			log.SetLevel(logrus.DebugLevel)
+		}
 		applicationName := args[0]
 		if !nh.CheckIfApplicationExist(applicationName) {
 			log.Fatalf("application \"%s\" not found\n", applicationName)
@@ -43,9 +50,15 @@ var uninstallCmd = &cobra.Command{
 		fmt.Println("uninstall application...")
 		app, err := nh.GetApplication(applicationName)
 		if err != nil {
-			log.Fatalf("failed to get application, %v", err)
+			if !force {
+				log.Fatalf("failed to get application, %v", err)
+			} else {
+				nh.CleanupAppFiles(applicationName)
+				fmt.Printf("application \"%s\" is uninstalled anyway\n", applicationName)
+				return
+			}
 		}
-		err = app.Uninstall()
+		err = app.Uninstall(force)
 		if err != nil {
 			log.Fatalf("failed to uninstall application, %v", err)
 		}
