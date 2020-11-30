@@ -43,7 +43,7 @@ func ListApplications() {
 			maxLen = len(app)
 		}
 	}
-	fmt.Printf("%-14s %-14s %-14s %-14s %-14s\n", "NAME", "INSTALLED", "DEVELOPING", "PORFORWARDED", "SYNCING")
+	fmt.Printf("%-14s %-14s %-14s\n", "NAME", "INSTALLED", "NAMESPACE")
 	for _, app := range apps {
 		app2, err := nh.GetApplication(app)
 		if err != nil {
@@ -51,6 +51,6 @@ func ListApplications() {
 			continue
 		}
 		profile := app2.AppProfile
-		fmt.Printf("%-14s %-14t\n", app, profile.Installed)
+		fmt.Printf("%-14s %-14t %-14s\n", app, profile.Installed, profile.Namespace)
 	}
 }

@@ -25,6 +25,8 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"sort"
+
 	//clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 	"log"
 	"strconv"
@@ -358,6 +360,26 @@ OuterLoop:
 	return result, nil
 }
 
+func (c *ClientGoUtils) GetSortedReplicaSetsByDeployment(ctx context.Context, namespace string, deployment string) ([]*v1.ReplicaSet, error) {
+	rss, err := c.GetReplicaSetsControlledByDeployment(ctx, namespace, deployment)
+	if err != nil {
+		return nil, err
+	}
+	if rss == nil || len(rss) < 1 {
+		return nil, nil
+	}
+	keys := make([]int, 0)
+	for rs := range rss {
+		keys = append(keys, rs)
+	}
+	sort.Ints(keys)
+	results := make([]*v1.ReplicaSet, 0)
+	for _, key := range keys {
+		results = append(results, rss[key])
+	}
+	return results, nil
+}
+
 func (c *ClientGoUtils) GetReplicaSetsControlledByDeployment(ctx context.Context, namespace string, deploymentName string) (map[int]*v1.ReplicaSet, error) {
 	var rsList *v1.ReplicaSetList
 	replicaSetsClient := c.ClientSet.AppsV1().ReplicaSets(namespace)
@@ -368,12 +390,13 @@ func (c *ClientGoUtils) GetReplicaSetsControlledByDeployment(ctx context.Context
 
 	rsMap := make(map[int]*v1.ReplicaSet)
 	for _, item := range rsList.Items {
-		if item.OwnerReferences != nil {
-			for _, owner := range item.OwnerReferences {
-				if owner.Name == deploymentName && item.Annotations["deployment.kubernetes.io/revision"] != "" {
-					if revision, err := strconv.Atoi(item.Annotations["deployment.kubernetes.io/revision"]); err == nil {
-						rsMap[revision] = item.DeepCopy()
-					}
+		if item.OwnerReferences == nil {
+			continue
+		}
+		for _, owner := range item.OwnerReferences {
+			if owner.Name == deploymentName && item.Annotations["deployment.kubernetes.io/revision"] != "" {
+				if revision, err := strconv.Atoi(item.Annotations["deployment.kubernetes.io/revision"]); err == nil {
+					rsMap[revision] = item.DeepCopy()
 				}
 			}
 		}
