@@ -6,6 +6,7 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/utils"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -145,16 +146,18 @@ IdentityFile ~/.nhctl/key/id_rsa
 }
 
 func (n *NocalHost) GetHomeDir() string {
-	return fmt.Sprintf("%s%c%s", utils.GetHomePath(), os.PathSeparator, app.DefaultNhctlHomeDirName)
+	return filepath.Join(utils.GetHomePath(), app.DefaultNhctlHomeDirName)
+	//return fmt.Sprintf("%s%c%s", utils.GetHomePath(), os.PathSeparator, app.DefaultNhctlHomeDirName)
 }
 
 func (n *NocalHost) GetAppHomeDir() string {
-	return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, app.DefaultApplicationDirName)
+	return filepath.Join(n.GetHomeDir(), app.DefaultApplicationDirName)
+	//return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, app.DefaultApplicationDirName)
 }
 
 func (n *NocalHost) GetAppDir(appName string) string {
-	// GetHomePath() + "/.nhctl/" + "application/" + applicationName
-	return fmt.Sprintf("%s%c%s", n.GetAppHomeDir(), os.PathSeparator, appName)
+	return filepath.Join(n.GetAppHomeDir(), appName)
+	//return fmt.Sprintf("%s%c%s", n.GetAppHomeDir(), os.PathSeparator, appName)
 }
 
 func (n *NocalHost) CleanupAppFiles(appName string) error {
@@ -171,7 +174,8 @@ func (n *NocalHost) CleanupAppFiles(appName string) error {
 }
 
 func (n *NocalHost) GetSshKeyDir() string {
-	return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, app.DefaultSshKeyDirName)
+	return filepath.Join(n.GetHomeDir(), app.DefaultSshKeyDirName)
+	//return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, app.DefaultSshKeyDirName)
 }
 
 func (n *NocalHost) GetApplicationNames() ([]string, error) {
