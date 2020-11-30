@@ -14,6 +14,6 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version number of nhctl",
 	Long:  `All software has versions. This is nhctl's`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("nhctl version is v0.2.6")
+		fmt.Println("nhctl version is v0.2.7")
 	},
 }
