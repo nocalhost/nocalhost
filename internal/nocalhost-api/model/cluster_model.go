@@ -34,7 +34,7 @@ type ClusterModel struct {
 
 type ClusterList struct {
 	ID          uint64    `gorm:"column:id" json:"id"`
-	ClusterName string    `gorm:"column:name" json:"cluster_name"`
+	ClusterName string    `gorm:"column:name" json:"name"`
 	UsersCount  uint64    `gorm:"column:users_count" json:"users_count"`
 	Info        string    `gorm:"column:info" json:"info"`
 	UserId      uint64    `gorm:"column:user_id;not null" json:"user_id"`
