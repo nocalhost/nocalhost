@@ -257,7 +257,7 @@ func (a *Application) GetResourceDir() string {
 	if a.Config != nil {
 		return fmt.Sprintf("%s%c%s", a.getGitDir(), os.PathSeparator, a.Config.AppConfig.ResourcePath)
 	} else {
-		return ""
+		return a.getGitDir()
 	}
 }
 
