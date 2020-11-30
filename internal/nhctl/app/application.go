@@ -1037,14 +1037,12 @@ func (a *Application) SetSyncingStatus(svcName string, is bool) error {
 	return a.AppProfile.Save()
 }
 
-func (a *Application) Uninstall() error {
-
-	fmt.Printf("app config is %v\n", a.Config)
+func (a *Application) Uninstall(force bool) error {
 
 	if a.AppProfile.DependencyConfigMapName != "" {
-		fmt.Printf("delete config map %s\n", a.AppProfile.DependencyConfigMapName)
+		log.Debug("delete config map %s\n", a.AppProfile.DependencyConfigMapName)
 		err := a.client.DeleteConfigMapByName(a.AppProfile.DependencyConfigMapName, a.AppProfile.Namespace)
-		if err != nil {
+		if err != nil && !force {
 			return err
 		}
 		a.AppProfile.DependencyConfigMapName = ""
@@ -1060,24 +1058,19 @@ func (a *Application) Uninstall() error {
 		if a.AppProfile.Kubeconfig != "" {
 			commonParams = append(commonParams, "--kubeconfig", a.AppProfile.Kubeconfig)
 		}
-		//if settings.Debug {
-		//	commonParams = append(commonParams, "--debug")
-		//}
 		installParams := []string{"uninstall", a.Name}
 		installParams = append(installParams, commonParams...)
 		_, err := tools.ExecCommand(nil, true, "helm", installParams...)
-		if err != nil {
-			//printlnErr("fail to uninstall helm nocalhostApp", err)
+		if err != nil && !force {
 			return err
 		}
-		//debug(output)
 		fmt.Printf("\"%s\" has been uninstalled \n", a.Name)
 	} else if a.IsManifest() {
 		start := time.Now()
 		wg := sync.WaitGroup{}
 		resourceDir := a.GetResourceDir()
 		files, _, err := a.getYamlFilesAndDirs(resourceDir)
-		if err != nil {
+		if err != nil && !force {
 			return err
 		}
 		for _, file := range files {
@@ -1097,12 +1090,20 @@ func (a *Application) Uninstall() error {
 		}
 	}
 
+	err := a.CleanupResources()
+	if err != nil && !force {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Application) CleanupResources() error {
 	fmt.Println("remove resource files...")
 	homeDir := a.GetHomeDir()
 	err := os.RemoveAll(homeDir)
 	if err != nil {
-		fmt.Printf("[error] fail to remove nocalhostApp dir %s\n", homeDir)
-		os.Exit(1)
+		return errors.New(fmt.Sprintf("fail to remove resources dir %s\n", homeDir))
 	}
 	return nil
 }
