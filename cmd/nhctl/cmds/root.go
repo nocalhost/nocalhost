@@ -2,13 +2,14 @@ package cmds
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/log"
 	nocalhost2 "nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/utils"
 	"os"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 var settings *EnvSettings
@@ -43,6 +44,11 @@ func Execute() {
 	//if settings.Debug {
 	//	log.SetLevel(logrus.DebugLevel)
 	//}
+	if len(os.Args) == 1 {
+		args := append([]string{"help"}, os.Args[1:]...)
+		rootCmd.SetArgs(args)
+	}
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
