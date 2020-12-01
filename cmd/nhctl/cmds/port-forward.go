@@ -43,7 +43,7 @@ func init() {
 }
 
 var portForwardCmd = &cobra.Command{
-	Use:   "port-forward",
+	Use:   "port-forward [NAME]",
 	Short: "Forward local port to remote pod'port",
 	Long:  `Forward local port to remote pod'port`,
 	Args: func(cmd *cobra.Command, args []string) error {
