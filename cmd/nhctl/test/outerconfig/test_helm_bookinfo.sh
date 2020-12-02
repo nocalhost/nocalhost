@@ -9,17 +9,18 @@ if [ "$?" != 0 ]; then
     exit 1
 fi
 sleep 3
-nhctl dev start $APPNAME -d details
+nhctl dev start $APPNAME -d details -s "~/WorkSpaces/coding/nocalhost/cmd/nhctl/test/outerconfig"
 if [ "$?" != 0 ]; then
     echo "fail"
     exit 1
 fi
-nhctl port-forward $APPNAME -d details &
-if [ "$?" != 0 ]; then
-    echo "fail"
-    exit 1
-fi
-sleep 3
+sleep 10
+#nhctl port-forward $APPNAME -d details &
+#if [ "$?" != 0 ]; then
+#    echo "fail"
+#    exit 1
+#fi
+#sleep 3
 
 nhctl sync $APPNAME -d details
 if [ "$?" != 0 ]; then
@@ -27,7 +28,7 @@ if [ "$?" != 0 ]; then
     exit 1
 fi
 
-sleep 3
+sleep 30
 
 nhctl dev end $APPNAME -d  details
 if [ "$?" != 0 ]; then
@@ -35,6 +36,7 @@ if [ "$?" != 0 ]; then
     exit 1
 fi
 
+sleep 10
 nhctl uninstall $APPNAME
 if [ "$?" != 0 ]; then
     echo "fail"
