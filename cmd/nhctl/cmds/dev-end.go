@@ -70,9 +70,9 @@ var devEndCmd = &cobra.Command{
 		}
 		if portForwardPid != 0 {
 			err = newSyncthing.Stop(portForwardPid, portForwardFilePath, "port-forward", true)
-		}
-		if err != nil {
-			fmt.Printf("[info] fail stop port-forward progress pid %d, please run `kill -9 %d` by manual\n", portForwardPid, portForwardPid)
+			if err != nil {
+				fmt.Printf("[info] fail stop port-forward progress pid %d, please run `kill -9 %d` by manual\n", portForwardPid, portForwardPid)
+			}
 		}
 
 		// read and empty pid file
@@ -82,9 +82,9 @@ var devEndCmd = &cobra.Command{
 		}
 		if syngthingPid != 0 {
 			err = newSyncthing.Stop(syngthingPid, syncThingPath, "syncthing", true)
-		}
-		if err != nil {
-			fmt.Printf("[info] fail stop syncthing progress pid %d, please run `kill -9 %d` by manual\n", portForwardPid, portForwardPid)
+			if err != nil {
+				fmt.Printf("[info] fail stop syncthing progress pid %d, please run `kill -9 %d` by manual\n", portForwardPid, portForwardPid)
+			}
 		}
 
 		if err == nil { // none of them has error
@@ -99,9 +99,9 @@ var devEndCmd = &cobra.Command{
 		}
 		if onlyPortForwardPid != 0 {
 			err = newSyncthing.Stop(onlyPortForwardPid, onlyPortForwardFilePath, "port-forward", true)
-		}
-		if err != nil {
-			fmt.Printf("[info] fail to ending dev port-forward pid %d, please run `kill -9 %d` by manual\n", onlyPortForwardPid, onlyPortForwardPid)
+			if err != nil {
+				fmt.Printf("[info] fail to ending dev port-forward pid %d, please run `kill -9 %d` by manual\n", onlyPortForwardPid, onlyPortForwardPid)
+			}
 		}
 
 		if err == nil {
