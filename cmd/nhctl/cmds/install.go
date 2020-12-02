@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -99,13 +100,14 @@ var installCmd = &cobra.Command{
 		err = InstallApplication(applicationName)
 		if err != nil {
 			log.Debug("failed to install application,clean up resources...")
+			fmt.Printf("failed to install application : %s\n", err.Error())
 			err = nh.CleanupAppFiles(applicationName)
 			if err != nil {
 				fmt.Errorf("failed to clean up:%v\n", err)
 			} else {
 				log.Debug("resources have been clean up")
 			}
-			log.Fatalf("failed to install application : %s", err.Error())
+			os.Exit(-1)
 		} else {
 			fmt.Printf("application \"%s\" is installed\n", applicationName)
 		}
