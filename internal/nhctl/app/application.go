@@ -43,7 +43,7 @@ const (
 type Application struct {
 	Name       string
 	Config     *NocalHostAppConfig // if config.yaml not exist, this should be nil
-	AppProfile *AppProfile         // runtime info
+	AppProfile *AppProfile         // runtime info, this will not be nil
 	client     *clientgoutils.ClientGoUtils
 }
 
@@ -844,7 +844,7 @@ func (a *Application) SshPortForward(svcName string, ops *PortForwardOptions) er
 	return nil
 }
 
-func (a *Application) CreateSvcProfile(name string, svcType SvcType) {
+func (a *Application) LoadOrCreateSvcProfile(name string, svcType SvcType) {
 	if a.AppProfile.SvcProfile == nil {
 		a.AppProfile.SvcProfile = make([]*SvcProfile, 0)
 	}
