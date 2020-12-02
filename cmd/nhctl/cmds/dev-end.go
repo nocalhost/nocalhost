@@ -68,7 +68,9 @@ var devEndCmd = &cobra.Command{
 		if err != nil {
 			fmt.Println("[info] fail to get background port-forward pid file, ignore")
 		}
-		err = newSyncthing.Stop(portForwardPid, portForwardFilePath, "port-forward", true)
+		if portForwardPid != 0 {
+			err = newSyncthing.Stop(portForwardPid, portForwardFilePath, "port-forward", true)
+		}
 		if err != nil {
 			fmt.Printf("[info] fail stop port-forward progress pid %d, please run `kill -9 %d` by manual\n", portForwardPid, portForwardPid)
 		}
@@ -78,7 +80,9 @@ var devEndCmd = &cobra.Command{
 		if err != nil {
 			fmt.Println("[info] fail to get background port-forward pid file, ignore")
 		}
-		err = newSyncthing.Stop(syngthingPid, syncThingPath, "syncthing", true)
+		if syngthingPid != 0 {
+			err = newSyncthing.Stop(syngthingPid, syncThingPath, "syncthing", true)
+		}
 		if err != nil {
 			fmt.Printf("[info] fail stop syncthing progress pid %d, please run `kill -9 %d` by manual\n", portForwardPid, portForwardPid)
 		}
@@ -93,7 +97,9 @@ var devEndCmd = &cobra.Command{
 		if err != nil {
 			fmt.Println("[info] none of dev port-forward pid file, ignore")
 		}
-		err = newSyncthing.Stop(onlyPortForwardPid, onlyPortForwardFilePath, "port-forward", true)
+		if onlyPortForwardPid != 0 {
+			err = newSyncthing.Stop(onlyPortForwardPid, onlyPortForwardFilePath, "port-forward", true)
+		}
 		if err != nil {
 			fmt.Printf("[info] fail to ending dev port-forward pid %d, please run `kill -9 %d` by manual\n", onlyPortForwardPid, onlyPortForwardPid)
 		}
