@@ -17,8 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/log"
-	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
 )
 
 //type FileSyncFlags struct {
@@ -60,7 +59,10 @@ var fileSyncCmd = &cobra.Command{
 			log.Fatalf("application \"%s\" not found\n", applicationName)
 		}
 		nocalhostApp, err = app.NewApplication(applicationName)
-		clientgoutils.Must(err)
+		//clientgoutils.Must(err)
+		if err != nil {
+			log.Fatalf("fail to get app info\n")
+		}
 		if deployment == "" {
 			// todo record default deployment
 			log.Fatal("please use -d to specify a k8s deployment")

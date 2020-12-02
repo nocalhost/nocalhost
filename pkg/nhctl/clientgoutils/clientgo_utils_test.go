@@ -2,25 +2,33 @@ package clientgoutils
 
 import (
 	"fmt"
+	"nocalhost/internal/nhctl/utils"
+	"path/filepath"
 	"testing"
 	"time"
 )
 
 func TestNewClientGoUtils(t *testing.T) {
-	//client, err := NewClientGoUtils("", time.Minute)
-	client, err := NewClientGoUtils("/Users/xinxinhuang/.kube/macbook-xinxinhuang-config", time.Minute)
-	if err != nil {
-		panic(err)
-	}
-	n, b, err := client.ClientConfig.Namespace()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("%v %v \n", n, b)
+
 }
 
 func TestClientGoUtils_Delete(t *testing.T) {
-	client, err := NewClientGoUtils("", time.Minute)
+	client, err := NewClientGoUtils(filepath.Join(utils.GetHomePath(), ".kube/admin-config"), time.Minute)
 	Must(err)
-	client.Delete("/Users/xinxinhuang/.nhctl/application/gggg/manifest/templates/ratings.yaml", "demo30")
+	err = client.Delete("/tmp/pre-install-cm.yaml", "unit-test")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func TestClientGoUtils_Create(t *testing.T) {
+	client, err := NewClientGoUtils(filepath.Join(utils.GetHomePath(), ".kube/admin-config"), time.Minute)
+	if err != nil {
+		panic(err)
+	}
+	err = client.Create("/tmp/pre-install-cm.yaml", "unit-test", false, true)
+	if err != nil {
+		fmt.Println(err.Error())
+		panic(err)
+	}
 }

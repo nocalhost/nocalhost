@@ -25,10 +25,9 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"nocalhost/pkg/nhctl/log"
 	"sort"
 
-	//clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
-	"log"
 	"strconv"
 	"time"
 )
@@ -47,7 +46,6 @@ type ClientGoUtils struct {
 func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUtils, error) {
 	var (
 		err error
-		//restConfig *restclient.Config
 	)
 
 	if kubeConfigPath == "" { // use kubectl default config
@@ -113,74 +111,62 @@ func (c *ClientGoUtils) GetDefaultNamespace() (string, error) {
 	return ns, err
 }
 
-func (c *ClientGoUtils) Delete(yamlPath string, namespace string) error {
-	if yamlPath == "" {
-		return errors.New("yaml path can not be empty")
+func (c *ClientGoUtils) createUnstructuredResource(namespace string, rawObj runtime.RawExtension, wait bool) error {
+	obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).Decode(rawObj.Raw, nil, nil)
+	if err != nil {
+		return &TypedError{ErrorType: InvalidYaml, Mes: err.Error()}
 	}
-	if namespace == "" {
-		namespace = "default"
+	unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		//return errors.Wrap(err, fmt.Sprintf("[Invalid Yaml] fail to parse resource obj"))
+		return &TypedError{ErrorType: InvalidYaml, Mes: err.Error()}
 	}
 
-	filebytes, err := ioutil.ReadFile(yamlPath)
+	unstructuredObj := &unstructured.Unstructured{Object: unstructuredMap}
+
+	gr, err := restmapper.GetAPIGroupResources(c.ClientSet.Discovery())
 	if err != nil {
-		fmt.Printf("%v\n", err)
 		return err
 	}
 
-	decoder := yamlutil.NewYAMLOrJSONDecoder(bytes.NewReader(filebytes), 100)
-	for {
-		var rawObj runtime.RawExtension
-		if err = decoder.Decode(&rawObj); err != nil {
-			break
-		}
+	mapper := restmapper.NewDiscoveryRESTMapper(gr)
+	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return err
+	}
 
-		obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).Decode(rawObj.Raw, nil, nil)
-		unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	var dri dynamic.ResourceInterface
+	if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
+		if namespace != "" {
+			unstructuredObj.SetNamespace(namespace)
+		} else if unstructuredObj.GetNamespace() == "" {
+			unstructuredObj.SetNamespace("default")
+		}
+		dri = c.GetDynamicClient().Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
+	} else {
+		dri = c.GetDynamicClient().Resource(mapping.Resource)
+	}
+
+	//obj2, err := dri.Create(context.Background(), unstructuredObj, metav1.CreateOptions{})
+	//log.Debug("background to todo")
+	obj2, err := dri.Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("fail to create %s", unstructuredObj.GetName()))
+	}
+
+	fmt.Printf("%s/%s created\n", obj2.GetKind(), obj2.GetName())
+
+	if wait {
+		err = c.WaitJobToBeReady(obj2.GetNamespace(), obj2.GetName())
 		if err != nil {
-			log.Print(err)
+			PrintlnErr("fail to wait", err)
 			return err
 		}
-
-		unstructuredObj := &unstructured.Unstructured{Object: unstructuredMap}
-
-		gr, err := restmapper.GetAPIGroupResources(c.ClientSet.Discovery())
-		if err != nil {
-			log.Print(err)
-			return err
-		}
-
-		mapper := restmapper.NewDiscoveryRESTMapper(gr)
-		mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		var dri dynamic.ResourceInterface
-		if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
-			if namespace != "" {
-				unstructuredObj.SetNamespace(namespace)
-			} else if unstructuredObj.GetNamespace() == "" {
-				unstructuredObj.SetNamespace("default")
-			}
-			dri = c.dynamicClient.Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
-		} else {
-			dri = c.dynamicClient.Resource(mapping.Resource)
-		}
-
-		propagationPolicy := metav1.DeletePropagationBackground
-		err = dri.Delete(context.Background(), unstructuredObj.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
-		if err != nil {
-			log.Print(err)
-			return err
-		}
-
-		fmt.Printf("%s/%s deleted\n", unstructuredObj.GetKind(), unstructuredObj.GetName())
-
 	}
 	return nil
 }
 
-func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool) error {
+func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool, validate bool) error {
 	if yamlPath == "" {
 		return errors.New("yaml path can not be empty")
 	}
@@ -199,58 +185,69 @@ func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool) err
 		var rawObj runtime.RawExtension
 		if err = decoder.Decode(&rawObj); err != nil {
 			break
+			//return errors.Wrap(err, fmt.Sprintf("[Invalid Yaml] fail to decode %s", yamlPath))
 		}
-
-		obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).Decode(rawObj.Raw, nil, nil)
-		unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+		err = c.createUnstructuredResource(namespace, rawObj, wait)
 		if err != nil {
-			log.Print(err)
-			return err
-		}
-
-		unstructuredObj := &unstructured.Unstructured{Object: unstructuredMap}
-
-		gr, err := restmapper.GetAPIGroupResources(c.ClientSet.Discovery())
-		if err != nil {
-			log.Print(err)
-			return err
-		}
-
-		mapper := restmapper.NewDiscoveryRESTMapper(gr)
-		mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		var dri dynamic.ResourceInterface
-		if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
-			if namespace != "" {
-				unstructuredObj.SetNamespace(namespace)
-			} else if unstructuredObj.GetNamespace() == "" {
-				unstructuredObj.SetNamespace("default")
-			}
-			//dri = c.dynamicClient.Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
-			dri = c.GetDynamicClient().Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
-		} else {
-			//dri = c.dynamicClient.Resource(mapping.Resource)
-			dri = c.GetDynamicClient().Resource(mapping.Resource)
-		}
-
-		obj2, err := dri.Create(context.Background(), unstructuredObj, metav1.CreateOptions{})
-		if err != nil {
-			log.Print(err)
-			return err
-		}
-
-		fmt.Printf("%s/%s created\n", obj2.GetKind(), obj2.GetName())
-
-		if wait {
-			err = c.WaitJobToBeReady(obj2.GetNamespace(), obj2.GetName())
-			if err != nil {
-				PrintlnErr("fail to wait", err)
+			if validate {
 				return err
 			}
+			te, ok := err.(*TypedError)
+			if ok {
+				log.Warnf("Invalid yaml: %s", te.Mes)
+			} else {
+				log.Warnf("Fail to install manifest : %s", err.Error())
+			}
+
 		}
+
+		//obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).Decode(rawObj.Raw, nil, nil)
+		//unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+		//if err != nil {
+		//	return errors.Wrap(err, fmt.Sprintf("[Invalid Yaml] fail to parse resource obj"))
+		//}
+		//
+		//unstructuredObj := &unstructured.Unstructured{Object: unstructuredMap}
+		//
+		//gr, err := restmapper.GetAPIGroupResources(c.ClientSet.Discovery())
+		//if err != nil {
+		//	return err
+		//}
+		//
+		//mapper := restmapper.NewDiscoveryRESTMapper(gr)
+		//mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+		//if err != nil {
+		//	return err
+		//}
+		//
+		//var dri dynamic.ResourceInterface
+		//if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
+		//	if namespace != "" {
+		//		unstructuredObj.SetNamespace(namespace)
+		//	} else if unstructuredObj.GetNamespace() == "" {
+		//		unstructuredObj.SetNamespace("default")
+		//	}
+		//	dri = c.GetDynamicClient().Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
+		//} else {
+		//	dri = c.GetDynamicClient().Resource(mapping.Resource)
+		//}
+		//
+		////obj2, err := dri.Create(context.Background(), unstructuredObj, metav1.CreateOptions{})
+		////log.Debug("background to todo")
+		//obj2, err := dri.Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
+		//if err != nil {
+		//	return errors.Wrap(err, fmt.Sprintf("fail to create %s", unstructuredObj.GetName()))
+		//}
+		//
+		//fmt.Printf("%s/%s created\n", obj2.GetKind(), obj2.GetName())
+		//
+		//if wait {
+		//	err = c.WaitJobToBeReady(obj2.GetNamespace(), obj2.GetName())
+		//	if err != nil {
+		//		PrintlnErr("fail to wait", err)
+		//		return err
+		//	}
+		//}
 
 	}
 
