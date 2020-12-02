@@ -168,9 +168,9 @@ func InstallApplication(applicationName string) error {
 	}
 	switch appType {
 	case app.Helm:
-		err = nocalhostApp.InstallHelm(applicationName, flags)
+		err = nocalhostApp.InstallHelmInGit(applicationName, flags)
 	case app.HelmRepo:
-		err = nocalhostApp.InstallHelmRepo(applicationName, flags)
+		err = nocalhostApp.InstallHelmInRepo(applicationName, flags)
 	case app.Manifest:
 		err = nocalhostApp.InstallManifest()
 	default:
