@@ -8,12 +8,12 @@ import (
 )
 
 func TestNocalHost_GetApplicationDir(t *testing.T) {
-	n := nocalhost2.NocalHost{}
-	fmt.Println(n.GetApplicationDir())
+	//n := NocalHost{}
+	//fmt.Println(n.GetApplicationDir())
 }
 
 func TestNocalHost_GetApplications(t *testing.T) {
-	n := nocalhost2.NocalHost{}
+	n := NocalHost{}
 	apps, err := n.GetApplicationNames()
 	utils.Mush(err)
 	for _, app := range apps {
