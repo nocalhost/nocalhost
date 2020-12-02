@@ -18,7 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/log"
+	"nocalhost/pkg/nhctl/log"
 )
 
 var force bool
