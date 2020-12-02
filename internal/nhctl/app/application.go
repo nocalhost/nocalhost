@@ -276,10 +276,10 @@ type HelmFlags struct {
 
 func (a *Application) InstallManifest() error {
 	var err error
-	err = a.InstallDepConfigMap()
-	if err != nil {
-		return err
-	}
+	//err = a.InstallDepConfigMap()
+	//if err != nil {
+	//	return err
+	//}
 	excludeFiles := make([]string, 0)
 	if a.Config != nil && a.Config.PreInstall != nil {
 		fmt.Println("[config] reading pre-install hook")
