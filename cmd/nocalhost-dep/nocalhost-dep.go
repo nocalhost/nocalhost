@@ -19,13 +19,13 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"github.com/golang/glog"
 	"net/http"
 	webhook "nocalhost/internal/nocalhost-dep/webhook"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/golang/glog"
+	"time"
 )
 
 var GIT_COMMIT_SHA string
@@ -63,7 +63,7 @@ func main() {
 	// define http server and server handler
 	mux := http.NewServeMux()
 	mux.HandleFunc("/mutate", whsvr.Serve)
-	whsvr.Server.Handler = mux
+	whsvr.Server.Handler = timer(mux)
 
 	// start webhook server in new rountine
 	go func() {
@@ -79,4 +79,13 @@ func main() {
 
 	glog.Infof("Got OS shutdown signal, shutting down webhook server gracefully...")
 	whsvr.Server.Shutdown(context.Background())
+}
+
+func timer(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		startTime := time.Now()
+		h.ServeHTTP(w, r)
+		duration := time.Now().Sub(startTime)
+		glog.Infof("total cost time %d", duration.Milliseconds())
+	})
 }

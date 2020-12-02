@@ -44,6 +44,18 @@ func (n *NocalHost) Init() error {
 				return err
 			}
 
+			binDir := n.GetSyncThingBinDir()
+			err = os.MkdirAll(binDir, 0755) // create .nhctl/bin/syncthing
+			if err != nil {
+				return err
+			}
+
+			logDir := n.GetLogDir()
+			err = os.Mkdir(logDir, 0755) // create .nhctl/logs
+			if err != nil {
+				return err
+			}
+
 			// ssh public key
 			keyContent := `ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDqJOIfjQvv2pAanw3PBjpIqda+F7QAY0C4818D76C4u5Ybrja+Fz0cOCjtrRuwopsNcZhbGrva/zuG8J7Violft294fYVils7gOi1FjzA2twU1n90nCFpHt5uxETR9jR7JpsTUq15Xi6aIB5PynF/irr3EueUiiywhvzejbr1sA0ri26wteaSr/nLdNFy2TXVAEyHyzoxCAX4cECuGfarIgoQpdErc6dwyCh+lPnByL+AGP+PKsQmHmA/3NUUJGsurEf4vGaCd0d7/FGtvMG+N28C33Rv1nZi4RzWbG/TGlFleuvO8QV1zqIGQbUkqoeoLbbYsOW2GG0BxhJ7jqj9V root@eafa293b895`
 			publicKeyFile := fmt.Sprintf("%s%c%s", keyDir, os.PathSeparator, "id_rsa.pub")
@@ -176,6 +188,14 @@ func (n *NocalHost) CleanupAppFiles(appName string) error {
 func (n *NocalHost) GetSshKeyDir() string {
 	return filepath.Join(n.GetHomeDir(), app.DefaultSshKeyDirName)
 	//return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, app.DefaultSshKeyDirName)
+}
+
+func (n *NocalHost) GetSyncThingBinDir() string {
+	return fmt.Sprintf("%s%c%s%c%s", n.GetHomeDir(), os.PathSeparator, app.DefaultBinDirName, os.PathSeparator, app.DefaultBinSyncThingDirName)
+}
+
+func (n *NocalHost) GetLogDir() string {
+	return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, app.DefaultLogDirName)
 }
 
 func (n *NocalHost) GetApplicationNames() ([]string, error) {

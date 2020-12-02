@@ -23,6 +23,7 @@ import (
 	nocalhost "nocalhost/pkg/nocalhost-dep/go-client"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
@@ -301,7 +302,10 @@ func createPatchAny(objectInitContainer []corev1.Container, initContainers []cor
 
 // get nocalhost dependents configmaps 多个应用可能存在多个，需要遍历
 func nocalhostDepConfigmap(namespace string, resourceName string, resourceType string) ([]corev1.Container, error) {
+	startTime := time.Now()
 	configMaps, err := clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
+	duration := time.Now().Sub(startTime)
+	glog.Infof("get configmap total cost %d", duration.Milliseconds())
 	initContainers := make([]corev1.Container, 0)
 	if err != nil {
 		glog.Fatalln("failed to get config map:", err)
