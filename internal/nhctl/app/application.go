@@ -6,7 +6,6 @@ import (
 	"fmt"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/pkg/nhctl/log"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -128,17 +127,17 @@ func (a *Application) InitClient(kubeconfig string, namespace string) error {
 
 func (a *Application) InitDir() error {
 	var err error
-	err = os.Mkdir(a.GetHomeDir(), 0755)
+	err = os.MkdirAll(a.GetHomeDir(), 0755)
 	if err != nil {
 		return err
 	}
 
-	err = os.Mkdir(a.getGitDir(), 0755)
+	err = os.MkdirAll(a.getGitDir(), 0755)
 	if err != nil {
 		return err
 	}
 
-	err = os.Mkdir(a.GetConfigDir(), DefaultNewFilePermission)
+	err = os.MkdirAll(a.GetConfigDir(), DefaultNewFilePermission)
 	if err != nil {
 		return err
 	}
@@ -544,7 +543,7 @@ func (a *Application) GetHomeDir() string {
 }
 
 func (a *Application) GetApplicationSyncDir(deployment string) string {
-	dirPath := path.Join(a.GetHomeDir(), DefaultBinSyncThingDirName, deployment)
+	dirPath := filepath.Join(a.GetHomeDir(), DefaultBinSyncThingDirName, deployment)
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		err = os.MkdirAll(dirPath, 0700)
 		if err != nil {
@@ -555,19 +554,19 @@ func (a *Application) GetApplicationSyncDir(deployment string) string {
 }
 
 func (a *Application) GetApplicationBackGroundPortForwardPidFile(deployment string) string {
-	return path.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPortForwardPidFile)
+	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPortForwardPidFile)
 }
 
 func (a *Application) GetApplicationBackGroundOnlyPortForwardPidFile(deployment string) string {
-	return path.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
+	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
 }
 
 func (a *Application) GetApplicationSyncThingPidFile(deployment string) string {
-	return path.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPidFile)
+	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPidFile)
 }
 
 func (a *Application) GetApplicationOnlyPortForwardPidFile(deployment string) string {
-	return path.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
+	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
 }
 
 func (a *Application) GetConfigDir() string {
@@ -581,15 +580,15 @@ func (a *Application) GetConfigPath() string {
 }
 
 func (a *Application) GetLogDir() string {
-	return path.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultLogDirName)
+	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultLogDirName)
 }
 
 func (a *Application) GetPortSyncLogFile(deployment string) string {
-	return path.Join(a.GetApplicationSyncDir(deployment), DefaultSyncLogFileName)
+	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultSyncLogFileName)
 }
 
 func (a *Application) GetPortForwardLogFile(deployment string) string {
-	return path.Join(a.GetApplicationSyncDir(deployment), DefaultBackGroundPortForwardLogFileName)
+	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultBackGroundPortForwardLogFileName)
 }
 
 //func (a *Application) GetPortForwardDir() string {
@@ -607,7 +606,7 @@ func (a *Application) getConfigPathInGitResourcesDir() string {
 }
 
 func (a *Application) GetSyncThingBinDir() string {
-	return path.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultBinDirName, DefaultBinSyncThingDirName)
+	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultBinDirName, DefaultBinSyncThingDirName)
 }
 
 //func (a *Application) GetPortForwardPidDir(pid int) string {

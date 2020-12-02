@@ -27,19 +27,19 @@ func (n *NocalHost) Init() error {
 	nhctlHomeDir := n.GetHomeDir()
 	if _, err = os.Stat(nhctlHomeDir); err != nil {
 		if os.IsNotExist(err) {
-			err = os.Mkdir(nhctlHomeDir, 0755)
+			err = os.MkdirAll(nhctlHomeDir, 0755)
 			if err != nil {
 				return err
 			}
 
 			applicationDir := n.GetAppHomeDir()
-			err = os.Mkdir(applicationDir, 0755) // create .nhctl/application
+			err = os.MkdirAll(applicationDir, 0755) // create .nhctl/application
 			if err != nil {
 				return err
 			}
 
 			keyDir := n.GetSshKeyDir()
-			err = os.Mkdir(keyDir, 0755) // create .nhctl/key
+			err = os.MkdirAll(keyDir, 0755) // create .nhctl/key
 			if err != nil {
 				return err
 			}
@@ -51,7 +51,7 @@ func (n *NocalHost) Init() error {
 			}
 
 			logDir := n.GetLogDir()
-			err = os.Mkdir(logDir, 0755) // create .nhctl/logs
+			err = os.MkdirAll(logDir, 0755) // create .nhctl/logs
 			if err != nil {
 				return err
 			}
@@ -112,7 +112,7 @@ IdentityFile ~/.nhctl/key/id_rsa
 
 	if _, err = os.Stat(sshHomeDir); err != nil {
 		if os.IsNotExist(err) {
-			err = os.Mkdir(sshHomeDir, 0644)
+			err = os.MkdirAll(sshHomeDir, 0644)
 		}
 	}
 	if err != nil {
@@ -191,7 +191,7 @@ func (n *NocalHost) GetSshKeyDir() string {
 }
 
 func (n *NocalHost) GetSyncThingBinDir() string {
-	return fmt.Sprintf("%s%c%s%c%s", n.GetHomeDir(), os.PathSeparator, app.DefaultBinDirName, os.PathSeparator, app.DefaultBinSyncThingDirName)
+	return filepath.Join(n.GetHomeDir(), app.DefaultBinDirName, app.DefaultBinSyncThingDirName)
 }
 
 func (n *NocalHost) GetLogDir() string {

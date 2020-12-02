@@ -20,7 +20,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"nocalhost/pkg/nhctl/log"
-	"path"
+	"path/filepath"
 	"time"
 )
 
@@ -61,10 +61,10 @@ func (s *Syncthing) APICall(ctx context.Context, url, method string, code int, p
 func (s *Syncthing) callWithRetry(ctx context.Context, url, method string, code int, params map[string]string, local bool, body []byte, readBody bool) ([]byte, error) {
 	var urlPath string
 	if local {
-		urlPath = path.Join(s.GUIAddress, url)
+		urlPath = filepath.Join(s.GUIAddress, url)
 		s.Client.Timeout = 3 * time.Second
 	} else {
-		urlPath = path.Join(s.RemoteGUIAddress, url)
+		urlPath = filepath.Join(s.RemoteGUIAddress, url)
 		s.Client.Timeout = 25 * time.Second
 		if url == "rest/db/ignores" || url == "rest/system/ping" {
 			s.Client.Timeout = 5 * time.Second
