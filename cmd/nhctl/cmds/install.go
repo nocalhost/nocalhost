@@ -15,16 +15,18 @@ package cmds
 
 import (
 	"fmt"
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/pkg/nhctl/log"
+
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/app"
-	"nocalhost/pkg/nhctl/log"
 )
 
 type InstallFlags struct {
 	*EnvSettings
 	GitUrl  string // resource url
+	GitRef  string
 	AppType string
 	//ResourcesDir  string
 	HelmValueFile    string
@@ -46,6 +48,7 @@ var installFlags = InstallFlags{
 func init() {
 	installCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	installCmd.Flags().StringVarP(&installFlags.GitUrl, "git-url", "u", "", "resources git url")
+	installCmd.Flags().StringVarP(&installFlags.GitRef, "git-ref", "r", "", "resources git ref")
 	installCmd.Flags().StringVar(&installFlags.ResourcePath, "resource-path", "", "resources path")
 	installCmd.Flags().StringVarP(&installFlags.Config, "config", "c", "", "specify a config.yaml")
 	//installCmd.Flags().StringVarP(&installFlags.ResourcesDir, "dir", "d", "", "the dir of helm package or manifest")
@@ -123,9 +126,9 @@ func InstallApplication(applicationName string) error {
 	}
 
 	if installFlags.GitUrl != "" {
-		err = nocalhostApp.DownloadResourcesFromGit(installFlags.GitUrl)
+		err = nocalhostApp.DownloadResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
 		if err != nil {
-			log.Debugf("failed to clone : %s\n", installFlags.GitUrl)
+			log.Debugf("failed to clone : %s, ref: %s\n", installFlags.GitUrl, installFlags.GitRef)
 			return err
 		}
 	}
