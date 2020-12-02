@@ -26,8 +26,6 @@ import (
 	"nocalhost/internal/nhctl/syncthing/secret"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/utils"
-	"time"
 )
 
 var (
@@ -96,17 +94,9 @@ var devStartCmd = &cobra.Command{
 		}
 		// install syncthing
 		if newSyncthing != nil && !newSyncthing.IsInstalled() {
-			t := time.NewTicker(1 * time.Second)
-			for i := 0; i < 3; i++ {
-				p := &utils.ProgressBar{}
-				err := newSyncthing.Install(p)
-				if err == nil {
-					break
-				}
-				if i < 2 {
-					log.Debugf("failed to download syncthing, retrying: %s", err)
-					<-t.C
-				}
+			err = newSyncthing.DownloadSyncthing()
+			if err != nil {
+				log.Fatalf("download syncthing fail, please try again")
 			}
 		}
 
