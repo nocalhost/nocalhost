@@ -4,19 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	v1 "k8s.io/api/apps/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/pkg/nhctl/log"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
+
+	v1 "k8s.io/api/apps/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+
 	//"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"math/rand"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/utils"
@@ -30,6 +29,10 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type AppType string
@@ -196,7 +199,7 @@ func (a *Application) LoadConfig() error {
 	return nil
 }
 
-func (a *Application) DownloadResourcesFromGit(gitUrl string) error {
+func (a *Application) DownloadResourcesFromGit(gitUrl string, gitRef string) error {
 	var (
 		err        error
 		gitDirName string
@@ -210,7 +213,11 @@ func (a *Application) DownloadResourcesFromGit(gitUrl string) error {
 		}
 		strs := strings.Split(gitDirName, "/")
 		gitDirName = strs[len(strs)-1] // todo : for default application anme
-		_, err = tools.ExecCommand(nil, true, "git", "clone", "--depth", "1", gitUrl, a.getGitDir())
+		if len(gitRef) > 0 {
+			_, err = tools.ExecCommand(nil, true, "git", "clone", "--branch", gitRef, "--depth", "1", gitUrl, a.getGitDir())
+		} else {
+			_, err = tools.ExecCommand(nil, true, "git", "clone", "--depth", "1", gitUrl, a.getGitDir())
+		}
 		if err != nil {
 			return err
 		}
