@@ -20,11 +20,13 @@ import (
 	"io"
 	"io/ioutil"
 	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/utils"
 	"os"
 	"path"
 	"regexp"
 	"runtime"
 	"strings"
+	"time"
 )
 
 const syncthingVersion = "1.11.1"
@@ -40,6 +42,25 @@ var (
 	minimumVersion = semver.MustParse(syncthingVersion)
 	versionRegex   = regexp.MustCompile(`syncthing v(\d+\.\d+\.\d+) .*`)
 )
+
+func (s *Syncthing) DownloadSyncthing() error {
+	t := time.NewTicker(1 * time.Second)
+	var err error
+	for i := 0; i < 3; i++ {
+		p := &utils.ProgressBar{}
+		err = s.Install(p)
+		if err == nil {
+			return nil
+		}
+
+		if i < 2 {
+			log.Fatalf("failed to download syncthing, retrying: %s", err)
+			<-t.C
+		}
+	}
+
+	return err
+}
 
 // Install installs syncthing
 func (s *Syncthing) Install(p getter.ProgressTracker) error {
@@ -72,7 +93,7 @@ func (s *Syncthing) Install(p getter.ProgressTracker) error {
 		return fmt.Errorf("failed to download syncthing from %s: %s", client.Src, err)
 	}
 
-	i := path.Join(s.binPath, getBinaryName())
+	i := s.binPath
 	b := getBinaryPathInDownload(dir, downloadURL)
 
 	if _, err := os.Stat(b); err != nil {
