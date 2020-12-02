@@ -6,7 +6,7 @@ metadata:
     app: nocalhost-mutating-dependents
 webhooks:
   - name: nocalhost-mutating.coding.net
-    failurePolicy: Fail # 调用 webhook 的错误导致准入失败并且 API 请求被拒绝，默认 Ignore
+    failurePolicy: Ignore # 调用 webhook 的错误导致准入失败并且 API 请求被拒绝，默认 Ignore
     namespaceSelector:
       matchExpressions:
         - key: env
@@ -19,8 +19,8 @@ webhooks:
         path: "/mutate"
       caBundle: ${CA_BUNDLE}
     admissionReviewVersions: ["v1beta1"]
-    #sideEffects: None  # only v1 没有副作用，如果处理失败则略过
-    timeoutSeconds: 5  # 超时时间
+    # sideEffects: None  # only admissionregistration.k8s.io/v1, 没有副作用
+    timeoutSeconds: 30  # 超时时间
     rules:
       - operations: ["CREATE"]
         apiGroups: ["apps"] # 如果是 pods 没有 apiGroups ，留空

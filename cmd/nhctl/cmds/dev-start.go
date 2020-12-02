@@ -19,8 +19,15 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/syncthing"
+	"nocalhost/internal/nhctl/syncthing/secret"
+	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/utils"
+	"time"
 )
 
 var (
@@ -35,8 +42,10 @@ func init() {
 	devStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	devStartCmd.Flags().StringVarP(&devStartOps.DevLang, "lang", "l", "", "the development language, eg: java go python")
 	devStartCmd.Flags().StringVarP(&devStartOps.DevImage, "image", "i", "", "image of development container")
-	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work dir")
+	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory, same as sync path")
 	devStartCmd.Flags().StringVar(&devStartOps.SideCarImage, "sidecar-image", "", "image of sidecar container")
+	// LocalSyncDir is local sync directory Absolute path splice by plugin
+	devStartCmd.Flags().StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{}, "local sync directory")
 	debugCmd.AddCommand(devStartCmd)
 }
 
@@ -64,15 +73,76 @@ var devStartCmd = &cobra.Command{
 
 		nocalhostApp.CreateSvcProfile(deployment, app.Deployment)
 
+		// set develop status first, avoid stack in dev start and break, or it will never resume
+		err = nocalhostApp.SetDevelopingStatus(deployment, true)
+		if err != nil {
+			log.Fatal("fail to update \"developing\" status\n")
+		}
+
 		devStartOps.Kubeconfig = settings.KubeConfig
 		fmt.Println("entering development model...")
+
+		// set dev start ops args
+		// devStartOps.LocalSyncDir is from pulgin by local-sync
+		var fileSyncOptions = &app.FileSyncOptions{}
+		devStartOps.Namespace = nocalhostApp.AppProfile.Namespace
+		if devStartOps.WorkDir == "" { // command not pass this arguments
+			devStartOps.WorkDir = nocalhostApp.GetDefaultWorkDir(deployment)
+		}
+		// syncthings
+		newSyncthing, err := syncthing.New(nocalhostApp, deployment, devStartOps, fileSyncOptions)
+		if err != nil {
+			log.Fatalf("create syncthing fail, please try again.")
+		}
+		// install syncthing
+		if newSyncthing != nil && !newSyncthing.IsInstalled() {
+			t := time.NewTicker(1 * time.Second)
+			for i := 0; i < 3; i++ {
+				p := &utils.ProgressBar{}
+				err := newSyncthing.Install(p)
+				if err == nil {
+					break
+				}
+				if i < 2 {
+					log.Debugf("failed to download syncthing, retrying: %s", err)
+					<-t.C
+				}
+			}
+		}
+
+		// set syncthing secret
+		config, err := secret.GetConfigXML(newSyncthing)
+		syncSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      deployment + "-" + secret_config.SecretName,
+				Namespace: nocalhostApp.AppProfile.Namespace,
+			},
+			Type: corev1.SecretTypeOpaque,
+			Data: map[string][]byte{
+				"config.xml": config,
+				"cert.pem":   []byte(secret_config.CertPEM),
+				"key.pem":    []byte(secret_config.KeyPEM),
+			},
+		}
+		err = nocalhostApp.CreateSyncThingSecret(syncSecret, devStartOps)
+		if err != nil {
+			// TODO dev end should delete syncthing secret
+			log.Fatalf("create syncthing secret fail, please try to manual delete %s secret first", syncthing.SyncSecretName)
+		}
+		// set profile sync dir
+		err = nocalhostApp.SetLocalAbsoluteSyncDirFromDevStartPlugin(deployment, devStartOps.LocalSyncDir)
+		if err != nil {
+			log.Fatalf("fail to update sync directory")
+		}
+		// end syncthing doing
 		err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps)
 		if err != nil {
 			log.Fatalf("fail to replace dev container: err%v\n", err)
 		}
-		err = nocalhostApp.SetDevelopingStatus(deployment, true)
+		// set profile sync port
+		err = nocalhostApp.SetSyncthingPort(deployment, newSyncthing.RemotePort, newSyncthing.RemoteGUIPort, newSyncthing.LocalPort, newSyncthing.LocalGUIPort)
 		if err != nil {
-			log.Fatal("fail to update \"developing\" status\n")
+			log.Fatal("fail to update \"developing\" syncthing port status\n")
 		}
 	},
 }

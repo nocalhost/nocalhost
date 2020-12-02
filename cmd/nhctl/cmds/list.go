@@ -15,9 +15,14 @@ package cmds
 
 import (
 	"fmt"
+	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/utils"
+	"os"
+	"strconv"
 )
 
 func init() {
@@ -25,12 +30,36 @@ func init() {
 }
 
 var listCmd = &cobra.Command{
-	Use:   "list",
+	Use:   "list [NAME]",
 	Short: "list applications",
 	Long:  `list applications`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) > 0 { // list application detail
+			applicationName := args[0]
+			nocalhostApp, err := app.NewApplication(applicationName)
+			if err != nil {
+				log.Fatal("fail to get application info")
+			}
+			ListApplicationSvc(nocalhostApp)
+			os.Exit(0)
+		}
 		ListApplications()
 	},
+}
+
+func ListApplicationSvc(napp *app.Application) {
+	var data [][]string
+	for _, svcProfile := range napp.AppProfile.SvcProfile {
+		rols := []string{svcProfile.Name, strconv.FormatBool(svcProfile.Developing), strconv.FormatBool(svcProfile.Syncing), fmt.Sprintf("%s", svcProfile.DevPortList), fmt.Sprintf("%s", svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin), strconv.Itoa(svcProfile.LocalSyncthingGUIPort)}
+		data = append(data, rols)
+	}
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"NAME", "DEVELOPING", "SYNCING", "DEV-PORT-FORWARDED", "SYNC-PATH", "LOCAL-SYNCTHING-GUI"})
+
+	for _, v := range data {
+		table.Append(v)
+	}
+	table.Render() // Send output
 }
 
 func ListApplications() {

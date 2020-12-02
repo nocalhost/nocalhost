@@ -44,6 +44,10 @@ func Execute() {
 	//if settings.Debug {
 	//	log.SetLevel(logrus.DebugLevel)
 	//}
+	// os.Args = append("dev", "start", "bookinfo", "-d", "details", "--kubeconfig", "~/.kube/2551", "-s", "/Users/weiwang/.nhctl/application/bookinfo", "-s", "/Users/weiwang/Downloads/movies")
+	// os.Args = append(os.Args, "sync", "bookinfo", "-d", "details")
+	// os.Args = append(os.Args, "dev", "end", "bookinfo", "-d", "details", "--kubeconfig", "~/.kube/2551")
+	// os.Args = append(os.Args, "port-forward", "bookinfo", "-d", "details", "--kubeconfig", "/Users/weiwang/.kube/2551", "-p", ":9080", "-p", "54545:8000", "-m", "false")
 	if len(os.Args) == 1 {
 		args := append([]string{"help"}, os.Args[1:]...)
 		rootCmd.SetArgs(args)
