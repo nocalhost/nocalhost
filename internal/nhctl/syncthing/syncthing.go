@@ -36,7 +36,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	_ "path/filepath"
 	_ "runtime"
@@ -199,15 +198,15 @@ func New(dev *napp.Application, deployment string, devStartOptions *napp.DevStar
 		APIKey:           "nocalhost",
 		GUIPassword:      "nocalhost",
 		GUIPasswordHash:  string(hash),
-		binPath:          path.Join(dev.GetSyncThingBinDir(), getBinaryName()),
+		binPath:          filepath.Join(dev.GetSyncThingBinDir(), getBinaryName()),
 		Client:           NewAPIClient(),
 		FileWatcherDelay: DefaultFileWatcherDelay,
 		GUIAddress:       fmt.Sprintf("%s:%d", bind, localGuiPort),
 		// TODO BE CAREFUL ResourcePath if is not application path, this is Local syncthing HOME PATH, use for cert and config.xml
 		// it's `~/.nhctl/application/bookinfo/syncthing`
-		LocalHome:        path.Join(dev.GetHomeDir(), syncthing, deployment),
+		LocalHome:        filepath.Join(dev.GetHomeDir(), syncthing, deployment),
 		RemoteHome:       remoteHome,
-		LogPath:          path.Join(dev.GetHomeDir(), syncthing, deployment, logFile),
+		LogPath:          filepath.Join(dev.GetHomeDir(), syncthing, deployment, logFile),
 		RemoteAddress:    fmt.Sprintf("%s:%d", bind, remotePort),
 		RemoteDeviceID:   DefaultRemoteDeviceID,
 		RemoteGUIAddress: fmt.Sprintf("%s:%d", bind, remoteGUIPort),
@@ -302,11 +301,11 @@ func (s *Syncthing) initConfig() error {
 		return err
 	}
 
-	if err := ioutil.WriteFile(path.Join(s.LocalHome, certFile), local.Cert, 0700); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(s.LocalHome, certFile), local.Cert, 0700); err != nil {
 		return fmt.Errorf("failed to write syncthing certificate: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path.Join(s.LocalHome, keyFile), local.Key, 0700); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(s.LocalHome, keyFile), local.Key, 0700); err != nil {
 		return fmt.Errorf("failed to write syncthing key: %w", err)
 	}
 
@@ -320,7 +319,7 @@ func (s *Syncthing) UpdateConfig() error {
 		return fmt.Errorf("failed to write syncthing configuration template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path.Join(s.LocalHome, configFile), buf.Bytes(), 0700); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(s.LocalHome, configFile), buf.Bytes(), 0700); err != nil {
 		return fmt.Errorf("failed to write syncthing configuration file: %w", err)
 	}
 
@@ -338,7 +337,7 @@ func (s *Syncthing) Run(ctx context.Context) error {
 	//	return nil
 	//}
 
-	pidPath := path.Join(s.LocalHome, syncthingPidFile)
+	pidPath := filepath.Join(s.LocalHome, syncthingPidFile)
 
 	cmdArgs := []string{
 		"-home", s.LocalHome,
