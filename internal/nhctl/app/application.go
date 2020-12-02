@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	v1 "k8s.io/api/apps/v1"
-	"nocalhost/internal/nhctl/log"
+	"nocalhost/pkg/nhctl/log"
 	"path/filepath"
 
 	//"github.com/sirupsen/logrus"
@@ -280,7 +280,7 @@ func (a *Application) InstallManifest() error {
 	}
 	excludeFiles := make([]string, 0)
 	if a.Config != nil && a.Config.PreInstall != nil {
-		fmt.Println("[nocalhost config] reading pre-install hook")
+		fmt.Println("[config] reading pre-install hook")
 		excludeFiles, err = a.preInstall(a.GetResourceDir(), a.Config.PreInstall)
 		if err != nil {
 			return err
@@ -304,7 +304,7 @@ outer:
 	for _, file := range files {
 		for _, ex := range excludeFiles {
 			if ex == file {
-				fmt.Println("ignore file : " + file)
+				log.Debugf("ignore file : %s", file)
 				continue outer
 			}
 		}
@@ -312,15 +312,15 @@ outer:
 		// parallel
 		wg.Add(1)
 		go func(fileName string) {
-			fmt.Println("create " + fileName)
-			a.client.Create(fileName, a.GetNamespace(), false)
+			log.Debugf("create %s", fileName)
+			a.client.Create(fileName, a.GetNamespace(), false, false)
 			wg.Done()
 		}(file)
 	}
 	wg.Wait()
 	end := time.Now()
 	fmt.Printf("installing takes %f seconds\n", end.Sub(start).Seconds())
-	return err
+	return nil
 }
 
 func (a *Application) getYamlFilesAndDirs(dirPth string) (files []string, dirs []string, err error) {
@@ -364,7 +364,7 @@ func (a *Application) preInstall(basePath string, items []*PreInstallItem) ([]st
 		itemPath := fmt.Sprintf("%s%c%s", basePath, os.PathSeparator, item.Path)
 		files = append(files, itemPath)
 		// todo check if item.Path is a valid file
-		err := a.client.Create(itemPath, a.GetNamespace(), true)
+		err := a.client.Create(itemPath, a.GetNamespace(), true, false)
 		if err != nil {
 			return files, err
 		}

@@ -16,9 +16,10 @@ package cmds
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/log"
+	"nocalhost/pkg/nhctl/log"
 )
 
 type InstallFlags struct {
@@ -71,8 +72,11 @@ var installCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		applicationName := args[0]
 		var err error
+		if settings.Debug {
+			log.SetLevel(logrus.DebugLevel)
+		}
+		applicationName := args[0]
 		if installFlags.GitUrl == "" && installFlags.AppType != string(app.HelmRepo) {
 			log.Fatal("if app type is not helm-repo , --git-url must be specified")
 		}
@@ -106,10 +110,7 @@ var installCmd = &cobra.Command{
 }
 
 func InstallApplication(applicationName string) error {
-
-	var (
-		err error
-	)
+	var err error
 
 	nocalhostApp, err = app.BuildApplication(applicationName)
 	if err != nil {
@@ -121,11 +122,10 @@ func InstallApplication(applicationName string) error {
 		return err
 	}
 
-	// init application dir
 	if installFlags.GitUrl != "" {
 		err = nocalhostApp.DownloadResourcesFromGit(installFlags.GitUrl)
 		if err != nil {
-			fmt.Printf("[error] failed to clone : %s\n", installFlags.GitUrl)
+			log.Debugf("failed to clone : %s\n", installFlags.GitUrl)
 			return err
 		}
 	}
@@ -161,18 +161,10 @@ func InstallApplication(applicationName string) error {
 	}
 	switch appType {
 	case app.Helm:
-		//dir := nocalhostApp.GetResourceDir()
-		//if dir == "" {
-		//	return errors.New("--resource-path mush be specified")
-		//}
 		err = nocalhostApp.InstallHelm(applicationName, flags)
 	case app.HelmRepo:
 		err = nocalhostApp.InstallHelmRepo(applicationName, flags)
 	case app.Manifest:
-		//dir := nocalhostApp.GetResourceDir()
-		//if dir == "" {
-		//	return errors.New("--resource-path mush be specified")
-		//}
 		err = nocalhostApp.InstallManifest()
 	default:
 		return errors.New("unsupported application type, it mush be helm or helm-repo or manifest")

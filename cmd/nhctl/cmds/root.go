@@ -3,8 +3,8 @@ package cmds
 import (
 	"fmt"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/log"
 	nocalhost2 "nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/utils"
 	"os"
 

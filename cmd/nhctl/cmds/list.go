@@ -16,7 +16,7 @@ package cmds
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	nocalhost2 "nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/utils"
 )
 
@@ -34,7 +34,7 @@ var listCmd = &cobra.Command{
 }
 
 func ListApplications() {
-	n := nocalhost2.NocalHost{}
+	n := nocalhost.NocalHost{}
 	apps, err := n.GetApplicationNames()
 	utils.Mush(err)
 	maxLen := 0
