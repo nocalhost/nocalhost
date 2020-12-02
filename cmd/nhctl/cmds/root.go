@@ -3,7 +3,7 @@ package cmds
 import (
 	"fmt"
 	"nocalhost/internal/nhctl/app"
-	nocalhost2 "nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/utils"
 	"os"
@@ -13,7 +13,7 @@ import (
 )
 
 var settings *EnvSettings
-var nh *nocalhost2.NocalHost
+var nh *nocalhost.NocalHost
 var nocalhostApp *app.Application
 
 func init() {
@@ -25,7 +25,7 @@ func init() {
 
 	cobra.OnInitialize(func() {
 		var err error
-		nh, err = nocalhost2.NewNocalHost()
+		nh, err = nocalhost.NewNocalHost()
 		utils.Mush(err)
 	})
 }
