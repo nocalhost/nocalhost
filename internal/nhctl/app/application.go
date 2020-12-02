@@ -381,7 +381,7 @@ func (a *Application) preInstall(basePath string, items []*PreInstallItem) ([]st
 	return files, nil
 }
 
-func (a *Application) InstallHelmRepo(releaseName string, flags *HelmFlags) error {
+func (a *Application) InstallHelmInRepo(releaseName string, flags *HelmFlags) error {
 	commonParams := make([]string, 0)
 	if a.GetNamespace() != "" {
 		commonParams = append(commonParams, "--namespace", a.GetNamespace())
@@ -411,6 +411,7 @@ func (a *Application) InstallHelmRepo(releaseName string, flags *HelmFlags) erro
 	if flags.Values != "" {
 		installParams = append(installParams, "-f", flags.Values)
 	}
+	installParams = append(installParams, "--timeout", "60m")
 	installParams = append(installParams, commonParams...)
 
 	fmt.Println("install helm application, this may take several minutes, please waiting...")
@@ -425,7 +426,7 @@ func (a *Application) InstallHelmRepo(releaseName string, flags *HelmFlags) erro
 	return nil
 }
 
-func (a *Application) InstallHelm(releaseName string, flags *HelmFlags) error {
+func (a *Application) InstallHelmInGit(releaseName string, flags *HelmFlags) error {
 	resourcesPath := a.GetResourceDir()
 
 	commonParams := make([]string, 0)
@@ -449,6 +450,7 @@ func (a *Application) InstallHelm(releaseName string, flags *HelmFlags) error {
 	if flags.Values != "" {
 		params = append(params, "-f", flags.Values)
 	}
+	params = append(params, "--timeout", "60m")
 	params = append(params, commonParams...)
 
 	fmt.Println("building dependency...")
