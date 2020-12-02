@@ -66,8 +66,8 @@ const (
 	defaultSyncMode  = "sendreceive" // default sync mode
 	sendOnlySyncMode = "sendonly"    // default sync mode
 	// DefaultRemoteDeviceID remote syncthing ID
-	DefaultRemoteDeviceID = "ATOPHFJ-VPVLDFY-QVZDCF2-OQQ7IOW-OG4DIXF-OA7RWU3-ZYA4S22-SI4XVAU"
-	localDeviceID         = "ABKAVQF-RUO4CYO-FSC2VIP-VRX4QDA-TQQRN2J-MRDXJUC-FXNWP6N-S6ZSAAR"
+	DefaultRemoteDeviceID = "MDPJNTF-OSPJC65-LZNCQGD-3AWRUW6-BYJULSS-GOCA2TU-5DWWBNC-TKM4VQ5"
+	localDeviceID         = "SJTYMUE-DI3REKX-JCLCRXU-F6UJHCG-XQGHAZJ-5O5D3JR-LALGSBC-TJ4I4QO"
 
 	// DefaultFileWatcherDelay how much to wait before starting a sync after a file change
 	DefaultFileWatcherDelay = 5
