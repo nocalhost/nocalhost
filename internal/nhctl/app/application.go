@@ -5,21 +5,23 @@ import (
 	"errors"
 	"fmt"
 	v1 "k8s.io/api/apps/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/pkg/nhctl/log"
+	"path"
 	"path/filepath"
-
+	"runtime"
+	"strconv"
 	//"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"math/rand"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/third_party/kubectl"
-	"nocalhost/pkg/nhctl/third_party/mutagen"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
 	"os/signal"
@@ -534,6 +536,33 @@ func (a *Application) GetHomeDir() string {
 	//return fmt.Sprintf("%s%c%s%c%s%c%s", utils.GetHomePath(), os.PathSeparator, DefaultNhctlHomeDirName, os.PathSeparator, DefaultApplicationDirName, os.PathSeparator, a.Name)
 }
 
+func (a *Application) GetApplicationSyncDir(deployment string) string {
+	dirPath := path.Join(a.GetHomeDir(), DefaultBinSyncThingDirName, deployment)
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		err = os.MkdirAll(dirPath, 0700)
+		if err != nil {
+			log.Fatalf("fail to create syncthing directory: %s", dirPath)
+		}
+	}
+	return dirPath
+}
+
+func (a *Application) GetApplicationBackGroundPortForwardPidFile(deployment string) string {
+	return path.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPortForwardPidFile)
+}
+
+func (a *Application) GetApplicationBackGroundOnlyPortForwardPidFile(deployment string) string {
+	return path.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
+}
+
+func (a *Application) GetApplicationSyncThingPidFile(deployment string) string {
+	return path.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPidFile)
+}
+
+func (a *Application) GetApplicationOnlyPortForwardPidFile(deployment string) string {
+	return path.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
+}
+
 func (a *Application) GetConfigDir() string {
 	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigDirName)
 	//return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultApplicationConfigDirName)
@@ -544,6 +573,22 @@ func (a *Application) GetConfigPath() string {
 	//return fmt.Sprintf("%s%c%s", a.GetConfigDir(), os.PathSeparator, DefaultApplicationConfigName)
 }
 
+func (a *Application) GetLogDir() string {
+	return path.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultLogDirName)
+}
+
+func (a *Application) GetPortSyncLogFile(deployment string) string {
+	return path.Join(a.GetApplicationSyncDir(deployment), DefaultSyncLogFileName)
+}
+
+func (a *Application) GetPortForwardLogFile(deployment string) string {
+	return path.Join(a.GetApplicationSyncDir(deployment), DefaultBackGroundPortForwardLogFileName)
+}
+
+//func (a *Application) GetPortForwardDir() string {
+//	return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultPortForwardDir)
+//}
+
 func (a *Application) getGitDir() string {
 	return filepath.Join(a.GetHomeDir(), DefaultResourcesDir)
 	//return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultResourcesDir)
@@ -553,6 +598,14 @@ func (a *Application) getConfigPathInGitResourcesDir() string {
 	return filepath.Join(a.getGitDir(), DefaultApplicationConfigDirName, DefaultApplicationConfigName)
 	//return fmt.Sprintf("%s%c%s%c%s", a.getGitDir(), os.PathSeparator, DefaultApplicationConfigDirName, os.PathSeparator, DefaultApplicationConfigName)
 }
+
+func (a *Application) GetSyncThingBinDir() string {
+	return path.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultBinDirName, DefaultBinSyncThingDirName)
+}
+
+//func (a *Application) GetPortForwardPidDir(pid int) string {
+//	return fmt.Sprintf("%s%c%d", a.GetPortForwardDir(), os.PathSeparator, pid)
+//}
 
 func (a *Application) SavePortForwardInfo(svcName string, localPort int, remotePort int) error {
 	pid := os.Getpid()
@@ -717,9 +770,11 @@ func (a *Application) RollBack(ctx context.Context, svcName string) error {
 }
 
 type PortForwardOptions struct {
-	LocalPort  int `json:"local_port" yaml:"localPort"`
-	RemotePort int `json:"remote_port" yaml:"remotePort"`
-	Pid        int `json:"pid" yaml:"pid"`
+	LocalPort   int      `json:"local_port" yaml:"localPort"`
+	RemotePort  int      `json:"remote_port" yaml:"remotePort"`
+	Pid         int      `json:"pid" yaml:"pid"`
+	DevPort     []string // 8080:8080 or :8080 means random localPort
+	RunAsDaemon bool
 }
 
 func (a *Application) CleanupSshPortForwardInfo(svcName string) error {
@@ -833,8 +888,22 @@ func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error
 	return false, nil
 }
 
-func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *DevStartOptions) error {
+func (a *Application) CreateSyncThingSecret(syncSecret *corev1.Secret, ops *DevStartOptions) error {
+	// check if secret exist
+	exist, err := a.client.GetSecret(context.TODO(), ops.Namespace, syncSecret.Name)
+	if exist.Name != "" {
+		_ = a.client.DeleteSecret(context.TODO(), ops.Namespace, syncSecret.Name)
+	}
+	_, err = a.client.CreateSecret(context.TODO(), ops.Namespace, syncSecret, metav1.CreateOptions{})
+	if err != nil {
+		// TODO check configmap first, and end dev should delete that secret
+		return err
+		//log.Fatalf("create syncthing secret fail, please try to manual delete %s secret first", syncthing.SyncSecretName)
+	}
+	return nil
+}
 
+func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *DevStartOptions) error {
 	deploymentsClient := a.client.GetDeploymentClient(a.GetNamespace())
 
 	// mark current revision for rollback
@@ -888,10 +957,60 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 	}
+
+	// syncthing secret volume
+	syncthingDir := corev1.Volume{
+		Name: secret_config.EmptyDir,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+	defaultMode := int32(0644)
+	syncthingVol := corev1.Volume{
+		Name: secret_config.SecretName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: deployment + "-" + secret_config.SecretName,
+				Items: []corev1.KeyToPath{
+					{
+						Key:  "config.xml",
+						Path: "config.xml",
+						Mode: &defaultMode,
+					},
+					{
+						Key:  "cert.pem",
+						Path: "cert.pem",
+						Mode: &defaultMode,
+					},
+					{
+						Key:  "key.pem",
+						Path: "key.pem",
+						Mode: &defaultMode,
+					},
+				},
+				DefaultMode: &defaultMode,
+			},
+		},
+	}
+
 	if dep.Spec.Template.Spec.Volumes == nil {
 		dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
 	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol)
+	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol, syncthingVol, syncthingDir)
+
+	// syncthing volume mount
+	syncthingVolHomeDirMount := corev1.VolumeMount{
+		Name:      secret_config.EmptyDir,
+		MountPath: secret_config.DefaultSyncthingHome,
+		SubPath:   "syncthing",
+	}
+
+	// syncthing secret volume
+	syncthingVolMount := corev1.VolumeMount{
+		Name:      secret_config.SecretName,
+		MountPath: secret_config.DefaultSyncthingSecretHome,
+		ReadOnly:  false,
+	}
 
 	// volume mount
 	workDir := a.GetDefaultWorkDir(deployment)
@@ -932,22 +1051,26 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 		sideCarImage = ops.SideCarImage
 	}
 	sideCarContainer := corev1.Container{
-		Name:  "nocalhost-sidecar",
-		Image: sideCarImage,
+		Name:       "nocalhost-sidecar",
+		Image:      sideCarImage,
+		WorkingDir: workDir,
 		//Command: []string{"/bin/sh", "-c", "service ssh start; mutagen daemon start; mutagen-agent install; tail -f /dev/null"},
 	}
-	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, volMount)
-	sideCarContainer.LivenessProbe = &corev1.Probe{
-		InitialDelaySeconds: 10,
-		PeriodSeconds:       10,
-		Handler: corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{
-					IntVal: DefaultForwardRemoteSshPort,
-				},
-			},
-		},
-	}
+	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, volMount, syncthingVolMount, syncthingVolHomeDirMount)
+	//sideCarContainer.LivenessProbe = &corev1.Probe{
+	//	InitialDelaySeconds: 10,
+	//	PeriodSeconds:       10,
+	//	Handler: corev1.Handler{
+	//		TCPSocket: &corev1.TCPSocketAction{
+	//			Port: intstr.IntOrString{
+	//				IntVal: DefaultForwardRemoteSshPort,
+	//			},
+	//		},
+	//	},
+	//}
+	// over write syncthing command
+	sideCarContainer.Command = []string{"/bin/sh", "-c"}
+	sideCarContainer.Args = []string{"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome + "/* " + secret_config.DefaultSyncthingHome + "/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing"}
 	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
 
 	_, err = a.client.UpdateDeployment(ctx, a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
@@ -987,32 +1110,32 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	return nil
 }
 
-func (a *Application) FileSync(svcName string, ops *FileSyncOptions) error {
-	var err error
-	var localSharedDirs = a.GetDefaultLocalSyncDirs(svcName)
-	localSshPort := ops.LocalSshPort
-	if localSshPort == 0 {
-		localSshPort = a.GetLocalSshPort(svcName)
-	}
-	remoteDir := ops.RemoteDir
-	if remoteDir == "" {
-		remoteDir = a.GetDefaultWorkDir(svcName)
-	}
-
-	if ops.LocalSharedFolder != "" {
-		err = mutagen.FileSync(ops.LocalSharedFolder, remoteDir, fmt.Sprintf("%d", localSshPort))
-	} else if len(localSharedDirs) > 0 {
-		for _, dir := range localSharedDirs {
-			err = mutagen.FileSync(dir, remoteDir, fmt.Sprintf("%d", localSshPort))
-			if err != nil {
-				break
-			}
-		}
-	} else {
-		err = errors.New("which dir to sync ?")
-	}
-	return err
-}
+//func (a *Application) FileSync(svcName string, ops *FileSyncOptions) error {
+//	var err error
+//	var localSharedDirs = a.GetDefaultLocalSyncDirs(svcName)
+//	localSshPort := ops.LocalSshPort
+//	if localSshPort == 0 {
+//		localSshPort = a.GetLocalSshPort(svcName)
+//	}
+//	remoteDir := ops.RemoteDir
+//	if remoteDir == "" {
+//		remoteDir = a.GetDefaultWorkDir(svcName)
+//	}
+//
+//	if ops.LocalSharedFolder != "" {
+//		err = mutagen.FileSync(ops.LocalSharedFolder, remoteDir, fmt.Sprintf("%d", localSshPort))
+//	} else if len(localSharedDirs) > 0 {
+//		for _, dir := range localSharedDirs {
+//			err = mutagen.FileSync(dir, remoteDir, fmt.Sprintf("%d", localSshPort))
+//			if err != nil {
+//				break
+//			}
+//		}
+//	} else {
+//		err = errors.New("which dir to sync ?")
+//	}
+//	return err
+//}
 
 func (a *Application) GetDescription() string {
 	desc := ""
@@ -1024,6 +1147,232 @@ func (a *Application) GetDescription() string {
 	}
 	return desc
 }
+
+// for background port-forward
+func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce string, localPort, remotePort []int) {
+	group := len(localPort)
+	if len(localPort) != len(remotePort) {
+		log.Fatalf("dev port forward fail, please check you devPort in config\n")
+	}
+	// wait group
+	var wg sync.WaitGroup
+	wg.Add(group)
+	// stream is used to tell the port forwarder where to place its output or
+	// where to expect input if needed. For the port forwarding we just need
+	// the output eventually
+	stream := genericclioptions.IOStreams{
+		In:     os.Stdin,
+		Out:    os.Stdout,
+		ErrOut: os.Stderr,
+	}
+	// managing termination signal from the terminal. As you can see the stopCh
+	// gets closed to gracefully handle its termination.
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+	var addDevPod []string
+	for key, sLocalPort := range localPort {
+		// stopCh control the port forwarding lifecycle. When it gets closed the
+		// port forward will terminate
+		stopCh := make(chan struct{}, group)
+		// readyCh communicate when the port forward is ready to get traffic
+		readyCh := make(chan struct{})
+		key := key
+		sLocalPort := sLocalPort
+		devPod := fmt.Sprintf("%d:%d", sLocalPort, remotePort[key])
+		addDevPod = append(addDevPod, devPod)
+		fmt.Printf("start dev port forward local %d, remote %d \n", sLocalPort, remotePort[key])
+		go func() {
+			err := a.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
+				Pod: corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      podName,
+						Namespace: nameSapce,
+					},
+				},
+				LocalPort: sLocalPort,
+				PodPort:   remotePort[key],
+				Streams:   stream,
+				StopCh:    stopCh,
+				ReadyCh:   readyCh,
+			})
+			if err != nil {
+				fmt.Printf("port-forward in background fail %s\n", err.Error())
+			}
+		}()
+	}
+	fmt.Print("done go routine")
+	//select {
+	//// wait until port-forward success
+	//case <-readyCh:
+	//	break
+	//}
+	// update profile addDevPod
+	_ = a.SetDevPortForward(deployment, addDevPod)
+	// set port forward status
+	_ = a.SetPortForwardedStatus(deployment, true)
+
+	for {
+		<-sigs
+		fmt.Println("stop port forward")
+		//close(stopCh)
+		wg.Done()
+	}
+}
+
+// port-forward use
+func (a *Application) SetDevPortForward(svcName string, portList []string) error {
+	a.GetSvcProfile(svcName).DevPortList = portList
+	return a.AppProfile.Save()
+}
+
+func (a *Application) GetDevPortForward(svcName string) []string {
+	return a.GetSvcProfile(svcName).DevPortList
+}
+
+// for syncthing use
+func (a *Application) GetSyncthingPort(svcName string, options *FileSyncOptions) (*FileSyncOptions, error) {
+	svcProfile := a.GetSvcProfile(svcName)
+	if svcProfile == nil {
+		return options, errors.New("get " + svcName + " profile fail, please reinstall application")
+	}
+	options.RemoteSyncthingPort = svcProfile.RemoteSyncthingPort
+	options.RemoteSyncthingGUIPort = svcProfile.RemoteSyncthingGUIPort
+	options.LocalSyncthingPort = svcProfile.LocalSyncthingPort
+	options.LocalSyncthingGUIPort = svcProfile.LocalSyncthingGUIPort
+	return options, nil
+}
+
+func (a *Application) GetMyBinName() string {
+	if runtime.GOOS == "windows" {
+		return "nhctl.exe"
+	}
+	return "nhctl"
+}
+
+func (a *Application) GetBackgroundSyncPortForwardPid(deployment string, isTrunc bool) (int, string, error) {
+	f, err := ioutil.ReadFile(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+	if err != nil {
+		return 0, a.GetApplicationBackGroundPortForwardPidFile(deployment), err
+	}
+	port, err := strconv.Atoi(string(f))
+	if err != nil {
+		return 0, a.GetApplicationBackGroundPortForwardPidFile(deployment), err
+	}
+	if isTrunc {
+		_ = a.SetPidFileEmpty(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+	}
+	return port, a.GetApplicationBackGroundPortForwardPidFile(deployment), nil
+}
+
+func (a *Application) GetBackgroundSyncThingPid(deployment string, isTrunc bool) (int, string, error) {
+	f, err := ioutil.ReadFile(a.GetApplicationSyncThingPidFile(deployment))
+	if err != nil {
+		return 0, a.GetApplicationSyncThingPidFile(deployment), err
+	}
+	port, err := strconv.Atoi(string(f))
+	if err != nil {
+		return 0, a.GetApplicationSyncThingPidFile(deployment), err
+	}
+	if isTrunc {
+		_ = a.SetPidFileEmpty(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+	}
+	return port, a.GetApplicationSyncThingPidFile(deployment), nil
+}
+
+func (a *Application) GetBackgroundOnlyPortForwardPid(deployment string, isTrunc bool) (int, string, error) {
+	f, err := ioutil.ReadFile(a.GetApplicationOnlyPortForwardPidFile(deployment))
+	if err != nil {
+		return 0, a.GetApplicationOnlyPortForwardPidFile(deployment), err
+	}
+	port, err := strconv.Atoi(string(f))
+	if err != nil {
+		return 0, a.GetApplicationOnlyPortForwardPidFile(deployment), err
+	}
+	if isTrunc {
+		_ = a.SetPidFileEmpty(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+	}
+	return port, a.GetApplicationOnlyPortForwardPidFile(deployment), nil
+}
+
+func (a *Application) WriteBackgroundSyncPortForwardPidFile(deployment string, pid int) error {
+	file, err := os.OpenFile(a.GetApplicationBackGroundPortForwardPidFile(deployment), os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return errors.New("fail open application file sync background port-forward pid file")
+	}
+	defer file.Close()
+	sPid := strconv.Itoa(pid)
+	_, err = file.Write([]byte(sPid))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(svcName string, options *DevStartOptions) (*DevStartOptions, error) {
+	svcProfile := a.GetSvcProfile(svcName)
+	if svcProfile == nil {
+		return options, errors.New("get " + svcName + " profile fail, please reinstall application")
+	}
+	options.LocalSyncDir = svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin
+	return options, nil
+}
+
+func (a *Application) GetPodsFromDeployment(ctx context.Context, namespace, deployment string) (*corev1.PodList, error) {
+	return a.client.GetPodsFromDeployment(ctx, namespace, deployment)
+}
+
+func (a *Application) PortForwardAPod(req clientgoutils.PortForwardAPodRequest) error {
+	return a.client.PortForwardAPod(req)
+}
+
+// set pid file empty
+func (a *Application) SetPidFileEmpty(filePath string) error {
+	return os.Remove(filePath)
+}
+
+func (a *Application) SetDevEndProfileStatus(svcName string) error {
+	a.GetSvcProfile(svcName).Developing = false
+	a.GetSvcProfile(svcName).PortForwarded = false
+	a.GetSvcProfile(svcName).Syncing = false
+	a.GetSvcProfile(svcName).DevPortList = []string{}
+	a.GetSvcProfile(svcName).LocalAbsoluteSyncDirFromDevStartPlugin = []string{}
+	return a.AppProfile.Save()
+}
+
+func (a *Application) SetSyncthingPort(svcName string, remotePort, remoteGUIPort, localPort, localGUIPort int) error {
+	a.GetSvcProfile(svcName).RemoteSyncthingPort = remotePort
+	a.GetSvcProfile(svcName).RemoteSyncthingGUIPort = remoteGUIPort
+	a.GetSvcProfile(svcName).LocalSyncthingPort = localPort
+	a.GetSvcProfile(svcName).LocalSyncthingGUIPort = localGUIPort
+	return a.AppProfile.Save()
+}
+
+func (a *Application) SetRemoteSyncthingPort(svcName string, port int) error {
+	a.GetSvcProfile(svcName).RemoteSyncthingPort = port
+	return a.AppProfile.Save()
+}
+
+func (a *Application) SetRemoteSyncthingGUIPort(svcName string, port int) error {
+	a.GetSvcProfile(svcName).RemoteSyncthingGUIPort = port
+	return a.AppProfile.Save()
+}
+
+func (a *Application) SetLocalSyncthingPort(svcName string, port int) error {
+	a.GetSvcProfile(svcName).LocalSyncthingPort = port
+	return a.AppProfile.Save()
+}
+
+func (a *Application) SetLocalSyncthingGUIPort(svcName string, port int) error {
+	a.GetSvcProfile(svcName).LocalSyncthingGUIPort = port
+	return a.AppProfile.Save()
+}
+
+func (a *Application) SetLocalAbsoluteSyncDirFromDevStartPlugin(svcName string, syncDir []string) error {
+	a.GetSvcProfile(svcName).LocalAbsoluteSyncDirFromDevStartPlugin = syncDir
+	return a.AppProfile.Save()
+}
+
+// end syncthing here
 
 func (a *Application) SetDevelopingStatus(svcName string, is bool) error {
 	a.GetSvcProfile(svcName).Developing = is

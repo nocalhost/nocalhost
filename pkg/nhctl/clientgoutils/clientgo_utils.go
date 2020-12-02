@@ -12,10 +12,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	yamlutil "k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -25,9 +27,14 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/client-go/tools/portforward"
+	"k8s.io/client-go/transport/spdy"
+	"net/http"
+	"net/url"
+	"strings"
+	//clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 	"nocalhost/pkg/nhctl/log"
 	"sort"
-
 	"strconv"
 	"time"
 )
@@ -40,6 +47,21 @@ type ClientGoUtils struct {
 	TimeOut            time.Duration
 	ClientConfig       clientcmd.ClientConfig
 	//RestClient         *restclient.RESTClient
+}
+
+type PortForwardAPodRequest struct {
+	// Pod is the selected pod for this port forwarding
+	Pod corev1.Pod
+	// LocalPort is the local port that will be selected to expose the PodPort
+	LocalPort int
+	// PodPort is the target port for the pod
+	PodPort int
+	// Steams configures where to write or read input from
+	Streams genericclioptions.IOStreams
+	// StopCh is the channel used to manage the port forward lifecycle
+	StopCh <-chan struct{}
+	// ReadyCh communicates when the tunnel is ready to receive traffic
+	ReadyCh chan struct{}
 }
 
 // if timeout is set to 0, default timeout 5 minutes is used
@@ -419,4 +441,52 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 	fmt.Println("Job is running")
 
 	return false, nil
+}
+
+// syncthing
+func (c *ClientGoUtils) CreateSecret(ctx context.Context, namespace string, secret *corev1.Secret, options metav1.CreateOptions) (*corev1.Secret, error) {
+	return c.ClientSet.CoreV1().Secrets(namespace).Create(ctx, secret, options)
+}
+
+func (c *ClientGoUtils) GetSecret(ctx context.Context, namespace, name string) (*corev1.Secret, error) {
+	return c.ClientSet.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+func (c *ClientGoUtils) DeleteSecret(ctx context.Context, namespace, name string) error {
+	return c.ClientSet.CoreV1().Secrets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+func (c *ClientGoUtils) GetPodsFromDeployment(ctx context.Context, namespace, name string) (*corev1.PodList, error) {
+	deployment, err := c.ClientSet.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		log.Fatalf("deployment not found")
+	}
+	set := labels.Set(deployment.Spec.Selector.MatchLabels)
+	pods, err := c.ClientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: set.AsSelector().String()})
+	if err != nil {
+		log.Fatalf("can not found pod under deployment %s", name)
+	}
+	return pods, nil
+}
+
+func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
+	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward",
+		req.Pod.Namespace, req.Pod.Name)
+	clientConfig, err := c.ClientConfig.ClientConfig()
+	if err != nil {
+		log.Fatalf("get go client config fail, please check you kubeconfig")
+	}
+	hostIP := strings.TrimLeft(clientConfig.Host, "https://")
+
+	transport, upgrader, err := spdy.RoundTripperFor(clientConfig)
+	if err != nil {
+		return err
+	}
+
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, &url.URL{Scheme: "https", Path: path, Host: hostIP})
+	fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
+	if err != nil {
+		return err
+	}
+	return fw.ForwardPorts()
 }

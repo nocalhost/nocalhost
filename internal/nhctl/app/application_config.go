@@ -6,22 +6,30 @@ import (
 )
 
 const (
-	DefaultSideCarImage             = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:latest"
-	DefaultDevImage                 = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
-	DefaultWorkDir                  = "/home/nocalhost-dev"
-	DefaultLocalSyncDirName         = "."
-	DefaultPortForwardDir           = "port-forward"
-	DefaultResourcesDir             = "resources"
-	DefaultForwardRemoteSshPort     = 22
-	DefaultForwardLocalSshPort      = 30002
-	DefaultNhctlHomeDirName         = ".nhctl"
-	DefaultSshKeyDirName            = "key"
-	DefaultApplicationDirName       = "application"
-	DefaultApplicationProfilePath   = ".profile.yaml"
-	DefaultApplicationConfigDirName = ".nocalhost"
-	DefaultApplicationConfigName    = "config.yaml"
-	DefaultNewFilePermission        = 0755
-	DefaultClientGoTimeOut          = time.Minute * 5
+	DefaultSideCarImage                      = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
+	DefaultDevImage                          = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
+	DefaultWorkDir                           = "/home/nocalhost-dev"
+	DefaultLocalSyncDirName                  = "."
+	DefaultPortForwardDir                    = "port-forward"
+	DefaultResourcesDir                      = "resources"
+	DefaultForwardRemoteSshPort              = 22
+	DefaultForwardLocalSshPort               = 30002
+	DefaultNhctlHomeDirName                  = ".nhctl"
+	DefaultSshKeyDirName                     = "key"
+	DefaultBinDirName                        = "bin"
+	DefaultLogDirName                        = "logs"
+	DefaultSyncLogFileName                   = "sync-port-forward-child-process.log"
+	DefaultApplicationSyncPortForwardPidFile = "sync-port-forward.pid"
+	DefaultBinSyncThingDirName               = "syncthing"
+	DefaultBackGroundPortForwardLogFileName  = "alone-port-forward-child-process.log"
+	DefaultApplicationOnlyPortForwardPidFile = "alone-port-forward.pid"
+	DefaultApplicationSyncPidFile            = "syncthing.pid"
+	DefaultApplicationDirName                = "application"
+	DefaultApplicationProfilePath            = ".profile.yaml"
+	DefaultApplicationConfigDirName          = ".nocalhost"
+	DefaultApplicationConfigName             = "config.yaml"
+	DefaultNewFilePermission                 = 0755
+	DefaultClientGoTimeOut                   = time.Minute * 5
 )
 
 type NocalHostAppConfig struct {
