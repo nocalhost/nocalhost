@@ -159,6 +159,10 @@ func InstallApplication(applicationName string) error {
 		RepoUrl:  installFlags.HelmRepoUrl,
 		RepoName: installFlags.HelmRepoName,
 	}
+	err = nocalhostApp.InstallDepConfigMap()
+	if err != nil {
+		return errors.Wrap(err, "fail to install dep config map")
+	}
 	switch appType {
 	case app.Helm:
 		err = nocalhostApp.InstallHelm(applicationName, flags)
