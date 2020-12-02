@@ -49,7 +49,7 @@ var devEndCmd = &cobra.Command{
 			log.Fatalf("\"%s\" is not in developing status", deployment)
 		}
 
-		fmt.Println("exiting dev model...")
+		fmt.Println("Ending dev mode...")
 		// end file sync
 		fmt.Println("ending file sync...")
 		// get dev-start stage record free pod so it do not need get free port agian
@@ -121,7 +121,7 @@ var devEndCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal("fail to update \"developing\" status")
 		}
-		fmt.Printf("%s have exited develop model\n", deployment)
+		fmt.Printf("%s dev mode ended\n", deployment)
 	},
 }
 
