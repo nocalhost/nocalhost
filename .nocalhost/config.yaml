@@ -11,8 +11,9 @@ svcConfigs:
     gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost.git
     devEnv: go  # java|go|node|php
     devImage: golang
+    workDir: /home/nocalhost-dev
     sync: 
-    - .:/home/nocalhost-dev
+    - .
     ignore: []
     devPort:
     - 8080:8080
@@ -23,8 +24,9 @@ svcConfigs:
     gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost-web.git
     devEnv: node
     devImage: node
+    workDir: /home/nocalhost-dev
     sync: 
-    - .:/home/nocalhost-dev
+    - .
     ignore: []
     devPort:
     - 8080:8080
