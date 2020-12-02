@@ -14,7 +14,7 @@ const (
 	DefaultResourcesDir                      = "resources"
 	DefaultForwardRemoteSshPort              = 22
 	DefaultForwardLocalSshPort               = 30002
-	DefaultNhctlHomeDirName                  = ".nhctl"
+	DefaultNhctlHomeDirName                  = ".nh/nhctl"
 	DefaultSshKeyDirName                     = "key"
 	DefaultBinDirName                        = "bin"
 	DefaultLogDirName                        = "logs"
