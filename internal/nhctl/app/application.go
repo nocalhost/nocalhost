@@ -45,7 +45,8 @@ const (
 type Application struct {
 	Name       string
 	Config     *NocalHostAppConfig // if config.yaml not exist, this should be nil
-	AppProfile *AppProfile         // runtime info, this will not be nil
+	NewConfig  *Config
+	AppProfile *AppProfile // runtime info, this will not be nil
 	client     *clientgoutils.ClientGoUtils
 }
 
@@ -1163,9 +1164,35 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 //	}
 //	return err
 //}
-func (a *Application) CheckConfigFile(file string) error {
-	// TODO: implementation check application config file
+
+func (a *Application) LoadConfigFile() error {
+	if _, err := os.Stat(a.GetConfigPath()); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		} else {
+			return err
+		}
+	}
+	rbytes, err := ioutil.ReadFile(a.GetConfigPath())
+	if err != nil {
+		return errors.New(fmt.Sprintf("failed to load configFile : %s", a.GetConfigPath()))
+	}
+	config := &Config{}
+	err = yaml.Unmarshal(rbytes, config)
+	if err != nil {
+		return err
+	}
+	a.NewConfig = config
 	return nil
+}
+
+func (a *Application) CheckConfigFile(file string) error {
+	config := &Config{}
+	err := yaml.Unmarshal([]byte(file), config)
+	if err != nil {
+		return errors.New("Application Config file format error!")
+	}
+	return config.CheckValid()
 }
 
 func (a *Application) SaveConfigFile(file string) error {
