@@ -12,7 +12,6 @@ limitations under the License.
 */
 
 // syncthing module: thanks to okteto given our inspired
-// https://github.com/okteto/okteto/blob/master/pkg/syncthing/syncthing.go
 
 package syncthing
 
@@ -79,6 +78,20 @@ const (
 	GUIPort = 8384
 )
 
+//Folder represents a sync folder
+type Folder struct {
+	Name         string `yaml:"name"`
+	LocalPath    string `yaml:"localPath"`
+	RemotePath   string `yaml:"remotePath"`
+	Retries      int    `yaml:"-"`
+	SentStIgnore bool   `yaml:"-"`
+}
+
+//Ignores represents the .stignore file
+type Ignores struct {
+	Ignore []string `json:"ignore"`
+}
+
 type Syncthing struct {
 	APIKey                   string       `yaml:"apikey"`
 	GUIPassword              string       `yaml:"password"`
@@ -107,50 +120,6 @@ type Syncthing struct {
 	SyncthingBackGroundPid   int          `yaml:"-"`
 	pid                      int          `yaml:"-"`
 	RescanInterval           string       `yaml:"-"`
-}
-
-//Folder represents a sync folder
-type Folder struct {
-	Name         string `yaml:"name"`
-	LocalPath    string `yaml:"localPath"`
-	RemotePath   string `yaml:"remotePath"`
-	Retries      int    `yaml:"-"`
-	SentStIgnore bool   `yaml:"-"`
-}
-
-//Ignores represents the .stignore file
-type Ignores struct {
-	Ignore []string `json:"ignore"`
-}
-
-// Status represents the status of a syncthing folder.
-type Status struct {
-	State      string `json:"state"`
-	PullErrors int64  `json:"pullErrors"`
-}
-
-// Completion represents the completion of a syncthing folder.
-type Completion struct {
-	Completion  float64 `json:"completion"`
-	GlobalBytes int64   `json:"globalBytes"`
-	NeedBytes   int64   `json:"needBytes"`
-	NeedDeletes int64   `json:"needDeletes"`
-}
-
-// FolderErrors represents folder errors in syncthing.
-type FolderErrors struct {
-	Data DataFolderErrors `json:"data"`
-}
-
-// DataFolderErrors represents data folder errors in syncthing.
-type DataFolderErrors struct {
-	Errors []FolderError `json:"errors"`
-}
-
-// FolderError represents a folder error in syncthing.
-type FolderError struct {
-	Error string `json:"error"`
-	Path  string `json:"path"`
 }
 
 // New constructs a new Syncthing.
