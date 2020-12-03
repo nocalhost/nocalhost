@@ -20,6 +20,7 @@ import (
 	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
+	"runtime"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -83,8 +84,13 @@ var devEndCmd = &cobra.Command{
 		}
 		if syngthingPid != 0 {
 			err = newSyncthing.Stop(syngthingPid, syncThingPath, "syncthing", true)
+			// in windows, although killed progress, but it will raise "Access is denied", so it should ignore this case
 			if err != nil {
-				fmt.Printf("[warn] failed to terminate syncthing process(pid: %d), please run `kill -9 %d` manually\n", portForwardPid, portForwardPid)
+				if runtime.GOOS == "windows" {
+					fmt.Printf("[info] attempt to terminate syncthing process(pid: %d), you can run `tasklist | findstr %s` to make sure process was exited\n", portForwardPid, portForwardPid)
+				} else {
+					fmt.Printf("[warn] failed to terminate syncthing process(pid: %d), please run `kill -9 %d` manually, err: %s\n", portForwardPid, portForwardPid, err)
+				}
 			}
 		}
 
