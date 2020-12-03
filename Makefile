@@ -1,6 +1,8 @@
 SHELL := /bin/bash
 BASEDIR = $(shell pwd)
-GIT_COMMIT_SHA = $(shell git rev-parse HEAD)
+
+GIT_TAG := $(shell git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/\(.*\)-.*/\1/' | sed 's/-[0-9]*$///' || true)
+GIT_COMMIT_SHA := $(shell git rev-parse HEAD)
 ifneq ($(shell git status --porcelain),)
     GIT_COMMIT_SHA := $(GIT_COMMIT_SHA)-dirty
 endif
@@ -25,7 +27,7 @@ nocalhost-dep: ## Build nocalhost-dep
 
 .PHONY: nhctl
 nhctl: ## Build nhctl
-	@go build -ldflags '-X nocalhost/cmd/nhctl/cmds.GIT_COMMIT_SHA=$(GIT_COMMIT_SHA)' cmd/nhctl/nhctl.go
+	@go build -ldflags '-X nocalhost/cmd/nhctl/cmds.GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) -X nocalhost/cmd/nhctl/cmds.GIT_TAG=${GIT_TAG}' cmd/nhctl/nhctl.go
 
 .PHONY: gotool
 gotool: ## run go tool 'fmt' and 'vet'
