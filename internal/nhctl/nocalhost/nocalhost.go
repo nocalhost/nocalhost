@@ -10,6 +10,10 @@ import (
 	"strings"
 )
 
+const (
+	DefaultNewFilePermission = 0644
+)
+
 type NocalHost struct {
 }
 
@@ -27,31 +31,31 @@ func (n *NocalHost) Init() error {
 	nhctlHomeDir := n.GetHomeDir()
 	if _, err = os.Stat(nhctlHomeDir); err != nil {
 		if os.IsNotExist(err) {
-			err = os.MkdirAll(nhctlHomeDir, 0755)
+			err = os.MkdirAll(nhctlHomeDir, DefaultNewFilePermission)
 			if err != nil {
 				return err
 			}
 
 			applicationDir := n.GetAppHomeDir()
-			err = os.MkdirAll(applicationDir, 0755) // create .nhctl/application
+			err = os.MkdirAll(applicationDir, DefaultNewFilePermission) // create .nhctl/application
 			if err != nil {
 				return err
 			}
 
 			keyDir := n.GetSshKeyDir()
-			err = os.MkdirAll(keyDir, 0755) // create .nhctl/key
+			err = os.MkdirAll(keyDir, DefaultNewFilePermission) // create .nhctl/key
 			if err != nil {
 				return err
 			}
 
 			binDir := n.GetSyncThingBinDir()
-			err = os.MkdirAll(binDir, 0755) // create .nhctl/bin/syncthing
+			err = os.MkdirAll(binDir, DefaultNewFilePermission) // create .nhctl/bin/syncthing
 			if err != nil {
 				return err
 			}
 
 			logDir := n.GetLogDir()
-			err = os.MkdirAll(logDir, 0755) // create .nhctl/logs
+			err = os.MkdirAll(logDir, DefaultNewFilePermission) // create .nhctl/logs
 			if err != nil {
 				return err
 			}
