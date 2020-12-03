@@ -41,7 +41,7 @@ func init() {
 	fileSyncCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	fileSyncCmd.Flags().IntVarP(&fileSyncOps.LocalSshPort, "port", "p", 0, "(Deprecation) local port which forwards to remote ssh port")
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.RunAsDaemon, "daemon", "m", true, "if file sync run as daemon, default true")
-	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", true, "if use double side sync, default true")
+	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false, "if use double side sync, default true")
 	rootCmd.AddCommand(fileSyncCmd)
 }
 
@@ -73,6 +73,10 @@ var fileSyncCmd = &cobra.Command{
 
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			log.Fatalf("\"%s\" has not in developing", deployment)
+		}
+
+		if nocalhostApp.CheckIfSvcIsSyncthing(deployment) {
+			log.Fatalf("\"%s\" has in syncing", deployment)
 		}
 
 		// get dev-start stage record free pod so it do not need get free port agian
