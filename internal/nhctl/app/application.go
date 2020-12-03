@@ -127,12 +127,12 @@ func (a *Application) InitClient(kubeconfig string, namespace string) error {
 
 func (a *Application) InitDir() error {
 	var err error
-	err = os.MkdirAll(a.GetHomeDir(), 0755)
+	err = os.MkdirAll(a.GetHomeDir(), DefaultNewFilePermission)
 	if err != nil {
 		return err
 	}
 
-	err = os.MkdirAll(a.getGitDir(), 0755)
+	err = os.MkdirAll(a.getGitDir(), DefaultNewFilePermission)
 	if err != nil {
 		return err
 	}
@@ -989,7 +989,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 	}
-	defaultMode := int32(0644)
+	defaultMode := int32(DefaultNewFilePermission)
 	syncthingVol := corev1.Volume{
 		Name: secret_config.SecretName,
 		VolumeSource: corev1.VolumeSource{
@@ -1167,7 +1167,7 @@ func (a *Application) CheckConfigFile(file string) error {
 
 func (a *Application) SaveConfigFile(file string) error {
 	fileByte := []byte(file)
-	err := ioutil.WriteFile(a.GetConfigPath(), fileByte, 0755)
+	err := ioutil.WriteFile(a.GetConfigPath(), fileByte, DefaultNewFilePermission)
 	return err
 }
 
