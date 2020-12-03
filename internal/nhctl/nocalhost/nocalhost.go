@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	DefaultNewFilePermission = 0644
+	DefaultNewFilePermission = 0700
 )
 
 type NocalHost struct {
