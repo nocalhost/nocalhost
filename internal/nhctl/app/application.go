@@ -6,7 +6,6 @@ import (
 	"fmt"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/pkg/nhctl/log"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -46,7 +45,7 @@ const (
 type Application struct {
 	Name       string
 	Config     *NocalHostAppConfig // if config.yaml not exist, this should be nil
-	AppProfile *AppProfile         // runtime info
+	AppProfile *AppProfile         // runtime info, this will not be nil
 	client     *clientgoutils.ClientGoUtils
 }
 
@@ -128,17 +127,17 @@ func (a *Application) InitClient(kubeconfig string, namespace string) error {
 
 func (a *Application) InitDir() error {
 	var err error
-	err = os.Mkdir(a.GetHomeDir(), 0755)
+	err = os.MkdirAll(a.GetHomeDir(), 0755)
 	if err != nil {
 		return err
 	}
 
-	err = os.Mkdir(a.getGitDir(), 0755)
+	err = os.MkdirAll(a.getGitDir(), 0755)
 	if err != nil {
 		return err
 	}
 
-	err = os.Mkdir(a.GetConfigDir(), DefaultNewFilePermission)
+	err = os.MkdirAll(a.GetConfigDir(), DefaultNewFilePermission)
 	if err != nil {
 		return err
 	}
@@ -381,7 +380,7 @@ func (a *Application) preInstall(basePath string, items []*PreInstallItem) ([]st
 	return files, nil
 }
 
-func (a *Application) InstallHelmRepo(releaseName string, flags *HelmFlags) error {
+func (a *Application) InstallHelmInRepo(releaseName string, flags *HelmFlags) error {
 	commonParams := make([]string, 0)
 	if a.GetNamespace() != "" {
 		commonParams = append(commonParams, "--namespace", a.GetNamespace())
@@ -411,6 +410,7 @@ func (a *Application) InstallHelmRepo(releaseName string, flags *HelmFlags) erro
 	if flags.Values != "" {
 		installParams = append(installParams, "-f", flags.Values)
 	}
+	installParams = append(installParams, "--timeout", "60m")
 	installParams = append(installParams, commonParams...)
 
 	fmt.Println("install helm application, this may take several minutes, please waiting...")
@@ -425,7 +425,7 @@ func (a *Application) InstallHelmRepo(releaseName string, flags *HelmFlags) erro
 	return nil
 }
 
-func (a *Application) InstallHelm(releaseName string, flags *HelmFlags) error {
+func (a *Application) InstallHelmInGit(releaseName string, flags *HelmFlags) error {
 	resourcesPath := a.GetResourceDir()
 
 	commonParams := make([]string, 0)
@@ -449,6 +449,7 @@ func (a *Application) InstallHelm(releaseName string, flags *HelmFlags) error {
 	if flags.Values != "" {
 		params = append(params, "-f", flags.Values)
 	}
+	params = append(params, "--timeout", "60m")
 	params = append(params, commonParams...)
 
 	fmt.Println("building dependency...")
@@ -544,7 +545,7 @@ func (a *Application) GetHomeDir() string {
 }
 
 func (a *Application) GetApplicationSyncDir(deployment string) string {
-	dirPath := path.Join(a.GetHomeDir(), DefaultBinSyncThingDirName, deployment)
+	dirPath := filepath.Join(a.GetHomeDir(), DefaultBinSyncThingDirName, deployment)
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		err = os.MkdirAll(dirPath, 0700)
 		if err != nil {
@@ -555,19 +556,19 @@ func (a *Application) GetApplicationSyncDir(deployment string) string {
 }
 
 func (a *Application) GetApplicationBackGroundPortForwardPidFile(deployment string) string {
-	return path.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPortForwardPidFile)
+	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPortForwardPidFile)
 }
 
 func (a *Application) GetApplicationBackGroundOnlyPortForwardPidFile(deployment string) string {
-	return path.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
+	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
 }
 
 func (a *Application) GetApplicationSyncThingPidFile(deployment string) string {
-	return path.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPidFile)
+	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPidFile)
 }
 
 func (a *Application) GetApplicationOnlyPortForwardPidFile(deployment string) string {
-	return path.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
+	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
 }
 
 func (a *Application) GetConfigDir() string {
@@ -581,15 +582,15 @@ func (a *Application) GetConfigPath() string {
 }
 
 func (a *Application) GetLogDir() string {
-	return path.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultLogDirName)
+	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultLogDirName)
 }
 
 func (a *Application) GetPortSyncLogFile(deployment string) string {
-	return path.Join(a.GetApplicationSyncDir(deployment), DefaultSyncLogFileName)
+	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultSyncLogFileName)
 }
 
 func (a *Application) GetPortForwardLogFile(deployment string) string {
-	return path.Join(a.GetApplicationSyncDir(deployment), DefaultBackGroundPortForwardLogFileName)
+	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultBackGroundPortForwardLogFileName)
 }
 
 //func (a *Application) GetPortForwardDir() string {
@@ -607,7 +608,7 @@ func (a *Application) getConfigPathInGitResourcesDir() string {
 }
 
 func (a *Application) GetSyncThingBinDir() string {
-	return path.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultBinDirName, DefaultBinSyncThingDirName)
+	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultBinDirName, DefaultBinSyncThingDirName)
 }
 
 //func (a *Application) GetPortForwardPidDir(pid int) string {
@@ -851,7 +852,7 @@ func (a *Application) SshPortForward(svcName string, ops *PortForwardOptions) er
 	return nil
 }
 
-func (a *Application) CreateSvcProfile(name string, svcType SvcType) {
+func (a *Application) LoadOrCreateSvcProfile(name string, svcType SvcType) {
 	if a.AppProfile.SvcProfile == nil {
 		a.AppProfile.SvcProfile = make([]*SvcProfile, 0)
 	}
@@ -874,6 +875,22 @@ func (a *Application) CheckIfSvcIsDeveloping(svcName string) bool {
 		return false
 	}
 	return profile.Developing
+}
+
+func (a *Application) CheckIfSvcIsSyncthing(svcName string) bool {
+	profile := a.GetSvcProfile(svcName)
+	if profile == nil {
+		return false
+	}
+	return profile.Syncing
+}
+
+func (a *Application) CheckIfSvcIsPortForwaed(svcName string) bool {
+	profile := a.GetSvcProfile(svcName)
+	if profile == nil {
+		return false
+	}
+	return profile.PortForwarded
 }
 
 func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error) {
