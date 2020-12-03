@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -98,6 +99,7 @@ var installCmd = &cobra.Command{
 		fmt.Println("installing application...")
 		err = InstallApplication(applicationName)
 		if err != nil {
+			fmt.Printf("failed to install application : %s\n", err.Error())
 			log.Debug("failed to install application, clean up resources...")
 			err = nh.CleanupAppFiles(applicationName)
 			if err != nil {
@@ -105,7 +107,7 @@ var installCmd = &cobra.Command{
 			} else {
 				log.Debug("resources have been clean up")
 			}
-			log.Fatalf("failed to install application : %s", err.Error())
+			os.Exit(-1)
 		} else {
 			fmt.Printf("application \"%s\" installed\n", applicationName)
 		}
@@ -168,9 +170,9 @@ func InstallApplication(applicationName string) error {
 	}
 	switch appType {
 	case app.Helm:
-		err = nocalhostApp.InstallHelm(applicationName, flags)
+		err = nocalhostApp.InstallHelmInGit(applicationName, flags)
 	case app.HelmRepo:
-		err = nocalhostApp.InstallHelmRepo(applicationName, flags)
+		err = nocalhostApp.InstallHelmInRepo(applicationName, flags)
 	case app.Manifest:
 		err = nocalhostApp.InstallManifest()
 	default:
