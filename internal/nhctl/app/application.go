@@ -877,6 +877,22 @@ func (a *Application) CheckIfSvcIsDeveloping(svcName string) bool {
 	return profile.Developing
 }
 
+func (a *Application) CheckIfSvcIsSyncthing(svcName string) bool {
+	profile := a.GetSvcProfile(svcName)
+	if profile == nil {
+		return false
+	}
+	return profile.Syncing
+}
+
+func (a *Application) CheckIfSvcIsPortForwaed(svcName string) bool {
+	profile := a.GetSvcProfile(svcName)
+	if profile == nil {
+		return false
+	}
+	return profile.PortForwarded
+}
+
 func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error) {
 	switch svcType {
 	case Deployment:
