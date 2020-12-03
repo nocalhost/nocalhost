@@ -33,6 +33,7 @@ import (
 	napp "nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing/local"
 	"nocalhost/internal/nhctl/syncthing/ports"
+	"nocalhost/internal/nhctl/syncthing/terminate"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
@@ -284,7 +285,7 @@ func (s *Syncthing) cleanupDaemon(pid int, wait bool, typeName string) error {
 		}
 	}
 
-	err = terminate(pid, wait, typeName)
+	err = terminate.Terminate(pid, wait, typeName)
 	if err == nil {
 		log.Debugf("terminated syncthing with pid %d", pid)
 	}
@@ -364,33 +365,6 @@ func (s *Syncthing) Run(ctx context.Context) error {
 	s.pid = s.cmd.Process.Pid
 
 	log.Debugf("local syncthing pid-%d running", s.pid)
-	return nil
-}
-
-func terminate(pid int, wait bool, typeName string) error {
-	// if typeName=syncthing, it should use proc.Signal(os.Inte)
-	proc := os.Process{Pid: pid}
-	if typeName == syncthing {
-		if err := proc.Signal(os.Interrupt); err != nil {
-			if strings.Contains(err.Error(), "process already finished") {
-				return nil
-			}
-			return err
-		}
-		return nil
-	}
-
-	// dev port-forward and sync port-forward can only use proc.Kill()
-	if err := proc.Kill(); err != nil {
-		if strings.Contains(err.Error(), "process already finished") {
-			return nil
-		}
-		return err
-	}
-
-	if wait {
-		defer proc.Wait() // nolint: errcheck
-	}
 	return nil
 }
 
