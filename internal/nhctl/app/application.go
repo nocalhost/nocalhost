@@ -383,8 +383,8 @@ func (a *Application) preInstall(basePath string, items []*PreInstallItem) ([]st
 		itemPath := fmt.Sprintf("%s%c%s", basePath, os.PathSeparator, item.Path)
 		files = append(files, itemPath)
 		// todo check if item.Path is a valid file
-		//err := a.client.Create(itemPath, a.GetNamespace(), true, false)
-		err := a.client.ApplyForCreate([]string{itemPath}, a.GetNamespace(), true)
+		err := a.client.Create(itemPath, a.GetNamespace(), true, false)
+		//err := a.client.ApplyForCreate([]string{itemPath}, a.GetNamespace(), true)
 		if err != nil {
 			log.Warnf("error occur : %s", err.Error())
 			//return files, err
@@ -1513,22 +1513,26 @@ func (a *Application) Uninstall(force bool) error {
 		fmt.Printf("\"%s\" has been uninstalled \n", a.Name)
 	} else if a.IsManifest() {
 		start := time.Now()
-		wg := sync.WaitGroup{}
+		//wg := sync.WaitGroup{}
 		resourceDir := a.GetResourceDir()
 		files, _, err := a.getYamlFilesAndDirs(resourceDir)
 		if err != nil && !force {
 			return err
 		}
-		for _, file := range files {
-			wg.Add(1)
-			fmt.Println("delete " + file)
-			go func(fileName string) {
-				a.client.Delete(fileName, a.GetNamespace())
-				wg.Done()
-			}(file)
-
+		//for _, file := range files {
+		//	//wg.Add(1)
+		//	fmt.Println("delete " + file)
+		//	go func(fileName string) {
+		//		a.client.Delete(fileName, a.GetNamespace())
+		//		//wg.Done()
+		//	}(file)
+		//
+		//}
+		//wg.Wait()
+		err = a.client.ApplyForDelete(files, a.GetNamespace(), true)
+		if err != nil {
+			return err
 		}
-		wg.Wait()
 		end := time.Now()
 		fmt.Printf("installing takes %f seconds\n", end.Sub(start).Seconds())
 		if err != nil {
