@@ -1,4 +1,4 @@
-// +build !windows
+// +build windows
 
 /*
 Copyright 2020 The Nocalhost Authors.
@@ -13,12 +13,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package daemon
+package terminate
 
-import "syscall"
+import (
+	"github.com/mattn/psutil"
+)
 
-func NewSysProcAttr() *syscall.SysProcAttr {
-	return &syscall.SysProcAttr{
-		Setsid: true,
-	}
+func Terminate(pid int, wait bool, typeName string) error {
+	return psutil.TerminateTree(pid, 0)
 }

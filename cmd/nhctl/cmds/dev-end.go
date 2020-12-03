@@ -72,7 +72,7 @@ var devEndCmd = &cobra.Command{
 		if portForwardPid != 0 {
 			err = newSyncthing.Stop(portForwardPid, portForwardFilePath, "port-forward", true)
 			if err != nil {
-				fmt.Printf("[warn] failed to terminate port-forward process(pid: %d), please run `kill -9 %d` by manually\n", portForwardPid, portForwardPid)
+				fmt.Printf("[info] fail stop port-forward progress pid %d, please run `kill -9 %d` by manual, err: %s\n", portForwardPid, portForwardPid, err)
 			}
 		}
 
