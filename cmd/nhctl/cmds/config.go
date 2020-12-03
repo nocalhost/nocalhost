@@ -27,7 +27,7 @@ func init() {
 var configCmd = &cobra.Command{
 	Use:   "config [Name]",
 	Short: "application config file",
-	Long:  "show or save or check application config file",
+	Long:  "view, save and check application config file, no flags is view config",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
