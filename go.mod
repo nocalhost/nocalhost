@@ -41,10 +41,10 @@ require (
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/onsi/ginkgo v1.12.3 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.6.0
+	github.com/prometheus/client_golang v1.7.1
 	github.com/qiniu/api.v7 v0.0.0-20190520053455-bea02cd22bf4
 	github.com/satori/go.uuid v1.2.0
-	github.com/sirupsen/logrus v1.4.2
+	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cast v1.3.1
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
@@ -58,11 +58,9 @@ require (
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	github.com/willf/pad v0.0.0-20200313202418-172aa767f2a4
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da // indirect
-	github.com/zh-five/xdaemon v0.1.1
 	go.uber.org/zap v1.15.0
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
-	golang.org/x/tools v0.0.0-20200527183253-8e7acdbce89d // indirect
 	google.golang.org/grpc v1.27.0
 	google.golang.org/protobuf v1.24.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
@@ -73,5 +71,6 @@ require (
 	k8s.io/apimachinery v0.19.4
 	k8s.io/cli-runtime v0.19.4
 	k8s.io/client-go v0.19.4
+	k8s.io/kubectl v0.19.4
 	k8s.io/utils v0.0.0-20201005171033-6301aaf42dc7 // indirect
 )

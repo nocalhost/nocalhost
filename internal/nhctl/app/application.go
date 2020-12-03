@@ -307,7 +307,8 @@ func (a *Application) installManifestRecursively(excludeFiles []string) error {
 		return err
 	}
 	start := time.Now()
-	wg := sync.WaitGroup{}
+	//wg := sync.WaitGroup{}
+	applyFiles := make([]string, 0)
 
 outer:
 	for _, file := range files {
@@ -317,16 +318,25 @@ outer:
 				continue outer
 			}
 		}
+		applyFiles = append(applyFiles, file)
+		//err = a.client.ApplyForCreate([]string{file}, a.GetNamespace(), true)
+		//if err != nil {
+		//	log.Warnf("")
+		//}
 
 		// parallel
-		wg.Add(1)
-		go func(fileName string) {
-			log.Debugf("create %s", fileName)
-			a.client.Create(fileName, a.GetNamespace(), false, false)
-			wg.Done()
-		}(file)
+		//wg.Add(1)
+		//go func(fileName string) {
+		//	log.Debugf("create %s", fileName)
+		//	a.client.Create(fileName, a.GetNamespace(), false, false)
+		//	//wg.Done()
+		//}(file)
 	}
-	wg.Wait()
+	err = a.client.ApplyForCreate(applyFiles, a.GetNamespace(), true)
+	if err != nil {
+		return err
+	}
+	//wg.Wait()
 	end := time.Now()
 	fmt.Printf("installing takes %f seconds\n", end.Sub(start).Seconds())
 	return nil
@@ -369,13 +379,15 @@ func (a *Application) preInstall(basePath string, items []*PreInstallItem) ([]st
 
 	files := make([]string, 0)
 	for _, item := range items {
-		fmt.Println(item.Path + " : " + item.Weight)
+		//fmt.Println(item.Path + " : " + item.Weight)
 		itemPath := fmt.Sprintf("%s%c%s", basePath, os.PathSeparator, item.Path)
 		files = append(files, itemPath)
 		// todo check if item.Path is a valid file
-		err := a.client.Create(itemPath, a.GetNamespace(), true, false)
+		//err := a.client.Create(itemPath, a.GetNamespace(), true, false)
+		err := a.client.ApplyForCreate([]string{itemPath}, a.GetNamespace(), true)
 		if err != nil {
-			return files, err
+			log.Warnf("error occur : %s", err.Error())
+			//return files, err
 		}
 	}
 	return files, nil
