@@ -25,6 +25,6 @@ func init() {
 
 var debugCmd = &cobra.Command{
 	Use:   "dev",
-	Short: "enter dev model",
-	Long:  `enter dev model`,
+	Short: "Start DevMode",
+	Long:  `Start DevMode`,
 }

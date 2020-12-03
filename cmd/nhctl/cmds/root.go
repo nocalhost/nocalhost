@@ -21,7 +21,7 @@ func init() {
 	settings = NewEnvSettings()
 
 	rootCmd.PersistentFlags().BoolVar(&settings.Debug, "debug", settings.Debug, "enable debug level log")
-	rootCmd.PersistentFlags().StringVar(&settings.KubeConfig, "kubeconfig", "", "the path to the kubeconfig file")
+	rootCmd.PersistentFlags().StringVar(&settings.KubeConfig, "kubeconfig", "", "the path of the kubeconfig file")
 
 	cobra.OnInitialize(func() {
 		var err error
@@ -33,7 +33,7 @@ func init() {
 var rootCmd = &cobra.Command{
 	Use:   "nhctl",
 	Short: "nhctl use to deploy coding project",
-	Long:  `nhctl can deploy project on Kubernetes. `,
+	Long:  `nhctl can deploy and develop application on Kubernetes. `,
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Debug("hello nhctl")
 		//fmt.Printf("kubeconfig is %s", settings.KubeConfig)
@@ -69,15 +69,15 @@ func InitAppAndSvc(appName string, svcName string) {
 	}
 	nocalhostApp, err = app.NewApplication(appName)
 	if err != nil {
-		log.Fatal("fail to get application info")
+		log.Fatal("failed to get application info")
 	}
 	if svcName == "" {
-		log.Fatal("please use -d to specify a k8s deployment")
+		log.Fatal("please use -d to specify a k8s workload")
 	}
 
 	exist, err := nocalhostApp.CheckIfSvcExist(svcName, app.Deployment)
 	if err != nil {
-		log.Fatalf("fail to check if svc exist : %v", err)
+		log.Fatalf("failed to check if svc exists : %v", err)
 	} else if !exist {
 		log.Fatalf("\"%s\" not found", svcName)
 	}

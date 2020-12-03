@@ -15,10 +15,11 @@ package cmds
 
 import (
 	"fmt"
+	"nocalhost/pkg/nhctl/log"
+
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"nocalhost/pkg/nhctl/log"
 )
 
 var force bool
@@ -47,14 +48,14 @@ var uninstallCmd = &cobra.Command{
 			log.Fatalf("application \"%s\" not found\n", applicationName)
 		}
 
-		fmt.Println("uninstall application...")
+		fmt.Println("uninstalling application...")
 		app, err := nh.GetApplication(applicationName)
 		if err != nil {
 			if !force {
 				log.Fatalf("failed to get application, %v", err)
 			} else {
 				nh.CleanupAppFiles(applicationName)
-				fmt.Printf("application \"%s\" is uninstalled anyway\n", applicationName)
+				fmt.Printf("application \"%s\" is uninstalled anyway.\n", applicationName)
 				return
 			}
 		}

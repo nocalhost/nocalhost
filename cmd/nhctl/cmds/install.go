@@ -95,19 +95,19 @@ var installCmd = &cobra.Command{
 			log.Fatalf("application \"%s\" already exists", applicationName)
 		}
 
-		fmt.Println("install application...")
+		fmt.Println("installing application...")
 		err = InstallApplication(applicationName)
 		if err != nil {
-			log.Debug("failed to install application,clean up resources...")
+			log.Debug("failed to install application, clean up resources...")
 			err = nh.CleanupAppFiles(applicationName)
 			if err != nil {
-				fmt.Errorf("failed to clean up:%v\n", err)
+				fmt.Errorf("failed to clean up:%v", err)
 			} else {
 				log.Debug("resources have been clean up")
 			}
 			log.Fatalf("failed to install application : %s", err.Error())
 		} else {
-			fmt.Printf("application \"%s\" is installed\n", applicationName)
+			fmt.Printf("application \"%s\" installed\n", applicationName)
 		}
 	},
 }
@@ -149,7 +149,7 @@ func InstallApplication(applicationName string) error {
 
 	appType, err := nocalhostApp.GetType()
 	if appType == "" {
-		return errors.New("--type mush be specified")
+		return errors.New("--type must be specified")
 	}
 
 	//log.Debugf("[nh config] nocalhostApp type: %s", appType)
@@ -164,7 +164,7 @@ func InstallApplication(applicationName string) error {
 	}
 	err = nocalhostApp.InstallDepConfigMap()
 	if err != nil {
-		return errors.Wrap(err, "fail to install dep config map")
+		return errors.Wrap(err, "failed to install dep config map")
 	}
 	switch appType {
 	case app.Helm:
@@ -174,7 +174,7 @@ func InstallApplication(applicationName string) error {
 	case app.Manifest:
 		err = nocalhostApp.InstallManifest()
 	default:
-		return errors.New("unsupported application type, it mush be helm or helm-repo or manifest")
+		return errors.New("unsupported application type, must be helm, helm-repo or manifest")
 	}
 	if err != nil {
 		return err
@@ -183,7 +183,7 @@ func InstallApplication(applicationName string) error {
 	nocalhostApp.SetAppType(appType)
 	err = nocalhostApp.SetInstalledStatus(true)
 	if err != nil {
-		return errors.New("fail to update \"installed\" status")
+		return errors.New("failed to update \"installed\" status")
 	}
 	return nil
 }
