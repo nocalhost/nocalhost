@@ -15,14 +15,15 @@ package cmds
 
 import (
 	"fmt"
-	"github.com/olekukonko/tablewriter"
-	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/utils"
 	"os"
 	"strconv"
+
+	"github.com/olekukonko/tablewriter"
+	"github.com/spf13/cobra"
 )
 
 func init() {
@@ -38,7 +39,7 @@ var listCmd = &cobra.Command{
 			applicationName := args[0]
 			nocalhostApp, err := app.NewApplication(applicationName)
 			if err != nil {
-				log.Fatal("fail to get application info")
+				log.Fatal("failed to get application info")
 			}
 			ListApplicationSvc(nocalhostApp)
 			os.Exit(0)

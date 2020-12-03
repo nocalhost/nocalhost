@@ -16,8 +16,6 @@ package cmds
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
@@ -26,6 +24,9 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 )
 
 var portForwardOptions = &app.PortForwardOptions{}
@@ -41,8 +42,8 @@ func init() {
 
 var portForwardCmd = &cobra.Command{
 	Use:   "port-forward [NAME]",
-	Short: "Forward local port to remote pod'port",
-	Long:  `Forward local port to remote pod'port`,
+	Short: "Forward local port to remote pod's port",
+	Long:  `Forward local port to remote pod's port`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
@@ -55,7 +56,7 @@ var portForwardCmd = &cobra.Command{
 		InitAppAndSvc(applicationName, deployment)
 
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
-			log.Fatalf("\"%s\" has not in developing", deployment)
+			log.Fatalf("\"%s\" is not in DevMode", deployment)
 		}
 
 		// look nhctl
@@ -69,7 +70,7 @@ var portForwardCmd = &cobra.Command{
 		if portForwardOptions.RunAsDaemon {
 			_, err := daemon.Background(nocalhostApp.GetPortForwardLogFile(deployment), nocalhostApp.GetApplicationBackGroundOnlyPortForwardPidFile(deployment), true)
 			if err != nil {
-				log.Fatalf("run port-forward background fail, please try again")
+				log.Fatalf("failed to run port-forward background, please try again")
 			}
 		}
 
@@ -94,7 +95,7 @@ var portForwardCmd = &cobra.Command{
 			s := strings.Split(port, ":")
 			if len(s) < 2 {
 				// ignore wrong format
-				fmt.Printf("skip dev port wrong format %s", port)
+				fmt.Printf("wrong format of dev port:%s , skipped.", port)
 				continue
 			}
 			var localPort int
@@ -103,26 +104,26 @@ var portForwardCmd = &cobra.Command{
 				// get random port in local
 				localPort, err = ports.GetAvailablePort()
 				if err != nil {
-					fmt.Printf("fail to get local port: %s", err)
+					fmt.Printf("failed to get local port: %s", err)
 					continue
 				}
 			}
 			if sLocalPort != "" {
 				localPort, err = strconv.Atoi(sLocalPort)
 				if err != nil {
-					fmt.Printf("skip dev local port wrong format %d", localPort)
+					fmt.Printf("wrong format of local port:%d , skipped.", localPort)
 					continue
 				}
 			}
 			remotePort, err := strconv.Atoi(s[1])
 			if err != nil {
-				fmt.Printf("skip dev local port wrong format %d", remotePort)
+				fmt.Printf("wrong format of dev/local port:%d , skipped.", remotePort)
 				continue
 			}
 			localPorts = append(localPorts, localPort)
 			remotePorts = append(remotePorts, remotePort)
 		}
-		fmt.Printf("ready call dev port forward local %s, remote %s", localPorts, remotePorts)
+		fmt.Printf("ready to call dev port forward locals: %s, remotes: %s", localPorts, remotePorts)
 		// listening, it will wait until kill port forward progress
 		nocalhostApp.PortForwardInBackGround(deployment, podName, podNameSpace, localPorts, remotePorts)
 	},

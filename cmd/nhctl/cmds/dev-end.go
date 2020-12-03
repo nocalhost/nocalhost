@@ -16,13 +16,14 @@ package cmds
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"strings"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 )
 
 func init() {
@@ -46,82 +47,82 @@ var devEndCmd = &cobra.Command{
 		InitAppAndSvc(applicationName, deployment)
 
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
-			log.Fatalf("\"%s\" is not in developing status", deployment)
+			log.Fatalf("\"%s\" is not developing status", deployment)
 		}
 
-		fmt.Println("exiting dev model...")
+		fmt.Println("ending DevMode...")
 		// end file sync
-		fmt.Println("ending file sync...")
+		fmt.Println("terminating file sync process...")
 		// get dev-start stage record free pod so it do not need get free port agian
 		var devStartOptions = &app.DevStartOptions{}
 		fileSyncOps, err = nocalhostApp.GetSyncthingPort(deployment, fileSyncOps)
 		if err != nil {
-			fmt.Println("[error] fail to get syncthing port, you can start sync command first")
+			fmt.Printf("[error] failed to get syncthing port, you can start sync command first. error message: %s \n", err.Error())
 		}
 
 		newSyncthing, err := syncthing.New(nocalhostApp, deployment, devStartOptions, fileSyncOps)
 		if err != nil {
-			log.Fatalf("[error] fail to new syncthing")
+			log.Fatalf("[error] failed to start syncthing process: %s", err.Error())
 		}
 		// read and empty pid file
 		portForwardPid, portForwardFilePath, err := nocalhostApp.GetBackgroundSyncPortForwardPid(deployment, false)
 		if err != nil {
-			fmt.Println("[info] fail to get background port-forward pid file, ignore")
+			fmt.Println("[warn] failed to get background port-forward pid file, ignored")
 		}
 		if portForwardPid != 0 {
 			err = newSyncthing.Stop(portForwardPid, portForwardFilePath, "port-forward", true)
 		}
 		if err != nil {
-			fmt.Printf("[info] fail stop port-forward progress pid %d, please run `kill -9 %d` by manual\n", portForwardPid, portForwardPid)
+			fmt.Printf("[warn] failed to terminate port-forward process(pid: %d), please run `kill -9 %d` by manually\n", portForwardPid, portForwardPid)
 		}
 
 		// read and empty pid file
 		syngthingPid, syncThingPath, err := nocalhostApp.GetBackgroundSyncThingPid(deployment, false)
 		if err != nil {
-			fmt.Println("[info] fail to get background port-forward pid file, ignore")
+			fmt.Println("[warn] failed to get background port-forward pid file, ignored")
 		}
 		if syngthingPid != 0 {
 			err = newSyncthing.Stop(syngthingPid, syncThingPath, "syncthing", true)
 		}
 		if err != nil {
-			fmt.Printf("[info] fail stop syncthing progress pid %d, please run `kill -9 %d` by manual\n", portForwardPid, portForwardPid)
+			fmt.Printf("[warn] failed to terminate syncthing process(pid: %d), please run `kill -9 %d` manually\n", portForwardPid, portForwardPid)
 		}
 
 		if err == nil { // none of them has error
-			fmt.Printf("[info] exit background port-forward: %d syncthing: %d \n", portForwardPid, syngthingPid)
+			fmt.Printf("[info] background port-forward: %d syncthing: %d terminated.\n", portForwardPid, syngthingPid)
 		}
 
 		// end dev port background port forward
 		// read and empty pid file
 		onlyPortForwardPid, onlyPortForwardFilePath, err := nocalhostApp.GetBackgroundOnlyPortForwardPid(deployment, false)
 		if err != nil {
-			fmt.Println("[info] none of dev port-forward pid file, ignore")
+			fmt.Println("[info] no dev port-forward pid file found, ignored.")
 		}
 		if onlyPortForwardPid != 0 {
 			err = newSyncthing.Stop(onlyPortForwardPid, onlyPortForwardFilePath, "port-forward", true)
 		}
 		if err != nil {
-			fmt.Printf("[info] fail to ending dev port-forward pid %d, please run `kill -9 %d` by manual\n", onlyPortForwardPid, onlyPortForwardPid)
+			fmt.Printf("[info] failed to terminate dev port-forward process(pid %d), please run `kill -9 %d` manually\n", onlyPortForwardPid, onlyPortForwardPid)
 		}
 
 		if err == nil {
-			fmt.Printf("[info] exit dev port-forward: %d \n", onlyPortForwardPid)
+			fmt.Printf("[info] dev port-forward: %d \n", onlyPortForwardPid)
 		}
 
 		// set profile status
 		// set port-forward port and ignore result
 		_ = nocalhostApp.SetSyncthingPort(deployment, 0, 0, 0, 0)
-		// roll back deployment
-		log.Debug("roll back deployment...")
+		// roll back workload
+		log.Debug("rolling back workload...")
 		err = nocalhostApp.RollBack(context.TODO(), deployment)
 		if err != nil {
-			fmt.Printf("fail to rollback")
+			fmt.Printf("failed to rollback.\n")
 		}
 		err = nocalhostApp.SetDevEndProfileStatus(deployment)
 		if err != nil {
-			log.Fatal("fail to update \"developing\" status")
+			log.Fatal("failed to update \"developing\" status")
 		}
-		fmt.Printf("%s have exited develop model\n", deployment)
+		fmt.Printf("%s DevMode ended.\n", deployment)
 	},
 }
 
@@ -133,7 +134,7 @@ func EndFileSync() {
 			strs := strings.Split(line, ":")
 			if len(strs) >= 2 {
 				sessionName := strings.TrimLeft(strs[1], " ")
-				fmt.Printf("terminate sync session :%s \n", sessionName)
+				fmt.Printf("terminating sync session :%s \n", sessionName)
 				_, err := tools.ExecCommand(nil, true, "mutagen", "sync", "terminate", sessionName)
 				if err != nil {
 					printlnErr("failed to terminate sync session", err)
