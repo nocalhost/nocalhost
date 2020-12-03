@@ -1160,6 +1160,24 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 //	}
 //	return err
 //}
+func (a *Application) CheckConfigFile(file string) error {
+	// TODO: implementation check application config file
+	return nil
+}
+
+func (a *Application) SaveConfigFile(file string) error {
+	fileByte := []byte(file)
+	err := ioutil.WriteFile(a.GetConfigPath(), fileByte, 0755)
+	return err
+}
+
+func (a *Application) GetConfigFile() (string, error) {
+	configFile, err := ioutil.ReadFile(a.GetConfigPath())
+	if err == nil {
+		return string(configFile), err
+	}
+	return "", err
+}
 
 func (a *Application) GetDescription() string {
 	desc := ""
