@@ -7,6 +7,7 @@ import (
 )
 
 var GIT_COMMIT_SHA string
+var GIT_TAG string
 
 type VersionInfo struct {
 	Version    string `json:"version" yaml:"version"`
@@ -27,6 +28,7 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version number of nhctl",
 	Long:  `All software has versions. This is nhctl's`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("nhctl version is v0.2.7, build commit sha [%s]\n", GIT_COMMIT_SHA)
+		fmt.Printf("nhctl version is: %s\n", GIT_TAG)
+		fmt.Printf("build commit sha: %s\n", GIT_COMMIT_SHA)
 	},
 }
