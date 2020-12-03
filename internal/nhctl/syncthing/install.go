@@ -153,7 +153,7 @@ func FileExists(name string) bool {
 }
 
 func (s *Syncthing) IsInstalled() bool {
-	_, err := os.Stat(filepath.Join(s.binPath, getBinaryName()))
+	_, err := os.Stat(s.binPath)
 	return !os.IsNotExist(err)
 }
 

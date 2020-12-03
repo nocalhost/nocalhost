@@ -18,7 +18,7 @@ log:
   #log_backup_count: 7             # 当日志文件达到转存标准时，log 系统会将该日志文件进行压缩备份，这里指定了备份文件的最大个数。
 mysql:
   name: nocalhost
-  addr: mariadb:3306
+  addr: nocalhost-mariadb:3306
   username: root
   password: root
   show_log: true                  # 打印 SQL 日志
