@@ -31,4 +31,6 @@ func TestClientGoUtils_Create(t *testing.T) {
 		fmt.Println(err.Error())
 		panic(err)
 	}
+	//s := runtime.Scheme{}
+	//s.New()
 }
