@@ -23,6 +23,7 @@ import (
 	"nocalhost/pkg/nhctl/utils"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -152,7 +153,7 @@ func FileExists(name string) bool {
 }
 
 func (s *Syncthing) IsInstalled() bool {
-	_, err := os.Stat(path.Join(s.binPath, getBinaryName()))
+	_, err := os.Stat(filepath.Join(s.binPath, getBinaryName()))
 	return !os.IsNotExist(err)
 }
 
@@ -178,7 +179,7 @@ func getBinaryPathInDownload(dir, url string) string {
 	_, f := path.Split(url)
 	f = strings.TrimSuffix(f, ".tar.gz")
 	f = strings.TrimSuffix(f, ".zip")
-	return path.Join(dir, f, getBinaryName())
+	return filepath.Join(dir, f, getBinaryName())
 }
 
 func getBinaryName() string {

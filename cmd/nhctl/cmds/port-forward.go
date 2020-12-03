@@ -59,6 +59,10 @@ var portForwardCmd = &cobra.Command{
 			log.Fatalf("\"%s\" is not in DevMode", deployment)
 		}
 
+		if nocalhostApp.CheckIfSvcIsPortForwaed(deployment) {
+			log.Fatalf("\"%s\" has in port forwarding", deployment)
+		}
+
 		// look nhctl
 		NhctlAbsdir, err := exec.LookPath(nocalhostApp.GetMyBinName())
 		if err != nil {

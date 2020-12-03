@@ -12,7 +12,7 @@ type AppProfile struct {
 	Kubeconfig              string        `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
 	DependencyConfigMapName string        `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
 	AppType                 AppType       `json:"app_type" yaml:"appType"`
-	SvcProfile              []*SvcProfile `json:"svc_profile" yaml:"svcProfile"`
+	SvcProfile              []*SvcProfile `json:"svc_profile" yaml:"svcProfile"` // this will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
 	Installed               bool          `json:"installed" yaml:"installed"`
 	ResourcePath            string        `json:"resource_path" yaml:"resourcePath"`
 }

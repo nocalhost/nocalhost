@@ -70,7 +70,7 @@ var devStartCmd = &cobra.Command{
 			log.Fatalf("\"%s\" is already in developing", deployment)
 		}
 
-		nocalhostApp.CreateSvcProfile(deployment, app.Deployment)
+		nocalhostApp.LoadOrCreateSvcProfile(deployment, app.Deployment)
 
 		// set develop status first, avoid stack in dev start and break, or it will never resume
 		err = nocalhostApp.SetDevelopingStatus(deployment, true)
@@ -88,6 +88,7 @@ var devStartCmd = &cobra.Command{
 		if devStartOps.WorkDir == "" { // command not pass this arguments
 			devStartOps.WorkDir = nocalhostApp.GetDefaultWorkDir(deployment)
 		}
+		nocalhostApp.SetSvcWorkDir(deployment, devStartOps.WorkDir)
 		// syncthings
 		newSyncthing, err := syncthing.New(nocalhostApp, deployment, devStartOps, fileSyncOptions)
 		if err != nil {

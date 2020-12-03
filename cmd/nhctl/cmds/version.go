@@ -8,6 +8,16 @@ import (
 
 var GIT_COMMIT_SHA string
 
+type VersionInfo struct {
+	Version    string `json:"version" yaml:"version"`
+	GitVersion string `json:"gitVersion"`
+	GitCommit  string `json:"gitCommit"`
+	BuildDate  string `json:"buildDate"`
+	GoVersion  string `json:"goVersion"`
+	Compiler   string `json:"compiler"`
+	Platform   string `json:"platform"`
+}
+
 func init() {
 	rootCmd.AddCommand(versionCmd)
 }
