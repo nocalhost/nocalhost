@@ -28,7 +28,7 @@ const (
 	DefaultApplicationProfilePath            = ".profile.yaml"
 	DefaultApplicationConfigDirName          = ".nocalhost"
 	DefaultApplicationConfigName             = "config.yaml"
-	DefaultNewFilePermission                 = 0644
+	DefaultNewFilePermission                 = 0755
 	DefaultClientGoTimeOut                   = time.Minute * 5
 )
 
