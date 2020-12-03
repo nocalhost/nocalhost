@@ -500,12 +500,15 @@ func (a *Application) InstallDepConfigMap() error {
 		}
 		generateName := fmt.Sprintf("nocalhost-depends-do-not-overwrite-%s", string(b))
 		configMap.Name = generateName
+		if configMap.Labels == nil {
+			configMap.Labels = make(map[string]string, 0)
+		}
+		configMap.Labels["use-for"] = "nocalhost-dep"
 		_, err = a.client.ClientSet.CoreV1().ConfigMaps(a.GetNamespace()).Create(context.TODO(), configMap, metav1.CreateOptions{})
 		if err != nil {
-			fmt.Printf("[error] fail to create dependency config %s, err: %v\n", configMap.Name, err)
+			fmt.Errorf("fail to create dependency config %s\n", configMap.Name)
 			return err
 		} else {
-			// debug("config map %s has been installed, record it", configMap.Name)
 			a.AppProfile.DependencyConfigMapName = configMap.Name
 			a.AppProfile.Save()
 		}
