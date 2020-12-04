@@ -43,11 +43,13 @@ const (
 )
 
 type Application struct {
-	Name       string
-	Config     *NocalHostAppConfig // if config.yaml not exist, this should be nil
-	NewConfig  *Config
-	AppProfile *AppProfile // runtime info, this will not be nil
-	client     *clientgoutils.ClientGoUtils
+	Name                     string
+	Config                   *NocalHostAppConfig // if config.yaml not exist, this should be nil
+	NewConfig                *Config
+	AppProfile               *AppProfile // runtime info, this will not be nil
+	client                   *clientgoutils.ClientGoUtils
+	sortedPreInstallManifest []string // for pre install
+	installManifest          []string // for install
 }
 
 type SvcDependency struct {
@@ -283,62 +285,72 @@ type HelmFlags struct {
 
 func (a *Application) InstallManifest() error {
 	var err error
-	//err = a.InstallDepConfigMap()
-	//if err != nil {
-	//	return err
-	//}
-	excludeFiles := make([]string, 0)
-	if a.Config != nil && a.Config.PreInstall != nil {
-		fmt.Println("[config] reading pre-install hook")
-		excludeFiles, err = a.preInstall(a.GetResourceDir(), a.Config.PreInstall)
-		if err != nil {
-			return err
-		}
-	}
+	a.preInstall()
+
 	// install manifest recursively, don't install pre-install workload again
-	err = a.installManifestRecursively(excludeFiles)
+	err = a.installManifestRecursively()
 	return err
 }
 
-func (a *Application) installManifestRecursively(excludeFiles []string) error {
-
+func (a *Application) loadInstallManifest() {
+	result := make([]string, 0)
 	files, _, err := a.getYamlFilesAndDirs(a.GetResourceDir())
 	if err != nil {
-		return err
+		log.Warnf("fail to load install manifest: %s\n", err.Error())
+		return
 	}
-	start := time.Now()
-	//wg := sync.WaitGroup{}
-	applyFiles := make([]string, 0)
 
-outer:
 	for _, file := range files {
-		for _, ex := range excludeFiles {
-			if ex == file {
-				log.Debugf("ignore file : %s", file)
-				continue outer
+		if a.ignoredInInstall(file) {
+			continue
+		}
+		if _, err2 := os.Stat(file); err2 != nil {
+			log.Warnf("%s can not be installed : %s", file, err2.Error())
+			continue
+		}
+		result = append(result, file)
+	}
+	a.installManifest = result
+}
+
+// if a file is a preInstall/postInstall, it should be ignored in installing
+func (a *Application) ignoredInInstall(manifest string) bool {
+	if len(a.sortedPreInstallManifest) > 0 {
+		for _, pre := range a.sortedPreInstallManifest {
+			if pre == manifest {
+				return true
 			}
 		}
-		applyFiles = append(applyFiles, file)
-		//err = a.client.ApplyForCreate([]string{file}, a.GetNamespace(), true)
-		//if err != nil {
-		//	log.Warnf("")
-		//}
+	}
+	return false
+}
+func (a *Application) installManifestRecursively() error {
+	a.loadInstallManifest()
 
-		// parallel
-		//wg.Add(1)
-		//go func(fileName string) {
-		//	log.Debugf("create %s", fileName)
-		//	a.client.Create(fileName, a.GetNamespace(), false, false)
-		//	//wg.Done()
-		//}(file)
+	if len(a.installManifest) > 0 {
+		err := a.client.ApplyForCreate(a.installManifest, a.GetNamespace(), true)
+		if err != nil {
+			fmt.Printf("err: %v\n", err)
+			return err
+		}
+	} else {
+		log.Warn("nothing need to be installed ??")
 	}
-	err = a.client.ApplyForCreate(applyFiles, a.GetNamespace(), true)
-	if err != nil {
-		return err
+	return nil
+}
+
+func (a *Application) uninstallManifestRecursively() error {
+	a.loadInstallManifest()
+
+	if len(a.installManifest) > 0 {
+		err := a.client.ApplyForDelete(a.installManifest, a.GetNamespace(), true)
+		if err != nil {
+			fmt.Printf("error occurs when cleaning resources: %v\n", err.Error())
+			return err
+		}
+	} else {
+		log.Warn("nothing need to be uninstalled ??")
 	}
-	//wg.Wait()
-	end := time.Now()
-	fmt.Printf("installing takes %f seconds\n", end.Sub(start).Seconds())
 	return nil
 }
 
@@ -371,26 +383,46 @@ func (a *Application) getYamlFilesAndDirs(dirPth string) (files []string, dirs [
 	return files, dirs, nil
 }
 
-func (a *Application) preInstall(basePath string, items []*PreInstallItem) ([]string, error) {
-	fmt.Println("run pre-install....")
-
-	// sort
-	sort.Sort(ComparableItems(items))
-
-	files := make([]string, 0)
-	for _, item := range items {
-		//fmt.Println(item.Path + " : " + item.Weight)
-		itemPath := fmt.Sprintf("%s%c%s", basePath, os.PathSeparator, item.Path)
-		files = append(files, itemPath)
-		// todo check if item.Path is a valid file
-		err := a.client.Create(itemPath, a.GetNamespace(), true, false)
-		//err := a.client.ApplyForCreate([]string{itemPath}, a.GetNamespace(), true)
-		if err != nil {
-			log.Warnf("error occur : %s", err.Error())
-			//return files, err
+func (a *Application) loadSortedPreInstallManifest() {
+	result := make([]string, 0)
+	if a.Config != nil && a.Config.PreInstall != nil {
+		sort.Sort(ComparableItems(a.Config.PreInstall))
+		for _, item := range a.Config.PreInstall {
+			itemPath := filepath.Join(a.GetResourceDir(), item.Path)
+			if _, err2 := os.Stat(itemPath); err2 != nil {
+				log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
+				continue
+			}
+			result = append(result, itemPath)
 		}
 	}
-	return files, nil
+	a.sortedPreInstallManifest = result
+}
+
+func (a *Application) preInstall() {
+	fmt.Println("run pre-install....")
+
+	a.loadSortedPreInstallManifest()
+
+	if len(a.sortedPreInstallManifest) > 0 {
+		for _, item := range a.sortedPreInstallManifest {
+			err := a.client.Create(item, a.GetNamespace(), true, false)
+			if err != nil {
+				log.Warnf("error occurs when install %s : %s\n", item, err.Error())
+			}
+		}
+	}
+	//return files, nil
+}
+
+func (a *Application) cleanPreInstall() {
+	a.loadSortedPreInstallManifest()
+	if len(a.sortedPreInstallManifest) > 0 {
+		err := a.client.ApplyForDelete(a.sortedPreInstallManifest, a.GetNamespace(), true)
+		if err != nil {
+			log.Warnf("error occurs when cleaning pre install resources : %s\n", err.Error())
+		}
+	}
 }
 
 func (a *Application) InstallHelmInRepo(releaseName string, flags *HelmFlags) error {
@@ -430,10 +462,8 @@ func (a *Application) InstallHelmInRepo(releaseName string, flags *HelmFlags) er
 
 	_, err := tools.ExecCommand(nil, true, "helm", installParams...)
 	if err != nil {
-		//printlnErr("fail to install helm nocalhostApp", err)
 		return err
 	}
-	//debug(output)
 	fmt.Printf(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`+"\n", a.GetNamespace())
 	return nil
 }
@@ -550,16 +580,6 @@ func (a *Application) GetKubeconfig() string {
 	return a.AppProfile.Kubeconfig
 }
 
-func (a *Application) getProfilePath() string {
-	return filepath.Join(a.GetHomeDir(), DefaultApplicationProfilePath)
-	//fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultApplicationProfilePath)
-}
-
-func (a *Application) GetHomeDir() string {
-	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultApplicationDirName, a.Name)
-	//return fmt.Sprintf("%s%c%s%c%s%c%s", utils.GetHomePath(), os.PathSeparator, DefaultNhctlHomeDirName, os.PathSeparator, DefaultApplicationDirName, os.PathSeparator, a.Name)
-}
-
 func (a *Application) GetApplicationSyncDir(deployment string) string {
 	dirPath := filepath.Join(a.GetHomeDir(), DefaultBinSyncThingDirName, deployment)
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
@@ -570,66 +590,6 @@ func (a *Application) GetApplicationSyncDir(deployment string) string {
 	}
 	return dirPath
 }
-
-func (a *Application) GetApplicationBackGroundPortForwardPidFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPortForwardPidFile)
-}
-
-func (a *Application) GetApplicationBackGroundOnlyPortForwardPidFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
-}
-
-func (a *Application) GetApplicationSyncThingPidFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPidFile)
-}
-
-func (a *Application) GetApplicationOnlyPortForwardPidFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
-}
-
-func (a *Application) GetConfigDir() string {
-	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigDirName)
-	//return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultApplicationConfigDirName)
-}
-
-func (a *Application) GetConfigPath() string {
-	return filepath.Join(a.GetConfigDir(), DefaultApplicationConfigName)
-	//return fmt.Sprintf("%s%c%s", a.GetConfigDir(), os.PathSeparator, DefaultApplicationConfigName)
-}
-
-func (a *Application) GetLogDir() string {
-	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultLogDirName)
-}
-
-func (a *Application) GetPortSyncLogFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultSyncLogFileName)
-}
-
-func (a *Application) GetPortForwardLogFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultBackGroundPortForwardLogFileName)
-}
-
-//func (a *Application) GetPortForwardDir() string {
-//	return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultPortForwardDir)
-//}
-
-func (a *Application) getGitDir() string {
-	return filepath.Join(a.GetHomeDir(), DefaultResourcesDir)
-	//return fmt.Sprintf("%s%c%s", a.GetHomeDir(), os.PathSeparator, DefaultResourcesDir)
-}
-
-func (a *Application) getConfigPathInGitResourcesDir() string {
-	return filepath.Join(a.getGitDir(), DefaultApplicationConfigDirName, DefaultApplicationConfigName)
-	//return fmt.Sprintf("%s%c%s%c%s", a.getGitDir(), os.PathSeparator, DefaultApplicationConfigDirName, os.PathSeparator, DefaultApplicationConfigName)
-}
-
-func (a *Application) GetSyncThingBinDir() string {
-	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultBinDirName, DefaultBinSyncThingDirName)
-}
-
-//func (a *Application) GetPortForwardPidDir(pid int) string {
-//	return fmt.Sprintf("%s%c%d", a.GetPortForwardDir(), os.PathSeparator, pid)
-//}
 
 func (a *Application) SavePortForwardInfo(svcName string, localPort int, remotePort int) error {
 	pid := os.Getpid()
@@ -716,30 +676,6 @@ func (a *Application) GetDefaultDevImage(svcName string) string {
 	result := DefaultDevImage
 	if config != nil && config.DevImage != "" {
 		result = config.DevImage
-	}
-	return result
-}
-
-func (a *Application) GetSvcProfile(svcName string) *SvcProfile {
-	if a.AppProfile == nil {
-		return nil
-	}
-	if a.AppProfile.SvcProfile == nil {
-		return nil
-	}
-	for _, svcProfile := range a.AppProfile.SvcProfile {
-		if svcProfile.Name == svcName {
-			return svcProfile
-		}
-	}
-	return nil
-}
-
-func (a *Application) GetLocalSshPort(svcName string) int {
-	result := DefaultForwardLocalSshPort
-	svcProfile := a.GetSvcProfile(svcName)
-	if svcProfile != nil && svcProfile.SshPortForward != nil && svcProfile.SshPortForward.LocalPort != 0 {
-		result = svcProfile.SshPortForward.LocalPort
 	}
 	return result
 }
@@ -883,30 +819,6 @@ func (a *Application) LoadOrCreateSvcProfile(name string, svcType SvcType) {
 		Type: svcType,
 	}
 	a.AppProfile.SvcProfile = append(a.AppProfile.SvcProfile, svcProfile)
-}
-
-func (a *Application) CheckIfSvcIsDeveloping(svcName string) bool {
-	profile := a.GetSvcProfile(svcName)
-	if profile == nil {
-		return false
-	}
-	return profile.Developing
-}
-
-func (a *Application) CheckIfSvcIsSyncthing(svcName string) bool {
-	profile := a.GetSvcProfile(svcName)
-	if profile == nil {
-		return false
-	}
-	return profile.Syncing
-}
-
-func (a *Application) CheckIfSvcIsPortForwaed(svcName string) bool {
-	profile := a.GetSvcProfile(svcName)
-	if profile == nil {
-		return false
-	}
-	return profile.PortForwarded
 }
 
 func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error) {
@@ -1486,7 +1398,7 @@ func (a *Application) SetSyncingStatus(svcName string, is bool) error {
 func (a *Application) Uninstall(force bool) error {
 
 	if a.AppProfile.DependencyConfigMapName != "" {
-		log.Debug("delete config map %s\n", a.AppProfile.DependencyConfigMapName)
+		log.Debugf("delete config map %s\n", a.AppProfile.DependencyConfigMapName)
 		err := a.client.DeleteConfigMapByName(a.AppProfile.DependencyConfigMapName, a.AppProfile.Namespace)
 		if err != nil && !force {
 			return err
@@ -1496,7 +1408,6 @@ func (a *Application) Uninstall(force bool) error {
 	}
 
 	if a.IsHelm() {
-		// todo
 		commonParams := make([]string, 0)
 		if a.GetNamespace() != "" {
 			commonParams = append(commonParams, "--namespace", a.GetNamespace())
@@ -1510,31 +1421,20 @@ func (a *Application) Uninstall(force bool) error {
 		if err != nil && !force {
 			return err
 		}
-		fmt.Printf("\"%s\" has been uninstalled \n", a.Name)
 	} else if a.IsManifest() {
-		start := time.Now()
-		//wg := sync.WaitGroup{}
-		resourceDir := a.GetResourceDir()
-		files, _, err := a.getYamlFilesAndDirs(resourceDir)
-		if err != nil && !force {
-			return err
-		}
-		//for _, file := range files {
-		//	//wg.Add(1)
-		//	fmt.Println("delete " + file)
-		//	go func(fileName string) {
-		//		a.client.Delete(fileName, a.GetNamespace())
-		//		//wg.Done()
-		//	}(file)
-		//
+		//resourceDir := a.GetResourceDir()
+		//files, _, err := a.getYamlFilesAndDirs(resourceDir)
+		//if err != nil && !force {
+		//	return err
 		//}
-		//wg.Wait()
-		err = a.client.ApplyForDelete(files, a.GetNamespace(), true)
-		if err != nil {
-			return err
-		}
-		end := time.Now()
-		fmt.Printf("installing takes %f seconds\n", end.Sub(start).Seconds())
+		//err = a.client.ApplyForDelete(files, a.GetNamespace(), true)
+		//if err != nil {
+		//	return err
+		//}
+		//end := time.Now()
+		//fmt.Printf("installing takes %f seconds\n", end.Sub(start).Seconds())
+		a.cleanPreInstall()
+		err := a.uninstallManifestRecursively()
 		if err != nil {
 			return err
 		}
