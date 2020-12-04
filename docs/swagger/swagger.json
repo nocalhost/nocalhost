@@ -166,7 +166,7 @@
                 }
             },
             "delete": {
-                "description": "用户软删除应用",
+                "description": "用户删除应用，同时也会删除应用内已配置的开发空间",
                 "consumes": [
                     "application/json"
                 ],
@@ -1248,9 +1248,6 @@
                     "type": "string",
                     "example": "base64encode(value)"
                 },
-                "marks": {
-                    "type": "string"
-                },
                 "name": {
                     "type": "string"
                 }
@@ -1318,12 +1315,6 @@
         "model.ClusterList": {
             "type": "object",
             "properties": {
-                "cluster_mark": {
-                    "type": "string"
-                },
-                "cluster_name": {
-                    "type": "string"
-                },
                 "created_at": {
                     "type": "string"
                 },
@@ -1331,6 +1322,9 @@
                     "type": "integer"
                 },
                 "info": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 },
                 "user_id": {
@@ -1358,9 +1352,6 @@
                     "type": "string"
                 },
                 "kubeconfig": {
-                    "type": "string"
-                },
-                "marks": {
                     "type": "string"
                 },
                 "name": {

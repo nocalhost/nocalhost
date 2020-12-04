@@ -11,16 +11,16 @@ import (
 )
 
 func TestApplication_StopAllPortForward(t *testing.T) {
-	application, err := BuildApplication("eeee")
-	if err != nil {
-		//cmds.printlnErr("fail to create application", err)
-		return
-	}
-
-	err = application.StopAllPortForward()
-	if err != nil {
-		//cmds.printlnErr("fail to stop port-forward", err)
-	}
+	//application, err := BuildApplication("eeee")
+	//if err != nil {
+	//	//cmds.printlnErr("fail to create application", err)
+	//	return
+	//}
+	//
+	//err = application.StopAllPortForward()
+	//if err != nil {
+	//	//cmds.printlnErr("fail to stop port-forward", err)
+	//}
 }
 
 func TestForTest(t *testing.T) {

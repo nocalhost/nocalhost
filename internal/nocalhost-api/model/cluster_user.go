@@ -35,6 +35,16 @@ type ClusterUserModel struct {
 	DeletedAt     *time.Time `gorm:"column:deleted_at" json:"-"`
 }
 
+type ClusterUserJoinCluster struct {
+	ID                     uint64 `gorm:"column:id" json:"id"`
+	UserId                 uint64 `gorm:"column:user_id" json:"user_id"`
+	ApplicationId          uint64 `gorm:"column:application_id" json:"application_id"`
+	ClusterId              uint64 `gorm:"column:cluster_id" json:"cluster_id"`
+	Namespace              string `gorm:"column:namespace" json:"namespace"`
+	AdminClusterName       string `gorm:"column:admin_cluster_name" json:"admin_cluster_name"`
+	AdminClusterKubeConfig string `gorm:"column:admin_cluster_kubeconfig" json:"admin_cluster_kubeconfig"`
+}
+
 // Validate the fields.
 func (u *ClusterUserModel) Validate() error {
 	validate := validator.New()
