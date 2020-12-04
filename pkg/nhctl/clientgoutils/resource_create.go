@@ -3,6 +3,7 @@ package clientgoutils
 import (
 	"errors"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -114,7 +115,10 @@ func (c *ClientGoUtils) ApplyForDelete(files []string, namespace string, continu
 
 	for _, info := range infos {
 		helper := resource.NewHelper(info.Client, info.Mapping)
-		obj, err := helper.Delete(info.Namespace, info.Name)
+		propagationPolicy := metav1.DeletePropagationBackground
+		obj, err := helper.DeleteWithOptions(info.Namespace, info.Name, &metav1.DeleteOptions{
+			PropagationPolicy: &propagationPolicy,
+		})
 		if err != nil {
 			if continueOnError {
 				continue
