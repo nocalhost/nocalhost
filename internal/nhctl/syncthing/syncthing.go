@@ -191,6 +191,7 @@ func New(dev *napp.Application, deployment string, devStartOptions *napp.DevStar
 		RescanInterval:   "300",
 	}
 
+	// when create syncthing sidecar it need to know how many directory it should sync
 	index := 1
 	for _, sync := range devStartOptions.LocalSyncDir {
 		result, err := IsSubPathFolder(sync, devStartOptions.LocalSyncDir)

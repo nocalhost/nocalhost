@@ -3,6 +3,7 @@ package global
 const (
 	NocalhostSystemNamespace              = "nocalhost-reserved"
 	NocalhostSystemNamespaceLabel         = "nocalhost-reserved"
+	NocalhostDepName                      = "nocalhost-dep"
 	NocalhostDevNamespaceLabel            = "nocalhost"
 	NocalhostDevServiceAccountName        = "nocalhost-dev-account"
 	NocalhostDevDefaultServiceAccountName = "default"
