@@ -31,9 +31,10 @@ func init() {
 }
 
 var listCmd = &cobra.Command{
-	Use:   "list [NAME]",
-	Short: "list applications",
-	Long:  `list applications`,
+	Use:     "list [NAME]",
+	Aliases: []string{"ls"},
+	Short:   "list applications",
+	Long:    `list applications`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) > 0 { // list application detail
 			applicationName := args[0]
