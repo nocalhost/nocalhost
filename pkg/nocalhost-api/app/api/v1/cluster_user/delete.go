@@ -58,8 +58,8 @@ func Delete(c *gin.Context) {
 	}
 	isDelete, _ := goClient.DeleteNS(clusterUser.Namespace)
 	if !isDelete {
-		api.SendResponse(c, errno.ErrDeleteClusterNameSpace, nil)
-		return
+		// ignore deleteNS and should delete dev space record
+		log.Infof("delete cluster user, and try delete cluster dev space %s fail", clusterUser.Namespace)
 	}
 
 	// delete database cluster-user dev space
