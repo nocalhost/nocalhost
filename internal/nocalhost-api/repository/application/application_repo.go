@@ -96,7 +96,7 @@ func (repo *applicationRepo) Delete(ctx context.Context, userId uint64, id uint6
 	application := model.ApplicationModel{
 		ID: id,
 	}
-	if result := repo.db.Where("user_id=?", userId).Delete(&application); result.RowsAffected > 0 {
+	if result := repo.db.Unscoped().Where("user_id=?", userId).Delete(&application); result.RowsAffected > 0 {
 		return nil
 	}
 	return errors.New("application delete denied")

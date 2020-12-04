@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/labels"
 	"net/http"
 	nocalhost "nocalhost/pkg/nocalhost-dep/go-client"
 	"strconv"
@@ -166,19 +167,6 @@ func mutationRequired(ignoredList []string, metadata *metav1.ObjectMeta) bool {
 	// determine whether to perform mutation based on annotation for the target resource
 	var required = true
 
-	// 对符合命名空间的负载全部注入
-
-	//if strings.ToLower(status) == "injected" {
-	//	required = false
-	//} else {
-	//	switch strings.ToLower(annotations[admissionWebhookAnnotationInjectKey]) {
-	//	default:
-	//		required = false
-	//	case "y", "yes", "true", "on":
-	//		required = true
-	//	}
-	//}
-
 	glog.Infof("Mutation policy for %v/%v: status: %q required:%v", metadata.Namespace, metadata.Name, status, required)
 	return required
 }
@@ -203,16 +191,6 @@ func addInitContainer(objectMeta []corev1.Container, initContainers []corev1.Con
 		})
 	}
 	return patch
-
-	//if len(objectMeta) > 0 {
-	//	path = path + "/-"
-	//}
-	//patch = append(patch, patchOperation{
-	//	Op:    "add",
-	//	Path:  path,
-	//	Value: initContainers,
-	//})
-	//return patch
 }
 
 func addContainer(target, added []corev1.Container, basePath string) (patch []patchOperation) {
@@ -292,7 +270,7 @@ func updateAnnotation(target map[string]string, added map[string]string) (patch 
 
 // create patch for all
 func createPatchAny(objectInitContainer []corev1.Container, initContainers []corev1.Container) ([]byte, error) {
-	// /spec/template/spec/initContainers 经核实 6 种工作负载路径一致
+	// /spec/template/spec/initContainers match six type of workload
 	var patch []patchOperation
 	if initContainers != nil && len(initContainers) > 0 {
 		patch = append(patch, addInitContainer(objectInitContainer, initContainers, "/spec/template/spec/initContainers")...)
@@ -300,10 +278,16 @@ func createPatchAny(objectInitContainer []corev1.Container, initContainers []cor
 	return json.Marshal(patch)
 }
 
-// get nocalhost dependents configmaps 多个应用可能存在多个，需要遍历
+// get nocalhost dependents configmaps, this will get from specify namespace by labels
+// nhctl will create dependency configmap in users dev space
 func nocalhostDepConfigmap(namespace string, resourceName string, resourceType string) ([]corev1.Container, error) {
+	// labelSelector="use-for=nocalhost-dep"
+	labelSelector := map[string]string{
+		"use-for": "nocalhost-dep",
+	}
+	setLabelSelector := labels.Set(labelSelector)
 	startTime := time.Now()
-	configMaps, err := clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
+	configMaps, err := clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: setLabelSelector.AsSelector().String()})
 	duration := time.Now().Sub(startTime)
 	glog.Infof("get configmap total cost %d", duration.Milliseconds())
 	initContainers := make([]corev1.Container, 0)
@@ -327,20 +311,6 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 					if dependency.Name == resourceName && strings.ToLower(dependency.Type) == strings.ToLower(resourceType) {
 						// 组装 initContainer
 						if dependency.Pods != nil {
-							//initContainer := make(map[string]interface{})
-							//initContainer["name"] = "wait-for-pods"
-							//initContainer["image"] = waitImages
-							//initContainer["imagePullPolicy"] = imagePullPolicy
-							//initContainer["args"] = func(podsList []string) []string {
-							//	var args []string
-							//	args = append(args, "pod")
-							//	for _, pod := range podsList {
-							//		args = append(args, fmt.Sprintf("-lapp=%s", pod))
-							//	}
-							//	return args
-							//}(dependency.Pods)
-							//initContainers = append(initContainers, initContainer)
-
 							args := func(podsList []string) []string {
 								var args []string
 								args = append(args, "pod")
@@ -355,7 +325,7 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 							}(dependency.Pods)
 
 							initContainer := corev1.Container{
-								Name:            "wait-for-pods-" + strconv.Itoa(key),
+								Name:            "wait-for-pods-" + strconv.Itoa(i) + strconv.Itoa(key),
 								Image:           waitImages,
 								ImagePullPolicy: corev1.PullPolicy("Always"),
 								Args:            args,
@@ -363,20 +333,6 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 							initContainers = append(initContainers, initContainer)
 						}
 						if dependency.Jobs != nil {
-							//initContainer := make(map[string]interface{})
-							//initContainer["name"] = "wait-for-jobs"
-							//initContainer["image"] = waitImages
-							//initContainer["imagePullPolicy"] = imagePullPolicy
-							//initContainer["args"] = func(jobsList []string) []string {
-							//	var args []string
-							//	args = append(args, "job")
-							//	for _, job := range jobsList {
-							//		args = append(args, job)
-							//	}
-							//	return args
-							//}(dependency.Jobs)
-							//initContainers = append(initContainers, initContainer)
-
 							args := func(jobsList []string) []string {
 								var args []string
 								args = append(args, "job")
@@ -387,7 +343,7 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 							}(dependency.Jobs)
 
 							initContainer := corev1.Container{
-								Name:            "wait-for-jobs-" + strconv.Itoa(key),
+								Name:            "wait-for-jobs-" + strconv.Itoa(i) + strconv.Itoa(key),
 								Image:           waitImages,
 								ImagePullPolicy: corev1.PullPolicy("Always"),
 								Args:            args,

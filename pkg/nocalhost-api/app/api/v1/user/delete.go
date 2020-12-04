@@ -14,13 +14,14 @@ limitations under the License.
 package user
 
 import (
-	"nocalhost/internal/nocalhost-api/service"
-	"nocalhost/pkg/nocalhost-api/app/api"
-	"nocalhost/pkg/nocalhost-api/pkg/errno"
-	"nocalhost/pkg/nocalhost-api/pkg/log"
-
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+	"nocalhost/internal/nocalhost-api/model"
+	"nocalhost/internal/nocalhost-api/service"
+	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
+	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
 // Create 删除用户
@@ -40,7 +41,35 @@ func Delete(c *gin.Context) {
 		return
 	}
 	userId := cast.ToUint64(c.Param("id"))
-	err := service.Svc.UserSvc().Delete(c, userId)
+	// delete user's cluster dev space first
+	condition := model.ClusterUserJoinCluster{
+		UserId: userId,
+	}
+	var clusterUserIds []uint64
+	clusterUserList, err := service.Svc.ClusterUser().GetJoinCluster(c, condition)
+	if len(clusterUserList) > 0 {
+		for _, clusterUser := range clusterUserList {
+			goClient, err := clientgo.NewGoClient([]byte(clusterUser.AdminClusterKubeConfig))
+			if err != nil {
+				log.Warnf("try to delete userid %d while create go-client fail", clusterUser.UserId)
+				continue
+			}
+			_, err = goClient.DeleteNS(clusterUser.Namespace)
+			if err != nil {
+				log.Warnf("try to delete userid %d cluster namesapce %d fail", clusterUser.UserId, clusterUser.Namespace)
+			}
+			log.Infof("deleted user cluster dev space %s", clusterUser.Namespace)
+			clusterUserIds = append(clusterUserIds, clusterUser.ID)
+		}
+	}
+
+	// delete cluster user database record
+	err = service.Svc.ClusterUser().BatchDelete(c, clusterUserIds)
+	if err != nil {
+		log.Warnf("try to delete dev spaceId %s fail", clusterUserIds)
+	}
+
+	err = service.Svc.UserSvc().Delete(c, userId)
 	if err != nil {
 		log.Warnf("user delete error: %v", err)
 		api.SendResponse(c, errno.ErrDeleteUser, nil)

@@ -24,8 +24,10 @@ import (
 type ClusterUserRepo interface {
 	Create(ctx context.Context, model model.ClusterUserModel) (model.ClusterUserModel, error)
 	Delete(ctx context.Context, id uint64) error
+	DeleteByWhere(ctx context.Context, models model.ClusterUserModel) error
 	BatchDelete(ctx context.Context, id []uint64) error
 	GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error)
+	GetJoinCluster(ctx context.Context, condition model.ClusterUserJoinCluster) ([]*model.ClusterUserJoinCluster, error)
 	GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error)
 	Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
 	Close()
@@ -39,6 +41,20 @@ func NewApplicationClusterRepo(db *gorm.DB) ClusterUserRepo {
 	return &clusterUserRepo{
 		db: db,
 	}
+}
+
+func (repo *clusterUserRepo) GetJoinCluster(ctx context.Context, condition model.ClusterUserJoinCluster) ([]*model.ClusterUserJoinCluster, error) {
+	var cluserUserJoinCluster []*model.ClusterUserJoinCluster
+	result := repo.db.Table("clusters_users as cluster_user_join_clusters").Select("cluster_user_join_clusters.id,cluster_user_join_clusters.application_id,cluster_user_join_clusters.user_id,cluster_user_join_clusters.cluster_id,cluster_user_join_clusters.namespace,c.name as admin_cluster_name,c.kubeconfig as admin_cluster_kubeconfig").Joins("join clusters as c on cluster_user_join_clusters.cluster_id=c.id").Where(condition).Scan(&cluserUserJoinCluster)
+	if result.Error != nil {
+		return cluserUserJoinCluster, result.Error
+	}
+	return cluserUserJoinCluster, nil
+}
+
+func (repo *clusterUserRepo) DeleteByWhere(ctx context.Context, models model.ClusterUserModel) error {
+	result := repo.db.Unscoped().Delete(models)
+	return result.Error
 }
 
 func (repo *clusterUserRepo) BatchDelete(ctx context.Context, ids []uint64) error {

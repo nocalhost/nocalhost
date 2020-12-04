@@ -53,7 +53,7 @@ var (
 	ErrApplicationDelete        = &Errno{Code: 40102, Message: "Failed to delete application, please try again"}
 	ErrApplicationUpdate        = &Errno{Code: 40103, Message: "Update application failed, please try again"}
 	ErrBindApplicationClsuter   = &Errno{Code: 40104, Message: "Failed to bind cluster, please try again"}
-	ErrPermissionApplication    = &Errno{Code: 40105, Message: "No permission for this application"}
+	ErrPermissionApplication    = &Errno{Code: 40105, Message: "application not found or disabled"}
 	ErrPermissionCluster        = &Errno{Code: 40106, Message: "No permission for this cluster"}
 	ErrApplicationInstallUpdate = &Errno{Code: 40107, Message: "Failed to update app installation status, please try again"}
 	ErrApplicationJsonContext   = &Errno{Code: 40108, Message: "Application context Unmarshal JSON fail"}
@@ -77,5 +77,6 @@ var (
 	ErrClsuterUserNotFound                       = &Errno{Code: 50111, Message: "Dev space has not found"}
 	ErrDeletedClsuterButDatabaseFail             = &Errno{Code: 50112, Message: "Cluster namespace has deleted, but database record delete fail"}
 	ErrDeletedClsuterDBButClusterDone            = &Errno{Code: 50113, Message: "Cluster nocalhost resource has deleted, but cluster record delete fail"}
-	ErrDeletedClsuterDevSpaceDBButClusterDone    = &Errno{Code: 50113, Message: "Cluster nocalhost develop space has deleted, but space record delete fail"}
+	ErrDeletedClsuterDevSpaceDBButClusterDone    = &Errno{Code: 50114, Message: "Cluster nocalhost develop space has deleted, but space record delete fail"}
+	ErrDeletedClusterRecord                      = &Errno{Code: 50115, Message: "Delete dev space by application fail, please try again"}
 )
