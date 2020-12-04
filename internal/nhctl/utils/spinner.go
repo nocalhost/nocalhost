@@ -23,7 +23,6 @@ import (
 	"unicode"
 
 	sp "github.com/briandowns/spinner"
-	//"github.com/okteto/okteto/pkg/coloredoutput"
 )
 
 var spinnerSupport bool

@@ -15,6 +15,7 @@ package clientgo
 
 import (
 	"context"
+	"errors"
 	v1 "k8s.io/api/apps/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -50,6 +51,36 @@ func NewGoClient(kubeconfig []byte) (*GoClient, error) {
 		client: clientSet,
 	}
 	return client, nil
+}
+
+// get deployment
+func (c *GoClient) GetDepDeploymentStatus() error {
+	deployment, err := c.client.AppsV1().Deployments(global.NocalhostSystemNamespace).Get(context.TODO(), global.NocalhostDepName, metav1.GetOptions{})
+	if err != nil {
+		return errors.New("nocalhost-dep component not found")
+	}
+	isAvailable := false
+	if deployment.Name != "" {
+		for _, status := range deployment.Status.Conditions {
+			if status.Type == v1.DeploymentAvailable {
+				isAvailable = true
+			}
+		}
+	}
+	if isAvailable {
+		// cluster can use
+		return nil
+	}
+	return errors.New("nocalhost-dep is processing")
+}
+
+// check if exist namespace
+func (c *GoClient) IfNocalhostNameSpaceExist() (bool, error) {
+	_, err := c.client.CoreV1().Namespaces().Get(context.TODO(), global.NocalhostSystemNamespace, metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // When create sub namespace for developer, label should set "nocalhost" for nocalhost-dep admission webhook muting
