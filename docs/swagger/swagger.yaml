@@ -91,7 +91,11 @@ definitions:
         type: integer
       info:
         type: string
+      is_ready:
+        type: boolean
       name:
+        type: string
+      not_ready_message:
         type: string
       user_id:
         type: integer
