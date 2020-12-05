@@ -15,6 +15,7 @@ func (c *ClientGoUtils) ApplyForCreate(files []string, namespace string, continu
 		return errors.New("files must not be nil")
 	}
 	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
+	kubeConfigFlags.KubeConfig = &c.kubeConfigFilePath
 	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
 	f := cmdutil.NewFactory(matchVersionKubeConfigFlags)
 	builder := f.NewBuilder()
