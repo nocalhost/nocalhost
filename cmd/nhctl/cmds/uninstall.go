@@ -54,7 +54,10 @@ var uninstallCmd = &cobra.Command{
 			if !force {
 				log.Fatalf("failed to get application, %v", err)
 			} else {
-				nh.CleanupAppFiles(applicationName)
+				err = nh.CleanupAppFiles(applicationName)
+				if err != nil {
+					log.Warnf("fail to clean up application resource: %s", err.Error())
+				}
 				fmt.Printf("application \"%s\" is uninstalled anyway.\n", applicationName)
 				return
 			}
