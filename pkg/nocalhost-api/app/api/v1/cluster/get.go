@@ -14,15 +14,14 @@ limitations under the License.
 package cluster
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
-	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
+	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"sync"
 )
 
@@ -30,6 +29,11 @@ type ClusterStatus struct {
 	ClusterId       uint64
 	Ready           bool
 	NotReadyMessage string
+}
+
+type ClusterSafeList struct {
+	ClusterList []*model.ClusterList
+	Lock        *sync.Mutex
 }
 
 // GetList 获取集群列表
@@ -42,64 +46,72 @@ type ClusterStatus struct {
 // @Success 200 {object} model.ClusterList "{"code":0,"message":"OK","data":model.ClusterList}"
 // @Router /v1/cluster [get]
 func GetList(c *gin.Context) {
-	result, err := service.Svc.ClusterSvc().GetList(c)
+	result, _ := service.Svc.ClusterSvc().GetList(c)
 	// check if dep is ready
-	if err != nil || len(result) > 0 {
-		wait := sync.WaitGroup{}
-		wait.Add(len(result))
-		clusterStatus := make(chan ClusterStatus, len(result))
-		// check point
-		// 1. has nocalhost-reserved NS
-		// 2. has nocalhost-dep deployment
-		// 3. nocalhost-dep deployment is available
-		// 4. all well means cluster Ready
-		// not_ready_message always return one
-		for _, cluster := range result {
-			// use go func run all
-			go func(cluster *model.ClusterList) {
-				defer wait.Done()
-				clientGo, err := clientgo.NewGoClient([]byte(cluster.KubeConfig))
-				if err != nil {
-					log.Warnf("create go-client when get cluster list err %s", clientGo)
-					clusterStatus <- ClusterStatus{ClusterId: cluster.ID, Ready: false, NotReadyMessage: "New go client fail"}
-					return
-				}
-				_, err = clientGo.IfNocalhostNameSpaceExist()
-				if err != nil {
-					clusterStatus <- ClusterStatus{ClusterId: cluster.ID, Ready: false, NotReadyMessage: "Can not get namespace: " + global.NocalhostSystemNamespace}
-					return
-				}
-				err = clientGo.GetDepDeploymentStatus()
-				if err != nil {
-					clusterStatus <- ClusterStatus{ClusterId: cluster.ID, Ready: false, NotReadyMessage: err.Error()}
-					return
-				}
-				clusterStatus <- ClusterStatus{ClusterId: cluster.ID, Ready: true, NotReadyMessage: ""}
-			}(cluster)
-		}
+	//if err != nil || len(result) > 0 {
+	//	userClusterList := &ClusterSafeList{
+	//		Lock:        new(sync.Mutex),
+	//		ClusterList: make([]*model.ClusterList, 0),
+	//	}
+	//	fmt.Printf("clusterlist %s", userClusterList.ClusterList)
+	//	wait := sync.WaitGroup{}
+	//	//clusterStatus := make(chan ClusterStatus, len(result))
+	//	// check point
+	//	// 1. has nocalhost-reserved NS
+	//	// 2. has nocalhost-dep deployment
+	//	// 3. nocalhost-dep deployment is available
+	//	// 4. all well means cluster Ready
+	//	// not_ready_message always return one
+	//	for _, cluster := range result {
+	//		// use go func run all
+	//		wait.Add(1)
+	//		cluster := cluster
+	//		go func(cluster *model.ClusterList, userClusterList *ClusterSafeList) {
+	//			obj := &model.ClusterList{
+	//				ID:          cluster.ID,
+	//				ClusterName: cluster.ClusterName,
+	//				UsersCount:  cluster.UsersCount,
+	//				KubeConfig:  cluster.KubeConfig,
+	//				Info:        cluster.Info,
+	//				UserId:      cluster.UserId,
+	//				CreatedAt:   cluster.CreatedAt,
+	//				IsReady:     true,
+	//			}
+	//			defer wait.Done()
+	//			userClusterList.Lock.Lock()
+	//			defer userClusterList.Lock.Unlock()
+	//			clientGo, err := clientgo.NewGoClient([]byte(cluster.KubeConfig))
+	//			if err != nil {
+	//				log.Warnf("create go-client when get cluster list err %s", clientGo)
+	//				obj.IsReady = false
+	//				obj.NotReadyMessage = "New go client fail"
+	//				userClusterList.ClusterList = append(userClusterList.ClusterList, obj)
+	//				return
+	//			}
+	//			_, err = clientGo.IfNocalhostNameSpaceExist()
+	//			if err != nil {
+	//				obj.IsReady = false
+	//				obj.NotReadyMessage = "Can not get namespace: " + global.NocalhostSystemNamespace
+	//				userClusterList.ClusterList = append(userClusterList.ClusterList, obj)
+	//				return
+	//			}
+	//			err = clientGo.GetDepDeploymentStatus()
+	//			if err != nil {
+	//				obj.IsReady = false
+	//				obj.NotReadyMessage = err.Error()
+	//				userClusterList.ClusterList = append(userClusterList.ClusterList, obj)
+	//				return
+	//			}
+	//			userClusterList.ClusterList = append(userClusterList.ClusterList, obj)
+	//		}(cluster, userClusterList)
+	//	}
+	//
+	//	wait.Wait()
+	//	api.SendResponse(c, errno.OK, userClusterList.ClusterList)
+	//	return
+	//}
 
-		fmt.Printf("got data %s", clusterStatus)
-		// routine data
-		fmt.Printf("len %d", cap(clusterStatus))
-
-		go func() {
-			for routineStatus := range clusterStatus {
-				fmt.Printf("get channal data %s", routineStatus)
-				for key, listRecord := range result {
-					if routineStatus.ClusterId == listRecord.ID {
-						result[key].IsReady = routineStatus.Ready
-						result[key].NotReadyMessage = routineStatus.NotReadyMessage
-						break
-					}
-				}
-			}
-		}()
-
-		wait.Wait()
-		close(clusterStatus)
-	}
-
-	api.SendResponse(c, nil, result)
+	api.SendResponse(c, errno.OK, result)
 }
 
 // @Summary 集群开发环境列表
