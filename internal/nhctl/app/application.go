@@ -326,7 +326,7 @@ func (a *Application) ignoredInInstall(manifest string) bool {
 }
 func (a *Application) installManifestRecursively() error {
 	a.loadInstallManifest()
-
+	fmt.Printf("installManifest len %d", len(a.installManifest))
 	if len(a.installManifest) > 0 {
 		err := a.client.ApplyForCreate(a.installManifest, a.GetNamespace(), true)
 		if err != nil {
@@ -556,6 +556,7 @@ func (a *Application) InstallDepConfigMap() error {
 			a.AppProfile.Save()
 		}
 	}
+	fmt.Printf("dependency configmap installed")
 	return nil
 }
 
