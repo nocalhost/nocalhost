@@ -7,6 +7,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"nocalhost/pkg/nhctl/log"
 )
 
 func (c *ClientGoUtils) ApplyForCreate(files []string, namespace string, continueOnError bool) error {
@@ -52,12 +53,13 @@ func (c *ClientGoUtils) ApplyForCreate(files []string, namespace string, continu
 	if len(infos) == 0 {
 		return errors.New("no result info")
 	}
-
+	fmt.Printf("infos len %d", len(infos))
 	for _, info := range infos {
 		helper := resource.NewHelper(info.Client, info.Mapping)
 		obj, err := helper.Create(info.Namespace, true, info.Object)
 		if err != nil {
 			if continueOnError {
+				log.Warnf("apply manifest fail %s", err.Error())
 				continue
 			}
 			return err
