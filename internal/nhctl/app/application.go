@@ -681,6 +681,14 @@ func (a *Application) GetDefaultDevImage(svcName string) string {
 	return result
 }
 
+func (a *Application) GetDefaultDevPort(svcName string) []string {
+	config := a.GetSvcConfig(svcName)
+	if config != nil && len(config.DevPort) > 0 {
+		return config.DevPort
+	}
+	return []string{}
+}
+
 func (a *Application) RollBack(ctx context.Context, svcName string) error {
 	clientUtils := a.client
 
