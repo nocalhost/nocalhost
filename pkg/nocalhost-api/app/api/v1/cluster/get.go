@@ -16,11 +16,9 @@ package cluster
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
-	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
-	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"sync"
 )
@@ -157,44 +155,44 @@ func GetDetail(c *gin.Context) {
 	}
 
 	// recreate
-	clusterDetail := model.ClusterDetailModel{
-		ID:              result.ID,
-		Name:            result.Name,
-		Info:            result.Info,
-		UserId:          result.UserId,
-		Server:          result.Server,
-		KubeConfig:      result.KubeConfig,
-		CreatedAt:       result.CreatedAt,
-		UpdatedAt:       result.UpdatedAt,
-		DeletedAt:       result.DeletedAt,
-		IsReady:         true,
-		NotReadyMessage: "",
-	}
+	//clusterDetail := model.ClusterDetailModel{
+	//	ID:              result.ID,
+	//	Name:            result.Name,
+	//	Info:            result.Info,
+	//	UserId:          result.UserId,
+	//	Server:          result.Server,
+	//	KubeConfig:      result.KubeConfig,
+	//	CreatedAt:       result.CreatedAt,
+	//	UpdatedAt:       result.UpdatedAt,
+	//	DeletedAt:       result.DeletedAt,
+	//	IsReady:         true,
+	//	NotReadyMessage: "",
+	//}
+	//
+	//// check cluster status
+	//clientGo, err := clientgo.NewGoClient([]byte(result.KubeConfig))
+	//if err != nil {
+	//	clusterDetail.NotReadyMessage = "New go client fail"
+	//	clusterDetail.IsReady = false
+	//	api.SendResponse(c, nil, clusterDetail)
+	//	return
+	//}
+	//_, err = clientGo.IfNocalhostNameSpaceExist()
+	//if err != nil {
+	//	clusterDetail.NotReadyMessage = "Can not get namespace: " + global.NocalhostSystemNamespace
+	//	clusterDetail.IsReady = false
+	//	api.SendResponse(c, nil, clusterDetail)
+	//	return
+	//}
+	//err = clientGo.GetDepDeploymentStatus()
+	//if err != nil {
+	//	clusterDetail.NotReadyMessage = err.Error()
+	//	clusterDetail.IsReady = false
+	//	api.SendResponse(c, nil, clusterDetail)
+	//	return
+	//}
 
-	// check cluster status
-	clientGo, err := clientgo.NewGoClient([]byte(result.KubeConfig))
-	if err != nil {
-		clusterDetail.NotReadyMessage = "New go client fail"
-		clusterDetail.IsReady = false
-		api.SendResponse(c, nil, clusterDetail)
-		return
-	}
-	_, err = clientGo.IfNocalhostNameSpaceExist()
-	if err != nil {
-		clusterDetail.NotReadyMessage = "Can not get namespace: " + global.NocalhostSystemNamespace
-		clusterDetail.IsReady = false
-		api.SendResponse(c, nil, clusterDetail)
-		return
-	}
-	err = clientGo.GetDepDeploymentStatus()
-	if err != nil {
-		clusterDetail.NotReadyMessage = err.Error()
-		clusterDetail.IsReady = false
-		api.SendResponse(c, nil, clusterDetail)
-		return
-	}
-
-	api.SendResponse(c, nil, clusterDetail)
+	api.SendResponse(c, errno.OK, result)
 }
 
 // @Summary 集群某个开发环境的详情
