@@ -1175,6 +1175,8 @@ func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce str
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 	var addDevPod []string
+	//portForwardResultCh := make(chan string, group)
+	//var portForwardResult []string
 	for key, sLocalPort := range localPort {
 		// stopCh control the port forwarding lifecycle. When it gets closed the
 		// port forward will terminate
@@ -1200,21 +1202,38 @@ func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce str
 				StopCh:    stopCh,
 				ReadyCh:   readyCh,
 			})
+			//fmt.Print("start send channel")
 			if err != nil {
+				//portForwardResultCh <- "0"
 				fmt.Printf("port-forward in background fail %s\n", err.Error())
+				//return
 			}
+			//portForwardResultCh <- fmt.Sprintf("%d:%d", sLocalPort, remotePort[key])
 		}()
+		go func(readyCh *chan struct{}) {
+			select {
+			case <-*readyCh:
+				// append status each success port-forward
+				_ = a.AppendDevPortForward(deployment, fmt.Sprintf("%d:%d", sLocalPort, remotePort[key]))
+				_ = a.SetPortForwardedStatus(deployment, true)
+			}
+		}(&readyCh)
 	}
-	fmt.Print("done go routine")
-	//select {
-	//// wait until port-forward success
-	//case <-readyCh:
-	//	break
-	//}
+	fmt.Print("done go routine\n")
 	// update profile addDevPod
-	_ = a.SetDevPortForward(deployment, addDevPod)
+	// TODO get from channel and set real port-forward status
+	//for range localPort {
+	//	r := <-portForwardResultCh
+	//	portForwardResult = append(portForwardResult, r)
+	//}
+	//fmt.Printf("portForwardResult %s\n", portForwardResult)
+
+	//_ = a.SetDevPortForward(deployment, portForwardResult)
+
 	// set port forward status
-	_ = a.SetPortForwardedStatus(deployment, true)
+	//if len(portForwardResult) > 0 {
+	//	_ = a.SetPortForwardedStatus(deployment, true)
+	//}
 
 	for {
 		<-sigs
@@ -1227,6 +1246,12 @@ func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce str
 // port-forward use
 func (a *Application) SetDevPortForward(svcName string, portList []string) error {
 	a.GetSvcProfile(svcName).DevPortList = portList
+	return a.AppProfile.Save()
+}
+
+func (a *Application) AppendDevPortForward(svcName string, portList string) error {
+	exist := a.GetSvcProfile(svcName).DevPortList
+	a.GetSvcProfile(svcName).DevPortList = append(exist, portList)
 	return a.AppProfile.Save()
 }
 
