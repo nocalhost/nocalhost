@@ -29,6 +29,10 @@ nocalhost-dep: ## Build nocalhost-dep
 nhctl: ## Build nhctl
 	@go build -ldflags '-X nocalhost/cmd/nhctl/cmds.GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) -X nocalhost/cmd/nhctl/cmds.GIT_TAG=${GIT_TAG}' cmd/nhctl/nhctl.go
 
+.PHONY: nhctl-win64
+nhctl-win64: ## Build nhctl
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags '-X nocalhost/cmd/nhctl/cmds.GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) -X nocalhost/cmd/nhctl/cmds.GIT_TAG=${GIT_TAG}' cmd/nhctl/nhctl.go
+
 .PHONY: gotool
 gotool: ## run go tool 'fmt' and 'vet'
 	gofmt -w .
