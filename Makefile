@@ -26,8 +26,25 @@ nocalhost-dep: ## Build nocalhost-dep
 	@go build -ldflags '-X main.GIT_COMMIT_SHA=$(GIT_COMMIT_SHA)' cmd/nocalhost-dep/nocalhost-dep.go
 
 .PHONY: nhctl
-nhctl: ## Build nhctl
-	@go build -ldflags '-X nocalhost/cmd/nhctl/cmds.GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) -X nocalhost/cmd/nhctl/cmds.GIT_TAG=${GIT_TAG}' cmd/nhctl/nhctl.go
+nhctl: ## Build nhctl for current OS
+	@echo "WARNING: binary creates a current os executable."
+	@bash ./scripts/build/nhctl/binary
+
+.PHONY: nhctl-cross
+nhctl-cross: ## build executable for Linux and macOS and Windows
+	@bash ./scripts/build/nhctl/cross
+
+.PHONY: nhctl-windows
+nhctl-windows: ## build executable for Windows
+	@bash ./scripts/build/nhctl/windows
+
+.PHONY: nhctl-osx
+nhctl-osx: ## build executable for macOS
+	@bash ./scripts/build/nhctl/osx
+
+.PHONY: nhctl-linux
+nhctl-linux: ## build executable for Linux
+	@bash ./scripts/build/nhctl/linux
 
 .PHONY: nhctl-win64
 nhctl-win64: ## Build nhctl

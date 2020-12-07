@@ -31,5 +31,6 @@ sync_for_test
 /nocalhost-api
 /nocalhost-dep
 /nhctl
+/build
 
 /conf/config.local.yaml
