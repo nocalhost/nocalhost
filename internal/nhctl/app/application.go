@@ -103,6 +103,15 @@ func NewApplication(name string) (*Application, error) {
 	return app, nil
 }
 
+func (a *Application) ReadBeforeWriteProfile() error {
+	profile, err := NewAppProfile(a.getProfilePath())
+	if err != nil {
+		return err
+	}
+	a.AppProfile = profile
+	return nil
+}
+
 // if namespace is nil, use namespace defined in kubeconfig
 func (a *Application) InitClient(kubeconfig string, namespace string) error {
 	// check if kubernetes is available
@@ -1250,6 +1259,10 @@ func (a *Application) SetDevPortForward(svcName string, portList []string) error
 }
 
 func (a *Application) AppendDevPortForward(svcName string, portList string) error {
+	err := a.ReadBeforeWriteProfile()
+	if err != nil {
+		log.Fatalf("refresh application profile fail")
+	}
 	exist := a.GetSvcProfile(svcName).DevPortList
 	a.GetSvcProfile(svcName).DevPortList = append(exist, portList)
 	return a.AppProfile.Save()
@@ -1420,11 +1433,19 @@ func (a *Application) SetAppType(t AppType) error {
 }
 
 func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
+	err := a.ReadBeforeWriteProfile()
+	if err != nil {
+		log.Fatalf("refresh application profile fail")
+	}
 	a.GetSvcProfile(svcName).PortForwarded = is
 	return a.AppProfile.Save()
 }
 
 func (a *Application) SetSyncingStatus(svcName string, is bool) error {
+	err := a.ReadBeforeWriteProfile()
+	if err != nil {
+		log.Fatalf("refresh application profile fail")
+	}
 	a.GetSvcProfile(svcName).Syncing = is
 	return a.AppProfile.Save()
 }
