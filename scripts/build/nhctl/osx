@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+#
+# Build an osx binary from linux
+#
+
+set -eu -o pipefail
+
+source ./scripts/build/nhctl/.variables
+
+export CGO_ENABLED=0
+export GOOS=darwin
+export GOARCH=amd64
+
+# Override TARGET
+TARGET="build/nhctl-$GOOS-$GOARCH"
+
+echo "Building $TARGET"
+go build -o "${TARGET}" --ldflags "${LDFLAGS}" "${SOURCE}"

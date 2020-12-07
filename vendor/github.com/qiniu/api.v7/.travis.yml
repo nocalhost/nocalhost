@@ -1,0 +1,33 @@
+language: go
+
+sudo: required
+
+os:
+    - linux
+    - osx
+
+go:
+  - 1.9
+  - 1.10.x
+  - 1.11.x
+  - 1.12.x
+
+env:
+  global:
+    - secure: "YoNsx6iMZ+YX2W5XIw9RXc/uYd5velr5HWFMPI0Oe67G8FVrQZwnu/3YZIa7FO2OBonCpbDAznIDUaGw2KxT3Yt6NgYTSn/6fcSXgxspCFsSjtUAAKbofbKDPc6r0HUVSZi5XN66SlgNGsHRne2gBSlEFs/AwCAnn0ijfWy9QUP2klWY15VLURGSv9rXt9vKNtNTGVtz1sBeR6WRi2TFcdJbjn5vrGwn5fLTWA78vnc8m7bmQKHO1Jmxm/nfeUiWvGomBRnl+dzRp4nd4Q8YnVjJthFMTeNGL4MEPf4rFo/d83+Hm6hIWskwDZn7VGAxRLBB4yvH3BTR8cM75bF8A5iQsM93DPYohKT/Fw1N0gXsNa8UvctmnUfNug4ou83nZBdQ1UWk8QLr0JWN+adfuVR4fa5N3Izy3Gwczkv5SNHlykq9Izxz2QDTknZuWA2z+V0RD029r+MFGRIp3qeOpcW/iYhKx2BBS2CTFA6awQnFw3BPgCQ2JUoos5wf+ifJMjn2TG4eCTMOLAsGkLryB4YGNHsrr2UrafHJiDJn+c8BxY+7vdoqOg3y2vY96/VqbUlM8uwIiFgTQnTkiGJHSgH8QHwvGXqWq7+NCTXFIjPAHi4FH2K0iBD2L+c/ANMUYDdhIxIjQbm78YkHBosbxaXcNjYSqYDJSUvMGeBiNvM="
+    - QINIU_KODO_TEST=1
+    - accessKey=vHg2e7nOh7Jsucv2Azr5FH6omPgX22zoJRWa0FN5
+    - QINIU_TEST_BUCKET=gosdk
+    - QINIU_TEST_BUCKET_PRIVATE=gosdk.qiniudn.com
+    - QINIU_TEST_DOMAIN=gosdk.qiniudn.com
+    - QINIU_TEST_DOMAIN_PRIVATE=gosdk.qiniudn.com
+    - QINIU_TEST_PIPELINE=sdktest
+install:
+  go get github.com/qiniu/x
+
+script:
+  - make test
+
+branches:
+  only:
+    - master
