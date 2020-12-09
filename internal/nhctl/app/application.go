@@ -290,6 +290,7 @@ type HelmFlags struct {
 	Chart    string
 	RepoName string
 	RepoUrl  string
+	Version  string
 }
 
 func (a *Application) InstallManifest() error {
@@ -456,6 +457,9 @@ func (a *Application) InstallHelmInRepo(releaseName string, flags *HelmFlags) er
 		installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
 	} else if flags.RepoName != "" {
 		installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
+	}
+	if flags.Version != "" {
+		installParams = append(installParams, "--version", flags.Version)
 	}
 
 	if flags.Set != "" {
