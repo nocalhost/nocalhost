@@ -36,6 +36,7 @@ type InstallFlags struct {
 	HelmSet          string
 	HelmRepoName     string
 	HelmRepoUrl      string
+	HelmRepoVersion  string
 	HelmChartName    string
 	HelmWait         bool
 	Config           string
@@ -61,6 +62,7 @@ func init() {
 	installCmd.Flags().StringVar(&installFlags.HelmSet, "set", "", "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 	installCmd.Flags().StringVar(&installFlags.HelmRepoName, "helm-repo-name", "", "chart repository name")
 	installCmd.Flags().StringVar(&installFlags.HelmRepoUrl, "helm-repo-url", "", "chart repository url where to locate the requested chart")
+	installCmd.Flags().StringVar(&installFlags.HelmRepoVersion, "helm-repo-version", "", "chart repository version")
 	installCmd.Flags().StringVar(&installFlags.HelmChartName, "helm-chart-name", "", "chart name")
 	rootCmd.AddCommand(installCmd)
 }
@@ -163,6 +165,7 @@ func InstallApplication(applicationName string) error {
 		Chart:    installFlags.HelmChartName,
 		RepoUrl:  installFlags.HelmRepoUrl,
 		RepoName: installFlags.HelmRepoName,
+		Version:  installFlags.HelmRepoVersion,
 	}
 	err = nocalhostApp.InstallDepConfigMap()
 	if err != nil {
