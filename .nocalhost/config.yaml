@@ -1,34 +1,29 @@
-preInstalls: []
+name: nocalhost
+type: helmGit
+resourcePath: ["deployments/chart"]
 
-appConfig:
-  name: nocalhost
-  type: helm
-  resourcePath: deployments/chart
+onPreInstall: []
 
-svcConfigs:
+services:
   - name: nocalhost-api
-    type: deployment
+    serviceType: deployment
     gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost.git
-    devEnv: go  # java|go|node|php
-    devImage: golang
+    devContainerImage: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang:latest
     workDir: /home/nocalhost-dev
-    sync: 
+    syncDirs:
     - .
-    ignore: []
-    devPort:
-    - 8080:8080
-    pods: 
+    devPorts:
+    - :8080
+    dependPodsLabelSelector:
     - "app.kubernetes.io/name=mariadb"
   - name: nocalhost-web
-    type: deployment
+    serviceType: deployment
     gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost-web.git
-    devEnv: node
-    devImage: node
+    devContainerImage: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/node:12.18.1-slim
     workDir: /home/nocalhost-dev
-    sync: 
+    syncDirs:
     - .
-    ignore: []
     devPort:
-    - 8080:8080
-    pods: 
+    - :80
+    dependPodsLabelSelector:
     - "app=nocalhost-api"

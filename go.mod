@@ -38,7 +38,6 @@ require (
 	github.com/mattn/psutil v0.0.0-20170126005127-e6c88f1e9be6
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/mapstructure v1.3.2 // indirect
-	github.com/moby/term v0.0.0-20200312100748-672ec06f55cd
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/onsi/ginkgo v1.12.3 // indirect
