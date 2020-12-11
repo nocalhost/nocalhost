@@ -17,34 +17,23 @@ package syncthing
 
 import (
 	"bytes"
-	_ "bytes"
 	"context"
-	_ "context"
-	_ "encoding/json"
 	"errors"
 	"fmt"
-	ps "github.com/mitchellh/go-ps"
-	"golang.org/x/crypto/bcrypt"
-	_ "io"
 	"io/ioutil"
-	_ "io/ioutil"
 	"net/http"
-	napp "nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/syncthing/local"
-	"nocalhost/internal/nhctl/syncthing/ports"
-	"nocalhost/internal/nhctl/syncthing/terminate"
-	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
 	"path/filepath"
-	_ "path/filepath"
-	_ "runtime"
 	"strconv"
-	_ "strconv"
 	"strings"
-	_ "strings"
 	"text/template"
-	_ "time"
+
+	ps "github.com/mitchellh/go-ps"
+
+	"nocalhost/internal/nhctl/syncthing/local"
+	"nocalhost/internal/nhctl/syncthing/terminate"
+	"nocalhost/pkg/nhctl/log"
 )
 
 var (
@@ -54,16 +43,16 @@ var (
 const (
 	SyncSecretName   = "nocalhost-syncthing-secret"
 	syncthing        = "syncthing"
-	remoteHome       = "/var/syncthing/config"
-	bind             = "127.0.0.1"
-	nocalhost        = "nocalhost"
+	RemoteHome       = "/var/syncthing/config"
+	Bind             = "127.0.0.1"
+	Nocalhost        = "nocalhost"
 	certFile         = "cert.pem"
 	keyFile          = "key.pem"
 	configFile       = "config.xml"
-	logFile          = "syncthing.log"
+	LogFile          = "syncthing.log"
 	syncthingPidFile = "syncthing.pid"
-	defaultSyncMode  = "sendreceive" // default sync mode
-	sendOnlySyncMode = "sendonly"    // default sync mode
+	DefaultSyncMode  = "sendreceive" // default sync mode
+	SendOnlySyncMode = "sendonly"    // default sync mode
 	// DefaultRemoteDeviceID remote syncthing ID
 	DefaultRemoteDeviceID = "MDPJNTF-OSPJC65-LZNCQGD-3AWRUW6-BYJULSS-GOCA2TU-5DWWBNC-TKM4VQ5"
 	localDeviceID         = "SJTYMUE-DI3REKX-JCLCRXU-F6UJHCG-XQGHAZJ-5O5D3JR-LALGSBC-TJ4I4QO"
@@ -96,7 +85,7 @@ type Syncthing struct {
 	APIKey                   string       `yaml:"apikey"`
 	GUIPassword              string       `yaml:"password"`
 	GUIPasswordHash          string       `yaml:"-"`
-	binPath                  string       `yaml:"-"`
+	BinPath                  string       `yaml:"-"`
 	Client                   *http.Client `yaml:"-"`
 	cmd                      *exec.Cmd    `yaml:"-"`
 	Folders                  []*Folder    `yaml:"folders"`
@@ -122,98 +111,99 @@ type Syncthing struct {
 	RescanInterval           string       `yaml:"-"`
 }
 
+// move to nocalhost/internal/nhctl/app
 // New constructs a new Syncthing.
-func New(dev *napp.Application, deployment string, devStartOptions *napp.DevStartOptions, fileSyncOptions *napp.FileSyncOptions) (*Syncthing, error) {
-	var err error
-
-	// 2. from file-sync it should direct use .profile.yaml dev-start port
-	// WorkDir will be null
-	remotePort := fileSyncOptions.RemoteSyncthingPort
-	remoteGUIPort := fileSyncOptions.RemoteSyncthingGUIPort
-	localListenPort := fileSyncOptions.LocalSyncthingPort
-	localGuiPort := fileSyncOptions.LocalSyncthingGUIPort
-
-	// 1. from dev-start should take some local available port, WorkDir will be not null
-	if devStartOptions.WorkDir != "" {
-		remotePort, err = ports.GetAvailablePort()
-		if err != nil {
-			return nil, err
-		}
-
-		remoteGUIPort, err = ports.GetAvailablePort()
-		if err != nil {
-			return nil, err
-		}
-
-		localGuiPort, err = ports.GetAvailablePort()
-		if err != nil {
-			return nil, err
-		}
-
-		localListenPort, err = ports.GetAvailablePort()
-		if err != nil {
-			return nil, err
-		}
-	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(nocalhost), 0)
-	if err != nil {
-		log.Debugf("couldn't hash the password %s", err)
-		hash = []byte("")
-	}
-	sendMode := defaultSyncMode
-	if !fileSyncOptions.SyncDouble {
-		sendMode = sendOnlySyncMode
-	}
-	s := &Syncthing{
-		APIKey:           "nocalhost",
-		GUIPassword:      "nocalhost",
-		GUIPasswordHash:  string(hash),
-		binPath:          filepath.Join(dev.GetSyncThingBinDir(), getBinaryName()),
-		Client:           NewAPIClient(),
-		FileWatcherDelay: DefaultFileWatcherDelay,
-		GUIAddress:       fmt.Sprintf("%s:%d", bind, localGuiPort),
-		// TODO BE CAREFUL ResourcePath if is not application path, this is Local syncthing HOME PATH, use for cert and config.xml
-		// it's `~/.nhctl/application/bookinfo/syncthing`
-		LocalHome:        filepath.Join(dev.GetHomeDir(), syncthing, deployment),
-		RemoteHome:       remoteHome,
-		LogPath:          filepath.Join(dev.GetHomeDir(), syncthing, deployment, logFile),
-		RemoteAddress:    fmt.Sprintf("%s:%d", bind, remotePort),
-		RemoteDeviceID:   DefaultRemoteDeviceID,
-		RemoteGUIAddress: fmt.Sprintf("%s:%d", bind, remoteGUIPort),
-		RemoteGUIPort:    remoteGUIPort,
-		RemotePort:       remotePort,
-		LocalGUIPort:     localGuiPort,
-		LocalPort:        localListenPort,
-		ListenAddress:    fmt.Sprintf("%s:%d", bind, localListenPort),
-		Type:             sendMode, // sendonly mode
-		IgnoreDelete:     true,
-		Folders:          []*Folder{},
-		RescanInterval:   "300",
-	}
-
-	// when create syncthing sidecar it need to know how many directory it should sync
-	index := 1
-	for _, sync := range devStartOptions.LocalSyncDir {
-		result, err := IsSubPathFolder(sync, devStartOptions.LocalSyncDir)
-		// TODO consider continue handle next dir
-		if err != nil {
-			return nil, err
-		}
-		if !result {
-			s.Folders = append(
-				s.Folders,
-				&Folder{
-					Name:       strconv.Itoa(index),
-					LocalPath:  sync,
-					RemotePath: devStartOptions.WorkDir,
-				},
-			)
-			index++
-		}
-	}
-
-	return s, nil
-}
+//func New(dev *napp.Application, deployment string, devStartOptions *napp.DevStartOptions, fileSyncOptions *napp.FileSyncOptions) (*Syncthing, error) {
+//	var err error
+//
+//	// 2. from file-sync it should direct use .profile.yaml dev-start port
+//	// WorkDir will be null
+//	remotePort := fileSyncOptions.RemoteSyncthingPort
+//	remoteGUIPort := fileSyncOptions.RemoteSyncthingGUIPort
+//	localListenPort := fileSyncOptions.LocalSyncthingPort
+//	localGuiPort := fileSyncOptions.LocalSyncthingGUIPort
+//
+//	// 1. from dev-start should take some local available port, WorkDir will be not null
+//	if devStartOptions.WorkDir != "" {
+//		remotePort, err = ports.GetAvailablePort()
+//		if err != nil {
+//			return nil, err
+//		}
+//
+//		remoteGUIPort, err = ports.GetAvailablePort()
+//		if err != nil {
+//			return nil, err
+//		}
+//
+//		localGuiPort, err = ports.GetAvailablePort()
+//		if err != nil {
+//			return nil, err
+//		}
+//
+//		localListenPort, err = ports.GetAvailablePort()
+//		if err != nil {
+//			return nil, err
+//		}
+//	}
+//	hash, err := bcrypt.GenerateFromPassword([]byte(Nocalhost), 0)
+//	if err != nil {
+//		log.Debugf("couldn't hash the password %s", err)
+//		hash = []byte("")
+//	}
+//	sendMode := DefaultSyncMode
+//	if !fileSyncOptions.SyncDouble {
+//		sendMode = SendOnlySyncMode
+//	}
+//	s := &Syncthing{
+//		APIKey:           "nocalhost",
+//		GUIPassword:      "nocalhost",
+//		GUIPasswordHash:  string(hash),
+//		BinPath:          filepath.Join(dev.GetSyncThingBinDir(), GetBinaryName()),
+//		Client:           NewAPIClient(),
+//		FileWatcherDelay: DefaultFileWatcherDelay,
+//		GUIAddress:       fmt.Sprintf("%s:%d", Bind, localGuiPort),
+//		// TODO BE CAREFUL ResourcePath if is not application path, this is Local syncthing HOME PATH, use for cert and config.xml
+//		// it's `~/.nhctl/application/bookinfo/syncthing`
+//		LocalHome:        filepath.Join(dev.GetHomeDir(), syncthing, deployment),
+//		RemoteHome:       RemoteHome,
+//		LogPath:          filepath.Join(dev.GetHomeDir(), syncthing, deployment, LogFile),
+//		RemoteAddress:    fmt.Sprintf("%s:%d", Bind, remotePort),
+//		RemoteDeviceID:   DefaultRemoteDeviceID,
+//		RemoteGUIAddress: fmt.Sprintf("%s:%d", Bind, remoteGUIPort),
+//		RemoteGUIPort:    remoteGUIPort,
+//		RemotePort:       remotePort,
+//		LocalGUIPort:     localGuiPort,
+//		LocalPort:        localListenPort,
+//		ListenAddress:    fmt.Sprintf("%s:%d", Bind, localListenPort),
+//		Type:             sendMode, // sendonly mode
+//		IgnoreDelete:     true,
+//		Folders:          []*Folder{},
+//		RescanInterval:   "300",
+//	}
+//
+//	// when create syncthing sidecar it need to know how many directory it should sync
+//	index := 1
+//	for _, sync := range devStartOptions.LocalSyncDir {
+//		result, err := IsSubPathFolder(sync, devStartOptions.LocalSyncDir)
+//		// TODO consider continue handle next dir
+//		if err != nil {
+//			return nil, err
+//		}
+//		if !result {
+//			s.Folders = append(
+//				s.Folders,
+//				&Folder{
+//					Name:       strconv.Itoa(index),
+//					LocalPath:  sync,
+//					RemotePath: devStartOptions.WorkDir,
+//				},
+//			)
+//			index++
+//		}
+//	}
+//
+//	return s, nil
+//}
 
 //IsSubPathFolder checks if a sync folder is a subpath of another sync folder
 func IsSubPathFolder(path string, paths []string) (bool, error) {
@@ -250,7 +240,7 @@ func (s *Syncthing) cleanupDaemon(pid int, wait bool, typeName string) error {
 	}
 
 	if typeName == syncthing {
-		if process.Executable() != getBinaryName() {
+		if process.Executable() != GetBinaryName() {
 			return nil
 		}
 	}
@@ -300,6 +290,7 @@ func (s *Syncthing) UpdateConfig() error {
 // Run local syncthing server
 func (s *Syncthing) Run(ctx context.Context) error {
 	if err := s.initConfig(); err != nil {
+		log.Warnf("fail to init syncthing: %s", err.Error())
 		return err
 	}
 
@@ -317,7 +308,7 @@ func (s *Syncthing) Run(ctx context.Context) error {
 		"-logfile", s.LogPath,
 		"-log-max-old-files=0",
 	}
-	s.cmd = exec.Command(s.binPath, cmdArgs...) //nolint: gas, gosec
+	s.cmd = exec.Command(s.BinPath, cmdArgs...) //nolint: gas, gosec
 	s.cmd.Env = append(os.Environ(), "STNOUPGRADE=1")
 
 	if err := s.cmd.Start(); err != nil {

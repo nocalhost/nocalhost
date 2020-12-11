@@ -29,7 +29,7 @@ import (
 	"github.com/vmihailenco/msgpack"
 )
 
-// Encoding 编码接口定义
+// Encoding
 type Encoding interface {
 	Marshal(v interface{}) ([]byte, error)
 	Unmarshal(data []byte, v interface{}) error
@@ -71,7 +71,7 @@ func Unmarshal(e Encoding, data []byte, v interface{}) (err error) {
 	return
 }
 
-// JSONEncoding json格式
+// JSONEncoding
 type JSONEncoding struct{}
 
 // Marshal json encode
@@ -141,7 +141,7 @@ func (jz JSONGzipEncoding) Unmarshal(data []byte, value interface{}) error {
 	return nil
 }
 
-// GzipEncode 编码
+// GzipEncode
 func GzipEncode(in []byte) ([]byte, error) {
 	var (
 		buffer bytes.Buffer
@@ -169,7 +169,7 @@ func GzipEncode(in []byte) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// GzipDecode 解码
+// GzipDecode
 func GzipDecode(in []byte) ([]byte, error) {
 	reader, err := gzip.NewReader(bytes.NewReader(in))
 	if err != nil {
@@ -186,7 +186,7 @@ func GzipDecode(in []byte) ([]byte, error) {
 	return ioutil.ReadAll(reader)
 }
 
-// JSONSnappyEncoding json格式和snappy压缩
+// JSONSnappyEncoding
 type JSONSnappyEncoding struct{}
 
 // Marshal 序列化
@@ -199,7 +199,7 @@ func (s JSONSnappyEncoding) Marshal(v interface{}) (data []byte, err error) {
 	return d, nil
 }
 
-// Unmarshal 反序列化
+// Unmarshal
 func (s JSONSnappyEncoding) Unmarshal(data []byte, value interface{}) error {
 	b, err := snappy.Decode(nil, data)
 	if err != nil {
@@ -209,7 +209,7 @@ func (s JSONSnappyEncoding) Unmarshal(data []byte, value interface{}) error {
 	return json.Unmarshal(b, value)
 }
 
-// MsgPackEncoding msgpack 格式
+// MsgPackEncoding msgpack
 type MsgPackEncoding struct{}
 
 // Marshal msgpack encode

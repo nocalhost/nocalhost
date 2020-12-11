@@ -28,10 +28,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Create 添加集群
-// @Summary 添加集群
-// @Description 用户添加集群，暂时不考虑验证集群的 kubeconfig
-// @Tags 集群
+// Create Add cluster
+// @Summary Add cluster
+// @Description Add cluster
+// @Tags Cluster
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
@@ -53,7 +53,11 @@ func Create(c *gin.Context) {
 	}
 	// check kubeconfig server already exist
 	t := KubeConfig{}
-	yaml.Unmarshal(DecKubeconfig, &t)
+	err = yaml.Unmarshal(DecKubeconfig, &t)
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		return
+	}
 	// only allow one cluster kubeconfig
 	if len(t.Clusters) > 1 {
 		api.SendResponse(c, errno.ErrClusterKubeCreate, nil)

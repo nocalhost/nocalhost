@@ -15,12 +15,13 @@ package utils
 
 import (
 	"fmt"
-	"nocalhost/internal/nhctl/coloredoutput"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
+
+	"nocalhost/internal/nhctl/coloredoutput"
 
 	sp "github.com/briandowns/spinner"
 )

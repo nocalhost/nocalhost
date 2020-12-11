@@ -30,6 +30,7 @@ type ClusterUserRepo interface {
 	GetJoinCluster(ctx context.Context, condition model.ClusterUserJoinCluster) ([]*model.ClusterUserJoinCluster, error)
 	GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error)
 	Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
+	UpdateKubeConfig(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
 	Close()
 }
 
@@ -41,6 +42,14 @@ func NewApplicationClusterRepo(db *gorm.DB) ClusterUserRepo {
 	return &clusterUserRepo{
 		db: db,
 	}
+}
+
+func (repo *clusterUserRepo) UpdateKubeConfig(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error) {
+	affect := repo.db.Model(&model.ClusterUserModel{}).Where("id=?", models.ID).Update("kubeconfig", models.KubeConfig).RowsAffected
+	if affect > 0 {
+		return models, nil
+	}
+	return models, errors.New("update fail")
 }
 
 func (repo *clusterUserRepo) GetJoinCluster(ctx context.Context, condition model.ClusterUserJoinCluster) ([]*model.ClusterUserJoinCluster, error) {

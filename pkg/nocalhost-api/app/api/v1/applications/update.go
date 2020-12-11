@@ -24,14 +24,14 @@ import (
 	"github.com/spf13/cast"
 )
 
-// Create 编辑应用
-// @Summary 编辑应用
-// @Description 用户编辑应用
-// @Tags 应用
+// Create Edit application
+// @Summary Edit application
+// @Description Edit application
+// @Tags Application
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param id path uint64 true "应用 ID"
+// @Param id path uint64 true "Application ID"
 // @Param CreateAppRequest body applications.CreateAppRequest true "The application info"
 // @Success 200 {object} model.ApplicationModel
 // @Router /v1/application/{id} [put]
@@ -60,15 +60,15 @@ func Update(c *gin.Context) {
 	api.SendResponse(c, errno.OK, result)
 }
 
-// Create Plugin - 更新应用安装状态
-// @Summary Plugin - 更新应用安装状态
-// @Description Plugin - 更新应用安装状态
-// @Tags 插件
+// Create Plug-in Update app installation status
+// @Summary Plug-in Update app installation status
+// @Description Plug-in Update app installation status
+// @Tags Plug-in
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param id path uint64 true "应用 ID"
-// @Param spaceId path uint64 true "开发空间 ID"
+// @Param id path uint64 true "Application ID"
+// @Param spaceId path uint64 true "DevSpace ID"
 // @Param CreateAppRequest body applications.UpdateApplicationInstallRequest true "The application update info"
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
 // @Router /v1/application/{id}/dev_space/{spaceId}/plugin_sync [put]

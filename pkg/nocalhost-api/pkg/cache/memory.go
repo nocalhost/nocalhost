@@ -28,7 +28,7 @@ type memoryCache struct {
 	encoding  Encoding
 }
 
-// NewMemoryCache 实例化一个内存cache
+// NewMemoryCache
 func NewMemoryCache(keyPrefix string, encoding Encoding) Driver {
 	return &memoryCache{
 		client:    &sync.Map{},
@@ -37,13 +37,13 @@ func NewMemoryCache(keyPrefix string, encoding Encoding) Driver {
 	}
 }
 
-// item 存储的对象
+// item
 type itemWithTTL struct {
 	expires int64
 	value   interface{}
 }
 
-// newItem 返回带有效期的value
+// newItem
 func newItem(value interface{}, expires time.Duration) itemWithTTL {
 	expires64 := int64(expires)
 	if expires > 0 {
@@ -55,7 +55,7 @@ func newItem(value interface{}, expires time.Duration) itemWithTTL {
 	}
 }
 
-// getValue 从itemWithTTL中取值
+// getValue
 func getValue(item interface{}, ok bool) (interface{}, bool) {
 	if !ok {
 		return nil, false
@@ -96,23 +96,22 @@ func (m memoryCache) Get(key string, val interface{}) error {
 	return nil
 }
 
-// MultiSet 批量set
+// MultiSet
 func (m memoryCache) MultiSet(valMap map[string]interface{}, expiration time.Duration) error {
 	panic("implement me")
 }
 
-// MultiGet 批量获取
+// MultiGet
 func (m memoryCache) MultiGet(keys []string, val interface{}) error {
 	panic("implement me")
 }
 
-// Del 批量删除
+// Del
 func (m memoryCache) Del(keys ...string) error {
 	if len(keys) == 0 {
 		return nil
 	}
 
-	// 批量构建cacheKey
 	for _, key := range keys {
 		cacheKey, err := BuildCacheKey(m.KeyPrefix, key)
 		if err != nil {
@@ -124,12 +123,12 @@ func (m memoryCache) Del(keys ...string) error {
 	return nil
 }
 
-// Incr 自增
+// Incr
 func (m memoryCache) Incr(key string, step int64) (int64, error) {
 	panic("implement me")
 }
 
-// Decr 自减
+// Decr
 func (m memoryCache) Decr(key string, step int64) (int64, error) {
 	panic("implement me")
 }

@@ -64,7 +64,7 @@ func (u *ClusterModel) Validate() error {
 	return validate.Struct(u)
 }
 
-// TableName 表名
+// TableName
 func (u *ClusterModel) TableName() string {
 	return "clusters"
 }

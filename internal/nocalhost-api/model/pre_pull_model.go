@@ -32,7 +32,7 @@ func (u *PrePullModel) Validate() error {
 	return validate.Struct(u)
 }
 
-// TableName 表名
+// TableName
 func (u *PrePullModel) TableName() string {
 	return "pre_pull"
 }

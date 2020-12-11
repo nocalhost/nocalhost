@@ -6,12 +6,9 @@ import (
 )
 
 type EnvSettings struct {
-	Debug bool
-
-	// the path to the kubeconfig file
-	KubeConfig string
-
-	Namespace string
+	Debug      bool
+	KubeConfig string // the path to the kubeconfig file
+	Namespace  string
 }
 
 func NewEnvSettings() *EnvSettings {
@@ -19,6 +16,3 @@ func NewEnvSettings() *EnvSettings {
 	settings.Debug, _ = strconv.ParseBool(os.Getenv("NOCALHOST_DEBUG"))
 	return &settings
 }
-
-//type NocalhostConfig struct {
-//}

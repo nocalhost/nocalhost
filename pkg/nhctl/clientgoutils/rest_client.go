@@ -2,20 +2,21 @@ package clientgoutils
 
 import (
 	"context"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
-	rest "k8s.io/client-go/rest"
+	"k8s.io/client-go/rest"
 )
 
 const (
 	ResourcePods = "pods"
 )
 
-func (c *ClientGoUtils) GetRestClient(gv *schema.GroupVersion) (*rest.RESTClient, error){
+func (c *ClientGoUtils) GetRestClient(gv *schema.GroupVersion) (*rest.RESTClient, error) {
 	config, err := c.getRestConfig()
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 
@@ -27,7 +28,7 @@ func (c *ClientGoUtils) GetRestClient(gv *schema.GroupVersion) (*rest.RESTClient
 
 /*
 	if namespace is empty, use "default" namespace
- */
+*/
 func (c *ClientGoUtils) GetResourcesByRestClient(gv *schema.GroupVersion, namespace string, resource string, result runtime.Object) error {
 	restClient, err := c.GetRestClient(gv)
 	if err != nil {

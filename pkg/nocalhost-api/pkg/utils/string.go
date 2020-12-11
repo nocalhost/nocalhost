@@ -18,7 +18,7 @@ import (
 	"strings"
 )
 
-// IsEmpty 是否是空字符串
+// IsEmpty
 func IsEmpty(s string) bool {
 	if s == "" {
 		return true
@@ -27,7 +27,7 @@ func IsEmpty(s string) bool {
 	return strings.TrimSpace(s) == ""
 }
 
-// StringToUint64 字符串转uint64
+// StringToUint64
 func StringToUint64(str string) (uint64, error) {
 	if str == "" {
 		return 0, nil
@@ -40,7 +40,7 @@ func StringToUint64(str string) (uint64, error) {
 	return uint64(valInt), nil
 }
 
-// StringToInt64 字符串转int64
+// StringToInt64
 func StringToInt64(str string) (int64, error) {
 	if str == "" {
 		return 0, nil
@@ -53,7 +53,7 @@ func StringToInt64(str string) (int64, error) {
 	return int64(valInt), nil
 }
 
-// StringToInt 字符串转int
+// StringToInt
 func StringToInt(str string) (int, error) {
 	if str == "" {
 		return 0, nil

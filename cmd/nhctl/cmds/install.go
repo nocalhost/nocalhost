@@ -15,9 +15,10 @@ package cmds
 
 import (
 	"fmt"
+	"os"
+
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/log"
-	"os"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -33,14 +34,14 @@ type InstallFlags struct {
 	HelmValueFile    string
 	ForceInstall     bool
 	IgnorePreInstall bool
-	HelmSet          string
+	HelmSet          []string
 	HelmRepoName     string
 	HelmRepoUrl      string
 	HelmRepoVersion  string
 	HelmChartName    string
 	HelmWait         bool
 	Config           string
-	ResourcePath     string
+	ResourcePath     []string
 }
 
 var installFlags = InstallFlags{
@@ -51,15 +52,13 @@ func init() {
 	installCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	installCmd.Flags().StringVarP(&installFlags.GitUrl, "git-url", "u", "", "resources git url")
 	installCmd.Flags().StringVarP(&installFlags.GitRef, "git-ref", "r", "", "resources git ref")
-	installCmd.Flags().StringVar(&installFlags.ResourcePath, "resource-path", "", "resources path")
+	installCmd.Flags().StringSliceVar(&installFlags.ResourcePath, "resource-path", []string{}, "resources path")
 	installCmd.Flags().StringVarP(&installFlags.Config, "config", "c", "", "specify a config.yaml")
-	//installCmd.Flags().StringVarP(&installFlags.ResourcesDir, "dir", "d", "", "the dir of helm package or manifest")
 	installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
 	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", "nocalhostApp type: helm or helm-repo or manifest")
-	//installCmd.Flags().BoolVar(&installFlags.ForceInstall, "force", installFlags.ForceInstall, "force install")
 	installCmd.Flags().BoolVar(&installFlags.HelmWait, "wait", installFlags.HelmWait, "wait for completion")
 	installCmd.Flags().BoolVar(&installFlags.IgnorePreInstall, "ignore-pre-install", installFlags.IgnorePreInstall, "ignore pre-install")
-	installCmd.Flags().StringVar(&installFlags.HelmSet, "set", "", "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
+	installCmd.Flags().StringSliceVar(&installFlags.HelmSet, "set", []string{}, "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 	installCmd.Flags().StringVar(&installFlags.HelmRepoName, "helm-repo-name", "", "chart repository name")
 	installCmd.Flags().StringVar(&installFlags.HelmRepoUrl, "helm-repo-url", "", "chart repository url where to locate the requested chart")
 	installCmd.Flags().StringVar(&installFlags.HelmRepoVersion, "helm-repo-version", "", "chart repository version")
@@ -69,8 +68,8 @@ func init() {
 
 var installCmd = &cobra.Command{
 	Use:   "install [NAME]",
-	Short: "install k8s application",
-	Long:  `install k8s application`,
+	Short: "Install k8s application",
+	Long:  `Install k8s application`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
@@ -84,7 +83,7 @@ var installCmd = &cobra.Command{
 		}
 		applicationName := args[0]
 		if installFlags.GitUrl == "" && installFlags.AppType != string(app.HelmRepo) {
-			log.Fatal("if app type is not helm-repo , --git-url must be specified")
+			log.Fatalf("if app type is not %s , --git-url must be specified", app.HelmRepo)
 		}
 		if installFlags.AppType == string(app.HelmRepo) {
 			if installFlags.HelmChartName == "" {
@@ -146,7 +145,7 @@ func InstallApplication(applicationName string) error {
 	if installFlags.AppType != "" {
 		nocalhostApp.AppProfile.AppType = app.AppType(installFlags.AppType)
 	}
-	if installFlags.ResourcePath != "" {
+	if len(installFlags.ResourcePath) != 0 {
 		nocalhostApp.AppProfile.ResourcePath = installFlags.ResourcePath
 	}
 	nocalhostApp.AppProfile.Save()
@@ -156,7 +155,6 @@ func InstallApplication(applicationName string) error {
 		return errors.New("--type must be specified")
 	}
 
-	//log.Debugf("[nh config] nocalhostApp type: %s", appType)
 	flags := &app.HelmFlags{
 		//Debug:  installFlags.Debug,
 		Values:   installFlags.HelmValueFile,
@@ -167,7 +165,7 @@ func InstallApplication(applicationName string) error {
 		RepoName: installFlags.HelmRepoName,
 		Version:  installFlags.HelmRepoVersion,
 	}
-	err = nocalhostApp.InstallDepConfigMap()
+	err = nocalhostApp.InstallDepConfigMap(appType)
 	if err != nil {
 		return errors.Wrap(err, "failed to install dep config map")
 	}
@@ -179,7 +177,7 @@ func InstallApplication(applicationName string) error {
 	case app.Manifest:
 		err = nocalhostApp.InstallManifest()
 	default:
-		return errors.New("unsupported application type, must be helm, helm-repo or manifest")
+		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", app.Helm, app.HelmRepo, app.Manifest))
 	}
 	if err != nil {
 		return err

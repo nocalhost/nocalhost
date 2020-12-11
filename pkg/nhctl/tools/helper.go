@@ -20,10 +20,12 @@ import (
 	"fmt"
 	"go.uber.org/zap"
 	"io"
+	"math/rand"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 )
 
 var logger *zap.Logger
@@ -82,21 +84,22 @@ func CheckK8s() (string, bool) {
 	return version, true
 }
 
-func ExecKubeCtlCommand(ctx context.Context, kubeconfig string, params ...string) error {
-	var err error
-	if kubeconfig != "" {
-		params = append(params, "--kubeconfig")
-		params = append(params, kubeconfig)
-		_, err = ExecCommand(ctx, true, "kubectl", params...)
-	} else {
-		_, err = ExecCommand(ctx, true, "kubectl", params...)
-	}
-	return err
-}
+//func ExecKubeCtlCommand(ctx context.Context, kubeconfig string, params ...string) error {
+//	var err error
+//	if kubeconfig != "" {
+//		params = append(params, "--kubeconfig")
+//		params = append(params, kubeconfig)
+//		_, err = ExecCommand(ctx, true, "kubectl", params...)
+//	} else {
+//		_, err = ExecCommand(ctx, true, "kubectl", params...)
+//	}
+//	return err
+//}
 
 //execute command
 func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params ...string) (string, error) {
 	var errStdout, errStderr error
+	var result []byte
 	//var stdout, stderr []byte
 	//execCommand := commandName
 
@@ -121,7 +124,7 @@ func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params
 
 	if isDisplay {
 		go func() {
-			_, errStdout = copyAndCapture(os.Stdout, stdoutIn)
+			result, errStdout = copyAndCapture(os.Stdout, stdoutIn)
 		}()
 		go func() {
 			_, errStderr = copyAndCapture(os.Stderr, stderrIn)
@@ -134,7 +137,8 @@ func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params
 	if errStderr != nil || errStdout != nil {
 		return "", errors.New("error occur when print")
 	}
-	return "", nil
+
+	return string(result), nil
 }
 
 func copyAndCapture(w io.Writer, r io.Reader) ([]byte, error) {
@@ -203,4 +207,37 @@ func CheckCmdExists(cmd string) bool {
 		logger.Info("check command is exists ", zap.String("command", cmd), zap.String("path", path))
 		return true
 	}
+}
+
+// check kubectl and helm
+func CheckThirdPartyCLI() (string, error) {
+	kubectl := "kubectl"
+	helm := "helm"
+	if runtime.GOOS == "windows" {
+		kubectl = "kubectl.exe"
+		helm = "helm.exe"
+	}
+	_, err := exec.LookPath(kubectl)
+	if err != nil {
+		return "", err
+	}
+	_, err = exec.LookPath(helm)
+	if err != nil {
+		return "", err
+	}
+	return kubectl, nil
+}
+
+func GetNhctl() string {
+	nhctl := "nhctl"
+	if runtime.GOOS == "windows" {
+		nhctl = "nhctl.exe"
+	}
+	return nhctl
+}
+
+func GenerateRangeNum(min, max int) int {
+	rand.Seed(time.Now().Unix())
+	randNum := rand.Intn(max-min) + min
+	return randNum
 }

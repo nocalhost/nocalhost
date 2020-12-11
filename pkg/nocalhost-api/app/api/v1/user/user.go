@@ -17,25 +17,25 @@ import (
 	"nocalhost/internal/nocalhost-api/model"
 )
 
-// CreateRequest 创建用户请求
+// CreateRequest
 type CreateRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
-// CreateResponse 创建用户响应
+// CreateResponse
 type CreateResponse struct {
 	Username string `json:"username"`
 }
 
-// RegisterRequest 注册
+// RegisterRequest
 type RegisterRequest struct {
 	Email           string `json:"email" form:"email"`
 	Password        string `json:"password" form:"password"`
 	ConfirmPassword string `json:"confirm_password" form:"confirm_password"`
 }
 
-// CreateUserRequest 添加用户
+// CreateUserRequest
 type CreateUserRequest struct {
 	Email           string  `json:"email" form:"email" binding:"required"`
 	Name            string  `json:"name" form:"name" binding:"required"`
@@ -44,7 +44,7 @@ type CreateUserRequest struct {
 	Status          *uint64 `json:"status" form:"status" binding:"required"`
 }
 
-// UpdateUserRequest 更新用户
+// UpdateUserRequest
 type UpdateUserRequest struct {
 	Email    string  `json:"email" form:"email" binding:""`
 	Name     string  `json:"name" form:"name" binding:""`
@@ -52,20 +52,20 @@ type UpdateUserRequest struct {
 	Status   *uint64 `json:"status" form:"status" binding:"required"`
 }
 
-// LoginCredentials 默认登录方式-邮箱
+// LoginCredentials
 type LoginCredentials struct {
 	Email    string `json:"email" form:"email" binding:"required"`
 	Password string `json:"password" form:"password" binding:"required"`
 	From     string `json:"from" form:"from" example:"web 端不传该字段"`
 }
 
-// UpdateRequest 更新请求
+// UpdateRequest
 type UpdateRequest struct {
 	Avatar string `json:"avatar"`
 	Sex    int    `json:"sex"`
 }
 
-// ListResponse 通用列表resp
+// ListResponse
 type ListResponse struct {
 	TotalCount uint64      `json:"total_count"`
 	HasMore    int         `json:"has_more"`
@@ -74,7 +74,7 @@ type ListResponse struct {
 	Items      interface{} `json:"items"`
 }
 
-// SwaggerListResponse 文档
+// SwaggerListResponse
 type SwaggerListResponse struct {
 	TotalCount uint64           `json:"totalCount"`
 	UserList   []model.UserInfo `json:"userList"`

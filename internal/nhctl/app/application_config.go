@@ -10,12 +10,8 @@ const (
 	DefaultDevImage                          = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
 	DefaultWorkDir                           = "/home/nocalhost-dev"
 	DefaultLocalSyncDirName                  = "."
-	DefaultPortForwardDir                    = "port-forward"
 	DefaultResourcesDir                      = "resources"
-	DefaultForwardRemoteSshPort              = 22
-	DefaultForwardLocalSshPort               = 30002
 	DefaultNhctlHomeDirName                  = ".nh/nhctl"
-	DefaultSshKeyDirName                     = "key"
 	DefaultBinDirName                        = "bin"
 	DefaultLogDirName                        = "logs"
 	DefaultSyncLogFileName                   = "sync-port-forward-child-process.log"
@@ -30,12 +26,31 @@ const (
 	DefaultApplicationConfigName             = "config.yaml"
 	DefaultNewFilePermission                 = 0700
 	DefaultClientGoTimeOut                   = time.Minute * 5
+	// nhctl init
+	DefaultInitHelmGitRepo        = "git@e.coding.net:codingcorp/nocalhost/nocalhost.git"
+	DefaultInitWatchDeployment    = "nocalhost-api"
+	DefaultInitNocalhostService   = "nocalhost-web"
+	DefaultInitUserEmail          = "nocalhost@dev.com"
+	DefaultInitPassword           = "nocalhost"
+	DefaultInitAdminUserName      = "admin@admin.com"
+	DefaultInitAdminPassWord      = "123456"
+	DefaultInitName               = "nocalhost"
+	DefaultInitWaitNameSpace      = "nocalhost-reserved"
+	DefaultInitWaitDeployment     = "nocalhost-dep"
+	DefaultInitHelmResourcePath   = "deployments/chart"
+	DefaultInitPortForwardTimeOut = time.Minute * 1
+	// TODO need to be change
+	DefaultInitApplication = "{\"source\":\"git\",\"install_type\":\"manifest\",\"resource_dir\":[\"manifests/template\",\"manifest2/template\"],\"application_name\":\"bookinfo\",\"application_url\":\"git@github.com:lyzhang1999/bookinfo.git\"}"
 )
 
 type NocalHostAppConfig struct {
-	PreInstall []*PreInstallItem    `json:"pre_install" yaml:"preInstalls"`
-	SvcConfigs []*ServiceDevOptions `json:"svc_config" yaml:"svcConfigs"`
-	AppConfig  *AppConfig           `json:"app_config" yaml:"appConfig"`
+	PreInstall   []*PreInstallItem    `json:"onPreInstall" yaml:"onPreInstall"`
+	SvcConfigs   []*ServiceDevOptions `json:"services" yaml:"services"`
+	Name         string               `json:"name" yaml:"name"`
+	Type         AppType              `json:"manifestType" yaml:"manifestType"`
+	ResourcePath []string             `json:"resourcePath" yaml:"resourcePath"`
+	// old-config
+	//AppConfig  *AppConfig           `json:"app_config" yaml:"appConfig"`
 }
 
 type PreInstallItem struct {
@@ -43,33 +58,17 @@ type PreInstallItem struct {
 	Weight string `json:"weight" yaml:"weight"`
 }
 
-type AppConfig struct {
-	Name         string  `json:"name" yaml:"name"`
-	Type         AppType `json:"type" yaml:"type"`
-	ResourcePath string  `json:"resource_path" yaml:"resourcePath"`
-}
-
 type ServiceDevOptions struct {
-	Name         string                `json:"name" yaml:"name"`
-	Type         string                `json:"type" yaml:"type"`
-	GitUrl       string                `json:"git_url" yaml:"gitUrl"`
-	DevLang      string                `json:"dev_env" yaml:"devLang"` // java|go|node
-	DevImage     string                `json:"dev_image" yaml:"devImage"`
-	SideCarImage string                `json:"side_car_image" yaml:"sideCarImage"`
-	WorkDir      string                `json:"work_dir" yaml:"workDir"`
-	LocalWorkDir string                `json:"local_work_dir" yaml:""`
-	Sync         []string              `json:"sync" yaml:"sync"`
-	Ignore       []string              `json:"ignore" yaml:"ignore"`
-	SshPort      *SshPortForwardConfig `json:"ssh_port" yaml:"sshPort"`
-	DevPort      []string              `json:"dev_port" yaml:"devPort"`
-	Command      []string              `json:"command" yaml:"command"`
-	Jobs         []string              `json:"jobs" yaml:"jobs,omitempty"`
-	Pods         []string              `json:"pods" yaml:"pods,omitempty"`
-}
-
-type SshPortForwardConfig struct {
-	LocalPort int `json:"local_port" yaml:"localPort"`
-	SshPort   int `json:"ssh_port" yaml:"sshPort"`
+	Name     string   `json:"name" yaml:"name"`
+	Type     SvcType  `json:"serviceType" yaml:"serviceType"`
+	GitUrl   string   `json:"gitUrl" yaml:"gitUrl"`
+	DevImage string   `json:"devContainerImage" yaml:"devContainerImage"`
+	WorkDir  string   `json:"workDir" yaml:"workDir"`
+	Sync     []string `json:"syncDirs" yaml:"syncDirs"`
+	Ignore   []string `json:"ignores" yaml:"ignores"` // TODO Ignore file list
+	DevPort  []string `json:"devPorts" yaml:"devPorts"`
+	Jobs     []string `json:"dependJobsLabelSelector" yaml:"dependJobsLabelSelector,omitempty"`
+	Pods     []string `json:"dependPodsLabelSelector" yaml:"dependPodsLabelSelector,omitempty"`
 }
 
 type ComparableItems []*PreInstallItem

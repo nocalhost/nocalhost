@@ -89,7 +89,8 @@ type patchOperation struct {
 
 // 依赖 struct
 type mainDep struct {
-	Dependency []depApp
+	Dependency  []depApp
+	ReleaseName string `yaml:"releaseName"`
 }
 
 type depApp struct {
@@ -280,7 +281,7 @@ func createPatchAny(objectInitContainer []corev1.Container, initContainers []cor
 
 // get nocalhost dependents configmaps, this will get from specify namespace by labels
 // nhctl will create dependency configmap in users dev space
-func nocalhostDepConfigmap(namespace string, resourceName string, resourceType string) ([]corev1.Container, error) {
+func nocalhostDepConfigmap(namespace string, resourceName string, resourceType string, objectMeta *metav1.ObjectMeta) ([]corev1.Container, error) {
 	// labelSelector="use-for=nocalhost-dep"
 	labelSelector := map[string]string{
 		"use-for": "nocalhost-dep",
@@ -297,7 +298,7 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 	}
 	for i, cm := range configMaps.Items {
 		fmt.Printf("[%d] %s\n", i, cm.GetName())
-		if strings.Contains(cm.GetName(), "nocalhost-depends-do-not-overwrite") { // 依赖描述 configmap
+		if strings.Contains(cm.GetName(), "nocalhost-depends-do-not-overwrite") { // Dependency description configmap
 			if configMapValue, ok := cm.Data["nocalhost"]; ok {
 				fmt.Printf("[%d] %s\n", i, configMapValue)
 				dep := mainDep{}
@@ -307,9 +308,11 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 				}
 				fmt.Printf("%+v\n", dep)
 				for key, dependency := range dep.Dependency {
-					// K8S 原生类型区分大小写，依赖描述不区分，统一转成小写
-					if dependency.Name == resourceName && strings.ToLower(dependency.Type) == strings.ToLower(resourceType) {
-						// 组装 initContainer
+					// K8S native type is case-sensitive, dependent descriptions are not distinguished, and unified into lowercase
+					// if has metadata.labels.release, then release-name should fix as dependency.Name
+					// helm install my-pro prometheus, deployment will be set my-pro-prometheus-alertmanager, if dependency set prometheus-alertmanager it will regrade as resourceName
+					if dependency.Name == resourceName && (strings.ToLower(dependency.Type) == strings.ToLower(resourceType) || dep.ReleaseName+"-"+dependency.Name == resourceName) {
+						// initContainer
 						if dependency.Pods != nil {
 							args := func(podsList []string) []string {
 								var args []string
@@ -371,7 +374,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		req.Kind, req.Namespace, req.Name, req.UID, req.Operation, req.UserInfo)
 	// overwrite nocalhostNamespace for get dep config from devs namespace
 	nocalhostNamespace = req.Namespace
-	// admission webhook 特定的 6 种资源拦截
+	// admission webhook Specific 6 resource blocking
 	switch req.Kind.Kind {
 	case "Deployment":
 		var deployment appsv1.Deployment
@@ -452,8 +455,8 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		}
 	}
 
-	// 输出 configmap
-	initContainers, err := nocalhostDepConfigmap(nocalhostNamespace, resourceName, resourceType)
+	// configmap
+	initContainers, err := nocalhostDepConfigmap(nocalhostNamespace, resourceName, resourceType, objectMeta)
 	glog.Infof("initContainers %s", initContainers)
 
 	// Workaround: https://github.com/kubernetes/kubernetes/issues/57982

@@ -23,7 +23,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
-// redisCache redis cache结构体
+// redisCache redis
 type redisCache struct {
 	client            *redis.Client
 	KeyPrefix         string
@@ -32,7 +32,7 @@ type redisCache struct {
 	newObject         func() interface{}
 }
 
-// NewRedisCache new一个redis cache, client 参数是可传入的，这样方便进行单元测试
+// NewRedisCache
 func NewRedisCache(client *redis.Client, keyPrefix string, encoding Encoding, newObject func() interface{}) Driver {
 	return &redisCache{
 		client:    client,
@@ -75,7 +75,6 @@ func (c *redisCache) Get(key string, val interface{}) error {
 		}
 	}
 
-	// 防止data为空时，Unmarshal报错
 	if string(data) == "" {
 		return nil
 	}
@@ -91,7 +90,6 @@ func (c *redisCache) MultiSet(valueMap map[string]interface{}, expiration time.D
 	if len(valueMap) == 0 {
 		return nil
 	}
-	// key-value是成对的，所以这里的容量是map的2倍
 	paris := make([]interface{}, 0, 2*len(valueMap))
 	for key, value := range valueMap {
 		buf, err := Marshal(c.encoding, value)
@@ -145,7 +143,6 @@ func (c *redisCache) MultiGet(keys []string, value interface{}) error {
 		return errors.Wrapf(err, "redis MGet error, keys is %+v", keys)
 	}
 
-	// 通过反射注入到map
 	valueMap := reflect.ValueOf(value)
 	for i, value := range values {
 		if value == nil {
@@ -168,7 +165,6 @@ func (c *redisCache) Del(keys ...string) error {
 		return nil
 	}
 
-	// 批量构建cacheKey
 	cacheKeys := make([]string, len(keys))
 	for index, key := range keys {
 		cacheKey, err := BuildCacheKey(c.KeyPrefix, key)

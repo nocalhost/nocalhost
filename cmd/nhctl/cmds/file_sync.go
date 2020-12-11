@@ -22,7 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -36,10 +35,9 @@ import (
 var fileSyncOps = &app.FileSyncOptions{}
 
 func init() {
-	fileSyncCmd.Flags().StringVarP(&fileSyncOps.LocalSharedFolder, "local-shared-folder", "l", "", "(Deprecation) local folder to sync")
-	fileSyncCmd.Flags().StringVarP(&fileSyncOps.RemoteDir, "remote-folder", "r", "", "(Deprecation) remote folder path")
+	//fileSyncCmd.Flags().StringVarP(&fileSyncOps.LocalSharedFolder, "local-shared-folder", "l", "", "(Deprecation) local folder to sync")
+	//fileSyncCmd.Flags().StringVarP(&fileSyncOps.RemoteDir, "remote-folder", "r", "", "(Deprecation) remote folder path")
 	fileSyncCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
-	fileSyncCmd.Flags().IntVarP(&fileSyncOps.LocalSshPort, "port", "p", 0, "(Deprecation) local port which forwards to remote ssh port")
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.RunAsDaemon, "daemon", "m", true, "if file sync run as daemon, default true")
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false, "if use double side sync, default true")
 	rootCmd.AddCommand(fileSyncCmd)
@@ -58,18 +56,8 @@ var fileSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		if !nh.CheckIfApplicationExist(applicationName) {
-			log.Fatalf("application \"%s\" not found\n", applicationName)
-		}
-		nocalhostApp, err = app.NewApplication(applicationName)
-		//clientgoutils.Must(err)
-		if err != nil {
-			log.Fatalf("fail to get app info\n")
-		}
-		if deployment == "" {
-			// todo record default deployment
-			log.Fatal("please use -d to specify a k8s deployment")
-		}
+
+		InitAppAndCheckIfSvcExist(applicationName, deployment)
 
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			log.Fatalf("\"%s\" has not in developing", deployment)
@@ -85,7 +73,7 @@ var fileSyncCmd = &cobra.Command{
 
 		// syncthing port-forward
 		// daemon
-		// set Abs directory so can call myself
+		// set abs directory to call myself
 		NhctlAbsdir, err := exec.LookPath(nocalhostApp.GetMyBinName())
 		if err != nil {
 			log.Fatal("installing fortune is in your future")
@@ -95,7 +83,7 @@ var fileSyncCmd = &cobra.Command{
 
 		// run in background
 		if fileSyncOps.RunAsDaemon {
-			// when child progress run here it will check env value and exit, so child will not run above code
+			// when child progress run here, it will check env value and exit, so child will not run above code
 			_, err := daemon.Background(nocalhostApp.GetPortSyncLogFile(deployment), nocalhostApp.GetApplicationBackGroundPortForwardPidFile(deployment), true)
 			if err != nil {
 				log.Fatalf("run port-forward background fail, please try again")
@@ -170,9 +158,15 @@ var fileSyncCmd = &cobra.Command{
 		// TODO
 		// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished), the files that have been synchronized will not be synchronized.
 		devStartOptions, err = nocalhostApp.GetSyncthingLocalDirFromProfileSaveByDevStart(deployment, devStartOptions)
-		newSyncthing, err := syncthing.New(nocalhostApp, deployment, devStartOptions, fileSyncOps)
+		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOptions, fileSyncOps)
+		if err != nil {
+			log.Warnf("new syncthing err: %s", err.Error())
+		}
 		// starts up a local syncthing
 		err = newSyncthing.Run(context.TODO())
+		if err != nil {
+			log.Warnf("run syncthing err: %s", err.Error())
+		}
 
 		// set sync status in child progress
 		err = nocalhostApp.SetSyncingStatus(deployment, true)

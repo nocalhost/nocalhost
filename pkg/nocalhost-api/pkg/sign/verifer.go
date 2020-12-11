@@ -27,10 +27,10 @@ type Verifier struct {
 	*DefaultKeyName
 	body url.Values
 
-	timeout time.Duration // 签名过期时间
+	timeout time.Duration
 }
 
-// NewVerifier 实例化 Verifier
+// NewVerifier  Verifier
 func NewVerifier() *Verifier {
 	return &Verifier{
 		DefaultKeyName: newDefaultKeyName(),
@@ -39,7 +39,7 @@ func NewVerifier() *Verifier {
 	}
 }
 
-// ParseQuery 将参数字符串解析成参数列表
+// ParseQuery
 func (v *Verifier) ParseQuery(requestUri string) error {
 	requestQuery := ""
 	idx := strings.Index(requestUri, "?")
@@ -54,20 +54,20 @@ func (v *Verifier) ParseQuery(requestUri string) error {
 	return nil
 }
 
-// ParseValues 将Values参数列表解析成参数Map。如果参数是多值的，则将它们以逗号Join成字符串。
+// ParseValues
 func (v *Verifier) ParseValues(values url.Values) {
 	for key, value := range values {
 		v.body[key] = value
 	}
 }
 
-// SetTimeout 设置签名校验过期时间
+// SetTimeout
 func (v *Verifier) SetTimeout(timeout time.Duration) *Verifier {
 	v.timeout = timeout
 	return v
 }
 
-// MustString 获取字符串值
+// MustString
 func (v *Verifier) MustString(key string) string {
 	ss := v.MustStrings(key)
 	if len(ss) == 0 {
@@ -76,18 +76,18 @@ func (v *Verifier) MustString(key string) string {
 	return ss[0]
 }
 
-// MustString 获取字符串值数组
+// MustString
 func (v *Verifier) MustStrings(key string) []string {
 	return v.body[key]
 }
 
-// MustInt64 获取Int64值
+// MustInt64
 func (v *Verifier) MustInt64(key string) int64 {
 	n, _ := utils.StringToInt64(v.MustString(key))
 	return n
 }
 
-// MustHasKeys 必须包含指定的字段参数
+// MustHasKeys
 func (v *Verifier) MustHasKeys(keys ...string) error {
 	for _, key := range keys {
 		if _, hit := v.body[key]; !hit {
@@ -97,7 +97,7 @@ func (v *Verifier) MustHasKeys(keys ...string) error {
 	return nil
 }
 
-// MustHasKeys 必须包含除特定的[timestamp, nonce_str, sign, app_id]等之外的指定的字段参数
+// MustHasKeys
 func (v *Verifier) MustHasOtherKeys(keys ...string) error {
 	fields := []string{v.Timestamp, v.NonceStr, v.Sign, v.AppID}
 	if len(keys) > 0 {
@@ -106,7 +106,7 @@ func (v *Verifier) MustHasOtherKeys(keys ...string) error {
 	return v.MustHasKeys(fields...)
 }
 
-// CheckTimeStamp 检查时间戳有效期
+// CheckTimeStamp
 func (v *Verifier) CheckTimeStamp() error {
 	timestamp := v.GetTimestamp()
 	thatTime := time.Unix(timestamp, 0)
@@ -116,27 +116,27 @@ func (v *Verifier) CheckTimeStamp() error {
 	return nil
 }
 
-// GetAppID 获取app id
+// GetAppID
 func (v *Verifier) GetAppID() string {
 	return v.MustString(v.AppID)
 }
 
-// GetNonceStr 获取随机字符串
+// GetNonceStr
 func (v *Verifier) GetNonceStr() string {
 	return v.MustString(v.NonceStr)
 }
 
-// GetSign 获取签名
+// GetSign
 func (v *Verifier) GetSign() string {
 	return v.MustString(v.Sign)
 }
 
-// GetTimestamp 获取时间戳
+// GetTimestamp
 func (v *Verifier) GetTimestamp() int64 {
 	return v.MustInt64(v.Timestamp)
 }
 
-// GetBodyWithoutSign 获取所有参数体。其中不包含sign 字段
+// GetBodyWithoutSign
 func (v *Verifier) GetBodyWithoutSign() url.Values {
 	out := make(url.Values)
 	for k, val := range v.body {
@@ -147,7 +147,7 @@ func (v *Verifier) GetBodyWithoutSign() url.Values {
 	return out
 }
 
-// GetBody 获取body
+// GetBody
 func (v *Verifier) GetBody() url.Values {
 	out := make(url.Values)
 	for k, val := range v.body {
