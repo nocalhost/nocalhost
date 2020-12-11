@@ -280,6 +280,19 @@ func (c *ClientGoUtils) GetDeployment(ctx context.Context, namespace string, nam
 	return c.GetDeploymentClient(namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
+func (c *ClientGoUtils) CheckDeploymentReady(ctx context.Context, namespace string, name string) (bool, error) {
+	deployment, err := c.GetDeployment(ctx, namespace, name)
+	if err != nil {
+		return false, err
+	}
+	for _, c := range deployment.Status.Conditions {
+		if c.Type == v1.DeploymentAvailable && c.Status == "True" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (c *ClientGoUtils) GetDeployments(ctx context.Context, namespace string) ([]v1.Deployment, error) {
 	deps, err := c.GetDeploymentClient(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
