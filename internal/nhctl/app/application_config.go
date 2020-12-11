@@ -27,16 +27,19 @@ const (
 	DefaultNewFilePermission                 = 0700
 	DefaultClientGoTimeOut                   = time.Minute * 5
 	// nhctl init
-	DefaultInitHelmGitRepo      = "git@e.coding.net:codingcorp/nocalhost/nocalhost.git"
-	DefaultInitWatchDeployment  = "nocalhost-api"
-	DefaultInitNocalhostService = "nocalhost-web"
-	DefaultInitUserEmail        = "nocalhost@dev.com"
-	DefaultInitPassword         = "nocalhost"
-	DefaultInitAdminUserName    = "admin@admin.com"
-	DefaultInitAdminPassWord    = "123456"
-	DefaultInitName             = "nocalhost"
-	DefaultInitWaitNameSpace    = "nocalhost-reserved"
-	DefaultInitWaitDeployment   = "nocalhost-dep"
+	// TODO when release
+	DefaultInitHelmGitRepo        = "git@e.coding.net:codingcorp/nocalhost/nocalhost.git"
+	DefaultInitHelmType           = "helmGit"
+	DefaultInitWatchDeployment    = "nocalhost-api"
+	DefaultInitWatchWebDeployment = "nocalhost-web"
+	DefaultInitNocalhostService   = "nocalhost-web"
+	DefaultInitUserEmail          = "nocalhost@dev.com"
+	DefaultInitPassword           = "nocalhost"
+	DefaultInitAdminUserName      = "admin@admin.com"
+	DefaultInitAdminPassWord      = "123456"
+	DefaultInitName               = "nocalhost"
+	DefaultInitWaitNameSpace      = "nocalhost-reserved"
+	DefaultInitWaitDeployment     = "nocalhost-dep"
 	// TODO when release
 	DefaultInitHelmResourcePath   = "deployments/chart"
 	DefaultInitPortForwardTimeOut = time.Minute * 1

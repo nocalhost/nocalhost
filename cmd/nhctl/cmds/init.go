@@ -14,6 +14,7 @@ limitations under the License.
 package cmds
 
 import (
+	"context"
 	"fmt"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -26,6 +27,7 @@ import (
 	"nocalhost/pkg/nhctl/tools"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Init struct {
@@ -69,7 +71,7 @@ var InitCommand = &cobra.Command{
 			"-n",
 			inits.NameSpace,
 			"--type",
-			"helm",
+			app.DefaultInitHelmType,
 			"--resource-path",
 			app.DefaultInitHelmResourcePath,
 		}
@@ -114,7 +116,7 @@ var InitCommand = &cobra.Command{
 			log.Fatalf("execution nhctl install fail %s, try run nhctl uninstall nocalhost --force\n", err.Error())
 		}
 
-		// 1. watch nocalhost-api ready
+		// 1. watch nocalhost-api and nocalhost-web ready
 		// 2. print nocalhost-web service address
 		// 3. use nocalhost-web service address to set default data into cluster
 		spinner := utils.NewSpinner(" waiting for nocalhost component ready, this will take a few minutes...")
@@ -122,6 +124,20 @@ var InitCommand = &cobra.Command{
 		err = client.WaitDeploymentToBeReady(inits.NameSpace, app.DefaultInitWatchDeployment, app.DefaultClientGoTimeOut)
 		if err != nil {
 			log.Fatalf("watch deployment %s timeout, err: %s\n", app.DefaultInitWatchDeployment, err.Error())
+		}
+		// wait nocalhost-web ready
+		// max 5 min
+		checkTime := 0
+		for {
+			isReady, _ := client.CheckDeploymentReady(context.TODO(), inits.NameSpace, app.DefaultInitWatchWebDeployment)
+			if isReady {
+				break
+			}
+			checkTime = checkTime + 1
+			if checkTime > 1500 {
+				break
+			}
+			time.Sleep(time.Duration(200) * time.Millisecond)
 		}
 		spinner.Stop()
 
@@ -193,7 +209,7 @@ var InitCommand = &cobra.Command{
 			coloredoutput.Success("nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please set VS Code Plugin and login, enjoy! \n port forwarding, please do not close this windows! \n", serverUrl, app.DefaultInitUserEmail, app.DefaultInitPassword)
 			req.RunPortForward(portResult.MiniKubeAvailablePort)
 		} else {
-			coloredoutput.Success("nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please set VS Code Plugin and login, enjoy! \n", endPoint, app.DefaultInitUserEmail, app.DefaultInitPassword)
+			coloredoutput.Success("nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please set VS Code Plugin and login, enjoy! \n", fmt.Sprintf("http://%s", endPoint), app.DefaultInitUserEmail, app.DefaultInitPassword)
 		}
 	},
 }
