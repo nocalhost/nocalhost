@@ -23,13 +23,12 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
-// RedisClient redis 客户端
+// RedisClient
 var RedisClient *redis.Client
 
-// Nil redis 返回为空
+// Nil
 const Nil = redis.Nil
 
-// InitDir 实例化一个redis client
 func Init() *redis.Client {
 	RedisClient = redis.NewClient(&redis.Options{
 		Addr:         viper.GetString("redis.addr"),
@@ -52,13 +51,12 @@ func Init() *redis.Client {
 	return RedisClient
 }
 
-// InitTestRedis 实例化一个可以用于单元测试的redis
+// InitTestRedis
 func InitTestRedis() {
 	mr, err := miniredis.Run()
 	if err != nil {
 		panic(err)
 	}
-	// 打开下面命令可以测试链接关闭的情况
 	// defer mr.Close()
 
 	RedisClient = redis.NewClient(&redis.Options{

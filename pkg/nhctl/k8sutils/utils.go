@@ -12,7 +12,3 @@ func ValidateDNS1123Name(name string) bool {
 		return false
 	}
 }
-
-func Create() {
-
-}

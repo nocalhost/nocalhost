@@ -2,23 +2,17 @@ package utils
 
 import (
 	"fmt"
-	"github.com/cheggaaa/pb/v3"
 	"io"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/cheggaaa/pb/v3"
 )
 
 func Mush(err error) {
 	if err != nil {
 		fmt.Printf("%v\n", err)
-		panic(err)
-	}
-}
-
-func MushWithErrInfo(info string, err error) {
-	if err != nil {
-		fmt.Printf("%s, err : %v\n", info, err)
 		panic(err)
 	}
 }

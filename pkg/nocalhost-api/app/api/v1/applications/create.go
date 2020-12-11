@@ -25,10 +25,10 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
-// Create 添加应用
-// @Summary 添加应用
-// @Description 用户添加应用
-// @Tags 应用
+// Create Create Application
+// @Summary Create Application
+// @Description Create Application
+// @Tags Application
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"

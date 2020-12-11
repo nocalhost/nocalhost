@@ -18,7 +18,7 @@ import (
 	"strings"
 )
 
-// NullType 空字节类型
+// NullType
 type NullType byte
 
 const (

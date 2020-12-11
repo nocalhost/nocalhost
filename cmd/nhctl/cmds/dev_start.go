@@ -23,7 +23,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,23 +59,14 @@ var devStartCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
-		if settings.Debug {
-			log.SetLevel(logrus.DebugLevel)
-		}
 		applicationName := args[0]
-		InitAppAndSvc(applicationName, deployment)
+		InitAppAndCheckIfSvcExist(applicationName, deployment)
 
 		if nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			log.Fatalf("\"%s\" is already in developing", deployment)
 		}
 
 		nocalhostApp.LoadOrCreateSvcProfile(deployment, app.Deployment)
-
-		// set develop status first, avoid stack in dev start and break, or it will never resume
-		err = nocalhostApp.SetDevelopingStatus(deployment, true)
-		if err != nil {
-			log.Fatal("failed to update \"developing\" status\n")
-		}
 
 		devStartOps.Kubeconfig = settings.KubeConfig
 		fmt.Println("starting DevMode...")
@@ -90,7 +80,7 @@ var devStartCmd = &cobra.Command{
 		}
 		nocalhostApp.SetSvcWorkDir(deployment, devStartOps.WorkDir)
 		// syncthings
-		newSyncthing, err := syncthing.New(nocalhostApp, deployment, devStartOps, fileSyncOptions)
+		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOps, fileSyncOptions)
 		if err != nil {
 			log.Fatalf("failed to create syncthing process, please try again.")
 		}
@@ -135,6 +125,12 @@ var devStartCmd = &cobra.Command{
 		err = nocalhostApp.SetSyncthingPort(deployment, newSyncthing.RemotePort, newSyncthing.RemoteGUIPort, newSyncthing.LocalPort, newSyncthing.LocalGUIPort)
 		if err != nil {
 			log.Fatal("failed to update \"developing\" syncthing port status\n")
+		}
+
+		// TODO set develop status, avoid stack in dev start and break, or it will never resume
+		err = nocalhostApp.SetDevelopingStatus(deployment, true)
+		if err != nil {
+			log.Fatal("failed to update \"developing\" status\n")
 		}
 	},
 }

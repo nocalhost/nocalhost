@@ -27,10 +27,10 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
-// Update 更新用户信息
-// @Summary 更新用户信息（含禁用用户）
+// Update Update user information
+// @Summary Update user information (including disabled users)
 // @Description Update a user by ID，Only status is required
-// @Tags 用户
+// @Tags Users
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"

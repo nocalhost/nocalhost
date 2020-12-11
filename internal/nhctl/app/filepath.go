@@ -1,8 +1,9 @@
 package app
 
 import (
-	"nocalhost/internal/nhctl/utils"
 	"path/filepath"
+
+	"nocalhost/internal/nhctl/utils"
 )
 
 func (a *Application) getGitDir() string {

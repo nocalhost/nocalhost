@@ -34,10 +34,10 @@ type ClusterSafeList struct {
 	Lock        *sync.Mutex
 }
 
-// GetList 获取集群列表
-// @Summary 获取集群列表
-// @Description 获取集群列表
-// @Tags 集群
+// GetList Get the cluster list
+// @Summary Get the cluster list
+// @Description Get the cluster list
+// @Tags Cluster
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
@@ -135,14 +135,14 @@ func GetSpaceList(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
-// @Summary 获取集群详情
-// @Description 获取集群详情
-// @Tags 集群
+// @Summary Get cluster details
+// @Description Get cluster details
+// @Tags Cluster
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param id path string true "集群 ID"
-// @Success 200 {object} model.ClusterModel "应用开发环境参数，含 kubeconfig"
+// @Param id path string true "Cluster ID"
+// @Success 200 {object} model.ClusterModel "include kubeconfig"
 // @Router /v1/cluster/{id}/detail [get]
 func GetDetail(c *gin.Context) {
 	userId, _ := c.Get("userId")
@@ -195,15 +195,15 @@ func GetDetail(c *gin.Context) {
 	api.SendResponse(c, errno.OK, result)
 }
 
-// @Summary 集群某个开发环境的详情
-// @Description 通过集群 id 和开发环境 id 获取集群开发环境详情
-// @Tags 集群
+// @Summary Details of a development environment in the cluster
+// @Description Get cluster development environment details through cluster id and development environment id
+// @Tags Cluster
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param id path string true "集群 ID"
-// @Param space_id path string true "开发空间 ID"
-// @Success 200 {object} model.ClusterUserModel "应用开发环境参数，含 kubeconfig"
+// @Param id path string true "Cluster ID"
+// @Param space_id path string true "DevSpace ID"
+// @Success 200 {object} model.ClusterUserModel "include kubeconfig"
 // @Router /v1/cluster/{id}/dev_space/{space_id}/detail [get]
 func GetSpaceDetail(c *gin.Context) {
 	//userId, _ := c.Get("userId")

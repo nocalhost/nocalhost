@@ -13,7 +13,6 @@ limitations under the License.
 
 package cluster
 
-// 创建集群请求
 type CreateClusterRequest struct {
 	Name       string `json:"name" binding:"required"`
 	KubeConfig string `json:"kubeconfig" binding:"required" example:"base64encode(value)"`

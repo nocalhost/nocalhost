@@ -15,6 +15,8 @@ package cmds
 
 import (
 	"fmt"
+	"nocalhost/internal/nhctl/app"
+
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
@@ -25,14 +27,14 @@ import (
 var force bool
 
 func init() {
-	uninstallCmd.Flags().BoolVar(&force, "force", false, "force uninstall anyway")
+	uninstallCmd.Flags().BoolVar(&force, "force", false, "force to uninstall anyway")
 	rootCmd.AddCommand(uninstallCmd)
 }
 
 var uninstallCmd = &cobra.Command{
 	Use:   "uninstall [NAME]",
-	Short: "uninstall application",
-	Long:  `uninstall application`,
+	Short: "Uninstall application",
+	Long:  `Uninstall application`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
@@ -49,7 +51,7 @@ var uninstallCmd = &cobra.Command{
 		}
 
 		fmt.Println("uninstalling application...")
-		app, err := nh.GetApplication(applicationName)
+		nhApp, err := nh.GetApplication(applicationName)
 		if err != nil {
 			if !force {
 				log.Fatalf("failed to get application, %v", err)
@@ -61,8 +63,19 @@ var uninstallCmd = &cobra.Command{
 				fmt.Printf("application \"%s\" is uninstalled anyway.\n", applicationName)
 				return
 			}
+		} else {
+			// check if there are services in developing state
+			for _, profile := range nhApp.AppProfile.SvcProfile {
+				if profile.Developing {
+					log.Debugf("end %s dev model", profile.ActualName)
+					err = nhApp.EndDevelopMode(profile.ActualName, &app.FileSyncOptions{})
+					if err != nil {
+						log.Warnf("fail to end %s dev model: %s", err.Error())
+					}
+				}
+			}
 		}
-		err = app.Uninstall(force)
+		err = nhApp.Uninstall(force)
 		if err != nil {
 			log.Fatalf("failed to uninstall application, %v", err)
 		}

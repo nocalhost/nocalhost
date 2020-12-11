@@ -2,13 +2,13 @@ package cmds
 
 import (
 	"fmt"
+	"os"
+
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/utils"
-	"os"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -48,6 +48,8 @@ func Execute() {
 	// os.Args = append(os.Args, "sync", "bookinfo", "-d", "details")
 	// os.Args = append(os.Args, "dev", "end", "bookinfo", "-d", "details", "--kubeconfig", "~/.kube/2551")
 	// os.Args = append(os.Args, "port-forward", "bookinfo", "-d", "details", "--kubeconfig", "/Users/weiwang/.kube/2551", "-p", ":9080", "-p", "54545:8000", "-m", "false")
+	// os.Args = append(os.Args, "exec", "test-manifest-bookinfo-nocalhost-config-01", "-d", "details", "-c", "ls")
+	// os.Args = append(os.Args, "init", "-t", "nodeport", "-n", "nocalhost")
 	if len(os.Args) == 1 {
 		args := append([]string{"help"}, os.Args[1:]...)
 		rootCmd.SetArgs(args)
@@ -56,29 +58,5 @@ func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
-	}
-}
-
-func InitAppAndSvc(appName string, svcName string) {
-	var err error
-	if settings.Debug {
-		log.SetLevel(logrus.DebugLevel)
-	}
-	if !nh.CheckIfApplicationExist(appName) {
-		log.Fatalf("application \"%s\" not found", appName)
-	}
-	nocalhostApp, err = app.NewApplication(appName)
-	if err != nil {
-		log.Fatal("failed to get application info")
-	}
-	if svcName == "" {
-		log.Fatal("please use -d to specify a k8s workload")
-	}
-
-	exist, err := nocalhostApp.CheckIfSvcExist(svcName, app.Deployment)
-	if err != nil {
-		log.Fatalf("failed to check if svc exists : %v", err)
-	} else if !exist {
-		log.Fatalf("\"%s\" not found", svcName)
 	}
 }

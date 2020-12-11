@@ -25,15 +25,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Get 获取用户详情信息
-// @Summary 通过 ID 获取用户详情
-// @Description 通过 ID 获取用户详情
-// @Tags 用户
+// Get Get user details
+// @Summary Get user details
+// @Description Get user details
+// @Tags Users
 // @Accept  json
 // @Produce  json
-// @Param id path string true "用户 ID"
+// @Param id path string true "Users ID"
 // @param Authorization header string true "Authorization"
-// @Success 200 {object} model.UserInfo "用户信息"
+// @Success 200 {object} model.UserInfo "Userinfo"
 // @Router /v1/users/{id} [get]
 func Get(c *gin.Context) {
 	userID := cast.ToUint64(c.Param("id"))
@@ -53,14 +53,14 @@ func Get(c *gin.Context) {
 	api.SendResponse(c, nil, u)
 }
 
-// Get 获取用户个人信息
-// @Summary 获取用户个人信息
-// @Description 获取用户个人信息
-// @Tags 用户
+// Get Get user personal information
+// @Summary Get user personal information
+// @Description Get user personal information
+// @Tags Users
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Success 200 {object} model.UserInfo "用户信息"
+// @Success 200 {object} model.UserInfo "Userinfo"
 // @Router /v1/me [get]
 func GetMe(c *gin.Context) {
 	userID, _ := c.Get("userId")
@@ -80,14 +80,14 @@ func GetMe(c *gin.Context) {
 	api.SendResponse(c, nil, u)
 }
 
-// Get 获取用户列表
-// @Summary 获取用户列表
+// Get Get user list
+// @Summary Get user list
 // @Description Get userlist
-// @Tags 用户
+// @Tags Users
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Success 200 {object} model.UserList "用户列表"
+// @Success 200 {object} model.UserList "Get user list"
 // @Router /v1/users [get]
 func GetList(c *gin.Context) {
 	u, _ := service.Svc.UserSvc().GetUserList(context.TODO())

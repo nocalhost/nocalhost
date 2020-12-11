@@ -29,15 +29,13 @@ import (
 )
 
 const (
-	// MaxID 最大id
+	// MaxID
 	MaxID = 0xffffffffffff
 )
 
-// 如果 userService 没有实现 UserService 报错
 var _ UserService = (*userService)(nil)
 
-// UserService 用户服务接口定义
-// 使用大写对外暴露方法
+// UserService
 type UserService interface {
 	Create(ctx context.Context, email, password, name string, status uint64) (model.UserBaseModel, error)
 	Delete(ctx context.Context, id uint64) error
@@ -66,7 +64,7 @@ func (srv *userService) GetUserList(ctx context.Context) ([]*model.UserList, err
 	return srv.userRepo.GetUserList(ctx)
 }
 
-// Delete 删除用户
+// Delete
 func (srv *userService) Delete(ctx context.Context, id uint64) error {
 	err := srv.userRepo.Delete(ctx, id)
 	if err != nil {
@@ -75,7 +73,7 @@ func (srv *userService) Delete(ctx context.Context, id uint64) error {
 	return nil
 }
 
-// Create 创建用户
+// Create
 func (srv *userService) Create(ctx context.Context, email, password, name string, status uint64) (model.UserBaseModel, error) {
 	pwd, err := auth.Encrypt(password)
 	u := model.UserBaseModel{
@@ -97,7 +95,7 @@ func (srv *userService) Create(ctx context.Context, email, password, name string
 	return result, nil
 }
 
-// Register 注册用户
+// Register
 func (srv *userService) Register(ctx context.Context, email, password string) error {
 	pwd, err := auth.Encrypt(password)
 	if err != nil {
@@ -118,7 +116,7 @@ func (srv *userService) Register(ctx context.Context, email, password string) er
 	return nil
 }
 
-// EmailLogin 邮箱登录
+// EmailLogin
 func (srv *userService) EmailLogin(ctx context.Context, email, password string) (tokenStr string, err error) {
 	u, err := srv.GetUserByEmail(ctx, email)
 	if err != nil {
@@ -135,7 +133,6 @@ func (srv *userService) EmailLogin(ctx context.Context, email, password string) 
 		return "", errors.New("user not allow")
 	}
 
-	// 签发签名 Sign the json web token.
 	tokenStr, err = token.Sign(ctx, token.Context{UserID: u.ID, Username: u.Username, Uuid: u.Uuid, Email: u.Email, IsAdmin: u.IsAdmin}, "")
 	if err != nil {
 		return "", errors.Wrapf(err, "gen token sign err")
@@ -155,7 +152,7 @@ func (srv *userService) UpdateUser(ctx context.Context, id uint64, user *model.U
 	return user, nil
 }
 
-// GetUserByID 获取用户信息
+// GetUserByID
 func (srv *userService) GetUserByID(ctx context.Context, id uint64) (*model.UserBaseModel, error) {
 	userModel, err := srv.userRepo.GetUserByID(ctx, id)
 	if err != nil {

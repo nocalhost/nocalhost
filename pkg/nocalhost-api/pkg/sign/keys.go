@@ -20,7 +20,7 @@ const (
 	KeyNameSign      = "sign"
 )
 
-// DefaultKeyName 签名需要用到的字段
+// DefaultKeyName
 type DefaultKeyName struct {
 	Timestamp string
 	NonceStr  string
@@ -37,22 +37,22 @@ func newDefaultKeyName() *DefaultKeyName {
 	}
 }
 
-// SetKeyNameTimestamp 设定时间戳
+// SetKeyNameTimestamp
 func (d *DefaultKeyName) SetKeyNameTimestamp(name string) {
 	d.Timestamp = name
 }
 
-// SetKeyNameNonceStr 设定随机字符串
+// SetKeyNameNonceStr
 func (d *DefaultKeyName) SetKeyNameNonceStr(name string) {
 	d.NonceStr = name
 }
 
-// SetKeyNameAppID 设定app id
+// SetKeyNameAppID
 func (d *DefaultKeyName) SetKeyNameAppID(name string) {
 	d.AppID = name
 }
 
-// SetKeyNameSign 设定签名
+// SetKeyNameSign
 func (d *DefaultKeyName) SetKeyNameSign(name string) {
 	d.Sign = name
 }

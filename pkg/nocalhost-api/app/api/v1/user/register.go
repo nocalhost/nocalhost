@@ -22,10 +22,10 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
-// Register 注册 - 废弃
-// @Summary 管理员添加用户，用户无法自行注册
-// @Description 用户注册
-// @Tags 用户
+// Register Registration(obsolete)
+// @Summary The administrator adds users, users cannot register themselves
+// @Description Registration(obsolete)
+// @Tags Users
 // @Produce  json
 // @Param register body user.RegisterRequest true "Reg user info"
 // @Success 200 {string} json "{"code":0,"message":"OK","data":{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"}}"
@@ -47,7 +47,6 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	// 两次密码是否正确
 	if req.Password != req.ConfirmPassword {
 		log.Warnf("twice password is not same")
 		api.SendResponse(c, errno.ErrTwicePasswordNotMatch, nil)

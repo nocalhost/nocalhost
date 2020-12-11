@@ -27,10 +27,9 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
-// DB 数据库全局变量
 var DB *gorm.DB
 
-// InitDir 初始化数据库
+// InitDir
 func Init() *gorm.DB {
 	return openDB(viper.GetString("mysql.username"),
 		viper.GetString("mysql.password"),
@@ -38,7 +37,7 @@ func Init() *gorm.DB {
 		viper.GetString("mysql.name"))
 }
 
-// openDB 链接数据库，生成数据库实例
+// openDB
 func openDB(username, password, addr, name string) *gorm.DB {
 	config := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=%t&loc=%s",
 		username,
@@ -58,9 +57,9 @@ func openDB(username, password, addr, name string) *gorm.DB {
 
 	// set for db connection
 	db.LogMode(viper.GetBool("mysql.show_log"))
-	// 用于设置最大打开的连接数，默认值为0表示不限制.设置最大的连接数，可以避免并发太高导致连接mysql出现too many connections的错误。
+	// To set the maximum number of open connections, replace with 0 to indicate unlimited. Setting the maximum number of connections can avoid too high concurrency leading to too many connection errors when connecting to mysql.
 	db.DB().SetMaxOpenConns(viper.GetInt("mysql.max_open_conn"))
-	// 用于设置闲置的连接数.设置闲置的连接数则当开启的一个连接使用完成后可以放在池里等候下一次使用。
+	// Used to set the number of idle connections. When the number of idle connections is set, the opened connection can be placed in the pool for the next use.
 	db.DB().SetMaxIdleConns(viper.GetInt("mysql.max_idle_conn"))
 	db.DB().SetConnMaxLifetime(time.Minute * viper.GetDuration("mysql.conn_max_life_time"))
 
@@ -69,7 +68,7 @@ func openDB(username, password, addr, name string) *gorm.DB {
 	return db
 }
 
-// GetDB 返回默认的数据库
+// GetDB
 func GetDB() *gorm.DB {
 	return DB
 }

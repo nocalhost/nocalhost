@@ -26,8 +26,8 @@ func init() {
 
 var configCmd = &cobra.Command{
 	Use:   "config [Name]",
-	Short: "application config file",
-	Long:  "view, save and check application config file, no flags is view config",
+	Short: "Application config file",
+	Long:  "View, save and check application config file, no flags is view config",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
@@ -37,13 +37,7 @@ var configCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		if !nh.CheckIfApplicationExist(applicationName) {
-			log.Fatalf("application \"%s\" is not found", applicationName)
-		}
-		nocalhostApp, err = nh.GetApplication(applicationName)
-		if err != nil {
-			log.Fatalf("failed to get application \"%s\"", applicationName)
-		}
+		InitApp(applicationName)
 
 		if flags.Save {
 			var lines []string

@@ -22,7 +22,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/token"
 )
 
-// AuthMiddleware 认证中间件
+// AuthMiddleware
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Parse the json web token.

@@ -24,10 +24,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Create 获取应用
-// @Summary 获取应用
-// @Description 用户获取应用
-// @Tags 应用
+// Create Get Application
+// @Summary Get Application
+// @Description Get Application
+// @Tags Application
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
@@ -45,14 +45,14 @@ func Get(c *gin.Context) {
 	api.SendResponse(c, errno.OK, result)
 }
 
-// Create 获取应用详情
-// @Summary 获取应用详情
-// @Description 获取应用详情
-// @Tags 应用
+// Create Get Application Detail
+// @Summary Get Application Detail
+// @Description Get Application Detail
+// @Tags Application
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param id path string true "应用 ID"
+// @Param id path string true "Application ID"
 // @Success 200 {object} model.ApplicationModel
 // @Router /v1/application/{id} [get]
 func GetDetail(c *gin.Context) {
@@ -68,15 +68,15 @@ func GetDetail(c *gin.Context) {
 	api.SendResponse(c, errno.OK, result)
 }
 
-// @Summary 获取应用已授权详情（废弃）
-// @Description 应用入口获取应用所属集群已授权详情（废弃）
-// @Tags 应用
+// @Summary Get authorized details of the application (obsolete)
+// @Description Get authorized details of the application (obsolete)
+// @Tags Application
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param clusterId path string true "集群 ID"
-// @Param id path string true "应用 ID"
-// @Success 200 {object} model.ClusterUserModel "应用开发环境参数，含 kubeconfig"
+// @Param clusterId path string true "Cluster ID"
+// @Param id path string true "Application ID"
+// @Success 200 {object} model.ClusterUserModel ""
 // @Router /v1/application/{id}/cluster/{clusterId} [get]
 func GetSpaceDetail(c *gin.Context) {
 	userId, _ := c.Get("userId")
@@ -95,10 +95,10 @@ func GetSpaceDetail(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
-// Create 插件获取应用（含安装状态）
-// @Summary Plugin - 获取应用（含安装状态）
-// @Description Plugin - 获取应用（含安装状态）
-// @Tags 插件
+// Create Plug-in access to applications (including installation status)
+// @Summary Plug-in access to applications (including installation status)
+// @Description Plug-in access to applications (including installation status)
+// @Tags Plug-in
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"

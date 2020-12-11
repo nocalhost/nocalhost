@@ -68,9 +68,8 @@ func (repo *applicationRepo) Create(ctx context.Context, application model.Appli
 }
 
 func (repo *applicationRepo) Get(ctx context.Context, userId uint64, id uint64) (model.ApplicationModel, error) {
-	// 有坑
-	// 这里传入的是 Struct 类型，获取不到数据时会抛出 Error
-	// 如果传入的是 make([]*model.ApplicationModel,0) Slice 类型，那么获取不到数据永远不会抛出 Error
+	// Here is the Struct type, and Error will be thrown when the data is not available
+	//If the input is of the make([]*model.ApplicationModel,0) Slice type, then Error will never be thrown if no data is available
 	application := model.ApplicationModel{}
 	result := repo.db.Where("user_id=? and status=1 and id=?", userId, id).First(&application)
 	if err := result.Error; err != nil {

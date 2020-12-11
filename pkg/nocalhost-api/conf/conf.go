@@ -40,14 +40,14 @@ func Init(confPath string) error {
 // initConfig init config from conf file
 func initConfig(confPath string) error {
 	if confPath != "" {
-		viper.SetConfigFile(confPath) // 指定配置目录
+		viper.SetConfigFile(confPath)
 	} else {
-		viper.AddConfigPath("conf") // 默认的配置目录
+		viper.AddConfigPath("conf")
 		viper.SetConfigName("config.local")
 	}
-	viper.SetConfigType("yaml") // YAML格式
-	viper.AutomaticEnv()        // 读取匹配的环境变量
-	viper.SetEnvPrefix("napp")  // 设置变量前缀
+	viper.SetConfigType("yaml")
+	viper.AutomaticEnv()
+	viper.SetEnvPrefix("napp")
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)
 	if err := viper.ReadInConfig(); err != nil { // viper解析配置文件
@@ -65,7 +65,7 @@ func initConfig(confPath string) error {
 	return nil
 }
 
-// 监控配置文件变化并热加载程序
+// Monitor configuration file changes and hot load programs
 func watchConfig() {
 	viper.WatchConfig()
 	viper.OnConfigChange(func(e fsnotify.Event) {

@@ -34,7 +34,6 @@ func TestClientGoUtils_PortForward(t *testing.T) {
 		case <-errChan:
 			fmt.Println("err")
 		}
-
 	}
 
 	time.Sleep(time.Minute)

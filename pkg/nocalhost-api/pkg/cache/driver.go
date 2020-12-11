@@ -18,15 +18,15 @@ import (
 )
 
 const (
-	// DefaultExpireTime 默认过期时间
+	// DefaultExpireTime
 	DefaultExpireTime = 60 * time.Second
-	// PrefixCacheKey 业务cache key
+	// PrefixCacheKey cache key
 	PrefixCacheKey = "nocalhost"
 )
 
 var Client Driver
 
-// Driver 定义cache驱动接口
+// Driver
 type Driver interface {
 	Set(key string, val interface{}, expiration time.Duration) error
 	Get(key string, val interface{}) error
@@ -37,37 +37,37 @@ type Driver interface {
 	Decr(key string, step int64) (int64, error)
 }
 
-// Set 数据
+// Set
 func Set(key string, val interface{}, expiration time.Duration) error {
 	return Client.Set(key, val, expiration)
 }
 
-// Get 数据
+// Get
 func Get(key string, val interface{}) error {
 	return Client.Get(key, val)
 }
 
-// MultiSet 批量set
+// MultiSet
 func MultiSet(valMap map[string]interface{}, expiration time.Duration) error {
 	return Client.MultiSet(valMap, expiration)
 }
 
-// MultiGet 批量获取
+// MultiGet
 func MultiGet(keys []string, valueMap interface{}) error {
 	return Client.MultiGet(keys, valueMap)
 }
 
-// Del 批量删除
+// Del
 func Del(keys ...string) error {
 	return Client.Del(keys...)
 }
 
-// Incr 自增
+// Incr
 func Incr(key string, step int64) (int64, error) {
 	return Client.Incr(key, step)
 }
 
-// Decr 自减
+// Decr
 func Decr(key string, step int64) (int64, error) {
 	return Client.Decr(key, step)
 }

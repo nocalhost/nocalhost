@@ -11,9 +11,9 @@ type DevStartOptions struct {
 }
 
 type FileSyncOptions struct {
-	RemoteDir              string
-	LocalSharedFolder      string
-	LocalSshPort           int
+	//RemoteDir         string
+	//LocalSharedFolder string
+	//LocalSshPort           int
 	RemoteSyncthingPort    int
 	RemoteSyncthingGUIPort int
 	LocalSyncthingPort     int

@@ -1,0 +1,51 @@
+name: bookinfo
+manifestType: manifest
+resourcePath: ["manifest/templates","manifest2/template"]
+
+onPreInstall:
+  - path: manifest2/template/pre-install/print-num-job-01.yaml
+  - path: manifest/templates/pre-install/print-num-job-02.yaml
+    weight: "10"
+  - path: manifest/templates/pre-install/print-num-job-03.yaml
+    weight: "-5"
+
+services:
+  - name: productpage
+    serviceType: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-productpage
+    devContainerImage: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/python:3.7.7-slim
+    workDir: /home/nocalhost-dev
+    syncDirs:
+      - ./
+    devPort:
+      - :9080
+    dependJobsLabelSelector:
+      - "dep-job"
+  - name: details
+    serviceType: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-details.git
+    devContainerImage: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/ruby:2.7.1-slim
+    syncDirs:
+      - ./
+    workDir: /home/nocalhost-dev
+  - name: ratings
+    serviceType: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-ratings.git
+    devContainerImage: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/node:12.18.1-slim
+    workDir: /home/nocalhost-dev
+    syncDirs:
+      - ./
+    dependJobsLabelSelector:
+      - "dep-job"
+    dependPodsLabelSelector:
+      - "productpage"
+      - "app.kubernetes.io/name=productpage"
+  - name: reviews
+    serviceType: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-reviews.git
+    devContainerImage: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/java:latest
+    workDir: /home/nocalhost-dev
+    syncDirs:
+      - ./
+    dependPodsLabelSelector:
+      - "productpage"

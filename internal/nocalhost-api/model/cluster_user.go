@@ -51,7 +51,7 @@ func (u *ClusterUserModel) Validate() error {
 	return validate.Struct(u)
 }
 
-// TableName 表名
+// TableName
 func (u *ClusterUserModel) TableName() string {
 	return "clusters_users"
 }

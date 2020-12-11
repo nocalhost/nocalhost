@@ -16,3 +16,10 @@ func TestClientGoUtils_CreateResource(t *testing.T) {
 		fmt.Printf("%s\n", err.Error())
 	}
 }
+
+func TestClientGoUtils_Exec(t *testing.T) {
+	client, err := NewClientGoUtils(filepath.Join(utils.GetHomePath(), ".kube/admin-config"), time.Minute)
+	Must(err)
+	err = client.Exec("demo10", "details-555cc5597f-gx5px", "", []string{"ls"})
+	Must(err)
+}
