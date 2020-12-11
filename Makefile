@@ -19,6 +19,7 @@ api-docs: ## gen-docs - gen swag doc
 
 .PHONY: api
 api: ## Build nocalhost-api
+    @go mod vendor
 	@go build -ldflags '-X main.GIT_COMMIT_SHA=$(GIT_COMMIT_SHA)' cmd/nocalhost-api/nocalhost-api.go
 
 .PHONY: nocalhost-dep
