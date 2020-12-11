@@ -26,14 +26,14 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 )
 
-// Response api的返回结构体
+// Response api
 type Response struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data"`
 }
 
-// SendResponse 返回json
+// SendResponse
 func SendResponse(c *gin.Context, err error, data interface{}) {
 	code, message := errno.DecodeErr(err)
 
@@ -45,13 +45,13 @@ func SendResponse(c *gin.Context, err error, data interface{}) {
 	})
 }
 
-// GetUserID 返回用户id
+// GetUserID
 func GetUserID(c *gin.Context) uint64 {
 	if c == nil {
 		return 0
 	}
 
-	// uid 必须和 middleware/auth 中的 uid 命名一致
+	// The uid must be named the same as the uid in middleware/auth
 	if v, exists := c.Get("uid"); exists {
 		uid, ok := v.(uint64)
 		if !ok {
@@ -63,14 +63,14 @@ func GetUserID(c *gin.Context) uint64 {
 	return 0
 }
 
-// RouteNotFound 未找到相关路由
+// RouteNotFound
 func RouteNotFound(c *gin.Context) {
 	//c.String(http.StatusNotFound, "the route not found")
 	SendResponse(c, errno.RouterNotFound, nil)
 	return
 }
 
-// getHostname 获取主机名
+// getHostname
 func getHostname() string {
 	name, err := os.Hostname()
 	if err != nil {
@@ -79,7 +79,7 @@ func getHostname() string {
 	return name
 }
 
-// healthCheckResponse 健康检查响应结构体
+// healthCheckResponse
 type healthCheckResponse struct {
 	Status   string `json:"status"`
 	Hostname string `json:"hostname"`
@@ -96,7 +96,7 @@ func Recover(c *gin.Context) {
 		if r := recover(); r != nil {
 
 			log.Errorf("panic: %v\n", r)
-			// debug 打印错误堆栈信息
+			// debug
 			if viper.GetString("app.run_mode") == napp.ModeDebug {
 				debug.PrintStack()
 			}

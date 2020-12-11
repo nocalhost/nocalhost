@@ -23,15 +23,15 @@ import (
 	"github.com/spf13/cast"
 )
 
-// Create 关联集群
-// @Summary 关联集群
-// @Description 应用关联集群
-// @Tags 应用
+// Create Associated cluster
+// @Summary Associated cluster
+// @Description Application associated cluster
+// @Tags Application
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param CreateAppRequest body application_cluster.ApplicationClusterRequest true "The application info"
-// @Param id path uint64 true "应用 ID"
+// @Param id path uint64 true "Application ID"
 // @Success 200 {object} model.ApplicationClusterModel
 // @Router /v1/application/{id}/bind_cluster [post]
 func Create(c *gin.Context) {

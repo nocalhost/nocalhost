@@ -19,7 +19,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/utils"
 )
 
-// RequestID 透传Request-ID，如果没有则生成一个
+// RequestID
 func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Check for incoming header, use it if exists

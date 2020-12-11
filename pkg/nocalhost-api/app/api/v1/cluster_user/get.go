@@ -22,14 +22,14 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/api"
 )
 
-// @Summary Plugin - 获取个人应用开发环境(kubeconfig) （废弃）
-// @Description Get user's application dev space
-// @Tags 插件
+// @Summary Plug-in Get personal application development environment (kubeconfig) (obsolete)
+// @Description Get personal application development environment (kubeconfig) (obsolete)
+// @Tags Plug-in
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param id path string true "应用 ID"
-// @Success 200 {object} model.ClusterUserModel "应用开发环境参数，含 kubeconfig，status=0应用未安装，1已安装"
+// @Param id path string true "Application ID"
+// @Success 200 {object} model.ClusterUserModel "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed"
 // @Router /v1/application/{id}/dev_space [get]
 func GetFirst(c *gin.Context) {
 	userId, _ := c.Get("userId")
@@ -46,14 +46,14 @@ func GetFirst(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
-// @Summary 获取应用开发环境列表
+// @Summary Get a list of application development environments
 // @Description Get application dev space list
-// @Tags 应用
+// @Tags Application
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param id path string true "应用 ID"
-// @Success 200 {object} model.ClusterUserModel "应用开发环境参数，含 kubeconfig，status=0 应用未安装，1已安装"
+// @Param id path string true "Application ID"
+// @Success 200 {object} model.ClusterUserModel "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed"
 // @Router /v1/application/{id}/dev_space_list [get]
 func GetList(c *gin.Context) {
 	applicationId := cast.ToUint64(c.Param("id"))
@@ -68,15 +68,15 @@ func GetList(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
-// @Summary 获取应用某个开发环境详情
+// @Summary Get the details of a development environment of the application
 // @Description Get dev space detail from application
-// @Tags 应用
+// @Tags Application
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param id path string true "应用 ID"
-// @Param space_id path string true "开发空间 ID"
-// @Success 200 {object} model.ClusterUserModel "应用开发环境参数，含 kubeconfig，status=0应用未安装，1已安装"
+// @Param id path string true "Application ID"
+// @Param space_id path string true "DevSpace ID"
+// @Success 200 {object} model.ClusterUserModel "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed"
 // @Router /v1/application/{id}/dev_space/{space_id}/detail [get]
 func GetDevSpaceDetail(c *gin.Context) {
 	applicationId := cast.ToUint64(c.Param("id"))

@@ -21,14 +21,14 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 )
 
-// GetBound 获取应用已关联集群列表
-// @Summary 获取应用已关联集群列表（废弃）
-// @Description 获取应用已关联集群列表（废弃）
-// @Tags 应用
+// GetBound Get the list of clusters associated with the application
+// @Summary Get the list of clusters associated with the application（Abandoned）
+// @Description Get the list of clusters associated with the application（Abandoned）
+// @Tags Application
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param id path uint64 true "应用 ID"
+// @Param id path uint64 true "Application ID"
 // @Success 200 {object} model.ApplicationClusterModel
 // @Router /v1/application/{id}/bound_cluster [get]
 func GetBound(c *gin.Context) {

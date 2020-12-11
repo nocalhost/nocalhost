@@ -24,10 +24,10 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
-// Login Web 和插件端登陆
-// @Summary 用户登录
-// @Description 邮箱登录
-// @Tags 用户
+// Login Web and plug-in login
+// @Summary Web and plug-in login
+// @Description Web and plug-in login
+// @Tags Users
 // @Produce  json
 // @Param login body user.LoginCredentials true "Login user info"
 // @Success 200 {string} json "{"code":0,"message":"OK","data":{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"}}"
@@ -48,14 +48,14 @@ func Login(c *gin.Context) {
 		api.SendResponse(c, errno.ErrParam, nil)
 		return
 	}
-	// 默认 Web 登陆不传 From，禁止普通用户登陆 web 界面
+	// By default, “From” is not passed in web login, and ordinary users are prohibited from logging in to the web interface
 	users, err := service.Svc.UserSvc().GetUserByEmail(c, req.Email)
 	if err != nil {
 		api.SendResponse(c, errno.ErrEmailOrPassword, nil)
 		return
 	}
 
-	// 登陆网页端
+	// Log in to the web
 	if users.IsAdmin != 1 && req.From != "plugin" {
 		api.SendResponse(c, errno.ErrUserLoginWebNotAllow, nil)
 		return

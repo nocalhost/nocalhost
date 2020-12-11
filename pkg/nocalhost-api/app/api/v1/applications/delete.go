@@ -24,14 +24,14 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
-// Create 删除应用
-// @Summary 删除应用
-// @Description 用户删除应用，同时也会删除应用内已配置的开发空间
-// @Tags 应用
+// Create Delete Application
+// @Summary Delete Application
+// @Description The user deletes the application, and also deletes the configured development space in the application
+// @Tags Application
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param id path uint64 true "应用 ID"
+// @Param id path uint64 true "Application ID"
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
 // @Router /v1/application/{id} [delete]
 func Delete(c *gin.Context) {
@@ -42,11 +42,6 @@ func Delete(c *gin.Context) {
 		ApplicationId: applicationId,
 	}
 	clusterUserList, err := service.Svc.ClusterUser().GetJoinCluster(c, condition)
-	if err != nil || len(clusterUserList) == 0 {
-		// has not dev space
-		api.SendResponse(c, errno.OK, nil)
-		return
-	}
 
 	// delete dev Namespace
 	var spaceIds []uint64

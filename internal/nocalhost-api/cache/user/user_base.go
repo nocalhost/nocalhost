@@ -23,9 +23,9 @@ import (
 )
 
 const (
-	// PrefixUserBaseCacheKey cache前缀
+	// PrefixUserBaseCacheKey cache prefix
 	PrefixUserBaseCacheKey = "user:cache:%d"
-	// DefaultExpireTime 默认过期时间
+	// DefaultExpireTime
 	DefaultExpireTime = time.Hour * 24
 )
 
@@ -34,7 +34,7 @@ type Cache struct {
 	cache cache.Driver
 }
 
-// NewUserCache new一个用户cache
+// NewUserCache
 func NewUserCache() *Cache {
 	encoding := cache.JSONEncoding{}
 	cachePrefix := cache.PrefixCacheKey
@@ -45,12 +45,12 @@ func NewUserCache() *Cache {
 	}
 }
 
-// GetUserBaseCacheKey 获取cache key
+// GetUserBaseCacheKey
 func (u *Cache) GetUserBaseCacheKey(userID uint64) string {
 	return fmt.Sprintf(cache.PrefixCacheKey+":"+PrefixUserBaseCacheKey, userID)
 }
 
-// SetUserBaseCache 写入用户cache
+// SetUserBaseCache
 func (u *Cache) SetUserBaseCache(userID uint64, user *model.UserBaseModel) error {
 	if user == nil || user.ID == 0 {
 		return nil
@@ -63,7 +63,7 @@ func (u *Cache) SetUserBaseCache(userID uint64, user *model.UserBaseModel) error
 	return nil
 }
 
-// GetUserBaseCache 获取用户cache
+// GetUserBaseCache
 func (u *Cache) GetUserBaseCache(userID uint64) (data *model.UserBaseModel, err error) {
 	cacheKey := fmt.Sprintf(PrefixUserBaseCacheKey, userID)
 	err = u.cache.Get(cacheKey, &data)
@@ -73,7 +73,7 @@ func (u *Cache) GetUserBaseCache(userID uint64) (data *model.UserBaseModel, err 
 	return data, nil
 }
 
-// MultiGetUserBaseCache 批量获取用户cache
+// MultiGetUserBaseCache
 func (u *Cache) MultiGetUserBaseCache(userIDs []uint64) (map[string]*model.UserBaseModel, error) {
 	var keys []string
 	for _, v := range userIDs {
@@ -81,7 +81,6 @@ func (u *Cache) MultiGetUserBaseCache(userIDs []uint64) (map[string]*model.UserB
 		keys = append(keys, cacheKey)
 	}
 
-	// 需要在这里make实例化，如果在返回参数里直接定义会报 nil map
 	userMap := make(map[string]*model.UserBaseModel)
 	err := u.cache.MultiGet(keys, userMap)
 	if err != nil {
@@ -90,7 +89,7 @@ func (u *Cache) MultiGetUserBaseCache(userIDs []uint64) (map[string]*model.UserB
 	return userMap, nil
 }
 
-// DelUserBaseCache 删除用户cache
+// DelUserBaseCache
 func (u *Cache) DelUserBaseCache(userID uint64) error {
 	cacheKey := fmt.Sprintf(PrefixUserBaseCacheKey, userID)
 	err := u.cache.Del(cacheKey)

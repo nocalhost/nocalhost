@@ -94,7 +94,7 @@ func (s *Syncthing) Install(p getter.ProgressTracker) error {
 		return fmt.Errorf("failed to download syncthing from %s: %s", client.Src, err)
 	}
 
-	i := s.binPath
+	i := s.BinPath
 	b := getBinaryPathInDownload(dir, downloadURL)
 
 	if _, err := os.Stat(b); err != nil {
@@ -153,7 +153,7 @@ func FileExists(name string) bool {
 }
 
 func (s *Syncthing) IsInstalled() bool {
-	_, err := os.Stat(s.binPath)
+	_, err := os.Stat(s.BinPath)
 	return !os.IsNotExist(err)
 }
 
@@ -179,10 +179,10 @@ func getBinaryPathInDownload(dir, url string) string {
 	_, f := path.Split(url)
 	f = strings.TrimSuffix(f, ".tar.gz")
 	f = strings.TrimSuffix(f, ".zip")
-	return filepath.Join(dir, f, getBinaryName())
+	return filepath.Join(dir, f, GetBinaryName())
 }
 
-func getBinaryName() string {
+func GetBinaryName() string {
 	if runtime.GOOS == "windows" {
 		return "syncthing.exe"
 	}

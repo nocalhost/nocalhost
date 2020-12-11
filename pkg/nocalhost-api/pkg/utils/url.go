@@ -22,7 +22,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/constvar"
 )
 
-// GetDefaultAvatarURL 获取默认头像
+// GetDefaultAvatarURL
 func GetDefaultAvatarURL() string {
 	return GetQiNiuPublicAccessURL(constvar.DefaultAvatar)
 }
@@ -38,8 +38,7 @@ func GetAvatarURL(key string) string {
 	return GetQiNiuPublicAccessURL(key)
 }
 
-// GetQiNiuPublicAccessURL 获取七牛资源的公有链接
-// 无需配置bucket, 域名会自动到域名所绑定的bucket去查找
+// GetQiNiuPublicAccessURL
 func GetQiNiuPublicAccessURL(path string) string {
 	domain := viper.GetString("qiniu.cdn_url")
 	key := strings.TrimPrefix(path, "/")

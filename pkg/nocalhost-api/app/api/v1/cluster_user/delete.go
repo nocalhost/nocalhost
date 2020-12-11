@@ -24,14 +24,14 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
-// Delete 彻底删除开发环境
-// @Summary 彻底删除开发环境
-// @Description 彻底删除开发环境，包含删除 K8S 命名空间
-// @Tags 应用
+// Delete Completely delete the development environment
+// @Summary Completely delete the development environment
+// @Description Completely delete the development environment, including deleting the K8S namespace
+// @Tags Application
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param id path uint64 true "开发环境 ID"
+// @Param id path uint64 true "DevSpace ID"
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
 // @Router /v1/dev_space/{id} [delete]
 func Delete(c *gin.Context) {

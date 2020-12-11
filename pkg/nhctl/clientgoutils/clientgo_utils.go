@@ -4,8 +4,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"io/ioutil"
+	"net/http"
+	"net/url"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/pkg/errors"
+
 	v1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,14 +38,8 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
-	"net/http"
-	"net/url"
-	"strings"
-	//clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
+
 	"nocalhost/pkg/nhctl/log"
-	"sort"
-	"strconv"
-	"time"
 )
 
 type ClientGoUtils struct {
@@ -70,8 +73,10 @@ func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUt
 		err error
 	)
 
-	if kubeConfigPath == "" { // use kubectl default config
-		kubeConfigPath = fmt.Sprintf("%s/.kube/config", getHomePath())
+	if kubeConfigPath == "" { // use default config
+		//kubeConfigPath = fmt.Sprintf("%s/.kube/config", getHomePath())
+		kubeConfigPath = filepath.Join(getHomePath(), ".kube", "config")
+
 	}
 
 	if timeout <= 0 {
@@ -222,57 +227,7 @@ func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool, val
 			}
 
 		}
-
-		//obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).Decode(rawObj.Raw, nil, nil)
-		//unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-		//if err != nil {
-		//	return errors.Wrap(err, fmt.Sprintf("[Invalid Yaml] fail to parse resource obj"))
-		//}
-		//
-		//unstructuredObj := &unstructured.Unstructured{Object: unstructuredMap}
-		//
-		//gr, err := restmapper.GetAPIGroupResources(c.ClientSet.Discovery())
-		//if err != nil {
-		//	return err
-		//}
-		//
-		//mapper := restmapper.NewDiscoveryRESTMapper(gr)
-		//mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
-		//if err != nil {
-		//	return err
-		//}
-		//
-		//var dri dynamic.ResourceInterface
-		//if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
-		//	if namespace != "" {
-		//		unstructuredObj.SetNamespace(namespace)
-		//	} else if unstructuredObj.GetNamespace() == "" {
-		//		unstructuredObj.SetNamespace("default")
-		//	}
-		//	dri = c.GetDynamicClient().Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
-		//} else {
-		//	dri = c.GetDynamicClient().Resource(mapping.Resource)
-		//}
-		//
-		////obj2, err := dri.Create(context.Background(), unstructuredObj, metav1.CreateOptions{})
-		////log.Debug("background to todo")
-		//obj2, err := dri.Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
-		//if err != nil {
-		//	return errors.Wrap(err, fmt.Sprintf("fail to create %s", unstructuredObj.GetName()))
-		//}
-		//
-		//fmt.Printf("%s/%s created\n", obj2.GetKind(), obj2.GetName())
-		//
-		//if wait {
-		//	err = c.WaitJobToBeReady(obj2.GetNamespace(), obj2.GetName())
-		//	if err != nil {
-		//		PrintlnErr("fail to wait", err)
-		//		return err
-		//	}
-		//}
-
 	}
-
 	return nil
 }
 
@@ -489,4 +444,37 @@ func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 		return err
 	}
 	return fw.ForwardPorts()
+}
+
+func (c *ClientGoUtils) GetNodesList() (*corev1.NodeList, error) {
+	nodes, err := c.ClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return &corev1.NodeList{}, err
+	}
+	return nodes, nil
+}
+
+func (c *ClientGoUtils) GetService(name, namespace string) (*corev1.Service, error) {
+	service, err := c.ClientSet.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return &corev1.Service{}, err
+	}
+	return service, nil
+}
+
+func (c *ClientGoUtils) CheckExistNameSpace(name string) error {
+	_, err := c.ClientSet.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *ClientGoUtils) CreateNameSpace(name string) error {
+	nsSpec := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name}}
+	_, err := c.ClientSet.CoreV1().Namespaces().Create(context.TODO(), nsSpec, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }

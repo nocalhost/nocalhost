@@ -16,11 +16,13 @@ package clientgoutils
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/pkg/errors"
+
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/rest"
-	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/runtime"

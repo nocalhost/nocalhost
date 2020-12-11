@@ -16,14 +16,15 @@ package cmds
 import (
 	"context"
 	"fmt"
-	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/syncthing/daemon"
-	"nocalhost/internal/nhctl/syncthing/ports"
-	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/syncthing/daemon"
+	"nocalhost/internal/nhctl/syncthing/ports"
+	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -32,11 +33,9 @@ import (
 var portForwardOptions = &app.PortForwardOptions{}
 
 func init() {
-	portForwardCmd.Flags().IntVarP(&portForwardOptions.LocalPort, "local-port", "l", 0, "local port to forward")
-	portForwardCmd.Flags().IntVarP(&portForwardOptions.RemotePort, "remote-port", "r", 0, "remote port to be forwarded")
 	portForwardCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
 	portForwardCmd.Flags().StringSliceVarP(&portForwardOptions.DevPort, "dev-port", "p", []string{}, "port-forward between pod and local, such 8080:8080 or :8080(random localPort)")
-	portForwardCmd.Flags().BoolVarP(&portForwardOptions.RunAsDaemon, "daemon", "m", true, "if port-forward run as daemon, default true")
+	portForwardCmd.Flags().BoolVarP(&portForwardOptions.RunAsDaemon, "daemon", "m", true, "if port-forward run as daemon")
 	rootCmd.AddCommand(portForwardCmd)
 }
 
@@ -53,21 +52,17 @@ var portForwardCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// var err error
 		applicationName := args[0]
-		InitAppAndSvc(applicationName, deployment)
+		InitAppAndCheckIfSvcExist(applicationName, deployment)
 
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			log.Fatalf("\"%s\" is not in DevMode", deployment)
 		}
 
-		if nocalhostApp.CheckIfSvcIsPortForwaed(deployment) {
+		if nocalhostApp.CheckIfSvcIsPortForwarded(deployment) {
 			log.Fatalf("\"%s\" has in port forwarding", deployment)
 		}
 
-		if nocalhostApp.CheckIfSvcIsPortForwaed(deployment) {
-			log.Fatalf("\"%s\" has in port forwarding", deployment)
-		}
-
-		// look nhctl
+		// look for nhctl
 		NhctlAbsdir, err := exec.LookPath(nocalhostApp.GetMyBinName())
 		if err != nil {
 			log.Fatal("installing fortune is in your future")

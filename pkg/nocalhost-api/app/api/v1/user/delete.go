@@ -24,14 +24,14 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
-// Create 删除用户
-// @Summary 删除用户
-// @Description 管理员删除用户
-// @Tags 用户
+// Create Delete users
+// @Summary Delete users
+// @Description Delete users
+// @Tags Users
 // @Accept json
 // @Produce json
 // @param Authorization header string true "Authorization"
-// @Param id path uint64 true "用户 ID"
+// @Param id path uint64 true "User ID"
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
 // @Router /v1/users/{id} [delete]
 func Delete(c *gin.Context) {

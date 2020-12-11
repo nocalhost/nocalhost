@@ -33,21 +33,21 @@ import (
 	tnet "github.com/toolkits/net"
 )
 
-// GenShortID 生成一个id
+// GenShortID
 func GenShortID() (string, error) {
 	return shortid.Generate()
 }
 
-// XRequestID 全局唯一ID key
+// XRequestID
 var XRequestID = "X-Request-ID"
 
-// GenRequestID 生成随机字符串，eg: 76d27e8c-a80e-48c8-ad20-e5562e0f67e4
+// GenRequestID eg: 76d27e8c-a80e-48c8-ad20-e5562e0f67e4
 func GenRequestID() string {
 	u, _ := uuid.NewRandom()
 	return u.String()
 }
 
-// GetRequestID 获取请求中的request_id
+// GetRequestID
 func GetRequestID(c *gin.Context) string {
 	v, ok := c.Get(XRequestID)
 	if !ok {
@@ -64,7 +64,7 @@ var (
 	clientIP = "127.0.0.1"
 )
 
-// GetLocalIP 获取本地内网IP
+// GetLocalIP
 func GetLocalIP() string {
 	once.Do(func() {
 		ips, _ := tnet.IntranetIP()
@@ -77,7 +77,7 @@ func GetLocalIP() string {
 	return clientIP
 }
 
-// GetBytes interface 转 byte
+// GetBytes interface to byte
 func GetBytes(key interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
@@ -88,7 +88,7 @@ func GetBytes(key interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Md5 字符串转md5
+// Md5
 func Md5(str string) (string, error) {
 	h := md5.New()
 
@@ -97,11 +97,10 @@ func Md5(str string) (string, error) {
 		return "", err
 	}
 
-	// 注意：这里不能使用string将[]byte转为字符串，否则会显示乱码
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
-// RandomStr 随机字符串
+// RandomStr
 func RandomStr(n int) string {
 	var r = rand.New(rand.NewSource(time.Now().UnixNano()))
 	const pattern = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz"

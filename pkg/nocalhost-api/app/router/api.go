@@ -50,18 +50,18 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	g.NoMethod(api.RouteNotFound)
 	g.Use(api.Recover)
 
-	// 静态资源
+	// Static resources
 	//g.Static("/static", "./static")
 
-	// 仅在test环境下开启，线上关闭
+	// Open only in the test environment, close online
 	if viper.GetString("app.run_mode") == napp.ModeDebug {
 		// swagger api docs
 		g.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-		// pprof router 性能分析路由
-		// 默认关闭，开发环境下可以打开
-		// 访问方式: HOST/debug/pprof
-		// 通过 HOST/debug/pprof/profile 生成profile
-		// 查看分析图 go tool pprof -http=:5000 profile
+		// pprof router Performance analysis routing
+		// Closed by default, can be opened in development environment
+		// interview method: HOST/debug/pprof
+		// Generate profile through HOST/debug/pprof/profile
+		// View analysis graph go tool pprof -http=:5000 profile
 		// see: https://github.com/gin-contrib/pprof
 		pprof.Register(g)
 	} else {
@@ -88,7 +88,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		m.GET("", user.GetMe)
 	}
 
-	// 集群
+	// Clusters
 	c := g.Group("/v1/cluster")
 	c.Use(middleware.AuthMiddleware())
 	{
@@ -100,7 +100,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		c.DELETE("/:id", cluster.Delete)
 	}
 
-	// 应用
+	// Applications
 	a := g.Group("/v1/application")
 	a.Use(middleware.AuthMiddleware())
 	{
@@ -119,14 +119,15 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		a.GET("/:id/cluster/:clusterId", applications.GetSpaceDetail)
 	}
 
-	// 开发环境
+	// DevSpace
 	dv := g.Group("v1/dev_space")
 	dv.Use(middleware.AuthMiddleware())
 	{
 		dv.DELETE("/:id", cluster_user.Delete)
+		dv.PUT("/:id", cluster_user.Update)
 	}
 
-	// 插件接口
+	// Plug-in
 	pa := g.Group("/v1/plugin")
 	pa.Use(middleware.AuthMiddleware())
 	{

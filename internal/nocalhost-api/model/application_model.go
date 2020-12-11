@@ -50,7 +50,7 @@ func (u *ApplicationModel) Validate() error {
 	return validate.Struct(u)
 }
 
-// TableName 表名
+// TableName
 func (u *ApplicationModel) TableName() string {
 	return "applications"
 }

@@ -30,6 +30,7 @@ type ClusterUserService interface {
 	GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error)
 	GetJoinCluster(ctx context.Context, condition model.ClusterUserJoinCluster) ([]*model.ClusterUserJoinCluster, error)
 	Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
+	UpdateKubeConfig(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
 	Close()
 }
 
@@ -40,6 +41,10 @@ type clusterUserService struct {
 func NewClusterUserService() ClusterUserService {
 	db := model.GetDB()
 	return &clusterUserService{clusterUserRepo: cluster_user.NewApplicationClusterRepo(db)}
+}
+
+func (srv *clusterUserService) UpdateKubeConfig(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error) {
+	return srv.clusterUserRepo.UpdateKubeConfig(ctx, models)
 }
 
 func (srv *clusterUserService) GetJoinCluster(ctx context.Context, condition model.ClusterUserJoinCluster) ([]*model.ClusterUserJoinCluster, error) {

@@ -25,7 +25,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 )
 
-// SignMd5Middleware md5 签名校验中间件
+// SignMd5Middleware md5
 func SignMd5Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sn, err := verifySign(c)
@@ -45,24 +45,24 @@ func SignMd5Middleware() gin.HandlerFunc {
 	}
 }
 
-// verifySign 验证签名
+// verifySign
 func verifySign(c *gin.Context) (map[string]string, error) {
 	requestUri := c.Request.RequestURI
-	// 创建Verify校验器
+	// Create Verify validator
 	verifier := sign.NewVerifier()
 	sn := verifier.GetSign()
 
-	// 假定从RequestUri中读取校验参数
+	// Assuming that the verification parameters are read from RequestUri
 	if err := verifier.ParseQuery(requestUri); nil != err {
 		return nil, err
 	}
 
-	// 检查时间戳是否超时。
+	// Check whether the timestamp has timed out。
 	if err := verifier.CheckTimeStamp(); nil != err {
 		return nil, err
 	}
 
-	// 验证签名
+	// Verify signature
 	localSign := genSign()
 	if sn == "" || sn != localSign {
 		return nil, errors.New("sign error")
@@ -71,9 +71,9 @@ func verifySign(c *gin.Context) (map[string]string, error) {
 	return nil, nil
 }
 
-// genSign 生成签名
+// genSign
 func genSign() string {
-	// todo: 读取配置
+	// TODO: Read configuration
 	signer := sign.NewSignerMd5()
 	signer.SetAppID("123456")
 	signer.SetTimeStamp(time.Now().Unix())

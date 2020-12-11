@@ -28,16 +28,16 @@ import (
 )
 
 const (
-	// WriterStdOut 标准输出
+	// WriterStdOut
 	WriterStdOut = "stdout"
-	// WriterFile 文件输出
+	// WriterFile
 	WriterFile = "file"
 )
 
 const (
-	// RotateTimeDaily 按天切割
+	// RotateTimeDaily
 	RotateTimeDaily = "daily"
-	// RotateTimeHourly 按小时切割
+	// RotateTimeHourly
 	RotateTimeHourly = "hourly"
 )
 
@@ -52,7 +52,6 @@ func newZapLogger(cfg *Config) (Logger, error) {
 
 	var cores []zapcore.Core
 	var options []zap.Option
-	// 设置初始化字段
 	option := zap.Fields(zap.String("ip", utils.GetLocalIP()), zap.String("app", viper.GetString("name")))
 	options = append(options, option)
 
@@ -106,17 +105,14 @@ func newZapLogger(cfg *Config) (Logger, error) {
 
 	combinedCore := zapcore.NewTee(cores...)
 
-	// 开启开发模式，堆栈跟踪
+	// debug
 	caller := zap.AddCaller()
 	options = append(options, caller)
-	// 开启文件及行号
 	development := zap.Development()
 	options = append(options, development)
-	// 跳过文件调用层数
 	addCallerSkip := zap.AddCallerSkip(2)
 	options = append(options, addCallerSkip)
 
-	// 构造日志
 	logger := zap.New(combinedCore, options...).Sugar()
 
 	return &zapLogger{sugaredLogger: logger}, nil
@@ -139,7 +135,7 @@ func getJSONEncoder() zapcore.Encoder {
 	return zapcore.NewJSONEncoder(encoderConfig)
 }
 
-// getLogWriterWithTime 按时间(小时)进行切割
+// getLogWriterWithTime
 func getLogWriterWithTime(filename string) io.Writer {
 	logFullPath := filename
 	rotationPolicy := viper.Get("coloredoutput.log_rolling_policy")
@@ -150,10 +146,10 @@ func getLogWriterWithTime(filename string) io.Writer {
 		rotateDuration = time.Hour
 	}
 	hook, err := rotatelogs.New(
-		logFullPath+".%Y%m%d%H",                     // 时间格式使用shell的date时间格式
-		rotatelogs.WithLinkName(logFullPath),        // 生成软链，指向最新日志文件
-		rotatelogs.WithRotationCount(backupCount),   // 文件最大保存份数
-		rotatelogs.WithRotationTime(rotateDuration), // 日志切割时间间隔
+		logFullPath+".%Y%m%d%H",
+		rotatelogs.WithLinkName(logFullPath),
+		rotatelogs.WithRotationCount(backupCount),
+		rotatelogs.WithRotationTime(rotateDuration),
 	)
 
 	if err != nil {

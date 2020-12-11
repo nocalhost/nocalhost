@@ -23,7 +23,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
-// BaseRepo 定义接口
+// BaseRepo
 type BaseRepo interface {
 	Create(ctx context.Context, user model.UserBaseModel) (model.UserBaseModel, error)
 	Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) (*model.UserBaseModel, error)
@@ -35,12 +35,12 @@ type BaseRepo interface {
 	Close()
 }
 
-// userBaseRepo 用户仓库
+// userBaseRepo
 type userBaseRepo struct {
 	db *gorm.DB
 }
 
-// NewUserRepo 实例化用户仓库
+// NewUserRepo
 func NewUserRepo(db *gorm.DB) BaseRepo {
 	return &userBaseRepo{
 		db: db,
@@ -54,7 +54,7 @@ func (repo *userBaseRepo) GetUserList(ctx context.Context) ([]*model.UserList, e
 	return result, nil
 }
 
-// Delete 删除用户
+// Delete
 func (repo *userBaseRepo) Delete(ctx context.Context, id uint64) error {
 	users := model.UserBaseModel{
 		ID: id,
@@ -65,7 +65,7 @@ func (repo *userBaseRepo) Delete(ctx context.Context, id uint64) error {
 	return errors.New("user delete fail")
 }
 
-// Create 创建用户
+// Create
 func (repo *userBaseRepo) Create(ctx context.Context, user model.UserBaseModel) (model.UserBaseModel, error) {
 	err := repo.db.Create(&user).Error
 	if err != nil {
@@ -75,7 +75,7 @@ func (repo *userBaseRepo) Create(ctx context.Context, user model.UserBaseModel) 
 	return user, nil
 }
 
-// Update 更新用户信息
+// Update
 func (repo *userBaseRepo) Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) (*model.UserBaseModel, error) {
 	user, err := repo.GetUserByID(ctx, id)
 	if err != nil {
@@ -88,7 +88,7 @@ func (repo *userBaseRepo) Update(ctx context.Context, id uint64, userMap *model.
 	return user, nil
 }
 
-// GetUserByID 获取用户
+// GetUserByID
 func (repo *userBaseRepo) GetUserByID(ctx context.Context, uid uint64) (userBase *model.UserBaseModel, err error) {
 	start := time.Now()
 	defer func() {
@@ -97,7 +97,6 @@ func (repo *userBaseRepo) GetUserByID(ctx context.Context, uid uint64) (userBase
 
 	data := new(model.UserBaseModel)
 
-	// 从数据库中获取
 	err = repo.db.First(data, uid).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errors.Wrap(err, "[repo.user_base] get user data err")
@@ -105,7 +104,7 @@ func (repo *userBaseRepo) GetUserByID(ctx context.Context, uid uint64) (userBase
 	return data, nil
 }
 
-// GetUserByPhone 根据手机号获取用户
+// GetUserByPhone
 func (repo *userBaseRepo) GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error) {
 	user := model.UserBaseModel{}
 	err := repo.db.Where("phone = ?", phone).First(&user).Error
@@ -116,7 +115,7 @@ func (repo *userBaseRepo) GetUserByPhone(ctx context.Context, phone int64) (*mod
 	return &user, nil
 }
 
-// GetUserByEmail 根据邮箱获取手机号
+// GetUserByEmail
 func (repo *userBaseRepo) GetUserByEmail(ctx context.Context, phone string) (*model.UserBaseModel, error) {
 	user := model.UserBaseModel{}
 	err := repo.db.Where("email = ?", phone).First(&user).Error

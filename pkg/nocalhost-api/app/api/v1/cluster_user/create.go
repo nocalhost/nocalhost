@@ -27,15 +27,15 @@ import (
 	"github.com/spf13/cast"
 )
 
-// Create 创建开发环境
-// @Summary 创建开发环境
-// @Description 为创建应用的开发环境
-// @Tags 应用
+// Create Create a development environment for application
+// @Summary Create a development environment for application
+// @Description Create a development environment for application
+// @Tags Application
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param CreateAppRequest body cluster_user.ClusterUserCreateRequest true "cluster user info"
-// @Param id path uint64 true "应用 ID"
+// @Param id path uint64 true "Application ID"
 // @Success 200 {object} model.ClusterModel
 // @Router /v1/application/{id}/create_space [post]
 func Create(c *gin.Context) {

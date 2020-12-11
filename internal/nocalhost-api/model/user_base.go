@@ -62,7 +62,7 @@ type UserList struct {
 	Status       uint64 `gorm:"column:status" json:"status"`
 }
 
-// TableName 表名
+// TableName
 func (u *UserBaseModel) TableName() string {
 	return "users"
 }

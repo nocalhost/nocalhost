@@ -22,14 +22,14 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Lock 定义lock结构体
+// Lock
 type Lock struct {
 	key         string
 	redisClient *redis.Client
 	timeout     time.Duration
 }
 
-// NewLock 实例化lock
+// NewLock
 func NewLock(conn *redis.Client, key string, defaultTimeout time.Duration) *Lock {
 	return &Lock{
 		key:         key,
@@ -38,7 +38,7 @@ func NewLock(conn *redis.Client, key string, defaultTimeout time.Duration) *Lock
 	}
 }
 
-// Lock 加锁
+// Lock
 func (l *Lock) Lock(token string) (bool, error) {
 	ok, err := l.redisClient.SetNX(l.GetKey(), token, l.timeout).Result()
 	if err == redis.Nil {
@@ -47,8 +47,7 @@ func (l *Lock) Lock(token string) (bool, error) {
 	return ok, err
 }
 
-// Unlock 解锁
-// token 一致才会执行删除，避免误删，这里用了lua脚本进行事务处理
+// Unlock
 func (l *Lock) Unlock(token string) error {
 	script := "if redis.call('get',KEYS[1]) == ARGV[1] then return redis.call('del',KEYS[1]) else return 0 end"
 	_, err := l.redisClient.Eval(script, []string{l.GetKey()}, token).Result()
@@ -58,14 +57,14 @@ func (l *Lock) Unlock(token string) error {
 	return nil
 }
 
-// GetKey 获取key
+// GetKey
 func (l *Lock) GetKey() string {
 	keyPrefix := viper.GetString("name")
 	lockKey := "redis:lock"
 	return strings.Join([]string{keyPrefix, lockKey, l.key}, ":")
 }
 
-// GenToken 生成token
+// GenToken
 func (l *Lock) GenToken() string {
 	u, _ := uuid.NewRandom()
 	return u.String()

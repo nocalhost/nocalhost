@@ -817,6 +817,54 @@
             }
         },
         "/v1/dev_space/{id}": {
+            "put": {
+                "description": "Update dev space",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "集群"
+                ],
+                "summary": "Update dev space",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "devspace id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "kubeconfig",
+                        "name": "CreateAppRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster_user.DevSpaceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            },
             "delete": {
                 "description": "彻底删除开发环境，包含删除 K8S 命名空间",
                 "consumes": [
@@ -1271,6 +1319,14 @@
                 },
                 "user_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "cluster_user.DevSpaceRequest": {
+            "type": "object",
+            "properties": {
+                "kubeconfig": {
+                    "type": "string"
                 }
             }
         },

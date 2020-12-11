@@ -25,14 +25,14 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
-// GetList 彻底删除集群
-// @Summary 彻底删除集群
-// @Description 彻底删除集群
-// @Tags 集群
+// GetList Delete the cluster completely
+// @Summary Delete the cluster completely
+// @Description Delete the cluster completely
+// @Tags Cluster
 // @Accept  json
 // @Produce  json
 // @Param Authorization header string true "Authorization"
-// @Param id path uint64 true "集群 ID"
+// @Param id path uint64 true "Cluster ID"
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
 // @Router /v1/cluster/{id} [delete]
 func Delete(c *gin.Context) {

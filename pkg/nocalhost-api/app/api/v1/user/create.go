@@ -22,10 +22,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Register 添加开发者
-// @Summary 添加开发者
-// @Description 管理员添加开发者
-// @Tags 用户
+// Register Add developer
+// @Summary Add developer
+// @Description Admin add developer
+// @Tags Users
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param register body user.CreateUserRequest true "Reg user info"
@@ -40,7 +40,6 @@ func Create(c *gin.Context) {
 		return
 	}
 
-	// 两次密码是否正确
 	if req.Password != req.ConfirmPassword {
 		log.Warnf("twice password is not same")
 		api.SendResponse(c, errno.ErrTwicePasswordNotMatch, nil)

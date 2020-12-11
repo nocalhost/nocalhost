@@ -58,6 +58,11 @@ definitions:
     - cluster_id
     - user_id
     type: object
+  cluster_user.DevSpaceRequest:
+    properties:
+      kubeconfig:
+        type: string
+    type: object
   model.ApplicationClusterModel:
     properties:
       application_id:
@@ -850,6 +855,39 @@ paths:
       summary: 彻底删除开发环境
       tags:
       - 应用
+    put:
+      consumes:
+      - application/json
+      description: Update dev space
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: devspace id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: kubeconfig
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/cluster_user.DevSpaceRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Update dev space
+      tags:
+      - 集群
   /v1/login:
     post:
       description: 邮箱登录
