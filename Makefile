@@ -21,10 +21,6 @@ api-docs: ## gen-docs - gen swag doc
 api: ## Build nocalhost-api
 	@go mod vendor && go build -ldflags '-X main.GIT_COMMIT_SHA=$(GIT_COMMIT_SHA)' cmd/nocalhost-api/nocalhost-api.go
 
-.PHONY: nocalhost-dep
-nocalhost-dep: ## Build nocalhost-dep
-	@go build -ldflags '-X main.GIT_COMMIT_SHA=$(GIT_COMMIT_SHA)' cmd/nocalhost-dep/nocalhost-dep.go
-
 .PHONY: nhctl
 nhctl: ## Build nhctl for current OS
 	@echo "WARNING: binary creates a current os executable."
