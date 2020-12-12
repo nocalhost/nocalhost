@@ -21,7 +21,7 @@ docker build -t nocalhost-dep:v51 -f deployments/dep-install-job/webhook/Dockerf
 
 ```
 cd deployments/dep-install-job
-docker build -t dep-installer-job:v27 . 
+docker build -t dep-installer-job:v27 .
 ```
 
 对应镜像：codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job
