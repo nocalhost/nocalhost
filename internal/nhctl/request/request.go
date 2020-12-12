@@ -40,23 +40,24 @@ const (
 )
 
 type ApiRequest struct {
-	Req                   *req.Req
-	BaseUrl               string
-	AuthToken             string
-	ApplicationId         int
-	ClusterId             int
-	UserId                int
-	KubeConfig            string
-	KubeConfigRaw         string
-	Minikube              bool
-	MiniKubeMasterIP      string
-	Kubectl               string
-	MiniKubePort          int
-	NameSpace             string
-	MiniKubeAvailablePort int
-	InternalKubeConfigRaw string
-	MiniKubeLocalServer   string
-	DevSpaceId            int
+	Req                      *req.Req
+	BaseUrl                  string
+	AuthToken                string
+	ApplicationId            int
+	ClusterId                int
+	UserId                   int
+	KubeConfig               string
+	KubeConfigRaw            string
+	Minikube                 bool
+	MiniKubeMasterIP         string
+	Kubectl                  string
+	MiniKubePort             int
+	NameSpace                string
+	MiniKubeAvailablePort    int
+	InternalKubeConfigRaw    string
+	MiniKubeLocalServer      string
+	DevSpaceId               int
+	MiniKubeUserDevNameSpace string
 }
 
 type MiniKubeCluster struct {
@@ -128,7 +129,7 @@ func (q *ApiRequest) MiniKubeExposeService(isWait bool, port int) *ApiRequest {
 		}
 	}
 	baseUrl := "http://127.0.0.1:" + strconv.Itoa(q.MiniKubeAvailablePort)
-	fmt.Printf("pid is %d, wait for port-forward... \n", cmd.Process.Pid)
+	fmt.Printf("pid is %d, wait for port-forward... %s:80 \n", cmd.Process.Pid, strconv.Itoa(q.MiniKubeAvailablePort))
 	// wait for port-forward
 	for {
 		conn, _ := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(q.MiniKubeAvailablePort)), app.DefaultInitPortForwardTimeOut)
@@ -163,13 +164,17 @@ func (q *ApiRequest) UpdateClusterDevSpace() *ApiRequest {
 	if _, err := tmpFile.Write([]byte(q.InternalKubeConfigRaw)); err != nil {
 		log.Fatalf("can not write temp config file, err: %s", err)
 	}
+
+	// TODO delete log
+	fmt.Printf("ready to edit devSpace %s", q.InternalKubeConfigRaw)
+
 	_ = tmpFile.Close()
 	// get cluster node and set it for cluster
 	q.GetMiniKubeClusterConfig()
 	setAddress := []string{
 		"config",
 		"set-cluster",
-		"minikube",
+		q.MiniKubeUserDevNameSpace,
 		"--server",
 		q.MiniKubeLocalServer,
 		"--kubeconfig",
@@ -183,6 +188,10 @@ func (q *ApiRequest) UpdateClusterDevSpace() *ApiRequest {
 	if err != nil {
 		log.Fatalf("read new local kubeconfig file fail, path %s", tmpFile.Name())
 	}
+
+	// TODO delete log
+	fmt.Printf("ready to edit devSpace %s", newConfig)
+
 	q.InternalKubeConfigRaw = string(newConfig)
 	_ = os.Remove(tmpFile.Name())
 	q.UpdateDataBaseClusterUser()
@@ -503,6 +512,14 @@ func (q *ApiRequest) AddDevSpace() *ApiRequest {
 	}
 	fmt.Println("added develop space")
 	devSpaceId := int(res.Data["id"].(float64))
+	kubeConfig := res.Data["kubeconfig"].(string)
+	nameSpace := res.Data["namespace"].(string)
+	// TODO
+
+	fmt.Printf("create dev space kubeconfig %s", kubeConfig)
+
+	q.InternalKubeConfigRaw = kubeConfig
+	q.MiniKubeUserDevNameSpace = nameSpace
 	q.DevSpaceId = devSpaceId
 	if q.Minikube {
 		q.UpdateClusterDevSpace()

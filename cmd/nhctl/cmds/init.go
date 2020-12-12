@@ -25,6 +25,8 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
+	"os/user"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -58,6 +60,12 @@ var InitCommand = &cobra.Command{
 		kubectl, err := tools.CheckThirdPartyCLI()
 		if err != nil {
 			log.Fatalf("%s, you should install them first(helm3 and kubectl)", err.Error())
+		}
+		if settings.KubeConfig == "" {
+			u, err := user.Current()
+			if err == nil {
+				settings.KubeConfig = filepath.Join(u.HomeDir, ".kube", "config")
+			}
 		}
 		// init api and web
 		// nhctl install nocalhost -u https://e.coding.net/codingcorp/nocalhost/nocalhost.git -t helm --kubeconfig xxx -n xxx
@@ -96,6 +104,7 @@ var InitCommand = &cobra.Command{
 			}
 		}
 		client, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, app.DefaultClientGoTimeOut)
+		fmt.Printf("kubeconfig %s \n", settings.KubeConfig)
 		if err != nil || client == nil {
 			log.Fatalf("new go client fail, err %s, or check you kubeconfig\n", err)
 		}
@@ -205,7 +214,7 @@ var InitCommand = &cobra.Command{
 		spinner.Stop()
 		if kubeResult.Minikube {
 			portResult := req.GetAvailableRandomLocalPort()
-			serverUrl := fmt.Sprintf("%s:%d", "127.0.0.1", portResult.MiniKubeAvailablePort)
+			serverUrl := fmt.Sprintf("http://%s:%d", "127.0.0.1", portResult.MiniKubeAvailablePort)
 			coloredoutput.Success("nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please set VS Code Plugin and login, enjoy! \n port forwarding, please do not close this windows! \n", serverUrl, app.DefaultInitUserEmail, app.DefaultInitPassword)
 			req.RunPortForward(portResult.MiniKubeAvailablePort)
 		} else {
