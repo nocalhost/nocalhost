@@ -56,7 +56,7 @@ type UpdateUserRequest struct {
 type LoginCredentials struct {
 	Email    string `json:"email" form:"email" binding:"required"`
 	Password string `json:"password" form:"password" binding:"required"`
-	From     string `json:"from" form:"from" example:"web 端不传该字段"`
+	From     string `json:"from" form:"from" example:"only use for plugin, web interface do not send this key"`
 }
 
 // UpdateRequest

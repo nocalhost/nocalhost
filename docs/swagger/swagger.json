@@ -6,7 +6,7 @@
     "paths": {
         "/v1/application": {
             "get": {
-                "description": "用户获取应用",
+                "description": "Get Application",
                 "consumes": [
                     "application/json"
                 ],
@@ -14,9 +14,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "应用"
+                    "Application"
                 ],
-                "summary": "获取应用",
+                "summary": "Get Application",
                 "parameters": [
                     {
                         "type": "string",
@@ -37,7 +37,7 @@
                 }
             },
             "post": {
-                "description": "用户添加应用",
+                "description": "Create Application",
                 "consumes": [
                     "application/json"
                 ],
@@ -45,9 +45,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "应用"
+                    "Application"
                 ],
-                "summary": "添加应用",
+                "summary": "Create Application",
                 "parameters": [
                     {
                         "type": "string",
@@ -80,7 +80,7 @@
         },
         "/v1/application/{id}": {
             "get": {
-                "description": "获取应用详情",
+                "description": "Get Application Detail",
                 "consumes": [
                     "application/json"
                 ],
@@ -88,9 +88,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "应用"
+                    "Application"
                 ],
-                "summary": "获取应用详情",
+                "summary": "Get Application Detail",
                 "parameters": [
                     {
                         "type": "string",
@@ -101,7 +101,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "应用 ID",
+                        "description": "Application ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -118,7 +118,7 @@
                 }
             },
             "put": {
-                "description": "用户编辑应用",
+                "description": "Edit application",
                 "consumes": [
                     "application/json"
                 ],
@@ -126,9 +126,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "应用"
+                    "Application"
                 ],
-                "summary": "编辑应用",
+                "summary": "Edit application",
                 "parameters": [
                     {
                         "type": "string",
@@ -139,7 +139,7 @@
                     },
                     {
                         "type": "integer",
-                        "description": "应用 ID",
+                        "description": "Application ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -166,7 +166,7 @@
                 }
             },
             "delete": {
-                "description": "用户删除应用，同时也会删除应用内已配置的开发空间",
+                "description": "The user deletes the application, and also deletes the configured development space in the application",
                 "consumes": [
                     "application/json"
                 ],
@@ -174,9 +174,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "应用"
+                    "Application"
                 ],
-                "summary": "删除应用",
+                "summary": "Delete Application",
                 "parameters": [
                     {
                         "type": "string",
@@ -187,7 +187,7 @@
                     },
                     {
                         "type": "integer",
-                        "description": "应用 ID",
+                        "description": "Application ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -206,7 +206,7 @@
         },
         "/v1/application/{id}/bind_cluster": {
             "post": {
-                "description": "应用关联集群",
+                "description": "Application associated cluster",
                 "consumes": [
                     "application/json"
                 ],
@@ -214,9 +214,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "应用"
+                    "Application"
                 ],
-                "summary": "关联集群",
+                "summary": "Associated cluster",
                 "parameters": [
                     {
                         "type": "string",
@@ -237,7 +237,7 @@
                     },
                     {
                         "type": "integer",
-                        "description": "应用 ID",
+                        "description": "Application ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -256,7 +256,7 @@
         },
         "/v1/application/{id}/bound_cluster": {
             "get": {
-                "description": "获取应用已关联集群列表（废弃）",
+                "description": "Get the list of clusters associated with the application（Abandoned）",
                 "consumes": [
                     "application/json"
                 ],
@@ -264,9 +264,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "应用"
+                    "Application"
                 ],
-                "summary": "获取应用已关联集群列表（废弃）",
+                "summary": "Get the list of clusters associated with the application（Abandoned）",
                 "parameters": [
                     {
                         "type": "string",
@@ -277,7 +277,7 @@
                     },
                     {
                         "type": "integer",
-                        "description": "应用 ID",
+                        "description": "Application ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -296,7 +296,7 @@
         },
         "/v1/application/{id}/cluster/{clusterId}": {
             "get": {
-                "description": "应用入口获取应用所属集群已授权详情（废弃）",
+                "description": "Get authorized details of the application (obsolete)",
                 "consumes": [
                     "application/json"
                 ],
@@ -304,9 +304,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "应用"
+                    "Application"
                 ],
-                "summary": "获取应用已授权详情（废弃）",
+                "summary": "Get authorized details of the application (obsolete)",
                 "parameters": [
                     {
                         "type": "string",
@@ -317,14 +317,14 @@
                     },
                     {
                         "type": "string",
-                        "description": "集群 ID",
+                        "description": "Cluster ID",
                         "name": "clusterId",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "应用 ID",
+                        "description": "Application ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -332,7 +332,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "应用开发环境参数，含 kubeconfig",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
@@ -343,7 +343,7 @@
         },
         "/v1/application/{id}/create_space": {
             "post": {
-                "description": "为创建应用的开发环境",
+                "description": "Create a development environment for application",
                 "consumes": [
                     "application/json"
                 ],
@@ -351,9 +351,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "应用"
+                    "Application"
                 ],
-                "summary": "创建开发环境",
+                "summary": "Create a development environment for application",
                 "parameters": [
                     {
                         "type": "string",
@@ -374,7 +374,7 @@
                     },
                     {
                         "type": "integer",
-                        "description": "应用 ID",
+                        "description": "Application ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -393,7 +393,7 @@
         },
         "/v1/application/{id}/dev_space": {
             "get": {
-                "description": "Get user's application dev space",
+                "description": "Get personal application development environment (kubeconfig) (obsolete)",
                 "consumes": [
                     "application/json"
                 ],
@@ -401,9 +401,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "插件"
+                    "Plug-in"
                 ],
-                "summary": "Plugin - 获取个人应用开发环境(kubeconfig) （废弃）",
+                "summary": "Plug-in Get personal application development environment (kubeconfig) (obsolete)",
                 "parameters": [
                     {
                         "type": "string",
@@ -414,7 +414,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "应用 ID",
+                        "description": "Application ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -422,7 +422,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "应用开发环境参数，含 kubeconfig，status=0应用未安装，1已安装",
+                        "description": "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
@@ -433,7 +433,7 @@
         },
         "/v1/application/{id}/dev_space/{spaceId}/plugin_sync": {
             "put": {
-                "description": "Plugin - 更新应用安装状态",
+                "description": "Plug-in Update app installation status",
                 "consumes": [
                     "application/json"
                 ],
@@ -441,9 +441,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "插件"
+                    "Plug-in"
                 ],
-                "summary": "Plugin - 更新应用安装状态",
+                "summary": "Plug-in Update app installation status",
                 "parameters": [
                     {
                         "type": "string",
@@ -454,14 +454,14 @@
                     },
                     {
                         "type": "integer",
-                        "description": "应用 ID",
+                        "description": "Application ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "integer",
-                        "description": "开发空间 ID",
+                        "description": "DevSpace ID",
                         "name": "spaceId",
                         "in": "path",
                         "required": true
@@ -498,9 +498,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "应用"
+                    "Application"
                 ],
-                "summary": "获取应用某个开发环境详情",
+                "summary": "Get the details of a development environment of the application",
                 "parameters": [
                     {
                         "type": "string",
@@ -511,14 +511,14 @@
                     },
                     {
                         "type": "string",
-                        "description": "应用 ID",
+                        "description": "Application ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "开发空间 ID",
+                        "description": "DevSpace ID",
                         "name": "space_id",
                         "in": "path",
                         "required": true
@@ -526,7 +526,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "应用开发环境参数，含 kubeconfig，status=0应用未安装，1已安装",
+                        "description": "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
@@ -545,9 +545,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "应用"
+                    "Application"
                 ],
-                "summary": "获取应用开发环境列表",
+                "summary": "Get a list of application development environments",
                 "parameters": [
                     {
                         "type": "string",
@@ -558,7 +558,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "应用 ID",
+                        "description": "Application ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -566,7 +566,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "应用开发环境参数，含 kubeconfig，status=0 应用未安装，1已安装",
+                        "description": "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
@@ -577,7 +577,7 @@
         },
         "/v1/cluster": {
             "get": {
-                "description": "获取集群列表",
+                "description": "Get the cluster list",
                 "consumes": [
                     "application/json"
                 ],
@@ -585,9 +585,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "集群"
+                    "Cluster"
                 ],
-                "summary": "获取集群列表",
+                "summary": "Get the cluster list",
                 "parameters": [
                     {
                         "type": "string",
@@ -608,7 +608,7 @@
                 }
             },
             "post": {
-                "description": "用户添加集群，暂时不考虑验证集群的 kubeconfig",
+                "description": "Add cluster",
                 "consumes": [
                     "application/json"
                 ],
@@ -616,9 +616,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "集群"
+                    "Cluster"
                 ],
-                "summary": "添加集群",
+                "summary": "Add cluster",
                 "parameters": [
                     {
                         "type": "string",
@@ -651,7 +651,7 @@
         },
         "/v1/cluster/{id}": {
             "delete": {
-                "description": "彻底删除集群",
+                "description": "Delete the cluster completely",
                 "consumes": [
                     "application/json"
                 ],
@@ -659,9 +659,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "集群"
+                    "Cluster"
                 ],
-                "summary": "彻底删除集群",
+                "summary": "Delete the cluster completely",
                 "parameters": [
                     {
                         "type": "string",
@@ -672,7 +672,7 @@
                     },
                     {
                         "type": "integer",
-                        "description": "集群 ID",
+                        "description": "Cluster ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -691,7 +691,7 @@
         },
         "/v1/cluster/{id}/detail": {
             "get": {
-                "description": "获取集群详情",
+                "description": "Get cluster details",
                 "consumes": [
                     "application/json"
                 ],
@@ -699,9 +699,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "集群"
+                    "Cluster"
                 ],
-                "summary": "获取集群详情",
+                "summary": "Get cluster details",
                 "parameters": [
                     {
                         "type": "string",
@@ -712,7 +712,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "集群 ID",
+                        "description": "Cluster ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -720,7 +720,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "应用开发环境参数，含 kubeconfig",
+                        "description": "include kubeconfig",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterModel"
@@ -731,7 +731,7 @@
         },
         "/v1/cluster/{id}/dev_space": {
             "get": {
-                "description": "集群入口获取集群开发环境",
+                "description": "Cluster entrance to obtain cluster development environment",
                 "consumes": [
                     "application/json"
                 ],
@@ -739,9 +739,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "集群"
+                    "Cluster"
                 ],
-                "summary": "集群开发环境列表",
+                "summary": "Cluster dev space list",
                 "parameters": [
                     {
                         "type": "string",
@@ -752,7 +752,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "集群 ID",
+                        "description": "Cluster ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -760,7 +760,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "应用开发环境参数，含 kubeconfig",
+                        "description": "kubeconfig",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
@@ -771,7 +771,7 @@
         },
         "/v1/cluster/{id}/dev_space/{space_id}/detail": {
             "get": {
-                "description": "通过集群 id 和开发环境 id 获取集群开发环境详情",
+                "description": "Get cluster development environment details through cluster id and development environment id",
                 "consumes": [
                     "application/json"
                 ],
@@ -779,9 +779,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "集群"
+                    "Cluster"
                 ],
-                "summary": "集群某个开发环境的详情",
+                "summary": "Details of a development environment in the cluster",
                 "parameters": [
                     {
                         "type": "string",
@@ -792,14 +792,14 @@
                     },
                     {
                         "type": "string",
-                        "description": "集群 ID",
+                        "description": "Cluster ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "开发空间 ID",
+                        "description": "DevSpace ID",
                         "name": "space_id",
                         "in": "path",
                         "required": true
@@ -807,7 +807,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "应用开发环境参数，含 kubeconfig",
+                        "description": "include kubeconfig",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
@@ -826,7 +826,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "集群"
+                    "Cluster"
                 ],
                 "summary": "Update dev space",
                 "parameters": [
@@ -866,7 +866,7 @@
                 }
             },
             "delete": {
-                "description": "彻底删除开发环境，包含删除 K8S 命名空间",
+                "description": "Completely delete the development environment, including deleting the K8S namespace",
                 "consumes": [
                     "application/json"
                 ],
@@ -874,9 +874,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "应用"
+                    "Application"
                 ],
-                "summary": "彻底删除开发环境",
+                "summary": "Completely delete the development environment",
                 "parameters": [
                     {
                         "type": "string",
@@ -887,7 +887,7 @@
                     },
                     {
                         "type": "integer",
-                        "description": "开发环境 ID",
+                        "description": "DevSpace ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -906,14 +906,14 @@
         },
         "/v1/login": {
             "post": {
-                "description": "邮箱登录",
+                "description": "Web and plug-in login",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "用户"
+                    "Users"
                 ],
-                "summary": "用户登录",
+                "summary": "Web and plug-in login",
                 "parameters": [
                     {
                         "description": "Login user info",
@@ -938,7 +938,7 @@
         },
         "/v1/me": {
             "get": {
-                "description": "获取用户个人信息",
+                "description": "Get user personal information",
                 "consumes": [
                     "application/json"
                 ],
@@ -946,9 +946,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "用户"
+                    "Users"
                 ],
-                "summary": "获取用户个人信息",
+                "summary": "Get user personal information",
                 "parameters": [
                     {
                         "type": "string",
@@ -960,7 +960,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "用户信息",
+                        "description": "Userinfo",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.UserInfo"
@@ -971,7 +971,7 @@
         },
         "/v1/plugin/applications": {
             "get": {
-                "description": "Plugin - 获取应用（含安装状态）",
+                "description": "Plug-in access to applications (including installation status)",
                 "consumes": [
                     "application/json"
                 ],
@@ -979,9 +979,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "插件"
+                    "Plug-in"
                 ],
-                "summary": "Plugin - 获取应用（含安装状态）",
+                "summary": "Plug-in access to applications (including installation status)",
                 "parameters": [
                     {
                         "type": "string",
@@ -1004,14 +1004,14 @@
         },
         "/v1/register": {
             "post": {
-                "description": "用户注册",
+                "description": "Registration(obsolete)",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "用户"
+                    "Users"
                 ],
-                "summary": "管理员添加用户，用户无法自行注册",
+                "summary": "The administrator adds users, users cannot register themselves",
                 "parameters": [
                     {
                         "description": "Reg user info",
@@ -1044,9 +1044,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "用户"
+                    "Users"
                 ],
-                "summary": "获取用户列表",
+                "summary": "Get user list",
                 "parameters": [
                     {
                         "type": "string",
@@ -1058,7 +1058,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "用户列表",
+                        "description": "Get user list",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.UserList"
@@ -1067,14 +1067,14 @@
                 }
             },
             "post": {
-                "description": "管理员添加开发者",
+                "description": "Admin add developer",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "用户"
+                    "Users"
                 ],
-                "summary": "添加开发者",
+                "summary": "Add developer",
                 "parameters": [
                     {
                         "type": "string",
@@ -1107,7 +1107,7 @@
         },
         "/v1/users/{id}": {
             "get": {
-                "description": "通过 ID 获取用户详情",
+                "description": "Get user details",
                 "consumes": [
                     "application/json"
                 ],
@@ -1115,13 +1115,13 @@
                     "application/json"
                 ],
                 "tags": [
-                    "用户"
+                    "Users"
                 ],
-                "summary": "通过 ID 获取用户详情",
+                "summary": "Get user details",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "用户 ID",
+                        "description": "Users ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1136,7 +1136,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "用户信息",
+                        "description": "Userinfo",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.UserInfo"
@@ -1153,9 +1153,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "用户"
+                    "Users"
                 ],
-                "summary": "更新用户信息（含禁用用户）",
+                "summary": "Update user information (including disabled users)",
                 "parameters": [
                     {
                         "type": "string",
@@ -1193,7 +1193,7 @@
                 }
             },
             "delete": {
-                "description": "管理员删除用户",
+                "description": "Delete users",
                 "consumes": [
                     "application/json"
                 ],
@@ -1201,9 +1201,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "用户"
+                    "Users"
                 ],
-                "summary": "删除用户",
+                "summary": "Delete users",
                 "parameters": [
                     {
                         "type": "string",
@@ -1214,7 +1214,7 @@
                     },
                     {
                         "type": "integer",
-                        "description": "用户 ID",
+                        "description": "User ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1605,7 +1605,7 @@
                 },
                 "from": {
                     "type": "string",
-                    "example": "web 端不传该字段"
+                    "example": "only use for plugin, web interface do not send this key"
                 },
                 "password": {
                     "type": "string"
