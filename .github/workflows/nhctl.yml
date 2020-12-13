@@ -8,8 +8,8 @@ on:
 
 jobs:
 
-  build:
-    name: Build
+  build-nhctl:
+    name: Build nhctl
     runs-on: ubuntu-latest
     steps:
 
