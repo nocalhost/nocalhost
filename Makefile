@@ -1,12 +1,6 @@
 SHELL := /bin/bash
 BASEDIR = $(shell pwd)
 
-GIT_TAG := $(shell git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/\(.*\)-.*/\1/' | sed 's/-[0-9]*$///' || true)
-GIT_COMMIT_SHA := $(shell git rev-parse HEAD)
-ifneq ($(shell git status --porcelain),)
-    GIT_COMMIT_SHA := $(GIT_COMMIT_SHA)-dirty
-endif
-
 .PHONY: help
 help:
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
@@ -19,7 +13,19 @@ api-docs: ## gen-docs - gen swag doc
 
 .PHONY: api
 api: ## Build nocalhost-api
-	@go mod vendor && go build -ldflags '-X main.GIT_COMMIT_SHA=$(GIT_COMMIT_SHA)' cmd/nocalhost-api/nocalhost-api.go
+	@bash ./scripts/build/api/build
+
+.PHONY: api-docker
+api-docker: ## Build nocalhost-api docker image
+	@bash ./scripts/build/api/docker
+
+.PHONY: dep-docker
+dep-docker: ## Build nocalhost-dep docker image
+	@bash ./scripts/build/dep/docker
+
+.PHONY: dep-installer-job-docker
+dep-installer-job-docker: ## Build dep-installer-job-docker docker image
+	@bash ./scripts/build/dep/installer-job
 
 .PHONY: nhctl
 nhctl: ## Build nhctl for current OS
@@ -42,10 +48,6 @@ nhctl-osx: ## build executable for macOS
 nhctl-linux: ## build executable for Linux
 	@bash ./scripts/build/nhctl/linux
 
-.PHONY: nhctl-win64
-nhctl-win64: ## Build nhctl
-	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags '-X nocalhost/cmd/nhctl/cmds.GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) -X nocalhost/cmd/nhctl/cmds.GIT_TAG=${GIT_TAG}' cmd/nhctl/nhctl.go
-
 .PHONY: gotool
 gotool: ## run go tool 'fmt' and 'vet'
 	gofmt -w .
@@ -54,3 +56,6 @@ gotool: ## run go tool 'fmt' and 'vet'
 .PHONY: dep
 dep: ## Get the dependencies
 	@go mod download
+
+clean: ### Remove build dir
+	@rm -fr build
