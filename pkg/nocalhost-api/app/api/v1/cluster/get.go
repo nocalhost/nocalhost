@@ -112,14 +112,14 @@ func GetList(c *gin.Context) {
 	api.SendResponse(c, errno.OK, result)
 }
 
-// @Summary 集群开发环境列表
-// @Description 集群入口获取集群开发环境
-// @Tags 集群
+// @Summary Cluster dev space list
+// @Description Cluster entrance to obtain cluster development environment
+// @Tags Cluster
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param id path string true "集群 ID"
-// @Success 200 {object} model.ClusterUserModel "应用开发环境参数，含 kubeconfig"
+// @Param id path string true "Cluster ID"
+// @Success 200 {object} model.ClusterUserModel "kubeconfig"
 // @Router /v1/cluster/{id}/dev_space [get]
 func GetSpaceList(c *gin.Context) {
 	//userId, _ := c.Get("userId")
