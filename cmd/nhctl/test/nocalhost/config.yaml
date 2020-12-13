@@ -1,5 +1,5 @@
 name: bookinfo
-manifestType: manifest
+manifestType: rawManifest
 resourcePath: ["manifest/templates","manifest2/template"]
 
 onPreInstall:
@@ -24,7 +24,7 @@ services:
   - name: details
     serviceType: deployment
     gitUrl: https://github.com/nocalhost/bookinfo-details.git
-    devContainerImage: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/ruby:2.7.1-slim
+    devContainerImage: golang:latest
     syncDirs:
       - ./
     workDir: /home/nocalhost-dev
