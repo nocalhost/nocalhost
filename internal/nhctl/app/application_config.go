@@ -28,22 +28,22 @@ const (
 	DefaultClientGoTimeOut                   = time.Minute * 5
 	// nhctl init
 	// TODO when release
-	DefaultInitHelmGitRepo        = "git@e.coding.net:codingcorp/nocalhost/nocalhost.git"
+	DefaultInitHelmGitRepo        = "https://github.com/nocalhost/nocalhost.git"
 	DefaultInitHelmType           = "helmGit"
 	DefaultInitWatchDeployment    = "nocalhost-api"
 	DefaultInitWatchWebDeployment = "nocalhost-web"
 	DefaultInitNocalhostService   = "nocalhost-web"
-	DefaultInitUserEmail          = "nocalhost@dev.com"
-	DefaultInitPassword           = "nocalhost"
+	DefaultInitUserEmail          = "foo@nocalhost.dev"
+	DefaultInitPassword           = "123456"
 	DefaultInitAdminUserName      = "admin@admin.com"
 	DefaultInitAdminPassWord      = "123456"
-	DefaultInitName               = "nocalhost"
+	DefaultInitName               = "Nocalhost"
 	DefaultInitWaitNameSpace      = "nocalhost-reserved"
 	DefaultInitWaitDeployment     = "nocalhost-dep"
 	// TODO when release
 	DefaultInitHelmResourcePath   = "deployments/chart"
 	DefaultInitPortForwardTimeOut = time.Minute * 1
-	DefaultInitApplication        = "{\"source\":\"git\",\"install_type\":\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\",\"application_url\":\"git@github.com:nocalhost/bookinfo.git\"}"
+	DefaultInitApplication        = "{\"source\":\"git\",\"install_type\":\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\",\"application_url\":\"https://github.com/nocalhost/bookinfo.git\"}"
 )
 
 type NocalHostAppConfig struct {
