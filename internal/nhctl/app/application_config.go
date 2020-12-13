@@ -43,7 +43,8 @@ const (
 	// TODO when release
 	DefaultInitHelmResourcePath   = "deployments/chart"
 	DefaultInitPortForwardTimeOut = time.Minute * 1
-	DefaultInitApplication        = "{\"source\":\"git\",\"install_type\":\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\",\"application_url\":\"https://github.com/nocalhost/bookinfo.git\"}"
+	DefaultInitApplicationGithub  = "{\"source\":\"git\",\"install_type\":\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\",\"application_url\":\"https://github.com/nocalhost/bookinfo.git\"}"
+	DefaultInitApplicationCODING  = "{\"source\":\"git\",\"install_type\":\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\",\"application_url\":\"https://e.coding.net/codingcorp/nocalhost/bookinfo.git\"}"
 )
 
 type NocalHostAppConfig struct {
