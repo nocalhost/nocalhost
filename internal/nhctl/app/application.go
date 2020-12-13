@@ -1086,8 +1086,6 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 		return err
 	}
 
-	<-time.NewTimer(time.Second * 3).C
-
 	podList, err := a.client.ListPodsOfDeployment(a.GetNamespace(), dep.Name)
 	if err != nil {
 		fmt.Printf("failed to get pods, err: %v\n", err)
@@ -1097,12 +1095,11 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	log.Debugf("%d pod found", len(podList)) // should be 2
 
 	// wait podList to be ready
-	spinner := utils.NewSpinner(" Waiting pod to start")
+	spinner := utils.NewSpinner(" Waiting pod to start...")
 	spinner.Start()
 
 wait:
 	for {
-		<-time.NewTimer(time.Second * 2).C
 		podList, err = a.client.ListPodsOfDeployment(a.GetNamespace(), dep.Name)
 		if err != nil {
 			fmt.Printf("failed to get pods, err: %v\n", err)
@@ -1130,7 +1127,10 @@ wait:
 			spinner.Update("all containers are ready")
 			//log.Info("all containers are ready")
 			break
+		} else {
+			spinner.Update(fmt.Sprintf("waiting pod to be replaced..."))
 		}
+		<-time.NewTimer(time.Second * 1).C
 	}
 	spinner.Stop()
 	coloredoutput.Success("development container has been updated")
