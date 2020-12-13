@@ -1,0 +1,52 @@
+name: api-docker
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-api:
+    name: Build api server docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build api-docker
+        run: make api-docker
+
+      - name: Push to Github packages
+        env:
+          GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/nocalhost-api
+        run: |
+          echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
+          docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
+          docker push ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
+
+      - name: Push latest to Github packages
+        if: ${{ github.ref == 'refs/head/main'}}
+        env:
+          GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/nocalhost-api
+        run: |
+          echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
+          docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:latest
+          docker push ${GITHUB_IMAGE_NAME}:latest
+
+      - name: Push to Coding Artifacts
+        if: ${{ github.repository == 'nocalhost/nocalhost' }}
+        env:
+          CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-api
+        run: |
+          echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
+          docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_SHA}
+          docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
+
+      - name: Push latest to Coding Artifacts
+        if: ${{ github.ref == 'refs/head/main' && github.repository == 'nocalhost/nocalhost' }}
+        env:
+          CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-api
+        run: |
+          echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
+          docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
+          docker push ${CODING_IMAGE_NAME}:latest

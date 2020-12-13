@@ -13,15 +13,14 @@
 ## nocalhost-dep
 需要从项目根目录构建，并向 docker 手动传递上下文：
 ```
-docker build -t nocalhost-dep:v51 -f deployments/dep-install-job/webhook/Dockerfile .
+make dep-docker
 ```
 对应镜像：codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep
 
 ## dep-installer
 
 ```
-cd deployments/dep-install-job
-docker build -t dep-installer-job:v27 .
+make dep-installer-job-docker
 ```
 
 对应镜像：codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job
