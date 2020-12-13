@@ -25,7 +25,7 @@ jobs:
           docker push ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
 
       - name: Push latest to Github packages
-        if: ${{ github.ref == 'refs/head/main'}}
+        if: ${{ github.ref == 'refs/heads/main'}}
         env:
           GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/nocalhost-api
         run: |
@@ -43,7 +43,7 @@ jobs:
           docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
 
       - name: Push latest to Coding Artifacts
-        if: ${{ github.ref == 'refs/head/main' && github.repository == 'nocalhost/nocalhost' }}
+        if: ${{ github.ref == 'refs/heads/main' && github.repository == 'nocalhost/nocalhost' }}
         env:
           CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-api
         run: |
