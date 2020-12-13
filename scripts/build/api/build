@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/\(.*\)-.*/\1/' | sed 's/-[0-9]*$//' || true)}
+GITCOMMIT=`git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty`
+BUILDTIME=`date +"%Y-%m-%dT%H:%M:%SZ"`
+
+SOURCE="nocalhost/cmd/nocalhost-api"
+TARGET="build/nocalhost-api"
+
+export LDFLAGS="\
+    -w \
+    -X \"main.GIT_COMMIT_SHA=${GITCOMMIT}\" \
+
+    ${LDFLAGS:-} \
+"
+
+go build -o "${TARGET}" --ldflags "${LDFLAGS}" "${SOURCE}"
