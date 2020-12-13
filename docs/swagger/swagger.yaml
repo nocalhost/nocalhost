@@ -242,7 +242,7 @@ definitions:
       email:
         type: string
       from:
-        example: web 端不传该字段
+        example: only use for plugin, web interface do not send this key
         type: string
       password:
         type: string
@@ -280,7 +280,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: 用户获取应用
+      description: Get Application
       parameters:
       - description: Authorization
         in: header
@@ -296,13 +296,13 @@ paths:
           schema:
             $ref: '#/definitions/api.Response'
             type: object
-      summary: 获取应用
+      summary: Get Application
       tags:
-      - 应用
+      - Application
     post:
       consumes:
       - application/json
-      description: 用户添加应用
+      description: Create Application
       parameters:
       - description: Authorization
         in: header
@@ -324,21 +324,22 @@ paths:
           schema:
             $ref: '#/definitions/model.ApplicationModel'
             type: object
-      summary: 添加应用
+      summary: Create Application
       tags:
-      - 应用
+      - Application
   /v1/application/{id}:
     delete:
       consumes:
       - application/json
-      description: 用户删除应用，同时也会删除应用内已配置的开发空间
+      description: The user deletes the application, and also deletes the configured
+        development space in the application
       parameters:
       - description: Authorization
         in: header
         name: Authorization
         required: true
         type: string
-      - description: 应用 ID
+      - description: Application ID
         in: path
         name: id
         required: true
@@ -351,20 +352,20 @@ paths:
           schema:
             $ref: '#/definitions/api.Response'
             type: object
-      summary: 删除应用
+      summary: Delete Application
       tags:
-      - 应用
+      - Application
     get:
       consumes:
       - application/json
-      description: 获取应用详情
+      description: Get Application Detail
       parameters:
       - description: Authorization
         in: header
         name: Authorization
         required: true
         type: string
-      - description: 应用 ID
+      - description: Application ID
         in: path
         name: id
         required: true
@@ -377,20 +378,20 @@ paths:
           schema:
             $ref: '#/definitions/model.ApplicationModel'
             type: object
-      summary: 获取应用详情
+      summary: Get Application Detail
       tags:
-      - 应用
+      - Application
     put:
       consumes:
       - application/json
-      description: 用户编辑应用
+      description: Edit application
       parameters:
       - description: Authorization
         in: header
         name: Authorization
         required: true
         type: string
-      - description: 应用 ID
+      - description: Application ID
         in: path
         name: id
         required: true
@@ -410,14 +411,14 @@ paths:
           schema:
             $ref: '#/definitions/model.ApplicationModel'
             type: object
-      summary: 编辑应用
+      summary: Edit application
       tags:
-      - 应用
+      - Application
   /v1/application/{id}/bind_cluster:
     post:
       consumes:
       - application/json
-      description: 应用关联集群
+      description: Application associated cluster
       parameters:
       - description: Authorization
         in: header
@@ -431,7 +432,7 @@ paths:
         schema:
           $ref: '#/definitions/application_cluster.ApplicationClusterRequest'
           type: object
-      - description: 应用 ID
+      - description: Application ID
         in: path
         name: id
         required: true
@@ -444,21 +445,21 @@ paths:
           schema:
             $ref: '#/definitions/model.ApplicationClusterModel'
             type: object
-      summary: 关联集群
+      summary: Associated cluster
       tags:
-      - 应用
+      - Application
   /v1/application/{id}/bound_cluster:
     get:
       consumes:
       - application/json
-      description: 获取应用已关联集群列表（废弃）
+      description: Get the list of clusters associated with the application（Abandoned）
       parameters:
       - description: Authorization
         in: header
         name: Authorization
         required: true
         type: string
-      - description: 应用 ID
+      - description: Application ID
         in: path
         name: id
         required: true
@@ -471,26 +472,26 @@ paths:
           schema:
             $ref: '#/definitions/model.ApplicationClusterModel'
             type: object
-      summary: 获取应用已关联集群列表（废弃）
+      summary: Get the list of clusters associated with the application（Abandoned）
       tags:
-      - 应用
+      - Application
   /v1/application/{id}/cluster/{clusterId}:
     get:
       consumes:
       - application/json
-      description: 应用入口获取应用所属集群已授权详情（废弃）
+      description: Get authorized details of the application (obsolete)
       parameters:
       - description: Authorization
         in: header
         name: Authorization
         required: true
         type: string
-      - description: 集群 ID
+      - description: Cluster ID
         in: path
         name: clusterId
         required: true
         type: string
-      - description: 应用 ID
+      - description: Application ID
         in: path
         name: id
         required: true
@@ -499,18 +500,18 @@ paths:
       - application/json
       responses:
         "200":
-          description: 应用开发环境参数，含 kubeconfig
+          description: OK
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
-      summary: 获取应用已授权详情（废弃）
+      summary: Get authorized details of the application (obsolete)
       tags:
-      - 应用
+      - Application
   /v1/application/{id}/create_space:
     post:
       consumes:
       - application/json
-      description: 为创建应用的开发环境
+      description: Create a development environment for application
       parameters:
       - description: Authorization
         in: header
@@ -524,7 +525,7 @@ paths:
         schema:
           $ref: '#/definitions/cluster_user.ClusterUserCreateRequest'
           type: object
-      - description: 应用 ID
+      - description: Application ID
         in: path
         name: id
         required: true
@@ -537,21 +538,21 @@ paths:
           schema:
             $ref: '#/definitions/model.ClusterModel'
             type: object
-      summary: 创建开发环境
+      summary: Create a development environment for application
       tags:
-      - 应用
+      - Application
   /v1/application/{id}/dev_space:
     get:
       consumes:
       - application/json
-      description: Get user's application dev space
+      description: Get personal application development environment (kubeconfig) (obsolete)
       parameters:
       - description: Authorization
         in: header
         name: Authorization
         required: true
         type: string
-      - description: 应用 ID
+      - description: Application ID
         in: path
         name: id
         required: true
@@ -560,13 +561,15 @@ paths:
       - application/json
       responses:
         "200":
-          description: 应用开发环境参数，含 kubeconfig，status=0应用未安装，1已安装
+          description: Application development environment parameters, including kubeconfig,
+            status=0 application not installed, 1 installed
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
-      summary: Plugin - 获取个人应用开发环境(kubeconfig) （废弃）
+      summary: Plug-in Get personal application development environment (kubeconfig)
+        (obsolete)
       tags:
-      - 插件
+      - Plug-in
   /v1/application/{id}/dev_space/{space_id}/detail:
     get:
       consumes:
@@ -578,12 +581,12 @@ paths:
         name: Authorization
         required: true
         type: string
-      - description: 应用 ID
+      - description: Application ID
         in: path
         name: id
         required: true
         type: string
-      - description: 开发空间 ID
+      - description: DevSpace ID
         in: path
         name: space_id
         required: true
@@ -592,30 +595,31 @@ paths:
       - application/json
       responses:
         "200":
-          description: 应用开发环境参数，含 kubeconfig，status=0应用未安装，1已安装
+          description: Application development environment parameters, including kubeconfig,
+            status=0 application not installed, 1 installed
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
-      summary: 获取应用某个开发环境详情
+      summary: Get the details of a development environment of the application
       tags:
-      - 应用
+      - Application
   /v1/application/{id}/dev_space/{spaceId}/plugin_sync:
     put:
       consumes:
       - application/json
-      description: Plugin - 更新应用安装状态
+      description: Plug-in Update app installation status
       parameters:
       - description: Authorization
         in: header
         name: Authorization
         required: true
         type: string
-      - description: 应用 ID
+      - description: Application ID
         in: path
         name: id
         required: true
         type: integer
-      - description: 开发空间 ID
+      - description: DevSpace ID
         in: path
         name: spaceId
         required: true
@@ -635,9 +639,9 @@ paths:
           schema:
             $ref: '#/definitions/api.Response'
             type: object
-      summary: Plugin - 更新应用安装状态
+      summary: Plug-in Update app installation status
       tags:
-      - 插件
+      - Plug-in
   /v1/application/{id}/dev_space_list:
     get:
       consumes:
@@ -649,7 +653,7 @@ paths:
         name: Authorization
         required: true
         type: string
-      - description: 应用 ID
+      - description: Application ID
         in: path
         name: id
         required: true
@@ -658,18 +662,19 @@ paths:
       - application/json
       responses:
         "200":
-          description: 应用开发环境参数，含 kubeconfig，status=0 应用未安装，1已安装
+          description: Application development environment parameters, including kubeconfig,
+            status=0 application not installed, 1 installed
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
-      summary: 获取应用开发环境列表
+      summary: Get a list of application development environments
       tags:
-      - 应用
+      - Application
   /v1/cluster:
     get:
       consumes:
       - application/json
-      description: 获取集群列表
+      description: Get the cluster list
       parameters:
       - description: Authorization
         in: header
@@ -684,13 +689,13 @@ paths:
           schema:
             $ref: '#/definitions/model.ClusterList'
             type: object
-      summary: 获取集群列表
+      summary: Get the cluster list
       tags:
-      - 集群
+      - Cluster
     post:
       consumes:
       - application/json
-      description: 用户添加集群，暂时不考虑验证集群的 kubeconfig
+      description: Add cluster
       parameters:
       - description: Authorization
         in: header
@@ -712,21 +717,21 @@ paths:
           schema:
             $ref: '#/definitions/model.ClusterModel'
             type: object
-      summary: 添加集群
+      summary: Add cluster
       tags:
-      - 集群
+      - Cluster
   /v1/cluster/{id}:
     delete:
       consumes:
       - application/json
-      description: 彻底删除集群
+      description: Delete the cluster completely
       parameters:
       - description: Authorization
         in: header
         name: Authorization
         required: true
         type: string
-      - description: 集群 ID
+      - description: Cluster ID
         in: path
         name: id
         required: true
@@ -739,21 +744,21 @@ paths:
           schema:
             $ref: '#/definitions/api.Response'
             type: object
-      summary: 彻底删除集群
+      summary: Delete the cluster completely
       tags:
-      - 集群
+      - Cluster
   /v1/cluster/{id}/detail:
     get:
       consumes:
       - application/json
-      description: 获取集群详情
+      description: Get cluster details
       parameters:
       - description: Authorization
         in: header
         name: Authorization
         required: true
         type: string
-      - description: 集群 ID
+      - description: Cluster ID
         in: path
         name: id
         required: true
@@ -762,25 +767,25 @@ paths:
       - application/json
       responses:
         "200":
-          description: 应用开发环境参数，含 kubeconfig
+          description: include kubeconfig
           schema:
             $ref: '#/definitions/model.ClusterModel'
             type: object
-      summary: 获取集群详情
+      summary: Get cluster details
       tags:
-      - 集群
+      - Cluster
   /v1/cluster/{id}/dev_space:
     get:
       consumes:
       - application/json
-      description: 集群入口获取集群开发环境
+      description: Cluster entrance to obtain cluster development environment
       parameters:
       - description: Authorization
         in: header
         name: Authorization
         required: true
         type: string
-      - description: 集群 ID
+      - description: Cluster ID
         in: path
         name: id
         required: true
@@ -789,30 +794,31 @@ paths:
       - application/json
       responses:
         "200":
-          description: 应用开发环境参数，含 kubeconfig
+          description: kubeconfig
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
-      summary: 集群开发环境列表
+      summary: Cluster dev space list
       tags:
-      - 集群
+      - Cluster
   /v1/cluster/{id}/dev_space/{space_id}/detail:
     get:
       consumes:
       - application/json
-      description: 通过集群 id 和开发环境 id 获取集群开发环境详情
+      description: Get cluster development environment details through cluster id
+        and development environment id
       parameters:
       - description: Authorization
         in: header
         name: Authorization
         required: true
         type: string
-      - description: 集群 ID
+      - description: Cluster ID
         in: path
         name: id
         required: true
         type: string
-      - description: 开发空间 ID
+      - description: DevSpace ID
         in: path
         name: space_id
         required: true
@@ -821,25 +827,26 @@ paths:
       - application/json
       responses:
         "200":
-          description: 应用开发环境参数，含 kubeconfig
+          description: include kubeconfig
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
-      summary: 集群某个开发环境的详情
+      summary: Details of a development environment in the cluster
       tags:
-      - 集群
+      - Cluster
   /v1/dev_space/{id}:
     delete:
       consumes:
       - application/json
-      description: 彻底删除开发环境，包含删除 K8S 命名空间
+      description: Completely delete the development environment, including deleting
+        the K8S namespace
       parameters:
       - description: Authorization
         in: header
         name: Authorization
         required: true
         type: string
-      - description: 开发环境 ID
+      - description: DevSpace ID
         in: path
         name: id
         required: true
@@ -852,9 +859,9 @@ paths:
           schema:
             $ref: '#/definitions/api.Response'
             type: object
-      summary: 彻底删除开发环境
+      summary: Completely delete the development environment
       tags:
-      - 应用
+      - Application
     put:
       consumes:
       - application/json
@@ -887,10 +894,10 @@ paths:
             type: object
       summary: Update dev space
       tags:
-      - 集群
+      - Cluster
   /v1/login:
     post:
-      description: 邮箱登录
+      description: Web and plug-in login
       parameters:
       - description: Login user info
         in: body
@@ -906,14 +913,14 @@ paths:
           description: '{"code":0,"message":"OK","data":{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"}}'
           schema:
             type: string
-      summary: 用户登录
+      summary: Web and plug-in login
       tags:
-      - 用户
+      - Users
   /v1/me:
     get:
       consumes:
       - application/json
-      description: 获取用户个人信息
+      description: Get user personal information
       parameters:
       - description: Authorization
         in: header
@@ -924,18 +931,18 @@ paths:
       - application/json
       responses:
         "200":
-          description: 用户信息
+          description: Userinfo
           schema:
             $ref: '#/definitions/model.UserInfo'
             type: object
-      summary: 获取用户个人信息
+      summary: Get user personal information
       tags:
-      - 用户
+      - Users
   /v1/plugin/applications:
     get:
       consumes:
       - application/json
-      description: Plugin - 获取应用（含安装状态）
+      description: Plug-in access to applications (including installation status)
       parameters:
       - description: Authorization
         in: header
@@ -950,12 +957,12 @@ paths:
           schema:
             $ref: '#/definitions/model.PluginApplicationModel'
             type: object
-      summary: Plugin - 获取应用（含安装状态）
+      summary: Plug-in access to applications (including installation status)
       tags:
-      - 插件
+      - Plug-in
   /v1/register:
     post:
-      description: 用户注册
+      description: Registration(obsolete)
       parameters:
       - description: Reg user info
         in: body
@@ -971,9 +978,9 @@ paths:
           description: '{"code":0,"message":"OK","data":{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"}}'
           schema:
             type: string
-      summary: 管理员添加用户，用户无法自行注册
+      summary: The administrator adds users, users cannot register themselves
       tags:
-      - 用户
+      - Users
   /v1/users:
     get:
       consumes:
@@ -989,15 +996,15 @@ paths:
       - application/json
       responses:
         "200":
-          description: 用户列表
+          description: Get user list
           schema:
             $ref: '#/definitions/model.UserList'
             type: object
-      summary: 获取用户列表
+      summary: Get user list
       tags:
-      - 用户
+      - Users
     post:
-      description: 管理员添加开发者
+      description: Admin add developer
       parameters:
       - description: Authorization
         in: header
@@ -1019,21 +1026,21 @@ paths:
           schema:
             $ref: '#/definitions/model.UserInfo'
             type: object
-      summary: 添加开发者
+      summary: Add developer
       tags:
-      - 用户
+      - Users
   /v1/users/{id}:
     delete:
       consumes:
       - application/json
-      description: 管理员删除用户
+      description: Delete users
       parameters:
       - description: Authorization
         in: header
         name: Authorization
         required: true
         type: string
-      - description: 用户 ID
+      - description: User ID
         in: path
         name: id
         required: true
@@ -1046,15 +1053,15 @@ paths:
           schema:
             $ref: '#/definitions/api.Response'
             type: object
-      summary: 删除用户
+      summary: Delete users
       tags:
-      - 用户
+      - Users
     get:
       consumes:
       - application/json
-      description: 通过 ID 获取用户详情
+      description: Get user details
       parameters:
-      - description: 用户 ID
+      - description: Users ID
         in: path
         name: id
         required: true
@@ -1068,13 +1075,13 @@ paths:
       - application/json
       responses:
         "200":
-          description: 用户信息
+          description: Userinfo
           schema:
             $ref: '#/definitions/model.UserInfo'
             type: object
-      summary: 通过 ID 获取用户详情
+      summary: Get user details
       tags:
-      - 用户
+      - Users
     put:
       consumes:
       - application/json
@@ -1105,6 +1112,6 @@ paths:
           schema:
             $ref: '#/definitions/model.UserBaseModel'
             type: object
-      summary: 更新用户信息（含禁用用户）
+      summary: Update user information (including disabled users)
       tags:
-      - 用户
+      - Users
