@@ -24,7 +24,7 @@ elif [ "$type" == 2 ]; then
     echo "clean: uninstalling"
     nhctl uninstall $APPNAME --force --debug >> /dev/null
     echo "installing"
-    nhctl install $APPNAME -u https://e.coding.net/codingcorp/nocalhost/bookinfo-noconfig.git --debug -n $APPNAME --config config.yaml
+    nhctl install $APPNAME -u https://github.com/lyzhang1999/bookinfo --debug -n $APPNAME --config config.yaml
     if [ "$?" != 0 ]; then
         echo "fail"
         exit 1
