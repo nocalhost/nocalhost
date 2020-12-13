@@ -943,7 +943,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 		return err
 	}
 
-	fmt.Println("developing deployment: " + deployment)
+	//fmt.Println("developing deployment: " + deployment)
 	fmt.Println("scaling replicas to 1")
 
 	if scale.Spec.Replicas > 1 {
@@ -1072,20 +1072,9 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 		Name:       "nocalhost-sidecar",
 		Image:      sideCarImage,
 		WorkingDir: workDir,
-		//Command: []string{"/bin/sh", "-c", "service ssh start; mutagen daemon start; mutagen-agent install; tail -f /dev/null"},
 	}
 	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, volMount, syncthingVolMount, syncthingVolHomeDirMount)
-	//sideCarContainer.LivenessProbe = &corev1.Probe{
-	//	InitialDelaySeconds: 10,
-	//	PeriodSeconds:       10,
-	//	Handler: corev1.Handler{
-	//		TCPSocket: &corev1.TCPSocketAction{
-	//			Port: intstr.IntOrString{
-	//				IntVal: DefaultForwardRemoteSshPort,
-	//			},
-	//		},
-	//	},
-	//}
+
 	// over write syncthing command
 	sideCarContainer.Command = []string{"/bin/sh", "-c"}
 	sideCarContainer.Args = []string{"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome + "/* " + secret_config.DefaultSyncthingHome + "/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing"}
@@ -1097,8 +1086,6 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 		return err
 	}
 
-	<-time.NewTimer(time.Second * 3).C
-
 	podList, err := a.client.ListPodsOfDeployment(a.GetNamespace(), dep.Name)
 	if err != nil {
 		fmt.Printf("failed to get pods, err: %v\n", err)
@@ -1108,24 +1095,58 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	log.Debugf("%d pod found", len(podList)) // should be 2
 
 	// wait podList to be ready
-	spinner := utils.NewSpinner(" Waiting pod to start")
+	spinner := utils.NewSpinner(" Waiting pod to start...")
 	spinner.Start()
 
+wait:
 	for {
-		<-time.NewTimer(time.Second * 2).C
 		podList, err = a.client.ListPodsOfDeployment(a.GetNamespace(), dep.Name)
 		if err != nil {
 			fmt.Printf("failed to get pods, err: %v\n", err)
 			return err
 		}
 		if len(podList) == 1 {
-			// todo check container status
+			pod := podList[0]
+			if pod.Status.Phase != corev1.PodRunning {
+				spinner.Update(fmt.Sprintf("waiting for pod %s to be Running", pod.Name))
+				//log.Debugf("waiting for pod %s to be Running", pod.Name)
+				continue
+			}
+			if len(pod.Spec.Containers) == 0 {
+				log.Fatalf("%s has no container ???", pod.Name)
+			}
+
+			// make sure all containers are ready and running
+			for _, c := range pod.Spec.Containers {
+				if !isContainerReadyAndRunning(c.Name, &pod) {
+					spinner.Update(fmt.Sprintf("container %s is not ready, waiting...", c.Name))
+					//log.Debugf("container %s is not ready, waiting...", c.Name)
+					break wait
+				}
+			}
+			spinner.Update("all containers are ready")
+			//log.Info("all containers are ready")
 			break
+		} else {
+			spinner.Update(fmt.Sprintf("waiting pod to be replaced..."))
 		}
+		<-time.NewTimer(time.Second * 1).C
 	}
 	spinner.Stop()
-	coloredoutput.Success("Development container has been updated")
+	coloredoutput.Success("development container has been updated")
 	return nil
+}
+
+func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
+	if len(pod.Status.ContainerStatuses) == 0 {
+		return false
+	}
+	for _, status := range pod.Status.ContainerStatuses {
+		if status.Name == containerName && status.Ready && status.State.Running != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *Application) LoadConfigFile() error {
