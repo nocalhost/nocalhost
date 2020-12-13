@@ -23,3 +23,13 @@ jobs:
 
     - name: Build
       run: make nhctl-cross
+
+    - name: Push to Coding Artifacts
+      if: ${{ github.repository == 'nocalhost/nocalhost' }}
+      env:
+        WINDOWS_BINARY: 'nhctl-windows-amd64.exe'
+        OSX_BINARY: 'nhctl-darwin-amd64'
+        LINUX_BINARY: 'nhctl-linux-amd64'
+      run: |
+        cd build
+        curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${GITHUB_SHA}"
