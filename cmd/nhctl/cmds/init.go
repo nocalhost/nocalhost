@@ -37,6 +37,7 @@ type Init struct {
 	Port      int
 	NameSpace string
 	Set       []string
+	Source    string
 }
 
 var inits = &Init{}
@@ -44,6 +45,7 @@ var inits = &Init{}
 func init() {
 	InitCommand.Flags().StringVarP(&inits.Type, "type", "t", "", "set NodePort or LoadBalancer to expose nocalhost service")
 	InitCommand.Flags().IntVarP(&inits.Port, "port", "p", 0, "for NodePort usage set ports")
+	InitCommand.Flags().StringVarP(&inits.Source, "source", "s", "", "bookinfo source, github or coding, default is github")
 	InitCommand.Flags().StringVarP(&inits.NameSpace, "namespace", "n", "default", "set init nocalhost namesapce")
 	InitCommand.Flags().StringSliceVar(&inits.Set, "set", []string{}, "set values of helm")
 	rootCmd.AddCommand(InitCommand)
@@ -201,9 +203,15 @@ var InitCommand = &cobra.Command{
 		}
 		fmt.Printf("Nocalhost get ready, endpoint is: %s \n", endPoint)
 
+		// bookinfo source from
+		source := app.DefaultInitApplicationGithub
+		if strings.ToLower(inits.Source) == "coding" {
+			source = app.DefaultInitApplicationCODING
+		}
+
 		// set default cluster, application, users
 		req := request.NewReq(fmt.Sprintf("http://%s", endPoint), settings.KubeConfig, kubectl, inits.NameSpace)
-		kubeResult := req.CheckIfMiniKube().Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).GetKubeConfig().AddBookInfoApplication("").AddCluster().AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).AddDevSpace()
+		kubeResult := req.CheckIfMiniKube().Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).GetKubeConfig().AddBookInfoApplication(source).AddCluster().AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).AddDevSpace()
 		// wait for nocalhost-dep deployment in nocalhost-reserved namespace
 		spinner = utils.NewSpinner(" waiting for nocalhost-dep ready, this will take a few minutes...")
 		spinner.Start()

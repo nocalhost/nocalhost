@@ -242,7 +242,7 @@ func (q *ApiRequest) Login(email, password string) *ApiRequest {
 
 func (q *ApiRequest) AddBookInfoApplication(context string) *ApiRequest {
 	if context == "" {
-		context = app.DefaultInitApplication
+		context = app.DefaultInitApplicationGithub
 	}
 
 	params := req.Param{
