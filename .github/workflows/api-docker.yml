@@ -2,7 +2,7 @@ name: api-docker
 
 on:
   push:
-    branches: [ main, modified-make ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
