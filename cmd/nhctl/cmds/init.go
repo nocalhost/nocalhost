@@ -215,10 +215,11 @@ var InitCommand = &cobra.Command{
 		if kubeResult.Minikube {
 			portResult := req.GetAvailableRandomLocalPort()
 			serverUrl := fmt.Sprintf("http://%s:%d", "127.0.0.1", portResult.MiniKubeAvailablePort)
-			coloredoutput.Success("nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please set VS Code Plugin and login, enjoy! \n port forwarding, please do not close this windows! \n", serverUrl, app.DefaultInitUserEmail, app.DefaultInitPassword)
+			coloredoutput.Success("nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please setup VS Code Plugin and login, enjoy! \n", serverUrl, app.DefaultInitUserEmail, app.DefaultInitPassword)
+			coloredoutput.Fail("port forwarding, please do not close this windows! \n")
 			req.RunPortForward(portResult.MiniKubeAvailablePort)
 		} else {
-			coloredoutput.Success("nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please set VS Code Plugin and login, enjoy! \n", fmt.Sprintf("http://%s", endPoint), app.DefaultInitUserEmail, app.DefaultInitPassword)
+			coloredoutput.Success("nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please setup VS Code Plugin and login, enjoy! \n", fmt.Sprintf("http://%s", endPoint), app.DefaultInitUserEmail, app.DefaultInitPassword)
 		}
 	},
 }
