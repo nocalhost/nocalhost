@@ -38,6 +38,10 @@ func Debugf(format string, args ...interface{}) {
 	log.Debugf(format, args)
 }
 
+func Info(args ...interface{}) {
+	log.Info(args)
+}
+
 func Debug(args ...interface{}) {
 	log.Debug(args)
 }

@@ -75,11 +75,11 @@ var devStartCmd = &cobra.Command{
 		// devStartOps.LocalSyncDir is from pulgin by local-sync
 		var fileSyncOptions = &app.FileSyncOptions{}
 		devStartOps.Namespace = nocalhostApp.AppProfile.Namespace
-		if devStartOps.WorkDir == "" { // command not pass this arguments
+		if devStartOps.WorkDir == "" { // command flag not set
 			devStartOps.WorkDir = nocalhostApp.GetDefaultWorkDir(deployment)
 		}
 		nocalhostApp.SetSvcWorkDir(deployment, devStartOps.WorkDir)
-		// syncthings
+
 		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOps, fileSyncOptions)
 		if err != nil {
 			log.Fatalf("failed to create syncthing process, please try again.")
@@ -116,7 +116,7 @@ var devStartCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("failed to update sync directory")
 		}
-		// end syncthing doing
+
 		err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps)
 		if err != nil {
 			log.Fatalf("failed to replace dev container: err%v\n", err)
