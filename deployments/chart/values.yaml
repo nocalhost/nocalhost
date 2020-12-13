@@ -67,6 +67,9 @@ affinity: {}
 mariadb:
   fullnameOverride: nocalhost-mariadb
   commonAnnotations: {"helm.sh/hook":"pre-install","helm.sh/hook-weight":"1"}
+  image:
+    registry: codingcorp-docker.pkg.coding.net/nocalhost/public
+    repository: mariadb
   auth:
     rootPassword: root
     database: nocalhost
