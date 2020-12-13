@@ -39,11 +39,11 @@ jobs:
           docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_SHA}
           docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
 
-      # - name: Push latest to Coding Artifacts
-      #   if: ${{ github.ref == 'refs/heads/main' && github.repository == 'nocalhost/nocalhost' }}
-      #   env:
-      #     CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job
-      #   run: |
-      #     echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
-      #     docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
-      #     docker push ${CODING_IMAGE_NAME}:latest
+      - name: Push latest to Coding Artifacts
+        if: ${{ github.ref == 'refs/heads/main' && github.repository == 'nocalhost/nocalhost' }}
+        env:
+          CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job
+        run: |
+          echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
+          docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
+          docker push ${CODING_IMAGE_NAME}:latest
