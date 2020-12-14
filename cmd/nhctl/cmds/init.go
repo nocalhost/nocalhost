@@ -38,6 +38,7 @@ type Init struct {
 	NameSpace string
 	Set       []string
 	Source    string
+	Force     bool
 }
 
 var inits = &Init{}
@@ -48,6 +49,7 @@ func init() {
 	InitCommand.Flags().StringVarP(&inits.Source, "source", "s", "", "bookinfo source, github or coding, default is github")
 	InitCommand.Flags().StringVarP(&inits.NameSpace, "namespace", "n", "default", "set init nocalhost namesapce")
 	InitCommand.Flags().StringSliceVar(&inits.Set, "set", []string{}, "set values of helm")
+	InitCommand.Flags().BoolVar(&inits.Force, "force", false, "force to init, warning: it will remove all nocalhost old data")
 	rootCmd.AddCommand(InitCommand)
 }
 
@@ -73,7 +75,7 @@ var InitCommand = &cobra.Command{
 		// nhctl install nocalhost -u https://e.coding.net/codingcorp/nocalhost/nocalhost.git -t helm --kubeconfig xxx -n xxx
 		params := []string{
 			"install",
-			"nocalhost",
+			app.DefaultInitInstallApplicationName,
 			"-u",
 			app.DefaultInitHelmGitRepo,
 			"--kubeconfig",
@@ -88,6 +90,7 @@ var InitCommand = &cobra.Command{
 		if inits.Type != "" {
 			if strings.ToLower(inits.Type) == "nodeport" {
 				inits.Type = "NodePort"
+				// TODO if not specify port, port-forward nocalhost-web waill fail, default port-forward nocalhost-web is port 80
 				if inits.Port == 0 {
 					// random Port
 					// By default, minikube only exposes ports 30000-32767
@@ -110,7 +113,34 @@ var InitCommand = &cobra.Command{
 		if err != nil || client == nil {
 			log.Fatalf("new go client fail, err %s, or check you kubeconfig\n", err)
 		}
-		// check if exist namespace
+
+		nhctl := tools.GetNhctl()
+		// if force init, remove all init data first
+		if inits.Force {
+			spinner := utils.NewSpinner(" waiting for delete old data, this will take a few minutes...")
+			spinner.Start()
+			uninstall := []string{
+				"uninstall",
+				app.DefaultInitInstallApplicationName,
+				"--force",
+			}
+			_, err = tools.ExecCommand(nil, true, nhctl, uninstall...)
+			if err != nil {
+				log.Warnf("uninstall %s application fail, ignore", app.DefaultInitInstallApplicationName)
+			}
+			// delete nocalhost(server namespace), nocalhost-reserved(dep) namespace
+			err := client.DeleteNameSpace(inits.NameSpace, true)
+			if err != nil {
+				log.Warnf("delete namespace %s fail, ignore", inits.NameSpace)
+			}
+			err = client.DeleteNameSpace(app.DefaultInitWaitNameSpace, true)
+			if err != nil {
+				log.Warnf("delete namespace %s fail, ignore", app.DefaultInitWaitNameSpace)
+			}
+			spinner.Stop()
+		}
+
+		// normal init: check if exist namespace
 		err = client.CheckExistNameSpace(inits.NameSpace)
 		if err != nil {
 			err = client.CreateNameSpace(inits.NameSpace)
@@ -118,13 +148,11 @@ var InitCommand = &cobra.Command{
 				log.Fatalf("init fail, create namespace %s fail, err: %s\n", inits.NameSpace, err.Error())
 			}
 		}
-
 		// call install command
-
-		nhctl := tools.GetNhctl()
 		_, err = tools.ExecCommand(nil, true, nhctl, params...)
 		if err != nil {
-			log.Fatalf("execution nhctl install fail %s, try run nhctl uninstall nocalhost --force\n", err.Error())
+			coloredoutput.Fail("execution nhctl install fail %s, try run `nhctl init -n %s -t %s -p %d --force` manually\n", err.Error(), inits.NameSpace, inits.Type, inits.Port)
+			log.Fatal("exit init")
 		}
 
 		// 1. watch nocalhost-api and nocalhost-web ready
@@ -221,11 +249,17 @@ var InitCommand = &cobra.Command{
 		}
 		spinner.Stop()
 		if kubeResult.Minikube {
-			portResult := req.GetAvailableRandomLocalPort()
-			serverUrl := fmt.Sprintf("http://%s:%d", "127.0.0.1", portResult.MiniKubeAvailablePort)
+			// use default DefaultInitMiniKubePortForwardPort port-forward
+			//portResult := req.GetAvailableRandomLocalPort()
+			port := app.DefaultInitMiniKubePortForwardPort
+			if !req.CheckPortIsAvailable(app.DefaultInitMiniKubePortForwardPort) {
+				port = req.GetAvailableRandomLocalPort().MiniKubeAvailablePort
+			}
+			serverUrl := fmt.Sprintf("http://%s:%d", "127.0.0.1", port)
 			coloredoutput.Success("nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please setup VS Code Plugin and login, enjoy! \n", serverUrl, app.DefaultInitUserEmail, app.DefaultInitPassword)
 			coloredoutput.Fail("port forwarding, please do not close this windows! \n")
-			req.RunPortForward(portResult.MiniKubeAvailablePort)
+			// if DefaultInitMiniKubePortForwardPort can not use, it will return available port
+			req.RunPortForward(port)
 		} else {
 			coloredoutput.Success("nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please setup VS Code Plugin and login, enjoy! \n", fmt.Sprintf("http://%s", endPoint), app.DefaultInitUserEmail, app.DefaultInitPassword)
 		}
