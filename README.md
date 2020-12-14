@@ -1,8 +1,8 @@
 # Nocalhost
 
-Nocalhost Is Cloud Native Development Environment.
+Nocalhost Is Cloud Native Development Environment. Check [https://nocalhost.dev](https://nocalhost.dev) for more details.
 
-The term Nocalhost originated from No localhost.
+The term "Nocalhost" originated from No localhost.
 
 Its vision is that in the cloud era, developers use remote cloud native development environments to complete development instead of configuring developing, debugging and testing environments on local computers.
 
@@ -26,7 +26,7 @@ Kubernetes is a typical microservice runtime solution. But developers who build 
 - Every time the code changes, the process of build image -> push image -> pull image -> restart application (Pod) is required, the feedback loop of development is extremely slow;
 - When two or more developers are involved in remote collaboration and joint debugging, they need a flatten network(VPN is too complicated to configure).
 
-## How to resolve？
+## How to resolve?
 
 Based on Kubernetes, Nocalhost provides sevral features:
 * Quickly create an application development environment based on Kubernetes Namespace isolation for each team member, which promise development and debugging will not affect each other;
