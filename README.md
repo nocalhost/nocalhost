@@ -28,7 +28,7 @@ Kubernetes is a typical microservice runtime solution. But developers who build 
 
 ## How to resolve?
 
-Based on Kubernetes, Nocalhost provides sevral features:
+Based on Kubernetes, Nocalhost provides several features:
 * Quickly create an application development environment based on Kubernetes Namespace isolation for each team member, which promise development and debugging will not affect each other;
 * Cloud native experience microservice development and debugging: No needs to start any microservices on local machine. Any code changes will be synchronized immediately to the remote Pod without rebuilding images.
 * Starting services orderly. Such as: "Mysql (UP & Init) -> RabbitMQ (UP) -> Server A (UP) —> Server B (UP)"
