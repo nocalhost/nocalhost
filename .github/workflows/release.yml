@@ -18,9 +18,12 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
+    - name: Get tag
+      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+
     - name: build
       env:
-        VERSION: ${{ github.ref }}
+        VERSION: ${{ env.RELEASE_VERSION }}
       run: |
         make nhctl-cross
         shasum -a 256 build/nhctl-linux-amd64 > build/nhctl-linux-amd64-SHA256
@@ -97,7 +100,7 @@ jobs:
         asset_name: nhctl-linux-amd64-SHA256
         asset_content_type: application/octet-stream
 
-    - name: Push to Coding Artifacts
+    - name: Push nhctl to Coding Artifacts
       env:
         WINDOWS_BINARY: 'nhctl-windows-amd64.exe'
         OSX_BINARY: 'nhctl-darwin-amd64'
@@ -107,49 +110,27 @@ jobs:
         curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${GITHUB_SHA}"
         curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${GITHUB_SHA}"
         curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${GITHUB_SHA}"
-
-    - name: Push latest to Coding Artifacts
-      env:
-        WINDOWS_BINARY: 'nhctl-windows-amd64.exe'
-        OSX_BINARY: 'nhctl-darwin-amd64'
-        LINUX_BINARY: 'nhctl-linux-amd64'
-      run: |
-        cd build
         curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=latest"
         curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=latest"
         curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=latest"
-
-    - name: Push release to Coding Artifacts
-      env:
-        WINDOWS_BINARY: 'nhctl-windows-amd64.exe'
-        OSX_BINARY: 'nhctl-darwin-amd64'
-        LINUX_BINARY: 'nhctl-linux-amd64'
-      run: |
-        cd build
-        curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${GITHUB_REF}"
-        curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${GITHUB_REF}"
-        curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${GITHUB_REF}"
+        curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${{ env.RELEASE_VERSION }}"
+        curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${{ env.RELEASE_VERSION }}"
+        curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${{ env.RELEASE_VERSION }}"
 
     - name: Release api-docker
       run: make api-docker
 
-    - name: Push Release to Github packages
+    - name: Push to Github packages
       env:
         GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/nocalhost-api
       run: |
         echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
         docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
-        docker push ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
-
-    - name: Push latest to Github packages
-      env:
-        GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/nocalhost-api
-      run: |
-        echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
         docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:latest
-        docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${GITHUB_REF}
+        docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+        docker push ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
         docker push ${GITHUB_IMAGE_NAME}:latest
-        docker push ${GITHUB_IMAGE_NAME}:${GITHUB_REF}
+        docker push ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
 
     - name: Push to Coding Artifacts
       env:
@@ -157,14 +138,8 @@ jobs:
       run: |
         echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
         docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_SHA}
-        docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
-
-    - name: Push latest to Coding Artifacts
-      env:
-        CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-api
-      run: |
-        echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
+        docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
         docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
-        docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_REF}
+        docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
+        docker push ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
         docker push ${CODING_IMAGE_NAME}:latest
-        docker push ${CODING_IMAGE_NAME}:${GITHUB_REF}
