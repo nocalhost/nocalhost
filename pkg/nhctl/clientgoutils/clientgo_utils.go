@@ -491,3 +491,20 @@ func (c *ClientGoUtils) CreateNameSpace(name string) error {
 	}
 	return nil
 }
+
+func (c *ClientGoUtils) DeleteNameSpace(name string, wait bool) error {
+	err := c.ClientSet.CoreV1().Namespaces().Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if wait {
+		for {
+			err := c.CheckExistNameSpace(name)
+			if err != nil {
+				break
+			}
+			time.Sleep(time.Duration(200) * time.Millisecond)
+		}
+	}
+	if err != nil {
+		return err
+	}
+	return nil
+}

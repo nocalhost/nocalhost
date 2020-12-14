@@ -28,18 +28,20 @@ const (
 	DefaultClientGoTimeOut                   = time.Minute * 5
 	// nhctl init
 	// TODO when release
-	DefaultInitHelmGitRepo        = "https://github.com/nocalhost/nocalhost.git"
-	DefaultInitHelmType           = "helmGit"
-	DefaultInitWatchDeployment    = "nocalhost-api"
-	DefaultInitWatchWebDeployment = "nocalhost-web"
-	DefaultInitNocalhostService   = "nocalhost-web"
-	DefaultInitUserEmail          = "foo@nocalhost.dev"
-	DefaultInitPassword           = "123456"
-	DefaultInitAdminUserName      = "admin@admin.com"
-	DefaultInitAdminPassWord      = "123456"
-	DefaultInitName               = "Nocalhost"
-	DefaultInitWaitNameSpace      = "nocalhost-reserved"
-	DefaultInitWaitDeployment     = "nocalhost-dep"
+	DefaultInitHelmGitRepo             = "https://github.com/nocalhost/nocalhost.git"
+	DefaultInitHelmType                = "helmGit"
+	DefaultInitWatchDeployment         = "nocalhost-api"
+	DefaultInitWatchWebDeployment      = "nocalhost-web"
+	DefaultInitNocalhostService        = "nocalhost-web"
+	DefaultInitInstallApplicationName  = "nocalhost"
+	DefaultInitUserEmail               = "foo@nocalhost.dev"
+	DefaultInitMiniKubePortForwardPort = 31219
+	DefaultInitPassword                = "123456"
+	DefaultInitAdminUserName           = "admin@admin.com"
+	DefaultInitAdminPassWord           = "123456"
+	DefaultInitName                    = "Nocalhost"
+	DefaultInitWaitNameSpace           = "nocalhost-reserved"
+	DefaultInitWaitDeployment          = "nocalhost-dep"
 	// TODO when release
 	DefaultInitHelmResourcePath   = "deployments/chart"
 	DefaultInitPortForwardTimeOut = time.Minute * 1

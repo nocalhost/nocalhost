@@ -100,11 +100,15 @@ func NewReq(baseUrl, kubeConfig, kubectl, namespace string) *ApiRequest {
 	return req
 }
 
+func (q *ApiRequest) CheckPortIsAvailable(port int) bool {
+	return ports.IsPortAvailable("127.0.0.1", port)
+}
+
 // need to expose `kubectl port-forward service/nocalhost-web 65124:80 -n nocalhost`
 // then login with endpoint
 func (q *ApiRequest) MiniKubeExposeService(isWait bool, port int) *ApiRequest {
 	q.GetAvailableRandomLocalPort()
-	if port != 0 {
+	if port != 0 && q.CheckPortIsAvailable(port) {
 		q.MiniKubeAvailablePort = port
 	}
 	params := []string{
