@@ -16,18 +16,20 @@ package request
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/imroc/req"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"net"
-	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/syncthing/ports"
-	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/tools"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/imroc/req"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/syncthing/ports"
+	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/tools"
 )
 
 const (

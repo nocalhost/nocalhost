@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"io"
 	"math/rand"
 	"os"
@@ -26,6 +25,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 var logger *zap.Logger
