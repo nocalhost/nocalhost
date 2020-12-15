@@ -19,9 +19,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"nocalhost/pkg/nhctl/log"
 	"path/filepath"
 	"time"
+
+	"nocalhost/pkg/nhctl/log"
 )
 
 type addAPIKeyTransport struct {

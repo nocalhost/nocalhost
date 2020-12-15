@@ -15,8 +15,8 @@ package cmds
 
 import (
 	"fmt"
-	"nocalhost/internal/nhctl/app"
 
+	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"

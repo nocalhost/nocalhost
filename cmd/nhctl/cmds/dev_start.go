@@ -16,6 +16,7 @@ package cmds
 import (
 	"context"
 	"fmt"
+
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/internal/nhctl/syncthing/secret"

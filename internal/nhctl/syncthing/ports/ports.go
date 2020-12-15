@@ -17,8 +17,9 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"nocalhost/pkg/nhctl/log"
 	"time"
+
+	"nocalhost/pkg/nhctl/log"
 )
 
 // GetRandomAvailablePort returns a random port that's available
