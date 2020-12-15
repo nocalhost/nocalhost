@@ -166,7 +166,7 @@ var InitCommand = &cobra.Command{
 		// call install command
 		_, err = tools.ExecCommand(nil, true, nhctl, params...)
 		if err != nil {
-			coloredoutput.Fail("execution nhctl install fail %s, try run `nhctl init -n %s -t %s -p %d --force` manually\n", err.Error(), inits.NameSpace, inits.Type, inits.Port)
+			coloredoutput.Fail("execution nhctl install fail %s, try to add `--force` end of command manually\n", err.Error())
 			log.Fatal("exit init")
 		}
 
