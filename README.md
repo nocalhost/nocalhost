@@ -2,23 +2,23 @@
 
 Nocalhost Is Cloud Native Development Environment. Check [https://nocalhost.dev](https://nocalhost.dev) for more details.
 
-The term "Nocalhost" originated from No localhost.
+The term "Nocalhost" originates from No localhost.
 
 Its vision is that in the cloud era, developers use remote cloud native development environments to complete development instead of configuring developing, debugging and testing environments on local computers.
 
 You can use Nocalhost to:
 
 - deploy complex microservice applications to cloud environment.
-- develop components(services) quickly with prepared configuration.
+- develop components(services) quickly with a prepared configuration.
 - share development environment within teams. 
-- fasten the feedback loop of "coding-building-running--debugging-testing".
+- fasten the feedback loop of "coding-building-running--debugging-testing-coding".
 
 
 ## Why we make Nocalhost?
 
 As microservices become more and more popular and the number of microservices increases, `containerization` technology becomes a good solution to standardize the runtime environment.
 
-Kubernetes is a typical microservice runtime solution. But developers who build application based on Kubernetes are facing problems. Such as:
+Kubernetes is a typical microservice runtime solution. But developers who build application based on Kubernetes are facing painful problems. Such as:
 
 
 - In order to develop a certain microservice, it is necessary to start the entire environment and all microservices, which requires high performance of local resources, poor experience and high cost;
@@ -29,7 +29,7 @@ Kubernetes is a typical microservice runtime solution. But developers who build 
 ## How to resolve?
 
 Based on Kubernetes, Nocalhost provides several features:
-* Quickly create an application development environment based on Kubernetes Namespace isolation for each team member, which promise development and debugging will not affect each other;
+* Quickly create an application development environment based on Kubernetes Namespace isolation for each team member, which promises development and debugging will not affect each other;
 * Cloud native experience microservice development and debugging: No needs to start any microservices on local machine. Any code changes will be synchronized immediately to the remote Pod without rebuilding images.
 * Starting services orderly. Such as: "Mysql (UP & Init) -> RabbitMQ (UP) -> Server A (UP) —> Server B (UP)"
 
@@ -44,7 +44,7 @@ Nocalhost Server manages applications, clusters, users and authorizations.
 
 ## Nocalhost Dep
 
-Nocalhost Dep is a Agent running in Kubernetes which controls the starting order of services.
+Nocalhost Dep is an Agent running in Kubernetes which controls the starting order of services.
 
 ## nhctl
 
@@ -52,7 +52,7 @@ nhctl is a command line tools running locally. It controls status of application
 
 ## IDE Plugin
 
-Nocalhost focus on developer, we provide IDE Plugins to connect Cloud and IDE directly.
+Focusing on better experiences, Nocalhost provides developers with IDE Plugins to connect Cloud and local IDE directly.
 
 - Visual Studio Code Extension
 - IntelliJ Plugin(Planning)
@@ -93,5 +93,5 @@ Then you can visit: http://127.0.0.1:8080/swagger/index.html
 # Contribution
 
 - Code Of Conduct: https://github.com/cncf/foundation/blob/master/code-of-conduct.md
-- Any suggestions cloud be commit as a GitHub Issue: https://github.com/nocalhost/nocalhost/issues
+- Any suggestions could be committed as a GitHub Issue: https://github.com/nocalhost/nocalhost/issues
 - Pull Requests are welcomed: https://github.com/nocalhost/nocalhost/pulls
