@@ -77,6 +77,13 @@ var uninstallCmd = &cobra.Command{
 		}
 		err = nhApp.Uninstall(force)
 		if err != nil {
+			if force {
+				err = nh.CleanupAppFiles(applicationName)
+				if err != nil {
+					log.Warnf("fail to clean up application resource: %s", err.Error())
+				}
+				return
+			}
 			log.Fatalf("failed to uninstall application, %v", err)
 		}
 		fmt.Printf("application \"%s\" is uninstalled\n", applicationName)

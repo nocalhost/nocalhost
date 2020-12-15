@@ -33,23 +33,29 @@ import (
 )
 
 type Init struct {
-	Type      string
-	Port      int
-	NameSpace string
-	Set       []string
-	Source    string
-	Force     bool
+	Type                   string
+	Port                   int
+	NameSpace              string
+	Set                    []string
+	Source                 string
+	Force                  bool
+	InjectUserTemplate     string
+	InjectUserAmount       int
+	InjectUserAmountOffset int
 }
 
 var inits = &Init{}
 
 func init() {
 	InitCommand.Flags().StringVarP(&inits.Type, "type", "t", "", "set NodePort or LoadBalancer to expose nocalhost service")
-	InitCommand.Flags().IntVarP(&inits.Port, "port", "p", 0, "for NodePort usage set ports")
+	InitCommand.Flags().IntVarP(&inits.Port, "port", "p", 80, "for NodePort usage set ports")
 	InitCommand.Flags().StringVarP(&inits.Source, "source", "s", "", "bookinfo source, github or coding, default is github")
 	InitCommand.Flags().StringVarP(&inits.NameSpace, "namespace", "n", "default", "set init nocalhost namesapce")
 	InitCommand.Flags().StringSliceVar(&inits.Set, "set", []string{}, "set values of helm")
 	InitCommand.Flags().BoolVar(&inits.Force, "force", false, "force to init, warning: it will remove all nocalhost old data")
+	InitCommand.Flags().StringVar(&inits.InjectUserTemplate, "inject-user-template", "", "inject users template, example Techo%d, max length is 15")
+	InitCommand.Flags().IntVar(&inits.InjectUserAmount, "inject-user-amount", 0, "inject user amount, example 10, max is 999")
+	InitCommand.Flags().IntVar(&inits.InjectUserAmountOffset, "inject-user-offset", 1, "inject user id offset, default is 1")
 	rootCmd.AddCommand(InitCommand)
 }
 
@@ -58,6 +64,18 @@ var InitCommand = &cobra.Command{
 	Short: "Init application",
 	Long:  "Init api, web and dep component in you cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
+		if len(inits.InjectUserTemplate) > 15 {
+			log.Fatal("--inject-user-template length should less then 15")
+		}
+		if !strings.ContainsAny(inits.InjectUserTemplate, "%d") {
+			log.Fatal("--inject-user-template does not contains %d")
+		}
+		if inits.InjectUserAmount > 999 {
+			log.Fatal("--inject-user-amount must less then 999")
+		}
+		if (len(strconv.Itoa(inits.InjectUserAmountOffset)) + len(inits.InjectUserTemplate)) > 20 {
+			log.Fatal("--inject-user-offset and --inject-user-template length can not greater than 20")
+		}
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -90,19 +108,16 @@ var InitCommand = &cobra.Command{
 		if inits.Type != "" {
 			if strings.ToLower(inits.Type) == "nodeport" {
 				inits.Type = "NodePort"
-				// TODO if not specify port, port-forward nocalhost-web waill fail, default port-forward nocalhost-web is port 80
-				if inits.Port == 0 {
-					// random Port
-					// By default, minikube only exposes ports 30000-32767
-					inits.Port = tools.GenerateRangeNum(30000, 32767)
-					params = append(params, "--set", "service.port="+strconv.Itoa(inits.Port))
-				}
 			}
 			if strings.ToLower(inits.Type) == "loadbalancer" {
 				inits.Type = "LoadBalancer"
 			}
 			params = append(params, "--set", "service.type="+inits.Type)
 		}
+
+		// add ports, default is 80
+		params = append(params, "--set", "service.port="+strconv.Itoa(inits.Port))
+
 		if len(inits.Set) > 0 {
 			for _, set := range inits.Set {
 				params = append(params, "--set", set)
@@ -158,7 +173,7 @@ var InitCommand = &cobra.Command{
 		// 1. watch nocalhost-api and nocalhost-web ready
 		// 2. print nocalhost-web service address
 		// 3. use nocalhost-web service address to set default data into cluster
-		spinner := utils.NewSpinner(" waiting for nocalhost component ready, this will take a few minutes...")
+		spinner := utils.NewSpinner(" waiting for Nocalhost component ready, this will take a few minutes...")
 		spinner.Start()
 		err = client.WaitDeploymentToBeReady(inits.NameSpace, app.DefaultInitWatchDeployment, app.DefaultClientGoTimeOut)
 		if err != nil {
@@ -228,6 +243,9 @@ var InitCommand = &cobra.Command{
 		}
 		if loadBalancerIP != "" {
 			endPoint = loadBalancerIP
+			if inits.Port != 80 {
+				endPoint = loadBalancerIP + ":" + strconv.Itoa(inits.Port)
+			}
 		}
 		fmt.Printf("Nocalhost get ready, endpoint is: %s \n", endPoint)
 
@@ -238,10 +256,15 @@ var InitCommand = &cobra.Command{
 		}
 
 		// set default cluster, application, users
-		req := request.NewReq(fmt.Sprintf("http://%s", endPoint), settings.KubeConfig, kubectl, inits.NameSpace)
+		req := request.NewReq(fmt.Sprintf("http://%s", endPoint), settings.KubeConfig, kubectl, inits.NameSpace, inits.Port)
 		kubeResult := req.CheckIfMiniKube().Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).GetKubeConfig().AddBookInfoApplication(source).AddCluster().AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).AddDevSpace()
+		// should inject batch user
+		if inits.InjectUserTemplate != "" && inits.InjectUserAmount > 0 {
+			_ = req.SetInjectBatchUserTemplate(inits.InjectUserTemplate).InjectBatchDevSpace(inits.InjectUserAmount, inits.InjectUserAmountOffset)
+		}
+
 		// wait for nocalhost-dep deployment in nocalhost-reserved namespace
-		spinner = utils.NewSpinner(" waiting for nocalhost-dep ready, this will take a few minutes...")
+		spinner = utils.NewSpinner(" waiting for Nocalhost-dep ready, this will take a few minutes...")
 		spinner.Start()
 		err = client.WaitDeploymentToBeReady(app.DefaultInitWaitNameSpace, app.DefaultInitWaitDeployment, app.DefaultClientGoTimeOut)
 		if err != nil {
@@ -256,12 +279,13 @@ var InitCommand = &cobra.Command{
 				port = req.GetAvailableRandomLocalPort().MiniKubeAvailablePort
 			}
 			serverUrl := fmt.Sprintf("http://%s:%d", "127.0.0.1", port)
-			coloredoutput.Success("nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please setup VS Code Plugin and login, enjoy! \n", serverUrl, app.DefaultInitUserEmail, app.DefaultInitPassword)
+			coloredoutput.Success("Nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please setup VS Code Plugin and login, enjoy! \n", serverUrl, app.DefaultInitUserEmail, app.DefaultInitPassword)
 			coloredoutput.Fail("port forwarding, please do not close this windows! \n")
 			// if DefaultInitMiniKubePortForwardPort can not use, it will return available port
 			req.RunPortForward(port)
 		} else {
-			coloredoutput.Success("nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please setup VS Code Plugin and login, enjoy! \n", fmt.Sprintf("http://%s", endPoint), app.DefaultInitUserEmail, app.DefaultInitPassword)
+			serverUrl := fmt.Sprintf("http://%s", endPoint)
+			coloredoutput.Success("Nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please setup VS Code Plugin and login, enjoy! \n", serverUrl, app.DefaultInitUserEmail, app.DefaultInitPassword)
 		}
 	},
 }
