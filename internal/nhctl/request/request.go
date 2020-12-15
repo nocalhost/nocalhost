@@ -60,9 +60,9 @@ type ApiRequest struct {
 	MiniKubeLocalServer      string
 	DevSpaceId               int
 	MiniKubeUserDevNameSpace string
-	NocalhostWebPort int
-	InjectBatchUserTemplate string
-	InjectBatchUserIds []int
+	NocalhostWebPort         int
+	InjectBatchUserTemplate  string
+	InjectBatchUserIds       []int
 }
 
 type MiniKubeCluster struct {
@@ -96,11 +96,11 @@ type Token struct {
 
 func NewReq(baseUrl, kubeConfig, kubectl, namespace string, nocalhostWebPort int) *ApiRequest {
 	req := &ApiRequest{
-		Req:        req.New(),
-		BaseUrl:    baseUrl,
-		KubeConfig: kubeConfig,
-		Kubectl:    kubectl,
-		NameSpace:  namespace,
+		Req:              req.New(),
+		BaseUrl:          baseUrl,
+		KubeConfig:       kubeConfig,
+		Kubectl:          kubectl,
+		NameSpace:        namespace,
 		NocalhostWebPort: nocalhostWebPort,
 	}
 	return req
@@ -139,7 +139,7 @@ func (q *ApiRequest) MiniKubeExposeService(isWait bool, port int) *ApiRequest {
 		}
 	}
 	baseUrl := "http://127.0.0.1:" + strconv.Itoa(q.MiniKubeAvailablePort)
-	fmt.Printf("pid is %d, wait for port-forward... %s:%s \n", cmd.Process.Pid, strconv.Itoa(q.MiniKubeAvailablePort),strconv.Itoa(q.NocalhostWebPort))
+	fmt.Printf("pid is %d, wait for port-forward... %s:%s \n", cmd.Process.Pid, strconv.Itoa(q.MiniKubeAvailablePort), strconv.Itoa(q.NocalhostWebPort))
 	// wait for port-forward
 	for {
 		conn, _ := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(q.MiniKubeAvailablePort)), app.DefaultInitPortForwardTimeOut)
@@ -542,12 +542,12 @@ func (q *ApiRequest) SetInjectBatchUserTemplate(userTemplate string) *ApiRequest
 	return q
 }
 
-func (q *ApiRequest) InjectBatchDevSpace(amount int) *ApiRequest {
-	for i := 1; i <= amount ; i++ {
-		userName := fmt.Sprintf(q.InjectBatchUserTemplate + "@nocalhost.dev", i)
+func (q *ApiRequest) InjectBatchDevSpace(amount, offset int) *ApiRequest {
+	for i := offset; i < amount+offset; i++ {
+		userName := fmt.Sprintf(q.InjectBatchUserTemplate+"@nocalhost.dev", i)
 		name := fmt.Sprintf(q.InjectBatchUserTemplate, i)
 		fmt.Printf("username %s", userName)
-		q.AddUser(userName,app.DefaultInitAdminPassWord, name)
+		q.AddUser(userName, app.DefaultInitAdminPassWord, name)
 		q.AddDevSpace()
 	}
 	return q

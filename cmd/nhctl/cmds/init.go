@@ -33,14 +33,15 @@ import (
 )
 
 type Init struct {
-	Type      string
-	Port      int
-	NameSpace string
-	Set       []string
-	Source    string
-	Force     bool
-	InjectUserTemplate string
-	InjectUserAmount int
+	Type                   string
+	Port                   int
+	NameSpace              string
+	Set                    []string
+	Source                 string
+	Force                  bool
+	InjectUserTemplate     string
+	InjectUserAmount       int
+	InjectUserAmountOffset int
 }
 
 var inits = &Init{}
@@ -52,8 +53,9 @@ func init() {
 	InitCommand.Flags().StringVarP(&inits.NameSpace, "namespace", "n", "default", "set init nocalhost namesapce")
 	InitCommand.Flags().StringSliceVar(&inits.Set, "set", []string{}, "set values of helm")
 	InitCommand.Flags().BoolVar(&inits.Force, "force", false, "force to init, warning: it will remove all nocalhost old data")
-	InitCommand.Flags().StringVar(&inits.InjectUserTemplate,"inject-user-template","","inject users template, such as Techo%d, max length is 15")
-	InitCommand.Flags().IntVar(&inits.InjectUserAmount,"inject-user-amount",0,"inject user amount, such as 10")
+	InitCommand.Flags().StringVar(&inits.InjectUserTemplate, "inject-user-template", "", "inject users template, example Techo%d, max length is 15")
+	InitCommand.Flags().IntVar(&inits.InjectUserAmount, "inject-user-amount", 0, "inject user amount, example 10, max is 999")
+	InitCommand.Flags().IntVar(&inits.InjectUserAmountOffset, "inject-user-offset", 1, "inject user id offset, default is 1")
 	rootCmd.AddCommand(InitCommand)
 }
 
@@ -70,6 +72,9 @@ var InitCommand = &cobra.Command{
 		}
 		if inits.InjectUserAmount > 999 {
 			log.Fatal("--inject-user-amount must less then 999")
+		}
+		if (len(strconv.Itoa(inits.InjectUserAmountOffset)) + len(inits.InjectUserTemplate)) > 20 {
+			log.Fatal("--inject-user-offset and --inject-user-template length can not greater than 20")
 		}
 		return nil
 	},
@@ -255,7 +260,7 @@ var InitCommand = &cobra.Command{
 		kubeResult := req.CheckIfMiniKube().Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).GetKubeConfig().AddBookInfoApplication(source).AddCluster().AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).AddDevSpace()
 		// should inject batch user
 		if inits.InjectUserTemplate != "" && inits.InjectUserAmount > 0 {
-			_ = req.SetInjectBatchUserTemplate(inits.InjectUserTemplate).InjectBatchDevSpace(inits.InjectUserAmount)
+			_ = req.SetInjectBatchUserTemplate(inits.InjectUserTemplate).InjectBatchDevSpace(inits.InjectUserAmount, inits.InjectUserAmountOffset)
 		}
 
 		// wait for nocalhost-dep deployment in nocalhost-reserved namespace
