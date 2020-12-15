@@ -15,12 +15,8 @@ package syncthing
 
 import (
 	"fmt"
-	"github.com/Masterminds/semver"
-	getter "github.com/hashicorp/go-getter"
 	"io"
 	"io/ioutil"
-	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/utils"
 	"os"
 	"path"
 	"path/filepath"
@@ -28,6 +24,12 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/Masterminds/semver"
+	getter "github.com/hashicorp/go-getter"
+
+	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/utils"
 )
 
 const syncthingVersion = "1.11.1"
