@@ -18,6 +18,7 @@ package secret
 import (
 	"bytes"
 	"html/template"
+
 	"nocalhost/internal/nhctl/syncthing"
 )
 
