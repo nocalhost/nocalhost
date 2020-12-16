@@ -50,7 +50,7 @@ func init() {
 	InitCommand.Flags().StringVarP(&inits.Type, "type", "t", "", "set NodePort or LoadBalancer to expose nocalhost service")
 	InitCommand.Flags().IntVarP(&inits.Port, "port", "p", 80, "for NodePort usage set ports")
 	InitCommand.Flags().StringVarP(&inits.Source, "source", "s", "", "bookinfo source, github or coding, default is github")
-	InitCommand.Flags().StringVarP(&inits.NameSpace, "namespace", "n", "default", "set init nocalhost namesapce")
+	InitCommand.Flags().StringVarP(&inits.NameSpace, "namespace", "n", "nocalhost", "set init nocalhost namesapce")
 	InitCommand.Flags().StringSliceVar(&inits.Set, "set", []string{}, "set values of helm")
 	InitCommand.Flags().BoolVar(&inits.Force, "force", false, "force to init, warning: it will remove all nocalhost old data")
 	InitCommand.Flags().StringVar(&inits.InjectUserTemplate, "inject-user-template", "", "inject users template, example Techo%d, max length is 15")
@@ -67,7 +67,7 @@ var InitCommand = &cobra.Command{
 		if len(inits.InjectUserTemplate) > 15 {
 			log.Fatal("--inject-user-template length should less then 15")
 		}
-		if !strings.ContainsAny(inits.InjectUserTemplate, "%d") {
+		if inits.InjectUserTemplate != "" && !strings.ContainsAny(inits.InjectUserTemplate, "%d") {
 			log.Fatal("--inject-user-template does not contains %d")
 		}
 		if inits.InjectUserAmount > 999 {
@@ -75,6 +75,14 @@ var InitCommand = &cobra.Command{
 		}
 		if (len(strconv.Itoa(inits.InjectUserAmountOffset)) + len(inits.InjectUserTemplate)) > 20 {
 			log.Fatal("--inject-user-offset and --inject-user-template length can not greater than 20")
+		}
+		switch inits.NameSpace {
+		case "default":
+			log.Fatal("please do not init nocalhost in default namespace")
+		case "kube-system":
+			log.Fatal("please do not init nocalhost in kube-system namespace")
+		case "kube-public":
+			log.Fatal("please do not init nocalhost in kube-public namespace")
 		}
 		return nil
 	},
@@ -143,14 +151,18 @@ var InitCommand = &cobra.Command{
 			if err != nil {
 				log.Warnf("uninstall %s application fail, ignore", app.DefaultInitInstallApplicationName)
 			}
-			// delete nocalhost(server namespace), nocalhost-reserved(dep) namespace
-			err := client.DeleteNameSpace(inits.NameSpace, true)
-			if err != nil {
-				log.Warnf("delete namespace %s fail, ignore", inits.NameSpace)
+			// delete nocalhost(server namespace), nocalhost-reserved(dep) namespace if exist
+			if nsErr := client.CheckExistNameSpace(inits.NameSpace); nsErr == nil {
+				err := client.DeleteNameSpace(inits.NameSpace, true)
+				if err != nil {
+					log.Warnf("delete namespace %s fail, ignore", inits.NameSpace)
+				}
 			}
-			err = client.DeleteNameSpace(app.DefaultInitWaitNameSpace, true)
-			if err != nil {
-				log.Warnf("delete namespace %s fail, ignore", app.DefaultInitWaitNameSpace)
+			if nsErr := client.CheckExistNameSpace(app.DefaultInitWaitNameSpace); nsErr == nil {
+				err = client.DeleteNameSpace(app.DefaultInitWaitNameSpace, true)
+				if err != nil {
+					log.Warnf("delete namespace %s fail, ignore", app.DefaultInitWaitNameSpace)
+				}
 			}
 			spinner.Stop()
 		}
@@ -158,7 +170,10 @@ var InitCommand = &cobra.Command{
 		// normal init: check if exist namespace
 		err = client.CheckExistNameSpace(inits.NameSpace)
 		if err != nil {
-			err = client.CreateNameSpace(inits.NameSpace)
+			customLabels := map[string]string{
+				"env": app.DefaultInitCreateNameSpaceLabels,
+			}
+			err = client.CreateNameSpace(inits.NameSpace, customLabels)
 			if err != nil {
 				log.Fatalf("init fail, create namespace %s fail, err: %s\n", inits.NameSpace, err.Error())
 			}
