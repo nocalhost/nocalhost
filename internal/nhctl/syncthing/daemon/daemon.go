@@ -25,7 +25,7 @@ import (
 const MARK_ENV_NAME = "NH_SYNC_DAEMON_IDX"
 
 // run background times
-var runIdx int = 0
+var runIdx = 0
 
 type Daemon struct {
 	LogFile     string
@@ -35,20 +35,20 @@ type Daemon struct {
 	MinExitTime int64
 }
 
-// start a child process, and then exit myself
-// isExit=true, exit main process
+// start a child process
+// if isExit is true, exit parent process itself
 func Background(logFile, pidFile string, isExit bool) (*exec.Cmd, error) {
 	runIdx++
-	// check if main process or child process
+	// check if this process is a child process
 	envIdx, err := strconv.Atoi(os.Getenv(MARK_ENV_NAME))
 	if err != nil {
 		envIdx = 0
 	}
-	if runIdx <= envIdx { //子进程, 退出
+	if runIdx <= envIdx { // this is already a child process, exit
 		return nil, nil
 	}
 
-	// set child env value
+	// set env for child process
 	env := os.Environ()
 	env = append(env, fmt.Sprintf("%s=%d", MARK_ENV_NAME, runIdx))
 
