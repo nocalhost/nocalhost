@@ -54,6 +54,7 @@ const (
 	DefaultInitAdminPassWord           = "123456"
 	DefaultInitName                    = "Nocalhost"
 	DefaultInitWaitNameSpace           = "nocalhost-reserved"
+	DefaultInitCreateNameSpaceLabels   = "nocalhost-init"
 	DefaultInitWaitDeployment          = "nocalhost-dep"
 	// TODO when release
 	DefaultInitHelmResourcePath   = "deployments/chart"
