@@ -8,7 +8,6 @@ set -eu -o pipefail
 source ./scripts/build/nhctl/.variables
 
 echo "Building statically linked $TARGET"
-export CGO_ENABLED=0
 go build -o "${TARGET}" --ldflags "${LDFLAGS}" "${SOURCE}"
 
 cp "build/$(basename "${TARGET}")" build/nhctl

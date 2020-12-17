@@ -21,9 +21,9 @@ export LDFLAGS="\
     -X \"nocalhost/cmd/nhctl/cmds.BuildTime=${BUILDTIME}\" \
     -X \"nocalhost/cmd/nhctl/cmds.Version=${VERSION}\" \
 	-X \"nocalhost/cmd/nhctl/cmds.OsArch=${OS_ARCH}\" \
-
-    ${LDFLAGS:-} \
 "
 export TARGET
 
 export SOURCE="nocalhost/cmd/nhctl"
+
+export CGO_ENABLED=0
