@@ -5,11 +5,10 @@
 
 set -eu -o pipefail
 
-source ./scripts/build/nhctl/.variables
-
-export CGO_ENABLED=0
 export GOOS=darwin
 export GOARCH=amd64
+
+source ./scripts/build/nhctl/.variables
 
 # Override TARGET
 TARGET="build/nhctl-$GOOS-$GOARCH"
