@@ -18,19 +18,17 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-
-	"nocalhost/pkg/nhctl/log"
 )
 
 func init() {
-	devEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
-	debugCmd.AddCommand(devEndCmd)
+	devResetCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
+	debugCmd.AddCommand(devResetCmd)
 }
 
-var devEndCmd = &cobra.Command{
-	Use:   "end [NAME]",
-	Short: "end dev model",
-	Long:  `end dev model`,
+var devResetCmd = &cobra.Command{
+	Use:   "reset [NAME]",
+	Short: "reset service",
+	Long:  `reset service`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
@@ -38,18 +36,12 @@ var devEndCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		var err error
+
 		applicationName := args[0]
 		InitAppAndCheckIfSvcExist(applicationName, deployment)
 
-		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
-			log.Fatalf("\"%s\" is not developing status", deployment)
-		}
+		nocalhostApp.Reset(deployment)
 
-		err = nocalhostApp.EndDevelopMode(deployment)
-		if err != nil {
-			log.Fatalf("fail to end %s : %s", deployment, err.Error())
-		}
-		fmt.Printf("%s DevMode ended.\n", deployment)
+		fmt.Printf("%s has been reset.\n", deployment)
 	},
 }

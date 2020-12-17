@@ -807,7 +807,7 @@ func (a *Application) GetDefaultDevPort(svcName string) []string {
 	return []string{}
 }
 
-func (a *Application) RollBack(ctx context.Context, svcName string) error {
+func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) error {
 	clientUtils := a.client
 
 	dep, err := clientUtils.GetDeployment(ctx, a.GetNamespace(), svcName)
@@ -837,7 +837,11 @@ func (a *Application) RollBack(ctx context.Context, svcName string) error {
 		}
 	}
 	if r == nil {
-		return errors.New("fail to find the proper revision to rollback")
+		if !reset {
+			return errors.New("fail to find the proper revision to rollback")
+		} else {
+			r = rss[0]
+		}
 	}
 
 	dep.Spec.Template = r.Spec.Template

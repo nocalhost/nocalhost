@@ -1,12 +1,11 @@
 name: bookinfo
 manifestType: rawManifest
-resourcePath: ["manifest/templates","manifest2/template"]
+resourcePath: ["manifest/templates"]
 
 onPreInstall:
-  - path: manifest2/template/pre-install/print-num-job-01.yaml
+  - path: manifest/templates/pre-install/print-num-job-01.yaml
+    weight: "1"
   - path: manifest/templates/pre-install/print-num-job-02.yaml
-    weight: "10"
-  - path: manifest/templates/pre-install/print-num-job-03.yaml
     weight: "-5"
 
 services:
