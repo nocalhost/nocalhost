@@ -1,17 +1,23 @@
 name: bookinfo
-manifestType: helm
+manifestType: helmGit
 resourcePath: ["charts/bookinfo"]
+
+onPreInstall:
+  - path: manifest/templates/pre-install/print-num-job-01.yaml
+    weight: "1"
+  - path: manifest/templates/pre-install/print-num-job-02.yaml
+    weight: "-5"
 
 services:
   - name: productpage
     serviceType: deployment
     gitUrl: https://github.com/nocalhost/bookinfo-productpage
-    devContainerImage: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/python:3.7.7-slim
+    devContainerImage: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/python:3.7.7-slim-productpage
     workDir: /home/nocalhost-dev
     syncDirs:
       - ./
-    devPort:
-      - :9080
+    devPorts:
+      - 39080:9080
     dependJobsLabelSelector:
       - "dep-job"
   - name: details

@@ -30,18 +30,18 @@ elif [ "$type" == 2 ]; then
         exit 1
     fi
 elif [ "$type" == 3 ]; then
-    APPNAME=test-manifest-bookinfo-outer-config-01
+    APPNAME=test-helm-bookinfo-outer-config-01
     kubectl delete ns $APPNAME >> /dev/null
     kubectl create ns $APPNAME
     echo "clean: uninstalling"
     nhctl uninstall $APPNAME --force --debug >> /dev/null
     echo "installing"
-    nhctl install $APPNAME -u https://e.coding.net/codingcorp/nocalhost/bookinfo-noconfig.git --debug -n $APPNAME --config helm_config.yaml
+    nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME --config helm_config.yaml
     if [ "$?" != 0 ]; then
         echo "fail"
         exit 1
     fi
-    SVCNAME=$APPNAME-details
+#    SVCNAME=$APPNAME-details
 else
   exit 0
 fi
