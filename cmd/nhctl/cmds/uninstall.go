@@ -16,7 +16,6 @@ package cmds
 import (
 	"fmt"
 
-	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
@@ -68,7 +67,7 @@ var uninstallCmd = &cobra.Command{
 			for _, profile := range nhApp.AppProfile.SvcProfile {
 				if profile.Developing {
 					log.Debugf("end %s dev model", profile.ActualName)
-					err = nhApp.EndDevelopMode(profile.ActualName, &app.FileSyncOptions{})
+					err = nhApp.EndDevelopMode(profile.ActualName)
 					if err != nil {
 						log.Warnf("fail to end %s dev model: %s", err.Error())
 					}
