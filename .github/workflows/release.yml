@@ -21,14 +21,15 @@ jobs:
     - name: Get tag
       run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
-    - name: build
+    - name: Build nhctl
       env:
         VERSION: ${{ env.RELEASE_VERSION }}
       run: |
         make nhctl-cross
-        shasum -a 256 build/nhctl-linux-amd64 > build/nhctl-linux-amd64-SHA256
-        shasum -a 256 build/nhctl-darwin-amd64 > build/nhctl-darwin-amd64-SHA256
-        shasum -a 256 build/nhctl-windows-amd64.exe > build/nhctl-windows-amd64-SHA256
+        shasum -a 256 build/nhctl-linux-amd64 | awk '{print $1}' > build/nhctl-linux-amd64-SHA256
+        shasum -a 256 build/nhctl-darwin-amd64 | awk '{print $1}' > build/nhctl-darwin-amd64-SHA256
+        shasum -a 256 build/nhctl-windows-amd64.exe | awk '{print $1}' > build/nhctl-windows-amd64-SHA256
+
     - name: Create nhctl Release
       id: create_release
       uses: actions/create-release@v1
@@ -116,6 +117,15 @@ jobs:
         curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${{ env.RELEASE_VERSION }}"
         curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${{ env.RELEASE_VERSION }}"
         curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${{ env.RELEASE_VERSION }}"
+
+    - name: Update Homebrew tap
+      run: |
+        git clone https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/homebrew-repo.git
+        ./scripts/release/tap.rb ${{ env.RELEASE_VERSION }} `cat build/nhctl-darwin-amd64-SHA256` `cat build/nhctl-linux-amd64-SHA256` > homebrew-repo/Formula/nocalhost.rb
+        cd homebrew-repo
+        git add .
+        git commit -m '${{ env.RELEASE_VERSION }}'
+        git push origin main
 
     - name: Release api-docker
       run: make api-docker
