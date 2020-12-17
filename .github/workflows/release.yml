@@ -41,6 +41,24 @@ jobs:
         draft: false
         prerelease: false
 
+    - name: Collect Release Info
+      run: |
+        echo "${{ steps.create_release.outputs.upload_url }}" >> UPLOAD_URL
+        echo ${{ env.RELEASE_VERSION }} >> RELEASE_VERSION
+
+    - name: Upload RELEASE_VERSION
+      uses: actions/upload-artifact@v2
+      with:
+        name: RELEASE_VERSION
+        path: RELEASE_VERSION
+
+
+    - name: Upload UPLOAD_URL
+      uses: actions/upload-artifact@v2
+      with:
+        name: UPLOAD_URL
+        path: UPLOAD_URL
+
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
@@ -155,3 +173,45 @@ jobs:
         docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
         docker push ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
         docker push ${CODING_IMAGE_NAME}:latest
+
+  package-windows:
+    needs: release-nhctl
+    name: package
+    runs-on: windows-latest
+    steps:
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+    - name: Download RELEASE_VERSION
+      uses: actions/download-artifact@v2
+      with:
+        name: RELEASE_VERSION
+    - name: Download UPLOAD_URL
+      uses: actions/download-artifact@v2
+      with:
+        name: UPLOAD_URL
+    - name: package
+      id: package
+      run: |
+        $Version=get-content RELEASE_VERSION
+        $UploadUrl=get-content UPLOAD_URL
+        echo "::set-output name=version::$Version"
+        echo "::set-output name=upload_url::$UploadUrl"
+        md build
+        choco install curl
+        choco install unzip
+        curl -L https://github.com/nocalhost/nocalhost/releases/latest/download/nhctl-windows-amd64.exe -o build/nhctl.exe
+        curl -L https://storage.googleapis.com/kubernetes-release/release/v1.20.0/bin/windows/amd64/kubectl.exe -o build/kubectl.exe
+        curl -L https://get.helm.sh/helm-v3.4.2-windows-amd64.zip -o build/helm.zip
+        unzip build/helm.zip -d build
+        iscc /DAppVersion=$Version scripts/release/nocalhost.iss
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.package.outputs.upload_url }}
+        asset_path: build/NocalhostInstaller.exe
+        asset_name: NocalhostInstaller.exe
+        asset_content_type: application/octet-stream
+
