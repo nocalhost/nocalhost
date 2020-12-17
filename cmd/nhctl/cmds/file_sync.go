@@ -38,8 +38,8 @@ func init() {
 	//fileSyncCmd.Flags().StringVarP(&fileSyncOps.LocalSharedFolder, "local-shared-folder", "l", "", "(Deprecation) local folder to sync")
 	//fileSyncCmd.Flags().StringVarP(&fileSyncOps.RemoteDir, "remote-folder", "r", "", "(Deprecation) remote folder path")
 	fileSyncCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
-	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.RunAsDaemon, "daemon", "m", true, "if file sync run as daemon, default true")
-	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false, "if use double side sync, default true")
+	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.RunAsDaemon, "daemon", "m", true, "if file sync run as daemon")
+	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false, "if use double side sync")
 	rootCmd.AddCommand(fileSyncCmd)
 }
 
