@@ -28,14 +28,13 @@ import (
 func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartOptions, fileSyncOptions *FileSyncOptions) (*syncthing.Syncthing, error) {
 	var err error
 
-	// 2. from file-sync it should direct use .profile.yaml dev-start port
-	// WorkDir will be null
+	// for file-sync, it should directly use ports defined in .profile.yaml
 	remotePort := fileSyncOptions.RemoteSyncthingPort
 	remoteGUIPort := fileSyncOptions.RemoteSyncthingGUIPort
 	localListenPort := fileSyncOptions.LocalSyncthingPort
 	localGuiPort := fileSyncOptions.LocalSyncthingGUIPort
 
-	// 1. from dev-start should take some local available port, WorkDir will be not null
+	// for dev-start(work dir is not nil), it should take some local available port
 	if devStartOptions.WorkDir != "" {
 		remotePort, err = ports.GetAvailablePort()
 		if err != nil {
@@ -74,7 +73,7 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 		Client:           syncthing.NewAPIClient(),
 		FileWatcherDelay: syncthing.DefaultFileWatcherDelay,
 		GUIAddress:       fmt.Sprintf("%s:%d", syncthing.Bind, localGuiPort),
-		// TODO BE CAREFUL ResourcePath if is not application path, this is Local syncthing HOME PATH, use for cert and config.xml
+		// TODO Be Careful if ResourcePath is not application path, Local syncthing HOME PATH will be used for cert and config.xml
 		// it's `~/.nhctl/application/bookinfo/syncthing`
 		LocalHome:        filepath.Join(a.GetHomeDir(), "syncthing", deployment),
 		RemoteHome:       syncthing.RemoteHome,
@@ -93,11 +92,11 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 		RescanInterval:   "300",
 	}
 
-	// when create syncthing sidecar it need to know how many directory it should sync
+	// before creating syncthing sidecar, it need to know how many directories it should sync
 	index := 1
 	for _, sync := range devStartOptions.LocalSyncDir {
 		result, err := syncthing.IsSubPathFolder(sync, devStartOptions.LocalSyncDir)
-		// TODO consider continue handle next dir
+		// TODO considering continue on err
 		if err != nil {
 			return nil, err
 		}

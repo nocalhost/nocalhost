@@ -26,29 +26,29 @@ import (
 func (a *Application) EndDevelopMode(svcName string, fileSyncOps *FileSyncOptions) error {
 	var err error
 	if !a.CheckIfSvcIsDeveloping(svcName) {
-		errors.New(fmt.Sprintf("\"%s\" is not developing status", svcName))
+		errors.New(fmt.Sprintf("\"%s\" is not in developing status", svcName))
 	}
 
 	fmt.Println("ending DevMode...")
 	// end file sync
 	fmt.Println("terminating file sync process...")
-	// get free port recorded in dev-start stage so we don't need to get free port again
+	// get ports recorded in dev-start stage, so we don't need to get available ports again
 	var devStartOptions = &DevStartOptions{}
 	fileSyncOps, err = a.GetSyncthingPort(svcName, fileSyncOps)
 	if err != nil {
-		log.Warnf("failed to get syncthing port, you can start sync command first. error message: %s \n", err.Error())
+		log.Warnf("fail to get syncthing port. error message: %s \n", err.Error())
 		return err
 	}
 
 	newSyncthing, err := a.NewSyncthing(svcName, devStartOptions, fileSyncOps)
 	if err != nil {
-		log.Warnf("failed to start syncthing process: %s", err.Error())
+		log.Warnf("fail to start syncthing process: %s", err.Error())
 		return err
 	}
-	// read and empty pid file
+	// read and clean up pid file
 	portForwardPid, portForwardFilePath, err := a.GetBackgroundSyncPortForwardPid(svcName, false)
 	if err != nil {
-		log.Warnf("failed to get background port-forward pid file, ignored")
+		log.Warnf("fail to get background port-forward pid file, ignored")
 	}
 	if portForwardPid != 0 {
 		err = newSyncthing.Stop(portForwardPid, portForwardFilePath, "port-forward", true)
@@ -57,16 +57,16 @@ func (a *Application) EndDevelopMode(svcName string, fileSyncOps *FileSyncOption
 		}
 	}
 
-	// read and clean pid file
+	// read and clean up pid file
 	syngthingPid, syncThingPath, err := a.GetBackgroundSyncThingPid(svcName, false)
 	if err != nil {
-		log.Warn("failed to get background port-forward pid file, ignored")
+		log.Warn("failed to get background syncthing pid file, ignored")
 	}
 	if syngthingPid != 0 {
 		err = newSyncthing.Stop(syngthingPid, syncThingPath, "syncthing", true)
 		if err != nil {
 			if runtime.GOOS == "windows" {
-				// in windows, it will raise a "Access is denied" err when killing progress, so we cab ignore this err
+				// in windows, it will raise a "Access is denied" err when killing progress, so we can ignore this err
 				fmt.Printf("attempt to terminate syncthing process(pid: %d), you can run `tasklist | findstr %d` to make sure process was exited\n", portForwardPid, portForwardPid)
 			} else {
 				log.Warnf("failed to terminate syncthing process(pid: %d), please run `kill -9 %d` manually, err: %s\n", portForwardPid, portForwardPid, err)
@@ -78,8 +78,7 @@ func (a *Application) EndDevelopMode(svcName string, fileSyncOps *FileSyncOption
 		fmt.Printf("background port-forward process: %d and  syncthing process: %d terminated.\n", portForwardPid, syngthingPid)
 	}
 
-	// end dev port background port forward
-	// read and empty pid file
+	// end dev port background port forward process
 	onlyPortForwardPid, onlyPortForwardFilePath, err := a.GetBackgroundOnlyPortForwardPid(svcName, false)
 	if err != nil {
 		fmt.Println("no dev port-forward pid file found, ignored.")

@@ -329,7 +329,7 @@ func (s *Syncthing) Run(ctx context.Context) error {
 	return nil
 }
 
-// Stop syncthing background process and port-forward progress and cleans up.
+// Stop syncthing background process or port-forward progress, and clean up pid files.
 func (s *Syncthing) Stop(pid int, pidFilePath string, typeName string, force bool) error {
 	if err := s.cleanupDaemon(pid, force, typeName); err != nil {
 		return err
