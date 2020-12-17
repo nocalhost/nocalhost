@@ -15,6 +15,7 @@ package cmds
 
 import (
 	"fmt"
+	"nocalhost/internal/nhctl/app"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -40,6 +41,7 @@ var devResetCmd = &cobra.Command{
 		applicationName := args[0]
 		InitAppAndCheckIfSvcExist(applicationName, deployment)
 
+		nocalhostApp.LoadOrCreateSvcProfile(deployment, app.Deployment)
 		nocalhostApp.Reset(deployment)
 
 		fmt.Printf("%s has been reset.\n", deployment)
