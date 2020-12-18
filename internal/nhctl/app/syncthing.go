@@ -15,6 +15,7 @@ package app
 
 import (
 	"fmt"
+	"nocalhost/internal/nhctl/nocalhost"
 	"path/filepath"
 	"strconv"
 
@@ -69,7 +70,7 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 		APIKey:           "nocalhost",
 		GUIPassword:      "nocalhost",
 		GUIPasswordHash:  string(hash),
-		BinPath:          filepath.Join(a.GetSyncThingBinDir(), syncthing.GetBinaryName()),
+		BinPath:          filepath.Join(nocalhost.GetSyncThingBinDir(), syncthing.GetBinaryName()),
 		Client:           syncthing.NewAPIClient(),
 		FileWatcherDelay: syncthing.DefaultFileWatcherDelay,
 		GUIAddress:       fmt.Sprintf("%s:%d", syncthing.Bind, localGuiPort),

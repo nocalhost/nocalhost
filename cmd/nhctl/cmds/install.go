@@ -15,6 +15,7 @@ package cmds
 
 import (
 	"fmt"
+	"nocalhost/internal/nhctl/nocalhost"
 	"os"
 
 	"nocalhost/internal/nhctl/app"
@@ -93,7 +94,7 @@ var installCmd = &cobra.Command{
 				log.Fatalf("--helm-repo-url or --helm-repo-name must be specified when using %s", installFlags.AppType)
 			}
 		}
-		if nh.CheckIfApplicationExist(applicationName) {
+		if nocalhost.CheckIfApplicationExist(applicationName) {
 			log.Fatalf("application \"%s\" already exists", applicationName)
 		}
 
@@ -102,7 +103,7 @@ var installCmd = &cobra.Command{
 		if err != nil {
 			fmt.Printf("failed to install application : %s\n", err.Error())
 			log.Debug("failed to install application, clean up resources...")
-			err = nh.CleanupAppFiles(applicationName)
+			err = nocalhost.CleanupAppFiles(applicationName)
 			if err != nil {
 				fmt.Errorf("failed to clean up:%v", err)
 			} else {

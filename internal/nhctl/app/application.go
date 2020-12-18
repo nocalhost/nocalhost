@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"nocalhost/internal/nhctl/nocalhost"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -677,7 +678,7 @@ func (a *Application) GetKubeconfig() string {
 }
 
 func (a *Application) GetApplicationSyncDir(deployment string) string {
-	dirPath := filepath.Join(a.GetHomeDir(), DefaultBinSyncThingDirName, deployment)
+	dirPath := filepath.Join(a.GetHomeDir(), nocalhost.DefaultBinSyncThingDirName, deployment)
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		err = os.MkdirAll(dirPath, 0700)
 		if err != nil {

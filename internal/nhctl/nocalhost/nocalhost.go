@@ -14,34 +14,37 @@ limitations under the License.
 package nocalhost
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
-	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/utils"
 )
 
 const (
 	DefaultNewFilePermission = 0700
+	DefaultNhctlHomeDirName                  = ".nh/nhctl"
+	DefaultApplicationDirName                = "application"
+	DefaultBinDirName                        = "bin"
+	DefaultBinSyncThingDirName               = "syncthing"
+	DefaultLogDirName                        = "logs"
 )
 
-type NocalHost struct {
-}
+//type NocalHost struct {
+//}
 
-func NewNocalHost() (*NocalHost, error) {
-	nh := &NocalHost{}
-	err := nh.Init()
-	if err != nil {
-		return nil, err
-	}
-	return nh, nil
-}
+//func NewNocalHost() (*NocalHost, error) {
+//	nh := &NocalHost{}
+//	err := nh.Init()
+//	if err != nil {
+//		return nil, err
+//	}
+//	return nh, nil
+//}
 
-func (n *NocalHost) Init() error {
+func Init() error {
 	var err error
-	nhctlHomeDir := n.GetHomeDir()
+	nhctlHomeDir := GetHomeDir()
 	if _, err = os.Stat(nhctlHomeDir); err != nil {
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(nhctlHomeDir, DefaultNewFilePermission)
@@ -49,19 +52,19 @@ func (n *NocalHost) Init() error {
 				return err
 			}
 
-			applicationDir := n.GetAppHomeDir()
+			applicationDir := GetAppHomeDir()
 			err = os.MkdirAll(applicationDir, DefaultNewFilePermission) // create .nhctl/application
 			if err != nil {
 				return err
 			}
 
-			binDir := n.GetSyncThingBinDir()
+			binDir := GetSyncThingBinDir()
 			err = os.MkdirAll(binDir, DefaultNewFilePermission) // create .nhctl/bin/syncthing
 			if err != nil {
 				return err
 			}
 
-			logDir := n.GetLogDir()
+			logDir := GetLogDir()
 			err = os.MkdirAll(logDir, DefaultNewFilePermission) // create .nhctl/logs
 			if err != nil {
 				return err
@@ -71,23 +74,20 @@ func (n *NocalHost) Init() error {
 	return nil
 }
 
-func (n *NocalHost) GetHomeDir() string {
-	return filepath.Join(utils.GetHomePath(), app.DefaultNhctlHomeDirName)
-	//return fmt.Sprintf("%s%c%s", utils.GetHomePath(), os.PathSeparator, app.DefaultNhctlHomeDirName)
+func GetHomeDir() string {
+	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName)
 }
 
-func (n *NocalHost) GetAppHomeDir() string {
-	return filepath.Join(n.GetHomeDir(), app.DefaultApplicationDirName)
-	//return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, app.DefaultApplicationDirName)
+func GetAppHomeDir() string {
+	return filepath.Join(GetHomeDir(), DefaultApplicationDirName)
 }
 
-func (n *NocalHost) GetAppDir(appName string) string {
-	return filepath.Join(n.GetAppHomeDir(), appName)
-	//return fmt.Sprintf("%s%c%s", n.GetAppHomeDir(), os.PathSeparator, appName)
+func GetAppDir(appName string) string {
+	return filepath.Join(GetAppHomeDir(), appName)
 }
 
-func (n *NocalHost) CleanupAppFiles(appName string) error {
-	appDir := n.GetAppDir(appName)
+func CleanupAppFiles(appName string) error {
+	appDir := GetAppDir(appName)
 	if f, err := os.Stat(appDir); err == nil {
 		if f.IsDir() {
 			err = os.RemoveAll(appDir)
@@ -99,16 +99,16 @@ func (n *NocalHost) CleanupAppFiles(appName string) error {
 	return nil
 }
 
-func (n *NocalHost) GetSyncThingBinDir() string {
-	return filepath.Join(n.GetHomeDir(), app.DefaultBinDirName, app.DefaultBinSyncThingDirName)
+func GetSyncThingBinDir() string {
+	return filepath.Join(GetHomeDir(), DefaultBinDirName, DefaultBinSyncThingDirName)
 }
 
-func (n *NocalHost) GetLogDir() string {
-	return fmt.Sprintf("%s%c%s", n.GetHomeDir(), os.PathSeparator, app.DefaultLogDirName)
+func GetLogDir() string {
+	return filepath.Join(GetHomeDir(), DefaultLogDirName)
 }
 
-func (n *NocalHost) GetApplicationNames() ([]string, error) {
-	appDir := n.GetAppHomeDir()
+func GetApplicationNames() ([]string, error) {
+	appDir := GetAppHomeDir()
 	fs, err := ioutil.ReadDir(appDir)
 	if err != nil {
 		return nil, err
@@ -125,8 +125,8 @@ func (n *NocalHost) GetApplicationNames() ([]string, error) {
 	return app, err
 }
 
-func (n *NocalHost) CheckIfApplicationExist(appName string) bool {
-	apps, err := n.GetApplicationNames()
+func CheckIfApplicationExist(appName string) bool {
+	apps, err := GetApplicationNames()
 	if err != nil || apps == nil {
 		return false
 	}
@@ -140,6 +140,6 @@ func (n *NocalHost) CheckIfApplicationExist(appName string) bool {
 	return false
 }
 
-func (n *NocalHost) GetApplication(appName string) (*app.Application, error) {
-	return app.NewApplication(appName)
-}
+//func (n *NocalHost) GetApplication(appName string) (*app.Application, error) {
+//	return app.NewApplication(appName)
+//}

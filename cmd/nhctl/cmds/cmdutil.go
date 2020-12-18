@@ -15,6 +15,7 @@ package cmds
 
 import (
 	"github.com/sirupsen/logrus"
+	"nocalhost/internal/nhctl/nocalhost"
 
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/log"
@@ -26,7 +27,7 @@ func InitApp(appName string) {
 		log.SetLevel(logrus.DebugLevel)
 	}
 
-	if !nh.CheckIfApplicationExist(appName) {
+	if !nocalhost.CheckIfApplicationExist(appName) {
 		log.Fatalf("application \"%s\" not found", appName)
 	}
 	nocalhostApp, err = app.NewApplication(appName)

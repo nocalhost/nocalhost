@@ -17,16 +17,13 @@ import (
 	"fmt"
 	"os"
 
-	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/utils"
-
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/pkg/nhctl/log"
 )
 
 var settings *EnvSettings
-var nh *nocalhost.NocalHost
+//var nh *nocalhost.NocalHost
 var nocalhostApp *app.Application
 
 func init() {
@@ -36,11 +33,11 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&settings.Debug, "debug", settings.Debug, "enable debug level log")
 	rootCmd.PersistentFlags().StringVar(&settings.KubeConfig, "kubeconfig", "", "the path of the kubeconfig file")
 
-	cobra.OnInitialize(func() {
-		var err error
-		nh, err = nocalhost.NewNocalHost()
-		utils.Mush(err)
-	})
+	//cobra.OnInitialize(func() {
+	//	var err error
+	//	nh, err = nocalhost.NewNocalHost()
+	//	utils.Mush(err)
+	//})
 }
 
 var rootCmd = &cobra.Command{

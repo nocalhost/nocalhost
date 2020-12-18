@@ -15,6 +15,8 @@ package cmds
 
 import (
 	"fmt"
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/nocalhost"
 
 	"nocalhost/pkg/nhctl/log"
 
@@ -45,17 +47,17 @@ var uninstallCmd = &cobra.Command{
 			log.SetLevel(logrus.DebugLevel)
 		}
 		applicationName := args[0]
-		if !nh.CheckIfApplicationExist(applicationName) {
+		if !nocalhost.CheckIfApplicationExist(applicationName) {
 			log.Fatalf("application \"%s\" not found\n", applicationName)
 		}
 
 		fmt.Println("uninstalling application...")
-		nhApp, err := nh.GetApplication(applicationName)
+		nhApp, err := app.NewApplication(applicationName)
 		if err != nil {
 			if !force {
 				log.Fatalf("failed to get application, %v", err)
 			} else {
-				err = nh.CleanupAppFiles(applicationName)
+				err = nocalhost.CleanupAppFiles(applicationName)
 				if err != nil {
 					log.Warnf("fail to clean up application resource: %s", err.Error())
 				}
@@ -77,7 +79,7 @@ var uninstallCmd = &cobra.Command{
 		err = nhApp.Uninstall(force)
 		if err != nil {
 			if force {
-				err = nh.CleanupAppFiles(applicationName)
+				err = nocalhost.CleanupAppFiles(applicationName)
 				if err != nil {
 					log.Warnf("fail to clean up application resource: %s", err.Error())
 				}
