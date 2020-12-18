@@ -9,7 +9,7 @@ require (
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/alicebob/miniredis v2.5.0+incompatible
-	github.com/antonfisher/nested-logrus-formatter v1.3.0
+	github.com/antonfisher/nested-logrus-formatter v1.3.0 // indirect
 	github.com/briandowns/spinner v1.11.1
 	github.com/cheggaaa/pb/v3 v3.0.5
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
@@ -65,6 +65,7 @@ require (
 	google.golang.org/grpc v1.27.0
 	google.golang.org/protobuf v1.24.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 	honnef.co/go/tools v0.0.1-2020.1.3 // indirect

@@ -14,47 +14,109 @@ limitations under the License.
 package log
 
 import (
-	nested "github.com/antonfisher/nested-logrus-formatter"
+	"os"
+	"path/filepath"
+
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
-var log = logrus.New()
+//var log = logrus.New()
+var outLogger  *logrus.Logger
+var fileEntry *logrus.Entry
 
 func init() {
-	log.SetFormatter(&nested.Formatter{
-		HideKeys: true,
-		//FieldsOrder: []string{"component", "category"},
+	//log.SetFormatter(&nested.Formatter{
+	//	HideKeys: true,
+	//	//FieldsOrder: []string{"component", "category"},
+	//})
+	outLogger = logrus.New()
+}
+
+func Init(level logrus.Level, dir, fileName string) {
+	outLogger.SetOutput(os.Stdout)
+	outLogger.SetLevel(level)
+
+	fileLogger := logrus.New()
+	fileLogger.SetFormatter(&logrus.TextFormatter{
+		DisableColors: true,
+		FullTimestamp: true,
 	})
+
+	logPath := filepath.Join(dir, fileName)
+	rolling := &lumberjack.Logger{
+		Filename:   logPath,
+		MaxSize:    1, // megabytes
+		MaxBackups: 10,
+		MaxAge:     60, //days
+		Compress:   true,
+	}
+	fileLogger.SetOutput(rolling)
+	fileLogger.SetLevel(logrus.DebugLevel)
+
+	traceId := uuid.New().String()
+	fileEntry = fileLogger.WithFields(logrus.Fields{"traceId": traceId})
 }
 
 func SetLevel(level logrus.Level) {
-	log.SetLevel(level)
+	outLogger.SetLevel(level)
 }
 
 func Fatalf(format string, args ...interface{}) {
-	log.Fatalf(format, args)
+	outLogger.Fatalf(format, args...)
+	if fileEntry != nil {
+		fileEntry.Fatalf(format,args...)
+	}
 }
 
 func Fatal(args ...interface{}) {
-	log.Fatal(args)
+	outLogger.Fatal(args...)
+	if fileEntry != nil {
+		fileEntry.Fatal(args...)
+	}
 }
 
 func Warn(args ...interface{}) {
-	log.Warn(args)
+	outLogger.Warn(args...)
+	if fileEntry != nil {
+		fileEntry.Warn(args...)
+	}
 }
 
 func Warnf(format string, args ...interface{}) {
-	log.Warnf(format, args)
+	outLogger.Warnf(format, args...)
+	if fileEntry != nil {
+		fileEntry.Warnf(format,args...)
+	}
 }
 
 func Debugf(format string, args ...interface{}) {
-	log.Debugf(format, args)
-}
-
-func Info(args ...interface{}) {
-	log.Info(args)
+	outLogger.Debugf(format, args...)
+	if fileEntry != nil {
+		fileEntry.Debugf(format,args...)
+	}
 }
 
 func Debug(args ...interface{}) {
-	log.Debug(args)
+	outLogger.Debug(args...)
+	if fileEntry != nil {
+		fileEntry.Debug(args...)
+	}
 }
+
+func Info(args ...interface{}) {
+	outLogger.Info(args...)
+	if fileEntry != nil {
+		fileEntry.Info(args...)
+	}
+}
+
+func Infof(format string, args ...interface{}) {
+	outLogger.Infof(format, args...)
+	if fileEntry != nil {
+		fileEntry.Infof(format, args...)
+	}
+}
+
+
