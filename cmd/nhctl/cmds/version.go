@@ -48,8 +48,8 @@ var versionCmd = &cobra.Command{
 		fmt.Printf("nhctl: Nocalhost CLI\n")
 		fmt.Printf("    Version: %s\n", Version)
 		fmt.Printf("    Git commit: %s\n", GitCommit)
-		fmt.Printf("    Built: %s\n", reformatDate(BuildTime))
-		fmt.Printf("    OS/Arch: %s\n", OsArch)
-		fmt.Printf("    Go version: %s\n", runtime.Version())
+		fmt.Printf("    Built time: %s\n", reformatDate(BuildTime))
+		fmt.Printf("    Built OS/Arch: %s\n", OsArch)
+		fmt.Printf("    Built Go version: %s\n", runtime.Version())
 	},
 }
