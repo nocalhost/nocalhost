@@ -15,8 +15,12 @@ package nocalhost
 
 import (
 	"io/ioutil"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
+
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
 	"nocalhost/internal/nhctl/utils"
 )
@@ -28,6 +32,7 @@ const (
 	DefaultBinDirName                        = "bin"
 	DefaultBinSyncThingDirName               = "syncthing"
 	DefaultLogDirName                        = "logs"
+	DefaultLogFileName = "nhctl.log"
 )
 
 //type NocalHost struct {
@@ -71,6 +76,8 @@ func Init() error {
 			}
 		}
 	}
+
+	log.Init(logrus.InfoLevel, GetLogDir(),DefaultLogFileName)
 	return nil
 }
 
@@ -91,10 +98,10 @@ func CleanupAppFiles(appName string) error {
 	if f, err := os.Stat(appDir); err == nil {
 		if f.IsDir() {
 			err = os.RemoveAll(appDir)
-			return err
+			return errors.Wrap(err,"fail to remove dir")
 		}
 	} else if !os.IsNotExist(err) {
-		return err
+		return errors.Wrap(err, err.Error())
 	}
 	return nil
 }
@@ -111,7 +118,7 @@ func GetApplicationNames() ([]string, error) {
 	appDir := GetAppHomeDir()
 	fs, err := ioutil.ReadDir(appDir)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err,err.Error())
 	}
 	app := make([]string, 0)
 	if fs == nil || len(fs) < 1 {

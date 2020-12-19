@@ -14,6 +14,9 @@ limitations under the License.
 package log
 
 import (
+	"fmt"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"os"
 	"path/filepath"
 
@@ -23,15 +26,15 @@ import (
 )
 
 //var log = logrus.New()
-var outLogger  *logrus.Logger
-var fileEntry *logrus.Entry
+var outLogger  *zap.SugaredLogger
+var fileEntry *zap.SugaredLogger
 
 func init() {
 	//log.SetFormatter(&nested.Formatter{
 	//	HideKeys: true,
 	//	//FieldsOrder: []string{"component", "category"},
 	//})
-	outLogger = logrus.New()
+
 }
 
 func Init(level logrus.Level, dir, fileName string) {
@@ -57,6 +60,19 @@ func Init(level logrus.Level, dir, fileName string) {
 
 	traceId := uuid.New().String()
 	fileEntry = fileLogger.WithFields(logrus.Fields{"traceId": traceId})
+
+	file, err := os.OpenFile(logPath,os.O_WRONLY | os.O_CREATE | os.O_APPEND, 0700)
+	if err != nil {
+		fmt.Errorf("fail to open file %s", logPath)
+	}
+	writeSyncer := zapcore.AddSync(file)
+	encoderConfig := zap.NewProductionEncoderConfig()
+	//encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	encoder := zapcore.NewConsoleEncoder(encoderConfig)
+	core := zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
+	fileEntry = zap.New(core).Sugar()
+	fileEntry.With()
 }
 
 func SetLevel(level logrus.Level) {
@@ -64,16 +80,39 @@ func SetLevel(level logrus.Level) {
 }
 
 func Fatalf(format string, args ...interface{}) {
-	outLogger.Fatalf(format, args...)
 	if fileEntry != nil {
-		fileEntry.Fatalf(format,args...)
+		fileEntry.Errorf(format,args...)
 	}
+	outLogger.Fatalf(format, args...)
 }
 
 func Fatal(args ...interface{}) {
-	outLogger.Fatal(args...)
 	if fileEntry != nil {
-		fileEntry.Fatal(args...)
+		fileEntry.Error(args...)
+	}
+	outLogger.Fatal(args...)
+}
+
+// log with error
+func FatalE(err error, message string){
+	if fileEntry != nil {
+		fileEntry.Error(fmt.Sprintf("%s, err info: %+v",message,err))
+	}
+	if err != nil {
+		outLogger.Fatal(fmt.Sprintf("%s, err info: %s",message,err.Error()))
+	}else {
+		outLogger.Fatal(fmt.Sprintf("%s",message))
+	}
+}
+
+func WarnE(err error, message string){
+	if fileEntry != nil {
+		fileEntry.Warn(fmt.Sprintf("%s, info: %+v",message,err))
+	}
+	if err != nil {
+		outLogger.Warn(fmt.Sprintf("%s, info: %s",message,err.Error()))
+	}else {
+		outLogger.Warn(fmt.Sprintf("%s",message))
 	}
 }
 

@@ -48,18 +48,18 @@ var uninstallCmd = &cobra.Command{
 		}
 		applicationName := args[0]
 		if !nocalhost.CheckIfApplicationExist(applicationName) {
-			log.Fatalf("application \"%s\" not found\n", applicationName)
+			log.Fatalf("application \"%s\" not found", applicationName)
 		}
 
 		fmt.Println("uninstalling application...")
 		nhApp, err := app.NewApplication(applicationName)
 		if err != nil {
 			if !force {
-				log.Fatalf("failed to get application, %v", err)
+				log.FatalE(err,"fail to get application")
 			} else {
 				err = nocalhost.CleanupAppFiles(applicationName)
 				if err != nil {
-					log.Warnf("fail to clean up application resource: %s", err.Error())
+					log.WarnE(err,"fail to clean up application resource")
 				}
 				fmt.Printf("application \"%s\" is uninstalled anyway.\n", applicationName)
 				return

@@ -46,7 +46,6 @@ var rootCmd = &cobra.Command{
 	Long:  `nhctl can deploy and develop application on Kubernetes. `,
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Debug("hello nhctl")
-		//fmt.Printf("kubeconfig is %s", settings.KubeConfig)
 	},
 }
 

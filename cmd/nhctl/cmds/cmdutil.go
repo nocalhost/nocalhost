@@ -43,7 +43,7 @@ func CheckIfSvcExist(svcName string) {
 
 	exist, err := nocalhostApp.CheckIfSvcExist(svcName, app.Deployment)
 	if err != nil {
-		log.Fatalf("failed to check if svc exists : %v", err)
+		log.FatalE(err,"failed to check if svc exists")
 	} else if !exist {
 		log.Fatalf("\"%s\" not found", svcName)
 	}
