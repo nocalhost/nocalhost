@@ -81,7 +81,7 @@ make api
 make nocalhost-dep
 ```
 
-## Api Docks
+## Api Docs
 
 ```
 swag init -g cmd/nocalhost-api/nocalhost-api.go
