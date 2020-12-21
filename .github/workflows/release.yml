@@ -204,6 +204,8 @@ jobs:
         curl -L https://get.helm.sh/helm-v3.4.2-windows-amd64.zip -o build/helm.zip
         unzip build/helm.zip -d build
         iscc /DAppVersion=$Version scripts/release/nocalhost.iss
+        curl -T build/NocalhostInstaller.exe -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/NocalhostInstaller.exe?version=$Version"
+        curl -T build/NocalhostInstaller.exe -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/NocalhostInstaller.exe?version=latest"
 
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
