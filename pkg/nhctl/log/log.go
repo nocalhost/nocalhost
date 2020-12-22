@@ -15,38 +15,42 @@ package log
 
 import (
 	"fmt"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"os"
 	"path/filepath"
 
-	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+
+	//"github.com/google/uuid"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
-//var log = logrus.New()
 var outLogger  *zap.SugaredLogger
 var fileEntry *zap.SugaredLogger
+var logFile string
 
 func init() {
-	//log.SetFormatter(&nested.Formatter{
-	//	HideKeys: true,
-	//	//FieldsOrder: []string{"component", "category"},
-	//})
-
+	outLogger = getDefaultOutLogger()  // if log is not be initiated explicitly (use log.Init()), the default out logger will be used.
 }
 
-func Init(level logrus.Level, dir, fileName string) {
-	outLogger.SetOutput(os.Stdout)
-	outLogger.SetLevel(level)
+func getDefaultOutLogger() *zap.SugaredLogger {
+	encoderConfig0 := zap.NewProductionEncoderConfig()
+	encoderConfig0.EncodeTime = nil
+	encoderConfig0.EncodeLevel = nil
+	encoder2 := zapcore.NewConsoleEncoder(encoderConfig0)
+	return zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stdout), zap.InfoLevel)).Sugar()
+}
 
-	fileLogger := logrus.New()
-	fileLogger.SetFormatter(&logrus.TextFormatter{
-		DisableColors: true,
-		FullTimestamp: true,
-	})
+func Init(level zapcore.Level, dir, fileName string) error{
 
+	// stdout logger
+	encoderConfig0 := zap.NewProductionEncoderConfig()
+	encoderConfig0.EncodeTime = nil
+	encoderConfig0.EncodeLevel = nil
+	encoder2 := zapcore.NewConsoleEncoder(encoderConfig0)
+	outLogger = zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stdout), level)).Sugar()
+
+	// file logger
 	logPath := filepath.Join(dir, fileName)
 	rolling := &lumberjack.Logger{
 		Filename:   logPath,
@@ -55,64 +59,47 @@ func Init(level logrus.Level, dir, fileName string) {
 		MaxAge:     60, //days
 		Compress:   true,
 	}
-	fileLogger.SetOutput(rolling)
-	fileLogger.SetLevel(logrus.DebugLevel)
-
-	traceId := uuid.New().String()
-	fileEntry = fileLogger.WithFields(logrus.Fields{"traceId": traceId})
-
-	file, err := os.OpenFile(logPath,os.O_WRONLY | os.O_CREATE | os.O_APPEND, 0700)
-	if err != nil {
-		fmt.Errorf("fail to open file %s", logPath)
-	}
-	writeSyncer := zapcore.AddSync(file)
+	writeSyncer := zapcore.AddSync(rolling)
 	encoderConfig := zap.NewProductionEncoderConfig()
-	//encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	encoder := zapcore.NewConsoleEncoder(encoderConfig)
 	core := zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
 	fileEntry = zap.New(core).Sugar()
-	fileEntry.With()
+
+	logFile = logPath
+	return nil
 }
 
-func SetLevel(level logrus.Level) {
-	outLogger.SetLevel(level)
+func SetLevel(level zapcore.Level) {
+	//outLogger
 }
 
-func Fatalf(format string, args ...interface{}) {
+func Debug(args ...interface{}) {
+	outLogger.Debug(args...)
 	if fileEntry != nil {
-		fileEntry.Errorf(format,args...)
-	}
-	outLogger.Fatalf(format, args...)
-}
-
-func Fatal(args ...interface{}) {
-	if fileEntry != nil {
-		fileEntry.Error(args...)
-	}
-	outLogger.Fatal(args...)
-}
-
-// log with error
-func FatalE(err error, message string){
-	if fileEntry != nil {
-		fileEntry.Error(fmt.Sprintf("%s, err info: %+v",message,err))
-	}
-	if err != nil {
-		outLogger.Fatal(fmt.Sprintf("%s, err info: %s",message,err.Error()))
-	}else {
-		outLogger.Fatal(fmt.Sprintf("%s",message))
+		fileEntry.Debug(args...)
 	}
 }
 
-func WarnE(err error, message string){
+func Debugf(format string, args ...interface{}) {
+	outLogger.Debugf(format, args...)
 	if fileEntry != nil {
-		fileEntry.Warn(fmt.Sprintf("%s, info: %+v",message,err))
+		fileEntry.Debugf(format,args...)
 	}
-	if err != nil {
-		outLogger.Warn(fmt.Sprintf("%s, info: %s",message,err.Error()))
-	}else {
-		outLogger.Warn(fmt.Sprintf("%s",message))
+}
+
+func Info(args ...interface{}) {
+	outLogger.Info(args...)
+	if fileEntry != nil {
+		fileEntry.Info(args...)
+	}
+}
+
+func Infof(format string, args ...interface{}) {
+	outLogger.Infof(format, args...)
+	if fileEntry != nil {
+		fileEntry.Infof(format, args...)
 	}
 }
 
@@ -130,31 +117,69 @@ func Warnf(format string, args ...interface{}) {
 	}
 }
 
-func Debugf(format string, args ...interface{}) {
-	outLogger.Debugf(format, args...)
+func WarnE(err error, message string){
 	if fileEntry != nil {
-		fileEntry.Debugf(format,args...)
+		fileEntry.Warnf("%s, err: %+v",message,err)
+	}
+	if err != nil {
+		outLogger.Warnf("%s, err: %s",message,err.Error())
+	}else {
+		outLogger.Warn(message)
 	}
 }
 
-func Debug(args ...interface{}) {
-	outLogger.Debug(args...)
+func Error(args ...interface{}) {
+	outLogger.Error(args...)
 	if fileEntry != nil {
-		fileEntry.Debug(args...)
+		fileEntry.Error(args...)
 	}
 }
 
-func Info(args ...interface{}) {
-	outLogger.Info(args...)
+func Errorf(format string, args ...interface{}) {
+	outLogger.Errorf(format, args...)
 	if fileEntry != nil {
-		fileEntry.Info(args...)
+		fileEntry.Errorf(format,args...)
 	}
 }
 
-func Infof(format string, args ...interface{}) {
-	outLogger.Infof(format, args...)
+func ErrorE(err error, message string){
 	if fileEntry != nil {
-		fileEntry.Infof(format, args...)
+		fileEntry.Errorf("%s, err: %+v",message,err)
+	}
+	if err != nil {
+		outLogger.Errorf("%s, err: %s",message,err.Error())
+	}else {
+		outLogger.Error(message)
+	}
+}
+
+func Fatal(args ...interface{}) {
+	if fileEntry != nil {
+		fileEntry.Error(args...)
+	}
+	args = append(args, fmt.Sprintf(" see %s for more details",logFile))
+	outLogger.Fatal(args...)
+}
+
+func Fatalf(format string, args ...interface{}) {
+	if fileEntry != nil {
+		fileEntry.Errorf(format,args...)
+	}
+	format = fmt.Sprintf("%s, see %s for more details", format, logFile)
+	outLogger.Fatalf(format, args...)
+}
+
+// log with error
+func FatalE(err error, message string){
+
+	if err != nil {
+		outLogger.Errorf("%s, err: %s, see %s for more details",message,err.Error(), logFile)
+	}else {
+		outLogger.Error(message)
+	}
+
+	if fileEntry != nil {
+		fileEntry.Fatalf("%s, err: %+v",message,err)
 	}
 }
 

@@ -15,6 +15,8 @@ package cmds
 
 import (
 	"fmt"
+	"go.uber.org/zap/zapcore"
+	"nocalhost/internal/nhctl/nocalhost"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -44,6 +46,18 @@ var rootCmd = &cobra.Command{
 	Use:   "nhctl",
 	Short: "nhctl use to deploy coding project",
 	Long:  `nhctl can deploy and develop application on Kubernetes. `,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		err := nocalhost.Init()
+		if err != nil {
+			fmt.Errorf("fail to init: %s", err.Error())
+			os.Exit(1)
+		}
+		if settings.Debug {
+			log.Init(zapcore.DebugLevel,nocalhost.GetLogDir(),nocalhost.DefaultLogFileName)
+		}else {
+			log.Init(zapcore.InfoLevel,nocalhost.GetLogDir(),nocalhost.DefaultLogFileName)
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Debug("hello nhctl")
 	},

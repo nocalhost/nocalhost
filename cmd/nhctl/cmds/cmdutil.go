@@ -14,7 +14,6 @@ limitations under the License.
 package cmds
 
 import (
-	"github.com/sirupsen/logrus"
 	"nocalhost/internal/nhctl/nocalhost"
 
 	"nocalhost/internal/nhctl/app"
@@ -23,9 +22,9 @@ import (
 
 func InitApp(appName string) {
 	var err error
-	if settings.Debug {
-		log.SetLevel(logrus.DebugLevel)
-	}
+	//if settings.Debug {
+	//	log.SetLevel(logrus.DebugLevel)
+	//}
 
 	if !nocalhost.CheckIfApplicationExist(appName) {
 		log.Fatalf("application \"%s\" not found", appName)

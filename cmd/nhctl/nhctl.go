@@ -15,15 +15,9 @@ package main
 
 import (
 	"nocalhost/cmd/nhctl/cmds"
-	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/pkg/nhctl/log"
 )
 
 func main() {
 	//log.Init(logrus.InfoLevel, )
-	err := nocalhost.Init()
-	if err != nil {
-		log.Fatalf("fail to init: %s", err.Error())
-	}
 	cmds.Execute()
 }

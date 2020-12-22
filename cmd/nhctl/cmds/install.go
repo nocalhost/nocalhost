@@ -22,7 +22,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -79,9 +78,9 @@ var installCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
-		if settings.Debug {
-			log.SetLevel(logrus.DebugLevel)
-		}
+		//if settings.Debug {
+		//	log.SetLevel(logrus.DebugLevel)
+		//}
 		applicationName := args[0]
 		if installFlags.GitUrl == "" && installFlags.AppType != string(app.HelmRepo) {
 			log.Fatalf("if app type is not %s , --git-url must be specified", app.HelmRepo)

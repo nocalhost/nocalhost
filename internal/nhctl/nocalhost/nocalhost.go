@@ -14,14 +14,13 @@ limitations under the License.
 package nocalhost
 
 import (
+	"go.uber.org/zap/zapcore"
 	"io/ioutil"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-
 	"nocalhost/internal/nhctl/utils"
 )
 
@@ -77,7 +76,7 @@ func Init() error {
 		}
 	}
 
-	log.Init(logrus.InfoLevel, GetLogDir(),DefaultLogFileName)
+	log.Init(zapcore.InfoLevel, GetLogDir(),DefaultLogFileName)
 	return nil
 }
 
