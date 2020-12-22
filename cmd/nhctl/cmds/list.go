@@ -66,23 +66,23 @@ func ListApplicationSvc(napp *app.Application) {
 }
 
 func ListApplications() {
-	n := nocalhost.NocalHost{}
-	apps, err := n.GetApplicationNames()
+	//n := nocalhost.NocalHost{}
+	apps, err := nocalhost.GetApplicationNames()
 	utils.Mush(err)
 	maxLen := 0
-	for _, app := range apps {
-		if len(app) > maxLen {
-			maxLen = len(app)
+	for _, appName := range apps {
+		if len(appName) > maxLen {
+			maxLen = len(appName)
 		}
 	}
 	fmt.Printf("%-14s %-14s %-14s %-14s\n", "NAME", "INSTALLED", "NAMESPACE", "TYPE")
-	for _, app := range apps {
-		app2, err := nh.GetApplication(app)
+	for _, appName := range apps {
+		app2, err := app.NewApplication(appName)
 		if err != nil {
-			fmt.Printf("%-14s\n", app)
+			fmt.Printf("%-14s\n", appName)
 			continue
 		}
 		profile := app2.AppProfile
-		fmt.Printf("%-14s %-14t %-14s %-14s\n", app, profile.Installed, profile.Namespace, profile.AppType)
+		fmt.Printf("%-14s %-14t %-14s %-14s\n", appName, profile.Installed, profile.Namespace, profile.AppType)
 	}
 }

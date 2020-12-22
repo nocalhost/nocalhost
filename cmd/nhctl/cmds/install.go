@@ -15,13 +15,13 @@ package cmds
 
 import (
 	"fmt"
+	"nocalhost/internal/nhctl/nocalhost"
 	"os"
 
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -78,9 +78,9 @@ var installCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
-		if settings.Debug {
-			log.SetLevel(logrus.DebugLevel)
-		}
+		//if settings.Debug {
+		//	log.SetLevel(logrus.DebugLevel)
+		//}
 		applicationName := args[0]
 		if installFlags.GitUrl == "" && installFlags.AppType != string(app.HelmRepo) {
 			log.Fatalf("if app type is not %s , --git-url must be specified", app.HelmRepo)
@@ -93,7 +93,7 @@ var installCmd = &cobra.Command{
 				log.Fatalf("--helm-repo-url or --helm-repo-name must be specified when using %s", installFlags.AppType)
 			}
 		}
-		if nh.CheckIfApplicationExist(applicationName) {
+		if nocalhost.CheckIfApplicationExist(applicationName) {
 			log.Fatalf("application \"%s\" already exists", applicationName)
 		}
 
@@ -102,7 +102,7 @@ var installCmd = &cobra.Command{
 		if err != nil {
 			fmt.Printf("failed to install application : %s\n", err.Error())
 			log.Debug("failed to install application, clean up resources...")
-			err = nh.CleanupAppFiles(applicationName)
+			err = nocalhost.CleanupAppFiles(applicationName)
 			if err != nil {
 				fmt.Errorf("failed to clean up:%v", err)
 			} else {

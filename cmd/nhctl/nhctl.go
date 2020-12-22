@@ -18,5 +18,6 @@ import (
 )
 
 func main() {
+	//log.Init(logrus.InfoLevel, )
 	cmds.Execute()
 }

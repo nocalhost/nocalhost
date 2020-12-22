@@ -14,47 +14,173 @@ limitations under the License.
 package log
 
 import (
-	nested "github.com/antonfisher/nested-logrus-formatter"
-	"github.com/sirupsen/logrus"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+
+	//"github.com/google/uuid"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
-var log = logrus.New()
+var outLogger  *zap.SugaredLogger
+var fileEntry *zap.SugaredLogger
+var logFile string
 
 func init() {
-	log.SetFormatter(&nested.Formatter{
-		HideKeys: true,
-		//FieldsOrder: []string{"component", "category"},
-	})
+	outLogger = getDefaultOutLogger()  // if log is not be initiated explicitly (use log.Init()), the default out logger will be used.
 }
 
-func SetLevel(level logrus.Level) {
-	log.SetLevel(level)
+func getDefaultOutLogger() *zap.SugaredLogger {
+	encoderConfig0 := zap.NewProductionEncoderConfig()
+	encoderConfig0.EncodeTime = nil
+	encoderConfig0.EncodeLevel = nil
+	encoder2 := zapcore.NewConsoleEncoder(encoderConfig0)
+	return zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stdout), zap.InfoLevel)).Sugar()
 }
 
-func Fatalf(format string, args ...interface{}) {
-	log.Fatalf(format, args)
+func Init(level zapcore.Level, dir, fileName string) error{
+
+	// stdout logger
+	encoderConfig0 := zap.NewProductionEncoderConfig()
+	encoderConfig0.EncodeTime = nil
+	encoderConfig0.EncodeLevel = nil
+	encoder2 := zapcore.NewConsoleEncoder(encoderConfig0)
+	outLogger = zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stdout), level)).Sugar()
+
+	// file logger
+	logPath := filepath.Join(dir, fileName)
+	rolling := &lumberjack.Logger{
+		Filename:   logPath,
+		MaxSize:    1, // megabytes
+		MaxBackups: 10,
+		MaxAge:     60, //days
+		Compress:   true,
+	}
+	writeSyncer := zapcore.AddSync(rolling)
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	encoder := zapcore.NewConsoleEncoder(encoderConfig)
+	core := zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
+	fileEntry = zap.New(core).Sugar()
+
+	logFile = logPath
+	return nil
 }
 
-func Fatal(args ...interface{}) {
-	log.Fatal(args)
-}
-
-func Warn(args ...interface{}) {
-	log.Warn(args)
-}
-
-func Warnf(format string, args ...interface{}) {
-	log.Warnf(format, args)
-}
-
-func Debugf(format string, args ...interface{}) {
-	log.Debugf(format, args)
-}
-
-func Info(args ...interface{}) {
-	log.Info(args)
+func SetLevel(level zapcore.Level) {
+	//outLogger
 }
 
 func Debug(args ...interface{}) {
-	log.Debug(args)
+	outLogger.Debug(args...)
+	if fileEntry != nil {
+		fileEntry.Debug(args...)
+	}
 }
+
+func Debugf(format string, args ...interface{}) {
+	outLogger.Debugf(format, args...)
+	if fileEntry != nil {
+		fileEntry.Debugf(format,args...)
+	}
+}
+
+func Info(args ...interface{}) {
+	outLogger.Info(args...)
+	if fileEntry != nil {
+		fileEntry.Info(args...)
+	}
+}
+
+func Infof(format string, args ...interface{}) {
+	outLogger.Infof(format, args...)
+	if fileEntry != nil {
+		fileEntry.Infof(format, args...)
+	}
+}
+
+func Warn(args ...interface{}) {
+	outLogger.Warn(args...)
+	if fileEntry != nil {
+		fileEntry.Warn(args...)
+	}
+}
+
+func Warnf(format string, args ...interface{}) {
+	outLogger.Warnf(format, args...)
+	if fileEntry != nil {
+		fileEntry.Warnf(format,args...)
+	}
+}
+
+func WarnE(err error, message string){
+	if fileEntry != nil {
+		fileEntry.Warnf("%s, err: %+v",message,err)
+	}
+	if err != nil {
+		outLogger.Warnf("%s, err: %s",message,err.Error())
+	}else {
+		outLogger.Warn(message)
+	}
+}
+
+func Error(args ...interface{}) {
+	outLogger.Error(args...)
+	if fileEntry != nil {
+		fileEntry.Error(args...)
+	}
+}
+
+func Errorf(format string, args ...interface{}) {
+	outLogger.Errorf(format, args...)
+	if fileEntry != nil {
+		fileEntry.Errorf(format,args...)
+	}
+}
+
+func ErrorE(err error, message string){
+	if fileEntry != nil {
+		fileEntry.Errorf("%s, err: %+v",message,err)
+	}
+	if err != nil {
+		outLogger.Errorf("%s, err: %s",message,err.Error())
+	}else {
+		outLogger.Error(message)
+	}
+}
+
+func Fatal(args ...interface{}) {
+	if fileEntry != nil {
+		fileEntry.Error(args...)
+	}
+	args = append(args, fmt.Sprintf(" see %s for more details",logFile))
+	outLogger.Fatal(args...)
+}
+
+func Fatalf(format string, args ...interface{}) {
+	if fileEntry != nil {
+		fileEntry.Errorf(format,args...)
+	}
+	format = fmt.Sprintf("%s, see %s for more details", format, logFile)
+	outLogger.Fatalf(format, args...)
+}
+
+// log with error
+func FatalE(err error, message string){
+
+	if err != nil {
+		outLogger.Errorf("%s, err: %s, see %s for more details",message,err.Error(), logFile)
+	}else {
+		outLogger.Error(message)
+	}
+
+	if fileEntry != nil {
+		fileEntry.Fatalf("%s, err: %+v",message,err)
+	}
+}
+
+

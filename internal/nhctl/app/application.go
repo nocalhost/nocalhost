@@ -15,8 +15,8 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/nocalhost"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -229,7 +230,7 @@ func (a *Application) LoadConfig() error {
 			a.Config = config
 			return nil
 		} else {
-			return err
+			return errors.Wrap(err, "fail to load configs")
 		}
 	}
 	rbytes, err := ioutil.ReadFile(a.GetConfigPath())
@@ -238,7 +239,7 @@ func (a *Application) LoadConfig() error {
 	}
 	err = yaml.Unmarshal(rbytes, config)
 	if err != nil {
-		return err
+		return errors.Wrap(err, err.Error())
 	}
 	a.Config = config
 	return nil
@@ -248,11 +249,11 @@ func (a *Application) SaveConfig() error {
 	if a.Config != nil {
 		bys, err := yaml.Marshal(a.Config)
 		if err != nil {
-			return err
+			return errors.Wrap(err,err.Error())
 		}
 		err = ioutil.WriteFile(a.GetConfigPath(), bys, 0644)
 		if err != nil {
-			return err
+			return errors.Wrap(err, err.Error())
 		}
 	}
 	return nil
@@ -278,7 +279,7 @@ func (a *Application) DownloadResourcesFromGit(gitUrl string, gitRef string) err
 			_, err = tools.ExecCommand(nil, true, "git", "clone", "--depth", "1", gitUrl, a.getGitDir())
 		}
 		if err != nil {
-			return err
+			return errors.Wrap(err, err.Error())
 		}
 	}
 	return nil
@@ -323,7 +324,6 @@ func (a *Application) GetResourceDir() []string {
 	var resourcePath []string
 	if a.AppProfile != nil && len(a.AppProfile.ResourcePath) != 0 {
 		for _, path := range a.AppProfile.ResourcePath {
-			//fullPath := fmt.Sprintf("%s%c%s", a.getGitDir(), os.PathSeparator, path)
 			fullPath := filepath.Join(a.getGitDir(), path)
 			resourcePath = append(resourcePath, fullPath)
 		}
@@ -332,7 +332,6 @@ func (a *Application) GetResourceDir() []string {
 	if a.Config != nil {
 		if len(a.Config.ResourcePath) > 0 {
 			for _, path := range a.Config.ResourcePath {
-				//fullPath := fmt.Sprintf("%s%c%s", a.getGitDir(), os.PathSeparator, path)
 				fullPath := filepath.Join(a.getGitDir(), path)
 				resourcePath = append(resourcePath, fullPath)
 			}
@@ -360,7 +359,7 @@ func (a *Application) InstallManifest() error {
 
 	// install manifest recursively, don't install pre-install workload again
 	err = a.installManifestRecursively()
-	return err
+	return errors.Wrap(err,"")
 }
 
 func (a *Application) loadInstallManifest() {
@@ -371,7 +370,7 @@ func (a *Application) loadInstallManifest() {
 		for _, eachPath := range resourcePaths {
 			files, _, err := a.getYamlFilesAndDirs(eachPath)
 			if err != nil {
-				log.Warnf("fail to load install manifest: %s\n", err.Error())
+				log.WarnE(errors.Wrap(err, err.Error()),"fail to load install manifest")
 				return
 			}
 
@@ -380,7 +379,7 @@ func (a *Application) loadInstallManifest() {
 					continue
 				}
 				if _, err2 := os.Stat(file); err2 != nil {
-					log.Warnf("%s can not be installed : %s", file, err2.Error())
+					log.WarnE(errors.Wrap(err2,err2.Error()), fmt.Sprintf("%s can not be installed", file))
 					continue
 				}
 				result = append(result, file)
@@ -409,7 +408,7 @@ func (a *Application) installManifestRecursively() error {
 		err := a.client.ApplyForCreate(a.installManifest, a.GetNamespace(), true)
 		if err != nil {
 			fmt.Printf("err: %v\n", err)
-			return err
+			return errors.Wrap(err, err.Error())
 		}
 	} else {
 		log.Warn("nothing need to be installed ??")
@@ -424,7 +423,7 @@ func (a *Application) uninstallManifestRecursively() error {
 		err := a.client.ApplyForDelete(a.installManifest, a.GetNamespace(), true)
 		if err != nil {
 			fmt.Printf("error occurs when cleaning resources: %v\n", err.Error())
-			return err
+			return errors.Wrap(err,err.Error())
 		}
 	} else {
 		log.Warn("nothing need to be uninstalled ??")
@@ -677,7 +676,7 @@ func (a *Application) GetKubeconfig() string {
 }
 
 func (a *Application) GetApplicationSyncDir(deployment string) string {
-	dirPath := filepath.Join(a.GetHomeDir(), DefaultBinSyncThingDirName, deployment)
+	dirPath := filepath.Join(a.GetHomeDir(), nocalhost.DefaultBinSyncThingDirName, deployment)
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		err = os.MkdirAll(dirPath, 0700)
 		if err != nil {
@@ -910,7 +909,7 @@ func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error
 		ctx, _ := context.WithTimeout(context.TODO(), DefaultClientGoTimeOut)
 		dep, err := a.client.GetDeployment(ctx, a.GetNamespace(), name)
 		if err != nil {
-			return false, err
+			return false, errors.Wrap(err, "")
 		}
 		if dep == nil {
 			return false, nil

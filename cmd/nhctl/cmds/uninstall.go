@@ -15,11 +15,12 @@ package cmds
 
 import (
 	"fmt"
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/nocalhost"
 
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -41,23 +42,23 @@ var uninstallCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		if settings.Debug {
-			log.SetLevel(logrus.DebugLevel)
-		}
+		//if settings.Debug {
+		//	log.SetLevel(logrus.DebugLevel)
+		//}
 		applicationName := args[0]
-		if !nh.CheckIfApplicationExist(applicationName) {
-			log.Fatalf("application \"%s\" not found\n", applicationName)
+		if !nocalhost.CheckIfApplicationExist(applicationName) {
+			log.Fatalf("application \"%s\" not found", applicationName)
 		}
 
 		fmt.Println("uninstalling application...")
-		nhApp, err := nh.GetApplication(applicationName)
+		nhApp, err := app.NewApplication(applicationName)
 		if err != nil {
 			if !force {
-				log.Fatalf("failed to get application, %v", err)
+				log.FatalE(err,"fail to get application")
 			} else {
-				err = nh.CleanupAppFiles(applicationName)
+				err = nocalhost.CleanupAppFiles(applicationName)
 				if err != nil {
-					log.Warnf("fail to clean up application resource: %s", err.Error())
+					log.WarnE(err,"fail to clean up application resource")
 				}
 				fmt.Printf("application \"%s\" is uninstalled anyway.\n", applicationName)
 				return
@@ -77,7 +78,7 @@ var uninstallCmd = &cobra.Command{
 		err = nhApp.Uninstall(force)
 		if err != nil {
 			if force {
-				err = nh.CleanupAppFiles(applicationName)
+				err = nocalhost.CleanupAppFiles(applicationName)
 				if err != nil {
 					log.Warnf("fail to clean up application resource: %s", err.Error())
 				}

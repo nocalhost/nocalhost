@@ -14,6 +14,7 @@ limitations under the License.
 package app
 
 import (
+	"github.com/pkg/errors"
 	"io/ioutil"
 
 	"gopkg.in/yaml.v3"
@@ -46,17 +47,17 @@ func NewAppProfile(path string) (*AppProfile, error) {
 func (a *AppProfile) Save() error {
 	bytes, err := yaml.Marshal(a)
 	if err != nil {
-		return err
+		return errors.Wrap(err, err.Error())
 	}
 	err = ioutil.WriteFile(a.path, bytes, 0755)
-	return err
+	return errors.Wrap(err,"fail to write file")
 }
 
 func (a *AppProfile) Load() error {
 	fBytes, err := ioutil.ReadFile(a.path)
 	if err != nil {
-		return err
+		return errors.Wrap(err,err.Error())
 	}
 	err = yaml.Unmarshal(fBytes, a)
-	return err
+	return errors.Wrap(err,"fail to unmarshal")
 }

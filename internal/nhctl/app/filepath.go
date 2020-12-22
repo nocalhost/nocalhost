@@ -14,9 +14,8 @@ limitations under the License.
 package app
 
 import (
+	"nocalhost/internal/nhctl/nocalhost"
 	"path/filepath"
-
-	"nocalhost/internal/nhctl/utils"
 )
 
 func (a *Application) getGitDir() string {
@@ -27,13 +26,13 @@ func (a *Application) getConfigPathInGitResourcesDir() string {
 	return filepath.Join(a.getGitDir(), DefaultApplicationConfigDirName, DefaultApplicationConfigName)
 }
 
-func (a *Application) GetSyncThingBinDir() string {
-	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultBinDirName, DefaultBinSyncThingDirName)
-}
+//func (a *Application) GetSyncThingBinDir() string {
+//	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultBinDirName, DefaultBinSyncThingDirName)
+//}
 
-func (a *Application) GetLogDir() string {
-	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultLogDirName)
-}
+//func (a *Application) GetLogDir() string {
+//	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultLogDirName)
+//}
 
 func (a *Application) GetPortSyncLogFile(deployment string) string {
 	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultSyncLogFileName)
@@ -72,5 +71,5 @@ func (a *Application) getProfilePath() string {
 }
 
 func (a *Application) GetHomeDir() string {
-	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultApplicationDirName, a.Name)
+	return nocalhost.GetAppDir(a.Name)
 }

@@ -118,7 +118,7 @@ func (a *Application) Reset(svcName string) {
 func (a *Application) EndDevelopMode(svcName string) error {
 	var err error
 	if !a.CheckIfSvcIsDeveloping(svcName) {
-		errors.New(fmt.Sprintf("\"%s\" is not in developing status", svcName))
+		return errors.New(fmt.Sprintf("\"%s\" is not in developing status", svcName))
 	}
 
 	fmt.Println("ending DevMode...")

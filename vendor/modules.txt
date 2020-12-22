@@ -39,7 +39,6 @@ github.com/alicebob/miniredis
 github.com/alicebob/miniredis/server
 # github.com/antonfisher/nested-logrus-formatter v1.3.0
 ## explicit
-github.com/antonfisher/nested-logrus-formatter
 # github.com/aws/aws-sdk-go v1.15.78
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/awserr
@@ -622,6 +621,9 @@ google.golang.org/protobuf/types/pluginpb
 ## explicit
 # gopkg.in/inf.v0 v0.9.1
 gopkg.in/inf.v0
+# gopkg.in/natefinch/lumberjack.v2 v2.0.0
+## explicit
+gopkg.in/natefinch/lumberjack.v2
 # gopkg.in/yaml.v2 v2.3.0
 ## explicit
 gopkg.in/yaml.v2

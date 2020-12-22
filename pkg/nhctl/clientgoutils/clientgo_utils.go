@@ -87,9 +87,7 @@ func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUt
 	)
 
 	if kubeConfigPath == "" { // use default config
-		//kubeConfigPath = fmt.Sprintf("%s/.kube/config", getHomePath())
 		kubeConfigPath = filepath.Join(getHomePath(), ".kube", "config")
-
 	}
 
 	if timeout <= 0 {
@@ -106,15 +104,15 @@ func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUt
 
 	client.restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err,err.Error())
 	}
 
 	if client.ClientSet, err = kubernetes.NewForConfig(client.restConfig); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, err.Error())
 	}
 
 	if client.dynamicClient, err = dynamic.NewForConfig(client.restConfig); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, err.Error())
 	}
 
 	return client, nil
