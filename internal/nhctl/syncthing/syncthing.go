@@ -18,8 +18,8 @@ package syncthing
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -212,7 +212,7 @@ func IsSubPathFolder(path string, paths []string) (bool, error) {
 		rel, err := filepath.Rel(sync, path)
 		if err != nil {
 			log.Debugf("error making rel '%s' and '%s'", sync, path)
-			return false, err
+			return false, errors.Wrap(err, "")
 		}
 		if strings.HasPrefix(rel, "..") {
 			continue

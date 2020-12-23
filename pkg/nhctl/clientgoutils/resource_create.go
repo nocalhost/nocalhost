@@ -16,10 +16,11 @@ package clientgoutils
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"io"
 	"net/url"
 	"os"
+
+	"github.com/pkg/errors"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,7 +44,7 @@ func (c *ClientGoUtils) Exec(namespace string, podName string, containerName str
 
 	pod, err := c.ClientSet.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {
-		return err
+		return errors.Wrap(err, "")
 	}
 
 	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
@@ -212,11 +213,14 @@ func (c *ClientGoUtils) apply(files []string, namespace string, continueOnError 
 				log.Warnf("fail to %s manifest: %s", action, err.Error())
 				continue
 			}
-			return err
+			return errors.Wrap(err,"")
 		}
 		info.Refresh(obj, true)
-		fmt.Printf("%s/%s %s\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, action)
-
+		if action == Create {
+			fmt.Printf("Resource(%s) %s %s\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, "created")
+		} else if action == Delete {
+			fmt.Printf("Resource(%s) %s %s\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, "deleted")
+		}
 	}
 	return nil
 }

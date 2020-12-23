@@ -104,15 +104,15 @@ func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUt
 
 	client.restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
-		return nil, errors.Wrap(err,err.Error())
+		return nil, errors.Wrap(err,"")
 	}
 
 	if client.ClientSet, err = kubernetes.NewForConfig(client.restConfig); err != nil {
-		return nil, errors.Wrap(err, err.Error())
+		return nil, errors.Wrap(err, "")
 	}
 
 	if client.dynamicClient, err = dynamic.NewForConfig(client.restConfig); err != nil {
-		return nil, errors.Wrap(err, err.Error())
+		return nil, errors.Wrap(err, "")
 	}
 
 	return client, nil
@@ -146,7 +146,7 @@ func (c *ClientGoUtils) CheckIfNamespaceIsAccessible(ctx context.Context, namesp
 
 func (c *ClientGoUtils) GetDefaultNamespace() (string, error) {
 	ns, _, err := c.ClientConfig.Namespace()
-	return ns, err
+	return ns, errors.Wrap(err,"")
 }
 
 func (c *ClientGoUtils) createUnstructuredResource(namespace string, rawObj runtime.RawExtension, wait bool) error {
@@ -164,13 +164,13 @@ func (c *ClientGoUtils) createUnstructuredResource(namespace string, rawObj runt
 
 	gr, err := restmapper.GetAPIGroupResources(c.ClientSet.Discovery())
 	if err != nil {
-		return err
+		return errors.Wrap(err,"")
 	}
 
 	mapper := restmapper.NewDiscoveryRESTMapper(gr)
 	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
-		return err
+		return errors.Wrap(err,"")
 	}
 
 	var dri dynamic.ResourceInterface
@@ -185,19 +185,17 @@ func (c *ClientGoUtils) createUnstructuredResource(namespace string, rawObj runt
 		dri = c.GetDynamicClient().Resource(mapping.Resource)
 	}
 
-	//obj2, err := dri.Create(context.Background(), unstructuredObj, metav1.CreateOptions{})
-	//log.Debug("background to todo")
 	obj2, err := dri.Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("fail to create %s", unstructuredObj.GetName()))
 	}
 
-	fmt.Printf("%s/%s created\n", obj2.GetKind(), obj2.GetName())
+	fmt.Printf("%s %s created\n", obj2.GetKind(), obj2.GetName())
 
 	if wait {
 		err = c.WaitJobToBeReady(obj2.GetNamespace(), obj2.GetName())
 		if err != nil {
-			PrintlnErr("fail to wait", err)
+			//PrintlnErr("fail to wait", err)
 			return err
 		}
 	}
@@ -307,7 +305,7 @@ func (c *ClientGoUtils) CheckDeploymentReady(ctx context.Context, namespace stri
 func (c *ClientGoUtils) GetDeployments(ctx context.Context, namespace string) ([]v1.Deployment, error) {
 	deps, err := c.GetDeploymentClient(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err,"")
 	}
 	return deps.Items, nil
 }
@@ -315,7 +313,7 @@ func (c *ClientGoUtils) GetDeployments(ctx context.Context, namespace string) ([
 func (c *ClientGoUtils) UpdateDeployment(ctx context.Context, namespace string, deployment *v1.Deployment, opts metav1.UpdateOptions, wait bool) (*v1.Deployment, error) {
 	dep, err := c.GetDeploymentClient(namespace).Update(ctx, deployment, opts)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err,"")
 	}
 	if wait {
 		err = c.WaitDeploymentToBeReady(namespace, dep.Name, c.TimeOut)
@@ -328,8 +326,8 @@ func (c *ClientGoUtils) ListPodsOfDeployment(namespace string, deployName string
 
 	podList, err := podClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		fmt.Printf("failed to get pods, err: %v\n", err)
-		return nil, err
+		//fmt.Printf("failed to get pods, err: %v\n", err)
+		return nil, errors.Wrap(err, "")
 	}
 
 	result := make([]corev1.Pod, 0)
@@ -383,7 +381,7 @@ func (c *ClientGoUtils) GetReplicaSetsControlledByDeployment(ctx context.Context
 	replicaSetsClient := c.ClientSet.AppsV1().ReplicaSets(namespace)
 	rsList, err := replicaSetsClient.List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "")
 	}
 
 	rsMap := make(map[int]*v1.ReplicaSet)
@@ -410,14 +408,14 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 
 	for _, c := range o.Status.Conditions {
 		if c.Type == batchv1.JobComplete && c.Status == "True" {
-			fmt.Println("Job Completed")
+			fmt.Printf("Job %s completed\n", name)
 			return true, nil
 		} else if c.Type == batchv1.JobFailed && c.Status == "True" {
-			fmt.Println("Job Failed")
+			fmt.Printf("Job %s failed\n", name)
 			return true, errors.Errorf("job failed: %s", c.Reason)
 		}
 	}
-	fmt.Println("Job is running")
+	fmt.Printf("Job %s running\n", name)
 
 	return false, nil
 }
@@ -459,21 +457,21 @@ func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 
 	transport, upgrader, err := spdy.RoundTripperFor(clientConfig)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "")
 	}
 
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, &url.URL{Scheme: "https", Path: path, Host: hostIP})
 	fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "")
 	}
-	return fw.ForwardPorts()
+	return errors.Wrap(fw.ForwardPorts(), "")
 }
 
 func (c *ClientGoUtils) GetNodesList() (*corev1.NodeList, error) {
 	nodes, err := c.ClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return &corev1.NodeList{}, err
+		return &corev1.NodeList{}, errors.Wrap(err,"")
 	}
 	return nodes, nil
 }
@@ -481,7 +479,7 @@ func (c *ClientGoUtils) GetNodesList() (*corev1.NodeList, error) {
 func (c *ClientGoUtils) GetService(name, namespace string) (*corev1.Service, error) {
 	service, err := c.ClientSet.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		return &corev1.Service{}, err
+		return &corev1.Service{}, errors.Wrap(err, "")
 	}
 	return service, nil
 }
@@ -489,7 +487,7 @@ func (c *ClientGoUtils) GetService(name, namespace string) (*corev1.Service, err
 func (c *ClientGoUtils) CheckExistNameSpace(name string) error {
 	_, err := c.ClientSet.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		return err
+		return errors.Wrap(err, "")
 	}
 	return nil
 }
@@ -498,7 +496,7 @@ func (c *ClientGoUtils) CreateNameSpace(name string, customLabels map[string]str
 	nsSpec := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name, Labels: customLabels}}
 	_, err := c.ClientSet.CoreV1().Namespaces().Create(context.TODO(), nsSpec, metav1.CreateOptions{})
 	if err != nil {
-		return err
+		return errors.Wrap(err,"")
 	}
 	return nil
 }

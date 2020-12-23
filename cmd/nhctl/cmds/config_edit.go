@@ -67,7 +67,7 @@ var configEditCmd = &cobra.Command{
 		}
 		err = nocalhostApp.SaveSvcConfig(configEditFlags.SvcName, svcConfig)
 		if err != nil {
-			log.Fatalf("fail to save svc config: %s", err.Error())
+			log.FatalE(err, "fail to save svc config")
 		}
 	},
 }

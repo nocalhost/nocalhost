@@ -15,7 +15,6 @@ package cmds
 
 import (
 	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -48,8 +47,8 @@ var devEndCmd = &cobra.Command{
 
 		err = nocalhostApp.EndDevelopMode(deployment)
 		if err != nil {
-			log.Fatalf("fail to end %s : %s", deployment, err.Error())
+			log.FatalE(err, fmt.Sprintf("fail to end %s", deployment))
 		}
-		fmt.Printf("%s DevMode ended.\n", deployment)
+		log.Infof("%s DevMode ended.\n", deployment)
 	},
 }

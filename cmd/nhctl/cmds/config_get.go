@@ -46,7 +46,7 @@ var configGetCmd = &cobra.Command{
 			if nocalhostApp.Config != nil {
 				bys, err := yaml.Marshal(nocalhostApp.Config)
 				if err != nil {
-					log.Fatalf("fail to get application config: %s", err.Error())
+					log.FatalE(errors.Wrap(err,""),"fail to get application config")
 				}
 				fmt.Println(string(bys))
 			}
@@ -56,7 +56,7 @@ var configGetCmd = &cobra.Command{
 			if svcConfig != nil {
 				bys, err := yaml.Marshal(svcConfig)
 				if err != nil {
-					log.Fatalf("fail to get svc config: %s", err.Error())
+					log.FatalE(errors.Wrap(err,""),"fail to get svc config")
 				}
 				fmt.Println(string(bys))
 			}
