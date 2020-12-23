@@ -1,6 +1,6 @@
 # Nocalhost
 
-Nocalhost Is Cloud Native Development Environment. Check [https://nocalhost.dev](https://nocalhost.dev) for more details.
+Nocalhost is cloud native development environment. Check [https://nocalhost.dev](https://nocalhost.dev) for more details.
 
 The term "Nocalhost" originates from No localhost.
 
@@ -11,7 +11,7 @@ You can use Nocalhost to:
 - deploy complex microservice applications to cloud environment.
 - develop components(services) quickly with a prepared configuration.
 - share development environment within teams. 
-- fasten the feedback loop of "coding-building-running--debugging-testing-coding".
+- accelerate the feedback loop of "coding-building-running--debugging-testing-coding".
 
 
 ## Why we make Nocalhost?
@@ -23,10 +23,10 @@ Kubernetes is a typical microservice runtime solution. But developers who build 
 
 - In order to develop a certain microservice, it is necessary to start the entire environment and all microservices, which requires high performance of local resources, poor experience and high cost;
 - Developers often only focus on the services they are responsible for. With the continuous iteration of services and configurations, it is more and more difficult for the machine to start the `new` and `complete` development environment;
-- Every time the code changes, the process of build image -> push image -> pull image -> restart application (Pod) is required, the feedback loop of development is extremely slow;
+- Every time the code changes, the process of build image -> push image -> pull image -> restart application (Pod) is required, the feedback loop of development is extremely long;
 - When two or more developers are involved in remote collaboration and joint debugging, they need a flatten network(VPN is too complicated to configure).
 
-## How to resolve?
+## How to solve?
 
 Based on Kubernetes, Nocalhost provides several features:
 * Quickly create an application development environment based on Kubernetes Namespace isolation for each team member, which promises development and debugging will not affect each other;
@@ -48,7 +48,7 @@ Nocalhost Dep is an Agent running in Kubernetes which controls the starting orde
 
 ## nhctl
 
-nhctl is a command line tools running locally. It controls status of applications and services.
+nhctl is a command line tool running locally. It controls status of applications and services.
 
 ## IDE Plugin
 
