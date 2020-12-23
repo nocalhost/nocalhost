@@ -19,11 +19,11 @@ import (
 )
 
 const (
-	DefaultSideCarImage                      = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
-	DefaultDevImage                          = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
-	DefaultWorkDir                           = "/home/nocalhost-dev"
-	DefaultLocalSyncDirName                  = "."
-	DefaultResourcesDir                      = "resources"
+	DefaultSideCarImage     = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
+	DefaultDevImage         = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
+	DefaultWorkDir          = "/home/nocalhost-dev"
+	DefaultLocalSyncDirName = "."
+	DefaultResourcesDir     = "resources"
 	//DefaultNhctlHomeDirName                  = ".nh/nhctl"
 	//DefaultBinDirName                        = "bin"
 	//DefaultLogDirName                        = "logs"
@@ -34,14 +34,15 @@ const (
 	DefaultApplicationOnlyPortForwardPidFile = "alone-port-forward.pid"
 	DefaultApplicationSyncPidFile            = "syncthing.pid"
 	//DefaultApplicationDirName                = "application"
-	DefaultApplicationProfilePath            = ".profile.yaml"
-	DefaultApplicationConfigDirName          = ".nocalhost"
-	DefaultApplicationConfigName             = "config.yaml"
-	DefaultNewFilePermission                 = 0700
-	DefaultClientGoTimeOut                   = time.Minute * 5
+	DefaultApplicationProfilePath   = ".profile.yaml"
+	DefaultApplicationConfigDirName = ".nocalhost"
+	DefaultApplicationConfigName    = "config.yaml"
+	DefaultNewFilePermission        = 0700
+	DefaultClientGoTimeOut          = time.Minute * 5
 	// nhctl init
 	// TODO when release
 	DefaultInitHelmGitRepo             = "https://github.com/nocalhost/nocalhost.git"
+	DefaultInitHelmCODINGGitRepo       = "https://e.coding.net/codingcorp/nocalhost/nocalhost.git"
 	DefaultInitHelmType                = "helmGit"
 	DefaultInitWatchDeployment         = "nocalhost-api"
 	DefaultInitWatchWebDeployment      = "nocalhost-web"
