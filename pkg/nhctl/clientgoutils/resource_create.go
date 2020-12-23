@@ -15,14 +15,15 @@ package clientgoutils
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
 	"net/url"
 	"os"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	restclient "k8s.io/client-go/rest"
@@ -125,74 +126,36 @@ func (c *ClientGoUtils) newFactory() cmdutil.Factory {
 	f := cmdutil.NewFactory(matchVersionKubeConfigFlags)
 	return f
 }
+
 func (c *ClientGoUtils) ApplyForCreate(files []string, namespace string, continueOnError bool) error {
-	if len(files) == 0 {
-		return errors.New("files must not be nil")
-	}
-
-	f := c.newFactory()
-	builder := f.NewBuilder()
-	validate, err := f.Validator(true)
-	if err != nil {
-		return err
-	}
-	filenames := resource.FilenameOptions{
-		Filenames: files,
-		Kustomize: "",
-		Recursive: false,
-	}
-	if continueOnError {
-		builder.ContinueOnError()
-	}
-	result := builder.Unstructured().
-		Schema(validate).
-		NamespaceParam(namespace).DefaultNamespace().
-		FilenameParam(true, &filenames).
-		//LabelSelectorParam(o.Selector).
-		Flatten().Do()
-
-	if result == nil {
-		return errors.New("result is nil")
-	}
-	if result.Err() != nil {
-		return result.Err()
-	}
-
-	infos, err := result.Infos()
-	if err != nil {
-		return err
-	}
-
-	if len(infos) == 0 {
-		return errors.New("no result info")
-	}
-	fmt.Printf("infos len %d \n", len(infos))
-	for _, info := range infos {
-		helper := resource.NewHelper(info.Client, info.Mapping)
-		obj, err := helper.Create(info.Namespace, true, info.Object)
-		if err != nil {
-			if continueOnError {
-				log.Warnf("apply manifest fail %s", err.Error())
-				continue
-			}
-			return err
-		}
-		info.Refresh(obj, true)
-		fmt.Printf("%s/%s created\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
-	}
-
-	return nil
+	return c.apply(files, namespace,continueOnError, Create)
 }
 
 func (c *ClientGoUtils) ApplyForDelete(files []string, namespace string, continueOnError bool) error {
+	return c.apply(files,namespace,continueOnError, Delete)
+}
+
+type applyAction string
+
+const (
+	Delete applyAction = "delete"
+	Create applyAction = "create"
+)
+
+func (c *ClientGoUtils) apply(files []string, namespace string, continueOnError bool, action applyAction) error {
 	if len(files) == 0 {
 		return errors.New("files must not be nil")
 	}
+
 	f := c.newFactory()
 	builder := f.NewBuilder()
 	validate, err := f.Validator(true)
 	if err != nil {
-		return err
+		if continueOnError {
+			log.Warnf("build validator err:", err.Error())
+		}else {
+			return err
+		}
 	}
 	filenames := resource.FilenameOptions{
 		Filenames: files,
@@ -213,33 +176,47 @@ func (c *ClientGoUtils) ApplyForDelete(files []string, namespace string, continu
 		return errors.New("result is nil")
 	}
 	if result.Err() != nil {
-		return result.Err()
+		if continueOnError {
+			log.WarnE(err,"error occurs in results")
+		} else {
+			return result.Err()
+		}
 	}
 
 	infos, err := result.Infos()
 	if err != nil {
-		return err
+		if continueOnError {
+			log.WarnE(err,"error occurs in results")
+		} else {
+			return err
+		}
 	}
 
 	if len(infos) == 0 {
 		return errors.New("no result info")
 	}
-
+	//fmt.Printf("infos len %d \n", len(infos))
 	for _, info := range infos {
 		helper := resource.NewHelper(info.Client, info.Mapping)
-		propagationPolicy := metav1.DeletePropagationBackground
-		obj, err := helper.DeleteWithOptions(info.Namespace, info.Name, &metav1.DeleteOptions{
-			PropagationPolicy: &propagationPolicy,
-		})
+		var obj runtime.Object
+		if action == Create {
+			obj, err = helper.Create(info.Namespace, true, info.Object)
+		} else if action == Delete {
+			propagationPolicy := metav1.DeletePropagationBackground
+			obj, err = helper.DeleteWithOptions(info.Namespace, info.Name, &metav1.DeleteOptions{
+				PropagationPolicy: &propagationPolicy,
+			})
+		}
 		if err != nil {
 			if continueOnError {
+				log.Warnf("fail to %s manifest: %s", action, err.Error())
 				continue
 			}
 			return err
 		}
 		info.Refresh(obj, true)
-		fmt.Printf("%s/%s delete\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
-	}
+		fmt.Printf("%s/%s %s\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, action)
 
+	}
 	return nil
 }
