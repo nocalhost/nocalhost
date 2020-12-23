@@ -97,7 +97,7 @@ var installCmd = &cobra.Command{
 			log.Fatalf("application \"%s\" already exists", applicationName)
 		}
 
-		fmt.Println("installing application...")
+		log.Info("installing application...")
 		err = InstallApplication(applicationName)
 		if err != nil {
 			fmt.Printf("failed to install application : %s\n", err.Error())

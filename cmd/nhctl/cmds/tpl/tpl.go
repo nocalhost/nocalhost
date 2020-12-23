@@ -16,6 +16,8 @@ package tpl
 import (
 	"bytes"
 	"text/template"
+
+	"github.com/pkg/errors"
 )
 
 var svcTpl = `# service name
@@ -82,12 +84,12 @@ syncDirs:
 func GetSvcTpl(svcName string) (string, error) {
 	t, err := template.New(svcName).Parse(svcTpl)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "")
 	}
 	buf := new(bytes.Buffer)
 	err = t.Execute(buf, svcName)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err,"")
 	}
 	return buf.String(), nil
 }

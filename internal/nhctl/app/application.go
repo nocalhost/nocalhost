@@ -16,7 +16,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -43,6 +42,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+
+	"github.com/pkg/errors"
 )
 
 type AppType string
@@ -167,7 +168,7 @@ func (a *Application) InitClient(kubeconfig string, namespace string) error {
 	a.AppProfile.Kubeconfig = kubeconfig
 	err = a.AppProfile.Save()
 	if err != nil {
-		fmt.Println("[error] fail to save nocalhostApp profile")
+		log.Error("fail to save nocalhostApp profile")
 	}
 	return err
 }
@@ -176,20 +177,20 @@ func (a *Application) InitDir() error {
 	var err error
 	err = os.MkdirAll(a.GetHomeDir(), DefaultNewFilePermission)
 	if err != nil {
-		return err
+		return errors.Wrap(err,"")
 	}
 
 	err = os.MkdirAll(a.getGitDir(), DefaultNewFilePermission)
 	if err != nil {
-		return err
+		return errors.Wrap(err,"")
 	}
 
 	err = os.MkdirAll(a.GetConfigDir(), DefaultNewFilePermission)
 	if err != nil {
-		return err
+		return errors.Wrap(err,"")
 	}
 	err = ioutil.WriteFile(a.getProfilePath(), []byte(""), DefaultNewFilePermission)
-	return err
+	return errors.Wrap(err,"")
 }
 
 func (a *Application) InitConfig(outerConfig string) error {
@@ -619,7 +620,7 @@ func (a *Application) InstallDepConfigMap(appType AppType) error {
 		}
 		yamlBytes, err := yaml.Marshal(depForYaml)
 		if err != nil {
-			return err
+			return errors.Wrap(err,"")
 		}
 
 		dataMap := make(map[string]string, 0)
@@ -644,13 +645,13 @@ func (a *Application) InstallDepConfigMap(appType AppType) error {
 		_, err = a.client.ClientSet.CoreV1().ConfigMaps(a.GetNamespace()).Create(context.TODO(), configMap, metav1.CreateOptions{})
 		if err != nil {
 			fmt.Errorf("fail to create dependency config %s\n", configMap.Name)
-			return err
+			return errors.Wrap(err, "")
 		} else {
 			a.AppProfile.DependencyConfigMapName = configMap.Name
 			a.AppProfile.Save()
 		}
 	}
-	fmt.Printf("dependency configmap installed\n")
+	log.Info("dependency configmap installed")
 	return nil
 }
 
@@ -685,41 +686,6 @@ func (a *Application) GetApplicationSyncDir(deployment string) string {
 	}
 	return dirPath
 }
-
-//func (a *Application) SavePortForwardInfo(svcName string, localPort int, remotePort int) error {
-//	pid := os.Getpid()
-//
-//	a.GetSvcProfile(svcName).SshPortForward = &PortForwardOptions{
-//		//LocalPort:  localPort,
-//		//RemotePort: remotePort,
-//		Pid: pid,
-//	}
-//	return a.AppProfile.Save()
-//}
-
-//func (a *Application) ListPortForwardPid(svcName string) []int {
-//	result := make([]int, 0)
-//	profile := a.GetSvcProfile(svcName)
-//	if profile == nil || profile.SshPortForward == nil {
-//		return result
-//	}
-//	if profile.SshPortForward.Pid != 0 {
-//		result = append(result, profile.SshPortForward.Pid)
-//	}
-//	return result
-//}
-
-//func (a *Application) StopAllPortForward(svcName string) error {
-//	pids := a.ListPortForwardPid(svcName)
-//	for _, pid := range pids {
-//		_, err := tools.ExecCommand(nil, true, "kill", "-1", fmt.Sprintf("%d", pid))
-//		if err != nil {
-//			fmt.Printf("failed to stop port forward pid %d, err: %v\n", pid, err)
-//			return err
-//		}
-//	}
-//	return nil
-//}
 
 func (a *Application) GetSvcConfig(svcName string) *ServiceDevOptions {
 	a.LoadConfig() // get the latest config
@@ -762,11 +728,6 @@ func (a *Application) GetDefaultWorkDir(svcName string) string {
 	if svcProfile != nil && svcProfile.WorkDir != "" {
 		return svcProfile.WorkDir
 	}
-	//config := a.GetSvcConfig(svcName)
-	//result := DefaultWorkDir
-	//if config != nil && config.WorkDir != "" {
-	//	result = config.WorkDir
-	//}
 	return DefaultWorkDir
 }
 
@@ -774,23 +735,7 @@ func (a *Application) GetDefaultSideCarImage(svcName string) string {
 	return DefaultSideCarImage
 }
 
-//func (a *Application) GetDefaultLocalSyncDirs(svcName string) []string {
-//	config := a.GetSvcConfig(svcName)
-//	result := []string{DefaultLocalSyncDirName}
-//	if config != nil && config.Sync != nil && len(config.Sync) > 0 {
-//		result = config.Sync
-//	}
-//	return result
-//}
-
 func (a *Application) GetDefaultDevImage(svcName string) string {
-	//config := a.GetSvcConfig(svcName)
-	//result := DefaultDevImage
-	//if config != nil && config.DevImage != "" {
-	//	result = config.DevImage
-	//}
-	//return result
-
 	svcProfile := a.GetSvcProfile(svcName)
 	if svcProfile != nil && svcProfile.DevImage != "" {
 		return svcProfile.DevImage

@@ -14,8 +14,8 @@ limitations under the License.
 package cmds
 
 import (
-	"fmt"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -44,6 +44,6 @@ var devResetCmd = &cobra.Command{
 		nocalhostApp.LoadOrCreateSvcProfile(deployment, app.Deployment)
 		nocalhostApp.Reset(deployment)
 
-		fmt.Printf("%s has been reset.\n", deployment)
+		log.Infof("%s has been reset.\n", deployment)
 	},
 }

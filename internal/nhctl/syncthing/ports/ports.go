@@ -15,6 +15,7 @@ package ports
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"math/rand"
 	"net"
 	"time"
@@ -44,12 +45,12 @@ func GetRandomAvailablePort() (int, error) {
 func GetAvailablePort() (int, error) {
 	address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:0", "0.0.0.0"))
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err,"")
 	}
 
 	listener, err := net.ListenTCP("tcp", address)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "")
 	}
 
 	defer listener.Close()

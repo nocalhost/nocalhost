@@ -14,13 +14,12 @@ limitations under the License.
 package nocalhost
 
 import (
-	"go.uber.org/zap/zapcore"
 	"io/ioutil"
-	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
+
 	"nocalhost/internal/nhctl/utils"
 )
 
@@ -34,18 +33,6 @@ const (
 	DefaultLogFileName = "nhctl.log"
 )
 
-//type NocalHost struct {
-//}
-
-//func NewNocalHost() (*NocalHost, error) {
-//	nh := &NocalHost{}
-//	err := nh.Init()
-//	if err != nil {
-//		return nil, err
-//	}
-//	return nh, nil
-//}
-
 func Init() error {
 	var err error
 	nhctlHomeDir := GetHomeDir()
@@ -53,30 +40,30 @@ func Init() error {
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(nhctlHomeDir, DefaultNewFilePermission)
 			if err != nil {
-				return err
+				return errors.Wrap(err,"")
 			}
 
 			applicationDir := GetAppHomeDir()
 			err = os.MkdirAll(applicationDir, DefaultNewFilePermission) // create .nhctl/application
 			if err != nil {
-				return err
+				return errors.Wrap(err,"")
 			}
 
 			binDir := GetSyncThingBinDir()
 			err = os.MkdirAll(binDir, DefaultNewFilePermission) // create .nhctl/bin/syncthing
 			if err != nil {
-				return err
+				return errors.Wrap(err,"")
 			}
 
 			logDir := GetLogDir()
 			err = os.MkdirAll(logDir, DefaultNewFilePermission) // create .nhctl/logs
 			if err != nil {
-				return err
+				return errors.Wrap(err,"")
 			}
 		}
 	}
 
-	log.Init(zapcore.InfoLevel, GetLogDir(),DefaultLogFileName)
+	//log.Init(zapcore.InfoLevel, GetLogDir(),DefaultLogFileName)
 	return nil
 }
 
@@ -100,7 +87,7 @@ func CleanupAppFiles(appName string) error {
 			return errors.Wrap(err,"fail to remove dir")
 		}
 	} else if !os.IsNotExist(err) {
-		return errors.Wrap(err, err.Error())
+		return errors.Wrap(err, "")
 	}
 	return nil
 }
@@ -145,7 +132,3 @@ func CheckIfApplicationExist(appName string) bool {
 
 	return false
 }
-
-//func (n *NocalHost) GetApplication(appName string) (*app.Application, error) {
-//	return app.NewApplication(appName)
-//}

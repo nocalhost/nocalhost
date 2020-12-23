@@ -47,17 +47,17 @@ func NewAppProfile(path string) (*AppProfile, error) {
 func (a *AppProfile) Save() error {
 	bytes, err := yaml.Marshal(a)
 	if err != nil {
-		return errors.Wrap(err, err.Error())
+		return errors.Wrap(err, "")
 	}
 	err = ioutil.WriteFile(a.path, bytes, 0755)
-	return errors.Wrap(err,"fail to write file")
+	return errors.Wrap(err,"")
 }
 
 func (a *AppProfile) Load() error {
 	fBytes, err := ioutil.ReadFile(a.path)
 	if err != nil {
-		return errors.Wrap(err,err.Error())
+		return errors.Wrap(err,"")
 	}
 	err = yaml.Unmarshal(fBytes, a)
-	return errors.Wrap(err,"fail to unmarshal")
+	return errors.Wrap(err,"")
 }

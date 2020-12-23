@@ -15,8 +15,6 @@ package cmds
 
 import (
 	"context"
-	"fmt"
-
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/internal/nhctl/syncthing/secret"
@@ -70,7 +68,7 @@ var devStartCmd = &cobra.Command{
 		nocalhostApp.LoadOrCreateSvcProfile(deployment, app.Deployment)
 
 		devStartOps.Kubeconfig = settings.KubeConfig
-		fmt.Println("starting DevMode...")
+		log.Info("starting dev mode...")
 
 		// set dev start ops args
 		// devStartOps.LocalSyncDir is from pulgin by local-sync
@@ -83,13 +81,13 @@ var devStartCmd = &cobra.Command{
 
 		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOps, fileSyncOptions)
 		if err != nil {
-			log.Fatalf("failed to create syncthing process, please try again.")
+			log.FatalE(err, "failed to create syncthing process, please try again.")
 		}
 		// install syncthing
 		if newSyncthing != nil && !newSyncthing.IsInstalled() {
 			err = newSyncthing.DownloadSyncthing()
 			if err != nil {
-				log.Fatalf("failed to download syncthing binary, please try again.")
+				log.FatalE(err,"failed to download syncthing binary, please try again.")
 			}
 		}
 
@@ -120,7 +118,7 @@ var devStartCmd = &cobra.Command{
 
 		err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps)
 		if err != nil {
-			log.Fatalf("failed to replace dev container: err%v\n", err)
+			log.FatalE(err, "failed to replace dev container")
 		}
 		// set profile sync port
 		err = nocalhostApp.SetSyncthingPort(deployment, newSyncthing.RemotePort, newSyncthing.RemoteGUIPort, newSyncthing.LocalPort, newSyncthing.LocalGUIPort)

@@ -47,7 +47,7 @@ func (c *ClientGoUtils) WaitForResourceReady(ctx context.Context, resourceType R
 
 	f, err := fields.ParseSelector(fmt.Sprintf("metadata.name=%s", name))
 	if err != nil {
-		return err
+		return errors.Wrap(err,"")
 	}
 	watchlist := cache.NewListWatchFromClient(
 		restClient,
@@ -125,7 +125,7 @@ func (c *ClientGoUtils) WaitJobToBeReady(namespace string, name string) error {
 
 	f, err := fields.ParseSelector(fmt.Sprintf("metadata.name=%s", name))
 	if err != nil {
-		return err
+		return errors.Wrap(err,"")
 	}
 	watchlist := cache.NewListWatchFromClient(
 		c.ClientSet.BatchV1().RESTClient(),
@@ -144,10 +144,10 @@ func (c *ClientGoUtils) WaitJobToBeReady(namespace string, name string) error {
 				//fmt.Printf("job added: %s \n", obj.(runtime.Object))
 			},
 			DeleteFunc: func(obj interface{}) {
-				fmt.Printf("job deleted: %s \n", name)
+				fmt.Printf("Job %s deleted\n", name)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
-				fmt.Printf("job %s changed : ", name)
+				//fmt.Printf("job %s changed: ", name)
 				if completed, _ := waitForJob(newObj.(runtime.Object), name); completed {
 					close(stop)
 					exit <- 1

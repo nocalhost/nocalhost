@@ -50,7 +50,7 @@ var configTemplateCmd = &cobra.Command{
 		InitAppAndCheckIfSvcExist(commonFlags.AppName, commonFlags.SvcName)
 		t, err := tpl.GetSvcTpl(commonFlags.SvcName)
 		if err != nil {
-			log.Fatalf("fail to get svc tpl:%s", err.Error())
+			log.FatalE(err, "fail to get svc tpl")
 		}
 		fmt.Println(t)
 	},
