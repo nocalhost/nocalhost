@@ -99,11 +99,15 @@ var InitCommand = &cobra.Command{
 		}
 		// init api and web
 		// nhctl install nocalhost -u https://e.coding.net/codingcorp/nocalhost/nocalhost.git -t helm --kubeconfig xxx -n xxx
+		nocalhostHelmSource := app.DefaultInitHelmGitRepo
+		if strings.ToLower(inits.Source) == "coding" {
+			nocalhostHelmSource = app.DefaultInitHelmCODINGGitRepo
+		}
 		params := []string{
 			"install",
 			app.DefaultInitInstallApplicationName,
 			"-u",
-			app.DefaultInitHelmGitRepo,
+			nocalhostHelmSource,
 			"--kubeconfig",
 			settings.KubeConfig,
 			"-n",
