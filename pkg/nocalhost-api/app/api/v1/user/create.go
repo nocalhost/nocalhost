@@ -46,13 +46,13 @@ func Create(c *gin.Context) {
 		return
 	}
 
-	isAdmin, _ := c.Get("isAdmin")
-	if isAdmin.(uint64) != 1 {
-		api.SendResponse(c, errno.ErrCreateUserDenied, nil)
-		return
-	}
+	//isAdmin, _ := c.Get("isAdmin")
+	//if isAdmin.(uint64) != 1 {
+	//	api.SendResponse(c, errno.ErrCreateUserDenied, nil)
+	//	return
+	//}
 
-	u, err := service.Svc.UserSvc().Create(c, req.Email, req.Password, req.Name, *req.Status)
+	u, err := service.Svc.UserSvc().Create(c, req.Email, req.Password, req.Name, *req.Status, *req.IsAdmin)
 	if err != nil {
 		log.Warnf("register err: %v", err)
 		api.SendResponse(c, errno.ErrRegisterFailed, nil)

@@ -30,7 +30,7 @@ type UserBaseModel struct {
 	Password  string     `json:"-" gorm:"column:password;not null" binding:"required" validate:"min=5,max=128"`
 	Phone     int64      `gorm:"column:phone" json:"phone"`
 	Email     string     `gorm:"column:email" json:"email"`
-	IsAdmin   uint64     `gorm:"column:is_admin" json:"is_admin"`
+	IsAdmin   *uint64    `gorm:"column:is_admin" json:"is_admin"`
 	Status    *uint64    `gorm:"column:status" json:"status"`
 	Avatar    string     `gorm:"column:avatar" json:"avatar"`
 	CreatedAt time.Time  `gorm:"column:created_at" json:"-"`
@@ -60,6 +60,7 @@ type UserList struct {
 	Email        string `gorm:"column:email" json:"email"`
 	ClusterCount uint64 `gorm:"column:cluster_count" json:"cluster_count"`
 	Status       uint64 `gorm:"column:status" json:"status"`
+	IsAdmin      uint64 `gorm:"column:is_admin" json:"is_admin"`
 }
 
 // TableName
