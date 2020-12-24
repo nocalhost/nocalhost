@@ -72,6 +72,7 @@ CREATE TABLE `clusters` (
   `user_id` int(11) NOT NULL DEFAULT 0,
   `server` varchar(500) NOT NULL DEFAULT '',
   `kubeconfig` text NOT NULL,
+  `storage_class` varchar(100) NOT NULL DEFAULT '' COMMENT '指定的存储类名称，用于持久化',
   `info` text DEFAULT NULL COMMENT '集群额外信息JSON、Kubernetes 版本、Node 节点之类',
   `deleted_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,

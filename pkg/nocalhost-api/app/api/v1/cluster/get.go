@@ -223,18 +223,18 @@ func GetSpaceDetail(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
-// @Summary Get cluster StorageClass List
-// @Description Get cluster StorageClass List
+// @Summary Get cluster storageClass from cluster list
+// @Description Get cluster storageClass from cluster list
 // @Tags Cluster
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param createCluster body cluster.StorageClassRequest true "The cluster info"
+// @Param id path string true "Cluster ID"
 // @Success 200 {object} cluster.StorageClassResponse "include kubeconfig"
-// @Router /v1/cluster/{key}/storage_class [get]
+// @Router /v1/cluster/{id}/storage_class [get]
 func GetStorageClass(c *gin.Context) {
 	userId, _ := c.Get("userId")
-	clusterKey := c.Param("key")
+	clusterKey := c.Param("id")
 	var kubeConfig []byte
 	if clusterKey == "kubeconfig" {
 		var req StorageClassRequest
@@ -283,4 +283,17 @@ func GetStorageClass(c *gin.Context) {
 	}
 	api.SendResponse(c, nil, response)
 	return
+}
+
+// @Summary Get cluster storageClass from create cluster
+// @Description Get cluster storageClass from create cluster
+// @Tags Cluster
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param createCluster body cluster.StorageClassRequest true "The cluster info"
+// @Success 200 {object} cluster.StorageClassResponse "include kubeconfig"
+// @Router /v1/cluster/kubeconfig/storage_class [post]
+func GetStorageClassByKubeConfig(c *gin.Context) {
+	GetStorageClass(c)
 }

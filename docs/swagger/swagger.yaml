@@ -46,9 +46,6 @@ definitions:
     type: object
   cluster.StorageClassRequest:
     properties:
-      cluster_id:
-        default: 0
-        type: integer
       kubeconfig:
         example: base64encode(value)
         type: string
@@ -59,6 +56,11 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  cluster.UpdateClusterRequest:
+    properties:
+      storage_class:
+        type: string
     type: object
   cluster_user.ClusterUserCreateRequest:
     properties:
@@ -118,6 +120,8 @@ definitions:
         type: string
       not_ready_message:
         type: string
+      storage_class:
+        type: string
       user_id:
         type: integer
       users_count:
@@ -136,6 +140,8 @@ definitions:
       name:
         type: string
       server:
+        type: string
+      storage_class:
         type: string
       user_id:
         type: integer
@@ -188,6 +194,8 @@ definitions:
         type: string
       status:
         type: integer
+      storage_class:
+        type: string
     type: object
   model.UserBaseModel:
     properties:
@@ -771,6 +779,44 @@ paths:
       summary: Delete the cluster completely
       tags:
       - Cluster
+    put:
+      consumes:
+      - application/json
+      description: Update cluster
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Cluster ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: DevSpace ID
+        in: path
+        name: space_id
+        required: true
+        type: string
+      - description: The cluster info
+        in: body
+        name: createCluster
+        required: true
+        schema:
+          $ref: '#/definitions/cluster.UpdateClusterRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: include kubeconfig
+          schema:
+            $ref: '#/definitions/model.ClusterModel'
+            type: object
+      summary: Update cluster
+      tags:
+      - Cluster
   /v1/cluster/{id}/detail:
     get:
       consumes:
@@ -862,7 +908,34 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get cluster StorageClass List
+      description: Get cluster storageClass from cluster list
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Cluster ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: include kubeconfig
+          schema:
+            $ref: '#/definitions/cluster.StorageClassResponse'
+            type: object
+      summary: Get cluster storageClass from cluster list
+      tags:
+      - Cluster
+  /v1/cluster/kubeconfig/storage_class:
+    post:
+      consumes:
+      - application/json
+      description: Get cluster storageClass from create cluster
       parameters:
       - description: Authorization
         in: header
@@ -884,7 +957,7 @@ paths:
           schema:
             $ref: '#/definitions/cluster.StorageClassResponse'
             type: object
-      summary: Get cluster StorageClass List
+      summary: Get cluster storageClass from create cluster
       tags:
       - Cluster
   /v1/dev_space/{id}:

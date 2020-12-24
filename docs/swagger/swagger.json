@@ -649,7 +649,105 @@
                 }
             }
         },
+        "/v1/cluster/kubeconfig/storage_class": {
+            "post": {
+                "description": "Get cluster storageClass from create cluster",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Get cluster storageClass from create cluster",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "The cluster info",
+                        "name": "createCluster",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster.StorageClassRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "include kubeconfig",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster.StorageClassResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/cluster/{id}": {
+            "put": {
+                "description": "Update cluster",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Update cluster",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cluster ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "DevSpace ID",
+                        "name": "space_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "The cluster info",
+                        "name": "createCluster",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster.UpdateClusterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "include kubeconfig",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterModel"
+                        }
+                    }
+                }
+            },
             "delete": {
                 "description": "Delete the cluster completely",
                 "consumes": [
@@ -818,7 +916,7 @@
         },
         "/v1/cluster/{id}/storage_class": {
             "get": {
-                "description": "Get cluster StorageClass List",
+                "description": "Get cluster storageClass from cluster list",
                 "consumes": [
                     "application/json"
                 ],
@@ -828,7 +926,7 @@
                 "tags": [
                     "Cluster"
                 ],
-                "summary": "Get cluster StorageClass List",
+                "summary": "Get cluster storageClass from cluster list",
                 "parameters": [
                     {
                         "type": "string",
@@ -838,14 +936,11 @@
                         "required": true
                     },
                     {
-                        "description": "The cluster info",
-                        "name": "createCluster",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/cluster.StorageClassRequest"
-                        }
+                        "type": "string",
+                        "description": "Cluster ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -1347,10 +1442,6 @@
         "cluster.StorageClassRequest": {
             "type": "object",
             "properties": {
-                "cluster_id": {
-                    "type": "integer",
-                    "default": 0
-                },
                 "kubeconfig": {
                     "type": "string",
                     "example": "base64encode(value)"
@@ -1365,6 +1456,14 @@
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "cluster.UpdateClusterRequest": {
+            "type": "object",
+            "properties": {
+                "storage_class": {
+                    "type": "string"
                 }
             }
         },
@@ -1456,6 +1555,9 @@
                 "not_ready_message": {
                     "type": "string"
                 },
+                "storage_class": {
+                    "type": "string"
+                },
                 "user_id": {
                     "type": "integer"
                 },
@@ -1487,6 +1589,9 @@
                     "type": "string"
                 },
                 "server": {
+                    "type": "string"
+                },
+                "storage_class": {
                     "type": "string"
                 },
                 "user_id": {
@@ -1561,6 +1666,9 @@
                 },
                 "status": {
                     "type": "integer"
+                },
+                "storage_class": {
+                    "type": "string"
                 }
             }
         },

@@ -14,8 +14,9 @@ limitations under the License.
 package cluster
 
 type CreateClusterRequest struct {
-	Name       string `json:"name" binding:"required"`
-	KubeConfig string `json:"kubeconfig" binding:"required" example:"base64encode(value)"`
+	Name         string `json:"name" binding:"required"`
+	KubeConfig   string `json:"kubeconfig" binding:"required" example:"base64encode(value)"`
+	StorageClass string `json:"storage_class"`
 }
 
 type KubeConfig struct {
@@ -38,4 +39,8 @@ type StorageClassRequest struct {
 
 type StorageClassResponse struct {
 	TypeName []string `json:"type_name"`
+}
+
+type UpdateClusterRequest struct {
+	StorageClass string `json:"storage_class"`
 }

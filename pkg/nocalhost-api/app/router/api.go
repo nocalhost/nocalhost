@@ -98,7 +98,9 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		c.GET("/:id/dev_space/:space_id/detail", cluster.GetSpaceDetail)
 		c.GET("/:id/detail", cluster.GetDetail)
 		c.DELETE("/:id", cluster.Delete)
-		c.GET("/:key/storage_class", cluster.GetStorageClass)
+		c.GET("/:id/storage_class", cluster.GetStorageClass)
+		c.POST("/:id/storage_class", cluster.GetStorageClassByKubeConfig)
+		c.PUT("/:id", cluster.Update)
 	}
 
 	// Applications

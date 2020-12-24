@@ -47,6 +47,7 @@ var (
 	ErrClusterNotFound        = &Errno{Code: 30107, Message: "Cluster has not found"}
 	ErrDeleteClusterNameSpace = &Errno{Code: 30108, Message: "Delete cluster namespace fail, please try again"}
 	ErrGetClusterStorageClass = &Errno{Code: 30109, Message: "Get cluster storage class fail, please try again"}
+	ErrUpdateCluster          = &Errno{Code: 30110, Message: "Update cluster fail, please try again"}
 
 	// application errors
 	ErrApplicationCreate        = &Errno{Code: 40100, Message: "Failed to add app, please try again"}

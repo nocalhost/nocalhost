@@ -37,6 +37,7 @@ type PluginApplicationModel struct {
 	Status        uint64 `json:"status" gorm:"column:status"`
 	ClusterId     uint64 `json:"cluster_id" gorm:"column:cluster_id"`
 	KubeConfig    string `json:"kubeconfig" gorm:"column:kubeconfig"`
+	StorageClass  string `json:"storage_class" gorm:"column:storage_class"`
 	Memory        uint64 `json:"memory" gorm:"column:memory"`
 	Cpu           uint64 `json:"cpu" gorm:"column:cpu"`
 	NameSpace     string `json:"namespace" gorm:"column:namespace"`
