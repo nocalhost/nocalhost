@@ -44,6 +44,22 @@ definitions:
     - kubeconfig
     - name
     type: object
+  cluster.StorageClassRequest:
+    properties:
+      cluster_id:
+        default: 0
+        type: integer
+      kubeconfig:
+        example: base64encode(value)
+        type: string
+    type: object
+  cluster.StorageClassResponse:
+    properties:
+      type_name:
+        items:
+          type: string
+        type: array
+    type: object
   cluster_user.ClusterUserCreateRequest:
     properties:
       cluster_id:
@@ -213,6 +229,8 @@ definitions:
         type: string
       id:
         type: integer
+      is_admin:
+        type: integer
       name:
         type: string
       status:
@@ -224,6 +242,8 @@ definitions:
         type: string
       email:
         type: string
+      is_admin:
+        type: integer
       name:
         type: string
       password:
@@ -233,6 +253,7 @@ definitions:
     required:
     - confirm_password
     - email
+    - is_admin
     - name
     - password
     - status
@@ -263,6 +284,8 @@ definitions:
     properties:
       email:
         type: string
+      is_admin:
+        type: integer
       name:
         type: string
       password:
@@ -270,6 +293,7 @@ definitions:
       status:
         type: integer
     required:
+    - is_admin
     - status
     type: object
 info:
@@ -832,6 +856,35 @@ paths:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
       summary: Details of a development environment in the cluster
+      tags:
+      - Cluster
+  /v1/cluster/{id}/storage_class:
+    get:
+      consumes:
+      - application/json
+      description: Get cluster StorageClass List
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: The cluster info
+        in: body
+        name: createCluster
+        required: true
+        schema:
+          $ref: '#/definitions/cluster.StorageClassRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: include kubeconfig
+          schema:
+            $ref: '#/definitions/cluster.StorageClassResponse'
+            type: object
+      summary: Get cluster StorageClass List
       tags:
       - Cluster
   /v1/dev_space/{id}:

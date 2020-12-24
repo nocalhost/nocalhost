@@ -31,3 +31,11 @@ type Cluster struct {
 	CertificateAuthorityData string
 	Server                   string
 }
+
+type StorageClassRequest struct {
+	KubeConfig string `json:"kubeconfig" example:"base64encode(value)"`
+}
+
+type StorageClassResponse struct {
+	TypeName []string `json:"type_name"`
+}
