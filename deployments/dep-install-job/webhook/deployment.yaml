@@ -67,7 +67,7 @@ spec:
     kind: Deployment
     name: nocalhost-dep
   metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      targetAverageUtilization: 80
+  - type: Pods
+    pods:
+      metricName: k8s_pod_rate_cpu_core_used_request
+      targetAverageValue: "80"
