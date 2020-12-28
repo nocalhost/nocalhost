@@ -166,7 +166,7 @@ LOCK TABLES `users` WRITE;
 
 INSERT INTO `users` (`id`, `uuid`, `username`, `name`, `password`, `avatar`, `phone`, `email`, `is_admin`, `status`, `deleted_at`, `created_at`, `updated_at`)
 VALUES
-	(1,'36882544-3bf5-4065-86a7-9b2188d71a1b','','Admin','$2a$10$XkuHQPH9jJ6GZ3GL9IR8U.7xN0gH6zSiO5fIQIfESZ8eagPo/Jnii','',0,'admin@admin.com',1,1,NULL,'2020-10-13 16:22:20','2020-10-13 16:22:20');
+	(1,'36882544-3bf5-4065-86a7-9b2188d71a1b','Admin','Admin','$2a$10$XkuHQPH9jJ6GZ3GL9IR8U.7xN0gH6zSiO5fIQIfESZ8eagPo/Jnii','',0,'admin@admin.com',1,1,NULL,'2020-10-13 16:22:20','2020-10-13 16:22:20');
 
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;

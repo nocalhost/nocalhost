@@ -15,6 +15,7 @@ package applications
 
 import (
 	"github.com/spf13/cast"
+	"nocalhost/cmd/nhctl/cmds/tpl"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
@@ -111,6 +112,22 @@ func PluginGet(c *gin.Context) {
 		log.Warnf("get Application err: %v", err)
 		api.SendResponse(c, errno.ErrApplicationGet, nil)
 		return
+	}
+	api.SendResponse(c, errno.OK, result)
+}
+
+// GetNocalhostConfigTemplate get nocalhost config template
+// @Summary get nocalhost config template
+// @Description get nocalhost config template
+// @Tags Application
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":{"template":""}}"
+// @Router /v1/nocalhost/templates [get]
+func GetNocalhostConfigTemplate(c *gin.Context) {
+	result := map[string]string{
+		"template": tpl.ConbineTpl(),
 	}
 	api.SendResponse(c, errno.OK, result)
 }

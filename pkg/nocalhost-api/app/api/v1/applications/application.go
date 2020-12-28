@@ -14,7 +14,7 @@ limitations under the License.
 package applications
 
 type CreateAppRequest struct {
-	Context string `json:"context" binding:"required" example:"{\"application_url\":\"git@github.com:nocalhost/bookinfo.git\",\"application_name\":\"应用名\",\"source\":\"git/helm_repo\",\"install_type\":\"manifest/helm_chart\",\"resource_dir\":\"路径\"}"`
+	Context string `json:"context" binding:"required" example:"{\"application_url\":\"git@github.com:nocalhost/bookinfo.git\",\"application_name\":\"name\",\"source\":\"git/helm_repo\",\"install_type\":\"rawManifest/helm_chart\",\"resource_dir\":[\"manifest/templates\"],\"nocalhost_config\":\"base64encode(config_templates)\"}"`
 	Status  *uint8 `json:"status" binding:"required"`
 }
 

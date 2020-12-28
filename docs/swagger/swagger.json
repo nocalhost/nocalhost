@@ -1035,6 +1035,46 @@
                 }
             }
         },
+        "/v1/dev_space/{id}/recreate": {
+            "post": {
+                "description": "delete devSpace and create a new one",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "ReCreate devSpace",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "DevSpace ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterModel"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/login": {
             "post": {
                 "description": "Web and plug-in login",
@@ -1100,6 +1140,39 @@
                 }
             }
         },
+        "/v1/nocalhost/templates": {
+            "get": {
+                "description": "get nocalhost config template",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "get nocalhost config template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":{\"template\":\"\"}}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/plugin/applications": {
             "get": {
                 "description": "Plug-in access to applications (including installation status)",
@@ -1128,6 +1201,46 @@
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.PluginApplicationModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugin/{id}/recreate": {
+            "post": {
+                "description": "Plugin delete devSpace and create a new one",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Plug-in"
+                ],
+                "summary": "Plugin ReCreate devSpace",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "DevSpace ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterModel"
                         }
                     }
                 }
@@ -1398,7 +1511,7 @@
             "properties": {
                 "context": {
                     "type": "string",
-                    "example": "{\"application_url\":\"git@github.com:nocalhost/bookinfo.git\",\"application_name\":\"应用名\",\"source\":\"git/helm_repo\",\"install_type\":\"manifest/helm_chart\",\"resource_dir\":\"路径\"}"
+                    "example": "{\"application_url\":\"git@github.com:nocalhost/bookinfo.git\",\"application_name\":\"name\",\"source\":\"git/helm_repo\",\"install_type\":\"rawManifest/helm_chart\",\"resource_dir\":[\"manifest/templates\"],\"nocalhost_config\":\"base64encode(config_templates)\"}"
                 },
                 "status": {
                     "type": "integer"

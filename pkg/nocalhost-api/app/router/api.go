@@ -122,12 +122,20 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		a.GET("/:id/cluster/:clusterId", applications.GetSpaceDetail)
 	}
 
+	// nocalhost
+	n := g.Group("/v1/nocalhost")
+	n.Use(middleware.AuthMiddleware())
+	{
+		n.GET("/templates", applications.GetNocalhostConfigTemplate)
+	}
+
 	// DevSpace
 	dv := g.Group("v1/dev_space")
 	dv.Use(middleware.AuthMiddleware())
 	{
 		dv.DELETE("/:id", cluster_user.Delete)
 		dv.PUT("/:id", cluster_user.Update)
+		dv.POST("/:id/recreate", cluster_user.ReCreate)
 	}
 
 	// Plug-in
@@ -135,6 +143,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	pa.Use(middleware.AuthMiddleware())
 	{
 		pa.GET("/applications", applications.PluginGet)
+		pa.POST("/:id/recreate", cluster_user.PluginReCreate)
 	}
 
 	return g

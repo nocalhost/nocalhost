@@ -15,13 +15,17 @@ package cluster_user
 
 import (
 	"github.com/gin-gonic/gin"
+	reqClient "github.com/imroc/req"
 	"github.com/spf13/cast"
+	"net/http"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"strconv"
+	"time"
 )
 
 // Delete Completely delete the development environment
@@ -70,4 +74,66 @@ func Delete(c *gin.Context) {
 	}
 	api.SendResponse(c, errno.OK, nil)
 	return
+}
+
+// ReCreate ReCreate devSpace
+// @Summary ReCreate devSpace
+// @Description delete devSpace and create a new one
+// @Tags Application
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path uint64 true "DevSpace ID"
+// @Success 200 {object} model.ClusterModel
+// @Router /v1/dev_space/{id}/recreate [post]
+func ReCreate(c *gin.Context) {
+	// get devSpace
+	devSpaceId := cast.ToUint64(c.Param("id"))
+	clusterUser, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId})
+	if err != nil {
+		api.SendResponse(c, errno.ErrClsuterUserNotFound, nil)
+		return
+	}
+	auth := c.Request.Header["Authorization"][0]
+	header := reqClient.Header{
+		"Accept":        "application/json",
+		"Authorization": auth,
+	}
+	reqClient.SetTimeout(60 * time.Second)
+	protocol := "http://"
+	host := c.Request.Host
+	_, err = reqClient.Get(protocol + host + "/health")
+	// if timeout, means protocol fail
+	if err != nil {
+		protocol = "https://"
+	}
+	// delete devSpace space first, it will delete database record whatever success delete namespace or not
+	_, _ = reqClient.Delete(protocol+host+"/v1/dev_space/"+strconv.Itoa(int(devSpaceId)), header)
+	// create new devSpace
+	param := reqClient.Param{
+		"cluster_id": clusterUser.ClusterId,
+		"cpu":        clusterUser.Cpu,
+		"memory":     clusterUser.Memory,
+		"space_name": clusterUser.SpaceName,
+		"user_id":    clusterUser.UserId,
+	}
+	result, err := reqClient.Post(protocol+host+"/v1/application/"+strconv.Itoa(int(clusterUser.ApplicationId))+"/create_space", header, reqClient.BodyJSON(&param))
+	var returnResult interface{}
+	_ = result.ToJSON(&returnResult)
+	c.JSON(http.StatusOK, &returnResult)
+	return
+}
+
+// ReCreate Plugin ReCreate devSpace
+// @Summary Plugin ReCreate devSpace
+// @Description Plugin delete devSpace and create a new one
+// @Tags Plug-in
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path uint64 true "DevSpace ID"
+// @Success 200 {object} model.ClusterModel
+// @Router /v1/plugin/{id}/recreate [post]
+func PluginReCreate(c *gin.Context) {
+	ReCreate(c)
 }

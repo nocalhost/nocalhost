@@ -18,7 +18,7 @@ definitions:
   applications.CreateAppRequest:
     properties:
       context:
-        example: '{"application_url":"git@github.com:nocalhost/bookinfo.git","application_name":"应用名","source":"git/helm_repo","install_type":"manifest/helm_chart","resource_dir":"路径"}'
+        example: '{"application_url":"git@github.com:nocalhost/bookinfo.git","application_name":"name","source":"git/helm_repo","install_type":"rawManifest/helm_chart","resource_dir":["manifest/templates"],"nocalhost_config":"base64encode(config_templates)"}'
         type: string
       status:
         type: integer
@@ -1024,6 +1024,33 @@ paths:
       summary: Update dev space
       tags:
       - Cluster
+  /v1/dev_space/{id}/recreate:
+    post:
+      consumes:
+      - application/json
+      description: delete devSpace and create a new one
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: DevSpace ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterModel'
+            type: object
+      summary: ReCreate devSpace
+      tags:
+      - Application
   /v1/login:
     post:
       description: Web and plug-in login
@@ -1067,6 +1094,55 @@ paths:
       summary: Get user personal information
       tags:
       - Users
+  /v1/nocalhost/templates:
+    get:
+      consumes:
+      - application/json
+      description: get nocalhost config template
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":{"template":""}}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: get nocalhost config template
+      tags:
+      - Application
+  /v1/plugin/{id}/recreate:
+    post:
+      consumes:
+      - application/json
+      description: Plugin delete devSpace and create a new one
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: DevSpace ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterModel'
+            type: object
+      summary: Plugin ReCreate devSpace
+      tags:
+      - Plug-in
   /v1/plugin/applications:
     get:
       consumes:
