@@ -88,11 +88,12 @@ var pvcListCmd = &cobra.Command{
 }
 
 type pvcYaml struct {
-	Name        string `json:"name" yaml:"name"`
-	AppName     string `json:"app_name" yaml:"app_name"`
-	ServiceName string `json:"service_name" yaml:"service_name"`
-	Capacity    string `json:"capacity" yaml:"capacity"`
-	Status      string `json:"status" yaml:"status"`
+	Name         string `json:"name" yaml:"name"`
+	AppName      string `json:"app_name" yaml:"appName"`
+	ServiceName  string `json:"service_name" yaml:"serviceName"`
+	Capacity     string `json:"capacity" yaml:"capacity"`
+	StorageClass string `json:"storage_class" yaml:"storageClass"`
+	Status       string `json:"status" yaml:"status"`
 }
 
 func DisplayPVCsByYaml(pvcList []v1.PersistentVolumeClaim) {
@@ -108,6 +109,9 @@ func DisplayPVCsByYaml(pvcList []v1.PersistentVolumeClaim) {
 			ServiceName: labels[app.ServiceLabel],
 			Capacity:    quantity.String(),
 			Status:      string(pvc.Status.Phase),
+		}
+		if pvc.Spec.StorageClassName != nil {
+			pY.StorageClass = *pvc.Spec.StorageClassName
 		}
 		pvcYamlList = append(pvcYamlList, pY)
 		//fmt.Printf("%s %s %s %s %s\n", pvc.Name, labels[app.AppLabel], labels[app.ServiceLabel], quantity.String(), pvc.Status.Phase)
