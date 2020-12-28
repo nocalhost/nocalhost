@@ -51,7 +51,7 @@ rm -rf ~/sync
 mkdir -p ~/sync
 touch ~/sync/hello_nhctl
 
-echo "entering dev model..."
+echo "entering dev DevMode..."
 nhctl dev start $APPNAME -d $SVCNAME -s ~/sync --debug
 if [ "$?" != 0 ]; then
     echo "fail"
