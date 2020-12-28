@@ -91,7 +91,7 @@ if [ "$?" != 0 ]; then
 fi
 sleep 3
 
-read -p "press any key to end dev..." no
+read -p "press any key to end dev model..." no
 nhctl dev end $APPNAME -d $SVCNAME --debug
 if [ "$?" != 0 ]; then
     echo "fail"

@@ -11,18 +11,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package app
+package cmds
 
-type SvcType string
+import "github.com/spf13/cobra"
 
-const (
-	Deployment SvcType = "deployment"
+func init() {
+	rootCmd.AddCommand(pvcCmd)
+}
 
-	DevImageFlagAnnotationKey   = "nhctl.dev.image.revision"
-	DevImageFlagAnnotationValue = "first"
-
-	AppLabel     = "nocalhost.dev/app"
-	ServiceLabel = "nocalhost.dev/service"
-
-	PersistentVolumeDirLabel = "nocalhost.dev/dir"
-)
+// Managing PersistVolumeClaims of a application, Please make sure the application is installed
+// If application is not installed, nhctl is unable to manage PersistVolumeClaims created by the application,
+// since it has no the kubeconfig to the k8s cluster
+var pvcCmd = &cobra.Command{
+	Use:   "pvc",
+	Short: "Manage PersistVolumeClaims",
+	Long:  `Manage PersistVolumeClaims`,
+}

@@ -1,6 +1,10 @@
 package utils
 
-import "os/user"
+import (
+	"crypto/sha1"
+	"fmt"
+	"os/user"
+)
 
 func GetHomePath() string {
 	u, err := user.Current()
@@ -8,4 +12,10 @@ func GetHomePath() string {
 		return u.HomeDir
 	}
 	return ""
+}
+
+func Sha1ToString(str string) string {
+	hash := sha1.New()
+	hash.Write([]byte(str))
+	return fmt.Sprintf("%x", hash.Sum(nil))
 }

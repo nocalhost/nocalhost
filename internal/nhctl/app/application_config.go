@@ -19,11 +19,11 @@ import (
 )
 
 const (
-	DefaultSideCarImage                      = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
-	DefaultDevImage                          = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
-	DefaultWorkDir                           = "/home/nocalhost-dev"
-	DefaultLocalSyncDirName                  = "."
-	DefaultResourcesDir                      = "resources"
+	DefaultSideCarImage     = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
+	DefaultDevImage         = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
+	DefaultWorkDir          = "/home/nocalhost-dev"
+	DefaultLocalSyncDirName = "."
+	DefaultResourcesDir     = "resources"
 	//DefaultNhctlHomeDirName                  = ".nh/nhctl"
 	//DefaultBinDirName                        = "bin"
 	//DefaultLogDirName                        = "logs"
@@ -34,11 +34,11 @@ const (
 	DefaultApplicationOnlyPortForwardPidFile = "alone-port-forward.pid"
 	DefaultApplicationSyncPidFile            = "syncthing.pid"
 	//DefaultApplicationDirName                = "application"
-	DefaultApplicationProfilePath            = ".profile.yaml"
-	DefaultApplicationConfigDirName          = ".nocalhost"
-	DefaultApplicationConfigName             = "config.yaml"
-	DefaultNewFilePermission                 = 0700
-	DefaultClientGoTimeOut                   = time.Minute * 5
+	DefaultApplicationProfilePath   = ".profile.yaml"
+	DefaultApplicationConfigDirName = ".nocalhost"
+	DefaultApplicationConfigName    = "config.yaml"
+	DefaultNewFilePermission        = 0700
+	DefaultClientGoTimeOut          = time.Minute * 5
 	// nhctl init
 	// TODO when release
 	DefaultInitHelmGitRepo             = "https://github.com/nocalhost/nocalhost.git"
@@ -78,17 +78,23 @@ type PreInstallItem struct {
 	Weight string `json:"weight" yaml:"weight"`
 }
 
+type PersistentVolumeDir struct {
+	Path     string `json:"path" yaml:"path"`
+	Capacity string `json:"capacity" yaml:"capacity"`
+}
+
 type ServiceDevOptions struct {
-	Name     string   `json:"name" yaml:"name"`
-	Type     SvcType  `json:"serviceType" yaml:"serviceType"`
-	GitUrl   string   `json:"gitUrl" yaml:"gitUrl"`
-	DevImage string   `json:"devContainerImage" yaml:"devContainerImage"`
-	WorkDir  string   `json:"workDir" yaml:"workDir"`
-	Sync     []string `json:"syncDirs" yaml:"syncDirs"`
-	Ignore   []string `json:"ignores" yaml:"ignores"` // TODO Ignore file list
-	DevPort  []string `json:"devPorts" yaml:"devPorts"`
-	Jobs     []string `json:"dependJobsLabelSelector" yaml:"dependJobsLabelSelector,omitempty"`
-	Pods     []string `json:"dependPodsLabelSelector" yaml:"dependPodsLabelSelector,omitempty"`
+	Name                 string                `json:"name" yaml:"name"`
+	Type                 SvcType               `json:"serviceType" yaml:"serviceType"`
+	GitUrl               string                `json:"gitUrl" yaml:"gitUrl"`
+	DevImage             string                `json:"devContainerImage" yaml:"devContainerImage"`
+	WorkDir              string                `json:"workDir" yaml:"workDir"`
+	Sync                 []string              `json:"syncDirs" yaml:"syncDirs"`
+	PersistentVolumeDirs []PersistentVolumeDir `json:"persistent_volume_dirs" yaml:"persistentVolumeDirs"`
+	Ignore               []string              `json:"ignores" yaml:"ignores"` // TODO Ignore file list
+	DevPort              []string              `json:"devPorts" yaml:"devPorts"`
+	Jobs                 []string              `json:"dependJobsLabelSelector" yaml:"dependJobsLabelSelector,omitempty"`
+	Pods                 []string              `json:"dependPodsLabelSelector" yaml:"dependPodsLabelSelector,omitempty"`
 }
 
 type ComparableItems []*PreInstallItem
