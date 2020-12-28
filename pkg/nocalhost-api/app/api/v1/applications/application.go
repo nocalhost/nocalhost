@@ -26,6 +26,7 @@ type UpdateApplicationInstallRequest struct {
 type ApplicationJsonContext struct {
 	ApplicationName        string   `json:"application_name" validate:"required"`
 	ApplicationURL         string   `json:"application_url" validate:"required"`
+	ApplicationConfigPath  string   `json:"application_config_path" validate:"required"`
 	ApplicationSource      string   `json:"source" validate:"required,oneof='git' 'helm_repo'"`
 	ApplicationInstallType string   `json:"install_type" validate:"required,oneof='rawManifest' 'helm_chart'"`
 	ApplicationSourceDir   []string `json:"resource_dir" validate:"required"`
