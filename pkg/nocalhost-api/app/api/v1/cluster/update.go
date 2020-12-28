@@ -29,7 +29,6 @@ import (
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param id path string true "Cluster ID"
-// @Param space_id path string true "DevSpace ID"
 // @Param createCluster body cluster.UpdateClusterRequest true "The cluster info"
 // @Success 200 {object} model.ClusterModel "include kubeconfig"
 // @Router /v1/cluster/{id} [put]
@@ -43,10 +42,10 @@ func Update(c *gin.Context) {
 	update := &model.ClusterModel{
 		StorageClass: req.StorageClass,
 	}
-	err := service.Svc.ClusterSvc().Update(c, update, clusterId)
+	result, err := service.Svc.ClusterSvc().Update(c, update, clusterId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrUpdateCluster, nil)
 		return
 	}
-	api.SendResponse(c, nil, update)
+	api.SendResponse(c, nil, result)
 }

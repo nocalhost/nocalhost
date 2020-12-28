@@ -721,13 +721,6 @@
                         "required": true
                     },
                     {
-                        "type": "string",
-                        "description": "DevSpace ID",
-                        "name": "space_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
                         "description": "The cluster info",
                         "name": "createCluster",
                         "in": "body",
@@ -1436,6 +1429,9 @@
                 },
                 "name": {
                     "type": "string"
+                },
+                "storage_class": {
+                    "type": "string"
                 }
             }
         },
@@ -1482,6 +1478,9 @@
                 },
                 "memory": {
                     "type": "integer"
+                },
+                "space_name": {
+                    "type": "string"
                 },
                 "user_id": {
                     "type": "integer"
@@ -1624,6 +1623,9 @@
                     "type": "integer"
                 },
                 "namespace": {
+                    "type": "string"
+                },
+                "space_name": {
                     "type": "string"
                 },
                 "status": {

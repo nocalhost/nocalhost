@@ -93,6 +93,7 @@ CREATE TABLE `clusters_users` (
   `application_id` int(11) NOT NULL COMMENT '应用 ID',
   `cluster_id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
+  `space_name` varchar(100) DEFAULT NULL COMMENT '开发空间名，默认应用名[用户名]',
   `kubeconfig` text DEFAULT NULL COMMENT 'serviceAccount',
   `memory` int(11) DEFAULT NULL COMMENT '内存限制',
   `cpu` int(11) DEFAULT NULL COMMENT 'CPU 限制',

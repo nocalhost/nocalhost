@@ -40,6 +40,8 @@ definitions:
         type: string
       name:
         type: string
+      storage_class:
+        type: string
     required:
     - kubeconfig
     - name
@@ -70,6 +72,8 @@ definitions:
         type: integer
       memory:
         type: integer
+      space_name:
+        type: string
       user_id:
         type: integer
     required:
@@ -166,6 +170,8 @@ definitions:
       memory:
         type: integer
       namespace:
+        type: string
+      space_name:
         type: string
       status:
         type: integer
@@ -792,11 +798,6 @@ paths:
       - description: Cluster ID
         in: path
         name: id
-        required: true
-        type: string
-      - description: DevSpace ID
-        in: path
-        name: space_id
         required: true
         type: string
       - description: The cluster info
