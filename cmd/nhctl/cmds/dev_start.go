@@ -71,7 +71,7 @@ var devStartCmd = &cobra.Command{
 		// check storage class
 
 		devStartOps.Kubeconfig = settings.KubeConfig
-		log.Info("starting dev mode...")
+		log.Info("starting DevMode...")
 
 		// set dev start ops args
 		// devStartOps.LocalSyncDir is from pulgin by local-sync
