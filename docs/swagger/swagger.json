@@ -1666,6 +1666,9 @@
                 "namespace": {
                     "type": "string"
                 },
+                "space_name": {
+                    "type": "string"
+                },
                 "status": {
                     "type": "integer"
                 },

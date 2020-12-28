@@ -198,6 +198,8 @@ definitions:
         type: integer
       namespace:
         type: string
+      space_name:
+        type: string
       status:
         type: integer
       storage_class:
