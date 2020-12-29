@@ -16,6 +16,7 @@ package cmds
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -59,6 +60,8 @@ var configEditCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("--content must be a valid base64 string: %s", err.Error())
 		}
+
+		fmt.Printf("str: %s\n", string(bys))
 
 		svcConfig := &app.ServiceDevOptions{}
 		err = json.Unmarshal(bys, svcConfig)
