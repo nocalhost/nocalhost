@@ -50,11 +50,11 @@ func Update(c *gin.Context) {
 		return
 	}
 
-	isAdmin, _ := c.Get("isAdmin")
-	if isAdmin.(uint64) != 1 {
-		api.SendResponse(c, errno.ErrUpdateUserDenied, nil)
-		return
-	}
+	//isAdmin, _ := c.Get("isAdmin")
+	//if isAdmin.(uint64) != 1 {
+	//	api.SendResponse(c, errno.ErrUpdateUserDenied, nil)
+	//	return
+	//}
 
 	pwd := ""
 	var err error
@@ -71,6 +71,7 @@ func Update(c *gin.Context) {
 		Name:     req.Name,
 		Password: pwd,
 		Status:   req.Status,
+		IsAdmin:  req.IsAdmin,
 	}
 	//userMap := make(map[string]interface{})
 	//userMap["email"] = req.Email

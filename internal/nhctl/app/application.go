@@ -446,8 +446,21 @@ func (a *Application) uninstallManifestRecursively() error {
 	return nil
 }
 
-func (a *Application) getYamlFilesAndDirs(dirPth string) (files []string, dirs []string, err error) {
-	dir, err := ioutil.ReadDir(dirPth)
+// Path can be a file or a dir
+func (a *Application) getYamlFilesAndDirs(path string) ([]string, []string, error) {
+	dirs := make([]string, 0)
+	files := make([]string, 0)
+	var err error
+	stat, err := os.Stat(path)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "")
+	}
+
+	// If path is a file, return it directly
+	if !stat.IsDir() {
+		return append(files, path), append(dirs, path), nil
+	}
+	dir, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -456,8 +469,8 @@ func (a *Application) getYamlFilesAndDirs(dirPth string) (files []string, dirs [
 
 	for _, fi := range dir {
 		if fi.IsDir() {
-			dirs = append(dirs, dirPth+PthSep+fi.Name())
-			fs, ds, err := a.getYamlFilesAndDirs(dirPth + PthSep + fi.Name())
+			dirs = append(dirs, path+PthSep+fi.Name())
+			fs, ds, err := a.getYamlFilesAndDirs(path + PthSep + fi.Name())
 			if err != nil {
 				return files, dirs, err
 			}
@@ -466,9 +479,9 @@ func (a *Application) getYamlFilesAndDirs(dirPth string) (files []string, dirs [
 		} else {
 			ok := strings.HasSuffix(fi.Name(), ".yaml")
 			if ok {
-				files = append(files, dirPth+PthSep+fi.Name())
+				files = append(files, path+PthSep+fi.Name())
 			} else if strings.HasSuffix(fi.Name(), ".yml") {
-				files = append(files, dirPth+PthSep+fi.Name())
+				files = append(files, path+PthSep+fi.Name())
 			}
 		}
 	}

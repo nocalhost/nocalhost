@@ -14,8 +14,9 @@ limitations under the License.
 package user
 
 import (
-	"github.com/gin-gonic/gin"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
@@ -56,7 +57,7 @@ func Login(c *gin.Context) {
 	}
 
 	// Log in to the web
-	if users.IsAdmin != 1 && req.From != "plugin" {
+	if *users.IsAdmin != 1 && req.From != "plugin" {
 		api.SendResponse(c, errno.ErrUserLoginWebNotAllow, nil)
 		return
 	}

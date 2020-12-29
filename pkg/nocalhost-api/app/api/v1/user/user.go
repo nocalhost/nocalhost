@@ -42,6 +42,7 @@ type CreateUserRequest struct {
 	Password        string  `json:"password" form:"password" binding:"required"`
 	ConfirmPassword string  `json:"confirm_password" form:"confirm_password" binding:"required"`
 	Status          *uint64 `json:"status" form:"status" binding:"required"`
+	IsAdmin         *uint64 `json:"is_admin" form:"is_admin" binding:"required"`
 }
 
 // UpdateUserRequest
@@ -50,6 +51,7 @@ type UpdateUserRequest struct {
 	Name     string  `json:"name" form:"name" binding:""`
 	Password string  `json:"password" form:"password" binding:""`
 	Status   *uint64 `json:"status" form:"status" binding:"required"`
+	IsAdmin  *uint64 `json:"is_admin" form:"is_admin" binding:"required"`
 }
 
 // LoginCredentials
