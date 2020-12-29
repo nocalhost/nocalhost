@@ -760,7 +760,7 @@ func (a *Application) GetDefaultWorkDir(svcName string) string {
 	return DefaultWorkDir
 }
 
-func (a *Application) GetPersistentVolumeDirs(svcName string) []PersistentVolumeDir {
+func (a *Application) GetPersistentVolumeDirs(svcName string) []*PersistentVolumeDir {
 	svcProfile := a.GetSvcProfile(svcName)
 	if svcProfile != nil {
 		return svcProfile.PersistentVolumeDirs

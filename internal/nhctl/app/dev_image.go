@@ -196,7 +196,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 			} else { // no pvc for this path, create one
 				var pvc *corev1.PersistentVolumeClaim
 				log.Infof("No PVC for %s found, trying to create one...", persistentVolume.Path)
-				pvc, err = a.createPvcForPersistentVolumeDir(ctx, &persistentVolume, labels, ops.StorageClass)
+				pvc, err = a.createPvcForPersistentVolumeDir(ctx, persistentVolume, labels, ops.StorageClass)
 				if err != nil || pvc == nil {
 					continue
 				}
