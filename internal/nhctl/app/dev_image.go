@@ -209,7 +209,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 						ClaimName: claimName,
 					},
 				}
-				log.Debug("WorkDir uses persistent volume")
+				log.Info("WorkDir uses persistent volume")
 				continue
 			}
 
@@ -234,7 +234,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 			devContainer.VolumeMounts = append(devContainer.VolumeMounts, persistentMount)
 			sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, persistentMount)
 
-			log.Debugf("%s mount a pvc successfully", persistentVolume.Path)
+			log.Infof("%s mount a pvc successfully", persistentVolume.Path)
 		}
 	}
 
