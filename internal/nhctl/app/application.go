@@ -192,20 +192,24 @@ func (a *Application) InitDir() error {
 	return errors.Wrap(err, "")
 }
 
-func (a *Application) InitConfig(outerConfig string) error {
-	configFile := outerConfig
-	if outerConfig == "" {
-		_, err := os.Stat(a.getConfigPathInGitResourcesDir())
+func (a *Application) InitConfig(config string, outerConfig string) error {
+	configFile := config
+
+	// read from .nocalhost/config.yaml first
+	if config == "" {
+		_, err := os.Stat(a.getConfigPathInGitResourcesDir(outerConfig))
 		if err == nil {
-			configFile = a.getConfigPathInGitResourcesDir()
+			configFile = a.getConfigPathInGitResourcesDir(outerConfig)
 		}
 	}
+
+	// use config.yaml specified by --config to replace .nocalhost/config.yaml
 	if configFile != "" {
 		rbytes, err := ioutil.ReadFile(configFile)
 		if err != nil {
 			return errors.New(fmt.Sprintf("fail to load configFile : %s", configFile))
 		}
-		err = ioutil.WriteFile(a.GetConfigPath(), rbytes, DefaultNewFilePermission)
+		err = ioutil.WriteFile(a.GetConfigPath(), rbytes, DefaultNewFilePermission) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
 		if err != nil {
 			return errors.New(fmt.Sprintf("fail to create configFile : %s", configFile))
 		}

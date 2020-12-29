@@ -41,6 +41,7 @@ type InstallFlags struct {
 	HelmChartName    string
 	HelmWait         bool
 	Config           string
+	OuterConfig      string
 	ResourcePath     []string
 }
 
@@ -54,6 +55,7 @@ func init() {
 	installCmd.Flags().StringVarP(&installFlags.GitRef, "git-ref", "r", "", "resources git ref")
 	installCmd.Flags().StringSliceVar(&installFlags.ResourcePath, "resource-path", []string{}, "resources path")
 	installCmd.Flags().StringVarP(&installFlags.Config, "config", "c", "", "specify a config.yaml")
+	installCmd.Flags().StringVar(&installFlags.OuterConfig, "outer-config", "", "specify a config relative to .nocalhost dir")
 	installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
 	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", "nocalhostApp type: helm or helm-repo or manifest")
 	installCmd.Flags().BoolVar(&installFlags.HelmWait, "wait", installFlags.HelmWait, "wait for completion")

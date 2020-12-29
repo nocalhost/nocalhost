@@ -22,8 +22,12 @@ func (a *Application) getGitDir() string {
 	return filepath.Join(a.GetHomeDir(), DefaultResourcesDir)
 }
 
-func (a *Application) getConfigPathInGitResourcesDir() string {
-	return filepath.Join(a.getGitDir(), DefaultApplicationConfigDirName, DefaultApplicationConfigName)
+func (a *Application) getConfigPathInGitResourcesDir(configName string) string {
+	if configName == "" {
+		return filepath.Join(a.getGitDir(), DefaultApplicationConfigDirName, DefaultApplicationConfigName)
+	} else {
+		return filepath.Join(a.getGitDir(), DefaultApplicationConfigDirName, configName)
+	}
 }
 
 //func (a *Application) GetSyncThingBinDir() string {
