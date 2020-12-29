@@ -81,7 +81,7 @@ type PreInstallItem struct {
 
 type PersistentVolumeDir struct {
 	Path     string `json:"path" yaml:"path"`
-	Capacity string `json:"capacity" yaml:"capacity"`
+	Capacity string `json:"capacity,omitempty" yaml:"capacity,omitempty"`
 }
 
 type ServiceDevOptions struct {
@@ -91,7 +91,7 @@ type ServiceDevOptions struct {
 	DevImage             string                 `json:"devContainerImage" yaml:"devContainerImage"`
 	WorkDir              string                 `json:"workDir" yaml:"workDir"`
 	Sync                 []string               `json:"syncDirs" yaml:"syncDirs"`
-	PersistentVolumeDirs []*PersistentVolumeDir `json:"persistent_volume_dirs" yaml:"persistentVolumeDirs"`
+	PersistentVolumeDirs []*PersistentVolumeDir `json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
 	Ignore               []string               `json:"ignores" yaml:"ignores"` // TODO Ignore file list
 	DevPort              []string               `json:"devPorts" yaml:"devPorts"`
 	Jobs                 []string               `json:"dependJobsLabelSelector" yaml:"dependJobsLabelSelector,omitempty"`
