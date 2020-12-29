@@ -725,6 +725,7 @@ func (a *Application) SaveSvcConfig(svcName string, config *ServiceDevOptions) e
 	}
 
 	// todo update profile
+	a.LoadOrCreateSvcProfile(svcName, Deployment)
 	return a.SaveConfig()
 }
 
@@ -837,11 +838,6 @@ func (a *Application) LoadOrCreateSvcProfile(svcName string, svcType SvcType) {
 		a.AppProfile.SvcProfile = make([]*SvcProfile, 0)
 	}
 
-	for _, svc := range a.AppProfile.SvcProfile {
-		if svc.ActualName == svcName {
-			return
-		}
-	}
 	svcProfile := &SvcProfile{
 		ActualName: svcName,
 		//Type:       svcType,
@@ -852,12 +848,21 @@ func (a *Application) LoadOrCreateSvcProfile(svcName string, svcType SvcType) {
 	if svcConfig == nil && len(a.AppProfile.ReleaseName) > 0 {
 		if strings.HasPrefix(svcName, fmt.Sprintf("%s-", a.AppProfile.ReleaseName)) {
 			name := strings.TrimPrefix(svcName, fmt.Sprintf("%s-", a.AppProfile.ReleaseName))
-			svcConfig = a.GetSvcConfig(name)
+			svcConfig = a.GetSvcConfig(name) // support releaseName-svcName
 		}
 	}
 
 	svcProfile.ServiceDevOptions = svcConfig
 
+	// If svcProfile already exists, updating it
+	for index, svc := range a.AppProfile.SvcProfile {
+		if svc.ActualName == svcName {
+			a.AppProfile.SvcProfile[index] = svcProfile
+			return
+		}
+	}
+
+	// If svcProfile already exists, create one
 	a.AppProfile.SvcProfile = append(a.AppProfile.SvcProfile, svcProfile)
 }
 
