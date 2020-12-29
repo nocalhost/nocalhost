@@ -66,7 +66,7 @@ var devStartCmd = &cobra.Command{
 			log.Fatalf("\"%s\" is already in developing", deployment)
 		}
 
-		nocalhostApp.LoadOrCreateSvcProfile(deployment, app.Deployment)
+		nocalhostApp.LoadConfigToSvcProfile(deployment, app.Deployment)
 
 		// check storage class
 

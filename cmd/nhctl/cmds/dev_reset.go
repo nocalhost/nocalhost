@@ -41,7 +41,7 @@ var devResetCmd = &cobra.Command{
 		applicationName := args[0]
 		InitAppAndCheckIfSvcExist(applicationName, deployment)
 
-		nocalhostApp.LoadOrCreateSvcProfile(deployment, app.Deployment)
+		nocalhostApp.LoadConfigToSvcProfile(deployment, app.Deployment)
 		nocalhostApp.Reset(deployment)
 
 		log.Infof("%s has been reset.\n", deployment)

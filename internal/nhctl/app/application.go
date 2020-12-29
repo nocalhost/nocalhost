@@ -192,6 +192,16 @@ func (a *Application) InitDir() error {
 	return errors.Wrap(err, "")
 }
 
+// Load svcConfig to profile while installing
+func (a *Application) LoadSvcConfigsToProfile() {
+	a.LoadConfig()
+	if len(a.Config.SvcConfigs) > 0 {
+		for _, svcConfig := range a.Config.SvcConfigs {
+			a.LoadConfigToSvcProfile(svcConfig.Name, Deployment)
+		}
+	}
+}
+
 func (a *Application) InitConfig(outerConfigPath string, configName string) error {
 	configFile := outerConfigPath
 
@@ -707,26 +717,34 @@ func (a *Application) GetSvcConfig(svcName string) *ServiceDevOptions {
 }
 
 func (a *Application) SaveSvcConfig(svcName string, config *ServiceDevOptions) error {
-	err := a.LoadConfig() // load the latest version config
-	if err != nil {
-		return err
-	}
-	if a.GetSvcConfig(svcName) == nil {
-		if len(a.Config.SvcConfigs) == 0 {
-			a.Config.SvcConfigs = make([]*ServiceDevOptions, 0)
-		}
-		a.Config.SvcConfigs = append(a.Config.SvcConfigs, config)
-	} else {
-		for index, svcConfig := range a.Config.SvcConfigs {
-			if svcConfig.Name == svcName {
-				a.Config.SvcConfigs[index] = config
-			}
-		}
-	}
+	//err := a.LoadConfig() // load the latest version config
+	//if err != nil {
+	//	return err
+	//}
+	//if a.GetSvcConfig(svcName) == nil {
+	//	if len(a.Config.SvcConfigs) == 0 {
+	//		a.Config.SvcConfigs = make([]*ServiceDevOptions, 0)
+	//	}
+	//	a.Config.SvcConfigs = append(a.Config.SvcConfigs, config)
+	//} else {
+	//	for index, svcConfig := range a.Config.SvcConfigs {
+	//		if svcConfig.Name == svcName {
+	//			a.Config.SvcConfigs[index] = config
+	//		}
+	//	}
+	//}
+	//
+	//err = a.SaveConfig()
+	//if err != nil {
+	//	return err
+	//}
 
-	// todo update profile
-	a.LoadOrCreateSvcProfile(svcName, Deployment)
-	return a.SaveConfig()
+	svcPro := a.GetSvcProfile(svcName)
+	if svcPro != nil {
+		svcPro.ServiceDevOptions = config
+	}
+	fmt.Printf("%+v\n", svcPro)
+	return a.AppProfile.Save()
 }
 
 func (a *Application) GetDefaultWorkDir(svcName string) string {
@@ -833,7 +851,8 @@ type PortForwardOptions struct {
 //	return a.AppProfile.Save()
 //}
 
-func (a *Application) LoadOrCreateSvcProfile(svcName string, svcType SvcType) {
+// svcName use actual name
+func (a *Application) LoadConfigToSvcProfile(svcName string, svcType SvcType) {
 	if a.AppProfile.SvcProfile == nil {
 		a.AppProfile.SvcProfile = make([]*SvcProfile, 0)
 	}

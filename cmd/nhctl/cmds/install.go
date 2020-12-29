@@ -141,6 +141,8 @@ func InstallApplication(applicationName string) error {
 	err = nocalhostApp.InitConfig(installFlags.OuterConfig, installFlags.Config)
 	if err != nil {
 		return err
+	} else {
+		nocalhostApp.LoadSvcConfigsToProfile()
 	}
 
 	// flags which no config mush specify
