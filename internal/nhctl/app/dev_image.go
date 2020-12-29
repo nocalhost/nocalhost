@@ -59,7 +59,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 
 	volName := "nocalhost-shared-volume"
 	// shared volume
-	vol := corev1.Volume{
+	workDirVol := corev1.Volume{
 		Name: volName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
@@ -104,7 +104,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	if dep.Spec.Template.Spec.Volumes == nil {
 		dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
 	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol, syncthingVol, syncthingDir)
+	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, workDirVol, syncthingVol, syncthingDir)
 
 	// syncthing volume mount
 	syncthingVolHomeDirMount := corev1.VolumeMount{
@@ -201,6 +201,16 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 					continue
 				}
 				claimName = pvc.Name
+			}
+
+			if persistentVolume.Path == workDir {
+				workDirVol.VolumeSource = corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: claimName,
+					},
+				}
+				log.Debug("WorkDir uses persistent volume")
+				continue
 			}
 
 			persistVolName := fmt.Sprintf("persist-volume-%d", index)
