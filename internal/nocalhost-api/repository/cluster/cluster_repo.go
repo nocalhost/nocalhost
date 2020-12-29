@@ -27,7 +27,7 @@ type ClusterRepo interface {
 	Get(ctx context.Context, clusterId uint64, userId uint64) (model.ClusterModel, error)
 	Delete(ctx context.Context, clusterId uint64) error
 	GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error)
-	Update(ctx context.Context, cluster *model.ClusterModel, clusterId uint64) (*model.ClusterModel, error)
+	Update(ctx context.Context, update map[string]interface{}, clusterId uint64) (*model.ClusterModel, error)
 	GetList(ctx context.Context) ([]*model.ClusterList, error)
 	Close()
 }
@@ -42,13 +42,13 @@ func NewClusterRepo(db *gorm.DB) ClusterRepo {
 	}
 }
 
-func (repo *clusterBaseRepo) Update(ctx context.Context, cluster *model.ClusterModel, clusterId uint64) (*model.ClusterModel, error) {
+func (repo *clusterBaseRepo) Update(ctx context.Context, update map[string]interface{}, clusterId uint64) (*model.ClusterModel, error) {
 	clusterModel := model.ClusterModel{}
 	clusterResult := repo.db.Where("id = ?", clusterId).First(&clusterModel)
 	if clusterResult.Error != nil {
 		return &clusterModel, clusterResult.Error
 	}
-	result := repo.db.Model(&clusterModel).Update(cluster)
+	result := repo.db.Model(&clusterModel).Update(update)
 	if result.RowsAffected > 0 {
 		return &clusterModel, nil
 	}

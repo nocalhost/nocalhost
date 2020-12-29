@@ -26,7 +26,7 @@ type ClusterService interface {
 	Get(ctx context.Context, id, userId uint64) (model.ClusterModel, error)
 	Delete(ctx context.Context, clusterId uint64) error
 	GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error)
-	Update(ctx context.Context, cluster *model.ClusterModel, clusterId uint64) (*model.ClusterModel, error)
+	Update(ctx context.Context, update map[string]interface{}, clusterId uint64) (*model.ClusterModel, error)
 	GetList(ctx context.Context) ([]*model.ClusterList, error)
 	Close()
 }
@@ -42,8 +42,8 @@ func NewClusterService() ClusterService {
 	}
 }
 
-func (srv *clusterService) Update(ctx context.Context, cluster *model.ClusterModel, clusterId uint64) (*model.ClusterModel, error) {
-	return srv.clusterRepo.Update(ctx, cluster, clusterId)
+func (srv *clusterService) Update(ctx context.Context, update map[string]interface{}, clusterId uint64) (*model.ClusterModel, error) {
+	return srv.clusterRepo.Update(ctx, update, clusterId)
 }
 
 func (srv *clusterService) Delete(ctx context.Context, clusterId uint64) error {

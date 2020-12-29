@@ -16,7 +16,6 @@ package cluster
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
-	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
@@ -39,10 +38,10 @@ func Update(c *gin.Context) {
 		return
 	}
 	clusterId := cast.ToUint64(c.Param("id"))
-	update := &model.ClusterModel{
-		StorageClass: req.StorageClass,
+	updateCol := map[string]interface{}{
+		"storage_class": req.StorageClass,
 	}
-	result, err := service.Svc.ClusterSvc().Update(c, update, clusterId)
+	result, err := service.Svc.ClusterSvc().Update(c, updateCol, clusterId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrUpdateCluster, nil)
 		return
