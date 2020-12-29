@@ -857,6 +857,7 @@ type PortForwardOptions struct {
 //}
 
 // svcName use actual name
+// used in installing
 func (a *Application) LoadConfigToSvcProfile(svcName string, svcType SvcType) {
 	if a.AppProfile.SvcProfile == nil {
 		a.AppProfile.SvcProfile = make([]*SvcProfile, 0)
