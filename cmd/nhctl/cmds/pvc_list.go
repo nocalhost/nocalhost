@@ -94,6 +94,7 @@ type pvcYaml struct {
 	Capacity     string `json:"capacity" yaml:"capacity"`
 	StorageClass string `json:"storage_class" yaml:"storageClass"`
 	Status       string `json:"status" yaml:"status"`
+	MountPath    string `json:"mount_path" yaml:"mountPath"`
 }
 
 func DisplayPVCsByYaml(pvcList []v1.PersistentVolumeClaim) {
@@ -103,12 +104,14 @@ func DisplayPVCsByYaml(pvcList []v1.PersistentVolumeClaim) {
 	for _, pvc := range pvcList {
 		labels := pvc.Labels
 		quantity := pvc.Spec.Resources.Requests[v1.ResourceStorage]
+		annotations := pvc.Annotations
 		pY := &pvcYaml{
 			Name:        pvc.Name,
 			AppName:     labels[app.AppLabel],
 			ServiceName: labels[app.ServiceLabel],
 			Capacity:    quantity.String(),
 			Status:      string(pvc.Status.Phase),
+			MountPath:   annotations[app.PersistentVolumeDirLabel],
 		}
 		if pvc.Spec.StorageClassName != nil {
 			pY.StorageClass = *pvc.Spec.StorageClassName
