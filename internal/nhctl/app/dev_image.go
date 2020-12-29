@@ -104,7 +104,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	if dep.Spec.Template.Spec.Volumes == nil {
 		dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
 	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, workDirVol, syncthingVol, syncthingDir)
+	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, syncthingVol, syncthingDir)
 
 	// syncthing volume mount
 	syncthingVolHomeDirMount := corev1.VolumeMount{
@@ -203,12 +203,13 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 				claimName = pvc.Name
 			}
 
+			// Do not use emptyDir for workDir
 			if persistentVolume.Path == workDir {
-				workDirVol.VolumeSource = corev1.VolumeSource{
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: claimName,
-					},
+				workDirVol.EmptyDir = nil
+				workDirVol.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: claimName,
 				}
+
 				log.Info("WorkDir uses persistent volume")
 				continue
 			}
@@ -237,6 +238,8 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 			log.Infof("%s mount a pvc successfully", persistentVolume.Path)
 		}
 	}
+
+	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, workDirVol)
 
 	// over write syncthing command
 	sideCarContainer.Command = []string{"/bin/sh", "-c"}
