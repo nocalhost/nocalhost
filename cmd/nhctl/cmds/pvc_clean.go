@@ -24,6 +24,7 @@ import (
 func init() {
 	pvcCleanCmd.Flags().StringVar(&pvcFlags.App, "app", "", "Clean up PVCs of specified application")
 	pvcCleanCmd.Flags().StringVar(&pvcFlags.Svc, "svc", "", "Clean up PVCs of specified service")
+	pvcCleanCmd.Flags().StringVar(&pvcFlags.Name, "name", "", "Clean up specified PVC")
 	pvcCmd.AddCommand(pvcCleanCmd)
 }
 
@@ -43,6 +44,19 @@ var pvcCleanCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("Failed to create application %s", pvcFlags.App)
 		}
+
+		// Clean up specified pvc
+		if pvcFlags.Name != "" {
+			err = nhApp.CleanUpPVC(pvcFlags.Name)
+			if err != nil {
+				log.FatalE(err, "Failed to clean up pvc: "+pvcFlags.Name)
+			} else {
+				log.Infof("%s cleaned up", pvcFlags.Name)
+				return
+			}
+		}
+
+		// Clean up PVCs of specified service
 		if pvcFlags.Svc != "" {
 			exist, err := nhApp.CheckIfSvcExist(pvcFlags.Svc, app.Deployment)
 			if err != nil {

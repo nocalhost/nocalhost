@@ -28,6 +28,7 @@ import (
 type PVCFlags struct {
 	App  string
 	Svc  string
+	Name string
 	Yaml bool
 }
 
