@@ -138,7 +138,7 @@ func InstallApplication(applicationName string) error {
 		}
 	}
 
-	err = nocalhostApp.InitConfig(installFlags.Config)
+	err = nocalhostApp.InitConfig(installFlags.Config, installFlags.OuterConfig)
 	if err != nil {
 		return err
 	}
