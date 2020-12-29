@@ -192,18 +192,19 @@ func (a *Application) InitDir() error {
 	return errors.Wrap(err, "")
 }
 
-func (a *Application) InitConfig(config string, outerConfig string) error {
-	configFile := config
+func (a *Application) InitConfig(outerConfigPath string, configName string) error {
+	configFile := outerConfigPath
 
-	// read from .nocalhost/config.yaml first
-	if config == "" {
-		_, err := os.Stat(a.getConfigPathInGitResourcesDir(outerConfig))
+	// Read from .nocalhost
+	if configFile == "" {
+		_, err := os.Stat(a.getConfigPathInGitResourcesDir(configName))
 		if err == nil {
-			configFile = a.getConfigPathInGitResourcesDir(outerConfig)
+			configFile = a.getConfigPathInGitResourcesDir(configName)
 		}
 	}
 
-	// use config.yaml specified by --config to replace .nocalhost/config.yaml
+	// Generate config.yaml
+	// config.yaml may come from .nocalhost in git or a outer config file in local absolute path
 	if configFile != "" {
 		rbytes, err := ioutil.ReadFile(configFile)
 		if err != nil {
@@ -930,7 +931,7 @@ func (a *Application) CheckConfigFile(file string) error {
 	config := &Config{}
 	err := yaml.Unmarshal([]byte(file), config)
 	if err != nil {
-		return errors.New("Application Config file format error!")
+		return errors.New("Application OuterConfig file format error!")
 	}
 	return config.CheckValid()
 }

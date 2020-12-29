@@ -62,6 +62,7 @@ func (a *Application) GetConfigDir() string {
 	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigDirName)
 }
 
+// todo this path should be independent from getConfigPathInGitResourcesDir()
 func (a *Application) GetConfigPath() string {
 	return filepath.Join(a.GetConfigDir(), DefaultApplicationConfigName)
 }
