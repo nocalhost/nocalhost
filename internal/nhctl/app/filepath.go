@@ -24,7 +24,7 @@ func (a *Application) getGitDir() string {
 
 func (a *Application) getConfigPathInGitResourcesDir(configName string) string {
 	if configName == "" {
-		return filepath.Join(a.getGitDir(), DefaultApplicationConfigDirName, DefaultApplicationConfigName)
+		return filepath.Join(a.getGitDir(), DefaultApplicationConfigDirName, DefaultConfigNameInGitNocalhostDir)
 	} else {
 		return filepath.Join(a.getGitDir(), DefaultApplicationConfigDirName, configName)
 	}
@@ -58,13 +58,8 @@ func (a *Application) GetApplicationOnlyPortForwardPidFile(deployment string) st
 	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
 }
 
-func (a *Application) GetConfigDir() string {
+func (a *Application) getConfigDir() string {
 	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigDirName)
-}
-
-// todo this path should be independent from getConfigPathInGitResourcesDir()
-func (a *Application) GetConfigPath() string {
-	return filepath.Join(a.GetConfigDir(), DefaultApplicationConfigName)
 }
 
 func (a *Application) GetApplicationBackGroundPortForwardPidFile(deployment string) string {
@@ -73,6 +68,11 @@ func (a *Application) GetApplicationBackGroundPortForwardPidFile(deployment stri
 
 func (a *Application) getProfilePath() string {
 	return filepath.Join(a.GetHomeDir(), DefaultApplicationProfilePath)
+}
+
+// This path is independent from getConfigPathInGitResourcesDir()
+func (a *Application) GetConfigPath() string {
+	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigPath)
 }
 
 func (a *Application) GetHomeDir() string {

@@ -184,7 +184,7 @@ func (a *Application) InitDir() error {
 		return errors.Wrap(err, "")
 	}
 
-	err = os.MkdirAll(a.GetConfigDir(), DefaultNewFilePermission)
+	err = os.MkdirAll(a.getConfigDir(), DefaultNewFilePermission)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
@@ -724,6 +724,7 @@ func (a *Application) SaveSvcConfig(svcName string, config *ServiceDevOptions) e
 		}
 	}
 
+	// todo update profile
 	return a.SaveConfig()
 }
 
@@ -906,26 +907,27 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 	return false
 }
 
-func (a *Application) LoadConfigFile() error {
-	if _, err := os.Stat(a.GetConfigPath()); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		} else {
-			return err
-		}
-	}
-	rbytes, err := ioutil.ReadFile(a.GetConfigPath())
-	if err != nil {
-		return errors.New(fmt.Sprintf("failed to load configFile : %s", a.GetConfigPath()))
-	}
-	config := &Config{}
-	err = yaml.Unmarshal(rbytes, config)
-	if err != nil {
-		return err
-	}
-	a.NewConfig = config
-	return nil
-}
+// Deprecated
+//func (a *Application) LoadConfigFile() error {
+//	if _, err := os.Stat(a.GetConfigPath()); err != nil {
+//		if os.IsNotExist(err) {
+//			return nil
+//		} else {
+//			return err
+//		}
+//	}
+//	rbytes, err := ioutil.ReadFile(a.GetConfigPath())
+//	if err != nil {
+//		return errors.New(fmt.Sprintf("failed to load configFile : %s", a.GetConfigPath()))
+//	}
+//	config := &Config{}
+//	err = yaml.Unmarshal(rbytes, config)
+//	if err != nil {
+//		return err
+//	}
+//	a.NewConfig = config
+//	return nil
+//}
 
 func (a *Application) CheckConfigFile(file string) error {
 	config := &Config{}
@@ -936,11 +938,11 @@ func (a *Application) CheckConfigFile(file string) error {
 	return config.CheckValid()
 }
 
-func (a *Application) SaveConfigFile(file string) error {
-	fileByte := []byte(file)
-	err := ioutil.WriteFile(a.GetConfigPath(), fileByte, DefaultNewFilePermission)
-	return err
-}
+//func (a *Application) SaveConfigFile(file string) error {
+//	fileByte := []byte(file)
+//	err := ioutil.WriteFile(a.GetConfigPath(), fileByte, DefaultNewFilePermission)
+//	return err
+//}
 
 func (a *Application) GetConfigFile() (string, error) {
 	configFile, err := ioutil.ReadFile(a.GetConfigPath())

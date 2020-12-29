@@ -24,7 +24,7 @@ elif [ "$type" == 2 ]; then
     echo "clean: uninstalling"
     nhctl uninstall $APPNAME --force --debug >> /dev/null
     echo "installing"
-    nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME --config config.yaml
+    nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME --outer-config config.yaml
     if [ "$?" != 0 ]; then
         echo "fail"
         exit 1
@@ -36,7 +36,7 @@ elif [ "$type" == 3 ]; then
     echo "clean: uninstalling"
     nhctl uninstall $APPNAME --force --debug >> /dev/null
     echo "installing"
-    nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME --config helm_config.yaml
+    nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME --outer-config helm_config.yaml
     if [ "$?" != 0 ]; then
         echo "fail"
         exit 1

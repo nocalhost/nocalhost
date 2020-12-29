@@ -34,11 +34,12 @@ const (
 	DefaultApplicationOnlyPortForwardPidFile = "alone-port-forward.pid"
 	DefaultApplicationSyncPidFile            = "syncthing.pid"
 	//DefaultApplicationDirName                = "application"
-	DefaultApplicationProfilePath   = ".profile.yaml"
-	DefaultApplicationConfigDirName = ".nocalhost"
-	DefaultApplicationConfigName    = "config.yaml"
-	DefaultNewFilePermission        = 0700
-	DefaultClientGoTimeOut          = time.Minute * 5
+	DefaultApplicationProfilePath      = ".profile.yaml" // runtime config
+	DefaultApplicationConfigPath       = ".config.yaml"
+	DefaultApplicationConfigDirName    = ".nocalhost"
+	DefaultConfigNameInGitNocalhostDir = "config.yaml"
+	DefaultNewFilePermission           = 0700
+	DefaultClientGoTimeOut             = time.Minute * 5
 	// nhctl init
 	// TODO when release
 	DefaultInitHelmGitRepo             = "https://github.com/nocalhost/nocalhost.git"
