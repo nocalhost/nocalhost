@@ -40,6 +40,7 @@ func init() {
 	devStartCmd.Flags().StringVarP(&devStartOps.DevLang, "lang", "l", "", "the program language, eg: java go python")
 	devStartCmd.Flags().StringVarP(&devStartOps.DevImage, "image", "i", "", "image of DevContainer")
 	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory, same as sync path")
+	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "the StorageClass used by persistent volumes")
 	devStartCmd.Flags().StringVar(&devStartOps.SideCarImage, "sidecar-image", "", "image of nocalhost-sidecar container")
 	// LocalSyncDir is local sync directory Absolute path splice by plugin
 	devStartCmd.Flags().StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{}, "local sync directory")
@@ -65,10 +66,12 @@ var devStartCmd = &cobra.Command{
 			log.Fatalf("\"%s\" is already in developing", deployment)
 		}
 
-		nocalhostApp.LoadOrCreateSvcProfile(deployment, app.Deployment)
+		//nocalhostApp.LoadConfigToSvcProfile(deployment, app.Deployment)
+
+		// check storage class
 
 		devStartOps.Kubeconfig = settings.KubeConfig
-		log.Info("starting dev mode...")
+		log.Info("starting DevMode...")
 
 		// set dev start ops args
 		// devStartOps.LocalSyncDir is from pulgin by local-sync
@@ -87,7 +90,7 @@ var devStartCmd = &cobra.Command{
 		if newSyncthing != nil && !newSyncthing.IsInstalled() {
 			err = newSyncthing.DownloadSyncthing()
 			if err != nil {
-				log.FatalE(err,"failed to download syncthing binary, please try again.")
+				log.FatalE(err, "failed to download syncthing binary, please try again.")
 			}
 		}
 

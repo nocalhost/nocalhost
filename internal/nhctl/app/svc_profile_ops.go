@@ -51,3 +51,7 @@ func (a *Application) GetSvcProfile(svcName string) *SvcProfile {
 	}
 	return nil
 }
+
+//func (a *Application) UpdateSvcProfile(svcName string) {
+//
+//}

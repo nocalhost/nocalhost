@@ -64,10 +64,10 @@ var configCmd = &cobra.Command{
 			if err != nil {
 				log.Fatalf("application config file is invalid!\n %s", err.Error())
 			}
-			err = nocalhostApp.SaveConfigFile(file)
-			if err != nil {
-				log.Fatalf("failed to save application config file, \"%s\"", err.Error())
-			}
+			//err = nocalhostApp.SaveConfigFile(file)
+			//if err != nil {
+			//	log.Fatalf("failed to save application config file, \"%s\"", err.Error())
+			//}
 			fmt.Printf("%s application config file have bean updated!\n", applicationName)
 			return
 		}

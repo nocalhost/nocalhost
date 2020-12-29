@@ -21,12 +21,10 @@ type DevStartOptions struct {
 	Namespace    string
 	Kubeconfig   string
 	LocalSyncDir []string
+	StorageClass string
 }
 
 type FileSyncOptions struct {
-	//RemoteDir         string
-	//LocalSharedFolder string
-	//LocalSshPort           int
 	RemoteSyncthingPort    int
 	RemoteSyncthingGUIPort int
 	LocalSyncthingPort     int

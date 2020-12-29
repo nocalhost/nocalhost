@@ -46,17 +46,17 @@ var configGetCmd = &cobra.Command{
 			if nocalhostApp.Config != nil {
 				bys, err := yaml.Marshal(nocalhostApp.Config)
 				if err != nil {
-					log.FatalE(errors.Wrap(err,""),"fail to get application config")
+					log.FatalE(errors.Wrap(err, ""), "fail to get application config")
 				}
 				fmt.Println(string(bys))
 			}
 		} else {
 			CheckIfSvcExist(commonFlags.SvcName)
-			svcConfig := nocalhostApp.GetSvcConfig(commonFlags.SvcName)
-			if svcConfig != nil {
-				bys, err := yaml.Marshal(svcConfig)
+			svcProfile := nocalhostApp.GetSvcProfile(commonFlags.SvcName)
+			if svcProfile != nil {
+				bys, err := yaml.Marshal(svcProfile.ServiceDevOptions)
 				if err != nil {
-					log.FatalE(errors.Wrap(err,""),"fail to get svc config")
+					log.FatalE(errors.Wrap(err, ""), "fail to get svc profile")
 				}
 				fmt.Println(string(bys))
 			}

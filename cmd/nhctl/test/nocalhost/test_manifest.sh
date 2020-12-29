@@ -24,7 +24,7 @@ elif [ "$type" == 2 ]; then
     echo "clean: uninstalling"
     nhctl uninstall $APPNAME --force --debug >> /dev/null
     echo "installing"
-    nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME --config config.yaml
+    nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME --outer-config config.yaml
     if [ "$?" != 0 ]; then
         echo "fail"
         exit 1
@@ -36,7 +36,7 @@ elif [ "$type" == 3 ]; then
     echo "clean: uninstalling"
     nhctl uninstall $APPNAME --force --debug >> /dev/null
     echo "installing"
-    nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME --config helm_config.yaml
+    nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME --outer-config helm_config.yaml
     if [ "$?" != 0 ]; then
         echo "fail"
         exit 1
@@ -51,7 +51,7 @@ rm -rf ~/sync
 mkdir -p ~/sync
 touch ~/sync/hello_nhctl
 
-echo "entering dev model..."
+echo "entering dev DevMode..."
 nhctl dev start $APPNAME -d $SVCNAME -s ~/sync --debug
 if [ "$?" != 0 ]; then
     echo "fail"
@@ -91,7 +91,7 @@ if [ "$?" != 0 ]; then
 fi
 sleep 3
 
-read -p "press any key to end dev..." no
+read -p "press any key to end DevMode..." no
 nhctl dev end $APPNAME -d $SVCNAME --debug
 if [ "$?" != 0 ]; then
     echo "fail"
