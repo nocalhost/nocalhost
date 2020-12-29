@@ -743,7 +743,12 @@ func (a *Application) SaveSvcConfig(svcName string, config *ServiceDevOptions) e
 	if svcPro != nil {
 		svcPro.ServiceDevOptions = config
 	}
-	fmt.Printf("%+v\n", svcPro)
+	fmt.Printf("%+v\n", svcPro.ServiceDevOptions)
+	if len(svcPro.ServiceDevOptions.PersistentVolumeDirs) > 0 {
+		for _, pvc := range svcPro.ServiceDevOptions.PersistentVolumeDirs {
+			fmt.Printf("+%v\n", pvc)
+		}
+	}
 	return a.AppProfile.Save()
 }
 
