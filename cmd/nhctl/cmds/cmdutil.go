@@ -14,17 +14,13 @@ limitations under the License.
 package cmds
 
 import (
-	"nocalhost/internal/nhctl/nocalhost"
-
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 )
 
 func InitApp(appName string) {
 	var err error
-	//if settings.Debug {
-	//	log.SetLevel(logrus.DebugLevel)
-	//}
 
 	if !nocalhost.CheckIfApplicationExist(appName) {
 		log.Fatalf("application \"%s\" not found", appName)
@@ -42,11 +38,10 @@ func CheckIfSvcExist(svcName string) {
 
 	exist, err := nocalhostApp.CheckIfSvcExist(svcName, app.Deployment)
 	if err != nil {
-		log.FatalE(err,"failed to check if svc exists")
+		log.Fatalf("failed to check if svc exists: %s", err.Error())
 	} else if !exist {
 		log.Fatalf("\"%s\" not found", svcName)
 	}
-
 }
 
 func InitAppAndCheckIfSvcExist(appName string, svcName string) {

@@ -55,7 +55,7 @@ const (
 
 type Application struct {
 	Name                     string
-	Config                   *NocalHostAppConfig //  this should not be nil
+	config                   *NocalHostAppConfig //  this should not be nil
 	NewConfig                *Config
 	AppProfile               *AppProfile // runtime info, this will not be nil
 	client                   *clientgoutils.ClientGoUtils
@@ -195,8 +195,8 @@ func (a *Application) InitDir() error {
 // Load svcConfig to profile while installing
 func (a *Application) LoadSvcConfigsToProfile() {
 	a.LoadConfig()
-	if len(a.Config.SvcConfigs) > 0 {
-		for _, svcConfig := range a.Config.SvcConfigs {
+	if len(a.config.SvcConfigs) > 0 {
+		for _, svcConfig := range a.config.SvcConfigs {
 			a.LoadConfigToSvcProfile(svcConfig.Name, Deployment)
 		}
 	}
@@ -242,7 +242,7 @@ func (a *Application) LoadConfig() error {
 	config := &NocalHostAppConfig{}
 	if _, err := os.Stat(a.GetConfigPath()); err != nil {
 		if os.IsNotExist(err) {
-			a.Config = config
+			a.config = config
 			return nil
 		} else {
 			return errors.Wrap(err, "fail to load configs")
@@ -256,13 +256,13 @@ func (a *Application) LoadConfig() error {
 	if err != nil {
 		return errors.Wrap(err, err.Error())
 	}
-	a.Config = config
+	a.config = config
 	return nil
 }
 
 func (a *Application) SaveConfig() error {
-	if a.Config != nil {
-		bys, err := yaml.Marshal(a.Config)
+	if a.config != nil {
+		bys, err := yaml.Marshal(a.config)
 		if err != nil {
 			return errors.Wrap(err, err.Error())
 		}
@@ -303,11 +303,11 @@ func (a *Application) DownloadResourcesFromGit(gitUrl string, gitRef string) err
 func (a *Application) GetDependencies() []*SvcDependency {
 	result := make([]*SvcDependency, 0)
 
-	if a.Config == nil {
+	if a.config == nil {
 		return nil
 	}
 
-	svcConfigs := a.Config.SvcConfigs
+	svcConfigs := a.config.SvcConfigs
 	if svcConfigs == nil || len(svcConfigs) == 0 {
 		return nil
 	}
@@ -344,9 +344,9 @@ func (a *Application) GetResourceDir() []string {
 		}
 		return resourcePath
 	}
-	if a.Config != nil {
-		if len(a.Config.ResourcePath) > 0 {
-			for _, path := range a.Config.ResourcePath {
+	if a.config != nil {
+		if len(a.config.ResourcePath) > 0 {
+			for _, path := range a.config.ResourcePath {
 				fullPath := filepath.Join(a.getGitDir(), path)
 				resourcePath = append(resourcePath, fullPath)
 			}
@@ -490,9 +490,9 @@ func (a *Application) getYamlFilesAndDirs(path string) ([]string, []string, erro
 
 func (a *Application) loadSortedPreInstallManifest() {
 	result := make([]string, 0)
-	if a.Config != nil && a.Config.PreInstall != nil {
-		sort.Sort(ComparableItems(a.Config.PreInstall))
-		for _, item := range a.Config.PreInstall {
+	if a.config != nil && a.config.PreInstall != nil {
+		sort.Sort(ComparableItems(a.config.PreInstall))
+		for _, item := range a.config.PreInstall {
 			itemPath := filepath.Join(a.getGitDir(), item.Path)
 			if _, err2 := os.Stat(itemPath); err2 != nil {
 				log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
@@ -690,11 +690,11 @@ func (a *Application) GetType() (AppType, error) {
 	if a.AppProfile != nil && a.AppProfile.AppType != "" {
 		return a.AppProfile.AppType, nil
 	}
-	if a.Config == nil {
+	if a.config == nil {
 		return "", errors.New("config.yaml not found")
 	}
-	if a.Config.Type != "" {
-		return a.Config.Type, nil
+	if a.config.Type != "" {
+		return a.config.Type, nil
 	}
 	return "", errors.New("can not get app type from config.yaml")
 }
@@ -716,11 +716,11 @@ func (a *Application) GetApplicationSyncDir(deployment string) string {
 
 func (a *Application) GetSvcConfig(svcName string) *ServiceDevOptions {
 	a.LoadConfig() // get the latest config
-	if a.Config == nil {
+	if a.config == nil {
 		return nil
 	}
-	if a.Config.SvcConfigs != nil && len(a.Config.SvcConfigs) > 0 {
-		for _, config := range a.Config.SvcConfigs {
+	if a.config.SvcConfigs != nil && len(a.config.SvcConfigs) > 0 {
+		for _, config := range a.config.SvcConfigs {
 			if config.Name == svcName {
 				return config
 			}
