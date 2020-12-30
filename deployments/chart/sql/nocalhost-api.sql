@@ -72,6 +72,7 @@ CREATE TABLE `clusters` (
   `user_id` int(11) NOT NULL DEFAULT 0,
   `server` varchar(500) NOT NULL DEFAULT '',
   `kubeconfig` text NOT NULL,
+  `storage_class` varchar(100) NOT NULL DEFAULT '' COMMENT '指定的存储类名称，用于持久化',
   `info` text DEFAULT NULL COMMENT '集群额外信息JSON、Kubernetes 版本、Node 节点之类',
   `deleted_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
@@ -92,6 +93,7 @@ CREATE TABLE `clusters_users` (
   `application_id` int(11) NOT NULL COMMENT '应用 ID',
   `cluster_id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
+  `space_name` varchar(100) DEFAULT NULL COMMENT '开发空间名，默认应用名[用户名]',
   `kubeconfig` text DEFAULT NULL COMMENT 'serviceAccount',
   `memory` int(11) DEFAULT NULL COMMENT '内存限制',
   `cpu` int(11) DEFAULT NULL COMMENT 'CPU 限制',
@@ -164,7 +166,7 @@ LOCK TABLES `users` WRITE;
 
 INSERT INTO `users` (`id`, `uuid`, `username`, `name`, `password`, `avatar`, `phone`, `email`, `is_admin`, `status`, `deleted_at`, `created_at`, `updated_at`)
 VALUES
-	(1,'36882544-3bf5-4065-86a7-9b2188d71a1b','','Admin','$2a$10$XkuHQPH9jJ6GZ3GL9IR8U.7xN0gH6zSiO5fIQIfESZ8eagPo/Jnii','',0,'admin@admin.com',1,1,NULL,'2020-10-13 16:22:20','2020-10-13 16:22:20');
+	(1,'36882544-3bf5-4065-86a7-9b2188d71a1b','Admin','Admin','$2a$10$XkuHQPH9jJ6GZ3GL9IR8U.7xN0gH6zSiO5fIQIfESZ8eagPo/Jnii','',0,'admin@admin.com',1,1,NULL,'2020-10-13 16:22:20','2020-10-13 16:22:20');
 
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;

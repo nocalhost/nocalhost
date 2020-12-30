@@ -649,7 +649,98 @@
                 }
             }
         },
+        "/v1/cluster/kubeconfig/storage_class": {
+            "post": {
+                "description": "Get cluster storageClass from create cluster",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Get cluster storageClass from create cluster",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "The cluster info",
+                        "name": "createCluster",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster.StorageClassRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "include kubeconfig",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster.StorageClassResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/cluster/{id}": {
+            "put": {
+                "description": "Update cluster",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Update cluster",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cluster ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "The cluster info",
+                        "name": "createCluster",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster.UpdateClusterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "include kubeconfig",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterModel"
+                        }
+                    }
+                }
+            },
             "delete": {
                 "description": "Delete the cluster completely",
                 "consumes": [
@@ -816,6 +907,46 @@
                 }
             }
         },
+        "/v1/cluster/{id}/storage_class": {
+            "get": {
+                "description": "Get cluster storageClass from cluster list",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Get cluster storageClass from cluster list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cluster ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "include kubeconfig",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster.StorageClassResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/dev_space/{id}": {
             "put": {
                 "description": "Update dev space",
@@ -904,6 +1035,46 @@
                 }
             }
         },
+        "/v1/dev_space/{id}/recreate": {
+            "post": {
+                "description": "delete devSpace and create a new one",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "ReCreate devSpace",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "DevSpace ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterModel"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/login": {
             "post": {
                 "description": "Web and plug-in login",
@@ -969,6 +1140,39 @@
                 }
             }
         },
+        "/v1/nocalhost/templates": {
+            "get": {
+                "description": "get nocalhost config template",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "get nocalhost config template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":{\"template\":\"\"}}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/plugin/applications": {
             "get": {
                 "description": "Plug-in access to applications (including installation status)",
@@ -997,6 +1201,46 @@
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.PluginApplicationModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugin/{id}/recreate": {
+            "post": {
+                "description": "Plugin delete devSpace and create a new one",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Plug-in"
+                ],
+                "summary": "Plugin ReCreate devSpace",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "DevSpace ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterModel"
                         }
                     }
                 }
@@ -1267,7 +1511,7 @@
             "properties": {
                 "context": {
                     "type": "string",
-                    "example": "{\"application_url\":\"git@github.com:nocalhost/bookinfo.git\",\"application_name\":\"应用名\",\"source\":\"git/helm_repo\",\"install_type\":\"manifest/helm_chart\",\"resource_dir\":\"路径\"}"
+                    "example": "{\"application_url\":\"git@github.com:nocalhost/bookinfo.git\",\"application_name\":\"name\",\"source\":\"git/helm_repo\",\"install_type\":\"rawManifest/helm_chart\",\"resource_dir\":[\"manifest/templates\"],\"nocalhost_config_raw\":\"base64encode(config_templates)\",\"nocalhost_config_path\":\"./nocalhost/config.yaml\"}"
                 },
                 "status": {
                     "type": "integer"
@@ -1298,6 +1542,37 @@
                 },
                 "name": {
                     "type": "string"
+                },
+                "storage_class": {
+                    "type": "string"
+                }
+            }
+        },
+        "cluster.StorageClassRequest": {
+            "type": "object",
+            "properties": {
+                "kubeconfig": {
+                    "type": "string",
+                    "example": "base64encode(value)"
+                }
+            }
+        },
+        "cluster.StorageClassResponse": {
+            "type": "object",
+            "properties": {
+                "type_name": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "cluster.UpdateClusterRequest": {
+            "type": "object",
+            "properties": {
+                "storage_class": {
+                    "type": "string"
                 }
             }
         },
@@ -1316,6 +1591,9 @@
                 },
                 "memory": {
                     "type": "integer"
+                },
+                "space_name": {
+                    "type": "string"
                 },
                 "user_id": {
                     "type": "integer"
@@ -1389,6 +1667,9 @@
                 "not_ready_message": {
                     "type": "string"
                 },
+                "storage_class": {
+                    "type": "string"
+                },
                 "user_id": {
                     "type": "integer"
                 },
@@ -1422,6 +1703,9 @@
                 "server": {
                     "type": "string"
                 },
+                "storage_class": {
+                    "type": "string"
+                },
                 "user_id": {
                     "type": "integer"
                 }
@@ -1452,6 +1736,9 @@
                     "type": "integer"
                 },
                 "namespace": {
+                    "type": "string"
+                },
+                "space_name": {
                     "type": "string"
                 },
                 "status": {
@@ -1492,8 +1779,14 @@
                 "namespace": {
                     "type": "string"
                 },
+                "space_name": {
+                    "type": "string"
+                },
                 "status": {
                     "type": "integer"
+                },
+                "storage_class": {
+                    "type": "string"
                 }
             }
         },
@@ -1558,6 +1851,9 @@
                 "id": {
                     "type": "integer"
                 },
+                "is_admin": {
+                    "type": "integer"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -1571,6 +1867,7 @@
             "required": [
                 "confirm_password",
                 "email",
+                "is_admin",
                 "name",
                 "password",
                 "status"
@@ -1581,6 +1878,9 @@
                 },
                 "email": {
                     "type": "string"
+                },
+                "is_admin": {
+                    "type": "integer"
                 },
                 "name": {
                     "type": "string"
@@ -1629,11 +1929,15 @@
         "user.UpdateUserRequest": {
             "type": "object",
             "required": [
+                "is_admin",
                 "status"
             ],
             "properties": {
                 "email": {
                     "type": "string"
+                },
+                "is_admin": {
+                    "type": "integer"
                 },
                 "name": {
                     "type": "string"

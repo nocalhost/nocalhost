@@ -14,6 +14,7 @@ limitations under the License.
 package cluster_user
 
 import (
+	"encoding/json"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
@@ -51,11 +52,37 @@ func Create(c *gin.Context) {
 	userId := cast.ToUint64(req.UserId)
 	webUserId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
+	// get user
+	usersRecord, err := service.Svc.UserSvc().GetUserByID(c, userId)
+	if err != nil {
+		api.SendResponse(c, errno.ErrUserNotFound, nil)
+		return
+	}
+
 	// check application
-	if _, err := service.Svc.ApplicationSvc().Get(c, applicationId, webUserId.(uint64)); err != nil {
+	applicationRecord, err := service.Svc.ApplicationSvc().Get(c, applicationId, webUserId.(uint64))
+	if err != nil {
 		api.SendResponse(c, errno.ErrPermissionApplication, nil)
 		return
 	}
+
+	var decodeApplicationJson map[string]interface{}
+	err = json.Unmarshal([]byte(applicationRecord.Context), &decodeApplicationJson)
+	if err != nil {
+		api.SendResponse(c, errno.ErrApplicationJsonContext, nil)
+		return
+	}
+
+	applicationName := ""
+	if decodeApplicationJson["application_name"] != nil {
+		applicationName = decodeApplicationJson["application_name"].(string)
+	}
+
+	spaceName := applicationName + "[" + usersRecord.Name + "]"
+	if req.SpaceName != "" {
+		spaceName = req.SpaceName
+	}
+
 	// check cluster
 	clusterData, err := service.Svc.ClusterSvc().Get(c, *req.ClusterId, webUserId.(uint64))
 	if err != nil {
@@ -92,7 +119,7 @@ func Create(c *gin.Context) {
 		return
 	}
 
-	result, err := service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId, *req.Memory, *req.Cpu, KubeConfigYaml, devNamespace)
+	result, err := service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId, *req.Memory, *req.Cpu, KubeConfigYaml, devNamespace, spaceName)
 	if err != nil {
 		log.Warnf("create ApplicationCluster err: %v", err)
 		api.SendResponse(c, errno.ErrBindApplicationClsuter, nil)

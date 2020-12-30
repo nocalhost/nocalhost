@@ -18,6 +18,10 @@ spec:
       containers:
         - name: nocalhost-dep
           image: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep:latest
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2048Mi
           imagePullPolicy: Always
           # dev mode
           #command: ["/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/server", "--"]
@@ -47,3 +51,23 @@ spec:
         - name: webhook-config
           configMap:
             name: sidecar-injector-webhook-configmap
+---
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nocalhost-dep-hpa-tke
+  namespace: nocalhost-reserved
+  labels:
+    app: nocalhost-dep
+spec:
+  maxReplicas: 5
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nocalhost-dep
+  metrics:
+    - type: Pods
+      pods:
+        metricName: k8s_pod_rate_cpu_core_used_request
+        targetAverageValue: "80"

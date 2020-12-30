@@ -14,11 +14,13 @@ limitations under the License.
 package cluster
 
 import (
+	"encoding/base64"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"sync"
 )
@@ -219,4 +221,79 @@ func GetSpaceDetail(c *gin.Context) {
 		return
 	}
 	api.SendResponse(c, nil, result)
+}
+
+// @Summary Get cluster storageClass from cluster list
+// @Description Get cluster storageClass from cluster list
+// @Tags Cluster
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path string true "Cluster ID"
+// @Success 200 {object} cluster.StorageClassResponse "include kubeconfig"
+// @Router /v1/cluster/{id}/storage_class [get]
+func GetStorageClass(c *gin.Context) {
+	userId, _ := c.Get("userId")
+	clusterKey := c.Param("id")
+	var kubeConfig []byte
+	if clusterKey == "kubeconfig" {
+		var req StorageClassRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			api.SendResponse(c, errno.ErrBind, nil)
+			return
+		}
+		if req.KubeConfig == "" {
+			api.SendResponse(c, errno.ErrParam, nil)
+			return
+		}
+		var err error
+		if req.KubeConfig != "" {
+			kubeConfig, err = base64.StdEncoding.DecodeString(req.KubeConfig)
+			if err != nil {
+				api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+				return
+			}
+		}
+	} else {
+		cluster, err := service.Svc.ClusterSvc().Get(c, cast.ToUint64(clusterKey), userId.(uint64))
+		if err != nil {
+			api.SendResponse(c, errno.ErrClusterNotFound, nil)
+			return
+		}
+		kubeConfig = []byte(cluster.KubeConfig)
+	}
+
+	// new client go
+	clientGo, err := clientgo.NewGoClient(kubeConfig)
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		return
+	}
+	storageClassList, err := clientGo.GetStorageClassList()
+	if err != nil {
+		api.SendResponse(c, errno.ErrGetClusterStorageClass, nil)
+		return
+	}
+	var typeName []string
+	for _, st := range storageClassList.Items {
+		typeName = append(typeName, st.Name)
+	}
+	response := StorageClassResponse{
+		TypeName: typeName,
+	}
+	api.SendResponse(c, nil, response)
+	return
+}
+
+// @Summary Get cluster storageClass from create cluster
+// @Description Get cluster storageClass from create cluster
+// @Tags Cluster
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param createCluster body cluster.StorageClassRequest true "The cluster info"
+// @Success 200 {object} cluster.StorageClassResponse "include kubeconfig"
+// @Router /v1/cluster/kubeconfig/storage_class [post]
+func GetStorageClassByKubeConfig(c *gin.Context) {
+	GetStorageClass(c)
 }
