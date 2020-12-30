@@ -20,12 +20,12 @@ import (
 )
 
 func init() {
-	devRunCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
-	debugCmd.AddCommand(devRunCmd)
+	devHotReloadRunCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
+	debugCmd.AddCommand(devHotReloadRunCmd)
 }
 
-var devRunCmd = &cobra.Command{
-	Use:   "run [NAME]",
+var devHotReloadRunCmd = &cobra.Command{
+	Use:   "hot-reload-run [NAME]",
 	Short: "Run your code in dev container",
 	Long:  `Run your code in dev container`,
 	Args: func(cmd *cobra.Command, args []string) error {
@@ -42,11 +42,11 @@ var devRunCmd = &cobra.Command{
 			log.Fatalf("%s is not in DevMode", deployment)
 		}
 		profile := nocalhostApp.GetSvcProfile(deployment)
-		if profile == nil || len(profile.RunCommand) == 0 {
-			log.Fatal("run command not defined")
+		if profile == nil || len(profile.HotReloadRunCommand) == 0 {
+			log.Fatal("hot reload run command not defined")
 		}
 
-		err := nocalhostApp.Exec(deployment, profile.RunCommand)
+		err := nocalhostApp.Exec(deployment, profile.HotReloadRunCommand)
 		if err != nil {
 			log.Fatalf("fail to exec : %s", err.Error())
 		}

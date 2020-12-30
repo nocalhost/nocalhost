@@ -20,14 +20,14 @@ import (
 )
 
 func init() {
-	devRunCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
-	debugCmd.AddCommand(devRunCmd)
+	devDebugCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
+	debugCmd.AddCommand(devDebugCmd)
 }
 
-var devRunCmd = &cobra.Command{
-	Use:   "run [NAME]",
-	Short: "Run your code in dev container",
-	Long:  `Run your code in dev container`,
+var devDebugCmd = &cobra.Command{
+	Use:   "debug [NAME]",
+	Short: "Debug your code in dev container",
+	Long:  `Debug your code in dev container`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
@@ -42,11 +42,11 @@ var devRunCmd = &cobra.Command{
 			log.Fatalf("%s is not in DevMode", deployment)
 		}
 		profile := nocalhostApp.GetSvcProfile(deployment)
-		if profile == nil || len(profile.RunCommand) == 0 {
-			log.Fatal("run command not defined")
+		if profile == nil || len(profile.DebugCommand) == 0 {
+			log.Fatal("debug command not defined")
 		}
 
-		err := nocalhostApp.Exec(deployment, profile.RunCommand)
+		err := nocalhostApp.Exec(deployment, profile.DebugCommand)
 		if err != nil {
 			log.Fatalf("fail to exec : %s", err.Error())
 		}

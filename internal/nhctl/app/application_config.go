@@ -88,17 +88,22 @@ type PersistentVolumeDir struct {
 }
 
 type ServiceDevOptions struct {
-	Name                 string                 `json:"name" yaml:"name"`
-	Type                 SvcType                `json:"serviceType" yaml:"serviceType"`
-	GitUrl               string                 `json:"gitUrl" yaml:"gitUrl"`
-	DevImage             string                 `json:"devContainerImage" yaml:"devContainerImage"`
-	WorkDir              string                 `json:"workDir" yaml:"workDir"`
-	Sync                 []string               `json:"syncDirs" yaml:"syncDirs"`
-	PersistentVolumeDirs []*PersistentVolumeDir `json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
-	Ignore               []string               `json:"ignores" yaml:"ignores"` // TODO Ignore file list
-	DevPort              []string               `json:"devPorts" yaml:"devPorts"`
-	Jobs                 []string               `json:"dependJobsLabelSelector" yaml:"dependJobsLabelSelector,omitempty"`
-	Pods                 []string               `json:"dependPodsLabelSelector" yaml:"dependPodsLabelSelector,omitempty"`
+	Name                  string                 `json:"name" yaml:"name"`
+	Type                  SvcType                `json:"serviceType" yaml:"serviceType"`
+	GitUrl                string                 `json:"gitUrl" yaml:"gitUrl"`
+	DevImage              string                 `json:"devContainerImage" yaml:"devContainerImage"`
+	WorkDir               string                 `json:"workDir" yaml:"workDir"`
+	Sync                  []string               `json:"syncDirs" yaml:"syncDirs"`
+	PersistentVolumeDirs  []*PersistentVolumeDir `json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
+	BuildCommand          []string               `json:"buildCommand,omitempty" yaml:"buildCommand,omitempty"`
+	RunCommand            []string               `json:"runCommand,omitempty" yaml:"runCommand,omitempty"`
+	DebugCommand          []string               `json:"debugCommand,omitempty" yaml:"debugCommand,omitempty"`
+	HotReloadRunCommand   []string               `json:"hotReloadRunCommand,omitempty" yaml:"hotReloadRunCommand,omitempty"`
+	HotReloadDebugCommand []string               `json:"hotReloadDebugCommand,omitempty" yaml:"hotReloadDebugCommand,omitempty"`
+	Ignore                []string               `json:"ignores" yaml:"ignores"` // TODO Ignore file list
+	DevPort               []string               `json:"devPorts" yaml:"devPorts"`
+	Jobs                  []string               `json:"dependJobsLabelSelector" yaml:"dependJobsLabelSelector,omitempty"`
+	Pods                  []string               `json:"dependPodsLabelSelector" yaml:"dependPodsLabelSelector,omitempty"`
 }
 
 type ComparableItems []*PreInstallItem

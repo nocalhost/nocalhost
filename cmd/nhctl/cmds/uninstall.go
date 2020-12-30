@@ -67,10 +67,10 @@ var uninstallCmd = &cobra.Command{
 			// check if there are services in developing state
 			for _, profile := range nhApp.AppProfile.SvcProfile {
 				if profile.Developing {
-					log.Debugf("end %s dev model", profile.ActualName)
+					log.Debugf("end %s DevMode", profile.ActualName)
 					err = nhApp.EndDevelopMode(profile.ActualName)
 					if err != nil {
-						log.Warnf("fail to end %s dev model: %s", err.Error())
+						log.Warnf("fail to end %s DevMode: %s", profile.ActualName, err.Error())
 					}
 				}
 			}
