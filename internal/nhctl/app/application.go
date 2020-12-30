@@ -1302,10 +1302,6 @@ func (a *Application) SetPidFileEmpty(filePath string) error {
 
 func (a *Application) SetDevEndProfileStatus(svcName string) error {
 	a.GetSvcProfile(svcName).Developing = false
-	a.GetSvcProfile(svcName).PortForwarded = false
-	a.GetSvcProfile(svcName).Syncing = false
-	a.GetSvcProfile(svcName).DevPortList = []string{}
-	a.GetSvcProfile(svcName).LocalAbsoluteSyncDirFromDevStartPlugin = []string{}
 	return a.AppProfile.Save()
 }
 
@@ -1314,6 +1310,10 @@ func (a *Application) SetSyncthingPort(svcName string, remotePort, remoteGUIPort
 	a.GetSvcProfile(svcName).RemoteSyncthingGUIPort = remoteGUIPort
 	a.GetSvcProfile(svcName).LocalSyncthingPort = localPort
 	a.GetSvcProfile(svcName).LocalSyncthingGUIPort = localGUIPort
+	a.GetSvcProfile(svcName).PortForwarded = false
+	a.GetSvcProfile(svcName).Syncing = false
+	a.GetSvcProfile(svcName).DevPortList = []string{}
+	a.GetSvcProfile(svcName).LocalAbsoluteSyncDirFromDevStartPlugin = []string{}
 	return a.AppProfile.Save()
 }
 
