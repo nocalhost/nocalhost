@@ -2,14 +2,14 @@ name: nhctl
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
     paths:
     - 'cmd/nhctl/**'
     - 'internal/nhctl/**'
     - 'pkg/nhctl/**'
     - '!*/**.md'
   pull_request:
-    branches: [ main ]
+    branches: [ main, dev ]
   workflow_dispatch:
 
 jobs:
