@@ -43,13 +43,14 @@ var configGetCmd = &cobra.Command{
 		InitApp(commonFlags.AppName)
 
 		if commonFlags.SvcName == "" {
-			if nocalhostApp.Config != nil {
-				bys, err := yaml.Marshal(nocalhostApp.Config)
-				if err != nil {
-					log.FatalE(errors.Wrap(err, ""), "fail to get application config")
-				}
-				fmt.Println(string(bys))
-			}
+			//if nocalhostApp.Config != nil {
+			//	bys, err := yaml.Marshal(nocalhostApp.Config)
+			//	if err != nil {
+			//		log.FatalE(errors.Wrap(err, ""), "fail to get application config")
+			//	}
+			//	fmt.Println(string(bys))
+			//}
+			log.Fatal("--deployment mush be specified")
 		} else {
 			CheckIfSvcExist(commonFlags.SvcName)
 			svcProfile := nocalhostApp.GetSvcProfile(commonFlags.SvcName)

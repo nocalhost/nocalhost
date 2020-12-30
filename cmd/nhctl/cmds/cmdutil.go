@@ -22,9 +22,6 @@ import (
 
 func InitApp(appName string) {
 	var err error
-	//if settings.Debug {
-	//	log.SetLevel(logrus.DebugLevel)
-	//}
 
 	if !nocalhost.CheckIfApplicationExist(appName) {
 		log.Fatalf("application \"%s\" not found", appName)
@@ -42,7 +39,7 @@ func CheckIfSvcExist(svcName string) {
 
 	exist, err := nocalhostApp.CheckIfSvcExist(svcName, app.Deployment)
 	if err != nil {
-		log.FatalE(err,"failed to check if svc exists")
+		log.FatalE(err, "failed to check if svc exists")
 	} else if !exist {
 		log.Fatalf("\"%s\" not found", svcName)
 	}

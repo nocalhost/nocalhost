@@ -25,7 +25,6 @@ import (
 )
 
 var settings *EnvSettings
-//var nh *nocalhost.NocalHost
 var nocalhostApp *app.Application
 
 func init() {
@@ -36,9 +35,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&settings.KubeConfig, "kubeconfig", "", "the path of the kubeconfig file")
 
 	//cobra.OnInitialize(func() {
-	//	var err error
-	//	nh, err = nocalhost.NewNocalHost()
-	//	utils.Mush(err)
 	//})
 }
 
@@ -53,9 +49,9 @@ var rootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		if settings.Debug {
-			log.Init(zapcore.DebugLevel,nocalhost.GetLogDir(),nocalhost.DefaultLogFileName)
-		}else {
-			log.Init(zapcore.InfoLevel,nocalhost.GetLogDir(),nocalhost.DefaultLogFileName)
+			log.Init(zapcore.DebugLevel, nocalhost.GetLogDir(), nocalhost.DefaultLogFileName)
+		} else {
+			log.Init(zapcore.InfoLevel, nocalhost.GetLogDir(), nocalhost.DefaultLogFileName)
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
