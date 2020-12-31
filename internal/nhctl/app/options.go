@@ -36,4 +36,6 @@ type FileSyncOptions struct {
 	LocalSyncthingGUIPort  int
 	RunAsDaemon            bool
 	SyncDouble             bool
+	SyncedPattern          []string
+	IgnoredPattern         []string
 }
