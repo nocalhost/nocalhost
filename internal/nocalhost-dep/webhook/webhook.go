@@ -316,8 +316,12 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 						if dependency.Pods != nil {
 							args := func(podsList []string) []string {
 								var args []string
-								args = append(args, "pod")
-								for _, pod := range podsList {
+								// args = append(args, "sh", "-c")
+								for key, pod := range podsList {
+									if key != 0 {
+										args = append(args, "&&")
+									}
+									args = append(args, "wait_for.sh", "pod")
 									if strings.ContainsAny(pod, "=") { // means define label, such as app.kubernetes.io/name=nginx
 										args = append(args, fmt.Sprintf("-l%s", pod))
 									} else { // has not define label, default app label
@@ -327,19 +331,27 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 								return args
 							}(dependency.Pods)
 
+							waitCmd := strings.Join(args, " ")
+							var cmd []string
+							cmd = append(cmd, "sh", "-c", waitCmd)
+
 							initContainer := corev1.Container{
 								Name:            "wait-for-pods-" + strconv.Itoa(i) + strconv.Itoa(key),
 								Image:           waitImages,
 								ImagePullPolicy: corev1.PullPolicy("Always"),
-								Args:            args,
+								Command:         cmd,
 							}
 							initContainers = append(initContainers, initContainer)
 						}
 						if dependency.Jobs != nil {
 							args := func(jobsList []string) []string {
 								var args []string
-								args = append(args, "job")
-								for _, job := range jobsList {
+								// args = append(args, "sh", "-c")
+								for key, job := range jobsList {
+									if key != 0 {
+										args = append(args, "&&")
+									}
+									args = append(args, "wait_for.sh", "job")
 									if strings.ContainsAny(job, "=") { // means define label, such as app.kubernetes.io/name=nginx
 										args = append(args, fmt.Sprintf("-l%s", job))
 									} else { // has not define label, default app label
@@ -349,11 +361,15 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 								return args
 							}(dependency.Jobs)
 
+							waitCmd := strings.Join(args, " ")
+							var cmd []string
+							cmd = append(cmd, "sh", "-c", waitCmd)
+
 							initContainer := corev1.Container{
 								Name:            "wait-for-jobs-" + strconv.Itoa(i) + strconv.Itoa(key),
 								Image:           waitImages,
 								ImagePullPolicy: corev1.PullPolicy("Always"),
-								Args:            args,
+								Command:         cmd,
 							}
 							initContainers = append(initContainers, initContainer)
 						}
