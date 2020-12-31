@@ -27,7 +27,7 @@ type ClusterModel struct {
 	UserId       uint64     `gorm:"column:user_id;not null" json:"user_id"`
 	Server       string     `gorm:"column:server;not null" json:"server"`
 	KubeConfig   string     `json:"kubeconfig" gorm:"column:kubeconfig;not null" binding:"required"`
-	StorageClass string     `json:"storage_class" gorm:"column:storage_class;not null"`
+	StorageClass string     `json:"storage_class" gorm:"column:storage_class;not null;type:VARCHAR(100);comment:'empty means use default storage class'"`
 	CreatedAt    time.Time  `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt    time.Time  `gorm:"column:updated_at" json:"-"`
 	DeletedAt    *time.Time `gorm:"column:deleted_at" json:"-"`
