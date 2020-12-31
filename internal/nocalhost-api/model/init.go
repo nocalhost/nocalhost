@@ -72,3 +72,8 @@ func openDB(username, password, addr, name string) *gorm.DB {
 func GetDB() *gorm.DB {
 	return DB
 }
+
+// MigrateDB
+func MigrateDB() {
+	DB.AutoMigrate(&ApplicationModel{}, &ClusterModel{}, &ClusterUserModel{}, &PrePullModel{}, &UserBaseModel{})
+}
