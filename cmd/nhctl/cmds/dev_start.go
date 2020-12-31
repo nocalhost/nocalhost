@@ -71,8 +71,6 @@ var devStartCmd = &cobra.Command{
 
 		//nocalhostApp.LoadConfigToSvcProfile(deployment, app.Deployment)
 
-		// check storage class
-
 		devStartOps.Kubeconfig = settings.KubeConfig
 		log.Info("starting DevMode...")
 
@@ -125,6 +123,7 @@ var devStartCmd = &cobra.Command{
 
 		err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps)
 		if err != nil {
+			// todo: rollback somethings
 			log.FatalE(err, "failed to replace dev container")
 		}
 		// set profile sync port
