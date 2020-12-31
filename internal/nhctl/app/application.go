@@ -1312,6 +1312,14 @@ func (a *Application) SetSyncthingPort(svcName string, remotePort, remoteGUIPort
 	a.GetSvcProfile(svcName).RemoteSyncthingGUIPort = remoteGUIPort
 	a.GetSvcProfile(svcName).LocalSyncthingPort = localPort
 	a.GetSvcProfile(svcName).LocalSyncthingGUIPort = localGUIPort
+	return a.AppProfile.Save()
+}
+
+func (a *Application) SetSyncthingProfileEndStatus(svcName string) error {
+	a.GetSvcProfile(svcName).RemoteSyncthingPort = 0
+	a.GetSvcProfile(svcName).RemoteSyncthingGUIPort = 0
+	a.GetSvcProfile(svcName).LocalSyncthingPort = 0
+	a.GetSvcProfile(svcName).LocalSyncthingGUIPort = 0
 	a.GetSvcProfile(svcName).PortForwarded = false
 	a.GetSvcProfile(svcName).Syncing = false
 	a.GetSvcProfile(svcName).DevPortList = []string{}

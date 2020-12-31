@@ -23,9 +23,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-
-
-func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error{
+func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 	var err error
 	fileSyncOps := &FileSyncOptions{}
 	devStartOptions := &DevStartOptions{}
@@ -93,7 +91,8 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error{
 
 	// set profile status
 	// set port-forward port and ignore result
-	err = a.SetSyncthingPort(svcName, 0, 0, 0, 0)
+	// err = a.SetSyncthingPort(svcName, 0, 0, 0, 0)
+	err = a.SetSyncthingProfileEndStatus(svcName)
 	return err
 }
 
