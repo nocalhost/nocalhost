@@ -226,6 +226,8 @@ func (a *Application) InitConfig(outerConfigPath string, configName string) erro
 			return err
 		}
 	}
+	a.AppProfile.AppType = a.config.Type
+	a.AppProfile.ResourcePath = a.config.ResourcePath
 	return nil
 }
 

@@ -48,8 +48,11 @@ fi
 
 
 rm -rf ~/sync
-mkdir -p ~/sync
-touch ~/sync/hello_nhctl
+mkdir -p ~/sync/test
+touch ~/sync/test/hello_nhctl
+touch ~/sync/nosync.txt
+touch ~/sync/sync.txt
+touch ~/sync/test/nosync.txt
 
 echo "entering dev DevMode..."
 nhctl dev start $APPNAME -d $SVCNAME -s ~/sync --debug
@@ -67,7 +70,7 @@ fi
 sleep 3
 
 echo "executing command..."
-EXEC_OUTPUT=$(nhctl exec $APPNAME -d $SVCNAME -c ls)
+EXEC_OUTPUT=$(nhctl exec $APPNAME -d $SVCNAME -c ls -c test/)
 if [ "$?" != 0 ]; then
     echo "fail"
     exit 1

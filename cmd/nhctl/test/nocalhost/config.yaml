@@ -31,6 +31,10 @@ services:
       - path: /home/pvc01
         capacity: "15Gi"
       - path: /home/pvc02
+    syncedPattern:
+      - ./
+    ignoredPattern:
+      - nosync.txt
   - name: ratings
     serviceType: deployment
     gitUrl: https://github.com/nocalhost/bookinfo-ratings.git
