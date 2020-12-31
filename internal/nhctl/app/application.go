@@ -17,7 +17,12 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
+	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/utils"
+	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/tools"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -27,14 +32,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
-
-	"nocalhost/internal/nhctl/coloredoutput"
-	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/internal/nhctl/utils"
-	"nocalhost/pkg/nhctl/clientgoutils"
-	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/tools"
 
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/apps/v1"
@@ -335,6 +332,8 @@ func (a *Application) IsManifest() bool {
 	return a.AppProfile.AppType == Manifest
 }
 
+// Get local path of resource dirs
+// If resource path undefined, use git url
 func (a *Application) GetResourceDir() []string {
 	var resourcePath []string
 	if a.AppProfile != nil && len(a.AppProfile.ResourcePath) != 0 {
@@ -344,17 +343,17 @@ func (a *Application) GetResourceDir() []string {
 		}
 		return resourcePath
 	}
-	if a.config != nil {
-		if len(a.config.ResourcePath) > 0 {
-			for _, path := range a.config.ResourcePath {
-				fullPath := filepath.Join(a.getGitDir(), path)
-				resourcePath = append(resourcePath, fullPath)
-			}
-		}
-		return resourcePath
-	} else {
-		return []string{a.getGitDir()}
-	}
+	//if a.config != nil {
+	//if len(a.config.ResourcePath) > 0 {
+	//	for _, path := range a.config.ResourcePath {
+	//		fullPath := filepath.Join(a.getGitDir(), path)
+	//		resourcePath = append(resourcePath, fullPath)
+	//	}
+	//}
+	//return resourcePath
+	//} else {
+	return []string{a.getGitDir()}
+	//}
 }
 
 type HelmFlags struct {
@@ -366,15 +365,6 @@ type HelmFlags struct {
 	RepoName string
 	RepoUrl  string
 	Version  string
-}
-
-func (a *Application) InstallManifest() error {
-	var err error
-	a.preInstall()
-
-	// install manifest recursively, don't install pre-install workload again
-	err = a.installManifestRecursively()
-	return errors.Wrap(err, "")
 }
 
 func (a *Application) loadInstallManifest() {
@@ -414,21 +404,6 @@ func (a *Application) ignoredInInstall(manifest string) bool {
 		}
 	}
 	return false
-}
-
-func (a *Application) installManifestRecursively() error {
-	a.loadInstallManifest()
-	fmt.Printf("installManifest len %d \n", len(a.installManifest))
-	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForCreate(a.installManifest, a.GetNamespace(), true)
-		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			return errors.Wrap(err, err.Error())
-		}
-	} else {
-		log.Warn("nothing need to be installed ??")
-	}
-	return nil
 }
 
 func (a *Application) uninstallManifestRecursively() error {
@@ -505,11 +480,11 @@ func (a *Application) loadSortedPreInstallManifest() {
 }
 
 func (a *Application) preInstall() {
-	fmt.Println("run pre-install....")
 
 	a.loadSortedPreInstallManifest()
 
 	if len(a.sortedPreInstallManifest) > 0 {
+		log.Info("run pre-install....")
 		for _, item := range a.sortedPreInstallManifest {
 			err := a.client.Create(item, a.GetNamespace(), true, false)
 			if err != nil {
@@ -517,7 +492,6 @@ func (a *Application) preInstall() {
 			}
 		}
 	}
-	//return files, nil
 }
 
 func (a *Application) cleanPreInstall() {
@@ -530,173 +504,20 @@ func (a *Application) cleanPreInstall() {
 	}
 }
 
-func (a *Application) InstallHelmInRepo(releaseName string, flags *HelmFlags) error {
-	commonParams := make([]string, 0)
-	if a.GetNamespace() != "" {
-		commonParams = append(commonParams, "--namespace", a.GetNamespace())
-	}
-	if a.GetKubeconfig() != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
-	}
-	if flags.Debug {
-		commonParams = append(commonParams, "--debug")
-	}
-
-	chartName := flags.Chart
-	installParams := []string{"install", releaseName}
-	if flags.Wait {
-		installParams = append(installParams, "--wait")
-	}
-	//if installFlags.HelmRepoUrl
-	if flags.RepoUrl != "" {
-		installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
-	} else if flags.RepoName != "" {
-		installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
-	}
-	if flags.Version != "" {
-		installParams = append(installParams, "--version", flags.Version)
-	}
-
-	if len(flags.Set) > 0 {
-		for _, set := range flags.Set {
-			installParams = append(installParams, "--set", set)
-		}
-	}
-	if flags.Values != "" {
-		installParams = append(installParams, "-f", flags.Values)
-	}
-	installParams = append(installParams, "--timeout", "60m")
-	installParams = append(installParams, commonParams...)
-
-	fmt.Println("install helm application, this may take several minutes, please waiting...")
-
-	_, err := tools.ExecCommand(nil, true, "helm", installParams...)
-	if err != nil {
-		return err
-	}
-	a.AppProfile.ReleaseName = releaseName
-	a.AppProfile.Save()
-	fmt.Printf(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`+"\n", a.GetNamespace())
-	return nil
-}
-
-func (a *Application) InstallHelmInGit(releaseName string, flags *HelmFlags) error {
-	resourcesPath := a.GetResourceDir()
-	if len(resourcesPath) == 0 {
-		log.Fatalf("resourcesPath does not define")
-	}
-	commonParams := make([]string, 0)
-	if a.GetNamespace() != "" {
-		commonParams = append(commonParams, "-n", a.GetNamespace())
-	}
-	if a.GetKubeconfig() != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
-	}
-	if flags.Debug {
-		commonParams = append(commonParams, "--debug")
-	}
-
-	params := []string{"install", releaseName, resourcesPath[0]}
-	if flags.Wait {
-		params = append(params, "--wait")
-	}
-	if len(flags.Set) > 0 {
-		for _, set := range flags.Set {
-			params = append(params, "--set", set)
-		}
-	}
-	if flags.Values != "" {
-		params = append(params, "-f", flags.Values)
-	}
-	params = append(params, "--timeout", "60m")
-	params = append(params, commonParams...)
-
-	fmt.Println("building dependency...")
-	depParams := []string{"dependency", "build", resourcesPath[0]}
-	depParams = append(depParams, commonParams...)
-	_, err := tools.ExecCommand(nil, true, "helm", depParams...)
-	if err != nil {
-		fmt.Printf("fail to build dependency for helm app, err: %v\n", err)
-		return err
-	}
-
-	fmt.Println("install helm application, this may take several minutes, please waiting...")
-	_, err = tools.ExecCommand(nil, true, "helm", params...)
-	if err != nil {
-		fmt.Printf("fail to install helm nocalhostApp, err:%v\n", err)
-		return err
-	}
-	a.AppProfile.ReleaseName = releaseName
-	a.AppProfile.Save()
-	fmt.Printf(`helm application installed, use "helm list -n %s" to get the information of the helm release`+"\n", a.GetNamespace())
-	return nil
-}
-
-func (a *Application) InstallDepConfigMap(appType AppType) error {
-	appDep := a.GetDependencies()
-	if appDep != nil {
-		var depForYaml = &struct {
-			Dependency  []*SvcDependency `json:"dependency" yaml:"dependency"`
-			ReleaseName string           `json:"releaseName" yaml:"releaseName"`
-		}{
-			Dependency: appDep,
-		}
-		// release name a.Name
-		if appType != Manifest {
-			depForYaml.ReleaseName = a.Name
-		}
-		yamlBytes, err := yaml.Marshal(depForYaml)
-		if err != nil {
-			return errors.Wrap(err, "")
-		}
-
-		dataMap := make(map[string]string, 0)
-		dataMap["nocalhost"] = string(yamlBytes)
-
-		configMap := &corev1.ConfigMap{
-			Data: dataMap,
-		}
-
-		var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
-		rand.Seed(time.Now().UnixNano())
-		b := make([]rune, 4)
-		for i := range b {
-			b[i] = letterRunes[rand.Intn(len(letterRunes))]
-		}
-		generateName := fmt.Sprintf("nocalhost-depends-do-not-overwrite-%s", string(b))
-		configMap.Name = generateName
-		if configMap.Labels == nil {
-			configMap.Labels = make(map[string]string, 0)
-		}
-		configMap.Labels["use-for"] = "nocalhost-dep"
-		_, err = a.client.ClientSet.CoreV1().ConfigMaps(a.GetNamespace()).Create(context.TODO(), configMap, metav1.CreateOptions{})
-		if err != nil {
-			fmt.Errorf("fail to create dependency config %s\n", configMap.Name)
-			return errors.Wrap(err, "")
-		} else {
-			a.AppProfile.DependencyConfigMapName = configMap.Name
-			a.AppProfile.Save()
-		}
-	}
-	log.Info("dependency configmap installed")
-	return nil
-}
-
 func (a *Application) GetNamespace() string {
 	return a.AppProfile.Namespace
 }
 
-func (a *Application) GetType() (AppType, error) {
-	if a.AppProfile != nil && a.AppProfile.AppType != "" {
-		return a.AppProfile.AppType, nil
-	}
-	if a.config == nil {
-		return "", errors.New("config.yaml not found")
-	}
-	if a.config.Type != "" {
-		return a.config.Type, nil
-	}
-	return "", errors.New("can not get app type from config.yaml")
+func (a *Application) GetType() AppType {
+	//if a.AppProfile != nil && a.AppProfile.AppType != "" {
+	return a.AppProfile.AppType
+	//}
+	//if a.config == nil {
+	//	return "", errors.New("config.yaml not found")
+	//}
+	//if a.config.Type != "" {
+	//	return a.config.Type, nil
+	//}
 }
 
 func (a *Application) GetKubeconfig() string {
@@ -1359,11 +1180,6 @@ func (a *Application) SetDevelopingStatus(svcName string, is bool) error {
 	return a.AppProfile.Save()
 }
 
-func (a *Application) SetInstalledStatus(is bool) error {
-	a.AppProfile.Installed = is
-	return a.AppProfile.Save()
-}
-
 func (a *Application) SetAppType(t AppType) error {
 	a.AppProfile.AppType = t
 	return a.AppProfile.Save()
@@ -1389,14 +1205,9 @@ func (a *Application) SetSyncingStatus(svcName string, is bool) error {
 
 func (a *Application) Uninstall(force bool) error {
 
-	if a.AppProfile.DependencyConfigMapName != "" {
-		log.Debugf("delete config map %s\n", a.AppProfile.DependencyConfigMapName)
-		err := a.client.DeleteConfigMapByName(a.AppProfile.DependencyConfigMapName, a.AppProfile.Namespace)
-		if err != nil && !force {
-			return err
-		}
-		a.AppProfile.DependencyConfigMapName = ""
-		a.AppProfile.Save()
+	err := a.cleanUpDepConfigMap()
+	if err != nil && !force {
+		return err
 	}
 
 	if a.IsHelm() {
@@ -1432,7 +1243,7 @@ func (a *Application) Uninstall(force bool) error {
 		}
 	}
 
-	err := a.CleanupResources()
+	err = a.CleanupResources()
 	if err != nil && !force {
 		return err
 	}

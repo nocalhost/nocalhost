@@ -14,11 +14,12 @@ limitations under the License.
 package cmds
 
 import (
+	"context"
 	"fmt"
-	"nocalhost/internal/nhctl/nocalhost"
 	"os"
 
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
@@ -27,10 +28,9 @@ import (
 
 type InstallFlags struct {
 	*EnvSettings
-	GitUrl  string // resource url
-	GitRef  string
-	AppType string
-	//ResourcesDir  string
+	GitUrl           string // resource url
+	GitRef           string
+	AppType          string
 	HelmValueFile    string
 	ForceInstall     bool
 	IgnorePreInstall bool
@@ -80,9 +80,6 @@ var installCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
-		//if settings.Debug {
-		//	log.SetLevel(logrus.DebugLevel)
-		//}
 		applicationName := args[0]
 		if installFlags.GitUrl == "" && installFlags.AppType != string(app.HelmRepo) {
 			log.Fatalf("if app type is not %s , --git-url must be specified", app.HelmRepo)
@@ -154,13 +151,12 @@ func InstallApplication(applicationName string) error {
 	}
 	nocalhostApp.AppProfile.Save()
 
-	appType, err := nocalhostApp.GetType()
+	appType := nocalhostApp.GetType()
 	if appType == "" {
 		return errors.New("--type must be specified")
 	}
 
 	flags := &app.HelmFlags{
-		//Debug:  installFlags.Debug,
 		Values:   installFlags.HelmValueFile,
 		Set:      installFlags.HelmSet,
 		Wait:     installFlags.HelmWait,
@@ -169,28 +165,11 @@ func InstallApplication(applicationName string) error {
 		RepoName: installFlags.HelmRepoName,
 		Version:  installFlags.HelmRepoVersion,
 	}
-	err = nocalhostApp.InstallDepConfigMap(appType)
-	if err != nil {
-		return errors.Wrap(err, "failed to install dep config map")
-	}
-	switch appType {
-	case app.Helm:
-		err = nocalhostApp.InstallHelmInGit(applicationName, flags)
-	case app.HelmRepo:
-		err = nocalhostApp.InstallHelmInRepo(applicationName, flags)
-	case app.Manifest:
-		err = nocalhostApp.InstallManifest()
-	default:
-		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", app.Helm, app.HelmRepo, app.Manifest))
-	}
+
+	err = nocalhostApp.Install(context.TODO(), flags)
 	if err != nil {
 		return err
 	}
 
-	nocalhostApp.SetAppType(appType)
-	err = nocalhostApp.SetInstalledStatus(true)
-	if err != nil {
-		return errors.New("failed to update \"installed\" status")
-	}
 	return nil
 }
