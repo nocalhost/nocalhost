@@ -96,23 +96,23 @@ var installCmd = &cobra.Command{
 			}
 		}
 		if nocalhost.CheckIfApplicationExist(applicationName) {
-			log.Fatalf("application \"%s\" already exists", applicationName)
+			log.Fatalf("Application \"%s\" already exists", applicationName)
 		}
 
-		log.Info("installing application...")
+		log.Info("Installing application...")
 		err = InstallApplication(applicationName)
 		if err != nil {
-			fmt.Printf("failed to install application : %s\n", err.Error())
-			log.Debug("failed to install application, clean up resources...")
+			log.Warnf("Failed to install application : %s", err.Error())
+			log.Debug("Cleaning up resources...")
 			err = nocalhost.CleanupAppFiles(applicationName)
 			if err != nil {
-				fmt.Errorf("failed to clean up:%v", err)
+				log.Errorf("Failed to clean up: %v", err)
 			} else {
-				log.Debug("resources have been clean up")
+				log.Debug("Resources have been clean up")
 			}
 			os.Exit(-1)
 		} else {
-			fmt.Printf("application \"%s\" installed\n", applicationName)
+			log.Infof("Application %s installed", applicationName)
 		}
 	},
 }

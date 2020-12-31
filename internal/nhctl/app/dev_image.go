@@ -198,7 +198,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 				log.Infof("No PVC for %s found, trying to create one...", persistentVolume.Path)
 				pvc, err = a.createPvcForPersistentVolumeDir(ctx, persistentVolume, labels, ops.StorageClass)
 				if err != nil || pvc == nil {
-					continue
+					return errors.New("Failed to create pvc for " + persistentVolume.Path)
 				}
 				claimName = pvc.Name
 			}
@@ -327,7 +327,7 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 	var pvcBounded bool
 	var errorMes string
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 30; i++ {
 		time.Sleep(time.Second * 2)
 		pvc, err = a.client.GetPvcByName(ctx, a.GetNamespace(), pvc.Name)
 		if err != nil {
@@ -337,7 +337,6 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 		if pvc.Status.Phase == corev1.ClaimBound {
 			log.Infof("pvc %s has bounded to a pv", pvc.Name)
 			pvcBounded = true
-			//break
 			return pvc, nil
 		} else {
 			if len(pvc.Status.Conditions) > 0 {
@@ -360,11 +359,12 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 		err = a.client.DeletePVC(a.GetNamespace(), pvc.Name)
 		if err != nil {
 			log.Warnf("fail to clean pvc %s", pvc.Name)
+			return nil, err
 		} else {
-			log.Infof("pvc %s clean up", pvc.Name)
+			log.Infof("pvc %s is cleaned up", pvc.Name)
 		}
 	}
-	return nil, nil
+	return nil, errors.New("Failed to create pvc for " + persistentVolume.Path)
 }
 
 func (a *Application) scaleDeploymentReplicasToOne(ctx context.Context, deployment string) error {
