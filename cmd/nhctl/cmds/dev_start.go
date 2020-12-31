@@ -42,6 +42,9 @@ func init() {
 	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory, same as sync path")
 	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "the StorageClass used by persistent volumes")
 	devStartCmd.Flags().StringVar(&devStartOps.SideCarImage, "sidecar-image", "", "image of nocalhost-sidecar container")
+
+	// for debug only
+	devStartCmd.Flags().StringVar(&devStartOps.SyncthingVersion, "syncthing-version", syncthing.SyncthingVersion, "versions of syncthing and this flag is use for debug only")
 	// LocalSyncDir is local sync directory Absolute path splice by plugin
 	devStartCmd.Flags().StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{}, "local sync directory")
 	debugCmd.AddCommand(devStartCmd)
@@ -74,7 +77,7 @@ var devStartCmd = &cobra.Command{
 		log.Info("starting DevMode...")
 
 		// set dev start ops args
-		// devStartOps.LocalSyncDir is from pulgin by local-sync
+		// devStartOps.LocalSyncDir is from plugin by local-sync
 		var fileSyncOptions = &app.FileSyncOptions{}
 		devStartOps.Namespace = nocalhostApp.AppProfile.Namespace
 		if devStartOps.WorkDir == "" { // command flag not set
@@ -88,7 +91,7 @@ var devStartCmd = &cobra.Command{
 		}
 		// install syncthing
 		if newSyncthing != nil && !newSyncthing.IsInstalled() {
-			err = newSyncthing.DownloadSyncthing()
+			err = newSyncthing.DownloadSyncthing(devStartOps.SyncthingVersion)
 			if err != nil {
 				log.FatalE(err, "failed to download syncthing binary, please try again.")
 			}
@@ -113,6 +116,7 @@ var devStartCmd = &cobra.Command{
 			// TODO dev end should delete syncthing secret
 			log.Fatalf("failed to create syncthing secret, please try to delete \"%s\" secret first manually.", syncthing.SyncSecretName)
 		}
+
 		// set profile sync dir
 		err = nocalhostApp.SetLocalAbsoluteSyncDirFromDevStartPlugin(deployment, devStartOps.LocalSyncDir)
 		if err != nil {
