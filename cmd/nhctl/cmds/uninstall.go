@@ -42,9 +42,7 @@ var uninstallCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		//if settings.Debug {
-		//	log.SetLevel(logrus.DebugLevel)
-		//}
+
 		applicationName := args[0]
 		if !nocalhost.CheckIfApplicationExist(applicationName) {
 			log.Fatalf("application \"%s\" not found", applicationName)

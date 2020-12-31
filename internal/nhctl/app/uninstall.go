@@ -11,14 +11,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nocalhost
+package app
 
-import (
-	"testing"
+import "nocalhost/pkg/nhctl/log"
 
-	"nocalhost/cmd/nhctl/cmds"
-)
+func (a *Application) cleanUpDepConfigMap() error {
 
-func TestListApplications(t *testing.T) {
-	cmds.ListApplications()
+	if a.AppProfile.DependencyConfigMapName != "" {
+		log.Debugf("delete config map %s", a.AppProfile.DependencyConfigMapName)
+		err := a.client.DeleteConfigMapByName(a.AppProfile.DependencyConfigMapName, a.AppProfile.Namespace)
+		if err != nil {
+			return err
+		}
+		a.AppProfile.DependencyConfigMapName = ""
+		a.AppProfile.Save()
+	}
+	return nil
 }
