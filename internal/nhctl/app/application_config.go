@@ -93,7 +93,7 @@ type ServiceDevOptions struct {
 	GitUrl                string                 `json:"gitUrl" yaml:"gitUrl"`
 	DevImage              string                 `json:"devContainerImage" yaml:"devContainerImage"`
 	WorkDir               string                 `json:"workDir" yaml:"workDir"`
-	Sync                  []string               `json:"syncDirs" yaml:"syncDirs"`
+	Sync                  []string               `json:"syncDirs" yaml:"syncDirs,omitempty"`
 	PersistentVolumeDirs  []*PersistentVolumeDir `json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
 	BuildCommand          []string               `json:"buildCommand,omitempty" yaml:"buildCommand,omitempty"`
 	RunCommand            []string               `json:"runCommand,omitempty" yaml:"runCommand,omitempty"`
@@ -104,6 +104,8 @@ type ServiceDevOptions struct {
 	DevPort               []string               `json:"devPorts" yaml:"devPorts"`
 	Jobs                  []string               `json:"dependJobsLabelSelector" yaml:"dependJobsLabelSelector,omitempty"`
 	Pods                  []string               `json:"dependPodsLabelSelector" yaml:"dependPodsLabelSelector,omitempty"`
+	SyncedPattern         []string               `json:"syncedPattern" yaml:"syncedPattern"`
+	IgnoredPattern        []string               `json:"ignoredPattern" yaml:"ignoredPattern"`
 }
 
 type ComparableItems []*PreInstallItem

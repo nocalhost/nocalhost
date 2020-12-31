@@ -29,6 +29,8 @@ import (
 func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartOptions, fileSyncOptions *FileSyncOptions) (*syncthing.Syncthing, error) {
 	var err error
 
+	svcConfig := a.GetSvcProfile(deployment)
+
 	// for file-sync, it should directly use ports defined in .profile.yaml
 	remotePort := fileSyncOptions.RemoteSyncthingPort
 	remoteGUIPort := fileSyncOptions.RemoteSyncthingGUIPort
@@ -91,8 +93,13 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 		IgnoreDelete:     true,
 		Folders:          []*syncthing.Folder{},
 		RescanInterval:   "300",
+
+		// from nhctl config edit
+		SyncedPattern:  svcConfig.SyncedPattern,
+		IgnoredPattern: svcConfig.IgnoredPattern,
 	}
 
+	// TODO, warn: multi local sync dir is Deprecated, now it's implement by IgnoreFiles
 	// before creating syncthing sidecar, it need to know how many directories it should sync
 	index := 1
 	for _, sync := range devStartOptions.LocalSyncDir {

@@ -99,3 +99,13 @@ const ConfigXML = `<configuration version="32">
     <crashReportingEnabled>false</crashReportingEnabled>
 </options>
 </configuration>`
+
+const IgnoredFileTemplate = `// Ignored pattern block, the priority of ignored pattern is highest, default is ""
+{{.ignoredPattern}}
+
+// Synced pattern block, default is "!**"
+{{.syncedPattern}}
+
+// ignored all for basic, and it's lowest priority
+**
+`

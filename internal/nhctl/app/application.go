@@ -287,7 +287,7 @@ func (a *Application) DownloadResourcesFromGit(gitUrl string, gitRef string) err
 			gitDirName = gitUrl
 		}
 		strs := strings.Split(gitDirName, "/")
-		gitDirName = strs[len(strs)-1] // todo : for default application anme
+		gitDirName = strs[len(strs)-1] // todo : for default application name
 		if len(gitRef) > 0 {
 			_, err = tools.ExecCommand(nil, true, "git", "clone", "--branch", gitRef, "--depth", "1", gitUrl, a.getGitDir())
 		} else {
@@ -1020,13 +1020,14 @@ func (a *Application) GetPluginDescription(service string) string {
 					DevImage:                               value.DevImage,
 					WorkDir:                                value.WorkDir,
 					Sync:                                   value.Sync,
-					Ignore:                                 value.Ignore,
 					DevPort:                                value.DevPort,
 					Developing:                             value.Developing,
 					PortForwarded:                          value.PortForwarded,
 					Syncing:                                value.Syncing,
 					LocalAbsoluteSyncDirFromDevStartPlugin: value.LocalAbsoluteSyncDirFromDevStartPlugin,
 					DevPortList:                            value.DevPortList,
+					SyncedPatterns:                         value.SyncedPatterns,
+					IgnoredPatterns:                        value.IgnoredPatterns,
 				}
 				svcProfileForPlugin = append(svcProfileForPlugin, rows)
 			}
@@ -1059,7 +1060,6 @@ func (a *Application) GetPluginDescription(service string) string {
 				DevImage:                               svcProfile.DevImage,
 				WorkDir:                                svcProfile.WorkDir,
 				Sync:                                   svcProfile.Sync,
-				Ignore:                                 svcProfile.Ignore,
 				DevPort:                                svcProfile.DevPort,
 				Name:                                   svcProfile.Name,
 				Developing:                             svcProfile.Developing,
@@ -1067,6 +1067,8 @@ func (a *Application) GetPluginDescription(service string) string {
 				Syncing:                                svcProfile.Syncing,
 				LocalAbsoluteSyncDirFromDevStartPlugin: svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin,
 				DevPortList:                            svcProfile.DevPortList,
+				SyncedPatterns:                         svcProfile.SyncedPatterns,
+				IgnoredPatterns:                        svcProfile.IgnoredPatterns,
 			}
 			result := &PluginGetApplicationService{
 				Name:                    a.Name,
