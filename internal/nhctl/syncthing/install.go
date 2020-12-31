@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	getter "github.com/hashicorp/go-getter"
@@ -119,6 +120,11 @@ func (s *Syncthing) Install(version string, p getter.ProgressTracker) error {
 		}
 	}
 
+	// fix if ~/.nh/nhctl/bin/syncthing not exist
+	if err := os.MkdirAll((GetDir(i)), 0700); err != nil {
+		return fmt.Errorf("failed mkdir for %s: %s", i, err)
+	}
+
 	if err := CopyFile(b, i); err != nil {
 		return fmt.Errorf("failed to write %s: %s", i, err)
 	}
@@ -145,6 +151,10 @@ func CopyFile(from, to string) error {
 	}
 
 	return nil
+}
+
+func GetDir(path string) string {
+	return path[:strings.LastIndex(path, string(os.PathSeparator))]
 }
 
 func FileExists(name string) bool {

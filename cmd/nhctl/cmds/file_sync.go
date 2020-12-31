@@ -40,6 +40,8 @@ func init() {
 	fileSyncCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.RunAsDaemon, "daemon", "m", true, "if file sync run as daemon")
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false, "if use double side sync")
+	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.SyncedPattern, "synced-pattern", "s", []string{}, "local synced pattern")
+	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.IgnoredPattern, "ignored-pattern", "i", []string{}, "local ignored pattern")
 	rootCmd.AddCommand(fileSyncCmd)
 }
 
@@ -161,6 +163,15 @@ var fileSyncCmd = &cobra.Command{
 		devStartOptions, err = nocalhostApp.GetSyncthingLocalDirFromProfileSaveByDevStart(deployment, devStartOptions)
 		if err != nil {
 			log.Fatalf("failed to get syncthing local dir")
+		}
+
+		// Getting pattern from svc profile first
+		profile := nocalhostApp.GetSvcProfile(deployment)
+		if len(fileSyncOps.IgnoredPattern) == 0 {
+			fileSyncOps.IgnoredPattern = profile.IgnoredPattern
+		}
+		if len(fileSyncOps.SyncedPattern) == 0 {
+			fileSyncOps.SyncedPattern = profile.SyncedPattern
 		}
 
 		// TODO
