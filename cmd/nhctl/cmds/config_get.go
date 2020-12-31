@@ -15,6 +15,7 @@ package cmds
 
 import (
 	"fmt"
+	"nocalhost/internal/nhctl/app"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -26,6 +27,10 @@ import (
 func init() {
 	configGetCmd.Flags().StringVarP(&commonFlags.SvcName, "deployment", "d", "", "k8s deployment which your developing service exists")
 	configCmd.AddCommand(configGetCmd)
+}
+
+type ConfigForPlugin struct {
+	Services []*app.ServiceDevOptions `json:"services" yaml:"services"`
 }
 
 var configGetCmd = &cobra.Command{
@@ -50,7 +55,17 @@ var configGetCmd = &cobra.Command{
 			//	}
 			//	fmt.Println(string(bys))
 			//}
-			log.Fatal("--deployment mush be specified")
+			config := &ConfigForPlugin{}
+			config.Services = make([]*app.ServiceDevOptions, 0)
+			for _, svcPro := range nocalhostApp.AppProfile.SvcProfile {
+				config.Services = append(config.Services, svcPro.ServiceDevOptions)
+			}
+			bys, err := yaml.Marshal(config)
+			if err != nil {
+				log.FatalE(errors.Wrap(err, ""), "fail to get application config")
+			}
+			fmt.Println(string(bys))
+
 		} else {
 			CheckIfSvcExist(commonFlags.SvcName)
 			svcProfile := nocalhostApp.GetSvcProfile(commonFlags.SvcName)

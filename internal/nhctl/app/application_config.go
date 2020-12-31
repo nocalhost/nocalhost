@@ -100,6 +100,7 @@ type ServiceDevOptions struct {
 	DebugCommand          []string               `json:"debugCommand,omitempty" yaml:"debugCommand,omitempty"`
 	HotReloadRunCommand   []string               `json:"hotReloadRunCommand,omitempty" yaml:"hotReloadRunCommand,omitempty"`
 	HotReloadDebugCommand []string               `json:"hotReloadDebugCommand,omitempty" yaml:"hotReloadDebugCommand,omitempty"`
+	DevContainerShell     string                 `json:"devContainerShell" yaml:"devContainerShell"`
 	Ignore                []string               `json:"ignores" yaml:"ignores"` // TODO Ignore file list
 	DevPort               []string               `json:"devPorts" yaml:"devPorts"`
 	Jobs                  []string               `json:"dependJobsLabelSelector" yaml:"dependJobsLabelSelector,omitempty"`
