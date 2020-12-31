@@ -22,7 +22,6 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
-	"nocalhost/internal/nhctl/nocalhost"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,8 +37,7 @@ import (
 )
 
 var (
-	configTemplate      = template.Must(template.New("syncthingConfig").Parse(local.ConfigXML))
-	ignoredFileTemplate = template.Must(template.New("ignoredFileTemplate").Parse(local.IgnoredFileTemplate))
+	configTemplate = template.Must(template.New("syncthingConfig").Parse(local.ConfigXML))
 )
 
 const (
@@ -52,7 +50,6 @@ const (
 	keyFile          = "key.pem"
 	configFile       = "config.xml"
 	LogFile          = "syncthing.log"
-	IgnoredFIle      = ".nhignore"
 	syncthingPidFile = "syncthing.pid"
 	DefaultSyncMode  = "sendreceive" // default sync mode
 	SendOnlySyncMode = "sendonly"    // default sync mode
@@ -112,8 +109,6 @@ type Syncthing struct {
 	SyncthingBackGroundPid   int          `yaml:"-"`
 	pid                      int          `yaml:"-"`
 	RescanInterval           string       `yaml:"-"`
-	SyncedPattern            []string     `yaml:"-"`
-	IgnoredPattern           []string     `yaml:"-"`
 }
 
 // move to nocalhost/internal/nhctl/app
@@ -292,50 +287,6 @@ func (s *Syncthing) UpdateConfig() error {
 	return nil
 }
 
-// Generate s.LocalHome/.nhignore by file sync option
-func (s *Syncthing) generateIgnoredFileConfig() (string, error) {
-	var ignoreFilePath = filepath.Join(s.LocalHome, IgnoredFIle)
-
-	var syncedPatternAdaption = make([]string, len(s.SyncedPattern))
-	for i, synced := range s.SyncedPattern {
-		var afterAdapt = synced
-
-		// previews version support such this syntax
-		if synced == "." {
-			afterAdapt = "**"
-		}
-
-		if strings.Index(synced, "./") == 0 {
-			afterAdapt = synced[1:]
-		}
-
-		syncedPatternAdaption[i] = "!" + afterAdapt
-	}
-
-	if len(syncedPatternAdaption) == 0 {
-		syncedPatternAdaption = []string{"!**"}
-	}
-
-	var values = map[string]string{
-		"ignoredPattern": strings.Join(s.IgnoredPattern, "\n"),
-		"syncedPattern":  strings.Join(syncedPatternAdaption, "\n"),
-	}
-
-	log.Infof("ignoredPattern: \n"+ values["ignoredPattern"])
-	log.Infof("syncedPattern: \n"+ values["syncedPattern"])
-
-	buf := new(bytes.Buffer)
-	if err := ignoredFileTemplate.Execute(buf, values); err != nil {
-		return "", fmt.Errorf("failed to write .nhignore configuration template: %w", err)
-	}
-
-	if err := ioutil.WriteFile(ignoreFilePath, buf.Bytes(), nocalhost.DefaultNewFilePermission); err != nil {
-		return "", fmt.Errorf("failed to generate .nhignore configuration: %w", err)
-	}
-
-	return ignoreFilePath, nil
-}
-
 // Run local syncthing server
 func (s *Syncthing) Run(ctx context.Context) error {
 	if err := s.initConfig(); err != nil {
@@ -343,12 +294,10 @@ func (s *Syncthing) Run(ctx context.Context) error {
 		return err
 	}
 
-	ignoreFilePath, err := s.generateIgnoredFileConfig()
-
-	if err != nil {
-		log.Warnf("fail to generate ignore file config: %s", err.Error())
-		ignoreFilePath = ""
-	}
+	//val := os.Getenv("STNOUPGRADE")
+	//if val == "1" { // child process
+	//	return nil
+	//}
 
 	pidPath := filepath.Join(s.LocalHome, syncthingPidFile)
 
@@ -358,7 +307,6 @@ func (s *Syncthing) Run(ctx context.Context) error {
 		"-verbose",
 		"-logfile", s.LogPath,
 		"-log-max-old-files=0",
-		"-ignore-file-path=" + ignoreFilePath,
 	}
 	s.cmd = exec.Command(s.BinPath, cmdArgs...) //nolint: gas, gosec
 	s.cmd.Env = append(os.Environ(), "STNOUPGRADE=1")

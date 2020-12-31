@@ -67,19 +67,19 @@ var fileSyncCmd = &cobra.Command{
 			log.Fatalf("\"%s\" has in syncing", deployment)
 		}
 
-		// get dev-start stage record free pod so it do not need get free port again
+		// get dev-start stage record free pod so it do not need get free port agian
 		var devStartOptions = &app.DevStartOptions{}
 		fileSyncOps, err = nocalhostApp.GetSyncthingPort(deployment, fileSyncOps)
 
 		// syncthing port-forward
 		// daemon
 		// set abs directory to call myself
-		nhctlAbsDir, err := exec.LookPath(nocalhostApp.GetMyBinName())
+		NhctlAbsdir, err := exec.LookPath(nocalhostApp.GetMyBinName())
 		if err != nil {
 			log.Fatal("installing fortune is in your future")
 		}
 		// overwrite Args[0] as ABS directory of bin directory
-		os.Args[0] = nhctlAbsDir
+		os.Args[0] = NhctlAbsdir
 
 		// run in background
 		if fileSyncOps.RunAsDaemon {
@@ -155,21 +155,13 @@ var fileSyncCmd = &cobra.Command{
 		fmt.Printf("Port forwarding is ready to get traffic!\n")
 
 		// create new syncthing
-
-		// Deprecated for multi dir sync
-		// On latest version, it only use for specify the sync dir
-		devStartOptions, err = nocalhostApp.GetSyncthingLocalDirFromProfileSaveByDevStart(deployment, devStartOptions)
-		if err != nil {
-			log.Fatalf("failed to get syncthing local dir")
-		}
-
 		// TODO
 		// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished), the files that have been synchronized will not be synchronized.
+		devStartOptions, err = nocalhostApp.GetSyncthingLocalDirFromProfileSaveByDevStart(deployment, devStartOptions)
 		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOptions, fileSyncOps)
 		if err != nil {
 			log.Warnf("new syncthing err: %s", err.Error())
 		}
-
 		// starts up a local syncthing
 		err = newSyncthing.Run(context.TODO())
 		if err != nil {
