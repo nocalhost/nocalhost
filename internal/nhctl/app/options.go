@@ -20,11 +20,6 @@ type DevStartOptions struct {
 	DevLang      string
 	Namespace    string
 	Kubeconfig   string
-
-	// for debug
-	SyncthingVersion string
-
-	// Now it's only use to specify the `root dir` user want to sync
 	LocalSyncDir []string
 	StorageClass string
 }
