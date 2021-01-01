@@ -182,9 +182,9 @@ jobs:
         GITHUB_DEP_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/nocalhost-dep
       run: |
         echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
-        docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_DEP_IMAGE_NAME}:${GITHUB_SHA}
-        docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_DEP_IMAGE_NAME}:latest
-        docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_DEP_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+        docker tag nocalhost-dep:${GITHUB_SHA} ${GITHUB_DEP_IMAGE_NAME}:${GITHUB_SHA}
+        docker tag nocalhost-dep:${GITHUB_SHA} ${GITHUB_DEP_IMAGE_NAME}:latest
+        docker tag nocalhost-dep:${GITHUB_SHA} ${GITHUB_DEP_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
         docker push ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
         docker push ${GITHUB_IMAGE_NAME}:latest
         docker push ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
@@ -194,9 +194,9 @@ jobs:
         CODING_DEP_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep
       run: |
         echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
-        docker tag nocalhost-api:${GITHUB_SHA} ${CODING_DEP_IMAGE_NAME}:${GITHUB_SHA}
-        docker tag nocalhost-api:${GITHUB_SHA} ${CODING_DEP_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
-        docker tag nocalhost-api:${GITHUB_SHA} ${CODING_DEP_IMAGE_NAME}:latest
+        docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_DEP_IMAGE_NAME}:${GITHUB_SHA}
+        docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_DEP_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+        docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_DEP_IMAGE_NAME}:latest
         docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
         docker push ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
         docker push ${CODING_IMAGE_NAME}:latest
