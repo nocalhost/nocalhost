@@ -477,6 +477,7 @@ func (q *ApiRequest) AddUser(email, password, name string) *ApiRequest {
 		"password":         password,
 		"status":           1,
 		"confirm_password": password,
+		"is_admin":         0,
 	}
 	header := req.Header{
 		"Accept":        "application/json",
