@@ -50,7 +50,7 @@ jobs:
           docker push ${GITHUB_IMAGE_NAME}:dev
 
       - name: Push to Coding Artifacts
-        if: ${{ github.ref == 'refs/heads/main' && github.repository == 'nocalhost/nocalhost' }}
+        if: ${{ github.repository == 'nocalhost/nocalhost' }}
         env:
           CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-api
         run: |
