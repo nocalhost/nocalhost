@@ -1,6 +1,10 @@
 name: dep-docker
 
 on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
   workflow_dispatch:
 
 jobs:
@@ -47,3 +51,12 @@ jobs:
           echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
           docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
           docker push ${CODING_IMAGE_NAME}:latest
+
+      - name: Push latest tag to Coding Artifacts
+          if: ${{ github.ref == 'refs/heads/main' && github.repository == 'nocalhost/nocalhost' }}
+          env:
+            CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep
+          run: |
+            echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
+            docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_REF##*/}
+            docker push ${CODING_IMAGE_NAME}:${GITHUB_REF##*/}

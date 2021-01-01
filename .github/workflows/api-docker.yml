@@ -75,3 +75,12 @@ jobs:
           echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
           docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:dev
           docker push ${CODING_IMAGE_NAME}:dev
+
+      - name: Push latest tag to Coding Artifacts
+          if: ${{ github.ref == 'refs/heads/main' && github.repository == 'nocalhost/nocalhost' }}
+          env:
+            CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-api
+          run: |
+            echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
+            docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_REF##*/}
+            docker push ${CODING_IMAGE_NAME}:${GITHUB_REF##*/}
