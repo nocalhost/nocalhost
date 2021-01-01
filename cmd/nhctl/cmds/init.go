@@ -325,9 +325,11 @@ func setComponentDockerImageVersion(params *[]string) {
 	// main branch, means use version for docker images
 	// Branch will set by make nhctl
 	if Branch == app.DefaultNocalhostMainBranch {
+		log.Infof("Init nocalhost component with release %s", Version)
 		*params = append(*params, "--set", "api.image.tag", Version)
 		*params = append(*params, "--set", "web.image.tag", Version)
 	} else {
+		log.Infof("Init nocalhost component with dev %s, but nocalhost-web with dev tag only", GitCommit)
 		*params = append(*params, "--set", "api.image.tag", GitCommit)
 		// because of web image and api has different commitID, so take latest dev tag
 		*params = append(*params, "--set", "web.image.tag", "dev")
