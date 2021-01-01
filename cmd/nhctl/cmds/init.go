@@ -333,8 +333,8 @@ func setComponentDockerImageVersion(params *[]string) {
 		*params = append(*params, "--set", "api.image.tag", Version)
 		*params = append(*params, "--set", "web.image.tag", Version)
 	} else {
-		log.Infof("Init nocalhost component with dev %s, but nocalhost-web with dev tag only", GitCommit)
-		*params = append(*params, "--set", "api.image.tag", GitCommit)
+		log.Infof("Init nocalhost component with dev %s, but nocalhost-web with dev tag only", DevGitCommit)
+		*params = append(*params, "--set", "api.image.tag", DevGitCommit)
 		// because of web image and api has different commitID, so take latest dev tag
 		*params = append(*params, "--set", "web.image.tag", "dev")
 	}
@@ -348,7 +348,7 @@ func setDepComponentDockerImage(kubectl, kubeConfig string) {
 	tag := Version
 	// Branch will set by make nhctl
 	if Branch == app.DefaultNocalhostMainBranch {
-		tag = GitCommit
+		tag = DevGitCommit
 	}
 	params := []string{
 		"set",
