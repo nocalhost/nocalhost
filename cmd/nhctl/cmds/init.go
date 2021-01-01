@@ -285,8 +285,6 @@ var InitCommand = &cobra.Command{
 		if inits.InjectUserTemplate != "" && inits.InjectUserAmount > 0 {
 			_ = req.SetInjectBatchUserTemplate(inits.InjectUserTemplate).InjectBatchDevSpace(inits.InjectUserAmount, inits.InjectUserAmountOffset)
 		}
-		// change dep images tag
-		setDepComponentDockerImage(kubectl, settings.KubeConfig)
 
 		// wait for nocalhost-dep deployment in nocalhost-reserved namespace
 		spinner = utils.NewSpinner(" waiting for Nocalhost-dep ready, this will take a few minutes...")
@@ -295,6 +293,10 @@ var InitCommand = &cobra.Command{
 		if err != nil {
 			log.Fatalf("watch deployment %s timeout, err: %s\n", app.DefaultInitWatchDeployment, err.Error())
 		}
+
+		// change dep images tag
+		setDepComponentDockerImage(kubectl, settings.KubeConfig)
+
 		spinner.Stop()
 		if kubeResult.Minikube {
 			// use default DefaultInitMiniKubePortForwardPort port-forward
@@ -347,7 +349,7 @@ func setDepComponentDockerImage(kubectl, kubeConfig string) {
 	}
 	tag := Version
 	// Branch will set by make nhctl
-	if Branch == app.DefaultNocalhostMainBranch {
+	if Branch != app.DefaultNocalhostMainBranch {
 		tag = DevGitCommit
 	}
 	params := []string{
