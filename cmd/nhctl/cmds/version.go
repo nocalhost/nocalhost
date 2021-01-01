@@ -26,6 +26,7 @@ var (
 	Version   = ""
 	GitCommit = ""
 	BuildTime = ""
+	Branch    = ""
 )
 
 func init() {
@@ -47,6 +48,7 @@ var versionCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("nhctl: Nocalhost CLI\n")
 		fmt.Printf("    Version: %s\n", Version)
+		fmt.Printf("    Branch: %s\n", Branch)
 		fmt.Printf("    Git commit: %s\n", GitCommit)
 		fmt.Printf("    Built time: %s\n", reformatDate(BuildTime))
 		fmt.Printf("    Built OS/Arch: %s\n", OsArch)

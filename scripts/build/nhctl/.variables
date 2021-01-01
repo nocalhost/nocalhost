@@ -4,7 +4,7 @@ set -eu
 VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/\(.*\)-.*/\1/' | sed 's/-[0-9]*$//' || true)}
 GITCOMMIT=`git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty`
 BUILDTIME=`date +"%Y-%m-%dT%H:%M:%SZ"`
-
+BRANCH=`git rev-parse --abbrev-ref HEAD`
 
 GOOS="${GOOS:-$(go env GOHOSTOS)}"
 GOARCH="${GOARCH:-$(go env GOHOSTARCH)}"
@@ -20,6 +20,7 @@ export LDFLAGS="\
     -X \"nocalhost/cmd/nhctl/cmds.GitCommit=${GITCOMMIT}\" \
     -X \"nocalhost/cmd/nhctl/cmds.BuildTime=${BUILDTIME}\" \
     -X \"nocalhost/cmd/nhctl/cmds.Version=${VERSION}\" \
+    -X \"nocalhost/cmd/nhctl/cmds.Branch=${BRANCH}\" \
 	-X \"nocalhost/cmd/nhctl/cmds.OsArch=${OS_ARCH}\" \
 "
 export TARGET
