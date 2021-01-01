@@ -329,7 +329,8 @@ func setComponentDockerImageVersion(params *[]string) {
 		*params = append(*params, "--set", "web.image.tag", Version)
 	} else {
 		*params = append(*params, "--set", "api.image.tag", GitCommit)
-		*params = append(*params, "--set", "web.image.tag", GitCommit)
+		// because of web image and api has different commitID, so take latest dev tag
+		*params = append(*params, "--set", "web.image.tag", "dev")
 	}
 }
 
