@@ -103,18 +103,12 @@ var InitCommand = &cobra.Command{
 		if strings.ToLower(inits.Source) == "coding" {
 			nocalhostHelmSource = app.DefaultInitHelmCODINGGitRepo
 		}
-		// version is nocalhost tag
-		gitRef := Version
-		if Branch != app.DefaultNocalhostMainBranch {
-			gitRef = Branch
-		}
+
 		params := []string{
 			"install",
 			app.DefaultInitInstallApplicationName,
 			"-u",
 			nocalhostHelmSource,
-			"-r",
-			gitRef,
 			"--kubeconfig",
 			settings.KubeConfig,
 			"-n",
@@ -322,6 +316,16 @@ var InitCommand = &cobra.Command{
 }
 
 func setComponentDockerImageVersion(params *[]string) {
+	if Branch == "" {
+		return
+	}
+	// set -r with nhctl install
+	// version is nocalhost tag
+	gitRef := Version
+	if Branch != app.DefaultNocalhostMainBranch {
+		gitRef = Branch
+	}
+	*params = append(*params, "-r", gitRef)
 	// main branch, means use version for docker images
 	// Branch will set by make nhctl
 	if Branch == app.DefaultNocalhostMainBranch {
@@ -338,6 +342,9 @@ func setComponentDockerImageVersion(params *[]string) {
 
 // because of dep run latest docker image, so it can only use kubectl set image to set dep docker version same as nhctl version
 func setDepComponentDockerImage(kubectl, kubeConfig string) {
+	if Branch == "" {
+		return
+	}
 	tag := Version
 	// Branch will set by make nhctl
 	if Branch == app.DefaultNocalhostMainBranch {
