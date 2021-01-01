@@ -77,7 +77,7 @@ jobs:
           docker push ${CODING_IMAGE_NAME}:dev
 
       - name: Push latest tag to Coding Artifacts
-          if: ${{ github.ref == 'refs/heads/main' && github.repository == 'nocalhost/nocalhost' }}
+          if: ${{ github.ref == 'refs/heads/main' && github.repository == 'nocalhost/nocalhost' && startsWith(github.ref, 'refs/tags/v')}}
           env:
             CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-api
           run: |
