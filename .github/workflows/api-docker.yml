@@ -3,11 +3,11 @@ name: api-docker
 on:
   push:
     branches: [ main, dev ]
-    paths:
-    - 'cmd/nocalhost-api/**'
-    - 'internal/nocalhost-api/**'
-    - 'pkg/nocalhost-api/**'
-    - '!*/**.md'
+#    paths:
+#    - 'cmd/nocalhost-api/**'
+#    - 'internal/nocalhost-api/**'
+#    - 'pkg/nocalhost-api/**'
+#    - '!*/**.md'
   pull_request:
     branches: [ main, dev ]
   workflow_dispatch:
