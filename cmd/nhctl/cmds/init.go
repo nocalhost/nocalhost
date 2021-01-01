@@ -103,11 +103,18 @@ var InitCommand = &cobra.Command{
 		if strings.ToLower(inits.Source) == "coding" {
 			nocalhostHelmSource = app.DefaultInitHelmCODINGGitRepo
 		}
+		// version is nocalhost tag
+		gitRef := Version
+		if Branch != app.DefaultNocalhostMainBranch {
+			gitRef = Branch
+		}
 		params := []string{
 			"install",
 			app.DefaultInitInstallApplicationName,
 			"-u",
 			nocalhostHelmSource,
+			"-r",
+			gitRef,
 			"--kubeconfig",
 			settings.KubeConfig,
 			"-n",
@@ -117,6 +124,9 @@ var InitCommand = &cobra.Command{
 			"--resource-path",
 			app.DefaultInitHelmResourcePath,
 		}
+		// set install api and web image version
+		setComponentDockerImageVersion(&params)
+
 		if inits.Type != "" {
 			if strings.ToLower(inits.Type) == "nodeport" {
 				inits.Type = "NodePort"
@@ -281,6 +291,8 @@ var InitCommand = &cobra.Command{
 		if inits.InjectUserTemplate != "" && inits.InjectUserAmount > 0 {
 			_ = req.SetInjectBatchUserTemplate(inits.InjectUserTemplate).InjectBatchDevSpace(inits.InjectUserAmount, inits.InjectUserAmountOffset)
 		}
+		// change dep images tag
+		setDepComponentDockerImage(kubectl, settings.KubeConfig)
 
 		// wait for nocalhost-dep deployment in nocalhost-reserved namespace
 		spinner = utils.NewSpinner(" waiting for Nocalhost-dep ready, this will take a few minutes...")
@@ -307,4 +319,39 @@ var InitCommand = &cobra.Command{
 			coloredoutput.Success("Nocalhost init completed. \n Server Url: %s \n Plugin User: \n Username: %s \n Password: %s \n Admin User (Web UI): \n Username: %s \n Password: %s \n please setup VS Code Plugin and login, enjoy! \n", serverUrl, app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord)
 		}
 	},
+}
+
+func setComponentDockerImageVersion(params *[]string) {
+	// main branch, means use version for docker images
+	// Branch will set by make nhctl
+	if Branch == app.DefaultNocalhostMainBranch {
+		*params = append(*params, "--set", "api.image.tag", Version)
+		*params = append(*params, "--set", "web.image.tag", Version)
+	} else {
+		*params = append(*params, "--set", "api.image.tag", GitCommit)
+		*params = append(*params, "--set", "web.image.tag", GitCommit)
+	}
+}
+
+// because of dep run latest docker image, so it can only use kubectl set image to set dep docker version same as nhctl version
+func setDepComponentDockerImage(kubectl, kubeConfig string) {
+	tag := Version
+	// Branch will set by make nhctl
+	if Branch == app.DefaultNocalhostMainBranch {
+		tag = GitCommit
+	}
+	params := []string{
+		"set",
+		"image",
+		"deployment/" + app.DefaultInitWaitDeployment,
+		fmt.Sprintf("%s=%s:%s", app.DefaultInitWaitDeployment, app.DefaultNocalhostDepDockerRegistry, tag),
+		"-n",
+		app.DefaultInitWaitNameSpace,
+		"--kubeconfig",
+		kubeConfig,
+	}
+	_, err := tools.ExecCommand(nil, true, kubectl, params...)
+	if err != nil {
+		log.Warnf("set nocalhost-dep component tag fail, err: %s", err)
+	}
 }
