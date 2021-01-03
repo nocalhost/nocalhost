@@ -65,6 +65,8 @@ tolerations: []
 affinity: {}
 
 mariadb:
+  volumePermissions:
+    enabled: true
   fullnameOverride: nocalhost-mariadb
   commonAnnotations: {"helm.sh/hook":"pre-install","helm.sh/hook-weight":"1"}
   image:
@@ -76,10 +78,6 @@ mariadb:
   primary:
     persistence:
       size: "10Gi"
-    podSecurityContext:
-      enabled: false
-    containerSecurityContext:
-      enabled: false
     customLivenessProbe:
       tcpSocket:
         port: 3306
