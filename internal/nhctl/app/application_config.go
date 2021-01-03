@@ -65,8 +65,8 @@ const (
 	DefaultInitPortForwardTimeOut = time.Minute * 1
 	DefaultInitApplicationGithub  = "{\"source\":\"git\",\"install_type\":\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\",\"application_url\":\"https://github.com/nocalhost/bookinfo.git\"}"
 	DefaultInitApplicationCODING  = "{\"source\":\"git\",\"install_type\":\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\",\"application_url\":\"https://e.coding.net/codingcorp/nocalhost/bookinfo.git\"}"
-	// Init Component Version Control
-	DefaultNocalhostMainBranch        = "main"
+	// Init Component Version Control, HEAD means build from tag
+	DefaultNocalhostMainBranch        = "HEAD"
 	DefaultNocalhostDepDockerRegistry = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep"
 )
 
