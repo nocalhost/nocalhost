@@ -361,6 +361,68 @@ OuterLoop:
 	return result, nil
 }
 
+func (c *ClientGoUtils) ListPodsOfLatestRevisionByDeployment(namespace string, deployName string) ([]corev1.Pod, error) {
+	podClient := c.GetPodClient(namespace)
+
+	podList, err := podClient.List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+
+	result := make([]corev1.Pod, 0)
+
+	// Find the latest revision
+	replicaSets, err := c.GetReplicaSetsControlledByDeployment(context.TODO(), namespace, deployName)
+	if err != nil {
+		log.WarnE(err, "Failed to get replica sets")
+		return nil, err
+	}
+	revisions := make([]int, 0)
+	for _, rs := range replicaSets {
+		if rs.Annotations["deployment.kubernetes.io/revision"] != "" {
+			r, _ := strconv.Atoi(rs.Annotations["deployment.kubernetes.io/revision"])
+			revisions = append(revisions, r)
+		}
+	}
+
+	sort.Ints(revisions)
+
+	latestRevision := revisions[len(revisions)-1]
+
+	var latestRevisionReplicasets *v1.ReplicaSet
+	for _, rs := range replicaSets {
+		if rs.Annotations["deployment.kubernetes.io/revision"] != "" {
+			r, _ := strconv.Atoi(rs.Annotations["deployment.kubernetes.io/revision"])
+			if r == latestRevision {
+				latestRevisionReplicasets = rs
+			}
+		}
+	}
+
+OuterLoop:
+	for _, pod := range podList.Items {
+		if pod.OwnerReferences == nil {
+			continue
+		}
+		for _, ref := range pod.OwnerReferences {
+			if ref.Kind != "ReplicaSet" {
+				continue
+			}
+			//rss, _ := c.GetReplicaSetsControlledByDeployment(context.TODO(), namespace, deployName)
+			//if rss == nil {
+			//	continue
+			//}
+			//for _, rs := range rss {
+			if latestRevisionReplicasets.Name == ref.Name {
+				result = append(result, pod)
+				continue OuterLoop
+			}
+			//}
+		}
+	}
+	return result, nil
+}
+
 func (c *ClientGoUtils) GetSortedReplicaSetsByDeployment(ctx context.Context, namespace string, deployment string) ([]*v1.ReplicaSet, error) {
 	rss, err := c.GetReplicaSetsControlledByDeployment(ctx, namespace, deployment)
 	if err != nil {
@@ -380,7 +442,7 @@ func (c *ClientGoUtils) GetSortedReplicaSetsByDeployment(ctx context.Context, na
 	}
 	return results, nil
 }
-func (c *ClientGoUtils) WaitDeploymentRevisionToBeReady(ctx context.Context, namespace string, name string) error {
+func (c *ClientGoUtils) WaitDeploymentLatestRevisionToBeReady(ctx context.Context, namespace string, name string) error {
 	// Find the latest revision
 	replicaSets, err := c.GetReplicaSetsControlledByDeployment(ctx, namespace, name)
 	if err != nil {
