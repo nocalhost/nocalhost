@@ -76,6 +76,10 @@ mariadb:
   primary:
     persistence:
       size: "10Gi"
+    podSecurityContext:
+      enabled: false
+    containerSecurityContext:
+      enabled: false
     extraVolumes:
     - name: nocalhost-api-sql-config-volume
       configMap:
