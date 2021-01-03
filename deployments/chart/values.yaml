@@ -80,6 +80,22 @@ mariadb:
       enabled: false
     containerSecurityContext:
       enabled: false
+    customLivenessProbe:
+      tcpSocket:
+        port: 3306
+      initialDelaySeconds: 120
+      periodSeconds: 10
+      timeoutSeconds: 1
+      failureThreshold: 1
+      successThreshold: 1
+    customReadinessProbe:
+      tcpSocket:
+        port: 3306
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 1
+      failureThreshold: 1
+      successThreshold: 1
     resources:
       requests:
         memory: 512Mi
