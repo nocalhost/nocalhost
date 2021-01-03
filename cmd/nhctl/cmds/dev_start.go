@@ -109,7 +109,7 @@ var devStartCmd = &cobra.Command{
 				"key.pem":    []byte(secret_config.KeyPEM),
 			},
 		}
-		err = nocalhostApp.CreateSyncThingSecret(syncSecret, devStartOps)
+		err = nocalhostApp.CreateSyncThingSecret(deployment, syncSecret)
 		if err != nil {
 			// TODO dev end should delete syncthing secret
 			log.Fatalf("failed to create syncthing secret, please try to delete \"%s\" secret first manually.", syncthing.SyncSecretName)

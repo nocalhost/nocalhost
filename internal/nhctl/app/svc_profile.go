@@ -25,7 +25,8 @@ type SvcProfile struct {
 	// same as local available port, use for port-forward
 	RemoteSyncthingPort int `json:"remoteSyncthingPort" yaml:"remoteSyncthingPort"`
 	// same as local available port, use for port-forward
-	RemoteSyncthingGUIPort int `json:"remoteSyncthingGUIPort" yaml:"remoteSyncthingGUIPort"`
+	RemoteSyncthingGUIPort int    `json:"remoteSyncthingGUIPort" yaml:"remoteSyncthingGUIPort"`
+	SyncthingSecret        string `json:"syncthingSecret" yaml:"syncthingSecret"` // secret name
 	// syncthing local port
 	LocalSyncthingPort                     int      `json:"localSyncthingPort" yaml:"localSyncthingPort"`
 	LocalSyncthingGUIPort                  int      `json:"localSyncthingGUIPort" yaml:"localSyncthingGUIPort"`

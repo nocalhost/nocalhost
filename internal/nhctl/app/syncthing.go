@@ -14,7 +14,10 @@ limitations under the License.
 package app
 
 import (
+	"context"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/nocalhost"
 	"path/filepath"
 	"strconv"
@@ -93,8 +96,8 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 		RescanInterval:   "300",
 
 		// from nhctl config edit
-		SyncedPattern:    fileSyncOptions.SyncedPattern,
-		IgnoredPattern:   fileSyncOptions.IgnoredPattern,
+		SyncedPattern:  fileSyncOptions.SyncedPattern,
+		IgnoredPattern: fileSyncOptions.IgnoredPattern,
 	}
 
 	// TODO, warn: multi local sync dir is Deprecated, now it's implement by IgnoreFiles
@@ -120,4 +123,23 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 	}
 
 	return s, nil
+}
+
+func (a *Application) CreateSyncThingSecret(svcName string, syncSecret *corev1.Secret) error {
+
+	// check if secret exist
+	exist, err := a.client.GetSecret(context.TODO(), a.GetNamespace(), syncSecret.Name)
+	if exist.Name != "" {
+		_ = a.client.DeleteSecret(context.TODO(), a.GetNamespace(), syncSecret.Name)
+	}
+	sc, err := a.client.CreateSecret(context.TODO(), a.GetNamespace(), syncSecret, metav1.CreateOptions{})
+	if err != nil {
+		// TODO check configmap first, and end dev should delete that secret
+		return err
+		//log.Fatalf("create syncthing secret fail, please try to manual delete %s secret first", syncthing.SyncSecretName)
+	}
+
+	svcPro := a.GetSvcProfile(svcName)
+	svcPro.SyncthingSecret = sc.Name
+	return a.AppProfile.Save()
 }
