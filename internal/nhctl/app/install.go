@@ -47,6 +47,11 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 	}
 	if err != nil {
 		a.cleanUpDepConfigMap() // clean up dep config map
+
+		// Clean up helm release after failed
+		if a.AppProfile.AppType == Helm || a.AppProfile.AppType == HelmRepo {
+
+		}
 		return err
 	}
 
@@ -61,6 +66,10 @@ func (a *Application) InstallManifest() error {
 	// install manifest recursively, don't install pre-install workload again
 	err = a.installManifestRecursively()
 	return errors.Wrap(err, "")
+}
+
+func (a *Application) cleanUpHelmRelease() {
+
 }
 
 func (a *Application) installHelmInRepo(flags *HelmFlags) error {
