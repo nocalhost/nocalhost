@@ -78,6 +78,10 @@ mariadb:
   primary:
     persistence:
       size: "10Gi"
+    livenessProbe:
+      enabled: false
+    readinessProbe:
+      enabled: false
     customLivenessProbe:
       tcpSocket:
         port: 3306
