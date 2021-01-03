@@ -5,6 +5,10 @@ read -p "choose the app type you want test: " type
 
 SVCNAME=details
 
+rm -rf ~/sync
+mkdir -p ~/sync/test
+touch ~/sync/test/hello_nhctl
+
 if [ "$type" == 1 ]; then
     APPNAME=test-manifest-bookinfo-nocalhost-config-01
     kubectl delete ns $APPNAME >> /dev/null
@@ -29,6 +33,10 @@ elif [ "$type" == 2 ]; then
         echo "fail"
         exit 1
     fi
+
+    touch ~/sync/nosync.txt
+    #touch ~/sync/sync.txt
+    touch ~/sync/test/nosync.txt
 elif [ "$type" == 3 ]; then
     APPNAME=test-helm-bookinfo-outer-config-01
     kubectl delete ns $APPNAME >> /dev/null
@@ -45,14 +53,6 @@ elif [ "$type" == 3 ]; then
 else
   exit 0
 fi
-
-
-rm -rf ~/sync
-mkdir -p ~/sync/test
-touch ~/sync/test/hello_nhctl
-touch ~/sync/nosync.txt
-touch ~/sync/sync.txt
-touch ~/sync/test/nosync.txt
 
 echo "entering dev DevMode..."
 nhctl dev start $APPNAME -d $SVCNAME -s ~/sync --debug

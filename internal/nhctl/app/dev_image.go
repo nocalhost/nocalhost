@@ -16,6 +16,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -55,15 +56,6 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	dep, err := a.client.GetDeployment(ctx, a.GetNamespace(), deployment)
 	if err != nil {
 		return err
-	}
-
-	volName := "nocalhost-shared-volume"
-	// shared volume
-	workDirVol := corev1.Volume{
-		Name: volName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
 	}
 
 	// syncthing secret volume
@@ -126,11 +118,6 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 		workDir = ops.WorkDir
 	}
 
-	volMount := corev1.VolumeMount{
-		Name:      volName,
-		MountPath: workDir,
-	}
-
 	// default : replace the first container
 	devImage := a.GetDefaultDevImage(deployment)
 	if ops.DevImage != "" {
@@ -141,7 +128,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	devContainer.Image = devImage
 	devContainer.Name = "nocalhost-dev"
 	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
-	devContainer.VolumeMounts = append(devContainer.VolumeMounts, volMount)
+
 	// delete users SecurityContext
 	dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
 
@@ -164,9 +151,20 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 		Image:      sideCarImage,
 		WorkingDir: workDir,
 	}
-	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, volMount, syncthingVolMount, syncthingVolHomeDirMount)
+	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, syncthingVolMount, syncthingVolHomeDirMount)
+
+	// shared volume
+	volName := "nocalhost-shared-volume"
+	workDirVol := corev1.Volume{
+		Name: volName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
 
 	// add persistent volumes
+	var workDirDefinedInPersistVolume bool // if workDir is specified in persistentVolumeDirs
+	var workDirResideInPersistVolumeDirs bool
 	persistentVolumes := a.GetPersistentVolumeDirs(deployment)
 	if len(persistentVolumes) > 0 {
 		for index, persistentVolume := range persistentVolumes {
@@ -205,13 +203,18 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 
 			// Do not use emptyDir for workDir
 			if persistentVolume.Path == workDir {
+				workDirDefinedInPersistVolume = true
 				workDirVol.EmptyDir = nil
 				workDirVol.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
 					ClaimName: claimName,
 				}
 
-				log.Info("WorkDir uses persistent volume")
+				log.Info("WorkDir uses persistent volume defined in persistVolumeDirs")
 				continue
+			} else if strings.HasPrefix(workDir, persistentVolume.Path) && !workDirDefinedInPersistVolume {
+				log.Infof("workDir:%s resides in the persist dir: %s", workDir, persistentVolume.Path)
+				// No need to mount workDir
+				workDirResideInPersistVolumeDirs = true
 			}
 
 			persistVolName := fmt.Sprintf("persist-volume-%d", index)
@@ -239,7 +242,22 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 		}
 	}
 
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, workDirVol)
+	if workDirDefinedInPersistVolume || !workDirResideInPersistVolumeDirs {
+		if workDirDefinedInPersistVolume {
+			log.Info("Mount workDir to persist volume")
+		} else {
+			log.Info("Mount workDir to emptyDir")
+		}
+		volMount := corev1.VolumeMount{
+			Name:      volName,
+			MountPath: workDir,
+		}
+		devContainer.VolumeMounts = append(devContainer.VolumeMounts, volMount)
+		sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, volMount)
+		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, workDirVol)
+	} else {
+		log.Debug("No need to mount workDir")
+	}
 
 	// over write syncthing command
 	sideCarContainer.Command = []string{"/bin/sh", "-c"}
@@ -248,19 +266,19 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 
 	_, err = a.client.UpdateDeployment(ctx, a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
 	if err != nil {
-		fmt.Printf("update develop container failed : %v \n", err)
+		log.WarnE(err, "Failed to update development container")
 		return err
 	}
 
 	podList, err := a.client.ListPodsOfDeployment(a.GetNamespace(), dep.Name)
 	if err != nil {
-		fmt.Printf("failed to get pods, err: %v\n", err)
+		log.WarnE(err, "Failed to get pods")
 		return err
 	}
 
-	log.Debugf("%d pod found", len(podList)) // should be 2
+	log.Debugf("%d pod(s) found", len(podList)) // should be 2
 
-	// wait podList to be ready
+	// Wait podList to be ready
 	spinner := utils.NewSpinner(" Waiting pod to start...")
 	spinner.Start()
 
@@ -268,35 +286,35 @@ wait:
 	for {
 		podList, err = a.client.ListPodsOfDeployment(a.GetNamespace(), dep.Name)
 		if err != nil {
-			fmt.Printf("failed to get pods, err: %v\n", err)
+			log.WarnE(err, "Failed to get pods")
 			return err
 		}
 		if len(podList) == 1 {
 			pod := podList[0]
 			if pod.Status.Phase != corev1.PodRunning {
-				spinner.Update(fmt.Sprintf("waiting for pod %s to be Running", pod.Name))
+				spinner.Update(fmt.Sprintf("Waiting for pod %s to be running", pod.Name))
 				continue
 			}
 			if len(pod.Spec.Containers) == 0 {
 				log.Fatalf("%s has no container ???", pod.Name)
 			}
 
-			// make sure all containers are ready and running
+			// Make sure all containers are ready and running
 			for _, c := range pod.Spec.Containers {
 				if !isContainerReadyAndRunning(c.Name, &pod) {
-					spinner.Update(fmt.Sprintf("container %s is not ready, waiting...", c.Name))
+					spinner.Update(fmt.Sprintf("Container %s is not ready, waiting...", c.Name))
 					break wait
 				}
 			}
-			spinner.Update("all containers are ready")
+			spinner.Update("All containers are ready")
 			break
 		} else {
-			spinner.Update(fmt.Sprintf("waiting pod to be replaced..."))
+			spinner.Update(fmt.Sprintf("Waiting pod to be replaced..."))
 		}
 		<-time.NewTimer(time.Second * 1).C
 	}
 	spinner.Stop()
-	coloredoutput.Success("development container has been updated")
+	coloredoutput.Success("Development container has been updated")
 	return nil
 }
 
