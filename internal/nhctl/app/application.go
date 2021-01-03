@@ -738,21 +738,6 @@ func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error
 	return false, nil
 }
 
-func (a *Application) CreateSyncThingSecret(syncSecret *corev1.Secret, ops *DevStartOptions) error {
-	// check if secret exist
-	exist, err := a.client.GetSecret(context.TODO(), ops.Namespace, syncSecret.Name)
-	if exist.Name != "" {
-		_ = a.client.DeleteSecret(context.TODO(), ops.Namespace, syncSecret.Name)
-	}
-	_, err = a.client.CreateSecret(context.TODO(), ops.Namespace, syncSecret, metav1.CreateOptions{})
-	if err != nil {
-		// TODO check configmap first, and end dev should delete that secret
-		return err
-		//log.Fatalf("create syncthing secret fail, please try to manual delete %s secret first", syncthing.SyncSecretName)
-	}
-	return nil
-}
-
 func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 	if len(pod.Status.ContainerStatuses) == 0 {
 		return false
