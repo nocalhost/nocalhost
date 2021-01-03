@@ -31,6 +31,8 @@ services:
       - path: /home/pvc01
         capacity: "15Gi"
       - path: /home/pvc02
+      - path: /home
+ #     - path: /home/nocalhost-dev
     syncedPattern:
       - ./
     ignoredPattern:

@@ -629,18 +629,18 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 
 	dep, err := clientUtils.GetDeployment(ctx, a.GetNamespace(), svcName)
 	if err != nil {
-		fmt.Printf("failed to get deployment %s , err : %v\n", dep.Name, err)
 		return err
 	}
 
 	rss, err := clientUtils.GetSortedReplicaSetsByDeployment(ctx, a.GetNamespace(), svcName)
 	if err != nil {
-		fmt.Printf("failed to get rs list, err:%v\n", err)
+		log.WarnE(err, "Failed to get rs list")
 		return err
 	}
-	// find previous replicaSet
+
+	// Find previous replicaSet
 	if len(rss) < 2 {
-		fmt.Println("no history to roll back")
+		log.Warn("no history to roll back")
 		return nil
 	}
 
@@ -649,13 +649,14 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 		if rs.Annotations == nil {
 			continue
 		}
+		// Mark the original revision
 		if rs.Annotations[DevImageFlagAnnotationKey] == DevImageFlagAnnotationValue {
 			r = rs
 		}
 	}
 	if r == nil {
 		if !reset {
-			return errors.New("fail to find the proper revision to rollback")
+			return errors.New("Failed to find the proper revision to rollback")
 		} else {
 			r = rss[0]
 		}
@@ -669,9 +670,9 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 	spinner.Stop()
 	if err != nil {
 		coloredoutput.Fail("Failed to roll revision back")
-		//fmt.Println("failed rolling back")
 	} else {
-		coloredoutput.Success("Container has been rollback")
+		// todo: wait until workload ready
+		coloredoutput.Success("Workload has been rollback")
 	}
 
 	return err
@@ -682,15 +683,6 @@ type PortForwardOptions struct {
 	DevPort     []string // 8080:8080 or :8080 means random localPort
 	RunAsDaemon bool
 }
-
-//func (a *Application) CleanupSshPortForwardInfo(svcName string) error {
-//	svcProfile := a.GetSvcProfile(svcName)
-//	if svcProfile == nil {
-//		return errors.New(fmt.Sprintf("\"%s\" not found", svcName))
-//	}
-//	svcProfile.SshPortForward = nil
-//	return a.AppProfile.Save()
-//}
 
 // svcName use actual name
 // used in installing
