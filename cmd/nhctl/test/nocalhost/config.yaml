@@ -31,9 +31,9 @@ services:
       - path: /home/pvc01
         capacity: "15Gi"
       - path: /home/pvc02
-    syncedPattern:
+    syncFilePattern:
       - ./
-    ignoredPattern:
+    ignoreFilePattern:
       - nosync.txt
   - name: ratings
     serviceType: deployment
