@@ -53,6 +53,6 @@ type SvcProfileForPlugin struct {
 	DevPortList                            []string `json:"devPortList" yaml:"devPortList"`
 
 	// .nhignore's pattern configuration
-	SyncedPatterns  []string `json:"syncedPatterns" yaml:"syncedPatterns"`
-	IgnoredPatterns []string `json:"ignoredPatterns" yaml:"ignoredPatterns"`
+	SyncedPatterns  []string `json:"syncFilePattern" yaml:"syncFilePattern"`
+	IgnoredPatterns []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
 }
