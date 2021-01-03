@@ -1,7 +1,10 @@
 package syncthing
 
 import (
+	"fmt"
 	"io/ioutil"
+	"nocalhost/internal/nhctl/nocalhost"
+	"path/filepath"
 	"testing"
 )
 
@@ -16,4 +19,13 @@ func TestDownLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestNeedToDownload(t *testing.T) {
+	mockedSyncthing := &Syncthing{
+		BinPath: filepath.Join(nocalhost.GetSyncThingBinDir(), "syncthing"),
+	}
+
+	needToDownload := mockedSyncthing.NeedToDownloadSpecifyVersion("")
+	fmt.Printf("need to download: %t  ", needToDownload)
 }
