@@ -4,6 +4,8 @@ set -eu -o pipefail
 VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/\(.*\)-.*/\1/' | sed 's/-[0-9]*$//' || true)}
 GITCOMMIT=`git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty`
 BUILDTIME=`date +"%Y-%m-%dT%H:%M:%SZ"`
+BRANCH=`git rev-parse --abbrev-ref HEAD`
+DEVGITCOMMIT=`git rev-parse HEAD`
 
 SOURCE="nocalhost/cmd/nocalhost-api"
 TARGET="build/nocalhost-api"
@@ -11,6 +13,9 @@ TARGET="build/nocalhost-api"
 export LDFLAGS="\
     -w \
     -X \"main.GIT_COMMIT_SHA=${GITCOMMIT}\" \
+    -X \"internal/nocalhost-api/global.CommitId=${DEVGITCOMMIT}\" \
+    -X \"internal/nocalhost-api/global.Branch=${BRANCH}\" \
+    -X \"internal/nocalhost-api/global.Version=${VERSION}\" \
 
     ${LDFLAGS:-} \
 "

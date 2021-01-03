@@ -1320,3 +1320,18 @@ paths:
       summary: Update user information (including disabled users)
       tags:
       - Users
+  /v1/version:
+    get:
+      consumes:
+      - application/json
+      description: Get api server version
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":{"version":"","commit_id":"","branch":""}}'
+          schema:
+            type: string
+      summary: Get api server version
+      tags:
+      - Version
