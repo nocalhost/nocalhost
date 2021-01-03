@@ -13,16 +13,18 @@ limitations under the License.
 
 package app
 
-type SvcType string
+import "nocalhost/pkg/nhctl/log"
 
-const (
-	Deployment SvcType = "deployment"
+func (a *Application) cleanUpDepConfigMap() error {
 
-	DevImageFlagAnnotationKey   = "nhctl.dev.image.revision"
-	DevImageFlagAnnotationValue = "first"
-
-	AppLabel     = "nocalhost.dev/app"
-	ServiceLabel = "nocalhost.dev/service"
-
-	PersistentVolumeDirLabel = "nocalhost.dev/dir"
-)
+	if a.AppProfile.DependencyConfigMapName != "" {
+		log.Debugf("delete config map %s", a.AppProfile.DependencyConfigMapName)
+		err := a.client.DeleteConfigMapByName(a.AppProfile.DependencyConfigMapName, a.AppProfile.Namespace)
+		if err != nil {
+			return err
+		}
+		a.AppProfile.DependencyConfigMapName = ""
+		a.AppProfile.Save()
+	}
+	return nil
+}

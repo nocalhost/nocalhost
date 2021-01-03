@@ -25,12 +25,12 @@ import (
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
-var outLogger  *zap.SugaredLogger
+var outLogger *zap.SugaredLogger
 var fileEntry *zap.SugaredLogger
 var logFile string
 
 func init() {
-	outLogger = getDefaultOutLogger()  // if log is not be initiated explicitly (use log.Init()), the default out logger will be used.
+	outLogger = getDefaultOutLogger() // if log is not be initiated explicitly (use log.Init()), the default out logger will be used.
 }
 
 func getDefaultOutLogger() *zap.SugaredLogger {
@@ -41,7 +41,7 @@ func getDefaultOutLogger() *zap.SugaredLogger {
 	return zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stdout), zap.InfoLevel)).Sugar()
 }
 
-func Init(level zapcore.Level, dir, fileName string) error{
+func Init(level zapcore.Level, dir, fileName string) error {
 
 	// stdout logger
 	encoderConfig0 := zap.NewProductionEncoderConfig()
@@ -85,7 +85,7 @@ func Debug(args ...interface{}) {
 func Debugf(format string, args ...interface{}) {
 	outLogger.Debugf(format, args...)
 	if fileEntry != nil {
-		fileEntry.Debugf(format,args...)
+		fileEntry.Debugf(format, args...)
 	}
 }
 
@@ -113,19 +113,16 @@ func Warn(args ...interface{}) {
 func Warnf(format string, args ...interface{}) {
 	outLogger.Warnf(format, args...)
 	if fileEntry != nil {
-		fileEntry.Warnf(format,args...)
+		fileEntry.Warnf(format, args...)
 	}
 }
 
-func WarnE(err error, message string){
+func WarnE(err error, message string) {
 	if fileEntry != nil {
-		fileEntry.Warnf("%s, err: %+v",message,err)
+		fileEntry.Warnf("%s, err: %+v", message, err)
 	}
-	if err != nil {
-		outLogger.Warnf("%s, err: %s",message,err.Error())
-	}else {
-		outLogger.Warn(message)
-	}
+
+	outLogger.Warn(fmt.Sprintf("[WARN] %s", message))
 }
 
 func Error(args ...interface{}) {
@@ -138,49 +135,39 @@ func Error(args ...interface{}) {
 func Errorf(format string, args ...interface{}) {
 	outLogger.Errorf(format, args...)
 	if fileEntry != nil {
-		fileEntry.Errorf(format,args...)
+		fileEntry.Errorf(format, args...)
 	}
 }
 
-func ErrorE(err error, message string){
+func ErrorE(err error, message string) {
 	if fileEntry != nil {
-		fileEntry.Errorf("%s, err: %+v",message,err)
+		fileEntry.Errorf("%s, err: %+v", message, err)
 	}
-	if err != nil {
-		outLogger.Errorf("%s, err: %s",message,err.Error())
-	}else {
-		outLogger.Error(message)
-	}
+	outLogger.Errorf("%s\nsee %s for more details", message, logFile)
 }
 
 func Fatal(args ...interface{}) {
 	if fileEntry != nil {
 		fileEntry.Error(args...)
 	}
-	args = append(args, fmt.Sprintf(" see %s for more details",logFile))
+	//args = append(args, fmt.Sprintf("\nsee %s for more details", logFile))
 	outLogger.Fatal(args...)
 }
 
 func Fatalf(format string, args ...interface{}) {
 	if fileEntry != nil {
-		fileEntry.Errorf(format,args...)
+		fileEntry.Errorf(format, args...)
 	}
-	format = fmt.Sprintf("%s, see %s for more details", format, logFile)
+	//format = fmt.Sprintf("%s\n see %s for more details", format, logFile)
 	outLogger.Fatalf(format, args...)
 }
 
 // log with error
-func FatalE(err error, message string){
+func FatalE(err error, message string) {
 
-	if err != nil {
-		outLogger.Errorf("%s, err: %s, see %s for more details",message,err.Error(), logFile)
-	}else {
-		outLogger.Error(message)
-	}
+	outLogger.Errorf("%s\nsee %s for more details", message, logFile)
 
 	if fileEntry != nil {
-		fileEntry.Fatalf("%s, err: %+v",message,err)
+		fileEntry.Fatalf("%s, err: %+v", message, err)
 	}
 }
-
-

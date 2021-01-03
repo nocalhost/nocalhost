@@ -18,40 +18,35 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
 	getter "github.com/hashicorp/go-getter"
 
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/utils"
 )
 
-const syncthingVersion = "1.11.1"
+const SyncthingVersion = "latest"
 
 var (
 	downloadURLs = map[string]string{
-		"linux":   fmt.Sprintf("https://github.com/syncthing/syncthing/releases/download/v%[1]s/syncthing-linux-amd64-v%[1]s.tar.gz", syncthingVersion),
-		"arm64":   fmt.Sprintf("https://github.com/syncthing/syncthing/releases/download/v%[1]s/syncthing-linux-arm64-v%[1]s.tar.gz", syncthingVersion),
-		"darwin":  fmt.Sprintf("https://github.com/syncthing/syncthing/releases/download/v%[1]s/syncthing-macos-amd64-v%[1]s.zip", syncthingVersion),
-		"windows": fmt.Sprintf("https://github.com/syncthing/syncthing/releases/download/v%[1]s/syncthing-windows-amd64-v%[1]s.zip", syncthingVersion),
+		"linux":   "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=%s",
+		"arm64":   "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-arm64.tar.gz?version=%s",
+		"darwin":  "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=%s",
+		"windows": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=%s",
 	}
-
-	minimumVersion = semver.MustParse(syncthingVersion)
-	versionRegex   = regexp.MustCompile(`syncthing v(\d+\.\d+\.\d+) .*`)
 )
 
-func (s *Syncthing) DownloadSyncthing() error {
+func (s *Syncthing) DownloadSyncthing(version string) error {
 	t := time.NewTicker(1 * time.Second)
 	var err error
 	for i := 0; i < 3; i++ {
 		p := &utils.ProgressBar{}
-		err = s.Install(p)
+		err = s.Install(version, p)
 		if err == nil {
 			return nil
 		}
@@ -66,9 +61,9 @@ func (s *Syncthing) DownloadSyncthing() error {
 }
 
 // Install installs syncthing
-func (s *Syncthing) Install(p getter.ProgressTracker) error {
+func (s *Syncthing) Install(version string, p getter.ProgressTracker) error {
 	fmt.Printf("installing syncthing for %s/%s", runtime.GOOS, runtime.GOARCH)
-	downloadURL, err := GetDownloadURL(runtime.GOOS, runtime.GOARCH)
+	downloadURL, err := GetDownloadURL(runtime.GOOS, runtime.GOARCH, version)
 	if err != nil {
 		return err
 	}
@@ -96,8 +91,21 @@ func (s *Syncthing) Install(p getter.ProgressTracker) error {
 		return fmt.Errorf("failed to download syncthing from %s: %s", client.Src, err)
 	}
 
+	dirs, err := ioutil.ReadDir(client.Dst)
+	if err != nil {
+		return err
+	}
+	if len(dirs) != 1 {
+		return fmt.Errorf("download syncthing from %s and extract multi dirs that are not expected", client.Src)
+	}
+
+	info := dirs[0]
+	if !info.IsDir() {
+		return fmt.Errorf("download syncthing from %s and there is an unpredictable error occurred during decompression", client.Src)
+	}
+
 	i := s.BinPath
-	b := getBinaryPathInDownload(dir, downloadURL)
+	b := getBinaryPathInDownload(dir, info.Name())
 
 	if _, err := os.Stat(b); err != nil {
 		return fmt.Errorf("%s didn't include the syncthing binary: %s", downloadURL, err)
@@ -113,11 +121,16 @@ func (s *Syncthing) Install(p getter.ProgressTracker) error {
 		}
 	}
 
+	// fix if ~/.nh/nhctl/bin/syncthing not exist
+	if err := os.MkdirAll((GetDir(i)), 0700); err != nil {
+		return fmt.Errorf("failed mkdir for %s: %s", i, err)
+	}
+
 	if err := CopyFile(b, i); err != nil {
 		return fmt.Errorf("failed to write %s: %s", i, err)
 	}
 
-	fmt.Printf("downloaded syncthing %s to %s\n", syncthingVersion, i)
+	fmt.Printf("downloaded syncthing %s to %s\n", version, i)
 	return nil
 }
 
@@ -141,6 +154,10 @@ func CopyFile(from, to string) error {
 	return nil
 }
 
+func GetDir(path string) string {
+	return path[:strings.LastIndex(path, string(os.PathSeparator))]
+}
+
 func FileExists(name string) bool {
 	_, err := os.Stat(name)
 	if os.IsNotExist(err) {
@@ -159,7 +176,30 @@ func (s *Syncthing) IsInstalled() bool {
 	return !os.IsNotExist(err)
 }
 
-func GetDownloadURL(os, arch string) (string, error) {
+func (s *Syncthing) NeedToDownloadSpecifyVersion(nhctlVersion string) bool {
+	cmdArgs := []string{
+		"-nocalhost",
+	}
+
+	output, err := exec.Command(s.BinPath, cmdArgs...).Output()
+
+	if err != nil {
+		log.Infof("Need to download due to syncthing exec fail, error: %s", err)
+		return true
+	}
+
+	currentSyncthingVersion := strings.TrimSuffix(string(output), "\n")
+	log.Infof("current syncthing version: %s \ncurrent nhctl version: %s", currentSyncthingVersion, nhctlVersion)
+
+	download := currentSyncthingVersion != nhctlVersion
+	if download {
+		log.Infof("need to download syncthing with nocalhost version: " + nhctlVersion)
+	}
+
+	return download
+}
+
+func GetDownloadURL(os, arch, version string) (string, error) {
 	src, ok := downloadURLs[os]
 	if !ok {
 		return "", fmt.Errorf("%s is not a supported platform", os)
@@ -174,14 +214,11 @@ func GetDownloadURL(os, arch string) (string, error) {
 		}
 	}
 
-	return src, nil
+	return fmt.Sprintf(src, version), nil
 }
 
-func getBinaryPathInDownload(dir, url string) string {
-	_, f := path.Split(url)
-	f = strings.TrimSuffix(f, ".tar.gz")
-	f = strings.TrimSuffix(f, ".zip")
-	return filepath.Join(dir, f, GetBinaryName())
+func getBinaryPathInDownload(dir, subdir string) string {
+	return filepath.Join(dir, subdir, GetBinaryName())
 }
 
 func GetBinaryName() string {

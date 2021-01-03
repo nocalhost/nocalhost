@@ -20,6 +20,43 @@ import (
 	"github.com/pkg/errors"
 )
 
+var applicationTpl = `# application name
+# type: string(dns1123)
+# default value: null
+# required
+# uniq
+name: nocalhost
+
+# appplication resource type
+# type: select，options：helmGit/helmRepo/rawManifest/kustomize
+# default value: null
+# required
+manifestType: helmGit 
+
+# Manifest resources path(relative to the root directory)
+# type: string[]
+# default value: ["."]
+# required
+resourcePath: ["deployments/chart"]
+
+# run job before install application
+# type: object[]
+# default value: []
+# optional
+onPreInstall:
+  # type: string
+  # default value: null
+  # required
+  - path: "job-1.yaml"
+    # type: integer
+    # default value: 0
+    # optional
+    priority: -1
+  - path: "job-2.yaml"
+    priority: 5
+
+`
+
 var svcTpl = `# service name
 # type: string
 # required
@@ -89,7 +126,11 @@ func GetSvcTpl(svcName string) (string, error) {
 	buf := new(bytes.Buffer)
 	err = t.Execute(buf, svcName)
 	if err != nil {
-		return "", errors.Wrap(err,"")
+		return "", errors.Wrap(err, "")
 	}
 	return buf.String(), nil
+}
+
+func ConbineTpl() string {
+	return applicationTpl + svcTpl
 }

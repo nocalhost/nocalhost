@@ -21,6 +21,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/version"
@@ -456,4 +457,8 @@ func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceA
 		i++
 	}
 	return serviceAccount, nil
+}
+
+func (c *GoClient) GetStorageClassList() (*storagev1.StorageClassList, error) {
+	return c.client.StorageV1().StorageClasses().List(context.TODO(), metav1.ListOptions{})
 }

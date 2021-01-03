@@ -20,17 +20,22 @@ type DevStartOptions struct {
 	DevLang      string
 	Namespace    string
 	Kubeconfig   string
+
+	// for debug
+	SyncthingVersion string
+
+	// Now it's only use to specify the `root dir` user want to sync
 	LocalSyncDir []string
+	StorageClass string
 }
 
 type FileSyncOptions struct {
-	//RemoteDir         string
-	//LocalSharedFolder string
-	//LocalSshPort           int
 	RemoteSyncthingPort    int
 	RemoteSyncthingGUIPort int
 	LocalSyncthingPort     int
 	LocalSyncthingGUIPort  int
 	RunAsDaemon            bool
 	SyncDouble             bool
+	SyncedPattern          []string
+	IgnoredPattern         []string
 }

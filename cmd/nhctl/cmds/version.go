@@ -15,6 +15,7 @@ package cmds
 
 import (
 	"fmt"
+	"nocalhost/internal/nhctl/app"
 	"runtime"
 	"time"
 
@@ -22,10 +23,12 @@ import (
 )
 
 var (
-	OsArch    = ""
-	Version   = ""
-	GitCommit = ""
-	BuildTime = ""
+	OsArch       = ""
+	Version      = ""
+	GitCommit    = ""
+	BuildTime    = ""
+	Branch       = ""
+	DevGitCommit = ""
 )
 
 func init() {
@@ -45,11 +48,22 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version number of nhctl",
 	Long:  `All software has versions. This is nhctl's`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("nhctl: Nocalhost CLI\n")
-		fmt.Printf("    Version: %s\n", Version)
-		fmt.Printf("    Git commit: %s\n", GitCommit)
-		fmt.Printf("    Built time: %s\n", reformatDate(BuildTime))
-		fmt.Printf("    Built OS/Arch: %s\n", OsArch)
-		fmt.Printf("    Built Go version: %s\n", runtime.Version())
+		if Branch == app.DefaultNocalhostMainBranch {
+			fmt.Printf("nhctl: Nocalhost CLI\n")
+			fmt.Printf("    Version: %s\n", Version)
+			fmt.Printf("    Branch: %s\n", Branch)
+			fmt.Printf("    Git commit: %s\n", GitCommit)
+			fmt.Printf("    Built time: %s\n", reformatDate(BuildTime))
+			fmt.Printf("    Built OS/Arch: %s\n", OsArch)
+			fmt.Printf("    Built Go version: %s\n", runtime.Version())
+		} else {
+			fmt.Printf("nhctl: Nocalhost CLI\n")
+			fmt.Printf("    Version: %s\n", Version)
+			fmt.Printf("    Branch: %s\n", Branch)
+			fmt.Printf("    Git commit: %s\n", DevGitCommit)
+			fmt.Printf("    Built time: %s\n", reformatDate(BuildTime))
+			fmt.Printf("    Built OS/Arch: %s\n", OsArch)
+			fmt.Printf("    Built Go version: %s\n", runtime.Version())
+		}
 	},
 }

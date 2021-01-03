@@ -61,6 +61,9 @@ func New(cfg *conf.Config) *Application {
 	// init db
 	app.DB = model.Init()
 
+	// migrate db
+	model.MigrateDB()
+
 	// init redis
 	// app.RedisClient = redis2.InitDir()
 

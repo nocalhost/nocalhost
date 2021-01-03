@@ -14,11 +14,12 @@ limitations under the License.
 package cmds
 
 import (
+	"context"
 	"fmt"
-	"nocalhost/internal/nhctl/nocalhost"
 	"os"
 
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
@@ -27,10 +28,9 @@ import (
 
 type InstallFlags struct {
 	*EnvSettings
-	GitUrl  string // resource url
-	GitRef  string
-	AppType string
-	//ResourcesDir  string
+	GitUrl           string // resource url
+	GitRef           string
+	AppType          string
 	HelmValueFile    string
 	ForceInstall     bool
 	IgnorePreInstall bool
@@ -40,6 +40,7 @@ type InstallFlags struct {
 	HelmRepoVersion  string
 	HelmChartName    string
 	HelmWait         bool
+	OuterConfig      string
 	Config           string
 	ResourcePath     []string
 }
@@ -53,9 +54,10 @@ func init() {
 	installCmd.Flags().StringVarP(&installFlags.GitUrl, "git-url", "u", "", "resources git url")
 	installCmd.Flags().StringVarP(&installFlags.GitRef, "git-ref", "r", "", "resources git ref")
 	installCmd.Flags().StringSliceVar(&installFlags.ResourcePath, "resource-path", []string{}, "resources path")
-	installCmd.Flags().StringVarP(&installFlags.Config, "config", "c", "", "specify a config.yaml")
+	installCmd.Flags().StringVarP(&installFlags.OuterConfig, "outer-config", "c", "", "specify a config.yaml in local path")
+	installCmd.Flags().StringVar(&installFlags.Config, "config", "", "specify a config relative to .nocalhost dir")
 	installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
-	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", "nocalhostApp type: helm or helm-repo or manifest")
+	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", fmt.Sprintf("nocalhost application type: %s or %s or %s", app.HelmRepo, app.Helm, app.Manifest))
 	installCmd.Flags().BoolVar(&installFlags.HelmWait, "wait", installFlags.HelmWait, "wait for completion")
 	installCmd.Flags().BoolVar(&installFlags.IgnorePreInstall, "ignore-pre-install", installFlags.IgnorePreInstall, "ignore pre-install")
 	installCmd.Flags().StringSliceVar(&installFlags.HelmSet, "set", []string{}, "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
@@ -78,9 +80,6 @@ var installCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
-		//if settings.Debug {
-		//	log.SetLevel(logrus.DebugLevel)
-		//}
 		applicationName := args[0]
 		if installFlags.GitUrl == "" && installFlags.AppType != string(app.HelmRepo) {
 			log.Fatalf("if app type is not %s , --git-url must be specified", app.HelmRepo)
@@ -94,23 +93,23 @@ var installCmd = &cobra.Command{
 			}
 		}
 		if nocalhost.CheckIfApplicationExist(applicationName) {
-			log.Fatalf("application \"%s\" already exists", applicationName)
+			log.Fatalf("Application \"%s\" already exists", applicationName)
 		}
 
-		log.Info("installing application...")
+		log.Info("Installing application...")
 		err = InstallApplication(applicationName)
 		if err != nil {
-			fmt.Printf("failed to install application : %s\n", err.Error())
-			log.Debug("failed to install application, clean up resources...")
+			log.Warnf("Failed to install application : %s", err.Error())
+			log.Debug("Cleaning up resources...")
 			err = nocalhost.CleanupAppFiles(applicationName)
 			if err != nil {
-				fmt.Errorf("failed to clean up:%v", err)
+				log.Errorf("Failed to clean up: %v", err)
 			} else {
-				log.Debug("resources have been clean up")
+				log.Debug("Resources have been clean up")
 			}
 			os.Exit(-1)
 		} else {
-			fmt.Printf("application \"%s\" installed\n", applicationName)
+			log.Infof("Application %s installed", applicationName)
 		}
 	},
 }
@@ -136,9 +135,11 @@ func InstallApplication(applicationName string) error {
 		}
 	}
 
-	err = nocalhostApp.InitConfig(installFlags.Config)
+	err = nocalhostApp.InitConfig(installFlags.OuterConfig, installFlags.Config)
 	if err != nil {
 		return err
+	} else {
+		nocalhostApp.LoadSvcConfigsToProfile()
 	}
 
 	// flags which no config mush specify
@@ -150,13 +151,12 @@ func InstallApplication(applicationName string) error {
 	}
 	nocalhostApp.AppProfile.Save()
 
-	appType, err := nocalhostApp.GetType()
+	appType := nocalhostApp.GetType()
 	if appType == "" {
 		return errors.New("--type must be specified")
 	}
 
 	flags := &app.HelmFlags{
-		//Debug:  installFlags.Debug,
 		Values:   installFlags.HelmValueFile,
 		Set:      installFlags.HelmSet,
 		Wait:     installFlags.HelmWait,
@@ -165,28 +165,11 @@ func InstallApplication(applicationName string) error {
 		RepoName: installFlags.HelmRepoName,
 		Version:  installFlags.HelmRepoVersion,
 	}
-	err = nocalhostApp.InstallDepConfigMap(appType)
-	if err != nil {
-		return errors.Wrap(err, "failed to install dep config map")
-	}
-	switch appType {
-	case app.Helm:
-		err = nocalhostApp.InstallHelmInGit(applicationName, flags)
-	case app.HelmRepo:
-		err = nocalhostApp.InstallHelmInRepo(applicationName, flags)
-	case app.Manifest:
-		err = nocalhostApp.InstallManifest()
-	default:
-		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", app.Helm, app.HelmRepo, app.Manifest))
-	}
+
+	err = nocalhostApp.Install(context.TODO(), flags)
 	if err != nil {
 		return err
 	}
 
-	nocalhostApp.SetAppType(appType)
-	err = nocalhostApp.SetInstalledStatus(true)
-	if err != nil {
-		return errors.New("failed to update \"installed\" status")
-	}
 	return nil
 }

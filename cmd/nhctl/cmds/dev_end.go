@@ -42,7 +42,7 @@ var devEndCmd = &cobra.Command{
 		InitAppAndCheckIfSvcExist(applicationName, deployment)
 
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
-			log.Fatalf("\"%s\" is not developing status", deployment)
+			log.Fatalf("%s is not in DevMode", deployment)
 		}
 
 		err = nocalhostApp.EndDevelopMode(deployment)

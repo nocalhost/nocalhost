@@ -16,7 +16,6 @@ package cmds
 import (
 	"encoding/base64"
 	"encoding/json"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -60,11 +59,14 @@ var configEditCmd = &cobra.Command{
 			log.Fatalf("--content must be a valid base64 string: %s", err.Error())
 		}
 
+		//fmt.Printf("str: %s\n", string(bys))
+
 		svcConfig := &app.ServiceDevOptions{}
 		err = json.Unmarshal(bys, svcConfig)
 		if err != nil {
 			log.Fatalf("fail to unmarshal content: %s", err.Error())
 		}
+		//fmt.Printf("%+v\n", svcConfig.PersistentVolumeDirs)
 		err = nocalhostApp.SaveSvcConfig(configEditFlags.SvcName, svcConfig)
 		if err != nil {
 			log.FatalE(err, "fail to save svc config")

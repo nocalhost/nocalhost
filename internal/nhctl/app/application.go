@@ -17,7 +17,12 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
+	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/utils"
+	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/tools"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -27,15 +32,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
-
-	"nocalhost/internal/nhctl/coloredoutput"
-	"nocalhost/internal/nhctl/nocalhost"
-	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
-	"nocalhost/internal/nhctl/utils"
-	"nocalhost/pkg/nhctl/clientgoutils"
-	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/tools"
 
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/apps/v1"
@@ -56,7 +52,7 @@ const (
 
 type Application struct {
 	Name                     string
-	Config                   *NocalHostAppConfig //  this should not be nil
+	config                   *NocalHostAppConfig //  this should not be nil
 	NewConfig                *Config
 	AppProfile               *AppProfile // runtime info, this will not be nil
 	client                   *clientgoutils.ClientGoUtils
@@ -177,36 +173,51 @@ func (a *Application) InitDir() error {
 	var err error
 	err = os.MkdirAll(a.GetHomeDir(), DefaultNewFilePermission)
 	if err != nil {
-		return errors.Wrap(err,"")
+		return errors.Wrap(err, "")
 	}
 
 	err = os.MkdirAll(a.getGitDir(), DefaultNewFilePermission)
 	if err != nil {
-		return errors.Wrap(err,"")
+		return errors.Wrap(err, "")
 	}
 
-	err = os.MkdirAll(a.GetConfigDir(), DefaultNewFilePermission)
+	err = os.MkdirAll(a.getConfigDir(), DefaultNewFilePermission)
 	if err != nil {
-		return errors.Wrap(err,"")
+		return errors.Wrap(err, "")
 	}
 	err = ioutil.WriteFile(a.getProfilePath(), []byte(""), DefaultNewFilePermission)
-	return errors.Wrap(err,"")
+	return errors.Wrap(err, "")
 }
 
-func (a *Application) InitConfig(outerConfig string) error {
-	configFile := outerConfig
-	if outerConfig == "" {
-		_, err := os.Stat(a.getConfigPathInGitResourcesDir())
-		if err == nil {
-			configFile = a.getConfigPathInGitResourcesDir()
+// Load svcConfig to profile while installing
+func (a *Application) LoadSvcConfigsToProfile() {
+	a.LoadConfig()
+	if len(a.config.SvcConfigs) > 0 {
+		for _, svcConfig := range a.config.SvcConfigs {
+			a.LoadConfigToSvcProfile(svcConfig.Name, Deployment)
 		}
 	}
+}
+
+func (a *Application) InitConfig(outerConfigPath string, configName string) error {
+	configFile := outerConfigPath
+
+	// Read from .nocalhost
+	if configFile == "" {
+		_, err := os.Stat(a.getConfigPathInGitResourcesDir(configName))
+		if err == nil {
+			configFile = a.getConfigPathInGitResourcesDir(configName)
+		}
+	}
+
+	// Generate config.yaml
+	// config.yaml may come from .nocalhost in git or a outer config file in local absolute path
 	if configFile != "" {
 		rbytes, err := ioutil.ReadFile(configFile)
 		if err != nil {
 			return errors.New(fmt.Sprintf("fail to load configFile : %s", configFile))
 		}
-		err = ioutil.WriteFile(a.GetConfigPath(), rbytes, DefaultNewFilePermission)
+		err = ioutil.WriteFile(a.GetConfigPath(), rbytes, DefaultNewFilePermission) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
 		if err != nil {
 			return errors.New(fmt.Sprintf("fail to create configFile : %s", configFile))
 		}
@@ -215,6 +226,8 @@ func (a *Application) InitConfig(outerConfig string) error {
 			return err
 		}
 	}
+	a.AppProfile.AppType = a.config.Type
+	a.AppProfile.ResourcePath = a.config.ResourcePath
 	return nil
 }
 
@@ -228,7 +241,7 @@ func (a *Application) LoadConfig() error {
 	config := &NocalHostAppConfig{}
 	if _, err := os.Stat(a.GetConfigPath()); err != nil {
 		if os.IsNotExist(err) {
-			a.Config = config
+			a.config = config
 			return nil
 		} else {
 			return errors.Wrap(err, "fail to load configs")
@@ -242,15 +255,15 @@ func (a *Application) LoadConfig() error {
 	if err != nil {
 		return errors.Wrap(err, err.Error())
 	}
-	a.Config = config
+	a.config = config
 	return nil
 }
 
 func (a *Application) SaveConfig() error {
-	if a.Config != nil {
-		bys, err := yaml.Marshal(a.Config)
+	if a.config != nil {
+		bys, err := yaml.Marshal(a.config)
 		if err != nil {
-			return errors.Wrap(err,err.Error())
+			return errors.Wrap(err, err.Error())
 		}
 		err = ioutil.WriteFile(a.GetConfigPath(), bys, 0644)
 		if err != nil {
@@ -273,7 +286,7 @@ func (a *Application) DownloadResourcesFromGit(gitUrl string, gitRef string) err
 			gitDirName = gitUrl
 		}
 		strs := strings.Split(gitDirName, "/")
-		gitDirName = strs[len(strs)-1] // todo : for default application anme
+		gitDirName = strs[len(strs)-1] // todo : for default application name
 		if len(gitRef) > 0 {
 			_, err = tools.ExecCommand(nil, true, "git", "clone", "--branch", gitRef, "--depth", "1", gitUrl, a.getGitDir())
 		} else {
@@ -289,11 +302,11 @@ func (a *Application) DownloadResourcesFromGit(gitUrl string, gitRef string) err
 func (a *Application) GetDependencies() []*SvcDependency {
 	result := make([]*SvcDependency, 0)
 
-	if a.Config == nil {
+	if a.config == nil {
 		return nil
 	}
 
-	svcConfigs := a.Config.SvcConfigs
+	svcConfigs := a.config.SvcConfigs
 	if svcConfigs == nil || len(svcConfigs) == 0 {
 		return nil
 	}
@@ -321,6 +334,8 @@ func (a *Application) IsManifest() bool {
 	return a.AppProfile.AppType == Manifest
 }
 
+// Get local path of resource dirs
+// If resource path undefined, use git url
 func (a *Application) GetResourceDir() []string {
 	var resourcePath []string
 	if a.AppProfile != nil && len(a.AppProfile.ResourcePath) != 0 {
@@ -330,17 +345,17 @@ func (a *Application) GetResourceDir() []string {
 		}
 		return resourcePath
 	}
-	if a.Config != nil {
-		if len(a.Config.ResourcePath) > 0 {
-			for _, path := range a.Config.ResourcePath {
-				fullPath := filepath.Join(a.getGitDir(), path)
-				resourcePath = append(resourcePath, fullPath)
-			}
-		}
-		return resourcePath
-	} else {
-		return []string{a.getGitDir()}
-	}
+	//if a.config != nil {
+	//if len(a.config.ResourcePath) > 0 {
+	//	for _, path := range a.config.ResourcePath {
+	//		fullPath := filepath.Join(a.getGitDir(), path)
+	//		resourcePath = append(resourcePath, fullPath)
+	//	}
+	//}
+	//return resourcePath
+	//} else {
+	return []string{a.getGitDir()}
+	//}
 }
 
 type HelmFlags struct {
@@ -354,15 +369,6 @@ type HelmFlags struct {
 	Version  string
 }
 
-func (a *Application) InstallManifest() error {
-	var err error
-	a.preInstall()
-
-	// install manifest recursively, don't install pre-install workload again
-	err = a.installManifestRecursively()
-	return errors.Wrap(err,"")
-}
-
 func (a *Application) loadInstallManifest() {
 	result := make([]string, 0)
 	resourcePaths := a.GetResourceDir()
@@ -371,7 +377,7 @@ func (a *Application) loadInstallManifest() {
 		for _, eachPath := range resourcePaths {
 			files, _, err := a.getYamlFilesAndDirs(eachPath)
 			if err != nil {
-				log.WarnE(errors.Wrap(err, err.Error()),"fail to load install manifest")
+				log.WarnE(errors.Wrap(err, err.Error()), "fail to load install manifest")
 				return
 			}
 
@@ -380,7 +386,7 @@ func (a *Application) loadInstallManifest() {
 					continue
 				}
 				if _, err2 := os.Stat(file); err2 != nil {
-					log.WarnE(errors.Wrap(err2,err2.Error()), fmt.Sprintf("%s can not be installed", file))
+					log.WarnE(errors.Wrap(err2, err2.Error()), fmt.Sprintf("%s can not be installed", file))
 					continue
 				}
 				result = append(result, file)
@@ -402,21 +408,6 @@ func (a *Application) ignoredInInstall(manifest string) bool {
 	return false
 }
 
-func (a *Application) installManifestRecursively() error {
-	a.loadInstallManifest()
-	fmt.Printf("installManifest len %d \n", len(a.installManifest))
-	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForCreate(a.installManifest, a.GetNamespace(), true)
-		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			return errors.Wrap(err, err.Error())
-		}
-	} else {
-		log.Warn("nothing need to be installed ??")
-	}
-	return nil
-}
-
 func (a *Application) uninstallManifestRecursively() error {
 	a.loadInstallManifest()
 
@@ -424,7 +415,7 @@ func (a *Application) uninstallManifestRecursively() error {
 		err := a.client.ApplyForDelete(a.installManifest, a.GetNamespace(), true)
 		if err != nil {
 			fmt.Printf("error occurs when cleaning resources: %v\n", err.Error())
-			return errors.Wrap(err,err.Error())
+			return errors.Wrap(err, err.Error())
 		}
 	} else {
 		log.Warn("nothing need to be uninstalled ??")
@@ -476,9 +467,9 @@ func (a *Application) getYamlFilesAndDirs(path string) ([]string, []string, erro
 
 func (a *Application) loadSortedPreInstallManifest() {
 	result := make([]string, 0)
-	if a.Config != nil && a.Config.PreInstall != nil {
-		sort.Sort(ComparableItems(a.Config.PreInstall))
-		for _, item := range a.Config.PreInstall {
+	if a.config != nil && a.config.PreInstall != nil {
+		sort.Sort(ComparableItems(a.config.PreInstall))
+		for _, item := range a.config.PreInstall {
 			itemPath := filepath.Join(a.getGitDir(), item.Path)
 			if _, err2 := os.Stat(itemPath); err2 != nil {
 				log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
@@ -491,11 +482,11 @@ func (a *Application) loadSortedPreInstallManifest() {
 }
 
 func (a *Application) preInstall() {
-	fmt.Println("run pre-install....")
 
 	a.loadSortedPreInstallManifest()
 
 	if len(a.sortedPreInstallManifest) > 0 {
+		log.Info("run pre-install....")
 		for _, item := range a.sortedPreInstallManifest {
 			err := a.client.Create(item, a.GetNamespace(), true, false)
 			if err != nil {
@@ -503,7 +494,6 @@ func (a *Application) preInstall() {
 			}
 		}
 	}
-	//return files, nil
 }
 
 func (a *Application) cleanPreInstall() {
@@ -516,173 +506,20 @@ func (a *Application) cleanPreInstall() {
 	}
 }
 
-func (a *Application) InstallHelmInRepo(releaseName string, flags *HelmFlags) error {
-	commonParams := make([]string, 0)
-	if a.GetNamespace() != "" {
-		commonParams = append(commonParams, "--namespace", a.GetNamespace())
-	}
-	if a.GetKubeconfig() != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
-	}
-	if flags.Debug {
-		commonParams = append(commonParams, "--debug")
-	}
-
-	chartName := flags.Chart
-	installParams := []string{"install", releaseName}
-	if flags.Wait {
-		installParams = append(installParams, "--wait")
-	}
-	//if installFlags.HelmRepoUrl
-	if flags.RepoUrl != "" {
-		installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
-	} else if flags.RepoName != "" {
-		installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
-	}
-	if flags.Version != "" {
-		installParams = append(installParams, "--version", flags.Version)
-	}
-
-	if len(flags.Set) > 0 {
-		for _, set := range flags.Set {
-			installParams = append(installParams, "--set", set)
-		}
-	}
-	if flags.Values != "" {
-		installParams = append(installParams, "-f", flags.Values)
-	}
-	installParams = append(installParams, "--timeout", "60m")
-	installParams = append(installParams, commonParams...)
-
-	fmt.Println("install helm application, this may take several minutes, please waiting...")
-
-	_, err := tools.ExecCommand(nil, true, "helm", installParams...)
-	if err != nil {
-		return err
-	}
-	a.AppProfile.ReleaseName = releaseName
-	a.AppProfile.Save()
-	fmt.Printf(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`+"\n", a.GetNamespace())
-	return nil
-}
-
-func (a *Application) InstallHelmInGit(releaseName string, flags *HelmFlags) error {
-	resourcesPath := a.GetResourceDir()
-	if len(resourcesPath) == 0 {
-		log.Fatalf("resourcesPath does not define")
-	}
-	commonParams := make([]string, 0)
-	if a.GetNamespace() != "" {
-		commonParams = append(commonParams, "-n", a.GetNamespace())
-	}
-	if a.GetKubeconfig() != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
-	}
-	if flags.Debug {
-		commonParams = append(commonParams, "--debug")
-	}
-
-	params := []string{"install", releaseName, resourcesPath[0]}
-	if flags.Wait {
-		params = append(params, "--wait")
-	}
-	if len(flags.Set) > 0 {
-		for _, set := range flags.Set {
-			params = append(params, "--set", set)
-		}
-	}
-	if flags.Values != "" {
-		params = append(params, "-f", flags.Values)
-	}
-	params = append(params, "--timeout", "60m")
-	params = append(params, commonParams...)
-
-	fmt.Println("building dependency...")
-	depParams := []string{"dependency", "build", resourcesPath[0]}
-	depParams = append(depParams, commonParams...)
-	_, err := tools.ExecCommand(nil, true, "helm", depParams...)
-	if err != nil {
-		fmt.Printf("fail to build dependency for helm app, err: %v\n", err)
-		return err
-	}
-
-	fmt.Println("install helm application, this may take several minutes, please waiting...")
-	_, err = tools.ExecCommand(nil, true, "helm", params...)
-	if err != nil {
-		fmt.Printf("fail to install helm nocalhostApp, err:%v\n", err)
-		return err
-	}
-	a.AppProfile.ReleaseName = releaseName
-	a.AppProfile.Save()
-	fmt.Printf(`helm application installed, use "helm list -n %s" to get the information of the helm release`+"\n", a.GetNamespace())
-	return nil
-}
-
-func (a *Application) InstallDepConfigMap(appType AppType) error {
-	appDep := a.GetDependencies()
-	if appDep != nil {
-		var depForYaml = &struct {
-			Dependency  []*SvcDependency `json:"dependency" yaml:"dependency"`
-			ReleaseName string           `json:"releaseName" yaml:"releaseName"`
-		}{
-			Dependency: appDep,
-		}
-		// release name a.Name
-		if appType != Manifest {
-			depForYaml.ReleaseName = a.Name
-		}
-		yamlBytes, err := yaml.Marshal(depForYaml)
-		if err != nil {
-			return errors.Wrap(err,"")
-		}
-
-		dataMap := make(map[string]string, 0)
-		dataMap["nocalhost"] = string(yamlBytes)
-
-		configMap := &corev1.ConfigMap{
-			Data: dataMap,
-		}
-
-		var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
-		rand.Seed(time.Now().UnixNano())
-		b := make([]rune, 4)
-		for i := range b {
-			b[i] = letterRunes[rand.Intn(len(letterRunes))]
-		}
-		generateName := fmt.Sprintf("nocalhost-depends-do-not-overwrite-%s", string(b))
-		configMap.Name = generateName
-		if configMap.Labels == nil {
-			configMap.Labels = make(map[string]string, 0)
-		}
-		configMap.Labels["use-for"] = "nocalhost-dep"
-		_, err = a.client.ClientSet.CoreV1().ConfigMaps(a.GetNamespace()).Create(context.TODO(), configMap, metav1.CreateOptions{})
-		if err != nil {
-			fmt.Errorf("fail to create dependency config %s\n", configMap.Name)
-			return errors.Wrap(err, "")
-		} else {
-			a.AppProfile.DependencyConfigMapName = configMap.Name
-			a.AppProfile.Save()
-		}
-	}
-	log.Info("dependency configmap installed")
-	return nil
-}
-
 func (a *Application) GetNamespace() string {
 	return a.AppProfile.Namespace
 }
 
-func (a *Application) GetType() (AppType, error) {
-	if a.AppProfile != nil && a.AppProfile.AppType != "" {
-		return a.AppProfile.AppType, nil
-	}
-	if a.Config == nil {
-		return "", errors.New("config.yaml not found")
-	}
-	if a.Config.Type != "" {
-		return a.Config.Type, nil
-	}
-	return "", errors.New("can not get app type from config.yaml")
+func (a *Application) GetType() AppType {
+	//if a.AppProfile != nil && a.AppProfile.AppType != "" {
+	return a.AppProfile.AppType
+	//}
+	//if a.config == nil {
+	//	return "", errors.New("config.yaml not found")
+	//}
+	//if a.config.Type != "" {
+	//	return a.config.Type, nil
+	//}
 }
 
 func (a *Application) GetKubeconfig() string {
@@ -702,11 +539,11 @@ func (a *Application) GetApplicationSyncDir(deployment string) string {
 
 func (a *Application) GetSvcConfig(svcName string) *ServiceDevOptions {
 	a.LoadConfig() // get the latest config
-	if a.Config == nil {
+	if a.config == nil {
 		return nil
 	}
-	if a.Config.SvcConfigs != nil && len(a.Config.SvcConfigs) > 0 {
-		for _, config := range a.Config.SvcConfigs {
+	if a.config.SvcConfigs != nil && len(a.config.SvcConfigs) > 0 {
+		for _, config := range a.config.SvcConfigs {
 			if config.Name == svcName {
 				return config
 			}
@@ -716,24 +553,39 @@ func (a *Application) GetSvcConfig(svcName string) *ServiceDevOptions {
 }
 
 func (a *Application) SaveSvcConfig(svcName string, config *ServiceDevOptions) error {
-	err := a.LoadConfig() // load the latest version config
-	if err != nil {
-		return err
-	}
-	if a.GetSvcConfig(svcName) == nil {
-		if len(a.Config.SvcConfigs) == 0 {
-			a.Config.SvcConfigs = make([]*ServiceDevOptions, 0)
-		}
-		a.Config.SvcConfigs = append(a.Config.SvcConfigs, config)
-	} else {
-		for index, svcConfig := range a.Config.SvcConfigs {
-			if svcConfig.Name == svcName {
-				a.Config.SvcConfigs[index] = config
-			}
-		}
-	}
+	//err := a.LoadConfig() // load the latest version config
+	//if err != nil {
+	//	return err
+	//}
+	//if a.GetSvcConfig(svcName) == nil {
+	//	if len(a.Config.SvcConfigs) == 0 {
+	//		a.Config.SvcConfigs = make([]*ServiceDevOptions, 0)
+	//	}
+	//	a.Config.SvcConfigs = append(a.Config.SvcConfigs, config)
+	//} else {
+	//	for index, svcConfig := range a.Config.SvcConfigs {
+	//		if svcConfig.Name == svcName {
+	//			a.Config.SvcConfigs[index] = config
+	//		}
+	//	}
+	//}
+	//
+	//err = a.SaveConfig()
+	//if err != nil {
+	//	return err
+	//}
 
-	return a.SaveConfig()
+	svcPro := a.GetSvcProfile(svcName)
+	if svcPro != nil {
+		svcPro.ServiceDevOptions = config
+	}
+	fmt.Printf("%+v\n", svcPro.ServiceDevOptions)
+	if len(svcPro.ServiceDevOptions.PersistentVolumeDirs) > 0 {
+		for _, pvc := range svcPro.ServiceDevOptions.PersistentVolumeDirs {
+			fmt.Printf("+%v\n", pvc)
+		}
+	}
+	return a.AppProfile.Save()
 }
 
 func (a *Application) GetDefaultWorkDir(svcName string) string {
@@ -742,6 +594,14 @@ func (a *Application) GetDefaultWorkDir(svcName string) string {
 		return svcProfile.WorkDir
 	}
 	return DefaultWorkDir
+}
+
+func (a *Application) GetPersistentVolumeDirs(svcName string) []*PersistentVolumeDir {
+	svcProfile := a.GetSvcProfile(svcName)
+	if svcProfile != nil {
+		return svcProfile.PersistentVolumeDirs
+	}
+	return nil
 }
 
 func (a *Application) GetDefaultSideCarImage(svcName string) string {
@@ -769,18 +629,18 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 
 	dep, err := clientUtils.GetDeployment(ctx, a.GetNamespace(), svcName)
 	if err != nil {
-		fmt.Printf("failed to get deployment %s , err : %v\n", dep.Name, err)
 		return err
 	}
 
 	rss, err := clientUtils.GetSortedReplicaSetsByDeployment(ctx, a.GetNamespace(), svcName)
 	if err != nil {
-		fmt.Printf("failed to get rs list, err:%v\n", err)
+		log.WarnE(err, "Failed to get rs list")
 		return err
 	}
-	// find previous replicaSet
+
+	// Find previous replicaSet
 	if len(rss) < 2 {
-		fmt.Println("no history to roll back")
+		log.Warn("no history to roll back")
 		return nil
 	}
 
@@ -789,13 +649,14 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 		if rs.Annotations == nil {
 			continue
 		}
+		// Mark the original revision
 		if rs.Annotations[DevImageFlagAnnotationKey] == DevImageFlagAnnotationValue {
 			r = rs
 		}
 	}
 	if r == nil {
 		if !reset {
-			return errors.New("fail to find the proper revision to rollback")
+			return errors.New("Failed to find the proper revision to rollback")
 		} else {
 			r = rss[0]
 		}
@@ -805,13 +666,18 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 
 	spinner := utils.NewSpinner(" Rolling container's revision back...")
 	spinner.Start()
-	_, err = clientUtils.UpdateDeployment(ctx, a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
+	dep, err = clientUtils.UpdateDeployment(ctx, a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
 	spinner.Stop()
 	if err != nil {
 		coloredoutput.Fail("Failed to roll revision back")
-		//fmt.Println("failed rolling back")
 	} else {
-		coloredoutput.Success("Container has been rollback")
+		// Wait until workload ready
+		err = a.client.WaitDeploymentLatestRevisionToBeReady(ctx, a.GetNamespace(), svcName)
+		if err != nil {
+			return err
+		} else {
+			coloredoutput.Success("Workload has been rollback")
+		}
 	}
 
 	return err
@@ -823,25 +689,13 @@ type PortForwardOptions struct {
 	RunAsDaemon bool
 }
 
-//func (a *Application) CleanupSshPortForwardInfo(svcName string) error {
-//	svcProfile := a.GetSvcProfile(svcName)
-//	if svcProfile == nil {
-//		return errors.New(fmt.Sprintf("\"%s\" not found", svcName))
-//	}
-//	svcProfile.SshPortForward = nil
-//	return a.AppProfile.Save()
-//}
-
-func (a *Application) LoadOrCreateSvcProfile(svcName string, svcType SvcType) {
+// svcName use actual name
+// used in installing
+func (a *Application) LoadConfigToSvcProfile(svcName string, svcType SvcType) {
 	if a.AppProfile.SvcProfile == nil {
 		a.AppProfile.SvcProfile = make([]*SvcProfile, 0)
 	}
 
-	for _, svc := range a.AppProfile.SvcProfile {
-		if svc.ActualName == svcName {
-			return
-		}
-	}
 	svcProfile := &SvcProfile{
 		ActualName: svcName,
 		//Type:       svcType,
@@ -852,12 +706,21 @@ func (a *Application) LoadOrCreateSvcProfile(svcName string, svcType SvcType) {
 	if svcConfig == nil && len(a.AppProfile.ReleaseName) > 0 {
 		if strings.HasPrefix(svcName, fmt.Sprintf("%s-", a.AppProfile.ReleaseName)) {
 			name := strings.TrimPrefix(svcName, fmt.Sprintf("%s-", a.AppProfile.ReleaseName))
-			svcConfig = a.GetSvcConfig(name)
+			svcConfig = a.GetSvcConfig(name) // support releaseName-svcName
 		}
 	}
 
 	svcProfile.ServiceDevOptions = svcConfig
 
+	// If svcProfile already exists, updating it
+	for index, svc := range a.AppProfile.SvcProfile {
+		if svc.ActualName == svcName {
+			a.AppProfile.SvcProfile[index] = svcProfile
+			return
+		}
+	}
+
+	// If svcProfile already exists, create one
 	a.AppProfile.SvcProfile = append(a.AppProfile.SvcProfile, svcProfile)
 }
 
@@ -880,237 +743,6 @@ func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error
 	return false, nil
 }
 
-func (a *Application) CreateSyncThingSecret(syncSecret *corev1.Secret, ops *DevStartOptions) error {
-	// check if secret exist
-	exist, err := a.client.GetSecret(context.TODO(), ops.Namespace, syncSecret.Name)
-	if exist.Name != "" {
-		_ = a.client.DeleteSecret(context.TODO(), ops.Namespace, syncSecret.Name)
-	}
-	_, err = a.client.CreateSecret(context.TODO(), ops.Namespace, syncSecret, metav1.CreateOptions{})
-	if err != nil {
-		// TODO check configmap first, and end dev should delete that secret
-		return err
-		//log.Fatalf("create syncthing secret fail, please try to manual delete %s secret first", syncthing.SyncSecretName)
-	}
-	return nil
-}
-
-func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *DevStartOptions) error {
-	deploymentsClient := a.client.GetDeploymentClient(a.GetNamespace())
-
-	// mark current revision for rollback
-	rss, err := a.client.GetSortedReplicaSetsByDeployment(ctx, a.GetNamespace(), deployment)
-	if err != nil {
-		return err
-	}
-	if rss != nil && len(rss) > 0 {
-		rs := rss[len(rss)-1]
-		rs.Annotations[DevImageFlagAnnotationKey] = DevImageFlagAnnotationValue
-		_, err = a.client.ClientSet.AppsV1().ReplicaSets(a.GetNamespace()).Update(ctx, rs, metav1.UpdateOptions{})
-		if err != nil {
-			return errors.New("fail to update rs's annotation")
-		}
-	}
-
-	scale, err := deploymentsClient.GetScale(ctx, deployment, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	//fmt.Println("developing deployment: " + deployment)
-	fmt.Println("scaling replicas to 1")
-
-	if scale.Spec.Replicas > 1 {
-		fmt.Printf("deployment %s's replicas is %d now\n", deployment, scale.Spec.Replicas)
-		scale.Spec.Replicas = 1
-		_, err = deploymentsClient.UpdateScale(ctx, deployment, scale, metav1.UpdateOptions{})
-		if err != nil {
-			fmt.Println("failed to scale replicas to 1")
-		} else {
-			time.Sleep(time.Second * 5) // todo check replicas
-			fmt.Println("replicas has been scaled to 1")
-		}
-	} else {
-		fmt.Printf("deployment %s's replicas is already 1\n", deployment)
-	}
-
-	fmt.Println("Updating development container...")
-	dep, err := a.client.GetDeployment(ctx, a.GetNamespace(), deployment)
-	if err != nil {
-		//fmt.Printf("failed to get deployment %s , err : %v\n", deployment, err)
-		return err
-	}
-
-	volName := "nocalhost-shared-volume"
-	// shared volume
-	vol := corev1.Volume{
-		Name: volName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-
-	// syncthing secret volume
-	syncthingDir := corev1.Volume{
-		Name: secret_config.EmptyDir,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-	defaultMode := int32(DefaultNewFilePermission)
-	syncthingVol := corev1.Volume{
-		Name: secret_config.SecretName,
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: deployment + "-" + secret_config.SecretName,
-				Items: []corev1.KeyToPath{
-					{
-						Key:  "config.xml",
-						Path: "config.xml",
-						Mode: &defaultMode,
-					},
-					{
-						Key:  "cert.pem",
-						Path: "cert.pem",
-						Mode: &defaultMode,
-					},
-					{
-						Key:  "key.pem",
-						Path: "key.pem",
-						Mode: &defaultMode,
-					},
-				},
-				DefaultMode: &defaultMode,
-			},
-		},
-	}
-
-	if dep.Spec.Template.Spec.Volumes == nil {
-		dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
-	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol, syncthingVol, syncthingDir)
-
-	// syncthing volume mount
-	syncthingVolHomeDirMount := corev1.VolumeMount{
-		Name:      secret_config.EmptyDir,
-		MountPath: secret_config.DefaultSyncthingHome,
-		SubPath:   "syncthing",
-	}
-
-	// syncthing secret volume
-	syncthingVolMount := corev1.VolumeMount{
-		Name:      secret_config.SecretName,
-		MountPath: secret_config.DefaultSyncthingSecretHome,
-		ReadOnly:  false,
-	}
-
-	// volume mount
-	workDir := a.GetDefaultWorkDir(deployment)
-	if ops.WorkDir != "" {
-		workDir = ops.WorkDir
-	}
-
-	volMount := corev1.VolumeMount{
-		Name:      volName,
-		MountPath: workDir,
-	}
-
-	// default : replace the first container
-	devImage := a.GetDefaultDevImage(deployment)
-	if ops.DevImage != "" {
-		devImage = ops.DevImage
-	}
-
-	dep.Spec.Template.Spec.Containers[0].Image = devImage
-	dep.Spec.Template.Spec.Containers[0].Name = "nocalhost-dev"
-	dep.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
-	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, volMount)
-	// delete users SecurityContext
-	dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
-
-	// set the entry
-	dep.Spec.Template.Spec.Containers[0].WorkingDir = workDir
-
-	// disable readiness probes
-	for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
-		dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
-		dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
-		dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
-	}
-
-	sideCarImage := a.GetDefaultSideCarImage(deployment)
-	if ops.SideCarImage != "" {
-		sideCarImage = ops.SideCarImage
-	}
-	sideCarContainer := corev1.Container{
-		Name:       "nocalhost-sidecar",
-		Image:      sideCarImage,
-		WorkingDir: workDir,
-	}
-	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, volMount, syncthingVolMount, syncthingVolHomeDirMount)
-
-	// over write syncthing command
-	sideCarContainer.Command = []string{"/bin/sh", "-c"}
-	sideCarContainer.Args = []string{"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome + "/* " + secret_config.DefaultSyncthingHome + "/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing"}
-	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
-
-	_, err = a.client.UpdateDeployment(ctx, a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
-	if err != nil {
-		fmt.Printf("update develop container failed : %v \n", err)
-		return err
-	}
-
-	podList, err := a.client.ListPodsOfDeployment(a.GetNamespace(), dep.Name)
-	if err != nil {
-		fmt.Printf("failed to get pods, err: %v\n", err)
-		return err
-	}
-
-	log.Debugf("%d pod found", len(podList)) // should be 2
-
-	// wait podList to be ready
-	spinner := utils.NewSpinner(" Waiting pod to start...")
-	spinner.Start()
-
-wait:
-	for {
-		podList, err = a.client.ListPodsOfDeployment(a.GetNamespace(), dep.Name)
-		if err != nil {
-			fmt.Printf("failed to get pods, err: %v\n", err)
-			return err
-		}
-		if len(podList) == 1 {
-			pod := podList[0]
-			if pod.Status.Phase != corev1.PodRunning {
-				spinner.Update(fmt.Sprintf("waiting for pod %s to be Running", pod.Name))
-				//log.Debugf("waiting for pod %s to be Running", pod.Name)
-				continue
-			}
-			if len(pod.Spec.Containers) == 0 {
-				log.Fatalf("%s has no container ???", pod.Name)
-			}
-
-			// make sure all containers are ready and running
-			for _, c := range pod.Spec.Containers {
-				if !isContainerReadyAndRunning(c.Name, &pod) {
-					spinner.Update(fmt.Sprintf("container %s is not ready, waiting...", c.Name))
-					//log.Debugf("container %s is not ready, waiting...", c.Name)
-					break wait
-				}
-			}
-			spinner.Update("all containers are ready")
-			//log.Info("all containers are ready")
-			break
-		} else {
-			spinner.Update(fmt.Sprintf("waiting pod to be replaced..."))
-		}
-		<-time.NewTimer(time.Second * 1).C
-	}
-	spinner.Stop()
-	coloredoutput.Success("development container has been updated")
-	return nil
-}
-
 func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 	if len(pod.Status.ContainerStatuses) == 0 {
 		return false
@@ -1123,41 +755,42 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 	return false
 }
 
-func (a *Application) LoadConfigFile() error {
-	if _, err := os.Stat(a.GetConfigPath()); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		} else {
-			return err
-		}
-	}
-	rbytes, err := ioutil.ReadFile(a.GetConfigPath())
-	if err != nil {
-		return errors.New(fmt.Sprintf("failed to load configFile : %s", a.GetConfigPath()))
-	}
-	config := &Config{}
-	err = yaml.Unmarshal(rbytes, config)
-	if err != nil {
-		return err
-	}
-	a.NewConfig = config
-	return nil
-}
+// Deprecated
+//func (a *Application) LoadConfigFile() error {
+//	if _, err := os.Stat(a.GetConfigPath()); err != nil {
+//		if os.IsNotExist(err) {
+//			return nil
+//		} else {
+//			return err
+//		}
+//	}
+//	rbytes, err := ioutil.ReadFile(a.GetConfigPath())
+//	if err != nil {
+//		return errors.New(fmt.Sprintf("failed to load configFile : %s", a.GetConfigPath()))
+//	}
+//	config := &Config{}
+//	err = yaml.Unmarshal(rbytes, config)
+//	if err != nil {
+//		return err
+//	}
+//	a.NewConfig = config
+//	return nil
+//}
 
 func (a *Application) CheckConfigFile(file string) error {
 	config := &Config{}
 	err := yaml.Unmarshal([]byte(file), config)
 	if err != nil {
-		return errors.New("Application Config file format error!")
+		return errors.New("Application OuterConfig file format error!")
 	}
 	return config.CheckValid()
 }
 
-func (a *Application) SaveConfigFile(file string) error {
-	fileByte := []byte(file)
-	err := ioutil.WriteFile(a.GetConfigPath(), fileByte, DefaultNewFilePermission)
-	return err
-}
+//func (a *Application) SaveConfigFile(file string) error {
+//	fileByte := []byte(file)
+//	err := ioutil.WriteFile(a.GetConfigPath(), fileByte, DefaultNewFilePermission)
+//	return err
+//}
 
 func (a *Application) GetConfigFile() (string, error) {
 	configFile, err := ioutil.ReadFile(a.GetConfigPath())
@@ -1192,13 +825,14 @@ func (a *Application) GetPluginDescription(service string) string {
 					DevImage:                               value.DevImage,
 					WorkDir:                                value.WorkDir,
 					Sync:                                   value.Sync,
-					Ignore:                                 value.Ignore,
 					DevPort:                                value.DevPort,
 					Developing:                             value.Developing,
 					PortForwarded:                          value.PortForwarded,
 					Syncing:                                value.Syncing,
 					LocalAbsoluteSyncDirFromDevStartPlugin: value.LocalAbsoluteSyncDirFromDevStartPlugin,
 					DevPortList:                            value.DevPortList,
+					SyncedPatterns:                         value.SyncedPatterns,
+					IgnoredPatterns:                        value.IgnoredPatterns,
 				}
 				svcProfileForPlugin = append(svcProfileForPlugin, rows)
 			}
@@ -1231,7 +865,6 @@ func (a *Application) GetPluginDescription(service string) string {
 				DevImage:                               svcProfile.DevImage,
 				WorkDir:                                svcProfile.WorkDir,
 				Sync:                                   svcProfile.Sync,
-				Ignore:                                 svcProfile.Ignore,
 				DevPort:                                svcProfile.DevPort,
 				Name:                                   svcProfile.Name,
 				Developing:                             svcProfile.Developing,
@@ -1239,6 +872,8 @@ func (a *Application) GetPluginDescription(service string) string {
 				Syncing:                                svcProfile.Syncing,
 				LocalAbsoluteSyncDirFromDevStartPlugin: svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin,
 				DevPortList:                            svcProfile.DevPortList,
+				SyncedPatterns:                         svcProfile.SyncedPatterns,
+				IgnoredPatterns:                        svcProfile.IgnoredPatterns,
 			}
 			result := &PluginGetApplicationService{
 				Name:                    a.Name,
@@ -1474,10 +1109,6 @@ func (a *Application) SetPidFileEmpty(filePath string) error {
 
 func (a *Application) SetDevEndProfileStatus(svcName string) error {
 	a.GetSvcProfile(svcName).Developing = false
-	a.GetSvcProfile(svcName).PortForwarded = false
-	a.GetSvcProfile(svcName).Syncing = false
-	a.GetSvcProfile(svcName).DevPortList = []string{}
-	a.GetSvcProfile(svcName).LocalAbsoluteSyncDirFromDevStartPlugin = []string{}
 	return a.AppProfile.Save()
 }
 
@@ -1486,6 +1117,18 @@ func (a *Application) SetSyncthingPort(svcName string, remotePort, remoteGUIPort
 	a.GetSvcProfile(svcName).RemoteSyncthingGUIPort = remoteGUIPort
 	a.GetSvcProfile(svcName).LocalSyncthingPort = localPort
 	a.GetSvcProfile(svcName).LocalSyncthingGUIPort = localGUIPort
+	return a.AppProfile.Save()
+}
+
+func (a *Application) SetSyncthingProfileEndStatus(svcName string) error {
+	a.GetSvcProfile(svcName).RemoteSyncthingPort = 0
+	a.GetSvcProfile(svcName).RemoteSyncthingGUIPort = 0
+	a.GetSvcProfile(svcName).LocalSyncthingPort = 0
+	a.GetSvcProfile(svcName).LocalSyncthingGUIPort = 0
+	a.GetSvcProfile(svcName).PortForwarded = false
+	a.GetSvcProfile(svcName).Syncing = false
+	a.GetSvcProfile(svcName).DevPortList = []string{}
+	a.GetSvcProfile(svcName).LocalAbsoluteSyncDirFromDevStartPlugin = []string{}
 	return a.AppProfile.Save()
 }
 
@@ -1521,11 +1164,6 @@ func (a *Application) SetDevelopingStatus(svcName string, is bool) error {
 	return a.AppProfile.Save()
 }
 
-func (a *Application) SetInstalledStatus(is bool) error {
-	a.AppProfile.Installed = is
-	return a.AppProfile.Save()
-}
-
 func (a *Application) SetAppType(t AppType) error {
 	a.AppProfile.AppType = t
 	return a.AppProfile.Save()
@@ -1551,14 +1189,9 @@ func (a *Application) SetSyncingStatus(svcName string, is bool) error {
 
 func (a *Application) Uninstall(force bool) error {
 
-	if a.AppProfile.DependencyConfigMapName != "" {
-		log.Debugf("delete config map %s\n", a.AppProfile.DependencyConfigMapName)
-		err := a.client.DeleteConfigMapByName(a.AppProfile.DependencyConfigMapName, a.AppProfile.Namespace)
-		if err != nil && !force {
-			return err
-		}
-		a.AppProfile.DependencyConfigMapName = ""
-		a.AppProfile.Save()
+	err := a.cleanUpDepConfigMap()
+	if err != nil && !force {
+		return err
 	}
 
 	if a.IsHelm() {
@@ -1594,7 +1227,7 @@ func (a *Application) Uninstall(force bool) error {
 		}
 	}
 
-	err := a.CleanupResources()
+	err = a.CleanupResources()
 	if err != nil && !force {
 		return err
 	}

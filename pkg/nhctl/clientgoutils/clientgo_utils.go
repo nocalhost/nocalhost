@@ -104,7 +104,7 @@ func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUt
 
 	client.restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
-		return nil, errors.Wrap(err,"")
+		return nil, errors.Wrap(err, "")
 	}
 
 	if client.ClientSet, err = kubernetes.NewForConfig(client.restConfig); err != nil {
@@ -146,7 +146,7 @@ func (c *ClientGoUtils) CheckIfNamespaceIsAccessible(ctx context.Context, namesp
 
 func (c *ClientGoUtils) GetDefaultNamespace() (string, error) {
 	ns, _, err := c.ClientConfig.Namespace()
-	return ns, errors.Wrap(err,"")
+	return ns, errors.Wrap(err, "")
 }
 
 func (c *ClientGoUtils) createUnstructuredResource(namespace string, rawObj runtime.RawExtension, wait bool) error {
@@ -164,13 +164,13 @@ func (c *ClientGoUtils) createUnstructuredResource(namespace string, rawObj runt
 
 	gr, err := restmapper.GetAPIGroupResources(c.ClientSet.Discovery())
 	if err != nil {
-		return errors.Wrap(err,"")
+		return errors.Wrap(err, "")
 	}
 
 	mapper := restmapper.NewDiscoveryRESTMapper(gr)
 	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
-		return errors.Wrap(err,"")
+		return errors.Wrap(err, "")
 	}
 
 	var dri dynamic.ResourceInterface
@@ -286,7 +286,8 @@ func (c *ClientGoUtils) GetPodClient(namespace string) coreV1.PodInterface {
 }
 
 func (c *ClientGoUtils) GetDeployment(ctx context.Context, namespace string, name string) (*v1.Deployment, error) {
-	return c.GetDeploymentClient(namespace).Get(ctx, name, metav1.GetOptions{})
+	dep, err := c.GetDeploymentClient(namespace).Get(ctx, name, metav1.GetOptions{})
+	return dep, errors.Wrap(err, "")
 }
 
 func (c *ClientGoUtils) CheckDeploymentReady(ctx context.Context, namespace string, name string) (bool, error) {
@@ -305,7 +306,7 @@ func (c *ClientGoUtils) CheckDeploymentReady(ctx context.Context, namespace stri
 func (c *ClientGoUtils) GetDeployments(ctx context.Context, namespace string) ([]v1.Deployment, error) {
 	deps, err := c.GetDeploymentClient(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err,"")
+		return nil, errors.Wrap(err, "")
 	}
 	return deps.Items, nil
 }
@@ -313,9 +314,13 @@ func (c *ClientGoUtils) GetDeployments(ctx context.Context, namespace string) ([
 func (c *ClientGoUtils) UpdateDeployment(ctx context.Context, namespace string, deployment *v1.Deployment, opts metav1.UpdateOptions, wait bool) (*v1.Deployment, error) {
 	dep, err := c.GetDeploymentClient(namespace).Update(ctx, deployment, opts)
 	if err != nil {
-		return nil, errors.Wrap(err,"")
+		return nil, errors.Wrap(err, "")
 	}
 	if wait {
+		ready, _ := isDeploymentReady(dep)
+		if ready {
+			return dep, nil
+		}
 		err = c.WaitDeploymentToBeReady(namespace, dep.Name, c.TimeOut)
 	}
 	return dep, err
@@ -356,6 +361,68 @@ OuterLoop:
 	return result, nil
 }
 
+func (c *ClientGoUtils) ListPodsOfLatestRevisionByDeployment(namespace string, deployName string) ([]corev1.Pod, error) {
+	podClient := c.GetPodClient(namespace)
+
+	podList, err := podClient.List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+
+	result := make([]corev1.Pod, 0)
+
+	// Find the latest revision
+	replicaSets, err := c.GetReplicaSetsControlledByDeployment(context.TODO(), namespace, deployName)
+	if err != nil {
+		log.WarnE(err, "Failed to get replica sets")
+		return nil, err
+	}
+	revisions := make([]int, 0)
+	for _, rs := range replicaSets {
+		if rs.Annotations["deployment.kubernetes.io/revision"] != "" {
+			r, _ := strconv.Atoi(rs.Annotations["deployment.kubernetes.io/revision"])
+			revisions = append(revisions, r)
+		}
+	}
+
+	sort.Ints(revisions)
+
+	latestRevision := revisions[len(revisions)-1]
+
+	var latestRevisionReplicasets *v1.ReplicaSet
+	for _, rs := range replicaSets {
+		if rs.Annotations["deployment.kubernetes.io/revision"] != "" {
+			r, _ := strconv.Atoi(rs.Annotations["deployment.kubernetes.io/revision"])
+			if r == latestRevision {
+				latestRevisionReplicasets = rs
+			}
+		}
+	}
+
+OuterLoop:
+	for _, pod := range podList.Items {
+		if pod.OwnerReferences == nil {
+			continue
+		}
+		for _, ref := range pod.OwnerReferences {
+			if ref.Kind != "ReplicaSet" {
+				continue
+			}
+			//rss, _ := c.GetReplicaSetsControlledByDeployment(context.TODO(), namespace, deployName)
+			//if rss == nil {
+			//	continue
+			//}
+			//for _, rs := range rss {
+			if latestRevisionReplicasets.Name == ref.Name {
+				result = append(result, pod)
+				continue OuterLoop
+			}
+			//}
+		}
+	}
+	return result, nil
+}
+
 func (c *ClientGoUtils) GetSortedReplicaSetsByDeployment(ctx context.Context, namespace string, deployment string) ([]*v1.ReplicaSet, error) {
 	rss, err := c.GetReplicaSetsControlledByDeployment(ctx, namespace, deployment)
 	if err != nil {
@@ -374,6 +441,50 @@ func (c *ClientGoUtils) GetSortedReplicaSetsByDeployment(ctx context.Context, na
 		results = append(results, rss[key])
 	}
 	return results, nil
+}
+func (c *ClientGoUtils) WaitDeploymentLatestRevisionToBeReady(ctx context.Context, namespace string, name string) error {
+	// Find the latest revision
+	replicaSets, err := c.GetReplicaSetsControlledByDeployment(ctx, namespace, name)
+	if err != nil {
+		log.WarnE(err, "Failed to get replica sets")
+		return err
+	}
+	revisions := make([]int, 0)
+	for _, rs := range replicaSets {
+		if rs.Annotations["deployment.kubernetes.io/revision"] != "" {
+			r, _ := strconv.Atoi(rs.Annotations["deployment.kubernetes.io/revision"])
+			revisions = append(revisions, r)
+		}
+	}
+
+	sort.Ints(revisions)
+
+	latestRevision := revisions[len(revisions)-1]
+
+	log.Debugf("Waiting %s rolling back to revision %d...", name, latestRevision)
+
+	for {
+		replicaSets, err := c.GetReplicaSetsControlledByDeployment(ctx, namespace, name)
+		if err != nil {
+			log.WarnE(err, "Failed to get replica sets")
+			return err
+		}
+		isReady := true
+		for _, rs := range replicaSets {
+			if rs.Annotations["deployment.kubernetes.io/revision"] == strconv.Itoa(latestRevision) {
+				continue
+			}
+			if rs.Status.Replicas != 0 {
+				log.Infof("ReplicaSet %s has not been terminate", rs.Name)
+				isReady = false
+				break
+			}
+		}
+		if isReady {
+			return nil
+		}
+		time.Sleep(2 * time.Second)
+	}
 }
 
 func (c *ClientGoUtils) GetReplicaSetsControlledByDeployment(ctx context.Context, namespace string, deploymentName string) (map[int]*v1.ReplicaSet, error) {
@@ -471,7 +582,7 @@ func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 func (c *ClientGoUtils) GetNodesList() (*corev1.NodeList, error) {
 	nodes, err := c.ClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return &corev1.NodeList{}, errors.Wrap(err,"")
+		return &corev1.NodeList{}, errors.Wrap(err, "")
 	}
 	return nodes, nil
 }
@@ -496,7 +607,7 @@ func (c *ClientGoUtils) CreateNameSpace(name string, customLabels map[string]str
 	nsSpec := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name, Labels: customLabels}}
 	_, err := c.ClientSet.CoreV1().Namespaces().Create(context.TODO(), nsSpec, metav1.CreateOptions{})
 	if err != nil {
-		return errors.Wrap(err,"")
+		return errors.Wrap(err, "")
 	}
 	return nil
 }

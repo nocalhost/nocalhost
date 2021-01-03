@@ -27,6 +27,16 @@ services:
     syncDirs:
       - ./
     workDir: /home/nocalhost-dev
+    persistentVolumeDirs:
+      - path: /home/pvc01
+        capacity: "15Gi"
+      - path: /home/pvc02
+      - path: /home
+ #     - path: /home/nocalhost-dev
+    syncedPattern:
+      - ./
+    ignoredPattern:
+      - nosync.txt
   - name: ratings
     serviceType: deployment
     gitUrl: https://github.com/nocalhost/bookinfo-ratings.git

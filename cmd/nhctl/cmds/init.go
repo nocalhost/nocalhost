@@ -16,8 +16,6 @@ package cmds
 import (
 	"context"
 	"fmt"
-	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/request"
@@ -30,6 +28,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type Init struct {
@@ -103,6 +104,7 @@ var InitCommand = &cobra.Command{
 		if strings.ToLower(inits.Source) == "coding" {
 			nocalhostHelmSource = app.DefaultInitHelmCODINGGitRepo
 		}
+
 		params := []string{
 			"install",
 			app.DefaultInitInstallApplicationName,
@@ -117,6 +119,9 @@ var InitCommand = &cobra.Command{
 			"--resource-path",
 			app.DefaultInitHelmResourcePath,
 		}
+		// set install api and web image version
+		setComponentDockerImageVersion(&params)
+
 		if inits.Type != "" {
 			if strings.ToLower(inits.Type) == "nodeport" {
 				inits.Type = "NodePort"
@@ -289,22 +294,99 @@ var InitCommand = &cobra.Command{
 		if err != nil {
 			log.Fatalf("watch deployment %s timeout, err: %s\n", app.DefaultInitWatchDeployment, err.Error())
 		}
+
+		// change dep images tag
+		setDepComponentDockerImage(kubectl, settings.KubeConfig)
+
 		spinner.Stop()
+		serverURL := ""
+		port := 0
 		if kubeResult.Minikube {
 			// use default DefaultInitMiniKubePortForwardPort port-forward
 			//portResult := req.GetAvailableRandomLocalPort()
-			port := app.DefaultInitMiniKubePortForwardPort
+			port = app.DefaultInitMiniKubePortForwardPort
 			if !req.CheckPortIsAvailable(app.DefaultInitMiniKubePortForwardPort) {
 				port = req.GetAvailableRandomLocalPort().MiniKubeAvailablePort
 			}
-			serverUrl := fmt.Sprintf("http://%s:%d", "127.0.0.1", port)
-			coloredoutput.Success("Nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please setup VS Code Plugin and login, enjoy! \n", serverUrl, app.DefaultInitUserEmail, app.DefaultInitPassword)
-			coloredoutput.Fail("port forwarding, please do not close this windows! \n")
+			serverURL = fmt.Sprintf("http://%s:%d", "127.0.0.1", port)
+		} else {
+			serverURL = fmt.Sprintf("http://%s", endPoint)
+		}
+
+		coloredoutput.Success(
+			"Nocalhost init completed. \n\n"+
+				" Default user for plugin: \n"+
+				" Api Server(Set on plugin): %s \n"+
+				" Username: %s \n"+
+				" Password: %s \n\n"+
+				" Default administrator: \n"+
+				" Web dashboard: %s\n"+
+				" Username: %s \n"+
+				" Password: %s \n\n"+
+				" Now, you can setup VSCode plugin and enjoy Nocalhost! \n",
+			serverURL,
+			app.DefaultInitUserEmail,
+			app.DefaultInitPassword,
+			serverURL,
+			app.DefaultInitAdminUserName,
+			app.DefaultInitAdminPassWord,
+		)
+
+		if kubeResult.Minikube {
+			coloredoutput.Information("port forwarding, please do not close this windows! \n")
 			// if DefaultInitMiniKubePortForwardPort can not use, it will return available port
 			req.RunPortForward(port)
-		} else {
-			serverUrl := fmt.Sprintf("http://%s", endPoint)
-			coloredoutput.Success("Nocalhost init completed. \n Server Url: %s \n Username: %s \n Password: %s \n please setup VS Code Plugin and login, enjoy! \n", serverUrl, app.DefaultInitUserEmail, app.DefaultInitPassword)
 		}
 	},
+}
+
+func setComponentDockerImageVersion(params *[]string) {
+	if Branch == "" {
+		return
+	}
+	// set -r with nhctl install
+	// version is nocalhost tag
+	gitRef := Version
+	if Branch != app.DefaultNocalhostMainBranch {
+		gitRef = Branch
+	}
+	*params = append(*params, "-r", gitRef)
+	// main branch, means use version for docker images
+	// Branch will set by make nhctl
+	if Branch == app.DefaultNocalhostMainBranch {
+		log.Infof("Init nocalhost component with release %s", Version)
+		*params = append(*params, "--set", "api.image.tag="+Version)
+		*params = append(*params, "--set", "web.image.tag="+Version)
+	} else {
+		log.Infof("Init nocalhost component with dev %s, but nocalhost-web with dev tag only", DevGitCommit)
+		*params = append(*params, "--set", "api.image.tag="+DevGitCommit)
+		// because of web image and api has different commitID, so take latest dev tag
+		*params = append(*params, "--set", "web.image.tag=dev")
+	}
+}
+
+// because of dep run latest docker image, so it can only use kubectl set image to set dep docker version same as nhctl version
+func setDepComponentDockerImage(kubectl, kubeConfig string) {
+	if Branch == "" {
+		return
+	}
+	tag := Version
+	// Branch will set by make nhctl
+	if Branch != app.DefaultNocalhostMainBranch {
+		tag = DevGitCommit
+	}
+	params := []string{
+		"set",
+		"image",
+		"deployment/" + app.DefaultInitWaitDeployment,
+		fmt.Sprintf("%s=%s:%s", app.DefaultInitWaitDeployment, app.DefaultNocalhostDepDockerRegistry, tag),
+		"-n",
+		app.DefaultInitWaitNameSpace,
+		"--kubeconfig",
+		kubeConfig,
+	}
+	_, err := tools.ExecCommand(nil, true, kubectl, params...)
+	if err != nil {
+		log.Warnf("set nocalhost-dep component tag fail, err: %s", err)
+	}
 }

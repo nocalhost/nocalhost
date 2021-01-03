@@ -34,11 +34,14 @@ const (
 	DefaultApplicationOnlyPortForwardPidFile = "alone-port-forward.pid"
 	DefaultApplicationSyncPidFile            = "syncthing.pid"
 	//DefaultApplicationDirName                = "application"
-	DefaultApplicationProfilePath   = ".profile.yaml"
-	DefaultApplicationConfigDirName = ".nocalhost"
-	DefaultApplicationConfigName    = "config.yaml"
-	DefaultNewFilePermission        = 0700
-	DefaultClientGoTimeOut          = time.Minute * 5
+
+	DefaultApplicationProfilePath      = ".profile.yaml" // runtime config
+	DefaultApplicationConfigPath       = ".config.yaml"
+	DefaultApplicationConfigDirName    = ".nocalhost"
+	DefaultConfigNameInGitNocalhostDir = "config.yaml"
+	DefaultNewFilePermission           = 0700
+	DefaultClientGoTimeOut             = time.Minute * 5
+
 	// nhctl init
 	// TODO when release
 	DefaultInitHelmGitRepo             = "https://github.com/nocalhost/nocalhost.git"
@@ -62,6 +65,9 @@ const (
 	DefaultInitPortForwardTimeOut = time.Minute * 1
 	DefaultInitApplicationGithub  = "{\"source\":\"git\",\"install_type\":\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\",\"application_url\":\"https://github.com/nocalhost/bookinfo.git\"}"
 	DefaultInitApplicationCODING  = "{\"source\":\"git\",\"install_type\":\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\",\"application_url\":\"https://e.coding.net/codingcorp/nocalhost/bookinfo.git\"}"
+	// Init Component Version Control
+	DefaultNocalhostMainBranch        = "main"
+	DefaultNocalhostDepDockerRegistry = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep"
 )
 
 type NocalHostAppConfig struct {
@@ -79,17 +85,31 @@ type PreInstallItem struct {
 	Weight string `json:"weight" yaml:"weight"`
 }
 
+type PersistentVolumeDir struct {
+	Path     string `json:"path" yaml:"path"`
+	Capacity string `json:"capacity,omitempty" yaml:"capacity,omitempty"`
+}
+
 type ServiceDevOptions struct {
-	Name     string   `json:"name" yaml:"name"`
-	Type     SvcType  `json:"serviceType" yaml:"serviceType"`
-	GitUrl   string   `json:"gitUrl" yaml:"gitUrl"`
-	DevImage string   `json:"devContainerImage" yaml:"devContainerImage"`
-	WorkDir  string   `json:"workDir" yaml:"workDir"`
-	Sync     []string `json:"syncDirs" yaml:"syncDirs"`
-	Ignore   []string `json:"ignores" yaml:"ignores"` // TODO Ignore file list
-	DevPort  []string `json:"devPorts" yaml:"devPorts"`
-	Jobs     []string `json:"dependJobsLabelSelector" yaml:"dependJobsLabelSelector,omitempty"`
-	Pods     []string `json:"dependPodsLabelSelector" yaml:"dependPodsLabelSelector,omitempty"`
+	Name                  string                 `json:"name" yaml:"name"`
+	Type                  SvcType                `json:"serviceType" yaml:"serviceType"`
+	GitUrl                string                 `json:"gitUrl" yaml:"gitUrl"`
+	DevImage              string                 `json:"devContainerImage" yaml:"devContainerImage"`
+	WorkDir               string                 `json:"workDir" yaml:"workDir"`
+	Sync                  []string               `json:"syncDirs" yaml:"syncDirs,omitempty"`
+	PersistentVolumeDirs  []*PersistentVolumeDir `json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
+	BuildCommand          []string               `json:"buildCommand,omitempty" yaml:"buildCommand,omitempty"`
+	RunCommand            []string               `json:"runCommand,omitempty" yaml:"runCommand,omitempty"`
+	DebugCommand          []string               `json:"debugCommand,omitempty" yaml:"debugCommand,omitempty"`
+	HotReloadRunCommand   []string               `json:"hotReloadRunCommand,omitempty" yaml:"hotReloadRunCommand,omitempty"`
+	HotReloadDebugCommand []string               `json:"hotReloadDebugCommand,omitempty" yaml:"hotReloadDebugCommand,omitempty"`
+	DevContainerShell     string                 `json:"devContainerShell" yaml:"devContainerShell"`
+	Ignore                []string               `json:"ignores" yaml:"ignores"` // TODO Ignore file list
+	DevPort               []string               `json:"devPorts" yaml:"devPorts"`
+	Jobs                  []string               `json:"dependJobsLabelSelector" yaml:"dependJobsLabelSelector,omitempty"`
+	Pods                  []string               `json:"dependPodsLabelSelector" yaml:"dependPodsLabelSelector,omitempty"`
+	SyncedPattern         []string               `json:"syncFilePattern" yaml:"syncFilePattern"`
+	IgnoredPattern        []string               `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
 }
 
 type ComparableItems []*PreInstallItem

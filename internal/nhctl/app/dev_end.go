@@ -23,9 +23,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-
-
-func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error{
+func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 	var err error
 	fileSyncOps := &FileSyncOptions{}
 	devStartOptions := &DevStartOptions{}
@@ -91,9 +89,22 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error{
 		fmt.Printf("dev port-forward: %d has been ended\n", onlyPortForwardPid)
 	}
 
+	// Clean up secret
+	svcProfile := a.GetSvcProfile(svcName)
+	if svcProfile.SyncthingSecret != "" {
+		log.Debugf("Cleaning up secret %s", svcProfile.SyncthingSecret)
+		err = a.client.DeleteSecret(context.TODO(), a.GetNamespace(), svcProfile.SyncthingSecret)
+		if err != nil {
+			log.WarnE(err, "Failed to clean up syncthing secret")
+		} else {
+			svcProfile.SyncthingSecret = ""
+		}
+	}
+
 	// set profile status
 	// set port-forward port and ignore result
-	err = a.SetSyncthingPort(svcName, 0, 0, 0, 0)
+	// err = a.SetSyncthingPort(svcName, 0, 0, 0, 0)
+	err = a.SetSyncthingProfileEndStatus(svcName)
 	return err
 }
 
@@ -137,6 +148,7 @@ func (a *Application) EndDevelopMode(svcName string) error {
 		log.Error("failed to rollback")
 		return err
 	}
+
 	err = a.SetDevEndProfileStatus(svcName)
 	if err != nil {
 		log.Warn("failed to update \"developing\" status")

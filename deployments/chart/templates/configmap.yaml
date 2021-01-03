@@ -5,7 +5,7 @@ metadata:
 data:
   config.yaml: |-
     app:
-      run_mode: debug                 # gin 开发模式, debug, release, test
+      run_mode: release                 # gin 开发模式, debug, release, test
       addr: :8080                     # HTTP绑定端口
       name: nocalhost                 # API Server Name
       url: http://127.0.0.1:8080      # pingServer

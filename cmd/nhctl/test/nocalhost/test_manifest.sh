@@ -5,6 +5,10 @@ read -p "choose the app type you want test: " type
 
 SVCNAME=details
 
+rm -rf ~/sync
+mkdir -p ~/sync/test
+touch ~/sync/test/hello_nhctl
+
 if [ "$type" == 1 ]; then
     APPNAME=test-manifest-bookinfo-nocalhost-config-01
     kubectl delete ns $APPNAME >> /dev/null
@@ -24,11 +28,15 @@ elif [ "$type" == 2 ]; then
     echo "clean: uninstalling"
     nhctl uninstall $APPNAME --force --debug >> /dev/null
     echo "installing"
-    nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME --config config.yaml
+    nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME --outer-config config.yaml
     if [ "$?" != 0 ]; then
         echo "fail"
         exit 1
     fi
+
+    touch ~/sync/nosync.txt
+    #touch ~/sync/sync.txt
+    touch ~/sync/test/nosync.txt
 elif [ "$type" == 3 ]; then
     APPNAME=test-helm-bookinfo-outer-config-01
     kubectl delete ns $APPNAME >> /dev/null
@@ -36,7 +44,7 @@ elif [ "$type" == 3 ]; then
     echo "clean: uninstalling"
     nhctl uninstall $APPNAME --force --debug >> /dev/null
     echo "installing"
-    nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME --config helm_config.yaml
+    nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME --outer-config helm_config.yaml
     if [ "$?" != 0 ]; then
         echo "fail"
         exit 1
@@ -46,12 +54,7 @@ else
   exit 0
 fi
 
-
-rm -rf ~/sync
-mkdir -p ~/sync
-touch ~/sync/hello_nhctl
-
-echo "entering dev model..."
+echo "entering dev DevMode..."
 nhctl dev start $APPNAME -d $SVCNAME -s ~/sync --debug
 if [ "$?" != 0 ]; then
     echo "fail"
@@ -67,7 +70,7 @@ fi
 sleep 3
 
 echo "executing command..."
-EXEC_OUTPUT=$(nhctl exec $APPNAME -d $SVCNAME -c ls)
+EXEC_OUTPUT=$(nhctl exec $APPNAME -d $SVCNAME -c ls -c test/)
 if [ "$?" != 0 ]; then
     echo "fail"
     exit 1
@@ -91,7 +94,7 @@ if [ "$?" != 0 ]; then
 fi
 sleep 3
 
-read -p "press any key to end dev..." no
+read -p "press any key to end DevMode..." no
 nhctl dev end $APPNAME -d $SVCNAME --debug
 if [ "$?" != 0 ]; then
     echo "fail"

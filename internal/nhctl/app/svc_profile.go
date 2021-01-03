@@ -25,12 +25,17 @@ type SvcProfile struct {
 	// same as local available port, use for port-forward
 	RemoteSyncthingPort int `json:"remoteSyncthingPort" yaml:"remoteSyncthingPort"`
 	// same as local available port, use for port-forward
-	RemoteSyncthingGUIPort int `json:"remoteSyncthingGUIPort" yaml:"remoteSyncthingGUIPort"`
+	RemoteSyncthingGUIPort int    `json:"remoteSyncthingGUIPort" yaml:"remoteSyncthingGUIPort"`
+	SyncthingSecret        string `json:"syncthingSecret" yaml:"syncthingSecret"` // secret name
 	// syncthing local port
 	LocalSyncthingPort                     int      `json:"localSyncthingPort" yaml:"localSyncthingPort"`
 	LocalSyncthingGUIPort                  int      `json:"localSyncthingGUIPort" yaml:"localSyncthingGUIPort"`
 	LocalAbsoluteSyncDirFromDevStartPlugin []string `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
 	DevPortList                            []string `json:"devPortList" yaml:"devPortList"`
+
+	// .nhignore's pattern configuration
+	SyncedPatterns  []string `json:"syncFilePattern" yaml:"syncFilePattern"`
+	IgnoredPatterns []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
 }
 
 type SvcProfileForPlugin struct {
@@ -40,11 +45,14 @@ type SvcProfileForPlugin struct {
 	DevImage                               string   `json:"devContainerImage" yaml:"devContainerImage"`
 	WorkDir                                string   `json:"workDir" yaml:"workDir"`
 	Sync                                   []string `json:"syncDirs" yaml:"syncDirs"`
-	Ignore                                 []string `json:"ignores" yaml:"ignores"` // TODO Ignore file list
 	DevPort                                []string `json:"devPorts" yaml:"devPorts"`
 	Developing                             bool     `json:"developing" yaml:"developing"`
 	PortForwarded                          bool     `json:"port_forwarded" yaml:"portForwarded"`
 	Syncing                                bool     `json:"syncing" yaml:"syncing"`
 	LocalAbsoluteSyncDirFromDevStartPlugin []string `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
 	DevPortList                            []string `json:"devPortList" yaml:"devPortList"`
+
+	// .nhignore's pattern configuration
+	SyncedPatterns  []string `json:"syncFilePattern" yaml:"syncFilePattern"`
+	IgnoredPatterns []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
 }

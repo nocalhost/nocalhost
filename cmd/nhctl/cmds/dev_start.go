@@ -40,7 +40,11 @@ func init() {
 	devStartCmd.Flags().StringVarP(&devStartOps.DevLang, "lang", "l", "", "the program language, eg: java go python")
 	devStartCmd.Flags().StringVarP(&devStartOps.DevImage, "image", "i", "", "image of DevContainer")
 	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory, same as sync path")
+	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "the StorageClass used by persistent volumes")
 	devStartCmd.Flags().StringVar(&devStartOps.SideCarImage, "sidecar-image", "", "image of nocalhost-sidecar container")
+
+	// for debug only
+	devStartCmd.Flags().StringVar(&devStartOps.SyncthingVersion, "syncthing-version", "", "versions of syncthing and this flag is use for debug only")
 	// LocalSyncDir is local sync directory Absolute path splice by plugin
 	devStartCmd.Flags().StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{}, "local sync directory")
 	debugCmd.AddCommand(devStartCmd)
@@ -65,13 +69,13 @@ var devStartCmd = &cobra.Command{
 			log.Fatalf("\"%s\" is already in developing", deployment)
 		}
 
-		nocalhostApp.LoadOrCreateSvcProfile(deployment, app.Deployment)
+		//nocalhostApp.LoadConfigToSvcProfile(deployment, app.Deployment)
 
 		devStartOps.Kubeconfig = settings.KubeConfig
-		log.Info("starting dev mode...")
+		log.Info("starting DevMode...")
 
 		// set dev start ops args
-		// devStartOps.LocalSyncDir is from pulgin by local-sync
+		// devStartOps.LocalSyncDir is from plugin by local-sync
 		var fileSyncOptions = &app.FileSyncOptions{}
 		devStartOps.Namespace = nocalhostApp.AppProfile.Namespace
 		if devStartOps.WorkDir == "" { // command flag not set
@@ -84,10 +88,16 @@ var devStartCmd = &cobra.Command{
 			log.FatalE(err, "failed to create syncthing process, please try again.")
 		}
 		// install syncthing
-		if newSyncthing != nil && !newSyncthing.IsInstalled() {
-			err = newSyncthing.DownloadSyncthing()
+		if newSyncthing != nil && !newSyncthing.IsInstalled() || newSyncthing.NeedToDownloadSpecifyVersion(Version) || devStartOps.SyncthingVersion != "" {
+			downloadVersion := Version
+			if devStartOps.SyncthingVersion != "" {
+				downloadVersion = devStartOps.SyncthingVersion
+			}
+
+			log.Infof("able to download syncthing with version: " + downloadVersion)
+			err = newSyncthing.DownloadSyncthing(downloadVersion)
 			if err != nil {
-				log.FatalE(err,"failed to download syncthing binary, please try again.")
+				log.FatalE(err, "failed to download syncthing binary, please try again.")
 			}
 		}
 
@@ -105,11 +115,12 @@ var devStartCmd = &cobra.Command{
 				"key.pem":    []byte(secret_config.KeyPEM),
 			},
 		}
-		err = nocalhostApp.CreateSyncThingSecret(syncSecret, devStartOps)
+		err = nocalhostApp.CreateSyncThingSecret(deployment, syncSecret)
 		if err != nil {
 			// TODO dev end should delete syncthing secret
 			log.Fatalf("failed to create syncthing secret, please try to delete \"%s\" secret first manually.", syncthing.SyncSecretName)
 		}
+
 		// set profile sync dir
 		err = nocalhostApp.SetLocalAbsoluteSyncDirFromDevStartPlugin(deployment, devStartOps.LocalSyncDir)
 		if err != nil {
@@ -118,6 +129,7 @@ var devStartCmd = &cobra.Command{
 
 		err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps)
 		if err != nil {
+			// todo: rollback somethings
 			log.FatalE(err, "failed to replace dev container")
 		}
 		// set profile sync port
