@@ -672,7 +672,7 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 		coloredoutput.Fail("Failed to roll revision back")
 	} else {
 		// Wait until workload ready
-		err = a.client.WaitDeploymentRevisionToBeReady(ctx, a.GetNamespace(), svcName)
+		err = a.client.WaitDeploymentLatestRevisionToBeReady(ctx, a.GetNamespace(), svcName)
 		if err != nil {
 			return err
 		} else {

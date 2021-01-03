@@ -270,6 +270,8 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 		return err
 	}
 
+	a.client.WaitDeploymentLatestRevisionToBeReady(ctx, a.GetNamespace(), dep.Name)
+
 	podList, err := a.client.ListPodsOfDeployment(a.GetNamespace(), dep.Name)
 	if err != nil {
 		log.WarnE(err, "Failed to get pods")
@@ -284,7 +286,8 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 
 wait:
 	for {
-		podList, err = a.client.ListPodsOfDeployment(a.GetNamespace(), dep.Name)
+		// Get the latest revision
+		podList, err = a.client.ListPodsOfLatestRevisionByDeployment(a.GetNamespace(), dep.Name)
 		if err != nil {
 			log.WarnE(err, "Failed to get pods")
 			return err
@@ -303,7 +306,8 @@ wait:
 			for _, c := range pod.Spec.Containers {
 				if !isContainerReadyAndRunning(c.Name, &pod) {
 					spinner.Update(fmt.Sprintf("Container %s is not ready, waiting...", c.Name))
-					break wait
+					<-time.NewTimer(time.Second * 1).C
+					continue wait
 				}
 			}
 			spinner.Update("All containers are ready")
