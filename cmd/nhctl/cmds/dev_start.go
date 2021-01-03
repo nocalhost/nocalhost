@@ -44,7 +44,7 @@ func init() {
 	devStartCmd.Flags().StringVar(&devStartOps.SideCarImage, "sidecar-image", "", "image of nocalhost-sidecar container")
 
 	// for debug only
-	devStartCmd.Flags().StringVar(&devStartOps.SyncthingVersion, "syncthing-version", syncthing.SyncthingVersion, "versions of syncthing and this flag is use for debug only")
+	devStartCmd.Flags().StringVar(&devStartOps.SyncthingVersion, "syncthing-version", "", "versions of syncthing and this flag is use for debug only")
 	// LocalSyncDir is local sync directory Absolute path splice by plugin
 	devStartCmd.Flags().StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{}, "local sync directory")
 	debugCmd.AddCommand(devStartCmd)
@@ -88,8 +88,14 @@ var devStartCmd = &cobra.Command{
 			log.FatalE(err, "failed to create syncthing process, please try again.")
 		}
 		// install syncthing
-		if newSyncthing != nil && !newSyncthing.IsInstalled() {
-			err = newSyncthing.DownloadSyncthing(devStartOps.SyncthingVersion)
+		if newSyncthing != nil && !newSyncthing.IsInstalled() || newSyncthing.NeedToDownloadSpecifyVersion(Version) || devStartOps.SyncthingVersion != "" {
+			downloadVersion := Version
+			if devStartOps.SyncthingVersion != "" {
+				downloadVersion = devStartOps.SyncthingVersion
+			}
+
+			log.Infof("able to download syncthing with version: " + downloadVersion)
+			err = newSyncthing.DownloadSyncthing(downloadVersion)
 			if err != nil {
 				log.FatalE(err, "failed to download syncthing binary, please try again.")
 			}

@@ -18,6 +18,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -173,6 +174,29 @@ func FileExists(name string) bool {
 func (s *Syncthing) IsInstalled() bool {
 	_, err := os.Stat(s.BinPath)
 	return !os.IsNotExist(err)
+}
+
+func (s *Syncthing) NeedToDownloadSpecifyVersion(nhctlVersion string) bool {
+	cmdArgs := []string{
+		"-nocalhost",
+	}
+
+	output, err := exec.Command(s.BinPath, cmdArgs...).Output()
+
+	if err != nil {
+		log.Infof("Need to download due to syncthing exec fail, error: %s", err)
+		return true
+	}
+
+	currentSyncthingVersion := strings.TrimSuffix(string(output), "\n")
+	log.Infof("current syncthing version: %s \ncurrent nhctl version: %s", currentSyncthingVersion, nhctlVersion)
+
+	download := currentSyncthingVersion != nhctlVersion
+	if download {
+		log.Infof("need to download syncthing with nocalhost version: " + nhctlVersion)
+	}
+
+	return download
 }
 
 func GetDownloadURL(os, arch, version string) (string, error) {
