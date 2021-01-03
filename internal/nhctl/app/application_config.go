@@ -108,8 +108,8 @@ type ServiceDevOptions struct {
 	DevPort               []string               `json:"devPorts" yaml:"devPorts"`
 	Jobs                  []string               `json:"dependJobsLabelSelector" yaml:"dependJobsLabelSelector,omitempty"`
 	Pods                  []string               `json:"dependPodsLabelSelector" yaml:"dependPodsLabelSelector,omitempty"`
-	SyncedPattern         []string               `json:"syncedPattern" yaml:"syncedPattern"`
-	IgnoredPattern        []string               `json:"ignoredPattern" yaml:"ignoredPattern"`
+	SyncedPattern         []string               `json:"syncFilePattern" yaml:"syncFilePattern"`
+	IgnoredPattern        []string               `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
 }
 
 type ComparableItems []*PreInstallItem

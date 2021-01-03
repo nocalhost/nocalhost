@@ -21,7 +21,7 @@ spec:
           resources:
             requests:
               cpu: 500m
-              memory: 2048Mi
+              memory: 1024Mi
           imagePullPolicy: Always
           # dev mode
           #command: ["/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/server", "--"]
