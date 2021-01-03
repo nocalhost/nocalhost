@@ -666,13 +666,18 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 
 	spinner := utils.NewSpinner(" Rolling container's revision back...")
 	spinner.Start()
-	_, err = clientUtils.UpdateDeployment(ctx, a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
+	dep, err = clientUtils.UpdateDeployment(ctx, a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
 	spinner.Stop()
 	if err != nil {
 		coloredoutput.Fail("Failed to roll revision back")
 	} else {
-		// todo: wait until workload ready
-		coloredoutput.Success("Workload has been rollback")
+		// Wait until workload ready
+		err = a.client.WaitDeploymentRevisionToBeReady(ctx, a.GetNamespace(), svcName)
+		if err != nil {
+			return err
+		} else {
+			coloredoutput.Success("Workload has been rollback")
+		}
 	}
 
 	return err

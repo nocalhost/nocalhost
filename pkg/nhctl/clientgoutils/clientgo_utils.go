@@ -317,6 +317,10 @@ func (c *ClientGoUtils) UpdateDeployment(ctx context.Context, namespace string, 
 		return nil, errors.Wrap(err, "")
 	}
 	if wait {
+		ready, _ := isDeploymentReady(dep)
+		if ready {
+			return dep, nil
+		}
 		err = c.WaitDeploymentToBeReady(namespace, dep.Name, c.TimeOut)
 	}
 	return dep, err
@@ -375,6 +379,50 @@ func (c *ClientGoUtils) GetSortedReplicaSetsByDeployment(ctx context.Context, na
 		results = append(results, rss[key])
 	}
 	return results, nil
+}
+func (c *ClientGoUtils) WaitDeploymentRevisionToBeReady(ctx context.Context, namespace string, name string) error {
+	// Find the latest revision
+	replicaSets, err := c.GetReplicaSetsControlledByDeployment(ctx, namespace, name)
+	if err != nil {
+		log.WarnE(err, "Failed to get replica sets")
+		return err
+	}
+	revisions := make([]int, 0)
+	for _, rs := range replicaSets {
+		if rs.Annotations["deployment.kubernetes.io/revision"] != "" {
+			r, _ := strconv.Atoi(rs.Annotations["deployment.kubernetes.io/revision"])
+			revisions = append(revisions, r)
+		}
+	}
+
+	sort.Ints(revisions)
+
+	latestRevision := revisions[len(revisions)-1]
+
+	log.Debugf("Waiting %s rolling back to revision %d...", name, latestRevision)
+
+	for {
+		replicaSets, err := c.GetReplicaSetsControlledByDeployment(ctx, namespace, name)
+		if err != nil {
+			log.WarnE(err, "Failed to get replica sets")
+			return err
+		}
+		isReady := true
+		for _, rs := range replicaSets {
+			if rs.Annotations["deployment.kubernetes.io/revision"] == strconv.Itoa(latestRevision) {
+				continue
+			}
+			if rs.Status.Replicas != 0 {
+				log.Infof("ReplicaSet %s has not been terminate", rs.Name)
+				isReady = false
+				break
+			}
+		}
+		if isReady {
+			return nil
+		}
+		time.Sleep(2 * time.Second)
+	}
 }
 
 func (c *ClientGoUtils) GetReplicaSetsControlledByDeployment(ctx context.Context, namespace string, deploymentName string) (map[int]*v1.ReplicaSet, error) {
