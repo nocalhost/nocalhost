@@ -16,8 +16,6 @@ package cmds
 import (
 	"context"
 	"fmt"
-	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/request"
@@ -30,6 +28,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type Init struct {
@@ -298,21 +299,43 @@ var InitCommand = &cobra.Command{
 		setDepComponentDockerImage(kubectl, settings.KubeConfig)
 
 		spinner.Stop()
+		serverURL := ""
+		port := 0
 		if kubeResult.Minikube {
 			// use default DefaultInitMiniKubePortForwardPort port-forward
 			//portResult := req.GetAvailableRandomLocalPort()
-			port := app.DefaultInitMiniKubePortForwardPort
+			port = app.DefaultInitMiniKubePortForwardPort
 			if !req.CheckPortIsAvailable(app.DefaultInitMiniKubePortForwardPort) {
 				port = req.GetAvailableRandomLocalPort().MiniKubeAvailablePort
 			}
-			serverUrl := fmt.Sprintf("http://%s:%d", "127.0.0.1", port)
-			coloredoutput.Success("Nocalhost init completed. \n Server Url: %s \n Plugin User: \n Username: %s \n Password: %s \n Admin User (Web UI): \n Username: %s \n Password: %s \n please setup VS Code Plugin and login, enjoy! \n", serverUrl, app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord)
+			serverURL = fmt.Sprintf("http://%s:%d", "127.0.0.1", port)
+		} else {
+			serverURL = fmt.Sprintf("http://%s", endPoint)
+		}
+
+		coloredoutput.Success(
+			"Nocalhost init completed. \n\n"+
+				" Default user for plugin: \n"+
+				" Api Server(Set on plugin): %s \n"+
+				" Username: %s \n"+
+				" Password: %s \n\n"+
+				" Default administrator: \n"+
+				" Web dashboard: %s\n"+
+				" Username: %s \n"+
+				" Password: %s \n\n"+
+				" Now, you can setup VSCode plugin and enjoy Nocalhost! \n",
+			serverURL,
+			app.DefaultInitUserEmail,
+			app.DefaultInitPassword,
+			serverURL,
+			app.DefaultInitAdminUserName,
+			app.DefaultInitAdminPassWord,
+		)
+
+		if kubeResult.Minikube {
 			coloredoutput.Information("port forwarding, please do not close this windows! \n")
 			// if DefaultInitMiniKubePortForwardPort can not use, it will return available port
 			req.RunPortForward(port)
-		} else {
-			serverUrl := fmt.Sprintf("http://%s", endPoint)
-			coloredoutput.Success("Nocalhost init completed. \n Server Url: %s \n Plugin User: \n Username: %s \n Password: %s \n Admin User (Web UI): \n Username: %s \n Password: %s \n please setup VS Code Plugin and login, enjoy! \n", serverUrl, app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord)
 		}
 	},
 }
