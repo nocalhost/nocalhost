@@ -80,6 +80,10 @@ mariadb:
       enabled: false
     containerSecurityContext:
       enabled: false
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: 500m
     extraVolumes:
     - name: nocalhost-api-sql-config-volume
       configMap:
