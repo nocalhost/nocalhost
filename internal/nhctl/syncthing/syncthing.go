@@ -321,8 +321,8 @@ func (s *Syncthing) generateIgnoredFileConfig() (string, error) {
 		"syncedPattern":  strings.Join(syncedPatternAdaption, "\n"),
 	}
 
-	log.Infof("ignoredPattern: \n"+ values["ignoredPattern"])
-	log.Infof("syncedPattern: \n"+ values["syncedPattern"])
+	log.Infof("ignoredPattern: \n" + values["ignoredPattern"])
+	log.Infof("syncedPattern: \n" + values["syncedPattern"])
 
 	buf := new(bytes.Buffer)
 	if err := ignoredFileTemplate.Execute(buf, values); err != nil {
@@ -343,12 +343,12 @@ func (s *Syncthing) Run(ctx context.Context) error {
 		return err
 	}
 
-	ignoreFilePath, err := s.generateIgnoredFileConfig()
-
-	if err != nil {
-		log.Warnf("fail to generate ignore file config: %s", err.Error())
-		ignoreFilePath = ""
-	}
+	//ignoreFilePath, err := s.generateIgnoredFileConfig()
+	//
+	//if err != nil {
+	//	log.Warnf("fail to generate ignore file config: %s", err.Error())
+	//	ignoreFilePath = ""
+	//}
 
 	pidPath := filepath.Join(s.LocalHome, syncthingPidFile)
 
@@ -358,7 +358,7 @@ func (s *Syncthing) Run(ctx context.Context) error {
 		"-verbose",
 		"-logfile", s.LogPath,
 		"-log-max-old-files=0",
-		"-ignore-file-path=" + ignoreFilePath,
+		//"-ignore-file-path=" + ignoreFilePath,
 	}
 	s.cmd = exec.Command(s.BinPath, cmdArgs...) //nolint: gas, gosec
 	s.cmd.Env = append(os.Environ(), "STNOUPGRADE=1")

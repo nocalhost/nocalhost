@@ -34,10 +34,10 @@ const SyncthingVersion = "latest"
 
 var (
 	downloadURLs = map[string]string{
-		"linux":   "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=%s",
-		"arm64":   "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-arm64.tar.gz?version=%s",
-		"darwin":  "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=%s",
-		"windows": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=%s",
+		"linux":   "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64-v1.11.1.tar.gz?version=%s",
+		"arm64":   "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-arm64-v1.11.1.tar.gz?version=%s",
+		"darwin":  "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64-v1.11.1.zip?version=%s",
+		"windows": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64-v1.11.1.zip?version=%s",
 	}
 )
 
