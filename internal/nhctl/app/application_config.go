@@ -68,6 +68,9 @@ const (
 	// Init Component Version Control, HEAD means build from tag
 	DefaultNocalhostMainBranch        = "HEAD"
 	DefaultNocalhostDepDockerRegistry = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep"
+
+	// file sync
+	DefaultNocalhostSideCarName = "nocalhost-sidecar"
 )
 
 type NocalHostAppConfig struct {

@@ -30,6 +30,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 )
 
 var fileSyncOps = &app.FileSyncOptions{}
@@ -80,6 +81,28 @@ var fileSyncCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal("installing fortune is in your future")
 		}
+
+		// to avoid dev start change judgment for success enter devMode, file syncthing need make sure it can do it by himself
+		needExit := false
+		for {
+			<-time.NewTimer(time.Second * 1).C
+			checkPodsList, err := nocalhostApp.GetPodsFromDeployment(context.TODO(), nocalhostApp.AppProfile.Namespace, deployment)
+			if err != nil {
+				log.Fatalf(err.Error())
+			}
+			if len(checkPodsList.Items) == 1 {
+				for _, container := range checkPodsList.Items[0].Spec.Containers {
+					if container.Name == app.DefaultNocalhostSideCarName {
+						needExit = true
+						break
+					}
+				}
+			}
+			if needExit {
+				break
+			}
+		}
+
 		// overwrite Args[0] as ABS directory of bin directory
 		os.Args[0] = nhctlAbsDir
 
