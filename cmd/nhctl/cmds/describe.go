@@ -21,7 +21,7 @@ import (
 )
 
 func init() {
-
+	describeCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	rootCmd.AddCommand(describeCmd)
 }
 
@@ -38,6 +38,11 @@ var describeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
 		InitApp(applicationName)
-		fmt.Println(nocalhostApp.GetDescription())
+		if deployment == "" {
+			fmt.Print(nocalhostApp.GetDescription())
+		} else {
+			CheckIfSvcExist(deployment)
+			fmt.Print(nocalhostApp.GetSvcDescription(deployment))
+		}
 	},
 }

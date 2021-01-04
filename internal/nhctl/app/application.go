@@ -783,6 +783,18 @@ func (a *Application) GetDescription() string {
 	return desc
 }
 
+func (a *Application) GetSvcDescription(svcName string) string {
+	desc := ""
+	profile := a.GetSvcProfile(svcName)
+	if profile != nil {
+		bytes, err := yaml.Marshal(profile)
+		if err == nil {
+			desc = string(bytes)
+		}
+	}
+	return desc
+}
+
 func (a *Application) GetPluginDescription(service string) string {
 	desc := ""
 	if a.AppProfile != nil {
