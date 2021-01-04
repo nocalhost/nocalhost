@@ -16,8 +16,8 @@ package tools
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
 	"math/rand"
 	"os"
@@ -30,11 +30,6 @@ import (
 )
 
 var logger *zap.Logger
-
-//init
-//func init() {
-//    logger = zaplog.InitLogger()
-//}
 
 //check os
 func CheckOS() string {
@@ -119,8 +114,7 @@ func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params
 	}
 	err = cmd.Start()
 	if err != nil {
-		fmt.Printf("failed to start cmds, err:%v\n", err)
-		return "", err
+		return "", errors.Wrap(err, "Failed to start cmd")
 	}
 
 	if isDisplay {
@@ -133,7 +127,7 @@ func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params
 	}
 	err = cmd.Wait()
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "")
 	}
 	if errStderr != nil || errStdout != nil {
 		return "", errors.New("error occur when print")

@@ -475,7 +475,7 @@ func (c *ClientGoUtils) WaitDeploymentLatestRevisionToBeReady(ctx context.Contex
 				continue
 			}
 			if rs.Status.Replicas != 0 {
-				log.Infof("ReplicaSet %s has not been terminate", rs.Name)
+				log.Debugf("Previous replicaSet revision %s has not been terminated", rs.Name)
 				isReady = false
 				break
 			}
