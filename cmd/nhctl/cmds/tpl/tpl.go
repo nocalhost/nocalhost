@@ -105,7 +105,7 @@ devContainerImage: "codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang
 # type: string[]
 # default value: ["/home/nocalhost-dev"]
 # optional
-# persistentVolumeDir:
+# persistentVolumeDirs:
 	# Dir to be persisted in DevContainer
 	# type: string
 	# default value: null
