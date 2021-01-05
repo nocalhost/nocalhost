@@ -640,7 +640,7 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 
 	// Find previous replicaSet
 	if len(rss) < 2 {
-		log.Warn("no history to roll back")
+		log.Warn("No history to roll back")
 		return nil
 	}
 
