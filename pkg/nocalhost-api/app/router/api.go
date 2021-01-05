@@ -18,6 +18,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/api/v1/applications"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster_user"
+	"nocalhost/pkg/nocalhost-api/app/api/v1/version"
 	"nocalhost/pkg/nocalhost-api/napp"
 
 	"github.com/gin-contrib/pprof"
@@ -68,6 +69,8 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		// disable swagger docs for release  env=release
 		g.GET("/swagger/*any", ginSwagger.DisablingWrapHandler(swaggerFiles.Handler, "env"))
 	}
+	// version
+	g.GET("/v1/version", version.Get)
 
 	g.POST("/v1/register", user.Register)
 	g.POST("/v1/login", user.Login)

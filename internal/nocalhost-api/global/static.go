@@ -17,3 +17,9 @@ const (
 	NocalhostDepKubeConfigMapKey          = "config"
 	NocalhostPrePullDSName                = "nocalhost-prepull"
 )
+
+var (
+	Version  = "default"
+	CommitId = "default"
+	Branch   = "default"
+)
