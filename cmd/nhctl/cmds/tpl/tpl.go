@@ -79,12 +79,21 @@ gitUrl: "https://github.com/nocalhost/nocalhost.git"
 # required
 devContainerImage: "codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang:latest"
 
-# dirs to sync, relative to the root dir of source code
+# List of files and directories to be synchronized to DevContainer
 # type: string[]
 # default value: ["."]
 # optional
-syncDirs:
-  - "."
+# syncFilePattern:
+  # - "./src"
+  # - "./pkg/fff"
+
+# List of ignored files and directories to be synchronized to DevContainer
+# type: string[]
+# default value: []
+# optional
+# ignoreFilePattern:
+  # - ".git"
+  # - "./build"
 
 # work dir of develop container
 # type: string
@@ -92,30 +101,78 @@ syncDirs:
 # optional
 # workDir: "/home/nocalhost-dev"
 
+# Dirs to be persisted in DevContainer
+# type: string[]
+# default value: ["/home/nocalhost-dev"]
+# optional
+# persistentVolumeDir:
+	# Dir to be persisted in DevContainer
+	# type: string
+	# default value: null
+	# required
+	# - path: "/root"
+
+	  # Capability of the dir
+	  # type: string
+	  # default value: 10Gi
+	  # optional
+	  # capacity: 100Gi
+
 # ports which need to be forwarded
 # localPort:remotePort
 # type: string[]
 # default value: []
 # optional
 # devPorts:
-#   - 8080:8080
-#   - :8000  # random localPort, remotePort 8000
+  # - 8080:8080
+  # random localPort, remotePort 8000
+  # - :8000
 
 # pod selectors which service depends on
 # type: string[]
 # default value: []
 # optional
 # dependPodsLabelSelector:
-#   - "name=mariadb"
-#   - "app.kubernetes.io/name=mariadb"
+  # - "name=mariadb"
+  # - "app.kubernetes.io/name=mariadb"
 
 # job selectors which service depends on
 # type: string[]
 # default value: []
 # optional
 # dependJobsLabelSelector:
-#   - "name=init-job"
-#   - "app.kubernetes.io/name=init-job"
+  # - "name=init-job"
+  # - "app.kubernetes.io/name=init-job"
+
+# Build command of the service
+# type: string[]
+# default value: [""]
+# optional
+# buildCommand: ["./gradlew", "package"]
+
+# Run command of the service
+# type: string[]
+# default value: [""]
+# optional
+# runCommand: ["./gradlew", "bootRun"]
+
+# Debug command of the service
+# type: string[]
+# default value: [""]
+# optional
+# debugCommand: ["./gradlew", "bootRun", "--debug-jvm"]
+
+# Hot-reload run command of the service
+# type: string[]
+# default value: [""]
+# optional
+# hotReloadRunCommand: ["bash", "-c", "kill $(ps -ef|grep -i gradlew| grep -v grep| awk '{print $2}'); gradlew bootRun"]
+
+# Hot-reload debug command of the service
+# type: string[]
+# default value: [""]
+# optional
+# hotReloadDebugCommand: ["bash", "-c", "kill $(ps -ef|grep -i gradlew| grep -v grep| awk '{print $2}'); gradlew bootRun --debug-jvm"]
 `
 
 func GetSvcTpl(svcName string) (string, error) {
