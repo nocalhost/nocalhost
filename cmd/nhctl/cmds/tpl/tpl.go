@@ -106,17 +106,17 @@ devContainerImage: "codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang
 # default value: ["/home/nocalhost-dev"]
 # optional
 # persistentVolumeDirs:
-	# Dir to be persisted in DevContainer
-	# type: string
-	# default value: null
-	# required
-	# - path: "/root"
+  # Dir to be persisted in DevContainer
+  # type: string
+  # default value: null
+  # required
+  # - path: "/root"
 
-	  # Capability of the dir
-	  # type: string
-	  # default value: 10Gi
-	  # optional
-	  # capacity: 100Gi
+    # Capability of the dir
+    # type: string
+    # default value: 10Gi
+    # optional
+    # capacity: 100Gi
 
 # ports which need to be forwarded
 # localPort:remotePort
