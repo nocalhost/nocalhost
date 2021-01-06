@@ -150,9 +150,9 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 
 	// volume mount
 	workDir := a.GetDefaultWorkDir(deployment)
-	if ops.WorkDir != "" {
-		workDir = ops.WorkDir
-	}
+	//if ops.WorkDir != "" {
+	//	workDir = ops.WorkDir
+	//}
 
 	// default : replace the first container
 	devImage := a.GetDefaultDevImage(deployment)
@@ -187,7 +187,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	if len(persistentVolumes) > 0 {
 		for index, persistentVolume := range persistentVolumes {
 			if persistentVolume.Path == "" {
-				log.Warnf("persistentVolume's path should be set")
+				log.Warnf("PersistentVolume's path should be set")
 				continue
 			}
 
@@ -320,14 +320,6 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 
 	a.client.WaitDeploymentLatestRevisionToBeReady(ctx, a.GetNamespace(), dep.Name)
 
-	//podList, err := a.client.ListPodsOfDeployment(a.GetNamespace(), dep.Name)
-	//if err != nil {
-	//	log.WarnE(err, "Failed to get pods")
-	//	return err
-	//}
-
-	//log.Debugf("%d pod(s) found", len(podList)) // should be 2
-
 	// Wait podList to be ready
 	spinner := utils.NewSpinner(" Waiting pod to start...")
 	spinner.Start()
@@ -355,7 +347,6 @@ wait:
 			for _, c := range pod.Spec.Containers {
 				if !isContainerReadyAndRunning(c.Name, &pod) {
 					spinner.Update(fmt.Sprintf("Container %s is not ready, waiting...", c.Name))
-					//<-time.NewTimer(time.Second * 1).C
 					continue wait
 				}
 			}
@@ -364,7 +355,6 @@ wait:
 		} else {
 			spinner.Update(fmt.Sprintf("Waiting pod to be replaced..."))
 		}
-		//<-time.NewTimer(time.Second * 1).C
 	}
 	spinner.Stop()
 	coloredoutput.Success("Development container has been updated")
@@ -402,7 +392,7 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 		time.Sleep(time.Second * 2)
 		pvc, err = a.client.GetPvcByName(ctx, a.GetNamespace(), pvc.Name)
 		if err != nil {
-			log.Warnf("fail to update pvc's status: %s", err.Error())
+			log.Warnf("Failed to update pvc's status: %s", err.Error())
 			continue
 		}
 		if pvc.Status.Phase == corev1.ClaimBound {
@@ -414,7 +404,7 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 				for _, condition := range pvc.Status.Conditions {
 					errorMes = condition.Message
 					if condition.Reason == "ProvisioningFailed" {
-						log.Warnf("fail to create a pvc for %s, check if your StorageClass is set correctly", persistentVolume.Path)
+						log.Warnf("Failed to create a pvc for %s, check if your StorageClass is set correctly", persistentVolume.Path)
 						break
 					}
 				}
@@ -426,13 +416,13 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 		if errorMes == "" {
 			errorMes = "timeout"
 		}
-		log.Warnf("fail to wait %s to be bounded: %s", pvc.Name, errorMes)
+		log.Warnf("Failed to wait %s to be bounded: %s", pvc.Name, errorMes)
 		err = a.client.DeletePVC(a.GetNamespace(), pvc.Name)
 		if err != nil {
-			log.Warnf("fail to clean pvc %s", pvc.Name)
+			log.Warnf("Fail to clean pvc %s", pvc.Name)
 			return nil, err
 		} else {
-			log.Infof("pvc %s is cleaned up", pvc.Name)
+			log.Infof("PVC %s is cleaned up", pvc.Name)
 		}
 	}
 	return nil, errors.New("Failed to create pvc for " + persistentVolume.Path)
@@ -446,29 +436,26 @@ func (a *Application) scaleDeploymentReplicasToOne(ctx context.Context, deployme
 		return errors.Wrap(err, "")
 	}
 
-	log.Info("Scaling replicas to 1")
-
 	if scale.Spec.Replicas > 1 {
-		log.Infof("deployment %s's replicas is %d now\n", deployment, scale.Spec.Replicas)
+		log.Infof("Deployment %s's replicas is %d now, scaling it to 1", deployment, scale.Spec.Replicas)
 		scale.Spec.Replicas = 1
 		_, err = deploymentsClient.UpdateScale(ctx, deployment, scale, metav1.UpdateOptions{})
 		if err != nil {
-			fmt.Println("failed to scale replicas to 1")
+			log.Error("Failed to scale replicas to 1")
 		} else {
-			//time.Sleep(time.Second * 5) // todo check replicas
 			for i := 0; i < 60; i++ {
-				time.Sleep(time.Second * 2)
+				time.Sleep(time.Second * 1)
 				scale, err = deploymentsClient.GetScale(ctx, deployment, metav1.GetOptions{})
 				if scale.Spec.Replicas > 1 {
 					log.Debugf("Waiting replicas scaling to 1")
 				} else {
-					log.Info("replicas has been set to 1")
+					log.Info("Replicas has been set to 1")
 					break
 				}
 			}
 		}
 	} else {
-		log.Infof("deployment %s's replicas is already 1\n", deployment)
+		log.Infof("Deployment %s's replicas is already 1, no need to scale", deployment)
 	}
 	return nil
 }

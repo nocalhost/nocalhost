@@ -222,7 +222,7 @@ func (a *Application) InstallDepConfigMap(appType AppType) error {
 			a.AppProfile.Save()
 		}
 	}
-	log.Info("dependency config map installed")
+	log.Info("Dependency config map installed")
 	return nil
 }
 

@@ -1,6 +1,6 @@
 name: bookinfo
 manifestType: rawManifest
-resourcePath: ["manifest/templates"]
+resourcePath: ["manifest/ttt","manifest/templates","manifest/qqq"]
 
 onPreInstall:
   - path: manifest/templates/pre-install/print-num-job-01.yaml
