@@ -1,9 +1,17 @@
 #!/usr/bin/env bash
 set -eu -o pipefail
 
+VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/\(.*\)-.*/\1/' | sed 's/-[0-9]*$//' || true)}
 GIT_COMMIT_SHA=`git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty`
 DOCKERFILE="deployments/dep-install-job/Dockerfile"
 TARGET="dep-installer-job"
+BRANCH=`git rev-parse --abbrev-ref HEAD`
+DEVGITCOMMIT=`git rev-parse HEAD`
 
-docker build -t ${TARGET} -f ${DOCKERFILE} .
+BUILDARG=${DEVGITCOMMIT}
+if [ "${BRANCH}" = "HEAD" ]; then
+	BUILDARG=${VERSION}
+fi
+
+docker build --build-arg dep_version=${BUILDARG} -t ${TARGET} -f ${DOCKERFILE} .
 docker tag ${TARGET}:latest ${TARGET}:${GIT_COMMIT_SHA}

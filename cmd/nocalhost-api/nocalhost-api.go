@@ -17,6 +17,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"nocalhost/internal/nocalhost-api/global"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -99,7 +100,7 @@ func main() {
 	// set global service
 	service.Svc = svc
 
-	fmt.Printf("Current run Version is [%s]\n", GIT_COMMIT_SHA)
+	fmt.Printf("current run version %s, tag %s, branch %s \n", global.CommitId, global.Version, global.Branch)
 
 	// start grpc server reserved
 	//go server.New(svc)

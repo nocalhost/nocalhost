@@ -1,7 +1,8 @@
 name: dep-installer-job-docker
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main, dev ]
 
 jobs:
   build-dep-install-job:
