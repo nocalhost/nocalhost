@@ -645,13 +645,19 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 	}
 
 	var r *v1.ReplicaSet
+	var originalPodReplicas *int32
 	for _, rs := range rss {
 		if rs.Annotations == nil {
 			continue
 		}
 		// Mark the original revision
-		if rs.Annotations[DevImageFlagAnnotationKey] == DevImageFlagAnnotationValue {
+		if rs.Annotations[DevImageRevisionAnnotationKey] == DevImageRevisionAnnotationValue {
 			r = rs
+			if rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] != "" {
+				podReplicas, _ := strconv.Atoi(rs.Annotations[DevImageOriginalPodReplicasAnnotationKey])
+				podReplicas32 := int32(podReplicas)
+				originalPodReplicas = &podReplicas32
+			}
 		}
 	}
 	if r == nil {
@@ -663,6 +669,9 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 	}
 
 	dep.Spec.Template = r.Spec.Template
+	if originalPodReplicas != nil {
+		dep.Spec.Replicas = originalPodReplicas
+	}
 
 	spinner := utils.NewSpinner(" Rolling container's revision back...")
 	spinner.Start()
