@@ -640,7 +640,7 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 
 	// Find previous replicaSet
 	if len(rss) < 2 {
-		log.Warn("no history to roll back")
+		log.Warn("No history to roll back")
 		return nil
 	}
 
@@ -1080,6 +1080,32 @@ func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(svcName stri
 
 func (a *Application) GetPodsFromDeployment(ctx context.Context, namespace, deployment string) (*corev1.PodList, error) {
 	return a.client.GetPodsFromDeployment(ctx, namespace, deployment)
+}
+
+func (a *Application) WaitAndGetNocalhostDevContainerPod(namespace, deployment string) (podName, podNameSpace string, err error) {
+	checkPodsList, err := a.GetPodsFromDeployment(context.TODO(), namespace, deployment)
+	if err != nil {
+		log.Fatalf("get nocalhost dev container fail when file sync err %s", err.Error())
+		return "", "", err
+	}
+	found := false
+	for _, pod := range checkPodsList.Items {
+		if pod.Status.Phase == "Running" {
+			for _, container := range pod.Spec.Containers {
+				if container.Name == DefaultNocalhostSideCarName {
+					found = true
+					break
+				}
+			}
+			if found {
+				podName = pod.Name
+				podNameSpace = pod.Namespace
+				err = nil
+				return
+			}
+		}
+	}
+	return "", "", errors.New("dev container not found")
 }
 
 func (a *Application) PortForwardAPod(req clientgoutils.PortForwardAPodRequest) error {

@@ -30,6 +30,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 )
 
 var fileSyncOps = &app.FileSyncOptions{}
@@ -80,6 +81,23 @@ var fileSyncCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal("installing fortune is in your future")
 		}
+
+		// Reconfirm whether devcontainer is ready
+		pod := ""
+		namespace := ""
+		for {
+			<-time.NewTimer(time.Second * 1).C
+			pod, namespace, err = nocalhostApp.WaitAndGetNocalhostDevContainerPod(nocalhostApp.AppProfile.Namespace, deployment)
+			if err != nil {
+				log.Fatal(err)
+			} else {
+				break
+			}
+			log.Infof("wait for sidecar ready")
+		}
+
+		log.Infof("syncthing port-forward pod %s, namespace %s", pod, namespace)
+
 		// overwrite Args[0] as ABS directory of bin directory
 		os.Args[0] = nhctlAbsDir
 
@@ -93,17 +111,12 @@ var fileSyncCmd = &cobra.Command{
 			// success write pid file and exit father progress, stay child progress run
 		}
 
-		podName := ""
-		podNameSpace := ""
-		podsList, err := nocalhostApp.GetPodsFromDeployment(context.TODO(), nocalhostApp.AppProfile.Namespace, deployment)
+		podName, podNameSpace, err := nocalhostApp.WaitAndGetNocalhostDevContainerPod(nocalhostApp.AppProfile.Namespace, deployment)
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
-		if podsList != nil {
-			// get first pod
-			podName = podsList.Items[0].Name
-			podNameSpace = podsList.Items[0].Namespace
-		}
+
+		log.Infof("syncthing port-forward pod %s, namespace %s", podName, podNameSpace)
 
 		// start port-forward
 
