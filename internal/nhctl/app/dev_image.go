@@ -36,12 +36,25 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	if err != nil {
 		return err
 	}
-	if rss != nil && len(rss) > 0 {
-		rs := rss[len(rss)-1]
-		rs.Annotations[DevImageFlagAnnotationKey] = DevImageFlagAnnotationValue
-		_, err = a.client.ClientSet.AppsV1().ReplicaSets(a.GetNamespace()).Update(ctx, rs, metav1.UpdateOptions{})
-		if err != nil {
-			return errors.New("fail to update rs's annotation")
+	if len(rss) > 0 {
+		firstRevisionName := ""
+		for _, rs := range rss {
+			//rs := rss[len(rss)-1]
+			if rs.Annotations[DevImageFlagAnnotationKey] == DevImageFlagAnnotationValue {
+				firstRevisionName = rs.Name
+			}
+		}
+		if firstRevisionName != "" {
+			log.Debugf("First revision replicaSet %s has already been marked", firstRevisionName)
+		} else {
+			rs := rss[0]
+			rs.Annotations[DevImageFlagAnnotationKey] = DevImageFlagAnnotationValue
+			_, err = a.client.ClientSet.AppsV1().ReplicaSets(a.GetNamespace()).Update(ctx, rs, metav1.UpdateOptions{})
+			if err != nil {
+				return errors.New("fail to update rs's annotation")
+			} else {
+				log.Infof("%s has been marked as first revision", rs.Name)
+			}
 		}
 	}
 
@@ -180,11 +193,11 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 			labels[PersistentVolumeDirLabel] = utils.Sha1ToString(persistentVolume.Path)
 			claims, err := a.client.GetPvcByLabels(ctx, a.GetNamespace(), labels)
 			if err != nil {
-				log.WarnE(err, fmt.Sprintf("fail to get a pvc for %s", persistentVolume.Path))
+				log.WarnE(err, fmt.Sprintf("Fail to get a pvc for %s", persistentVolume.Path))
 				continue
 			}
 			if len(claims) > 1 {
-				log.Warn(fmt.Sprintf("find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path))
+				log.Warn(fmt.Sprintf("Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path))
 				continue
 			}
 
@@ -212,7 +225,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 				log.Info("WorkDir uses persistent volume defined in persistVolumeDirs")
 				continue
 			} else if strings.HasPrefix(workDir, persistentVolume.Path) && !workDirDefinedInPersistVolume {
-				log.Infof("workDir:%s resides in the persist dir: %s", workDir, persistentVolume.Path)
+				log.Infof("WorkDir:%s resides in the persist dir: %s", workDir, persistentVolume.Path)
 				// No need to mount workDir
 				workDirResideInPersistVolumeDirs = true
 			}
@@ -272,11 +285,11 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 
 	a.client.WaitDeploymentLatestRevisionToBeReady(ctx, a.GetNamespace(), dep.Name)
 
-	podList, err := a.client.ListPodsOfDeployment(a.GetNamespace(), dep.Name)
-	if err != nil {
-		log.WarnE(err, "Failed to get pods")
-		return err
-	}
+	//podList, err := a.client.ListPodsOfDeployment(a.GetNamespace(), dep.Name)
+	//if err != nil {
+	//	log.WarnE(err, "Failed to get pods")
+	//	return err
+	//}
 
 	//log.Debugf("%d pod(s) found", len(podList)) // should be 2
 
@@ -288,7 +301,7 @@ wait:
 	for {
 		<-time.NewTimer(time.Second * 1).C
 		// Get the latest revision
-		podList, err = a.client.ListPodsOfLatestRevisionByDeployment(a.GetNamespace(), dep.Name)
+		podList, err := a.client.ListPodsOfLatestRevisionByDeployment(a.GetNamespace(), dep.Name)
 		if err != nil {
 			log.WarnE(err, "Failed to get pods")
 			return err
@@ -358,7 +371,7 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 			continue
 		}
 		if pvc.Status.Phase == corev1.ClaimBound {
-			log.Infof("pvc %s has bounded to a pv", pvc.Name)
+			log.Infof("PVC %s has bounded to a pv", pvc.Name)
 			pvcBounded = true
 			return pvc, nil
 		} else {
@@ -371,7 +384,7 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 					}
 				}
 			}
-			log.Infof("pvc %s's status is %s, waiting it to be bounded", pvc.Name, pvc.Status.Phase)
+			log.Infof("PVC %s's status is %s, waiting it to be bounded", pvc.Name, pvc.Status.Phase)
 		}
 	}
 	if !pvcBounded {

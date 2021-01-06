@@ -82,7 +82,7 @@ var fileSyncCmd = &cobra.Command{
 			log.Fatal("installing fortune is in your future")
 		}
 
-		// to avoid dev start change judgment for success enter devMode, file syncthing need make sure it can do it by himself
+		// Reconfirm whether devcontainer is ready
 		pod := ""
 		namespace := ""
 		for {
