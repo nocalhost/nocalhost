@@ -16,9 +16,11 @@ package utils
 import (
 	"fmt"
 	"io"
+	"math/rand"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/cheggaaa/pb/v3"
 )
@@ -85,4 +87,17 @@ func RenderProgressBar(prefix string, current, scalingFactor float64) string {
 	_, _ = sb.WriteString("]")
 	_, _ = sb.WriteString(fmt.Sprintf(" %3v%%", int(current)))
 	return sb.String()
+}
+
+// RandomStr
+func RandomStr(n int) string {
+	var r = rand.New(rand.NewSource(time.Now().UnixNano()))
+	const pattern = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz"
+	salt := make([]byte, 0, n)
+	l := len(pattern)
+	for i := 0; i < n; i++ {
+		p := r.Intn(l)
+		salt = append(salt, pattern[p])
+	}
+	return string(salt)
 }

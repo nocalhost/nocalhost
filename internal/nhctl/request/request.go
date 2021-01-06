@@ -15,8 +15,10 @@ package request
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net"
+	"nocalhost/pkg/nhctl/utils"
 	"os"
 	"os/exec"
 	"strconv"
@@ -254,9 +256,19 @@ func (q *ApiRequest) AddBookInfoApplication(context string) *ApiRequest {
 	if context == "" {
 		context = app.DefaultInitApplicationGithub
 	}
-
+	var applicationStruct map[string]interface{}
+	applicationJson := []byte(context)
+	err := json.Unmarshal(applicationJson, &applicationStruct)
+	if err != nil {
+		log.Fatalf("init application bookinfo fail, err %s", err.Error())
+	}
+	applicationStruct["application_name"] = "bookinfo" + "-" + utils.RandomStr(4)
+	applicationNewJson, err := json.Marshal(applicationStruct)
+	if err != nil {
+		log.Fatalf("init application bookinfo fail, err %s", err.Error())
+	}
 	params := req.Param{
-		"context": context,
+		"context": string(applicationNewJson),
 		"status":  1,
 	}
 	header := req.Header{
