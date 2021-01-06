@@ -17,9 +17,9 @@ type DevStartOptions struct {
 	WorkDir      string
 	SideCarImage string
 	DevImage     string
-	DevLang      string
-	Namespace    string
-	Kubeconfig   string
+	//DevLang      string
+	//Namespace  string
+	Kubeconfig string
 
 	// for debug
 	SyncthingVersion string
@@ -30,12 +30,12 @@ type DevStartOptions struct {
 }
 
 type FileSyncOptions struct {
-	RemoteSyncthingPort    int
-	RemoteSyncthingGUIPort int
-	LocalSyncthingPort     int
-	LocalSyncthingGUIPort  int
-	RunAsDaemon            bool
-	SyncDouble             bool
-	SyncedPattern          []string
-	IgnoredPattern         []string
+	//RemoteSyncthingPort    int
+	//RemoteSyncthingGUIPort int
+	//LocalSyncthingPort     int
+	//LocalSyncthingGUIPort  int
+	RunAsDaemon    bool
+	SyncDouble     bool
+	SyncedPattern  []string
+	IgnoredPattern []string
 }

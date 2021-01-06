@@ -1000,17 +1000,17 @@ func (a *Application) GetDevPortForward(svcName string) []string {
 }
 
 // for syncthing use
-func (a *Application) GetSyncthingPort(svcName string, options *FileSyncOptions) (*FileSyncOptions, error) {
-	svcProfile := a.GetSvcProfile(svcName)
-	if svcProfile == nil {
-		return options, errors.New("get " + svcName + " profile fail, please reinstall application")
-	}
-	options.RemoteSyncthingPort = svcProfile.RemoteSyncthingPort
-	options.RemoteSyncthingGUIPort = svcProfile.RemoteSyncthingGUIPort
-	options.LocalSyncthingPort = svcProfile.LocalSyncthingPort
-	options.LocalSyncthingGUIPort = svcProfile.LocalSyncthingGUIPort
-	return options, nil
-}
+//func (a *Application) GetSyncthingPort(svcName string, options *FileSyncOptions) (*FileSyncOptions, error) {
+//	svcProfile := a.GetSvcProfile(svcName)
+//	if svcProfile == nil {
+//		return options, errors.New("get " + svcName + " profile fail, please reinstall application")
+//	}
+//	options.RemoteSyncthingPort = svcProfile.RemoteSyncthingPort
+//	options.RemoteSyncthingGUIPort = svcProfile.RemoteSyncthingGUIPort
+//	options.LocalSyncthingPort = svcProfile.LocalSyncthingPort
+//	options.LocalSyncthingGUIPort = svcProfile.LocalSyncthingGUIPort
+//	return options, nil
+//}
 
 func (a *Application) GetMyBinName() string {
 	if runtime.GOOS == "windows" {
@@ -1087,15 +1087,15 @@ func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(svcName stri
 	return options, nil
 }
 
-func (a *Application) GetPodsFromDeployment(ctx context.Context, namespace, deployment string) (*corev1.PodList, error) {
-	return a.client.GetPodsFromDeployment(ctx, namespace, deployment)
+func (a *Application) GetPodsFromDeployment(ctx context.Context, deployment string) (*corev1.PodList, error) {
+	return a.client.GetPodsFromDeployment(ctx, a.GetNamespace(), deployment)
 }
 
-func (a *Application) WaitAndGetNocalhostDevContainerPod(namespace, deployment string) (podName, podNameSpace string, err error) {
-	checkPodsList, err := a.GetPodsFromDeployment(context.TODO(), namespace, deployment)
+func (a *Application) WaitAndGetNocalhostDevContainerPod(deployment string) (podName string, err error) {
+	checkPodsList, err := a.GetPodsFromDeployment(context.TODO(), deployment)
 	if err != nil {
 		log.Fatalf("get nocalhost dev container fail when file sync err %s", err.Error())
-		return "", "", err
+		return "", err
 	}
 	found := false
 	for _, pod := range checkPodsList.Items {
@@ -1108,13 +1108,12 @@ func (a *Application) WaitAndGetNocalhostDevContainerPod(namespace, deployment s
 			}
 			if found {
 				podName = pod.Name
-				podNameSpace = pod.Namespace
 				err = nil
 				return
 			}
 		}
 	}
-	return "", "", errors.New("dev container not found")
+	return "", errors.New("dev container not found")
 }
 
 func (a *Application) PortForwardAPod(req clientgoutils.PortForwardAPodRequest) error {

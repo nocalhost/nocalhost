@@ -28,11 +28,11 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 	fileSyncOps := &FileSyncOptions{}
 	devStartOptions := &DevStartOptions{}
 	// get ports recorded in dev-start stage, so we don't need to get available ports again
-	fileSyncOps, err = a.GetSyncthingPort(svcName, fileSyncOps)
-	if err != nil {
-		log.Warnf("fail to get syncthing port. error message: %s \n", err.Error())
-		return err
-	}
+	//fileSyncOps, err = a.GetSyncthingPort(svcName, fileSyncOps)
+	//if err != nil {
+	//	log.Warnf("fail to get syncthing port. error message: %s \n", err.Error())
+	//	return err
+	//}
 
 	newSyncthing, err := a.NewSyncthing(svcName, devStartOptions, fileSyncOps)
 	if err != nil {
