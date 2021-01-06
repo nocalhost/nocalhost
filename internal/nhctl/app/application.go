@@ -377,8 +377,8 @@ func (a *Application) loadInstallManifest() {
 		for _, eachPath := range resourcePaths {
 			files, _, err := a.getYamlFilesAndDirs(eachPath)
 			if err != nil {
-				log.WarnE(errors.Wrap(err, err.Error()), "fail to load install manifest")
-				return
+				log.WarnE(errors.Wrap(err, ""), fmt.Sprintf("Fail to load manifest in %s", eachPath))
+				continue
 			}
 
 			for _, file := range files {
@@ -386,7 +386,7 @@ func (a *Application) loadInstallManifest() {
 					continue
 				}
 				if _, err2 := os.Stat(file); err2 != nil {
-					log.WarnE(errors.Wrap(err2, err2.Error()), fmt.Sprintf("%s can not be installed", file))
+					log.WarnE(errors.Wrap(err2, ""), fmt.Sprintf("%s can not be installed", file))
 					continue
 				}
 				result = append(result, file)
@@ -486,7 +486,7 @@ func (a *Application) preInstall() {
 	a.loadSortedPreInstallManifest()
 
 	if len(a.sortedPreInstallManifest) > 0 {
-		log.Info("run pre-install....")
+		log.Info("Run pre-install...")
 		for _, item := range a.sortedPreInstallManifest {
 			err := a.client.Create(item, a.GetNamespace(), true, false)
 			if err != nil {

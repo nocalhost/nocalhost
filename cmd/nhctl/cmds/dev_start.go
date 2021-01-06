@@ -69,8 +69,6 @@ var devStartCmd = &cobra.Command{
 			log.Fatalf("\"%s\" is already in developing", deployment)
 		}
 
-		//nocalhostApp.LoadConfigToSvcProfile(deployment, app.Deployment)
-
 		devStartOps.Kubeconfig = settings.KubeConfig
 		log.Info("Starting DevMode...")
 
