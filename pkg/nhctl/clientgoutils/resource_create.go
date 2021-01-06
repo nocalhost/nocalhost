@@ -36,9 +36,14 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-func (c *ClientGoUtils) ExecBash(namespace string, podName string, containerName string) error {
-	return c.Exec(namespace, podName, containerName, []string{"sh", "-c", "clear; (bash || ash ||  sh)"})
+//func (c *ClientGoUtils) ExecBash(namespace string, podName string, containerName string) error {
+//	return c.Exec(namespace, podName, containerName, []string{"sh", "-c", "clear; (bash || ash ||  sh)"})
+//}
+
+func (c *ClientGoUtils) ExecShell(namespace string, podName string, containerName string, shell string) error {
+	return c.Exec(namespace, podName, containerName, []string{"sh", "-c", fmt.Sprintf("clear; %s", shell)})
 }
+
 func (c *ClientGoUtils) Exec(namespace string, podName string, containerName string, command []string) error {
 	f := c.newFactory()
 
@@ -129,11 +134,11 @@ func (c *ClientGoUtils) newFactory() cmdutil.Factory {
 }
 
 func (c *ClientGoUtils) ApplyForCreate(files []string, namespace string, continueOnError bool) error {
-	return c.apply(files, namespace,continueOnError, Create)
+	return c.apply(files, namespace, continueOnError, Create)
 }
 
 func (c *ClientGoUtils) ApplyForDelete(files []string, namespace string, continueOnError bool) error {
-	return c.apply(files,namespace,continueOnError, Delete)
+	return c.apply(files, namespace, continueOnError, Delete)
 }
 
 type applyAction string
@@ -154,7 +159,7 @@ func (c *ClientGoUtils) apply(files []string, namespace string, continueOnError 
 	if err != nil {
 		if continueOnError {
 			log.Warnf("build validator err:", err.Error())
-		}else {
+		} else {
 			return err
 		}
 	}
@@ -178,7 +183,7 @@ func (c *ClientGoUtils) apply(files []string, namespace string, continueOnError 
 	}
 	if result.Err() != nil {
 		if continueOnError {
-			log.WarnE(err,"error occurs in results")
+			log.WarnE(err, "error occurs in results")
 		} else {
 			return result.Err()
 		}
@@ -187,7 +192,7 @@ func (c *ClientGoUtils) apply(files []string, namespace string, continueOnError 
 	infos, err := result.Infos()
 	if err != nil {
 		if continueOnError {
-			log.WarnE(err,"error occurs in results")
+			log.WarnE(err, "error occurs in results")
 		} else {
 			return err
 		}
@@ -213,7 +218,7 @@ func (c *ClientGoUtils) apply(files []string, namespace string, continueOnError 
 				log.Warnf("fail to %s manifest: %s", action, err.Error())
 				continue
 			}
-			return errors.Wrap(err,"")
+			return errors.Wrap(err, "")
 		}
 		info.Refresh(obj, true)
 		if action == Create {

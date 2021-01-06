@@ -1200,14 +1200,14 @@ func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
 func (a *Application) SetSyncingStatus(svcName string, is bool) error {
 	err := a.ReadBeforeWriteProfile()
 	if err != nil {
-		log.Fatalf("refresh application profile fail")
+		log.Fatalf("Refresh application profile fail")
 	}
 	a.GetSvcProfile(svcName).Syncing = is
 	return a.AppProfile.Save()
 }
 
 func (a *Application) CleanupResources() error {
-	fmt.Println("remove resource files...")
+	log.Info("Remove resource files...")
 	homeDir := a.GetHomeDir()
 	err := os.RemoveAll(homeDir)
 	if err != nil {
