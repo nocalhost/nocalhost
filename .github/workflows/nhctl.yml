@@ -71,7 +71,7 @@ jobs:
       with:
         repository: nocalhost/syncthing
         path: ./syncthing-source
-        ref: base
+        ref: dev
 
     - name: Build syncthing
       working-directory: ./syncthing-source
