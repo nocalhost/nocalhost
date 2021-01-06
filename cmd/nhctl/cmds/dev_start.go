@@ -85,17 +85,12 @@ var devStartCmd = &cobra.Command{
 		if err != nil {
 			log.FatalE(err, "Failed to create syncthing process, please try again.")
 		}
-		// install syncthing
-		if newSyncthing != nil && !newSyncthing.IsInstalled() || newSyncthing.NeedToDownloadSpecifyVersion(Version) || devStartOps.SyncthingVersion != "" {
-			downloadVersion := Version
-			if devStartOps.SyncthingVersion != "" {
-				downloadVersion = devStartOps.SyncthingVersion
-			}
 
-			log.Infof("Able to download syncthing with version: " + downloadVersion)
-			err = newSyncthing.DownloadSyncthing(downloadVersion)
+		// try install syncthing
+		if newSyncthing != nil {
+			_, err := syncthing.NewInstaller(newSyncthing.BinPath, Version, GitCommit, devStartOps.SyncthingVersion).InstallIfNeeded()
 			if err != nil {
-				log.FatalE(err, "Failed to download syncthing binary, please try again.")
+				log.FatalE(err, "Failed to install syncthing, and no syncthing available locally in "+newSyncthing.BinPath+" please try again.")
 			}
 		}
 

@@ -228,6 +228,28 @@ jobs:
         docker push ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
         docker push ${CODING_IMAGE_NAME}:latest
 
+    - name: Checkout syncthing
+      uses: actions/checkout@v2.3.4
+      with:
+        repository: nocalhost/syncthing
+        path: ./syncthing-source
+        ref: nh-release
+
+    - name: Build syncthing
+      working-directory: ./syncthing-source
+      run: ./build.sh artifact all ${{ env.RELEASE_VERSION }} ${GITHUB_SHA}
+
+    - name: Push to Coding Articact
+      working-directory: ./syncthing-source
+      env:
+        VERSION: ${{ env.RELEASE_VERSION }}
+      run: |
+        curl -T syncthing-linux-amd64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=${VERSION}"
+        curl -T syncthing-linux-arm64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-arm64.tar.gz?version=${VERSION}"
+        curl -T syncthing-macos-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=${VERSION}"
+        curl -T syncthing-windows-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=${VERSION}"
+
+
   package-windows:
     needs: release-nhctl
     name: package
