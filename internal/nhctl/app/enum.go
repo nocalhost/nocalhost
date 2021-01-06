@@ -18,8 +18,9 @@ type SvcType string
 const (
 	Deployment SvcType = "deployment"
 
-	DevImageFlagAnnotationKey   = "nhctl.dev.image.revision"
-	DevImageFlagAnnotationValue = "first"
+	DevImageRevisionAnnotationKey            = "nhctl.dev.image.revision"
+	DevImageOriginalPodReplicasAnnotationKey = "nhctl.dev.image.original.pod.replicas"
+	DevImageRevisionAnnotationValue          = "first"
 
 	AppLabel     = "nocalhost.dev/app"
 	ServiceLabel = "nocalhost.dev/service"

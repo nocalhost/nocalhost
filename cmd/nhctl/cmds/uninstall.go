@@ -14,8 +14,6 @@ limitations under the License.
 package cmds
 
 import (
-	"fmt"
-
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
@@ -45,30 +43,30 @@ var uninstallCmd = &cobra.Command{
 
 		applicationName := args[0]
 		if !nocalhost.CheckIfApplicationExist(applicationName) {
-			log.Fatalf("application \"%s\" not found", applicationName)
+			log.Fatalf("Application \"%s\" not found", applicationName)
 		}
 
-		log.Info("uninstalling application...")
+		log.Info("Uninstalling application...")
 		nhApp, err := app.NewApplication(applicationName)
 		if err != nil {
 			if !force {
-				log.FatalE(err, "fail to get application")
+				log.FatalE(err, "Failed to get application")
 			} else {
 				err = nocalhost.CleanupAppFiles(applicationName)
 				if err != nil {
-					log.WarnE(err, "fail to clean up application resource")
+					log.WarnE(err, "Failed to clean up application resource")
 				}
-				log.Infof("application \"%s\" is uninstalled anyway.\n", applicationName)
+				log.Infof("Application \"%s\" is uninstalled anyway.\n", applicationName)
 				return
 			}
 		} else {
 			// check if there are services in developing state
 			for _, profile := range nhApp.AppProfile.SvcProfile {
 				if profile.Developing {
-					log.Debugf("end %s DevMode", profile.ActualName)
+					log.Debugf("Ending %s DevMode", profile.ActualName)
 					err = nhApp.EndDevelopMode(profile.ActualName)
 					if err != nil {
-						log.Warnf("fail to end %s DevMode: %s", profile.ActualName, err.Error())
+						log.Warnf("Failed to end %s DevMode: %s", profile.ActualName, err.Error())
 					}
 				}
 			}
@@ -78,12 +76,12 @@ var uninstallCmd = &cobra.Command{
 			if force {
 				err = nocalhost.CleanupAppFiles(applicationName)
 				if err != nil {
-					log.Warnf("fail to clean up application resource: %s", err.Error())
+					log.Warnf("Failed to clean up application resource: %s", err.Error())
 				}
 				return
 			}
 			log.Fatalf("failed to uninstall application, %v", err)
 		}
-		fmt.Printf("application \"%s\" is uninstalled\n", applicationName)
+		log.Infof("Application \"%s\" is uninstalled", applicationName)
 	},
 }

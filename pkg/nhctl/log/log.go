@@ -150,7 +150,6 @@ func Fatal(args ...interface{}) {
 	if fileEntry != nil {
 		fileEntry.Error(args...)
 	}
-	//args = append(args, fmt.Sprintf("\nsee %s for more details", logFile))
 	outLogger.Fatal(args...)
 }
 
@@ -158,7 +157,6 @@ func Fatalf(format string, args ...interface{}) {
 	if fileEntry != nil {
 		fileEntry.Errorf(format, args...)
 	}
-	//format = fmt.Sprintf("%s\n see %s for more details", format, logFile)
 	outLogger.Fatalf(format, args...)
 }
 

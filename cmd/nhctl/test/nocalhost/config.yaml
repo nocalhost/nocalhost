@@ -24,6 +24,7 @@ services:
     serviceType: deployment
     gitUrl: https://github.com/nocalhost/bookinfo-details.git
     devContainerImage: golang:latest
+    devContainerShell: "bash"
     syncDirs:
       - ./
     workDir: /home/nocalhost-dev
@@ -33,9 +34,9 @@ services:
       - path: /home/pvc02
       - path: /home
  #     - path: /home/nocalhost-dev
-    syncedPattern:
+    syncFilePattern:
       - ./
-    ignoredPattern:
+    ignoreFilePattern:
       - nosync.txt
   - name: ratings
     serviceType: deployment

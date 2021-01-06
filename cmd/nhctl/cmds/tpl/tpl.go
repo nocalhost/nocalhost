@@ -144,6 +144,12 @@ devContainerImage: "codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang
   # - "name=init-job"
   # - "app.kubernetes.io/name=init-job"
 
+# The default shell of DevContainer
+# type: string
+# default value: "/bin/sh"
+# optional
+# devContainerShell: "bash"
+
 # Build command of the service
 # type: string[]
 # default value: [""]

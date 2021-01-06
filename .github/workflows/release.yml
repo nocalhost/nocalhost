@@ -21,7 +21,6 @@ jobs:
     - name: Get tag
       run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
-
     - name: Build nhctl
       env:
         VERSION: ${{ env.RELEASE_VERSION }}
@@ -198,6 +197,33 @@ jobs:
         docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_SHA}
         docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
         docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
+        docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
+        docker push ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+        docker push ${CODING_IMAGE_NAME}:latest
+
+    - name: Release dep-installer-job-docker
+      run: make dep-installer-job-docker
+
+    - name: Push to Github packages
+      env:
+        GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/dep-installer-job
+      run: |
+        echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
+        docker tag dep-installer-job:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
+        docker tag dep-installer-job:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:latest
+        docker tag dep-installer-job:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+        docker push ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
+        docker push ${GITHUB_IMAGE_NAME}:latest
+        docker push ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+
+    - name: Push to Coding Artifacts
+      env:
+        CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job
+      run: |
+        echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
+        docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_SHA}
+        docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+        docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
         docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
         docker push ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
         docker push ${CODING_IMAGE_NAME}:latest
