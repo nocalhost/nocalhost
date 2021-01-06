@@ -48,8 +48,8 @@ resources:
   #   cpu: 100m
   #   memory: 128Mi
   requests:
-    cpu: 500m
-    memory: 1024Mi
+    cpu: 100m
+    memory: 256Mi
 
 autoscaling:
   enabled: false
@@ -78,8 +78,8 @@ mariadb:
       size: "10Gi"
     resources:
       requests:
-        memory: 512Mi
-        cpu: 500m
+        memory: 256Mi
+        cpu: 100m
     extraVolumes:
     - name: nocalhost-api-sql-config-volume
       configMap:
