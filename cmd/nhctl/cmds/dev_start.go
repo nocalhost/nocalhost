@@ -69,10 +69,8 @@ var devStartCmd = &cobra.Command{
 			log.Fatalf("\"%s\" is already in developing", deployment)
 		}
 
-		//nocalhostApp.LoadConfigToSvcProfile(deployment, app.Deployment)
-
 		devStartOps.Kubeconfig = settings.KubeConfig
-		log.Info("starting DevMode...")
+		log.Info("Starting DevMode...")
 
 		// set dev start ops args
 		// devStartOps.LocalSyncDir is from plugin by local-sync
@@ -85,7 +83,7 @@ var devStartCmd = &cobra.Command{
 
 		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOps, fileSyncOptions)
 		if err != nil {
-			log.FatalE(err, "failed to create syncthing process, please try again.")
+			log.FatalE(err, "Failed to create syncthing process, please try again.")
 		}
 		// install syncthing
 		if newSyncthing != nil && !newSyncthing.IsInstalled() || newSyncthing.NeedToDownloadSpecifyVersion(Version) || devStartOps.SyncthingVersion != "" {
@@ -94,10 +92,10 @@ var devStartCmd = &cobra.Command{
 				downloadVersion = devStartOps.SyncthingVersion
 			}
 
-			log.Infof("able to download syncthing with version: " + downloadVersion)
+			log.Infof("Able to download syncthing with version: " + downloadVersion)
 			err = newSyncthing.DownloadSyncthing(downloadVersion)
 			if err != nil {
-				log.FatalE(err, "failed to download syncthing binary, please try again.")
+				log.FatalE(err, "Failed to download syncthing binary, please try again.")
 			}
 		}
 
@@ -118,30 +116,30 @@ var devStartCmd = &cobra.Command{
 		err = nocalhostApp.CreateSyncThingSecret(deployment, syncSecret)
 		if err != nil {
 			// TODO dev end should delete syncthing secret
-			log.Fatalf("failed to create syncthing secret, please try to delete \"%s\" secret first manually.", syncthing.SyncSecretName)
+			log.Fatalf("Failed to create syncthing secret, please try to delete \"%s\" secret first manually.", syncthing.SyncSecretName)
 		}
 
 		// set profile sync dir
 		err = nocalhostApp.SetLocalAbsoluteSyncDirFromDevStartPlugin(deployment, devStartOps.LocalSyncDir)
 		if err != nil {
-			log.Fatalf("failed to update sync directory")
+			log.Fatalf("Failed to update sync directory")
 		}
 
 		err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps)
 		if err != nil {
 			// todo: rollback somethings
-			log.FatalE(err, "failed to replace dev container")
+			log.FatalE(err, "Failed to replace dev container")
 		}
 		// set profile sync port
 		err = nocalhostApp.SetSyncthingPort(deployment, newSyncthing.RemotePort, newSyncthing.RemoteGUIPort, newSyncthing.LocalPort, newSyncthing.LocalGUIPort)
 		if err != nil {
-			log.Fatal("failed to update \"developing\" syncthing port status\n")
+			log.Fatal("Failed to update \"developing\" syncthing port status\n")
 		}
 
 		// TODO set develop status, avoid stack in dev start and break, or it will never resume
 		err = nocalhostApp.SetDevelopingStatus(deployment, true)
 		if err != nil {
-			log.Fatal("failed to update \"developing\" status\n")
+			log.Fatal("Failed to update \"developing\" status\n")
 		}
 	},
 }
