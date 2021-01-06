@@ -755,28 +755,6 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 	return false
 }
 
-// Deprecated
-//func (a *Application) LoadConfigFile() error {
-//	if _, err := os.Stat(a.GetConfigPath()); err != nil {
-//		if os.IsNotExist(err) {
-//			return nil
-//		} else {
-//			return err
-//		}
-//	}
-//	rbytes, err := ioutil.ReadFile(a.GetConfigPath())
-//	if err != nil {
-//		return errors.New(fmt.Sprintf("failed to load configFile : %s", a.GetConfigPath()))
-//	}
-//	config := &Config{}
-//	err = yaml.Unmarshal(rbytes, config)
-//	if err != nil {
-//		return err
-//	}
-//	a.NewConfig = config
-//	return nil
-//}
-
 func (a *Application) CheckConfigFile(file string) error {
 	config := &Config{}
 	err := yaml.Unmarshal([]byte(file), config)
@@ -785,12 +763,6 @@ func (a *Application) CheckConfigFile(file string) error {
 	}
 	return config.CheckValid()
 }
-
-//func (a *Application) SaveConfigFile(file string) error {
-//	fileByte := []byte(file)
-//	err := ioutil.WriteFile(a.GetConfigPath(), fileByte, DefaultNewFilePermission)
-//	return err
-//}
 
 func (a *Application) GetConfigFile() (string, error) {
 	configFile, err := ioutil.ReadFile(a.GetConfigPath())
@@ -804,6 +776,18 @@ func (a *Application) GetDescription() string {
 	desc := ""
 	if a.AppProfile != nil {
 		bytes, err := yaml.Marshal(a.AppProfile)
+		if err == nil {
+			desc = string(bytes)
+		}
+	}
+	return desc
+}
+
+func (a *Application) GetSvcDescription(svcName string) string {
+	desc := ""
+	profile := a.GetSvcProfile(svcName)
+	if profile != nil {
+		bytes, err := yaml.Marshal(profile)
 		if err == nil {
 			desc = string(bytes)
 		}
@@ -1211,54 +1195,6 @@ func (a *Application) SetSyncingStatus(svcName string, is bool) error {
 	}
 	a.GetSvcProfile(svcName).Syncing = is
 	return a.AppProfile.Save()
-}
-
-func (a *Application) Uninstall(force bool) error {
-
-	err := a.cleanUpDepConfigMap()
-	if err != nil && !force {
-		return err
-	}
-
-	if a.IsHelm() {
-		commonParams := make([]string, 0)
-		if a.GetNamespace() != "" {
-			commonParams = append(commonParams, "--namespace", a.GetNamespace())
-		}
-		if a.AppProfile.Kubeconfig != "" {
-			commonParams = append(commonParams, "--kubeconfig", a.AppProfile.Kubeconfig)
-		}
-		installParams := []string{"uninstall", a.Name}
-		installParams = append(installParams, commonParams...)
-		_, err := tools.ExecCommand(nil, true, "helm", installParams...)
-		if err != nil && !force {
-			return err
-		}
-	} else if a.IsManifest() {
-		//resourceDir := a.GetResourceDir()
-		//files, _, err := a.getYamlFilesAndDirs(resourceDir)
-		//if err != nil && !force {
-		//	return err
-		//}
-		//err = a.client.ApplyForDelete(files, a.GetNamespace(), true)
-		//if err != nil {
-		//	return err
-		//}
-		//end := time.Now()
-		//fmt.Printf("installing takes %f seconds\n", end.Sub(start).Seconds())
-		a.cleanPreInstall()
-		err := a.uninstallManifestRecursively()
-		if err != nil {
-			return err
-		}
-	}
-
-	err = a.CleanupResources()
-	if err != nil && !force {
-		return err
-	}
-
-	return nil
 }
 
 func (a *Application) CleanupResources() error {

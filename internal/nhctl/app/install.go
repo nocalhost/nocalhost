@@ -49,8 +49,8 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 		a.cleanUpDepConfigMap() // clean up dep config map
 
 		// Clean up helm release after failed
-		if a.AppProfile.AppType == Helm || a.AppProfile.AppType == HelmRepo {
-
+		if a.IsHelm() {
+			a.uninstallHelm()
 		}
 		return err
 	}
