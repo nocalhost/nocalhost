@@ -233,7 +233,7 @@ jobs:
       with:
         repository: nocalhost/syncthing
         path: ./syncthing-source
-        ref: nh-release
+        ref: main
 
     - name: Build syncthing
       working-directory: ./syncthing-source
