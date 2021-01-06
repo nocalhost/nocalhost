@@ -37,7 +37,7 @@ var devStartOps = &app.DevStartOptions{}
 func init() {
 
 	devStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
-	devStartCmd.Flags().StringVarP(&devStartOps.DevLang, "lang", "l", "", "the program language, eg: java go python")
+	//devStartCmd.Flags().StringVarP(&devStartOps.DevLang, "lang", "l", "", "the program language, eg: java go python")
 	devStartCmd.Flags().StringVarP(&devStartOps.DevImage, "image", "i", "", "image of DevContainer")
 	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory, same as sync path")
 	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "the StorageClass used by persistent volumes")
@@ -75,11 +75,12 @@ var devStartCmd = &cobra.Command{
 		// set dev start ops args
 		// devStartOps.LocalSyncDir is from plugin by local-sync
 		var fileSyncOptions = &app.FileSyncOptions{}
-		devStartOps.Namespace = nocalhostApp.AppProfile.Namespace
-		if devStartOps.WorkDir == "" { // command flag not set
-			devStartOps.WorkDir = nocalhostApp.GetDefaultWorkDir(deployment)
+		//devStartOps.Namespace = nocalhostApp.AppProfile.Namespace
+		if devStartOps.WorkDir != "" { // command flag not set
+			nocalhostApp.SetSvcWorkDir(deployment, devStartOps.WorkDir)
+			//devStartOps.WorkDir = nocalhostApp.GetDefaultWorkDir(deployment)
 		}
-		nocalhostApp.SetSvcWorkDir(deployment, devStartOps.WorkDir)
+		//nocalhostApp.SetSvcWorkDir(deployment, devStartOps.WorkDir)
 
 		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOps, fileSyncOptions)
 		if err != nil {

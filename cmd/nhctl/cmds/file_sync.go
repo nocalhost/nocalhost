@@ -72,7 +72,7 @@ var fileSyncCmd = &cobra.Command{
 
 		// get dev-start stage record free pod so it do not need get free port again
 		var devStartOptions = &app.DevStartOptions{}
-		fileSyncOps, err = nocalhostApp.GetSyncthingPort(deployment, fileSyncOps)
+		//fileSyncOps, err = nocalhostApp.GetSyncthingPort(deployment, fileSyncOps)
 
 		// syncthing port-forward
 		// daemon
@@ -84,10 +84,10 @@ var fileSyncCmd = &cobra.Command{
 
 		// Reconfirm whether devcontainer is ready
 		pod := ""
-		namespace := ""
+		//namespace := ""
 		for {
 			<-time.NewTimer(time.Second * 1).C
-			pod, namespace, err = nocalhostApp.WaitAndGetNocalhostDevContainerPod(nocalhostApp.AppProfile.Namespace, deployment)
+			pod, err = nocalhostApp.WaitAndGetNocalhostDevContainerPod(deployment)
 			if err != nil {
 				log.Fatal(err)
 			} else {
@@ -96,7 +96,7 @@ var fileSyncCmd = &cobra.Command{
 			log.Infof("wait for sidecar ready")
 		}
 
-		log.Infof("syncthing port-forward pod %s, namespace %s", pod, namespace)
+		log.Infof("syncthing port-forward pod %s, namespace %s", pod, nocalhostApp.GetNamespace())
 
 		// overwrite Args[0] as ABS directory of bin directory
 		os.Args[0] = nhctlAbsDir
@@ -111,12 +111,12 @@ var fileSyncCmd = &cobra.Command{
 			// success write pid file and exit father progress, stay child progress run
 		}
 
-		podName, podNameSpace, err := nocalhostApp.WaitAndGetNocalhostDevContainerPod(nocalhostApp.AppProfile.Namespace, deployment)
+		podName, err := nocalhostApp.WaitAndGetNocalhostDevContainerPod(deployment)
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
 
-		log.Infof("syncthing port-forward pod %s, namespace %s", podName, podNameSpace)
+		log.Infof("syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.GetNamespace())
 
 		// start port-forward
 
@@ -143,16 +143,19 @@ var fileSyncCmd = &cobra.Command{
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 
+		svcProfile := nocalhostApp.GetSvcProfile(deployment)
 		go func() {
 			err := nocalhostApp.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
 				Pod: v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      podName,
-						Namespace: podNameSpace,
+						Namespace: nocalhostApp.GetNamespace(),
 					},
 				},
-				LocalPort: fileSyncOps.RemoteSyncthingPort,
-				PodPort:   fileSyncOps.RemoteSyncthingPort,
+				//LocalPort: fileSyncOps.RemoteSyncthingPort,
+				//PodPort:   fileSyncOps.RemoteSyncthingPort,
+				LocalPort: svcProfile.RemoteSyncthingPort,
+				PodPort:   svcProfile.RemoteSyncthingPort,
 				Streams:   stream,
 				StopCh:    stopCh,
 				ReadyCh:   readyCh,
@@ -180,11 +183,17 @@ var fileSyncCmd = &cobra.Command{
 
 		// Getting pattern from svc profile first
 		profile := nocalhostApp.GetSvcProfile(deployment)
-		if len(fileSyncOps.IgnoredPattern) == 0 {
-			fileSyncOps.IgnoredPattern = profile.IgnoredPattern
+		//if len(fileSyncOps.IgnoredPattern) == 0 {
+		//	fileSyncOps.IgnoredPattern = profile.IgnoredPattern
+		//}
+		//if len(fileSyncOps.SyncedPattern) == 0 {
+		//	fileSyncOps.SyncedPattern = profile.SyncedPattern
+		//}
+		if len(fileSyncOps.IgnoredPattern) != 0 {
+			profile.IgnoredPattern = fileSyncOps.IgnoredPattern
 		}
-		if len(fileSyncOps.SyncedPattern) == 0 {
-			fileSyncOps.SyncedPattern = profile.SyncedPattern
+		if len(fileSyncOps.SyncedPattern) != 0 {
+			profile.SyncedPattern = fileSyncOps.SyncedPattern
 		}
 
 		// TODO

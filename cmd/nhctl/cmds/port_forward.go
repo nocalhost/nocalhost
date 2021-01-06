@@ -80,7 +80,7 @@ var portForwardCmd = &cobra.Command{
 		// find deployment pods
 		podName := ""
 		podNameSpace := ""
-		podsList, err := nocalhostApp.GetPodsFromDeployment(context.TODO(), nocalhostApp.AppProfile.Namespace, deployment)
+		podsList, err := nocalhostApp.GetPodsFromDeployment(context.TODO(), deployment)
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
