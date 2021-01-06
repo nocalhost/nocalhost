@@ -1,7 +1,9 @@
 ---
 name: Support Request
 about: Support request or question relating to nocalhost
+title: ''
 labels: help wanted
+assignees: ''
 
 ---
 
