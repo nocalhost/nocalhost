@@ -231,8 +231,15 @@ func (c *GoClient) CreateRole(name, namespace string) (bool, error) {
 // now all value has set by default
 // TODO this might better read from database manifest
 func (c *GoClient) DeployNocalhostDep(image, namespace string) (bool, error) {
+	tag := "latest"
+	if global.Branch == global.NocalhostDefaultReleaseBranch {
+		tag = global.Version
+	}
+	if global.Branch != global.NocalhostDefaultReleaseBranch && global.Branch != "default" {
+		tag = global.CommitId
+	}
 	if image == "" {
-		image = "codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job:latest"
+		image = "codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job:" + tag
 	}
 	var ttl int32 = 1
 	var backOff int32 = 1

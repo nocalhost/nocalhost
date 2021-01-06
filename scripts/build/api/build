@@ -13,9 +13,9 @@ TARGET="build/nocalhost-api"
 export LDFLAGS="\
     -w \
     -X \"main.GIT_COMMIT_SHA=${GITCOMMIT}\" \
-    -X \"internal/nocalhost-api/global.CommitId=${DEVGITCOMMIT}\" \
-    -X \"internal/nocalhost-api/global.Branch=${BRANCH}\" \
-    -X \"internal/nocalhost-api/global.Version=${VERSION}\" \
+    -X \"nocalhost/internal/nocalhost-api/global.CommitId=${DEVGITCOMMIT}\" \
+    -X \"nocalhost/internal/nocalhost-api/global.Branch=${BRANCH}\" \
+    -X \"nocalhost/internal/nocalhost-api/global.Version=${VERSION}\" \
 
     ${LDFLAGS:-} \
 "

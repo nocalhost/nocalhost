@@ -16,6 +16,7 @@ const (
 	NocalhostDepKubeConfigMapName         = "nocalhost-kubeconfig"
 	NocalhostDepKubeConfigMapKey          = "config"
 	NocalhostPrePullDSName                = "nocalhost-prepull"
+	NocalhostDefaultReleaseBranch         = "HEAD"
 )
 
 var (

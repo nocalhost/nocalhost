@@ -20,6 +20,10 @@ kubectl apply -f ./webhook/mutating-webhook-ca-bundle.yaml
 # apply admission webhook
 kubectl apply -f ./webhook/sidecar-configmap.yaml
 kubectl apply -f ./webhook/service.yaml
+
+# sed dep docker image version
+sed -i "s|image:.*$|image: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep:${DEP_VERSION}|" ./webhook/deployment.yaml
+
 kubectl apply -f ./webhook/deployment.yaml
 
 # done
