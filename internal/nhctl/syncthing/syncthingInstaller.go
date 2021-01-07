@@ -43,33 +43,22 @@ type SyncthingInstaller struct {
 	BinPath  string
 	Version  string
 	CommitId string
-
-	SpecifiedVersion string
 }
 
-func NewInstaller(binPath string, version string, commitId string, specifyVersion string) *SyncthingInstaller {
+func NewInstaller(binPath string, version string, commitId string) *SyncthingInstaller {
 	return &SyncthingInstaller{
-		BinPath:          binPath,
-		Version:          version,
-		CommitId:         commitId,
-		SpecifiedVersion: specifyVersion,
+		BinPath:  binPath,
+		Version:  version,
+		CommitId: commitId,
 	}
 }
 
 // the return val bool is only for test case, it shows that whether download again
-func (s *SyncthingInstaller) InstallIfNeeded() (needed bool, err error) {
-	var downloadCandidate []string
+func (s *SyncthingInstaller) InstallIfNeeded() (bool, error) {
 
-	if s.SpecifiedVersion != "" {
-
-		// download the specify version
-		downloadCandidate = append(downloadCandidate, s.needToDownloadBySpecifyVersion()...)
-	} else {
-
-		// first try to download the version matched Version
-		// then try the version matched commit id
-		downloadCandidate = append(downloadCandidate, s.needToDownloadByVersionAndCommitId()...)
-	}
+	// first try to download the version matched Version
+	// then try the version matched commit id
+	downloadCandidate := s.needToDownloadByVersionAndCommitId()
 
 	// download all the candidates version of syncthing
 	// if download fail at all, use the local binPath's syncthing or else throw the error
@@ -208,19 +197,6 @@ func (s *SyncthingInstaller) needToDownloadByVersionAndCommitId() []string {
 			return installCandidate
 		}
 		installCandidate = append(installCandidate, s.CommitId)
-	}
-
-	return installCandidate
-}
-
-func (s *SyncthingInstaller) needToDownloadBySpecifyVersion() []string {
-	var installCandidate []string
-
-	if s.Version != "" {
-		if s.exec("-nocalhost") == s.SpecifiedVersion {
-			return installCandidate
-		}
-		installCandidate = append(installCandidate, s.SpecifiedVersion)
 	}
 
 	return installCandidate
