@@ -14,7 +14,6 @@ limitations under the License.
 package app
 
 import (
-	"context"
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -164,11 +163,11 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 func (a *Application) CreateSyncThingSecret(svcName string, syncSecret *corev1.Secret) error {
 
 	// check if secret exist
-	exist, err := a.client.GetSecret(context.TODO(), a.GetNamespace(), syncSecret.Name)
+	exist, err := a.client.GetSecret(syncSecret.Name)
 	if exist.Name != "" {
-		_ = a.client.DeleteSecret(context.TODO(), a.GetNamespace(), syncSecret.Name)
+		_ = a.client.DeleteSecret(syncSecret.Name)
 	}
-	sc, err := a.client.CreateSecret(context.TODO(), a.GetNamespace(), syncSecret, metav1.CreateOptions{})
+	sc, err := a.client.CreateSecret(syncSecret, metav1.CreateOptions{})
 	if err != nil {
 		// TODO check configmap first, and end dev should delete that secret
 		return err

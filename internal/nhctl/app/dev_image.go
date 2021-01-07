@@ -32,13 +32,13 @@ import (
 
 func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *DevStartOptions) error {
 
-	dep0, err := a.client.GetDeployment(ctx, a.GetNamespace(), deployment)
+	dep0, err := a.client.Context(ctx).GetDeployment(deployment)
 	if err != nil {
 		return err
 	}
 
 	// mark current revision for rollback
-	rss, err := a.client.GetSortedReplicaSetsByDeployment(ctx, a.GetNamespace(), deployment)
+	rss, err := a.client.GetSortedReplicaSetsByDeployment(deployment)
 	if err != nil {
 		return err
 	}
@@ -196,7 +196,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 			labels[AppLabel] = a.Name
 			labels[ServiceLabel] = deployment
 			labels[PersistentVolumeDirLabel] = utils.Sha1ToString(persistentVolume.Path)
-			claims, err := a.client.GetPvcByLabels(ctx, a.GetNamespace(), labels)
+			claims, err := a.client.GetPvcByLabels(labels)
 			if err != nil {
 				log.WarnE(err, fmt.Sprintf("Fail to get a pvc for %s", persistentVolume.Path))
 				continue
@@ -281,7 +281,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	sideCarContainer.Command = []string{"/bin/sh", "-c"}
 	sideCarContainer.Args = []string{"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome + "/* " + secret_config.DefaultSyncthingHome + "/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing"}
 
-	dep, err := a.client.GetDeployment(ctx, a.GetNamespace(), deployment)
+	dep, err := a.client.GetDeployment(deployment)
 	if err != nil {
 		return err
 	}
@@ -312,13 +312,13 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 
 	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
 
-	_, err = a.client.UpdateDeployment(ctx, a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
+	_, err = a.client.UpdateDeployment(dep, metav1.UpdateOptions{}, true)
 	if err != nil {
 		log.WarnE(err, "Failed to update development container")
 		return err
 	}
 
-	a.client.WaitDeploymentLatestRevisionToBeReady(ctx, a.GetNamespace(), dep.Name)
+	a.client.WaitDeploymentLatestRevisionToBeReady(dep.Name)
 
 	// Wait podList to be ready
 	spinner := utils.NewSpinner(" Waiting pod to start...")
@@ -328,7 +328,7 @@ wait:
 	for {
 		<-time.NewTimer(time.Second * 1).C
 		// Get the latest revision
-		podList, err := a.client.ListPodsOfLatestRevisionByDeployment(a.GetNamespace(), dep.Name)
+		podList, err := a.client.ListPodsOfLatestRevisionByDeployment(dep.Name)
 		if err != nil {
 			log.WarnE(err, "Failed to get pods")
 			return err
@@ -377,9 +377,9 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 	}
 
 	if storageClass == "" {
-		pvc, err = a.client.CreatePVC(a.GetNamespace(), pvcName, labels, annotations, capacity, nil)
+		pvc, err = a.client.CreatePVC(pvcName, labels, annotations, capacity, nil)
 	} else {
-		pvc, err = a.client.CreatePVC(a.GetNamespace(), pvcName, labels, annotations, capacity, &storageClass)
+		pvc, err = a.client.CreatePVC(pvcName, labels, annotations, capacity, &storageClass)
 	}
 	if err != nil {
 		return nil, err
@@ -390,7 +390,7 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 
 	for i := 0; i < 30; i++ {
 		time.Sleep(time.Second * 2)
-		pvc, err = a.client.GetPvcByName(ctx, a.GetNamespace(), pvc.Name)
+		pvc, err = a.client.GetPvcByName(pvc.Name)
 		if err != nil {
 			log.Warnf("Failed to update pvc's status: %s", err.Error())
 			continue
@@ -417,7 +417,7 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 			errorMes = "timeout"
 		}
 		log.Warnf("Failed to wait %s to be bounded: %s", pvc.Name, errorMes)
-		err = a.client.DeletePVC(a.GetNamespace(), pvc.Name)
+		err = a.client.DeletePVC(pvc.Name)
 		if err != nil {
 			log.Warnf("Fail to clean pvc %s", pvc.Name)
 			return nil, err
@@ -430,7 +430,7 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 
 func (a *Application) scaleDeploymentReplicasToOne(ctx context.Context, deployment string) error {
 
-	deploymentsClient := a.client.GetDeploymentClient(a.GetNamespace())
+	deploymentsClient := a.client.GetDeploymentClient()
 	scale, err := deploymentsClient.GetScale(ctx, deployment, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "")

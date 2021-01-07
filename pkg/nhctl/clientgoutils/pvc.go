@@ -14,7 +14,6 @@ limitations under the License.
 package clientgoutils
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -27,7 +26,7 @@ import (
 
 // quantityStr: 10Gi, 10Mi ...
 // storageClassName: nil to use default storageClassName
-func (c *ClientGoUtils) CreatePVC(namespace string, name string, labels map[string]string, annotations map[string]string, quantityStr string, storageClassName *string) (*v1.PersistentVolumeClaim, error) {
+func (c *ClientGoUtils) CreatePVC(name string, labels map[string]string, annotations map[string]string, quantityStr string, storageClassName *string) (*v1.PersistentVolumeClaim, error) {
 	q, err := resource.ParseQuantity(quantityStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
@@ -49,14 +48,14 @@ func (c *ClientGoUtils) CreatePVC(namespace string, name string, labels map[stri
 	persistentVolumeClaim.Labels = labels
 	persistentVolumeClaim.Annotations = annotations
 
-	return c.ClientSet.CoreV1().PersistentVolumeClaims(namespace).Create(context.TODO(), persistentVolumeClaim, metav1.CreateOptions{})
+	return c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Create(c.ctx, persistentVolumeClaim, metav1.CreateOptions{})
 }
 
-func (c *ClientGoUtils) DeletePVC(namespace string, name string) error {
-	return errors.Wrap(c.ClientSet.CoreV1().PersistentVolumeClaims(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{}), "")
+func (c *ClientGoUtils) DeletePVC(name string) error {
+	return errors.Wrap(c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{}), "")
 }
 
-func (c *ClientGoUtils) GetPvcByLabels(ctx context.Context, namespace string, labels map[string]string) ([]v1.PersistentVolumeClaim, error) {
+func (c *ClientGoUtils) GetPvcByLabels(labels map[string]string) ([]v1.PersistentVolumeClaim, error) {
 	var labelSelector string
 	if len(labels) > 0 {
 		for key, val := range labels {
@@ -65,15 +64,15 @@ func (c *ClientGoUtils) GetPvcByLabels(ctx context.Context, namespace string, la
 	}
 	labelSelector = strings.TrimPrefix(labelSelector, ",")
 
-	list, err := c.ClientSet.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+	list, err := c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).List(c.ctx, metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
 	return list.Items, nil
 }
 
-func (c *ClientGoUtils) GetPvcByName(ctx context.Context, namespace string, name string) (*v1.PersistentVolumeClaim, error) {
-	pvc, err := c.ClientSet.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, name, metav1.GetOptions{})
+func (c *ClientGoUtils) GetPvcByName(name string) (*v1.PersistentVolumeClaim, error) {
+	pvc, err := c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}

@@ -230,7 +230,7 @@ func (a *Application) installManifestRecursively() error {
 	a.loadInstallManifest()
 	log.Infof("installManifest len %d", len(a.installManifest))
 	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForCreate(a.installManifest, a.GetNamespace(), true)
+		err := a.client.ApplyForCreate(a.installManifest, true)
 		if err != nil {
 			fmt.Printf("err: %v\n", err)
 			return errors.Wrap(err, err.Error())

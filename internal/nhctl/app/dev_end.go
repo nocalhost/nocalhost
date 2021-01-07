@@ -93,7 +93,7 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 	svcProfile := a.GetSvcProfile(svcName)
 	if svcProfile.SyncthingSecret != "" {
 		log.Debugf("Cleaning up secret %s", svcProfile.SyncthingSecret)
-		err = a.client.DeleteSecret(context.TODO(), a.GetNamespace(), svcProfile.SyncthingSecret)
+		err = a.client.DeleteSecret(svcProfile.SyncthingSecret)
 		if err != nil {
 			log.WarnE(err, "Failed to clean up syncthing secret")
 		} else {
