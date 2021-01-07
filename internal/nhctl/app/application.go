@@ -201,32 +201,40 @@ func (a *Application) LoadSvcConfigsToProfile() {
 }
 
 func (a *Application) InitConfig(outerConfigPath string, configName string) error {
+
 	configFile := outerConfigPath
 
 	// Read from .nocalhost
 	if configFile == "" {
 		_, err := os.Stat(a.getConfigPathInGitResourcesDir(configName))
-		if err == nil {
-			configFile = a.getConfigPathInGitResourcesDir(configName)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return errors.New(fmt.Sprintf("Nocalhost config %s not found. Please check if there is a file:\"%s\" under .nocalhost directory in your git repository", a.getConfigPathInGitResourcesDir(configName), configName))
+			}
+			return errors.Wrap(err, "")
 		}
+		configFile = a.getConfigPathInGitResourcesDir(configName)
 	}
 
 	// Generate config.yaml
 	// config.yaml may come from .nocalhost in git or a outer config file in local absolute path
-	if configFile != "" {
-		rbytes, err := ioutil.ReadFile(configFile)
-		if err != nil {
-			return errors.New(fmt.Sprintf("fail to load configFile : %s", configFile))
-		}
-		err = ioutil.WriteFile(a.GetConfigPath(), rbytes, DefaultNewFilePermission) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
-		if err != nil {
-			return errors.New(fmt.Sprintf("fail to create configFile : %s", configFile))
-		}
-		err = a.LoadConfig()
-		if err != nil {
-			return err
-		}
+	rbytes, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		return errors.New(fmt.Sprintf("fail to load configFile : %s", configFile))
 	}
+	err = ioutil.WriteFile(a.GetConfigPath(), rbytes, DefaultNewFilePermission) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
+	if err != nil {
+		return errors.New(fmt.Sprintf("fail to create configFile : %s", configFile))
+	}
+	err = a.LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	if a.config == nil {
+		return errors.New("Nocalhost config incorrect")
+	}
+
 	a.AppProfile.AppType = a.config.Type
 	a.AppProfile.ResourcePath = a.config.ResourcePath
 	return nil

@@ -15,8 +15,10 @@ if [ "$type" == 1 ]; then
     kubectl create ns $APPNAME
     echo "Clean: uninstalling"
     nhctl uninstall $APPNAME --force --debug >> /dev/null
-    echo "Installing"
-    nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME
+
+    echo "installing"
+    nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME --config config
+
     if [ "$?" != 0 ]; then
         echo "Fail"
         exit 1
