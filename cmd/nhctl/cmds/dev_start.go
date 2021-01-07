@@ -89,7 +89,14 @@ var devStartCmd = &cobra.Command{
 
 		// try install syncthing
 		if newSyncthing != nil {
-			_, err := syncthing.NewInstaller(newSyncthing.BinPath, Version, GitCommit, devStartOps.SyncthingVersion).InstallIfNeeded()
+			var downloadVersion = Version
+
+			// for debug only
+			if devStartOps.SyncthingVersion != "" {
+				downloadVersion = devStartOps.SyncthingVersion
+			}
+
+			_, err := syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
 			if err != nil {
 				log.FatalE(err, "Failed to install syncthing, and no syncthing available locally in "+newSyncthing.BinPath+" please try again.")
 			}
