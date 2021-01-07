@@ -670,5 +670,11 @@ func (c *ClientGoUtils) DeleteNameSpace(name string, wait bool) error {
 
 func (c *ClientGoUtils) DeleteStatefulSetAndPVC(name string) error {
 	_ = c.ClientSet.AppsV1().StatefulSets(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{GracePeriodSeconds: new(int64)})
-	return c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Delete(c.ctx, "data-nocalhost-mariadb-0", metav1.DeleteOptions{})
+	pvc, err := c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Get(c.ctx, "data-nocalhost-mariadb-0", metav1.GetOptions{})
+	if err != nil {
+		pvName := pvc.Spec.VolumeName
+		_ = c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Delete(c.ctx, "data-nocalhost-mariadb-0", metav1.DeleteOptions{})
+		_ = c.ClientSet.CoreV1().PersistentVolumes().Delete(c.ctx, pvName, metav1.DeleteOptions{})
+	}
+	return nil
 }
