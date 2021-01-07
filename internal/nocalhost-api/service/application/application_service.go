@@ -23,7 +23,7 @@ import (
 
 type ApplicationService interface {
 	Create(ctx context.Context, context string, status uint8, userId uint64) (model.ApplicationModel, error)
-	Get(ctx context.Context, id, userId uint64) (model.ApplicationModel, error)
+	Get(ctx context.Context, id uint64) (model.ApplicationModel, error)
 	GetByName(ctx context.Context, name string) (model.ApplicationModel, error)
 	PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error)
 	GetList(ctx context.Context, userId uint64) ([]*model.ApplicationModel, error)
@@ -64,8 +64,8 @@ func (srv *applicationService) Create(ctx context.Context, context string, statu
 	return result, nil
 }
 
-func (srv *applicationService) Get(ctx context.Context, id, userId uint64) (model.ApplicationModel, error) {
-	result, err := srv.applicationRepo.Get(ctx, userId, id)
+func (srv *applicationService) Get(ctx context.Context, id uint64) (model.ApplicationModel, error) {
+	result, err := srv.applicationRepo.Get(ctx, id)
 	if err != nil {
 		return result, errors.Wrapf(err, "get application")
 	}

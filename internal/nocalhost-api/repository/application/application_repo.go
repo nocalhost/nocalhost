@@ -24,7 +24,7 @@ import (
 
 type ApplicationRepo interface {
 	Create(ctx context.Context, application model.ApplicationModel) (model.ApplicationModel, error)
-	Get(ctx context.Context, userId uint64, id uint64) (model.ApplicationModel, error)
+	Get(ctx context.Context, id uint64) (model.ApplicationModel, error)
 	GetByName(ctx context.Context, name string) (model.ApplicationModel, error)
 	GetList(ctx context.Context, userId uint64) ([]*model.ApplicationModel, error)
 	PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error)
@@ -67,13 +67,13 @@ func (repo *applicationRepo) Create(ctx context.Context, application model.Appli
 	return application, nil
 }
 
-func (repo *applicationRepo) Get(ctx context.Context, userId uint64, id uint64) (model.ApplicationModel, error) {
+func (repo *applicationRepo) Get(ctx context.Context, id uint64) (model.ApplicationModel, error) {
 	// Here is the Struct type, and Error will be thrown when the data is not available
 	//If the input is of the make([]*model.ApplicationModel,0) Slice type, then Error will never be thrown if no data is available
 	application := model.ApplicationModel{}
-	result := repo.db.Where("user_id=? and status=1 and id=?", userId, id).First(&application)
+	result := repo.db.Where("status=1 and id=?", id).First(&application)
 	if err := result.Error; err != nil {
-		log.Warnf("[application_repo] get application for user: %v id: %v error", userId, id)
+		log.Warnf("[application_repo] get application id: %v error", id)
 		return application, err
 	}
 	return application, nil
@@ -102,7 +102,7 @@ func (repo *applicationRepo) Delete(ctx context.Context, userId uint64, id uint6
 }
 
 func (repo *applicationRepo) Update(ctx context.Context, applicationModel *model.ApplicationModel) (*model.ApplicationModel, error) {
-	_, err := repo.Get(ctx, applicationModel.UserId, applicationModel.ID)
+	_, err := repo.Get(ctx, applicationModel.ID)
 	if err != nil {
 		return applicationModel, errors.Wrap(err, "[application_repo] get application denied")
 	}

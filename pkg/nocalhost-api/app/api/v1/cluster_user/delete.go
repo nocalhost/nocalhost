@@ -39,14 +39,14 @@ import (
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
 // @Router /v1/dev_space/{id} [delete]
 func Delete(c *gin.Context) {
-	userId, _ := c.Get("userId")
+	// userId, _ := c.Get("userId")
 	devSpaceId := cast.ToUint64(c.Param("id"))
 	clusterUser, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId})
 	if err != nil {
 		api.SendResponse(c, errno.ErrClsuterUserNotFound, nil)
 		return
 	}
-	clusterData, err := service.Svc.ClusterSvc().Get(c, clusterUser.ClusterId, userId.(uint64))
+	clusterData, err := service.Svc.ClusterSvc().Get(c, clusterUser.ClusterId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
 		return

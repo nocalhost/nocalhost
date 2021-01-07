@@ -58,8 +58,8 @@ func Get(c *gin.Context) {
 // @Router /v1/application/{id} [get]
 func GetDetail(c *gin.Context) {
 	applicationId := cast.ToUint64(c.Param("id"))
-	userId, _ := c.Get("userId")
-	result, err := service.Svc.ApplicationSvc().Get(c, applicationId, userId.(uint64))
+	// userId, _ := c.Get("userId")
+	result, err := service.Svc.ApplicationSvc().Get(c, applicationId)
 	if err != nil {
 		log.Warnf("get Application err: %v", err)
 		api.SendResponse(c, errno.ErrApplicationGet, nil)

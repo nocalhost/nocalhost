@@ -50,7 +50,7 @@ func Create(c *gin.Context) {
 		return
 	}
 	userId := cast.ToUint64(req.UserId)
-	webUserId, _ := c.Get("userId")
+	// webUserId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
 	// get user
 	usersRecord, err := service.Svc.UserSvc().GetUserByID(c, userId)
@@ -60,7 +60,7 @@ func Create(c *gin.Context) {
 	}
 
 	// check application
-	applicationRecord, err := service.Svc.ApplicationSvc().Get(c, applicationId, webUserId.(uint64))
+	applicationRecord, err := service.Svc.ApplicationSvc().Get(c, applicationId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrPermissionApplication, nil)
 		return
@@ -84,7 +84,7 @@ func Create(c *gin.Context) {
 	}
 
 	// check cluster
-	clusterData, err := service.Svc.ClusterSvc().Get(c, *req.ClusterId, webUserId.(uint64))
+	clusterData, err := service.Svc.ClusterSvc().Get(c, *req.ClusterId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrPermissionCluster, nil)
 		return
