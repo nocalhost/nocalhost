@@ -668,6 +668,7 @@ func (c *ClientGoUtils) DeleteNameSpace(name string, wait bool) error {
 	return nil
 }
 
-func (c *ClientGoUtils) DeleteStatefulSet(name string) error {
-	return c.ClientSet.AppsV1().StatefulSets(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{GracePeriodSeconds: new(int64)})
+func (c *ClientGoUtils) DeleteStatefulSetAndPVC(name string) error {
+	_ = c.ClientSet.AppsV1().StatefulSets(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{GracePeriodSeconds: new(int64)})
+	return c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Delete(c.ctx, "data-nocalhost-mariadb-0", metav1.DeleteOptions{})
 }
