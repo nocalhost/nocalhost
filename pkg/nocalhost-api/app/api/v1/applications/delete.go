@@ -35,7 +35,7 @@ import (
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
 // @Router /v1/application/{id} [delete]
 func Delete(c *gin.Context) {
-	userId, _ := c.Get("userId")
+	// userId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
 	// get namespace
 	condition := model.ClusterUserJoinCluster{
@@ -71,7 +71,7 @@ func Delete(c *gin.Context) {
 	}
 
 	// delete application database record
-	err = service.Svc.ApplicationSvc().Delete(c, userId.(uint64), applicationId)
+	err = service.Svc.ApplicationSvc().Delete(c, applicationId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrApplicationDelete, nil)
 		return

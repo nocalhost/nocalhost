@@ -35,8 +35,8 @@ import (
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":[{"id":1,"context":"application info","status":"1"}]}"
 // @Router /v1/application [get]
 func Get(c *gin.Context) {
-	userId, _ := c.Get("userId")
-	result, err := service.Svc.ApplicationSvc().GetList(c, userId.(uint64))
+	// userId, _ := c.Get("userId")
+	result, err := service.Svc.ApplicationSvc().GetList(c)
 	if err != nil {
 		log.Warnf("get Application err: %v", err)
 		api.SendResponse(c, errno.ErrApplicationGet, nil)
@@ -58,8 +58,8 @@ func Get(c *gin.Context) {
 // @Router /v1/application/{id} [get]
 func GetDetail(c *gin.Context) {
 	applicationId := cast.ToUint64(c.Param("id"))
-	userId, _ := c.Get("userId")
-	result, err := service.Svc.ApplicationSvc().Get(c, applicationId, userId.(uint64))
+	// userId, _ := c.Get("userId")
+	result, err := service.Svc.ApplicationSvc().Get(c, applicationId)
 	if err != nil {
 		log.Warnf("get Application err: %v", err)
 		api.SendResponse(c, errno.ErrApplicationGet, nil)
@@ -80,11 +80,11 @@ func GetDetail(c *gin.Context) {
 // @Success 200 {object} model.ClusterUserModel ""
 // @Router /v1/application/{id}/cluster/{clusterId} [get]
 func GetSpaceDetail(c *gin.Context) {
-	userId, _ := c.Get("userId")
+	// userId, _ := c.Get("userId")
 	clusterId := cast.ToUint64(c.Param("clusterId"))
 	applicationId := cast.ToUint64(c.Param("id"))
 	models := model.ClusterUserModel{
-		UserId:        userId.(uint64),
+		// UserId:        userId.(uint64),
 		ClusterId:     clusterId,
 		ApplicationId: applicationId,
 	}
