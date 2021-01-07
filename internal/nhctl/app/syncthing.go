@@ -14,18 +14,17 @@ limitations under the License.
 package app
 
 import (
-	"context"
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/syncthing/ports"
 	"path/filepath"
 	"strconv"
 
 	"golang.org/x/crypto/bcrypt"
 
 	"nocalhost/internal/nhctl/syncthing"
-	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -33,33 +32,67 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 	var err error
 
 	// for file-sync, it should directly use ports defined in .profile.yaml
-	remotePort := fileSyncOptions.RemoteSyncthingPort
-	remoteGUIPort := fileSyncOptions.RemoteSyncthingGUIPort
-	localListenPort := fileSyncOptions.LocalSyncthingPort
-	localGuiPort := fileSyncOptions.LocalSyncthingGUIPort
+	//remotePort := fileSyncOptions.RemoteSyncthingPort
+	//remoteGUIPort := fileSyncOptions.RemoteSyncthingGUIPort
+	//localListenPort := fileSyncOptions.LocalSyncthingPort
+	//localGuiPort := fileSyncOptions.LocalSyncthingGUIPort
+	svcProfile := a.GetSvcProfile(deployment)
+	remotePort := svcProfile.RemoteSyncthingPort
+	remoteGUIPort := svcProfile.RemoteSyncthingGUIPort
+	localListenPort := svcProfile.LocalSyncthingPort
+	localGuiPort := svcProfile.LocalSyncthingGUIPort
 
 	// for dev-start(work dir is not nil), it should take some local available port
-	if devStartOptions.WorkDir != "" {
+	//if devStartOptions.WorkDir != "" {
+	//	remotePort, err = ports.GetAvailablePort()
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//
+	//	remoteGUIPort, err = ports.GetAvailablePort()
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//
+	//	localGuiPort, err = ports.GetAvailablePort()
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//
+	//	localListenPort, err = ports.GetAvailablePort()
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//}
+
+	if remotePort == 0 {
 		remotePort, err = ports.GetAvailablePort()
 		if err != nil {
 			return nil, err
 		}
+	}
 
+	if remoteGUIPort == 0 {
 		remoteGUIPort, err = ports.GetAvailablePort()
 		if err != nil {
 			return nil, err
 		}
+	}
 
+	if localGuiPort == 0 {
 		localGuiPort, err = ports.GetAvailablePort()
 		if err != nil {
 			return nil, err
 		}
+	}
 
+	if localListenPort == 0 {
 		localListenPort, err = ports.GetAvailablePort()
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(syncthing.Nocalhost), 0)
 	if err != nil {
 		log.Debugf("couldn't hash the password %s", err)
@@ -96,8 +129,10 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 		RescanInterval:   "300",
 
 		// from nhctl config edit
-		SyncedPattern:  fileSyncOptions.SyncedPattern,
-		IgnoredPattern: fileSyncOptions.IgnoredPattern,
+		//SyncedPattern:  fileSyncOptions.SyncedPattern,
+		//IgnoredPattern: fileSyncOptions.IgnoredPattern,
+		SyncedPattern:  svcProfile.SyncedPattern,
+		IgnoredPattern: svcProfile.IgnoredPattern,
 	}
 
 	// TODO, warn: multi local sync dir is Deprecated, now it's implement by IgnoreFiles
@@ -115,7 +150,7 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 				&syncthing.Folder{
 					Name:       strconv.Itoa(index),
 					LocalPath:  sync,
-					RemotePath: devStartOptions.WorkDir,
+					RemotePath: a.GetDefaultWorkDir(deployment),
 				},
 			)
 			index++
@@ -128,11 +163,11 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 func (a *Application) CreateSyncThingSecret(svcName string, syncSecret *corev1.Secret) error {
 
 	// check if secret exist
-	exist, err := a.client.GetSecret(context.TODO(), a.GetNamespace(), syncSecret.Name)
+	exist, err := a.client.GetSecret(syncSecret.Name)
 	if exist.Name != "" {
-		_ = a.client.DeleteSecret(context.TODO(), a.GetNamespace(), syncSecret.Name)
+		_ = a.client.DeleteSecret(syncSecret.Name)
 	}
-	sc, err := a.client.CreateSecret(context.TODO(), a.GetNamespace(), syncSecret, metav1.CreateOptions{})
+	sc, err := a.client.CreateSecret(syncSecret, metav1.CreateOptions{})
 	if err != nil {
 		// TODO check configmap first, and end dev should delete that secret
 		return err

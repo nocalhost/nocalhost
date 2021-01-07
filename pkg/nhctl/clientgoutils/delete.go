@@ -33,24 +33,24 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-func (c *ClientGoUtils) DeleteConfigMapByName(name string, namespace string) error {
-	var err error
-	if namespace == "" {
-		namespace, err = c.GetDefaultNamespace()
-		if err != nil {
-			return err
-		}
-	}
-	return c.ClientSet.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+func (c *ClientGoUtils) DeleteConfigMapByName(name string) error {
+	//var err error
+	//if namespace == "" {
+	//	namespace, err = c.GetDefaultNamespace()
+	//	if err != nil {
+	//		return err
+	//	}
+	//}
+	return c.ClientSet.CoreV1().ConfigMaps(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{})
 }
 
-func (c *ClientGoUtils) Delete(yamlPath string, namespace string) error {
+func (c *ClientGoUtils) Delete(yamlPath string) error {
 	if yamlPath == "" {
 		return errors.New("yaml path can not be empty")
 	}
-	if namespace == "" {
-		namespace = "default"
-	}
+	//if namespace == "" {
+	//	namespace = "default"
+	//}
 
 	filebytes, err := ioutil.ReadFile(yamlPath)
 	if err != nil {
@@ -86,11 +86,11 @@ func (c *ClientGoUtils) Delete(yamlPath string, namespace string) error {
 
 		var dri dynamic.ResourceInterface
 		if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
-			if namespace != "" {
-				unstructuredObj.SetNamespace(namespace)
-			} else if unstructuredObj.GetNamespace() == "" {
-				unstructuredObj.SetNamespace("default")
-			}
+			//if namespace != "" {
+			unstructuredObj.SetNamespace(c.namespace)
+			//} else if unstructuredObj.GetNamespace() == "" {
+			//	unstructuredObj.SetNamespace("default")
+			//}
 			dri = c.dynamicClient.Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
 		} else {
 			dri = c.dynamicClient.Resource(mapping.Resource)

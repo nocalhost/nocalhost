@@ -28,11 +28,11 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 	fileSyncOps := &FileSyncOptions{}
 	devStartOptions := &DevStartOptions{}
 	// get ports recorded in dev-start stage, so we don't need to get available ports again
-	fileSyncOps, err = a.GetSyncthingPort(svcName, fileSyncOps)
-	if err != nil {
-		log.Warnf("fail to get syncthing port. error message: %s \n", err.Error())
-		return err
-	}
+	//fileSyncOps, err = a.GetSyncthingPort(svcName, fileSyncOps)
+	//if err != nil {
+	//	log.Warnf("fail to get syncthing port. error message: %s \n", err.Error())
+	//	return err
+	//}
 
 	newSyncthing, err := a.NewSyncthing(svcName, devStartOptions, fileSyncOps)
 	if err != nil {
@@ -93,7 +93,7 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 	svcProfile := a.GetSvcProfile(svcName)
 	if svcProfile.SyncthingSecret != "" {
 		log.Debugf("Cleaning up secret %s", svcProfile.SyncthingSecret)
-		err = a.client.DeleteSecret(context.TODO(), a.GetNamespace(), svcProfile.SyncthingSecret)
+		err = a.client.DeleteSecret(svcProfile.SyncthingSecret)
 		if err != nil {
 			log.WarnE(err, "Failed to clean up syncthing secret")
 		} else {
@@ -132,26 +132,26 @@ func (a *Application) EndDevelopMode(svcName string) error {
 		return errors.New(fmt.Sprintf("\"%s\" is not in developing status", svcName))
 	}
 
-	fmt.Println("ending dev mode...")
+	fmt.Println("Ending dev mode...")
 	// end file sync
-	fmt.Println("terminating file sync process...")
+	fmt.Println("Terminating file sync process...")
 	err = a.stopSyncProcessAndCleanPidFiles(svcName)
 	if err != nil {
-		log.Warnf("error occurs when stopping sync process: %v", err)
+		log.Warnf("Error occurs when stopping sync process: %v", err)
 		return err
 	}
 
 	// roll back workload
-	log.Debug("rolling back workload...")
+	log.Debug("Rolling back workload...")
 	err = a.RollBack(context.TODO(), svcName, false)
 	if err != nil {
-		log.Error("failed to rollback")
+		log.Error("Failed to rollback")
 		return err
 	}
 
 	err = a.SetDevEndProfileStatus(svcName)
 	if err != nil {
-		log.Warn("failed to update \"developing\" status")
+		log.Warn("Failed to update \"developing\" status")
 		return err
 	}
 	return nil

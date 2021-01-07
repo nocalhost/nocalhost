@@ -29,14 +29,14 @@ type ForwardPort struct {
 	RemotePort int
 }
 
-func (c *ClientGoUtils) CreatePortForwarder(namespace string, pod string, fps []*ForwardPort) (*portforward.PortForwarder, error) {
+func (c *ClientGoUtils) CreatePortForwarder(pod string, fps []*ForwardPort) (*portforward.PortForwarder, error) {
 	if fps == nil || len(fps) < 1 {
 		return nil, errors.New("forward ports can not be nil")
 	}
 
 	url := c.ClientSet.CoreV1().RESTClient().Post().
 		Resource("pods").
-		Namespace(namespace).
+		Namespace(c.namespace).
 		Name(pod).
 		SubResource("portforward").URL()
 

@@ -30,8 +30,6 @@ import (
 	"nocalhost/pkg/nhctl/utils"
 )
 
-const SyncthingVersion = "latest"
-
 var (
 	downloadURLs = map[string]string{
 		"linux":   "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=%s",
@@ -41,18 +39,58 @@ var (
 	}
 )
 
-func (s *Syncthing) DownloadSyncthing(version string) error {
+type SyncthingInstaller struct {
+	BinPath  string
+	Version  string
+	CommitId string
+}
+
+func NewInstaller(binPath string, version string, commitId string) *SyncthingInstaller {
+	return &SyncthingInstaller{
+		BinPath:  binPath,
+		Version:  version,
+		CommitId: commitId,
+	}
+}
+
+// the return val bool is only for test case, it shows that whether download again
+func (s *SyncthingInstaller) InstallIfNeeded() (bool, error) {
+
+	// first try to download the version matched Version
+	// then try the version matched commit id
+	downloadCandidate := s.needToDownloadByVersionAndCommitId()
+
+	// download all the candidates version of syncthing
+	// if download fail at all, use the local binPath's syncthing or else throw the error
+	var maxIndex = len(downloadCandidate) - 1
+	for i, version := range downloadCandidate {
+		err := s.downloadSyncthing(version)
+		if err != nil {
+			if maxIndex == i && !s.isInstalled() {
+				return len(downloadCandidate) != 0, err
+			} else {
+				log.Infof("Failed to download syncthing binary with '" + version + "'")
+			}
+		} else {
+			// return while download success
+			return len(downloadCandidate) != 0, nil
+		}
+	}
+
+	return len(downloadCandidate) != 0, nil
+}
+
+func (s *SyncthingInstaller) downloadSyncthing(version string) error {
 	t := time.NewTicker(1 * time.Second)
 	var err error
 	for i := 0; i < 3; i++ {
 		p := &utils.ProgressBar{}
-		err = s.Install(version, p)
+		err = s.install(version, p)
 		if err == nil {
 			return nil
 		}
 
 		if i < 2 {
-			log.Fatalf("failed to download syncthing, retrying: %s", err)
 			<-t.C
 		}
 	}
@@ -61,8 +99,7 @@ func (s *Syncthing) DownloadSyncthing(version string) error {
 }
 
 // Install installs syncthing
-func (s *Syncthing) Install(version string, p getter.ProgressTracker) error {
-	fmt.Printf("installing syncthing for %s/%s", runtime.GOOS, runtime.GOARCH)
+func (s *SyncthingInstaller) install(version string, p getter.ProgressTracker) error {
 	downloadURL, err := GetDownloadURL(runtime.GOOS, runtime.GOARCH, version)
 	if err != nil {
 		return err
@@ -117,7 +154,7 @@ func (s *Syncthing) Install(version string, p getter.ProgressTracker) error {
 
 	if FileExists(i) {
 		if err := os.Remove(i); err != nil {
-			log.Debugf("failed to delete %s, will try to overwrite: %s", i, err)
+			log.Debugf("Failed to delete %s, will try to overwrite: %s", i, err)
 		}
 	}
 
@@ -132,6 +169,49 @@ func (s *Syncthing) Install(version string, p getter.ProgressTracker) error {
 
 	fmt.Printf("downloaded syncthing %s to %s\n", version, i)
 	return nil
+}
+
+func (s *SyncthingInstaller) isInstalled() bool {
+	_, err := os.Stat(s.BinPath)
+	return !os.IsNotExist(err)
+}
+
+func (s *SyncthingInstaller) needToDownloadByVersionAndCommitId() []string {
+	var installCandidate []string
+
+	defer func() {
+		if len(installCandidate) > 0 {
+			log.Infof("Need to download from following versions according to the sequence: %s", strings.Join(installCandidate, ", "))
+		}
+	}()
+
+	if s.Version != "" {
+		if s.exec("-nocalhost") == s.Version {
+			return installCandidate
+		}
+		installCandidate = append(installCandidate, s.Version)
+	}
+
+	if s.CommitId != "" {
+		if s.exec("-nocalhost-commit-id") == s.CommitId {
+			return installCandidate
+		}
+		installCandidate = append(installCandidate, s.CommitId)
+	}
+
+	return installCandidate
+}
+
+func (s *SyncthingInstaller) exec(flag string) string {
+	cmdArgs := []string{
+		flag,
+	}
+	output, err := exec.Command(s.BinPath, cmdArgs...).Output()
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSuffix(string(output), "\n")
 }
 
 func CopyFile(from, to string) error {
@@ -169,34 +249,6 @@ func FileExists(name string) bool {
 	}
 
 	return true
-}
-
-func (s *Syncthing) IsInstalled() bool {
-	_, err := os.Stat(s.BinPath)
-	return !os.IsNotExist(err)
-}
-
-func (s *Syncthing) NeedToDownloadSpecifyVersion(nhctlVersion string) bool {
-	cmdArgs := []string{
-		"-nocalhost",
-	}
-
-	output, err := exec.Command(s.BinPath, cmdArgs...).Output()
-
-	if err != nil {
-		log.Infof("Need to download due to syncthing exec fail, error: %s", err)
-		return true
-	}
-
-	currentSyncthingVersion := strings.TrimSuffix(string(output), "\n")
-	log.Infof("current syncthing version: %s \ncurrent nhctl version: %s", currentSyncthingVersion, nhctlVersion)
-
-	download := currentSyncthingVersion != nhctlVersion
-	if download {
-		log.Infof("need to download syncthing with nocalhost version: " + nhctlVersion)
-	}
-
-	return download
 }
 
 func GetDownloadURL(os, arch, version string) (string, error) {

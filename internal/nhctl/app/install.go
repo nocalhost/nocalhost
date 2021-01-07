@@ -49,8 +49,8 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 		a.cleanUpDepConfigMap() // clean up dep config map
 
 		// Clean up helm release after failed
-		if a.AppProfile.AppType == Helm || a.AppProfile.AppType == HelmRepo {
-
+		if a.IsHelm() {
+			a.uninstallHelm()
 		}
 		return err
 	}
@@ -222,7 +222,7 @@ func (a *Application) InstallDepConfigMap(appType AppType) error {
 			a.AppProfile.Save()
 		}
 	}
-	log.Info("dependency config map installed")
+	log.Info("Dependency config map installed")
 	return nil
 }
 
@@ -230,7 +230,7 @@ func (a *Application) installManifestRecursively() error {
 	a.loadInstallManifest()
 	log.Infof("installManifest len %d", len(a.installManifest))
 	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForCreate(a.installManifest, a.GetNamespace(), true)
+		err := a.client.ApplyForCreate(a.installManifest, true)
 		if err != nil {
 			fmt.Printf("err: %v\n", err)
 			return errors.Wrap(err, err.Error())

@@ -14,7 +14,6 @@ limitations under the License.
 package app
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -23,8 +22,7 @@ import (
 )
 
 func (a *Application) EnterPodTerminal(svcName string) error {
-	podList, err := a.client.ListPodsOfLatestRevisionByDeployment(a.GetNamespace(), svcName)
-	//podList, err := a.client.GetPodsFromDeployment(context.TODO(), a.GetNamespace(), svcName)
+	podList, err := a.client.ListPodsOfLatestRevisionByDeployment(svcName)
 	if err != nil {
 		return err
 	}
@@ -33,11 +31,18 @@ func (a *Application) EnterPodTerminal(svcName string) error {
 		return errors.New(fmt.Sprintf("the number of pods of %s is not 1 ???", svcName))
 	}
 	pod := podList[0].Name
-	return a.client.ExecBash(a.GetNamespace(), pod, "")
+	shell := a.GetSvcProfile(svcName).DevContainerShell
+	if shell != "" {
+		log.Debugf("Shell %s defined, use it to enter terminal", shell)
+	} else {
+		shell = DefaultDevContainerShell
+		log.Debugf("Shell not defined, use default shell %s to enter terminal", shell)
+	}
+	return a.client.ExecShell(pod, "", shell)
 }
 
 func (a *Application) Exec(svcName string, commands []string) error {
-	podList, err := a.client.GetPodsFromDeployment(context.TODO(), a.GetNamespace(), svcName)
+	podList, err := a.client.GetPodsFromDeployment(svcName)
 	if err != nil {
 		return err
 	}
@@ -46,5 +51,5 @@ func (a *Application) Exec(svcName string, commands []string) error {
 		return errors.New(fmt.Sprintf("the number of pods of %s is not 1 ???", svcName))
 	}
 	pod := podList.Items[0].Name
-	return a.client.Exec(a.GetNamespace(), pod, "", commands)
+	return a.client.Exec(pod, "", commands)
 }

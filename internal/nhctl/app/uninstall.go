@@ -13,18 +13,79 @@ limitations under the License.
 
 package app
 
-import "nocalhost/pkg/nhctl/log"
+import (
+	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/tools"
+)
 
 func (a *Application) cleanUpDepConfigMap() error {
 
 	if a.AppProfile.DependencyConfigMapName != "" {
-		log.Debugf("delete config map %s", a.AppProfile.DependencyConfigMapName)
-		err := a.client.DeleteConfigMapByName(a.AppProfile.DependencyConfigMapName, a.AppProfile.Namespace)
+		log.Debugf("Cleaning up config map %s", a.AppProfile.DependencyConfigMapName)
+		err := a.client.DeleteConfigMapByName(a.AppProfile.DependencyConfigMapName)
 		if err != nil {
 			return err
 		}
 		a.AppProfile.DependencyConfigMapName = ""
 		a.AppProfile.Save()
 	}
+	return nil
+}
+
+func (a *Application) uninstallHelm() error {
+
+	if !a.IsHelm() {
+		log.Debugf("This is not a helm application")
+		return nil
+	}
+
+	commonParams := make([]string, 0)
+	if a.GetNamespace() != "" {
+		commonParams = append(commonParams, "--namespace", a.GetNamespace())
+	}
+	if a.AppProfile.Kubeconfig != "" {
+		commonParams = append(commonParams, "--kubeconfig", a.AppProfile.Kubeconfig)
+	}
+	uninstallParams := []string{"uninstall", a.Name}
+	uninstallParams = append(uninstallParams, commonParams...)
+	_, err := tools.ExecCommand(nil, true, "helm", uninstallParams...)
+	return err
+}
+
+func (a *Application) Uninstall(force bool) error {
+
+	err := a.cleanUpDepConfigMap()
+	if err != nil && !force {
+		return err
+	}
+
+	if a.IsHelm() {
+		//commonParams := make([]string, 0)
+		//if a.GetNamespace() != "" {
+		//	commonParams = append(commonParams, "--namespace", a.GetNamespace())
+		//}
+		//if a.AppProfile.Kubeconfig != "" {
+		//	commonParams = append(commonParams, "--kubeconfig", a.AppProfile.Kubeconfig)
+		//}
+		//installParams := []string{"uninstall", a.Name}
+		//installParams = append(installParams, commonParams...)
+		//_, err := tools.ExecCommand(nil, true, "helm", installParams...)
+		err = a.uninstallHelm()
+		if err != nil && !force {
+			return err
+		}
+	} else if a.IsManifest() {
+		a.cleanPreInstall()
+		err := a.uninstallManifestRecursively()
+		if err != nil {
+			return err
+		}
+	}
+
+	err = a.CleanupResources()
+	if err != nil && !force {
+		return err
+	}
+
 	return nil
 }
