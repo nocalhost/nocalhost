@@ -26,9 +26,9 @@ type ApplicationRepo interface {
 	Create(ctx context.Context, application model.ApplicationModel) (model.ApplicationModel, error)
 	Get(ctx context.Context, id uint64) (model.ApplicationModel, error)
 	GetByName(ctx context.Context, name string) (model.ApplicationModel, error)
-	GetList(ctx context.Context, userId uint64) ([]*model.ApplicationModel, error)
+	GetList(ctx context.Context) ([]*model.ApplicationModel, error)
 	PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error)
-	Delete(ctx context.Context, userId uint64, id uint64) error
+	Delete(ctx context.Context, id uint64) error
 	Update(ctx context.Context, applicationModel *model.ApplicationModel) (*model.ApplicationModel, error)
 	Close()
 }
@@ -79,23 +79,23 @@ func (repo *applicationRepo) Get(ctx context.Context, id uint64) (model.Applicat
 	return application, nil
 }
 
-func (repo *applicationRepo) GetList(ctx context.Context, userId uint64) ([]*model.ApplicationModel, error) {
+func (repo *applicationRepo) GetList(ctx context.Context) ([]*model.ApplicationModel, error) {
 	applicationList := make([]*model.ApplicationModel, 0)
-	result := repo.db.Where("user_id=? and status=1", userId).Find(&applicationList)
+	result := repo.db.Where("status=1").Find(&applicationList)
 
 	if err := result.Error; err != nil {
-		log.Warnf("[application_repo] get application for user %s err", userId)
+		log.Warnf("[application_repo] get application err")
 		return nil, err
 	}
 
 	return applicationList, nil
 }
 
-func (repo *applicationRepo) Delete(ctx context.Context, userId uint64, id uint64) error {
+func (repo *applicationRepo) Delete(ctx context.Context, id uint64) error {
 	application := model.ApplicationModel{
 		ID: id,
 	}
-	if result := repo.db.Unscoped().Where("user_id=?", userId).Delete(&application); result.RowsAffected > 0 {
+	if result := repo.db.Unscoped().Delete(&application); result.RowsAffected > 0 {
 		return nil
 	}
 	return errors.New("application delete denied")
