@@ -161,6 +161,8 @@ var InitCommand = &cobra.Command{
 			}
 			// delete nocalhost(server namespace), nocalhost-reserved(dep) namespace if exist
 			if nsErr := client.CheckExistNameSpace(inits.NameSpace); nsErr == nil {
+				// try delete mariadb
+				_ = client.NameSpace(inits.NameSpace).DeleteStatefulSet("nocalhost-mariadb")
 				err := client.DeleteNameSpace(inits.NameSpace, true)
 				if err != nil {
 					log.Warnf("delete namespace %s fail, ignore", inits.NameSpace)

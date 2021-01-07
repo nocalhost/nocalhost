@@ -667,3 +667,7 @@ func (c *ClientGoUtils) DeleteNameSpace(name string, wait bool) error {
 	}
 	return nil
 }
+
+func (c *ClientGoUtils) DeleteStatefulSet(name string) error {
+	return c.ClientSet.AppsV1().StatefulSets(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{GracePeriodSeconds: new(int64)})
+}
