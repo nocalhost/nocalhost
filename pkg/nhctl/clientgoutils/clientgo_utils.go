@@ -60,9 +60,10 @@ type ClientGoUtils struct {
 	restConfig         *restclient.Config
 	ClientSet          *kubernetes.Clientset
 	dynamicClient      dynamic.Interface //
-	TimeOut            time.Duration
-	ClientConfig       clientcmd.ClientConfig
-	//RestClient         *restclient.RESTClient
+	//TimeOut            time.Duration
+	ClientConfig clientcmd.ClientConfig
+	namespace    string
+	ctx          context.Context
 }
 
 type PortForwardAPodRequest struct {
@@ -80,8 +81,8 @@ type PortForwardAPodRequest struct {
 	ReadyCh chan struct{}
 }
 
-// if timeout is set to 0, default timeout 5 minutes is used
-func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUtils, error) {
+// If namespace is not specified, use namespace defined in kubeconfig
+func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, error) {
 	var (
 		err error
 	)
@@ -90,12 +91,12 @@ func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUt
 		kubeConfigPath = filepath.Join(getHomePath(), ".kube", "config")
 	}
 
-	if timeout <= 0 {
-		timeout = time.Minute * 5
-	}
+	//if timeout <= 0 {
+	//	timeout = time.Minute * 5
+	//}
 	client := &ClientGoUtils{
 		kubeConfigFilePath: kubeConfigPath,
-		TimeOut:            timeout,
+		namespace:          namespace,
 	}
 
 	client.ClientConfig = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -115,7 +116,28 @@ func NewClientGoUtils(kubeConfigPath string, timeout time.Duration) (*ClientGoUt
 		return nil, errors.Wrap(err, "")
 	}
 
+	if client.namespace == "" {
+		client.namespace, err = client.GetDefaultNamespace()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	client.ctx = context.TODO()
+
 	return client, nil
+}
+
+// Set ClientGoUtils's namespace
+func (c *ClientGoUtils) NameSpace(namespace string) *ClientGoUtils {
+	c.namespace = namespace
+	return c
+}
+
+// Set ClientGoUtils's Context
+func (c *ClientGoUtils) Context(ctx context.Context) *ClientGoUtils {
+	c.ctx = ctx
+	return c
 }
 
 func (c *ClientGoUtils) GetDynamicClient() dynamic.Interface {
@@ -131,25 +153,25 @@ func (c *ClientGoUtils) getRestConfig() (*restclient.Config, error) {
 }
 
 // todo check use something more accurate
-func (c *ClientGoUtils) CheckIfNamespaceIsAccessible(ctx context.Context, namespace string) (bool, error) {
-	if namespace == "" {
-		namespace, _ = c.GetDefaultNamespace()
-	}
-	_, err := c.GetDeployments(ctx, namespace)
-	if err != nil {
-		fmt.Printf("err:%v\n", err)
-		return false, errors.New(fmt.Sprintf("namespace \"%s\" is unaccessible", namespace))
-	} else {
-		return true, nil
-	}
-}
+//func (c *ClientGoUtils) CheckIfNamespaceIsAccessible(ctx context.Context, namespace string) (bool, error) {
+//	if namespace == "" {
+//		namespace, _ = c.GetDefaultNamespace()
+//	}
+//	_, err := c.GetDeployments(ctx, namespace)
+//	if err != nil {
+//		fmt.Printf("err:%v\n", err)
+//		return false, errors.New(fmt.Sprintf("namespace \"%s\" is unaccessible", namespace))
+//	} else {
+//		return true, nil
+//	}
+//}
 
 func (c *ClientGoUtils) GetDefaultNamespace() (string, error) {
 	ns, _, err := c.ClientConfig.Namespace()
 	return ns, errors.Wrap(err, "")
 }
 
-func (c *ClientGoUtils) createUnstructuredResource(namespace string, rawObj runtime.RawExtension, wait bool) error {
+func (c *ClientGoUtils) createUnstructuredResource(rawObj runtime.RawExtension, wait bool) error {
 	obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).Decode(rawObj.Raw, nil, nil)
 	if err != nil {
 		return &TypedError{ErrorType: InvalidYaml, Mes: err.Error()}
@@ -175,17 +197,17 @@ func (c *ClientGoUtils) createUnstructuredResource(namespace string, rawObj runt
 
 	var dri dynamic.ResourceInterface
 	if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
-		if namespace != "" {
-			unstructuredObj.SetNamespace(namespace)
-		} else if unstructuredObj.GetNamespace() == "" {
-			unstructuredObj.SetNamespace("default")
-		}
+		//if namespace != "" {
+		unstructuredObj.SetNamespace(c.namespace)
+		//} else if unstructuredObj.GetNamespace() == "" {
+		//	unstructuredObj.SetNamespace("default")
+		//}
 		dri = c.GetDynamicClient().Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
 	} else {
 		dri = c.GetDynamicClient().Resource(mapping.Resource)
 	}
 
-	obj2, err := dri.Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
+	obj2, err := dri.Create(c.ctx, unstructuredObj, metav1.CreateOptions{})
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("fail to create %s", unstructuredObj.GetName()))
 	}
@@ -193,7 +215,7 @@ func (c *ClientGoUtils) createUnstructuredResource(namespace string, rawObj runt
 	fmt.Printf("%s %s created\n", obj2.GetKind(), obj2.GetName())
 
 	if wait {
-		err = c.WaitJobToBeReady(obj2.GetNamespace(), obj2.GetName())
+		err = c.WaitJobToBeReady(obj2.GetName())
 		if err != nil {
 			//PrintlnErr("fail to wait", err)
 			return err
@@ -202,13 +224,13 @@ func (c *ClientGoUtils) createUnstructuredResource(namespace string, rawObj runt
 	return nil
 }
 
-func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool, validate bool) error {
+func (c *ClientGoUtils) Create(yamlPath string, wait bool, validate bool) error {
 	if yamlPath == "" {
 		return errors.New("yaml path can not be empty")
 	}
-	if namespace == "" {
-		namespace, _ = c.GetDefaultNamespace()
-	}
+	//if namespace == "" {
+	//	namespace, _ = c.GetDefaultNamespace()
+	//}
 
 	filebytes, err := ioutil.ReadFile(yamlPath)
 	if err != nil {
@@ -221,9 +243,8 @@ func (c *ClientGoUtils) Create(yamlPath string, namespace string, wait bool, val
 		var rawObj runtime.RawExtension
 		if err = decoder.Decode(&rawObj); err != nil {
 			break
-			//return errors.Wrap(err, fmt.Sprintf("[Invalid Yaml] fail to decode %s", yamlPath))
 		}
-		err = c.createUnstructuredResource(namespace, rawObj, wait)
+		err = c.createUnstructuredResource(rawObj, wait)
 		if err != nil {
 			if validate {
 				return err
@@ -277,21 +298,21 @@ func (c *ClientGoUtils) Discovery() {
 	}
 }
 
-func (c *ClientGoUtils) GetDeploymentClient(namespace string) appsV1.DeploymentInterface {
-	return c.ClientSet.AppsV1().Deployments(namespace)
+func (c *ClientGoUtils) GetDeploymentClient() appsV1.DeploymentInterface {
+	return c.ClientSet.AppsV1().Deployments(c.namespace)
 }
 
-func (c *ClientGoUtils) GetPodClient(namespace string) coreV1.PodInterface {
-	return c.ClientSet.CoreV1().Pods(namespace)
+func (c *ClientGoUtils) GetPodClient() coreV1.PodInterface {
+	return c.ClientSet.CoreV1().Pods(c.namespace)
 }
 
-func (c *ClientGoUtils) GetDeployment(ctx context.Context, namespace string, name string) (*v1.Deployment, error) {
-	dep, err := c.GetDeploymentClient(namespace).Get(ctx, name, metav1.GetOptions{})
+func (c *ClientGoUtils) GetDeployment(name string) (*v1.Deployment, error) {
+	dep, err := c.GetDeploymentClient().Get(c.ctx, name, metav1.GetOptions{})
 	return dep, errors.Wrap(err, "")
 }
 
-func (c *ClientGoUtils) CheckDeploymentReady(ctx context.Context, namespace string, name string) (bool, error) {
-	deployment, err := c.GetDeployment(ctx, namespace, name)
+func (c *ClientGoUtils) CheckDeploymentReady(name string) (bool, error) {
+	deployment, err := c.GetDeployment(name)
 	if err != nil {
 		return false, err
 	}
@@ -303,16 +324,16 @@ func (c *ClientGoUtils) CheckDeploymentReady(ctx context.Context, namespace stri
 	return false, nil
 }
 
-func (c *ClientGoUtils) GetDeployments(ctx context.Context, namespace string) ([]v1.Deployment, error) {
-	deps, err := c.GetDeploymentClient(namespace).List(ctx, metav1.ListOptions{})
+func (c *ClientGoUtils) GetDeployments() ([]v1.Deployment, error) {
+	deps, err := c.GetDeploymentClient().List(c.ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
 	return deps.Items, nil
 }
 
-func (c *ClientGoUtils) UpdateDeployment(ctx context.Context, namespace string, deployment *v1.Deployment, opts metav1.UpdateOptions, wait bool) (*v1.Deployment, error) {
-	dep, err := c.GetDeploymentClient(namespace).Update(ctx, deployment, opts)
+func (c *ClientGoUtils) UpdateDeployment(deployment *v1.Deployment, opts metav1.UpdateOptions, wait bool) (*v1.Deployment, error) {
+	dep, err := c.GetDeploymentClient().Update(c.ctx, deployment, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
@@ -321,13 +342,13 @@ func (c *ClientGoUtils) UpdateDeployment(ctx context.Context, namespace string, 
 		if ready {
 			return dep, nil
 		}
-		err = c.WaitDeploymentToBeReady(namespace, dep.Name, c.TimeOut)
+		err = c.WaitDeploymentToBeReady(dep.Name)
 	}
 	return dep, err
 }
 
-func (c *ClientGoUtils) ListPodsOfDeployment(namespace string, deployName string) ([]corev1.Pod, error) {
-	podClient := c.GetPodClient(namespace)
+func (c *ClientGoUtils) ListPodsOfDeployment(deployName string) ([]corev1.Pod, error) {
+	podClient := c.GetPodClient()
 
 	podList, err := podClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
@@ -346,7 +367,7 @@ OuterLoop:
 			if ref.Kind != "ReplicaSet" {
 				continue
 			}
-			rss, _ := c.GetReplicaSetsControlledByDeployment(context.TODO(), namespace, deployName)
+			rss, _ := c.GetReplicaSetsControlledByDeployment(deployName)
 			if rss == nil {
 				continue
 			}
@@ -361,10 +382,10 @@ OuterLoop:
 	return result, nil
 }
 
-func (c *ClientGoUtils) ListPodsOfLatestRevisionByDeployment(namespace string, deployName string) ([]corev1.Pod, error) {
-	podClient := c.GetPodClient(namespace)
+func (c *ClientGoUtils) ListPodsOfLatestRevisionByDeployment(deployName string) ([]corev1.Pod, error) {
+	podClient := c.GetPodClient()
 
-	podList, err := podClient.List(context.TODO(), metav1.ListOptions{})
+	podList, err := podClient.List(c.ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
@@ -372,7 +393,7 @@ func (c *ClientGoUtils) ListPodsOfLatestRevisionByDeployment(namespace string, d
 	result := make([]corev1.Pod, 0)
 
 	// Find the latest revision
-	replicaSets, err := c.GetReplicaSetsControlledByDeployment(context.TODO(), namespace, deployName)
+	replicaSets, err := c.GetReplicaSetsControlledByDeployment(deployName)
 	if err != nil {
 		log.WarnE(err, "Failed to get replica sets")
 		return nil, err
@@ -423,8 +444,8 @@ OuterLoop:
 	return result, nil
 }
 
-func (c *ClientGoUtils) GetSortedReplicaSetsByDeployment(ctx context.Context, namespace string, deployment string) ([]*v1.ReplicaSet, error) {
-	rss, err := c.GetReplicaSetsControlledByDeployment(ctx, namespace, deployment)
+func (c *ClientGoUtils) GetSortedReplicaSetsByDeployment(deployment string) ([]*v1.ReplicaSet, error) {
+	rss, err := c.GetReplicaSetsControlledByDeployment(deployment)
 	if err != nil {
 		return nil, err
 	}
@@ -442,7 +463,7 @@ func (c *ClientGoUtils) GetSortedReplicaSetsByDeployment(ctx context.Context, na
 	}
 	return results, nil
 }
-func (c *ClientGoUtils) WaitDeploymentLatestRevisionToBeReady(ctx context.Context, namespace string, name string) error {
+func (c *ClientGoUtils) WaitDeploymentLatestRevisionToBeReady(name string) error {
 	//time.Sleep(2 * time.Second)
 	// Find the latest revision
 	//replicaSets, err := c.GetReplicaSetsControlledByDeployment(ctx, namespace, name)
@@ -466,7 +487,7 @@ func (c *ClientGoUtils) WaitDeploymentLatestRevisionToBeReady(ctx context.Contex
 
 	for {
 		time.Sleep(2 * time.Second)
-		replicaSets, err := c.GetReplicaSetsControlledByDeployment(ctx, namespace, name)
+		replicaSets, err := c.GetReplicaSetsControlledByDeployment(name)
 		if err != nil {
 			log.WarnE(err, "Failed to get replica sets")
 			return err
@@ -499,10 +520,10 @@ func (c *ClientGoUtils) WaitDeploymentLatestRevisionToBeReady(ctx context.Contex
 	}
 }
 
-func (c *ClientGoUtils) GetReplicaSetsControlledByDeployment(ctx context.Context, namespace string, deploymentName string) (map[int]*v1.ReplicaSet, error) {
+func (c *ClientGoUtils) GetReplicaSetsControlledByDeployment(deploymentName string) (map[int]*v1.ReplicaSet, error) {
 	var rsList *v1.ReplicaSetList
-	replicaSetsClient := c.ClientSet.AppsV1().ReplicaSets(namespace)
-	rsList, err := replicaSetsClient.List(ctx, metav1.ListOptions{})
+	replicaSetsClient := c.ClientSet.AppsV1().ReplicaSets(c.namespace)
+	rsList, err := replicaSetsClient.List(c.ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
@@ -544,25 +565,25 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 }
 
 // syncthing
-func (c *ClientGoUtils) CreateSecret(ctx context.Context, namespace string, secret *corev1.Secret, options metav1.CreateOptions) (*corev1.Secret, error) {
-	return c.ClientSet.CoreV1().Secrets(namespace).Create(ctx, secret, options)
+func (c *ClientGoUtils) CreateSecret(secret *corev1.Secret, options metav1.CreateOptions) (*corev1.Secret, error) {
+	return c.ClientSet.CoreV1().Secrets(c.namespace).Create(c.ctx, secret, options)
 }
 
-func (c *ClientGoUtils) GetSecret(ctx context.Context, namespace, name string) (*corev1.Secret, error) {
-	return c.ClientSet.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+func (c *ClientGoUtils) GetSecret(name string) (*corev1.Secret, error) {
+	return c.ClientSet.CoreV1().Secrets(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
 }
 
-func (c *ClientGoUtils) DeleteSecret(ctx context.Context, namespace, name string) error {
-	return c.ClientSet.CoreV1().Secrets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+func (c *ClientGoUtils) DeleteSecret(name string) error {
+	return c.ClientSet.CoreV1().Secrets(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{})
 }
 
-func (c *ClientGoUtils) GetPodsFromDeployment(ctx context.Context, namespace, name string) (*corev1.PodList, error) {
-	deployment, err := c.ClientSet.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+func (c *ClientGoUtils) GetPodsFromDeployment(name string) (*corev1.PodList, error) {
+	deployment, err := c.ClientSet.AppsV1().Deployments(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
 	if err != nil {
 		log.Fatalf("deployment not found")
 	}
 	set := labels.Set(deployment.Spec.Selector.MatchLabels)
-	pods, err := c.ClientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: set.AsSelector().String()})
+	pods, err := c.ClientSet.CoreV1().Pods(c.namespace).List(c.ctx, metav1.ListOptions{LabelSelector: set.AsSelector().String()})
 	if err != nil {
 		log.Fatalf("can not found pod under deployment %s", name)
 	}
@@ -599,8 +620,8 @@ func (c *ClientGoUtils) GetNodesList() (*corev1.NodeList, error) {
 	return nodes, nil
 }
 
-func (c *ClientGoUtils) GetService(name, namespace string) (*corev1.Service, error) {
-	service, err := c.ClientSet.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func (c *ClientGoUtils) GetService(name string) (*corev1.Service, error) {
+	service, err := c.ClientSet.CoreV1().Services(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return &corev1.Service{}, errors.Wrap(err, "")
 	}
@@ -608,7 +629,7 @@ func (c *ClientGoUtils) GetService(name, namespace string) (*corev1.Service, err
 }
 
 func (c *ClientGoUtils) CheckExistNameSpace(name string) error {
-	_, err := c.ClientSet.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
+	_, err := c.ClientSet.CoreV1().Namespaces().Get(c.ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "")
 	}

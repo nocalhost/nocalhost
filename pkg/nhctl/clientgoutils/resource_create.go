@@ -14,7 +14,6 @@ limitations under the License.
 package clientgoutils
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -40,14 +39,14 @@ import (
 //	return c.Exec(namespace, podName, containerName, []string{"sh", "-c", "clear; (bash || ash ||  sh)"})
 //}
 
-func (c *ClientGoUtils) ExecShell(namespace string, podName string, containerName string, shell string) error {
-	return c.Exec(namespace, podName, containerName, []string{"sh", "-c", fmt.Sprintf("clear; %s", shell)})
+func (c *ClientGoUtils) ExecShell(podName string, containerName string, shell string) error {
+	return c.Exec(podName, containerName, []string{"sh", "-c", fmt.Sprintf("clear; %s", shell)})
 }
 
-func (c *ClientGoUtils) Exec(namespace string, podName string, containerName string, command []string) error {
+func (c *ClientGoUtils) Exec(podName string, containerName string, command []string) error {
 	f := c.newFactory()
 
-	pod, err := c.ClientSet.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+	pod, err := c.ClientSet.CoreV1().Pods(c.namespace).Get(c.ctx, podName, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
@@ -133,12 +132,12 @@ func (c *ClientGoUtils) newFactory() cmdutil.Factory {
 	return f
 }
 
-func (c *ClientGoUtils) ApplyForCreate(files []string, namespace string, continueOnError bool) error {
-	return c.apply(files, namespace, continueOnError, Create)
+func (c *ClientGoUtils) ApplyForCreate(files []string, continueOnError bool) error {
+	return c.apply(files, continueOnError, Create)
 }
 
-func (c *ClientGoUtils) ApplyForDelete(files []string, namespace string, continueOnError bool) error {
-	return c.apply(files, namespace, continueOnError, Delete)
+func (c *ClientGoUtils) ApplyForDelete(files []string, continueOnError bool) error {
+	return c.apply(files, continueOnError, Delete)
 }
 
 type applyAction string
@@ -148,7 +147,7 @@ const (
 	Create applyAction = "create"
 )
 
-func (c *ClientGoUtils) apply(files []string, namespace string, continueOnError bool, action applyAction) error {
+func (c *ClientGoUtils) apply(files []string, continueOnError bool, action applyAction) error {
 	if len(files) == 0 {
 		return errors.New("files must not be nil")
 	}
@@ -173,7 +172,7 @@ func (c *ClientGoUtils) apply(files []string, namespace string, continueOnError 
 	}
 	result := builder.Unstructured().
 		Schema(validate).
-		NamespaceParam(namespace).DefaultNamespace().
+		NamespaceParam(c.namespace).DefaultNamespace().
 		FilenameParam(true, &filenames).
 		//LabelSelectorParam(o.Selector).
 		Flatten().Do()

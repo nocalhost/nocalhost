@@ -42,16 +42,16 @@ func (c *ClientGoUtils) GetRestClient(gv *schema.GroupVersion) (*rest.RESTClient
 /*
 	if namespace is empty, use "default" namespace
 */
-func (c *ClientGoUtils) GetResourcesByRestClient(gv *schema.GroupVersion, namespace string, resource string, result runtime.Object) error {
+func (c *ClientGoUtils) GetResourcesByRestClient(gv *schema.GroupVersion, resource string, result runtime.Object) error {
 	restClient, err := c.GetRestClient(gv)
 	if err != nil {
 		return err
 	}
 
-	if namespace == "" {
-		namespace = "default"
-	}
+	//if namespace == "" {
+	//	namespace = "default"
+	//}
 
-	return restClient.Get().Namespace(namespace).Resource(resource).VersionedParams(&metav1.ListOptions{Limit: 500},
+	return restClient.Get().Namespace(c.namespace).Resource(resource).VersionedParams(&metav1.ListOptions{Limit: 500},
 		scheme.ParameterCodec).Do(context.TODO()).Into(result)
 }

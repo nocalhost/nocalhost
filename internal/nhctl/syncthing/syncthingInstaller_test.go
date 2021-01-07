@@ -242,10 +242,10 @@ func TestDownLoadWithSpecifyVersion(t *testing.T) {
 	tmpDir, _ := ioutil.TempDir("", "")
 
 	mockedSyncthingInstaller := &SyncthingInstaller{
-		BinPath:        tmpDir,
-		Version:        versionToDownload,
-		CommitId:       commitId,
-		SpecifyVersion: specifyVersion,
+		BinPath:          tmpDir,
+		Version:          versionToDownload,
+		CommitId:         commitId,
+		SpecifiedVersion: specifyVersion,
 	}
 
 	// download v0.2.0
@@ -259,7 +259,6 @@ func TestDownLoadWithSpecifyVersion(t *testing.T) {
 	}
 }
 
-
 // specify specifyVersion
 func TestRepeatDownLoadWithSpecifyVersion(t *testing.T) {
 	versionToDownload := "invalidVersion"
@@ -268,10 +267,10 @@ func TestRepeatDownLoadWithSpecifyVersion(t *testing.T) {
 	tmpDir, _ := ioutil.TempDir("", "")
 
 	mockedSyncthingInstaller := &SyncthingInstaller{
-		BinPath:        tmpDir,
-		Version:        versionToDownload,
-		CommitId:       commitId,
-		SpecifyVersion: specifyVersion,
+		BinPath:          tmpDir,
+		Version:          versionToDownload,
+		CommitId:         commitId,
+		SpecifiedVersion: specifyVersion,
 	}
 
 	// download v0.2.0

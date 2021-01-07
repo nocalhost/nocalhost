@@ -127,7 +127,8 @@ func NewApplication(name string) (*Application, error) {
 	}
 	app.AppProfile = profile
 
-	app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), DefaultClientGoTimeOut)
+	//app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), DefaultClientGoTimeOut)
+	err = app.InitClient(app.GetKubeconfig(), app.GetNamespace())
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +149,7 @@ func (a *Application) ReadBeforeWriteProfile() error {
 func (a *Application) InitClient(kubeconfig string, namespace string) error {
 	// check if kubernetes is available
 	var err error
-	a.client, err = clientgoutils.NewClientGoUtils(kubeconfig, DefaultClientGoTimeOut)
+	a.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace)
 	if err != nil {
 		return err
 	}
@@ -412,7 +413,7 @@ func (a *Application) uninstallManifestRecursively() error {
 	a.loadInstallManifest()
 
 	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForDelete(a.installManifest, a.GetNamespace(), true)
+		err := a.client.ApplyForDelete(a.installManifest, true)
 		if err != nil {
 			fmt.Printf("error occurs when cleaning resources: %v\n", err.Error())
 			return errors.Wrap(err, err.Error())
@@ -488,7 +489,7 @@ func (a *Application) preInstall() {
 	if len(a.sortedPreInstallManifest) > 0 {
 		log.Info("Run pre-install...")
 		for _, item := range a.sortedPreInstallManifest {
-			err := a.client.Create(item, a.GetNamespace(), true, false)
+			err := a.client.Create(item, true, false)
 			if err != nil {
 				log.Warnf("error occurs when install %s : %s\n", item, err.Error())
 			}
@@ -499,7 +500,7 @@ func (a *Application) preInstall() {
 func (a *Application) cleanPreInstall() {
 	a.loadSortedPreInstallManifest()
 	if len(a.sortedPreInstallManifest) > 0 {
-		err := a.client.ApplyForDelete(a.sortedPreInstallManifest, a.GetNamespace(), true)
+		err := a.client.ApplyForDelete(a.sortedPreInstallManifest, true)
 		if err != nil {
 			log.Warnf("error occurs when cleaning pre install resources : %s\n", err.Error())
 		}
@@ -627,12 +628,12 @@ func (a *Application) GetDefaultDevPort(svcName string) []string {
 func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) error {
 	clientUtils := a.client
 
-	dep, err := clientUtils.GetDeployment(ctx, a.GetNamespace(), svcName)
+	dep, err := clientUtils.GetDeployment(svcName)
 	if err != nil {
 		return err
 	}
 
-	rss, err := clientUtils.GetSortedReplicaSetsByDeployment(ctx, a.GetNamespace(), svcName)
+	rss, err := clientUtils.GetSortedReplicaSetsByDeployment(svcName)
 	if err != nil {
 		log.WarnE(err, "Failed to get rs list")
 		return err
@@ -675,13 +676,13 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 
 	spinner := utils.NewSpinner(" Rolling container's revision back...")
 	spinner.Start()
-	dep, err = clientUtils.UpdateDeployment(ctx, a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
+	dep, err = clientUtils.UpdateDeployment(dep, metav1.UpdateOptions{}, true)
 	spinner.Stop()
 	if err != nil {
 		coloredoutput.Fail("Failed to roll revision back")
 	} else {
 		// Wait until workload ready
-		err = a.client.WaitDeploymentLatestRevisionToBeReady(ctx, a.GetNamespace(), svcName)
+		err = a.client.WaitDeploymentLatestRevisionToBeReady(svcName)
 		if err != nil {
 			return err
 		} else {
@@ -736,8 +737,8 @@ func (a *Application) LoadConfigToSvcProfile(svcName string, svcType SvcType) {
 func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error) {
 	switch svcType {
 	case Deployment:
-		ctx, _ := context.WithTimeout(context.TODO(), DefaultClientGoTimeOut)
-		dep, err := a.client.GetDeployment(ctx, a.GetNamespace(), name)
+		//ctx, _ := context.WithTimeout(context.TODO(), DefaultClientGoTimeOut)
+		dep, err := a.client.GetDeployment(name)
 		if err != nil {
 			return false, errors.Wrap(err, "")
 		}
@@ -1087,12 +1088,12 @@ func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(svcName stri
 	return options, nil
 }
 
-func (a *Application) GetPodsFromDeployment(ctx context.Context, deployment string) (*corev1.PodList, error) {
-	return a.client.GetPodsFromDeployment(ctx, a.GetNamespace(), deployment)
+func (a *Application) GetPodsFromDeployment(deployment string) (*corev1.PodList, error) {
+	return a.client.GetPodsFromDeployment(deployment)
 }
 
 func (a *Application) WaitAndGetNocalhostDevContainerPod(deployment string) (podName string, err error) {
-	checkPodsList, err := a.GetPodsFromDeployment(context.TODO(), deployment)
+	checkPodsList, err := a.GetPodsFromDeployment(deployment)
 	if err != nil {
 		log.Fatalf("get nocalhost dev container fail when file sync err %s", err.Error())
 		return "", err

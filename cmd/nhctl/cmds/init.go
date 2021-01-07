@@ -14,7 +14,6 @@ limitations under the License.
 package cmds
 
 import (
-	"context"
 	"fmt"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/coloredoutput"
@@ -140,7 +139,7 @@ var InitCommand = &cobra.Command{
 				params = append(params, "--set", set)
 			}
 		}
-		client, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, app.DefaultClientGoTimeOut)
+		client, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, inits.NameSpace)
 		fmt.Printf("kubeconfig %s \n", settings.KubeConfig)
 		if err != nil || client == nil {
 			log.Fatalf("new go client fail, err %s, or check you kubeconfig\n", err)
@@ -199,7 +198,7 @@ var InitCommand = &cobra.Command{
 		// 3. use nocalhost-web service address to set default data into cluster
 		spinner := utils.NewSpinner(" waiting for Nocalhost component ready, this will take a few minutes...")
 		spinner.Start()
-		err = client.WaitDeploymentToBeReady(inits.NameSpace, app.DefaultInitWatchDeployment, app.DefaultClientGoTimeOut)
+		err = client.NameSpace(inits.NameSpace).WaitDeploymentToBeReady(app.DefaultInitWatchDeployment)
 		if err != nil {
 			log.Fatalf("watch deployment %s timeout, err: %s\n", app.DefaultInitWatchDeployment, err.Error())
 		}
@@ -207,7 +206,7 @@ var InitCommand = &cobra.Command{
 		// max 5 min
 		checkTime := 0
 		for {
-			isReady, _ := client.CheckDeploymentReady(context.TODO(), inits.NameSpace, app.DefaultInitWatchWebDeployment)
+			isReady, _ := client.NameSpace(inits.NameSpace).CheckDeploymentReady(app.DefaultInitWatchWebDeployment)
 			if isReady {
 				break
 			}
@@ -246,7 +245,7 @@ var InitCommand = &cobra.Command{
 		}
 
 		// get loadbalancer service IP
-		service, err := client.GetService(app.DefaultInitNocalhostService, inits.NameSpace)
+		service, err := client.NameSpace(inits.NameSpace).GetService(app.DefaultInitNocalhostService)
 		if err != nil {
 			log.Fatalf("get service %s fail, please try again\n", err)
 		}
@@ -290,7 +289,7 @@ var InitCommand = &cobra.Command{
 		// wait for nocalhost-dep deployment in nocalhost-reserved namespace
 		spinner = utils.NewSpinner(" waiting for Nocalhost-dep ready, this will take a few minutes...")
 		spinner.Start()
-		err = client.WaitDeploymentToBeReady(app.DefaultInitWaitNameSpace, app.DefaultInitWaitDeployment, app.DefaultClientGoTimeOut)
+		err = client.NameSpace(app.DefaultInitWaitNameSpace).WaitDeploymentToBeReady(app.DefaultInitWaitDeployment)
 		if err != nil {
 			log.Fatalf("watch deployment %s timeout, err: %s\n", app.DefaultInitWatchDeployment, err.Error())
 		}

@@ -22,7 +22,7 @@ func (a *Application) cleanUpDepConfigMap() error {
 
 	if a.AppProfile.DependencyConfigMapName != "" {
 		log.Debugf("Cleaning up config map %s", a.AppProfile.DependencyConfigMapName)
-		err := a.client.DeleteConfigMapByName(a.AppProfile.DependencyConfigMapName, a.AppProfile.Namespace)
+		err := a.client.DeleteConfigMapByName(a.AppProfile.DependencyConfigMapName)
 		if err != nil {
 			return err
 		}
