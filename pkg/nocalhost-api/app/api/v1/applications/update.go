@@ -79,14 +79,14 @@ func UpdateApplicationInstall(c *gin.Context) {
 		api.SendResponse(c, errno.ErrBind, nil)
 		return
 	}
-	// userId, _ := c.Get("userId")
+	userId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
 	devSpaceId := cast.ToUint64(c.Param("spaceId"))
 	model := model.ClusterUserModel{
 		ID:            devSpaceId,
 		ApplicationId: applicationId,
-		// UserId:        userId.(uint64),
-		Status: req.Status,
+		UserId:        userId.(uint64),
+		Status:        req.Status,
 	}
 	_, err := service.Svc.ClusterUser().Update(c, &model)
 	if err != nil {
