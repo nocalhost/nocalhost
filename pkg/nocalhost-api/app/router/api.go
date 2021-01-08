@@ -76,7 +76,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	g.POST("/v1/login", user.Login)
 
 	u := g.Group("/v1/users")
-	u.Use(middleware.AuthMiddleware())
+	u.Use(middleware.AuthMiddleware(), middleware.AdminPermissionMiddleware())
 	{
 		u.GET("/:id", user.Get)
 		u.GET("", user.GetList)
@@ -93,7 +93,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 
 	// Clusters
 	c := g.Group("/v1/cluster")
-	c.Use(middleware.AuthMiddleware())
+	c.Use(middleware.AuthMiddleware(), middleware.AdminPermissionMiddleware())
 	{
 		c.POST("", cluster.Create)
 		c.GET("", cluster.GetList)
@@ -108,14 +108,13 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 
 	// Applications
 	a := g.Group("/v1/application")
-	a.Use(middleware.AuthMiddleware())
+	a.Use(middleware.AuthMiddleware(), middleware.AdminPermissionMiddleware())
 	{
 		a.POST("", applications.Create)
 		a.GET("", applications.Get)
 		a.GET("/:id", applications.GetDetail)
 		a.DELETE("/:id", applications.Delete)
 		a.PUT("/:id", applications.Update)
-		a.PUT("/:id/dev_space/:spaceId/plugin_sync", applications.UpdateApplicationInstall)
 		a.POST("/:id/bind_cluster", application_cluster.Create)
 		a.GET("/:id/bound_cluster", application_cluster.GetBound)
 		a.POST("/:id/create_space", cluster_user.Create)
@@ -127,14 +126,14 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 
 	// nocalhost
 	n := g.Group("/v1/nocalhost")
-	n.Use(middleware.AuthMiddleware())
+	n.Use(middleware.AuthMiddleware(), middleware.AdminPermissionMiddleware())
 	{
 		n.GET("/templates", applications.GetNocalhostConfigTemplate)
 	}
 
 	// DevSpace
 	dv := g.Group("v1/dev_space")
-	dv.Use(middleware.AuthMiddleware())
+	dv.Use(middleware.AuthMiddleware(), middleware.AdminPermissionMiddleware())
 	{
 		dv.DELETE("/:id", cluster_user.Delete)
 		dv.PUT("/:id", cluster_user.Update)
@@ -145,8 +144,9 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	pa := g.Group("/v1/plugin")
 	pa.Use(middleware.AuthMiddleware())
 	{
-		pa.GET("/applications", applications.PluginGet)
+		pa.GET("/dev_space", applications.PluginGet)
 		pa.POST("/:id/recreate", cluster_user.PluginReCreate)
+		pa.PUT("/application/:id/dev_space/:spaceId/plugin_sync", applications.UpdateApplicationInstall)
 	}
 
 	return g
