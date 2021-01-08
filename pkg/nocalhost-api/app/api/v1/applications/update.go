@@ -42,11 +42,11 @@ func Update(c *gin.Context) {
 		api.SendResponse(c, errno.ErrBind, nil)
 		return
 	}
-	userId, _ := c.Get("userId")
+	// userId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
 	model := model.ApplicationModel{
-		ID:      applicationId,
-		UserId:  userId.(uint64),
+		ID: applicationId,
+		// UserId:  userId.(uint64),
 		Context: req.Context,
 		Status:  *req.Status,
 	}

@@ -14,7 +14,6 @@ limitations under the License.
 package app
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -22,9 +21,10 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
+// Try to use shell defined in devContainerShell to enter pod's terminal
+// If devContainerShell is not defined or shell defined in devContainerShell failed to enter terminal, use /bin/sh
 func (a *Application) EnterPodTerminal(svcName string) error {
-	podList, err := a.client.ListPodsOfLatestRevisionByDeployment(a.GetNamespace(), svcName)
-	//podList, err := a.client.GetPodsFromDeployment(context.TODO(), a.GetNamespace(), svcName)
+	podList, err := a.client.ListPodsOfLatestRevisionByDeployment(svcName)
 	if err != nil {
 		return err
 	}
@@ -33,11 +33,24 @@ func (a *Application) EnterPodTerminal(svcName string) error {
 		return errors.New(fmt.Sprintf("the number of pods of %s is not 1 ???", svcName))
 	}
 	pod := podList[0].Name
-	return a.client.ExecBash(a.GetNamespace(), pod, "")
+	shell := a.GetSvcProfile(svcName).DevContainerShell
+	if shell != "" {
+		log.Debugf("Shell %s defined, use it to enter terminal", shell)
+		err = a.client.ExecShell(pod, "", shell)
+		if err != nil {
+			log.Warnf("Failed to use %s to enter terminal, use %s instead", shell, DefaultDevContainerShell)
+		} else {
+			return nil
+		}
+	}
+	if shell == "" {
+		log.Debugf("Shell not defined, use default shell %s to enter terminal", shell)
+	}
+	return a.client.ExecShell(pod, "", DefaultDevContainerShell)
 }
 
 func (a *Application) Exec(svcName string, commands []string) error {
-	podList, err := a.client.GetPodsFromDeployment(context.TODO(), a.GetNamespace(), svcName)
+	podList, err := a.client.GetPodsFromDeployment(svcName)
 	if err != nil {
 		return err
 	}
@@ -46,5 +59,5 @@ func (a *Application) Exec(svcName string, commands []string) error {
 		return errors.New(fmt.Sprintf("the number of pods of %s is not 1 ???", svcName))
 	}
 	pod := podList.Items[0].Name
-	return a.client.Exec(a.GetNamespace(), pod, "", commands)
+	return a.client.Exec(pod, "", commands)
 }

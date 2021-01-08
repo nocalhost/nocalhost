@@ -20,8 +20,8 @@ spec:
           image: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep:latest
           resources:
             requests:
-              cpu: 500m
-              memory: 1024Mi
+              cpu: 100m
+              memory: 256Mi
           imagePullPolicy: Always
           # dev mode
           #command: ["/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/server", "--"]

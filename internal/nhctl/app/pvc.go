@@ -14,7 +14,6 @@ limitations under the License.
 package app
 
 import (
-	"context"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	"nocalhost/pkg/nhctl/log"
@@ -22,12 +21,12 @@ import (
 
 // Get all PersistVolumeClaims created by this application
 func (a *Application) GetAllPVCs() ([]v1.PersistentVolumeClaim, error) {
-	return a.client.GetPvcByLabels(context.TODO(), a.GetNamespace(), map[string]string{AppLabel: a.Name})
+	return a.client.GetPvcByLabels(map[string]string{AppLabel: a.Name})
 }
 
 // Get all PersistVolumeClaims created by specified service
 func (a *Application) GetPVCsBySvc(svcName string) ([]v1.PersistentVolumeClaim, error) {
-	return a.client.GetPvcByLabels(context.TODO(), a.GetNamespace(), map[string]string{AppLabel: a.Name, ServiceLabel: svcName})
+	return a.client.GetPvcByLabels(map[string]string{AppLabel: a.Name, ServiceLabel: svcName})
 }
 
 // If svcName specified, cleaning pvcs created by the service
@@ -52,7 +51,7 @@ func (a *Application) CleanUpPVCs(svcName string, continueOnErr bool) error {
 
 	// todo check if pvc still is used by some pods
 	for _, pvc := range pvcs {
-		err = a.client.DeletePVC(a.GetNamespace(), pvc.Name)
+		err = a.client.DeletePVC(pvc.Name)
 		if err != nil {
 			log.WarnE(err, fmt.Sprintf("error occurs while deleting pvc %s", pvc.Name))
 			if !continueOnErr {
@@ -66,5 +65,5 @@ func (a *Application) CleanUpPVCs(svcName string, continueOnErr bool) error {
 }
 
 func (a *Application) CleanUpPVC(name string) error {
-	return a.client.DeletePVC(a.GetNamespace(), name)
+	return a.client.DeletePVC(name)
 }

@@ -16,6 +16,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,27 +32,45 @@ import (
 
 func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *DevStartOptions) error {
 
+	dep0, err := a.client.Context(ctx).GetDeployment(deployment)
+	if err != nil {
+		return err
+	}
+
 	// mark current revision for rollback
-	rss, err := a.client.GetSortedReplicaSetsByDeployment(ctx, a.GetNamespace(), deployment)
+	rss, err := a.client.GetSortedReplicaSetsByDeployment(deployment)
 	if err != nil {
 		return err
 	}
 	if len(rss) > 0 {
+		// Recording original pod replicas for dev end to recover
+		originalPodReplicas := 1
+		if dep0.Spec.Replicas != nil {
+			originalPodReplicas = int(*dep0.Spec.Replicas)
+		}
 		firstRevisionName := ""
 		for _, rs := range rss {
-			//rs := rss[len(rss)-1]
-			if rs.Annotations[DevImageFlagAnnotationKey] == DevImageFlagAnnotationValue {
+			if rs.Annotations[DevImageRevisionAnnotationKey] == DevImageRevisionAnnotationValue {
 				firstRevisionName = rs.Name
+				if rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] == "" {
+					rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] = strconv.Itoa(originalPodReplicas)
+					_, err = a.client.ClientSet.AppsV1().ReplicaSets(a.GetNamespace()).Update(ctx, rs, metav1.UpdateOptions{})
+					if err != nil {
+						return errors.New("Failed to update rs's annotation")
+					}
+				}
+				break
 			}
 		}
 		if firstRevisionName != "" {
 			log.Debugf("First revision replicaSet %s has already been marked", firstRevisionName)
 		} else {
 			rs := rss[0]
-			rs.Annotations[DevImageFlagAnnotationKey] = DevImageFlagAnnotationValue
+			rs.Annotations[DevImageRevisionAnnotationKey] = DevImageRevisionAnnotationValue
+			rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] = strconv.Itoa(originalPodReplicas)
 			_, err = a.client.ClientSet.AppsV1().ReplicaSets(a.GetNamespace()).Update(ctx, rs, metav1.UpdateOptions{})
 			if err != nil {
-				return errors.New("fail to update rs's annotation")
+				return errors.New("Failed to update rs's annotation")
 			} else {
 				log.Infof("%s has been marked as first revision", rs.Name)
 			}
@@ -66,10 +85,10 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	time.Sleep(time.Second * 5)
 
 	log.Info("Updating development container...")
-	dep, err := a.client.GetDeployment(ctx, a.GetNamespace(), deployment)
-	if err != nil {
-		return err
-	}
+	//dep, err := a.client.GetDeployment(ctx, a.GetNamespace(), deployment)
+	//if err != nil {
+	//	return err
+	//}
 
 	// syncthing secret volume
 	syncthingDir := corev1.Volume{
@@ -106,10 +125,14 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 		},
 	}
 
-	if dep.Spec.Template.Spec.Volumes == nil {
-		dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
-	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, syncthingVol, syncthingDir)
+	devModeVolumes := make([]corev1.Volume, 0)
+	devModeMounts := make([]corev1.VolumeMount, 0)
+
+	//if dep.Spec.Template.Spec.Volumes == nil {
+	//	dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
+	//}
+	//dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, syncthingVol, syncthingDir)
+	devModeVolumes = append(devModeVolumes, syncthingVol, syncthingDir)
 
 	// syncthing volume mount
 	syncthingVolHomeDirMount := corev1.VolumeMount{
@@ -127,32 +150,14 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 
 	// volume mount
 	workDir := a.GetDefaultWorkDir(deployment)
-	if ops.WorkDir != "" {
-		workDir = ops.WorkDir
-	}
+	//if ops.WorkDir != "" {
+	//	workDir = ops.WorkDir
+	//}
 
 	// default : replace the first container
 	devImage := a.GetDefaultDevImage(deployment)
 	if ops.DevImage != "" {
 		devImage = ops.DevImage
-	}
-
-	devContainer := &dep.Spec.Template.Spec.Containers[0]
-	devContainer.Image = devImage
-	devContainer.Name = "nocalhost-dev"
-	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
-
-	// delete users SecurityContext
-	dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
-
-	// set the entry
-	dep.Spec.Template.Spec.Containers[0].WorkingDir = workDir
-
-	// disable readiness probes
-	for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
-		dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
-		dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
-		dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
 	}
 
 	sideCarImage := a.GetDefaultSideCarImage(deployment)
@@ -182,7 +187,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	if len(persistentVolumes) > 0 {
 		for index, persistentVolume := range persistentVolumes {
 			if persistentVolume.Path == "" {
-				log.Warnf("persistentVolume's path should be set")
+				log.Warnf("PersistentVolume's path should be set")
 				continue
 			}
 
@@ -191,7 +196,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 			labels[AppLabel] = a.Name
 			labels[ServiceLabel] = deployment
 			labels[PersistentVolumeDirLabel] = utils.Sha1ToString(persistentVolume.Path)
-			claims, err := a.client.GetPvcByLabels(ctx, a.GetNamespace(), labels)
+			claims, err := a.client.GetPvcByLabels(labels)
 			if err != nil {
 				log.WarnE(err, fmt.Sprintf("Fail to get a pvc for %s", persistentVolume.Path))
 				continue
@@ -245,10 +250,10 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 			}
 
 			// add volume to pod
-			dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, persistentVol)
+			devModeVolumes = append(devModeVolumes, persistentVol)
 
 			// add volume mount to dev container and sidecar container
-			devContainer.VolumeMounts = append(devContainer.VolumeMounts, persistentMount)
+			devModeMounts = append(devModeMounts, persistentMount)
 			sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, persistentMount)
 
 			log.Infof("%s mount a pvc successfully", persistentVolume.Path)
@@ -265,9 +270,9 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 			Name:      volName,
 			MountPath: workDir,
 		}
-		devContainer.VolumeMounts = append(devContainer.VolumeMounts, volMount)
+		devModeMounts = append(devModeMounts, volMount)
 		sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, volMount)
-		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, workDirVol)
+		devModeVolumes = append(devModeVolumes, workDirVol)
 	} else {
 		log.Debug("No need to mount workDir")
 	}
@@ -275,23 +280,45 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	// over write syncthing command
 	sideCarContainer.Command = []string{"/bin/sh", "-c"}
 	sideCarContainer.Args = []string{"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome + "/* " + secret_config.DefaultSyncthingHome + "/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing"}
+
+	dep, err := a.client.GetDeployment(deployment)
+	if err != nil {
+		return err
+	}
+
+	if dep.Spec.Template.Spec.Volumes == nil {
+		dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
+	}
+	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
+
+	devContainer := &dep.Spec.Template.Spec.Containers[0]
+	devContainer.Image = devImage
+	devContainer.Name = "nocalhost-dev"
+	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
+	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
+
+	// delete users SecurityContext
+	dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
+
+	// set the entry
+	dep.Spec.Template.Spec.Containers[0].WorkingDir = workDir
+
+	// disable readiness probes
+	for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
+		dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
+		dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
+		dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
+	}
+
 	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
 
-	_, err = a.client.UpdateDeployment(ctx, a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
+	_, err = a.client.UpdateDeployment(dep, metav1.UpdateOptions{}, true)
 	if err != nil {
 		log.WarnE(err, "Failed to update development container")
 		return err
 	}
 
-	a.client.WaitDeploymentLatestRevisionToBeReady(ctx, a.GetNamespace(), dep.Name)
-
-	//podList, err := a.client.ListPodsOfDeployment(a.GetNamespace(), dep.Name)
-	//if err != nil {
-	//	log.WarnE(err, "Failed to get pods")
-	//	return err
-	//}
-
-	//log.Debugf("%d pod(s) found", len(podList)) // should be 2
+	a.client.WaitDeploymentLatestRevisionToBeReady(dep.Name)
 
 	// Wait podList to be ready
 	spinner := utils.NewSpinner(" Waiting pod to start...")
@@ -301,7 +328,7 @@ wait:
 	for {
 		<-time.NewTimer(time.Second * 1).C
 		// Get the latest revision
-		podList, err := a.client.ListPodsOfLatestRevisionByDeployment(a.GetNamespace(), dep.Name)
+		podList, err := a.client.ListPodsOfLatestRevisionByDeployment(dep.Name)
 		if err != nil {
 			log.WarnE(err, "Failed to get pods")
 			return err
@@ -320,7 +347,6 @@ wait:
 			for _, c := range pod.Spec.Containers {
 				if !isContainerReadyAndRunning(c.Name, &pod) {
 					spinner.Update(fmt.Sprintf("Container %s is not ready, waiting...", c.Name))
-					//<-time.NewTimer(time.Second * 1).C
 					continue wait
 				}
 			}
@@ -329,7 +355,6 @@ wait:
 		} else {
 			spinner.Update(fmt.Sprintf("Waiting pod to be replaced..."))
 		}
-		//<-time.NewTimer(time.Second * 1).C
 	}
 	spinner.Stop()
 	coloredoutput.Success("Development container has been updated")
@@ -352,9 +377,9 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 	}
 
 	if storageClass == "" {
-		pvc, err = a.client.CreatePVC(a.GetNamespace(), pvcName, labels, annotations, capacity, nil)
+		pvc, err = a.client.CreatePVC(pvcName, labels, annotations, capacity, nil)
 	} else {
-		pvc, err = a.client.CreatePVC(a.GetNamespace(), pvcName, labels, annotations, capacity, &storageClass)
+		pvc, err = a.client.CreatePVC(pvcName, labels, annotations, capacity, &storageClass)
 	}
 	if err != nil {
 		return nil, err
@@ -365,9 +390,9 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 
 	for i := 0; i < 30; i++ {
 		time.Sleep(time.Second * 2)
-		pvc, err = a.client.GetPvcByName(ctx, a.GetNamespace(), pvc.Name)
+		pvc, err = a.client.GetPvcByName(pvc.Name)
 		if err != nil {
-			log.Warnf("fail to update pvc's status: %s", err.Error())
+			log.Warnf("Failed to update pvc's status: %s", err.Error())
 			continue
 		}
 		if pvc.Status.Phase == corev1.ClaimBound {
@@ -379,7 +404,7 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 				for _, condition := range pvc.Status.Conditions {
 					errorMes = condition.Message
 					if condition.Reason == "ProvisioningFailed" {
-						log.Warnf("fail to create a pvc for %s, check if your StorageClass is set correctly", persistentVolume.Path)
+						log.Warnf("Failed to create a pvc for %s, check if your StorageClass is set correctly", persistentVolume.Path)
 						break
 					}
 				}
@@ -391,13 +416,13 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 		if errorMes == "" {
 			errorMes = "timeout"
 		}
-		log.Warnf("fail to wait %s to be bounded: %s", pvc.Name, errorMes)
-		err = a.client.DeletePVC(a.GetNamespace(), pvc.Name)
+		log.Warnf("Failed to wait %s to be bounded: %s", pvc.Name, errorMes)
+		err = a.client.DeletePVC(pvc.Name)
 		if err != nil {
-			log.Warnf("fail to clean pvc %s", pvc.Name)
+			log.Warnf("Fail to clean pvc %s", pvc.Name)
 			return nil, err
 		} else {
-			log.Infof("pvc %s is cleaned up", pvc.Name)
+			log.Infof("PVC %s is cleaned up", pvc.Name)
 		}
 	}
 	return nil, errors.New("Failed to create pvc for " + persistentVolume.Path)
@@ -405,35 +430,32 @@ func (a *Application) createPvcForPersistentVolumeDir(ctx context.Context, persi
 
 func (a *Application) scaleDeploymentReplicasToOne(ctx context.Context, deployment string) error {
 
-	deploymentsClient := a.client.GetDeploymentClient(a.GetNamespace())
+	deploymentsClient := a.client.GetDeploymentClient()
 	scale, err := deploymentsClient.GetScale(ctx, deployment, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
 
-	log.Info("Scaling replicas to 1")
-
 	if scale.Spec.Replicas > 1 {
-		log.Infof("deployment %s's replicas is %d now\n", deployment, scale.Spec.Replicas)
+		log.Infof("Deployment %s's replicas is %d now, scaling it to 1", deployment, scale.Spec.Replicas)
 		scale.Spec.Replicas = 1
 		_, err = deploymentsClient.UpdateScale(ctx, deployment, scale, metav1.UpdateOptions{})
 		if err != nil {
-			fmt.Println("failed to scale replicas to 1")
+			log.Error("Failed to scale replicas to 1")
 		} else {
-			//time.Sleep(time.Second * 5) // todo check replicas
 			for i := 0; i < 60; i++ {
-				time.Sleep(time.Second * 2)
+				time.Sleep(time.Second * 1)
 				scale, err = deploymentsClient.GetScale(ctx, deployment, metav1.GetOptions{})
 				if scale.Spec.Replicas > 1 {
 					log.Debugf("Waiting replicas scaling to 1")
 				} else {
-					log.Info("replicas has been set to 1")
+					log.Info("Replicas has been set to 1")
 					break
 				}
 			}
 		}
 	} else {
-		log.Infof("deployment %s's replicas is already 1\n", deployment)
+		log.Infof("Deployment %s's replicas is already 1, no need to scale", deployment)
 	}
 	return nil
 }

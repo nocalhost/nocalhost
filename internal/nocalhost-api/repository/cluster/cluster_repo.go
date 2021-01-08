@@ -24,7 +24,7 @@ import (
 
 type ClusterRepo interface {
 	Create(ctx context.Context, user model.ClusterModel) (model.ClusterModel, error)
-	Get(ctx context.Context, clusterId uint64, userId uint64) (model.ClusterModel, error)
+	Get(ctx context.Context, clusterId uint64) (model.ClusterModel, error)
 	Delete(ctx context.Context, clusterId uint64) error
 	GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error)
 	Update(ctx context.Context, update map[string]interface{}, clusterId uint64) (*model.ClusterModel, error)
@@ -90,10 +90,10 @@ func (repo *clusterBaseRepo) Create(ctx context.Context, cluster model.ClusterMo
 	return cluster, nil
 }
 
-func (repo *clusterBaseRepo) Get(ctx context.Context, clusterId uint64, userId uint64) (model.ClusterModel, error) {
+func (repo *clusterBaseRepo) Get(ctx context.Context, clusterId uint64) (model.ClusterModel, error) {
 	cluster := model.ClusterModel{}
-	if result := repo.db.Where("id=? and user_id=?", clusterId, userId).First(&cluster); result.Error != nil {
-		log.Warnf("[cluster_repo] get cluster for user: %v id: %v error", userId, clusterId)
+	if result := repo.db.Where("id=?", clusterId).First(&cluster); result.Error != nil {
+		log.Warnf("[cluster_repo] get cluster for id: %v error", clusterId)
 		return cluster, result.Error
 	}
 	return cluster, nil

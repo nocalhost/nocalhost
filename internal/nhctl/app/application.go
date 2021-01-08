@@ -127,7 +127,8 @@ func NewApplication(name string) (*Application, error) {
 	}
 	app.AppProfile = profile
 
-	app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), DefaultClientGoTimeOut)
+	//app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), DefaultClientGoTimeOut)
+	err = app.InitClient(app.GetKubeconfig(), app.GetNamespace())
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +149,7 @@ func (a *Application) ReadBeforeWriteProfile() error {
 func (a *Application) InitClient(kubeconfig string, namespace string) error {
 	// check if kubernetes is available
 	var err error
-	a.client, err = clientgoutils.NewClientGoUtils(kubeconfig, DefaultClientGoTimeOut)
+	a.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace)
 	if err != nil {
 		return err
 	}
@@ -385,8 +386,8 @@ func (a *Application) loadInstallManifest() {
 		for _, eachPath := range resourcePaths {
 			files, _, err := a.getYamlFilesAndDirs(eachPath)
 			if err != nil {
-				log.WarnE(errors.Wrap(err, err.Error()), "fail to load install manifest")
-				return
+				log.WarnE(errors.Wrap(err, ""), fmt.Sprintf("Fail to load manifest in %s", eachPath))
+				continue
 			}
 
 			for _, file := range files {
@@ -394,7 +395,7 @@ func (a *Application) loadInstallManifest() {
 					continue
 				}
 				if _, err2 := os.Stat(file); err2 != nil {
-					log.WarnE(errors.Wrap(err2, err2.Error()), fmt.Sprintf("%s can not be installed", file))
+					log.WarnE(errors.Wrap(err2, ""), fmt.Sprintf("%s can not be installed", file))
 					continue
 				}
 				result = append(result, file)
@@ -420,7 +421,7 @@ func (a *Application) uninstallManifestRecursively() error {
 	a.loadInstallManifest()
 
 	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForDelete(a.installManifest, a.GetNamespace(), true)
+		err := a.client.ApplyForDelete(a.installManifest, true)
 		if err != nil {
 			fmt.Printf("error occurs when cleaning resources: %v\n", err.Error())
 			return errors.Wrap(err, err.Error())
@@ -494,9 +495,9 @@ func (a *Application) preInstall() {
 	a.loadSortedPreInstallManifest()
 
 	if len(a.sortedPreInstallManifest) > 0 {
-		log.Info("run pre-install....")
+		log.Info("Run pre-install...")
 		for _, item := range a.sortedPreInstallManifest {
-			err := a.client.Create(item, a.GetNamespace(), true, false)
+			err := a.client.Create(item, true, false)
 			if err != nil {
 				log.Warnf("error occurs when install %s : %s\n", item, err.Error())
 			}
@@ -507,7 +508,7 @@ func (a *Application) preInstall() {
 func (a *Application) cleanPreInstall() {
 	a.loadSortedPreInstallManifest()
 	if len(a.sortedPreInstallManifest) > 0 {
-		err := a.client.ApplyForDelete(a.sortedPreInstallManifest, a.GetNamespace(), true)
+		err := a.client.ApplyForDelete(a.sortedPreInstallManifest, true)
 		if err != nil {
 			log.Warnf("error occurs when cleaning pre install resources : %s\n", err.Error())
 		}
@@ -635,12 +636,12 @@ func (a *Application) GetDefaultDevPort(svcName string) []string {
 func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) error {
 	clientUtils := a.client
 
-	dep, err := clientUtils.GetDeployment(ctx, a.GetNamespace(), svcName)
+	dep, err := clientUtils.GetDeployment(svcName)
 	if err != nil {
 		return err
 	}
 
-	rss, err := clientUtils.GetSortedReplicaSetsByDeployment(ctx, a.GetNamespace(), svcName)
+	rss, err := clientUtils.GetSortedReplicaSetsByDeployment(svcName)
 	if err != nil {
 		log.WarnE(err, "Failed to get rs list")
 		return err
@@ -653,13 +654,19 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 	}
 
 	var r *v1.ReplicaSet
+	var originalPodReplicas *int32
 	for _, rs := range rss {
 		if rs.Annotations == nil {
 			continue
 		}
 		// Mark the original revision
-		if rs.Annotations[DevImageFlagAnnotationKey] == DevImageFlagAnnotationValue {
+		if rs.Annotations[DevImageRevisionAnnotationKey] == DevImageRevisionAnnotationValue {
 			r = rs
+			if rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] != "" {
+				podReplicas, _ := strconv.Atoi(rs.Annotations[DevImageOriginalPodReplicasAnnotationKey])
+				podReplicas32 := int32(podReplicas)
+				originalPodReplicas = &podReplicas32
+			}
 		}
 	}
 	if r == nil {
@@ -671,16 +678,19 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 	}
 
 	dep.Spec.Template = r.Spec.Template
+	if originalPodReplicas != nil {
+		dep.Spec.Replicas = originalPodReplicas
+	}
 
 	spinner := utils.NewSpinner(" Rolling container's revision back...")
 	spinner.Start()
-	dep, err = clientUtils.UpdateDeployment(ctx, a.GetNamespace(), dep, metav1.UpdateOptions{}, true)
+	dep, err = clientUtils.UpdateDeployment(dep, metav1.UpdateOptions{}, true)
 	spinner.Stop()
 	if err != nil {
 		coloredoutput.Fail("Failed to roll revision back")
 	} else {
 		// Wait until workload ready
-		err = a.client.WaitDeploymentLatestRevisionToBeReady(ctx, a.GetNamespace(), svcName)
+		err = a.client.WaitDeploymentLatestRevisionToBeReady(svcName)
 		if err != nil {
 			return err
 		} else {
@@ -735,8 +745,8 @@ func (a *Application) LoadConfigToSvcProfile(svcName string, svcType SvcType) {
 func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error) {
 	switch svcType {
 	case Deployment:
-		ctx, _ := context.WithTimeout(context.TODO(), DefaultClientGoTimeOut)
-		dep, err := a.client.GetDeployment(ctx, a.GetNamespace(), name)
+		//ctx, _ := context.WithTimeout(context.TODO(), DefaultClientGoTimeOut)
+		dep, err := a.client.GetDeployment(name)
 		if err != nil {
 			return false, errors.Wrap(err, "")
 		}
@@ -763,28 +773,6 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 	return false
 }
 
-// Deprecated
-//func (a *Application) LoadConfigFile() error {
-//	if _, err := os.Stat(a.GetConfigPath()); err != nil {
-//		if os.IsNotExist(err) {
-//			return nil
-//		} else {
-//			return err
-//		}
-//	}
-//	rbytes, err := ioutil.ReadFile(a.GetConfigPath())
-//	if err != nil {
-//		return errors.New(fmt.Sprintf("failed to load configFile : %s", a.GetConfigPath()))
-//	}
-//	config := &Config{}
-//	err = yaml.Unmarshal(rbytes, config)
-//	if err != nil {
-//		return err
-//	}
-//	a.NewConfig = config
-//	return nil
-//}
-
 func (a *Application) CheckConfigFile(file string) error {
 	config := &Config{}
 	err := yaml.Unmarshal([]byte(file), config)
@@ -793,12 +781,6 @@ func (a *Application) CheckConfigFile(file string) error {
 	}
 	return config.CheckValid()
 }
-
-//func (a *Application) SaveConfigFile(file string) error {
-//	fileByte := []byte(file)
-//	err := ioutil.WriteFile(a.GetConfigPath(), fileByte, DefaultNewFilePermission)
-//	return err
-//}
 
 func (a *Application) GetConfigFile() (string, error) {
 	configFile, err := ioutil.ReadFile(a.GetConfigPath())
@@ -812,6 +794,18 @@ func (a *Application) GetDescription() string {
 	desc := ""
 	if a.AppProfile != nil {
 		bytes, err := yaml.Marshal(a.AppProfile)
+		if err == nil {
+			desc = string(bytes)
+		}
+	}
+	return desc
+}
+
+func (a *Application) GetSvcDescription(svcName string) string {
+	desc := ""
+	profile := a.GetSvcProfile(svcName)
+	if profile != nil {
+		bytes, err := yaml.Marshal(profile)
 		if err == nil {
 			desc = string(bytes)
 		}
@@ -1015,17 +1009,17 @@ func (a *Application) GetDevPortForward(svcName string) []string {
 }
 
 // for syncthing use
-func (a *Application) GetSyncthingPort(svcName string, options *FileSyncOptions) (*FileSyncOptions, error) {
-	svcProfile := a.GetSvcProfile(svcName)
-	if svcProfile == nil {
-		return options, errors.New("get " + svcName + " profile fail, please reinstall application")
-	}
-	options.RemoteSyncthingPort = svcProfile.RemoteSyncthingPort
-	options.RemoteSyncthingGUIPort = svcProfile.RemoteSyncthingGUIPort
-	options.LocalSyncthingPort = svcProfile.LocalSyncthingPort
-	options.LocalSyncthingGUIPort = svcProfile.LocalSyncthingGUIPort
-	return options, nil
-}
+//func (a *Application) GetSyncthingPort(svcName string, options *FileSyncOptions) (*FileSyncOptions, error) {
+//	svcProfile := a.GetSvcProfile(svcName)
+//	if svcProfile == nil {
+//		return options, errors.New("get " + svcName + " profile fail, please reinstall application")
+//	}
+//	options.RemoteSyncthingPort = svcProfile.RemoteSyncthingPort
+//	options.RemoteSyncthingGUIPort = svcProfile.RemoteSyncthingGUIPort
+//	options.LocalSyncthingPort = svcProfile.LocalSyncthingPort
+//	options.LocalSyncthingGUIPort = svcProfile.LocalSyncthingGUIPort
+//	return options, nil
+//}
 
 func (a *Application) GetMyBinName() string {
 	if runtime.GOOS == "windows" {
@@ -1102,15 +1096,15 @@ func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(svcName stri
 	return options, nil
 }
 
-func (a *Application) GetPodsFromDeployment(ctx context.Context, namespace, deployment string) (*corev1.PodList, error) {
-	return a.client.GetPodsFromDeployment(ctx, namespace, deployment)
+func (a *Application) GetPodsFromDeployment(deployment string) (*corev1.PodList, error) {
+	return a.client.GetPodsFromDeployment(deployment)
 }
 
-func (a *Application) WaitAndGetNocalhostDevContainerPod(namespace, deployment string) (podName, podNameSpace string, err error) {
-	checkPodsList, err := a.GetPodsFromDeployment(context.TODO(), namespace, deployment)
+func (a *Application) WaitAndGetNocalhostDevContainerPod(deployment string) (podName string, err error) {
+	checkPodsList, err := a.GetPodsFromDeployment(deployment)
 	if err != nil {
 		log.Fatalf("get nocalhost dev container fail when file sync err %s", err.Error())
-		return "", "", err
+		return "", err
 	}
 	found := false
 	for _, pod := range checkPodsList.Items {
@@ -1123,13 +1117,12 @@ func (a *Application) WaitAndGetNocalhostDevContainerPod(namespace, deployment s
 			}
 			if found {
 				podName = pod.Name
-				podNameSpace = pod.Namespace
 				err = nil
 				return
 			}
 		}
 	}
-	return "", "", errors.New("dev container not found")
+	return "", errors.New("dev container not found")
 }
 
 func (a *Application) PortForwardAPod(req clientgoutils.PortForwardAPodRequest) error {
@@ -1215,62 +1208,14 @@ func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
 func (a *Application) SetSyncingStatus(svcName string, is bool) error {
 	err := a.ReadBeforeWriteProfile()
 	if err != nil {
-		log.Fatalf("refresh application profile fail")
+		log.Fatalf("Refresh application profile fail")
 	}
 	a.GetSvcProfile(svcName).Syncing = is
 	return a.AppProfile.Save()
 }
 
-func (a *Application) Uninstall(force bool) error {
-
-	err := a.cleanUpDepConfigMap()
-	if err != nil && !force {
-		return err
-	}
-
-	if a.IsHelm() {
-		commonParams := make([]string, 0)
-		if a.GetNamespace() != "" {
-			commonParams = append(commonParams, "--namespace", a.GetNamespace())
-		}
-		if a.AppProfile.Kubeconfig != "" {
-			commonParams = append(commonParams, "--kubeconfig", a.AppProfile.Kubeconfig)
-		}
-		installParams := []string{"uninstall", a.Name}
-		installParams = append(installParams, commonParams...)
-		_, err := tools.ExecCommand(nil, true, "helm", installParams...)
-		if err != nil && !force {
-			return err
-		}
-	} else if a.IsManifest() {
-		//resourceDir := a.GetResourceDir()
-		//files, _, err := a.getYamlFilesAndDirs(resourceDir)
-		//if err != nil && !force {
-		//	return err
-		//}
-		//err = a.client.ApplyForDelete(files, a.GetNamespace(), true)
-		//if err != nil {
-		//	return err
-		//}
-		//end := time.Now()
-		//fmt.Printf("installing takes %f seconds\n", end.Sub(start).Seconds())
-		a.cleanPreInstall()
-		err := a.uninstallManifestRecursively()
-		if err != nil {
-			return err
-		}
-	}
-
-	err = a.CleanupResources()
-	if err != nil && !force {
-		return err
-	}
-
-	return nil
-}
-
 func (a *Application) CleanupResources() error {
-	fmt.Println("remove resource files...")
+	log.Info("Remove resource files...")
 	homeDir := a.GetHomeDir()
 	err := os.RemoveAll(homeDir)
 	if err != nil {

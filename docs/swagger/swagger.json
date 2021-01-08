@@ -1474,6 +1474,29 @@
                     }
                 }
             }
+        },
+        "/v1/version": {
+            "get": {
+                "description": "Get api server version",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Version"
+                ],
+                "summary": "Get api server version",
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":{\"version\":\"\",\"commit_id\":\"\",\"branch\":\"\"}}",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1583,14 +1606,23 @@
                 "user_id"
             ],
             "properties": {
+                "application_id": {
+                    "type": "integer"
+                },
                 "cluster_id": {
                     "type": "integer"
                 },
                 "cpu": {
                     "type": "integer"
                 },
+                "id": {
+                    "type": "integer"
+                },
                 "memory": {
                     "type": "integer"
+                },
+                "namespace": {
+                    "type": "string"
                 },
                 "space_name": {
                     "type": "string"

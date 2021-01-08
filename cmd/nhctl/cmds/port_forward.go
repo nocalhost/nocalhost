@@ -14,7 +14,6 @@ limitations under the License.
 package cmds
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -80,7 +79,7 @@ var portForwardCmd = &cobra.Command{
 		// find deployment pods
 		podName := ""
 		podNameSpace := ""
-		podsList, err := nocalhostApp.GetPodsFromDeployment(context.TODO(), nocalhostApp.AppProfile.Namespace, deployment)
+		podsList, err := nocalhostApp.GetPodsFromDeployment(deployment)
 		if err != nil {
 			log.Fatalf(err.Error())
 		}

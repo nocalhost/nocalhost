@@ -11,19 +11,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package app
+package middleware
 
-type SvcType string
-
-const (
-	Deployment SvcType = "deployment"
-
-	DevImageRevisionAnnotationKey            = "nhctl.dev.image.revision"
-	DevImageOriginalPodReplicasAnnotationKey = "nhctl.dev.image.original.pod.replicas"
-	DevImageRevisionAnnotationValue          = "first"
-
-	AppLabel     = "nocalhost.dev/app"
-	ServiceLabel = "nocalhost.dev/service"
-
-	PersistentVolumeDirLabel = "nocalhost.dev/dir"
+import (
+	"github.com/gin-gonic/gin"
+	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/pkg/errno"
 )
+
+// AdminPermissionMiddleware
+func AdminPermissionMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		isAdmin, err := c.Get("isAdmin")
+		if !err {
+			api.SendResponse(c, errno.ErrLostPermissionFlag, nil)
+			c.Abort()
+			return
+		}
+		if isAdmin.(uint64) != 1 {
+			api.SendResponse(c, errno.ErrPermissionDenied, nil)
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}

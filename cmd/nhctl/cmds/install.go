@@ -82,7 +82,7 @@ var installCmd = &cobra.Command{
 		var err error
 		applicationName := args[0]
 		if installFlags.GitUrl == "" && installFlags.AppType != string(app.HelmRepo) {
-			log.Fatalf("if app type is not %s , --git-url must be specified", app.HelmRepo)
+			log.Fatalf("If app type is not %s , --git-url must be specified", app.HelmRepo)
 		}
 		if installFlags.AppType == string(app.HelmRepo) {
 			if installFlags.HelmChartName == "" {
@@ -130,7 +130,7 @@ func InstallApplication(applicationName string) error {
 	if installFlags.GitUrl != "" {
 		err = nocalhostApp.DownloadResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
 		if err != nil {
-			log.Debugf("failed to clone : %s, ref: %s\n", installFlags.GitUrl, installFlags.GitRef)
+			log.Debugf("Failed to clone : %s, ref: %s\n", installFlags.GitUrl, installFlags.GitRef)
 			return err
 		}
 	}

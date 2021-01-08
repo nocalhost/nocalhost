@@ -14,7 +14,6 @@ limitations under the License.
 package clientgoutils
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -31,7 +30,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-func (c *ClientGoUtils) WaitForResourceReady(ctx context.Context, resourceType ResourceType, namespace string, name string, isReady func(object runtime.Object) (bool, error)) error {
+func (c *ClientGoUtils) WaitForResourceReady(resourceType ResourceType, name string, isReady func(object runtime.Object) (bool, error)) error {
 	var runtimeObject runtime.Object
 	var restClient rest.Interface
 	switch resourceType {
@@ -47,12 +46,12 @@ func (c *ClientGoUtils) WaitForResourceReady(ctx context.Context, resourceType R
 
 	f, err := fields.ParseSelector(fmt.Sprintf("metadata.name=%s", name))
 	if err != nil {
-		return errors.Wrap(err,"")
+		return errors.Wrap(err, "")
 	}
 	watchlist := cache.NewListWatchFromClient(
 		restClient,
 		string(resourceType),
-		namespace,
+		c.namespace,
 		f, //fields.Everything()
 	)
 
@@ -88,7 +87,7 @@ func (c *ClientGoUtils) WaitForResourceReady(ctx context.Context, resourceType R
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-c.ctx.Done():
 			return err
 		case <-exit:
 			return err
@@ -99,9 +98,8 @@ func (c *ClientGoUtils) WaitForResourceReady(ctx context.Context, resourceType R
 	return err
 }
 
-func (c *ClientGoUtils) WaitDeploymentToBeReady(namespace string, name string, timeout time.Duration) error {
-	ctx, _ := context.WithTimeout(context.TODO(), timeout)
-	return c.WaitForResourceReady(ctx, DeploymentType, namespace, name, isDeploymentReady)
+func (c *ClientGoUtils) WaitDeploymentToBeReady(name string) error {
+	return c.WaitForResourceReady(DeploymentType, name, isDeploymentReady)
 }
 
 func isDeploymentReady(obj runtime.Object) (bool, error) {
@@ -121,16 +119,16 @@ func isDeploymentReady(obj runtime.Object) (bool, error) {
 }
 
 // namespace : use "" to watch all namespaces
-func (c *ClientGoUtils) WaitJobToBeReady(namespace string, name string) error {
+func (c *ClientGoUtils) WaitJobToBeReady(name string) error {
 
 	f, err := fields.ParseSelector(fmt.Sprintf("metadata.name=%s", name))
 	if err != nil {
-		return errors.Wrap(err,"")
+		return errors.Wrap(err, "")
 	}
 	watchlist := cache.NewListWatchFromClient(
 		c.ClientSet.BatchV1().RESTClient(),
 		"jobs",
-		namespace,
+		c.namespace,
 		f, //fields.Everything()
 	)
 	stop := make(chan struct{})

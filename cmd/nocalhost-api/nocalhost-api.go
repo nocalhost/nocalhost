@@ -17,13 +17,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"nocalhost/internal/nocalhost-api/global"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
-
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	routers "nocalhost/pkg/nocalhost-api/app/router"
@@ -73,13 +72,6 @@ func main() {
 	// init app
 	napp.App = napp.New(conf.Conf)
 
-	// Set gin mode.
-	gin.SetMode(napp.ModeRelease)
-	if viper.GetString("app.run_mode") == napp.ModeDebug {
-		gin.SetMode(napp.ModeDebug)
-		napp.App.DB.Debug()
-	}
-
 	// Create the Gin engine.
 	router := napp.App.Router
 
@@ -99,7 +91,7 @@ func main() {
 	// set global service
 	service.Svc = svc
 
-	fmt.Printf("Current run Version is [%s]\n", GIT_COMMIT_SHA)
+	fmt.Printf("current run version %s, tag %s, branch %s \n", global.CommitId, global.Version, global.Branch)
 
 	// start grpc server reserved
 	//go server.New(svc)
