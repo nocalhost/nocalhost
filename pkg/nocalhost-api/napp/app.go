@@ -68,6 +68,12 @@ func New(cfg *conf.Config) *Application {
 	// app.RedisClient = redis2.InitDir()
 
 	// init router
+	// Set gin mode.
+	gin.SetMode(gin.ReleaseMode)
+	if viper.GetString("app.run_mode") == ModeDebug {
+		gin.SetMode(ModeDebug)
+		app.DB.Debug()
+	}
 	app.Router = gin.Default()
 
 	// init coloredoutput
