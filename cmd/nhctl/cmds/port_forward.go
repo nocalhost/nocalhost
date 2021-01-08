@@ -77,16 +77,9 @@ var portForwardCmd = &cobra.Command{
 		}
 
 		// find deployment pods
-		podName := ""
-		podNameSpace := ""
-		podsList, err := nocalhostApp.GetPodsFromDeployment(deployment)
+		podName, err := nocalhostApp.WaitAndGetNocalhostDevContainerPod(deployment)
 		if err != nil {
 			log.Fatalf(err.Error())
-		}
-		if podsList != nil {
-			// get first pod
-			podName = podsList.Items[0].Name
-			podNameSpace = podsList.Items[0].Namespace
 		}
 
 		// run in child process
@@ -135,7 +128,7 @@ var portForwardCmd = &cobra.Command{
 		fmt.Printf("ready to call dev port forward locals: %d, remotes: %d \n", localPorts, remotePorts)
 		// listening, it will wait until kill port forward progress
 		if len(localPorts) > 0 && len(remotePorts) > 0 {
-			nocalhostApp.PortForwardInBackGround(deployment, podName, podNameSpace, localPorts, remotePorts)
+			nocalhostApp.PortForwardInBackGround(deployment, podName, nocalhostApp.GetNamespace(), localPorts, remotePorts)
 		}
 		fmt.Print("not needed port forward")
 	},
