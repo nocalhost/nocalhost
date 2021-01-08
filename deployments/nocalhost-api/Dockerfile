@@ -1,5 +1,7 @@
 # build from root path
 FROM golang as builder
+ARG version="latest"
+ENV VERSION=$version
 
 COPY . /opt/src
 WORKDIR /opt/src
