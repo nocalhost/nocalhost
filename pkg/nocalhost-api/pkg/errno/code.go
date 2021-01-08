@@ -24,7 +24,7 @@ var (
 	RouterNotFound      = &Errno{Code: 10005, Message: "router not found"}
 
 	// user errors
-	ErrUserNotFound          = &Errno{Code: 20102, Message: "The user was not found."}
+	ErrUserNotFound          = &Errno{Code: 20102, Message: "The user does not found."}
 	ErrTokenInvalid          = &Errno{Code: 20103, Message: "Token is invalid or login expired, please coloredoutput in again"}
 	ErrPermissionDenied      = &Errno{Code: 20104, Message: "permission denied"}
 	ErrLostPermissionFlag    = &Errno{Code: 20104, Message: "check permission fail, please re-login"}
@@ -46,7 +46,7 @@ var (
 	ErrClusterKubeConnect     = &Errno{Code: 30104, Message: "Connect cluster fail, Please check cluster connectivity"}
 	ErrClusterDepSetup        = &Errno{Code: 30105, Message: "Initialize cluster: Failed to create dependent component Configmap"}
 	ErrClusterDepJobSetup     = &Errno{Code: 30106, Message: "Initialize the cluster: Create dependent component Job failed"}
-	ErrClusterNotFound        = &Errno{Code: 30107, Message: "Cluster has not found"}
+	ErrClusterNotFound        = &Errno{Code: 30107, Message: "Cluster does not found"}
 	ErrDeleteClusterNameSpace = &Errno{Code: 30108, Message: "Delete cluster namespace fail, please try again"}
 	ErrGetClusterStorageClass = &Errno{Code: 30109, Message: "Get cluster storage class fail, please try again"}
 	ErrUpdateCluster          = &Errno{Code: 30110, Message: "Update cluster fail, please try again"}
@@ -78,9 +78,10 @@ var (
 	ErrBindSecretCAGetErr                        = &Errno{Code: 50109, Message: "Cluster user authorization failed: Failed to obtain ServiceAccount CA"}
 	ErrBindServiceAccountStructEncodeErr         = &Errno{Code: 50110, Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Json to Yaml failed"}
 	ErrBindServiceAccountKubeConfigJsonEncodeErr = &Errno{Code: 50110, Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Struct to Json failed"}
-	ErrClsuterUserNotFound                       = &Errno{Code: 50111, Message: "Dev space has not found"}
+	ErrClsuterUserNotFound                       = &Errno{Code: 50111, Message: "Dev space does not found"}
 	ErrDeletedClsuterButDatabaseFail             = &Errno{Code: 50112, Message: "Cluster namespace has deleted, but database record delete fail"}
 	ErrDeletedClsuterDBButClusterDone            = &Errno{Code: 50113, Message: "Cluster nocalhost resource has deleted, but cluster record delete fail"}
 	ErrDeletedClsuterDevSpaceDBButClusterDone    = &Errno{Code: 50114, Message: "Cluster nocalhost develop space has deleted, but space record delete fail"}
 	ErrDeletedClusterRecord                      = &Errno{Code: 50115, Message: "Delete dev space by application fail, please try again"}
+	ErrResetDevSpaceFail                         = &Errno{Code: 50116, Message: "reset dev space fail, please try again"}
 )

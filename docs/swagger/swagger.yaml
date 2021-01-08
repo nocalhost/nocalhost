@@ -66,12 +66,18 @@ definitions:
     type: object
   cluster_user.ClusterUserCreateRequest:
     properties:
+      application_id:
+        type: integer
       cluster_id:
         type: integer
       cpu:
         type: integer
+      id:
+        type: integer
       memory:
         type: integer
+      namespace:
+        type: string
       space_name:
         type: string
       user_id:
