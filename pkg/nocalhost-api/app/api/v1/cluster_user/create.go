@@ -14,18 +14,11 @@ limitations under the License.
 package cluster_user
 
 import (
-	"encoding/json"
-	"nocalhost/internal/nocalhost-api/global"
-	"nocalhost/internal/nocalhost-api/model"
-	"nocalhost/internal/nocalhost-api/service"
-	"nocalhost/pkg/nocalhost-api/app/api"
-	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
-	"nocalhost/pkg/nocalhost-api/pkg/errno"
-	"nocalhost/pkg/nocalhost-api/pkg/log"
-	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
-
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
 // Create Create a development environment for application
@@ -49,82 +42,13 @@ func Create(c *gin.Context) {
 		api.SendResponse(c, errno.ErrBind, nil)
 		return
 	}
-	userId := cast.ToUint64(req.UserId)
-	// webUserId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
-	// get user
-	usersRecord, err := service.Svc.UserSvc().GetUserByID(c, userId)
+	req.ApplicationId = &applicationId
+	devSpace := NewDevSpace(req, c, []byte{})
+	result, err := devSpace.Create()
 	if err != nil {
-		api.SendResponse(c, errno.ErrUserNotFound, nil)
+		api.SendResponse(c, err, nil)
 		return
 	}
-
-	// check application
-	applicationRecord, err := service.Svc.ApplicationSvc().Get(c, applicationId)
-	if err != nil {
-		api.SendResponse(c, errno.ErrPermissionApplication, nil)
-		return
-	}
-
-	var decodeApplicationJson map[string]interface{}
-	err = json.Unmarshal([]byte(applicationRecord.Context), &decodeApplicationJson)
-	if err != nil {
-		api.SendResponse(c, errno.ErrApplicationJsonContext, nil)
-		return
-	}
-
-	applicationName := ""
-	if decodeApplicationJson["application_name"] != nil {
-		applicationName = decodeApplicationJson["application_name"].(string)
-	}
-
-	spaceName := applicationName + "[" + usersRecord.Name + "]"
-	if req.SpaceName != "" {
-		spaceName = req.SpaceName
-	}
-
-	// check cluster
-	clusterData, err := service.Svc.ClusterSvc().Get(c, *req.ClusterId)
-	if err != nil {
-		api.SendResponse(c, errno.ErrPermissionCluster, nil)
-		return
-	}
-	// check if has auth
-	cu := model.ClusterUserModel{
-		ApplicationId: applicationId,
-		UserId:        userId,
-	}
-	record, hasRecord := service.Svc.ClusterUser().GetFirst(c, cu)
-	if hasRecord == nil {
-		log.Infof("cluster users %v", record)
-		api.SendResponse(c, errno.ErrBindUserClsuterRepeat, nil)
-		return
-	}
-
-	// create namespace
-	var KubeConfig = []byte(clusterData.KubeConfig)
-	goClient, err := clientgo.NewGoClient(KubeConfig)
-	if err != nil {
-		log.Errorf("client go got err %v", err)
-		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
-		return
-	}
-	// create cluster devs
-	devNamespace := goClient.GenerateNsName(userId)
-	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
-	secret, err := clusterDevsSetUp.CreateNS(devNamespace, "").CreateServiceAccount("", devNamespace).CreateRole(global.NocalhostDevRoleName, devNamespace).CreateRoleBinding(global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevServiceAccountName).CreateRoleBinding(global.NocalhostDevRoleDefaultBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevDefaultServiceAccountName).GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).GetServiceAccountSecret("", devNamespace)
-	KubeConfigYaml, err, nerrno := setupcluster.NewDevKubeConfigReader(secret, clusterData.Server, devNamespace).GetCA().GetToken().AssembleDevKubeConfig().ToYamlString()
-	if err != nil {
-		api.SendResponse(c, nerrno, nil)
-		return
-	}
-
-	result, err := service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId, *req.Memory, *req.Cpu, KubeConfigYaml, devNamespace, spaceName)
-	if err != nil {
-		log.Warnf("create ApplicationCluster err: %v", err)
-		api.SendResponse(c, errno.ErrBindApplicationClsuter, nil)
-		return
-	}
-
 	api.SendResponse(c, nil, result)
 }
