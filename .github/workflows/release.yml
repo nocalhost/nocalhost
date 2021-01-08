@@ -148,6 +148,8 @@ jobs:
         git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/homebrew-repo.git main
 
     - name: Release api-docker
+      env:
+        VERSION: ${{ env.RELEASE_VERSION }}
       run: make api-docker
 
     - name: Push to Github packages
