@@ -47,7 +47,7 @@ func Delete(c *gin.Context) {
 	var spaceIds []uint64
 	if len(clusterUserList) > 0 {
 		for _, devSpace := range clusterUserList {
-			goClient, err := clientgo.NewGoClient([]byte(devSpace.AdminClusterKubeConfig))
+			goClient, err := clientgo.NewAdminGoClient([]byte(devSpace.AdminClusterKubeConfig))
 			if err != nil {
 				// ignore and continus
 				continue

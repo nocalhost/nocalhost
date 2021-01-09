@@ -49,7 +49,7 @@ func Delete(c *gin.Context) {
 	clusterUserList, err := service.Svc.ClusterUser().GetJoinCluster(c, condition)
 	if len(clusterUserList) > 0 {
 		for _, clusterUser := range clusterUserList {
-			goClient, err := clientgo.NewGoClient([]byte(clusterUser.AdminClusterKubeConfig))
+			goClient, err := clientgo.NewAdminGoClient([]byte(clusterUser.AdminClusterKubeConfig))
 			if err != nil {
 				log.Warnf("try to delete userid %d while create go-client fail", clusterUser.UserId)
 				continue

@@ -45,7 +45,7 @@ func Delete(c *gin.Context) {
 		return
 	}
 
-	goClient, err := clientgo.NewGoClient([]byte(cluster.KubeConfig))
+	goClient, err := clientgo.NewAdminGoClient([]byte(cluster.KubeConfig))
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
 		return
