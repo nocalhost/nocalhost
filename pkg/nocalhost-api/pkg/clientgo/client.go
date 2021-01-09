@@ -50,7 +50,7 @@ func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
 
 	client, originErr := newGoClient(kubeconfig)
 	if originErr == nil && client != nil {
-		originErr = client.RequireClusterAdminClient()
+		originErr = client.requireClusterAdminClient()
 
 		if originErr == nil {
 			return client, nil
@@ -61,7 +61,7 @@ func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
 
 	client, err := newGoClientUseCurrentClusterHost(kubeconfig)
 	if err == nil && client != nil {
-		err = client.RequireClusterAdminClient()
+		err = client.requireClusterAdminClient()
 
 		if err == nil {
 			client.clusterIpAccessMode = true
@@ -111,7 +111,7 @@ func newGoClientUseCurrentClusterHost(kubeconfig []byte) (*GoClient, error) {
 	return client, nil
 }
 
-func (c *GoClient) RequireClusterAdminClient() error {
+func (c *GoClient) requireClusterAdminClient() error {
 	// check is admin Kubeconfig
 	isAdmin, err := c.IsAdmin()
 	if err != nil {
