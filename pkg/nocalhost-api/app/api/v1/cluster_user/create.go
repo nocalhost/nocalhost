@@ -123,7 +123,9 @@ func Create(c *gin.Context) {
 	res := req.SpaceResourceLimit
 	clusterDevsSetUp.CreateResouceQuota("rq-"+devNamespace, devNamespace, res.SpaceReqMem,
 		res.SpaceReqCpu, res.SpaceLimitsMem, res.SpaceLimitsCpu, res.SpaceStorageCapacity,
-		res.SpacePvcCount, res.SpaceLbCount).CreateLimitRange("lr-"+devNamespace, devNamespace,
+		res.SpacePvcCount, res.SpaceLbCount)
+
+	clusterDevsSetUp.CreateLimitRange("lr-"+devNamespace, devNamespace,
 		res.ContainerReqMem, res.ContainerLimitsMem, res.ContainerReqCpu, res.ContainerLimitsCpu)
 
 	resString, err := json.Marshal(req.SpaceResourceLimit)
