@@ -246,18 +246,18 @@ func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, 
 
 	limits := make(map[corev1.ResourceName]resource.Quantity)
 	if len(limitsMem) > 0 {
-		limits[corev1.ResourceLimitsMemory] = resource.MustParse(limitsMem)
+		limits[corev1.ResourceMemory] = resource.MustParse(limitsMem)
 	}
 	if len(limitsCpu) > 0 {
-		limits[corev1.ResourceLimitsCPU] = resource.MustParse(limitsCpu)
+		limits[corev1.ResourceCPU] = resource.MustParse(limitsCpu)
 	}
 
 	requests := make(map[corev1.ResourceName]resource.Quantity)
 	if len(reqMem) > 0 {
-		requests[corev1.ResourceRequestsMemory] = resource.MustParse(reqMem)
+		requests[corev1.ResourceMemory] = resource.MustParse(reqMem)
 	}
 	if len(reqCpu) > 0 {
-		requests[corev1.ResourceRequestsCPU] = resource.MustParse(reqCpu)
+		requests[corev1.ResourceCPU] = resource.MustParse(reqCpu)
 	}
 
 	if len(limits) < 1 && len(requests) < 1 {
