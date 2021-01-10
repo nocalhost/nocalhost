@@ -260,13 +260,13 @@ func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, 
 		requests[corev1.ResourceRequestsCPU] = resource.MustParse(reqCpu)
 	}
 
+	if len(limits) < 1 && len(requests) < 1 {
+		return true, nil
+	}
 	limitRange.Spec.Limits = append(limitRange.Spec.Limits, corev1.LimitRangeItem{
 		Default:        limits,
 		DefaultRequest: requests,
 	})
-	if len(limitRange.Spec.Limits) < 1 {
-		return true, nil
-	}
 	_, err := c.client.CoreV1().LimitRanges(namespace).Create(context.TODO(), limitRange, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
