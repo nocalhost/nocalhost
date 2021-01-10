@@ -25,7 +25,6 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
-	"regexp"
 )
 
 // Create Create a development environment for application
@@ -119,14 +118,16 @@ func Create(c *gin.Context) {
 		return
 	}
 
-	resLimit, err := GetSpaceResourceLimit(req.SpaceResourceLimit)
+	//err := GetSpaceResourceLimit(req.SpaceResourceLimit)
 	// create namespace ResouceQuota and container limitRange
-	clusterDevsSetUp.CreateResouceQuota("rq-"+devNamespace, devNamespace, resLimit.SpaceReqMem,
-		resLimit.SpaceReqCpu, resLimit.SpaceLimitsMem, resLimit.SpaceLimitsCpu, resLimit.SpaceStorageCapacity,
-		resLimit.SpacePvcCount, resLimit.SpaceLbCount).CreateLimitRange("lr-"+devNamespace, devNamespace,
-		resLimit.ContainerReqMem, resLimit.ContainerLimitsMem, resLimit.ContainerReqCpu, resLimit.ContainerLimitsCpu)
+	res := req.SpaceResourceLimit
+	clusterDevsSetUp.CreateResouceQuota("rq-"+devNamespace, devNamespace, res.SpaceReqMem,
+		res.SpaceReqCpu, res.SpaceLimitsMem, res.SpaceLimitsCpu, res.SpaceStorageCapacity,
+		res.SpacePvcCount, res.SpaceLbCount).CreateLimitRange("lr-"+devNamespace, devNamespace,
+		res.ContainerReqMem, res.ContainerLimitsMem, res.ContainerReqCpu, res.ContainerLimitsCpu)
 
-	result, err := service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId, *req.Memory, *req.Cpu, KubeConfigYaml, devNamespace, spaceName, req.SpaceResourceLimit)
+	resString, err := json.Marshal(req.SpaceResourceLimit)
+	result, err := service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId, *req.Memory, *req.Cpu, KubeConfigYaml, devNamespace, spaceName, string(resString))
 	if err != nil {
 		log.Warnf("create ApplicationCluster err: %v", err)
 		api.SendResponse(c, errno.ErrBindApplicationClsuter, nil)
@@ -136,22 +137,22 @@ func Create(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
-func GetSpaceResourceLimit(spaceResourceLimit string) (model.SpaceResourceLimit, error) {
-
-	r, _ := regexp.Compile("^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$")
-	message := make(map[string]string)
-	json.Marshal(message)
-
-	var spaceResourceLimitObj model.SpaceResourceLimit
-	err := json.Unmarshal([]byte(spaceResourceLimit), &spaceResourceLimitObj)
-	if err != nil {
-		log.Warn("Resource limit is incorrectly set.")
-		//message["SpaceResouceLimit"] = "Resource limit is incorrectly set."
-		return spaceResourceLimitObj, err
-	}
-	if spaceResourceLimitObj.SpaceReqMem != "" && !r.MatchString(spaceResourceLimitObj.SpaceReqMem) {
-
-	}
-
-	return spaceResourceLimitObj, nil
-}
+//func GetSpaceResourceLimit(spaceResourceLimit SpaceResourceLimit) (error) {
+//
+//	r, _ := regexp.Compile("^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$")
+//	message := make(map[string]string)
+//	json.Marshal(message)
+//
+//	var spaceResourceLimitObj SpaceResourceLimit
+//	err := json.Unmarshal([]byte(spaceResourceLimit), &spaceResourceLimitObj)
+//	if err != nil {
+//		log.Warn("Resource limit is incorrectly set.")
+//		//message["SpaceResouceLimit"] = "Resource limit is incorrectly set."
+//		return spaceResourceLimitObj, err
+//	}
+//	if spaceResourceLimitObj.SpaceReqMem != "" && !r.MatchString(spaceResourceLimitObj.SpaceReqMem) {
+//
+//	}
+//
+//	return spaceResourceLimitObj, nil
+//}
