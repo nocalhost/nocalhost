@@ -15,6 +15,8 @@ package cluster_user
 
 import (
 	"encoding/json"
+	"github.com/gin-gonic/gin"
+	"github.com/spf13/cast"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
@@ -23,9 +25,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
-
-	"github.com/gin-gonic/gin"
-	"github.com/spf13/cast"
+	"regexp"
 )
 
 // Create Create a development environment for application
@@ -119,7 +119,14 @@ func Create(c *gin.Context) {
 		return
 	}
 
-	result, err := service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId, *req.Memory, *req.Cpu, KubeConfigYaml, devNamespace, spaceName)
+	resLimit, err := GetSpaceResourceLimit(req.SpaceResourceLimit)
+	// create namespace ResouceQuota and container limitRange
+	clusterDevsSetUp.CreateResouceQuota("rq-"+devNamespace, devNamespace, resLimit.SpaceReqMem,
+		resLimit.SpaceReqCpu, resLimit.SpaceLimitsMem, resLimit.SpaceLimitsCpu, resLimit.SpaceStorageCapacity,
+		resLimit.SpacePvcCount, resLimit.SpaceLbCount).CreateLimitRange("lr-"+devNamespace, devNamespace,
+		resLimit.ContainerReqMem, resLimit.ContainerLimitsMem, resLimit.ContainerReqCpu, resLimit.ContainerLimitsCpu)
+
+	result, err := service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId, *req.Memory, *req.Cpu, KubeConfigYaml, devNamespace, spaceName, req.SpaceResourceLimit)
 	if err != nil {
 		log.Warnf("create ApplicationCluster err: %v", err)
 		api.SendResponse(c, errno.ErrBindApplicationClsuter, nil)
@@ -127,4 +134,24 @@ func Create(c *gin.Context) {
 	}
 
 	api.SendResponse(c, nil, result)
+}
+
+func GetSpaceResourceLimit(spaceResourceLimit string) (model.SpaceResourceLimit, error) {
+
+	r, _ := regexp.Compile("^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$")
+	message := make(map[string]string)
+	json.Marshal(message)
+
+	var spaceResourceLimitObj model.SpaceResourceLimit
+	err := json.Unmarshal([]byte(spaceResourceLimit), &spaceResourceLimitObj)
+	if err != nil {
+		log.Warn("Resource limit is incorrectly set.")
+		//message["SpaceResouceLimit"] = "Resource limit is incorrectly set."
+		return spaceResourceLimitObj, err
+	}
+	if spaceResourceLimitObj.SpaceReqMem != "" && !r.MatchString(spaceResourceLimitObj.SpaceReqMem) {
+
+	}
+
+	return spaceResourceLimitObj, nil
 }

@@ -4,7 +4,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
     http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
+Unless required by applicable lagw or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
@@ -21,19 +21,20 @@ import (
 
 // ClusterUserModel
 type ClusterUserModel struct {
-	ID            uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
-	ApplicationId uint64     `gorm:"column:application_id;not null" json:"application_id"`
-	UserId        uint64     `gorm:"column:user_id;not null" json:"user_id"`
-	SpaceName     string     `gorm:"column:space_name;not null;type:VARCHAR(100);comment:'default is application[username]'" json:"space_name"`
-	ClusterId     uint64     `gorm:"column:cluster_id;not null" json:"cluster_id"`
-	KubeConfig    string     `gorm:"column:kubeconfig;not null" json:"kubeconfig"`
-	Memory        uint64     `gorm:"column:memory;not null" json:"memory"`
-	Cpu           uint64     `gorm:"column:cpu;not null" json:"cpu"`
-	Namespace     string     `gorm:"column:namespace;not null" json:"namespace"`
-	Status        *uint64    `gorm:"column:status;default:0" json:"status"`
-	CreatedAt     time.Time  `gorm:"column:created_at" json:"created_at"`
-	UpdatedAt     time.Time  `gorm:"column:updated_at" json:"-"`
-	DeletedAt     *time.Time `gorm:"column:deleted_at" json:"-"`
+	ID                 uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
+	ApplicationId      uint64     `gorm:"column:application_id;not null" json:"application_id"`
+	UserId             uint64     `gorm:"column:user_id;not null" json:"user_id"`
+	SpaceName          string     `gorm:"column:space_name;not null;type:VARCHAR(100);comment:'default is application[username]'" json:"space_name"`
+	ClusterId          uint64     `gorm:"column:cluster_id;not null" json:"cluster_id"`
+	KubeConfig         string     `gorm:"column:kubeconfig;not null" json:"kubeconfig"`
+	Memory             uint64     `gorm:"column:memory;not null" json:"memory"`
+	Cpu                uint64     `gorm:"column:cpu;not null" json:"cpu"`
+	SpaceResourceLimit string     `gorm:"cloumn:space_resource_limit" json:"space_resource_limit"`
+	Namespace          string     `gorm:"column:namespace;not null" json:"namespace"`
+	Status             *uint64    `gorm:"column:status;default:0" json:"status"`
+	CreatedAt          time.Time  `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt          time.Time  `gorm:"column:updated_at" json:"-"`
+	DeletedAt          *time.Time `gorm:"column:deleted_at" json:"-"`
 }
 
 type ClusterUserJoinCluster struct {
@@ -44,6 +45,21 @@ type ClusterUserJoinCluster struct {
 	Namespace              string `gorm:"column:namespace" json:"namespace"`
 	AdminClusterName       string `gorm:"column:admin_cluster_name" json:"admin_cluster_name"`
 	AdminClusterKubeConfig string `gorm:"column:admin_cluster_kubeconfig" json:"admin_cluster_kubeconfig"`
+}
+
+type SpaceResourceLimit struct {
+	SpaceReqMem          string `json:"space_req_mem"`
+	SpaceReqCpu          string `json:"space_req_cpu"`
+	SpaceLimitsMem       string `json:"space_limits_mem"`
+	SpaceLimitsCpu       string `json:"space_limits_cpu"`
+	SpacePvcCount        int    `json:"space_pvc_count"`
+	SpaceStorageCapacity string `json:"space_storage_capacity"`
+	SpaceLbCount         int    `json:"space_lb_count"`
+
+	ContainerReqMem    string `json:"container_req_mem"`
+	ContainerReqCpu    string `json:"container_req_cpu"`
+	ContainerLimitsMem string `json:"container_limits_mem"`
+	ContainerLimitsCpu string `json:"container_limits_cpu"`
 }
 
 // Validate the fields.
