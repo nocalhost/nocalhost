@@ -83,8 +83,6 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 		return err
 	}
 
-	time.Sleep(time.Second * 5)
-
 	log.Info("Updating development container...")
 
 	// syncthing secret volume
