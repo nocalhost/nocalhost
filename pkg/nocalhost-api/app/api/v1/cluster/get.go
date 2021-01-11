@@ -275,7 +275,7 @@ func GetStorageClass(c *gin.Context) {
 	}
 
 	// new client go
-	clientGo, err := clientgo.NewGoClient(kubeConfig)
+	clientGo, err := clientgo.NewAdminGoClient(kubeConfig)
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
 		return

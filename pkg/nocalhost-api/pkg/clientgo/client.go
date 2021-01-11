@@ -16,6 +16,7 @@ package clientgo
 import (
 	"context"
 	"errors"
+	"fmt"
 	v1 "k8s.io/api/apps/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -27,19 +28,52 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"math/rand"
 	"nocalhost/internal/nocalhost-api/global"
+	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"strconv"
 	"time"
 )
 
 type GoClient struct {
-	client *kubernetes.Clientset
+	clusterIpAccessMode bool
+	client              *kubernetes.Clientset
 }
 
-func NewGoClient(kubeconfig []byte) (*GoClient, error) {
+// use this go client generator to avoid out-cluster/in-cluster network issues
+func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
+
+	// first try to access cluster normally
+
+	client, originErr := newGoClient(kubeconfig)
+	if originErr == nil && client != nil {
+		originErr = client.requireClusterAdminClient()
+
+		if originErr == nil {
+			return client, nil
+		}
+	}
+
+	// then try to access current cluster's kube api-server
+
+	client, err := newGoClientUseCurrentClusterHost(kubeconfig)
+	if err == nil && client != nil {
+		err = client.requireClusterAdminClient()
+
+		if err == nil {
+			client.clusterIpAccessMode = true
+			fmt.Printf("Create k8s Go Client with 'clusterIpAccessMode' \n")
+			return client, nil
+		}
+	}
+
+	return nil, errors.New("can't not create client go with current kubeconfig")
+}
+
+func newGoClient(kubeconfig []byte) (*GoClient, error) {
 	c, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 	if err != nil {
 		return nil, err
@@ -52,6 +86,41 @@ func NewGoClient(kubeconfig []byte) (*GoClient, error) {
 		client: clientSet,
 	}
 	return client, nil
+}
+
+// try to replace the host to access kube-apiserver
+func newGoClientUseCurrentClusterHost(kubeconfig []byte) (*GoClient, error) {
+	c, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+
+	configInCluster, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	c.Host = configInCluster.Host
+	clientSet, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		return nil, err
+	}
+	client := &GoClient{
+		client: clientSet,
+	}
+	return client, nil
+}
+
+func (c *GoClient) requireClusterAdminClient() error {
+	// check is admin Kubeconfig
+	isAdmin, err := c.IsAdmin()
+	if err != nil {
+		return errno.ErrClusterKubeConnect
+	}
+	if isAdmin != true {
+		return errno.ErrClusterKubeAdmin
+	}
+	return nil
 }
 
 // get deployment

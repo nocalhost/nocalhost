@@ -66,23 +66,31 @@ jobs:
         curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=dev"
         curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=dev"
 
-    - name: Checkout syncthing
-      uses: actions/checkout@v2.3.4
-      with:
-        repository: nocalhost/syncthing
-        path: ./syncthing-source
-        ref: dev
+  build-syncthing:
+    name: Build syncthing
+    runs-on: ubuntu-latest
+    steps:
 
-    - name: Build syncthing
-      working-directory: ./syncthing-source
-      run: ./build.sh artifact all dev-version ${GITHUB_SHA}
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.15.6
 
-    - name: Push to Coding Articact
-      working-directory: ./syncthing-source
-      env:
-        VERSION: ${{ env.RELEASE_VERSION }}
-      run: |
-        curl -T syncthing-linux-amd64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=${GITHUB_SHA}"
-        curl -T syncthing-linux-arm64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-arm64.tar.gz?version=${GITHUB_SHA}"
-        curl -T syncthing-macos-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=${GITHUB_SHA}"
-        curl -T syncthing-windows-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=${GITHUB_SHA}"
+      - name: Checkout syncthing
+        uses: actions/checkout@v2.3.4
+        with:
+          repository: nocalhost/syncthing
+          path: ./syncthing-source
+          ref: dev
+
+      - name: Build syncthing
+        working-directory: ./syncthing-source
+        run: ./build.sh artifact all dev-version ${GITHUB_SHA}
+
+      - name: Push to Coding Articact
+        working-directory: ./syncthing-source
+        run: |
+          curl -T syncthing-linux-amd64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=${GITHUB_SHA}"
+          curl -T syncthing-linux-arm64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-arm64.tar.gz?version=${GITHUB_SHA}"
+          curl -T syncthing-macos-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=${GITHUB_SHA}"
+          curl -T syncthing-windows-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=${GITHUB_SHA}"

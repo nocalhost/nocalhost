@@ -40,7 +40,7 @@ func NewDevSpace(devSpaceParams ClusterUserCreateRequest, c *gin.Context, kubeCo
 }
 
 func (d *DevSpace) Delete() error {
-	goClient, err := clientgo.NewGoClient(d.KubeConfig)
+	goClient, err := clientgo.NewAdminGoClient(d.KubeConfig)
 	if err != nil {
 		return errno.ErrClusterKubeErr
 	}
@@ -102,7 +102,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 
 	// create namespace
 	var KubeConfig = []byte(clusterData.KubeConfig)
-	goClient, err := clientgo.NewGoClient(KubeConfig)
+	goClient, err := clientgo.NewAdminGoClient(KubeConfig)
 	if err != nil {
 		return nil, errno.ErrClusterKubeErr
 	}

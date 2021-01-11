@@ -71,29 +71,26 @@ func Create(c *gin.Context) {
 		return
 	}
 
-	// get client go
-	goClient, err := clientgo.NewGoClient(DecKubeconfig)
+	goClient, err := clientgo.NewAdminGoClient(DecKubeconfig)
+
+	// get client go and check if is admin Kubeconfig
 	if err != nil {
-		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		switch err.(type) {
+		case errno.Errno:
+			api.SendResponse(c, err, nil)
+		default:
+			api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		}
 		return
 	}
 
-	// 1. check is admin Kubeconfig
-	// 2. check if Namespace nocalhost-reserved already exist, ignore cause by nocalhost-dep-job installer.sh has checkout this condition and will exit
-	// 3. use admin Kubeconfig create configmap for nocalhost-dep-job to create admission webhook cert
-	// 4. deploy nocalhost-dep-job and pull on nocalhost-dep
+	// 1. check if Namespace nocalhost-reserved already exist, ignore cause by nocalhost-dep-job installer.sh has checkout this condition and will exit
+	// 2. use admin Kubeconfig create configmap for nocalhost-dep-job to create admission webhook cert
+	// 3. deploy nocalhost-dep-job and pull on nocalhost-dep
 	// see https://codingcorp.coding.net/p/nocalhost/wiki/115
 	clusterSetUp := setupcluster.NewSetUpCluster(goClient)
-	isAdmin, err := clusterSetUp.IsAdmin()
-	if err != nil {
-		api.SendResponse(c, errno.ErrClusterKubeConnect, nil)
-		return
-	}
-	if isAdmin != true {
-		api.SendResponse(c, errno.ErrClusterKubeAdmin, nil)
-		return
-	}
-	clusterInfo, err, errRes := clusterSetUp.CreateNs(global.NocalhostSystemNamespace, "").CreateConfigMap(global.NocalhostDepKubeConfigMapName, global.NocalhostSystemNamespace, global.NocalhostDepKubeConfigMapKey, string(DecKubeconfig)).DeployNocalhostDep("", global.NocalhostSystemNamespace).GetClusterNode().GetClusterVersion().GetClusterInfo().GetErr()
+
+	clusterInfo, err, errRes :=  clusterSetUp.CreateNs(global.NocalhostSystemNamespace, "").CreateConfigMap(global.NocalhostDepKubeConfigMapName, global.NocalhostSystemNamespace, global.NocalhostDepKubeConfigMapKey, string(DecKubeconfig)).DeployNocalhostDep("", global.NocalhostSystemNamespace).GetClusterNode().GetClusterVersion().GetClusterInfo().GetErr()
 	if err != nil {
 		api.SendResponse(c, errRes, nil)
 		return
