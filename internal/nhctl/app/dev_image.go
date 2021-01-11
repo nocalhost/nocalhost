@@ -288,34 +288,33 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
 
 	svcProfile := a.GetSvcProfile(deployment)
-	if svcProfile.DevContainerResources != nil {
+	resourceQuota := svcProfile.DevContainerResources
+	defaultResourceQuota := &ResourceQuota{}
+	defaultResourceQuota.Limits = &QuotaList{
+		Memory: "1Gi",
+		Cpu:    "500m",
+	}
+	defaultResourceQuota.Requests = &QuotaList{
+		Memory: "100Mi",
+		Cpu:    "100m",
+	}
+	var requirements *corev1.ResourceRequirements
+	if resourceQuota != nil {
 		log.Debug("DevContainer uses resource limits defined in config")
-		requirements, err := convertResourceQuotaToResourceRequirements(svcProfile.DevContainerResources)
+		requirements, err = convertResourceQuotaToResourceRequirements(resourceQuota)
 		if err != nil {
 			log.WarnE(err, "Failed to parse resource requirements")
-		} else {
-			devContainer.Resources = *requirements
-			sideCarContainer.Resources = *requirements
-		}
-	} else {
-		log.Debug("DevContainer uses default resource limits")
-		resourceQuota := &ResourceQuota{}
-		resourceQuota.Limits = &QuotaList{
-			Memory: "1Gi",
-			Cpu:    "500m",
-		}
-		resourceQuota.Requests = &QuotaList{
-			Memory: "100Mi",
-			Cpu:    "100m",
-		}
-		requirements, err := convertResourceQuotaToResourceRequirements(resourceQuota)
-		if err != nil {
-			log.WarnE(err, "Failed to parse resource requirements")
-		} else {
-			devContainer.Resources = *requirements
-			sideCarContainer.Resources = *requirements
 		}
 	}
+	if requirements == nil {
+		log.Debug("DevContainer uses default resource limits")
+		requirements, err = convertResourceQuotaToResourceRequirements(defaultResourceQuota)
+		if err != nil {
+			log.WarnE(err, "Failed to parse resource requirements")
+		}
+	}
+	devContainer.Resources = *requirements
+	sideCarContainer.Resources = *requirements
 
 	// delete users SecurityContext
 	dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
@@ -383,10 +382,7 @@ wait:
 
 func convertResourceQuotaToResourceRequirements(quota *ResourceQuota) (*corev1.ResourceRequirements, error) {
 	var err error
-	requirements := &corev1.ResourceRequirements{
-		Limits:   nil,
-		Requests: nil,
-	}
+	requirements := &corev1.ResourceRequirements{}
 
 	if quota.Requests != nil {
 		requirements.Requests, err = convertToResourceList(quota.Requests.Cpu, quota.Requests.Memory)
