@@ -166,7 +166,7 @@ func (c *GoClient) CreateServiceAccount(name, namespace string) (bool, error) {
 	return true, nil
 }
 
-// create resource quota for namespace. such as:
+// Create resource quota for namespace. such as:
 /**
 apiVersion: v1
   kind: ResourceQuota

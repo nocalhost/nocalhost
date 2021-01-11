@@ -81,4 +81,5 @@ var (
 	ErrDeletedClsuterDBButClusterDone            = &Errno{Code: 50113, Message: "Cluster nocalhost resource has deleted, but cluster record delete fail"}
 	ErrDeletedClsuterDevSpaceDBButClusterDone    = &Errno{Code: 50114, Message: "Cluster nocalhost develop space has deleted, but space record delete fail"}
 	ErrDeletedClusterRecord                      = &Errno{Code: 50115, Message: "Delete dev space by application fail, please try again"}
+	ErrFormatResourceLimitParam                  = &Errno{Code: 50116, Message: "Incorrect Resource limit parameter."}
 )
