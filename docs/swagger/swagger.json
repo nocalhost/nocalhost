@@ -1,8 +1,16 @@
 {
+    "swagger": "2.0",
     "info": {
-        "contact": {},
-        "license": {}
+        "description": "Nocalhost demo",
+        "title": "Nocalhost docs api",
+        "contact": {
+            "name": "wangwei",
+            "url": "codingcorp.coding.net"
+        },
+        "version": "1.0"
     },
+    "host": "localhost:8080",
+    "basePath": "/v1",
     "paths": {
         "/v1/application": {
             "get": {
@@ -30,7 +38,6 @@
                     "200": {
                         "description": "{\"code\":0,\"message\":\"OK\",\"data\":[{\"id\":1,\"context\":\"application info\",\"status\":\"1\"}]}",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/api.Response"
                         }
                     }
@@ -62,7 +69,6 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/applications.CreateAppRequest"
                         }
                     }
@@ -71,7 +77,6 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ApplicationModel"
                         }
                     }
@@ -111,7 +116,6 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ApplicationModel"
                         }
                     }
@@ -150,7 +154,6 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/applications.CreateAppRequest"
                         }
                     }
@@ -159,7 +162,6 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ApplicationModel"
                         }
                     }
@@ -197,7 +199,6 @@
                     "200": {
                         "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/api.Response"
                         }
                     }
@@ -231,7 +232,6 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/application_cluster.ApplicationClusterRequest"
                         }
                     },
@@ -247,7 +247,6 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ApplicationClusterModel"
                         }
                     }
@@ -287,7 +286,6 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ApplicationClusterModel"
                         }
                     }
@@ -334,7 +332,6 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
                         }
                     }
@@ -368,7 +365,6 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/cluster_user.ClusterUserCreateRequest"
                         }
                     },
@@ -384,7 +380,6 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ClusterModel"
                         }
                     }
@@ -424,7 +419,6 @@
                     "200": {
                         "description": "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
                         }
                     }
@@ -472,7 +466,6 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/applications.UpdateApplicationInstallRequest"
                         }
                     }
@@ -481,7 +474,6 @@
                     "200": {
                         "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/api.Response"
                         }
                     }
@@ -528,7 +520,6 @@
                     "200": {
                         "description": "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
                         }
                     }
@@ -568,7 +559,6 @@
                     "200": {
                         "description": "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
                         }
                     }
@@ -601,7 +591,6 @@
                     "200": {
                         "description": "{\"code\":0,\"message\":\"OK\",\"data\":model.ClusterList}",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ClusterList"
                         }
                     }
@@ -633,7 +622,6 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/cluster.CreateClusterRequest"
                         }
                     }
@@ -642,7 +630,6 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ClusterModel"
                         }
                     }
@@ -676,7 +663,6 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/cluster.StorageClassRequest"
                         }
                     }
@@ -685,7 +671,6 @@
                     "200": {
                         "description": "include kubeconfig",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/cluster.StorageClassResponse"
                         }
                     }
@@ -726,7 +711,6 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/cluster.UpdateClusterRequest"
                         }
                     }
@@ -735,7 +719,6 @@
                     "200": {
                         "description": "include kubeconfig",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ClusterModel"
                         }
                     }
@@ -773,7 +756,6 @@
                     "200": {
                         "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/api.Response"
                         }
                     }
@@ -813,7 +795,6 @@
                     "200": {
                         "description": "include kubeconfig",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ClusterModel"
                         }
                     }
@@ -853,7 +834,6 @@
                     "200": {
                         "description": "kubeconfig",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
                         }
                     }
@@ -900,7 +880,6 @@
                     "200": {
                         "description": "include kubeconfig",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
                         }
                     }
@@ -940,7 +919,6 @@
                     "200": {
                         "description": "include kubeconfig",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/cluster.StorageClassResponse"
                         }
                     }
@@ -981,7 +959,6 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/cluster_user.DevSpaceRequest"
                         }
                     }
@@ -990,7 +967,6 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
                         }
                     }
@@ -1028,7 +1004,6 @@
                     "200": {
                         "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/api.Response"
                         }
                     }
@@ -1068,7 +1043,6 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ClusterModel"
                         }
                     }
@@ -1092,7 +1066,6 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/user.LoginCredentials"
                         }
                     }
@@ -1133,7 +1106,6 @@
                     "200": {
                         "description": "Userinfo",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.UserInfo"
                         }
                     }
@@ -1166,7 +1138,6 @@
                     "200": {
                         "description": "{\"code\":0,\"message\":\"OK\",\"data\":{\"template\":\"\"}}",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/api.Response"
                         }
                     }
@@ -1199,7 +1170,6 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.PluginApplicationModel"
                         }
                     }
@@ -1239,7 +1209,6 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.ClusterModel"
                         }
                     }
@@ -1263,7 +1232,6 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/user.RegisterRequest"
                         }
                     }
@@ -1304,7 +1272,6 @@
                     "200": {
                         "description": "Get user list",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.UserList"
                         }
                     }
@@ -1333,7 +1300,6 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/user.CreateUserRequest"
                         }
                     }
@@ -1342,7 +1308,6 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.UserInfo"
                         }
                     }
@@ -1382,7 +1347,6 @@
                     "200": {
                         "description": "Userinfo",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.UserInfo"
                         }
                     }
@@ -1421,7 +1385,6 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/user.UpdateUserRequest"
                         }
                     }
@@ -1430,7 +1393,6 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/model.UserBaseModel"
                         }
                     }
@@ -1468,7 +1430,6 @@
                     "200": {
                         "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
                         "schema": {
-                            "type": "object",
                             "$ref": "#/definitions/api.Response"
                         }
                     }
@@ -1618,6 +1579,9 @@
                 "space_name": {
                     "type": "string"
                 },
+                "space_resource_limit": {
+                    "$ref": "#/definitions/cluster_user.SpaceResourceLimit"
+                },
                 "user_id": {
                     "type": "integer"
                 }
@@ -1627,6 +1591,44 @@
             "type": "object",
             "properties": {
                 "kubeconfig": {
+                    "type": "string"
+                }
+            }
+        },
+        "cluster_user.SpaceResourceLimit": {
+            "type": "object",
+            "properties": {
+                "container_limits_cpu": {
+                    "type": "string"
+                },
+                "container_limits_mem": {
+                    "type": "string"
+                },
+                "container_req_cpu": {
+                    "type": "string"
+                },
+                "container_req_mem": {
+                    "type": "string"
+                },
+                "space_lb_count": {
+                    "type": "integer"
+                },
+                "space_limits_cpu": {
+                    "type": "string"
+                },
+                "space_limits_mem": {
+                    "type": "string"
+                },
+                "space_pvc_count": {
+                    "type": "integer"
+                },
+                "space_req_cpu": {
+                    "type": "string"
+                },
+                "space_req_mem": {
+                    "type": "string"
+                },
+                "space_storage_capacity": {
                     "type": "string"
                 }
             }
@@ -1762,6 +1764,9 @@
                     "type": "string"
                 },
                 "space_name": {
+                    "type": "string"
+                },
+                "space_resource_limit": {
                     "type": "string"
                 },
                 "status": {

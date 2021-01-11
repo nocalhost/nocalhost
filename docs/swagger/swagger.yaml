@@ -1,3 +1,4 @@
+basePath: /v1
 definitions:
   api.Response:
     properties:
@@ -74,6 +75,8 @@ definitions:
         type: integer
       space_name:
         type: string
+      space_resource_limit:
+        $ref: '#/definitions/cluster_user.SpaceResourceLimit'
       user_id:
         type: integer
     required:
@@ -83,6 +86,31 @@ definitions:
   cluster_user.DevSpaceRequest:
     properties:
       kubeconfig:
+        type: string
+    type: object
+  cluster_user.SpaceResourceLimit:
+    properties:
+      container_limits_cpu:
+        type: string
+      container_limits_mem:
+        type: string
+      container_req_cpu:
+        type: string
+      container_req_mem:
+        type: string
+      space_lb_count:
+        type: integer
+      space_limits_cpu:
+        type: string
+      space_limits_mem:
+        type: string
+      space_pvc_count:
+        type: integer
+      space_req_cpu:
+        type: string
+      space_req_mem:
+        type: string
+      space_storage_capacity:
         type: string
     type: object
   model.ApplicationClusterModel:
@@ -172,6 +200,8 @@ definitions:
       namespace:
         type: string
       space_name:
+        type: string
+      space_resource_limit:
         type: string
       status:
         type: integer
@@ -312,9 +342,14 @@ definitions:
     - is_admin
     - status
     type: object
+host: localhost:8080
 info:
-  contact: {}
-  license: {}
+  contact:
+    name: wangwei
+    url: codingcorp.coding.net
+  description: Nocalhost demo
+  title: Nocalhost docs api
+  version: "1.0"
 paths:
   /v1/application:
     get:
@@ -335,7 +370,6 @@ paths:
             info","status":"1"}]}'
           schema:
             $ref: '#/definitions/api.Response'
-            type: object
       summary: Get Application
       tags:
       - Application
@@ -355,7 +389,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/applications.CreateAppRequest'
-          type: object
       produces:
       - application/json
       responses:
@@ -363,7 +396,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/model.ApplicationModel'
-            type: object
       summary: Create Application
       tags:
       - Application
@@ -391,7 +423,6 @@ paths:
           description: '{"code":0,"message":"OK","data":null}'
           schema:
             $ref: '#/definitions/api.Response'
-            type: object
       summary: Delete Application
       tags:
       - Application
@@ -417,7 +448,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/model.ApplicationModel'
-            type: object
       summary: Get Application Detail
       tags:
       - Application
@@ -442,7 +472,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/applications.CreateAppRequest'
-          type: object
       produces:
       - application/json
       responses:
@@ -450,7 +479,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/model.ApplicationModel'
-            type: object
       summary: Edit application
       tags:
       - Application
@@ -471,7 +499,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/application_cluster.ApplicationClusterRequest'
-          type: object
       - description: Application ID
         in: path
         name: id
@@ -484,7 +511,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/model.ApplicationClusterModel'
-            type: object
       summary: Associated cluster
       tags:
       - Application
@@ -511,7 +537,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/model.ApplicationClusterModel'
-            type: object
       summary: Get the list of clusters associated with the application（Abandoned）
       tags:
       - Application
@@ -543,7 +568,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
-            type: object
       summary: Get authorized details of the application (obsolete)
       tags:
       - Application
@@ -564,7 +588,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/cluster_user.ClusterUserCreateRequest'
-          type: object
       - description: Application ID
         in: path
         name: id
@@ -577,7 +600,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/model.ClusterModel'
-            type: object
       summary: Create a development environment for application
       tags:
       - Application
@@ -605,7 +627,6 @@ paths:
             status=0 application not installed, 1 installed
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
-            type: object
       summary: Plug-in Get personal application development environment (kubeconfig)
         (obsolete)
       tags:
@@ -639,7 +660,6 @@ paths:
             status=0 application not installed, 1 installed
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
-            type: object
       summary: Get the details of a development environment of the application
       tags:
       - Application
@@ -670,7 +690,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/applications.UpdateApplicationInstallRequest'
-          type: object
       produces:
       - application/json
       responses:
@@ -678,7 +697,6 @@ paths:
           description: '{"code":0,"message":"OK","data":null}'
           schema:
             $ref: '#/definitions/api.Response'
-            type: object
       summary: Plug-in Update app installation status
       tags:
       - Plug-in
@@ -706,7 +724,6 @@ paths:
             status=0 application not installed, 1 installed
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
-            type: object
       summary: Get a list of application development environments
       tags:
       - Application
@@ -728,7 +745,6 @@ paths:
           description: '{"code":0,"message":"OK","data":model.ClusterList}'
           schema:
             $ref: '#/definitions/model.ClusterList'
-            type: object
       summary: Get the cluster list
       tags:
       - Cluster
@@ -748,7 +764,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/cluster.CreateClusterRequest'
-          type: object
       produces:
       - application/json
       responses:
@@ -756,7 +771,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/model.ClusterModel'
-            type: object
       summary: Add cluster
       tags:
       - Cluster
@@ -783,7 +797,6 @@ paths:
           description: '{"code":0,"message":"OK","data":null}'
           schema:
             $ref: '#/definitions/api.Response'
-            type: object
       summary: Delete the cluster completely
       tags:
       - Cluster
@@ -808,7 +821,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/cluster.UpdateClusterRequest'
-          type: object
       produces:
       - application/json
       responses:
@@ -816,7 +828,6 @@ paths:
           description: include kubeconfig
           schema:
             $ref: '#/definitions/model.ClusterModel'
-            type: object
       summary: Update cluster
       tags:
       - Cluster
@@ -843,7 +854,6 @@ paths:
           description: include kubeconfig
           schema:
             $ref: '#/definitions/model.ClusterModel'
-            type: object
       summary: Get cluster details
       tags:
       - Cluster
@@ -870,7 +880,6 @@ paths:
           description: kubeconfig
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
-            type: object
       summary: Cluster dev space list
       tags:
       - Cluster
@@ -903,7 +912,6 @@ paths:
           description: include kubeconfig
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
-            type: object
       summary: Details of a development environment in the cluster
       tags:
       - Cluster
@@ -930,7 +938,6 @@ paths:
           description: include kubeconfig
           schema:
             $ref: '#/definitions/cluster.StorageClassResponse'
-            type: object
       summary: Get cluster storageClass from cluster list
       tags:
       - Cluster
@@ -951,7 +958,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/cluster.StorageClassRequest'
-          type: object
       produces:
       - application/json
       responses:
@@ -959,7 +965,6 @@ paths:
           description: include kubeconfig
           schema:
             $ref: '#/definitions/cluster.StorageClassResponse'
-            type: object
       summary: Get cluster storageClass from create cluster
       tags:
       - Cluster
@@ -987,7 +992,6 @@ paths:
           description: '{"code":0,"message":"OK","data":null}'
           schema:
             $ref: '#/definitions/api.Response'
-            type: object
       summary: Completely delete the development environment
       tags:
       - Application
@@ -1012,7 +1016,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/cluster_user.DevSpaceRequest'
-          type: object
       produces:
       - application/json
       responses:
@@ -1020,7 +1023,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
-            type: object
       summary: Update dev space
       tags:
       - Cluster
@@ -1047,7 +1049,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/model.ClusterModel'
-            type: object
       summary: ReCreate devSpace
       tags:
       - Application
@@ -1061,7 +1062,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/user.LoginCredentials'
-          type: object
       produces:
       - application/json
       responses:
@@ -1090,7 +1090,6 @@ paths:
           description: Userinfo
           schema:
             $ref: '#/definitions/model.UserInfo'
-            type: object
       summary: Get user personal information
       tags:
       - Users
@@ -1112,7 +1111,6 @@ paths:
           description: '{"code":0,"message":"OK","data":{"template":""}}'
           schema:
             $ref: '#/definitions/api.Response'
-            type: object
       summary: get nocalhost config template
       tags:
       - Application
@@ -1139,7 +1137,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/model.ClusterModel'
-            type: object
       summary: Plugin ReCreate devSpace
       tags:
       - Plug-in
@@ -1161,7 +1158,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/model.PluginApplicationModel'
-            type: object
       summary: Plug-in access to applications (including installation status)
       tags:
       - Plug-in
@@ -1175,7 +1171,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/user.RegisterRequest'
-          type: object
       produces:
       - application/json
       responses:
@@ -1204,7 +1199,6 @@ paths:
           description: Get user list
           schema:
             $ref: '#/definitions/model.UserList'
-            type: object
       summary: Get user list
       tags:
       - Users
@@ -1222,7 +1216,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/user.CreateUserRequest'
-          type: object
       produces:
       - application/json
       responses:
@@ -1230,7 +1223,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/model.UserInfo'
-            type: object
       summary: Add developer
       tags:
       - Users
@@ -1257,7 +1249,6 @@ paths:
           description: '{"code":0,"message":"OK","data":null}'
           schema:
             $ref: '#/definitions/api.Response'
-            type: object
       summary: Delete users
       tags:
       - Users
@@ -1283,7 +1274,6 @@ paths:
           description: Userinfo
           schema:
             $ref: '#/definitions/model.UserInfo'
-            type: object
       summary: Get user details
       tags:
       - Users
@@ -1308,7 +1298,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/user.UpdateUserRequest'
-          type: object
       produces:
       - application/json
       responses:
@@ -1316,7 +1305,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/model.UserBaseModel'
-            type: object
       summary: Update user information (including disabled users)
       tags:
       - Users
@@ -1335,3 +1323,4 @@ paths:
       summary: Get api server version
       tags:
       - Version
+swagger: "2.0"
