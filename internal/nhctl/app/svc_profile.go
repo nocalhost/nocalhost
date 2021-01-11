@@ -33,7 +33,7 @@ type SvcProfile struct {
 	LocalAbsoluteSyncDirFromDevStartPlugin []string `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
 	DevPortList                            []string `json:"devPortList" yaml:"devPortList"`
 
-	// .nhignore's pattern configuratio
+	// .nhignore's pattern configuration
 	SyncedPatterns  []string `json:"syncFilePattern" yaml:"syncFilePattern"`
 	IgnoredPatterns []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
 }
