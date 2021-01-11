@@ -31,7 +31,7 @@ var installFlags = &app_flags.InstallFlags{}
 
 func init() {
 
-	installCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
+	installCmd.Flags().StringVarP(&installFlags.Namespace, "namespace", "n", "", "kubernetes namespace")
 	installCmd.Flags().StringVarP(&installFlags.GitUrl, "git-url", "u", "", "resources git url")
 	installCmd.Flags().StringVarP(&installFlags.GitRef, "git-ref", "r", "", "resources git ref")
 	installCmd.Flags().StringSliceVar(&installFlags.ResourcePath, "resource-path", []string{}, "resources path")

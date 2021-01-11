@@ -25,6 +25,13 @@ services:
     gitUrl: https://github.com/nocalhost/bookinfo-details.git
     devContainerImage: golang:latest
     devContainerShell: "bash"
+    devContainerResources:
+      limits:
+        memory: 1Gi
+        cpu: 500m
+      requests:
+        memory: 100Mi
+        cpu: 100m
     syncDirs:
       - ./
     workDir: /home/nocalhost-dev
