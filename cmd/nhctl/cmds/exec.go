@@ -49,7 +49,7 @@ var execCmd = &cobra.Command{
 
 		err = nocalhostApp.Exec(execFlags.SvcName, execFlags.Commands)
 		if err != nil {
-			log.Fatalf("fail to exec : %s", err.Error())
+			log.Fatalf("Failed to exec command : %s", err.Error())
 		}
 	},
 }

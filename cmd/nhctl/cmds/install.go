@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 
@@ -26,30 +27,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type InstallFlags struct {
-	*EnvSettings
-	GitUrl           string // resource url
-	GitRef           string
-	AppType          string
-	HelmValueFile    string
-	ForceInstall     bool
-	IgnorePreInstall bool
-	HelmSet          []string
-	HelmRepoName     string
-	HelmRepoUrl      string
-	HelmRepoVersion  string
-	HelmChartName    string
-	HelmWait         bool
-	OuterConfig      string
-	Config           string
-	ResourcePath     []string
-}
-
-var installFlags = InstallFlags{
-	EnvSettings: settings,
-}
+var installFlags = &app_flags.InstallFlags{}
 
 func init() {
+
 	installCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	installCmd.Flags().StringVarP(&installFlags.GitUrl, "git-url", "u", "", "resources git url")
 	installCmd.Flags().StringVarP(&installFlags.GitRef, "git-ref", "r", "", "resources git ref")
@@ -117,39 +98,41 @@ var installCmd = &cobra.Command{
 func InstallApplication(applicationName string) error {
 	var err error
 
-	nocalhostApp, err = app.BuildApplication(applicationName)
+	installFlags.EnvSettings = settings
+
+	nocalhostApp, err = app.BuildApplication(applicationName, installFlags)
 	if err != nil {
 		return err
 	}
 
-	err = nocalhostApp.InitClient(settings.KubeConfig, nameSpace)
-	if err != nil {
-		return err
-	}
+	//err = nocalhostApp.initClient(settings.KubeConfig, nameSpace)
+	//if err != nil {
+	//	return err
+	//}
 
-	if installFlags.GitUrl != "" {
-		err = nocalhostApp.DownloadResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
-		if err != nil {
-			log.Debugf("Failed to clone : %s, ref: %s\n", installFlags.GitUrl, installFlags.GitRef)
-			return err
-		}
-	}
+	//if installFlags.GitUrl != "" {
+	//	err = nocalhostApp.DownloadResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
+	//	if err != nil {
+	//		log.Debugf("Failed to clone : %s, ref: %s\n", installFlags.GitUrl, installFlags.GitRef)
+	//		return err
+	//	}
+	//}
 
-	err = nocalhostApp.InitConfig(installFlags.OuterConfig, installFlags.Config)
-	if err != nil {
-		return err
-	} else {
-		nocalhostApp.LoadSvcConfigsToProfile()
-	}
+	//err = nocalhostApp.generateConfig(installFlags.OuterConfig, installFlags.Config)
+	//if err != nil {
+	//	return err
+	//} else {
+	//	nocalhostApp.LoadSvcConfigsToProfile()
+	//}
 
 	// flags which no config mush specify
-	if installFlags.AppType != "" {
-		nocalhostApp.AppProfile.AppType = app.AppType(installFlags.AppType)
-	}
-	if len(installFlags.ResourcePath) != 0 {
-		nocalhostApp.AppProfile.ResourcePath = installFlags.ResourcePath
-	}
-	nocalhostApp.AppProfile.Save()
+	//if installFlags.AppType != "" {
+	//	nocalhostApp.AppProfile.AppType = app.AppType(installFlags.AppType)
+	//}
+	//if len(installFlags.ResourcePath) != 0 {
+	//	nocalhostApp.AppProfile.ResourcePath = installFlags.ResourcePath
+	//}
+	//nocalhostApp.AppProfile.Save()
 
 	appType := nocalhostApp.GetType()
 	if appType == "" {

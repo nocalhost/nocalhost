@@ -41,7 +41,7 @@ var devTerminalCmd = &cobra.Command{
 
 		err = nocalhostApp.EnterPodTerminal(deployment)
 		if err != nil {
-			log.FatalE(err, "fail to enter terminal")
+			log.FatalE(err, "Failed to enter terminal")
 		}
 	},
 }
