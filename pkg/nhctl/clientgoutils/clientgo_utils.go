@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"nocalhost/internal/nhctl/utils"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -82,13 +83,14 @@ type PortForwardAPodRequest struct {
 }
 
 // If namespace is not specified, use namespace defined in kubeconfig
+// If namespace is not specified and can not get from kubeconfig, ClientGoUtils can not be created, and an error will be returned
 func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, error) {
 	var (
 		err error
 	)
 
 	if kubeConfigPath == "" { // use default config
-		kubeConfigPath = filepath.Join(getHomePath(), ".kube", "config")
+		kubeConfigPath = filepath.Join(utils.GetHomePath(), ".kube", "config")
 	}
 
 	//if timeout <= 0 {

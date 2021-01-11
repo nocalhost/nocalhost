@@ -66,7 +66,6 @@ func ListApplicationSvc(napp *app.Application) {
 }
 
 func ListApplications() {
-	//n := nocalhost.NocalHost{}
 	apps, err := nocalhost.GetApplicationNames()
 	utils.Mush(err)
 	maxLen := 0

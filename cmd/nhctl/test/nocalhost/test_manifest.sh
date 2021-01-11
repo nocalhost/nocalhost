@@ -16,7 +16,7 @@ if [ "$type" == 1 ]; then
     echo "Clean: uninstalling"
     nhctl uninstall $APPNAME --force --debug >> /dev/null
 
-    echo "installing"
+    echo "Installing"
     nhctl install $APPNAME -u https://github.com/nocalhost/bookinfo.git --debug -n $APPNAME --config config
 
     if [ "$?" != 0 ]; then

@@ -11,18 +11,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package clientgoutils
+package app_flags
 
-//func getHomePath() string {
-//	u, err := user.Current()
-//	if err == nil {
-//		return u.HomeDir
-//	}
-//	return ""
-//}
+import (
+	"os"
+	"strconv"
+)
 
-func Must(err error) {
-	if err != nil {
-		panic(err)
-	}
+type EnvSettings struct {
+	Debug      bool
+	KubeConfig string // the path to the kubeconfig file
+	Namespace  string
+}
+
+func NewEnvSettings() *EnvSettings {
+	settings := EnvSettings{}
+	settings.Debug, _ = strconv.ParseBool(os.Getenv("NOCALHOST_DEBUG"))
+	return &settings
 }

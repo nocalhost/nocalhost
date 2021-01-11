@@ -66,7 +66,7 @@ var devStartCmd = &cobra.Command{
 		InitAppAndCheckIfSvcExist(applicationName, deployment)
 
 		if nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
-			log.Fatalf("\"%s\" is already in developing", deployment)
+			log.Fatalf("Application \"%s\" is already in developing", deployment)
 		}
 
 		devStartOps.Kubeconfig = settings.KubeConfig
