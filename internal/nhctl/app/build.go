@@ -48,7 +48,6 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 	}
 	app.AppProfile = profile
 
-	log.Debugf("%v", flags.EnvSettings)
 	kubeconfig := flags.KubeConfig
 	if kubeconfig == "" { // use default config
 		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")

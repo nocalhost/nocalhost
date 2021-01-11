@@ -84,7 +84,6 @@ var fileSyncCmd = &cobra.Command{
 
 		// Reconfirm whether devcontainer is ready
 		pod := ""
-		//namespace := ""
 		for {
 			<-time.NewTimer(time.Second * 1).C
 			pod, err = nocalhostApp.WaitAndGetNocalhostDevContainerPod(deployment)

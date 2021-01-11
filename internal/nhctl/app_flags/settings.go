@@ -21,7 +21,6 @@ import (
 type EnvSettings struct {
 	Debug      bool
 	KubeConfig string // the path to the kubeconfig file
-	Namespace  string
 }
 
 func NewEnvSettings() *EnvSettings {
