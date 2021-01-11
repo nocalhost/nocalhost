@@ -102,11 +102,11 @@ func (repo *applicationRepo) Delete(ctx context.Context, id uint64) error {
 }
 
 func (repo *applicationRepo) Update(ctx context.Context, applicationModel *model.ApplicationModel) (*model.ApplicationModel, error) {
-	_, err := repo.Get(ctx, applicationModel.ID)
+	application, err := repo.Get(ctx, applicationModel.ID)
 	if err != nil {
 		return applicationModel, errors.Wrap(err, "[application_repo] get application denied")
 	}
-	affectRow := repo.db.Save(&applicationModel).RowsAffected
+	affectRow := repo.db.Model(&application).Update(&applicationModel).RowsAffected
 	if affectRow > 0 {
 		return applicationModel, nil
 	}
