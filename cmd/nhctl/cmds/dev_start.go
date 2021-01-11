@@ -75,12 +75,9 @@ var devStartCmd = &cobra.Command{
 		// set dev start ops args
 		// devStartOps.LocalSyncDir is from plugin by local-sync
 		var fileSyncOptions = &app.FileSyncOptions{}
-		//devStartOps.Namespace = nocalhostApp.AppProfile.Namespace
 		if devStartOps.WorkDir != "" { // command flag not set
 			nocalhostApp.SetSvcWorkDir(deployment, devStartOps.WorkDir)
-			//devStartOps.WorkDir = nocalhostApp.GetDefaultWorkDir(deployment)
 		}
-		//nocalhostApp.SetSvcWorkDir(deployment, devStartOps.WorkDir)
 
 		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOps, fileSyncOptions)
 		if err != nil {
@@ -118,7 +115,6 @@ var devStartCmd = &cobra.Command{
 		}
 		err = nocalhostApp.CreateSyncThingSecret(deployment, syncSecret)
 		if err != nil {
-			// TODO dev end should delete syncthing secret
 			log.Fatalf("Failed to create syncthing secret, please try to delete \"%s\" secret first manually.", syncthing.SyncSecretName)
 		}
 
