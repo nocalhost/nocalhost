@@ -89,7 +89,15 @@ func Delete(c *gin.Context) {
 func ReCreate(c *gin.Context) {
 	// get devSpace
 	devSpaceId := cast.ToUint64(c.Param("id"))
-	clusterUser, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId})
+	condition := model.ClusterUserModel{
+		ID: devSpaceId,
+	}
+	isAdmin, _ := c.Get("isAdmin")
+	if isAdmin.(uint64) != 1 {
+		userId, _ := c.Get("userId")
+		condition.UserId = cast.ToUint64(userId)
+	}
+	clusterUser, err := service.Svc.ClusterUser().GetFirst(c, condition)
 	if err != nil {
 		api.SendResponse(c, errno.ErrClsuterUserNotFound, nil)
 		return
