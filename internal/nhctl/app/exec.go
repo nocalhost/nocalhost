@@ -29,8 +29,8 @@ func (a *Application) EnterPodTerminal(svcName string) error {
 		return err
 	}
 	if len(podList) != 1 {
-		log.Warnf("the number of pods of %s is not 1 ???", svcName)
-		return errors.New(fmt.Sprintf("the number of pods of %s is not 1 ???", svcName))
+		log.Warnf("The number of pods of %s is not 1 ???", svcName)
+		return errors.New(fmt.Sprintf("The number of pods of %s is not 1 ???", svcName))
 	}
 	pod := podList[0].Name
 	shell := a.GetSvcProfile(svcName).DevContainerShell

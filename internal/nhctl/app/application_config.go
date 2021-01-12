@@ -72,7 +72,7 @@ const (
 	// file sync
 	DefaultNocalhostSideCarName = "nocalhost-sidecar"
 
-	DefaultDevContainerShell = "/bin/sh"
+	DefaultDevContainerShell = "(zsh || bash || sh)"
 )
 
 type NocalHostAppConfig struct {
