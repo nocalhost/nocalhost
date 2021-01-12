@@ -58,9 +58,9 @@ func (a *Application) GetApplicationOnlyPortForwardPidFile(deployment string) st
 	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
 }
 
-func (a *Application) getConfigDir() string {
-	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigDirName)
-}
+//func (a *Application) getConfigDir() string {
+//	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigDirName)
+//}
 
 func (a *Application) GetApplicationBackGroundPortForwardPidFile(deployment string) string {
 	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPortForwardPidFile)

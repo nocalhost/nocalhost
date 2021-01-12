@@ -72,7 +72,9 @@ const (
 	// file sync
 	DefaultNocalhostSideCarName = "nocalhost-sidecar"
 
-	DefaultDevContainerShell = "/bin/sh"
+	DefaultDevContainerShell = "(zsh || bash || sh)"
+
+	DependenceConfigMapPrefix = "nocalhost-depends-do-not-overwrite"
 )
 
 type NocalHostAppConfig struct {
@@ -95,6 +97,16 @@ type PersistentVolumeDir struct {
 	Capacity string `json:"capacity,omitempty" yaml:"capacity,omitempty"`
 }
 
+type ResourceQuota struct {
+	Limits   *QuotaList `json:"limits" yaml:"limits"`
+	Requests *QuotaList `json:"requests" yaml:"requests"`
+}
+
+type QuotaList struct {
+	Memory string `json:"memory" yaml:"memory"`
+	Cpu    string `json:"cpu" yaml:"cpu"`
+}
+
 type ServiceDevOptions struct {
 	Name                  string                 `json:"name" yaml:"name"`
 	Type                  SvcType                `json:"serviceType" yaml:"serviceType"`
@@ -110,6 +122,7 @@ type ServiceDevOptions struct {
 	HotReloadDebugCommand []string               `json:"hotReloadDebugCommand,omitempty" yaml:"hotReloadDebugCommand,omitempty"`
 	DevContainerShell     string                 `json:"devContainerShell" yaml:"devContainerShell"`
 	Ignore                []string               `json:"ignores" yaml:"ignores"` // TODO Ignore file list
+	DevContainerResources *ResourceQuota         `json:"devContainerResources" yaml:"devContainerResources"`
 	DevPort               []string               `json:"devPorts" yaml:"devPorts"`
 	Jobs                  []string               `json:"dependJobsLabelSelector" yaml:"dependJobsLabelSelector,omitempty"`
 	Pods                  []string               `json:"dependPodsLabelSelector" yaml:"dependPodsLabelSelector,omitempty"`

@@ -11,20 +11,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package app_flags
+package clientgoutils
 
 import (
-	"os"
-	"strconv"
+	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type EnvSettings struct {
-	Debug      bool
-	KubeConfig string // the path to the kubeconfig file
+func (c *ClientGoUtils) DeleteConfigMapByName(name string) error {
+	return errors.Wrap(c.ClientSet.CoreV1().ConfigMaps(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{}), "")
 }
 
-func NewEnvSettings() *EnvSettings {
-	settings := EnvSettings{}
-	settings.Debug, _ = strconv.ParseBool(os.Getenv("NOCALHOST_DEBUG"))
-	return &settings
+func (c *ClientGoUtils) GetConfigMaps() ([]v1.ConfigMap, error) {
+	var result []v1.ConfigMap
+	list, err := c.ClientSet.CoreV1().ConfigMaps(c.namespace).List(c.ctx, metav1.ListOptions{})
+	if list != nil {
+		result = list.Items
+	}
+	return result, errors.Wrap(err, "")
 }

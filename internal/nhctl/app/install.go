@@ -68,10 +68,6 @@ func (a *Application) InstallManifest() error {
 	return errors.Wrap(err, "")
 }
 
-func (a *Application) cleanUpHelmRelease() {
-
-}
-
 func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 
 	releaseName := a.Name
@@ -207,7 +203,7 @@ func (a *Application) InstallDepConfigMap(appType AppType) error {
 		for i := range b {
 			b[i] = letterRunes[rand.Intn(len(letterRunes))]
 		}
-		generateName := fmt.Sprintf("nocalhost-depends-do-not-overwrite-%s", string(b))
+		generateName := fmt.Sprintf("%s-%s", DependenceConfigMapPrefix, string(b))
 		configMap.Name = generateName
 		if configMap.Labels == nil {
 			configMap.Labels = make(map[string]string, 0)

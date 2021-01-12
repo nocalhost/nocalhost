@@ -14,8 +14,10 @@ limitations under the License.
 package app
 
 import (
+	"fmt"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
+	"strings"
 )
 
 func (a *Application) cleanUpDepConfigMap() error {
@@ -28,6 +30,21 @@ func (a *Application) cleanUpDepConfigMap() error {
 		}
 		a.AppProfile.DependencyConfigMapName = ""
 		a.AppProfile.Save()
+	}
+
+	// Clean up all dep config map
+	list, err := a.client.GetConfigMaps()
+	if err != nil {
+		return err
+	}
+
+	for _, c := range list {
+		if strings.HasPrefix(c.Name, DependenceConfigMapPrefix) {
+			err = a.client.DeleteConfigMapByName(c.Name)
+			if err != nil {
+				log.WarnE(err, fmt.Sprintf("Failed to clean up config map: %s", c.Name))
+			}
+		}
 	}
 	return nil
 }
@@ -60,16 +77,6 @@ func (a *Application) Uninstall(force bool) error {
 	}
 
 	if a.IsHelm() {
-		//commonParams := make([]string, 0)
-		//if a.GetNamespace() != "" {
-		//	commonParams = append(commonParams, "--namespace", a.GetNamespace())
-		//}
-		//if a.AppProfile.Kubeconfig != "" {
-		//	commonParams = append(commonParams, "--kubeconfig", a.AppProfile.Kubeconfig)
-		//}
-		//installParams := []string{"uninstall", a.Name}
-		//installParams = append(installParams, commonParams...)
-		//_, err := tools.ExecCommand(nil, true, "helm", installParams...)
 		err = a.uninstallHelm()
 		if err != nil && !force {
 			return err

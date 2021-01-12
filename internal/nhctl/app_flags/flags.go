@@ -30,4 +30,5 @@ type InstallFlags struct {
 	OuterConfig      string
 	Config           string
 	ResourcePath     []string
+	Namespace        string
 }

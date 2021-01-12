@@ -16,6 +16,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"strconv"
 	"strings"
 	"time"
@@ -70,7 +71,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 			rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] = strconv.Itoa(originalPodReplicas)
 			_, err = a.client.ClientSet.AppsV1().ReplicaSets(a.GetNamespace()).Update(ctx, rs, metav1.UpdateOptions{})
 			if err != nil {
-				return errors.New("Failed to update rs's annotation")
+				return errors.New("Failed to update rs's annotation :" + err.Error())
 			} else {
 				log.Infof("%s has been marked as first revision", rs.Name)
 			}
@@ -82,13 +83,7 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 		return err
 	}
 
-	time.Sleep(time.Second * 5)
-
 	log.Info("Updating development container...")
-	//dep, err := a.client.GetDeployment(ctx, a.GetNamespace(), deployment)
-	//if err != nil {
-	//	return err
-	//}
 
 	// syncthing secret volume
 	syncthingDir := corev1.Volume{
@@ -128,10 +123,6 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	devModeVolumes := make([]corev1.Volume, 0)
 	devModeMounts := make([]corev1.VolumeMount, 0)
 
-	//if dep.Spec.Template.Spec.Volumes == nil {
-	//	dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
-	//}
-	//dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, syncthingVol, syncthingDir)
 	devModeVolumes = append(devModeVolumes, syncthingVol, syncthingDir)
 
 	// syncthing volume mount
@@ -150,9 +141,6 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 
 	// volume mount
 	workDir := a.GetDefaultWorkDir(deployment)
-	//if ops.WorkDir != "" {
-	//	workDir = ops.WorkDir
-	//}
 
 	// default : replace the first container
 	devImage := a.GetDefaultDevImage(deployment)
@@ -297,6 +285,35 @@ func (a *Application) ReplaceImage(ctx context.Context, deployment string, ops *
 	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
 	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
 
+	svcProfile := a.GetSvcProfile(deployment)
+	resourceQuota := svcProfile.DevContainerResources
+	defaultResourceQuota := &ResourceQuota{}
+	defaultResourceQuota.Limits = &QuotaList{
+		Memory: "1Gi",
+		Cpu:    "500m",
+	}
+	defaultResourceQuota.Requests = &QuotaList{
+		Memory: "100Mi",
+		Cpu:    "100m",
+	}
+	var requirements *corev1.ResourceRequirements
+	if resourceQuota != nil {
+		log.Debug("DevContainer uses resource limits defined in config")
+		requirements, err = convertResourceQuotaToResourceRequirements(resourceQuota)
+		if err != nil {
+			log.WarnE(err, "Failed to parse resource requirements")
+		}
+	}
+	if requirements == nil {
+		log.Debug("DevContainer uses default resource limits")
+		requirements, err = convertResourceQuotaToResourceRequirements(defaultResourceQuota)
+		if err != nil {
+			log.WarnE(err, "Failed to parse resource requirements")
+		}
+	}
+	devContainer.Resources = *requirements
+	sideCarContainer.Resources = *requirements
+
 	// delete users SecurityContext
 	dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
 
@@ -359,6 +376,48 @@ wait:
 	spinner.Stop()
 	coloredoutput.Success("Development container has been updated")
 	return nil
+}
+
+func convertResourceQuotaToResourceRequirements(quota *ResourceQuota) (*corev1.ResourceRequirements, error) {
+	var err error
+	requirements := &corev1.ResourceRequirements{}
+
+	if quota.Requests != nil {
+		requirements.Requests, err = convertToResourceList(quota.Requests.Cpu, quota.Requests.Memory)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if quota.Limits != nil {
+		requirements.Limits, err = convertToResourceList(quota.Limits.Cpu, quota.Limits.Memory)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(requirements.Limits) == 0 && len(requirements.Requests) == 0 {
+		return nil, errors.New("Resource requirements not defined")
+	}
+	return requirements, nil
+}
+
+func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) {
+	requestMap := make(map[corev1.ResourceName]resource.Quantity, 0)
+	if mem != "" {
+		q, err := resource.ParseQuantity(mem)
+		if err != nil {
+			return nil, errors.Wrap(err, "")
+		}
+		requestMap[corev1.ResourceMemory] = q
+	}
+	if cpu != "" {
+		q, err := resource.ParseQuantity(cpu)
+		if err != nil {
+			return nil, errors.Wrap(err, "")
+		}
+		requestMap[corev1.ResourceCPU] = q
+	}
+	return requestMap, nil
 }
 
 // Create a pvc for persistent volume dir, and waiting util pvc succeed to bound to a pv
