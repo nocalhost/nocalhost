@@ -48,6 +48,8 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 	}
 	app.AppProfile = profile
 
+	app.SetInstalledStatus(true)
+
 	kubeconfig := flags.KubeConfig
 	if kubeconfig == "" { // use default config
 		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
@@ -154,10 +156,10 @@ func (a *Application) initDir() error {
 		return errors.Wrap(err, "")
 	}
 
-	err = os.MkdirAll(a.getConfigDir(), DefaultNewFilePermission)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
+	//err = os.MkdirAll(a.getConfigDir(), DefaultNewFilePermission)
+	//if err != nil {
+	//	return errors.Wrap(err, "")
+	//}
 	err = ioutil.WriteFile(a.getProfilePath(), []byte(""), DefaultNewFilePermission)
 	return errors.Wrap(err, "")
 }
