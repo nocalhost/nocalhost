@@ -73,6 +73,8 @@ const (
 	DefaultNocalhostSideCarName = "nocalhost-sidecar"
 
 	DefaultDevContainerShell = "(zsh || bash || sh)"
+
+	DependenceConfigMapPrefix = "nocalhost-depends-do-not-overwrite"
 )
 
 type NocalHostAppConfig struct {
