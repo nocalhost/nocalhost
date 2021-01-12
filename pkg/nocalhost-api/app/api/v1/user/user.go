@@ -47,11 +47,11 @@ type CreateUserRequest struct {
 
 // UpdateUserRequest
 type UpdateUserRequest struct {
-	Email    string  `json:"email" form:"email" binding:""`
-	Name     string  `json:"name" form:"name" binding:""`
-	Password string  `json:"password" form:"password" binding:""`
-	Status   *uint64 `json:"status" form:"status" binding:"required"`
-	IsAdmin  *uint64 `json:"is_admin" form:"is_admin" binding:"required"`
+	Email    string  `json:"email" form:"email"`
+	Name     string  `json:"name" form:"name"`
+	Password string  `json:"password" form:"password"`
+	Status   *uint64 `json:"status" form:"status"`
+	IsAdmin  *uint64 `json:"is_admin" form:"is_admin"`
 }
 
 // LoginCredentials

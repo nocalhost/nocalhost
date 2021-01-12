@@ -31,6 +31,8 @@ type ClusterUserService interface {
 	GetJoinCluster(ctx context.Context, condition model.ClusterUserJoinCluster) ([]*model.ClusterUserJoinCluster, error)
 	Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
 	UpdateKubeConfig(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
+	GetJoinClusterAndAppAndUser(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) ([]*model.ClusterUserJoinClusterAndAppAndUser, error)
+	GetJoinClusterAndAppAndUserDetail(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) (*model.ClusterUserJoinClusterAndAppAndUser, error)
 	Close()
 }
 
@@ -72,6 +74,7 @@ func (srv *clusterUserService) Update(ctx context.Context, models *model.Cluster
 }
 
 func (srv *clusterUserService) GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error) {
+
 	result, err := srv.clusterUserRepo.GetList(ctx, models)
 	if err != nil {
 		return nil, err
@@ -102,6 +105,14 @@ func (srv *clusterUserService) Create(ctx context.Context, applicationId, cluste
 		return result, errors.Wrapf(err, "create application_cluster")
 	}
 	return result, nil
+}
+
+func (srv *clusterUserService) GetJoinClusterAndAppAndUser(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) ([]*model.ClusterUserJoinClusterAndAppAndUser, error) {
+	return srv.clusterUserRepo.GetJoinClusterAndAppAndUser(ctx, condition)
+}
+
+func (srv *clusterUserService) GetJoinClusterAndAppAndUserDetail(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) (*model.ClusterUserJoinClusterAndAppAndUser, error) {
+	return srv.clusterUserRepo.GetJoinClusterAndAppAndUserDetail(ctx, condition)
 }
 
 func (srv *clusterUserService) Close() {

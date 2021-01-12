@@ -47,6 +47,22 @@ type ClusterUserJoinCluster struct {
 	AdminClusterKubeConfig string `gorm:"column:admin_cluster_kubeconfig" json:"admin_cluster_kubeconfig"`
 }
 
+type ClusterUserJoinClusterAndAppAndUser struct {
+	ID                 uint64    `gorm:"column:id" json:"id"`
+	ApplicationId      uint64    `gorm:"column:application_id" json:"application_id"`
+	ApplicationName    string    `gorm:"column:application_name" json:"application_name"`
+	UserId             uint64    `gorm:"column:user_id" json:"user_id"`
+	UserName           string    `gorm:"column:user_name" json:"user_name"`
+	SpaceName          string    `gorm:"column:space_name" json:"space_name"`
+	ClusterId          uint64    `gorm:"column:cluster_id" json:"cluster_id"`
+	ClusterName        string    `gorm:"column:cluster_name" json:"cluster_name"`
+	KubeConfig         string    `gorm:"column:kubeconfig" json:"kubeconfig"`
+	SpaceResourceLimit string    `gorm:"cloumn:space_resource_limit" json:"space_resource_limit"`
+	Namespace          string    `gorm:"column:namespace" json:"namespace"`
+	Status             *uint64   `gorm:"column:status" json:"status"`
+	CreatedAt          time.Time `gorm:"column:created_at" json:"created_at"`
+}
+
 // Validate the fields.
 func (u *ClusterUserModel) Validate() error {
 	validate := validator.New()

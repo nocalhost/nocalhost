@@ -83,6 +83,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		u.POST("", user.Create)
 		u.PUT("/:id", user.Update)
 		u.DELETE("/:id", user.Delete)
+		u.GET("/:id/dev_space_list", cluster_user.GetJoinClusterAndAppAndUser)
 	}
 
 	m := g.Group("/v1/me")
@@ -123,6 +124,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		a.GET("/:id/dev_space/:space_id/detail", cluster_user.GetDevSpaceDetail)
 		a.GET("/:id/dev_space_list", cluster_user.GetList)
 		a.GET("/:id/cluster/:clusterId", applications.GetSpaceDetail)
+
 	}
 
 	// nocalhost
@@ -139,6 +141,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		dv.DELETE("/:id", cluster_user.Delete)
 		dv.PUT("/:id", cluster_user.Update)
 		dv.POST("/:id/recreate", cluster_user.ReCreate)
+		dv.GET("/:id/detail", cluster_user.GetJoinClusterAndAppAndUserDetail)
 	}
 
 	// Plug-in
