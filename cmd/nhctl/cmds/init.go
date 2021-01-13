@@ -343,7 +343,7 @@ func setComponentDockerImageVersion(params *[]string) {
 		*params = append(*params, "--set", "web.image.tag="+Version)
 	} else {
 		log.Infof("Init nocalhost component with dev %s, but nocalhost-web with dev tag only", DevGitCommit)
-		*params = append(*params, "--set", "="+DevGitCommit)
+		*params = append(*params, "--set", "api.image.tag="+DevGitCommit)
 		// because of web image and api has different commitID, so take latest dev tag
 		*params = append(*params, "--set", "web.image.tag=dev")
 	}
