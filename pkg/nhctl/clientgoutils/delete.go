@@ -33,24 +33,10 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-func (c *ClientGoUtils) DeleteConfigMapByName(name string) error {
-	//var err error
-	//if namespace == "" {
-	//	namespace, err = c.GetDefaultNamespace()
-	//	if err != nil {
-	//		return err
-	//	}
-	//}
-	return c.ClientSet.CoreV1().ConfigMaps(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{})
-}
-
 func (c *ClientGoUtils) Delete(yamlPath string) error {
 	if yamlPath == "" {
 		return errors.New("yaml path can not be empty")
 	}
-	//if namespace == "" {
-	//	namespace = "default"
-	//}
 
 	filebytes, err := ioutil.ReadFile(yamlPath)
 	if err != nil {

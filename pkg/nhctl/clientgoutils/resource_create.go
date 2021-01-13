@@ -35,10 +35,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-//func (c *ClientGoUtils) ExecBash(namespace string, podName string, containerName string) error {
-//	return c.Exec(namespace, podName, containerName, []string{"sh", "-c", "clear; (bash || ash ||  sh)"})
-//}
-
 func (c *ClientGoUtils) ExecShell(podName string, containerName string, shell string) error {
 	return c.Exec(podName, containerName, []string{"sh", "-c", fmt.Sprintf("clear; %s", shell)})
 }
@@ -201,6 +197,7 @@ func (c *ClientGoUtils) apply(files []string, continueOnError bool, action apply
 		return errors.New("no result info")
 	}
 	//fmt.Printf("infos len %d \n", len(infos))
+	log.Infof("%s %d resources", action, len(infos))
 	for _, info := range infos {
 		helper := resource.NewHelper(info.Client, info.Mapping)
 		var obj runtime.Object

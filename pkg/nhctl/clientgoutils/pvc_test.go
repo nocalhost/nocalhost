@@ -14,16 +14,13 @@ limitations under the License.
 package clientgoutils
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
-	"path/filepath"
 	"testing"
-	"time"
 )
 
 func TestClientGoUtils_CreatePVC(t *testing.T) {
-	client, err := NewClientGoUtils(filepath.Join(getHomePath(), ".kube", "wzw-config"), time.Hour)
+	client, err := NewClientGoUtils("", "")
 	if err != nil {
 		panic(err)
 	}
@@ -32,7 +29,7 @@ func TestClientGoUtils_CreatePVC(t *testing.T) {
 	labels := map[string]string{"nocalhost.dev/app": "app01", "nocalhost.dev/service": "details", "nocalhost.dev/dir": dirBase64}
 	annotations := map[string]string{"nocalhost.dev/dir": "/var/tmp/tmp"}
 
-	pvc, err := client.CreatePVC("demo01", "test01", labels, annotations, "10Gi", nil)
+	pvc, err := client.CreatePVC("test01", labels, annotations, "10Gi", nil)
 	if err != nil {
 		fmt.Printf("%+v", err)
 		panic(err)
@@ -41,7 +38,7 @@ func TestClientGoUtils_CreatePVC(t *testing.T) {
 }
 
 func TestClientGoUtils_GetPvcByLabels(t *testing.T) {
-	client, err := NewClientGoUtils(filepath.Join(getHomePath(), ".kube", "wzw-config"), time.Hour)
+	client, err := NewClientGoUtils("", "")
 	if err != nil {
 		panic(err)
 	}
@@ -49,7 +46,7 @@ func TestClientGoUtils_GetPvcByLabels(t *testing.T) {
 	dirBase64 := base64.StdEncoding.EncodeToString([]byte("/var/tmp/tmp"))
 	//labels := map[string]string{"nocalhost.dev/app": "app", "nocalhost.dev/service": "details", "nocalhost.dev/dir": dirBase64}
 	labels := map[string]string{"nocalhost.dev/service": "details1", "nocalhost.dev/dir": dirBase64}
-	pvcs, err := client.GetPvcByLabels(context.TODO(), "demo01", labels)
+	pvcs, err := client.GetPvcByLabels(labels)
 	if err != nil {
 		panic(err)
 	}
@@ -59,12 +56,12 @@ func TestClientGoUtils_GetPvcByLabels(t *testing.T) {
 }
 
 func TestClientGoUtils_DeletePVC(t *testing.T) {
-	client, err := NewClientGoUtils(filepath.Join(getHomePath(), ".kube", "wzw-config"), time.Hour)
+	client, err := NewClientGoUtils("", "")
 	if err != nil {
 		panic(err)
 	}
 
-	err = client.DeletePVC("demo01", "test01")
+	err = client.DeletePVC("test01")
 	if err != nil {
 		fmt.Printf("%+v", err)
 		panic(err)

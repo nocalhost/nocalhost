@@ -15,7 +15,6 @@ package cmds
 
 import (
 	"context"
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
@@ -36,8 +35,6 @@ import (
 var fileSyncOps = &app.FileSyncOptions{}
 
 func init() {
-	//fileSyncCmd.Flags().StringVarP(&fileSyncOps.LocalSharedFolder, "local-shared-folder", "l", "", "(Deprecation) local folder to sync")
-	//fileSyncCmd.Flags().StringVarP(&fileSyncOps.RemoteDir, "remote-folder", "r", "", "(Deprecation) remote folder path")
 	fileSyncCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.RunAsDaemon, "daemon", "m", true, "if file sync run as daemon")
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false, "if use double side sync")
@@ -63,16 +60,15 @@ var fileSyncCmd = &cobra.Command{
 		InitAppAndCheckIfSvcExist(applicationName, deployment)
 
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
-			log.Fatalf("\"%s\" has not in developing", deployment)
+			log.Fatalf("Service \"%s\" is not in developing", deployment)
 		}
 
 		if nocalhostApp.CheckIfSvcIsSyncthing(deployment) {
-			log.Fatalf("\"%s\" has in syncing", deployment)
+			log.Fatalf("Service \"%s\" is already in syncing", deployment)
 		}
 
 		// get dev-start stage record free pod so it do not need get free port again
-		var devStartOptions = &app.DevStartOptions{}
-		//fileSyncOps, err = nocalhostApp.GetSyncthingPort(deployment, fileSyncOps)
+		//var devStartOptions = &app.DevStartOptions{}
 
 		// syncthing port-forward
 		// daemon
@@ -84,19 +80,19 @@ var fileSyncCmd = &cobra.Command{
 
 		// Reconfirm whether devcontainer is ready
 		pod := ""
-		//namespace := ""
-		for {
-			<-time.NewTimer(time.Second * 1).C
-			pod, err = nocalhostApp.WaitAndGetNocalhostDevContainerPod(deployment)
-			if err != nil {
-				log.Fatal(err)
-			} else {
-				break
-			}
-			log.Infof("wait for sidecar ready")
+		//for {
+		<-time.NewTimer(time.Second * 1).C
+		pod, err = nocalhostApp.WaitAndGetNocalhostDevContainerPod(deployment)
+		if err != nil {
+			log.Fatal(err)
 		}
+		//else {
+		//break
+		//}
+		//log.Infof("wait for sidecar ready")
+		//}
 
-		log.Infof("syncthing port-forward pod %s, namespace %s", pod, nocalhostApp.GetNamespace())
+		log.Infof("Syncthing port-forward pod %s, namespace %s", pod, nocalhostApp.GetNamespace())
 
 		// overwrite Args[0] as ABS directory of bin directory
 		os.Args[0] = nhctlAbsDir
@@ -116,7 +112,7 @@ var fileSyncCmd = &cobra.Command{
 			log.Fatalf(err.Error())
 		}
 
-		log.Infof("syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.GetNamespace())
+		log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.GetNamespace())
 
 		// start port-forward
 
@@ -152,8 +148,6 @@ var fileSyncCmd = &cobra.Command{
 						Namespace: nocalhostApp.GetNamespace(),
 					},
 				},
-				//LocalPort: fileSyncOps.RemoteSyncthingPort,
-				//PodPort:   fileSyncOps.RemoteSyncthingPort,
 				LocalPort: svcProfile.RemoteSyncthingPort,
 				PodPort:   svcProfile.RemoteSyncthingPort,
 				Streams:   stream,
@@ -161,7 +155,7 @@ var fileSyncCmd = &cobra.Command{
 				ReadyCh:   readyCh,
 			})
 			if err != nil {
-				log.Fatalf(err.Error())
+				log.Fatal(err.Error())
 			}
 		}()
 
@@ -170,25 +164,17 @@ var fileSyncCmd = &cobra.Command{
 		case <-readyCh:
 			break
 		}
-		fmt.Printf("Port forwarding is ready to get traffic!\n")
-
-		// create new syncthing
+		log.Info("Port forwarding is ready to get traffic!")
 
 		// Deprecated for multi dir sync
 		// On latest version, it only use for specify the sync dir
-		devStartOptions, err = nocalhostApp.GetSyncthingLocalDirFromProfileSaveByDevStart(deployment, devStartOptions)
-		if err != nil {
-			log.Fatalf("failed to get syncthing local dir")
-		}
+		//devStartOptions, err = nocalhostApp.GetSyncthingLocalDirFromProfileSaveByDevStart(deployment, devStartOptions)
+		//if err != nil {
+		//	log.Fatalf("failed to get syncthing local dir")
+		//}
 
 		// Getting pattern from svc profile first
 		profile := nocalhostApp.GetSvcProfile(deployment)
-		//if len(fileSyncOps.IgnoredPattern) == 0 {
-		//	fileSyncOps.IgnoredPattern = profile.IgnoredPattern
-		//}
-		//if len(fileSyncOps.SyncedPattern) == 0 {
-		//	fileSyncOps.SyncedPattern = profile.SyncedPattern
-		//}
 		if len(fileSyncOps.IgnoredPattern) != 0 {
 			profile.IgnoredPattern = fileSyncOps.IgnoredPattern
 		}
@@ -198,26 +184,26 @@ var fileSyncCmd = &cobra.Command{
 
 		// TODO
 		// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished), the files that have been synchronized will not be synchronized.
-		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOptions, fileSyncOps)
+		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, profile.LocalAbsoluteSyncDirFromDevStartPlugin, fileSyncOps.SyncDouble)
 		if err != nil {
-			log.Warnf("new syncthing err: %s", err.Error())
+			log.WarnE(err, "Failed to new syncthing")
 		}
 
 		// starts up a local syncthing
 		err = newSyncthing.Run(context.TODO())
 		if err != nil {
-			log.Warnf("run syncthing err: %s", err.Error())
+			log.WarnE(err, "Failed to run syncthing")
 		}
 
 		// set sync status in child progress
 		err = nocalhostApp.SetSyncingStatus(deployment, true)
 		if err != nil {
-			log.Fatalf("[error] fail to update syncing status")
+			log.Fatal("Failed to update syncing status")
 		}
 
 		for {
 			<-sigs
-			fmt.Println("stop port forward")
+			log.Info("Stopping port forward")
 			close(stopCh)
 			wg.Done()
 		}
