@@ -42,6 +42,7 @@ type Init struct {
 	InjectUserTemplate     string
 	InjectUserAmount       int
 	InjectUserAmountOffset int
+	PortForward            bool
 }
 
 var inits = &Init{}
@@ -56,6 +57,7 @@ func init() {
 	InitCommand.Flags().StringVar(&inits.InjectUserTemplate, "inject-user-template", "", "inject users template, example Techo%d, max length is 15")
 	InitCommand.Flags().IntVar(&inits.InjectUserAmount, "inject-user-amount", 0, "inject user amount, example 10, max is 999")
 	InitCommand.Flags().IntVar(&inits.InjectUserAmountOffset, "inject-user-offset", 1, "inject user id offset, default is 1")
+	InitCommand.Flags().BoolVar(&inits.PortForward, "port-forward", false, "auto port forward the Nocalhost web")
 	rootCmd.AddCommand(InitCommand)
 }
 
@@ -281,8 +283,8 @@ var InitCommand = &cobra.Command{
 		}
 
 		// set default cluster, application, users
-		req := request.NewReq(fmt.Sprintf("http://%s", endPoint), settings.KubeConfig, kubectl, inits.NameSpace, inits.Port)
-		kubeResult := req.CheckIfMiniKube().Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).GetKubeConfig().AddBookInfoApplication(source).AddCluster().AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).AddDevSpace()
+		req := request.NewReq(fmt.Sprintf("http://%s", endPoint), settings.KubeConfig, kubectl, inits.NameSpace, inits.Port).Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).GetKubeConfig().AddBookInfoApplication(source).AddCluster().AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).AddDevSpace()
+
 		// should inject batch user
 		if inits.InjectUserTemplate != "" && inits.InjectUserAmount > 0 {
 			_ = req.SetInjectBatchUserTemplate(inits.InjectUserTemplate).InjectBatchDevSpace(inits.InjectUserAmount, inits.InjectUserAmountOffset)
@@ -300,19 +302,6 @@ var InitCommand = &cobra.Command{
 		setDepComponentDockerImage(kubectl, settings.KubeConfig)
 
 		spinner.Stop()
-		serverURL := ""
-		port := 0
-		if kubeResult.Minikube {
-			// use default DefaultInitMiniKubePortForwardPort port-forward
-			//portResult := req.GetAvailableRandomLocalPort()
-			port = app.DefaultInitMiniKubePortForwardPort
-			if !req.CheckPortIsAvailable(app.DefaultInitMiniKubePortForwardPort) {
-				port = req.GetAvailableRandomLocalPort().MiniKubeAvailablePort
-			}
-			serverURL = fmt.Sprintf("http://%s:%d", "127.0.0.1", port)
-		} else {
-			serverURL = fmt.Sprintf("http://%s", endPoint)
-		}
 
 		coloredoutput.Success(
 			"Nocalhost init completed. \n\n"+
@@ -325,19 +314,13 @@ var InitCommand = &cobra.Command{
 				" Username: %s \n"+
 				" Password: %s \n\n"+
 				" Now, you can setup VSCode plugin and enjoy Nocalhost! \n",
-			serverURL,
+			req.BaseUrl,
 			app.DefaultInitUserEmail,
 			app.DefaultInitPassword,
-			serverURL,
+			req.BaseUrl,
 			app.DefaultInitAdminUserName,
 			app.DefaultInitAdminPassWord,
 		)
-
-		if kubeResult.Minikube {
-			coloredoutput.Information("port forwarding, please do not close this windows! \n")
-			// if DefaultInitMiniKubePortForwardPort can not use, it will return available port
-			req.RunPortForward(port)
-		}
 	},
 }
 
@@ -360,7 +343,7 @@ func setComponentDockerImageVersion(params *[]string) {
 		*params = append(*params, "--set", "web.image.tag="+Version)
 	} else {
 		log.Infof("Init nocalhost component with dev %s, but nocalhost-web with dev tag only", DevGitCommit)
-		*params = append(*params, "--set", "api.image.tag="+DevGitCommit)
+		*params = append(*params, "--set", "="+DevGitCommit)
 		// because of web image and api has different commitID, so take latest dev tag
 		*params = append(*params, "--set", "web.image.tag=dev")
 	}
