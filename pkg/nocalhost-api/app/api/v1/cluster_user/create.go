@@ -131,9 +131,9 @@ func Create(c *gin.Context) {
 	// create namespace ResouceQuota and container limitRange
 	res := req.SpaceResourceLimit
 	clusterDevsSetUp.CreateResouceQuota("rq-"+devNamespace, devNamespace, res.SpaceReqMem,
-		res.SpaceReqCpu, res.SpaceLimitsMem, res.SpaceLimitsCpu, res.SpaceStorageCapacity,
+		res.SpaceReqCpu, res.SpaceLimitsMem, res.SpaceLimitsCpu, res.SpaceStorageCapacity, res.SpaceEphemeralStorage,
 		res.SpacePvcCount, res.SpaceLbCount).CreateLimitRange("lr-"+devNamespace, devNamespace,
-		res.ContainerReqMem, res.ContainerLimitsMem, res.ContainerReqCpu, res.ContainerLimitsCpu)
+		res.ContainerReqMem, res.ContainerLimitsMem, res.ContainerReqCpu, res.ContainerLimitsCpu, res.ContainerEphemeralStorage)
 
 	resString, err := json.Marshal(req.SpaceResourceLimit)
 	result, err := service.Svc.ClusterUser().Create(c, applicationId, *req.ClusterId, userId, *req.Memory, *req.Cpu, KubeConfigYaml, devNamespace, spaceName, string(resString))
@@ -172,6 +172,9 @@ func ValidSpaceResourceLimit(resLimit SpaceResourceLimit) (bool, string) {
 	if resLimit.SpaceStorageCapacity != "" && !reg.MatchString(resLimit.SpaceStorageCapacity) {
 		message = append(message, "space_storage_capacity")
 	}
+	if resLimit.SpaceEphemeralStorage != "" && !reg.MatchString(resLimit.SpaceEphemeralStorage) {
+		message = append(message, "space_ephemeral_storage")
+	}
 	if resLimit.ContainerReqCpu != "" && !reg.MatchString(resLimit.ContainerReqCpu) {
 		message = append(message, "container_req_cpu")
 	}
@@ -183,6 +186,9 @@ func ValidSpaceResourceLimit(resLimit SpaceResourceLimit) (bool, string) {
 	}
 	if resLimit.ContainerLimitsCpu != "" && !reg.MatchString(resLimit.ContainerLimitsCpu) {
 		message = append(message, "container_limits_cpu")
+	}
+	if resLimit.ContainerEphemeralStorage != "" && !reg.MatchString(resLimit.ContainerEphemeralStorage) {
+		message = append(message, "container_ephemeral_storage")
 	}
 	if len(message) > 0 {
 		return false, strings.Join(message, ",")

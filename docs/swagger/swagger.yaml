@@ -91,6 +91,8 @@ definitions:
     type: object
   cluster_user.SpaceResourceLimit:
     properties:
+      container_ephemeral_storage:
+        type: string
       container_limits_cpu:
         type: string
       container_limits_mem:
@@ -98,6 +100,8 @@ definitions:
       container_req_cpu:
         type: string
       container_req_mem:
+        type: string
+      space_ephemeral_storage:
         type: string
       space_lb_count:
         type: integer

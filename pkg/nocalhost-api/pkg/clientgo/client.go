@@ -182,7 +182,7 @@ apiVersion: v1
       services.loadbalancers: "10"
       requests.storage: "20Gi"
 */
-func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity string, pvcCount, lbCount int) (bool, error) {
+func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage string, pvcCount, lbCount int) (bool, error) {
 
 	resourceQuota := &corev1.ResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
@@ -203,6 +203,9 @@ func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMe
 	}
 	if len(storageCapacity) > 0 {
 		resourceList[corev1.ResourceRequestsStorage] = resource.MustParse(storageCapacity)
+	}
+	if len(ephemeralStorage) > 0 {
+		resourceList[corev1.ResourceEphemeralStorage] = resource.MustParse(ephemeralStorage)
 	}
 	if pvcCount > 0 {
 		resourceList[corev1.ResourcePersistentVolumeClaims] = resource.MustParse(strconv.Itoa(pvcCount))
@@ -239,7 +242,7 @@ spec:
       memory: 128Mi
     type: Container
 */
-func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu string) (bool, error) {
+func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string) (bool, error) {
 	limitRange := &corev1.LimitRange{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 	}
@@ -250,6 +253,9 @@ func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, 
 	}
 	if len(limitsCpu) > 0 {
 		limits[corev1.ResourceCPU] = resource.MustParse(limitsCpu)
+	}
+	if len(ephemeralStorage) > 0 {
+		limits[corev1.ResourceEphemeralStorage] = resource.MustParse(ephemeralStorage)
 	}
 
 	requests := make(map[corev1.ResourceName]resource.Quantity)

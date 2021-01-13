@@ -1727,6 +1727,9 @@
         "cluster_user.SpaceResourceLimit": {
             "type": "object",
             "properties": {
+                "container_ephemeral_storage": {
+                    "type": "string"
+                },
                 "container_limits_cpu": {
                     "type": "string"
                 },
@@ -1737,6 +1740,9 @@
                     "type": "string"
                 },
                 "container_req_mem": {
+                    "type": "string"
+                },
+                "space_ephemeral_storage": {
                     "type": "string"
                 },
                 "space_lb_count": {

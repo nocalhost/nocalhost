@@ -29,7 +29,7 @@ type ClusterUserModel struct {
 	KubeConfig         string     `gorm:"column:kubeconfig;not null" json:"kubeconfig"`
 	Memory             uint64     `gorm:"column:memory;not null" json:"memory"`
 	Cpu                uint64     `gorm:"column:cpu;not null" json:"cpu"`
-	SpaceResourceLimit string     `gorm:"cloumn:space_resource_limit" json:"space_resource_limit"`
+	SpaceResourceLimit string     `gorm:"cloumn:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
 	Namespace          string     `gorm:"column:namespace;not null" json:"namespace"`
 	Status             *uint64    `gorm:"column:status;default:0" json:"status"`
 	CreatedAt          time.Time  `gorm:"column:created_at" json:"created_at"`
