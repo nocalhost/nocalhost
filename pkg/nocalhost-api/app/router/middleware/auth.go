@@ -35,9 +35,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		method := c.Request.Method
-		path := c.Request.RequestURI
-		if ctx.IsAdmin == 0 && !checkAccessPermission(method, path) {
+		if ctx.IsAdmin == 0 && !checkAccessPermission(c.Request.Method, c.Request.RequestURI) {
 			api.SendResponse(c, errno.ErrAccessPermissionDenied, nil)
 			c.Abort()
 			return
@@ -54,14 +52,14 @@ func AuthMiddleware() gin.HandlerFunc {
 
 func checkAccessPermission(method, path string) bool {
 	permissions := map[string]string{
-		//"/v1/version": "GET",
-		//"/v1/register": "POST",
-		//"/v1/login": "POST",
 		"/v1/me":                          "GET",
 		"/v1/users/[0-9]+":                "PUT",
 		"/v1/users/[0-9]+/dev_space_list": "GET",
 		"v1/dev_space/[0-9]+/detail":      "GET",
 		"v1/dev_space/[0-9]+/recreate":    "POST",
+		"/v1/plugin/[0-9]+/recreate":      "POST",
+		"/v1/plugin/dev_space":            "GET",
+		"/v1/plugin/application/[0-9]+/dev_space/[0-9]+/plugin_sync": "PUT",
 	}
 
 	for reg, med := range permissions {
