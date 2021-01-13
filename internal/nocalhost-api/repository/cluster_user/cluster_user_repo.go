@@ -85,7 +85,6 @@ func (repo *clusterUserRepo) Delete(ctx context.Context, id uint64) error {
 func (repo *clusterUserRepo) Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error) {
 	where := model.ClusterUserModel{
 		ApplicationId: models.ApplicationId,
-		ID:            models.ID,
 		UserId:        models.UserId,
 	}
 	_, err := repo.GetFirst(ctx, where)
@@ -93,11 +92,11 @@ func (repo *clusterUserRepo) Update(ctx context.Context, models *model.ClusterUs
 		return models, errors.Wrap(err, "[clsuter_user_repo] get clsuter_user denied")
 	}
 	emptyModel := model.ClusterUserModel{}
-	affectRow := repo.db.Model(&emptyModel).Update(models).RowsAffected
+	affectRow := repo.db.Model(&emptyModel).Where("id=?", models.ID).Update(models).RowsAffected
 	if affectRow > 0 {
 		return models, nil
 	}
-	return models, errors.Wrap(err, "[clsuter_user_repo] update clsuter_user err")
+	return models, errors.New("update dev space err")
 }
 
 func (repo *clusterUserRepo) GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error) {

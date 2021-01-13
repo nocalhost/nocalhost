@@ -11,9 +11,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package app
+package clientgoutils
 
-func (a *Application) SetSvcWorkDir(svcName string, workDir string) error {
-	a.GetSvcProfile(svcName).WorkDir = workDir
-	return a.AppProfile.Save()
+import (
+	"github.com/pkg/errors"
+	v1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+func (c *ClientGoUtils) UpdateReplicaSet(rs *v1.ReplicaSet) (*v1.ReplicaSet, error) {
+	rs2, err := c.ClientSet.AppsV1().ReplicaSets(c.namespace).Update(c.ctx, rs, metav1.UpdateOptions{})
+	return rs2, errors.Wrap(err, "")
 }
