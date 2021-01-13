@@ -204,6 +204,10 @@ func (a *Application) SaveConfig() error {
 	return nil
 }
 
+func (a *Application) SaveProfile() error {
+	return a.AppProfile.Save()
+}
+
 func (a *Application) downloadResourcesFromGit(gitUrl string, gitRef string) error {
 	var (
 		err        error
@@ -1066,10 +1070,10 @@ func (a *Application) SetLocalSyncthingGUIPort(svcName string, port int) error {
 	return a.AppProfile.Save()
 }
 
-func (a *Application) SetLocalAbsoluteSyncDirFromDevStartPlugin(svcName string, syncDir []string) error {
-	a.GetSvcProfile(svcName).LocalAbsoluteSyncDirFromDevStartPlugin = syncDir
-	return a.AppProfile.Save()
-}
+//func (a *Application) SetLocalAbsoluteSyncDirFromDevStartPlugin(svcName string, syncDir []string) error {
+//	a.GetSvcProfile(svcName).LocalAbsoluteSyncDirFromDevStartPlugin = syncDir
+//	return a.AppProfile.Save()
+//}
 
 func (a *Application) SetDevelopingStatus(svcName string, is bool) error {
 	a.GetSvcProfile(svcName).Developing = is

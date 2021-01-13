@@ -15,36 +15,24 @@ package clientgoutils
 
 import (
 	"fmt"
-	"path/filepath"
 	"testing"
-	"time"
-
-	"nocalhost/internal/nhctl/utils"
 )
 
 func TestNewClientGoUtils(t *testing.T) {
 
 }
 
-func TestClientGoUtils_Delete(t *testing.T) {
-	client, err := NewClientGoUtils(filepath.Join(utils.GetHomePath(), ".kube/admin-config"), time.Minute)
-	Must(err)
-	err = client.Delete("/tmp/pre-install-cm.yaml", "unit-test")
-	if err != nil {
-		panic(err)
-	}
-}
-
 func TestClientGoUtils_Create(t *testing.T) {
-	client, err := NewClientGoUtils(filepath.Join(utils.GetHomePath(), ".kube/admin-config"), time.Minute)
+	client, err := NewClientGoUtils("", "nh6ihig")
 	if err != nil {
 		panic(err)
 	}
-	err = client.Create("/tmp/pre-install-cm.yaml", "unit-test", false, true)
+	secret, err := client.GetSecret("aaa")
 	if err != nil {
-		fmt.Println(err.Error())
-		panic(err)
+		fmt.Printf("err:%s", err.Error())
+		fmt.Printf("%v", secret)
+		fmt.Println(secret.Name)
+	} else {
+		fmt.Printf("%v\n", secret)
 	}
-	//s := runtime.Scheme{}
-	//s.New()
 }
