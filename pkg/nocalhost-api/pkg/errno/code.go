@@ -24,16 +24,17 @@ var (
 	RouterNotFound      = &Errno{Code: 10005, Message: "router not found"}
 
 	// user errors
-	ErrUserNotFound          = &Errno{Code: 20102, Message: "The user was not found."}
-	ErrTokenInvalid          = &Errno{Code: 20103, Message: "Token is invalid or login expired, please coloredoutput in again"}
-	ErrEmailOrPassword       = &Errno{Code: 20111, Message: "Mail or password is incorrect"}
-	ErrTwicePasswordNotMatch = &Errno{Code: 20112, Message: "Two password entries are inconsistent"}
-	ErrRegisterFailed        = &Errno{Code: 20113, Message: "Registration failed"}
-	ErrUserNotAllow          = &Errno{Code: 20114, Message: "User is disabled"}
-	ErrCreateUserDenied      = &Errno{Code: 20115, Message: "No user creation permission"}
-	ErrUpdateUserDenied      = &Errno{Code: 20116, Message: "No modify user permission"}
-	ErrDeleteUser            = &Errno{Code: 20117, Message: "Failed to delete user"}
-	ErrUserLoginWebNotAllow  = &Errno{Code: 20118, Message: "Normal users are not allowed login web interface"}
+	ErrUserNotFound           = &Errno{Code: 20102, Message: "The user was not found."}
+	ErrTokenInvalid           = &Errno{Code: 20103, Message: "Token is invalid or login expired, please coloredoutput in again"}
+	ErrEmailOrPassword        = &Errno{Code: 20111, Message: "Mail or password is incorrect"}
+	ErrTwicePasswordNotMatch  = &Errno{Code: 20112, Message: "Two password entries are inconsistent"}
+	ErrRegisterFailed         = &Errno{Code: 20113, Message: "Registration failed"}
+	ErrUserNotAllow           = &Errno{Code: 20114, Message: "User is disabled"}
+	ErrCreateUserDenied       = &Errno{Code: 20115, Message: "No user creation permission"}
+	ErrUpdateUserDenied       = &Errno{Code: 20116, Message: "No modify user permission"}
+	ErrDeleteUser             = &Errno{Code: 20117, Message: "Failed to delete user"}
+	ErrUserLoginWebNotAllow   = &Errno{Code: 20118, Message: "Normal users are not allowed login web interface"}
+	ErrAccessPermissionDenied = &Errno{Code: 20119, Message: "You do not have permission to access this resource, please contact the administrator"}
 
 	// cluster errors
 	ErrClusterCreate          = &Errno{Code: 30100, Message: "Failed to add cluster, please try again"}

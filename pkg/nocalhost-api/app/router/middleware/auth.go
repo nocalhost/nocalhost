@@ -15,6 +15,7 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
+	"regexp"
 
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
@@ -28,9 +29,16 @@ func AuthMiddleware() gin.HandlerFunc {
 		// Parse the json web token.
 		ctx, err := token.ParseRequest(c)
 		log.Infof("context is: %+v", ctx)
-
 		if err != nil {
 			api.SendResponse(c, errno.ErrTokenInvalid, nil)
+			c.Abort()
+			return
+		}
+
+		method := c.Request.Method
+		path := c.Request.RequestURI
+		if ctx.IsAdmin == 0 && !checkAccessPermission(method, path) {
+			api.SendResponse(c, errno.ErrAccessPermissionDenied, nil)
 			c.Abort()
 			return
 		}
@@ -42,4 +50,26 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func checkAccessPermission(method, path string) bool {
+	permissions := map[string]string{
+		//"/v1/version": "GET",
+		//"/v1/register": "POST",
+		//"/v1/login": "POST",
+		"/v1/me":                          "GET",
+		"/v1/users/[0-9]+":                "PUT",
+		"/v1/users/[0-9]+/dev_space_list": "GET",
+		"v1/dev_space/[0-9]+/detail":      "GET",
+		"v1/dev_space/[0-9]+/recreate":    "POST",
+	}
+
+	for reg, med := range permissions {
+		match, _ := regexp.MatchString(reg, path)
+		if match && med == method {
+			return true
+		}
+	}
+
+	return false
 }
