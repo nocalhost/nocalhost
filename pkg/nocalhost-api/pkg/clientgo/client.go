@@ -41,6 +41,7 @@ import (
 type GoClient struct {
 	clusterIpAccessMode bool
 	client              *kubernetes.Clientset
+	Config              []byte
 }
 
 // use this go client generator to avoid out-cluster/in-cluster network issues
@@ -53,18 +54,23 @@ func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
 		originErr = client.requireClusterAdminClient()
 
 		if originErr == nil {
+			client.clusterIpAccessMode = false
+			client.Config = kubeconfig
+
 			return client, nil
 		}
 	}
 
 	// then try to access current cluster's kube api-server
 
-	client, err := newGoClientUseCurrentClusterHost(kubeconfig)
+	client, err, newConfig := newGoClientUseCurrentClusterHost(kubeconfig)
 	if err == nil && client != nil {
 		err = client.requireClusterAdminClient()
 
 		if err == nil {
 			client.clusterIpAccessMode = true
+			client.Config = newConfig
+
 			fmt.Printf("Create k8s Go Client with 'clusterIpAccessMode' \n")
 			return client, nil
 		}
@@ -89,26 +95,47 @@ func newGoClient(kubeconfig []byte) (*GoClient, error) {
 }
 
 // try to replace the host to access kube-apiserver
-func newGoClientUseCurrentClusterHost(kubeconfig []byte) (*GoClient, error) {
-	c, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
+func newGoClientUseCurrentClusterHost(kubeconfig []byte) (*GoClient, error, []byte) {
+
+	// Step1. get raw config
+	clientConfig, err := clientcmd.NewClientConfigFromBytes(kubeconfig)
 	if err != nil {
-		return nil, err
+		return nil, err, nil
 	}
 
+	rawConfig, err := clientConfig.RawConfig()
+	if err != nil {
+		return nil, err, nil
+	}
+
+	cluster := rawConfig.Clusters[rawConfig.CurrentContext]
+	if cluster == nil {
+		return nil, err, nil
+	}
+
+	// Step2. get in-cluster config
 	configInCluster, err := rest.InClusterConfig()
 	if err != nil {
-		return nil, err
+		return nil, err, nil
 	}
 
-	c.Host = configInCluster.Host
+	// Step3. override the host and new client
+	cluster.Server = configInCluster.Host
+	newConfig, _ := clientcmd.Write(rawConfig)
+
+	c, err := clientcmd.RESTConfigFromKubeConfig(newConfig)
+	if err != nil {
+		return nil, err, nil
+	}
+
 	clientSet, err := kubernetes.NewForConfig(c)
 	if err != nil {
-		return nil, err
+		return nil, err, nil
 	}
 	client := &GoClient{
 		client: clientSet,
 	}
-	return client, nil
+	return client, nil, newConfig
 }
 
 func (c *GoClient) requireClusterAdminClient() error {

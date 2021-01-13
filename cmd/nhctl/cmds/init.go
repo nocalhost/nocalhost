@@ -42,7 +42,6 @@ type Init struct {
 	InjectUserTemplate     string
 	InjectUserAmount       int
 	InjectUserAmountOffset int
-	PortForward            bool
 }
 
 var inits = &Init{}
@@ -57,7 +56,6 @@ func init() {
 	InitCommand.Flags().StringVar(&inits.InjectUserTemplate, "inject-user-template", "", "inject users template, example Techo%d, max length is 15")
 	InitCommand.Flags().IntVar(&inits.InjectUserAmount, "inject-user-amount", 0, "inject user amount, example 10, max is 999")
 	InitCommand.Flags().IntVar(&inits.InjectUserAmountOffset, "inject-user-offset", 1, "inject user id offset, default is 1")
-	InitCommand.Flags().BoolVar(&inits.PortForward, "port-forward", false, "auto port forward the Nocalhost web")
 	rootCmd.AddCommand(InitCommand)
 }
 

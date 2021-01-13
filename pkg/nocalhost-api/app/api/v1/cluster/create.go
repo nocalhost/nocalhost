@@ -90,7 +90,7 @@ func Create(c *gin.Context) {
 	// see https://codingcorp.coding.net/p/nocalhost/wiki/115
 	clusterSetUp := setupcluster.NewSetUpCluster(goClient)
 
-	clusterInfo, err, errRes :=  clusterSetUp.CreateNs(global.NocalhostSystemNamespace, "").CreateConfigMap(global.NocalhostDepKubeConfigMapName, global.NocalhostSystemNamespace, global.NocalhostDepKubeConfigMapKey, string(DecKubeconfig)).DeployNocalhostDep("", global.NocalhostSystemNamespace).GetClusterNode().GetClusterVersion().GetClusterInfo().GetErr()
+	clusterInfo, err, errRes := clusterSetUp.CreateNs(global.NocalhostSystemNamespace, "").CreateConfigMap(global.NocalhostDepKubeConfigMapName, global.NocalhostSystemNamespace, global.NocalhostDepKubeConfigMapKey, string(goClient.Config)).DeployNocalhostDep("", global.NocalhostSystemNamespace).GetClusterNode().GetClusterVersion().GetClusterInfo().GetErr()
 	if err != nil {
 		api.SendResponse(c, errRes, nil)
 		return
