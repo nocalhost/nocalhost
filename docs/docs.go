@@ -6,7 +6,6 @@ package docs
 
 import (
 	"bytes"
-	"encoding/json"
 
 	"github.com/alecthomas/template"
 	"github.com/swaggo/swag"

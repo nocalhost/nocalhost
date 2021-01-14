@@ -19,6 +19,9 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"regexp"
+	"strconv"
+	"strings"
 )
 
 // Create Create a development environment for application
@@ -40,6 +43,13 @@ func Create(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Warnf("bind ApplicationCluster params err: %v", err)
 		api.SendResponse(c, errno.ErrBind, nil)
+		return
+	}
+	// Validate DevSpace Resource limit parameter format.
+	flag, message := ValidSpaceResourceLimit(*req.SpaceResourceLimit)
+	if !flag {
+		log.Errorf("Create devspace fail. Incorrect Resource limit parameter  [ %v ] format.", message)
+		api.SendResponse(c, errno.ErrFormatResourceLimitParam, message)
 		return
 	}
 	applicationId := cast.ToUint64(c.Param("id"))
