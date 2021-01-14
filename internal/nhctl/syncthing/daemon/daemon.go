@@ -15,11 +15,10 @@ package daemon
 
 import (
 	"fmt"
-	"log"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
 	"strconv"
-	"time"
 )
 
 const MARK_ENV_NAME = "NH_SYNC_DAEMON_IDX"
@@ -36,7 +35,7 @@ type Daemon struct {
 }
 
 // start a child process
-// if isExit is true, exit parent process itself
+// if isExit is true, exit parent process
 func Background(logFile, pidFile string, isExit bool) (*exec.Cmd, error) {
 	runIdx++
 	// check if this process is a child process
@@ -45,7 +44,6 @@ func Background(logFile, pidFile string, isExit bool) (*exec.Cmd, error) {
 		envIdx = 0
 	}
 	if runIdx <= envIdx { // this is already a child process, exit
-		fmt.Printf("Child pid: %d, parent pid: %d\n", os.Getpid(), os.Getppid())
 		return nil, nil
 	}
 
@@ -56,11 +54,11 @@ func Background(logFile, pidFile string, isExit bool) (*exec.Cmd, error) {
 	// start child process
 	cmd, err := startProc(os.Args, env, logFile)
 	if err != nil {
-		log.Println(os.Getpid(), "run background fail:", err)
+		log.WarnE(err, "Run background fail")
 		return nil, err
 	} else {
 		// write pid file to application dir
-		log.Println(os.Getpid(), ":", "run background success, pid: ", "->", cmd.Process.Pid, "\n ")
+		log.Info(os.Getpid(), ":", "run background success, pid: ", "->", cmd.Process.Pid)
 		file, err := os.OpenFile(pidFile, os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {
 			return nil, err
@@ -74,7 +72,7 @@ func Background(logFile, pidFile string, isExit bool) (*exec.Cmd, error) {
 	}
 
 	if isExit {
-		fmt.Println("Parent exit")
+		log.Info("Parent exit")
 		os.Exit(0)
 	}
 
@@ -91,49 +89,49 @@ func NewDaemon(logFile string) *Daemon {
 }
 
 // start daemon
-func (d *Daemon) Run() {
-	Background(d.LogFile, d.PidFile, true)
-	var t int64
-	count := 1
-	errNum := 0
-	for {
-		dInfo := fmt.Sprintf("daemon(pid:%d; count:%d/%d; errNum:%d/%d):",
-			os.Getpid(), count, d.MaxCount, errNum, d.MaxError)
-		if errNum > d.MaxError {
-			log.Println(dInfo, "daemon fail too much, exit")
-			os.Exit(1)
-		}
-		if d.MaxCount > 0 && count > d.MaxCount {
-			log.Println(dInfo, "daemon restart too much, exit")
-			os.Exit(0)
-		}
-		count++
-
-		t = time.Now().Unix()
-		cmd, err := Background(d.LogFile, d.PidFile, false)
-		if err != nil { // start fail
-			log.Println(dInfo, "child progress run fail;", "err:", err)
-			errNum++
-			continue
-		}
-
-		// child progress,
-		if cmd == nil {
-			log.Printf("child pid=%d: started", os.Getpid())
-			break
-		}
-
-		//father wait
-		err = cmd.Wait()
-		dat := time.Now().Unix() - t
-		if dat < d.MinExitTime { // fail and exit
-			errNum++
-		} else { // normal exit
-			errNum = 0
-		}
-		log.Printf("%s child (%d) progress exit, tootal run %d second: %v\n", dInfo, cmd.ProcessState.Pid(), dat, err)
-	}
-}
+//func (d *Daemon) Run() {
+//	Background(d.LogFile, d.PidFile, true)
+//	var t int64
+//	count := 1
+//	errNum := 0
+//	for {
+//		dInfo := fmt.Sprintf("daemon(pid:%d; count:%d/%d; errNum:%d/%d):",
+//			os.Getpid(), count, d.MaxCount, errNum, d.MaxError)
+//		if errNum > d.MaxError {
+//			log.Info(dInfo, "daemon fail too much, exit")
+//			os.Exit(1)
+//		}
+//		if d.MaxCount > 0 && count > d.MaxCount {
+//			log.Info(dInfo, "daemon restart too much, exit")
+//			os.Exit(0)
+//		}
+//		count++
+//
+//		t = time.Now().Unix()
+//		cmd, err := Background(d.LogFile, d.PidFile, false)
+//		if err != nil { // start fail
+//			log.Info(dInfo, "child progress run fail;", "err:", err)
+//			errNum++
+//			continue
+//		}
+//
+//		// child progress,
+//		if cmd == nil {
+//			log.Infof("child pid=%d: started", os.Getpid())
+//			break
+//		}
+//
+//		//father wait
+//		err = cmd.Wait()
+//		dat := time.Now().Unix() - t
+//		if dat < d.MinExitTime { // fail and exit
+//			errNum++
+//		} else { // normal exit
+//			errNum = 0
+//		}
+//		log.Infof("%s child (%d) progress exit, tootal run %d second: %v\n", dInfo, cmd.ProcessState.Pid(), dat, err)
+//	}
+//}
 
 func startProc(args, env []string, logFile string) (*exec.Cmd, error) {
 	cmd := &exec.Cmd{
@@ -146,7 +144,7 @@ func startProc(args, env []string, logFile string) (*exec.Cmd, error) {
 	if logFile != "" { // child progress might not have permission
 		stdout, err := os.OpenFile(logFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
 		if err != nil {
-			log.Println(os.Getpid(), ": open log file err :", err)
+			log.Info(os.Getpid(), ": open log file err :", err)
 			return nil, err
 		}
 		cmd.Stderr = stdout

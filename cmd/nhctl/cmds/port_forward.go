@@ -70,12 +70,14 @@ var portForwardCmd = &cobra.Command{
 		os.Args[0] = nhctlAbsdir
 
 		if portForwardOptions.RunAsDaemon {
-			log.Infof("Running port-forward in background, parent pid is %d, ppid is %d", os.Getpid(), os.Getppid())
+			//log.Infof("Running port-forward in background, parent pid is %d, ppid is %d", os.Getpid(), os.Getppid())
 			_, err := daemon.Background(nocalhostApp.GetPortForwardLogFile(deployment), nocalhostApp.GetApplicationBackGroundOnlyPortForwardPidFile(deployment), true)
 			if err != nil {
-				log.Fatalf("failed to run port-forward background, please try again")
+				log.Fatal("Failed to run port-forward background, please try again")
 			}
 		}
+
+		log.Info("Start port-forwarding")
 
 		// find deployment pods
 		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
@@ -94,7 +96,6 @@ var portForwardCmd = &cobra.Command{
 		for _, port := range portForwardOptions.DevPort {
 			// 8080:8080, :8080
 			s := strings.Split(port, ":")
-			//fmt.Printf("split: %s \n", s)
 			if len(s) < 2 {
 				// ignore wrong format
 				log.Warnf("Wrong format of dev port:%s , skipped.", port)
@@ -116,20 +117,19 @@ var portForwardCmd = &cobra.Command{
 					continue
 				}
 			}
-			fmt.Printf("remote port convert before: %s \n", s[1])
 			remotePort, err := strconv.Atoi(s[1])
 			if err != nil {
-				fmt.Printf("wrong format of remote port:%d , err: %s, skipped. \n", remotePort, err.Error())
+				log.ErrorE(err, fmt.Sprintf("wrong format of remote port: %s, skipped", s[1]))
 				continue
 			}
 			localPorts = append(localPorts, localPort)
 			remotePorts = append(remotePorts, remotePort)
 		}
-		fmt.Printf("ready to call dev port forward locals: %d, remotes: %d \n", localPorts, remotePorts)
+		log.Infof("Ready to call dev port forward locals: %d, remotes: %d", localPorts, remotePorts)
 		// listening, it will wait until kill port forward progress
 		if len(localPorts) > 0 && len(remotePorts) > 0 {
-			nocalhostApp.PortForwardInBackGround(deployment, podName, nocalhostApp.GetNamespace(), localPorts, remotePorts)
+			nocalhostApp.PortForwardInBackGround(deployment, podName, localPorts, remotePorts)
 		}
-		fmt.Print("not needed port forward")
+		log.Info("No need to port forward")
 	},
 }

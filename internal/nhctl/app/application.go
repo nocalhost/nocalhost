@@ -751,7 +751,7 @@ func (a *Application) GetPluginDescription(service string) string {
 }
 
 // for background port-forward
-func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce string, localPort, remotePort []int) {
+func (a *Application) PortForwardInBackGround(deployment, podName string, localPort, remotePort []int) {
 	group := len(localPort)
 	if len(localPort) != len(remotePort) {
 		log.Fatalf("dev port forward fail, please check you devPort in config\n")
@@ -784,13 +784,13 @@ func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce str
 		sLocalPort := sLocalPort
 		devPod := fmt.Sprintf("%d:%d", sLocalPort, remotePort[key])
 		addDevPod = append(addDevPod, devPod)
-		fmt.Printf("start dev port forward local %d, remote %d \n", sLocalPort, remotePort[key])
+		log.Infof("Start dev port forward local %d, remote %d", sLocalPort, remotePort[key])
 		go func() {
 			err := a.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
 				Pod: corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      podName,
-						Namespace: nameSapce,
+						Namespace: a.GetNamespace(),
 					},
 				},
 				LocalPort: sLocalPort,
@@ -799,13 +799,9 @@ func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce str
 				StopCh:    stopCh,
 				ReadyCh:   readyCh,
 			})
-			//fmt.Print("start send channel")
 			if err != nil {
-				//portForwardResultCh <- "0"
-				fmt.Printf("port-forward in background fail %s\n", err.Error())
-				//return
+				log.ErrorE(err, "Port-forward in background fail")
 			}
-			//portForwardResultCh <- fmt.Sprintf("%d:%d", sLocalPort, remotePort[key])
 		}()
 		go func(readyCh *chan struct{}) {
 			select {
@@ -816,7 +812,7 @@ func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce str
 			}
 		}(&readyCh)
 	}
-	fmt.Print("done go routine\n")
+	log.Info("Done go routine")
 	// update profile addDevPod
 	// TODO get from channel and set real port-forward status
 	//for range localPort {
@@ -834,8 +830,7 @@ func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce str
 
 	for {
 		<-sigs
-		fmt.Println("stop port forward")
-		//close(stopCh)
+		log.Info("Stop port forward")
 		wg.Done()
 	}
 }
@@ -849,7 +844,7 @@ func (a *Application) SetDevPortForward(svcName string, portList []string) error
 func (a *Application) AppendDevPortForward(svcName string, portList string) error {
 	err := a.ReadBeforeWriteProfile()
 	if err != nil {
-		log.Fatalf("refresh application profile fail")
+		return err
 	}
 	exist := a.GetSvcProfile(svcName).DevPortList
 	a.GetSvcProfile(svcName).DevPortList = append(exist, portList)
@@ -859,19 +854,6 @@ func (a *Application) AppendDevPortForward(svcName string, portList string) erro
 func (a *Application) GetDevPortForward(svcName string) []string {
 	return a.GetSvcProfile(svcName).DevPortList
 }
-
-// for syncthing use
-//func (a *Application) GetSyncthingPort(svcName string, options *FileSyncOptions) (*FileSyncOptions, error) {
-//	svcProfile := a.GetSvcProfile(svcName)
-//	if svcProfile == nil {
-//		return options, errors.New("get " + svcName + " profile fail, please reinstall application")
-//	}
-//	options.RemoteSyncthingPort = svcProfile.RemoteSyncthingPort
-//	options.RemoteSyncthingGUIPort = svcProfile.RemoteSyncthingGUIPort
-//	options.LocalSyncthingPort = svcProfile.LocalSyncthingPort
-//	options.LocalSyncthingGUIPort = svcProfile.LocalSyncthingGUIPort
-//	return options, nil
-//}
 
 func (a *Application) GetMyBinName() string {
 	if runtime.GOOS == "windows" {
@@ -1048,7 +1030,7 @@ func (a *Application) SetAppType(t AppType) error {
 func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
 	err := a.ReadBeforeWriteProfile()
 	if err != nil {
-		log.Fatalf("refresh application profile fail")
+		return err
 	}
 	a.GetSvcProfile(svcName).PortForwarded = is
 	return a.AppProfile.Save()
