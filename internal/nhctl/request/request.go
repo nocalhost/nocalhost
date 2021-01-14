@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 	"net"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
@@ -142,6 +143,18 @@ func (q *ApiRequest) ExposeService() *ApiRequest {
 
 func (q *ApiRequest) IdleThePortForwardIfNeeded() error {
 	if q.portForwardCmd != nil {
+
+		coloredoutput.Hint(
+			"We found that your nocalhost-web endpoint can not access directly \n"+
+				"So we port-forward the endpoint to local automatically \n"+
+				"And if you kill this process the port-forward will be terminated \n"+
+				"You can use the command \n" +
+				" 	'%s' \n" +
+				" 	to access nocalhost-web when you want to access the nocalhost-web next time",
+
+			"kubectl port-forward service/nocalhost-web "+":"+strconv.Itoa(q.NocalhostWebPort)+" -n"+q.NameSpace,
+		)
+
 		// wait for port-forward
 		err := q.portForwardCmd.Wait()
 		if err != nil {
