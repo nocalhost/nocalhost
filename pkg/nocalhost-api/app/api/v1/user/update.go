@@ -75,7 +75,11 @@ func Update(c *gin.Context) {
 		if req.Status != nil {
 			userMap.Status = req.Status
 		}
+	} else {
+		uid, _ := c.Get("userId")
+		userId = cast.ToUint64(uid)
 	}
+
 	//userMap := make(map[string]interface{})
 	//userMap["email"] = req.Email
 	//userMap["name"] = req.Name

@@ -78,10 +78,13 @@ func (repo *userBaseRepo) Create(ctx context.Context, user model.UserBaseModel) 
 // Update
 func (repo *userBaseRepo) Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) (*model.UserBaseModel, error) {
 	user, err := repo.GetUserByID(ctx, id)
+	if user.ID != id {
+		return user, errors.New("[user_repo] user is not exsit.")
+	}
 	if err != nil {
 		return user, errors.Wrap(err, "[user_repo] update user data err")
 	}
-	err = repo.db.Model(&user).Updates(&userMap).Error
+	err = repo.db.Model(&user).Updates(&userMap).Where("id=?", id).Error
 	if err != nil {
 		return user, errors.Wrap(err, "[user_repo] update user data error")
 	}
