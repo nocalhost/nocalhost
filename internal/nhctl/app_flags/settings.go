@@ -11,28 +11,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package clientgoutils
+package app_flags
 
 import (
-	"fmt"
-	"testing"
+	"os"
+	"strconv"
 )
 
-func TestNewClientGoUtils(t *testing.T) {
-
+type EnvSettings struct {
+	Debug      bool
+	KubeConfig string // the path to the kubeconfig file
 }
 
-func TestClientGoUtils_Create(t *testing.T) {
-	client, err := NewClientGoUtils("", "nh6ihig")
-	if err != nil {
-		panic(err)
-	}
-	secret, err := client.GetSecret("aaa")
-	if err != nil {
-		fmt.Printf("err:%s", err.Error())
-		fmt.Printf("%v", secret)
-		fmt.Println(secret.Name)
-	} else {
-		fmt.Printf("%v\n", secret)
-	}
+func NewEnvSettings() *EnvSettings {
+	settings := EnvSettings{}
+	settings.Debug, _ = strconv.ParseBool(os.Getenv("NOCALHOST_DEBUG"))
+	return &settings
 }

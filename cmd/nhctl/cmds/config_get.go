@@ -48,13 +48,6 @@ var configGetCmd = &cobra.Command{
 		InitApp(commonFlags.AppName)
 
 		if commonFlags.SvcName == "" {
-			//if nocalhostApp.Config != nil {
-			//	bys, err := yaml.Marshal(nocalhostApp.Config)
-			//	if err != nil {
-			//		log.FatalE(errors.Wrap(err, ""), "fail to get application config")
-			//	}
-			//	fmt.Println(string(bys))
-			//}
 			config := &ConfigForPlugin{}
 			config.Services = make([]*app.ServiceDevOptions, 0)
 			for _, svcPro := range nocalhostApp.AppProfile.SvcProfile {

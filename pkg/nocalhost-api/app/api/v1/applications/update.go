@@ -42,11 +42,11 @@ func Update(c *gin.Context) {
 		api.SendResponse(c, errno.ErrBind, nil)
 		return
 	}
-	userId, _ := c.Get("userId")
+	// userId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
 	model := model.ApplicationModel{
-		ID:      applicationId,
-		UserId:  userId.(uint64),
+		ID: applicationId,
+		// UserId:  userId.(uint64),
 		Context: req.Context,
 		Status:  *req.Status,
 	}
@@ -71,7 +71,7 @@ func Update(c *gin.Context) {
 // @Param spaceId path uint64 true "DevSpace ID"
 // @Param CreateAppRequest body applications.UpdateApplicationInstallRequest true "The application update info"
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
-// @Router /v1/application/{id}/dev_space/{spaceId}/plugin_sync [put]
+// @Router /v1/plugin/application/{id}/dev_space/{spaceId}/plugin_sync [put]
 func UpdateApplicationInstall(c *gin.Context) {
 	var req UpdateApplicationInstallRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

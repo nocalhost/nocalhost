@@ -13,22 +13,13 @@ limitations under the License.
 
 package clientgoutils
 
-import (
-	"fmt"
-	"os/user"
-)
-
-func getHomePath() string {
-	u, err := user.Current()
-	if err == nil {
-		return u.HomeDir
-	}
-	return ""
-}
-
-func PrintlnErr(info string, err error) {
-	fmt.Printf("%s, err: %v\n", info, err)
-}
+//func getHomePath() string {
+//	u, err := user.Current()
+//	if err == nil {
+//		return u.HomeDir
+//	}
+//	return ""
+//}
 
 func Must(err error) {
 	if err != nil {

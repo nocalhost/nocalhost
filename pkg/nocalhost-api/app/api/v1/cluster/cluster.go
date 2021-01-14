@@ -13,6 +13,8 @@ limitations under the License.
 
 package cluster
 
+import "time"
+
 type CreateClusterRequest struct {
 	Name         string `json:"name" binding:"required"`
 	KubeConfig   string `json:"kubeconfig" binding:"required" example:"base64encode(value)"`
@@ -43,4 +45,15 @@ type StorageClassResponse struct {
 
 type UpdateClusterRequest struct {
 	StorageClass string `json:"storage_class"`
+}
+
+type ClusterDetailResponse struct {
+	ID           uint64    `json:"id"`
+	Name         string    `json:"name"`
+	Info         string    `json:"info"`
+	UserId       uint64    `json:"user_id"`
+	Server       string    `json:"server"`
+	KubeConfig   string    `json:"kubeconfig"`
+	StorageClass string    `json:"storage_class"`
+	CreatedAt    time.Time `gorm:"column:created_at" json:"created_at"`
 }

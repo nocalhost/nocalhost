@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"nocalhost/internal/nhctl/utils"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -82,13 +83,14 @@ type PortForwardAPodRequest struct {
 }
 
 // If namespace is not specified, use namespace defined in kubeconfig
+// If namespace is not specified and can not get from kubeconfig, ClientGoUtils can not be created, and an error will be returned
 func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, error) {
 	var (
 		err error
 	)
 
 	if kubeConfigPath == "" { // use default config
-		kubeConfigPath = filepath.Join(getHomePath(), ".kube", "config")
+		kubeConfigPath = filepath.Join(utils.GetHomePath(), ".kube", "config")
 	}
 
 	//if timeout <= 0 {
@@ -429,16 +431,11 @@ OuterLoop:
 			if ref.Kind != "ReplicaSet" {
 				continue
 			}
-			//rss, _ := c.GetReplicaSetsControlledByDeployment(context.TODO(), namespace, deployName)
-			//if rss == nil {
-			//	continue
-			//}
-			//for _, rs := range rss {
+
 			if latestRevisionReplicasets.Name == ref.Name {
 				result = append(result, pod)
 				continue OuterLoop
 			}
-			//}
 		}
 	}
 	return result, nil
@@ -464,26 +461,6 @@ func (c *ClientGoUtils) GetSortedReplicaSetsByDeployment(deployment string) ([]*
 	return results, nil
 }
 func (c *ClientGoUtils) WaitDeploymentLatestRevisionToBeReady(name string) error {
-	//time.Sleep(2 * time.Second)
-	// Find the latest revision
-	//replicaSets, err := c.GetReplicaSetsControlledByDeployment(ctx, namespace, name)
-	//if err != nil {
-	//	log.WarnE(err, "Failed to get replica sets")
-	//	return err
-	//}
-	//revisions := make([]int, 0)
-	//for _, rs := range replicaSets {
-	//	if rs.Annotations["deployment.kubernetes.io/revision"] != "" {
-	//		r, _ := strconv.Atoi(rs.Annotations["deployment.kubernetes.io/revision"])
-	//		revisions = append(revisions, r)
-	//	}
-	//}
-	//
-	//sort.Ints(revisions)
-	//
-	//latestRevision := revisions[len(revisions)-1]
-	//
-	//log.Debugf("Waiting %s rolling back to revision %d...", name, latestRevision)
 
 	for {
 		time.Sleep(2 * time.Second)

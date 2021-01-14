@@ -32,11 +32,10 @@ import (
 // @Success 200 {object} model.ApplicationClusterModel
 // @Router /v1/application/{id}/bound_cluster [get]
 func GetBound(c *gin.Context) {
-	userId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
 
 	// application permission
-	if _, err := service.Svc.ApplicationSvc().Get(c, applicationId, userId.(uint64)); err != nil {
+	if _, err := service.Svc.ApplicationSvc().Get(c, applicationId); err != nil {
 		api.SendResponse(c, errno.ErrPermissionApplication, nil)
 		return
 	}

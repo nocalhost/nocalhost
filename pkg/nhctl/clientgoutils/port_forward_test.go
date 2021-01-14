@@ -10,14 +10,14 @@ import (
 
 func TestClientGoUtils_PortForward(t *testing.T) {
 	//utils.GetHomePath()
-	client, err := NewClientGoUtils(filepath.Join(utils.GetHomePath(), ".kube", "admin-config"), time.Minute)
+	client, err := NewClientGoUtils(filepath.Join(utils.GetHomePath(), ".kube", "admin-config"), "")
 	if err != nil {
 		panic(err)
 	}
 
 	fps := []*ForwardPort{{LocalPort: 11223, RemotePort: 22}}
 
-	pf, err := client.CreatePortForwarder("demo30", "details-77cc4f49fd-nl7kn", fps)
+	pf, err := client.CreatePortForwarder("details-77cc4f49fd-nl7kn", fps)
 	if err != nil {
 		panic(err)
 	}

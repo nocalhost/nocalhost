@@ -67,12 +67,18 @@ definitions:
     type: object
   cluster_user.ClusterUserCreateRequest:
     properties:
+      application_id:
+        type: integer
       cluster_id:
         type: integer
       cpu:
         type: integer
+      id:
+        type: integer
       memory:
         type: integer
+      namespace:
+        type: string
       space_name:
         type: string
       space_resource_limit:
@@ -710,45 +716,6 @@ paths:
       summary: Get the details of a development environment of the application
       tags:
       - Application
-  /v1/application/{id}/dev_space/{spaceId}/plugin_sync:
-    put:
-      consumes:
-      - application/json
-      description: Plug-in Update app installation status
-      parameters:
-      - description: Authorization
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: Application ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: DevSpace ID
-        in: path
-        name: spaceId
-        required: true
-        type: integer
-      - description: The application update info
-        in: body
-        name: CreateAppRequest
-        required: true
-        schema:
-          $ref: '#/definitions/applications.UpdateApplicationInstallRequest'
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: '{"code":0,"message":"OK","data":null}'
-          schema:
-            $ref: '#/definitions/api.Response'
-            type: object
-      summary: Plug-in Update app installation status
-      tags:
-      - Plug-in
   /v1/application/{id}/dev_space_list:
     get:
       consumes:
@@ -1236,6 +1203,45 @@ paths:
             $ref: '#/definitions/model.ClusterModel'
             type: object
       summary: Plugin ReCreate devSpace
+      tags:
+      - Plug-in
+  /v1/plugin/application/{id}/dev_space/{spaceId}/plugin_sync:
+    put:
+      consumes:
+      - application/json
+      description: Plug-in Update app installation status
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: DevSpace ID
+        in: path
+        name: spaceId
+        required: true
+        type: integer
+      - description: The application update info
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/applications.UpdateApplicationInstallRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: Plug-in Update app installation status
       tags:
       - Plug-in
   /v1/plugin/applications:

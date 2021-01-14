@@ -15,25 +15,21 @@ package clientgoutils
 
 import (
 	"fmt"
-	"path/filepath"
 	"testing"
-	"time"
-
-	"nocalhost/internal/nhctl/utils"
 )
 
 func TestClientGoUtils_CreateResource(t *testing.T) {
-	client, err := NewClientGoUtils(filepath.Join(utils.GetHomePath(), ".kube/admin-config"), time.Minute)
+	client, err := NewClientGoUtils("", "")
 	Must(err)
-	err = client.ApplyForCreate([]string{"/tmp/pre-install-cm.yaml"}, "demo10", true)
+	err = client.ApplyForCreate([]string{"/tmp/pre-install-cm.yaml"}, true)
 	if err != nil {
 		fmt.Printf("%s\n", err.Error())
 	}
 }
 
 func TestClientGoUtils_Exec(t *testing.T) {
-	client, err := NewClientGoUtils(filepath.Join(utils.GetHomePath(), ".kube/admin-config"), time.Minute)
+	client, err := NewClientGoUtils("", "")
 	Must(err)
-	err = client.Exec("demo10", "details-555cc5597f-gx5px", "", []string{"ls"})
+	err = client.Exec("details-555cc5597f-gx5px", "", []string{"ls"})
 	Must(err)
 }

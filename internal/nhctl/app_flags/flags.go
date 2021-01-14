@@ -11,21 +11,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cmds
+package app_flags
 
-import (
-	"os"
-	"strconv"
-)
-
-type EnvSettings struct {
-	Debug      bool
-	KubeConfig string // the path to the kubeconfig file
-	Namespace  string
-}
-
-func NewEnvSettings() *EnvSettings {
-	settings := EnvSettings{}
-	settings.Debug, _ = strconv.ParseBool(os.Getenv("NOCALHOST_DEBUG"))
-	return &settings
+type InstallFlags struct {
+	*EnvSettings
+	GitUrl           string // resource url
+	GitRef           string
+	AppType          string
+	HelmValueFile    string
+	ForceInstall     bool
+	IgnorePreInstall bool
+	HelmSet          []string
+	HelmRepoName     string
+	HelmRepoUrl      string
+	HelmRepoVersion  string
+	HelmChartName    string
+	HelmWait         bool
+	OuterConfig      string
+	Config           string
+	ResourcePath     []string
+	Namespace        string
 }

@@ -36,16 +36,16 @@ import (
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
 // @Router /v1/cluster/{id} [delete]
 func Delete(c *gin.Context) {
-	userId, _ := c.Get("userId")
+	// userId, _ := c.Get("userId")
 	clusterId := cast.ToUint64(c.Param("id"))
 
-	cluster, err := service.Svc.ClusterSvc().Get(c, clusterId, userId.(uint64))
+	cluster, err := service.Svc.ClusterSvc().Get(c, clusterId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
 		return
 	}
 
-	goClient, err := clientgo.NewGoClient([]byte(cluster.KubeConfig))
+	goClient, err := clientgo.NewAdminGoClient([]byte(cluster.KubeConfig))
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
 		return

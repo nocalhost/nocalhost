@@ -147,13 +147,24 @@ func GetSpaceList(c *gin.Context) {
 // @Success 200 {object} model.ClusterModel "include kubeconfig"
 // @Router /v1/cluster/{id}/detail [get]
 func GetDetail(c *gin.Context) {
-	userId, _ := c.Get("userId")
+	// userId, _ := c.Get("userId")
 	clusterId := cast.ToUint64(c.Param("id"))
-	result, err := service.Svc.ClusterSvc().Get(c, clusterId, userId.(uint64))
+	result, err := service.Svc.ClusterSvc().Get(c, clusterId)
 
 	if err != nil {
 		api.SendResponse(c, nil, make([]interface{}, 0))
 		return
+	}
+
+	resp := ClusterDetailResponse{
+		ID:           result.ID,
+		Name:         result.Name,
+		Info:         result.Info,
+		UserId:       result.UserId,
+		Server:       result.Server,
+		KubeConfig:   "",
+		StorageClass: result.StorageClass,
+		CreatedAt:    result.CreatedAt,
 	}
 
 	// recreate
@@ -194,7 +205,7 @@ func GetDetail(c *gin.Context) {
 	//	return
 	//}
 
-	api.SendResponse(c, errno.OK, result)
+	api.SendResponse(c, errno.OK, resp)
 }
 
 // @Summary Details of a development environment in the cluster
@@ -233,7 +244,7 @@ func GetSpaceDetail(c *gin.Context) {
 // @Success 200 {object} cluster.StorageClassResponse "include kubeconfig"
 // @Router /v1/cluster/{id}/storage_class [get]
 func GetStorageClass(c *gin.Context) {
-	userId, _ := c.Get("userId")
+	// userId, _ := c.Get("userId")
 	clusterKey := c.Param("id")
 	var kubeConfig []byte
 	if clusterKey == "kubeconfig" {
@@ -255,7 +266,7 @@ func GetStorageClass(c *gin.Context) {
 			}
 		}
 	} else {
-		cluster, err := service.Svc.ClusterSvc().Get(c, cast.ToUint64(clusterKey), userId.(uint64))
+		cluster, err := service.Svc.ClusterSvc().Get(c, cast.ToUint64(clusterKey))
 		if err != nil {
 			api.SendResponse(c, errno.ErrClusterNotFound, nil)
 			return
@@ -264,7 +275,7 @@ func GetStorageClass(c *gin.Context) {
 	}
 
 	// new client go
-	clientGo, err := clientgo.NewGoClient(kubeConfig)
+	clientGo, err := clientgo.NewAdminGoClient(kubeConfig)
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
 		return

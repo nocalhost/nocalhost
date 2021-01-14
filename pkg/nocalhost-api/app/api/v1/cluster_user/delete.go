@@ -15,17 +15,11 @@ package cluster_user
 
 import (
 	"github.com/gin-gonic/gin"
-	reqClient "github.com/imroc/req"
 	"github.com/spf13/cast"
-	"net/http"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
-	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
-	"nocalhost/pkg/nocalhost-api/pkg/log"
-	"strconv"
-	"time"
 )
 
 // Delete Completely delete the development environment
@@ -39,41 +33,31 @@ import (
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
 // @Router /v1/dev_space/{id} [delete]
 func Delete(c *gin.Context) {
-	userId, _ := c.Get("userId")
+	// userId, _ := c.Get("userId")
 	devSpaceId := cast.ToUint64(c.Param("id"))
 	clusterUser, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId})
 	if err != nil {
 		api.SendResponse(c, errno.ErrClsuterUserNotFound, nil)
 		return
 	}
-	clusterData, err := service.Svc.ClusterSvc().Get(c, clusterUser.ClusterId, userId.(uint64))
+
+	clusterData, err := service.Svc.ClusterSvc().Get(c, clusterUser.ClusterId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
 		return
 	}
 
-	// client go and delete specify namespace
-	var KubeConfig = []byte(clusterData.KubeConfig)
-	goClient, err := clientgo.NewGoClient(KubeConfig)
+	req := ClusterUserCreateRequest{
+		ID:        &clusterUser.ID,
+		NameSpace: clusterUser.Namespace,
+	}
+	devSpace := NewDevSpace(req, c, []byte(clusterData.KubeConfig))
+	err = devSpace.Delete()
 	if err != nil {
-		log.Errorf("client go got err %v", err)
-		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
-		return
-	}
-	isDelete, _ := goClient.DeleteNS(clusterUser.Namespace)
-	if !isDelete {
-		// ignore deleteNS and should delete dev space record
-		log.Infof("delete cluster user, and try delete cluster dev space %s fail", clusterUser.Namespace)
-	}
-
-	// delete database cluster-user dev space
-	dErr := service.Svc.ClusterUser().Delete(c, clusterUser.ID)
-	if dErr != nil {
-		api.SendResponse(c, errno.ErrDeletedClsuterButDatabaseFail, nil)
+		api.SendResponse(c, err, nil)
 		return
 	}
 	api.SendResponse(c, errno.OK, nil)
-	return
 }
 
 // ReCreate ReCreate devSpace
@@ -102,34 +86,41 @@ func ReCreate(c *gin.Context) {
 		api.SendResponse(c, errno.ErrClsuterUserNotFound, nil)
 		return
 	}
-	auth := c.Request.Header["Authorization"][0]
-	header := reqClient.Header{
-		"Accept":        "application/json",
-		"Authorization": auth,
-	}
-	reqClient.SetTimeout(60 * time.Second)
-	protocol := "http://"
-	host := c.Request.Host
-	_, err = reqClient.Get(protocol + host + "/health")
-	// if timeout, means protocol fail
+
+	clusterData, err := service.Svc.ClusterSvc().Get(c, clusterUser.ClusterId)
 	if err != nil {
-		protocol = "https://"
+		api.SendResponse(c, errno.ErrClusterNotFound, nil)
+		return
 	}
+
+	// create a new dev space
+	req := ClusterUserCreateRequest{
+		ClusterId:     &clusterUser.ClusterId,
+		UserId:        &clusterUser.UserId,
+		SpaceName:     clusterUser.SpaceName,
+		Memory:        &clusterUser.Memory,
+		Cpu:           &clusterUser.Cpu,
+		ApplicationId: &clusterUser.ApplicationId,
+		NameSpace:     clusterUser.Namespace,
+		ID:            &clusterUser.ID,
+	}
+
 	// delete devSpace space first, it will delete database record whatever success delete namespace or not
-	_, _ = reqClient.Delete(protocol+host+"/v1/dev_space/"+strconv.Itoa(int(devSpaceId)), header)
-	// create new devSpace
-	param := reqClient.Param{
-		"cluster_id": clusterUser.ClusterId,
-		"cpu":        clusterUser.Cpu,
-		"memory":     clusterUser.Memory,
-		"space_name": clusterUser.SpaceName,
-		"user_id":    clusterUser.UserId,
+	devSpace := NewDevSpace(req, c, []byte(clusterData.KubeConfig))
+	err = devSpace.Delete()
+	if err != nil {
+		api.SendResponse(c, err, nil)
+		return
 	}
-	result, err := reqClient.Post(protocol+host+"/v1/application/"+strconv.Itoa(int(clusterUser.ApplicationId))+"/create_space", header, reqClient.BodyJSON(&param))
-	var returnResult interface{}
-	_ = result.ToJSON(&returnResult)
-	c.JSON(http.StatusOK, &returnResult)
-	return
+
+	result, err := devSpace.Create()
+
+	if err != nil {
+		api.SendResponse(c, err, nil)
+		return
+	}
+
+	api.SendResponse(c, nil, result)
 }
 
 // ReCreate Plugin ReCreate devSpace
@@ -143,5 +134,13 @@ func ReCreate(c *gin.Context) {
 // @Success 200 {object} model.ClusterModel
 // @Router /v1/plugin/{id}/recreate [post]
 func PluginReCreate(c *gin.Context) {
+	// check permission
+	userId, _ := c.Get("userId")
+	devSpaceId := cast.ToUint64(c.Param("id"))
+	_, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId, UserId: userId.(uint64)})
+	if err != nil {
+		api.SendResponse(c, errno.ErrClsuterUserNotFound, nil)
+		return
+	}
 	ReCreate(c)
 }

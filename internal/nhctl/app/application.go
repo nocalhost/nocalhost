@@ -17,12 +17,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"nocalhost/internal/nhctl/coloredoutput"
-	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/internal/nhctl/utils"
-	"nocalhost/pkg/nhctl/clientgoutils"
-	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/tools"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -32,6 +26,13 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+
+	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/utils"
+	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/tools"
 
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/apps/v1"
@@ -91,26 +92,6 @@ type SvcDependency struct {
 	Pods []string `json:"pods" yaml:"pods,omitempty"`
 }
 
-// build a new application
-func BuildApplication(name string) (*Application, error) {
-
-	app := &Application{
-		Name: name,
-	}
-
-	err := app.InitDir()
-	if err != nil {
-		return nil, err
-	}
-
-	profile, err := NewAppProfile(app.getProfilePath())
-	if err != nil {
-		return nil, err
-	}
-	app.AppProfile = profile
-	return app, nil
-}
-
 func NewApplication(name string) (*Application, error) {
 	app := &Application{
 		Name: name,
@@ -127,8 +108,8 @@ func NewApplication(name string) (*Application, error) {
 	}
 	app.AppProfile = profile
 
-	//app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), DefaultClientGoTimeOut)
-	err = app.InitClient(app.GetKubeconfig(), app.GetNamespace())
+	app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), app.GetNamespace())
+	//err = app.initClient(app.GetKubeconfig(), app.GetNamespace())
 	if err != nil {
 		return nil, err
 	}
@@ -145,92 +126,41 @@ func (a *Application) ReadBeforeWriteProfile() error {
 	return nil
 }
 
-// if namespace is nil, use namespace defined in kubeconfig
-func (a *Application) InitClient(kubeconfig string, namespace string) error {
-	// check if kubernetes is available
-	var err error
-	a.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace)
-	if err != nil {
-		return err
-	}
-	if namespace == "" {
-		namespace, err = a.client.GetDefaultNamespace()
-		if err != nil {
-			return err
-		}
-	}
-
-	// save application info
-	a.AppProfile.Namespace = namespace
-	a.AppProfile.Kubeconfig = kubeconfig
-	err = a.AppProfile.Save()
-	if err != nil {
-		log.Error("fail to save nocalhostApp profile")
-	}
-	return err
-}
-
-func (a *Application) InitDir() error {
-	var err error
-	err = os.MkdirAll(a.GetHomeDir(), DefaultNewFilePermission)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	err = os.MkdirAll(a.getGitDir(), DefaultNewFilePermission)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	err = os.MkdirAll(a.getConfigDir(), DefaultNewFilePermission)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	err = ioutil.WriteFile(a.getProfilePath(), []byte(""), DefaultNewFilePermission)
-	return errors.Wrap(err, "")
-}
+// Init ClientGoUtils by kubeconfig
+// If namespace is nil, use namespace defined in kubeconfig
+//func (a *Application) initClient(kubeconfig string, namespace string) error {
+// check if kubernetes is available
+//var err error
+//a.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace)
+//if err != nil {
+//return err
+//}
+//if namespace == "" {
+//	namespace, err = a.client.GetDefaultNamespace()
+//	if err != nil {
+//		return err
+//	}
+//}
+//
+//// save application info
+//a.AppProfile.Namespace = namespace
+//a.AppProfile.Kubeconfig = kubeconfig
+//err = a.AppProfile.Save()
+//if err != nil {
+//	log.Error("fail to save nocalhostApp profile")
+//}
+//return err
+//}
 
 // Load svcConfig to profile while installing
-func (a *Application) LoadSvcConfigsToProfile() {
-	a.LoadConfig()
-	if len(a.config.SvcConfigs) > 0 {
-		for _, svcConfig := range a.config.SvcConfigs {
-			a.LoadConfigToSvcProfile(svcConfig.Name, Deployment)
-		}
-	}
-}
-
-func (a *Application) InitConfig(outerConfigPath string, configName string) error {
-	configFile := outerConfigPath
-
-	// Read from .nocalhost
-	if configFile == "" {
-		_, err := os.Stat(a.getConfigPathInGitResourcesDir(configName))
-		if err == nil {
-			configFile = a.getConfigPathInGitResourcesDir(configName)
-		}
-	}
-
-	// Generate config.yaml
-	// config.yaml may come from .nocalhost in git or a outer config file in local absolute path
-	if configFile != "" {
-		rbytes, err := ioutil.ReadFile(configFile)
-		if err != nil {
-			return errors.New(fmt.Sprintf("fail to load configFile : %s", configFile))
-		}
-		err = ioutil.WriteFile(a.GetConfigPath(), rbytes, DefaultNewFilePermission) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
-		if err != nil {
-			return errors.New(fmt.Sprintf("fail to create configFile : %s", configFile))
-		}
-		err = a.LoadConfig()
-		if err != nil {
-			return err
-		}
-	}
-	a.AppProfile.AppType = a.config.Type
-	a.AppProfile.ResourcePath = a.config.ResourcePath
-	return nil
-}
+//func (a *Application) LoadSvcConfigsToProfile() {
+//	a.LoadConfig()
+//	if len(a.config.SvcConfigs) > 0 {
+//		for _, svcConfig := range a.config.SvcConfigs {
+//			a.loadConfigToSvcProfile(svcConfig.Name, Deployment)
+//		}
+//	}
+//}
 
 func (a *Application) InitProfile(profile *AppProfile) {
 	if profile != nil {
@@ -274,7 +204,11 @@ func (a *Application) SaveConfig() error {
 	return nil
 }
 
-func (a *Application) DownloadResourcesFromGit(gitUrl string, gitRef string) error {
+func (a *Application) SaveProfile() error {
+	return a.AppProfile.Save()
+}
+
+func (a *Application) downloadResourcesFromGit(gitUrl string, gitRef string) error {
 	var (
 		err        error
 		gitDirName string
@@ -697,41 +631,6 @@ type PortForwardOptions struct {
 	Pid         int      `json:"pid" yaml:"pid"`
 	DevPort     []string // 8080:8080 or :8080 means random localPort
 	RunAsDaemon bool
-}
-
-// svcName use actual name
-// used in installing
-func (a *Application) LoadConfigToSvcProfile(svcName string, svcType SvcType) {
-	if a.AppProfile.SvcProfile == nil {
-		a.AppProfile.SvcProfile = make([]*SvcProfile, 0)
-	}
-
-	svcProfile := &SvcProfile{
-		ActualName: svcName,
-		//Type:       svcType,
-	}
-
-	// find svc config
-	svcConfig := a.GetSvcConfig(svcName)
-	if svcConfig == nil && len(a.AppProfile.ReleaseName) > 0 {
-		if strings.HasPrefix(svcName, fmt.Sprintf("%s-", a.AppProfile.ReleaseName)) {
-			name := strings.TrimPrefix(svcName, fmt.Sprintf("%s-", a.AppProfile.ReleaseName))
-			svcConfig = a.GetSvcConfig(name) // support releaseName-svcName
-		}
-	}
-
-	svcProfile.ServiceDevOptions = svcConfig
-
-	// If svcProfile already exists, updating it
-	for index, svc := range a.AppProfile.SvcProfile {
-		if svc.ActualName == svcName {
-			a.AppProfile.SvcProfile[index] = svcProfile
-			return
-		}
-	}
-
-	// If svcProfile already exists, create one
-	a.AppProfile.SvcProfile = append(a.AppProfile.SvcProfile, svcProfile)
 }
 
 func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error) {
@@ -1171,12 +1070,10 @@ func (a *Application) SetLocalSyncthingGUIPort(svcName string, port int) error {
 	return a.AppProfile.Save()
 }
 
-func (a *Application) SetLocalAbsoluteSyncDirFromDevStartPlugin(svcName string, syncDir []string) error {
-	a.GetSvcProfile(svcName).LocalAbsoluteSyncDirFromDevStartPlugin = syncDir
-	return a.AppProfile.Save()
-}
-
-// end syncthing here
+//func (a *Application) SetLocalAbsoluteSyncDirFromDevStartPlugin(svcName string, syncDir []string) error {
+//	a.GetSvcProfile(svcName).LocalAbsoluteSyncDirFromDevStartPlugin = syncDir
+//	return a.AppProfile.Save()
+//}
 
 func (a *Application) SetDevelopingStatus(svcName string, is bool) error {
 	a.GetSvcProfile(svcName).Developing = is

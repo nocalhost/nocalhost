@@ -73,12 +73,7 @@ var pvcListCmd = &cobra.Command{
 					log.FatalE(err, "Failed to get PVCs")
 				}
 			}
-		} else {
-			// list all pvc
 		}
-		//if len(pvcList) == 0 {
-		//	log.Info("No pvc found")
-		//}
 
 		if pvcFlags.Yaml {
 			DisplayPVCsByYaml(pvcList)

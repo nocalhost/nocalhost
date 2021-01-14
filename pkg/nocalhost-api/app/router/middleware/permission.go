@@ -11,28 +11,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package clientgoutils
+package middleware
 
 import (
-	"fmt"
-	"testing"
+	"github.com/gin-gonic/gin"
+	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/pkg/errno"
 )
 
-func TestNewClientGoUtils(t *testing.T) {
-
-}
-
-func TestClientGoUtils_Create(t *testing.T) {
-	client, err := NewClientGoUtils("", "nh6ihig")
-	if err != nil {
-		panic(err)
-	}
-	secret, err := client.GetSecret("aaa")
-	if err != nil {
-		fmt.Printf("err:%s", err.Error())
-		fmt.Printf("%v", secret)
-		fmt.Println(secret.Name)
-	} else {
-		fmt.Printf("%v\n", secret)
+// AdminPermissionMiddleware
+func AdminPermissionMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		isAdmin, err := c.Get("isAdmin")
+		if !err {
+			api.SendResponse(c, errno.ErrLostPermissionFlag, nil)
+			c.Abort()
+			return
+		}
+		if isAdmin.(uint64) != 1 {
+			api.SendResponse(c, errno.ErrPermissionDenied, nil)
+			c.Abort()
+			return
+		}
+		c.Next()
 	}
 }
