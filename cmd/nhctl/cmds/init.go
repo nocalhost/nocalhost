@@ -319,6 +319,11 @@ var InitCommand = &cobra.Command{
 			app.DefaultInitAdminUserName,
 			app.DefaultInitAdminPassWord,
 		)
+
+		err = req.IdleThePortForwardIfNeeded()
+		if err != nil {
+			log.Fatal(err)
+		}
 	},
 }
 

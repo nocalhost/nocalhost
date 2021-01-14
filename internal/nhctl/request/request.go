@@ -55,6 +55,7 @@ type ApiRequest struct {
 	InjectBatchUserIds      []int
 	PortForwardPortLocally  int
 	EnablePortForward       bool
+	portForwardCmd          *exec.Cmd
 }
 
 type MiniKubeCluster struct {
@@ -103,7 +104,7 @@ func (q *ApiRequest) CheckPortIsAvailable(port int) bool {
 
 // need to expose `kubectl port-forward service/nocalhost-web 65124:inits.port -n nocalhost`
 // then login with endpoint
-func (q *ApiRequest) ExposeService(isWait bool) *ApiRequest {
+func (q *ApiRequest) ExposeService() *ApiRequest {
 	q.GetAvailableRandomLocalPort()
 
 	params := []string{
@@ -117,19 +118,14 @@ func (q *ApiRequest) ExposeService(isWait bool) *ApiRequest {
 	}
 	cmd := exec.Command(q.Kubectl, params...)
 	cmd.Stdout = os.Stdout
-	err := cmd.Start()
+	err := q.portForwardCmd.Start()
 	if err != nil {
 		log.Fatalf("fail to port-forward expose nocalhost-web, err: %s", err)
 	}
-	if isWait {
-		err = cmd.Wait()
-		if err != nil {
-			log.Fatalf("fail to port-forward expose nocalhost-web, err: %s", err)
-		}
-	}
+
 	baseUrl := "http://127.0.0.1:" + strconv.Itoa(q.PortForwardPortLocally)
 	fmt.Printf("pid is %d, wait for port-forward... %s:%s \n", cmd.Process.Pid, strconv.Itoa(q.PortForwardPortLocally), strconv.Itoa(q.NocalhostWebPort))
-	// wait for port-forward
+
 	for {
 		conn, _ := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(q.PortForwardPortLocally)), app.DefaultInitPortForwardTimeOut)
 		if conn != nil {
@@ -140,7 +136,19 @@ func (q *ApiRequest) ExposeService(isWait bool) *ApiRequest {
 
 	q.BaseUrl = baseUrl
 	q.EnablePortForward = true
+	q.portForwardCmd = cmd
 	return q
+}
+
+func (q *ApiRequest) IdleThePortForwardIfNeeded() error {
+	if q.portForwardCmd != nil {
+		// wait for port-forward
+		err := q.portForwardCmd.Wait()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (q *ApiRequest) GetAvailableRandomLocalPort() *ApiRequest {
@@ -188,7 +196,7 @@ func (q *ApiRequest) Login(email, password string) *ApiRequest {
 	}
 
 	log.Info("Try login to nocalhost-web fail, try port forward...")
-	q.ExposeService(false)
+	q.ExposeService()
 
 	for i := 0; i < 3; i++ {
 		errAfterPortForward := q.tryLogin(email, password)
