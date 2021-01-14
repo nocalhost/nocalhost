@@ -103,10 +103,13 @@ func (repo *applicationRepo) Delete(ctx context.Context, id uint64) error {
 
 func (repo *applicationRepo) Update(ctx context.Context, applicationModel *model.ApplicationModel) (*model.ApplicationModel, error) {
 	application, err := repo.Get(ctx, applicationModel.ID)
+	if application.ID != applicationModel.ID {
+		return applicationModel, errors.New("[application_repo] application is not exsit.")
+	}
 	if err != nil {
 		return applicationModel, errors.Wrap(err, "[application_repo] get application denied")
 	}
-	affectRow := repo.db.Model(&application).Update(&applicationModel).RowsAffected
+	affectRow := repo.db.Model(&application).Update(&applicationModel).Where("id=?", application.ID).RowsAffected
 	if affectRow > 0 {
 		return applicationModel, nil
 	}
