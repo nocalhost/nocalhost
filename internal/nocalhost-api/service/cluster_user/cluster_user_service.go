@@ -22,7 +22,7 @@ import (
 )
 
 type ClusterUserService interface {
-	Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string) (model.ClusterUserModel, error)
+	Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string, spaceResourceLimit string) (model.ClusterUserModel, error)
 	Delete(ctx context.Context, id uint64) error
 	DeleteByWhere(ctx context.Context, models model.ClusterUserModel) error
 	BatchDelete(ctx context.Context, ids []uint64) error
@@ -31,6 +31,8 @@ type ClusterUserService interface {
 	GetJoinCluster(ctx context.Context, condition model.ClusterUserJoinCluster) ([]*model.ClusterUserJoinCluster, error)
 	Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
 	UpdateKubeConfig(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
+	GetJoinClusterAndAppAndUser(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) ([]*model.ClusterUserJoinClusterAndAppAndUser, error)
+	GetJoinClusterAndAppAndUserDetail(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) (*model.ClusterUserJoinClusterAndAppAndUser, error)
 	Close()
 }
 
@@ -72,6 +74,7 @@ func (srv *clusterUserService) Update(ctx context.Context, models *model.Cluster
 }
 
 func (srv *clusterUserService) GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error) {
+
 	result, err := srv.clusterUserRepo.GetList(ctx, models)
 	if err != nil {
 		return nil, err
@@ -87,20 +90,29 @@ func (srv *clusterUserService) GetFirst(ctx context.Context, models model.Cluste
 	return result, nil
 }
 
-func (srv *clusterUserService) Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string) (model.ClusterUserModel, error) {
+func (srv *clusterUserService) Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string, spaceResourceLimit string) (model.ClusterUserModel, error) {
 	c := model.ClusterUserModel{
-		ApplicationId: applicationId,
-		UserId:        userId,
-		ClusterId:     clusterId,
-		KubeConfig:    kubeConfig,
-		Namespace:     devNameSpace,
-		SpaceName:     spaceName,
+		ApplicationId:      applicationId,
+		UserId:             userId,
+		ClusterId:          clusterId,
+		KubeConfig:         kubeConfig,
+		Namespace:          devNameSpace,
+		SpaceName:          spaceName,
+		SpaceResourceLimit: spaceResourceLimit,
 	}
 	result, err := srv.clusterUserRepo.Create(ctx, c)
 	if err != nil {
 		return result, errors.Wrapf(err, "create application_cluster")
 	}
 	return result, nil
+}
+
+func (srv *clusterUserService) GetJoinClusterAndAppAndUser(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) ([]*model.ClusterUserJoinClusterAndAppAndUser, error) {
+	return srv.clusterUserRepo.GetJoinClusterAndAppAndUser(ctx, condition)
+}
+
+func (srv *clusterUserService) GetJoinClusterAndAppAndUserDetail(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) (*model.ClusterUserJoinClusterAndAppAndUser, error) {
+	return srv.clusterUserRepo.GetJoinClusterAndAppAndUserDetail(ctx, condition)
 }
 
 func (srv *clusterUserService) Close() {

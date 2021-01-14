@@ -76,13 +76,14 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	g.POST("/v1/login", user.Login)
 
 	u := g.Group("/v1/users")
-	u.Use(middleware.AuthMiddleware(), middleware.AdminPermissionMiddleware())
+	u.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
 	{
 		u.GET("/:id", user.Get)
 		u.GET("", user.GetList)
 		u.POST("", user.Create)
 		u.PUT("/:id", user.Update)
 		u.DELETE("/:id", user.Delete)
+		u.GET("/:id/dev_space_list", cluster_user.GetJoinClusterAndAppAndUser)
 	}
 
 	m := g.Group("/v1/me")
@@ -93,7 +94,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 
 	// Clusters
 	c := g.Group("/v1/cluster")
-	c.Use(middleware.AuthMiddleware(), middleware.AdminPermissionMiddleware())
+	c.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
 	{
 		c.POST("", cluster.Create)
 		c.GET("", cluster.GetList)
@@ -108,7 +109,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 
 	// Applications
 	a := g.Group("/v1/application")
-	a.Use(middleware.AuthMiddleware(), middleware.AdminPermissionMiddleware())
+	a.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
 	{
 		a.POST("", applications.Create)
 		a.GET("", applications.Get)
@@ -122,22 +123,24 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		a.GET("/:id/dev_space/:space_id/detail", cluster_user.GetDevSpaceDetail)
 		a.GET("/:id/dev_space_list", cluster_user.GetList)
 		a.GET("/:id/cluster/:clusterId", applications.GetSpaceDetail)
+
 	}
 
 	// nocalhost
 	n := g.Group("/v1/nocalhost")
-	n.Use(middleware.AuthMiddleware(), middleware.AdminPermissionMiddleware())
+	n.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
 	{
 		n.GET("/templates", applications.GetNocalhostConfigTemplate)
 	}
 
 	// DevSpace
 	dv := g.Group("v1/dev_space")
-	dv.Use(middleware.AuthMiddleware(), middleware.AdminPermissionMiddleware())
+	dv.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
 	{
 		dv.DELETE("/:id", cluster_user.Delete)
 		dv.PUT("/:id", cluster_user.Update)
 		dv.POST("/:id/recreate", cluster_user.ReCreate)
+		dv.GET("/:id/detail", cluster_user.GetJoinClusterAndAppAndUserDetail)
 	}
 
 	// Plug-in
