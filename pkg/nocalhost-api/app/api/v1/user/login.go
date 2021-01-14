@@ -50,17 +50,17 @@ func Login(c *gin.Context) {
 		return
 	}
 	// By default, “From” is not passed in web login, and ordinary users are prohibited from logging in to the web interface
-	users, err := service.Svc.UserSvc().GetUserByEmail(c, req.Email)
+	_, err := service.Svc.UserSvc().GetUserByEmail(c, req.Email)
 	if err != nil {
 		api.SendResponse(c, errno.ErrEmailOrPassword, nil)
 		return
 	}
 
 	// Log in to the web
-	if *users.IsAdmin != 1 && req.From != "plugin" {
-		api.SendResponse(c, errno.ErrUserLoginWebNotAllow, nil)
-		return
-	}
+	//if *users.IsAdmin != 1 && req.From != "plugin" {
+	//	api.SendResponse(c, errno.ErrUserLoginWebNotAllow, nil)
+	//	return
+	//}
 
 	t, err := service.Svc.UserSvc().EmailLogin(c, req.Email, req.Password)
 	if err != nil {

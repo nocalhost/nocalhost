@@ -25,6 +25,8 @@ type ClusterDevsSetUp interface {
 	CreateRole(name, namespace string) *clusterDevsSetUp
 	CreateRoleBinding(name, namespace, clusterRole, toServiceAccount string) *clusterDevsSetUp
 	GetServiceAccountSecret(name, namespace string) (*corev1.Secret, error)
+	CreateResouceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage string, pvcCount, lbCount int) *clusterDevsSetUp
+	CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string) *clusterDevsSetUp
 }
 
 type clusterDevsSetUp struct {
@@ -92,6 +94,23 @@ func (c *clusterDevsSetUp) GetServiceAccountSecret(name, namespace string) (*cor
 		c.errCode = errno.ErrBindSecretGetErr
 	}
 	return secret, err
+}
+func (c *clusterDevsSetUp) CreateResouceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage string, pvcCount, lbCount int) *clusterDevsSetUp {
+	_, err := c.clientGo.CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount)
+	if err != nil {
+		c.err = err
+		c.errCode = errno.ErrBindNameSpaceCreate
+	}
+	return c
+}
+
+func (c *clusterDevsSetUp) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string) *clusterDevsSetUp {
+	_, err := c.clientGo.CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage)
+	if err != nil {
+		c.err = err
+		c.errCode = errno.ErrBindNameSpaceCreate
+	}
+	return c
 }
 
 func NewClusterDevsSetUp(c *clientgo.GoClient) ClusterDevsSetUp {

@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/version"
@@ -259,6 +260,121 @@ func (c *GoClient) CreateServiceAccount(name, namespace string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// Create resource quota for namespace. such as:
+/**
+apiVersion: v1
+  kind: ResourceQuota
+  metadata:
+    name: namespace-name
+  spec:
+    hard:
+      limits.cpu: "10"
+      requests.cpu: "10"
+      limits.memory: "48Gi"
+      requests.memory: "40Gi"
+      persistentvolumeclaims: "10"
+      services.loadbalancers: "10"
+      requests.storage: "20Gi"
+*/
+func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage string, pvcCount, lbCount int) (bool, error) {
+
+	resourceQuota := &corev1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+	}
+
+	resourceList := make(map[corev1.ResourceName]resource.Quantity)
+	if len(reqMem) > 0 {
+		resourceList[corev1.ResourceRequestsMemory] = resource.MustParse(reqMem)
+	}
+	if len(reqCpu) > 0 {
+		resourceList[corev1.ResourceRequestsCPU] = resource.MustParse(reqCpu)
+	}
+	if len(limitsMem) > 0 {
+		resourceList[corev1.ResourceLimitsMemory] = resource.MustParse(limitsMem)
+	}
+	if len(limitsCpu) > 0 {
+		resourceList[corev1.ResourceLimitsCPU] = resource.MustParse(limitsCpu)
+	}
+	if len(storageCapacity) > 0 {
+		resourceList[corev1.ResourceRequestsStorage] = resource.MustParse(storageCapacity)
+	}
+	if len(ephemeralStorage) > 0 {
+		resourceList[corev1.ResourceEphemeralStorage] = resource.MustParse(ephemeralStorage)
+	}
+	if pvcCount > 0 {
+		resourceList[corev1.ResourcePersistentVolumeClaims] = resource.MustParse(strconv.Itoa(pvcCount))
+	}
+	if lbCount > 0 {
+		resourceList[corev1.ResourceServicesLoadBalancers] = resource.MustParse(strconv.Itoa(lbCount))
+	}
+	if (len(resourceList)) < 1 {
+		return true, nil
+	}
+	resourceQuota.Spec = corev1.ResourceQuotaSpec{
+		Hard: resourceList,
+	}
+	_, err := c.client.CoreV1().ResourceQuotas(namespace).Create(context.TODO(), resourceQuota, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, err
+}
+
+// create default resource quota for container. such as:
+/**
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: limits
+spec:
+  limits:
+  - default:
+      cpu: 200m
+      memory: 512Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    type: Container
+*/
+func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string) (bool, error) {
+	limitRange := &corev1.LimitRange{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+	}
+
+	limits := make(map[corev1.ResourceName]resource.Quantity)
+	if len(limitsMem) > 0 {
+		limits[corev1.ResourceMemory] = resource.MustParse(limitsMem)
+	}
+	if len(limitsCpu) > 0 {
+		limits[corev1.ResourceCPU] = resource.MustParse(limitsCpu)
+	}
+	if len(ephemeralStorage) > 0 {
+		limits[corev1.ResourceEphemeralStorage] = resource.MustParse(ephemeralStorage)
+	}
+
+	requests := make(map[corev1.ResourceName]resource.Quantity)
+	if len(reqMem) > 0 {
+		requests[corev1.ResourceMemory] = resource.MustParse(reqMem)
+	}
+	if len(reqCpu) > 0 {
+		requests[corev1.ResourceCPU] = resource.MustParse(reqCpu)
+	}
+
+	if len(limits) < 1 && len(requests) < 1 {
+		return true, nil
+	}
+	limitRange.Spec.Limits = append(limitRange.Spec.Limits, corev1.LimitRangeItem{
+		Default:        limits,
+		DefaultRequest: requests,
+		Type:           corev1.LimitTypeContainer,
+	})
+	_, err := c.client.CoreV1().LimitRanges(namespace).Create(context.TODO(), limitRange, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, err
 }
 
 // bind roles for serviceAccount

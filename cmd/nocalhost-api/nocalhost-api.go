@@ -42,14 +42,12 @@ var (
 
 // @title Nocalhost docs api
 // @version 1.0
-// @description Nocalhost demo
+// @description Nocalhost server api
 
 // @contact.name wangwei
 // @contact.url codingcorp.coding.net
 // @contact.email
 
-// @host localhost:8080
-// @BasePath /v1
 func main() {
 	pflag.Parse()
 	if *version {
