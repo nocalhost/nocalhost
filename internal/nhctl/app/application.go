@@ -273,24 +273,14 @@ func (a *Application) IsManifest() bool {
 // If resource path undefined, use git url
 func (a *Application) GetResourceDir() []string {
 	var resourcePath []string
-	if a.AppProfile != nil && len(a.AppProfile.ResourcePath) != 0 {
+	if len(a.AppProfile.ResourcePath) != 0 {
 		for _, path := range a.AppProfile.ResourcePath {
 			fullPath := filepath.Join(a.getGitDir(), path)
 			resourcePath = append(resourcePath, fullPath)
 		}
 		return resourcePath
 	}
-	//if a.config != nil {
-	//if len(a.config.ResourcePath) > 0 {
-	//	for _, path := range a.config.ResourcePath {
-	//		fullPath := filepath.Join(a.getGitDir(), path)
-	//		resourcePath = append(resourcePath, fullPath)
-	//	}
-	//}
-	//return resourcePath
-	//} else {
 	return []string{a.getGitDir()}
-	//}
 }
 
 type HelmFlags struct {
@@ -312,7 +302,7 @@ func (a *Application) loadInstallManifest() {
 		for _, eachPath := range resourcePaths {
 			files, _, err := a.getYamlFilesAndDirs(eachPath)
 			if err != nil {
-				log.WarnE(errors.Wrap(err, ""), fmt.Sprintf("Fail to load manifest in %s", eachPath))
+				log.WarnE(err, fmt.Sprintf("Fail to load manifest in %s", eachPath))
 				continue
 			}
 
@@ -349,8 +339,8 @@ func (a *Application) uninstallManifestRecursively() error {
 	if len(a.installManifest) > 0 {
 		err := a.client.ApplyForDelete(a.installManifest, true)
 		if err != nil {
-			fmt.Printf("error occurs when cleaning resources: %v\n", err.Error())
-			return errors.Wrap(err, err.Error())
+			log.WarnE(err, "Error occurs when cleaning resources")
+			return err
 		}
 	} else {
 		log.Warn("nothing need to be uninstalled ??")
@@ -434,10 +424,13 @@ func (a *Application) preInstall() {
 func (a *Application) cleanPreInstall() {
 	a.loadSortedPreInstallManifest()
 	if len(a.sortedPreInstallManifest) > 0 {
+		log.Debug("Cleaning up pre-install jobs...")
 		err := a.client.ApplyForDelete(a.sortedPreInstallManifest, true)
 		if err != nil {
 			log.Warnf("error occurs when cleaning pre install resources : %s\n", err.Error())
 		}
+	} else {
+		log.Debug("No pre-install job needs to clean up")
 	}
 }
 

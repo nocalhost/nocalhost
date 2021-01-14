@@ -108,8 +108,8 @@ var devStartCmd = &cobra.Command{
 		config, err := secret.GetConfigXML(newSyncthing)
 		syncSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      deployment + "-" + secret_config.SecretName,
-				Namespace: nocalhostApp.AppProfile.Namespace,
+				Name: deployment + "-" + secret_config.SecretName,
+				//Namespace: nocalhostApp.AppProfile.Namespace,
 			},
 			Type: corev1.SecretTypeOpaque,
 			Data: map[string][]byte{
@@ -137,10 +137,10 @@ var devStartCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		// set profile sync port
-		err = nocalhostApp.SetSyncthingPort(deployment, newSyncthing.RemotePort, newSyncthing.RemoteGUIPort, newSyncthing.LocalPort, newSyncthing.LocalGUIPort)
-		if err != nil {
-			log.Fatal("Failed to update \"developing\" syncthing port status\n")
-		}
+		//err = nocalhostApp.SetSyncthingPort(deployment, newSyncthing.RemotePort, newSyncthing.RemoteGUIPort, newSyncthing.LocalPort, newSyncthing.LocalGUIPort)
+		//if err != nil {
+		//	log.Fatal("Failed to update \"developing\" syncthing port status\n")
+		//}
 
 		// TODO set develop status, avoid stack in dev start and break, or it will never resume
 		err = nocalhostApp.SetDevelopingStatus(deployment, true)

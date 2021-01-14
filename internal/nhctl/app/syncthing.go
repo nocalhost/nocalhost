@@ -42,6 +42,7 @@ func (a *Application) NewSyncthing(deployment string, localSyncDir []string, syn
 		if err != nil {
 			return nil, err
 		}
+		svcProfile.RemoteSyncthingPort = remotePort
 	}
 
 	if remoteGUIPort == 0 {
@@ -49,6 +50,7 @@ func (a *Application) NewSyncthing(deployment string, localSyncDir []string, syn
 		if err != nil {
 			return nil, err
 		}
+		svcProfile.RemoteSyncthingGUIPort = remoteGUIPort
 	}
 
 	if localGuiPort == 0 {
@@ -56,6 +58,7 @@ func (a *Application) NewSyncthing(deployment string, localSyncDir []string, syn
 		if err != nil {
 			return nil, err
 		}
+		svcProfile.LocalSyncthingGUIPort = localGuiPort
 	}
 
 	if localListenPort == 0 {
@@ -63,6 +66,7 @@ func (a *Application) NewSyncthing(deployment string, localSyncDir []string, syn
 		if err != nil {
 			return nil, err
 		}
+		svcProfile.LocalSyncthingPort = localListenPort
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(syncthing.Nocalhost), 0)
@@ -125,6 +129,8 @@ func (a *Application) NewSyncthing(deployment string, localSyncDir []string, syn
 			index++
 		}
 	}
+
+	_ = a.SaveProfile()
 
 	return s, nil
 }
