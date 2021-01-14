@@ -17,10 +17,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"regexp"
 )
 
-// AdminPermissionMiddleware
-func AdminPermissionMiddleware() gin.HandlerFunc {
+// PermissionMiddleware
+func PermissionMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		isAdmin, err := c.Get("isAdmin")
 		if !err {
@@ -28,11 +29,34 @@ func AdminPermissionMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		if isAdmin.(uint64) != 1 {
+		if isAdmin.(uint64) != 1 && !checkAccessPermission(c.Request.Method, c.Request.RequestURI) {
 			api.SendResponse(c, errno.ErrPermissionDenied, nil)
 			c.Abort()
 			return
 		}
 		c.Next()
 	}
+}
+
+func checkAccessPermission(method, path string) bool {
+	permissions := map[string]string{
+		"/v1/me":                          "GET",
+		"/v1/users/[0-9]+":                "PUT",
+		"/v1/users/[0-9]+/dev_space_list": "GET",
+		"/v1/dev_space/[0-9]+/detail":     "GET",
+		"/v1/dev_space/[0-9]+/recreate":   "POST",
+		"/v1/application/[0-9]+":          "GET",
+		"/v1/plugin/[0-9]+/recreate":      "POST",
+		"/v1/plugin/dev_space":            "GET",
+		"/v1/plugin/application/[0-9]+/dev_space/[0-9]+/plugin_sync": "PUT",
+	}
+
+	for reg, med := range permissions {
+		match, _ := regexp.MatchString(reg, path)
+		if match && med == method {
+			return true
+		}
+	}
+
+	return false
 }
