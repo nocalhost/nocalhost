@@ -18,7 +18,7 @@ log:
   #log_backup_count: 7             # When the log file reaches the rollover standard, the log system will call the log file for compressed backup, where the maximum number of backup files is specified.
 mysql:
   name: nocalhost
-  addr: 9.134.234.206:3306
+  addr: 127.0.0.1:3306
   username: root
   password: root
   show_log: true                  # Print SQL log
