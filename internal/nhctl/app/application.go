@@ -117,6 +117,10 @@ func NewApplication(name string) (*Application, error) {
 	return app, nil
 }
 
+func (a *Application) GetClient() *clientgoutils.ClientGoUtils {
+	return a.client
+}
+
 func (a *Application) ReadBeforeWriteProfile() error {
 	profile, err := NewAppProfile(a.getProfilePath())
 	if err != nil {
@@ -125,42 +129,6 @@ func (a *Application) ReadBeforeWriteProfile() error {
 	a.AppProfile = profile
 	return nil
 }
-
-// Init ClientGoUtils by kubeconfig
-// If namespace is nil, use namespace defined in kubeconfig
-//func (a *Application) initClient(kubeconfig string, namespace string) error {
-// check if kubernetes is available
-//var err error
-//a.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace)
-//if err != nil {
-//return err
-//}
-//if namespace == "" {
-//	namespace, err = a.client.GetDefaultNamespace()
-//	if err != nil {
-//		return err
-//	}
-//}
-//
-//// save application info
-//a.AppProfile.Namespace = namespace
-//a.AppProfile.Kubeconfig = kubeconfig
-//err = a.AppProfile.Save()
-//if err != nil {
-//	log.Error("fail to save nocalhostApp profile")
-//}
-//return err
-//}
-
-// Load svcConfig to profile while installing
-//func (a *Application) LoadSvcConfigsToProfile() {
-//	a.LoadConfig()
-//	if len(a.config.SvcConfigs) > 0 {
-//		for _, svcConfig := range a.config.SvcConfigs {
-//			a.loadConfigToSvcProfile(svcConfig.Name, Deployment)
-//		}
-//	}
-//}
 
 func (a *Application) InitProfile(profile *AppProfile) {
 	if profile != nil {
@@ -507,12 +475,12 @@ func (a *Application) SaveSvcConfig(svcName string, config *ServiceDevOptions) e
 	if svcPro != nil {
 		svcPro.ServiceDevOptions = config
 	}
-	fmt.Printf("%+v\n", svcPro.ServiceDevOptions)
-	if len(svcPro.ServiceDevOptions.PersistentVolumeDirs) > 0 {
-		for _, pvc := range svcPro.ServiceDevOptions.PersistentVolumeDirs {
-			fmt.Printf("+%v\n", pvc)
-		}
-	}
+	//fmt.Printf("%+v\n", svcPro.ServiceDevOptions)
+	//if len(svcPro.ServiceDevOptions.PersistentVolumeDirs) > 0 {
+	//	for _, pvc := range svcPro.ServiceDevOptions.PersistentVolumeDirs {
+	//		fmt.Printf("+%v\n", pvc)
+	//	}
+	//}
 	return a.AppProfile.Save()
 }
 
@@ -609,7 +577,7 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 		coloredoutput.Fail("Failed to roll revision back")
 	} else {
 		// Wait until workload ready
-		err = a.client.WaitDeploymentLatestRevisionToBeReady(svcName)
+		err = a.client.WaitLatestRevisionReplicaSetOfDeploymentToBeReady(svcName)
 		if err != nil {
 			return err
 		} else {
@@ -984,10 +952,9 @@ func (a *Application) GetPodsFromDeployment(deployment string) (*corev1.PodList,
 	return a.client.GetPodsFromDeployment(deployment)
 }
 
-func (a *Application) WaitAndGetNocalhostDevContainerPod(deployment string) (podName string, err error) {
+func (a *Application) GetNocalhostDevContainerPod(deployment string) (podName string, err error) {
 	checkPodsList, err := a.GetPodsFromDeployment(deployment)
 	if err != nil {
-		log.Fatalf("get nocalhost dev container fail when file sync err %s", err.Error())
 		return "", err
 	}
 	found := false

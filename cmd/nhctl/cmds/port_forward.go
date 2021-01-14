@@ -54,22 +54,23 @@ var portForwardCmd = &cobra.Command{
 		InitAppAndCheckIfSvcExist(applicationName, deployment)
 
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
-			log.Fatalf("\"%s\" is not in DevMode", deployment)
+			log.Fatalf("Service \"%s\" is not in DevMode", deployment)
 		}
 
 		if nocalhostApp.CheckIfSvcIsPortForwarded(deployment) {
-			log.Fatalf("\"%s\" has in port forwarding", deployment)
+			log.Fatalf("Service \"%s\" is already in port-forwarding", deployment)
 		}
 
 		// look for nhctl
-		NhctlAbsdir, err := exec.LookPath(nocalhostApp.GetMyBinName())
+		nhctlAbsdir, err := exec.LookPath(nocalhostApp.GetMyBinName())
 		if err != nil {
-			log.Fatal("installing fortune is in your future")
+			log.Fatal("Nhctl not found")
 		}
 		// overwrite Args[0] as ABS directory of bin directory
-		os.Args[0] = NhctlAbsdir
+		os.Args[0] = nhctlAbsdir
 
 		if portForwardOptions.RunAsDaemon {
+			log.Infof("Running port-forward in background, parent pid is %d, ppid is %d", os.Getpid(), os.Getppid())
 			_, err := daemon.Background(nocalhostApp.GetPortForwardLogFile(deployment), nocalhostApp.GetApplicationBackGroundOnlyPortForwardPidFile(deployment), true)
 			if err != nil {
 				log.Fatalf("failed to run port-forward background, please try again")
@@ -77,26 +78,26 @@ var portForwardCmd = &cobra.Command{
 		}
 
 		// find deployment pods
-		podName, err := nocalhostApp.WaitAndGetNocalhostDevContainerPod(deployment)
+		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
 		if err != nil {
-			log.Fatalf(err.Error())
+			log.FatalE(err, "No dev container found")
 		}
 
 		// run in child process
 		if len(portForwardOptions.DevPort) == 0 {
 			// if not specify -p then use default
 			portForwardOptions.DevPort = nocalhostApp.GetDefaultDevPort(deployment)
-			fmt.Printf("get default devPort: %s \n", portForwardOptions.DevPort)
+			log.Debugf("Get default devPort: %s ", portForwardOptions.DevPort)
 		}
 		var localPorts []int
 		var remotePorts []int
 		for _, port := range portForwardOptions.DevPort {
 			// 8080:8080, :8080
 			s := strings.Split(port, ":")
-			fmt.Printf("split: %s \n", s)
+			//fmt.Printf("split: %s \n", s)
 			if len(s) < 2 {
 				// ignore wrong format
-				fmt.Printf("wrong format of dev port:%s , skipped. \n", port)
+				log.Warnf("Wrong format of dev port:%s , skipped.", port)
 				continue
 			}
 			var localPort int
@@ -105,14 +106,13 @@ var portForwardCmd = &cobra.Command{
 				// get random port in local
 				localPort, err = ports.GetAvailablePort()
 				if err != nil {
-					fmt.Printf("failed to get local port: %s \n", err)
+					log.WarnE(err, "Failed to get local port")
 					continue
 				}
-			}
-			if sLocalPort != "" {
+			} else {
 				localPort, err = strconv.Atoi(sLocalPort)
 				if err != nil {
-					fmt.Printf("wrong format of local port:%d , skipped. \n", localPort)
+					log.Warnf("Wrong format of local port:%s , skipped.", sLocalPort)
 					continue
 				}
 			}

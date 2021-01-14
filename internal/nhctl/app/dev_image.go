@@ -380,7 +380,7 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 		return err
 	}
 
-	a.client.WaitDeploymentLatestRevisionToBeReady(dep.Name)
+	a.client.WaitLatestRevisionReplicaSetOfDeploymentToBeReady(dep.Name)
 
 	// Wait podList to be ready
 	spinner := utils.NewSpinner(" Waiting pod to start...")
@@ -390,7 +390,7 @@ wait:
 	for {
 		<-time.NewTimer(time.Second * 1).C
 		// Get the latest revision
-		podList, err := a.client.ListPodsOfLatestRevisionByDeployment(dep.Name)
+		podList, err := a.client.ListLatestRevisionPodsByDeployment(dep.Name)
 		if err != nil {
 			log.WarnE(err, "Failed to get pods")
 			return err

@@ -45,6 +45,7 @@ func Background(logFile, pidFile string, isExit bool) (*exec.Cmd, error) {
 		envIdx = 0
 	}
 	if runIdx <= envIdx { // this is already a child process, exit
+		fmt.Printf("Child pid: %d, parent pid: %d\n", os.Getpid(), os.Getppid())
 		return nil, nil
 	}
 
@@ -73,6 +74,7 @@ func Background(logFile, pidFile string, isExit bool) (*exec.Cmd, error) {
 	}
 
 	if isExit {
+		fmt.Println("Parent exit")
 		os.Exit(0)
 	}
 
