@@ -118,7 +118,7 @@ func (q *ApiRequest) ExposeService() *ApiRequest {
 	}
 	cmd := exec.Command(q.Kubectl, params...)
 	cmd.Stdout = os.Stdout
-	err := q.portForwardCmd.Start()
+	err := cmd.Start()
 	if err != nil {
 		log.Fatalf("fail to port-forward expose nocalhost-web, err: %s", err)
 	}
