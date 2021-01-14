@@ -46,11 +46,13 @@ func Create(c *gin.Context) {
 		return
 	}
 	// Validate DevSpace Resource limit parameter format.
-	flag, message := ValidSpaceResourceLimit(*req.SpaceResourceLimit)
-	if !flag {
-		log.Errorf("Create devspace fail. Incorrect Resource limit parameter  [ %v ] format.", message)
-		api.SendResponse(c, errno.ErrFormatResourceLimitParam, message)
-		return
+	if req.SpaceResourceLimit != nil {
+		flag, message := ValidSpaceResourceLimit(*req.SpaceResourceLimit)
+		if !flag {
+			log.Errorf("Create devspace fail. Incorrect Resource limit parameter  [ %v ] format.", message)
+			api.SendResponse(c, errno.ErrFormatResourceLimitParam, message)
+			return
+		}
 	}
 	applicationId := cast.ToUint64(c.Param("id"))
 	req.ApplicationId = &applicationId

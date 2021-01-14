@@ -14,6 +14,7 @@ limitations under the License.
 package cluster_user
 
 import (
+	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
 	"nocalhost/internal/nocalhost-api/model"
@@ -93,16 +94,19 @@ func ReCreate(c *gin.Context) {
 		return
 	}
 
+	res := SpaceResourceLimit{}
+	json.Unmarshal([]byte(clusterUser.SpaceResourceLimit), &res)
 	// create a new dev space
 	req := ClusterUserCreateRequest{
-		ClusterId:     &clusterUser.ClusterId,
-		UserId:        &clusterUser.UserId,
-		SpaceName:     clusterUser.SpaceName,
-		Memory:        &clusterUser.Memory,
-		Cpu:           &clusterUser.Cpu,
-		ApplicationId: &clusterUser.ApplicationId,
-		NameSpace:     clusterUser.Namespace,
-		ID:            &clusterUser.ID,
+		ClusterId:          &clusterUser.ClusterId,
+		UserId:             &clusterUser.UserId,
+		SpaceName:          clusterUser.SpaceName,
+		Memory:             &clusterUser.Memory,
+		Cpu:                &clusterUser.Cpu,
+		ApplicationId:      &clusterUser.ApplicationId,
+		NameSpace:          clusterUser.Namespace,
+		ID:                 &clusterUser.ID,
+		SpaceResourceLimit: &res,
 	}
 
 	// delete devSpace space first, it will delete database record whatever success delete namespace or not

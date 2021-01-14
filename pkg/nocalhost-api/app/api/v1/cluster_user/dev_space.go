@@ -117,6 +117,10 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 
 	// create namespace ResouceQuota and container limitRange
 	res := d.DevSpaceParams.SpaceResourceLimit
+	if res == nil {
+		res = &SpaceResourceLimit{}
+	}
+
 	clusterDevsSetUp.CreateResouceQuota("rq-"+devNamespace, devNamespace, res.SpaceReqMem,
 		res.SpaceReqCpu, res.SpaceLimitsMem, res.SpaceLimitsCpu, res.SpaceStorageCapacity, res.SpaceEphemeralStorage,
 		res.SpacePvcCount, res.SpaceLbCount).CreateLimitRange("lr-"+devNamespace, devNamespace,

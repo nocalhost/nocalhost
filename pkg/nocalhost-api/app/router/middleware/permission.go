@@ -40,15 +40,11 @@ func PermissionMiddleware() gin.HandlerFunc {
 
 func checkAccessPermission(method, path string) bool {
 	permissions := map[string]string{
-		"/v1/me":                          "GET",
 		"/v1/users/[0-9]+":                "PUT",
 		"/v1/users/[0-9]+/dev_space_list": "GET",
 		"/v1/dev_space/[0-9]+/detail":     "GET",
 		"/v1/dev_space/[0-9]+/recreate":   "POST",
 		"/v1/application/[0-9]+":          "GET",
-		"/v1/plugin/[0-9]+/recreate":      "POST",
-		"/v1/plugin/dev_space":            "GET",
-		"/v1/plugin/application/[0-9]+/dev_space/[0-9]+/plugin_sync": "PUT",
 	}
 
 	for reg, med := range permissions {
