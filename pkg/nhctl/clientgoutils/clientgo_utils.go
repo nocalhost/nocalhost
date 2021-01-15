@@ -67,6 +67,8 @@ type ClientGoUtils struct {
 }
 
 type PortForwardAPodRequest struct {
+	// listenAddress
+	Listen []string
 	// Pod is the selected pod for this port forwarding
 	Pod corev1.Pod
 	// LocalPort is the local port that will be selected to expose the PodPort
@@ -504,7 +506,8 @@ func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 	}
 
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, &url.URL{Scheme: "https", Path: path, Host: hostIP})
-	fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
+	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
+	fw, err := portforward.NewOnAddresses(dialer, req.Listen, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}

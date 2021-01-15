@@ -94,6 +94,8 @@ var fileSyncCmd = &cobra.Command{
 
 		log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.GetNamespace())
 
+		listenAddress := []string{"localhost"}
+
 		// start port-forward
 
 		var wg sync.WaitGroup
@@ -122,6 +124,7 @@ var fileSyncCmd = &cobra.Command{
 		svcProfile := nocalhostApp.GetSvcProfile(deployment)
 		go func() {
 			err := nocalhostApp.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
+				Listen: listenAddress,
 				Pod: v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      podName,

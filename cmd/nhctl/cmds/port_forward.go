@@ -15,18 +15,16 @@ package cmds
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
-	"strconv"
-	"strings"
-
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/log"
-
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
 )
 
 var portForwardOptions = &app.PortForwardOptions{}
@@ -127,9 +125,11 @@ var portForwardCmd = &cobra.Command{
 		}
 		log.Infof("Ready to call dev port forward locals: %d, remotes: %d", localPorts, remotePorts)
 		// listening, it will wait until kill port forward progress
+		listenAddress := []string{"localhost"}
 		if len(localPorts) > 0 && len(remotePorts) > 0 {
-			nocalhostApp.PortForwardInBackGround(deployment, podName, localPorts, remotePorts)
+			nocalhostApp.PortForwardInBackGround(listenAddress, deployment, podName, localPorts, remotePorts)
 		}
+
 		log.Info("No need to port forward")
 	},
 }

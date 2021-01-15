@@ -16,7 +16,19 @@ package app
 import (
 	"context"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"net"
+	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/utils"
+	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/tools"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -26,19 +38,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-
-	"nocalhost/internal/nhctl/coloredoutput"
-	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/internal/nhctl/utils"
-	"nocalhost/pkg/nhctl/clientgoutils"
-	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/tools"
-
-	"gopkg.in/yaml.v3"
-	v1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -733,7 +733,7 @@ func (a *Application) GetPluginDescription(service string) string {
 }
 
 // for background port-forward
-func (a *Application) PortForwardInBackGround(deployment, podName string, localPort, remotePort []int) {
+func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPort, remotePort []int) {
 	group := len(localPort)
 	if len(localPort) != len(remotePort) {
 		log.Fatalf("dev port forward fail, please check you devPort in config\n")
@@ -769,6 +769,7 @@ func (a *Application) PortForwardInBackGround(deployment, podName string, localP
 		log.Infof("Start dev port forward local %d, remote %d", sLocalPort, remotePort[key])
 		go func() {
 			err := a.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
+				Listen: listenAddress,
 				Pod: corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      podName,
@@ -793,6 +794,21 @@ func (a *Application) PortForwardInBackGround(deployment, podName string, localP
 				_ = a.SetPortForwardedStatus(deployment, true)
 			}
 		}(&readyCh)
+
+		// send heartbeat
+		go func() {
+			for {
+				<-time.After(30 * time.Second)
+				go func() {
+					log.Info("try send port-forward heartbeat")
+					err := a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress[0], sLocalPort))
+					if err != nil {
+						log.Info("send port-forward heartbeat with err %s", err.Error())
+					}
+				}()
+			}
+		}()
+
 	}
 	log.Info("Done go routine")
 	// update profile addDevPod
@@ -815,6 +831,19 @@ func (a *Application) PortForwardInBackGround(deployment, podName string, localP
 		log.Info("Stop port forward")
 		wg.Done()
 	}
+}
+
+func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error {
+	conn, err := net.Dial("tcp", addressWithPort)
+	if err != nil {
+		log.Warnf("connect port-forward heartbeat address fail, %s", addressWithPort)
+	}
+	// GET /heartbeat HTTP/1.1
+	_, err = conn.Write([]byte("ping"))
+	if err != nil {
+		log.Warnf("send port-forward heartbeat fail, %s", err.Error())
+	}
+	return err
 }
 
 // port-forward use
