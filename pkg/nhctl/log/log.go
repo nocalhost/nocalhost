@@ -31,8 +31,6 @@ var fileEntry *zap.SugaredLogger
 var logFile string
 
 var fields = make(map[string]string, 0)
-var app string
-var svc string
 var core zapcore.Core
 
 func init() {
