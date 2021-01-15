@@ -91,10 +91,6 @@ func AddField(key, val string) {
 	refreshFileLoggerWithFields()
 }
 
-func SetApp(a string) {
-	app = a
-}
-
 func Debug(args ...interface{}) {
 	outLogger.Debug(args...)
 	if fileEntry != nil {
