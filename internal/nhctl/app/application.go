@@ -117,6 +117,10 @@ func NewApplication(name string) (*Application, error) {
 	return app, nil
 }
 
+func (a *Application) GetClient() *clientgoutils.ClientGoUtils {
+	return a.client
+}
+
 func (a *Application) ReadBeforeWriteProfile() error {
 	profile, err := NewAppProfile(a.getProfilePath())
 	if err != nil {
@@ -125,42 +129,6 @@ func (a *Application) ReadBeforeWriteProfile() error {
 	a.AppProfile = profile
 	return nil
 }
-
-// Init ClientGoUtils by kubeconfig
-// If namespace is nil, use namespace defined in kubeconfig
-//func (a *Application) initClient(kubeconfig string, namespace string) error {
-// check if kubernetes is available
-//var err error
-//a.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace)
-//if err != nil {
-//return err
-//}
-//if namespace == "" {
-//	namespace, err = a.client.GetDefaultNamespace()
-//	if err != nil {
-//		return err
-//	}
-//}
-//
-//// save application info
-//a.AppProfile.Namespace = namespace
-//a.AppProfile.Kubeconfig = kubeconfig
-//err = a.AppProfile.Save()
-//if err != nil {
-//	log.Error("fail to save nocalhostApp profile")
-//}
-//return err
-//}
-
-// Load svcConfig to profile while installing
-//func (a *Application) LoadSvcConfigsToProfile() {
-//	a.LoadConfig()
-//	if len(a.config.SvcConfigs) > 0 {
-//		for _, svcConfig := range a.config.SvcConfigs {
-//			a.loadConfigToSvcProfile(svcConfig.Name, Deployment)
-//		}
-//	}
-//}
 
 func (a *Application) InitProfile(profile *AppProfile) {
 	if profile != nil {
@@ -273,24 +241,14 @@ func (a *Application) IsManifest() bool {
 // If resource path undefined, use git url
 func (a *Application) GetResourceDir() []string {
 	var resourcePath []string
-	if a.AppProfile != nil && len(a.AppProfile.ResourcePath) != 0 {
+	if len(a.AppProfile.ResourcePath) != 0 {
 		for _, path := range a.AppProfile.ResourcePath {
 			fullPath := filepath.Join(a.getGitDir(), path)
 			resourcePath = append(resourcePath, fullPath)
 		}
 		return resourcePath
 	}
-	//if a.config != nil {
-	//if len(a.config.ResourcePath) > 0 {
-	//	for _, path := range a.config.ResourcePath {
-	//		fullPath := filepath.Join(a.getGitDir(), path)
-	//		resourcePath = append(resourcePath, fullPath)
-	//	}
-	//}
-	//return resourcePath
-	//} else {
 	return []string{a.getGitDir()}
-	//}
 }
 
 type HelmFlags struct {
@@ -312,7 +270,7 @@ func (a *Application) loadInstallManifest() {
 		for _, eachPath := range resourcePaths {
 			files, _, err := a.getYamlFilesAndDirs(eachPath)
 			if err != nil {
-				log.WarnE(errors.Wrap(err, ""), fmt.Sprintf("Fail to load manifest in %s", eachPath))
+				log.WarnE(err, fmt.Sprintf("Fail to load manifest in %s", eachPath))
 				continue
 			}
 
@@ -349,8 +307,8 @@ func (a *Application) uninstallManifestRecursively() error {
 	if len(a.installManifest) > 0 {
 		err := a.client.ApplyForDelete(a.installManifest, true)
 		if err != nil {
-			fmt.Printf("error occurs when cleaning resources: %v\n", err.Error())
-			return errors.Wrap(err, err.Error())
+			log.WarnE(err, "Error occurs when cleaning resources")
+			return err
 		}
 	} else {
 		log.Warn("nothing need to be uninstalled ??")
@@ -434,10 +392,13 @@ func (a *Application) preInstall() {
 func (a *Application) cleanPreInstall() {
 	a.loadSortedPreInstallManifest()
 	if len(a.sortedPreInstallManifest) > 0 {
+		log.Debug("Cleaning up pre-install jobs...")
 		err := a.client.ApplyForDelete(a.sortedPreInstallManifest, true)
 		if err != nil {
 			log.Warnf("error occurs when cleaning pre install resources : %s\n", err.Error())
 		}
+	} else {
+		log.Debug("No pre-install job needs to clean up")
 	}
 }
 
@@ -514,12 +475,12 @@ func (a *Application) SaveSvcConfig(svcName string, config *ServiceDevOptions) e
 	if svcPro != nil {
 		svcPro.ServiceDevOptions = config
 	}
-	fmt.Printf("%+v\n", svcPro.ServiceDevOptions)
-	if len(svcPro.ServiceDevOptions.PersistentVolumeDirs) > 0 {
-		for _, pvc := range svcPro.ServiceDevOptions.PersistentVolumeDirs {
-			fmt.Printf("+%v\n", pvc)
-		}
-	}
+	//fmt.Printf("%+v\n", svcPro.ServiceDevOptions)
+	//if len(svcPro.ServiceDevOptions.PersistentVolumeDirs) > 0 {
+	//	for _, pvc := range svcPro.ServiceDevOptions.PersistentVolumeDirs {
+	//		fmt.Printf("+%v\n", pvc)
+	//	}
+	//}
 	return a.AppProfile.Save()
 }
 
@@ -616,7 +577,7 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 		coloredoutput.Fail("Failed to roll revision back")
 	} else {
 		// Wait until workload ready
-		err = a.client.WaitDeploymentLatestRevisionToBeReady(svcName)
+		err = a.client.WaitLatestRevisionReplicaSetOfDeploymentToBeReady(svcName)
 		if err != nil {
 			return err
 		} else {
@@ -790,7 +751,7 @@ func (a *Application) GetPluginDescription(service string) string {
 }
 
 // for background port-forward
-func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce string, localPort, remotePort []int) {
+func (a *Application) PortForwardInBackGround(deployment, podName string, localPort, remotePort []int) {
 	group := len(localPort)
 	if len(localPort) != len(remotePort) {
 		log.Fatalf("dev port forward fail, please check you devPort in config\n")
@@ -823,13 +784,13 @@ func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce str
 		sLocalPort := sLocalPort
 		devPod := fmt.Sprintf("%d:%d", sLocalPort, remotePort[key])
 		addDevPod = append(addDevPod, devPod)
-		fmt.Printf("start dev port forward local %d, remote %d \n", sLocalPort, remotePort[key])
+		log.Infof("Start dev port forward local %d, remote %d", sLocalPort, remotePort[key])
 		go func() {
 			err := a.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
 				Pod: corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      podName,
-						Namespace: nameSapce,
+						Namespace: a.GetNamespace(),
 					},
 				},
 				LocalPort: sLocalPort,
@@ -838,13 +799,9 @@ func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce str
 				StopCh:    stopCh,
 				ReadyCh:   readyCh,
 			})
-			//fmt.Print("start send channel")
 			if err != nil {
-				//portForwardResultCh <- "0"
-				fmt.Printf("port-forward in background fail %s\n", err.Error())
-				//return
+				log.ErrorE(err, "Port-forward in background fail")
 			}
-			//portForwardResultCh <- fmt.Sprintf("%d:%d", sLocalPort, remotePort[key])
 		}()
 		go func(readyCh *chan struct{}) {
 			select {
@@ -855,7 +812,7 @@ func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce str
 			}
 		}(&readyCh)
 	}
-	fmt.Print("done go routine\n")
+	log.Info("Done go routine")
 	// update profile addDevPod
 	// TODO get from channel and set real port-forward status
 	//for range localPort {
@@ -873,8 +830,7 @@ func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce str
 
 	for {
 		<-sigs
-		fmt.Println("stop port forward")
-		//close(stopCh)
+		log.Info("Stop port forward")
 		wg.Done()
 	}
 }
@@ -888,7 +844,7 @@ func (a *Application) SetDevPortForward(svcName string, portList []string) error
 func (a *Application) AppendDevPortForward(svcName string, portList string) error {
 	err := a.ReadBeforeWriteProfile()
 	if err != nil {
-		log.Fatalf("refresh application profile fail")
+		return err
 	}
 	exist := a.GetSvcProfile(svcName).DevPortList
 	a.GetSvcProfile(svcName).DevPortList = append(exist, portList)
@@ -898,19 +854,6 @@ func (a *Application) AppendDevPortForward(svcName string, portList string) erro
 func (a *Application) GetDevPortForward(svcName string) []string {
 	return a.GetSvcProfile(svcName).DevPortList
 }
-
-// for syncthing use
-//func (a *Application) GetSyncthingPort(svcName string, options *FileSyncOptions) (*FileSyncOptions, error) {
-//	svcProfile := a.GetSvcProfile(svcName)
-//	if svcProfile == nil {
-//		return options, errors.New("get " + svcName + " profile fail, please reinstall application")
-//	}
-//	options.RemoteSyncthingPort = svcProfile.RemoteSyncthingPort
-//	options.RemoteSyncthingGUIPort = svcProfile.RemoteSyncthingGUIPort
-//	options.LocalSyncthingPort = svcProfile.LocalSyncthingPort
-//	options.LocalSyncthingGUIPort = svcProfile.LocalSyncthingGUIPort
-//	return options, nil
-//}
 
 func (a *Application) GetMyBinName() string {
 	if runtime.GOOS == "windows" {
@@ -991,10 +934,9 @@ func (a *Application) GetPodsFromDeployment(deployment string) (*corev1.PodList,
 	return a.client.GetPodsFromDeployment(deployment)
 }
 
-func (a *Application) WaitAndGetNocalhostDevContainerPod(deployment string) (podName string, err error) {
+func (a *Application) GetNocalhostDevContainerPod(deployment string) (podName string, err error) {
 	checkPodsList, err := a.GetPodsFromDeployment(deployment)
 	if err != nil {
-		log.Fatalf("get nocalhost dev container fail when file sync err %s", err.Error())
 		return "", err
 	}
 	found := false
@@ -1088,7 +1030,7 @@ func (a *Application) SetAppType(t AppType) error {
 func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
 	err := a.ReadBeforeWriteProfile()
 	if err != nil {
-		log.Fatalf("refresh application profile fail")
+		return err
 	}
 	a.GetSvcProfile(svcName).PortForwarded = is
 	return a.AppProfile.Save()

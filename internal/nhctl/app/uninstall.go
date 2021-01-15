@@ -30,6 +30,8 @@ func (a *Application) cleanUpDepConfigMap() error {
 		}
 		a.AppProfile.DependencyConfigMapName = ""
 		a.AppProfile.Save()
+	} else {
+		log.Debug("No dependency config map needs to clean up")
 	}
 
 	// Clean up all dep config map

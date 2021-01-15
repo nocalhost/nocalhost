@@ -24,7 +24,7 @@ import (
 // Try to use shell defined in devContainerShell to enter pod's terminal
 // If devContainerShell is not defined or shell defined in devContainerShell failed to enter terminal, use /bin/sh
 func (a *Application) EnterPodTerminal(svcName string) error {
-	podList, err := a.client.ListPodsOfLatestRevisionByDeployment(svcName)
+	podList, err := a.client.ListLatestRevisionPodsByDeployment(svcName)
 	if err != nil {
 		return err
 	}

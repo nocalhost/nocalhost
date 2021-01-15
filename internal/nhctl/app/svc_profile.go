@@ -16,12 +16,9 @@ package app
 type SvcProfile struct {
 	*ServiceDevOptions `yaml:"rawConfig"`
 	ActualName         string `json:"actual_name" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
-	//Type           SvcType             `json:"type" yaml:"type"`
-	//SshPortForward *PortForwardOptions `json:"ssh_port_forward" yaml:"sshPortForward,omitempty"`
-	Developing    bool `json:"developing" yaml:"developing"`
-	PortForwarded bool `json:"port_forwarded" yaml:"portForwarded"`
-	Syncing       bool `json:"syncing" yaml:"syncing"`
-	//WorkDir       string `json:"work_dir" yaml:"workDir"`
+	Developing         bool   `json:"developing" yaml:"developing"`
+	PortForwarded      bool   `json:"port_forwarded" yaml:"portForwarded"`
+	Syncing            bool   `json:"syncing" yaml:"syncing"`
 	// same as local available port, use for port-forward
 	RemoteSyncthingPort int `json:"remoteSyncthingPort" yaml:"remoteSyncthingPort"`
 	// same as local available port, use for port-forward

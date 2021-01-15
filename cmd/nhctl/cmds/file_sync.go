@@ -29,7 +29,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 )
 
 var fileSyncOps = &app.FileSyncOptions{}
@@ -67,9 +66,6 @@ var fileSyncCmd = &cobra.Command{
 			log.Fatalf("Service \"%s\" is already in syncing", deployment)
 		}
 
-		// get dev-start stage record free pod so it do not need get free port again
-		//var devStartOptions = &app.DevStartOptions{}
-
 		// syncthing port-forward
 		// daemon
 		// set abs directory to call myself
@@ -77,22 +73,6 @@ var fileSyncCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal("installing fortune is in your future")
 		}
-
-		// Reconfirm whether devcontainer is ready
-		pod := ""
-		//for {
-		<-time.NewTimer(time.Second * 1).C
-		pod, err = nocalhostApp.WaitAndGetNocalhostDevContainerPod(deployment)
-		if err != nil {
-			log.Fatal(err)
-		}
-		//else {
-		//break
-		//}
-		//log.Infof("wait for sidecar ready")
-		//}
-
-		log.Infof("Syncthing port-forward pod %s, namespace %s", pod, nocalhostApp.GetNamespace())
 
 		// overwrite Args[0] as ABS directory of bin directory
 		os.Args[0] = nhctlAbsDir
@@ -107,9 +87,9 @@ var fileSyncCmd = &cobra.Command{
 			// success write pid file and exit father progress, stay child progress run
 		}
 
-		podName, err := nocalhostApp.WaitAndGetNocalhostDevContainerPod(deployment)
+		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
 		if err != nil {
-			log.Fatalf(err.Error())
+			log.FatalE(err, "No dev container found")
 		}
 
 		log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.GetNamespace())
@@ -165,13 +145,6 @@ var fileSyncCmd = &cobra.Command{
 			break
 		}
 		log.Info("Port forwarding is ready to get traffic!")
-
-		// Deprecated for multi dir sync
-		// On latest version, it only use for specify the sync dir
-		//devStartOptions, err = nocalhostApp.GetSyncthingLocalDirFromProfileSaveByDevStart(deployment, devStartOptions)
-		//if err != nil {
-		//	log.Fatalf("failed to get syncthing local dir")
-		//}
 
 		// Getting pattern from svc profile first
 		profile := nocalhostApp.GetSvcProfile(deployment)
