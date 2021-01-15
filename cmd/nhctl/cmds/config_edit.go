@@ -64,7 +64,7 @@ var configEditCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("fail to unmarshal content: %s", err.Error())
 		}
-		err = nocalhostApp.SaveSvcConfig(configEditFlags.SvcName, svcConfig)
+		err = nocalhostApp.SaveSvcProfile(configEditFlags.SvcName, svcConfig)
 		if err != nil {
 			log.FatalE(err, "fail to save svc config")
 		}

@@ -448,39 +448,21 @@ func (a *Application) GetSvcConfig(svcName string) *ServiceDevOptions {
 	return nil
 }
 
-func (a *Application) SaveSvcConfig(svcName string, config *ServiceDevOptions) error {
-	//err := a.LoadConfig() // load the latest version config
-	//if err != nil {
-	//	return err
-	//}
-	//if a.GetSvcConfig(svcName) == nil {
-	//	if len(a.Config.SvcConfigs) == 0 {
-	//		a.Config.SvcConfigs = make([]*ServiceDevOptions, 0)
-	//	}
-	//	a.Config.SvcConfigs = append(a.Config.SvcConfigs, config)
-	//} else {
-	//	for index, svcConfig := range a.Config.SvcConfigs {
-	//		if svcConfig.Name == svcName {
-	//			a.Config.SvcConfigs[index] = config
-	//		}
-	//	}
-	//}
-	//
-	//err = a.SaveConfig()
-	//if err != nil {
-	//	return err
-	//}
+func (a *Application) SaveSvcProfile(svcName string, config *ServiceDevOptions) error {
 
 	svcPro := a.GetSvcProfile(svcName)
 	if svcPro != nil {
+		config.Name = svcName
 		svcPro.ServiceDevOptions = config
+	} else {
+		config.Name = svcName
+		svcPro = &SvcProfile{
+			ServiceDevOptions: config,
+			ActualName:        svcName,
+		}
+		a.AppProfile.SvcProfile = append(a.AppProfile.SvcProfile, svcPro)
 	}
-	//fmt.Printf("%+v\n", svcPro.ServiceDevOptions)
-	//if len(svcPro.ServiceDevOptions.PersistentVolumeDirs) > 0 {
-	//	for _, pvc := range svcPro.ServiceDevOptions.PersistentVolumeDirs {
-	//		fmt.Printf("+%v\n", pvc)
-	//	}
-	//}
+
 	return a.AppProfile.Save()
 }
 
