@@ -150,7 +150,7 @@ func (q *ApiRequest) IdleThePortForwardIfNeeded() error {
 				"And if you kill this process the port-forward will be terminated \n"+
 				"You can use the command \n" +
 				" 	'%s' \n" +
-				" 	to access nocalhost-web when you want to access the nocalhost-web next time",
+				"  when you want to access the nocalhost-web next time",
 
 			"kubectl port-forward service/nocalhost-web "+":"+strconv.Itoa(q.NocalhostWebPort)+" -n"+q.NameSpace,
 		)
