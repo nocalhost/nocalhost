@@ -260,15 +260,15 @@ func (a *Application) generateResourceRequirementsForDevContainer(svcName string
 
 	svcProfile := a.GetSvcProfile(svcName)
 	resourceQuota := svcProfile.DevContainerResources
-	defaultResourceQuota := &ResourceQuota{}
-	defaultResourceQuota.Limits = &QuotaList{
-		Memory: "1Gi",
-		Cpu:    "500m",
-	}
-	defaultResourceQuota.Requests = &QuotaList{
-		Memory: "100Mi",
-		Cpu:    "100m",
-	}
+	//defaultResourceQuota := &ResourceQuota{}
+	//defaultResourceQuota.Limits = &QuotaList{
+	//	Memory: "1Gi",
+	//	Cpu:    "500m",
+	//}
+	//defaultResourceQuota.Requests = &QuotaList{
+	//	Memory: "100Mi",
+	//	Cpu:    "100m",
+	//}
 
 	var requirements *corev1.ResourceRequirements
 	if resourceQuota != nil {
@@ -278,13 +278,14 @@ func (a *Application) generateResourceRequirementsForDevContainer(svcName string
 			log.WarnE(err, "Failed to parse resource requirements")
 		}
 	}
-	if requirements == nil {
-		log.Debug("DevContainer uses default resource limits")
-		requirements, err = convertResourceQuotaToResourceRequirements(defaultResourceQuota)
-		if err != nil {
-			log.WarnE(err, "Failed to parse resource requirements")
-		}
-	}
+
+	//if requirements == nil {
+	//	log.Debug("DevContainer uses default resource limits")
+	//	requirements, err = convertResourceQuotaToResourceRequirements(defaultResourceQuota)
+	//	if err != nil {
+	//		log.WarnE(err, "Failed to parse resource requirements")
+	//	}
+	//}
 	return requirements
 }
 
@@ -358,8 +359,10 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, devModeMounts...)
 
 	requirements := a.generateResourceRequirementsForDevContainer(svcName)
-	devContainer.Resources = *requirements
-	sideCarContainer.Resources = *requirements
+	if requirements != nil {
+		devContainer.Resources = *requirements
+		sideCarContainer.Resources = *requirements
+	}
 
 	// delete user's SecurityContext
 	dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
