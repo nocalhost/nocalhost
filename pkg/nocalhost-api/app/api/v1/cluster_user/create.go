@@ -66,20 +66,22 @@ func Create(c *gin.Context) {
 }
 
 func ValidSpaceResourceLimit(resLimit SpaceResourceLimit) (bool, string) {
-	reg, _ := regexp.Compile("^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$")
+	regMem, _ := regexp.Compile("^([+-]?[0-9.]+)Mi$")
+	regCpu, _ := regexp.Compile("^([+-]?[0-9.]+)$")
+	regStorage, _ := regexp.Compile("^([+-]?[0-9.]+)Gi$")
 	numReg, _ := regexp.Compile("^([+-]?[0-9]+)$")
 
 	var message []string
-	if resLimit.SpaceReqMem != "" && !reg.MatchString(resLimit.SpaceReqMem) {
+	if resLimit.SpaceReqMem != "" && !regMem.MatchString(resLimit.SpaceReqMem) {
 		message = append(message, "space_req_mem")
 	}
-	if resLimit.SpaceLimitsMem != "" && !reg.MatchString(resLimit.SpaceLimitsMem) {
+	if resLimit.SpaceLimitsMem != "" && !regMem.MatchString(resLimit.SpaceLimitsMem) {
 		message = append(message, "space_limits_mem")
 	}
-	if resLimit.SpaceReqCpu != "" && !reg.MatchString(resLimit.SpaceReqCpu) {
+	if resLimit.SpaceReqCpu != "" && !regCpu.MatchString(resLimit.SpaceReqCpu) {
 		message = append(message, "space_req_cpu")
 	}
-	if resLimit.SpaceLimitsCpu != "" && !reg.MatchString(resLimit.SpaceLimitsCpu) {
+	if resLimit.SpaceLimitsCpu != "" && !regCpu.MatchString(resLimit.SpaceLimitsCpu) {
 		message = append(message, "space_limits_cpu")
 	}
 	if resLimit.SpaceLbCount > 0 && !numReg.MatchString(strconv.Itoa(resLimit.SpaceLbCount)) {
@@ -88,25 +90,25 @@ func ValidSpaceResourceLimit(resLimit SpaceResourceLimit) (bool, string) {
 	if resLimit.SpacePvcCount > 0 && !numReg.MatchString(strconv.Itoa(resLimit.SpacePvcCount)) {
 		message = append(message, "space_pvc_count")
 	}
-	if resLimit.SpaceStorageCapacity != "" && !reg.MatchString(resLimit.SpaceStorageCapacity) {
+	if resLimit.SpaceStorageCapacity != "" && !regStorage.MatchString(resLimit.SpaceStorageCapacity) {
 		message = append(message, "space_storage_capacity")
 	}
-	if resLimit.SpaceEphemeralStorage != "" && !reg.MatchString(resLimit.SpaceEphemeralStorage) {
+	if resLimit.SpaceEphemeralStorage != "" && !regStorage.MatchString(resLimit.SpaceEphemeralStorage) {
 		message = append(message, "space_ephemeral_storage")
 	}
-	if resLimit.ContainerReqCpu != "" && !reg.MatchString(resLimit.ContainerReqCpu) {
-		message = append(message, "container_req_cpu")
+	if resLimit.ContainerReqMem != "" && !regMem.MatchString(resLimit.ContainerReqMem) {
+		message = append(message, "container_req_mem")
 	}
-	if resLimit.ContainerReqCpu != "" && !reg.MatchString(resLimit.ContainerReqCpu) {
-		message = append(message, "container_req_cpu")
-	}
-	if resLimit.ContainerLimitsMem != "" && !reg.MatchString(resLimit.ContainerLimitsMem) {
+	if resLimit.ContainerLimitsMem != "" && !regMem.MatchString(resLimit.ContainerLimitsMem) {
 		message = append(message, "container_limits_mem")
 	}
-	if resLimit.ContainerLimitsCpu != "" && !reg.MatchString(resLimit.ContainerLimitsCpu) {
+	if resLimit.ContainerReqCpu != "" && !regCpu.MatchString(resLimit.ContainerReqCpu) {
+		message = append(message, "container_req_cpu")
+	}
+	if resLimit.ContainerLimitsCpu != "" && !regCpu.MatchString(resLimit.ContainerLimitsCpu) {
 		message = append(message, "container_limits_cpu")
 	}
-	if resLimit.ContainerEphemeralStorage != "" && !reg.MatchString(resLimit.ContainerEphemeralStorage) {
+	if resLimit.ContainerEphemeralStorage != "" && !regStorage.MatchString(resLimit.ContainerEphemeralStorage) {
 		message = append(message, "container_ephemeral_storage")
 	}
 	if len(message) > 0 {
