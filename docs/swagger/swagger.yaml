@@ -1,3 +1,4 @@
+basePath: '{{.BasePath}}'
 definitions:
   api.Response:
     properties:
@@ -80,6 +81,9 @@ definitions:
         type: string
       space_name:
         type: string
+      space_resource_limit:
+        $ref: '#/definitions/cluster_user.SpaceResourceLimit'
+        type: object
       user_id:
         type: integer
     required:
@@ -89,6 +93,35 @@ definitions:
   cluster_user.DevSpaceRequest:
     properties:
       kubeconfig:
+        type: string
+    type: object
+  cluster_user.SpaceResourceLimit:
+    properties:
+      container_ephemeral_storage:
+        type: string
+      container_limits_cpu:
+        type: string
+      container_limits_mem:
+        type: string
+      container_req_cpu:
+        type: string
+      container_req_mem:
+        type: string
+      space_ephemeral_storage:
+        type: string
+      space_lb_count:
+        type: integer
+      space_limits_cpu:
+        type: string
+      space_limits_mem:
+        type: string
+      space_pvc_count:
+        type: integer
+      space_req_cpu:
+        type: string
+      space_req_mem:
+        type: string
+      space_storage_capacity:
         type: string
     type: object
   model.ApplicationClusterModel:
@@ -159,6 +192,35 @@ definitions:
     - kubeconfig
     - name
     type: object
+  model.ClusterUserJoinClusterAndAppAndUser:
+    properties:
+      application_id:
+        type: integer
+      application_name:
+        type: string
+      cluster_id:
+        type: integer
+      cluster_name:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      kubeconfig:
+        type: string
+      namespace:
+        type: string
+      space_name:
+        type: string
+      space_resource_limit:
+        type: string
+      status:
+        type: integer
+      user_id:
+        type: integer
+      user_name:
+        type: string
+    type: object
   model.ClusterUserModel:
     properties:
       application_id:
@@ -178,6 +240,8 @@ definitions:
       namespace:
         type: string
       space_name:
+        type: string
+      space_resource_limit:
         type: string
       status:
         type: integer
@@ -314,13 +378,16 @@ definitions:
         type: string
       status:
         type: integer
-    required:
-    - is_admin
-    - status
     type: object
+host: '{{.Host}}'
 info:
-  contact: {}
+  contact:
+    name: wangwei
+    url: codingcorp.coding.net
+  description: Nocalhost server api
   license: {}
+  title: Nocalhost docs api
+  version: "1.0"
 paths:
   /v1/application:
     get:
@@ -649,45 +716,6 @@ paths:
       summary: Get the details of a development environment of the application
       tags:
       - Application
-  /v1/application/{id}/dev_space/{spaceId}/plugin_sync:
-    put:
-      consumes:
-      - application/json
-      description: Plug-in Update app installation status
-      parameters:
-      - description: Authorization
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: Application ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: DevSpace ID
-        in: path
-        name: spaceId
-        required: true
-        type: integer
-      - description: The application update info
-        in: body
-        name: CreateAppRequest
-        required: true
-        schema:
-          $ref: '#/definitions/applications.UpdateApplicationInstallRequest'
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: '{"code":0,"message":"OK","data":null}'
-          schema:
-            $ref: '#/definitions/api.Response'
-            type: object
-      summary: Plug-in Update app installation status
-      tags:
-      - Plug-in
   /v1/application/{id}/dev_space_list:
     get:
       consumes:
@@ -1030,6 +1058,34 @@ paths:
       summary: Update dev space
       tags:
       - Cluster
+  /v1/dev_space/{id}/detail:
+    get:
+      consumes:
+      - application/json
+      description: Get dev space detail from application
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: DevSpace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Application development environment parameters, including kubeconfig,
+            status=0 application not installed, 1 installed
+          schema:
+            $ref: '#/definitions/model.ClusterUserJoinClusterAndAppAndUser'
+            type: object
+      summary: Get the details of a development environment of the application
+      tags:
+      - Application
   /v1/dev_space/{id}/recreate:
     post:
       consumes:
@@ -1147,6 +1203,45 @@ paths:
             $ref: '#/definitions/model.ClusterModel'
             type: object
       summary: Plugin ReCreate devSpace
+      tags:
+      - Plug-in
+  /v1/plugin/application/{id}/dev_space/{spaceId}/plugin_sync:
+    put:
+      consumes:
+      - application/json
+      description: Plug-in Update app installation status
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: DevSpace ID
+        in: path
+        name: spaceId
+        required: true
+        type: integer
+      - description: The application update info
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/applications.UpdateApplicationInstallRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: Plug-in Update app installation status
       tags:
       - Plug-in
   /v1/plugin/applications:
@@ -1326,6 +1421,34 @@ paths:
       summary: Update user information (including disabled users)
       tags:
       - Users
+  /v1/users/{id}/dev_space_list:
+    get:
+      consumes:
+      - application/json
+      description: Get application dev space list
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Application development environment parameters, including kubeconfig,
+            status=0 application not installed, 1 installed
+          schema:
+            $ref: '#/definitions/model.ClusterUserJoinClusterAndAppAndUser'
+            type: object
+      summary: Get a list of application development environments
+      tags:
+      - Application
   /v1/version:
     get:
       consumes:
@@ -1341,3 +1464,4 @@ paths:
       summary: Get api server version
       tags:
       - Version
+swagger: "2.0"

@@ -16,7 +16,13 @@ package app
 import (
 	"context"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"net"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
@@ -32,12 +38,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-
-	"gopkg.in/yaml.v3"
-	v1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -91,26 +92,6 @@ type SvcDependency struct {
 	Pods []string `json:"pods" yaml:"pods,omitempty"`
 }
 
-// build a new application
-func BuildApplication(name string) (*Application, error) {
-
-	app := &Application{
-		Name: name,
-	}
-
-	err := app.InitDir()
-	if err != nil {
-		return nil, err
-	}
-
-	profile, err := NewAppProfile(app.getProfilePath())
-	if err != nil {
-		return nil, err
-	}
-	app.AppProfile = profile
-	return app, nil
-}
-
 func NewApplication(name string) (*Application, error) {
 	app := &Application{
 		Name: name,
@@ -127,13 +108,17 @@ func NewApplication(name string) (*Application, error) {
 	}
 	app.AppProfile = profile
 
-	//app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), DefaultClientGoTimeOut)
-	err = app.InitClient(app.GetKubeconfig(), app.GetNamespace())
+	app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), app.GetNamespace())
+	//err = app.initClient(app.GetKubeconfig(), app.GetNamespace())
 	if err != nil {
 		return nil, err
 	}
 
 	return app, nil
+}
+
+func (a *Application) GetClient() *clientgoutils.ClientGoUtils {
+	return a.client
 }
 
 func (a *Application) ReadBeforeWriteProfile() error {
@@ -142,101 +127,6 @@ func (a *Application) ReadBeforeWriteProfile() error {
 		return err
 	}
 	a.AppProfile = profile
-	return nil
-}
-
-// if namespace is nil, use namespace defined in kubeconfig
-func (a *Application) InitClient(kubeconfig string, namespace string) error {
-	// check if kubernetes is available
-	var err error
-	a.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace)
-	if err != nil {
-		return err
-	}
-	if namespace == "" {
-		namespace, err = a.client.GetDefaultNamespace()
-		if err != nil {
-			return err
-		}
-	}
-
-	// save application info
-	a.AppProfile.Namespace = namespace
-	a.AppProfile.Kubeconfig = kubeconfig
-	err = a.AppProfile.Save()
-	if err != nil {
-		log.Error("fail to save nocalhostApp profile")
-	}
-	return err
-}
-
-func (a *Application) InitDir() error {
-	var err error
-	err = os.MkdirAll(a.GetHomeDir(), DefaultNewFilePermission)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	err = os.MkdirAll(a.getGitDir(), DefaultNewFilePermission)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	err = os.MkdirAll(a.getConfigDir(), DefaultNewFilePermission)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	err = ioutil.WriteFile(a.getProfilePath(), []byte(""), DefaultNewFilePermission)
-	return errors.Wrap(err, "")
-}
-
-// Load svcConfig to profile while installing
-func (a *Application) LoadSvcConfigsToProfile() {
-	a.LoadConfig()
-	if len(a.config.SvcConfigs) > 0 {
-		for _, svcConfig := range a.config.SvcConfigs {
-			a.LoadConfigToSvcProfile(svcConfig.Name, Deployment)
-		}
-	}
-}
-
-func (a *Application) InitConfig(outerConfigPath string, configName string) error {
-
-	configFile := outerConfigPath
-
-	// Read from .nocalhost
-	if configFile == "" {
-		_, err := os.Stat(a.getConfigPathInGitResourcesDir(configName))
-		if err != nil {
-			if os.IsNotExist(err) {
-				return errors.New(fmt.Sprintf("Nocalhost config %s not found. Please check if there is a file:\"%s\" under .nocalhost directory in your git repository", a.getConfigPathInGitResourcesDir(configName), configName))
-			}
-			return errors.Wrap(err, "")
-		}
-		configFile = a.getConfigPathInGitResourcesDir(configName)
-	}
-
-	// Generate config.yaml
-	// config.yaml may come from .nocalhost in git or a outer config file in local absolute path
-	rbytes, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		return errors.New(fmt.Sprintf("fail to load configFile : %s", configFile))
-	}
-	err = ioutil.WriteFile(a.GetConfigPath(), rbytes, DefaultNewFilePermission) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
-	if err != nil {
-		return errors.New(fmt.Sprintf("fail to create configFile : %s", configFile))
-	}
-	err = a.LoadConfig()
-	if err != nil {
-		return err
-	}
-
-	if a.config == nil {
-		return errors.New("Nocalhost config incorrect")
-	}
-
-	a.AppProfile.AppType = a.config.Type
-	a.AppProfile.ResourcePath = a.config.ResourcePath
 	return nil
 }
 
@@ -282,7 +172,11 @@ func (a *Application) SaveConfig() error {
 	return nil
 }
 
-func (a *Application) DownloadResourcesFromGit(gitUrl string, gitRef string) error {
+func (a *Application) SaveProfile() error {
+	return a.AppProfile.Save()
+}
+
+func (a *Application) downloadResourcesFromGit(gitUrl string, gitRef string) error {
 	var (
 		err        error
 		gitDirName string
@@ -347,24 +241,14 @@ func (a *Application) IsManifest() bool {
 // If resource path undefined, use git url
 func (a *Application) GetResourceDir() []string {
 	var resourcePath []string
-	if a.AppProfile != nil && len(a.AppProfile.ResourcePath) != 0 {
+	if len(a.AppProfile.ResourcePath) != 0 {
 		for _, path := range a.AppProfile.ResourcePath {
 			fullPath := filepath.Join(a.getGitDir(), path)
 			resourcePath = append(resourcePath, fullPath)
 		}
 		return resourcePath
 	}
-	//if a.config != nil {
-	//if len(a.config.ResourcePath) > 0 {
-	//	for _, path := range a.config.ResourcePath {
-	//		fullPath := filepath.Join(a.getGitDir(), path)
-	//		resourcePath = append(resourcePath, fullPath)
-	//	}
-	//}
-	//return resourcePath
-	//} else {
 	return []string{a.getGitDir()}
-	//}
 }
 
 type HelmFlags struct {
@@ -386,7 +270,7 @@ func (a *Application) loadInstallManifest() {
 		for _, eachPath := range resourcePaths {
 			files, _, err := a.getYamlFilesAndDirs(eachPath)
 			if err != nil {
-				log.WarnE(errors.Wrap(err, ""), fmt.Sprintf("Fail to load manifest in %s", eachPath))
+				log.WarnE(err, fmt.Sprintf("Fail to load manifest in %s", eachPath))
 				continue
 			}
 
@@ -423,8 +307,8 @@ func (a *Application) uninstallManifestRecursively() error {
 	if len(a.installManifest) > 0 {
 		err := a.client.ApplyForDelete(a.installManifest, true)
 		if err != nil {
-			fmt.Printf("error occurs when cleaning resources: %v\n", err.Error())
-			return errors.Wrap(err, err.Error())
+			log.WarnE(err, "Error occurs when cleaning resources")
+			return err
 		}
 	} else {
 		log.Warn("nothing need to be uninstalled ??")
@@ -508,10 +392,13 @@ func (a *Application) preInstall() {
 func (a *Application) cleanPreInstall() {
 	a.loadSortedPreInstallManifest()
 	if len(a.sortedPreInstallManifest) > 0 {
+		log.Debug("Cleaning up pre-install jobs...")
 		err := a.client.ApplyForDelete(a.sortedPreInstallManifest, true)
 		if err != nil {
 			log.Warnf("error occurs when cleaning pre install resources : %s\n", err.Error())
 		}
+	} else {
+		log.Debug("No pre-install job needs to clean up")
 	}
 }
 
@@ -561,39 +448,21 @@ func (a *Application) GetSvcConfig(svcName string) *ServiceDevOptions {
 	return nil
 }
 
-func (a *Application) SaveSvcConfig(svcName string, config *ServiceDevOptions) error {
-	//err := a.LoadConfig() // load the latest version config
-	//if err != nil {
-	//	return err
-	//}
-	//if a.GetSvcConfig(svcName) == nil {
-	//	if len(a.Config.SvcConfigs) == 0 {
-	//		a.Config.SvcConfigs = make([]*ServiceDevOptions, 0)
-	//	}
-	//	a.Config.SvcConfigs = append(a.Config.SvcConfigs, config)
-	//} else {
-	//	for index, svcConfig := range a.Config.SvcConfigs {
-	//		if svcConfig.Name == svcName {
-	//			a.Config.SvcConfigs[index] = config
-	//		}
-	//	}
-	//}
-	//
-	//err = a.SaveConfig()
-	//if err != nil {
-	//	return err
-	//}
+func (a *Application) SaveSvcProfile(svcName string, config *ServiceDevOptions) error {
 
 	svcPro := a.GetSvcProfile(svcName)
 	if svcPro != nil {
+		config.Name = svcName
 		svcPro.ServiceDevOptions = config
-	}
-	fmt.Printf("%+v\n", svcPro.ServiceDevOptions)
-	if len(svcPro.ServiceDevOptions.PersistentVolumeDirs) > 0 {
-		for _, pvc := range svcPro.ServiceDevOptions.PersistentVolumeDirs {
-			fmt.Printf("+%v\n", pvc)
+	} else {
+		config.Name = svcName
+		svcPro = &SvcProfile{
+			ServiceDevOptions: config,
+			ActualName:        svcName,
 		}
+		a.AppProfile.SvcProfile = append(a.AppProfile.SvcProfile, svcPro)
 	}
+
 	return a.AppProfile.Save()
 }
 
@@ -690,7 +559,7 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 		coloredoutput.Fail("Failed to roll revision back")
 	} else {
 		// Wait until workload ready
-		err = a.client.WaitDeploymentLatestRevisionToBeReady(svcName)
+		err = a.client.WaitLatestRevisionReplicaSetOfDeploymentToBeReady(svcName)
 		if err != nil {
 			return err
 		} else {
@@ -705,41 +574,6 @@ type PortForwardOptions struct {
 	Pid         int      `json:"pid" yaml:"pid"`
 	DevPort     []string // 8080:8080 or :8080 means random localPort
 	RunAsDaemon bool
-}
-
-// svcName use actual name
-// used in installing
-func (a *Application) LoadConfigToSvcProfile(svcName string, svcType SvcType) {
-	if a.AppProfile.SvcProfile == nil {
-		a.AppProfile.SvcProfile = make([]*SvcProfile, 0)
-	}
-
-	svcProfile := &SvcProfile{
-		ActualName: svcName,
-		//Type:       svcType,
-	}
-
-	// find svc config
-	svcConfig := a.GetSvcConfig(svcName)
-	if svcConfig == nil && len(a.AppProfile.ReleaseName) > 0 {
-		if strings.HasPrefix(svcName, fmt.Sprintf("%s-", a.AppProfile.ReleaseName)) {
-			name := strings.TrimPrefix(svcName, fmt.Sprintf("%s-", a.AppProfile.ReleaseName))
-			svcConfig = a.GetSvcConfig(name) // support releaseName-svcName
-		}
-	}
-
-	svcProfile.ServiceDevOptions = svcConfig
-
-	// If svcProfile already exists, updating it
-	for index, svc := range a.AppProfile.SvcProfile {
-		if svc.ActualName == svcName {
-			a.AppProfile.SvcProfile[index] = svcProfile
-			return
-		}
-	}
-
-	// If svcProfile already exists, create one
-	a.AppProfile.SvcProfile = append(a.AppProfile.SvcProfile, svcProfile)
 }
 
 func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error) {
@@ -899,7 +733,7 @@ func (a *Application) GetPluginDescription(service string) string {
 }
 
 // for background port-forward
-func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce string, localPort, remotePort []int) {
+func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPort, remotePort []int) {
 	group := len(localPort)
 	if len(localPort) != len(remotePort) {
 		log.Fatalf("dev port forward fail, please check you devPort in config\n")
@@ -932,13 +766,14 @@ func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce str
 		sLocalPort := sLocalPort
 		devPod := fmt.Sprintf("%d:%d", sLocalPort, remotePort[key])
 		addDevPod = append(addDevPod, devPod)
-		fmt.Printf("start dev port forward local %d, remote %d \n", sLocalPort, remotePort[key])
+		log.Infof("Start dev port forward local %d, remote %d", sLocalPort, remotePort[key])
 		go func() {
 			err := a.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
+				Listen: listenAddress,
 				Pod: corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      podName,
-						Namespace: nameSapce,
+						Namespace: a.GetNamespace(),
 					},
 				},
 				LocalPort: sLocalPort,
@@ -947,13 +782,9 @@ func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce str
 				StopCh:    stopCh,
 				ReadyCh:   readyCh,
 			})
-			//fmt.Print("start send channel")
 			if err != nil {
-				//portForwardResultCh <- "0"
-				fmt.Printf("port-forward in background fail %s\n", err.Error())
-				//return
+				log.ErrorE(err, "Port-forward in background fail")
 			}
-			//portForwardResultCh <- fmt.Sprintf("%d:%d", sLocalPort, remotePort[key])
 		}()
 		go func(readyCh *chan struct{}) {
 			select {
@@ -963,8 +794,23 @@ func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce str
 				_ = a.SetPortForwardedStatus(deployment, true)
 			}
 		}(&readyCh)
+
+		// send heartbeat
+		go func() {
+			for {
+				<-time.After(30 * time.Second)
+				go func() {
+					log.Info("try send port-forward heartbeat")
+					err := a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress[0], sLocalPort))
+					if err != nil {
+						log.Info("send port-forward heartbeat with err %s", err.Error())
+					}
+				}()
+			}
+		}()
+
 	}
-	fmt.Print("done go routine\n")
+	log.Info("Done go routine")
 	// update profile addDevPod
 	// TODO get from channel and set real port-forward status
 	//for range localPort {
@@ -982,10 +828,22 @@ func (a *Application) PortForwardInBackGround(deployment, podName, nameSapce str
 
 	for {
 		<-sigs
-		fmt.Println("stop port forward")
-		//close(stopCh)
+		log.Info("Stop port forward")
 		wg.Done()
 	}
+}
+
+func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error {
+	conn, err := net.Dial("tcp", addressWithPort)
+	if err != nil {
+		log.Warnf("connect port-forward heartbeat address fail, %s", addressWithPort)
+	}
+	// GET /heartbeat HTTP/1.1
+	_, err = conn.Write([]byte("ping"))
+	if err != nil {
+		log.Warnf("send port-forward heartbeat fail, %s", err.Error())
+	}
+	return err
 }
 
 // port-forward use
@@ -997,7 +855,7 @@ func (a *Application) SetDevPortForward(svcName string, portList []string) error
 func (a *Application) AppendDevPortForward(svcName string, portList string) error {
 	err := a.ReadBeforeWriteProfile()
 	if err != nil {
-		log.Fatalf("refresh application profile fail")
+		return err
 	}
 	exist := a.GetSvcProfile(svcName).DevPortList
 	a.GetSvcProfile(svcName).DevPortList = append(exist, portList)
@@ -1007,19 +865,6 @@ func (a *Application) AppendDevPortForward(svcName string, portList string) erro
 func (a *Application) GetDevPortForward(svcName string) []string {
 	return a.GetSvcProfile(svcName).DevPortList
 }
-
-// for syncthing use
-//func (a *Application) GetSyncthingPort(svcName string, options *FileSyncOptions) (*FileSyncOptions, error) {
-//	svcProfile := a.GetSvcProfile(svcName)
-//	if svcProfile == nil {
-//		return options, errors.New("get " + svcName + " profile fail, please reinstall application")
-//	}
-//	options.RemoteSyncthingPort = svcProfile.RemoteSyncthingPort
-//	options.RemoteSyncthingGUIPort = svcProfile.RemoteSyncthingGUIPort
-//	options.LocalSyncthingPort = svcProfile.LocalSyncthingPort
-//	options.LocalSyncthingGUIPort = svcProfile.LocalSyncthingGUIPort
-//	return options, nil
-//}
 
 func (a *Application) GetMyBinName() string {
 	if runtime.GOOS == "windows" {
@@ -1100,10 +945,9 @@ func (a *Application) GetPodsFromDeployment(deployment string) (*corev1.PodList,
 	return a.client.GetPodsFromDeployment(deployment)
 }
 
-func (a *Application) WaitAndGetNocalhostDevContainerPod(deployment string) (podName string, err error) {
+func (a *Application) GetNocalhostDevContainerPod(deployment string) (podName string, err error) {
 	checkPodsList, err := a.GetPodsFromDeployment(deployment)
 	if err != nil {
-		log.Fatalf("get nocalhost dev container fail when file sync err %s", err.Error())
 		return "", err
 	}
 	found := false
@@ -1179,12 +1023,10 @@ func (a *Application) SetLocalSyncthingGUIPort(svcName string, port int) error {
 	return a.AppProfile.Save()
 }
 
-func (a *Application) SetLocalAbsoluteSyncDirFromDevStartPlugin(svcName string, syncDir []string) error {
-	a.GetSvcProfile(svcName).LocalAbsoluteSyncDirFromDevStartPlugin = syncDir
-	return a.AppProfile.Save()
-}
-
-// end syncthing here
+//func (a *Application) SetLocalAbsoluteSyncDirFromDevStartPlugin(svcName string, syncDir []string) error {
+//	a.GetSvcProfile(svcName).LocalAbsoluteSyncDirFromDevStartPlugin = syncDir
+//	return a.AppProfile.Save()
+//}
 
 func (a *Application) SetDevelopingStatus(svcName string, is bool) error {
 	a.GetSvcProfile(svcName).Developing = is
@@ -1199,7 +1041,7 @@ func (a *Application) SetAppType(t AppType) error {
 func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
 	err := a.ReadBeforeWriteProfile()
 	if err != nil {
-		log.Fatalf("refresh application profile fail")
+		return err
 	}
 	a.GetSvcProfile(svcName).PortForwarded = is
 	return a.AppProfile.Save()

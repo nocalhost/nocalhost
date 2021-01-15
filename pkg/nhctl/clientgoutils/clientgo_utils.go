@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"nocalhost/internal/nhctl/utils"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -34,7 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
@@ -67,6 +67,8 @@ type ClientGoUtils struct {
 }
 
 type PortForwardAPodRequest struct {
+	// listenAddress
+	Listen []string
 	// Pod is the selected pod for this port forwarding
 	Pod corev1.Pod
 	// LocalPort is the local port that will be selected to expose the PodPort
@@ -82,18 +84,16 @@ type PortForwardAPodRequest struct {
 }
 
 // If namespace is not specified, use namespace defined in kubeconfig
+// If namespace is not specified and can not get from kubeconfig, ClientGoUtils can not be created, and an error will be returned
 func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, error) {
 	var (
 		err error
 	)
 
 	if kubeConfigPath == "" { // use default config
-		kubeConfigPath = filepath.Join(getHomePath(), ".kube", "config")
+		kubeConfigPath = filepath.Join(utils.GetHomePath(), ".kube", "config")
 	}
 
-	//if timeout <= 0 {
-	//	timeout = time.Minute * 5
-	//}
 	client := &ClientGoUtils{
 		kubeConfigFilePath: kubeConfigPath,
 		namespace:          namespace,
@@ -352,7 +352,6 @@ func (c *ClientGoUtils) ListPodsOfDeployment(deployName string) ([]corev1.Pod, e
 
 	podList, err := podClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		//fmt.Printf("failed to get pods, err: %v\n", err)
 		return nil, errors.Wrap(err, "")
 	}
 
@@ -382,7 +381,7 @@ OuterLoop:
 	return result, nil
 }
 
-func (c *ClientGoUtils) ListPodsOfLatestRevisionByDeployment(deployName string) ([]corev1.Pod, error) {
+func (c *ClientGoUtils) ListLatestRevisionPodsByDeployment(deployName string) ([]corev1.Pod, error) {
 	podClient := c.GetPodClient()
 
 	podList, err := podClient.List(c.ctx, metav1.ListOptions{})
@@ -429,16 +428,11 @@ OuterLoop:
 			if ref.Kind != "ReplicaSet" {
 				continue
 			}
-			//rss, _ := c.GetReplicaSetsControlledByDeployment(context.TODO(), namespace, deployName)
-			//if rss == nil {
-			//	continue
-			//}
-			//for _, rs := range rss {
+
 			if latestRevisionReplicasets.Name == ref.Name {
 				result = append(result, pod)
 				continue OuterLoop
 			}
-			//}
 		}
 	}
 	return result, nil
@@ -462,86 +456,6 @@ func (c *ClientGoUtils) GetSortedReplicaSetsByDeployment(deployment string) ([]*
 		results = append(results, rss[key])
 	}
 	return results, nil
-}
-func (c *ClientGoUtils) WaitDeploymentLatestRevisionToBeReady(name string) error {
-	//time.Sleep(2 * time.Second)
-	// Find the latest revision
-	//replicaSets, err := c.GetReplicaSetsControlledByDeployment(ctx, namespace, name)
-	//if err != nil {
-	//	log.WarnE(err, "Failed to get replica sets")
-	//	return err
-	//}
-	//revisions := make([]int, 0)
-	//for _, rs := range replicaSets {
-	//	if rs.Annotations["deployment.kubernetes.io/revision"] != "" {
-	//		r, _ := strconv.Atoi(rs.Annotations["deployment.kubernetes.io/revision"])
-	//		revisions = append(revisions, r)
-	//	}
-	//}
-	//
-	//sort.Ints(revisions)
-	//
-	//latestRevision := revisions[len(revisions)-1]
-	//
-	//log.Debugf("Waiting %s rolling back to revision %d...", name, latestRevision)
-
-	for {
-		time.Sleep(2 * time.Second)
-		replicaSets, err := c.GetReplicaSetsControlledByDeployment(name)
-		if err != nil {
-			log.WarnE(err, "Failed to get replica sets")
-			return err
-		}
-
-		revisions := make([]int, 0)
-		for _, rs := range replicaSets {
-			if rs.Annotations["deployment.kubernetes.io/revision"] != "" {
-				r, _ := strconv.Atoi(rs.Annotations["deployment.kubernetes.io/revision"])
-				revisions = append(revisions, r)
-			}
-		}
-		sort.Ints(revisions)
-		latestRevision := revisions[len(revisions)-1]
-
-		isReady := true
-		for _, rs := range replicaSets {
-			if rs.Annotations["deployment.kubernetes.io/revision"] == strconv.Itoa(latestRevision) {
-				continue
-			}
-			if rs.Status.Replicas != 0 {
-				log.Infof("Previous replicaSet %s has not been terminated, waiting revision %d to be ready", rs.Name, latestRevision)
-				isReady = false
-				break
-			}
-		}
-		if isReady {
-			return nil
-		}
-	}
-}
-
-func (c *ClientGoUtils) GetReplicaSetsControlledByDeployment(deploymentName string) (map[int]*v1.ReplicaSet, error) {
-	var rsList *v1.ReplicaSetList
-	replicaSetsClient := c.ClientSet.AppsV1().ReplicaSets(c.namespace)
-	rsList, err := replicaSetsClient.List(c.ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, errors.Wrap(err, "")
-	}
-
-	rsMap := make(map[int]*v1.ReplicaSet)
-	for _, item := range rsList.Items {
-		if item.OwnerReferences == nil {
-			continue
-		}
-		for _, owner := range item.OwnerReferences {
-			if owner.Name == deploymentName && item.Annotations["deployment.kubernetes.io/revision"] != "" {
-				if revision, err := strconv.Atoi(item.Annotations["deployment.kubernetes.io/revision"]); err == nil {
-					rsMap[revision] = item.DeepCopy()
-				}
-			}
-		}
-	}
-	return rsMap, nil
 }
 
 func waitForJob(obj runtime.Object, name string) (bool, error) {
@@ -577,25 +491,12 @@ func (c *ClientGoUtils) DeleteSecret(name string) error {
 	return c.ClientSet.CoreV1().Secrets(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{})
 }
 
-func (c *ClientGoUtils) GetPodsFromDeployment(name string) (*corev1.PodList, error) {
-	deployment, err := c.ClientSet.AppsV1().Deployments(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
-	if err != nil {
-		log.Fatalf("deployment not found")
-	}
-	set := labels.Set(deployment.Spec.Selector.MatchLabels)
-	pods, err := c.ClientSet.CoreV1().Pods(c.namespace).List(c.ctx, metav1.ListOptions{LabelSelector: set.AsSelector().String()})
-	if err != nil {
-		log.Fatalf("can not found pod under deployment %s", name)
-	}
-	return pods, nil
-}
-
 func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward",
 		req.Pod.Namespace, req.Pod.Name)
 	clientConfig, err := c.ClientConfig.ClientConfig()
 	if err != nil {
-		log.Fatalf("get go client config fail, please check you kubeconfig")
+		return errors.Wrap(err, "")
 	}
 	hostIP := strings.TrimLeft(clientConfig.Host, "https://")
 
@@ -605,7 +506,8 @@ func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 	}
 
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, &url.URL{Scheme: "https", Path: path, Host: hostIP})
-	fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
+	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
+	fw, err := portforward.NewOnAddresses(dialer, req.Listen, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}

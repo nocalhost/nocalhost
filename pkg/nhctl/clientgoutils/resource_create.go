@@ -15,12 +15,8 @@ package clientgoutils
 
 import (
 	"fmt"
-	"io"
-	"net/url"
-	"os"
-
 	"github.com/pkg/errors"
-
+	"io"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,13 +27,12 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/term"
+	"net/url"
+	"os"
+	"strings"
 
 	"nocalhost/pkg/nhctl/log"
 )
-
-//func (c *ClientGoUtils) ExecBash(namespace string, podName string, containerName string) error {
-//	return c.Exec(namespace, podName, containerName, []string{"sh", "-c", "clear; (bash || ash ||  sh)"})
-//}
 
 func (c *ClientGoUtils) ExecShell(podName string, containerName string, shell string) error {
 	return c.Exec(podName, containerName, []string{"sh", "-c", fmt.Sprintf("clear; %s", shell)})
@@ -143,8 +138,8 @@ func (c *ClientGoUtils) ApplyForDelete(files []string, continueOnError bool) err
 type applyAction string
 
 const (
-	Delete applyAction = "delete"
-	Create applyAction = "create"
+	Delete applyAction = "Delete"
+	Create applyAction = "Create"
 )
 
 func (c *ClientGoUtils) apply(files []string, continueOnError bool, action applyAction) error {
@@ -159,7 +154,7 @@ func (c *ClientGoUtils) apply(files []string, continueOnError bool, action apply
 		if continueOnError {
 			log.Warnf("build validator err:", err.Error())
 		} else {
-			return err
+			return errors.Wrap(err, "")
 		}
 	}
 	filenames := resource.FilenameOptions{
@@ -184,7 +179,7 @@ func (c *ClientGoUtils) apply(files []string, continueOnError bool, action apply
 		if continueOnError {
 			log.WarnE(err, "error occurs in results")
 		} else {
-			return result.Err()
+			return errors.Wrap(result.Err(), "")
 		}
 	}
 
@@ -193,14 +188,15 @@ func (c *ClientGoUtils) apply(files []string, continueOnError bool, action apply
 		if continueOnError {
 			log.WarnE(err, "error occurs in results")
 		} else {
-			return err
+			return errors.Wrap(err, "")
 		}
 	}
 
 	if len(infos) == 0 {
 		return errors.New("no result info")
 	}
-	//fmt.Printf("infos len %d \n", len(infos))
+
+	log.Infof("%s %d resources", action, len(infos))
 	for _, info := range infos {
 		helper := resource.NewHelper(info.Client, info.Mapping)
 		var obj runtime.Object
@@ -214,16 +210,16 @@ func (c *ClientGoUtils) apply(files []string, continueOnError bool, action apply
 		}
 		if err != nil {
 			if continueOnError {
-				log.Warnf("fail to %s manifest: %s", action, err.Error())
+				log.WarnE(err, fmt.Sprintf("Failed to %s manifest", strings.ToLower(string(action))))
 				continue
 			}
 			return errors.Wrap(err, "")
 		}
 		info.Refresh(obj, true)
 		if action == Create {
-			fmt.Printf("Resource(%s) %s %s\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, "created")
+			log.Infof("Resource(%s) %s %s\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, "created")
 		} else if action == Delete {
-			fmt.Printf("Resource(%s) %s %s\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, "deleted")
+			log.Infof("Resource(%s) %s %s\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, "deleted")
 		}
 	}
 	return nil

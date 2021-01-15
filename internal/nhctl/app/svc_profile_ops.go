@@ -38,9 +38,9 @@ func (a *Application) CheckIfSvcIsPortForwarded(svcName string) bool {
 }
 
 func (a *Application) GetSvcProfile(svcName string) *SvcProfile {
-	if a.AppProfile == nil {
-		return nil
-	}
+	//if a.AppProfile == nil {
+	//	return nil
+	//}
 	if a.AppProfile.SvcProfile == nil {
 		return nil
 	}

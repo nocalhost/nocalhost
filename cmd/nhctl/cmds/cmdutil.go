@@ -23,12 +23,13 @@ func InitApp(appName string) {
 	var err error
 
 	if !nocalhost.CheckIfApplicationExist(appName) {
-		log.Fatalf("application \"%s\" not found", appName)
+		log.Fatalf("Application \"%s\" not found", appName)
 	}
 	nocalhostApp, err = app.NewApplication(appName)
 	if err != nil {
-		log.Fatal("failed to get application info")
+		log.Fatal("Failed to get application info")
 	}
+	log.AddField("APP", nocalhostApp.Name)
 }
 
 func CheckIfSvcExist(svcName string) {
@@ -42,6 +43,7 @@ func CheckIfSvcExist(svcName string) {
 	} else if !exist {
 		log.Fatalf("\"%s\" not found", svcName)
 	}
+	log.AddField("SVC", svcName)
 }
 
 func InitAppAndCheckIfSvcExist(appName string, svcName string) {

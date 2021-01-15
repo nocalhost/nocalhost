@@ -281,8 +281,8 @@ var InitCommand = &cobra.Command{
 		}
 
 		// set default cluster, application, users
-		req := request.NewReq(fmt.Sprintf("http://%s", endPoint), settings.KubeConfig, kubectl, inits.NameSpace, inits.Port)
-		kubeResult := req.CheckIfMiniKube().Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).GetKubeConfig().AddBookInfoApplication(source).AddCluster().AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).AddDevSpace()
+		req := request.NewReq(fmt.Sprintf("http://%s", endPoint), settings.KubeConfig, kubectl, inits.NameSpace, inits.Port).Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).GetKubeConfig().AddBookInfoApplication(source).AddCluster().AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).AddDevSpace()
+
 		// should inject batch user
 		if inits.InjectUserTemplate != "" && inits.InjectUserAmount > 0 {
 			_ = req.SetInjectBatchUserTemplate(inits.InjectUserTemplate).InjectBatchDevSpace(inits.InjectUserAmount, inits.InjectUserAmountOffset)
@@ -300,19 +300,6 @@ var InitCommand = &cobra.Command{
 		setDepComponentDockerImage(kubectl, settings.KubeConfig)
 
 		spinner.Stop()
-		serverURL := ""
-		port := 0
-		if kubeResult.Minikube {
-			// use default DefaultInitMiniKubePortForwardPort port-forward
-			//portResult := req.GetAvailableRandomLocalPort()
-			port = app.DefaultInitMiniKubePortForwardPort
-			if !req.CheckPortIsAvailable(app.DefaultInitMiniKubePortForwardPort) {
-				port = req.GetAvailableRandomLocalPort().MiniKubeAvailablePort
-			}
-			serverURL = fmt.Sprintf("http://%s:%d", "127.0.0.1", port)
-		} else {
-			serverURL = fmt.Sprintf("http://%s", endPoint)
-		}
 
 		coloredoutput.Success(
 			"Nocalhost init completed. \n\n"+
@@ -325,18 +312,17 @@ var InitCommand = &cobra.Command{
 				" Username: %s \n"+
 				" Password: %s \n\n"+
 				" Now, you can setup VSCode plugin and enjoy Nocalhost! \n",
-			serverURL,
+			req.BaseUrl,
 			app.DefaultInitUserEmail,
 			app.DefaultInitPassword,
-			serverURL,
+			req.BaseUrl,
 			app.DefaultInitAdminUserName,
 			app.DefaultInitAdminPassWord,
 		)
 
-		if kubeResult.Minikube {
-			coloredoutput.Information("port forwarding, please do not close this windows! \n")
-			// if DefaultInitMiniKubePortForwardPort can not use, it will return available port
-			req.RunPortForward(port)
+		err = req.IdleThePortForwardIfNeeded()
+		if err != nil {
+			log.Fatal(err)
 		}
 	},
 }

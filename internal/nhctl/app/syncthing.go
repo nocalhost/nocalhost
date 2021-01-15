@@ -28,48 +28,21 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartOptions, fileSyncOptions *FileSyncOptions) (*syncthing.Syncthing, error) {
+func (a *Application) NewSyncthing(deployment string, localSyncDir []string, syncDouble bool) (*syncthing.Syncthing, error) {
 	var err error
 
-	// for file-sync, it should directly use ports defined in .profile.yaml
-	//remotePort := fileSyncOptions.RemoteSyncthingPort
-	//remoteGUIPort := fileSyncOptions.RemoteSyncthingGUIPort
-	//localListenPort := fileSyncOptions.LocalSyncthingPort
-	//localGuiPort := fileSyncOptions.LocalSyncthingGUIPort
 	svcProfile := a.GetSvcProfile(deployment)
 	remotePort := svcProfile.RemoteSyncthingPort
 	remoteGUIPort := svcProfile.RemoteSyncthingGUIPort
 	localListenPort := svcProfile.LocalSyncthingPort
 	localGuiPort := svcProfile.LocalSyncthingGUIPort
 
-	// for dev-start(work dir is not nil), it should take some local available port
-	//if devStartOptions.WorkDir != "" {
-	//	remotePort, err = ports.GetAvailablePort()
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//
-	//	remoteGUIPort, err = ports.GetAvailablePort()
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//
-	//	localGuiPort, err = ports.GetAvailablePort()
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//
-	//	localListenPort, err = ports.GetAvailablePort()
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//}
-
 	if remotePort == 0 {
 		remotePort, err = ports.GetAvailablePort()
 		if err != nil {
 			return nil, err
 		}
+		svcProfile.RemoteSyncthingPort = remotePort
 	}
 
 	if remoteGUIPort == 0 {
@@ -77,6 +50,7 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 		if err != nil {
 			return nil, err
 		}
+		svcProfile.RemoteSyncthingGUIPort = remoteGUIPort
 	}
 
 	if localGuiPort == 0 {
@@ -84,6 +58,7 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 		if err != nil {
 			return nil, err
 		}
+		svcProfile.LocalSyncthingGUIPort = localGuiPort
 	}
 
 	if localListenPort == 0 {
@@ -91,6 +66,7 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 		if err != nil {
 			return nil, err
 		}
+		svcProfile.LocalSyncthingPort = localListenPort
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(syncthing.Nocalhost), 0)
@@ -99,7 +75,7 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 		hash = []byte("")
 	}
 	sendMode := syncthing.DefaultSyncMode
-	if !fileSyncOptions.SyncDouble {
+	if !syncDouble {
 		sendMode = syncthing.SendOnlySyncMode
 	}
 	s := &syncthing.Syncthing{
@@ -128,9 +104,6 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 		Folders:          []*syncthing.Folder{},
 		RescanInterval:   "300",
 
-		// from nhctl config edit
-		//SyncedPattern:  fileSyncOptions.SyncedPattern,
-		//IgnoredPattern: fileSyncOptions.IgnoredPattern,
 		SyncedPattern:  svcProfile.SyncedPattern,
 		IgnoredPattern: svcProfile.IgnoredPattern,
 	}
@@ -138,8 +111,8 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 	// TODO, warn: multi local sync dir is Deprecated, now it's implement by IgnoreFiles
 	// before creating syncthing sidecar, it need to know how many directories it should sync
 	index := 1
-	for _, sync := range devStartOptions.LocalSyncDir {
-		result, err := syncthing.IsSubPathFolder(sync, devStartOptions.LocalSyncDir)
+	for _, sync := range localSyncDir {
+		result, err := syncthing.IsSubPathFolder(sync, localSyncDir)
 		// TODO considering continue on err
 		if err != nil {
 			return nil, err
@@ -157,6 +130,8 @@ func (a *Application) NewSyncthing(deployment string, devStartOptions *DevStartO
 		}
 	}
 
+	_ = a.SaveProfile()
+
 	return s, nil
 }
 
@@ -169,9 +144,7 @@ func (a *Application) CreateSyncThingSecret(svcName string, syncSecret *corev1.S
 	}
 	sc, err := a.client.CreateSecret(syncSecret, metav1.CreateOptions{})
 	if err != nil {
-		// TODO check configmap first, and end dev should delete that secret
 		return err
-		//log.Fatalf("create syncthing secret fail, please try to manual delete %s secret first", syncthing.SyncSecretName)
 	}
 
 	svcPro := a.GetSvcProfile(svcName)

@@ -92,3 +92,58 @@ func GetDevSpaceDetail(c *gin.Context) {
 	}
 	api.SendResponse(c, nil, result)
 }
+
+// @Summary Get a list of application development environments
+// @Description Get application dev space list
+// @Tags Application
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path string true "User ID"
+// @Success 200 {object} model.ClusterUserJoinClusterAndAppAndUser "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed"
+// @Router /v1/users/{id}/dev_space_list [get]
+func GetJoinClusterAndAppAndUser(c *gin.Context) {
+	userId := cast.ToUint64(c.Param("id"))
+	isAdmin, _ := c.Get("isAdmin")
+	if isAdmin.(uint64) != 1 {
+		userIdCtxt, _ := c.Get("userId")
+		userId = cast.ToUint64(userIdCtxt)
+	}
+	condition := model.ClusterUserJoinClusterAndAppAndUser{
+		UserId: userId,
+	}
+	result, err := service.Svc.ClusterUser().GetJoinClusterAndAppAndUser(c, condition)
+	if err != nil {
+		api.SendResponse(c, nil, nil)
+		return
+	}
+	api.SendResponse(c, nil, result)
+}
+
+// @Summary Get the details of a development environment of the application
+// @Description Get dev space detail from application
+// @Tags Application
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path string true "DevSpace ID"
+// @Success 200 {object} model.ClusterUserJoinClusterAndAppAndUser "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed"
+// @Router /v1/dev_space/{id}/detail [get]
+func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
+	condition := model.ClusterUserJoinClusterAndAppAndUser{
+		ID: cast.ToUint64(c.Param("id")),
+	}
+
+	isAdmin, _ := c.Get("isAdmin")
+	if isAdmin.(uint64) != 1 {
+		userIdCtxt, _ := c.Get("userId")
+		condition.UserId = cast.ToUint64(userIdCtxt)
+	}
+
+	result, err := service.Svc.ClusterUser().GetJoinClusterAndAppAndUserDetail(c, condition)
+	if err != nil {
+		api.SendResponse(c, nil, nil)
+		return
+	}
+	api.SendResponse(c, nil, result)
+}

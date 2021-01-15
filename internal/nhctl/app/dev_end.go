@@ -27,35 +27,29 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 	var err error
 	fileSyncOps := &FileSyncOptions{}
 	devStartOptions := &DevStartOptions{}
-	// get ports recorded in dev-start stage, so we don't need to get available ports again
-	//fileSyncOps, err = a.GetSyncthingPort(svcName, fileSyncOps)
-	//if err != nil {
-	//	log.Warnf("fail to get syncthing port. error message: %s \n", err.Error())
-	//	return err
-	//}
 
-	newSyncthing, err := a.NewSyncthing(svcName, devStartOptions, fileSyncOps)
+	newSyncthing, err := a.NewSyncthing(svcName, devStartOptions.LocalSyncDir, fileSyncOps.SyncDouble)
 	if err != nil {
-		log.Warnf("fail to start syncthing process: %s", err.Error())
+		log.Warnf("Failed to start syncthing process: %s", err.Error())
 		return err
 	}
 
 	// read and clean up pid file
 	portForwardPid, portForwardFilePath, err := a.GetBackgroundSyncPortForwardPid(svcName, false)
 	if err != nil {
-		log.Warn("fail to get background port-forward pid file, ignored")
+		log.Warn("Failed to get background port-forward pid file, ignored")
 	}
 	if portForwardPid != 0 {
 		err = newSyncthing.Stop(portForwardPid, portForwardFilePath, "port-forward", true)
 		if err != nil {
-			log.Warnf("fail stop port-forward progress pid %d, please run `kill -9 %d` by manual, err: %s\n", portForwardPid, portForwardPid, err)
+			log.Warnf("Failed stop port-forward progress pid %d, please run `kill -9 %d` by manual, err: %s\n", portForwardPid, portForwardPid, err)
 		}
 	}
 
 	// read and clean up pid file
 	syncthingPid, syncThingPath, err := a.GetBackgroundSyncThingPid(svcName, false)
 	if err != nil {
-		log.Warn("failed to get background syncthing pid file, ignored")
+		log.Warn("Failed to get background syncthing pid file, ignored")
 	}
 	if syncthingPid != 0 {
 		err = newSyncthing.Stop(syncthingPid, syncThingPath, "syncthing", true)
@@ -64,7 +58,7 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 				// in windows, it will raise a "Access is denied" err when killing progress, so we can ignore this err
 				fmt.Printf("attempt to terminate syncthing process(pid: %d), you can run `tasklist | findstr %d` to make sure process was exited\n", portForwardPid, portForwardPid)
 			} else {
-				log.Warnf("failed to terminate syncthing process(pid: %d), please run `kill -9 %d` manually, err: %s\n", portForwardPid, portForwardPid, err)
+				log.Warnf("Failed to terminate syncthing process(pid: %d), please run `kill -9 %d` manually, err: %s\n", portForwardPid, portForwardPid, err)
 			}
 		}
 	}
@@ -76,12 +70,12 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 	// end dev port background port forward process
 	onlyPortForwardPid, onlyPortForwardFilePath, err := a.GetBackgroundOnlyPortForwardPid(svcName, false)
 	if err != nil {
-		fmt.Println("no dev port-forward pid file found, ignored.")
+		log.Info("No dev port-forward pid file found, ignored.")
 	}
 	if onlyPortForwardPid != 0 {
 		err = newSyncthing.Stop(onlyPortForwardPid, onlyPortForwardFilePath, "port-forward", true)
 		if err != nil {
-			fmt.Printf("[info] failed to terminate dev port-forward process(pid %d), please run `kill -9 %d` manually\n", onlyPortForwardPid, onlyPortForwardPid)
+			log.Infof("Failed to terminate dev port-forward process(pid %d), please run `kill -9 %d` manually", onlyPortForwardPid, onlyPortForwardPid)
 		}
 	}
 

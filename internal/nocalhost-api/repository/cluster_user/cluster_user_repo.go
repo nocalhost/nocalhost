@@ -15,10 +15,10 @@ package cluster_user
 
 import (
 	"context"
-	"nocalhost/internal/nocalhost-api/model"
-
+	"encoding/json"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
+	"nocalhost/internal/nocalhost-api/model"
 )
 
 type ClusterUserRepo interface {
@@ -31,6 +31,8 @@ type ClusterUserRepo interface {
 	GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error)
 	Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
 	UpdateKubeConfig(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
+	GetJoinClusterAndAppAndUser(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) ([]*model.ClusterUserJoinClusterAndAppAndUser, error)
+	GetJoinClusterAndAppAndUserDetail(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) (*model.ClusterUserJoinClusterAndAppAndUser, error)
 	Close()
 }
 
@@ -85,7 +87,6 @@ func (repo *clusterUserRepo) Delete(ctx context.Context, id uint64) error {
 func (repo *clusterUserRepo) Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error) {
 	where := model.ClusterUserModel{
 		ApplicationId: models.ApplicationId,
-		ID:            models.ID,
 		UserId:        models.UserId,
 	}
 	_, err := repo.GetFirst(ctx, where)
@@ -93,11 +94,11 @@ func (repo *clusterUserRepo) Update(ctx context.Context, models *model.ClusterUs
 		return models, errors.Wrap(err, "[clsuter_user_repo] get clsuter_user denied")
 	}
 	emptyModel := model.ClusterUserModel{}
-	affectRow := repo.db.Model(&emptyModel).Update(models).RowsAffected
+	affectRow := repo.db.Model(&emptyModel).Where("id=?", models.ID).Update(models).RowsAffected
 	if affectRow > 0 {
 		return models, nil
 	}
-	return models, errors.Wrap(err, "[clsuter_user_repo] update clsuter_user err")
+	return models, errors.New("update dev space err")
 }
 
 func (repo *clusterUserRepo) GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error) {
@@ -125,6 +126,44 @@ func (repo *clusterUserRepo) Create(ctx context.Context, model model.ClusterUser
 	}
 
 	return model, nil
+}
+
+func (repo *clusterUserRepo) GetJoinClusterAndAppAndUser(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) ([]*model.ClusterUserJoinClusterAndAppAndUser, error) {
+	var result []*model.ClusterUserJoinClusterAndAppAndUser
+	sqlResult := repo.db.Table("clusters_users as cluster_user_join_cluster_and_app_and_users").Select("cluster_user_join_cluster_and_app_and_users.id ,cluster_user_join_cluster_and_app_and_users.application_id,a.context as application_name, cluster_user_join_cluster_and_app_and_users.user_id, u.name as user_name, cluster_user_join_cluster_and_app_and_users.cluster_id, c.name as cluster_name,cluster_user_join_cluster_and_app_and_users.namespace,cluster_user_join_cluster_and_app_and_users.space_name,cluster_user_join_cluster_and_app_and_users.kubeconfig,cluster_user_join_cluster_and_app_and_users.space_resource_limit,cluster_user_join_cluster_and_app_and_users.status,cluster_user_join_cluster_and_app_and_users.created_at").Joins("left join users as u on cluster_user_join_cluster_and_app_and_users.user_id=u.id").Joins("left join applications as a on cluster_user_join_cluster_and_app_and_users.application_id=a.id").Joins("left join clusters as c on cluster_user_join_cluster_and_app_and_users.cluster_id=c.id").Where(condition).Scan(&result)
+	if sqlResult.Error != nil {
+		return result, sqlResult.Error
+	}
+
+	for index := range result {
+		var app = struct {
+			ApplicationName string `json:"application_name"`
+		}{}
+		err := json.Unmarshal([]byte(result[index].ApplicationName), &app)
+		if err != nil {
+			return result, err
+		}
+		result[index].ApplicationName = app.ApplicationName
+	}
+	return result, nil
+}
+
+func (repo *clusterUserRepo) GetJoinClusterAndAppAndUserDetail(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) (*model.ClusterUserJoinClusterAndAppAndUser, error) {
+	result := model.ClusterUserJoinClusterAndAppAndUser{}
+	sqlResult := repo.db.Table("clusters_users as cluster_user_join_cluster_and_app_and_users").Select("cluster_user_join_cluster_and_app_and_users.id ,cluster_user_join_cluster_and_app_and_users.application_id,a.context as application_name, cluster_user_join_cluster_and_app_and_users.user_id, u.name as user_name, cluster_user_join_cluster_and_app_and_users.cluster_id, c.name as cluster_name,cluster_user_join_cluster_and_app_and_users.namespace,cluster_user_join_cluster_and_app_and_users.space_name,cluster_user_join_cluster_and_app_and_users.kubeconfig,cluster_user_join_cluster_and_app_and_users.space_resource_limit,cluster_user_join_cluster_and_app_and_users.status,cluster_user_join_cluster_and_app_and_users.created_at").Joins("left join users as u on cluster_user_join_cluster_and_app_and_users.user_id=u.id").Joins("left join applications as a on cluster_user_join_cluster_and_app_and_users.application_id=a.id").Joins("left join clusters as c on cluster_user_join_cluster_and_app_and_users.cluster_id=c.id").Where(condition).Scan(&result)
+	if sqlResult.Error != nil {
+		return &result, sqlResult.Error
+	}
+	var app = struct {
+		ApplicationName string `json:"application_name"`
+	}{}
+	err := json.Unmarshal([]byte(result.ApplicationName), &app)
+	if err != nil {
+		return &result, err
+	}
+
+	result.ApplicationName = app.ApplicationName
+	return &result, nil
 }
 
 // Close close db

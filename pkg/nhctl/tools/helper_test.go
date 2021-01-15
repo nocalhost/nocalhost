@@ -19,5 +19,5 @@ import (
 )
 
 func TestExecCommand(t *testing.T) {
-	ExecCommand(context.TODO(), true, "git", "clone", "adfa")
+	ExecCommand(context.TODO(), true, "sleep", "3600")
 }

@@ -14,25 +14,20 @@ limitations under the License.
 package clientgoutils
 
 import (
-	"fmt"
-	"testing"
+	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestNewClientGoUtils(t *testing.T) {
-
+func (c *ClientGoUtils) DeleteConfigMapByName(name string) error {
+	return errors.Wrap(c.ClientSet.CoreV1().ConfigMaps(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{}), "")
 }
 
-func TestClientGoUtils_Create(t *testing.T) {
-	client, err := NewClientGoUtils("", "nh6ihig")
-	if err != nil {
-		panic(err)
+func (c *ClientGoUtils) GetConfigMaps() ([]v1.ConfigMap, error) {
+	var result []v1.ConfigMap
+	list, err := c.ClientSet.CoreV1().ConfigMaps(c.namespace).List(c.ctx, metav1.ListOptions{})
+	if list != nil {
+		result = list.Items
 	}
-	secret, err := client.GetSecret("aaa")
-	if err != nil {
-		fmt.Printf("err:%s", err.Error())
-		fmt.Printf("%v", secret)
-		fmt.Println(secret.Name)
-	} else {
-		fmt.Printf("%v\n", secret)
-	}
+	return result, errors.Wrap(err, "")
 }

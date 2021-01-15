@@ -16,6 +16,7 @@ package cmds
 import (
 	"fmt"
 	"go.uber.org/zap/zapcore"
+	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/nocalhost"
 	"os"
 
@@ -24,12 +25,12 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-var settings *EnvSettings
+var settings *app_flags.EnvSettings
 var nocalhostApp *app.Application
 
 func init() {
 
-	settings = NewEnvSettings()
+	settings = app_flags.NewEnvSettings()
 
 	rootCmd.PersistentFlags().BoolVar(&settings.Debug, "debug", settings.Debug, "enable debug level log")
 	rootCmd.PersistentFlags().StringVar(&settings.KubeConfig, "kubeconfig", "", "the path of the kubeconfig file")

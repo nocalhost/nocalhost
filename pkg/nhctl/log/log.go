@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -29,8 +30,13 @@ var outLogger *zap.SugaredLogger
 var fileEntry *zap.SugaredLogger
 var logFile string
 
+var fields = make(map[string]string, 0)
+var core zapcore.Core
+
 func init() {
 	outLogger = getDefaultOutLogger() // if log is not be initiated explicitly (use log.Init()), the default out logger will be used.
+	fields["PID"] = strconv.Itoa(os.Getpid())
+	fields["PPID"] = strconv.Itoa(os.Getppid())
 }
 
 func getDefaultOutLogger() *zap.SugaredLogger {
@@ -63,16 +69,26 @@ func Init(level zapcore.Level, dir, fileName string) error {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-	encoder := zapcore.NewConsoleEncoder(encoderConfig)
-	core := zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
-	fileEntry = zap.New(core).Sugar()
+	//encoder := zapcore.NewConsoleEncoder(encoderConfig)
+	encoder := zapcore.NewJSONEncoder(encoderConfig)
+	core = zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
 
+	refreshFileLoggerWithFields()
 	logFile = logPath
 	return nil
 }
 
-func SetLevel(level zapcore.Level) {
-	//outLogger
+func refreshFileLoggerWithFields() {
+	args := make([]interface{}, 0)
+	for key, val := range fields {
+		args = append(args, key, val)
+	}
+	fileEntry = zap.New(core).Sugar().With(args...)
+}
+
+func AddField(key, val string) {
+	fields[key] = val
+	refreshFileLoggerWithFields()
 }
 
 func Debug(args ...interface{}) {
@@ -92,7 +108,7 @@ func Debugf(format string, args ...interface{}) {
 func Info(args ...interface{}) {
 	outLogger.Info(args...)
 	if fileEntry != nil {
-		fileEntry.Info(args...)
+		fileEntry.Info(args)
 	}
 }
 

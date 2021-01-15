@@ -16,30 +16,71 @@ package clientgo
 import (
 	"context"
 	"errors"
+	"fmt"
 	v1 "k8s.io/api/apps/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"math/rand"
 	"nocalhost/internal/nocalhost-api/global"
+	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"strconv"
 	"time"
 )
 
 type GoClient struct {
-	client *kubernetes.Clientset
+	clusterIpAccessMode bool
+	client              *kubernetes.Clientset
+	Config              []byte
 }
 
-func NewGoClient(kubeconfig []byte) (*GoClient, error) {
+// use this go client generator to avoid out-cluster/in-cluster network issues
+func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
+
+	// first try to access cluster normally
+
+	client, originErr := newGoClient(kubeconfig)
+	if originErr == nil && client != nil {
+		originErr = client.requireClusterAdminClient()
+
+		if originErr == nil {
+			client.clusterIpAccessMode = false
+			client.Config = kubeconfig
+
+			return client, nil
+		}
+	}
+
+	// then try to access current cluster's kube api-server
+
+	client, err, newConfig := newGoClientUseCurrentClusterHost(kubeconfig)
+	if err == nil && client != nil {
+		err = client.requireClusterAdminClient()
+
+		if err == nil {
+			client.clusterIpAccessMode = true
+			client.Config = newConfig
+
+			fmt.Printf("Create k8s Go Client with 'clusterIpAccessMode' \n")
+			return client, nil
+		}
+	}
+
+	return nil, errors.New("can't not create client go with current kubeconfig")
+}
+
+func newGoClient(kubeconfig []byte) (*GoClient, error) {
 	c, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 	if err != nil {
 		return nil, err
@@ -52,6 +93,62 @@ func NewGoClient(kubeconfig []byte) (*GoClient, error) {
 		client: clientSet,
 	}
 	return client, nil
+}
+
+// try to replace the host to access kube-apiserver
+func newGoClientUseCurrentClusterHost(kubeconfig []byte) (*GoClient, error, []byte) {
+
+	// Step1. get raw config
+	clientConfig, err := clientcmd.NewClientConfigFromBytes(kubeconfig)
+	if err != nil {
+		return nil, err, nil
+	}
+
+	rawConfig, err := clientConfig.RawConfig()
+	if err != nil {
+		return nil, err, nil
+	}
+
+	cluster := rawConfig.Clusters[rawConfig.CurrentContext]
+	if cluster == nil {
+		return nil, err, nil
+	}
+
+	// Step2. get in-cluster config
+	configInCluster, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err, nil
+	}
+
+	// Step3. override the host and new client
+	cluster.Server = configInCluster.Host
+	newConfig, _ := clientcmd.Write(rawConfig)
+
+	c, err := clientcmd.RESTConfigFromKubeConfig(newConfig)
+	if err != nil {
+		return nil, err, nil
+	}
+
+	clientSet, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		return nil, err, nil
+	}
+	client := &GoClient{
+		client: clientSet,
+	}
+	return client, nil, newConfig
+}
+
+func (c *GoClient) requireClusterAdminClient() error {
+	// check is admin Kubeconfig
+	isAdmin, err := c.IsAdmin()
+	if err != nil {
+		return errno.ErrClusterKubeConnect
+	}
+	if isAdmin != true {
+		return errno.ErrClusterKubeAdmin
+	}
+	return nil
 }
 
 // get deployment
@@ -163,6 +260,121 @@ func (c *GoClient) CreateServiceAccount(name, namespace string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// Create resource quota for namespace. such as:
+/**
+apiVersion: v1
+  kind: ResourceQuota
+  metadata:
+    name: namespace-name
+  spec:
+    hard:
+      limits.cpu: "10"
+      requests.cpu: "10"
+      limits.memory: "48Gi"
+      requests.memory: "40Gi"
+      persistentvolumeclaims: "10"
+      services.loadbalancers: "10"
+      requests.storage: "20Gi"
+*/
+func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage string, pvcCount, lbCount int) (bool, error) {
+
+	resourceQuota := &corev1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+	}
+
+	resourceList := make(map[corev1.ResourceName]resource.Quantity)
+	if len(reqMem) > 0 {
+		resourceList[corev1.ResourceRequestsMemory] = resource.MustParse(reqMem)
+	}
+	if len(reqCpu) > 0 {
+		resourceList[corev1.ResourceRequestsCPU] = resource.MustParse(reqCpu)
+	}
+	if len(limitsMem) > 0 {
+		resourceList[corev1.ResourceLimitsMemory] = resource.MustParse(limitsMem)
+	}
+	if len(limitsCpu) > 0 {
+		resourceList[corev1.ResourceLimitsCPU] = resource.MustParse(limitsCpu)
+	}
+	if len(storageCapacity) > 0 {
+		resourceList[corev1.ResourceRequestsStorage] = resource.MustParse(storageCapacity)
+	}
+	if len(ephemeralStorage) > 0 {
+		resourceList[corev1.ResourceEphemeralStorage] = resource.MustParse(ephemeralStorage)
+	}
+	if pvcCount > 0 {
+		resourceList[corev1.ResourcePersistentVolumeClaims] = resource.MustParse(strconv.Itoa(pvcCount))
+	}
+	if lbCount > 0 {
+		resourceList[corev1.ResourceServicesLoadBalancers] = resource.MustParse(strconv.Itoa(lbCount))
+	}
+	if (len(resourceList)) < 1 {
+		return true, nil
+	}
+	resourceQuota.Spec = corev1.ResourceQuotaSpec{
+		Hard: resourceList,
+	}
+	_, err := c.client.CoreV1().ResourceQuotas(namespace).Create(context.TODO(), resourceQuota, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, err
+}
+
+// create default resource quota for container. such as:
+/**
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: limits
+spec:
+  limits:
+  - default:
+      cpu: 200m
+      memory: 512Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    type: Container
+*/
+func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string) (bool, error) {
+	limitRange := &corev1.LimitRange{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+	}
+
+	limits := make(map[corev1.ResourceName]resource.Quantity)
+	if len(limitsMem) > 0 {
+		limits[corev1.ResourceMemory] = resource.MustParse(limitsMem)
+	}
+	if len(limitsCpu) > 0 {
+		limits[corev1.ResourceCPU] = resource.MustParse(limitsCpu)
+	}
+	if len(ephemeralStorage) > 0 {
+		limits[corev1.ResourceEphemeralStorage] = resource.MustParse(ephemeralStorage)
+	}
+
+	requests := make(map[corev1.ResourceName]resource.Quantity)
+	if len(reqMem) > 0 {
+		requests[corev1.ResourceMemory] = resource.MustParse(reqMem)
+	}
+	if len(reqCpu) > 0 {
+		requests[corev1.ResourceCPU] = resource.MustParse(reqCpu)
+	}
+
+	if len(limits) < 1 && len(requests) < 1 {
+		return true, nil
+	}
+	limitRange.Spec.Limits = append(limitRange.Spec.Limits, corev1.LimitRangeItem{
+		Default:        limits,
+		DefaultRequest: requests,
+		Type:           corev1.LimitTypeContainer,
+	})
+	_, err := c.client.CoreV1().LimitRanges(namespace).Create(context.TODO(), limitRange, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, err
 }
 
 // bind roles for serviceAccount

@@ -50,29 +50,36 @@ func Update(c *gin.Context) {
 		return
 	}
 
-	//isAdmin, _ := c.Get("isAdmin")
-	//if isAdmin.(uint64) != 1 {
-	//	api.SendResponse(c, errno.ErrUpdateUserDenied, nil)
-	//	return
-	//}
-
-	pwd := ""
-	var err error
-	if req.Password != "" {
-		pwd, err = auth.Encrypt(req.Password)
+	userMap := model.UserBaseModel{}
+	if len(req.Email) > 0 {
+		userMap.Email = req.Email
+	}
+	if len(req.Name) > 0 {
+		userMap.Name = req.Name
+	}
+	if len(req.Password) > 0 {
+		pwd, err := auth.Encrypt(req.Password)
 		if err != nil {
 			api.SendResponse(c, errno.InternalServerError, nil)
 			return
 		}
+		userMap.Password = pwd
 	}
 
-	userMap := model.UserBaseModel{
-		Email:    req.Email,
-		Name:     req.Name,
-		Password: pwd,
-		Status:   req.Status,
-		IsAdmin:  req.IsAdmin,
+	// Only administrator can modify status and isAdmin fields
+	isAdmin, _ := c.Get("isAdmin")
+	if isAdmin.(uint64) == 1 {
+		if req.IsAdmin != nil {
+			userMap.IsAdmin = req.IsAdmin
+		}
+		if req.Status != nil {
+			userMap.Status = req.Status
+		}
+	} else {
+		uid, _ := c.Get("userId")
+		userId = cast.ToUint64(uid)
 	}
+
 	//userMap := make(map[string]interface{})
 	//userMap["email"] = req.Email
 	//userMap["name"] = req.Name

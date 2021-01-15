@@ -40,7 +40,7 @@ func NewDevSpace(devSpaceParams ClusterUserCreateRequest, c *gin.Context, kubeCo
 }
 
 func (d *DevSpace) Delete() error {
-	goClient, err := clientgo.NewGoClient(d.KubeConfig)
+	goClient, err := clientgo.NewAdminGoClient(d.KubeConfig)
 	if err != nil {
 		return errno.ErrClusterKubeErr
 	}
@@ -102,7 +102,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 
 	// create namespace
 	var KubeConfig = []byte(clusterData.KubeConfig)
-	goClient, err := clientgo.NewGoClient(KubeConfig)
+	goClient, err := clientgo.NewAdminGoClient(KubeConfig)
 	if err != nil {
 		return nil, errno.ErrClusterKubeErr
 	}
@@ -115,7 +115,19 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		return nil, nerrno
 	}
 
-	result, err := service.Svc.ClusterUser().Create(d.c, applicationId, *d.DevSpaceParams.ClusterId, userId, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu, KubeConfigYaml, devNamespace, spaceName)
+	// create namespace ResouceQuota and container limitRange
+	res := d.DevSpaceParams.SpaceResourceLimit
+	if res == nil {
+		res = &SpaceResourceLimit{}
+	}
+
+	clusterDevsSetUp.CreateResouceQuota("rq-"+devNamespace, devNamespace, res.SpaceReqMem,
+		res.SpaceReqCpu, res.SpaceLimitsMem, res.SpaceLimitsCpu, res.SpaceStorageCapacity, res.SpaceEphemeralStorage,
+		res.SpacePvcCount, res.SpaceLbCount).CreateLimitRange("lr-"+devNamespace, devNamespace,
+		res.ContainerReqMem, res.ContainerLimitsMem, res.ContainerReqCpu, res.ContainerLimitsCpu, res.ContainerEphemeralStorage)
+
+	resString, err := json.Marshal(res)
+	result, err := service.Svc.ClusterUser().Create(d.c, applicationId, *d.DevSpaceParams.ClusterId, userId, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu, KubeConfigYaml, devNamespace, spaceName, string(resString))
 	if err != nil {
 		return nil, errno.ErrBindApplicationClsuter
 	}

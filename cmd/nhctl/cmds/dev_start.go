@@ -20,6 +20,7 @@ import (
 	"nocalhost/internal/nhctl/syncthing/secret"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -37,7 +38,6 @@ var devStartOps = &app.DevStartOptions{}
 func init() {
 
 	devStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
-	//devStartCmd.Flags().StringVarP(&devStartOps.DevLang, "lang", "l", "", "the program language, eg: java go python")
 	devStartCmd.Flags().StringVarP(&devStartOps.DevImage, "image", "i", "", "image of DevContainer")
 	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory, same as sync path")
 	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "the StorageClass used by persistent volumes")
@@ -45,8 +45,8 @@ func init() {
 
 	// for debug only
 	devStartCmd.Flags().StringVar(&devStartOps.SyncthingVersion, "syncthing-version", "", "versions of syncthing and this flag is use for debug only")
-	// LocalSyncDir is local sync directory Absolute path splice by plugin
-	devStartCmd.Flags().StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{}, "local sync directory")
+	// LocalSyncDir is local absolute path to sync provided by plugin
+	devStartCmd.Flags().StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{}, "local directory to sync")
 	debugCmd.AddCommand(devStartCmd)
 }
 
@@ -66,23 +66,25 @@ var devStartCmd = &cobra.Command{
 		InitAppAndCheckIfSvcExist(applicationName, deployment)
 
 		if nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
-			log.Fatalf("\"%s\" is already in developing", deployment)
+			log.Fatalf("Service \"%s\" is already in developing", deployment)
 		}
 
 		devStartOps.Kubeconfig = settings.KubeConfig
 		log.Info("Starting DevMode...")
 
-		// set dev start ops args
-		// devStartOps.LocalSyncDir is from plugin by local-sync
-		var fileSyncOptions = &app.FileSyncOptions{}
-		//devStartOps.Namespace = nocalhostApp.AppProfile.Namespace
-		if devStartOps.WorkDir != "" { // command flag not set
-			nocalhostApp.SetSvcWorkDir(deployment, devStartOps.WorkDir)
-			//devStartOps.WorkDir = nocalhostApp.GetDefaultWorkDir(deployment)
+		svcProfile := nocalhostApp.GetSvcProfile(deployment)
+		if devStartOps.WorkDir != "" {
+			svcProfile.WorkDir = devStartOps.WorkDir
 		}
-		//nocalhostApp.SetSvcWorkDir(deployment, devStartOps.WorkDir)
+		if devStartOps.DevImage != "" {
+			svcProfile.DevImage = devStartOps.DevImage
+		}
+		if len(devStartOps.LocalSyncDir) > 0 {
+			svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
+		}
+		_ = nocalhostApp.SaveProfile()
 
-		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOps, fileSyncOptions)
+		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOps.LocalSyncDir, false)
 		if err != nil {
 			log.FatalE(err, "Failed to create syncthing process, please try again.")
 		}
@@ -106,8 +108,8 @@ var devStartCmd = &cobra.Command{
 		config, err := secret.GetConfigXML(newSyncthing)
 		syncSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      deployment + "-" + secret_config.SecretName,
-				Namespace: nocalhostApp.AppProfile.Namespace,
+				Name: deployment + "-" + secret_config.SecretName,
+				//Namespace: nocalhostApp.AppProfile.Namespace,
 			},
 			Type: corev1.SecretTypeOpaque,
 			Data: map[string][]byte{
@@ -118,26 +120,27 @@ var devStartCmd = &cobra.Command{
 		}
 		err = nocalhostApp.CreateSyncThingSecret(deployment, syncSecret)
 		if err != nil {
-			// TODO dev end should delete syncthing secret
 			log.Fatalf("Failed to create syncthing secret, please try to delete \"%s\" secret first manually.", syncthing.SyncSecretName)
 		}
 
 		// set profile sync dir
-		err = nocalhostApp.SetLocalAbsoluteSyncDirFromDevStartPlugin(deployment, devStartOps.LocalSyncDir)
-		if err != nil {
-			log.Fatalf("Failed to update sync directory")
-		}
+		//err = nocalhostApp.SetLocalAbsoluteSyncDirFromDevStartPlugin(deployment, devStartOps.LocalSyncDir)
+		//if err != nil {
+		//	log.Fatalf("Failed to update sync directory")
+		//}
 
 		err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps)
 		if err != nil {
 			// todo: rollback somethings
-			log.FatalE(err, "Failed to replace dev container")
+			log.WarnE(err, "Failed to replace dev container, resetting workload...")
+			nocalhostApp.Reset(deployment)
+			os.Exit(1)
 		}
 		// set profile sync port
-		err = nocalhostApp.SetSyncthingPort(deployment, newSyncthing.RemotePort, newSyncthing.RemoteGUIPort, newSyncthing.LocalPort, newSyncthing.LocalGUIPort)
-		if err != nil {
-			log.Fatal("Failed to update \"developing\" syncthing port status\n")
-		}
+		//err = nocalhostApp.SetSyncthingPort(deployment, newSyncthing.RemotePort, newSyncthing.RemoteGUIPort, newSyncthing.LocalPort, newSyncthing.LocalGUIPort)
+		//if err != nil {
+		//	log.Fatal("Failed to update \"developing\" syncthing port status\n")
+		//}
 
 		// TODO set develop status, avoid stack in dev start and break, or it will never resume
 		err = nocalhostApp.SetDevelopingStatus(deployment, true)

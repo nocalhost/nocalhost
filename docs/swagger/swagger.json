@@ -1,8 +1,17 @@
 {
+    "swagger": "2.0",
     "info": {
-        "contact": {},
-        "license": {}
+        "description": "Nocalhost server api",
+        "title": "Nocalhost docs api",
+        "contact": {
+            "name": "wangwei",
+            "url": "codingcorp.coding.net"
+        },
+        "license": {},
+        "version": "1.0"
     },
+    "host": "{{.Host}}",
+    "basePath": "{{.BasePath}}",
     "paths": {
         "/v1/application": {
             "get": {
@@ -426,63 +435,6 @@
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/application/{id}/dev_space/{spaceId}/plugin_sync": {
-            "put": {
-                "description": "Plug-in Update app installation status",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Plug-in"
-                ],
-                "summary": "Plug-in Update app installation status",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Authorization",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Application ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "DevSpace ID",
-                        "name": "spaceId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "The application update info",
-                        "name": "CreateAppRequest",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/applications.UpdateApplicationInstallRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/api.Response"
                         }
                     }
                 }
@@ -1035,6 +987,46 @@
                 }
             }
         },
+        "/v1/dev_space/{id}/detail": {
+            "get": {
+                "description": "Get dev space detail from application",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "Get the details of a development environment of the application",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "DevSpace ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserJoinClusterAndAppAndUser"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/dev_space/{id}/recreate": {
             "post": {
                 "description": "delete devSpace and create a new one",
@@ -1165,6 +1157,63 @@
                 "responses": {
                     "200": {
                         "description": "{\"code\":0,\"message\":\"OK\",\"data\":{\"template\":\"\"}}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugin/application/{id}/dev_space/{spaceId}/plugin_sync": {
+            "put": {
+                "description": "Plug-in Update app installation status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Plug-in"
+                ],
+                "summary": "Plug-in Update app installation status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "DevSpace ID",
+                        "name": "spaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "The application update info",
+                        "name": "CreateAppRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/applications.UpdateApplicationInstallRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/api.Response"
@@ -1475,6 +1524,46 @@
                 }
             }
         },
+        "/v1/users/{id}/dev_space_list": {
+            "get": {
+                "description": "Get application dev space list",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "Get a list of application development environments",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserJoinClusterAndAppAndUser"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/version": {
             "get": {
                 "description": "Get api server version",
@@ -1627,6 +1716,10 @@
                 "space_name": {
                     "type": "string"
                 },
+                "space_resource_limit": {
+                    "type": "object",
+                    "$ref": "#/definitions/cluster_user.SpaceResourceLimit"
+                },
                 "user_id": {
                     "type": "integer"
                 }
@@ -1636,6 +1729,50 @@
             "type": "object",
             "properties": {
                 "kubeconfig": {
+                    "type": "string"
+                }
+            }
+        },
+        "cluster_user.SpaceResourceLimit": {
+            "type": "object",
+            "properties": {
+                "container_ephemeral_storage": {
+                    "type": "string"
+                },
+                "container_limits_cpu": {
+                    "type": "string"
+                },
+                "container_limits_mem": {
+                    "type": "string"
+                },
+                "container_req_cpu": {
+                    "type": "string"
+                },
+                "container_req_mem": {
+                    "type": "string"
+                },
+                "space_ephemeral_storage": {
+                    "type": "string"
+                },
+                "space_lb_count": {
+                    "type": "integer"
+                },
+                "space_limits_cpu": {
+                    "type": "string"
+                },
+                "space_limits_mem": {
+                    "type": "string"
+                },
+                "space_pvc_count": {
+                    "type": "integer"
+                },
+                "space_req_cpu": {
+                    "type": "string"
+                },
+                "space_req_mem": {
+                    "type": "string"
+                },
+                "space_storage_capacity": {
                     "type": "string"
                 }
             }
@@ -1743,6 +1880,50 @@
                 }
             }
         },
+        "model.ClusterUserJoinClusterAndAppAndUser": {
+            "type": "object",
+            "properties": {
+                "application_id": {
+                    "type": "integer"
+                },
+                "application_name": {
+                    "type": "string"
+                },
+                "cluster_id": {
+                    "type": "integer"
+                },
+                "cluster_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "kubeconfig": {
+                    "type": "string"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "space_name": {
+                    "type": "string"
+                },
+                "space_resource_limit": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                },
+                "user_name": {
+                    "type": "string"
+                }
+            }
+        },
         "model.ClusterUserModel": {
             "type": "object",
             "properties": {
@@ -1771,6 +1952,9 @@
                     "type": "string"
                 },
                 "space_name": {
+                    "type": "string"
+                },
+                "space_resource_limit": {
                     "type": "string"
                 },
                 "status": {
@@ -1960,10 +2144,6 @@
         },
         "user.UpdateUserRequest": {
             "type": "object",
-            "required": [
-                "is_admin",
-                "status"
-            ],
             "properties": {
                 "email": {
                     "type": "string"

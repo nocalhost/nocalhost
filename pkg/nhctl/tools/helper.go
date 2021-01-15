@@ -20,10 +20,10 @@ import (
 	"github.com/pkg/errors"
 	"io"
 	"math/rand"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
 	"runtime"
-	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -34,7 +34,6 @@ var logger *zap.Logger
 //check os
 func CheckOS() string {
 	sysType := runtime.GOOS
-	//logger.Info("OS name", zap.String("type", sysType))
 	switch sysType {
 	case "linux":
 	case "windows":
@@ -75,29 +74,14 @@ func CheckK8s() (string, bool) {
 		return "", false
 	}
 
-	//logger.Info("Kubernetes", zap.String("version", string(versionJson)))
 	version := k8sVersion.(map[string]interface{})["serverVersion"].(map[string]interface{})["gitVersion"].(string)
 	return version, true
 }
-
-//func ExecKubeCtlCommand(ctx context.Context, kubeconfig string, params ...string) error {
-//	var err error
-//	if kubeconfig != "" {
-//		params = append(params, "--kubeconfig")
-//		params = append(params, kubeconfig)
-//		_, err = ExecCommand(ctx, true, "kubectl", params...)
-//	} else {
-//		_, err = ExecCommand(ctx, true, "kubectl", params...)
-//	}
-//	return err
-//}
 
 //execute command
 func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params ...string) (string, error) {
 	var errStdout, errStderr error
 	var result []byte
-	//var stdout, stderr []byte
-	//execCommand := commandName
 
 	var cmd *exec.Cmd
 	if ctx == nil {
@@ -106,7 +90,7 @@ func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params
 		fmt.Println("command with ctx")
 		cmd = exec.CommandContext(ctx, commandName, params...)
 	}
-	fmt.Println(cmd.Args)
+	log.Info(cmd.Args)
 	stdoutIn, err := cmd.StdoutPipe()
 	stderrIn, err2 := cmd.StderrPipe()
 	if err != nil || err2 != nil {
@@ -157,30 +141,6 @@ func copyAndCapture(w io.Writer, r io.Reader) ([]byte, error) {
 	// never reached
 	panic(true)
 	return nil, nil
-}
-
-//Check Command
-func CheckCommand(commandName string) bool {
-	status := false
-	toolsList := []string{
-		"kubectl",
-		"kubectl.exe",
-		"mutagen",
-		"install-k8s-master",
-		"install-k8s-worker",
-		"install-k8s-create-kubeconfig",
-		"coding-deploy",
-		"debug-service",
-		"file-sync",
-		"deploy-no-dependencies"}
-
-	for _, v := range toolsList {
-		if strings.Contains(commandName, v) {
-			status = true
-			break
-		}
-	}
-	return status
 }
 
 //file exist check

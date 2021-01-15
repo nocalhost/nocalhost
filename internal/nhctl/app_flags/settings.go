@@ -11,9 +11,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package app
+package app_flags
 
-func (a *Application) SetSvcWorkDir(svcName string, workDir string) error {
-	a.GetSvcProfile(svcName).WorkDir = workDir
-	return a.AppProfile.Save()
+import (
+	"os"
+	"strconv"
+)
+
+type EnvSettings struct {
+	Debug      bool
+	KubeConfig string // the path to the kubeconfig file
+}
+
+func NewEnvSettings() *EnvSettings {
+	settings := EnvSettings{}
+	settings.Debug, _ = strconv.ParseBool(os.Getenv("NOCALHOST_DEBUG"))
+	return &settings
 }

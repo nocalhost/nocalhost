@@ -14,25 +14,21 @@ limitations under the License.
 package clientgoutils
 
 import (
-	"fmt"
-	"testing"
+	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
-func TestNewClientGoUtils(t *testing.T) {
-
-}
-
-func TestClientGoUtils_Create(t *testing.T) {
-	client, err := NewClientGoUtils("", "nh6ihig")
+func (c *ClientGoUtils) GetPodsFromDeployment(name string) (*corev1.PodList, error) {
+	deployment, err := c.ClientSet.AppsV1().Deployments(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
 	if err != nil {
-		panic(err)
+		return nil, errors.Wrap(err, "")
 	}
-	secret, err := client.GetSecret("aaa")
+	set := labels.Set(deployment.Spec.Selector.MatchLabels)
+	pods, err := c.ClientSet.CoreV1().Pods(c.namespace).List(c.ctx, metav1.ListOptions{LabelSelector: set.AsSelector().String()})
 	if err != nil {
-		fmt.Printf("err:%s", err.Error())
-		fmt.Printf("%v", secret)
-		fmt.Println(secret.Name)
-	} else {
-		fmt.Printf("%v\n", secret)
+		return nil, errors.Wrap(err, "")
 	}
+	return pods, nil
 }

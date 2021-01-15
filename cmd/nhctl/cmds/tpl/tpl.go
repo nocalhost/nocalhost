@@ -128,6 +128,15 @@ devContainerImage: "codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang
   # random localPort, remotePort 8000
   # - :8000
 
+# resource requirements of dev container
+# devContainerResources:
+# limits:
+#   memory: 1Gi
+#   cpu: 500m
+# requests:
+#   memory: 100Mi
+#   cpu: 100m
+
 # pod selectors which service depends on
 # type: string[]
 # default value: []

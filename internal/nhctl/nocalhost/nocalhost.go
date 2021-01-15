@@ -24,13 +24,13 @@ import (
 )
 
 const (
-	DefaultNewFilePermission = 0700
-	DefaultNhctlHomeDirName                  = ".nh/nhctl"
-	DefaultApplicationDirName                = "application"
-	DefaultBinDirName                        = "bin"
-	DefaultBinSyncThingDirName               = "syncthing"
-	DefaultLogDirName                        = "logs"
-	DefaultLogFileName = "nhctl.log"
+	DefaultNewFilePermission   = 0700
+	DefaultNhctlHomeDirName    = ".nh/nhctl"
+	DefaultApplicationDirName  = "application"
+	DefaultBinDirName          = "bin"
+	DefaultBinSyncThingDirName = "syncthing"
+	DefaultLogDirName          = "logs"
+	DefaultLogFileName         = "nhctl.log"
 )
 
 func Init() error {
@@ -40,30 +40,29 @@ func Init() error {
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(nhctlHomeDir, DefaultNewFilePermission)
 			if err != nil {
-				return errors.Wrap(err,"")
+				return errors.Wrap(err, "")
 			}
 
 			applicationDir := GetAppHomeDir()
 			err = os.MkdirAll(applicationDir, DefaultNewFilePermission) // create .nhctl/application
 			if err != nil {
-				return errors.Wrap(err,"")
+				return errors.Wrap(err, "")
 			}
 
 			binDir := GetSyncThingBinDir()
 			err = os.MkdirAll(binDir, DefaultNewFilePermission) // create .nhctl/bin/syncthing
 			if err != nil {
-				return errors.Wrap(err,"")
+				return errors.Wrap(err, "")
 			}
 
 			logDir := GetLogDir()
 			err = os.MkdirAll(logDir, DefaultNewFilePermission) // create .nhctl/logs
 			if err != nil {
-				return errors.Wrap(err,"")
+				return errors.Wrap(err, "")
 			}
 		}
 	}
 
-	//log.Init(zapcore.InfoLevel, GetLogDir(),DefaultLogFileName)
 	return nil
 }
 
@@ -84,7 +83,7 @@ func CleanupAppFiles(appName string) error {
 	if f, err := os.Stat(appDir); err == nil {
 		if f.IsDir() {
 			err = os.RemoveAll(appDir)
-			return errors.Wrap(err,"fail to remove dir")
+			return errors.Wrap(err, "fail to remove dir")
 		}
 	} else if !os.IsNotExist(err) {
 		return errors.Wrap(err, "")
@@ -104,7 +103,7 @@ func GetApplicationNames() ([]string, error) {
 	appDir := GetAppHomeDir()
 	fs, err := ioutil.ReadDir(appDir)
 	if err != nil {
-		return nil, errors.Wrap(err,err.Error())
+		return nil, errors.Wrap(err, err.Error())
 	}
 	app := make([]string, 0)
 	if fs == nil || len(fs) < 1 {
