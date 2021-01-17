@@ -278,7 +278,7 @@ apiVersion: v1
       services.loadbalancers: "10"
       requests.storage: "20Gi"
 */
-func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage string, pvcCount, lbCount int) (bool, error) {
+func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string) (bool, error) {
 
 	resourceQuota := &corev1.ResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
@@ -303,11 +303,11 @@ func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMe
 	if len(ephemeralStorage) > 0 {
 		resourceList[corev1.ResourceEphemeralStorage] = resource.MustParse(ephemeralStorage)
 	}
-	if pvcCount > 0 {
-		resourceList[corev1.ResourcePersistentVolumeClaims] = resource.MustParse(strconv.Itoa(pvcCount))
+	if len(pvcCount) > 0 {
+		resourceList[corev1.ResourcePersistentVolumeClaims] = resource.MustParse(pvcCount)
 	}
-	if lbCount > 0 {
-		resourceList[corev1.ResourceServicesLoadBalancers] = resource.MustParse(strconv.Itoa(lbCount))
+	if len(lbCount) > 0 {
+		resourceList[corev1.ResourceServicesLoadBalancers] = resource.MustParse(lbCount)
 	}
 	if (len(resourceList)) < 1 {
 		return true, nil
