@@ -38,7 +38,6 @@ import (
 func Delete(c *gin.Context) {
 	// userId, _ := c.Get("userId")
 	clusterId := cast.ToUint64(c.Param("id"))
-
 	cluster, err := service.Svc.ClusterSvc().Get(c, clusterId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
@@ -48,13 +47,6 @@ func Delete(c *gin.Context) {
 	goClient, err := clientgo.NewAdminGoClient([]byte(cluster.KubeConfig))
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
-		return
-	}
-	// delete nocalhost-reserved
-	_, err = goClient.DeleteNS(global.NocalhostSystemNamespace)
-	if err != nil {
-		// ignore fail
-		log.Warnf("delete cluster for id %s fail, err %s", clusterId, err.Error())
 	}
 
 	// get all dev space
@@ -63,27 +55,52 @@ func Delete(c *gin.Context) {
 	}
 	devSpace, err := service.Svc.ClusterUser().GetList(c, condition)
 	var spaceIds []uint64
+	var spaceNames []string
 	if len(devSpace) > 0 {
 		for _, space := range devSpace {
-			_, _ = goClient.DeleteNS(space.Namespace)
 			spaceIds = append(spaceIds, space.ID)
+			spaceNames = append(spaceNames, space.Namespace)
 		}
 	}
+	releaseTargetClusterResources(goClient, clusterId, spaceNames)
+	result := deleteNocalhostManagedData(c, clusterId, spaceIds)
+	if !result {
+		return
+	}
+	api.SendResponse(c, errno.OK, nil)
+}
 
-	// delete database cluster and cluster users
-	err = service.Svc.ClusterSvc().Delete(c, clusterId)
+// Release target kubernetes cluster resources.
+func releaseTargetClusterResources(goClient *clientgo.GoClient, clusterId uint64, spaceNames []string) {
+	if goClient != nil {
+		_, err := goClient.DeleteNS(global.NocalhostSystemNamespace)
+		if err != nil {
+			// ignore fail
+			log.Warnf("delete cluster for id %s fail, err %s", clusterId, err.Error())
+		}
+		for _, spaceName := range spaceNames {
+			_, err := goClient.DeleteNS(spaceName)
+			if err != nil {
+				log.Warnf("delete devspace for spaceName %s fail, err %s", spaceName, err.Error())
+			}
+		}
+	}
+}
+
+// Delete cluster data managed by nocalhost. such as: cluster and cluster users
+func deleteNocalhostManagedData(c *gin.Context, clusterId uint64, spaceIds []uint64) bool {
+	err := service.Svc.ClusterSvc().Delete(c, clusterId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrDeletedClsuterDBButClusterDone, nil)
-		return
+		return false
 	}
 
 	if len(spaceIds) > 0 {
 		err = service.Svc.ClusterUser().BatchDelete(c, spaceIds)
 		if err != nil {
 			api.SendResponse(c, errno.ErrDeletedClsuterDevSpaceDBButClusterDone, nil)
-			return
+			return false
 		}
 	}
-
-	api.SendResponse(c, errno.OK, nil)
+	return true
 }

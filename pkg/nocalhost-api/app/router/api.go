@@ -141,6 +141,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		dv.PUT("/:id", cluster_user.Update)
 		dv.POST("/:id/recreate", cluster_user.ReCreate)
 		dv.GET("/:id/detail", cluster_user.GetJoinClusterAndAppAndUserDetail)
+		dv.PUT("/:id/update_resource_limit", cluster_user.UpdateResourceLimit)
 	}
 
 	// Plug-in
