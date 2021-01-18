@@ -110,13 +110,13 @@ definitions:
       space_ephemeral_storage:
         type: string
       space_lb_count:
-        type: integer
+        type: string
       space_limits_cpu:
         type: string
       space_limits_mem:
         type: string
       space_pvc_count:
-        type: integer
+        type: string
       space_req_cpu:
         type: string
       space_req_mem:
@@ -1113,6 +1113,40 @@ paths:
       summary: ReCreate devSpace
       tags:
       - Application
+  /v1/dev_space/{id}/update_resource_limit:
+    put:
+      consumes:
+      - application/json
+      description: Update dev space
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: devspace id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: kubeconfig
+        in: body
+        name: SpaceResourceLimit
+        required: true
+        schema:
+          $ref: '#/definitions/cluster_user.SpaceResourceLimit'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Update dev space
+      tags:
+      - Cluster
   /v1/login:
     post:
       description: Web and plug-in login

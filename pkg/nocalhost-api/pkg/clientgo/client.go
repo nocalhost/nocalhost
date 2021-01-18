@@ -322,6 +322,14 @@ func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMe
 	return true, err
 }
 
+func (c *GoClient) DeleteResourceQuota(name, namespace string) (bool, error) {
+	err := c.client.CoreV1().ResourceQuotas(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, err
+}
+
 // create default resource quota for container. such as:
 /**
 apiVersion: v1
@@ -371,6 +379,14 @@ func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, 
 		Type:           corev1.LimitTypeContainer,
 	})
 	_, err := c.client.CoreV1().LimitRanges(namespace).Create(context.TODO(), limitRange, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, err
+}
+
+func (c *GoClient) DeleteLimitRange(name, namespace string) (bool, error) {
+	err := c.client.CoreV1().LimitRanges(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return false, err
 	}
