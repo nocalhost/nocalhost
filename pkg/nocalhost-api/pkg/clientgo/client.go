@@ -278,7 +278,7 @@ apiVersion: v1
       services.loadbalancers: "10"
       requests.storage: "20Gi"
 */
-func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage string, pvcCount, lbCount int) (bool, error) {
+func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string) (bool, error) {
 
 	resourceQuota := &corev1.ResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
@@ -303,11 +303,11 @@ func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMe
 	if len(ephemeralStorage) > 0 {
 		resourceList[corev1.ResourceEphemeralStorage] = resource.MustParse(ephemeralStorage)
 	}
-	if pvcCount > 0 {
-		resourceList[corev1.ResourcePersistentVolumeClaims] = resource.MustParse(strconv.Itoa(pvcCount))
+	if len(pvcCount) > 0 {
+		resourceList[corev1.ResourcePersistentVolumeClaims] = resource.MustParse(pvcCount)
 	}
-	if lbCount > 0 {
-		resourceList[corev1.ResourceServicesLoadBalancers] = resource.MustParse(strconv.Itoa(lbCount))
+	if len(lbCount) > 0 {
+		resourceList[corev1.ResourceServicesLoadBalancers] = resource.MustParse(lbCount)
 	}
 	if (len(resourceList)) < 1 {
 		return true, nil
@@ -316,6 +316,14 @@ func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMe
 		Hard: resourceList,
 	}
 	_, err := c.client.CoreV1().ResourceQuotas(namespace).Create(context.TODO(), resourceQuota, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, err
+}
+
+func (c *GoClient) DeleteResourceQuota(name, namespace string) (bool, error) {
+	err := c.client.CoreV1().ResourceQuotas(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -371,6 +379,14 @@ func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, 
 		Type:           corev1.LimitTypeContainer,
 	})
 	_, err := c.client.CoreV1().LimitRanges(namespace).Create(context.TODO(), limitRange, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, err
+}
+
+func (c *GoClient) DeleteLimitRange(name, namespace string) (bool, error) {
+	err := c.client.CoreV1().LimitRanges(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return false, err
 	}

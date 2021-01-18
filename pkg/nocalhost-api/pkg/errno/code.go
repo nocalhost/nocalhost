@@ -84,5 +84,9 @@ var (
 	ErrDeletedClsuterDevSpaceDBButClusterDone    = &Errno{Code: 50114, Message: "Cluster nocalhost develop space has deleted, but space record delete fail"}
 	ErrDeletedClusterRecord                      = &Errno{Code: 50115, Message: "Delete dev space by application fail, please try again"}
 	ErrResetDevSpaceFail                         = &Errno{Code: 50116, Message: "reset dev space fail, please try again"}
-	ErrFormatResourceLimitParam                  = &Errno{Code: 50116, Message: "Incorrect Resource limit parameter."}
+	ErrCreateResourceQuota                       = &Errno{Code: 50117, Message: "Create resource limit failed."}
+	ErrDeleteResourceQuota                       = &Errno{Code: 50118, Message: "Delete resource limit failed."}
+	ErrCreateLimitRange                          = &Errno{Code: 50119, Message: "Create limit range failed."}
+	ErrDeleteLimitRange                          = &Errno{Code: 50120, Message: "Delete limit range failed."}
+	ErrFormatResourceLimitParam                  = &Errno{Code: 50121, Message: "Incorrect Resource limit parameter."}
 )

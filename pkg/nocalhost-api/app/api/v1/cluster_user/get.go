@@ -103,15 +103,16 @@ func GetDevSpaceDetail(c *gin.Context) {
 // @Success 200 {object} model.ClusterUserJoinClusterAndAppAndUser "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed"
 // @Router /v1/users/{id}/dev_space_list [get]
 func GetJoinClusterAndAppAndUser(c *gin.Context) {
+	condition := model.ClusterUserJoinClusterAndAppAndUser{}
 	userId := cast.ToUint64(c.Param("id"))
+	userIdContext, _ := c.Get("userId")
 	isAdmin, _ := c.Get("isAdmin")
-	if isAdmin.(uint64) != 1 {
-		userIdCtxt, _ := c.Get("userId")
-		userId = cast.ToUint64(userIdCtxt)
+	if isAdmin.(uint64) != 1 { // The developer queries devspace
+		condition.UserId = cast.ToUint64(userIdContext)
+	} else if userId != cast.ToUint64(userIdContext) { // The administrator queries the designated devspace
+		condition.UserId = userId
 	}
-	condition := model.ClusterUserJoinClusterAndAppAndUser{
-		UserId: userId,
-	}
+
 	result, err := service.Svc.ClusterUser().GetJoinClusterAndAppAndUser(c, condition)
 	if err != nil {
 		api.SendResponse(c, nil, nil)
