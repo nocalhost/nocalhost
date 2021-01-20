@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing/network/req"
+	"nocalhost/pkg/nhctl/log"
 )
 
 var syncStatusOps = &app.SyncStatusOptions{}
@@ -20,8 +21,8 @@ func init() {
 
 var syncStatusCmd = &cobra.Command{
 	Use:   "sync-status [NAME]",
-	Short: "TODO",
-	Long:  "TODO",
+	Short: "Files sync status",
+	Long:  "Tracing the files sync status, include local folder and remote device",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
@@ -37,16 +38,28 @@ var syncStatusCmd = &cobra.Command{
 			return
 		}
 
-		if nocalhostApp.CheckIfSvcIsSyncthing(deployment) {
-			fmt.Print("zzzzzzzzzzz")
+		if !nocalhostApp.CheckIfSvcIsSyncthing(deployment) {
 			display(req.FileSyncNotRunningTemplate)
 			return
 		}
-		display(nocalhostApp.NewSyncthingHttpClient(deployment).GetSyncthingStatus())
+
+		client := nocalhostApp.NewSyncthingHttpClient(deployment)
+
+		if syncStatusOps.Override {
+			err := client.FolderOverride()
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			display("Succeed")
+			return
+		}
+
+		display(client.GetSyncthingStatus())
 	},
 }
 
-func display(syncStatus *req.SyncthingStatus) {
-	marshal, _ := json.Marshal(syncStatus)
+func display(v interface{}) {
+	marshal, _ := json.Marshal(v)
 	fmt.Printf("%s", string(marshal))
 }

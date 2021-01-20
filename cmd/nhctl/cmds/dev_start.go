@@ -17,7 +17,6 @@ import (
 	"context"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing"
-	"nocalhost/internal/nhctl/syncthing/secret"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -105,7 +104,7 @@ var devStartCmd = &cobra.Command{
 		}
 
 		// set syncthing secret
-		config, err := secret.GetConfigXML(newSyncthing)
+		config, err := newSyncthing.GetRemoteConfigXML()
 		syncSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: deployment + "-" + secret_config.SecretName,

@@ -15,7 +15,6 @@ package cmds
 
 import (
 	"context"
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
@@ -173,7 +172,6 @@ var fileSyncCmd = &cobra.Command{
 		}
 
 		// set sync status in child progress
-		fmt.Print("zzzzzzz")
 		err = nocalhostApp.SetSyncingStatus(deployment, true)
 		if err != nil {
 			log.Fatal("Failed to update syncing status")

@@ -10,7 +10,7 @@ import (
 
 // those test case only valid while dev mode enabled.
 var client = req.NewSyncthingHttpClient(
-	"127.0.0.1:64605",
+	"127.0.0.1:64500",
 	"nocalhost",
 	"MDPJNTF-OSPJC65-LZNCQGD-3AWRUW6-BYJULSS-GOCA2TU-5DWWBNC-TKM4VQ5",
 	"nh-1",
