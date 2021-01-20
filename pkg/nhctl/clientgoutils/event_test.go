@@ -1,0 +1,31 @@
+/*
+Copyright 2020 The Nocalhost Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package clientgoutils
+
+import (
+	"fmt"
+	"testing"
+)
+
+func TestClientGoUtils_ListEventsByReplicaSet(t *testing.T) {
+	client, _ := NewClientGoUtils("/Users/xinxinhuang/Library/Application Support/Lens/kubeconfigs/c3bbeccc-b61a-411a-af39-3d07bfe91017", "nh6ihig")
+	list, err := client.ListEventsByReplicaSet("details-59c787d477")
+	if err != nil {
+		panic(err)
+	}
+	for _, event := range list {
+		fmt.Printf("%s %s %s %s\n", event.Name, event.Reason, event.LastTimestamp.String(), event.Message)
+	}
+
+}

@@ -366,7 +366,7 @@ OuterLoop:
 			if ref.Kind != "ReplicaSet" {
 				continue
 			}
-			rss, _ := c.GetReplicaSetsControlledByDeployment(deployName)
+			rss, _ := c.GetReplicaSetsByDeployment(deployName)
 			if rss == nil {
 				continue
 			}
@@ -392,7 +392,7 @@ func (c *ClientGoUtils) ListLatestRevisionPodsByDeployment(deployName string) ([
 	result := make([]corev1.Pod, 0)
 
 	// Find the latest revision
-	replicaSets, err := c.GetReplicaSetsControlledByDeployment(deployName)
+	replicaSets, err := c.GetReplicaSetsByDeployment(deployName)
 	if err != nil {
 		log.WarnE(err, "Failed to get replica sets")
 		return nil, err
@@ -439,7 +439,7 @@ OuterLoop:
 }
 
 func (c *ClientGoUtils) GetSortedReplicaSetsByDeployment(deployment string) ([]*v1.ReplicaSet, error) {
-	rss, err := c.GetReplicaSetsControlledByDeployment(deployment)
+	rss, err := c.GetReplicaSetsByDeployment(deployment)
 	if err != nil {
 		return nil, err
 	}

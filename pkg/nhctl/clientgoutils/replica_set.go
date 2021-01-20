@@ -14,6 +14,7 @@ limitations under the License.
 package clientgoutils
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,7 +29,7 @@ func (c *ClientGoUtils) UpdateReplicaSet(rs *v1.ReplicaSet) (*v1.ReplicaSet, err
 	return rs2, errors.Wrap(err, "")
 }
 
-func (c *ClientGoUtils) GetReplicaSetsControlledByDeployment(deploymentName string) (map[int]*v1.ReplicaSet, error) {
+func (c *ClientGoUtils) GetReplicaSetsByDeployment(deploymentName string) (map[int]*v1.ReplicaSet, error) {
 	var rsList *v1.ReplicaSetList
 	replicaSetsClient := c.ClientSet.AppsV1().ReplicaSets(c.namespace)
 	rsList, err := replicaSetsClient.List(c.ctx, metav1.ListOptions{})
@@ -56,7 +57,7 @@ func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploy
 
 	for {
 		time.Sleep(2 * time.Second)
-		replicaSets, err := c.GetReplicaSetsControlledByDeployment(deploymentName)
+		replicaSets, err := c.GetReplicaSetsByDeployment(deploymentName)
 		if err != nil {
 			log.WarnE(err, "Failed to get replica sets")
 			return err
@@ -75,6 +76,17 @@ func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploy
 		isReady := true
 		for _, rs := range replicaSets {
 			if rs.Annotations["deployment.kubernetes.io/revision"] == strconv.Itoa(latestRevision) {
+				// check pod's events
+				events, err := c.ListEventsByReplicaSet(rs.Name)
+				if err != nil || len(events) == 0 {
+					continue
+				}
+
+				for _, event := range events {
+					if event.Reason == "FailedCreate" && time.Now().Sub(event.LastTimestamp.Time).Minutes() < 1 {
+						return errors.New(fmt.Sprintf("Latest ReplicaSet failed to be ready : %s", event.Message))
+					}
+				}
 				continue
 			}
 			if rs.Status.Replicas != 0 {

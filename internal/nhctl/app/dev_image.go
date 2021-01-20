@@ -256,21 +256,14 @@ func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName str
 
 func (a *Application) generateResourceRequirementsForDevContainer(svcName string) *corev1.ResourceRequirements {
 
-	var err error
+	var (
+		err          error
+		requirements *corev1.ResourceRequirements
+	)
 
 	svcProfile := a.GetSvcProfile(svcName)
 	resourceQuota := svcProfile.DevContainerResources
-	//defaultResourceQuota := &ResourceQuota{}
-	//defaultResourceQuota.Limits = &QuotaList{
-	//	Memory: "1Gi",
-	//	Cpu:    "500m",
-	//}
-	//defaultResourceQuota.Requests = &QuotaList{
-	//	Memory: "100Mi",
-	//	Cpu:    "100m",
-	//}
 
-	var requirements *corev1.ResourceRequirements
 	if resourceQuota != nil {
 		log.Debug("DevContainer uses resource limits defined in config")
 		requirements, err = convertResourceQuotaToResourceRequirements(resourceQuota)
@@ -279,13 +272,6 @@ func (a *Application) generateResourceRequirementsForDevContainer(svcName string
 		}
 	}
 
-	//if requirements == nil {
-	//	log.Debug("DevContainer uses default resource limits")
-	//	requirements, err = convertResourceQuotaToResourceRequirements(defaultResourceQuota)
-	//	if err != nil {
-	//		log.WarnE(err, "Failed to parse resource requirements")
-	//	}
-	//}
 	return requirements
 }
 
@@ -383,7 +369,10 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 		return err
 	}
 
-	a.client.WaitLatestRevisionReplicaSetOfDeploymentToBeReady(dep.Name)
+	err = a.client.WaitLatestRevisionReplicaSetOfDeploymentToBeReady(dep.Name)
+	if err != nil {
+		return err
+	}
 
 	// Wait podList to be ready
 	spinner := utils.NewSpinner(" Waiting pod to start...")
