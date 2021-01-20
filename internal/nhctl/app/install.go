@@ -83,11 +83,13 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 	}
 
 	chartName := flags.Chart
+	if a.config != nil && a.config.Name != "" {
+		chartName = a.config.Name
+	}
 	installParams := []string{"install", releaseName}
 	if flags.Wait {
 		installParams = append(installParams, "--wait")
 	}
-	//if installFlags.HelmRepoUrl
 	if flags.RepoUrl != "" {
 		installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
 	} else if flags.RepoName != "" {
@@ -115,8 +117,9 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 		return err
 	}
 	a.AppProfile.ReleaseName = releaseName
+	a.AppProfile.ChartName = chartName
 	a.AppProfile.Save()
-	fmt.Printf(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`+"\n", a.GetNamespace())
+	log.Infof(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`, a.GetNamespace())
 	return nil
 }
 

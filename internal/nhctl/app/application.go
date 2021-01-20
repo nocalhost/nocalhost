@@ -109,7 +109,6 @@ func NewApplication(name string) (*Application, error) {
 	app.AppProfile = profile
 
 	app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), app.GetNamespace())
-	//err = app.initClient(app.GetKubeconfig(), app.GetNamespace())
 	if err != nil {
 		return nil, err
 	}
