@@ -117,20 +117,26 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 		fmt.Printf("background port-forward process: %d and  syncthing process: %d terminated.\n", portForwardPid, syncthingPid)
 	}
 
-	// end dev port background port forward process
-	onlyPortForwardPid, onlyPortForwardFilePath, err := a.GetBackgroundOnlyPortForwardPid(svcName, false)
-	if err != nil {
-		log.Info("No dev port-forward pid file found, ignored.")
-	}
-	if onlyPortForwardPid != 0 {
-		err = newSyncthing.Stop(onlyPortForwardPid, onlyPortForwardFilePath, "port-forward", true)
-		if err != nil {
-			log.Infof("Failed to terminate dev port-forward process(pid %d), please run `kill -9 %d` manually", onlyPortForwardPid, onlyPortForwardPid)
-		}
-	}
+	// end dev port background port forward process from profile
+	//onlyPortForwardPid, onlyPortForwardFilePath, err := a.GetBackgroundOnlyPortForwardPid(svcName, false)
+	//if err != nil {
+	//	log.Info("No dev port-forward pid file found, ignored.")
+	//}
+	//if onlyPortForwardPid != 0 {
+	//	err = newSyncthing.Stop(onlyPortForwardPid, onlyPortForwardFilePath, "port-forward", true)
+	//	if err != nil {
+	//		log.Infof("Failed to terminate dev port-forward process(pid %d), please run `kill -9 %d` manually", onlyPortForwardPid, onlyPortForwardPid)
+	//	}
+	//}
 
-	if err == nil {
-		fmt.Printf("dev port-forward: %d has been ended\n", onlyPortForwardPid)
+	devPortsList := a.GetSvcProfile(svcName).DevPortList
+	if len(devPortsList) > 0 {
+		for _, v := range devPortsList {
+			err := a.StopPortForwardByPort(svcName, v)
+			if err == nil {
+				fmt.Printf("dev port-forward: %s has been ended\n", v)
+			}
+		}
 	}
 
 	// Clean up secret

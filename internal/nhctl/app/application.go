@@ -764,6 +764,8 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 	//portForwardResultCh := make(chan string, group)
 	//var portForwardResult []string
 	for key, sLocalPort := range localPort {
+		// check if already exist port-forward, and kill old
+		_ = a.KillAlreadyExistPortForward(fmt.Sprintf("%d:%d", sLocalPort, remotePort[key]), deployment)
 		// stopCh control the port forwarding lifecycle. When it gets closed the
 		// port forward will terminate
 		stopCh := make(chan struct{}, group)
@@ -849,6 +851,28 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 		log.Info("Stop port forward")
 		wg.Done()
 	}
+}
+
+// ports format 8080:80
+func (a *Application) KillAlreadyExistPortForward(ports, svcName string) error {
+	var err error
+	pidList := a.GetSvcProfile(svcName).PortForwardPidList
+	if len(pidList) > 0 {
+		for _, v := range pidList {
+			portPid := strings.Split(v, "-")
+			if len(portPid) < 2 {
+				err := errors.New("portForwardPidList format invalid")
+				return err
+			}
+			port := portPid[0]
+			// pid := portPid[1]
+			if port == ports {
+				// should kill
+				err = a.StopPortForwardByPort(svcName, ports)
+			}
+		}
+	}
+	return err
 }
 
 func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error {
