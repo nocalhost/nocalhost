@@ -32,6 +32,7 @@ const (
 	//DefaultBinSyncThingDirName               = "syncthing"
 	DefaultBackGroundPortForwardLogFileName  = "alone-port-forward-child-process.log"
 	DefaultApplicationOnlyPortForwardPidFile = "alone-port-forward.pid"
+	GetFileLockPath                          = "lock"
 	DefaultApplicationSyncPidFile            = "syncthing.pid"
 	//DefaultApplicationDirName                = "application"
 

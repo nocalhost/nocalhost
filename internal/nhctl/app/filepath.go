@@ -50,6 +50,10 @@ func (a *Application) GetApplicationBackGroundOnlyPortForwardPidFile(deployment 
 	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
 }
 
+func (a *Application) GetFileLockPath(deployment string) string {
+	return filepath.Join(a.GetApplicationSyncDir(deployment), GetFileLockPath)
+}
+
 func (a *Application) GetApplicationSyncThingPidFile(deployment string) string {
 	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPidFile)
 }

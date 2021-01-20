@@ -16,12 +16,62 @@ package app
 import (
 	"context"
 	"fmt"
+	"nocalhost/internal/nhctl/syncthing/terminate"
 	"runtime"
+	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 
 	"nocalhost/pkg/nhctl/log"
 )
+
+func (a *Application) StopPortForwardByPort(svcName, port string) error {
+	var err error
+	pidList := a.GetSvcProfile(svcName).PortForwardPidList
+	killPid := ""
+	var killPortList []string
+	if len(pidList) > 0 {
+		for _, v := range pidList {
+			if strings.Contains(v, port) {
+				// get port-forward pid
+				killPid = strings.Split(v, "-")[1]
+			}
+		}
+		if killPid == "" {
+			err := errors.New("can not find port-forward pid")
+			return err
+		}
+		// get all devPorts, they share same pid of port-forward
+		for _, v := range pidList {
+			portPid := strings.Split(v, "-")
+			port := portPid[0]
+			pid := portPid[1]
+			if pid == killPid {
+				killPortList = append(killPortList, port)
+			}
+		}
+	}
+	if len(killPortList) == 0 {
+		err := errors.New("can not find port in PortForwardPidList")
+		return err
+	}
+	// killPid and killPortList
+	pid, err := strconv.Atoi(killPid)
+	if err != nil {
+		err := errors.New("convert port-forward pid fail")
+		return err
+	}
+	_ = terminate.Terminate(pid, true, "port-forward")
+	// ignore terminate status and delete port-forward list anyway
+	// set devPortList
+	_ = a.DeleteDevPortList(svcName, killPortList)
+	// set portForwardStatusList
+	_ = a.DeletePortForwardStatusList(svcName, killPortList)
+	// set portForwardPidList
+	_ = a.DeletePortForwardPidList(svcName, killPortList)
+	return err
+}
 
 func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 	var err error
