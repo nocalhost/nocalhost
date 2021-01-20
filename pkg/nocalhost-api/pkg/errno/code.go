@@ -50,6 +50,8 @@ var (
 	ErrDeleteClusterNameSpace = &Errno{Code: 30108, Message: "Delete cluster namespace fail, please try again"}
 	ErrGetClusterStorageClass = &Errno{Code: 30109, Message: "Get cluster storage class fail, please try again"}
 	ErrUpdateCluster          = &Errno{Code: 30110, Message: "Update cluster fail, please try again"}
+	ErrClusterContext         = &Errno{Code: 30111, Message: "Failed to get current context from kubeconfig, please check context exists"}
+	ErrClusterName            = &Errno{Code: 30112, Message: "Failed to get current cluster from kubeconfig, please check cluster exists and manage by current context"}
 
 	// application errors
 	ErrApplicationCreate        = &Errno{Code: 40100, Message: "Failed to add app, please try again"}
