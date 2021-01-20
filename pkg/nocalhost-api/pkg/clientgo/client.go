@@ -109,9 +109,14 @@ func newGoClientUseCurrentClusterHost(kubeconfig []byte) (*GoClient, error, []by
 		return nil, err, nil
 	}
 
-	cluster := rawConfig.Clusters[rawConfig.CurrentContext]
+	currentContext := rawConfig.Contexts[rawConfig.CurrentContext]
+	if currentContext == nil {
+		return nil, errno.ErrClusterContext, nil
+	}
+
+	cluster := rawConfig.Clusters[currentContext.Cluster]
 	if cluster == nil {
-		return nil, err, nil
+		return nil, errno.ErrClusterName, nil
 	}
 
 	// Step2. get in-cluster config
