@@ -568,30 +568,12 @@ func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool,
 					InitContainers: initContainer,
 					Containers: []corev1.Container{
 						{
-							Name:  "kubectl",
-							Image: "codingcorp-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
-							VolumeMounts: []corev1.VolumeMount{
-								{
-									Name:      "kubeconfig",
-									MountPath: "/.kube/config",
-									SubPath:   "config",
-								},
-							},
+							Name:    "kubectl",
+							Image:   "codingcorp-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
 							Command: []string{"kubectl", "delete", "ds", global.NocalhostPrePullDSName, "-n", global.NocalhostSystemNamespace},
 						},
 					},
-					Volumes: []corev1.Volume{
-						{
-							Name: "kubeconfig",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "nocalhost-kubeconfig",
-									},
-								},
-							},
-						},
-					},
+					ServiceAccountName: global.NocalhostSystemNamespaceServiceAccount,
 				},
 			},
 		},
