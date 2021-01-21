@@ -91,7 +91,7 @@ func Create(c *gin.Context) {
 	clusterSetUp := setupcluster.NewSetUpCluster(goClient)
 
 	// clusterInfo, err, errRes := clusterSetUp.CreateNs(global.NocalhostSystemNamespace, "").CreateConfigMap(global.NocalhostDepKubeConfigMapName, global.NocalhostSystemNamespace, global.NocalhostDepKubeConfigMapKey, string(goClient.Config)).DeployNocalhostDep("", global.NocalhostSystemNamespace).GetClusterNode().GetClusterVersion().GetClusterInfo().GetErr()
-	clusterInfo, err, errRes := clusterSetUp.CreateNs(global.NocalhostSystemNamespace, "").CreateServiceAccount(global.NocalhostSystemNamespaceServiceAccount, global.NocalhostSystemNamespace).CreateClusterRoleBinding(global.NocalhostSystemRoleBindingName, global.NocalhostSystemNamespace, "admin", global.NocalhostSystemNamespaceServiceAccount).DeployNocalhostDep("", global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount).GetClusterNode().GetClusterVersion().GetClusterInfo().GetErr()
+	clusterInfo, err, errRes := clusterSetUp.CreateNs(global.NocalhostSystemNamespace, "").CreateServiceAccount(global.NocalhostSystemNamespaceServiceAccount, global.NocalhostSystemNamespace).CreateClusterRoleBinding(global.NocalhostSystemRoleBindingName, global.NocalhostSystemNamespace, "cluster-admin", global.NocalhostSystemNamespaceServiceAccount).DeployNocalhostDep("", global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount).GetClusterNode().GetClusterVersion().GetClusterInfo().GetErr()
 	if err != nil {
 		api.SendResponse(c, errRes, nil)
 		return
