@@ -23,6 +23,7 @@ spec:
               cpu: 100m
               memory: 256Mi
           imagePullPolicy: Always
+          serviceAccountName: nocalhost-admin-service-account
           # dev mode
           #command: ["/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/server", "--"]
           args:
