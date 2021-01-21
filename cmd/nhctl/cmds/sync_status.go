@@ -38,10 +38,10 @@ var syncStatusCmd = &cobra.Command{
 			return
 		}
 
-		if !nocalhostApp.CheckIfSvcIsSyncthing(deployment) {
-			display(req.FileSyncNotRunningTemplate)
-			return
-		}
+		//if !nocalhostApp.CheckIfSvcIsSyncthing(deployment) {
+		//	display(req.FileSyncNotRunningTemplate)
+		//	return
+		//}
 
 		client := nocalhostApp.NewSyncthingHttpClient(deployment)
 
