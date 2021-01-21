@@ -100,14 +100,14 @@ func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params
 		return "", errors.Wrap(err, "Failed to start cmd")
 	}
 
-	if isDisplay {
-		go func() {
-			result, errStdout = copyAndCapture(os.Stdout, stdoutIn)
-		}()
-		go func() {
-			_, errStderr = copyAndCapture(os.Stderr, stderrIn)
-		}()
-	}
+	go func() {
+		result, errStdout = copyAndCapture(os.Stdout, stdoutIn, isDisplay)
+	}()
+
+	go func() {
+		_, errStderr = copyAndCapture(os.Stderr, stderrIn, isDisplay)
+	}()
+
 	err = cmd.Wait()
 	if err != nil {
 		return "", errors.Wrap(err, "")
@@ -119,7 +119,7 @@ func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params
 	return string(result), nil
 }
 
-func copyAndCapture(w io.Writer, r io.Reader) ([]byte, error) {
+func copyAndCapture(w io.Writer, r io.Reader, isDisplay bool) ([]byte, error) {
 	var out []byte
 	buf := make([]byte, 1024, 1024)
 	for {
@@ -127,7 +127,9 @@ func copyAndCapture(w io.Writer, r io.Reader) ([]byte, error) {
 		if n > 0 {
 			d := buf[:n]
 			out = append(out, d...)
-			os.Stdout.Write(d)
+			if isDisplay {
+				os.Stdout.Write(d)
+			}
 		}
 		if err != nil {
 			// Read returns io.EOF at the end of file, which is not an error for us
