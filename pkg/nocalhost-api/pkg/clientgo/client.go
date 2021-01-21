@@ -434,6 +434,38 @@ func (c *GoClient) CreateRoleBinding(name, namespace, role, toServiceAccount str
 	return true, nil
 }
 
+// create clusterRoleBinding
+// role=admin
+func (c *GoClient) CreateClusterRoleBinding(name, namespace, role, toServiceAccount string) (bool, error) {
+	roleBinding := &rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "RoleBinding"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	if role != "" {
+		roleBinding.RoleRef = rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     role,
+		}
+	}
+	if toServiceAccount != "" {
+		roleBinding.Subjects = append(roleBinding.Subjects, rbacv1.Subject{
+			Kind:      rbacv1.ServiceAccountKind,
+			APIGroup:  "",
+			Namespace: namespace,
+			Name:      toServiceAccount,
+		})
+	}
+	_, err := c.client.RbacV1().ClusterRoleBindings().Create(context.TODO(), roleBinding, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // create user role for single namespace
 // name default nocalhost-role
 //  default create every developer can access all resource for he's namespace
@@ -458,7 +490,7 @@ func (c *GoClient) CreateRole(name, namespace string) (bool, error) {
 // deploy nocalhost-dep
 // now all value has set by default
 // TODO this might better read from database manifest
-func (c *GoClient) DeployNocalhostDep(image, namespace string) (bool, error) {
+func (c *GoClient) DeployNocalhostDep(image, namespace, serviceAccount string) (bool, error) {
 	tag := "latest"
 	if global.Branch == global.NocalhostDefaultReleaseBranch {
 		tag = global.Version
@@ -482,32 +514,14 @@ func (c *GoClient) DeployNocalhostDep(image, namespace string) (bool, error) {
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					RestartPolicy: corev1.RestartPolicyNever,
-					Volumes: []corev1.Volume{
-						{
-							Name: "kubeconfig",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "nocalhost-kubeconfig",
-									},
-								},
-							},
-						},
-					},
 					Containers: []corev1.Container{
 						{
-							Name:  "nocalhost-dep-installer",
-							Image: image,
-							VolumeMounts: []corev1.VolumeMount{
-								{
-									Name:      "kubeconfig",
-									MountPath: "/.kube/config",
-									SubPath:   "config",
-								},
-							},
+							Name:    "nocalhost-dep-installer",
+							Image:   image,
 							Command: []string{"/nocalhost/installer.sh"},
 						},
 					},
+					ServiceAccountName: serviceAccount,
 				},
 			},
 		},

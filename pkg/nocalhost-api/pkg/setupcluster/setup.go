@@ -26,10 +26,12 @@ type SetUpCluster interface {
 	IsAdmin() (bool, error)
 	CreateNs(namespace, label string) *setUpCluster
 	CreateConfigMap(name, namespace, key, value string) *setUpCluster
-	DeployNocalhostDep(image, namespace string) *setUpCluster
+	DeployNocalhostDep(image, namespace, serviceAccount string) *setUpCluster
 	GetClusterNode() *setUpCluster
 	GetClusterVersion() *setUpCluster
 	GetClusterInfo() *setUpCluster
+	CreateServiceAccount(name, namespace string) *setUpCluster
+	CreateClusterRoleBinding(name, namespace, role, toServiceAccount string) *setUpCluster
 	GetErr() (string, error, error)
 }
 
@@ -61,6 +63,22 @@ func (c *setUpCluster) CreateNs(namespace, label string) *setUpCluster {
 	return c
 }
 
+func (c *setUpCluster) CreateServiceAccount(name, namespace string) *setUpCluster {
+	_, err := c.clientGo.CreateServiceAccount(name, namespace)
+	if err != nil {
+		c.errCode = errno.ErrBindServiceAccountCreateErr
+	}
+	return c
+}
+
+func (c *setUpCluster) CreateClusterRoleBinding(name, namespace, role, toServiceAccount string) *setUpCluster {
+	_, err := c.clientGo.CreateClusterRoleBinding(name, namespace, role, toServiceAccount)
+	if err != nil {
+		c.errCode = errno.ErrBindRoleBindingCreateErr
+	}
+	return c
+}
+
 func (c *setUpCluster) CreateConfigMap(name, namespace, key, value string) *setUpCluster {
 	_, c.err = c.clientGo.CreateConfigMap(name, namespace, key, value)
 	if c.err != nil {
@@ -69,8 +87,8 @@ func (c *setUpCluster) CreateConfigMap(name, namespace, key, value string) *setU
 	return c
 }
 
-func (c *setUpCluster) DeployNocalhostDep(image, namespace string) *setUpCluster {
-	_, c.err = c.clientGo.DeployNocalhostDep(image, namespace)
+func (c *setUpCluster) DeployNocalhostDep(image, namespace, serviceAccount string) *setUpCluster {
+	_, c.err = c.clientGo.DeployNocalhostDep(image, namespace, serviceAccount)
 	if c.err != nil {
 		c.errCode = errno.ErrClusterDepJobSetup
 	}
