@@ -822,11 +822,11 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 		// check pid port status
 		go func() {
 			for {
-				<-time.After(30 * time.Second)
 				go func() {
 					portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
 					_ = a.AppendPortForwardStatus(deployment, fmt.Sprintf("%d:%d(%s)", sLocalPort, remotePort[key], portStatus))
 				}()
+				<-time.After(10 * time.Second)
 			}
 		}()
 	}

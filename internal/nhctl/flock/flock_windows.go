@@ -17,10 +17,15 @@ package flock
 
 import (
 	"log"
+	"os"
 	"syscall"
 	"time"
 	"unsafe"
 )
+
+var ErrTimeout error = timeoutError("lock timeout exceeded")
+
+type timeoutError string
 
 var (
 	modkernel32      = syscall.NewLazyDLL("kernel32.dll")
@@ -37,6 +42,27 @@ func init() {
 	log.SetFlags(log.Lmicroseconds | log.Ldate)
 }
 
+func (t timeoutError) Error() string {
+	return string(t)
+}
+
+func (timeoutError) Timeout() bool {
+	return true
+}
+
+// ErrLocked indicates TryLock failed because the lock was already locked.
+var ErrLocked error = trylockError("fslock is already locked")
+
+type trylockError string
+
+func (t trylockError) Error() string {
+	return string(t)
+}
+
+func (trylockError) Temporary() bool {
+	return true
+}
+
 // Lock implements cross-process locks using syscalls.
 // This implementation is based on LockFileEx syscall.
 type Lock struct {
@@ -45,8 +71,8 @@ type Lock struct {
 }
 
 // New returns a new lock around the given file.
-func Create(filename string) *Lock {
-	return &Lock{filename: filename}
+func Create(filename string) (*Lock, error) {
+	return &Lock{filename: filename}, nil
 }
 
 // TryLock attempts to lock the lock.  This method will return ErrLocked
@@ -72,9 +98,10 @@ func (l *Lock) Unlock() error {
 
 // Release file
 func (l *Lock) Release() error {
-	if l != nil && l.handle != nil {
-		os.Remove(l.filename)
+	if l != nil {
+		return os.Remove(l.filename)
 	}
+	return nil
 }
 
 // LockWithTimeout tries to lock the lock until the timeout expires.  If the
