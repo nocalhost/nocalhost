@@ -148,11 +148,11 @@ func (q *ApiRequest) IdleThePortForwardIfNeeded() error {
 			"We found that your nocalhost-web endpoint can not access directly \n"+
 				"So we port-forward the endpoint to local automatically \n"+
 				"And if you kill this process the port-forward will be terminated \n"+
-				"You can use the command \n" +
-				" 	'%s' \n" +
+				"You can use the command \n"+
+				" 	'%s' \n"+
 				"  when you want to access the nocalhost-web next time",
 
-			"kubectl port-forward service/nocalhost-web "+":"+strconv.Itoa(q.NocalhostWebPort)+" -n"+q.NameSpace,
+			fmt.Sprintf("kubectl port-forward service/nocalhost-web :%d -n %s ", q.NocalhostWebPort, q.NameSpace),
 		)
 
 		// wait for port-forward
