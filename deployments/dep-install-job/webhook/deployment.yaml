@@ -15,6 +15,7 @@ spec:
       labels:
         app: nocalhost-dep
     spec:
+      serviceAccountName: nocalhost-admin-service-account
       containers:
         - name: nocalhost-dep
           image: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep:latest
@@ -23,7 +24,6 @@ spec:
               cpu: 100m
               memory: 256Mi
           imagePullPolicy: Always
-          serviceAccountName: nocalhost-admin-service-account
           # dev mode
           #command: ["/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/server", "--"]
           args:
