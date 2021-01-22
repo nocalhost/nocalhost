@@ -22,6 +22,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -485,6 +486,19 @@ func (c *GoClient) CreateRole(name, namespace string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// deploy nocalhsot resource such as priorityclass
+func (c *GoClient) DeployNocalhostResource() error {
+	priorityClass := schedulingv1.PriorityClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: global.NocalhostDefaultPriorityclassName,
+		},
+		Value:       global.NocalhostDefaultPriorityclassDefaultValue,
+		Description: "This priority class should be used for Nocalhost service pods only.",
+	}
+	_, err := c.client.SchedulingV1().PriorityClasses().Create(context.TODO(), &priorityClass, metav1.CreateOptions{})
+	return err
 }
 
 // deploy nocalhost-dep

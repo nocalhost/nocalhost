@@ -32,6 +32,7 @@ type SetUpCluster interface {
 	GetClusterInfo() *setUpCluster
 	CreateServiceAccount(name, namespace string) *setUpCluster
 	CreateClusterRoleBinding(name, namespace, role, toServiceAccount string) *setUpCluster
+	DeployNocalhostResource() *setUpCluster
 	GetErr() (string, error, error)
 }
 
@@ -89,6 +90,14 @@ func (c *setUpCluster) CreateConfigMap(name, namespace, key, value string) *setU
 
 func (c *setUpCluster) DeployNocalhostDep(image, namespace, serviceAccount string) *setUpCluster {
 	_, c.err = c.clientGo.DeployNocalhostDep(image, namespace, serviceAccount)
+	if c.err != nil {
+		c.errCode = errno.ErrClusterDepJobSetup
+	}
+	return c
+}
+
+func (c *setUpCluster) DeployNocalhostResource() *setUpCluster {
+	c.err = c.clientGo.DeployNocalhostResource()
 	if c.err != nil {
 		c.errCode = errno.ErrClusterDepJobSetup
 	}

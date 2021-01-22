@@ -576,6 +576,7 @@ type PortForwardOptions struct {
 	Pid         int      `json:"pid" yaml:"pid"`
 	DevPort     []string // 8080:8080 or :8080 means random localPort
 	PodName     string   // directly port-forward pod
+	Way         string   // port-forward way, value is manual or devPorts
 	RunAsDaemon bool
 }
 
@@ -740,7 +741,7 @@ func (a *Application) GetPluginDescription(service string) string {
 }
 
 // for background port-forward
-func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPort, remotePort []int) {
+func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPort, remotePort []int, way string) {
 	group := len(localPort)
 	if len(localPort) != len(remotePort) {
 		log.Fatalf("dev port forward fail, please check you devPort in config\n")
@@ -824,7 +825,7 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 			for {
 				go func() {
 					portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
-					_ = a.AppendPortForwardStatus(deployment, fmt.Sprintf("%d:%d(%s)", sLocalPort, remotePort[key], portStatus))
+					_ = a.AppendPortForwardStatus(deployment, fmt.Sprintf("%d:%d(%s-%s)", sLocalPort, remotePort[key], strings.ToTitle(way), portStatus))
 				}()
 				<-time.After(10 * time.Second)
 			}

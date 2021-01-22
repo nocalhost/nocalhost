@@ -1,17 +1,8 @@
 {
-    "swagger": "2.0",
     "info": {
-        "description": "Nocalhost server api",
-        "title": "Nocalhost docs api",
-        "contact": {
-            "name": "wangwei",
-            "url": "codingcorp.coding.net"
-        },
-        "license": {},
-        "version": "1.0"
+        "contact": {},
+        "license": {}
     },
-    "host": "{{.Host}}",
-    "basePath": "{{.BasePath}}",
     "paths": {
         "/v1/application": {
             "get": {

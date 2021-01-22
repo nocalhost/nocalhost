@@ -34,6 +34,7 @@ func init() {
 	portForwardStartCmd.Flags().StringSliceVarP(&portForwardOptions.DevPort, "dev-port", "p", []string{}, "port-forward between pod and local, such 8080:8080 or :8080(random localPort)")
 	portForwardStartCmd.Flags().BoolVarP(&portForwardOptions.RunAsDaemon, "daemon", "m", true, "if port-forward run as daemon")
 	portForwardStartCmd.Flags().StringVarP(&portForwardOptions.PodName, "pod", "", "", "specify pod name")
+	portForwardStartCmd.Flags().StringVarP(&portForwardOptions.Way, "way", "", "manual", "specify port-forward way")
 	PortForwardCmd.AddCommand(portForwardStartCmd)
 }
 
@@ -44,6 +45,9 @@ var portForwardStartCmd = &cobra.Command{
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
+		}
+		if portForwardOptions.Way != "manual" {
+			portForwardOptions.Way = "devPorts"
 		}
 		return nil
 	},
@@ -130,7 +134,7 @@ var portForwardStartCmd = &cobra.Command{
 		// listening, it will wait until kill port forward progress
 		listenAddress := []string{"0.0.0.0"}
 		if len(localPorts) > 0 && len(remotePorts) > 0 {
-			nocalhostApp.PortForwardInBackGround(listenAddress, deployment, podName, localPorts, remotePorts)
+			nocalhostApp.PortForwardInBackGround(listenAddress, deployment, podName, localPorts, remotePorts, portForwardOptions.Way)
 		}
 
 		log.Info("No need to port forward")

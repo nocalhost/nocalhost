@@ -19,6 +19,9 @@ const (
 	NocalhostDepKubeConfigMapKey           = "config"
 	NocalhostPrePullDSName                 = "nocalhost-prepull"
 	NocalhostDefaultReleaseBranch          = "HEAD"
+	//priorityclass
+	NocalhostDefaultPriorityclassName         = "nocalhost-container-critical"
+	NocalhostDefaultPriorityclassDefaultValue = 1000000
 )
 
 var (
