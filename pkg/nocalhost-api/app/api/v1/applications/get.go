@@ -113,6 +113,8 @@ func PluginGet(c *gin.Context) {
 		api.SendResponse(c, errno.ErrApplicationGet, nil)
 		return
 	}
+	// get plugin dev start append command
+	// TODO
 	api.SendResponse(c, errno.OK, result)
 }
 

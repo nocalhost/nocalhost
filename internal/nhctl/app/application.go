@@ -24,7 +24,9 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"net"
 	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/flock"
 	"nocalhost/internal/nhctl/nocalhost"
+	port_forward "nocalhost/internal/nhctl/port-forward"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -32,6 +34,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -572,7 +575,13 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 type PortForwardOptions struct {
 	Pid         int      `json:"pid" yaml:"pid"`
 	DevPort     []string // 8080:8080 or :8080 means random localPort
+	PodName     string   // directly port-forward pod
+	Way         string   // port-forward way, value is manual or devPorts
 	RunAsDaemon bool
+}
+
+type PortForwardEndOptions struct {
+	Port string // 8080:8080
 }
 
 func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error) {
@@ -732,7 +741,7 @@ func (a *Application) GetPluginDescription(service string) string {
 }
 
 // for background port-forward
-func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPort, remotePort []int) {
+func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPort, remotePort []int, way string) {
 	group := len(localPort)
 	if len(localPort) != len(remotePort) {
 		log.Fatalf("dev port forward fail, please check you devPort in config\n")
@@ -753,9 +762,15 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 	var addDevPod []string
-	//portForwardResultCh := make(chan string, group)
-	//var portForwardResult []string
+
+	// check if already exist manual port-forward, after dev start, pod will lost connection, should reconnect
+	log.Infof("localPort %v, remotePort %v", localPort, remotePort)
+	a.AppendDevPortManual(deployment, way, &localPort, &remotePort)
+	log.Infof("localPort %v, remotePort %v", localPort, remotePort)
 	for key, sLocalPort := range localPort {
+		// check if already exist port-forward, and kill old
+		_ = a.KillAlreadyExistPortForward(fmt.Sprintf("%d:%d", sLocalPort, remotePort[key]), deployment)
+
 		// stopCh control the port forwarding lifecycle. When it gets closed the
 		// port forward will terminate
 		stopCh := make(chan struct{}, group)
@@ -790,24 +805,40 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 			case <-*readyCh:
 				// append status each success port-forward
 				_ = a.AppendDevPortForward(deployment, fmt.Sprintf("%d:%d", sLocalPort, remotePort[key]))
+				_ = a.AppendDevPortForwardPID(deployment, fmt.Sprintf("%d:%d-%d", sLocalPort, remotePort[key], os.Getpid()))
 				_ = a.SetPortForwardedStatus(deployment, true)
+				a.CheckPidPortStatus(deployment, sLocalPort, remotePort[key], way)
+				a.SendHeartBeat(listenAddress[0], sLocalPort)
 			}
 		}(&readyCh)
 
-		// send heartbeat
-		go func() {
-			for {
-				<-time.After(30 * time.Second)
-				go func() {
-					log.Info("try send port-forward heartbeat")
-					err := a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress[0], sLocalPort))
-					if err != nil {
-						log.Info("send port-forward heartbeat with err %s", err.Error())
-					}
-				}()
-			}
-		}()
+		// sleep while
+		time.Sleep(time.Duration(2) * time.Second)
 
+		// send heartbeat
+		//go func() {
+		//	for {
+		//		<-time.After(30 * time.Second)
+		//		go func() {
+		//			log.Info("try send port-forward heartbeat")
+		//			err := a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress[0], sLocalPort))
+		//			if err != nil {
+		//				log.Info("send port-forward heartbeat with err %s", err.Error())
+		//			}
+		//		}()
+		//	}
+		//}()
+
+		// check pid port status
+		//go func() {
+		//	for {
+		//		go func() {
+		//			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
+		//			_ = a.AppendPortForwardStatus(deployment, fmt.Sprintf("%d:%d(%s-%s)", sLocalPort, remotePort[key], strings.ToTitle(way), portStatus))
+		//		}()
+		//		<-time.After(10 * time.Second)
+		//	}
+		//}()
 	}
 	log.Info("Done go routine")
 	// update profile addDevPod
@@ -832,10 +863,61 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 	}
 }
 
+func (a *Application) SendHeartBeat(listenAddress string, sLocalPort int) {
+	go func() {
+		for {
+			<-time.After(30 * time.Second)
+			go func() {
+				log.Info("try to send port-forward heartbeat")
+				err := a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress, sLocalPort))
+				if err != nil {
+					log.Info("send port-forward heartbeat with err %s", err.Error())
+				}
+			}()
+		}
+	}()
+}
+
+func (a *Application) CheckPidPortStatus(deployment string, sLocalPort, sRemotePort int, way string) {
+	go func() {
+		for {
+			go func() {
+				log.Infof("check %d:%d port status", sLocalPort, sRemotePort)
+				portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
+				_ = a.AppendPortForwardStatus(deployment, fmt.Sprintf("%d:%d(%s-%s)", sLocalPort, sRemotePort, strings.ToTitle(way), portStatus))
+			}()
+			<-time.After(10 * time.Second)
+		}
+	}()
+}
+
+// ports format 8080:80
+func (a *Application) KillAlreadyExistPortForward(ports, svcName string) error {
+	var err error
+	pidList := a.GetSvcProfile(svcName).PortForwardPidList
+	if len(pidList) > 0 {
+		for _, v := range pidList {
+			portPid := strings.Split(v, "-")
+			if len(portPid) < 2 {
+				err := errors.New("portForwardPidList format invalid")
+				return err
+			}
+			port := portPid[0]
+			// pid := portPid[1]
+			if port == ports {
+				// should kill
+				err = a.StopPortForwardByPort(svcName, ports)
+			}
+		}
+	}
+	return err
+}
+
 func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error {
 	conn, err := net.Dial("tcp", addressWithPort)
-	if err != nil {
+	if err != nil || conn == nil {
 		log.Warnf("connect port-forward heartbeat address fail, %s", addressWithPort)
+		return nil
 	}
 	// GET /heartbeat HTTP/1.1
 	_, err = conn.Write([]byte("ping"))
@@ -846,6 +928,72 @@ func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error 
 }
 
 // port-forward use
+func (a *Application) DeletePortForwardPidList(svcName string, deletePortList []string) error {
+	existPortList := a.GetSvcProfile(svcName).PortForwardPidList
+	if len(existPortList) == 0 {
+		return errors.New("portForwardPidList empty")
+	}
+	var newPortList []string
+	for _, v := range existPortList {
+		needDelete := false
+		for _, vv := range deletePortList {
+			if strings.Contains(v, vv) {
+				needDelete = true
+				break
+			}
+		}
+		if !needDelete {
+			newPortList = append(newPortList, v)
+		}
+	}
+	a.GetSvcProfile(svcName).PortForwardPidList = newPortList
+	return a.AppProfile.Save()
+}
+
+func (a *Application) DeletePortForwardStatusList(svcName string, deletePortList []string) error {
+	existPortList := a.GetSvcProfile(svcName).PortForwardStatusList
+	if len(existPortList) == 0 {
+		return errors.New("portForwardStatusList empty")
+	}
+	var newPortList []string
+	for _, v := range existPortList {
+		needDelete := false
+		for _, vv := range deletePortList {
+			if strings.Contains(v, vv) {
+				needDelete = true
+				break
+			}
+		}
+		if !needDelete {
+			newPortList = append(newPortList, v)
+		}
+	}
+	a.GetSvcProfile(svcName).PortForwardStatusList = newPortList
+	return a.AppProfile.Save()
+}
+
+func (a *Application) DeleteDevPortList(svcName string, deletePortList []string) error {
+	existPortList := a.GetSvcProfile(svcName).DevPortList
+	if len(existPortList) == 0 {
+		return errors.New("portList empty")
+	}
+	var newPortList []string
+	for _, v := range existPortList {
+		needDelete := false
+		for _, vv := range deletePortList {
+			if v == vv {
+				needDelete = true
+				break
+			}
+		}
+		if !needDelete {
+			newPortList = append(newPortList, v)
+		}
+	}
+	a.GetSvcProfile(svcName).DevPortList = newPortList
+	return a.AppProfile.Save()
+}
+
 func (a *Application) SetDevPortForward(svcName string, portList []string) error {
 	a.GetSvcProfile(svcName).DevPortList = portList
 	return a.AppProfile.Save()
@@ -856,8 +1004,103 @@ func (a *Application) AppendDevPortForward(svcName string, portList string) erro
 	if err != nil {
 		return err
 	}
-	exist := a.GetSvcProfile(svcName).DevPortList
-	a.GetSvcProfile(svcName).DevPortList = append(exist, portList)
+	exist := append(a.GetSvcProfile(svcName).DevPortList, portList)
+	newPodList := tools.RemoveDuplicateElement(exist)
+	a.GetSvcProfile(svcName).DevPortList = newPodList
+	return a.AppProfile.Save()
+}
+
+func (a *Application) AppendDevPortForwardPID(svcName string, portPIDList string) error {
+	lock, e := flock.Create(a.GetFileLockPath(svcName))
+	if e != nil {
+		log.Warnf("lock err %s", e.Error())
+	}
+	defer lock.Release()
+
+	e = lock.Lock()
+	if e != nil {
+		log.Warnf("lock err %s", e.Error())
+	}
+	defer lock.Unlock()
+
+	err := a.ReadBeforeWriteProfile()
+	if err != nil {
+		return err
+	}
+	var portStatusList []string
+	exist := a.GetSvcProfile(svcName).PortForwardPidList
+	needAdd := true
+	for _, v := range exist {
+		if strings.Split(v, "-")[0] == strings.Split(portPIDList, "-")[0] && len(strings.Split(v, "-")) != 0 {
+			portStatusList = append(portStatusList, portPIDList)
+			needAdd = false
+		} else {
+			portStatusList = append(portStatusList, v)
+		}
+	}
+	if needAdd {
+		portStatusList = append(portStatusList, portPIDList)
+	}
+	portStatusList = tools.RemoveDuplicateElement(portStatusList)
+	a.GetSvcProfile(svcName).PortForwardPidList = portStatusList
+	return a.AppProfile.Save()
+}
+
+func (a *Application) AppendDevPortManual(svcName, way string, localPorts, remotePorts *[]int) {
+	// if from manual port-forward, renturn port
+	if way == PortForwardManual {
+		return
+	}
+	// if from devPorts, check previously manual port-forward and add to need port-forward list
+	portForwardStatus := a.GetPortForwardStatus(svcName)
+	if len(portForwardStatus) == 0 {
+		return
+	}
+	for _, v := range portForwardStatus {
+		if strings.Contains(v, strings.ToTitle(PortForwardManual)) {
+			// TODO use regex instead of split
+			regexp, _ := regexp.Compile("\\d+:\\d+")
+			localAndRemote := regexp.FindString(v)
+			localAndRemoteArray := strings.Split(localAndRemote, ":")
+			if len(localAndRemoteArray) != 2 {
+				return
+			}
+			appendLocalPort, err := strconv.Atoi(localAndRemoteArray[0])
+			appendRemotePort, err := strconv.Atoi(localAndRemoteArray[1])
+			if err != nil {
+				continue
+			}
+			*localPorts = append(*localPorts, appendLocalPort)
+			*remotePorts = append(*remotePorts, appendRemotePort)
+		}
+	}
+}
+
+func (a *Application) GetPortForwardStatus(svcName string) []string {
+	return a.GetSvcProfile(svcName).PortForwardStatusList
+}
+
+func (a *Application) AppendPortForwardStatus(svcName string, portStatus string) error {
+	err := a.ReadBeforeWriteProfile()
+	if err != nil {
+		return err
+	}
+	var portStatusList []string
+	exist := a.GetSvcProfile(svcName).PortForwardStatusList
+	needAdd := true
+	for _, v := range exist {
+		if strings.Split(v, "(")[0] == strings.Split(portStatus, "(")[0] && len(strings.Split(v, "(")) != 0 {
+			portStatusList = append(portStatusList, portStatus)
+			needAdd = false
+		} else {
+			portStatusList = append(portStatusList, v)
+		}
+	}
+	if needAdd {
+		portStatusList = append(portStatusList, portStatus)
+	}
+	portStatusList = tools.RemoveDuplicateElement(portStatusList)
+	a.GetSvcProfile(svcName).PortForwardStatusList = portStatusList
 	return a.AppProfile.Save()
 }
 

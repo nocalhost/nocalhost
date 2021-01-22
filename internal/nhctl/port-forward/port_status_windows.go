@@ -1,3 +1,5 @@
+// +build windows
+
 /*
 Copyright 2020 The Nocalhost Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,16 +13,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cmds
+package port_forward
 
-import "github.com/spf13/cobra"
+import (
+	"fmt"
+	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/tools"
+	"strings"
+)
 
-func init() {
-	rootCmd.AddCommand(PortForwardCmd)
-}
-
-var PortForwardCmd = &cobra.Command{
-	Use:   "port-forward",
-	Short: "Start port-forward",
-	Long:  `Start port-forward`,
+func PidPortStatus(pid int, port int) string {
+	result, err := tools.ExecCommand(nil, false, "cmd", "/c", fmt.Sprintf("netstat -ano | findstr %d | findstr %d | findstr LISTENING", pid, port))
+	if err != nil {
+		log.Errorf("netstat error %s", err.Error())
+	}
+	if strings.ContainsAny(result, "LISTENING") {
+		return "LISTEN"
+	}
+	return "CLOSE"
 }

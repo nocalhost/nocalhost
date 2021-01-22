@@ -16,12 +16,74 @@ package app
 import (
 	"context"
 	"fmt"
+	"nocalhost/internal/nhctl/syncthing/terminate"
 	"runtime"
+	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 
 	"nocalhost/pkg/nhctl/log"
 )
+
+// port format 8080:80
+func (a *Application) StopPortForwardByPort(svcName, port string) error {
+	var err error
+	pidList := a.GetSvcProfile(svcName).PortForwardPidList
+	killPid := ""
+	var killPortList []string
+	if len(pidList) > 0 {
+		for _, v := range pidList {
+			if strings.Contains(v, port) {
+				// get port-forward pid
+				killPid = strings.Split(v, "-")[1]
+			}
+		}
+		if killPid == "" {
+			err := errors.New("can not find port-forward pid")
+			return err
+		}
+		// get all devPorts, they share same pid of port-forward
+		for _, v := range pidList {
+			portPid := strings.Split(v, "-")
+			port := portPid[0]
+			pid := portPid[1]
+			if pid == killPid {
+				killPortList = append(killPortList, port)
+			}
+		}
+	}
+	// set devPortList
+	if len(killPortList) == 0 {
+		// if run here that means portForwardPidList doesn't has record
+		// but portForwardStatusList or devPortList has record, it should get pid of listen port
+		killPortList = append(killPortList, port)
+		// find pid of port
+		// TODO kill PID anyway
+		// findLocalPortOfPid := strings.Split(port, ":")[0]
+		// find this
+		// linux: lsof -i :8080 -a -c nhctl -t
+		// windows:
+	}
+
+	// killPid and killPortList
+	if killPid != "" {
+		pid, err := strconv.Atoi(killPid)
+		if err != nil {
+			err := errors.New("convert port-forward pid fail")
+			return err
+		}
+		_ = terminate.Terminate(pid, true, "port-forward")
+	}
+	// ignore terminate status and delete port-forward list anyway
+
+	_ = a.DeleteDevPortList(svcName, killPortList)
+	// set portForwardStatusList
+	_ = a.DeletePortForwardStatusList(svcName, killPortList)
+	// set portForwardPidList
+	_ = a.DeletePortForwardPidList(svcName, killPortList)
+	return err
+}
 
 func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 	var err error
@@ -67,20 +129,26 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 		fmt.Printf("background port-forward process: %d and  syncthing process: %d terminated.\n", portForwardPid, syncthingPid)
 	}
 
-	// end dev port background port forward process
-	onlyPortForwardPid, onlyPortForwardFilePath, err := a.GetBackgroundOnlyPortForwardPid(svcName, false)
-	if err != nil {
-		log.Info("No dev port-forward pid file found, ignored.")
-	}
-	if onlyPortForwardPid != 0 {
-		err = newSyncthing.Stop(onlyPortForwardPid, onlyPortForwardFilePath, "port-forward", true)
-		if err != nil {
-			log.Infof("Failed to terminate dev port-forward process(pid %d), please run `kill -9 %d` manually", onlyPortForwardPid, onlyPortForwardPid)
-		}
-	}
+	// end dev port background port forward process from profile
+	//onlyPortForwardPid, onlyPortForwardFilePath, err := a.GetBackgroundOnlyPortForwardPid(svcName, false)
+	//if err != nil {
+	//	log.Info("No dev port-forward pid file found, ignored.")
+	//}
+	//if onlyPortForwardPid != 0 {
+	//	err = newSyncthing.Stop(onlyPortForwardPid, onlyPortForwardFilePath, "port-forward", true)
+	//	if err != nil {
+	//		log.Infof("Failed to terminate dev port-forward process(pid %d), please run `kill -9 %d` manually", onlyPortForwardPid, onlyPortForwardPid)
+	//	}
+	//}
 
-	if err == nil {
-		fmt.Printf("dev port-forward: %d has been ended\n", onlyPortForwardPid)
+	devPortsList := a.GetSvcProfile(svcName).DevPortList
+	if len(devPortsList) > 0 {
+		for _, v := range devPortsList {
+			err := a.StopPortForwardByPort(svcName, v)
+			if err == nil {
+				fmt.Printf("dev port-forward: %s has been ended\n", v)
+			}
+		}
 	}
 
 	// Clean up secret
