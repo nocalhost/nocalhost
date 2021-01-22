@@ -63,6 +63,9 @@ func (a *Application) StopPortForwardByPort(svcName, port string) error {
 	}
 	// ignore terminate status and delete port-forward list anyway
 	// set devPortList
+	if len(killPortList) == 0 {
+		killPortList = append(killPortList, port)
+	}
 	_ = a.DeleteDevPortList(svcName, killPortList)
 	// set portForwardStatusList
 	_ = a.DeletePortForwardStatusList(svcName, killPortList)
