@@ -1263,7 +1263,7 @@
                 }
             }
         },
-        "/v1/plugin/applications": {
+        "/v1/plugin/dev_space": {
             "get": {
                 "description": "Plug-in access to applications (including installation status)",
                 "consumes": [
@@ -2017,6 +2017,9 @@
                 },
                 "cpu": {
                     "type": "integer"
+                },
+                "dev_start_append_command": {
+                    "type": "string"
                 },
                 "devspace_id": {
                     "type": "integer"

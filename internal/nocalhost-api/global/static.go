@@ -22,6 +22,7 @@ const (
 	//priorityclass
 	NocalhostDefaultPriorityclassName         = "nocalhost-container-critical"
 	NocalhostDefaultPriorityclassDefaultValue = 1000000
+	NocalhostDefaultPriorityclassKey          = "--priority-class"
 )
 
 var (

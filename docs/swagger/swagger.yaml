@@ -255,6 +255,8 @@ definitions:
         type: string
       cpu:
         type: integer
+      dev_start_append_command:
+        type: string
       devspace_id:
         type: integer
       id:
@@ -1271,7 +1273,7 @@ paths:
       summary: Plug-in Update app installation status
       tags:
       - Plug-in
-  /v1/plugin/applications:
+  /v1/plugin/dev_space:
     get:
       consumes:
       - application/json
