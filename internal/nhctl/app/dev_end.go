@@ -26,6 +26,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
+// port format 8080:80
 func (a *Application) StopPortForwardByPort(svcName, port string) error {
 	var err error
 	pidList := a.GetSvcProfile(svcName).PortForwardPidList
@@ -52,6 +53,19 @@ func (a *Application) StopPortForwardByPort(svcName, port string) error {
 			}
 		}
 	}
+	// set devPortList
+	if len(killPortList) == 0 {
+		// if run here that means portForwardPidList doesn't has record
+		// but portForwardStatusList or devPortList has record, it should get pid of listen port
+		killPortList = append(killPortList, port)
+		// find pid of port
+		// TODO kill PID anyway
+		// findLocalPortOfPid := strings.Split(port, ":")[0]
+		// find this
+		// linux: lsof -i :8080 -a -c nhctl -t
+		// windows:
+	}
+
 	// killPid and killPortList
 	if killPid != "" {
 		pid, err := strconv.Atoi(killPid)
@@ -62,10 +76,7 @@ func (a *Application) StopPortForwardByPort(svcName, port string) error {
 		_ = terminate.Terminate(pid, true, "port-forward")
 	}
 	// ignore terminate status and delete port-forward list anyway
-	// set devPortList
-	if len(killPortList) == 0 {
-		killPortList = append(killPortList, port)
-	}
+
 	_ = a.DeleteDevPortList(svcName, killPortList)
 	// set portForwardStatusList
 	_ = a.DeletePortForwardStatusList(svcName, killPortList)
