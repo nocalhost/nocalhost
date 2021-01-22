@@ -118,7 +118,6 @@ func isDeploymentReady(obj runtime.Object) (bool, error) {
 	return false, nil
 }
 
-// namespace : use "" to watch all namespaces
 func (c *ClientGoUtils) WaitJobToBeReady(name string) error {
 
 	f, err := fields.ParseSelector(fmt.Sprintf("metadata.name=%s", name))

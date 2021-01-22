@@ -15,6 +15,7 @@ package cmds
 
 import (
 	"context"
+	"fmt"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
@@ -122,24 +123,14 @@ var devStartCmd = &cobra.Command{
 			log.Fatalf("Failed to create syncthing secret, please try to delete \"%s\" secret first manually.", syncthing.SyncSecretName)
 		}
 
-		// set profile sync dir
-		//err = nocalhostApp.SetLocalAbsoluteSyncDirFromDevStartPlugin(deployment, devStartOps.LocalSyncDir)
-		//if err != nil {
-		//	log.Fatalf("Failed to update sync directory")
-		//}
-
 		err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps)
 		if err != nil {
 			// todo: rollback somethings
-			log.WarnE(err, "Failed to replace dev container, resetting workload...")
+			log.ErrorE(err, fmt.Sprintf("Failed to replace dev container: %s", err.Error()))
+			log.Info("Resetting workload...")
 			nocalhostApp.Reset(deployment)
 			os.Exit(1)
 		}
-		// set profile sync port
-		//err = nocalhostApp.SetSyncthingPort(deployment, newSyncthing.RemotePort, newSyncthing.RemoteGUIPort, newSyncthing.LocalPort, newSyncthing.LocalGUIPort)
-		//if err != nil {
-		//	log.Fatal("Failed to update \"developing\" syncthing port status\n")
-		//}
 
 		// TODO set develop status, avoid stack in dev start and break, or it will never resume
 		err = nocalhostApp.SetDevelopingStatus(deployment, true)
