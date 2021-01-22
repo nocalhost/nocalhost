@@ -324,29 +324,6 @@ func (c *ClientGoUtils) CheckDeploymentReady(name string) (bool, error) {
 	return false, nil
 }
 
-func (c *ClientGoUtils) GetDeployments() ([]v1.Deployment, error) {
-	deps, err := c.GetDeploymentClient().List(c.ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, errors.Wrap(err, "")
-	}
-	return deps.Items, nil
-}
-
-func (c *ClientGoUtils) UpdateDeployment(deployment *v1.Deployment, opts metav1.UpdateOptions, wait bool) (*v1.Deployment, error) {
-	dep, err := c.GetDeploymentClient().Update(c.ctx, deployment, opts)
-	if err != nil {
-		return nil, errors.Wrap(err, "")
-	}
-	if wait {
-		ready, _ := isDeploymentReady(dep)
-		if ready {
-			return dep, nil
-		}
-		err = c.WaitDeploymentToBeReady(dep.Name)
-	}
-	return dep, err
-}
-
 func (c *ClientGoUtils) ListPodsOfDeployment(deployName string) ([]corev1.Pod, error) {
 	podClient := c.GetPodClient()
 
@@ -436,26 +413,6 @@ OuterLoop:
 		}
 	}
 	return result, nil
-}
-
-func (c *ClientGoUtils) GetSortedReplicaSetsByDeployment(deployment string) ([]*v1.ReplicaSet, error) {
-	rss, err := c.GetReplicaSetsByDeployment(deployment)
-	if err != nil {
-		return nil, err
-	}
-	if rss == nil || len(rss) < 1 {
-		return nil, nil
-	}
-	keys := make([]int, 0)
-	for rs := range rss {
-		keys = append(keys, rs)
-	}
-	sort.Ints(keys)
-	results := make([]*v1.ReplicaSet, 0)
-	for _, key := range keys {
-		results = append(results, rss[key])
-	}
-	return results, nil
 }
 
 func waitForJob(obj runtime.Object, name string) (bool, error) {

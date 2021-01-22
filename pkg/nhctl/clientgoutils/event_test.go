@@ -18,14 +18,32 @@ import (
 	"testing"
 )
 
+var kubeConfigForTest = "/Users/xinxinhuang/Library/Application Support/Lens/kubeconfigs/c3bbeccc-b61a-411a-af39-3d07bfe91017"
+var namespaceForTest = "nh6ihig"
+
 func TestClientGoUtils_ListEventsByReplicaSet(t *testing.T) {
-	client, _ := NewClientGoUtils("/Users/xinxinhuang/Library/Application Support/Lens/kubeconfigs/c3bbeccc-b61a-411a-af39-3d07bfe91017", "nh6ihig")
+	client, _ := NewClientGoUtils("", "nh6ihig")
 	list, err := client.ListEventsByReplicaSet("details-59c787d477")
 	if err != nil {
+
 		panic(err)
 	}
 	for _, event := range list {
 		fmt.Printf("%s %s %s %s\n", event.Name, event.Reason, event.LastTimestamp.String(), event.Message)
 	}
+}
 
+func TestClientGoUtils_DeleteEvent(t *testing.T) {
+	client, _ := NewClientGoUtils(kubeConfigForTest, namespaceForTest)
+	events, err := client.ListEventsByReplicaSet("details-59c787d477")
+	if err != nil {
+		panic(err)
+	}
+	for _, event := range events {
+		err := client.DeleteEvent(event.Name)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("%s deleted\n", event.Name)
+	}
 }

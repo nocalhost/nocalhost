@@ -72,7 +72,7 @@ func Background(logFile, pidFile string, isExit bool) (*exec.Cmd, error) {
 	}
 
 	if isExit {
-		log.Info("Parent exit")
+		//log.Info("Parent exit")
 		os.Exit(0)
 	}
 

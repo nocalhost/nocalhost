@@ -15,10 +15,80 @@ package clientgoutils
 
 import (
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/cache"
+	"nocalhost/pkg/nhctl/log"
 	"testing"
+	"time"
 )
 
 func TestNewClientGoUtils(t *testing.T) {
+	namespace := "nh6ihig"
+	client, _ := NewClientGoUtils("/Users/xinxinhuang/Library/Application Support/Lens/kubeconfigs/c3bbeccc-b61a-411a-af39-3d07bfe91017", namespace)
+	//client.WaitJobToBeReady()
+
+	f, err := fields.ParseSelector(fmt.Sprintf("involvedObject.kind=%s,involvedObject.name=%s", "ReplicaSet", "details-59c787d477"))
+	//f, err := fields.ParseSelector(fmt.Sprintf("involvedObject.kind=%s", "ReplicaSet"))
+	if err != nil {
+		panic(err)
+	}
+	//f := fields.Everything()
+
+	watchlist := cache.NewListWatchFromClient(
+		client.ClientSet.CoreV1().RESTClient(),
+		"events",
+		namespace,
+		f,
+	)
+	stop := make(chan struct{})
+	exit := make(chan int)
+	_, controller := cache.NewInformer( // also take a look at NewSharedIndexInformer
+		watchlist,
+		&corev1.Event{},
+		0, //Duration is int64
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				event := obj.(runtime.Object).(*corev1.Event)
+				fmt.Printf("Add %s %s %f\n", event.Name, event.Message, time.Now().Sub(event.LastTimestamp.Time).Seconds())
+				//if event.Type == "Warning" && time.Now().Sub(event.LastTimestamp.Time).Seconds() < 10 {
+				//	//if event.Reason == "FailedCreate" {
+				//	//	//return errors.New(fmt.Sprintf("Latest ReplicaSet failed to be ready : %s", event.Message))
+				//	//	log.Warnf("Latest ReplicaSet failed to be ready : %s", event.Message)
+				//	//	//exit <- 1
+				//	//}
+				//	log.Warnf("Warning event: %s", event.Message)
+				//}
+			},
+			DeleteFunc: func(obj interface{}) {
+				event := obj.(runtime.Object).(*corev1.Event)
+				fmt.Printf("Delete %s %s\n", event.Name, event.Message)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				oldEvent := oldObj.(runtime.Object).(*corev1.Event)
+				event := newObj.(runtime.Object).(*corev1.Event)
+				fmt.Printf("Update old %s: %s \n", oldEvent.Name, oldEvent.Message)
+				fmt.Printf("Update new %s: %s \n", event.Name, event.Message)
+				if event.Type == "Warning" {
+					//if event.Reason == "FailedCreate" {
+					//	//return errors.New(fmt.Sprintf("Latest ReplicaSet failed to be ready : %s", event.Message))
+					//	log.Warnf("Latest ReplicaSet failed to be ready : %s", event.Message)
+					//	exit <- 1
+					//}
+					log.Warnf("Warning event: %s", event.Message)
+				}
+			},
+		},
+	)
+	//defer close(stop)
+	go controller.Run(stop)
+
+	select {
+	case <-exit:
+		fmt.Println("Closing...")
+		close(stop)
+	}
 
 }
 

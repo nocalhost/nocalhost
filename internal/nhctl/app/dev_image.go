@@ -231,7 +231,7 @@ func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName str
 			volumes = append(volumes, persistentVol)
 			volumeMounts = append(volumeMounts, persistentMount)
 
-			log.Infof("%s mount a pvc successfully", persistentVolume.Path)
+			log.Infof("%s mounts a pvc successfully", persistentVolume.Path)
 		}
 	}
 
@@ -365,14 +365,14 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	log.Info("Updating development container...")
 	_, err = a.client.UpdateDeployment(dep, metav1.UpdateOptions{}, true)
 	if err != nil {
-		log.WarnE(err, "Failed to update development container")
+		//log.ErrorE(err, "Failed1111 to update development container")
 		return err
 	}
 
-	err = a.client.WaitLatestRevisionReplicaSetOfDeploymentToBeReady(dep.Name)
-	if err != nil {
-		return err
-	}
+	//err = a.client.WaitLatestRevisionReplicaSetOfDeploymentToBeReady(dep.Name)
+	//if err != nil {
+	//	return err
+	//}
 
 	// Wait podList to be ready
 	spinner := utils.NewSpinner(" Waiting pod to start...")

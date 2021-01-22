@@ -29,6 +29,26 @@ func (c *ClientGoUtils) UpdateReplicaSet(rs *v1.ReplicaSet) (*v1.ReplicaSet, err
 	return rs2, errors.Wrap(err, "")
 }
 
+func (c *ClientGoUtils) GetSortedReplicaSetsByDeployment(deployment string) ([]*v1.ReplicaSet, error) {
+	rss, err := c.GetReplicaSetsByDeployment(deployment)
+	if err != nil {
+		return nil, err
+	}
+	if rss == nil || len(rss) < 1 {
+		return nil, nil
+	}
+	keys := make([]int, 0)
+	for rs := range rss {
+		keys = append(keys, rs)
+	}
+	sort.Ints(keys)
+	results := make([]*v1.ReplicaSet, 0)
+	for _, key := range keys {
+		results = append(results, rss[key])
+	}
+	return results, nil
+}
+
 func (c *ClientGoUtils) GetReplicaSetsByDeployment(deploymentName string) (map[int]*v1.ReplicaSet, error) {
 	var rsList *v1.ReplicaSetList
 	replicaSetsClient := c.ClientSet.AppsV1().ReplicaSets(c.namespace)
@@ -57,6 +77,18 @@ func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploy
 
 	for {
 		time.Sleep(2 * time.Second)
+
+		deploy, err := c.GetDeployment(deploymentName)
+		if err != nil {
+			return err
+		}
+
+		// Check if deployment's condition is FailedCreate
+		replicaFailure, failMess, _ := CheckIfDeploymentIsReplicaFailure(deploy)
+		if replicaFailure {
+			return errors.New(fmt.Sprintf("deployment is in ReplicaFailure condition - %s", failMess))
+		}
+
 		replicaSets, err := c.GetReplicaSetsByDeployment(deploymentName)
 		if err != nil {
 			log.WarnE(err, "Failed to get replica sets")
@@ -76,15 +108,18 @@ func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploy
 		isReady := true
 		for _, rs := range replicaSets {
 			if rs.Annotations["deployment.kubernetes.io/revision"] == strconv.Itoa(latestRevision) {
-				// check pod's events
+				// Check replicaSet's events
 				events, err := c.ListEventsByReplicaSet(rs.Name)
 				if err != nil || len(events) == 0 {
 					continue
 				}
 
 				for _, event := range events {
-					if event.Reason == "FailedCreate" && time.Now().Sub(event.LastTimestamp.Time).Minutes() < 1 {
-						return errors.New(fmt.Sprintf("Latest ReplicaSet failed to be ready : %s", event.Message))
+					if event.Type == "Warning" {
+						if event.Reason == "FailedCreate" {
+							return errors.New(fmt.Sprintf("Latest ReplicaSet failed to be ready - %s", event.Message))
+						}
+						log.Warnf("Warning event: %s", event.Message)
 					}
 				}
 				continue

@@ -558,12 +558,12 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 		coloredoutput.Fail("Failed to roll revision back")
 	} else {
 		// Wait until workload ready
-		err = a.client.WaitLatestRevisionReplicaSetOfDeploymentToBeReady(svcName)
-		if err != nil {
-			return err
-		} else {
-			coloredoutput.Success("Workload has been rollback")
-		}
+		//err = a.client.WaitLatestRevisionReplicaSetOfDeploymentToBeReady(svcName)
+		//if err != nil {
+		//	return err
+		//} else {
+		coloredoutput.Success("Workload has been rollback")
+		//}
 	}
 
 	return err

@@ -126,12 +126,12 @@ func (a *Application) EndDevelopMode(svcName string) error {
 		return errors.New(fmt.Sprintf("\"%s\" is not in developing status", svcName))
 	}
 
-	fmt.Println("Ending dev mode...")
+	log.Info("Ending devMode...")
 	// end file sync
-	fmt.Println("Terminating file sync process...")
+	log.Info("Terminating file sync process...")
 	err = a.stopSyncProcessAndCleanPidFiles(svcName)
 	if err != nil {
-		log.Warnf("Error occurs when stopping sync process: %v", err)
+		log.WarnE(err, "Error occurs when stopping sync process")
 		return err
 	}
 
