@@ -52,17 +52,15 @@ func (a *Application) StopPortForwardByPort(svcName, port string) error {
 			}
 		}
 	}
-	if len(killPortList) == 0 {
-		err := errors.New("can not find port in PortForwardPidList")
-		return err
-	}
 	// killPid and killPortList
-	pid, err := strconv.Atoi(killPid)
-	if err != nil {
-		err := errors.New("convert port-forward pid fail")
-		return err
+	if killPid != "" {
+		pid, err := strconv.Atoi(killPid)
+		if err != nil {
+			err := errors.New("convert port-forward pid fail")
+			return err
+		}
+		_ = terminate.Terminate(pid, true, "port-forward")
 	}
-	_ = terminate.Terminate(pid, true, "port-forward")
 	// ignore terminate status and delete port-forward list anyway
 	// set devPortList
 	_ = a.DeleteDevPortList(svcName, killPortList)

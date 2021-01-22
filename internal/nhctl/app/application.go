@@ -34,6 +34,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -764,9 +765,7 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 	var addDevPod []string
 
 	// check if already exist manual port-forward, after dev start, pod will lost connection, should reconnect
-	if way == PortForwardDevPorts {
-
-	}
+	a.AppendDevPortManual(deployment, way, &localPort, &remotePort)
 
 	for key, sLocalPort := range localPort {
 		// check if already exist port-forward, and kill old
@@ -1016,6 +1015,40 @@ func (a *Application) AppendDevPortForwardPID(svcName string, portPIDList string
 	log.Infof("portStatusList %s", portStatusList)
 	a.GetSvcProfile(svcName).PortForwardPidList = portStatusList
 	return a.AppProfile.Save()
+}
+
+func (a *Application) AppendDevPortManual(svcName, way string, localPorts, remotePorts *[]int) {
+	// if from manual port-forward, renturn port
+	if way == PortForwardManual {
+		return
+	}
+	// if from devPorts, check previously manual port-forward and add to need port-forward list
+	portForwardStatus := a.GetPortForwardStatus(svcName)
+	if len(portForwardStatus) == 0 {
+		return
+	}
+	for _, v := range portForwardStatus {
+		if strings.Contains(v, PortForwardManual) {
+			// TODO use regex instead of split
+			regexp, _ := regexp.Compile("\\d+:\\d+")
+			localAndRemote := regexp.FindString(v)
+			localAndRemoteArray := strings.Split(localAndRemote, ":")
+			if len(localAndRemoteArray) != 2 {
+				return
+			}
+			appendLocalPort, err := strconv.Atoi(localAndRemoteArray[0])
+			appendRemotePort, err := strconv.Atoi(localAndRemoteArray[1])
+			if err != nil {
+				continue
+			}
+			*localPorts = append(*localPorts, appendLocalPort)
+			*remotePorts = append(*remotePorts, appendRemotePort)
+		}
+	}
+}
+
+func (a *Application) GetPortForwardStatus(svcName string) []string {
+	return a.GetSvcProfile(svcName).PortForwardStatusList
 }
 
 func (a *Application) AppendPortForwardStatus(svcName string, portStatus string) error {
