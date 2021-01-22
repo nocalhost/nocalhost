@@ -1055,7 +1055,7 @@ func (a *Application) AppendDevPortManual(svcName, way string, localPorts, remot
 		return
 	}
 	for _, v := range portForwardStatus {
-		if strings.Contains(v, PortForwardManual) {
+		if strings.Contains(v, strings.ToTitle(PortForwardManual)) {
 			// TODO use regex instead of split
 			regexp, _ := regexp.Compile("\\d+:\\d+")
 			localAndRemote := regexp.FindString(v)
