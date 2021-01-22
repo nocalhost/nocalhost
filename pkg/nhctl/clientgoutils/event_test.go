@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-var kubeConfigForTest = "/Users/xinxinhuang/Library/Application Support/Lens/kubeconfigs/c3bbeccc-b61a-411a-af39-3d07bfe91017"
+var kubeConfigForTest = "~/kubeconfigs/c3bbeccc-b61a-411a-af39-3d07bfe91017"
 var namespaceForTest = "nh6ihig"
 
 func TestClientGoUtils_ListEventsByReplicaSet(t *testing.T) {

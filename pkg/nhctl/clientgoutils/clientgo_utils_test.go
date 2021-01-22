@@ -26,7 +26,7 @@ import (
 
 func TestNewClientGoUtils(t *testing.T) {
 	namespace := "nh6ihig"
-	client, _ := NewClientGoUtils("/Users/xinxinhuang/Library/Application Support/Lens/kubeconfigs/c3bbeccc-b61a-411a-af39-3d07bfe91017", namespace)
+	client, _ := NewClientGoUtils(namespaceForTest, namespace)
 	//client.WaitJobToBeReady()
 
 	f, err := fields.ParseSelector(fmt.Sprintf("involvedObject.kind=%s,involvedObject.name=%s", "ReplicaSet", "details-59c787d477"))
