@@ -38,7 +38,6 @@ import (
 )
 
 var (
-	configTemplate      = template.Must(template.New("syncthingConfig").Parse(local.ConfigXML))
 	ignoredFileTemplate = template.Must(template.New("ignoredFileTemplate").Parse(local.IgnoredFileTemplate))
 )
 
@@ -56,12 +55,19 @@ const (
 	syncthingPidFile = "syncthing.pid"
 	DefaultSyncMode  = "sendreceive" // default sync mode
 	SendOnlySyncMode = "sendonly"    // default sync mode
+
+	// Use to access syncthing API
+	DefaultAPIKey = "nocalhost"
+
 	// DefaultRemoteDeviceID remote syncthing ID
 	DefaultRemoteDeviceID = "MDPJNTF-OSPJC65-LZNCQGD-3AWRUW6-BYJULSS-GOCA2TU-5DWWBNC-TKM4VQ5"
 	localDeviceID         = "SJTYMUE-DI3REKX-JCLCRXU-F6UJHCG-XQGHAZJ-5O5D3JR-LALGSBC-TJ4I4QO"
 
 	// DefaultFileWatcherDelay how much to wait before starting a sync after a file change
 	DefaultFileWatcherDelay = 5
+
+	// may result bug due to syncthing config changing
+	DefaultFolderName = "nh-1"
 
 	// ClusterPort is the port used by syncthing in the cluster
 	ClusterPort = 22000
@@ -186,12 +192,12 @@ func (s *Syncthing) initConfig() error {
 
 // UpdateConfig updates the syncthing config file
 func (s *Syncthing) UpdateConfig() error {
-	buf := new(bytes.Buffer)
-	if err := configTemplate.Execute(buf, s); err != nil {
-		return fmt.Errorf("failed to write syncthing configuration template: %w", err)
+	bs, err := s.GetLocalConfigXML()
+	if err != nil {
+		return err
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(s.LocalHome, configFile), buf.Bytes(), 0700); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(s.LocalHome, configFile), bs, 0700); err != nil {
 		return fmt.Errorf("failed to write syncthing configuration file: %w", err)
 	}
 
@@ -300,6 +306,24 @@ func (s *Syncthing) Stop(pid int, pidFilePath string, typeName string, force boo
 		fmt.Printf("failed to delete pidfile %d: %s", pid, err)
 	}
 	return nil
+}
+
+func (s *Syncthing) GetRemoteConfigXML() ([]byte, error) {
+	configTemplate := template.Must(template.New("syncthingConfig").Parse(local.RemoteSyncConfigXML))
+	buf := new(bytes.Buffer)
+	if err := configTemplate.Execute(buf, s); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (s *Syncthing) GetLocalConfigXML() ([]byte, error) {
+	configTemplate := template.Must(template.New("syncthingConfig").Parse(local.LocalSyncConfigXML))
+	buf := new(bytes.Buffer)
+	if err := configTemplate.Execute(buf, s); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func getPID(pidPath string) (int, error) {
