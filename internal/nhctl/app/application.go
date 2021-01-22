@@ -762,11 +762,16 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 	var addDevPod []string
-	//portForwardResultCh := make(chan string, group)
-	//var portForwardResult []string
+
+	// check if already exist manual port-forward, after dev start, pod will lost connection, should reconnect
+	if way == PortForwardDevPorts {
+
+	}
+
 	for key, sLocalPort := range localPort {
 		// check if already exist port-forward, and kill old
 		_ = a.KillAlreadyExistPortForward(fmt.Sprintf("%d:%d", sLocalPort, remotePort[key]), deployment)
+
 		// stopCh control the port forwarding lifecycle. When it gets closed the
 		// port forward will terminate
 		stopCh := make(chan struct{}, group)

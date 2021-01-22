@@ -76,6 +76,10 @@ const (
 	DefaultDevContainerShell = "(zsh || bash || sh)"
 
 	DependenceConfigMapPrefix = "nocalhost-depends-do-not-overwrite"
+
+	// Port-forward
+	PortForwardManual   = "manual"
+	PortForwardDevPorts = "devPorts"
 )
 
 type NocalHostAppConfig struct {
