@@ -813,6 +813,9 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 			}
 		}(&readyCh)
 
+		// sleep while
+		time.Sleep(time.Duration(2) * time.Second)
+
 		// send heartbeat
 		//go func() {
 		//	for {
