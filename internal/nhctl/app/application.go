@@ -1043,6 +1043,7 @@ func (a *Application) AppendDevPortForwardPID(svcName string, portPIDList string
 	}
 	portStatusList = tools.RemoveDuplicateElement(portStatusList)
 	a.GetSvcProfile(svcName).PortForwardPidList = portStatusList
+	log.Infof("portStatusList %s", portStatusList)
 	return a.AppProfile.Save()
 }
 
@@ -1058,6 +1059,7 @@ func (a *Application) AppendDevPortManual(svcName, way string, localPorts, remot
 	}
 	for _, v := range portForwardStatus {
 		if strings.Contains(v, strings.ToTitle(PortForwardManual)) {
+			exist := false
 			// TODO use regex instead of split
 			regexp, _ := regexp.Compile("\\d+:\\d+")
 			localAndRemote := regexp.FindString(v)
@@ -1070,8 +1072,15 @@ func (a *Application) AppendDevPortManual(svcName, way string, localPorts, remot
 			if err != nil {
 				continue
 			}
-			*localPorts = append(*localPorts, appendLocalPort)
-			*remotePorts = append(*remotePorts, appendRemotePort)
+			for _, vv := range *localPorts {
+				if vv == appendLocalPort {
+					exist = true
+				}
+			}
+			if !exist {
+				*localPorts = append(*localPorts, appendLocalPort)
+				*remotePorts = append(*remotePorts, appendRemotePort)
+			}
 		}
 	}
 }
