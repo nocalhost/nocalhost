@@ -740,6 +740,25 @@ func (a *Application) GetPluginDescription(service string) string {
 	return desc
 }
 
+// record manual port-forward in rawConfig devPorts
+func(a *Application) AppendManualPortForwardToRawConfigDevPorts(svcName, way string, localPorts, remotePorts []int) error {
+	if way == PortForwardDevPorts {
+		return nil
+	}
+	err := a.ReadBeforeWriteProfile()
+	if err != nil {
+		return err
+	}
+	exist := a.GetSvcProfile(svcName).DevPort
+	for k, v := range localPorts {
+		checkPorts := fmt.Sprintf("%d:%d", v, remotePorts[k])
+		exist = append(exist, checkPorts)
+	}
+	newPodList := tools.RemoveDuplicateElement(exist)
+	a.GetSvcProfile(svcName).DevPort = newPodList
+	return a.AppProfile.Save()
+}
+
 // for background port-forward
 func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPort, remotePort []int, way string) {
 	group := len(localPort)
