@@ -741,7 +741,7 @@ func (a *Application) GetPluginDescription(service string) string {
 }
 
 // record manual port-forward in rawConfig devPorts
-func(a *Application) AppendManualPortForwardToRawConfigDevPorts(svcName, way string, localPorts, remotePorts []int) error {
+func (a *Application) AppendManualPortForwardToRawConfigDevPorts(svcName, way string, localPorts, remotePorts []int) error {
 	if way == PortForwardDevPorts {
 		return nil
 	}
@@ -833,31 +833,6 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 
 		// sleep while
 		time.Sleep(time.Duration(2) * time.Second)
-
-		// send heartbeat
-		//go func() {
-		//	for {
-		//		<-time.After(30 * time.Second)
-		//		go func() {
-		//			log.Info("try send port-forward heartbeat")
-		//			err := a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress[0], sLocalPort))
-		//			if err != nil {
-		//				log.Info("send port-forward heartbeat with err %s", err.Error())
-		//			}
-		//		}()
-		//	}
-		//}()
-
-		// check pid port status
-		//go func() {
-		//	for {
-		//		go func() {
-		//			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
-		//			_ = a.AppendPortForwardStatus(deployment, fmt.Sprintf("%d:%d(%s-%s)", sLocalPort, remotePort[key], strings.ToTitle(way), portStatus))
-		//		}()
-		//		<-time.After(10 * time.Second)
-		//	}
-		//}()
 	}
 	log.Info("Done go routine")
 	// update profile addDevPod
