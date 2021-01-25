@@ -16,6 +16,7 @@ package cmds
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"nocalhost/internal/nhctl/app"
@@ -99,6 +100,13 @@ func InstallApplication(applicationName string) error {
 	var err error
 
 	installFlags.EnvSettings = settings
+
+	log.Logf("KubeConfig path: %s", installFlags.KubeConfig)
+	bys, err := ioutil.ReadFile(installFlags.KubeConfig)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	log.Logf("KubeConfig content: %s", string(bys))
 
 	nocalhostApp, err = app.BuildApplication(applicationName, installFlags)
 	if err != nil {
