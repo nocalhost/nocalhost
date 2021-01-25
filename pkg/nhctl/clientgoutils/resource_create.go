@@ -210,16 +210,16 @@ func (c *ClientGoUtils) apply(files []string, continueOnError bool, action apply
 		}
 		if err != nil {
 			if continueOnError {
-				log.WarnE(err, fmt.Sprintf("Failed to %s manifest", strings.ToLower(string(action))))
+				log.WarnE(err, fmt.Sprintf("Failed to %s resource %s: %s", strings.ToLower(string(action)), info.Name, err.Error()))
 				continue
 			}
 			return errors.Wrap(err, "")
 		}
 		info.Refresh(obj, true)
 		if action == Create {
-			log.Infof("Resource(%s) %s %s\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, "created")
+			log.Infof("Resource(%s) %s %s", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, "created")
 		} else if action == Delete {
-			log.Infof("Resource(%s) %s %s\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, "deleted")
+			log.Infof("Resource(%s) %s %s", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, "deleted")
 		}
 	}
 	return nil

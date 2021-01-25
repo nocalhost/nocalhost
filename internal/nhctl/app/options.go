@@ -25,8 +25,9 @@ type DevStartOptions struct {
 	SyncthingVersion string
 
 	// Now it's only use to specify the `root dir` user want to sync
-	LocalSyncDir []string
-	StorageClass string
+	LocalSyncDir  []string
+	StorageClass  string
+	PriorityClass string
 }
 
 type FileSyncOptions struct {
@@ -38,4 +39,8 @@ type FileSyncOptions struct {
 	SyncDouble     bool
 	SyncedPattern  []string
 	IgnoredPattern []string
+}
+
+type SyncStatusOptions struct {
+	Override bool
 }

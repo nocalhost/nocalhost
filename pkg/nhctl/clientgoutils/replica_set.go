@@ -14,6 +14,7 @@ limitations under the License.
 package clientgoutils
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,7 +29,27 @@ func (c *ClientGoUtils) UpdateReplicaSet(rs *v1.ReplicaSet) (*v1.ReplicaSet, err
 	return rs2, errors.Wrap(err, "")
 }
 
-func (c *ClientGoUtils) GetReplicaSetsControlledByDeployment(deploymentName string) (map[int]*v1.ReplicaSet, error) {
+func (c *ClientGoUtils) GetSortedReplicaSetsByDeployment(deployment string) ([]*v1.ReplicaSet, error) {
+	rss, err := c.GetReplicaSetsByDeployment(deployment)
+	if err != nil {
+		return nil, err
+	}
+	if rss == nil || len(rss) < 1 {
+		return nil, nil
+	}
+	keys := make([]int, 0)
+	for rs := range rss {
+		keys = append(keys, rs)
+	}
+	sort.Ints(keys)
+	results := make([]*v1.ReplicaSet, 0)
+	for _, key := range keys {
+		results = append(results, rss[key])
+	}
+	return results, nil
+}
+
+func (c *ClientGoUtils) GetReplicaSetsByDeployment(deploymentName string) (map[int]*v1.ReplicaSet, error) {
 	var rsList *v1.ReplicaSetList
 	replicaSetsClient := c.ClientSet.AppsV1().ReplicaSets(c.namespace)
 	rsList, err := replicaSetsClient.List(c.ctx, metav1.ListOptions{})
@@ -56,7 +77,19 @@ func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploy
 
 	for {
 		time.Sleep(2 * time.Second)
-		replicaSets, err := c.GetReplicaSetsControlledByDeployment(deploymentName)
+
+		deploy, err := c.GetDeployment(deploymentName)
+		if err != nil {
+			return err
+		}
+
+		// Check if deployment's condition is FailedCreate
+		replicaFailure, _, failMess, _ := CheckIfDeploymentIsReplicaFailure(deploy)
+		if replicaFailure {
+			return errors.New(fmt.Sprintf("deployment is in ReplicaFailure condition - %s", failMess))
+		}
+
+		replicaSets, err := c.GetReplicaSetsByDeployment(deploymentName)
 		if err != nil {
 			log.WarnE(err, "Failed to get replica sets")
 			return err
@@ -75,6 +108,20 @@ func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploy
 		isReady := true
 		for _, rs := range replicaSets {
 			if rs.Annotations["deployment.kubernetes.io/revision"] == strconv.Itoa(latestRevision) {
+				// Check replicaSet's events
+				events, err := c.ListEventsByReplicaSet(rs.Name)
+				if err != nil || len(events) == 0 {
+					continue
+				}
+
+				for _, event := range events {
+					if event.Type == "Warning" {
+						if event.Reason == "FailedCreate" {
+							return errors.New(fmt.Sprintf("Latest ReplicaSet failed to be ready - %s", event.Message))
+						}
+						log.Warnf("Warning event: %s", event.Message)
+					}
+				}
 				continue
 			}
 			if rs.Status.Replicas != 0 {

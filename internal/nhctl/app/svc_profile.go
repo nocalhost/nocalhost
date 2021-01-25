@@ -29,7 +29,8 @@ type SvcProfile struct {
 	LocalSyncthingGUIPort                  int      `json:"localSyncthingGUIPort" yaml:"localSyncthingGUIPort"`
 	LocalAbsoluteSyncDirFromDevStartPlugin []string `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
 	DevPortList                            []string `json:"devPortList" yaml:"devPortList"`
-
+	PortForwardStatusList                  []string `json:"portForwardStatusList" yaml:"portForwardStatusList"`
+	PortForwardPidList                     []string `json:"portForwardPidList" yaml:"portForwardPidList"`
 	// .nhignore's pattern configuration
 	SyncedPatterns  []string `json:"syncFilePattern" yaml:"syncFilePattern"`
 	IgnoredPatterns []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`

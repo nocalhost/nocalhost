@@ -16,6 +16,7 @@ package cmds
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"nocalhost/internal/nhctl/app"
@@ -74,7 +75,7 @@ var installCmd = &cobra.Command{
 			}
 		}
 		if nocalhost.CheckIfApplicationExist(applicationName) {
-			log.Fatalf("Application \"%s\" already exists", applicationName)
+			log.Fatalf("Application %s already exists", applicationName)
 		}
 
 		log.Info("Installing application...")
@@ -100,39 +101,17 @@ func InstallApplication(applicationName string) error {
 
 	installFlags.EnvSettings = settings
 
+	log.Logf("KubeConfig path: %s", installFlags.KubeConfig)
+	bys, err := ioutil.ReadFile(installFlags.KubeConfig)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	log.Logf("KubeConfig content: %s", string(bys))
+
 	nocalhostApp, err = app.BuildApplication(applicationName, installFlags)
 	if err != nil {
 		return err
 	}
-
-	//err = nocalhostApp.initClient(settings.KubeConfig, nameSpace)
-	//if err != nil {
-	//	return err
-	//}
-
-	//if installFlags.GitUrl != "" {
-	//	err = nocalhostApp.DownloadResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
-	//	if err != nil {
-	//		log.Debugf("Failed to clone : %s, ref: %s\n", installFlags.GitUrl, installFlags.GitRef)
-	//		return err
-	//	}
-	//}
-
-	//err = nocalhostApp.generateConfig(installFlags.OuterConfig, installFlags.Config)
-	//if err != nil {
-	//	return err
-	//} else {
-	//	nocalhostApp.LoadSvcConfigsToProfile()
-	//}
-
-	// flags which no config mush specify
-	//if installFlags.AppType != "" {
-	//	nocalhostApp.AppProfile.AppType = app.AppType(installFlags.AppType)
-	//}
-	//if len(installFlags.ResourcePath) != 0 {
-	//	nocalhostApp.AppProfile.ResourcePath = installFlags.ResourcePath
-	//}
-	//nocalhostApp.AppProfile.Save()
 
 	appType := nocalhostApp.GetType()
 	if appType == "" {

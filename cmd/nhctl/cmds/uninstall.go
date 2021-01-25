@@ -69,7 +69,16 @@ var uninstallCmd = &cobra.Command{
 						log.Warnf("Failed to end %s DevMode: %s", profile.ActualName, err.Error())
 					}
 				}
+				// End port forward
+				if len(profile.PortForwardPidList) > 0 {
+					log.Infof("Stopping port-forwards of service %s", profile.ActualName)
+					err = nhApp.StopAllPortForward(profile.ActualName)
+					if err != nil {
+						log.WarnE(err, err.Error())
+					}
+				}
 			}
+
 		}
 		err = nhApp.Uninstall(force)
 		if err != nil {

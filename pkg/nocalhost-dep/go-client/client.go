@@ -15,22 +15,18 @@ package go_client
 
 import (
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/rest"
 )
 
 func Init() *kubernetes.Clientset {
-	var kubeconfig string
-	//if home := homedir.HomeDir(); home != "" {
-	//	kubeconfig = filepath.Join(home, ".kube", "config")
-	//}
-	kubeconfig = "/.kube/config"
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	config, err := rest.InClusterConfig()
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
+	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 	return clientset
 }

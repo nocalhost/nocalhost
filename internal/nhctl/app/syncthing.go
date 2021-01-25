@@ -18,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/syncthing/network/req"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"path/filepath"
 	"strconv"
@@ -79,7 +80,7 @@ func (a *Application) NewSyncthing(deployment string, localSyncDir []string, syn
 		sendMode = syncthing.SendOnlySyncMode
 	}
 	s := &syncthing.Syncthing{
-		APIKey:           "nocalhost",
+		APIKey:           syncthing.DefaultAPIKey,
 		GUIPassword:      "nocalhost",
 		GUIPasswordHash:  string(hash),
 		BinPath:          filepath.Join(nocalhost.GetSyncThingBinDir(), syncthing.GetBinaryName()),
@@ -133,6 +134,17 @@ func (a *Application) NewSyncthing(deployment string, localSyncDir []string, syn
 	_ = a.SaveProfile()
 
 	return s, nil
+}
+
+func (a *Application) NewSyncthingHttpClient(svcName string) *req.SyncthingHttpClient {
+	svcProfile := a.GetSvcProfile(svcName)
+
+	return req.NewSyncthingHttpClient(
+		fmt.Sprintf("127.0.0.1:%d", svcProfile.LocalSyncthingGUIPort),
+		syncthing.DefaultAPIKey,
+		syncthing.DefaultRemoteDeviceID,
+		syncthing.DefaultFolderName,
+	)
 }
 
 func (a *Application) CreateSyncThingSecret(svcName string, syncSecret *corev1.Secret) error {

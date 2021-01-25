@@ -32,6 +32,7 @@ const (
 	//DefaultBinSyncThingDirName               = "syncthing"
 	DefaultBackGroundPortForwardLogFileName  = "alone-port-forward-child-process.log"
 	DefaultApplicationOnlyPortForwardPidFile = "alone-port-forward.pid"
+	GetFileLockPath                          = "lock"
 	DefaultApplicationSyncPidFile            = "syncthing.pid"
 	//DefaultApplicationDirName                = "application"
 
@@ -75,6 +76,10 @@ const (
 	DefaultDevContainerShell = "(zsh || bash || sh)"
 
 	DependenceConfigMapPrefix = "nocalhost-depends-do-not-overwrite"
+
+	// Port-forward
+	PortForwardManual   = "manual"
+	PortForwardDevPorts = "devPorts"
 )
 
 type NocalHostAppConfig struct {
@@ -114,6 +119,7 @@ type ServiceDevOptions struct {
 	DevImage              string                 `json:"devContainerImage" yaml:"devContainerImage"`
 	WorkDir               string                 `json:"workDir" yaml:"workDir"`
 	Sync                  []string               `json:"syncDirs" yaml:"syncDirs,omitempty"`
+	PriorityClass         string                 `json:"priorityClass,omitempty" yaml:"priorityClass,omitempty"`
 	PersistentVolumeDirs  []*PersistentVolumeDir `json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
 	BuildCommand          []string               `json:"buildCommand,omitempty" yaml:"buildCommand,omitempty"`
 	RunCommand            []string               `json:"runCommand,omitempty" yaml:"runCommand,omitempty"`

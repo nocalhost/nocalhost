@@ -138,7 +138,11 @@ func WarnE(err error, message string) {
 		fileEntry.Warnf("%s, err: %+v", message, err)
 	}
 
-	outLogger.Warn(fmt.Sprintf("[WARN] %s", message))
+	if err != nil {
+		outLogger.Warn(fmt.Sprintf("%s: %s", message, err.Error()))
+	} else {
+		outLogger.Warn(fmt.Sprintf("%s", message))
+	}
 }
 
 func Error(args ...interface{}) {
@@ -159,7 +163,11 @@ func ErrorE(err error, message string) {
 	if fileEntry != nil {
 		fileEntry.Errorf("%s, err: %+v", message, err)
 	}
-	outLogger.Errorf("%s\nsee %s for more details", message, logFile)
+	if err != nil {
+		outLogger.Errorf("%s: %s", message, err.Error())
+	} else {
+		outLogger.Errorf("%s", message)
+	}
 }
 
 func Fatal(args ...interface{}) {
@@ -179,9 +187,25 @@ func Fatalf(format string, args ...interface{}) {
 // log with error
 func FatalE(err error, message string) {
 
-	outLogger.Errorf("%s\nsee %s for more details", message, logFile)
+	if err != nil {
+		outLogger.Errorf("%s: %s\nsee %s for more details", message, err.Error(), logFile)
+	} else {
+		outLogger.Errorf("%s\nsee %s for more details", message, logFile)
+	}
 
 	if fileEntry != nil {
 		fileEntry.Fatalf("%s, err: %+v", message, err)
+	}
+}
+
+func Log(args ...interface{}) {
+	if fileEntry != nil {
+		fileEntry.Info(args)
+	}
+}
+
+func Logf(format string, args ...interface{}) {
+	if fileEntry != nil {
+		fileEntry.Infof(format, args)
 	}
 }

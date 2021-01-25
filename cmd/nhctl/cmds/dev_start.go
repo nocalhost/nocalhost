@@ -15,9 +15,9 @@ package cmds
 
 import (
 	"context"
+	"fmt"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing"
-	"nocalhost/internal/nhctl/syncthing/secret"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -41,6 +41,7 @@ func init() {
 	devStartCmd.Flags().StringVarP(&devStartOps.DevImage, "image", "i", "", "image of DevContainer")
 	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory, same as sync path")
 	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "the StorageClass used by persistent volumes")
+	devStartCmd.Flags().StringVar(&devStartOps.PriorityClass, "priority-class", "", "the PriorityClass used by devContainer")
 	devStartCmd.Flags().StringVar(&devStartOps.SideCarImage, "sidecar-image", "", "image of nocalhost-sidecar container")
 
 	// for debug only
@@ -105,7 +106,7 @@ var devStartCmd = &cobra.Command{
 		}
 
 		// set syncthing secret
-		config, err := secret.GetConfigXML(newSyncthing)
+		config, err := newSyncthing.GetRemoteConfigXML()
 		syncSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: deployment + "-" + secret_config.SecretName,
@@ -123,24 +124,14 @@ var devStartCmd = &cobra.Command{
 			log.Fatalf("Failed to create syncthing secret, please try to delete \"%s\" secret first manually.", syncthing.SyncSecretName)
 		}
 
-		// set profile sync dir
-		//err = nocalhostApp.SetLocalAbsoluteSyncDirFromDevStartPlugin(deployment, devStartOps.LocalSyncDir)
-		//if err != nil {
-		//	log.Fatalf("Failed to update sync directory")
-		//}
-
 		err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps)
 		if err != nil {
 			// todo: rollback somethings
-			log.WarnE(err, "Failed to replace dev container, resetting workload...")
+			log.ErrorE(err, fmt.Sprintf("Failed to replace dev container: %s", err.Error()))
+			log.Info("Resetting workload...")
 			nocalhostApp.Reset(deployment)
 			os.Exit(1)
 		}
-		// set profile sync port
-		//err = nocalhostApp.SetSyncthingPort(deployment, newSyncthing.RemotePort, newSyncthing.RemoteGUIPort, newSyncthing.LocalPort, newSyncthing.LocalGUIPort)
-		//if err != nil {
-		//	log.Fatal("Failed to update \"developing\" syncthing port status\n")
-		//}
 
 		// TODO set develop status, avoid stack in dev start and break, or it will never resume
 		err = nocalhostApp.SetDevelopingStatus(deployment, true)

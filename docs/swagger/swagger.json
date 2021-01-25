@@ -1,17 +1,8 @@
 {
-    "swagger": "2.0",
     "info": {
-        "description": "Nocalhost server api",
-        "title": "Nocalhost docs api",
-        "contact": {
-            "name": "wangwei",
-            "url": "codingcorp.coding.net"
-        },
-        "license": {},
-        "version": "1.0"
+        "contact": {},
+        "license": {}
     },
-    "host": "{{.Host}}",
-    "basePath": "{{.BasePath}}",
     "paths": {
         "/v1/application": {
             "get": {
@@ -1272,7 +1263,7 @@
                 }
             }
         },
-        "/v1/plugin/applications": {
+        "/v1/plugin/dev_space": {
             "get": {
                 "description": "Plug-in access to applications (including installation status)",
                 "consumes": [
@@ -2026,6 +2017,9 @@
                 },
                 "cpu": {
                     "type": "integer"
+                },
+                "dev_start_append_command": {
+                    "type": "string"
                 },
                 "devspace_id": {
                     "type": "integer"
