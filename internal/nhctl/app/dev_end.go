@@ -26,6 +26,37 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
+func (a *Application) StopAllPortForward(svcName string) error {
+	pidList := a.GetSvcProfile(svcName).PortForwardPidList
+	killPidList := make([]string, 0)
+	for _, v := range pidList {
+		killPidList = append(killPidList, strings.Split(v, "-")[1])
+	}
+	if len(killPidList) == 0 {
+		return errors.New("no port-forward pid found")
+	}
+
+	for _, killPid := range killPidList {
+		pid, err := strconv.Atoi(killPid)
+		if err != nil {
+			log.WarnE(err, err.Error())
+			continue
+		}
+		_ = terminate.Terminate(pid, true, "port-forward")
+	}
+
+	// Clean up port-forward status
+	a.GetSvcProfile(svcName).DevPortList = make([]string, 0)
+	//_ = a.DeleteDevPortList(svcName, killPortList)
+	// set portForwardStatusList
+	a.GetSvcProfile(svcName).PortForwardStatusList = make([]string, 0)
+	//_ = a.DeletePortForwardStatusList(svcName, killPortList)
+	// set portForwardPidList
+	a.GetSvcProfile(svcName).PortForwardPidList = make([]string, 0)
+	//_ = a.DeletePortForwardPidList(svcName, killPortList)
+	return a.SaveProfile()
+}
+
 // port format 8080:80
 func (a *Application) StopPortForwardByPort(svcName, port string) error {
 	var err error
