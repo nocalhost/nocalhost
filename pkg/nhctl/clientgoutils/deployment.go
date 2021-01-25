@@ -92,15 +92,16 @@ func (c *ClientGoUtils) UpdateDeployment(deployment *v1.Deployment, opts metav1.
 	return dep, nil
 }
 
-func CheckIfDeploymentIsReplicaFailure(deploy *v1.Deployment) (bool, string, error) {
+func CheckIfDeploymentIsReplicaFailure(deploy *v1.Deployment) (bool, string, string, error) {
 	if deploy == nil {
-		return false, "", errors.New("failed to check a nil deployment")
+		return false, "", "", errors.New("failed to check a nil deployment")
 	}
 
 	for _, condition := range deploy.Status.Conditions {
 		if condition.Type == v1.DeploymentReplicaFailure {
-			return true, condition.Message, nil
+			return true, condition.Reason, condition.Message, nil
 		}
+
 	}
-	return false, "", nil
+	return false, "", "", nil
 }

@@ -119,6 +119,7 @@ type ServiceDevOptions struct {
 	DevImage              string                 `json:"devContainerImage" yaml:"devContainerImage"`
 	WorkDir               string                 `json:"workDir" yaml:"workDir"`
 	Sync                  []string               `json:"syncDirs" yaml:"syncDirs,omitempty"`
+	PriorityClass         string                 `json:"priorityClass,omitempty" yaml:"priorityClass,omitempty"`
 	PersistentVolumeDirs  []*PersistentVolumeDir `json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
 	BuildCommand          []string               `json:"buildCommand,omitempty" yaml:"buildCommand,omitempty"`
 	RunCommand            []string               `json:"runCommand,omitempty" yaml:"runCommand,omitempty"`

@@ -84,7 +84,7 @@ func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploy
 		}
 
 		// Check if deployment's condition is FailedCreate
-		replicaFailure, failMess, _ := CheckIfDeploymentIsReplicaFailure(deploy)
+		replicaFailure, _, failMess, _ := CheckIfDeploymentIsReplicaFailure(deploy)
 		if replicaFailure {
 			return errors.New(fmt.Sprintf("deployment is in ReplicaFailure condition - %s", failMess))
 		}
