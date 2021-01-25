@@ -1,17 +1,8 @@
 {
-    "swagger": "2.0",
     "info": {
-        "description": "Nocalhost server api",
-        "title": "Nocalhost docs api",
-        "contact": {
-            "name": "wangwei",
-            "url": "codingcorp.coding.net"
-        },
-        "license": {},
-        "version": "1.0"
+        "contact": {},
+        "license": {}
     },
-    "host": "{{.Host}}",
-    "basePath": "{{.BasePath}}",
     "paths": {
         "/v1/application": {
             "get": {
@@ -1067,6 +1058,56 @@
                 }
             }
         },
+        "/v1/dev_space/{id}/update_resource_limit": {
+            "put": {
+                "description": "Update dev space",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Update dev space",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "devspace id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "kubeconfig",
+                        "name": "SpaceResourceLimit",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster_user.SpaceResourceLimit"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/login": {
             "post": {
                 "description": "Web and plug-in login",
@@ -1222,7 +1263,7 @@
                 }
             }
         },
-        "/v1/plugin/applications": {
+        "/v1/plugin/dev_space": {
             "get": {
                 "description": "Plug-in access to applications (including installation status)",
                 "consumes": [
@@ -1755,7 +1796,7 @@
                     "type": "string"
                 },
                 "space_lb_count": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "space_limits_cpu": {
                     "type": "string"
@@ -1764,7 +1805,7 @@
                     "type": "string"
                 },
                 "space_pvc_count": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "space_req_cpu": {
                     "type": "string"
@@ -1976,6 +2017,9 @@
                 },
                 "cpu": {
                     "type": "integer"
+                },
+                "dev_start_append_command": {
+                    "type": "string"
                 },
                 "devspace_id": {
                     "type": "integer"

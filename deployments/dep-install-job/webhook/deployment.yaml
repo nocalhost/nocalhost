@@ -15,6 +15,7 @@ spec:
       labels:
         app: nocalhost-dep
     spec:
+      serviceAccountName: nocalhost-admin-service-account
       containers:
         - name: nocalhost-dep
           image: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep:latest
@@ -36,18 +37,12 @@ spec:
             - name: webhook-certs
               mountPath: /etc/webhook/certs
               readOnly: true
-            - name: kubeconfig
-              mountPath: /.kube/config
-              subPath: config
             - name: webhook-config
               mountPath: /etc/webhook/config
       volumes:
         - name: webhook-certs
           secret:
             secretName: nocalhost-sidecar-injector-certs
-        - name: kubeconfig
-          configMap:
-            name: nocalhost-kubeconfig
         - name: webhook-config
           configMap:
             name: sidecar-injector-webhook-configmap

@@ -17,8 +17,8 @@ type SpaceResourceLimit struct {
 	SpaceReqCpu               string `json:"space_req_cpu"`
 	SpaceLimitsMem            string `json:"space_limits_mem"`
 	SpaceLimitsCpu            string `json:"space_limits_cpu"`
-	SpaceLbCount              int    `json:"space_lb_count"`
-	SpacePvcCount             int    `json:"space_pvc_count"`
+	SpaceLbCount              string `json:"space_lb_count"`
+	SpacePvcCount             string `json:"space_pvc_count"`
 	SpaceStorageCapacity      string `json:"space_storage_capacity"`
 	SpaceEphemeralStorage     string `json:"space_ephemeral_storage"`
 	ContainerReqMem           string `json:"container_req_mem"`

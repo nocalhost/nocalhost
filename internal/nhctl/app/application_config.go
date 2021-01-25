@@ -32,6 +32,7 @@ const (
 	//DefaultBinSyncThingDirName               = "syncthing"
 	DefaultBackGroundPortForwardLogFileName  = "alone-port-forward-child-process.log"
 	DefaultApplicationOnlyPortForwardPidFile = "alone-port-forward.pid"
+	GetFileLockPath                          = "lock"
 	DefaultApplicationSyncPidFile            = "syncthing.pid"
 	//DefaultApplicationDirName                = "application"
 
@@ -75,6 +76,10 @@ const (
 	DefaultDevContainerShell = "(zsh || bash || sh)"
 
 	DependenceConfigMapPrefix = "nocalhost-depends-do-not-overwrite"
+
+	// Port-forward
+	PortForwardManual   = "manual"
+	PortForwardDevPorts = "devPorts"
 )
 
 type NocalHostAppConfig struct {

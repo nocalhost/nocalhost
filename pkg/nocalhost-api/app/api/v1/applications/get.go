@@ -14,8 +14,10 @@ limitations under the License.
 package applications
 
 import (
+	"fmt"
 	"github.com/spf13/cast"
 	"nocalhost/cmd/nhctl/cmds/tpl"
+	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
@@ -104,7 +106,7 @@ func GetSpaceDetail(c *gin.Context) {
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Success 200 {object} model.PluginApplicationModel
-// @Router /v1/plugin/applications [get]
+// @Router /v1/plugin/dev_space [get]
 func PluginGet(c *gin.Context) {
 	userId, _ := c.Get("userId")
 	result, err := service.Svc.ApplicationSvc().PluginGetList(c, userId.(uint64))
@@ -112,6 +114,10 @@ func PluginGet(c *gin.Context) {
 		log.Warnf("get Application err: %v", err)
 		api.SendResponse(c, errno.ErrApplicationGet, nil)
 		return
+	}
+	// get plugin dev start append command
+	for k := range result {
+		result[k].DevStartAppendCommand = fmt.Sprintf("%s %s", global.NocalhostDefaultPriorityclassKey, global.NocalhostDefaultPriorityclassName)
 	}
 	api.SendResponse(c, errno.OK, result)
 }

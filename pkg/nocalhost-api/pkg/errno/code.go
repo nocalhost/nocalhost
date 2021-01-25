@@ -50,6 +50,8 @@ var (
 	ErrDeleteClusterNameSpace = &Errno{Code: 30108, Message: "Delete cluster namespace fail, please try again"}
 	ErrGetClusterStorageClass = &Errno{Code: 30109, Message: "Get cluster storage class fail, please try again"}
 	ErrUpdateCluster          = &Errno{Code: 30110, Message: "Update cluster fail, please try again"}
+	ErrClusterContext         = &Errno{Code: 30111, Message: "Failed to get current context from kubeconfig, please check context exists"}
+	ErrClusterName            = &Errno{Code: 30112, Message: "Failed to get current cluster from kubeconfig, please check cluster exists and manage by current context"}
 
 	// application errors
 	ErrApplicationCreate        = &Errno{Code: 40100, Message: "Failed to add app, please try again"}
@@ -84,5 +86,9 @@ var (
 	ErrDeletedClsuterDevSpaceDBButClusterDone    = &Errno{Code: 50114, Message: "Cluster nocalhost develop space has deleted, but space record delete fail"}
 	ErrDeletedClusterRecord                      = &Errno{Code: 50115, Message: "Delete dev space by application fail, please try again"}
 	ErrResetDevSpaceFail                         = &Errno{Code: 50116, Message: "reset dev space fail, please try again"}
-	ErrFormatResourceLimitParam                  = &Errno{Code: 50116, Message: "Incorrect Resource limit parameter."}
+	ErrCreateResourceQuota                       = &Errno{Code: 50117, Message: "Create resource limit failed."}
+	ErrDeleteResourceQuota                       = &Errno{Code: 50118, Message: "Delete resource limit failed."}
+	ErrCreateLimitRange                          = &Errno{Code: 50119, Message: "Create limit range failed."}
+	ErrDeleteLimitRange                          = &Errno{Code: 50120, Message: "Delete limit range failed."}
+	ErrFormatResourceLimitParam                  = &Errno{Code: 50121, Message: "Incorrect Resource limit parameter."}
 )

@@ -83,11 +83,13 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 	}
 
 	chartName := flags.Chart
+	if a.config != nil && a.config.Name != "" {
+		chartName = a.config.Name
+	}
 	installParams := []string{"install", releaseName}
 	if flags.Wait {
 		installParams = append(installParams, "--wait")
 	}
-	//if installFlags.HelmRepoUrl
 	if flags.RepoUrl != "" {
 		installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
 	} else if flags.RepoName != "" {
@@ -115,8 +117,9 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 		return err
 	}
 	a.AppProfile.ReleaseName = releaseName
+	a.AppProfile.ChartName = chartName
 	a.AppProfile.Save()
-	fmt.Printf(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`+"\n", a.GetNamespace())
+	log.Infof(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`, a.GetNamespace())
 	return nil
 }
 
@@ -224,12 +227,11 @@ func (a *Application) InstallDepConfigMap(appType AppType) error {
 
 func (a *Application) installManifestRecursively() error {
 	a.loadInstallManifest()
-	log.Infof("installManifest len %d", len(a.installManifest))
+	log.Infof("%d manifest files to be installed", len(a.installManifest))
 	if len(a.installManifest) > 0 {
 		err := a.client.ApplyForCreate(a.installManifest, true)
 		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			return errors.Wrap(err, err.Error())
+			return err
 		}
 	} else {
 		log.Warn("nothing need to be installed ??")

@@ -22,6 +22,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -109,9 +110,14 @@ func newGoClientUseCurrentClusterHost(kubeconfig []byte) (*GoClient, error, []by
 		return nil, err, nil
 	}
 
-	cluster := rawConfig.Clusters[rawConfig.CurrentContext]
+	currentContext := rawConfig.Contexts[rawConfig.CurrentContext]
+	if currentContext == nil {
+		return nil, errno.ErrClusterContext, nil
+	}
+
+	cluster := rawConfig.Clusters[currentContext.Cluster]
 	if cluster == nil {
-		return nil, err, nil
+		return nil, errno.ErrClusterName, nil
 	}
 
 	// Step2. get in-cluster config
@@ -278,7 +284,7 @@ apiVersion: v1
       services.loadbalancers: "10"
       requests.storage: "20Gi"
 */
-func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage string, pvcCount, lbCount int) (bool, error) {
+func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string) (bool, error) {
 
 	resourceQuota := &corev1.ResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
@@ -303,11 +309,11 @@ func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMe
 	if len(ephemeralStorage) > 0 {
 		resourceList[corev1.ResourceEphemeralStorage] = resource.MustParse(ephemeralStorage)
 	}
-	if pvcCount > 0 {
-		resourceList[corev1.ResourcePersistentVolumeClaims] = resource.MustParse(strconv.Itoa(pvcCount))
+	if len(pvcCount) > 0 {
+		resourceList[corev1.ResourcePersistentVolumeClaims] = resource.MustParse(pvcCount)
 	}
-	if lbCount > 0 {
-		resourceList[corev1.ResourceServicesLoadBalancers] = resource.MustParse(strconv.Itoa(lbCount))
+	if len(lbCount) > 0 {
+		resourceList[corev1.ResourceServicesLoadBalancers] = resource.MustParse(lbCount)
 	}
 	if (len(resourceList)) < 1 {
 		return true, nil
@@ -316,6 +322,14 @@ func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMe
 		Hard: resourceList,
 	}
 	_, err := c.client.CoreV1().ResourceQuotas(namespace).Create(context.TODO(), resourceQuota, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, err
+}
+
+func (c *GoClient) DeleteResourceQuota(name, namespace string) (bool, error) {
+	err := c.client.CoreV1().ResourceQuotas(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -377,6 +391,14 @@ func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, 
 	return true, err
 }
 
+func (c *GoClient) DeleteLimitRange(name, namespace string) (bool, error) {
+	err := c.client.CoreV1().LimitRanges(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, err
+}
+
 // bind roles for serviceAccount
 // this use for given default serviceAccount default:view case by initContainer need use kubectl get pods....(clusterRole=view)
 // and this will use for bind developer serviceAccount roles(clusterRole=nocalhost-roles)
@@ -418,6 +440,38 @@ func (c *GoClient) CreateRoleBinding(name, namespace, role, toServiceAccount str
 	return true, nil
 }
 
+// create clusterRoleBinding
+// role=admin
+func (c *GoClient) CreateClusterRoleBinding(name, namespace, role, toServiceAccount string) (bool, error) {
+	roleBinding := &rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "RoleBinding"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	if role != "" {
+		roleBinding.RoleRef = rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     role,
+		}
+	}
+	if toServiceAccount != "" {
+		roleBinding.Subjects = append(roleBinding.Subjects, rbacv1.Subject{
+			Kind:      rbacv1.ServiceAccountKind,
+			APIGroup:  "",
+			Namespace: namespace,
+			Name:      toServiceAccount,
+		})
+	}
+	_, err := c.client.RbacV1().ClusterRoleBindings().Create(context.TODO(), roleBinding, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // create user role for single namespace
 // name default nocalhost-role
 //  default create every developer can access all resource for he's namespace
@@ -439,10 +493,23 @@ func (c *GoClient) CreateRole(name, namespace string) (bool, error) {
 	return true, nil
 }
 
+// deploy nocalhsot resource such as priorityclass
+func (c *GoClient) DeployNocalhostResource() error {
+	priorityClass := schedulingv1.PriorityClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: global.NocalhostDefaultPriorityclassName,
+		},
+		Value:       global.NocalhostDefaultPriorityclassDefaultValue,
+		Description: "This priority class should be used for Nocalhost service pods only.",
+	}
+	_, err := c.client.SchedulingV1().PriorityClasses().Create(context.TODO(), &priorityClass, metav1.CreateOptions{})
+	return err
+}
+
 // deploy nocalhost-dep
 // now all value has set by default
 // TODO this might better read from database manifest
-func (c *GoClient) DeployNocalhostDep(image, namespace string) (bool, error) {
+func (c *GoClient) DeployNocalhostDep(image, namespace, serviceAccount string) (bool, error) {
 	tag := "latest"
 	if global.Branch == global.NocalhostDefaultReleaseBranch {
 		tag = global.Version
@@ -466,32 +533,14 @@ func (c *GoClient) DeployNocalhostDep(image, namespace string) (bool, error) {
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					RestartPolicy: corev1.RestartPolicyNever,
-					Volumes: []corev1.Volume{
-						{
-							Name: "kubeconfig",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "nocalhost-kubeconfig",
-									},
-								},
-							},
-						},
-					},
 					Containers: []corev1.Container{
 						{
-							Name:  "nocalhost-dep-installer",
-							Image: image,
-							VolumeMounts: []corev1.VolumeMount{
-								{
-									Name:      "kubeconfig",
-									MountPath: "/.kube/config",
-									SubPath:   "config",
-								},
-							},
+							Name:    "nocalhost-dep-installer",
+							Image:   image,
 							Command: []string{"/nocalhost/installer.sh"},
 						},
 					},
+					ServiceAccountName: serviceAccount,
 				},
 			},
 		},
@@ -538,30 +587,12 @@ func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool,
 					InitContainers: initContainer,
 					Containers: []corev1.Container{
 						{
-							Name:  "kubectl",
-							Image: "codingcorp-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
-							VolumeMounts: []corev1.VolumeMount{
-								{
-									Name:      "kubeconfig",
-									MountPath: "/.kube/config",
-									SubPath:   "config",
-								},
-							},
+							Name:    "kubectl",
+							Image:   "codingcorp-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
 							Command: []string{"kubectl", "delete", "ds", global.NocalhostPrePullDSName, "-n", global.NocalhostSystemNamespace},
 						},
 					},
-					Volumes: []corev1.Volume{
-						{
-							Name: "kubeconfig",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "nocalhost-kubeconfig",
-									},
-								},
-							},
-						},
-					},
+					ServiceAccountName: global.NocalhostSystemNamespaceServiceAccount,
 				},
 			},
 		},

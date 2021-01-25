@@ -31,19 +31,20 @@ type ApplicationModel struct {
 }
 
 type PluginApplicationModel struct {
-	ID            uint64 `gorm:"column:id" json:"id"`
-	Context       string `json:"context" gorm:"column:context"`
-	UserId        uint64 `gorm:"column:user_id" json:"-"`
-	Status        uint64 `json:"status" gorm:"column:status"`
-	ClusterId     uint64 `json:"cluster_id" gorm:"column:cluster_id"`
-	SpaceName     string `json:"space_name" gorm:"column:space_name"`
-	KubeConfig    string `json:"kubeconfig" gorm:"column:kubeconfig"`
-	StorageClass  string `json:"storage_class" gorm:"column:storage_class"`
-	Memory        uint64 `json:"memory" gorm:"column:memory"`
-	Cpu           uint64 `json:"cpu" gorm:"column:cpu"`
-	NameSpace     string `json:"namespace" gorm:"column:namespace"`
-	InstallStatus uint64 `json:"install_status" gorm:"column:install_status"`
-	DevSpaceId    uint64 `json:"devspace_id" gorm:"column:devspace_id"`
+	ID                    uint64 `gorm:"column:id" json:"id"`
+	Context               string `json:"context" gorm:"column:context"`
+	UserId                uint64 `gorm:"column:user_id" json:"-"`
+	Status                uint64 `json:"status" gorm:"column:status"`
+	ClusterId             uint64 `json:"cluster_id" gorm:"column:cluster_id"`
+	SpaceName             string `json:"space_name" gorm:"column:space_name"`
+	KubeConfig            string `json:"kubeconfig" gorm:"column:kubeconfig"`
+	StorageClass          string `json:"storage_class" gorm:"column:storage_class"`
+	Memory                uint64 `json:"memory" gorm:"column:memory"`
+	Cpu                   uint64 `json:"cpu" gorm:"column:cpu"`
+	NameSpace             string `json:"namespace" gorm:"column:namespace"`
+	InstallStatus         uint64 `json:"install_status" gorm:"column:install_status"`
+	DevSpaceId            uint64 `json:"devspace_id" gorm:"column:devspace_id"`
+	DevStartAppendCommand string `json:"dev_start_append_command"`
 }
 
 // Validate the fields.

@@ -220,68 +220,16 @@ var InitCommand = &cobra.Command{
 		}
 		spinner.Stop()
 
-		// get Node ExternalIP
-		nodes, err := client.GetNodesList()
-		if err != nil {
-			log.Fatalf("get nodes fail, err %s\n", err)
-		}
-
-		nodeExternalIP := ""
-		nodeInternalIP := ""
-		loadBalancerIP := ""
-		for _, node := range nodes.Items {
-			done := false
-			for _, address := range node.Status.Addresses {
-				if address.Type == corev1.NodeExternalIP {
-					nodeExternalIP = address.Address
-					done = true
-					break
-				}
-				if address.Type == corev1.NodeInternalIP {
-					nodeInternalIP = address.Address
-				}
-			}
-			if done {
-				break
-			}
-		}
-
-		// get loadbalancer service IP
-		service, err := client.NameSpace(inits.NameSpace).GetService(app.DefaultInitNocalhostService)
-		if err != nil {
-			log.Fatalf("get service %s fail, please try again\n", err)
-		}
-		for _, ip := range service.Status.LoadBalancer.Ingress {
-			if ip.IP != "" {
-				loadBalancerIP = ip.IP
-				break
-			}
-		}
-		// should use loadbalancerIP > nodeExternalIP > nodeInternalIP
-		// fmt.Printf("%s %s %s", loadBalancerIP, nodeExternalIP, nodeInternalIP)
-		endPoint := ""
-		if nodeInternalIP != "" {
-			endPoint = nodeInternalIP + ":" + strconv.Itoa(inits.Port)
-		}
-		if nodeExternalIP != "" {
-			endPoint = nodeExternalIP + ":" + strconv.Itoa(inits.Port)
-		}
-		if loadBalancerIP != "" {
-			endPoint = loadBalancerIP
-			if inits.Port != 80 {
-				endPoint = loadBalancerIP + ":" + strconv.Itoa(inits.Port)
-			}
-		}
-		fmt.Printf("Nocalhost get ready, endpoint is: %s \n", endPoint)
-
 		// bookinfo source from
 		source := app.DefaultInitApplicationGithub
 		if strings.ToLower(inits.Source) == "coding" {
 			source = app.DefaultInitApplicationCODING
 		}
 
+		endpoint := findOutWebEndpoint(client)
+
 		// set default cluster, application, users
-		req := request.NewReq(fmt.Sprintf("http://%s", endPoint), settings.KubeConfig, kubectl, inits.NameSpace, inits.Port).Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).GetKubeConfig().AddBookInfoApplication(source).AddCluster().AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).AddDevSpace()
+		req := request.NewReq(fmt.Sprintf("http://%s", endpoint), settings.KubeConfig, kubectl, inits.NameSpace, inits.Port).Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).GetKubeConfig().AddBookInfoApplication(source).AddCluster().AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).AddDevSpace()
 
 		// should inject batch user
 		if inits.InjectUserTemplate != "" && inits.InjectUserAmount > 0 {
@@ -325,6 +273,80 @@ var InitCommand = &cobra.Command{
 			log.Fatal(err)
 		}
 	},
+}
+
+func findOutWebEndpoint(client *clientgoutils.ClientGoUtils) string {
+	var port = inits.Port
+
+	if inits.Type == "NodePort" {
+		service, err := client.GetService("nocalhost-web")
+		if err != nil || service == nil {
+			log.Fatal("getting svc nocalhost-web from kubernetes failed")
+		}
+
+		ports := service.Spec.Ports
+		if len(ports) == 1 {
+			port = int(ports[0].NodePort)
+		}
+	}
+
+	// get Node ExternalIP
+	nodes, err := client.GetNodesList()
+	if err != nil {
+		log.Fatalf("get nodes fail, err %s\n", err)
+	}
+
+	nodeExternalIP := ""
+	nodeInternalIP := ""
+	loadBalancerIP := ""
+	for _, node := range nodes.Items {
+		done := false
+		for _, address := range node.Status.Addresses {
+			if address.Type == corev1.NodeExternalIP {
+				nodeExternalIP = address.Address
+				done = true
+				break
+			}
+			if address.Type == corev1.NodeInternalIP {
+				nodeInternalIP = address.Address
+			}
+		}
+		if done {
+			break
+		}
+	}
+
+	// get loadbalancer service IP
+	service, err := client.NameSpace(inits.NameSpace).GetService(app.DefaultInitNocalhostService)
+	if err != nil {
+		log.Fatalf("get service %s fail, please try again\n", err)
+	}
+	for _, ip := range service.Status.LoadBalancer.Ingress {
+		if ip.IP != "" {
+			loadBalancerIP = ip.IP
+			break
+		}
+	}
+
+	// should use loadbalancerIP > nodeExternalIP > nodeInternalIP
+	// fmt.Printf("%s %s %s", loadBalancerIP, nodeExternalIP, nodeInternalIP)
+	endPoint := ""
+	if nodeInternalIP != "" {
+		endPoint = nodeInternalIP + ":" + strconv.Itoa(port)
+	}
+	if nodeExternalIP != "" {
+		endPoint = nodeExternalIP + ":" + strconv.Itoa(port)
+	}
+	if loadBalancerIP != "" {
+		endPoint = loadBalancerIP
+		if inits.Port != 80 {
+			endPoint = loadBalancerIP + ":" + strconv.Itoa(port)
+		}
+	}
+
+	fmt.Printf("Nocalhost get ready, endpoint is: %s \n", endPoint)
+
+	return endPoint
 }
 
 func setComponentDockerImageVersion(params *[]string) {
