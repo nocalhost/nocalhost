@@ -65,7 +65,7 @@ func Background(logFile, pidFile string, isExit bool) (*exec.Cmd, error) {
 		}
 		defer file.Close()
 		sPid := strconv.Itoa(cmd.Process.Pid)
-		_, err = file.Write([]byte(sPid + "\n"))
+		_, err = file.Write([]byte(sPid))
 		if err != nil {
 			return nil, err
 		}
