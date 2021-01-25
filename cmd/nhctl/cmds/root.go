@@ -15,14 +15,16 @@ package cmds
 
 import (
 	"fmt"
-	"go.uber.org/zap/zapcore"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/nocalhost"
 	"os"
 
-	"github.com/spf13/cobra"
+	"go.uber.org/zap/zapcore"
+
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/log"
+
+	"github.com/spf13/cobra"
 )
 
 var settings *app_flags.EnvSettings
@@ -46,7 +48,7 @@ var rootCmd = &cobra.Command{
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		err := nocalhost.Init()
 		if err != nil {
-			fmt.Errorf("fail to init: %s", err.Error())
+			fmt.Fprintf(os.Stderr, "fail to init: %s", err.Error())
 			os.Exit(1)
 		}
 		if settings.Debug {
@@ -60,6 +62,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+// Execute execute command
 func Execute() {
 
 	if len(os.Args) == 1 {
