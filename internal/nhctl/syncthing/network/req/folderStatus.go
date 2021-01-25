@@ -35,7 +35,7 @@ func (m *Model) isIdle() bool {
 
 func (m *Model) OutOfSync() string {
 	if m.NeedFiles > 0 {
-		return fmt.Sprintf("There are %v remote files on workDir that are not exitst locally, you can click this icon to delete these remote extra files.", m.NeedFiles)
+		return fmt.Sprintf("There are %v remote files on workDir that are different from locally (may different or more than local), click to hard reset remote according to local files.", m.NeedFiles)
 	} else {
 		return ""
 	}
