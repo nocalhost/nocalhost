@@ -5,6 +5,20 @@ import (
 )
 
 func (p *SyncthingHttpClient) GetSyncthingStatus() *SyncthingStatus {
+	status := p.getSyncthingStatus()
+
+	if status.Tips != "" {
+		status.Tips = Identifier + status.Tips
+	}
+
+	if status.OutOfSync != "" {
+		status.OutOfSync = Identifier + status.OutOfSync
+	}
+
+	return status
+}
+
+func (p *SyncthingHttpClient) getSyncthingStatus() *SyncthingStatus {
 
 	// The SyncthingStatus is consist of three parts
 	// 1) Check the connection
@@ -90,22 +104,24 @@ const (
 	Error        StatusEnum = "error"
 	Idle         StatusEnum = "idle"
 	End          StatusEnum = "end"
+
+	Identifier = "(Nocalhost): "
 )
 
 var NotInDevModeTemplate = &SyncthingStatus{
 	Status: End,
 	Msg:    "Not in DevMode",
-	Tips:   "File sync does not working due to the devMode is not enabled.",
+	Tips:   Identifier + "File sync does not working due to the devMode is not enabled.",
 }
 
 var FileSyncNotRunningTemplate = &SyncthingStatus{
 	Status: End,
 	Msg:    "File sync is not running!",
-	Tips:   "File sync does not working, please try to reenter devMode!",
+	Tips:   Identifier + "File sync does not working, please try to reenter devMode!",
 }
 
 var disconnectedTemplate = &SyncthingStatus{
 	Status: Disconnected,
 	Msg:    "Disconnected from sidecar",
-	Tips:   "Please check your network connection and ensure the port-forward from sidecar is valid.",
+	Tips:   Identifier + "Please check your network connection and ensure the port-forward from sidecar is valid.",
 }
