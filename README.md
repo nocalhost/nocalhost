@@ -1,5 +1,10 @@
 # Nocalhost
 
+![api-docker](https://github.com/nocalhost/nocalhost/workflows/api-docker/badge.svg?branch=main)
+![nhctl](https://github.com/nocalhost/nocalhost/workflows/nhctl/badge.svg?branch=main)
+[![Go Report Card](https://goreportcard.com/badge/github.com/nocalhost/nocalhost)](https://goreportcard.com/report/github.com/nocalhost/nocalhost)
+[![LICENSE](https://img.shields.io/github/license/nocalhost/nocalhost)](https://github.com/nocalhost/nocalhost/blob/main/LICENSE)
+
 Nocalhost is cloud native development environment. Check [https://nocalhost.dev](https://nocalhost.dev) for more details.
 
 The term "Nocalhost" originates from No localhost.
@@ -54,7 +59,7 @@ nhctl is a command line tool running locally. It controls status of applications
 
 Focusing on better experiences, Nocalhost provides developers with IDE Plugins to connect Cloud and local IDE directly.
 
-- Visual Studio Code Extension
+- [Visual Studio Code Extension](https://marketplace.visualstudio.com/items?itemName=nocalhost.nocalhost)
 - IntelliJ Plugin(Planning)
 
 # Quick Start
