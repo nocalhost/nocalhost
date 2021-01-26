@@ -362,11 +362,31 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 
 	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
 
+	// PriorityClass
+	priorityClass := ops.PriorityClass
+	if priorityClass == "" {
+		priorityClass = a.GetSvcProfile(svcName).PriorityClass
+	}
+	if priorityClass != "" {
+		log.Infof("Using priorityClass: %s...", priorityClass)
+		dep.Spec.Template.Spec.PriorityClassName = priorityClass
+	}
+
 	log.Info("Updating development container...")
 	_, err = a.client.UpdateDeployment(dep, metav1.UpdateOptions{}, true)
 	if err != nil {
-		//log.ErrorE(err, "Failed1111 to update development container")
-		return err
+		if strings.Contains(err.Error(), "no PriorityClass") {
+			log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
+			dep, err = a.client.GetDeployment(svcName)
+			if err != nil {
+				return err
+			}
+			dep.Spec.Template.Spec.PriorityClassName = ""
+			_, err = a.client.UpdateDeployment(dep, metav1.UpdateOptions{}, true)
+		}
+		if err != nil {
+			return err
+		}
 	}
 
 	//err = a.client.WaitLatestRevisionReplicaSetOfDeploymentToBeReady(dep.Name)
