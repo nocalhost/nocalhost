@@ -13,10 +13,10 @@ limitations under the License.
 
 package app
 
-func (a *Application) CleanupPortForwardStatusByPort(svcName, port string) {
-	var killPortList = []string{port}
-
-	_ = a.DeleteDevPortList(svcName, killPortList)
-	_ = a.DeletePortForwardStatusList(svcName, killPortList)
-	//_ = a.DeletePortForwardPidList(svcName, killPortList)
-}
+//func (a *Application) CleanupPortForwardStatusByPort(svcName, port string) {
+//	var killPortList = []string{port}
+//
+//	_ = a.DeleteDevPortList(svcName, killPortList)
+//	_ = a.DeletePortForwardStatusList(svcName, killPortList)
+//	//_ = a.DeletePortForwardPidList(svcName, killPortList)
+//}

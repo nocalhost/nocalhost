@@ -824,12 +824,12 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 					}
 				}(readyCh)
 
-				go func() {
-					select {
-					case <-endCh:
-						a.CleanupPortForwardStatusByPort(deployment, fmt.Sprintf("%d:%d", lPort, rPort))
-					}
-				}()
+				//go func() {
+				//	select {
+				//	case <-endCh:
+				//a.CleanupPortForwardStatusByPort(deployment, fmt.Sprintf("%d:%d", lPort, rPort))
+				//	}
+				//}()
 
 				err := a.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
 					Listen: listenAddress,
@@ -906,6 +906,9 @@ func (a *Application) CheckPidPortStatus(stopCh chan struct{}, deployment string
 		select {
 		case <-stopCh:
 			log.Info("Stop Checking port status")
+			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
+			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
+			_ = a.AppendPortForwardStatus(deployment, fmt.Sprintf("%d:%d(%s-%s)", sLocalPort, sRemotePort, strings.ToTitle(way), portStatus))
 			return
 		default:
 			//log.Infof("Check %d:%d port status", sLocalPort, sRemotePort)
