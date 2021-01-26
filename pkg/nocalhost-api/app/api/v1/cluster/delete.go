@@ -46,7 +46,7 @@ func Delete(c *gin.Context) {
 
 	goClient, err := clientgo.NewAdminGoClient([]byte(cluster.KubeConfig))
 	if err != nil {
-		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		log.Warnf("Cannot connect to this kubernetes cluster, err %s", err.Error())
 	}
 
 	// get all dev space
