@@ -363,6 +363,7 @@ jobs:
         asset_content_type: application/octet-stream
 
   update-coding-git-repo:
+    name: Update CODING git repo
     runs-on: ubuntu-latest
     steps:
       - name: curl
