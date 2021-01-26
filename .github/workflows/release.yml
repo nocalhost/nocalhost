@@ -353,3 +353,14 @@ jobs:
         asset_name: NocalhostInstaller.exe
         asset_content_type: application/octet-stream
 
+  update-coding-git-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: curl
+        run: |
+          curl --location --request POST 'https://codingcorp.coding.net/api/user/codingcorp/project/nocalhost/depot/nocalhost/git/import' \
+          --header 'Authorization: Basic ${{ secrets.CODING_PERSONAL_KEY }}' \
+          --header 'Content-Type: application/x-www-form-urlencoded' \
+          --data-urlencode 'originUrl=https://github.com/nocalhost/nocalhost.git' \
+          --data-urlencode 'name=nocalhost' \
+          --data-urlencode 'type=1'
