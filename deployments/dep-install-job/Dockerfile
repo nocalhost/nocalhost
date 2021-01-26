@@ -1,4 +1,4 @@
-From codingcorp-docker.pkg.coding.net/nocalhost/public/kubectl:latest
+From codingcorp-docker.pkg.coding.net/nocalhost/public/ubuntu:kubectl
 # 注意容器安全问题
 ARG dep_version="latest"
 ENV DEP_VERSION=$dep_version
