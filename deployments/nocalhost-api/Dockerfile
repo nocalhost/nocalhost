@@ -9,7 +9,7 @@ WORKDIR /opt/src
 RUN ["make", "api"]
 
 #FROM ubuntu:20.04
-FROM codingcorp-docker.pkg.coding.net/nocalhost/public/ubuntu:latest
+FROM codingcorp-docker.pkg.coding.net/nocalhost/public/ubuntu:stable
 
 RUN ["mkdir", "-p", "/app/config"]
 COPY --from=builder /opt/src/build/nocalhost-api /app/nocalhost-api
