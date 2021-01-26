@@ -846,6 +846,10 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 					ReadyCh:   readyCh,
 				})
 				if err != nil {
+					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") {
+						log.Warnf("Unable to listen on port %d", lPort)
+						return
+					}
 					log.WarnE(err, "Port-forward failed, reconnecting after 30 seconds...")
 					close(endCh)
 					<-time.After(30 * time.Second)
