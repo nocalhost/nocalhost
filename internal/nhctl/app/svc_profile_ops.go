@@ -49,7 +49,33 @@ func (a *Application) GetSvcProfile(svcName string) *SvcProfile {
 			return svcProfile
 		}
 	}
-	return nil
+	// If not profile found, init one
+	svcProfile := &SvcProfile{
+		ServiceDevOptions: &ServiceDevOptions{
+			Name:     svcName,
+			Type:     Deployment,
+			DevImage: DefaultDevImage,
+			WorkDir:  DefaultWorkDir,
+		},
+		ActualName:                             svcName,
+		Developing:                             false,
+		PortForwarded:                          false,
+		Syncing:                                false,
+		RemoteSyncthingPort:                    0,
+		RemoteSyncthingGUIPort:                 0,
+		SyncthingSecret:                        "",
+		LocalSyncthingPort:                     0,
+		LocalSyncthingGUIPort:                  0,
+		LocalAbsoluteSyncDirFromDevStartPlugin: nil,
+		DevPortList:                            nil,
+		PortForwardStatusList:                  nil,
+		PortForwardPidList:                     nil,
+		SyncedPatterns:                         nil,
+		IgnoredPatterns:                        nil,
+	}
+	a.AppProfile.SvcProfile = append(a.AppProfile.SvcProfile, svcProfile)
+	a.SaveProfile()
+	return svcProfile
 }
 
 //func (a *Application) UpdateSvcProfile(svcName string) {
