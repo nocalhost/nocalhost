@@ -242,6 +242,9 @@ jobs:
         with:
           go-version: ^1.15.6
 
+      - name: Get tag
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+
       - name: Checkout syncthing
         uses: actions/checkout@v2.3.4
         with:
@@ -268,6 +271,9 @@ jobs:
         with:
           go-version: ^1.15.6
 
+      - name: Get tag
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+
       - name: Checkout syncthing
         uses: actions/checkout@v2.3.4
         with:
@@ -293,6 +299,9 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ^1.15.6
+
+      - name: Get tag
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
       - name: Checkout syncthing
         uses: actions/checkout@v2.3.4
