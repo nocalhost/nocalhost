@@ -796,6 +796,8 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 				// readyCh communicate when the port forward is ready to get traffic
 				readyCh := make(chan struct{})
 
+				endCh := make(chan struct{})
+
 				// stream is used to tell the port forwarder where to place its output or
 				// where to expect input if needed. For the port forwarding we just need
 				// the output eventually
@@ -814,17 +816,17 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 						_ = a.AppendDevPortForwardPID(deployment, fmt.Sprintf("%d:%d-%d", lPort, rPort, os.Getpid()))
 						_ = a.SetPortForwardedStatus(deployment, true)
 						go func() {
-							a.CheckPidPortStatus(stopCh, deployment, lPort, rPort, way)
+							a.CheckPidPortStatus(endCh, deployment, lPort, rPort, way)
 						}()
 						go func() {
-							a.SendHeartBeat(stopCh, listenAddress[0], lPort)
+							a.SendHeartBeat(endCh, listenAddress[0], lPort)
 						}()
 					}
 				}(readyCh)
 
 				go func() {
 					select {
-					case <-stopCh:
+					case <-endCh:
 						a.CleanupPortForwardStatusByPort(deployment, fmt.Sprintf("%d:%d", lPort, rPort))
 					}
 				}()
@@ -845,9 +847,11 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 				})
 				if err != nil {
 					log.WarnE(err, "Port-forward failed, reconnecting after 30 seconds...")
+					close(endCh)
 					<-time.After(30 * time.Second)
 				} else {
 					log.Warn("Reconnecting after 30 seconds...")
+					close(endCh)
 					<-time.After(30 * time.Second)
 				}
 				log.Info("Reconnecting...")
@@ -884,6 +888,7 @@ func (a *Application) SendHeartBeat(stopCh chan struct{}, listenAddress string, 
 	for {
 		select {
 		case <-stopCh:
+			log.Info("Stop sending heart beat")
 			return
 		default:
 			<-time.After(30 * time.Second)
@@ -900,10 +905,12 @@ func (a *Application) CheckPidPortStatus(stopCh chan struct{}, deployment string
 	for {
 		select {
 		case <-stopCh:
+			log.Info("Stop Checking port status")
 			return
 		default:
-			log.Infof("check %d:%d port status", sLocalPort, sRemotePort)
+			//log.Infof("Check %d:%d port status", sLocalPort, sRemotePort)
 			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
+			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
 			_ = a.AppendPortForwardStatus(deployment, fmt.Sprintf("%d:%d(%s-%s)", sLocalPort, sRemotePort, strings.ToTitle(way), portStatus))
 			<-time.After(10 * time.Second)
 		}

@@ -18,5 +18,5 @@ func (a *Application) CleanupPortForwardStatusByPort(svcName, port string) {
 
 	_ = a.DeleteDevPortList(svcName, killPortList)
 	_ = a.DeletePortForwardStatusList(svcName, killPortList)
-	_ = a.DeletePortForwardPidList(svcName, killPortList)
+	//_ = a.DeletePortForwardPidList(svcName, killPortList)
 }
