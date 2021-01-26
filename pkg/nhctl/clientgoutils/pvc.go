@@ -36,7 +36,7 @@ func (c *ClientGoUtils) CreatePVC(name string, labels map[string]string, annotat
 		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{},
 		Spec: v1.PersistentVolumeClaimSpec{
-			AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteMany},
+			AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
 			Selector:    nil,
 			Resources: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{v1.ResourceStorage: q},
