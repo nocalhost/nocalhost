@@ -759,9 +759,9 @@ func (a *Application) AppendManualPortForwardToRawConfigDevPorts(svcName, way st
 }
 
 // for background port-forward
-func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPort, remotePort []int, way string) {
+func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPorts, remotePorts []int, way string) {
 	//group := len(localPort)
-	if len(localPort) != len(remotePort) {
+	if len(localPorts) != len(remotePorts) {
 		log.Fatalf("dev port forward fail, please check you devPort in config\n")
 	}
 	// wait group
@@ -772,23 +772,23 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 	// gets closed to gracefully handle its termination.
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
-	var addDevPod []string
+	//var addDevPod []string
 
 	// check if already exist manual port-forward, after dev start, pod will lost connection, should reconnect
-	log.Infof("localPort %v, remotePort %v", localPort, remotePort)
-	a.AppendDevPortManual(deployment, way, &localPort, &remotePort)
-	log.Infof("localPort %v, remotePort %v", localPort, remotePort)
-	for key, sLocalPort := range localPort {
+	log.Infof("localPort %v, remotePort %v", localPorts, remotePorts)
+	a.AppendDevPortManual(deployment, way, &localPorts, &remotePorts)
+	//log.Infof("localPort %v, remotePort %v", localPort, remotePort)
+	for key, sLocalPort := range localPorts {
 
 		// check if already exist port-forward, and kill old
-		_ = a.KillAlreadyExistPortForward(fmt.Sprintf("%d:%d", sLocalPort, remotePort[key]), deployment)
+		_ = a.KillAlreadyExistPortForward(fmt.Sprintf("%d:%d", sLocalPort, remotePorts[key]), deployment)
 
-		key := key
-		sLocalPort := sLocalPort
-		devPod := fmt.Sprintf("%d:%d", sLocalPort, remotePort[key])
-		addDevPod = append(addDevPod, devPod)
-		log.Infof("Start dev port forward local %d, remote %d", sLocalPort, remotePort[key])
-		go func() {
+		//key := key
+		//sLocalPort := sLocalPort
+		//devPod := fmt.Sprintf("%d:%d", sLocalPort, remotePorts[key])
+		//addDevPod = append(addDevPod, devPod)
+		log.Infof("Start dev port forward local %d, remote %d", sLocalPort, remotePorts[key])
+		go func(lPort int, rPort int) {
 			for {
 				// stopCh control the port forwarding lifecycle. When it gets closed the
 				// port forward will terminate
@@ -810,13 +810,24 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 					case <-readyCh:
 						log.Info("Port forward is ready")
 						// append status each success port-forward
-						_ = a.AppendDevPortForward(deployment, fmt.Sprintf("%d:%d", sLocalPort, remotePort[key]))
-						_ = a.AppendDevPortForwardPID(deployment, fmt.Sprintf("%d:%d-%d", sLocalPort, remotePort[key], os.Getpid()))
+						_ = a.AppendDevPortForward(deployment, fmt.Sprintf("%d:%d", lPort, rPort))
+						_ = a.AppendDevPortForwardPID(deployment, fmt.Sprintf("%d:%d-%d", lPort, rPort, os.Getpid()))
 						_ = a.SetPortForwardedStatus(deployment, true)
-						a.CheckPidPortStatus(deployment, sLocalPort, remotePort[key], way)
-						a.SendHeartBeat(listenAddress[0], sLocalPort)
+						go func() {
+							a.CheckPidPortStatus(stopCh, deployment, lPort, rPort, way)
+						}()
+						go func() {
+							a.SendHeartBeat(stopCh, listenAddress[0], lPort)
+						}()
 					}
 				}(readyCh)
+
+				go func() {
+					select {
+					case <-stopCh:
+						a.CleanupPortForwardStatusByPort(deployment, fmt.Sprintf("%d:%d", lPort, rPort))
+					}
+				}()
 
 				err := a.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
 					Listen: listenAddress,
@@ -826,8 +837,8 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 							Namespace: a.GetNamespace(),
 						},
 					},
-					LocalPort: sLocalPort,
-					PodPort:   remotePort[key],
+					LocalPort: lPort,
+					PodPort:   rPort,
 					Streams:   stream,
 					StopCh:    stopCh,
 					ReadyCh:   readyCh,
@@ -841,7 +852,7 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 				}
 				log.Info("Reconnecting...")
 			}
-		}()
+		}(sLocalPort, remotePorts[key])
 
 		// sleep while
 		time.Sleep(time.Duration(2) * time.Second)
@@ -869,32 +880,34 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 	}
 }
 
-func (a *Application) SendHeartBeat(listenAddress string, sLocalPort int) {
-	go func() {
-		for {
+func (a *Application) SendHeartBeat(stopCh chan struct{}, listenAddress string, sLocalPort int) {
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
 			<-time.After(30 * time.Second)
-			go func() {
-				log.Info("try to send port-forward heartbeat")
-				err := a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress, sLocalPort))
-				if err != nil {
-					log.Info("send port-forward heartbeat with err %s", err.Error())
-				}
-			}()
+			log.Info("try to send port-forward heartbeat")
+			err := a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress, sLocalPort))
+			if err != nil {
+				log.Info("send port-forward heartbeat with err %s", err.Error())
+			}
 		}
-	}()
+	}
 }
 
-func (a *Application) CheckPidPortStatus(deployment string, sLocalPort, sRemotePort int, way string) {
-	go func() {
-		for {
-			go func() {
-				log.Infof("check %d:%d port status", sLocalPort, sRemotePort)
-				portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
-				_ = a.AppendPortForwardStatus(deployment, fmt.Sprintf("%d:%d(%s-%s)", sLocalPort, sRemotePort, strings.ToTitle(way), portStatus))
-			}()
+func (a *Application) CheckPidPortStatus(stopCh chan struct{}, deployment string, sLocalPort, sRemotePort int, way string) {
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+			log.Infof("check %d:%d port status", sLocalPort, sRemotePort)
+			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
+			_ = a.AppendPortForwardStatus(deployment, fmt.Sprintf("%d:%d(%s-%s)", sLocalPort, sRemotePort, strings.ToTitle(way), portStatus))
 			<-time.After(10 * time.Second)
 		}
-	}()
+	}
 }
 
 // ports format 8080:80
