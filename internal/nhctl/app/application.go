@@ -32,14 +32,13 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -765,13 +764,14 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 		log.Fatalf("dev port forward fail, please check you devPort in config\n")
 	}
 	// wait group
-	//var wg sync.WaitGroup
-	//wg.Add(group)
+	var wg sync.WaitGroup
+	wg.Add(len(localPorts))
+	//killCh := make(chan struct{})
 
 	// managing termination signal from the terminal. As you can see the stopCh
 	// gets closed to gracefully handle its termination.
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+	//sigs := make(chan os.Signal, 1)
+	//signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 	//var addDevPod []string
 
 	// check if already exist manual port-forward, after dev start, pod will lost connection, should reconnect
@@ -848,6 +848,7 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 				if err != nil {
 					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") {
 						log.Warnf("Unable to listen on port %d", lPort)
+						wg.Done()
 						return
 					}
 					log.WarnE(err, "Port-forward failed, reconnecting after 30 seconds...")
@@ -881,11 +882,12 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 	//	_ = a.SetPortForwardedStatus(deployment, true)
 	//}
 
-	for {
-		<-sigs
-		log.Info("Stop port forward")
-		//wg.Done()
-	}
+	//select {
+	//case <-sigs:
+	//	//case wg.Wait:
+	//}
+	wg.Wait()
+	log.Info("Stop port forward")
 }
 
 func (a *Application) SendHeartBeat(stopCh chan struct{}, listenAddress string, sLocalPort int) {
