@@ -32,7 +32,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -40,7 +39,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -760,76 +758,110 @@ func (a *Application) AppendManualPortForwardToRawConfigDevPorts(svcName, way st
 }
 
 // for background port-forward
-func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPort, remotePort []int, way string) {
-	group := len(localPort)
-	if len(localPort) != len(remotePort) {
+func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPorts, remotePorts []int, way string) {
+	//group := len(localPort)
+	if len(localPorts) != len(remotePorts) {
 		log.Fatalf("dev port forward fail, please check you devPort in config\n")
 	}
 	// wait group
 	var wg sync.WaitGroup
-	wg.Add(group)
-	// stream is used to tell the port forwarder where to place its output or
-	// where to expect input if needed. For the port forwarding we just need
-	// the output eventually
-	stream := genericclioptions.IOStreams{
-		In:     os.Stdin,
-		Out:    os.Stdout,
-		ErrOut: os.Stderr,
-	}
+	wg.Add(len(localPorts))
+	//killCh := make(chan struct{})
+
 	// managing termination signal from the terminal. As you can see the stopCh
 	// gets closed to gracefully handle its termination.
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
-	var addDevPod []string
+	//sigs := make(chan os.Signal, 1)
+	//signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+	//var addDevPod []string
 
 	// check if already exist manual port-forward, after dev start, pod will lost connection, should reconnect
-	log.Infof("localPort %v, remotePort %v", localPort, remotePort)
-	a.AppendDevPortManual(deployment, way, &localPort, &remotePort)
-	log.Infof("localPort %v, remotePort %v", localPort, remotePort)
-	for key, sLocalPort := range localPort {
-		// check if already exist port-forward, and kill old
-		_ = a.KillAlreadyExistPortForward(fmt.Sprintf("%d:%d", sLocalPort, remotePort[key]), deployment)
+	log.Infof("localPort %v, remotePort %v", localPorts, remotePorts)
+	a.AppendDevPortManual(deployment, way, &localPorts, &remotePorts)
+	//log.Infof("localPort %v, remotePort %v", localPort, remotePort)
+	for key, sLocalPort := range localPorts {
 
-		// stopCh control the port forwarding lifecycle. When it gets closed the
-		// port forward will terminate
-		stopCh := make(chan struct{}, group)
-		// readyCh communicate when the port forward is ready to get traffic
-		readyCh := make(chan struct{})
-		key := key
-		sLocalPort := sLocalPort
-		devPod := fmt.Sprintf("%d:%d", sLocalPort, remotePort[key])
-		addDevPod = append(addDevPod, devPod)
-		log.Infof("Start dev port forward local %d, remote %d", sLocalPort, remotePort[key])
-		go func() {
-			err := a.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
-				Listen: listenAddress,
-				Pod: corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      podName,
-						Namespace: a.GetNamespace(),
+		// check if already exist port-forward, and kill old
+		_ = a.KillAlreadyExistPortForward(fmt.Sprintf("%d:%d", sLocalPort, remotePorts[key]), deployment)
+
+		//key := key
+		//sLocalPort := sLocalPort
+		//devPod := fmt.Sprintf("%d:%d", sLocalPort, remotePorts[key])
+		//addDevPod = append(addDevPod, devPod)
+		log.Infof("Start dev port forward local %d, remote %d", sLocalPort, remotePorts[key])
+		go func(lPort int, rPort int) {
+			for {
+				// stopCh control the port forwarding lifecycle. When it gets closed the
+				// port forward will terminate
+				stopCh := make(chan struct{}, 1)
+				// readyCh communicate when the port forward is ready to get traffic
+				readyCh := make(chan struct{})
+
+				endCh := make(chan struct{})
+
+				// stream is used to tell the port forwarder where to place its output or
+				// where to expect input if needed. For the port forwarding we just need
+				// the output eventually
+				stream := genericclioptions.IOStreams{
+					In:     os.Stdin,
+					Out:    os.Stdout,
+					ErrOut: os.Stderr,
+				}
+
+				go func(readyCh chan struct{}) {
+					select {
+					case <-readyCh:
+						log.Info("Port forward is ready")
+						// append status each success port-forward
+						_ = a.AppendDevPortForward(deployment, fmt.Sprintf("%d:%d", lPort, rPort))
+						_ = a.AppendDevPortForwardPID(deployment, fmt.Sprintf("%d:%d-%d", lPort, rPort, os.Getpid()))
+						_ = a.SetPortForwardedStatus(deployment, true)
+						go func() {
+							a.CheckPidPortStatus(endCh, deployment, lPort, rPort, way)
+						}()
+						go func() {
+							a.SendHeartBeat(endCh, listenAddress[0], lPort)
+						}()
+					}
+				}(readyCh)
+
+				//go func() {
+				//	select {
+				//	case <-endCh:
+				//a.CleanupPortForwardStatusByPort(deployment, fmt.Sprintf("%d:%d", lPort, rPort))
+				//	}
+				//}()
+
+				err := a.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
+					Listen: listenAddress,
+					Pod: corev1.Pod{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      podName,
+							Namespace: a.GetNamespace(),
+						},
 					},
-				},
-				LocalPort: sLocalPort,
-				PodPort:   remotePort[key],
-				Streams:   stream,
-				StopCh:    stopCh,
-				ReadyCh:   readyCh,
-			})
-			if err != nil {
-				log.ErrorE(err, "Port-forward in background fail")
+					LocalPort: lPort,
+					PodPort:   rPort,
+					Streams:   stream,
+					StopCh:    stopCh,
+					ReadyCh:   readyCh,
+				})
+				if err != nil {
+					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") {
+						log.Warnf("Unable to listen on port %d", lPort)
+						wg.Done()
+						return
+					}
+					log.WarnE(err, "Port-forward failed, reconnecting after 30 seconds...")
+					close(endCh)
+					<-time.After(30 * time.Second)
+				} else {
+					log.Warn("Reconnecting after 30 seconds...")
+					close(endCh)
+					<-time.After(30 * time.Second)
+				}
+				log.Info("Reconnecting...")
 			}
-		}()
-		go func(readyCh *chan struct{}) {
-			select {
-			case <-*readyCh:
-				// append status each success port-forward
-				_ = a.AppendDevPortForward(deployment, fmt.Sprintf("%d:%d", sLocalPort, remotePort[key]))
-				_ = a.AppendDevPortForwardPID(deployment, fmt.Sprintf("%d:%d-%d", sLocalPort, remotePort[key], os.Getpid()))
-				_ = a.SetPortForwardedStatus(deployment, true)
-				a.CheckPidPortStatus(deployment, sLocalPort, remotePort[key], way)
-				a.SendHeartBeat(listenAddress[0], sLocalPort)
-			}
-		}(&readyCh)
+		}(sLocalPort, remotePorts[key])
 
 		// sleep while
 		time.Sleep(time.Duration(2) * time.Second)
@@ -850,39 +882,48 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 	//	_ = a.SetPortForwardedStatus(deployment, true)
 	//}
 
+	//select {
+	//case <-sigs:
+	//	//case wg.Wait:
+	//}
+	wg.Wait()
+	log.Info("Stop port forward")
+}
+
+func (a *Application) SendHeartBeat(stopCh chan struct{}, listenAddress string, sLocalPort int) {
 	for {
-		<-sigs
-		log.Info("Stop port forward")
-		wg.Done()
+		select {
+		case <-stopCh:
+			log.Info("Stop sending heart beat")
+			return
+		default:
+			<-time.After(30 * time.Second)
+			log.Info("try to send port-forward heartbeat")
+			err := a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress, sLocalPort))
+			if err != nil {
+				log.Info("send port-forward heartbeat with err %s", err.Error())
+			}
+		}
 	}
 }
 
-func (a *Application) SendHeartBeat(listenAddress string, sLocalPort int) {
-	go func() {
-		for {
-			<-time.After(30 * time.Second)
-			go func() {
-				log.Info("try to send port-forward heartbeat")
-				err := a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress, sLocalPort))
-				if err != nil {
-					log.Info("send port-forward heartbeat with err %s", err.Error())
-				}
-			}()
-		}
-	}()
-}
-
-func (a *Application) CheckPidPortStatus(deployment string, sLocalPort, sRemotePort int, way string) {
-	go func() {
-		for {
-			go func() {
-				log.Infof("check %d:%d port status", sLocalPort, sRemotePort)
-				portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
-				_ = a.AppendPortForwardStatus(deployment, fmt.Sprintf("%d:%d(%s-%s)", sLocalPort, sRemotePort, strings.ToTitle(way), portStatus))
-			}()
+func (a *Application) CheckPidPortStatus(stopCh chan struct{}, deployment string, sLocalPort, sRemotePort int, way string) {
+	for {
+		select {
+		case <-stopCh:
+			log.Info("Stop Checking port status")
+			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
+			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
+			_ = a.AppendPortForwardStatus(deployment, fmt.Sprintf("%d:%d(%s-%s)", sLocalPort, sRemotePort, strings.ToTitle(way), portStatus))
+			return
+		default:
+			//log.Infof("Check %d:%d port status", sLocalPort, sRemotePort)
+			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
+			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
+			_ = a.AppendPortForwardStatus(deployment, fmt.Sprintf("%d:%d(%s-%s)", sLocalPort, sRemotePort, strings.ToTitle(way), portStatus))
 			<-time.After(10 * time.Second)
 		}
-	}()
+	}
 }
 
 // ports format 8080:80
@@ -909,6 +950,7 @@ func (a *Application) KillAlreadyExistPortForward(ports, svcName string) error {
 
 func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error {
 	conn, err := net.Dial("tcp", addressWithPort)
+
 	if err != nil || conn == nil {
 		log.Warnf("connect port-forward heartbeat address fail, %s", addressWithPort)
 		return nil
