@@ -31,17 +31,12 @@ var syncStatusCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		InitAppAndCheckIfSvcExist(applicationName, deployment)
+		InitApp(applicationName)
 
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			display(req.NotInDevModeTemplate)
 			return
 		}
-
-		//if !nocalhostApp.CheckIfSvcIsSyncthing(deployment) {
-		//	display(req.FileSyncNotRunningTemplate)
-		//	return
-		//}
 
 		client := nocalhostApp.NewSyncthingHttpClient(deployment)
 
