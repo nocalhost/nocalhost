@@ -32,6 +32,7 @@ type AppProfile struct {
 	SvcProfile              []*SvcProfile `json:"svc_profile" yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
 	Installed               bool          `json:"installed" yaml:"installed"`
 	ResourcePath            []string      `json:"resource_path" yaml:"resourcePath"`
+	IgnoredPath             []string      `json:"ignoredPath" yaml:"ignoredPath"`
 }
 
 func NewAppProfile(path string) (*AppProfile, error) {
