@@ -16,7 +16,12 @@ package app
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -242,4 +247,99 @@ func (a *Application) installManifestRecursively() error {
 func (a *Application) SetInstalledStatus(is bool) {
 	a.AppProfile.Installed = is
 	a.AppProfile.Save()
+}
+
+func (a *Application) loadInstallManifest() {
+	result := make([]string, 0)
+	resourcePaths := a.GetResourceDir()
+	for _, eachPath := range resourcePaths {
+		files, _, err := getYamlFilesAndDirs(eachPath, a.getIgnoredPath())
+		if err != nil {
+			log.WarnE(err, fmt.Sprintf("Fail to load manifest in %s", eachPath))
+			continue
+		}
+
+		for _, file := range files {
+			if a.ignoredInInstall(file) {
+				continue
+			}
+			if _, err2 := os.Stat(file); err2 != nil {
+				log.WarnE(errors.Wrap(err2, ""), fmt.Sprintf("%s can not be installed", file))
+				continue
+			}
+			result = append(result, file)
+		}
+	}
+	a.installManifest = result
+}
+
+func isFileIgnored(fileName string, ignorePaths []string) bool {
+	for _, iFile := range ignorePaths {
+		if iFile == fileName {
+			return true
+		}
+	}
+	return false
+}
+
+// Path can be a file or a dir
+func getYamlFilesAndDirs(path string, ignorePaths []string) ([]string, []string, error) {
+
+	if isFileIgnored(path, ignorePaths) {
+		log.Infof("Ignoring file: %s", path)
+		return nil, nil, nil
+	}
+
+	dirs := make([]string, 0)
+	files := make([]string, 0)
+	var err error
+	stat, err := os.Stat(path)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "")
+	}
+
+	// If path is a file, return it directly
+	if !stat.IsDir() {
+		return append(files, path), append(dirs, path), nil
+	}
+	dir, err := ioutil.ReadDir(path)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, fi := range dir {
+		fPath := filepath.Join(path, fi.Name())
+		if isFileIgnored(fPath, ignorePaths) {
+			log.Infof("Ignoring file: %s", fPath)
+			continue
+		}
+		if fi.IsDir() {
+			dirs = append(dirs, fPath)
+			fs, ds, err := getYamlFilesAndDirs(fPath, ignorePaths)
+			if err != nil {
+				return files, dirs, err
+			}
+			dirs = append(dirs, ds...)
+			files = append(files, fs...)
+		} else if strings.HasSuffix(fi.Name(), ".yaml") || strings.HasSuffix(fi.Name(), ".yml") {
+			files = append(files, fPath)
+		}
+	}
+	return files, dirs, nil
+}
+
+func (a *Application) loadSortedPreInstallManifest() {
+	result := make([]string, 0)
+	if a.config != nil && a.config.PreInstall != nil {
+		sort.Sort(ComparableItems(a.config.PreInstall))
+		for _, item := range a.config.PreInstall {
+			itemPath := filepath.Join(a.getGitDir(), item.Path)
+			if _, err2 := os.Stat(itemPath); err2 != nil {
+				log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
+				continue
+			}
+			result = append(result, itemPath)
+		}
+	}
+	a.sortedPreInstallManifest = result
 }

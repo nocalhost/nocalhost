@@ -9,7 +9,10 @@ WORKDIR /opt/src
 RUN ["make", "api"]
 
 #FROM ubuntu:20.04
-FROM codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:master
+FROM codingcorp-docker.pkg.coding.net/nocalhost/public/ubuntu:stable
+
+RUN ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+RUN apt-get install -y tzdata
 
 RUN ["mkdir", "-p", "/app/config"]
 COPY --from=builder /opt/src/build/nocalhost-api /app/nocalhost-api

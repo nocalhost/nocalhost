@@ -89,10 +89,9 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 	// Load config to profile
 	app.AppProfile.AppType = app.config.Type
 	app.AppProfile.ResourcePath = app.config.ResourcePath
-	if len(app.config.SvcConfigs) > 0 {
-		for _, svcConfig := range app.config.SvcConfigs {
-			app.loadConfigToSvcProfile(svcConfig.Name, Deployment)
-		}
+	app.AppProfile.IgnoredPath = app.config.IgnoredPath
+	for _, svcConfig := range app.config.SvcConfigs {
+		app.loadConfigToSvcProfile(svcConfig.Name, Deployment)
 	}
 
 	if flags.AppType != "" {
@@ -156,10 +155,6 @@ func (a *Application) initDir() error {
 		return errors.Wrap(err, "")
 	}
 
-	//err = os.MkdirAll(a.getConfigDir(), DefaultNewFilePermission)
-	//if err != nil {
-	//	return errors.Wrap(err, "")
-	//}
 	err = ioutil.WriteFile(a.getProfilePath(), []byte(""), DefaultNewFilePermission)
 	return errors.Wrap(err, "")
 }

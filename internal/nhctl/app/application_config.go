@@ -88,8 +88,7 @@ type NocalHostAppConfig struct {
 	Name         string               `json:"name" yaml:"name"`
 	Type         AppType              `json:"manifestType" yaml:"manifestType"`
 	ResourcePath []string             `json:"resourcePath" yaml:"resourcePath"`
-	// old-config
-	//AppConfig  *AppConfig           `json:"app_config" yaml:"appConfig"`
+	IgnoredPath  []string             `json:"ignoredPath" yaml:"ignoredPath"`
 }
 
 type PreInstallItem struct {

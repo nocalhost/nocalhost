@@ -104,15 +104,27 @@ func (a *Application) StopPortForwardByPort(svcName, port string) error {
 			err := errors.New("convert port-forward pid fail")
 			return err
 		}
-		_ = terminate.Terminate(pid, true, "port-forward")
+		err = terminate.Terminate(pid, true, "port-forward")
+		if err != nil {
+			log.Warn(err.Error())
+		}
 	}
 	// ignore terminate status and delete port-forward list anyway
 
-	_ = a.DeleteDevPortList(svcName, killPortList)
+	err = a.DeleteDevPortList(svcName, killPortList)
+	if err != nil {
+		log.Warn(err.Error())
+	}
 	// set portForwardStatusList
-	_ = a.DeletePortForwardStatusList(svcName, killPortList)
+	err = a.DeletePortForwardStatusList(svcName, killPortList)
+	if err != nil {
+		log.Warn(err.Error())
+	}
 	// set portForwardPidList
-	_ = a.DeletePortForwardPidList(svcName, killPortList)
+	err = a.DeletePortForwardPidList(svcName, killPortList)
+	if err != nil {
+		log.Warn(err.Error())
+	}
 	return err
 }
 
