@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"nocalhost/internal/nhctl/syncthing/daemon"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -530,9 +531,27 @@ func (a *Application) AppendManualPortForwardToRawConfigDevPorts(svcName, way st
 	return a.AppProfile.Save()
 }
 
-// for background port-forward
-func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPorts, remotePorts []int, way string) {
+func (a *Application) FixPortForwardOSArgs(localPort, remotePort []int) {
+	var newArg []string
+	for _, v := range os.Args {
+		match := false
+		for _, vv := range remotePort {
+			if v == "-p" || v == fmt.Sprintf(":%d", vv) {
+				match = true
+			}
+		}
+		if !match {
+			newArg = append(newArg, v)
+		}
+	}
+	for k, v := range localPort {
+		newArg = append(newArg, "-p", fmt.Sprintf("%d:%d", v, remotePort[k]))
+	}
+	os.Args = newArg
+}
 
+// for background port-forward
+func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPorts, remotePorts []int, way string, isDaemon bool) {
 	if len(localPorts) != len(remotePorts) {
 		log.Fatalf("dev port forward fail, please check you devPort in config\n")
 	}
@@ -541,14 +560,17 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 	wg.Add(len(localPorts))
 
 	// check if already exist manual port-forward, after dev start, pod will lost connection, should reconnect
-	log.Infof("localPort %v, remotePort %v", localPorts, remotePorts)
 	a.AppendDevPortManual(deployment, way, &localPorts, &remotePorts)
 	for key, sLocalPort := range localPorts {
 
 		// check if already exist port-forward, and kill old
 		_ = a.KillAlreadyExistPortForward(fmt.Sprintf("%d:%d", sLocalPort, remotePorts[key]), deployment)
 
-		log.Infof("Start dev port forward local %d, remote %d", sLocalPort, remotePorts[key])
+		//key := key
+		//sLocalPort := sLocalPort
+		//devPod := fmt.Sprintf("%d:%d", sLocalPort, remotePorts[key])
+		//addDevPod = append(addDevPod, devPod)
+		// log.Infof("Start dev port forward local %d, remote %d", sLocalPort, remotePorts[key])
 		go func(lPort int, rPort int) {
 			for {
 				// stopCh control the port forwarding lifecycle. When it gets closed the
@@ -620,8 +642,34 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 		// sleep while
 		time.Sleep(time.Duration(2) * time.Second)
 	}
-	log.Info("Done go routine")
 
+	// run in background
+	if isDaemon {
+		_, err := daemon.Background(a.GetPortForwardLogFile(deployment), a.GetApplicationBackGroundOnlyPortForwardPidFile(deployment), true)
+		if err != nil {
+			log.Fatal("Failed to run port-forward background, please try again")
+		}
+	}
+
+	// update profile addDevPod
+	// TODO get from channel and set real port-forward status
+	//for range localPort {
+	//	r := <-portForwardResultCh
+	//	portForwardResult = append(portForwardResult, r)
+	//}
+	//fmt.Printf("portForwardResult %s\n", portForwardResult)
+
+	//_ = a.SetDevPortForward(deployment, portForwardResult)
+
+	// set port forward status
+	//if len(portForwardResult) > 0 {
+	//	_ = a.SetPortForwardedStatus(deployment, true)
+	//}
+
+	//select {
+	//case <-sigs:
+	//	//case wg.Wait:
+	//}
 	wg.Wait()
 	log.Info("Stop port forward")
 }
@@ -815,7 +863,6 @@ func (a *Application) AppendDevPortForwardPID(svcName string, portPIDList string
 	}
 	portStatusList = tools.RemoveDuplicateElement(portStatusList)
 	a.GetSvcProfile(svcName).PortForwardPidList = portStatusList
-	log.Infof("portStatusList %s", portStatusList)
 	return a.AppProfile.Save()
 }
 

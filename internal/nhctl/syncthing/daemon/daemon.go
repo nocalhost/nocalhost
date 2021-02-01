@@ -58,7 +58,7 @@ func Background(logFile, pidFile string, isExit bool) (*exec.Cmd, error) {
 		return nil, err
 	} else {
 		// write pid file to application dir
-		log.Info(os.Getpid(), ":", "run background success, pid: ", "->", cmd.Process.Pid)
+		log.Info(os.Getpid(), ": ", "run background, pid: ", "->", cmd.Process.Pid)
 		file, err := os.OpenFile(pidFile, os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {
 			return nil, err
