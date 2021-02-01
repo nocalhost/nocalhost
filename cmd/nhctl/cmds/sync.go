@@ -97,6 +97,7 @@ var fileSyncCmd = &cobra.Command{
 		// gets closed to gracefully handle its termination.
 		sigs := make(chan os.Signal, 1)
 		portForwardReadyCh := make(chan int, 1)
+		readyToSync := false
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 
 		listenAddress := []string{"localhost"}
@@ -128,7 +129,10 @@ var fileSyncCmd = &cobra.Command{
 						go func() {
 							nocalhostApp.SendHeartBeat(endCh, listenAddress[0], lPort)
 						}()
-						portForwardReadyCh <- 1
+						if !readyToSync {
+							portForwardReadyCh <- 1
+							readyToSync = true
+						}
 					}
 				}(readyCh)
 
@@ -147,13 +151,12 @@ var fileSyncCmd = &cobra.Command{
 					ReadyCh:   readyCh,
 				})
 				if err != nil {
+					close(endCh)
 					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") {
 						log.Warnf("Unable to listen on port %d", lPort)
-						close(endCh)
 						return
 					}
 					log.WarnE(err, "Port-forward failed, reconnecting after 30 seconds...")
-					close(endCh)
 					<-time.After(30 * time.Second)
 				} else {
 					log.Warn("Reconnecting after 30 seconds...")
