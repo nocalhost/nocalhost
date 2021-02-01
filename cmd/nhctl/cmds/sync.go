@@ -27,7 +27,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"sync"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -69,11 +69,10 @@ var fileSyncCmd = &cobra.Command{
 		}
 
 		// syncthing port-forward
-		// daemon
 		// set abs directory to call myself
 		nhctlAbsDir, err := exec.LookPath(nocalhostApp.GetMyBinName())
 		if err != nil {
-			log.Fatal("installing fortune is in your future")
+			log.Fatalf("Failed to load nhctl in %s", nhctlAbsDir)
 		}
 
 		// overwrite Args[0] as ABS directory of bin directory
@@ -86,7 +85,6 @@ var fileSyncCmd = &cobra.Command{
 			if err != nil {
 				log.Fatalf("run port-forward background fail, please try again")
 			}
-			// success write pid file and exit father progress, stay child progress run
 		}
 
 		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
@@ -96,60 +94,84 @@ var fileSyncCmd = &cobra.Command{
 
 		log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.GetNamespace())
 
-		listenAddress := []string{"localhost"}
-
-		// start port-forward
-
-		var wg sync.WaitGroup
-		wg.Add(1)
-
-		// stopCh control the port forwarding lifecycle. When it gets closed the
-		// port forward will terminate
-		stopCh := make(chan struct{}, 1)
-		// readyCh communicate when the port forward is ready to get traffic
-		readyCh := make(chan struct{})
-		// stream is used to tell the port forwarder where to place its output or
-		// where to expect input if needed. For the port forwarding we just need
-		// the output eventually
-		stream := genericclioptions.IOStreams{
-			In:     os.Stdin,
-			Out:    os.Stdout,
-			ErrOut: os.Stderr,
-		}
-
 		// managing termination signal from the terminal. As you can see the stopCh
 		// gets closed to gracefully handle its termination.
-
 		sigs := make(chan os.Signal, 1)
+		portForwardReadyCh := make(chan int, 1)
+		readyToSync := false
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 
+		listenAddress := []string{"localhost"}
+
 		svcProfile := nocalhostApp.GetSvcProfile(deployment)
+		// start port-forward
 		go func() {
-			err := nocalhostApp.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
-				Listen: listenAddress,
-				Pod: v1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      podName,
-						Namespace: nocalhostApp.GetNamespace(),
+			lPort := svcProfile.RemoteSyncthingPort
+			for {
+				endCh := make(chan struct{})
+				// stopCh control the port forwarding lifecycle. When it gets closed the
+				// port forward will terminate
+				stopCh := make(chan struct{}, 1)
+				// readyCh communicate when the port forward is ready to get traffic
+				readyCh := make(chan struct{})
+				// stream is used to tell the port forwarder where to place its output or
+				// where to expect input if needed. For the port forwarding we just need
+				// the output eventually
+				stream := genericclioptions.IOStreams{
+					In:     os.Stdin,
+					Out:    os.Stdout,
+					ErrOut: os.Stderr,
+				}
+
+				go func(readyCh chan struct{}) {
+					select {
+					case <-readyCh:
+						log.Infof("Port forward %d:%d for sync is ready", lPort, svcProfile.RemoteSyncthingPort)
+						go func() {
+							nocalhostApp.SendHeartBeat(endCh, listenAddress[0], lPort)
+						}()
+						if !readyToSync {
+							portForwardReadyCh <- 1
+							readyToSync = true
+						}
+					}
+				}(readyCh)
+
+				err := nocalhostApp.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
+					Listen: listenAddress,
+					Pod: v1.Pod{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      podName,
+							Namespace: nocalhostApp.GetNamespace(),
+						},
 					},
-				},
-				LocalPort: svcProfile.RemoteSyncthingPort,
-				PodPort:   svcProfile.RemoteSyncthingPort,
-				Streams:   stream,
-				StopCh:    stopCh,
-				ReadyCh:   readyCh,
-			})
-			if err != nil {
-				log.Fatal(err.Error())
+					LocalPort: lPort,
+					PodPort:   svcProfile.RemoteSyncthingPort,
+					Streams:   stream,
+					StopCh:    stopCh,
+					ReadyCh:   readyCh,
+				})
+				if err != nil {
+					close(endCh)
+					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") {
+						log.Warnf("Unable to listen on port %d", lPort)
+						return
+					}
+					log.WarnE(err, "Port-forward failed, reconnecting after 30 seconds...")
+					<-time.After(30 * time.Second)
+				} else {
+					log.Warn("Reconnecting after 30 seconds...")
+					close(endCh)
+					<-time.After(30 * time.Second)
+				}
+				log.Info("Reconnecting...")
 			}
 		}()
 
 		select {
-		// wait until port-forward success
-		case <-readyCh:
-			break
+		case <-portForwardReadyCh:
+			log.Info("Port forward is ready, starting syncing files...")
 		}
-		log.Info("Port forwarding is ready to get traffic!")
 
 		// Getting pattern from svc profile first
 		profile := nocalhostApp.GetSvcProfile(deployment)
@@ -179,6 +201,7 @@ var fileSyncCmd = &cobra.Command{
 			log.Fatal("Failed to update syncing status")
 		}
 
+
 		if fileSyncOps.Override {
 			var i = 10
 			for {
@@ -191,7 +214,7 @@ var fileSyncCmd = &cobra.Command{
 				err = client.FolderOverride()
 				if err == nil {
 					log.Info("Force overriding workDir's remote changing")
-					break:
+					break
 				}
 
 				if i < 0 {
@@ -201,11 +224,7 @@ var fileSyncCmd = &cobra.Command{
 			}
 		}
 
-		for {
-			<-sigs
-			log.Info("Stopping port forward")
-			close(stopCh)
-			wg.Done()
-		}
+		<-sigs
+		log.Info("Stopping file sync...")
 	},
 }

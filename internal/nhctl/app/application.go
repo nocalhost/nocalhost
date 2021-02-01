@@ -532,34 +532,22 @@ func (a *Application) AppendManualPortForwardToRawConfigDevPorts(svcName, way st
 
 // for background port-forward
 func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPorts, remotePorts []int, way string) {
-	//group := len(localPort)
+
 	if len(localPorts) != len(remotePorts) {
 		log.Fatalf("dev port forward fail, please check you devPort in config\n")
 	}
 	// wait group
 	var wg sync.WaitGroup
 	wg.Add(len(localPorts))
-	//killCh := make(chan struct{})
-
-	// managing termination signal from the terminal. As you can see the stopCh
-	// gets closed to gracefully handle its termination.
-	//sigs := make(chan os.Signal, 1)
-	//signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
-	//var addDevPod []string
 
 	// check if already exist manual port-forward, after dev start, pod will lost connection, should reconnect
 	log.Infof("localPort %v, remotePort %v", localPorts, remotePorts)
 	a.AppendDevPortManual(deployment, way, &localPorts, &remotePorts)
-	//log.Infof("localPort %v, remotePort %v", localPort, remotePort)
 	for key, sLocalPort := range localPorts {
 
 		// check if already exist port-forward, and kill old
 		_ = a.KillAlreadyExistPortForward(fmt.Sprintf("%d:%d", sLocalPort, remotePorts[key]), deployment)
 
-		//key := key
-		//sLocalPort := sLocalPort
-		//devPod := fmt.Sprintf("%d:%d", sLocalPort, remotePorts[key])
-		//addDevPod = append(addDevPod, devPod)
 		log.Infof("Start dev port forward local %d, remote %d", sLocalPort, remotePorts[key])
 		go func(lPort int, rPort int) {
 			for {
@@ -597,13 +585,6 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 					}
 				}(readyCh)
 
-				//go func() {
-				//	select {
-				//	case <-endCh:
-				//a.CleanupPortForwardStatusByPort(deployment, fmt.Sprintf("%d:%d", lPort, rPort))
-				//	}
-				//}()
-
 				err := a.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
 					Listen: listenAddress,
 					Pod: corev1.Pod{
@@ -640,25 +621,7 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 		time.Sleep(time.Duration(2) * time.Second)
 	}
 	log.Info("Done go routine")
-	// update profile addDevPod
-	// TODO get from channel and set real port-forward status
-	//for range localPort {
-	//	r := <-portForwardResultCh
-	//	portForwardResult = append(portForwardResult, r)
-	//}
-	//fmt.Printf("portForwardResult %s\n", portForwardResult)
 
-	//_ = a.SetDevPortForward(deployment, portForwardResult)
-
-	// set port forward status
-	//if len(portForwardResult) > 0 {
-	//	_ = a.SetPortForwardedStatus(deployment, true)
-	//}
-
-	//select {
-	//case <-sigs:
-	//	//case wg.Wait:
-	//}
 	wg.Wait()
 	log.Info("Stop port forward")
 }
@@ -667,11 +630,11 @@ func (a *Application) SendHeartBeat(stopCh chan struct{}, listenAddress string, 
 	for {
 		select {
 		case <-stopCh:
-			log.Info("Stop sending heart beat")
+			log.Infof("Stop sending heart beat to %d", sLocalPort)
 			return
 		default:
 			<-time.After(30 * time.Second)
-			log.Info("try to send port-forward heartbeat")
+			log.Infof("try to send port-forward heartbeat to %d", sLocalPort)
 			err := a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress, sLocalPort))
 			if err != nil {
 				log.Info("send port-forward heartbeat with err %s", err.Error())
