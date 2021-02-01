@@ -39,6 +39,7 @@ type FileSyncOptions struct {
 	SyncDouble     bool
 	SyncedPattern  []string
 	IgnoredPattern []string
+	Override       bool
 }
 
 type SyncStatusOptions struct {
