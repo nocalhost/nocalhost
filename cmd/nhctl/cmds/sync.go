@@ -40,6 +40,7 @@ func init() {
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false, "if use double side sync")
 	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.SyncedPattern, "synced-pattern", "s", []string{}, "local synced pattern")
 	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.IgnoredPattern, "ignored-pattern", "i", []string{}, "local ignored pattern")
+	fileSyncCmd.Flags().BoolVar(&fileSyncOps.Override,"overwrite", true,"override the remote changing according to the local sync folder while start up")
 	rootCmd.AddCommand(fileSyncCmd)
 }
 
@@ -198,6 +199,29 @@ var fileSyncCmd = &cobra.Command{
 		err = nocalhostApp.SetSyncingStatus(deployment, true)
 		if err != nil {
 			log.Fatal("Failed to update syncing status")
+		}
+
+
+		if fileSyncOps.Override {
+			var i = 10
+			for {
+				time.Sleep(time.Second)
+
+				i--
+				// to force override the remote changing
+				client := nocalhostApp.NewSyncthingHttpClient(deployment)
+
+				err = client.FolderOverride()
+				if err == nil {
+					log.Info("Force overriding workDir's remote changing")
+					break
+				}
+
+				if i < 0 {
+					log.ErrorE(err, "Fail to overriding workDir's remote changing")
+					break
+				}
+			}
 		}
 
 		<-sigs
