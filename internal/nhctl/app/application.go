@@ -55,9 +55,9 @@ const (
 )
 
 type Application struct {
-	Name                     string
-	config                   *NocalHostAppConfig //  this should not be nil
-	NewConfig                *Config
+	Name   string
+	config *NocalHostAppConfig //  this should not be nil
+	//NewConfig                *Config
 	AppProfile               *AppProfile // runtime info, this will not be nil
 	client                   *clientgoutils.ClientGoUtils
 	sortedPreInstallManifest []string // for pre install
@@ -385,15 +385,6 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 		}
 	}
 	return false
-}
-
-func (a *Application) CheckConfigFile(file string) error {
-	config := &Config{}
-	err := yaml.Unmarshal([]byte(file), config)
-	if err != nil {
-		return errors.New("Application OuterConfig file format error!")
-	}
-	return config.CheckValid()
 }
 
 func (a *Application) GetConfigFile() (string, error) {
