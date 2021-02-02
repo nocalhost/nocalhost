@@ -275,12 +275,13 @@ func (a *Application) generateResourceRequirementsForDevContainer(svcName string
 	return requirements
 }
 
-// In DevMode, nhctl will replace the container of your workload with two containers
+// In DevMode, nhctl will replace the container of your workload with two containers: one is called devContainer, the other is called sideCarContainer
 func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *DevStartOptions) error {
 
+	var err error
 	a.client.Context(ctx)
 
-	err := a.markReplicaSetAsOriginalRevision(svcName)
+	err = a.markReplicaSetAsOriginalRevision(svcName)
 	if err != nil {
 		return err
 	}
@@ -288,6 +289,31 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	err = a.scaleDeploymentReplicasToOne(ctx, svcName)
 	if err != nil {
 		return err
+	}
+
+	dep, err := a.client.GetDeployment(svcName)
+	if err != nil {
+		return err
+	}
+	var devContainer *corev1.Container
+	if ops.Container != "" {
+		for index, c := range dep.Spec.Template.Spec.Containers {
+			if c.Name == ops.Container {
+				devContainer = &dep.Spec.Template.Spec.Containers[index]
+				break
+			}
+		}
+		if devContainer == nil {
+			return errors.New(fmt.Sprintf("Container %s not found", ops.Container))
+		}
+	} else {
+		if len(dep.Spec.Template.Spec.Containers) > 1 {
+			return errors.New(fmt.Sprintf("There are more than one container defined, please specify one to start developing"))
+		}
+		if len(dep.Spec.Template.Spec.Containers) == 0 {
+			return errors.New("No container defined ???")
+		}
+		devContainer = &dep.Spec.Template.Spec.Containers[0]
 	}
 
 	devModeVolumes := make([]corev1.Volume, 0)
@@ -322,12 +348,6 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	sideCarContainer.Command = []string{"/bin/sh", "-c"}
 	sideCarContainer.Args = []string{"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome + "/* " + secret_config.DefaultSyncthingHome + "/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing"}
 
-	dep, err := a.client.GetDeployment(svcName)
-	if err != nil {
-		return err
-	}
-
-	devContainer := &dep.Spec.Template.Spec.Containers[0]
 	devContainer.Image = devImage
 	devContainer.Name = "nocalhost-dev"
 	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
