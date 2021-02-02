@@ -14,7 +14,6 @@ limitations under the License.
 package cmds
 
 import (
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -25,11 +24,5 @@ func init() {
 var configCmd = &cobra.Command{
 	Use:   "config [Name]",
 	Short: "Application config file",
-	Long:  "View, save and check application config file, no flags is view config",
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
-		}
-		return nil
-	},
+	Long:  "View, save and check application config file",
 }
