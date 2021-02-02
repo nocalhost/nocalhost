@@ -65,7 +65,8 @@ func (a *Application) StopPortForwardByPort(svcName, port string) error {
 	var killPortList []string
 	if len(pidList) > 0 {
 		for _, v := range pidList {
-			if strings.Contains(v, port) {
+			getPort := strings.Split(v, "-")[0]
+			if port == getPort {
 				// get port-forward pid
 				killPid = strings.Split(v, "-")[1]
 			}
