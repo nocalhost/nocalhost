@@ -623,7 +623,7 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 				})
 				if err != nil {
 					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") {
-						log.Warnf("Unable to listen on port %d", lPort)
+						// log.Warnf("Unable to listen on port %d", lPort)
 						wg.Done()
 						return
 					}
