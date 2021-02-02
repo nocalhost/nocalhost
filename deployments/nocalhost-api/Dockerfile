@@ -12,7 +12,7 @@ RUN ["make", "api"]
 FROM codingcorp-docker.pkg.coding.net/nocalhost/public/ubuntu:stable
 
 RUN ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-RUN apt-get install -y tzdata
+RUN apt-get update && apt-get install -y tzdata
 
 RUN ["mkdir", "-p", "/app/config"]
 COPY --from=builder /opt/src/build/nocalhost-api /app/nocalhost-api
