@@ -559,6 +559,9 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 	var wg sync.WaitGroup
 	wg.Add(len(localPorts))
 
+	// pid port status chan
+	statusChan := make(chan struct{})
+
 	// check if already exist manual port-forward, after dev start, pod will lost connection, should reconnect
 	a.AppendDevPortManual(deployment, way, &localPorts, &remotePorts)
 	for key, sLocalPort := range localPorts {
@@ -599,7 +602,7 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 						_ = a.AppendDevPortForwardPID(deployment, fmt.Sprintf("%d:%d-%d", lPort, rPort, os.Getpid()))
 						_ = a.SetPortForwardedStatus(deployment, true)
 						go func() {
-							a.CheckPidPortStatus(endCh, deployment, lPort, rPort, way)
+							a.CheckPidPortStatus(endCh, deployment, lPort, rPort, way, statusChan)
 						}()
 						go func() {
 							a.SendHeartBeat(endCh, listenAddress[0], lPort)
@@ -645,6 +648,10 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 
 	// run in background
 	if isDaemon {
+		for i := 0; i < len(localPorts); i++ {
+			<-statusChan
+		}
+		log.Infof("%s", a.GetPortForwardStatus(deployment))
 		_, err := daemon.Background(a.GetPortForwardLogFile(deployment), a.GetApplicationBackGroundOnlyPortForwardPidFile(deployment), true)
 		if err != nil {
 			log.Fatal("Failed to run port-forward background, please try again")
@@ -691,7 +698,7 @@ func (a *Application) SendHeartBeat(stopCh chan struct{}, listenAddress string, 
 	}
 }
 
-func (a *Application) CheckPidPortStatus(stopCh chan struct{}, deployment string, sLocalPort, sRemotePort int, way string) {
+func (a *Application) CheckPidPortStatus(stopCh chan struct{}, deployment string, sLocalPort, sRemotePort int, way string, statusChan chan struct{}) {
 	for {
 		select {
 		case <-stopCh:
@@ -705,6 +712,7 @@ func (a *Application) CheckPidPortStatus(stopCh chan struct{}, deployment string
 			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
 			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
 			_ = a.AppendPortForwardStatus(deployment, fmt.Sprintf("%d:%d(%s-%s)", sLocalPort, sRemotePort, strings.ToTitle(way), portStatus))
+			statusChan <- struct{}{}
 			<-time.After(10 * time.Second)
 		}
 	}
