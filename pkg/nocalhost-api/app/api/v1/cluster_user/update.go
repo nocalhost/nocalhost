@@ -113,9 +113,15 @@ func UpdateResourceLimit(c *gin.Context) {
 	}
 	var KubeConfig = []byte(clusterData.KubeConfig)
 	goClient, err := clientgo.NewAdminGoClient(KubeConfig)
+
+	// get client go and check if is admin Kubeconfig
 	if err != nil {
-		log.Errorf("There is a problem with the cluster kubeconfig, the reason: [ %v ] ", err)
-		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		switch err.(type) {
+		case *errno.Errno:
+			api.SendResponse(c, err, nil)
+		default:
+			api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		}
 		return
 	}
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)

@@ -52,6 +52,7 @@ var (
 	ErrUpdateCluster          = &Errno{Code: 30110, Message: "Update cluster fail, please try again"}
 	ErrClusterContext         = &Errno{Code: 30111, Message: "Failed to get current context from kubeconfig, please check context exists"}
 	ErrClusterName            = &Errno{Code: 30112, Message: "Failed to get current cluster from kubeconfig, please check cluster exists and manage by current context"}
+	ErrClusterTimeout         = &Errno{Code: 30113, Message: "Failed to get the connection from current cluster after short wait, please make sure the cluster exists and check it's network connectivity"}
 
 	// application errors
 	ErrApplicationCreate        = &Errno{Code: 40100, Message: "Failed to add app, please try again"}
