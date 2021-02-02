@@ -276,8 +276,15 @@ func GetStorageClass(c *gin.Context) {
 
 	// new client go
 	clientGo, err := clientgo.NewAdminGoClient(kubeConfig)
+
+	// get client go and check if is admin Kubeconfig
 	if err != nil {
-		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		switch err.(type) {
+		case *errno.Errno:
+			api.SendResponse(c, err, nil)
+		default:
+			api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		}
 		return
 	}
 	storageClassList, err := clientGo.GetStorageClassList()

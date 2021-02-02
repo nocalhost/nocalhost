@@ -46,8 +46,35 @@ type GoClient struct {
 	Config              []byte
 }
 
-// use this go client generator to avoid out-cluster/in-cluster network issues
+type InitResult struct {
+	goClient *GoClient
+	err      error
+}
+
+// new client with time out
 func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
+	initCh := make(chan *InitResult)
+
+	go func() {
+		client, err := newAdminGoClientTimeUnreliable(kubeconfig)
+		initCh <- &InitResult{
+			goClient: client,
+			err:      err,
+		}
+	}()
+
+	select {
+	case res := <-initCh:
+		return res.goClient, res.err
+
+	case <-time.After(5 * time.Second):
+		fmt.Printf("Create k8s Go Client timeout! \n")
+		return nil, errno.ErrClusterTimeout
+	}
+}
+
+// use this go client generator to avoid out-cluster/in-cluster network issues
+func newAdminGoClientTimeUnreliable(kubeconfig []byte) (*GoClient, error) {
 
 	// first try to access cluster normally
 

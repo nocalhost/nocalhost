@@ -41,9 +41,17 @@ func NewDevSpace(devSpaceParams ClusterUserCreateRequest, c *gin.Context, kubeCo
 
 func (d *DevSpace) Delete() error {
 	goClient, err := clientgo.NewAdminGoClient(d.KubeConfig)
+
+	// get client go and check if is admin Kubeconfig
 	if err != nil {
-		return errno.ErrClusterKubeErr
+		switch err.(type) {
+		case *errno.Errno:
+			return err
+		default:
+			return errno.ErrClusterKubeErr
+		}
 	}
+
 	_, _ = goClient.DeleteNS(d.DevSpaceParams.NameSpace)
 
 	// delete database cluster-user dev space
@@ -103,8 +111,15 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	// create namespace
 	var KubeConfig = []byte(clusterData.KubeConfig)
 	goClient, err := clientgo.NewAdminGoClient(KubeConfig)
+
+	// get client go and check if is admin Kubeconfig
 	if err != nil {
-		return nil, errno.ErrClusterKubeErr
+		switch err.(type) {
+		case *errno.Errno:
+			return nil, err
+		default:
+			return nil, errno.ErrClusterKubeErr
+		}
 	}
 	// create cluster devs
 	devNamespace := goClient.GenerateNsName(userId)

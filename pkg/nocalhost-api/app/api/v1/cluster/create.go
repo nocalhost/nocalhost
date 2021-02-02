@@ -76,7 +76,7 @@ func Create(c *gin.Context) {
 	// get client go and check if is admin Kubeconfig
 	if err != nil {
 		switch err.(type) {
-		case errno.Errno:
+		case *errno.Errno:
 			api.SendResponse(c, err, nil)
 		default:
 			api.SendResponse(c, errno.ErrClusterKubeErr, nil)
