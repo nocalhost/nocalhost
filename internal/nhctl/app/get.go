@@ -28,6 +28,9 @@ func (a *Application) GetDependencies() []*SvcDependency {
 	}
 
 	for _, svcConfig := range svcConfigs {
+		if svcConfig.DependLabelSelector == nil {
+			continue
+		}
 		if svcConfig.DependLabelSelector.Pods == nil && svcConfig.DependLabelSelector.Jobs == nil {
 			continue
 		}

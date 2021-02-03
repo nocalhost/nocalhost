@@ -330,9 +330,20 @@ func getYamlFilesAndDirs(path string, ignorePaths []string) ([]string, []string,
 
 func (a *Application) loadSortedPreInstallManifest() {
 	result := make([]string, 0)
-	if a.configV2 != nil && a.configV2.ApplicationConfig.PreInstall != nil {
-		sort.Sort(ComparableItems(a.configV2.ApplicationConfig.PreInstall))
-		for _, item := range a.configV2.ApplicationConfig.PreInstall {
+	//if a.configV2 != nil && a.configV2.ApplicationConfig.PreInstall != nil {
+	//	sort.Sort(ComparableItems(a.configV2.ApplicationConfig.PreInstall))
+	//	for _, item := range a.configV2.ApplicationConfig.PreInstall {
+	//		itemPath := filepath.Join(a.getGitDir(), item.Path)
+	//		if _, err2 := os.Stat(itemPath); err2 != nil {
+	//			log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
+	//			continue
+	//		}
+	//		result = append(result, itemPath)
+	//	}
+	//}
+	if a.AppProfileV2.PreInstall != nil {
+		sort.Sort(ComparableItems(a.AppProfileV2.PreInstall))
+		for _, item := range a.AppProfileV2.PreInstall {
 			itemPath := filepath.Join(a.getGitDir(), item.Path)
 			if _, err2 := os.Stat(itemPath); err2 != nil {
 				log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
@@ -341,5 +352,6 @@ func (a *Application) loadSortedPreInstallManifest() {
 			result = append(result, itemPath)
 		}
 	}
+
 	a.sortedPreInstallManifest = result
 }

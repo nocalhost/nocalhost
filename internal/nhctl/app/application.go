@@ -92,6 +92,10 @@ func NewApplication(name string) (*Application, error) {
 		return nil, err
 	}
 
+	if len(app.AppProfileV2.PreInstall) == 0 {
+		app.AppProfileV2.PreInstall = app.configV2.ApplicationConfig.PreInstall
+	}
+
 	app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), app.GetNamespace())
 	if err != nil {
 		return nil, err
@@ -138,6 +142,20 @@ func (a *Application) ReadBeforeWriteProfile() error {
 //}
 
 func (a *Application) LoadConfigV2() error {
+
+	isV2, err := a.checkIfAppConfigIsV2()
+	if err != nil {
+		return err
+	}
+
+	if !isV2 {
+		log.Info("Upgrade config V1 to V2 ...")
+		err = a.UpgradeAppConfigV1ToV2()
+		if err != nil {
+			return err
+		}
+	}
+
 	config := &NocalHostAppConfigV2{}
 	if _, err := os.Stat(a.GetConfigV2Path()); err != nil {
 		if os.IsNotExist(err) {
@@ -159,22 +177,7 @@ func (a *Application) LoadConfigV2() error {
 	return nil
 }
 
-//func (a *Application) SaveConfig() error {
-//	if a.config != nil {
-//		bys, err := yaml.Marshal(a.config)
-//		if err != nil {
-//			return errors.Wrap(err, err.Error())
-//		}
-//		err = ioutil.WriteFile(a.GetConfigPath(), bys, 0644)
-//		if err != nil {
-//			return errors.Wrap(err, err.Error())
-//		}
-//	}
-//	return nil
-//}
-
 func (a *Application) SaveProfile() error {
-	//return a.AppProfile.Save()
 
 	v2Bytes, err := yaml.Marshal(a.AppProfileV2)
 	if err != nil {

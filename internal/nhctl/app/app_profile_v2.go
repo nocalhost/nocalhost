@@ -22,18 +22,19 @@ import (
 )
 
 type AppProfileV2 struct {
-	Name                    string          `json:"name" yaml:"name"`
-	ChartName               string          `json:"chart_name" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
-	ReleaseName             string          `json:"release_name yaml:releaseName"`
-	Namespace               string          `json:"namespace" yaml:"namespace"`
-	Kubeconfig              string          `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
-	DependencyConfigMapName string          `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
-	AppType                 AppType         `json:"app_type" yaml:"appType"`
-	SvcProfile              []*SvcProfileV2 `json:"svc_profile" yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
-	Installed               bool            `json:"installed" yaml:"installed"`
-	SyncDirs                []string        `json:"syncDirs" yaml:"syncDirs"` // dev start -s
-	ResourcePath            []string        `json:"resource_path" yaml:"resourcePath"`
-	IgnoredPath             []string        `json:"ignoredPath" yaml:"ignoredPath"`
+	Name                    string            `json:"name" yaml:"name"`
+	ChartName               string            `json:"chart_name" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
+	ReleaseName             string            `json:"release_name yaml:releaseName"`
+	Namespace               string            `json:"namespace" yaml:"namespace"`
+	Kubeconfig              string            `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
+	DependencyConfigMapName string            `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
+	AppType                 AppType           `json:"app_type" yaml:"appType"`
+	SvcProfile              []*SvcProfileV2   `json:"svc_profile" yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
+	Installed               bool              `json:"installed" yaml:"installed"`
+	SyncDirs                []string          `json:"syncDirs" yaml:"syncDirs"` // dev start -s
+	ResourcePath            []string          `json:"resource_path" yaml:"resourcePath"`
+	IgnoredPath             []string          `json:"ignoredPath" yaml:"ignoredPath"`
+	PreInstall              []*PreInstallItem `json:"onPreInstall" yaml:"onPreInstall"`
 }
 
 type ContainerProfileV2 struct {
@@ -106,6 +107,30 @@ func (a *Application) checkIfAppProfileIsV2() (bool, error) {
 	return false, nil
 }
 
+func (a *Application) checkIfAppConfigIsV2() (bool, error) {
+	_, err := os.Stat(a.GetConfigV2Path())
+	if err == nil {
+		return true, nil
+	}
+
+	if !os.IsNotExist(err) {
+		return false, errors.Wrap(err, "")
+	}
+	return false, nil
+}
+
 func (a *Application) UpgradeAppProfileV1ToV2() error {
-	return ConvertAppProfileFileV1ToV2(a.getProfilePath(), a.getProfileV2Path())
+	err := ConvertAppProfileFileV1ToV2(a.getProfilePath(), a.getProfileV2Path())
+	if err != nil {
+		return err
+	}
+	return os.Rename(a.getProfilePath(), a.getProfilePath()+".bak")
+}
+
+func (a *Application) UpgradeAppConfigV1ToV2() error {
+	err := ConvertConfigFileV1ToV2(a.GetConfigPath(), a.GetConfigV2Path())
+	if err != nil {
+		return err
+	}
+	return os.Rename(a.GetConfigPath(), a.GetConfigPath()+".bak")
 }
