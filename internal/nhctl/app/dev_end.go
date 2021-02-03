@@ -111,7 +111,6 @@ func (a *Application) StopPortForwardByPort(svcName, port string) error {
 		}
 	}
 	// ignore terminate status and delete port-forward list anyway
-
 	err = a.DeleteDevPortList(svcName, killPortList)
 	if err != nil {
 		log.Warn(err.Error())
