@@ -627,6 +627,7 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 				if err != nil {
 					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") {
 						// log.Warnf("Unable to listen on port %d", lPort)
+						statusChan <- struct{}{}
 						wg.Done()
 						return
 					}
@@ -651,7 +652,7 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 		for i := 0; i < len(localPorts); i++ {
 			<-statusChan
 		}
-		log.Infof("%s", a.GetPortForwardStatus(deployment))
+		log.Infof("Get system port status %s", strings.Join(a.GetPortForwardStatus(deployment), ", "))
 		_, err := daemon.Background(a.GetPortForwardLogFile(deployment), a.GetApplicationBackGroundOnlyPortForwardPidFile(deployment), true)
 		if err != nil {
 			log.Fatal("Failed to run port-forward background, please try again")
