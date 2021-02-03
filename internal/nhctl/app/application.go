@@ -766,7 +766,9 @@ func (a *Application) DeletePortForwardPidList(svcName string, deletePortList []
 	for _, v := range existPortList {
 		needDelete := false
 		for _, vv := range deletePortList {
-			if strings.Contains(v, vv) {
+			regexpString, _ := regexp.Compile("\\d+:\\d+")
+			localAndRemote := regexpString.FindString(v)
+			if localAndRemote == vv {
 				needDelete = true
 				break
 			}
@@ -788,7 +790,9 @@ func (a *Application) DeletePortForwardStatusList(svcName string, deletePortList
 	for _, v := range existPortList {
 		needDelete := false
 		for _, vv := range deletePortList {
-			if strings.Contains(v, vv) {
+			regexpString, _ := regexp.Compile("\\d+:\\d+")
+			localAndRemote := regexpString.FindString(v)
+			if localAndRemote == vv {
 				needDelete = true
 				break
 			}
