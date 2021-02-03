@@ -39,9 +39,11 @@ const (
 	DefaultApplicationProfilePath      = ".profile.yaml" // runtime config
 	DefaultApplicationProfileV2Path    = ".profile_v2.yaml"
 	DefaultApplicationConfigPath       = ".config.yaml"
+	DefaultApplicationConfigV2Path     = ".config_v2.yaml"
 	DefaultApplicationConfigDirName    = ".nocalhost"
 	DefaultConfigNameInGitNocalhostDir = "config.yaml"
 	DefaultNewFilePermission           = 0700
+	DefaultConfigFilePermission        = 0644
 	DefaultClientGoTimeOut             = time.Minute * 5
 
 	// nhctl init

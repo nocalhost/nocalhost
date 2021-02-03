@@ -195,3 +195,20 @@ func convertServiceConfigV1ToV2(svcV1 *ServiceDevOptions) *ServiceConfigV2 {
 	}
 	return svcV2
 }
+
+func checkConfigVersion(file string) (string, error) {
+	bytes, err := ioutil.ReadFile(file)
+	if err != nil {
+		return "", errors.Wrap(err, "")
+	}
+
+	config := &NocalHostAppConfigV2{}
+	err = yaml.Unmarshal(bytes, config)
+	if err != nil {
+		return "", errors.Wrap(err, "")
+	}
+	if config.ConfigProperties != nil {
+		return config.ConfigProperties.Version, nil
+	}
+	return "v1", nil
+}

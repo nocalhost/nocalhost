@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 )
 
 type DevCommandType string
@@ -57,23 +58,27 @@ var devCmdCmd = &cobra.Command{
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			log.Fatalf("%s is not in DevMode", deployment)
 		}
-		profile := nocalhostApp.GetSvcProfile(deployment)
+		profile := nocalhostApp.GetSvcProfileV2(deployment)
 		if profile == nil {
 			log.Fatal("Failed to get service profile")
+			os.Exit(1)
 		}
 
+		if profile.GetDefaultContainerDevConfig() == nil || profile.GetDefaultContainerDevConfig().Command == nil {
+			log.Fatalf("%s command not defined", commandType)
+		}
 		var targetCommand []string
 		switch commandType {
 		case string(build):
-			targetCommand = profile.BuildCommand
+			targetCommand = profile.GetDefaultContainerDevConfig().Command.Build
 		case string(run):
-			targetCommand = profile.RunCommand
+			targetCommand = profile.GetDefaultContainerDevConfig().Command.Run
 		case string(debug):
-			targetCommand = profile.DebugCommand
+			targetCommand = profile.GetDefaultContainerDevConfig().Command.Debug
 		case string(hotReloadDebug):
-			targetCommand = profile.HotReloadDebugCommand
+			targetCommand = profile.GetDefaultContainerDevConfig().Command.HotReloadDebug
 		case string(hotReloadRun):
-			targetCommand = profile.HotReloadRunCommand
+			targetCommand = profile.GetDefaultContainerDevConfig().Command.HotReloadRun
 		default:
 			log.Fatalf("%s is not supported", commandType)
 

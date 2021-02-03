@@ -55,8 +55,8 @@ const (
 )
 
 type Application struct {
-	Name     string
-	config   *NocalHostAppConfig //  this should not be nil
+	Name string
+	//config   *NocalHostAppConfig //  this should not be nil
 	configV2 *NocalHostAppConfigV2
 	//AppProfile               *AppProfile // runtime info, this will not be nil
 	AppProfileV2             *AppProfileV2
@@ -77,7 +77,7 @@ func NewApplication(name string) (*Application, error) {
 		Name: name,
 	}
 
-	err := app.LoadConfig()
+	err := app.LoadConfigV2()
 	if err != nil {
 		return nil, err
 	}
@@ -101,58 +101,88 @@ func NewApplication(name string) (*Application, error) {
 }
 
 func (a *Application) ReadBeforeWriteProfile() error {
-	profile, err := NewAppProfile(a.getProfilePath())
-	if err != nil {
-		return err
-	}
-	a.AppProfile = profile
-	return nil
+	//profile, err := NewAppProfile(a.getProfilePath())
+	//if err != nil {
+	//	return err
+	//}
+	//a.AppProfile = profile
+	return a.LoadAppProfileV2()
 }
 
-func (a *Application) InitProfile(profile *AppProfile) {
-	if profile != nil {
-		a.AppProfile = profile
-	}
-}
+//func (a *Application) InitProfile(profile *AppProfile) {
+//	if profile != nil {
+//		a.AppProfile = profile
+//	}
+//}
 
-func (a *Application) LoadConfig() error {
-	config := &NocalHostAppConfig{}
-	if _, err := os.Stat(a.GetConfigPath()); err != nil {
+//func (a *Application) LoadConfig() error {
+//	config := &NocalHostAppConfig{}
+//	if _, err := os.Stat(a.GetConfigPath()); err != nil {
+//		if os.IsNotExist(err) {
+//			a.config = config
+//			return nil
+//		} else {
+//			return errors.Wrap(err, "fail to load configs")
+//		}
+//	}
+//	rbytes, err := ioutil.ReadFile(a.GetConfigPath())
+//	if err != nil {
+//		return errors.New(fmt.Sprintf("fail to load configFile : %s", a.GetConfigPath()))
+//	}
+//	err = yaml.Unmarshal(rbytes, config)
+//	if err != nil {
+//		return errors.Wrap(err, err.Error())
+//	}
+//	a.config = config
+//	return nil
+//}
+
+func (a *Application) LoadConfigV2() error {
+	config := &NocalHostAppConfigV2{}
+	if _, err := os.Stat(a.GetConfigV2Path()); err != nil {
 		if os.IsNotExist(err) {
-			a.config = config
+			a.configV2 = config
 			return nil
 		} else {
 			return errors.Wrap(err, "fail to load configs")
 		}
 	}
-	rbytes, err := ioutil.ReadFile(a.GetConfigPath())
+	rbytes, err := ioutil.ReadFile(a.GetConfigV2Path())
 	if err != nil {
-		return errors.New(fmt.Sprintf("fail to load configFile : %s", a.GetConfigPath()))
+		return errors.New(fmt.Sprintf("fail to load configFile : %s", a.GetConfigV2Path()))
 	}
 	err = yaml.Unmarshal(rbytes, config)
 	if err != nil {
-		return errors.Wrap(err, err.Error())
+		return errors.Wrap(err, "")
 	}
-	a.config = config
+	a.configV2 = config
 	return nil
 }
 
-func (a *Application) SaveConfig() error {
-	if a.config != nil {
-		bys, err := yaml.Marshal(a.config)
-		if err != nil {
-			return errors.Wrap(err, err.Error())
-		}
-		err = ioutil.WriteFile(a.GetConfigPath(), bys, 0644)
-		if err != nil {
-			return errors.Wrap(err, err.Error())
-		}
-	}
-	return nil
-}
+//func (a *Application) SaveConfig() error {
+//	if a.config != nil {
+//		bys, err := yaml.Marshal(a.config)
+//		if err != nil {
+//			return errors.Wrap(err, err.Error())
+//		}
+//		err = ioutil.WriteFile(a.GetConfigPath(), bys, 0644)
+//		if err != nil {
+//			return errors.Wrap(err, err.Error())
+//		}
+//	}
+//	return nil
+//}
 
 func (a *Application) SaveProfile() error {
-	return a.AppProfile.Save()
+	//return a.AppProfile.Save()
+
+	v2Bytes, err := yaml.Marshal(a.AppProfileV2)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	err = ioutil.WriteFile(a.getProfileV2Path(), v2Bytes, 0644)
+	return errors.Wrap(err, "")
 }
 
 func (a *Application) downloadResourcesFromGit(gitUrl string, gitRef string) error {
@@ -256,12 +286,25 @@ func (a *Application) GetApplicationSyncDir(deployment string) string {
 	return dirPath
 }
 
-func (a *Application) GetSvcConfig(svcName string) *ServiceDevOptions {
-	a.LoadConfig() // get the latest config
-	if a.config == nil {
+//func (a *Application) GetSvcConfig(svcName string) *ServiceDevOptions {
+//	a.LoadConfig() // get the latest config
+//	if a.config == nil {
+//		return nil
+//	}
+//	for _, config := range a.config.SvcConfigs {
+//		if config.Name == svcName {
+//			return config
+//		}
+//	}
+//	return nil
+//}
+
+func (a *Application) GetSvcConfigV2(svcName string) *ServiceConfigV2 {
+	a.LoadConfigV2() // get the latest config
+	if a.configV2 == nil {
 		return nil
 	}
-	for _, config := range a.config.SvcConfigs {
+	for _, config := range a.configV2.ApplicationConfig.ServiceConfigs {
 		if config.Name == svcName {
 			return config
 		}
@@ -269,22 +312,40 @@ func (a *Application) GetSvcConfig(svcName string) *ServiceDevOptions {
 	return nil
 }
 
-func (a *Application) SaveSvcProfile(svcName string, config *ServiceDevOptions) error {
+//func (a *Application) SaveSvcProfile(svcName string, config *ServiceDevOptions) error {
+//
+//	svcPro := a.GetSvcProfile(svcName)
+//	if svcPro != nil {
+//		config.Name = svcName
+//		svcPro.ServiceDevOptions = config
+//	} else {
+//		config.Name = svcName
+//		svcPro = &SvcProfile{
+//			ServiceDevOptions: config,
+//			ActualName:        svcName,
+//		}
+//		a.AppProfile.SvcProfile = append(a.AppProfile.SvcProfile, svcPro)
+//	}
+//
+//	return a.SaveProfile()
+//}
 
-	svcPro := a.GetSvcProfile(svcName)
+func (a *Application) SaveSvcProfileV2(svcName string, config *ServiceConfigV2) error {
+
+	svcPro := a.GetSvcProfileV2(svcName)
 	if svcPro != nil {
 		config.Name = svcName
-		svcPro.ServiceDevOptions = config
+		svcPro.ServiceConfigV2 = config
 	} else {
 		config.Name = svcName
-		svcPro = &SvcProfile{
-			ServiceDevOptions: config,
-			ActualName:        svcName,
+		svcPro = &SvcProfileV2{
+			ServiceConfigV2: config,
+			ActualName:      svcName,
 		}
-		a.AppProfile.SvcProfile = append(a.AppProfile.SvcProfile, svcPro)
+		a.AppProfileV2.SvcProfile = append(a.AppProfileV2.SvcProfile, svcPro)
 	}
 
-	return a.AppProfile.Save()
+	return a.SaveProfile()
 }
 
 func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) error {
@@ -402,8 +463,8 @@ func (a *Application) GetConfigFile() (string, error) {
 
 func (a *Application) GetDescription() string {
 	desc := ""
-	if a.AppProfile != nil {
-		bytes, err := yaml.Marshal(a.AppProfile)
+	if a.AppProfileV2 != nil {
+		bytes, err := yaml.Marshal(a.AppProfileV2)
 		if err == nil {
 			desc = string(bytes)
 		}
@@ -413,7 +474,7 @@ func (a *Application) GetDescription() string {
 
 func (a *Application) GetSvcDescription(svcName string) string {
 	desc := ""
-	profile := a.GetSvcProfile(svcName)
+	profile := a.GetSvcProfileV2(svcName)
 	if profile != nil {
 		bytes, err := yaml.Marshal(profile)
 		if err == nil {
@@ -425,38 +486,38 @@ func (a *Application) GetSvcDescription(svcName string) string {
 
 func (a *Application) GetPluginDescription(service string) string {
 	desc := ""
-	if a.AppProfile != nil {
+	if a.AppProfileV2 != nil {
 		// get all service profile
 		if service == "" {
 			svcProfileForPlugin := make([]*SvcProfileForPlugin, 0)
-			for _, value := range a.AppProfile.SvcProfile {
+			for _, value := range a.AppProfileV2.SvcProfile {
 				rows := &SvcProfileForPlugin{
 					Name:                                   value.Name,
 					Type:                                   value.Type,
-					GitUrl:                                 value.GitUrl,
-					DevImage:                               value.DevImage,
-					WorkDir:                                value.WorkDir,
-					Sync:                                   value.Sync,
-					DevPort:                                value.DevPort,
+					GitUrl:                                 value.ContainerConfigs[0].Dev.GitUrl,
+					DevImage:                               value.ContainerConfigs[0].Dev.Image,
+					WorkDir:                                value.ContainerConfigs[0].Dev.WorkDir,
+					Sync:                                   value.SyncDirs,
+					DevPort:                                value.ContainerConfigs[0].Dev.PortForward,
 					Developing:                             value.Developing,
 					PortForwarded:                          value.PortForwarded,
 					Syncing:                                value.Syncing,
 					LocalAbsoluteSyncDirFromDevStartPlugin: value.LocalAbsoluteSyncDirFromDevStartPlugin,
 					DevPortList:                            value.DevPortList,
-					SyncedPatterns:                         value.SyncedPatterns,
-					IgnoredPatterns:                        value.IgnoredPatterns,
+					SyncedPatterns:                         value.ContainerConfigs[0].Dev.Sync.FilePattern,
+					IgnoredPatterns:                        value.ContainerConfigs[0].Dev.Sync.IgnoreFilePattern,
 				}
 				svcProfileForPlugin = append(svcProfileForPlugin, rows)
 			}
 			result := &PluginGetApplication{
 				Name:                    a.Name,
-				ReleaseName:             a.AppProfile.ReleaseName,
-				Namespace:               a.AppProfile.Namespace,
-				Kubeconfig:              a.AppProfile.Kubeconfig,
-				DependencyConfigMapName: a.AppProfile.DependencyConfigMapName,
-				AppType:                 a.AppProfile.AppType,
-				Installed:               a.AppProfile.Installed,
-				ResourcePath:            a.AppProfile.ResourcePath,
+				ReleaseName:             a.AppProfileV2.ReleaseName,
+				Namespace:               a.AppProfileV2.Namespace,
+				Kubeconfig:              a.AppProfileV2.Kubeconfig,
+				DependencyConfigMapName: a.AppProfileV2.DependencyConfigMapName,
+				AppType:                 a.AppProfileV2.AppType,
+				Installed:               a.AppProfileV2.Installed,
+				ResourcePath:            a.AppProfileV2.ResourcePath,
 				SvcProfile:              svcProfileForPlugin,
 			}
 			bytes, err := yaml.Marshal(result)
@@ -467,35 +528,35 @@ func (a *Application) GetPluginDescription(service string) string {
 		}
 		if service != "" {
 
-			svcProfile := a.GetSvcProfile(service)
+			svcProfile := a.GetSvcProfileV2(service)
 			if svcProfile == nil {
 				return desc
 			}
 			svcProfileForPlugin := &SvcProfileForPlugin{
-				Type:                                   svcProfile.Type,
-				GitUrl:                                 svcProfile.GitUrl,
-				DevImage:                               svcProfile.DevImage,
-				WorkDir:                                svcProfile.WorkDir,
-				Sync:                                   svcProfile.Sync,
-				DevPort:                                svcProfile.DevPort,
 				Name:                                   svcProfile.Name,
+				Type:                                   svcProfile.Type,
+				GitUrl:                                 svcProfile.ContainerConfigs[0].Dev.GitUrl,
+				DevImage:                               svcProfile.ContainerConfigs[0].Dev.Image,
+				WorkDir:                                svcProfile.ContainerConfigs[0].Dev.WorkDir,
+				Sync:                                   svcProfile.SyncDirs,
+				DevPort:                                svcProfile.ContainerConfigs[0].Dev.PortForward,
 				Developing:                             svcProfile.Developing,
 				PortForwarded:                          svcProfile.PortForwarded,
 				Syncing:                                svcProfile.Syncing,
 				LocalAbsoluteSyncDirFromDevStartPlugin: svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin,
 				DevPortList:                            svcProfile.DevPortList,
-				SyncedPatterns:                         svcProfile.SyncedPatterns,
-				IgnoredPatterns:                        svcProfile.IgnoredPatterns,
+				SyncedPatterns:                         svcProfile.ContainerConfigs[0].Dev.Sync.FilePattern,
+				IgnoredPatterns:                        svcProfile.ContainerConfigs[0].Dev.Sync.IgnoreFilePattern,
 			}
 			result := &PluginGetApplicationService{
 				Name:                    a.Name,
-				ReleaseName:             a.AppProfile.ReleaseName,
-				Namespace:               a.AppProfile.Namespace,
-				Kubeconfig:              a.AppProfile.Kubeconfig,
-				DependencyConfigMapName: a.AppProfile.DependencyConfigMapName,
-				AppType:                 a.AppProfile.AppType,
-				Installed:               a.AppProfile.Installed,
-				ResourcePath:            a.AppProfile.ResourcePath,
+				ReleaseName:             a.AppProfileV2.ReleaseName,
+				Namespace:               a.AppProfileV2.Namespace,
+				Kubeconfig:              a.AppProfileV2.Kubeconfig,
+				DependencyConfigMapName: a.AppProfileV2.DependencyConfigMapName,
+				AppType:                 a.AppProfileV2.AppType,
+				Installed:               a.AppProfileV2.Installed,
+				ResourcePath:            a.AppProfileV2.ResourcePath,
 				SvcProfile:              svcProfileForPlugin,
 			}
 			bytes, err := yaml.Marshal(result)
@@ -517,14 +578,15 @@ func (a *Application) AppendManualPortForwardToRawConfigDevPorts(svcName, way st
 	if err != nil {
 		return err
 	}
-	exist := a.GetSvcProfile(svcName).DevPort
+	exist := a.GetSvcProfileV2(svcName).ContainerConfigs[0].Dev.PortForward
 	for k, v := range localPorts {
 		checkPorts := fmt.Sprintf("%d:%d", v, remotePorts[k])
 		exist = append(exist, checkPorts)
 	}
 	newPodList := tools.RemoveDuplicateElement(exist)
-	a.GetSvcProfile(svcName).DevPort = newPodList
-	return a.AppProfile.Save()
+	//a.GetSvcProfile(svcName).DevPort = newPodList
+	a.GetSvcProfileV2(svcName).ContainerConfigs[0].Dev.PortForward = newPodList
+	return a.SaveProfile()
 }
 
 func (a *Application) FixPortForwardOSArgs(localPort, remotePort []int) {
@@ -709,7 +771,8 @@ func (a *Application) CheckPidPortStatus(stopCh chan struct{}, deployment string
 // ports format 8080:80
 func (a *Application) KillAlreadyExistPortForward(ports, svcName string) error {
 	var err error
-	pidList := a.GetSvcProfile(svcName).PortForwardPidList
+	//pidList := a.GetSvcProfile(svcName).PortForwardPidList
+	pidList := a.GetSvcProfileV2(svcName).PortForwardPidList
 	if len(pidList) > 0 {
 		for _, v := range pidList {
 			portPid := strings.Split(v, "-")
@@ -745,7 +808,8 @@ func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error 
 
 // port-forward use
 func (a *Application) DeletePortForwardPidList(svcName string, deletePortList []string) error {
-	existPortList := a.GetSvcProfile(svcName).PortForwardPidList
+	//existPortList := a.GetSvcProfile(svcName).PortForwardPidList
+	existPortList := a.GetSvcProfileV2(svcName).PortForwardPidList
 	if len(existPortList) == 0 {
 		return errors.New("portForwardPidList empty")
 	}
@@ -762,12 +826,12 @@ func (a *Application) DeletePortForwardPidList(svcName string, deletePortList []
 			newPortList = append(newPortList, v)
 		}
 	}
-	a.GetSvcProfile(svcName).PortForwardPidList = newPortList
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).PortForwardPidList = newPortList
+	return a.SaveProfile()
 }
 
 func (a *Application) DeletePortForwardStatusList(svcName string, deletePortList []string) error {
-	existPortList := a.GetSvcProfile(svcName).PortForwardStatusList
+	existPortList := a.GetSvcProfileV2(svcName).PortForwardStatusList
 	if len(existPortList) == 0 {
 		return errors.New("portForwardStatusList empty")
 	}
@@ -784,12 +848,12 @@ func (a *Application) DeletePortForwardStatusList(svcName string, deletePortList
 			newPortList = append(newPortList, v)
 		}
 	}
-	a.GetSvcProfile(svcName).PortForwardStatusList = newPortList
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).PortForwardStatusList = newPortList
+	return a.SaveProfile()
 }
 
 func (a *Application) DeleteDevPortList(svcName string, deletePortList []string) error {
-	existPortList := a.GetSvcProfile(svcName).DevPortList
+	existPortList := a.GetSvcProfileV2(svcName).DevPortList
 	if len(existPortList) == 0 {
 		return errors.New("portList empty")
 	}
@@ -806,13 +870,13 @@ func (a *Application) DeleteDevPortList(svcName string, deletePortList []string)
 			newPortList = append(newPortList, v)
 		}
 	}
-	a.GetSvcProfile(svcName).DevPortList = newPortList
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).DevPortList = newPortList
+	return a.SaveProfile()
 }
 
 func (a *Application) SetDevPortForward(svcName string, portList []string) error {
-	a.GetSvcProfile(svcName).DevPortList = portList
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).DevPortList = portList
+	return a.SaveProfile()
 }
 
 func (a *Application) AppendDevPortForward(svcName string, portList string) error {
@@ -820,10 +884,10 @@ func (a *Application) AppendDevPortForward(svcName string, portList string) erro
 	if err != nil {
 		return err
 	}
-	exist := append(a.GetSvcProfile(svcName).DevPortList, portList)
+	exist := append(a.GetSvcProfileV2(svcName).DevPortList, portList)
 	newPodList := tools.RemoveDuplicateElement(exist)
-	a.GetSvcProfile(svcName).DevPortList = newPodList
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).DevPortList = newPodList
+	return a.SaveProfile()
 }
 
 func (a *Application) AppendDevPortForwardPID(svcName string, portPIDList string) error {
@@ -844,7 +908,7 @@ func (a *Application) AppendDevPortForwardPID(svcName string, portPIDList string
 		return err
 	}
 	var portStatusList []string
-	exist := a.GetSvcProfile(svcName).PortForwardPidList
+	exist := a.GetSvcProfileV2(svcName).PortForwardPidList
 	needAdd := true
 	for _, v := range exist {
 		if strings.Split(v, "-")[0] == strings.Split(portPIDList, "-")[0] && len(strings.Split(v, "-")) != 0 {
@@ -858,8 +922,8 @@ func (a *Application) AppendDevPortForwardPID(svcName string, portPIDList string
 		portStatusList = append(portStatusList, portPIDList)
 	}
 	portStatusList = tools.RemoveDuplicateElement(portStatusList)
-	a.GetSvcProfile(svcName).PortForwardPidList = portStatusList
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).PortForwardPidList = portStatusList
+	return a.SaveProfile()
 }
 
 func (a *Application) AppendDevPortManual(svcName, way string, localPorts, remotePorts *[]int) {
@@ -901,7 +965,7 @@ func (a *Application) AppendDevPortManual(svcName, way string, localPorts, remot
 }
 
 func (a *Application) GetPortForwardStatus(svcName string) []string {
-	return a.GetSvcProfile(svcName).PortForwardStatusList
+	return a.GetSvcProfileV2(svcName).PortForwardStatusList
 }
 
 func (a *Application) AppendPortForwardStatus(svcName string, portStatus string) error {
@@ -910,7 +974,7 @@ func (a *Application) AppendPortForwardStatus(svcName string, portStatus string)
 		return err
 	}
 	var portStatusList []string
-	exist := a.GetSvcProfile(svcName).PortForwardStatusList
+	exist := a.GetSvcProfileV2(svcName).PortForwardStatusList
 	needAdd := true
 	for _, v := range exist {
 		if strings.Split(v, "(")[0] == strings.Split(portStatus, "(")[0] && len(strings.Split(v, "(")) != 0 {
@@ -924,12 +988,12 @@ func (a *Application) AppendPortForwardStatus(svcName string, portStatus string)
 		portStatusList = append(portStatusList, portStatus)
 	}
 	portStatusList = tools.RemoveDuplicateElement(portStatusList)
-	a.GetSvcProfile(svcName).PortForwardStatusList = portStatusList
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).PortForwardStatusList = portStatusList
+	return a.SaveProfile()
 }
 
 func (a *Application) GetDevPortForward(svcName string) []string {
-	return a.GetSvcProfile(svcName).DevPortList
+	return a.GetSvcProfileV2(svcName).DevPortList
 }
 
 func (a *Application) GetMyBinName() string {
@@ -999,7 +1063,7 @@ func (a *Application) WriteBackgroundSyncPortForwardPidFile(deployment string, p
 }
 
 func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(svcName string, options *DevStartOptions) (*DevStartOptions, error) {
-	svcProfile := a.GetSvcProfile(svcName)
+	svcProfile := a.GetSvcProfileV2(svcName)
 	if svcProfile == nil {
 		return options, errors.New("get " + svcName + " profile fail, please reinstall application")
 	}

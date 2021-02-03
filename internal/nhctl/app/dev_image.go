@@ -261,8 +261,8 @@ func (a *Application) generateResourceRequirementsForDevContainer(svcName string
 		requirements *corev1.ResourceRequirements
 	)
 
-	svcProfile := a.GetSvcProfile(svcName)
-	resourceQuota := svcProfile.DevContainerResources
+	svcProfile := a.GetSvcProfileV2(svcName)
+	resourceQuota := svcProfile.ContainerConfigs[0].Dev.DevContainerResources
 
 	if resourceQuota != nil {
 		log.Debug("DevContainer uses resource limits defined in config")
@@ -385,7 +385,7 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	// PriorityClass
 	priorityClass := ops.PriorityClass
 	if priorityClass == "" {
-		priorityClass = a.GetSvcProfile(svcName).PriorityClass
+		priorityClass = a.GetSvcProfileV2(svcName).PriorityClass
 	}
 	if priorityClass != "" {
 		log.Infof("Using priorityClass: %s...", priorityClass)

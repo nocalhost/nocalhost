@@ -31,6 +31,7 @@ type AppProfileV2 struct {
 	AppType                 AppType         `json:"app_type" yaml:"appType"`
 	SvcProfile              []*SvcProfileV2 `json:"svc_profile" yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
 	Installed               bool            `json:"installed" yaml:"installed"`
+	SyncDirs                []string        `json:"syncDirs" yaml:"syncDirs"` // dev start -s
 	ResourcePath            []string        `json:"resource_path" yaml:"resourcePath"`
 	IgnoredPath             []string        `json:"ignoredPath" yaml:"ignoredPath"`
 }
@@ -46,6 +47,7 @@ type SvcProfileV2 struct {
 	Developing       bool                  `json:"developing" yaml:"developing"`
 	PortForwarded    bool                  `json:"port_forwarded" yaml:"portForwarded"`
 	Syncing          bool                  `json:"syncing" yaml:"syncing"`
+	SyncDirs         []string              `json:"syncDirs" yaml:"syncDirs,omitempty"` // dev start -s
 	// same as local available port, use for port-forward
 	RemoteSyncthingPort int `json:"remoteSyncthingPort" yaml:"remoteSyncthingPort"`
 	// same as local available port, use for port-forward
@@ -58,6 +60,10 @@ type SvcProfileV2 struct {
 	DevPortList                            []string `json:"devPortList" yaml:"devPortList"`
 	PortForwardStatusList                  []string `json:"portForwardStatusList" yaml:"portForwardStatusList"`
 	PortForwardPidList                     []string `json:"portForwardPidList" yaml:"portForwardPidList"`
+}
+
+func (s *SvcProfileV2) GetDefaultContainerDevConfig() *ContainerDevConfig {
+	return s.ContainerConfigs[0].Dev
 }
 
 func (a *Application) LoadAppProfileV2() error {

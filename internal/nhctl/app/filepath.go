@@ -71,6 +71,10 @@ func (a *Application) GetConfigPath() string {
 	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigPath)
 }
 
+func (a *Application) GetConfigV2Path() string {
+	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigV2Path)
+}
+
 func (a *Application) GetHomeDir() string {
 	return nocalhost.GetAppDir(a.Name)
 }

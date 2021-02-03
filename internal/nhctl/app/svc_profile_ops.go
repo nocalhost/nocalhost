@@ -14,7 +14,7 @@ limitations under the License.
 package app
 
 func (a *Application) CheckIfSvcIsDeveloping(svcName string) bool {
-	profile := a.GetSvcProfile(svcName)
+	profile := a.GetSvcProfileV2(svcName)
 	if profile == nil {
 		return false
 	}
@@ -22,7 +22,7 @@ func (a *Application) CheckIfSvcIsDeveloping(svcName string) bool {
 }
 
 func (a *Application) CheckIfSvcIsSyncthing(svcName string) bool {
-	profile := a.GetSvcProfile(svcName)
+	profile := a.GetSvcProfileV2(svcName)
 	if profile == nil {
 		return false
 	}
@@ -30,53 +30,85 @@ func (a *Application) CheckIfSvcIsSyncthing(svcName string) bool {
 }
 
 func (a *Application) CheckIfSvcIsPortForwarded(svcName string) bool {
-	profile := a.GetSvcProfile(svcName)
+	profile := a.GetSvcProfileV2(svcName)
 	if profile == nil {
 		return false
 	}
 	return profile.PortForwarded
 }
 
-func (a *Application) GetSvcProfile(svcName string) *SvcProfile {
-	//if a.AppProfile == nil {
-	//	return nil
-	//}
-	if a.AppProfile.SvcProfile == nil {
-		return nil
-	}
-	for _, svcProfile := range a.AppProfile.SvcProfile {
+func (a *Application) GetSvcProfileV2(svcName string) *SvcProfileV2 {
+
+	for _, svcProfile := range a.AppProfileV2.SvcProfile {
 		if svcProfile.ActualName == svcName {
 			return svcProfile
 		}
 	}
+
 	// If not profile found, init one
-	svcProfile := &SvcProfile{
-		ServiceDevOptions: &ServiceDevOptions{
-			Name:     svcName,
-			Type:     Deployment,
-			DevImage: DefaultDevImage,
-			WorkDir:  DefaultWorkDir,
-		},
-		ActualName:                             svcName,
-		Developing:                             false,
-		PortForwarded:                          false,
-		Syncing:                                false,
-		RemoteSyncthingPort:                    0,
-		RemoteSyncthingGUIPort:                 0,
-		SyncthingSecret:                        "",
-		LocalSyncthingPort:                     0,
-		LocalSyncthingGUIPort:                  0,
-		LocalAbsoluteSyncDirFromDevStartPlugin: nil,
-		DevPortList:                            nil,
-		PortForwardStatusList:                  nil,
-		PortForwardPidList:                     nil,
-		SyncedPatterns:                         nil,
-		IgnoredPatterns:                        nil,
+	if a.AppProfileV2.SvcProfile == nil {
+		a.AppProfileV2.SvcProfile = make([]*SvcProfileV2, 0)
 	}
-	a.AppProfile.SvcProfile = append(a.AppProfile.SvcProfile, svcProfile)
+	svcProfile := &SvcProfileV2{
+		ServiceConfigV2: &ServiceConfigV2{
+			Name: svcName,
+			Type: Deployment,
+			ContainerConfigs: []*ContainerConfig{
+				{
+					Dev: &ContainerDevConfig{
+						Image:   DefaultDevImage,
+						WorkDir: DefaultWorkDir,
+					},
+				},
+			},
+		},
+		ActualName: svcName,
+	}
+	a.AppProfileV2.SvcProfile = append(a.AppProfileV2.SvcProfile, svcProfile)
 	a.SaveProfile()
 	return svcProfile
 }
+
+//func (a *Application) GetSvcProfile(svcName string) *SvcProfile {
+//	//if a.AppProfile == nil {
+//	//	return nil
+//	//}
+//	if a.AppProfile.SvcProfile == nil {
+//		return nil
+//	}
+//	for _, svcProfile := range a.AppProfile.SvcProfile {
+//		if svcProfile.ActualName == svcName {
+//			return svcProfile
+//		}
+//	}
+//	// If not profile found, init one
+//	svcProfile := &SvcProfile{
+//		ServiceDevOptions: &ServiceDevOptions{
+//			Name:     svcName,
+//			Type:     Deployment,
+//			DevImage: DefaultDevImage,
+//			WorkDir:  DefaultWorkDir,
+//		},
+//		ActualName:                             svcName,
+//		Developing:                             false,
+//		PortForwarded:                          false,
+//		Syncing:                                false,
+//		RemoteSyncthingPort:                    0,
+//		RemoteSyncthingGUIPort:                 0,
+//		SyncthingSecret:                        "",
+//		LocalSyncthingPort:                     0,
+//		LocalSyncthingGUIPort:                  0,
+//		LocalAbsoluteSyncDirFromDevStartPlugin: nil,
+//		DevPortList:                            nil,
+//		PortForwardStatusList:                  nil,
+//		PortForwardPidList:                     nil,
+//		SyncedPatterns:                         nil,
+//		IgnoredPatterns:                        nil,
+//	}
+//	a.AppProfile.SvcProfile = append(a.AppProfile.SvcProfile, svcProfile)
+//	a.SaveProfile()
+//	return svcProfile
+//}
 
 //func (a *Application) UpdateSvcProfile(svcName string) {
 //

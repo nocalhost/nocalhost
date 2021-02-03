@@ -27,7 +27,7 @@ import (
 )
 
 func (a *Application) StopAllPortForward(svcName string) error {
-	pidList := a.GetSvcProfile(svcName).PortForwardPidList
+	pidList := a.GetSvcProfileV2(svcName).PortForwardPidList
 	killPidList := make([]string, 0)
 	for _, v := range pidList {
 		killPidList = append(killPidList, strings.Split(v, "-")[1])
@@ -46,13 +46,13 @@ func (a *Application) StopAllPortForward(svcName string) error {
 	}
 
 	// Clean up port-forward status
-	a.GetSvcProfile(svcName).DevPortList = make([]string, 0)
+	a.GetSvcProfileV2(svcName).DevPortList = make([]string, 0)
 	//_ = a.DeleteDevPortList(svcName, killPortList)
 	// set portForwardStatusList
-	a.GetSvcProfile(svcName).PortForwardStatusList = make([]string, 0)
+	a.GetSvcProfileV2(svcName).PortForwardStatusList = make([]string, 0)
 	//_ = a.DeletePortForwardStatusList(svcName, killPortList)
 	// set portForwardPidList
-	a.GetSvcProfile(svcName).PortForwardPidList = make([]string, 0)
+	a.GetSvcProfileV2(svcName).PortForwardPidList = make([]string, 0)
 	//_ = a.DeletePortForwardPidList(svcName, killPortList)
 	return a.SaveProfile()
 }
@@ -60,7 +60,7 @@ func (a *Application) StopAllPortForward(svcName string) error {
 // port format 8080:80
 func (a *Application) StopPortForwardByPort(svcName, port string) error {
 	var err error
-	pidList := a.GetSvcProfile(svcName).PortForwardPidList
+	pidList := a.GetSvcProfileV2(svcName).PortForwardPidList
 	killPid := ""
 	var killPortList []string
 	if len(pidList) > 0 {
@@ -185,7 +185,7 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 	//	}
 	//}
 
-	devPortsList := a.GetSvcProfile(svcName).DevPortList
+	devPortsList := a.GetSvcProfileV2(svcName).DevPortList
 	if len(devPortsList) > 0 {
 		for _, v := range devPortsList {
 			err := a.StopPortForwardByPort(svcName, v)
@@ -196,7 +196,7 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 	}
 
 	// Clean up secret
-	svcProfile := a.GetSvcProfile(svcName)
+	svcProfile := a.GetSvcProfileV2(svcName)
 	if svcProfile.SyncthingSecret != "" {
 		log.Debugf("Cleaning up secret %s", svcProfile.SyncthingSecret)
 		err = a.client.DeleteSecret(svcProfile.SyncthingSecret)
