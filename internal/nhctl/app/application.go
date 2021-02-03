@@ -55,10 +55,11 @@ const (
 )
 
 type Application struct {
-	Name   string
-	config *NocalHostAppConfig //  this should not be nil
-	//NewConfig                *Config
-	AppProfile               *AppProfile // runtime info, this will not be nil
+	Name     string
+	config   *NocalHostAppConfig //  this should not be nil
+	configV2 *NocalHostAppConfigV2
+	//AppProfile               *AppProfile // runtime info, this will not be nil
+	AppProfileV2             *AppProfileV2
 	client                   *clientgoutils.ClientGoUtils
 	sortedPreInstallManifest []string // for pre install
 	installManifest          []string // for install
@@ -81,11 +82,15 @@ func NewApplication(name string) (*Application, error) {
 		return nil, err
 	}
 
-	profile, err := NewAppProfile(app.getProfilePath())
+	//profile, err := NewAppProfile(app.getProfilePath())
+	//if err != nil {
+	//	return nil, err
+	//}
+	//app.AppProfile = profile
+	err = app.LoadAppProfileV2()
 	if err != nil {
 		return nil, err
 	}
-	app.AppProfile = profile
 
 	app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), app.GetNamespace())
 	if err != nil {

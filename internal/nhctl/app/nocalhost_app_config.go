@@ -37,6 +37,7 @@ const (
 	//DefaultApplicationDirName                = "application"
 
 	DefaultApplicationProfilePath      = ".profile.yaml" // runtime config
+	DefaultApplicationProfileV2Path    = ".profile_v2.yaml"
 	DefaultApplicationConfigPath       = ".config.yaml"
 	DefaultApplicationConfigDirName    = ".nocalhost"
 	DefaultConfigNameInGitNocalhostDir = "config.yaml"
@@ -82,6 +83,7 @@ const (
 	PortForwardDevPorts = "devPorts"
 )
 
+// Deprecated
 type NocalHostAppConfig struct {
 	PreInstall   []*PreInstallItem    `json:"onPreInstall" yaml:"onPreInstall"`
 	SvcConfigs   []*ServiceDevOptions `json:"services" yaml:"services"`
