@@ -107,7 +107,7 @@ type envList struct {
 
 type containerList struct {
 	Name       string
-	installEnv []installEnv
+	InstallEnv []installEnv
 }
 
 type installEnv struct {
@@ -365,7 +365,7 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 							for k, objContainer := range containers {
 								addEnvList := make([]corev1.EnvVar, 0)
 								if container.Name == objContainer.Name {
-									for _, envFromConfig := range container.installEnv {
+									for _, envFromConfig := range container.InstallEnv {
 										addEnv := corev1.EnvVar{
 											Name:  envFromConfig.Name,
 											Value: envFromConfig.Value,
