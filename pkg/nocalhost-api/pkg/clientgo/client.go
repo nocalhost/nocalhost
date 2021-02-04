@@ -96,11 +96,11 @@ type InitResult struct {
 
 // new client with time out
 func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
-	initCh := make(chan InitResult)
+	initCh := make(chan *InitResult)
 
 	go func() {
 		client, err := newAdminGoClientTimeUnreliable(kubeconfig)
-		initCh <- InitResult{
+		initCh <- &InitResult{
 			goClient: client,
 			err:      err,
 		}

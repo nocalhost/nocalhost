@@ -22,7 +22,6 @@ import (
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
-	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
@@ -115,7 +114,6 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 
 	// get client go and check if is admin Kubeconfig
 	if err != nil {
-		log.Info("miaomiao")
 		switch err.(type) {
 		case *errno.Errno:
 			return nil, err

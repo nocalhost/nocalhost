@@ -18,7 +18,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -68,20 +67,19 @@ var portForwardStartCmd = &cobra.Command{
 		// look for nhctl
 		nhctlAbsdir, err := exec.LookPath(nocalhostApp.GetMyBinName())
 		if err != nil {
-			log.Fatal("Nhctl not found")
+			log.Fatal("nhctl command not found")
 		}
 		// overwrite Args[0] as ABS directory of bin directory
 		os.Args[0] = nhctlAbsdir
+		//if portForwardOptions.RunAsDaemon {
+		//	//log.Infof("Running port-forward in background, parent pid is %d, ppid is %d", os.Getpid(), os.Getppid())
+		//	_, err := daemon.Background(nocalhostApp.GetPortForwardLogFile(deployment), nocalhostApp.GetApplicationBackGroundOnlyPortForwardPidFile(deployment), true)
+		//	if err != nil {
+		//		log.Fatal("Failed to run port-forward background, please try again")
+		//	}
+		//}
 
-		if portForwardOptions.RunAsDaemon {
-			//log.Infof("Running port-forward in background, parent pid is %d, ppid is %d", os.Getpid(), os.Getppid())
-			_, err := daemon.Background(nocalhostApp.GetPortForwardLogFile(deployment), nocalhostApp.GetApplicationBackGroundOnlyPortForwardPidFile(deployment), true)
-			if err != nil {
-				log.Fatal("Failed to run port-forward background, please try again")
-			}
-		}
-
-		log.Info("Start port-forwarding")
+		log.Info("Starting port-forwarding")
 
 		// find deployment pods
 		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
@@ -130,14 +128,17 @@ var portForwardStartCmd = &cobra.Command{
 			localPorts = append(localPorts, localPort)
 			remotePorts = append(remotePorts, remotePort)
 		}
-		log.Infof("Ready to call dev port forward locals: %d, remotes: %d", localPorts, remotePorts)
+		// change -p flag os.Args
+		nocalhostApp.FixPortForwardOSArgs(localPorts, remotePorts)
+
+		// log.Infof("Ready to call dev port forward locals: %d, remotes: %d", localPorts, remotePorts)
 		// if port-forward by manually, record manual port-forward in devPorts
 		_ = nocalhostApp.AppendManualPortForwardToRawConfigDevPorts(deployment, portForwardOptions.Way, localPorts, remotePorts)
-		
+
 		// listening, it will wait until kill port forward progress
 		listenAddress := []string{"0.0.0.0"}
 		if len(localPorts) > 0 && len(remotePorts) > 0 {
-			nocalhostApp.PortForwardInBackGround(listenAddress, deployment, podName, localPorts, remotePorts, portForwardOptions.Way)
+			nocalhostApp.PortForwardInBackGround(listenAddress, deployment, podName, localPorts, remotePorts, portForwardOptions.Way, portForwardOptions.RunAsDaemon)
 		}
 
 		log.Info("No need to port forward")
