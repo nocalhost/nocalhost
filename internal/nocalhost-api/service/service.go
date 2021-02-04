@@ -14,12 +14,19 @@ limitations under the License.
 package service
 
 import (
+	"context"
+	"fmt"
+	"nocalhost/internal/nocalhost-api/global"
+	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service/application"
 	"nocalhost/internal/nocalhost-api/service/application_cluster"
 	"nocalhost/internal/nocalhost-api/service/cluster"
 	"nocalhost/internal/nocalhost-api/service/cluster_user"
 	"nocalhost/internal/nocalhost-api/service/pre_pull"
 	"nocalhost/internal/nocalhost-api/service/user"
+	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
+	"sync"
 )
 
 var (
@@ -47,6 +54,8 @@ func New() (s *Service) {
 		clusterUserSvc:        cluster_user.NewClusterUserService(),
 		prePullSvc:            pre_pull.NewPrePullService(),
 	}
+
+	s.Initial()
 	return s
 }
 
@@ -83,4 +92,53 @@ func (s *Service) Ping() error {
 // Close service
 func (s *Service) Close() {
 	s.userSvc.Close()
+}
+
+func (s *Service) Initial() {
+	fmt.Print("Svc initialing...")
+	err := s.updateAllRole()
+	if err != nil {
+		log.Info(err.Error())
+	}
+}
+
+func (s *Service) updateAllRole() error {
+	cu := model.ClusterUserModel{
+	}
+
+	var results []*model.ClusterUserModel
+	results, err := s.ClusterUser().GetList(context.TODO(), cu)
+
+	if err != nil {
+		return err
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(results))
+
+	for _, result := range results {
+
+		result := result
+		go func() {
+			clusterModel, err := s.ClusterSvc().Get(context.TODO(), result.ClusterId)
+			if err != nil {
+				return
+			}
+
+			goClient, err := clientgo.NewAdminGoClient([]byte(clusterModel.KubeConfig))
+			if err != nil {
+				return
+			}
+
+			err = goClient.UpdateRole(global.NocalhostDevRoleName, result.Namespace)
+			if err != nil {
+				return
+			}
+
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+	return nil
 }
