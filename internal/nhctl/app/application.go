@@ -186,32 +186,6 @@ func (a *Application) SaveProfile() error {
 	return errors.Wrap(err, "")
 }
 
-func (a *Application) downloadResourcesFromGit(gitUrl string, gitRef string) error {
-	var (
-		err        error
-		gitDirName string
-	)
-
-	if strings.HasPrefix(gitUrl, "https") || strings.HasPrefix(gitUrl, "git") || strings.HasPrefix(gitUrl, "http") {
-		if strings.HasSuffix(gitUrl, ".git") {
-			gitDirName = gitUrl[:len(gitUrl)-4]
-		} else {
-			gitDirName = gitUrl
-		}
-		strs := strings.Split(gitDirName, "/")
-		gitDirName = strs[len(strs)-1] // todo : for default application name
-		if len(gitRef) > 0 {
-			_, err = tools.ExecCommand(nil, true, "git", "clone", "--branch", gitRef, "--depth", "1", gitUrl, a.getGitDir())
-		} else {
-			_, err = tools.ExecCommand(nil, true, "git", "clone", "--depth", "1", gitUrl, a.getGitDir())
-		}
-		if err != nil {
-			return errors.Wrap(err, err.Error())
-		}
-	}
-	return nil
-}
-
 type HelmFlags struct {
 	Debug    bool
 	Wait     bool

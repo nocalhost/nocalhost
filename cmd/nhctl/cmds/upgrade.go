@@ -16,9 +16,7 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"io/ioutil"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -53,12 +51,12 @@ var upgradeCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 
-		var err error
-		applicationName := args[0]
-
-		InitApp(applicationName)
+		InitApp(args[0])
 
 		// Check if there are services in developing
+		if nocalhostApp.IsAnyServiceInDevMode() {
+			log.Fatal("Please make sure all services have exited DevMode")
+		}
 
 		if installFlags.GitUrl == "" && installFlags.AppType != string(app.HelmRepo) {
 			log.Fatalf("If app type is not %s , --git-url must be specified", app.HelmRepo)
@@ -71,64 +69,5 @@ var upgradeCmd = &cobra.Command{
 				log.Fatalf("--helm-repo-url or --helm-repo-name must be specified when using %s", installFlags.AppType)
 			}
 		}
-		if nocalhost.CheckIfApplicationExist(applicationName) {
-			log.Fatalf("Application %s already exists", applicationName)
-		}
-
-		log.Info("Installing application...")
-		err = InstallApplication(applicationName)
-		if err != nil {
-			log.Warnf("Failed to install application : %s", err.Error())
-			log.Debug("Cleaning up resources...")
-			err = nocalhost.CleanupAppFiles(applicationName)
-			if err != nil {
-				log.Errorf("Failed to clean up: %v", err)
-			} else {
-				log.Debug("Resources have been clean up")
-			}
-			os.Exit(-1)
-		} else {
-			log.Infof("Application %s installed", applicationName)
-		}
 	},
-}
-
-func InstallApplication(applicationName string) error {
-	var err error
-
-	installFlags.EnvSettings = settings
-
-	log.Logf("KubeConfig path: %s", installFlags.KubeConfig)
-	bys, err := ioutil.ReadFile(installFlags.KubeConfig)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	log.Logf("KubeConfig content: %s", string(bys))
-
-	nocalhostApp, err = app.BuildApplication(applicationName, installFlags)
-	if err != nil {
-		return err
-	}
-
-	appType := nocalhostApp.GetType()
-	if appType == "" {
-		return errors.New("--type must be specified")
-	}
-
-	flags := &app.HelmFlags{
-		Values:   installFlags.HelmValueFile,
-		Set:      installFlags.HelmSet,
-		Wait:     installFlags.HelmWait,
-		Chart:    installFlags.HelmChartName,
-		RepoUrl:  installFlags.HelmRepoUrl,
-		RepoName: installFlags.HelmRepoName,
-		Version:  installFlags.HelmRepoVersion,
-	}
-
-	err = nocalhostApp.Install(context.TODO(), flags)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

@@ -19,11 +19,12 @@ import (
 )
 
 const (
-	DefaultSideCarImage     = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
-	DefaultDevImage         = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
-	DefaultWorkDir          = "/home/nocalhost-dev"
-	DefaultLocalSyncDirName = "."
-	DefaultResourcesDir     = "resources"
+	DefaultSideCarImage        = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
+	DefaultDevImage            = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
+	DefaultWorkDir             = "/home/nocalhost-dev"
+	DefaultLocalSyncDirName    = "."
+	DefaultResourcesDir        = "resources"
+	DefaultUpgradeResourcesDir = "upgrade_resources"
 	//DefaultNhctlHomeDirName                  = ".nh/nhctl"
 	//DefaultBinDirName                        = "bin"
 	//DefaultLogDirName                        = "logs"
