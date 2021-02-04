@@ -37,8 +37,51 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"strconv"
+	"strings"
 	"time"
 )
+
+var DefaultRules = &[]rbacv1.PolicyRule{
+	{
+		Verbs: []string{"*"},
+		Resources: []string{
+			"bindings",
+			"configmaps",
+			"endpoints",
+			"events",
+			"limitranges",
+			"persistentvolumeclaims",
+			"pods",
+			"podtemplates",
+			"replicationcontrollers",
+			"secrets",
+			"serviceaccounts",
+			"services",
+			"controllerrevisions",
+			"daemonsets",
+			"deployments",
+			"replicasets",
+			"statefulsets",
+			"localsubjectaccessreviews",
+			"horizontalpodautoscalers",
+			"cronjobs",
+			"jobs",
+			"leases",
+			"endpointslices",
+			"events",
+			"ingresses",
+			"ingresses",
+			"networkpolicies",
+			"poddisruptionbudgets",
+			"rolebindings"},
+		APIGroups: []string{"*"},
+	},
+	{
+		Verbs:     []string{"get", "list"},
+		Resources: []string{"resourcequotas", "roles"},
+		APIGroups: []string{"*"},
+	},
+}
 
 type GoClient struct {
 	clusterIpAccessMode bool
@@ -103,6 +146,19 @@ func newAdminGoClientTimeUnreliable(kubeconfig []byte) (*GoClient, error) {
 			fmt.Printf("Create k8s Go Client with 'clusterIpAccessMode' \n")
 			return client, nil
 		}
+	}
+
+	if originErr != nil {
+		if strings.Contains(originErr.Error(), "client connection lost") {
+			fmt.Printf("Failed to connect to the kube-api, may cause by the network connectivity \n")
+			return nil, errno.ErrClusterTimeout
+		} else {
+			fmt.Printf("Failed to connect to the kube-api: %s \n", originErr.Error())
+		}
+	}
+
+	if err != nil {
+		fmt.Printf("Failed to try connect to the cluster-inner kube-api: %s \n", err.Error())
 	}
 
 	return nil, errors.New("can't not create client go with current kubeconfig")
@@ -176,6 +232,7 @@ func (c *GoClient) requireClusterAdminClient() error {
 	// check is admin Kubeconfig
 	isAdmin, err := c.IsAdmin()
 	if err != nil {
+		fmt.Println("Error occurred while checking authentication: ", err.Error())
 		return errno.ErrClusterKubeConnect
 	}
 	if isAdmin != true {
@@ -499,6 +556,24 @@ func (c *GoClient) CreateClusterRoleBinding(name, namespace, role, toServiceAcco
 	return true, nil
 }
 
+func (c *GoClient) UpdateRole(name, namespace string) error {
+
+	before, err := c.client.RbacV1().Roles(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Getting roles in ns %s : %v", namespace, before.Rules)
+
+	before.Rules = *DefaultRules
+
+	_, err = c.client.RbacV1().Roles(namespace).Update(context.TODO(), before, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // create user role for single namespace
 // name default nocalhost-role
 //  default create every developer can access all resource for he's namespace
@@ -508,11 +583,7 @@ func (c *GoClient) CreateRole(name, namespace string) (bool, error) {
 		Name:      name,
 		Namespace: namespace,
 	}
-	role.Rules = append(role.Rules, rbacv1.PolicyRule{
-		Verbs:     []string{"*"},
-		Resources: []string{"*"},
-		APIGroups: []string{"*"},
-	})
+	role.Rules = append(role.Rules, *DefaultRules...)
 	_, err := c.client.RbacV1().Roles(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
