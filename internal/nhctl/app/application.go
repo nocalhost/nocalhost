@@ -20,7 +20,6 @@ import (
 	"net"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"os"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -36,7 +35,6 @@ import (
 
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/flock"
-	"nocalhost/internal/nhctl/nocalhost"
 	port_forward "nocalhost/internal/nhctl/port-forward"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -250,21 +248,6 @@ func (a *Application) uninstallManifestRecursively() error {
 	return nil
 }
 
-func (a *Application) preInstall() {
-
-	a.loadSortedPreInstallManifest()
-
-	if len(a.sortedPreInstallManifest) > 0 {
-		log.Info("Run pre-install...")
-		for _, item := range a.sortedPreInstallManifest {
-			err := a.client.Create(item, true, false)
-			if err != nil {
-				log.Warnf("error occurs when install %s : %s\n", item, err.Error())
-			}
-		}
-	}
-}
-
 func (a *Application) cleanPreInstall() {
 	a.loadSortedPreInstallManifest()
 	if len(a.sortedPreInstallManifest) > 0 {
@@ -278,15 +261,13 @@ func (a *Application) cleanPreInstall() {
 	}
 }
 
-func (a *Application) GetApplicationSyncDir(deployment string) string {
-	dirPath := filepath.Join(a.GetHomeDir(), nocalhost.DefaultBinSyncThingDirName, deployment)
-	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-		err = os.MkdirAll(dirPath, 0700)
-		if err != nil {
-			log.Fatalf("fail to create syncthing directory: %s", dirPath)
+func (a *Application) IsAnyServiceInDevMode() bool {
+	for _, svc := range a.AppProfileV2.SvcProfile {
+		if svc.Developing {
+			return true
 		}
 	}
-	return dirPath
+	return false
 }
 
 //func (a *Application) GetSvcConfig(svcName string) *ServiceDevOptions {
@@ -630,11 +611,6 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 		// check if already exist port-forward, and kill old
 		_ = a.KillAlreadyExistPortForward(fmt.Sprintf("%d:%d", sLocalPort, remotePorts[key]), deployment)
 
-		//key := key
-		//sLocalPort := sLocalPort
-		//devPod := fmt.Sprintf("%d:%d", sLocalPort, remotePorts[key])
-		//addDevPod = append(addDevPod, devPod)
-		// log.Infof("Start dev port forward local %d, remote %d", sLocalPort, remotePorts[key])
 		go func(lPort int, rPort int) {
 			for {
 				// stopCh control the port forwarding lifecycle. When it gets closed the
@@ -720,25 +696,6 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 		}
 	}
 
-	// update profile addDevPod
-	// TODO get from channel and set real port-forward status
-	//for range localPort {
-	//	r := <-portForwardResultCh
-	//	portForwardResult = append(portForwardResult, r)
-	//}
-	//fmt.Printf("portForwardResult %s\n", portForwardResult)
-
-	//_ = a.SetDevPortForward(deployment, portForwardResult)
-
-	// set port forward status
-	//if len(portForwardResult) > 0 {
-	//	_ = a.SetPortForwardedStatus(deployment, true)
-	//}
-
-	//select {
-	//case <-sigs:
-	//	//case wg.Wait:
-	//}
 	wg.Wait()
 	log.Info("Stop port forward")
 }

@@ -13,7 +13,12 @@ limitations under the License.
 
 package app
 
-import "path/filepath"
+import (
+	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/pkg/nhctl/log"
+	"os"
+	"path/filepath"
+)
 
 func (a *Application) GetDependencies() []*SvcDependency {
 	result := make([]*SvcDependency, 0)
@@ -101,4 +106,15 @@ func (a *Application) GetDefaultDevPort(svcName string) []string {
 		return config.GetDefaultContainerDevConfig().PortForward
 	}
 	return []string{}
+}
+
+func (a *Application) GetApplicationSyncDir(deployment string) string {
+	dirPath := filepath.Join(a.GetHomeDir(), nocalhost.DefaultBinSyncThingDirName, deployment)
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		err = os.MkdirAll(dirPath, 0700)
+		if err != nil {
+			log.Fatalf("fail to create syncthing directory: %s", dirPath)
+		}
+	}
+	return dirPath
 }

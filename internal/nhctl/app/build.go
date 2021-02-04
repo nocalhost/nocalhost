@@ -82,6 +82,8 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 			log.Debugf("Failed to clone : %s ref: %s", flags.GitUrl, flags.GitRef)
 			return nil, err
 		}
+		app.AppProfileV2.GitUrl = flags.GitUrl
+		app.AppProfileV2.GitUrl = flags.GitRef
 	}
 
 	err = app.generateConfig(flags.OuterConfig, flags.Config)

@@ -35,7 +35,7 @@ import (
 
 func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 
-	err := a.InstallDepConfigMap(a.AppProfileV2.AppType)
+	err := a.InstallDepConfigMap()
 	if err != nil {
 		return errors.Wrap(err, "failed to install dep config map")
 	}
@@ -97,11 +97,14 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 	}
 	if flags.RepoUrl != "" {
 		installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
+		a.AppProfileV2.HelmRepoUrl = flags.RepoUrl
 	} else if flags.RepoName != "" {
 		installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
+		a.AppProfileV2.HelmRepoName = flags.RepoName
 	}
 	if flags.Version != "" {
 		installParams = append(installParams, "--version", flags.Version)
+		a.AppProfileV2.HelmRepoChartVersion = flags.Version
 	}
 
 	if len(flags.Set) > 0 {
@@ -180,7 +183,7 @@ func (a *Application) installHelmInGit(flags *HelmFlags) error {
 	return nil
 }
 
-func (a *Application) InstallDepConfigMap(appType AppType) error {
+func (a *Application) InstallDepConfigMap() error {
 	appDep := a.GetDependencies()
 	if appDep != nil {
 		var depForYaml = &struct {
@@ -190,7 +193,7 @@ func (a *Application) InstallDepConfigMap(appType AppType) error {
 			Dependency: appDep,
 		}
 		// release name a.Name
-		if appType != Manifest {
+		if a.AppProfileV2.AppType != Manifest {
 			depForYaml.ReleaseName = a.Name
 		}
 		yamlBytes, err := yaml.Marshal(depForYaml)
@@ -354,4 +357,19 @@ func (a *Application) loadSortedPreInstallManifest() {
 	}
 
 	a.sortedPreInstallManifest = result
+}
+
+func (a *Application) preInstall() {
+
+	a.loadSortedPreInstallManifest()
+
+	if len(a.sortedPreInstallManifest) > 0 {
+		log.Info("Run pre-install...")
+		for _, item := range a.sortedPreInstallManifest {
+			err := a.client.Create(item, true, false)
+			if err != nil {
+				log.Warnf("error occurs when install %s : %s\n", item, err.Error())
+			}
+		}
+	}
 }
