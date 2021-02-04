@@ -107,7 +107,7 @@ type envList struct {
 
 type containerList struct {
 	Name       string
-	InstallEnv []installEnv
+	InstallEnv []installEnv `yaml:"installEnv"`
 }
 
 type installEnv struct {
