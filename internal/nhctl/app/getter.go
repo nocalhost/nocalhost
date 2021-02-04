@@ -16,23 +16,23 @@ package app
 import "nocalhost/pkg/nhctl/clientgoutils"
 
 func (a *Application) GetNamespace() string {
-	return a.AppProfile.Namespace
+	return a.AppProfileV2.Namespace
 }
 
 func (a *Application) GetType() AppType {
-	return a.AppProfile.AppType
+	return a.AppProfileV2.AppType
 }
 
 func (a *Application) GetKubeconfig() string {
-	return a.AppProfile.Kubeconfig
+	return a.AppProfileV2.Kubeconfig
 }
 
 func (a *Application) IsHelm() bool {
-	return a.AppProfile.AppType == Helm || a.AppProfile.AppType == HelmRepo
+	return a.AppProfileV2.AppType == Helm || a.AppProfileV2.AppType == HelmRepo
 }
 
 func (a *Application) IsManifest() bool {
-	return a.AppProfile.AppType == Manifest
+	return a.AppProfileV2.AppType == Manifest
 }
 
 func (a *Application) GetClient() *clientgoutils.ClientGoUtils {

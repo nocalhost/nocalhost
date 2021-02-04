@@ -59,12 +59,23 @@ var configEditCmd = &cobra.Command{
 			log.Fatalf("--content must be a valid base64 string: %s", err.Error())
 		}
 
-		svcConfig := &app.ServiceDevOptions{}
+		// Deprecated: V1
+		//svcConfig := &app.ServiceDevOptions{}
+		//err = json.Unmarshal(bys, svcConfig)
+		//if err != nil {
+		//	log.Fatalf("fail to unmarshal content: %s", err.Error())
+		//}
+		//err = nocalhostApp.SaveSvcProfile(configEditFlags.SvcName, svcConfig)
+		//if err != nil {
+		//	log.FatalE(err, "fail to save svc config")
+		//}
+
+		svcConfig := &app.ServiceConfigV2{}
 		err = json.Unmarshal(bys, svcConfig)
 		if err != nil {
 			log.Fatalf("fail to unmarshal content: %s", err.Error())
 		}
-		err = nocalhostApp.SaveSvcProfile(configEditFlags.SvcName, svcConfig)
+		err = nocalhostApp.SaveSvcProfileV2(configEditFlags.SvcName, svcConfig)
 		if err != nil {
 			log.FatalE(err, "fail to save svc config")
 		}

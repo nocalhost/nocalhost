@@ -30,14 +30,6 @@ func (a *Application) getConfigPathInGitResourcesDir(configName string) string {
 	}
 }
 
-//func (a *Application) GetSyncThingBinDir() string {
-//	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultBinDirName, DefaultBinSyncThingDirName)
-//}
-
-//func (a *Application) GetLogDir() string {
-//	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName, DefaultLogDirName)
-//}
-
 func (a *Application) GetPortSyncLogFile(deployment string) string {
 	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultSyncLogFileName)
 }
@@ -62,10 +54,6 @@ func (a *Application) GetApplicationOnlyPortForwardPidFile(deployment string) st
 	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
 }
 
-//func (a *Application) getConfigDir() string {
-//	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigDirName)
-//}
-
 func (a *Application) GetApplicationBackGroundPortForwardPidFile(deployment string) string {
 	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPortForwardPidFile)
 }
@@ -74,9 +62,17 @@ func (a *Application) getProfilePath() string {
 	return filepath.Join(a.GetHomeDir(), DefaultApplicationProfilePath)
 }
 
+func (a *Application) getProfileV2Path() string {
+	return filepath.Join(a.GetHomeDir(), DefaultApplicationProfileV2Path)
+}
+
 // This path is independent from getConfigPathInGitResourcesDir()
 func (a *Application) GetConfigPath() string {
 	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigPath)
+}
+
+func (a *Application) GetConfigV2Path() string {
+	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigV2Path)
 }
 
 func (a *Application) GetHomeDir() string {

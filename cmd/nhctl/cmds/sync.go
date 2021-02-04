@@ -40,7 +40,7 @@ func init() {
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false, "if use double side sync")
 	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.SyncedPattern, "synced-pattern", "s", []string{}, "local synced pattern")
 	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.IgnoredPattern, "ignored-pattern", "i", []string{}, "local ignored pattern")
-	fileSyncCmd.Flags().BoolVar(&fileSyncOps.Override,"overwrite", true,"override the remote changing according to the local sync folder while start up")
+	fileSyncCmd.Flags().BoolVar(&fileSyncOps.Override, "overwrite", true, "override the remote changing according to the local sync folder while start up")
 	rootCmd.AddCommand(fileSyncCmd)
 }
 
@@ -103,7 +103,7 @@ var fileSyncCmd = &cobra.Command{
 
 		listenAddress := []string{"localhost"}
 
-		svcProfile := nocalhostApp.GetSvcProfile(deployment)
+		svcProfile := nocalhostApp.GetSvcProfileV2(deployment)
 		// start port-forward
 		go func() {
 			lPort := svcProfile.RemoteSyncthingPort
@@ -174,12 +174,15 @@ var fileSyncCmd = &cobra.Command{
 		}
 
 		// Getting pattern from svc profile first
-		profile := nocalhostApp.GetSvcProfile(deployment)
+		profile := nocalhostApp.GetSvcProfileV2(deployment)
+		if profile.GetDefaultContainerDevConfig().Sync == nil {
+			profile.GetDefaultContainerDevConfig().Sync = &app.SyncConfig{}
+		}
 		if len(fileSyncOps.IgnoredPattern) != 0 {
-			profile.IgnoredPattern = fileSyncOps.IgnoredPattern
+			profile.GetDefaultContainerDevConfig().Sync.IgnoreFilePattern = fileSyncOps.IgnoredPattern
 		}
 		if len(fileSyncOps.SyncedPattern) != 0 {
-			profile.SyncedPattern = fileSyncOps.SyncedPattern
+			profile.GetDefaultContainerDevConfig().Sync.FilePattern = fileSyncOps.SyncedPattern
 		}
 
 		// TODO
@@ -200,7 +203,6 @@ var fileSyncCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal("Failed to update syncing status")
 		}
-
 
 		if fileSyncOps.Override {
 			var i = 10

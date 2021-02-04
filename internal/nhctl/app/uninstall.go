@@ -22,14 +22,14 @@ import (
 
 func (a *Application) cleanUpDepConfigMap() error {
 
-	if a.AppProfile.DependencyConfigMapName != "" {
-		log.Debugf("Cleaning up config map %s", a.AppProfile.DependencyConfigMapName)
-		err := a.client.DeleteConfigMapByName(a.AppProfile.DependencyConfigMapName)
+	if a.AppProfileV2.DependencyConfigMapName != "" {
+		log.Debugf("Cleaning up config map %s", a.AppProfileV2.DependencyConfigMapName)
+		err := a.client.DeleteConfigMapByName(a.AppProfileV2.DependencyConfigMapName)
 		if err != nil {
 			return err
 		}
-		a.AppProfile.DependencyConfigMapName = ""
-		a.AppProfile.Save()
+		a.AppProfileV2.DependencyConfigMapName = ""
+		a.SaveProfile()
 	} else {
 		log.Debug("No dependency config map needs to clean up")
 	}
@@ -62,8 +62,8 @@ func (a *Application) uninstallHelm() error {
 	if a.GetNamespace() != "" {
 		commonParams = append(commonParams, "--namespace", a.GetNamespace())
 	}
-	if a.AppProfile.Kubeconfig != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.AppProfile.Kubeconfig)
+	if a.AppProfileV2.Kubeconfig != "" {
+		commonParams = append(commonParams, "--kubeconfig", a.AppProfileV2.Kubeconfig)
 	}
 	uninstallParams := []string{"uninstall", a.Name}
 	uninstallParams = append(uninstallParams, commonParams...)

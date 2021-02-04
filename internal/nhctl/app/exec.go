@@ -32,7 +32,7 @@ func (a *Application) EnterPodTerminal(svcName string, container string) error {
 		return errors.New(fmt.Sprintf("The number of pods of %s is not 1 ???", svcName))
 	}
 	pod := podList[0].Name
-	shell := a.GetSvcProfile(svcName).DevContainerShell
+	shell := a.GetSvcProfileV2(svcName).GetDefaultContainerDevConfig().Shell
 	cmd := "(zsh || bash || sh)"
 	if shell != "" {
 		cmd = fmt.Sprintf("(%s || zsh || bash || sh)", shell)

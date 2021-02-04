@@ -74,12 +74,12 @@ var devStartCmd = &cobra.Command{
 		devStartOps.Kubeconfig = settings.KubeConfig
 		log.Info("Starting DevMode...")
 
-		svcProfile := nocalhostApp.GetSvcProfile(deployment)
+		svcProfile := nocalhostApp.GetSvcProfileV2(deployment)
 		if devStartOps.WorkDir != "" {
-			svcProfile.WorkDir = devStartOps.WorkDir
+			svcProfile.GetDefaultContainerDevConfig().WorkDir = devStartOps.WorkDir
 		}
 		if devStartOps.DevImage != "" {
-			svcProfile.DevImage = devStartOps.DevImage
+			svcProfile.GetDefaultContainerDevConfig().Image = devStartOps.DevImage
 		}
 		if len(devStartOps.LocalSyncDir) > 0 {
 			svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir

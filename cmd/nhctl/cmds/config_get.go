@@ -30,7 +30,7 @@ func init() {
 }
 
 type ConfigForPlugin struct {
-	Services []*app.ServiceDevOptions `json:"services" yaml:"services"`
+	Services []*app.ServiceConfigV2 `json:"services" yaml:"services"`
 }
 
 var configGetCmd = &cobra.Command{
@@ -49,9 +49,9 @@ var configGetCmd = &cobra.Command{
 
 		if commonFlags.SvcName == "" {
 			config := &ConfigForPlugin{}
-			config.Services = make([]*app.ServiceDevOptions, 0)
-			for _, svcPro := range nocalhostApp.AppProfile.SvcProfile {
-				config.Services = append(config.Services, svcPro.ServiceDevOptions)
+			config.Services = make([]*app.ServiceConfigV2, 0)
+			for _, svcPro := range nocalhostApp.AppProfileV2.SvcProfile {
+				config.Services = append(config.Services, svcPro.ServiceConfigV2)
 			}
 			bys, err := yaml.Marshal(config)
 			if err != nil {
@@ -61,9 +61,9 @@ var configGetCmd = &cobra.Command{
 
 		} else {
 			CheckIfSvcExist(commonFlags.SvcName)
-			svcProfile := nocalhostApp.GetSvcProfile(commonFlags.SvcName)
+			svcProfile := nocalhostApp.GetSvcProfileV2(commonFlags.SvcName)
 			if svcProfile != nil {
-				bys, err := yaml.Marshal(svcProfile.ServiceDevOptions)
+				bys, err := yaml.Marshal(svcProfile.ServiceConfigV2)
 				if err != nil {
 					log.FatalE(errors.Wrap(err, ""), "fail to get svc profile")
 				}
