@@ -310,11 +310,10 @@ func addContainerEnvVar(objContainers []corev1.Container, envVar []envVar) (patc
 		var value interface{}
 		for _, add := range envVar {
 			for _, env := range add.EnvVar {
-				value = add
+				value = []corev1.EnvVar{env}
 				path := "/spec/template/spec/containers/" + strconv.Itoa(add.ContainerIndex) + "/env"
 				if first {
 					first = false
-					value = []corev1.EnvVar{env}
 				} else {
 					path = path + "/-"
 				}
