@@ -306,6 +306,7 @@ func createPatchAny(objectInitContainer []corev1.Container, initContainers []cor
 	if envVar != nil && len(envVar) > 0 {
 		patch = append(patch, addContainerEnvVar(objContainers, envVar)...)
 	}
+	fmt.Printf("patch %+v\n", patch)
 	return json.Marshal(patch)
 }
 
