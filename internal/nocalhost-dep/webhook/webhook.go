@@ -304,19 +304,22 @@ func createPatchAny(objectInitContainer []corev1.Container, initContainers []cor
 		patch = append(patch, addInitContainer(objectInitContainer, initContainers, "/spec/template/spec/initContainers")...)
 	}
 	if envVar != nil && len(envVar) > 0 {
-		for _, v := range objContainers {
-			patch = append(patch, addContainerEnvVar(v.Env, envVar)...)
+		for k, v := range objContainers {
+			patch = append(patch, addContainerEnvVar(k, v.Env, envVar)...)
 		}
 	}
 	fmt.Printf("patch %+v\n", patch)
 	return json.Marshal(patch)
 }
 
-func addContainerEnvVar(target []corev1.EnvVar, envVar []envVar) (patch []patchOperation) {
+func addContainerEnvVar(k int, target []corev1.EnvVar, envVar []envVar) (patch []patchOperation) {
 	first := len(target) == 0
 	var value interface{}
 	for _, add := range envVar {
 		for _, env := range add.EnvVar {
+			if add.ContainerIndex != k {
+				continue
+			}
 			value = env
 			path := "/spec/template/spec/containers/" + strconv.Itoa(add.ContainerIndex) + "/env"
 			if first {
