@@ -367,10 +367,10 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 					glog.Fatalln("failed to unmarshal configmap: %s", cm.GetName())
 				}
 				fmt.Printf("%+v\n", dep)
-				addEnvList := make([]corev1.EnvVar, 0)
 				// inject install global env
 				for _, env := range dep.Env.Global {
 					for k := range containers {
+						addEnvList := make([]corev1.EnvVar, 0)
 						addEnv := corev1.EnvVar{
 							Name:  env.Name,
 							Value: env.Value,
@@ -388,6 +388,7 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 					if env.Name == resourceName && (strings.ToLower(env.Type) == strings.ToLower(resourceType) || dep.ReleaseName+"-"+env.Name == resourceName) {
 						for _, container := range env.Container {
 							for k, objContainer := range containers {
+								addEnvList := make([]corev1.EnvVar, 0)
 								// match name or match all
 								if container.Name == objContainer.Name || container.Name == "" {
 									for _, envFromConfig := range container.InstallEnv {
