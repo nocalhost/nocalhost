@@ -42,6 +42,8 @@ func (a *Application) upgradeForManifest(installFlags flag.InstallFlags) error {
 	}
 
 	// Read upgrade resource obj
+	getYamlFilesAndDirs()
+	//a.client.GetResourceInfoFromFiles()
 
 	return nil
 }

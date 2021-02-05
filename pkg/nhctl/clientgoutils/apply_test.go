@@ -27,7 +27,7 @@ func TestClientGoUtils_CreateResourceInfo(t *testing.T) {
 	}
 
 	for _, info := range infos {
-		err = client.PatchResourceInfo(info)
+		err = client.UpdateResourceInfo(info)
 		if err != nil {
 			panic(err)
 		}

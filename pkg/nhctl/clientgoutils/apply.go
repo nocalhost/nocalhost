@@ -35,7 +35,7 @@ func (c *ClientGoUtils) DeleteResourceInfo(info *resource.Info) error {
 	return errors.Wrap(info.Refresh(obj, true), "")
 }
 
-func (c *ClientGoUtils) PatchResourceInfo(info *resource.Info) error {
+func (c *ClientGoUtils) UpdateResourceInfo(info *resource.Info) error {
 	data, err := runtime.Encode(unstructured.UnstructuredJSONScheme, info.Object)
 	if err != nil {
 		return errors.Wrap(err, "")
