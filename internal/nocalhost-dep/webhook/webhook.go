@@ -87,10 +87,37 @@ type patchOperation struct {
 	Value interface{} `json:"value,omitempty"`
 }
 
-// 依赖 struct
+type envVar struct {
+	EnvVar         []corev1.EnvVar
+	ContainerIndex int
+}
+
+// dep struct
 type mainDep struct {
+	Env         globalEnv `yaml:"env"`
 	Dependency  []depApp
 	ReleaseName string `yaml:"releaseName"`
+}
+
+type globalEnv struct {
+	Global  []installEnv `yaml:"global"`
+	Service []envList    `yaml:"service"`
+}
+
+type envList struct {
+	Name      string
+	Type      string
+	Container []containerList
+}
+
+type containerList struct {
+	Name       string
+	InstallEnv []installEnv `yaml:"installEnv"`
+}
+
+type installEnv struct {
+	Name  string
+	Value string
 }
 
 type depApp struct {
@@ -270,18 +297,50 @@ func updateAnnotation(target map[string]string, added map[string]string) (patch 
 //}
 
 // create patch for all
-func createPatchAny(objectInitContainer []corev1.Container, initContainers []corev1.Container) ([]byte, error) {
+func createPatchAny(objectInitContainer []corev1.Container, initContainers []corev1.Container, objContainers []corev1.Container, envVar []envVar) ([]byte, error) {
 	// /spec/template/spec/initContainers match six type of workload
 	var patch []patchOperation
 	if initContainers != nil && len(initContainers) > 0 {
 		patch = append(patch, addInitContainer(objectInitContainer, initContainers, "/spec/template/spec/initContainers")...)
 	}
+	if envVar != nil && len(envVar) > 0 {
+		for k, v := range objContainers {
+			patch = append(patch, addContainerEnvVar(k, v.Env, envVar)...)
+		}
+	}
+	fmt.Printf("patch %+v\n", patch)
 	return json.Marshal(patch)
+}
+
+func addContainerEnvVar(k int, target []corev1.EnvVar, envVar []envVar) (patch []patchOperation) {
+	first := len(target) == 0
+	var value interface{}
+	for _, add := range envVar {
+		for _, env := range add.EnvVar {
+			if add.ContainerIndex != k {
+				continue
+			}
+			value = env
+			path := "/spec/template/spec/containers/" + strconv.Itoa(add.ContainerIndex) + "/env"
+			if first {
+				first = false
+				value = []corev1.EnvVar{env}
+			} else {
+				path = path + "/-"
+			}
+			patch = append(patch, patchOperation{
+				Op:    "add",
+				Path:  path,
+				Value: value,
+			})
+		}
+	}
+	return patch
 }
 
 // get nocalhost dependents configmaps, this will get from specify namespace by labels
 // nhctl will create dependency configmap in users dev space
-func nocalhostDepConfigmap(namespace string, resourceName string, resourceType string, objectMeta *metav1.ObjectMeta) ([]corev1.Container, error) {
+func nocalhostDepConfigmap(namespace string, resourceName string, resourceType string, objectMeta *metav1.ObjectMeta, containers []corev1.Container) ([]corev1.Container, []envVar, error) {
 	// labelSelector="use-for=nocalhost-dep"
 	labelSelector := map[string]string{
 		"use-for": "nocalhost-dep",
@@ -292,9 +351,10 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 	duration := time.Now().Sub(startTime)
 	glog.Infof("get configmap total cost %d", duration.Milliseconds())
 	initContainers := make([]corev1.Container, 0)
+	envVarArray := make([]envVar, 0)
 	if err != nil {
 		glog.Fatalln("failed to get config map:", err)
-		return initContainers, err
+		return initContainers, envVarArray, err
 	}
 	for i, cm := range configMaps.Items {
 		fmt.Printf("[%d] %s\n", i, cm.GetName())
@@ -307,6 +367,48 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 					glog.Fatalln("failed to unmarshal configmap: %s", cm.GetName())
 				}
 				fmt.Printf("%+v\n", dep)
+				// inject install global env
+				for _, env := range dep.Env.Global {
+					for k := range containers {
+						addEnvList := make([]corev1.EnvVar, 0)
+						addEnv := corev1.EnvVar{
+							Name:  env.Name,
+							Value: env.Value,
+						}
+						addEnvList = append(addEnvList, addEnv)
+						envVarEach := envVar{
+							EnvVar:         addEnvList,
+							ContainerIndex: k,
+						}
+						envVarArray = append(envVarArray, envVarEach)
+					}
+				}
+				// inject install service env
+				for _, env := range dep.Env.Service {
+					if env.Name == resourceName && (strings.ToLower(env.Type) == strings.ToLower(resourceType) || dep.ReleaseName+"-"+env.Name == resourceName) {
+						for _, container := range env.Container {
+							for k, objContainer := range containers {
+								addEnvList := make([]corev1.EnvVar, 0)
+								// match name or match all
+								if container.Name == objContainer.Name || container.Name == "" {
+									for _, envFromConfig := range container.InstallEnv {
+										addEnv := corev1.EnvVar{
+											Name:  envFromConfig.Name,
+											Value: envFromConfig.Value,
+										}
+										addEnvList = append(addEnvList, addEnv)
+									}
+									envVarEach := envVar{
+										EnvVar:         addEnvList,
+										ContainerIndex: k,
+									}
+									envVarArray = append(envVarArray, envVarEach)
+								}
+							}
+						}
+					}
+				}
+
 				for key, dependency := range dep.Dependency {
 					// K8S native type is case-sensitive, dependent descriptions are not distinguished, and unified into lowercase
 					// if has metadata.labels.release, then release-name should fix as dependency.Name
@@ -378,7 +480,7 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 			}
 		}
 	}
-	return initContainers, err
+	return initContainers, envVarArray, err
 }
 
 // main mutation process
@@ -388,6 +490,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		objectMeta    *metav1.ObjectMeta
 		resourceName  string
 		initContainer []corev1.Container
+		containers    []corev1.Container
 	)
 	resourceType := req.Kind.Kind
 	glog.Infof("AdmissionReview for Kind=%v, Namespace=%v Name=%v UID=%v patchOperation=%v UserInfo=%v",
@@ -406,7 +509,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 				},
 			}
 		}
-		resourceName, objectMeta, initContainer = deployment.Name, &deployment.ObjectMeta, deployment.Spec.Template.Spec.InitContainers
+		resourceName, objectMeta, initContainer, containers = deployment.Name, &deployment.ObjectMeta, deployment.Spec.Template.Spec.InitContainers, deployment.Spec.Template.Spec.Containers
 	case "DaemonSet":
 		var daemonSet appsv1.DaemonSet
 		if err := json.Unmarshal(req.Object.Raw, &daemonSet); err != nil {
@@ -417,7 +520,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 				},
 			}
 		}
-		resourceName, objectMeta, initContainer = daemonSet.Name, &daemonSet.ObjectMeta, daemonSet.Spec.Template.Spec.InitContainers
+		resourceName, objectMeta, initContainer, containers = daemonSet.Name, &daemonSet.ObjectMeta, daemonSet.Spec.Template.Spec.InitContainers, daemonSet.Spec.Template.Spec.Containers
 	case "ReplicaSet":
 		var replicaSet appsv1.ReplicaSet
 		if err := json.Unmarshal(req.Object.Raw, &replicaSet); err != nil {
@@ -428,7 +531,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 				},
 			}
 		}
-		resourceName, objectMeta, initContainer = replicaSet.Name, &replicaSet.ObjectMeta, replicaSet.Spec.Template.Spec.InitContainers
+		resourceName, objectMeta, initContainer, containers = replicaSet.Name, &replicaSet.ObjectMeta, replicaSet.Spec.Template.Spec.InitContainers, replicaSet.Spec.Template.Spec.Containers
 	case "StatefulSet":
 		var statefulSet appsv1.StatefulSet
 		if err := json.Unmarshal(req.Object.Raw, &statefulSet); err != nil {
@@ -439,7 +542,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 				},
 			}
 		}
-		resourceName, objectMeta, initContainer = statefulSet.Name, &statefulSet.ObjectMeta, statefulSet.Spec.Template.Spec.InitContainers
+		resourceName, objectMeta, initContainer, containers = statefulSet.Name, &statefulSet.ObjectMeta, statefulSet.Spec.Template.Spec.InitContainers, statefulSet.Spec.Template.Spec.Containers
 	case "Job":
 		var job batchv1.Job
 		if err := json.Unmarshal(req.Object.Raw, &job); err != nil {
@@ -450,7 +553,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 				},
 			}
 		}
-		resourceName, objectMeta, initContainer = job.Name, &job.ObjectMeta, job.Spec.Template.Spec.InitContainers
+		resourceName, objectMeta, initContainer, containers = job.Name, &job.ObjectMeta, job.Spec.Template.Spec.InitContainers, job.Spec.Template.Spec.Containers
 	case "CronJob":
 		var cronJob batchv1beta1.CronJob
 		if err := json.Unmarshal(req.Object.Raw, &cronJob); err != nil {
@@ -461,7 +564,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 				},
 			}
 		}
-		resourceName, objectMeta, initContainer = cronJob.Name, &cronJob.ObjectMeta, cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers
+		resourceName, objectMeta, initContainer, containers = cronJob.Name, &cronJob.ObjectMeta, cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers, cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers
 	}
 
 	glog.Infof("unmarshal for Kind=%v, Namespace=%v Name=%v",
@@ -476,13 +579,14 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 	}
 
 	// configmap
-	initContainers, err := nocalhostDepConfigmap(nocalhostNamespace, resourceName, resourceType, objectMeta)
+	initContainers, EnvVar, err := nocalhostDepConfigmap(nocalhostNamespace, resourceName, resourceType, objectMeta, containers)
 	glog.Infof("initContainers %s", initContainers)
+	glog.Infof("EnvVar %v", EnvVar)
 
 	// Workaround: https://github.com/kubernetes/kubernetes/issues/57982
 	applyDefaultsWorkaround(whsvr.SidecarConfig.Containers, whsvr.SidecarConfig.Volumes)
-	patchBytes, err := createPatchAny(initContainer, initContainers)
-	glog.Infof("initContainers %s", string(patchBytes))
+	patchBytes, err := createPatchAny(initContainer, initContainers, containers, EnvVar)
+	glog.Infof("patchBytes %s", string(patchBytes))
 	if err != nil {
 		return &v1beta1.AdmissionResponse{
 			Result: &metav1.Status{
@@ -491,7 +595,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		}
 	}
 
-	glog.Infof("AdmissionResponse: patch=%v\n", string(patchBytes))
+	glog.Infof("patchBytes %s\n", string(patchBytes))
 	return &v1beta1.AdmissionResponse{
 		Allowed: true,
 		Patch:   patchBytes,
