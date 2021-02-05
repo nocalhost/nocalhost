@@ -380,8 +380,6 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 						envVarArray = append(envVarArray, envVarEach)
 					}
 				}
-
-				fmt.Printf("envVarArray %+v\n", envVarArray)
 				// inject install service env
 				for _, env := range dep.Env.Service {
 					if env.Name == resourceName && (strings.ToLower(env.Type) == strings.ToLower(resourceType) || dep.ReleaseName+"-"+env.Name == resourceName) {
@@ -406,6 +404,9 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 						}
 					}
 				}
+				// get last item
+				envVarArray = []envVar{envVarArray[len(envVarArray)-1]}
+
 				for key, dependency := range dep.Dependency {
 					// K8S native type is case-sensitive, dependent descriptions are not distinguished, and unified into lowercase
 					// if has metadata.labels.release, then release-name should fix as dependency.Name
