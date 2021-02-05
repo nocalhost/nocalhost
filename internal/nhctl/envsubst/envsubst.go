@@ -19,6 +19,16 @@ func Render(tmpl string, envFilePath string) (string, error) {
 	}
 }
 
+func RenderBytes(bytes []byte, envFilePath string) (string, error) {
+	if envFilePath == "" {
+		return parse.New("string", [][]string{os.Environ()},
+			&parse.Restrictions{NoUnset: false, NoEmpty: false}).Parse(string(bytes))
+	} else {
+		return parse.New("string", [][]string{os.Environ(), readEnvFile(envFilePath)},
+			&parse.Restrictions{NoUnset: false, NoEmpty: false}).Parse(string(bytes))
+	}
+}
+
 func readEnvFile(filename string) []string {
 	file, err := os.Open(filename)
 	if err != nil {
