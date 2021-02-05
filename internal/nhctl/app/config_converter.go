@@ -133,7 +133,6 @@ func convertConfigV1ToV2(configV1 *NocalHostAppConfig) (*NocalHostAppConfigV2, e
 			PreInstall:     configV1.PreInstall,
 			HelmValues:     nil,
 			Env:            nil,
-			EnvFrom:        nil,
 			ServiceConfigs: nil,
 		},
 	}

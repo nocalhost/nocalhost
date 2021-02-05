@@ -35,6 +35,8 @@ type AppProfileV2 struct {
 	ResourcePath            []string          `json:"resource_path" yaml:"resourcePath"`
 	IgnoredPath             []string          `json:"ignoredPath" yaml:"ignoredPath"`
 	PreInstall              []*PreInstallItem `json:"onPreInstall" yaml:"onPreInstall"`
+	Env                     []*Env            `json:"env" yaml:"env"`
+	EnvFrom                 EnvFrom           `json:"envFrom" yaml:"envFrom"`
 }
 
 type ContainerProfileV2 struct {
