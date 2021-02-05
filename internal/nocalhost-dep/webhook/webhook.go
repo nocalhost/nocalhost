@@ -408,8 +408,6 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 						}
 					}
 				}
-				// get last item
-				envVarArray = []envVar{envVarArray[len(envVarArray)-1]}
 
 				for key, dependency := range dep.Dependency {
 					// K8S native type is case-sensitive, dependent descriptions are not distinguished, and unified into lowercase
