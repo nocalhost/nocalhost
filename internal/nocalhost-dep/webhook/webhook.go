@@ -381,6 +381,8 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 					}
 				}
 
+				fmt.Printf("envVarArray %+v\n", envVarArray)
+
 				// inject install service env
 				for _, env := range dep.Env.Service {
 					if env.Name == resourceName && (strings.ToLower(env.Type) == strings.ToLower(resourceType) || dep.ReleaseName+"-"+env.Name == resourceName) {
