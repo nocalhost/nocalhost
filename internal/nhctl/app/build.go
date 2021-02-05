@@ -95,6 +95,8 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 	app.AppProfileV2.ResourcePath = app.configV2.ApplicationConfig.ResourcePath
 	app.AppProfileV2.IgnoredPath = app.configV2.ApplicationConfig.IgnoredPath
 	app.AppProfileV2.PreInstall = app.configV2.ApplicationConfig.PreInstall
+	app.AppProfileV2.Env = app.configV2.ApplicationConfig.Env
+	app.AppProfileV2.EnvFrom = app.configV2.ApplicationConfig.EnvFrom
 	for _, svcConfig := range app.configV2.ApplicationConfig.ServiceConfigs {
 		app.loadConfigToSvcProfile(svcConfig.Name, Deployment)
 	}

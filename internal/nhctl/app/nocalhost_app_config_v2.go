@@ -31,7 +31,7 @@ type ApplicationConfig struct {
 	PreInstall     []*PreInstallItem  `json:"onPreInstall" yaml:"onPreInstall"`
 	HelmValues     []*HelmValue       `json:"helmValues" yaml:"helmValues"`
 	Env            []*Env             `json:"env" yaml:"env"`
-	EnvFrom        *EnvFrom           `json:"envFrom" yaml:"envFrom"`
+	EnvFrom        EnvFrom            `json:"envFrom" yaml:"envFrom"`
 	ServiceConfigs []*ServiceConfigV2 `json:"services" yaml:"services"`
 }
 
@@ -51,7 +51,7 @@ type ContainerConfig struct {
 
 type ContainerInstallConfig struct {
 	Env         []*Env   `json:"env" yaml:"env"`
-	EnvFrom     *EnvFrom `json:"envFrom" yaml:"envFrom"`
+	EnvFrom     EnvFrom  `json:"envFrom" yaml:"envFrom"`
 	PortForward []string `json:"portForward" yaml:"portForward"`
 }
 
