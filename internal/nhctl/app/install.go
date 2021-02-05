@@ -65,11 +65,11 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 }
 
 func (a *Application) InstallManifest() error {
-	var err error
+	a.loadPreInstallAndInstallManifest()
 	a.preInstall()
 
 	// install manifest recursively, don't install pre-install workload again
-	err = a.installManifestRecursively()
+	err := a.installManifestRecursively()
 	return errors.Wrap(err, "")
 }
 
@@ -104,7 +104,7 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 	}
 	if flags.Version != "" {
 		installParams = append(installParams, "--version", flags.Version)
-		a.AppProfileV2.HelmRepoChartVersion = flags.Version
+		//a.AppProfileV2.HelmRepoChartVersion = flags.Version
 	}
 
 	if len(flags.Set) > 0 {
@@ -234,7 +234,7 @@ func (a *Application) InstallDepConfigMap() error {
 }
 
 func (a *Application) installManifestRecursively() error {
-	a.loadInstallManifest()
+	//a.loadInstallManifest()
 	log.Infof("%d manifest files to be installed", len(a.installManifest))
 	if len(a.installManifest) > 0 {
 		err := a.client.ApplyForCreate(a.installManifest, true)
@@ -331,19 +331,67 @@ func getYamlFilesAndDirs(path string, ignorePaths []string) ([]string, []string,
 	return files, dirs, nil
 }
 
+func (a *Application) loadPreInstallAndInstallManifest() {
+	a.loadSortedPreInstallManifest()
+	a.loadInstallManifest()
+}
+
+func (a *Application) loadUpgradePreInstallAndInstallManifest() {
+	a.loadUpgradeSortedPreInstallManifest()
+	a.loadUpgradeInstallManifest()
+}
+
+func (a *Application) loadUpgradeInstallManifest() {
+	result := make([]string, 0)
+	resourcePaths := a.getUpgradeResourceDir()
+	for _, eachPath := range resourcePaths {
+		files, _, err := getYamlFilesAndDirs(eachPath, a.getUpgradeIgnoredPath())
+		if err != nil {
+			log.WarnE(err, fmt.Sprintf("Fail to load manifest in %s", eachPath))
+			continue
+		}
+
+		for _, file := range files {
+			if a.ignoredInUpgrade(file) {
+				continue
+			}
+			if _, err2 := os.Stat(file); err2 != nil {
+				log.WarnE(errors.Wrap(err2, ""), fmt.Sprintf("%s can not be installed", file))
+				continue
+			}
+			result = append(result, file)
+		}
+	}
+	a.upgradeInstallManifest = result
+}
+
+func (a *Application) ignoredInUpgrade(manifest string) bool {
+	for _, pre := range a.upgradeSortedPreInstallManifest {
+		if pre == manifest {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *Application) loadUpgradeSortedPreInstallManifest() {
+	result := make([]string, 0)
+	if a.AppProfileV2.PreInstall != nil {
+		sort.Sort(ComparableItems(a.AppProfileV2.PreInstall))
+		for _, item := range a.AppProfileV2.PreInstall {
+			itemPath := filepath.Join(a.getUpgradeGitDir(), item.Path)
+			if _, err2 := os.Stat(itemPath); err2 != nil {
+				log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
+				continue
+			}
+			result = append(result, itemPath)
+		}
+	}
+	a.upgradeSortedPreInstallManifest = result
+}
+
 func (a *Application) loadSortedPreInstallManifest() {
 	result := make([]string, 0)
-	//if a.configV2 != nil && a.configV2.ApplicationConfig.PreInstall != nil {
-	//	sort.Sort(ComparableItems(a.configV2.ApplicationConfig.PreInstall))
-	//	for _, item := range a.configV2.ApplicationConfig.PreInstall {
-	//		itemPath := filepath.Join(a.getGitDir(), item.Path)
-	//		if _, err2 := os.Stat(itemPath); err2 != nil {
-	//			log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
-	//			continue
-	//		}
-	//		result = append(result, itemPath)
-	//	}
-	//}
 	if a.AppProfileV2.PreInstall != nil {
 		sort.Sort(ComparableItems(a.AppProfileV2.PreInstall))
 		for _, item := range a.AppProfileV2.PreInstall {
@@ -355,13 +403,12 @@ func (a *Application) loadSortedPreInstallManifest() {
 			result = append(result, itemPath)
 		}
 	}
-
 	a.sortedPreInstallManifest = result
 }
 
 func (a *Application) preInstall() {
 
-	a.loadSortedPreInstallManifest()
+	//a.loadSortedPreInstallManifest()
 
 	if len(a.sortedPreInstallManifest) > 0 {
 		log.Info("Run pre-install...")

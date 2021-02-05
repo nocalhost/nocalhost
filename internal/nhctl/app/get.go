@@ -84,6 +84,14 @@ func (a *Application) getIgnoredPath() []string {
 	return results
 }
 
+func (a *Application) getUpgradeIgnoredPath() []string {
+	results := make([]string, 0)
+	for _, path := range a.AppProfileV2.IgnoredPath {
+		results = append(results, filepath.Join(a.getUpgradeGitDir(), path))
+	}
+	return results
+}
+
 func (a *Application) GetDefaultWorkDir(svcName string) string {
 	svcProfile := a.GetSvcProfileV2(svcName)
 	if svcProfile != nil && svcProfile.GetDefaultContainerDevConfig().WorkDir != "" {

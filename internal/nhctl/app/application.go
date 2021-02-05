@@ -61,6 +61,10 @@ type Application struct {
 	client                   *clientgoutils.ClientGoUtils
 	sortedPreInstallManifest []string // for pre install
 	installManifest          []string // for install
+
+	// for upgrade
+	upgradeSortedPreInstallManifest []string
+	upgradeInstallManifest          []string
 }
 
 type SvcDependency struct {
@@ -208,7 +212,7 @@ func (a *Application) ignoredInInstall(manifest string) bool {
 }
 
 func (a *Application) uninstallManifestRecursively() error {
-	a.loadInstallManifest()
+	//a.loadInstallManifest()
 
 	if len(a.installManifest) > 0 {
 		err := a.client.ApplyForDelete(a.installManifest, true)
@@ -223,7 +227,7 @@ func (a *Application) uninstallManifestRecursively() error {
 }
 
 func (a *Application) cleanPreInstall() {
-	a.loadSortedPreInstallManifest()
+	//a.loadSortedPreInstallManifest()
 	if len(a.sortedPreInstallManifest) > 0 {
 		log.Debug("Cleaning up pre-install jobs...")
 		err := a.client.ApplyForDelete(a.sortedPreInstallManifest, true)

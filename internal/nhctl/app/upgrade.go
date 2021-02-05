@@ -42,8 +42,10 @@ func (a *Application) upgradeForManifest(installFlags flag.InstallFlags) error {
 	}
 
 	// Read upgrade resource obj
-	getYamlFilesAndDirs()
-	//a.client.GetResourceInfoFromFiles()
+	a.loadUpgradePreInstallAndInstallManifest()
+
+	// Read current resource obj
+	a.loadPreInstallAndInstallManifest()
 
 	return nil
 }
