@@ -313,7 +313,7 @@ func addContainerEnvVar(objContainers []corev1.Container, envVar []envVar) (patc
 	var value interface{}
 	for _, add := range envVar {
 		for _, env := range add.EnvVar {
-			value = []corev1.EnvVar{env}
+			value = corev1.EnvVar{Name: env.Name, Value: env.Value}
 			path := "/spec/template/spec/containers/" + strconv.Itoa(add.ContainerIndex) + "/env/-"
 			patch = append(patch, patchOperation{
 				Op:    "add",
