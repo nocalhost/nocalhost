@@ -94,9 +94,14 @@ type envVar struct {
 
 // dep struct
 type mainDep struct {
-	Env         []envList
+	Env         globalEnv `yaml:"env"`
 	Dependency  []depApp
 	ReleaseName string `yaml:"releaseName"`
+}
+
+type globalEnv struct {
+	Global  []installEnv `yaml:"global"`
+	Service []envList    `yaml:"service"`
 }
 
 type envList struct {
@@ -349,13 +354,30 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 					glog.Fatalln("failed to unmarshal configmap: %s", cm.GetName())
 				}
 				fmt.Printf("%+v\n", dep)
-				// inject install env
-				for _, env := range dep.Env {
+				addEnvList := make([]corev1.EnvVar, 0)
+				// inject install global env
+				for _, env := range dep.Env.Global {
+					for k := range containers {
+						addEnv := corev1.EnvVar{
+							Name:  env.Name,
+							Value: env.Value,
+						}
+						addEnvList = append(addEnvList, addEnv)
+						envVarEach := envVar{
+							EnvVar:         addEnvList,
+							ContainerIndex: k,
+						}
+						envVarArray = append(envVarArray, envVarEach)
+					}
+				}
+
+				// inject install service env
+				for _, env := range dep.Env.Service {
 					if env.Name == resourceName && (strings.ToLower(env.Type) == strings.ToLower(resourceType) || dep.ReleaseName+"-"+env.Name == resourceName) {
 						for _, container := range env.Container {
 							for k, objContainer := range containers {
-								addEnvList := make([]corev1.EnvVar, 0)
-								if container.Name == objContainer.Name {
+								// match name or match all
+								if container.Name == objContainer.Name || container.Name == "" {
 									for _, envFromConfig := range container.InstallEnv {
 										addEnv := corev1.EnvVar{
 											Name:  envFromConfig.Name,
