@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/app_flags"
+	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -147,7 +148,11 @@ func (a *Application) generateConfig(outerConfigPath string, configName string) 
 			return err
 		}
 	} else {
-		err = ioutil.WriteFile(a.GetConfigV2Path(), rbytes, 0644) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
+		renderedStr, err := envsubst.RenderBytes(rbytes, "")
+		if err != nil {
+			return err
+		}
+		err = ioutil.WriteFile(a.GetConfigV2Path(), []byte(renderedStr), 0644) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
 		if err != nil {
 			return errors.New(fmt.Sprintf("fail to create configFile : %s", configFile))
 		}
