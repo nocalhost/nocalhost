@@ -581,7 +581,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		}
 	}
 
-	glog.Infof("AdmissionResponse: patch=%s\n", string(patchBytes))
+	glog.Infof("patchBytes %s\n", string(patchBytes))
 	return &v1beta1.AdmissionResponse{
 		Allowed: true,
 		Patch:   patchBytes,
