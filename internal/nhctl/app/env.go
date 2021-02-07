@@ -34,6 +34,44 @@ type ContainerEnvForDep struct {
 	InstallEnv []*Env `json:"installEnv" yaml:"installEnv"`
 }
 
+type ContainerDevEnv struct {
+	DevEnv []*Env
+}
+
+func (a *Application) GetDevContainerEnv(svcName, container string) *ContainerDevEnv {
+	// Find service env
+	devEnv := make([]*Env, 0)
+	kvMap := make(map[string]string, 0)
+	serviceConfig := a.GetSvcProfileV2(svcName)
+	for _, v := range serviceConfig.ContainerConfigs {
+		if v.Name == container || container == "" {
+			if v.Dev.EnvFrom != nil && len(v.Dev.EnvFrom.EnvFile) > 0 {
+				envFiles := make([]string, 0)
+				for _, f := range v.Dev.EnvFrom.EnvFile {
+					envFiles = append(envFiles, f.Path)
+				}
+				kvMap = utils.GetKVFromEnvFiles(envFiles)
+			}
+			// Env has a higher priority than envFrom
+			if v.Dev.Env != nil && len(v.Dev.Env) > 0 {
+				for _, env := range v.Dev.Env {
+					kvMap[env.Name] = env.Value
+				}
+			}
+		}
+	}
+	if len(kvMap) > 0 {
+		for k, v := range kvMap {
+			env := &Env{
+				Name:  k,
+				Value: v,
+			}
+			devEnv = append(devEnv, env)
+		}
+	}
+	return &ContainerDevEnv{DevEnv: devEnv}
+}
+
 func (a *Application) GetInstallEnvForDep() *InstallEnvForDep {
 
 	envFiles := make([]string, 0)
