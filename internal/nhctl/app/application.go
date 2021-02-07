@@ -49,9 +49,11 @@ import (
 type AppType string
 
 const (
-	Helm     AppType = "helmGit"
-	HelmRepo AppType = "helmRepo"
-	Manifest AppType = "rawManifest"
+	Helm          AppType = "helmGit"
+	HelmRepo      AppType = "helmRepo"
+	Manifest      AppType = "rawManifest"
+	ManifestLocal AppType = "rawManifestLocal"
+	HelmLocal     AppType = "helmLocal"
 )
 
 type Application struct {

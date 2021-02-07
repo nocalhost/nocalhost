@@ -87,7 +87,10 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 
 	// local path of application, copy to nocalhost resource
 	if flags.LocalPath != "" {
-
+		err := utils.CopyDir(flags.LocalPath, app.getApplicationDir(name))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = app.generateConfig(flags.OuterConfig, flags.Config)
