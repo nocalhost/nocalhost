@@ -31,4 +31,5 @@ type InstallFlags struct {
 	Config           string
 	ResourcePath     []string
 	Namespace        string
+	LocalPath        string
 }

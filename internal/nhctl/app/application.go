@@ -315,6 +315,14 @@ func (a *Application) GetSvcConfigV2(svcName string) *ServiceConfigV2 {
 	return nil
 }
 
+func (a *Application) GetApplicationConfigV2() *ApplicationConfig {
+	a.LoadConfigV2() // get the latest config
+	if a.configV2 == nil {
+		return nil
+	}
+	return a.configV2.ApplicationConfig
+}
+
 //func (a *Application) SaveSvcProfile(svcName string, config *ServiceDevOptions) error {
 //
 //	svcPro := a.GetSvcProfile(svcName)

@@ -47,6 +47,7 @@ func init() {
 	installCmd.Flags().StringVar(&installFlags.HelmRepoUrl, "helm-repo-url", "", "chart repository url where to locate the requested chart")
 	installCmd.Flags().StringVar(&installFlags.HelmRepoVersion, "helm-repo-version", "", "chart repository version")
 	installCmd.Flags().StringVar(&installFlags.HelmChartName, "helm-chart-name", "", "chart name")
+	installCmd.Flags().StringVar(&installFlags.LocalPath, "local-path", "", "local path for application")
 	rootCmd.AddCommand(installCmd)
 }
 
