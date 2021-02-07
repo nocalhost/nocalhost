@@ -16,6 +16,7 @@ package app
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/envsubst"
@@ -148,7 +149,19 @@ func (a *Application) generateConfig(outerConfigPath string, configName string) 
 			return err
 		}
 	} else {
-		renderedStr, err := envsubst.RenderBytes(rbytes, "")
+		// Render config file using envFile
+		beforeRenderConfig := &NocalHostAppConfigV2{}
+		err = yaml.Unmarshal(rbytes, &beforeRenderConfig)
+		if err != nil {
+			errors.Wrap(err, "")
+		}
+		envFilePath := filepath.Join(a.getGitNocalhostDir(), beforeRenderConfig.ConfigProperties.EnvFile)
+		_, err = os.Stat(envFilePath)
+		if err != nil {
+			log.WarnE(errors.Wrap(err, ""), "Env file not found, ignore it...")
+			envFilePath = ""
+		}
+		renderedStr, err := envsubst.RenderBytes(rbytes, envFilePath)
 		if err != nil {
 			return err
 		}
