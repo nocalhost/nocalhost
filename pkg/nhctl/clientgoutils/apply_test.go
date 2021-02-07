@@ -13,23 +13,45 @@ limitations under the License.
 
 package clientgoutils
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestClientGoUtils_CreateResourceInfo(t *testing.T) {
-	client, err := NewClientGoUtils("", "")
+	client, err := NewClientGoUtils("/Users/xinxinhuang/.nh/plugin/kubeConfigs/10_158_config", "nh6anql")
 	if err != nil {
 		panic(err)
 	}
 
-	infos, err := client.GetResourceInfoFromFiles([]string{"/tmp/yaml/centos-01.yaml"}, true)
+	infos, err := client.GetResourceInfoFromFiles([]string{"/tmp/yaml/ubuntu.yaml"}, true)
 	if err != nil {
 		panic(err)
 	}
 
 	for _, info := range infos {
-		err = client.UpdateResourceInfo(info)
+		err = client.UpdateResourceInfoByServerSide(info)
 		if err != nil {
 			panic(err)
+		}
+	}
+}
+
+func TestClientGoUtils_UpdateResourceInfo(t *testing.T) {
+	client, err := NewClientGoUtils("", "")
+	if err != nil {
+		panic(err)
+	}
+
+	infos, err := client.GetResourceInfoFromFiles([]string{"/tmp/yaml/ubuntu.yaml"}, true)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, info := range infos {
+		err = client.UpdateResourceInfoByServerSide(info)
+		if err != nil {
+			fmt.Println(err.Error())
 		}
 	}
 }

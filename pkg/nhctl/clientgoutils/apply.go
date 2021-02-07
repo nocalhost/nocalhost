@@ -14,13 +14,18 @@ limitations under the License.
 package clientgoutils
 
 import (
+	"github.com/jonboulle/clockwork"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/kubectl/pkg/cmd/apply"
+	//"k8s.io/kubectl/pkg/util"
 	"nocalhost/pkg/nhctl/log"
+	"os"
+	"time"
 )
 
 func (c *ClientGoUtils) DeleteResourceInfo(info *resource.Info) error {
@@ -35,19 +40,48 @@ func (c *ClientGoUtils) DeleteResourceInfo(info *resource.Info) error {
 	return errors.Wrap(info.Refresh(obj, true), "")
 }
 
-func (c *ClientGoUtils) UpdateResourceInfo(info *resource.Info) error {
+func (c *ClientGoUtils) UpdateResourceInfoByServerSide(info *resource.Info) error {
 	data, err := runtime.Encode(unstructured.UnstructuredJSONScheme, info.Object)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
 
 	helper := resource.NewHelper(info.Client, info.Mapping)
-	//forceConflicts := true
-	obj, err := helper.Patch(info.Namespace, info.Name, types.ApplyPatchType, data, &metav1.PatchOptions{FieldManager: "kubectl"})
+	forceConflicts := true
+	obj, err := helper.Patch(info.Namespace, info.Name, types.ApplyPatchType, data, &metav1.PatchOptions{Force: &forceConflicts, FieldManager: "kubectl"})
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
 	return errors.Wrap(info.Refresh(obj, true), "")
+}
+
+func (c *ClientGoUtils) UpdateResourceInfoByClientSide(info *resource.Info) error {
+	f := c.newFactory()
+	helper := resource.NewHelper(info.Client, info.Mapping)
+	openAPISchema, err := f.OpenAPISchema()
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	modified, err := runtime.Encode(unstructured.UnstructuredJSONScheme, info.Object)
+	//modified, err := util.GetModifiedConfiguration(info.Object, true, unstructured.UnstructuredJSONScheme)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	patcher := &apply.Patcher{
+		Mapping:           info.Mapping,
+		Helper:            helper,
+		Overwrite:         true,
+		BackOff:           clockwork.NewRealClock(),
+		Force:             true,
+		CascadingStrategy: metav1.DeletePropagationBackground,
+		Timeout:           time.Hour,
+		GracePeriod:       -1,
+		OpenapiSchema:     openAPISchema,
+		Retries:           3,
+	}
+
+	_, _, err = patcher.Patch(info.Object, modified, info.Source, info.Namespace, info.Name, os.Stderr)
+	return errors.Wrap(err, "")
 }
 
 func (c *ClientGoUtils) CreateResourceInfo(info *resource.Info) error {

@@ -73,6 +73,8 @@ func (a *Application) saveUpgradeResources() error {
 	return moveDir(a.getUpgradeGitDir(), a.getGitDir())
 }
 
+// Move srcDir to destDir
+// If destDir already exists, deleting it before move srcDir
 func moveDir(srcDir string, destDir string) error {
 	_, err := os.Stat(destDir)
 	if err == nil {
@@ -81,6 +83,5 @@ func moveDir(srcDir string, destDir string) error {
 			return errors.Wrap(err, "")
 		}
 	}
-
 	return errors.Wrap(os.Rename(srcDir, destDir), "")
 }

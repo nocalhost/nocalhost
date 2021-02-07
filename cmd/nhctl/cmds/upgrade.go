@@ -14,9 +14,9 @@ limitations under the License.
 package cmds
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -58,16 +58,22 @@ var upgradeCmd = &cobra.Command{
 			log.Fatal("Please make sure all services have exited DevMode")
 		}
 
-		if installFlags.GitUrl == "" && installFlags.AppType != string(app.HelmRepo) {
-			log.Fatalf("If app type is not %s , --git-url must be specified", app.HelmRepo)
+		// todo: Validate flags
+		err := nocalhostApp.Upgrade(installFlags)
+		if err != nil {
+			log.FatalE(err, fmt.Sprintf("Failed to upgrade application"))
 		}
-		if installFlags.AppType == string(app.HelmRepo) {
-			if installFlags.HelmChartName == "" {
-				log.Fatalf("--helm-chart-name must be specified when using %s", installFlags.AppType)
-			}
-			if installFlags.HelmRepoUrl == "" && installFlags.HelmRepoName == "" {
-				log.Fatalf("--helm-repo-url or --helm-repo-name must be specified when using %s", installFlags.AppType)
-			}
-		}
+
+		//if installFlags.GitUrl == "" && installFlags.AppType != string(app.HelmRepo) {
+		//	log.Fatalf("If app type is not %s , --git-url must be specified", app.HelmRepo)
+		//}
+		//if installFlags.AppType == string(app.HelmRepo) {
+		//	if installFlags.HelmChartName == "" {
+		//		log.Fatalf("--helm-chart-name must be specified when using %s", installFlags.AppType)
+		//	}
+		//	if installFlags.HelmRepoUrl == "" && installFlags.HelmRepoName == "" {
+		//		log.Fatalf("--helm-repo-url or --helm-repo-name must be specified when using %s", installFlags.AppType)
+		//	}
+		//}
 	},
 }
