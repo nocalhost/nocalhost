@@ -58,14 +58,12 @@ func (a *Application) GetDevContainerEnv(svcName, container string) *ContainerDe
 			}
 		}
 	}
-	if len(kvMap) > 0 {
-		for k, v := range kvMap {
-			env := &Env{
-				Name:  k,
-				Value: v,
-			}
-			devEnv = append(devEnv, env)
+	for k, v := range kvMap {
+		env := &Env{
+			Name:  k,
+			Value: v,
 		}
+		devEnv = append(devEnv, env)
 	}
 	return &ContainerDevEnv{DevEnv: devEnv}
 }
