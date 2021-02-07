@@ -53,10 +53,8 @@ func (a *Application) GetDevContainerEnv(svcName, container string) *ContainerDe
 				kvMap = utils.GetKVFromEnvFiles(envFiles)
 			}
 			// Env has a higher priority than envFrom
-			if v.Dev.Env != nil && len(v.Dev.Env) > 0 {
-				for _, env := range v.Dev.Env {
-					kvMap[env.Name] = env.Value
-				}
+			for _, env := range v.Dev.Env {
+				kvMap[env.Name] = env.Value
 			}
 		}
 	}

@@ -278,13 +278,10 @@ func (a *Application) generateResourceRequirementsForDevContainer(svcName string
 // add dev start env
 func (a *Application) AppendDevEnvToContainer(devContainer *corev1.Container, svcName string, ops *DevStartOptions) {
 	devEnv := a.GetDevContainerEnv(svcName, ops.Container)
-	if len(devEnv.DevEnv) > 0 {
-		for _, v := range devEnv.DevEnv {
-			env := corev1.EnvVar{Name: v.Name, Value: v.Value}
-			devContainer.Env = append(devContainer.Env, env)
-		}
+	for _, v := range devEnv.DevEnv {
+		env := corev1.EnvVar{Name: v.Name, Value: v.Value}
+		devContainer.Env = append(devContainer.Env, env)
 	}
-	log.Infof("devContainer.Env %s", devContainer.Env)
 }
 
 // In DevMode, nhctl will replace the container of your workload with two containers: one is called devContainer, the other is called sideCarContainer
