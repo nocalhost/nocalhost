@@ -23,6 +23,7 @@ func Sha1ToString(str string) string {
 	hash.Write([]byte(str))
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
+
 func CopyFile(src, dst string) (err error) {
 	in, err := os.Open(src)
 	if err != nil {
@@ -63,7 +64,7 @@ func CopyFile(src, dst string) (err error) {
 }
 
 // CopyDir recursively copies a directory tree, attempting to preserve permissions.
-// Source directory must exist, destination directory must *not* exist.
+// Source directory must exist
 // Symlinks are ignored and skipped.
 func CopyDir(src string, dst string) (err error) {
 	src = filepath.Clean(src)
@@ -81,9 +82,10 @@ func CopyDir(src string, dst string) (err error) {
 	if err != nil && !os.IsNotExist(err) {
 		return
 	}
-	if err == nil {
-		return fmt.Errorf("destination already exists")
-	}
+
+	//if err == nil {
+	//	return fmt.Errorf("destination already exists")
+	//}
 
 	err = os.MkdirAll(dst, si.Mode())
 	if err != nil {
