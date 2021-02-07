@@ -584,7 +584,7 @@ func getPolicyRule(c *GoClient) (*[]rbacv1.PolicyRule, error) {
 				result = append(result, rbacv1.PolicyRule{
 					Verbs:     apiResource.Verbs,
 					Resources: []string{resourceName},
-					APIGroups: []string{apiResource.Group},
+					APIGroups: []string{"*"},
 				})
 			}
 		}
