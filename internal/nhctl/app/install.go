@@ -35,18 +35,22 @@ import (
 
 func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 
-	err := a.InstallDepConfigMap(a.AppProfile.AppType)
+	err := a.InstallDepConfigMap(a.AppProfileV2.AppType)
 	if err != nil {
 		return errors.Wrap(err, "failed to install dep config map")
 	}
 
-	switch a.AppProfile.AppType {
+	switch a.AppProfileV2.AppType {
 	case Helm:
 		err = a.installHelmInGit(flags)
 	case HelmRepo:
 		err = a.installHelmInRepo(flags)
 	case Manifest:
 		err = a.InstallManifest()
+	case ManifestLocal:
+		err = a.InstallManifest()
+	case HelmLocal:
+		err = a.installHelmInGit(flags)
 	default:
 		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
 	}
@@ -88,8 +92,8 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 	}
 
 	chartName := flags.Chart
-	if a.config != nil && a.config.Name != "" {
-		chartName = a.config.Name
+	if a.configV2 != nil && a.configV2.ApplicationConfig.Name != "" {
+		chartName = a.configV2.ApplicationConfig.Name
 	}
 	installParams := []string{"install", releaseName}
 	if flags.Wait {
@@ -121,9 +125,9 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 	if err != nil {
 		return err
 	}
-	a.AppProfile.ReleaseName = releaseName
-	a.AppProfile.ChartName = chartName
-	a.AppProfile.Save()
+	a.AppProfileV2.ReleaseName = releaseName
+	a.AppProfileV2.ChartName = chartName
+	a.SaveProfile()
 	log.Infof(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`, a.GetNamespace())
 	return nil
 }
@@ -174,20 +178,23 @@ func (a *Application) installHelmInGit(flags *HelmFlags) error {
 		fmt.Printf("fail to install helm nocalhostApp, err:%v\n", err)
 		return err
 	}
-	a.AppProfile.ReleaseName = releaseName
-	a.AppProfile.Save()
+	a.AppProfileV2.ReleaseName = releaseName
+	a.SaveProfile()
 	fmt.Printf(`helm application installed, use "helm list -n %s" to get the information of the helm release`+"\n", a.GetNamespace())
 	return nil
 }
 
 func (a *Application) InstallDepConfigMap(appType AppType) error {
 	appDep := a.GetDependencies()
-	if appDep != nil {
+	appEnv := a.GetInstallEnvForDep()
+	if appDep != nil || len(appEnv.Global) > 0 || len(appEnv.Service) > 0 {
 		var depForYaml = &struct {
-			Dependency  []*SvcDependency `json:"dependency" yaml:"dependency"`
-			ReleaseName string           `json:"releaseName" yaml:"releaseName"`
+			Dependency  []*SvcDependency  `json:"dependency" yaml:"dependency"`
+			ReleaseName string            `json:"releaseName" yaml:"releaseName"`
+			InstallEnv  *InstallEnvForDep `json:"env" yaml:"env"`
 		}{
 			Dependency: appDep,
+			InstallEnv: appEnv,
 		}
 		// release name a.Name
 		if appType != Manifest {
@@ -222,8 +229,8 @@ func (a *Application) InstallDepConfigMap(appType AppType) error {
 			fmt.Errorf("fail to create dependency config %s\n", configMap.Name)
 			return errors.Wrap(err, "")
 		} else {
-			a.AppProfile.DependencyConfigMapName = configMap.Name
-			a.AppProfile.Save()
+			a.AppProfileV2.DependencyConfigMapName = configMap.Name
+			a.SaveProfile()
 		}
 	}
 	log.Info("Dependency config map installed")
@@ -245,8 +252,8 @@ func (a *Application) installManifestRecursively() error {
 }
 
 func (a *Application) SetInstalledStatus(is bool) {
-	a.AppProfile.Installed = is
-	a.AppProfile.Save()
+	a.AppProfileV2.Installed = is
+	a.SaveProfile()
 }
 
 func (a *Application) loadInstallManifest() {
@@ -330,9 +337,20 @@ func getYamlFilesAndDirs(path string, ignorePaths []string) ([]string, []string,
 
 func (a *Application) loadSortedPreInstallManifest() {
 	result := make([]string, 0)
-	if a.config != nil && a.config.PreInstall != nil {
-		sort.Sort(ComparableItems(a.config.PreInstall))
-		for _, item := range a.config.PreInstall {
+	//if a.configV2 != nil && a.configV2.ApplicationConfig.PreInstall != nil {
+	//	sort.Sort(ComparableItems(a.configV2.ApplicationConfig.PreInstall))
+	//	for _, item := range a.configV2.ApplicationConfig.PreInstall {
+	//		itemPath := filepath.Join(a.getGitDir(), item.Path)
+	//		if _, err2 := os.Stat(itemPath); err2 != nil {
+	//			log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
+	//			continue
+	//		}
+	//		result = append(result, itemPath)
+	//	}
+	//}
+	if a.AppProfileV2.PreInstall != nil {
+		sort.Sort(ComparableItems(a.AppProfileV2.PreInstall))
+		for _, item := range a.AppProfileV2.PreInstall {
 			itemPath := filepath.Join(a.getGitDir(), item.Path)
 			if _, err2 := os.Stat(itemPath); err2 != nil {
 				log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
@@ -341,5 +359,6 @@ func (a *Application) loadSortedPreInstallManifest() {
 			result = append(result, itemPath)
 		}
 	}
+
 	a.sortedPreInstallManifest = result
 }

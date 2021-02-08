@@ -14,28 +14,28 @@ limitations under the License.
 package app
 
 func (a *Application) SetRemoteSyncthingGUIPort(svcName string, port int) error {
-	a.GetSvcProfile(svcName).RemoteSyncthingGUIPort = port
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).RemoteSyncthingGUIPort = port
+	return a.SaveProfile()
 }
 
 func (a *Application) SetLocalSyncthingPort(svcName string, port int) error {
-	a.GetSvcProfile(svcName).LocalSyncthingPort = port
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).LocalSyncthingPort = port
+	return a.SaveProfile()
 }
 
 func (a *Application) SetLocalSyncthingGUIPort(svcName string, port int) error {
-	a.GetSvcProfile(svcName).LocalSyncthingGUIPort = port
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).LocalSyncthingGUIPort = port
+	return a.SaveProfile()
 }
 
 func (a *Application) SetDevelopingStatus(svcName string, is bool) error {
-	a.GetSvcProfile(svcName).Developing = is
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).Developing = is
+	return a.SaveProfile()
 }
 
 func (a *Application) SetAppType(t AppType) error {
-	a.AppProfile.AppType = t
-	return a.AppProfile.Save()
+	a.AppProfileV2.AppType = t
+	return a.SaveProfile()
 }
 
 func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
@@ -43,13 +43,13 @@ func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
 	if err != nil {
 		return err
 	}
-	a.GetSvcProfile(svcName).PortForwarded = is
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).PortForwarded = is
+	return a.SaveProfile()
 }
 
 func (a *Application) SetRemoteSyncthingPort(svcName string, port int) error {
-	a.GetSvcProfile(svcName).RemoteSyncthingPort = port
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).RemoteSyncthingPort = port
+	return a.SaveProfile()
 }
 
 func (a *Application) SetSyncingStatus(svcName string, is bool) error {
@@ -57,31 +57,31 @@ func (a *Application) SetSyncingStatus(svcName string, is bool) error {
 	if err != nil {
 		return err
 	}
-	a.GetSvcProfile(svcName).Syncing = is
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).Syncing = is
+	return a.SaveProfile()
 }
 
 func (a *Application) SetDevEndProfileStatus(svcName string) error {
-	a.GetSvcProfile(svcName).Developing = false
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).Developing = false
+	return a.SaveProfile()
 }
 
 func (a *Application) SetSyncthingPort(svcName string, remotePort, remoteGUIPort, localPort, localGUIPort int) error {
-	a.GetSvcProfile(svcName).RemoteSyncthingPort = remotePort
-	a.GetSvcProfile(svcName).RemoteSyncthingGUIPort = remoteGUIPort
-	a.GetSvcProfile(svcName).LocalSyncthingPort = localPort
-	a.GetSvcProfile(svcName).LocalSyncthingGUIPort = localGUIPort
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).RemoteSyncthingPort = remotePort
+	a.GetSvcProfileV2(svcName).RemoteSyncthingGUIPort = remoteGUIPort
+	a.GetSvcProfileV2(svcName).LocalSyncthingPort = localPort
+	a.GetSvcProfileV2(svcName).LocalSyncthingGUIPort = localGUIPort
+	return a.SaveProfile()
 }
 
 func (a *Application) SetSyncthingProfileEndStatus(svcName string) error {
-	a.GetSvcProfile(svcName).RemoteSyncthingPort = 0
-	a.GetSvcProfile(svcName).RemoteSyncthingGUIPort = 0
-	a.GetSvcProfile(svcName).LocalSyncthingPort = 0
-	a.GetSvcProfile(svcName).LocalSyncthingGUIPort = 0
-	a.GetSvcProfile(svcName).PortForwarded = false
-	a.GetSvcProfile(svcName).Syncing = false
-	a.GetSvcProfile(svcName).DevPortList = []string{}
-	a.GetSvcProfile(svcName).LocalAbsoluteSyncDirFromDevStartPlugin = []string{}
-	return a.AppProfile.Save()
+	a.GetSvcProfileV2(svcName).RemoteSyncthingPort = 0
+	a.GetSvcProfileV2(svcName).RemoteSyncthingGUIPort = 0
+	a.GetSvcProfileV2(svcName).LocalSyncthingPort = 0
+	a.GetSvcProfileV2(svcName).LocalSyncthingGUIPort = 0
+	a.GetSvcProfileV2(svcName).PortForwarded = false
+	a.GetSvcProfileV2(svcName).Syncing = false
+	a.GetSvcProfileV2(svcName).DevPortList = []string{}
+	a.GetSvcProfileV2(svcName).LocalAbsoluteSyncDirFromDevStartPlugin = []string{}
+	return a.SaveProfile()
 }

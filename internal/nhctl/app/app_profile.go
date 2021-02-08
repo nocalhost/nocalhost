@@ -20,6 +20,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Deprecated: this struct is deprecated
 type AppProfile struct {
 	path                    string
 	Name                    string        `json:"name" yaml:"name"`

@@ -261,8 +261,8 @@ func (a *Application) generateResourceRequirementsForDevContainer(svcName string
 		requirements *corev1.ResourceRequirements
 	)
 
-	svcProfile := a.GetSvcProfile(svcName)
-	resourceQuota := svcProfile.DevContainerResources
+	svcProfile := a.GetSvcProfileV2(svcName)
+	resourceQuota := svcProfile.ContainerConfigs[0].Dev.DevContainerResources
 
 	if resourceQuota != nil {
 		log.Debug("DevContainer uses resource limits defined in config")
@@ -275,12 +275,22 @@ func (a *Application) generateResourceRequirementsForDevContainer(svcName string
 	return requirements
 }
 
-// In DevMode, nhctl will replace the container of your workload with two containers
+// add dev start env
+func (a *Application) AppendDevEnvToContainer(devContainer *corev1.Container, svcName string, ops *DevStartOptions) {
+	devEnv := a.GetDevContainerEnv(svcName, ops.Container)
+	for _, v := range devEnv.DevEnv {
+		env := corev1.EnvVar{Name: v.Name, Value: v.Value}
+		devContainer.Env = append(devContainer.Env, env)
+	}
+}
+
+// In DevMode, nhctl will replace the container of your workload with two containers: one is called devContainer, the other is called sideCarContainer
 func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *DevStartOptions) error {
 
+	var err error
 	a.client.Context(ctx)
 
-	err := a.markReplicaSetAsOriginalRevision(svcName)
+	err = a.markReplicaSetAsOriginalRevision(svcName)
 	if err != nil {
 		return err
 	}
@@ -288,6 +298,31 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	err = a.scaleDeploymentReplicasToOne(ctx, svcName)
 	if err != nil {
 		return err
+	}
+
+	dep, err := a.client.GetDeployment(svcName)
+	if err != nil {
+		return err
+	}
+	var devContainer *corev1.Container
+	if ops.Container != "" {
+		for index, c := range dep.Spec.Template.Spec.Containers {
+			if c.Name == ops.Container {
+				devContainer = &dep.Spec.Template.Spec.Containers[index]
+				break
+			}
+		}
+		if devContainer == nil {
+			return errors.New(fmt.Sprintf("Container %s not found", ops.Container))
+		}
+	} else {
+		if len(dep.Spec.Template.Spec.Containers) > 1 {
+			return errors.New(fmt.Sprintf("There are more than one container defined, please specify one to start developing"))
+		}
+		if len(dep.Spec.Template.Spec.Containers) == 0 {
+			return errors.New("No container defined ???")
+		}
+		devContainer = &dep.Spec.Template.Spec.Containers[0]
 	}
 
 	devModeVolumes := make([]corev1.Volume, 0)
@@ -322,16 +357,13 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	sideCarContainer.Command = []string{"/bin/sh", "-c"}
 	sideCarContainer.Args = []string{"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome + "/* " + secret_config.DefaultSyncthingHome + "/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing"}
 
-	dep, err := a.client.GetDeployment(svcName)
-	if err != nil {
-		return err
-	}
-
-	devContainer := &dep.Spec.Template.Spec.Containers[0]
 	devContainer.Image = devImage
 	devContainer.Name = "nocalhost-dev"
 	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
 	devContainer.WorkingDir = workDir
+
+	// add dev start env
+	a.AppendDevEnvToContainer(devContainer, svcName, ops)
 
 	// Add volumes to deployment spec
 	if dep.Spec.Template.Spec.Volumes == nil {
@@ -365,7 +397,7 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	// PriorityClass
 	priorityClass := ops.PriorityClass
 	if priorityClass == "" {
-		priorityClass = a.GetSvcProfile(svcName).PriorityClass
+		priorityClass = a.GetSvcProfileV2(svcName).PriorityClass
 	}
 	if priorityClass != "" {
 		log.Infof("Using priorityClass: %s...", priorityClass)

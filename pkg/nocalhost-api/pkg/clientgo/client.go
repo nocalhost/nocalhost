@@ -16,7 +16,6 @@ package clientgo
 import (
 	"context"
 	"errors"
-	"fmt"
 	v1 "k8s.io/api/apps/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -37,8 +36,15 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"strconv"
+	"strings"
 	"time"
 )
+
+var LimitedRules = &rbacv1.PolicyRule{
+	Verbs:     []string{"get", "list"},
+	Resources: []string{"resourcequotas", "roles"},
+	APIGroups: []string{"*"},
+}
 
 type GoClient struct {
 	clusterIpAccessMode bool
@@ -46,8 +52,35 @@ type GoClient struct {
 	Config              []byte
 }
 
-// use this go client generator to avoid out-cluster/in-cluster network issues
+type InitResult struct {
+	goClient *GoClient
+	err      error
+}
+
+// new client with time out
 func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
+	initCh := make(chan *InitResult)
+
+	go func() {
+		client, err := newAdminGoClientTimeUnreliable(kubeconfig)
+		initCh <- &InitResult{
+			goClient: client,
+			err:      err,
+		}
+	}()
+
+	select {
+	case res := <-initCh:
+		return res.goClient, res.err
+
+	case <-time.After(5 * time.Second):
+		log.Infof("Create k8s Go Client timeout!")
+		return nil, errno.ErrClusterTimeout
+	}
+}
+
+// use this go client generator to avoid out-cluster/in-cluster network issues
+func newAdminGoClientTimeUnreliable(kubeconfig []byte) (*GoClient, error) {
 
 	// first try to access cluster normally
 
@@ -73,9 +106,22 @@ func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
 			client.clusterIpAccessMode = true
 			client.Config = newConfig
 
-			fmt.Printf("Create k8s Go Client with 'clusterIpAccessMode' \n")
+			log.Infof("Create k8s Go Client with 'clusterIpAccessMode' ")
 			return client, nil
 		}
+	}
+
+	if originErr != nil {
+		if strings.Contains(originErr.Error(), "client connection lost") {
+			log.Infof("Failed to connect to the kube-api, may cause by the network connectivity")
+			return nil, errno.ErrClusterTimeout
+		} else {
+			log.Infof("Failed to connect to the kube-api: %s \n", originErr.Error())
+		}
+	}
+
+	if err != nil {
+		log.Infof("Failed to try connect to the cluster-inner kube-api: %s \n", err.Error())
 	}
 
 	return nil, errors.New("can't not create client go with current kubeconfig")
@@ -149,6 +195,7 @@ func (c *GoClient) requireClusterAdminClient() error {
 	// check is admin Kubeconfig
 	isAdmin, err := c.IsAdmin()
 	if err != nil {
+		log.Infof("Error occurred while checking authentication: ", err.Error())
 		return errno.ErrClusterKubeConnect
 	}
 	if isAdmin != true {
@@ -472,6 +519,30 @@ func (c *GoClient) CreateClusterRoleBinding(name, namespace, role, toServiceAcco
 	return true, nil
 }
 
+func (c *GoClient) UpdateRole(name, namespace string) error {
+
+	before, err := c.client.RbacV1().Roles(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	// resource quota && role's permission is limited
+	rule, err := getPolicyRule(c)
+	if err != nil {
+		return err
+	}
+
+	before.Rules = *rule
+
+	log.Infof("Getting roles in ns %s and change the rules -> %v \n", namespace, before.Rules)
+
+	_, err = c.client.RbacV1().Roles(namespace).Update(context.TODO(), before, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // create user role for single namespace
 // name default nocalhost-role
 //  default create every developer can access all resource for he's namespace
@@ -481,16 +552,50 @@ func (c *GoClient) CreateRole(name, namespace string) (bool, error) {
 		Name:      name,
 		Namespace: namespace,
 	}
-	role.Rules = append(role.Rules, rbacv1.PolicyRule{
-		Verbs:     []string{"*"},
-		Resources: []string{"*"},
-		APIGroups: []string{"*"},
-	})
-	_, err := c.client.RbacV1().Roles(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
+
+	// resource quota && role's permission is limited
+	rule, err := getPolicyRule(c)
+	if err != nil {
+		return false, err
+	}
+	role.Rules = append(role.Rules, *rule...)
+
+	_, err = c.client.RbacV1().Roles(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
 	return true, nil
+}
+
+func getPolicyRule(c *GoClient) (*[]rbacv1.PolicyRule, error) {
+	var result []rbacv1.PolicyRule
+
+	_, lists, err := c.client.ServerGroupsAndResources()
+	if err != nil {
+		return &result, err
+	}
+
+	for _, list := range lists {
+		for _, apiResource := range list.APIResources {
+			var resourceName = apiResource.Name
+
+			if apiResource.Namespaced && !isLimitedRules(resourceName) {
+
+				result = append(result, rbacv1.PolicyRule{
+					Verbs:     apiResource.Verbs,
+					Resources: []string{resourceName},
+					APIGroups: []string{"*"},
+				})
+			}
+		}
+	}
+
+	result = append(result, *LimitedRules)
+	return &result, nil
+}
+
+func isLimitedRules(rn string) bool {
+	return rn == "resourcequotas" || rn == "roles" || strings.HasPrefix(rn, "resourcequotas/") || strings.HasPrefix(rn, "roles/")
 }
 
 // deploy nocalhsot resource such as priorityclass

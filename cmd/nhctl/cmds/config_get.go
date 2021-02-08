@@ -26,11 +26,12 @@ import (
 
 func init() {
 	configGetCmd.Flags().StringVarP(&commonFlags.SvcName, "deployment", "d", "", "k8s deployment which your developing service exists")
+	configGetCmd.Flags().BoolVar(&commonFlags.AppConfig, "app-config", false, "get application config")
 	configCmd.AddCommand(configGetCmd)
 }
 
 type ConfigForPlugin struct {
-	Services []*app.ServiceDevOptions `json:"services" yaml:"services"`
+	Services []*app.ServiceConfigV2 `json:"services" yaml:"services"`
 }
 
 var configGetCmd = &cobra.Command{
@@ -47,11 +48,22 @@ var configGetCmd = &cobra.Command{
 		commonFlags.AppName = args[0]
 		InitApp(commonFlags.AppName)
 
+		// get application config
+		if commonFlags.AppConfig {
+			applicationConfig := nocalhostApp.GetApplicationConfigV2()
+			bys, err := yaml.Marshal(applicationConfig)
+			if err != nil {
+				log.FatalE(errors.Wrap(err, ""), "fail to get application config")
+			}
+			fmt.Println(string(bys))
+			return
+		}
+
 		if commonFlags.SvcName == "" {
 			config := &ConfigForPlugin{}
-			config.Services = make([]*app.ServiceDevOptions, 0)
-			for _, svcPro := range nocalhostApp.AppProfile.SvcProfile {
-				config.Services = append(config.Services, svcPro.ServiceDevOptions)
+			config.Services = make([]*app.ServiceConfigV2, 0)
+			for _, svcPro := range nocalhostApp.AppProfileV2.SvcProfile {
+				config.Services = append(config.Services, svcPro.ServiceConfigV2)
 			}
 			bys, err := yaml.Marshal(config)
 			if err != nil {
@@ -61,9 +73,9 @@ var configGetCmd = &cobra.Command{
 
 		} else {
 			CheckIfSvcExist(commonFlags.SvcName)
-			svcProfile := nocalhostApp.GetSvcProfile(commonFlags.SvcName)
+			svcProfile := nocalhostApp.GetSvcProfileV2(commonFlags.SvcName)
 			if svcProfile != nil {
-				bys, err := yaml.Marshal(svcProfile.ServiceDevOptions)
+				bys, err := yaml.Marshal(svcProfile.ServiceConfigV2)
 				if err != nil {
 					log.FatalE(errors.Wrap(err, ""), "fail to get svc profile")
 				}

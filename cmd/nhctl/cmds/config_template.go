@@ -24,8 +24,9 @@ import (
 )
 
 type CommonFlags struct {
-	AppName string
-	SvcName string
+	AppName   string
+	SvcName   string
+	AppConfig bool
 }
 
 var commonFlags = CommonFlags{}

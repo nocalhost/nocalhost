@@ -37,10 +37,13 @@ const (
 	//DefaultApplicationDirName                = "application"
 
 	DefaultApplicationProfilePath      = ".profile.yaml" // runtime config
+	DefaultApplicationProfileV2Path    = ".profile_v2.yaml"
 	DefaultApplicationConfigPath       = ".config.yaml"
-	DefaultApplicationConfigDirName    = ".nocalhost"
+	DefaultApplicationConfigV2Path     = ".config_v2.yaml"
+	DefaultGitNocalhostDir             = ".nocalhost"
 	DefaultConfigNameInGitNocalhostDir = "config.yaml"
 	DefaultNewFilePermission           = 0700
+	DefaultConfigFilePermission        = 0644
 	DefaultClientGoTimeOut             = time.Minute * 5
 
 	// nhctl init
@@ -82,6 +85,7 @@ const (
 	PortForwardDevPorts = "devPorts"
 )
 
+// Deprecated
 type NocalHostAppConfig struct {
 	PreInstall   []*PreInstallItem    `json:"onPreInstall" yaml:"onPreInstall"`
 	SvcConfigs   []*ServiceDevOptions `json:"services" yaml:"services"`
@@ -117,7 +121,7 @@ type ServiceDevOptions struct {
 	GitUrl                string                 `json:"gitUrl" yaml:"gitUrl"`
 	DevImage              string                 `json:"devContainerImage" yaml:"devContainerImage"`
 	WorkDir               string                 `json:"workDir" yaml:"workDir"`
-	Sync                  []string               `json:"syncDirs" yaml:"syncDirs,omitempty"`
+	Sync                  []string               `json:"syncDirs" yaml:"syncDirs,omitempty"` // dev start -s
 	PriorityClass         string                 `json:"priorityClass,omitempty" yaml:"priorityClass,omitempty"`
 	PersistentVolumeDirs  []*PersistentVolumeDir `json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
 	BuildCommand          []string               `json:"buildCommand,omitempty" yaml:"buildCommand,omitempty"`
@@ -126,7 +130,6 @@ type ServiceDevOptions struct {
 	HotReloadRunCommand   []string               `json:"hotReloadRunCommand,omitempty" yaml:"hotReloadRunCommand,omitempty"`
 	HotReloadDebugCommand []string               `json:"hotReloadDebugCommand,omitempty" yaml:"hotReloadDebugCommand,omitempty"`
 	DevContainerShell     string                 `json:"devContainerShell" yaml:"devContainerShell"`
-	Ignore                []string               `json:"ignores" yaml:"ignores"` // TODO Ignore file list
 	DevContainerResources *ResourceQuota         `json:"devContainerResources" yaml:"devContainerResources"`
 	DevPort               []string               `json:"devPorts" yaml:"devPorts"`
 	Jobs                  []string               `json:"dependJobsLabelSelector" yaml:"dependJobsLabelSelector,omitempty"`

@@ -18,24 +18,27 @@ import "path/filepath"
 func (a *Application) GetDependencies() []*SvcDependency {
 	result := make([]*SvcDependency, 0)
 
-	if a.config == nil {
+	if a.configV2 == nil {
 		return nil
 	}
 
-	svcConfigs := a.config.SvcConfigs
-	if svcConfigs == nil || len(svcConfigs) == 0 {
+	svcConfigs := a.configV2.ApplicationConfig.ServiceConfigs
+	if len(svcConfigs) == 0 {
 		return nil
 	}
 
 	for _, svcConfig := range svcConfigs {
-		if svcConfig.Pods == nil && svcConfig.Jobs == nil {
+		if svcConfig.DependLabelSelector == nil {
+			continue
+		}
+		if svcConfig.DependLabelSelector.Pods == nil && svcConfig.DependLabelSelector.Jobs == nil {
 			continue
 		}
 		svcDep := &SvcDependency{
 			Name: svcConfig.Name,
 			Type: string(svcConfig.Type),
-			Jobs: svcConfig.Jobs,
-			Pods: svcConfig.Pods,
+			Jobs: svcConfig.DependLabelSelector.Jobs,
+			Pods: svcConfig.DependLabelSelector.Pods,
 		}
 		result = append(result, svcDep)
 	}
@@ -46,8 +49,8 @@ func (a *Application) GetDependencies() []*SvcDependency {
 // If resource path undefined, use git url
 func (a *Application) GetResourceDir() []string {
 	var resourcePath []string
-	if len(a.AppProfile.ResourcePath) != 0 {
-		for _, path := range a.AppProfile.ResourcePath {
+	if len(a.AppProfileV2.ResourcePath) != 0 {
+		for _, path := range a.AppProfileV2.ResourcePath {
 			fullPath := filepath.Join(a.getGitDir(), path)
 			resourcePath = append(resourcePath, fullPath)
 		}
@@ -58,24 +61,24 @@ func (a *Application) GetResourceDir() []string {
 
 func (a *Application) getIgnoredPath() []string {
 	results := make([]string, 0)
-	for _, path := range a.AppProfile.IgnoredPath {
+	for _, path := range a.AppProfileV2.IgnoredPath {
 		results = append(results, filepath.Join(a.getGitDir(), path))
 	}
 	return results
 }
 
 func (a *Application) GetDefaultWorkDir(svcName string) string {
-	svcProfile := a.GetSvcProfile(svcName)
-	if svcProfile != nil && svcProfile.WorkDir != "" {
-		return svcProfile.WorkDir
+	svcProfile := a.GetSvcProfileV2(svcName)
+	if svcProfile != nil && svcProfile.GetDefaultContainerDevConfig().WorkDir != "" {
+		return svcProfile.GetDefaultContainerDevConfig().WorkDir
 	}
 	return DefaultWorkDir
 }
 
 func (a *Application) GetPersistentVolumeDirs(svcName string) []*PersistentVolumeDir {
-	svcProfile := a.GetSvcProfile(svcName)
+	svcProfile := a.GetSvcProfileV2(svcName)
 	if svcProfile != nil {
-		return svcProfile.PersistentVolumeDirs
+		return svcProfile.GetDefaultContainerDevConfig().PersistentVolumeDirs
 	}
 	return nil
 }
@@ -85,17 +88,17 @@ func (a *Application) GetDefaultSideCarImage(svcName string) string {
 }
 
 func (a *Application) GetDefaultDevImage(svcName string) string {
-	svcProfile := a.GetSvcProfile(svcName)
-	if svcProfile != nil && svcProfile.DevImage != "" {
-		return svcProfile.DevImage
+	svcProfile := a.GetSvcProfileV2(svcName)
+	if svcProfile != nil && svcProfile.GetDefaultContainerDevConfig().Image != "" {
+		return svcProfile.GetDefaultContainerDevConfig().Image
 	}
 	return DefaultDevImage
 }
 
 func (a *Application) GetDefaultDevPort(svcName string) []string {
-	config := a.GetSvcProfile(svcName)
-	if config != nil && len(config.DevPort) > 0 {
-		return config.DevPort
+	config := a.GetSvcProfileV2(svcName)
+	if config != nil && len(config.GetDefaultContainerDevConfig().PortForward) > 0 {
+		return config.GetDefaultContainerDevConfig().PortForward
 	}
 	return []string{}
 }

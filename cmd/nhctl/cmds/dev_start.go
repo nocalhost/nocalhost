@@ -39,6 +39,7 @@ func init() {
 
 	devStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	devStartCmd.Flags().StringVarP(&devStartOps.DevImage, "image", "i", "", "image of DevContainer")
+	devStartCmd.Flags().StringVarP(&devStartOps.Container, "container", "c", "", "container to develop")
 	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory, same as sync path")
 	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "the StorageClass used by persistent volumes")
 	devStartCmd.Flags().StringVar(&devStartOps.PriorityClass, "priority-class", "", "the PriorityClass used by devContainer")
@@ -73,12 +74,12 @@ var devStartCmd = &cobra.Command{
 		devStartOps.Kubeconfig = settings.KubeConfig
 		log.Info("Starting DevMode...")
 
-		svcProfile := nocalhostApp.GetSvcProfile(deployment)
+		svcProfile := nocalhostApp.GetSvcProfileV2(deployment)
 		if devStartOps.WorkDir != "" {
-			svcProfile.WorkDir = devStartOps.WorkDir
+			svcProfile.GetDefaultContainerDevConfig().WorkDir = devStartOps.WorkDir
 		}
 		if devStartOps.DevImage != "" {
-			svcProfile.DevImage = devStartOps.DevImage
+			svcProfile.GetDefaultContainerDevConfig().Image = devStartOps.DevImage
 		}
 		if len(devStartOps.LocalSyncDir) > 0 {
 			svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
@@ -126,7 +127,6 @@ var devStartCmd = &cobra.Command{
 
 		err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps)
 		if err != nil {
-			// todo: rollback somethings
 			log.ErrorE(err, fmt.Sprintf("Failed to replace dev container: %s", err.Error()))
 			log.Info("Resetting workload...")
 			nocalhostApp.Reset(deployment)

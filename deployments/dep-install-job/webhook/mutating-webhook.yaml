@@ -25,6 +25,6 @@ webhooks:
       - operations: ["CREATE"]
         apiGroups: ["apps"] # 如果是 pods 没有 apiGroups ，留空
         apiVersions: ["v1", "v1beta1"]
-        resources: ["deployments", "daemonsets", "replicasets", "statefulsets", "cronjobs", "jobs"]
+        resources: ["deployments", "daemonsets", "statefulsets", "cronjobs", "jobs"]
         #resources: ["pods"]
 

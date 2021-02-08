@@ -17,8 +17,8 @@ type DevStartOptions struct {
 	WorkDir      string
 	SideCarImage string
 	DevImage     string
-	//DevLang      string
-	//Namespace  string
+	Container    string
+
 	Kubeconfig string
 
 	// for debug
@@ -39,6 +39,7 @@ type FileSyncOptions struct {
 	SyncDouble     bool
 	SyncedPattern  []string
 	IgnoredPattern []string
+	Override       bool
 }
 
 type SyncStatusOptions struct {

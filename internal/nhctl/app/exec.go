@@ -21,7 +21,8 @@ import (
 
 // Try to use shell defined in devContainerShell to enter pod's terminal
 // If devContainerShell is not defined or shell defined in devContainerShell failed to enter terminal, use /bin/sh
-func (a *Application) EnterPodTerminal(svcName string) error {
+// If container not specified, the first container will be used
+func (a *Application) EnterPodTerminal(svcName string, container string) error {
 	podList, err := a.client.ListLatestRevisionPodsByDeployment(svcName)
 	if err != nil {
 		return err
@@ -31,13 +32,13 @@ func (a *Application) EnterPodTerminal(svcName string) error {
 		return errors.New(fmt.Sprintf("The number of pods of %s is not 1 ???", svcName))
 	}
 	pod := podList[0].Name
-	shell := a.GetSvcProfile(svcName).DevContainerShell
+	shell := a.GetSvcProfileV2(svcName).GetDefaultContainerDevConfig().Shell
 	cmd := "(zsh || bash || sh)"
 	if shell != "" {
 		cmd = fmt.Sprintf("(%s || zsh || bash || sh)", shell)
 	}
 	//log.Debugf("Shell not defined, use default shell %s to enter terminal", shell)
-	return a.client.ExecShell(pod, "", cmd)
+	return a.client.ExecShell(pod, container, cmd)
 }
 
 func (a *Application) Exec(svcName string, commands []string) error {

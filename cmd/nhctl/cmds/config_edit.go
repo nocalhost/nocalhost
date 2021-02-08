@@ -25,7 +25,8 @@ import (
 
 type ConfigEditFlags struct {
 	CommonFlags
-	Content string
+	Content   string
+	AppConfig bool
 }
 
 var configEditFlags = ConfigEditFlags{}
@@ -33,6 +34,7 @@ var configEditFlags = ConfigEditFlags{}
 func init() {
 	configEditCmd.Flags().StringVarP(&configEditFlags.SvcName, "deployment", "d", "", "k8s deployment which your developing service exists")
 	configEditCmd.Flags().StringVarP(&configEditFlags.Content, "content", "c", "", "base64 encode json content")
+	configEditCmd.Flags().BoolVar(&configEditFlags.AppConfig, "app-config", false, "edit application config")
 	configCmd.AddCommand(configEditCmd)
 }
 
@@ -59,12 +61,33 @@ var configEditCmd = &cobra.Command{
 			log.Fatalf("--content must be a valid base64 string: %s", err.Error())
 		}
 
-		svcConfig := &app.ServiceDevOptions{}
+		// set application config, plugin do not provide services struct, update application config only
+		if configEditFlags.AppConfig {
+			applicationConfig := &app.ApplicationConfig{}
+			err = json.Unmarshal(bys, applicationConfig)
+			if err != nil {
+				log.Fatalf("fail to unmarshal content: %s", err.Error())
+			}
+			// update config
+			// update profile
+		}
+		// Deprecated: V1
+		//svcConfig := &app.ServiceDevOptions{}
+		//err = json.Unmarshal(bys, svcConfig)
+		//if err != nil {
+		//	log.Fatalf("fail to unmarshal content: %s", err.Error())
+		//}
+		//err = nocalhostApp.SaveSvcProfile(configEditFlags.SvcName, svcConfig)
+		//if err != nil {
+		//	log.FatalE(err, "fail to save svc config")
+		//}
+
+		svcConfig := &app.ServiceConfigV2{}
 		err = json.Unmarshal(bys, svcConfig)
 		if err != nil {
 			log.Fatalf("fail to unmarshal content: %s", err.Error())
 		}
-		err = nocalhostApp.SaveSvcProfile(configEditFlags.SvcName, svcConfig)
+		err = nocalhostApp.SaveSvcProfileV2(configEditFlags.SvcName, svcConfig)
 		if err != nil {
 			log.FatalE(err, "fail to save svc config")
 		}

@@ -32,7 +32,7 @@ import (
 func (a *Application) NewSyncthing(deployment string, localSyncDir []string, syncDouble bool) (*syncthing.Syncthing, error) {
 	var err error
 
-	svcProfile := a.GetSvcProfile(deployment)
+	svcProfile := a.GetSvcProfileV2(deployment)
 	remotePort := svcProfile.RemoteSyncthingPort
 	remoteGUIPort := svcProfile.RemoteSyncthingGUIPort
 	localListenPort := svcProfile.LocalSyncthingPort
@@ -105,8 +105,12 @@ func (a *Application) NewSyncthing(deployment string, localSyncDir []string, syn
 		Folders:          []*syncthing.Folder{},
 		RescanInterval:   "300",
 
-		SyncedPattern:  svcProfile.SyncedPattern,
-		IgnoredPattern: svcProfile.IgnoredPattern,
+		//SyncedPattern:  svcProfile.GetDefaultContainerDevConfig().Sync.FilePattern,
+		//IgnoredPattern: svcProfile.GetDefaultContainerDevConfig().Sync.IgnoreFilePattern,
+	}
+	if svcProfile.GetDefaultContainerDevConfig().Sync != nil {
+		s.SyncedPattern = svcProfile.GetDefaultContainerDevConfig().Sync.FilePattern
+		s.IgnoredPattern = svcProfile.GetDefaultContainerDevConfig().Sync.IgnoreFilePattern
 	}
 
 	// TODO, warn: multi local sync dir is Deprecated, now it's implement by IgnoreFiles
@@ -137,7 +141,7 @@ func (a *Application) NewSyncthing(deployment string, localSyncDir []string, syn
 }
 
 func (a *Application) NewSyncthingHttpClient(svcName string) *req.SyncthingHttpClient {
-	svcProfile := a.GetSvcProfile(svcName)
+	svcProfile := a.GetSvcProfileV2(svcName)
 
 	return req.NewSyncthingHttpClient(
 		fmt.Sprintf("127.0.0.1:%d", svcProfile.LocalSyncthingGUIPort),
@@ -159,7 +163,7 @@ func (a *Application) CreateSyncThingSecret(svcName string, syncSecret *corev1.S
 		return err
 	}
 
-	svcPro := a.GetSvcProfile(svcName)
+	svcPro := a.GetSvcProfileV2(svcName)
 	svcPro.SyncthingSecret = sc.Name
-	return a.AppProfile.Save()
+	return a.SaveProfile()
 }
