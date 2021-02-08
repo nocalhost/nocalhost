@@ -47,6 +47,10 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 		err = a.installHelmInRepo(flags)
 	case Manifest:
 		err = a.InstallManifest()
+	case ManifestLocal:
+		err = a.InstallManifest()
+	case HelmLocal:
+		err = a.installHelmInGit(flags)
 	default:
 		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
 	}

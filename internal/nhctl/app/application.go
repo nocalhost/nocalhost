@@ -49,9 +49,11 @@ import (
 type AppType string
 
 const (
-	Helm     AppType = "helmGit"
-	HelmRepo AppType = "helmRepo"
-	Manifest AppType = "rawManifest"
+	Helm          AppType = "helmGit"
+	HelmRepo      AppType = "helmRepo"
+	Manifest      AppType = "rawManifest"
+	ManifestLocal AppType = "rawManifestLocal"
+	HelmLocal     AppType = "helmLocal"
 )
 
 type Application struct {
@@ -313,6 +315,14 @@ func (a *Application) GetSvcConfigV2(svcName string) *ServiceConfigV2 {
 		}
 	}
 	return nil
+}
+
+func (a *Application) GetApplicationConfigV2() *ApplicationConfig {
+	a.LoadConfigV2() // get the latest config
+	if a.configV2 == nil {
+		return nil
+	}
+	return a.configV2.ApplicationConfig
 }
 
 //func (a *Application) SaveSvcProfile(svcName string, config *ServiceDevOptions) error {

@@ -26,6 +26,7 @@ import (
 
 func init() {
 	configGetCmd.Flags().StringVarP(&commonFlags.SvcName, "deployment", "d", "", "k8s deployment which your developing service exists")
+	configGetCmd.Flags().BoolVar(&commonFlags.AppConfig, "app-config", false, "get application config")
 	configCmd.AddCommand(configGetCmd)
 }
 
@@ -46,6 +47,17 @@ var configGetCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		commonFlags.AppName = args[0]
 		InitApp(commonFlags.AppName)
+
+		// get application config
+		if commonFlags.AppConfig {
+			applicationConfig := nocalhostApp.GetApplicationConfigV2()
+			bys, err := yaml.Marshal(applicationConfig)
+			if err != nil {
+				log.FatalE(errors.Wrap(err, ""), "fail to get application config")
+			}
+			fmt.Println(string(bys))
+			return
+		}
 
 		if commonFlags.SvcName == "" {
 			config := &ConfigForPlugin{}
