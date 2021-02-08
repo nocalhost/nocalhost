@@ -15,7 +15,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service/application"
@@ -24,7 +23,6 @@ import (
 	"nocalhost/internal/nocalhost-api/service/cluster_user"
 	"nocalhost/internal/nocalhost-api/service/pre_pull"
 	"nocalhost/internal/nocalhost-api/service/user"
-	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"sync"
 )
@@ -55,7 +53,6 @@ func New() (s *Service) {
 		prePullSvc:            pre_pull.NewPrePullService(),
 	}
 
-	s.Initial()
 	return s
 }
 
@@ -92,14 +89,6 @@ func (s *Service) Ping() error {
 // Close service
 func (s *Service) Close() {
 	s.userSvc.Close()
-}
-
-func (s *Service) Initial() {
-	fmt.Print("Svc initialing...")
-	err := s.updateAllRole()
-	if err != nil {
-		log.Info(err.Error())
-	}
 }
 
 func (s *Service) updateAllRole() error {
