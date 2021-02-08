@@ -28,11 +28,11 @@ func (a *Application) GetKubeconfig() string {
 }
 
 func (a *Application) IsHelm() bool {
-	return a.AppProfileV2.AppType == Helm || a.AppProfileV2.AppType == HelmRepo
+	return a.AppProfileV2.AppType == Helm || a.AppProfileV2.AppType == HelmRepo || a.AppProfileV2.AppType == HelmLocal
 }
 
 func (a *Application) IsManifest() bool {
-	return a.AppProfileV2.AppType == Manifest
+	return a.AppProfileV2.AppType == Manifest || a.AppProfileV2.AppType == ManifestLocal
 }
 
 func (a *Application) GetClient() *clientgoutils.ClientGoUtils {
