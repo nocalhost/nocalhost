@@ -18,21 +18,38 @@ import (
 	"testing"
 )
 
-func TestClientGoUtils_CreateResourceInfo(t *testing.T) {
+func GetClient() *ClientGoUtils {
 	client, err := NewClientGoUtils("/Users/xinxinhuang/.nh/plugin/kubeConfigs/10_158_config", "nh6anql")
 	if err != nil {
 		panic(err)
 	}
+	return client
+}
 
-	infos, err := client.GetResourceInfoFromFiles([]string{"/tmp/yaml/ubuntu.yaml"}, true)
+func TestClientGoUtils_Apply(t *testing.T) {
+	client := GetClient()
+	err := client.Apply("/Users/xinxinhuang/.nh/nhctl/application/bookinfo-coding/resources/manifest/templates/ratings.yaml")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func TestClientGoUtils_CreateResourceInfo(t *testing.T) {
+	client := GetClient()
+
+	infos, err := client.GetResourceInfoFromFiles([]string{"/Users/xinxinhuang/.nh/nhctl/application/bookinfo-coding/resources/manifest/templates/ratings.yaml"}, true)
 	if err != nil {
 		panic(err)
 	}
 
 	for _, info := range infos {
-		err = client.UpdateResourceInfoByServerSide(info)
-		if err != nil {
-			panic(err)
+		fmt.Println(info.Object.GetObjectKind().GroupVersionKind().Kind)
+		if info.Object.GetObjectKind().GroupVersionKind().Kind == "Deployment" {
+			//err = client.UpdateResourceInfoByClientSide(info)
+			err = client.ApplyResourceInfo(info)
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 }

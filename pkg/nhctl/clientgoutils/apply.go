@@ -14,18 +14,19 @@ limitations under the License.
 package clientgoutils
 
 import (
-	"github.com/jonboulle/clockwork"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/kubectl/pkg/cmd/apply"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	//"k8s.io/kubectl/pkg/util"
 	"nocalhost/pkg/nhctl/log"
 	"os"
-	"time"
 )
 
 func (c *ClientGoUtils) DeleteResourceInfo(info *resource.Info) error {
@@ -48,41 +49,54 @@ func (c *ClientGoUtils) UpdateResourceInfoByServerSide(info *resource.Info) erro
 
 	helper := resource.NewHelper(info.Client, info.Mapping)
 	forceConflicts := true
-	obj, err := helper.Patch(info.Namespace, info.Name, types.ApplyPatchType, data, &metav1.PatchOptions{Force: &forceConflicts, FieldManager: "kubectl"})
+	obj, err := helper.Patch(info.Namespace, info.Name, types.StrategicMergePatchType, data, &metav1.PatchOptions{Force: &forceConflicts, FieldManager: "kubectl"})
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
 	return errors.Wrap(info.Refresh(obj, true), "")
 }
 
-func (c *ClientGoUtils) UpdateResourceInfoByClientSide(info *resource.Info) error {
-	f := c.newFactory()
-	helper := resource.NewHelper(info.Client, info.Mapping)
-	openAPISchema, err := f.OpenAPISchema()
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	modified, err := runtime.Encode(unstructured.UnstructuredJSONScheme, info.Object)
-	//modified, err := util.GetModifiedConfiguration(info.Object, true, unstructured.UnstructuredJSONScheme)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	patcher := &apply.Patcher{
-		Mapping:           info.Mapping,
-		Helper:            helper,
-		Overwrite:         true,
-		BackOff:           clockwork.NewRealClock(),
-		Force:             true,
-		CascadingStrategy: metav1.DeletePropagationBackground,
-		Timeout:           time.Hour,
-		GracePeriod:       -1,
-		OpenapiSchema:     openAPISchema,
-		Retries:           3,
-	}
-
-	_, _, err = patcher.Patch(info.Object, modified, info.Source, info.Namespace, info.Name, os.Stderr)
-	return errors.Wrap(err, "")
-}
+//func (c *ClientGoUtils) UpdateResourceInfoByClientSide(info *resource.Info) error {
+//	f := c.newFactory()
+//	helper := resource.NewHelper(info.Client, info.Mapping).WithFieldManager("kubectl")
+//	openAPISchema, err := f.OpenAPISchema()
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//	//modified, err := runtime.Encode(unstructured.UnstructuredJSONScheme, info.Object)
+//	modified, err := util.GetModifiedConfiguration(info.Object, true, unstructured.UnstructuredJSONScheme)
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//	patcher := &apply.Patcher{
+//		Mapping:           info.Mapping,
+//		Helper:            helper,
+//		Overwrite:         false,
+//		BackOff:           clockwork.NewRealClock(),
+//		Force:             false,
+//		CascadingStrategy: metav1.DeletePropagationBackground,
+//		Timeout:           time.Hour,
+//		GracePeriod:       -1,
+//		OpenapiSchema:     openAPISchema,
+//		Retries:           3,
+//	}
+//
+//	fmt.Printf("%+v\n", info)
+//	fmt.Printf("%v\n", info.Source)
+//	fmt.Printf("%v\n", info.Object)
+//	fmt.Printf("%s\v", string(modified))
+//
+//	patchBytes, _, err := patcher.Patch(info.Object, modified, info.Source, c.namespace, info.Name, os.Stderr)
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//	if string(patchBytes) == "{}" {
+//		fmt.Printf("Unchanged\n")
+//	} else {
+//		fmt.Printf("Configured: %s\n", string(patchBytes))
+//	}
+//	return nil
+//}
 
 func (c *ClientGoUtils) CreateResourceInfo(info *resource.Info) error {
 	helper := resource.NewHelper(info.Client, info.Mapping)
@@ -91,6 +105,77 @@ func (c *ClientGoUtils) CreateResourceInfo(info *resource.Info) error {
 		return errors.Wrap(err, "")
 	}
 	return errors.Wrap(info.Refresh(obj, true), "")
+}
+
+// Similar to `kubectl apply`, but apply a resourceInfo instead a file
+func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info) error {
+	o, err := c.generateCompletedApplyOption("")
+	if err != nil {
+		return err
+	}
+	o.SetObjects([]*resource.Info{info})
+	return o.Run()
+}
+
+// Similar to `kubectl apply -f `
+func (c *ClientGoUtils) Apply(file string) error {
+	o, err := c.generateCompletedApplyOption(file)
+	if err != nil {
+		return err
+	}
+	return o.Run()
+}
+
+func (c *ClientGoUtils) generateCompletedApplyOption(file string) (*apply.ApplyOptions, error) {
+	var err error
+	ioStreams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
+	o := apply.NewApplyOptions(ioStreams)
+	o.DeleteFlags.FileNameFlags.Filenames = &[]string{file}
+	o.OpenAPIPatch = true
+
+	f := c.newFactory()
+	// From o.Complete
+	o.ServerSideApply = false
+	o.ForceConflicts = false
+	o.DryRunStrategy = cmdutil.DryRunNone
+	o.DynamicClient, err = f.DynamicClient()
+	if err != nil {
+		return nil, err
+	}
+	discoveryClient, err := f.ToDiscoveryClient()
+	if err != nil {
+		return nil, err
+	}
+	o.DryRunVerifier = resource.NewDryRunVerifier(o.DynamicClient, discoveryClient)
+	o.FieldManager = apply.FieldManagerClientSideApply
+	o.DeleteOptions, err = o.DeleteFlags.ToOptions(o.DynamicClient, o.IOStreams)
+	if err != nil {
+		return nil, err
+	}
+	err = o.DeleteOptions.FilenameOptions.RequireFilenameOrKustomize()
+	if err != nil {
+		return nil, err
+	}
+	o.OpenAPISchema, _ = f.OpenAPISchema()
+	o.Validator, err = f.Validator(true)
+	if err != nil {
+		return nil, err
+	}
+	o.Builder = f.NewBuilder()
+	o.Mapper, err = f.ToRESTMapper()
+	if err != nil {
+		return nil, err
+	}
+	o.Namespace, o.EnforceNamespace, err = f.ToRawKubeConfigLoader().Namespace()
+	if err != nil {
+		return nil, err
+	}
+	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
+		o.PrintFlags.NamePrintFlags.Operation = operation
+		cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
+		return o.PrintFlags.ToPrinter()
+	}
+	return o, nil
 }
 
 func (c *ClientGoUtils) GetResourceInfoFromFiles(files []string, continueOnError bool) ([]*resource.Info, error) {
@@ -119,6 +204,7 @@ func (c *ClientGoUtils) GetResourceInfoFromFiles(files []string, continueOnError
 	}
 	result := builder.Unstructured().
 		Schema(validate).
+		ContinueOnError().
 		NamespaceParam(c.namespace).DefaultNamespace().
 		FilenameParam(true, &filenames).
 		//LabelSelectorParam(o.Selector).
