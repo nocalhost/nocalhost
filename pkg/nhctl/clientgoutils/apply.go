@@ -16,7 +16,6 @@ package clientgoutils
 import (
 	"github.com/pkg/errors"
 	"io"
-	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -58,48 +57,6 @@ func (c *ClientGoUtils) UpdateResourceInfoByServerSide(info *resource.Info) erro
 	return errors.Wrap(info.Refresh(obj, true), "")
 }
 
-//func (c *ClientGoUtils) UpdateResourceInfoByClientSide(info *resource.Info) error {
-//	f := c.newFactory()
-//	helper := resource.NewHelper(info.Client, info.Mapping).WithFieldManager("kubectl")
-//	openAPISchema, err := f.OpenAPISchema()
-//	if err != nil {
-//		return errors.Wrap(err, "")
-//	}
-//	//modified, err := runtime.Encode(unstructured.UnstructuredJSONScheme, info.Object)
-//	modified, err := util.GetModifiedConfiguration(info.Object, true, unstructured.UnstructuredJSONScheme)
-//	if err != nil {
-//		return errors.Wrap(err, "")
-//	}
-//	patcher := &apply.Patcher{
-//		Mapping:           info.Mapping,
-//		Helper:            helper,
-//		Overwrite:         false,
-//		BackOff:           clockwork.NewRealClock(),
-//		Force:             false,
-//		CascadingStrategy: metav1.DeletePropagationBackground,
-//		Timeout:           time.Hour,
-//		GracePeriod:       -1,
-//		OpenapiSchema:     openAPISchema,
-//		Retries:           3,
-//	}
-//
-//	fmt.Printf("%+v\n", info)
-//	fmt.Printf("%v\n", info.Source)
-//	fmt.Printf("%v\n", info.Object)
-//	fmt.Printf("%s\v", string(modified))
-//
-//	patchBytes, _, err := patcher.Patch(info.Object, modified, info.Source, c.namespace, info.Name, os.Stderr)
-//	if err != nil {
-//		return errors.Wrap(err, "")
-//	}
-//	if string(patchBytes) == "{}" {
-//		fmt.Printf("Unchanged\n")
-//	} else {
-//		fmt.Printf("Configured: %s\n", string(patchBytes))
-//	}
-//	return nil
-//}
-
 func (c *ClientGoUtils) CreateResourceInfo(info *resource.Info) error {
 	helper := resource.NewHelper(info.Client, info.Mapping)
 	obj, err := helper.Create(info.Namespace, true, info.Object)
@@ -121,6 +78,7 @@ func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info) error {
 		cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 		return &runtimeObjectPrinter{Operation: operation, Name: info.Name}, nil
 	}
+	//o.IOStreams = genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: ioutil.Discard} // don't print log to stderr
 	return o.Run()
 }
 
@@ -135,7 +93,7 @@ func (c *ClientGoUtils) Apply(file string) error {
 
 func (c *ClientGoUtils) generateCompletedApplyOption(file string) (*apply.ApplyOptions, error) {
 	var err error
-	ioStreams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: ioutil.Discard} // don't print log to stderr
+	ioStreams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr} // don't print log to stderr
 	o := apply.NewApplyOptions(ioStreams)
 	o.DeleteFlags.FileNameFlags.Filenames = &[]string{file}
 	o.OpenAPIPatch = true
@@ -227,9 +185,6 @@ func (c *ClientGoUtils) GetResourceInfoFromFiles(files []string, continueOnError
 		//LabelSelectorParam(o.Selector).
 		Flatten().Do()
 
-	//if result == nil {
-	//	return nil, errors.New("result is nil")
-	//}
 	if result.Err() != nil {
 		if continueOnError {
 			log.WarnE(err, "error occurs in results")
@@ -248,9 +203,4 @@ func (c *ClientGoUtils) GetResourceInfoFromFiles(files []string, continueOnError
 	}
 
 	return infos, nil
-	//if len(infos) == 0 {
-	//	return nil, errors.New("no result info")
-	//}
-
-	//log.Infof("Find %d resources", len(infos))
 }

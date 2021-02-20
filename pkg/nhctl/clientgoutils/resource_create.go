@@ -35,7 +35,18 @@ func (c *ClientGoUtils) newFactory() cmdutil.Factory {
 }
 
 func (c *ClientGoUtils) ApplyForCreate(files []string, continueOnError bool) error {
-	return c.apply(files, continueOnError, Create)
+	//for _, file := range files {
+	//	c.Apply(file)
+	//}
+	infos, err := c.GetResourceInfoFromFiles(files, continueOnError)
+	if err != nil {
+		return err
+	}
+	for _, info := range infos {
+		c.ApplyResourceInfo(info)
+	}
+	//return c.apply(files, continueOnError, Create)
+	return nil
 }
 
 func (c *ClientGoUtils) ApplyForDelete(files []string, continueOnError bool) error {
@@ -109,6 +120,7 @@ func (c *ClientGoUtils) apply(files []string, continueOnError bool, action apply
 		var obj runtime.Object
 		if action == Create {
 			obj, err = helper.Create(info.Namespace, true, info.Object)
+			//err = c.ApplyResourceInfo(info)
 		} else if action == Delete {
 			propagationPolicy := metav1.DeletePropagationBackground
 			obj, err = helper.DeleteWithOptions(info.Namespace, info.Name, &metav1.DeleteOptions{
