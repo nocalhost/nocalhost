@@ -15,6 +15,8 @@ package clientgoutils
 
 import (
 	"github.com/pkg/errors"
+	"io"
+	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -114,6 +116,11 @@ func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info) error {
 		return err
 	}
 	o.SetObjects([]*resource.Info{info})
+	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
+		o.PrintFlags.NamePrintFlags.Operation = operation
+		cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
+		return &runtimeObjectPrinter{Operation: operation, Name: info.Name}, nil
+	}
 	return o.Run()
 }
 
@@ -128,7 +135,7 @@ func (c *ClientGoUtils) Apply(file string) error {
 
 func (c *ClientGoUtils) generateCompletedApplyOption(file string) (*apply.ApplyOptions, error) {
 	var err error
-	ioStreams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
+	ioStreams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: ioutil.Discard} // don't print log to stderr
 	o := apply.NewApplyOptions(ioStreams)
 	o.DeleteFlags.FileNameFlags.Filenames = &[]string{file}
 	o.OpenAPIPatch = true
@@ -176,6 +183,16 @@ func (c *ClientGoUtils) generateCompletedApplyOption(file string) (*apply.ApplyO
 		return o.PrintFlags.ToPrinter()
 	}
 	return o, nil
+}
+
+type runtimeObjectPrinter struct {
+	Operation string
+	Name      string
+}
+
+func (r *runtimeObjectPrinter) PrintObj(obj runtime.Object, writer io.Writer) error {
+	log.Infof("Resource(%s) %s %s", obj.GetObjectKind().GroupVersionKind().Kind, r.Name, r.Operation)
+	return nil
 }
 
 func (c *ClientGoUtils) GetResourceInfoFromFiles(files []string, continueOnError bool) ([]*resource.Info, error) {

@@ -114,7 +114,7 @@ func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*re
 	for _, info := range infosToUpdate {
 		log.Infof("Updating resource(%s) %s", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
 		//err := a.client.UpdateResourceInfoByServerSide(info)
-		err := a.client.UpdateResourceInfoByClientSide(info)
+		err := a.client.ApplyResourceInfo(info)
 		if err != nil {
 			log.WarnE(err, fmt.Sprintf("Failed to create resource %s", info.Name))
 			if !continueOnErr {
