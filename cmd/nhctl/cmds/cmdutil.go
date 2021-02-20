@@ -27,7 +27,7 @@ func InitApp(appName string) {
 	}
 	nocalhostApp, err = app.NewApplication(appName)
 	if err != nil {
-		log.Fatal("Failed to get application info")
+		log.FatalE(err, "Failed to get application info")
 	}
 	log.AddField("APP", nocalhostApp.Name)
 }
