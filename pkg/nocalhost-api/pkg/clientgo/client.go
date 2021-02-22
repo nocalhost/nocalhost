@@ -16,6 +16,7 @@ package clientgo
 import (
 	"context"
 	"errors"
+	"fmt"
 	v1 "k8s.io/api/apps/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -38,6 +39,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+)
+
+const (
+	DepInstaller = "dep-installer-job"
+	Dep          = "nocalhost-dep"
 )
 
 var LimitedRules = &rbacv1.PolicyRule{
@@ -260,6 +266,32 @@ func (c *GoClient) DeleteNS(namespace string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	return true, nil
+}
+
+// delete namespace, this will delete all resource in namespace
+func (c *GoClient) DeleteNSAndWait(namespace string) (bool, error) {
+	err := c.client.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+
+	if err != nil {
+		return false, err
+	}
+
+	checkTime := 0
+	for {
+		_, err := c.client.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+		if err != nil && strings.Contains(err.Error(), "not found") {
+			break
+		}
+		checkTime = checkTime + 1
+		if checkTime > 300 {
+			break
+		}
+		time.Sleep(time.Duration(1000) * time.Millisecond)
+	}
+
+	log.Infof("Delete complete")
+
 	return true, nil
 }
 
@@ -614,17 +646,9 @@ func (c *GoClient) DeployNocalhostResource() error {
 // deploy nocalhost-dep
 // now all value has set by default
 // TODO this might better read from database manifest
-func (c *GoClient) DeployNocalhostDep(image, namespace, serviceAccount string) (bool, error) {
-	tag := "latest"
-	if global.Branch == global.NocalhostDefaultReleaseBranch {
-		tag = global.Version
-	}
-	if global.Branch != global.NocalhostDefaultReleaseBranch && global.Branch != "default" {
-		tag = global.CommitId
-	}
-	if image == "" {
-		image = "codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job:" + tag
-	}
+func (c *GoClient) DeployNocalhostDep(namespace, serviceAccount string) (bool, error) {
+	image := c.matchedArtifactVersion(DepInstaller)
+
 	var ttl int32 = 1
 	var backOff int32 = 1
 	job := &batchv1.Job{
@@ -816,4 +840,54 @@ func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceA
 
 func (c *GoClient) GetStorageClassList() (*storagev1.StorageClassList, error) {
 	return c.client.StorageV1().StorageClasses().List(context.TODO(), metav1.ListOptions{})
+}
+
+func (c *GoClient) NeedUpgradeDep() (needUpgrade bool, err error) {
+	deployment, err := c.client.AppsV1().Deployments(global.NocalhostSystemNamespace).Get(context.TODO(), global.NocalhostDepName, metav1.GetOptions{})
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return true, nil
+		} else {
+			return
+		}
+	}
+
+	containers := deployment.Spec.Template.Spec.Containers
+
+	switch len(containers) {
+	case 0:
+		err = errors.New("None container in dep-deployment ")
+		return
+	case 1:
+		break
+	default:
+		err = errors.New("Multi containers in dep-deployment ")
+		return
+	}
+
+	image := c.matchedArtifactVersion(Dep)
+
+	if image != containers[0].Image {
+		log.Infof("Needs upgrading image from %s to %s", containers[0].Image, image)
+		needUpgrade = true
+		return
+	} else {
+		return
+	}
+}
+
+// Sprintf the specify artifact while image == ""
+// or use the default image from param
+func (c *GoClient) matchedArtifactVersion(artifact string) string {
+	tag := global.Version
+
+	if global.Branch == global.NocalhostDefaultReleaseBranch {
+		tag = global.Version
+	}
+
+	if global.Branch != global.NocalhostDefaultReleaseBranch && global.Branch != "default" {
+		tag = global.CommitId
+	}
+
+	return fmt.Sprintf("codingcorp-docker.pkg.coding.net/nocalhost/public/%s:%s", artifact, tag)
 }

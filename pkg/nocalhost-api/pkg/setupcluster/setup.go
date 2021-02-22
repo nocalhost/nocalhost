@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/version"
+	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"strconv"
@@ -26,7 +27,7 @@ type SetUpCluster interface {
 	IsAdmin() (bool, error)
 	CreateNs(namespace, label string) *setUpCluster
 	CreateConfigMap(name, namespace, key, value string) *setUpCluster
-	DeployNocalhostDep(image, namespace, serviceAccount string) *setUpCluster
+	DeployNocalhostDep(namespace, serviceAccount string) *setUpCluster
 	GetClusterNode() *setUpCluster
 	GetClusterVersion() *setUpCluster
 	GetClusterInfo() *setUpCluster
@@ -34,6 +35,7 @@ type SetUpCluster interface {
 	CreateClusterRoleBinding(name, namespace, role, toServiceAccount string) *setUpCluster
 	DeployNocalhostResource() *setUpCluster
 	GetErr() (string, error, error)
+	InitDep() (string, error, error)
 }
 
 type setUpCluster struct {
@@ -88,8 +90,8 @@ func (c *setUpCluster) CreateConfigMap(name, namespace, key, value string) *setU
 	return c
 }
 
-func (c *setUpCluster) DeployNocalhostDep(image, namespace, serviceAccount string) *setUpCluster {
-	_, c.err = c.clientGo.DeployNocalhostDep(image, namespace, serviceAccount)
+func (c *setUpCluster) DeployNocalhostDep(namespace, serviceAccount string) *setUpCluster {
+	_, c.err = c.clientGo.DeployNocalhostDep(namespace, serviceAccount)
 	if c.err != nil {
 		c.errCode = errno.ErrClusterDepJobSetup
 	}
@@ -133,4 +135,16 @@ func (c *setUpCluster) GetClusterInfo() *setUpCluster {
 	b, _ := json.Marshal(info)
 	c.clusterInfo = string(b)
 	return c
+}
+
+func (c *setUpCluster) InitDep() (string, error, error) {
+	return c.CreateNs(global.NocalhostSystemNamespace, "").
+		CreateServiceAccount(global.NocalhostSystemNamespaceServiceAccount, global.NocalhostSystemNamespace).
+		CreateClusterRoleBinding(global.NocalhostSystemRoleBindingName, global.NocalhostSystemNamespace, "cluster-admin", global.NocalhostSystemNamespaceServiceAccount).
+		DeployNocalhostResource().
+		DeployNocalhostDep(global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount).
+		GetClusterNode().
+		GetClusterVersion().
+		GetClusterInfo().
+		GetErr()
 }
