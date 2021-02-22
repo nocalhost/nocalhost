@@ -881,11 +881,7 @@ func (c *GoClient) NeedUpgradeDep() (needUpgrade bool, err error) {
 func (c *GoClient) matchedArtifactVersion(artifact string) string {
 	tag := global.Version
 
-	if global.Branch == global.NocalhostDefaultReleaseBranch {
-		tag = global.Version
-	}
-
-	if global.Branch != global.NocalhostDefaultReleaseBranch && global.Branch != "default" {
+	if tag == "" {
 		tag = global.CommitId
 	}
 
