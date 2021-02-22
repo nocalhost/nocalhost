@@ -33,6 +33,7 @@ func init() {
 	portForwardStartCmd.Flags().StringSliceVarP(&portForwardOptions.DevPort, "dev-port", "p", []string{}, "port-forward between pod and local, such 8080:8080 or :8080(random localPort)")
 	portForwardStartCmd.Flags().BoolVarP(&portForwardOptions.RunAsDaemon, "daemon", "m", true, "if port-forward run as daemon")
 	portForwardStartCmd.Flags().StringVarP(&portForwardOptions.PodName, "pod", "", "", "specify pod name")
+	portForwardStartCmd.Flags().StringVarP(&container, "container", "c", "", "which container of pod to run command")
 	portForwardStartCmd.Flags().StringVarP(&portForwardOptions.Way, "way", "", "manual", "specify port-forward way")
 	PortForwardCmd.AddCommand(portForwardStartCmd)
 }
@@ -91,7 +92,7 @@ var portForwardStartCmd = &cobra.Command{
 		// run in child process
 		if len(portForwardOptions.DevPort) == 0 {
 			// if not specify -p then use default
-			portForwardOptions.DevPort = nocalhostApp.GetDefaultDevPort(deployment)
+			portForwardOptions.DevPort = nocalhostApp.GetDefaultDevPort(deployment, container)
 			log.Debugf("Get default devPort: %s ", portForwardOptions.DevPort)
 		}
 		var localPorts []int

@@ -87,18 +87,18 @@ func (a *Application) GetDefaultSideCarImage(svcName string) string {
 	return DefaultSideCarImage
 }
 
-func (a *Application) GetDefaultDevImage(svcName string) string {
+func (a *Application) GetDefaultDevImage(svcName string, container string) string {
 	svcProfile := a.GetSvcProfileV2(svcName)
-	if svcProfile != nil && svcProfile.GetDefaultContainerDevConfig().Image != "" {
-		return svcProfile.GetDefaultContainerDevConfig().Image
+	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).Image != "" {
+		return svcProfile.GetContainerDevConfigOrDefault(container).Image
 	}
 	return DefaultDevImage
 }
 
-func (a *Application) GetDefaultDevPort(svcName string) []string {
+func (a *Application) GetDefaultDevPort(svcName string, container string) []string {
 	config := a.GetSvcProfileV2(svcName)
-	if config != nil && len(config.GetDefaultContainerDevConfig().PortForward) > 0 {
-		return config.GetDefaultContainerDevConfig().PortForward
+	if config != nil && len(config.GetContainerDevConfigOrDefault(container).PortForward) > 0 {
+		return config.GetContainerDevConfigOrDefault(container).PortForward
 	}
 	return []string{}
 }

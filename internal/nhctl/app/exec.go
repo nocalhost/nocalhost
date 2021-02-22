@@ -32,7 +32,7 @@ func (a *Application) EnterPodTerminal(svcName string, container string) error {
 		return errors.New(fmt.Sprintf("The number of pods of %s is not 1 ???", svcName))
 	}
 	pod := podList[0].Name
-	shell := a.GetSvcProfileV2(svcName).GetDefaultContainerDevConfig().Shell
+	shell := a.GetSvcProfileV2(svcName).GetContainerDevConfigOrDefault(container).Shell
 	cmd := "(zsh || bash || sh)"
 	if shell != "" {
 		cmd = fmt.Sprintf("(%s || zsh || bash || sh)", shell)
@@ -41,7 +41,7 @@ func (a *Application) EnterPodTerminal(svcName string, container string) error {
 	return a.client.ExecShell(pod, container, cmd)
 }
 
-func (a *Application) Exec(svcName string, commands []string) error {
+func (a *Application) Exec(svcName string, container string, commands []string) error {
 	podList, err := a.client.GetPodsFromDeployment(svcName)
 	if err != nil {
 		return err
@@ -51,5 +51,5 @@ func (a *Application) Exec(svcName string, commands []string) error {
 		return errors.New(fmt.Sprintf("the number of pods of %s is not 1 ???", svcName))
 	}
 	pod := podList.Items[0].Name
-	return a.client.Exec(pod, "", commands)
+	return a.client.Exec(pod, container, commands)
 }

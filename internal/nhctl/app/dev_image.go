@@ -341,7 +341,7 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	devModeMounts = append(devModeMounts, workDirAndPersistVolumeMounts...)
 
 	workDir := a.GetDefaultWorkDir(svcName)
-	devImage := a.GetDefaultDevImage(svcName) // Default : replace the first container
+	devImage := a.GetDefaultDevImage(svcName, ops.Container) // Default : replace the first container
 	sideCarImage := a.GetDefaultSideCarImage(svcName)
 	if ops.SideCarImage != "" {
 		sideCarImage = ops.SideCarImage
