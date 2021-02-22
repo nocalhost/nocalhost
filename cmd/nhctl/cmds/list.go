@@ -53,7 +53,7 @@ var listCmd = &cobra.Command{
 func ListApplicationSvc(napp *app.Application) {
 	var data [][]string
 	for _, svcProfile := range napp.AppProfileV2.SvcProfile {
-		rols := []string{svcProfile.ActualName, strconv.FormatBool(svcProfile.Developing), strconv.FormatBool(svcProfile.Syncing), fmt.Sprintf("%s", svcProfile.DevPortList), fmt.Sprintf("%s", svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin), strconv.Itoa(svcProfile.LocalSyncthingGUIPort)}
+		rols := []string{svcProfile.ActualName, strconv.FormatBool(svcProfile.Developing), strconv.FormatBool(svcProfile.Syncing), fmt.Sprintf("%v", svcProfile.DevPortForwardList), fmt.Sprintf("%s", svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin), strconv.Itoa(svcProfile.LocalSyncthingGUIPort)}
 		data = append(data, rols)
 	}
 	table := tablewriter.NewWriter(os.Stdout)

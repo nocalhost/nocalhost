@@ -15,14 +15,13 @@ package cmds
 
 import (
 	"fmt"
+	"github.com/spf13/cobra"
 	"go.uber.org/zap/zapcore"
+	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/nocalhost"
-	"os"
-
-	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 )
 
 var settings *app_flags.EnvSettings
@@ -61,6 +60,10 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+
+	//str := "port-forward start bookinfo-coding -d ratings -p 12345:12345 --pod ratings-6848dcd688-wbn8l --way manual --kubeconfig ~/.nh/plugin/kubeConfigs/10_167_config"
+	//str = "port-forward start bookinfo-coding -d ratings -p 19080:9080  --way devPorts --kubeconfig ~/.nh/plugin/kubeConfigs/10_167_config"
+	//os.Args = append(os.Args, strings.Split(str, " ")...)
 
 	if len(os.Args) == 1 {
 		args := append([]string{"help"}, os.Args[1:]...)
