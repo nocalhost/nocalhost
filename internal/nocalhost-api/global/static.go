@@ -29,4 +29,6 @@ var (
 	Version  = "default"
 	CommitId = "default"
 	Branch   = "default"
+
+	ServiceInitial = "false"
 )
