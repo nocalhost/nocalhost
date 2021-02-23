@@ -56,7 +56,11 @@ func New() (s *Service) {
 		prePullSvc:            pre_pull.NewPrePullService(),
 	}
 
-	s.init()
+	if global.ServiceInitial == "true" {
+		s.init()
+	} else {
+		log.Infof("Service Initial is disable(enable in build)")
+	}
 	return s
 }
 
@@ -143,20 +147,22 @@ func (s *Service) upgradeAllClustersDep() error {
 					log.Errorf("Error while delete nocalhost-reserved", err)
 					return
 				}
-			}
 
-			_, err, errRes := setupcluster.NewSetUpCluster(goClient).InitDep()
-			if err != nil {
-				log.Errorf("Error while re-init nocalhost-reserved", errRes)
+				_, err, errRes := setupcluster.NewSetUpCluster(goClient).InitDep()
+				if err != nil {
+					log.Errorf("Error while re-init nocalhost-reserved", errRes)
+					return
+				}
+
+				log.Infof("Cluster %s's dep version upgradation success ", clusterItem.ClusterName)
+			} else {
+				log.Infof("Cluster %s's dep is up to date ", clusterItem.ClusterName)
 				return
 			}
-
-			log.Infof("Cluster %s's dep version upgradation success ", clusterItem.ClusterName)
 		}()
 	}
 
 	wg.Wait()
-
 	return nil
 }
 

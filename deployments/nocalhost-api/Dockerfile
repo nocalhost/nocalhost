@@ -1,7 +1,10 @@
 # build from root path
 FROM golang as builder
 ARG version="latest"
+ARG service_initial
+
 ENV VERSION=$version
+ENV SERVICE_INITIAL=$service_initial
 
 COPY . /opt/src
 WORKDIR /opt/src

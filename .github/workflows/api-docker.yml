@@ -21,6 +21,8 @@ jobs:
 
       - name: Build api-docker
         run: make api-docker
+        env:
+          SERVICE_INITIAL: true
 
       - name: Push to Github packages
         if: ${{ github.ref == 'refs/heads/main'}}

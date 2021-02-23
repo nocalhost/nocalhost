@@ -9,6 +9,9 @@ DEVGITCOMMIT=`git rev-parse HEAD`
 
 SOURCE="nocalhost/cmd/nocalhost-api"
 TARGET="build/nocalhost-api"
+SERVICE_INITIAL=${SERVICE_INITIAL:-false}
+
+echo "Service initial enable: ${SERVICE_INITIAL}"
 
 export LDFLAGS="\
     -w \
@@ -16,6 +19,7 @@ export LDFLAGS="\
     -X \"nocalhost/internal/nocalhost-api/global.CommitId=${DEVGITCOMMIT}\" \
     -X \"nocalhost/internal/nocalhost-api/global.Branch=${BRANCH}\" \
     -X \"nocalhost/internal/nocalhost-api/global.Version=${VERSION}\" \
+    -X \"nocalhost/internal/nocalhost-api/global.ServiceInitial=${SERVICE_INITIAL}\" \
 
     ${LDFLAGS:-} \
 "
