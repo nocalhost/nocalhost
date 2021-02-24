@@ -58,7 +58,7 @@ func New() (s *Service) {
 	if global.ServiceInitial == "true" {
 		s.init()
 	} else {
-		log.Infof("Service Initial is disable(enable in build)")
+		log.Infof("Service Initial is disable(enable in build with env: SERVICE_INITIAL=true)")
 	}
 	return s
 }

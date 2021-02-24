@@ -15,6 +15,7 @@ const (
 	NocalhostDevRoleDefaultBindingName     = "nocalhost-role-default-biding"
 	NocalhostDevServiceAccountSecretCaKey  = "ca.crt"
 	NocalhostDevServiceAccountTokenKey     = "token"
+	NocalhostDepJobNamePrefix              = "nocalhost-dep-installer-"
 	NocalhostDepKubeConfigMapName          = "nocalhost-kubeconfig"
 	NocalhostDepKubeConfigMapKey           = "config"
 	NocalhostPrePullDSName                 = "nocalhost-prepull"

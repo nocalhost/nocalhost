@@ -24,6 +24,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"strconv"
+	"strings"
 )
 
 type SetUpCluster interface {
@@ -202,6 +203,7 @@ func (c *setUpCluster) UpgradeCluster() (bool, error) {
 	if !existDeployment || !c.CheckIfSameImage(deployment, c.clientGo.MatchedArtifactVersion(clientgo.Dep)) {
 
 		log.Info("Re-deploying nocalhost-dep... ")
+		c.DeleteOldDepJob(global.NocalhostSystemNamespace)
 		c.DeployNocalhostDep(global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount)
 
 		if c.err != nil {
@@ -212,7 +214,7 @@ func (c *setUpCluster) UpgradeCluster() (bool, error) {
 	return true, nil
 }
 
-func (c *setUpCluster) CheckIfSameImage(deployment *apiappsV1.Deployment, image string) (needUpgrade bool) {
+func (c *setUpCluster) CheckIfSameImage(deployment *apiappsV1.Deployment, image string) (same bool) {
 	containers := deployment.Spec.Template.Spec.Containers
 
 	switch len(containers) {
@@ -227,10 +229,30 @@ func (c *setUpCluster) CheckIfSameImage(deployment *apiappsV1.Deployment, image 
 	}
 
 	if image != containers[0].Image {
-		needUpgrade = true
 		log.Infof("Current image " + containers[0].Image + " is different from version matched " + image)
 		return
 	} else {
+		same = true
 		return
+	}
+}
+
+func (c *setUpCluster) DeleteOldDepJob(namespace string) {
+	jobs, err := c.clientGo.ListJobs(namespace)
+	if err == nil {
+		for _, item := range jobs.Items {
+			if strings.HasPrefix(item.Name, global.NocalhostDepJobNamePrefix) {
+				_ = c.clientGo.DeleteJob(namespace, item.Name)
+			}
+		}
+	}
+
+	pods, err := c.clientGo.ListPods(namespace)
+	if err == nil {
+		for _, item := range pods.Items {
+			if strings.HasPrefix(item.Name, global.NocalhostDepJobNamePrefix) {
+				_ = c.clientGo.DeletePod(namespace, item.Name)
+			}
+		}
 	}
 }

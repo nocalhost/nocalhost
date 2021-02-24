@@ -602,8 +602,6 @@ func (c *GoClient) UpdateRole(name, namespace string) error {
 
 	before.Rules = *rule
 
-	log.Infof("Getting roles in ns %s and change the rules -> %v \n", namespace, before.Rules)
-
 	_, err = c.client.RbacV1().Roles(namespace).Update(context.TODO(), before, metav1.UpdateOptions{})
 	if err != nil {
 		return err
@@ -886,4 +884,20 @@ func (c *GoClient) MatchedArtifactVersion(artifact string) string {
 	}
 
 	return fmt.Sprintf("codingcorp-docker.pkg.coding.net/nocalhost/public/%s:%s", artifact, tag)
+}
+
+func (c *GoClient) ListJobs(namespace string) (*batchv1.JobList, error) {
+	return c.client.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{})
+}
+
+func (c *GoClient) DeleteJob(namespace, name string) error {
+	return c.client.BatchV1().Jobs(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+func (c *GoClient) ListPods(namespace string) (*corev1.PodList, error){
+	return c.client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+}
+
+func (c *GoClient) DeletePod(namespace, name string) error {
+	return c.client.CoreV1().Pods(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
