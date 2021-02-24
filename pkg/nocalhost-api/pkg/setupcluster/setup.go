@@ -15,11 +15,14 @@ package setupcluster
 
 import (
 	"encoding/json"
+	"errors"
+	apiappsV1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"strconv"
 )
 
@@ -33,9 +36,10 @@ type SetUpCluster interface {
 	GetClusterInfo() *setUpCluster
 	CreateServiceAccount(name, namespace string) *setUpCluster
 	CreateClusterRoleBinding(name, namespace, role, toServiceAccount string) *setUpCluster
-	DeployNocalhostResource() *setUpCluster
+	CreateNocalhostPriorityClass() *setUpCluster
 	GetErr() (string, error, error)
-	InitDep() (string, error, error)
+	InitCluster() (string, error, error)
+	UpgradeCluster() (bool, error)
 }
 
 type setUpCluster struct {
@@ -98,8 +102,8 @@ func (c *setUpCluster) DeployNocalhostDep(namespace, serviceAccount string) *set
 	return c
 }
 
-func (c *setUpCluster) DeployNocalhostResource() *setUpCluster {
-	c.err = c.clientGo.DeployNocalhostResource()
+func (c *setUpCluster) CreateNocalhostPriorityClass() *setUpCluster {
+	c.err = c.clientGo.CreateNocalhostPriorityClass()
 	if c.err != nil {
 		c.errCode = errno.ErrClusterDepJobSetup
 	}
@@ -137,14 +141,96 @@ func (c *setUpCluster) GetClusterInfo() *setUpCluster {
 	return c
 }
 
-func (c *setUpCluster) InitDep() (string, error, error) {
+func (c *setUpCluster) InitCluster() (string, error, error) {
 	return c.CreateNs(global.NocalhostSystemNamespace, "").
 		CreateServiceAccount(global.NocalhostSystemNamespaceServiceAccount, global.NocalhostSystemNamespace).
 		CreateClusterRoleBinding(global.NocalhostSystemRoleBindingName, global.NocalhostSystemNamespace, "cluster-admin", global.NocalhostSystemNamespaceServiceAccount).
-		DeployNocalhostResource().
+		CreateNocalhostPriorityClass().
 		DeployNocalhostDep(global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount).
 		GetClusterNode().
 		GetClusterVersion().
 		GetClusterInfo().
 		GetErr()
+}
+
+func (c *setUpCluster) UpgradeCluster() (bool, error) {
+	existPc, _ := c.clientGo.ExistPriorityClass(global.NocalhostDefaultPriorityclassName)
+	if !existPc {
+
+		log.Info("PriorityClass " + global.NocalhostDefaultPriorityclassName + " is not exist so creat one.")
+		c.CreateNocalhostPriorityClass()
+
+		if c.err != nil {
+			return false, c.err
+		}
+	}
+
+	existNs, _ := c.clientGo.ExistNs(global.NocalhostSystemNamespace)
+	if !existNs {
+
+		log.Info("Namespace " + global.NocalhostSystemNamespace + " is not exist so creat one.")
+		c.CreateNs(global.NocalhostSystemNamespace, "")
+
+		if c.err != nil {
+			return false, c.err
+		}
+	}
+
+	existServiceAccount, _ := c.clientGo.ExistServiceAccount(global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount)
+	if !existServiceAccount {
+
+		log.Info("ServiceAccount " + global.NocalhostSystemNamespaceServiceAccount + " is not exist so creat one.")
+		c.CreateServiceAccount(global.NocalhostSystemNamespaceServiceAccount, global.NocalhostSystemNamespace)
+
+		if c.err != nil {
+			return false, c.err
+		}
+	}
+
+	existClusterRoleBinding, _ := c.clientGo.ExistClusterRoleBinding(global.NocalhostSystemRoleBindingName)
+	if !existClusterRoleBinding {
+
+		log.Info("ClusterAdmin-RoleBinding " + global.NocalhostSystemRoleBindingName + " is not exist so creat one.")
+		c.CreateClusterRoleBinding(global.NocalhostSystemRoleBindingName, global.NocalhostSystemNamespace, "cluster-admin", global.NocalhostSystemNamespaceServiceAccount)
+
+		if c.err != nil {
+			return false, c.err
+		}
+	}
+
+	existDeployment, deployment := c.clientGo.ExistDeployment(global.NocalhostSystemNamespace, global.NocalhostDepName)
+	if !existDeployment || !c.CheckIfSameImage(deployment, c.clientGo.MatchedArtifactVersion(clientgo.Dep)) {
+
+		log.Info("Re-deploying nocalhost-dep... ")
+		c.DeployNocalhostDep(global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount)
+
+		if c.err != nil {
+			return false, c.err
+		}
+	}
+
+	return true, nil
+}
+
+func (c *setUpCluster) CheckIfSameImage(deployment *apiappsV1.Deployment, image string) (needUpgrade bool) {
+	containers := deployment.Spec.Template.Spec.Containers
+
+	switch len(containers) {
+	case 0:
+		c.err = errors.New("None container in dep-deployment ")
+		return
+	case 1:
+		break
+	default:
+		c.err = errors.New("Multi containers in dep-deployment ")
+		return
+	}
+
+	if image != containers[0].Image {
+		needUpgrade = true
+		log.Infof("Current image " + containers[0].Image + " is different from version matched " + image)
+		return
+	} else {
+		return
+	}
 }
