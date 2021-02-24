@@ -45,6 +45,12 @@ done
 [ -z ${secret} ] && secret=nocalhost-sidecar-injector-certs
 [ -z ${namespace} ] && namespace=nocalhost-reserved
 
+
+if kubectl describe secret ${secret}; then
+    echo "secret ${secret} has been created so do not need to create one."
+    return
+fi
+
 if [ ! -x "$(command -v openssl)" ]; then
     echo "openssl not found"
     exit 1

@@ -26,7 +26,6 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
-	"strings"
 	"sync"
 )
 
@@ -142,13 +141,9 @@ func (s *Service) upgradeAllClustersDep() error {
 			}
 
 			if needUpgradeDep {
-				_, err := goClient.DeleteNSAndWait(global.NocalhostSystemNamespaceLabel)
-				if err != nil && !strings.Contains(err.Error(), "not found") {
-					log.Errorf("Error while delete nocalhost-reserved", err)
-					return
-				}
 
-				_, err, errRes := setupcluster.NewSetUpCluster(goClient).InitDep()
+				_, err, errRes := setupcluster.NewSetUpCluster(goClient).
+					DeployNocalhostDep(global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount).GetErr()
 				if err != nil {
 					log.Errorf("Error while re-init nocalhost-reserved", errRes)
 					return
