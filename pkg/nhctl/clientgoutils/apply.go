@@ -57,14 +57,14 @@ func (c *ClientGoUtils) UpdateResourceInfoByServerSide(info *resource.Info) erro
 	return errors.Wrap(info.Refresh(obj, true), "")
 }
 
-func (c *ClientGoUtils) CreateResourceInfo(info *resource.Info) error {
-	helper := resource.NewHelper(info.Client, info.Mapping)
-	obj, err := helper.Create(info.Namespace, true, info.Object)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	return errors.Wrap(info.Refresh(obj, true), "")
-}
+//func (c *ClientGoUtils) CreateResourceInfo(info *resource.Info) error {
+//	helper := resource.NewHelper(info.Client, info.Mapping)
+//	obj, err := helper.Create(info.Namespace, true, info.Object)
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//	return errors.Wrap(info.Refresh(obj, true), "")
+//}
 
 // Similar to `kubectl apply`, but apply a resourceInfo instead a file
 func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info) error {
@@ -78,7 +78,7 @@ func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info) error {
 		cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 		return &runtimeObjectPrinter{Operation: operation, Name: info.Name}, nil
 	}
-	//o.IOStreams = genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: ioutil.Discard} // don't print log to stderr
+	o.IOStreams = genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stdout} // don't print log to stderr
 	return o.Run()
 }
 

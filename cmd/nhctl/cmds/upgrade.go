@@ -24,9 +24,9 @@ func init() {
 
 	upgradeCmd.Flags().StringVarP(&installFlags.GitUrl, "git-url", "u", "", "resources git url")
 	upgradeCmd.Flags().StringVarP(&installFlags.GitRef, "git-ref", "r", "", "resources git ref")
-	//installCmd.Flags().StringSliceVar(&installFlags.ResourcePath, "resource-path", []string{}, "resources path")
+	upgradeCmd.Flags().StringSliceVar(&installFlags.ResourcePath, "resource-path", []string{}, "resources path")
 	//installCmd.Flags().StringVarP(&installFlags.OuterConfig, "outer-config", "c", "", "specify a config.yaml in local path")
-	//installCmd.Flags().StringVar(&installFlags.Config, "config", "", "specify a config relative to .nocalhost dir")
+	upgradeCmd.Flags().StringVar(&installFlags.Config, "config", "", "specify a config relative to .nocalhost dir")
 	//installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
 	//installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", fmt.Sprintf("nocalhost application type: %s or %s or %s", app.HelmRepo, app.Helm, app.Manifest))
 	//installCmd.Flags().BoolVar(&installFlags.HelmWait, "wait", installFlags.HelmWait, "wait for completion")
@@ -63,17 +63,5 @@ var upgradeCmd = &cobra.Command{
 		if err != nil {
 			log.FatalE(err, fmt.Sprintf("Failed to upgrade application"))
 		}
-
-		//if installFlags.GitUrl == "" && installFlags.AppType != string(app.HelmRepo) {
-		//	log.Fatalf("If app type is not %s , --git-url must be specified", app.HelmRepo)
-		//}
-		//if installFlags.AppType == string(app.HelmRepo) {
-		//	if installFlags.HelmChartName == "" {
-		//		log.Fatalf("--helm-chart-name must be specified when using %s", installFlags.AppType)
-		//	}
-		//	if installFlags.HelmRepoUrl == "" && installFlags.HelmRepoName == "" {
-		//		log.Fatalf("--helm-repo-url or --helm-repo-name must be specified when using %s", installFlags.AppType)
-		//	}
-		//}
 	},
 }

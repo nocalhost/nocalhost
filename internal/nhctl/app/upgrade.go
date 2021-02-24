@@ -16,10 +16,13 @@ package app
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
 	"k8s.io/cli-runtime/pkg/resource"
 	flag "nocalhost/internal/nhctl/app_flags"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
+	"os"
 )
 
 func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
@@ -44,6 +47,47 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 		return err
 	}
 
+	if len(installFlags.ResourcePath) > 0 {
+		a.AppProfileV2.ResourcePath = installFlags.ResourcePath
+	} else {
+		// Get resource path for upgrade .nocalhost
+		configFilePath := a.getUpgradeConfigPathInGitResourcesDir(installFlags.Config)
+		_, err := os.Stat(configFilePath)
+		if err != nil {
+			log.WarnE(errors.Wrap(err, ""), "Failed to load config.yaml")
+		} else {
+			configBytes, err := ioutil.ReadFile(configFilePath)
+			if err != nil {
+				log.WarnE(errors.Wrap(err, ""), err.Error())
+			} else {
+				configV2 := &NocalHostAppConfigV2{}
+				err = yaml.Unmarshal(configBytes, configV2)
+				if err != nil {
+					log.WarnE(errors.Wrap(err, ""), "Failed to unmarshal config v2")
+				} else {
+					if configV2.ConfigProperties != nil && configV2.ConfigProperties.Version == "v2" {
+						if configV2.ApplicationConfig != nil && len(configV2.ApplicationConfig.ResourcePath) > 0 {
+							log.Info("Updating resource path from config v2")
+							a.AppProfileV2.ResourcePath = configV2.ApplicationConfig.ResourcePath
+						}
+					} else {
+						configV1 := &NocalHostAppConfig{}
+						err = yaml.Unmarshal(configBytes, configV1)
+						if err != nil {
+							log.WarnE(errors.Wrap(err, ""), "Failed to unmarshal config v1")
+						} else {
+							if len(configV1.ResourcePath) > 0 {
+								log.Info("Updating resource path from config v1")
+								a.AppProfileV2.ResourcePath = configV1.ResourcePath
+							}
+						}
+
+					}
+				}
+			}
+		}
+	}
+
 	// Read upgrade resource obj
 	a.loadUpgradePreInstallAndInstallManifest()
 	upgradeInfos, err := a.client.GetResourceInfoFromFiles(a.upgradeInstallManifest, true)
@@ -62,7 +106,7 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 	if err != nil {
 		return err
 	}
-
+	_ = a.SaveProfile()
 	return moveDir(a.getUpgradeGitDir(), a.getGitDir())
 }
 
@@ -102,7 +146,7 @@ func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*re
 
 	for _, info := range infosToCreate {
 		log.Infof("Creating resource(%s) %s", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
-		err := a.client.CreateResourceInfo(info)
+		err := a.client.ApplyResourceInfo(info)
 		if err != nil {
 			log.WarnE(err, fmt.Sprintf("Failed to create resource %s", info.Name))
 			if !continueOnErr {

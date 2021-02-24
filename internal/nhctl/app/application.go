@@ -84,11 +84,6 @@ func NewApplication(name string) (*Application, error) {
 		return nil, err
 	}
 
-	//profile, err := NewAppProfile(app.getProfilePath())
-	//if err != nil {
-	//	return nil, err
-	//}
-	//app.AppProfile = profile
 	err = app.LoadAppProfileV2()
 	if err != nil {
 		return nil, err
@@ -107,41 +102,8 @@ func NewApplication(name string) (*Application, error) {
 }
 
 func (a *Application) ReadBeforeWriteProfile() error {
-	//profile, err := NewAppProfile(a.getProfilePath())
-	//if err != nil {
-	//	return err
-	//}
-	//a.AppProfile = profile
 	return a.LoadAppProfileV2()
 }
-
-//func (a *Application) InitProfile(profile *AppProfile) {
-//	if profile != nil {
-//		a.AppProfile = profile
-//	}
-//}
-
-//func (a *Application) LoadConfig() error {
-//	config := &NocalHostAppConfig{}
-//	if _, err := os.Stat(a.GetConfigPath()); err != nil {
-//		if os.IsNotExist(err) {
-//			a.config = config
-//			return nil
-//		} else {
-//			return errors.Wrap(err, "fail to load configs")
-//		}
-//	}
-//	rbytes, err := ioutil.ReadFile(a.GetConfigPath())
-//	if err != nil {
-//		return errors.New(fmt.Sprintf("fail to load configFile : %s", a.GetConfigPath()))
-//	}
-//	err = yaml.Unmarshal(rbytes, config)
-//	if err != nil {
-//		return errors.Wrap(err, err.Error())
-//	}
-//	a.config = config
-//	return nil
-//}
 
 func (a *Application) LoadConfigV2() error {
 
