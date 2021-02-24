@@ -58,7 +58,7 @@ func New() (s *Service) {
 	if global.ServiceInitial == "true" {
 		s.init()
 	} else {
-		log.Infof("Service Initial is disable(enable in build)")
+		log.Infof("Service Initial is disable(enable in build with env: SERVICE_INITIAL=true)")
 	}
 	return s
 }
@@ -99,9 +99,9 @@ func (s *Service) Close() {
 }
 
 func (s *Service) init() {
-	log.Infof("Upgrading dep...")
+	log.Infof("Upgrading cluster...")
 
-	err := s.upgradeAllClustersDep()
+	err := s.upgradeAllClusters()
 	if err != nil {
 		log.Errorf("Error while upgrading dep: %s", err)
 	}
@@ -115,7 +115,7 @@ func (s *Service) init() {
 }
 
 // Upgrade all cluster's versions of nocalhost-dep according to nocalhost-api's versions.
-func (s *Service) upgradeAllClustersDep() error {
+func (s *Service) upgradeAllClusters() error {
 	result, _ := s.ClusterSvc().GetList(context.TODO())
 
 	wg := sync.WaitGroup{}
@@ -134,25 +134,17 @@ func (s *Service) upgradeAllClustersDep() error {
 				return
 			}
 
-			needUpgradeDep, err := goClient.NeedUpgradeDep()
+			isUpgrade, err := setupcluster.NewSetUpCluster(goClient).UpgradeCluster()
+
 			if err != nil {
-				log.Errorf("Error while checking upgrade dep versions", err)
+				log.Errorf("Error while upgrade dep ", err)
 				return
 			}
 
-			if needUpgradeDep {
-
-				_, err, errRes := setupcluster.NewSetUpCluster(goClient).
-					DeployNocalhostDep(global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount).GetErr()
-				if err != nil {
-					log.Errorf("Error while re-init nocalhost-reserved", errRes)
-					return
-				}
-
-				log.Infof("Cluster %s's dep version upgradation success ", clusterItem.ClusterName)
+			if isUpgrade {
+				log.Infof("Cluster %s's upgrade success ", clusterItem.ClusterName)
 			} else {
-				log.Infof("Cluster %s's dep is up to date ", clusterItem.ClusterName)
-				return
+				log.Infof("Cluster %s's has been up to date ", clusterItem.ClusterName)
 			}
 		}()
 	}
@@ -162,8 +154,7 @@ func (s *Service) upgradeAllClustersDep() error {
 }
 
 func (s *Service) updateAllRole() error {
-	cu := model.ClusterUserModel{
-	}
+	cu := model.ClusterUserModel{}
 
 	var results []*model.ClusterUserModel
 	results, err := s.ClusterUser().GetList(context.TODO(), cu)

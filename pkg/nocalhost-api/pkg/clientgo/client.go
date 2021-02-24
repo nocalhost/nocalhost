@@ -17,6 +17,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	apiappsV1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -24,6 +25,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -260,38 +262,72 @@ func (c *GoClient) CreateNS(namespace, label string) (bool, error) {
 	return true, nil
 }
 
+func (c *GoClient) ExistNs(namespace string) (bool, *corev1.Namespace) {
+	get, err := c.client.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		return false, nil
+	}
+	if get != nil {
+		return true, get
+	}
+	return false, nil
+}
+
+func (c *GoClient) ExistDeployment(namespace, deployment string) (bool, *apiappsV1.Deployment) {
+	get, err := c.client.AppsV1().Deployments(namespace).Get(context.TODO(), deployment, metav1.GetOptions{})
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		return false, nil
+	}
+	if get != nil {
+		return true, get
+	}
+	return false, nil
+}
+
+func (c *GoClient) ExistClusterRoleBinding(roleBinding string) (bool, *rbacv1.ClusterRoleBinding) {
+	get, err := c.client.RbacV1().ClusterRoleBindings().Get(context.TODO(), roleBinding, metav1.GetOptions{})
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		return false, nil
+	}
+	if get != nil {
+		return true, get
+	}
+	return false, nil
+}
+
+func (c *GoClient) ExistPriorityClass(name string) (bool, *schedulingv1.PriorityClass) {
+	get, err := c.client.SchedulingV1().PriorityClasses().Get(context.TODO(), name, metav1.GetOptions{})
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		return false, nil
+	}
+	if get != nil {
+		return true, get
+	}
+	return false, nil
+}
+
+func (c *GoClient) ExistServiceAccount(namespace, name string) (bool, *corev1.ServiceAccount) {
+	get, err := c.client.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+
+	if err != nil && k8serrors.IsNotFound(err) {
+		return false, nil
+	}
+	if get != nil {
+		return true, get
+	}
+	return false, nil
+}
+
 // delete namespace, this will delete all resource in namespace
 func (c *GoClient) DeleteNS(namespace string) (bool, error) {
 	err := c.client.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 	if err != nil {
 		return false, err
 	}
-	return true, nil
-}
-
-// delete namespace, this will delete all resource in namespace
-func (c *GoClient) DeleteNSAndWait(namespace string) (bool, error) {
-	err := c.client.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
-
-	if err != nil {
-		return false, err
-	}
-
-	checkTime := 0
-	for {
-		_, err := c.client.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
-		if err != nil && strings.Contains(err.Error(), "not found") {
-			break
-		}
-		checkTime = checkTime + 1
-		if checkTime > 300 {
-			break
-		}
-		time.Sleep(time.Duration(1000) * time.Millisecond)
-	}
-
-	log.Infof("Delete complete")
-
 	return true, nil
 }
 
@@ -566,8 +602,6 @@ func (c *GoClient) UpdateRole(name, namespace string) error {
 
 	before.Rules = *rule
 
-	log.Infof("Getting roles in ns %s and change the rules -> %v \n", namespace, before.Rules)
-
 	_, err = c.client.RbacV1().Roles(namespace).Update(context.TODO(), before, metav1.UpdateOptions{})
 	if err != nil {
 		return err
@@ -630,8 +664,8 @@ func isLimitedRules(rn string) bool {
 	return rn == "resourcequotas" || rn == "roles" || strings.HasPrefix(rn, "resourcequotas/") || strings.HasPrefix(rn, "roles/")
 }
 
-// deploy nocalhsot resource such as priorityclass
-func (c *GoClient) DeployNocalhostResource() error {
+// deploy priorityclass
+func (c *GoClient) CreateNocalhostPriorityClass() error {
 	priorityClass := schedulingv1.PriorityClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: global.NocalhostDefaultPriorityclassName,
@@ -647,8 +681,6 @@ func (c *GoClient) DeployNocalhostResource() error {
 // now all value has set by default
 // TODO this might better read from database manifest
 func (c *GoClient) DeployNocalhostDep(namespace, serviceAccount string) (bool, error) {
-	image := c.matchedArtifactVersion(DepInstaller)
-
 	var ttl int32 = 1
 	var backOff int32 = 1
 	job := &batchv1.Job{
@@ -665,7 +697,7 @@ func (c *GoClient) DeployNocalhostDep(namespace, serviceAccount string) (bool, e
 					Containers: []corev1.Container{
 						{
 							Name:    "nocalhost-dep-installer",
-							Image:   image,
+							Image:   c.MatchedArtifactVersion(DepInstaller),
 							Command: []string{"/nocalhost/installer.sh"},
 						},
 					},
@@ -842,43 +874,9 @@ func (c *GoClient) GetStorageClassList() (*storagev1.StorageClassList, error) {
 	return c.client.StorageV1().StorageClasses().List(context.TODO(), metav1.ListOptions{})
 }
 
-func (c *GoClient) NeedUpgradeDep() (needUpgrade bool, err error) {
-	deployment, err := c.client.AppsV1().Deployments(global.NocalhostSystemNamespace).Get(context.TODO(), global.NocalhostDepName, metav1.GetOptions{})
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			return true, nil
-		} else {
-			return
-		}
-	}
-
-	containers := deployment.Spec.Template.Spec.Containers
-
-	switch len(containers) {
-	case 0:
-		err = errors.New("None container in dep-deployment ")
-		return
-	case 1:
-		break
-	default:
-		err = errors.New("Multi containers in dep-deployment ")
-		return
-	}
-
-	image := c.matchedArtifactVersion(Dep)
-
-	if image != containers[0].Image {
-		log.Infof("Needs upgrading image from %s to %s", containers[0].Image, image)
-		needUpgrade = true
-		return
-	} else {
-		return
-	}
-}
-
 // Sprintf the specify artifact while image == ""
 // or use the default image from param
-func (c *GoClient) matchedArtifactVersion(artifact string) string {
+func (c *GoClient) MatchedArtifactVersion(artifact string) string {
 	tag := global.Version
 
 	if tag == "" {
@@ -886,4 +884,20 @@ func (c *GoClient) matchedArtifactVersion(artifact string) string {
 	}
 
 	return fmt.Sprintf("codingcorp-docker.pkg.coding.net/nocalhost/public/%s:%s", artifact, tag)
+}
+
+func (c *GoClient) ListJobs(namespace string) (*batchv1.JobList, error) {
+	return c.client.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{})
+}
+
+func (c *GoClient) DeleteJob(namespace, name string) error {
+	return c.client.BatchV1().Jobs(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+func (c *GoClient) ListPods(namespace string) (*corev1.PodList, error){
+	return c.client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+}
+
+func (c *GoClient) DeletePod(namespace, name string) error {
+	return c.client.CoreV1().Pods(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }

@@ -89,7 +89,7 @@ func Create(c *gin.Context) {
 	// see https://codingcorp.coding.net/p/nocalhost/wiki/115
 	clusterSetUp := setupcluster.NewSetUpCluster(goClient)
 
-	clusterInfo, err, errRes := clusterSetUp.InitDep()
+	clusterInfo, err, errRes := clusterSetUp.InitCluster()
 	if err != nil {
 		api.SendResponse(c, errRes, nil)
 		return
