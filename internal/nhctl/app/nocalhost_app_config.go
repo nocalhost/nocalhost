@@ -41,7 +41,7 @@ const (
 	DefaultApplicationProfileV2Path    = ".profile_v2.yaml"
 	DefaultApplicationConfigPath       = ".config.yaml"
 	DefaultApplicationConfigV2Path     = ".config_v2.yaml"
-	DefaultApplicationConfigDirName    = ".nocalhost"
+	DefaultGitNocalhostDir             = ".nocalhost"
 	DefaultConfigNameInGitNocalhostDir = "config.yaml"
 	DefaultNewFilePermission           = 0700
 	DefaultConfigFilePermission        = 0644

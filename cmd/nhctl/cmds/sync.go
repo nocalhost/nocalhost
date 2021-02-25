@@ -15,11 +15,6 @@ package cmds
 
 import (
 	"context"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -30,6 +25,12 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 var fileSyncOps = &app.FileSyncOptions{}
@@ -72,7 +73,7 @@ var fileSyncCmd = &cobra.Command{
 		// set abs directory to call myself
 		nhctlAbsDir, err := exec.LookPath(nocalhostApp.GetMyBinName())
 		if err != nil {
-			log.Fatalf("Failed to load nhctl in %s", nhctlAbsDir)
+			log.Fatalf("Failed to load nhctl in %v", err)
 		}
 
 		// overwrite Args[0] as ABS directory of bin directory

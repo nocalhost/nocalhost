@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # if nocalhost-dep exist but create cert again, nocalhost-dep will use old cert and will fail to decode body
-if [[ `kubectl get deployment -n nocalhost-reserved -o jsonpath='{.items[*].metadata.labels.app}' -l app=nocalhost-dep` == "nocalhost-dep" ]]; then
-    echo "nocalhost-dep already install, exit now...."
-    exit
-fi
+#if [[ `kubectl get deployment -n nocalhost-reserved -o jsonpath='{.items[*].metadata.labels.app}' -l app=nocalhost-dep` == "nocalhost-dep" ]]; then
+#    echo "nocalhost-dep already install, exit now...."
+#    exit
+#fi
 
 # enter workdir
 cd /nocalhost

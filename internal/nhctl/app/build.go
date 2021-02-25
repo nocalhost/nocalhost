@@ -16,8 +16,10 @@ package app
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/app_flags"
+	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -86,6 +88,15 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 		app.AppProfileV2.GitUrl = flags.GitRef
 	}
 
+	// local path of application, copy to nocalhost resource
+	if flags.LocalPath != "" {
+		log.Infof("des %s", app.getGitDir())
+		err := utils.CopyDir(flags.LocalPath, app.getGitDir())
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	err = app.generateConfig(flags.OuterConfig, flags.Config)
 	if err != nil {
 		return nil, err
@@ -97,6 +108,8 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 	app.AppProfileV2.ResourcePath = app.configV2.ApplicationConfig.ResourcePath
 	app.AppProfileV2.IgnoredPath = app.configV2.ApplicationConfig.IgnoredPath
 	app.AppProfileV2.PreInstall = app.configV2.ApplicationConfig.PreInstall
+	app.AppProfileV2.Env = app.configV2.ApplicationConfig.Env
+	app.AppProfileV2.EnvFrom = app.configV2.ApplicationConfig.EnvFrom
 	for _, svcConfig := range app.configV2.ApplicationConfig.ServiceConfigs {
 		app.loadConfigToSvcProfile(svcConfig.Name, Deployment)
 	}
@@ -147,7 +160,23 @@ func (a *Application) generateConfig(outerConfigPath string, configName string) 
 			return err
 		}
 	} else {
-		err = ioutil.WriteFile(a.GetConfigV2Path(), rbytes, 0644) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
+		// Render config file using envFile
+		beforeRenderConfig := &NocalHostAppConfigV2{}
+		err = yaml.Unmarshal(rbytes, &beforeRenderConfig)
+		if err != nil {
+			errors.Wrap(err, "")
+		}
+		envFilePath := filepath.Join(a.getGitNocalhostDir(), beforeRenderConfig.ConfigProperties.EnvFile)
+		_, err = os.Stat(envFilePath)
+		if err != nil {
+			log.WarnE(errors.Wrap(err, ""), "Env file not found, ignore it...")
+			envFilePath = ""
+		}
+		renderedStr, err := envsubst.RenderBytes(rbytes, envFilePath)
+		if err != nil {
+			return err
+		}
+		err = ioutil.WriteFile(a.GetConfigV2Path(), []byte(renderedStr), 0644) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
 		if err != nil {
 			return errors.New(fmt.Sprintf("fail to create configFile : %s", configFile))
 		}

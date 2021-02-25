@@ -14,13 +14,13 @@ limitations under the License.
 package app
 
 type NocalHostAppConfigV2 struct {
-	ConfigProperties  *ConfigProperties  `json:"config_properties" yaml:"configProperties"`
+	ConfigProperties  *ConfigProperties  `json:"configProperties" yaml:"configProperties"`
 	ApplicationConfig *ApplicationConfig `json:"application" yaml:"application"`
 }
 
 type ConfigProperties struct {
 	Version string `json:"version" yaml:"version"`
-	EnvFile string `json:"env_file" yaml:"envFile"`
+	EnvFile string `json:"envFile" yaml:"envFile"`
 }
 
 type ApplicationConfig struct {
@@ -29,9 +29,9 @@ type ApplicationConfig struct {
 	ResourcePath   []string           `json:"resourcePath" yaml:"resourcePath"`
 	IgnoredPath    []string           `json:"ignoredPath" yaml:"ignoredPath"`
 	PreInstall     []*PreInstallItem  `json:"onPreInstall" yaml:"onPreInstall"`
-	HelmValues     []*HelmValue       `json:"helm_values" yaml:"helmValues"`
+	HelmValues     []*HelmValue       `json:"helmValues" yaml:"helmValues"`
 	Env            []*Env             `json:"env" yaml:"env"`
-	EnvFrom        *EnvFrom           `json:"env_from" yaml:"envFrom"`
+	EnvFrom        EnvFrom            `json:"envFrom" yaml:"envFrom"`
 	ServiceConfigs []*ServiceConfigV2 `json:"services" yaml:"services"`
 }
 
@@ -39,7 +39,7 @@ type ServiceConfigV2 struct {
 	Name                string               `json:"name" yaml:"name"`
 	Type                SvcType              `json:"serviceType" yaml:"serviceType"`
 	PriorityClass       string               `json:"priorityClass,omitempty" yaml:"priorityClass,omitempty"`
-	DependLabelSelector *DependLabelSelector `json:"depend_label_selector" yaml:"dependLabelSelector"`
+	DependLabelSelector *DependLabelSelector `json:"dependLabelSelector" yaml:"dependLabelSelector"`
 	ContainerConfigs    []*ContainerConfig   `json:"containers" yaml:"containers"`
 }
 
@@ -51,15 +51,15 @@ type ContainerConfig struct {
 
 type ContainerInstallConfig struct {
 	Env         []*Env   `json:"env" yaml:"env"`
-	EnvFrom     *EnvFrom `json:"env_from" yaml:"envFrom"`
+	EnvFrom     EnvFrom  `json:"envFrom" yaml:"envFrom"`
 	PortForward []string `json:"portForward" yaml:"portForward"`
 }
 
 type ContainerDevConfig struct {
-	GitUrl                string                 `json:"git_url" yaml:"gitUrl"`
+	GitUrl                string                 `json:"gitUrl" yaml:"gitUrl"`
 	Image                 string                 `json:"image" yaml:"image"`
 	Shell                 string                 `json:"shell" yaml:"shell"`
-	WorkDir               string                 `json:"work_dir" yaml:"workDir"`
+	WorkDir               string                 `json:"workDir" yaml:"workDir"`
 	DevContainerResources *ResourceQuota         `json:"resources" yaml:"resources"`
 	PersistentVolumeDirs  []*PersistentVolumeDir `json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
 	Command               *DevCommands           `json:"command" yaml:"command"`
@@ -67,7 +67,7 @@ type ContainerDevConfig struct {
 	UseDevContainer       bool                   `json:"useDevContainer" yaml:"useDevContainer"`
 	Sync                  *SyncConfig            `json:"sync" yaml:"sync"`
 	Env                   []*Env                 `json:"env" yaml:"env"`
-	EnvFrom               *EnvFrom               `json:"env_from" yaml:"envFrom"`
+	EnvFrom               *EnvFrom               `json:"envFrom" yaml:"envFrom"`
 	PortForward           []string               `json:"portForward" yaml:"portForward"`
 }
 
@@ -81,12 +81,12 @@ type DevCommands struct {
 
 type SyncConfig struct {
 	Type              string   `json:"type" yaml:"type"`
-	FilePattern       []string `json:"file_pattern" yaml:"filePattern"`
-	IgnoreFilePattern []string `json:"ignore_file_pattern" yaml:"ignoreFilePattern"`
+	FilePattern       []string `json:"filePattern" yaml:"filePattern"`
+	IgnoreFilePattern []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
 }
 
 type DebugConfig struct {
-	RemoteDebugPort string `json:"remote_debug_port" yaml:"remoteDebugPort"`
+	RemoteDebugPort string `json:"remoteDebugPort" yaml:"remoteDebugPort"`
 }
 
 type DependLabelSelector struct {
@@ -105,7 +105,7 @@ type Env struct {
 }
 
 type EnvFrom struct {
-	EnvFile []*EnvFile `json:"env_file" yaml:"envFile"`
+	EnvFile []*EnvFile `json:"envFile" yaml:"envFile"`
 }
 
 type EnvFile struct {

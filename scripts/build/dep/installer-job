@@ -9,6 +9,9 @@ BRANCH=`git rev-parse --abbrev-ref HEAD`
 DEVGITCOMMIT=`git rev-parse HEAD`
 
 BUILDARG=${DEVGITCOMMIT}
+
+echo "${BRANCH}"
+
 if [ "${BRANCH}" = "HEAD" ]; then
 	BUILDARG=${VERSION}
 fi

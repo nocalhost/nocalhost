@@ -47,6 +47,10 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 		err = a.installHelmInRepo(flags)
 	case Manifest:
 		err = a.InstallManifest()
+	case ManifestLocal:
+		err = a.InstallManifest()
+	case HelmLocal:
+		err = a.installHelmInGit(flags)
 	default:
 		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
 	}
@@ -185,12 +189,15 @@ func (a *Application) installHelmInGit(flags *HelmFlags) error {
 
 func (a *Application) InstallDepConfigMap() error {
 	appDep := a.GetDependencies()
-	if appDep != nil {
+	appEnv := a.GetInstallEnvForDep()
+	if appDep != nil || len(appEnv.Global) > 0 || len(appEnv.Service) > 0 {
 		var depForYaml = &struct {
-			Dependency  []*SvcDependency `json:"dependency" yaml:"dependency"`
-			ReleaseName string           `json:"releaseName" yaml:"releaseName"`
+			Dependency  []*SvcDependency  `json:"dependency" yaml:"dependency"`
+			ReleaseName string            `json:"releaseName" yaml:"releaseName"`
+			InstallEnv  *InstallEnvForDep `json:"env" yaml:"env"`
 		}{
 			Dependency: appDep,
+			InstallEnv: appEnv,
 		}
 		// release name a.Name
 		if a.AppProfileV2.AppType != Manifest {

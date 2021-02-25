@@ -15,7 +15,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service/application"
@@ -24,8 +23,9 @@ import (
 	"nocalhost/internal/nocalhost-api/service/cluster_user"
 	"nocalhost/internal/nocalhost-api/service/pre_pull"
 	"nocalhost/internal/nocalhost-api/service/user"
-	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 	"sync"
 )
 
@@ -55,7 +55,11 @@ func New() (s *Service) {
 		prePullSvc:            pre_pull.NewPrePullService(),
 	}
 
-	s.Initial()
+	if global.ServiceInitial == "true" {
+		s.init()
+	} else {
+		log.Infof("Service Initial is disable(enable in build with env: SERVICE_INITIAL=true)")
+	}
 	return s
 }
 
@@ -94,17 +98,63 @@ func (s *Service) Close() {
 	s.userSvc.Close()
 }
 
-func (s *Service) Initial() {
-	fmt.Print("Svc initialing...")
-	err := s.updateAllRole()
+func (s *Service) init() {
+	log.Infof("Upgrading cluster...")
+
+	err := s.upgradeAllClusters()
 	if err != nil {
-		log.Info(err.Error())
+		log.Errorf("Error while upgrading dep: %s", err)
+	}
+
+	log.Infof("Upgrading role...")
+
+	err = s.updateAllRole()
+	if err != nil {
+		log.Errorf("Error while updating role: %s", err)
 	}
 }
 
-func (s *Service) updateAllRole() error {
-	cu := model.ClusterUserModel{
+// Upgrade all cluster's versions of nocalhost-dep according to nocalhost-api's versions.
+func (s *Service) upgradeAllClusters() error {
+	result, _ := s.ClusterSvc().GetList(context.TODO())
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(result))
+
+	for _, clusterItem := range result {
+		clusterItem := clusterItem
+		go func() {
+			defer wg.Done()
+			log.Infof("Checking cluster %s's upgradation if needed ", clusterItem.ClusterName)
+
+			goClient, err := clientgo.NewAdminGoClient([]byte(clusterItem.KubeConfig))
+
+			if err != nil {
+				log.Errorf("Error while upgrade %s dep versions, can't not accessing cluster", clusterItem.ClusterName)
+				return
+			}
+
+			isUpgrade, err := setupcluster.NewSetUpCluster(goClient).UpgradeCluster()
+
+			if err != nil {
+				log.Errorf("Error while upgrade dep ", err)
+				return
+			}
+
+			if isUpgrade {
+				log.Infof("Cluster %s's upgrade success ", clusterItem.ClusterName)
+			} else {
+				log.Infof("Cluster %s's has been up to date ", clusterItem.ClusterName)
+			}
+		}()
 	}
+
+	wg.Wait()
+	return nil
+}
+
+func (s *Service) updateAllRole() error {
+	cu := model.ClusterUserModel{}
 
 	var results []*model.ClusterUserModel
 	results, err := s.ClusterUser().GetList(context.TODO(), cu)
@@ -120,6 +170,8 @@ func (s *Service) updateAllRole() error {
 
 		result := result
 		go func() {
+			defer wg.Done()
+
 			clusterModel, err := s.ClusterSvc().Get(context.TODO(), result.ClusterId)
 			if err != nil {
 				return
@@ -134,8 +186,6 @@ func (s *Service) updateAllRole() error {
 			if err != nil {
 				return
 			}
-
-			wg.Done()
 		}()
 	}
 

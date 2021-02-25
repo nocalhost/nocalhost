@@ -15,7 +15,6 @@ package cluster
 
 import (
 	"encoding/base64"
-	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
@@ -90,8 +89,7 @@ func Create(c *gin.Context) {
 	// see https://codingcorp.coding.net/p/nocalhost/wiki/115
 	clusterSetUp := setupcluster.NewSetUpCluster(goClient)
 
-	// clusterInfo, err, errRes := clusterSetUp.CreateNs(global.NocalhostSystemNamespace, "").CreateConfigMap(global.NocalhostDepKubeConfigMapName, global.NocalhostSystemNamespace, global.NocalhostDepKubeConfigMapKey, string(goClient.Config)).DeployNocalhostDep("", global.NocalhostSystemNamespace).GetClusterNode().GetClusterVersion().GetClusterInfo().GetErr()
-	clusterInfo, err, errRes := clusterSetUp.CreateNs(global.NocalhostSystemNamespace, "").CreateServiceAccount(global.NocalhostSystemNamespaceServiceAccount, global.NocalhostSystemNamespace).CreateClusterRoleBinding(global.NocalhostSystemRoleBindingName, global.NocalhostSystemNamespace, "cluster-admin", global.NocalhostSystemNamespaceServiceAccount).DeployNocalhostResource().DeployNocalhostDep("", global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount).GetClusterNode().GetClusterVersion().GetClusterInfo().GetErr()
+	clusterInfo, err, errRes := clusterSetUp.InitCluster()
 	if err != nil {
 		api.SendResponse(c, errRes, nil)
 		return

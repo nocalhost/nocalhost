@@ -47,6 +47,7 @@ func init() {
 	installCmd.Flags().StringVar(&installFlags.HelmRepoUrl, "helm-repo-url", "", "chart repository url where to locate the requested chart")
 	installCmd.Flags().StringVar(&installFlags.HelmRepoVersion, "helm-repo-version", "", "chart repository version")
 	installCmd.Flags().StringVar(&installFlags.HelmChartName, "helm-chart-name", "", "chart name")
+	installCmd.Flags().StringVar(&installFlags.LocalPath, "local-path", "", "local path for application")
 	rootCmd.AddCommand(installCmd)
 }
 
@@ -63,7 +64,7 @@ var installCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		if installFlags.GitUrl == "" && installFlags.AppType != string(app.HelmRepo) {
+		if installFlags.GitUrl == "" && (installFlags.AppType != string(app.HelmRepo) && installFlags.AppType != string(app.ManifestLocal) && installFlags.AppType != string(app.HelmLocal)) {
 			log.Fatalf("If app type is not %s , --git-url must be specified", app.HelmRepo)
 		}
 		if installFlags.AppType == string(app.HelmRepo) {

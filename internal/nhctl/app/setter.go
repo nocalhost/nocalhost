@@ -39,10 +39,6 @@ func (a *Application) SetAppType(t AppType) error {
 }
 
 func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
-	err := a.ReadBeforeWriteProfile()
-	if err != nil {
-		return err
-	}
 	a.GetSvcProfileV2(svcName).PortForwarded = is
 	return a.SaveProfile()
 }
@@ -81,7 +77,7 @@ func (a *Application) SetSyncthingProfileEndStatus(svcName string) error {
 	a.GetSvcProfileV2(svcName).LocalSyncthingGUIPort = 0
 	a.GetSvcProfileV2(svcName).PortForwarded = false
 	a.GetSvcProfileV2(svcName).Syncing = false
-	a.GetSvcProfileV2(svcName).DevPortList = []string{}
+	//a.GetSvcProfileV2(svcName).DevPortList = []string{}
 	a.GetSvcProfileV2(svcName).LocalAbsoluteSyncDirFromDevStartPlugin = []string{}
 	return a.SaveProfile()
 }
