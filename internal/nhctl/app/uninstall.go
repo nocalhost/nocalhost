@@ -84,6 +84,7 @@ func (a *Application) Uninstall(force bool) error {
 			return err
 		}
 	} else if a.IsManifest() {
+		a.loadPreInstallAndInstallManifest()
 		a.cleanPreInstall()
 		err := a.uninstallManifestRecursively()
 		if err != nil {

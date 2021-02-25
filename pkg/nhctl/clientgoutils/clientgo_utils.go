@@ -60,10 +60,9 @@ type ClientGoUtils struct {
 	restConfig         *restclient.Config
 	ClientSet          *kubernetes.Clientset
 	dynamicClient      dynamic.Interface //
-	//TimeOut            time.Duration
-	ClientConfig clientcmd.ClientConfig
-	namespace    string
-	ctx          context.Context
+	ClientConfig       clientcmd.ClientConfig
+	namespace          string
+	ctx                context.Context
 }
 
 type PortForwardAPodRequest struct {
@@ -152,20 +151,6 @@ func (c *ClientGoUtils) getRestConfig() (*restclient.Config, error) {
 	return clientcmd.BuildConfigFromFlags("", c.kubeConfigFilePath)
 }
 
-// todo check use something more accurate
-//func (c *ClientGoUtils) CheckIfNamespaceIsAccessible(ctx context.Context, namespace string) (bool, error) {
-//	if namespace == "" {
-//		namespace, _ = c.GetDefaultNamespace()
-//	}
-//	_, err := c.GetDeployments(ctx, namespace)
-//	if err != nil {
-//		fmt.Printf("err:%v\n", err)
-//		return false, errors.New(fmt.Sprintf("namespace \"%s\" is unaccessible", namespace))
-//	} else {
-//		return true, nil
-//	}
-//}
-
 func (c *ClientGoUtils) GetDefaultNamespace() (string, error) {
 	ns, _, err := c.ClientConfig.Namespace()
 	return ns, errors.Wrap(err, "")
@@ -197,11 +182,7 @@ func (c *ClientGoUtils) createUnstructuredResource(rawObj runtime.RawExtension, 
 
 	var dri dynamic.ResourceInterface
 	if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
-		//if namespace != "" {
 		unstructuredObj.SetNamespace(c.namespace)
-		//} else if unstructuredObj.GetNamespace() == "" {
-		//	unstructuredObj.SetNamespace("default")
-		//}
 		dri = c.GetDynamicClient().Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
 	} else {
 		dri = c.GetDynamicClient().Resource(mapping.Resource)
@@ -228,9 +209,6 @@ func (c *ClientGoUtils) Create(yamlPath string, wait bool, validate bool) error 
 	if yamlPath == "" {
 		return errors.New("yaml path can not be empty")
 	}
-	//if namespace == "" {
-	//	namespace, _ = c.GetDefaultNamespace()
-	//}
 
 	filebytes, err := ioutil.ReadFile(yamlPath)
 	if err != nil {
@@ -435,7 +413,6 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 	return false, nil
 }
 
-// syncthing
 func (c *ClientGoUtils) CreateSecret(secret *corev1.Secret, options metav1.CreateOptions) (*corev1.Secret, error) {
 	return c.ClientSet.CoreV1().Secrets(c.namespace).Create(c.ctx, secret, options)
 }

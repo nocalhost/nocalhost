@@ -22,6 +22,18 @@ func (a *Application) getGitDir() string {
 	return filepath.Join(a.GetHomeDir(), DefaultResourcesDir)
 }
 
+func (a *Application) getUpgradeGitDir() string {
+	return filepath.Join(a.GetHomeDir(), DefaultUpgradeResourcesDir)
+}
+
+func (a *Application) getUpgradeConfigPathInGitResourcesDir(configName string) string {
+	if configName == "" {
+		return filepath.Join(a.getUpgradeGitDir(), DefaultGitNocalhostDir, DefaultConfigNameInGitNocalhostDir)
+	} else {
+		return filepath.Join(a.getUpgradeGitDir(), DefaultGitNocalhostDir, configName)
+	}
+}
+
 func (a *Application) getGitNocalhostDir() string {
 	return filepath.Join(a.getGitDir(), DefaultGitNocalhostDir)
 }

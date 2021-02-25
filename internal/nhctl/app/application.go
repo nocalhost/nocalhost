@@ -21,7 +21,6 @@ import (
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -35,12 +34,10 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"nocalhost/internal/nhctl/coloredoutput"
-	"nocalhost/internal/nhctl/nocalhost"
 	port_forward "nocalhost/internal/nhctl/port-forward"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/tools"
 
 	"github.com/pkg/errors"
 )
@@ -64,6 +61,10 @@ type Application struct {
 	client                   *clientgoutils.ClientGoUtils
 	sortedPreInstallManifest []string // for pre install
 	installManifest          []string // for install
+
+	// for upgrade
+	upgradeSortedPreInstallManifest []string
+	upgradeInstallManifest          []string
 }
 
 type SvcDependency struct {
@@ -105,34 +106,6 @@ func NewApplication(name string) (*Application, error) {
 func (a *Application) ReadBeforeWriteProfile() error {
 	return a.LoadAppProfileV2()
 }
-
-//func (a *Application) InitProfile(profile *AppProfile) {
-//	if profile != nil {
-//		a.AppProfile = profile
-//	}
-//}
-
-//func (a *Application) LoadConfig() error {
-//	config := &NocalHostAppConfig{}
-//	if _, err := os.Stat(a.GetConfigPath()); err != nil {
-//		if os.IsNotExist(err) {
-//			a.config = config
-//			return nil
-//		} else {
-//			return errors.Wrap(err, "fail to load configs")
-//		}
-//	}
-//	rbytes, err := ioutil.ReadFile(a.GetConfigPath())
-//	if err != nil {
-//		return errors.New(fmt.Sprintf("fail to load configFile : %s", a.GetConfigPath()))
-//	}
-//	err = yaml.Unmarshal(rbytes, config)
-//	if err != nil {
-//		return errors.Wrap(err, err.Error())
-//	}
-//	a.config = config
-//	return nil
-//}
 
 func (a *Application) LoadConfigV2() error {
 
@@ -181,32 +154,6 @@ func (a *Application) SaveProfile() error {
 	return errors.Wrap(err, "")
 }
 
-func (a *Application) downloadResourcesFromGit(gitUrl string, gitRef string) error {
-	var (
-		err        error
-		gitDirName string
-	)
-
-	if strings.HasPrefix(gitUrl, "https") || strings.HasPrefix(gitUrl, "git") || strings.HasPrefix(gitUrl, "http") {
-		if strings.HasSuffix(gitUrl, ".git") {
-			gitDirName = gitUrl[:len(gitUrl)-4]
-		} else {
-			gitDirName = gitUrl
-		}
-		strs := strings.Split(gitDirName, "/")
-		gitDirName = strs[len(strs)-1] // todo : for default application name
-		if len(gitRef) > 0 {
-			_, err = tools.ExecCommand(nil, true, "git", "clone", "--branch", gitRef, "--depth", "1", gitUrl, a.getGitDir())
-		} else {
-			_, err = tools.ExecCommand(nil, true, "git", "clone", "--depth", "1", gitUrl, a.getGitDir())
-		}
-		if err != nil {
-			return errors.Wrap(err, err.Error())
-		}
-	}
-	return nil
-}
-
 type HelmFlags struct {
 	Debug    bool
 	Wait     bool
@@ -229,7 +176,7 @@ func (a *Application) ignoredInInstall(manifest string) bool {
 }
 
 func (a *Application) uninstallManifestRecursively() error {
-	a.loadInstallManifest()
+	//a.loadInstallManifest()
 
 	if len(a.installManifest) > 0 {
 		err := a.client.ApplyForDelete(a.installManifest, true)
@@ -243,23 +190,8 @@ func (a *Application) uninstallManifestRecursively() error {
 	return nil
 }
 
-func (a *Application) preInstall() {
-
-	a.loadSortedPreInstallManifest()
-
-	if len(a.sortedPreInstallManifest) > 0 {
-		log.Info("Run pre-install...")
-		for _, item := range a.sortedPreInstallManifest {
-			err := a.client.Create(item, true, false)
-			if err != nil {
-				log.Warnf("error occurs when install %s : %s\n", item, err.Error())
-			}
-		}
-	}
-}
-
 func (a *Application) cleanPreInstall() {
-	a.loadSortedPreInstallManifest()
+	//a.loadSortedPreInstallManifest()
 	if len(a.sortedPreInstallManifest) > 0 {
 		log.Debug("Cleaning up pre-install jobs...")
 		err := a.client.ApplyForDelete(a.sortedPreInstallManifest, true)
@@ -271,15 +203,13 @@ func (a *Application) cleanPreInstall() {
 	}
 }
 
-func (a *Application) GetApplicationSyncDir(deployment string) string {
-	dirPath := filepath.Join(a.GetHomeDir(), nocalhost.DefaultBinSyncThingDirName, deployment)
-	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-		err = os.MkdirAll(dirPath, 0700)
-		if err != nil {
-			log.Fatalf("fail to create syncthing directory: %s", dirPath)
+func (a *Application) IsAnyServiceInDevMode() bool {
+	for _, svc := range a.AppProfileV2.SvcProfile {
+		if svc.Developing {
+			return true
 		}
 	}
-	return dirPath
+	return false
 }
 
 //func (a *Application) GetSvcConfig(svcName string) *ServiceDevOptions {
