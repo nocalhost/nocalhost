@@ -60,7 +60,7 @@ nhctl is a command line tool running locally. It controls status of applications
 Focusing on better experiences, Nocalhost provides developers with IDE Plugins to connect Cloud and local IDE directly.
 
 - [Visual Studio Code Extension](https://marketplace.visualstudio.com/items?itemName=nocalhost.nocalhost)
-- IntelliJ Plugin(Planning)
+- [IntelliJ Plugin](https://plugins.jetbrains.com/plugin/16058-nocalhost)
 
 # Quick Start
 

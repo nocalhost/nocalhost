@@ -51,7 +51,7 @@ nhctl 是运行在开发者本地的客户端，主要提供本地和远端云�
 Nocalhost 以开发者体验为中心，会把与开发者相关 nhctl，登录认证等能力都封装到 IDE 插件中，开发者只要打开 IDE，即可畅享云原生开发。
 
 - [Visual Studio Code 插件](https://marketplace.visualstudio.com/items?itemName=nocalhost.nocalhost)
-- IntelliJ 系列插件(规划中)
+- [IntelliJ 系列插件](https://plugins.jetbrains.com/plugin/16058-nocalhost)
 
 插件提供对远程开发环境的工作负载展示、进入开发环境，克隆项目代码，调试等能力。
 
