@@ -567,8 +567,8 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 	wg.Add(len(localPorts))
 
 	for key, sLocalPort := range localPorts {
-
 		go func(lPort int, rPort int) {
+			_ = a.SetPortForwardPid(deployment, lPort, rPort, os.Getpid())
 			for {
 				// stopCh control the port forwarding lifecycle. When it gets closed the
 				// port forward will terminate
@@ -596,7 +596,6 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 						go func() {
 							a.SendHeartBeat(endCh, listenAddress[0], lPort)
 						}()
-						_ = a.SetPortForwardPid(deployment, lPort, rPort, os.Getpid())
 					}
 				}()
 
@@ -636,7 +635,7 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 		}(sLocalPort, remotePorts[key])
 
 		// sleep while
-		time.Sleep(time.Duration(2) * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 
 	wg.Wait()
