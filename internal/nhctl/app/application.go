@@ -529,16 +529,23 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 				if !exist {
 					localPorts = append(localPorts, v.LocalPort)
 					remotePorts = append(remotePorts, v.RemotePort)
+					a.EndDevPortForward(deployment, v.LocalPort, v.RemotePort)
 					os.Args = append(os.Args, "-p", fmt.Sprintf("%d:%d", v.LocalPort, v.RemotePort))
 				}
 			}
 		}
 
-		devPortListToForward := make([]*DevPortForward, 0)
-		var err error
+		for _, sLocalPort := range localPorts {
+			isAvailable := ports.IsTCP4PortAvailable("0.0.0.0", sLocalPort)
+			if isAvailable {
+				log.Infof("Port %d is available", sLocalPort)
+			} else {
+				log.Fatalf("Port %d is unavailable", sLocalPort)
+			}
+		}
+
 		for key, sLocalPort := range localPorts {
 			a.EndDevPortForward(deployment, sLocalPort, remotePorts[key]) // kill existed port-forward
-			isAvailable := ports.IsPortAvailable("0.0.0.0", sLocalPort)
 			devPort := &DevPortForward{
 				LocalPort:  sLocalPort,
 				RemotePort: remotePorts[key],
@@ -546,30 +553,13 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 				Status:     "",
 				Updated:    time.Now().Format("2006-01-02 15:04:05"),
 			}
-			if isAvailable {
-				log.Infof("Port %d is available", sLocalPort)
-				devPort.Status = "AVAILABLE"
-			} else {
-				log.Infof("Port %d is unavailable", sLocalPort)
-				devPort.Status = "UNAVAILABLE"
-				err = errors.New(fmt.Sprintf("Port %d is unavailable", sLocalPort))
-				break
-			}
-			devPortListToForward = append(devPortListToForward, devPort)
-		}
-
-		if err != nil {
-			log.FatalE(err, "Failed to port-forward")
-		}
-
-		for _, devPort := range devPortListToForward {
 			a.AppendPortForward(deployment, devPort)
 		}
 
 		_ = a.SetPortForwardedStatus(deployment, true)
 
 		os.Args = append(os.Args, "--forward", "true")
-		_, err = daemon.Background(a.GetPortForwardLogFile(deployment), a.GetApplicationBackGroundOnlyPortForwardPidFile(deployment), true)
+		_, err := daemon.Background(a.GetPortForwardLogFile(deployment), a.GetApplicationBackGroundOnlyPortForwardPidFile(deployment), true)
 		if err != nil {
 			log.Fatal("Failed to run port-forward background, please try again")
 		}
