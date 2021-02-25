@@ -116,11 +116,6 @@ var portForwardStartCmd = &cobra.Command{
 		// change -p flag os.Args
 		nocalhostApp.FixPortForwardOSArgs(localPorts, remotePorts)
 
-		// log.Infof("Ready to call dev port forward locals: %d, remotes: %d", localPorts, remotePorts)
-		// if port-forward by manually, record manual port-forward in devPorts
-		//todo: this may not need anymore
-		//_ = nocalhostApp.AppendManualPortForwardToRawConfigDevPorts(deployment, portForwardOptions.Way, localPorts, remotePorts)
-
 		// listening, it will wait until kill port forward progress
 		listenAddress := []string{"0.0.0.0"}
 		if len(localPorts) > 0 && len(remotePorts) > 0 {

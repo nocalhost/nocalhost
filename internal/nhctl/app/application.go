@@ -534,6 +534,8 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 			}
 		}
 
+		devPortListToForward := make([]*DevPortForward, 0)
+		var err error
 		for key, sLocalPort := range localPorts {
 			a.EndDevPortForward(deployment, sLocalPort, remotePorts[key]) // kill existed port-forward
 			isAvailable := ports.IsPortAvailable("0.0.0.0", sLocalPort)
@@ -550,13 +552,24 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 			} else {
 				log.Infof("Port %d is unavailable", sLocalPort)
 				devPort.Status = "UNAVAILABLE"
+				err = errors.New(fmt.Sprintf("Port %d is unavailable", sLocalPort))
+				break
 			}
+			devPortListToForward = append(devPortListToForward, devPort)
+		}
+
+		if err != nil {
+			log.FatalE(err, "Failed to port-forward")
+		}
+
+		for _, devPort := range devPortListToForward {
 			a.AppendPortForward(deployment, devPort)
 		}
+
 		_ = a.SetPortForwardedStatus(deployment, true)
 
 		os.Args = append(os.Args, "--forward", "true")
-		_, err := daemon.Background(a.GetPortForwardLogFile(deployment), a.GetApplicationBackGroundOnlyPortForwardPidFile(deployment), true)
+		_, err = daemon.Background(a.GetPortForwardLogFile(deployment), a.GetApplicationBackGroundOnlyPortForwardPidFile(deployment), true)
 		if err != nil {
 			log.Fatal("Failed to run port-forward background, please try again")
 		}
