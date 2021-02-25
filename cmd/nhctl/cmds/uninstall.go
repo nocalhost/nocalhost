@@ -70,7 +70,7 @@ var uninstallCmd = &cobra.Command{
 					}
 				}
 				// End port forward
-				if len(profile.PortForwardPidList) > 0 {
+				if len(profile.DevPortForwardList) > 0 {
 					log.Infof("Stopping port-forwards of service %s", profile.ActualName)
 					err = nhApp.StopAllPortForward(profile.ActualName)
 					if err != nil {
