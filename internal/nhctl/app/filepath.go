@@ -28,9 +28,9 @@ func (a *Application) getUpgradeGitDir() string {
 
 func (a *Application) getUpgradeConfigPathInGitResourcesDir(configName string) string {
 	if configName == "" {
-		return filepath.Join(a.getUpgradeGitDir(), DefaultApplicationConfigDirName, DefaultConfigNameInGitNocalhostDir)
+		return filepath.Join(a.getUpgradeGitDir(), DefaultGitNocalhostDir, DefaultConfigNameInGitNocalhostDir)
 	} else {
-		return filepath.Join(a.getUpgradeGitDir(), DefaultApplicationConfigDirName, configName)
+		return filepath.Join(a.getUpgradeGitDir(), DefaultGitNocalhostDir, configName)
 	}
 }
 

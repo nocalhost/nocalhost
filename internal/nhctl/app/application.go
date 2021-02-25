@@ -21,8 +21,6 @@ import (
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"os"
-	"regexp"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -36,13 +34,10 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"nocalhost/internal/nhctl/coloredoutput"
-	"nocalhost/internal/nhctl/flock"
-	"nocalhost/internal/nhctl/nocalhost"
 	port_forward "nocalhost/internal/nhctl/port-forward"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/tools"
 
 	"github.com/pkg/errors"
 )
