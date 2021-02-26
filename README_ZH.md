@@ -93,4 +93,4 @@ swag init -g cmd/nocalhost-api/nocalhost-api.go
 
 # 🔥招聘
 
-如果你对 Nocalhost 感兴趣，欢迎投递简历至：wangweimax@coding.net
+如果你对 Nocalhost 感兴趣，欢迎投递简历至：wangweimax@coding.net（接受远程）
