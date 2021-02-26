@@ -15,6 +15,7 @@ package app
 
 import (
 	"github.com/pkg/errors"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
 	"strings"
@@ -52,6 +53,23 @@ func (a *Application) downloadResourcesFromGit(gitUrl string, gitRef string) err
 	return cloneFromGit(gitUrl, gitRef, a.getGitDir())
 }
 
+func (a *Application) copyUpgradeResourcesFromLocalDir(localDir string) error {
+
+	_, err := os.Stat(a.getUpgradeGitDir())
+	if err == nil {
+		err = os.RemoveAll(a.getUpgradeGitDir())
+		if err != nil {
+			return errors.Wrap(err, "")
+		}
+	}
+
+	err = os.Mkdir(a.getUpgradeGitDir(), DefaultNewFilePermission)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	return errors.Wrap(utils.CopyDir(localDir, a.getUpgradeGitDir()), "")
+}
+
 func (a *Application) downloadUpgradeResourcesFromGit(gitUrl string, gitRef string) error {
 	_, err := os.Stat(a.getUpgradeGitDir())
 	if err == nil {
@@ -65,7 +83,6 @@ func (a *Application) downloadUpgradeResourcesFromGit(gitUrl string, gitRef stri
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-
 	return cloneFromGit(gitUrl, gitRef, a.getUpgradeGitDir())
 }
 

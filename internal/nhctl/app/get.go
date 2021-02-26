@@ -64,10 +64,21 @@ func (a *Application) GetResourceDir() []string {
 	return []string{a.getGitDir()}
 }
 
-func (a *Application) getUpgradeResourceDir() []string {
+//func (a *Application) getUpgradeResourceDir() []string {
+//	var resourcePath []string
+//	if len(a.AppProfileV2.ResourcePath) != 0 {
+//		for _, path := range a.AppProfileV2.ResourcePath {
+//			fullPath := filepath.Join(a.getUpgradeGitDir(), path)
+//			resourcePath = append(resourcePath, fullPath)
+//		}
+//		return resourcePath
+//	}
+//	return []string{a.getUpgradeGitDir()}
+//}
+func (a *Application) getUpgradeResourceDir(upgradeResourcePath []string) []string {
 	var resourcePath []string
-	if len(a.AppProfileV2.ResourcePath) != 0 {
-		for _, path := range a.AppProfileV2.ResourcePath {
+	if len(upgradeResourcePath) != 0 {
+		for _, path := range upgradeResourcePath {
 			fullPath := filepath.Join(a.getUpgradeGitDir(), path)
 			resourcePath = append(resourcePath, fullPath)
 		}

@@ -82,7 +82,7 @@ var installCmd = &cobra.Command{
 		log.Info("Installing application...")
 		err = InstallApplication(applicationName)
 		if err != nil {
-			log.Warnf("Failed to install application : %s", err.Error())
+			log.WarnE(err, "Failed to install application")
 			log.Debug("Cleaning up resources...")
 			err = nocalhost.CleanupAppFiles(applicationName)
 			if err != nil {
