@@ -5,21 +5,19 @@
     - "app=rabbitmq"
     dependJobsLabelSelector:
       - "job-name=init-data-job"
-    gitUrl:git@e.coding.net:nocalhost/nocalhost.git
+    gitUrl:git@e.coding.net:codingcorp/collaboration.git
     devContainerImage:
     workDir:
     persistentVolumeDirs:
-     - path:./root
-    buildCommand: ["./gradlew", "build"]
+     - path:
+    buildCommand: []
     runCommand: ["./gradlew", "bootRun"]
-    debugCommand: ["Nocalhost test subst with multi env"]
+    debugCommand: ["./gradlew", "bootRun", "--debug-jvm"]
     syncFilePattern:
-     - ./nocalhost
-     - ./foo**bar
-     - *.jar
+     - "."
 
     ignoreFilePattern:
      - ".git"
      - ".nocalhost"
 
-    testPriority:2
+    testPriority:0
