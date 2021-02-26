@@ -90,3 +90,7 @@ swag init -g cmd/nocalhost-api/nocalhost-api.go
 - 贡献者行为准则：https://github.com/cncf/foundation/blob/master/code-of-conduct.md
 - 对 Nocalhost 有任何意见和建议，请提交 GitHub Issue: https://github.com/nocalhost/nocalhost/issues
 - 您可以通过提交 Pull Request 来参与社区贡献：https://github.com/nocalhost/nocalhost/pulls
+
+# 招聘
+
+如果你对 Nocalhost 感兴趣，欢迎投递简历至：wangweimax@coding.net

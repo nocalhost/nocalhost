@@ -100,3 +100,8 @@ Then you can visit: http://127.0.0.1:8080/swagger/index.html
 - Code Of Conduct: https://github.com/cncf/foundation/blob/master/code-of-conduct.md
 - Any suggestions could be committed as a GitHub Issue: https://github.com/nocalhost/nocalhost/issues
 - Pull Requests are welcomed: https://github.com/nocalhost/nocalhost/pulls
+
+
+# We're Hiring
+
+If you are interested with Nocalhost, please send resume to email: wangweimax@coding.net
