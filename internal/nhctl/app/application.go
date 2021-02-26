@@ -348,6 +348,7 @@ type PortForwardOptions struct {
 	Pid         int      `json:"pid" yaml:"pid"`
 	DevPort     []string // 8080:8080 or :8080 means random localPort
 	PodName     string   // directly port-forward pod
+	ServiceType string   // service type such deployment
 	Way         string   // port-forward way, value is manual or devPorts
 	RunAsDaemon bool
 	Forward     bool
@@ -370,10 +371,49 @@ func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error
 		} else {
 			return true, nil
 		}
+	case StatefulSet:
+		dep, err := a.client.GetStatefulSet(name)
+		if err != nil {
+			return false, errors.Wrap(err, "")
+		}
+		if dep == nil {
+			return false, nil
+		} else {
+			return true, nil
+		}
+	case DaemonSet:
+		dep, err := a.client.GetDaemonSet(name)
+		if err != nil {
+			return false, errors.Wrap(err, "")
+		}
+		if dep == nil {
+			return false, nil
+		} else {
+			return true, nil
+		}
+	case Job:
+		dep, err := a.client.GetJobs(name)
+		if err != nil {
+			return false, errors.Wrap(err, "")
+		}
+		if dep == nil {
+			return false, nil
+		} else {
+			return true, nil
+		}
+	case CronJob:
+		dep, err := a.client.GetCronJobs(name)
+		if err != nil {
+			return false, errors.Wrap(err, "")
+		}
+		if dep == nil {
+			return false, nil
+		} else {
+			return true, nil
+		}
 	default:
 		return false, errors.New("unsupported svc type")
 	}
-	return false, nil
 }
 
 func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {

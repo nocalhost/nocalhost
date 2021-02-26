@@ -18,6 +18,7 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
+	"strings"
 )
 
 func InitApp(appName string) {
@@ -33,12 +34,27 @@ func InitApp(appName string) {
 	log.AddField("APP", nocalhostApp.Name)
 }
 
-func CheckIfSvcExist(svcName string) {
+func CheckIfSvcExist(svcName string, svcType ...string) {
+	serviceType := app.Deployment
+	if len(svcType) > 0 {
+		svcTypeLower := strings.ToLower(svcType[0])
+		switch svcTypeLower {
+		case strings.ToLower(string(app.StatefulSet)):
+			serviceType = app.StatefulSet
+		case strings.ToLower(string(app.DaemonSet)):
+			serviceType = app.DaemonSet
+		case strings.ToLower(string(app.Job)):
+			serviceType = app.Job
+		case strings.ToLower(string(app.CronJob)):
+			serviceType = app.CronJob
+		default:
+			serviceType = app.Deployment
+		}
+	}
 	if svcName == "" {
 		log.Fatal("please use -d to specify a k8s workload")
 	}
-
-	exist, err := nocalhostApp.CheckIfSvcExist(svcName, app.Deployment)
+	exist, err := nocalhostApp.CheckIfSvcExist(svcName, serviceType)
 	if err != nil {
 		log.FatalE(err, fmt.Sprintf("failed to check if svc exists: %s", err.Error()))
 	} else if !exist {
@@ -47,7 +63,11 @@ func CheckIfSvcExist(svcName string) {
 	log.AddField("SVC", svcName)
 }
 
-func InitAppAndCheckIfSvcExist(appName string, svcName string) {
+func InitAppAndCheckIfSvcExist(appName string, svcName string, svcAttr ...string) {
+	serviceType := "deployment"
+	if len(svcAttr) > 0 {
+		serviceType = svcAttr[0]
+	}
 	InitApp(appName)
-	CheckIfSvcExist(svcName)
+	CheckIfSvcExist(svcName, serviceType)
 }

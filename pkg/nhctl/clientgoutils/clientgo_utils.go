@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/api/batch/v1beta1"
 	"net/http"
 	"net/url"
 	"nocalhost/internal/nhctl/utils"
@@ -44,6 +45,8 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	appsV1 "k8s.io/client-go/kubernetes/typed/apps/v1"
+	batchV1 "k8s.io/client-go/kubernetes/typed/batch/v1"
+	batchV1beta1 "k8s.io/client-go/kubernetes/typed/batch/v1beta1"
 	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
@@ -280,12 +283,53 @@ func (c *ClientGoUtils) GetDeploymentClient() appsV1.DeploymentInterface {
 	return c.ClientSet.AppsV1().Deployments(c.namespace)
 }
 
+func (c *ClientGoUtils) GetStatefulSetClient() appsV1.StatefulSetInterface {
+	return c.ClientSet.AppsV1().StatefulSets(c.namespace)
+}
+
+func (c *ClientGoUtils) GetDaemonSetClient() appsV1.DaemonSetInterface {
+	return c.ClientSet.AppsV1().DaemonSets(c.namespace)
+}
+
+func (c *ClientGoUtils) GetJobsClient() batchV1.JobInterface {
+	return c.ClientSet.BatchV1().Jobs(c.namespace)
+}
+
+func (c *ClientGoUtils) GetCronJobsClient() batchV1beta1.CronJobInterface {
+	return c.ClientSet.BatchV1beta1().CronJobs(c.namespace)
+}
+
 func (c *ClientGoUtils) GetPodClient() coreV1.PodInterface {
 	return c.ClientSet.CoreV1().Pods(c.namespace)
 }
 
+func (c *ClientGoUtils) GetPod(name string) (*corev1.Pod, error) {
+	dep, err := c.GetPodClient().Get(c.ctx, name, metav1.GetOptions{})
+	return dep, errors.Wrap(err, "")
+}
+
 func (c *ClientGoUtils) GetDeployment(name string) (*v1.Deployment, error) {
 	dep, err := c.GetDeploymentClient().Get(c.ctx, name, metav1.GetOptions{})
+	return dep, errors.Wrap(err, "")
+}
+
+func (c *ClientGoUtils) GetDaemonSet(name string) (*v1.DaemonSet, error) {
+	dep, err := c.GetDaemonSetClient().Get(c.ctx, name, metav1.GetOptions{})
+	return dep, errors.Wrap(err, "")
+}
+
+func (c *ClientGoUtils) GetStatefulSet(name string) (*v1.StatefulSet, error) {
+	dep, err := c.GetStatefulSetClient().Get(c.ctx, name, metav1.GetOptions{})
+	return dep, errors.Wrap(err, "")
+}
+
+func (c *ClientGoUtils) GetJobs(name string) (*batchv1.Job, error) {
+	dep, err := c.GetJobsClient().Get(c.ctx, name, metav1.GetOptions{})
+	return dep, errors.Wrap(err, "")
+}
+
+func (c *ClientGoUtils) GetCronJobs(name string) (*v1beta1.CronJob, error) {
+	dep, err := c.GetCronJobsClient().Get(c.ctx, name, metav1.GetOptions{})
 	return dep, errors.Wrap(err, "")
 }
 

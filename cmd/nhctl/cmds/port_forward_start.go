@@ -34,6 +34,7 @@ func init() {
 	//portForwardStartCmd.Flags().BoolVarP(&portForwardOptions.RunAsDaemon, "daemon", "m", true, "if port-forward run as daemon")
 	portForwardStartCmd.Flags().BoolVarP(&portForwardOptions.Forward, "forward", "f", false, "forward actually")
 	portForwardStartCmd.Flags().StringVarP(&portForwardOptions.PodName, "pod", "", "", "specify pod name")
+	portForwardStartCmd.Flags().StringVarP(&portForwardOptions.ServiceType, "type", "", "deployment", "specify service type")
 	portForwardStartCmd.Flags().StringVarP(&portForwardOptions.Way, "way", "", "manual", "specify port-forward way")
 	PortForwardCmd.AddCommand(portForwardStartCmd)
 }
@@ -54,7 +55,7 @@ var portForwardStartCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		applicationName := args[0]
-		InitAppAndCheckIfSvcExist(applicationName, deployment)
+		InitAppAndCheckIfSvcExist(applicationName, deployment, portForwardOptions.ServiceType)
 
 		// look for nhctl
 		nhctlAbsdir, err := exec.LookPath(nocalhostApp.GetMyBinName())
@@ -69,7 +70,8 @@ var portForwardStartCmd = &cobra.Command{
 		// find deployment pods
 		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
 		if err != nil {
-			// can not find devContainer, get pods from command flags
+			// use serviceType get pods name
+			// can not find devContainer, means need port-forward normal service, get pods from command flags
 			podName = portForwardOptions.PodName
 		}
 
