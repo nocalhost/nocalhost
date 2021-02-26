@@ -102,6 +102,6 @@ Then you can visit: http://127.0.0.1:8080/swagger/index.html
 - Pull Requests are welcomed: https://github.com/nocalhost/nocalhost/pulls
 
 
-# We're Hiring
+# 🔥We're Hiring
 
 If you are interested with Nocalhost, please send resume to email: wangweimax@coding.net
