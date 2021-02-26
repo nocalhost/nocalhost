@@ -31,11 +31,13 @@ func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
 	case HelmRepo:
 		return a.upgradeForHelmRepo(installFlags)
 	case Helm:
-		return a.upgradeForHelmGit(installFlags)
+		return a.upgradeForHelmGitOrHelmLocal(installFlags)
 	case Manifest:
 		return a.upgradeForManifest(installFlags)
 	case ManifestLocal:
 		return a.upgradeForManifest(installFlags)
+	case HelmLocal:
+		return a.upgradeForHelmGitOrHelmLocal(installFlags)
 	default:
 		return errors.New("Unsupported app type")
 	}
@@ -50,11 +52,13 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 		if err != nil {
 			return err
 		}
-	} else {
+	} else if installFlags.LocalPath != "" {
 		err = a.copyUpgradeResourcesFromLocalDir(installFlags.LocalPath)
 		if err != nil {
 			return errors.Wrap(err, "")
 		}
+	} else {
+		return errors.New("LocalPath or GitUrl mush be specified")
 	}
 
 	var upgradeResourcePath []string
@@ -195,11 +199,21 @@ func isContainsInfo(info *resource.Info, infos []*resource.Info) bool {
 	return false
 }
 
-func (a *Application) upgradeForHelmGit(installFlags *flag.InstallFlags) error {
+func (a *Application) upgradeForHelmGitOrHelmLocal(installFlags *flag.InstallFlags) error {
 
-	err := a.downloadUpgradeResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
-	if err != nil {
-		return err
+	var err error
+	if installFlags.GitUrl != "" {
+		err = a.downloadUpgradeResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
+		if err != nil {
+			return err
+		}
+	} else if installFlags.LocalPath != "" {
+		err = a.copyUpgradeResourcesFromLocalDir(installFlags.LocalPath)
+		if err != nil {
+			return errors.Wrap(err, "")
+		}
+	} else {
+		return errors.New("LocalPath or GitUrl mush be specified")
 	}
 
 	resourcesPath := a.getUpgradeResourceDir(a.AppProfileV2.ResourcePath)
