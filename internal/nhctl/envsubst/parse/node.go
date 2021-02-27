@@ -1,3 +1,16 @@
+/*
+Copyright 2020 The Nocalhost Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package parse
 
 import (
@@ -7,7 +20,7 @@ import (
 
 type Node interface {
 	Type() NodeType
-	String() (string, error)
+	String() (string, string, error)
 }
 
 // NodeType identifies the type of a node.
@@ -34,8 +47,8 @@ func NewText(text string) *TextNode {
 	return &TextNode{NodeText, text}
 }
 
-func (t *TextNode) String() (string, error) {
-	return t.Text, nil
+func (t *TextNode) String() (string, string, error) {
+	return "", t.Text, nil
 }
 
 type VariableNode struct {
@@ -49,9 +62,9 @@ func NewVariable(ident string, env []Env, restrict *Restrictions) *VariableNode 
 	return &VariableNode{NodeVariable, ident, env, restrict}
 }
 
-func (t *VariableNode) String() (string, error) {
+func (t *VariableNode) String() (string, string, error) {
 	if err := t.validateNoUnset(); err != nil {
-		return "", err
+		return t.Ident, "", err
 	}
 
 	var value *string = nil
@@ -73,9 +86,9 @@ func (t *VariableNode) String() (string, error) {
 	}
 
 	if err := t.validateNoEmpty(result); err != nil { // ???
-		return "", errors.Wrap(err, "")
+		return t.Ident, "", errors.Wrap(err, "")
 	}
-	return result, nil
+	return t.Ident, result, nil
 }
 
 func (t *VariableNode) isSet() bool {
@@ -108,24 +121,30 @@ type SubstitutionNode struct {
 	Default  Node // Default could be variable or text
 }
 
-func (t *SubstitutionNode) String() (string, error) {
+func (t *SubstitutionNode) String() (string, string, error) {
 	if t.ExpType >= itemPlus && t.Default != nil {
 		switch t.ExpType {
 		case itemColonDash, itemColonEquals:
-			if s, _ := t.Variable.String(); s != "" {
-				return s, nil
+			if k, v, _ := t.Variable.String(); v != "" {
+				return k, v, nil
 			}
-			return t.Default.String()
+			return t.StringWithDefault()
 		case itemPlus, itemColonPlus:
 			if t.Variable.isSet() {
-				return t.Default.String()
+				return t.StringWithDefault()
 			}
-			return "", nil
+			return t.Variable.Ident, "", nil
 		default:
 			if !t.Variable.isSet() {
-				return t.Default.String()
+				return t.StringWithDefault()
 			}
 		}
 	}
 	return t.Variable.String()
+}
+
+func (t *SubstitutionNode) StringWithDefault() (k string, v string, err error) {
+	k, _, _ = t.Variable.String()
+	_, v, err = t.Default.String()
+	return
 }

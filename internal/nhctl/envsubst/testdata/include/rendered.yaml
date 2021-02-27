@@ -2,7 +2,6 @@ name: bookinfo
 manifestType: rawManifest
 resourcePath: ["manifest/templates"]
 
-# Generate by Nocalhost: './component/onPreInstall.yaml'
 onPreInstall:
   - path: manifest/templates/pre-install/print-num-job-01.yaml
     weight: "1"
@@ -11,47 +10,20 @@ onPreInstall:
 
 services:
 
-# Generate by Nocalhost: './service/details.yaml| nindent 2'
   - name: details
     serviceType: deployment
     gitUrl: https://github.com/nocalhost/bookinfo-details.git
     devContainerImage: RUBBBBBBY!!
-
-  # Generate by Nocalhost: '../component/patternSetting.yaml| nindent 2'
     syncFilePattern:
       - .
     ignoreFilePattern:
       - .git
-
-    # ======    WARN    ======
-    # Error occur while resolve following includation:
-    # ../service/details.yaml| nindent 2
-    # Err: Circular dependency in files: /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/component/patternSetting.yaml:
-
-    # ┌--> /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/service/details.yaml
-    # |
-    # |    /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/component/patternSetting.yaml
-    # |
-    # └--- /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/service/details.yaml
-
-    # ======    WARN    ======
-
-
     workDir: /root/nocalhost-dev
     devContainerShell: "bash"
     devPorts:
       - 29080:9080
     runCommand: ["ruby", "details.rb", "9080"]
 
-  # ======    WARN    ======
-  # Error occur while resolve following includation:
-  # ../component/notexist.yaml| nindent 2
-  # Err: open /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/component/notexist.yaml: no such file or directory
-  # ======    WARN    ======
-
-
-
-# Generate by Nocalhost: './service/productpage.yaml| nindent 2'
   - name: productpage
     serviceType: deployment
     gitUrl: https://github.com/nocalhost/bookinfo-productpage
@@ -62,52 +34,13 @@ services:
       - 39080:9080
     dependJobsLabelSelector:
       - "job-name=dep-job"
-
-  # Generate by Nocalhost: '../component/patternSetting.yaml| nindent 2'
     syncFilePattern:
       - .
     ignoreFilePattern:
       - .git
-
-    # Generate by Nocalhost: '../service/details.yaml| nindent 2'
-      - name: details
-        serviceType: deployment
-        gitUrl: https://github.com/nocalhost/bookinfo-details.git
-        devContainerImage: RUBBBBBBY!!
-
-      # ======    WARN    ======
-      # Error occur while resolve following includation:
-      # ../component/patternSetting.yaml| nindent 2
-      # Err: Circular dependency in files: /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/service/details.yaml:
-
-      #       /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/service/productpage.yaml
-      #
-      # ┌--> /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/component/patternSetting.yaml
-      # |
-      # |    /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/service/details.yaml
-      # |
-      # └--- /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/component/patternSetting.yaml
-
-      # ======    WARN    ======
-
-        workDir: /root/nocalhost-dev
-        devContainerShell: "bash"
-        devPorts:
-          - 29080:9080
-        runCommand: ["ruby", "details.rb", "9080"]
-
-      # ======    WARN    ======
-      # Error occur while resolve following includation:
-      # ../component/notexist.yaml| nindent 2
-      # Err: open /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/component/notexist.yaml: no such file or directory
-      # ======    WARN    ======
-
-
-
     runCommand: ["./run.sh"]
     hotReloadRunCommand: ["./run.sh"]
 
-# Generate by Nocalhost: './service/ra tings.yaml| nindent 2'
   - name: ratings
     serviceType: deployment
     gitUrl: https://github.com/nocalhost/bookinfo-ratings.git
@@ -116,48 +49,10 @@ services:
     devContainerShell: "bash"
     devPorts:
       - 19080:9080
-
-  # Generate by Nocalhost: '../component/patternSetting.yaml| nindent 2'
     syncFilePattern:
       - .
     ignoreFilePattern:
       - .git
-
-    # Generate by Nocalhost: '../service/details.yaml| nindent 2'
-      - name: details
-        serviceType: deployment
-        gitUrl: https://github.com/nocalhost/bookinfo-details.git
-        devContainerImage: RUBBBBBBY!!
-
-      # ======    WARN    ======
-      # Error occur while resolve following includation:
-      # ../component/patternSetting.yaml| nindent 2
-      # Err: Circular dependency in files: /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/service/details.yaml:
-
-      #       /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/service/ra tings.yaml
-      #
-      # ┌--> /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/component/patternSetting.yaml
-      # |
-      # |    /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/service/details.yaml
-      # |
-      # └--- /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/component/patternSetting.yaml
-
-      # ======    WARN    ======
-
-        workDir: /root/nocalhost-dev
-        devContainerShell: "bash"
-        devPorts:
-          - 29080:9080
-        runCommand: ["ruby", "details.rb", "9080"]
-
-      # ======    WARN    ======
-      # Error occur while resolve following includation:
-      # ../component/notexist.yaml| nindent 2
-      # Err: open /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/component/notexist.yaml: no such file or directory
-      # ======    WARN    ======
-
-
-
     dependJobsLabelSelector:
       - "job-name=dep-job"
     dependPodsLabelSelector:
@@ -165,8 +60,6 @@ services:
       - "productpage"
     runCommand: ["npm","install", "&&", "node", "ratings.js", "9080"]
 
-
-# Generate by Nocalhost: './service/\|rev iews.yaml| nindent 2'
   - name: reviews
     serviceType: deployment
     gitUrl: https://github.com/nocalhost/bookinfo-reviews.git
@@ -175,48 +68,10 @@ services:
     devContainerShell: "bash"
     devPorts:
       - 5005:5005
-
-  # Generate by Nocalhost: '../component/patternSetting.yaml| nindent 2'
     syncFilePattern:
       - .
     ignoreFilePattern:
       - .git
-
-    # Generate by Nocalhost: '../service/details.yaml| nindent 2'
-      - name: details
-        serviceType: deployment
-        gitUrl: https://github.com/nocalhost/bookinfo-details.git
-        devContainerImage: RUBBBBBBY!!
-
-      # ======    WARN    ======
-      # Error occur while resolve following includation:
-      # ../component/patternSetting.yaml| nindent 2
-      # Err: Circular dependency in files: /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/service/details.yaml:
-
-      #       /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/service/|rev iews.yaml
-      #
-      # ┌--> /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/component/patternSetting.yaml
-      # |
-      # |    /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/service/details.yaml
-      # |
-      # └--- /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/component/patternSetting.yaml
-
-      # ======    WARN    ======
-
-        workDir: /root/nocalhost-dev
-        devContainerShell: "bash"
-        devPorts:
-          - 29080:9080
-        runCommand: ["ruby", "details.rb", "9080"]
-
-      # ======    WARN    ======
-      # Error occur while resolve following includation:
-      # ../component/notexist.yaml| nindent 2
-      # Err: open /Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/envsubst/testdata/include/component/notexist.yaml: no such file or directory
-      # ======    WARN    ======
-
-
-
     dependPodsLabelSelector:
       - "productpage"
     buildCommand: ["./gradlew", "build"]

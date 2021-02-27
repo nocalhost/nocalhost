@@ -1,60 +1,72 @@
 package envsubst
 
 import (
+	"errors"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"nocalhost/internal/nhctl/fp"
 	"os"
+	"reflect"
 	"testing"
 )
 
-func initialEnv() {
-	os.Setenv("CODING_GIT_URL", "git@e.coding.net:nocalhost/nocalhost.git")
-	os.Setenv("SYNC_FILE_PATTERN", `
-     - ./nocalhost
-     - ./foo**bar
-     - *.jar`)
-	os.Setenv("PRIORITY", "2")
+func initialIncludeEnv() {
+	os.Setenv("DETAILS_DEV_IMAGE", "RUBBBBBBY!!")
 }
 
-func TestUnSubst(t *testing.T) {
-	result, err := Render(fp.NewFilePath("testdata/nocalhost.tmpl"), nil)
+func TestInclude(t *testing.T) {
+	initialIncludeEnv()
+
+	result, err := Render(fp.NewFilePath("testdata/include/nocalhostIncludeRenderTmpl.yaml"), nil)
 	if err != nil {
 		fmt.Printf("%+v", err)
 		t.Error(err)
 	}
 
-	fexpected := fp.NewFilePath("testdata/nocalhost_default.result").ReadFile()
-	if result != fexpected || err != nil {
-		t.Errorf("got >>>>\n\t%v\nexpected >>>>\n\t%v", result, fexpected)
+	expected := fp.NewFilePath("testdata/include/rendered.yaml").ReadFile()
+
+	err = IsSameYaml(result, expected)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
-func TestSubst(t *testing.T) {
-	initialEnv()
+func TestCircularInclude(t *testing.T) {
+	initialIncludeEnv()
 
-	result, err := Render(fp.NewFilePath("testdata/nocalhost.tmpl"), nil)
+	result, err := Render(fp.NewFilePath("testdata/circularDependency/renderTmpl.yaml"), nil)
 	if err != nil {
 		fmt.Printf("%+v", err)
 		t.Error(err)
 	}
 
-	fexpected := fp.NewFilePath("testdata/nocalhost_subst.result").ReadFile()
-	if result != fexpected || err != nil {
-		t.Errorf("got >>>>\n\t%v\nexpected >>>>\n\t%v", result, fexpected)
-	}
-}
+	expected := fp.NewFilePath("testdata/circularDependency/rendered.yaml").ReadFile()
 
-func TestSubstWithMultiEnv(t *testing.T) {
-	initialEnv()
-
-	result, err := Render(fp.NewFilePath("testdata/nocalhost.tmpl"), fp.NewFilePath("testdata/.env"))
+	err = IsSameYaml(result, expected)
 	if err != nil {
-		fmt.Printf("%+v", err)
 		t.Error(err)
 	}
-
-	fexpected :=  fp.NewFilePath("testdata/nocalhost_subst_multi_env.result").ReadFile()
-	if result != fexpected || err != nil {
-		t.Errorf("got >>>>\n\t%v\nexpected >>>>\n\t%v", result, fexpected)
-	}
 }
+
+func IsSameYaml(src, dst string) error {
+	var resultMap map[string]interface{}
+	err := yaml.Unmarshal([]byte(src), &resultMap)
+
+	if err != nil {
+		return errors.New(fmt.Sprintf("Parse error >>> \n %s \n Err: %s", src, err))
+	}
+
+	var expectedMap map[string]interface{}
+	err = yaml.Unmarshal([]byte(dst), &expectedMap)
+
+	if err != nil {
+		return errors.New(fmt.Sprintf("Parse expected error >>> \n %s \n Err: %s", dst, err))
+	}
+
+	if !reflect.DeepEqual(resultMap, expectedMap) {
+		return errors.New(fmt.Sprintf("got >>>>>>>>>>>>>>>>>>>>\n%v\nexpected >>>>>>>>>>>>>>>>>>>>\n%v", src, dst))
+	}
+
+	return nil
+}
+

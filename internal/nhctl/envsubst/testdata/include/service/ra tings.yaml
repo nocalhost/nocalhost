@@ -6,10 +6,7 @@
   devContainerShell: "bash"
   devPorts:
     - 19080:9080
-  syncFilePattern:
-    - .
-  ignoreFilePattern:
-    - .git
+  ${_INCLUDE_:-../component/patternSetting.yaml| nindent 2}
   dependJobsLabelSelector:
     - "job-name=dep-job"
   dependPodsLabelSelector:

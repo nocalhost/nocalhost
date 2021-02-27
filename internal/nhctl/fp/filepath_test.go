@@ -2,58 +2,72 @@ package fp
 
 import (
 	"os"
-	"path/filepath"
-	"strings"
+	"testing"
 )
 
 const (
-	pathSeparator = string(os.PathSeparator)
-
-	parentDir  = ".."
-	currentDir = "."
-	empty      = ""
+	FP01 = "fp-01"
+	FP02 = "fp-02"
+	FP03 = "fp-03"
 )
 
-type FilePath struct {
-	absPath string
-}
-
-func NewFilePath(path string) (*FilePath, error) {
-	abs, err := filepath.Abs(path)
-
+func TestFilePath01(t *testing.T) {
+	path, err := os.Getwd()
 	if err != nil {
-		return nil, err
+		t.Error(err)
 	}
 
-	return &FilePath{
-		absPath: abs,
-	}, nil
+	fp01 := NewFilePath(path).RelOrAbs("testdata/tmp1/fp-01.test")
+
+	if fp01.ReadFile() != FP01 {
+		t.Error("Not matched!!")
+	}
 }
 
-func (f *FilePath) relOrAbs(path string) (*FilePath, error) {
-	if path[0] == os.PathSeparator {
-		return NewFilePath(path)
+func TestFilePath02(t *testing.T) {
+	path, err := os.Getwd()
+	if err != nil {
+		t.Error(err)
 	}
 
-	baseSplited := strings.Split(f.absPath, pathSeparator)
-
-	splited := strings.Split(path, pathSeparator)
-	for _, s := range splited {
-		switch s {
-		case empty:
-		case currentDir:
-			break
-		case parentDir:
-			if len(baseSplited) == 0 {
-				// 报错
-			}
-
-			baseSplited = baseSplited[:len(baseSplited)-1]
-			break
-		default:
-			baseSplited = append(baseSplited, s)
-		}
+	fp02 := NewFilePath(path).RelOrAbs("testdata/tmp2/fp-02.test")
+	if err != nil {
+		t.Error(err)
 	}
 
-	return NewFilePath(strings.Join(baseSplited, pathSeparator))
+	if fp02.ReadFile() != FP02 {
+		t.Error("Not matched!!")
+	}
+}
+
+func TestFilePath03(t *testing.T) {
+	path, err := os.Getwd()
+	if err != nil {
+		t.Error(err)
+	}
+
+	fp03 := NewFilePath(path).RelOrAbs("testdata/tmp1/subtemp1/subtemp2/fp-03.test")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if fp03.ReadFile() != FP03 {
+		t.Error("Not matched!!")
+	}
+}
+
+func TestFilePathComplex(t *testing.T) {
+	path, err := os.Getwd()
+	if err != nil {
+		t.Error(err)
+	}
+
+	fp02 := NewFilePath(path).RelOrAbs("testdata/../testdata/////////././././tmp1/././././subtemp1/subtemp2/../../../tmp2/fp-02.test")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if fp02.ReadFile() != FP02 {
+		t.Error("Not matched!!")
+	}
 }

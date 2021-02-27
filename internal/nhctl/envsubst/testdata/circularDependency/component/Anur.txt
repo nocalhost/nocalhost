@@ -1,0 +1,3 @@
+${_INCLUDE_:-./whatEver.txt|nindent 2 }
+${_INCLUDE_:-../renderTmpl.yaml|nindent 2 }
+${_INCLUDE_:-../notExist.yaml|nindent 2 }

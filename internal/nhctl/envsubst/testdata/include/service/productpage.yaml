@@ -8,9 +8,6 @@
     - 39080:9080
   dependJobsLabelSelector:
     - "job-name=dep-job"
-  syncFilePattern:
-    - .
-  ignoreFilePattern:
-    - .git
+  ${_INCLUDE_:-../component/patternSetting.yaml| nindent 2}
   runCommand: ["./run.sh"]
   hotReloadRunCommand: ["./run.sh"]
