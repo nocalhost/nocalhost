@@ -27,3 +27,13 @@ type SpaceResourceLimit struct {
 	ContainerLimitsCpu        string `json:"container_limits_cpu"`
 	ContainerEphemeralStorage string `json:"container_ephemeral_storage"`
 }
+
+func (srl *SpaceResourceLimit) Validate() bool {
+	if srl.SpaceReqMem != "" && srl.ContainerReqMem == "" ||
+		srl.SpaceLimitsMem != "" && srl.ContainerLimitsMem == "" ||
+		srl.SpaceReqCpu != "" && srl.ContainerReqCpu == "" ||
+		srl.SpaceLimitsCpu != "" && srl.ContainerLimitsCpu == "" {
+		return false
+	}
+	return true
+}
