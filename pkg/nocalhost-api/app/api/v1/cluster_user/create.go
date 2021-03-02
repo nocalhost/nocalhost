@@ -52,6 +52,11 @@ func Create(c *gin.Context) {
 			api.SendResponse(c, errno.ErrFormatResourceLimitParam, message)
 			return
 		}
+
+		if !req.SpaceResourceLimit.Validate() {
+			api.SendResponse(c, errno.ErrValidateResourceQuota, nil)
+			return
+		}
 	}
 	applicationId := cast.ToUint64(c.Param("id"))
 	req.ApplicationId = &applicationId
