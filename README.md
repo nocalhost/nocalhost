@@ -42,7 +42,7 @@ Based on Kubernetes, Nocalhost provides several features:
 
 ## Nocalhost Server
 
-- Nocalhost Api
+- Nocalhost API
 - Nocalhost Web
 
 Nocalhost Server manages applications, clusters, users and authorizations.
