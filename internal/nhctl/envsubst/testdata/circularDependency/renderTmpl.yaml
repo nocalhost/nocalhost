@@ -1,0 +1,8 @@
+name: ${_INCLUDE_:- ./name.txt }
+manifestType: rawManifest
+resourcePath:
+  - "services/"
+
+onPreInstall: [ ]
+services:
+  ${_INCLUDE_:- ./service/coding.yaml |nindent 2 }
