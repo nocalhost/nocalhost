@@ -42,7 +42,7 @@ func (a *Application) EnterPodTerminal(svcName string, container string) error {
 }
 
 func (a *Application) Exec(svcName string, commands []string) error {
-	podList, err := a.client.GetPodsFromDeployment(svcName)
+	podList, err := a.client.ListPodsByDeployment(svcName)
 	if err != nil {
 		return err
 	}

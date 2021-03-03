@@ -24,6 +24,14 @@ import (
 	"time"
 )
 
+func getClient() *ClientGoUtils {
+	client, err := NewClientGoUtils("/Users/xinxinhuang/.nh/plugin/kubeConfigs/13_177_config", "nh6rtnw")
+	if err != nil {
+		panic(err)
+	}
+	return client
+}
+
 func TestNewClientGoUtils(t *testing.T) {
 	namespace := "nh6ihig"
 	client, _ := NewClientGoUtils(namespaceForTest, namespace)
@@ -93,16 +101,36 @@ func TestNewClientGoUtils(t *testing.T) {
 }
 
 func TestClientGoUtils_Create(t *testing.T) {
-	client, err := NewClientGoUtils("", "nh6ihig")
+	client := getClient()
+
+	// apply
+	//err := client.Apply("/Users/xinxinhuang/WorkSpaces/yaml/centos-01-ubuntu.yaml")
+	//if err != nil {
+	//	panic(err)
+	//}
+
+	fmt.Println("Getting deployment...")
+	dep, err := client.GetDeployment("centos-01")
 	if err != nil {
 		panic(err)
 	}
-	secret, err := client.GetSecret("aaa")
+
+	dep.Spec.Template.Spec.Containers[0].Image = ""
+
+	fmt.Println("Deleting deployment...")
+	err = client.DeleteDeployment(dep.Name)
 	if err != nil {
-		fmt.Printf("err:%s", err.Error())
-		fmt.Printf("%v", secret)
-		fmt.Println(secret.Name)
-	} else {
-		fmt.Printf("%v\n", secret)
+		panic(err)
 	}
+
+	fmt.Println("Sleeping...")
+	time.Sleep(time.Minute)
+
+	dep.ResourceVersion = ""
+	fmt.Println("Creating deployment....")
+	dep2, err := client.CreateDeployment(dep)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(dep2)
 }

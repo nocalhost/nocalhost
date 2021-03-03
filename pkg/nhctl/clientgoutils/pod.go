@@ -20,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-func (c *ClientGoUtils) GetPodsFromDeployment(name string) (*corev1.PodList, error) {
+func (c *ClientGoUtils) ListPodsByDeployment(name string) (*corev1.PodList, error) {
 	deployment, err := c.ClientSet.AppsV1().Deployments(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "")

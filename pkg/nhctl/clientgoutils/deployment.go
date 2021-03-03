@@ -19,9 +19,10 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/pkg/nhctl/log"
+	"time"
 )
 
-func (c *ClientGoUtils) GetDeployments() ([]v1.Deployment, error) {
+func (c *ClientGoUtils) ListDeployments() ([]v1.Deployment, error) {
 	deps, err := c.GetDeploymentClient().List(c.ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "")
@@ -36,14 +37,14 @@ func (c *ClientGoUtils) GetDeployments() ([]v1.Deployment, error) {
 // 3. Latest revision of ReplicaSet is ready
 // After update, UpdateDeployment will clean up previous revision's events
 // If Latest revision of ReplicaSet fails to be ready, return err
-func (c *ClientGoUtils) UpdateDeployment(deployment *v1.Deployment, opts metav1.UpdateOptions, wait bool) (*v1.Deployment, error) {
+func (c *ClientGoUtils) UpdateDeployment(deployment *v1.Deployment, wait bool) (*v1.Deployment, error) {
 	// Get current revision of replica set
 	rss, err := c.GetSortedReplicaSetsByDeployment(deployment.Name)
 	if err != nil {
 		return nil, err
 	}
 
-	dep, err := c.GetDeploymentClient().Update(c.ctx, deployment, opts)
+	dep, err := c.GetDeploymentClient().Update(c.ctx, deployment, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
@@ -104,4 +105,38 @@ func CheckIfDeploymentIsReplicaFailure(deploy *v1.Deployment) (bool, string, str
 
 	}
 	return false, "", "", nil
+}
+
+func (c *ClientGoUtils) GetDeployment(name string) (*v1.Deployment, error) {
+	dep, err := c.GetDeploymentClient().Get(c.ctx, name, metav1.GetOptions{})
+	return dep, errors.Wrap(err, "")
+}
+
+func (c *ClientGoUtils) CreateDeployment(deploy *v1.Deployment) (*v1.Deployment, error) {
+	dep, err := c.ClientSet.AppsV1().Deployments(c.namespace).Create(c.ctx, deploy, metav1.CreateOptions{})
+	return dep, errors.Wrap(err, "")
+}
+
+func (c *ClientGoUtils) DeleteDeployment(name string, wait bool) error {
+	err := c.ClientSet.AppsV1().Deployments(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	if wait {
+		for i := 0; i < 100; i++ {
+			list, err := c.ListPodsOfDeployment(name)
+			if err != nil {
+				log.WarnE(err, "")
+			}
+			if len(list) > 0 {
+				log.Infof("Waiting pod %s to be terminated", list[0].Name)
+			} else {
+				log.Infof("All pods of %s have been terminated", name)
+				break
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}
+	return nil
 }
