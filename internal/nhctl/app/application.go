@@ -151,12 +151,12 @@ func (a *Application) SaveProfile() error {
 	}
 
 	err = ioutil.WriteFile(a.getProfileV2Path(), v2Bytes, 0644)
-	if err != nil {
-		errors.Wrap(err, "")
-	}
+	//if err != nil {
+	//	errors.Wrap(err, "")
+	//}
 
-	f, _ := os.OpenFile(a.getProfileV2Path(), os.O_RDWR, 0644)
-	err = f.Sync()
+	//f, _ := os.OpenFile(a.getProfileV2Path(), os.O_RDWR, 0644)
+	//err = f.Sync()
 	return errors.Wrap(err, "")
 }
 

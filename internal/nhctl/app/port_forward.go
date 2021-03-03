@@ -28,12 +28,27 @@ func (a *Application) SetPortForwardPid(svcName string, localPort int, remotePor
 	if err != nil {
 		return err
 	}
-	for _, portForward := range a.GetSvcProfileV2(svcName).DevPortForwardList {
+	found := false
+	svcProfile := a.GetSvcProfileV2(svcName)
+	for _, portForward := range svcProfile.DevPortForwardList {
 		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
 			portForward.Pid = pid
 			portForward.Updated = time.Now().Format("2006-01-02 15:04:05")
+			found = true
 			break
 		}
+	}
+	if !found {
+		newPF := &DevPortForward{
+			LocalPort:  localPort,
+			RemotePort: remotePort,
+			Way:        "",
+			Status:     "",
+			Reason:     "",
+			Updated:    time.Now().Format("2006-01-02 15:04:05"),
+			Pid:        pid,
+		}
+		svcProfile.DevPortForwardList = append(svcProfile.DevPortForwardList, newPF)
 	}
 	return a.SaveProfile()
 }
