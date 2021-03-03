@@ -146,7 +146,7 @@ func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*re
 
 	for _, info := range infosToCreate {
 		log.Infof("Creating resource(%s) %s", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
-		err := a.client.ApplyResourceInfo(info)
+		err := a.client.ApplyResourceInfo(info, StandardNocalhostMetas(a.Name, a.GetNamespace()))
 		if err != nil {
 			log.WarnE(err, fmt.Sprintf("Failed to create resource %s", info.Name))
 			if !continueOnErr {
@@ -158,7 +158,7 @@ func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*re
 	for _, info := range infosToUpdate {
 		log.Infof("Updating resource(%s) %s", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
 		//err := a.client.UpdateResourceInfoByServerSide(info)
-		err := a.client.ApplyResourceInfo(info)
+		err := a.client.ApplyResourceInfo(info, StandardNocalhostMetas(a.Name, a.GetNamespace()))
 		if err != nil {
 			log.WarnE(err, fmt.Sprintf("Failed to create resource %s", info.Name))
 			if !continueOnErr {

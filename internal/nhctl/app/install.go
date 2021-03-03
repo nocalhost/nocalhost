@@ -244,7 +244,7 @@ func (a *Application) installManifestRecursively() error {
 	//a.loadInstallManifest()
 	log.Infof("%d manifest files to be installed", len(a.installManifest))
 	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForCreate(a.installManifest, true)
+		err := a.client.ApplyForCreate(a.installManifest, true, StandardNocalhostMetas(a.Name, a.GetNamespace()))
 		if err != nil {
 			return err
 		}
