@@ -15,6 +15,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/app_flags"
@@ -141,12 +142,12 @@ func (a *Application) generateConfig(outerConfigPath string, configName string) 
 		configFile = a.getConfigPathInGitResourcesDir(configName)
 	}
 
-	// Generate config.yaml
-	//// config.yaml may come from .nocalhost in git or a outer config file in local absolute path
-	//rbytes, err := ioutil.ReadFile(configFile)
-	//if err != nil {
-	//	return errors.New(fmt.Sprintf("fail to load configFile : %s", configFile))
-	//}
+	//Generate config.yaml
+	// config.yaml may come from .nocalhost in git or a outer config file in local absolute path
+	rbytes, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		return errors.New(fmt.Sprintf("fail to load configFile : %s", configFile))
+	}
 
 	// Check If config version
 	configVersion, err := checkConfigVersion(configFile)
@@ -162,10 +163,11 @@ func (a *Application) generateConfig(outerConfigPath string, configName string) 
 	} else {
 		// Render config file using envFile
 		beforeRenderConfig := &NocalHostAppConfigV2{}
-		//err = yaml.Unmarshal(rbytes, &beforeRenderConfig)
-		//if err != nil {
-		//	errors.Wrap(err, "")
-		//}
+		err = yaml.Unmarshal(rbytes, &beforeRenderConfig)
+
+		if err != nil {
+			errors.Wrap(err, "")
+		}
 		envFilePath := filepath.Join(a.getGitNocalhostDir(), beforeRenderConfig.ConfigProperties.EnvFile)
 		_, err = os.Stat(envFilePath)
 		if err != nil {
