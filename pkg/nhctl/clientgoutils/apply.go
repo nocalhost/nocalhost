@@ -30,6 +30,13 @@ import (
 	"os"
 )
 
+type ApplyFlags struct {
+
+	// There is currently no need to delete labels, so similar support is not provided
+	MergeableLabel      map[string]string
+	MergeableAnnotation map[string]string
+}
+
 func (c *ClientGoUtils) DeleteResourceInfo(info *resource.Info) error {
 	helper := resource.NewHelper(info.Client, info.Mapping)
 	propagationPolicy := metav1.DeletePropagationBackground
@@ -67,8 +74,8 @@ func (c *ClientGoUtils) UpdateResourceInfoByServerSide(info *resource.Info) erro
 //}
 
 // Similar to `kubectl apply`, but apply a resourceInfo instead a file
-func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info) error {
-	o, err := c.generateCompletedApplyOption("")
+func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info, af *ApplyFlags) error {
+	o, err := c.generateCompletedApplyOption("", af)
 	if err != nil {
 		return err
 	}
@@ -83,15 +90,16 @@ func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info) error {
 }
 
 // Similar to `kubectl apply -f `
-func (c *ClientGoUtils) Apply(file string) error {
-	o, err := c.generateCompletedApplyOption(file)
+func (c *ClientGoUtils) Apply(file string, af *ApplyFlags) error {
+	o, err := c.generateCompletedApplyOption(file, af)
+
 	if err != nil {
 		return err
 	}
 	return o.Run()
 }
 
-func (c *ClientGoUtils) generateCompletedApplyOption(file string) (*apply.ApplyOptions, error) {
+func (c *ClientGoUtils) generateCompletedApplyOption(file string, af *ApplyFlags) (*apply.ApplyOptions, error) {
 	var err error
 	ioStreams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr} // don't print log to stderr
 	o := apply.NewApplyOptions(ioStreams)
@@ -139,6 +147,20 @@ func (c *ClientGoUtils) generateCompletedApplyOption(file string) (*apply.ApplyO
 		o.PrintFlags.NamePrintFlags.Operation = operation
 		cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 		return o.PrintFlags.ToPrinter()
+	}
+
+	// injection for the objects before apply
+	o.PreProcessorFn = func() error {
+		var resourceList ResourceList
+
+		resourceList, err := o.GetObjects()
+		if err != nil {
+			return err
+		}
+
+		// inject nocalhost label and annotations
+		err = resourceList.Visits([]resource.VisitorFunc{addLabels(af.MergeableLabel), addAnnotations(af.MergeableAnnotation)})
+		return nil
 	}
 	return o, nil
 }

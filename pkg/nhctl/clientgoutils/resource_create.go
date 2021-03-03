@@ -34,7 +34,7 @@ func (c *ClientGoUtils) newFactory() cmdutil.Factory {
 	return f
 }
 
-func (c *ClientGoUtils) ApplyForCreate(files []string, continueOnError bool) error {
+func (c *ClientGoUtils) ApplyForCreate(files []string, continueOnError bool, flags *ApplyFlags) error {
 	//for _, file := range files {
 	//	c.Apply(file)
 	//}
@@ -43,7 +43,7 @@ func (c *ClientGoUtils) ApplyForCreate(files []string, continueOnError bool) err
 		return err
 	}
 	for _, info := range infos {
-		c.ApplyResourceInfo(info)
+		c.ApplyResourceInfo(info, flags)
 	}
 	//return c.apply(files, continueOnError, Create)
 	return nil
