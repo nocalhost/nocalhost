@@ -45,11 +45,6 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 		return nil, err
 	}
 
-	//profile, err := NewAppProfile(app.getProfilePath())
-	//if err != nil {
-	//	return nil, err
-	//}
-	//app.AppProfile = profile
 	err = app.LoadAppProfileV2()
 	if err != nil {
 		return nil, err
@@ -63,7 +58,6 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 	}
 	namespace := flags.Namespace
 
-	//err = app.initClient(kubeconfig, namespace)
 	app.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace)
 	if err != nil {
 		return nil, err
@@ -87,11 +81,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 		}
 		app.AppProfileV2.GitUrl = flags.GitUrl
 		app.AppProfileV2.GitUrl = flags.GitRef
-	}
-
-	// local path of application, copy to nocalhost resource
-	if flags.LocalPath != "" {
-		log.Infof("des %s", app.getGitDir())
+	} else if flags.LocalPath != "" { // local path of application, copy to nocalhost resource
 		err := utils.CopyDir(flags.LocalPath, app.getGitDir())
 		if err != nil {
 			return nil, err

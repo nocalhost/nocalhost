@@ -31,9 +31,13 @@ func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
 	case HelmRepo:
 		return a.upgradeForHelmRepo(installFlags)
 	case Helm:
-		return a.upgradeForHelmGit(installFlags)
+		return a.upgradeForHelmGitOrHelmLocal(installFlags)
 	case Manifest:
 		return a.upgradeForManifest(installFlags)
+	case ManifestLocal:
+		return a.upgradeForManifest(installFlags)
+	case HelmLocal:
+		return a.upgradeForHelmGitOrHelmLocal(installFlags)
 	default:
 		return errors.New("Unsupported app type")
 	}
@@ -42,13 +46,24 @@ func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
 
 func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error {
 
-	err := a.downloadUpgradeResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
-	if err != nil {
-		return err
+	var err error
+	if installFlags.GitUrl != "" {
+		err = a.downloadUpgradeResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
+		if err != nil {
+			return err
+		}
+	} else if installFlags.LocalPath != "" {
+		err = a.copyUpgradeResourcesFromLocalDir(installFlags.LocalPath)
+		if err != nil {
+			return errors.Wrap(err, "")
+		}
+	} else {
+		return errors.New("LocalPath or GitUrl mush be specified")
 	}
 
+	var upgradeResourcePath []string
 	if len(installFlags.ResourcePath) > 0 {
-		a.AppProfileV2.ResourcePath = installFlags.ResourcePath
+		upgradeResourcePath = installFlags.ResourcePath
 	} else {
 		// Get resource path for upgrade .nocalhost
 		configFilePath := a.getUpgradeConfigPathInGitResourcesDir(installFlags.Config)
@@ -68,7 +83,7 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 					if configV2.ConfigProperties != nil && configV2.ConfigProperties.Version == "v2" {
 						if configV2.ApplicationConfig != nil && len(configV2.ApplicationConfig.ResourcePath) > 0 {
 							log.Info("Updating resource path from config v2")
-							a.AppProfileV2.ResourcePath = configV2.ApplicationConfig.ResourcePath
+							upgradeResourcePath = configV2.ApplicationConfig.ResourcePath
 						}
 					} else {
 						configV1 := &NocalHostAppConfig{}
@@ -78,7 +93,7 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 						} else {
 							if len(configV1.ResourcePath) > 0 {
 								log.Info("Updating resource path from config v1")
-								a.AppProfileV2.ResourcePath = configV1.ResourcePath
+								upgradeResourcePath = configV1.ResourcePath
 							}
 						}
 
@@ -89,7 +104,7 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 	}
 
 	// Read upgrade resource obj
-	a.loadUpgradePreInstallAndInstallManifest()
+	a.loadUpgradePreInstallAndInstallManifest(upgradeResourcePath)
 	upgradeInfos, err := a.client.GetResourceInfoFromFiles(a.upgradeInstallManifest, true)
 	if err != nil {
 		return err
@@ -105,6 +120,9 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 	err = a.upgradeInfos(oldInfos, upgradeInfos, true)
 	if err != nil {
 		return err
+	}
+	if len(upgradeResourcePath) > 0 {
+		a.AppProfileV2.ResourcePath = upgradeResourcePath
 	}
 	_ = a.SaveProfile()
 	return moveDir(a.getUpgradeGitDir(), a.getGitDir())
@@ -181,14 +199,24 @@ func isContainsInfo(info *resource.Info, infos []*resource.Info) bool {
 	return false
 }
 
-func (a *Application) upgradeForHelmGit(installFlags *flag.InstallFlags) error {
+func (a *Application) upgradeForHelmGitOrHelmLocal(installFlags *flag.InstallFlags) error {
 
-	err := a.downloadUpgradeResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
-	if err != nil {
-		return err
+	var err error
+	if installFlags.GitUrl != "" {
+		err = a.downloadUpgradeResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
+		if err != nil {
+			return err
+		}
+	} else if installFlags.LocalPath != "" {
+		err = a.copyUpgradeResourcesFromLocalDir(installFlags.LocalPath)
+		if err != nil {
+			return errors.Wrap(err, "")
+		}
+	} else {
+		return errors.New("LocalPath or GitUrl mush be specified")
 	}
 
-	resourcesPath := a.getUpgradeResourceDir()
+	resourcesPath := a.getUpgradeResourceDir(a.AppProfileV2.ResourcePath)
 	releaseName := a.AppProfileV2.ReleaseName
 
 	commonParams := make([]string, 0)

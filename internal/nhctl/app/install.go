@@ -343,14 +343,14 @@ func (a *Application) loadPreInstallAndInstallManifest() {
 	a.loadInstallManifest()
 }
 
-func (a *Application) loadUpgradePreInstallAndInstallManifest() {
+func (a *Application) loadUpgradePreInstallAndInstallManifest(resourcePath []string) {
 	a.loadUpgradeSortedPreInstallManifest()
-	a.loadUpgradeInstallManifest()
+	a.loadUpgradeInstallManifest(resourcePath)
 }
 
-func (a *Application) loadUpgradeInstallManifest() {
+func (a *Application) loadUpgradeInstallManifest(upgradeResourcePath []string) {
 	result := make([]string, 0)
-	resourcePaths := a.getUpgradeResourceDir()
+	resourcePaths := a.getUpgradeResourceDir(upgradeResourcePath)
 	for _, eachPath := range resourcePaths {
 		files, _, err := getYamlFilesAndDirs(eachPath, a.getUpgradeIgnoredPath())
 		if err != nil {
