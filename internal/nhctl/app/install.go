@@ -16,12 +16,11 @@ package app
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -260,82 +259,9 @@ func (a *Application) SetInstalledStatus(is bool) {
 }
 
 func (a *Application) loadInstallManifest() {
-	result := make([]string, 0)
-	resourcePaths := a.GetResourceDir()
-	for _, eachPath := range resourcePaths {
-		files, _, err := getYamlFilesAndDirs(eachPath, a.getIgnoredPath())
-		if err != nil {
-			log.WarnE(err, fmt.Sprintf("Fail to load manifest in %s", eachPath))
-			continue
-		}
-
-		for _, file := range files {
-			if a.ignoredInInstall(file) {
-				continue
-			}
-			if _, err2 := os.Stat(file); err2 != nil {
-				log.WarnE(errors.Wrap(err2, ""), fmt.Sprintf("%s can not be installed", file))
-				continue
-			}
-			result = append(result, file)
-		}
-	}
-	a.installManifest = result
-}
-
-func isFileIgnored(fileName string, ignorePaths []string) bool {
-	for _, iFile := range ignorePaths {
-		if iFile == fileName {
-			return true
-		}
-	}
-	return false
-}
-
-// Path can be a file or a dir
-func getYamlFilesAndDirs(path string, ignorePaths []string) ([]string, []string, error) {
-
-	if isFileIgnored(path, ignorePaths) {
-		log.Infof("Ignoring file: %s", path)
-		return nil, nil, nil
-	}
-
-	dirs := make([]string, 0)
-	files := make([]string, 0)
-	var err error
-	stat, err := os.Stat(path)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "")
-	}
-
-	// If path is a file, return it directly
-	if !stat.IsDir() {
-		return append(files, path), append(dirs, path), nil
-	}
-	dir, err := ioutil.ReadDir(path)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	for _, fi := range dir {
-		fPath := filepath.Join(path, fi.Name())
-		if isFileIgnored(fPath, ignorePaths) {
-			log.Infof("Ignoring file: %s", fPath)
-			continue
-		}
-		if fi.IsDir() {
-			dirs = append(dirs, fPath)
-			fs, ds, err := getYamlFilesAndDirs(fPath, ignorePaths)
-			if err != nil {
-				return files, dirs, err
-			}
-			dirs = append(dirs, ds...)
-			files = append(files, fs...)
-		} else if strings.HasSuffix(fi.Name(), ".yaml") || strings.HasSuffix(fi.Name(), ".yml") {
-			files = append(files, fPath)
-		}
-	}
-	return files, dirs, nil
+	a.installManifest = clientgoutils.
+		LoadValidManifest(a.GetResourceDir(),
+			append(a.getIgnoredPath(), a.getPreInstallFiles()...))
 }
 
 func (a *Application) loadPreInstallAndInstallManifest() {
@@ -349,27 +275,9 @@ func (a *Application) loadUpgradePreInstallAndInstallManifest(resourcePath []str
 }
 
 func (a *Application) loadUpgradeInstallManifest(upgradeResourcePath []string) {
-	result := make([]string, 0)
-	resourcePaths := a.getUpgradeResourceDir(upgradeResourcePath)
-	for _, eachPath := range resourcePaths {
-		files, _, err := getYamlFilesAndDirs(eachPath, a.getUpgradeIgnoredPath())
-		if err != nil {
-			log.WarnE(err, fmt.Sprintf("Fail to load manifest in %s", eachPath))
-			continue
-		}
-
-		for _, file := range files {
-			if a.ignoredInUpgrade(file) {
-				continue
-			}
-			if _, err2 := os.Stat(file); err2 != nil {
-				log.WarnE(errors.Wrap(err2, ""), fmt.Sprintf("%s can not be installed", file))
-				continue
-			}
-			result = append(result, file)
-		}
-	}
-	a.upgradeInstallManifest = result
+	a.upgradeInstallManifest = clientgoutils.
+		LoadValidManifest(a.getUpgradeResourceDir(upgradeResourcePath),
+			append(a.getUpgradeIgnoredPath(), a.getUpgradePreInstallFiles()...))
 }
 
 func (a *Application) ignoredInUpgrade(manifest string) bool {
@@ -420,7 +328,7 @@ func (a *Application) preInstall() {
 	if len(a.sortedPreInstallManifest) > 0 {
 		log.Info("Run pre-install...")
 		for _, item := range a.sortedPreInstallManifest {
-			err := a.client.Create(item, true, false)
+			err := a.client.Create(item, true, false, StandardNocalhostMetas(a.Name, a.GetNamespace()))
 			if err != nil {
 				log.Warnf("error occurs when install %s : %s\n", item, err.Error())
 			}

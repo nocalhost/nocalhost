@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/resource"
 )
@@ -74,6 +75,11 @@ func requireValue(meta map[string]string, k, v string) error {
 		return fmt.Errorf("key %q must equal %q: current value is %q", k, v, actual)
 	}
 	return nil
+}
+
+func AddMetas(ut *unstructured.Unstructured, flags *ApplyFlags) {
+	ut.SetAnnotations(mergeStrStrMaps(ut.GetAnnotations(), flags.MergeableAnnotation))
+	ut.SetLabels(mergeStrStrMaps(ut.GetLabels(), flags.MergeableLabel))
 }
 
 func addLabels(labels map[string]string) resource.VisitorFunc {
