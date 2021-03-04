@@ -89,8 +89,9 @@ func NewApplication(name string) (*Application, error) {
 		return nil, err
 	}
 
-	if len(app.AppProfileV2.PreInstall) == 0 {
+	if len(app.AppProfileV2.PreInstall) == 0 && len(app.configV2.ApplicationConfig.PreInstall) > 0 {
 		app.AppProfileV2.PreInstall = app.configV2.ApplicationConfig.PreInstall
+		_ = app.SaveProfile()
 	}
 
 	app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), app.GetNamespace())
@@ -100,7 +101,7 @@ func NewApplication(name string) (*Application, error) {
 
 	app.convertDevPortForwardList()
 
-	return app, app.SaveProfile()
+	return app, nil
 }
 
 func (a *Application) ReadBeforeWriteProfile() error {
