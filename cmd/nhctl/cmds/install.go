@@ -119,6 +119,12 @@ func InstallApplication(applicationName string) error {
 		return errors.New("--type must be specified")
 	}
 
+	// add helmValue in config
+	helmValue := nocalhostApp.GetApplicationConfigV2().HelmValues
+	for _, v := range helmValue {
+		installFlags.HelmSet = append(installFlags.HelmSet, fmt.Sprintf("%s=%s", v.Key, v.Value))
+	}
+
 	flags := &app.HelmFlags{
 		Values:   installFlags.HelmValueFile,
 		Set:      installFlags.HelmSet,
