@@ -122,7 +122,7 @@ func InstallApplication(applicationName string) error {
 	// add helmValue in config
 	helmValue := nocalhostApp.GetApplicationConfigV2().HelmValues
 	for _, v := range helmValue {
-		installFlags.HelmSet = append(installFlags.HelmSet, fmt.Sprintf("%s=%s", v.Key, v.Value))
+		installFlags.HelmSet = append([]string{fmt.Sprintf("%s=%s", v.Key, v.Value)}, installFlags.HelmSet...)
 	}
 
 	flags := &app.HelmFlags{
