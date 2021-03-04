@@ -367,6 +367,9 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 	dep.Annotations["nocalhost-dep-ignore"] = "true"
 	_, err = clientUtils.CreateDeployment(dep)
 	if err != nil {
+		if strings.Contains(err.Error(), "initContainers") && strings.Contains(err.Error(), "Duplicate") {
+			log.Warn("[Warning] Nocalhost-dep needs to update")
+		}
 		return err
 	}
 

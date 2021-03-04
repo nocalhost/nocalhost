@@ -118,24 +118,35 @@ func (c *ClientGoUtils) CreateDeployment(deploy *v1.Deployment) (*v1.Deployment,
 }
 
 func (c *ClientGoUtils) DeleteDeployment(name string, wait bool) error {
-	err := c.ClientSet.AppsV1().Deployments(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{})
+	dep, err := c.ClientSet.AppsV1().Deployments(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
 
+	err = c.ClientSet.AppsV1().Deployments(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	labelMap := dep.Spec.Selector.MatchLabels
+
 	if wait {
-		for i := 0; i < 100; i++ {
-			list, err := c.ListPodsOfDeployment(name)
+		log.Infof("Waiting pods of %s to be terminated, this may take several minutes, according to the load of your k8s cluster", name)
+		terminated := false
+		for i := 0; i < 200; i++ {
+			list, err := c.ListPodsByLabels(labelMap)
 			if err != nil {
 				log.WarnE(err, "")
 			}
-			if len(list) > 0 {
-				log.Infof("Waiting pod %s to be terminated", list[0].Name)
-			} else {
+			if len(list) == 0 {
 				log.Infof("All pods of %s have been terminated", name)
+				terminated = true
 				break
 			}
 			time.Sleep(2 * time.Second)
+		}
+		if !terminated {
+			log.Warnf("Waiting pods of %s to be terminated timeout", name)
 		}
 	}
 	return nil
