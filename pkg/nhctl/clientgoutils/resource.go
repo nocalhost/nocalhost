@@ -16,7 +16,16 @@ limitations under the License.
 
 package clientgoutils
 
-import "k8s.io/cli-runtime/pkg/resource"
+import (
+	"fmt"
+	"github.com/pkg/errors"
+	"io/ioutil"
+	"k8s.io/cli-runtime/pkg/resource"
+	"nocalhost/pkg/nhctl/log"
+	"os"
+	"path/filepath"
+	"strings"
+)
 
 // ResourceList provides convenience methods for comparing collections of Infos.
 type ResourceList []*resource.Info
@@ -94,4 +103,82 @@ func (r ResourceList) Intersect(rs ResourceList) ResourceList {
 // isMatchingInfo returns true if infos match on Name and GroupVersionKind.
 func isMatchingInfo(a, b *resource.Info) bool {
 	return a.Name == b.Name && a.Namespace == b.Namespace && a.Mapping.GroupVersionKind.Kind == b.Mapping.GroupVersionKind.Kind
+}
+
+
+func LoadValidManifest(path, ignorePath []string) []string {
+	result := make([]string, 0)
+	resourcePaths := path
+	for _, eachPath := range resourcePaths {
+		files, _, err := GetYamlFilesAndDirs(eachPath, ignorePath)
+		if err != nil {
+			log.WarnE(err, fmt.Sprintf("Fail to load manifest in %s", eachPath))
+			continue
+		}
+
+		for _, file := range files {
+			if _, err2 := os.Stat(file); err2 != nil {
+				log.WarnE(errors.Wrap(err2, ""), fmt.Sprintf("%s can not be installed", file))
+				continue
+			}
+			result = append(result, file)
+		}
+	}
+
+	return result
+}
+
+// Path can be a file or a dir
+func GetYamlFilesAndDirs(path string, ignorePaths []string) ([]string, []string, error) {
+
+	if isFileIgnored(path, ignorePaths) {
+		log.Infof("Ignoring file: %s", path)
+		return nil, nil, nil
+	}
+
+	dirs := make([]string, 0)
+	files := make([]string, 0)
+	var err error
+	stat, err := os.Stat(path)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "")
+	}
+
+	// If path is a file, return it directly
+	if !stat.IsDir() {
+		return append(files, path), append(dirs, path), nil
+	}
+	dir, err := ioutil.ReadDir(path)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, fi := range dir {
+		fPath := filepath.Join(path, fi.Name())
+		if isFileIgnored(fPath, ignorePaths) {
+			log.Infof("Ignoring file: %s", fPath)
+			continue
+		}
+		if fi.IsDir() {
+			dirs = append(dirs, fPath)
+			fs, ds, err := GetYamlFilesAndDirs(fPath, ignorePaths)
+			if err != nil {
+				return files, dirs, err
+			}
+			dirs = append(dirs, ds...)
+			files = append(files, fs...)
+		} else if strings.HasSuffix(fi.Name(), ".yaml") || strings.HasSuffix(fi.Name(), ".yml") {
+			files = append(files, fPath)
+		}
+	}
+	return files, dirs, nil
+}
+
+func isFileIgnored(fileName string, ignorePaths []string) bool {
+	for _, iFile := range ignorePaths {
+		if iFile == fileName {
+			return true
+		}
+	}
+	return false
 }

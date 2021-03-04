@@ -95,6 +95,14 @@ func (a *Application) getIgnoredPath() []string {
 	return results
 }
 
+func (a *Application) getPreInstallFiles() []string {
+	return a.sortedPreInstallManifest
+}
+
+func (a *Application) getUpgradePreInstallFiles() []string {
+	return a.upgradeSortedPreInstallManifest
+}
+
 func (a *Application) getUpgradeIgnoredPath() []string {
 	results := make([]string, 0)
 	for _, path := range a.AppProfileV2.IgnoredPath {
