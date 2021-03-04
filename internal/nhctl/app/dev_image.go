@@ -405,7 +405,7 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	}
 
 	log.Info("Updating development container...")
-	_, err = a.client.UpdateDeployment(dep, metav1.UpdateOptions{}, true)
+	_, err = a.client.UpdateDeployment(dep, true)
 	if err != nil {
 		if strings.Contains(err.Error(), "no PriorityClass") {
 			log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
@@ -414,7 +414,7 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 				return err
 			}
 			dep.Spec.Template.Spec.PriorityClassName = ""
-			_, err = a.client.UpdateDeployment(dep, metav1.UpdateOptions{}, true)
+			_, err = a.client.UpdateDeployment(dep, true)
 		}
 		if err != nil {
 			return err

@@ -95,7 +95,7 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 	}
 
 	if err == nil { // none of them has error
-		fmt.Printf("background port-forward process: %d and  syncthing process: %d terminated.\n", portForwardPid, syncthingPid)
+		fmt.Printf("Background port-forward process: %d and  syncthing process: %d terminated.\n", portForwardPid, syncthingPid)
 	}
 
 	// end dev port background port forward process from profile

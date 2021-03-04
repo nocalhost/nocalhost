@@ -188,9 +188,9 @@ func Fatalf(format string, args ...interface{}) {
 func FatalE(err error, message string) {
 
 	if err != nil {
-		outLogger.Errorf("%s: %s\nsee %s for more details", message, err.Error(), logFile)
+		outLogger.Errorf("%s: %s", message, err.Error())
 	} else {
-		outLogger.Errorf("%s\nsee %s for more details", message, logFile)
+		outLogger.Errorf("%s", message)
 	}
 
 	if fileEntry != nil {

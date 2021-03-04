@@ -33,9 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
-	"nocalhost/internal/nhctl/coloredoutput"
 	port_forward "nocalhost/internal/nhctl/port-forward"
-	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 
@@ -151,13 +149,8 @@ func (a *Application) SaveProfile() error {
 		return errors.Wrap(err, "")
 	}
 
-	err = ioutil.WriteFile(a.getProfileV2Path(), v2Bytes, 0644)
-	//if err != nil {
-	//	errors.Wrap(err, "")
-	//}
 
-	//f, _ := os.OpenFile(a.getProfileV2Path(), os.O_RDWR, 0644)
-	//err = f.Sync()
+	err = ioutil.WriteFile(a.getProfileV2Path(), v2Bytes, 0644)
 	return errors.Wrap(err, "")
 }
 
@@ -291,6 +284,7 @@ func (a *Application) SaveSvcProfileV2(svcName string, config *ServiceConfigV2) 
 
 func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) error {
 	clientUtils := a.client
+	//clientUtils.deployment
 
 	dep, err := clientUtils.GetDeployment(svcName)
 	if err != nil {
@@ -338,15 +332,35 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 		dep.Spec.Replicas = originalPodReplicas
 	}
 
-	spinner := utils.NewSpinner(" Rolling container's revision back...")
-	spinner.Start()
-	dep, err = clientUtils.UpdateDeployment(dep, metav1.UpdateOptions{}, true)
-	spinner.Stop()
+	//spinner := utils.NewSpinner(" Rolling container's revision back...")
+	//spinner.Start()
+	//dep, err = clientUtils.UpdateDeployment(dep, true)
+	log.Info(" Deleting current revision...")
+	err = clientUtils.DeleteDeployment(dep.Name, true) // todo: wait for pod to terminate
 	if err != nil {
-		coloredoutput.Fail("Failed to roll revision back")
-	} else {
-		coloredoutput.Success("Workload has been rollback")
+		return err
 	}
+
+	log.Info(" Recreating original revision...")
+	dep.ResourceVersion = ""
+	if len(dep.Annotations) == 0 {
+		dep.Annotations = make(map[string]string, 0)
+	}
+	dep.Annotations["nocalhost-dep-ignore"] = "true"
+	_, err = clientUtils.CreateDeployment(dep)
+	if err != nil {
+		if strings.Contains(err.Error(), "initContainers") && strings.Contains(err.Error(), "Duplicate") {
+			log.Warn("[Warning] Nocalhost-dep needs to update")
+		}
+		return err
+	}
+
+	//spinner.Stop()
+	//if err != nil {
+	//	coloredoutput.Fail("Failed to roll revision back")
+	//} else {
+	//	coloredoutput.Success("Workload has been rollback")
+	//}
 
 	return err
 }
@@ -766,7 +780,7 @@ func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(svcName stri
 }
 
 func (a *Application) GetPodsFromDeployment(deployment string) (*corev1.PodList, error) {
-	return a.client.GetPodsFromDeployment(deployment)
+	return a.client.ListPodsByDeployment(deployment)
 }
 
 func (a *Application) GetNocalhostDevContainerPod(deployment string) (podName string, err error) {

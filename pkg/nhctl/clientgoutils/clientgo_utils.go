@@ -310,11 +310,6 @@ func (c *ClientGoUtils) GetPod(name string) (*corev1.Pod, error) {
 	return dep, errors.Wrap(err, "")
 }
 
-func (c *ClientGoUtils) GetDeployment(name string) (*v1.Deployment, error) {
-	dep, err := c.GetDeploymentClient().Get(c.ctx, name, metav1.GetOptions{})
-	return dep, errors.Wrap(err, "")
-}
-
 func (c *ClientGoUtils) GetDaemonSet(name string) (*v1.DaemonSet, error) {
 	dep, err := c.GetDaemonSetClient().Get(c.ctx, name, metav1.GetOptions{})
 	return dep, errors.Wrap(err, "")
@@ -348,6 +343,7 @@ func (c *ClientGoUtils) CheckDeploymentReady(name string) (bool, error) {
 	return false, nil
 }
 
+// Notice: This may not list pods whose deployment is already deleted
 func (c *ClientGoUtils) ListPodsOfDeployment(deployName string) ([]corev1.Pod, error) {
 	podClient := c.GetPodClient()
 
@@ -360,17 +356,11 @@ func (c *ClientGoUtils) ListPodsOfDeployment(deployName string) ([]corev1.Pod, e
 
 OuterLoop:
 	for _, pod := range podList.Items {
-		if pod.OwnerReferences == nil {
-			continue
-		}
 		for _, ref := range pod.OwnerReferences {
 			if ref.Kind != "ReplicaSet" {
 				continue
 			}
 			rss, _ := c.GetReplicaSetsByDeployment(deployName)
-			if rss == nil {
-				continue
-			}
 			for _, rs := range rss {
 				if rs.Name == ref.Name {
 					result = append(result, pod)

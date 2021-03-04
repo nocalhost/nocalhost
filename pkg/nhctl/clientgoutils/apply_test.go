@@ -18,16 +18,8 @@ import (
 	"testing"
 )
 
-func GetClient() *ClientGoUtils {
-	client, err := NewClientGoUtils("/Users/xinxinhuang/.nh/plugin/kubeConfigs/10_158_config", "nh6anql")
-	if err != nil {
-		panic(err)
-	}
-	return client
-}
-
 func TestClientGoUtils_Apply(t *testing.T) {
-	client := GetClient()
+	client := getClient()
 	err := client.Apply("/Users/xinxinhuang/.nh/nhctl/application/bookinfo-coding/resources/manifest/templates/ratings.yaml")
 	if err != nil {
 		panic(err)
@@ -35,7 +27,7 @@ func TestClientGoUtils_Apply(t *testing.T) {
 }
 
 func TestClientGoUtils_CreateResourceInfo(t *testing.T) {
-	client := GetClient()
+	client := getClient()
 
 	infos, err := client.GetResourceInfoFromFiles([]string{"/Users/xinxinhuang/.nh/nhctl/application/bookinfo-coding/resources/manifest/templates/ratings.yaml"}, true)
 	if err != nil {
