@@ -1,0 +1,6 @@
+- "app=mariadb"
+- "app=etcd"
+- "app=rabbitmq"
+- "app=redis"
+- "app=pinyin"
+${_INCLUDE_:-./whatEver.txt}

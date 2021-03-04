@@ -87,8 +87,9 @@ func NewApplication(name string) (*Application, error) {
 		return nil, err
 	}
 
-	if len(app.AppProfileV2.PreInstall) == 0 {
+	if len(app.AppProfileV2.PreInstall) == 0 && len(app.configV2.ApplicationConfig.PreInstall) > 0 {
 		app.AppProfileV2.PreInstall = app.configV2.ApplicationConfig.PreInstall
+		_ = app.SaveProfile()
 	}
 
 	app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), app.GetNamespace())
@@ -98,7 +99,7 @@ func NewApplication(name string) (*Application, error) {
 
 	app.convertDevPortForwardList()
 
-	return app, app.SaveProfile()
+	return app, nil
 }
 
 func (a *Application) ReadBeforeWriteProfile() error {
@@ -148,27 +149,8 @@ func (a *Application) SaveProfile() error {
 		return errors.Wrap(err, "")
 	}
 
-	//err = ioutil.WriteFile(a.getProfileV2Path(), v2Bytes, 0644)
-	//if err != nil {
-	//	errors.Wrap(err, "")
-	//}
 
-	f, _ := os.OpenFile(a.getProfileV2Path(), os.O_RDWR|os.O_TRUNC, 0644)
-	defer f.Close()
-	//err = f.Sync()
-
-	_, err = f.Write(v2Bytes)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	err = f.Sync()
-
-	//bw := bufio.NewWriter(f)
-	//_, err = bw.Write(v2Bytes)
-	//if err != nil {
-	//	return errors.Wrap(err, "")
-	//}
-	//err = bw.Flush()
+	err = ioutil.WriteFile(a.getProfileV2Path(), v2Bytes, 0644)
 	return errors.Wrap(err, "")
 }
 
@@ -577,10 +559,13 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 	// isDaemon == false
 	var wg sync.WaitGroup
 	wg.Add(len(localPorts))
+	var lock sync.Mutex
 
 	for key, sLocalPort := range localPorts {
 		go func(lPort int, rPort int) {
+			lock.Lock()
 			_ = a.SetPortForwardPid(deployment, lPort, rPort, os.Getpid())
+			lock.Unlock()
 			for {
 				// stopCh control the port forwarding lifecycle. When it gets closed the
 				// port forward will terminate
@@ -603,7 +588,7 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 					case <-readyCh:
 						log.Info("Port forward is ready")
 						go func() {
-							a.CheckPidPortStatus(endCh, deployment, lPort, rPort)
+							a.CheckPidPortStatus(endCh, deployment, lPort, rPort, &lock)
 						}()
 						go func() {
 							a.SendHeartBeat(endCh, listenAddress[0], lPort)
@@ -628,18 +613,24 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 				if err != nil {
 					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") {
 						log.Warnf("Unable to listen on port %d", lPort)
+						lock.Lock()
 						_ = a.UpdatePortForwardStatus(deployment, lPort, rPort, "DISCONNECTED", fmt.Sprintf("Unable to listen on port %d", lPort))
+						lock.Unlock()
 						wg.Done()
 						return
 					}
 					log.WarnE(err, "Port-forward failed, reconnecting after 30 seconds...")
 					close(endCh)
+					lock.Lock()
 					_ = a.UpdatePortForwardStatus(deployment, lPort, rPort, "RECONNECTING", "Port-forward failed, reconnecting after 30 seconds...")
+					lock.Unlock()
 					<-time.After(30 * time.Second)
 				} else {
 					log.Warn("Reconnecting after 30 seconds...")
 					close(endCh)
+					lock.Lock()
 					_ = a.UpdatePortForwardStatus(deployment, lPort, rPort, "RECONNECTING", "Reconnecting after 30 seconds...")
+					lock.Unlock()
 					<-time.After(30 * time.Second)
 				}
 				log.Info("Reconnecting...")
@@ -671,7 +662,7 @@ func (a *Application) SendHeartBeat(stopCh chan struct{}, listenAddress string, 
 	}
 }
 
-func (a *Application) CheckPidPortStatus(stopCh chan struct{}, deployment string, sLocalPort, sRemotePort int) {
+func (a *Application) CheckPidPortStatus(stopCh chan struct{}, deployment string, sLocalPort, sRemotePort int, lock *sync.Mutex) {
 	for {
 		select {
 		case <-stopCh:
@@ -689,7 +680,9 @@ func (a *Application) CheckPidPortStatus(stopCh chan struct{}, deployment string
 				}
 			}
 			if currentStatus != portStatus {
+				lock.Lock()
 				_ = a.UpdatePortForwardStatus(deployment, sLocalPort, sRemotePort, portStatus, "Check Pid")
+				lock.Unlock()
 			}
 			<-time.After(2 * time.Minute)
 		}

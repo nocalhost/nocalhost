@@ -45,8 +45,8 @@ type AppProfileV2 struct {
 	HelmRepoName string `json:"helmRepoUrl" yaml:"helmRepoName"`
 	//HelmRepoChartVersion string `json:"helmRepoChartVersion" yaml:"helmRepoChartVersion"`
 
-	Env                     []*Env            `json:"env" yaml:"env"`
-	EnvFrom                 EnvFrom           `json:"envFrom" yaml:"envFrom"`
+	Env     []*Env  `json:"env" yaml:"env"`
+	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
 }
 
 type ContainerProfileV2 struct {
@@ -89,12 +89,14 @@ type SvcProfileV2 struct {
 
 func (a *Application) convertDevPortForwardList() {
 	var err error
+	changed := false
 	for _, svcProfile := range a.AppProfileV2.SvcProfile {
 		if len(svcProfile.DevPortForwardList) > 0 {
 			continue // already convert
 		}
 		for _, portString := range svcProfile.DevPortList {
 			log.Debugf("Converting %s", portString)
+			changed = true
 			devPortForward := &DevPortForward{
 				Way:    "",
 				Status: "",
@@ -142,6 +144,9 @@ func (a *Application) convertDevPortForwardList() {
 		svcProfile.PortForwardPidList = nil
 		svcProfile.PortForwardStatusList = nil
 		svcProfile.DevPortList = nil
+	}
+	if changed {
+		_ = a.SaveProfile()
 	}
 }
 

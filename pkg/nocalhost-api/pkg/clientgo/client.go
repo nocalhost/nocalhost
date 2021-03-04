@@ -594,13 +594,11 @@ func (c *GoClient) UpdateRole(name, namespace string) error {
 		return err
 	}
 
-	// resource quota && role's permission is limited
-	rule, err := getPolicyRule(c)
-	if err != nil {
-		return err
+	before.Rules = []rbacv1.PolicyRule{{
+		Verbs:     []string{"*"},
+		Resources: []string{"*"},
+		APIGroups: []string{"*"}},
 	}
-
-	before.Rules = *rule
 
 	_, err = c.client.RbacV1().Roles(namespace).Update(context.TODO(), before, metav1.UpdateOptions{})
 	if err != nil {
@@ -619,14 +617,20 @@ func (c *GoClient) CreateRole(name, namespace string) (bool, error) {
 		Namespace: namespace,
 	}
 
-	// resource quota && role's permission is limited
-	rule, err := getPolicyRule(c)
-	if err != nil {
-		return false, err
-	}
-	role.Rules = append(role.Rules, *rule...)
+	//// resource quota && role's permission is limited
+	//rule, err := getPolicyRule(c)
+	//if err != nil {
+	//	return false, err
+	//}
+	//role.Rules = append(role.Rules, *rule...)
 
-	_, err = c.client.RbacV1().Roles(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
+	role.Rules = []rbacv1.PolicyRule{{
+		Verbs:     []string{"*"},
+		Resources: []string{"*"},
+		APIGroups: []string{"*"}},
+	}
+
+	_, err := c.client.RbacV1().Roles(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -894,7 +898,7 @@ func (c *GoClient) DeleteJob(namespace, name string) error {
 	return c.client.BatchV1().Jobs(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
 
-func (c *GoClient) ListPods(namespace string) (*corev1.PodList, error){
+func (c *GoClient) ListPods(namespace string) (*corev1.PodList, error) {
 	return c.client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 }
 

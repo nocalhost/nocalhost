@@ -1,0 +1,5 @@
+onPreInstall:
+  - path: manifest/templates/pre-install/print-num-job-01.yaml
+    weight: "1"
+  - path: manifest/templates/pre-install/print-num-job-02.yaml
+    weight: "-5"

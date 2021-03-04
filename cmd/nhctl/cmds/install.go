@@ -82,7 +82,7 @@ var installCmd = &cobra.Command{
 		log.Info("Installing application...")
 		err = InstallApplication(applicationName)
 		if err != nil {
-			log.Warnf("Failed to install application : %s", err.Error())
+			log.WarnE(err, "Failed to install application")
 			log.Debug("Cleaning up resources...")
 			err = nocalhost.CleanupAppFiles(applicationName)
 			if err != nil {
@@ -117,6 +117,12 @@ func InstallApplication(applicationName string) error {
 	appType := nocalhostApp.GetType()
 	if appType == "" {
 		return errors.New("--type must be specified")
+	}
+
+	// add helmValue in config
+	helmValue := nocalhostApp.GetApplicationConfigV2().HelmValues
+	for _, v := range helmValue {
+		installFlags.HelmSet = append([]string{fmt.Sprintf("%s=%s", v.Key, v.Value)}, installFlags.HelmSet...)
 	}
 
 	flags := &app.HelmFlags{

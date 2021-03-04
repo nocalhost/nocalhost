@@ -159,7 +159,7 @@ func (c *ClientGoUtils) GetDefaultNamespace() (string, error) {
 	return ns, errors.Wrap(err, "")
 }
 
-func (c *ClientGoUtils) createUnstructuredResource(rawObj runtime.RawExtension, wait bool) error {
+func (c *ClientGoUtils) createUnstructuredResource(rawObj runtime.RawExtension, wait bool, flags *ApplyFlags) error {
 	obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).Decode(rawObj.Raw, nil, nil)
 	if err != nil {
 		return &TypedError{ErrorType: InvalidYaml, Mes: err.Error()}
@@ -191,6 +191,8 @@ func (c *ClientGoUtils) createUnstructuredResource(rawObj runtime.RawExtension, 
 		dri = c.GetDynamicClient().Resource(mapping.Resource)
 	}
 
+	AddMetas(unstructuredObj, flags)
+
 	obj2, err := dri.Create(c.ctx, unstructuredObj, metav1.CreateOptions{})
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("fail to create %s", unstructuredObj.GetName()))
@@ -208,7 +210,7 @@ func (c *ClientGoUtils) createUnstructuredResource(rawObj runtime.RawExtension, 
 	return nil
 }
 
-func (c *ClientGoUtils) Create(yamlPath string, wait bool, validate bool) error {
+func (c *ClientGoUtils) Create(yamlPath string, wait bool, validate bool, flags *ApplyFlags) error {
 	if yamlPath == "" {
 		return errors.New("yaml path can not be empty")
 	}
@@ -225,7 +227,7 @@ func (c *ClientGoUtils) Create(yamlPath string, wait bool, validate bool) error 
 		if err = decoder.Decode(&rawObj); err != nil {
 			break
 		}
-		err = c.createUnstructuredResource(rawObj, wait)
+		err = c.createUnstructuredResource(rawObj, wait, flags)
 		if err != nil {
 			if validate {
 				return err

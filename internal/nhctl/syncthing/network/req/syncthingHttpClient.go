@@ -55,7 +55,7 @@ func (s *SyncthingHttpClient) do(req *http.Request) ([]byte, error) {
 
 	if resp.StatusCode != 200 {
 		errStr := fmt.Sprint("Failed to override changes\nStatus code: ", resp.StatusCode)
-		bs, err := responseToBArray(resp)
+		bs, err := ResponseToBArray(resp)
 		if err != nil {
 			return nil, fmt.Errorf(errStr)
 		}
@@ -72,7 +72,7 @@ func (s *SyncthingHttpClient) do(req *http.Request) ([]byte, error) {
 	return bs, nil
 }
 
-func responseToBArray(response *http.Response) ([]byte, error) {
+func ResponseToBArray(response *http.Response) ([]byte, error) {
 	bs, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
