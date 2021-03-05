@@ -149,7 +149,6 @@ func (a *Application) SaveProfile() error {
 		return errors.Wrap(err, "")
 	}
 
-
 	err = ioutil.WriteFile(a.getProfileV2Path(), v2Bytes, 0644)
 	return errors.Wrap(err, "")
 }
@@ -511,6 +510,7 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 			// if from devPorts, check previously port-forward and add to port-forward list
 			portForwardList := a.GetSvcProfileV2(deployment).DevPortForwardList
 			for _, v := range portForwardList {
+				a.EndDevPortForward(deployment, v.LocalPort, v.RemotePort)
 				exist := false
 				for _, vv := range localPorts {
 					if vv == v.LocalPort {
@@ -520,7 +520,7 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 				if !exist {
 					localPorts = append(localPorts, v.LocalPort)
 					remotePorts = append(remotePorts, v.RemotePort)
-					a.EndDevPortForward(deployment, v.LocalPort, v.RemotePort)
+					//a.EndDevPortForward(deployment, v.LocalPort, v.RemotePort)
 					os.Args = append(os.Args, "-p", fmt.Sprintf("%d:%d", v.LocalPort, v.RemotePort))
 				}
 			}
