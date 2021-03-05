@@ -309,7 +309,7 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 	//spinner.Start()
 	//dep, err = clientUtils.UpdateDeployment(dep, true)
 	log.Info(" Deleting current revision...")
-	err = clientUtils.DeleteDeployment(dep.Name, true) // todo: wait for pod to terminate
+	err = clientUtils.DeleteDeployment(dep.Name, false)
 	if err != nil {
 		return err
 	}
