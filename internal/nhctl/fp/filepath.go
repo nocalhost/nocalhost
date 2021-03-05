@@ -2,6 +2,7 @@ package fp
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 	"nocalhost/internal/nhctl/syncthing/network/req"
@@ -114,6 +115,20 @@ func (f *FilePathEnhance) ReadFileCompel() (string, error) {
 	}
 
 	return f.content, nil
+}
+
+func (f *FilePathEnhance) CheckExist() error {
+	_, err := os.Stat(f.absPath)
+	if err != nil {
+		_, err := os.Stat(f.absPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return errors.New(fmt.Sprintf("File %s not found.", f.absPath))
+			}
+			return errors.Wrap(err, "")
+		}
+	}
+	return nil
 }
 
 // DownloadFile will download a url to a local file. It's efficient because it will

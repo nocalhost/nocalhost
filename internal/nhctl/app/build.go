@@ -88,7 +88,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 		}
 	}
 
-	err = app.generateConfig(flags.OuterConfig, flags.Config)
+	err = app.renderConfig(flags.OuterConfig, flags.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -116,12 +116,11 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 }
 
 // V2
-func (a *Application) generateConfig(outerConfigPath string, configName string) error {
-
-	configFile := outerConfigPath
+func (a *Application) renderConfig(outerConfigPath string, configName string) error {
+	configFilePath := outerConfigPath
 
 	// Read from .nocalhost
-	if configFile == "" {
+	if configFilePath == "" {
 		_, err := os.Stat(a.getConfigPathInGitResourcesDir(configName))
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -129,50 +128,67 @@ func (a *Application) generateConfig(outerConfigPath string, configName string) 
 			}
 			return errors.Wrap(err, "")
 		}
-		configFile = a.getConfigPathInGitResourcesDir(configName)
+		configFilePath = a.getConfigPathInGitResourcesDir(configName)
 	}
 
-	//Generate config.yaml
-	// config.yaml may come from .nocalhost in git or a outer config file in local absolute path
-	rbytes, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		return errors.New(fmt.Sprintf("fail to load configFile : %s", configFile))
+	configFile := fp.NewFilePath(configFilePath)
+	envFile := fp.NewFilePath(configFilePath + ".env")
+
+	if e := envFile.CheckExist(); e != nil {
+		log.Infof("Render %s Nocalhost config without env files, you can put the environment file in the same directory of the config file and end with '.env' extensive", configFile.Abs(), envFile.Abs())
+	} else {
+		log.Infof("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
 	}
+
+	renderedStr, err := envsubst.Render(configFile, envFile)
 
 	// Check If config version
-	configVersion, err := checkConfigVersion(configFile)
+	configVersion, err := checkConfigVersion(renderedStr)
 	if err != nil {
 		return err
 	}
 
 	if configVersion == "v1" {
-		err = ConvertConfigFileV1ToV2(configFile, a.GetConfigV2Path())
-		if err != nil {
-			return err
-		}
-	} else {
-		// Render config file using envFile
-		beforeRenderConfig := &NocalHostAppConfigV2{}
-		err = yaml.Unmarshal(rbytes, &beforeRenderConfig)
-
-		if err != nil {
-			errors.Wrap(err, "")
-		}
-		envFilePath := filepath.Join(a.getGitNocalhostDir(), beforeRenderConfig.ConfigProperties.EnvFile)
-		_, err = os.Stat(envFilePath)
-		if err != nil {
-			log.WarnE(errors.Wrap(err, ""), "Env file not found, ignore it...")
-			envFilePath = ""
-		}
-		renderedStr, err := envsubst.Render(fp.NewFilePath(configFile), fp.NewFilePath(envFilePath))
+		err = ConvertConfigFileV1ToV2(configFilePath, a.GetConfigV2Path())
 		if err != nil {
 			return err
 		}
 
-		err = ioutil.WriteFile(a.GetConfigV2Path(), []byte(renderedStr), 0644) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
-		if err != nil {
-			return errors.New(fmt.Sprintf("fail to create configFile : %s", configFile))
+		renderedStr, err = envsubst.Render(configFile, envFile)
+	}
+
+	// convert un strict yaml to strict yaml
+	renderedConfig := &NocalHostAppConfigV2{}
+	_ = yaml.Unmarshal([]byte(renderedStr), &renderedConfig)
+
+	// remove the duplicate service config (we allow users to define duplicate service and keep the last one)
+	if renderedConfig.ApplicationConfig != nil && renderedConfig.ApplicationConfig.ServiceConfigs != nil {
+		var maps = make(map[string]int)
+
+		for i, config := range renderedConfig.ApplicationConfig.ServiceConfigs {
+			if v, ok := maps[config.Name]; ok {
+				log.Infof("Duplicate service %s, current %+v", config.Name, v)
+				maps[config.Name] = i
+				log.Infof("Pick %+v", maps[config.Name])
+			} else {
+
+			}
+			maps[config.Name] = i
 		}
+
+		var service []*ServiceConfigV2
+		for _, i := range maps {
+			service = append(service, renderedConfig.ApplicationConfig.ServiceConfigs[i])
+		}
+
+		renderedConfig.ApplicationConfig.ServiceConfigs = service
+	}
+
+	marshal, _ := yaml.Marshal(renderedConfig)
+
+	err = ioutil.WriteFile(a.GetConfigV2Path(), marshal, 0644) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
+	if err != nil {
+		return errors.New(fmt.Sprintf("fail to create configFile : %s", configFilePath))
 	}
 
 	err = a.LoadConfigV2()
