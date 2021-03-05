@@ -95,7 +95,6 @@ func (c *ClientGoUtils) WaitForResourceReady(resourceType ResourceType, name str
 			time.Sleep(time.Second * 2)
 		}
 	}
-	return err
 }
 
 func (c *ClientGoUtils) WaitDeploymentToBeReady(name string) error {
