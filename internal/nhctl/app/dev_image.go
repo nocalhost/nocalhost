@@ -147,11 +147,11 @@ func (a *Application) generateSyncthingVolumesAndVolumeMounts(svcName string) ([
 // If PVC exists, use it directly
 // If PVC not exists, try to create one
 // If PVC failed to create, the whole process of entering DevMode will fail
-func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName string, storageClass string) ([]corev1.Volume, []corev1.VolumeMount, error) {
+func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, container, storageClass string) ([]corev1.Volume, []corev1.VolumeMount, error) {
 
 	volumes := make([]corev1.Volume, 0)
 	volumeMounts := make([]corev1.VolumeMount, 0)
-	workDir := a.GetDefaultWorkDir(svcName)
+	workDir := a.GetDefaultWorkDir(svcName, container)
 
 	workDirVol := corev1.Volume{
 		Name: "nocalhost-shared-volume",
@@ -162,7 +162,7 @@ func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName str
 
 	var workDirDefinedInPersistVolume bool // if workDir is specified in persistentVolumeDirs
 	var workDirResideInPersistVolumeDirs bool
-	persistentVolumes := a.GetPersistentVolumeDirs(svcName)
+	persistentVolumes := a.GetPersistentVolumeDirs(svcName, container)
 	if len(persistentVolumes) > 0 {
 		for index, persistentVolume := range persistentVolumes {
 			if persistentVolume.Path == "" {
@@ -333,14 +333,14 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
-	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := a.generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, ops.StorageClass)
+	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := a.generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, ops.Container, ops.StorageClass)
 	if err != nil {
 		return err
 	}
 	devModeVolumes = append(devModeVolumes, workDirAndPersistVolumes...)
 	devModeMounts = append(devModeMounts, workDirAndPersistVolumeMounts...)
 
-	workDir := a.GetDefaultWorkDir(svcName)
+	workDir := a.GetDefaultWorkDir(svcName, ops.Container)
 	devImage := a.GetDefaultDevImage(svcName, ops.Container) // Default : replace the first container
 	sideCarImage := a.GetDefaultSideCarImage(svcName)
 	if ops.SideCarImage != "" {

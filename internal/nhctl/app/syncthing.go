@@ -128,7 +128,7 @@ func (a *Application) NewSyncthing(deployment string, container string, localSyn
 				&syncthing.Folder{
 					Name:       strconv.Itoa(index),
 					LocalPath:  sync,
-					RemotePath: a.GetDefaultWorkDir(deployment),
+					RemotePath: a.GetDefaultWorkDir(deployment, container),
 				},
 			)
 			index++

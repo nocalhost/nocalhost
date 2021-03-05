@@ -111,18 +111,18 @@ func (a *Application) getUpgradeIgnoredPath() []string {
 	return results
 }
 
-func (a *Application) GetDefaultWorkDir(svcName string) string {
+func (a *Application) GetDefaultWorkDir(svcName, container string) string {
 	svcProfile := a.GetSvcProfileV2(svcName)
-	if svcProfile != nil && svcProfile.GetDefaultContainerDevConfig().WorkDir != "" {
-		return svcProfile.GetDefaultContainerDevConfig().WorkDir
+	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).WorkDir != "" {
+		return svcProfile.GetContainerDevConfigOrDefault(container).WorkDir
 	}
 	return DefaultWorkDir
 }
 
-func (a *Application) GetPersistentVolumeDirs(svcName string) []*PersistentVolumeDir {
+func (a *Application) GetPersistentVolumeDirs(svcName, container string) []*PersistentVolumeDir {
 	svcProfile := a.GetSvcProfileV2(svcName)
 	if svcProfile != nil {
-		return svcProfile.GetDefaultContainerDevConfig().PersistentVolumeDirs
+		return svcProfile.GetContainerDevConfigOrDefault(container).PersistentVolumeDirs
 	}
 	return nil
 }
