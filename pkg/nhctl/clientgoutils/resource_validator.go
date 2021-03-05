@@ -18,7 +18,6 @@ package clientgoutils
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,44 +26,44 @@ import (
 
 var accessor = meta.NewAccessor()
 
-const (
-	AppManagedByLabel                   = "app.kubernetes.io/managed-by"
-	AppManagedByNocalhost               = "nocalhost"
-	NocalhostReleaseNameAnnotation      = "meta.nocalhost.sh/release-name"
-	NocalhostReleaseNamespaceAnnotation = "meta.nocalhost.sh/release-namespace"
-)
+//const (
+//	AppManagedByLabel                   = "app.kubernetes.io/managed-by"
+//	AppManagedByNocalhost               = "nocalhost"
+//	NocalhostReleaseNameAnnotation      = "meta.nocalhost.sh/release-name"
+//	NocalhostReleaseNamespaceAnnotation = "meta.nocalhost.sh/release-namespace"
+//)
 
-func checkOwnership(obj runtime.Object, releaseName, releaseNamespace string) error {
-	lbls, err := accessor.Labels(obj)
-	if err != nil {
-		return err
-	}
-	annos, err := accessor.Annotations(obj)
-	if err != nil {
-		return err
-	}
-
-	var errs []error
-	if err := requireValue(lbls, AppManagedByLabel, AppManagedByNocalhost); err != nil {
-		errs = append(errs, fmt.Errorf("label validation error: %s", err))
-	}
-	if err := requireValue(annos, NocalhostReleaseNameAnnotation, releaseName); err != nil {
-		errs = append(errs, fmt.Errorf("annotation validation error: %s", err))
-	}
-	if err := requireValue(annos, NocalhostReleaseNamespaceAnnotation, releaseNamespace); err != nil {
-		errs = append(errs, fmt.Errorf("annotation validation error: %s", err))
-	}
-
-	if len(errs) > 0 {
-		err := errors.New("invalid ownership metadata")
-		for _, e := range errs {
-			err = fmt.Errorf("%w; %s", err, e)
-		}
-		return err
-	}
-
-	return nil
-}
+//func checkOwnership(obj runtime.Object, releaseName, releaseNamespace string) error {
+//	lbls, err := accessor.Labels(obj)
+//	if err != nil {
+//		return err
+//	}
+//	annos, err := accessor.Annotations(obj)
+//	if err != nil {
+//		return err
+//	}
+//
+//	var errs []error
+//	if err := requireValue(lbls, AppManagedByLabel, AppManagedByNocalhost); err != nil {
+//		errs = append(errs, fmt.Errorf("label validation error: %s", err))
+//	}
+//	if err := requireValue(annos, NocalhostReleaseNameAnnotation, releaseName); err != nil {
+//		errs = append(errs, fmt.Errorf("annotation validation error: %s", err))
+//	}
+//	if err := requireValue(annos, NocalhostReleaseNamespaceAnnotation, releaseNamespace); err != nil {
+//		errs = append(errs, fmt.Errorf("annotation validation error: %s", err))
+//	}
+//
+//	if len(errs) > 0 {
+//		err := errors.New("invalid ownership metadata")
+//		for _, e := range errs {
+//			err = fmt.Errorf("%w; %s", err, e)
+//		}
+//		return err
+//	}
+//
+//	return nil
+//}
 
 func requireValue(meta map[string]string, k, v string) error {
 	actual, ok := meta[k]
