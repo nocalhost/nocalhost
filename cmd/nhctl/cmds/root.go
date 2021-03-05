@@ -45,7 +45,7 @@ var rootCmd = &cobra.Command{
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		err := nocalhost.Init()
 		if err != nil {
-			fmt.Errorf("fail to init: %s", err.Error())
+			fmt.Printf("fail to init: %s\n", err.Error())
 			os.Exit(1)
 		}
 		if settings.Debug {
