@@ -48,6 +48,11 @@ const (
 	Manifest      AppType = "rawManifest"
 	ManifestLocal AppType = "rawManifestLocal"
 	HelmLocal     AppType = "helmLocal"
+
+	AppManagedByLabel                   = "app.kubernetes.io/managed-by"
+	AppManagedByNocalhost               = "nocalhost"
+	NocalhostReleaseNameAnnotation      = "meta.nocalhost.sh/release-name"
+	NocalhostReleaseNamespaceAnnotation = "meta.nocalhost.sh/release-namespace"
 )
 
 type Application struct {
@@ -149,7 +154,6 @@ func (a *Application) SaveProfile() error {
 		return errors.Wrap(err, "")
 	}
 
-
 	err = ioutil.WriteFile(a.getProfileV2Path(), v2Bytes, 0644)
 	return errors.Wrap(err, "")
 }
@@ -212,19 +216,6 @@ func (a *Application) IsAnyServiceInDevMode() bool {
 	return false
 }
 
-//func (a *Application) GetSvcConfig(svcName string) *ServiceDevOptions {
-//	a.LoadConfig() // get the latest config
-//	if a.config == nil {
-//		return nil
-//	}
-//	for _, config := range a.config.SvcConfigs {
-//		if config.Name == svcName {
-//			return config
-//		}
-//	}
-//	return nil
-//}
-
 func (a *Application) GetSvcConfigV2(svcName string) *ServiceConfigV2 {
 	a.LoadConfigV2() // get the latest config
 	if a.configV2 == nil {
@@ -245,24 +236,6 @@ func (a *Application) GetApplicationConfigV2() *ApplicationConfig {
 	}
 	return a.configV2.ApplicationConfig
 }
-
-//func (a *Application) SaveSvcProfile(svcName string, config *ServiceDevOptions) error {
-//
-//	svcPro := a.GetSvcProfile(svcName)
-//	if svcPro != nil {
-//		config.Name = svcName
-//		svcPro.ServiceDevOptions = config
-//	} else {
-//		config.Name = svcName
-//		svcPro = &SvcProfile{
-//			ServiceDevOptions: config,
-//			ActualName:        svcName,
-//		}
-//		a.AppProfile.SvcProfile = append(a.AppProfile.SvcProfile, svcPro)
-//	}
-//
-//	return a.SaveProfile()
-//}
 
 func (a *Application) SaveSvcProfileV2(svcName string, config *ServiceConfigV2) error {
 
@@ -347,6 +320,19 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 		dep.Annotations = make(map[string]string, 0)
 	}
 	dep.Annotations["nocalhost-dep-ignore"] = "true"
+
+	// Add labels and annotations
+	if dep.Labels == nil {
+		dep.Labels = make(map[string]string, 0)
+	}
+	dep.Labels[AppManagedByLabel] = AppManagedByNocalhost
+
+	if dep.Annotations == nil {
+		dep.Annotations = make(map[string]string, 0)
+	}
+	dep.Annotations[NocalhostReleaseNameAnnotation] = a.Name
+	dep.Annotations[NocalhostReleaseNamespaceAnnotation] = a.GetNamespace()
+
 	_, err = clientUtils.CreateDeployment(dep)
 	if err != nil {
 		if strings.Contains(err.Error(), "initContainers") && strings.Contains(err.Error(), "Duplicate") {
