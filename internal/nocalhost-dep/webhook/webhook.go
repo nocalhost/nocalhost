@@ -585,7 +585,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 
 	// configmap
 	initContainers, EnvVar, err := nocalhostDepConfigmap(nocalhostNamespace, resourceName, resourceType, objectMeta, containers)
-	glog.Infof("initContainers %s", initContainers)
+	glog.Infof("initContainers %v", initContainers)
 	glog.Infof("EnvVar %v", EnvVar)
 
 	// Workaround: https://github.com/kubernetes/kubernetes/issues/57982
