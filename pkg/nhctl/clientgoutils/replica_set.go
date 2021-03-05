@@ -129,7 +129,7 @@ func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploy
 				if !printed {
 					printed = true
 					log.Infof("Previous replicaSet %s has not been terminated, waiting revision %d to be ready", rs.Name, latestRevision)
-					log.Info("This may take several minutes, according to the load of your k8s cluster")
+					log.Info("This may take several minutes, depending on the load of your k8s cluster")
 				}
 				isReady = false
 				break
