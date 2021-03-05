@@ -45,24 +45,6 @@ func SendResponse(c *gin.Context, err error, data interface{}) {
 	})
 }
 
-// GetUserID
-func GetUserID(c *gin.Context) uint64 {
-	if c == nil {
-		return 0
-	}
-
-	// The uid must be named the same as the uid in middleware/auth
-	if v, exists := c.Get("uid"); exists {
-		uid, ok := v.(uint64)
-		if !ok {
-			return 0
-		}
-
-		return uid
-	}
-	return 0
-}
-
 // RouteNotFound
 func RouteNotFound(c *gin.Context) {
 	//c.String(http.StatusNotFound, "the route not found")
