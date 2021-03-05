@@ -45,7 +45,7 @@ func GetRandomAvailablePort() (int, error) {
 func GetAvailablePort() (int, error) {
 	address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:0", "0.0.0.0"))
 	if err != nil {
-		return 0, errors.Wrap(err,"")
+		return 0, errors.Wrap(err, "")
 	}
 
 	listener, err := net.ListenTCP("tcp", address)

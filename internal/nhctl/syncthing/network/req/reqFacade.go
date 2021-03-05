@@ -52,7 +52,7 @@ func (p *SyncthingHttpClient) getSyncthingStatus() *SyncthingStatus {
 		return &SyncthingStatus{
 			Status:    Error,
 			Msg:       "Error",
-			Tips:   fmt.Sprintf("%v", err),
+			Tips:      fmt.Sprintf("%v", err),
 			OutOfSync: status.OutOfSync(),
 		}
 	}

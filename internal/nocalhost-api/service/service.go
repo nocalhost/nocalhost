@@ -92,8 +92,7 @@ func (s *Service) Close() {
 }
 
 func (s *Service) updateAllRole() error {
-	cu := model.ClusterUserModel{
-	}
+	cu := model.ClusterUserModel{}
 
 	var results []*model.ClusterUserModel
 	results, err := s.ClusterUser().GetList(context.TODO(), cu)

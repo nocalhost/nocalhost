@@ -10,7 +10,7 @@ func (e Env) Get(name string) *string {
 	v, found := e.Lookup(name)
 	if found {
 		return &v
-	}else{
+	} else {
 		return nil
 	}
 }
