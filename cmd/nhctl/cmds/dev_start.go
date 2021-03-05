@@ -32,6 +32,7 @@ var (
 	nameSpace   string
 	deployment  string
 	ServiceType string
+	//Container   string
 )
 
 var devStartOps = &app.DevStartOptions{}

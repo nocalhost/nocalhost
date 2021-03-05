@@ -149,7 +149,6 @@ func (a *Application) SaveProfile() error {
 		return errors.Wrap(err, "")
 	}
 
-
 	err = ioutil.WriteFile(a.getProfileV2Path(), v2Bytes, 0644)
 	return errors.Wrap(err, "")
 }
@@ -497,6 +496,17 @@ func (a *Application) FixPortForwardOSArgs(localPort, remotePort []int) {
 		newArg = append(newArg, "-p", fmt.Sprintf("%d:%d", v, remotePort[k]))
 	}
 	os.Args = newArg
+}
+
+func (a *Application) ListContainersByDeployment(depName string) ([]corev1.Container, error) {
+	pods, err := a.client.ListPodsByDeployment(depName)
+	if err != nil {
+		return nil, err
+	}
+	if pods == nil || len(pods.Items) == 0 {
+		return nil, errors.New("No pod found in deployment ???")
+	}
+	return pods.Items[0].Spec.Containers, nil
 }
 
 // for background port-forward

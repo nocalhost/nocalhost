@@ -189,7 +189,7 @@ var fileSyncCmd = &cobra.Command{
 
 		// TODO
 		// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished), the files that have been synchronized will not be synchronized.
-		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, profile.LocalAbsoluteSyncDirFromDevStartPlugin, fileSyncOps.SyncDouble)
+		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, fileSyncOps.Container, profile.LocalAbsoluteSyncDirFromDevStartPlugin, fileSyncOps.SyncDouble)
 		if err != nil {
 			log.WarnE(err, "Failed to new syncthing")
 		}

@@ -161,6 +161,9 @@ func (s *SvcProfileV2) GetContainerDevConfigOrDefault(containerName string) *Con
 }
 
 func (s *SvcProfileV2) GetDefaultContainerDevConfig() *ContainerDevConfig {
+	//if s.ContainerConfigs[0].Name == "" {
+	//	return s.ContainerConfigs[0].Dev
+	//}
 	return s.ContainerConfigs[0].Dev
 }
 

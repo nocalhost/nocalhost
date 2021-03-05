@@ -60,6 +60,25 @@ func CheckIfSvcExist(svcName string, svcType ...string) {
 	} else if !exist {
 		log.Fatalf("\"%s\" not found", svcName)
 	}
+
+	//if serviceType == app.Deployment {
+	//	if Container == "" {
+	//		containers, err := nocalhostApp.ListContainersByDeployment(deployment)
+	//		if err != nil {
+	//			log.FatalE(err, "")
+	//		}
+	//
+	//		if len(containers) == 0 {
+	//			log.Fatalf("No container found in %s ???", deployment)
+	//		}
+	//
+	//		if len(containers) > 0 {
+	//			log.Fatalf("There are more than 1 container in deployment %s, you mush specify one", deployment)
+	//		}
+	//		Container = containers[0].Name
+	//	}
+	//}
+
 	log.AddField("SVC", svcName)
 }
 
