@@ -226,9 +226,9 @@ func (a *Application) upgradeForHelmGitOrHelmLocal(installFlags *flag.InstallFla
 	if a.GetKubeconfig() != "" {
 		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
 	}
-	if installFlags.Debug {
-		commonParams = append(commonParams, "--debug")
-	}
+	//if installFlags.Debug {
+	commonParams = append(commonParams, "--debug")
+	//}
 
 	params := []string{"upgrade", releaseName, resourcesPath[0]}
 	if installFlags.HelmWait {
