@@ -47,7 +47,7 @@ var execCmd = &cobra.Command{
 		execFlags.AppName = args[0]
 		InitAppAndCheckIfSvcExist(execFlags.AppName, execFlags.SvcName)
 
-		err = nocalhostApp.Exec(execFlags.SvcName, execFlags.Commands)
+		err = nocalhostApp.Exec(execFlags.SvcName, "", execFlags.Commands)
 		if err != nil {
 			log.Fatalf("Failed to exec command : %s", err.Error())
 		}

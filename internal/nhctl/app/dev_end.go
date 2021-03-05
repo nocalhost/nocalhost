@@ -59,7 +59,7 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 	fileSyncOps := &FileSyncOptions{}
 	devStartOptions := &DevStartOptions{}
 
-	newSyncthing, err := a.NewSyncthing(svcName, devStartOptions.LocalSyncDir, fileSyncOps.SyncDouble)
+	newSyncthing, err := a.NewSyncthing(svcName, "", devStartOptions.LocalSyncDir, fileSyncOps.SyncDouble)
 	if err != nil {
 		log.Warnf("Failed to start syncthing process: %s", err.Error())
 		return err

@@ -150,8 +150,30 @@ func (a *Application) convertDevPortForwardList() {
 	}
 }
 
+// Compatible for v1
+// Finding `containerName` config, if not found, use the first container config
+func (s *SvcProfileV2) GetContainerDevConfigOrDefault(containerName string) *ContainerDevConfig {
+	config := s.GetContainerDevConfig(containerName)
+	if config == nil {
+		config = s.GetDefaultContainerDevConfig()
+	}
+	return config
+}
+
 func (s *SvcProfileV2) GetDefaultContainerDevConfig() *ContainerDevConfig {
+	//if s.ContainerConfigs[0].Name == "" {
+	//	return s.ContainerConfigs[0].Dev
+	//}
 	return s.ContainerConfigs[0].Dev
+}
+
+func (s *SvcProfileV2) GetContainerDevConfig(containerName string) *ContainerDevConfig {
+	for _, devConfig := range s.ContainerConfigs {
+		if devConfig.Name == containerName {
+			return devConfig.Dev
+		}
+	}
+	return nil
 }
 
 func (a *Application) LoadAppProfileV2() error {

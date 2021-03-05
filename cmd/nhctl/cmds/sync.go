@@ -41,6 +41,7 @@ func init() {
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false, "if use double side sync")
 	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.SyncedPattern, "synced-pattern", "s", []string{}, "local synced pattern")
 	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.IgnoredPattern, "ignored-pattern", "i", []string{}, "local ignored pattern")
+	fileSyncCmd.Flags().StringVar(&fileSyncOps.Container, "container", "", "container name of pod to sync")
 	fileSyncCmd.Flags().BoolVar(&fileSyncOps.Override, "overwrite", true, "override the remote changing according to the local sync folder while start up")
 	rootCmd.AddCommand(fileSyncCmd)
 }
@@ -176,19 +177,19 @@ var fileSyncCmd = &cobra.Command{
 
 		// Getting pattern from svc profile first
 		profile := nocalhostApp.GetSvcProfileV2(deployment)
-		if profile.GetDefaultContainerDevConfig().Sync == nil {
-			profile.GetDefaultContainerDevConfig().Sync = &app.SyncConfig{}
+		if profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync == nil {
+			profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync = &app.SyncConfig{}
 		}
 		if len(fileSyncOps.IgnoredPattern) != 0 {
-			profile.GetDefaultContainerDevConfig().Sync.IgnoreFilePattern = fileSyncOps.IgnoredPattern
+			profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync.IgnoreFilePattern = fileSyncOps.IgnoredPattern
 		}
 		if len(fileSyncOps.SyncedPattern) != 0 {
-			profile.GetDefaultContainerDevConfig().Sync.FilePattern = fileSyncOps.SyncedPattern
+			profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync.FilePattern = fileSyncOps.SyncedPattern
 		}
 
 		// TODO
 		// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished), the files that have been synchronized will not be synchronized.
-		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, profile.LocalAbsoluteSyncDirFromDevStartPlugin, fileSyncOps.SyncDouble)
+		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, fileSyncOps.Container, profile.LocalAbsoluteSyncDirFromDevStartPlugin, fileSyncOps.SyncDouble)
 		if err != nil {
 			log.WarnE(err, "Failed to new syncthing")
 		}

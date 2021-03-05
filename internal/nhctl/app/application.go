@@ -498,6 +498,17 @@ func (a *Application) FixPortForwardOSArgs(localPort, remotePort []int) {
 	os.Args = newArg
 }
 
+func (a *Application) ListContainersByDeployment(depName string) ([]corev1.Container, error) {
+	pods, err := a.client.ListPodsByDeployment(depName)
+	if err != nil {
+		return nil, err
+	}
+	if pods == nil || len(pods.Items) == 0 {
+		return nil, errors.New("No pod found in deployment ???")
+	}
+	return pods.Items[0].Spec.Containers, nil
+}
+
 // for background port-forward
 func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPorts, remotePorts []int, way string, forwardActually bool) {
 	if len(localPorts) != len(remotePorts) {
