@@ -20,9 +20,11 @@ import (
 	"github.com/pkg/errors"
 	"io"
 	"math/rand"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -89,6 +91,10 @@ func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params
 		fmt.Println("command with ctx")
 		cmd = exec.CommandContext(ctx, commandName, params...)
 	}
+	cmdStr := []string{commandName}
+	cmdStr = append(cmdStr, params...)
+	log.Infof("cmd: %s", strings.Join(cmdStr, " "))
+
 	// log.Info(cmd.Args)
 	stdoutIn, err := cmd.StdoutPipe()
 	stderrIn, err2 := cmd.StderrPipe()

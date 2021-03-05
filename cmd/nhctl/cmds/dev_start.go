@@ -29,8 +29,9 @@ import (
 )
 
 var (
-	nameSpace  string
-	deployment string
+	nameSpace   string
+	deployment  string
+	ServiceType string
 )
 
 var devStartOps = &app.DevStartOptions{}

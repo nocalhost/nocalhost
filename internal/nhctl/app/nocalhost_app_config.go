@@ -19,11 +19,12 @@ import (
 )
 
 const (
-	DefaultSideCarImage     = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
-	DefaultDevImage         = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
-	DefaultWorkDir          = "/home/nocalhost-dev"
-	DefaultLocalSyncDirName = "."
-	DefaultResourcesDir     = "resources"
+	DefaultSideCarImage        = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
+	DefaultDevImage            = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
+	DefaultWorkDir             = "/home/nocalhost-dev"
+	DefaultLocalSyncDirName    = "."
+	DefaultResourcesDir        = "resources"
+	DefaultUpgradeResourcesDir = "upgrade_resources"
 	//DefaultNhctlHomeDirName                  = ".nh/nhctl"
 	//DefaultBinDirName                        = "bin"
 	//DefaultLogDirName                        = "logs"
@@ -40,7 +41,7 @@ const (
 	DefaultApplicationProfileV2Path    = ".profile_v2.yaml"
 	DefaultApplicationConfigPath       = ".config.yaml"
 	DefaultApplicationConfigV2Path     = ".config_v2.yaml"
-	DefaultGitNocalhostDir             = ".nocalhost"
+	DefaultGitNocalhostDir             = ".nocalhost" // DefaultApplicationConfigDirName
 	DefaultConfigNameInGitNocalhostDir = "config.yaml"
 	DefaultNewFilePermission           = 0700
 	DefaultConfigFilePermission        = 0644

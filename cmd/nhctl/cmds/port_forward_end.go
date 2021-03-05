@@ -25,6 +25,7 @@ var portForwardEndOptions = &app.PortForwardEndOptions{}
 func init() {
 	portForwardEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
 	portForwardEndCmd.Flags().StringVarP(&portForwardEndOptions.Port, "port", "p", "", "stop specify port-forward")
+	portForwardEndCmd.Flags().StringVarP(&ServiceType, "type", "", "deployment", "specify service type")
 	PortForwardCmd.AddCommand(portForwardEndCmd)
 }
 
@@ -40,7 +41,7 @@ var portForwardEndCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		InitAppAndCheckIfSvcExist(applicationName, deployment)
+		InitAppAndCheckIfSvcExist(applicationName, deployment, ServiceType)
 		err := nocalhostApp.StopPortForwardByPort(deployment, portForwardEndOptions.Port)
 		if err != nil {
 			log.Warnf("stop port-forward fail, %s", err.Error())

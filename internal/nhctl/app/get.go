@@ -13,7 +13,12 @@ limitations under the License.
 
 package app
 
-import "path/filepath"
+import (
+	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/pkg/nhctl/log"
+	"os"
+	"path/filepath"
+)
 
 func (a *Application) GetDependencies() []*SvcDependency {
 	result := make([]*SvcDependency, 0)
@@ -59,10 +64,49 @@ func (a *Application) GetResourceDir() []string {
 	return []string{a.getGitDir()}
 }
 
+//func (a *Application) getUpgradeResourceDir() []string {
+//	var resourcePath []string
+//	if len(a.AppProfileV2.ResourcePath) != 0 {
+//		for _, path := range a.AppProfileV2.ResourcePath {
+//			fullPath := filepath.Join(a.getUpgradeGitDir(), path)
+//			resourcePath = append(resourcePath, fullPath)
+//		}
+//		return resourcePath
+//	}
+//	return []string{a.getUpgradeGitDir()}
+//}
+func (a *Application) getUpgradeResourceDir(upgradeResourcePath []string) []string {
+	var resourcePath []string
+	if len(upgradeResourcePath) != 0 {
+		for _, path := range upgradeResourcePath {
+			fullPath := filepath.Join(a.getUpgradeGitDir(), path)
+			resourcePath = append(resourcePath, fullPath)
+		}
+		return resourcePath
+	}
+	return []string{a.getUpgradeGitDir()}
+}
+
 func (a *Application) getIgnoredPath() []string {
 	results := make([]string, 0)
 	for _, path := range a.AppProfileV2.IgnoredPath {
 		results = append(results, filepath.Join(a.getGitDir(), path))
+	}
+	return results
+}
+
+func (a *Application) getPreInstallFiles() []string {
+	return a.sortedPreInstallManifest
+}
+
+func (a *Application) getUpgradePreInstallFiles() []string {
+	return a.upgradeSortedPreInstallManifest
+}
+
+func (a *Application) getUpgradeIgnoredPath() []string {
+	results := make([]string, 0)
+	for _, path := range a.AppProfileV2.IgnoredPath {
+		results = append(results, filepath.Join(a.getUpgradeGitDir(), path))
 	}
 	return results
 }
@@ -101,4 +145,15 @@ func (a *Application) GetDefaultDevPort(svcName string, container string) []stri
 		return config.GetContainerDevConfigOrDefault(container).PortForward
 	}
 	return []string{}
+}
+
+func (a *Application) GetApplicationSyncDir(deployment string) string {
+	dirPath := filepath.Join(a.GetHomeDir(), nocalhost.DefaultBinSyncThingDirName, deployment)
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		err = os.MkdirAll(dirPath, 0700)
+		if err != nil {
+			log.Fatalf("fail to create syncthing directory: %s", dirPath)
+		}
+	}
+	return dirPath
 }

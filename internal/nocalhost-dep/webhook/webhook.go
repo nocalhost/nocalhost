@@ -190,6 +190,11 @@ func mutationRequired(ignoredList []string, metadata *metav1.ObjectMeta) bool {
 		annotations = map[string]string{}
 	}
 
+	// ignore recreate resource for devend
+	if annotations["nocalhost-dep-ignore"] == "true" {
+		return false
+	}
+
 	status := annotations[admissionWebhookAnnotationStatusKey]
 
 	// determine whether to perform mutation based on annotation for the target resource

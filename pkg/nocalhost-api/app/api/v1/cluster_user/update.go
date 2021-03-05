@@ -126,6 +126,11 @@ func UpdateResourceLimit(c *gin.Context) {
 	}
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
 
+	if !req.Validate() {
+		api.SendResponse(c, errno.ErrValidateResourceQuota, nil)
+		return
+	}
+
 	// Recreate ResourceQuota
 	resourceQuotaName := "rq-" + devspace.Namespace
 	clusterDevsSetUp.DeleteResourceQuota(resourceQuotaName, devspace.Namespace).CreateResouceQuota(resourceQuotaName, devspace.Namespace, req.SpaceReqMem,

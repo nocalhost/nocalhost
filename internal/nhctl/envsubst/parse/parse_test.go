@@ -145,7 +145,7 @@ func TestParseStrictNoFailFast(t *testing.T) {
 
 func doTest(t *testing.T, m mode) {
 	for _, test := range parseTests {
-		result, err := New(test.name, FakeEnv, restrict[m]).Parse(test.input)
+		result, err := New(test.name, FakeEnv, restrict[m]).ParseWithoutIncludation(test.input)
 		hasErr := err != nil
 		if hasErr != test.hasErr[m] {
 			t.Errorf("%s=(error): got\n\t%v\nexpected\n\t%v\ninput: %s\nresult: %s\nerror: %v",
@@ -165,7 +165,7 @@ func doNegativeAssertTest(t *testing.T, m mode) {
 			env = append(env, e)
 		}
 
-		result, err := (*&Parser{Name: test.name, Env: env, Restrict: restrict[m], Mode: AllErrors}).Parse(test.input)
+		result, err := (*&Parser{Name: test.name, Env: env, Restrict: restrict[m], Mode: AllErrors}).ParseWithoutIncludation(test.input)
 		hasErr := err != nil
 		if hasErr != test.hasErr[m] {
 			t.Errorf("%s=(error): got\n\t%v\nexpected\n\t%v\ninput: %s\nresult: %s\nerror: %v",

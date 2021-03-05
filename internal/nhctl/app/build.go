@@ -15,11 +15,12 @@ package app
 
 import (
 	"fmt"
+	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/envsubst"
+	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -44,11 +45,6 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 		return nil, err
 	}
 
-	//profile, err := NewAppProfile(app.getProfilePath())
-	//if err != nil {
-	//	return nil, err
-	//}
-	//app.AppProfile = profile
 	err = app.LoadAppProfileV2()
 	if err != nil {
 		return nil, err
@@ -62,7 +58,6 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 	}
 	namespace := flags.Namespace
 
-	//err = app.initClient(kubeconfig, namespace)
 	app.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace)
 	if err != nil {
 		return nil, err
@@ -84,11 +79,9 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 			log.Debugf("Failed to clone : %s ref: %s", flags.GitUrl, flags.GitRef)
 			return nil, err
 		}
-	}
-
-	// local path of application, copy to nocalhost resource
-	if flags.LocalPath != "" {
-		log.Infof("des %s", app.getGitDir())
+		app.AppProfileV2.GitUrl = flags.GitUrl
+		app.AppProfileV2.GitUrl = flags.GitRef
+	} else if flags.LocalPath != "" { // local path of application, copy to nocalhost resource
 		err := utils.CopyDir(flags.LocalPath, app.getGitDir())
 		if err != nil {
 			return nil, err
@@ -139,7 +132,7 @@ func (a *Application) generateConfig(outerConfigPath string, configName string) 
 		configFile = a.getConfigPathInGitResourcesDir(configName)
 	}
 
-	// Generate config.yaml
+	//Generate config.yaml
 	// config.yaml may come from .nocalhost in git or a outer config file in local absolute path
 	rbytes, err := ioutil.ReadFile(configFile)
 	if err != nil {
@@ -161,6 +154,7 @@ func (a *Application) generateConfig(outerConfigPath string, configName string) 
 		// Render config file using envFile
 		beforeRenderConfig := &NocalHostAppConfigV2{}
 		err = yaml.Unmarshal(rbytes, &beforeRenderConfig)
+
 		if err != nil {
 			errors.Wrap(err, "")
 		}
@@ -170,10 +164,11 @@ func (a *Application) generateConfig(outerConfigPath string, configName string) 
 			log.WarnE(errors.Wrap(err, ""), "Env file not found, ignore it...")
 			envFilePath = ""
 		}
-		renderedStr, err := envsubst.RenderBytes(rbytes, envFilePath)
+		renderedStr, err := envsubst.Render(fp.NewFilePath(configFile), fp.NewFilePath(envFilePath))
 		if err != nil {
 			return err
 		}
+
 		err = ioutil.WriteFile(a.GetConfigV2Path(), []byte(renderedStr), 0644) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
 		if err != nil {
 			return errors.New(fmt.Sprintf("fail to create configFile : %s", configFile))

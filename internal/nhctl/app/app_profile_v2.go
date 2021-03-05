@@ -19,6 +19,8 @@ import (
 	"io/ioutil"
 	"nocalhost/pkg/nhctl/log"
 	"os"
+	"strconv"
+	"strings"
 )
 
 type AppProfileV2 struct {
@@ -35,12 +37,30 @@ type AppProfileV2 struct {
 	ResourcePath            []string          `json:"resource_path" yaml:"resourcePath"`
 	IgnoredPath             []string          `json:"ignoredPath" yaml:"ignoredPath"`
 	PreInstall              []*PreInstallItem `json:"onPreInstall" yaml:"onPreInstall"`
-	Env                     []*Env            `json:"env" yaml:"env"`
-	EnvFrom                 EnvFrom           `json:"envFrom" yaml:"envFrom"`
+
+	// After v2
+	GitUrl       string `json:"gitUrl" yaml:"gitUrl"`
+	GitRef       string `json:"gitRef" yaml:"gitRef"`
+	HelmRepoUrl  string `json:"helmRepoUrl" yaml:"helmRepoUrl"`
+	HelmRepoName string `json:"helmRepoUrl" yaml:"helmRepoName"`
+	//HelmRepoChartVersion string `json:"helmRepoChartVersion" yaml:"helmRepoChartVersion"`
+
+	Env     []*Env  `json:"env" yaml:"env"`
+	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
 }
 
 type ContainerProfileV2 struct {
 	Name string
+}
+
+type DevPortForward struct {
+	LocalPort  int
+	RemotePort int
+	Way        string
+	Status     string
+	Reason     string
+	Updated    string
+	Pid        int
 }
 
 type SvcProfileV2 struct {
@@ -57,12 +77,77 @@ type SvcProfileV2 struct {
 	RemoteSyncthingGUIPort int    `json:"remoteSyncthingGUIPort" yaml:"remoteSyncthingGUIPort"`
 	SyncthingSecret        string `json:"syncthingSecret" yaml:"syncthingSecret"` // secret name
 	// syncthing local port
-	LocalSyncthingPort                     int      `json:"localSyncthingPort" yaml:"localSyncthingPort"`
-	LocalSyncthingGUIPort                  int      `json:"localSyncthingGUIPort" yaml:"localSyncthingGUIPort"`
-	LocalAbsoluteSyncDirFromDevStartPlugin []string `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
-	DevPortList                            []string `json:"devPortList" yaml:"devPortList"`
-	PortForwardStatusList                  []string `json:"portForwardStatusList" yaml:"portForwardStatusList"`
-	PortForwardPidList                     []string `json:"portForwardPidList" yaml:"portForwardPidList"`
+	LocalSyncthingPort                     int               `json:"localSyncthingPort" yaml:"localSyncthingPort"`
+	LocalSyncthingGUIPort                  int               `json:"localSyncthingGUIPort" yaml:"localSyncthingGUIPort"`
+	LocalAbsoluteSyncDirFromDevStartPlugin []string          `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
+	DevPortForwardList                     []*DevPortForward `json:"devPortForwardList" yaml:"devPortForwardList"` // combine DevPortList,PortForwardStatusList and PortForwardPidList
+	// Deprecated later
+	DevPortList           []string `json:"devPortList" yaml:"devPortList"`
+	PortForwardStatusList []string `json:"portForwardStatusList" yaml:"portForwardStatusList"`
+	PortForwardPidList    []string `json:"portForwardPidList" yaml:"portForwardPidList"`
+}
+
+func (a *Application) convertDevPortForwardList() {
+	var err error
+	changed := false
+	for _, svcProfile := range a.AppProfileV2.SvcProfile {
+		if len(svcProfile.DevPortForwardList) > 0 {
+			continue // already convert
+		}
+		for _, portString := range svcProfile.DevPortList {
+			log.Debugf("Converting %s", portString)
+			changed = true
+			devPortForward := &DevPortForward{
+				Way:    "",
+				Status: "",
+			}
+			svcProfile.DevPortForwardList = append(svcProfile.DevPortForwardList, devPortForward)
+
+			ports := strings.Split(portString, ":")
+			devPortForward.LocalPort, err = strconv.Atoi(ports[0])
+			if err != nil {
+				log.WarnE(errors.Wrap(err, ""), err.Error())
+			}
+			devPortForward.RemotePort, err = strconv.Atoi(ports[1])
+			if err != nil {
+				log.WarnE(errors.Wrap(err, ""), err.Error())
+			}
+
+			// find way and status
+			for _, statusString := range svcProfile.PortForwardStatusList {
+				if strings.Contains(statusString, portString) {
+					// eg: 8091:8091(MANUAL-LISTEN)
+					str := strings.Split(statusString, "(") // MANUAL-LISTEN)
+					str = strings.Split(str[1], ")")        // MANUAL-LISTEN
+					str = strings.Split(str[0], "-")
+					devPortForward.Way = str[0]
+					devPortForward.Status = str[1]
+					log.Debugf("%s's status is %s-%s", devPortForward.Way, devPortForward.Status)
+					break
+				}
+			}
+			// find pid
+			for _, pidString := range svcProfile.PortForwardPidList {
+				if strings.Contains(pidString, portString) {
+					// eg: 8091:8091-16768
+					pidStr := strings.Split(pidString, "-")[1]
+					devPortForward.Pid, err = strconv.Atoi(pidStr)
+					if err != nil {
+						log.WarnE(errors.Wrap(err, ""), err.Error())
+					}
+					log.Debugf("%s's pid is %d", pidString, devPortForward.Pid)
+					break
+				}
+			}
+
+		}
+		svcProfile.PortForwardPidList = nil
+		svcProfile.PortForwardStatusList = nil
+		svcProfile.DevPortList = nil
+	}
+	if changed {
+		_ = a.SaveProfile()
+	}
 }
 
 // Compatible for v1

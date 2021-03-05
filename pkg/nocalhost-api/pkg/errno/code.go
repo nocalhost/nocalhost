@@ -92,4 +92,5 @@ var (
 	ErrCreateLimitRange                          = &Errno{Code: 50119, Message: "Create limit range failed."}
 	ErrDeleteLimitRange                          = &Errno{Code: 50120, Message: "Delete limit range failed."}
 	ErrFormatResourceLimitParam                  = &Errno{Code: 50121, Message: "Incorrect Resource limit parameter."}
+	ErrValidateResourceQuota                      = &Errno{Code: 50122, Message: "If quota is enabled in a namespace for compute resources like cpu and memory, must specify requests or limits for those values."}
 )

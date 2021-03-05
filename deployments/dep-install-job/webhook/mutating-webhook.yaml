@@ -23,7 +23,7 @@ webhooks:
     timeoutSeconds: 30  # 超时时间
     rules:
       - operations: ["CREATE"]
-        apiGroups: ["apps"] # 如果是 pods 没有 apiGroups ，留空
+        apiGroups: ["apps", "batch"] # 如果是 pods 没有 apiGroups ，留空
         apiVersions: ["v1", "v1beta1"]
         resources: ["deployments", "daemonsets", "statefulsets", "cronjobs", "jobs"]
         #resources: ["pods"]
