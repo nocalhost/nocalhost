@@ -19,7 +19,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-var container string
+//var container string
 
 func init() {
 	devTerminalCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")

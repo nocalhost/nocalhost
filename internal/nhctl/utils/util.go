@@ -11,9 +11,15 @@ import (
 )
 
 func GetHomePath() string {
-	u, err := user.Current()
-	if err == nil {
-		return u.HomeDir
+	if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
+		if u, err := user.Lookup(sudoUser); err == nil {
+			return u.HomeDir
+		}
+	} else {
+		u, err := user.Current()
+		if err == nil {
+			return u.HomeDir
+		}
 	}
 	return ""
 }

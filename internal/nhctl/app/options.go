@@ -31,15 +31,12 @@ type DevStartOptions struct {
 }
 
 type FileSyncOptions struct {
-	//RemoteSyncthingPort    int
-	//RemoteSyncthingGUIPort int
-	//LocalSyncthingPort     int
-	//LocalSyncthingGUIPort  int
 	RunAsDaemon    bool
 	SyncDouble     bool
 	SyncedPattern  []string
 	IgnoredPattern []string
 	Override       bool
+	Container      string // container name of pod to sync
 }
 
 type SyncStatusOptions struct {

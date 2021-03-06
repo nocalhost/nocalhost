@@ -14,36 +14,37 @@ limitations under the License.
 package cmds
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
 )
 
-type PluginArg struct {
-	Deployment string
-}
-
-var pluginArg PluginArg
-
 func init() {
-	PluginCmd.Flags().StringVarP(&pluginArg.Deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
-	rootCmd.AddCommand(PluginCmd)
+	rootCmd.AddCommand(applyCmd)
 }
 
-var PluginCmd = &cobra.Command{
-	Use:   "plugin get [NAME]",
-	Short: "Plugin get application status",
-	Long:  `Plugin get application status`,
+var applyCmd = &cobra.Command{
+	Use:   "apply [NAME] [MANIFEST]",
+	Short: "Apply manifest",
+	Long:  `Apply manifest`,
 	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
+		if len(args) < 2 {
+			return errors.Errorf("%q requires at least 2 argument\n", cmd.CommandPath())
 		}
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		applicationName := args[1]
+		applicationName := args[0]
+		path := args[1]
+
 		InitApp(applicationName)
-		fmt.Println(nocalhostApp.GetPluginDescription(pluginArg.Deployment))
+		manifests := clientgoutils.LoadValidManifest([]string{path}, []string{})
+
+		err := nocalhostApp.GetClient().ApplyForCreate(manifests, true, app.StandardNocalhostMetas(nocalhostApp.Name, nocalhostApp.GetNamespace()))
+		if err != nil {
+			log.Fatal(err)
+		}
 	},
 }

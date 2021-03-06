@@ -29,8 +29,10 @@ import (
 )
 
 var (
-	nameSpace  string
-	deployment string
+	nameSpace   string
+	deployment  string
+	ServiceType string
+	//Container   string
 )
 
 var devStartOps = &app.DevStartOptions{}
@@ -76,17 +78,17 @@ var devStartCmd = &cobra.Command{
 
 		svcProfile := nocalhostApp.GetSvcProfileV2(deployment)
 		if devStartOps.WorkDir != "" {
-			svcProfile.GetDefaultContainerDevConfig().WorkDir = devStartOps.WorkDir
+			svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).WorkDir = devStartOps.WorkDir
 		}
 		if devStartOps.DevImage != "" {
-			svcProfile.GetDefaultContainerDevConfig().Image = devStartOps.DevImage
+			svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).Image = devStartOps.DevImage
 		}
 		if len(devStartOps.LocalSyncDir) > 0 {
 			svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 		}
 		_ = nocalhostApp.SaveProfile()
 
-		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOps.LocalSyncDir, false)
+		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOps.Container, devStartOps.LocalSyncDir, false)
 		if err != nil {
 			log.FatalE(err, "Failed to create syncthing process, please try again.")
 		}

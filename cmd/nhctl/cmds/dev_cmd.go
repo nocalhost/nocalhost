@@ -32,9 +32,11 @@ const (
 )
 
 var commandType string
+var container string
 
 func init() {
 	devCmdCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "K8s deployment which your developing service exists")
+	devCmdCmd.Flags().StringVarP(&container, "container", "c", "", "which container of pod to run command")
 	devCmdCmd.Flags().StringVar(&commandType, "dev-command-type", "", fmt.Sprintf("Dev command type can be: %s, %s, %s, %s, %s", build, run, debug, hotReloadRun, hotReloadDebug))
 	debugCmd.AddCommand(devCmdCmd)
 }
@@ -64,21 +66,21 @@ var devCmdCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if profile.GetDefaultContainerDevConfig() == nil || profile.GetDefaultContainerDevConfig().Command == nil {
+		if profile.GetContainerDevConfigOrDefault(container) == nil || profile.GetContainerDevConfigOrDefault(container).Command == nil {
 			log.Fatalf("%s command not defined", commandType)
 		}
 		var targetCommand []string
 		switch commandType {
 		case string(build):
-			targetCommand = profile.GetDefaultContainerDevConfig().Command.Build
+			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.Build
 		case string(run):
-			targetCommand = profile.GetDefaultContainerDevConfig().Command.Run
+			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.Run
 		case string(debug):
-			targetCommand = profile.GetDefaultContainerDevConfig().Command.Debug
+			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.Debug
 		case string(hotReloadDebug):
-			targetCommand = profile.GetDefaultContainerDevConfig().Command.HotReloadDebug
+			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.HotReloadDebug
 		case string(hotReloadRun):
-			targetCommand = profile.GetDefaultContainerDevConfig().Command.HotReloadRun
+			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.HotReloadRun
 		default:
 			log.Fatalf("%s is not supported", commandType)
 
@@ -87,7 +89,7 @@ var devCmdCmd = &cobra.Command{
 			log.Fatalf("%s command not defined", commandType)
 		}
 
-		err := nocalhostApp.Exec(deployment, targetCommand)
+		err := nocalhostApp.Exec(deployment, container, targetCommand)
 		if err != nil {
 			log.Fatalf("Failed to exec : %s", err.Error())
 		}

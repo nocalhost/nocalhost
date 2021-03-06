@@ -75,6 +75,7 @@ func (c *ClientGoUtils) GetReplicaSetsByDeployment(deploymentName string) (map[i
 
 func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploymentName string) error {
 
+	printed := false
 	for {
 		time.Sleep(2 * time.Second)
 
@@ -125,7 +126,11 @@ func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploy
 				continue
 			}
 			if rs.Status.Replicas != 0 {
-				log.Infof("Previous replicaSet %s has not been terminated, waiting revision %d to be ready", rs.Name, latestRevision)
+				if !printed {
+					printed = true
+					log.Infof("Previous replicaSet %s has not been terminated, waiting revision %d to be ready", rs.Name, latestRevision)
+					log.Info("This may take several minutes, depending on the load of your k8s cluster")
+				}
 				isReady = false
 				break
 			}

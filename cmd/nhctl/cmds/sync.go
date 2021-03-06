@@ -15,11 +15,6 @@ package cmds
 
 import (
 	"context"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -30,6 +25,12 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 var fileSyncOps = &app.FileSyncOptions{}
@@ -40,6 +41,7 @@ func init() {
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false, "if use double side sync")
 	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.SyncedPattern, "synced-pattern", "s", []string{}, "local synced pattern")
 	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.IgnoredPattern, "ignored-pattern", "i", []string{}, "local ignored pattern")
+	fileSyncCmd.Flags().StringVar(&fileSyncOps.Container, "container", "", "container name of pod to sync")
 	fileSyncCmd.Flags().BoolVar(&fileSyncOps.Override, "overwrite", true, "override the remote changing according to the local sync folder while start up")
 	rootCmd.AddCommand(fileSyncCmd)
 }
@@ -72,7 +74,7 @@ var fileSyncCmd = &cobra.Command{
 		// set abs directory to call myself
 		nhctlAbsDir, err := exec.LookPath(nocalhostApp.GetMyBinName())
 		if err != nil {
-			log.Fatalf("Failed to load nhctl in %s", nhctlAbsDir)
+			log.Fatalf("Failed to load nhctl in %v", err)
 		}
 
 		// overwrite Args[0] as ABS directory of bin directory
@@ -175,19 +177,19 @@ var fileSyncCmd = &cobra.Command{
 
 		// Getting pattern from svc profile first
 		profile := nocalhostApp.GetSvcProfileV2(deployment)
-		if profile.GetDefaultContainerDevConfig().Sync == nil {
-			profile.GetDefaultContainerDevConfig().Sync = &app.SyncConfig{}
+		if profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync == nil {
+			profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync = &app.SyncConfig{}
 		}
 		if len(fileSyncOps.IgnoredPattern) != 0 {
-			profile.GetDefaultContainerDevConfig().Sync.IgnoreFilePattern = fileSyncOps.IgnoredPattern
+			profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync.IgnoreFilePattern = fileSyncOps.IgnoredPattern
 		}
 		if len(fileSyncOps.SyncedPattern) != 0 {
-			profile.GetDefaultContainerDevConfig().Sync.FilePattern = fileSyncOps.SyncedPattern
+			profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync.FilePattern = fileSyncOps.SyncedPattern
 		}
 
 		// TODO
 		// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished), the files that have been synchronized will not be synchronized.
-		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, profile.LocalAbsoluteSyncDirFromDevStartPlugin, fileSyncOps.SyncDouble)
+		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, fileSyncOps.Container, profile.LocalAbsoluteSyncDirFromDevStartPlugin, fileSyncOps.SyncDouble)
 		if err != nil {
 			log.WarnE(err, "Failed to new syncthing")
 		}

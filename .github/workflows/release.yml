@@ -150,6 +150,7 @@ jobs:
     - name: Release api-docker
       env:
         VERSION: ${{ env.RELEASE_VERSION }}
+        SERVICE_INITIAL: true
       run: make api-docker
 
     - name: Push to Github packages

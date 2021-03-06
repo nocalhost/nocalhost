@@ -35,22 +35,3 @@ type SvcProfile struct {
 	SyncedPatterns  []string `json:"syncFilePattern" yaml:"syncFilePattern"`
 	IgnoredPatterns []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
 }
-
-type SvcProfileForPlugin struct {
-	Name                                   string   `json:"name" yaml:"name"` // for helm, actualName may be ReleaseName-Name
-	Type                                   SvcType  `json:"serviceType" yaml:"serviceType"`
-	GitUrl                                 string   `json:"gitUrl" yaml:"gitUrl"`
-	DevImage                               string   `json:"devContainerImage" yaml:"devContainerImage"`
-	WorkDir                                string   `json:"workDir" yaml:"workDir"`
-	Sync                                   []string `json:"syncDirs" yaml:"syncDirs"`
-	DevPort                                []string `json:"devPorts" yaml:"devPorts"`
-	Developing                             bool     `json:"developing" yaml:"developing"`
-	PortForwarded                          bool     `json:"port_forwarded" yaml:"portForwarded"`
-	Syncing                                bool     `json:"syncing" yaml:"syncing"`
-	LocalAbsoluteSyncDirFromDevStartPlugin []string `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
-	DevPortList                            []string `json:"devPortList" yaml:"devPortList"`
-
-	// .nhignore's pattern configuration
-	SyncedPatterns  []string `json:"syncFilePattern" yaml:"syncFilePattern"`
-	IgnoredPatterns []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
-}

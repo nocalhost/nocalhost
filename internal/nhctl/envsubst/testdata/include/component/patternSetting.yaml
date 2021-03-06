@@ -1,0 +1,4 @@
+syncFilePattern:
+  - .
+ignoreFilePattern:
+  - .git

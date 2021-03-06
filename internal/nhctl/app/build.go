@@ -14,17 +14,20 @@ limitations under the License.
 package app
 
 import (
+	"bufio"
 	"fmt"
+	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/envsubst"
+	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -44,12 +47,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 		return nil, err
 	}
 
-	//profile, err := NewAppProfile(app.getProfilePath())
-	//if err != nil {
-	//	return nil, err
-	//}
-	//app.AppProfile = profile
-	err = app.LoadAppProfileV2()
+	err = app.LoadAppProfileV2(false)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +60,6 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 	}
 	namespace := flags.Namespace
 
-	//err = app.initClient(kubeconfig, namespace)
 	app.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace)
 	if err != nil {
 		return nil, err
@@ -84,18 +81,16 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 			log.Debugf("Failed to clone : %s ref: %s", flags.GitUrl, flags.GitRef)
 			return nil, err
 		}
-	}
-
-	// local path of application, copy to nocalhost resource
-	if flags.LocalPath != "" {
-		log.Infof("des %s", app.getGitDir())
+		app.AppProfileV2.GitUrl = flags.GitUrl
+		app.AppProfileV2.GitUrl = flags.GitRef
+	} else if flags.LocalPath != "" { // local path of application, copy to nocalhost resource
 		err := utils.CopyDir(flags.LocalPath, app.getGitDir())
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	err = app.generateConfig(flags.OuterConfig, flags.Config)
+	err = app.renderConfig(flags.OuterConfig, flags.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -123,12 +118,11 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 }
 
 // V2
-func (a *Application) generateConfig(outerConfigPath string, configName string) error {
-
-	configFile := outerConfigPath
+func (a *Application) renderConfig(outerConfigPath string, configName string) error {
+	configFilePath := outerConfigPath
 
 	// Read from .nocalhost
-	if configFile == "" {
+	if configFilePath == "" {
 		_, err := os.Stat(a.getConfigPathInGitResourcesDir(configName))
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -136,48 +130,72 @@ func (a *Application) generateConfig(outerConfigPath string, configName string) 
 			}
 			return errors.Wrap(err, "")
 		}
-		configFile = a.getConfigPathInGitResourcesDir(configName)
+		configFilePath = a.getConfigPathInGitResourcesDir(configName)
 	}
 
-	// Generate config.yaml
-	// config.yaml may come from .nocalhost in git or a outer config file in local absolute path
-	rbytes, err := ioutil.ReadFile(configFile)
+	configFile := fp.NewFilePath(configFilePath)
+
+	var envFile *fp.FilePathEnhance
+	if relPath := gettingRenderEnvFile(configFilePath); relPath != "" {
+		envFile = configFile.RelOrAbs("../").RelOrAbs(relPath)
+
+		if e := envFile.CheckExist(); e != nil {
+			log.Infof("Render %s Nocalhost config without env files, we found the env file had been configured as %s, but we can not found in %s", configFile.Abs(), relPath, envFile.Abs())
+		} else {
+			log.Infof("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
+		}
+	} else {
+		log.Infof("Render %s Nocalhost config without env files, you config your Nocalhost configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2", configFile.Abs())
+	}
+
+	renderedStr, err := envsubst.Render(configFile, envFile)
 	if err != nil {
-		return errors.New(fmt.Sprintf("fail to load configFile : %s", configFile))
+		return err
 	}
 
 	// Check If config version
-	configVersion, err := checkConfigVersion(configFile)
+	configVersion, err := checkConfigVersion(renderedStr)
 	if err != nil {
 		return err
 	}
 
 	if configVersion == "v1" {
-		err = ConvertConfigFileV1ToV2(configFile, a.GetConfigV2Path())
+		err = ConvertConfigFileV1ToV2(configFilePath, a.GetConfigV2Path())
 		if err != nil {
 			return err
 		}
-	} else {
-		// Render config file using envFile
-		beforeRenderConfig := &NocalHostAppConfigV2{}
-		err = yaml.Unmarshal(rbytes, &beforeRenderConfig)
-		if err != nil {
-			errors.Wrap(err, "")
+
+		renderedStr, err = envsubst.Render(fp.NewFilePath(a.GetConfigV2Path()), envFile)
+	}
+
+	// convert un strict yaml to strict yaml
+	renderedConfig := &NocalHostAppConfigV2{}
+	_ = yaml.Unmarshal([]byte(renderedStr), renderedConfig)
+
+	// remove the duplicate service config (we allow users to define duplicate service and keep the last one)
+	if renderedConfig.ApplicationConfig != nil && renderedConfig.ApplicationConfig.ServiceConfigs != nil {
+		var maps = make(map[string]int)
+
+		for i, config := range renderedConfig.ApplicationConfig.ServiceConfigs {
+			if _, ok := maps[config.Name]; ok {
+				log.Infof("Duplicate service %s found, Nocalhost will keep the last one according to the sequence", config.Name)
+			}
+			maps[config.Name] = i
 		}
-		envFilePath := filepath.Join(a.getGitNocalhostDir(), beforeRenderConfig.ConfigProperties.EnvFile)
-		_, err = os.Stat(envFilePath)
-		if err != nil {
-			log.WarnE(errors.Wrap(err, ""), "Env file not found, ignore it...")
-			envFilePath = ""
+
+		var service []*ServiceConfigV2
+		for _, i := range maps {
+			service = append(service, renderedConfig.ApplicationConfig.ServiceConfigs[i])
 		}
-		renderedStr, err := envsubst.RenderBytes(rbytes, envFilePath)
-		if err != nil {
-			return err
-		}
-		err = ioutil.WriteFile(a.GetConfigV2Path(), []byte(renderedStr), 0644) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
-		if err != nil {
-			return errors.New(fmt.Sprintf("fail to create configFile : %s", configFile))
-		}
+
+		renderedConfig.ApplicationConfig.ServiceConfigs = service
+	}
+
+	marshal, _ := yaml.Marshal(renderedConfig)
+
+	err = ioutil.WriteFile(a.GetConfigV2Path(), marshal, 0644) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
+	if err != nil {
+		return errors.New(fmt.Sprintf("fail to create configFile : %s", configFilePath))
 	}
 
 	err = a.LoadConfigV2()
@@ -189,6 +207,56 @@ func (a *Application) generateConfig(outerConfigPath string, configName string) 
 		return errors.New("Nocalhost config incorrect")
 	}
 	return nil
+}
+
+func gettingRenderEnvFile(filepath string) string {
+	file, err := os.Open(filepath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+
+	startMatch := false
+	for scanner.Scan() {
+		text := scanner.Text()
+		pureText := strings.TrimSpace(text)
+
+		// disgusting but working
+		if strings.HasPrefix(text, "configProperties:") {
+			startMatch = true
+		} else if startMatch && strings.HasPrefix(text, " ") {
+
+			if strings.HasPrefix(pureText, "envFile: ") {
+				value := strings.TrimSpace(text[11:])
+
+				reg := regexp.MustCompile(`^["'](.*)["']$`)
+				result := reg.FindAllStringSubmatch(value, -1)
+
+				if len(result) > 0 && len(result[0]) > 1 {
+					return result[0][1]
+				} else {
+					// return the origin value if not matched
+					return value
+				}
+			} else {
+				// ignore other node under `configProperties`
+			}
+
+		} else if pureText == "" {
+			// skip empty line
+			continue
+		} else if strings.HasPrefix(pureText, "#") {
+			// skip comment
+			continue
+		} else {
+			// reset matching
+			startMatch = false
+		}
+	}
+
+	return ""
 }
 
 // Initiate directory layout of a nhctl application

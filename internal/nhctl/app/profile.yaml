@@ -1,0 +1,241 @@
+name: "qoweruoqwerasdfaf"
+releasename: ""
+namespace: nh6yoaz
+kubeconfig: /Users/xinxinhuang/.nh/plugin/kubeConfigs/10_173_config
+dependencyConfigMapName: nocalhost-depends-do-not-overwrite-oisd
+appType: rawManifest
+svcProfile:
+  - rawConfig:
+      name: details
+      serviceType: deployment
+      dependLabelSelector: null
+      containers:
+        - name: ""
+          install: null
+          dev:
+            gitUrl: https://github.com/nocalhost/bookinfo-details.git
+            image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/ruby:2.7.1-slim
+            shell: bash
+            workDir: /root/nocalhost-dev
+            resources: null
+            persistentVolumeDirs: []
+            command:
+              build: []
+              run:
+                - ruby
+                - details.rb
+                - "9080"
+              debug: []
+              hotReloadRun: []
+              hotReloadDebug: []
+            debug: null
+            useDevContainer: false
+            sync:
+              type: ""
+              filePattern:
+                - .
+              ignoreFilePattern:
+                - .git
+            env: []
+            envFrom: null
+            portForward:
+              - 29080:9080
+    containerProfile: []
+    actualName: details
+    developing: false
+    portForwarded: false
+    syncing: false
+    remoteSyncthingPort: 0
+    remoteSyncthingGUIPort: 0
+    syncthingSecret: ""
+    localSyncthingPort: 0
+    localSyncthingGUIPort: 0
+    localAbsoluteSyncDirFromDevStartPlugin: []
+    devPortForwardList: []
+    devPortList: []
+    portForwardStatusList: []
+    portForwardPidList: []
+  - rawConfig:
+      name: ratings
+      serviceType: deployment
+      dependLabelSelector:
+        pods:
+          - productpage
+          - productpage
+        jobs:
+          - job-name=dep-job
+      containers:
+        - name: ""
+          install: null
+          dev:
+            gitUrl: https://github.com/nocalhost/bookinfo-ratings.git
+            image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/node:12.18.1-slim
+            shell: bash
+            workDir: /root/nocalhost-dev
+            resources: null
+            persistentVolumeDirs: []
+            command:
+              build: []
+              run:
+                - npm
+                - install
+                - '&&'
+                - node
+                - ratings.js
+                - "9080"
+              debug: []
+              hotReloadRun: []
+              hotReloadDebug: []
+            debug: null
+            useDevContainer: false
+            sync:
+              type: ""
+              filePattern:
+                - .
+              ignoreFilePattern:
+                - .git
+            env: []
+            envFrom: null
+            portForward:
+              - 19080:9080
+    containerProfile: []
+    actualName: ratings
+    developing: false
+    portForwarded: false
+    syncing: false
+    remoteSyncthingPort: 0
+    remoteSyncthingGUIPort: 0
+    syncthingSecret: ""
+    localSyncthingPort: 0
+    localSyncthingGUIPort: 0
+    localAbsoluteSyncDirFromDevStartPlugin: []
+    devPortForwardList: []
+    devPortList: []
+    portForwardStatusList: []
+    portForwardPidList: []
+  - rawConfig:
+      name: reviews
+      serviceType: deployment
+      dependLabelSelector:
+        pods:
+          - productpage
+        jobs: []
+      containers:
+        - name: ""
+          install: null
+          dev:
+            gitUrl: https://github.com/nocalhost/bookinfo-reviews.git
+            image: codingcorp-docker.pkg.coding.net/nocalhost/public/coding-java:latest
+            shell: bash
+            workDir: /root/reviews
+            resources: null
+            persistentVolumeDirs: []
+            command:
+              build:
+                - ./gradlew
+                - build
+              run:
+                - ./gradlew
+                - bootRun
+              debug:
+                - ./gradlew
+                - bootRun
+                - --debug-jvm
+              hotReloadRun: []
+              hotReloadDebug: []
+            debug: null
+            useDevContainer: false
+            sync:
+              type: ""
+              filePattern:
+                - .
+              ignoreFilePattern:
+                - .git
+            env: []
+            envFrom: null
+            portForward:
+              - 5005:5005
+    containerProfile: []
+    actualName: reviews
+    developing: false
+    portForwarded: false
+    syncing: false
+    remoteSyncthingPort: 0
+    remoteSyncthingGUIPort: 0
+    syncthingSecret: ""
+    localSyncthingPort: 0
+    localSyncthingGUIPort: 0
+    localAbsoluteSyncDirFromDevStartPlugin: []
+    devPortForwardList: []
+    devPortList: []
+    portForwardStatusList: []
+    portForwardPidList: []
+  - rawConfig:
+      name: productpage
+      serviceType: deployment
+      dependLabelSelector:
+        pods: []
+        jobs:
+          - job-name=dep-job
+      containers:
+        - name: ""
+          install: null
+          dev:
+            gitUrl: https://github.com/nocalhost/bookinfo-productpage
+            image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/python:3.7.7-slim-productpage
+            shell: bash
+            workDir: /root/nocalhost-dev
+            resources: null
+            persistentVolumeDirs: []
+            command:
+              build: []
+              run:
+                - ./run.sh
+              debug: []
+              hotReloadRun:
+                - ./run.sh
+              hotReloadDebug: []
+            debug: null
+            useDevContainer: false
+            sync:
+              type: ""
+              filePattern:
+                - .
+              ignoreFilePattern:
+                - .git
+            env: []
+            envFrom: null
+            portForward:
+              - 39080:9080
+    containerProfile: []
+    actualName: productpage
+    developing: false
+    portForwarded: false
+    syncing: false
+    remoteSyncthingPort: 0
+    remoteSyncthingGUIPort: 0
+    syncthingSecret: ""
+    localSyncthingPort: 0
+    localSyncthingGUIPort: 0
+    localAbsoluteSyncDirFromDevStartPlugin: []
+    devPortForwardList: []
+    devPortList: []
+    portForwardStatusList: []
+    portForwardPidList: []
+installed: true
+syncDirs: []
+resourcePath:
+  - manifest/templates
+ignoredPath: []
+onPreInstall:
+  - path: manifest/templates/pre-install/print-num-job-02.yaml
+    weight: "-5"
+  - path: manifest/templates/pre-install/print-num-job-01.yaml
+    weight: "1"
+gitUrl: ""
+gitRef: ""
+helmRepoUrl: ""
+helmRepoName: ""
+env: []
+envFrom:
+  envFile: []

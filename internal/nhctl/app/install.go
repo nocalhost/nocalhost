@@ -16,12 +16,11 @@ package app
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -35,7 +34,7 @@ import (
 
 func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 
-	err := a.InstallDepConfigMap(a.AppProfileV2.AppType)
+	err := a.InstallDepConfigMap()
 	if err != nil {
 		return errors.Wrap(err, "failed to install dep config map")
 	}
@@ -69,11 +68,11 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 }
 
 func (a *Application) InstallManifest() error {
-	var err error
+	a.loadPreInstallAndInstallManifest()
 	a.preInstall()
 
 	// install manifest recursively, don't install pre-install workload again
-	err = a.installManifestRecursively()
+	err := a.installManifestRecursively()
 	return errors.Wrap(err, "")
 }
 
@@ -101,11 +100,14 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 	}
 	if flags.RepoUrl != "" {
 		installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
+		a.AppProfileV2.HelmRepoUrl = flags.RepoUrl
 	} else if flags.RepoName != "" {
 		installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
+		a.AppProfileV2.HelmRepoName = flags.RepoName
 	}
 	if flags.Version != "" {
 		installParams = append(installParams, "--version", flags.Version)
+		//a.AppProfileV2.HelmRepoChartVersion = flags.Version
 	}
 
 	if len(flags.Set) > 0 {
@@ -184,7 +186,7 @@ func (a *Application) installHelmInGit(flags *HelmFlags) error {
 	return nil
 }
 
-func (a *Application) InstallDepConfigMap(appType AppType) error {
+func (a *Application) InstallDepConfigMap() error {
 	appDep := a.GetDependencies()
 	appEnv := a.GetInstallEnvForDep()
 	if appDep != nil || len(appEnv.Global) > 0 || len(appEnv.Service) > 0 {
@@ -197,7 +199,7 @@ func (a *Application) InstallDepConfigMap(appType AppType) error {
 			InstallEnv: appEnv,
 		}
 		// release name a.Name
-		if appType != Manifest {
+		if a.AppProfileV2.AppType != Manifest {
 			depForYaml.ReleaseName = a.Name
 		}
 		yamlBytes, err := yaml.Marshal(depForYaml)
@@ -238,10 +240,10 @@ func (a *Application) InstallDepConfigMap(appType AppType) error {
 }
 
 func (a *Application) installManifestRecursively() error {
-	a.loadInstallManifest()
+	//a.loadInstallManifest()
 	log.Infof("%d manifest files to be installed", len(a.installManifest))
 	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForCreate(a.installManifest, true)
+		err := a.client.ApplyForCreate(a.installManifest, true, StandardNocalhostMetas(a.Name, a.GetNamespace()))
 		if err != nil {
 			return err
 		}
@@ -257,97 +259,54 @@ func (a *Application) SetInstalledStatus(is bool) {
 }
 
 func (a *Application) loadInstallManifest() {
-	result := make([]string, 0)
-	resourcePaths := a.GetResourceDir()
-	for _, eachPath := range resourcePaths {
-		files, _, err := getYamlFilesAndDirs(eachPath, a.getIgnoredPath())
-		if err != nil {
-			log.WarnE(err, fmt.Sprintf("Fail to load manifest in %s", eachPath))
-			continue
-		}
-
-		for _, file := range files {
-			if a.ignoredInInstall(file) {
-				continue
-			}
-			if _, err2 := os.Stat(file); err2 != nil {
-				log.WarnE(errors.Wrap(err2, ""), fmt.Sprintf("%s can not be installed", file))
-				continue
-			}
-			result = append(result, file)
-		}
-	}
-	a.installManifest = result
+	a.installManifest = clientgoutils.
+		LoadValidManifest(a.GetResourceDir(),
+			append(a.getIgnoredPath(), a.getPreInstallFiles()...))
 }
 
-func isFileIgnored(fileName string, ignorePaths []string) bool {
-	for _, iFile := range ignorePaths {
-		if iFile == fileName {
+func (a *Application) loadPreInstallAndInstallManifest() {
+	a.loadSortedPreInstallManifest()
+	a.loadInstallManifest()
+}
+
+func (a *Application) loadUpgradePreInstallAndInstallManifest(resourcePath []string) {
+	a.loadUpgradeSortedPreInstallManifest()
+	a.loadUpgradeInstallManifest(resourcePath)
+}
+
+func (a *Application) loadUpgradeInstallManifest(upgradeResourcePath []string) {
+	a.upgradeInstallManifest = clientgoutils.
+		LoadValidManifest(a.getUpgradeResourceDir(upgradeResourcePath),
+			append(a.getUpgradeIgnoredPath(), a.getUpgradePreInstallFiles()...))
+}
+
+func (a *Application) ignoredInUpgrade(manifest string) bool {
+	for _, pre := range a.upgradeSortedPreInstallManifest {
+		if pre == manifest {
 			return true
 		}
 	}
 	return false
 }
 
-// Path can be a file or a dir
-func getYamlFilesAndDirs(path string, ignorePaths []string) ([]string, []string, error) {
-
-	if isFileIgnored(path, ignorePaths) {
-		log.Infof("Ignoring file: %s", path)
-		return nil, nil, nil
-	}
-
-	dirs := make([]string, 0)
-	files := make([]string, 0)
-	var err error
-	stat, err := os.Stat(path)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "")
-	}
-
-	// If path is a file, return it directly
-	if !stat.IsDir() {
-		return append(files, path), append(dirs, path), nil
-	}
-	dir, err := ioutil.ReadDir(path)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	for _, fi := range dir {
-		fPath := filepath.Join(path, fi.Name())
-		if isFileIgnored(fPath, ignorePaths) {
-			log.Infof("Ignoring file: %s", fPath)
-			continue
-		}
-		if fi.IsDir() {
-			dirs = append(dirs, fPath)
-			fs, ds, err := getYamlFilesAndDirs(fPath, ignorePaths)
-			if err != nil {
-				return files, dirs, err
+func (a *Application) loadUpgradeSortedPreInstallManifest() {
+	result := make([]string, 0)
+	if a.AppProfileV2.PreInstall != nil {
+		sort.Sort(ComparableItems(a.AppProfileV2.PreInstall))
+		for _, item := range a.AppProfileV2.PreInstall {
+			itemPath := filepath.Join(a.getUpgradeGitDir(), item.Path)
+			if _, err2 := os.Stat(itemPath); err2 != nil {
+				log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
+				continue
 			}
-			dirs = append(dirs, ds...)
-			files = append(files, fs...)
-		} else if strings.HasSuffix(fi.Name(), ".yaml") || strings.HasSuffix(fi.Name(), ".yml") {
-			files = append(files, fPath)
+			result = append(result, itemPath)
 		}
 	}
-	return files, dirs, nil
+	a.upgradeSortedPreInstallManifest = result
 }
 
 func (a *Application) loadSortedPreInstallManifest() {
 	result := make([]string, 0)
-	//if a.configV2 != nil && a.configV2.ApplicationConfig.PreInstall != nil {
-	//	sort.Sort(ComparableItems(a.configV2.ApplicationConfig.PreInstall))
-	//	for _, item := range a.configV2.ApplicationConfig.PreInstall {
-	//		itemPath := filepath.Join(a.getGitDir(), item.Path)
-	//		if _, err2 := os.Stat(itemPath); err2 != nil {
-	//			log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
-	//			continue
-	//		}
-	//		result = append(result, itemPath)
-	//	}
-	//}
 	if a.AppProfileV2.PreInstall != nil {
 		sort.Sort(ComparableItems(a.AppProfileV2.PreInstall))
 		for _, item := range a.AppProfileV2.PreInstall {
@@ -359,6 +318,20 @@ func (a *Application) loadSortedPreInstallManifest() {
 			result = append(result, itemPath)
 		}
 	}
-
 	a.sortedPreInstallManifest = result
+}
+
+func (a *Application) preInstall() {
+
+	//a.loadSortedPreInstallManifest()
+
+	if len(a.sortedPreInstallManifest) > 0 {
+		log.Info("Run pre-install...")
+		for _, item := range a.sortedPreInstallManifest {
+			err := a.client.Create(item, true, false, StandardNocalhostMetas(a.Name, a.GetNamespace()))
+			if err != nil {
+				log.Warnf("error occurs when install %s : %s\n", item, err.Error())
+			}
+		}
+	}
 }

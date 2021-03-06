@@ -14,39 +14,79 @@ limitations under the License.
 package cmds
 
 import (
+	"fmt"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
+	"strings"
 )
 
 func InitApp(appName string) {
 	var err error
 
 	if !nocalhost.CheckIfApplicationExist(appName) {
-		log.Fatalf("Application \"%s\" not found", appName)
+		log.FatalE(err, fmt.Sprintf("Application \"%s\" not found", appName))
 	}
 	nocalhostApp, err = app.NewApplication(appName)
 	if err != nil {
-		log.Fatal("Failed to get application info")
+		log.FatalE(err, "Failed to get application info")
 	}
 	log.AddField("APP", nocalhostApp.Name)
 }
 
-func CheckIfSvcExist(svcName string) {
+func CheckIfSvcExist(svcName string, svcType ...string) {
+	serviceType := app.Deployment
+	if len(svcType) > 0 {
+		svcTypeLower := strings.ToLower(svcType[0])
+		switch svcTypeLower {
+		case strings.ToLower(string(app.StatefulSet)):
+			serviceType = app.StatefulSet
+		case strings.ToLower(string(app.DaemonSet)):
+			serviceType = app.DaemonSet
+		case strings.ToLower(string(app.Job)):
+			serviceType = app.Job
+		case strings.ToLower(string(app.CronJob)):
+			serviceType = app.CronJob
+		default:
+			serviceType = app.Deployment
+		}
+	}
 	if svcName == "" {
 		log.Fatal("please use -d to specify a k8s workload")
 	}
-
-	exist, err := nocalhostApp.CheckIfSvcExist(svcName, app.Deployment)
+	exist, err := nocalhostApp.CheckIfSvcExist(svcName, serviceType)
 	if err != nil {
-		log.Fatalf("failed to check if svc exists: %s", err.Error())
+		log.FatalE(err, fmt.Sprintf("failed to check if svc exists: %s", err.Error()))
 	} else if !exist {
 		log.Fatalf("\"%s\" not found", svcName)
 	}
+
+	//if serviceType == app.Deployment {
+	//	if Container == "" {
+	//		containers, err := nocalhostApp.ListContainersByDeployment(deployment)
+	//		if err != nil {
+	//			log.FatalE(err, "")
+	//		}
+	//
+	//		if len(containers) == 0 {
+	//			log.Fatalf("No container found in %s ???", deployment)
+	//		}
+	//
+	//		if len(containers) > 0 {
+	//			log.Fatalf("There are more than 1 container in deployment %s, you mush specify one", deployment)
+	//		}
+	//		Container = containers[0].Name
+	//	}
+	//}
+
 	log.AddField("SVC", svcName)
 }
 
-func InitAppAndCheckIfSvcExist(appName string, svcName string) {
+func InitAppAndCheckIfSvcExist(appName string, svcName string, svcAttr ...string) {
+	serviceType := "deployment"
+	if len(svcAttr) > 0 {
+		serviceType = svcAttr[0]
+	}
 	InitApp(appName)
-	CheckIfSvcExist(svcName)
+	CheckIfSvcExist(svcName, serviceType)
 }
