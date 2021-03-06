@@ -236,6 +236,9 @@ func gettingRenderEnvFile(filepath string) string {
 
 				if len(result) > 0 && len(result[0]) > 1 {
 					return result[0][1]
+				} else {
+					// return the origin value if not matched
+					return value
 				}
 			} else {
 				// ignore other node under `configProperties`
