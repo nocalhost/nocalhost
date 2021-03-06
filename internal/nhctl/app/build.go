@@ -14,6 +14,7 @@ limitations under the License.
 package app
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
@@ -26,6 +27,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -132,12 +134,18 @@ func (a *Application) renderConfig(outerConfigPath string, configName string) er
 	}
 
 	configFile := fp.NewFilePath(configFilePath)
-	envFile := fp.NewFilePath(configFilePath + ".env")
 
-	if e := envFile.CheckExist(); e != nil {
-		log.Infof("Render %s Nocalhost config without env files, you can put the environment file in the same directory of the config file and end with '.env' extensive", configFile.Abs(), envFile.Abs())
+	var envFile *fp.FilePathEnhance
+	if relPath := gettingRenderEnvFile(configFilePath); relPath != "" {
+		envFile = configFile.RelOrAbs("../").RelOrAbs(relPath)
+
+		if e := envFile.CheckExist(); e != nil {
+			log.Infof("Render %s Nocalhost config without env files, we found the env file had been configured as %s, but we can not found in %s", configFile.Abs(), relPath, envFile.Abs())
+		} else {
+			log.Infof("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
+		}
 	} else {
-		log.Infof("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
+		log.Infof("Render %s Nocalhost config without env files, you config your Nocalhost configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2", configFile.Abs())
 	}
 
 	renderedStr, err := envsubst.Render(configFile, envFile)
@@ -167,11 +175,7 @@ func (a *Application) renderConfig(outerConfigPath string, configName string) er
 
 		for i, config := range renderedConfig.ApplicationConfig.ServiceConfigs {
 			if v, ok := maps[config.Name]; ok {
-				log.Infof("Duplicate service %s, current %+v", config.Name, v)
-				maps[config.Name] = i
-				log.Infof("Pick %+v", maps[config.Name])
-			} else {
-
+				log.Infof("Duplicate service %s found, Nocalhost will keep the last one according to the sequence", config.Name)
 			}
 			maps[config.Name] = i
 		}
@@ -200,6 +204,53 @@ func (a *Application) renderConfig(outerConfigPath string, configName string) er
 		return errors.New("Nocalhost config incorrect")
 	}
 	return nil
+}
+
+func gettingRenderEnvFile(filepath string) string {
+	file, err := os.Open(filepath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+
+	startMatch := false
+	for scanner.Scan() {
+		text := scanner.Text()
+		pureText := strings.TrimSpace(text)
+
+		// disgusting but working
+		if strings.HasPrefix(text, "configProperties:") {
+			startMatch = true
+		} else if startMatch && strings.HasPrefix(text, " ") {
+
+			if strings.HasPrefix(pureText, "envFile: ") {
+				value := strings.TrimSpace(text[11:])
+
+				reg := regexp.MustCompile(`["|'](.*?)["|']`)
+				result := reg.FindAllStringSubmatch(value, -1)
+
+				if len(result) > 0 && len(result[0]) > 1 {
+					return result[0][1]
+				}
+			} else {
+				// ignore other node under `configProperties`
+			}
+
+		} else if pureText == "" {
+			// skip empty line
+			continue
+		} else if strings.HasPrefix(strings.TrimSpace(text), "#") {
+			// skip comment
+			continue
+		} else {
+			// reset matching
+			startMatch = false
+		}
+	}
+
+	return ""
 }
 
 // Initiate directory layout of a nhctl application
