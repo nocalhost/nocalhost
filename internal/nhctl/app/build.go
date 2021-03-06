@@ -149,6 +149,9 @@ func (a *Application) renderConfig(outerConfigPath string, configName string) er
 	}
 
 	renderedStr, err := envsubst.Render(configFile, envFile)
+	if err != nil {
+		return err
+	}
 
 	// Check If config version
 	configVersion, err := checkConfigVersion(renderedStr)
@@ -162,19 +165,19 @@ func (a *Application) renderConfig(outerConfigPath string, configName string) er
 			return err
 		}
 
-		renderedStr, err = envsubst.Render(configFile, envFile)
+		renderedStr, err = envsubst.Render(fp.NewFilePath(a.GetConfigV2Path()), envFile)
 	}
 
 	// convert un strict yaml to strict yaml
 	renderedConfig := &NocalHostAppConfigV2{}
-	_ = yaml.Unmarshal([]byte(renderedStr), &renderedConfig)
+	_ = yaml.Unmarshal([]byte(renderedStr), renderedConfig)
 
 	// remove the duplicate service config (we allow users to define duplicate service and keep the last one)
 	if renderedConfig.ApplicationConfig != nil && renderedConfig.ApplicationConfig.ServiceConfigs != nil {
 		var maps = make(map[string]int)
 
 		for i, config := range renderedConfig.ApplicationConfig.ServiceConfigs {
-			if v, ok := maps[config.Name]; ok {
+			if _, ok := maps[config.Name]; ok {
 				log.Infof("Duplicate service %s found, Nocalhost will keep the last one according to the sequence", config.Name)
 			}
 			maps[config.Name] = i
@@ -228,7 +231,7 @@ func gettingRenderEnvFile(filepath string) string {
 			if strings.HasPrefix(pureText, "envFile: ") {
 				value := strings.TrimSpace(text[11:])
 
-				reg := regexp.MustCompile(`["|'](.*?)["|']`)
+				reg := regexp.MustCompile(`^["'](.*)["']$`)
 				result := reg.FindAllStringSubmatch(value, -1)
 
 				if len(result) > 0 && len(result[0]) > 1 {
@@ -241,7 +244,7 @@ func gettingRenderEnvFile(filepath string) string {
 		} else if pureText == "" {
 			// skip empty line
 			continue
-		} else if strings.HasPrefix(strings.TrimSpace(text), "#") {
+		} else if strings.HasPrefix(pureText, "#") {
 			// skip comment
 			continue
 		} else {
