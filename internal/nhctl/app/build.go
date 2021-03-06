@@ -47,7 +47,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 		return nil, err
 	}
 
-	err = app.LoadAppProfileV2()
+	err = app.LoadAppProfileV2(false)
 	if err != nil {
 		return nil, err
 	}
