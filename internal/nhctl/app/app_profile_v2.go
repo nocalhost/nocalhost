@@ -21,6 +21,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type AppProfileV2 struct {
@@ -176,7 +177,7 @@ func (s *SvcProfileV2) GetContainerDevConfig(containerName string) *ContainerDev
 	return nil
 }
 
-func (a *Application) LoadAppProfileV2() error {
+func (a *Application) LoadAppProfileV2(retry bool) error {
 	app := &AppProfileV2{}
 
 	isV2, err := a.checkIfAppProfileIsV2()
@@ -200,6 +201,33 @@ func (a *Application) LoadAppProfileV2() error {
 	if err != nil {
 		errors.Wrap(err, "")
 	}
+
+	if app.Namespace == "" && retry {
+		log.Warn("Failed to load profile, retry...")
+		timeout := true
+		for i := 0; i < 100; i++ {
+			time.Sleep(1 * time.Second)
+			fBytes, err = ioutil.ReadFile(a.getProfileV2Path())
+			if err != nil {
+				return errors.Wrap(err, "")
+			}
+			err = yaml.Unmarshal(fBytes, app)
+			if err != nil {
+				errors.Wrap(err, "")
+			}
+			if app.Namespace == "" {
+				log.Info("Reloading profile failed, try again...")
+			} else {
+				log.Info("Reloading profile succeeded!")
+				timeout = false
+				break
+			}
+		}
+		if timeout {
+			return errors.New("Failed to load profile after 100 retrying")
+		}
+	}
+
 	a.AppProfileV2 = app
 	return nil
 }

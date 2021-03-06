@@ -87,7 +87,7 @@ func NewApplication(name string) (*Application, error) {
 		return nil, err
 	}
 
-	err = app.LoadAppProfileV2()
+	err = app.LoadAppProfileV2(true)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func NewApplication(name string) (*Application, error) {
 }
 
 func (a *Application) ReadBeforeWriteProfile() error {
-	return a.LoadAppProfileV2()
+	return a.LoadAppProfileV2(true)
 }
 
 func (a *Application) LoadConfigV2() error {

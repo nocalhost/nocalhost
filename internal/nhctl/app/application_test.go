@@ -2,9 +2,10 @@ package app
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	v1 "k8s.io/api/core/v1"
 	"math/rand"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -23,10 +24,106 @@ func TestApplication_StopAllPortForward(t *testing.T) {
 	//}
 }
 
-func TestForTest(t *testing.T) {
-	map2 := v1.ConfigMap{}
-	map2.Name = "nocalhost-depends-do-not-overwrite-"
-	//map2.Data
+func TestForProfile2(t *testing.T) {
+
+	go func() {
+		index := 0
+		for {
+			profile := &AppProfileV2{}
+			bytes, err := ioutil.ReadFile("profile.yaml")
+			if err != nil {
+				panic(err)
+			}
+			err = yaml.Unmarshal(bytes, profile)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("%d - name is %s in profile2\n", index, profile.Name)
+			if profile.Name == "" {
+				for {
+					fmt.Println("Retry .... in profile2")
+					bytes, err = ioutil.ReadFile("profile.yaml")
+					if err != nil {
+						panic(err)
+					}
+					err = yaml.Unmarshal(bytes, profile)
+					if err != nil {
+						panic(err)
+					}
+					fmt.Printf("%d - name is %s in profile2\n", index, profile.Name)
+					if profile.Name == "" {
+						fmt.Println("Failed retry ... in profile 2")
+					} else {
+						fmt.Println("Success retry ...in profile 2")
+						time.Sleep(5 * time.Second)
+						os.Exit(0)
+					}
+					time.Sleep(100 * time.Millisecond)
+				}
+			}
+			err = ioutil.WriteFile("profile.yaml", bytes, 0644)
+			if err != nil {
+				fmt.Println(err.Error())
+				panic(err)
+			}
+			time.Sleep(100 * time.Millisecond)
+			index++
+		}
+	}()
+
+	time.Sleep(1 * time.Hour)
+}
+
+func TestForProfile(t *testing.T) {
+
+	fmt.Println("Reading")
+	go func() {
+		index := 0
+		for {
+			profile := &AppProfileV2{}
+			bytes, err := ioutil.ReadFile("profile.yaml")
+			if err != nil {
+				panic(err)
+			}
+			err = yaml.Unmarshal(bytes, profile)
+			if err != nil {
+				panic(err)
+			}
+			//fmt.Printf("%d - name is %s in profile\n", index, profile.Name)
+			if profile.Name == "" {
+				for {
+					fmt.Println("Retry .... ")
+					bytes, err = ioutil.ReadFile("profile.yaml")
+					if err != nil {
+						panic(err)
+					}
+					err = yaml.Unmarshal(bytes, profile)
+					if err != nil {
+						panic(err)
+					}
+					fmt.Printf("%d - name is %s in profile\n", index, profile.Name)
+					if profile.Name == "" {
+						fmt.Println("Failed retry ...")
+					} else {
+						fmt.Println("Success retry ...")
+						time.Sleep(5 * time.Second)
+						break
+					}
+					time.Sleep(100 * time.Millisecond)
+				}
+			}
+
+			err = ioutil.WriteFile("profile.yaml", bytes, 0644)
+			if err != nil {
+				fmt.Println(err.Error())
+				panic(err)
+			}
+			time.Sleep(10 * time.Millisecond)
+			index++
+		}
+	}()
+
+	time.Sleep(1 * time.Hour)
 }
 
 func TestWaitGroup(t *testing.T) {
