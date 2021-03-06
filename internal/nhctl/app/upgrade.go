@@ -227,7 +227,7 @@ func (a *Application) upgradeForHelmGitOrHelmLocal(installFlags *flag.InstallFla
 		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
 	}
 	//if installFlags.Debug {
-	commonParams = append(commonParams, "--debug")
+	//commonParams = append(commonParams, "--debug")
 	//}
 
 	params := []string{"upgrade", releaseName, resourcesPath[0]}
@@ -265,9 +265,9 @@ func (a *Application) upgradeForHelmRepo(installFlags *flag.InstallFlags) error 
 	if a.GetKubeconfig() != "" {
 		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
 	}
-	if installFlags.Debug {
-		commonParams = append(commonParams, "--debug")
-	}
+	//if installFlags.Debug {
+	//	commonParams = append(commonParams, "--debug")
+	//}
 
 	chartName := installFlags.HelmChartName
 	if a.configV2 != nil && a.configV2.ApplicationConfig.Name != "" {
