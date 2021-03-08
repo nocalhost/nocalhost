@@ -53,7 +53,7 @@ func TestSubstWithMultiEnv(t *testing.T) {
 		t.Error(err)
 	}
 
-	expected :=  fp.NewFilePath("testdata/nocalhost_subst_multi_env_result.yaml").ReadFile()
+	expected := fp.NewFilePath("testdata/nocalhost_subst_multi_env_result.yaml").ReadFile()
 	if result != expected || err != nil {
 		t.Errorf("got >>>>\n\t%v\nexpected >>>>\n\t%v", result, expected)
 	}

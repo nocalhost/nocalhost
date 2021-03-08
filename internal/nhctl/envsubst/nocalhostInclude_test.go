@@ -69,4 +69,3 @@ func IsSameYaml(src, dst string) error {
 
 	return nil
 }
-

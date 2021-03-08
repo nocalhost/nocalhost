@@ -41,7 +41,6 @@ func (a *Application) EnterPodTerminal(svcName string, container string) error {
 	return a.client.ExecShell(pod, container, cmd)
 }
 
-
 func (a *Application) Exec(svcName string, container string, commands []string) error {
 	podList, err := a.client.ListPodsByDeployment(svcName)
 	if err != nil {

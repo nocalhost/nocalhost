@@ -217,7 +217,7 @@ func circularDependency(currentAbsPath string, hasBeenInclude []string) (bool, s
 		if absPath == currentAbsPath {
 			circularDependency = true
 
-			route +=     fmt.Sprintf("# ┌-->  %s\n# |        ↓ [Include]\n", absPath)
+			route += fmt.Sprintf("# ┌-->  %s\n# |        ↓ [Include]\n", absPath)
 		} else {
 			if circularDependency {
 				route += fmt.Sprintf("# |     %s\n# |        ↓ [Include]\n", absPath)
