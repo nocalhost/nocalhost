@@ -45,7 +45,7 @@ func (c *ClientGoUtils) Exec(podName string, containerName string, command []str
 
 	if len(containerName) == 0 {
 		if len(pod.Spec.Containers) > 1 {
-			fmt.Errorf("Defaulting container name to %s.\n", pod.Spec.Containers[0].Name)
+			println(fmt.Sprintf("Defaulting container name to %s.\n", pod.Spec.Containers[0].Name))
 		}
 		containerName = pod.Spec.Containers[0].Name
 	}
@@ -57,7 +57,7 @@ func (c *ClientGoUtils) Exec(podName string, containerName string, command []str
 	}
 
 	if !t.IsTerminalIn() {
-		fmt.Errorf("unable to use a TTY - input is not a terminal or the right kind of file")
+		println("unable to use a TTY - input is not a terminal or the right kind of file")
 	}
 
 	var sizeQueue remotecommand.TerminalSizeQueue
