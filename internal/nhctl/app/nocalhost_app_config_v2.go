@@ -24,15 +24,15 @@ type ConfigProperties struct {
 }
 
 type ApplicationConfig struct {
-	Name           string             `json:"name" yaml:"name"`
-	Type           AppType            `json:"manifestType" yaml:"manifestType"`
+	Name           string             `json:"name" yaml:"name,omitempty"`
+	Type           AppType            `json:"manifestType" yaml:"manifestType,omitempty"`
 	ResourcePath   []string           `json:"resourcePath" yaml:"resourcePath"`
 	IgnoredPath    []string           `json:"ignoredPath" yaml:"ignoredPath"`
 	PreInstall     []*PreInstallItem  `json:"onPreInstall" yaml:"onPreInstall"`
 	HelmValues     []*HelmValue       `json:"helmValues" yaml:"helmValues"`
 	Env            []*Env             `json:"env" yaml:"env"`
 	EnvFrom        EnvFrom            `json:"envFrom" yaml:"envFrom"`
-	ServiceConfigs []*ServiceConfigV2 `json:"services" yaml:"services"`
+	ServiceConfigs []*ServiceConfigV2 `json:"services" yaml:"services,omitempty"`
 }
 
 type ServiceConfigV2 struct {

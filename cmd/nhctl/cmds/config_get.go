@@ -50,7 +50,7 @@ var configGetCmd = &cobra.Command{
 
 		// get application config
 		if commonFlags.AppConfig {
-			applicationConfig := nocalhostApp.GetApplicationConfigV2()
+			applicationConfig := nocalhostApp.GetAppProfileV2()
 			bys, err := yaml.Marshal(applicationConfig)
 			if err != nil {
 				log.FatalE(errors.Wrap(err, ""), "fail to get application config")
