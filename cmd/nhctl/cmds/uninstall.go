@@ -62,19 +62,30 @@ var uninstallCmd = &cobra.Command{
 		} else {
 			// check if there are services in developing state
 			for _, profile := range nhApp.AppProfileV2.SvcProfile {
+				//if profile.Developing {
+				//	log.Debugf("Ending %s DevMode", profile.ActualName)
+				//	err = nhApp.EndDevelopMode(profile.ActualName)
+				//	if err != nil {
+				//		log.Warnf("Failed to end %s DevMode: %s", profile.ActualName, err.Error())
+				//	}
+				//}
+				//// End port forward
+				//if len(profile.DevPortForwardList) > 0 {
+				//	log.Infof("Stopping port-forwards of service %s", profile.ActualName)
+				//	err = nhApp.StopAllPortForward(profile.ActualName)
+				//	if err != nil {
+				//		log.WarnE(err, err.Error())
+				//	}
+				//}
 				if profile.Developing {
-					log.Debugf("Ending %s DevMode", profile.ActualName)
-					err = nhApp.EndDevelopMode(profile.ActualName)
+					err = nhApp.StopSyncAndPortForwardProcess(profile.ActualName)
 					if err != nil {
-						log.Warnf("Failed to end %s DevMode: %s", profile.ActualName, err.Error())
+						log.WarnE(err, "")
 					}
-				}
-				// End port forward
-				if len(profile.DevPortForwardList) > 0 {
-					log.Infof("Stopping port-forwards of service %s", profile.ActualName)
+				} else if len(profile.DevPortForwardList) > 0 {
 					err = nhApp.StopAllPortForward(profile.ActualName)
 					if err != nil {
-						log.WarnE(err, err.Error())
+						log.WarnE(err, "")
 					}
 				}
 			}
