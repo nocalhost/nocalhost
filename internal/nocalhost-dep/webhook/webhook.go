@@ -369,7 +369,7 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 				dep := mainDep{}
 				err := yaml.Unmarshal([]byte(configMapValue), &dep)
 				if err != nil {
-					glog.Fatalln("failed to unmarshal configmap: %s", cm.GetName())
+					glog.Fatalf("failed to unmarshal configmap: %s\n", cm.GetName())
 				}
 				fmt.Printf("%+v\n", dep)
 				// inject install global env
