@@ -43,7 +43,8 @@ type AppProfileV2 struct {
 	GitUrl       string `json:"gitUrl" yaml:"gitUrl"`
 	GitRef       string `json:"gitRef" yaml:"gitRef"`
 	HelmRepoUrl  string `json:"helmRepoUrl" yaml:"helmRepoUrl"`
-	HelmRepoName string `json:"helmRepoUrl" yaml:"helmRepoName"`
+	HelmRepoName string `json:"helmRepoName" yaml:"helmRepoName"`
+	ForceInstall bool   `json:"forceInstall" yaml:"forceInstall"`
 	//HelmRepoChartVersion string `json:"helmRepoChartVersion" yaml:"helmRepoChartVersion"`
 
 	Env     []*Env  `json:"env" yaml:"env"`

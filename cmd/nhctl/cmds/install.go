@@ -48,6 +48,7 @@ func init() {
 	installCmd.Flags().StringVar(&installFlags.HelmRepoVersion, "helm-repo-version", "", "chart repository version")
 	installCmd.Flags().StringVar(&installFlags.HelmChartName, "helm-chart-name", "", "chart name")
 	installCmd.Flags().StringVar(&installFlags.LocalPath, "local-path", "", "local path for application")
+	installCmd.Flags().BoolVar (&installFlags.ForceInstall, "force", installFlags.ForceInstall, "force to install, warning: it will remove all old data")
 	rootCmd.AddCommand(installCmd)
 }
 

@@ -16,6 +16,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
@@ -32,6 +33,7 @@ import (
 	"nocalhost/pkg/nhctl/tools"
 )
 
+// TODO needs concurrent solution
 func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 
 	err := a.InstallDepConfigMap()
@@ -39,41 +41,79 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 		return errors.Wrap(err, "failed to install dep config map")
 	}
 
-	switch a.AppProfileV2.AppType {
-	case Helm:
-		err = a.installHelmInGit(flags)
-	case HelmRepo:
-		err = a.installHelmInRepo(flags)
-	case Manifest:
-		err = a.InstallManifest()
-	case ManifestLocal:
-		err = a.InstallManifest()
-	case HelmLocal:
-		err = a.installHelmInGit(flags)
-	default:
-		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
-	}
-	if err != nil {
-		a.cleanUpDepConfigMap() // clean up dep config map
+	applicationMeta := a.newMeta(a.AppProfileV2.AppType)
+	// Mark this application meta as in-progress
+	applicationMeta.SetStatus(StatusPendingInstall, "Initial install underway")
 
-		// Clean up helm release after failed
-		if a.IsHelm() {
-			a.uninstallHelm()
-		}
+	// TODO needs concurrent solution
+	_ = a.deleteApplicationMeta(applicationMeta)
+
+	err = a.createApplicationMeta(applicationMeta)
+	if err != nil {
 		return err
 	}
 
-	a.SetInstalledStatus(true)
-	return nil
+	switch a.AppProfileV2.AppType {
+	case Helm:
+		err = a.installHelmInGit(flags)
+	case HelmLocal:
+		err = a.installHelmInGit(flags)
+	case Manifest:
+		fallthrough
+	case ManifestLocal:
+		applicationMeta.Manifest, applicationMeta.PreInstallManifest, err = a.InstallManifest()
+	case HelmRepo:
+		err = a.installHelmInRepo(flags)
+	default:
+		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
+	}
+
+	if err != nil {
+		log.Fatalf("Error while install application %s in ns %s: %+v", a.Name, a.GetNamespace(), err.Error())
+		return a.Uninstall(true)
+	} else {
+		applicationMeta.SetStatus(StatusInstalled, "Install complete")
+	}
+
+	// This is a tricky case. The release has been created, but the result
+	// cannot be recorded. The truest thing to tell the user is that the
+	// release was created. However, the user will not be able to do anything
+	// further with this release.
+	//
+	// One possible strategy would be to do a timed retry to see if we can get
+	// this stored in the future.
+	err = a.updateApplicationMeta(applicationMeta)
+	log.Error("failed to record the application meta: %s", err)
+
+	return err
 }
 
-func (a *Application) InstallManifest() error {
-	a.loadPreInstallAndInstallManifest()
-	a.preInstall()
+func (a *Application) InstallManifest() (string, string, error) {
+	//a.loadPreInstallAndInstallManifest()
+	a.sortedPreInstallManifest = a.loadSortedPreInstallManifest()
+	a.installManifest = a.loadInstallManifest()
+
+	log.Infof("%d manifest files to be pre-installed", len(a.sortedPreInstallManifest))
+
+	preInstallManifests := a.client.LoadingManifest(a.sortedPreInstallManifest)
+	if preInstallManifests != "" {
+		a.client.ApplyFromManifestsAndWait(preInstallManifests, StandardNocalhostMetas(a.Name, a.GetNamespace()))
+	}
 
 	// install manifest recursively, don't install pre-install workload again
-	err := a.installManifestRecursively()
-	return errors.Wrap(err, "")
+	log.Infof("%d manifest files to be installed", len(a.installManifest))
+
+	manifests := a.client.LoadingManifest(a.installManifest)
+	if manifests != "" {
+		err := a.client.ApplyFromManifests(manifests, StandardNocalhostMetas(a.Name, a.GetNamespace()))
+		if err != nil {
+			return "", "", errors.Wrap(err, "")
+		}
+	} else {
+		log.Warn("nothing need to be installed ??")
+	}
+
+	return preInstallManifests, manifests, nil
 }
 
 func (a *Application) installHelmInRepo(flags *HelmFlags) error {
@@ -239,34 +279,19 @@ func (a *Application) InstallDepConfigMap() error {
 	return nil
 }
 
-func (a *Application) installManifestRecursively() error {
-	//a.loadInstallManifest()
-	log.Infof("%d manifest files to be installed", len(a.installManifest))
-	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForCreate(a.installManifest, true, StandardNocalhostMetas(a.Name, a.GetNamespace()))
-		if err != nil {
-			return err
-		}
-	} else {
-		log.Warn("nothing need to be installed ??")
-	}
-	return nil
-}
-
 func (a *Application) SetInstalledStatus(is bool) {
 	a.AppProfileV2.Installed = is
 	a.SaveProfile()
 }
 
-func (a *Application) loadInstallManifest() {
-	a.installManifest = clientgoutils.
+func (a *Application) loadInstallManifest() []string {
+	return clientgoutils.
 		LoadValidManifest(a.GetResourceDir(),
 			append(a.getIgnoredPath(), a.getPreInstallFiles()...))
 }
 
 func (a *Application) loadPreInstallAndInstallManifest() {
-	a.loadSortedPreInstallManifest()
-	a.loadInstallManifest()
+
 }
 
 func (a *Application) loadUpgradePreInstallAndInstallManifest(resourcePath []string) {
@@ -305,7 +330,7 @@ func (a *Application) loadUpgradeSortedPreInstallManifest() {
 	a.upgradeSortedPreInstallManifest = result
 }
 
-func (a *Application) loadSortedPreInstallManifest() {
+func (a *Application) loadSortedPreInstallManifest() []string {
 	result := make([]string, 0)
 	if a.AppProfileV2.PreInstall != nil {
 		sort.Sort(ComparableItems(a.AppProfileV2.PreInstall))
@@ -318,20 +343,33 @@ func (a *Application) loadSortedPreInstallManifest() {
 			result = append(result, itemPath)
 		}
 	}
-	a.sortedPreInstallManifest = result
+	return result
 }
 
-func (a *Application) preInstall() {
-
+func (a *Application) preInstall() string {
 	//a.loadSortedPreInstallManifest()
+	result := ""
 
 	if len(a.sortedPreInstallManifest) > 0 {
 		log.Info("Run pre-install...")
-		for _, item := range a.sortedPreInstallManifest {
-			err := a.client.Create(item, true, false, StandardNocalhostMetas(a.Name, a.GetNamespace()))
-			if err != nil {
-				log.Warnf("error occurs when install %s : %s\n", item, err.Error())
+		for _, filePath := range a.sortedPreInstallManifest {
+			if filePath == "" {
+				log.Warnf("error occurs when pre-install %s : %s\n", filePath, "path is empty")
 			}
+
+			fileBytes, err := ioutil.ReadFile(filePath)
+			if err != nil {
+				log.Warnf("error occurs when pre-install %s : %s\n", filePath, err.Error())
+			}
+
+			err = a.client.Create(fileBytes, true, false, StandardNocalhostMetas(a.Name, a.GetNamespace()))
+			if err != nil {
+				log.Warnf("error occurs when pre-install %s : %s\n", filePath, err.Error())
+			}
+
+			result += fmt.Sprintf("---\n# Source: %s\n%s\n", filePath, fileBytes)
 		}
 	}
+
+	return result
 }
