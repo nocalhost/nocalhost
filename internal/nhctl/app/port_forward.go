@@ -16,6 +16,7 @@ package app
 import (
 	"nocalhost/internal/nhctl/syncthing/terminate"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 	"time"
 )
 
@@ -62,6 +63,7 @@ func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, rem
 		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
 			portForward.Status = portStatus
 			portForward.Reason = reason
+			portForward.Pid = os.Getpid()
 			portForward.Updated = time.Now().Format("2006-01-02 15:04:05")
 			break
 		}
