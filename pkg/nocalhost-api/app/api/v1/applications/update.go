@@ -49,6 +49,7 @@ func Update(c *gin.Context) {
 		// UserId:  userId.(uint64),
 		Context: req.Context,
 		Status:  *req.Status,
+		Public:  *req.Public,
 	}
 	result, err := service.Svc.ApplicationSvc().Update(c, &model)
 	if err != nil {

@@ -68,6 +68,19 @@ func GetList(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
+func ListByUserId(c *gin.Context){
+	userId := cast.ToUint64(c.Param("id"))
+	cu := model.ClusterUserModel{
+		UserId: userId,
+	}
+	result, err := service.Svc.ClusterUser().GetList(c, cu)
+	if err != nil {
+		api.SendResponse(c, nil, nil)
+		return
+	}
+	api.SendResponse(c, nil, result)
+}
+
 // @Summary Get the details of a development environment of the application
 // @Description Get dev space detail from application
 // @Tags Application

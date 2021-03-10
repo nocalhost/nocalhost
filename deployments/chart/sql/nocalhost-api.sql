@@ -33,7 +33,8 @@ CREATE TABLE `applications` (
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
   `deleted_at` datetime DEFAULT NULL,
-  `status` tinyint(1) DEFAULT 1 COMMENT '1启用，0禁用',
+  `public` tinyint(1) DEFAULT 1,
+  `status` tinyint(1) DEFAULT 1 COMMENT '1 enable, 0 disable',
   PRIMARY KEY (`id`),
   KEY `user_Id` (`user_id`),
   KEY `status` (`status`)
@@ -60,6 +61,25 @@ CREATE TABLE `applications_clusters` (
 
 
 
+# Dump of table applications_users
+# ------------------------------------------------------------
+
+DROP TABLE IF EXISTS `applications_users`;
+
+CREATE TABLE `applications_users` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `application_id` int(11) DEFAULT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `application_id` (`application_id`),
+  KEY `user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+
 # Dump of table clusters
 # ------------------------------------------------------------
 
@@ -72,8 +92,8 @@ CREATE TABLE `clusters` (
   `user_id` int(11) NOT NULL DEFAULT 0,
   `server` varchar(500) NOT NULL DEFAULT '',
   `kubeconfig` text NOT NULL,
-  `storage_class` varchar(100) NOT NULL DEFAULT '' COMMENT '指定的存储类名称，用于持久化',
-  `info` text DEFAULT NULL COMMENT '集群额外信息JSON、Kubernetes 版本、Node 节点之类',
+  `storage_class` varchar(100) NOT NULL DEFAULT '' COMMENT 'specify the k8s storage class',
+  `info` text DEFAULT NULL COMMENT 'cluster extra info, such as versions, nodes',
   `deleted_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -90,15 +110,15 @@ DROP TABLE IF EXISTS `clusters_users`;
 
 CREATE TABLE `clusters_users` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `application_id` int(11) NOT NULL COMMENT '应用 ID',
+  `application_id` int(11) NOT NULL,
   `cluster_id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
-  `space_name` varchar(100) DEFAULT NULL COMMENT '开发空间名，默认应用名[用户名]',
-  `kubeconfig` text DEFAULT NULL COMMENT 'serviceAccount',
-  `memory` int(11) DEFAULT NULL COMMENT '内存限制',
-  `cpu` int(11) DEFAULT NULL COMMENT 'CPU 限制',
-  `namespace` varchar(30) DEFAULT NULL COMMENT '随机生成的命名空间',
-  `status` tinyint(4) NOT NULL DEFAULT 0 COMMENT '0未部署，1已部署',
+  `space_name` varchar(100) DEFAULT NULL COMMENT 'dev space name',
+  `kubeconfig` text DEFAULT NULL COMMENT 'service account',
+  `memory` int(11) DEFAULT NULL COMMENT 'memory limit',
+  `cpu` int(11) DEFAULT NULL COMMENT 'CPU limit',
+  `namespace` varchar(30) DEFAULT NULL,
+  `status` tinyint(4) NOT NULL DEFAULT 0 COMMENT '0 not deployed, 1 deployed',
   `created_at` datetime DEFAULT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -149,17 +169,17 @@ CREATE TABLE `users` (
   `username` varchar(255) NOT NULL DEFAULT '',
   `name` varchar(20) DEFAULT NULL,
   `password` varchar(60) NOT NULL DEFAULT '',
-  `avatar` varchar(255) NOT NULL DEFAULT '' COMMENT '头像',
-  `phone` bigint(20) NOT NULL DEFAULT 0 COMMENT '手机号',
-  `email` varchar(100) NOT NULL DEFAULT '' COMMENT '邮箱',
-  `is_admin` tinyint(4) NOT NULL DEFAULT 0 COMMENT '内置管理员',
-  `status` tinyint(4) NOT NULL DEFAULT 1 COMMENT '状态，1正常，0禁用',
+  `avatar` varchar(255) NOT NULL DEFAULT '',
+  `phone` bigint(20) NOT NULL DEFAULT 0 ,
+  `email` varchar(100) NOT NULL DEFAULT '',
+  `is_admin` tinyint(4) NOT NULL DEFAULT 0,
+  `status` tinyint(4) NOT NULL DEFAULT 1 COMMENT '1 enable, 0 disable',
   `deleted_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='用户表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;

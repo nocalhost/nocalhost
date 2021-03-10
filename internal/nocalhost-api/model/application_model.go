@@ -27,6 +27,7 @@ type ApplicationModel struct {
 	CreatedAt time.Time  `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt time.Time  `gorm:"column:updated_at" json:"-"`
 	DeletedAt *time.Time `gorm:"column:deleted_at" json:"-"`
+	Public    uint8      `json:"public" gorm:"column:public;not null" binding:"required"`
 	Status    uint8      `json:"status" gorm:"column:status;not null" binding:"required"`
 }
 
@@ -35,6 +36,7 @@ type PluginApplicationModel struct {
 	Context               string `json:"context" gorm:"column:context"`
 	UserId                uint64 `gorm:"column:user_id" json:"-"`
 	Status                uint64 `json:"status" gorm:"column:status"`
+	Public                uint8  `json:"public" gorm:"column:public"`
 	ClusterId             uint64 `json:"cluster_id" gorm:"column:cluster_id"`
 	SpaceName             string `json:"space_name" gorm:"column:space_name"`
 	KubeConfig            string `json:"kubeconfig" gorm:"column:kubeconfig"`

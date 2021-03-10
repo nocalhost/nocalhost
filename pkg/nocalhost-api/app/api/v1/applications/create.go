@@ -70,7 +70,7 @@ func Create(c *gin.Context) {
 		return
 	}
 	userId, _ := c.Get("userId")
-	a, err := service.Svc.ApplicationSvc().Create(c, req.Context, *req.Status, userId.(uint64))
+	a, err := service.Svc.ApplicationSvc().Create(c, req.Context, *req.Status, *req.Public, userId.(uint64))
 	if err != nil {
 		log.Warnf("create Application err: %v", err)
 		api.SendResponse(c, errno.ErrApplicationCreate, nil)

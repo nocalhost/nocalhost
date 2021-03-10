@@ -15,6 +15,7 @@ package routers
 
 import (
 	"nocalhost/pkg/nocalhost-api/app/api/v1/application_cluster"
+	"nocalhost/pkg/nocalhost-api/app/api/v1/application_user"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/applications"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster_user"
@@ -84,6 +85,8 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		u.PUT("/:id", user.Update)
 		u.DELETE("/:id", user.Delete)
 		u.GET("/:id/dev_space_list", cluster_user.GetJoinClusterAndAppAndUser)
+		u.GET("/:id/applications", application_user.ListByUser)
+		u.GET("/:id/dev_spaces", cluster_user.ListByUserId)
 	}
 
 	m := g.Group("/v1/me")
@@ -123,7 +126,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		a.GET("/:id/dev_space/:space_id/detail", cluster_user.GetDevSpaceDetail)
 		a.GET("/:id/dev_space_list", cluster_user.GetList)
 		a.GET("/:id/cluster/:clusterId", applications.GetSpaceDetail)
-
+		a.GET("/:id/users", application_user.ListByApplication)
 	}
 
 	// nocalhost
