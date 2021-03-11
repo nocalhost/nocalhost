@@ -33,3 +33,7 @@ type InstallFlags struct {
 	Namespace        string
 	LocalPath        string
 }
+
+type ListFlags struct {
+	Yaml bool
+}
