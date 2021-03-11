@@ -255,6 +255,31 @@ func (a *Application) SaveSvcProfileV2(svcName string, config *ServiceConfigV2) 
 	return a.SaveProfile()
 }
 
+func (a *Application) GetAppProfileV2() *ApplicationConfig {
+	a.LoadAppProfileV2(false)
+	a.LoadConfigV2()
+	if a.configV2 == nil {
+		return nil
+	}
+	return &ApplicationConfig{
+		ResourcePath: a.AppProfileV2.ResourcePath,
+		IgnoredPath:  a.AppProfileV2.IgnoredPath,
+		PreInstall:   a.AppProfileV2.PreInstall,
+		Env:          a.AppProfileV2.Env,
+		EnvFrom:      a.AppProfileV2.EnvFrom,
+	}
+}
+
+func (a *Application) SaveAppProfileV2(config *ApplicationConfig) error {
+	a.AppProfileV2.ResourcePath = config.ResourcePath
+	a.AppProfileV2.IgnoredPath = config.IgnoredPath
+	a.AppProfileV2.PreInstall = config.PreInstall
+	a.AppProfileV2.Env = config.Env
+	a.AppProfileV2.EnvFrom = config.EnvFrom
+
+	return a.SaveProfile()
+}
+
 func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) error {
 	clientUtils := a.client
 	//clientUtils.deployment

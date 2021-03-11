@@ -50,7 +50,7 @@ var configEditCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		configEditFlags.AppName = args[0]
-		InitAppAndCheckIfSvcExist(configEditFlags.AppName, configEditFlags.SvcName)
+		InitApp(configEditFlags.AppName)
 
 		if len(configEditFlags.Content) == 0 {
 			log.Fatal("--content required")
@@ -70,6 +70,10 @@ var configEditCmd = &cobra.Command{
 			}
 			// update config
 			// update profile
+			if err := nocalhostApp.SaveAppProfileV2(applicationConfig); err != nil {
+				log.FatalE(err, "fail to save app config")
+			}
+			return
 		}
 		// Deprecated: V1
 		//svcConfig := &app.ServiceDevOptions{}
@@ -82,6 +86,7 @@ var configEditCmd = &cobra.Command{
 		//	log.FatalE(err, "fail to save svc config")
 		//}
 
+		CheckIfSvcExist(configEditFlags.SvcName)
 		svcConfig := &app.ServiceConfigV2{}
 		err = json.Unmarshal(bys, svcConfig)
 		if err != nil {
