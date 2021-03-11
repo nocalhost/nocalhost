@@ -38,6 +38,9 @@ application:
           - "app=nocalhost-api"
       containers:
         - name: nocalhost-web
+          install:
+            portForward:
+              - 8000:80
           dev:
             gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost-web.git
             image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/node:12.18.1-slim
