@@ -70,7 +70,7 @@ var (
 	ErrApplicationBoundClusterList = &Errno{Code: 40108, Message: "Failed to get application bound cluster list, please try again"}
 
 	// cluster-user errors
-	ErrBindUserClsuterRepeat                     = &Errno{Code: 50100, Message: "The user has authorized this application"}
+	ErrBindUserClsuterRepeat                     = &Errno{Code: 50100, Message: "The user has authorized this cluster"}
 	ErrBindNameSpaceCreate                       = &Errno{Code: 50101, Message: "Cluster user authorization failed: failed to create namespace"}
 	ErrBindServiceAccountCreateErr               = &Errno{Code: 50102, Message: "Cluster user authorization failed: Failed to create ServiceAccount"}
 	ErrBindRoleCreateErr                         = &Errno{Code: 50103, Message: "Cluster user authorization failed: failed to create a role"}
@@ -96,4 +96,6 @@ var (
 
 	// application-user
 	ErrListApplicationUser = &Errno{Code: 60000, Message: "Failed to list application_user, please check params and try again"}
+	ErrInsertApplicationUser = &Errno{Code: 60001, Message: "Failed to batch insert application_user, please check params and try again"}
+	ErrDeleteApplicationUser = &Errno{Code: 60002, Message: "Failed to batch delete application_user, please check params and try again"}
 )

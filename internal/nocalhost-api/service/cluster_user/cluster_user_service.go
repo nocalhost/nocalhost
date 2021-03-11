@@ -92,6 +92,8 @@ func (srv *clusterUserService) GetFirst(ctx context.Context, models model.Cluste
 
 func (srv *clusterUserService) Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string, spaceResourceLimit string) (model.ClusterUserModel, error) {
 	c := model.ClusterUserModel{
+
+		// Deprecated
 		ApplicationId:      applicationId,
 		UserId:             userId,
 		ClusterId:          clusterId,

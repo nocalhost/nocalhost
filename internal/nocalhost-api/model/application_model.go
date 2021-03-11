@@ -29,6 +29,7 @@ type ApplicationModel struct {
 	DeletedAt *time.Time `gorm:"column:deleted_at" json:"-"`
 	Public    uint8      `json:"public" gorm:"column:public;not null" binding:"required"`
 	Status    uint8      `json:"status" gorm:"column:status;not null" binding:"required"`
+	Editable  uint8      `json:"editable"`
 }
 
 type PluginApplicationModel struct {
@@ -47,6 +48,14 @@ type PluginApplicationModel struct {
 	InstallStatus         uint64 `json:"install_status" gorm:"column:install_status"`
 	DevSpaceId            uint64 `json:"devspace_id" gorm:"column:devspace_id"`
 	DevStartAppendCommand string `json:"dev_start_append_command"`
+}
+
+func (u *ApplicationModel) FillEditable(admin bool, currentUser uint64) {
+	if admin || currentUser == u.UserId {
+		u.Editable = 1
+	} else {
+		u.Editable = 0
+	}
 }
 
 // Validate the fields.

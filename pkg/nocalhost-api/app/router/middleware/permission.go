@@ -29,7 +29,8 @@ func PermissionMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		if isAdmin.(uint64) != 1 && !checkAccessPermission(c.Request.Method, c.Request.RequestURI) {
+
+		if isAdmin.(uint64) != 1 && !whiteList(c.Request.Method, c.Request.RequestURI) {
 			api.SendResponse(c, errno.ErrPermissionDenied, nil)
 			c.Abort()
 			return
@@ -38,10 +39,12 @@ func PermissionMiddleware() gin.HandlerFunc {
 	}
 }
 
-func checkAccessPermission(method, path string) bool {
+func whiteList(method, path string) bool {
 	permissions := map[string]string{
 		"/v1/users/[0-9]+":                "PUT",
 		"/v1/users/[0-9]+/dev_space_list": "GET",
+		"/v1/users/[0-9]+/applications":   "GET",
+		"/v1/users/[0-9]+/dev_spaces":     "GET",
 		"/v1/dev_space/[0-9]+/detail":     "GET",
 		"/v1/dev_space/[0-9]+/recreate":   "POST",
 		"/v1/application/[0-9]+":          "GET",

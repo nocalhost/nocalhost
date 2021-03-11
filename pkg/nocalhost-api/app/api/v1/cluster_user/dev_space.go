@@ -14,6 +14,7 @@ limitations under the License.
 package cluster_user
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
@@ -64,31 +65,20 @@ func (d *DevSpace) Delete() error {
 
 func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	userId := cast.ToUint64(d.DevSpaceParams.UserId)
-	applicationId := cast.ToUint64(d.DevSpaceParams.ApplicationId)
+	clusterId := cast.ToUint64(d.DevSpaceParams.ClusterId)
+
 	// get user
 	usersRecord, err := service.Svc.UserSvc().GetUserByID(d.c, userId)
 	if err != nil {
 		return nil, errno.ErrUserNotFound
 	}
 
-	// check application
-	applicationRecord, err := service.Svc.ApplicationSvc().Get(d.c, applicationId)
+	clusterRecord, err := service.Svc.ClusterSvc().Get(context.TODO(), clusterId)
 	if err != nil {
-		return nil, errno.ErrPermissionApplication
+		return nil, errno.ErrClusterNotFound
 	}
 
-	var decodeApplicationJson map[string]interface{}
-	err = json.Unmarshal([]byte(applicationRecord.Context), &decodeApplicationJson)
-	if err != nil {
-		return nil, errno.ErrApplicationJsonContext
-	}
-
-	applicationName := ""
-	if decodeApplicationJson["application_name"] != nil {
-		applicationName = decodeApplicationJson["application_name"].(string)
-	}
-
-	spaceName := applicationName + "[" + usersRecord.Name + "]"
+	spaceName := clusterRecord.Name + "[" + usersRecord.Name + "]"
 	if d.DevSpaceParams.SpaceName != "" {
 		spaceName = d.DevSpaceParams.SpaceName
 	}
@@ -100,7 +90,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	}
 	// check if has auth
 	cu := model.ClusterUserModel{
-		ApplicationId: applicationId,
+		ApplicationId: clusterId,
 		UserId:        userId,
 	}
 	_, hasRecord := service.Svc.ClusterUser().GetFirst(d.c, cu)
@@ -142,7 +132,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		res.ContainerReqMem, res.ContainerLimitsMem, res.ContainerReqCpu, res.ContainerLimitsCpu, res.ContainerEphemeralStorage)
 
 	resString, err := json.Marshal(res)
-	result, err := service.Svc.ClusterUser().Create(d.c, applicationId, *d.DevSpaceParams.ClusterId, userId, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu, KubeConfigYaml, devNamespace, spaceName, string(resString))
+	result, err := service.Svc.ClusterUser().Create(d.c, 0, *d.DevSpaceParams.ClusterId, userId, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu, KubeConfigYaml, devNamespace, spaceName, string(resString))
 	if err != nil {
 		return nil, errno.ErrBindApplicationClsuter
 	}

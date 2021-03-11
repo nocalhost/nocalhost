@@ -22,6 +22,8 @@ import (
 type ApplicationUserService interface {
 	ListByApplicationId(ctx context.Context, applicationId uint64) ([]*model.ApplicationUserModel, error)
 	ListByUserId(ctx context.Context, userId uint64) ([]*model.ApplicationUserModel, error)
+	BatchDelete(ctx context.Context, applicationId uint64, userIds []uint64) error
+	BatchInsert(ctx context.Context, applicationId uint64, userIds []uint64) error
 	Close()
 }
 

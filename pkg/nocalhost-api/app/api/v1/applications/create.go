@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/napp"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
@@ -69,6 +70,13 @@ func Create(c *gin.Context) {
 		api.SendResponse(c, errno.ErrApplicationNameExist, nil)
 		return
 	}
+
+	// normal user can't not create public applications
+	if !ginbase.IsAdmin(c) {
+		deny := uint8(0)
+		req.Public = &deny
+	}
+
 	userId, _ := c.Get("userId")
 	a, err := service.Svc.ApplicationSvc().Create(c, req.Context, *req.Status, *req.Public, userId.(uint64))
 	if err != nil {
