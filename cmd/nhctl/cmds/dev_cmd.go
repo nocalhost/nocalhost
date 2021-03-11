@@ -56,7 +56,7 @@ var devCmdCmd = &cobra.Command{
 			log.Fatal("--dev-command-type mush be specified")
 		}
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(nameSpace, applicationName, deployment)
+		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			log.Fatalf("%s is not in DevMode", deployment)
 		}

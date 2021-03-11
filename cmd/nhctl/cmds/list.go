@@ -15,6 +15,8 @@ package cmds
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v2"
+	"nocalhost/internal/nhctl/app_flags"
 	"os"
 	"strconv"
 
@@ -25,7 +27,10 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
+var listFlags = &app_flags.ListFlags{}
+
 func init() {
+	listCmd.Flags().BoolVar(&listFlags.Yaml, "yaml", false, "use yaml as out put, only supports for 'nhctl list'")
 	rootCmd.AddCommand(listCmd)
 }
 
@@ -41,7 +46,12 @@ var listCmd = &cobra.Command{
 			ListApplicationSvc(nocalhostApp)
 			os.Exit(0)
 		}
-		ListApplications()
+
+		if listFlags.Yaml {
+			ListApplicationsYaml()
+		} else {
+			ListApplications()
+		}
 	},
 }
 
@@ -58,6 +68,43 @@ func ListApplicationSvc(napp *app.Application) {
 		table.Append(v)
 	}
 	table.Render() // Send output
+}
+
+func ListApplicationsYaml() {
+	appMap, err := nocalhost.GetNsAndApplicationInfo()
+	if err != nil {
+		log.FatalE(err, "Failed to get applications")
+	}
+
+	result := map[string][]*ApplicationInfo{}
+	for ns, appList := range appMap {
+		for _, appName := range appList {
+			app2, err := app.NewApplication(appName, ns)
+			if err != nil {
+				continue
+			}
+
+			profile := app2.AppProfileV2
+
+			if !profile.Installed {
+				continue
+			}
+			info, ok := result[profile.Namespace]
+			if !ok {
+				info = []*ApplicationInfo{}
+			}
+
+			info = append(info, &ApplicationInfo{
+				Name: appName,
+				Type: profile.AppType,
+			})
+
+			result[profile.Namespace] = info
+		}
+	}
+
+	marshal, _ := yaml.Marshal(result)
+	fmt.Print(string(marshal))
 }
 
 func ListApplications() {
@@ -77,4 +124,9 @@ func ListApplications() {
 			fmt.Printf("%-14s %-14t %-14s %-14s\n", appName, profile.Installed, profile.Namespace, profile.AppType)
 		}
 	}
+}
+
+type ApplicationInfo struct {
+	Name string
+	Type string
 }

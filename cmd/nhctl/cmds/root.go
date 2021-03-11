@@ -34,7 +34,7 @@ var (
 func init() {
 
 	//settings = app_flags.NewEnvSettings()
-	rootCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
+	rootCmd.PersistentFlags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", debug, "enable debug level log")
 	rootCmd.PersistentFlags().StringVar(&kubeConfig, "kubeconfig", "", "the path of the kubeconfig file")
 

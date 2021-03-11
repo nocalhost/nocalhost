@@ -93,7 +93,7 @@ func CheckIfSvcExist(svcName string, svcType ...string) {
 	log.AddField("SVC", svcName)
 }
 
-func initAppAndCheckIfSvcExist(appName string, svcName string, svcAttr ...string) {
+func initAppAndCheckIfSvcExist(appName string, svcName string, svcAttr []string) {
 	serviceType := "deployment"
 	if len(svcAttr) > 0 {
 		serviceType = svcAttr[0]

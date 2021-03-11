@@ -66,7 +66,7 @@ var devStartCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(nameSpace, applicationName, deployment)
+		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
 
 		if nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			log.Fatalf("Service \"%s\" is already in developing", deployment)

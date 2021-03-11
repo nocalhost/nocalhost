@@ -61,7 +61,7 @@ var fileSyncCmd = &cobra.Command{
 		var err error
 		applicationName := args[0]
 
-		initAppAndCheckIfSvcExist(nameSpace, applicationName, deployment)
+		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
 
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			log.Fatalf("Service \"%s\" is not in developing", deployment)

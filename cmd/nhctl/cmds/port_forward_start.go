@@ -56,7 +56,7 @@ var portForwardStartCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, portForwardOptions.ServiceType)
+		initAppAndCheckIfSvcExist(applicationName, deployment, []string{portForwardOptions.ServiceType})
 
 		// look for nhctl
 		nhctlAbsdir, err := exec.LookPath(nocalhostApp.GetMyBinName())
