@@ -1,29 +1,50 @@
-name: nocalhost
-type: helmGit
-resourcePath: ["deployments/chart"]
+configProperties:
+  version: v2
 
-onPreInstall: []
+application:
+  name: nocalhost
+  manifestType: rawManifest
+  resourcePath: ["deployments/chart"]
 
 services:
   - name: nocalhost-api
     serviceType: deployment
-    gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost.git
-    devContainerImage: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang:latest
-    workDir: /home/nocalhost-dev
-    syncDirs:
-    - .
-    devPorts:
-    - :8080
-    dependPodsLabelSelector:
-    - "app.kubernetes.io/name=mariadb"
+    dependLabelSelector:
+      pods:
+        - "app.kubernetes.io/name=mariadb"
+    containers:
+      - name: nocalhost-api
+        dev:
+          gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost.git
+          image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang:latest
+          workDir: /home/nocalhost-dev
+          shell: "bash"
+          sync:
+            type: send
+            filePattern:
+              - .
+            ignoreFilePattern:
+              - ".git"
+          portForward:
+            - 8080:8080
+
   - name: nocalhost-web
-    serviceType: deployment
-    gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost-web.git
-    devContainerImage: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/node:12.18.1-slim
-    workDir: /home/nocalhost-dev
-    syncDirs:
-    - .
-    devPort:
-    - :80
-    dependPodsLabelSelector:
-    - "app=nocalhost-api"
+      serviceType: deployment
+      dependLabelSelector:
+        pods:
+          - "app=nocalhost-api"
+      containers:
+        - name: nocalhost-web
+          dev:
+            gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost-web.git
+            image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/node:12.18.1-slim
+            workDir: /home/nocalhost-dev
+            shell: "bash"
+            sync:
+              type: send
+              filePattern:
+                - .
+              ignoreFilePattern:
+                - ".git"
+            portForward:
+              - 80:80
