@@ -5,6 +5,9 @@ application:
   name: nocalhost
   manifestType: rawManifest
   resourcePath: ["deployments/chart"]
+  helmValues:
+    - key: service.type
+      value: ClusterIP
 
 services:
   - name: nocalhost-api
