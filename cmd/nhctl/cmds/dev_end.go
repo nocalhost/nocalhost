@@ -39,7 +39,7 @@ var devEndCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		InitAppAndCheckIfSvcExist(applicationName, deployment)
+		initAppAndCheckIfSvcExist(nameSpace, applicationName, deployment)
 
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			log.Fatalf("Service %s is not in DevMode", deployment)

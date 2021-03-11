@@ -154,6 +154,18 @@ func (c *ClientGoUtils) getRestConfig() (*restclient.Config, error) {
 	return clientcmd.BuildConfigFromFlags("", c.kubeConfigFilePath)
 }
 
+func GetNamespaceFromKubeConfig(kubeConfig string) (string, error) {
+	if kubeConfig == "" { // use default config
+		kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	}
+
+	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfig},
+		&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: ""}})
+	ns, _, err := clientConfig.Namespace()
+	return ns, errors.Wrap(err, "")
+}
+
 func (c *ClientGoUtils) GetDefaultNamespace() (string, error) {
 	ns, _, err := c.ClientConfig.Namespace()
 	return ns, errors.Wrap(err, "")

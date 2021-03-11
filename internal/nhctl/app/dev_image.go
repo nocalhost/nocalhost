@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"nocalhost/internal/nhctl/profile"
 	"strconv"
 	"strings"
 	"time"
@@ -467,7 +468,7 @@ wait:
 	return nil
 }
 
-func convertResourceQuotaToResourceRequirements(quota *ResourceQuota) (*corev1.ResourceRequirements, error) {
+func convertResourceQuotaToResourceRequirements(quota *profile.ResourceQuota) (*corev1.ResourceRequirements, error) {
 	var err error
 	requirements := &corev1.ResourceRequirements{}
 
@@ -511,7 +512,7 @@ func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) 
 
 // Create a pvc for persistent volume dir, and waiting util pvc succeed to bound to a pv
 // If pvc failed to bound to a pv, the pvc will been deleted, and return nil
-func (a *Application) createPvcForPersistentVolumeDir(persistentVolume *PersistentVolumeDir, labels map[string]string, storageClass string) (*corev1.PersistentVolumeClaim, error) {
+func (a *Application) createPvcForPersistentVolumeDir(persistentVolume *profile.PersistentVolumeDir, labels map[string]string, storageClass string) (*corev1.PersistentVolumeClaim, error) {
 	var (
 		pvc *corev1.PersistentVolumeClaim
 		err error

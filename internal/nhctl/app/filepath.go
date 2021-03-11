@@ -75,11 +75,11 @@ func (a *Application) GetApplicationBackGroundPortForwardPidFile(deployment stri
 }
 
 func (a *Application) getProfilePath() string {
-	return filepath.Join(a.GetHomeDir(), DefaultApplicationProfilePath)
+	return filepath.Join(a.GetHomeDir(), nocalhost.DefaultApplicationProfilePath)
 }
 
 func (a *Application) getProfileV2Path() string {
-	return filepath.Join(a.GetHomeDir(), DefaultApplicationProfileV2Path)
+	return filepath.Join(a.GetHomeDir(), nocalhost.DefaultApplicationProfileV2Path)
 }
 
 // This path is independent from getConfigPathInGitResourcesDir()
@@ -92,5 +92,6 @@ func (a *Application) GetConfigV2Path() string {
 }
 
 func (a *Application) GetHomeDir() string {
-	return nocalhost.GetAppDir(a.Name)
+	//return nocalhost.GetAppDir(a.Name)
+	return nocalhost.GetAppDirUnderNs(a.Name, a.NameSpace)
 }

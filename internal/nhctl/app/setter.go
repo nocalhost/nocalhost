@@ -34,7 +34,7 @@ func (a *Application) SetDevelopingStatus(svcName string, is bool) error {
 }
 
 func (a *Application) SetAppType(t AppType) error {
-	a.AppProfileV2.AppType = t
+	a.AppProfileV2.AppType = string(t)
 	return a.SaveProfile()
 }
 

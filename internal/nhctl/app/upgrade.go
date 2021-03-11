@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"k8s.io/cli-runtime/pkg/resource"
 	flag "nocalhost/internal/nhctl/app_flags"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
@@ -75,7 +76,7 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 			if err != nil {
 				log.WarnE(errors.Wrap(err, ""), err.Error())
 			} else {
-				configV2 := &NocalHostAppConfigV2{}
+				configV2 := &profile.NocalHostAppConfigV2{}
 				err = yaml.Unmarshal(configBytes, configV2)
 				if err != nil {
 					log.WarnE(errors.Wrap(err, ""), "Failed to unmarshal config v2")
@@ -86,7 +87,7 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 							upgradeResourcePath = configV2.ApplicationConfig.ResourcePath
 						}
 					} else {
-						configV1 := &NocalHostAppConfig{}
+						configV1 := &profile.NocalHostAppConfig{}
 						err = yaml.Unmarshal(configBytes, configV1)
 						if err != nil {
 							log.WarnE(errors.Wrap(err, ""), "Failed to unmarshal config v1")

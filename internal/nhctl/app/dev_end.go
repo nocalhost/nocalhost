@@ -16,6 +16,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/terminate"
 	"runtime"
 	"strconv"
@@ -37,7 +38,7 @@ func (a *Application) StopAllPortForward(svcName string) error {
 	}
 
 	// Clean up port-forward status
-	a.GetSvcProfileV2(svcName).DevPortForwardList = make([]*DevPortForward, 0)
+	a.GetSvcProfileV2(svcName).DevPortForwardList = make([]*profile.DevPortForward, 0)
 	return a.SaveProfile()
 }
 

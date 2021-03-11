@@ -16,6 +16,7 @@ package cmds
 import (
 	"context"
 	"nocalhost/internal/nhctl/app"
+	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -60,7 +61,7 @@ var fileSyncCmd = &cobra.Command{
 		var err error
 		applicationName := args[0]
 
-		InitAppAndCheckIfSvcExist(applicationName, deployment)
+		initAppAndCheckIfSvcExist(nameSpace, applicationName, deployment)
 
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			log.Fatalf("Service \"%s\" is not in developing", deployment)
@@ -178,7 +179,7 @@ var fileSyncCmd = &cobra.Command{
 		// Getting pattern from svc profile first
 		profile := nocalhostApp.GetSvcProfileV2(deployment)
 		if profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync == nil {
-			profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync = &app.SyncConfig{}
+			profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync = &profile2.SyncConfig{}
 		}
 		if len(fileSyncOps.IgnoredPattern) != 0 {
 			profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync.IgnoreFilePattern = fileSyncOps.IgnoredPattern

@@ -24,11 +24,11 @@ import (
 type DevCommandType string
 
 const (
-	build          DevCommandType = "build"
-	run            DevCommandType = "run"
-	debug          DevCommandType = "debug"
-	hotReloadRun   DevCommandType = "hotReloadRun"
-	hotReloadDebug DevCommandType = "hotReloadDebug"
+	buildCommand          DevCommandType = "build"
+	runCommand            DevCommandType = "run"
+	debugCommand          DevCommandType = "debug"
+	hotReloadRunCommand   DevCommandType = "hotReloadRun"
+	hotReloadDebugCommand DevCommandType = "hotReloadDebug"
 )
 
 var commandType string
@@ -37,7 +37,7 @@ var container string
 func init() {
 	devCmdCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "K8s deployment which your developing service exists")
 	devCmdCmd.Flags().StringVarP(&container, "container", "c", "", "which container of pod to run command")
-	devCmdCmd.Flags().StringVar(&commandType, "dev-command-type", "", fmt.Sprintf("Dev command type can be: %s, %s, %s, %s, %s", build, run, debug, hotReloadRun, hotReloadDebug))
+	devCmdCmd.Flags().StringVar(&commandType, "dev-command-type", "", fmt.Sprintf("Dev command type can be: %s, %s, %s, %s, %s", buildCommand, runCommand, debugCommand, hotReloadRunCommand, hotReloadDebugCommand))
 	debugCmd.AddCommand(devCmdCmd)
 }
 
@@ -56,7 +56,7 @@ var devCmdCmd = &cobra.Command{
 			log.Fatal("--dev-command-type mush be specified")
 		}
 		applicationName := args[0]
-		InitAppAndCheckIfSvcExist(applicationName, deployment)
+		initAppAndCheckIfSvcExist(nameSpace, applicationName, deployment)
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			log.Fatalf("%s is not in DevMode", deployment)
 		}
@@ -71,15 +71,15 @@ var devCmdCmd = &cobra.Command{
 		}
 		var targetCommand []string
 		switch commandType {
-		case string(build):
+		case string(buildCommand):
 			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.Build
-		case string(run):
+		case string(runCommand):
 			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.Run
-		case string(debug):
+		case string(debugCommand):
 			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.Debug
-		case string(hotReloadDebug):
+		case string(hotReloadDebugCommand):
 			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.HotReloadDebug
-		case string(hotReloadRun):
+		case string(hotReloadRunCommand):
 			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.HotReloadRun
 		default:
 			log.Fatalf("%s is not supported", commandType)

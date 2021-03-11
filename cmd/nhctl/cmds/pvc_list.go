@@ -21,7 +21,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -49,26 +48,28 @@ var pvcListCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var pvcList []v1.PersistentVolumeClaim
 		if pvcFlags.App != "" {
-			if !nocalhost.CheckIfApplicationExist(pvcFlags.App) {
-				log.Fatalf("Application %s not found", pvcFlags.App)
-			}
-			nhApp, err := app.NewApplication(pvcFlags.App)
-			if err != nil {
-				log.Fatalf("Failed to create application %s", pvcFlags.App)
-			}
+			//if !nocalhost.CheckIfApplicationExist(pvcFlags.App, nameSpace) {
+			//	log.Fatalf("Application %s not found", pvcFlags.App)
+			//}
+			//nhApp, err := app.NewApplication(pvcFlags.App)
+			//if err != nil {
+			//	log.Fatalf("Failed to create application %s", pvcFlags.App)
+			//}
+			var err error
+			initApp(pvcFlags.App)
 			if pvcFlags.Svc != "" {
-				exist, err := nhApp.CheckIfSvcExist(pvcFlags.Svc, app.Deployment)
+				exist, err := nocalhostApp.CheckIfSvcExist(pvcFlags.Svc, app.Deployment)
 				if err != nil {
 					log.FatalE(err, "failed to check if svc exists")
 				} else if !exist {
 					log.Fatalf("\"%s\" not found", pvcFlags.Svc)
 				}
-				pvcList, err = nhApp.GetPVCsBySvc(pvcFlags.Svc)
+				pvcList, err = nocalhostApp.GetPVCsBySvc(pvcFlags.Svc)
 				if err != nil {
 					log.FatalE(err, "Failed to get PVCs")
 				}
 			} else {
-				pvcList, err = nhApp.GetAllPVCs()
+				pvcList, err = nocalhostApp.GetAllPVCs()
 				if err != nil {
 					log.FatalE(err, "Failed to get PVCs")
 				}

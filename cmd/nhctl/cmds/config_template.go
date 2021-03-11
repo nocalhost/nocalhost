@@ -48,7 +48,7 @@ var configTemplateCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		commonFlags.AppName = args[0]
-		InitAppAndCheckIfSvcExist(commonFlags.AppName, commonFlags.SvcName)
+		initAppAndCheckIfSvcExist(nameSpace, commonFlags.AppName, commonFlags.SvcName)
 		t, err := tpl.GetSvcTpl(commonFlags.SvcName)
 		if err != nil {
 			log.FatalE(err, "fail to get svc tpl")

@@ -22,6 +22,7 @@ import (
 
 func init() {
 
+	//upgradeCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	upgradeCmd.Flags().StringVarP(&installFlags.GitUrl, "git-url", "u", "", "resources git url")
 	upgradeCmd.Flags().StringVarP(&installFlags.GitRef, "git-ref", "r", "", "resources git ref")
 	upgradeCmd.Flags().StringSliceVar(&installFlags.ResourcePath, "resource-path", []string{}, "resources path")
@@ -52,7 +53,7 @@ var upgradeCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 
-		InitApp(args[0])
+		initApp(args[0])
 
 		// Check if there are services in developing
 		if nocalhostApp.IsAnyServiceInDevMode() {

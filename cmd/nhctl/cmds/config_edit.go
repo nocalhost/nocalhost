@@ -18,8 +18,8 @@ import (
 	"encoding/json"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/profile"
 
-	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -50,7 +50,7 @@ var configEditCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		configEditFlags.AppName = args[0]
-		InitAppAndCheckIfSvcExist(configEditFlags.AppName, configEditFlags.SvcName)
+		initAppAndCheckIfSvcExist(nameSpace, configEditFlags.AppName, configEditFlags.SvcName)
 
 		if len(configEditFlags.Content) == 0 {
 			log.Fatal("--content required")
@@ -63,7 +63,7 @@ var configEditCmd = &cobra.Command{
 
 		// set application config, plugin do not provide services struct, update application config only
 		if configEditFlags.AppConfig {
-			applicationConfig := &app.ApplicationConfig{}
+			applicationConfig := &profile.ApplicationConfig{}
 			err = json.Unmarshal(bys, applicationConfig)
 			if err != nil {
 				log.Fatalf("fail to unmarshal content: %s", err.Error())
@@ -82,7 +82,7 @@ var configEditCmd = &cobra.Command{
 		//	log.FatalE(err, "fail to save svc config")
 		//}
 
-		svcConfig := &app.ServiceConfigV2{}
+		svcConfig := &profile.ServiceConfigV2{}
 		err = json.Unmarshal(bys, svcConfig)
 		if err != nil {
 			log.Fatalf("fail to unmarshal content: %s", err.Error())

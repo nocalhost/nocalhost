@@ -29,7 +29,6 @@ import (
 )
 
 var (
-	nameSpace   string
 	deployment  string
 	ServiceType string
 	//Container   string
@@ -67,13 +66,13 @@ var devStartCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		InitAppAndCheckIfSvcExist(applicationName, deployment)
+		initAppAndCheckIfSvcExist(nameSpace, applicationName, deployment)
 
 		if nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			log.Fatalf("Service \"%s\" is already in developing", deployment)
 		}
 
-		devStartOps.Kubeconfig = settings.KubeConfig
+		devStartOps.Kubeconfig = kubeConfig
 		log.Info("Starting DevMode...")
 
 		svcProfile := nocalhostApp.GetSvcProfileV2(deployment)

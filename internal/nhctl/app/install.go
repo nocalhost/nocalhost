@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
 	"path/filepath"
@@ -40,15 +41,15 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 	}
 
 	switch a.AppProfileV2.AppType {
-	case Helm:
+	case string(Helm):
 		err = a.installHelmInGit(flags)
-	case HelmRepo:
+	case string(HelmRepo):
 		err = a.installHelmInRepo(flags)
-	case Manifest:
+	case string(Manifest):
 		err = a.InstallManifest()
-	case ManifestLocal:
+	case string(ManifestLocal):
 		err = a.InstallManifest()
-	case HelmLocal:
+	case string(HelmLocal):
 		err = a.installHelmInGit(flags)
 	default:
 		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
@@ -199,7 +200,7 @@ func (a *Application) InstallDepConfigMap() error {
 			InstallEnv: appEnv,
 		}
 		// release name a.Name
-		if a.AppProfileV2.AppType != Manifest {
+		if a.AppProfileV2.AppType != string(Manifest) {
 			depForYaml.ReleaseName = a.Name
 		}
 		yamlBytes, err := yaml.Marshal(depForYaml)
@@ -292,7 +293,7 @@ func (a *Application) ignoredInUpgrade(manifest string) bool {
 func (a *Application) loadUpgradeSortedPreInstallManifest() {
 	result := make([]string, 0)
 	if a.AppProfileV2.PreInstall != nil {
-		sort.Sort(ComparableItems(a.AppProfileV2.PreInstall))
+		sort.Sort(profile.ComparableItems(a.AppProfileV2.PreInstall))
 		for _, item := range a.AppProfileV2.PreInstall {
 			itemPath := filepath.Join(a.getUpgradeGitDir(), item.Path)
 			if _, err2 := os.Stat(itemPath); err2 != nil {
@@ -308,7 +309,7 @@ func (a *Application) loadUpgradeSortedPreInstallManifest() {
 func (a *Application) loadSortedPreInstallManifest() {
 	result := make([]string, 0)
 	if a.AppProfileV2.PreInstall != nil {
-		sort.Sort(ComparableItems(a.AppProfileV2.PreInstall))
+		sort.Sort(profile.ComparableItems(a.AppProfileV2.PreInstall))
 		for _, item := range a.AppProfileV2.PreInstall {
 			itemPath := filepath.Join(a.getGitDir(), item.Path)
 			if _, err2 := os.Stat(itemPath); err2 != nil {
