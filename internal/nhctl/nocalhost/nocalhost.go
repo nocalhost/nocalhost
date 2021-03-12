@@ -14,7 +14,6 @@ limitations under the License.
 package nocalhost
 
 import (
-	"fmt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/profile"
@@ -81,7 +80,7 @@ func Init() error {
 	if err != nil {
 		return err
 	}
-	os.Rename(GetAppHomeDir(), fmt.Sprintf("%s.bak", GetAppHomeDir()))
+	//os.Rename(GetAppHomeDir(), fmt.Sprintf("%s.bak", GetAppHomeDir()))
 	return nil
 }
 
