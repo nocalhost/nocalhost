@@ -39,12 +39,17 @@ var devEndCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		InitAppAndCheckIfSvcExist(applicationName, deployment)
+		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
 
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			log.Fatalf("Service %s is not in DevMode", deployment)
 		}
 
+		log.Info("Terminating file sync process...")
+		err = nocalhostApp.StopSyncAndPortForwardProcess(deployment)
+		if err != nil {
+			log.WarnE(err, "Error occurs when stopping sync process")
+		}
 		err = nocalhostApp.EndDevelopMode(deployment)
 		if err != nil {
 			log.FatalE(err, fmt.Sprintf("Failed to end %s", deployment))

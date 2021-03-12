@@ -11,7 +11,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package app
+package profile
+
+//type AppType string
+//type SvcType string
 
 type NocalHostAppConfigV2 struct {
 	ConfigProperties  *ConfigProperties  `json:"configProperties" yaml:"configProperties"`
@@ -25,19 +28,19 @@ type ConfigProperties struct {
 
 type ApplicationConfig struct {
 	Name           string             `json:"name" yaml:"name"`
-	Type           AppType            `json:"manifestType" yaml:"manifestType"`
+	Type           string             `json:"manifestType" yaml:"manifestType"`
 	ResourcePath   []string           `json:"resourcePath" yaml:"resourcePath"`
 	IgnoredPath    []string           `json:"ignoredPath" yaml:"ignoredPath"`
 	PreInstall     []*PreInstallItem  `json:"onPreInstall" yaml:"onPreInstall"`
 	HelmValues     []*HelmValue       `json:"helmValues" yaml:"helmValues"`
 	Env            []*Env             `json:"env" yaml:"env"`
 	EnvFrom        EnvFrom            `json:"envFrom" yaml:"envFrom"`
-	ServiceConfigs []*ServiceConfigV2 `json:"services" yaml:"services"`
+	ServiceConfigs []*ServiceConfigV2 `json:"services" yaml:"services,omitempty"`
 }
 
 type ServiceConfigV2 struct {
 	Name                string               `json:"name" yaml:"name"`
-	Type                SvcType              `json:"serviceType" yaml:"serviceType"`
+	Type                string               `json:"serviceType" yaml:"serviceType"`
 	PriorityClass       string               `json:"priorityClass,omitempty" yaml:"priorityClass,omitempty"`
 	DependLabelSelector *DependLabelSelector `json:"dependLabelSelector" yaml:"dependLabelSelector"`
 	ContainerConfigs    []*ContainerConfig   `json:"containers" yaml:"containers"`

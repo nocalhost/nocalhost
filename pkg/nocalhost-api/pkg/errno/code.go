@@ -22,6 +22,7 @@ var (
 	ErrParam            = &Errno{Code: 10003, Message: "parameters Incorrect"}
 	ErrSignParam        = &Errno{Code: 10004, Message: "signature parameters Incorrect"}
 	RouterNotFound      = &Errno{Code: 10005, Message: "router not found"}
+	ErrLoginRequired    = &Errno{Code: 10006, Message: "log in required"}
 
 	// user errors
 	ErrUserNotFound          = &Errno{Code: 20102, Message: "The user does not found."}
@@ -70,7 +71,8 @@ var (
 	ErrApplicationBoundClusterList = &Errno{Code: 40108, Message: "Failed to get application bound cluster list, please try again"}
 
 	// cluster-user errors
-	ErrBindUserClsuterRepeat                     = &Errno{Code: 50100, Message: "The user has authorized this application"}
+	ErrBindUserApplicationRepeat                 = &Errno{Code: 50099, Message: "The user has authorized this application"}
+	ErrBindUserClusterRepeat                     = &Errno{Code: 50100, Message: "The user has authorized this cluster"}
 	ErrBindNameSpaceCreate                       = &Errno{Code: 50101, Message: "Cluster user authorization failed: failed to create namespace"}
 	ErrBindServiceAccountCreateErr               = &Errno{Code: 50102, Message: "Cluster user authorization failed: Failed to create ServiceAccount"}
 	ErrBindRoleCreateErr                         = &Errno{Code: 50103, Message: "Cluster user authorization failed: failed to create a role"}
@@ -81,10 +83,10 @@ var (
 	ErrBindSecretCAGetErr                        = &Errno{Code: 50109, Message: "Cluster user authorization failed: Failed to obtain ServiceAccount CA"}
 	ErrBindServiceAccountStructEncodeErr         = &Errno{Code: 50110, Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Json to Yaml failed"}
 	ErrBindServiceAccountKubeConfigJsonEncodeErr = &Errno{Code: 50110, Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Struct to Json failed"}
-	ErrClsuterUserNotFound                       = &Errno{Code: 50111, Message: "Dev space has not found"}
-	ErrDeletedClsuterButDatabaseFail             = &Errno{Code: 50112, Message: "Cluster namespace has deleted, but database record delete fail"}
-	ErrDeletedClsuterDBButClusterDone            = &Errno{Code: 50113, Message: "Cluster nocalhost resource has deleted, but cluster record delete fail"}
-	ErrDeletedClsuterDevSpaceDBButClusterDone    = &Errno{Code: 50114, Message: "Cluster nocalhost develop space has deleted, but space record delete fail"}
+	ErrClusterUserNotFound                       = &Errno{Code: 50111, Message: "Dev space has not found"}
+	ErrDeletedClusterButDatabaseFail             = &Errno{Code: 50112, Message: "Cluster namespace has deleted, but database record delete fail"}
+	ErrDeletedClusterDBButClusterDone            = &Errno{Code: 50113, Message: "Cluster nocalhost resource has deleted, but cluster record delete fail"}
+	ErrDeletedClusterDevSpaceDBButClusterDone    = &Errno{Code: 50114, Message: "Cluster nocalhost develop space has deleted, but space record delete fail"}
 	ErrDeletedClusterRecord                      = &Errno{Code: 50115, Message: "Delete dev space by application fail, please try again"}
 	ErrResetDevSpaceFail                         = &Errno{Code: 50116, Message: "reset dev space fail, please try again"}
 	ErrCreateResourceQuota                       = &Errno{Code: 50117, Message: "Create resource limit failed."}
@@ -92,5 +94,10 @@ var (
 	ErrCreateLimitRange                          = &Errno{Code: 50119, Message: "Create limit range failed."}
 	ErrDeleteLimitRange                          = &Errno{Code: 50120, Message: "Delete limit range failed."}
 	ErrFormatResourceLimitParam                  = &Errno{Code: 50121, Message: "Incorrect Resource limit parameter."}
-	ErrValidateResourceQuota                      = &Errno{Code: 50122, Message: "If quota is enabled in a namespace for compute resources like cpu and memory, must specify requests or limits for those values."}
+	ErrValidateResourceQuota                     = &Errno{Code: 50122, Message: "If quota is enabled in a namespace for compute resources like cpu and memory, must specify requests or limits for those values."}
+
+	// application-user
+	ErrListApplicationUser   = &Errno{Code: 60000, Message: "Failed to list application_user, please check params and try again"}
+	ErrInsertApplicationUser = &Errno{Code: 60001, Message: "Failed to batch insert application_user, please check params and try again"}
+	ErrDeleteApplicationUser = &Errno{Code: 60002, Message: "Failed to batch delete application_user, please check params and try again"}
 )

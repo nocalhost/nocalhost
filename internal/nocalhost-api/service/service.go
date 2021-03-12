@@ -19,6 +19,7 @@ import (
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service/application"
 	"nocalhost/internal/nocalhost-api/service/application_cluster"
+	"nocalhost/internal/nocalhost-api/service/application_user"
 	"nocalhost/internal/nocalhost-api/service/cluster"
 	"nocalhost/internal/nocalhost-api/service/cluster_user"
 	"nocalhost/internal/nocalhost-api/service/pre_pull"
@@ -26,6 +27,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
+	"strings"
 	"sync"
 )
 
@@ -42,6 +44,7 @@ type Service struct {
 	applicationClusterSvc application_cluster.ApplicationClusterService
 	clusterUserSvc        cluster_user.ClusterUserService
 	prePullSvc            pre_pull.PrePullService
+	applicationUserSvc    application_user.ApplicationUserService
 }
 
 // New init service
@@ -53,6 +56,7 @@ func New() (s *Service) {
 		applicationClusterSvc: application_cluster.NewApplicationClusterService(),
 		clusterUserSvc:        cluster_user.NewClusterUserService(),
 		prePullSvc:            pre_pull.NewPrePullService(),
+		applicationUserSvc:    application_user.NewApplicationUserService(),
 	}
 
 	if global.ServiceInitial == "true" {
@@ -60,6 +64,8 @@ func New() (s *Service) {
 	} else {
 		log.Infof("Service Initial is disable(enable in build with env: SERVICE_INITIAL=true)")
 	}
+
+	s.dataMigrate()
 	return s
 }
 
@@ -88,6 +94,10 @@ func (s *Service) PrePull() pre_pull.PrePullService {
 	return s.prePullSvc
 }
 
+func (s *Service) ApplicationUser() application_user.ApplicationUserService {
+	return s.applicationUserSvc
+}
+
 // Ping service
 func (s *Service) Ping() error {
 	return nil
@@ -96,6 +106,37 @@ func (s *Service) Ping() error {
 // Close service
 func (s *Service) Close() {
 	s.userSvc.Close()
+}
+
+func (s *Service) dataMigrate() {
+	log.Info("Migrate data if needed... ")
+
+	// adapt cluster_user to application_user
+	list, err := s.clusterUserSvc.GetList(context.TODO(), model.ClusterUserModel{})
+	if err != nil {
+		log.Infof("Error while migrate data: %+v", err)
+	}
+
+	if list == nil {
+		return
+	}
+
+	for _, userModel := range list {
+		applicationId := userModel.ApplicationId
+		userId := userModel.UserId
+
+		if applicationId <= 0 {
+			continue
+		}
+
+		_, err := s.applicationUserSvc.GetByApplicationIdAndUserId(context.TODO(), applicationId, userId)
+		if err != nil && strings.Contains(err.Error(),"record not found"){
+			err := s.ApplicationUser().BatchInsert(context.TODO(), applicationId, []uint64{userId})
+			if err != nil {
+				log.Infof("Error while migrate data[BatchInsert]: %+v", err)
+			}
+		}
+	}
 }
 
 func (s *Service) init() {

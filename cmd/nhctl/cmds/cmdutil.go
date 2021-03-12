@@ -17,17 +17,28 @@ import (
 	"fmt"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
 )
 
-func InitApp(appName string) {
+func initApp(appName string) {
 	var err error
 
-	if !nocalhost.CheckIfApplicationExist(appName) {
+	if nameSpace == "" {
+		nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig)
+		if err != nil {
+			log.FatalE(err, "Failed to get namespace")
+		}
+		if nameSpace == "" {
+			log.Fatal("--namespace or --kubeconfig mush be provided")
+		}
+	}
+
+	if !nocalhost.CheckIfApplicationExist(appName, nameSpace) {
 		log.FatalE(err, fmt.Sprintf("Application \"%s\" not found", appName))
 	}
-	nocalhostApp, err = app.NewApplication(appName)
+	nocalhostApp, err = app.NewApplication(appName, nameSpace, true)
 	if err != nil {
 		log.FatalE(err, "Failed to get application info")
 	}
@@ -82,11 +93,11 @@ func CheckIfSvcExist(svcName string, svcType ...string) {
 	log.AddField("SVC", svcName)
 }
 
-func InitAppAndCheckIfSvcExist(appName string, svcName string, svcAttr ...string) {
+func initAppAndCheckIfSvcExist(appName string, svcName string, svcAttr []string) {
 	serviceType := "deployment"
 	if len(svcAttr) > 0 {
 		serviceType = svcAttr[0]
 	}
-	InitApp(appName)
+	initApp(appName)
 	CheckIfSvcExist(svcName, serviceType)
 }

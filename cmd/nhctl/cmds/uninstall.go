@@ -16,6 +16,7 @@ package cmds
 import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
@@ -25,6 +26,7 @@ import (
 var force bool
 
 func init() {
+	//uninstallCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	uninstallCmd.Flags().BoolVar(&force, "force", false, "force to uninstall anyway")
 	rootCmd.AddCommand(uninstallCmd)
 }
@@ -40,19 +42,28 @@ var uninstallCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-
+		var err error
 		applicationName := args[0]
-		if !nocalhost.CheckIfApplicationExist(applicationName) {
+		if nameSpace == "" {
+			nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig)
+			if err != nil {
+				log.FatalE(err, "Failed to get namespace")
+			}
+			if nameSpace == "" {
+				log.Fatal("Namespace mush be provided")
+			}
+		}
+		if !nocalhost.CheckIfApplicationExist(applicationName, nameSpace) {
 			log.Fatalf("Application \"%s\" not found", applicationName)
 		}
 
 		log.Info("Uninstalling application...")
-		nhApp, err := app.NewApplication(applicationName)
+		nhApp, err := app.NewApplication(applicationName, nameSpace, true)
 		if err != nil {
 			if !force {
 				log.FatalE(err, "Failed to get application")
 			} else {
-				err = nocalhost.CleanupAppFiles(applicationName)
+				err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace)
 				if err != nil {
 					log.WarnE(err, "Failed to clean up application resource")
 				}
@@ -63,27 +74,22 @@ var uninstallCmd = &cobra.Command{
 			// check if there are services in developing state
 			for _, profile := range nhApp.AppProfileV2.SvcProfile {
 				if profile.Developing {
-					log.Debugf("Ending %s DevMode", profile.ActualName)
-					err = nhApp.EndDevelopMode(profile.ActualName)
+					err = nhApp.StopSyncAndPortForwardProcess(profile.ActualName)
 					if err != nil {
-						log.Warnf("Failed to end %s DevMode: %s", profile.ActualName, err.Error())
+						log.WarnE(err, "")
 					}
-				}
-				// End port forward
-				if len(profile.DevPortForwardList) > 0 {
-					log.Infof("Stopping port-forwards of service %s", profile.ActualName)
+				} else if len(profile.DevPortForwardList) > 0 {
 					err = nhApp.StopAllPortForward(profile.ActualName)
 					if err != nil {
-						log.WarnE(err, err.Error())
+						log.WarnE(err, "")
 					}
 				}
 			}
-
 		}
 		err = nhApp.Uninstall(force)
 		if err != nil {
 			if force {
-				err = nocalhost.CleanupAppFiles(applicationName)
+				err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace)
 				if err != nil {
 					log.Warnf("Failed to clean up application resource: %s", err.Error())
 				}

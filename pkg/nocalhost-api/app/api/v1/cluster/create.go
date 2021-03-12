@@ -58,7 +58,7 @@ func Create(c *gin.Context) {
 		return
 	}
 	// only allow one cluster kubeconfig
-	if len(t.Clusters) > 1 {
+	if len(t.Clusters) != 1 {
 		api.SendResponse(c, errno.ErrClusterKubeCreate, nil)
 		return
 	}

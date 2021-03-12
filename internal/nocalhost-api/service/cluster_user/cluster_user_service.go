@@ -33,6 +33,8 @@ type ClusterUserService interface {
 	UpdateKubeConfig(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
 	GetJoinClusterAndAppAndUser(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) ([]*model.ClusterUserJoinClusterAndAppAndUser, error)
 	GetJoinClusterAndAppAndUserDetail(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) (*model.ClusterUserJoinClusterAndAppAndUser, error)
+	ListDistinctByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserModel, error)
+	ListDistinct(ctx context.Context) ([]*model.ClusterUserModel, error)
 	Close()
 }
 
@@ -92,6 +94,8 @@ func (srv *clusterUserService) GetFirst(ctx context.Context, models model.Cluste
 
 func (srv *clusterUserService) Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string, spaceResourceLimit string) (model.ClusterUserModel, error) {
 	c := model.ClusterUserModel{
+
+		// Deprecated
 		ApplicationId:      applicationId,
 		UserId:             userId,
 		ClusterId:          clusterId,
@@ -113,6 +117,14 @@ func (srv *clusterUserService) GetJoinClusterAndAppAndUser(ctx context.Context, 
 
 func (srv *clusterUserService) GetJoinClusterAndAppAndUserDetail(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) (*model.ClusterUserJoinClusterAndAppAndUser, error) {
 	return srv.clusterUserRepo.GetJoinClusterAndAppAndUserDetail(ctx, condition)
+}
+
+func (srv *clusterUserService) ListDistinctByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserModel, error){
+	return srv.clusterUserRepo.ListDistinctByUser(ctx, userId)
+}
+
+func (srv *clusterUserService) ListDistinct(ctx context.Context) ([]*model.ClusterUserModel, error){
+	return srv.clusterUserRepo.ListDistinct(ctx)
 }
 
 func (srv *clusterUserService) Close() {

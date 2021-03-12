@@ -15,6 +15,7 @@ package routers
 
 import (
 	"nocalhost/pkg/nocalhost-api/app/api/v1/application_cluster"
+	"nocalhost/pkg/nocalhost-api/app/api/v1/application_user"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/applications"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster_user"
@@ -84,6 +85,9 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		u.PUT("/:id", user.Update)
 		u.DELETE("/:id", user.Delete)
 		u.GET("/:id/dev_space_list", cluster_user.GetJoinClusterAndAppAndUser)
+		u.GET("/:id/applications", applications.ListPermitted)
+		u.GET("/:id/dev_spaces", cluster_user.ListDistinctByUserId)
+		u.GET("/:id/clusters", cluster.ListByUser)
 	}
 
 	m := g.Group("/v1/me")
@@ -123,7 +127,10 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		a.GET("/:id/dev_space/:space_id/detail", cluster_user.GetDevSpaceDetail)
 		a.GET("/:id/dev_space_list", cluster_user.GetList)
 		a.GET("/:id/cluster/:clusterId", applications.GetSpaceDetail)
-
+		a.GET("/:id/users", user.ListByApplication)
+		a.GET("/:id/!users", user.ListNotInApplication)
+		a.POST("/:id/users", application_user.BatchInsert)
+		a.DELETE("/:id/users", application_user.BatchDelete)
 	}
 
 	// nocalhost
@@ -134,9 +141,10 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	}
 
 	// DevSpace
-	dv := g.Group("v1/dev_space")
+	dv := g.Group("/v1/dev_space")
 	dv.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
 	{
+		dv.GET("", cluster_user.ListDistinct)
 		dv.DELETE("/:id", cluster_user.Delete)
 		dv.PUT("/:id", cluster_user.Update)
 		dv.POST("/:id/recreate", cluster_user.ReCreate)

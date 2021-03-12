@@ -119,6 +119,7 @@ func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params
 		return "", errors.Wrap(err, "")
 	}
 	if errStderr != nil || errStdout != nil {
+		log.Infof("%s %s", errStderr, errStdout)
 		return "", errors.New("error occur when print")
 	}
 

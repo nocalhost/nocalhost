@@ -15,19 +15,22 @@ package cmds
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v2"
+	"nocalhost/internal/nhctl/app_flags"
 	"os"
 	"strconv"
 
+	"github.com/olekukonko/tablewriter"
+	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/utils"
-
-	"github.com/olekukonko/tablewriter"
-	"github.com/spf13/cobra"
 )
 
+var listFlags = &app_flags.ListFlags{}
+
 func init() {
+	listCmd.Flags().BoolVar(&listFlags.Yaml, "yaml", false, "use yaml as out put, only supports for 'nhctl list'")
 	rootCmd.AddCommand(listCmd)
 }
 
@@ -39,14 +42,16 @@ var listCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) > 0 { // list application detail
 			applicationName := args[0]
-			nocalhostApp, err := app.NewApplication(applicationName)
-			if err != nil {
-				log.Fatalf("failed to get application info:%s", err.Error())
-			}
+			initApp(applicationName)
 			ListApplicationSvc(nocalhostApp)
 			os.Exit(0)
 		}
-		ListApplications()
+
+		if listFlags.Yaml {
+			ListApplicationsYaml()
+		} else {
+			ListApplications()
+		}
 	},
 }
 
@@ -65,23 +70,64 @@ func ListApplicationSvc(napp *app.Application) {
 	table.Render() // Send output
 }
 
-func ListApplications() {
-	apps, err := nocalhost.GetApplicationNames()
-	utils.Mush(err)
-	maxLen := 0
-	for _, appName := range apps {
-		if len(appName) > maxLen {
-			maxLen = len(appName)
+func ListApplicationsYaml() {
+	appMap, err := nocalhost.GetNsAndApplicationInfo()
+	if err != nil {
+		log.FatalE(err, "Failed to get applications")
+	}
+
+	result := map[string][]*ApplicationInfo{}
+	for ns, appList := range appMap {
+		for _, appName := range appList {
+			app2, err := app.NewApplication(appName, ns, false)
+			if err != nil {
+				continue
+			}
+
+			profile := app2.AppProfileV2
+
+			if !profile.Installed {
+				continue
+			}
+			info, ok := result[profile.Namespace]
+			if !ok {
+				info = []*ApplicationInfo{}
+			}
+
+			info = append(info, &ApplicationInfo{
+				Name: appName,
+				Type: profile.AppType,
+			})
+
+			result[profile.Namespace] = info
 		}
+	}
+
+	marshal, _ := yaml.Marshal(result)
+	fmt.Print(string(marshal))
+}
+
+func ListApplications() {
+	appMap, err := nocalhost.GetNsAndApplicationInfo()
+	if err != nil {
+		log.FatalE(err, "Failed to get applications")
 	}
 	fmt.Printf("%-14s %-14s %-14s %-14s\n", "NAME", "INSTALLED", "NAMESPACE", "TYPE")
-	for _, appName := range apps {
-		app2, err := app.NewApplication(appName)
-		if err != nil {
-			fmt.Printf("%-14s\n", appName)
-			continue
+	for ns, appList := range appMap {
+		for _, appName := range appList {
+			app2, err := app.NewApplication(appName, ns, false)
+			if err != nil {
+				log.WarnE(err, "Failed to new application")
+				fmt.Printf("%-14s\n", appName)
+				continue
+			}
+			profile := app2.AppProfileV2
+			fmt.Printf("%-14s %-14t %-14s %-14s\n", appName, profile.Installed, profile.Namespace, profile.AppType)
 		}
-		profile := app2.AppProfileV2
-		fmt.Printf("%-14s %-14t %-14s %-14s\n", appName, profile.Installed, profile.Namespace, profile.AppType)
 	}
+}
+
+type ApplicationInfo struct {
+	Name string
+	Type string
 }

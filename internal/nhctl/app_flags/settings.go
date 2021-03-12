@@ -13,18 +13,13 @@ limitations under the License.
 
 package app_flags
 
-import (
-	"os"
-	"strconv"
-)
+//type EnvSettings struct {
+//	Debug      bool
+//	KubeConfig string // the path to the kubeconfig file
+//}
 
-type EnvSettings struct {
-	Debug      bool
-	KubeConfig string // the path to the kubeconfig file
-}
-
-func NewEnvSettings() *EnvSettings {
-	settings := EnvSettings{}
-	settings.Debug, _ = strconv.ParseBool(os.Getenv("NOCALHOST_DEBUG"))
-	return &settings
-}
+//func NewEnvSettings() *EnvSettings {
+//	settings := EnvSettings{}
+//	settings.Debug, _ = strconv.ParseBool(os.Getenv("NOCALHOST_DEBUG"))
+//	return &settings
+//}

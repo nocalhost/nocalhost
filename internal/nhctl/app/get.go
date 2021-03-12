@@ -15,6 +15,7 @@ package app
 
 import (
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
@@ -119,7 +120,7 @@ func (a *Application) GetDefaultWorkDir(svcName, container string) string {
 	return DefaultWorkDir
 }
 
-func (a *Application) GetPersistentVolumeDirs(svcName, container string) []*PersistentVolumeDir {
+func (a *Application) GetPersistentVolumeDirs(svcName, container string) []*profile.PersistentVolumeDir {
 	svcProfile := a.GetSvcProfileV2(svcName)
 	if svcProfile != nil {
 		return svcProfile.GetContainerDevConfigOrDefault(container).PersistentVolumeDirs

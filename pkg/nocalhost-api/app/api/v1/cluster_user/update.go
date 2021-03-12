@@ -100,7 +100,7 @@ func UpdateResourceLimit(c *gin.Context) {
 	devspace, err := service.Svc.ClusterUser().GetFirst(c, condition)
 	if err != nil || devspace == nil {
 		log.Errorf("Dev space has not found")
-		api.SendResponse(c, errno.ErrClsuterUserNotFound, nil)
+		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		return
 	}
 

@@ -105,7 +105,6 @@ func isMatchingInfo(a, b *resource.Info) bool {
 	return a.Name == b.Name && a.Namespace == b.Namespace && a.Mapping.GroupVersionKind.Kind == b.Mapping.GroupVersionKind.Kind
 }
 
-
 func LoadValidManifest(path, ignorePath []string) []string {
 	result := make([]string, 0)
 	resourcePaths := path

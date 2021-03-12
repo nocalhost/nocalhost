@@ -21,6 +21,7 @@ import (
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 
@@ -37,12 +38,15 @@ import (
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":[{"id":1,"context":"application info","status":"1"}]}"
 // @Router /v1/application [get]
 func Get(c *gin.Context) {
-	// userId, _ := c.Get("userId")
 	result, err := service.Svc.ApplicationSvc().GetList(c)
 	if err != nil {
 		log.Warnf("get Application err: %v", err)
 		api.SendResponse(c, errno.ErrApplicationGet, nil)
 		return
+	}
+
+	for _, applicationModel := range result {
+		applicationModel.FillEditable(ginbase.IsAdmin(c), ginbase.LoginUser(c))
 	}
 
 	api.SendResponse(c, errno.OK, result)
@@ -67,6 +71,7 @@ func GetDetail(c *gin.Context) {
 		api.SendResponse(c, errno.ErrApplicationGet, nil)
 		return
 	}
+	result.FillEditable(ginbase.IsAdmin(c), ginbase.LoginUser(c))
 
 	api.SendResponse(c, errno.OK, result)
 }
@@ -135,5 +140,51 @@ func GetNocalhostConfigTemplate(c *gin.Context) {
 	result := map[string]string{
 		"template": tpl.ConbineTpl(),
 	}
+	api.SendResponse(c, errno.OK, result)
+}
+
+// list permitted applications (for normal user)
+func ListPermitted(c *gin.Context) {
+	userId := cast.ToUint64(c.Param("id"))
+
+	// permitted
+	applicationUsers, err := service.Svc.ApplicationUser().ListByUserId(c, userId)
+	if err != nil {
+		log.Warnf("get application_user err: %v", err)
+		api.SendResponse(c, errno.ErrApplicationGet, nil)
+		return
+	}
+
+	set := map[uint64]interface{}{}
+	for _, au := range applicationUsers {
+		set[au.ApplicationId] = "-"
+	}
+
+	// userId, _ := c.Get("userId")
+	lists, err := service.Svc.ApplicationSvc().GetList(c)
+	if err != nil {
+		log.Warnf("get Application err: %v", err)
+		api.SendResponse(c, errno.ErrApplicationGet, nil)
+		return
+	}
+
+	var result []*model.ApplicationModel
+	for _, app := range lists {
+		_, ok := set[app.ID]
+
+		// public
+		if app.Public == 1 ||
+
+			// creator
+			app.UserId == userId ||
+
+			// has permission
+			ok {
+
+			app.FillEditable(ginbase.IsAdmin(c), ginbase.LoginUser(c))
+			result = append(result, app)
+		}
+	}
+
 	api.SendResponse(c, errno.OK, result)
 }

@@ -13,6 +13,8 @@ limitations under the License.
 
 package app
 
+import "nocalhost/internal/nhctl/profile"
+
 func (a *Application) CheckIfSvcIsDeveloping(svcName string) bool {
 	profile := a.GetSvcProfileV2(svcName)
 	if profile == nil {
@@ -37,7 +39,7 @@ func (a *Application) CheckIfSvcIsPortForwarded(svcName string) bool {
 	return profile.PortForwarded
 }
 
-func (a *Application) GetSvcProfileV2(svcName string) *SvcProfileV2 {
+func (a *Application) GetSvcProfileV2(svcName string) *profile.SvcProfileV2 {
 
 	for _, svcProfile := range a.AppProfileV2.SvcProfile {
 		if svcProfile.ActualName == svcName {
@@ -47,15 +49,15 @@ func (a *Application) GetSvcProfileV2(svcName string) *SvcProfileV2 {
 
 	// If not profile found, init one
 	if a.AppProfileV2.SvcProfile == nil {
-		a.AppProfileV2.SvcProfile = make([]*SvcProfileV2, 0)
+		a.AppProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
 	}
-	svcProfile := &SvcProfileV2{
-		ServiceConfigV2: &ServiceConfigV2{
+	svcProfile := &profile.SvcProfileV2{
+		ServiceConfigV2: &profile.ServiceConfigV2{
 			Name: svcName,
-			Type: Deployment,
-			ContainerConfigs: []*ContainerConfig{
+			Type: string(Deployment),
+			ContainerConfigs: []*profile.ContainerConfig{
 				{
-					Dev: &ContainerDevConfig{
+					Dev: &profile.ContainerDevConfig{
 						Image:   DefaultDevImage,
 						WorkDir: DefaultWorkDir,
 					},

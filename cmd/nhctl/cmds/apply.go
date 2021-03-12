@@ -22,6 +22,7 @@ import (
 )
 
 func init() {
+	//applyCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	rootCmd.AddCommand(applyCmd)
 }
 
@@ -39,7 +40,7 @@ var applyCmd = &cobra.Command{
 		applicationName := args[0]
 		path := args[1]
 
-		InitApp(applicationName)
+		initApp(applicationName)
 		manifests := clientgoutils.LoadValidManifest([]string{path}, []string{})
 
 		err := nocalhostApp.GetClient().ApplyForCreate(manifests, true, app.StandardNocalhostMetas(nocalhostApp.Name, nocalhostApp.GetNamespace()))

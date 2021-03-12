@@ -15,12 +15,12 @@ package cmds
 
 import (
 	"fmt"
+	"nocalhost/internal/nhctl/profile"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -31,7 +31,7 @@ func init() {
 }
 
 type ConfigForPlugin struct {
-	Services []*app.ServiceConfigV2 `json:"services" yaml:"services"`
+	Services []*profile.ServiceConfigV2 `json:"services" yaml:"services"`
 }
 
 var configGetCmd = &cobra.Command{
@@ -46,11 +46,11 @@ var configGetCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		commonFlags.AppName = args[0]
-		InitApp(commonFlags.AppName)
+		initApp(commonFlags.AppName)
 
 		// get application config
 		if commonFlags.AppConfig {
-			applicationConfig := nocalhostApp.GetApplicationConfigV2()
+			applicationConfig := nocalhostApp.GetAppProfileV2()
 			bys, err := yaml.Marshal(applicationConfig)
 			if err != nil {
 				log.FatalE(errors.Wrap(err, ""), "fail to get application config")
@@ -61,7 +61,7 @@ var configGetCmd = &cobra.Command{
 
 		if commonFlags.SvcName == "" {
 			config := &ConfigForPlugin{}
-			config.Services = make([]*app.ServiceConfigV2, 0)
+			config.Services = make([]*profile.ServiceConfigV2, 0)
 			for _, svcPro := range nocalhostApp.AppProfileV2.SvcProfile {
 				config.Services = append(config.Services, svcPro.ServiceConfigV2)
 			}

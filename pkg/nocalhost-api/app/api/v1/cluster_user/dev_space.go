@@ -14,6 +14,7 @@ limitations under the License.
 package cluster_user
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
@@ -57,38 +58,28 @@ func (d *DevSpace) Delete() error {
 	// delete database cluster-user dev space
 	dErr := service.Svc.ClusterUser().Delete(d.c, *d.DevSpaceParams.ID)
 	if dErr != nil {
-		return errno.ErrDeletedClsuterButDatabaseFail
+		return errno.ErrDeletedClusterButDatabaseFail
 	}
 	return nil
 }
 
 func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	userId := cast.ToUint64(d.DevSpaceParams.UserId)
+	clusterId := cast.ToUint64(d.DevSpaceParams.ClusterId)
 	applicationId := cast.ToUint64(d.DevSpaceParams.ApplicationId)
+
 	// get user
 	usersRecord, err := service.Svc.UserSvc().GetUserByID(d.c, userId)
 	if err != nil {
 		return nil, errno.ErrUserNotFound
 	}
 
-	// check application
-	applicationRecord, err := service.Svc.ApplicationSvc().Get(d.c, applicationId)
+	clusterRecord, err := service.Svc.ClusterSvc().Get(context.TODO(), clusterId)
 	if err != nil {
-		return nil, errno.ErrPermissionApplication
+		return nil, errno.ErrClusterNotFound
 	}
 
-	var decodeApplicationJson map[string]interface{}
-	err = json.Unmarshal([]byte(applicationRecord.Context), &decodeApplicationJson)
-	if err != nil {
-		return nil, errno.ErrApplicationJsonContext
-	}
-
-	applicationName := ""
-	if decodeApplicationJson["application_name"] != nil {
-		applicationName = decodeApplicationJson["application_name"].(string)
-	}
-
-	spaceName := applicationName + "[" + usersRecord.Name + "]"
+	spaceName := clusterRecord.Name + "[" + usersRecord.Name + "]"
 	if d.DevSpaceParams.SpaceName != "" {
 		spaceName = d.DevSpaceParams.SpaceName
 	}
@@ -98,14 +89,33 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	if err != nil {
 		return nil, errno.ErrPermissionCluster
 	}
-	// check if has auth
-	cu := model.ClusterUserModel{
-		ApplicationId: applicationId,
-		UserId:        userId,
-	}
-	_, hasRecord := service.Svc.ClusterUser().GetFirst(d.c, cu)
-	if hasRecord == nil {
-		return nil, errno.ErrBindUserClsuterRepeat
+
+	if applicationId == 0 {
+
+		// check if has created
+		cu := model.ClusterUserModel{
+			ClusterId: clusterId,
+			UserId:    userId,
+		}
+		_, hasRecord := service.Svc.ClusterUser().GetFirst(d.c, cu)
+
+		// for adapt current version, prevent can't not create devSpace on same namespace
+		if hasRecord == nil {
+			return nil, errno.ErrBindUserClusterRepeat
+		}
+	} else {
+
+		// check if has created
+		cu := model.ClusterUserModel{
+			ApplicationId: applicationId,
+			UserId:        userId,
+		}
+		_, hasRecord := service.Svc.ClusterUser().GetFirst(d.c, cu)
+
+		// for adapt current version, prevent can't not create devSpace on same namespace
+		if hasRecord == nil {
+			return nil, errno.ErrBindUserApplicationRepeat
+		}
 	}
 
 	// create namespace

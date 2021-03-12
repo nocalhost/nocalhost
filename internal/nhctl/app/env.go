@@ -14,12 +14,13 @@ limitations under the License.
 package app
 
 import (
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/utils"
 )
 
 // Used by dep
 type InstallEnvForDep struct {
-	Global  []*Env              `json:"global" yaml:"global"`
+	Global  []*profile.Env      `json:"global" yaml:"global"`
 	Service []*ServiceEnvForDep `json:"service" yaml:"service"`
 }
 
@@ -30,17 +31,17 @@ type ServiceEnvForDep struct {
 }
 
 type ContainerEnvForDep struct {
-	Name       string `json:"name" yaml:"name"`
-	InstallEnv []*Env `json:"installEnv" yaml:"installEnv"`
+	Name       string         `json:"name" yaml:"name"`
+	InstallEnv []*profile.Env `json:"installEnv" yaml:"installEnv"`
 }
 
 type ContainerDevEnv struct {
-	DevEnv []*Env
+	DevEnv []*profile.Env
 }
 
 func (a *Application) GetDevContainerEnv(svcName, container string) *ContainerDevEnv {
 	// Find service env
-	devEnv := make([]*Env, 0)
+	devEnv := make([]*profile.Env, 0)
 	kvMap := make(map[string]string, 0)
 	serviceConfig := a.GetSvcProfileV2(svcName)
 	for _, v := range serviceConfig.ContainerConfigs {
@@ -59,7 +60,7 @@ func (a *Application) GetDevContainerEnv(svcName, container string) *ContainerDe
 		}
 	}
 	for k, v := range kvMap {
-		env := &Env{
+		env := &profile.Env{
 			Name:  k,
 			Value: v,
 		}
@@ -81,9 +82,9 @@ func (a *Application) GetInstallEnvForDep() *InstallEnvForDep {
 		kvMap[env.Name] = env.Value
 	}
 
-	globalEnv := make([]*Env, 0)
+	globalEnv := make([]*profile.Env, 0)
 	for key, val := range kvMap {
-		globalEnv = append(globalEnv, &Env{
+		globalEnv = append(globalEnv, &profile.Env{
 			Name:  key,
 			Value: val,
 		})
@@ -119,9 +120,9 @@ func (a *Application) GetInstallEnvForDep() *InstallEnvForDep {
 				kvMap1[env.Name] = env.Value
 			}
 
-			containerEnv := make([]*Env, 0)
+			containerEnv := make([]*profile.Env, 0)
 			for key, val := range kvMap1 {
-				containerEnv = append(containerEnv, &Env{
+				containerEnv = append(containerEnv, &profile.Env{
 					Name:  key,
 					Value: val,
 				})

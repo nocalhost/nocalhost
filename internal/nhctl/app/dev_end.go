@@ -16,6 +16,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/terminate"
 	"runtime"
 	"strconv"
@@ -29,11 +30,15 @@ import (
 func (a *Application) StopAllPortForward(svcName string) error {
 
 	for _, portForward := range a.GetSvcProfileV2(svcName).DevPortForwardList {
-		_ = terminate.Terminate(portForward.Pid, true, "port-forward")
+		log.Infof("Stopping process %d", portForward.Pid)
+		err := terminate.Terminate(portForward.Pid, true, "port-forward")
+		if err != nil {
+			log.WarnE(err, "")
+		}
 	}
 
 	// Clean up port-forward status
-	a.GetSvcProfileV2(svcName).DevPortForwardList = make([]*DevPortForward, 0)
+	a.GetSvcProfileV2(svcName).DevPortForwardList = make([]*profile.DevPortForward, 0)
 	return a.SaveProfile()
 }
 
@@ -54,7 +59,7 @@ func (a *Application) StopPortForwardByPort(svcName, port string) error {
 	return nil
 }
 
-func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
+func (a *Application) StopSyncAndPortForwardProcess(svcName string) error {
 	var err error
 	fileSyncOps := &FileSyncOptions{}
 	devStartOptions := &DevStartOptions{}
@@ -98,27 +103,7 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 		fmt.Printf("Background port-forward process: %d and  syncthing process: %d terminated.\n", portForwardPid, syncthingPid)
 	}
 
-	// end dev port background port forward process from profile
-	//onlyPortForwardPid, onlyPortForwardFilePath, err := a.GetBackgroundOnlyPortForwardPid(svcName, false)
-	//if err != nil {
-	//	log.Info("No dev port-forward pid file found, ignored.")
-	//}
-	//if onlyPortForwardPid != 0 {
-	//	err = newSyncthing.Stop(onlyPortForwardPid, onlyPortForwardFilePath, "port-forward", true)
-	//	if err != nil {
-	//		log.Infof("Failed to terminate dev port-forward process(pid %d), please run `kill -9 %d` manually", onlyPortForwardPid, onlyPortForwardPid)
-	//	}
-	//}
-
-	//devPortsList := a.GetSvcProfileV2(svcName).DevPortList
-	//if len(devPortsList) > 0 {
-	//	for _, v := range devPortsList {
-	//		err := a.StopPortForwardByPort(svcName, v)
-	//		if err == nil {
-	//			fmt.Printf("dev port-forward: %s has been ended\n", v)
-	//		}
-	//	}
-	//}
+	log.Info("Stopping port forward")
 	err = a.StopAllPortForward(svcName)
 	if err != nil {
 		log.WarnE(err, err.Error())
@@ -145,11 +130,9 @@ func (a *Application) stopSyncProcessAndCleanPidFiles(svcName string) error {
 
 func (a *Application) Reset(svcName string) {
 	var err error
-	err = a.stopSyncProcessAndCleanPidFiles(svcName)
+	err = a.StopSyncAndPortForwardProcess(svcName)
 	if err != nil {
-		if err != nil {
-			log.Warnf("something incorrect occurs when stopping sync process: %s", err.Error())
-		}
+		log.Warnf("something incorrect occurs when stopping sync process: %s", err.Error())
 	}
 	err = a.RollBack(context.TODO(), svcName, true)
 	if err != nil {
@@ -163,18 +146,16 @@ func (a *Application) Reset(svcName string) {
 
 func (a *Application) EndDevelopMode(svcName string) error {
 	var err error
-	if !a.CheckIfSvcIsDeveloping(svcName) {
-		return errors.New(fmt.Sprintf("\"%s\" is not in developing status", svcName))
-	}
 
 	log.Info("Ending devMode...")
+
 	// end file sync
-	log.Info("Terminating file sync process...")
-	err = a.stopSyncProcessAndCleanPidFiles(svcName)
-	if err != nil {
-		log.WarnE(err, "Error occurs when stopping sync process")
-		return err
-	}
+	//log.Info("Terminating file sync process...")
+	//err = a.stopSyncAndPortForwardProcess(svcName)
+	//if err != nil {
+	//	log.WarnE(err, "Error occurs when stopping sync process")
+	//	return err
+	//}
 
 	// roll back workload
 	log.Debug("Rolling back workload...")
