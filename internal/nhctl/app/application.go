@@ -50,10 +50,12 @@ const (
 	ManifestLocal AppType = "rawManifestLocal"
 	HelmLocal     AppType = "helmLocal"
 
-	AppManagedByLabel                   = "app.kubernetes.io/managed-by"
-	AppManagedByNocalhost               = "nocalhost"
-	NocalhostReleaseNameAnnotation      = "meta.nocalhost.sh/release-name"
-	NocalhostReleaseNamespaceAnnotation = "meta.nocalhost.sh/release-namespace"
+	AppManagedByLabel             = "app.kubernetes.io/managed-by"
+	AppManagedByNocalhost         = "nocalhost"
+	NocalhostApplicationName      = "dev.nocalhost/application-name"
+	NocalhostApplicationNamespace = "dev.nocalhost/application-namespace"
+	SecretName                    = "dev.nocalhost.application."
+	SecretType                    = "dev.nocalhost/application"
 )
 
 type Application struct {
@@ -360,8 +362,8 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 	if dep.Annotations == nil {
 		dep.Annotations = make(map[string]string, 0)
 	}
-	dep.Annotations[NocalhostReleaseNameAnnotation] = a.Name
-	dep.Annotations[NocalhostReleaseNamespaceAnnotation] = a.GetNamespace()
+	dep.Annotations[NocalhostApplicationName] = a.Name
+	dep.Annotations[NocalhostApplicationNamespace] = a.GetNamespace()
 
 	_, err = clientUtils.CreateDeployment(dep)
 	if err != nil {
