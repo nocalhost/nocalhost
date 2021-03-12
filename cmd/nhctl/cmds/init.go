@@ -154,6 +154,8 @@ var InitCommand = &cobra.Command{
 				"uninstall",
 				app.DefaultInitInstallApplicationName,
 				"--force",
+				"-n",
+				inits.NameSpace,
 			}
 			_, err = tools.ExecCommand(nil, true, nhctl, uninstall...)
 			if err != nil {
