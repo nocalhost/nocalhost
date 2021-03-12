@@ -75,5 +75,5 @@ func GetDB() *gorm.DB {
 
 // MigrateDB
 func MigrateDB() {
-	DB.AutoMigrate(&ApplicationModel{}, &ClusterModel{}, &ClusterUserModel{}, &PrePullModel{}, &UserBaseModel{})
+	DB.AutoMigrate(&ApplicationModel{}, &ClusterModel{}, &ClusterUserModel{}, &PrePullModel{}, &UserBaseModel{}, &ApplicationUserModel{})
 }

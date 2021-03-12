@@ -16,7 +16,7 @@ package applications
 type CreateAppRequest struct {
 	Context string `json:"context" binding:"required" example:"{\"application_url\":\"git@github.com:nocalhost/bookinfo.git\",\"application_name\":\"name\",\"source\":\"git/helm_repo\",\"install_type\":\"rawManifest/helm_chart\",\"resource_dir\":[\"manifest/templates\"],\"nocalhost_config_raw\":\"base64encode(config_templates)\",\"nocalhost_config_path\":\"./nocalhost/config.yaml\"}"`
 	Status  *uint8 `json:"status" binding:"required"`
-	Public  *uint8 `json:"public" binding:"required"`
+	Public  *uint8 `json:"public"`
 }
 
 type UpdateApplicationInstallRequest struct {

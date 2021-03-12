@@ -157,7 +157,7 @@ func ListPermitted(c *gin.Context) {
 
 	set := map[uint64]interface{}{}
 	for _, au := range applicationUsers {
-		set[au.ApplicationId] = nil
+		set[au.ApplicationId] = "-"
 	}
 
 	// userId, _ := c.Get("userId")

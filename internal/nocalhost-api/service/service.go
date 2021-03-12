@@ -27,6 +27,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
+	"strings"
 	"sync"
 )
 
@@ -63,6 +64,8 @@ func New() (s *Service) {
 	} else {
 		log.Infof("Service Initial is disable(enable in build with env: SERVICE_INITIAL=true)")
 	}
+
+	s.dataMigrate()
 	return s
 }
 
@@ -103,6 +106,37 @@ func (s *Service) Ping() error {
 // Close service
 func (s *Service) Close() {
 	s.userSvc.Close()
+}
+
+func (s *Service) dataMigrate() {
+	log.Info("Migrate data if needed... ")
+
+	// adapt cluster_user to application_user
+	list, err := s.clusterUserSvc.GetList(context.TODO(), model.ClusterUserModel{})
+	if err != nil {
+		log.Infof("Error while migrate data: %+v", err)
+	}
+
+	if list == nil {
+		return
+	}
+
+	for _, userModel := range list {
+		applicationId := userModel.ApplicationId
+		userId := userModel.UserId
+
+		if applicationId <= 0 {
+			continue
+		}
+
+		_, err := s.applicationUserSvc.GetByApplicationIdAndUserId(context.TODO(), applicationId, userId)
+		if err != nil && strings.Contains(err.Error(),"record not found"){
+			err := s.ApplicationUser().BatchInsert(context.TODO(), applicationId, []uint64{userId})
+			if err != nil {
+				log.Infof("Error while migrate data[BatchInsert]: %+v", err)
+			}
+		}
+	}
 }
 
 func (s *Service) init() {

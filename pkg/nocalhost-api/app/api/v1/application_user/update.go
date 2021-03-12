@@ -20,13 +20,17 @@ func BatchInsert(c *gin.Context) {
 		return
 	}
 
-	err := service.Svc.ApplicationUser().BatchInsert(c, applicationId, req.Users)
+	var users []uint64
+	for _, user := range req.Users {
+		users = append(users, uint64(user))
+	}
+
+	err := service.Svc.ApplicationUser().BatchInsert(c, applicationId, users)
 
 	if err != nil {
 		api.SendResponse(c, errno.ErrInsertApplicationUser, nil)
 		return
 	}
-
 	api.SendResponse(c, nil, nil)
 }
 
@@ -41,12 +45,16 @@ func BatchDelete(c *gin.Context) {
 		return
 	}
 
-	err := service.Svc.ApplicationUser().BatchDelete(c, applicationId, req.Users)
+	var users []uint64
+	for _, user := range req.Users {
+		users = append(users, uint64(user))
+	}
+
+	err := service.Svc.ApplicationUser().BatchDelete(c, applicationId, users)
 
 	if err != nil {
 		api.SendResponse(c, errno.ErrDeleteApplicationUser, nil)
 		return
 	}
-
 	api.SendResponse(c, nil, nil)
 }

@@ -51,19 +51,21 @@ func GetList(c *gin.Context) {
 	api.SendResponse(c, errno.OK, result)
 }
 
-func ListByUser(c *gin.Context){
+// list permitted dev_space by user
+// distinct by cluster id
+func ListByUser(c *gin.Context) {
 	user := cast.ToUint64(c.Param("id"))
 	result, _ := service.Svc.ClusterSvc().GetList(c)
 
-	// if login, to discover which cluster's dev space has been created
-	if user != ginbase.NotExist {
+	// user but admin can only access his own clusters
+	if ginbase.IsAdmin(c) || ginbase.LoginUser(c) == user {
 		userModel := model.ClusterUserModel{
 			UserId: user,
 		}
 
 		list, err := service.Svc.ClusterUser().GetList(c, userModel)
 		if err != nil {
-			api.SendResponse(c, errno.ErrClsuterUserNotFound, nil)
+			api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		}
 
 		set := map[uint64]interface{}{}
@@ -72,10 +74,13 @@ func ListByUser(c *gin.Context){
 		}
 
 		for _, cluster := range result {
+
 			if _, ok := set[cluster.ID]; ok {
 				cluster.HasDevSpace = true
 			}
 		}
+	} else {
+		api.SendResponse(c, errno.ErrLoginRequired, result)
 	}
 
 	api.SendResponse(c, errno.OK, result)

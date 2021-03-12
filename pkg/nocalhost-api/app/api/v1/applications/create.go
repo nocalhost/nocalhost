@@ -71,6 +71,12 @@ func Create(c *gin.Context) {
 		return
 	}
 
+	// adapt earlier version
+	if req.Public==nil {
+		u := uint8(1)
+		req.Public = &u
+	}
+
 	// normal user can't not create public applications
 	if !ginbase.IsAdmin(c) {
 		deny := uint8(0)

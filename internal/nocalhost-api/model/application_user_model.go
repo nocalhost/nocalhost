@@ -22,8 +22,8 @@ import (
 // ApplicationClusterModel
 type ApplicationUserModel struct {
 	ID            uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
-	ApplicationId uint64     `gorm:"column:application_id;not null" json:"application_id"`
-	UserId        uint64     `gorm:"column:user_id;not null" json:"user_id"`
+	ApplicationId uint64     `gorm:"column:application_id;UNIQUE_INDEX:uidx_userapp;not null" json:"application_id"`
+	UserId        uint64     `gorm:"column:user_id;UNIQUE_INDEX:uidx_userapp;not null" json:"user_id"`
 	CreatedAt     time.Time  `gorm:"column:created_at" json:"-"`
 	UpdatedAt     time.Time  `gorm:"column:updated_at" json:"-"`
 	DeletedAt     *time.Time `gorm:"column:deleted_at" json:"-"`

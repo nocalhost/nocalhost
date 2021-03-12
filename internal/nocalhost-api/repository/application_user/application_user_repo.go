@@ -16,9 +16,8 @@ package application_user
 import (
 	"context"
 	"errors"
-	"nocalhost/internal/nocalhost-api/model"
-
 	"github.com/jinzhu/gorm"
+	"nocalhost/internal/nocalhost-api/model"
 )
 
 type ApplicationUserRepo interface {
@@ -26,6 +25,7 @@ type ApplicationUserRepo interface {
 	ListByUserId(ctx context.Context, userId uint64) ([]*model.ApplicationUserModel, error)
 	BatchDelete(ctx context.Context, applicationId uint64, userIds []uint64) error
 	BatchInsert(ctx context.Context, applicationId uint64, userIds []uint64) error
+	GetByApplicationIdAndUserId(ctx context.Context, applicationId uint64, userId uint64) (*model.ApplicationUserModel, error)
 	Close()
 }
 
@@ -55,20 +55,13 @@ func (repo *applicationUserRepo) BatchInsert(ctx context.Context, applicationId 
 		return errors.New("Can not batch insert applications_users with empty userIds ")
 	}
 
-	var result []model.ApplicationUserModel
-
 	for _, userId := range userIds {
-		result = append(result,
-			model.ApplicationUserModel{
-				ApplicationId: applicationId,
-				UserId:        userId,
-			},
-		)
+		repo.db.Create(&model.ApplicationUserModel{
+			ApplicationId: applicationId,
+			UserId:        userId,
+		})
 	}
 
-	if err := repo.db.Create(result).Error; err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -88,6 +81,16 @@ func (repo *applicationUserRepo) ListByUserId(ctx context.Context, userId uint64
 		return result, err.Error
 	}
 	return result, nil
+}
+
+func (repo *applicationUserRepo) GetByApplicationIdAndUserId(ctx context.Context, applicationId uint64, userId uint64) (*model.ApplicationUserModel, error) {
+	var result = model.ApplicationUserModel{}
+	err := repo.db.Where(&model.ApplicationUserModel{
+		ApplicationId: applicationId,
+		UserId:        userId,
+	}).First(&result).Error
+
+	return &result, err
 }
 
 // Close close db

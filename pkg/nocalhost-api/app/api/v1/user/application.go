@@ -48,7 +48,7 @@ func listByApplication(c *gin.Context, inApp bool) ([]*model.UserList, error) {
 
 	set := map[uint64]interface{}{}
 	for _, au := range applicationUsers {
-		set[au.UserId] = nil
+		set[au.UserId] = "-"
 	}
 
 	result := []*model.UserList{}

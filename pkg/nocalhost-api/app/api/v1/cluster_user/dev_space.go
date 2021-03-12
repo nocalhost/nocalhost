@@ -58,7 +58,7 @@ func (d *DevSpace) Delete() error {
 	// delete database cluster-user dev space
 	dErr := service.Svc.ClusterUser().Delete(d.c, *d.DevSpaceParams.ID)
 	if dErr != nil {
-		return errno.ErrDeletedClsuterButDatabaseFail
+		return errno.ErrDeletedClusterButDatabaseFail
 	}
 	return nil
 }
@@ -66,6 +66,7 @@ func (d *DevSpace) Delete() error {
 func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	userId := cast.ToUint64(d.DevSpaceParams.UserId)
 	clusterId := cast.ToUint64(d.DevSpaceParams.ClusterId)
+	applicationId := cast.ToUint64(d.DevSpaceParams.ApplicationId)
 
 	// get user
 	usersRecord, err := service.Svc.UserSvc().GetUserByID(d.c, userId)
@@ -90,12 +91,14 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	}
 	// check if has auth
 	cu := model.ClusterUserModel{
-		ApplicationId: clusterId,
-		UserId:        userId,
+		ClusterId: clusterId,
+		UserId:    userId,
 	}
 	_, hasRecord := service.Svc.ClusterUser().GetFirst(d.c, cu)
-	if hasRecord == nil {
-		return nil, errno.ErrBindUserClsuterRepeat
+
+	// for adapt current version, prevent can't not create devSpace on same namespace
+	if hasRecord == nil && applicationId == 0 {
+		return nil, errno.ErrBindUserClusterRepeat
 	}
 
 	// create namespace
@@ -132,7 +135,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		res.ContainerReqMem, res.ContainerLimitsMem, res.ContainerReqCpu, res.ContainerLimitsCpu, res.ContainerEphemeralStorage)
 
 	resString, err := json.Marshal(res)
-	result, err := service.Svc.ClusterUser().Create(d.c, 0, *d.DevSpaceParams.ClusterId, userId, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu, KubeConfigYaml, devNamespace, spaceName, string(resString))
+	result, err := service.Svc.ClusterUser().Create(d.c, applicationId, *d.DevSpaceParams.ClusterId, userId, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu, KubeConfigYaml, devNamespace, spaceName, string(resString))
 	if err != nil {
 		return nil, errno.ErrBindApplicationClsuter
 	}

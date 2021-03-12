@@ -86,7 +86,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		u.DELETE("/:id", user.Delete)
 		u.GET("/:id/dev_space_list", cluster_user.GetJoinClusterAndAppAndUser)
 		u.GET("/:id/applications", applications.ListPermitted)
-		u.GET("/:id/dev_spaces", cluster_user.ListByUserId)
+		u.GET("/:id/dev_spaces", cluster_user.ListDistinctByUserId)
 		u.GET("/:id/clusters", cluster.ListByUser)
 	}
 
@@ -141,9 +141,10 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	}
 
 	// DevSpace
-	dv := g.Group("v1/dev_space")
+	dv := g.Group("/v1/dev_space")
 	dv.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
 	{
+		dv.GET("", cluster_user.ListDistinct)
 		dv.DELETE("/:id", cluster_user.Delete)
 		dv.PUT("/:id", cluster_user.Update)
 		dv.POST("/:id/recreate", cluster_user.ReCreate)

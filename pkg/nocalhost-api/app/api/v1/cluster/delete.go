@@ -91,14 +91,14 @@ func releaseTargetClusterResources(goClient *clientgo.GoClient, clusterId uint64
 func deleteNocalhostManagedData(c *gin.Context, clusterId uint64, spaceIds []uint64) bool {
 	err := service.Svc.ClusterSvc().Delete(c, clusterId)
 	if err != nil {
-		api.SendResponse(c, errno.ErrDeletedClsuterDBButClusterDone, nil)
+		api.SendResponse(c, errno.ErrDeletedClusterDBButClusterDone, nil)
 		return false
 	}
 
 	if len(spaceIds) > 0 {
 		err = service.Svc.ClusterUser().BatchDelete(c, spaceIds)
 		if err != nil {
-			api.SendResponse(c, errno.ErrDeletedClsuterDevSpaceDBButClusterDone, nil)
+			api.SendResponse(c, errno.ErrDeletedClusterDevSpaceDBButClusterDone, nil)
 			return false
 		}
 	}
