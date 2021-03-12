@@ -38,7 +38,7 @@ func initApp(appName string) {
 	if !nocalhost.CheckIfApplicationExist(appName, nameSpace) {
 		log.FatalE(err, fmt.Sprintf("Application \"%s\" not found", appName))
 	}
-	nocalhostApp, err = app.NewApplication(appName, nameSpace)
+	nocalhostApp, err = app.NewApplication(appName, nameSpace, true)
 	if err != nil {
 		log.FatalE(err, "Failed to get application info")
 	}

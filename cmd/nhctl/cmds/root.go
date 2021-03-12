@@ -47,14 +47,15 @@ var rootCmd = &cobra.Command{
 	Short: "nhctl use to deploy coding project",
 	Long:  `nhctl can deploy and develop application on Kubernetes. `,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		err := nocalhost.Init()
-		if err != nil {
-			log.FatalE(err, "Fail to init nhctl")
-		}
+
 		if debug {
 			log.Init(zapcore.DebugLevel, nocalhost.GetLogDir(), nocalhost.DefaultLogFileName)
 		} else {
 			log.Init(zapcore.InfoLevel, nocalhost.GetLogDir(), nocalhost.DefaultLogFileName)
+		}
+		err := nocalhost.Init()
+		if err != nil {
+			log.FatalE(err, "Fail to init nhctl")
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
