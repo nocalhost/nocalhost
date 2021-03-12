@@ -48,7 +48,7 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version number of nhctl",
 	Long:  `All software has versions. This is nhctl's`,
 	Run: func(cmd *cobra.Command, args []string) {
-		Version = "0.3.0"
+		//Version = "0.3.0"
 		if Branch == app.DefaultNocalhostMainBranch {
 			fmt.Printf("nhctl: Nocalhost CLI\n")
 			fmt.Printf("    Version: %s\n", Version)
