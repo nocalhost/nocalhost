@@ -76,7 +76,7 @@ CREATE TABLE `applications_users` (
   PRIMARY KEY (`id`),
   KEY `application_id` (`application_id`),
   KEY `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 
