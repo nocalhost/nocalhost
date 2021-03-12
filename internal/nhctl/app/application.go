@@ -79,7 +79,7 @@ type SvcDependency struct {
 	Pods []string `json:"pods" yaml:"pods,omitempty"`
 }
 
-func NewApplication(name string, ns string) (*Application, error) {
+func NewApplication(name string, ns string, initClient bool) (*Application, error) {
 	app := &Application{
 		Name:      name,
 		NameSpace: ns,
@@ -100,9 +100,11 @@ func NewApplication(name string, ns string) (*Application, error) {
 		_ = app.SaveProfile()
 	}
 
-	app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), app.GetNamespace())
-	if err != nil {
-		return nil, err
+	if initClient {
+		app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), app.GetNamespace())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	app.convertDevPortForwardList()

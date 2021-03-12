@@ -58,7 +58,7 @@ var uninstallCmd = &cobra.Command{
 		}
 
 		log.Info("Uninstalling application...")
-		nhApp, err := app.NewApplication(applicationName, nameSpace)
+		nhApp, err := app.NewApplication(applicationName, nameSpace, true)
 		if err != nil {
 			if !force {
 				log.FatalE(err, "Failed to get application")
