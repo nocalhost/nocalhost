@@ -26,7 +26,7 @@ import (
 var force bool
 
 func init() {
-	//uninstallCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
+	uninstallCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	uninstallCmd.Flags().BoolVar(&force, "force", false, "force to uninstall anyway")
 	rootCmd.AddCommand(uninstallCmd)
 }
