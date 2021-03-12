@@ -20,7 +20,7 @@ func (a *Application) GetNamespace() string {
 }
 
 func (a *Application) GetType() AppType {
-	return a.AppProfileV2.AppType
+	return AppType(a.AppProfileV2.AppType)
 }
 
 func (a *Application) GetKubeconfig() string {
@@ -28,11 +28,11 @@ func (a *Application) GetKubeconfig() string {
 }
 
 func (a *Application) IsHelm() bool {
-	return a.AppProfileV2.AppType == Helm || a.AppProfileV2.AppType == HelmRepo || a.AppProfileV2.AppType == HelmLocal
+	return a.AppProfileV2.AppType == string(Helm) || a.AppProfileV2.AppType == string(HelmRepo) || a.AppProfileV2.AppType == string(HelmLocal)
 }
 
 func (a *Application) IsManifest() bool {
-	return a.AppProfileV2.AppType == Manifest || a.AppProfileV2.AppType == ManifestLocal
+	return a.AppProfileV2.AppType == string(Manifest) || a.AppProfileV2.AppType == string(ManifestLocal)
 }
 
 func (a *Application) GetClient() *clientgoutils.ClientGoUtils {

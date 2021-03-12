@@ -45,7 +45,7 @@ var execCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		execFlags.AppName = args[0]
-		InitAppAndCheckIfSvcExist(execFlags.AppName, execFlags.SvcName)
+		initAppAndCheckIfSvcExist(execFlags.AppName, execFlags.SvcName, nil)
 
 		err = nocalhostApp.Exec(execFlags.SvcName, "", execFlags.Commands)
 		if err != nil {

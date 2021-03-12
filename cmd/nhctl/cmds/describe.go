@@ -38,7 +38,7 @@ var describeCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		InitApp(applicationName)
+		initApp(applicationName)
 		if deployment == "" {
 			fmt.Print(nocalhostApp.GetDescription())
 		} else {

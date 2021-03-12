@@ -11,14 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package app
-
-import (
-	"github.com/pkg/errors"
-	"io/ioutil"
-
-	"gopkg.in/yaml.v3"
-)
+package profile
 
 // Deprecated: this struct is deprecated
 type AppProfile struct {
@@ -29,38 +22,9 @@ type AppProfile struct {
 	Namespace               string        `json:"namespace" yaml:"namespace"`
 	Kubeconfig              string        `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
 	DependencyConfigMapName string        `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
-	AppType                 AppType       `json:"app_type" yaml:"appType"`
+	AppType                 string        `json:"app_type" yaml:"appType"`
 	SvcProfile              []*SvcProfile `json:"svc_profile" yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
 	Installed               bool          `json:"installed" yaml:"installed"`
 	ResourcePath            []string      `json:"resource_path" yaml:"resourcePath"`
 	IgnoredPath             []string      `json:"ignoredPath" yaml:"ignoredPath"`
-}
-
-func NewAppProfile(path string) (*AppProfile, error) {
-	app := &AppProfile{
-		path: path,
-	}
-	err := app.Load()
-	if err != nil {
-		return nil, err
-	}
-	return app, nil
-}
-
-func (a *AppProfile) Save() error {
-	bytes, err := yaml.Marshal(a)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	err = ioutil.WriteFile(a.path, bytes, 0755)
-	return errors.Wrap(err, "")
-}
-
-func (a *AppProfile) Load() error {
-	fBytes, err := ioutil.ReadFile(a.path)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	err = yaml.Unmarshal(fBytes, a)
-	return errors.Wrap(err, "")
 }

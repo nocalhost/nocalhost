@@ -40,7 +40,7 @@ var devTerminalCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		InitAppAndCheckIfSvcExist(applicationName, deployment)
+		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
 
 		err = nocalhostApp.EnterPodTerminal(deployment, container)
 		if err != nil {

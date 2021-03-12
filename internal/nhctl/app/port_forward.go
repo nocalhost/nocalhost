@@ -14,13 +14,14 @@ limitations under the License.
 package app
 
 import (
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/terminate"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"time"
 )
 
-func (a *Application) AppendPortForward(svcName string, devPortForward *DevPortForward) {
+func (a *Application) AppendPortForward(svcName string, devPortForward *profile.DevPortForward) {
 	a.GetSvcProfileV2(svcName).DevPortForwardList = append(a.GetSvcProfileV2(svcName).DevPortForwardList, devPortForward)
 }
 
@@ -40,7 +41,7 @@ func (a *Application) SetPortForwardPid(svcName string, localPort int, remotePor
 		}
 	}
 	if !found {
-		newPF := &DevPortForward{
+		newPF := &profile.DevPortForward{
 			LocalPort:  localPort,
 			RemotePort: remotePort,
 			Way:        "",
@@ -90,7 +91,7 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 	if indexToDelete > -1 {
 
 		originList := a.GetSvcProfileV2(svcName).DevPortForwardList
-		newList := make([]*DevPortForward, 0)
+		newList := make([]*profile.DevPortForward, 0)
 		for index, p := range originList {
 			if index != indexToDelete {
 				newList = append(newList, p)

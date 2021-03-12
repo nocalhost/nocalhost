@@ -17,7 +17,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -37,17 +36,19 @@ var pvcCleanCmd = &cobra.Command{
 			log.Fatal("--app mush be specified")
 		}
 
-		if !nocalhost.CheckIfApplicationExist(pvcFlags.App) {
-			log.Fatalf("Application %s not found", pvcFlags.App)
-		}
-		nhApp, err := app.NewApplication(pvcFlags.App)
-		if err != nil {
-			log.Fatalf("Failed to create application %s", pvcFlags.App)
-		}
+		//if !nocalhost.CheckIfApplicationExist(pvcFlags.App, nameSpace) {
+		//	log.Fatalf("Application %s not found", pvcFlags.App)
+		//}
+		//nhApp, err := app.NewApplication(pvcFlags.App)
+		//if err != nil {
+		//	log.Fatalf("Failed to create application %s", pvcFlags.App)
+		//}
+		var err error
+		initApp(pvcFlags.App)
 
 		// Clean up specified pvc
 		if pvcFlags.Name != "" {
-			err = nhApp.CleanUpPVC(pvcFlags.Name)
+			err = nocalhostApp.CleanUpPVC(pvcFlags.Name)
 			if err != nil {
 				log.FatalE(err, "Failed to clean up pvc: "+pvcFlags.Name)
 			} else {
@@ -58,7 +59,7 @@ var pvcCleanCmd = &cobra.Command{
 
 		// Clean up PVCs of specified service
 		if pvcFlags.Svc != "" {
-			exist, err := nhApp.CheckIfSvcExist(pvcFlags.Svc, app.Deployment)
+			exist, err := nocalhostApp.CheckIfSvcExist(pvcFlags.Svc, app.Deployment)
 			if err != nil {
 				log.FatalE(err, "failed to check if svc exists")
 			} else if !exist {
@@ -66,7 +67,7 @@ var pvcCleanCmd = &cobra.Command{
 			}
 		}
 
-		err = nhApp.CleanUpPVCs(pvcFlags.Svc, true)
+		err = nocalhostApp.CleanUpPVCs(pvcFlags.Svc, true)
 		if err != nil {
 			log.FatalE(err, "Cleaning up pvcs failed")
 		}

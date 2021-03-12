@@ -18,21 +18,25 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap/zapcore"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 )
 
-var settings *app_flags.EnvSettings
-var nocalhostApp *app.Application
+var (
+	//settings     *app_flags.EnvSettings
+	nameSpace    string
+	debug        bool
+	kubeConfig   string // the path to the kubeconfig file
+	nocalhostApp *app.Application
+)
 
 func init() {
 
-	settings = app_flags.NewEnvSettings()
-
-	rootCmd.PersistentFlags().BoolVar(&settings.Debug, "debug", settings.Debug, "enable debug level log")
-	rootCmd.PersistentFlags().StringVar(&settings.KubeConfig, "kubeconfig", "", "the path of the kubeconfig file")
+	//settings = app_flags.NewEnvSettings()
+	rootCmd.PersistentFlags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
+	rootCmd.PersistentFlags().BoolVar(&debug, "debug", debug, "enable debug level log")
+	rootCmd.PersistentFlags().StringVar(&kubeConfig, "kubeconfig", "", "the path of the kubeconfig file")
 
 	//cobra.OnInitialize(func() {
 	//})
@@ -45,10 +49,9 @@ var rootCmd = &cobra.Command{
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		err := nocalhost.Init()
 		if err != nil {
-			fmt.Errorf("fail to init: %s", err.Error())
-			os.Exit(1)
+			log.FatalE(err, "Fail to init nhctl")
 		}
-		if settings.Debug {
+		if debug {
 			log.Init(zapcore.DebugLevel, nocalhost.GetLogDir(), nocalhost.DefaultLogFileName)
 		} else {
 			log.Init(zapcore.InfoLevel, nocalhost.GetLogDir(), nocalhost.DefaultLogFileName)

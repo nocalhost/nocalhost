@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Nocalhost Authors.
+Copyright 2021 The Nocalhost Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -11,15 +11,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package app_flags
+package profile
 
-//type EnvSettings struct {
-//	Debug      bool
-//	KubeConfig string // the path to the kubeconfig file
-//}
-
-//func NewEnvSettings() *EnvSettings {
-//	settings := EnvSettings{}
-//	settings.Debug, _ = strconv.ParseBool(os.Getenv("NOCALHOST_DEBUG"))
-//	return &settings
-//}
+type PreInstallItem struct {
+	Path   string `json:"path" yaml:"path"`
+	Weight string `json:"weight" yaml:"weight"`
+}

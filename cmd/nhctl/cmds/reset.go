@@ -21,6 +21,7 @@ import (
 )
 
 func init() {
+	//resetCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	rootCmd.AddCommand(resetCmd)
 }
 
@@ -38,7 +39,7 @@ var resetCmd = &cobra.Command{
 
 		var err error
 		applicationName := args[0]
-		InitApp(applicationName)
+		initApp(applicationName)
 
 		// Stop BackGroup Process
 		for _, profile := range nocalhostApp.AppProfileV2.SvcProfile {
@@ -56,7 +57,7 @@ var resetCmd = &cobra.Command{
 		}
 
 		// Remove files
-		err = nocalhost.CleanupAppFiles(applicationName)
+		err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace)
 		if err != nil {
 			log.WarnE(err, "")
 		} else {

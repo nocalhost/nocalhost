@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
 
 	"nocalhost/internal/nhctl/app"
@@ -32,7 +33,7 @@ var installFlags = &app_flags.InstallFlags{}
 
 func init() {
 
-	installCmd.Flags().StringVarP(&installFlags.Namespace, "namespace", "n", "", "kubernetes namespace")
+	//installCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	installCmd.Flags().StringVarP(&installFlags.GitUrl, "git-url", "u", "", "resources git url")
 	installCmd.Flags().StringVarP(&installFlags.GitRef, "git-ref", "r", "", "resources git ref")
 	installCmd.Flags().StringSliceVar(&installFlags.ResourcePath, "resource-path", []string{}, "resources path")
@@ -75,8 +76,18 @@ var installCmd = &cobra.Command{
 				log.Fatalf("--helm-repo-url or --helm-repo-name must be specified when using %s", installFlags.AppType)
 			}
 		}
-		if nocalhost.CheckIfApplicationExist(applicationName) {
-			log.Fatalf("Application %s already exists", applicationName)
+
+		if nameSpace == "" {
+			nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig)
+			if err != nil {
+				log.FatalE(err, "Failed to get namespace")
+			}
+			if nameSpace == "" {
+				log.Fatal("Namespace mush be provided")
+			}
+		}
+		if nocalhost.CheckIfApplicationExist(applicationName, nameSpace) {
+			log.Fatalf("Application %s already exists in namespace %s", applicationName, nameSpace)
 		}
 
 		log.Info("Installing application...")
@@ -84,7 +95,7 @@ var installCmd = &cobra.Command{
 		if err != nil {
 			log.WarnE(err, "Failed to install application")
 			log.Debug("Cleaning up resources...")
-			err = nocalhost.CleanupAppFiles(applicationName)
+			err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace)
 			if err != nil {
 				log.Errorf("Failed to clean up: %v", err)
 			} else {
@@ -100,16 +111,16 @@ var installCmd = &cobra.Command{
 func InstallApplication(applicationName string) error {
 	var err error
 
-	installFlags.EnvSettings = settings
+	//installFlags.EnvSettings = settings
 
-	log.Logf("KubeConfig path: %s", installFlags.KubeConfig)
-	bys, err := ioutil.ReadFile(installFlags.KubeConfig)
+	log.Logf("KubeConfig path: %s", kubeConfig)
+	bys, err := ioutil.ReadFile(kubeConfig)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
 	log.Logf("KubeConfig content: %s", string(bys))
 
-	nocalhostApp, err = app.BuildApplication(applicationName, installFlags)
+	nocalhostApp, err = app.BuildApplication(applicationName, installFlags, kubeConfig, nameSpace)
 	if err != nil {
 		return err
 	}

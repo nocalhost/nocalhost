@@ -13,6 +13,7 @@ import (
 var syncStatusOps = &app.SyncStatusOptions{}
 
 func init() {
+	//syncStatusCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	syncStatusCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	syncStatusCmd.Flags().BoolVar(&syncStatusOps.Override, "override", false, "override the remote changing according to the local sync folder")
 
@@ -31,7 +32,7 @@ var syncStatusCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		InitApp(applicationName)
+		initApp(applicationName)
 
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			display(req.NotInDevModeTemplate)

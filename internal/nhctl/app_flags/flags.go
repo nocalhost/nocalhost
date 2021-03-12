@@ -14,7 +14,6 @@ limitations under the License.
 package app_flags
 
 type InstallFlags struct {
-	*EnvSettings
 	GitUrl           string // resource url
 	GitRef           string
 	AppType          string
@@ -30,8 +29,8 @@ type InstallFlags struct {
 	OuterConfig      string
 	Config           string
 	ResourcePath     []string
-	Namespace        string
-	LocalPath        string
+	//Namespace        string
+	LocalPath string
 }
 
 type ListFlags struct {

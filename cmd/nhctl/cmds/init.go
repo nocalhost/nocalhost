@@ -91,10 +91,10 @@ var InitCommand = &cobra.Command{
 		if err != nil {
 			log.Fatalf("%s, you should install them first(helm3 and kubectl)", err.Error())
 		}
-		if settings.KubeConfig == "" {
+		if kubeConfig == "" {
 			u, err := user.Current()
 			if err == nil {
-				settings.KubeConfig = filepath.Join(u.HomeDir, ".kube", "config")
+				kubeConfig = filepath.Join(u.HomeDir, ".kube", "config")
 			}
 		}
 		// init api and web
@@ -110,7 +110,7 @@ var InitCommand = &cobra.Command{
 			"-u",
 			nocalhostHelmSource,
 			"--kubeconfig",
-			settings.KubeConfig,
+			kubeConfig,
 			"-n",
 			inits.NameSpace,
 			"--type",
@@ -139,8 +139,8 @@ var InitCommand = &cobra.Command{
 				params = append(params, "--set", set)
 			}
 		}
-		client, err := clientgoutils.NewClientGoUtils(settings.KubeConfig, inits.NameSpace)
-		fmt.Printf("kubeconfig %s \n", settings.KubeConfig)
+		client, err := clientgoutils.NewClientGoUtils(kubeConfig, inits.NameSpace)
+		fmt.Printf("kubeconfig %s \n", kubeConfig)
 		if err != nil || client == nil {
 			log.Fatalf("new go client fail, err %s, or check you kubeconfig\n", err)
 		}
@@ -229,7 +229,7 @@ var InitCommand = &cobra.Command{
 		endpoint := findOutWebEndpoint(client)
 
 		// set default cluster, application, users
-		req := request.NewReq(fmt.Sprintf("http://%s", endpoint), settings.KubeConfig, kubectl, inits.NameSpace, inits.Port).Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).GetKubeConfig().AddBookInfoApplication(source).AddCluster().AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).AddDevSpace()
+		req := request.NewReq(fmt.Sprintf("http://%s", endpoint), kubeConfig, kubectl, inits.NameSpace, inits.Port).Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).GetKubeConfig().AddBookInfoApplication(source).AddCluster().AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).AddDevSpace()
 
 		// should inject batch user
 		if inits.InjectUserTemplate != "" && inits.InjectUserAmount > 0 {
@@ -245,7 +245,7 @@ var InitCommand = &cobra.Command{
 		}
 
 		// change dep images tag
-		setDepComponentDockerImage(kubectl, settings.KubeConfig)
+		setDepComponentDockerImage(kubectl, kubeConfig)
 
 		spinner.Stop()
 

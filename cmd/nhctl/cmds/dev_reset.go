@@ -38,7 +38,7 @@ var devResetCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		applicationName := args[0]
-		InitAppAndCheckIfSvcExist(applicationName, deployment)
+		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
 
 		nocalhostApp.Reset(deployment)
 		//log.Info("Stopping port-forward...")

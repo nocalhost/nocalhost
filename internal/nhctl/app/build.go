@@ -22,6 +22,7 @@ import (
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/fp"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -36,10 +37,11 @@ import (
 // 2. An .config.yaml will be created under $NhctlAppDir, it may come from an config file under .nocalhost in your git repository or an outer config file in your local file system
 // 3. An .profile.yaml will be created under $NhctlAppDir, it will record the status of this application
 // build a new application
-func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application, error) {
+func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig string, namespace string) (*Application, error) {
 
 	app := &Application{
-		Name: name,
+		Name:      name,
+		NameSpace: namespace,
 	}
 
 	err := app.initDir()
@@ -54,11 +56,11 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 
 	app.SetInstalledStatus(true)
 
-	kubeconfig := flags.KubeConfig
+	//kubeconfig := flags.KubeConfig
 	if kubeconfig == "" { // use default config
 		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
 	}
-	namespace := flags.Namespace
+	//namespace := flags.Namespace
 
 	app.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace)
 	if err != nil {
@@ -66,12 +68,12 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 	}
 
 	// NameSpace may read from kubeconfig
-	if namespace == "" {
-		namespace, err = app.client.GetDefaultNamespace()
-		if err != nil {
-			return nil, err
-		}
-	}
+	//if namespace == "" {
+	//	namespace, err = app.client.GetDefaultNamespace()
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//}
 	app.AppProfileV2.Namespace = namespace
 	app.AppProfileV2.Kubeconfig = kubeconfig
 
@@ -108,7 +110,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags) (*Application,
 	}
 
 	if flags.AppType != "" {
-		app.AppProfileV2.AppType = AppType(flags.AppType)
+		app.AppProfileV2.AppType = flags.AppType
 	}
 	if len(flags.ResourcePath) != 0 {
 		app.AppProfileV2.ResourcePath = flags.ResourcePath
@@ -169,7 +171,7 @@ func (a *Application) renderConfig(outerConfigPath string, configName string) er
 	}
 
 	// convert un strict yaml to strict yaml
-	renderedConfig := &NocalHostAppConfigV2{}
+	renderedConfig := &profile.NocalHostAppConfigV2{}
 	_ = yaml.Unmarshal([]byte(renderedStr), renderedConfig)
 
 	// remove the duplicate service config (we allow users to define duplicate service and keep the last one)
@@ -183,7 +185,7 @@ func (a *Application) renderConfig(outerConfigPath string, configName string) er
 			maps[config.Name] = i
 		}
 
-		var service []*ServiceConfigV2
+		var service []*profile.ServiceConfigV2
 		for _, i := range maps {
 			service = append(service, renderedConfig.ApplicationConfig.ServiceConfigs[i])
 		}
@@ -280,10 +282,10 @@ func (a *Application) initDir() error {
 // svcName use actual name
 func (a *Application) loadConfigToSvcProfile(svcName string, svcType SvcType) {
 	if a.AppProfileV2.SvcProfile == nil {
-		a.AppProfileV2.SvcProfile = make([]*SvcProfileV2, 0)
+		a.AppProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
 	}
 
-	svcProfile := &SvcProfileV2{
+	svcProfile := &profile.SvcProfileV2{
 		ActualName: svcName,
 		//Type:       svcType,
 	}

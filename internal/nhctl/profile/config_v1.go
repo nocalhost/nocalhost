@@ -11,79 +11,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package app
+package profile
 
 import (
 	"strconv"
-	"time"
-)
-
-const (
-	DefaultSideCarImage        = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
-	DefaultDevImage            = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
-	DefaultWorkDir             = "/home/nocalhost-dev"
-	DefaultLocalSyncDirName    = "."
-	DefaultResourcesDir        = "resources"
-	DefaultUpgradeResourcesDir = "upgrade_resources"
-	//DefaultNhctlHomeDirName                  = ".nh/nhctl"
-	//DefaultBinDirName                        = "bin"
-	//DefaultLogDirName                        = "logs"
-	DefaultSyncLogFileName                   = "sync-port-forward-child-process.log"
-	DefaultApplicationSyncPortForwardPidFile = "sync-port-forward.pid"
-	//DefaultBinSyncThingDirName               = "syncthing"
-	DefaultBackGroundPortForwardLogFileName  = "alone-port-forward-child-process.log"
-	DefaultApplicationOnlyPortForwardPidFile = "alone-port-forward.pid"
-	GetFileLockPath                          = "lock"
-	DefaultApplicationSyncPidFile            = "syncthing.pid"
-	//DefaultApplicationDirName                = "application"
-
-	DefaultApplicationProfilePath      = ".profile.yaml" // runtime config
-	DefaultApplicationProfileV2Path    = ".profile_v2.yaml"
-	DefaultApplicationConfigPath       = ".config.yaml"
-	DefaultApplicationConfigV2Path     = ".config_v2.yaml"
-	DefaultGitNocalhostDir             = ".nocalhost" // DefaultApplicationConfigDirName
-	DefaultConfigNameInGitNocalhostDir = "config.yaml"
-	DefaultNewFilePermission           = 0700
-	DefaultConfigFilePermission        = 0644
-	DefaultClientGoTimeOut             = time.Minute * 5
-
-	// nhctl init
-	// TODO when release
-	DefaultInitHelmGitRepo             = "https://github.com/nocalhost/nocalhost.git"
-	DefaultInitHelmCODINGGitRepo       = "https://e.coding.net/codingcorp/nocalhost/nocalhost.git"
-	DefaultInitHelmType                = "helmGit"
-	DefaultInitWatchDeployment         = "nocalhost-api"
-	DefaultInitWatchWebDeployment      = "nocalhost-web"
-	DefaultInitNocalhostService        = "nocalhost-web"
-	DefaultInitInstallApplicationName  = "nocalhost"
-	DefaultInitUserEmail               = "foo@nocalhost.dev"
-	DefaultInitMiniKubePortForwardPort = 31219
-	DefaultInitPassword                = "123456"
-	DefaultInitAdminUserName           = "admin@admin.com"
-	DefaultInitAdminPassWord           = "123456"
-	DefaultInitName                    = "Nocalhost"
-	DefaultInitWaitNameSpace           = "nocalhost-reserved"
-	DefaultInitCreateNameSpaceLabels   = "nocalhost-init"
-	DefaultInitWaitDeployment          = "nocalhost-dep"
-	// TODO when release
-	DefaultInitHelmResourcePath   = "deployments/chart"
-	DefaultInitPortForwardTimeOut = time.Minute * 1
-	DefaultInitApplicationGithub  = "{\"source\":\"git\",\"install_type\":\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\",\"application_url\":\"https://github.com/nocalhost/bookinfo.git\"}"
-	DefaultInitApplicationCODING  = "{\"source\":\"git\",\"install_type\":\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\",\"application_url\":\"https://e.coding.net/codingcorp/nocalhost/bookinfo.git\"}"
-	// Init Component Version Control, HEAD means build from tag
-	DefaultNocalhostMainBranch        = "HEAD"
-	DefaultNocalhostDepDockerRegistry = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep"
-
-	// file sync
-	DefaultNocalhostSideCarName = "nocalhost-sidecar"
-
-	DefaultDevContainerShell = "(zsh || bash || sh)"
-
-	DependenceConfigMapPrefix = "nocalhost-depends-do-not-overwrite"
-
-	// Port-forward
-	PortForwardManual   = "manual"
-	PortForwardDevPorts = "devPorts"
 )
 
 // Deprecated
@@ -91,14 +22,9 @@ type NocalHostAppConfig struct {
 	PreInstall   []*PreInstallItem    `json:"onPreInstall" yaml:"onPreInstall"`
 	SvcConfigs   []*ServiceDevOptions `json:"services" yaml:"services"`
 	Name         string               `json:"name" yaml:"name"`
-	Type         AppType              `json:"manifestType" yaml:"manifestType"`
+	Type         string               `json:"manifestType" yaml:"manifestType"`
 	ResourcePath []string             `json:"resourcePath" yaml:"resourcePath"`
 	IgnoredPath  []string             `json:"ignoredPath" yaml:"ignoredPath"`
-}
-
-type PreInstallItem struct {
-	Path   string `json:"path" yaml:"path"`
-	Weight string `json:"weight" yaml:"weight"`
 }
 
 type PersistentVolumeDir struct {
@@ -118,7 +44,7 @@ type QuotaList struct {
 
 type ServiceDevOptions struct {
 	Name                  string                 `json:"name" yaml:"name"`
-	Type                  SvcType                `json:"serviceType" yaml:"serviceType"`
+	Type                  string                 `json:"serviceType" yaml:"serviceType"`
 	GitUrl                string                 `json:"gitUrl" yaml:"gitUrl"`
 	DevImage              string                 `json:"devContainerImage" yaml:"devContainerImage"`
 	WorkDir               string                 `json:"workDir" yaml:"workDir"`

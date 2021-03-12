@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"os"
@@ -56,11 +57,12 @@ const (
 )
 
 type Application struct {
-	Name string
+	Name      string
+	NameSpace string
 	//config   *NocalHostAppConfig //  this should not be nil
-	configV2 *NocalHostAppConfigV2
+	configV2 *profile.NocalHostAppConfigV2
 	//AppProfile               *AppProfile // runtime info, this will not be nil
-	AppProfileV2             *AppProfileV2
+	AppProfileV2             *profile.AppProfileV2
 	client                   *clientgoutils.ClientGoUtils
 	sortedPreInstallManifest []string // for pre install
 	installManifest          []string // for install
@@ -77,9 +79,10 @@ type SvcDependency struct {
 	Pods []string `json:"pods" yaml:"pods,omitempty"`
 }
 
-func NewApplication(name string) (*Application, error) {
+func NewApplication(name string, ns string) (*Application, error) {
 	app := &Application{
-		Name: name,
+		Name:      name,
+		NameSpace: ns,
 	}
 
 	err := app.LoadConfigV2()
@@ -126,7 +129,7 @@ func (a *Application) LoadConfigV2() error {
 		}
 	}
 
-	config := &NocalHostAppConfigV2{}
+	config := &profile.NocalHostAppConfigV2{}
 	if _, err := os.Stat(a.GetConfigV2Path()); err != nil {
 		if os.IsNotExist(err) {
 			a.configV2 = config
@@ -216,7 +219,7 @@ func (a *Application) IsAnyServiceInDevMode() bool {
 	return false
 }
 
-func (a *Application) GetSvcConfigV2(svcName string) *ServiceConfigV2 {
+func (a *Application) GetSvcConfigV2(svcName string) *profile.ServiceConfigV2 {
 	a.LoadConfigV2() // get the latest config
 	if a.configV2 == nil {
 		return nil
@@ -229,7 +232,7 @@ func (a *Application) GetSvcConfigV2(svcName string) *ServiceConfigV2 {
 	return nil
 }
 
-func (a *Application) GetApplicationConfigV2() *ApplicationConfig {
+func (a *Application) GetApplicationConfigV2() *profile.ApplicationConfig {
 	a.LoadConfigV2() // get the latest config
 	if a.configV2 == nil {
 		return nil
@@ -237,7 +240,7 @@ func (a *Application) GetApplicationConfigV2() *ApplicationConfig {
 	return a.configV2.ApplicationConfig
 }
 
-func (a *Application) SaveSvcProfileV2(svcName string, config *ServiceConfigV2) error {
+func (a *Application) SaveSvcProfileV2(svcName string, config *profile.ServiceConfigV2) error {
 
 	svcPro := a.GetSvcProfileV2(svcName)
 	if svcPro != nil {
@@ -245,7 +248,7 @@ func (a *Application) SaveSvcProfileV2(svcName string, config *ServiceConfigV2) 
 		svcPro.ServiceConfigV2 = config
 	} else {
 		config.Name = svcName
-		svcPro = &SvcProfileV2{
+		svcPro = &profile.SvcProfileV2{
 			ServiceConfigV2: config,
 			ActualName:      svcName,
 		}
@@ -255,13 +258,13 @@ func (a *Application) SaveSvcProfileV2(svcName string, config *ServiceConfigV2) 
 	return a.SaveProfile()
 }
 
-func (a *Application) GetAppProfileV2() *ApplicationConfig {
+func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
 	a.LoadAppProfileV2(false)
 	a.LoadConfigV2()
 	if a.configV2 == nil {
 		return nil
 	}
-	return &ApplicationConfig{
+	return &profile.ApplicationConfig{
 		ResourcePath: a.AppProfileV2.ResourcePath,
 		IgnoredPath:  a.AppProfileV2.IgnoredPath,
 		PreInstall:   a.AppProfileV2.PreInstall,
@@ -270,7 +273,7 @@ func (a *Application) GetAppProfileV2() *ApplicationConfig {
 	}
 }
 
-func (a *Application) SaveAppProfileV2(config *ApplicationConfig) error {
+func (a *Application) SaveAppProfileV2(config *profile.ApplicationConfig) error {
 	a.AppProfileV2.ResourcePath = config.ResourcePath
 	a.AppProfileV2.IgnoredPath = config.IgnoredPath
 	a.AppProfileV2.PreInstall = config.PreInstall
@@ -560,7 +563,7 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 
 		for key, sLocalPort := range localPorts {
 			a.EndDevPortForward(deployment, sLocalPort, remotePorts[key]) // kill existed port-forward
-			devPort := &DevPortForward{
+			devPort := &profile.DevPortForward{
 				LocalPort:  sLocalPort,
 				RemotePort: remotePorts[key],
 				Way:        way,

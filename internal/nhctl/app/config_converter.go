@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	profile2 "nocalhost/internal/nhctl/profile"
 )
 
 func ConvertAppProfileFileV1ToV2(srcFile string, destFile string) error {
@@ -25,7 +26,7 @@ func ConvertAppProfileFileV1ToV2(srcFile string, destFile string) error {
 		return errors.Wrap(err, "")
 	}
 
-	profile := &AppProfile{}
+	profile := &profile2.AppProfile{}
 	err = yaml.Unmarshal(bytes, profile)
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -51,7 +52,7 @@ func ConvertConfigFileV1ToV2(srcFile string, destFile string) error {
 		return errors.Wrap(err, "")
 	}
 
-	config := &NocalHostAppConfig{}
+	config := &profile2.NocalHostAppConfig{}
 	err = yaml.Unmarshal(bytes, config)
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -71,12 +72,12 @@ func ConvertConfigFileV1ToV2(srcFile string, destFile string) error {
 	return errors.Wrap(err, "")
 }
 
-func convertProfileV1ToV2(profileV1 *AppProfile) (*AppProfileV2, error) {
+func convertProfileV1ToV2(profileV1 *profile2.AppProfile) (*profile2.AppProfileV2, error) {
 	if profileV1 == nil {
 		return nil, errors.New("V1 profile can not be nil")
 	}
 
-	profileV2 := &AppProfileV2{
+	profileV2 := &profile2.AppProfileV2{
 		Name:                    profileV1.Name,
 		ChartName:               profileV1.ChartName,
 		ReleaseName:             profileV1.ReleaseName,
@@ -90,9 +91,9 @@ func convertProfileV1ToV2(profileV1 *AppProfile) (*AppProfileV2, error) {
 		IgnoredPath:             profileV1.IgnoredPath,
 	}
 
-	svcProfiles := make([]*SvcProfileV2, 0)
+	svcProfiles := make([]*profile2.SvcProfileV2, 0)
 	for _, svcProfileV1 := range profileV1.SvcProfile {
-		svcProfileV2 := &SvcProfileV2{
+		svcProfileV2 := &profile2.SvcProfileV2{
 			ServiceConfigV2:                        convertServiceConfigV1ToV2(svcProfileV1.ServiceDevOptions),
 			ContainerProfile:                       nil,
 			ActualName:                             svcProfileV1.ActualName,
@@ -115,17 +116,17 @@ func convertProfileV1ToV2(profileV1 *AppProfile) (*AppProfileV2, error) {
 	profileV2.SvcProfile = svcProfiles
 	return profileV2, nil
 }
-func convertConfigV1ToV2(configV1 *NocalHostAppConfig) (*NocalHostAppConfigV2, error) {
+func convertConfigV1ToV2(configV1 *profile2.NocalHostAppConfig) (*profile2.NocalHostAppConfigV2, error) {
 	if configV1 == nil {
 		return nil, errors.New("V1 config can not be nil")
 	}
 
-	configV2 := &NocalHostAppConfigV2{
-		ConfigProperties: &ConfigProperties{
+	configV2 := &profile2.NocalHostAppConfigV2{
+		ConfigProperties: &profile2.ConfigProperties{
 			Version: "v2",
 			EnvFile: "",
 		},
-		ApplicationConfig: &ApplicationConfig{
+		ApplicationConfig: &profile2.ApplicationConfig{
 			Name:           configV1.Name,
 			Type:           configV1.Type,
 			ResourcePath:   configV1.ResourcePath,
@@ -137,7 +138,7 @@ func convertConfigV1ToV2(configV1 *NocalHostAppConfig) (*NocalHostAppConfigV2, e
 		},
 	}
 
-	serviceConfigs := make([]*ServiceConfigV2, 0)
+	serviceConfigs := make([]*profile2.ServiceConfigV2, 0)
 	for _, svcV1 := range configV1.SvcConfigs {
 		svcV2 := convertServiceConfigV1ToV2(svcV1)
 		serviceConfigs = append(serviceConfigs, svcV2)
@@ -148,24 +149,24 @@ func convertConfigV1ToV2(configV1 *NocalHostAppConfig) (*NocalHostAppConfigV2, e
 	return configV2, nil
 }
 
-func convertServiceConfigV1ToV2(svcV1 *ServiceDevOptions) *ServiceConfigV2 {
-	svcV2 := &ServiceConfigV2{
+func convertServiceConfigV1ToV2(svcV1 *profile2.ServiceDevOptions) *profile2.ServiceConfigV2 {
+	svcV2 := &profile2.ServiceConfigV2{
 		Name:                svcV1.Name,
 		Type:                svcV1.Type,
 		PriorityClass:       svcV1.PriorityClass,
 		DependLabelSelector: nil,
-		ContainerConfigs: []*ContainerConfig{
+		ContainerConfigs: []*profile2.ContainerConfig{
 			{
 				Name:    "",
 				Install: nil,
-				Dev: &ContainerDevConfig{
+				Dev: &profile2.ContainerDevConfig{
 					GitUrl:                svcV1.GitUrl,
 					Image:                 svcV1.DevImage,
 					Shell:                 svcV1.DevContainerShell,
 					WorkDir:               svcV1.WorkDir,
 					DevContainerResources: svcV1.DevContainerResources,
 					PersistentVolumeDirs:  svcV1.PersistentVolumeDirs,
-					Command: &DevCommands{
+					Command: &profile2.DevCommands{
 						Build:          svcV1.BuildCommand,
 						Run:            svcV1.RunCommand,
 						Debug:          svcV1.DebugCommand,
@@ -174,7 +175,7 @@ func convertServiceConfigV1ToV2(svcV1 *ServiceDevOptions) *ServiceConfigV2 {
 					},
 					DebugConfig:     nil,
 					UseDevContainer: false,
-					Sync: &SyncConfig{
+					Sync: &profile2.SyncConfig{
 						Type:              "",
 						FilePattern:       svcV1.SyncedPattern,
 						IgnoreFilePattern: svcV1.IgnoredPattern,
@@ -187,7 +188,7 @@ func convertServiceConfigV1ToV2(svcV1 *ServiceDevOptions) *ServiceConfigV2 {
 		},
 	}
 	if len(svcV1.Jobs) > 0 || len(svcV1.Pods) > 0 {
-		svcV2.DependLabelSelector = &DependLabelSelector{
+		svcV2.DependLabelSelector = &profile2.DependLabelSelector{
 			Pods: svcV1.Pods,
 			Jobs: svcV1.Jobs,
 		}
@@ -196,7 +197,7 @@ func convertServiceConfigV1ToV2(svcV1 *ServiceDevOptions) *ServiceConfigV2 {
 }
 
 func checkConfigVersion(content string) (string, error) {
-	config := &NocalHostAppConfigV2{}
+	config := &profile2.NocalHostAppConfigV2{}
 
 	// ignored err to prevent un strict yaml
 	_ = yaml.Unmarshal([]byte(content), config)
