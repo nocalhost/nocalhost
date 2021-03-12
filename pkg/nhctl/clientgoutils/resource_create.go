@@ -14,7 +14,6 @@ limitations under the License.
 package clientgoutils
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,42 +34,18 @@ func (c *ClientGoUtils) newFactory() cmdutil.Factory {
 	return f
 }
 
-func (c *ClientGoUtils) ApplyFromManifestsAndWait(manifests string, flags *ApplyFlags) {
-	ms := strings.Split(manifests, "---")
-
-	for _, info := range ms {
-		err := c.Create([]byte(info), true, false, flags)
-		if err != nil {
-			log.Errorf("Error while apply manifest: %s \n err: %s", info, err)
-		}
-	}
-}
-
-func (c *ClientGoUtils) ApplyFromManifests(manifests string, flags *ApplyFlags) error {
-	infos, err := c.GetResourceFromIo(bytes.NewBufferString(manifests), false)
-
-	if err != nil {
-		return err
-	}
-
-	for _, info := range infos {
-		err := c.ApplyResourceInfo(info, flags)
-		if err != nil {
-			log.Errorf("Error while apply manifest: %s \n err: %s", info.Name, err)
-		}
-	}
-	return nil
-}
-
 func (c *ClientGoUtils) ApplyForCreate(files []string, continueOnError bool, flags *ApplyFlags) error {
+	//for _, file := range files {
+	//	c.Apply(file)
+	//}
 	infos, err := c.GetResourceInfoFromFiles(files, continueOnError)
-
 	if err != nil {
 		return err
 	}
 	for _, info := range infos {
-		_ = c.ApplyResourceInfo(info, flags)
+		c.ApplyResourceInfo(info, flags)
 	}
+	//return c.apply(files, continueOnError, Create)
 	return nil
 }
 

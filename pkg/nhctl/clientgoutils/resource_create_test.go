@@ -21,7 +21,7 @@ import (
 func TestClientGoUtils_CreateResource(t *testing.T) {
 	client, err := NewClientGoUtils("", "")
 	Must(err)
-	err = client.ApplyForCreate([]string{"/tmp/pre-install-cm.yaml"}, true, nil)
+	err = client.ApplyForCreate([]string{"/tmp/pre-install-cm.yaml"}, true)
 	if err != nil {
 		fmt.Printf("%s\n", err.Error())
 	}

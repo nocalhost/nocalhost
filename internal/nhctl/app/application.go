@@ -49,12 +49,10 @@ const (
 	ManifestLocal AppType = "rawManifestLocal"
 	HelmLocal     AppType = "helmLocal"
 
-	AppManagedByLabel             = "app.kubernetes.io/managed-by"
-	AppManagedByNocalhost         = "nocalhost"
-	NocalhostApplicationName      = "dev.nocalhost/application-name"
-	NocalhostApplicationNamespace = "dev.nocalhost/application-namespace"
-	SecretName                    = "dev.nocalhost.application.v1."
-	SecretType                    = "dev.nocalhost/application.v1"
+	AppManagedByLabel                   = "app.kubernetes.io/managed-by"
+	AppManagedByNocalhost               = "nocalhost"
+	NocalhostReleaseNameAnnotation      = "meta.nocalhost.sh/release-name"
+	NocalhostReleaseNamespaceAnnotation = "meta.nocalhost.sh/release-namespace"
 )
 
 type Application struct {
@@ -62,14 +60,10 @@ type Application struct {
 	//config   *NocalHostAppConfig //  this should not be nil
 	configV2 *NocalHostAppConfigV2
 	//AppProfile               *AppProfile // runtime info, this will not be nil
-	AppProfileV2 *AppProfileV2
-	client       *clientgoutils.ClientGoUtils
-
-	// todo move to secrets
+	AppProfileV2             *AppProfileV2
+	client                   *clientgoutils.ClientGoUtils
 	sortedPreInstallManifest []string // for pre install
-
-	// todo move to secrets
-	installManifest []string // for install
+	installManifest          []string // for install
 
 	// for upgrade
 	upgradeSortedPreInstallManifest []string
@@ -336,8 +330,8 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 	if dep.Annotations == nil {
 		dep.Annotations = make(map[string]string, 0)
 	}
-	dep.Annotations[NocalhostApplicationName] = a.Name
-	dep.Annotations[NocalhostApplicationNamespace] = a.GetNamespace()
+	dep.Annotations[NocalhostReleaseNameAnnotation] = a.Name
+	dep.Annotations[NocalhostReleaseNamespaceAnnotation] = a.GetNamespace()
 
 	_, err = clientUtils.CreateDeployment(dep)
 	if err != nil {

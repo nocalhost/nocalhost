@@ -9,8 +9,8 @@ func StandardNocalhostMetas(releaseName, releaseNamespace string) *clientgoutils
 		},
 
 		MergeableAnnotation: map[string]string{
-			NocalhostApplicationName:      releaseName,
-			NocalhostApplicationNamespace: releaseNamespace,
+			NocalhostReleaseNameAnnotation:      releaseName,
+			NocalhostReleaseNamespaceAnnotation: releaseNamespace,
 		},
 	}
 }

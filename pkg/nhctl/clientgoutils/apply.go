@@ -25,8 +25,6 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/kubectl/pkg/cmd/apply"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"strings"
-
 	//"k8s.io/kubectl/pkg/util"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -101,7 +99,7 @@ func (c *ClientGoUtils) Apply(file string, af *ApplyFlags) error {
 	return o.Run()
 }
 
-func (c *ClientGoUtils) generateCompletedApplyOption(file string, af *ApplyFlags, ) (*apply.ApplyOptions, error) {
+func (c *ClientGoUtils) generateCompletedApplyOption(file string, af *ApplyFlags) (*apply.ApplyOptions, error) {
 	var err error
 	ioStreams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr} // don't print log to stderr
 	o := apply.NewApplyOptions(ioStreams)
@@ -161,9 +159,7 @@ func (c *ClientGoUtils) generateCompletedApplyOption(file string, af *ApplyFlags
 		}
 
 		// inject nocalhost label and annotations
-		if af != nil {
-			err = resourceList.Visits([]resource.VisitorFunc{addLabels(af.MergeableLabel), addAnnotations(af.MergeableAnnotation)})
-		}
+		err = resourceList.Visits([]resource.VisitorFunc{addLabels(af.MergeableLabel), addAnnotations(af.MergeableAnnotation)})
 		return nil
 	}
 	return o, nil
@@ -177,25 +173,6 @@ type runtimeObjectPrinter struct {
 func (r *runtimeObjectPrinter) PrintObj(obj runtime.Object, writer io.Writer) error {
 	log.Infof("Resource(%s) %s %s", obj.GetObjectKind().GroupVersionKind().Kind, r.Name, r.Operation)
 	return nil
-}
-
-func (c *ClientGoUtils) GetResourceFromIo(reader io.Reader, validate bool) ([]*resource.Info, error) {
-	f := c.newFactory()
-	builder := f.NewBuilder()
-	v, err := f.Validator(validate)
-	if err != nil {
-		return nil, err
-	}
-	result, err := builder.
-		Unstructured().
-		Schema(v).
-		ContinueOnError().
-		NamespaceParam(c.namespace).DefaultNamespace().
-		Stream(reader, "").
-		Flatten().
-		Do().
-		Infos()
-	return result, scrubValidationError(err)
 }
 
 func (c *ClientGoUtils) GetResourceInfoFromFiles(files []string, continueOnError bool) ([]*resource.Info, error) {
@@ -248,17 +225,4 @@ func (c *ClientGoUtils) GetResourceInfoFromFiles(files []string, continueOnError
 	}
 
 	return infos, nil
-}
-
-// scrubValidationError removes kubectl info from the message.
-func scrubValidationError(err error) error {
-	if err == nil {
-		return nil
-	}
-	const stopValidateMessage = "if you choose to ignore these errors, turn validation off with --validate=false"
-
-	if strings.Contains(err.Error(), stopValidateMessage) {
-		return errors.New(strings.ReplaceAll(err.Error(), "; "+stopValidateMessage, ""))
-	}
-	return err
 }

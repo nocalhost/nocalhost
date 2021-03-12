@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"k8s.io/api/batch/v1beta1"
 	"net/http"
 	"net/url"
@@ -209,14 +210,24 @@ func (c *ClientGoUtils) createUnstructuredResource(rawObj runtime.RawExtension, 
 	return nil
 }
 
-func (c *ClientGoUtils) Create(fileBytes []byte, wait bool, validate bool, flags *ApplyFlags) error {
-	decoder := yamlutil.NewYAMLOrJSONDecoder(bytes.NewReader(fileBytes), 100)
+func (c *ClientGoUtils) Create(yamlPath string, wait bool, validate bool, flags *ApplyFlags) error {
+	if yamlPath == "" {
+		return errors.New("yaml path can not be empty")
+	}
+
+	filebytes, err := ioutil.ReadFile(yamlPath)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		return err
+	}
+
+	decoder := yamlutil.NewYAMLOrJSONDecoder(bytes.NewReader(filebytes), 100)
 	for {
 		var rawObj runtime.RawExtension
-		if err := decoder.Decode(&rawObj); err != nil {
+		if err = decoder.Decode(&rawObj); err != nil {
 			break
 		}
-		err := c.createUnstructuredResource(rawObj, wait, flags)
+		err = c.createUnstructuredResource(rawObj, wait, flags)
 		if err != nil {
 			if validate {
 				return err
@@ -268,10 +279,6 @@ func (c *ClientGoUtils) Discovery() {
 			fmt.Printf("name:%30s group:%15s version:%s\n", resource.Name, gv.Group, gv.Version)
 		}
 	}
-}
-
-func (c *ClientGoUtils) GetSecretClient() coreV1.SecretInterface {
-	return c.ClientSet.CoreV1().Secrets(c.namespace)
 }
 
 func (c *ClientGoUtils) GetDeploymentClient() appsV1.DeploymentInterface {
@@ -440,6 +447,18 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 	fmt.Printf("Job %s running\n", name)
 
 	return false, nil
+}
+
+func (c *ClientGoUtils) CreateSecret(secret *corev1.Secret, options metav1.CreateOptions) (*corev1.Secret, error) {
+	return c.ClientSet.CoreV1().Secrets(c.namespace).Create(c.ctx, secret, options)
+}
+
+func (c *ClientGoUtils) GetSecret(name string) (*corev1.Secret, error) {
+	return c.ClientSet.CoreV1().Secrets(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
+}
+
+func (c *ClientGoUtils) DeleteSecret(name string) error {
+	return c.ClientSet.CoreV1().Secrets(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{})
 }
 
 func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {

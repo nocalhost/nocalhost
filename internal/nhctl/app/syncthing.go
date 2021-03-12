@@ -16,6 +16,7 @@ package app
 import (
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/syncthing/network/req"
 	"nocalhost/internal/nhctl/syncthing/ports"
@@ -157,7 +158,7 @@ func (a *Application) CreateSyncThingSecret(svcName string, syncSecret *corev1.S
 	if exist.Name != "" {
 		_ = a.client.DeleteSecret(syncSecret.Name)
 	}
-	sc, err := a.client.CreateSecret(syncSecret)
+	sc, err := a.client.CreateSecret(syncSecret, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}

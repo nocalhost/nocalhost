@@ -89,16 +89,33 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	if err != nil {
 		return nil, errno.ErrPermissionCluster
 	}
-	// check if has auth
-	cu := model.ClusterUserModel{
-		ClusterId: clusterId,
-		UserId:    userId,
-	}
-	_, hasRecord := service.Svc.ClusterUser().GetFirst(d.c, cu)
 
-	// for adapt current version, prevent can't not create devSpace on same namespace
-	if hasRecord == nil && applicationId == 0 {
-		return nil, errno.ErrBindUserClusterRepeat
+	if applicationId == 0 {
+
+		// check if has created
+		cu := model.ClusterUserModel{
+			ClusterId: clusterId,
+			UserId:    userId,
+		}
+		_, hasRecord := service.Svc.ClusterUser().GetFirst(d.c, cu)
+
+		// for adapt current version, prevent can't not create devSpace on same namespace
+		if hasRecord == nil {
+			return nil, errno.ErrBindUserClusterRepeat
+		}
+	} else {
+
+		// check if has created
+		cu := model.ClusterUserModel{
+			ApplicationId: applicationId,
+			UserId:        userId,
+		}
+		_, hasRecord := service.Svc.ClusterUser().GetFirst(d.c, cu)
+
+		// for adapt current version, prevent can't not create devSpace on same namespace
+		if hasRecord == nil {
+			return nil, errno.ErrBindUserApplicationRepeat
+		}
 	}
 
 	// create namespace

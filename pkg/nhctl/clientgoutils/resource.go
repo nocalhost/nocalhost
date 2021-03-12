@@ -21,7 +21,6 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"k8s.io/cli-runtime/pkg/resource"
-	"nocalhost/internal/nhctl/fp"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
@@ -30,16 +29,6 @@ import (
 
 // ResourceList provides convenience methods for comparing collections of Infos.
 type ResourceList []*resource.Info
-
-func (c *ClientGoUtils) LoadingManifest(paths []string) string {
-	result := ""
-	for _, path := range paths {
-		file := fp.NewFilePath(path)
-		result += fmt.Sprintf("---\n# Source: %s\n%s\n", file.Path, file.ReadFile())
-	}
-
-	return result
-}
 
 // Append adds an Info to the Result.
 func (r *ResourceList) Append(val *resource.Info) {
