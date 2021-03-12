@@ -59,6 +59,7 @@ type ClusterList struct {
 	CreatedAt       time.Time `gorm:"column:created_at" json:"created_at"`
 	IsReady         bool      `json:"is_ready"`
 	NotReadyMessage string    `json:"not_ready_message"`
+	HasDevSpace     bool      `json:"has_dev_space"`
 }
 
 // Validate the fields.

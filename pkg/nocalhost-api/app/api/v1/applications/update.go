@@ -17,6 +17,7 @@ import (
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 
@@ -42,6 +43,13 @@ func Update(c *gin.Context) {
 		api.SendResponse(c, errno.ErrBind, nil)
 		return
 	}
+
+	// normal user can't not create public applications
+	if !ginbase.IsAdmin(c) {
+		deny := uint8(0)
+		req.Public = &deny
+	}
+
 	// userId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
 	model := model.ApplicationModel{
@@ -49,6 +57,7 @@ func Update(c *gin.Context) {
 		// UserId:  userId.(uint64),
 		Context: req.Context,
 		Status:  *req.Status,
+		Public:  *req.Public,
 	}
 	result, err := service.Svc.ApplicationSvc().Update(c, &model)
 	if err != nil {

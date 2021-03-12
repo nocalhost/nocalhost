@@ -22,6 +22,8 @@ import (
 // ClusterUserModel
 type ClusterUserModel struct {
 	ID                 uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
+
+	// Deprecated
 	ApplicationId      uint64     `gorm:"column:application_id;not null" json:"application_id"`
 	UserId             uint64     `gorm:"column:user_id;not null" json:"user_id"`
 	SpaceName          string     `gorm:"column:space_name;not null;type:VARCHAR(100);comment:'default is application[username]'" json:"space_name"`

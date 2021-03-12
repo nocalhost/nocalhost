@@ -16,6 +16,7 @@ package cluster_user
 import (
 	"github.com/spf13/cast"
 	"nocalhost/internal/nocalhost-api/model"
+	"nocalhost/pkg/nocalhost-api/pkg/errno"
 
 	"github.com/gin-gonic/gin"
 	"nocalhost/internal/nocalhost-api/service"
@@ -63,6 +64,27 @@ func GetList(c *gin.Context) {
 	result, err := service.Svc.ClusterUser().GetList(c, cu)
 	if err != nil {
 		api.SendResponse(c, nil, nil)
+		return
+	}
+	api.SendResponse(c, nil, result)
+}
+
+// list user's dev space distinct by user id
+func ListDistinctByUserId(c *gin.Context) {
+	userId := cast.ToUint64(c.Param("id"))
+	result, err := service.Svc.ClusterUser().ListDistinctByUser(c, userId)
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+		return
+	}
+	api.SendResponse(c, nil, result)
+}
+
+// list user's dev space distinct by user id
+func ListDistinct(c *gin.Context) {
+	result, err := service.Svc.ClusterUser().ListDistinct(c)
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		return
 	}
 	api.SendResponse(c, nil, result)

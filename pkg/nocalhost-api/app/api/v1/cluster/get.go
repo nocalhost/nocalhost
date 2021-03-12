@@ -20,6 +20,7 @@ import (
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"sync"
@@ -47,69 +48,40 @@ type ClusterSafeList struct {
 // @Router /v1/cluster [get]
 func GetList(c *gin.Context) {
 	result, _ := service.Svc.ClusterSvc().GetList(c)
-	// check if dep is ready
-	//if err != nil || len(result) > 0 {
-	//	userClusterList := &ClusterSafeList{
-	//		Lock:        new(sync.Mutex),
-	//		ClusterList: make([]*model.ClusterList, 0),
-	//	}
-	//	fmt.Printf("clusterlist %s", userClusterList.ClusterList)
-	//	wait := sync.WaitGroup{}
-	//	//clusterStatus := make(chan ClusterStatus, len(result))
-	//	// check point
-	//	// 1. has nocalhost-reserved NS
-	//	// 2. has nocalhost-dep deployment
-	//	// 3. nocalhost-dep deployment is available
-	//	// 4. all well means cluster Ready
-	//	// not_ready_message always return one
-	//	for _, cluster := range result {
-	//		// use go func run all
-	//		wait.Add(1)
-	//		cluster := cluster
-	//		go func(cluster *model.ClusterList, userClusterList *ClusterSafeList) {
-	//			obj := &model.ClusterList{
-	//				ID:          cluster.ID,
-	//				ClusterName: cluster.ClusterName,
-	//				UsersCount:  cluster.UsersCount,
-	//				KubeConfig:  cluster.KubeConfig,
-	//				Info:        cluster.Info,
-	//				UserId:      cluster.UserId,
-	//				CreatedAt:   cluster.CreatedAt,
-	//				IsReady:     true,
-	//			}
-	//			defer wait.Done()
-	//			userClusterList.Lock.Lock()
-	//			defer userClusterList.Lock.Unlock()
-	//			clientGo, err := clientgo.NewGoClient([]byte(cluster.KubeConfig))
-	//			if err != nil {
-	//				log.Warnf("create go-client when get cluster list err %s", clientGo)
-	//				obj.IsReady = false
-	//				obj.NotReadyMessage = "New go client fail"
-	//				userClusterList.ClusterList = append(userClusterList.ClusterList, obj)
-	//				return
-	//			}
-	//			_, err = clientGo.IfNocalhostNameSpaceExist()
-	//			if err != nil {
-	//				obj.IsReady = false
-	//				obj.NotReadyMessage = "Can not get namespace: " + global.NocalhostSystemNamespace
-	//				userClusterList.ClusterList = append(userClusterList.ClusterList, obj)
-	//				return
-	//			}
-	//			err = clientGo.GetDepDeploymentStatus()
-	//			if err != nil {
-	//				obj.IsReady = false
-	//				obj.NotReadyMessage = err.Error()
-	//				userClusterList.ClusterList = append(userClusterList.ClusterList, obj)
-	//				return
-	//			}
-	//			userClusterList.ClusterList = append(userClusterList.ClusterList, obj)
-	//		}(cluster, userClusterList)
-	//	}
-	//
-	//	wait.Wait()
-	//	api.SendResponse(c, errno.OK, userClusterList.ClusterList)
-	//	return
-	//}
+	api.SendResponse(c, errno.OK, result)
+}
+
+// list permitted dev_space by user
+// distinct by cluster id
+func ListByUser(c *gin.Context) {
+	user := cast.ToUint64(c.Param("id"))
+	result, _ := service.Svc.ClusterSvc().GetList(c)
+
+	// user but admin can only access his own clusters
+	if ginbase.IsAdmin(c) || ginbase.LoginUser(c) == user {
+		userModel := model.ClusterUserModel{
+			UserId: user,
+		}
+
+		list, err := service.Svc.ClusterUser().GetList(c, userModel)
+		if err != nil {
+			api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+		}
+
+		set := map[uint64]interface{}{}
+		for _, clusterUserModel := range list {
+			set[clusterUserModel.ClusterId] = "-"
+		}
+
+		for _, cluster := range result {
+
+			if _, ok := set[cluster.ID]; ok {
+				cluster.HasDevSpace = true
+			}
+		}
+	} else {
+		api.SendResponse(c, errno.ErrLoginRequired, result)
+	}
 
 	api.SendResponse(c, errno.OK, result)
 }

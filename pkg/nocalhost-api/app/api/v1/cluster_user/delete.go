@@ -38,7 +38,7 @@ func Delete(c *gin.Context) {
 	devSpaceId := cast.ToUint64(c.Param("id"))
 	clusterUser, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId})
 	if err != nil {
-		api.SendResponse(c, errno.ErrClsuterUserNotFound, nil)
+		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		return
 	}
 
@@ -84,7 +84,7 @@ func ReCreate(c *gin.Context) {
 	}
 	clusterUser, err := service.Svc.ClusterUser().GetFirst(c, condition)
 	if err != nil {
-		api.SendResponse(c, errno.ErrClsuterUserNotFound, nil)
+		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		return
 	}
 
@@ -143,7 +143,7 @@ func PluginReCreate(c *gin.Context) {
 	devSpaceId := cast.ToUint64(c.Param("id"))
 	_, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId, UserId: userId.(uint64)})
 	if err != nil {
-		api.SendResponse(c, errno.ErrClsuterUserNotFound, nil)
+		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		return
 	}
 	ReCreate(c)

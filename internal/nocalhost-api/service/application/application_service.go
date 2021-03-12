@@ -22,7 +22,7 @@ import (
 )
 
 type ApplicationService interface {
-	Create(ctx context.Context, context string, status uint8, userId uint64) (model.ApplicationModel, error)
+	Create(ctx context.Context, context string, status uint8, public uint8, userId uint64) (model.ApplicationModel, error)
 	Get(ctx context.Context, id uint64) (model.ApplicationModel, error)
 	GetByName(ctx context.Context, name string) (model.ApplicationModel, error)
 	PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error)
@@ -51,11 +51,12 @@ func (srv *applicationService) PluginGetList(ctx context.Context, userId uint64)
 	return srv.applicationRepo.PluginGetList(ctx, userId)
 }
 
-func (srv *applicationService) Create(ctx context.Context, context string, status uint8, user_id uint64) (model.ApplicationModel, error) {
+func (srv *applicationService) Create(ctx context.Context, context string, status uint8, public uint8, userId uint64) (model.ApplicationModel, error) {
 	c := model.ApplicationModel{
 		Context: context,
-		UserId:  user_id,
+		UserId:  userId,
 		Status:  status,
+		Public:  public,
 	}
 	result, err := srv.applicationRepo.Create(ctx, c)
 	if err != nil {
