@@ -18,13 +18,18 @@ webhooks:
         namespace: nocalhost-reserved
         path: "/mutate"
       caBundle: ${CA_BUNDLE}
-    admissionReviewVersions: ["v1beta1"]
+    admissionReviewVersions: [ "v1beta1" ]
     # sideEffects: None  # only admissionregistration.k8s.io/v1, 没有副作用
     timeoutSeconds: 30  # 超时时间
     rules:
-      - operations: ["CREATE"]
-        apiGroups: ["apps", "batch"] # 如果是 pods 没有 apiGroups ，留空
-        apiVersions: ["v1", "v1beta1"]
-        resources: ["deployments", "daemonsets", "statefulsets", "cronjobs", "jobs"]
+      - operations: [ "CREATE" ]
+        apiGroups: [ "apps", "batch" ] # 如果是 pods 没有 apiGroups ，留空
+        apiVersions: [ "v1", "v1beta1" ]
+        resources: [ "deployments", "daemonsets", "statefulsets", "cronjobs", "jobs" ]
         #resources: ["pods"]
+
+      - operations: [ "*" ]
+        apiGroups: [ "" ] # means core
+        apiVersions: [ "v1" ]
+        resources: [ "resourcequotas" ]
 
