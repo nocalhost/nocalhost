@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"math/rand"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
 	"path/filepath"
@@ -71,6 +72,10 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 }
 
 func (a *Application) InstallKustomize() error {
+	err := utils.CheckKubectlVersion(14)
+	if err != nil {
+		log.Warn(err.Error())
+	}
 	resourcesPath := a.GetResourceDir()
 	if len(resourcesPath) > 1 {
 		log.Warn(`There are multiple resourcesPath settings, will use first one`)
@@ -83,7 +88,7 @@ func (a *Application) InstallKustomize() error {
 	if a.GetKubeconfig() != "" {
 		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
 	}
-	_, err := tools.ExecCommand(nil, true, "kubectl", commonParams...)
+	_, err = tools.ExecCommand(nil, true, "kubectl", commonParams...)
 	if err != nil {
 		return err
 	}
