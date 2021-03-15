@@ -71,6 +71,25 @@ func (a *Application) uninstallHelm() error {
 	return err
 }
 
+func (a *Application) UninstallKustomize() error {
+	resourcesPath := a.GetResourceDir()
+	if len(resourcesPath) > 1 {
+		log.Warn(`There are multiple resourcesPath settings, will use first one`)
+	}
+	useResourcePath := resourcesPath[0]
+	commonParams := make([]string, 0)
+	if a.GetNamespace() != "" {
+		commonParams = append(commonParams, "--namespace", a.GetNamespace())
+	}
+	if a.AppProfileV2.Kubeconfig != "" {
+		commonParams = append(commonParams, "--kubeconfig", a.AppProfileV2.Kubeconfig)
+	}
+	uninstallParams := []string{"delete", "-k", useResourcePath}
+	uninstallParams = append(uninstallParams, commonParams...)
+	_, err := tools.ExecCommand(nil, true, "kubectl", uninstallParams...)
+	return err
+}
+
 func (a *Application) Uninstall(force bool) error {
 
 	err := a.cleanUpDepConfigMap()
@@ -87,6 +106,11 @@ func (a *Application) Uninstall(force bool) error {
 		a.loadPreInstallAndInstallManifest()
 		a.cleanPreInstall()
 		err := a.uninstallManifestRecursively()
+		if err != nil {
+			return err
+		}
+	} else if a.IsKustomize() {
+		err = a.UninstallKustomize()
 		if err != nil {
 			return err
 		}

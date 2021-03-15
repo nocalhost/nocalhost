@@ -35,6 +35,10 @@ func (a *Application) IsManifest() bool {
 	return a.AppProfileV2.AppType == string(Manifest) || a.AppProfileV2.AppType == string(ManifestLocal)
 }
 
+func (a *Application) IsKustomize() bool {
+	return a.AppProfileV2.AppType == string(KustomizeGit)
+}
+
 func (a *Application) GetClient() *clientgoutils.ClientGoUtils {
 	return a.client
 }

@@ -2,12 +2,17 @@ package utils
 
 import (
 	"crypto/sha1"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"nocalhost/pkg/nhctl/tools"
 	"os"
 	"os/user"
 	"path/filepath"
+	"reflect"
+	"strconv"
 )
 
 func GetHomePath() string {
@@ -126,4 +131,27 @@ func CopyDir(src string, dst string) (err error) {
 	}
 
 	return
+}
+
+func CheckKubectlVersion(compareMinor int) error {
+	commonParams := []string{"version", "-o", "json"}
+	jsonBody, err := tools.ExecCommand(nil, false, "kubectl", commonParams...)
+	if err != nil {
+		return err
+	}
+	var result map[string]interface{}
+	err = json.Unmarshal([]byte(jsonBody), &result)
+	if err != nil {
+		return err
+	}
+	targetResult := reflect.ValueOf(result["clientVersion"])
+	target := targetResult.Interface().(map[string]interface{})
+	minor, err := strconv.Atoi(target["minor"].(string))
+	if err != nil {
+		return err
+	}
+	if compareMinor > minor {
+		return errors.New(fmt.Sprintf("kubectl version required %d+", compareMinor))
+	}
+	return nil
 }
