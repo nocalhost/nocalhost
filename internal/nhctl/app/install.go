@@ -51,6 +51,8 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 		err = a.InstallManifest()
 	case string(HelmLocal):
 		err = a.installHelmInGit(flags)
+	case string(KustomizeGit):
+		err = a.InstallKustomize()
 	default:
 		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
 	}
@@ -65,6 +67,26 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 	}
 
 	a.SetInstalledStatus(true)
+	return nil
+}
+
+func (a *Application) InstallKustomize() error {
+	resourcesPath := a.GetResourceDir()
+	if len(resourcesPath) > 1 {
+		log.Warn(`There are multiple resourcesPath settings, will use first one`)
+	}
+	useResourcePath := resourcesPath[0]
+	commonParams := []string{"apply", "-k", useResourcePath}
+	if a.GetNamespace() != "" {
+		commonParams = append(commonParams, "--namespace", a.GetNamespace())
+	}
+	if a.GetKubeconfig() != "" {
+		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
+	}
+	_, err := tools.ExecCommand(nil, true, "kubectl", commonParams...)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

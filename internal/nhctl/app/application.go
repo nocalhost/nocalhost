@@ -49,6 +49,7 @@ const (
 	Manifest      AppType = "rawManifest"
 	ManifestLocal AppType = "rawManifestLocal"
 	HelmLocal     AppType = "helmLocal"
+	KustomizeGit  AppType = "kustomizeGit"
 
 	AppManagedByLabel             = "app.kubernetes.io/managed-by"
 	AppManagedByNocalhost         = "nocalhost"
