@@ -16,7 +16,7 @@ package cmds
 import "github.com/spf13/cobra"
 
 func init() {
-	rootCmd.AddCommand(PortForwardCmd)
+	rootCmd.AddCommand(InitCmd)
 }
 
 var InitCmd = &cobra.Command{
