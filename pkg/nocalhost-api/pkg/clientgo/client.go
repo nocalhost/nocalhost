@@ -684,7 +684,7 @@ func (c *GoClient) CreateNocalhostPriorityClass() error {
 // deploy nocalhost-dep
 // now all value has set by default
 // TODO this might better read from database manifest
-func (c *GoClient) DeployNocalhostDep(namespace, serviceAccount string) (bool, error) {
+func (c *GoClient) DeployNocalhostDep(namespace, serviceAccount, tag string) (bool, error) {
 	var ttl int32 = 1
 	var backOff int32 = 1
 	job := &batchv1.Job{
@@ -701,7 +701,7 @@ func (c *GoClient) DeployNocalhostDep(namespace, serviceAccount string) (bool, e
 					Containers: []corev1.Container{
 						{
 							Name:    "nocalhost-dep-installer",
-							Image:   c.MatchedArtifactVersion(DepInstaller),
+							Image:   c.MatchedArtifactVersion(DepInstaller, tag),
 							Command: []string{"/nocalhost/installer.sh"},
 						},
 					},
@@ -880,11 +880,15 @@ func (c *GoClient) GetStorageClassList() (*storagev1.StorageClassList, error) {
 
 // Sprintf the specify artifact while image == ""
 // or use the default image from param
-func (c *GoClient) MatchedArtifactVersion(artifact string) string {
+func (c *GoClient) MatchedArtifactVersion(artifact, tags string) string {
 	tag := global.Version
 
 	if tag == "" {
 		tag = global.CommitId
+	}
+
+	if tags != "" {
+		tag = tags
 	}
 
 	return fmt.Sprintf("codingcorp-docker.pkg.coding.net/nocalhost/public/%s:%s", artifact, tag)
