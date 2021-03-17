@@ -213,7 +213,7 @@ func (c *ClientGoUtils) createUnstructuredResource(rawObj runtime.RawExtension, 
 	fmt.Printf("%s %s created\n", obj2.GetKind(), obj2.GetName())
 
 	if wait {
-		err = c.WaitJobToBeReady(obj2.GetName())
+		err = c.WaitJobToBeReady(obj2.GetName(), "metadata.name")
 		if err != nil {
 			//PrintlnErr("fail to wait", err)
 			return err
@@ -334,6 +334,11 @@ func (c *ClientGoUtils) GetStatefulSet(name string) (*v1.StatefulSet, error) {
 
 func (c *ClientGoUtils) GetJobs(name string) (*batchv1.Job, error) {
 	dep, err := c.GetJobsClient().Get(c.ctx, name, metav1.GetOptions{})
+	return dep, errors.Wrap(err, "")
+}
+
+func (c *ClientGoUtils) ListJobs() (*batchv1.JobList, error) {
+	dep, err := c.GetJobsClient().List(c.ctx, metav1.ListOptions{})
 	return dep, errors.Wrap(err, "")
 }
 

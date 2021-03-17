@@ -118,9 +118,9 @@ func isDeploymentReady(obj runtime.Object) (bool, error) {
 	return false, nil
 }
 
-func (c *ClientGoUtils) WaitJobToBeReady(name string) error {
-
-	f, err := fields.ParseSelector(fmt.Sprintf("metadata.name=%s", name))
+func (c *ClientGoUtils) WaitJobToBeReady(name, format string) error {
+	// metadata.name
+	f, err := fields.ParseSelector(fmt.Sprintf("%s=%s", format, name))
 	if err != nil {
 		return errors.Wrap(err, "")
 	}

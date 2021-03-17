@@ -31,7 +31,7 @@ type SetUpCluster interface {
 	IsAdmin() (bool, error)
 	CreateNs(namespace, label string) *setUpCluster
 	CreateConfigMap(name, namespace, key, value string) *setUpCluster
-	DeployNocalhostDep(namespace, serviceAccount string) *setUpCluster
+	DeployNocalhostDep(namespace, serviceAccount, tag string) *setUpCluster
 	GetClusterNode() *setUpCluster
 	GetClusterVersion() *setUpCluster
 	GetClusterInfo() *setUpCluster
@@ -39,7 +39,7 @@ type SetUpCluster interface {
 	CreateClusterRoleBinding(name, namespace, role, toServiceAccount string) *setUpCluster
 	CreateNocalhostPriorityClass() *setUpCluster
 	GetErr() (string, error, error)
-	InitCluster() (string, error, error)
+	InitCluster(tag string) (string, error, error)
 	UpgradeCluster() (bool, error)
 }
 
@@ -95,8 +95,8 @@ func (c *setUpCluster) CreateConfigMap(name, namespace, key, value string) *setU
 	return c
 }
 
-func (c *setUpCluster) DeployNocalhostDep(namespace, serviceAccount string) *setUpCluster {
-	_, c.err = c.clientGo.DeployNocalhostDep(namespace, serviceAccount)
+func (c *setUpCluster) DeployNocalhostDep(namespace, serviceAccount, tag string) *setUpCluster {
+	_, c.err = c.clientGo.DeployNocalhostDep(namespace, serviceAccount, tag)
 	if c.err != nil {
 		c.errCode = errno.ErrClusterDepJobSetup
 	}
@@ -142,12 +142,12 @@ func (c *setUpCluster) GetClusterInfo() *setUpCluster {
 	return c
 }
 
-func (c *setUpCluster) InitCluster() (string, error, error) {
+func (c *setUpCluster) InitCluster(tag string) (string, error, error) {
 	return c.CreateNs(global.NocalhostSystemNamespace, "").
 		CreateServiceAccount(global.NocalhostSystemNamespaceServiceAccount, global.NocalhostSystemNamespace).
 		CreateClusterRoleBinding(global.NocalhostSystemRoleBindingName, global.NocalhostSystemNamespace, "cluster-admin", global.NocalhostSystemNamespaceServiceAccount).
 		CreateNocalhostPriorityClass().
-		DeployNocalhostDep(global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount).
+		DeployNocalhostDep(global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount, tag).
 		GetClusterNode().
 		GetClusterVersion().
 		GetClusterInfo().
@@ -200,11 +200,11 @@ func (c *setUpCluster) UpgradeCluster() (bool, error) {
 	}
 
 	existDeployment, deployment := c.clientGo.ExistDeployment(global.NocalhostSystemNamespace, global.NocalhostDepName)
-	if !existDeployment || !c.CheckIfSameImage(deployment, c.clientGo.MatchedArtifactVersion(clientgo.Dep)) {
+	if !existDeployment || !c.CheckIfSameImage(deployment, c.clientGo.MatchedArtifactVersion(clientgo.Dep, "")) {
 
 		log.Info("Re-deploying nocalhost-dep... ")
 		c.DeleteOldDepJob(global.NocalhostSystemNamespace)
-		c.DeployNocalhostDep(global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount)
+		c.DeployNocalhostDep(global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount, "")
 
 		if c.err != nil {
 			return false, c.err
