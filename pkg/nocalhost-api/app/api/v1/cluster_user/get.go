@@ -14,7 +14,9 @@ limitations under the License.
 package cluster_user
 
 import (
+	"context"
 	"github.com/spf13/cast"
+	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 
@@ -69,23 +71,45 @@ func GetList(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
-// list user's dev space distinct by user id
-func ListDistinctByUserId(c *gin.Context) {
-	userId := cast.ToUint64(c.Param("id"))
-	result, err := service.Svc.ClusterUser().ListDistinctByUser(c, userId)
+func ListAll(c *gin.Context) {
+	cu := model.ClusterUserModel{
+	}
+	result, err := service.Svc.ClusterUser().GetList(c, cu)
 	if err != nil {
-		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+		api.SendResponse(c, nil, nil)
 		return
 	}
 	api.SendResponse(c, nil, result)
 }
 
 // list user's dev space distinct by user id
-func ListDistinct(c *gin.Context) {
-	result, err := service.Svc.ClusterUser().ListDistinct(c)
+func ListByUserId(c *gin.Context) {
+	userId := cast.ToUint64(c.Param("id"))
+	result, err := service.Svc.ClusterUser().ListByUser(c, userId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		return
+	}
+
+	list, err := service.Svc.ClusterSvc().GetList(context.TODO())
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterNotFound, nil)
+		return
+	}
+
+	set := map[uint64]*model.ClusterList{}
+	for _, c := range list {
+		set[c.ID] = c
+	}
+
+	for _, r := range result {
+		c, ok := set[r.ClusterId]
+
+		if ok {
+			r.StorageClass = c.StorageClass
+		}
+
+		r.DevStartAppendCommand = []string{global.NocalhostDefaultPriorityclassKey, global.NocalhostDefaultPriorityclassName}
 	}
 	api.SendResponse(c, nil, result)
 }

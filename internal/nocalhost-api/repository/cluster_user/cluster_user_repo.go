@@ -33,8 +33,7 @@ type ClusterUserRepo interface {
 	UpdateKubeConfig(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
 	GetJoinClusterAndAppAndUser(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) ([]*model.ClusterUserJoinClusterAndAppAndUser, error)
 	GetJoinClusterAndAppAndUserDetail(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) (*model.ClusterUserJoinClusterAndAppAndUser, error)
-	ListDistinctByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserModel, error)
-	ListDistinct(ctx context.Context) ([]*model.ClusterUserModel, error)
+	ListByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserPluginModel, error)
 	Close()
 }
 
@@ -112,20 +111,10 @@ func (repo *clusterUserRepo) GetList(ctx context.Context, models model.ClusterUs
 	return nil, errors.New("users cluster not found")
 }
 
-func (repo *clusterUserRepo) ListDistinctByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserModel, error) {
-	result := make([]*model.ClusterUserModel, 0)
+func (repo *clusterUserRepo) ListByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserPluginModel, error) {
+	result := make([]*model.ClusterUserPluginModel, 0)
 
 	repo.db.Raw("SELECT * FROM clusters_users WHERE user_id = ? ORDER BY user_id, id", userId).Scan(&result)
-	if len(result) > 0 {
-		return result, nil
-	}
-	return nil, errors.New("users cluster not found")
-}
-
-func (repo *clusterUserRepo) ListDistinct(ctx context.Context) ([]*model.ClusterUserModel, error) {
-	result := make([]*model.ClusterUserModel, 0)
-
-	repo.db.Raw("SELECT * FROM clusters_users ORDER BY user_id, id;").Scan(&result)
 	if len(result) > 0 {
 		return result, nil
 	}
