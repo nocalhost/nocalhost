@@ -14,23 +14,27 @@ limitations under the License.
 package cmds
 
 import (
+	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"nocalhost/internal/nhctl/app_flags"
 	"os"
 	"strconv"
 
-	"github.com/olekukonko/tablewriter"
-	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
+
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
+
+	"github.com/olekukonko/tablewriter"
+	"github.com/spf13/cobra"
 )
 
 var listFlags = &app_flags.ListFlags{}
 
 func init() {
 	listCmd.Flags().BoolVar(&listFlags.Yaml, "yaml", false, "use yaml as out put, only supports for 'nhctl list'")
+	listCmd.Flags().BoolVar(&listFlags.Json, "json", false, "use json as out put, only supports for 'nhctl list'")
 	rootCmd.AddCommand(listCmd)
 }
 
@@ -49,6 +53,8 @@ var listCmd = &cobra.Command{
 
 		if listFlags.Yaml {
 			ListApplicationsYaml()
+		} else if listFlags.Json {
+			ListApplicationsJson()
 		} else {
 			ListApplications()
 		}
@@ -70,13 +76,13 @@ func ListApplicationSvc(napp *app.Application) {
 	table.Render() // Send output
 }
 
-func ListApplicationsYaml() {
+func ListApplicationsReuslt() []*Namespace {
 	appMap, err := nocalhost.GetNsAndApplicationInfo()
 	if err != nil {
 		log.FatalE(err, "Failed to get applications")
 	}
 
-	result := map[string][]*ApplicationInfo{}
+	result := []*Namespace{}
 	for ns, appList := range appMap {
 		for _, appName := range appList {
 			app2, err := app.NewApplication(appName, ns, false)
@@ -89,20 +95,48 @@ func ListApplicationsYaml() {
 			if !profile.Installed {
 				continue
 			}
-			info, ok := result[profile.Namespace]
-			if !ok {
-				info = []*ApplicationInfo{}
+			var namespace *Namespace = nil
+			var index = 0
+			for rni, rns := range result {
+				if rns.Namespace == profile.Namespace {
+					namespace = rns
+					index = rni
+					break
+				}
 			}
+			if namespace == nil {
+				namespace = &Namespace{
+					Namespace:   profile.Namespace,
+					Application: []*ApplicationInfo{},
+				}
+				apps := append(namespace.Application, &ApplicationInfo{
+					Name: appName,
+					Type: profile.AppType,
+				})
+				namespace.Application = apps
+				result = append(result, namespace)
+			} else {
+				apps := append(namespace.Application, &ApplicationInfo{
+					Name: appName,
+					Type: profile.AppType,
+				})
+				namespace.Application = apps
 
-			info = append(info, &ApplicationInfo{
-				Name: appName,
-				Type: profile.AppType,
-			})
-
-			result[profile.Namespace] = info
+				result[index] = namespace
+			}
 		}
 	}
+	return result
+}
 
+func ListApplicationsJson() {
+	result := ListApplicationsReuslt()
+	marshal, _ := json.Marshal(result)
+	fmt.Print(string(marshal))
+}
+
+func ListApplicationsYaml() {
+	result := ListApplicationsReuslt()
 	marshal, _ := yaml.Marshal(result)
 	fmt.Print(string(marshal))
 }
@@ -125,6 +159,11 @@ func ListApplications() {
 			fmt.Printf("%-14s %-14t %-14s %-14s\n", appName, profile.Installed, profile.Namespace, profile.AppType)
 		}
 	}
+}
+
+type Namespace struct {
+	Namespace   string
+	Application []*ApplicationInfo
 }
 
 type ApplicationInfo struct {
