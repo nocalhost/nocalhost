@@ -39,10 +39,25 @@ func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
 		return a.upgradeForManifest(installFlags)
 	case HelmLocal:
 		return a.upgradeForHelmGitOrHelmLocal(installFlags)
+	case KustomizeGit:
+		return a.upgradeForKustomize()
 	default:
 		return errors.New("Unsupported app type")
 	}
 
+}
+
+func (a *Application) upgradeForKustomize() error {
+	resourcesPath := a.GetResourceDir()
+	if len(resourcesPath) > 1 {
+		log.Warn(`There are multiple resourcesPath settings, will use first one`)
+	}
+	useResourcePath := resourcesPath[0]
+	err := a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.GetNamespace()), useResourcePath)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error {
@@ -106,14 +121,14 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 
 	// Read upgrade resource obj
 	a.loadUpgradePreInstallAndInstallManifest(upgradeResourcePath)
-	upgradeInfos, err := a.client.GetResourceInfoFromFiles(a.upgradeInstallManifest, true)
+	upgradeInfos, err := a.client.GetResourceInfoFromFiles(a.upgradeInstallManifest, true, "")
 	if err != nil {
 		return err
 	}
 
 	// Read current resource obj
 	a.loadPreInstallAndInstallManifest()
-	oldInfos, err := a.client.GetResourceInfoFromFiles(a.installManifest, true)
+	oldInfos, err := a.client.GetResourceInfoFromFiles(a.installManifest, true, "")
 	if err != nil {
 		return err
 	}

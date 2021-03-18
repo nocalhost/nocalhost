@@ -53,6 +53,7 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 	case string(HelmLocal):
 		err = a.installHelmInGit(flags)
 	case string(KustomizeGit):
+		// err = a.InstallKustomizeWithKubectl()
 		err = a.InstallKustomize()
 	default:
 		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
@@ -72,6 +73,19 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 }
 
 func (a *Application) InstallKustomize() error {
+	resourcesPath := a.GetResourceDir()
+	if len(resourcesPath) > 1 {
+		log.Warn(`There are multiple resourcesPath settings, will use first one`)
+	}
+	useResourcePath := resourcesPath[0]
+	err := a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.GetNamespace()), useResourcePath)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *Application) InstallKustomizeWithKubectl() error {
 	err := utils.CheckKubectlVersion(14)
 	if err != nil {
 		log.Warn(err.Error())
@@ -271,7 +285,7 @@ func (a *Application) installManifestRecursively() error {
 	//a.loadInstallManifest()
 	log.Infof("%d manifest files to be installed", len(a.installManifest))
 	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForCreate(a.installManifest, true, StandardNocalhostMetas(a.Name, a.GetNamespace()))
+		err := a.client.ApplyForCreate(a.installManifest, true, StandardNocalhostMetas(a.Name, a.GetNamespace()), "")
 		if err != nil {
 			return err
 		}
