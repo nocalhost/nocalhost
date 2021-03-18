@@ -525,12 +525,12 @@ kubectl create rolebinding default-view \
         --serviceaccount={namespace}:default \
         --namespace={namespace}
 */
-func (c *GoClient) CreateRoleBinding(name, namespace, role, toServiceAccount string) (bool, error) {
+func (c *GoClient) CreateRoleBinding(name, rbNamespace, saNamespace, role, toServiceAccount string) (bool, error) {
 	roleBinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "RoleBinding"},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: namespace,
+			Namespace: rbNamespace,
 		},
 	}
 	if role != "" {
@@ -544,15 +544,23 @@ func (c *GoClient) CreateRoleBinding(name, namespace, role, toServiceAccount str
 		roleBinding.Subjects = append(roleBinding.Subjects, rbacv1.Subject{
 			Kind:      rbacv1.ServiceAccountKind,
 			APIGroup:  "",
-			Namespace: namespace,
+			Namespace: saNamespace,
 			Name:      toServiceAccount,
 		})
 	}
-	_, err := c.client.RbacV1().RoleBindings(namespace).Create(context.TODO(), roleBinding, metav1.CreateOptions{})
+	_, err := c.client.RbacV1().RoleBindings(rbNamespace).Create(context.TODO(), roleBinding, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
 	return true, nil
+}
+
+func (c *GoClient) DeleteRoleBinding(name, rbNamespace string) error {
+	err := c.client.RbacV1().RoleBindings(rbNamespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // create clusterRoleBinding

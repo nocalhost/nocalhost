@@ -10,6 +10,7 @@ type ClusterUserCreateRequest struct {
 	ApplicationId      *uint64             `json:"application_id"`
 	NameSpace          string              `json:"namespace"`
 	SpaceResourceLimit *SpaceResourceLimit `json:"space_resource_limit"`
+	Admin              *uint8              `json:"admin"`
 }
 
 type SpaceResourceLimit struct {
@@ -36,4 +37,9 @@ func (srl *SpaceResourceLimit) Validate() bool {
 		return false
 	}
 	return true
+}
+
+func (cucr *ClusterUserCreateRequest) isAdmin() bool {
+	u := uint8(1)
+	return cucr.Admin == &u
 }

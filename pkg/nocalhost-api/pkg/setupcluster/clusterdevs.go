@@ -23,12 +23,13 @@ type ClusterDevsSetUp interface {
 	CreateNS(namespace, label string) *clusterDevsSetUp
 	CreateServiceAccount(name, namespace string) *clusterDevsSetUp
 	CreateRole(name, namespace string) *clusterDevsSetUp
-	CreateRoleBinding(name, namespace, clusterRole, toServiceAccount string) *clusterDevsSetUp
+	CreateRoleBinding(name, rbNamespace, saNamespace, clusterRole, toServiceAccount string) *clusterDevsSetUp
 	GetServiceAccountSecret(name, namespace string) (*corev1.Secret, error)
 	CreateResouceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string) *clusterDevsSetUp
 	DeleteResourceQuota(name, namespace string) *clusterDevsSetUp
 	CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string) *clusterDevsSetUp
 	DeleteLimitRange(name, namespace string) *clusterDevsSetUp
+	GetErr() (error, error)
 }
 
 type clusterDevsSetUp struct {
@@ -65,8 +66,8 @@ func (c *clusterDevsSetUp) CreateRole(name, namespace string) *clusterDevsSetUp 
 	return c
 }
 
-func (c *clusterDevsSetUp) CreateRoleBinding(name, namespace, role, toServiceAccount string) *clusterDevsSetUp {
-	_, err := c.clientGo.CreateRoleBinding(name, namespace, role, toServiceAccount)
+func (c *clusterDevsSetUp) CreateRoleBinding(name, rbNamespace, saNamespace, role, toServiceAccount string) *clusterDevsSetUp {
+	_, err := c.clientGo.CreateRoleBinding(name, rbNamespace, saNamespace, role, toServiceAccount)
 	if err != nil {
 		c.err = err
 		c.errCode = errno.ErrBindRoleBindingCreateErr
@@ -141,6 +142,10 @@ func (c *clusterDevsSetUp) DeleteLimitRange(name, namespace string) *clusterDevs
 		c.errCode = errno.ErrDeleteLimitRange
 	}
 	return c
+}
+
+func (c *clusterDevsSetUp) GetErr() (error, error) {
+	return c.err, c.errCode
 }
 
 func NewClusterDevsSetUp(c *clientgo.GoClient) ClusterDevsSetUp {
