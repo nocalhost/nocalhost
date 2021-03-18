@@ -15,14 +15,13 @@ package cluster_user
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/repository/cluster_user"
-
-	"github.com/pkg/errors"
 )
 
 type ClusterUserService interface {
-	Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string, spaceResourceLimit string) (model.ClusterUserModel, error)
+	Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName, spaceResourceLimit string, admin uint8) (model.ClusterUserModel, error)
 	Delete(ctx context.Context, id uint64) error
 	DeleteByWhere(ctx context.Context, models model.ClusterUserModel) error
 	BatchDelete(ctx context.Context, ids []uint64) error
@@ -92,9 +91,8 @@ func (srv *clusterUserService) GetFirst(ctx context.Context, models model.Cluste
 	return result, nil
 }
 
-func (srv *clusterUserService) Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string, spaceResourceLimit string) (model.ClusterUserModel, error) {
+func (srv *clusterUserService) Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName, spaceResourceLimit string, admin uint8) (model.ClusterUserModel, error) {
 	c := model.ClusterUserModel{
-
 		// Deprecated
 		ApplicationId:      applicationId,
 		UserId:             userId,
@@ -103,6 +101,7 @@ func (srv *clusterUserService) Create(ctx context.Context, applicationId, cluste
 		Namespace:          devNameSpace,
 		SpaceName:          spaceName,
 		SpaceResourceLimit: spaceResourceLimit,
+		Admin:              &admin,
 	}
 	result, err := srv.clusterUserRepo.Create(ctx, c)
 	if err != nil {
@@ -119,11 +118,11 @@ func (srv *clusterUserService) GetJoinClusterAndAppAndUserDetail(ctx context.Con
 	return srv.clusterUserRepo.GetJoinClusterAndAppAndUserDetail(ctx, condition)
 }
 
-func (srv *clusterUserService) ListDistinctByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserModel, error){
+func (srv *clusterUserService) ListDistinctByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserModel, error) {
 	return srv.clusterUserRepo.ListDistinctByUser(ctx, userId)
 }
 
-func (srv *clusterUserService) ListDistinct(ctx context.Context) ([]*model.ClusterUserModel, error){
+func (srv *clusterUserService) ListDistinct(ctx context.Context) ([]*model.ClusterUserModel, error) {
 	return srv.clusterUserRepo.ListDistinct(ctx)
 }
 

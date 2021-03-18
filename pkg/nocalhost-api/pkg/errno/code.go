@@ -95,6 +95,7 @@ var (
 	ErrDeleteLimitRange                          = &Errno{Code: 50120, Message: "Delete limit range failed."}
 	ErrFormatResourceLimitParam                  = &Errno{Code: 50121, Message: "Incorrect Resource limit parameter."}
 	ErrValidateResourceQuota                     = &Errno{Code: 50122, Message: "If quota is enabled in a namespace for compute resources like cpu and memory, must specify requests or limits for those values."}
+	ErrPrivilege                                 = &Errno{Code: 50123, Message: "Privilege changing err."}
 
 	// application-user
 	ErrListApplicationUser   = &Errno{Code: 60000, Message: "Failed to list application_user, please check params and try again"}

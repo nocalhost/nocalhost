@@ -49,3 +49,31 @@ func GetBound(c *gin.Context) {
 	api.SendResponse(c, errno.OK, result)
 	return
 }
+
+// GetBound Get the list of clusters associated with the application
+// @Summary Get the list of clusters associated with the application（Abandoned）
+// @Description Get the list of clusters associated with the application（Abandoned）
+// @Tags Application
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path uint64 true "Application ID"
+// @Success 200 {object} model.ApplicationClusterModel
+// @Router /v1/application/{id}/bound_cluster [get]
+func List(c *gin.Context) {
+
+	// application permission
+	if _, err := service.Svc.ApplicationSvc().Get(c, applicationId); err != nil {
+		api.SendResponse(c, errno.ErrPermissionApplication, nil)
+		return
+	}
+
+	// get bound list
+	result, err := service.Svc.ApplicationClusterSvc().GetJoinCluster(c, applicationId)
+	if err != nil {
+		api.SendResponse(c, errno.ErrApplicationBoundClusterList, nil)
+		return
+	}
+	api.SendResponse(c, errno.OK, result)
+	return
+}

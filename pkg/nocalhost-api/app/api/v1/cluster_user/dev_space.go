@@ -21,6 +21,7 @@ import (
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
@@ -131,13 +132,30 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 			return nil, errno.ErrClusterKubeErr
 		}
 	}
+
 	// create cluster devs
 	devNamespace := goClient.GenerateNsName(userId)
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
-	secret, err := clusterDevsSetUp.CreateNS(devNamespace, "").CreateServiceAccount("", devNamespace).CreateRole(global.NocalhostDevRoleName, devNamespace).CreateRoleBinding(global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevServiceAccountName).CreateRoleBinding(global.NocalhostDevRoleDefaultBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevDefaultServiceAccountName).GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).GetServiceAccountSecret("", devNamespace)
+	secret, err := clusterDevsSetUp.
+		CreateNS(devNamespace, "").
+		CreateServiceAccount("", devNamespace).
+		CreateRole(global.NocalhostDevRoleName, devNamespace).
+		CreateRoleBinding(global.NocalhostDevRoleBindingName, devNamespace, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevServiceAccountName).
+		CreateRoleBinding(global.NocalhostDevRoleDefaultBindingName, devNamespace, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevDefaultServiceAccountName).
+		GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).
+		GetServiceAccountSecret("", devNamespace)
+
 	KubeConfigYaml, err, nerrno := setupcluster.NewDevKubeConfigReader(secret, clusterData.Server, devNamespace).GetCA().GetToken().AssembleDevKubeConfig().ToYamlString()
 	if err != nil {
 		return nil, nerrno
+	}
+
+	// set service account as cluster-admin
+	if d.DevSpaceParams.isAdmin() {
+		err := DoPrivilege(goClient, devNamespace)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// create namespace ResouceQuota and container limitRange
@@ -152,9 +170,98 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		res.ContainerReqMem, res.ContainerLimitsMem, res.ContainerReqCpu, res.ContainerLimitsCpu, res.ContainerEphemeralStorage)
 
 	resString, err := json.Marshal(res)
-	result, err := service.Svc.ClusterUser().Create(d.c, applicationId, *d.DevSpaceParams.ClusterId, userId, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu, KubeConfigYaml, devNamespace, spaceName, string(resString))
+	result, err := service.Svc.ClusterUser().Create(d.c, applicationId, *d.DevSpaceParams.ClusterId, userId, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu, KubeConfigYaml, devNamespace, spaceName, string(resString), *d.DevSpaceParams.Admin)
 	if err != nil {
 		return nil, errno.ErrBindApplicationClsuter
 	}
 	return &result, nil
+}
+
+func Privilege(devSpaceId uint64) error {
+	first, err := service.Svc.ClusterUser().GetFirst(context.TODO(), model.ClusterUserModel{ID: devSpaceId})
+	if err != nil {
+		return err
+	}
+
+	clusterData, err := service.Svc.ClusterSvc().Get(context.TODO(), first.ClusterId)
+	if err != nil {
+		return err
+	}
+
+	// create namespace
+	var KubeConfig = []byte(clusterData.KubeConfig)
+	goClient, err := clientgo.NewAdminGoClient(KubeConfig)
+
+	// get client go and check if is admin Kubeconfig
+	if err != nil {
+		switch err.(type) {
+		case *errno.Errno:
+			return err
+		default:
+			return errno.ErrClusterKubeErr
+		}
+	}
+
+	err = DoPrivilege(goClient, first.Namespace)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func UnPrivilege(devSpaceId uint64) error {
+	first, err := service.Svc.ClusterUser().GetFirst(context.TODO(), model.ClusterUserModel{ID: devSpaceId})
+	if err != nil {
+		return err
+	}
+
+	clusterData, err := service.Svc.ClusterSvc().Get(context.TODO(), first.ClusterId)
+	if err != nil {
+		return err
+	}
+
+	// create namespace
+	var KubeConfig = []byte(clusterData.KubeConfig)
+	goClient, err := clientgo.NewAdminGoClient(KubeConfig)
+
+	// get client go and check if is admin Kubeconfig
+	if err != nil {
+		switch err.(type) {
+		case *errno.Errno:
+			return err
+		default:
+			return errno.ErrClusterKubeErr
+		}
+	}
+
+	err = DoUnPrivilege(goClient, first.Namespace)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func DoUnPrivilege(c *clientgo.GoClient, devNamespace string) error {
+	rbName := global.NocalhostDevRoleBindingName + "-" + devNamespace
+
+	err := c.DeleteRoleBinding(rbName, "")
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+	return nil
+}
+
+func DoPrivilege(c *clientgo.GoClient, devNamespace string) error {
+
+	_, err := c.CreateRoleBinding(genClusterAdminRoleBindingName(devNamespace), "", devNamespace, "cluster-admin", global.NocalhostDevServiceAccountName)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+	return nil
+}
+
+func genClusterAdminRoleBindingName(devNamespace string) string {
+	return global.NocalhostDevRoleBindingName + "-admin-" + devNamespace
 }

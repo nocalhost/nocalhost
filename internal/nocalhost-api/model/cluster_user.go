@@ -33,6 +33,7 @@ type ClusterUserModel struct {
 	Cpu                uint64     `gorm:"column:cpu;not null" json:"cpu"`
 	SpaceResourceLimit string     `gorm:"cloumn:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
 	Namespace          string     `gorm:"column:namespace;not null" json:"namespace"`
+	Admin              *uint8     `gorm:"column:admin;default:0" json:"admin"`
 	Status             *uint64    `gorm:"column:status;default:0" json:"status"`
 	CreatedAt          time.Time  `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt          time.Time  `gorm:"column:updated_at" json:"-"`

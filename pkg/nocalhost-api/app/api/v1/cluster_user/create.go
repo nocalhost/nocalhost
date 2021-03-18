@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"regexp"
@@ -67,6 +68,36 @@ func Create(c *gin.Context) {
 		return
 	}
 	api.SendResponse(c, nil, result)
+}
+
+func PrivilegeReq(c *gin.Context) {
+	if !ginbase.IsAdmin(c) {
+		api.SendResponse(c, errno.ErrPermissionDenied, nil)
+		return
+	}
+
+	devSpaceId := cast.ToUint64(c.Param("id"))
+	err := Privilege(devSpaceId)
+	if err != nil {
+		api.SendResponse(c, errno.ErrPrivilege, nil)
+		return
+	}
+	api.SendResponse(c, nil, nil)
+}
+
+func UnPrivilegeReq(c *gin.Context) {
+	if !ginbase.IsAdmin(c) {
+		api.SendResponse(c, errno.ErrPermissionDenied, nil)
+		return
+	}
+
+	devSpaceId := cast.ToUint64(c.Param("id"))
+	err := UnPrivilege(devSpaceId)
+	if err != nil {
+		api.SendResponse(c, errno.ErrPrivilege, nil)
+		return
+	}
+	api.SendResponse(c, nil, nil)
 }
 
 func ValidSpaceResourceLimit(resLimit SpaceResourceLimit) (bool, string) {
