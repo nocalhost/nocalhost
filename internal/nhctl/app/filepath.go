@@ -95,3 +95,4 @@ func (a *Application) GetHomeDir() string {
 	//return nocalhost.GetAppDir(a.Name)
 	return nocalhost.GetAppDirUnderNs(a.Name, a.NameSpace)
 }
+

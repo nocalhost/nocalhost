@@ -44,6 +44,11 @@ var uninstallCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
+		if applicationName == app.DefaultNocalhostApplication {
+			log.Error(app.DefaultNocalhostApplicationOperateErr)
+			return
+		}
+
 		if nameSpace == "" {
 			nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig)
 			if err != nil {

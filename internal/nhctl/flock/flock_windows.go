@@ -1,211 +1,142 @@
-// +build windows
-
-/*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Copyright 2015 Tim Heckman. All rights reserved.
+// Use of this source code is governed by the BSD 3-Clause
+// license that can be found in the LICENSE file.
 
 package flock
 
 import (
-	"log"
-	"os"
 	"syscall"
-	"time"
-	"unsafe"
 )
 
-var ErrTimeout error = timeoutError("lock timeout exceeded")
+// ErrorLockViolation is the error code returned from the Windows syscall when a
+// lock would block and you ask to fail immediately.
+const ErrorLockViolation syscall.Errno = 0x21 // 33
 
-type timeoutError string
-
-var (
-	modkernel32      = syscall.NewLazyDLL("kernel32.dll")
-	procLockFileEx   = modkernel32.NewProc("LockFileEx")
-	procCreateEventW = modkernel32.NewProc("CreateEventW")
-)
-
-const (
-	lockfileExclusiveLock = 2
-	fileFlagNormal        = 0x00000080
-)
-
-func init() {
-	log.SetFlags(log.Lmicroseconds | log.Ldate)
+// Lock is a blocking call to try and take an exclusive file lock. It will wait
+// until it is able to obtain the exclusive file lock. It's recommended that
+// TryLock() be used over this function. This function may block the ability to
+// query the current Locked() or RLocked() status due to a RW-mutex lock.
+//
+// If we are already locked, this function short-circuits and returns
+// immediately assuming it can take the mutex lock.
+func (f *Flock) Lock() error {
+	return f.lock(&f.l, winLockfileExclusiveLock)
 }
 
-func (t timeoutError) Error() string {
-	return string(t)
+// RLock is a blocking call to try and take a shared file lock. It will wait
+// until it is able to obtain the shared file lock. It's recommended that
+// TryRLock() be used over this function. This function may block the ability to
+// query the current Locked() or RLocked() status due to a RW-mutex lock.
+//
+// If we are already locked, this function short-circuits and returns
+// immediately assuming it can take the mutex lock.
+func (f *Flock) RLock() error {
+	return f.lock(&f.r, winLockfileSharedLock)
 }
 
-func (timeoutError) Timeout() bool {
-	return true
-}
+func (f *Flock) lock(locked *bool, flag uint32) error {
+	f.m.Lock()
+	defer f.m.Unlock()
 
-// ErrLocked indicates TryLock failed because the lock was already locked.
-var ErrLocked error = trylockError("fslock is already locked")
-
-type trylockError string
-
-func (t trylockError) Error() string {
-	return string(t)
-}
-
-func (trylockError) Temporary() bool {
-	return true
-}
-
-// Lock implements cross-process locks using syscalls.
-// This implementation is based on LockFileEx syscall.
-type Lock struct {
-	filename string
-	handle   syscall.Handle
-}
-
-// New returns a new lock around the given file.
-func Create(filename string) (*Lock, error) {
-	return &Lock{filename: filename}, nil
-}
-
-// TryLock attempts to lock the lock.  This method will return ErrLocked
-// immediately if the lock cannot be acquired.
-func (l *Lock) TryLock() error {
-	err := l.LockWithTimeout(0)
-	if err == ErrTimeout {
-		// in our case, timing out immediately just means it was already locked.
-		return ErrLocked
+	if *locked {
+		return nil
 	}
-	return err
-}
 
-// Lock locks the lock.  This call will block until the lock is available.
-func (l *Lock) Lock() error {
-	return l.LockWithTimeout(-1)
-}
-
-// Unlock unlocks the lock.
-func (l *Lock) Unlock() error {
-	return syscall.Close(l.handle)
-}
-
-// Release file
-func (l *Lock) Release() error {
-	if l != nil {
-		return os.Remove(l.filename)
+	if f.fh == nil {
+		if err := f.setFh(); err != nil {
+			return err
+		}
+		defer f.ensureFhState()
 	}
+
+	if _, errNo := lockFileEx(syscall.Handle(f.fh.Fd()), flag, 0, 1, 0, &syscall.Overlapped{}); errNo > 0 {
+		return errNo
+	}
+
+	*locked = true
 	return nil
 }
 
-// LockWithTimeout tries to lock the lock until the timeout expires.  If the
-// timeout expires, this method will return ErrTimeout.
-func (l *Lock) LockWithTimeout(timeout time.Duration) (err error) {
-	name, err := syscall.UTF16PtrFromString(l.filename)
-	if err != nil {
-		return err
-	}
+// Unlock is a function to unlock the file. This file takes a RW-mutex lock, so
+// while it is running the Locked() and RLocked() functions will be blocked.
+//
+// This function short-circuits if we are unlocked already. If not, it calls
+// UnlockFileEx() on the file and closes the file descriptor. It does not remove
+// the file from disk. It's up to your application to do.
+func (f *Flock) Unlock() error {
+	f.m.Lock()
+	defer f.m.Unlock()
 
-	// Open for asynchronous I/O so that we can timeout waiting for the lock.
-	// Also open shared so that other processes can open the file (but will
-	// still need to lock it).
-	handle, err := syscall.CreateFile(
-		name,
-		syscall.GENERIC_READ,
-		syscall.FILE_SHARE_READ,
-		nil,
-		syscall.OPEN_ALWAYS,
-		syscall.FILE_FLAG_OVERLAPPED|fileFlagNormal,
-		0)
-	if err != nil {
-		return err
-	}
-	l.handle = handle
-	defer func() {
-		if err != nil {
-			syscall.Close(handle)
-		}
-	}()
-
-	millis := uint32(syscall.INFINITE)
-	if timeout >= 0 {
-		millis = uint32(timeout.Nanoseconds() / 1000000)
-	}
-
-	ol, err := newOverlapped()
-	if err != nil {
-		return err
-	}
-	defer syscall.CloseHandle(ol.HEvent)
-	err = lockFileEx(handle, lockfileExclusiveLock, 0, 1, 0, ol)
-	if err == nil {
+	// if we aren't locked or if the lockfile instance is nil
+	// just return a nil error because we are unlocked
+	if (!f.l && !f.r) || f.fh == nil {
 		return nil
 	}
 
-	// ERROR_IO_PENDING is expected when we're waiting on an asychronous event
-	// to occur.
-	if err != syscall.ERROR_IO_PENDING {
-		return err
+	// mark the file as unlocked
+	if _, errNo := unlockFileEx(syscall.Handle(f.fh.Fd()), 0, 1, 0, &syscall.Overlapped{}); errNo > 0 {
+		return errNo
 	}
-	s, err := syscall.WaitForSingleObject(ol.HEvent, millis)
 
-	switch s {
-	case syscall.WAIT_OBJECT_0:
-		// success!
-		return nil
-	case syscall.WAIT_TIMEOUT:
-		return ErrTimeout
-	default:
-		return err
-	}
+	f.fh.Close()
+
+	f.l = false
+	f.r = false
+	f.fh = nil
+
+	return nil
 }
 
-// newOverlapped creates a structure used to track asynchronous
-// I/O requests that have been issued.
-func newOverlapped() (*syscall.Overlapped, error) {
-	event, err := createEvent(nil, true, false, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &syscall.Overlapped{HEvent: event}, nil
+// TryLock is the preferred function for taking an exclusive file lock. This
+// function does take a RW-mutex lock before it tries to lock the file, so there
+// is the possibility that this function may block for a short time if another
+// goroutine is trying to take any action.
+//
+// The actual file lock is non-blocking. If we are unable to get the exclusive
+// file lock, the function will return false instead of waiting for the lock. If
+// we get the lock, we also set the *Flock instance as being exclusive-locked.
+func (f *Flock) TryLock() (bool, error) {
+	return f.try(&f.l, winLockfileExclusiveLock)
 }
 
-func lockFileEx(h syscall.Handle, flags, reserved, locklow, lockhigh uint32, ol *syscall.Overlapped) (err error) {
-	r1, _, e1 := syscall.Syscall6(procLockFileEx.Addr(), 6, uintptr(h), uintptr(flags), uintptr(reserved), uintptr(locklow), uintptr(lockhigh), uintptr(unsafe.Pointer(ol)))
-	if r1 == 0 {
-		if e1 != 0 {
-			err = error(e1)
-		} else {
-			err = syscall.EINVAL
+// TryRLock is the preferred function for taking a shared file lock. This
+// function does take a RW-mutex lock before it tries to lock the file, so there
+// is the possibility that this function may block for a short time if another
+// goroutine is trying to take any action.
+//
+// The actual file lock is non-blocking. If we are unable to get the shared file
+// lock, the function will return false instead of waiting for the lock. If we
+// get the lock, we also set the *Flock instance as being shared-locked.
+func (f *Flock) TryRLock() (bool, error) {
+	return f.try(&f.r, winLockfileSharedLock)
+}
+
+func (f *Flock) try(locked *bool, flag uint32) (bool, error) {
+	f.m.Lock()
+	defer f.m.Unlock()
+
+	if *locked {
+		return true, nil
+	}
+
+	if f.fh == nil {
+		if err := f.setFh(); err != nil {
+			return false, err
 		}
-	}
-	return
-}
-
-func createEvent(sa *syscall.SecurityAttributes, manualReset bool, initialState bool, name *uint16) (handle syscall.Handle, err error) {
-	var _p0 uint32
-	if manualReset {
-		_p0 = 1
-	}
-	var _p1 uint32
-	if initialState {
-		_p1 = 1
+		defer f.ensureFhState()
 	}
 
-	r0, _, e1 := syscall.Syscall6(procCreateEventW.Addr(), 4, uintptr(unsafe.Pointer(sa)), uintptr(_p0), uintptr(_p1), uintptr(unsafe.Pointer(name)), 0, 0)
-	handle = syscall.Handle(r0)
-	if handle == syscall.InvalidHandle {
-		if e1 != 0 {
-			err = error(e1)
-		} else {
-			err = syscall.EINVAL
+	_, errNo := lockFileEx(syscall.Handle(f.fh.Fd()), flag|winLockfileFailImmediately, 0, 1, 0, &syscall.Overlapped{})
+
+	if errNo > 0 {
+		if errNo == ErrorLockViolation || errNo == syscall.ERROR_IO_PENDING {
+			return false, nil
 		}
+
+		return false, errNo
 	}
-	return
+
+	*locked = true
+
+	return true, nil
 }
