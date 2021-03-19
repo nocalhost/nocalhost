@@ -59,7 +59,7 @@ func (a *Application) StopPortForwardByPort(svcName, port string) error {
 	return nil
 }
 
-func (a *Application) StopSyncAndPortForwardProcess(svcName string) error {
+func (a *Application) StopFileSyncOnly(svcName string) error {
 	var err error
 	fileSyncOps := &FileSyncOptions{}
 	devStartOptions := &DevStartOptions{}
@@ -72,6 +72,7 @@ func (a *Application) StopSyncAndPortForwardProcess(svcName string) error {
 
 	// read and clean up pid file
 	portForwardPid, portForwardFilePath, err := a.GetBackgroundSyncPortForwardPid(svcName, false)
+	fmt.Print(portForwardPid)
 	if err != nil {
 		log.Warn("Failed to get background port-forward pid file, ignored")
 	}
@@ -102,6 +103,11 @@ func (a *Application) StopSyncAndPortForwardProcess(svcName string) error {
 	if err == nil { // none of them has error
 		fmt.Printf("Background port-forward process: %d and  syncthing process: %d terminated.\n", portForwardPid, syncthingPid)
 	}
+	return err
+}
+
+func (a *Application) StopSyncAndPortForwardProcess(svcName string, cleanRemoteSecret bool) error {
+	err := a.StopFileSyncOnly(svcName)
 
 	log.Info("Stopping port forward")
 	err = a.StopAllPortForward(svcName)
@@ -110,14 +116,16 @@ func (a *Application) StopSyncAndPortForwardProcess(svcName string) error {
 	}
 
 	// Clean up secret
-	svcProfile := a.GetSvcProfileV2(svcName)
-	if svcProfile.SyncthingSecret != "" {
-		log.Debugf("Cleaning up secret %s", svcProfile.SyncthingSecret)
-		err = a.client.DeleteSecret(svcProfile.SyncthingSecret)
-		if err != nil {
-			log.WarnE(err, "Failed to clean up syncthing secret")
-		} else {
-			svcProfile.SyncthingSecret = ""
+	if cleanRemoteSecret {
+		svcProfile := a.GetSvcProfileV2(svcName)
+		if svcProfile.SyncthingSecret != "" {
+			log.Debugf("Cleaning up secret %s", svcProfile.SyncthingSecret)
+			err = a.client.DeleteSecret(svcProfile.SyncthingSecret)
+			if err != nil {
+				log.WarnE(err, "Failed to clean up syncthing secret")
+			} else {
+				svcProfile.SyncthingSecret = ""
+			}
 		}
 	}
 
@@ -130,7 +138,7 @@ func (a *Application) StopSyncAndPortForwardProcess(svcName string) error {
 
 func (a *Application) Reset(svcName string) {
 	var err error
-	err = a.StopSyncAndPortForwardProcess(svcName)
+	err = a.StopSyncAndPortForwardProcess(svcName, true)
 	if err != nil {
 		log.Warnf("something incorrect occurs when stopping sync process: %s", err.Error())
 	}

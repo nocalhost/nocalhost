@@ -46,7 +46,7 @@ var devEndCmd = &cobra.Command{
 		}
 
 		log.Info("Terminating file sync process...")
-		err = nocalhostApp.StopSyncAndPortForwardProcess(deployment)
+		err = nocalhostApp.StopSyncAndPortForwardProcess(deployment, true)
 		if err != nil {
 			log.WarnE(err, "Error occurs when stopping sync process")
 		}
