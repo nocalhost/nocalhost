@@ -24,6 +24,7 @@ import (
 func init() {
 	devTerminalCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	devTerminalCmd.Flags().StringVarP(&container, "container", "c", "", "container to enter")
+	devTerminalCmd.Flags().StringVar(&pod, "pod", "", "pod to enter")
 	debugCmd.AddCommand(devTerminalCmd)
 }
 
@@ -42,7 +43,7 @@ var devTerminalCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
 
-		err = nocalhostApp.EnterPodTerminal(deployment, container)
+		err = nocalhostApp.EnterPodTerminal(deployment, pod, container)
 		if err != nil {
 			log.FatalE(err, "Failed to enter terminal")
 		}

@@ -32,6 +32,7 @@ var (
 	deployment  string
 	ServiceType string
 	//Container   string
+	pod string
 )
 
 var devStartOps = &app.DevStartOptions{}
