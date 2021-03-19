@@ -15,6 +15,7 @@ package cmds
 
 import (
 	"context"
+	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"nocalhost/internal/nhctl/app"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/daemon"
@@ -125,6 +126,24 @@ var fileSyncCmd = &cobra.Command{
 					Out:    os.Stdout,
 					ErrOut: os.Stderr,
 				}
+
+				k8s_runtime.ErrorHandlers = append(k8s_runtime.ErrorHandlers, func(err error) {
+					if strings.Contains(err.Error(), "error creating error stream for port") {
+						log.Warnf("Port-forward %d:%d failed to create stream, try to reconnecting", lPort, svcProfile.RemoteSyncthingPort)
+						select {
+						case _, isOpen := <-stopCh:
+							if isOpen {
+								log.Infof("Closing Port-forward %d:%d' by stop chan", lPort, svcProfile.RemoteSyncthingPort)
+								close(stopCh)
+							} else {
+								log.Infof("Port-forward %d:%d has been closed, do nothing", lPort, svcProfile.RemoteSyncthingPort)
+							}
+						default:
+							log.Infof("Closing Port-forward %d:%d'", lPort, svcProfile.RemoteSyncthingPort)
+							close(stopCh)
+						}
+					}
+				})
 
 				go func(readyCh chan struct{}) {
 					select {
