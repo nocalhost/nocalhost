@@ -52,6 +52,11 @@ const (
 	HelmLocal     AppType = "helmLocal"
 	KustomizeGit  AppType = "kustomizeGit"
 
+	// default is a special app type, it can be uninstalled neither installed
+	// it's a virtual application to managed that those manifest out of Nocalhost management
+	DefaultNocalhostApplication           = "default.application"
+	DefaultNocalhostApplicationOperateErr = "default.application is a virtual application to managed that those manifest out of Nocalhost management so can't be install, uninstall, reset, etc."
+
 	AppManagedByLabel             = "app.kubernetes.io/managed-by"
 	AppManagedByNocalhost         = "nocalhost"
 	NocalhostApplicationName      = "dev.nocalhost/application-name"

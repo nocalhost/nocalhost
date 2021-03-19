@@ -40,7 +40,7 @@ func init() {
 	installCmd.Flags().StringVarP(&installFlags.OuterConfig, "outer-config", "c", "", "specify a config.yaml in local path")
 	installCmd.Flags().StringVar(&installFlags.Config, "config", "", "specify a config relative to .nocalhost dir")
 	installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
-	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", fmt.Sprintf("nocalhost application type: %s or %s or %s", app.HelmRepo, app.Helm, app.Manifest))
+	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", fmt.Sprintf("nocalhost application type: %s, %s, %s, %s, %s or %s", app.HelmRepo, app.Helm, app.HelmLocal, app.Manifest, app.ManifestLocal, app.KustomizeGit))
 	installCmd.Flags().BoolVar(&installFlags.HelmWait, "wait", installFlags.HelmWait, "wait for completion")
 	installCmd.Flags().BoolVar(&installFlags.IgnorePreInstall, "ignore-pre-install", installFlags.IgnorePreInstall, "ignore pre-install")
 	installCmd.Flags().StringSliceVar(&installFlags.HelmSet, "set", []string{}, "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
@@ -65,6 +65,11 @@ var installCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
+		if applicationName == app.DefaultNocalhostApplication {
+			log.Error(app.DefaultNocalhostApplicationOperateErr)
+			return
+		}
+
 		if installFlags.GitUrl == "" && (installFlags.AppType != string(app.HelmRepo) && installFlags.AppType != string(app.ManifestLocal) && installFlags.AppType != string(app.HelmLocal)) {
 			log.Fatalf("If app type is not %s , --git-url must be specified", app.HelmRepo)
 		}
@@ -112,7 +117,6 @@ func InstallApplication(applicationName string) error {
 	var err error
 
 	//installFlags.EnvSettings = settings
-
 	log.Logf("KubeConfig path: %s", kubeConfig)
 	bys, err := ioutil.ReadFile(kubeConfig)
 	if err != nil {

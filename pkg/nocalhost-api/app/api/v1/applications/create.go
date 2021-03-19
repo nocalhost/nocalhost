@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
@@ -59,6 +60,11 @@ func Create(c *gin.Context) {
 			return
 		}
 	}
+
+	if applicationContext.ApplicationName == app.DefaultNocalhostApplication {
+		api.SendResponse(c, errno.ErrSensitiveApplicationName, nil)
+	}
+
 	// check application name is match DNS-1123
 	errs := validation.IsDNS1123Label(applicationContext.ApplicationName)
 	if len(errs) > 0 {
@@ -72,7 +78,7 @@ func Create(c *gin.Context) {
 	}
 
 	// adapt earlier version
-	if req.Public==nil {
+	if req.Public == nil {
 		u := uint8(1)
 		req.Public = &u
 	}

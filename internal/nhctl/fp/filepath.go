@@ -5,6 +5,7 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/syncthing/network/req"
 	"os"
 	"path/filepath"
@@ -75,6 +76,17 @@ func (f *FilePathEnhance) RelOrAbs(path string) *FilePathEnhance {
 	return NewFilePath(strings.Join(baseSplited, pathSeparator))
 }
 
+func (f *FilePathEnhance) WriteFile(value string) error {
+	f.mu.Lock()
+
+	defer func() {
+		f.cached = false
+		f.mu.Unlock()
+	}()
+
+	return ioutil.WriteFile(f.absPath, []byte(value), os.FileMode(0600))
+}
+
 func (f *FilePathEnhance) ReadFile() string {
 	f.mu.Lock()
 
@@ -129,6 +141,10 @@ func (f *FilePathEnhance) CheckExist() error {
 		}
 	}
 	return nil
+}
+
+func (f *FilePathEnhance) Mkdir() error {
+	return os.MkdirAll(f.absPath, nocalhost.DefaultNewFilePermission)
 }
 
 // DownloadFile will download a url to a local file. It's efficient because it will
