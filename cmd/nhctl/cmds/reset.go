@@ -16,6 +16,7 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 )
@@ -36,9 +37,13 @@ var resetCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-
 		var err error
 		applicationName := args[0]
+		if applicationName == app.DefaultNocalhostApplication {
+			log.Error(app.DefaultNocalhostApplicationOperateErr)
+			return
+		}
+
 		initApp(applicationName)
 
 		// Stop BackGroup Process

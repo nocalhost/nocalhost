@@ -277,20 +277,20 @@ func (a *Application) InstallDepConfigMap() error {
 			a.SaveProfile()
 		}
 	}
-	log.Info("Dependency config map installed")
+	log.Logf("Dependency config map installed")
 	return nil
 }
 
 func (a *Application) installManifestRecursively() error {
 	//a.loadInstallManifest()
-	log.Infof("%d manifest files to be installed", len(a.installManifest))
+	log.Logf("%d manifest files to be installed", len(a.installManifest))
 	if len(a.installManifest) > 0 {
 		err := a.client.ApplyForCreate(a.installManifest, true, StandardNocalhostMetas(a.Name, a.GetNamespace()), "")
 		if err != nil {
 			return err
 		}
 	} else {
-		log.Warn("nothing need to be installed ??")
+		log.Logf("nothing need to be installed ??")
 	}
 	return nil
 }

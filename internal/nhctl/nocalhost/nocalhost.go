@@ -14,8 +14,10 @@ limitations under the License.
 package nocalhost
 
 import (
+	"fmt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"nocalhost/internal/nhctl/flock"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -284,4 +286,48 @@ func CheckIfApplicationExist(appName string, namespace string) bool {
 		}
 	}
 	return false
+}
+
+// todo it's worked by dir, so it may not be very accurate
+func EstimateApplicationCounts(namespace string) int {
+	appMap, err := GetNsAndApplicationInfo()
+	if err != nil || len(appMap) == 0 {
+		return 0
+	}
+
+	for ns, appList := range appMap {
+		if ns != namespace {
+			continue
+		}
+		return len(appList)
+	}
+	return 0
+}
+
+func GetFirstApplication(namespace string) string {
+	appMap, err := GetNsAndApplicationInfo()
+	if err != nil || len(appMap) == 0 {
+		return ""
+	}
+
+	for ns, appList := range appMap {
+		if ns != namespace {
+			continue
+		}
+		if len(appList) > 0 {
+			return appList[0]
+		}
+	}
+	return ""
+}
+
+func NsLock(namespace string) *flock.Flock {
+	return flock.New(
+		filepath.Join(defaultNsLockDir(), fmt.Sprintf("%s.flock", namespace)))
+}
+
+func defaultNsLockDir() string {
+	p := filepath.Join(GetNhctlHomeDir(), "nslock")
+	_ = os.Mkdir(p, 0700)
+	return p
 }
