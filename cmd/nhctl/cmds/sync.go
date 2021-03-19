@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -40,6 +41,7 @@ func init() {
 	fileSyncCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.RunAsDaemon, "daemon", "m", true, "if file sync run as daemon")
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false, "if use double side sync")
+	fileSyncCmd.Flags().BoolVar(&fileSyncOps.Resume, "resume", false, "resume file sync, this will restart port-forward and syncthing")
 	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.SyncedPattern, "synced-pattern", "s", []string{}, "local synced pattern")
 	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.IgnoredPattern, "ignored-pattern", "i", []string{}, "local ignored pattern")
 	fileSyncCmd.Flags().StringVar(&fileSyncOps.Container, "container", "", "container name of pod to sync")
@@ -67,9 +69,21 @@ var fileSyncCmd = &cobra.Command{
 			log.Fatalf("Service \"%s\" is not in developing", deployment)
 		}
 
-		if nocalhostApp.CheckIfSvcIsSyncthing(deployment) {
-			log.Fatalf("Service \"%s\" is already in syncing", deployment)
+		// resume port-forward and syncthing
+		id, err := strconv.Atoi(os.Getenv(daemon.MARK_ENV_NAME))
+		if err != nil || id == 0 {
+			// run once in father progress
+			if fileSyncOps.Resume {
+				err = nocalhostApp.StopFileSyncOnly(deployment)
+				if err != nil {
+					log.WarnE(err, "Error occurs when stopping sync process, ignore")
+				}
+			}
 		}
+
+		//if nocalhostApp.CheckIfSvcIsSyncthing(deployment) {
+		//	log.Fatalf("Service \"%s\" is already in syncing", deployment)
+		//}
 
 		// syncthing port-forward
 		// set abs directory to call myself
