@@ -175,9 +175,9 @@ func (r *runtimeObjectPrinter) PrintObj(obj runtime.Object, writer io.Writer) er
 	return nil
 }
 
-func (c *ClientGoUtils) GetResourceInfoFromFiles(files []string, continueOnError bool) ([]*resource.Info, error) {
+func (c *ClientGoUtils) GetResourceInfoFromFiles(files []string, continueOnError bool, kustomize string) ([]*resource.Info, error) {
 
-	if len(files) == 0 {
+	if len(files) == 0 && len(kustomize) == 0 {
 		return nil, errors.New("files must not be nil")
 	}
 
@@ -193,7 +193,7 @@ func (c *ClientGoUtils) GetResourceInfoFromFiles(files []string, continueOnError
 	}
 	filenames := resource.FilenameOptions{
 		Filenames: files,
-		Kustomize: "",
+		Kustomize: kustomize,
 		Recursive: false,
 	}
 	if continueOnError {

@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"net"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/daemon"
@@ -604,6 +605,24 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 				// readyCh communicate when the port forward is ready to get traffic
 				readyCh := make(chan struct{})
 				endCh := make(chan struct{})
+
+				k8s_runtime.ErrorHandlers = append(k8s_runtime.ErrorHandlers, func(err error) {
+					if strings.Contains(err.Error(), "error creating error stream for port") {
+						log.Warnf("Port-forward %d:%d failed to create stream, try to reconnecting", lPort, rPort)
+						select {
+						case _, isOpen := <-stopCh:
+							if isOpen {
+								log.Infof("Closing Port-forward %d:%d' by stop chan", lPort, rPort)
+								close(stopCh)
+							} else {
+								log.Infof("Port-forward %d:%d has been closed, do nothing", lPort, rPort)
+							}
+						default:
+							log.Infof("Closing Port-forward %d:%d'", lPort, rPort)
+							close(stopCh)
+						}
+					}
+				})
 
 				// stream is used to tell the port forwarder where to place its output or
 				// where to expect input if needed. For the port forwarding we just need
