@@ -14,7 +14,6 @@ limitations under the License.
 package cmds
 
 import (
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
@@ -29,40 +28,57 @@ var resetCmd = &cobra.Command{
 	Use:   "reset [NAME]",
 	Short: "reset application",
 	Long:  `reset application`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
-		}
-		return nil
-	},
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var err error
-		applicationName := args[0]
-		initApp(applicationName)
-
-		// Stop BackGroup Process
-		for _, profile := range nocalhostApp.AppProfileV2.SvcProfile {
-			if profile.Developing {
-				err = nocalhostApp.StopSyncAndPortForwardProcess(profile.ActualName)
-				if err != nil {
-					log.WarnE(err, "")
-				}
-			} else if len(profile.DevPortForwardList) > 0 {
-				err = nocalhostApp.StopAllPortForward(profile.ActualName)
-				if err != nil {
-					log.WarnE(err, "")
-				}
+		if len(args) > 0 {
+			applicationName := args[0]
+			if applicationName != "" {
+				resetApplication(applicationName)
+				return
 			}
 		}
 
-		// Remove files
-		err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace)
+		// Reset all applications under specify namespace
+		appMap, err := nocalhost.GetNsAndApplicationInfo()
 		if err != nil {
-			log.WarnE(err, "")
-		} else {
-			log.Info("Files have been clean up")
+			log.FatalE(err, "Failed to get applications")
 		}
-		log.Infof("Application %s has been reset.\n", applicationName)
+		for ns, appList := range appMap {
+			if ns != nameSpace {
+				continue
+			}
+			for _, appName := range appList {
+				resetApplication(appName)
+			}
+		}
 	},
+}
+
+func resetApplication(applicationName string) {
+	var err error
+	initApp(applicationName)
+	// Stop BackGroup Process
+	for _, profile := range nocalhostApp.AppProfileV2.SvcProfile {
+		if profile.Developing {
+			err = nocalhostApp.StopSyncAndPortForwardProcess(profile.ActualName)
+			if err != nil {
+				log.WarnE(err, "")
+			}
+		} else if len(profile.DevPortForwardList) > 0 {
+			err = nocalhostApp.StopAllPortForward(profile.ActualName)
+			if err != nil {
+				log.WarnE(err, "")
+			}
+		}
+	}
+
+	// Remove files
+	err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace)
+	if err != nil {
+		log.WarnE(err, "")
+	} else {
+		log.Info("Files have been clean up")
+	}
+	log.Infof("Application %s has been reset.\n", applicationName)
 }
