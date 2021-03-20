@@ -91,6 +91,9 @@ func (s *SvcProfileV2) GetDefaultContainerDevConfig() *ContainerDevConfig {
 	//if s.ContainerConfigs[0].Name == "" {
 	//	return s.ContainerConfigs[0].Dev
 	//}
+	if len(s.ContainerConfigs) == 0 {
+		return nil
+	}
 	return s.ContainerConfigs[0].Dev
 }
 
