@@ -133,7 +133,7 @@ func (a *Application) LoadConfigV2() error {
 	}
 
 	if !isV2 {
-		log.Info("Upgrade config V1 to V2 ...")
+		log.Log("Upgrade config V1 to V2 ...")
 		err = a.UpgradeAppConfigV1ToV2()
 		if err != nil {
 			return err
