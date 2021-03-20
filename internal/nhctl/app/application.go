@@ -88,7 +88,7 @@ type SvcDependency struct {
 	Pods []string `json:"pods" yaml:"pods,omitempty"`
 }
 
-func NewApplication(name string, ns string, initClient bool) (*Application, error) {
+func NewApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
 	app := &Application{
 		Name:      name,
 		NameSpace: ns,
@@ -106,6 +106,11 @@ func NewApplication(name string, ns string, initClient bool) (*Application, erro
 
 	if len(app.AppProfileV2.PreInstall) == 0 && len(app.configV2.ApplicationConfig.PreInstall) > 0 {
 		app.AppProfileV2.PreInstall = app.configV2.ApplicationConfig.PreInstall
+		_ = app.SaveProfile()
+	}
+
+	if kubeconfig != "" && kubeconfig != app.AppProfileV2.Kubeconfig {
+		app.AppProfileV2.Kubeconfig = kubeconfig
 		_ = app.SaveProfile()
 	}
 
