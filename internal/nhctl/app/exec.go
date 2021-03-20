@@ -35,7 +35,15 @@ func (a *Application) EnterPodTerminal(svcName string, podName, container string
 	if podName != "" {
 		pod = podName
 	}
-	shell := a.GetSvcProfileV2(svcName).GetContainerDevConfigOrDefault(container).Shell
+	shell := ""
+	profile := a.GetSvcProfileV2(svcName)
+	if profile != nil {
+		devConfig := profile.GetContainerDevConfigOrDefault(container)
+		if devConfig != nil {
+			shell = devConfig.Shell
+		}
+	}
+	//shell := a.GetSvcProfileV2(svcName).GetContainerDevConfigOrDefault(container).Shell
 	cmd := "(zsh || bash || sh)"
 	if shell != "" {
 		cmd = fmt.Sprintf("(%s || zsh || bash || sh)", shell)
