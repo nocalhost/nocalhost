@@ -35,4 +35,5 @@ type InstallFlags struct {
 
 type ListFlags struct {
 	Yaml bool
+	Json bool
 }

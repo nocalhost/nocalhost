@@ -97,7 +97,7 @@ func (a *Application) LoadAppProfileV2(retry bool) error {
 	}
 
 	if !isV2 {
-		log.Info("Upgrade profile V1 to V2 ...")
+		log.Log("Upgrade profile V1 to V2 ...")
 		err = a.UpgradeAppProfileV1ToV2()
 		if err != nil {
 			return err

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"math/rand"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
 	"path/filepath"
@@ -51,6 +52,9 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 		err = a.InstallManifest()
 	case string(HelmLocal):
 		err = a.installHelmInGit(flags)
+	case string(KustomizeGit):
+		// err = a.InstallKustomizeWithKubectl()
+		err = a.InstallKustomize()
 	default:
 		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
 	}
@@ -65,6 +69,43 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 	}
 
 	a.SetInstalledStatus(true)
+	return nil
+}
+
+func (a *Application) InstallKustomize() error {
+	resourcesPath := a.GetResourceDir()
+	if len(resourcesPath) > 1 {
+		log.Warn(`There are multiple resourcesPath settings, will use first one`)
+	}
+	useResourcePath := resourcesPath[0]
+	err := a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.GetNamespace()), useResourcePath)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *Application) InstallKustomizeWithKubectl() error {
+	err := utils.CheckKubectlVersion(14)
+	if err != nil {
+		log.Warn(err.Error())
+	}
+	resourcesPath := a.GetResourceDir()
+	if len(resourcesPath) > 1 {
+		log.Warn(`There are multiple resourcesPath settings, will use first one`)
+	}
+	useResourcePath := resourcesPath[0]
+	commonParams := []string{"apply", "-k", useResourcePath}
+	if a.GetNamespace() != "" {
+		commonParams = append(commonParams, "--namespace", a.GetNamespace())
+	}
+	if a.GetKubeconfig() != "" {
+		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
+	}
+	_, err = tools.ExecCommand(nil, true, "kubectl", commonParams...)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -236,20 +277,20 @@ func (a *Application) InstallDepConfigMap() error {
 			a.SaveProfile()
 		}
 	}
-	log.Info("Dependency config map installed")
+	log.Logf("Dependency config map installed")
 	return nil
 }
 
 func (a *Application) installManifestRecursively() error {
 	//a.loadInstallManifest()
-	log.Infof("%d manifest files to be installed", len(a.installManifest))
+	log.Logf("%d manifest files to be installed", len(a.installManifest))
 	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForCreate(a.installManifest, true, StandardNocalhostMetas(a.Name, a.GetNamespace()))
+		err := a.client.ApplyForCreate(a.installManifest, true, StandardNocalhostMetas(a.Name, a.GetNamespace()), "")
 		if err != nil {
 			return err
 		}
 	} else {
-		log.Warn("nothing need to be installed ??")
+		log.Logf("nothing need to be installed ??")
 	}
 	return nil
 }

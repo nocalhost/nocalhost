@@ -15,6 +15,7 @@ package cmds
 
 import (
 	"context"
+	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"nocalhost/internal/nhctl/app"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/daemon"
@@ -23,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -40,6 +42,7 @@ func init() {
 	fileSyncCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.RunAsDaemon, "daemon", "m", true, "if file sync run as daemon")
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false, "if use double side sync")
+	fileSyncCmd.Flags().BoolVar(&fileSyncOps.Resume, "resume", false, "resume file sync, this will restart port-forward and syncthing")
 	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.SyncedPattern, "synced-pattern", "s", []string{}, "local synced pattern")
 	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.IgnoredPattern, "ignored-pattern", "i", []string{}, "local ignored pattern")
 	fileSyncCmd.Flags().StringVar(&fileSyncOps.Container, "container", "", "container name of pod to sync")
@@ -67,9 +70,21 @@ var fileSyncCmd = &cobra.Command{
 			log.Fatalf("Service \"%s\" is not in developing", deployment)
 		}
 
-		if nocalhostApp.CheckIfSvcIsSyncthing(deployment) {
-			log.Fatalf("Service \"%s\" is already in syncing", deployment)
+		// resume port-forward and syncthing
+		id, err := strconv.Atoi(os.Getenv(daemon.MARK_ENV_NAME))
+		if err != nil || id == 0 {
+			// run once in father progress
+			if fileSyncOps.Resume {
+				err = nocalhostApp.StopFileSyncOnly(deployment)
+				if err != nil {
+					log.WarnE(err, "Error occurs when stopping sync process, ignore")
+				}
+			}
 		}
+
+		//if nocalhostApp.CheckIfSvcIsSyncthing(deployment) {
+		//	log.Fatalf("Service \"%s\" is already in syncing", deployment)
+		//}
 
 		// syncthing port-forward
 		// set abs directory to call myself
@@ -125,6 +140,24 @@ var fileSyncCmd = &cobra.Command{
 					Out:    os.Stdout,
 					ErrOut: os.Stderr,
 				}
+
+				k8s_runtime.ErrorHandlers = append(k8s_runtime.ErrorHandlers, func(err error) {
+					if strings.Contains(err.Error(), "error creating error stream for port") {
+						log.Warnf("Port-forward %d:%d failed to create stream, try to reconnecting", lPort, svcProfile.RemoteSyncthingPort)
+						select {
+						case _, isOpen := <-stopCh:
+							if isOpen {
+								log.Infof("Closing Port-forward %d:%d' by stop chan", lPort, svcProfile.RemoteSyncthingPort)
+								close(stopCh)
+							} else {
+								log.Infof("Port-forward %d:%d has been closed, do nothing", lPort, svcProfile.RemoteSyncthingPort)
+							}
+						default:
+							log.Infof("Closing Port-forward %d:%d'", lPort, svcProfile.RemoteSyncthingPort)
+							close(stopCh)
+						}
+					}
+				})
 
 				go func(readyCh chan struct{}) {
 					select {

@@ -15,10 +15,14 @@ package cmds
 
 import (
 	"fmt"
+	"io/ioutil"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 	"strings"
 )
 
@@ -36,9 +40,17 @@ func initApp(appName string) {
 	}
 
 	if !nocalhost.CheckIfApplicationExist(appName, nameSpace) {
-		log.FatalE(err, fmt.Sprintf("Application \"%s\" not found", appName))
+		// init nocalhost default application and wait
+		if appName == app.DefaultNocalhostApplication {
+			err := initNocalhostDefaultApplicationAndWait()
+			if err != nil {
+				log.FatalE(err, "Failed to init default application in ns "+nameSpace)
+			}
+		} else {
+			log.FatalE(err, fmt.Sprintf("Application \"%s\" not found", appName))
+		}
 	}
-	nocalhostApp, err = app.NewApplication(appName, nameSpace, true)
+	nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
 	if err != nil {
 		log.FatalE(err, "Failed to get application info")
 	}
@@ -72,24 +84,6 @@ func CheckIfSvcExist(svcName string, svcType ...string) {
 		log.Fatalf("\"%s\" not found", svcName)
 	}
 
-	//if serviceType == app.Deployment {
-	//	if Container == "" {
-	//		containers, err := nocalhostApp.ListContainersByDeployment(deployment)
-	//		if err != nil {
-	//			log.FatalE(err, "")
-	//		}
-	//
-	//		if len(containers) == 0 {
-	//			log.Fatalf("No container found in %s ???", deployment)
-	//		}
-	//
-	//		if len(containers) > 0 {
-	//			log.Fatalf("There are more than 1 container in deployment %s, you mush specify one", deployment)
-	//		}
-	//		Container = containers[0].Name
-	//	}
-	//}
-
 	log.AddField("SVC", svcName)
 }
 
@@ -100,4 +94,91 @@ func initAppAndCheckIfSvcExist(appName string, svcName string, svcAttr []string)
 	}
 	initApp(appName)
 	CheckIfSvcExist(svcName, serviceType)
+}
+
+func initNocalhostDefaultApplicationAndWait() error {
+	nsLock := nocalhost.NsLock(nameSpace)
+
+	err := nsLock.Lock()
+	defer nsLock.Unlock()
+	if err != nil {
+		return err
+	}
+
+	// double check
+	if !nocalhost.CheckIfApplicationExist(app.DefaultNocalhostApplication, nameSpace) {
+		log.Logf("Default virtual application in ns %s haven't init yet...", nameSpace)
+
+		switch nocalhost.EstimateApplicationCounts(nameSpace) {
+		case 1: // means we can move user's configurations to default app
+			log.Logf("Init virtual application and copy unique app's configuration in ns %s ...", nameSpace)
+			err := InitDefaultApplicationByFirstValid()
+			if err != nil {
+				return err
+			}
+		default:
+			log.Logf("Init virtual application in ns %s ...", nameSpace)
+			err := InitDefaultApplicationInCurrentNs()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func InitDefaultApplicationByFirstValid() error {
+	appNeedToCopy := nocalhost.GetFirstApplication(nameSpace)
+	if appNeedToCopy == app.DefaultNocalhostApplication {
+		log.Error("Error while init %s, %s need to be created but has been created. ", appNeedToCopy, appNeedToCopy)
+	}
+	var err error
+
+	defer func() {
+		if err != nil {
+			os.RemoveAll(nocalhost.GetAppDirUnderNs(app.DefaultNocalhostApplication, nameSpace))
+		}
+	}()
+
+	err = utils.CopyDir(
+		nocalhost.GetAppDirUnderNs(appNeedToCopy, nameSpace),
+		nocalhost.GetAppDirUnderNs(app.DefaultNocalhostApplication, nameSpace),
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func InitDefaultApplicationInCurrentNs() error {
+	tmpDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpDir)
+
+	baseDir := fp.NewFilePath(tmpDir)
+	nocalhostDir := baseDir.RelOrAbs(app.DefaultGitNocalhostDir)
+	err = nocalhostDir.Mkdir()
+	if err != nil {
+		return err
+	}
+
+	var cfg = ".default_config"
+
+	err = nocalhostDir.RelOrAbs(cfg).WriteFile("name: nocalhost.default\nmanifestType: rawManifestLocal")
+	if err != nil {
+		return err
+	}
+
+	installFlags.Config = cfg
+	installFlags.AppType = string(app.ManifestLocal)
+	installFlags.LocalPath = baseDir.Abs()
+	err = InstallApplication(app.DefaultNocalhostApplication)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -156,5 +156,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	if err != nil {
 		return nil, errno.ErrBindApplicationClsuter
 	}
+
+	_ = service.Svc.ApplicationUser().BatchInsert(d.c, applicationId, []uint64{userId})
 	return &result, nil
 }

@@ -67,6 +67,7 @@ func Execute() {
 
 	//str := "port-forward start bookinfo-coding -d ratings -p 12345:12345 --pod ratings-6848dcd688-wbn8l --way manual --kubeconfig ~/.nh/plugin/kubeConfigs/10_167_config"
 	//str := "port-forward start coding-cd -d mariadb -p 3306:3306 --pod mariadb-0 --type statefulset --way manual --kubeconfig /Users/weiwang/.nh/plugin/kubeConfigs/7_73_config"
+	//str := "init dep"
 	//os.Args = append(os.Args, strings.Split(str, " ")...)
 
 	if len(os.Args) == 1 {

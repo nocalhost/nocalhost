@@ -142,12 +142,12 @@ func (a *Application) renderConfig(outerConfigPath string, configName string) er
 		envFile = configFile.RelOrAbs("../").RelOrAbs(relPath)
 
 		if e := envFile.CheckExist(); e != nil {
-			log.Infof("Render %s Nocalhost config without env files, we found the env file had been configured as %s, but we can not found in %s", configFile.Abs(), relPath, envFile.Abs())
+			log.Log("Render %s Nocalhost config without env files, we found the env file had been configured as %s, but we can not found in %s", configFile.Abs(), relPath, envFile.Abs())
 		} else {
-			log.Infof("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
+			log.Log("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
 		}
 	} else {
-		log.Infof("Render %s Nocalhost config without env files, you config your Nocalhost configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2", configFile.Abs())
+		log.Log("Render %s Nocalhost config without env files, you config your Nocalhost configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2", configFile.Abs())
 	}
 
 	renderedStr, err := envsubst.Render(configFile, envFile)
@@ -180,7 +180,7 @@ func (a *Application) renderConfig(outerConfigPath string, configName string) er
 
 		for i, config := range renderedConfig.ApplicationConfig.ServiceConfigs {
 			if _, ok := maps[config.Name]; ok {
-				log.Infof("Duplicate service %s found, Nocalhost will keep the last one according to the sequence", config.Name)
+				log.Log("Duplicate service %s found, Nocalhost will keep the last one according to the sequence", config.Name)
 			}
 			maps[config.Name] = i
 		}

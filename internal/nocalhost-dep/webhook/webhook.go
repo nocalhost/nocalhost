@@ -491,6 +491,7 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 // main mutation process
 func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
 	req := ar.Request
+
 	var (
 		objectMeta    *metav1.ObjectMeta
 		resourceName  string
@@ -498,12 +499,11 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		containers    []corev1.Container
 	)
 	resourceType := req.Kind.Kind
-	glog.Infof("AdmissionReview for Kind=%v, Namespace=%v Name=%v UID=%v patchOperation=%v UserInfo=%v",
-		req.Kind, req.Namespace, req.Name, req.UID, req.Operation, req.UserInfo)
+
 	// overwrite nocalhostNamespace for get dep config from devs namespace
 	nocalhostNamespace = req.Namespace
 	// admission webhook Specific 6 resource blocking
-	switch req.Kind.Kind {
+	switch resourceType {
 	case "Deployment":
 		var deployment appsv1.Deployment
 		if err := json.Unmarshal(req.Object.Raw, &deployment); err != nil {
@@ -570,10 +570,52 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 			}
 		}
 		resourceName, objectMeta, initContainer, containers = cronJob.Name, &cronJob.ObjectMeta, cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers, cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers
+	case "ResourceQuota":
+		if req.UserInfo.UID == "" {
+			return &v1beta1.AdmissionResponse{
+				Allowed: true,
+			}
+		}
+
+		sa := getSaByUid(req.UserInfo.UID)
+		if sa == nil {
+			var err = fmt.Errorf("Could not get service account with uuid: %s ", req.UserInfo.UID)
+			glog.Error(err)
+			return &v1beta1.AdmissionResponse{
+				Result: &metav1.Status{
+					Message: err.Error(),
+				},
+			}
+		}
+
+		isAdmin, err := isClusterAdmin(sa)
+		if err != nil {
+			glog.Errorf("Could not get role-binding from namespace %s, Err: %s", sa.Namespace, err.Error())
+			return &v1beta1.AdmissionResponse{
+				Result: &metav1.Status{
+					Message: err.Error(),
+				},
+			}
+		}
+
+		if isAdmin {
+			return &v1beta1.AdmissionResponse{
+				Allowed: true,
+			}
+		}
+
+		glog.Infof("Request user uuid %s, Sa uuid %s is from ns %s without cluster-admin role, so resource quota request denied", req.UserInfo.UID, sa.UID, sa.Namespace)
+		return &v1beta1.AdmissionResponse{
+			Allowed: false,
+		}
 	}
 
-	glog.Infof("unmarshal for Kind=%v, Namespace=%v Name=%v",
-		req.Kind, req.Namespace, req.Name)
+	if resourceType != "ResourceQuota" {
+		glog.Infof("AdmissionReview for Kind=%v, Namespace=%v Name=%v UID=%v patchOperation=%v UserInfo=%v",
+			req.Kind, req.Namespace, req.Name, req.UID, req.Operation, req.UserInfo)
+		glog.Infof("unmarshal for Kind=%v, Namespace=%v Name=%v",
+			req.Kind, req.Namespace, req.Name)
+	}
 
 	// determine whether to perform mutation
 	if !mutationRequired(ignoredNamespaces, objectMeta) {
@@ -585,7 +627,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 
 	// configmap
 	initContainers, EnvVar, err := nocalhostDepConfigmap(nocalhostNamespace, resourceName, resourceType, objectMeta, containers)
-	glog.Infof("initContainers %s", initContainers)
+	glog.Infof("initContainers %v", initContainers)
 	glog.Infof("EnvVar %v", EnvVar)
 
 	// Workaround: https://github.com/kubernetes/kubernetes/issues/57982

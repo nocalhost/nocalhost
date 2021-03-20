@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"net"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/daemon"
@@ -49,6 +50,12 @@ const (
 	Manifest      AppType = "rawManifest"
 	ManifestLocal AppType = "rawManifestLocal"
 	HelmLocal     AppType = "helmLocal"
+	KustomizeGit  AppType = "kustomizeGit"
+
+	// default is a special app type, it can be uninstalled neither installed
+	// it's a virtual application to managed that those manifest out of Nocalhost management
+	DefaultNocalhostApplication           = "default.application"
+	DefaultNocalhostApplicationOperateErr = "default.application is a virtual application to managed that those manifest out of Nocalhost management so can't be install, uninstall, reset, etc."
 
 	AppManagedByLabel             = "app.kubernetes.io/managed-by"
 	AppManagedByNocalhost         = "nocalhost"
@@ -81,7 +88,7 @@ type SvcDependency struct {
 	Pods []string `json:"pods" yaml:"pods,omitempty"`
 }
 
-func NewApplication(name string, ns string, initClient bool) (*Application, error) {
+func NewApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
 	app := &Application{
 		Name:      name,
 		NameSpace: ns,
@@ -99,6 +106,11 @@ func NewApplication(name string, ns string, initClient bool) (*Application, erro
 
 	if len(app.AppProfileV2.PreInstall) == 0 && len(app.configV2.ApplicationConfig.PreInstall) > 0 {
 		app.AppProfileV2.PreInstall = app.configV2.ApplicationConfig.PreInstall
+		_ = app.SaveProfile()
+	}
+
+	if kubeconfig != "" && kubeconfig != app.AppProfileV2.Kubeconfig {
+		app.AppProfileV2.Kubeconfig = kubeconfig
 		_ = app.SaveProfile()
 	}
 
@@ -126,7 +138,7 @@ func (a *Application) LoadConfigV2() error {
 	}
 
 	if !isV2 {
-		log.Info("Upgrade config V1 to V2 ...")
+		log.Log("Upgrade config V1 to V2 ...")
 		err = a.UpgradeAppConfigV1ToV2()
 		if err != nil {
 			return err
@@ -603,6 +615,24 @@ func (a *Application) PortForwardInBackGround(listenAddress []string, deployment
 				// readyCh communicate when the port forward is ready to get traffic
 				readyCh := make(chan struct{})
 				endCh := make(chan struct{})
+
+				k8s_runtime.ErrorHandlers = append(k8s_runtime.ErrorHandlers, func(err error) {
+					if strings.Contains(err.Error(), "error creating error stream for port") {
+						log.Warnf("Port-forward %d:%d failed to create stream, try to reconnecting", lPort, rPort)
+						select {
+						case _, isOpen := <-stopCh:
+							if isOpen {
+								log.Infof("Closing Port-forward %d:%d' by stop chan", lPort, rPort)
+								close(stopCh)
+							} else {
+								log.Infof("Port-forward %d:%d has been closed, do nothing", lPort, rPort)
+							}
+						default:
+							log.Infof("Closing Port-forward %d:%d'", lPort, rPort)
+							close(stopCh)
+						}
+					}
+				})
 
 				// stream is used to tell the port forwarder where to place its output or
 				// where to expect input if needed. For the port forwarding we just need

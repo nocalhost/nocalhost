@@ -44,6 +44,11 @@ var uninstallCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
+		if applicationName == app.DefaultNocalhostApplication {
+			log.Error(app.DefaultNocalhostApplicationOperateErr)
+			return
+		}
+
 		if nameSpace == "" {
 			nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig)
 			if err != nil {
@@ -58,7 +63,7 @@ var uninstallCmd = &cobra.Command{
 		}
 
 		log.Info("Uninstalling application...")
-		nhApp, err := app.NewApplication(applicationName, nameSpace, true)
+		nhApp, err := app.NewApplication(applicationName, nameSpace, kubeConfig, true)
 		if err != nil {
 			if !force {
 				log.FatalE(err, "Failed to get application")
@@ -74,7 +79,7 @@ var uninstallCmd = &cobra.Command{
 			// check if there are services in developing state
 			for _, profile := range nhApp.AppProfileV2.SvcProfile {
 				if profile.Developing {
-					err = nhApp.StopSyncAndPortForwardProcess(profile.ActualName)
+					err = nhApp.StopSyncAndPortForwardProcess(profile.ActualName, true)
 					if err != nil {
 						log.WarnE(err, "")
 					}

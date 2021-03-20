@@ -34,11 +34,11 @@ func (c *ClientGoUtils) newFactory() cmdutil.Factory {
 	return f
 }
 
-func (c *ClientGoUtils) ApplyForCreate(files []string, continueOnError bool, flags *ApplyFlags) error {
+func (c *ClientGoUtils) ApplyForCreate(files []string, continueOnError bool, flags *ApplyFlags, kustomize string) error {
 	//for _, file := range files {
 	//	c.Apply(file)
 	//}
-	infos, err := c.GetResourceInfoFromFiles(files, continueOnError)
+	infos, err := c.GetResourceInfoFromFiles(files, continueOnError, kustomize)
 	if err != nil {
 		return err
 	}

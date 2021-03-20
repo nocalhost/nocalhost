@@ -66,6 +66,7 @@ var (
 	ErrApplicationInstallUpdate = &Errno{Code: 40107, Message: "Failed to update app installation status, please try again"}
 	ErrApplicationJsonContext   = &Errno{Code: 40108, Message: "Application context Unmarshal JSON fail"}
 	ErrApplicationNameExist     = &Errno{Code: 40109, Message: "Application name already exist"}
+	ErrSensitiveApplicationName = &Errno{Code: 40109, Message: "Application name can't not be 'default.application'"}
 
 	// application-cluster
 	ErrApplicationBoundClusterList = &Errno{Code: 40108, Message: "Failed to get application bound cluster list, please try again"}
