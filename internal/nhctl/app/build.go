@@ -34,8 +34,8 @@ import (
 
 // When a application is installed, something representing the application will build, including:
 // 1. An directory (NhctlAppDir) under $NhctlHomeDir will be created and initiated
-// 2. An .config.yaml will be created under $NhctlAppDir, it may come from an config file under .nocalhost in your git repository or an outer config file in your local file system
-// 3. An .profile.yaml will be created under $NhctlAppDir, it will record the status of this application
+// 2. An .config_v2.yaml will be created under $NhctlAppDir, it may come from an config file under .nocalhost in your git repository or an outer config file in your local file system
+// 3. An .profile_v2.yaml will be created under $NhctlAppDir, it will record the status of this application
 // build a new application
 func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig string, namespace string) (*Application, error) {
 
@@ -56,24 +56,15 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 
 	app.SetInstalledStatus(true)
 
-	//kubeconfig := flags.KubeConfig
 	if kubeconfig == "" { // use default config
 		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
 	}
-	//namespace := flags.Namespace
 
 	app.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	// NameSpace may read from kubeconfig
-	//if namespace == "" {
-	//	namespace, err = app.client.GetDefaultNamespace()
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//}
 	app.AppProfileV2.Namespace = namespace
 	app.AppProfileV2.Kubeconfig = kubeconfig
 

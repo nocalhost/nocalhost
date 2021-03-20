@@ -15,14 +15,12 @@ package app
 
 import (
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func (a *Application) convertDevPortForwardList() {
@@ -89,60 +87,69 @@ func (a *Application) convertDevPortForwardList() {
 }
 
 func (a *Application) LoadAppProfileV2(retry bool) error {
-	app := &profile.AppProfileV2{}
+	//app := &profile.AppProfileV2{}
 
-	isV2, err := a.checkIfAppProfileIsV2()
+	//isV2, err := a.checkIfAppProfileIsV2()
+	//if err != nil {
+	//	return err
+	//}
+
+	//if !isV2 {
+	//	log.Log("Upgrade profile V1 to V2 ...")
+	//	err = a.UpgradeAppProfileV1ToV2()
+	//	if err != nil {
+	//		return err
+	//	}
+	//}
+
+	//fBytes, err := ioutil.ReadFile(a.getProfileV2Path())
+	//if err != nil {
+	//	return errors.Wrap(err, "")
+	//}
+	//err = yaml.Unmarshal(fBytes, app)
+	//if err != nil {
+	//	errors.Wrap(err, "")
+	//}
+	app, err := nocalhost.GetProfileV2(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}
-
-	if !isV2 {
-		log.Log("Upgrade profile V1 to V2 ...")
-		err = a.UpgradeAppProfileV1ToV2()
-		if err != nil {
-			return err
-		}
+	if app == nil {
+		app = &profile.AppProfileV2{}
 	}
 
-	fBytes, err := ioutil.ReadFile(a.getProfileV2Path())
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	err = yaml.Unmarshal(fBytes, app)
-	if err != nil {
-		errors.Wrap(err, "")
-	}
-
-	if app.Namespace == "" && retry {
-		log.Warn("Failed to load profile, retry...")
-		timeout := true
-		for i := 0; i < 100; i++ {
-			time.Sleep(1 * time.Second)
-			fBytes, err = ioutil.ReadFile(a.getProfileV2Path())
-			if err != nil {
-				return errors.Wrap(err, "")
-			}
-			err = yaml.Unmarshal(fBytes, app)
-			if err != nil {
-				errors.Wrap(err, "")
-			}
-			if app.Namespace == "" {
-				log.Info("Reloading profile failed, try again...")
-			} else {
-				log.Info("Reloading profile succeeded!")
-				timeout = false
-				break
-			}
-		}
-		if timeout {
-			return errors.New("Failed to load profile after 100 retrying")
-		}
-	}
+	// Retry move to `open db` step
+	//if app.Namespace == "" && retry {
+	//	log.Warn("Failed to load profile, retry...")
+	//	timeout := true
+	//	for i := 0; i < 100; i++ {
+	//		time.Sleep(1 * time.Second)
+	//		fBytes, err = ioutil.ReadFile(a.getProfileV2Path())
+	//		if err != nil {
+	//			return errors.Wrap(err, "")
+	//		}
+	//		err = yaml.Unmarshal(fBytes, app)
+	//		if err != nil {
+	//			errors.Wrap(err, "")
+	//		}
+	//		if app.Namespace == "" {
+	//			log.Info("Reloading profile failed, try again...")
+	//		} else {
+	//			log.Info("Reloading profile succeeded!")
+	//			timeout = false
+	//			break
+	//		}
+	//	}
+	//	if timeout {
+	//		return errors.New("Failed to load profile after 100 retrying")
+	//	}
+	//}
 
 	a.AppProfileV2 = app
 	return nil
 }
 
+// Deprecated: no support for profile v1 any more
 func (a *Application) checkIfAppProfileIsV2() (bool, error) {
 	_, err := os.Stat(a.getProfileV2Path())
 	if err == nil {
@@ -167,6 +174,7 @@ func (a *Application) checkIfAppConfigIsV2() (bool, error) {
 	return false, nil
 }
 
+// Deprecated: no support for profile v1 any more
 func (a *Application) UpgradeAppProfileV1ToV2() error {
 	err := ConvertAppProfileFileV1ToV2(a.getProfilePath(), a.getProfileV2Path())
 	if err != nil {
