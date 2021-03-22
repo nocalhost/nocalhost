@@ -14,11 +14,14 @@ limitations under the License.
 package go_client
 
 import (
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
 )
 
-func Init() *kubernetes.Clientset {
+func InitClientSet() *kubernetes.Clientset {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
@@ -29,4 +32,18 @@ func Init() *kubernetes.Clientset {
 		panic(err.Error())
 	}
 	return clientset
+}
+
+func InitCachedRestMapper() *restmapper.DeferredDiscoveryRESTMapper {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		panic(err.Error())
+	}
+
+	// DiscoveryClient queries API server about the resources
+	dc, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	return restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(dc))
 }

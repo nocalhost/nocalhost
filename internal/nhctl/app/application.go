@@ -58,6 +58,7 @@ const (
 	DefaultNocalhostApplication           = "default.application"
 	DefaultNocalhostApplicationOperateErr = "default.application is a virtual application to managed that those manifest out of Nocalhost management so can't be install, uninstall, reset, etc."
 
+	HelmReleaseName               = "meta.helm.sh/release-name"
 	AppManagedByLabel             = "app.kubernetes.io/managed-by"
 	AppManagedByNocalhost         = "nocalhost"
 	NocalhostApplicationName      = "dev.nocalhost/application-name"

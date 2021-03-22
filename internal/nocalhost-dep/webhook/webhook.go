@@ -14,20 +14,12 @@ limitations under the License.
 package webhook
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"k8s.io/apimachinery/pkg/labels"
-	"net/http"
-	nocalhost "nocalhost/pkg/nocalhost-dep/go-client"
-	"strconv"
-	"strings"
-	"time"
-
 	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
+	"io/ioutil"
 	"k8s.io/api/admission/v1beta1"
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -38,6 +30,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/restmapper"
+	"net/http"
+	nocalhost "nocalhost/pkg/nocalhost-dep/go-client"
+	"strings"
 )
 
 var (
@@ -140,6 +136,7 @@ type depJobs struct {
 }
 
 var clientset *kubernetes.Clientset
+var cachedRestMapper *restmapper.DeferredDiscoveryRESTMapper
 
 func init() {
 	_ = corev1.AddToScheme(runtimeScheme)
@@ -147,7 +144,8 @@ func init() {
 	// defaulting with webhooks:
 	// https://github.com/kubernetes/kubernetes/issues/57982
 	_ = corev1.AddToScheme(runtimeScheme)
-	clientset = nocalhost.Init()
+	clientset = nocalhost.InitClientSet()
+	cachedRestMapper = nocalhost.InitCachedRestMapper()
 }
 
 // (https://github.com/kubernetes/kubernetes/issues/57982)
@@ -176,9 +174,22 @@ func LoadConfig(configFile string) (*Config, error) {
 }
 
 // Check whether the target resoured need to be mutated
-func mutationRequired(ignoredList []string, metadata *metav1.ObjectMeta) bool {
+func mutationRequired(resourceType string, ignoredList []string, metadata *metav1.ObjectMeta) bool {
+	switch resourceType {
+	case "SubjectAccessReview":
+		return false
+	case "SelfSubjectAccessReview":
+		return false
+	case "Event":
+		return false
+	}
+
 	// skip special kubernete system namespaces
 	for _, namespace := range ignoredList {
+		if metadata == nil {
+			return false
+		}
+
 		if metadata.Namespace == namespace {
 			glog.Infof("Skip mutation for %v for it's in special namespace:%v", metadata.Name, metadata.Namespace)
 			return false
@@ -202,28 +213,6 @@ func mutationRequired(ignoredList []string, metadata *metav1.ObjectMeta) bool {
 
 	glog.Infof("Mutation policy for %v/%v: status: %q required:%v", metadata.Namespace, metadata.Name, status, required)
 	return required
-}
-
-// add initContainers
-func addInitContainer(objectMeta []corev1.Container, initContainers []corev1.Container, path string) (patch []patchOperation) {
-	first := len(objectMeta) == 0
-	var value interface{}
-	for _, add := range initContainers {
-		value = add
-		path := path
-		if first {
-			first = false
-			value = []corev1.Container{add}
-		} else {
-			path = path + "/-"
-		}
-		patch = append(patch, patchOperation{
-			Op:    "add",
-			Path:  path,
-			Value: value,
-		})
-	}
-	return patch
 }
 
 func addContainer(target, added []corev1.Container, basePath string) (patch []patchOperation) {
@@ -301,193 +290,6 @@ func updateAnnotation(target map[string]string, added map[string]string) (patch 
 //	return json.Marshal(patch)
 //}
 
-// create patch for all
-func createPatchAny(objectInitContainer []corev1.Container, initContainers []corev1.Container, objContainers []corev1.Container, envVar []envVar) ([]byte, error) {
-	// /spec/template/spec/initContainers match six type of workload
-	var patch []patchOperation
-	if initContainers != nil && len(initContainers) > 0 {
-		patch = append(patch, addInitContainer(objectInitContainer, initContainers, "/spec/template/spec/initContainers")...)
-	}
-	if envVar != nil && len(envVar) > 0 {
-		for k, v := range objContainers {
-			patch = append(patch, addContainerEnvVar(k, v.Env, envVar)...)
-		}
-	}
-	fmt.Printf("patch %+v\n", patch)
-	return json.Marshal(patch)
-}
-
-func addContainerEnvVar(k int, target []corev1.EnvVar, envVar []envVar) (patch []patchOperation) {
-	first := len(target) == 0
-	var value interface{}
-	for _, add := range envVar {
-		for _, env := range add.EnvVar {
-			if add.ContainerIndex != k {
-				continue
-			}
-			value = env
-			path := "/spec/template/spec/containers/" + strconv.Itoa(add.ContainerIndex) + "/env"
-			if first {
-				first = false
-				value = []corev1.EnvVar{env}
-			} else {
-				path = path + "/-"
-			}
-			patch = append(patch, patchOperation{
-				Op:    "add",
-				Path:  path,
-				Value: value,
-			})
-		}
-	}
-	return patch
-}
-
-// get nocalhost dependents configmaps, this will get from specify namespace by labels
-// nhctl will create dependency configmap in users dev space
-func nocalhostDepConfigmap(namespace string, resourceName string, resourceType string, objectMeta *metav1.ObjectMeta, containers []corev1.Container) ([]corev1.Container, []envVar, error) {
-	// labelSelector="use-for=nocalhost-dep"
-	labelSelector := map[string]string{
-		"use-for": "nocalhost-dep",
-	}
-	setLabelSelector := labels.Set(labelSelector)
-	startTime := time.Now()
-	configMaps, err := clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: setLabelSelector.AsSelector().String()})
-	duration := time.Now().Sub(startTime)
-	glog.Infof("get configmap total cost %d", duration.Milliseconds())
-	initContainers := make([]corev1.Container, 0)
-	envVarArray := make([]envVar, 0)
-	if err != nil {
-		glog.Fatalln("failed to get config map:", err)
-		return initContainers, envVarArray, err
-	}
-	for i, cm := range configMaps.Items {
-		fmt.Printf("[%d] %s\n", i, cm.GetName())
-		if strings.Contains(cm.GetName(), "nocalhost-depends-do-not-overwrite") { // Dependency description configmap
-			if configMapValue, ok := cm.Data["nocalhost"]; ok {
-				fmt.Printf("[%d] %s\n", i, configMapValue)
-				dep := mainDep{}
-				err := yaml.Unmarshal([]byte(configMapValue), &dep)
-				if err != nil {
-					glog.Fatalf("failed to unmarshal configmap: %s\n", cm.GetName())
-				}
-				fmt.Printf("%+v\n", dep)
-				// inject install global env
-				for _, env := range dep.Env.Global {
-					for k := range containers {
-						addEnvList := make([]corev1.EnvVar, 0)
-						addEnv := corev1.EnvVar{
-							Name:  env.Name,
-							Value: env.Value,
-						}
-						addEnvList = append(addEnvList, addEnv)
-						envVarEach := envVar{
-							EnvVar:         addEnvList,
-							ContainerIndex: k,
-						}
-						envVarArray = append(envVarArray, envVarEach)
-					}
-				}
-				// inject install service env
-				for _, env := range dep.Env.Service {
-					if env.Name == resourceName && (strings.ToLower(env.Type) == strings.ToLower(resourceType) || dep.ReleaseName+"-"+env.Name == resourceName) {
-						for _, container := range env.Container {
-							for k, objContainer := range containers {
-								addEnvList := make([]corev1.EnvVar, 0)
-								// match name or match all
-								if container.Name == objContainer.Name || container.Name == "" {
-									for _, envFromConfig := range container.InstallEnv {
-										addEnv := corev1.EnvVar{
-											Name:  envFromConfig.Name,
-											Value: envFromConfig.Value,
-										}
-										addEnvList = append(addEnvList, addEnv)
-									}
-									envVarEach := envVar{
-										EnvVar:         addEnvList,
-										ContainerIndex: k,
-									}
-									envVarArray = append(envVarArray, envVarEach)
-								}
-							}
-						}
-					}
-				}
-
-				for key, dependency := range dep.Dependency {
-					// K8S native type is case-sensitive, dependent descriptions are not distinguished, and unified into lowercase
-					// if has metadata.labels.release, then release-name should fix as dependency.Name
-					// helm install my-pro prometheus, deployment will be set my-pro-prometheus-alertmanager, if dependency set prometheus-alertmanager it will regrade as resourceName
-					if dependency.Name == resourceName && (strings.ToLower(dependency.Type) == strings.ToLower(resourceType) || dep.ReleaseName+"-"+dependency.Name == resourceName) {
-						// initContainer
-						if dependency.Pods != nil {
-							args := func(podsList []string) []string {
-								var args []string
-								// args = append(args, "sh", "-c")
-								for key, pod := range podsList {
-									if key != 0 {
-										args = append(args, "&&")
-									}
-									args = append(args, "wait_for.sh", "pod")
-									if strings.ContainsAny(pod, "=") { // means define label, such as app.kubernetes.io/name=nginx
-										args = append(args, fmt.Sprintf("-l%s", pod))
-									} else { // has not define label, default app label
-										args = append(args, fmt.Sprintf("-lapp=%s", pod))
-									}
-								}
-								return args
-							}(dependency.Pods)
-
-							waitCmd := strings.Join(args, " ")
-							var cmd []string
-							cmd = append(cmd, "sh", "-c", waitCmd)
-
-							initContainer := corev1.Container{
-								Name:            "wait-for-pods-" + strconv.Itoa(i) + strconv.Itoa(key),
-								Image:           waitImages,
-								ImagePullPolicy: corev1.PullPolicy("Always"),
-								Command:         cmd,
-							}
-							initContainers = append(initContainers, initContainer)
-						}
-						if dependency.Jobs != nil {
-							args := func(jobsList []string) []string {
-								var args []string
-								// args = append(args, "sh", "-c")
-								for key, job := range jobsList {
-									if key != 0 {
-										args = append(args, "&&")
-									}
-									args = append(args, "wait_for.sh", "job")
-									if strings.ContainsAny(job, "=") { // means define label, such as app.kubernetes.io/name=nginx
-										args = append(args, fmt.Sprintf("-l%s", job))
-									} else { // has not define label, default app label
-										args = append(args, fmt.Sprintf("-lapp=%s", job))
-									}
-								}
-								return args
-							}(dependency.Jobs)
-
-							waitCmd := strings.Join(args, " ")
-							var cmd []string
-							cmd = append(cmd, "sh", "-c", waitCmd)
-
-							initContainer := corev1.Container{
-								Name:            "wait-for-jobs-" + strconv.Itoa(i) + strconv.Itoa(key),
-								Image:           waitImages,
-								ImagePullPolicy: corev1.PullPolicy("Always"),
-								Command:         cmd,
-							}
-							initContainers = append(initContainers, initContainer)
-						}
-					}
-				}
-			}
-		}
-	}
-	return initContainers, envVarArray, err
-}
-
 // main mutation process
 func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
 	req := ar.Request
@@ -500,8 +302,8 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 	)
 	resourceType := req.Kind.Kind
 
-	var omMap map[string]string
-	if err := json.Unmarshal(req.Object.Raw, &omMap); err != nil {
+	var omh ObjectMetaHolder
+	if err := json.Unmarshal(req.Object.Raw, &omh); err != nil {
 		glog.Errorf("Could not unmarshal raw object: %v", err)
 		return &v1beta1.AdmissionResponse{
 			Result: &metav1.Status{
@@ -510,7 +312,22 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		}
 	}
 
-	glog.Infof("%s %s: %s",req.Name,req.Kind,omMap["ownerReferences"])
+	annotationPair := make(chan []string, 1)
+	go func() {
+		ap := omh.getOwnRefSignedAnnotation(req.Namespace)
+		annotationPair <- ap
+		if len(ap) > 0 {
+			glog.Infof("Kind: `%s` Name: `%s` in ns `%s` should patching his signed anno: [%s], meta: %s", req.Kind, req.Name, req.Namespace, strings.Join(ap, ", "), string(req.Object.Raw))
+		}
+	}()
+
+	// determine whether to perform mutation
+	if !mutationRequired(resourceType, ignoredNamespaces, &omh.ObjectMeta) {
+		glog.Infof("Skipping mutation for %s/%s due to policy check", req.Namespace, req.Name)
+		return &v1beta1.AdmissionResponse{
+			Allowed: true,
+		}
+	}
 
 	// overwrite nocalhostNamespace for get dep config from devs namespace
 	nocalhostNamespace = req.Namespace
@@ -584,9 +401,9 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		resourceName, objectMeta, initContainer, containers = cronJob.Name, &cronJob.ObjectMeta, cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers, cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers
 	case "ResourceQuota":
 		//if req.UserInfo.UID == "" {
-			return &v1beta1.AdmissionResponse{
-				Allowed: true,
-			}
+		return &v1beta1.AdmissionResponse{
+			Allowed: true,
+		}
 		//}
 
 		sa := getSaByUid(req.UserInfo.UID)
@@ -629,14 +446,6 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 			req.Kind, req.Namespace, req.Name)
 	}
 
-	// determine whether to perform mutation
-	if !mutationRequired(ignoredNamespaces, objectMeta) {
-		glog.Infof("Skipping mutation for %s/%s due to policy check", req.Namespace, req.Name)
-		return &v1beta1.AdmissionResponse{
-			Allowed: true,
-		}
-	}
-
 	// configmap
 	initContainers, EnvVar, err := nocalhostDepConfigmap(nocalhostNamespace, resourceName, resourceType, objectMeta, containers)
 	glog.Infof("initContainers %v", initContainers)
@@ -644,7 +453,15 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 
 	// Workaround: https://github.com/kubernetes/kubernetes/issues/57982
 	applyDefaultsWorkaround(whsvr.SidecarConfig.Containers, whsvr.SidecarConfig.Volumes)
-	patchBytes, err := createPatchAny(initContainer, initContainers, containers, EnvVar)
+
+	ap := <-annotationPair
+
+	p := Patcher{}
+	p.patchAnnotations(omh.Annotations, ap)
+	p.patchInitContainer(initContainer, initContainers)
+	p.patchEnv(containers, EnvVar)
+	patchBytes, err := p.patchBytes()
+
 	glog.Infof("patchBytes %s", string(patchBytes))
 	if err != nil {
 		return &v1beta1.AdmissionResponse{
