@@ -35,11 +35,10 @@ func openApplicationLevelDB(ns, app string) (*leveldb.DB, error) {
 	path := getAppDbDir(ns, app)
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
-		// todo: retry
-		for i := 0; i < 60; i++ {
+		for i := 0; i < 300; i++ {
 			if errors.Is(err, syscall.EAGAIN) {
-				log.Log("Another process is accessing leveldb, wait for 1s to retry")
-				time.Sleep(1 * time.Second)
+				log.Log("Another process is accessing leveldb, wait for 0.2s to retry")
+				time.Sleep(200 * time.Millisecond)
 				db, err = leveldb.OpenFile(path, nil)
 				if err == nil {
 					break
