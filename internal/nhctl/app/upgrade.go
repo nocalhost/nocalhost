@@ -17,9 +17,10 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"k8s.io/cli-runtime/pkg/resource"
 	flag "nocalhost/internal/nhctl/app_flags"
+	"nocalhost/internal/nhctl/envsubst"
+	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
@@ -87,10 +88,29 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 		if err != nil {
 			log.WarnE(errors.Wrap(err, ""), "Failed to load config.yaml")
 		} else {
-			configBytes, err := ioutil.ReadFile(configFilePath)
+			// Render
+			configFile := fp.NewFilePath(configFilePath)
+
+			var envFile *fp.FilePathEnhance
+			if relPath := gettingRenderEnvFile(configFilePath); relPath != "" {
+				envFile = configFile.RelOrAbs("../").RelOrAbs(relPath)
+
+				if e := envFile.CheckExist(); e != nil {
+					log.Log("Render %s Nocalhost config without env files, we found the env file had been configured as %s, but we can not found in %s", configFile.Abs(), relPath, envFile.Abs())
+				} else {
+					log.Log("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
+				}
+			} else {
+				log.Log("Render %s Nocalhost config without env files, you config your Nocalhost configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2", configFile.Abs())
+			}
+
+			renderedStr, err := envsubst.Render(configFile, envFile)
+			//configBytes, err := ioutil.ReadFile(configFilePath)
 			if err != nil {
 				log.WarnE(errors.Wrap(err, ""), err.Error())
 			} else {
+				configBytes := []byte(renderedStr)
+				// render config bytes
 				configV2 := &profile.NocalHostAppConfigV2{}
 				err = yaml.Unmarshal(configBytes, configV2)
 				if err != nil {

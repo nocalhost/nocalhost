@@ -107,7 +107,8 @@ func (a *Application) moveProfileFromFileToLeveldb() error {
 	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
 }
 
-func NewApplication(name string, ns string, initClient bool) (*Application, error) {
+func NewApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
+
 	app := &Application{
 		Name:      name,
 		NameSpace: ns,
@@ -137,6 +138,11 @@ func NewApplication(name string, ns string, initClient bool) (*Application, erro
 		_ = app.SaveProfile()
 	}
 
+	if kubeconfig != "" && kubeconfig != app.AppProfileV2.Kubeconfig {
+		app.AppProfileV2.Kubeconfig = kubeconfig
+		_ = app.SaveProfile()
+	}
+
 	if initClient {
 		app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), app.GetNamespace())
 		if err != nil {
@@ -161,7 +167,7 @@ func (a *Application) LoadConfigV2() error {
 	}
 
 	if !isV2 {
-		log.Info("Upgrade config V1 to V2 ...")
+		log.Log("Upgrade config V1 to V2 ...")
 		err = a.UpgradeAppConfigV1ToV2()
 		if err != nil {
 			return err
