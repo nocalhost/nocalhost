@@ -500,6 +500,18 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 	)
 	resourceType := req.Kind.Kind
 
+	var omMap map[string]string
+	if err := json.Unmarshal(req.Object.Raw, &omMap); err != nil {
+		glog.Errorf("Could not unmarshal raw object: %v", err)
+		return &v1beta1.AdmissionResponse{
+			Result: &metav1.Status{
+				Message: err.Error(),
+			},
+		}
+	}
+
+	glog.Infof("%s %s: %s",req.Name,req.Kind,omMap["ownerReferences"])
+
 	// overwrite nocalhostNamespace for get dep config from devs namespace
 	nocalhostNamespace = req.Namespace
 	// admission webhook Specific 6 resource blocking
