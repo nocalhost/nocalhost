@@ -53,6 +53,8 @@ var dbPutCmd = &cobra.Command{
 			if err != nil {
 				log.FatalE(err, "")
 			}
+		} else {
+			log.Fatal("--value or --file must be specified")
 		}
 	},
 }
