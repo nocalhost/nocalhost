@@ -38,7 +38,7 @@ func openApplicationLevelDB(ns, app string) (*leveldb.DB, error) {
 		// todo: retry
 		for i := 0; i < 60; i++ {
 			if errors.Is(err, syscall.EAGAIN) {
-				log.Infof("Other process is accessing leveldb, wait for 1s to retry")
+				log.Log("Another process is accessing leveldb, wait for 1s to retry")
 				time.Sleep(1 * time.Second)
 				db, err = leveldb.OpenFile(path, nil)
 				if err == nil {
@@ -47,7 +47,7 @@ func openApplicationLevelDB(ns, app string) (*leveldb.DB, error) {
 			}
 		}
 		if err == nil {
-			log.Info("Retry success")
+			log.Log("Retry success")
 		} else {
 			return nil, errors.Wrap(err, "Retry opening leveldb failed : timeout")
 		}
