@@ -198,6 +198,12 @@ func FatalE(err error, message string) {
 	}
 }
 
+func LogE(err error) {
+	if fileEntry != nil {
+		fileEntry.Errorf("%+v", err)
+	}
+}
+
 func Log(args ...interface{}) {
 	if fileEntry != nil {
 		fileEntry.Info(args)

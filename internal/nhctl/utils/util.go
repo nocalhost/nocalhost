@@ -29,6 +29,13 @@ func GetHomePath() string {
 	return ""
 }
 
+func IsSudoUser() bool {
+	if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
+		return true
+	}
+	return false
+}
+
 func Sha1ToString(str string) string {
 	hash := sha1.New()
 	hash.Write([]byte(str))
