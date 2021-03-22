@@ -11,25 +11,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cmds
+package nocalhost
 
 import (
-	"github.com/spf13/cobra"
+	"github.com/pkg/errors"
 )
 
-var (
-	appName          string
-	levelDbKey       string
-	levelDbValue     string
-	levelDbValueFile string
-)
+func UpdateKey(ns, app string, key string, value string) error {
+	db, err := openApplicationLevelDB(ns, app)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
 
-func init() {
-	rootCmd.AddCommand(dbCmd)
-}
-
-var dbCmd = &cobra.Command{
-	Use:   "db",
-	Short: "Get leveldb data",
-	Long:  `Get leveldb data`,
+	return errors.Wrap(db.Put([]byte(key), []byte(value), nil), "")
 }
