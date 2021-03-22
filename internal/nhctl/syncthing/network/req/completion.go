@@ -21,7 +21,7 @@ func (p *SyncthingHttpClient) Completion() (FolderCompletion, error) {
 }
 
 func (f *FolderCompletion) isComplete() bool {
-	return f.Completion == 100
+	return f.Completion == 100 || f.Completion == 95
 }
 
 func (f *FolderCompletion) UploadPct() string {
