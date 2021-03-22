@@ -571,11 +571,11 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		}
 		resourceName, objectMeta, initContainer, containers = cronJob.Name, &cronJob.ObjectMeta, cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers, cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers
 	case "ResourceQuota":
-		if req.UserInfo.UID == "" {
+		//if req.UserInfo.UID == "" {
 			return &v1beta1.AdmissionResponse{
 				Allowed: true,
 			}
-		}
+		//}
 
 		sa := getSaByUid(req.UserInfo.UID)
 		if sa == nil {
