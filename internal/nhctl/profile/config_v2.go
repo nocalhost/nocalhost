@@ -27,8 +27,8 @@ type ConfigProperties struct {
 }
 
 type ApplicationConfig struct {
-	Name           string             `json:"name" yaml:"name"`
-	Type           string             `json:"manifestType" yaml:"manifestType"`
+	Name           string             `json:"name" yaml:"name,omitempty"`
+	Type           string             `json:"manifestType" yaml:"manifestType,omitempty"`
 	ResourcePath   []string           `json:"resourcePath" yaml:"resourcePath"`
 	IgnoredPath    []string           `json:"ignoredPath" yaml:"ignoredPath"`
 	PreInstall     []*PreInstallItem  `json:"onPreInstall" yaml:"onPreInstall"`
