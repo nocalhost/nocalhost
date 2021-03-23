@@ -22,16 +22,19 @@ import (
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/model"
+	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"os/exec"
 	"strings"
 )
 
 var (
-	isSudo      = false
-	pfManager   *PortForwardManager
-	ctx, cancel = context.WithCancel(context.TODO())
+	isSudo                      = false
+	pfManager                   *PortForwardManager
+	tcpCtx, tcpCancelFunc       = context.WithCancel(context.Background()) // For stopping listening tcp port
+	daemonCtx, daemonCancelFunc = context.WithCancel(context.Background()) // For exiting current daemon server
 )
 
 func init() {
@@ -46,12 +49,10 @@ func daemonListenPort() int {
 }
 
 func StartDaemon(isSudoUser bool) error {
-	if isSudoUser {
-		if !utils.IsSudoUser() {
-			return errors.New("Failed to start daemon server with sudo")
-		}
+	if isSudoUser && !utils.IsSudoUser() {
+		return errors.New("Failed to start daemon server with sudo")
 	}
-	isSudo = isSudoUser
+	isSudo = isSudoUser // Mark daemon server if it is run as sudo
 	ports.IsPortAvailable("0.0.0.0", daemonListenPort())
 	address := fmt.Sprintf("%s:%d", "0.0.0.0", daemonListenPort())
 	listener, err := net.Listen("tcp4", address)
@@ -72,11 +73,11 @@ func StartDaemon(isSudoUser bool) error {
 			}
 			rBytes := make([]byte, 2048)
 			n, err := conn.Read(rBytes)
-			conn.Close()
 			if err != nil {
 				log.LogE(errors.Wrap(err, ""))
 				continue
 			}
+			conn.Close()
 			rBytes = rBytes[0:n]
 			cmdType, err := command.ParseCommandType(rBytes)
 			if err != nil {
@@ -88,28 +89,29 @@ func StartDaemon(isSudoUser bool) error {
 
 	}()
 
-	select {
-	case <-ctx.Done():
-		log.Log("Stopping daemon server")
-		_ = listener.Close()
-		// todo: clean up resources
+	for {
+		select {
+		case <-tcpCtx.Done():
+			log.Log("Stop listening tcp port for daemon server")
+			_ = listener.Close()
+		case <-daemonCtx.Done():
+			log.Log("Exit daemon server")
+			return nil
+		}
 	}
-
-	return nil
 }
 
 func handleCommand(bys []byte, cmdType command.DaemonCommandType) {
+	var err error
 	log.Infof("Handling %s command", cmdType)
 	switch cmdType {
 	case command.StartPortForward:
 		startCmd := &command.PortForwardCommand{}
-		err := json.Unmarshal(bys, startCmd)
-		if err != nil {
+		if err = json.Unmarshal(bys, startCmd); err != nil {
 			log.LogE(errors.Wrap(err, ""))
 			return
 		}
-		err = handleStartPortForwardCommand(startCmd)
-		if err != nil {
+		if err = handleStartPortForwardCommand(startCmd); err != nil {
 			log.LogE(err)
 		}
 	case command.RestartPortForward:
@@ -125,19 +127,41 @@ func handleCommand(bys []byte, cmdType command.DaemonCommandType) {
 		//}
 	case command.StopPortForward:
 		pfCmd := &command.PortForwardCommand{}
-		err := json.Unmarshal(bys, pfCmd)
-		if err != nil {
+		if err = json.Unmarshal(bys, pfCmd); err != nil {
 			log.LogE(errors.Wrap(err, ""))
 			return
 		}
-		err = handleStopPortForwardCommand(pfCmd)
-		if err != nil {
+		if err = handleStopPortForwardCommand(pfCmd); err != nil {
 			log.LogE(err)
 		}
 	case command.StopDaemonServer:
-		cancel()
+		tcpCancelFunc()
+		// todo: clean up resources
+		daemonCancelFunc()
+
+	case command.RestartDaemonServer:
+		if err = handlerRestartDaemonServerCommand(isSudo); err != nil {
+			log.LogE(err)
+			return
+		}
+		log.Log("New daemon server is starting, exit this one")
+		daemonCancelFunc()
 	}
 
+}
+
+func handlerRestartDaemonServerCommand(isSudoUser bool) error {
+	tcpCancelFunc() // Stop listening tcp port
+	nhctlPath, err := exec.LookPath(utils.GetNhctlBinName())
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	daemonArgs := []string{nhctlPath, "daemon", "start"}
+	if isSudoUser {
+		daemonArgs = append(daemonArgs, "--sudo", "true")
+	}
+
+	return daemon.RunSubProcess(daemonArgs, nil, false)
 }
 
 func handleStopPortForwardCommand(cmd *command.PortForwardCommand) error {

@@ -34,8 +34,7 @@ type DaemonClient struct {
 	daemonServerListenPort int
 }
 
-func runDaemonServer(isSudoUser bool) error {
-	// todo, run in background
+func StartDaemonServer(isSudoUser bool) error {
 	nhctlPath, err := exec.LookPath(utils.GetNhctlBinName())
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -64,6 +63,16 @@ func waitForTCPPortToBeReady(port int, timeout time.Duration) error {
 	}
 }
 
+func CheckIfDaemonServerRunning(isSudoUser bool) bool {
+	var listenPort int
+	if isSudoUser {
+		listenPort = daemon_common.SudoDaemonPort
+	} else {
+		listenPort = daemon_common.DefaultDaemonPort
+	}
+	return !ports.IsTCP4PortAvailable("0.0.0.0", listenPort)
+}
+
 func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 	var err error
 	client := &DaemonClient{
@@ -75,7 +84,7 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 		client.daemonServerListenPort = daemon_common.DefaultDaemonPort
 	}
 	if ports.IsTCP4PortAvailable("0.0.0.0", client.daemonServerListenPort) {
-		if err = runDaemonServer(isSudoUser); err != nil {
+		if err = StartDaemonServer(isSudoUser); err != nil {
 			return nil, err
 		}
 		if err = waitForTCPPortToBeReady(client.daemonServerListenPort, 10*time.Second); err != nil {
@@ -83,6 +92,15 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 		}
 	}
 	return client, nil
+}
+
+func (d *DaemonClient) SendRestartDaemonServerCommand() error {
+	cmd := &command.BaseCommand{CommandType: command.RestartDaemonServer}
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	return d.sendDataToDaemonServer(bys)
 }
 
 func (d *DaemonClient) SendStopDaemonServerCommand() error {
