@@ -17,14 +17,15 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"net"
+	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/daemon_server/command"
+	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
+	"nocalhost/internal/nhctl/utils"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -33,9 +34,6 @@ import (
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-
 	port_forward "nocalhost/internal/nhctl/port-forward"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -159,6 +157,17 @@ func (a *Application) ReadBeforeWriteProfile() error {
 	return a.LoadAppProfileV2(true)
 }
 
+func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
+	app, err := nocalhost.GetProfileV2(a.NameSpace, a.Name)
+	if err != nil {
+		return nil, err
+	}
+	if app == nil {
+		app = &profile.AppProfileV2{}
+	}
+	return app, nil
+}
+
 func (a *Application) LoadConfigV2() error {
 
 	isV2, err := a.checkIfAppConfigIsV2()
@@ -193,6 +202,10 @@ func (a *Application) LoadConfigV2() error {
 	}
 	a.configV2 = config
 	return nil
+}
+
+func (a *Application) SaveProfileToDb(p *profile.AppProfileV2) error {
+	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, p)
 }
 
 func (a *Application) SaveProfile() error {
@@ -569,175 +582,197 @@ func (a *Application) ListContainersByDeployment(depName string) ([]corev1.Conta
 	return pods.Items[0].Spec.Containers, nil
 }
 
+// Deprecated
 // for background port-forward
 func (a *Application) PortForwardInBackGround(listenAddress []string, deployment, podName string, localPorts, remotePorts []int, way string, forwardActually bool) {
 	if len(localPorts) != len(remotePorts) {
-		log.Fatalf("dev port forward fail, please check you devPort in config\n")
+		log.Fatal("dev port forward fail, please check you devPort in config\n")
 	}
 
-	if !forwardActually {
-		if way == PortForwardDevPorts {
-			// AppendDevPortManual
-			// if from devPorts, check previously port-forward and add to port-forward list
-			portForwardList := a.GetSvcProfileV2(deployment).DevPortForwardList
-			for _, v := range portForwardList {
-				a.EndDevPortForward(deployment, v.LocalPort, v.RemotePort)
-				exist := false
-				for _, vv := range localPorts {
-					if vv == v.LocalPort {
-						exist = true
-					}
-				}
-				if !exist {
-					localPorts = append(localPorts, v.LocalPort)
-					remotePorts = append(remotePorts, v.RemotePort)
-					//a.EndDevPortForward(deployment, v.LocalPort, v.RemotePort)
-					os.Args = append(os.Args, "-p", fmt.Sprintf("%d:%d", v.LocalPort, v.RemotePort))
-				}
-			}
+	//if !forwardActually {
+	//	if way == PortForwardDevPorts {
+	// AppendDevPortManual
+	// if from devPorts, check previously port-forward and add to port-forward list
+	//	portForwardList := a.GetSvcProfileV2(deployment).DevPortForwardList
+	//	for _, v := range portForwardList {
+	//		a.EndDevPortForward(deployment, v.LocalPort, v.RemotePort)
+	//		exist := false
+	//		for _, vv := range localPorts {
+	//			if vv == v.LocalPort {
+	//				exist = true
+	//			}
+	//		}
+	//		if !exist {
+	//			localPorts = append(localPorts, v.LocalPort)
+	//			remotePorts = append(remotePorts, v.RemotePort)
+	//			//a.EndDevPortForward(deployment, v.LocalPort, v.RemotePort)
+	//			os.Args = append(os.Args, "-p", fmt.Sprintf("%d:%d", v.LocalPort, v.RemotePort))
+	//		}
+	//	}
+	//}
+
+	for _, sLocalPort := range localPorts {
+		isAvailable := ports.IsTCP4PortAvailable("0.0.0.0", sLocalPort)
+		if isAvailable {
+			log.Infof("Port %d is available", sLocalPort)
+		} else {
+			log.Fatalf("Port %d is unavailable", sLocalPort)
+		}
+	}
+
+	isAdmin := utils.IsSudoUser()
+	client, err := daemon_client.NewDaemonClient(isAdmin)
+	if err != nil {
+		log.FatalE(err, "")
+	}
+	for key, sLocalPort := range localPorts {
+		nhResource := &model.NocalHostResource{
+			NameSpace:   a.NameSpace,
+			Application: a.Name,
+			Service:     deployment,
+			PodName:     podName,
 		}
 
-		for _, sLocalPort := range localPorts {
-			isAvailable := ports.IsTCP4PortAvailable("0.0.0.0", sLocalPort)
-			if isAvailable {
-				log.Infof("Port %d is available", sLocalPort)
-			} else {
-				log.Fatalf("Port %d is unavailable", sLocalPort)
-			}
-		}
-
-		for key, sLocalPort := range localPorts {
-			a.EndDevPortForward(deployment, sLocalPort, remotePorts[key]) // kill existed port-forward
-			devPort := &profile.DevPortForward{
-				LocalPort:  sLocalPort,
-				RemotePort: remotePorts[key],
-				Way:        way,
-				Status:     "",
-				Updated:    time.Now().Format("2006-01-02 15:04:05"),
-			}
-			a.AppendPortForward(deployment, devPort)
-		}
-
-		_ = a.SetPortForwardedStatus(deployment, true)
-
-		os.Args = append(os.Args, "--forward", "true")
-		_, err := daemon.Background(a.GetPortForwardLogFile(deployment), a.GetApplicationBackGroundOnlyPortForwardPidFile(deployment), true)
+		err := client.SendPortForwardCommand(nhResource, sLocalPort, remotePorts[key], command.StartPortForward)
 		if err != nil {
-			log.Fatal("Failed to run port-forward background, please try again")
+			log.WarnE(err, "Failed to port forward")
+		} else {
+			_ = a.SetPortForwardedStatus(deployment, true) //  todo: move port-forward start
 		}
 	}
+
+	//for key, sLocalPort := range localPorts {
+	//	a.EndDevPortForward(deployment, sLocalPort, remotePorts[key]) // kill existed port-forward
+	//	devPort := &profile.DevPortForward{
+	//		LocalPort:  sLocalPort,
+	//		RemotePort: remotePorts[key],
+	//		Way:        way,
+	//		Status:     "",
+	//		Updated:    time.Now().Format("2006-01-02 15:04:05"),
+	//	}
+	//	a.AppendPortForward(deployment, devPort)
+	//}
+
+	//_ = a.SetPortForwardedStatus(deployment, true)
+	//
+	//os.Args = append(os.Args, "--forward", "true")
+	//_, err := daemon.Background(a.GetPortForwardLogFile(deployment), a.GetApplicationBackGroundOnlyPortForwardPidFile(deployment), true)
+	//if err != nil {
+	//	log.Fatal("Failed to run port-forward background, please try again")
+	//}
+	//}
 
 	// isDaemon == false
-	var wg sync.WaitGroup
-	wg.Add(len(localPorts))
-	var lock sync.Mutex
+	//var wg sync.WaitGroup
+	//wg.Add(len(localPorts))
+	//var lock sync.Mutex
+	//
+	//for key, sLocalPort := range localPorts {
+	//	go func(lPort int, rPort int) {
+	//		lock.Lock()
+	//		_ = a.SetPortForwardPid(deployment, lPort, rPort, os.Getpid())
+	//		lock.Unlock()
+	//		for {
+	//			// stopCh control the port forwarding lifecycle. When it gets closed the
+	//			// port forward will terminate
+	//			stopCh := make(chan struct{}, 1)
+	//			// readyCh communicate when the port forward is ready to get traffic
+	//			readyCh := make(chan struct{})
+	//			endCh := make(chan struct{})
+	//
+	//			k8s_runtime.ErrorHandlers = append(k8s_runtime.ErrorHandlers, func(err error) {
+	//				if strings.Contains(err.Error(), "error creating error stream for port") {
+	//					log.Warnf("Port-forward %d:%d failed to create stream, try to reconnecting", lPort, rPort)
+	//					select {
+	//					case _, isOpen := <-stopCh:
+	//						if isOpen {
+	//							log.Infof("Closing Port-forward %d:%d' by stop chan", lPort, rPort)
+	//							close(stopCh)
+	//						} else {
+	//							log.Infof("Port-forward %d:%d has been closed, do nothing", lPort, rPort)
+	//						}
+	//					default:
+	//						log.Infof("Closing Port-forward %d:%d'", lPort, rPort)
+	//						close(stopCh)
+	//					}
+	//				}
+	//			})
+	//
+	//			// stream is used to tell the port forwarder where to place its output or
+	//			// where to expect input if needed. For the port forwarding we just need
+	//			// the output eventually
+	//			stream := genericclioptions.IOStreams{
+	//				In:     os.Stdin,
+	//				Out:    os.Stdout,
+	//				ErrOut: os.Stderr,
+	//			}
+	//
+	//			go func() {
+	//				select {
+	//				case <-readyCh:
+	//					log.Info("Port forward is ready")
+	//					go func() {
+	//						a.CheckPidPortStatus(endCh, deployment, lPort, rPort, &lock)
+	//					}()
+	//					go func() {
+	//						a.SendHeartBeat(endCh, listenAddress[0], lPort)
+	//					}()
+	//				}
+	//			}()
+	//
+	//			err := a.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
+	//				Listen: listenAddress,
+	//				Pod: corev1.Pod{
+	//					ObjectMeta: metav1.ObjectMeta{
+	//						Name:      podName,
+	//						Namespace: a.GetNamespace(),
+	//					},
+	//				},
+	//				LocalPort: lPort,
+	//				PodPort:   rPort,
+	//				Streams:   stream,
+	//				StopCh:    stopCh,
+	//				ReadyCh:   readyCh,
+	//			})
+	//			if err != nil {
+	//				if strings.Contains(err.Error(), "unable to listen on any of the requested ports") {
+	//					log.Warnf("Unable to listen on port %d", lPort)
+	//					lock.Lock()
+	//					_ = a.UpdatePortForwardStatus(deployment, lPort, rPort, "DISCONNECTED", fmt.Sprintf("Unable to listen on port %d", lPort))
+	//					lock.Unlock()
+	//					wg.Done()
+	//					return
+	//				}
+	//				log.WarnE(err, "Port-forward failed, reconnecting after 30 seconds...")
+	//				close(endCh)
+	//				lock.Lock()
+	//				_ = a.UpdatePortForwardStatus(deployment, lPort, rPort, "RECONNECTING", "Port-forward failed, reconnecting after 30 seconds...")
+	//				lock.Unlock()
+	//				<-time.After(30 * time.Second)
+	//			} else {
+	//				log.Warn("Reconnecting after 30 seconds...")
+	//				close(endCh)
+	//				lock.Lock()
+	//				_ = a.UpdatePortForwardStatus(deployment, lPort, rPort, "RECONNECTING", "Reconnecting after 30 seconds...")
+	//				lock.Unlock()
+	//				<-time.After(30 * time.Second)
+	//			}
+	//			log.Info("Reconnecting...")
+	//		}
+	//	}(sLocalPort, remotePorts[key])
 
-	for key, sLocalPort := range localPorts {
-		go func(lPort int, rPort int) {
-			lock.Lock()
-			_ = a.SetPortForwardPid(deployment, lPort, rPort, os.Getpid())
-			lock.Unlock()
-			for {
-				// stopCh control the port forwarding lifecycle. When it gets closed the
-				// port forward will terminate
-				stopCh := make(chan struct{}, 1)
-				// readyCh communicate when the port forward is ready to get traffic
-				readyCh := make(chan struct{})
-				endCh := make(chan struct{})
-
-				k8s_runtime.ErrorHandlers = append(k8s_runtime.ErrorHandlers, func(err error) {
-					if strings.Contains(err.Error(), "error creating error stream for port") {
-						log.Warnf("Port-forward %d:%d failed to create stream, try to reconnecting", lPort, rPort)
-						select {
-						case _, isOpen := <-stopCh:
-							if isOpen {
-								log.Infof("Closing Port-forward %d:%d' by stop chan", lPort, rPort)
-								close(stopCh)
-							} else {
-								log.Infof("Port-forward %d:%d has been closed, do nothing", lPort, rPort)
-							}
-						default:
-							log.Infof("Closing Port-forward %d:%d'", lPort, rPort)
-							close(stopCh)
-						}
-					}
-				})
-
-				// stream is used to tell the port forwarder where to place its output or
-				// where to expect input if needed. For the port forwarding we just need
-				// the output eventually
-				stream := genericclioptions.IOStreams{
-					In:     os.Stdin,
-					Out:    os.Stdout,
-					ErrOut: os.Stderr,
-				}
-
-				go func() {
-					select {
-					case <-readyCh:
-						log.Info("Port forward is ready")
-						go func() {
-							a.CheckPidPortStatus(endCh, deployment, lPort, rPort, &lock)
-						}()
-						go func() {
-							a.SendHeartBeat(endCh, listenAddress[0], lPort)
-						}()
-					}
-				}()
-
-				err := a.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
-					Listen: listenAddress,
-					Pod: corev1.Pod{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      podName,
-							Namespace: a.GetNamespace(),
-						},
-					},
-					LocalPort: lPort,
-					PodPort:   rPort,
-					Streams:   stream,
-					StopCh:    stopCh,
-					ReadyCh:   readyCh,
-				})
-				if err != nil {
-					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") {
-						log.Warnf("Unable to listen on port %d", lPort)
-						lock.Lock()
-						_ = a.UpdatePortForwardStatus(deployment, lPort, rPort, "DISCONNECTED", fmt.Sprintf("Unable to listen on port %d", lPort))
-						lock.Unlock()
-						wg.Done()
-						return
-					}
-					log.WarnE(err, "Port-forward failed, reconnecting after 30 seconds...")
-					close(endCh)
-					lock.Lock()
-					_ = a.UpdatePortForwardStatus(deployment, lPort, rPort, "RECONNECTING", "Port-forward failed, reconnecting after 30 seconds...")
-					lock.Unlock()
-					<-time.After(30 * time.Second)
-				} else {
-					log.Warn("Reconnecting after 30 seconds...")
-					close(endCh)
-					lock.Lock()
-					_ = a.UpdatePortForwardStatus(deployment, lPort, rPort, "RECONNECTING", "Reconnecting after 30 seconds...")
-					lock.Unlock()
-					<-time.After(30 * time.Second)
-				}
-				log.Info("Reconnecting...")
-			}
-		}(sLocalPort, remotePorts[key])
-
-		// sleep while
-		time.Sleep(2 * time.Second)
-	}
-
-	wg.Wait()
-	log.Info("Stop port forward")
+	// sleep while
+	//	time.Sleep(2 * time.Second)
+	//}
+	//
+	//wg.Wait()
+	//log.Info("Stop port forward")
 }
 
-func (a *Application) SendHeartBeat(stopCh chan struct{}, listenAddress string, sLocalPort int) {
+func (a *Application) SendHeartBeat(ctx context.Context, listenAddress string, sLocalPort int) {
 	for {
 		select {
-		case <-stopCh:
+		case <-ctx.Done():
 			log.Infof("Stop sending heart beat to %d", sLocalPort)
 			return
 		default:
@@ -751,28 +786,28 @@ func (a *Application) SendHeartBeat(stopCh chan struct{}, listenAddress string, 
 	}
 }
 
-func (a *Application) CheckPidPortStatus(stopCh chan struct{}, deployment string, sLocalPort, sRemotePort int, lock *sync.Mutex) {
+func (a *Application) CheckPidPortStatus(ctx context.Context, deployment string, sLocalPort, sRemotePort int, lock *sync.Mutex) {
 	for {
 		select {
-		case <-stopCh:
+		case <-ctx.Done():
 			log.Info("Stop Checking port status")
 			//_ = a.UpdatePortForwardStatus(deployment, sLocalPort, sRemotePort, portStatus, "Stopping")
 			return
 		default:
 			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
 			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
-			currentStatus := ""
-			for _, portForward := range a.GetSvcProfileV2(deployment).DevPortForwardList {
-				if portForward.LocalPort == sLocalPort && portForward.RemotePort == sRemotePort {
-					currentStatus = portForward.Status
-					break
-				}
-			}
-			if currentStatus != portStatus {
-				lock.Lock()
-				_ = a.UpdatePortForwardStatus(deployment, sLocalPort, sRemotePort, portStatus, "Check Pid")
-				lock.Unlock()
-			}
+			//currentStatus := ""
+			//for _, portForward := range a.GetSvcProfileV2(deployment).DevPortForwardList {
+			//	if portForward.LocalPort == sLocalPort && portForward.RemotePort == sRemotePort {
+			//		currentStatus = portForward.Status
+			//		break
+			//	}
+			//}
+			//if currentStatus != portStatus {
+			lock.Lock()
+			_ = a.UpdatePortForwardStatus(deployment, sLocalPort, sRemotePort, portStatus, "Check Pid")
+			lock.Unlock()
+			//}
 			<-time.After(2 * time.Minute)
 		}
 	}
@@ -791,13 +826,6 @@ func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error 
 		log.Warnf("send port-forward heartbeat fail, %s", err.Error())
 	}
 	return err
-}
-
-func (a *Application) GetMyBinName() string {
-	if runtime.GOOS == "windows" {
-		return "nhctl.exe"
-	}
-	return "nhctl"
 }
 
 func (a *Application) GetBackgroundSyncPortForwardPid(deployment string, isTrunc bool) (int, string, error) {

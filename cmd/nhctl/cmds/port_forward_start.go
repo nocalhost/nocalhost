@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing/ports"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
@@ -59,7 +60,7 @@ var portForwardStartCmd = &cobra.Command{
 		initAppAndCheckIfSvcExist(applicationName, deployment, []string{portForwardOptions.ServiceType})
 
 		// look for nhctl
-		nhctlAbsdir, err := exec.LookPath(nocalhostApp.GetMyBinName())
+		nhctlAbsdir, err := exec.LookPath(utils.GetNhctlBinName())
 		if err != nil {
 			log.Fatal("nhctl command not found")
 		}
@@ -124,7 +125,5 @@ var portForwardStartCmd = &cobra.Command{
 		if len(localPorts) > 0 && len(remotePorts) > 0 {
 			nocalhostApp.PortForwardInBackGround(listenAddress, deployment, podName, localPorts, remotePorts, portForwardOptions.Way, portForwardOptions.Forward)
 		}
-
-		log.Info("No need to port forward")
 	},
 }

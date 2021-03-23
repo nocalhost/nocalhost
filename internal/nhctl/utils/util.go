@@ -12,6 +12,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 )
 
@@ -40,6 +41,13 @@ func Sha1ToString(str string) string {
 	hash := sha1.New()
 	hash.Write([]byte(str))
 	return fmt.Sprintf("%x", hash.Sum(nil))
+}
+
+func GetNhctlBinName() string {
+	if runtime.GOOS == "windows" {
+		return "nhctl.exe"
+	}
+	return "nhctl"
 }
 
 func CopyFile(src, dst string) (err error) {

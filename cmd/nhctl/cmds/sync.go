@@ -19,6 +19,7 @@ import (
 	"nocalhost/internal/nhctl/app"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/daemon"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -88,7 +89,7 @@ var fileSyncCmd = &cobra.Command{
 
 		// syncthing port-forward
 		// set abs directory to call myself
-		nhctlAbsDir, err := exec.LookPath(nocalhostApp.GetMyBinName())
+		nhctlAbsDir, err := exec.LookPath(utils.GetNhctlBinName())
 		if err != nil {
 			log.Fatalf("Failed to load nhctl in %v", err)
 		}
@@ -126,7 +127,8 @@ var fileSyncCmd = &cobra.Command{
 		go func() {
 			lPort := svcProfile.RemoteSyncthingPort
 			for {
-				endCh := make(chan struct{})
+				//endCh := make(chan struct{})
+				endCtx, cancel := context.WithCancel(context.TODO())
 				// stopCh control the port forwarding lifecycle. When it gets closed the
 				// port forward will terminate
 				stopCh := make(chan struct{}, 1)
@@ -164,7 +166,7 @@ var fileSyncCmd = &cobra.Command{
 					case <-readyCh:
 						log.Infof("Port forward %d:%d for sync is ready", lPort, svcProfile.RemoteSyncthingPort)
 						go func() {
-							nocalhostApp.SendHeartBeat(endCh, listenAddress[0], lPort)
+							nocalhostApp.SendHeartBeat(endCtx, listenAddress[0], lPort)
 						}()
 						if !readyToSync {
 							portForwardReadyCh <- 1
@@ -188,7 +190,7 @@ var fileSyncCmd = &cobra.Command{
 					ReadyCh:   readyCh,
 				})
 				if err != nil {
-					close(endCh)
+					cancel()
 					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") {
 						log.Warnf("Unable to listen on port %d", lPort)
 						return
@@ -197,7 +199,7 @@ var fileSyncCmd = &cobra.Command{
 					<-time.After(30 * time.Second)
 				} else {
 					log.Warn("Reconnecting after 30 seconds...")
-					close(endCh)
+					cancel()
 					<-time.After(30 * time.Second)
 				}
 				log.Info("Reconnecting...")

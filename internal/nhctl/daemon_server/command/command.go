@@ -24,11 +24,17 @@ const (
 	StartPortForward   DaemonCommandType = "StartPortForward"
 	RestartPortForward DaemonCommandType = "RestartPortForward"
 	StopPortForward    DaemonCommandType = "StopPortForward"
+	StopDaemonServer   DaemonCommandType = "StopDaemonServer"
 )
 
 type BaseCommand struct {
 	CommandType DaemonCommandType
 }
+
+//type DaemonServerCommand struct {
+//	CommandType DaemonCommandType
+//	IsSudo      bool
+//}
 
 type PortForwardCommand struct {
 	CommandType DaemonCommandType

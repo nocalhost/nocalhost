@@ -108,7 +108,7 @@ func Debugf(format string, args ...interface{}) {
 func Info(args ...interface{}) {
 	outLogger.Info(args...)
 	if fileEntry != nil {
-		fileEntry.Info(args)
+		fileEntry.Info(args...)
 	}
 }
 
@@ -206,12 +206,12 @@ func LogE(err error) {
 
 func Log(args ...interface{}) {
 	if fileEntry != nil {
-		fileEntry.Info(args)
+		fileEntry.Info(args...)
 	}
 }
 
 func Logf(format string, args ...interface{}) {
 	if fileEntry != nil {
-		fileEntry.Infof(format, args)
+		fileEntry.Infof(format, args...)
 	}
 }

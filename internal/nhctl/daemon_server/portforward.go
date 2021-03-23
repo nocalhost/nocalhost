@@ -13,69 +13,34 @@ limitations under the License.
 
 package daemon_server
 
-import (
-	"context"
-	"fmt"
-	"github.com/pkg/errors"
-	"net"
-	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/syncthing/ports"
-	"nocalhost/pkg/nhctl/log"
-	"sync"
-	"time"
-)
+//var (
+//	dbPortForwardLocker sync.Mutex
+//)
 
-var (
-	dbPortForwardLocker sync.Mutex
-)
-
-func checkLocalPortStatus(ctx context.Context, svc *model.NocalHostResource, sLocalPort, sRemotePort int) {
-	for {
-		select {
-		case <-ctx.Done():
-			log.Logf("Stop Checking port %d:%d's status", sLocalPort, sRemotePort)
-			//_ = a.UpdatePortForwardStatus(deployment, sLocalPort, sRemotePort, portStatus, "Stopping")
-			return
-		default:
-			var portStatus string
-			available := ports.IsTCP4PortAvailable("127.0.0.1", sLocalPort)
-			if available {
-				portStatus = "CLOSED"
-			} else {
-				portStatus = "LISTEN"
-			}
-			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
-
-			err := updatePortForwardStatus(svc, sLocalPort, sRemotePort, portStatus, "Check local port status")
-			if err != nil {
-				log.LogE(err)
-			} else {
-				log.Logf("Port-forward %d:%d's status updated", sLocalPort, sRemotePort)
-			}
-			<-time.After(2 * time.Minute)
-		}
-	}
-}
-
-func sendHeartBeat(ctx context.Context, sLocalPort int) {
-	for {
-		select {
-		case <-ctx.Done():
-			log.Infof("Stop sending heart beat to %d", sLocalPort)
-			return
-		default:
-			<-time.After(30 * time.Second)
-			log.Infof("Try to send port-forward heartbeat to %d", sLocalPort)
-			conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", sLocalPort))
-			if err != nil || conn == nil {
-				log.Warnf("Connect %d port-forward heartbeat address fail", sLocalPort)
-				continue
-			}
-			// GET /heartbeat HTTP/1.1
-			_, err = conn.Write([]byte("ping"))
-			if err != nil {
-				log.WarnE(errors.Wrap(err, ""), "Send port-forward heartbeat fail")
-			}
-		}
-	}
-}
+//func checkLocalPortStatus(ctx context.Context, svc *model.NocalHostResource, sLocalPort, sRemotePort int) {
+//	for {
+//		select {
+//		case <-ctx.Done():
+//			log.Logf("Stop Checking port %d:%d's status", sLocalPort, sRemotePort)
+//			//_ = a.UpdatePortForwardStatus(deployment, sLocalPort, sRemotePort, portStatus, "Stopping")
+//			return
+//		default:
+//			var portStatus string
+//			available := ports.IsTCP4PortAvailable("127.0.0.1", sLocalPort)
+//			if available {
+//				portStatus = "CLOSED"
+//			} else {
+//				portStatus = "LISTEN"
+//			}
+//			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
+//
+//			err := updatePortForwardStatus(svc, sLocalPort, sRemotePort, portStatus, "Check local port status")
+//			if err != nil {
+//				log.LogE(err)
+//			} else {
+//				log.Logf("Port-forward %d:%d's status updated", sLocalPort, sRemotePort)
+//			}
+//			<-time.After(2 * time.Minute)
+//		}
+//	}
+//}

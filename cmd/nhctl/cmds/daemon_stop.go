@@ -15,25 +15,28 @@ package cmds
 
 import (
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/daemon_server"
+	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/pkg/nhctl/log"
 )
 
 func init() {
-	daemonStartCmd.Flags().BoolVar(&isSudoUser, "sudo", false, "Is run as sudo")
-	daemonCmd.AddCommand(daemonStartCmd)
+	daemonStopCmd.Flags().BoolVar(&isSudoUser, "sudo", false, "Is run as sudo")
+	daemonCmd.AddCommand(daemonStopCmd)
 }
 
-// This command is run by daemon client as a background progress usually
-var daemonStartCmd = &cobra.Command{
-	Use:   "start",
-	Short: "Start nhctl daemon",
-	Long:  `Start nhctl daemon`,
+var daemonStopCmd = &cobra.Command{
+	Use:   "stop",
+	Short: "Stop nhctl daemon",
+	Long:  `Stop nhctl daemon`,
 	Run: func(cmd *cobra.Command, args []string) {
-		log.AddField("APP", "daemon-server")
-		err := daemon_server.StartDaemon(isSudoUser)
+		client, err := daemon_client.NewDaemonClient(isSudoUser)
 		if err != nil {
 			log.FatalE(err, "")
 		}
+		err = client.SendStopDaemonServerCommand()
+		if err != nil {
+			log.FatalE(err, "")
+		}
+		log.Infof("StopDaemonServerCommand has been sent")
 	},
 }
