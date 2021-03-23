@@ -17,6 +17,9 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
+	"strings"
+
+	//leveldb_errors "github.com/syndtr/goleveldb/leveldb/errors"
 	"nocalhost/pkg/nhctl/log"
 	"syscall"
 	"time"
@@ -41,6 +44,14 @@ func openApplicationLevelDB(ns, app string) (*leveldb.DB, error) {
 				time.Sleep(200 * time.Millisecond)
 				db, err = leveldb.OpenFile(path, nil)
 				if err == nil {
+					break
+				}
+			} else if strings.Contains(err.Error(), "leveldb: manifest corrupted") {
+				log.Info("Recovering leveldb file...")
+				db, err = leveldb.RecoverFile(path, nil)
+				if err != nil {
+					log.WarnE(err, "")
+				} else {
 					break
 				}
 			}
