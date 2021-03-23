@@ -148,6 +148,16 @@ var devStartCmd = &cobra.Command{
 			log.Fatal("Failed to update \"developing\" status\n")
 		}
 
-		// todo: Restart port-forward before dev-start
+		if len(pfList) > 0 {
+			podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
+			if err != nil {
+				log.FatalE(err, "")
+			}
+			for _, pf := range pfList {
+				if err = nocalhostApp.PortForward(deployment, podName, pf.LocalPort, pf.RemotePort); err != nil {
+					log.WarnE(err, "")
+				}
+			}
+		}
 	},
 }
