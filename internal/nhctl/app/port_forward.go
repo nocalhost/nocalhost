@@ -14,6 +14,7 @@ limitations under the License.
 package app
 
 import (
+	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/model"
@@ -76,7 +77,7 @@ func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, rem
 	return a.SaveProfile()
 }
 
-func (a *Application) EndDevPortForward(svcName string, localPort int, remotePort int) {
+func (a *Application) EndDevPortForward(svcName string, localPort int, remotePort int) error {
 
 	svcProfile := a.GetSvcProfileV2(svcName)
 
@@ -87,7 +88,7 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 				isAdmin := utils.IsSudoUser()
 				client, err := daemon_client.NewDaemonClient(isAdmin)
 				if err != nil {
-					log.FatalE(err, "")
+					return err
 				}
 				err = client.SendPortForwardCommand(&model.NocalHostResource{
 					NameSpace:   a.NameSpace,
@@ -96,14 +97,14 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 					PodName:     "",
 				}, localPort, remotePort, command.StopPortForward)
 				if err != nil {
-					log.WarnE(err, "")
+					return err
 				}
 
 			} else {
 				log.Infof("Kill %v", *portForward)
 				err := terminate.Terminate(portForward.Pid, true, "port-forward")
 				if err != nil {
-					log.Warn(err.Error())
+					return errors.Wrap(err, "")
 				}
 				indexToDelete = index
 				time.Sleep(2 * time.Second)
@@ -124,9 +125,8 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 		}
 		svcProfile.DevPortForwardList = newList
 
-		err := a.SaveProfile()
-		if err != nil {
-			log.WarnE(err, "")
-		}
+		return a.SaveProfile()
 	}
+
+	return nil
 }
