@@ -142,7 +142,6 @@ func handleCommand(bys []byte, cmdType command.DaemonCommandType) {
 
 func handleStopPortForwardCommand(cmd *command.PortForwardCommand) error {
 	// For compatibility
-
 	return pfManager.StopPortForwardGoRoutine(cmd.LocalPort, cmd.RemotePort)
 }
 

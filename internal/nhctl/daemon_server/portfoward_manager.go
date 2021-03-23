@@ -119,10 +119,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResou
 			stopCh := make(chan struct{}, 1)
 			// readyCh communicate when the port forward is ready to get traffic
 			readyCh := make(chan struct{})
-			//endCh := make(chan struct{})
 			heartbeatCtx, heartBeatCancel := context.WithCancel(ctx)
 			errCh := make(chan error, 1)
-			pfCtx, pfCancel := context.WithCancel(ctx)
 
 			// stream is used to tell the port forwarder where to place its output or
 			// where to expect input if needed. For the port forwarding we just need
@@ -157,10 +155,9 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResou
 					log.Infof("Port forward %d:%d is ready", localPort, remotePort)
 					go func() {
 						nocalhostApp.CheckPidPortStatus(heartbeatCtx, svc.Service, localPort, remotePort, &p.lock)
-						//checkLocalPortStatus(heartbeatCtx, svc, localPort, remotePort)
 					}()
 					go func() {
-						nocalhostApp.SendHeartBeat(heartbeatCtx, "127.0.0.0", localPort)
+						nocalhostApp.SendHeartBeat(heartbeatCtx, "127.0.0.1", localPort)
 					}()
 				}
 			}()
@@ -181,21 +178,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResou
 					StopCh:    stopCh,
 					ReadyCh:   readyCh,
 				}):
-
-				case <-pfCtx.Done():
-					select {
-					case _, ok := <-stopCh:
-						if ok {
-							log.Logf("Stopping port-forward %d-%d by stopCH", localPort, remotePort)
-							close(stopCh)
-						} else {
-							log.Logf("Port-forward %d-%d has already been stopped", localPort, remotePort)
-						}
-					default:
-						log.Logf("Stopping port-forward %d-%d", localPort, remotePort)
-						close(stopCh)
-					}
-					return
+					log.Log("Case: port-forward occurs errors")
 				}
 			}()
 
@@ -235,7 +218,19 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResou
 				log.Info("Reconnecting...")
 			case <-ctx.Done():
 				log.Logf("Port-forward %d:%d done", localPort, remotePort)
-				pfCancel()
+				log.Log("Stopping pf routine")
+				select {
+				case _, ok := <-stopCh:
+					if ok {
+						log.Logf("Stopping port-forward %d-%d by stopCH", localPort, remotePort)
+						close(stopCh)
+					} else {
+						log.Logf("Port-forward %d-%d has already been stopped", localPort, remotePort)
+					}
+				default:
+					log.Logf("Stopping port-forward %d-%d", localPort, remotePort)
+					close(stopCh)
+				}
 				delete(p.pfList, key)
 				err = nocalhostApp.DeletePortForwardFromDB(svc.Service, localPort, remotePort)
 				if err != nil {
