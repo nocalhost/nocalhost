@@ -61,10 +61,7 @@ func (a *Application) SetPortForwardPid(svcName string, localPort int, remotePor
 }
 
 func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, remotePort int, portStatus string, reason string) error {
-	//err := a.ReadBeforeWriteProfile()
-	//if err != nil {
-	//	return err
-	//}
+
 	for _, portForward := range a.GetSvcProfileV2(svcName).DevPortForwardList {
 		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
 			portForward.Status = portStatus

@@ -23,6 +23,7 @@ import (
 	"strings"
 )
 
+// Deprecated
 func (a *Application) convertDevPortForwardList() {
 	var err error
 	changed := false
@@ -87,29 +88,7 @@ func (a *Application) convertDevPortForwardList() {
 }
 
 func (a *Application) LoadAppProfileV2(retry bool) error {
-	//app := &profile.AppProfileV2{}
 
-	//isV2, err := a.checkIfAppProfileIsV2()
-	//if err != nil {
-	//	return err
-	//}
-
-	//if !isV2 {
-	//	log.Log("Upgrade profile V1 to V2 ...")
-	//	err = a.UpgradeAppProfileV1ToV2()
-	//	if err != nil {
-	//		return err
-	//	}
-	//}
-
-	//fBytes, err := ioutil.ReadFile(a.getProfileV2Path())
-	//if err != nil {
-	//	return errors.Wrap(err, "")
-	//}
-	//err = yaml.Unmarshal(fBytes, app)
-	//if err != nil {
-	//	errors.Wrap(err, "")
-	//}
 	app, err := nocalhost.GetProfileV2(a.NameSpace, a.Name)
 	if err != nil {
 		return err
@@ -117,33 +96,6 @@ func (a *Application) LoadAppProfileV2(retry bool) error {
 	if app == nil {
 		app = &profile.AppProfileV2{}
 	}
-
-	// Retry move to `open db` step
-	//if app.Namespace == "" && retry {
-	//	log.Warn("Failed to load profile, retry...")
-	//	timeout := true
-	//	for i := 0; i < 100; i++ {
-	//		time.Sleep(1 * time.Second)
-	//		fBytes, err = ioutil.ReadFile(a.getProfileV2Path())
-	//		if err != nil {
-	//			return errors.Wrap(err, "")
-	//		}
-	//		err = yaml.Unmarshal(fBytes, app)
-	//		if err != nil {
-	//			errors.Wrap(err, "")
-	//		}
-	//		if app.Namespace == "" {
-	//			log.Info("Reloading profile failed, try again...")
-	//		} else {
-	//			log.Info("Reloading profile succeeded!")
-	//			timeout = false
-	//			break
-	//		}
-	//	}
-	//	if timeout {
-	//		return errors.New("Failed to load profile after 100 retrying")
-	//	}
-	//}
 
 	a.AppProfileV2 = app
 	return nil

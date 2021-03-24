@@ -210,13 +210,6 @@ func (a *Application) SaveProfileToDb(p *profile.AppProfileV2) error {
 
 func (a *Application) SaveProfile() error {
 	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.AppProfileV2)
-	//v2Bytes, err := yaml.Marshal(a.AppProfileV2)
-	//if err != nil {
-	//	return errors.Wrap(err, "")
-	//}
-	//
-	//err = ioutil.WriteFile(a.getProfileV2Path(), v2Bytes, 0644)
-	//return errors.Wrap(err, "")
 }
 
 type HelmFlags struct {
