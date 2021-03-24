@@ -22,7 +22,14 @@ func (p *SyncthingHttpClient) FolderStatus() (Model, error) {
 
 func (m *Model) StateChangedLog() string {
 	return fmt.Sprintf(
-		"State changed at: %v", m.StateChanged.Format("15:04:05"))
+		"Sync completed at: %v", m.StateChanged.Format("15:04:05"))
+}
+
+func (m *Model) IdleTips() string {
+	t := m.StateChanged.Format("15:04:05")
+
+	return fmt.Sprintf(
+		"The remote file is based on local sync dir at %v, local changed before %v has been complete synchronized to the k8s sidecar.", t, t)
 }
 
 func (m *Model) hasError() bool {
@@ -35,7 +42,7 @@ func (m *Model) isIdle() bool {
 
 func (m *Model) OutOfSync() string {
 	if m.NeedFiles > 0 {
-		return fmt.Sprintf("There are %v remote files on workDir that are different from locally (may different or more than local), click to hard reset remote according to local files.", m.NeedFiles)
+		return fmt.Sprintf("There are %v remote files on work dir that are different from locally (may different or more than local), click to hard reset remote according to local files.", m.NeedFiles)
 	} else {
 		return ""
 	}
