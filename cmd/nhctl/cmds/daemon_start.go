@@ -15,12 +15,14 @@ package cmds
 
 import (
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server"
 	"nocalhost/pkg/nhctl/log"
 )
 
 func init() {
 	daemonStartCmd.Flags().BoolVar(&isSudoUser, "sudo", false, "Is run as sudo")
+	daemonStartCmd.Flags().BoolVarP(&runInBackground, "daemon", "d", false, "Is run as daemon(background)")
 	daemonCmd.AddCommand(daemonStartCmd)
 }
 
@@ -31,8 +33,13 @@ var daemonStartCmd = &cobra.Command{
 	Long:  `Start nhctl daemon`,
 	Run: func(cmd *cobra.Command, args []string) {
 		log.AddField("APP", "daemon-server")
-		err := daemon_server.StartDaemon(isSudoUser)
-		if err != nil {
+		if runInBackground {
+			if err := daemon_client.StartDaemonServer(isSudoUser); err != nil {
+				log.FatalE(err, "")
+			}
+			return
+		}
+		if err := daemon_server.StartDaemon(isSudoUser); err != nil {
 			log.FatalE(err, "")
 		}
 	},

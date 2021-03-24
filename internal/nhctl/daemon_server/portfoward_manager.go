@@ -54,8 +54,55 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(localPort, remotePort int)
 	return nil
 }
 
-// Start a port-forward, and record it to leveldb
-func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResource, localPort, remotePort int) error {
+func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string) error {
+	profile, err := nocalhost.GetProfileV2(ns, appName)
+	if err != nil {
+		return err
+	}
+	if profile == nil {
+		return errors.New("Profile not found")
+	}
+
+	for _, svcProfile := range profile.SvcProfile {
+		for _, pf := range svcProfile.DevPortForwardList {
+			if pf.RunByDaemonServer && pf.Sudo == isSudo { // Only recover port-forward managed by this daemon server
+				log.Logf("Recovering port-forward %d:%d", pf.LocalPort, pf.RemotePort)
+				err = p.StartPortForwardGoRoutine(&model.NocalHostResource{
+					NameSpace:   ns,
+					Application: appName,
+					Service:     svcProfile.ActualName,
+					PodName:     pf.PodName,
+				}, pf.LocalPort, pf.RemotePort, false)
+				if err != nil {
+					log.LogE(err)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (p *PortForwardManager) RecoverAllPortForward() error {
+	log.Info("Recovering port-forward")
+	// Find all app
+	appMap, err := nocalhost.GetNsAndApplicationInfo()
+	if err != nil {
+		return err
+	}
+
+	for ns, apps := range appMap {
+		for _, appName := range apps {
+			if err = p.RecoverPortForwardForApplication(ns, appName); err != nil {
+				log.LogE(err)
+			}
+		}
+	}
+	return nil
+}
+
+// Start a port-forward
+// If saveToDB is true, record it to leveldb
+func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResource, localPort, remotePort int, saveToDB bool) error {
 
 	key := fmt.Sprintf("%d:%d", localPort, remotePort)
 	if _, ok := p.pfList[key]; ok {
@@ -67,30 +114,31 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResou
 		return err
 	}
 
-	// Check if port forward already exists
-	if nocalhostApp.CheckIfPortForwardExists(svc.Service, localPort, remotePort) {
-		return errors.New(fmt.Sprintf("Port forward %d:%d already exists", localPort, remotePort))
-	}
+	if saveToDB {
+		// Check if port forward already exists
+		if nocalhostApp.CheckIfPortForwardExists(svc.Service, localPort, remotePort) {
+			return errors.New(fmt.Sprintf("Port forward %d:%d already exists", localPort, remotePort))
+		}
+		pf := &profile.DevPortForward{
+			LocalPort:         localPort,
+			RemotePort:        remotePort,
+			Way:               "",
+			Status:            "New",
+			Reason:            "Add",
+			PodName:           svc.PodName,
+			Updated:           time.Now().Format("2006-01-02 15:04:05"),
+			Pid:               0,
+			RunByDaemonServer: true,
+			Sudo:              isSudo,
+			DaemonServerPid:   os.Getpid(),
+		}
 
-	pf := &profile.DevPortForward{
-		LocalPort:         localPort,
-		RemotePort:        remotePort,
-		Way:               "",
-		Status:            "New",
-		Reason:            "Add",
-		PodName:           svc.PodName,
-		Updated:           time.Now().Format("2006-01-02 15:04:05"),
-		Pid:               0,
-		RunByDaemonServer: true,
-		Sudo:              isSudo,
-		DaemonServerPid:   os.Getpid(),
-	}
-
-	p.lock.Lock()
-	err = nocalhostApp.AddPortForwardToDB(svc.Service, pf)
-	p.lock.Unlock()
-	if err != nil {
-		return err
+		p.lock.Lock()
+		err = nocalhostApp.AddPortForwardToDB(svc.Service, pf)
+		p.lock.Unlock()
+		if err != nil {
+			return err
+		}
 	}
 
 	ctx, cancel := context.WithCancel(context.TODO())

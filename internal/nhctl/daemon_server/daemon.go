@@ -60,6 +60,11 @@ func StartDaemon(isSudoUser bool) error {
 		return errors.Wrap(err, "")
 	}
 
+	// Recovering port forward
+	if err = pfManager.RecoverAllPortForward(); err != nil {
+		log.LogE(err)
+	}
+
 	go func() {
 		for {
 			conn, err := listener.Accept()
@@ -188,5 +193,5 @@ func handleStartPortForwardCommand(startCmd *command.PortForwardCommand) error {
 		Application: startCmd.AppName,
 		Service:     startCmd.Service,
 		PodName:     startCmd.PodName,
-	}, startCmd.LocalPort, startCmd.RemotePort)
+	}, startCmd.LocalPort, startCmd.RemotePort, true)
 }

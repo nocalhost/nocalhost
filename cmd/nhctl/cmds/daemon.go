@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	isSudoUser bool
+	isSudoUser      bool
+	runInBackground bool
 )
 
 func init() {
