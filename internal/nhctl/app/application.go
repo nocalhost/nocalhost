@@ -126,7 +126,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		app.moveProfileFromFileToLeveldb()
 	}
 
-	err = app.LoadAppProfileV2(true)
+	err = app.LoadAppProfileV2()
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 }
 
 func (a *Application) ReadBeforeWriteProfile() error {
-	return a.LoadAppProfileV2(true)
+	return a.LoadAppProfileV2()
 }
 
 func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
@@ -310,7 +310,7 @@ func (a *Application) SaveSvcProfileV2(svcName string, config *profile.ServiceCo
 }
 
 func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
-	a.LoadAppProfileV2(false)
+	a.LoadAppProfileV2()
 	a.LoadConfigV2()
 	if a.configV2 == nil {
 		return nil
