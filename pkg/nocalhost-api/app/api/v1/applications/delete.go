@@ -16,12 +16,10 @@ package applications
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
-	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
-	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
+	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
-	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
 // Create Delete Application
@@ -37,41 +35,22 @@ import (
 func Delete(c *gin.Context) {
 	// userId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
-	// get namespace
-	condition := model.ClusterUserJoinCluster{
-		ApplicationId: applicationId,
-	}
-	clusterUserList, err := service.Svc.ClusterUser().GetJoinCluster(c, condition)
 
-	// delete dev Namespace
-	var spaceIds []uint64
-	if len(clusterUserList) > 0 {
-		for _, devSpace := range clusterUserList {
-			goClient, err := clientgo.NewAdminGoClient([]byte(devSpace.AdminClusterKubeConfig))
-			if err != nil {
-				// ignore and continus
-				continue
-			}
-			_, err = goClient.DeleteNS(devSpace.Namespace)
-			if err != nil {
-				log.Warnf("delete application's cluster namespace %s fail, ignore", devSpace.Namespace)
-			}
-			log.Infof("deleted application's cluster namespace %s", devSpace.Namespace)
-			spaceIds = append(spaceIds, devSpace.ID)
-		}
-	}
-
-	// delete dev space database record
-	if len(spaceIds) > 0 {
-		err = service.Svc.ClusterUser().BatchDelete(c, spaceIds)
+	if !ginbase.IsAdmin(c) {
+		get, err := service.Svc.ApplicationSvc().Get(c, applicationId)
 		if err != nil {
-			api.SendResponse(c, errno.ErrDeletedClusterRecord, nil)
+			api.SendResponse(c, errno.ErrApplicationDelete, nil)
+			return
+		}
+
+		if ginbase.IsCurrentUser(c, get.UserId) {
+			api.SendResponse(c, errno.ErrPermissionDenied, nil)
 			return
 		}
 	}
 
 	// delete application database record
-	err = service.Svc.ApplicationSvc().Delete(c, applicationId)
+	err := service.Svc.ApplicationSvc().Delete(c, applicationId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrApplicationDelete, nil)
 		return

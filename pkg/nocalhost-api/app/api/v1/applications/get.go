@@ -38,18 +38,52 @@ import (
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":[{"id":1,"context":"application info","status":"1"}]}"
 // @Router /v1/application [get]
 func Get(c *gin.Context) {
-	result, err := service.Svc.ApplicationSvc().GetList(c)
+
+	var params ApplicationListQuery
+
+	err := c.ShouldBindQuery(&params)
 	if err != nil {
-		log.Warnf("get Application err: %v", err)
+		api.SendResponse(c, errno.ErrBind, nil)
+		return
+	}
+
+	if ginbase.IsAdmin(c) {
+
+		owner, err := listOwner(c, nil)
+		if err != nil {
+			api.SendResponse(c, errno.ErrApplicationGet, nil)
+			return
+		}
+
+		api.SendResponse(c, errno.OK, owner)
+	} else {
+
+		user, err := ginbase.LoginUser(c)
+		if err != nil {
+			api.SendResponse(c, errno.ErrPermissionDenied, nil)
+		}
+
+		permitted, err := listPermitted(c, user)
+		if err != nil {
+			api.SendResponse(c, errno.ErrApplicationGet, nil)
+			return
+		}
+
+		api.SendResponse(c, errno.OK, permitted)
+	}
+}
+
+// list permitted applications (for normal user)
+func ListPermitted(c *gin.Context) {
+	userId := cast.ToUint64(c.Param("id"))
+
+	permitted, err := listPermitted(c, userId)
+	if err != nil {
 		api.SendResponse(c, errno.ErrApplicationGet, nil)
 		return
 	}
 
-	for _, applicationModel := range result {
-		applicationModel.FillEditable(ginbase.IsAdmin(c), ginbase.LoginUser(c))
-	}
-
-	api.SendResponse(c, errno.OK, result)
+	api.SendResponse(c, errno.OK, permitted)
 }
 
 // Create Get Application Detail
@@ -71,7 +105,9 @@ func GetDetail(c *gin.Context) {
 		api.SendResponse(c, errno.ErrApplicationGet, nil)
 		return
 	}
-	result.FillEditable(ginbase.IsAdmin(c), ginbase.LoginUser(c))
+
+	currentUser, _ := ginbase.LoginUser(c)
+	result.FillEditable(ginbase.IsAdmin(c), currentUser)
 
 	api.SendResponse(c, errno.OK, result)
 }
@@ -143,16 +179,29 @@ func GetNocalhostConfigTemplate(c *gin.Context) {
 	api.SendResponse(c, errno.OK, result)
 }
 
-// list permitted applications (for normal user)
-func ListPermitted(c *gin.Context) {
-	userId := cast.ToUint64(c.Param("id"))
+// list owner only list the application user created
+func listOwner(c *gin.Context, userId *uint64) ([]*model.ApplicationModel, error) {
+	result, err := service.Svc.ApplicationSvc().GetList(c, userId)
+	if err != nil {
+		log.Warnf("get Application err: %v", err)
+		return nil, err
+	}
 
+	for _, applicationModel := range result {
+		currentUser, _ := ginbase.LoginUser(c)
+		applicationModel.FillEditable(ginbase.IsAdmin(c), currentUser)
+	}
+
+	return result, nil
+}
+
+// list permitted is list all application user has
+func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, error) {
 	// permitted
 	applicationUsers, err := service.Svc.ApplicationUser().ListByUserId(c, userId)
 	if err != nil {
 		log.Warnf("get application_user err: %v", err)
-		api.SendResponse(c, errno.ErrApplicationGet, nil)
-		return
+		return nil, err
 	}
 
 	set := map[uint64]interface{}{}
@@ -161,11 +210,10 @@ func ListPermitted(c *gin.Context) {
 	}
 
 	// userId, _ := c.Get("userId")
-	lists, err := service.Svc.ApplicationSvc().GetList(c)
+	lists, err := service.Svc.ApplicationSvc().GetList(c, nil)
 	if err != nil {
 		log.Warnf("get Application err: %v", err)
-		api.SendResponse(c, errno.ErrApplicationGet, nil)
-		return
+		return nil, err
 	}
 
 	var result []*model.ApplicationModel
@@ -181,10 +229,11 @@ func ListPermitted(c *gin.Context) {
 			// has permission
 			ok {
 
-			app.FillEditable(ginbase.IsAdmin(c), ginbase.LoginUser(c))
+			currentUser, _ := ginbase.LoginUser(c)
+			app.FillEditable(ginbase.IsAdmin(c), currentUser)
 			result = append(result, app)
 		}
 	}
 
-	api.SendResponse(c, errno.OK, result)
+	return result, nil
 }

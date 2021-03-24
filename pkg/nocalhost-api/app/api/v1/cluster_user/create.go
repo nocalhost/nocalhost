@@ -15,7 +15,6 @@ package cluster_user
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/cast"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
@@ -48,7 +47,7 @@ func Create(c *gin.Context) {
 	if req.SpaceResourceLimit != nil {
 		flag, message := ValidSpaceResourceLimit(*req.SpaceResourceLimit)
 		if !flag {
-			log.Errorf("Create devspace fail. Incorrect Resource limit parameter  [ %v ] format.", message)
+			log.Errorf("Create devSpace fail. Incorrect Resource limit parameter [ %v ] format.", message)
 			api.SendResponse(c, errno.ErrFormatResourceLimitParam, message)
 			return
 		}
@@ -58,7 +57,7 @@ func Create(c *gin.Context) {
 			return
 		}
 	}
-	applicationId := cast.ToUint64(c.Param("id"))
+	applicationId := uint64(0)
 	req.ApplicationId = &applicationId
 	devSpace := NewDevSpace(req, c, []byte{})
 	result, err := devSpace.Create()

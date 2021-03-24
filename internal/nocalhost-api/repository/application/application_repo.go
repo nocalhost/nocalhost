@@ -26,10 +26,11 @@ type ApplicationRepo interface {
 	Create(ctx context.Context, application model.ApplicationModel) (model.ApplicationModel, error)
 	Get(ctx context.Context, id uint64) (model.ApplicationModel, error)
 	GetByName(ctx context.Context, name string) (model.ApplicationModel, error)
-	GetList(ctx context.Context) ([]*model.ApplicationModel, error)
+	GetList(ctx context.Context, userId *uint64) ([]*model.ApplicationModel, error)
 	PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error)
 	Delete(ctx context.Context, id uint64) error
 	Update(ctx context.Context, applicationModel *model.ApplicationModel) (*model.ApplicationModel, error)
+	PublicSwitch(ctx context.Context, applicationId uint64, public uint8) error
 	Close()
 }
 
@@ -41,6 +42,14 @@ func NewClusterRepo(db *gorm.DB) ApplicationRepo {
 	return &applicationRepo{
 		db: db,
 	}
+}
+
+func (repo *applicationRepo) PublicSwitch(ctx context.Context, applicationId uint64, public uint8) error {
+	if err := repo.db.Exec("UPDATE applications SET public = ? WHERE id = ?", public, applicationId).Error; err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (repo *applicationRepo) GetByName(ctx context.Context, name string) (model.ApplicationModel, error) {
@@ -79,9 +88,16 @@ func (repo *applicationRepo) Get(ctx context.Context, id uint64) (model.Applicat
 	return application, nil
 }
 
-func (repo *applicationRepo) GetList(ctx context.Context) ([]*model.ApplicationModel, error) {
+func (repo *applicationRepo) GetList(ctx context.Context, userId *uint64) ([]*model.ApplicationModel, error) {
 	applicationList := make([]*model.ApplicationModel, 0)
-	result := repo.db.Where("status=1").Find(&applicationList)
+
+	query := repo.db.Where("status = 1")
+
+	if userId != nil {
+		query.Where("user_id = ?", &userId)
+	}
+
+	result := query.Find(&applicationList)
 
 	if err := result.Error; err != nil {
 		log.Warnf("[application_repo] get application err")
