@@ -60,8 +60,8 @@ func Init(level zapcore.Level, dir, fileName string) error {
 	logPath := filepath.Join(dir, fileName)
 	rolling := &lumberjack.Logger{
 		Filename:   logPath,
-		MaxSize:    1, // megabytes
-		MaxBackups: 10,
+		MaxSize:    20, // megabytes
+		MaxBackups: 60,
 		MaxAge:     60, //days
 		Compress:   true,
 	}
