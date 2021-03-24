@@ -377,6 +377,20 @@ github.com/swaggo/gin-swagger/swaggerFiles
 # github.com/swaggo/swag v1.6.2
 ## explicit
 github.com/swaggo/swag
+# github.com/syndtr/goleveldb v1.0.0
+## explicit
+github.com/syndtr/goleveldb/leveldb
+github.com/syndtr/goleveldb/leveldb/cache
+github.com/syndtr/goleveldb/leveldb/comparer
+github.com/syndtr/goleveldb/leveldb/errors
+github.com/syndtr/goleveldb/leveldb/filter
+github.com/syndtr/goleveldb/leveldb/iterator
+github.com/syndtr/goleveldb/leveldb/journal
+github.com/syndtr/goleveldb/leveldb/memdb
+github.com/syndtr/goleveldb/leveldb/opt
+github.com/syndtr/goleveldb/leveldb/storage
+github.com/syndtr/goleveldb/leveldb/table
+github.com/syndtr/goleveldb/leveldb/util
 # github.com/tebeka/strftime v0.1.5
 ## explicit
 # github.com/teris-io/shortid v0.0.0-20171029131806-771a37caa5cf

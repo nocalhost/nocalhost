@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"net"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
@@ -88,7 +89,26 @@ type SvcDependency struct {
 	Pods []string `json:"pods" yaml:"pods,omitempty"`
 }
 
+func (a *Application) moveProfileFromFileToLeveldb() error {
+
+	log.Log("Move profile to leveldb")
+
+	profileV2 := &profile.AppProfileV2{}
+
+	fBytes, err := ioutil.ReadFile(a.getProfileV2Path())
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	err = yaml.Unmarshal(fBytes, profileV2)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
+}
+
 func NewApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
+
 	app := &Application{
 		Name:      name,
 		NameSpace: ns,
@@ -97,6 +117,15 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	err := app.LoadConfigV2()
 	if err != nil {
 		return nil, err
+	}
+
+	//
+	appProfile, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
+	if err != nil {
+		return nil, err
+	}
+	if appProfile == nil {
+		app.moveProfileFromFileToLeveldb()
 	}
 
 	err = app.LoadAppProfileV2(true)
@@ -167,14 +196,14 @@ func (a *Application) LoadConfigV2() error {
 }
 
 func (a *Application) SaveProfile() error {
-
-	v2Bytes, err := yaml.Marshal(a.AppProfileV2)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	err = ioutil.WriteFile(a.getProfileV2Path(), v2Bytes, 0644)
-	return errors.Wrap(err, "")
+	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.AppProfileV2)
+	//v2Bytes, err := yaml.Marshal(a.AppProfileV2)
+	//if err != nil {
+	//	return errors.Wrap(err, "")
+	//}
+	//
+	//err = ioutil.WriteFile(a.getProfileV2Path(), v2Bytes, 0644)
+	//return errors.Wrap(err, "")
 }
 
 type HelmFlags struct {

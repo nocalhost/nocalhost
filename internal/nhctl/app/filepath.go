@@ -78,6 +78,7 @@ func (a *Application) getProfilePath() string {
 	return filepath.Join(a.GetHomeDir(), nocalhost.DefaultApplicationProfilePath)
 }
 
+// Deprecated
 func (a *Application) getProfileV2Path() string {
 	return filepath.Join(a.GetHomeDir(), nocalhost.DefaultApplicationProfileV2Path)
 }
@@ -95,4 +96,3 @@ func (a *Application) GetHomeDir() string {
 	//return nocalhost.GetAppDir(a.Name)
 	return nocalhost.GetAppDirUnderNs(a.Name, a.NameSpace)
 }
-

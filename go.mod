@@ -50,6 +50,7 @@ require (
 	github.com/spf13/viper v1.7.0
 	github.com/swaggo/gin-swagger v1.2.0
 	github.com/swaggo/swag v1.6.2
+	github.com/syndtr/goleveldb v1.0.0
 	github.com/tebeka/strftime v0.1.5 // indirect
 	github.com/teris-io/shortid v0.0.0-20171029131806-771a37caa5cf
 	github.com/toolkits/net v0.0.0-20160910085801-3f39ab6fe3ce

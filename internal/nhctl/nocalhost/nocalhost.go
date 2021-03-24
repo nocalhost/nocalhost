@@ -158,7 +158,7 @@ func moveApplicationDirToNsDir() error {
 			return errors.Wrap(err, "")
 		}
 	} else {
-		log.Log("No need to move application dir to ns dir")
+		//log.Log("No need to move application dir to ns dir")
 	}
 
 	return nil
