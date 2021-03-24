@@ -158,7 +158,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResou
 			}
 		}
 
-		stdout, err := os.OpenFile(filepath.Join(logDir, fmt.Sprintf("%s_%s_%s_%s_%d_%d", svc.NameSpace, svc.Application, svc.Service, svc.PodName, localPort, remotePort)), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+		stdout, err := os.OpenFile(filepath.Join(logDir, fmt.Sprintf("%s_%s_%s_%d_%d", svc.NameSpace, svc.Application, svc.Service, localPort, remotePort)), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
 		if err != nil {
 			log.LogE(err)
 		}

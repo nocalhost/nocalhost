@@ -148,7 +148,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		}
 	}
 
-	app.convertDevPortForwardList()
+	//app.convertDevPortForwardList()
 
 	return app, nil
 }
@@ -634,14 +634,6 @@ func (a *Application) CheckPidPortStatus(ctx context.Context, deployment string,
 		default:
 			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
 			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
-			//currentStatus := ""
-			//for _, portForward := range a.GetSvcProfileV2(deployment).DevPortForwardList {
-			//	if portForward.LocalPort == sLocalPort && portForward.RemotePort == sRemotePort {
-			//		currentStatus = portForward.Status
-			//		break
-			//	}
-			//}
-			//if currentStatus != portStatus {
 			lock.Lock()
 			_ = a.UpdatePortForwardStatus(deployment, sLocalPort, sRemotePort, portStatus, "Check Pid")
 			lock.Unlock()
