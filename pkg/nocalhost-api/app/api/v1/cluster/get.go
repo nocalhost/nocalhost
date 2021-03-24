@@ -58,7 +58,7 @@ func ListByUser(c *gin.Context) {
 	result, _ := service.Svc.ClusterSvc().GetList(c)
 
 	// user but admin can only access his own clusters
-	if ginbase.IsAdmin(c) || ginbase.LoginUser(c) == user {
+	if ginbase.IsAdmin(c) || ginbase.IsCurrentUser(c, user) {
 		userModel := model.ClusterUserModel{
 			UserId: user,
 		}
