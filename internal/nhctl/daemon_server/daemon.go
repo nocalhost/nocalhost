@@ -77,16 +77,14 @@ func StartDaemon(isSudoUser bool) error {
 				log.LogE(errors.Wrap(err, ""))
 				continue
 			}
-			conn.Close()
 			rBytes = rBytes[0:n]
 			cmdType, err := command.ParseCommandType(rBytes)
 			if err != nil {
 				log.LogE(err)
 				continue
 			}
-			go handleCommand(rBytes, cmdType)
+			go handleCommand(conn, rBytes, cmdType)
 		}
-
 	}()
 
 	for {
@@ -101,7 +99,8 @@ func StartDaemon(isSudoUser bool) error {
 	}
 }
 
-func handleCommand(bys []byte, cmdType command.DaemonCommandType) {
+func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType) {
+	defer conn.Close()
 	var err error
 	log.Infof("Handling %s command", cmdType)
 	switch cmdType {
@@ -114,17 +113,6 @@ func handleCommand(bys []byte, cmdType command.DaemonCommandType) {
 		if err = handleStartPortForwardCommand(startCmd); err != nil {
 			log.LogE(err)
 		}
-	case command.RestartPortForward:
-		// todo: restart
-		//restartCmd := &command.PortForwardCommand{}
-		//err := json.Unmarshal(bys, restartCmd)
-		//if err != nil {
-		//	log.LogE(errors.Wrap(err, ""))
-		//}
-		//err = handleRestartPortForwardCommand(restartCmd)
-		//if err != nil {
-		//	log.LogE(err)
-		//}
 	case command.StopPortForward:
 		pfCmd := &command.PortForwardCommand{}
 		if err = json.Unmarshal(bys, pfCmd); err != nil {
@@ -146,8 +134,18 @@ func handleCommand(bys []byte, cmdType command.DaemonCommandType) {
 		}
 		log.Log("New daemon server is starting, exit this one")
 		daemonCancelFunc()
+	case command.GetDaemonServerInfo:
+		info := daemon_common.NewDaemonServerInfo()
+		bys, err := json.Marshal(info)
+		if err != nil {
+			log.Log(errors.Wrap(err, ""))
+		}
+		if _, err = conn.Write(bys); err != nil {
+			log.LogE(errors.Wrap(err, ""))
+		} else {
+			log.Log("Daemon Server info has been return")
+		}
 	}
-
 }
 
 func handlerRestartDaemonServerCommand(isSudoUser bool) error {
@@ -160,7 +158,6 @@ func handlerRestartDaemonServerCommand(isSudoUser bool) error {
 	if isSudoUser {
 		daemonArgs = append(daemonArgs, "--sudo", "true")
 	}
-
 	return daemon.RunSubProcess(daemonArgs, nil, false)
 }
 

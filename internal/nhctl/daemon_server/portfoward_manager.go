@@ -54,6 +54,7 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(localPort, remotePort int)
 	return nil
 }
 
+// Start a port-forward, and record it to leveldb
 func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResource, localPort, remotePort int) error {
 
 	key := fmt.Sprintf("%d:%d", localPort, remotePort)
@@ -77,6 +78,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResou
 		Way:               "",
 		Status:            "New",
 		Reason:            "Add",
+		PodName:           svc.PodName,
 		Updated:           time.Now().Format("2006-01-02 15:04:05"),
 		Pid:               0,
 		RunByDaemonServer: true,

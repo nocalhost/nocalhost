@@ -73,6 +73,7 @@ type DevPortForward struct {
 	Way               string
 	Status            string
 	Reason            string
+	PodName           string `json:"podName" yaml:"podName"`
 	Updated           string
 	Pid               int
 	RunByDaemonServer bool `json:"runByDaemonServer" yaml:"runByDaemonServer"`

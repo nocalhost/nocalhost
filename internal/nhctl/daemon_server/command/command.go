@@ -26,6 +26,7 @@ const (
 	StopPortForward     DaemonCommandType = "StopPortForward"
 	StopDaemonServer    DaemonCommandType = "StopDaemonServer"
 	RestartDaemonServer DaemonCommandType = "RestartDaemonServer"
+	GetDaemonServerInfo DaemonCommandType = "GetDaemonServerInfo"
 )
 
 type BaseCommand struct {

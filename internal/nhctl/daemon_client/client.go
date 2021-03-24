@@ -94,6 +94,15 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 	return client, nil
 }
 
+func (d *DaemonClient) SendGetDaemonServerInfoCommand() ([]byte, error) {
+	cmd := &command.BaseCommand{CommandType: command.GetDaemonServerInfo}
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	return d.sendDataToDaemonServerAndWaitForResponse(bys)
+}
+
 func (d *DaemonClient) SendRestartDaemonServerCommand() error {
 	cmd := &command.BaseCommand{CommandType: command.RestartDaemonServer}
 	bys, err := json.Marshal(cmd)
@@ -139,4 +148,21 @@ func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 	defer conn.Close()
 	_, err = conn.Write(data)
 	return errors.Wrap(err, "")
+}
+
+func (d *DaemonClient) sendDataToDaemonServerAndWaitForResponse(data []byte) ([]byte, error) {
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort))
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	defer conn.Close()
+	if _, err = conn.Write(data); err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	bys := make([]byte, 4096)
+	n, err := conn.Read(bys)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	return bys[0:n], nil
 }
