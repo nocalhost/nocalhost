@@ -14,8 +14,13 @@ limitations under the License.
 package app
 
 import (
+	"github.com/pkg/errors"
+	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/daemon_server/command"
+	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/terminate"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"time"
@@ -56,10 +61,7 @@ func (a *Application) SetPortForwardPid(svcName string, localPort int, remotePor
 }
 
 func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, remotePort int, portStatus string, reason string) error {
-	err := a.ReadBeforeWriteProfile()
-	if err != nil {
-		return err
-	}
+
 	for _, portForward := range a.GetSvcProfileV2(svcName).DevPortForwardList {
 		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
 			portForward.Status = portStatus
@@ -72,17 +74,38 @@ func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, rem
 	return a.SaveProfile()
 }
 
-func (a *Application) EndDevPortForward(svcName string, localPort int, remotePort int) {
+func (a *Application) EndDevPortForward(svcName string, localPort int, remotePort int) error {
+
+	svcProfile := a.GetSvcProfileV2(svcName)
+
 	indexToDelete := -1
-	for index, portForward := range a.GetSvcProfileV2(svcName).DevPortForwardList {
+	for index, portForward := range svcProfile.DevPortForwardList {
 		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
-			log.Infof("Kill %v", *portForward)
-			err := terminate.Terminate(portForward.Pid, true, "port-forward")
-			if err != nil {
-				log.Warn(err.Error())
+			if portForward.RunByDaemonServer {
+				isAdmin := utils.IsSudoUser()
+				client, err := daemon_client.NewDaemonClient(isAdmin)
+				if err != nil {
+					return err
+				}
+				err = client.SendPortForwardCommand(&model.NocalHostResource{
+					NameSpace:   a.NameSpace,
+					Application: a.Name,
+					Service:     svcName,
+					PodName:     "",
+				}, localPort, remotePort, command.StopPortForward)
+				if err != nil {
+					return err
+				}
+
+			} else {
+				log.Infof("Kill %v", *portForward)
+				err := terminate.Terminate(portForward.Pid, true, "port-forward")
+				if err != nil {
+					return errors.Wrap(err, "")
+				}
+				indexToDelete = index
+				time.Sleep(2 * time.Second)
 			}
-			indexToDelete = index
-			time.Sleep(3 * time.Second)
 			break
 		}
 	}
@@ -90,19 +113,17 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 	// remove portForward from DevPortForwardList
 	if indexToDelete > -1 {
 
-		originList := a.GetSvcProfileV2(svcName).DevPortForwardList
+		originList := svcProfile.DevPortForwardList
 		newList := make([]*profile.DevPortForward, 0)
 		for index, p := range originList {
 			if index != indexToDelete {
 				newList = append(newList, p)
 			}
 		}
-		a.GetSvcProfileV2(svcName).DevPortForwardList = newList
+		svcProfile.DevPortForwardList = newList
 
-		//a.GetSvcProfileV2(svcName).DevPortForwardList = append(a.GetSvcProfileV2(svcName).DevPortForwardList[:indexToDelete], a.GetSvcProfileV2(svcName).DevPortForwardList[indexToDelete+1:]...)
-		err := a.SaveProfile()
-		if err != nil {
-			log.WarnE(err, err.Error())
-		}
+		return a.SaveProfile()
 	}
+
+	return nil
 }

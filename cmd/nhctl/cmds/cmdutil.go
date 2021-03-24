@@ -47,7 +47,7 @@ func initApp(appName string) {
 				log.FatalE(err, "Failed to init default application in ns "+nameSpace)
 			}
 		} else {
-			log.FatalE(err, fmt.Sprintf("Application \"%s\" not found", appName))
+			log.Fatalf("Application %s in %s not found", appName, nameSpace)
 		}
 	}
 	nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)

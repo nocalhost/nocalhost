@@ -15,7 +15,6 @@ package cmds
 
 import (
 	"context"
-	"fmt"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
@@ -127,18 +126,38 @@ var devStartCmd = &cobra.Command{
 			log.Fatalf("Failed to create syncthing secret, please try to delete \"%s\" secret first manually.", syncthing.SyncSecretName)
 		}
 
+		// Stop port-forward
+		// Todo: restart port-forward after entering devMode
+		pfList := nocalhostApp.GetSvcProfileV2(deployment).DevPortForwardList
+		for _, pf := range pfList {
+			if err = nocalhostApp.EndDevPortForward(deployment, pf.LocalPort, pf.RemotePort); err != nil {
+				log.WarnE(err, "")
+			}
+		}
+
 		err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps)
 		if err != nil {
-			log.ErrorE(err, fmt.Sprintf("Failed to replace dev container: %s", err.Error()))
+			log.WarnE(err, "Failed to replace dev container")
 			log.Info("Resetting workload...")
 			nocalhostApp.Reset(deployment)
 			os.Exit(1)
 		}
 
-		// TODO set develop status, avoid stack in dev start and break, or it will never resume
 		err = nocalhostApp.SetDevelopingStatus(deployment, true)
 		if err != nil {
 			log.Fatal("Failed to update \"developing\" status\n")
+		}
+
+		if len(pfList) > 0 {
+			podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
+			if err != nil {
+				log.FatalE(err, "")
+			}
+			for _, pf := range pfList {
+				if err = nocalhostApp.PortForward(deployment, podName, pf.LocalPort, pf.RemotePort); err != nil {
+					log.WarnE(err, "")
+				}
+			}
 		}
 	},
 }

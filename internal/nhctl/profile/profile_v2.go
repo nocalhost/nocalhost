@@ -68,13 +68,17 @@ type ContainerProfileV2 struct {
 }
 
 type DevPortForward struct {
-	LocalPort  int
-	RemotePort int
-	Way        string
-	Status     string
-	Reason     string
-	Updated    string
-	Pid        int
+	LocalPort         int
+	RemotePort        int
+	Way               string
+	Status            string
+	Reason            string
+	PodName           string `json:"podName" yaml:"podName"`
+	Updated           string
+	Pid               int
+	RunByDaemonServer bool `json:"runByDaemonServer" yaml:"runByDaemonServer"`
+	Sudo              bool `json:"sudo"`
+	DaemonServerPid   int  `json:"daemonServerPid"`
 }
 
 // Compatible for v1

@@ -20,8 +20,6 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/log"
-	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 )
@@ -32,11 +30,11 @@ func init() {
 	portForwardStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
 	portForwardStartCmd.Flags().StringSliceVarP(&portForwardOptions.DevPort, "dev-port", "p", []string{}, "port-forward between pod and local, such 8080:8080 or :8080(random localPort)")
 	//portForwardStartCmd.Flags().BoolVarP(&portForwardOptions.RunAsDaemon, "daemon", "m", true, "if port-forward run as daemon")
-	portForwardStartCmd.Flags().BoolVarP(&portForwardOptions.Forward, "forward", "f", false, "forward actually")
+	portForwardStartCmd.Flags().BoolVarP(&portForwardOptions.Forward, "forward", "f", false, "forward actually, deprecated")
 	portForwardStartCmd.Flags().StringVarP(&portForwardOptions.PodName, "pod", "", "", "specify pod name")
 	portForwardStartCmd.Flags().StringVarP(&container, "container", "c", "", "which container of pod to run command")
 	portForwardStartCmd.Flags().StringVarP(&portForwardOptions.ServiceType, "type", "", "deployment", "specify service type")
-	portForwardStartCmd.Flags().StringVarP(&portForwardOptions.Way, "way", "", "manual", "specify port-forward way")
+	portForwardStartCmd.Flags().StringVarP(&portForwardOptions.Way, "way", "", "manual", "specify port-forward way, deprecated")
 	PortForwardCmd.AddCommand(portForwardStartCmd)
 }
 
@@ -58,14 +56,6 @@ var portForwardStartCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, []string{portForwardOptions.ServiceType})
 
-		// look for nhctl
-		nhctlAbsdir, err := exec.LookPath(nocalhostApp.GetMyBinName())
-		if err != nil {
-			log.Fatal("nhctl command not found")
-		}
-		// overwrite Args[0] as ABS directory of bin directory
-		os.Args[0] = nhctlAbsdir
-
 		log.Info("Starting port-forwarding")
 
 		// find deployment pods
@@ -76,7 +66,6 @@ var portForwardStartCmd = &cobra.Command{
 			podName = portForwardOptions.PodName
 		}
 
-		// run in child process
 		if len(portForwardOptions.DevPort) == 0 {
 			// if not specify -p then use default
 			portForwardOptions.DevPort = nocalhostApp.GetDefaultDevPort(deployment, container)
@@ -116,15 +105,11 @@ var portForwardStartCmd = &cobra.Command{
 			localPorts = append(localPorts, localPort)
 			remotePorts = append(remotePorts, remotePort)
 		}
-		// change -p flag os.Args
-		nocalhostApp.FixPortForwardOSArgs(localPorts, remotePorts)
 
-		// listening, it will wait until kill port forward progress
-		listenAddress := []string{"0.0.0.0"}
-		if len(localPorts) > 0 && len(remotePorts) > 0 {
-			nocalhostApp.PortForwardInBackGround(listenAddress, deployment, podName, localPorts, remotePorts, portForwardOptions.Way, portForwardOptions.Forward)
+		for index, localPort := range localPorts {
+			if err = nocalhostApp.PortForward(deployment, podName, localPort, remotePorts[index]); err != nil {
+				log.FatalE(err, "")
+			}
 		}
-
-		log.Info("No need to port forward")
 	},
 }

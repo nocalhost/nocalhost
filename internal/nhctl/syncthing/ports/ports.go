@@ -75,7 +75,7 @@ func IsTCP4PortAvailable(iface string, port int) bool {
 	address := fmt.Sprintf("%s:%d", iface, port)
 	listener, err := net.Listen("tcp4", address)
 	if err != nil {
-		log.Info(err.Error())
+		//log.Info(err.Error())
 		return false
 	}
 

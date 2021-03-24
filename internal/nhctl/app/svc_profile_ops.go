@@ -13,7 +13,10 @@ limitations under the License.
 
 package app
 
-import "nocalhost/internal/nhctl/profile"
+import (
+	"nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/log"
+)
 
 func (a *Application) CheckIfSvcIsDeveloping(svcName string) bool {
 	profile := a.GetSvcProfileV2(svcName)
@@ -40,6 +43,10 @@ func (a *Application) CheckIfSvcIsPortForwarded(svcName string) bool {
 }
 
 func (a *Application) GetSvcProfileV2(svcName string) *profile.SvcProfileV2 {
+	err := a.LoadAppProfileV2(false)
+	if err != nil {
+		log.WarnE(err, "")
+	}
 
 	for _, svcProfile := range a.AppProfileV2.SvcProfile {
 		if svcProfile.ActualName == svcName {
@@ -67,7 +74,12 @@ func (a *Application) GetSvcProfileV2(svcName string) *profile.SvcProfileV2 {
 		ActualName: svcName,
 	}
 	a.AppProfileV2.SvcProfile = append(a.AppProfileV2.SvcProfile, svcProfile)
-	a.SaveProfile()
+
+	err = a.SaveProfile()
+	if err != nil {
+		log.WarnE(err, "")
+	}
+
 	return svcProfile
 }
 
