@@ -21,7 +21,7 @@ import (
 )
 
 func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2) error {
-	db, err := openApplicationLevelDB(ns, app)
+	db, err := openApplicationLevelDB(ns, app, false)
 	if err != nil {
 		return err
 	}
@@ -35,7 +35,7 @@ func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2) error {
 }
 
 func GetProfileV2(ns, app string) (*profile.AppProfileV2, error) {
-	db, err := openApplicationLevelDB(ns, app)
+	db, err := openApplicationLevelDB(ns, app, true)
 	if err != nil {
 		return nil, err
 	}

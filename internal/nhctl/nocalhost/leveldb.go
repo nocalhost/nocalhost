@@ -17,9 +17,9 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
-	"strings"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 
-	//leveldb_errors "github.com/syndtr/goleveldb/leveldb/errors"
+	leveldb_errors "github.com/syndtr/goleveldb/leveldb/errors"
 	"nocalhost/pkg/nhctl/log"
 	"syscall"
 	"time"
@@ -29,14 +29,20 @@ const (
 	DefaultApplicationDbDir = "db"
 )
 
-func openApplicationLevelDB(ns, app string) (*leveldb.DB, error) {
+func openApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) {
 	existed := CheckIfApplicationExist(app, ns)
 	if !existed {
 		return nil, errors.New(fmt.Sprintf("Applicaton %s in %s not exists", app, ns))
 	}
 
 	path := getAppDbDir(ns, app)
-	db, err := leveldb.OpenFile(path, nil)
+	var o *opt.Options
+	if readonly {
+		o = &opt.Options{
+			ReadOnly: true,
+		}
+	}
+	db, err := leveldb.OpenFile(path, o)
 	if err != nil {
 		for i := 0; i < 300; i++ {
 			if errors.Is(err, syscall.EAGAIN) {
@@ -46,7 +52,8 @@ func openApplicationLevelDB(ns, app string) (*leveldb.DB, error) {
 				if err == nil {
 					break
 				}
-			} else if strings.Contains(err.Error(), "leveldb: manifest corrupted") {
+				//} else if strings.Contains(err.Error(), "leveldb: manifest corrupted") {
+			} else if leveldb_errors.IsCorrupted(err) {
 				log.Info("Recovering leveldb file...")
 				db, err = leveldb.RecoverFile(path, nil)
 				if err != nil {
@@ -62,8 +69,6 @@ func openApplicationLevelDB(ns, app string) (*leveldb.DB, error) {
 			return nil, errors.Wrap(err, "Retry opening leveldb failed : timeout")
 		}
 	}
-	//log.Info("Sleep 30s")
-	//time.Sleep(30 * time.Second)
 	return db, nil
 }
 
@@ -72,7 +77,7 @@ func profileV2Key(ns, app string) string {
 }
 
 func ListAllFromApplicationDb(ns, appName string) (map[string]string, error) {
-	db, err := openApplicationLevelDB(ns, appName)
+	db, err := openApplicationLevelDB(ns, appName, true)
 	if err != nil {
 		return nil, err
 	}
