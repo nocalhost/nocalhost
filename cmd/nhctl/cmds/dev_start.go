@@ -159,7 +159,7 @@ var devStartCmd = &cobra.Command{
 			}
 		}
 
-		if err = nocalhostApp.PortForwardAfterDevStart(podName, devStartOps.Container, app.Deployment); err != nil {
+		if err = nocalhostApp.PortForwardAfterDevStart(deployment, devStartOps.Container, app.Deployment); err != nil {
 			log.FatalE(err, "")
 		}
 
