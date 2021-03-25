@@ -16,103 +16,94 @@ package app
 import (
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/internal/nhctl/profile"
-	"nocalhost/pkg/nhctl/log"
 	"os"
-	"strconv"
-	"strings"
 )
 
 // Deprecated
-func (a *Application) convertDevPortForwardList() {
+//func (a *Application) convertDevPortForwardList() {
+//	var err error
+//	changed := false
+//	for _, svcProfile := range a.AppProfileV2.SvcProfile {
+//		if len(svcProfile.DevPortForwardList) > 0 {
+//			continue // already convert
+//		}
+//		for _, portString := range svcProfile.DevPortList {
+//			log.Debugf("Converting %s", portString)
+//			changed = true
+//			devPortForward := &profile.DevPortForward{
+//				Way:    "",
+//				Status: "",
+//			}
+//			svcProfile.DevPortForwardList = append(svcProfile.DevPortForwardList, devPortForward)
+//
+//			ports := strings.Split(portString, ":")
+//			devPortForward.LocalPort, err = strconv.Atoi(ports[0])
+//			if err != nil {
+//				log.WarnE(errors.Wrap(err, ""), err.Error())
+//			}
+//			devPortForward.RemotePort, err = strconv.Atoi(ports[1])
+//			if err != nil {
+//				log.WarnE(errors.Wrap(err, ""), err.Error())
+//			}
+//
+//			// find way and status
+//			for _, statusString := range svcProfile.PortForwardStatusList {
+//				if strings.Contains(statusString, portString) {
+//					// eg: 8091:8091(MANUAL-LISTEN)
+//					str := strings.Split(statusString, "(") // MANUAL-LISTEN)
+//					str = strings.Split(str[1], ")")        // MANUAL-LISTEN
+//					str = strings.Split(str[0], "-")
+//					devPortForward.Way = str[0]
+//					devPortForward.Status = str[1]
+//					log.Debugf("%s's status is %s-%s", devPortForward.Way, devPortForward.Status)
+//					break
+//				}
+//			}
+//			// find pid
+//			for _, pidString := range svcProfile.PortForwardPidList {
+//				if strings.Contains(pidString, portString) {
+//					// eg: 8091:8091-16768
+//					pidStr := strings.Split(pidString, "-")[1]
+//					devPortForward.Pid, err = strconv.Atoi(pidStr)
+//					if err != nil {
+//						log.WarnE(errors.Wrap(err, ""), err.Error())
+//					}
+//					log.Debugf("%s's pid is %d", pidString, devPortForward.Pid)
+//					break
+//				}
+//			}
+//
+//		}
+//		svcProfile.PortForwardPidList = nil
+//		svcProfile.PortForwardStatusList = nil
+//		svcProfile.DevPortList = nil
+//	}
+//	if changed {
+//		_ = a.SaveProfile()
+//	}
+//}
+
+func (a *Application) LoadAppProfileV2() error {
 	var err error
-	changed := false
-	for _, svcProfile := range a.AppProfileV2.SvcProfile {
-		if len(svcProfile.DevPortForwardList) > 0 {
-			continue // already convert
-		}
-		for _, portString := range svcProfile.DevPortList {
-			log.Debugf("Converting %s", portString)
-			changed = true
-			devPortForward := &profile.DevPortForward{
-				Way:    "",
-				Status: "",
-			}
-			svcProfile.DevPortForwardList = append(svcProfile.DevPortForwardList, devPortForward)
-
-			ports := strings.Split(portString, ":")
-			devPortForward.LocalPort, err = strconv.Atoi(ports[0])
-			if err != nil {
-				log.WarnE(errors.Wrap(err, ""), err.Error())
-			}
-			devPortForward.RemotePort, err = strconv.Atoi(ports[1])
-			if err != nil {
-				log.WarnE(errors.Wrap(err, ""), err.Error())
-			}
-
-			// find way and status
-			for _, statusString := range svcProfile.PortForwardStatusList {
-				if strings.Contains(statusString, portString) {
-					// eg: 8091:8091(MANUAL-LISTEN)
-					str := strings.Split(statusString, "(") // MANUAL-LISTEN)
-					str = strings.Split(str[1], ")")        // MANUAL-LISTEN
-					str = strings.Split(str[0], "-")
-					devPortForward.Way = str[0]
-					devPortForward.Status = str[1]
-					log.Debugf("%s's status is %s-%s", devPortForward.Way, devPortForward.Status)
-					break
-				}
-			}
-			// find pid
-			for _, pidString := range svcProfile.PortForwardPidList {
-				if strings.Contains(pidString, portString) {
-					// eg: 8091:8091-16768
-					pidStr := strings.Split(pidString, "-")[1]
-					devPortForward.Pid, err = strconv.Atoi(pidStr)
-					if err != nil {
-						log.WarnE(errors.Wrap(err, ""), err.Error())
-					}
-					log.Debugf("%s's pid is %d", pidString, devPortForward.Pid)
-					break
-				}
-			}
-
-		}
-		svcProfile.PortForwardPidList = nil
-		svcProfile.PortForwardStatusList = nil
-		svcProfile.DevPortList = nil
+	a.AppProfileV2, err = nocalhost.GetProfileV2(a.NameSpace, a.Name)
+	if a.AppProfileV2 == nil {
+		return errors.New("Profile not found")
 	}
-	if changed {
-		_ = a.SaveProfile()
-	}
-}
-
-func (a *Application) LoadAppProfileV2(retry bool) error {
-
-	app, err := nocalhost.GetProfileV2(a.NameSpace, a.Name)
-	if err != nil {
-		return err
-	}
-	if app == nil {
-		app = &profile.AppProfileV2{}
-	}
-
-	a.AppProfileV2 = app
-	return nil
+	return err
 }
 
 // Deprecated: no support for profile v1 any more
-func (a *Application) checkIfAppProfileIsV2() (bool, error) {
-	_, err := os.Stat(a.getProfileV2Path())
-	if err == nil {
-		return true, nil
-	}
-
-	if !os.IsNotExist(err) {
-		return false, errors.Wrap(err, "")
-	}
-	return false, nil
-}
+//func (a *Application) checkIfAppProfileIsV2() (bool, error) {
+//	_, err := os.Stat(a.getProfileV2Path())
+//	if err == nil {
+//		return true, nil
+//	}
+//
+//	if !os.IsNotExist(err) {
+//		return false, errors.Wrap(err, "")
+//	}
+//	return false, nil
+//}
 
 func (a *Application) checkIfAppConfigIsV2() (bool, error) {
 	_, err := os.Stat(a.GetConfigV2Path())
@@ -127,13 +118,13 @@ func (a *Application) checkIfAppConfigIsV2() (bool, error) {
 }
 
 // Deprecated: no support for profile v1 any more
-func (a *Application) UpgradeAppProfileV1ToV2() error {
-	err := ConvertAppProfileFileV1ToV2(a.getProfilePath(), a.getProfileV2Path())
-	if err != nil {
-		return err
-	}
-	return os.Rename(a.getProfilePath(), a.getProfilePath()+".bak")
-}
+//func (a *Application) UpgradeAppProfileV1ToV2() error {
+//	err := ConvertAppProfileFileV1ToV2(a.getProfilePath(), a.getProfileV2Path())
+//	if err != nil {
+//		return err
+//	}
+//	return os.Rename(a.getProfilePath(), a.getProfilePath()+".bak")
+//}
 
 func (a *Application) UpgradeAppConfigV1ToV2() error {
 	err := ConvertConfigFileV1ToV2(a.GetConfigPath(), a.GetConfigV2Path())

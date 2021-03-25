@@ -58,9 +58,9 @@ type SvcProfileV2 struct {
 	LocalAbsoluteSyncDirFromDevStartPlugin []string          `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
 	DevPortForwardList                     []*DevPortForward `json:"devPortForwardList" yaml:"devPortForwardList"` // combine DevPortList,PortForwardStatusList and PortForwardPidList
 	// Deprecated later
-	DevPortList           []string `json:"devPortList" yaml:"devPortList"`
-	PortForwardStatusList []string `json:"portForwardStatusList" yaml:"portForwardStatusList"`
-	PortForwardPidList    []string `json:"portForwardPidList" yaml:"portForwardPidList"`
+	//DevPortList           []string `json:"devPortList" yaml:"devPortList"`
+	//PortForwardStatusList []string `json:"portForwardStatusList" yaml:"portForwardStatusList"`
+	//PortForwardPidList    []string `json:"portForwardPidList" yaml:"portForwardPidList"`
 }
 
 type ContainerProfileV2 struct {

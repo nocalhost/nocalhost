@@ -106,9 +106,9 @@ func convertProfileV1ToV2(profileV1 *profile2.AppProfile) (*profile2.AppProfileV
 			LocalSyncthingPort:                     svcProfileV1.LocalSyncthingPort,
 			LocalSyncthingGUIPort:                  svcProfileV1.LocalSyncthingGUIPort,
 			LocalAbsoluteSyncDirFromDevStartPlugin: svcProfileV1.LocalAbsoluteSyncDirFromDevStartPlugin,
-			DevPortList:                            svcProfileV1.DevPortList,
-			PortForwardStatusList:                  svcProfileV1.PortForwardStatusList,
-			PortForwardPidList:                     svcProfileV1.PortForwardPidList,
+			//DevPortList:                            svcProfileV1.DevPortList,
+			//PortForwardStatusList: svcProfileV1.PortForwardStatusList,
+			//PortForwardPidList: svcProfileV1.PortForwardPidList,
 		}
 		svcProfiles = append(svcProfiles, svcProfileV2)
 	}

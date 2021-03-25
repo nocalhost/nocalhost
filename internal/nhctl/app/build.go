@@ -49,10 +49,11 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, err
 	}
 
-	err = app.LoadAppProfileV2(false)
-	if err != nil {
-		return nil, err
-	}
+	//err = app.LoadAppProfileV2(false)
+	//if err != nil {
+	//	return nil, err
+	//}
+	app.AppProfileV2 = &profile.AppProfileV2{}
 
 	app.SetInstalledStatus(true)
 
@@ -255,19 +256,16 @@ func gettingRenderEnvFile(filepath string) string {
 // Initiate directory layout of a nhctl application
 func (a *Application) initDir() error {
 	var err error
-	err = os.MkdirAll(a.GetHomeDir(), DefaultNewFilePermission)
-	if err != nil {
+	if err = os.MkdirAll(a.GetHomeDir(), DefaultNewFilePermission); err != nil {
 		return errors.Wrap(err, "")
 	}
 
-	err = os.MkdirAll(a.getGitDir(), DefaultNewFilePermission)
-	if err != nil {
+	if err = os.MkdirAll(a.getGitDir(), DefaultNewFilePermission); err != nil {
 		return errors.Wrap(err, "")
 	}
 
-	//err = ioutil.WriteFile(a.getProfilePath(), []byte(""), DefaultNewFilePermission)
-	err = ioutil.WriteFile(a.getProfileV2Path(), []byte(""), DefaultConfigFilePermission)
-	return errors.Wrap(err, "")
+	log.Infof("Making dir %s", a.getDbDir())
+	return errors.Wrap(os.MkdirAll(a.getDbDir(), DefaultNewFilePermission), "")
 }
 
 // svcName use actual name

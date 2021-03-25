@@ -14,14 +14,10 @@ limitations under the License.
 package cmds
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/log"
-	"strconv"
-	"strings"
 )
 
 var portForwardOptions = &app.PortForwardOptions{}
@@ -74,32 +70,9 @@ var portForwardStartCmd = &cobra.Command{
 		var localPorts []int
 		var remotePorts []int
 		for _, port := range portForwardOptions.DevPort {
-			// 8080:8080, :8080
-			s := strings.Split(port, ":")
-			if len(s) < 2 {
-				// ignore wrong format
-				log.Warnf("Wrong format of dev port:%s , skipped.", port)
-				continue
-			}
-			var localPort int
-			sLocalPort := s[0]
-			if sLocalPort == "" {
-				// get random port in local
-				localPort, err = ports.GetAvailablePort()
-				if err != nil {
-					log.WarnE(err, "Failed to get local port")
-					continue
-				}
-			} else {
-				localPort, err = strconv.Atoi(sLocalPort)
-				if err != nil {
-					log.Warnf("Wrong format of local port:%s , skipped.", sLocalPort)
-					continue
-				}
-			}
-			remotePort, err := strconv.Atoi(s[1])
+			localPort, remotePort, err := app.GetPortForwardForString(port)
 			if err != nil {
-				log.ErrorE(err, fmt.Sprintf("wrong format of remote port: %s, skipped", s[1]))
+				log.WarnE(err, "")
 				continue
 			}
 			localPorts = append(localPorts, localPort)

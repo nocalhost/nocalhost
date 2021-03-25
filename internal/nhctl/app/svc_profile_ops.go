@@ -43,7 +43,7 @@ func (a *Application) CheckIfSvcIsPortForwarded(svcName string) bool {
 }
 
 func (a *Application) GetSvcProfileV2(svcName string) *profile.SvcProfileV2 {
-	err := a.LoadAppProfileV2(false)
+	err := a.LoadAppProfileV2()
 	if err != nil {
 		log.WarnE(err, "")
 	}

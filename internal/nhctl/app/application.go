@@ -126,7 +126,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		app.moveProfileFromFileToLeveldb()
 	}
 
-	err = app.LoadAppProfileV2(true)
+	err = app.LoadAppProfileV2()
 	if err != nil {
 		return nil, err
 	}
@@ -148,13 +148,13 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		}
 	}
 
-	app.convertDevPortForwardList()
+	//app.convertDevPortForwardList()
 
 	return app, nil
 }
 
 func (a *Application) ReadBeforeWriteProfile() error {
-	return a.LoadAppProfileV2(true)
+	return a.LoadAppProfileV2()
 }
 
 func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
@@ -310,7 +310,7 @@ func (a *Application) SaveSvcProfileV2(svcName string, config *profile.ServiceCo
 }
 
 func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
-	a.LoadAppProfileV2(false)
+	a.LoadAppProfileV2()
 	a.LoadConfigV2()
 	if a.configV2 == nil {
 		return nil
@@ -634,14 +634,6 @@ func (a *Application) CheckPidPortStatus(ctx context.Context, deployment string,
 		default:
 			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
 			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
-			//currentStatus := ""
-			//for _, portForward := range a.GetSvcProfileV2(deployment).DevPortForwardList {
-			//	if portForward.LocalPort == sLocalPort && portForward.RemotePort == sRemotePort {
-			//		currentStatus = portForward.Status
-			//		break
-			//	}
-			//}
-			//if currentStatus != portStatus {
 			lock.Lock()
 			_ = a.UpdatePortForwardStatus(deployment, sLocalPort, sRemotePort, portStatus, "Check Pid")
 			lock.Unlock()
@@ -736,6 +728,22 @@ func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(svcName stri
 
 func (a *Application) GetPodsFromDeployment(deployment string) (*corev1.PodList, error) {
 	return a.client.ListPodsByDeployment(deployment)
+}
+
+func (a *Application) GetDefaultPodName(svc string, t SvcType) (podName string, err error) {
+	switch t {
+	case Deployment:
+		checkPodsList, err := a.GetPodsFromDeployment(svc)
+		if err != nil {
+			return "", err
+		}
+		if checkPodsList == nil || len(checkPodsList.Items) == 0 {
+			return "", errors.New("dev container not found")
+		}
+		return checkPodsList.Items[0].Name, nil
+	default:
+		return "", errors.New("Service type not support")
+	}
 }
 
 func (a *Application) GetNocalhostDevContainerPod(deployment string) (podName string, err error) {

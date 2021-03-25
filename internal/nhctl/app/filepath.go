@@ -22,6 +22,10 @@ func (a *Application) getGitDir() string {
 	return filepath.Join(a.GetHomeDir(), DefaultResourcesDir)
 }
 
+func (a *Application) getDbDir() string {
+	return filepath.Join(a.GetHomeDir(), nocalhost.DefaultApplicationDbDir)
+}
+
 func (a *Application) getUpgradeGitDir() string {
 	return filepath.Join(a.GetHomeDir(), DefaultUpgradeResourcesDir)
 }
