@@ -730,6 +730,22 @@ func (a *Application) GetPodsFromDeployment(deployment string) (*corev1.PodList,
 	return a.client.ListPodsByDeployment(deployment)
 }
 
+func (a *Application) GetDefaultPodName(svc string, t SvcType) (podName string, err error) {
+	switch t {
+	case Deployment:
+		checkPodsList, err := a.GetPodsFromDeployment(svc)
+		if err != nil {
+			return "", err
+		}
+		if checkPodsList == nil || len(checkPodsList.Items) == 0 {
+			return "", errors.New("dev container not found")
+		}
+		return checkPodsList.Items[0].Name, nil
+	default:
+		return "", errors.New("Service type not support")
+	}
+}
+
 func (a *Application) GetNocalhostDevContainerPod(deployment string) (podName string, err error) {
 	checkPodsList, err := a.GetPodsFromDeployment(deployment)
 	if err != nil {

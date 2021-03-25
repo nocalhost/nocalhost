@@ -74,32 +74,9 @@ var portForwardStartCmd = &cobra.Command{
 		var localPorts []int
 		var remotePorts []int
 		for _, port := range portForwardOptions.DevPort {
-			// 8080:8080, :8080
-			s := strings.Split(port, ":")
-			if len(s) < 2 {
-				// ignore wrong format
-				log.Warnf("Wrong format of dev port:%s , skipped.", port)
-				continue
-			}
-			var localPort int
-			sLocalPort := s[0]
-			if sLocalPort == "" {
-				// get random port in local
-				localPort, err = ports.GetAvailablePort()
-				if err != nil {
-					log.WarnE(err, "Failed to get local port")
-					continue
-				}
-			} else {
-				localPort, err = strconv.Atoi(sLocalPort)
-				if err != nil {
-					log.Warnf("Wrong format of local port:%s , skipped.", sLocalPort)
-					continue
-				}
-			}
-			remotePort, err := strconv.Atoi(s[1])
+			localPort, remotePort, err := getPortForwardForString(port)
 			if err != nil {
-				log.ErrorE(err, fmt.Sprintf("wrong format of remote port: %s, skipped", s[1]))
+				log.WarnE(err, "")
 				continue
 			}
 			localPorts = append(localPorts, localPort)
@@ -112,4 +89,27 @@ var portForwardStartCmd = &cobra.Command{
 			}
 		}
 	},
+}
+
+// portStr is like 8080:80 or :80
+func getPortForwardForString(portStr string) (int, int, error) {
+	var err error
+	s := strings.Split(portStr, ":")
+	if len(s) < 2 {
+		return 0, 0, errors.New(fmt.Sprintf("Wrong format of port: %s", portStr))
+	}
+	var localPort, remotePort int
+	sLocalPort := s[0]
+	if sLocalPort == "" {
+		// get random port in local
+		if localPort, err = ports.GetAvailablePort(); err != nil {
+			return 0, 0, err
+		}
+	} else if localPort, err = strconv.Atoi(sLocalPort); err != nil {
+		return 0, 0, errors.Wrap(err, fmt.Sprintf("Wrong format of local port: %s.", sLocalPort))
+	}
+	if remotePort, err = strconv.Atoi(s[1]); err != nil {
+		return 0, 0, errors.Wrap(err, fmt.Sprintf("wrong format of remote port: %s, skipped", s[1]))
+	}
+	return localPort, remotePort, nil
 }

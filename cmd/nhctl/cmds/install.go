@@ -110,6 +110,37 @@ var installCmd = &cobra.Command{
 		} else {
 			log.Infof("Application %s installed", applicationName)
 		}
+
+		// Start port forward
+		log.Info("Starting port-forward")
+		profileV2, err := nocalhostApp.GetProfile()
+		if err != nil {
+			log.FatalE(err, "")
+		}
+
+		for _, svcProfile := range profileV2.SvcProfile {
+			for _, cc := range svcProfile.ContainerConfigs {
+				if cc.Install == nil {
+					continue
+				}
+				podName, err := nocalhostApp.GetDefaultPodName(svcProfile.ActualName, app.Deployment)
+				if err != nil {
+					log.WarnE(err, "")
+					continue
+				}
+				for _, pf := range cc.Install.PortForward {
+					lPort, rPort, err := getPortForwardForString(pf)
+					if err != nil {
+						log.WarnE(err, "")
+						continue
+					}
+					log.Infof("Port forward %d:%d", lPort, rPort)
+					if err = nocalhostApp.PortForward(svcProfile.ActualName, podName, lPort, rPort); err != nil {
+						log.WarnE(err, "")
+					}
+				}
+			}
+		}
 	},
 }
 
