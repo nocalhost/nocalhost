@@ -134,6 +134,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResou
 		}
 
 		p.lock.Lock()
+		log.Logf("Saving port-forward %d:%d to db", pf.LocalPort, pf.RemotePort)
 		err = nocalhostApp.AddPortForwardToDB(svc.Service, pf)
 		p.lock.Unlock()
 		if err != nil {

@@ -14,15 +14,19 @@ limitations under the License.
 package app
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/syncthing/terminate"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -126,4 +130,59 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 	}
 
 	return nil
+}
+
+func (a *Application) PortForwardAfterDevStart(svcName string, containerName string, svcType SvcType) error {
+	switch svcType {
+	case Deployment:
+		p := a.GetSvcProfileV2(svcName)
+		if p.ContainerConfigs == nil {
+			return nil
+		}
+		cc := p.GetContainerDevConfigOrDefault(containerName)
+		if cc == nil {
+			return nil
+		}
+		podName, err := a.GetNocalhostDevContainerPod(svcName)
+		if err != nil {
+			return err
+		}
+		for _, pf := range cc.PortForward {
+			lPort, rPort, err := GetPortForwardForString(pf)
+			if err != nil {
+				log.WarnE(err, "")
+				continue
+			}
+			log.Infof("Forwarding %d:%d", lPort, rPort)
+			if err = a.PortForward(svcName, podName, lPort, rPort); err != nil {
+				log.WarnE(err, "")
+			}
+		}
+	default:
+		return errors.New("SvcType not supported")
+	}
+	return nil
+}
+
+// portStr is like 8080:80 or :80
+func GetPortForwardForString(portStr string) (int, int, error) {
+	var err error
+	s := strings.Split(portStr, ":")
+	if len(s) < 2 {
+		return 0, 0, errors.New(fmt.Sprintf("Wrong format of port: %s", portStr))
+	}
+	var localPort, remotePort int
+	sLocalPort := s[0]
+	if sLocalPort == "" {
+		// get random port in local
+		if localPort, err = ports.GetAvailablePort(); err != nil {
+			return 0, 0, err
+		}
+	} else if localPort, err = strconv.Atoi(sLocalPort); err != nil {
+		return 0, 0, errors.Wrap(err, fmt.Sprintf("Wrong format of local port: %s.", sLocalPort))
+	}
+	if remotePort, err = strconv.Atoi(s[1]); err != nil {
+		return 0, 0, errors.Wrap(err, fmt.Sprintf("wrong format of remote port: %s, skipped", s[1]))
+	}
+	return localPort, remotePort, nil
 }

@@ -129,7 +129,7 @@ var installCmd = &cobra.Command{
 					continue
 				}
 				for _, pf := range cc.Install.PortForward {
-					lPort, rPort, err := getPortForwardForString(pf)
+					lPort, rPort, err := app.GetPortForwardForString(pf)
 					if err != nil {
 						log.WarnE(err, "")
 						continue
