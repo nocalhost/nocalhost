@@ -43,10 +43,10 @@ func (a *Application) CheckIfSvcIsPortForwarded(svcName string) bool {
 }
 
 func (a *Application) GetSvcProfileV2(svcName string) *profile.SvcProfileV2 {
-	err := a.LoadAppProfileV2()
-	if err != nil {
-		log.WarnE(err, "")
-	}
+	//err := a.LoadAppProfileV2()
+	//if err != nil {
+	//	log.WarnE(err, "")
+	//}
 
 	for _, svcProfile := range a.AppProfileV2.SvcProfile {
 		if svcProfile.ActualName == svcName {
@@ -75,7 +75,7 @@ func (a *Application) GetSvcProfileV2(svcName string) *profile.SvcProfileV2 {
 	}
 	a.AppProfileV2.SvcProfile = append(a.AppProfileV2.SvcProfile, svcProfile)
 
-	err = a.SaveProfile()
+	err := a.SaveProfile()
 	if err != nil {
 		log.WarnE(err, "")
 	}
