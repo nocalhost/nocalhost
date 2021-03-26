@@ -39,6 +39,7 @@ func (a *Application) SetAppType(t AppType) error {
 }
 
 func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
+	a.LoadAppProfileV2()
 	a.GetSvcProfileV2(svcName).PortForwarded = is
 	return a.SaveProfile()
 }

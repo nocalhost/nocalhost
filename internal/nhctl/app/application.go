@@ -78,6 +78,7 @@ type Application struct {
 	// for upgrade
 	upgradeSortedPreInstallManifest []string
 	upgradeInstallManifest          []string
+	//db                              *leveldb.DB
 }
 
 type SvcDependency struct {
@@ -102,7 +103,7 @@ func (a *Application) moveProfileFromFileToLeveldb() error {
 		return errors.Wrap(err, "")
 	}
 
-	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
+	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2, nil)
 }
 
 func NewApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
@@ -118,7 +119,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	}
 
 	//
-	appProfile, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
+	appProfile, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +159,7 @@ func (a *Application) ReadBeforeWriteProfile() error {
 }
 
 func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
-	app, err := nocalhost.GetProfileV2(a.NameSpace, a.Name)
+	app, err := nocalhost.GetProfileV2(a.NameSpace, a.Name, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -204,12 +205,12 @@ func (a *Application) LoadConfigV2() error {
 	return nil
 }
 
-func (a *Application) SaveProfileToDb(p *profile.AppProfileV2) error {
-	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, p)
-}
+//func (a *Application) SaveProfileToDb(p *profile.AppProfileV2) error {
+//	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, p)
+//}
 
 func (a *Application) SaveProfile() error {
-	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.AppProfileV2)
+	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.AppProfileV2, nil)
 }
 
 type HelmFlags struct {
@@ -599,7 +600,11 @@ func (a *Application) PortForward(deployment, podName string, localPort, remoteP
 		PodName:     podName,
 	}
 
-	if err = client.SendPortForwardCommand(nhResource, localPort, remotePort, command.StartPortForward); err != nil {
+	r, err := client.SendPortForwardCommand(nhResource, localPort, remotePort, command.StartPortForward)
+	if r != nil && r.Err != nil {
+		return err
+	}
+	if err != nil {
 		return err
 	} else {
 		log.Infof("Port-forward request %d:%d has been sent to daemon server", localPort, remotePort)
@@ -607,19 +612,16 @@ func (a *Application) PortForward(deployment, podName string, localPort, remoteP
 	}
 }
 
-func (a *Application) SendHeartBeat(ctx context.Context, listenAddress string, sLocalPort int) {
+func (a *Application) SendHeartBeat(ctx context.Context, listenAddress string, sLocalPort int) error {
 	for {
 		select {
 		case <-ctx.Done():
 			log.Infof("Stop sending heart beat to %d", sLocalPort)
-			return
+			return errors.New("HeatBeat has been stopped")
 		default:
 			<-time.After(30 * time.Second)
 			log.Infof("try to send port-forward heartbeat to %d", sLocalPort)
-			err := a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress, sLocalPort))
-			if err != nil {
-				log.Info("send port-forward heartbeat with err %s", err.Error())
-			}
+			return a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress, sLocalPort))
 		}
 	}
 }

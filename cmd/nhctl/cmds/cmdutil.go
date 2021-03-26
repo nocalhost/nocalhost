@@ -19,6 +19,7 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -137,13 +138,13 @@ func InitDefaultApplicationByFirstValid() error {
 
 	defer func() {
 		if err != nil {
-			os.RemoveAll(nocalhost.GetAppDirUnderNs(app.DefaultNocalhostApplication, nameSpace))
+			os.RemoveAll(nocalhost_path.GetAppDirUnderNs(app.DefaultNocalhostApplication, nameSpace))
 		}
 	}()
 
 	err = utils.CopyDir(
-		nocalhost.GetAppDirUnderNs(appNeedToCopy, nameSpace),
-		nocalhost.GetAppDirUnderNs(app.DefaultNocalhostApplication, nameSpace),
+		nocalhost_path.GetAppDirUnderNs(appNeedToCopy, nameSpace),
+		nocalhost_path.GetAppDirUnderNs(app.DefaultNocalhostApplication, nameSpace),
 	)
 	if err != nil {
 		return err

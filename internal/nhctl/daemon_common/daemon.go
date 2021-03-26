@@ -26,3 +26,7 @@ type DaemonServerInfo struct {
 func NewDaemonServerInfo() *DaemonServerInfo {
 	return &DaemonServerInfo{Version: Version}
 }
+
+type CommonResponse struct {
+	Err error `json:"err"`
+}

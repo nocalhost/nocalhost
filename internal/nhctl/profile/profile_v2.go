@@ -13,6 +13,20 @@ limitations under the License.
 
 package profile
 
+import (
+	"fmt"
+	"github.com/pkg/errors"
+	"github.com/syndtr/goleveldb/leveldb"
+	"gopkg.in/yaml.v2"
+	"nocalhost/internal/nhctl/dbutils"
+	"nocalhost/internal/nhctl/nocalhost_path"
+)
+
+const (
+	DefaultDevImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
+	DefaultWorkDir  = "/home/nocalhost-dev"
+)
+
 type AppProfileV2 struct {
 	Name                    string            `json:"name" yaml:"name"`
 	ChartName               string            `json:"chart_name" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
@@ -37,6 +51,91 @@ type AppProfileV2 struct {
 
 	Env     []*Env  `json:"env" yaml:"env"`
 	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
+	db      *leveldb.DB
+	appName string
+	ns      string
+}
+
+func ProfileV2Key(ns, app string) string {
+	return fmt.Sprintf("%s.%s.profile.v2", ns, app)
+}
+
+func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) {
+	path := nocalhost_path.GetAppDbDir(ns, app)
+	return dbutils.OpenApplicationLevelDB(path, readonly)
+}
+
+func NewAppProfileV2(ns, name string) (*AppProfileV2, error) {
+	db, err := OpenApplicationLevelDB(ns, name, false)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &AppProfileV2{}
+	bys, err := db.Get([]byte(ProfileV2Key(ns, name)), nil)
+	if err != nil {
+		db.Close()
+		if err == leveldb.ErrNotFound {
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "")
+	}
+	if len(bys) == 0 {
+		db.Close()
+		return nil, nil
+	}
+
+	err = yaml.Unmarshal(bys, result)
+	if err != nil {
+		db.Close()
+		return nil, errors.Wrap(err, "")
+	}
+
+	result.ns = ns
+	result.appName = name
+	result.db = db
+	return result, nil
+}
+
+func (a *AppProfileV2) FetchSvcProfileV2FromProfile(svcName string) *SvcProfileV2 {
+
+	for _, svcProfile := range a.SvcProfile {
+		if svcProfile.ActualName == svcName {
+			return svcProfile
+		}
+	}
+
+	// If not profile found, init one
+	if a.SvcProfile == nil {
+		a.SvcProfile = make([]*SvcProfileV2, 0)
+	}
+	svcProfile := &SvcProfileV2{
+		ServiceConfigV2: &ServiceConfigV2{
+			Name: svcName,
+			Type: string("Deployment"),
+			ContainerConfigs: []*ContainerConfig{
+				{
+					Dev: &ContainerDevConfig{
+						Image:   DefaultDevImage,
+						WorkDir: DefaultWorkDir,
+					},
+				},
+			},
+		},
+		ActualName: svcName,
+	}
+	a.SvcProfile = append(a.SvcProfile, svcProfile)
+
+	return svcProfile
+}
+
+func (a *AppProfileV2) SaveAndCloseDb() error {
+	defer a.db.Close()
+	bys, err := yaml.Marshal(a)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	return errors.Wrap(a.db.Put([]byte(ProfileV2Key(a.ns, a.appName)), bys, nil), "")
 }
 
 type SvcProfileV2 struct {

@@ -25,6 +25,7 @@ import (
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
+	"nocalhost/pkg/nhctl/log"
 	"os/exec"
 	"time"
 )
@@ -121,7 +122,7 @@ func (d *DaemonClient) SendStopDaemonServerCommand() error {
 	return d.sendDataToDaemonServer(bys)
 }
 
-func (d *DaemonClient) SendPortForwardCommand(nhSvc *model.NocalHostResource, localPort, remotePort int, cmdType command.DaemonCommandType) error {
+func (d *DaemonClient) SendPortForwardCommand(nhSvc *model.NocalHostResource, localPort, remotePort int, cmdType command.DaemonCommandType) (*daemon_common.CommonResponse, error) {
 
 	startPFCmd := &command.PortForwardCommand{
 		CommandType: cmdType,
@@ -135,9 +136,19 @@ func (d *DaemonClient) SendPortForwardCommand(nhSvc *model.NocalHostResource, lo
 
 	bys, err := json.Marshal(startPFCmd)
 	if err != nil {
-		return errors.Wrap(err, "")
+		return nil, errors.Wrap(err, "")
 	}
-	return d.sendDataToDaemonServer(bys)
+	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
+		return nil, err
+	} else {
+		log.Infof("%s", string(bys))
+		r := &daemon_common.CommonResponse{}
+		if err = json.Unmarshal(bys, r); err != nil {
+			return nil, err
+		} else {
+			return r, nil
+		}
+	}
 }
 
 func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {

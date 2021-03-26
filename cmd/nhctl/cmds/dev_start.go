@@ -127,24 +127,22 @@ var devStartCmd = &cobra.Command{
 		}
 
 		// Stop port-forward
-		// Todo: restart port-forward after entering devMode
 		pfList := nocalhostApp.GetSvcProfileV2(deployment).DevPortForwardList
 		for _, pf := range pfList {
+			log.Infof("Stopping %d:%d", pf.LocalPort, pf.RemotePort)
 			if err = nocalhostApp.EndDevPortForward(deployment, pf.LocalPort, pf.RemotePort); err != nil {
 				log.WarnE(err, "")
 			}
 		}
 
-		err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps)
-		if err != nil {
+		if err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps); err != nil {
 			log.WarnE(err, "Failed to replace dev container")
 			log.Info("Resetting workload...")
 			nocalhostApp.Reset(deployment)
 			os.Exit(1)
 		}
 
-		err = nocalhostApp.SetDevelopingStatus(deployment, true)
-		if err != nil {
+		if err = nocalhostApp.SetDevelopingStatus(deployment, true); err != nil {
 			log.Fatal("Failed to update \"developing\" status\n")
 		}
 

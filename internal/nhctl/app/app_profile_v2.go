@@ -85,7 +85,7 @@ import (
 
 func (a *Application) LoadAppProfileV2() error {
 	var err error
-	a.AppProfileV2, err = nocalhost.GetProfileV2(a.NameSpace, a.Name)
+	a.AppProfileV2, err = nocalhost.GetProfileV2(a.NameSpace, a.Name, nil)
 	if a.AppProfileV2 == nil {
 		return errors.New("Profile not found")
 	}

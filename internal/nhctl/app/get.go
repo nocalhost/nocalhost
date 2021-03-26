@@ -117,7 +117,7 @@ func (a *Application) GetDefaultWorkDir(svcName, container string) string {
 	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).WorkDir != "" {
 		return svcProfile.GetContainerDevConfigOrDefault(container).WorkDir
 	}
-	return DefaultWorkDir
+	return profile.DefaultWorkDir
 }
 
 func (a *Application) GetPersistentVolumeDirs(svcName, container string) []*profile.PersistentVolumeDir {
@@ -137,7 +137,7 @@ func (a *Application) GetDefaultDevImage(svcName string, container string) strin
 	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).Image != "" {
 		return svcProfile.GetContainerDevConfigOrDefault(container).Image
 	}
-	return DefaultDevImage
+	return profile.DefaultDevImage
 }
 
 func (a *Application) GetDefaultDevPort(svcName string, container string) []string {

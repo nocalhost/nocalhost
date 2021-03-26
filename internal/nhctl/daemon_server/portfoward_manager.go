@@ -34,28 +34,34 @@ import (
 	"time"
 )
 
+type portForwardProfile struct {
+	cancel context.CancelFunc // For canceling a port forward
+	stopCh chan error
+}
+
 type PortForwardManager struct {
-	pfList map[string]context.CancelFunc
+	pfList map[string]*portForwardProfile
 	lock   sync.Mutex
 }
 
 func NewPortForwardManager() *PortForwardManager {
-	return &PortForwardManager{pfList: map[string]context.CancelFunc{}}
+	return &PortForwardManager{pfList: map[string]*portForwardProfile{}}
 }
 
 func (p *PortForwardManager) StopPortForwardGoRoutine(localPort, remotePort int) error {
 	key := fmt.Sprintf("%d:%d", localPort, remotePort)
-	cancel, ok := p.pfList[key]
+	pfProfile, ok := p.pfList[key]
 	if !ok {
 		return errors.New(fmt.Sprintf("Port-forward %d:%d is not managed by this PortForwardManger", localPort, remotePort))
 	}
-	cancel()
+	pfProfile.cancel()
+	err := <-pfProfile.stopCh
 	delete(p.pfList, key)
-	return nil
+	return err
 }
 
 func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string) error {
-	profile, err := nocalhost.GetProfileV2(ns, appName)
+	profile, err := nocalhost.GetProfileV2(ns, appName, nil)
 	if err != nil {
 		return err
 	}
@@ -143,7 +149,10 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResou
 	}
 
 	ctx, cancel := context.WithCancel(context.TODO())
-	p.pfList[key] = cancel
+	p.pfList[key] = &portForwardProfile{
+		cancel: cancel,
+		stopCh: make(chan error, 1),
+	}
 	go func() {
 		log.Logf("Forwarding %d:%d", localPort, localPort)
 
@@ -205,10 +214,31 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResou
 				case <-readyCh:
 					log.Infof("Port forward %d:%d is ready", localPort, remotePort)
 					go func() {
-						nocalhostApp.CheckPidPortStatus(heartbeatCtx, svc.Service, localPort, remotePort, &p.lock)
-					}()
-					go func() {
-						nocalhostApp.SendHeartBeat(heartbeatCtx, "127.0.0.1", localPort)
+						lastStatus := ""
+						currentStatus := ""
+						for {
+							select {
+							case <-heartbeatCtx.Done():
+								log.Infof("Stop sending heart beat to %d", localPort)
+								return
+							default:
+								<-time.After(30 * time.Second)
+								log.Infof("try to send port-forward heartbeat to %d", localPort)
+								err := nocalhostApp.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", "127.0.0.1", localPort))
+								if err != nil {
+									log.WarnE(err, "")
+									currentStatus = "HeartBeatLoss"
+								} else {
+									currentStatus = "LISTEN"
+								}
+								if lastStatus != currentStatus {
+									lastStatus = currentStatus
+									p.lock.Lock()
+									nocalhostApp.UpdatePortForwardStatus(svc.Service, localPort, remotePort, lastStatus, "Heart Beat")
+									p.lock.Unlock()
+								}
+							}
+						}
 					}()
 				}
 			}()
@@ -229,7 +259,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResou
 					StopCh:    stopCh,
 					ReadyCh:   readyCh,
 				}):
-					log.Log("Case: port-forward occurs errors")
+					log.Logf("Port-forward %d:%d occurs errors", localPort, remotePort)
 				}
 			}()
 
@@ -282,10 +312,14 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResou
 					log.Logf("Stopping port-forward %d-%d", localPort, remotePort)
 					close(stopCh)
 				}
-				delete(p.pfList, key)
+				//delete(p.pfList, key)
+				log.Logf("Delete port-forward %d:%d record", localPort, remotePort)
 				err = nocalhostApp.DeletePortForwardFromDB(svc.Service, localPort, remotePort)
 				if err != nil {
 					log.LogE(err)
+				}
+				if pfProfile, ok := p.pfList[key]; ok {
+					pfProfile.stopCh <- err
 				}
 				return
 			}

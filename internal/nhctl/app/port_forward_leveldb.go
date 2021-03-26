@@ -20,6 +20,8 @@ import (
 
 func (a *Application) CheckIfPortForwardExists(svcName string, localPort, remotePort int) bool {
 
+	_ = a.LoadAppProfileV2()
+
 	for _, portForward := range a.GetSvcProfileV2(svcName).DevPortForwardList {
 		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
 			return true
@@ -28,21 +30,76 @@ func (a *Application) CheckIfPortForwardExists(svcName string, localPort, remote
 	return false
 }
 
+//func (a *Application) StartTransaction() error {
+//	var err error
+//	if a.db != nil {
+//		return errors.New("Transaction already start")
+//	}
+//	a.db, err = nocalhost.OpenApplicationLevelDB(a.NameSpace, a.Name, false)
+//	return err
+//}
+//
+//func (a *Application) StopTransaction() error {
+//	var err error
+//	if a.db != nil {
+//		err = a.db.Close()
+//		a.db = nil
+//	}
+//	return err
+//}
+
 // You should `CheckIfPortForwardExists` before adding a port-forward to db
 func (a *Application) AddPortForwardToDB(svcName string, port *profile.DevPortForward) error {
-	profile := a.GetSvcProfileV2(svcName)
-	if profile == nil {
+	//db, err := nocalhost.OpenApplicationLevelDB(a.NameSpace, a.Name, false)
+	//if err != nil {
+	//	return err
+	//}
+	//defer db.Close()
+	//
+	//profileV2, err := nocalhost.GetProfileV2(a.NameSpace, a.Name, db)
+	//if err != nil {
+	//	return err
+	//}
+
+	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name)
+	if err != nil {
+		return err
+	}
+
+	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	if svcProfile == nil {
 		return errors.New("Failed to add a port-forward to db")
 	}
 
-	profile.DevPortForwardList = append(profile.DevPortForwardList, port)
-	return a.SaveProfile()
+	svcProfile.DevPortForwardList = append(svcProfile.DevPortForwardList, port)
+	return profileV2.SaveAndCloseDb()
 }
 
 func (a *Application) DeletePortForwardFromDB(svcName string, localPort, remotePort int) error {
-	svcProfile := a.GetSvcProfileV2(svcName)
+	//db, err := nocalhost.OpenApplicationLevelDB(a.NameSpace, a.Name, false)
+	//if err != nil {
+	//	return err
+	//}
+	//defer db.Close()
+	//
+	//profileV2, err := nocalhost.GetProfileV2(a.NameSpace, a.Name, db)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//svcProfile := fetchSvcProfileV2FromProfile(svcName, profileV2)
+	//if svcProfile == nil {
+	//	return errors.New("Failed to add a port-forward to db")
+	//}
+
+	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name)
+	if err != nil {
+		return err
+	}
+
+	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
 	if svcProfile == nil {
-		return errors.New("Failed to delete a port-forward from db")
+		return errors.New("Failed to add a port-forward to db")
 	}
 
 	indexToDelete := -1
@@ -63,7 +120,7 @@ func (a *Application) DeletePortForwardFromDB(svcName string, localPort, remoteP
 			}
 		}
 		svcProfile.DevPortForwardList = newList
-		return a.SaveProfile()
+		return profileV2.SaveAndCloseDb()
 	}
 	return nil
 }

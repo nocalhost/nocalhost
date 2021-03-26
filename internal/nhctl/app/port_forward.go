@@ -65,7 +65,9 @@ func (a *Application) SetPortForwardPid(svcName string, localPort int, remotePor
 }
 
 func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, remotePort int, portStatus string, reason string) error {
-
+	if err := a.LoadAppProfileV2(); err != nil {
+		return err
+	}
 	for _, portForward := range a.GetSvcProfileV2(svcName).DevPortForwardList {
 		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
 			portForward.Status = portStatus
@@ -91,16 +93,16 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 				if err != nil {
 					return err
 				}
-				err = client.SendPortForwardCommand(&model.NocalHostResource{
+				r, err := client.SendPortForwardCommand(&model.NocalHostResource{
 					NameSpace:   a.NameSpace,
 					Application: a.Name,
 					Service:     svcName,
 					PodName:     "",
 				}, localPort, remotePort, command.StopPortForward)
-				if err != nil {
-					return err
+				if r != nil {
+					return r.Err
 				}
-
+				return err
 			} else {
 				log.Infof("Kill %v", *portForward)
 				err := terminate.Terminate(portForward.Pid, true, "port-forward")
@@ -108,7 +110,6 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 					return errors.Wrap(err, "")
 				}
 				indexToDelete = index
-				time.Sleep(2 * time.Second)
 			}
 			break
 		}

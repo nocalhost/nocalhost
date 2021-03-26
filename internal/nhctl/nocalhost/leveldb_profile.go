@@ -20,28 +20,36 @@ import (
 	"nocalhost/internal/nhctl/profile"
 )
 
-func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2) error {
-	db, err := openApplicationLevelDB(ns, app, false)
-	if err != nil {
-		return err
+func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2, transactionDb *leveldb.DB) error {
+	var err error
+	db := transactionDb
+	if db == nil {
+		db, err = OpenApplicationLevelDB(ns, app, false)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
 	}
-	defer db.Close()
-
 	bys, err := yaml.Marshal(profileV2)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	return errors.Wrap(db.Put([]byte(profileV2Key(ns, app)), bys, nil), "")
+	//log.Infof("saving profile v2: %v", *profileV2)
+	return errors.Wrap(db.Put([]byte(profile.ProfileV2Key(ns, app)), bys, nil), "")
 }
 
-func GetProfileV2(ns, app string) (*profile.AppProfileV2, error) {
-	db, err := openApplicationLevelDB(ns, app, true)
-	if err != nil {
-		return nil, err
+func GetProfileV2(ns, app string, transactionDb *leveldb.DB) (*profile.AppProfileV2, error) {
+	var err error
+	db := transactionDb
+	if db == nil {
+		db, err = OpenApplicationLevelDB(ns, app, true)
+		if err != nil {
+			return nil, err
+		}
+		defer db.Close()
 	}
-	defer db.Close()
 	result := &profile.AppProfileV2{}
-	bys, err := db.Get([]byte(profileV2Key(ns, app)), nil)
+	bys, err := db.Get([]byte(profile.ProfileV2Key(ns, app)), nil)
 	if err != nil {
 		if err == leveldb.ErrNotFound {
 			return nil, nil
