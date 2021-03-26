@@ -20,7 +20,6 @@ type ObjectMetaHolder struct {
 
 func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 	// resolve object meta
-	glog.Infof("omh: %+v", o)
 	if len(o.OwnerReferences) > 0 {
 
 		config, err := rest.InClusterConfig()
@@ -35,7 +34,7 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 			return nil
 		}
 
-		dataCh := make(chan []string, 1)
+		dataCh := make(chan []string)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
 		go func() {
@@ -66,6 +65,7 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 					if err == nil && resource != nil {
 						if pair := containsAnnotationSign(resource.GetAnnotations()); len(pair) > 0 {
 							dataCh <- pair
+							recover()
 						}
 					} else {
 						glog.Infof("Fail to find by gvr(%v) with name(%s) ns(%s): %v", mapping.Resource, name, "", err)
@@ -77,6 +77,7 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 					if err == nil && resource != nil {
 						if pair := containsAnnotationSign(resource.GetAnnotations()); len(pair) > 0 {
 							dataCh <- pair
+							recover()
 						}
 					} else {
 						glog.Infof("Fail to find by gvr(%v) with name(%s) ns(%s): %v", mapping.Resource.Resource, name, ns, err)
@@ -88,6 +89,7 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 		select {
 		case group := <-dataCh:
 			cancel()
+			close(dataCh)
 			return group
 		case <-ctx.Done():
 			glog.Infof("timeout while getting owner ref")

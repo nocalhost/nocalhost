@@ -174,15 +174,7 @@ func LoadConfig(configFile string) (*Config, error) {
 }
 
 // Check whether the target resoured need to be mutated
-func mutationRequired(resourceType string, ignoredList []string, metadata *metav1.ObjectMeta) bool {
-	switch resourceType {
-	case "SubjectAccessReview":
-		return false
-	case "SelfSubjectAccessReview":
-		return false
-	case "Event":
-		return false
-	}
+func mutationRequired(ignoredList []string, metadata *metav1.ObjectMeta) bool {
 
 	// skip special kubernete system namespaces
 	for _, namespace := range ignoredList {
@@ -322,7 +314,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 	}()
 
 	// determine whether to perform mutation
-	if !mutationRequired(resourceType, ignoredNamespaces, &omh.ObjectMeta) {
+	if !mutationRequired(ignoredNamespaces, &omh.ObjectMeta) {
 		glog.Infof("Skipping mutation for %s/%s due to policy check", req.Namespace, req.Name)
 		return &v1beta1.AdmissionResponse{
 			Allowed: true,
@@ -471,7 +463,6 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		}
 	}
 
-	glog.Infof("patchBytes %s\n", string(patchBytes))
 	return &v1beta1.AdmissionResponse{
 		Allowed: true,
 		Patch:   patchBytes,
