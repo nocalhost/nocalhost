@@ -119,6 +119,13 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		return nil, err
 	}
 
+	if _, err = os.Stat(app.getDbDir()); err != nil {
+		err = os.MkdirAll(app.getDbDir(), DefaultNewFilePermission)
+		if err != nil {
+			return nil, errors.Wrap(err, "")
+		}
+	}
+
 	//
 	appProfile, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, nil)
 	if err != nil {
