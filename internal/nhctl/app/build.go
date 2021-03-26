@@ -22,6 +22,7 @@ import (
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/fp"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -53,9 +54,11 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	//if err != nil {
 	//	return nil, err
 	//}
-	app.AppProfileV2 = &profile.AppProfileV2{}
+	//app.AppProfileV2 = &profile.AppProfileV2{}
+	appProfileV2 := &profile.AppProfileV2{}
 
-	app.SetInstalledStatus(true)
+	//app.SetInstalledStatus(true)
+	appProfileV2.Installed = true
 
 	if kubeconfig == "" { // use default config
 		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
@@ -66,8 +69,8 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, err
 	}
 
-	app.AppProfileV2.Namespace = namespace
-	app.AppProfileV2.Kubeconfig = kubeconfig
+	appProfileV2.Namespace = namespace
+	appProfileV2.Kubeconfig = kubeconfig
 
 	if flags.GitUrl != "" {
 		err = app.downloadResourcesFromGit(flags.GitUrl, flags.GitRef)
@@ -75,8 +78,8 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 			log.Debugf("Failed to clone : %s ref: %s", flags.GitUrl, flags.GitRef)
 			return nil, err
 		}
-		app.AppProfileV2.GitUrl = flags.GitUrl
-		app.AppProfileV2.GitUrl = flags.GitRef
+		appProfileV2.GitUrl = flags.GitUrl
+		appProfileV2.GitRef = flags.GitRef
 	} else if flags.LocalPath != "" { // local path of application, copy to nocalhost resource
 		err := utils.CopyDir(flags.LocalPath, app.getGitDir())
 		if err != nil {
@@ -91,24 +94,24 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 
 	// app.LoadSvcConfigsToProfile()
 	// Load config to profile
-	app.AppProfileV2.AppType = app.configV2.ApplicationConfig.Type
-	app.AppProfileV2.ResourcePath = app.configV2.ApplicationConfig.ResourcePath
-	app.AppProfileV2.IgnoredPath = app.configV2.ApplicationConfig.IgnoredPath
-	app.AppProfileV2.PreInstall = app.configV2.ApplicationConfig.PreInstall
-	app.AppProfileV2.Env = app.configV2.ApplicationConfig.Env
-	app.AppProfileV2.EnvFrom = app.configV2.ApplicationConfig.EnvFrom
+	appProfileV2.AppType = app.configV2.ApplicationConfig.Type
+	appProfileV2.ResourcePath = app.configV2.ApplicationConfig.ResourcePath
+	appProfileV2.IgnoredPath = app.configV2.ApplicationConfig.IgnoredPath
+	appProfileV2.PreInstall = app.configV2.ApplicationConfig.PreInstall
+	appProfileV2.Env = app.configV2.ApplicationConfig.Env
+	appProfileV2.EnvFrom = app.configV2.ApplicationConfig.EnvFrom
 	for _, svcConfig := range app.configV2.ApplicationConfig.ServiceConfigs {
-		app.loadConfigToSvcProfile(svcConfig.Name, Deployment)
+		app.loadConfigToSvcProfile(svcConfig.Name, appProfileV2, Deployment)
 	}
 
 	if flags.AppType != "" {
-		app.AppProfileV2.AppType = flags.AppType
+		appProfileV2.AppType = flags.AppType
 	}
 	if len(flags.ResourcePath) != 0 {
-		app.AppProfileV2.ResourcePath = flags.ResourcePath
+		appProfileV2.ResourcePath = flags.ResourcePath
 	}
 
-	return app, app.SaveProfile()
+	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2, nil)
 }
 
 // V2
@@ -269,9 +272,9 @@ func (a *Application) initDir() error {
 }
 
 // svcName use actual name
-func (a *Application) loadConfigToSvcProfile(svcName string, svcType SvcType) {
-	if a.AppProfileV2.SvcProfile == nil {
-		a.AppProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
+func (a *Application) loadConfigToSvcProfile(svcName string, appProfile *profile.AppProfileV2, svcType SvcType) {
+	if appProfile.SvcProfile == nil {
+		appProfile.SvcProfile = make([]*profile.SvcProfileV2, 0)
 	}
 
 	svcProfile := &profile.SvcProfileV2{
@@ -281,9 +284,9 @@ func (a *Application) loadConfigToSvcProfile(svcName string, svcType SvcType) {
 
 	// find svc config
 	svcConfig := a.GetSvcConfigV2(svcName)
-	if svcConfig == nil && len(a.AppProfileV2.ReleaseName) > 0 {
-		if strings.HasPrefix(svcName, fmt.Sprintf("%s-", a.AppProfileV2.ReleaseName)) {
-			name := strings.TrimPrefix(svcName, fmt.Sprintf("%s-", a.AppProfileV2.ReleaseName))
+	if svcConfig == nil && len(appProfile.ReleaseName) > 0 {
+		if strings.HasPrefix(svcName, fmt.Sprintf("%s-", appProfile.ReleaseName)) {
+			name := strings.TrimPrefix(svcName, fmt.Sprintf("%s-", appProfile.ReleaseName))
 			svcConfig = a.GetSvcConfigV2(name) // support releaseName-svcName
 		}
 	}
@@ -291,13 +294,13 @@ func (a *Application) loadConfigToSvcProfile(svcName string, svcType SvcType) {
 	svcProfile.ServiceConfigV2 = svcConfig
 
 	// If svcProfile already exists, updating it
-	for index, svc := range a.AppProfileV2.SvcProfile {
+	for index, svc := range appProfile.SvcProfile {
 		if svc.ActualName == svcName {
-			a.AppProfileV2.SvcProfile[index] = svcProfile
+			appProfile.SvcProfile[index] = svcProfile
 			return
 		}
 	}
 
 	// If svcProfile already exists, create one
-	a.AppProfileV2.SvcProfile = append(a.AppProfileV2.SvcProfile, svcProfile)
+	appProfile.SvcProfile = append(appProfile.SvcProfile, svcProfile)
 }

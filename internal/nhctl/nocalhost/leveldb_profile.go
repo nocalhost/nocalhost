@@ -35,6 +35,9 @@ func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2, transactio
 		return errors.Wrap(err, "")
 	}
 	//log.Infof("saving profile v2: %v", *profileV2)
+	//for _, pf := range profileV2.FetchSvcProfileV2FromProfile("productpage").DevPortForwardList {
+	//	log.Infof("%v", *pf)
+	//}
 	return errors.Wrap(db.Put([]byte(profile.ProfileV2Key(ns, app)), bys, nil), "")
 }
 

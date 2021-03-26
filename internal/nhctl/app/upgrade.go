@@ -158,9 +158,10 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 		return err
 	}
 	if len(upgradeResourcePath) > 0 {
-		a.AppProfileV2.ResourcePath = upgradeResourcePath
+		appProfile, _ := a.GetProfile()
+		appProfile.ResourcePath = upgradeResourcePath
+		_ = a.SaveProfile(appProfile)
 	}
-	_ = a.SaveProfile()
 	return moveDir(a.getUpgradeGitDir(), a.getGitDir())
 }
 
@@ -252,8 +253,12 @@ func (a *Application) upgradeForHelmGitOrHelmLocal(installFlags *flag.InstallFla
 		return errors.New("LocalPath or GitUrl mush be specified")
 	}
 
-	resourcesPath := a.getUpgradeResourceDir(a.AppProfileV2.ResourcePath)
-	releaseName := a.AppProfileV2.ReleaseName
+	appProfile, err := a.GetProfile()
+	if err != nil {
+		return err
+	}
+	resourcesPath := a.getUpgradeResourceDir(appProfile.ResourcePath)
+	releaseName := appProfile.ReleaseName
 
 	commonParams := make([]string, 0)
 	if a.GetNamespace() != "" {
@@ -293,7 +298,11 @@ func (a *Application) upgradeForHelmGitOrHelmLocal(installFlags *flag.InstallFla
 
 func (a *Application) upgradeForHelmRepo(installFlags *flag.InstallFlags) error {
 
-	releaseName := a.AppProfileV2.ReleaseName
+	appProfile, err := a.GetProfile()
+	if err != nil {
+		return err
+	}
+	releaseName := appProfile.ReleaseName
 	commonParams := make([]string, 0)
 	if a.GetNamespace() != "" {
 		commonParams = append(commonParams, "--namespace", a.GetNamespace())
@@ -328,6 +337,6 @@ func (a *Application) upgradeForHelmRepo(installFlags *flag.InstallFlags) error 
 
 	log.Info("Upgrade helm application, this may take several minutes, please waiting...")
 
-	_, err := tools.ExecCommand(nil, true, "helm", installParams...)
+	_, err = tools.ExecCommand(nil, true, "helm", installParams...)
 	return err
 }

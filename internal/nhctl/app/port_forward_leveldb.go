@@ -16,6 +16,7 @@ package app
 import (
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/log"
 )
 
 func (a *Application) CheckIfPortForwardExists(svcName string, localPort, remotePort int) (bool, error) {
@@ -87,6 +88,11 @@ func (a *Application) DeletePortForwardFromDB(svcName string, localPort, remoteP
 			}
 		}
 		svcProfile.DevPortForwardList = newList
+		log.Infof("Deleting pf %d:%d", localPort, remotePort)
+		log.Info("After")
+		for _, pf := range profileV2.FetchSvcProfileV2FromProfile(svcName).DevPortForwardList {
+			log.Infof("%v", *pf)
+		}
 		return profileV2.Save()
 	}
 	return nil

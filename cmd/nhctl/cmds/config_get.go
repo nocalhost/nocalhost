@@ -59,10 +59,14 @@ var configGetCmd = &cobra.Command{
 			return
 		}
 
+		appProfile, err := nocalhostApp.GetProfile()
+		if err != nil {
+			log.FatalE(err, "")
+		}
 		if commonFlags.SvcName == "" {
 			config := &ConfigForPlugin{}
 			config.Services = make([]*profile.ServiceConfigV2, 0)
-			for _, svcPro := range nocalhostApp.AppProfileV2.SvcProfile {
+			for _, svcPro := range appProfile.SvcProfile {
 				config.Services = append(config.Services, svcPro.ServiceConfigV2)
 			}
 			bys, err := yaml.Marshal(config)
@@ -73,7 +77,7 @@ var configGetCmd = &cobra.Command{
 
 		} else {
 			CheckIfSvcExist(commonFlags.SvcName)
-			svcProfile := nocalhostApp.GetSvcProfileV2(commonFlags.SvcName)
+			svcProfile := appProfile.FetchSvcProfileV2FromProfile(commonFlags.SvcName)
 			if svcProfile != nil {
 				bys, err := yaml.Marshal(svcProfile.ServiceConfigV2)
 				if err != nil {

@@ -70,7 +70,7 @@ type Application struct {
 	//config   *NocalHostAppConfig //  this should not be nil
 	configV2 *profile.NocalHostAppConfigV2
 	//AppProfile               *AppProfile // runtime info, this will not be nil
-	AppProfileV2             *profile.AppProfileV2
+	//AppProfileV2             *profile.AppProfileV2
 	client                   *clientgoutils.ClientGoUtils
 	sortedPreInstallManifest []string // for pre install
 	installManifest          []string // for install
@@ -125,21 +125,27 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	}
 	if appProfile == nil {
 		app.moveProfileFromFileToLeveldb()
+		appProfile, err = nocalhost.GetProfileV2(app.NameSpace, app.Name, nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	err = app.LoadAppProfileV2()
-	if err != nil {
-		return nil, err
+	//err = app.LoadAppProfileV2()
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	if len(appProfile.PreInstall) == 0 && len(app.configV2.ApplicationConfig.PreInstall) > 0 {
+		appProfile.PreInstall = app.configV2.ApplicationConfig.PreInstall
+		//_ = app.SaveProfile()
+		nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile, nil)
 	}
 
-	if len(app.AppProfileV2.PreInstall) == 0 && len(app.configV2.ApplicationConfig.PreInstall) > 0 {
-		app.AppProfileV2.PreInstall = app.configV2.ApplicationConfig.PreInstall
-		_ = app.SaveProfile()
-	}
-
-	if kubeconfig != "" && kubeconfig != app.AppProfileV2.Kubeconfig {
-		app.AppProfileV2.Kubeconfig = kubeconfig
-		_ = app.SaveProfile()
+	if kubeconfig != "" && kubeconfig != appProfile.Kubeconfig {
+		appProfile.Kubeconfig = kubeconfig
+		//_ = app.SaveProfile()
+		nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile, nil)
 	}
 
 	if initClient {
@@ -154,9 +160,9 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	return app, nil
 }
 
-func (a *Application) ReadBeforeWriteProfile() error {
-	return a.LoadAppProfileV2()
-}
+//func (a *Application) ReadBeforeWriteProfile() error {
+//	return a.LoadAppProfileV2()
+//}
 
 func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
 	app, err := nocalhost.GetProfileV2(a.NameSpace, a.Name, nil)
@@ -167,6 +173,10 @@ func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
 		app = &profile.AppProfileV2{}
 	}
 	return app, nil
+}
+
+func (a *Application) SaveProfile(p *profile.AppProfileV2) error {
+	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, p, nil)
 }
 
 func (a *Application) LoadConfigV2() error {
@@ -209,9 +219,10 @@ func (a *Application) LoadConfigV2() error {
 //	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, p)
 //}
 
-func (a *Application) SaveProfile() error {
-	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.AppProfileV2, nil)
-}
+// Deprecated
+//func (a *Application) SaveProfile() error {
+//	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.AppProfileV2, nil)
+//}
 
 type HelmFlags struct {
 	Debug    bool
@@ -263,7 +274,8 @@ func (a *Application) cleanPreInstall() {
 }
 
 func (a *Application) IsAnyServiceInDevMode() bool {
-	for _, svc := range a.AppProfileV2.SvcProfile {
+	appProfile, _ := a.GetProfile()
+	for _, svc := range appProfile.SvcProfile {
 		if svc.Developing {
 			return true
 		}
@@ -294,7 +306,15 @@ func (a *Application) GetApplicationConfigV2() *profile.ApplicationConfig {
 
 func (a *Application) SaveSvcProfileV2(svcName string, config *profile.ServiceConfigV2) error {
 
-	svcPro := a.GetSvcProfileV2(svcName)
+	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	defer profileV2.CloseDb()
+
+	svcPro := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	//if svcPro == nil {
+	//	return errors.New("Svc profile not found")
+	//}
+
+	//svcPro := a.GetSvcProfileV2(svcName)
 	if svcPro != nil {
 		config.Name = svcName
 		svcPro.ServiceConfigV2 = config
@@ -304,35 +324,46 @@ func (a *Application) SaveSvcProfileV2(svcName string, config *profile.ServiceCo
 			ServiceConfigV2: config,
 			ActualName:      svcName,
 		}
-		a.AppProfileV2.SvcProfile = append(a.AppProfileV2.SvcProfile, svcPro)
+		profileV2.SvcProfile = append(profileV2.SvcProfile, svcPro)
 	}
 
-	return a.SaveProfile()
+	return profileV2.Save()
 }
 
 func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
-	a.LoadAppProfileV2()
-	a.LoadConfigV2()
-	if a.configV2 == nil {
-		return nil
-	}
+	//a.LoadAppProfileV2()
+	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, true)
+	profileV2.CloseDb()
+	//a.LoadConfigV2()
+	//if a.configV2 == nil {
+	//	return nil
+	//}
 	return &profile.ApplicationConfig{
-		ResourcePath: a.AppProfileV2.ResourcePath,
-		IgnoredPath:  a.AppProfileV2.IgnoredPath,
-		PreInstall:   a.AppProfileV2.PreInstall,
-		Env:          a.AppProfileV2.Env,
-		EnvFrom:      a.AppProfileV2.EnvFrom,
+		ResourcePath: profileV2.ResourcePath,
+		IgnoredPath:  profileV2.IgnoredPath,
+		PreInstall:   profileV2.PreInstall,
+		Env:          profileV2.Env,
+		EnvFrom:      profileV2.EnvFrom,
 	}
 }
 
 func (a *Application) SaveAppProfileV2(config *profile.ApplicationConfig) error {
-	a.AppProfileV2.ResourcePath = config.ResourcePath
-	a.AppProfileV2.IgnoredPath = config.IgnoredPath
-	a.AppProfileV2.PreInstall = config.PreInstall
-	a.AppProfileV2.Env = config.Env
-	a.AppProfileV2.EnvFrom = config.EnvFrom
+	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	defer profileV2.CloseDb()
 
-	return a.SaveProfile()
+	//a.AppProfileV2.ResourcePath = config.ResourcePath
+	//a.AppProfileV2.IgnoredPath = config.IgnoredPath
+	//a.AppProfileV2.PreInstall = config.PreInstall
+	//a.AppProfileV2.Env = config.Env
+	//a.AppProfileV2.EnvFrom = config.EnvFrom
+
+	profileV2.ResourcePath = config.ResourcePath
+	profileV2.IgnoredPath = config.IgnoredPath
+	profileV2.PreInstall = config.PreInstall
+	profileV2.Env = config.Env
+	profileV2.EnvFrom = config.EnvFrom
+
+	return profileV2.Save()
 }
 
 func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) error {
@@ -524,9 +555,10 @@ func (a *Application) GetConfigFile() (string, error) {
 }
 
 func (a *Application) GetDescription() string {
+	appProfile, _ := a.GetProfile()
 	desc := ""
-	if a.AppProfileV2 != nil {
-		bytes, err := yaml.Marshal(a.AppProfileV2)
+	if appProfile != nil {
+		bytes, err := yaml.Marshal(appProfile)
 		if err == nil {
 			desc = string(bytes)
 		}
@@ -535,8 +567,9 @@ func (a *Application) GetDescription() string {
 }
 
 func (a *Application) GetSvcDescription(svcName string) string {
+	appProfile, _ := a.GetProfile()
 	desc := ""
-	profile := a.GetSvcProfileV2(svcName)
+	profile := appProfile.FetchSvcProfileV2FromProfile(svcName)
 	if profile != nil {
 		bytes, err := yaml.Marshal(profile)
 		if err == nil {
@@ -716,7 +749,8 @@ func (a *Application) WriteBackgroundSyncPortForwardPidFile(deployment string, p
 }
 
 func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(svcName string, options *DevStartOptions) (*DevStartOptions, error) {
-	svcProfile := a.GetSvcProfileV2(svcName)
+	appProfile, _ := a.GetProfile()
+	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
 	if svcProfile == nil {
 		return options, errors.New("get " + svcName + " profile fail, please reinstall application")
 	}

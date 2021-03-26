@@ -135,6 +135,12 @@ func (a *AppProfileV2) Save() error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
+
+	//log.Infof("Saving %v", *a)
+	//log.Infof("pf:")
+	//for _, pf := range a.FetchSvcProfileV2FromProfile("productpage").DevPortForwardList {
+	//	log.Infof("%v", *pf)
+	//}
 	return errors.Wrap(a.db.Put([]byte(ProfileV2Key(a.ns, a.appName)), bys, nil), "")
 }
 

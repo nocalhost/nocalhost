@@ -63,7 +63,8 @@ func resetApplication(applicationName string) {
 	var err error
 	initApp(applicationName)
 	// Stop BackGroup Process
-	for _, profile := range nocalhostApp.AppProfileV2.SvcProfile {
+	appProfile, _ := nocalhostApp.GetProfile()
+	for _, profile := range appProfile.SvcProfile {
 		if profile.Developing {
 			err = nocalhostApp.StopSyncAndPortForwardProcess(profile.ActualName, true)
 			if err != nil {

@@ -15,69 +15,78 @@ package app
 
 import (
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/pkg/nhctl/log"
 )
 
 func (a *Application) CheckIfSvcIsDeveloping(svcName string) bool {
-	profile := a.GetSvcProfileV2(svcName)
-	if profile == nil {
+	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, true)
+	defer profileV2.CloseDb()
+
+	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	if svcProfile == nil {
 		return false
 	}
-	return profile.Developing
+
+	return svcProfile.Developing
 }
 
 func (a *Application) CheckIfSvcIsSyncthing(svcName string) bool {
-	profile := a.GetSvcProfileV2(svcName)
-	if profile == nil {
+	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, true)
+	defer profileV2.CloseDb()
+
+	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	if svcProfile == nil {
 		return false
 	}
-	return profile.Syncing
+	return svcProfile.Syncing
 }
 
 func (a *Application) CheckIfSvcIsPortForwarded(svcName string) bool {
-	profile := a.GetSvcProfileV2(svcName)
-	if profile == nil {
+	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, true)
+	defer profileV2.CloseDb()
+
+	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	if svcProfile == nil {
 		return false
 	}
-	return profile.PortForwarded
+	return svcProfile.PortForwarded
 }
 
-func (a *Application) GetSvcProfileV2(svcName string) *profile.SvcProfileV2 {
-
-	for _, svcProfile := range a.AppProfileV2.SvcProfile {
-		if svcProfile.ActualName == svcName {
-			return svcProfile
-		}
-	}
-
-	// If not profile found, init one
-	if a.AppProfileV2.SvcProfile == nil {
-		a.AppProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
-	}
-	svcProfile := &profile.SvcProfileV2{
-		ServiceConfigV2: &profile.ServiceConfigV2{
-			Name: svcName,
-			Type: string(Deployment),
-			ContainerConfigs: []*profile.ContainerConfig{
-				{
-					Dev: &profile.ContainerDevConfig{
-						Image:   profile.DefaultDevImage,
-						WorkDir: profile.DefaultWorkDir,
-					},
-				},
-			},
-		},
-		ActualName: svcName,
-	}
-	a.AppProfileV2.SvcProfile = append(a.AppProfileV2.SvcProfile, svcProfile)
-
-	err := a.SaveProfile()
-	if err != nil {
-		log.WarnE(err, "")
-	}
-
-	return svcProfile
-}
+//func (a *Application) GetSvcProfileV2(svcName string) *profile.SvcProfileV2 {
+//
+//	for _, svcProfile := range a.AppProfileV2.SvcProfile {
+//		if svcProfile.ActualName == svcName {
+//			return svcProfile
+//		}
+//	}
+//
+//	// If not profile found, init one
+//	if a.AppProfileV2.SvcProfile == nil {
+//		a.AppProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
+//	}
+//	svcProfile := &profile.SvcProfileV2{
+//		ServiceConfigV2: &profile.ServiceConfigV2{
+//			Name: svcName,
+//			Type: string(Deployment),
+//			ContainerConfigs: []*profile.ContainerConfig{
+//				{
+//					Dev: &profile.ContainerDevConfig{
+//						Image:   profile.DefaultDevImage,
+//						WorkDir: profile.DefaultWorkDir,
+//					},
+//				},
+//			},
+//		},
+//		ActualName: svcName,
+//	}
+//	a.AppProfileV2.SvcProfile = append(a.AppProfileV2.SvcProfile, svcProfile)
+//
+//	err := a.SaveProfile()
+//	if err != nil {
+//		log.WarnE(err, "")
+//	}
+//
+//	return svcProfile
+//}
 
 //func (a *Application) GetSvcProfile(svcName string) *SvcProfile {
 //	//if a.AppProfile == nil {

@@ -18,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/network/req"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"path/filepath"
@@ -32,7 +33,11 @@ import (
 func (a *Application) NewSyncthing(deployment string, container string, localSyncDir []string, syncDouble bool) (*syncthing.Syncthing, error) {
 	var err error
 
-	svcProfile := a.GetSvcProfileV2(deployment)
+	appProfile, err := a.GetProfile()
+	if err != nil {
+		return nil, err
+	}
+	svcProfile := appProfile.FetchSvcProfileV2FromProfile(deployment)
 	remotePort := svcProfile.RemoteSyncthingPort
 	remoteGUIPort := svcProfile.RemoteSyncthingGUIPort
 	localListenPort := svcProfile.LocalSyncthingPort
@@ -135,13 +140,15 @@ func (a *Application) NewSyncthing(deployment string, container string, localSyn
 		}
 	}
 
-	_ = a.SaveProfile()
+	//_ = a.SaveProfile()
+	_ = a.SaveProfile(appProfile)
 
 	return s, nil
 }
 
 func (a *Application) NewSyncthingHttpClient(svcName string) *req.SyncthingHttpClient {
-	svcProfile := a.GetSvcProfileV2(svcName)
+	appProfile, _ := a.GetProfile()
+	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
 
 	return req.NewSyncthingHttpClient(
 		fmt.Sprintf("127.0.0.1:%d", svcProfile.LocalSyncthingGUIPort),
@@ -163,7 +170,14 @@ func (a *Application) CreateSyncThingSecret(svcName string, syncSecret *corev1.S
 		return err
 	}
 
-	svcPro := a.GetSvcProfileV2(svcName)
+	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	defer profileV2.CloseDb()
+
+	svcPro := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	//if svcProfile == nil {
+	//	return false
+	//}
+	//svcPro := a.GetSvcProfileV2(svcName)
 	svcPro.SyncthingSecret = sc.Name
-	return a.SaveProfile()
+	return profileV2.Save()
 }

@@ -16,8 +16,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/syncthing/terminate"
 	"runtime"
 	"strconv"
 	"strings"
@@ -28,18 +26,24 @@ import (
 )
 
 func (a *Application) StopAllPortForward(svcName string) error {
+	appProfile, err := a.GetProfile()
+	if err != nil {
+		return err
+	}
+	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
 
-	for _, portForward := range a.GetSvcProfileV2(svcName).DevPortForwardList {
+	for _, portForward := range svcProfile.DevPortForwardList {
 		log.Infof("Stopping process %d", portForward.Pid)
-		err := terminate.Terminate(portForward.Pid, true, "port-forward")
+		err = a.EndDevPortForward(svcName, portForward.LocalPort, portForward.RemotePort)
+		//err := terminate.Terminate(portForward.Pid, true, "port-forward")
 		if err != nil {
 			log.WarnE(err, "")
 		}
 	}
 
 	// Clean up port-forward status
-	a.GetSvcProfileV2(svcName).DevPortForwardList = make([]*profile.DevPortForward, 0)
-	return a.SaveProfile()
+	//a.GetSvcProfileV2(svcName).DevPortForwardList = make([]*profile.DevPortForward, 0)
+	return nil
 }
 
 // port format 8080:80
@@ -117,7 +121,8 @@ func (a *Application) StopSyncAndPortForwardProcess(svcName string, cleanRemoteS
 
 	// Clean up secret
 	if cleanRemoteSecret {
-		svcProfile := a.GetSvcProfileV2(svcName)
+		appProfile, _ := a.GetProfile()
+		svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
 		if svcProfile.SyncthingSecret != "" {
 			log.Debugf("Cleaning up secret %s", svcProfile.SyncthingSecret)
 			err = a.client.DeleteSecret(svcProfile.SyncthingSecret)
