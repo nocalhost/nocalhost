@@ -144,7 +144,7 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 		installParams = append(installParams, "--wait")
 	}
 
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, true)
+	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func (a *Application) installHelmInGit(flags *HelmFlags) error {
 		return err
 	}
 
-	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, true)
+	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
 	defer profileV2.CloseDb()
 
 	profileV2.ReleaseName = releaseName
