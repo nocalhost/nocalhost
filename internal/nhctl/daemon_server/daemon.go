@@ -167,7 +167,7 @@ func response(conn net.Conn, v interface{}) {
 	if _, err = conn.Write(bys); err != nil {
 		log.LogE(errors.Wrap(err, ""))
 	} else {
-		log.Logf("Response %v", v)
+		//log.Logf("Response %v", v)
 	}
 }
 

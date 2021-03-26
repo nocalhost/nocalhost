@@ -111,7 +111,7 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 			log.WarnE(err, "Failed to upgrade daemon server")
 		}
 	} else {
-		log.Log("No need to upgrade daemon server")
+		//log.Log("No need to upgrade daemon server")
 	}
 	return client, nil
 }
