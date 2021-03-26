@@ -19,10 +19,14 @@ import (
 
 func UpdateKey(ns, app string, key string, value string) error {
 	db, err := OpenApplicationLevelDB(ns, app, false)
+	defer func(){
+		if db != nil {
+			db.Close()
+		}
+	}()
 	if err != nil {
 		return err
 	}
-	defer db.Close()
 
 	return errors.Wrap(db.Put([]byte(key), []byte(value), nil), "")
 }

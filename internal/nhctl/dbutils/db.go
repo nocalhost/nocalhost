@@ -18,6 +18,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	leveldb_errors "github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"math/rand"
 	"nocalhost/pkg/nhctl/log"
 	"syscall"
 	"time"
@@ -40,8 +41,8 @@ func OpenApplicationLevelDB(path string, readonly bool) (*leveldb.DB, error) {
 	if err != nil {
 		for i := 0; i < 300; i++ {
 			if errors.Is(err, syscall.EAGAIN) {
-				log.Log("Another process is accessing leveldb, wait for 0.2s to retry")
-				time.Sleep(200 * time.Millisecond)
+				log.Logf("Another process is accessing leveldb, wait for 0.2s to retry %s %s",err.Error(), path)
+				time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
 				db, err = leveldb.OpenFile(path, nil)
 				if err == nil {
 					break

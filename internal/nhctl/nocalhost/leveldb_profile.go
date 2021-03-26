@@ -25,10 +25,14 @@ func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2, transactio
 	db := transactionDb
 	if db == nil {
 		db, err = OpenApplicationLevelDB(ns, app, false)
+		defer func(){
+			if db != nil {
+				db.Close()
+			}
+		}()
 		if err != nil {
 			return err
 		}
-		defer db.Close()
 	}
 	bys, err := yaml.Marshal(profileV2)
 	if err != nil {
@@ -46,10 +50,16 @@ func GetProfileV2(ns, app string, transactionDb *leveldb.DB) (*profile.AppProfil
 	db := transactionDb
 	if db == nil {
 		db, err = OpenApplicationLevelDB(ns, app, true)
+		defer func() {
+			if db != nil {
+				db.Close()
+			}
+		}()
+
 		if err != nil {
 			return nil, err
 		}
-		defer db.Close()
+
 	}
 	result := &profile.AppProfileV2{}
 	bys, err := db.Get([]byte(profile.ProfileV2Key(ns, app)), nil)

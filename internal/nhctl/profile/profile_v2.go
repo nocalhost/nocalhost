@@ -68,6 +68,9 @@ func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) 
 func NewAppProfileV2(ns, name string, readonly bool) (*AppProfileV2, error) {
 	db, err := OpenApplicationLevelDB(ns, name, readonly)
 	if err != nil {
+		if db != nil {
+			db.Close()
+		}
 		return nil, err
 	}
 

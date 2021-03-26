@@ -28,15 +28,18 @@ func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) 
 
 	path := nocalhost_path.GetAppDbDir(ns, app)
 	return dbutils.OpenApplicationLevelDB(path, readonly)
-
 }
 
 func ListAllFromApplicationDb(ns, appName string) (map[string]string, error) {
 	db, err := OpenApplicationLevelDB(ns, appName, true)
+	defer func(){
+		if db != nil {
+			db.Close()
+		}
+	}()
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 	result := make(map[string]string, 0)
 	iter := db.NewIterator(nil, nil)
 	for iter.Next() {
