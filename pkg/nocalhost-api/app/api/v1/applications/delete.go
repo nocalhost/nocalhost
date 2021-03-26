@@ -43,7 +43,7 @@ func Delete(c *gin.Context) {
 			return
 		}
 
-		if ginbase.IsCurrentUser(c, get.UserId) {
+		if !ginbase.IsCurrentUser(c, get.UserId) {
 			api.SendResponse(c, errno.ErrPermissionDenied, nil)
 			return
 		}
