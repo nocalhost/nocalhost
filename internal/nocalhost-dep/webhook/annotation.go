@@ -8,7 +8,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"nocalhost/internal/nhctl/app"
-	"sync"
 	"time"
 )
 
@@ -37,10 +36,7 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 		}
 
 		dataCh := make(chan []string, 1)
-		overCh := make(chan interface{}, 1)
-		timeoutCh := make(chan interface{}, 1)
-
-		wg := sync.WaitGroup{}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
 		go func() {
 			for _, reference := range o.OwnerReferences {
@@ -63,53 +59,39 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 					continue
 				}
 
-				// An owning object must be in the same namespace as the dependent, or
-				// be cluster-scoped, so there is no namespace field.
-				wg.Add(2)
-
 				name := reference.Name
+
 				go func() {
-					resource, err := client.Resource(mapping.Resource).Namespace("").Get(context.TODO(), name, metav1.GetOptions{})
+					resource, err := client.Resource(mapping.Resource).Namespace("").Get(ctx, name, metav1.GetOptions{})
 					if err == nil && resource != nil {
 						if pair := containsAnnotationSign(resource.GetAnnotations()); len(pair) > 0 {
 							dataCh <- pair
+							cancel()
 						}
 					} else {
 						glog.Infof("Fail to find by gvr(%v) with name(%s) ns(%s): %v", mapping.Resource, name, "", err)
 					}
-					wg.Done()
 				}()
 
 				go func() {
-					resource, err := client.Resource(mapping.Resource).Namespace(ns).Get(context.TODO(), name, metav1.GetOptions{})
+					resource, err := client.Resource(mapping.Resource).Namespace(ns).Get(ctx, name, metav1.GetOptions{})
 					if err == nil && resource != nil {
 						if pair := containsAnnotationSign(resource.GetAnnotations()); len(pair) > 0 {
 							dataCh <- pair
+							cancel()
 						}
 					} else {
 						glog.Infof("Fail to find by gvr(%v) with name(%s) ns(%s): %v", mapping.Resource.Resource, name, ns, err)
 					}
-					wg.Done()
 				}()
 			}
-
-			go func() {
-				time.Sleep(5 * time.Second)
-				timeoutCh <- true
-			}()
-
-			wg.Wait()
-			overCh <- true
 		}()
 
 		select {
 		case group := <-dataCh:
 			return group
-		case <-overCh:
-			// do nothing
-		case <-timeoutCh:
+		case <-ctx.Done():
 			glog.Infof("timeout while getting owner ref")
-			// do nothing
 		}
 	}
 
