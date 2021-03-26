@@ -72,7 +72,7 @@ func (p *SyncthingHttpClient) getSyncthingStatus() *SyncthingStatus {
 		return &SyncthingStatus{
 			Status:    Idle,
 			Msg:       status.StateChangedLog(),
-			Tips:      "Every thing is up to date.",
+			Tips:      status.IdleTips(),
 			OutOfSync: status.OutOfSync(),
 		}
 	}

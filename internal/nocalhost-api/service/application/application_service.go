@@ -26,9 +26,10 @@ type ApplicationService interface {
 	Get(ctx context.Context, id uint64) (model.ApplicationModel, error)
 	GetByName(ctx context.Context, name string) (model.ApplicationModel, error)
 	PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error)
-	GetList(ctx context.Context) ([]*model.ApplicationModel, error)
+	GetList(ctx context.Context, userId *uint64) ([]*model.ApplicationModel, error)
 	Delete(ctx context.Context, id uint64) error
 	Update(ctx context.Context, applicationModel *model.ApplicationModel) (*model.ApplicationModel, error)
+	PublicSwitch(ctx context.Context, applicationId uint64, public uint8) error
 	Close()
 }
 
@@ -41,6 +42,10 @@ func NewApplicationService() ApplicationService {
 	return &applicationService{
 		applicationRepo: application.NewClusterRepo(db),
 	}
+}
+
+func (srv *applicationService) PublicSwitch(ctx context.Context, applicationId uint64, public uint8) error {
+	return srv.applicationRepo.PublicSwitch(ctx, applicationId, public)
 }
 
 func (srv *applicationService) GetByName(ctx context.Context, name string) (model.ApplicationModel, error) {
@@ -73,8 +78,8 @@ func (srv *applicationService) Get(ctx context.Context, id uint64) (model.Applic
 	return result, nil
 }
 
-func (srv *applicationService) GetList(ctx context.Context) ([]*model.ApplicationModel, error) {
-	result, err := srv.applicationRepo.GetList(ctx)
+func (srv *applicationService) GetList(ctx context.Context, userId *uint64) ([]*model.ApplicationModel, error) {
+	result, err := srv.applicationRepo.GetList(ctx, userId)
 	if err != nil {
 		return nil, errors.Wrapf(err, "get application")
 	}

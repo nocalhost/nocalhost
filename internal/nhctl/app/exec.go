@@ -23,20 +23,21 @@ import (
 // If devContainerShell is not defined or shell defined in devContainerShell failed to enter terminal, use /bin/sh
 // If container not specified, the first container will be used
 func (a *Application) EnterPodTerminal(svcName string, podName, container string) error {
-	podList, err := a.client.ListLatestRevisionPodsByDeployment(svcName)
-	if err != nil {
-		return err
-	}
-	if len(podList) != 1 {
-		log.Warnf("The number of pods of %s is not 1 ???", svcName)
-		return errors.New(fmt.Sprintf("The number of pods of %s is not 1 ???", svcName))
-	}
-	pod := podList[0].Name
-	if podName != "" {
-		pod = podName
+	pod := podName
+	if pod == "" {
+		podList, err := a.client.ListLatestRevisionPodsByDeployment(svcName)
+		if err != nil {
+			return err
+		}
+		if len(podList) != 1 {
+			log.Warnf("The number of pods of %s is not 1 ???", svcName)
+			return errors.New(fmt.Sprintf("The number of pods of %s is not 1 ???", svcName))
+		}
+		pod = podList[0].Name
 	}
 	shell := ""
-	profile := a.GetSvcProfileV2(svcName)
+	appProfile, _ := a.GetProfile()
+	profile := appProfile.FetchSvcProfileV2FromProfile(svcName)
 	if profile != nil {
 		devConfig := profile.GetContainerDevConfigOrDefault(container)
 		if devConfig != nil {

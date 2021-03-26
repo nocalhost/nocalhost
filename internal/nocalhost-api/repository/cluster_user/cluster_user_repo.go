@@ -15,7 +15,6 @@ package cluster_user
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nocalhost-api/model"
@@ -145,35 +144,17 @@ func (repo *clusterUserRepo) GetJoinClusterAndAppAndUser(ctx context.Context, co
 	if sqlResult.Error != nil {
 		return result, sqlResult.Error
 	}
-
-	for index := range result {
-		var app = struct {
-			ApplicationName string `json:"application_name"`
-		}{}
-		err := json.Unmarshal([]byte(result[index].ApplicationName), &app)
-		if err != nil {
-			return result, err
-		}
-		result[index].ApplicationName = app.ApplicationName
-	}
 	return result, nil
 }
 
 func (repo *clusterUserRepo) GetJoinClusterAndAppAndUserDetail(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) (*model.ClusterUserJoinClusterAndAppAndUser, error) {
 	result := model.ClusterUserJoinClusterAndAppAndUser{}
-	sqlResult := repo.db.Table("clusters_users as cluster_user_join_cluster_and_app_and_users").Select("cluster_user_join_cluster_and_app_and_users.id ,cluster_user_join_cluster_and_app_and_users.application_id,a.context as application_name, cluster_user_join_cluster_and_app_and_users.user_id, u.name as user_name, cluster_user_join_cluster_and_app_and_users.cluster_id, c.name as cluster_name,cluster_user_join_cluster_and_app_and_users.namespace,cluster_user_join_cluster_and_app_and_users.space_name,cluster_user_join_cluster_and_app_and_users.kubeconfig,cluster_user_join_cluster_and_app_and_users.space_resource_limit,cluster_user_join_cluster_and_app_and_users.status,cluster_user_join_cluster_and_app_and_users.created_at").Joins("left join users as u on cluster_user_join_cluster_and_app_and_users.user_id=u.id").Joins("left join applications as a on cluster_user_join_cluster_and_app_and_users.application_id=a.id").Joins("left join clusters as c on cluster_user_join_cluster_and_app_and_users.cluster_id=c.id").Where(condition).Scan(&result)
+	sqlResult := repo.db.Table("clusters_users as cluster_user_join_cluster_and_app_and_users").
+		Select("cluster_user_join_cluster_and_app_and_users.id ,cluster_user_join_cluster_and_app_and_users.application_id, cluster_user_join_cluster_and_app_and_users.user_id, u.name as user_name, cluster_user_join_cluster_and_app_and_users.cluster_id, c.name as cluster_name,cluster_user_join_cluster_and_app_and_users.namespace,cluster_user_join_cluster_and_app_and_users.space_name,cluster_user_join_cluster_and_app_and_users.kubeconfig,cluster_user_join_cluster_and_app_and_users.space_resource_limit,cluster_user_join_cluster_and_app_and_users.status,cluster_user_join_cluster_and_app_and_users.created_at").Joins("left join users as u on cluster_user_join_cluster_and_app_and_users.user_id=u.id").Joins("left join clusters as c on cluster_user_join_cluster_and_app_and_users.cluster_id=c.id").Where(condition).Scan(&result)
 	if sqlResult.Error != nil {
 		return &result, sqlResult.Error
 	}
-	var app = struct {
-		ApplicationName string `json:"application_name"`
-	}{}
-	err := json.Unmarshal([]byte(result.ApplicationName), &app)
-	if err != nil {
-		return &result, err
-	}
 
-	result.ApplicationName = app.ApplicationName
 	return &result, nil
 }
 

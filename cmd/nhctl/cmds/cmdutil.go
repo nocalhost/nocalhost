@@ -19,6 +19,7 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -47,7 +48,7 @@ func initApp(appName string) {
 				log.FatalE(err, "Failed to init default application in ns "+nameSpace)
 			}
 		} else {
-			log.FatalE(err, fmt.Sprintf("Application \"%s\" not found", appName))
+			log.Fatalf("Application %s in %s not found", appName, nameSpace)
 		}
 	}
 	nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
@@ -137,13 +138,13 @@ func InitDefaultApplicationByFirstValid() error {
 
 	defer func() {
 		if err != nil {
-			os.RemoveAll(nocalhost.GetAppDirUnderNs(app.DefaultNocalhostApplication, nameSpace))
+			os.RemoveAll(nocalhost_path.GetAppDirUnderNs(app.DefaultNocalhostApplication, nameSpace))
 		}
 	}()
 
 	err = utils.CopyDir(
-		nocalhost.GetAppDirUnderNs(appNeedToCopy, nameSpace),
-		nocalhost.GetAppDirUnderNs(app.DefaultNocalhostApplication, nameSpace),
+		nocalhost_path.GetAppDirUnderNs(appNeedToCopy, nameSpace),
+		nocalhost_path.GetAppDirUnderNs(app.DefaultNocalhostApplication, nameSpace),
 	)
 	if err != nil {
 		return err

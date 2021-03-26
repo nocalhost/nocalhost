@@ -43,7 +43,8 @@ func (a *Application) GetDevContainerEnv(svcName, container string) *ContainerDe
 	// Find service env
 	devEnv := make([]*profile.Env, 0)
 	kvMap := make(map[string]string, 0)
-	serviceConfig := a.GetSvcProfileV2(svcName)
+	appProfile, _ := a.GetProfile()
+	serviceConfig := appProfile.FetchSvcProfileV2FromProfile(svcName)
 	for _, v := range serviceConfig.ContainerConfigs {
 		if v.Name == container || container == "" {
 			if v.Dev.EnvFrom != nil && len(v.Dev.EnvFrom.EnvFile) > 0 {
@@ -70,15 +71,16 @@ func (a *Application) GetDevContainerEnv(svcName, container string) *ContainerDe
 }
 
 func (a *Application) GetInstallEnvForDep() *InstallEnvForDep {
+	appProfileV2, _ := a.GetProfile()
 
 	envFiles := make([]string, 0)
-	for _, f := range a.AppProfileV2.EnvFrom.EnvFile {
+	for _, f := range appProfileV2.EnvFrom.EnvFile {
 		envFiles = append(envFiles, f.Path)
 	}
 	kvMap := utils.GetKVFromEnvFiles(envFiles)
 
 	// Env has a higher priority than envFrom
-	for _, env := range a.AppProfileV2.Env {
+	for _, env := range appProfileV2.Env {
 		kvMap[env.Name] = env.Value
 	}
 
@@ -92,7 +94,7 @@ func (a *Application) GetInstallEnvForDep() *InstallEnvForDep {
 
 	// Find service env
 	servcesEnv := make([]*ServiceEnvForDep, 0)
-	for _, svcProfile := range a.AppProfileV2.SvcProfile {
+	for _, svcProfile := range appProfileV2.SvcProfile {
 		if svcProfile.ServiceConfigV2 == nil || len(svcProfile.ServiceConfigV2.ContainerConfigs) == 0 {
 			continue
 		}

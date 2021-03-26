@@ -60,7 +60,12 @@ var devCmdCmd = &cobra.Command{
 		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
 			log.Fatalf("%s is not in DevMode", deployment)
 		}
-		profile := nocalhostApp.GetSvcProfileV2(deployment)
+
+		appProfile, err := nocalhostApp.GetProfile()
+		if err != nil {
+			log.FatalE(err, "")
+		}
+		profile := appProfile.FetchSvcProfileV2FromProfile(deployment)
 		if profile == nil {
 			log.Fatal("Failed to get service profile")
 			os.Exit(1)
@@ -89,7 +94,7 @@ var devCmdCmd = &cobra.Command{
 			log.Fatalf("%s command not defined", commandType)
 		}
 
-		err := nocalhostApp.Exec(deployment, container, targetCommand)
+		err = nocalhostApp.Exec(deployment, container, targetCommand)
 		if err != nil {
 			log.Fatalf("Failed to exec : %s", err.Error())
 		}

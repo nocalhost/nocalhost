@@ -15,28 +15,34 @@ package app
 
 import "nocalhost/pkg/nhctl/clientgoutils"
 
+// Deprecated
 func (a *Application) GetNamespace() string {
-	return a.AppProfileV2.Namespace
+	return a.NameSpace
 }
 
 func (a *Application) GetType() AppType {
-	return AppType(a.AppProfileV2.AppType)
+	appProfile, _ := a.GetProfile()
+	return AppType(appProfile.AppType)
 }
 
 func (a *Application) GetKubeconfig() string {
-	return a.AppProfileV2.Kubeconfig
+	appProfile, _ := a.GetProfile()
+	return appProfile.Kubeconfig
 }
 
 func (a *Application) IsHelm() bool {
-	return a.AppProfileV2.AppType == string(Helm) || a.AppProfileV2.AppType == string(HelmRepo) || a.AppProfileV2.AppType == string(HelmLocal)
+	appProfile, _ := a.GetProfile()
+	return appProfile.AppType == string(Helm) || appProfile.AppType == string(HelmRepo) || appProfile.AppType == string(HelmLocal)
 }
 
 func (a *Application) IsManifest() bool {
-	return a.AppProfileV2.AppType == string(Manifest) || a.AppProfileV2.AppType == string(ManifestLocal)
+	appProfile, _ := a.GetProfile()
+	return appProfile.AppType == string(Manifest) || appProfile.AppType == string(ManifestLocal)
 }
 
 func (a *Application) IsKustomize() bool {
-	return a.AppProfileV2.AppType == string(KustomizeGit)
+	appProfile, _ := a.GetProfile()
+	return appProfile.AppType == string(KustomizeGit)
 }
 
 func (a *Application) GetClient() *clientgoutils.ClientGoUtils {

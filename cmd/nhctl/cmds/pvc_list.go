@@ -14,6 +14,7 @@ limitations under the License.
 package cmds
 
 import (
+	"encoding/json"
 	"fmt"
 	"gopkg.in/yaml.v2"
 
@@ -29,6 +30,7 @@ type PVCFlags struct {
 	Svc  string
 	Name string
 	Yaml bool
+	Json bool
 }
 
 var pvcFlags = PVCFlags{}
@@ -37,6 +39,7 @@ func init() {
 	pvcListCmd.Flags().StringVar(&pvcFlags.App, "app", "", "List PVCs of specified application")
 	pvcListCmd.Flags().StringVar(&pvcFlags.Svc, "svc", "", "List PVCs of specified service")
 	pvcListCmd.Flags().BoolVar(&pvcFlags.Yaml, "yaml", false, "Use yaml as the output format")
+	pvcListCmd.Flags().BoolVar(&pvcFlags.Json, "json", false, "Use json as the output format")
 	pvcCmd.AddCommand(pvcListCmd)
 }
 
@@ -78,13 +81,15 @@ var pvcListCmd = &cobra.Command{
 
 		if pvcFlags.Yaml {
 			DisplayPVCsByYaml(pvcList)
+		} else if pvcFlags.Json {
+			DisplayPVCsByJson(pvcList)
 		} else {
 			DisplayPVCs(pvcList)
 		}
 	},
 }
 
-type pvcYaml struct {
+type pvcObject struct {
 	Name         string `json:"name" yaml:"name"`
 	AppName      string `json:"app_name" yaml:"appName"`
 	ServiceName  string `json:"service_name" yaml:"serviceName"`
@@ -94,15 +99,14 @@ type pvcYaml struct {
 	MountPath    string `json:"mount_path" yaml:"mountPath"`
 }
 
-func DisplayPVCsByYaml(pvcList []v1.PersistentVolumeClaim) {
-
-	pvcYamlList := make([]*pvcYaml, 0)
+func makePVCObjectList(pvcList []v1.PersistentVolumeClaim) []*pvcObject {
+	pvcObjectList := make([]*pvcObject, 0)
 
 	for _, pvc := range pvcList {
 		labels := pvc.Labels
 		quantity := pvc.Spec.Resources.Requests[v1.ResourceStorage]
 		annotations := pvc.Annotations
-		pY := &pvcYaml{
+		pY := &pvcObject{
 			Name:        pvc.Name,
 			AppName:     labels[app.AppLabel],
 			ServiceName: labels[app.ServiceLabel],
@@ -113,10 +117,25 @@ func DisplayPVCsByYaml(pvcList []v1.PersistentVolumeClaim) {
 		if pvc.Spec.StorageClassName != nil {
 			pY.StorageClass = *pvc.Spec.StorageClassName
 		}
-		pvcYamlList = append(pvcYamlList, pY)
+		pvcObjectList = append(pvcObjectList, pY)
 		//fmt.Printf("%s %s %s %s %s\n", pvc.Name, labels[app.AppLabel], labels[app.ServiceLabel], quantity.String(), pvc.Status.Phase)
 	}
-	bys, err := yaml.Marshal(pvcYamlList)
+
+	return pvcObjectList
+}
+
+func DisplayPVCsByYaml(pvcList []v1.PersistentVolumeClaim) {
+	pvcObjectList := makePVCObjectList(pvcList)
+	bys, err := yaml.Marshal(pvcObjectList)
+	if err != nil {
+		log.FatalE(err, "fail to marshal")
+	}
+	fmt.Print(string(bys))
+}
+
+func DisplayPVCsByJson(pvcList []v1.PersistentVolumeClaim) {
+	pvcObjectList := makePVCObjectList(pvcList)
+	bys, err := json.Marshal(pvcObjectList)
 	if err != nil {
 		log.FatalE(err, "fail to marshal")
 	}

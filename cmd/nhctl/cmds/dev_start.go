@@ -15,8 +15,8 @@ package cmds
 
 import (
 	"context"
-	"fmt"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/pkg/nhctl/log"
@@ -76,7 +76,14 @@ var devStartCmd = &cobra.Command{
 		devStartOps.Kubeconfig = kubeConfig
 		log.Info("Starting DevMode...")
 
-		svcProfile := nocalhostApp.GetSvcProfileV2(deployment)
+		profileV2, _ := profile.NewAppProfileV2(nocalhostApp.NameSpace, nocalhostApp.Name, false)
+
+		svcProfile := profileV2.FetchSvcProfileV2FromProfile(deployment)
+		if svcProfile == nil {
+			log.Fatal("Svc profile not found")
+			return
+		}
+		//svcProfile := nocalhostApp.GetSvcProfileV2(deployment)
 		if devStartOps.WorkDir != "" {
 			svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).WorkDir = devStartOps.WorkDir
 		}
@@ -86,7 +93,9 @@ var devStartCmd = &cobra.Command{
 		if len(devStartOps.LocalSyncDir) > 0 {
 			svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 		}
-		_ = nocalhostApp.SaveProfile()
+		//_ = nocalhostApp.SaveProfile()
+		profileV2.Save()
+		profileV2.CloseDb()
 
 		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOps.Container, devStartOps.LocalSyncDir, false)
 		if err != nil {
@@ -127,18 +136,41 @@ var devStartCmd = &cobra.Command{
 			log.Fatalf("Failed to create syncthing secret, please try to delete \"%s\" secret first manually.", syncthing.SyncSecretName)
 		}
 
-		err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps)
-		if err != nil {
-			log.ErrorE(err, fmt.Sprintf("Failed to replace dev container: %s", err.Error()))
+		// Stop port-forward
+		appProfile, _ := nocalhostApp.GetProfile()
+		pfList := appProfile.FetchSvcProfileV2FromProfile(deployment).DevPortForwardList
+		for _, pf := range pfList {
+			log.Infof("Stopping %d:%d", pf.LocalPort, pf.RemotePort)
+			if err = nocalhostApp.EndDevPortForward(deployment, pf.LocalPort, pf.RemotePort); err != nil {
+				log.WarnE(err, "")
+			}
+		}
+
+		if err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps); err != nil {
+			log.WarnE(err, "Failed to replace dev container")
 			log.Info("Resetting workload...")
 			nocalhostApp.Reset(deployment)
 			os.Exit(1)
 		}
 
-		// TODO set develop status, avoid stack in dev start and break, or it will never resume
-		err = nocalhostApp.SetDevelopingStatus(deployment, true)
-		if err != nil {
+		if err = nocalhostApp.SetDevelopingStatus(deployment, true); err != nil {
 			log.Fatal("Failed to update \"developing\" status\n")
 		}
+
+		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
+		if err != nil {
+			log.FatalE(err, "")
+		}
+
+		for _, pf := range pfList {
+			if err = nocalhostApp.PortForward(deployment, podName, pf.LocalPort, pf.RemotePort); err != nil {
+				log.WarnE(err, "")
+			}
+		}
+
+		if err = nocalhostApp.PortForwardAfterDevStart(deployment, devStartOps.Container, app.Deployment); err != nil {
+			log.FatalE(err, "")
+		}
+
 	},
 }

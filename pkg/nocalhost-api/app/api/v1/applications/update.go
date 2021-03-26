@@ -25,6 +25,30 @@ import (
 	"github.com/spf13/cast"
 )
 
+func PublicSwitch(c *gin.Context) {
+	var req AppPublicSwitchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Warnf("update application bind err: %s", err)
+		api.SendResponse(c, errno.ErrBind, nil)
+		return
+	}
+
+	if !ginbase.IsAdmin(c) {
+		api.SendResponse(c, errno.ErrPermissionDenied, nil)
+	}
+
+	// userId, _ := c.Get("userId")
+	applicationId := cast.ToUint64(c.Param("id"))
+	err := service.Svc.ApplicationSvc().PublicSwitch(c, applicationId, *req.Public)
+	if err != nil {
+		log.Warnf("update Application err: %v", err)
+		api.SendResponse(c, errno.ErrApplicationUpdate, nil)
+		return
+	}
+
+	api.SendResponse(c, errno.OK, nil)
+}
+
 // Create Edit application
 // @Summary Edit application
 // @Description Edit application

@@ -1,6 +1,9 @@
 package ginbase
 
-import "github.com/gin-gonic/gin"
+import (
+	"errors"
+	"github.com/gin-gonic/gin"
+)
 
 const (
 	NotExist = 0
@@ -11,11 +14,20 @@ func IsAdmin(c *gin.Context) bool {
 	return isAdmin.(uint64) == 1
 }
 
-func LoginUser(c *gin.Context) uint64 {
+func LoginUser(c *gin.Context) (uint64, error) {
 	userId, exists := c.Get("userId")
 	if exists {
-		return userId.(uint64)
+		return userId.(uint64), nil
 	} else {
-		return NotExist
+		return 0, errors.New("User not login ")
 	}
+}
+
+func IsCurrentUser(c *gin.Context, userId uint64) bool {
+	loginUserId, exists := c.Get("userId")
+	if exists {
+		return loginUserId == userId
+	}
+
+	return false
 }

@@ -77,7 +77,11 @@ var uninstallCmd = &cobra.Command{
 			}
 		} else {
 			// check if there are services in developing state
-			for _, profile := range nhApp.AppProfileV2.SvcProfile {
+			appProfile, err := nhApp.GetProfile()
+			if err != nil {
+				log.FatalE(err, "")
+			}
+			for _, profile := range appProfile.SvcProfile {
 				if profile.Developing {
 					err = nhApp.StopSyncAndPortForwardProcess(profile.ActualName, true)
 					if err != nil {

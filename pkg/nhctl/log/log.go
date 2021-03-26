@@ -60,8 +60,8 @@ func Init(level zapcore.Level, dir, fileName string) error {
 	logPath := filepath.Join(dir, fileName)
 	rolling := &lumberjack.Logger{
 		Filename:   logPath,
-		MaxSize:    1, // megabytes
-		MaxBackups: 10,
+		MaxSize:    20, // megabytes
+		MaxBackups: 60,
 		MaxAge:     60, //days
 		Compress:   true,
 	}
@@ -108,7 +108,7 @@ func Debugf(format string, args ...interface{}) {
 func Info(args ...interface{}) {
 	outLogger.Info(args...)
 	if fileEntry != nil {
-		fileEntry.Info(args)
+		fileEntry.Info(args...)
 	}
 }
 
@@ -198,14 +198,20 @@ func FatalE(err error, message string) {
 	}
 }
 
+func LogE(err error) {
+	if fileEntry != nil {
+		fileEntry.Errorf("%+v", err)
+	}
+}
+
 func Log(args ...interface{}) {
 	if fileEntry != nil {
-		fileEntry.Info(args)
+		fileEntry.Info(args...)
 	}
 }
 
 func Logf(format string, args ...interface{}) {
 	if fileEntry != nil {
-		fileEntry.Infof(format, args)
+		fileEntry.Infof(format, args...)
 	}
 }

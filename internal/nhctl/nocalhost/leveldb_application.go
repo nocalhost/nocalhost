@@ -18,7 +18,7 @@ import (
 )
 
 func UpdateKey(ns, app string, key string, value string) error {
-	db, err := openApplicationLevelDB(ns, app)
+	db, err := OpenApplicationLevelDB(ns, app, false)
 	if err != nil {
 		return err
 	}

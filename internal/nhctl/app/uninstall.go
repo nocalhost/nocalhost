@@ -15,6 +15,7 @@ package app
 
 import (
 	"fmt"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"strings"
@@ -22,14 +23,20 @@ import (
 
 func (a *Application) cleanUpDepConfigMap() error {
 
-	if a.AppProfileV2.DependencyConfigMapName != "" {
-		log.Debugf("Cleaning up config map %s", a.AppProfileV2.DependencyConfigMapName)
-		err := a.client.DeleteConfigMapByName(a.AppProfileV2.DependencyConfigMapName)
+	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	if err != nil {
+		return err
+	}
+	defer profileV2.CloseDb()
+
+	if profileV2.DependencyConfigMapName != "" {
+		log.Debugf("Cleaning up config map %s", profileV2.DependencyConfigMapName)
+		err := a.client.DeleteConfigMapByName(profileV2.DependencyConfigMapName)
 		if err != nil {
 			return err
 		}
-		a.AppProfileV2.DependencyConfigMapName = ""
-		a.SaveProfile()
+		profileV2.DependencyConfigMapName = ""
+		profileV2.Save()
 	} else {
 		log.Debug("No dependency config map needs to clean up")
 	}
@@ -62,8 +69,9 @@ func (a *Application) uninstallHelm() error {
 	if a.GetNamespace() != "" {
 		commonParams = append(commonParams, "--namespace", a.GetNamespace())
 	}
-	if a.AppProfileV2.Kubeconfig != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.AppProfileV2.Kubeconfig)
+	appProfile, _ := a.GetProfile()
+	if appProfile.Kubeconfig != "" {
+		commonParams = append(commonParams, "--kubeconfig", appProfile.Kubeconfig)
 	}
 	uninstallParams := []string{"uninstall", a.Name}
 	uninstallParams = append(uninstallParams, commonParams...)
@@ -81,8 +89,9 @@ func (a *Application) UninstallKustomize() error {
 	if a.GetNamespace() != "" {
 		commonParams = append(commonParams, "--namespace", a.GetNamespace())
 	}
-	if a.AppProfileV2.Kubeconfig != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.AppProfileV2.Kubeconfig)
+	appProfile, _ := a.GetProfile()
+	if appProfile.Kubeconfig != "" {
+		commonParams = append(commonParams, "--kubeconfig", appProfile.Kubeconfig)
 	}
 	uninstallParams := []string{"delete", "-k", useResourcePath}
 	uninstallParams = append(uninstallParams, commonParams...)

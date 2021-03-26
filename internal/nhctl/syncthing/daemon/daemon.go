@@ -15,6 +15,7 @@ package daemon
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
@@ -132,6 +133,25 @@ func NewDaemon(logFile string) *Daemon {
 //		log.Infof("%s child (%d) progress exit, tootal run %d second: %v\n", dInfo, cmd.ProcessState.Pid(), dat, err)
 //	}
 //}
+
+func RunSubProcess(args, env []string, exitParent bool) error {
+	cmd := &exec.Cmd{
+		Path:        args[0],
+		Args:        args,
+		Env:         env,
+		SysProcAttr: NewSysProcAttr(),
+	}
+
+	err := cmd.Start()
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	if exitParent {
+		os.Exit(0)
+	}
+	return nil
+}
 
 func startProc(args, env []string, logFile string) (*exec.Cmd, error) {
 	cmd := &exec.Cmd{

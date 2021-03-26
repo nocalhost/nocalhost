@@ -11,10 +11,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nocalhost
+package daemon_common
 
-import "path/filepath"
+const (
+	DefaultDaemonPort = 30123
+	SudoDaemonPort    = 30124
+)
 
-func getAppDbDir(ns, app string) string {
-	return filepath.Join(GetAppDirUnderNs(app, ns), DefaultApplicationDbDir)
+var Version = "1.0"
+
+type DaemonServerInfo struct {
+	Version string
+}
+
+func NewDaemonServerInfo() *DaemonServerInfo {
+	return &DaemonServerInfo{Version: Version}
+}
+
+type CommonResponse struct {
+	ErrInfo string `json:"errInfo"`
+}
+
+type DaemonServerStatusResponse struct {
+	PortForwardList []string `json:"portForwardList"`
 }

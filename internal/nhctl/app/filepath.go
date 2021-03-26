@@ -15,11 +15,16 @@ package app
 
 import (
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"path/filepath"
 )
 
 func (a *Application) getGitDir() string {
 	return filepath.Join(a.GetHomeDir(), DefaultResourcesDir)
+}
+
+func (a *Application) getDbDir() string {
+	return filepath.Join(a.GetHomeDir(), nocalhost_path.DefaultApplicationDbDir)
 }
 
 func (a *Application) getUpgradeGitDir() string {
@@ -94,5 +99,5 @@ func (a *Application) GetConfigV2Path() string {
 
 func (a *Application) GetHomeDir() string {
 	//return nocalhost.GetAppDir(a.Name)
-	return nocalhost.GetAppDirUnderNs(a.Name, a.NameSpace)
+	return nocalhost_path.GetAppDirUnderNs(a.Name, a.NameSpace)
 }

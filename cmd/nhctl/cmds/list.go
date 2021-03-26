@@ -17,6 +17,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"nocalhost/internal/nhctl/app_flags"
+	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/utils"
 	"os"
 	"strconv"
 
@@ -44,6 +46,10 @@ var listCmd = &cobra.Command{
 	Short:   "List applications",
 	Long:    `List applications`,
 	Run: func(cmd *cobra.Command, args []string) {
+
+		// For start and upgrade daemon server automatically
+		_, _ = daemon_client.NewDaemonClient(utils.IsSudoUser())
+
 		if len(args) > 0 { // list application detail
 			applicationName := args[0]
 			initApp(applicationName)
@@ -63,7 +69,8 @@ var listCmd = &cobra.Command{
 
 func ListApplicationSvc(napp *app.Application) {
 	var data [][]string
-	for _, svcProfile := range napp.AppProfileV2.SvcProfile {
+	appProfile, _ := napp.GetProfile()
+	for _, svcProfile := range appProfile.SvcProfile {
 		rols := []string{svcProfile.ActualName, strconv.FormatBool(svcProfile.Developing), strconv.FormatBool(svcProfile.Syncing), fmt.Sprintf("%v", svcProfile.DevPortForwardList), fmt.Sprintf("%s", svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin), strconv.Itoa(svcProfile.LocalSyncthingGUIPort)}
 		data = append(data, rols)
 	}
@@ -90,7 +97,7 @@ func ListApplicationsReuslt() []*Namespace {
 				continue
 			}
 
-			profile := app2.AppProfileV2
+			profile, _ := app2.GetProfile()
 
 			if !profile.Installed {
 				continue
@@ -155,7 +162,7 @@ func ListApplications() {
 				fmt.Printf("%-14s\n", appName)
 				continue
 			}
-			profile := app2.AppProfileV2
+			profile, _ := app2.GetProfile()
 			fmt.Printf("%-14s %-14t %-14s %-14s\n", appName, profile.Installed, profile.Namespace, profile.AppType)
 		}
 	}
