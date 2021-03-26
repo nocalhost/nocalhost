@@ -73,7 +73,6 @@ var (
 
 	// cluster-user errors
 	ErrBindUserApplicationRepeat                 = &Errno{Code: 50099, Message: "The user has authorized this application"}
-	ErrBindUserClusterRepeat                     = &Errno{Code: 50100, Message: "The user has authorized this cluster"}
 	ErrBindNameSpaceCreate                       = &Errno{Code: 50101, Message: "Cluster user authorization failed: failed to create namespace"}
 	ErrBindServiceAccountCreateErr               = &Errno{Code: 50102, Message: "Cluster user authorization failed: Failed to create ServiceAccount"}
 	ErrBindRoleCreateErr                         = &Errno{Code: 50103, Message: "Cluster user authorization failed: failed to create a role"}

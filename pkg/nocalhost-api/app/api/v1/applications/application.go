@@ -19,6 +19,10 @@ type CreateAppRequest struct {
 	Public  *uint8 `json:"public"`
 }
 
+type AppPublicSwitchRequest struct {
+	Public  *uint8 `json:"public" binding:"required"`
+}
+
 type UpdateApplicationInstallRequest struct {
 	Status *uint64 `json:"status" binding:"required"`
 }
@@ -32,4 +36,9 @@ type ApplicationJsonContext struct {
 	ApplicationSourceDir   []string `json:"resource_dir" validate:"required"`
 	NocalhostRawConfig     string   `json:"nocalhost_config_raw"`
 	NocalhostConfigPath    string   `json:"nocalhost_config_path"`
+}
+
+
+type ApplicationListQuery struct {
+	UserId *uint64 `form:"user_id"`
 }

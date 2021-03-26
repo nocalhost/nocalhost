@@ -12,6 +12,10 @@ type ClusterUserCreateRequest struct {
 	SpaceResourceLimit *SpaceResourceLimit `json:"space_resource_limit"`
 }
 
+type ClusterUserListQuery struct {
+	UserId *uint64 `form:"user_id"`
+}
+
 type SpaceResourceLimit struct {
 	SpaceReqMem               string `json:"space_req_mem"`
 	SpaceReqCpu               string `json:"space_req_cpu"`

@@ -18,6 +18,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"regexp"
+	"strings"
 )
 
 // PermissionMiddleware
@@ -47,12 +48,15 @@ func whiteList(method, path string) bool {
 		"/v1/users/[0-9]+/dev_spaces":     "GET",
 		"/v1/dev_space/[0-9]+/detail":     "GET",
 		"/v1/dev_space/[0-9]+/recreate":   "POST",
-		"/v1/application/[0-9]+":          "GET",
+		"/v1/application/[0-9]+":          "GET,PUT,DELETE",
+		"/v1/nocalhost/templates":         "GET",
+		"/v1/dev_space":                   "GET",
+		"/v1/application":                 "GET,POST",
 	}
 
 	for reg, med := range permissions {
 		match, _ := regexp.MatchString(reg, path)
-		if match && med == method {
+		if match && strings.Contains(med, method) {
 			return true
 		}
 	}

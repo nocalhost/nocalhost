@@ -21,7 +21,7 @@ import (
 
 // ClusterUserModel
 type ClusterUserModel struct {
-	ID                 uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
+	ID uint64 `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
 
 	// Deprecated
 	ApplicationId      uint64     `gorm:"column:application_id;not null" json:"application_id"`
@@ -40,7 +40,7 @@ type ClusterUserModel struct {
 }
 
 type ClusterUserPluginModel struct {
-	ID                 uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
+	ID uint64 `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
 
 	// Deprecated
 	ApplicationId      uint64     `gorm:"column:application_id;not null" json:"application_id"`
@@ -59,7 +59,7 @@ type ClusterUserPluginModel struct {
 
 	DevStartAppendCommand []string `json:"dev_start_append_command"`
 	// from clusters
-	StorageClass          string `json:"storage_class" gorm:"column:storage_class"`
+	StorageClass string `json:"storage_class" gorm:"column:storage_class"`
 }
 
 type ClusterUserJoinCluster struct {
@@ -74,8 +74,6 @@ type ClusterUserJoinCluster struct {
 
 type ClusterUserJoinClusterAndAppAndUser struct {
 	ID                 uint64    `gorm:"column:id" json:"id"`
-	ApplicationId      uint64    `gorm:"column:application_id" json:"application_id"`
-	ApplicationName    string    `gorm:"column:application_name" json:"application_name"`
 	UserId             uint64    `gorm:"column:user_id" json:"user_id"`
 	UserName           string    `gorm:"column:user_name" json:"user_name"`
 	SpaceName          string    `gorm:"column:space_name" json:"space_name"`

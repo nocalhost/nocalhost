@@ -120,9 +120,9 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		a.GET("/:id", applications.GetDetail)
 		a.DELETE("/:id", applications.Delete)
 		a.PUT("/:id", applications.Update)
+		a.PUT("/:id/public", applications.PublicSwitch)
 		a.POST("/:id/bind_cluster", application_cluster.Create)
 		a.GET("/:id/bound_cluster", application_cluster.GetBound)
-		a.POST("/:id/create_space", cluster_user.Create)
 		a.GET("/:id/dev_space", cluster_user.GetFirst)
 		a.GET("/:id/dev_space/:space_id/detail", cluster_user.GetDevSpaceDetail)
 		a.GET("/:id/dev_space_list", cluster_user.GetList)
@@ -144,6 +144,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	dv := g.Group("/v1/dev_space")
 	dv.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
 	{
+		dv.POST("", cluster_user.Create)
 		dv.GET("", cluster_user.ListAll)
 		dv.DELETE("/:id", cluster_user.Delete)
 		dv.PUT("/:id", cluster_user.Update)

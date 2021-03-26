@@ -90,20 +90,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		return nil, errno.ErrPermissionCluster
 	}
 
-	if applicationId == 0 {
-
-		// check if has created
-		cu := model.ClusterUserModel{
-			ClusterId: clusterId,
-			UserId:    userId,
-		}
-		_, hasRecord := service.Svc.ClusterUser().GetFirst(d.c, cu)
-
-		// for adapt current version, prevent can't not create devSpace on same namespace
-		if hasRecord == nil {
-			return nil, errno.ErrBindUserClusterRepeat
-		}
-	} else {
+	if applicationId != 0 {
 
 		// check if has created
 		cu := model.ClusterUserModel{
@@ -145,6 +132,8 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	if res == nil {
 		res = &SpaceResourceLimit{}
 	}
+
+	res.ContainerEphemeralStorage = "1Gi"
 
 	clusterDevsSetUp.CreateResouceQuota("rq-"+devNamespace, devNamespace, res.SpaceReqMem,
 		res.SpaceReqCpu, res.SpaceLimitsMem, res.SpaceLimitsCpu, res.SpaceStorageCapacity, res.SpaceEphemeralStorage,
