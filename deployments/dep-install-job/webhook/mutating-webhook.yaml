@@ -52,7 +52,7 @@ webhooks:
           - "persistentvolumeclaims"
           - "storageclasses"
 
-      - operations: [ "*" ]
+      - operations: [ "CREATE","UPDATE","DELETE" ]
         apiGroups: [ "" ] # means core
         apiVersions: [ "v1" ]
         resources: [ "resourcequotas" ]
