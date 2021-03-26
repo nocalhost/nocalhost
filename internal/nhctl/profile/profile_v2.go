@@ -65,8 +65,8 @@ func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) 
 	return dbutils.OpenApplicationLevelDB(path, readonly)
 }
 
-func NewAppProfileV2(ns, name string) (*AppProfileV2, error) {
-	db, err := OpenApplicationLevelDB(ns, name, false)
+func NewAppProfileV2(ns, name string, readonly bool) (*AppProfileV2, error) {
+	db, err := OpenApplicationLevelDB(ns, name, readonly)
 	if err != nil {
 		return nil, err
 	}
@@ -129,13 +129,17 @@ func (a *AppProfileV2) FetchSvcProfileV2FromProfile(svcName string) *SvcProfileV
 	return svcProfile
 }
 
-func (a *AppProfileV2) SaveAndCloseDb() error {
-	defer a.db.Close()
+func (a *AppProfileV2) Save() error {
+	//defer a.db.Close()
 	bys, err := yaml.Marshal(a)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
 	return errors.Wrap(a.db.Put([]byte(ProfileV2Key(a.ns, a.appName)), bys, nil), "")
+}
+
+func (a *AppProfileV2) CloseDb() error {
+	return a.db.Close()
 }
 
 type SvcProfileV2 struct {

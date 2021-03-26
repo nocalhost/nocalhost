@@ -105,36 +105,42 @@ func StartDaemon(isSudoUser bool) error {
 }
 
 func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType) {
-	//defer conn.Close()
 	var err error
 	log.Infof("Handling %s command", cmdType)
 	switch cmdType {
 	case command.StartPortForward:
 		startCmd := &command.PortForwardCommand{}
+		errInfo := ""
 		if err = json.Unmarshal(bys, startCmd); err != nil {
 			log.LogE(errors.Wrap(err, ""))
+			response(conn, &daemon_common.CommonResponse{ErrInfo: err.Error()})
 			return
 		}
 		if err = handleStartPortForwardCommand(startCmd); err != nil {
+			errInfo = err.Error()
 			log.LogE(err)
 		}
-		response(conn, &daemon_common.CommonResponse{Err: err})
+		response(conn, &daemon_common.CommonResponse{ErrInfo: errInfo})
 	case command.StopPortForward:
 		pfCmd := &command.PortForwardCommand{}
+		errInfo := ""
 		if err = json.Unmarshal(bys, pfCmd); err != nil {
 			log.LogE(errors.Wrap(err, ""))
+			response(conn, &daemon_common.CommonResponse{ErrInfo: err.Error()})
 			return
 		}
 		if err = handleStopPortForwardCommand(pfCmd); err != nil {
 			log.LogE(err)
+			errInfo = err.Error()
 		}
-		response(conn, &daemon_common.CommonResponse{Err: err})
+		response(conn, &daemon_common.CommonResponse{ErrInfo: errInfo})
 	case command.StopDaemonServer:
+		conn.Close()
 		tcpCancelFunc()
 		// todo: clean up resources
 		daemonCancelFunc()
-
 	case command.RestartDaemonServer:
+		conn.Close()
 		if err = handlerRestartDaemonServerCommand(isSudo); err != nil {
 			log.LogE(err)
 			return
@@ -144,6 +150,9 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType)
 	case command.GetDaemonServerInfo:
 		info := daemon_common.NewDaemonServerInfo()
 		response(conn, info)
+	case command.GetDaemonServerStatus:
+		status := &daemon_common.DaemonServerStatusResponse{PortForwardList: pfManager.GetRunningPortForwardGoRoutine()}
+		response(conn, status)
 	}
 }
 

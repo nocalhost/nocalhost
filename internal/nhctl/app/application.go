@@ -600,14 +600,10 @@ func (a *Application) PortForward(deployment, podName string, localPort, remoteP
 		PodName:     podName,
 	}
 
-	r, err := client.SendPortForwardCommand(nhResource, localPort, remotePort, command.StartPortForward)
-	if r != nil && r.Err != nil {
-		return err
-	}
-	if err != nil {
+	if err = client.SendPortForwardCommand(nhResource, localPort, remotePort, command.StartPortForward); err != nil {
 		return err
 	} else {
-		log.Infof("Port-forward request %d:%d has been sent to daemon server", localPort, remotePort)
+		log.Infof("Port-forward %d:%d has been started", localPort, remotePort)
 		return a.SetPortForwardedStatus(deployment, true) //  todo: move port-forward start
 	}
 }

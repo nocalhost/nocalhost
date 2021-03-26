@@ -59,6 +59,13 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(localPort, remotePort int)
 	delete(p.pfList, key)
 	return err
 }
+func (p *PortForwardManager) GetRunningPortForwardGoRoutine() []string {
+	result := make([]string, 0)
+	for key, _ := range p.pfList {
+		result = append(result, key)
+	}
+	return result
+}
 
 func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string) error {
 	profile, err := nocalhost.GetProfileV2(ns, appName, nil)
@@ -122,7 +129,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResou
 
 	if saveToDB {
 		// Check if port forward already exists
-		if nocalhostApp.CheckIfPortForwardExists(svc.Service, localPort, remotePort) {
+		if existed, _ := nocalhostApp.CheckIfPortForwardExists(svc.Service, localPort, remotePort); existed {
 			return errors.New(fmt.Sprintf("Port forward %d:%d already exists", localPort, remotePort))
 		}
 		pf := &profile.DevPortForward{

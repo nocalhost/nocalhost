@@ -122,7 +122,21 @@ func (d *DaemonClient) SendStopDaemonServerCommand() error {
 	return d.sendDataToDaemonServer(bys)
 }
 
-func (d *DaemonClient) SendPortForwardCommand(nhSvc *model.NocalHostResource, localPort, remotePort int, cmdType command.DaemonCommandType) (*daemon_common.CommonResponse, error) {
+func (d *DaemonClient) SendGetDaemonServerStatusCommand() error {
+	cmd := &command.BaseCommand{CommandType: command.GetDaemonServerStatus}
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys)
+	if err != nil {
+		return err
+	}
+	log.Infof("%s", string(bys))
+	return nil
+}
+
+func (d *DaemonClient) SendPortForwardCommand(nhSvc *model.NocalHostResource, localPort, remotePort int, cmdType command.DaemonCommandType) error {
 
 	startPFCmd := &command.PortForwardCommand{
 		CommandType: cmdType,
@@ -136,18 +150,13 @@ func (d *DaemonClient) SendPortForwardCommand(nhSvc *model.NocalHostResource, lo
 
 	bys, err := json.Marshal(startPFCmd)
 	if err != nil {
-		return nil, errors.Wrap(err, "")
+		return errors.Wrap(err, "")
 	}
 	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
-		return nil, err
+		return err
 	} else {
 		log.Infof("%s", string(bys))
-		r := &daemon_common.CommonResponse{}
-		if err = json.Unmarshal(bys, r); err != nil {
-			return nil, err
-		} else {
-			return r, nil
-		}
+		return nil
 	}
 }
 

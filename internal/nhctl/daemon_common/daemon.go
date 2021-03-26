@@ -28,5 +28,9 @@ func NewDaemonServerInfo() *DaemonServerInfo {
 }
 
 type CommonResponse struct {
-	Err error `json:"err"`
+	ErrInfo string `json:"errInfo"`
+}
+
+type DaemonServerStatusResponse struct {
+	PortForwardList []string `json:"portForwardList"`
 }

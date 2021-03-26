@@ -27,12 +27,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
-func (a *Application) AppendPortForward(svcName string, devPortForward *profile.DevPortForward) {
-	a.GetSvcProfileV2(svcName).DevPortForwardList = append(a.GetSvcProfileV2(svcName).DevPortForwardList, devPortForward)
-}
+//func (a *Application) AppendPortForward(svcName string, devPortForward *profile.DevPortForward) {
+//	a.GetSvcProfileV2(svcName).DevPortForwardList = append(a.GetSvcProfileV2(svcName).DevPortForwardList, devPortForward)
+//}
 
 func (a *Application) SetPortForwardPid(svcName string, localPort int, remotePort int, pid int) error {
 	err := a.ReadBeforeWriteProfile()
@@ -65,10 +66,18 @@ func (a *Application) SetPortForwardPid(svcName string, localPort int, remotePor
 }
 
 func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, remotePort int, portStatus string, reason string) error {
-	if err := a.LoadAppProfileV2(); err != nil {
+	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	if err != nil {
 		return err
 	}
-	for _, portForward := range a.GetSvcProfileV2(svcName).DevPortForwardList {
+	defer profileV2.CloseDb()
+
+	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	if svcProfile == nil {
+		return errors.New("Failed to get svc profile")
+	}
+
+	for _, portForward := range svcProfile.DevPortForwardList {
 		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
 			portForward.Status = portStatus
 			portForward.Reason = reason
@@ -77,7 +86,10 @@ func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, rem
 			break
 		}
 	}
-	return a.SaveProfile()
+
+	var wg sync.WaitGroup{}
+	wg.Wait()
+	return profileV2.Save()
 }
 
 func (a *Application) EndDevPortForward(svcName string, localPort int, remotePort int) error {
@@ -93,16 +105,12 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 				if err != nil {
 					return err
 				}
-				r, err := client.SendPortForwardCommand(&model.NocalHostResource{
+				return client.SendPortForwardCommand(&model.NocalHostResource{
 					NameSpace:   a.NameSpace,
 					Application: a.Name,
 					Service:     svcName,
 					PodName:     "",
 				}, localPort, remotePort, command.StopPortForward)
-				if r != nil {
-					return r.Err
-				}
-				return err
 			} else {
 				log.Infof("Kill %v", *portForward)
 				err := terminate.Terminate(portForward.Pid, true, "port-forward")
