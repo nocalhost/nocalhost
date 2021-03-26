@@ -16,6 +16,7 @@ package cmds
 import (
 	"fmt"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/daemon_common"
 	"runtime"
 	"time"
 
@@ -32,6 +33,7 @@ var (
 )
 
 func init() {
+	daemon_common.Version = Version
 	rootCmd.AddCommand(versionCmd)
 }
 
