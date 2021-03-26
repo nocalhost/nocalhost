@@ -11,10 +11,32 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nocalhost
+package nocalhost_path
 
-import "path/filepath"
+import (
+	"nocalhost/internal/nhctl/utils"
+	"path/filepath"
+)
 
-func getAppDbDir(ns, app string) string {
+const (
+	DefaultApplicationDbDir      = "db"
+	DefaultNhctlHomeDirName      = ".nh/nhctl"
+	DefaultNhctlNameSpaceDirName = "ns"
+)
+
+func GetAppDbDir(ns, app string) string {
 	return filepath.Join(GetAppDirUnderNs(app, ns), DefaultApplicationDbDir)
+}
+
+func GetAppDirUnderNs(appName string, namespace string) string {
+	return filepath.Join(GetNhctlNameSpaceDir(), namespace, appName)
+}
+
+func GetNhctlHomeDir() string {
+	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName)
+}
+
+// .nh/nhctl/ns
+func GetNhctlNameSpaceDir() string {
+	return filepath.Join(GetNhctlHomeDir(), DefaultNhctlNameSpaceDirName)
 }

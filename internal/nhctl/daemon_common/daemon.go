@@ -26,3 +26,11 @@ type DaemonServerInfo struct {
 func NewDaemonServerInfo() *DaemonServerInfo {
 	return &DaemonServerInfo{Version: Version}
 }
+
+type CommonResponse struct {
+	ErrInfo string `json:"errInfo"`
+}
+
+type DaemonServerStatusResponse struct {
+	PortForwardList []string `json:"portForwardList"`
+}

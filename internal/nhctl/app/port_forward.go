@@ -30,43 +30,59 @@ import (
 	"time"
 )
 
-func (a *Application) AppendPortForward(svcName string, devPortForward *profile.DevPortForward) {
-	a.GetSvcProfileV2(svcName).DevPortForwardList = append(a.GetSvcProfileV2(svcName).DevPortForwardList, devPortForward)
-}
+//func (a *Application) AppendPortForward(svcName string, devPortForward *profile.DevPortForward) {
+//	a.GetSvcProfileV2(svcName).DevPortForwardList = append(a.GetSvcProfileV2(svcName).DevPortForwardList, devPortForward)
+//}
 
-func (a *Application) SetPortForwardPid(svcName string, localPort int, remotePort int, pid int) error {
-	err := a.ReadBeforeWriteProfile()
+//func (a *Application) SetPortForwardPid(svcName string, localPort int, remotePort int, pid int) error {
+//	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+//	if err != nil {
+//		return err
+//	}
+//	defer profileV2.CloseDb()
+//
+//	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+//	if svcProfile == nil {
+//		return errors.New("Failed to get svc profile")
+//	}
+//
+//	found := false
+//	for _, portForward := range svcProfile.DevPortForwardList {
+//		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
+//			portForward.Pid = pid
+//			portForward.Updated = time.Now().Format("2006-01-02 15:04:05")
+//			found = true
+//			break
+//		}
+//	}
+//	if !found {
+//		newPF := &profile.DevPortForward{
+//			LocalPort:  localPort,
+//			RemotePort: remotePort,
+//			Way:        "",
+//			Status:     "",
+//			Reason:     "",
+//			Updated:    time.Now().Format("2006-01-02 15:04:05"),
+//			Pid:        pid,
+//		}
+//		svcProfile.DevPortForwardList = append(svcProfile.DevPortForwardList, newPF)
+//	}
+//	return profileV2.Save()
+//}
+
+func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, remotePort int, portStatus string, reason string) error {
+	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
 	if err != nil {
 		return err
 	}
-	found := false
-	svcProfile := a.GetSvcProfileV2(svcName)
+	defer profileV2.CloseDb()
+
+	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	if svcProfile == nil {
+		return errors.New("Failed to get svc profile")
+	}
+
 	for _, portForward := range svcProfile.DevPortForwardList {
-		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
-			portForward.Pid = pid
-			portForward.Updated = time.Now().Format("2006-01-02 15:04:05")
-			found = true
-			break
-		}
-	}
-	if !found {
-		newPF := &profile.DevPortForward{
-			LocalPort:  localPort,
-			RemotePort: remotePort,
-			Way:        "",
-			Status:     "",
-			Reason:     "",
-			Updated:    time.Now().Format("2006-01-02 15:04:05"),
-			Pid:        pid,
-		}
-		svcProfile.DevPortForwardList = append(svcProfile.DevPortForwardList, newPF)
-	}
-	return a.SaveProfile()
-}
-
-func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, remotePort int, portStatus string, reason string) error {
-
-	for _, portForward := range a.GetSvcProfileV2(svcName).DevPortForwardList {
 		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
 			portForward.Status = portStatus
 			portForward.Reason = reason
@@ -75,32 +91,38 @@ func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, rem
 			break
 		}
 	}
-	return a.SaveProfile()
+	return profileV2.Save()
 }
 
 func (a *Application) EndDevPortForward(svcName string, localPort int, remotePort int) error {
 
-	svcProfile := a.GetSvcProfileV2(svcName)
+	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	if err != nil {
+		return err
+	}
+	//defer profileV2.CloseDb()
+
+	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	if svcProfile == nil {
+		return errors.New("Failed to get svc profile")
+	}
 
 	indexToDelete := -1
 	for index, portForward := range svcProfile.DevPortForwardList {
 		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
 			if portForward.RunByDaemonServer {
+				profileV2.CloseDb() // Daemon Server will update it
 				isAdmin := utils.IsSudoUser()
 				client, err := daemon_client.NewDaemonClient(isAdmin)
 				if err != nil {
 					return err
 				}
-				err = client.SendPortForwardCommand(&model.NocalHostResource{
+				return client.SendPortForwardCommand(&model.NocalHostResource{
 					NameSpace:   a.NameSpace,
 					Application: a.Name,
 					Service:     svcName,
 					PodName:     "",
 				}, localPort, remotePort, command.StopPortForward)
-				if err != nil {
-					return err
-				}
-
 			} else {
 				log.Infof("Kill %v", *portForward)
 				err := terminate.Terminate(portForward.Pid, true, "port-forward")
@@ -108,7 +130,6 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 					return errors.Wrap(err, "")
 				}
 				indexToDelete = index
-				time.Sleep(2 * time.Second)
 			}
 			break
 		}
@@ -126,16 +147,28 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 		}
 		svcProfile.DevPortForwardList = newList
 
-		return a.SaveProfile()
+		return profileV2.Save()
 	}
 
-	return nil
+	return profileV2.CloseDb()
 }
 
 func (a *Application) PortForwardAfterDevStart(svcName string, containerName string, svcType SvcType) error {
 	switch svcType {
 	case Deployment:
-		p := a.GetSvcProfileV2(svcName)
+
+		profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, true)
+		if err != nil {
+			return err
+		}
+		profileV2.CloseDb()
+
+		svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+		if svcProfile == nil {
+			return errors.New("Failed to get svc profile")
+		}
+
+		p := svcProfile
 		if p.ContainerConfigs == nil {
 			return nil
 		}

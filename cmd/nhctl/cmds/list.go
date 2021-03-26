@@ -63,7 +63,8 @@ var listCmd = &cobra.Command{
 
 func ListApplicationSvc(napp *app.Application) {
 	var data [][]string
-	for _, svcProfile := range napp.AppProfileV2.SvcProfile {
+	appProfile, _ := napp.GetProfile()
+	for _, svcProfile := range appProfile.SvcProfile {
 		rols := []string{svcProfile.ActualName, strconv.FormatBool(svcProfile.Developing), strconv.FormatBool(svcProfile.Syncing), fmt.Sprintf("%v", svcProfile.DevPortForwardList), fmt.Sprintf("%s", svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin), strconv.Itoa(svcProfile.LocalSyncthingGUIPort)}
 		data = append(data, rols)
 	}
@@ -90,7 +91,7 @@ func ListApplicationsReuslt() []*Namespace {
 				continue
 			}
 
-			profile := app2.AppProfileV2
+			profile, _ := app2.GetProfile()
 
 			if !profile.Installed {
 				continue
@@ -155,7 +156,7 @@ func ListApplications() {
 				fmt.Printf("%-14s\n", appName)
 				continue
 			}
-			profile := app2.AppProfileV2
+			profile, _ := app2.GetProfile()
 			fmt.Printf("%-14s %-14t %-14s %-14s\n", appName, profile.Installed, profile.Namespace, profile.AppType)
 		}
 	}

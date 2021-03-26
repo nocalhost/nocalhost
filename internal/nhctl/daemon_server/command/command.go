@@ -21,12 +21,13 @@ import (
 type DaemonCommandType string
 
 const (
-	StartPortForward    DaemonCommandType = "StartPortForward"
-	RestartPortForward  DaemonCommandType = "RestartPortForward"
-	StopPortForward     DaemonCommandType = "StopPortForward"
-	StopDaemonServer    DaemonCommandType = "StopDaemonServer"
-	RestartDaemonServer DaemonCommandType = "RestartDaemonServer"
-	GetDaemonServerInfo DaemonCommandType = "GetDaemonServerInfo"
+	StartPortForward      DaemonCommandType = "StartPortForward"
+	RestartPortForward    DaemonCommandType = "RestartPortForward"
+	StopPortForward       DaemonCommandType = "StopPortForward"
+	StopDaemonServer      DaemonCommandType = "StopDaemonServer"
+	RestartDaemonServer   DaemonCommandType = "RestartDaemonServer"
+	GetDaemonServerInfo   DaemonCommandType = "GetDaemonServerInfo"
+	GetDaemonServerStatus DaemonCommandType = "GetDaemonServerStatus"
 )
 
 type BaseCommand struct {

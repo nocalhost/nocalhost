@@ -16,33 +16,58 @@ package app
 import (
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/log"
 )
 
-func (a *Application) CheckIfPortForwardExists(svcName string, localPort, remotePort int) bool {
+func (a *Application) CheckIfPortForwardExists(svcName string, localPort, remotePort int) (bool, error) {
 
-	for _, portForward := range a.GetSvcProfileV2(svcName).DevPortForwardList {
+	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, true)
+	if err != nil {
+		return false, err
+	}
+	defer profileV2.CloseDb()
+
+	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	if svcProfile == nil {
+		return false, errors.New("Failed to get svc profile")
+	}
+	for _, portForward := range svcProfile.DevPortForwardList {
 		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // You should `CheckIfPortForwardExists` before adding a port-forward to db
 func (a *Application) AddPortForwardToDB(svcName string, port *profile.DevPortForward) error {
-	profile := a.GetSvcProfileV2(svcName)
-	if profile == nil {
-		return errors.New("Failed to add a port-forward to db")
+
+	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	if err != nil {
+		return err
+	}
+	defer profileV2.CloseDb()
+
+	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	if svcProfile == nil {
+		return errors.New("Failed to get svc profile")
 	}
 
-	profile.DevPortForwardList = append(profile.DevPortForwardList, port)
-	return a.SaveProfile()
+	svcProfile.DevPortForwardList = append(svcProfile.DevPortForwardList, port)
+	return profileV2.Save()
 }
 
 func (a *Application) DeletePortForwardFromDB(svcName string, localPort, remotePort int) error {
-	svcProfile := a.GetSvcProfileV2(svcName)
+
+	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	if err != nil {
+		return err
+	}
+	defer profileV2.CloseDb()
+
+	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
 	if svcProfile == nil {
-		return errors.New("Failed to delete a port-forward from db")
+		return errors.New("Failed to add a port-forward to db")
 	}
 
 	indexToDelete := -1
@@ -63,7 +88,12 @@ func (a *Application) DeletePortForwardFromDB(svcName string, localPort, remoteP
 			}
 		}
 		svcProfile.DevPortForwardList = newList
-		return a.SaveProfile()
+		log.Infof("Deleting pf %d:%d", localPort, remotePort)
+		log.Info("After")
+		for _, pf := range profileV2.FetchSvcProfileV2FromProfile(svcName).DevPortForwardList {
+			log.Infof("%v", *pf)
+		}
+		return profileV2.Save()
 	}
 	return nil
 }

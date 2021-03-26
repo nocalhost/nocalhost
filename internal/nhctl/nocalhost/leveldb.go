@@ -14,70 +14,25 @@ limitations under the License.
 package nocalhost
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
-
-	leveldb_errors "github.com/syndtr/goleveldb/leveldb/errors"
-	"nocalhost/pkg/nhctl/log"
-	"syscall"
-	"time"
+	"nocalhost/internal/nhctl/dbutils"
+	"nocalhost/internal/nhctl/nocalhost_path"
 )
 
-const (
-	DefaultApplicationDbDir = "db"
-)
+func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) {
+	//existed := CheckIfApplicationExist(app, ns)
+	//if !existed {
+	//	return nil, errors.New(fmt.Sprintf("Applicaton %s in %s not exists", app, ns))
+	//}
 
-func openApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) {
-	existed := CheckIfApplicationExist(app, ns)
-	if !existed {
-		return nil, errors.New(fmt.Sprintf("Applicaton %s in %s not exists", app, ns))
-	}
+	path := nocalhost_path.GetAppDbDir(ns, app)
+	return dbutils.OpenApplicationLevelDB(path, readonly)
 
-	path := getAppDbDir(ns, app)
-	var o *opt.Options
-	if readonly {
-		o = &opt.Options{
-			ReadOnly: true,
-		}
-	}
-	db, err := leveldb.OpenFile(path, o)
-	if err != nil {
-		for i := 0; i < 300; i++ {
-			if errors.Is(err, syscall.EAGAIN) {
-				log.Log("Another process is accessing leveldb, wait for 0.2s to retry")
-				time.Sleep(200 * time.Millisecond)
-				db, err = leveldb.OpenFile(path, nil)
-				if err == nil {
-					break
-				}
-				//} else if strings.Contains(err.Error(), "leveldb: manifest corrupted") {
-			} else if leveldb_errors.IsCorrupted(err) {
-				log.Info("Recovering leveldb file...")
-				db, err = leveldb.RecoverFile(path, nil)
-				if err != nil {
-					log.WarnE(err, "")
-				} else {
-					break
-				}
-			}
-		}
-		if err == nil {
-			log.Log("Retry success")
-		} else {
-			return nil, errors.Wrap(err, "Retry opening leveldb failed : timeout")
-		}
-	}
-	return db, nil
-}
-
-func profileV2Key(ns, app string) string {
-	return fmt.Sprintf("%s.%s.profile.v2", ns, app)
 }
 
 func ListAllFromApplicationDb(ns, appName string) (map[string]string, error) {
-	db, err := openApplicationLevelDB(ns, appName, true)
+	db, err := OpenApplicationLevelDB(ns, appName, true)
 	if err != nil {
 		return nil, err
 	}

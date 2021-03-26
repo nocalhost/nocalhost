@@ -15,7 +15,6 @@ package app
 
 import (
 	"github.com/pkg/errors"
-	"nocalhost/internal/nhctl/nocalhost"
 	"os"
 )
 
@@ -83,14 +82,15 @@ import (
 //	}
 //}
 
-func (a *Application) LoadAppProfileV2() error {
-	var err error
-	a.AppProfileV2, err = nocalhost.GetProfileV2(a.NameSpace, a.Name)
-	if a.AppProfileV2 == nil {
-		return errors.New("Profile not found")
-	}
-	return err
-}
+// Deprecated
+//func (a *Application) LoadAppProfileV2() error {
+//	var err error
+//	a.AppProfileV2, err = nocalhost.GetProfileV2(a.NameSpace, a.Name, nil)
+//	if a.AppProfileV2 == nil {
+//		return errors.New("Profile not found")
+//	}
+//	return err
+//}
 
 // Deprecated: no support for profile v1 any more
 //func (a *Application) checkIfAppProfileIsV2() (bool, error) {

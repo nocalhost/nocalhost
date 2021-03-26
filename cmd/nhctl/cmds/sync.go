@@ -122,7 +122,8 @@ var fileSyncCmd = &cobra.Command{
 
 		listenAddress := []string{"localhost"}
 
-		svcProfile := nocalhostApp.GetSvcProfileV2(deployment)
+		appProfile, _ := nocalhostApp.GetProfile()
+		svcProfile := appProfile.FetchSvcProfileV2FromProfile(deployment)
 		// start port-forward
 		go func() {
 			lPort := svcProfile.RemoteSyncthingPort
@@ -212,7 +213,8 @@ var fileSyncCmd = &cobra.Command{
 		}
 
 		// Getting pattern from svc profile first
-		profile := nocalhostApp.GetSvcProfileV2(deployment)
+		appProfile, _ = nocalhostApp.GetProfile()
+		profile := appProfile.FetchSvcProfileV2FromProfile(deployment)
 		if profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync == nil {
 			profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync = &profile2.SyncConfig{}
 		}

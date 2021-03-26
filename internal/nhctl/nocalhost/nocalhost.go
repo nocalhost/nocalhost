@@ -18,6 +18,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/flock"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -30,8 +31,6 @@ import (
 
 const (
 	DefaultNewFilePermission        = 0700
-	DefaultNhctlHomeDirName         = ".nh/nhctl"
-	DefaultNhctlNameSpaceDirName    = "ns"
 	DefaultApplicationDirName       = "application"
 	DefaultBinDirName               = "bin"
 	DefaultBinSyncThingDirName      = "syncthing"
@@ -43,7 +42,7 @@ const (
 
 func Init() error {
 	var err error
-	nhctlHomeDir := GetNhctlHomeDir()
+	nhctlHomeDir := nocalhost_path.GetNhctlHomeDir()
 	if _, err = os.Stat(nhctlHomeDir); err != nil {
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(nhctlHomeDir, DefaultNewFilePermission)
@@ -52,7 +51,7 @@ func Init() error {
 			}
 
 			// Create ns dir
-			nsDir := GetNhctlNameSpaceDir()
+			nsDir := nocalhost_path.GetNhctlNameSpaceDir()
 			err = os.MkdirAll(nsDir, DefaultNewFilePermission)
 			if err != nil {
 				return errors.Wrap(err, "")
@@ -88,10 +87,10 @@ func Init() error {
 
 func moveApplicationDirToNsDir() error {
 
-	if _, err := os.Stat(GetNhctlNameSpaceDir()); err != nil {
+	if _, err := os.Stat(nocalhost_path.GetNhctlNameSpaceDir()); err != nil {
 		if os.IsNotExist(err) {
 			log.Log("Creating ns home dir...")
-			nsDir := GetNhctlNameSpaceDir()
+			nsDir := nocalhost_path.GetNhctlNameSpaceDir()
 			err = os.MkdirAll(nsDir, DefaultNewFilePermission)
 			if err != nil {
 				return errors.Wrap(err, "")
@@ -142,13 +141,13 @@ func moveApplicationDirToNsDir() error {
 				}
 				// Create ns dir
 				log.Logf("Create ns dir %s", ns)
-				err = os.MkdirAll(filepath.Join(GetNhctlNameSpaceDir(), ns), DefaultNewFilePermission)
+				err = os.MkdirAll(filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), ns), DefaultNewFilePermission)
 				if err != nil {
 					log.WarnE(errors.Wrap(err, ""), "")
 					continue
 				}
 				// Moving dir
-				err = utils.CopyDir(appDir, filepath.Join(GetNhctlNameSpaceDir(), ns, appDirInfo.Name()))
+				err = utils.CopyDir(appDir, filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), ns, appDirInfo.Name()))
 				if err != nil {
 					log.WarnE(errors.Wrap(err, ""), "")
 				}
@@ -164,27 +163,18 @@ func moveApplicationDirToNsDir() error {
 	return nil
 }
 
-func GetNhctlHomeDir() string {
-	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName)
-}
-
-// .nh/nhctl/ns
-func GetNhctlNameSpaceDir() string {
-	return filepath.Join(GetNhctlHomeDir(), DefaultNhctlNameSpaceDirName)
-}
+//func GetNhctlHomeDir() string {
+//	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName)
+//}
 
 // Deprecated
 func GetAppHomeDir() string {
-	return filepath.Join(GetNhctlHomeDir(), DefaultApplicationDirName)
+	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), DefaultApplicationDirName)
 }
 
 // Deprecated
 func GetAppDir(appName string) string {
 	return filepath.Join(GetAppHomeDir(), appName)
-}
-
-func GetAppDirUnderNs(appName string, namespace string) string {
-	return filepath.Join(GetNhctlNameSpaceDir(), namespace, appName)
 }
 
 // Deprecated
@@ -202,7 +192,7 @@ func CleanupAppFiles(appName string) error {
 }
 
 func CleanupAppFilesUnderNs(appName string, namespace string) error {
-	appDir := GetAppDirUnderNs(appName, namespace)
+	appDir := nocalhost_path.GetAppDirUnderNs(appName, namespace)
 	if f, err := os.Stat(appDir); err == nil {
 		if f.IsDir() {
 			err = os.RemoveAll(appDir)
@@ -215,17 +205,17 @@ func CleanupAppFilesUnderNs(appName string, namespace string) error {
 }
 
 func GetSyncThingBinDir() string {
-	return filepath.Join(GetNhctlHomeDir(), DefaultBinDirName, DefaultBinSyncThingDirName)
+	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), DefaultBinDirName, DefaultBinSyncThingDirName)
 }
 
 func GetLogDir() string {
-	return filepath.Join(GetNhctlHomeDir(), DefaultLogDirName)
+	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), DefaultLogDirName)
 }
 
 // key: ns, value: app
 func GetNsAndApplicationInfo() (map[string][]string, error) {
 	result := make(map[string][]string, 0)
-	nsDir := GetNhctlNameSpaceDir()
+	nsDir := nocalhost_path.GetNhctlNameSpaceDir()
 	nsList, err := ioutil.ReadDir(nsDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
@@ -327,7 +317,7 @@ func NsLock(namespace string) *flock.Flock {
 }
 
 func defaultNsLockDir() string {
-	p := filepath.Join(GetNhctlHomeDir(), "nslock")
+	p := filepath.Join(nocalhost_path.GetNhctlHomeDir(), "nslock")
 	_ = os.Mkdir(p, 0700)
 	return p
 }
