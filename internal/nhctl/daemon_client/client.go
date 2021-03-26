@@ -92,6 +92,27 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 			return nil, err
 		}
 	}
+	// Check Server's version
+	bys, err := client.SendGetDaemonServerInfoCommand()
+	if err != nil {
+		return nil, err
+	}
+
+	info := &daemon_common.DaemonServerInfo{}
+	err = json.Unmarshal(bys, info)
+	if err != nil {
+		return nil, err
+	}
+
+	if info.Version != daemon_common.Version {
+		log.Log("Upgrading daemon server")
+		err = client.SendRestartDaemonServerCommand()
+		if err != nil {
+			log.WarnE(err, "Failed to upgrade daemon server")
+		}
+	} else {
+		//log.Log("No need to upgrade daemon server")
+	}
 	return client, nil
 }
 

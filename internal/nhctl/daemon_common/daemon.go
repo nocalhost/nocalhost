@@ -16,8 +16,9 @@ package daemon_common
 const (
 	DefaultDaemonPort = 30123
 	SudoDaemonPort    = 30124
-	Version           = "1.0"
 )
+
+var Version = "1.0"
 
 type DaemonServerInfo struct {
 	Version string

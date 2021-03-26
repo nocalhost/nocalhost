@@ -17,6 +17,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"nocalhost/internal/nhctl/app_flags"
+	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/utils"
 	"os"
 	"strconv"
 
@@ -44,6 +46,10 @@ var listCmd = &cobra.Command{
 	Short:   "List applications",
 	Long:    `List applications`,
 	Run: func(cmd *cobra.Command, args []string) {
+
+		// For start and upgrade daemon server automatically
+		_, _ = daemon_client.NewDaemonClient(utils.IsSudoUser())
+
 		if len(args) > 0 { // list application detail
 			applicationName := args[0]
 			initApp(applicationName)

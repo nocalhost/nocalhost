@@ -39,7 +39,7 @@ var daemonStartCmd = &cobra.Command{
 			}
 			return
 		}
-		if err := daemon_server.StartDaemon(isSudoUser); err != nil {
+		if err := daemon_server.StartDaemon(isSudoUser, Version); err != nil {
 			log.FatalE(err, "")
 		}
 	},
