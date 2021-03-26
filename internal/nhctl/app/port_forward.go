@@ -22,7 +22,6 @@ import (
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/syncthing/terminate"
-	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"strconv"
@@ -112,8 +111,8 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
 			if portForward.RunByDaemonServer {
 				profileV2.CloseDb() // Daemon Server will update it
-				isAdmin := utils.IsSudoUser()
-				client, err := daemon_client.NewDaemonClient(isAdmin)
+				//isAdmin := utils.IsSudoUser()
+				client, err := daemon_client.NewDaemonClient(portForward.Sudo)
 				if err != nil {
 					return err
 				}
