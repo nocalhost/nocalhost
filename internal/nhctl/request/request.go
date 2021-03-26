@@ -34,7 +34,7 @@ const (
 	CREATAPPLICATION = "/v1/application"
 	CREATCLUSTER     = "/v1/cluster"
 	CREATUSER        = "/v1/users"
-	CREATEDEVSPACE   = "/v1/application/%d/create_space"
+	CREATEDEVSPACE   = "/v1/dev_space"
 	UPDATEDEVSPACE   = "/v1/dev_space/%d"
 )
 
@@ -248,6 +248,7 @@ func (q *ApiRequest) AddBookInfoApplication(context string) *ApiRequest {
 	params := req.Param{
 		"context": context,
 		"status":  1,
+		"public":  1,
 	}
 	header := req.Header{
 		"Accept":        "application/json",
