@@ -274,14 +274,14 @@ func (a *Application) upgradeForHelmGitOrHelmLocal(installFlags *flag.InstallFla
 	params = append(params, "--timeout", "60m")
 	params = append(params, commonParams...)
 
-	//log.Info("building dependency...")
-	//depParams := []string{"dependency", "build", resourcesPath[0]}
-	//depParams = append(depParams, commonParams...)
-	//_, err := tools.ExecCommand(nil, true, "helm", depParams...)
-	//if err != nil {
-	//	log.ErrorE(err, "fail to build dependency for helm app")
-	//	return err
-	//}
+	log.Info("building dependency...")
+	depParams := []string{"dependency", "build", resourcesPath[0]}
+	depParams = append(depParams, commonParams...)
+	_, err = tools.ExecCommand(nil, true, "helm", depParams...)
+	if err != nil {
+		log.ErrorE(err, "fail to build dependency for helm app")
+		return err
+	}
 
 	fmt.Println("Upgrading helm application, this may take several minutes, please waiting...")
 	_, err = tools.ExecCommand(nil, true, "helm", params...)
