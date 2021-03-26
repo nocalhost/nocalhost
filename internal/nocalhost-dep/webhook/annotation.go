@@ -66,7 +66,6 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 					if err == nil && resource != nil {
 						if pair := containsAnnotationSign(resource.GetAnnotations()); len(pair) > 0 {
 							dataCh <- pair
-							cancel()
 						}
 					} else {
 						glog.Infof("Fail to find by gvr(%v) with name(%s) ns(%s): %v", mapping.Resource, name, "", err)
@@ -78,7 +77,6 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 					if err == nil && resource != nil {
 						if pair := containsAnnotationSign(resource.GetAnnotations()); len(pair) > 0 {
 							dataCh <- pair
-							cancel()
 						}
 					} else {
 						glog.Infof("Fail to find by gvr(%v) with name(%s) ns(%s): %v", mapping.Resource.Resource, name, ns, err)
@@ -89,6 +87,7 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 
 		select {
 		case group := <-dataCh:
+			cancel()
 			return group
 		case <-ctx.Done():
 			glog.Infof("timeout while getting owner ref")
