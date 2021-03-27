@@ -267,7 +267,7 @@ func (a *Application) initDir() error {
 		return errors.Wrap(err, "")
 	}
 
-	log.Infof("Making dir %s", a.getDbDir())
+	//log.Infof("Making dir %s", a.getDbDir())
 	return errors.Wrap(os.MkdirAll(a.getDbDir(), DefaultNewFilePermission), "")
 }
 
