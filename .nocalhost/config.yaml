@@ -3,7 +3,7 @@ configProperties:
 
 application:
   name: nocalhost
-  manifestType: rawManifest
+  manifestType: helmGit
   resourcePath: ["deployments/chart"]
   helmValues:
     - key: service.type
@@ -18,7 +18,7 @@ application:
       containers:
         - name: nocalhost-api
           dev:
-            gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost.git
+            gitUrl: https://github.com/nocalhost/nocalhost.git
             image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang:latest
             workDir: /home/nocalhost-dev
             shell: "bash"

@@ -119,7 +119,23 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		return nil, err
 	}
 
-	//
+	db, err := nocalhost.OpenApplicationLevelDB(app.NameSpace, app.Name, true)
+	if err != nil {
+		if db != nil {
+			db.Close()
+		}
+		db, err = nocalhost.OpenApplicationLevelDB(app.NameSpace, app.Name, false) // Init leveldb dir
+		if db != nil {
+			db.Close()
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	if db != nil {
+		db.Close()
+	}
+
 	appProfile, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, nil)
 	if err != nil {
 		return nil, err
