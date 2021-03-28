@@ -23,44 +23,47 @@ import (
 	"time"
 )
 
-func OpenLevelDB(path string, readonly bool) (*leveldb.DB, error) {
-	//existed := CheckIfApplicationExist(app, ns)
-	//if !existed {
-	//	return nil, errors.New(fmt.Sprintf("Applicaton %s in %s not exists", app, ns))
-	//}
+// Create a level db
+// If leveldb already exists, return error
+func CreateLevelDB(path string) error {
+	db, err := leveldb.OpenFile(path, &opt.Options{
+		ErrorIfExist: true,
+	})
+	if db != nil {
+		_ = db.Close()
+	}
+	return errors.Wrap(err, "")
+}
 
-	//path := getAppDbDir(ns, app)
+// Open a leveldb
+// If leveldb is corrupted, try to recover it
+// If leveldb is EAGAIN, retry to open it in 1 minutes
+// If leveldb is missing, return a error instead create one
+func OpenLevelDB(path string, readonly bool) (*leveldb.DB, error) {
 	var o *opt.Options
+	o = &opt.Options{
+		ErrorIfMissing: true,
+	}
 	if readonly {
-		o = &opt.Options{
-			ReadOnly: true,
-		}
+		o.ReadOnly = true
 	}
 	db, err := leveldb.OpenFile(path, o)
 	if err != nil {
-		for i := 0; i < 300; i++ {
-			if errors.Is(err, syscall.EAGAIN) {
-				log.Log("Another process is accessing leveldb, wait for 0.2s to retry")
+		if leveldb_errors.IsCorrupted(err) {
+			log.Info("Recovering leveldb file...")
+			db, err = leveldb.RecoverFile(path, nil)
+		} else if errors.Is(err, syscall.EAGAIN) {
+			for i := 0; i < 300; i++ {
+				log.Logf("Another process is accessing leveldb: %s, wait for 0.2s to retry", path)
 				time.Sleep(200 * time.Millisecond)
 				db, err = leveldb.OpenFile(path, nil)
 				if err == nil {
 					break
 				}
-				//} else if strings.Contains(err.Error(), "leveldb: manifest corrupted") {
-			} else if leveldb_errors.IsCorrupted(err) {
-				log.Info("Recovering leveldb file...")
-				db, err = leveldb.RecoverFile(path, nil)
-				if err != nil {
-					log.WarnE(err, "")
-				} else {
-					break
-				}
 			}
 		}
-		if err == nil {
-			log.Log("Retry success")
-		} else {
-			return nil, errors.Wrap(err, "Retry opening leveldb failed : timeout")
+		if err != nil {
+			return nil, errors.Wrap(err, "Retry opening leveldb failed: ")
 		}
 	}
 	return db, nil

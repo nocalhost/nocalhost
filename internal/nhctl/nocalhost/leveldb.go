@@ -21,15 +21,20 @@ import (
 )
 
 func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) {
-	//existed := CheckIfApplicationExist(app, ns)
-	//if !existed {
-	//	return nil, errors.New(fmt.Sprintf("Applicaton %s in %s not exists", app, ns))
-	//}
-
 	path := nocalhost_path.GetAppDbDir(ns, app)
 	return dbutils.OpenLevelDB(path, readonly)
-
 }
+
+func CreateApplicationLevelDB(ns, app string) error {
+	path := nocalhost_path.GetAppDbDir(ns, app)
+	return dbutils.CreateLevelDB(path)
+}
+
+// todo
+//func CheckIfApplicationLevelDBExists(ns,app string) error {
+//	path := nocalhost_path.GetAppDbDir(ns, app)
+//
+//}
 
 func ListAllFromApplicationDb(ns, appName string) (map[string]string, error) {
 	db, err := OpenApplicationLevelDB(ns, appName, true)
@@ -47,7 +52,5 @@ func ListAllFromApplicationDb(ns, appName string) (map[string]string, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
-	//fmt.Println("Hold db lock for 1 minutes")
-	//time.Sleep(1 * time.Minute)
 	return result, nil
 }

@@ -60,13 +60,14 @@ func ProfileV2Key(ns, app string) string {
 	return fmt.Sprintf("%s.%s.profile.v2", ns, app)
 }
 
-func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) {
-	path := nocalhost_path.GetAppDbDir(ns, app)
-	return dbutils.OpenLevelDB(path, readonly)
-}
+//func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) {
+//	path := nocalhost_path.GetAppDbDir(ns, app)
+//	return dbutils.OpenLevelDB(path, readonly)
+//}
 
 func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
-	db, err := OpenApplicationLevelDB(ns, name, false)
+	path := nocalhost_path.GetAppDbDir(ns, name)
+	db, err := dbutils.OpenLevelDB(path, false)
 	if err != nil {
 		return nil, err
 	}
