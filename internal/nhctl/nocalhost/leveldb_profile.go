@@ -17,7 +17,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"gopkg.in/yaml.v2"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
+	"os"
 	"strings"
 )
 
@@ -39,6 +41,10 @@ func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2, transactio
 	//for _, pf := range profileV2.FetchSvcProfileV2FromProfile("productpage").DevPortForwardList {
 	//	log.Infof("%v", *pf)
 	//}
+	// Double check
+	if _, err = os.Stat(nocalhost_path.GetAppDbDir(ns, app)); err != nil {
+		return errors.Wrap(err, "")
+	}
 	return errors.Wrap(db.Put([]byte(profile.ProfileV2Key(ns, app)), bys, nil), "")
 }
 

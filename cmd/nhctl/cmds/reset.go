@@ -23,6 +23,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 func init() {
@@ -68,6 +69,7 @@ var resetCmd = &cobra.Command{
 			}
 		}
 		// remove ns dir
+		time.Sleep(1 * time.Second)
 		if nameSpace != "" {
 			nsDir := filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), nameSpace)
 			log.Infof("Removing ns dir : %s", nsDir)
@@ -100,6 +102,7 @@ func resetApplication(applicationName string) {
 	}
 
 	// Remove files
+	time.Sleep(1 * time.Second)
 	err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace)
 	if err != nil {
 		log.WarnE(err, "")
