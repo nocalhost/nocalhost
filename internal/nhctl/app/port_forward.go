@@ -34,7 +34,7 @@ import (
 //}
 
 //func (a *Application) SetPortForwardPid(svcName string, localPort int, remotePort int, pid int) error {
-//	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+//	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name, false)
 //	if err != nil {
 //		return err
 //	}
@@ -70,7 +70,7 @@ import (
 //}
 
 func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, remotePort int, portStatus string, reason string) error {
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}
@@ -95,11 +95,11 @@ func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, rem
 
 func (a *Application) EndDevPortForward(svcName string, localPort int, remotePort int) error {
 
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}
-	//defer profileV2.CloseDb()
+	defer profileV2.CloseDb()
 
 	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
 	if svcProfile == nil {
@@ -156,11 +156,10 @@ func (a *Application) PortForwardAfterDevStart(svcName string, containerName str
 	switch svcType {
 	case Deployment:
 
-		profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, true)
+		profileV2, err := a.GetProfile()
 		if err != nil {
 			return err
 		}
-		profileV2.CloseDb()
 
 		svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
 		if svcProfile == nil {

@@ -34,7 +34,7 @@ import (
 //}
 
 func (a *Application) SetDevelopingStatus(svcName string, is bool) error {
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func (a *Application) SetDevelopingStatus(svcName string, is bool) error {
 }
 
 func (a *Application) SetAppType(t AppType) error {
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (a *Application) SetAppType(t AppType) error {
 }
 
 func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
 //}
 
 func (a *Application) SetSyncingStatus(svcName string, is bool) error {
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func (a *Application) SetSyncingStatus(svcName string, is bool) error {
 }
 
 func (a *Application) SetDevEndProfileStatus(svcName string) error {
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (a *Application) SetDevEndProfileStatus(svcName string) error {
 }
 
 func (a *Application) SetSyncthingPort(svcName string, remotePort, remoteGUIPort, localPort, localGUIPort int) error {
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}
@@ -133,7 +133,7 @@ func (a *Application) SetSyncthingPort(svcName string, remotePort, remoteGUIPort
 }
 
 func (a *Application) SetSyncthingProfileEndStatus(svcName string) error {
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}

@@ -170,7 +170,7 @@ func (a *Application) CreateSyncThingSecret(svcName string, syncSecret *corev1.S
 		return err
 	}
 
-	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, _ := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	defer profileV2.CloseDb()
 
 	svcPro := profileV2.FetchSvcProfileV2FromProfile(svcName)

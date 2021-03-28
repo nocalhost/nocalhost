@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-func OpenApplicationLevelDB(path string, readonly bool) (*leveldb.DB, error) {
+func OpenLevelDB(path string, readonly bool) (*leveldb.DB, error) {
 	//existed := CheckIfApplicationExist(app, ns)
 	//if !existed {
 	//	return nil, errors.New(fmt.Sprintf("Applicaton %s in %s not exists", app, ns))

@@ -27,7 +27,7 @@ func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) 
 	//}
 
 	path := nocalhost_path.GetAppDbDir(ns, app)
-	return dbutils.OpenApplicationLevelDB(path, readonly)
+	return dbutils.OpenLevelDB(path, readonly)
 
 }
 

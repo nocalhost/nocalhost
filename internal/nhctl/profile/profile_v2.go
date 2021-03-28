@@ -62,11 +62,11 @@ func ProfileV2Key(ns, app string) string {
 
 func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) {
 	path := nocalhost_path.GetAppDbDir(ns, app)
-	return dbutils.OpenApplicationLevelDB(path, readonly)
+	return dbutils.OpenLevelDB(path, readonly)
 }
 
-func NewAppProfileV2(ns, name string, readonly bool) (*AppProfileV2, error) {
-	db, err := OpenApplicationLevelDB(ns, name, readonly)
+func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
+	db, err := OpenApplicationLevelDB(ns, name, false)
 	if err != nil {
 		return nil, err
 	}
@@ -145,6 +145,9 @@ func (a *AppProfileV2) Save() error {
 }
 
 func (a *AppProfileV2) CloseDb() error {
+	if a.db == nil {
+		return nil
+	}
 	return a.db.Close()
 }
 

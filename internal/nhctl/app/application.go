@@ -323,7 +323,7 @@ func (a *Application) GetApplicationConfigV2() *profile.ApplicationConfig {
 
 func (a *Application) SaveSvcProfileV2(svcName string, config *profile.ServiceConfigV2) error {
 
-	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, _ := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	defer profileV2.CloseDb()
 
 	svcPro := profileV2.FetchSvcProfileV2FromProfile(svcName)
@@ -349,12 +349,7 @@ func (a *Application) SaveSvcProfileV2(svcName string, config *profile.ServiceCo
 
 func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
 	//a.LoadAppProfileV2()
-	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, true)
-	profileV2.CloseDb()
-	//a.LoadConfigV2()
-	//if a.configV2 == nil {
-	//	return nil
-	//}
+	profileV2, _ := a.GetProfile()
 	return &profile.ApplicationConfig{
 		ResourcePath: profileV2.ResourcePath,
 		IgnoredPath:  profileV2.IgnoredPath,
@@ -365,7 +360,7 @@ func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
 }
 
 func (a *Application) SaveAppProfileV2(config *profile.ApplicationConfig) error {
-	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, _ := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	defer profileV2.CloseDb()
 
 	//a.AppProfileV2.ResourcePath = config.ResourcePath

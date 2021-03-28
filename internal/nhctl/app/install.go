@@ -144,7 +144,7 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 		installParams = append(installParams, "--wait")
 	}
 
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func (a *Application) installHelmInGit(flags *HelmFlags) error {
 		return err
 	}
 
-	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, _ := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	defer profileV2.CloseDb()
 
 	profileV2.ReleaseName = releaseName
@@ -257,7 +257,7 @@ func (a *Application) InstallDepConfigMap() error {
 			InstallEnv: appEnv,
 		}
 
-		profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+		profileV2, _ := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 		defer profileV2.CloseDb()
 		// release name a.Name
 		if profileV2.AppType != string(Manifest) {
@@ -315,12 +315,13 @@ func (a *Application) installManifestRecursively() error {
 }
 
 func (a *Application) SetInstalledStatus(is bool) {
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return
 	}
 	defer profileV2.CloseDb()
 	profileV2.Installed = is
+	profileV2.Save()
 }
 
 func (a *Application) loadInstallManifest() {

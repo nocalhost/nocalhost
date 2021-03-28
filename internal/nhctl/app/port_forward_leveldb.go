@@ -20,16 +20,9 @@ import (
 )
 
 func (a *Application) CheckIfPortForwardExists(svcName string, localPort, remotePort int) (bool, error) {
-
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, true)
+	svcProfile, err := a.GetSvcProfile(svcName)
 	if err != nil {
 		return false, err
-	}
-	defer profileV2.CloseDb()
-
-	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
-	if svcProfile == nil {
-		return false, errors.New("Failed to get svc profile")
 	}
 	for _, portForward := range svcProfile.DevPortForwardList {
 		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
@@ -42,7 +35,7 @@ func (a *Application) CheckIfPortForwardExists(svcName string, localPort, remote
 // You should `CheckIfPortForwardExists` before adding a port-forward to db
 func (a *Application) AddPortForwardToDB(svcName string, port *profile.DevPortForward) error {
 
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}
@@ -59,7 +52,7 @@ func (a *Application) AddPortForwardToDB(svcName string, port *profile.DevPortFo
 
 func (a *Application) DeletePortForwardFromDB(svcName string, localPort, remotePort int) error {
 
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}
@@ -88,11 +81,10 @@ func (a *Application) DeletePortForwardFromDB(svcName string, localPort, remoteP
 			}
 		}
 		svcProfile.DevPortForwardList = newList
-		log.Infof("Deleting pf %d:%d", localPort, remotePort)
-		log.Info("After")
-		for _, pf := range profileV2.FetchSvcProfileV2FromProfile(svcName).DevPortForwardList {
-			log.Infof("%v", *pf)
-		}
+		log.Logf("Deleting pf %d:%d", localPort, remotePort)
+		//for _, pf := range profileV2.FetchSvcProfileV2FromProfile(svcName).DevPortForwardList {
+		//	log.Infof("%v", *pf)
+		//}
 		return profileV2.Save()
 	}
 	return nil
