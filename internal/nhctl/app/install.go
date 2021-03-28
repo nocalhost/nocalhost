@@ -234,7 +234,10 @@ func (a *Application) installHelmInGit(flags *HelmFlags) error {
 		return err
 	}
 
-	profileV2, _ := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
+	if err != nil {
+		return err
+	}
 	defer profileV2.CloseDb()
 
 	profileV2.ReleaseName = releaseName
@@ -257,7 +260,10 @@ func (a *Application) InstallDepConfigMap() error {
 			InstallEnv: appEnv,
 		}
 
-		profileV2, _ := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
+		profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
+		if err != nil {
+			return err
+		}
 		defer profileV2.CloseDb()
 		// release name a.Name
 		if profileV2.AppType != string(Manifest) {

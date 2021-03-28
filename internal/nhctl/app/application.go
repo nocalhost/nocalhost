@@ -323,7 +323,10 @@ func (a *Application) GetApplicationConfigV2() *profile.ApplicationConfig {
 
 func (a *Application) SaveSvcProfileV2(svcName string, config *profile.ServiceConfigV2) error {
 
-	profileV2, _ := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
+	if err != nil {
+		return err
+	}
 	defer profileV2.CloseDb()
 
 	svcPro := profileV2.FetchSvcProfileV2FromProfile(svcName)
@@ -360,7 +363,10 @@ func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
 }
 
 func (a *Application) SaveAppProfileV2(config *profile.ApplicationConfig) error {
-	profileV2, _ := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
+	if err != nil {
+		return err
+	}
 	defer profileV2.CloseDb()
 
 	//a.AppProfileV2.ResourcePath = config.ResourcePath

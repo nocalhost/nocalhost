@@ -76,7 +76,10 @@ var devStartCmd = &cobra.Command{
 		devStartOps.Kubeconfig = kubeConfig
 		log.Info("Starting DevMode...")
 
-		profileV2, _ := profile.NewAppProfileV2ForUpdate(nocalhostApp.NameSpace, nocalhostApp.Name)
+		profileV2, err := profile.NewAppProfileV2ForUpdate(nocalhostApp.NameSpace, nocalhostApp.Name)
+		if err != nil {
+			log.FatalE(err, "")
+		}
 
 		svcProfile := profileV2.FetchSvcProfileV2FromProfile(deployment)
 		if svcProfile == nil {

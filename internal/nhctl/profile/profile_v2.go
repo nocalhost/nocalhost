@@ -20,6 +20,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"strings"
 )
 
 const (
@@ -75,15 +76,31 @@ func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
 	result := &AppProfileV2{}
 	bys, err := db.Get([]byte(ProfileV2Key(ns, name)), nil)
 	if err != nil {
-		db.Close()
 		if err == leveldb.ErrNotFound {
-			return nil, nil
+			result := make(map[string][]byte, 0)
+			iter := db.NewIterator(nil, nil)
+			for iter.Next() {
+				result[string(iter.Key())] = iter.Value()
+			}
+			iter.Release()
+			err = iter.Error()
+			if err != nil {
+				return nil, errors.Wrap(err, "")
+			}
+			for key, val := range result {
+				if strings.Contains(key, "profile.v2") {
+					bys = val
+					break
+				}
+			}
+		} else {
+			db.Close()
+			return nil, errors.Wrap(err, "")
 		}
-		return nil, errors.Wrap(err, "")
 	}
 	if len(bys) == 0 {
 		db.Close()
-		return nil, nil
+		return nil, errors.New("Profile not found")
 	}
 
 	err = yaml.Unmarshal(bys, result)
