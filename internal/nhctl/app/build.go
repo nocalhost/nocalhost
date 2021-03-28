@@ -50,6 +50,10 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, err
 	}
 
+	err = nocalhost.CreateApplicationLevelDB(app.NameSpace, app.Name)
+	if err != nil {
+		return nil, err
+	}
 	//err = app.LoadAppProfileV2(false)
 	//if err != nil {
 	//	return nil, err

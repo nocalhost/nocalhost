@@ -34,7 +34,7 @@ var syncStatusCmd = &cobra.Command{
 		applicationName := args[0]
 		initApp(applicationName)
 
-		if !nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
+		if b, _ := nocalhostApp.CheckIfSvcIsDeveloping(deployment); !b {
 			display(req.NotInDevModeTemplate)
 			return
 		}

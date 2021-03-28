@@ -23,7 +23,7 @@ import (
 
 func (a *Application) cleanUpDepConfigMap() error {
 
-	profileV2, err := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}

@@ -229,7 +229,6 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResou
 								log.Infof("Stop sending heart beat to %d", localPort)
 								return
 							default:
-								<-time.After(30 * time.Second)
 								log.Infof("try to send port-forward heartbeat to %d", localPort)
 								err := nocalhostApp.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", "127.0.0.1", localPort))
 								if err != nil {
@@ -244,6 +243,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(svc *model.NocalHostResou
 									nocalhostApp.UpdatePortForwardStatus(svc.Service, localPort, remotePort, lastStatus, "Heart Beat")
 									p.lock.Unlock()
 								}
+								<-time.After(30 * time.Second)
 							}
 						}
 					}()

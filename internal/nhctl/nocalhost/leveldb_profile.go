@@ -17,7 +17,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"gopkg.in/yaml.v2"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
+	"os"
+	"strings"
 )
 
 func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2, transactionDb *leveldb.DB) error {
@@ -38,6 +41,10 @@ func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2, transactio
 	//for _, pf := range profileV2.FetchSvcProfileV2FromProfile("productpage").DevPortForwardList {
 	//	log.Infof("%v", *pf)
 	//}
+	// Double check
+	if _, err = os.Stat(nocalhost_path.GetAppDbDir(ns, app)); err != nil {
+		return errors.Wrap(err, "")
+	}
 	return errors.Wrap(db.Put([]byte(profile.ProfileV2Key(ns, app)), bys, nil), "")
 }
 
@@ -55,12 +62,28 @@ func GetProfileV2(ns, app string, transactionDb *leveldb.DB) (*profile.AppProfil
 	bys, err := db.Get([]byte(profile.ProfileV2Key(ns, app)), nil)
 	if err != nil {
 		if err == leveldb.ErrNotFound {
-			return nil, nil
+			result := make(map[string][]byte, 0)
+			iter := db.NewIterator(nil, nil)
+			for iter.Next() {
+				result[string(iter.Key())] = iter.Value()
+			}
+			iter.Release()
+			err = iter.Error()
+			if err != nil {
+				return nil, errors.Wrap(err, "")
+			}
+			for key, val := range result {
+				if strings.Contains(key, "profile.v2") {
+					bys = val
+					break
+				}
+			}
+		} else {
+			return nil, errors.Wrap(err, "")
 		}
-		return nil, errors.Wrap(err, "")
 	}
 	if len(bys) == 0 {
-		return nil, nil
+		return nil, errors.New("Profile not found")
 	}
 
 	err = yaml.Unmarshal(bys, result)

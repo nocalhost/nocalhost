@@ -20,6 +20,8 @@ import (
 	"gopkg.in/yaml.v2"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"os"
+	"strings"
 )
 
 const (
@@ -52,6 +54,7 @@ type AppProfileV2 struct {
 	Env     []*Env  `json:"env" yaml:"env"`
 	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
 	db      *leveldb.DB
+	dbPath  string
 	appName string
 	ns      string
 }
@@ -60,13 +63,14 @@ func ProfileV2Key(ns, app string) string {
 	return fmt.Sprintf("%s.%s.profile.v2", ns, app)
 }
 
-func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) {
-	path := nocalhost_path.GetAppDbDir(ns, app)
-	return dbutils.OpenApplicationLevelDB(path, readonly)
-}
+//func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) {
+//	path := nocalhost_path.GetAppDbDir(ns, app)
+//	return dbutils.OpenLevelDB(path, readonly)
+//}
 
-func NewAppProfileV2(ns, name string, readonly bool) (*AppProfileV2, error) {
-	db, err := OpenApplicationLevelDB(ns, name, readonly)
+func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
+	path := nocalhost_path.GetAppDbDir(ns, name)
+	db, err := dbutils.OpenLevelDB(path, false)
 	if err != nil {
 		return nil, err
 	}
@@ -74,15 +78,31 @@ func NewAppProfileV2(ns, name string, readonly bool) (*AppProfileV2, error) {
 	result := &AppProfileV2{}
 	bys, err := db.Get([]byte(ProfileV2Key(ns, name)), nil)
 	if err != nil {
-		db.Close()
 		if err == leveldb.ErrNotFound {
-			return nil, nil
+			result := make(map[string][]byte, 0)
+			iter := db.NewIterator(nil, nil)
+			for iter.Next() {
+				result[string(iter.Key())] = iter.Value()
+			}
+			iter.Release()
+			err = iter.Error()
+			if err != nil {
+				return nil, errors.Wrap(err, "")
+			}
+			for key, val := range result {
+				if strings.Contains(key, "profile.v2") {
+					bys = val
+					break
+				}
+			}
+		} else {
+			db.Close()
+			return nil, errors.Wrap(err, "")
 		}
-		return nil, errors.Wrap(err, "")
 	}
 	if len(bys) == 0 {
 		db.Close()
-		return nil, nil
+		return nil, errors.New("Profile not found")
 	}
 
 	err = yaml.Unmarshal(bys, result)
@@ -94,6 +114,7 @@ func NewAppProfileV2(ns, name string, readonly bool) (*AppProfileV2, error) {
 	result.ns = ns
 	result.appName = name
 	result.db = db
+	result.dbPath = path
 	return result, nil
 }
 
@@ -141,10 +162,16 @@ func (a *AppProfileV2) Save() error {
 	//for _, pf := range a.FetchSvcProfileV2FromProfile("productpage").DevPortForwardList {
 	//	log.Infof("%v", *pf)
 	//}
+	if _, err = os.Stat(a.dbPath); err != nil {
+		return errors.Wrap(err, "")
+	}
 	return errors.Wrap(a.db.Put([]byte(ProfileV2Key(a.ns, a.appName)), bys, nil), "")
 }
 
 func (a *AppProfileV2) CloseDb() error {
+	if a.db == nil {
+		return nil
+	}
 	return a.db.Close()
 }
 

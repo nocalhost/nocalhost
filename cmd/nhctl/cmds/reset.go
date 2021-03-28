@@ -14,10 +14,16 @@ limitations under the License.
 package cmds
 
 import (
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
+	"os"
+	"path/filepath"
+	"time"
 )
 
 func init() {
@@ -31,6 +37,12 @@ var resetCmd = &cobra.Command{
 	Long:  `reset application`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
+		if nameSpace == "" {
+			nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig)
+			if err != nil {
+				log.FatalE(err, "Failed to get namespace")
+			}
+		}
 		if len(args) > 0 {
 			applicationName := args[0]
 			if applicationName != "" {
@@ -56,6 +68,17 @@ var resetCmd = &cobra.Command{
 				resetApplication(appName)
 			}
 		}
+		// remove ns dir
+		time.Sleep(1 * time.Second)
+		if nameSpace != "" {
+			nsDir := filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), nameSpace)
+			log.Infof("Removing ns dir : %s", nsDir)
+			err = os.RemoveAll(nsDir)
+			if err != nil {
+				log.FatalE(errors.Wrap(err, ""), "")
+			}
+		}
+
 	},
 }
 
@@ -79,6 +102,7 @@ func resetApplication(applicationName string) {
 	}
 
 	// Remove files
+	time.Sleep(1 * time.Second)
 	err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace)
 	if err != nil {
 		log.WarnE(err, "")
