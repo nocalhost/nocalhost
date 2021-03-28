@@ -14,41 +14,45 @@ limitations under the License.
 package app
 
 import (
+	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/profile"
 )
 
-func (a *Application) CheckIfSvcIsDeveloping(svcName string) bool {
-	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, true)
-	defer profileV2.CloseDb()
-
+func (a *Application) GetSvcProfile(svcName string) (*profile.SvcProfileV2, error) {
+	profileV2, err := a.GetProfile()
+	if err != nil {
+		return nil, err
+	}
 	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
 	if svcProfile == nil {
-		return false
+		return nil, errors.New("Svc profile not found")
 	}
+	return svcProfile, nil
 
-	return svcProfile.Developing
+}
+func (a *Application) CheckIfSvcIsDeveloping(svcName string) (bool, error) {
+
+	svcProfile, err := a.GetSvcProfile(svcName)
+	if err != nil {
+		return false, err
+	}
+	return svcProfile.Developing, nil
 }
 
-func (a *Application) CheckIfSvcIsSyncthing(svcName string) bool {
-	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, true)
-	defer profileV2.CloseDb()
-
-	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
-	if svcProfile == nil {
-		return false
+func (a *Application) CheckIfSvcIsSyncthing(svcName string) (bool, error) {
+	svcProfile, err := a.GetSvcProfile(svcName)
+	if err != nil {
+		return false, err
 	}
-	return svcProfile.Syncing
+	return svcProfile.Syncing, nil
 }
 
-func (a *Application) CheckIfSvcIsPortForwarded(svcName string) bool {
-	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, true)
-	defer profileV2.CloseDb()
-
-	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
-	if svcProfile == nil {
-		return false
+func (a *Application) CheckIfSvcIsPortForwarded(svcName string) (bool, error) {
+	svcProfile, err := a.GetSvcProfile(svcName)
+	if err != nil {
+		return false, err
 	}
-	return svcProfile.PortForwarded
+	return svcProfile.PortForwarded, nil
 }
 
 //func (a *Application) GetSvcProfileV2(svcName string) *profile.SvcProfileV2 {

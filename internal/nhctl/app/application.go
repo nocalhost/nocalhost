@@ -91,8 +91,6 @@ type SvcDependency struct {
 
 func (a *Application) moveProfileFromFileToLeveldb() error {
 
-	log.Log("Move profile to leveldb")
-
 	profileV2 := &profile.AppProfileV2{}
 
 	fBytes, err := ioutil.ReadFile(a.getProfileV2Path())
@@ -103,6 +101,7 @@ func (a *Application) moveProfileFromFileToLeveldb() error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
+	log.Log("Move profile to leveldb")
 
 	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2, nil)
 }
@@ -124,10 +123,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		if db != nil {
 			db.Close()
 		}
-		db, err = nocalhost.OpenApplicationLevelDB(app.NameSpace, app.Name, false) // Init leveldb dir
-		if db != nil {
-			db.Close()
-		}
+		err = nocalhost.CreateApplicationLevelDB(app.NameSpace, app.Name) // Init leveldb dir
 		if err != nil {
 			return nil, err
 		}
@@ -138,10 +134,10 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 
 	appProfile, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, nil)
 	if err != nil {
-		return nil, err
-	}
-	if appProfile == nil {
-		app.moveProfileFromFileToLeveldb()
+		err = app.moveProfileFromFileToLeveldb()
+		if err != nil {
+			return nil, err
+		}
 		appProfile, err = nocalhost.GetProfileV2(app.NameSpace, app.Name, nil)
 		if err != nil {
 			return nil, err
@@ -323,7 +319,10 @@ func (a *Application) GetApplicationConfigV2() *profile.ApplicationConfig {
 
 func (a *Application) SaveSvcProfileV2(svcName string, config *profile.ServiceConfigV2) error {
 
-	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
+	if err != nil {
+		return err
+	}
 	defer profileV2.CloseDb()
 
 	svcPro := profileV2.FetchSvcProfileV2FromProfile(svcName)
@@ -349,12 +348,7 @@ func (a *Application) SaveSvcProfileV2(svcName string, config *profile.ServiceCo
 
 func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
 	//a.LoadAppProfileV2()
-	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, true)
-	profileV2.CloseDb()
-	//a.LoadConfigV2()
-	//if a.configV2 == nil {
-	//	return nil
-	//}
+	profileV2, _ := a.GetProfile()
 	return &profile.ApplicationConfig{
 		ResourcePath: profileV2.ResourcePath,
 		IgnoredPath:  profileV2.IgnoredPath,
@@ -365,7 +359,10 @@ func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
 }
 
 func (a *Application) SaveAppProfileV2(config *profile.ApplicationConfig) error {
-	profileV2, _ := profile.NewAppProfileV2(a.NameSpace, a.Name, false)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
+	if err != nil {
+		return err
+	}
 	defer profileV2.CloseDb()
 
 	//a.AppProfileV2.ResourcePath = config.ResourcePath

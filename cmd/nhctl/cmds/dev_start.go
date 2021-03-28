@@ -69,14 +69,17 @@ var devStartCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
 
-		if nocalhostApp.CheckIfSvcIsDeveloping(deployment) {
+		if b, _ := nocalhostApp.CheckIfSvcIsDeveloping(deployment); b {
 			log.Fatalf("Service \"%s\" is already in developing", deployment)
 		}
 
 		devStartOps.Kubeconfig = kubeConfig
 		log.Info("Starting DevMode...")
 
-		profileV2, _ := profile.NewAppProfileV2(nocalhostApp.NameSpace, nocalhostApp.Name, false)
+		profileV2, err := profile.NewAppProfileV2ForUpdate(nocalhostApp.NameSpace, nocalhostApp.Name)
+		if err != nil {
+			log.FatalE(err, "")
+		}
 
 		svcProfile := profileV2.FetchSvcProfileV2FromProfile(deployment)
 		if svcProfile == nil {
