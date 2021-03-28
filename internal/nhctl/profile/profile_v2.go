@@ -20,6 +20,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"os"
 	"strings"
 )
 
@@ -53,6 +54,7 @@ type AppProfileV2 struct {
 	Env     []*Env  `json:"env" yaml:"env"`
 	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
 	db      *leveldb.DB
+	dbPath  string
 	appName string
 	ns      string
 }
@@ -112,6 +114,7 @@ func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
 	result.ns = ns
 	result.appName = name
 	result.db = db
+	result.dbPath = path
 	return result, nil
 }
 
@@ -159,6 +162,9 @@ func (a *AppProfileV2) Save() error {
 	//for _, pf := range a.FetchSvcProfileV2FromProfile("productpage").DevPortForwardList {
 	//	log.Infof("%v", *pf)
 	//}
+	if _, err = os.Stat(a.dbPath); err != nil {
+		return errors.Wrap(err, "")
+	}
 	return errors.Wrap(a.db.Put([]byte(ProfileV2Key(a.ns, a.appName)), bys, nil), "")
 }
 
