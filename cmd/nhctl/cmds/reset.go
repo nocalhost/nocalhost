@@ -14,11 +14,15 @@ limitations under the License.
 package cmds
 
 import (
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
+	"os"
+	"path/filepath"
 )
 
 func init() {
@@ -63,6 +67,16 @@ var resetCmd = &cobra.Command{
 				resetApplication(appName)
 			}
 		}
+		// remove ns dir
+		if nameSpace != "" {
+			nsDir := filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), nameSpace)
+			log.Infof("Removing ns dir : %s", nsDir)
+			err = os.RemoveAll(nsDir)
+			if err != nil {
+				log.FatalE(errors.Wrap(err, ""), "")
+			}
+		}
+
 	},
 }
 
