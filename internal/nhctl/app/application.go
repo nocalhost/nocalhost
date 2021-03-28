@@ -91,8 +91,6 @@ type SvcDependency struct {
 
 func (a *Application) moveProfileFromFileToLeveldb() error {
 
-	log.Log("Move profile to leveldb")
-
 	profileV2 := &profile.AppProfileV2{}
 
 	fBytes, err := ioutil.ReadFile(a.getProfileV2Path())
@@ -103,6 +101,7 @@ func (a *Application) moveProfileFromFileToLeveldb() error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
+	log.Log("Move profile to leveldb")
 
 	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2, nil)
 }
@@ -135,9 +134,6 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 
 	appProfile, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, nil)
 	if err != nil {
-		return nil, err
-	}
-	if appProfile == nil {
 		err = app.moveProfileFromFileToLeveldb()
 		if err != nil {
 			return nil, err
