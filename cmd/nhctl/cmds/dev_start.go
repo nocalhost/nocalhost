@@ -106,26 +106,25 @@ var devStartCmd = &cobra.Command{
 		}
 
 		// try install syncthing
-		if newSyncthing != nil {
-			var downloadVersion = Version
+		//if newSyncthing != nil {
+		var downloadVersion = Version
 
-			// for debug only
-			if devStartOps.SyncthingVersion != "" {
-				downloadVersion = devStartOps.SyncthingVersion
-			}
-
-			_, err := syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
-			if err != nil {
-				log.FatalE(err, "Failed to install syncthing, and no syncthing available locally in "+newSyncthing.BinPath+" please try again.")
-			}
+		// for debug only
+		if devStartOps.SyncthingVersion != "" {
+			downloadVersion = devStartOps.SyncthingVersion
 		}
+
+		_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
+		if err != nil {
+			log.FatalE(err, "Failed to install syncthing, and no syncthing available locally in "+newSyncthing.BinPath+" please try again.")
+		}
+		//}
 
 		// set syncthing secret
 		config, err := newSyncthing.GetRemoteConfigXML()
 		syncSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: deployment + "-" + secret_config.SecretName,
-				//Namespace: nocalhostApp.AppProfile.Namespace,
 			},
 			Type: corev1.SecretTypeOpaque,
 			Data: map[string][]byte{

@@ -145,7 +145,7 @@ func IsSubPathFolder(path string, paths []string) (bool, error) {
 	return false, errors.New("not found")
 }
 
-func (s *Syncthing) cleanupDaemon(pid int, wait bool, typeName string) error {
+func cleanupDaemon(pid int, wait bool, typeName string) error {
 	process, err := ps.FindProcess(pid)
 	if process == nil && err == nil {
 		return nil
@@ -294,8 +294,8 @@ func (s *Syncthing) Run(ctx context.Context) error {
 }
 
 // Stop syncthing background process or port-forward progress, and clean up pid files.
-func (s *Syncthing) Stop(pid int, pidFilePath string, typeName string, force bool) error {
-	if err := s.cleanupDaemon(pid, force, typeName); err != nil {
+func Stop(pid int, pidFilePath string, typeName string, force bool) error {
+	if err := cleanupDaemon(pid, force, typeName); err != nil {
 		return err
 	}
 

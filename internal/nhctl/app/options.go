@@ -31,7 +31,7 @@ type DevStartOptions struct {
 }
 
 type FileSyncOptions struct {
-	RunAsDaemon    bool
+	//RunAsDaemon    bool
 	SyncDouble     bool
 	SyncedPattern  []string
 	IgnoredPattern []string

@@ -17,10 +17,7 @@ import (
 	"context"
 	"nocalhost/internal/nhctl/app"
 	profile2 "nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/pkg/nhctl/log"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -31,7 +28,7 @@ var fileSyncOps = &app.FileSyncOptions{}
 
 func init() {
 	fileSyncCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
-	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.RunAsDaemon, "daemon", "m", true, "if file sync run as daemon")
+	//fileSyncCmd.Flags().BoolVarP(&fileSyncOps.RunAsDaemon, "daemon", "m", true, "if file sync run as daemon")
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false, "if use double side sync")
 	fileSyncCmd.Flags().BoolVar(&fileSyncOps.Resume, "resume", false, "resume file sync, this will restart port-forward and syncthing")
 	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.SyncedPattern, "synced-pattern", "s", []string{}, "local synced pattern")
@@ -62,16 +59,16 @@ var fileSyncCmd = &cobra.Command{
 		}
 
 		// resume port-forward and syncthing
-		id, err := strconv.Atoi(os.Getenv(daemon.MARK_ENV_NAME))
-		if err != nil || id == 0 {
-			// run once in father progress
-			if fileSyncOps.Resume {
-				err = nocalhostApp.StopFileSyncOnly(deployment)
-				if err != nil {
-					log.WarnE(err, "Error occurs when stopping sync process, ignore")
-				}
+		//id, err := strconv.Atoi(os.Getenv(daemon.MARK_ENV_NAME))
+		//if err != nil || id == 0 {
+		// run once in father progress
+		if fileSyncOps.Resume {
+			err = nocalhostApp.StopFileSyncOnly(deployment)
+			if err != nil {
+				log.WarnE(err, "Error occurs when stopping sync process, ignore")
 			}
 		}
+		//}
 
 		//if nocalhostApp.CheckIfSvcIsSyncthing(deployment) {
 		//	log.Fatalf("Service \"%s\" is already in syncing", deployment)
@@ -103,8 +100,7 @@ var fileSyncCmd = &cobra.Command{
 
 		log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.GetNamespace())
 
-		appProfile, _ := nocalhostApp.GetProfile()
-		svcProfile := appProfile.FetchSvcProfileV2FromProfile(deployment)
+		svcProfile, _ := nocalhostApp.GetSvcProfile(deployment)
 		// Start a pf for syncthing
 		err = nocalhostApp.PortForward(svcProfile.ActualName, podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC")
 		if err != nil {
@@ -159,7 +155,7 @@ var fileSyncCmd = &cobra.Command{
 				}
 
 				if i < 0 {
-					log.ErrorE(err, "Fail to overriding workDir's remote changing")
+					log.WarnE(err, "Fail to overriding workDir's remote changing")
 					break
 				}
 			}
