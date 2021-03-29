@@ -18,13 +18,9 @@ import (
 	"nocalhost/internal/nhctl/app"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/daemon"
-	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
-	"os/exec"
-	"os/signal"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -83,22 +79,22 @@ var fileSyncCmd = &cobra.Command{
 
 		// syncthing port-forward
 		// set abs directory to call myself
-		nhctlAbsDir, err := exec.LookPath(utils.GetNhctlBinName())
-		if err != nil {
-			log.Fatalf("Failed to load nhctl in %v", err)
-		}
+		//nhctlAbsDir, err := exec.LookPath(utils.GetNhctlBinName())
+		//if err != nil {
+		//	log.Fatalf("Failed to load nhctl in %v", err)
+		//}
 
 		// overwrite Args[0] as ABS directory of bin directory
-		os.Args[0] = nhctlAbsDir
+		//os.Args[0] = nhctlAbsDir
 
 		// run in background
-		if fileSyncOps.RunAsDaemon {
-			// when child progress run here, it will check env value and exit, so child will not run above code
-			_, err := daemon.Background(nocalhostApp.GetPortSyncLogFile(deployment), nocalhostApp.GetApplicationBackGroundPortForwardPidFile(deployment), true)
-			if err != nil {
-				log.Fatalf("run port-forward background fail, please try again")
-			}
-		}
+		//if fileSyncOps.RunAsDaemon {
+		//	// when child progress run here, it will check env value and exit, so child will not run above code
+		//	_, err := daemon.Background(nocalhostApp.GetPortSyncLogFile(deployment), nocalhostApp.GetApplicationBackGroundPortForwardPidFile(deployment), true)
+		//	if err != nil {
+		//		log.Fatalf("run port-forward background fail, please try again")
+		//	}
+		//}
 
 		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
 		if err != nil {
@@ -107,125 +103,30 @@ var fileSyncCmd = &cobra.Command{
 
 		log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.GetNamespace())
 
-		// managing termination signal from the terminal. As you can see the stopCh
-		// gets closed to gracefully handle its termination.
-		sigs := make(chan os.Signal, 1)
-		//portForwardReadyCh := make(chan int, 1)
-		//readyToSync := false
-		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
-
-		//listenAddress := []string{"localhost"}
-
 		appProfile, _ := nocalhostApp.GetProfile()
 		svcProfile := appProfile.FetchSvcProfileV2FromProfile(deployment)
+		// Start a pf for syncthing
 		err = nocalhostApp.PortForward(svcProfile.ActualName, podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC")
 		if err != nil {
 			log.FatalE(err, "")
 		}
-		//// start port-forward
-		//go func() {
-		//	lPort := svcProfile.RemoteSyncthingPort
-		//	for {
-		//		//endCh := make(chan struct{})
-		//		endCtx, cancel := context.WithCancel(context.TODO())
-		//		// stopCh control the port forwarding lifecycle. When it gets closed the
-		//		// port forward will terminate
-		//		stopCh := make(chan struct{}, 1)
-		//		// readyCh communicate when the port forward is ready to get traffic
-		//		readyCh := make(chan struct{})
-		//		// stream is used to tell the port forwarder where to place its output or
-		//		// where to expect input if needed. For the port forwarding we just need
-		//		// the output eventually
-		//		stream := genericclioptions.IOStreams{
-		//			In:     os.Stdin,
-		//			Out:    os.Stdout,
-		//			ErrOut: os.Stderr,
-		//		}
-		//
-		//		k8s_runtime.ErrorHandlers = append(k8s_runtime.ErrorHandlers, func(err error) {
-		//			if strings.Contains(err.Error(), "error creating error stream for port") {
-		//				log.Warnf("Port-forward %d:%d failed to create stream, try to reconnecting", lPort, svcProfile.RemoteSyncthingPort)
-		//				select {
-		//				case _, isOpen := <-stopCh:
-		//					if isOpen {
-		//						log.Infof("Closing Port-forward %d:%d' by stop chan", lPort, svcProfile.RemoteSyncthingPort)
-		//						close(stopCh)
-		//					} else {
-		//						log.Infof("Port-forward %d:%d has been closed, do nothing", lPort, svcProfile.RemoteSyncthingPort)
-		//					}
-		//				default:
-		//					log.Infof("Closing Port-forward %d:%d'", lPort, svcProfile.RemoteSyncthingPort)
-		//					close(stopCh)
-		//				}
-		//			}
-		//		})
-		//
-		//		go func(readyCh chan struct{}) {
-		//			select {
-		//			case <-readyCh:
-		//				log.Infof("Port forward %d:%d for sync is ready", lPort, svcProfile.RemoteSyncthingPort)
-		//				go func() {
-		//					nocalhostApp.SendHeartBeat(endCtx, listenAddress[0], lPort)
-		//				}()
-		//				if !readyToSync {
-		//					portForwardReadyCh <- 1
-		//					readyToSync = true
-		//				}
-		//			}
-		//		}(readyCh)
-		//
-		//		err := nocalhostApp.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
-		//			Listen: listenAddress,
-		//			Pod: v1.Pod{
-		//				ObjectMeta: metav1.ObjectMeta{
-		//					Name:      podName,
-		//					Namespace: nocalhostApp.GetNamespace(),
-		//				},
-		//			},
-		//			LocalPort: lPort,
-		//			PodPort:   svcProfile.RemoteSyncthingPort,
-		//			Streams:   stream,
-		//			StopCh:    stopCh,
-		//			ReadyCh:   readyCh,
-		//		})
-		//		if err != nil {
-		//			cancel()
-		//			if strings.Contains(err.Error(), "unable to listen on any of the requested ports") {
-		//				log.Warnf("Unable to listen on port %d", lPort)
-		//				return
-		//			}
-		//			log.WarnE(err, "Port-forward failed, reconnecting after 30 seconds...")
-		//			<-time.After(30 * time.Second)
-		//		} else {
-		//			log.Warn("Reconnecting after 30 seconds...")
-		//			cancel()
-		//			<-time.After(30 * time.Second)
-		//		}
-		//		log.Info("Reconnecting...")
-		//	}
-		//}()
-		//
-		//select {
-		//case <-portForwardReadyCh:
-		//	log.Info("Port forward is ready, starting syncing files...")
-		//}
 
 		// Getting pattern from svc profile first
-		appProfile, _ = nocalhostApp.GetProfile()
-		profile := appProfile.FetchSvcProfileV2FromProfile(deployment)
-		if profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync == nil {
-			profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync = &profile2.SyncConfig{}
+		//appProfile, _ = nocalhostApp.GetProfile()
+		//profile := appProfile.FetchSvcProfileV2FromProfile(deployment)
+		if svcProfile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync == nil {
+			svcProfile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync = &profile2.SyncConfig{}
 		}
 		if len(fileSyncOps.IgnoredPattern) != 0 {
-			profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync.IgnoreFilePattern = fileSyncOps.IgnoredPattern
+			svcProfile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync.IgnoreFilePattern = fileSyncOps.IgnoredPattern
 		}
 		if len(fileSyncOps.SyncedPattern) != 0 {
-			profile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync.FilePattern = fileSyncOps.SyncedPattern
+			svcProfile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync.FilePattern = fileSyncOps.SyncedPattern
 		}
 
 		// TODO
 		// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished), the files that have been synchronized will not be synchronized.
-		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, fileSyncOps.Container, profile.LocalAbsoluteSyncDirFromDevStartPlugin, fileSyncOps.SyncDouble)
+		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, fileSyncOps.Container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, fileSyncOps.SyncDouble)
 		if err != nil {
 			log.WarnE(err, "Failed to new syncthing")
 		}
@@ -263,8 +164,5 @@ var fileSyncCmd = &cobra.Command{
 				}
 			}
 		}
-
-		<-sigs
-		log.Info("Stopping file sync...")
 	},
 }
