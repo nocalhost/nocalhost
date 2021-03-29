@@ -80,7 +80,7 @@ var portForwardStartCmd = &cobra.Command{
 		}
 
 		for index, localPort := range localPorts {
-			if err = nocalhostApp.PortForward(deployment, podName, localPort, remotePorts[index]); err != nil {
+			if err = nocalhostApp.PortForward(deployment, podName, localPort, remotePorts[index], ""); err != nil {
 				log.FatalE(err, "")
 			}
 		}

@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/daemon_client"
-	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/ports"
@@ -116,12 +115,12 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 				if err != nil {
 					return err
 				}
-				return client.SendPortForwardCommand(&model.NocalHostResource{
+				return client.SendStopPortForwardCommand(&model.NocalHostResource{
 					NameSpace:   a.NameSpace,
 					Application: a.Name,
 					Service:     svcName,
 					PodName:     "",
-				}, localPort, remotePort, command.StopPortForward)
+				}, localPort, remotePort)
 			} else {
 				log.Infof("Kill %v", *portForward)
 				err := terminate.Terminate(portForward.Pid, true, "port-forward")
@@ -185,7 +184,7 @@ func (a *Application) PortForwardAfterDevStart(svcName string, containerName str
 				continue
 			}
 			log.Infof("Forwarding %d:%d", lPort, rPort)
-			if err = a.PortForward(svcName, podName, lPort, rPort); err != nil {
+			if err = a.PortForward(svcName, podName, lPort, rPort, ""); err != nil {
 				log.WarnE(err, "")
 			}
 		}

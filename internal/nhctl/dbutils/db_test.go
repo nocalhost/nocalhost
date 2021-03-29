@@ -18,6 +18,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"testing"
+	"time"
 )
 
 func TestOpenLevelDB(t *testing.T) {
@@ -28,5 +29,21 @@ func TestOpenLevelDB(t *testing.T) {
 		fmt.Println(err.Error())
 	} else {
 		fmt.Printf("%v exists\n", db)
+	}
+}
+
+func TestOpenLevelDBForPut(t *testing.T) {
+	db, err := leveldb.OpenFile("/tmp/tmp/db", &opt.Options{})
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Printf("db opened\n")
+	}
+
+	time.Sleep(60 * time.Second)
+	fmt.Println("After 60s")
+	err = db.Put([]byte("aaa"), []byte("bbb"), nil)
+	if err != nil {
+		panic(err)
 	}
 }

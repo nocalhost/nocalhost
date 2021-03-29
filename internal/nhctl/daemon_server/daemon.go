@@ -21,7 +21,6 @@ import (
 	"net"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
-	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
@@ -206,10 +205,5 @@ func handleStopPortForwardCommand(cmd *command.PortForwardCommand) error {
 
 // If a port-forward already exist, skip it(don't do anything), and return an error
 func handleStartPortForwardCommand(startCmd *command.PortForwardCommand) error {
-	return pfManager.StartPortForwardGoRoutine(&model.NocalHostResource{
-		NameSpace:   startCmd.NameSpace,
-		Application: startCmd.AppName,
-		Service:     startCmd.Service,
-		PodName:     startCmd.PodName,
-	}, startCmd.LocalPort, startCmd.RemotePort, true)
+	return pfManager.StartPortForwardGoRoutine(startCmd, true)
 }

@@ -202,7 +202,7 @@ type ContainerProfileV2 struct {
 type DevPortForward struct {
 	LocalPort         int
 	RemotePort        int
-	Way               string
+	Role              string
 	Status            string
 	Reason            string
 	PodName           string `json:"podName" yaml:"podName"`

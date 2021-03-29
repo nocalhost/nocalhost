@@ -135,7 +135,7 @@ var installCmd = &cobra.Command{
 						continue
 					}
 					log.Infof("Port forward %d:%d", lPort, rPort)
-					if err = nocalhostApp.PortForward(svcProfile.ActualName, podName, lPort, rPort); err != nil {
+					if err = nocalhostApp.PortForward(svcProfile.ActualName, podName, lPort, rPort, ""); err != nil {
 						log.WarnE(err, "")
 					}
 				}

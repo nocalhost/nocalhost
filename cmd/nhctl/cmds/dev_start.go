@@ -166,7 +166,7 @@ var devStartCmd = &cobra.Command{
 		}
 
 		for _, pf := range pfList {
-			if err = nocalhostApp.PortForward(deployment, podName, pf.LocalPort, pf.RemotePort); err != nil {
+			if err = nocalhostApp.PortForward(deployment, podName, pf.LocalPort, pf.RemotePort, pf.Role); err != nil {
 				log.WarnE(err, "")
 			}
 		}

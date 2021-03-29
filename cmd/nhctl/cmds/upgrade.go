@@ -103,7 +103,7 @@ var upgradeCmd = &cobra.Command{
 			podName := podList.Items[0].Name
 			for _, pf := range pfList {
 				log.Infof("Starting pf %d:%d for %s", pf.LocalPort, pf.RemotePort, svcName)
-				if err = nocalhostApp.PortForward(svcName, podName, pf.LocalPort, pf.RemotePort); err != nil {
+				if err = nocalhostApp.PortForward(svcName, podName, pf.LocalPort, pf.RemotePort, pf.Role); err != nil {
 					log.WarnE(err, "")
 				}
 			}

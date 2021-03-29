@@ -19,7 +19,6 @@ import (
 	"io/ioutil"
 	"net"
 	"nocalhost/internal/nhctl/daemon_client"
-	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
@@ -598,7 +597,8 @@ func (a *Application) ListContainersByDeployment(depName string) ([]corev1.Conta
 	return pods.Items[0].Spec.Containers, nil
 }
 
-func (a *Application) PortForward(deployment, podName string, localPort, remotePort int) error {
+// Role: If set to "SYNC", means it is a pf used for syncthing
+func (a *Application) PortForward(deployment, podName string, localPort, remotePort int, role string) error {
 	if localPort == 0 || remotePort == 0 {
 		return errors.New(fmt.Sprintf("Port-forward %d:%d failed", localPort, remotePort))
 	}
@@ -621,7 +621,7 @@ func (a *Application) PortForward(deployment, podName string, localPort, remoteP
 		PodName:     podName,
 	}
 
-	if err = client.SendPortForwardCommand(nhResource, localPort, remotePort, command.StartPortForward); err != nil {
+	if err = client.SendStartPortForwardCommand(nhResource, localPort, remotePort, role); err != nil {
 		return err
 	} else {
 		log.Infof("Port-forward %d:%d has been started", localPort, remotePort)
