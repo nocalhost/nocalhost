@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -60,10 +61,52 @@ var upgradeCmd = &cobra.Command{
 			log.Fatal("Please make sure all services have exited DevMode")
 		}
 
+		// Stop Port-forward
+		appProfile, err := nocalhostApp.GetProfile()
+		if err != nil {
+			log.FatalE(err, "")
+		}
+		pfListMap := make(map[string][]*profile.DevPortForward, 0)
+		for _, svcProfile := range appProfile.SvcProfile {
+			pfList := make([]*profile.DevPortForward, 0)
+			for _, pf := range svcProfile.DevPortForwardList {
+				pfList = append(pfList, pf)
+				log.Infof("Stopping pf: %d:%d", pf.LocalPort, pf.RemotePort)
+				err = nocalhostApp.EndDevPortForward(svcProfile.ActualName, pf.LocalPort, pf.RemotePort)
+				if err != nil {
+					log.WarnE(err, "")
+				}
+			}
+			if len(pfList) > 0 {
+				pfListMap[svcProfile.ActualName] = pfList
+			}
+		}
+
 		// todo: Validate flags
-		err := nocalhostApp.Upgrade(installFlags)
+		err = nocalhostApp.Upgrade(installFlags)
 		if err != nil {
 			log.FatalE(err, fmt.Sprintf("Failed to upgrade application"))
+		}
+
+		// Restart port forward
+		for svcName, pfList := range pfListMap {
+			// find first pod
+			podList, err := nocalhostApp.GetPodsFromDeployment(svcName)
+			if err != nil {
+				log.WarnE(err, "")
+				continue
+			}
+			if podList == nil || len(podList.Items) == 0 {
+				log.Warnf("No pod found in %s", svcName)
+				continue
+			}
+			podName := podList.Items[0].Name
+			for _, pf := range pfList {
+				log.Infof("Starting pf %d:%d for %s", pf.LocalPort, pf.RemotePort, svcName)
+				if err = nocalhostApp.PortForward(svcName, podName, pf.LocalPort, pf.RemotePort); err != nil {
+					log.WarnE(err, "")
+				}
+			}
 		}
 	},
 }

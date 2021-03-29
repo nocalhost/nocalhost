@@ -151,17 +151,13 @@ func (a *AppProfileV2) FetchSvcProfileV2FromProfile(svcName string) *SvcProfileV
 }
 
 func (a *AppProfileV2) Save() error {
-	//defer a.db.Close()
+	if a.db == nil {
+		return nil
+	}
 	bys, err := yaml.Marshal(a)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-
-	//log.Infof("Saving %v", *a)
-	//log.Infof("pf:")
-	//for _, pf := range a.FetchSvcProfileV2FromProfile("productpage").DevPortForwardList {
-	//	log.Infof("%v", *pf)
-	//}
 	if _, err = os.Stat(a.dbPath); err != nil {
 		return errors.Wrap(err, "")
 	}
