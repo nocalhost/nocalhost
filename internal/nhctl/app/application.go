@@ -144,11 +144,6 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		}
 	}
 
-	//err = app.LoadAppProfileV2()
-	//if err != nil {
-	//	return nil, err
-	//}
-
 	if len(appProfile.PreInstall) == 0 && len(app.configV2.ApplicationConfig.PreInstall) > 0 {
 		appProfile.PreInstall = app.configV2.ApplicationConfig.PreInstall
 		//_ = app.SaveProfile()
@@ -168,23 +163,17 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		}
 	}
 
-	//app.convertDevPortForwardList()
-
 	return app, nil
 }
-
-//func (a *Application) ReadBeforeWriteProfile() error {
-//	return a.LoadAppProfileV2()
-//}
 
 func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
 	app, err := nocalhost.GetProfileV2(a.NameSpace, a.Name, nil)
 	if err != nil {
 		return nil, err
 	}
-	if app == nil {
-		app = &profile.AppProfileV2{}
-	}
+	//if app == nil {
+	//	app = &profile.AppProfileV2{}
+	//}
 	return app, nil
 }
 
@@ -228,15 +217,6 @@ func (a *Application) LoadConfigV2() error {
 	return nil
 }
 
-//func (a *Application) SaveProfileToDb(p *profile.AppProfileV2) error {
-//	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, p)
-//}
-
-// Deprecated
-//func (a *Application) SaveProfile() error {
-//	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.AppProfileV2, nil)
-//}
-
 type HelmFlags struct {
 	Debug    bool
 	Wait     bool
@@ -259,7 +239,6 @@ func (a *Application) ignoredInInstall(manifest string) bool {
 }
 
 func (a *Application) uninstallManifestRecursively() error {
-	//a.loadInstallManifest()
 
 	if len(a.installManifest) > 0 {
 		err := a.client.ApplyForDelete(a.installManifest, true)
@@ -326,11 +305,6 @@ func (a *Application) SaveSvcProfileV2(svcName string, config *profile.ServiceCo
 	defer profileV2.CloseDb()
 
 	svcPro := profileV2.FetchSvcProfileV2FromProfile(svcName)
-	//if svcPro == nil {
-	//	return errors.New("Svc profile not found")
-	//}
-
-	//svcPro := a.GetSvcProfileV2(svcName)
 	if svcPro != nil {
 		config.Name = svcName
 		svcPro.ServiceConfigV2 = config
