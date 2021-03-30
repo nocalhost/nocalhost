@@ -14,7 +14,6 @@ SERVICE_INITIAL=${SERVICE_INITIAL:-false}
 echo "Service initial enable: ${SERVICE_INITIAL}"
 
 export LDFLAGS="\
-    -w \
     -X \"main.GIT_COMMIT_SHA=${GITCOMMIT}\" \
     -X \"nocalhost/internal/nocalhost-api/global.CommitId=${DEVGITCOMMIT}\" \
     -X \"nocalhost/internal/nocalhost-api/global.Branch=${BRANCH}\" \
@@ -24,4 +23,4 @@ export LDFLAGS="\
     ${LDFLAGS:-} \
 "
 
-go build -o "${TARGET}" --ldflags "${LDFLAGS}" "${SOURCE}"
+go build -o "${TARGET}" -gcflags "all=-N -l" --ldflags "${LDFLAGS}" "${SOURCE}"
