@@ -66,6 +66,12 @@ func StartDaemon(isSudoUser bool, v string) error {
 		log.LogE(err)
 	}
 
+	// Recovering syncthing
+	// nhctl sync bookinfo -d productpage --resume --kubeconfig /Users/xinxinhuang/.nh/plugin/kubeConfigs/293_config
+	if err = recoverSyncthing(); err != nil {
+		log.LogE(err)
+	}
+
 	go func() {
 		for {
 			conn, err := listener.Accept()
@@ -165,8 +171,6 @@ func response(conn net.Conn, v interface{}) {
 	}
 	if _, err = conn.Write(bys); err != nil {
 		log.LogE(errors.Wrap(err, ""))
-	} else {
-		//log.Logf("Response %v", v)
 	}
 }
 
@@ -187,21 +191,6 @@ func handleStopPortForwardCommand(cmd *command.PortForwardCommand) error {
 	// For compatibility
 	return pfManager.StopPortForwardGoRoutine(cmd.LocalPort, cmd.RemotePort)
 }
-
-// If a port-forward exists, stop it first, and then start it
-// If a port-forward doesn't exist, start it
-//func handleRestartPortForwardCommand(startCmd *command.PortForwardCommand) error {
-//	// Check if port forward already exists
-//	list, err := nocalhost.ListPortForward(startCmd.NameSpace, startCmd.AppName, startCmd.Service)
-//	if err != nil {
-//		return err
-//	}
-//	for _, pf := range list {
-//		if pf.LocalPort == startCmd.LocalPort && pf.RemotePort == startCmd.RemotePort {
-//			// Stop it
-//		}
-//	}
-//}
 
 // If a port-forward already exist, skip it(don't do anything), and return an error
 func handleStartPortForwardCommand(startCmd *command.PortForwardCommand) error {

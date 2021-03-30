@@ -60,7 +60,17 @@ func (a *Application) StopPortForwardByPort(svcName, port string) error {
 func (a *Application) StopFileSyncOnly(svcName string) error {
 	var err error
 
-	// read and clean up pid file
+	pf, err := a.GetPortForwardForSync(svcName)
+	if err != nil {
+		log.WarnE(err, "")
+	}
+	if pf != nil {
+		if err = a.EndDevPortForward(svcName, pf.LocalPort, pf.RemotePort); err != nil {
+			log.WarnE(err, "")
+		}
+	}
+
+	// Deprecated: port-forward has moved to daemon server
 	portForwardPid, portForwardFilePath, err := a.GetBackgroundSyncPortForwardPid(svcName, false)
 	if err != nil {
 		log.Warn("Failed to get background port-forward pid file, ignored")

@@ -59,38 +59,15 @@ var fileSyncCmd = &cobra.Command{
 		}
 
 		// resume port-forward and syncthing
-		//id, err := strconv.Atoi(os.Getenv(daemon.MARK_ENV_NAME))
-		//if err != nil || id == 0 {
-		// run once in father progress
 		if fileSyncOps.Resume {
 			err = nocalhostApp.StopFileSyncOnly(deployment)
 			if err != nil {
 				log.WarnE(err, "Error occurs when stopping sync process, ignore")
 			}
 		}
-		//}
 
 		//if nocalhostApp.CheckIfSvcIsSyncthing(deployment) {
 		//	log.Fatalf("Service \"%s\" is already in syncing", deployment)
-		//}
-
-		// syncthing port-forward
-		// set abs directory to call myself
-		//nhctlAbsDir, err := exec.LookPath(utils.GetNhctlBinName())
-		//if err != nil {
-		//	log.Fatalf("Failed to load nhctl in %v", err)
-		//}
-
-		// overwrite Args[0] as ABS directory of bin directory
-		//os.Args[0] = nhctlAbsDir
-
-		// run in background
-		//if fileSyncOps.RunAsDaemon {
-		//	// when child progress run here, it will check env value and exit, so child will not run above code
-		//	_, err := daemon.Background(nocalhostApp.GetPortSyncLogFile(deployment), nocalhostApp.GetApplicationBackGroundPortForwardPidFile(deployment), true)
-		//	if err != nil {
-		//		log.Fatalf("run port-forward background fail, please try again")
-		//	}
 		//}
 
 		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)

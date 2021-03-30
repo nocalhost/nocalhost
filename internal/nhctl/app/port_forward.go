@@ -92,6 +92,20 @@ func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, rem
 	return profileV2.Save()
 }
 
+func (a *Application) GetPortForwardForSync(svcName string) (*profile.DevPortForward, error) {
+	var err error
+	svcProfile, err := a.GetSvcProfile(svcName)
+	if err != nil {
+		return nil, err
+	}
+	for _, pf := range svcProfile.DevPortForwardList {
+		if pf.Role == "SYNC" {
+			return pf, nil
+		}
+	}
+	return nil, nil
+}
+
 func (a *Application) EndDevPortForward(svcName string, localPort int, remotePort int) error {
 
 	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
