@@ -15,28 +15,25 @@ package cmds
 
 import (
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 )
 
 func init() {
-	daemonStopCmd.Flags().BoolVar(&isSudoUser, "sudo", false, "Is run as sudo")
-	daemonCmd.AddCommand(daemonStopCmd)
+	dbCompactCmd.Flags().StringVar(&appName, "app", "", "Leveldb data of specified application")
+	dbCompactCmd.Flags().StringVar(&levelDbKey, "key", "", "The key of leveldb data")
+	dbCmd.AddCommand(dbCompactCmd)
 }
 
-var daemonStopCmd = &cobra.Command{
-	Use:   "stop",
-	Short: "Stop nhctl daemon",
-	Long:  `Stop nhctl daemon`,
+var dbCompactCmd = &cobra.Command{
+	Use:   "compact",
+	Short: "compact leveldb data",
+	Long:  `compact leveldb data`,
 	Run: func(cmd *cobra.Command, args []string) {
-		client, err := daemon_client.NewDaemonClient(isSudoUser)
-		if err != nil {
+		if err := nocalhost.CompactApplicationDb(nameSpace, appName, levelDbKey); err != nil {
 			log.FatalE(err, "")
+		} else {
+			log.Info("Db has been compacted")
 		}
-		err = client.SendStopDaemonServerCommand()
-		if err != nil {
-			log.FatalE(err, "")
-		}
-		//log.Info("StopDaemonServerCommand has been sent")
 	},
 }
