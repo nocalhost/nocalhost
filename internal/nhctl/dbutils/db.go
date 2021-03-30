@@ -40,6 +40,9 @@ func CreateLevelDB(path string) error {
 // If leveldb is EAGAIN, retry to open it in 1 minutes
 // If leveldb is missing, return a error instead create one
 func OpenLevelDB(path string, readonly bool) (*leveldb.DB, error) {
+	if !readonly {
+		log.LogStack()
+	}
 	var o *opt.Options
 	o = &opt.Options{
 		ErrorIfMissing: true,
@@ -50,7 +53,7 @@ func OpenLevelDB(path string, readonly bool) (*leveldb.DB, error) {
 	db, err := leveldb.OpenFile(path, o)
 	if err != nil {
 		if leveldb_errors.IsCorrupted(err) {
-			log.Info("Recovering leveldb file...")
+			log.Log("Recovering leveldb file...")
 			db, err = leveldb.RecoverFile(path, nil)
 		} else if errors.Is(err, syscall.EAGAIN) {
 			for i := 0; i < 300; i++ {
@@ -63,7 +66,7 @@ func OpenLevelDB(path string, readonly bool) (*leveldb.DB, error) {
 			}
 		}
 		if err != nil {
-			return nil, errors.Wrap(err, "Retry opening leveldb failed: ")
+			return nil, errors.Wrap(err, "Retry opening leveldb failed")
 		}
 	}
 	return db, nil

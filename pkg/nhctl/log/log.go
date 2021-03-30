@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 
 	"go.uber.org/zap"
@@ -213,5 +214,11 @@ func Log(args ...interface{}) {
 func Logf(format string, args ...interface{}) {
 	if fileEntry != nil {
 		fileEntry.Infof(format, args...)
+	}
+}
+
+func LogStack() {
+	if fileEntry != nil {
+		fileEntry.Debug(string(debug.Stack()))
 	}
 }

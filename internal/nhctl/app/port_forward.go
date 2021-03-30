@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/daemon_client"
-	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/ports"
@@ -29,47 +28,17 @@ import (
 	"time"
 )
 
-//func (a *Application) AppendPortForward(svcName string, devPortForward *profile.DevPortForward) {
-//	a.GetSvcProfileV2(svcName).DevPortForwardList = append(a.GetSvcProfileV2(svcName).DevPortForwardList, devPortForward)
-//}
-
-//func (a *Application) SetPortForwardPid(svcName string, localPort int, remotePort int, pid int) error {
-//	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name, false)
-//	if err != nil {
-//		return err
-//	}
-//	defer profileV2.CloseDb()
-//
-//	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
-//	if svcProfile == nil {
-//		return errors.New("Failed to get svc profile")
-//	}
-//
-//	found := false
-//	for _, portForward := range svcProfile.DevPortForwardList {
-//		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
-//			portForward.Pid = pid
-//			portForward.Updated = time.Now().Format("2006-01-02 15:04:05")
-//			found = true
-//			break
-//		}
-//	}
-//	if !found {
-//		newPF := &profile.DevPortForward{
-//			LocalPort:  localPort,
-//			RemotePort: remotePort,
-//			Way:        "",
-//			Status:     "",
-//			Reason:     "",
-//			Updated:    time.Now().Format("2006-01-02 15:04:05"),
-//			Pid:        pid,
-//		}
-//		svcProfile.DevPortForwardList = append(svcProfile.DevPortForwardList, newPF)
-//	}
-//	return profileV2.Save()
-//}
-
 func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, remotePort int, portStatus string, reason string) error {
+	pf, err := a.GetPortForward(svcName, localPort, remotePort)
+	if err != nil {
+		return err
+	}
+
+	if pf.Status == portStatus {
+		log.Logf("Pf %d:%d's status is already %s, no need to update", pf.LocalPort, pf.RemotePort, pf.Status)
+		return nil
+	}
+
 	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
@@ -91,6 +60,35 @@ func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, rem
 		}
 	}
 	return profileV2.Save()
+}
+
+func (a *Application) GetPortForwardForSync(svcName string) (*profile.DevPortForward, error) {
+	var err error
+	svcProfile, err := a.GetSvcProfile(svcName)
+	if err != nil {
+		return nil, err
+	}
+	for _, pf := range svcProfile.DevPortForwardList {
+		if pf.Role == "SYNC" {
+			return pf, nil
+		}
+	}
+	return nil, nil
+}
+
+// If not found return err
+func (a *Application) GetPortForward(svcName string, localPort, remotePort int) (*profile.DevPortForward, error) {
+	var err error
+	svcProfile, err := a.GetSvcProfile(svcName)
+	if err != nil {
+		return nil, err
+	}
+	for _, pf := range svcProfile.DevPortForwardList {
+		if pf.LocalPort == localPort && pf.RemotePort == remotePort {
+			return pf, nil
+		}
+	}
+	return nil, errors.New("Pf not found")
 }
 
 func (a *Application) EndDevPortForward(svcName string, localPort int, remotePort int) error {
@@ -116,12 +114,12 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 				if err != nil {
 					return err
 				}
-				return client.SendPortForwardCommand(&model.NocalHostResource{
+				return client.SendStopPortForwardCommand(&model.NocalHostResource{
 					NameSpace:   a.NameSpace,
 					Application: a.Name,
 					Service:     svcName,
 					PodName:     "",
-				}, localPort, remotePort, command.StopPortForward)
+				}, localPort, remotePort)
 			} else {
 				log.Infof("Kill %v", *portForward)
 				err := terminate.Terminate(portForward.Pid, true, "port-forward")
@@ -185,7 +183,7 @@ func (a *Application) PortForwardAfterDevStart(svcName string, containerName str
 				continue
 			}
 			log.Infof("Forwarding %d:%d", lPort, rPort)
-			if err = a.PortForward(svcName, podName, lPort, rPort); err != nil {
+			if err = a.PortForward(svcName, podName, lPort, rPort, ""); err != nil {
 				log.WarnE(err, "")
 			}
 		}

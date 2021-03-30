@@ -42,7 +42,7 @@ func (a *Application) GetDependencies() []*SvcDependency {
 		}
 		svcDep := &SvcDependency{
 			Name: svcConfig.Name,
-			Type: string(svcConfig.Type),
+			Type: svcConfig.Type,
 			Jobs: svcConfig.DependLabelSelector.Jobs,
 			Pods: svcConfig.DependLabelSelector.Pods,
 		}
@@ -66,17 +66,6 @@ func (a *Application) GetResourceDir() []string {
 	return []string{a.getGitDir()}
 }
 
-//func (a *Application) getUpgradeResourceDir() []string {
-//	var resourcePath []string
-//	if len(a.AppProfileV2.ResourcePath) != 0 {
-//		for _, path := range a.AppProfileV2.ResourcePath {
-//			fullPath := filepath.Join(a.getUpgradeGitDir(), path)
-//			resourcePath = append(resourcePath, fullPath)
-//		}
-//		return resourcePath
-//	}
-//	return []string{a.getUpgradeGitDir()}
-//}
 func (a *Application) getUpgradeResourceDir(upgradeResourcePath []string) []string {
 	var resourcePath []string
 	if len(upgradeResourcePath) != 0 {
@@ -116,8 +105,7 @@ func (a *Application) getUpgradeIgnoredPath() []string {
 }
 
 func (a *Application) GetDefaultWorkDir(svcName, container string) string {
-	appProfile, _ := a.GetProfile()
-	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile, _ := a.GetSvcProfile(svcName)
 	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).WorkDir != "" {
 		return svcProfile.GetContainerDevConfigOrDefault(container).WorkDir
 	}
@@ -125,8 +113,7 @@ func (a *Application) GetDefaultWorkDir(svcName, container string) string {
 }
 
 func (a *Application) GetPersistentVolumeDirs(svcName, container string) []*profile.PersistentVolumeDir {
-	appProfile, _ := a.GetProfile()
-	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile, _ := a.GetSvcProfile(svcName)
 	if svcProfile != nil {
 		return svcProfile.GetContainerDevConfigOrDefault(container).PersistentVolumeDirs
 	}
@@ -138,8 +125,7 @@ func (a *Application) GetDefaultSideCarImage(svcName string) string {
 }
 
 func (a *Application) GetDefaultDevImage(svcName string, container string) string {
-	appProfile, _ := a.GetProfile()
-	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile, _ := a.GetSvcProfile(svcName)
 	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).Image != "" {
 		return svcProfile.GetContainerDevConfigOrDefault(container).Image
 	}
@@ -147,11 +133,9 @@ func (a *Application) GetDefaultDevImage(svcName string, container string) strin
 }
 
 func (a *Application) GetDefaultDevPort(svcName string, container string) []string {
-	appProfile, _ := a.GetProfile()
-	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
-	config := svcProfile
-	if config != nil && len(config.GetContainerDevConfigOrDefault(container).PortForward) > 0 {
-		return config.GetContainerDevConfigOrDefault(container).PortForward
+	svcProfile, _ := a.GetSvcProfile(svcName)
+	if svcProfile != nil && len(svcProfile.GetContainerDevConfigOrDefault(container).PortForward) > 0 {
+		return svcProfile.GetContainerDevConfigOrDefault(container).PortForward
 	}
 	return []string{}
 }

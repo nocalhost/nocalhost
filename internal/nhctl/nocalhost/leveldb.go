@@ -16,6 +16,7 @@ package nocalhost
 import (
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/util"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
 )
@@ -53,4 +54,48 @@ func ListAllFromApplicationDb(ns, appName string) (map[string]string, error) {
 		return nil, errors.Wrap(err, "")
 	}
 	return result, nil
+}
+
+func CompactApplicationDb(ns, appName, key string) error {
+	db, err := OpenApplicationLevelDB(ns, appName, false)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if key == "" {
+		iter := db.NewIterator(nil, nil)
+		keys := make([][]byte, 0)
+		for iter.Next() {
+			keys = append(keys, iter.Key())
+		}
+		iter.Release()
+		if len(keys) == 0 {
+			return errors.New("No key to compact!")
+		}
+		key = string(keys[0])
+	}
+	return db.CompactRange(*util.BytesPrefix([]byte(key)))
+}
+
+func GetApplicationDbSize(ns, appName string) (int, error) {
+	db, err := OpenApplicationLevelDB(ns, appName, true)
+	if err != nil {
+		return 0, err
+	}
+	defer db.Close()
+	iter := db.NewIterator(nil, nil)
+	keys := make([][]byte, 0)
+	for iter.Next() {
+		keys = append(keys, iter.Key())
+	}
+	iter.Release()
+	ranges := make([]util.Range, 0)
+	for _, key := range keys {
+		ranges = append(ranges, *util.BytesPrefix(key))
+	}
+	s, err := db.SizeOf(ranges)
+	if err != nil {
+		return 0, errors.Wrap(err, "")
+	}
+	return int(s.Sum()), nil
 }
