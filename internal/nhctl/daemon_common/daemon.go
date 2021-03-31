@@ -13,6 +13,10 @@ limitations under the License.
 
 package daemon_common
 
+import (
+	"context"
+)
+
 const (
 	DefaultDaemonPort = 30123
 	SudoDaemonPort    = 30124
@@ -24,6 +28,15 @@ type DaemonServerInfo struct {
 	Version string
 }
 
+type PortForwardProfile struct {
+	Cancel     context.CancelFunc `json:"-"` // For canceling a port forward
+	StopCh     chan error         `json:"-"`
+	NameSpace  string             `json:"nameSpace"`
+	AppName    string             `json:"appName"`
+	LocalPort  int                `json:"localPort"`
+	RemotePort int                `json:"remotePort"`
+}
+
 func NewDaemonServerInfo() *DaemonServerInfo {
 	return &DaemonServerInfo{Version: Version}
 }
@@ -33,5 +46,5 @@ type CommonResponse struct {
 }
 
 type DaemonServerStatusResponse struct {
-	PortForwardList []string `json:"portForwardList"`
+	PortForwardList []*PortForwardProfile `json:"portForwardList"`
 }
