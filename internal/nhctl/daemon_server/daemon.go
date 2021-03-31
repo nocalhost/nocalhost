@@ -158,7 +158,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType)
 		info := &daemon_common.DaemonServerInfo{Version: version}
 		response(conn, info)
 	case command.GetDaemonServerStatus:
-		status := &daemon_common.DaemonServerStatusResponse{PortForwardList: pfManager.GetRunningPortForwardGoRoutine()}
+		status := &daemon_common.DaemonServerStatusResponse{PortForwardList: pfManager.ListAllRunningPortForwardGoRoutineProfile()}
 		response(conn, status)
 	}
 }
