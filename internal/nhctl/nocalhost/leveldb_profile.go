@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"gopkg.in/yaml.v2"
+	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
 	"os"
@@ -25,7 +26,7 @@ import (
 
 func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2) error {
 	var err error
-	db, err := OpenApplicationLevelDB(ns, app, false)
+	db, err := nocalhostDb.OpenApplicationLevelDB(ns, app, false)
 	if err != nil {
 		return err
 	}
@@ -43,7 +44,7 @@ func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2) error {
 
 func GetProfileV2(ns, app string) (*profile.AppProfileV2, error) {
 	var err error
-	db, err := OpenApplicationLevelDB(ns, app, true)
+	db, err := nocalhostDb.OpenApplicationLevelDB(ns, app, true)
 	if err != nil {
 		return nil, err
 	}

@@ -23,6 +23,7 @@ import (
 	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
+	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -50,7 +51,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, err
 	}
 
-	err = nocalhost.CreateApplicationLevelDB(app.NameSpace, app.Name)
+	err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name)
 	if err != nil {
 		return nil, err
 	}

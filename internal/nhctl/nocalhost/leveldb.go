@@ -15,28 +15,11 @@ package nocalhost
 
 import (
 	"github.com/pkg/errors"
-	"nocalhost/internal/nhctl/dbutils"
-	"nocalhost/internal/nhctl/nocalhost_path"
+	nocalhost_db "nocalhost/internal/nhctl/nocalhost/db"
 )
 
-func OpenApplicationLevelDB(ns, app string, readonly bool) (*dbutils.LevelDBUtils, error) {
-	path := nocalhost_path.GetAppDbDir(ns, app)
-	return dbutils.OpenLevelDB(path, readonly)
-}
-
-func CreateApplicationLevelDB(ns, app string) error {
-	path := nocalhost_path.GetAppDbDir(ns, app)
-	return dbutils.CreateLevelDB(path)
-}
-
-// todo
-//func CheckIfApplicationLevelDBExists(ns,app string) error {
-//	path := nocalhost_path.GetAppDbDir(ns, app)
-//
-//}
-
 func ListAllFromApplicationDb(ns, appName string) (map[string]string, error) {
-	db, err := OpenApplicationLevelDB(ns, appName, true)
+	db, err := nocalhost_db.OpenApplicationLevelDB(ns, appName, true)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +28,7 @@ func ListAllFromApplicationDb(ns, appName string) (map[string]string, error) {
 }
 
 func CompactApplicationDb(ns, appName, key string) error {
-	db, err := OpenApplicationLevelDB(ns, appName, false)
+	db, err := nocalhost_db.OpenApplicationLevelDB(ns, appName, false)
 	if err != nil {
 		return err
 	}
@@ -67,7 +50,7 @@ func CompactApplicationDb(ns, appName, key string) error {
 }
 
 func GetApplicationDbSize(ns, appName string) (int, error) {
-	db, err := OpenApplicationLevelDB(ns, appName, true)
+	db, err := nocalhost_db.OpenApplicationLevelDB(ns, appName, true)
 	if err != nil {
 		return 0, err
 	}

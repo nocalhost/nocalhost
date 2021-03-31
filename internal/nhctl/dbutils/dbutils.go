@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	"nocalhost/pkg/nhctl/log"
 )
 
 type LevelDBUtils struct {
@@ -51,6 +52,30 @@ func (l *LevelDBUtils) ListAll() (map[string]string, error) {
 		return nil, errors.Wrap(err, "")
 	}
 	return result, nil
+}
+
+func (l *LevelDBUtils) ListAllKeys() ([]string, error) {
+	kvMap, err := l.ListAll()
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]string, 0)
+	for key := range kvMap {
+		keys = append(keys, key)
+	}
+	return keys, nil
+}
+
+func (l *LevelDBUtils) CompactFirstKey() error {
+	keys, err := l.ListAllKeys()
+	if err != nil {
+		return err
+	}
+	if len(keys) == 0 {
+		log.Log("No key needs to be compacted")
+		return nil
+	}
+	return l.CompactKey([]byte(keys[0]))
 }
 
 func (l *LevelDBUtils) CompactKey(key []byte) error {

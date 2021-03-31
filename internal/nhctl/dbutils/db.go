@@ -19,6 +19,7 @@ import (
 	leveldb_errors "github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"nocalhost/pkg/nhctl/log"
+	"strconv"
 	"syscall"
 	"time"
 )
@@ -70,20 +71,28 @@ func OpenLevelDB(path string, readonly bool) (*LevelDBUtils, error) {
 		}
 	}
 
-	//v, err := db.GetProperty("leveldb.num-files-at-level0")
-	//if err != nil {
-	//	log.LogE(err)
-	//} else {
-	//	num, err := strconv.Atoi(v)
-	//	if err != nil {
-	//		log.Log(v)
-	//	}
-	//	if num > 10 {
-	//		db.CompactRange()
-	//	}
-	//}
-	return &LevelDBUtils{
+	dbUtils := &LevelDBUtils{
 		readonly: readonly,
 		db:       db,
-	}, nil
+	}
+
+	if !readonly {
+		v, err := db.GetProperty("leveldb.num-files-at-level0")
+		if err != nil {
+			log.LogE(err)
+		} else {
+			num, err := strconv.Atoi(v)
+			if err != nil {
+				log.LogE(err)
+			}
+			if num > 10 {
+				log.Logf("Compacting %s", path)
+				if err = dbUtils.CompactFirstKey(); err != nil {
+					log.LogE(err)
+				}
+			}
+		}
+	}
+
+	return dbUtils, nil
 }

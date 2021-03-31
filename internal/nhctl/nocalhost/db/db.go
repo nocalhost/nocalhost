@@ -11,16 +11,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nocalhost
+package db
 
-import nocalhostdb "nocalhost/internal/nhctl/nocalhost/db"
+import (
+	"nocalhost/internal/nhctl/dbutils"
+	"nocalhost/internal/nhctl/nocalhost_path"
+)
 
-func UpdateKey(ns, app string, key string, value string) error {
-	db, err := nocalhostdb.OpenApplicationLevelDB(ns, app, false)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
+func OpenApplicationLevelDB(ns, app string, readonly bool) (*dbutils.LevelDBUtils, error) {
+	path := nocalhost_path.GetAppDbDir(ns, app)
+	return dbutils.OpenLevelDB(path, readonly)
+}
 
-	return db.Put([]byte(key), []byte(value))
+func CreateApplicationLevelDB(ns, app string) error {
+	path := nocalhost_path.GetAppDbDir(ns, app)
+	return dbutils.CreateLevelDB(path)
 }

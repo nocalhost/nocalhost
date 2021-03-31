@@ -21,6 +21,7 @@ import (
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
+	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
@@ -117,12 +118,12 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		return nil, err
 	}
 
-	db, err := nocalhost.OpenApplicationLevelDB(app.NameSpace, app.Name, true)
+	db, err := nocalhostDb.OpenApplicationLevelDB(app.NameSpace, app.Name, true)
 	if err != nil {
 		if db != nil {
 			db.Close()
 		}
-		err = nocalhost.CreateApplicationLevelDB(app.NameSpace, app.Name) // Init leveldb dir
+		err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name) // Init leveldb dir
 		if err != nil {
 			return nil, err
 		}
