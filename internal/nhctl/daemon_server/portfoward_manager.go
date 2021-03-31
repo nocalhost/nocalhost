@@ -22,6 +22,7 @@ import (
 	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
@@ -34,18 +35,13 @@ import (
 	"time"
 )
 
-type portForwardProfile struct {
-	cancel context.CancelFunc // For canceling a port forward
-	stopCh chan error
-}
-
 type PortForwardManager struct {
-	pfList map[string]*portForwardProfile
+	pfList map[string]*daemon_common.PortForwardProfile
 	lock   sync.Mutex
 }
 
 func NewPortForwardManager() *PortForwardManager {
-	return &PortForwardManager{pfList: map[string]*portForwardProfile{}}
+	return &PortForwardManager{pfList: map[string]*daemon_common.PortForwardProfile{}}
 }
 
 func (p *PortForwardManager) StopPortForwardGoRoutine(localPort, remotePort int) error {
@@ -54,16 +50,16 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(localPort, remotePort int)
 	if !ok {
 		return errors.New(fmt.Sprintf("Port-forward %d:%d is not managed by this PortForwardManger", localPort, remotePort))
 	}
-	pfProfile.cancel()
-	err := <-pfProfile.stopCh
+	pfProfile.Cancel()
+	err := <-pfProfile.StopCh
 	delete(p.pfList, key)
 	return err
 }
 
-func (p *PortForwardManager) GetRunningPortForwardGoRoutine() []string {
-	result := make([]string, 0)
-	for key, _ := range p.pfList {
-		result = append(result, key)
+func (p *PortForwardManager) ListAllRunningPortForwardGoRoutineProfile() []*daemon_common.PortForwardProfile {
+	result := make([]*daemon_common.PortForwardProfile, 0)
+	for _, v := range p.pfList {
+		result = append(result, v)
 	}
 	return result
 }
@@ -162,9 +158,13 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 	}
 
 	ctx, cancel := context.WithCancel(context.TODO())
-	p.pfList[key] = &portForwardProfile{
-		cancel: cancel,
-		stopCh: make(chan error, 1),
+	p.pfList[key] = &daemon_common.PortForwardProfile{
+		Cancel:     cancel,
+		StopCh:     make(chan error, 1),
+		NameSpace:  startCmd.NameSpace,
+		AppName:    startCmd.AppName,
+		LocalPort:  startCmd.LocalPort,
+		RemotePort: startCmd.RemotePort,
 	}
 	go func() {
 		log.Logf("Forwarding %d:%d", localPort, localPort)
@@ -332,7 +332,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 					log.LogE(err)
 				}
 				if pfProfile, ok := p.pfList[key]; ok {
-					pfProfile.stopCh <- err
+					pfProfile.StopCh <- err
 				}
 				return
 			}
