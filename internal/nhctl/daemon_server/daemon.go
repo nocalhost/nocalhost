@@ -99,15 +99,18 @@ func StartDaemon(isSudoUser bool, v string) error {
 		}
 	}()
 
-	for {
+	go func() {
 		select {
 		case <-tcpCtx.Done():
 			log.Log("Stop listening tcp port for daemon server")
 			_ = listener.Close()
-		case <-daemonCtx.Done():
-			log.Log("Exit daemon server")
-			return nil
 		}
+	}()
+
+	select {
+	case <-daemonCtx.Done():
+		log.Log("Exit daemon server")
+		return nil
 	}
 }
 

@@ -19,6 +19,7 @@ import (
 	leveldb_errors "github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"nocalhost/pkg/nhctl/log"
+	"strconv"
 	"syscall"
 	"time"
 )
@@ -39,10 +40,10 @@ func CreateLevelDB(path string) error {
 // If leveldb is corrupted, try to recover it
 // If leveldb is EAGAIN, retry to open it in 1 minutes
 // If leveldb is missing, return a error instead create one
-func OpenLevelDB(path string, readonly bool) (*leveldb.DB, error) {
-	if !readonly {
-		log.LogStack()
-	}
+func OpenLevelDB(path string, readonly bool) (*LevelDBUtils, error) {
+	//if !readonly {
+	//	log.LogStack()
+	//}
 	var o *opt.Options
 	o = &opt.Options{
 		ErrorIfMissing: true,
@@ -69,5 +70,29 @@ func OpenLevelDB(path string, readonly bool) (*leveldb.DB, error) {
 			return nil, errors.Wrap(err, "Retry opening leveldb failed")
 		}
 	}
-	return db, nil
+
+	dbUtils := &LevelDBUtils{
+		readonly: readonly,
+		db:       db,
+	}
+
+	if !readonly {
+		v, err := db.GetProperty("leveldb.num-files-at-level0")
+		if err != nil {
+			log.LogE(err)
+		} else {
+			num, err := strconv.Atoi(v)
+			if err != nil {
+				log.LogE(err)
+			}
+			if num > 10 {
+				log.Logf("Compacting %s", path)
+				if err = dbUtils.CompactFirstKey(); err != nil {
+					log.LogE(err)
+				}
+			}
+		}
+	}
+
+	return dbUtils, nil
 }

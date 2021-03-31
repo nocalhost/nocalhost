@@ -82,236 +82,8 @@ func TestOpenLevelDBForIter(t *testing.T) {
 	}
 }
 
-var longString = `
-nh6lmaa.bookinfo.profile.v2=name: ""
-releasename: ""
-namespace: nh6lmaa
-kubeconfig: /Users/xinxinhuang/.nh/plugin/kubeConfigs/293_config
-dependencyConfigMapName: nocalhost-depends-do-not-overwrite-kyuq
-appType: rawManifest
-svcProfile:
-- rawConfig:
-    name: ratings
-    serviceType: deployment
-    dependLabelSelector:
-      pods:
-      - productpage
-      - app.kubernetes.io/name=productpage
-      jobs:
-      - dep-job
-    containers:
-    - name: ""
-      install: null
-      dev:
-        gitUrl: https://e.coding.net/codingcorp/nocalhost/bookinfo-ratings.git
-        image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/node:12.18.1-slim
-        shell: bash
-        workDir: /home/nocalhost-dev
-        resources: null
-        persistentVolumeDirs: []
-        command: null
-        debug: null
-        useDevContainer: false
-        sync:
-          type: send
-          filePattern:
-          - ./
-          ignoreFilePattern:
-          - .git
-        env:
-        - name: DEBUG
-          value: "true"
-        envFrom: null
-        portForward: []
-  containerProfile: []
-  actualName: ratings
-  developing: false
-  portForwarded: false
-  syncing: false
-  remoteSyncthingPort: 0
-  remoteSyncthingGUIPort: 0
-  syncthingSecret: ""
-  localSyncthingPort: 0
-  localSyncthingGUIPort: 0
-  localAbsoluteSyncDirFromDevStartPlugin: []
-  devPortForwardList: []
-- rawConfig:
-    name: reviews
-    serviceType: deployment
-    dependLabelSelector:
-      pods:
-      - productpage
-      jobs: []
-    containers:
-    - name: ""
-      install: null
-      dev:
-        gitUrl: https://e.coding.net/codingcorp/nocalhost/bookinfo-reviews.git
-        image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/java:latest
-        shell: bash
-        workDir: /home/nocalhost-dev
-        resources: null
-        persistentVolumeDirs: []
-        command: null
-        debug: null
-        useDevContainer: false
-        sync:
-          type: send
-          filePattern:
-          - ./
-          ignoreFilePattern:
-          - .git
-        env: []
-        envFrom: null
-        portForward: []
-  containerProfile: []
-  actualName: reviews
-  developing: false
-  portForwarded: false
-  syncing: false
-  remoteSyncthingPort: 0
-  remoteSyncthingGUIPort: 0
-  syncthingSecret: ""
-  localSyncthingPort: 0
-  localSyncthingGUIPort: 0
-  localAbsoluteSyncDirFromDevStartPlugin: []
-  devPortForwardList: []
-- rawConfig:
-    name: productpage
-    serviceType: deployment
-    dependLabelSelector:
-      pods: []
-      jobs:
-      - dep-job
-    containers:
-    - name: productpage
-      install:
-        env: []
-        envFrom:
-          envFile: []
-        portForward:
-        - 39080:9080
-      dev:
-        gitUrl: https://e.coding.net/codingcorp/nocalhost/bookinfo-productpage.git
-        image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/python:3.7.7-slim-productpage
-        shell: bash
-        workDir: /home/nocalhost-dev
-        resources: null
-        persistentVolumeDirs: []
-        command: null
-        debug: null
-        useDevContainer: false
-        sync:
-          type: send
-          filePattern:
-          - ./
-          ignoreFilePattern:
-          - .git
-        env: []
-        envFrom: null
-        portForward:
-        - 39080:9080
-  containerProfile: []
-  actualName: productpage
-  developing: true
-  portForwarded: true
-  syncing: true
-  remoteSyncthingPort: 49307
-  remoteSyncthingGUIPort: 49308
-  syncthingSecret: productpage-nocalhost-syncthing-secret
-  localSyncthingPort: 49310
-  localSyncthingGUIPort: 49309
-  localAbsoluteSyncDirFromDevStartPlugin:
-  - /Users/xinxinhuang/nocalhost/bookinfo/bookinfo-productpage
-  devPortForwardList:
-  - localport: 39080
-    remoteport: 9080
-    role: ""
-    status: LISTEN
-    reason: Heart Beat
-    podName: productpage-cfd7ffbf6-l5vt5
-    updated: "2021-03-30 14:12:52"
-    pid: 14491
-    runByDaemonServer: true
-    sudo: false
-    daemonserverpid: 14491
-  - localport: 49307
-    remoteport: 49307
-    role: SYNC
-    status: LISTEN
-    reason: Heart Beat
-    podName: productpage-cfd7ffbf6-l5vt5
-    updated: "2021-03-30 14:12:53"
-    pid: 14491
-    runByDaemonServer: true
-    sudo: false
-    daemonserverpid: 14491
-- rawConfig:
-    name: details
-    serviceType: deployment
-    dependLabelSelector: null
-    containers:
-    - name: ""
-      install: null
-      dev:
-        gitUrl: https://e.coding.net/codingcorp/nocalhost/bookinfo-details.git
-        image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/ruby:2.7.1-slim
-        shell: bash
-        workDir: /home/nocalhost-dev
-        resources: null
-        persistentVolumeDirs: []
-        command: null
-        debug: null
-        useDevContainer: false
-        sync:
-          type: send
-          filePattern:
-          - ./
-          ignoreFilePattern:
-          - .git
-        env:
-        - name: DEBUG
-          value: "true"
-        envFrom: null
-        portForward: []
-  containerProfile: []
-  actualName: details
-  developing: false
-  portForwarded: false
-  syncing: false
-  remoteSyncthingPort: 0
-  remoteSyncthingGUIPort: 0
-  syncthingSecret: ""
-  localSyncthingPort: 0
-  localSyncthingGUIPort: 0
-  localAbsoluteSyncDirFromDevStartPlugin: []
-  devPortForwardList: []
-installed: true
-syncDirs: []
-resourcePath:
-- manifest/templates
-ignoredPath: []
-onPreInstall:
-- path: manifest/templates/pre-install/print-num-job-01.yaml
-  weight: "1"
-- path: manifest/templates/pre-install/print-num-job-02.yaml
-  weight: "-5"
-gitUrl: git@github.com:nocalhost/bookinfo.git
-gitRef: ""
-helmRepoUrl: ""
-helmRepoName: ""
-env:
-- name: DEBUG
-  value: "true"
-- name: DOMAIN
-  value: coding.com
-envFrom:
-  envFile: []
-
-
-`
-
 func TestOpenLevelDBForOpenManyTime(t *testing.T) {
+	var longString = ""
 
 	for i := 0; i < 100; i++ {
 		db, err := leveldb.OpenFile("/tmp/tmp/db2", &opt.Options{ErrorIfMissing: true})
@@ -326,6 +98,43 @@ func TestOpenLevelDBForOpenManyTime(t *testing.T) {
 		time.Sleep(1 * time.Second)
 		db.Close()
 	}
+
+}
+
+func TestOpenLevelDBForGetting(t *testing.T) {
+	db, err := leveldb.OpenFile("/tmp/tmp/db", &opt.Options{ErrorIfMissing: true})
+	if err != nil {
+		panic(err)
+	}
+	v, err := db.GetProperty("leveldb.stats")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("leveldb.stats: %s\n", v)
+
+	v, err = db.GetProperty("leveldb.num-files-at-level0")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("leveldb.num-files-at-level0: %s\n", v)
+
+	v, err = db.GetProperty("leveldb.iostats")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("leveldb.iostats: %s\n", v)
+
+	v, err = db.GetProperty("leveldb.writedelay")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("leveldb.writedelay: %s\n", v)
+
+	v, err = db.GetProperty("leveldb.sstables")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("leveldb.sstables: %s\n", v)
 
 }
 
