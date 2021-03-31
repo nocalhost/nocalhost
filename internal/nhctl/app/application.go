@@ -102,7 +102,7 @@ func (a *Application) moveProfileFromFileToLeveldb() error {
 	}
 	log.Log("Move profile to leveldb")
 
-	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2, nil)
+	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
 }
 
 func NewApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
@@ -131,13 +131,13 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		db.Close()
 	}
 
-	appProfile, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, nil)
+	appProfile, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
 	if err != nil {
 		err = app.moveProfileFromFileToLeveldb()
 		if err != nil {
 			return nil, err
 		}
-		appProfile, err = nocalhost.GetProfileV2(app.NameSpace, app.Name, nil)
+		appProfile, err = nocalhost.GetProfileV2(app.NameSpace, app.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -146,13 +146,13 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	if len(appProfile.PreInstall) == 0 && len(app.configV2.ApplicationConfig.PreInstall) > 0 {
 		appProfile.PreInstall = app.configV2.ApplicationConfig.PreInstall
 		//_ = app.SaveProfile()
-		nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile, nil)
+		nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile)
 	}
 
 	if kubeconfig != "" && kubeconfig != appProfile.Kubeconfig {
 		appProfile.Kubeconfig = kubeconfig
 		//_ = app.SaveProfile()
-		nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile, nil)
+		nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile)
 	}
 
 	if initClient {
@@ -166,7 +166,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 }
 
 func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
-	app, err := nocalhost.GetProfileV2(a.NameSpace, a.Name, nil)
+	app, err := nocalhost.GetProfileV2(a.NameSpace, a.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,7 @@ func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
 }
 
 func (a *Application) SaveProfile(p *profile.AppProfileV2) error {
-	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, p, nil)
+	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, p)
 }
 
 func (a *Application) LoadConfigV2() error {

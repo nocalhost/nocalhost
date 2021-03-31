@@ -59,6 +59,7 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(localPort, remotePort int)
 	delete(p.pfList, key)
 	return err
 }
+
 func (p *PortForwardManager) GetRunningPortForwardGoRoutine() []string {
 	result := make([]string, 0)
 	for key, _ := range p.pfList {
@@ -68,7 +69,7 @@ func (p *PortForwardManager) GetRunningPortForwardGoRoutine() []string {
 }
 
 func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string) error {
-	profile, err := nocalhost.GetProfileV2(ns, appName, nil)
+	profile, err := nocalhost.GetProfileV2(ns, appName)
 	if err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string
 	for _, svcProfile := range profile.SvcProfile {
 		for _, pf := range svcProfile.DevPortForwardList {
 			if pf.RunByDaemonServer && pf.Sudo == isSudo { // Only recover port-forward managed by this daemon server
-				log.Logf("Recovering port-forward %d:%d", pf.LocalPort, pf.RemotePort)
+				log.Logf("Recovering port-forward %d:%d of %s-%s", pf.LocalPort, pf.RemotePort, ns, appName)
 				err = p.StartPortForwardGoRoutine(&command.PortForwardCommand{
 					CommandType: command.StartPortForward,
 					NameSpace:   ns,

@@ -13,10 +13,6 @@ limitations under the License.
 
 package nocalhost
 
-import (
-	"github.com/pkg/errors"
-)
-
 func UpdateKey(ns, app string, key string, value string) error {
 	db, err := OpenApplicationLevelDB(ns, app, false)
 	if err != nil {
@@ -24,5 +20,5 @@ func UpdateKey(ns, app string, key string, value string) error {
 	}
 	defer db.Close()
 
-	return errors.Wrap(db.Put([]byte(key), []byte(value), nil), "")
+	return db.Put([]byte(key), []byte(value))
 }

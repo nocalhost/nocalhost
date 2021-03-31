@@ -15,13 +15,11 @@ package nocalhost
 
 import (
 	"github.com/pkg/errors"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/util"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
 )
 
-func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) {
+func OpenApplicationLevelDB(ns, app string, readonly bool) (*dbutils.LevelDBUtils, error) {
 	path := nocalhost_path.GetAppDbDir(ns, app)
 	return dbutils.OpenLevelDB(path, readonly)
 }
@@ -43,17 +41,7 @@ func ListAllFromApplicationDb(ns, appName string) (map[string]string, error) {
 		return nil, err
 	}
 	defer db.Close()
-	result := make(map[string]string, 0)
-	iter := db.NewIterator(nil, nil)
-	for iter.Next() {
-		result[string(iter.Key())] = string(iter.Value())
-	}
-	iter.Release()
-	err = iter.Error()
-	if err != nil {
-		return nil, errors.Wrap(err, "")
-	}
-	return result, nil
+	return db.ListAll()
 }
 
 func CompactApplicationDb(ns, appName, key string) error {
@@ -63,18 +51,19 @@ func CompactApplicationDb(ns, appName, key string) error {
 	}
 	defer db.Close()
 	if key == "" {
-		iter := db.NewIterator(nil, nil)
-		keys := make([][]byte, 0)
-		for iter.Next() {
-			keys = append(keys, iter.Key())
+		result, err := db.ListAll()
+		if err != nil {
+			return err
 		}
-		iter.Release()
-		if len(keys) == 0 {
+		if len(result) == 0 {
 			return errors.New("No key to compact!")
 		}
-		key = string(keys[0])
+		for k := range result {
+			key = k // Get the first key
+			break
+		}
 	}
-	return db.CompactRange(*util.BytesPrefix([]byte(key)))
+	return db.CompactKey([]byte(key))
 }
 
 func GetApplicationDbSize(ns, appName string) (int, error) {
@@ -83,19 +72,5 @@ func GetApplicationDbSize(ns, appName string) (int, error) {
 		return 0, err
 	}
 	defer db.Close()
-	iter := db.NewIterator(nil, nil)
-	keys := make([][]byte, 0)
-	for iter.Next() {
-		keys = append(keys, iter.Key())
-	}
-	iter.Release()
-	ranges := make([]util.Range, 0)
-	for _, key := range keys {
-		ranges = append(ranges, *util.BytesPrefix(key))
-	}
-	s, err := db.SizeOf(ranges)
-	if err != nil {
-		return 0, errors.Wrap(err, "")
-	}
-	return int(s.Sum()), nil
+	return db.GetSize()
 }

@@ -40,7 +40,7 @@ func recoverSyncthing() error {
 }
 
 func recoverSyncthingForApplication(ns, appName string) error {
-	profile, err := nocalhost.GetProfileV2(ns, appName, nil)
+	profile, err := nocalhost.GetProfileV2(ns, appName)
 	if err != nil {
 		return err
 	}
