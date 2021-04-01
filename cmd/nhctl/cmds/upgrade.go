@@ -73,6 +73,9 @@ var upgradeCmd = &cobra.Command{
 		for _, svcProfile := range appProfile.SvcProfile {
 			pfList := make([]*profile.DevPortForward, 0)
 			for _, pf := range svcProfile.DevPortForwardList {
+				if pf.ServiceType == "" {
+					pf.ServiceType = svcProfile.Type
+				}
 				pfList = append(pfList, pf)
 				log.Infof("Stopping pf: %d:%d", pf.LocalPort, pf.RemotePort)
 				err = nocalhostApp.EndDevPortForward(svcProfile.ActualName, pf.LocalPort, pf.RemotePort)
@@ -94,8 +97,12 @@ var upgradeCmd = &cobra.Command{
 		// Restart port forward
 		for svcName, pfList := range pfListMap {
 			// find first pod
+			svcType := app.Deployment
+			if len(pfList) > 0 {
+				svcType = app.SvcType(pfList[0].ServiceType)
+			}
 			ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
-			podName, err := nocalhostApp.GetDefaultPodName(ctx, svcName, app.Deployment)
+			podName, err := nocalhostApp.GetDefaultPodName(ctx, svcName, svcType)
 			if err != nil {
 				log.WarnE(err, "")
 				continue

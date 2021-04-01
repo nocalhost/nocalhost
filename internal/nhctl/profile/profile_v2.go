@@ -214,9 +214,10 @@ type DevPortForward struct {
 	PodName           string `json:"podName" yaml:"podName"`
 	Updated           string
 	Pid               int
-	RunByDaemonServer bool `json:"runByDaemonServer" yaml:"runByDaemonServer"`
-	Sudo              bool `json:"sudo"`
-	DaemonServerPid   int  `json:"daemonServerPid"`
+	RunByDaemonServer bool   `json:"runByDaemonServer" yaml:"runByDaemonServer"`
+	Sudo              bool   `json:"sudo"`
+	DaemonServerPid   int    `json:"daemonServerPid"`
+	ServiceType       string `json:"serviceType"`
 }
 
 // Compatible for v1

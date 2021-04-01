@@ -128,9 +128,10 @@ var installCmd = &cobra.Command{
 					continue
 				}
 
-				log.Infof("Starting port-forward for %s", svcProfile.ActualName)
+				svcType := svcProfile.Type
+				log.Infof("Starting port-forward for %s %s", svcType, svcProfile.ActualName)
 				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
-				podName, err := nocalhostApp.GetDefaultPodName(ctx, svcProfile.ActualName, app.Deployment)
+				podName, err := nocalhostApp.GetDefaultPodName(ctx, svcProfile.ActualName, app.SvcType(svcType))
 				if err != nil {
 					log.WarnE(err, "")
 					continue

@@ -34,6 +34,19 @@ func (c *ClientGoUtils) ListPodsByDeployment(name string) (*corev1.PodList, erro
 	return pods, nil
 }
 
+func (c *ClientGoUtils) ListPodsByStatefulSet(name string) (*corev1.PodList, error) {
+	ss, err := c.ClientSet.AppsV1().StatefulSets(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	set := labels.Set(ss.Spec.Selector.MatchLabels)
+	pods, err := c.ClientSet.CoreV1().Pods(c.namespace).List(c.ctx, metav1.ListOptions{LabelSelector: set.AsSelector().String()})
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	return pods, nil
+}
+
 func (c *ClientGoUtils) ListPodsByLabels(labelMap map[string]string) ([]corev1.Pod, error) {
 	set := labels.Set(labelMap)
 	pods, err := c.ClientSet.CoreV1().Pods(c.namespace).List(c.ctx, metav1.ListOptions{LabelSelector: set.AsSelector().String()})
