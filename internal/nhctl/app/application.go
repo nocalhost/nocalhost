@@ -751,17 +751,26 @@ func (a *Application) GetPodsFromDeployment(deployment string) (*corev1.PodList,
 	return a.client.ListPodsByDeployment(deployment)
 }
 
-func (a *Application) GetDefaultPodName(svc string, t SvcType) (podName string, err error) {
+func (a *Application) GetDefaultPodName(ctx context.Context, svc string, t SvcType) (podName string, err error) {
 	switch t {
 	case Deployment:
-		checkPodsList, err := a.GetPodsFromDeployment(svc)
-		if err != nil {
-			return "", err
+		for {
+			select {
+			case <-ctx.Done():
+				return "", errors.New(fmt.Sprintf("Fail to get %s' pod", svc))
+			default:
+				checkPodsList, err := a.GetPodsFromDeployment(svc)
+				if err != nil {
+					return "", err
+				}
+				if checkPodsList == nil || len(checkPodsList.Items) == 0 {
+					log.Infof("Pod of %s has not been ready, waiting for it...", svc)
+					time.Sleep(time.Second)
+				} else {
+					return checkPodsList.Items[0].Name, nil
+				}
+			}
 		}
-		if checkPodsList == nil || len(checkPodsList.Items) == 0 {
-			return "", errors.New("dev container not found")
-		}
-		return checkPodsList.Items[0].Name, nil
 	default:
 		return "", errors.New("Service type not support")
 	}

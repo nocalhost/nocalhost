@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
+	"time"
 
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/app_flags"
@@ -111,19 +112,25 @@ var installCmd = &cobra.Command{
 			log.Infof("Application %s installed", applicationName)
 		}
 
-		// Start port forward
-		log.Info("Starting port-forward")
 		profileV2, err := nocalhostApp.GetProfile()
 		if err != nil {
 			log.FatalE(err, "")
 		}
 
+		// Start port forward
 		for _, svcProfile := range profileV2.SvcProfile {
 			for _, cc := range svcProfile.ContainerConfigs {
 				if cc.Install == nil {
 					continue
 				}
-				podName, err := nocalhostApp.GetDefaultPodName(svcProfile.ActualName, app.Deployment)
+
+				if len(cc.Install.PortForward) == 0 {
+					continue
+				}
+
+				log.Infof("Starting port-forward for %s", svcProfile.ActualName)
+				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
+				podName, err := nocalhostApp.GetDefaultPodName(ctx, svcProfile.ActualName, app.Deployment)
 				if err != nil {
 					log.WarnE(err, "")
 					continue
