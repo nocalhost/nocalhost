@@ -14,11 +14,14 @@ limitations under the License.
 package cmds
 
 import (
+	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
+	"time"
 )
 
 func init() {
@@ -70,6 +73,9 @@ var upgradeCmd = &cobra.Command{
 		for _, svcProfile := range appProfile.SvcProfile {
 			pfList := make([]*profile.DevPortForward, 0)
 			for _, pf := range svcProfile.DevPortForwardList {
+				if pf.ServiceType == "" {
+					pf.ServiceType = svcProfile.Type
+				}
 				pfList = append(pfList, pf)
 				log.Infof("Stopping pf: %d:%d", pf.LocalPort, pf.RemotePort)
 				err = nocalhostApp.EndDevPortForward(svcProfile.ActualName, pf.LocalPort, pf.RemotePort)
@@ -91,16 +97,16 @@ var upgradeCmd = &cobra.Command{
 		// Restart port forward
 		for svcName, pfList := range pfListMap {
 			// find first pod
-			podList, err := nocalhostApp.GetPodsFromDeployment(svcName)
+			svcType := app.Deployment
+			if len(pfList) > 0 {
+				svcType = app.SvcType(pfList[0].ServiceType)
+			}
+			ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
+			podName, err := nocalhostApp.GetDefaultPodName(ctx, svcName, svcType)
 			if err != nil {
 				log.WarnE(err, "")
 				continue
 			}
-			if podList == nil || len(podList.Items) == 0 {
-				log.Warnf("No pod found in %s", svcName)
-				continue
-			}
-			podName := podList.Items[0].Name
 			for _, pf := range pfList {
 				log.Infof("Starting pf %d:%d for %s", pf.LocalPort, pf.RemotePort, svcName)
 				if err = nocalhostApp.PortForward(svcName, podName, pf.LocalPort, pf.RemotePort, pf.Role); err != nil {

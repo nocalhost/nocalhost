@@ -751,20 +751,39 @@ func (a *Application) GetPodsFromDeployment(deployment string) (*corev1.PodList,
 	return a.client.ListPodsByDeployment(deployment)
 }
 
-func (a *Application) GetDefaultPodName(svc string, t SvcType) (podName string, err error) {
-	switch t {
-	case Deployment:
-		checkPodsList, err := a.GetPodsFromDeployment(svc)
-		if err != nil {
-			return "", err
+func (a *Application) GetDefaultPodName(ctx context.Context, svc string, t SvcType) (string, error) {
+	var (
+		podList *corev1.PodList
+		err     error
+	)
+	for {
+		select {
+		case <-ctx.Done():
+			return "", errors.New(fmt.Sprintf("Fail to get %s' pod", svc))
+		default:
+			switch t {
+			case Deployment:
+				podList, err = a.GetPodsFromDeployment(svc)
+				if err != nil {
+					return "", err
+				}
+			case StatefulSet:
+				podList, err = a.GetClient().ListPodsByStatefulSet(svc)
+				if err != nil {
+					return "", err
+				}
+			default:
+				return "", errors.New(fmt.Sprintf("Service type %s not support", t))
+			}
 		}
-		if checkPodsList == nil || len(checkPodsList.Items) == 0 {
-			return "", errors.New("dev container not found")
+		if podList == nil || len(podList.Items) == 0 {
+			log.Infof("Pod of %s has not been ready, waiting for it...", svc)
+			time.Sleep(time.Second)
+		} else {
+			return podList.Items[0].Name, nil
 		}
-		return checkPodsList.Items[0].Name, nil
-	default:
-		return "", errors.New("Service type not support")
 	}
+
 }
 
 func (a *Application) GetNocalhostDevContainerPod(deployment string) (podName string, err error) {
