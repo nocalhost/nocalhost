@@ -20,8 +20,8 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
 	"io/ioutil"
-	"k8s.io/api/admission/v1beta1"
-	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
+	v1 "k8s.io/api/admission/v1"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
@@ -140,7 +140,7 @@ var cachedRestMapper *restmapper.DeferredDiscoveryRESTMapper
 
 func init() {
 	_ = corev1.AddToScheme(runtimeScheme)
-	_ = admissionregistrationv1beta1.AddToScheme(runtimeScheme)
+	_ = admissionregistrationv1.AddToScheme(runtimeScheme)
 	// defaulting with webhooks:
 	// https://github.com/kubernetes/kubernetes/issues/57982
 	_ = corev1.AddToScheme(runtimeScheme)
@@ -283,7 +283,7 @@ func updateAnnotation(target map[string]string, added map[string]string) (patch 
 //}
 
 // main mutation process
-func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
+func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse {
 	req := ar.Request
 
 	var (
@@ -297,7 +297,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 	var omh ObjectMetaHolder
 	if err := json.Unmarshal(req.Object.Raw, &omh); err != nil {
 		glog.Errorf("Could not unmarshal raw object: %v", err)
-		return &v1beta1.AdmissionResponse{
+		return &v1.AdmissionResponse{
 			Result: &metav1.Status{
 				Message: err.Error(),
 			},
@@ -316,7 +316,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 	// determine whether to perform mutation
 	if !mutationRequired(ignoredNamespaces, &omh.ObjectMeta) {
 		glog.Infof("Skipping mutation for %s/%s due to policy check", req.Namespace, req.Name)
-		return &v1beta1.AdmissionResponse{
+		return &v1.AdmissionResponse{
 			Allowed: true,
 		}
 	}
@@ -329,7 +329,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		var deployment appsv1.Deployment
 		if err := json.Unmarshal(req.Object.Raw, &deployment); err != nil {
 			glog.Errorf("Could not unmarshal raw object: %v", err)
-			return &v1beta1.AdmissionResponse{
+			return &v1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
 				},
@@ -340,7 +340,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		var daemonSet appsv1.DaemonSet
 		if err := json.Unmarshal(req.Object.Raw, &daemonSet); err != nil {
 			glog.Errorf("Could not unmarshal raw object: %v", err)
-			return &v1beta1.AdmissionResponse{
+			return &v1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
 				},
@@ -351,7 +351,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		var replicaSet appsv1.ReplicaSet
 		if err := json.Unmarshal(req.Object.Raw, &replicaSet); err != nil {
 			glog.Errorf("Could not unmarshal raw object: %v", err)
-			return &v1beta1.AdmissionResponse{
+			return &v1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
 				},
@@ -362,7 +362,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		var statefulSet appsv1.StatefulSet
 		if err := json.Unmarshal(req.Object.Raw, &statefulSet); err != nil {
 			glog.Errorf("Could not unmarshal raw object: %v", err)
-			return &v1beta1.AdmissionResponse{
+			return &v1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
 				},
@@ -373,7 +373,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		var job batchv1.Job
 		if err := json.Unmarshal(req.Object.Raw, &job); err != nil {
 			glog.Errorf("Could not unmarshal raw object: %v", err)
-			return &v1beta1.AdmissionResponse{
+			return &v1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
 				},
@@ -384,7 +384,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		var cronJob batchv1beta1.CronJob
 		if err := json.Unmarshal(req.Object.Raw, &cronJob); err != nil {
 			glog.Errorf("Could not unmarshal raw object: %v", err)
-			return &v1beta1.AdmissionResponse{
+			return &v1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
 				},
@@ -393,7 +393,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		resourceName, objectMeta, initContainer, containers = cronJob.Name, &cronJob.ObjectMeta, cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers, cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers
 	case "ResourceQuota":
 		//if req.UserInfo.UID == "" {
-		return &v1beta1.AdmissionResponse{
+		return &v1.AdmissionResponse{
 			Allowed: true,
 		}
 		//}
@@ -402,7 +402,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		if sa == nil {
 			var err = fmt.Errorf("Could not get service account with uuid: %s ", req.UserInfo.UID)
 			glog.Error(err)
-			return &v1beta1.AdmissionResponse{
+			return &v1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
 				},
@@ -412,7 +412,7 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		isAdmin, err := isClusterAdmin(sa)
 		if err != nil {
 			glog.Errorf("Could not get role-binding from namespace %s, Err: %s", sa.Namespace, err.Error())
-			return &v1beta1.AdmissionResponse{
+			return &v1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
 				},
@@ -420,13 +420,13 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 		}
 
 		if isAdmin {
-			return &v1beta1.AdmissionResponse{
+			return &v1.AdmissionResponse{
 				Allowed: true,
 			}
 		}
 
 		glog.Infof("Request user uuid %s, Sa uuid %s is from ns %s without cluster-admin role, so resource quota request denied", req.UserInfo.UID, sa.UID, sa.Namespace)
-		return &v1beta1.AdmissionResponse{
+		return &v1.AdmissionResponse{
 			Allowed: false,
 		}
 	}
@@ -456,18 +456,18 @@ func (whsvr *WebhookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.Admissi
 
 	glog.Infof("patchBytes %s", string(patchBytes))
 	if err != nil {
-		return &v1beta1.AdmissionResponse{
+		return &v1.AdmissionResponse{
 			Result: &metav1.Status{
 				Message: err.Error(),
 			},
 		}
 	}
 
-	return &v1beta1.AdmissionResponse{
+	return &v1.AdmissionResponse{
 		Allowed: true,
 		Patch:   patchBytes,
-		PatchType: func() *v1beta1.PatchType {
-			pt := v1beta1.PatchTypeJSONPatch
+		PatchType: func() *v1.PatchType {
+			pt := v1.PatchTypeJSONPatch
 			return &pt
 		}(),
 	}
@@ -495,11 +495,11 @@ func (whsvr *WebhookServer) Serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var admissionResponse *v1beta1.AdmissionResponse
-	ar := v1beta1.AdmissionReview{}
+	var admissionResponse *v1.AdmissionResponse
+	ar := v1.AdmissionReview{}
 	if _, _, err := deserializer.Decode(body, nil, &ar); err != nil {
 		glog.Errorf("Can't decode body: %v", err)
-		admissionResponse = &v1beta1.AdmissionResponse{
+		admissionResponse = &v1.AdmissionResponse{
 			Result: &metav1.Status{
 				Message: err.Error(),
 			},
@@ -508,7 +508,7 @@ func (whsvr *WebhookServer) Serve(w http.ResponseWriter, r *http.Request) {
 		admissionResponse = whsvr.mutate(&ar)
 	}
 
-	admissionReview := v1beta1.AdmissionReview{}
+	admissionReview := v1.AdmissionReview{}
 	if admissionResponse != nil {
 		admissionReview.Response = admissionResponse
 		if ar.Request != nil {
