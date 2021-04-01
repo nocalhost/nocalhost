@@ -1,4 +1,4 @@
-apiVersion: admissionregistration.k8s.io/v1beta1
+apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   name: nocalhost-mutating.coding.net
@@ -56,4 +56,5 @@ webhooks:
         apiGroups: [ "" ] # means core
         apiVersions: [ "v1" ]
         resources: [ "resourcequotas" ]
+    sideEffects: None
 
