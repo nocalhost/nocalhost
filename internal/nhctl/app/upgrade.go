@@ -75,20 +75,6 @@ func (a *Application) upgradeForKustomize() error {
 func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error {
 
 	var err error
-	//if installFlags.GitUrl != "" {
-	//	err = a.downloadUpgradeResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
-	//	if err != nil {
-	//		return err
-	//	}
-	//} else if installFlags.LocalPath != "" {
-	//	err = a.copyUpgradeResourcesFromLocalDir(installFlags.LocalPath)
-	//	if err != nil {
-	//		return errors.Wrap(err, "")
-	//	}
-	//} else {
-	//	return errors.New("LocalPath or GitUrl mush be specified")
-	//}
-
 	var upgradeResourcePath []string
 	if len(installFlags.ResourcePath) > 0 {
 		upgradeResourcePath = installFlags.ResourcePath
@@ -223,7 +209,6 @@ func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*re
 
 	for _, info := range infosToUpdate {
 		log.Infof("Updating resource(%s) %s", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
-		//err := a.client.UpdateResourceInfoByServerSide(info)
 		err := a.client.ApplyResourceInfo(info, StandardNocalhostMetas(a.Name, a.NameSpace))
 		if err != nil {
 			log.WarnE(err, fmt.Sprintf("Failed to create resource %s", info.Name))
