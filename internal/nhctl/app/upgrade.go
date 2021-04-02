@@ -41,24 +41,31 @@ func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
 	case HelmLocal:
 		return a.upgradeForHelmGitOrHelmLocal(installFlags)
 	case KustomizeGit:
-		return a.upgradeForKustomize()
+		return a.upgradeForKustomize(installFlags)
 	default:
 		return errors.New("Unsupported app type")
 	}
 
 }
 
-func (a *Application) upgradeForKustomize() error {
-	resourcesPath := a.GetResourceDir()
+func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error {
+	var err error
+	if installFlags.GitUrl != "" {
+		err = a.downloadUpgradeResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
+		if err != nil {
+			return err
+		}
+	}
+	resourcesPath := a.getUpgradeResourceDir(installFlags.ResourcePath)
 	if len(resourcesPath) > 1 {
 		log.Warn(`There are multiple resourcesPath settings, will use first one`)
 	}
 	useResourcePath := resourcesPath[0]
-	err := a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.GetNamespace()), useResourcePath)
+	err = a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.GetNamespace()), useResourcePath)
 	if err != nil {
 		return err
 	}
-	return nil
+	return moveDir(a.getUpgradeGitDir(), a.getGitDir())
 }
 
 func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error {
