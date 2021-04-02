@@ -46,9 +46,9 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 	}
 	switch appProfile.AppType {
 	case string(Helm), string(HelmLocal):
-		err = a.installHelmFromLocalDir(flags)
+		err = a.installHelm(flags, false)
 	case string(HelmRepo):
-		err = a.installHelmInRepo(flags)
+		err = a.installHelm(flags, true)
 	case string(Manifest), string(ManifestLocal):
 		err = a.InstallManifest()
 	case string(KustomizeGit):
@@ -116,7 +116,7 @@ func (a *Application) InstallManifest() error {
 	return errors.Wrap(a.installManifestRecursively(), "")
 }
 
-func (a *Application) installHelmInRepo(flags *HelmFlags) error {
+func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 
 	releaseName := a.Name
 	commonParams := make([]string, 0)
@@ -130,37 +130,51 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 		commonParams = append(commonParams, "--debug")
 	}
 
-	chartName := flags.Chart
-	if a.configV2 != nil && a.configV2.ApplicationConfig.Name != "" {
-		chartName = a.configV2.ApplicationConfig.Name
+	var resourcesPath []string
+	if !fromRepo {
+		resourcesPath = a.GetResourceDir()
 	}
-	installParams := []string{"install", releaseName}
-	if flags.Wait {
-		installParams = append(installParams, "--wait")
-	}
-
 	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}
 	defer profileV2.CloseDb()
 
-	if flags.RepoUrl != "" {
-		installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
-		profileV2.HelmRepoUrl = flags.RepoUrl
-	} else if flags.RepoName != "" {
-		installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
-		profileV2.HelmRepoName = flags.RepoName
-	}
-	if flags.Version != "" {
-		installParams = append(installParams, "--version", flags.Version)
+	installParams := []string{"install", releaseName}
+	if !fromRepo {
+		installParams = append(installParams, resourcesPath[0])
+		log.Info("building dependency...")
+		depParams := []string{"dependency", "build", resourcesPath[0]}
+		depParams = append(depParams, commonParams...)
+		if _, err = tools.ExecCommand(nil, true, "helm", depParams...); err != nil {
+			return errors.Wrap(err, "fail to build dependency for helm app")
+		}
+	} else {
+		chartName := flags.Chart
+		if a.configV2 != nil && a.configV2.ApplicationConfig.Name != "" {
+			chartName = a.configV2.ApplicationConfig.Name
+		}
+		if flags.RepoUrl != "" {
+			installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
+			profileV2.HelmRepoUrl = flags.RepoUrl
+		} else if flags.RepoName != "" {
+			installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
+			profileV2.HelmRepoName = flags.RepoName
+		}
+		if flags.Version != "" {
+			installParams = append(installParams, "--version", flags.Version)
+		}
+		profileV2.ChartName = chartName
 	}
 
-	if len(flags.Set) > 0 {
-		for _, set := range flags.Set {
-			installParams = append(installParams, "--set", set)
-		}
+	if flags.Wait {
+		installParams = append(installParams, "--wait")
 	}
+
+	for _, set := range flags.Set {
+		installParams = append(installParams, "--set", set)
+	}
+
 	if flags.Values != "" {
 		installParams = append(installParams, "-f", flags.Values)
 	}
@@ -169,70 +183,13 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 
 	fmt.Println("install helm application, this may take several minutes, please waiting...")
 
-	_, err = tools.ExecCommand(nil, true, "helm", installParams...)
-	if err != nil {
-		return err
-	}
-	profileV2.ReleaseName = releaseName
-	profileV2.ChartName = chartName
-	profileV2.Save()
-	log.Infof(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`, a.NameSpace)
-	return nil
-}
-
-func (a *Application) installHelmFromLocalDir(flags *HelmFlags) error {
-
-	resourcesPath := a.GetResourceDir()
-	releaseName := a.Name
-
-	commonParams := make([]string, 0)
-	if a.NameSpace != "" {
-		commonParams = append(commonParams, "-n", a.NameSpace)
-	}
-	if a.GetKubeconfig() != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
-	}
-	if flags.Debug {
-		commonParams = append(commonParams, "--debug")
-	}
-
-	params := []string{"install", releaseName, resourcesPath[0]}
-	if flags.Wait {
-		params = append(params, "--wait")
-	}
-	if len(flags.Set) > 0 {
-		for _, set := range flags.Set {
-			params = append(params, "--set", set)
-		}
-	}
-	if flags.Values != "" {
-		params = append(params, "-f", flags.Values)
-	}
-	params = append(params, "--timeout", "60m")
-	params = append(params, commonParams...)
-
-	log.Info("building dependency...")
-	depParams := []string{"dependency", "build", resourcesPath[0]}
-	depParams = append(depParams, commonParams...)
-	_, err := tools.ExecCommand(nil, true, "helm", depParams...)
-	if err != nil {
-		return errors.Wrap(err, "fail to build dependency for helm app")
-	}
-
-	fmt.Println("install helm application, this may take several minutes, please waiting...")
-	if _, err = tools.ExecCommand(nil, true, "helm", params...); err != nil {
+	if _, err = tools.ExecCommand(nil, true, "helm", installParams...); err != nil {
 		return errors.Wrap(err, "fail to install helm application")
 	}
 
-	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
-	if err != nil {
-		return err
-	}
-	defer profileV2.CloseDb()
-
 	profileV2.ReleaseName = releaseName
 	profileV2.Save()
-	fmt.Printf(`helm application installed, use "helm list -n %s" to get the information of the helm release`+"\n", a.NameSpace)
+	log.Infof(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`, a.NameSpace)
 	return nil
 }
 
