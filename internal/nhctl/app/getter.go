@@ -16,15 +16,8 @@ package app
 import "nocalhost/pkg/nhctl/clientgoutils"
 
 func (a *Application) GetType() AppType {
-	//appProfile, _ := a.GetProfile()
 	return AppType(a.profileV2.AppType)
 }
-
-// Deprecated
-//func (a *Application) GetKubeconfig() string {
-//	appProfile, _ := a.GetProfile()
-//	return appProfile.Kubeconfig
-//}
 
 func (a *Application) IsHelm() bool {
 	appProfile := a.profileV2

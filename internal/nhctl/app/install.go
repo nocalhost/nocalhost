@@ -40,11 +40,11 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to install dep config map")
 	}
-	appProfile, err := a.GetProfile()
-	if err != nil {
-		return err
-	}
-	switch appProfile.AppType {
+	//appProfile, err := a.GetProfile()
+	//if err != nil {
+	//	return err
+	//}
+	switch a.profileV2.AppType {
 	case string(Helm), string(HelmLocal):
 		err = a.installHelm(flags, false)
 	case string(HelmRepo):

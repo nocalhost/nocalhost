@@ -554,26 +554,6 @@ func (a *Application) GetSvcDescription(svcName string) string {
 	return desc
 }
 
-// Deprecated
-func (a *Application) FixPortForwardOSArgs(localPort, remotePort []int) {
-	var newArg []string
-	for _, v := range os.Args {
-		match := false
-		for key, vv := range remotePort {
-			if v == "-p" || v == fmt.Sprintf(":%d", vv) || v == fmt.Sprintf("%d:%d", localPort[key], vv) {
-				match = true
-			}
-		}
-		if !match {
-			newArg = append(newArg, v)
-		}
-	}
-	for k, v := range localPort {
-		newArg = append(newArg, "-p", fmt.Sprintf("%d:%d", v, remotePort[k]))
-	}
-	os.Args = newArg
-}
-
 func (a *Application) ListContainersByDeployment(depName string) ([]corev1.Container, error) {
 	pods, err := a.client.ListPodsByDeployment(depName)
 	if err != nil {
@@ -617,19 +597,19 @@ func (a *Application) PortForward(deployment, podName string, localPort, remoteP
 	}
 }
 
-func (a *Application) SendHeartBeat(ctx context.Context, listenAddress string, sLocalPort int) error {
-	for {
-		select {
-		case <-ctx.Done():
-			log.Infof("Stop sending heart beat to %d", sLocalPort)
-			return errors.New("HeatBeat has been stopped")
-		default:
-			<-time.After(30 * time.Second)
-			log.Infof("try to send port-forward heartbeat to %d", sLocalPort)
-			return a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress, sLocalPort))
-		}
-	}
-}
+//func (a *Application) SendHeartBeat(ctx context.Context, listenAddress string, sLocalPort int) error {
+//	for {
+//		select {
+//		case <-ctx.Done():
+//			log.Infof("Stop sending heart beat to %d", sLocalPort)
+//			return errors.New("HeatBeat has been stopped")
+//		default:
+//			<-time.After(30 * time.Second)
+//			log.Infof("try to send port-forward heartbeat to %d", sLocalPort)
+//			return a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress, sLocalPort))
+//		}
+//	}
+//}
 
 func (a *Application) CheckPidPortStatus(ctx context.Context, deployment string, sLocalPort, sRemotePort int, lock *sync.Mutex) {
 	for {
@@ -652,17 +632,12 @@ func (a *Application) CheckPidPortStatus(ctx context.Context, deployment string,
 
 func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error {
 	conn, err := net.Dial("tcp", addressWithPort)
-
 	if err != nil || conn == nil {
-		log.Warnf("connect port-forward heartbeat address fail, %s", addressWithPort)
-		return nil
+		return errors.New(fmt.Sprintf("connect port-forward heartbeat address fail, %s", addressWithPort))
 	}
 	// GET /heartbeat HTTP/1.1
 	_, err = conn.Write([]byte("ping"))
-	if err != nil {
-		log.Warnf("send port-forward heartbeat fail, %s", err.Error())
-	}
-	return err
+	return errors.Wrap(err, "send port-forward heartbeat fail")
 }
 
 func (a *Application) GetBackgroundSyncPortForwardPid(deployment string, isTrunc bool) (int, string, error) {
