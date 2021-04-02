@@ -15,11 +15,6 @@ package app
 
 import "nocalhost/pkg/nhctl/clientgoutils"
 
-// Deprecated
-func (a *Application) GetNamespace() string {
-	return a.NameSpace
-}
-
 func (a *Application) GetType() AppType {
 	appProfile, _ := a.GetProfile()
 	return AppType(appProfile.AppType)

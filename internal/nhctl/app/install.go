@@ -81,7 +81,7 @@ func (a *Application) InstallKustomize() error {
 		log.Warn(`There are multiple resourcesPath settings, will use first one`)
 	}
 	useResourcePath := resourcesPath[0]
-	err := a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.GetNamespace()), useResourcePath)
+	err := a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.NameSpace), useResourcePath)
 	if err != nil {
 		return err
 	}
@@ -99,8 +99,8 @@ func (a *Application) InstallKustomizeWithKubectl() error {
 	}
 	useResourcePath := resourcesPath[0]
 	commonParams := []string{"apply", "-k", useResourcePath}
-	if a.GetNamespace() != "" {
-		commonParams = append(commonParams, "--namespace", a.GetNamespace())
+	if a.NameSpace != "" {
+		commonParams = append(commonParams, "--namespace", a.NameSpace)
 	}
 	if a.GetKubeconfig() != "" {
 		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
@@ -125,8 +125,8 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 
 	releaseName := a.Name
 	commonParams := make([]string, 0)
-	if a.GetNamespace() != "" {
-		commonParams = append(commonParams, "--namespace", a.GetNamespace())
+	if a.NameSpace != "" {
+		commonParams = append(commonParams, "--namespace", a.NameSpace)
 	}
 	if a.GetKubeconfig() != "" {
 		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
@@ -183,7 +183,7 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 	profileV2.ChartName = chartName
 	//a.SaveProfile()
 	profileV2.Save()
-	log.Infof(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`, a.GetNamespace())
+	log.Infof(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`, a.NameSpace)
 	return nil
 }
 
@@ -193,8 +193,8 @@ func (a *Application) installHelmInGit(flags *HelmFlags) error {
 	releaseName := a.Name
 
 	commonParams := make([]string, 0)
-	if a.GetNamespace() != "" {
-		commonParams = append(commonParams, "-n", a.GetNamespace())
+	if a.NameSpace != "" {
+		commonParams = append(commonParams, "-n", a.NameSpace)
 	}
 	if a.GetKubeconfig() != "" {
 		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
@@ -243,7 +243,7 @@ func (a *Application) installHelmInGit(flags *HelmFlags) error {
 	profileV2.ReleaseName = releaseName
 	//a.SaveProfile()
 	profileV2.Save()
-	fmt.Printf(`helm application installed, use "helm list -n %s" to get the information of the helm release`+"\n", a.GetNamespace())
+	fmt.Printf(`helm application installed, use "helm list -n %s" to get the information of the helm release`+"\n", a.NameSpace)
 	return nil
 }
 
@@ -293,7 +293,7 @@ func (a *Application) InstallDepConfigMap() error {
 			configMap.Labels = make(map[string]string, 0)
 		}
 		configMap.Labels["use-for"] = "nocalhost-dep"
-		_, err = a.client.ClientSet.CoreV1().ConfigMaps(a.GetNamespace()).Create(context.TODO(), configMap, metav1.CreateOptions{})
+		_, err = a.client.ClientSet.CoreV1().ConfigMaps(a.NameSpace).Create(context.TODO(), configMap, metav1.CreateOptions{})
 		if err != nil {
 			fmt.Errorf("fail to create dependency config %s\n", configMap.Name)
 			return errors.Wrap(err, "")
@@ -310,7 +310,7 @@ func (a *Application) installManifestRecursively() error {
 	//a.loadInstallManifest()
 	log.Logf("%d manifest files to be installed", len(a.installManifest))
 	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForCreate(a.installManifest, true, StandardNocalhostMetas(a.Name, a.GetNamespace()), "")
+		err := a.client.ApplyForCreate(a.installManifest, true, StandardNocalhostMetas(a.Name, a.NameSpace), "")
 		if err != nil {
 			return err
 		}
@@ -402,7 +402,7 @@ func (a *Application) preInstall() {
 	if len(a.sortedPreInstallManifest) > 0 {
 		log.Info("Run pre-install...")
 		for _, item := range a.sortedPreInstallManifest {
-			err := a.client.Create(item, true, false, StandardNocalhostMetas(a.Name, a.GetNamespace()))
+			err := a.client.Create(item, true, false, StandardNocalhostMetas(a.Name, a.NameSpace))
 			if err != nil {
 				log.Warnf("error occurs when install %s : %s\n", item, err.Error())
 			}

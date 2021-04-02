@@ -75,7 +75,7 @@ var fileSyncCmd = &cobra.Command{
 			log.FatalE(err, "No dev container found")
 		}
 
-		log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.GetNamespace())
+		log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.NameSpace)
 
 		svcProfile, _ := nocalhostApp.GetSvcProfile(deployment)
 		// Start a pf for syncthing

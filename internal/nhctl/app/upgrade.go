@@ -54,7 +54,7 @@ func (a *Application) upgradeForKustomize() error {
 		log.Warn(`There are multiple resourcesPath settings, will use first one`)
 	}
 	useResourcePath := resourcesPath[0]
-	err := a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.GetNamespace()), useResourcePath)
+	err := a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.NameSpace), useResourcePath)
 	if err != nil {
 		return err
 	}
@@ -201,7 +201,7 @@ func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*re
 
 	for _, info := range infosToCreate {
 		log.Infof("Creating resource(%s) %s", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
-		err := a.client.ApplyResourceInfo(info, StandardNocalhostMetas(a.Name, a.GetNamespace()))
+		err := a.client.ApplyResourceInfo(info, StandardNocalhostMetas(a.Name, a.NameSpace))
 		if err != nil {
 			log.WarnE(err, fmt.Sprintf("Failed to create resource %s", info.Name))
 			if !continueOnErr {
@@ -213,7 +213,7 @@ func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*re
 	for _, info := range infosToUpdate {
 		log.Infof("Updating resource(%s) %s", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
 		//err := a.client.UpdateResourceInfoByServerSide(info)
-		err := a.client.ApplyResourceInfo(info, StandardNocalhostMetas(a.Name, a.GetNamespace()))
+		err := a.client.ApplyResourceInfo(info, StandardNocalhostMetas(a.Name, a.NameSpace))
 		if err != nil {
 			log.WarnE(err, fmt.Sprintf("Failed to create resource %s", info.Name))
 			if !continueOnErr {
@@ -261,8 +261,8 @@ func (a *Application) upgradeForHelmGitOrHelmLocal(installFlags *flag.InstallFla
 	releaseName := appProfile.ReleaseName
 
 	commonParams := make([]string, 0)
-	if a.GetNamespace() != "" {
-		commonParams = append(commonParams, "-n", a.GetNamespace())
+	if a.NameSpace != "" {
+		commonParams = append(commonParams, "-n", a.NameSpace)
 	}
 	if a.GetKubeconfig() != "" {
 		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
@@ -304,8 +304,8 @@ func (a *Application) upgradeForHelmRepo(installFlags *flag.InstallFlags) error 
 	}
 	releaseName := appProfile.ReleaseName
 	commonParams := make([]string, 0)
-	if a.GetNamespace() != "" {
-		commonParams = append(commonParams, "--namespace", a.GetNamespace())
+	if a.NameSpace != "" {
+		commonParams = append(commonParams, "--namespace", a.NameSpace)
 	}
 	if a.GetKubeconfig() != "" {
 		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())

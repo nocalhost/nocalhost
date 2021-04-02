@@ -157,7 +157,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	}
 
 	if initClient {
-		app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), app.GetNamespace())
+		app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), app.NameSpace)
 		if err != nil {
 			return nil, err
 		}
@@ -430,7 +430,7 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 		dep.Annotations = make(map[string]string, 0)
 	}
 	dep.Annotations[NocalhostApplicationName] = a.Name
-	dep.Annotations[NocalhostApplicationNamespace] = a.GetNamespace()
+	dep.Annotations[NocalhostApplicationNamespace] = a.NameSpace
 
 	_, err = clientUtils.CreateDeployment(dep)
 	if err != nil {
