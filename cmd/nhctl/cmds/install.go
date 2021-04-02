@@ -188,10 +188,5 @@ func InstallApplication(applicationName string) error {
 		Version:  installFlags.HelmRepoVersion,
 	}
 
-	err = nocalhostApp.Install(context.TODO(), flags)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return nocalhostApp.Install(context.TODO(), flags)
 }

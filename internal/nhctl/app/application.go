@@ -66,12 +66,19 @@ const (
 )
 
 type Application struct {
-	Name      string
-	NameSpace string
+	Name       string
+	NameSpace  string
+	KubeConfig string
 
-	// config is created when `install`, after that it will not be changed
-	// config will not be nil if you use NewApplication a get a Application
+	// configV2 is created and saved to config_v2.yaml when `install`, after that it will not be changed
+	// configV2 will not be nil if you use NewApplication a get a Application
 	configV2 *profile.NocalHostAppConfigV2
+
+	// profileV2 is created and saved to leveldb when `install`
+	// profileV2 will not be nil if you use NewApplication a get a Application
+	// you can only get const data from it, such as Namespace,AppType...
+	// don't save it to leveldb directly
+	profileV2 *profile.AppProfileV2
 
 	client                   *clientgoutils.ClientGoUtils
 	sortedPreInstallManifest []string // for pre install
@@ -146,22 +153,26 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 
 	if len(appProfile.PreInstall) == 0 && len(app.configV2.ApplicationConfig.PreInstall) > 0 {
 		appProfile.PreInstall = app.configV2.ApplicationConfig.PreInstall
-		//_ = app.SaveProfile()
-		nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile)
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile); err != nil {
+			return nil, err
+		}
 	}
 
 	if kubeconfig != "" && kubeconfig != appProfile.Kubeconfig {
 		appProfile.Kubeconfig = kubeconfig
-		//_ = app.SaveProfile()
-		nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile)
-	}
-
-	if initClient {
-		app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), app.NameSpace)
-		if err != nil {
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile); err != nil {
 			return nil, err
 		}
 	}
+	app.KubeConfig = appProfile.Kubeconfig
+
+	if initClient {
+		if app.client, err = clientgoutils.NewClientGoUtils(app.KubeConfig, app.NameSpace); err != nil {
+			return nil, err
+		}
+	}
+
+	app.profileV2 = appProfile
 
 	return app, nil
 }

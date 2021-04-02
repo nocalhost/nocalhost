@@ -24,10 +24,6 @@ import (
 func (a *Application) GetDependencies() []*SvcDependency {
 	result := make([]*SvcDependency, 0)
 
-	if a.configV2 == nil {
-		return nil
-	}
-
 	svcConfigs := a.configV2.ApplicationConfig.ServiceConfigs
 	if len(svcConfigs) == 0 {
 		return nil

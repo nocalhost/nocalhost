@@ -16,27 +16,28 @@ package app
 import "nocalhost/pkg/nhctl/clientgoutils"
 
 func (a *Application) GetType() AppType {
-	appProfile, _ := a.GetProfile()
-	return AppType(appProfile.AppType)
+	//appProfile, _ := a.GetProfile()
+	return AppType(a.profileV2.AppType)
 }
 
-func (a *Application) GetKubeconfig() string {
-	appProfile, _ := a.GetProfile()
-	return appProfile.Kubeconfig
-}
+// Deprecated
+//func (a *Application) GetKubeconfig() string {
+//	appProfile, _ := a.GetProfile()
+//	return appProfile.Kubeconfig
+//}
 
 func (a *Application) IsHelm() bool {
-	appProfile, _ := a.GetProfile()
+	appProfile := a.profileV2
 	return appProfile.AppType == string(Helm) || appProfile.AppType == string(HelmRepo) || appProfile.AppType == string(HelmLocal)
 }
 
 func (a *Application) IsManifest() bool {
-	appProfile, _ := a.GetProfile()
+	appProfile := a.profileV2
 	return appProfile.AppType == string(Manifest) || appProfile.AppType == string(ManifestLocal)
 }
 
 func (a *Application) IsKustomize() bool {
-	appProfile, _ := a.GetProfile()
+	appProfile := a.profileV2
 	return appProfile.AppType == string(KustomizeGit)
 }
 

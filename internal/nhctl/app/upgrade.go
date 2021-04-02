@@ -264,8 +264,8 @@ func (a *Application) upgradeForHelmGitOrHelmLocal(installFlags *flag.InstallFla
 	if a.NameSpace != "" {
 		commonParams = append(commonParams, "-n", a.NameSpace)
 	}
-	if a.GetKubeconfig() != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
+	if a.KubeConfig != "" {
+		commonParams = append(commonParams, "--kubeconfig", a.KubeConfig)
 	}
 	//if installFlags.Debug {
 	//commonParams = append(commonParams, "--debug")
@@ -307,8 +307,8 @@ func (a *Application) upgradeForHelmRepo(installFlags *flag.InstallFlags) error 
 	if a.NameSpace != "" {
 		commonParams = append(commonParams, "--namespace", a.NameSpace)
 	}
-	if a.GetKubeconfig() != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
+	if a.KubeConfig != "" {
+		commonParams = append(commonParams, "--kubeconfig", a.KubeConfig)
 	}
 	//if installFlags.Debug {
 	//	commonParams = append(commonParams, "--debug")

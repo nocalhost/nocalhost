@@ -129,7 +129,6 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		}
 	}
 
-	// app.LoadSvcConfigsToProfile()
 	// Load config to profile
 	appProfileV2.AppType = app.configV2.ApplicationConfig.Type
 	appProfileV2.ResourcePath = app.configV2.ApplicationConfig.ResourcePath
@@ -147,6 +146,9 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	if len(flags.ResourcePath) != 0 {
 		appProfileV2.ResourcePath = flags.ResourcePath
 	}
+
+	app.profileV2 = appProfileV2
+	app.KubeConfig = appProfileV2.Kubeconfig
 
 	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
 }

@@ -98,8 +98,8 @@ func (a *Application) InstallKustomizeWithKubectl() error {
 	if a.NameSpace != "" {
 		commonParams = append(commonParams, "--namespace", a.NameSpace)
 	}
-	if a.GetKubeconfig() != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
+	if a.KubeConfig != "" {
+		commonParams = append(commonParams, "--kubeconfig", a.KubeConfig)
 	}
 	_, err = tools.ExecCommand(nil, true, "kubectl", commonParams...)
 	if err != nil {
@@ -123,8 +123,8 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 	if a.NameSpace != "" {
 		commonParams = append(commonParams, "--namespace", a.NameSpace)
 	}
-	if a.GetKubeconfig() != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
+	if a.KubeConfig != "" {
+		commonParams = append(commonParams, "--kubeconfig", a.KubeConfig)
 	}
 	if flags.Debug {
 		commonParams = append(commonParams, "--debug")
@@ -196,7 +196,7 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 func (a *Application) InstallDepConfigMap() error {
 	appDep := a.GetDependencies()
 	appEnv := a.GetInstallEnvForDep()
-	if appDep != nil || len(appEnv.Global) > 0 || len(appEnv.Service) > 0 {
+	if len(appDep) > 0 || len(appEnv.Global) > 0 || len(appEnv.Service) > 0 {
 		var depForYaml = &struct {
 			Dependency  []*SvcDependency  `json:"dependency" yaml:"dependency"`
 			ReleaseName string            `json:"releaseName" yaml:"releaseName"`
