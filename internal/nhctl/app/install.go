@@ -239,10 +239,8 @@ func (a *Application) InstallDepConfigMap() error {
 			configMap.Labels = make(map[string]string, 0)
 		}
 		configMap.Labels["use-for"] = "nocalhost-dep"
-		_, err = a.client.ClientSet.CoreV1().ConfigMaps(a.NameSpace).Create(context.TODO(), configMap, metav1.CreateOptions{})
-		if err != nil {
-			fmt.Errorf("fail to create dependency config %s\n", configMap.Name)
-			return errors.Wrap(err, "")
+		if _, err = a.client.ClientSet.CoreV1().ConfigMaps(a.NameSpace).Create(context.TODO(), configMap, metav1.CreateOptions{}); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("fail to create dependency config %s", configMap.Name))
 		} else {
 			profileV2.DependencyConfigMapName = configMap.Name
 			profileV2.Save()
@@ -253,7 +251,6 @@ func (a *Application) InstallDepConfigMap() error {
 }
 
 func (a *Application) installManifestRecursively() error {
-	//a.loadInstallManifest()
 	log.Logf("%d manifest files to be installed", len(a.installManifest))
 	if len(a.installManifest) > 0 {
 		err := a.client.ApplyForCreate(a.installManifest, true, StandardNocalhostMetas(a.Name, a.NameSpace), "")

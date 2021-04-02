@@ -68,10 +68,11 @@ const (
 type Application struct {
 	Name      string
 	NameSpace string
-	//config   *NocalHostAppConfig //  this should not be nil
+
+	// config is created when `install`, after that it will not be changed
+	// config will not be nil if you use NewApplication a get a Application
 	configV2 *profile.NocalHostAppConfigV2
-	//AppProfile               *AppProfile // runtime info, this will not be nil
-	//AppProfileV2             *profile.AppProfileV2
+
 	client                   *clientgoutils.ClientGoUtils
 	sortedPreInstallManifest []string // for pre install
 	installManifest          []string // for install
@@ -79,7 +80,6 @@ type Application struct {
 	// for upgrade
 	upgradeSortedPreInstallManifest []string
 	upgradeInstallManifest          []string
-	//db                              *leveldb.DB
 }
 
 type SvcDependency struct {
@@ -167,14 +167,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 }
 
 func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
-	app, err := nocalhost.GetProfileV2(a.NameSpace, a.Name)
-	if err != nil {
-		return nil, err
-	}
-	//if app == nil {
-	//	app = &profile.AppProfileV2{}
-	//}
-	return app, nil
+	return nocalhost.GetProfileV2(a.NameSpace, a.Name)
 }
 
 func (a *Application) SaveProfile(p *profile.AppProfileV2) error {
@@ -197,20 +190,11 @@ func (a *Application) LoadConfigV2() error {
 	}
 
 	config := &profile.NocalHostAppConfigV2{}
-	if _, err := os.Stat(a.GetConfigV2Path()); err != nil {
-		if os.IsNotExist(err) {
-			a.configV2 = config
-			return nil
-		} else {
-			return errors.Wrap(err, "fail to load configs")
-		}
-	}
 	rbytes, err := ioutil.ReadFile(a.GetConfigV2Path())
 	if err != nil {
 		return errors.New(fmt.Sprintf("fail to load configFile : %s", a.GetConfigV2Path()))
 	}
-	err = yaml.Unmarshal(rbytes, config)
-	if err != nil {
+	if err = yaml.Unmarshal(rbytes, config); err != nil {
 		return errors.Wrap(err, "")
 	}
 	a.configV2 = config
@@ -276,10 +260,6 @@ func (a *Application) IsAnyServiceInDevMode() bool {
 }
 
 func (a *Application) GetSvcConfigV2(svcName string) *profile.ServiceConfigV2 {
-	a.LoadConfigV2() // get the latest config
-	if a.configV2 == nil {
-		return nil
-	}
 	for _, config := range a.configV2.ApplicationConfig.ServiceConfigs {
 		if config.Name == svcName {
 			return config
@@ -289,10 +269,6 @@ func (a *Application) GetSvcConfigV2(svcName string) *profile.ServiceConfigV2 {
 }
 
 func (a *Application) GetApplicationConfigV2() *profile.ApplicationConfig {
-	a.LoadConfigV2() // get the latest config
-	if a.configV2 == nil {
-		return nil
-	}
 	return a.configV2.ApplicationConfig
 }
 
