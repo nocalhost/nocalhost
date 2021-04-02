@@ -24,10 +24,6 @@ import (
 func (a *Application) GetDependencies() []*SvcDependency {
 	result := make([]*SvcDependency, 0)
 
-	if a.configV2 == nil {
-		return nil
-	}
-
 	svcConfigs := a.configV2.ApplicationConfig.ServiceConfigs
 	if len(svcConfigs) == 0 {
 		return nil
@@ -54,7 +50,11 @@ func (a *Application) GetDependencies() []*SvcDependency {
 // Get local path of resource dirs
 // If resource path undefined, use git url
 func (a *Application) GetResourceDir() []string {
-	appProfile, _ := a.GetProfile()
+	appProfile, err := a.GetProfile()
+	if err != nil {
+		log.Warn("Profile is nil ???")
+		panic(err) // todo
+	}
 	var resourcePath []string
 	if len(appProfile.ResourcePath) != 0 {
 		for _, path := range appProfile.ResourcePath {

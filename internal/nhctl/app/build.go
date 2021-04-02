@@ -51,21 +51,17 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, err
 	}
 
-	err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name)
-	if err != nil {
+	if err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name); err != nil {
 		return nil, err
 	}
 
-	appProfileV2 := &profile.AppProfileV2{}
-
-	appProfileV2.Installed = true
+	appProfileV2 := &profile.AppProfileV2{Installed: true}
 
 	if kubeconfig == "" { // use default config
 		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
 	}
 
-	app.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace)
-	if err != nil {
+	if app.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace); err != nil {
 		return nil, err
 	}
 
@@ -73,16 +69,14 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	appProfileV2.Kubeconfig = kubeconfig
 
 	if flags.GitUrl != "" {
-		err = app.downloadResourcesFromGit(flags.GitUrl, flags.GitRef)
-		if err != nil {
+		if err = app.downloadResourcesFromGit(flags.GitUrl, flags.GitRef); err != nil {
 			log.Debugf("Failed to clone : %s ref: %s", flags.GitUrl, flags.GitRef)
 			return nil, err
 		}
 		appProfileV2.GitUrl = flags.GitUrl
 		appProfileV2.GitRef = flags.GitRef
 	} else if flags.LocalPath != "" { // local path of application, copy to nocalhost resource
-		err := utils.CopyDir(flags.LocalPath, app.getGitDir())
-		if err != nil {
+		if err = utils.CopyDir(flags.LocalPath, app.getGitDir()); err != nil {
 			return nil, err
 		}
 	}
@@ -129,7 +123,6 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		}
 	}
 
-	// app.LoadSvcConfigsToProfile()
 	// Load config to profile
 	appProfileV2.AppType = app.configV2.ApplicationConfig.Type
 	appProfileV2.ResourcePath = app.configV2.ApplicationConfig.ResourcePath
@@ -147,6 +140,9 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	if len(flags.ResourcePath) != 0 {
 		appProfileV2.ResourcePath = flags.ResourcePath
 	}
+
+	app.profileV2 = appProfileV2
+	app.KubeConfig = appProfileV2.Kubeconfig
 
 	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
 }
@@ -304,7 +300,6 @@ func (a *Application) initDir() error {
 		return errors.Wrap(err, "")
 	}
 
-	//log.Infof("Making dir %s", a.getDbDir())
 	return errors.Wrap(os.MkdirAll(a.getDbDir(), DefaultNewFilePermission), "")
 }
 

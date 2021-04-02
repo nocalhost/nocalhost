@@ -177,7 +177,7 @@ func (d *DaemonClient) SendStartPortForwardCommand(nhSvc *model.NocalHostResourc
 	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
 		return err
 	} else {
-		log.Infof("%s", string(bys))
+		log.Infof("Response: %s", string(bys))
 		return nil
 	}
 }
@@ -201,7 +201,7 @@ func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource
 	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
 		return err
 	} else {
-		log.Infof("%s", string(bys))
+		log.Infof("Response: %s", string(bys))
 		return nil
 	}
 }

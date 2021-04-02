@@ -89,6 +89,10 @@ var upgradeCmd = &cobra.Command{
 		}
 
 		// todo: Validate flags
+		// Prepare for upgrading
+		if err = nocalhostApp.PrepareForUpgrade(installFlags); err != nil {
+			log.FatalE(err, "")
+		}
 		err = nocalhostApp.Upgrade(installFlags)
 		if err != nil {
 			log.FatalE(err, fmt.Sprintf("Failed to upgrade application"))
