@@ -155,7 +155,6 @@ var installCmd = &cobra.Command{
 func InstallApplication(applicationName string) error {
 	var err error
 
-	//installFlags.EnvSettings = settings
 	log.Logf("KubeConfig path: %s", kubeConfig)
 	bys, err := ioutil.ReadFile(kubeConfig)
 	if err != nil {

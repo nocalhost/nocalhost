@@ -45,16 +45,12 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 		return err
 	}
 	switch appProfile.AppType {
-	case string(Helm):
-		err = a.installHelmInGit(flags)
+	case string(Helm), string(HelmLocal):
+		err = a.installHelmFromLocalDir(flags)
 	case string(HelmRepo):
 		err = a.installHelmInRepo(flags)
-	case string(Manifest):
+	case string(Manifest), string(ManifestLocal):
 		err = a.InstallManifest()
-	case string(ManifestLocal):
-		err = a.InstallManifest()
-	case string(HelmLocal):
-		err = a.installHelmInGit(flags)
 	case string(KustomizeGit):
 		// err = a.InstallKustomizeWithKubectl()
 		err = a.InstallKustomize()
@@ -117,8 +113,7 @@ func (a *Application) InstallManifest() error {
 	a.preInstall()
 
 	// install manifest recursively, don't install pre-install workload again
-	err := a.installManifestRecursively()
-	return errors.Wrap(err, "")
+	return errors.Wrap(a.installManifestRecursively(), "")
 }
 
 func (a *Application) installHelmInRepo(flags *HelmFlags) error {
@@ -159,7 +154,6 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 	}
 	if flags.Version != "" {
 		installParams = append(installParams, "--version", flags.Version)
-		//a.AppProfileV2.HelmRepoChartVersion = flags.Version
 	}
 
 	if len(flags.Set) > 0 {
@@ -181,13 +175,12 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 	}
 	profileV2.ReleaseName = releaseName
 	profileV2.ChartName = chartName
-	//a.SaveProfile()
 	profileV2.Save()
 	log.Infof(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`, a.NameSpace)
 	return nil
 }
 
-func (a *Application) installHelmInGit(flags *HelmFlags) error {
+func (a *Application) installHelmFromLocalDir(flags *HelmFlags) error {
 
 	resourcesPath := a.GetResourceDir()
 	releaseName := a.Name
@@ -223,15 +216,12 @@ func (a *Application) installHelmInGit(flags *HelmFlags) error {
 	depParams = append(depParams, commonParams...)
 	_, err := tools.ExecCommand(nil, true, "helm", depParams...)
 	if err != nil {
-		log.ErrorE(err, "fail to build dependency for helm app")
-		return err
+		return errors.Wrap(err, "fail to build dependency for helm app")
 	}
 
 	fmt.Println("install helm application, this may take several minutes, please waiting...")
-	_, err = tools.ExecCommand(nil, true, "helm", params...)
-	if err != nil {
-		fmt.Printf("fail to install helm nocalhostApp, err:%v\n", err)
-		return err
+	if _, err = tools.ExecCommand(nil, true, "helm", params...); err != nil {
+		return errors.Wrap(err, "fail to install helm application")
 	}
 
 	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
@@ -241,7 +231,6 @@ func (a *Application) installHelmInGit(flags *HelmFlags) error {
 	defer profileV2.CloseDb()
 
 	profileV2.ReleaseName = releaseName
-	//a.SaveProfile()
 	profileV2.Save()
 	fmt.Printf(`helm application installed, use "helm list -n %s" to get the information of the helm release`+"\n", a.NameSpace)
 	return nil
@@ -396,8 +385,6 @@ func (a *Application) loadSortedPreInstallManifest() {
 }
 
 func (a *Application) preInstall() {
-
-	//a.loadSortedPreInstallManifest()
 
 	if len(a.sortedPreInstallManifest) > 0 {
 		log.Info("Run pre-install...")
