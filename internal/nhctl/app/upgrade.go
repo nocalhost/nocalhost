@@ -27,19 +27,30 @@ import (
 	"os"
 )
 
+func (a *Application) PrepareForUpgrade(installFlags *flag.InstallFlags) error {
+
+	var err error
+	if installFlags.GitUrl != "" {
+		if err = a.downloadUpgradeResourcesFromGit(installFlags.GitUrl, installFlags.GitRef); err != nil {
+			return err
+		}
+	} else if installFlags.LocalPath != "" {
+		if err = a.copyUpgradeResourcesFromLocalDir(installFlags.LocalPath); err != nil {
+			return errors.Wrap(err, "")
+		}
+	}
+	return nil
+}
+
 func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
 
 	switch a.GetType() {
 	case HelmRepo:
-		return a.upgradeForHelmRepo(installFlags)
-	case Helm:
-		return a.upgradeForHelmGitOrHelmLocal(installFlags)
-	case Manifest:
+		return a.upgradeForHelm(installFlags, true)
+	case Helm, HelmLocal:
+		return a.upgradeForHelm(installFlags, false)
+	case Manifest, ManifestLocal:
 		return a.upgradeForManifest(installFlags)
-	case ManifestLocal:
-		return a.upgradeForManifest(installFlags)
-	case HelmLocal:
-		return a.upgradeForHelmGitOrHelmLocal(installFlags)
 	case KustomizeGit:
 		return a.upgradeForKustomize()
 	default:
@@ -64,19 +75,19 @@ func (a *Application) upgradeForKustomize() error {
 func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error {
 
 	var err error
-	if installFlags.GitUrl != "" {
-		err = a.downloadUpgradeResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
-		if err != nil {
-			return err
-		}
-	} else if installFlags.LocalPath != "" {
-		err = a.copyUpgradeResourcesFromLocalDir(installFlags.LocalPath)
-		if err != nil {
-			return errors.Wrap(err, "")
-		}
-	} else {
-		return errors.New("LocalPath or GitUrl mush be specified")
-	}
+	//if installFlags.GitUrl != "" {
+	//	err = a.downloadUpgradeResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
+	//	if err != nil {
+	//		return err
+	//	}
+	//} else if installFlags.LocalPath != "" {
+	//	err = a.copyUpgradeResourcesFromLocalDir(installFlags.LocalPath)
+	//	if err != nil {
+	//		return errors.Wrap(err, "")
+	//	}
+	//} else {
+	//	return errors.New("LocalPath or GitUrl mush be specified")
+	//}
 
 	var upgradeResourcePath []string
 	if len(installFlags.ResourcePath) > 0 {
@@ -236,73 +247,12 @@ func isContainsInfo(info *resource.Info, infos []*resource.Info) bool {
 	return false
 }
 
-func (a *Application) upgradeForHelmGitOrHelmLocal(installFlags *flag.InstallFlags) error {
+func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo bool) error {
 
 	var err error
-	if installFlags.GitUrl != "" {
-		err = a.downloadUpgradeResourcesFromGit(installFlags.GitUrl, installFlags.GitRef)
-		if err != nil {
-			return err
-		}
-	} else if installFlags.LocalPath != "" {
-		err = a.copyUpgradeResourcesFromLocalDir(installFlags.LocalPath)
-		if err != nil {
-			return errors.Wrap(err, "")
-		}
-	} else {
-		return errors.New("LocalPath or GitUrl mush be specified")
-	}
-
-	appProfile, err := a.GetProfile()
-	if err != nil {
-		return err
-	}
-	resourcesPath := a.getUpgradeResourceDir(appProfile.ResourcePath)
+	appProfile := a.profileV2
 	releaseName := appProfile.ReleaseName
 
-	commonParams := make([]string, 0)
-	if a.NameSpace != "" {
-		commonParams = append(commonParams, "-n", a.NameSpace)
-	}
-	if a.KubeConfig != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.KubeConfig)
-	}
-	//if installFlags.Debug {
-	//commonParams = append(commonParams, "--debug")
-	//}
-
-	params := []string{"upgrade", releaseName, resourcesPath[0]}
-	if installFlags.HelmWait {
-		params = append(params, "--wait")
-	}
-
-	params = append(params, "--timeout", "60m")
-	params = append(params, commonParams...)
-
-	log.Info("building dependency...")
-	depParams := []string{"dependency", "build", resourcesPath[0]}
-	depParams = append(depParams, commonParams...)
-	_, err = tools.ExecCommand(nil, true, "helm", depParams...)
-	if err != nil {
-		log.ErrorE(err, "fail to build dependency for helm app")
-		return err
-	}
-
-	fmt.Println("Upgrading helm application, this may take several minutes, please waiting...")
-	_, err = tools.ExecCommand(nil, true, "helm", params...)
-	if err != nil {
-		return err
-	}
-	return a.saveUpgradeResources()
-}
-
-func (a *Application) upgradeForHelmRepo(installFlags *flag.InstallFlags) error {
-
-	appProfile, err := a.GetProfile()
-	if err != nil {
-		return err
-	}
-	releaseName := appProfile.ReleaseName
 	commonParams := make([]string, 0)
 	if a.NameSpace != "" {
 		commonParams = append(commonParams, "--namespace", a.NameSpace)
@@ -310,33 +260,47 @@ func (a *Application) upgradeForHelmRepo(installFlags *flag.InstallFlags) error 
 	if a.KubeConfig != "" {
 		commonParams = append(commonParams, "--kubeconfig", a.KubeConfig)
 	}
-	//if installFlags.Debug {
-	//	commonParams = append(commonParams, "--debug")
-	//}
 
-	chartName := installFlags.HelmChartName
-	if a.configV2 != nil && a.configV2.ApplicationConfig.Name != "" {
-		chartName = a.configV2.ApplicationConfig.Name
+	params := []string{"upgrade", releaseName}
+
+	if fromRepo {
+		chartName := installFlags.HelmChartName
+		if a.configV2 != nil && a.configV2.ApplicationConfig.Name != "" {
+			chartName = a.configV2.ApplicationConfig.Name
+		}
+		if installFlags.HelmRepoUrl != "" {
+			params = append(params, chartName, "--repo", installFlags.HelmRepoUrl)
+		} else if installFlags.HelmRepoName != "" {
+			params = append(params, fmt.Sprintf("%s/%s", installFlags.HelmRepoName, chartName))
+		}
+		if installFlags.HelmRepoVersion != "" {
+			params = append(params, "--version", installFlags.HelmRepoVersion)
+		}
+	} else {
+		resourcesPath := a.getUpgradeResourceDir(appProfile.ResourcePath)
+		params = append(params, resourcesPath[0])
+		log.Info("building dependency...")
+		depParams := []string{"dependency", "build", resourcesPath[0]}
+		depParams = append(depParams, commonParams...)
+		if _, err = tools.ExecCommand(nil, true, "helm", depParams...); err != nil {
+			return errors.Wrap(err, "fail to build dependency for helm app")
+		}
 	}
-	installParams := []string{"upgrade", releaseName}
+
 	if installFlags.HelmWait {
-		installParams = append(installParams, "--wait")
+		params = append(params, "--wait")
 	}
-	if installFlags.HelmRepoUrl != "" {
-		installParams = append(installParams, chartName, "--repo", installFlags.HelmRepoUrl)
-	} else if installFlags.HelmRepoName != "" {
-		installParams = append(installParams, fmt.Sprintf("%s/%s", installFlags.HelmRepoName, chartName))
-	}
-
-	if installFlags.HelmRepoVersion != "" {
-		installParams = append(installParams, "--version", installFlags.HelmRepoVersion)
-	}
-
-	installParams = append(installParams, "--timeout", "60m")
-	installParams = append(installParams, commonParams...)
+	params = append(params, "--timeout", "60m")
+	params = append(params, commonParams...)
 
 	log.Info("Upgrade helm application, this may take several minutes, please waiting...")
 
-	_, err = tools.ExecCommand(nil, true, "helm", installParams...)
+	if _, err = tools.ExecCommand(nil, true, "helm", params...); err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	if !fromRepo {
+		err = a.saveUpgradeResources()
+	}
 	return err
 }
