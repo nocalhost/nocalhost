@@ -47,7 +47,7 @@ func Create(c *gin.Context) {
 	if req.SpaceResourceLimit != nil {
 		flag, message := ValidSpaceResourceLimit(*req.SpaceResourceLimit)
 		if !flag {
-			log.Errorf("Create devSpace fail. Incorrect Resource limit parameter [ %v ] format.", message)
+			log.Errorf("Initial devSpace fail. Incorrect Resource limit parameter [ %v ] format.", message)
 			api.SendResponse(c, errno.ErrFormatResourceLimitParam, message)
 			return
 		}

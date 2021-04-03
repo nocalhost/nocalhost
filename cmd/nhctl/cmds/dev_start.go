@@ -16,6 +16,7 @@ package cmds
 import (
 	"context"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
@@ -68,6 +69,16 @@ var devStartCmd = &cobra.Command{
 		var err error
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
+
+		meta, err := nocalhost.GetApplicationMetaInstalled(applicationName, nameSpace, kubeConfig)
+		if err != nil {
+			log.FatalE(err, "")
+		}
+
+		err = meta.DeploymentDevStart(deployment, "fake")
+		if err != nil {
+			log.FatalE(err, "")
+		}
 
 		if b, _ := nocalhostApp.CheckIfSvcIsDeveloping(deployment); b {
 			log.Fatalf("Service \"%s\" is already in developing", deployment)

@@ -28,16 +28,12 @@ const (
 	RestartDaemonServer   DaemonCommandType = "RestartDaemonServer"
 	GetDaemonServerInfo   DaemonCommandType = "GetDaemonServerInfo"
 	GetDaemonServerStatus DaemonCommandType = "GetDaemonServerStatus"
+	GetApplicationMeta    DaemonCommandType = "GetApplicationMeta"
 )
 
 type BaseCommand struct {
 	CommandType DaemonCommandType
 }
-
-//type DaemonServerCommand struct {
-//	CommandType DaemonCommandType
-//	IsSudo      bool
-//}
 
 type PortForwardCommand struct {
 	CommandType DaemonCommandType
@@ -51,12 +47,12 @@ type PortForwardCommand struct {
 	//IsSudo      bool   `json:"isSudo"` // todo: move to profile?
 }
 
-//type EndPortForwardCommand struct {
-//	NameSpace  string `json:"nameSpace"`
-//	AppName    string `json:"appName"`
-//	LocalPort  int    `json:"localPort"`
-//	RemotePort int    `json:"remotePort"`
-//}
+type GetApplicationMetaCommand struct {
+	CommandType DaemonCommandType
+	NameSpace   string `json:"nameSpace"`
+	AppName     string `json:"appName"`
+	KubeConfig  string `json:"kubeConfig"`
+}
 
 func ParseCommandType(bys []byte) (DaemonCommandType, error) {
 	base := &BaseCommand{}

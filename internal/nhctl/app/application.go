@@ -61,8 +61,6 @@ const (
 	AppManagedByNocalhost         = "nocalhost"
 	NocalhostApplicationName      = "dev.nocalhost/application-name"
 	NocalhostApplicationNamespace = "dev.nocalhost/application-namespace"
-	SecretName                    = "dev.nocalhost.application."
-	SecretType                    = "dev.nocalhost/application"
 )
 
 type Application struct {
@@ -231,33 +229,6 @@ func (a *Application) ignoredInInstall(manifest string) bool {
 		}
 	}
 	return false
-}
-
-func (a *Application) uninstallManifestRecursively() error {
-
-	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForDelete(a.installManifest, true)
-		if err != nil {
-			log.WarnE(err, "Error occurs when cleaning resources")
-			return err
-		}
-	} else {
-		log.Warn("nothing need to be uninstalled ??")
-	}
-	return nil
-}
-
-func (a *Application) cleanPreInstall() {
-	//a.loadSortedPreInstallManifest()
-	if len(a.sortedPreInstallManifest) > 0 {
-		log.Debug("Cleaning up pre-install jobs...")
-		err := a.client.ApplyForDelete(a.sortedPreInstallManifest, true)
-		if err != nil {
-			log.Warnf("error occurs when cleaning pre install resources : %s\n", err.Error())
-		}
-	} else {
-		log.Debug("No pre-install job needs to clean up")
-	}
 }
 
 func (a *Application) IsAnyServiceInDevMode() bool {

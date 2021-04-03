@@ -17,9 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
@@ -35,6 +33,13 @@ type ApplyFlags struct {
 	// There is currently no need to delete labels, so similar support is not provided
 	MergeableLabel      map[string]string
 	MergeableAnnotation map[string]string
+
+	BeforeApply func(string) error
+}
+
+func (a *ApplyFlags) SetBeforeApply(fun func(string) error) *ApplyFlags {
+	a.BeforeApply = fun
+	return a
 }
 
 func (c *ClientGoUtils) DeleteResourceInfo(info *resource.Info) error {
@@ -46,36 +51,19 @@ func (c *ClientGoUtils) DeleteResourceInfo(info *resource.Info) error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	return errors.Wrap(info.Refresh(obj, true), "")
-}
-
-func (c *ClientGoUtils) UpdateResourceInfoByServerSide(info *resource.Info) error {
-	data, err := runtime.Encode(unstructured.UnstructuredJSONScheme, info.Object)
-	if err != nil {
-		return errors.Wrap(err, "")
+	if err := errors.Wrap(info.Refresh(obj, true), ""); err != nil {
+		return err
 	}
 
-	helper := resource.NewHelper(info.Client, info.Mapping)
-	forceConflicts := true
-	obj, err := helper.Patch(info.Namespace, info.Name, types.StrategicMergePatchType, data, &metav1.PatchOptions{Force: &forceConflicts, FieldManager: "kubectl"})
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	return errors.Wrap(info.Refresh(obj, true), "")
+	operation := "deleted"
+	groupKind := info.Mapping.GroupVersionKind
+	log.Infof("Resource(%s) %s %s", groupKind.Kind, info.Name, operation)
+	return nil
 }
 
-//func (c *ClientGoUtils) CreateResourceInfo(info *resource.Info) error {
-//	helper := resource.NewHelper(info.Client, info.Mapping)
-//	obj, err := helper.Create(info.Namespace, true, info.Object)
-//	if err != nil {
-//		return errors.Wrap(err, "")
-//	}
-//	return errors.Wrap(info.Refresh(obj, true), "")
-//}
-
-// Similar to `kubectl apply`, but apply a resourceInfo instead a file
+// Similar to `kubectl apply`, but apply a r/Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/appmeta/application_meta.goesourceInfo instead a file
 func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info, af *ApplyFlags) error {
-	o, err := c.generateCompletedApplyOption("", af)
+	o, err := c.generateCompletedApplyOption(af)
 	if err != nil {
 		return err
 	}
@@ -89,21 +77,11 @@ func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info, af *ApplyFlags) e
 	return o.Run()
 }
 
-// Similar to `kubectl apply -f `
-func (c *ClientGoUtils) Apply(file string, af *ApplyFlags) error {
-	o, err := c.generateCompletedApplyOption(file, af)
-
-	if err != nil {
-		return err
-	}
-	return o.Run()
-}
-
-func (c *ClientGoUtils) generateCompletedApplyOption(file string, af *ApplyFlags) (*apply.ApplyOptions, error) {
+func (c *ClientGoUtils) generateCompletedApplyOption(af *ApplyFlags) (*apply.ApplyOptions, error) {
 	var err error
 	ioStreams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr} // don't print log to stderr
 	o := apply.NewApplyOptions(ioStreams)
-	o.DeleteFlags.FileNameFlags.Filenames = &[]string{file}
+	o.DeleteFlags.FileNameFlags.Filenames = &[]string{""}
 	o.OpenAPIPatch = true
 
 	f := c.newFactory()
@@ -165,14 +143,48 @@ func (c *ClientGoUtils) generateCompletedApplyOption(file string, af *ApplyFlags
 	return o, nil
 }
 
-type runtimeObjectPrinter struct {
-	Operation string
-	Name      string
-}
+func (c *ClientGoUtils) GetResourceInfoFromReader(reader io.Reader, continueOnError bool) ([]*resource.Info, error) {
 
-func (r *runtimeObjectPrinter) PrintObj(obj runtime.Object, writer io.Writer) error {
-	log.Infof("Resource(%s) %s %s", obj.GetObjectKind().GroupVersionKind().Kind, r.Name, r.Operation)
-	return nil
+	f := c.newFactory()
+	builder := f.NewBuilder()
+	validate, err := f.Validator(true)
+	if err != nil {
+		if continueOnError {
+			log.Warnf("Build validator err:", err.Error())
+		} else {
+			return nil, errors.Wrap(err, "")
+		}
+	}
+	if continueOnError {
+		builder.ContinueOnError()
+	}
+	result := builder.
+		Unstructured().
+		Schema(validate).
+		NamespaceParam(c.namespace).
+		DefaultNamespace().
+		Stream(reader, "").
+		Flatten().
+		Do()
+
+	if result.Err() != nil {
+		if continueOnError {
+			log.WarnE(err, "error occurs in results")
+		} else {
+			return nil, errors.Wrap(result.Err(), "")
+		}
+	}
+
+	infos, err := result.Infos()
+	if err != nil {
+		if continueOnError {
+			log.WarnE(err, "error occurs in results")
+		} else {
+			return nil, errors.Wrap(err, "")
+		}
+	}
+
+	return infos, nil
 }
 
 func (c *ClientGoUtils) GetResourceInfoFromFiles(files []string, continueOnError bool, kustomize string) ([]*resource.Info, error) {
@@ -199,13 +211,16 @@ func (c *ClientGoUtils) GetResourceInfoFromFiles(files []string, continueOnError
 	if continueOnError {
 		builder.ContinueOnError()
 	}
-	result := builder.Unstructured().
+	result := builder.
+		Unstructured().
 		Schema(validate).
 		ContinueOnError().
-		NamespaceParam(c.namespace).DefaultNamespace().
+		NamespaceParam(c.namespace).
+		DefaultNamespace().
 		FilenameParam(true, &filenames).
 		//LabelSelectorParam(o.Selector).
-		Flatten().Do()
+		Flatten().
+		Do()
 
 	if result.Err() != nil {
 		if continueOnError {
@@ -225,4 +240,14 @@ func (c *ClientGoUtils) GetResourceInfoFromFiles(files []string, continueOnError
 	}
 
 	return infos, nil
+}
+
+type runtimeObjectPrinter struct {
+	Operation string
+	Name      string
+}
+
+func (r *runtimeObjectPrinter) PrintObj(obj runtime.Object, writer io.Writer) error {
+	log.Infof("Resource(%s) %s %s", obj.GetObjectKind().GroupVersionKind().Kind, r.Name, r.Operation)
+	return nil
 }

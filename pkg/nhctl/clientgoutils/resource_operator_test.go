@@ -14,18 +14,17 @@ limitations under the License.
 package clientgoutils
 
 import (
-	"fmt"
 	"testing"
 )
 
-func TestClientGoUtils_CreateResource(t *testing.T) {
-	client, err := NewClientGoUtils("", "")
-	Must(err)
-	err = client.ApplyForCreate([]string{"/tmp/pre-install-cm.yaml"}, true)
-	if err != nil {
-		fmt.Printf("%s\n", err.Error())
-	}
-}
+//func TestClientGoUtils_CreateResource(t *testing.T) {
+//	client, err := NewClientGoUtils("", "")
+//	Must(err)
+//	err = client.Apply([]string{"/tmp/pre-install-cm.yaml"}, true)
+//	if err != nil {
+//		fmt.Printf("%s\n", err.Error())
+//	}
+//}
 
 func TestClientGoUtils_Exec(t *testing.T) {
 	client, err := NewClientGoUtils("", "")

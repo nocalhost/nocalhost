@@ -17,6 +17,8 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/flock"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
@@ -50,7 +52,7 @@ func Init() error {
 				return errors.Wrap(err, "")
 			}
 
-			// Create ns dir
+			// Initial ns dir
 			nsDir := nocalhost_path.GetNhctlNameSpaceDir()
 			err = os.MkdirAll(nsDir, DefaultNewFilePermission)
 			if err != nil {
@@ -139,8 +141,8 @@ func moveApplicationDirToNsDir() error {
 					log.Warnf("Fail to get %s's namespace", appDirInfo.Name())
 					continue
 				}
-				// Create ns dir
-				log.Logf("Create ns dir %s", ns)
+				// Initial ns dir
+				log.Logf("Initial ns dir %s", ns)
 				err = os.MkdirAll(filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), ns), DefaultNewFilePermission)
 				if err != nil {
 					log.WarnE(errors.Wrap(err, ""), "")
@@ -257,6 +259,50 @@ func GetApplicationNames() ([]string, error) {
 		}
 	}
 	return app, err
+}
+
+func GetApplicationMetaInstalled(appName, namespace, kubeConfig string) (*appmeta.ApplicationMeta, error) {
+	appMeta := GetApplicationMeta(appName, namespace, kubeConfig)
+	if appMeta.IsInstalling() {
+		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", appName, namespace, appName, namespace))
+	} else if appMeta.IsNotInstall() {
+		return nil, errors.New(fmt.Sprintf("Application %s in ns %s is not installed or under installing, or maybe the kubeconfig provided has not permitted to this namespace ", appName, namespace))
+	}
+	return appMeta, nil
+}
+
+func GetApplicationMeta(appName, namespace, kubeConfig string) *appmeta.ApplicationMeta {
+	cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
+	if err != nil {
+		log.Errorf("Error to get ApplicationMeta: %s", err)
+		return nil
+	}
+
+	if kubeConfig == "" { // use default config
+		kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	}
+
+	bys, err := ioutil.ReadFile(kubeConfig)
+	if err != nil {
+		log.Errorf("Error to get ApplicationMeta: %s", err)
+		return nil
+	}
+
+	appMeta, err := cli.SendGetApplicationMetaCommand(namespace, appName, string(bys))
+	if err != nil {
+		log.Errorf("Error to get ApplicationMeta: %s", err)
+		return nil
+	}
+
+	// applicationMeta use the kubeConfig content, but there use the path to init client
+	// unexpect error occur if someone change the content of kubeConfig before InitGoClient
+	// and after SendGetApplicationMetaCommand
+	if err = appMeta.InitGoClient(kubeConfig); err != nil {
+		log.Errorf("Error to new client go: %s", err)
+		return nil
+	}
+
+	return appMeta
 }
 
 func CheckIfApplicationExist(appName string, namespace string) bool {

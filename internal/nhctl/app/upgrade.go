@@ -56,7 +56,6 @@ func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
 	default:
 		return errors.New("Unsupported app type")
 	}
-
 }
 
 func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error {
@@ -67,7 +66,7 @@ func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error
 	}
 	useResourcePath := resourcesPath[0]
 
-	err = a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.NameSpace), useResourcePath)
+	err = a.client.Apply([]string{}, true, StandardNocalhostMetas(a.Name, a.NameSpace), useResourcePath)
 	if err != nil {
 		return err
 	}
@@ -191,7 +190,7 @@ func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*re
 		log.Infof("Deleting resource(%s) %s", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
 		err := a.client.DeleteResourceInfo(info)
 		if err != nil {
-			log.WarnE(err, fmt.Sprintf("Failed to delete resource %s", info.Name))
+			log.WarnE(err, fmt.Sprintf("Failed to delete resource %s , Err: %s ", info.Name, err.Error()))
 			if !continueOnErr {
 				return err
 			}

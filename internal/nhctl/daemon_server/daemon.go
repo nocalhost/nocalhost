@@ -18,7 +18,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"io/ioutil"
 	"net"
+	"nocalhost/internal/nhctl/appmeta_manager"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/syncthing/daemon"
@@ -83,19 +85,14 @@ func StartDaemon(isSudoUser bool, v string) error {
 				log.LogE(errors.Wrap(err, ""))
 				continue
 			}
-			rBytes := make([]byte, 2048)
-			n, err := conn.Read(rBytes)
-			if err != nil {
-				log.LogE(errors.Wrap(err, ""))
-				continue
-			}
-			rBytes = rBytes[0:n]
-			cmdType, err := command.ParseCommandType(rBytes)
+
+			bytes, err := ioutil.ReadAll(conn)
+			cmdType, err := command.ParseCommandType(bytes)
 			if err != nil {
 				log.LogE(err)
 				continue
 			}
-			go handleCommand(conn, rBytes, cmdType)
+			go handleCommand(conn, bytes, cmdType)
 		}
 	}()
 
@@ -106,6 +103,9 @@ func StartDaemon(isSudoUser bool, v string) error {
 			_ = listener.Close()
 		}
 	}()
+
+	// run the dev event listener
+	appmeta_manager.Run()
 
 	select {
 	case <-daemonCtx.Done():
@@ -163,6 +163,16 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType)
 	case command.GetDaemonServerStatus:
 		status := &daemon_common.DaemonServerStatusResponse{PortForwardList: pfManager.ListAllRunningPortForwardGoRoutineProfile()}
 		response(conn, status)
+	case command.GetApplicationMeta:
+		gamCmd := &command.GetApplicationMetaCommand{}
+		if err = json.Unmarshal(bys, gamCmd); err != nil {
+			log.LogE(errors.Wrap(err, ""))
+			response(conn, &daemon_common.CommonResponse{ErrInfo: err.Error()})
+			return
+		}
+
+		meta := appmeta_manager.GetApplicationMeta(gamCmd.NameSpace, gamCmd.AppName, gamCmd.KubeConfig)
+		response(conn, meta)
 	}
 }
 
@@ -174,6 +184,10 @@ func response(conn net.Conn, v interface{}) {
 	}
 	if _, err = conn.Write(bys); err != nil {
 		log.LogE(errors.Wrap(err, ""))
+	}
+	cw, ok := conn.(interface{ CloseWrite() error })
+	if ok {
+		cw.CloseWrite()
 	}
 }
 

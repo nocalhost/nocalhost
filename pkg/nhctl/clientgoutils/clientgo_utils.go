@@ -14,10 +14,8 @@ limitations under the License.
 package clientgoutils
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"k8s.io/api/batch/v1beta1"
 	"net/http"
 	"net/url"
@@ -33,13 +31,9 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	yamlutil "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -49,7 +43,6 @@ import (
 	batchV1beta1 "k8s.io/client-go/kubernetes/typed/batch/v1beta1"
 	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/tools/portforward"
@@ -169,91 +162,6 @@ func GetNamespaceFromKubeConfig(kubeConfig string) (string, error) {
 func (c *ClientGoUtils) GetDefaultNamespace() (string, error) {
 	ns, _, err := c.ClientConfig.Namespace()
 	return ns, errors.Wrap(err, "")
-}
-
-func (c *ClientGoUtils) createUnstructuredResource(rawObj runtime.RawExtension, wait bool, flags *ApplyFlags) error {
-	obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).Decode(rawObj.Raw, nil, nil)
-	if err != nil {
-		return &TypedError{ErrorType: InvalidYaml, Mes: err.Error()}
-	}
-	unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-	if err != nil {
-		//return errors.Wrap(err, fmt.Sprintf("[Invalid Yaml] fail to parse resource obj"))
-		return &TypedError{ErrorType: InvalidYaml, Mes: err.Error()}
-	}
-
-	unstructuredObj := &unstructured.Unstructured{Object: unstructuredMap}
-
-	gr, err := restmapper.GetAPIGroupResources(c.ClientSet.Discovery())
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	mapper := restmapper.NewDiscoveryRESTMapper(gr)
-	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	var dri dynamic.ResourceInterface
-	if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
-		unstructuredObj.SetNamespace(c.namespace)
-		dri = c.GetDynamicClient().Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
-	} else {
-		dri = c.GetDynamicClient().Resource(mapping.Resource)
-	}
-
-	AddMetas(unstructuredObj, flags)
-
-	obj2, err := dri.Create(c.ctx, unstructuredObj, metav1.CreateOptions{})
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("fail to create %s", unstructuredObj.GetName()))
-	}
-
-	fmt.Printf("%s %s created\n", obj2.GetKind(), obj2.GetName())
-
-	if wait {
-		err = c.WaitJobToBeReady(obj2.GetName(), "metadata.name")
-		if err != nil {
-			//PrintlnErr("fail to wait", err)
-			return err
-		}
-	}
-	return nil
-}
-
-func (c *ClientGoUtils) Create(yamlPath string, wait bool, validate bool, flags *ApplyFlags) error {
-	if yamlPath == "" {
-		return errors.New("yaml path can not be empty")
-	}
-
-	filebytes, err := ioutil.ReadFile(yamlPath)
-	if err != nil {
-		fmt.Printf("%v\n", err)
-		return err
-	}
-
-	decoder := yamlutil.NewYAMLOrJSONDecoder(bytes.NewReader(filebytes), 100)
-	for {
-		var rawObj runtime.RawExtension
-		if err = decoder.Decode(&rawObj); err != nil {
-			break
-		}
-		err = c.createUnstructuredResource(rawObj, wait, flags)
-		if err != nil {
-			if validate {
-				return err
-			}
-			te, ok := err.(*TypedError)
-			if ok {
-				log.Warnf("Invalid yaml: %s", te.Mes)
-			} else {
-				log.Warnf("Fail to install manifest : %s", err.Error())
-			}
-
-		}
-	}
-	return nil
 }
 
 func (c *ClientGoUtils) GetDiscoveryClient() (*discovery.DiscoveryClient, error) {
@@ -468,6 +376,10 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 
 func (c *ClientGoUtils) CreateSecret(secret *corev1.Secret, options metav1.CreateOptions) (*corev1.Secret, error) {
 	return c.ClientSet.CoreV1().Secrets(c.namespace).Create(c.ctx, secret, options)
+}
+
+func (c *ClientGoUtils) UpdateSecret(secret *corev1.Secret, options metav1.UpdateOptions) (*corev1.Secret, error) {
+	return c.ClientSet.CoreV1().Secrets(c.namespace).Update(c.ctx, secret, options)
 }
 
 func (c *ClientGoUtils) GetSecret(name string) (*corev1.Secret, error) {

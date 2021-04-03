@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/nocalhost"
 
 	"nocalhost/pkg/nhctl/log"
 )
@@ -40,6 +41,16 @@ var devEndCmd = &cobra.Command{
 		var err error
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
+
+		meta, err := nocalhost.GetApplicationMetaInstalled(applicationName, nameSpace, kubeConfig)
+		if err != nil {
+			log.FatalE(err, "")
+		}
+
+		err = meta.DeploymentDevEnd(deployment)
+		if err != nil {
+			log.FatalE(err, "")
+		}
 
 		if b, _ := nocalhostApp.CheckIfSvcIsDeveloping(deployment); !b {
 			log.Fatalf("Service %s is not in DevMode", deployment)

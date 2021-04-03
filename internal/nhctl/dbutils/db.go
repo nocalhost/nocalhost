@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-// Create a level db
+// Initial a level db
 // If leveldb already exists, return error
 func CreateLevelDB(path string) error {
 	db, err := leveldb.OpenFile(path, &opt.Options{

@@ -14,12 +14,25 @@ limitations under the License.
 package clientgoutils
 
 import (
+	"bytes"
 	"fmt"
+	"k8s.io/cli-runtime/pkg/kustomize"
+	"sigs.k8s.io/kustomize/pkg/fs"
 	"testing"
 )
 
 var kubeConfigForTest = "~/kubeconfigs/c3bbeccc-b61a-411a-af39-3d07bfe91017"
 var namespaceForTest = "nh6ihig"
+
+func TestKustomize(t *testing.T){
+	fSys := fs.MakeRealFS()
+	var out bytes.Buffer
+	err := kustomize.RunKustomizeBuild(&out, fSys, "/Users/anur/Downloads/kustomize-demo/deploy/demo/base")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(string(out.Bytes()))
+}
 
 func TestClientGoUtils_ListEventsByReplicaSet(t *testing.T) {
 	client, _ := NewClientGoUtils("", "nh6ihig")

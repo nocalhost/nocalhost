@@ -46,7 +46,7 @@ var (
 	ErrClusterKubeAdmin       = &Errno{Code: 30104, Message: "Please check Kubeconfig Admin permissions"}
 	ErrClusterKubeConnect     = &Errno{Code: 30104, Message: "Connect cluster fail, Please check cluster connectivity"}
 	ErrClusterDepSetup        = &Errno{Code: 30105, Message: "Initialize cluster: Failed to create dependent component Configmap"}
-	ErrClusterDepJobSetup     = &Errno{Code: 30106, Message: "Initialize the cluster: Create dependent component Job failed"}
+	ErrClusterDepJobSetup     = &Errno{Code: 30106, Message: "Initialize the cluster: Initial dependent component Job failed"}
 	ErrClusterNotFound        = &Errno{Code: 30107, Message: "Cluster has not found"}
 	ErrDeleteClusterNameSpace = &Errno{Code: 30108, Message: "Delete cluster namespace fail, please try again"}
 	ErrGetClusterStorageClass = &Errno{Code: 30109, Message: "Get cluster storage class fail, please try again"}
@@ -89,9 +89,9 @@ var (
 	ErrDeletedClusterDevSpaceDBButClusterDone    = &Errno{Code: 50114, Message: "Cluster nocalhost develop space has deleted, but space record delete fail"}
 	ErrDeletedClusterRecord                      = &Errno{Code: 50115, Message: "Delete dev space by application fail, please try again"}
 	ErrResetDevSpaceFail                         = &Errno{Code: 50116, Message: "reset dev space fail, please try again"}
-	ErrCreateResourceQuota                       = &Errno{Code: 50117, Message: "Create resource limit failed."}
+	ErrCreateResourceQuota                       = &Errno{Code: 50117, Message: "Initial resource limit failed."}
 	ErrDeleteResourceQuota                       = &Errno{Code: 50118, Message: "Delete resource limit failed."}
-	ErrCreateLimitRange                          = &Errno{Code: 50119, Message: "Create limit range failed."}
+	ErrCreateLimitRange                          = &Errno{Code: 50119, Message: "Initial limit range failed."}
 	ErrDeleteLimitRange                          = &Errno{Code: 50120, Message: "Delete limit range failed."}
 	ErrFormatResourceLimitParam                  = &Errno{Code: 50121, Message: "Incorrect Resource limit parameter."}
 	ErrValidateResourceQuota                     = &Errno{Code: 50122, Message: "If quota is enabled in a namespace for compute resources like cpu and memory, must specify requests or limits for those values."}

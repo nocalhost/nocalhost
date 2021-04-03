@@ -51,6 +51,7 @@ func initApp(appName string) {
 			log.Fatalf("Application %s in %s not found", appName, nameSpace)
 		}
 	}
+
 	nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
 	if err != nil {
 		log.FatalE(err, "Failed to get application info")

@@ -92,8 +92,12 @@ var installCmd = &cobra.Command{
 				log.Fatal("Namespace mush be provided")
 			}
 		}
-		if nocalhost.CheckIfApplicationExist(applicationName, nameSpace) {
-			log.Fatalf("Application %s already exists in namespace %s", applicationName, nameSpace)
+
+		appMeta := nocalhost.GetApplicationMeta(applicationName, nameSpace, kubeConfig)
+		if appMeta.IsInstalled() {
+			log.Fatalf("Application %s - namespace %s has been installed,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", applicationName, nameSpace, applicationName, nameSpace)
+		} else if appMeta.IsInstalling() {
+			log.Fatalf("Application %s - namespace %s is installing,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", applicationName, nameSpace, applicationName, nameSpace)
 		}
 
 		log.Info("Installing application...")

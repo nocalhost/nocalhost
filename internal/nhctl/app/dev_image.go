@@ -512,7 +512,7 @@ func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) 
 	return requestMap, nil
 }
 
-// Create a pvc for persistent volume dir, and waiting util pvc succeed to bound to a pv
+// Initial a pvc for persistent volume dir, and waiting util pvc succeed to bound to a pv
 // If pvc failed to bound to a pv, the pvc will been deleted, and return nil
 func (a *Application) createPvcForPersistentVolumeDir(persistentVolume *profile.PersistentVolumeDir, labels map[string]string, storageClass string) (*corev1.PersistentVolumeClaim, error) {
 	var (

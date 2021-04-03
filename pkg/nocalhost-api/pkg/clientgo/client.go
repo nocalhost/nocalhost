@@ -82,7 +82,7 @@ func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
 		return res.goClient, res.err
 
 	case <-time.After(5 * time.Second):
-		log.Infof("Create k8s Go Client timeout!")
+		log.Infof("Initial k8s Go Client timeout!")
 		return nil, errno.ErrClusterTimeout
 	}
 }
@@ -114,7 +114,7 @@ func newAdminGoClientTimeUnreliable(kubeconfig []byte) (*GoClient, error) {
 			client.clusterIpAccessMode = true
 			client.Config = newConfig
 
-			log.Infof("Create k8s Go Client with 'clusterIpAccessMode' ")
+			log.Infof("Initial k8s Go Client with 'clusterIpAccessMode' ")
 			return client, nil
 		}
 	}
@@ -383,7 +383,7 @@ func (c *GoClient) CreateServiceAccount(name, namespace string) (bool, error) {
 	return true, nil
 }
 
-// Create resource quota for namespace. such as:
+// Initial resource quota for namespace. such as:
 /**
 apiVersion: v1
   kind: ResourceQuota
@@ -769,7 +769,7 @@ func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool,
 	return true, nil
 }
 
-// Create admin kubeconfig in cluster for admission webhook
+// Initial admin kubeconfig in cluster for admission webhook
 func (c *GoClient) CreateConfigMap(name, namespace, key, value string) (bool, error) {
 	configMapData := make(map[string]string, 0)
 	configMapData[key] = value
@@ -857,7 +857,7 @@ func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceA
 	//	}
 	//}
 
-	// loop and wait for serviceAccountToken Create,especially for TKE is slow
+	// loop and wait for serviceAccountToken Initial,especially for TKE is slow
 	// wait 30S
 	i := 0
 	for {
