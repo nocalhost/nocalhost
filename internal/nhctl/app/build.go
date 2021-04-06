@@ -52,6 +52,12 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, err
 	}
 
+	app.ResourceTmpDir, _ = ioutil.TempDir("", "")
+	err = os.MkdirAll(app.ResourceTmpDir, DefaultNewFilePermission)
+	if err != nil {
+		return nil, errors.New("Fail to create tmp dir for install")
+	}
+
 	if err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name); err != nil {
 		return nil, err
 	}
@@ -70,14 +76,14 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	appProfileV2.Kubeconfig = kubeconfig
 
 	if flags.GitUrl != "" {
-		if err = app.downloadResourcesFromGit(flags.GitUrl, flags.GitRef); err != nil {
+		if err = app.downloadResourcesFromGit(flags.GitUrl, flags.GitRef, app.ResourceTmpDir); err != nil {
 			log.Debugf("Failed to clone : %s ref: %s", flags.GitUrl, flags.GitRef)
 			return nil, err
 		}
 		appProfileV2.GitUrl = flags.GitUrl
 		appProfileV2.GitRef = flags.GitRef
 	} else if flags.LocalPath != "" { // local path of application, copy to nocalhost resource
-		if err = utils.CopyDir(flags.LocalPath, app.getGitDir()); err != nil {
+		if err = utils.CopyDir(flags.LocalPath, app.ResourceTmpDir); err != nil {
 			return nil, err
 		}
 	}
@@ -132,6 +138,12 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, err
 	}
 
+	if appMeta.IsInstalled() {
+		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s has been installed,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", name, namespace, name, namespace))
+	} else if appMeta.IsInstalling() {
+		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", name, namespace, name, namespace))
+	}
+
 	app.appMeta = appMeta
 
 	if err = appMeta.Initial(); err != nil {
@@ -143,6 +155,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	appMeta.Config = config
+
 	if err := appMeta.Update(); err != nil {
 		return nil, err
 	}
@@ -288,10 +301,6 @@ func gettingRenderEnvFile(filepath string) string {
 func (a *Application) initDir() error {
 	var err error
 	if err = os.MkdirAll(a.GetHomeDir(), DefaultNewFilePermission); err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	if err = os.MkdirAll(a.getGitDir(), DefaultNewFilePermission); err != nil {
 		return errors.Wrap(err, "")
 	}
 

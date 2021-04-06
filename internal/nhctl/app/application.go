@@ -69,6 +69,10 @@ type Application struct {
 	NameSpace  string
 	KubeConfig string
 
+	// may nil, only for install or upgrade
+	// dir use to load the user's resource
+	ResourceTmpDir string
+
 	appMeta *appmeta.ApplicationMeta
 
 	// profileV2 is created and saved to leveldb when `install`
@@ -761,6 +765,12 @@ func (a *Application) PortForwardAPod(req clientgoutils.PortForwardAPodRequest) 
 // set pid file empty
 func (a *Application) SetPidFileEmpty(filePath string) error {
 	return os.Remove(filePath)
+}
+
+func (a *Application) CleanUpTmpResources() error {
+	log.Info("Clean up tmp resources...")
+	err := os.RemoveAll(a.ResourceTmpDir)
+	return errors.Wrap(err, fmt.Sprintf("fail to remove resources dir %s\n", a.ResourceTmpDir))
 }
 
 func (a *Application) CleanupResources() error {

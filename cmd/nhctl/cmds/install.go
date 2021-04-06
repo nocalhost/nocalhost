@@ -22,7 +22,6 @@ import (
 
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/app_flags"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
@@ -90,16 +89,6 @@ var installCmd = &cobra.Command{
 			if nameSpace == "" {
 				log.Fatal("Namespace mush be provided")
 			}
-		}
-
-		appMeta, err := nocalhost.GetApplicationMeta(applicationName, nameSpace, kubeConfig)
-		if err != nil {
-			log.FatalE(err, "")
-		}
-		if appMeta.IsInstalled() {
-			log.Fatalf("Application %s - namespace %s has been installed,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", applicationName, nameSpace, applicationName, nameSpace)
-		} else if appMeta.IsInstalling() {
-			log.Fatalf("Application %s - namespace %s is installing,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", applicationName, nameSpace, applicationName, nameSpace)
 		}
 
 		log.Info("Installing application...")
@@ -199,5 +188,6 @@ func InstallApplication(applicationName string) error {
 	}
 
 	err = nocalhostApp.Install(context.TODO(), flags)
+	_ = nocalhostApp.CleanUpTmpResources()
 	return err
 }

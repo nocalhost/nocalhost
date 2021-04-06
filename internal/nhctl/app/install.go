@@ -48,7 +48,6 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) (err error)
 	case string(Manifest), string(ManifestLocal):
 		err = a.InstallManifest(a.appMeta)
 	case string(KustomizeGit):
-		// err = a.InstallKustomizeWithKubectl()
 		err = a.InstallKustomize(a.appMeta)
 	default:
 		err = errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
@@ -305,7 +304,7 @@ func (a *Application) loadSortedPreInstallManifest() {
 	if appProfile.PreInstall != nil {
 		sort.Sort(profile.ComparableItems(appProfile.PreInstall))
 		for _, item := range appProfile.PreInstall {
-			itemPath := filepath.Join(a.getGitDir(), item.Path)
+			itemPath := filepath.Join(a.ResourceTmpDir, item.Path)
 			if _, err2 := os.Stat(itemPath); err2 != nil {
 				log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
 				continue

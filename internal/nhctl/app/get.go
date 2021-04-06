@@ -58,12 +58,12 @@ func (a *Application) GetResourceDir() []string {
 	var resourcePath []string
 	if len(appProfile.ResourcePath) != 0 {
 		for _, path := range appProfile.ResourcePath {
-			fullPath := filepath.Join(a.getGitDir(), path)
+			fullPath := filepath.Join(a.ResourceTmpDir, path)
 			resourcePath = append(resourcePath, fullPath)
 		}
 		return resourcePath
 	}
-	return []string{a.getGitDir()}
+	return []string{a.ResourceTmpDir}
 }
 
 func (a *Application) getUpgradeResourceDir(upgradeResourcePath []string) []string {
@@ -82,7 +82,7 @@ func (a *Application) getIgnoredPath() []string {
 	appProfile, _ := a.GetProfile()
 	results := make([]string, 0)
 	for _, path := range appProfile.IgnoredPath {
-		results = append(results, filepath.Join(a.getGitDir(), path))
+		results = append(results, filepath.Join(a.ResourceTmpDir, path))
 	}
 	return results
 }
