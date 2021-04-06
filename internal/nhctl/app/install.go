@@ -38,7 +38,10 @@ import (
 
 func (a *Application) Install(ctx context.Context, flags *HelmFlags) (err error) {
 	// try to create a new application meta
-	appMeta := nocalhost.GetApplicationMeta(a.Name, a.NameSpace, a.KubeConfig)
+	appMeta, err := nocalhost.GetApplicationMeta(a.Name, a.NameSpace, a.KubeConfig)
+	if err != nil {
+		return err
+	}
 
 	if err = appMeta.Initial(); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
@@ -52,7 +55,7 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) (err error)
 	defer func() {
 		if err != nil {
 			if err := appMeta.Uninstall(); err != nil {
-				log.Fatal("Error while uninstall application, %s", err.Error())
+				log.WarnE(err, "")
 			}
 		}
 	}()
@@ -72,11 +75,13 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) (err error)
 		// err = a.InstallKustomizeWithKubectl()
 		err = a.InstallKustomize(appMeta)
 	default:
-		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
+		err = errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
+		return err
 	}
 
 	appMeta.ApplicationState = appmeta.INSTALLED
-	return appMeta.Update()
+	err = appMeta.Update()
+	return err
 }
 
 func (a *Application) InstallKustomize(appMeta *appmeta.ApplicationMeta) error {

@@ -215,6 +215,7 @@ func GetLogDir() string {
 }
 
 // key: ns, value: app
+// Deprecated
 func GetNsAndApplicationInfo() (map[string][]string, error) {
 	result := make(map[string][]string, 0)
 	nsDir := nocalhost_path.GetNhctlNameSpaceDir()
@@ -262,7 +263,10 @@ func GetApplicationNames() ([]string, error) {
 }
 
 func GetApplicationMetaInstalled(appName, namespace, kubeConfig string) (*appmeta.ApplicationMeta, error) {
-	appMeta := GetApplicationMeta(appName, namespace, kubeConfig)
+	appMeta, err := GetApplicationMeta(appName, namespace, kubeConfig)
+	if err != nil {
+		return nil, err
+	}
 	if appMeta.IsInstalling() {
 		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", appName, namespace, appName, namespace))
 	} else if appMeta.IsNotInstall() {
@@ -271,11 +275,10 @@ func GetApplicationMetaInstalled(appName, namespace, kubeConfig string) (*appmet
 	return appMeta, nil
 }
 
-func GetApplicationMeta(appName, namespace, kubeConfig string) *appmeta.ApplicationMeta {
+func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.ApplicationMeta, error) {
 	cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
 	if err != nil {
-		log.Errorf("Error to get ApplicationMeta: %s", err)
-		return nil
+		return nil, err
 	}
 
 	if kubeConfig == "" { // use default config
@@ -283,45 +286,44 @@ func GetApplicationMeta(appName, namespace, kubeConfig string) *appmeta.Applicat
 	}
 
 	bys, err := ioutil.ReadFile(kubeConfig)
+
 	if err != nil {
-		log.Errorf("Error to get ApplicationMeta: %s", err)
-		return nil
+		return nil, errors.Wrap(err, "Error to get ApplicationMeta")
 	}
 
 	appMeta, err := cli.SendGetApplicationMetaCommand(namespace, appName, string(bys))
 	if err != nil {
-		log.Errorf("Error to get ApplicationMeta: %s", err)
-		return nil
+		return nil, err
 	}
 
 	// applicationMeta use the kubeConfig content, but there use the path to init client
 	// unexpect error occur if someone change the content of kubeConfig before InitGoClient
 	// and after SendGetApplicationMetaCommand
 	if err = appMeta.InitGoClient(kubeConfig); err != nil {
-		log.Errorf("Error to new client go: %s", err)
-		return nil
+		return nil, err
 	}
 
-	return appMeta
+	return appMeta, nil
 }
 
 func CheckIfApplicationExist(appName string, namespace string) bool {
-	appMap, err := GetNsAndApplicationInfo()
-	if err != nil || len(appMap) == 0 {
-		return false
-	}
+	// todo
+	//appMap, err := GetNsAndApplicationInfo()
+	//if err != nil || len(appMap) == 0 {
+	//	return false
+	//}
 
-	for ns, appList := range appMap {
-		if ns != namespace {
-			continue
-		}
-		for _, app := range appList {
-			if app == appName {
-				return true
-			}
-		}
-	}
-	return false
+	//for ns, appList := range appMap {
+	//	if ns != namespace {
+	//		continue
+	//	}
+	//	for _, app := range appList {
+	//		if app == appName {
+	//			return true
+	//		}
+	//	}
+	//}
+	return true
 }
 
 // todo it's worked by dir, so it may not be very accurate

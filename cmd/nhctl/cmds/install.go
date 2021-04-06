@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"nocalhost/pkg/nhctl/clientgoutils"
-	"os"
 	"time"
 
 	"nocalhost/internal/nhctl/app"
@@ -93,7 +92,10 @@ var installCmd = &cobra.Command{
 			}
 		}
 
-		appMeta := nocalhost.GetApplicationMeta(applicationName, nameSpace, kubeConfig)
+		appMeta, err := nocalhost.GetApplicationMeta(applicationName, nameSpace, kubeConfig)
+		if err != nil {
+			log.FatalE(err, "")
+		}
 		if appMeta.IsInstalled() {
 			log.Fatalf("Application %s - namespace %s has been installed,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", applicationName, nameSpace, applicationName, nameSpace)
 		} else if appMeta.IsInstalling() {
@@ -103,15 +105,7 @@ var installCmd = &cobra.Command{
 		log.Info("Installing application...")
 		err = InstallApplication(applicationName)
 		if err != nil {
-			log.WarnE(err, "Failed to install application")
-			log.Debug("Cleaning up resources...")
-			err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace)
-			if err != nil {
-				log.Errorf("Failed to clean up: %v", err)
-			} else {
-				log.Debug("Resources have been clean up")
-			}
-			os.Exit(-1)
+			log.FatalE(err, "")
 		} else {
 			log.Infof("Application %s installed", applicationName)
 		}

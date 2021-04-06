@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -72,6 +73,8 @@ type Application struct {
 	// configV2 will not be nil if you use NewApplication a get a Application
 	configV2 *profile.NocalHostAppConfigV2
 
+	appMeta *appmeta.ApplicationMeta
+
 	// profileV2 is created and saved to leveldb when `install`
 	// profileV2 will not be nil if you use NewApplication a get a Application
 	// you can only get const data from it, such as Namespace,AppType...
@@ -118,7 +121,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		NameSpace: ns,
 	}
 
-	err := app.LoadConfigV2()
+	err := app.LoadConfigV2() // todo hjh load from secret
 	if err != nil {
 		return nil, err
 	}
@@ -141,6 +144,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	if err != nil {
 		err = app.moveProfileFromFileToLeveldb()
 		if err != nil {
+			// todo hxx Load profile from secret
 			return nil, err
 		}
 		appProfile, err = nocalhost.GetProfileV2(app.NameSpace, app.Name)
@@ -149,12 +153,12 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		}
 	}
 
-	if len(appProfile.PreInstall) == 0 && len(app.configV2.ApplicationConfig.PreInstall) > 0 {
-		appProfile.PreInstall = app.configV2.ApplicationConfig.PreInstall
-		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile); err != nil {
-			return nil, err
-		}
-	}
+	//if len(appProfile.PreInstall) == 0 && len(app.configV2.ApplicationConfig.PreInstall) > 0 {
+	//	appProfile.PreInstall = app.configV2.ApplicationConfig.PreInstall
+	//	if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile); err != nil {
+	//		return nil, err
+	//	}
+	//}
 
 	if kubeconfig != "" && kubeconfig != appProfile.Kubeconfig {
 		appProfile.Kubeconfig = kubeconfig
@@ -171,8 +175,18 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	}
 
 	app.profileV2 = appProfile
+	if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
+		return nil, err
+	}
 
 	return app, nil
+}
+
+func (a *Application) CheckIfInstalled() bool {
+	if a == nil {
+		return false
+	}
+	return a.appMeta.IsInstalled()
 }
 
 func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
@@ -504,6 +518,12 @@ func (a *Application) GetDescription() string {
 	appProfile, _ := a.GetProfile()
 	desc := ""
 	if appProfile != nil {
+		meta, err := nocalhost.GetApplicationMeta(a.Name, a.NameSpace, a.KubeConfig)
+		if err != nil {
+			log.LogE(err)
+			return ""
+		}
+		appProfile.Installed = meta.IsInstalled()
 		bytes, err := yaml.Marshal(appProfile)
 		if err == nil {
 			desc = string(bytes)

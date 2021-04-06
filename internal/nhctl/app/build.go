@@ -123,6 +123,8 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		}
 	}
 
+	// todo hjh save configV2 to secret
+
 	// Load config to profile
 	appProfileV2.AppType = app.configV2.ApplicationConfig.Type
 	appProfileV2.ResourcePath = app.configV2.ApplicationConfig.ResourcePath
