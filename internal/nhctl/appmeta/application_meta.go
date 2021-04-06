@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
@@ -20,6 +21,7 @@ const (
 	SecretDevMetaKey    = "v"
 	SecretStateKey      = "s"
 	SecretDepKey        = "d"
+	SecretConfigKey     = "c"
 
 	UNINSTALLED ApplicationState = "UNINSTALLED"
 	INSTALLING  ApplicationState = "INSTALLING"
@@ -61,12 +63,13 @@ type ApplicationMeta struct {
 	// could not be updated
 	Ns string `json:"ns"`
 
-	ApplicationState   ApplicationState   `json:"application_state"`
-	DepConfigName      string             `json:"dep_config_name"`
-	PreInstallManifest string             `json:"pre_install_manifest"`
-	Manifest           string             `json:"manifest"`
-	DevMeta            ApplicationDevMeta `json:"dev_meta"`
-	Secret             *corev1.Secret     `json:"secret"`
+	ApplicationState   ApplicationState               `json:"application_state"`
+	DepConfigName      string                         `json:"dep_config_name"`
+	PreInstallManifest string                         `json:"pre_install_manifest"`
+	Manifest           string                         `json:"manifest"`
+	DevMeta            ApplicationDevMeta             `json:"dev_meta"`
+	Config             *profile2.NocalHostAppConfigV2 `json:"config"`
+	Secret             *corev1.Secret                 `json:"secret"`
 
 	// current client go util is injected, may null, be care!
 	clientInner *clientgoutils.ClientGoUtils
@@ -107,6 +110,13 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 
 		_ = json.Unmarshal(bytes, devMeta)
 		appMeta.DevMeta = *devMeta
+	}
+
+	if bytes, ok := secret.Data[SecretConfigKey]; ok {
+		config := &profile2.NocalHostAppConfigV2{}
+
+		_ = json.Unmarshal(bytes, config)
+		appMeta.Config = config
 	}
 
 	appMeta.Secret = secret
@@ -203,8 +213,11 @@ func (a *ApplicationMeta) prepare() {
 	a.Secret.Data[SecretStateKey] = []byte(a.ApplicationState)
 	a.Secret.Data[SecretDepKey] = []byte(a.DepConfigName)
 
-	marshal, _ := json.Marshal(a.DevMeta)
-	a.Secret.Data[SecretDevMetaKey] = marshal
+	devMeta, _ := json.Marshal(a.DevMeta)
+	a.Secret.Data[SecretDevMetaKey] = devMeta
+
+	config, _ := json.Marshal(a.Config)
+	a.Secret.Data[SecretConfigKey] = config
 }
 
 func (a *ApplicationMeta) IsInstalled() bool {

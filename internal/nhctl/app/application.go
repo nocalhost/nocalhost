@@ -69,10 +69,6 @@ type Application struct {
 	NameSpace  string
 	KubeConfig string
 
-	// configV2 is created and saved to config_v2.yaml when `install`, after that it will not be changed
-	// configV2 will not be nil if you use NewApplication a get a Application
-	configV2 *profile.NocalHostAppConfigV2
-
 	appMeta *appmeta.ApplicationMeta
 
 	// profileV2 is created and saved to leveldb when `install`
@@ -119,11 +115,6 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	app := &Application{
 		Name:      name,
 		NameSpace: ns,
-	}
-
-	err := app.LoadConfigV2() // todo hjh load from secret
-	if err != nil {
-		return nil, err
 	}
 
 	db, err := nocalhostDb.OpenApplicationLevelDB(app.NameSpace, app.Name, true)
@@ -197,31 +188,31 @@ func (a *Application) SaveProfile(p *profile.AppProfileV2) error {
 	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, p)
 }
 
-func (a *Application) LoadConfigV2() error {
+func (a *Application) LoadConfigFromLocalV2() (*profile.NocalHostAppConfigV2, error) {
 
 	isV2, err := a.checkIfAppConfigIsV2()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !isV2 {
 		log.Log("Upgrade config V1 to V2 ...")
 		err = a.UpgradeAppConfigV1ToV2()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	config := &profile.NocalHostAppConfigV2{}
 	rbytes, err := ioutil.ReadFile(a.GetConfigV2Path())
 	if err != nil {
-		return errors.New(fmt.Sprintf("fail to load configFile : %s", a.GetConfigV2Path()))
+		return nil, errors.New(fmt.Sprintf("fail to load configFile : %s", a.GetConfigV2Path()))
 	}
 	if err = yaml.Unmarshal(rbytes, config); err != nil {
-		return errors.Wrap(err, "")
+		return nil, errors.Wrap(err, "")
 	}
-	a.configV2 = config
-	return nil
+
+	return config, nil
 }
 
 type HelmFlags struct {
@@ -256,7 +247,7 @@ func (a *Application) IsAnyServiceInDevMode() bool {
 }
 
 func (a *Application) GetSvcConfigV2(svcName string) *profile.ServiceConfigV2 {
-	for _, config := range a.configV2.ApplicationConfig.ServiceConfigs {
+	for _, config := range a.appMeta.Config.ApplicationConfig.ServiceConfigs {
 		if config.Name == svcName {
 			return config
 		}
@@ -265,7 +256,7 @@ func (a *Application) GetSvcConfigV2(svcName string) *profile.ServiceConfigV2 {
 }
 
 func (a *Application) GetApplicationConfigV2() *profile.ApplicationConfig {
-	return a.configV2.ApplicationConfig
+	return a.appMeta.Config.ApplicationConfig
 }
 
 func (a *Application) SaveSvcProfileV2(svcName string, config *profile.ServiceConfigV2) error {
@@ -780,4 +771,8 @@ func (a *Application) CleanupResources() error {
 		return errors.New(fmt.Sprintf("fail to remove resources dir %s\n", homeDir))
 	}
 	return nil
+}
+
+func (a *Application) Uninstall() error {
+	return a.appMeta.Uninstall()
 }

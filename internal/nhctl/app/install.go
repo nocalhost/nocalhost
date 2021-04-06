@@ -16,10 +16,8 @@ package app
 import (
 	"context"
 	"fmt"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"math/rand"
 	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
@@ -37,30 +35,8 @@ import (
 )
 
 func (a *Application) Install(ctx context.Context, flags *HelmFlags) (err error) {
-	// try to create a new application meta
-	appMeta, err := nocalhost.GetApplicationMeta(a.Name, a.NameSpace, a.KubeConfig)
-	if err != nil {
-		return err
-	}
 
-	if err = appMeta.Initial(); err != nil {
-		if k8serrors.IsAlreadyExists(err) {
-			return fmt.Errorf("Application %s has been installed, you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", a.Name, a.Name, a.NameSpace)
-		} else {
-			return err
-		}
-	}
-
-	// if init appMeta successful, then should remove all things while fail
-	defer func() {
-		if err != nil {
-			if err := appMeta.Uninstall(); err != nil {
-				log.WarnE(err, "")
-			}
-		}
-	}()
-
-	err = a.InstallDepConfigMap(appMeta)
+	err = a.InstallDepConfigMap(a.appMeta)
 	if err != nil {
 		return errors.Wrap(err, "failed to install dep config map")
 	}
@@ -70,17 +46,17 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) (err error)
 	case string(HelmRepo):
 		err = a.installHelm(flags, true)
 	case string(Manifest), string(ManifestLocal):
-		err = a.InstallManifest(appMeta)
+		err = a.InstallManifest(a.appMeta)
 	case string(KustomizeGit):
 		// err = a.InstallKustomizeWithKubectl()
-		err = a.InstallKustomize(appMeta)
+		err = a.InstallKustomize(a.appMeta)
 	default:
 		err = errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
 		return err
 	}
 
-	appMeta.ApplicationState = appmeta.INSTALLED
-	err = appMeta.Update()
+	a.appMeta.ApplicationState = appmeta.INSTALLED
+	err = a.appMeta.Update()
 	return err
 }
 
@@ -163,8 +139,8 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 		}
 	} else {
 		chartName := flags.Chart
-		if a.configV2 != nil && a.configV2.ApplicationConfig.Name != "" {
-			chartName = a.configV2.ApplicationConfig.Name
+		if a.appMeta.Config != nil && a.appMeta.Config.ApplicationConfig.Name != "" {
+			chartName = a.appMeta.Config.ApplicationConfig.Name
 		}
 		if flags.RepoUrl != "" {
 			installParams = append(installParams, chartName, "--repo", flags.RepoUrl)

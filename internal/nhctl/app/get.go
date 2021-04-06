@@ -24,7 +24,7 @@ import (
 func (a *Application) GetDependencies() []*SvcDependency {
 	result := make([]*SvcDependency, 0)
 
-	svcConfigs := a.configV2.ApplicationConfig.ServiceConfigs
+	svcConfigs := a.appMeta.Config.ApplicationConfig.ServiceConfigs
 	if len(svcConfigs) == 0 {
 		return nil
 	}

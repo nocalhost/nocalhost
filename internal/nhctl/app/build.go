@@ -19,6 +19,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/fp"
@@ -81,6 +82,8 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		}
 	}
 
+	var config *profile.NocalHostAppConfigV2
+
 	configFilePath := flags.OuterConfig
 	// Read from .nocalhost
 	if configFilePath == "" {
@@ -106,7 +109,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 				if err = ioutil.WriteFile(app.GetConfigV2Path(), configBys, 0644); err != nil {
 					return nil, errors.New("fail to create configFile")
 				}
-				app.configV2 = renderedConfig
+				config = renderedConfig
 			} else {
 				return nil, errors.Wrap(err, "")
 			}
@@ -117,22 +120,41 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 
 	// config.yaml found
 	if configFilePath != "" {
-		err = app.renderConfig(configFilePath)
+		config, err = app.renderConfig(configFilePath)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// todo hjh save configV2 to secret
+	// try to create a new application meta
+	appMeta, err := nocalhost.GetApplicationMeta(name, namespace, appProfileV2.Kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+
+	app.appMeta = appMeta
+
+	if err = appMeta.Initial(); err != nil {
+		if k8serrors.IsAlreadyExists(err) {
+			return nil, fmt.Errorf("Application %s has been installed, you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", appProfileV2.Name, appProfileV2.Name, appProfileV2.Namespace)
+		} else {
+			return nil, err
+		}
+	}
+
+	appMeta.Config = config
+	if err := appMeta.Update(); err != nil {
+		return nil, err
+	}
 
 	// Load config to profile
-	appProfileV2.AppType = app.configV2.ApplicationConfig.Type
-	appProfileV2.ResourcePath = app.configV2.ApplicationConfig.ResourcePath
-	appProfileV2.IgnoredPath = app.configV2.ApplicationConfig.IgnoredPath
-	appProfileV2.PreInstall = app.configV2.ApplicationConfig.PreInstall
-	appProfileV2.Env = app.configV2.ApplicationConfig.Env
-	appProfileV2.EnvFrom = app.configV2.ApplicationConfig.EnvFrom
-	for _, svcConfig := range app.configV2.ApplicationConfig.ServiceConfigs {
+	appProfileV2.AppType = config.ApplicationConfig.Type
+	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
+	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
+	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
+	appProfileV2.Env = config.ApplicationConfig.Env
+	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
+	for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {
 		app.loadConfigToSvcProfile(svcConfig.Name, appProfileV2, Deployment)
 	}
 
@@ -150,21 +172,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 }
 
 // V2
-func (a *Application) renderConfig(configFilePath string) error {
-	//configFilePath := outerConfigPath
-	//
-	//// Read from .nocalhost
-	//if configFilePath == "" {
-	//	_, err := os.Stat(a.getConfigPathInGitResourcesDir(configName))
-	//	if err != nil {
-	//		if os.IsNotExist(err) {
-	//			return errors.New(fmt.Sprintf("Nocalhost config %s not found. Please check if there is a file:\"%s\" under .nocalhost directory in your git repository", a.getConfigPathInGitResourcesDir(configName), configName))
-	//		}
-	//		return errors.Wrap(err, "")
-	//	}
-	//	configFilePath = a.getConfigPathInGitResourcesDir(configName)
-	//}
-
+func (a *Application) renderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) {
 	configFile := fp.NewFilePath(configFilePath)
 
 	var envFile *fp.FilePathEnhance
@@ -182,19 +190,19 @@ func (a *Application) renderConfig(configFilePath string) error {
 
 	renderedStr, err := envsubst.Render(configFile, envFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Check If config version
 	configVersion, err := checkConfigVersion(renderedStr)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if configVersion == "v1" {
 		err = ConvertConfigFileV1ToV2(configFilePath, a.GetConfigV2Path())
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		renderedStr, err = envsubst.Render(fp.NewFilePath(a.GetConfigV2Path()), envFile)
@@ -223,22 +231,7 @@ func (a *Application) renderConfig(configFilePath string) error {
 		renderedConfig.ApplicationConfig.ServiceConfigs = service
 	}
 
-	marshal, _ := yaml.Marshal(renderedConfig)
-
-	err = ioutil.WriteFile(a.GetConfigV2Path(), marshal, 0644) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
-	if err != nil {
-		return errors.New(fmt.Sprintf("fail to create configFile : %s", configFilePath))
-	}
-
-	err = a.LoadConfigV2()
-	if err != nil {
-		return err
-	}
-
-	if a.configV2 == nil {
-		return errors.New("Nocalhost config incorrect")
-	}
-	return nil
+	return renderedConfig, nil
 }
 
 func gettingRenderEnvFile(filepath string) string {

@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/workqueue"
 	"nocalhost/internal/nhctl/appmeta"
+	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"sync"
 	"time"
@@ -203,6 +204,7 @@ func (asw *applicationSecretWatcher) GetApplicationMeta(application string) *app
 			PreInstallManifest: "",
 			Manifest:           "",
 			DevMeta:            appmeta.ApplicationDevMeta{},
+			Config:             &profile2.NocalHostAppConfigV2{},
 		}
 	}
 }

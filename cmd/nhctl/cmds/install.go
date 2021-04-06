@@ -160,14 +160,26 @@ func InstallApplication(applicationName string) error {
 	}
 	log.Logf("KubeConfig content: %s", string(bys))
 
+	// build Application will create the application meta and it's secret
+	// init the application's config
 	nocalhostApp, err = app.BuildApplication(applicationName, installFlags, kubeConfig, nameSpace)
 	if err != nil {
 		return err
 	}
 
+	// if init appMeta successful, then should remove all things while fail
+	defer func() {
+		if err != nil {
+			if err := nocalhostApp.Uninstall(); err != nil {
+				log.WarnE(err, "")
+			}
+		}
+	}()
+
 	appType := nocalhostApp.GetType()
 	if appType == "" {
-		return errors.New("--type must be specified")
+		err = errors.New("--type must be specified")
+		return err
 	}
 
 	// add helmValue in config
@@ -186,5 +198,6 @@ func InstallApplication(applicationName string) error {
 		Version:  installFlags.HelmRepoVersion,
 	}
 
-	return nocalhostApp.Install(context.TODO(), flags)
+	err = nocalhostApp.Install(context.TODO(), flags)
+	return err
 }

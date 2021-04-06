@@ -251,8 +251,8 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 
 	if fromRepo {
 		chartName := installFlags.HelmChartName
-		if a.configV2 != nil && a.configV2.ApplicationConfig.Name != "" {
-			chartName = a.configV2.ApplicationConfig.Name
+		if a.appMeta.Config != nil && a.appMeta.Config.ApplicationConfig.Name != "" {
+			chartName = a.appMeta.Config.ApplicationConfig.Name
 		}
 		if installFlags.HelmRepoUrl != "" {
 			params = append(params, chartName, "--repo", installFlags.HelmRepoUrl)
