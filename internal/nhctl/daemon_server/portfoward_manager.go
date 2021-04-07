@@ -121,7 +121,10 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 	localPort, remotePort := startCmd.LocalPort, startCmd.RemotePort
 	key := fmt.Sprintf("%d:%d", localPort, remotePort)
 	if _, ok := p.pfList[key]; ok {
-		return errors.New(fmt.Sprintf("Port-forward %d:%d has been running in another go routine", localPort, remotePort))
+		log.Logf("Port-forward %d:%d has been running in another go routine, stop it first", localPort, remotePort)
+		if err := p.StopPortForwardGoRoutine(localPort, remotePort); err != nil {
+			return err
+		}
 	}
 
 	nocalhostApp, err := app.NewApplication(startCmd.AppName, startCmd.NameSpace, "", true)

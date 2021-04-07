@@ -62,13 +62,7 @@ var portForwardStartCmd = &cobra.Command{
 			podName = portForwardOptions.PodName
 		}
 
-		//if len(portForwardOptions.DevPort) == 0 {
-		//	// if not specify -p then use default
-		//	portForwardOptions.DevPort = nocalhostApp.GetDefaultDevPort(deployment, container)
-		//	log.Debugf("Get default devPort: %s ", portForwardOptions.DevPort)
-		//}
-		var localPorts []int
-		var remotePorts []int
+		var localPorts, remotePorts []int
 		for _, port := range portForwardOptions.DevPort {
 			localPort, remotePort, err := app.GetPortForwardForString(port)
 			if err != nil {
