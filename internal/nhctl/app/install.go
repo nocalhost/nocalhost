@@ -143,10 +143,10 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 		}
 		if flags.RepoUrl != "" {
 			installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
-			profileV2.HelmRepoUrl = flags.RepoUrl
+			//profileV2.HelmRepoUrl = flags.RepoUrl
 		} else if flags.RepoName != "" {
 			installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
-			profileV2.HelmRepoName = flags.RepoName
+			//profileV2.HelmRepoName = flags.RepoName
 		}
 		if flags.Version != "" {
 			installParams = append(installParams, "--version", flags.Version)

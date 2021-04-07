@@ -42,6 +42,14 @@ func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2) error {
 	return db.Put([]byte(profile.ProfileV2Key(ns, app)), bys)
 }
 
+func GetKubeConfigFromProfile(ns, app string) (string, error) {
+	p, err := GetProfileV2(ns, app)
+	if err != nil {
+		return "", err
+	}
+	return p.Kubeconfig, nil
+}
+
 func GetProfileV2(ns, app string) (*profile.AppProfileV2, error) {
 	var err error
 	db, err := nocalhostDb.OpenApplicationLevelDB(ns, app, true)

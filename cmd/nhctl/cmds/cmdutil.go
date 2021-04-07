@@ -40,17 +40,18 @@ func initApp(appName string) {
 		}
 	}
 
-	if !nocalhost.CheckIfApplicationExist(appName, nameSpace) {
-		// init nocalhost default application and wait
-		if appName == app.DefaultNocalhostApplication {
-			err := initNocalhostDefaultApplicationAndWait()
-			if err != nil {
-				log.FatalE(err, "Failed to init default application in ns "+nameSpace)
-			}
-		} else {
-			log.Fatalf("Application %s in %s not found", appName, nameSpace)
-		}
-	}
+	// todo hjx
+	//if !nocalhost.CheckIfApplicationExist(appName, nameSpace) {
+	//	// init nocalhost default application and wait
+	//	if appName == app.DefaultNocalhostApplication {
+	//		err := initNocalhostDefaultApplicationAndWait()
+	//		if err != nil {
+	//			log.FatalE(err, "Failed to init default application in ns "+nameSpace)
+	//		}
+	//	} else {
+	//		log.Fatalf("Application %s in %s not found", appName, nameSpace)
+	//	}
+	//}
 
 	nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
 	if err != nil {
@@ -108,24 +109,25 @@ func initNocalhostDefaultApplicationAndWait() error {
 	}
 
 	// double check
-	if !nocalhost.CheckIfApplicationExist(app.DefaultNocalhostApplication, nameSpace) {
-		log.Logf("Default virtual application in ns %s haven't init yet...", nameSpace)
-
-		switch nocalhost.EstimateApplicationCounts(nameSpace) {
-		case 1: // means we can move user's configurations to default app
-			log.Logf("Init virtual application and copy unique app's configuration in ns %s ...", nameSpace)
-			err := InitDefaultApplicationByFirstValid()
-			if err != nil {
-				return err
-			}
-		default:
-			log.Logf("Init virtual application in ns %s ...", nameSpace)
-			err := InitDefaultApplicationInCurrentNs()
-			if err != nil {
-				return err
-			}
-		}
-	}
+	// todo hjh
+	//if !nocalhost.CheckIfApplicationExist(app.DefaultNocalhostApplication, nameSpace) {
+	//	log.Logf("Default virtual application in ns %s haven't init yet...", nameSpace)
+	//
+	//	switch nocalhost.EstimateApplicationCounts(nameSpace) {
+	//	case 1: // means we can move user's configurations to default app
+	//		log.Logf("Init virtual application and copy unique app's configuration in ns %s ...", nameSpace)
+	//		err := InitDefaultApplicationByFirstValid()
+	//		if err != nil {
+	//			return err
+	//		}
+	//	default:
+	//		log.Logf("Init virtual application in ns %s ...", nameSpace)
+	//		err := InitDefaultApplicationInCurrentNs()
+	//		if err != nil {
+	//			return err
+	//		}
+	//	}
+	//}
 
 	return nil
 }

@@ -69,14 +69,12 @@ func (a *Application) uninstallHelm() error {
 	if a.NameSpace != "" {
 		commonParams = append(commonParams, "--namespace", a.NameSpace)
 	}
-	appProfile, _ := a.GetProfile()
-	if appProfile.Kubeconfig != "" {
-		commonParams = append(commonParams, "--kubeconfig", appProfile.Kubeconfig)
+	//appProfile, _ := a.GetProfile()
+	if a.KubeConfig != "" {
+		commonParams = append(commonParams, "--kubeconfig", a.KubeConfig)
 	}
 	uninstallParams := []string{"uninstall", a.Name}
 	uninstallParams = append(uninstallParams, commonParams...)
 	_, err := tools.ExecCommand(nil, true, "helm", uninstallParams...)
 	return err
 }
-
-

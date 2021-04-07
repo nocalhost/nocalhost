@@ -27,6 +27,7 @@ import (
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -62,6 +63,10 @@ const (
 	AppManagedByNocalhost         = "nocalhost"
 	NocalhostApplicationName      = "dev.nocalhost/application-name"
 	NocalhostApplicationNamespace = "dev.nocalhost/application-namespace"
+)
+
+var (
+	ErrNotFound = errors.New("Application not found")
 )
 
 type Application struct {
@@ -114,36 +119,46 @@ func (a *Application) moveProfileFromFileToLeveldb() error {
 	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
 }
 
+// When new a application, kubeconfig is required to get meta in k8s cluster
+// KubeConfig can be acquired from profile in leveldb
 func NewApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
 
+	if kubeconfig == "" { // use default config
+		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	}
+
 	app := &Application{
-		Name:      name,
-		NameSpace: ns,
+		Name:       name,
+		NameSpace:  ns,
+		KubeConfig: kubeconfig,
 	}
 
-	db, err := nocalhostDb.OpenApplicationLevelDB(app.NameSpace, app.Name, true)
-	if err != nil {
-		if db != nil {
-			db.Close()
-		}
-		err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name) // Init leveldb dir
+	var err error
+	if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
+		return nil, err
+	}
+	if !app.appMeta.IsInstalled() {
+		return nil, ErrNotFound
+	}
+
+	if db, err := nocalhostDb.OpenApplicationLevelDB(app.NameSpace, app.Name, true); err != nil {
+		err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name, true) // Init leveldb dir
 		if err != nil {
 			return nil, err
 		}
-	}
-	if db != nil {
-		db.Close()
+	} else {
+		_ = db.Close()
 	}
 
-	appProfile, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
-	if err != nil {
-		err = app.moveProfileFromFileToLeveldb()
-		if err != nil {
-			// todo hxx Load profile from secret
-			return nil, err
+	if app.profileV2, err = nocalhost.GetProfileV2(app.NameSpace, app.Name); err != nil {
+		if _, err := os.Stat(app.getProfileV2Path()); err == nil { // todo: hjh move to version upgrading
+			if err = app.moveProfileFromFileToLeveldb(); err != nil {
+				return nil, err
+			}
 		}
-		appProfile, err = nocalhost.GetProfileV2(app.NameSpace, app.Name)
-		if err != nil {
+
+		app.profileV2 = generateProfileFromConfig(app.appMeta.Config)
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.profileV2); err != nil {
 			return nil, err
 		}
 	}
@@ -155,13 +170,12 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	//	}
 	//}
 
-	if kubeconfig != "" && kubeconfig != appProfile.Kubeconfig {
-		appProfile.Kubeconfig = kubeconfig
-		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile); err != nil {
+	if kubeconfig != "" && kubeconfig != app.profileV2.Kubeconfig {
+		app.profileV2.Kubeconfig = kubeconfig
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.profileV2); err != nil {
 			return nil, err
 		}
 	}
-	app.KubeConfig = appProfile.Kubeconfig
 
 	if initClient {
 		if app.client, err = clientgoutils.NewClientGoUtils(app.KubeConfig, app.NameSpace); err != nil {
@@ -169,19 +183,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		}
 	}
 
-	app.profileV2 = appProfile
-	if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
-		return nil, err
-	}
-
 	return app, nil
-}
-
-func (a *Application) CheckIfInstalled() bool {
-	if a == nil {
-		return false
-	}
-	return a.appMeta.IsInstalled()
 }
 
 func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
@@ -250,14 +252,15 @@ func (a *Application) IsAnyServiceInDevMode() bool {
 	return false
 }
 
-func (a *Application) GetSvcConfigV2(svcName string) *profile.ServiceConfigV2 {
-	for _, config := range a.appMeta.Config.ApplicationConfig.ServiceConfigs {
-		if config.Name == svcName {
-			return config
-		}
-	}
-	return nil
-}
+// Deprecated
+//func (a *Application) GetSvcConfigV2(svcName string) *profile.ServiceConfigV2 {
+//	for _, config := range a.appMeta.Config.ApplicationConfig.ServiceConfigs {
+//		if config.Name == svcName {
+//			return config
+//		}
+//	}
+//	return nil
+//}
 
 func (a *Application) GetApplicationConfigV2() *profile.ApplicationConfig {
 	return a.appMeta.Config.ApplicationConfig

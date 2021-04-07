@@ -26,9 +26,9 @@ import (
 
 // Initial a level db
 // If leveldb already exists, return error
-func CreateLevelDB(path string) error {
+func CreateLevelDB(path string, errorIfExist bool) error {
 	db, err := leveldb.OpenFile(path, &opt.Options{
-		ErrorIfExist: true,
+		ErrorIfExist: errorIfExist,
 	})
 	if db != nil {
 		_ = db.Close()
@@ -41,9 +41,6 @@ func CreateLevelDB(path string) error {
 // If leveldb is EAGAIN, retry to open it in 1 minutes
 // If leveldb is missing, return a error instead create one
 func OpenLevelDB(path string, readonly bool) (*LevelDBUtils, error) {
-	//if !readonly {
-	//	log.LogStack()
-	//}
 	var o *opt.Options
 	o = &opt.Options{
 		ErrorIfMissing: true,

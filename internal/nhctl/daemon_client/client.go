@@ -90,6 +90,7 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 		if err = StartDaemonServer(isSudoUser); err != nil {
 			return nil, err
 		}
+		log.Log("Waiting daemon to start")
 		if err = waitForTCPPortToBeReady(client.daemonServerListenPort, 10*time.Second); err != nil {
 			return nil, err
 		}

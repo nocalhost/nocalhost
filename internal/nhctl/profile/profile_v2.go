@@ -45,10 +45,10 @@ type AppProfileV2 struct {
 	PreInstall              []*PreInstallItem `json:"onPreInstall" yaml:"onPreInstall"`
 
 	// After v2
-	GitUrl       string `json:"gitUrl" yaml:"gitUrl"`
-	GitRef       string `json:"gitRef" yaml:"gitRef"`
-	HelmRepoUrl  string `json:"helmRepoUrl" yaml:"helmRepoUrl"`
-	HelmRepoName string `json:"helmRepoUrl" yaml:"helmRepoName"`
+	//GitUrl       string `json:"gitUrl" yaml:"gitUrl"`
+	//GitRef       string `json:"gitRef" yaml:"gitRef"`
+	//HelmRepoUrl  string `json:"helmRepoUrl" yaml:"helmRepoUrl"`
+	//HelmRepoName string `json:"helmRepoUrl" yaml:"helmRepoName"`
 	//HelmRepoChartVersion string `json:"helmRepoChartVersion" yaml:"helmRepoChartVersion"`
 
 	Env     []*Env  `json:"env" yaml:"env"`

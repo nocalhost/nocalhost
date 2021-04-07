@@ -42,9 +42,14 @@ import (
 // build a new application
 func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig string, namespace string) (*Application, error) {
 
+	if kubeconfig == "" { // use default config
+		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	}
+
 	app := &Application{
-		Name:      name,
-		NameSpace: namespace,
+		Name:       name,
+		NameSpace:  namespace,
+		KubeConfig: kubeconfig,
 	}
 
 	err := app.initDir()
@@ -58,30 +63,19 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, errors.New("Fail to create tmp dir for install")
 	}
 
-	if err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name); err != nil {
+	if err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name, false); err != nil {
 		return nil, err
-	}
-
-	appProfileV2 := &profile.AppProfileV2{Installed: true}
-
-	if kubeconfig == "" { // use default config
-		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
 	}
 
 	if app.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace); err != nil {
 		return nil, err
 	}
 
-	appProfileV2.Namespace = namespace
-	appProfileV2.Kubeconfig = kubeconfig
-
 	if flags.GitUrl != "" {
 		if err = app.downloadResourcesFromGit(flags.GitUrl, flags.GitRef, app.ResourceTmpDir); err != nil {
 			log.Debugf("Failed to clone : %s ref: %s", flags.GitUrl, flags.GitRef)
 			return nil, err
 		}
-		appProfileV2.GitUrl = flags.GitUrl
-		appProfileV2.GitRef = flags.GitRef
 	} else if flags.LocalPath != "" { // local path of application, copy to nocalhost resource
 		if err = utils.CopyDir(flags.LocalPath, app.ResourceTmpDir); err != nil {
 			return nil, err
@@ -133,13 +127,13 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	// try to create a new application meta
-	appMeta, err := nocalhost.GetApplicationMeta(name, namespace, appProfileV2.Kubeconfig)
+	appMeta, err := nocalhost.GetApplicationMeta(name, namespace, kubeconfig)
 	if err != nil {
 		return nil, err
 	}
 
 	if appMeta.IsInstalled() {
-		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s has been installed,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", name, namespace, name, namespace))
+		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s has already been installed,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", name, namespace, name, namespace))
 	} else if appMeta.IsInstalling() {
 		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", name, namespace, name, namespace))
 	}
@@ -148,7 +142,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 
 	if err = appMeta.Initial(); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
-			return nil, fmt.Errorf("Application %s has been installed, you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", appProfileV2.Name, appProfileV2.Name, appProfileV2.Namespace)
+			return nil, fmt.Errorf("Application %s has been installed, you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", app.Name, app.Name, app.NameSpace)
 		} else {
 			return nil, err
 		}
@@ -160,16 +154,9 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, err
 	}
 
-	// Load config to profile
-	appProfileV2.AppType = config.ApplicationConfig.Type
-	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
-	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
-	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
-	appProfileV2.Env = config.ApplicationConfig.Env
-	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
-	for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {
-		app.loadConfigToSvcProfile(svcConfig.Name, appProfileV2, Deployment)
-	}
+	appProfileV2 := generateProfileFromConfig(config)
+	appProfileV2.Namespace = namespace
+	appProfileV2.Kubeconfig = kubeconfig
 
 	if flags.AppType != "" {
 		appProfileV2.AppType = flags.AppType
@@ -179,9 +166,28 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	app.profileV2 = appProfileV2
-	app.KubeConfig = appProfileV2.Kubeconfig
 
 	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
+}
+
+func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.AppProfileV2 {
+	appProfileV2 := &profile.AppProfileV2{}
+	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
+	appProfileV2.AppType = config.ApplicationConfig.Type
+	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
+	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
+	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
+	appProfileV2.Env = config.ApplicationConfig.Env
+
+	appProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
+	for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {
+		svcProfile := &profile.SvcProfileV2{
+			ActualName: svcConfig.Name,
+		}
+		svcProfile.ServiceConfigV2 = svcConfig
+		appProfileV2.SvcProfile = append(appProfileV2.SvcProfile, svcProfile)
+	}
+	return appProfileV2
 }
 
 // V2
@@ -319,23 +325,23 @@ func (a *Application) loadConfigToSvcProfile(svcName string, appProfile *profile
 	}
 
 	// find svc config
-	svcConfig := a.GetSvcConfigV2(svcName)
+	svcConfig := a.appMeta.Config.GetSvcConfigV2(svcName)
 	if svcConfig == nil && len(appProfile.ReleaseName) > 0 {
 		if strings.HasPrefix(svcName, fmt.Sprintf("%s-", appProfile.ReleaseName)) {
 			name := strings.TrimPrefix(svcName, fmt.Sprintf("%s-", appProfile.ReleaseName))
-			svcConfig = a.GetSvcConfigV2(name) // support releaseName-svcName
+			svcConfig = a.appMeta.Config.GetSvcConfigV2(name) // support releaseName-svcName
 		}
 	}
 
 	svcProfile.ServiceConfigV2 = svcConfig
 
 	// If svcProfile already exists, updating it
-	for index, svc := range appProfile.SvcProfile {
-		if svc.ActualName == svcName {
-			appProfile.SvcProfile[index] = svcProfile
-			return
-		}
-	}
+	//for index, svc := range appProfile.SvcProfile {
+	//	if svc.ActualName == svcName {
+	//		appProfile.SvcProfile[index] = svcProfile
+	//		return
+	//	}
+	//}
 
 	// If svcProfile already exists, create one
 	appProfile.SvcProfile = append(appProfile.SvcProfile, svcProfile)

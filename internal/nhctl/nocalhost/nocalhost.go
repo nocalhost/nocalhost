@@ -59,12 +59,6 @@ func Init() error {
 				return errors.Wrap(err, "")
 			}
 
-			//applicationDir := GetAppHomeDir()
-			//err = os.MkdirAll(applicationDir, DefaultNewFilePermission) // create .nhctl/application
-			//if err != nil {
-			//	return errors.Wrap(err, "")
-			//}
-
 			binDir := GetSyncThingBinDir()
 			err = os.MkdirAll(binDir, DefaultNewFilePermission) // create .nhctl/bin/syncthing
 			if err != nil {
@@ -79,16 +73,10 @@ func Init() error {
 
 		}
 	}
-	err = moveApplicationDirToNsDir()
-	if err != nil {
-		return err
-	}
-	//os.Rename(GetAppHomeDir(), fmt.Sprintf("%s.bak", GetAppHomeDir()))
-	return nil
+	return moveApplicationDirToNsDir()
 }
 
 func moveApplicationDirToNsDir() error {
-
 	if _, err := os.Stat(nocalhost_path.GetNhctlNameSpaceDir()); err != nil {
 		if os.IsNotExist(err) {
 			log.Log("Creating ns home dir...")
@@ -158,39 +146,13 @@ func moveApplicationDirToNsDir() error {
 		} else {
 			return errors.Wrap(err, "")
 		}
-	} else {
-		//log.Log("No need to move application dir to ns dir")
 	}
-
 	return nil
 }
-
-//func GetNhctlHomeDir() string {
-//	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName)
-//}
 
 // Deprecated
 func GetAppHomeDir() string {
 	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), DefaultApplicationDirName)
-}
-
-// Deprecated
-func GetAppDir(appName string) string {
-	return filepath.Join(GetAppHomeDir(), appName)
-}
-
-// Deprecated
-func CleanupAppFiles(appName string) error {
-	appDir := GetAppDir(appName)
-	if f, err := os.Stat(appDir); err == nil {
-		if f.IsDir() {
-			err = os.RemoveAll(appDir)
-			return errors.Wrap(err, "fail to remove dir")
-		}
-	} else if !os.IsNotExist(err) {
-		return errors.Wrap(err, "")
-	}
-	return nil
 }
 
 func CleanupAppFilesUnderNs(appName string, namespace string) error {
@@ -243,25 +205,6 @@ func GetNsAndApplicationInfo() (map[string][]string, error) {
 	return result, nil
 }
 
-// Deprecated
-func GetApplicationNames() ([]string, error) {
-	appDir := GetAppHomeDir()
-	fs, err := ioutil.ReadDir(appDir)
-	if err != nil {
-		return nil, errors.Wrap(err, "")
-	}
-	app := make([]string, 0)
-	//if fs == nil || len(fs) < 1 {
-	//	return app, nil
-	//}
-	for _, file := range fs {
-		if file.IsDir() {
-			app = append(app, file.Name())
-		}
-	}
-	return app, err
-}
-
 func GetApplicationMetaInstalled(appName, namespace, kubeConfig string) (*appmeta.ApplicationMeta, error) {
 	appMeta, err := GetApplicationMeta(appName, namespace, kubeConfig)
 	if err != nil {
@@ -306,25 +249,25 @@ func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.Applica
 	return appMeta, nil
 }
 
-func CheckIfApplicationExist(appName string, namespace string) bool {
-	// todo
-	//appMap, err := GetNsAndApplicationInfo()
-	//if err != nil || len(appMap) == 0 {
-	//	return false
-	//}
-
-	//for ns, appList := range appMap {
-	//	if ns != namespace {
-	//		continue
-	//	}
-	//	for _, app := range appList {
-	//		if app == appName {
-	//			return true
-	//		}
-	//	}
-	//}
-	return true
-}
+//func CheckIfApplicationExist(appName string, namespace string) bool {
+//	// todo
+//	//appMap, err := GetNsAndApplicationInfo()
+//	//if err != nil || len(appMap) == 0 {
+//	//	return false
+//	//}
+//
+//	//for ns, appList := range appMap {
+//	//	if ns != namespace {
+//	//		continue
+//	//	}
+//	//	for _, app := range appList {
+//	//		if app == appName {
+//	//			return true
+//	//		}
+//	//	}
+//	//}
+//	return true
+//}
 
 // todo it's worked by dir, so it may not be very accurate
 func EstimateApplicationCounts(namespace string) int {

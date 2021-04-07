@@ -92,7 +92,11 @@ func ListApplicationsReuslt() []*Namespace {
 	result := []*Namespace{}
 	for ns, appList := range appMap {
 		for _, appName := range appList {
-			app2, err := app.NewApplication(appName, ns, "", false)
+			kube, err := nocalhost.GetKubeConfigFromProfile(ns, appName)
+			if err != nil {
+				continue
+			}
+			app2, err := app.NewApplication(appName, ns, kube, false)
 			if err != nil {
 				continue
 			}
@@ -156,7 +160,11 @@ func ListApplications() {
 	fmt.Printf("%-14s %-14s %-14s %-14s\n", "NAME", "INSTALLED", "NAMESPACE", "TYPE")
 	for ns, appList := range appMap {
 		for _, appName := range appList {
-			app2, err := app.NewApplication(appName, ns, "", false)
+			kube, err := nocalhost.GetKubeConfigFromProfile(ns, appName)
+			if err != nil {
+				continue
+			}
+			app2, err := app.NewApplication(appName, ns, kube, false)
 			if err != nil {
 				log.WarnE(err, "Failed to new application")
 				fmt.Printf("%-14s\n", appName)
