@@ -42,10 +42,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-
-
 const (
-
 
 	// default is a special app type, it can be uninstalled neither installed
 	// it's a virtual application to managed that those manifest out of Nocalhost management
@@ -572,20 +569,6 @@ func (a *Application) PortForward(deployment, podName string, localPort, remoteP
 	}
 }
 
-//func (a *Application) SendHeartBeat(ctx context.Context, listenAddress string, sLocalPort int) error {
-//	for {
-//		select {
-//		case <-ctx.Done():
-//			log.Infof("Stop sending heart beat to %d", sLocalPort)
-//			return errors.New("HeatBeat has been stopped")
-//		default:
-//			<-time.After(30 * time.Second)
-//			log.Infof("try to send port-forward heartbeat to %d", sLocalPort)
-//			return a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress, sLocalPort))
-//		}
-//	}
-//}
-
 func (a *Application) CheckPidPortStatus(ctx context.Context, deployment string, sLocalPort, sRemotePort int, lock *sync.Mutex) {
 	for {
 		select {
@@ -668,10 +651,7 @@ func (a *Application) WriteBackgroundSyncPortForwardPidFile(deployment string, p
 	defer file.Close()
 	sPid := strconv.Itoa(pid)
 	_, err = file.Write([]byte(sPid))
-	if err != nil {
-		return err
-	}
-	return nil
+	return errors.Wrap(err, "")
 }
 
 func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(svcName string, options *DevStartOptions) (*DevStartOptions, error) {
@@ -720,10 +700,9 @@ func (a *Application) GetDefaultPodName(ctx context.Context, svc string, t SvcTy
 			return podList.Items[0].Name, nil
 		}
 	}
-
 }
 
-func (a *Application) GetNocalhostDevContainerPod(deployment string) (podName string, err error) {
+func (a *Application) GetNocalhostDevContainerPod(deployment string) (string, error) {
 	checkPodsList, err := a.GetPodsFromDeployment(deployment)
 	if err != nil {
 		return "", err
@@ -738,9 +717,7 @@ func (a *Application) GetNocalhostDevContainerPod(deployment string) (podName st
 				}
 			}
 			if found {
-				podName = pod.Name
-				err = nil
-				return
+				return pod.Name, nil
 			}
 		}
 	}
@@ -758,18 +735,13 @@ func (a *Application) SetPidFileEmpty(filePath string) error {
 
 func (a *Application) CleanUpTmpResources() error {
 	log.Info("Clean up tmp resources...")
-	err := os.RemoveAll(a.ResourceTmpDir)
-	return errors.Wrap(err, fmt.Sprintf("fail to remove resources dir %s\n", a.ResourceTmpDir))
+	return errors.Wrap(os.RemoveAll(a.ResourceTmpDir), fmt.Sprintf("fail to remove resources dir %s", a.ResourceTmpDir))
 }
 
 func (a *Application) CleanupResources() error {
 	log.Info("Remove resource files...")
 	homeDir := a.GetHomeDir()
-	err := os.RemoveAll(homeDir)
-	if err != nil {
-		return errors.New(fmt.Sprintf("fail to remove resources dir %s\n", homeDir))
-	}
-	return nil
+	return errors.Wrap(os.RemoveAll(homeDir), fmt.Sprintf("fail to remove resources dir %s", homeDir))
 }
 
 func (a *Application) Uninstall() error {
