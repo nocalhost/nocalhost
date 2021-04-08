@@ -40,9 +40,7 @@ var devResetCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
 
-		nocalhostApp.Reset(deployment)
-		//log.Info("Stopping port-forward...")
-		//nocalhostApp.StopAllPortForward(deployment)
+		_ = nocalhostApp.DevEnd(deployment, true)
 
 		log.Infof("Service %s has been reset.\n", deployment)
 	},

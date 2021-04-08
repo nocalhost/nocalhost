@@ -316,7 +316,7 @@ func (a *Application) SaveAppProfileV2(config *profile.ApplicationConfig) error 
 	return profileV2.Save()
 }
 
-func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) error {
+func (a *Application) RollBack(svcName string, reset bool) error {
 	clientUtils := a.client
 	//clientUtils.deployment
 

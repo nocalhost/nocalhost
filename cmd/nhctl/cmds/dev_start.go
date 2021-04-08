@@ -162,7 +162,7 @@ var devStartCmd = &cobra.Command{
 		if err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps); err != nil {
 			log.WarnE(err, "Failed to replace dev container")
 			log.Info("Resetting workload...")
-			nocalhostApp.Reset(deployment)
+			_ = nocalhostApp.DevEnd(deployment, true)
 			os.Exit(1)
 		}
 

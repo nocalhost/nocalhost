@@ -2,7 +2,6 @@ package appmeta_manager
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/pkg/nhctl/log"
@@ -17,7 +16,7 @@ var (
 			} else {
 				log.Infof("Resource(%s - %s - %s), Name(%s) End DevMode ", pack.Ns, pack.AppName, pack.Event.DevType, pack.Event.ResourceName)
 			}
-			return errors.New("")
+			return nil
 		},
 	}
 

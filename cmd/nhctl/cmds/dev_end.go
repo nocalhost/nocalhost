@@ -14,7 +14,6 @@ limitations under the License.
 package cmds
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -51,20 +50,10 @@ var devEndCmd = &cobra.Command{
 			log.Fatalf("Service %s is not in DevMode", deployment)
 		}
 
-		err = meta.DeploymentDevEnd(deployment)
-		if err != nil {
+		if err := nocalhostApp.DevEnd(deployment, false); err != nil {
 			log.FatalE(err, "")
 		}
 
-		log.Info("Terminating file sync process...")
-		err = nocalhostApp.StopSyncAndPortForwardProcess(deployment, true)
-		if err != nil {
-			log.WarnE(err, "Error occurs when stopping sync process")
-		}
-		err = nocalhostApp.EndDevelopMode(deployment)
-		if err != nil {
-			log.FatalE(err, fmt.Sprintf("Failed to end %s", deployment))
-		}
 		log.Infof("Service %s's DevMode has been ended", deployment)
 	},
 }
