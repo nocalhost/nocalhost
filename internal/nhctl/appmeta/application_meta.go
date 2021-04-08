@@ -12,7 +12,6 @@ import (
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
-	"os"
 	"strings"
 )
 
@@ -429,10 +428,7 @@ func decompress(input []byte) []byte {
 		return nil
 	}
 
-	if _, err = io.Copy(os.Stdout, r); err != nil {
-		log.Errorf("io.Copy error %s", err)
-		return nil
-	}
-
-	return buf.Bytes()
+	buffer := new(bytes.Buffer)
+	_, _ = buffer.ReadFrom(r)
+	return buffer.Bytes()
 }

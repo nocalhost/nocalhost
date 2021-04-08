@@ -131,6 +131,7 @@ func StartDaemon(isSudoUser bool, v string) error {
 			}
 			return nil
 		})
+		appmeta_manager.Start()
 	}
 
 	select {

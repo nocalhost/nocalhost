@@ -23,7 +23,7 @@ var (
 	Events  []*ApplicationEventPack
 	lock    = sync.NewCond(&sync.Mutex{})
 	isInit  bool
-	startCh chan struct{}
+	startCh = make(chan struct{}, 1)
 )
 
 type ApplicationEventPack struct {
@@ -89,19 +89,18 @@ func Init() {
 	isInit = true
 	lock.L.Unlock()
 
-	select {
-	case <-startCh:
-		log.Info("Application Event Listener Start Up...")
-		go func() {
+	log.Info("Application Event Listener Start Up...")
+	go func() {
+		select {
+		case <-startCh:
 			for {
 				pop := EventPop()
 				for _, el := range eventListener {
 					pop.consume(el, 5)
 				}
 			}
-		}()
-	}
-
+		}
+	}()
 }
 
 func Start() {
