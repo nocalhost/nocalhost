@@ -224,10 +224,6 @@ func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.Applica
 		return nil, err
 	}
 
-	if kubeConfig == "" { // use default config
-		kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
-	}
-
 	bys, err := ioutil.ReadFile(kubeConfig)
 
 	if err != nil {
@@ -253,10 +249,6 @@ func GetApplicationMetas(namespace, kubeConfig string) (appmeta.ApplicationMetas
 	cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
 	if err != nil {
 		return nil, err
-	}
-
-	if kubeConfig == "" { // use default config
-		kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
 	}
 
 	bys, err := ioutil.ReadFile(kubeConfig)

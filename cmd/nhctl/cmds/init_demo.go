@@ -22,8 +22,6 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
-	"os/user"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -91,12 +89,11 @@ var InitCommand = &cobra.Command{
 		if err != nil {
 			log.Fatalf("%s, you should install them first(helm3 and kubectl)", err.Error())
 		}
-		if kubeConfig == "" {
-			u, err := user.Current()
-			if err == nil {
-				kubeConfig = filepath.Join(u.HomeDir, ".kube", "config")
-			}
+
+		if err := Prepare(); err != nil {
+			log.FatalE(err, "")
 		}
+
 		// init api and web
 		// nhctl install nocalhost -u https://e.coding.net/codingcorp/nocalhost/nocalhost.git -t helm --kubeconfig xxx -n xxx
 		nocalhostHelmSource := app.DefaultInitHelmGitRepo

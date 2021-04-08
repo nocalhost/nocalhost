@@ -16,7 +16,6 @@ package cmds
 import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
@@ -49,13 +48,8 @@ var uninstallCmd = &cobra.Command{
 			return
 		}
 
-		if nameSpace == "" {
-			if nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig); err != nil {
-				log.FatalE(err, "Failed to get namespace")
-			}
-			if nameSpace == "" {
-				log.Fatal("Namespace mush be provided")
-			}
+		if err := Prepare(); err != nil {
+			log.FatalE(err, "")
 		}
 
 		appMeta, err := nocalhost.GetApplicationMeta(applicationName, nameSpace, kubeConfig)

@@ -17,9 +17,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"nocalhost/internal/nhctl/utils"
-	"nocalhost/pkg/nhctl/clientgoutils"
-	"path/filepath"
+	"nocalhost/internal/nhctl/appmeta"
 	"time"
 
 	"nocalhost/internal/nhctl/app"
@@ -41,7 +39,7 @@ func init() {
 	installCmd.Flags().StringVarP(&installFlags.OuterConfig, "outer-config", "c", "", "specify a config.yaml in local path")
 	installCmd.Flags().StringVar(&installFlags.Config, "config", "", "specify a config relative to .nocalhost dir")
 	installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
-	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", fmt.Sprintf("nocalhost application type: %s, %s, %s, %s, %s or %s", app.HelmRepo, app.Helm, app.HelmLocal, app.Manifest, app.ManifestLocal, app.KustomizeGit))
+	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", fmt.Sprintf("nocalhost application type: %s, %s, %s, %s, %s or %s", appmeta.HelmRepo, appmeta.Helm, appmeta.HelmLocal, appmeta.Manifest, appmeta.ManifestLocal, appmeta.KustomizeGit))
 	installCmd.Flags().BoolVar(&installFlags.HelmWait, "wait", installFlags.HelmWait, "wait for completion")
 	installCmd.Flags().BoolVar(&installFlags.IgnorePreInstall, "ignore-pre-install", installFlags.IgnorePreInstall, "ignore pre-install")
 	installCmd.Flags().StringSliceVar(&installFlags.HelmSet, "set", []string{}, "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
@@ -69,29 +67,24 @@ var installCmd = &cobra.Command{
 			applicationName = args[0]
 		)
 
+		if err := Prepare(); err != nil {
+			log.FatalE(err, "")
+		}
+
 		if applicationName == app.DefaultNocalhostApplication {
 			log.Error(app.DefaultNocalhostApplicationOperateErr)
 			return
 		}
 
-		if installFlags.GitUrl == "" && (installFlags.AppType != string(app.HelmRepo) && installFlags.AppType != string(app.ManifestLocal) && installFlags.AppType != string(app.HelmLocal)) {
-			log.Fatalf("If app type is not %s , --git-url must be specified", app.HelmRepo)
+		if installFlags.GitUrl == "" && (installFlags.AppType != string(appmeta.HelmRepo) && installFlags.AppType != string(appmeta.ManifestLocal) && installFlags.AppType != string(appmeta.HelmLocal)) {
+			log.Fatalf("If app type is not %s , --git-url must be specified", appmeta.HelmRepo)
 		}
-		if installFlags.AppType == string(app.HelmRepo) {
+		if installFlags.AppType == string(appmeta.HelmRepo) {
 			if installFlags.HelmChartName == "" {
 				log.Fatalf("--helm-chart-name must be specified when using %s", installFlags.AppType)
 			}
 			if installFlags.HelmRepoUrl == "" && installFlags.HelmRepoName == "" {
 				log.Fatalf("--helm-repo-url or --helm-repo-name must be specified when using %s", installFlags.AppType)
-			}
-		}
-
-		if nameSpace == "" {
-			if nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig); err != nil {
-				log.FatalE(err, "Failed to get namespace")
-			}
-			if nameSpace == "" {
-				log.Fatal("Namespace must be provided")
 			}
 		}
 
@@ -143,10 +136,6 @@ var installCmd = &cobra.Command{
 
 func InstallApplication(applicationName string) error {
 	var err error
-
-	if kubeConfig == "" { // use default config
-		kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
-	}
 
 	log.Logf("KubeConfig path: %s", kubeConfig)
 	bys, err := ioutil.ReadFile(kubeConfig)

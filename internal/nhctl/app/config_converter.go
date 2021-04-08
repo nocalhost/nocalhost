@@ -84,7 +84,6 @@ func convertProfileV1ToV2(profileV1 *profile2.AppProfile) (*profile2.AppProfileV
 		Namespace:               profileV1.Namespace,
 		Kubeconfig:              profileV1.Kubeconfig,
 		DependencyConfigMapName: profileV1.DependencyConfigMapName,
-		AppType:                 profileV1.AppType,
 		SvcProfile:              nil,
 		Installed:               profileV1.Installed,
 		ResourcePath:            profileV1.ResourcePath,

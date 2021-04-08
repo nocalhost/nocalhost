@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app_flags"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -30,7 +31,6 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -41,10 +41,6 @@ import (
 // 3. An .profile_v2.yaml will be created under $NhctlAppDir, it will record the status of this application
 // build a new application
 func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig string, namespace string) (*Application, error) {
-
-	if kubeconfig == "" { // use default config
-		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
-	}
 
 	app := &Application{
 		Name:       name,
@@ -149,7 +145,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	appMeta.Config = config
-
+	appMeta.ApplicationType = appmeta.AppType(flags.AppType)
 	if err := appMeta.Update(); err != nil {
 		return nil, err
 	}
@@ -158,9 +154,6 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	appProfileV2.Namespace = namespace
 	appProfileV2.Kubeconfig = kubeconfig
 
-	if flags.AppType != "" {
-		appProfileV2.AppType = flags.AppType
-	}
 	if len(flags.ResourcePath) != 0 {
 		appProfileV2.ResourcePath = flags.ResourcePath
 	}
@@ -173,7 +166,6 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.AppProfileV2 {
 	appProfileV2 := &profile.AppProfileV2{}
 	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
-	appProfileV2.AppType = config.ApplicationConfig.Type
 	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
 	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
 	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall

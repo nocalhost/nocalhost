@@ -27,7 +27,6 @@ import (
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -43,15 +42,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-type AppType string
+
 
 const (
-	Helm          AppType = "helmGit"
-	HelmRepo      AppType = "helmRepo"
-	Manifest      AppType = "rawManifest"
-	ManifestLocal AppType = "rawManifestLocal"
-	HelmLocal     AppType = "helmLocal"
-	KustomizeGit  AppType = "kustomizeGit"
+
 
 	// default is a special app type, it can be uninstalled neither installed
 	// it's a virtual application to managed that those manifest out of Nocalhost management
@@ -124,10 +118,6 @@ func (a *Application) moveProfileFromFileToLeveldb() error {
 // When new a application, kubeconfig is required to get meta in k8s cluster
 // KubeConfig can be acquired from profile in leveldb
 func NewApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
-
-	if kubeconfig == "" { // use default config
-		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
-	}
 
 	app := &Application{
 		Name:       name,

@@ -148,9 +148,6 @@ func (c *ClientGoUtils) getRestConfig() (*restclient.Config, error) {
 }
 
 func GetNamespaceFromKubeConfig(kubeConfig string) (string, error) {
-	if kubeConfig == "" { // use default config
-		kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
-	}
 
 	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfig},

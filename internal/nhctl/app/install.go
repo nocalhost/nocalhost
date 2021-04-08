@@ -36,17 +36,17 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) (err error)
 	if err != nil {
 		return errors.Wrap(err, "failed to install dep config map")
 	}
-	switch a.profileV2.AppType {
-	case string(Helm), string(HelmLocal):
+	switch a.appMeta.ApplicationType {
+	case appmeta.Helm, appmeta.HelmLocal:
 		err = a.installHelm(flags, false)
-	case string(HelmRepo):
+	case appmeta.HelmRepo:
 		err = a.installHelm(flags, true)
-	case string(Manifest), string(ManifestLocal):
+	case appmeta.Manifest, appmeta.ManifestLocal:
 		err = a.InstallManifest(a.appMeta)
-	case string(KustomizeGit):
+	case appmeta.KustomizeGit:
 		err = a.InstallKustomize(a.appMeta)
 	default:
-		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
+		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", appmeta.Helm, appmeta.HelmRepo, appmeta.Manifest))
 	}
 
 	a.appMeta.ApplicationState = appmeta.INSTALLED
@@ -198,7 +198,7 @@ func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) erro
 		}
 		defer profileV2.CloseDb()
 		// release name a.Name
-		if profileV2.AppType != string(Manifest) {
+		if a.appMeta.ApplicationType != appmeta.Manifest {
 			depForYaml.ReleaseName = a.Name
 		}
 		yamlBytes, err := yaml.Marshal(depForYaml)

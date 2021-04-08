@@ -19,6 +19,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"k8s.io/cli-runtime/pkg/resource"
 	flag "nocalhost/internal/nhctl/app_flags"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/profile"
@@ -46,13 +47,13 @@ func (a *Application) PrepareForUpgrade(installFlags *flag.InstallFlags) error {
 func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
 
 	switch a.GetType() {
-	case HelmRepo:
+	case appmeta.HelmRepo:
 		return a.upgradeForHelm(installFlags, true)
-	case Helm, HelmLocal:
+	case appmeta.Helm, appmeta.HelmLocal:
 		return a.upgradeForHelm(installFlags, false)
-	case Manifest, ManifestLocal:
+	case appmeta.Manifest, appmeta.ManifestLocal:
 		return a.upgradeForManifest(installFlags)
-	case KustomizeGit:
+	case appmeta.KustomizeGit:
 		return a.upgradeForKustomize(installFlags)
 	default:
 		return errors.New("Unsupported app type")

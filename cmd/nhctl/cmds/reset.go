@@ -19,7 +19,6 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
@@ -37,12 +36,11 @@ var resetCmd = &cobra.Command{
 	Long:  `reset application`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
-		if nameSpace == "" {
-			nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig)
-			if err != nil {
-				log.FatalE(err, "Failed to get namespace")
-			}
+
+		if err := Prepare(); err != nil {
+			log.FatalE(err, "")
 		}
+
 		if len(args) > 0 {
 			applicationName := args[0]
 			if applicationName != "" {

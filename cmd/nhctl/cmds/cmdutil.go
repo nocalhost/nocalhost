@@ -14,9 +14,11 @@ limitations under the License.
 package cmds
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
@@ -24,20 +26,15 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
 func initApp(appName string) {
 	var err error
 
-	if nameSpace == "" {
-		nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig)
-		if err != nil {
-			log.FatalE(err, "Failed to get namespace")
-		}
-		if nameSpace == "" {
-			log.Fatal("--namespace or --kubeconfig mush be provided")
-		}
+	if err := Prepare(); err != nil {
+		log.FatalE(err, "")
 	}
 
 	nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
@@ -45,6 +42,25 @@ func initApp(appName string) {
 		log.FatalE(err, "Failed to get application info")
 	}
 	log.AddField("APP", nocalhostApp.Name)
+}
+
+func Prepare() error {
+	if kubeConfig == "" { // use default config
+		kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	}
+
+	var err error
+	if nameSpace == "" {
+		nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig)
+		if err != nil {
+			return err
+		}
+		if nameSpace == "" {
+			return errors.New("--namespace or --kubeconfig mush be provided")
+		}
+	}
+
+	return nil
 }
 
 func CheckIfSvcExist(svcName string, svcType ...string) {
@@ -132,14 +148,10 @@ func InitDefaultApplicationByFirstValid() error {
 		}
 	}()
 
-	err = utils.CopyDir(
+	return utils.CopyDir(
 		nocalhost_path.GetAppDirUnderNs(appNeedToCopy, nameSpace),
 		nocalhost_path.GetAppDirUnderNs(app.DefaultNocalhostApplication, nameSpace),
 	)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func InitDefaultApplicationInCurrentNs() error {
@@ -164,12 +176,8 @@ func InitDefaultApplicationInCurrentNs() error {
 	}
 
 	installFlags.Config = cfg
-	installFlags.AppType = string(app.ManifestLocal)
+	installFlags.AppType = string(appmeta.Manifest)
 	installFlags.LocalPath = baseDir.Abs()
-	err = InstallApplication(app.DefaultNocalhostApplication)
-	if err != nil {
-		return err
-	}
+	return InstallApplication(app.DefaultNocalhostApplication)
 
-	return nil
 }

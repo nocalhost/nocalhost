@@ -37,7 +37,6 @@ type AppProfileV2 struct {
 	Namespace               string          `json:"namespace" yaml:"namespace"`
 	Kubeconfig              string          `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
 	DependencyConfigMapName string          `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
-	AppType                 string          `json:"app_type" yaml:"appType"`
 	SvcProfile              []*SvcProfileV2 `json:"svc_profile" yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
 	Installed               bool            `json:"installed" yaml:"installed"`
 	SyncDirs                []string        `json:"syncDirs" yaml:"syncDirs"` // dev start -s

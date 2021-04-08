@@ -19,9 +19,18 @@ const (
 	SecretPreInstallKey = "p"
 	SecretManifestKey   = "m"
 	SecretDevMetaKey    = "v"
+	SecretAppTypeKey    = "t"
+	SecretConfigKey     = "c"
 	SecretStateKey      = "s"
 	SecretDepKey        = "d"
-	SecretConfigKey     = "c"
+
+	Helm          AppType = "helmGit"
+	HelmRepo      AppType = "helmRepo"
+	Manifest      AppType = "rawManifest"
+	ManifestLocal AppType = "rawManifestLocal"
+	HelmLocal     AppType = "helmLocal"
+	KustomizeGit  AppType = "kustomizeGit"
+	Default       AppType = "default"
 
 	UNINSTALLED ApplicationState = "UNINSTALLED"
 	INSTALLING  ApplicationState = "INSTALLING"
@@ -43,6 +52,8 @@ func GetApplicationName(secretName string) (string, error) {
 
 	return secretName[len(SecretNamePrefix):], nil
 }
+
+type AppType string
 
 type ApplicationState string
 
@@ -83,6 +94,7 @@ type ApplicationMeta struct {
 	// could not be updated
 	Ns string `json:"ns"`
 
+	ApplicationType    AppType          `json:"application_type"`
 	ApplicationState   ApplicationState `json:"application_state"`
 	DepConfigName      string           `json:"dep_config_name"`
 	PreInstallManifest string           `json:"pre_install_manifest"`
@@ -132,6 +144,10 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 
 	if bytes, ok := secret.Data[SecretManifestKey]; ok {
 		appMeta.Manifest = string(bytes)
+	}
+
+	if bytes, ok := secret.Data[SecretAppTypeKey]; ok {
+		appMeta.ApplicationType = AppType(bytes)
 	}
 
 	if bytes, ok := secret.Data[SecretDevMetaKey]; ok {
@@ -257,6 +273,7 @@ func (a *ApplicationMeta) prepare() {
 	a.Secret.Data[SecretManifestKey] = []byte(a.Manifest)
 	a.Secret.Data[SecretStateKey] = []byte(a.ApplicationState)
 	a.Secret.Data[SecretDepKey] = []byte(a.DepConfigName)
+	a.Secret.Data[SecretAppTypeKey] = []byte(a.ApplicationType)
 
 	devMeta, _ := json.Marshal(a.DevMeta)
 	a.Secret.Data[SecretDevMetaKey] = devMeta
