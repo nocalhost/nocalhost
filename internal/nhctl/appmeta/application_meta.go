@@ -1,14 +1,18 @@
 package appmeta
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/ulikunitz/xz"
+	"io"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 	"strings"
 )
 
@@ -127,7 +131,7 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 		return nil, err
 	}
 
-	bytes, ok := secret.Data[SecretStateKey]
+	bs, ok := secret.Data[SecretStateKey]
 	if !ok {
 		return nil, fmt.Errorf("Error while decode Secret, Secret %s is illegal, must contain with data key %s. ", secret.Name, SecretStateKey)
 	}
@@ -135,32 +139,32 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 	appMeta := ApplicationMeta{
 		Application:      appName,
 		Ns:               ns,
-		ApplicationState: ApplicationStateOf(string(bytes)),
+		ApplicationState: ApplicationStateOf(string(bs)),
 	}
 
-	if bytes, ok := secret.Data[SecretPreInstallKey]; ok {
-		appMeta.PreInstallManifest = string(bytes)
+	if bs, ok := secret.Data[SecretPreInstallKey]; ok {
+		appMeta.PreInstallManifest = string(decompress(bs))
 	}
 
-	if bytes, ok := secret.Data[SecretManifestKey]; ok {
-		appMeta.Manifest = string(bytes)
+	if bs, ok := secret.Data[SecretManifestKey]; ok {
+		appMeta.Manifest = string(decompress(bs))
 	}
 
-	if bytes, ok := secret.Data[SecretAppTypeKey]; ok {
-		appMeta.ApplicationType = AppType(bytes)
+	if bs, ok := secret.Data[SecretAppTypeKey]; ok {
+		appMeta.ApplicationType = AppType(bs)
 	}
 
-	if bytes, ok := secret.Data[SecretDevMetaKey]; ok {
+	if bs, ok := secret.Data[SecretDevMetaKey]; ok {
 		devMeta := &ApplicationDevMeta{}
 
-		_ = json.Unmarshal(bytes, devMeta)
+		_ = json.Unmarshal(bs, devMeta)
 		appMeta.DevMeta = *devMeta
 	}
 
-	if bytes, ok := secret.Data[SecretConfigKey]; ok {
+	if bs, ok := secret.Data[SecretConfigKey]; ok {
 		config := &profile2.NocalHostAppConfigV2{}
 
-		_ = json.Unmarshal(bytes, config)
+		_ = json.Unmarshal(decompress(bs), config)
 		appMeta.Config = config
 	}
 
@@ -269,8 +273,12 @@ func (a *ApplicationMeta) Update() error {
 }
 
 func (a *ApplicationMeta) prepare() {
-	a.Secret.Data[SecretPreInstallKey] = []byte(a.PreInstallManifest)
-	a.Secret.Data[SecretManifestKey] = []byte(a.Manifest)
+	a.Secret.Data[SecretPreInstallKey] = compress([]byte(a.PreInstallManifest))
+	a.Secret.Data[SecretManifestKey] = compress([]byte(a.Manifest))
+
+	config, _ := json.Marshal(a.Config)
+	a.Secret.Data[SecretConfigKey] = compress(config)
+
 	a.Secret.Data[SecretStateKey] = []byte(a.ApplicationState)
 	a.Secret.Data[SecretDepKey] = []byte(a.DepConfigName)
 	a.Secret.Data[SecretAppTypeKey] = []byte(a.ApplicationType)
@@ -278,8 +286,6 @@ func (a *ApplicationMeta) prepare() {
 	devMeta, _ := json.Marshal(a.DevMeta)
 	a.Secret.Data[SecretDevMetaKey] = devMeta
 
-	config, _ := json.Marshal(a.Config)
-	a.Secret.Data[SecretConfigKey] = config
 }
 
 func (a *ApplicationMeta) IsInstalled() bool {
@@ -390,4 +396,43 @@ func (a *ApplicationMeta) delete() error {
 
 func (a *ApplicationMeta) NewResourceReader() *clientgoutils.Resource {
 	return clientgoutils.NewResourceFromStr(a.Manifest)
+}
+
+func compress(input []byte) []byte {
+	var buf bytes.Buffer
+	// compress text
+	w, err := xz.NewWriter(&buf)
+	if err != nil {
+		log.Errorf("xz.NewWriter error %s", err)
+		return nil
+	}
+	if _, err := io.WriteString(w, string(input)); err != nil {
+		log.Errorf("WriteString error %s", err)
+		return nil
+	}
+	if err := w.Close(); err != nil {
+		log.Errorf("w.Close error %s", err)
+		return nil
+	}
+
+	return buf.Bytes()
+}
+
+func decompress(input []byte) []byte {
+	var buf bytes.Buffer
+
+	buf.Write(input)
+	// decompress buffer and write output to stdout
+	r, err := xz.NewReader(&buf)
+	if err != nil {
+		log.Errorf("NewReader error %s", err)
+		return nil
+	}
+
+	if _, err = io.Copy(os.Stdout, r); err != nil {
+		log.Errorf("io.Copy error %s", err)
+		return nil
+	}
+
+	return buf.Bytes()
 }
