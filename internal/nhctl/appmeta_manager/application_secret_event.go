@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	EventListener = []func(*ApplicationEventPack) error{
+	eventListener = []func(*ApplicationEventPack) error{
 		func(pack *ApplicationEventPack) error {
 			if pack.Event.EventType == appmeta.DEV_STA {
 				log.Infof("Resource(%s - %s - %s), Name(%s) Start DevMode ", pack.Ns, pack.AppName, pack.Event.DevType, pack.Event.ResourceName)
@@ -20,13 +20,21 @@ var (
 		},
 	}
 
-	Events []*ApplicationEventPack
-	lock   = sync.NewCond(&sync.Mutex{})
+	Events  []*ApplicationEventPack
+	lock    = sync.NewCond(&sync.Mutex{})
+	isInit  bool
+	startCh chan struct{}
 )
 
 type ApplicationEventPack struct {
 	Event                   *appmeta.ApplicationEvent
 	Ns, AppName, KubeConfig string
+}
+
+func RegisterListener(fun func(*ApplicationEventPack) error) {
+	lock.L.Lock()
+	defer lock.L.Unlock()
+	eventListener = append(eventListener, fun)
 }
 
 func (pk *ApplicationEventPack) desc() string {
@@ -69,16 +77,40 @@ func EventPop() *ApplicationEventPack {
 	return pop
 }
 
-func Run() bool {
-	log.Info("Application Event Listener Start Up...")
-	go func() {
-		for {
-			pop := EventPop()
-			for _, el := range EventListener {
-				pop.consume(el, 5)
-			}
-		}
-	}()
+func Init() {
 
-	return true
+	if isInit {
+		return
+	}
+	lock.L.Lock()
+	if isInit {
+		return
+	}
+	isInit = true
+	lock.L.Unlock()
+
+	select {
+	case <-startCh:
+		log.Info("Application Event Listener Start Up...")
+		go func() {
+			for {
+				pop := EventPop()
+				for _, el := range eventListener {
+					pop.consume(el, 5)
+				}
+			}
+		}()
+	}
+
+}
+
+func Start() {
+	select {
+	case _, ok := <-startCh:
+		if ok {
+			return
+		}
+	default:
+		close(startCh)
+	}
 }

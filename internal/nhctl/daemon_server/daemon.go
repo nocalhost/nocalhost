@@ -20,9 +20,12 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net"
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
@@ -105,7 +108,30 @@ func StartDaemon(isSudoUser bool, v string) error {
 	}()
 
 	// run the dev event listener
-	appmeta_manager.Run()
+	if !isSudoUser {
+		appmeta_manager.Init()
+		appmeta_manager.RegisterListener(func(pack *appmeta_manager.ApplicationEventPack) error {
+			if pack.Event.EventType == appmeta.DEV_END {
+				log.Log("Receive dev end event")
+				switch pack.Event.DevType {
+				case appmeta.DEPLOYMENT:
+					kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
+					if err != nil {
+						return nil
+					}
+					nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, false)
+					if err != nil {
+						return nil
+					}
+					log.Logf("Receive event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName, pack.Event.ResourceName)
+					if err := nhApp.StopSyncAndPortForwardProcess(pack.Event.ResourceName, true); err != nil {
+						return nil
+					}
+				}
+			}
+			return nil
+		})
+	}
 
 	select {
 	case <-daemonCtx.Done():
