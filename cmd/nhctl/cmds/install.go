@@ -62,8 +62,11 @@ var installCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		var err error
-		applicationName := args[0]
+		var (
+			err             error
+			applicationName = args[0]
+		)
+
 		if applicationName == app.DefaultNocalhostApplication {
 			log.Error(app.DefaultNocalhostApplicationOperateErr)
 			return
@@ -82,22 +85,19 @@ var installCmd = &cobra.Command{
 		}
 
 		if nameSpace == "" {
-			nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig)
-			if err != nil {
+			if nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig); err != nil {
 				log.FatalE(err, "Failed to get namespace")
 			}
 			if nameSpace == "" {
-				log.Fatal("Namespace mush be provided")
+				log.Fatal("Namespace must be provided")
 			}
 		}
 
 		log.Info("Installing application...")
-		err = InstallApplication(applicationName)
-		if err != nil {
+		if err = InstallApplication(applicationName); err != nil {
 			log.FatalE(err, "")
-		} else {
-			log.Infof("Application %s installed", applicationName)
 		}
+		log.Infof("Application %s installed", applicationName)
 
 		profileV2, err := nocalhostApp.GetProfile()
 		if err != nil {
@@ -151,8 +151,7 @@ func InstallApplication(applicationName string) error {
 
 	// build Application will create the application meta and it's secret
 	// init the application's config
-	nocalhostApp, err = app.BuildApplication(applicationName, installFlags, kubeConfig, nameSpace)
-	if err != nil {
+	if nocalhostApp, err = app.BuildApplication(applicationName, installFlags, kubeConfig, nameSpace); err != nil {
 		return err
 	}
 

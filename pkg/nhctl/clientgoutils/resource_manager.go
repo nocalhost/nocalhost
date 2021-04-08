@@ -84,8 +84,11 @@ type manifestResourceReader struct {
 }
 
 func (lrv *manifestResourceReader) LoadResource() (*Resource, error) {
-	var manifests []string
-	errInfo := ""
+	var (
+		manifests []string
+		errInfo   string
+		e         error
+	)
 
 	// todo supports Stdin & network
 	for _, file := range lrv.files {
@@ -96,7 +99,6 @@ func (lrv *manifestResourceReader) LoadResource() (*Resource, error) {
 		manifests = append(manifests, content)
 	}
 
-	var e error = nil
 	if errInfo != "" {
 		e = fmt.Errorf(errInfo)
 	}
