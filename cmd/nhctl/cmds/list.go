@@ -100,6 +100,7 @@ func ListApplicationsResult() []*Namespace {
 			Type: meta.ApplicationType,
 		})
 	}
+	result = append(result, ns)
 	return result
 }
 
