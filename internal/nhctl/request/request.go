@@ -240,6 +240,13 @@ func (q *ApiRequest) tryLogin(email, password string) error {
 	return nil
 }
 
+func (q *ApiRequest) AddBookInfoApplicationForThree() *ApiRequest {
+	q.AddBookInfoApplication(app.DefaultInitApplicationGithub)
+	q.AddBookInfoApplication(app.DefaultInitApplicationHelm)
+	q.AddBookInfoApplication(app.DefaultInitApplicationKustomize)
+	return q
+}
+
 func (q *ApiRequest) AddBookInfoApplication(context string) *ApiRequest {
 	if context == "" {
 		context = app.DefaultInitApplicationGithub

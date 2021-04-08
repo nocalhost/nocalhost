@@ -15,28 +15,25 @@ package cmds
 
 import (
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 )
 
 func init() {
-	daemonStopCmd.Flags().BoolVar(&isSudoUser, "sudo", false, "Is run as sudo")
-	daemonCmd.AddCommand(daemonStopCmd)
+	dbSizeCmd.Flags().StringVar(&appName, "app", "", "List leveldb data of specified application")
+	//pvcListCmd.Flags().StringVar(&pvcFlags.Svc, "svc", "", "List PVCs of specified service")
+	dbCmd.AddCommand(dbSizeCmd)
 }
 
-var daemonStopCmd = &cobra.Command{
-	Use:   "stop",
-	Short: "Stop nhctl daemon",
-	Long:  `Stop nhctl daemon`,
+var dbSizeCmd = &cobra.Command{
+	Use:   "size [NAME]",
+	Short: "Get all leveldb data",
+	Long:  `Get all leveldb data`,
 	Run: func(cmd *cobra.Command, args []string) {
-		client, err := daemon_client.NewDaemonClient(isSudoUser)
+		size, err := nocalhost.GetApplicationDbSize(nameSpace, appName)
 		if err != nil {
 			log.FatalE(err, "")
 		}
-		err = client.SendStopDaemonServerCommand()
-		if err != nil {
-			log.FatalE(err, "")
-		}
-		//log.Info("StopDaemonServerCommand has been sent")
+		log.Info(size)
 	},
 }

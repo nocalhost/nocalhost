@@ -53,7 +53,7 @@ type AppProfileV2 struct {
 
 	Env     []*Env  `json:"env" yaml:"env"`
 	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
-	db      *leveldb.DB
+	db      *dbutils.LevelDBUtils
 	dbPath  string
 	appName string
 	ns      string
@@ -72,42 +72,48 @@ func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
 	path := nocalhost_path.GetAppDbDir(ns, name)
 	db, err := dbutils.OpenLevelDB(path, false)
 	if err != nil {
+		_ = db.Close()
 		return nil, err
 	}
 
 	result := &AppProfileV2{}
-	bys, err := db.Get([]byte(ProfileV2Key(ns, name)), nil)
+	bys, err := db.Get([]byte(ProfileV2Key(ns, name)))
 	if err != nil {
-		if err == leveldb.ErrNotFound {
-			result := make(map[string][]byte, 0)
-			iter := db.NewIterator(nil, nil)
-			for iter.Next() {
-				result[string(iter.Key())] = iter.Value()
-			}
-			iter.Release()
-			err = iter.Error()
+		if errors.Is(err, leveldb.ErrNotFound) {
+			//result := make(map[string][]byte, 0)
+			//iter := db.NewIterator(nil, nil)
+			//for iter.Next() {
+			//	result[string(iter.Key())] = iter.Value()
+			//}
+			//iter.Release()
+			//err = iter.Error()
+			//if err != nil {
+			//	return nil, errors.Wrap(err, "")
+			//}
+			result, err := db.ListAll()
 			if err != nil {
-				return nil, errors.Wrap(err, "")
+				_ = db.Close()
+				return nil, err
 			}
 			for key, val := range result {
 				if strings.Contains(key, "profile.v2") {
-					bys = val
+					bys = []byte(val)
 					break
 				}
 			}
 		} else {
-			db.Close()
+			_ = db.Close()
 			return nil, errors.Wrap(err, "")
 		}
 	}
 	if len(bys) == 0 {
-		db.Close()
+		_ = db.Close()
 		return nil, errors.New("Profile not found")
 	}
 
 	err = yaml.Unmarshal(bys, result)
 	if err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, errors.Wrap(err, "")
 	}
 
@@ -151,21 +157,17 @@ func (a *AppProfileV2) FetchSvcProfileV2FromProfile(svcName string) *SvcProfileV
 }
 
 func (a *AppProfileV2) Save() error {
-	//defer a.db.Close()
+	if a.db == nil {
+		return nil
+	}
 	bys, err := yaml.Marshal(a)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-
-	//log.Infof("Saving %v", *a)
-	//log.Infof("pf:")
-	//for _, pf := range a.FetchSvcProfileV2FromProfile("productpage").DevPortForwardList {
-	//	log.Infof("%v", *pf)
-	//}
 	if _, err = os.Stat(a.dbPath); err != nil {
 		return errors.Wrap(err, "")
 	}
-	return errors.Wrap(a.db.Put([]byte(ProfileV2Key(a.ns, a.appName)), bys, nil), "")
+	return a.db.Put([]byte(ProfileV2Key(a.ns, a.appName)), bys)
 }
 
 func (a *AppProfileV2) CloseDb() error {
@@ -206,15 +208,16 @@ type ContainerProfileV2 struct {
 type DevPortForward struct {
 	LocalPort         int
 	RemotePort        int
-	Way               string
+	Role              string
 	Status            string
 	Reason            string
 	PodName           string `json:"podName" yaml:"podName"`
 	Updated           string
 	Pid               int
-	RunByDaemonServer bool `json:"runByDaemonServer" yaml:"runByDaemonServer"`
-	Sudo              bool `json:"sudo"`
-	DaemonServerPid   int  `json:"daemonServerPid"`
+	RunByDaemonServer bool   `json:"runByDaemonServer" yaml:"runByDaemonServer"`
+	Sudo              bool   `json:"sudo"`
+	DaemonServerPid   int    `json:"daemonServerPid"`
+	ServiceType       string `json:"serviceType"`
 }
 
 // Compatible for v1

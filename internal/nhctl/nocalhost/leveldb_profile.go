@@ -17,64 +17,49 @@ import (
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"gopkg.in/yaml.v2"
+	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
 	"os"
 	"strings"
 )
 
-func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2, transactionDb *leveldb.DB) error {
+func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2) error {
 	var err error
-	db := transactionDb
-	if db == nil {
-		db, err = OpenApplicationLevelDB(ns, app, false)
-		if err != nil {
-			return err
-		}
-		defer db.Close()
+	db, err := nocalhostDb.OpenApplicationLevelDB(ns, app, false)
+	if err != nil {
+		return err
 	}
+	defer db.Close()
 	bys, err := yaml.Marshal(profileV2)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	//log.Infof("saving profile v2: %v", *profileV2)
-	//for _, pf := range profileV2.FetchSvcProfileV2FromProfile("productpage").DevPortForwardList {
-	//	log.Infof("%v", *pf)
-	//}
 	// Double check
 	if _, err = os.Stat(nocalhost_path.GetAppDbDir(ns, app)); err != nil {
 		return errors.Wrap(err, "")
 	}
-	return errors.Wrap(db.Put([]byte(profile.ProfileV2Key(ns, app)), bys, nil), "")
+	return db.Put([]byte(profile.ProfileV2Key(ns, app)), bys)
 }
 
-func GetProfileV2(ns, app string, transactionDb *leveldb.DB) (*profile.AppProfileV2, error) {
+func GetProfileV2(ns, app string) (*profile.AppProfileV2, error) {
 	var err error
-	db := transactionDb
-	if db == nil {
-		db, err = OpenApplicationLevelDB(ns, app, true)
-		if err != nil {
-			return nil, err
-		}
-		defer db.Close()
+	db, err := nocalhostDb.OpenApplicationLevelDB(ns, app, true)
+	if err != nil {
+		return nil, err
 	}
+	defer db.Close()
 	result := &profile.AppProfileV2{}
-	bys, err := db.Get([]byte(profile.ProfileV2Key(ns, app)), nil)
+	bys, err := db.Get([]byte(profile.ProfileV2Key(ns, app)))
 	if err != nil {
 		if err == leveldb.ErrNotFound {
-			result := make(map[string][]byte, 0)
-			iter := db.NewIterator(nil, nil)
-			for iter.Next() {
-				result[string(iter.Key())] = iter.Value()
-			}
-			iter.Release()
-			err = iter.Error()
+			result, err := db.ListAll()
 			if err != nil {
 				return nil, errors.Wrap(err, "")
 			}
 			for key, val := range result {
 				if strings.Contains(key, "profile.v2") {
-					bys = val
+					bys = []byte(val)
 					break
 				}
 			}

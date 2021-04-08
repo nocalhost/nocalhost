@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
+	"time"
 
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/app_flags"
@@ -111,19 +112,26 @@ var installCmd = &cobra.Command{
 			log.Infof("Application %s installed", applicationName)
 		}
 
-		// Start port forward
-		log.Info("Starting port-forward")
 		profileV2, err := nocalhostApp.GetProfile()
 		if err != nil {
 			log.FatalE(err, "")
 		}
 
+		// Start port forward
 		for _, svcProfile := range profileV2.SvcProfile {
 			for _, cc := range svcProfile.ContainerConfigs {
 				if cc.Install == nil {
 					continue
 				}
-				podName, err := nocalhostApp.GetDefaultPodName(svcProfile.ActualName, app.Deployment)
+
+				if len(cc.Install.PortForward) == 0 {
+					continue
+				}
+
+				svcType := svcProfile.Type
+				log.Infof("Starting port-forward for %s %s", svcType, svcProfile.ActualName)
+				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
+				podName, err := nocalhostApp.GetDefaultPodName(ctx, svcProfile.ActualName, app.SvcType(svcType))
 				if err != nil {
 					log.WarnE(err, "")
 					continue
@@ -135,7 +143,7 @@ var installCmd = &cobra.Command{
 						continue
 					}
 					log.Infof("Port forward %d:%d", lPort, rPort)
-					if err = nocalhostApp.PortForward(svcProfile.ActualName, podName, lPort, rPort); err != nil {
+					if err = nocalhostApp.PortForward(svcProfile.ActualName, podName, lPort, rPort, ""); err != nil {
 						log.WarnE(err, "")
 					}
 				}
@@ -147,7 +155,6 @@ var installCmd = &cobra.Command{
 func InstallApplication(applicationName string) error {
 	var err error
 
-	//installFlags.EnvSettings = settings
 	log.Logf("KubeConfig path: %s", kubeConfig)
 	bys, err := ioutil.ReadFile(kubeConfig)
 	if err != nil {
@@ -181,10 +188,5 @@ func InstallApplication(applicationName string) error {
 		Version:  installFlags.HelmRepoVersion,
 	}
 
-	err = nocalhostApp.Install(context.TODO(), flags)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return nocalhostApp.Install(context.TODO(), flags)
 }

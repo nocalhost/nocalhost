@@ -14,10 +14,14 @@ limitations under the License.
 package cmds
 
 import (
+	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
+	"time"
 )
 
 func init() {
@@ -60,10 +64,59 @@ var upgradeCmd = &cobra.Command{
 			log.Fatal("Please make sure all services have exited DevMode")
 		}
 
+		// Stop Port-forward
+		appProfile, err := nocalhostApp.GetProfile()
+		if err != nil {
+			log.FatalE(err, "")
+		}
+		pfListMap := make(map[string][]*profile.DevPortForward, 0)
+		for _, svcProfile := range appProfile.SvcProfile {
+			pfList := make([]*profile.DevPortForward, 0)
+			for _, pf := range svcProfile.DevPortForwardList {
+				if pf.ServiceType == "" {
+					pf.ServiceType = svcProfile.Type
+				}
+				pfList = append(pfList, pf)
+				log.Infof("Stopping pf: %d:%d", pf.LocalPort, pf.RemotePort)
+				err = nocalhostApp.EndDevPortForward(svcProfile.ActualName, pf.LocalPort, pf.RemotePort)
+				if err != nil {
+					log.WarnE(err, "")
+				}
+			}
+			if len(pfList) > 0 {
+				pfListMap[svcProfile.ActualName] = pfList
+			}
+		}
+
 		// todo: Validate flags
-		err := nocalhostApp.Upgrade(installFlags)
+		// Prepare for upgrading
+		if err = nocalhostApp.PrepareForUpgrade(installFlags); err != nil {
+			log.FatalE(err, "")
+		}
+		err = nocalhostApp.Upgrade(installFlags)
 		if err != nil {
 			log.FatalE(err, fmt.Sprintf("Failed to upgrade application"))
+		}
+
+		// Restart port forward
+		for svcName, pfList := range pfListMap {
+			// find first pod
+			svcType := app.Deployment
+			if len(pfList) > 0 {
+				svcType = app.SvcType(pfList[0].ServiceType)
+			}
+			ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
+			podName, err := nocalhostApp.GetDefaultPodName(ctx, svcName, svcType)
+			if err != nil {
+				log.WarnE(err, "")
+				continue
+			}
+			for _, pf := range pfList {
+				log.Infof("Starting pf %d:%d for %s", pf.LocalPort, pf.RemotePort, svcName)
+				if err = nocalhostApp.PortForward(svcName, podName, pf.LocalPort, pf.RemotePort, pf.Role); err != nil {
+					log.WarnE(err, "")
+				}
+			}
 		}
 	},
 }

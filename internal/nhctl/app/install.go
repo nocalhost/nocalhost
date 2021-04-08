@@ -40,21 +40,17 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to install dep config map")
 	}
-	appProfile, err := a.GetProfile()
-	if err != nil {
-		return err
-	}
-	switch appProfile.AppType {
-	case string(Helm):
-		err = a.installHelmInGit(flags)
+	//appProfile, err := a.GetProfile()
+	//if err != nil {
+	//	return err
+	//}
+	switch a.profileV2.AppType {
+	case string(Helm), string(HelmLocal):
+		err = a.installHelm(flags, false)
 	case string(HelmRepo):
-		err = a.installHelmInRepo(flags)
-	case string(Manifest):
+		err = a.installHelm(flags, true)
+	case string(Manifest), string(ManifestLocal):
 		err = a.InstallManifest()
-	case string(ManifestLocal):
-		err = a.InstallManifest()
-	case string(HelmLocal):
-		err = a.installHelmInGit(flags)
 	case string(KustomizeGit):
 		// err = a.InstallKustomizeWithKubectl()
 		err = a.InstallKustomize()
@@ -81,7 +77,7 @@ func (a *Application) InstallKustomize() error {
 		log.Warn(`There are multiple resourcesPath settings, will use first one`)
 	}
 	useResourcePath := resourcesPath[0]
-	err := a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.GetNamespace()), useResourcePath)
+	err := a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.NameSpace), useResourcePath)
 	if err != nil {
 		return err
 	}
@@ -99,11 +95,11 @@ func (a *Application) InstallKustomizeWithKubectl() error {
 	}
 	useResourcePath := resourcesPath[0]
 	commonParams := []string{"apply", "-k", useResourcePath}
-	if a.GetNamespace() != "" {
-		commonParams = append(commonParams, "--namespace", a.GetNamespace())
+	if a.NameSpace != "" {
+		commonParams = append(commonParams, "--namespace", a.NameSpace)
 	}
-	if a.GetKubeconfig() != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
+	if a.KubeConfig != "" {
+		commonParams = append(commonParams, "--kubeconfig", a.KubeConfig)
 	}
 	_, err = tools.ExecCommand(nil, true, "kubectl", commonParams...)
 	if err != nil {
@@ -117,56 +113,68 @@ func (a *Application) InstallManifest() error {
 	a.preInstall()
 
 	// install manifest recursively, don't install pre-install workload again
-	err := a.installManifestRecursively()
-	return errors.Wrap(err, "")
+	return errors.Wrap(a.installManifestRecursively(), "")
 }
 
-func (a *Application) installHelmInRepo(flags *HelmFlags) error {
+func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 
 	releaseName := a.Name
 	commonParams := make([]string, 0)
-	if a.GetNamespace() != "" {
-		commonParams = append(commonParams, "--namespace", a.GetNamespace())
+	if a.NameSpace != "" {
+		commonParams = append(commonParams, "--namespace", a.NameSpace)
 	}
-	if a.GetKubeconfig() != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
+	if a.KubeConfig != "" {
+		commonParams = append(commonParams, "--kubeconfig", a.KubeConfig)
 	}
 	if flags.Debug {
 		commonParams = append(commonParams, "--debug")
 	}
 
-	chartName := flags.Chart
-	if a.configV2 != nil && a.configV2.ApplicationConfig.Name != "" {
-		chartName = a.configV2.ApplicationConfig.Name
+	var resourcesPath []string
+	if !fromRepo {
+		resourcesPath = a.GetResourceDir()
 	}
-	installParams := []string{"install", releaseName}
-	if flags.Wait {
-		installParams = append(installParams, "--wait")
-	}
-
 	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err
 	}
 	defer profileV2.CloseDb()
 
-	if flags.RepoUrl != "" {
-		installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
-		profileV2.HelmRepoUrl = flags.RepoUrl
-	} else if flags.RepoName != "" {
-		installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
-		profileV2.HelmRepoName = flags.RepoName
-	}
-	if flags.Version != "" {
-		installParams = append(installParams, "--version", flags.Version)
-		//a.AppProfileV2.HelmRepoChartVersion = flags.Version
+	installParams := []string{"install", releaseName}
+	if !fromRepo {
+		installParams = append(installParams, resourcesPath[0])
+		log.Info("building dependency...")
+		depParams := []string{"dependency", "build", resourcesPath[0]}
+		depParams = append(depParams, commonParams...)
+		if _, err = tools.ExecCommand(nil, true, "helm", depParams...); err != nil {
+			return errors.Wrap(err, "fail to build dependency for helm app")
+		}
+	} else {
+		chartName := flags.Chart
+		if a.configV2 != nil && a.configV2.ApplicationConfig.Name != "" {
+			chartName = a.configV2.ApplicationConfig.Name
+		}
+		if flags.RepoUrl != "" {
+			installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
+			profileV2.HelmRepoUrl = flags.RepoUrl
+		} else if flags.RepoName != "" {
+			installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
+			profileV2.HelmRepoName = flags.RepoName
+		}
+		if flags.Version != "" {
+			installParams = append(installParams, "--version", flags.Version)
+		}
+		profileV2.ChartName = chartName
 	}
 
-	if len(flags.Set) > 0 {
-		for _, set := range flags.Set {
-			installParams = append(installParams, "--set", set)
-		}
+	if flags.Wait {
+		installParams = append(installParams, "--wait")
 	}
+
+	for _, set := range flags.Set {
+		installParams = append(installParams, "--set", set)
+	}
+
 	if flags.Values != "" {
 		installParams = append(installParams, "-f", flags.Values)
 	}
@@ -175,82 +183,20 @@ func (a *Application) installHelmInRepo(flags *HelmFlags) error {
 
 	fmt.Println("install helm application, this may take several minutes, please waiting...")
 
-	_, err = tools.ExecCommand(nil, true, "helm", installParams...)
-	if err != nil {
-		return err
+	if _, err = tools.ExecCommand(nil, true, "helm", installParams...); err != nil {
+		return errors.Wrap(err, "fail to install helm application")
 	}
-	profileV2.ReleaseName = releaseName
-	profileV2.ChartName = chartName
-	//a.SaveProfile()
-	profileV2.Save()
-	log.Infof(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`, a.GetNamespace())
-	return nil
-}
-
-func (a *Application) installHelmInGit(flags *HelmFlags) error {
-
-	resourcesPath := a.GetResourceDir()
-	releaseName := a.Name
-
-	commonParams := make([]string, 0)
-	if a.GetNamespace() != "" {
-		commonParams = append(commonParams, "-n", a.GetNamespace())
-	}
-	if a.GetKubeconfig() != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.GetKubeconfig())
-	}
-	if flags.Debug {
-		commonParams = append(commonParams, "--debug")
-	}
-
-	params := []string{"install", releaseName, resourcesPath[0]}
-	if flags.Wait {
-		params = append(params, "--wait")
-	}
-	if len(flags.Set) > 0 {
-		for _, set := range flags.Set {
-			params = append(params, "--set", set)
-		}
-	}
-	if flags.Values != "" {
-		params = append(params, "-f", flags.Values)
-	}
-	params = append(params, "--timeout", "60m")
-	params = append(params, commonParams...)
-
-	log.Info("building dependency...")
-	depParams := []string{"dependency", "build", resourcesPath[0]}
-	depParams = append(depParams, commonParams...)
-	_, err := tools.ExecCommand(nil, true, "helm", depParams...)
-	if err != nil {
-		log.ErrorE(err, "fail to build dependency for helm app")
-		return err
-	}
-
-	fmt.Println("install helm application, this may take several minutes, please waiting...")
-	_, err = tools.ExecCommand(nil, true, "helm", params...)
-	if err != nil {
-		fmt.Printf("fail to install helm nocalhostApp, err:%v\n", err)
-		return err
-	}
-
-	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
-	if err != nil {
-		return err
-	}
-	defer profileV2.CloseDb()
 
 	profileV2.ReleaseName = releaseName
-	//a.SaveProfile()
 	profileV2.Save()
-	fmt.Printf(`helm application installed, use "helm list -n %s" to get the information of the helm release`+"\n", a.GetNamespace())
+	log.Infof(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`, a.NameSpace)
 	return nil
 }
 
 func (a *Application) InstallDepConfigMap() error {
 	appDep := a.GetDependencies()
 	appEnv := a.GetInstallEnvForDep()
-	if appDep != nil || len(appEnv.Global) > 0 || len(appEnv.Service) > 0 {
+	if len(appDep) > 0 || len(appEnv.Global) > 0 || len(appEnv.Service) > 0 {
 		var depForYaml = &struct {
 			Dependency  []*SvcDependency  `json:"dependency" yaml:"dependency"`
 			ReleaseName string            `json:"releaseName" yaml:"releaseName"`
@@ -293,10 +239,8 @@ func (a *Application) InstallDepConfigMap() error {
 			configMap.Labels = make(map[string]string, 0)
 		}
 		configMap.Labels["use-for"] = "nocalhost-dep"
-		_, err = a.client.ClientSet.CoreV1().ConfigMaps(a.GetNamespace()).Create(context.TODO(), configMap, metav1.CreateOptions{})
-		if err != nil {
-			fmt.Errorf("fail to create dependency config %s\n", configMap.Name)
-			return errors.Wrap(err, "")
+		if _, err = a.client.ClientSet.CoreV1().ConfigMaps(a.NameSpace).Create(context.TODO(), configMap, metav1.CreateOptions{}); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("fail to create dependency config %s", configMap.Name))
 		} else {
 			profileV2.DependencyConfigMapName = configMap.Name
 			profileV2.Save()
@@ -307,10 +251,9 @@ func (a *Application) InstallDepConfigMap() error {
 }
 
 func (a *Application) installManifestRecursively() error {
-	//a.loadInstallManifest()
 	log.Logf("%d manifest files to be installed", len(a.installManifest))
 	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForCreate(a.installManifest, true, StandardNocalhostMetas(a.Name, a.GetNamespace()), "")
+		err := a.client.ApplyForCreate(a.installManifest, true, StandardNocalhostMetas(a.Name, a.NameSpace), "")
 		if err != nil {
 			return err
 		}
@@ -397,12 +340,10 @@ func (a *Application) loadSortedPreInstallManifest() {
 
 func (a *Application) preInstall() {
 
-	//a.loadSortedPreInstallManifest()
-
 	if len(a.sortedPreInstallManifest) > 0 {
 		log.Info("Run pre-install...")
 		for _, item := range a.sortedPreInstallManifest {
-			err := a.client.Create(item, true, false, StandardNocalhostMetas(a.Name, a.GetNamespace()))
+			err := a.client.Create(item, true, false, StandardNocalhostMetas(a.Name, a.NameSpace))
 			if err != nil {
 				log.Warnf("error occurs when install %s : %s\n", item, err.Error())
 			}

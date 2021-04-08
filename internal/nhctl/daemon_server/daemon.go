@@ -21,7 +21,6 @@ import (
 	"net"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
-	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
@@ -67,6 +66,12 @@ func StartDaemon(isSudoUser bool, v string) error {
 		log.LogE(err)
 	}
 
+	// Recovering syncthing
+	// nhctl sync bookinfo -d productpage --resume --kubeconfig /Users/xxx/.nh/plugin/kubeConfigs/293_config
+	if err = recoverSyncthing(); err != nil {
+		log.LogE(err)
+	}
+
 	go func() {
 		for {
 			conn, err := listener.Accept()
@@ -94,15 +99,18 @@ func StartDaemon(isSudoUser bool, v string) error {
 		}
 	}()
 
-	for {
+	go func() {
 		select {
 		case <-tcpCtx.Done():
 			log.Log("Stop listening tcp port for daemon server")
 			_ = listener.Close()
-		case <-daemonCtx.Done():
-			log.Log("Exit daemon server")
-			return nil
 		}
+	}()
+
+	select {
+	case <-daemonCtx.Done():
+		log.Log("Exit daemon server")
+		return nil
 	}
 }
 
@@ -153,7 +161,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType)
 		info := &daemon_common.DaemonServerInfo{Version: version}
 		response(conn, info)
 	case command.GetDaemonServerStatus:
-		status := &daemon_common.DaemonServerStatusResponse{PortForwardList: pfManager.GetRunningPortForwardGoRoutine()}
+		status := &daemon_common.DaemonServerStatusResponse{PortForwardList: pfManager.ListAllRunningPortForwardGoRoutineProfile()}
 		response(conn, status)
 	}
 }
@@ -166,8 +174,6 @@ func response(conn net.Conn, v interface{}) {
 	}
 	if _, err = conn.Write(bys); err != nil {
 		log.LogE(errors.Wrap(err, ""))
-	} else {
-		//log.Logf("Response %v", v)
 	}
 }
 
@@ -189,27 +195,7 @@ func handleStopPortForwardCommand(cmd *command.PortForwardCommand) error {
 	return pfManager.StopPortForwardGoRoutine(cmd.LocalPort, cmd.RemotePort)
 }
 
-// If a port-forward exists, stop it first, and then start it
-// If a port-forward doesn't exist, start it
-//func handleRestartPortForwardCommand(startCmd *command.PortForwardCommand) error {
-//	// Check if port forward already exists
-//	list, err := nocalhost.ListPortForward(startCmd.NameSpace, startCmd.AppName, startCmd.Service)
-//	if err != nil {
-//		return err
-//	}
-//	for _, pf := range list {
-//		if pf.LocalPort == startCmd.LocalPort && pf.RemotePort == startCmd.RemotePort {
-//			// Stop it
-//		}
-//	}
-//}
-
 // If a port-forward already exist, skip it(don't do anything), and return an error
 func handleStartPortForwardCommand(startCmd *command.PortForwardCommand) error {
-	return pfManager.StartPortForwardGoRoutine(&model.NocalHostResource{
-		NameSpace:   startCmd.NameSpace,
-		Application: startCmd.AppName,
-		Service:     startCmd.Service,
-		PodName:     startCmd.PodName,
-	}, startCmd.LocalPort, startCmd.RemotePort, true)
+	return pfManager.StartPortForwardGoRoutine(startCmd, true)
 }

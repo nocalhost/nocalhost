@@ -20,7 +20,7 @@ type CreateAppRequest struct {
 }
 
 type AppPublicSwitchRequest struct {
-	Public  *uint8 `json:"public" binding:"required"`
+	Public *uint8 `json:"public" binding:"required"`
 }
 
 type UpdateApplicationInstallRequest struct {
@@ -32,12 +32,11 @@ type ApplicationJsonContext struct {
 	ApplicationName        string   `json:"application_name" validate:"required"`
 	ApplicationURL         string   `json:"application_url" validate:"required"`
 	ApplicationSource      string   `json:"source" validate:"required,oneof='git' 'helm_repo' 'local'"`
-	ApplicationInstallType string   `json:"install_type" validate:"required,oneof='rawManifest' 'helm_chart' 'rawManifestLocal' 'helmLocal'"`
+	ApplicationInstallType string   `json:"install_type" validate:"required,oneof='rawManifest' 'helm_chart' 'rawManifestLocal' 'helmLocal' 'kustomize'"`
 	ApplicationSourceDir   []string `json:"resource_dir" validate:"required"`
 	NocalhostRawConfig     string   `json:"nocalhost_config_raw"`
 	NocalhostConfigPath    string   `json:"nocalhost_config_path"`
 }
-
 
 type ApplicationListQuery struct {
 	UserId *uint64 `form:"user_id"`

@@ -47,6 +47,7 @@ type PortForwardCommand struct {
 	PodName     string `json:"podName"`
 	LocalPort   int    `json:"localPort"`
 	RemotePort  int    `json:"remotePort"`
+	Role        string `json:"role"`
 	//IsSudo      bool   `json:"isSudo"` // todo: move to profile?
 }
 

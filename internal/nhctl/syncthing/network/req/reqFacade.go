@@ -52,7 +52,7 @@ func (p *SyncthingHttpClient) getSyncthingStatus() *SyncthingStatus {
 		return &SyncthingStatus{
 			Status:    Error,
 			Msg:       "Error",
-			Tips:   fmt.Sprintf("%v", err),
+			Tips:      fmt.Sprintf("%v", err),
 			OutOfSync: status.OutOfSync(),
 		}
 	}
@@ -63,6 +63,16 @@ func (p *SyncthingHttpClient) getSyncthingStatus() *SyncthingStatus {
 			Status:    Syncing,
 			Msg:       completion.UploadPct(),
 			Tips:      status.StateChangedLog(),
+			OutOfSync: status.OutOfSync(),
+		}
+	}
+
+	// then need synced force
+	if completion.NeedOverrideForce() {
+		return &SyncthingStatus{
+			Status:    OutOfSync,
+			Msg:       status.OutOfSyncLog(),
+			Tips:      status.OutOfSyncTips(),
 			OutOfSync: status.OutOfSync(),
 		}
 	}
@@ -99,6 +109,7 @@ type StatusEnum string
 // more meaningful.
 const (
 	Disconnected StatusEnum = "disconnected"
+	OutOfSync    StatusEnum = "outOfSync"
 	Scanning     StatusEnum = "scanning"
 	Syncing      StatusEnum = "syncing"
 	Error        StatusEnum = "error"

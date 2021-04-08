@@ -44,12 +44,10 @@ func (a *Application) EnterPodTerminal(svcName string, podName, container string
 			shell = devConfig.Shell
 		}
 	}
-	//shell := a.GetSvcProfileV2(svcName).GetContainerDevConfigOrDefault(container).Shell
 	cmd := "(zsh || bash || sh)"
 	if shell != "" {
 		cmd = fmt.Sprintf("(%s || zsh || bash || sh)", shell)
 	}
-	//log.Debugf("Shell not defined, use default shell %s to enter terminal", shell)
 	return a.client.ExecShell(pod, container, cmd)
 }
 

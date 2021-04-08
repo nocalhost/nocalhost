@@ -66,8 +66,8 @@ func (a *Application) uninstallHelm() error {
 	}
 
 	commonParams := make([]string, 0)
-	if a.GetNamespace() != "" {
-		commonParams = append(commonParams, "--namespace", a.GetNamespace())
+	if a.NameSpace != "" {
+		commonParams = append(commonParams, "--namespace", a.NameSpace)
 	}
 	appProfile, _ := a.GetProfile()
 	if appProfile.Kubeconfig != "" {
@@ -86,8 +86,8 @@ func (a *Application) UninstallKustomize() error {
 	}
 	useResourcePath := resourcesPath[0]
 	commonParams := make([]string, 0)
-	if a.GetNamespace() != "" {
-		commonParams = append(commonParams, "--namespace", a.GetNamespace())
+	if a.NameSpace != "" {
+		commonParams = append(commonParams, "--namespace", a.NameSpace)
 	}
 	appProfile, _ := a.GetProfile()
 	if appProfile.Kubeconfig != "" {

@@ -109,9 +109,6 @@ func (a *Application) NewSyncthing(deployment string, container string, localSyn
 		IgnoreDelete:     true,
 		Folders:          []*syncthing.Folder{},
 		RescanInterval:   "300",
-
-		//SyncedPattern:  svcProfile.GetDefaultContainerDevConfig().Sync.FilePattern,
-		//IgnoredPattern: svcProfile.GetDefaultContainerDevConfig().Sync.IgnoreFilePattern,
 	}
 	if svcProfile.GetContainerDevConfigOrDefault(container).Sync != nil {
 		s.SyncedPattern = svcProfile.GetContainerDevConfigOrDefault(container).Sync.FilePattern
@@ -139,16 +136,12 @@ func (a *Application) NewSyncthing(deployment string, container string, localSyn
 			index++
 		}
 	}
-
-	//_ = a.SaveProfile()
 	_ = a.SaveProfile(appProfile)
-
 	return s, nil
 }
 
 func (a *Application) NewSyncthingHttpClient(svcName string) *req.SyncthingHttpClient {
-	appProfile, _ := a.GetProfile()
-	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile, _ := a.GetSvcProfile(svcName)
 
 	return req.NewSyncthingHttpClient(
 		fmt.Sprintf("127.0.0.1:%d", svcProfile.LocalSyncthingGUIPort),
@@ -177,10 +170,6 @@ func (a *Application) CreateSyncThingSecret(svcName string, syncSecret *corev1.S
 	defer profileV2.CloseDb()
 
 	svcPro := profileV2.FetchSvcProfileV2FromProfile(svcName)
-	//if svcProfile == nil {
-	//	return false
-	//}
-	//svcPro := a.GetSvcProfileV2(svcName)
 	svcPro.SyncthingSecret = sc.Name
 	return profileV2.Save()
 }

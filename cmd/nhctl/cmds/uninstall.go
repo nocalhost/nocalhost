@@ -50,8 +50,7 @@ var uninstallCmd = &cobra.Command{
 		}
 
 		if nameSpace == "" {
-			nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig)
-			if err != nil {
+			if nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig); err != nil {
 				log.FatalE(err, "Failed to get namespace")
 			}
 			if nameSpace == "" {
@@ -67,14 +66,12 @@ var uninstallCmd = &cobra.Command{
 		if err != nil {
 			if !force {
 				log.FatalE(err, "Failed to get application")
-			} else {
-				err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace)
-				if err != nil {
-					log.WarnE(err, "Failed to clean up application resource")
-				}
-				log.Infof("Application \"%s\" is uninstalled anyway.\n", applicationName)
-				return
 			}
+			if err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace); err != nil {
+				log.WarnE(err, "Failed to clean up application resource")
+			}
+			log.Infof("Application \"%s\" is uninstalled anyway.\n", applicationName)
+			return
 		} else {
 			// check if there are services in developing state
 			appProfile, err := nhApp.GetProfile()
@@ -83,28 +80,24 @@ var uninstallCmd = &cobra.Command{
 			}
 			for _, profile := range appProfile.SvcProfile {
 				if profile.Developing {
-					err = nhApp.StopSyncAndPortForwardProcess(profile.ActualName, true)
-					if err != nil {
+					if err = nhApp.StopSyncAndPortForwardProcess(profile.ActualName, true); err != nil {
 						log.WarnE(err, "")
 					}
 				} else if len(profile.DevPortForwardList) > 0 {
-					err = nhApp.StopAllPortForward(profile.ActualName)
-					if err != nil {
+					if err = nhApp.StopAllPortForward(profile.ActualName); err != nil {
 						log.WarnE(err, "")
 					}
 				}
 			}
 		}
-		err = nhApp.Uninstall(force)
-		if err != nil {
-			if force {
-				err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace)
-				if err != nil {
-					log.Warnf("Failed to clean up application resource: %s", err.Error())
-				}
-				return
+		if err = nhApp.Uninstall(force); err != nil {
+			if !force {
+				log.Fatalf("failed to uninstall application, %v", err)
 			}
-			log.Fatalf("failed to uninstall application, %v", err)
+			if err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace); err != nil {
+				log.WarnE(err, "Failed to clean up application resource:")
+			}
+			return
 		}
 		log.Infof("Application \"%s\" is uninstalled", applicationName)
 	},

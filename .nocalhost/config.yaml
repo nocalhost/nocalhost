@@ -4,7 +4,7 @@ configProperties:
 application:
   name: nocalhost
   manifestType: helmGit
-  resourcePath: ["deployments/chart"]
+  resourcePath: [ "deployments/chart" ]
   helmValues:
     - key: service.type
       value: ClusterIP
@@ -15,21 +15,33 @@ application:
       dependLabelSelector:
         pods:
           - "app.kubernetes.io/name=mariadb"
+      portForward:
+        - 8080:8080
       containers:
         - name: nocalhost-api
           dev:
             gitUrl: https://github.com/nocalhost/nocalhost.git
             image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang:latest
             workDir: /home/nocalhost-dev
-            shell: "bash"
+            shell: "/bin/zsh"
             sync:
               type: send
               filePattern:
                 - .
               ignoreFilePattern:
-                - ".git"
+                - "./build"
+            command:
+              build: [ "make", "api" ]
+              run: [ "./build/nocalhost-api", "-c", "/app/config/config.yaml" ]
+              debug: [ "dlv", "--listen=:2345", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "./build/nocalhost-api", "--", "-c", "/app/config/config.yaml" ]
+            debug:
+              remoteDebugPort: 2345
+            env:
+              - name: NOCALHOST_INJECT_DEV_ENV
+                value: WHATEVER
             portForward:
               - 8080:8080
+
 
     - name: nocalhost-web
       serviceType: deployment
@@ -52,5 +64,15 @@ application:
                 - .
               ignoreFilePattern:
                 - ".git"
+                - ".github"
+                - ".vscode"
+                - "node_modules"
             portForward:
               - 80:80
+            resources:
+              limits:
+                cpu: "0.3"
+                memory: 200Mi
+              requests:
+                cpu: "0.1"
+                memory: 100Mi

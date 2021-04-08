@@ -157,10 +157,35 @@ func (d *DaemonClient) SendGetDaemonServerStatusCommand() error {
 	return nil
 }
 
-func (d *DaemonClient) SendPortForwardCommand(nhSvc *model.NocalHostResource, localPort, remotePort int, cmdType command.DaemonCommandType) error {
+func (d *DaemonClient) SendStartPortForwardCommand(nhSvc *model.NocalHostResource, localPort, remotePort int, role string) error {
 
 	startPFCmd := &command.PortForwardCommand{
-		CommandType: cmdType,
+		CommandType: command.StartPortForward,
+		NameSpace:   nhSvc.NameSpace,
+		AppName:     nhSvc.Application,
+		Service:     nhSvc.Service,
+		PodName:     nhSvc.PodName,
+		LocalPort:   localPort,
+		RemotePort:  remotePort,
+		Role:        role,
+	}
+
+	bys, err := json.Marshal(startPFCmd)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
+		return err
+	} else {
+		log.Infof("Response: %s", string(bys))
+		return nil
+	}
+}
+
+func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource, localPort, remotePort int) error {
+
+	startPFCmd := &command.PortForwardCommand{
+		CommandType: command.StopPortForward,
 		NameSpace:   nhSvc.NameSpace,
 		AppName:     nhSvc.Application,
 		Service:     nhSvc.Service,
@@ -176,7 +201,7 @@ func (d *DaemonClient) SendPortForwardCommand(nhSvc *model.NocalHostResource, lo
 	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
 		return err
 	} else {
-		log.Infof("%s", string(bys))
+		log.Infof("Response: %s", string(bys))
 		return nil
 	}
 }

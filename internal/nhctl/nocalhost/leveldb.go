@@ -15,42 +15,45 @@ package nocalhost
 
 import (
 	"github.com/pkg/errors"
-	"github.com/syndtr/goleveldb/leveldb"
-	"nocalhost/internal/nhctl/dbutils"
-	"nocalhost/internal/nhctl/nocalhost_path"
+	nocalhost_db "nocalhost/internal/nhctl/nocalhost/db"
 )
 
-func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) {
-	path := nocalhost_path.GetAppDbDir(ns, app)
-	return dbutils.OpenLevelDB(path, readonly)
-}
-
-func CreateApplicationLevelDB(ns, app string) error {
-	path := nocalhost_path.GetAppDbDir(ns, app)
-	return dbutils.CreateLevelDB(path)
-}
-
-// todo
-//func CheckIfApplicationLevelDBExists(ns,app string) error {
-//	path := nocalhost_path.GetAppDbDir(ns, app)
-//
-//}
-
 func ListAllFromApplicationDb(ns, appName string) (map[string]string, error) {
-	db, err := OpenApplicationLevelDB(ns, appName, true)
+	db, err := nocalhost_db.OpenApplicationLevelDB(ns, appName, true)
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
-	result := make(map[string]string, 0)
-	iter := db.NewIterator(nil, nil)
-	for iter.Next() {
-		result[string(iter.Key())] = string(iter.Value())
-	}
-	iter.Release()
-	err = iter.Error()
+	return db.ListAll()
+}
+
+func CompactApplicationDb(ns, appName, key string) error {
+	db, err := nocalhost_db.OpenApplicationLevelDB(ns, appName, false)
 	if err != nil {
-		return nil, errors.Wrap(err, "")
+		return err
 	}
-	return result, nil
+	defer db.Close()
+	if key == "" {
+		result, err := db.ListAll()
+		if err != nil {
+			return err
+		}
+		if len(result) == 0 {
+			return errors.New("No key to compact!")
+		}
+		for k := range result {
+			key = k // Get the first key
+			break
+		}
+	}
+	return db.CompactKey([]byte(key))
+}
+
+func GetApplicationDbSize(ns, appName string) (int, error) {
+	db, err := nocalhost_db.OpenApplicationLevelDB(ns, appName, true)
+	if err != nil {
+		return 0, err
+	}
+	defer db.Close()
+	return db.GetSize()
 }

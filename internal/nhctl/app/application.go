@@ -19,11 +19,10 @@ import (
 	"io/ioutil"
 	"net"
 	"nocalhost/internal/nhctl/daemon_client"
-	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
+	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"os"
 	"strconv"
@@ -66,12 +65,20 @@ const (
 )
 
 type Application struct {
-	Name      string
-	NameSpace string
-	//config   *NocalHostAppConfig //  this should not be nil
+	Name       string
+	NameSpace  string
+	KubeConfig string
+
+	// configV2 is created and saved to config_v2.yaml when `install`, after that it will not be changed
+	// configV2 will not be nil if you use NewApplication a get a Application
 	configV2 *profile.NocalHostAppConfigV2
-	//AppProfile               *AppProfile // runtime info, this will not be nil
-	//AppProfileV2             *profile.AppProfileV2
+
+	// profileV2 is created and saved to leveldb when `install`
+	// profileV2 will not be nil if you use NewApplication a get a Application
+	// you can only get const data from it, such as Namespace,AppType...
+	// don't save it to leveldb directly
+	profileV2 *profile.AppProfileV2
+
 	client                   *clientgoutils.ClientGoUtils
 	sortedPreInstallManifest []string // for pre install
 	installManifest          []string // for install
@@ -79,7 +86,6 @@ type Application struct {
 	// for upgrade
 	upgradeSortedPreInstallManifest []string
 	upgradeInstallManifest          []string
-	//db                              *leveldb.DB
 }
 
 type SvcDependency struct {
@@ -103,7 +109,7 @@ func (a *Application) moveProfileFromFileToLeveldb() error {
 	}
 	log.Log("Move profile to leveldb")
 
-	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2, nil)
+	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
 }
 
 func NewApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
@@ -118,12 +124,12 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		return nil, err
 	}
 
-	db, err := nocalhost.OpenApplicationLevelDB(app.NameSpace, app.Name, true)
+	db, err := nocalhostDb.OpenApplicationLevelDB(app.NameSpace, app.Name, true)
 	if err != nil {
 		if db != nil {
 			db.Close()
 		}
-		err = nocalhost.CreateApplicationLevelDB(app.NameSpace, app.Name) // Init leveldb dir
+		err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name) // Init leveldb dir
 		if err != nil {
 			return nil, err
 		}
@@ -132,64 +138,50 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		db.Close()
 	}
 
-	appProfile, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, nil)
+	appProfile, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
 	if err != nil {
 		err = app.moveProfileFromFileToLeveldb()
 		if err != nil {
 			return nil, err
 		}
-		appProfile, err = nocalhost.GetProfileV2(app.NameSpace, app.Name, nil)
+		appProfile, err = nocalhost.GetProfileV2(app.NameSpace, app.Name)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	//err = app.LoadAppProfileV2()
-	//if err != nil {
-	//	return nil, err
-	//}
-
 	if len(appProfile.PreInstall) == 0 && len(app.configV2.ApplicationConfig.PreInstall) > 0 {
 		appProfile.PreInstall = app.configV2.ApplicationConfig.PreInstall
-		//_ = app.SaveProfile()
-		nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile, nil)
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile); err != nil {
+			return nil, err
+		}
 	}
 
 	if kubeconfig != "" && kubeconfig != appProfile.Kubeconfig {
 		appProfile.Kubeconfig = kubeconfig
-		//_ = app.SaveProfile()
-		nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile, nil)
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile); err != nil {
+			return nil, err
+		}
 	}
+	app.KubeConfig = appProfile.Kubeconfig
 
 	if initClient {
-		app.client, err = clientgoutils.NewClientGoUtils(app.GetKubeconfig(), app.GetNamespace())
-		if err != nil {
+		if app.client, err = clientgoutils.NewClientGoUtils(app.KubeConfig, app.NameSpace); err != nil {
 			return nil, err
 		}
 	}
 
-	//app.convertDevPortForwardList()
+	app.profileV2 = appProfile
 
 	return app, nil
 }
 
-//func (a *Application) ReadBeforeWriteProfile() error {
-//	return a.LoadAppProfileV2()
-//}
-
 func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
-	app, err := nocalhost.GetProfileV2(a.NameSpace, a.Name, nil)
-	if err != nil {
-		return nil, err
-	}
-	if app == nil {
-		app = &profile.AppProfileV2{}
-	}
-	return app, nil
+	return nocalhost.GetProfileV2(a.NameSpace, a.Name)
 }
 
 func (a *Application) SaveProfile(p *profile.AppProfileV2) error {
-	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, p, nil)
+	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, p)
 }
 
 func (a *Application) LoadConfigV2() error {
@@ -208,34 +200,16 @@ func (a *Application) LoadConfigV2() error {
 	}
 
 	config := &profile.NocalHostAppConfigV2{}
-	if _, err := os.Stat(a.GetConfigV2Path()); err != nil {
-		if os.IsNotExist(err) {
-			a.configV2 = config
-			return nil
-		} else {
-			return errors.Wrap(err, "fail to load configs")
-		}
-	}
 	rbytes, err := ioutil.ReadFile(a.GetConfigV2Path())
 	if err != nil {
 		return errors.New(fmt.Sprintf("fail to load configFile : %s", a.GetConfigV2Path()))
 	}
-	err = yaml.Unmarshal(rbytes, config)
-	if err != nil {
+	if err = yaml.Unmarshal(rbytes, config); err != nil {
 		return errors.Wrap(err, "")
 	}
 	a.configV2 = config
 	return nil
 }
-
-//func (a *Application) SaveProfileToDb(p *profile.AppProfileV2) error {
-//	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, p)
-//}
-
-// Deprecated
-//func (a *Application) SaveProfile() error {
-//	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.AppProfileV2, nil)
-//}
 
 type HelmFlags struct {
 	Debug    bool
@@ -259,7 +233,6 @@ func (a *Application) ignoredInInstall(manifest string) bool {
 }
 
 func (a *Application) uninstallManifestRecursively() error {
-	//a.loadInstallManifest()
 
 	if len(a.installManifest) > 0 {
 		err := a.client.ApplyForDelete(a.installManifest, true)
@@ -297,10 +270,6 @@ func (a *Application) IsAnyServiceInDevMode() bool {
 }
 
 func (a *Application) GetSvcConfigV2(svcName string) *profile.ServiceConfigV2 {
-	a.LoadConfigV2() // get the latest config
-	if a.configV2 == nil {
-		return nil
-	}
 	for _, config := range a.configV2.ApplicationConfig.ServiceConfigs {
 		if config.Name == svcName {
 			return config
@@ -310,10 +279,6 @@ func (a *Application) GetSvcConfigV2(svcName string) *profile.ServiceConfigV2 {
 }
 
 func (a *Application) GetApplicationConfigV2() *profile.ApplicationConfig {
-	a.LoadConfigV2() // get the latest config
-	if a.configV2 == nil {
-		return nil
-	}
 	return a.configV2.ApplicationConfig
 }
 
@@ -326,11 +291,6 @@ func (a *Application) SaveSvcProfileV2(svcName string, config *profile.ServiceCo
 	defer profileV2.CloseDb()
 
 	svcPro := profileV2.FetchSvcProfileV2FromProfile(svcName)
-	//if svcPro == nil {
-	//	return errors.New("Svc profile not found")
-	//}
-
-	//svcPro := a.GetSvcProfileV2(svcName)
 	if svcPro != nil {
 		config.Name = svcName
 		svcPro.ServiceConfigV2 = config
@@ -456,7 +416,7 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 		dep.Annotations = make(map[string]string, 0)
 	}
 	dep.Annotations[NocalhostApplicationName] = a.Name
-	dep.Annotations[NocalhostApplicationNamespace] = a.GetNamespace()
+	dep.Annotations[NocalhostApplicationNamespace] = a.NameSpace
 
 	_, err = clientUtils.CreateDeployment(dep)
 	if err != nil {
@@ -593,26 +553,6 @@ func (a *Application) GetSvcDescription(svcName string) string {
 	return desc
 }
 
-// Deprecated
-func (a *Application) FixPortForwardOSArgs(localPort, remotePort []int) {
-	var newArg []string
-	for _, v := range os.Args {
-		match := false
-		for key, vv := range remotePort {
-			if v == "-p" || v == fmt.Sprintf(":%d", vv) || v == fmt.Sprintf("%d:%d", localPort[key], vv) {
-				match = true
-			}
-		}
-		if !match {
-			newArg = append(newArg, v)
-		}
-	}
-	for k, v := range localPort {
-		newArg = append(newArg, "-p", fmt.Sprintf("%d:%d", v, remotePort[k]))
-	}
-	os.Args = newArg
-}
-
 func (a *Application) ListContainersByDeployment(depName string) ([]corev1.Container, error) {
 	pods, err := a.client.ListPodsByDeployment(depName)
 	if err != nil {
@@ -624,16 +564,14 @@ func (a *Application) ListContainersByDeployment(depName string) ([]corev1.Conta
 	return pods.Items[0].Spec.Containers, nil
 }
 
-func (a *Application) PortForward(deployment, podName string, localPort, remotePort int) error {
-	if localPort == 0 || remotePort == 0 {
-		return errors.New(fmt.Sprintf("Port-forward %d:%d failed", localPort, remotePort))
-	}
+// Role: If set to "SYNC", means it is a pf used for syncthing
+func (a *Application) PortForward(deployment, podName string, localPort, remotePort int, role string) error {
 
-	if isAvailable := ports.IsTCP4PortAvailable("0.0.0.0", localPort); isAvailable {
-		log.Infof("Port %d is available", localPort)
-	} else {
-		return errors.New(fmt.Sprintf("Port %d is unavailable", localPort))
-	}
+	//if isAvailable := ports.IsTCP4PortAvailable("0.0.0.0", localPort); isAvailable {
+	//	log.Infof("Port %d is available", localPort)
+	//} else {
+	//	return errors.New(fmt.Sprintf("Port %d is unavailable", localPort))
+	//}
 
 	isAdmin := utils.IsSudoUser()
 	client, err := daemon_client.NewDaemonClient(isAdmin)
@@ -647,7 +585,7 @@ func (a *Application) PortForward(deployment, podName string, localPort, remoteP
 		PodName:     podName,
 	}
 
-	if err = client.SendPortForwardCommand(nhResource, localPort, remotePort, command.StartPortForward); err != nil {
+	if err = client.SendStartPortForwardCommand(nhResource, localPort, remotePort, role); err != nil {
 		return err
 	} else {
 		log.Infof("Port-forward %d:%d has been started", localPort, remotePort)
@@ -655,19 +593,19 @@ func (a *Application) PortForward(deployment, podName string, localPort, remoteP
 	}
 }
 
-func (a *Application) SendHeartBeat(ctx context.Context, listenAddress string, sLocalPort int) error {
-	for {
-		select {
-		case <-ctx.Done():
-			log.Infof("Stop sending heart beat to %d", sLocalPort)
-			return errors.New("HeatBeat has been stopped")
-		default:
-			<-time.After(30 * time.Second)
-			log.Infof("try to send port-forward heartbeat to %d", sLocalPort)
-			return a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress, sLocalPort))
-		}
-	}
-}
+//func (a *Application) SendHeartBeat(ctx context.Context, listenAddress string, sLocalPort int) error {
+//	for {
+//		select {
+//		case <-ctx.Done():
+//			log.Infof("Stop sending heart beat to %d", sLocalPort)
+//			return errors.New("HeatBeat has been stopped")
+//		default:
+//			<-time.After(30 * time.Second)
+//			log.Infof("try to send port-forward heartbeat to %d", sLocalPort)
+//			return a.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", listenAddress, sLocalPort))
+//		}
+//	}
+//}
 
 func (a *Application) CheckPidPortStatus(ctx context.Context, deployment string, sLocalPort, sRemotePort int, lock *sync.Mutex) {
 	for {
@@ -690,17 +628,12 @@ func (a *Application) CheckPidPortStatus(ctx context.Context, deployment string,
 
 func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error {
 	conn, err := net.Dial("tcp", addressWithPort)
-
 	if err != nil || conn == nil {
-		log.Warnf("connect port-forward heartbeat address fail, %s", addressWithPort)
-		return nil
+		return errors.New(fmt.Sprintf("connect port-forward heartbeat address fail, %s", addressWithPort))
 	}
 	// GET /heartbeat HTTP/1.1
 	_, err = conn.Write([]byte("ping"))
-	if err != nil {
-		log.Warnf("send port-forward heartbeat fail, %s", err.Error())
-	}
-	return err
+	return errors.Wrap(err, "send port-forward heartbeat fail")
 }
 
 func (a *Application) GetBackgroundSyncPortForwardPid(deployment string, isTrunc bool) (int, string, error) {
@@ -776,20 +709,39 @@ func (a *Application) GetPodsFromDeployment(deployment string) (*corev1.PodList,
 	return a.client.ListPodsByDeployment(deployment)
 }
 
-func (a *Application) GetDefaultPodName(svc string, t SvcType) (podName string, err error) {
-	switch t {
-	case Deployment:
-		checkPodsList, err := a.GetPodsFromDeployment(svc)
-		if err != nil {
-			return "", err
+func (a *Application) GetDefaultPodName(ctx context.Context, svc string, t SvcType) (string, error) {
+	var (
+		podList *corev1.PodList
+		err     error
+	)
+	for {
+		select {
+		case <-ctx.Done():
+			return "", errors.New(fmt.Sprintf("Fail to get %s' pod", svc))
+		default:
+			switch t {
+			case Deployment:
+				podList, err = a.GetPodsFromDeployment(svc)
+				if err != nil {
+					return "", err
+				}
+			case StatefulSet:
+				podList, err = a.GetClient().ListPodsByStatefulSet(svc)
+				if err != nil {
+					return "", err
+				}
+			default:
+				return "", errors.New(fmt.Sprintf("Service type %s not support", t))
+			}
 		}
-		if checkPodsList == nil || len(checkPodsList.Items) == 0 {
-			return "", errors.New("dev container not found")
+		if podList == nil || len(podList.Items) == 0 {
+			log.Infof("Pod of %s has not been ready, waiting for it...", svc)
+			time.Sleep(time.Second)
+		} else {
+			return podList.Items[0].Name, nil
 		}
-		return checkPodsList.Items[0].Name, nil
-	default:
-		return "", errors.New("Service type not support")
 	}
+
 }
 
 func (a *Application) GetNocalhostDevContainerPod(deployment string) (podName string, err error) {

@@ -23,6 +23,7 @@ import (
 	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
+	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -34,7 +35,7 @@ import (
 )
 
 // When a application is installed, something representing the application will build, including:
-// 1. An directory (NhctlAppDir) under $NhctlHomeDir will be created and initiated
+// 1. An directory (NhctlAppDir) under $NhctlHomeDir/ns/$NameSpace will be created and initiated
 // 2. An .config_v2.yaml will be created under $NhctlAppDir, it may come from an config file under .nocalhost in your git repository or an outer config file in your local file system
 // 3. An .profile_v2.yaml will be created under $NhctlAppDir, it will record the status of this application
 // build a new application
@@ -50,26 +51,17 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, err
 	}
 
-	err = nocalhost.CreateApplicationLevelDB(app.NameSpace, app.Name)
-	if err != nil {
+	if err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name); err != nil {
 		return nil, err
 	}
-	//err = app.LoadAppProfileV2(false)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//app.AppProfileV2 = &profile.AppProfileV2{}
-	appProfileV2 := &profile.AppProfileV2{}
 
-	//app.SetInstalledStatus(true)
-	appProfileV2.Installed = true
+	appProfileV2 := &profile.AppProfileV2{Installed: true}
 
 	if kubeconfig == "" { // use default config
 		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
 	}
 
-	app.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace)
-	if err != nil {
+	if app.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace); err != nil {
 		return nil, err
 	}
 
@@ -77,26 +69,60 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	appProfileV2.Kubeconfig = kubeconfig
 
 	if flags.GitUrl != "" {
-		err = app.downloadResourcesFromGit(flags.GitUrl, flags.GitRef)
-		if err != nil {
+		if err = app.downloadResourcesFromGit(flags.GitUrl, flags.GitRef); err != nil {
 			log.Debugf("Failed to clone : %s ref: %s", flags.GitUrl, flags.GitRef)
 			return nil, err
 		}
 		appProfileV2.GitUrl = flags.GitUrl
 		appProfileV2.GitRef = flags.GitRef
 	} else if flags.LocalPath != "" { // local path of application, copy to nocalhost resource
-		err := utils.CopyDir(flags.LocalPath, app.getGitDir())
+		if err = utils.CopyDir(flags.LocalPath, app.getGitDir()); err != nil {
+			return nil, err
+		}
+	}
+
+	configFilePath := flags.OuterConfig
+	// Read from .nocalhost
+	if configFilePath == "" {
+		_, err := os.Stat(app.getConfigPathInGitResourcesDir(flags.Config))
+		if err != nil {
+			if os.IsNotExist(err) {
+				// no config.yaml
+				renderedConfig := &profile.NocalHostAppConfigV2{
+					ConfigProperties: &profile.ConfigProperties{Version: "v2"},
+					ApplicationConfig: &profile.ApplicationConfig{
+						Name:           name,
+						Type:           flags.AppType,
+						ResourcePath:   flags.ResourcePath,
+						IgnoredPath:    nil,
+						PreInstall:     nil,
+						HelmValues:     nil,
+						Env:            nil,
+						EnvFrom:        profile.EnvFrom{},
+						ServiceConfigs: nil,
+					},
+				}
+				configBys, err := yaml.Marshal(renderedConfig)
+				if err = ioutil.WriteFile(app.GetConfigV2Path(), configBys, 0644); err != nil {
+					return nil, errors.New("fail to create configFile")
+				}
+				app.configV2 = renderedConfig
+			} else {
+				return nil, errors.Wrap(err, "")
+			}
+		} else {
+			configFilePath = app.getConfigPathInGitResourcesDir(flags.Config)
+		}
+	}
+
+	// config.yaml found
+	if configFilePath != "" {
+		err = app.renderConfig(configFilePath)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	err = app.renderConfig(flags.OuterConfig, flags.Config)
-	if err != nil {
-		return nil, err
-	}
-
-	// app.LoadSvcConfigsToProfile()
 	// Load config to profile
 	appProfileV2.AppType = app.configV2.ApplicationConfig.Type
 	appProfileV2.ResourcePath = app.configV2.ApplicationConfig.ResourcePath
@@ -115,24 +141,27 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		appProfileV2.ResourcePath = flags.ResourcePath
 	}
 
-	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2, nil)
+	app.profileV2 = appProfileV2
+	app.KubeConfig = appProfileV2.Kubeconfig
+
+	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
 }
 
 // V2
-func (a *Application) renderConfig(outerConfigPath string, configName string) error {
-	configFilePath := outerConfigPath
-
-	// Read from .nocalhost
-	if configFilePath == "" {
-		_, err := os.Stat(a.getConfigPathInGitResourcesDir(configName))
-		if err != nil {
-			if os.IsNotExist(err) {
-				return errors.New(fmt.Sprintf("Nocalhost config %s not found. Please check if there is a file:\"%s\" under .nocalhost directory in your git repository", a.getConfigPathInGitResourcesDir(configName), configName))
-			}
-			return errors.Wrap(err, "")
-		}
-		configFilePath = a.getConfigPathInGitResourcesDir(configName)
-	}
+func (a *Application) renderConfig(configFilePath string) error {
+	//configFilePath := outerConfigPath
+	//
+	//// Read from .nocalhost
+	//if configFilePath == "" {
+	//	_, err := os.Stat(a.getConfigPathInGitResourcesDir(configName))
+	//	if err != nil {
+	//		if os.IsNotExist(err) {
+	//			return errors.New(fmt.Sprintf("Nocalhost config %s not found. Please check if there is a file:\"%s\" under .nocalhost directory in your git repository", a.getConfigPathInGitResourcesDir(configName), configName))
+	//		}
+	//		return errors.Wrap(err, "")
+	//	}
+	//	configFilePath = a.getConfigPathInGitResourcesDir(configName)
+	//}
 
 	configFile := fp.NewFilePath(configFilePath)
 
@@ -271,7 +300,6 @@ func (a *Application) initDir() error {
 		return errors.Wrap(err, "")
 	}
 
-	log.Infof("Making dir %s", a.getDbDir())
 	return errors.Wrap(os.MkdirAll(a.getDbDir(), DefaultNewFilePermission), "")
 }
 

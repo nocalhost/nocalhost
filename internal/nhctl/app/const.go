@@ -61,10 +61,12 @@ const (
 	DefaultInitCreateNameSpaceLabels   = "nocalhost-init"
 	DefaultInitWaitDeployment          = "nocalhost-dep"
 	// TODO when release
-	DefaultInitHelmResourcePath   = "deployments/chart"
-	DefaultInitPortForwardTimeOut = time.Minute * 1
-	DefaultInitApplicationGithub  = "{\"source\":\"git\",\"install_type\":\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\",\"application_url\":\"https://github.com/nocalhost/bookinfo.git\"}"
-	DefaultInitApplicationCODING  = "{\"source\":\"git\",\"install_type\":\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\",\"application_url\":\"https://e.coding.net/codingcorp/nocalhost/bookinfo.git\"}"
+	DefaultInitHelmResourcePath     = "deployments/chart"
+	DefaultInitPortForwardTimeOut   = time.Minute * 1
+	DefaultInitApplicationGithub    = "{\"source\":\"git\",\"install_type\":\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\",\"application_url\":\"https://github.com/nocalhost/bookinfo.git\"}"
+	DefaultInitApplicationHelm      = "{\"source\":\"git\",\"install_type\":\"helm_chart\",\"application_url\":\"git@github.com:nocalhost/bookinfo.git\",\"application_config_path\":\"config.helm.yaml\",\"application_name\":\"bookinfo-helm\",\"resource_dir\":[]}"
+	DefaultInitApplicationKustomize = "{\"source\":\"git\",\"install_type\":\"kustomize\",\"application_name\":\"bookinfo-kustomize\",\"application_url\":\"git@github.com:nocalhost/bookinfo.git\",\"application_config_path\":\"config.kustomize.yaml\",\"resource_dir\":[]}"
+	DefaultInitApplicationCODING    = "{\"source\":\"git\",\"install_type\":\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\",\"application_url\":\"https://e.coding.net/codingcorp/nocalhost/bookinfo.git\"}"
 	// Init Component Version Control, HEAD means build from tag
 	DefaultNocalhostMainBranch        = "HEAD"
 	DefaultNocalhostDepDockerRegistry = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep"
