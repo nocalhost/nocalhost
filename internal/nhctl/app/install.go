@@ -46,13 +46,11 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) (err error)
 	case string(KustomizeGit):
 		err = a.InstallKustomize(a.appMeta)
 	default:
-		err = errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
-		return err
+		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
 	}
 
 	a.appMeta.ApplicationState = appmeta.INSTALLED
-	err = a.appMeta.Update()
-	return err
+	return a.appMeta.Update()
 }
 
 func (a *Application) InstallKustomize(appMeta *appmeta.ApplicationMeta) error {

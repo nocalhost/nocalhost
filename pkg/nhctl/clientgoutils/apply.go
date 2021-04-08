@@ -61,7 +61,7 @@ func (c *ClientGoUtils) DeleteResourceInfo(info *resource.Info) error {
 	return nil
 }
 
-// Similar to `kubectl apply`, but apply a r/Users/anur/GolandProjects/nocalhost-neo/internal/nhctl/appmeta/application_meta.goesourceInfo instead a file
+// Similar to `kubectl apply`, but apply a resourceInfo instead a file
 func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info, af *ApplyFlags) error {
 	o, err := c.generateCompletedApplyOption(af)
 	if err != nil {
