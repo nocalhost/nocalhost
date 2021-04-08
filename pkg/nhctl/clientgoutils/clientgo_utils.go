@@ -123,6 +123,10 @@ func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, 
 	return client, nil
 }
 
+func (c *ClientGoUtils) KubeConfigFilePath() string {
+	return c.kubeConfigFilePath
+}
+
 // Set ClientGoUtils's namespace
 func (c *ClientGoUtils) NameSpace(namespace string) *ClientGoUtils {
 	c.namespace = namespace
