@@ -42,10 +42,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-
-
 const (
-
 
 	// default is a special app type, it can be uninstalled neither installed
 	// it's a virtual application to managed that those manifest out of Nocalhost management
@@ -723,7 +720,7 @@ func (a *Application) GetDefaultPodName(ctx context.Context, svc string, t SvcTy
 
 }
 
-func (a *Application) GetNocalhostDevContainerPod(deployment string) (podName string, err error) {
+func (a *Application) GetNocalhostDevContainerPod(deployment string) (string, error) {
 	checkPodsList, err := a.GetPodsFromDeployment(deployment)
 	if err != nil {
 		return "", err
@@ -738,9 +735,7 @@ func (a *Application) GetNocalhostDevContainerPod(deployment string) (podName st
 				}
 			}
 			if found {
-				podName = pod.Name
-				err = nil
-				return
+				return pod.Name, nil
 			}
 		}
 	}
