@@ -100,22 +100,23 @@ func StartDaemon(isSudoUser bool, v string) error {
 	if !isSudoUser {
 		appmeta_manager.Init()
 		appmeta_manager.RegisterListener(func(pack *appmeta_manager.ApplicationEventPack) error {
+			kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
+			if err != nil {
+				return nil
+			}
+			nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, false)
+			if err != nil {
+				return nil
+			}
 			if pack.Event.EventType == appmeta.DEV_END {
-				log.Log("Receive dev end event")
-				switch pack.Event.DevType {
-				case appmeta.DEPLOYMENT:
-					kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
-					if err != nil {
-						return nil
-					}
-					nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, false)
-					if err != nil {
-						return nil
-					}
-					log.Logf("Receive event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName, pack.Event.ResourceName)
-					if err := nhApp.StopSyncAndPortForwardProcess(pack.Event.ResourceName, true); err != nil {
-						return nil
-					}
+				log.Logf("Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName, pack.Event.ResourceName)
+				if err := nhApp.StopSyncAndPortForwardProcess(pack.Event.ResourceName, true); err != nil {
+					return nil
+				}
+			} else if pack.Event.EventType == appmeta.DEV_STA {
+				log.Logf("Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName, pack.Event.ResourceName)
+				if err := nhApp.StopAllPortForward(pack.Event.ResourceName); err != nil {
+					return nil
 				}
 			}
 			return nil
