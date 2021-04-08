@@ -66,17 +66,6 @@ func StartDaemon(isSudoUser bool, v string) error {
 		return errors.Wrap(err, "")
 	}
 
-	// Recovering port forward
-	if err = pfManager.RecoverAllPortForward(); err != nil {
-		log.LogE(err)
-	}
-
-	// Recovering syncthing
-	// nhctl sync bookinfo -d productpage --resume --kubeconfig /Users/xinxinhuang/.nh/plugin/kubeConfigs/293_config
-	if err = recoverSyncthing(); err != nil {
-		log.LogE(err)
-	}
-
 	go func() {
 		for {
 			conn, err := listener.Accept()
@@ -132,6 +121,17 @@ func StartDaemon(isSudoUser bool, v string) error {
 			return nil
 		})
 		appmeta_manager.Start()
+	}
+
+	// Recovering port forward
+	if err = pfManager.RecoverAllPortForward(); err != nil {
+		log.LogE(err)
+	}
+
+	// Recovering syncthing
+	// nhctl sync bookinfo -d productpage --resume --kubeconfig /Users/xinxinhuang/.nh/plugin/kubeConfigs/293_config
+	if err = recoverSyncthing(); err != nil {
+		log.LogE(err)
 	}
 
 	select {
