@@ -86,7 +86,7 @@ type Application struct {
 	// don't save it to leveldb directly
 	profileV2 *profile.AppProfileV2
 
-	client                   *clientgoutils.ClientGoUtils
+	client *clientgoutils.ClientGoUtils
 
 	// for upgrade
 	upgradeSortedPreInstallManifest []string
@@ -514,6 +514,9 @@ func (a *Application) GetDescription() string {
 			return ""
 		}
 		appProfile.Installed = meta.IsInstalled()
+		for _, svcProfile := range appProfile.SvcProfile {
+			svcProfile.Developing = meta.CheckIfDeploymentDeveloping(svcProfile.ActualName)
+		}
 		bytes, err := yaml.Marshal(appProfile)
 		if err == nil {
 			desc = string(bytes)
@@ -527,6 +530,7 @@ func (a *Application) GetSvcDescription(svcName string) string {
 	desc := ""
 	profile := appProfile.FetchSvcProfileV2FromProfile(svcName)
 	if profile != nil {
+		profile.Developing = a.appMeta.CheckIfDeploymentDeveloping(svcName)
 		bytes, err := yaml.Marshal(profile)
 		if err == nil {
 			desc = string(bytes)
