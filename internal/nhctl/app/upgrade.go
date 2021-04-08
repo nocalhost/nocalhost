@@ -22,6 +22,7 @@ import (
 	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
@@ -66,7 +67,12 @@ func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error
 	}
 	useResourcePath := resourcesPath[0]
 
-	err = a.client.Apply([]string{}, true, StandardNocalhostMetas(a.Name, a.NameSpace), useResourcePath)
+	err = a.client.Apply([]string{}, true,
+		StandardNocalhostMetas(a.Name, a.NameSpace).SetBeforeApply(func(manifest string) error {
+			a.appMeta.Manifest = manifest
+			return a.appMeta.Update()
+		}),
+		useResourcePath)
 	if err != nil {
 		return err
 	}
@@ -130,36 +136,42 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 								upgradeResourcePath = configV1.ResourcePath
 							}
 						}
-
 					}
 				}
 			}
 		}
 	}
 
+	// todo need to refactor
+	a.profileV2.ResourcePath = upgradeResourcePath
+	_, manifests := a.profileV2.LoadManifests(a.getUpgradeGitDir())
+
 	// Read upgrade resource obj
-	a.loadUpgradePreInstallAndInstallManifest(upgradeResourcePath)
-	upgradeInfos, err := a.client.GetResourceInfoFromFiles(a.upgradeInstallManifest, true, "")
+	updateResource, err := clientgoutils.NewManifestResourceReader(manifests).LoadResource()
+	if err != nil {
+		return err
+	}
+
+	upgradeInfos, err := updateResource.GetResourceInfo(a.client, true)
 	if err != nil {
 		return err
 	}
 
 	// Read current resource obj
-	a.loadPreInstallAndInstallManifest()
-	oldInfos, err := a.client.GetResourceInfoFromFiles(a.installManifest, true, "")
+	oldInfos, err := a.appMeta.NewResourceReader().GetResourceInfo(a.client, true)
 	if err != nil {
 		return err
 	}
 
-	err = a.upgradeInfos(oldInfos, upgradeInfos, true)
-	if err != nil {
+	if err = a.upgradeInfos(oldInfos, upgradeInfos, true); err != nil {
 		return err
 	}
-	if len(upgradeResourcePath) > 0 {
-		appProfile, _ := a.GetProfile()
-		appProfile.ResourcePath = upgradeResourcePath
-		_ = a.SaveProfile(appProfile)
+
+	a.appMeta.Manifest = updateResource.String()
+	if err := a.appMeta.Update(); err != nil {
+		return err
 	}
+
 	return moveDir(a.getUpgradeGitDir(), a.ResourceTmpDir)
 }
 
@@ -218,6 +230,7 @@ func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*re
 			}
 		}
 	}
+
 	return nil
 }
 

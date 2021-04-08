@@ -67,8 +67,17 @@ type ApplicationMeta struct {
 	DepConfigName      string                         `json:"dep_config_name"`
 	PreInstallManifest string                         `json:"pre_install_manifest"`
 	Manifest           string                         `json:"manifest"`
+
+	// the manifest apply by nhctl apply
+	CustomManifest     string                         `json:"custom_manifest"`
+
+	// manage the dev status of the application
 	DevMeta            ApplicationDevMeta             `json:"dev_meta"`
+
+	// store all the config of application
 	Config             *profile2.NocalHostAppConfigV2 `json:"config"`
+
+	// something like database
 	Secret             *corev1.Secret                 `json:"secret"`
 
 	// current client go util is injected, may null, be care!
@@ -324,4 +333,8 @@ func (a *ApplicationMeta) delete() error {
 	}
 	a.Secret = nil
 	return nil
+}
+
+func (a *ApplicationMeta) NewResourceReader() *clientgoutils.Resource {
+	return clientgoutils.NewResourceFromStr(a.Manifest)
 }

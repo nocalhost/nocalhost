@@ -87,8 +87,6 @@ type Application struct {
 	profileV2 *profile.AppProfileV2
 
 	client                   *clientgoutils.ClientGoUtils
-	sortedPreInstallManifest []string // for pre install
-	installManifest          []string // for install
 
 	// for upgrade
 	upgradeSortedPreInstallManifest []string
@@ -100,6 +98,10 @@ type SvcDependency struct {
 	Type string   `json:"type" yaml:"type"`
 	Jobs []string `json:"jobs" yaml:"jobs,omitempty"`
 	Pods []string `json:"pods" yaml:"pods,omitempty"`
+}
+
+func (a *Application) GetAppMeta() *appmeta.ApplicationMeta {
+	return a.appMeta
 }
 
 func (a *Application) moveProfileFromFileToLeveldb() error {
@@ -230,16 +232,6 @@ type HelmFlags struct {
 	RepoName string
 	RepoUrl  string
 	Version  string
-}
-
-// if a file is a preInstall/postInstall, it should be ignored in installing
-func (a *Application) ignoredInInstall(manifest string) bool {
-	for _, pre := range a.sortedPreInstallManifest {
-		if pre == manifest {
-			return true
-		}
-	}
-	return false
 }
 
 func (a *Application) IsAnyServiceInDevMode() bool {

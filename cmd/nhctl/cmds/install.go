@@ -17,7 +17,9 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"path/filepath"
 	"time"
 
 	"nocalhost/internal/nhctl/app"
@@ -141,6 +143,10 @@ var installCmd = &cobra.Command{
 
 func InstallApplication(applicationName string) error {
 	var err error
+
+	if kubeConfig == "" { // use default config
+		kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	}
 
 	log.Logf("KubeConfig path: %s", kubeConfig)
 	bys, err := ioutil.ReadFile(kubeConfig)

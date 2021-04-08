@@ -19,10 +19,6 @@ import (
 	"math/rand"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/pkg/nhctl/clientgoutils"
-	"os"
-	"path/filepath"
-	"sort"
 	"time"
 
 	"github.com/pkg/errors"
@@ -81,9 +77,14 @@ func (a *Application) InstallKustomize(appMeta *appmeta.ApplicationMeta) error {
 }
 
 func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta) error {
-	a.loadPreInstallAndInstallManifest()
+	p, err := a.GetProfile()
+	if err != nil {
+		return err
+	}
 
-	err := a.client.ApplyAndWait(a.sortedPreInstallManifest, true,
+	preInstallManifests, manifests := p.LoadManifests(a.ResourceTmpDir)
+
+	err = a.client.ApplyAndWait(preInstallManifests, true,
 		StandardNocalhostMetas(a.Name, a.NameSpace).SetBeforeApply(
 			func(manifest string) error {
 				appMeta.PreInstallManifest = appMeta.PreInstallManifest + manifest
@@ -94,7 +95,7 @@ func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta) error {
 		return err
 	}
 
-	return a.client.Apply(a.installManifest, true,
+	return a.client.Apply(manifests, true,
 		StandardNocalhostMetas(a.Name, a.NameSpace).SetBeforeApply(
 			func(manifest string) error {
 				appMeta.Manifest = appMeta.Manifest + manifest
@@ -248,69 +249,4 @@ func (a *Application) SetInstalledStatus(is bool) {
 	defer profileV2.CloseDb()
 	profileV2.Installed = is
 	profileV2.Save()
-}
-
-func (a *Application) loadInstallManifest() {
-	a.installManifest = clientgoutils.
-		LoadValidManifest(a.GetResourceDir(),
-			append(a.getIgnoredPath(), a.getPreInstallFiles()...))
-}
-
-func (a *Application) loadPreInstallAndInstallManifest() {
-	a.loadSortedPreInstallManifest()
-	a.loadInstallManifest()
-}
-
-func (a *Application) loadUpgradePreInstallAndInstallManifest(resourcePath []string) {
-	a.loadUpgradeSortedPreInstallManifest()
-	a.loadUpgradeInstallManifest(resourcePath)
-}
-
-func (a *Application) loadUpgradeInstallManifest(upgradeResourcePath []string) {
-	a.upgradeInstallManifest = clientgoutils.
-		LoadValidManifest(a.getUpgradeResourceDir(upgradeResourcePath),
-			append(a.getUpgradeIgnoredPath(), a.getUpgradePreInstallFiles()...))
-}
-
-func (a *Application) ignoredInUpgrade(manifest string) bool {
-	for _, pre := range a.upgradeSortedPreInstallManifest {
-		if pre == manifest {
-			return true
-		}
-	}
-	return false
-}
-
-func (a *Application) loadUpgradeSortedPreInstallManifest() {
-	appProfile, _ := a.GetProfile()
-	result := make([]string, 0)
-	if appProfile.PreInstall != nil {
-		sort.Sort(profile.ComparableItems(appProfile.PreInstall))
-		for _, item := range appProfile.PreInstall {
-			itemPath := filepath.Join(a.getUpgradeGitDir(), item.Path)
-			if _, err2 := os.Stat(itemPath); err2 != nil {
-				log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
-				continue
-			}
-			result = append(result, itemPath)
-		}
-	}
-	a.upgradeSortedPreInstallManifest = result
-}
-
-func (a *Application) loadSortedPreInstallManifest() {
-	appProfile, _ := a.GetProfile()
-	result := make([]string, 0)
-	if appProfile.PreInstall != nil {
-		sort.Sort(profile.ComparableItems(appProfile.PreInstall))
-		for _, item := range appProfile.PreInstall {
-			itemPath := filepath.Join(a.ResourceTmpDir, item.Path)
-			if _, err2 := os.Stat(itemPath); err2 != nil {
-				log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
-				continue
-			}
-			result = append(result, itemPath)
-		}
-	}
-	a.sortedPreInstallManifest = result
 }
