@@ -189,6 +189,13 @@ type applicationSecretWatcher struct {
 	quit             chan bool
 }
 
+func (asw *applicationSecretWatcher) GetApplicationMetas() (result []*appmeta.ApplicationMeta) {
+	for _, meta := range asw.applicationMetas {
+		result = append(result, meta)
+	}
+	return
+}
+
 // deep copy to prevent other func change the application meta
 func (asw *applicationSecretWatcher) GetApplicationMeta(application string) *appmeta.ApplicationMeta {
 	meta := asw.applicationMetas[application]

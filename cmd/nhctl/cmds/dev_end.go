@@ -47,13 +47,13 @@ var devEndCmd = &cobra.Command{
 			log.FatalE(err, "")
 		}
 
+		if b := meta.CheckIfDeploymentDeveloping(deployment); !b {
+			log.Fatalf("Service %s is not in DevMode", deployment)
+		}
+
 		err = meta.DeploymentDevEnd(deployment)
 		if err != nil {
 			log.FatalE(err, "")
-		}
-
-		if b, _ := nocalhostApp.CheckIfSvcIsDeveloping(deployment); !b {
-			log.Fatalf("Service %s is not in DevMode", deployment)
 		}
 
 		log.Info("Terminating file sync process...")

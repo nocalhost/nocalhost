@@ -40,19 +40,6 @@ func initApp(appName string) {
 		}
 	}
 
-	// todo hjx
-	//if !nocalhost.CheckIfApplicationExist(appName, nameSpace) {
-	//	// init nocalhost default application and wait
-	//	if appName == app.DefaultNocalhostApplication {
-	//		err := initNocalhostDefaultApplicationAndWait()
-	//		if err != nil {
-	//			log.FatalE(err, "Failed to init default application in ns "+nameSpace)
-	//		}
-	//	} else {
-	//		log.Fatalf("Application %s in %s not found", appName, nameSpace)
-	//	}
-	//}
-
 	nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
 	if err != nil {
 		log.FatalE(err, "Failed to get application info")

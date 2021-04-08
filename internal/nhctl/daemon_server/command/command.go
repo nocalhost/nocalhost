@@ -29,6 +29,7 @@ const (
 	GetDaemonServerInfo   DaemonCommandType = "GetDaemonServerInfo"
 	GetDaemonServerStatus DaemonCommandType = "GetDaemonServerStatus"
 	GetApplicationMeta    DaemonCommandType = "GetApplicationMeta"
+	GetApplicationMetas   DaemonCommandType = "GetApplicationMetas"
 )
 
 type BaseCommand struct {
@@ -51,6 +52,12 @@ type GetApplicationMetaCommand struct {
 	CommandType DaemonCommandType
 	NameSpace   string `json:"nameSpace"`
 	AppName     string `json:"appName"`
+	KubeConfig  string `json:"kubeConfig"`
+}
+
+type GetApplicationMetasCommand struct {
+	CommandType DaemonCommandType
+	NameSpace   string `json:"nameSpace"`
 	KubeConfig  string `json:"kubeConfig"`
 }
 

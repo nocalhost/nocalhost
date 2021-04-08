@@ -249,25 +249,38 @@ func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.Applica
 	return appMeta, nil
 }
 
-//func CheckIfApplicationExist(appName string, namespace string) bool {
-//	// todo
-//	//appMap, err := GetNsAndApplicationInfo()
-//	//if err != nil || len(appMap) == 0 {
-//	//	return false
-//	//}
-//
-//	//for ns, appList := range appMap {
-//	//	if ns != namespace {
-//	//		continue
-//	//	}
-//	//	for _, app := range appList {
-//	//		if app == appName {
-//	//			return true
-//	//		}
-//	//	}
-//	//}
-//	return true
-//}
+func GetApplicationMetas(namespace, kubeConfig string) (appmeta.ApplicationMetas, error) {
+	cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
+	if err != nil {
+		return nil, err
+	}
+
+	if kubeConfig == "" { // use default config
+		kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	}
+
+	bys, err := ioutil.ReadFile(kubeConfig)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Error to get ApplicationMeta")
+	}
+
+	appMetas, err := cli.SendGetApplicationMetasCommand(namespace, string(bys))
+	if err != nil {
+		return nil, err
+	}
+
+	// applicationMeta use the kubeConfig content, but there use the path to init client
+	// unexpect error occur if someone change the content of kubeConfig before InitGoClient
+	// and after SendGetApplicationMetaCommand
+	for _, meta := range appMetas {
+		if err = meta.InitGoClient(kubeConfig); err != nil {
+			return nil, err
+		}
+	}
+
+	return appMetas, nil
+}
 
 // todo it's worked by dir, so it may not be very accurate
 func EstimateApplicationCounts(namespace string) int {

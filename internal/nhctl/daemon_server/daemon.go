@@ -173,6 +173,17 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType)
 
 		meta := appmeta_manager.GetApplicationMeta(gamCmd.NameSpace, gamCmd.AppName, gamCmd.KubeConfig)
 		response(conn, meta)
+
+	case command.GetApplicationMetas:
+		gamsCmd := &command.GetApplicationMetasCommand{}
+		if err = json.Unmarshal(bys, gamsCmd); err != nil {
+			log.LogE(errors.Wrap(err, ""))
+			response(conn, &daemon_common.CommonResponse{ErrInfo: err.Error()})
+			return
+		}
+
+		metas := appmeta_manager.GetApplicationMetas(gamsCmd.NameSpace, gamsCmd.KubeConfig)
+		response(conn, metas)
 	}
 }
 

@@ -178,6 +178,23 @@ func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfig str
 	}
 }
 
+func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]*appmeta.ApplicationMeta, error) {
+	gamCmd := &command.GetApplicationMetasCommand{
+		CommandType: command.GetApplicationMetas,
+		NameSpace:   ns,
+		KubeConfig:  kubeConfig,
+	}
+
+	bys, err := json.Marshal(gamCmd)
+	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
+		return nil, err
+	} else {
+		var meta []*appmeta.ApplicationMeta
+		err := json.Unmarshal(bys, &meta)
+		return meta, err
+	}
+}
+
 func (d *DaemonClient) SendStartPortForwardCommand(nhSvc *model.NocalHostResource, localPort, remotePort int, role string) error {
 
 	startPFCmd := &command.PortForwardCommand{

@@ -56,6 +56,26 @@ func ApplicationStateOf(s string) ApplicationState {
 	return UNINSTALLED
 }
 
+type ApplicationMetas []*ApplicationMeta
+type ApplicationMetaSimples []*ApplicationMetaSimple
+
+func (as ApplicationMetas) Desc() (result ApplicationMetaSimples) {
+	for _, meta := range as {
+		result = append(result, &ApplicationMetaSimple{
+			Application:      meta.Application,
+			Ns:               meta.Ns,
+			ApplicationState: meta.ApplicationState,
+		})
+	}
+	return result
+}
+
+type ApplicationMetaSimple struct {
+	Application      string           `json:"application"`
+	Ns               string           `json:"ns"`
+	ApplicationState ApplicationState `json:"application_state"`
+}
+
 type ApplicationMeta struct {
 	// could not be updated
 	Application string `json:"application"`
@@ -63,22 +83,22 @@ type ApplicationMeta struct {
 	// could not be updated
 	Ns string `json:"ns"`
 
-	ApplicationState   ApplicationState               `json:"application_state"`
-	DepConfigName      string                         `json:"dep_config_name"`
-	PreInstallManifest string                         `json:"pre_install_manifest"`
-	Manifest           string                         `json:"manifest"`
+	ApplicationState   ApplicationState `json:"application_state"`
+	DepConfigName      string           `json:"dep_config_name"`
+	PreInstallManifest string           `json:"pre_install_manifest"`
+	Manifest           string           `json:"manifest"`
 
 	// the manifest apply by nhctl apply
-	CustomManifest     string                         `json:"custom_manifest"`
+	CustomManifest string `json:"custom_manifest"`
 
 	// manage the dev status of the application
-	DevMeta            ApplicationDevMeta             `json:"dev_meta"`
+	DevMeta ApplicationDevMeta `json:"dev_meta"`
 
 	// store all the config of application
-	Config             *profile2.NocalHostAppConfigV2 `json:"config"`
+	Config *profile2.NocalHostAppConfigV2 `json:"config"`
 
 	// something like database
-	Secret             *corev1.Secret                 `json:"secret"`
+	Secret *corev1.Secret `json:"secret"`
 
 	// current client go util is injected, may null, be care!
 	clientInner *clientgoutils.ClientGoUtils
@@ -203,6 +223,22 @@ func (a *ApplicationMeta) DeploymentDevEnd(deployment string) error {
 
 	delete(m, deployment)
 	return a.Update()
+}
+
+func (a *ApplicationMeta) CheckIfDeploymentDeveloping(deployment string) bool {
+	devMeta := a.DevMeta
+	if devMeta == nil {
+		devMeta = ApplicationDevMeta{}
+		a.DevMeta = devMeta
+	}
+
+	if _, ok := devMeta[DEPLOYMENT]; !ok {
+		devMeta[DEPLOYMENT] = map[ /* resource name */ string] /* identifier */ string{}
+	}
+	m := devMeta[DEPLOYMENT]
+
+	_, ok := m[deployment]
+	return ok
 }
 
 func (a *ApplicationMeta) Update() error {

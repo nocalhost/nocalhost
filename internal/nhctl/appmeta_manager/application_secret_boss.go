@@ -20,6 +20,11 @@ type Supervisor struct {
 	lock sync.Mutex
 }
 
+func GetApplicationMetas(ns, config string) []*appmeta.ApplicationMeta {
+	aws := supervisor.inDeck(ns, config)
+	return aws.GetApplicationMetas()
+}
+
 func GetApplicationMeta(ns, appName, config string) *appmeta.ApplicationMeta {
 	aws := supervisor.inDeck(ns, config)
 	meta := aws.GetApplicationMeta(appName)
