@@ -12,6 +12,7 @@ import (
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/tools"
 	"strings"
 )
 
@@ -33,7 +34,6 @@ const (
 	ManifestLocal AppType = "rawManifestLocal"
 	HelmLocal     AppType = "helmLocal"
 	KustomizeGit  AppType = "kustomizeGit"
-	Default       AppType = "default"
 
 	UNINSTALLED ApplicationState = "UNINSTALLED"
 	INSTALLING  ApplicationState = "INSTALLING"
@@ -310,7 +310,21 @@ func (a *ApplicationMeta) Uninstall() error {
 	}
 
 	if a.IsHelm() {
-		// todo
+		commonParams := make([]string, 0)
+		if a.Ns != "" {
+			commonParams = append(commonParams, "--namespace", a.Ns)
+		}
+
+		//appProfile, _ := a.GetProfile()
+		if a.clientInner.KubeConfigFilePath() != "" {
+			commonParams = append(commonParams, "--kubeconfig", a.clientInner.KubeConfigFilePath())
+		}
+
+		uninstallParams := []string{"uninstall", a.Application}
+		uninstallParams = append(uninstallParams, commonParams...)
+		if _, err := tools.ExecCommand(nil, true, "helm", uninstallParams...); err != nil {
+			return err
+		}
 	}
 
 	// remove pre install manifest
