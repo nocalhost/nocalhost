@@ -24,7 +24,7 @@ jobs:
           sed -i "s/COMMITID/${GITHUB_SHA}/g" pod.json
           sed -i "s/NAME/${GITHUB_SHA}/g" pod.json
           cat pod.json
-          kubectl create namespace test || true
+          kubectl create namespace test --kubeconfig=config || true
           cat pod.json | kubectl create -f - --kubeconfig=config
           kubectl wait --for=condition=Ready --timeout=5m pod/${GITHUB_SHA} -n test --kubeconfig=config
           kubectl logs pods/${GITHUB_SHA} -n test -f --kubeconfig=config || true
