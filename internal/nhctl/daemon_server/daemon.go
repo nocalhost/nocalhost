@@ -66,6 +66,34 @@ func StartDaemon(isSudoUser bool, v string) error {
 		return errors.Wrap(err, "")
 	}
 
+	// run the dev event listener
+	if !isSudoUser {
+		appmeta_manager.Init()
+		appmeta_manager.RegisterListener(func(pack *appmeta_manager.ApplicationEventPack) error {
+			kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
+			if err != nil {
+				return nil
+			}
+			nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, false)
+			if err != nil {
+				return nil
+			}
+			if pack.Event.EventType == appmeta.DEV_END {
+				log.Logf("Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName, pack.Event.ResourceName)
+				if err := nhApp.StopSyncAndPortForwardProcess(pack.Event.ResourceName, true); err != nil {
+					return nil
+				}
+			} else if pack.Event.EventType == appmeta.DEV_STA {
+				log.Logf("Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName, pack.Event.ResourceName)
+				if err := nhApp.StopAllPortForward(pack.Event.ResourceName); err != nil {
+					return nil
+				}
+			}
+			return nil
+		})
+		appmeta_manager.Start()
+	}
+
 	go func() {
 		for {
 			conn, err := listener.Accept()
@@ -95,34 +123,6 @@ func StartDaemon(isSudoUser bool, v string) error {
 			_ = listener.Close()
 		}
 	}()
-
-	// run the dev event listener
-	if !isSudoUser {
-		appmeta_manager.Init()
-		appmeta_manager.RegisterListener(func(pack *appmeta_manager.ApplicationEventPack) error {
-			kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
-			if err != nil {
-				return nil
-			}
-			nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, false)
-			if err != nil {
-				return nil
-			}
-			if pack.Event.EventType == appmeta.DEV_END {
-				log.Logf("Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName, pack.Event.ResourceName)
-				if err := nhApp.StopSyncAndPortForwardProcess(pack.Event.ResourceName, true); err != nil {
-					return nil
-				}
-			} else if pack.Event.EventType == appmeta.DEV_STA {
-				log.Logf("Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName, pack.Event.ResourceName)
-				if err := nhApp.StopAllPortForward(pack.Event.ResourceName); err != nil {
-					return nil
-				}
-			}
-			return nil
-		})
-		appmeta_manager.Start()
-	}
 
 	// Recovering port forward
 	if err = pfManager.RecoverAllPortForward(); err != nil {

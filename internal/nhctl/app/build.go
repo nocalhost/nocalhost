@@ -138,10 +138,9 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 
 	if err = appMeta.Initial(); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
-			return nil, fmt.Errorf("Application %s has been installed, you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", app.Name, app.Name, app.NameSpace)
-		} else {
-			return nil, err
+			log.Error("Application %s has been installed, you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", app.Name, app.Name, app.NameSpace)
 		}
+		return nil, err
 	}
 
 	appMeta.Config = config

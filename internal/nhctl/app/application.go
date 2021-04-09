@@ -734,7 +734,7 @@ func (a *Application) SetPidFileEmpty(filePath string) error {
 }
 
 func (a *Application) CleanUpTmpResources() error {
-	log.Info("Clean up tmp resources...")
+	log.Log("Clean up tmp resources...")
 	return errors.Wrap(os.RemoveAll(a.ResourceTmpDir), fmt.Sprintf("fail to remove resources dir %s", a.ResourceTmpDir))
 }
 

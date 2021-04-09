@@ -8,6 +8,7 @@ import (
 	"github.com/ulikunitz/xz"
 	"io"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -196,6 +197,9 @@ func (a *ApplicationMeta) Initial() error {
 
 	createSecret, err := a.clientInner.NameSpace(a.Ns).CreateSecret(&secret, metav1.CreateOptions{})
 	if err != nil {
+		if k8serrors.IsAlreadyExists(err) {
+			return err
+		}
 		return errors.Wrap(err, "Error while Initial Application meta ")
 	}
 	a.Secret = createSecret

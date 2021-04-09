@@ -3,6 +3,7 @@ package appmeta_manager
 import (
 	"crypto/sha256"
 	"encoding"
+	"encoding/json"
 	"fmt"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/pkg/nhctl/log"
@@ -53,11 +54,23 @@ func (s *Supervisor) inDeck(ns, config string) *applicationSecretWatcher {
 	watchDeck := s.key(ns, config)
 
 	watcher := NewApplicationSecretWatcher(config, ns)
+
+	log.Infof("Prepare for ns %s", ns)
+	if err := watcher.Prepare(); err != nil {
+		log.FatalE(err, "")
+	}
+
+	log.Infof("Prepare complete, start to watch for ns %s", ns)
 	go func() {
 		watcher.Watch()
 		s.outDeck(ns, config)
 	}()
+
 	s.deck[watchDeck] = watcher
+
+	marshal, _ := json.Marshal(watcher.applicationMetas)
+	log.Infof("applicationMetas:   %s", marshal)
+
 	return watcher
 }
 

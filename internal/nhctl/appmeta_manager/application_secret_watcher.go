@@ -1,8 +1,10 @@
 package appmeta_manager
 
 import (
+	"context"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -59,30 +61,11 @@ func (c *Controller) updateApplicationMeta(key string) error {
 		return err
 	}
 
-	// resolve dev event
-	devMetaBefore := appmeta.ApplicationDevMeta{}
-	devMetaCurrent := appmeta.ApplicationDevMeta{}
-
-	asw := c.asw
 	var appName string
 	if exists {
 		if secret, ok := obj.(*v1.Secret); ok {
-			asw.lock.Lock()
-			defer asw.lock.Unlock()
 
-			current, err := appmeta.Decode(secret)
-			if err != nil {
-				return err
-			}
-			appName = current.Application
-
-			if before, ok := asw.applicationMetas[appName]; ok && before != nil {
-				devMetaBefore = before.GetApplicationDevMeta()
-			}
-
-			devMetaCurrent = current.DevMeta
-
-			asw.applicationMetas[appName] = current
+			return c.join(secret)
 		} else {
 			errInfo := fmt.Sprintf("Fetching secret with key %s but could not cast to secret: %v", key, obj)
 			log.Error(errInfo)
@@ -94,14 +77,32 @@ func (c *Controller) updateApplicationMeta(key string) error {
 			return err
 		}
 
-		asw.lock.Lock()
-		defer asw.lock.Unlock()
-
-		if before, ok := asw.applicationMetas[appName]; ok {
-			devMetaBefore = before.GetApplicationDevMeta()
-		}
-		delete(asw.applicationMetas, appName)
+		c.left(appName)
 	}
+
+	return nil
+}
+
+func (c *Controller) join(secret *v1.Secret) error {
+	devMetaBefore := appmeta.ApplicationDevMeta{}
+	devMetaCurrent := appmeta.ApplicationDevMeta{}
+
+	asw := c.asw
+	asw.lock.Lock()
+	defer asw.lock.Unlock()
+
+	current, err := appmeta.Decode(secret)
+	if err != nil {
+		return err
+	}
+	appName := current.Application
+
+	if before, ok := asw.applicationMetas[appName]; ok && before != nil {
+		devMetaBefore = before.GetApplicationDevMeta()
+	}
+
+	devMetaCurrent = current.DevMeta
+	asw.applicationMetas[appName] = current
 
 	for _, event := range *devMetaBefore.Events(devMetaCurrent) {
 		EventPush(&ApplicationEventPack{
@@ -113,6 +114,29 @@ func (c *Controller) updateApplicationMeta(key string) error {
 	}
 
 	return nil
+}
+
+func (c *Controller) left(appName string) {
+	devMetaBefore := appmeta.ApplicationDevMeta{}
+	devMetaCurrent := appmeta.ApplicationDevMeta{}
+
+	asw := c.asw
+	asw.lock.Lock()
+	defer asw.lock.Unlock()
+
+	if before, ok := asw.applicationMetas[appName]; ok {
+		devMetaBefore = before.GetApplicationDevMeta()
+	}
+	delete(asw.applicationMetas, appName)
+
+	for _, event := range *devMetaBefore.Events(devMetaCurrent) {
+		EventPush(&ApplicationEventPack{
+			Event:      event,
+			Ns:         asw.ns,
+			AppName:    appName,
+			KubeConfig: asw.kubeConfig,
+		})
+	}
 }
 
 // handleErr checks if an error happened and makes sure we will retry later.
@@ -187,6 +211,8 @@ type applicationSecretWatcher struct {
 	applicationMetas map[string]*appmeta.ApplicationMeta
 	lock             sync.Mutex
 	quit             chan bool
+
+	watchController *Controller
 }
 
 func (asw *applicationSecretWatcher) GetApplicationMetas() (result []*appmeta.ApplicationMeta) {
@@ -220,18 +246,16 @@ func (asw *applicationSecretWatcher) Quit() {
 	asw.quit <- true
 }
 
-// todo stop while Ns deleted
-// this method will block until error occur
-func (asw *applicationSecretWatcher) Watch() {
+func (asw *applicationSecretWatcher) Prepare() error {
 	c, err := clientcmd.RESTConfigFromKubeConfig([]byte(asw.kubeConfig))
 	if err != nil {
-		return
+		return err
 	}
 
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(c)
 	if err != nil {
-		return
+		return err
 	}
 
 	// create the secret watcher
@@ -269,9 +293,29 @@ func (asw *applicationSecretWatcher) Watch() {
 
 	controller := NewController(queue, indexer, informer, asw)
 
+	// first get all nocalhost secrets for initial
+	list, err := clientset.CoreV1().Secrets(asw.ns).List(context.TODO(),
+		metav1.ListOptions{FieldSelector: "type=" + appmeta.SecretType},
+	)
+	if err != nil {
+		return err
+	}
+
+	for _, item := range list.Items {
+		if err := controller.join(&item); err != nil {
+			return err
+		}
+	}
+
+	asw.watchController = controller
+	return nil
+}
+
+// todo stop while Ns deleted
+// this method will block until error occur
+func (asw *applicationSecretWatcher) Watch() {
 	stop := make(chan struct{})
 	defer close(stop)
-	go controller.Run(1, stop)
-
+	go asw.watchController.Run(1, stop)
 	<-asw.quit
 }
