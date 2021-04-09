@@ -130,7 +130,7 @@ func StartDaemon(isSudoUser bool, v string) error {
 	}
 
 	// Recovering syncthing
-	// nhctl sync bookinfo -d productpage --resume --kubeconfig /Users/xinxinhuang/.nh/plugin/kubeConfigs/293_config
+	// nhctl sync bookinfo -d productpage --resume --kubeconfig /Users/xxx/.nh/plugin/kubeConfigs/293_config
 	if err = recoverSyncthing(); err != nil {
 		log.LogE(err)
 	}

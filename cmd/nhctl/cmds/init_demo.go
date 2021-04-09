@@ -47,7 +47,7 @@ var inits = &Init{}
 func init() {
 	InitCommand.Flags().StringVarP(&inits.Type, "type", "t", "", "set NodePort or LoadBalancer to expose nocalhost service")
 	InitCommand.Flags().IntVarP(&inits.Port, "port", "p", 80, "for NodePort usage set ports")
-	InitCommand.Flags().StringVarP(&inits.Source, "source", "s", "", "bookinfo source, github or coding, default is github")
+	InitCommand.Flags().StringVarP(&inits.Source, "source", "s", "", "(Deprecated) bookinfo source, github or coding, default is github")
 	InitCommand.Flags().StringVarP(&inits.NameSpace, "namespace", "n", "nocalhost", "set init nocalhost namesapce")
 	InitCommand.Flags().StringSliceVar(&inits.Set, "set", []string{}, "set values of helm")
 	InitCommand.Flags().BoolVar(&inits.Force, "force", false, "force to init, warning: it will remove all nocalhost old data")
@@ -220,15 +220,15 @@ var InitCommand = &cobra.Command{
 		spinner.Stop()
 
 		// bookinfo source from
-		source := app.DefaultInitApplicationGithub
-		if strings.ToLower(inits.Source) == "coding" {
-			source = app.DefaultInitApplicationCODING
-		}
+		//source := app.DefaultInitApplicationGithub
+		//if strings.ToLower(inits.Source) == "coding" {
+		//	source = app.DefaultInitApplicationCODING
+		//}
 
 		endpoint := findOutWebEndpoint(client)
 
 		// set default cluster, application, users
-		req := request.NewReq(fmt.Sprintf("http://%s", endpoint), kubeConfig, kubectl, inits.NameSpace, inits.Port).Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).GetKubeConfig().AddBookInfoApplication(source).AddCluster().AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).AddDevSpace()
+		req := request.NewReq(fmt.Sprintf("http://%s", endpoint), kubeConfig, kubectl, inits.NameSpace, inits.Port).Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).GetKubeConfig().AddBookInfoApplicationForThree().AddCluster().AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).AddDevSpace()
 
 		// should inject batch user
 		if inits.InjectUserTemplate != "" && inits.InjectUserAmount > 0 {
