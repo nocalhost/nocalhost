@@ -21,6 +21,7 @@ import (
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -72,5 +73,10 @@ func GetProfileV2(ns, app string) (*profile.AppProfileV2, error) {
 	}
 
 	err = yaml.Unmarshal(bys, result)
+	if err != nil {
+		re, _ := regexp.Compile("remoteDebugPort: \"[0-9]*\"") // fix string convert int error
+		rep := re.ReplaceAllString(string(bys), "")
+		err = yaml.Unmarshal([]byte(rep), result)
+	}
 	return result, errors.Wrap(err, "")
 }
