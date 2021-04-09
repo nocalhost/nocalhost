@@ -1,0 +1,40 @@
+name: test
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:
+
+jobs:
+  run-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kubectl tool installer
+        uses: Azure/setup-kubectl@v1
+      - id: job
+        name: run job
+        run: |
+          echo ${{ secrets.kube_config }} | base64 -d >> config
+          cat <<EOF>>pod.json
+          {"apiVersion":"v1","kind":"Pod","metadata":{"name":"NAME","namespace":"test","labels":{"app":"test"}},"spec":{"restartPolicy":"Never","containers":[{"name":"test","image":"codingcorp-docker.pkg.coding.net/nocalhost/public/testcase:latest","imagePullPolicy":"Always","env":[{"name":"COMMIT_ID","value":"COMMITID"}],"volumeMounts":[{"name":"kubeconfig","mountPath":"/root/.kube/config","subPath":"config"}]}],"volumes":[{"name":"kubeconfig","hostPath":{"path":"/root/.kube/"}}]}}
+          EOF
+          sed -i "s#PATH#$(pwd)#g" pod.json
+          sed -i "s/COMMITID/${GITHUB_SHA}/g" pod.json
+          sed -i "s/NAME/${GITHUB_SHA}/g" pod.json
+          cat pod.json
+          kubectl create namespace test --kubeconfig=config || true
+          cat pod.json | kubectl create -f - --kubeconfig=config
+          kubectl wait --for=condition=Ready --timeout=5m pod/${GITHUB_SHA} -n test --kubeconfig=config
+          kubectl logs pods/${GITHUB_SHA} -n test -f --kubeconfig=config || true
+          kubectl get pods ${GITHUB_SHA} -n test --kubeconfig=config | grep Completed
+  clean:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: run-job
+    steps:
+      - uses: nickgronow/kubectl@v1.17.4
+        with:
+          config_data: ${{ secrets.kube_config }}
+          args: 'delete pod ${GITHUB_SHA} -n test'
