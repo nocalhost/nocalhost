@@ -210,17 +210,21 @@ func (a *Application) renderConfig(configFilePath string) (*profile.NocalHostApp
 	}
 
 	if configVersion == "v1" {
-		err = ConvertConfigFileV1ToV2(configFilePath, a.GetConfigV2Path())
-		if err != nil {
+		if err = ConvertConfigFileV1ToV2(configFilePath, a.GetConfigV2Path()); err != nil {
 			return nil, err
 		}
 
 		renderedStr, err = envsubst.Render(fp.NewFilePath(a.GetConfigV2Path()), envFile)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// convert un strict yaml to strict yaml
 	renderedConfig := &profile.NocalHostAppConfigV2{}
-	_ = yaml.Unmarshal([]byte(renderedStr), renderedConfig)
+	if err = yaml.Unmarshal([]byte(renderedStr), renderedConfig); err != nil {
+		return nil, err
+	}
 
 	// remove the duplicate service config (we allow users to define duplicate service and keep the last one)
 	if renderedConfig.ApplicationConfig != nil && renderedConfig.ApplicationConfig.ServiceConfigs != nil {
