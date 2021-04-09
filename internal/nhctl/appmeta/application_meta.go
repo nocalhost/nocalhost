@@ -286,7 +286,7 @@ func (a *ApplicationMeta) prepare() {
 	a.Secret.Data[SecretDepKey] = []byte(a.DepConfigName)
 	a.Secret.Data[SecretAppTypeKey] = []byte(a.ApplicationType)
 
-	devMeta, _ := json.Marshal(a.DevMeta)
+	devMeta, _ := json.Marshal(&a.DevMeta)
 	a.Secret.Data[SecretDevMetaKey] = devMeta
 
 }

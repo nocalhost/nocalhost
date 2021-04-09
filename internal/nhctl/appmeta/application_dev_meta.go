@@ -21,7 +21,17 @@ type ApplicationEvent struct {
 	DevType      ApplicationDevType
 }
 
+func (from *ApplicationDevMeta) copy() ApplicationDevMeta {
+	m := map[ApplicationDevType]map[ /* resource name */ string]string{}
+	for k, v := range *from {
+		m[k] = v
+	}
+	return m
+}
+
 func (from *ApplicationDevMeta) Events(to ApplicationDevMeta) *[]*ApplicationEvent {
+	to = to.copy()
+
 	var result []*ApplicationEvent
 
 	marshalFrom, err := json.Marshal(from)
