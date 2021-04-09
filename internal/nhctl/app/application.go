@@ -24,7 +24,6 @@ import (
 	"nocalhost/internal/nhctl/nocalhost"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"os"
 	"strconv"
@@ -539,15 +538,12 @@ func (a *Application) ListContainersByDeployment(depName string) ([]corev1.Conta
 
 // Role: If set to "SYNC", means it is a pf used for syncthing
 func (a *Application) PortForward(deployment, podName string, localPort, remotePort int, role string) error {
-	if localPort == 0 || remotePort == 0 {
-		return errors.New(fmt.Sprintf("Port-forward %d:%d failed", localPort, remotePort))
-	}
 
-	if isAvailable := ports.IsTCP4PortAvailable("0.0.0.0", localPort); isAvailable {
-		log.Infof("Port %d is available", localPort)
-	} else {
-		return errors.New(fmt.Sprintf("Port %d is unavailable", localPort))
-	}
+	//if isAvailable := ports.IsTCP4PortAvailable("0.0.0.0", localPort); isAvailable {
+	//	log.Infof("Port %d is available", localPort)
+	//} else {
+	//	return errors.New(fmt.Sprintf("Port %d is unavailable", localPort))
+	//}
 
 	isAdmin := utils.IsSudoUser()
 	client, err := daemon_client.NewDaemonClient(isAdmin)

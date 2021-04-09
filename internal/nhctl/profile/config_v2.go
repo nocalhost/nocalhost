@@ -89,7 +89,7 @@ type SyncConfig struct {
 }
 
 type DebugConfig struct {
-	RemoteDebugPort string `json:"remoteDebugPort" yaml:"remoteDebugPort"`
+	RemoteDebugPort int `json:"remoteDebugPort" yaml:"remoteDebugPort"`
 }
 
 type DependLabelSelector struct {
