@@ -25,6 +25,7 @@ import (
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -205,6 +206,10 @@ func (a *Application) LoadConfigV2() error {
 		return errors.New(fmt.Sprintf("fail to load configFile : %s", a.GetConfigV2Path()))
 	}
 	if err = yaml.Unmarshal(rbytes, config); err != nil {
+		re, _ := regexp.Compile("remoteDebugPort: \"[0-9]*\"")
+		rep := re.ReplaceAllString(string(rbytes), "")
+		//log.Infof("zzzz %s", rep)
+		err = yaml.Unmarshal([]byte(rep), config)
 		return errors.Wrap(err, "")
 	}
 	a.configV2 = config
