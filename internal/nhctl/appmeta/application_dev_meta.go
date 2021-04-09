@@ -24,7 +24,11 @@ type ApplicationEvent struct {
 func (from *ApplicationDevMeta) copy() ApplicationDevMeta {
 	m := map[ApplicationDevType]map[ /* resource name */ string]string{}
 	for k, v := range *from {
-		m[k] = v
+		im := map[ /* resource name */ string]string{}
+		for ik, iv := range v {
+			im[ik] = iv
+		}
+		m[k] = im
 	}
 	return m
 }
