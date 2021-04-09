@@ -18,7 +18,7 @@ jobs:
         run: |
           echo ${{ secrets.kube_config }} | base64 -d >> config
           cat <<EOF>>pod.json
-          {"apiVersion":"v1","kind":"Pod","metadata":{"name":"NAME","namespace":"test","labels":{"app":"test"}},"spec":{"restartPolicy":"Never","containers":[{"name":"test","image":"codingcorp-docker.pkg.coding.net/nocalhost/public/testcase:latest","env":[{"name":"COMMIT_ID","value":"COMMITID"}],"volumeMounts":[{"name":"kubeconfig","mountPath":"/root/.kube/config","subPath":"config"}]}],"volumes":[{"name":"kubeconfig","hostPath":{"path":"/root/.kube/"}}]}}
+          {"apiVersion":"v1","kind":"Pod","metadata":{"name":"NAME","namespace":"test","labels":{"app":"test"}},"spec":{"restartPolicy":"Never","containers":[{"name":"test","image":"codingcorp-docker.pkg.coding.net/nocalhost/public/testcase:latest","imagePullPolicy":"Always","env":[{"name":"COMMIT_ID","value":"COMMITID"}],"volumeMounts":[{"name":"kubeconfig","mountPath":"/root/.kube/config","subPath":"config"}]}],"volumes":[{"name":"kubeconfig","hostPath":{"path":"/root/.kube/"}}]}}
           EOF
           sed -i "s#PATH#$(pwd)#g" pod.json
           sed -i "s/COMMITID/${GITHUB_SHA}/g" pod.json
