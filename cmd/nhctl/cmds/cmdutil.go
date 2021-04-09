@@ -39,20 +39,20 @@ func initApp(appName string) {
 	nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
 
 	// if default application not found, try to creat one
-	if err != nil && errors.Is(err, app.ErrNotFound) && appName == app.DefaultNocalhostApplication {
+	if err != nil {
+		if errors.Is(err, app.ErrNotFound) && appName == app.DefaultNocalhostApplication {
+			// try init default application
+			if err := InitDefaultApplicationInCurrentNs(); err != nil {
+				log.FatalE(err, "Error while create default application")
+			}
 
-		// try init default application
-		if err := InitDefaultApplicationInCurrentNs(); err != nil {
-			log.FatalE(err, "Error while create default application")
+			// then reNew nocalhostApp
+			if nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true); err != nil {
+				log.FatalE(err, "Error while init default application")
+			}
+		} else {
+			log.FatalE(err, "Failed to get application info")
 		}
-
-		// then reNew nocalhostApp
-		if nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true); err != nil {
-			log.FatalE(err, "Error while init default application")
-		}
-
-	} else {
-		log.FatalE(err, "Failed to get application info")
 	}
 	log.AddField("APP", nocalhostApp.Name)
 }
