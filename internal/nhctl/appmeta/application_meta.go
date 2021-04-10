@@ -15,10 +15,10 @@ package appmeta
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/ulikunitz/xz"
+	"gopkg.in/yaml.v2"
 	"io"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -27,6 +27,7 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
+	"regexp"
 	"strings"
 )
 
@@ -93,6 +94,7 @@ func (as ApplicationMetas) Desc() (result ApplicationMetaSimples) {
 			Application:      meta.Application,
 			Ns:               meta.Ns,
 			ApplicationState: meta.ApplicationState,
+			DevMeta:          meta.DevMeta,
 		})
 	}
 	return result
@@ -102,6 +104,8 @@ type ApplicationMetaSimple struct {
 	Application      string           `json:"application"`
 	Ns               string           `json:"ns"`
 	ApplicationState ApplicationState `json:"application_state"`
+	// manage the dev status of the application
+	DevMeta ApplicationDevMeta `json:"dev_meta"`
 }
 
 type ApplicationMeta struct {
@@ -170,14 +174,12 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 	if bs, ok := secret.Data[SecretDevMetaKey]; ok {
 		devMeta := &ApplicationDevMeta{}
 
-		_ = json.Unmarshal(bs, devMeta)
+		_ = yaml.Unmarshal(bs, devMeta)
 		appMeta.DevMeta = *devMeta
 	}
 
 	if bs, ok := secret.Data[SecretConfigKey]; ok {
-		config := &profile2.NocalHostAppConfigV2{}
-
-		_ = json.Unmarshal(decompress(bs), config)
+		config, _ := unmarshalConfigUnStrict(decompress(bs))
 		appMeta.Config = config
 	}
 
@@ -292,16 +294,15 @@ func (a *ApplicationMeta) prepare() {
 	a.Secret.Data[SecretPreInstallKey] = compress([]byte(a.PreInstallManifest))
 	a.Secret.Data[SecretManifestKey] = compress([]byte(a.Manifest))
 
-	config, _ := json.Marshal(a.Config)
+	config, _ := yaml.Marshal(a.Config)
 	a.Secret.Data[SecretConfigKey] = compress(config)
 
 	a.Secret.Data[SecretStateKey] = []byte(a.ApplicationState)
 	a.Secret.Data[SecretDepKey] = []byte(a.DepConfigName)
 	a.Secret.Data[SecretAppTypeKey] = []byte(a.ApplicationType)
 
-	devMeta, _ := json.Marshal(&a.DevMeta)
+	devMeta, _ := yaml.Marshal(&a.DevMeta)
 	a.Secret.Data[SecretDevMetaKey] = devMeta
-
 }
 
 func (a *ApplicationMeta) IsInstalled() bool {
@@ -462,4 +463,15 @@ func decompress(input []byte) []byte {
 	buffer := new(bytes.Buffer)
 	_, _ = buffer.ReadFrom(r)
 	return buffer.Bytes()
+}
+
+func unmarshalConfigUnStrict(cfg []byte) (*profile2.NocalHostAppConfigV2, error) {
+	result := &profile2.NocalHostAppConfigV2{}
+	err := yaml.Unmarshal(cfg, result)
+	if err != nil {
+		re, _ := regexp.Compile("remoteDebugPort: \"[0-9]*\"") // fix string convert int error
+		rep := re.ReplaceAllString(string(cfg), "")
+		err = yaml.Unmarshal([]byte(rep), result)
+	}
+	return result, err
 }

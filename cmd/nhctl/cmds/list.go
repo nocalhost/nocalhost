@@ -36,6 +36,7 @@ var listFlags = &app_flags.ListFlags{}
 func init() {
 	listCmd.Flags().BoolVar(&listFlags.Yaml, "yaml", false, "use yaml as out put, only supports for 'nhctl list'")
 	listCmd.Flags().BoolVar(&listFlags.Json, "json", false, "use json as out put, only supports for 'nhctl list'")
+	listCmd.Flags().BoolVar(&listFlags.Full, "full", false, "list application meta full")
 	rootCmd.AddCommand(listCmd)
 }
 
@@ -61,6 +62,8 @@ var listCmd = &cobra.Command{
 			ListApplicationsYaml()
 		} else if listFlags.Json {
 			ListApplicationsJson()
+		} else if listFlags.Full {
+			ListApplicationsFull()
 		} else {
 			ListApplications()
 		}
@@ -102,6 +105,15 @@ func ListApplicationsResult() []*Namespace {
 	}
 	result = append(result, ns)
 	return result
+}
+
+func ListApplicationsFull() {
+	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
+	if err != nil {
+		log.FatalE(err, "Failed to get application metas")
+	}
+	marshal, _ := yaml.Marshal(metas.Desc())
+	fmt.Print(string(marshal))
 }
 
 func ListApplicationsJson() {
