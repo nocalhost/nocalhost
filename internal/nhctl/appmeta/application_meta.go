@@ -227,6 +227,20 @@ func (a *ApplicationMeta) InitGoClient(kubeConfigPath string) error {
 	return err
 }
 
+func (a *ApplicationMeta) DeploymentDevModePossessor(deployment, identifier string) bool {
+	devMeta := a.DevMeta
+	if devMeta == nil {
+		devMeta = ApplicationDevMeta{}
+		a.DevMeta = devMeta
+	}
+
+	if _, ok := devMeta[DEPLOYMENT]; !ok {
+		devMeta[DEPLOYMENT] = map[ /* resource name */ string] /* identifier */ string{}
+	}
+	m := devMeta[DEPLOYMENT]
+	return m[deployment] == identifier && identifier != ""
+}
+
 func (a *ApplicationMeta) DeploymentDevStart(deployment, identifier string) error {
 	devMeta := a.DevMeta
 	if devMeta == nil {
@@ -315,6 +329,10 @@ func (a *ApplicationMeta) IsInstalling() bool {
 
 func (a *ApplicationMeta) IsNotInstall() bool {
 	return a.ApplicationState == UNINSTALLED
+}
+
+func (a *ApplicationMeta) NotInstallTips() string {
+	return fmt.Sprintf("Application %s in ns %s is not installed or under installing, or maybe the kubeconfig provided has not permitted to this namespace ", a.Application, a.Ns)
 }
 
 func (a *ApplicationMeta) IsHelm() bool {

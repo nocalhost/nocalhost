@@ -15,6 +15,7 @@ package profile
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"gopkg.in/yaml.v2"
@@ -43,6 +44,7 @@ type AppProfileV2 struct {
 	ResourcePath            RelPath         `json:"resource_path" yaml:"resourcePath"`
 	IgnoredPath             RelPath         `json:"ignoredPath" yaml:"ignoredPath"`
 	PreInstall              SortedRelPath   `json:"onPreInstall" yaml:"onPreInstall"`
+	Identifier              string          `json:"identifier" yaml:"identifier"`
 
 	// After v2
 	//GitUrl       string `json:"gitUrl" yaml:"gitUrl"`
@@ -164,6 +166,15 @@ func (a *AppProfileV2) FetchSvcProfileV2FromProfile(svcName string) *SvcProfileV
 	return svcProfile
 }
 
+// this method will not save the Identifier,
+// make sure it will be saving while use
+func (a *AppProfileV2) GenerateIdentifierIfNeeded() {
+	if a.Identifier == "" && a != nil {
+		u, _ := uuid.NewRandom()
+		a.Identifier = u.String()
+	}
+}
+
 func (a *AppProfileV2) Save() error {
 	if a.db == nil {
 		return nil
@@ -203,10 +214,10 @@ type SvcProfileV2 struct {
 	LocalSyncthingGUIPort                  int               `json:"localSyncthingGUIPort" yaml:"localSyncthingGUIPort"`
 	LocalAbsoluteSyncDirFromDevStartPlugin []string          `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
 	DevPortForwardList                     []*DevPortForward `json:"devPortForwardList" yaml:"devPortForwardList"` // combine DevPortList,PortForwardStatusList and PortForwardPidList
-	// Deprecated later
-	//DevPortList           []string `json:"devPortList" yaml:"devPortList"`
-	//PortForwardStatusList []string `json:"portForwardStatusList" yaml:"portForwardStatusList"`
-	//PortForwardPidList    []string `json:"portForwardPidList" yaml:"portForwardPidList"`
+
+	// mean the current svc is possess by current nhctl context
+	// and the syncthing process is listen on current device
+	Possess bool
 }
 
 type ContainerProfileV2 struct {

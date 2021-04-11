@@ -16,7 +16,6 @@ package cmds
 import (
 	"context"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
@@ -70,18 +69,8 @@ var devStartCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
 
-		meta, err := nocalhost.GetApplicationMetaInstalled(applicationName, nameSpace, kubeConfig)
-		if err != nil {
-			log.FatalE(err, "")
-		}
-
-		err = meta.DeploymentDevStart(deployment, "fake")
-		if err != nil {
-			log.FatalE(err, "")
-		}
-
-		if b, _ := nocalhostApp.CheckIfSvcIsDeveloping(deployment); b {
-			log.Fatalf("Service \"%s\" is already in developing", deployment)
+		if !nocalhostApp.GetAppMeta().IsInstalled() {
+			log.Fatalf(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
 
 		devStartOps.Kubeconfig = kubeConfig
@@ -107,9 +96,16 @@ var devStartCmd = &cobra.Command{
 		if len(devStartOps.LocalSyncDir) > 0 {
 			svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 		}
+		profileV2.GenerateIdentifierIfNeeded()
+
 		//_ = nocalhostApp.SaveProfile()
 		profileV2.Save()
 		profileV2.CloseDb()
+
+		err = nocalhostApp.GetAppMeta().DeploymentDevStart(deployment, profileV2.Identifier)
+		if err != nil {
+			log.FatalE(err, "")
+		}
 
 		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOps.Container, devStartOps.LocalSyncDir, false)
 		if err != nil {

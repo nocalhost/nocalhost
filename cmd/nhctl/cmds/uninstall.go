@@ -57,7 +57,7 @@ var uninstallCmd = &cobra.Command{
 			log.FatalE(err, "")
 		}
 		if appMeta == nil || appMeta.IsNotInstall() {
-			log.Fatalf("Application %s in ns %s is not installed or under installing, or maybe the kubeconfig provided has not permitted to this namespace ", applicationName, nameSpace)
+			log.Fatalf(appMeta.NotInstallTips())
 		}
 
 		log.Info("Uninstalling application...")

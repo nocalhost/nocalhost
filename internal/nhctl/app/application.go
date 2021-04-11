@@ -140,7 +140,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	}
 
 	if app.profileV2, err = nocalhost.GetProfileV2(app.NameSpace, app.Name); err != nil {
-		if _, err := os.Stat(app.getProfileV2Path()); err == nil { // todo: hjh move to version upgrading
+		if _, err := os.Stat(app.getProfileV2Path()); err == nil {
 			if err = app.moveProfileFromFileToLeveldb(); err != nil {
 				return nil, err
 			}
@@ -507,6 +507,7 @@ func (a *Application) GetDescription() string {
 		appProfile.Installed = meta.IsInstalled()
 		for _, svcProfile := range appProfile.SvcProfile {
 			svcProfile.Developing = meta.CheckIfDeploymentDeveloping(svcProfile.ActualName)
+			svcProfile.Possess = a.appMeta.DeploymentDevModePossessor(svcProfile.ActualName, appProfile.Identifier)
 		}
 		bytes, err := yaml.Marshal(appProfile)
 		if err == nil {
@@ -522,6 +523,7 @@ func (a *Application) GetSvcDescription(svcName string) string {
 	profile := appProfile.FetchSvcProfileV2FromProfile(svcName)
 	if profile != nil {
 		profile.Developing = a.appMeta.CheckIfDeploymentDeveloping(svcName)
+		profile.Possess = a.appMeta.DeploymentDevModePossessor(svcName, appProfile.Identifier)
 		bytes, err := yaml.Marshal(profile)
 		if err == nil {
 			desc = string(bytes)
