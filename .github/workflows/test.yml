@@ -14,8 +14,8 @@ jobs:
       - name: check images are alreay or not
           run: |
             COMMIT_ID=${GITHUB_SHA}
-            ProjectId=${{ secrets.project_id }}
-            Token=${{ secrets.token }}
+            ProjectId=${{ secrets.coding_project_id }}
+            Token=${{ secrets.coding_token }}
             while true; do
               url='https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/nhctl-linux-amd64?version='$COMMIT_ID''
               a=$(curl -s "$url")
