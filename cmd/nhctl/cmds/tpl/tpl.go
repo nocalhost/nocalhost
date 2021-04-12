@@ -250,6 +250,6 @@ func GetSvcTpl(svcName string) (string, error) {
 	return buf.String(), nil
 }
 
-func ConbineTpl() string {
+func CombineTpl() string {
 	return applicationTpl + svcTpl
 }

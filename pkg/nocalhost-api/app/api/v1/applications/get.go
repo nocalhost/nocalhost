@@ -174,7 +174,7 @@ func PluginGet(c *gin.Context) {
 // @Router /v1/nocalhost/templates [get]
 func GetNocalhostConfigTemplate(c *gin.Context) {
 	result := map[string]string{
-		"template": tpl.ConbineTpl(),
+		"template": tpl.CombineTpl(),
 	}
 	api.SendResponse(c, errno.OK, result)
 }
