@@ -10,6 +10,7 @@ on:
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: check images are alreay or not
         run: |
@@ -18,7 +19,9 @@ jobs:
           Token=${{ secrets.coding_token }}
           while true; do
             url='https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/nhctl-linux-amd64?version='$COMMIT_ID''
+            echo "url: ""$url"
             a=$(curl -s "$url")
+            echo "response: ""$a"
             if [[ $a =~ "File not found" ]]; then
               sleep 5
             else
