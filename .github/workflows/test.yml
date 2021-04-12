@@ -44,6 +44,8 @@ jobs:
                 "Package": '"$Package"',
                 "PackageVersion":'"$PackageVersion"'
               }')
+              echo "wait for package: ""$Package""version: ""$PackageVersion"
+              echo "response: ""$res"
               if [[ $res =~ "version not found" ]]; then
                 sleep 5
               else
