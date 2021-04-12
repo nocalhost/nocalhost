@@ -3,7 +3,7 @@ name: nhctl
 on:
   push:
     branches: [ main, dev ]
-    paths:
+#    paths:
 #    - 'cmd/nhctl/**'
 #    - 'internal/nhctl/**'
 #    - 'pkg/nhctl/**'
