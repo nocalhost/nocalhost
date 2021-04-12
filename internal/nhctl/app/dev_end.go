@@ -108,9 +108,8 @@ func (a *Application) StopSyncAndPortForwardProcess(svcName string, cleanRemoteS
 	err := a.StopFileSyncOnly(svcName)
 
 	log.Info("Stopping port forward")
-	err = a.StopAllPortForward(svcName)
-	if err != nil {
-		log.WarnE(err, err.Error())
+	if err = a.StopAllPortForward(svcName); err != nil {
+		log.WarnE(err, "")
 	}
 
 	// Clean up secret

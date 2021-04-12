@@ -30,6 +30,8 @@ func (a *Application) GetSvcProfile(svcName string) (*profile.SvcProfileV2, erro
 	return svcProfile, nil
 
 }
+
+// Deprecated
 func (a *Application) CheckIfSvcIsDeveloping(svcName string) (bool, error) {
 
 	svcProfile, err := a.GetSvcProfile(svcName)
