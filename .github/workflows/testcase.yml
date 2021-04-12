@@ -49,7 +49,7 @@ jobs:
           CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/testcase
         run: |
           echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
-          docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
+          docker tag testcase:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
           docker push ${CODING_IMAGE_NAME}:latest
 
       - name: Push latest tag to Coding Artifacts
