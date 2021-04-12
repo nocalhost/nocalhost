@@ -32,6 +32,7 @@ type BaseRepo interface {
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
 	GetUserList(ctx context.Context) ([]*model.UserList, error)
+	UpdateServiceAccountName(ctx context.Context, id uint64, saName string) error
 	Close()
 }
 
@@ -89,6 +90,15 @@ func (repo *userBaseRepo) Update(ctx context.Context, id uint64, userMap *model.
 		return user, errors.Wrap(err, "[user_repo] update user data error")
 	}
 	return user, nil
+}
+
+// Update
+func (repo *userBaseRepo) UpdateServiceAccountName(ctx context.Context, id uint64, saName string) error {
+	if err := repo.db.Exec("UPDATE users SET sa_name = ? WHERE id = ?", saName, id).Error; err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetUserByID

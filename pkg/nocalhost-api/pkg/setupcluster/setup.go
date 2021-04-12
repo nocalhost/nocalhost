@@ -80,7 +80,7 @@ func (c *setUpCluster) CreateServiceAccount(name, namespace string) *setUpCluste
 }
 
 func (c *setUpCluster) CreateClusterRoleBinding(name, namespace, role, toServiceAccount string) *setUpCluster {
-	_, err := c.clientGo.CreateClusterRoleBinding(name, namespace, role, toServiceAccount)
+	_, err := c.clientGo.CreateClusterRoleBinding(name, namespace, role, toServiceAccount, map[string]string{})
 	if err != nil {
 		c.errCode = errno.ErrBindRoleBindingCreateErr
 	}

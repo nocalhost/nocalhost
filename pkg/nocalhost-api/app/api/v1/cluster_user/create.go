@@ -15,6 +15,7 @@ package cluster_user
 
 import (
 	"github.com/gin-gonic/gin"
+	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
@@ -65,6 +66,7 @@ func Create(c *gin.Context) {
 		api.SendResponse(c, err, nil)
 		return
 	}
+	service.AuthorizeNsToUser(c, *req.ClusterId, *req.UserId, result.Namespace)
 	api.SendResponse(c, nil, result)
 }
 

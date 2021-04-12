@@ -557,12 +557,13 @@ func (c *GoClient) CreateRoleBinding(name, namespace, role, toServiceAccount str
 
 // create clusterRoleBinding
 // role=admin
-func (c *GoClient) CreateClusterRoleBinding(name, namespace, role, toServiceAccount string) (bool, error) {
+func (c *GoClient) CreateClusterRoleBinding(name, namespace, role, toServiceAccount string, label map[string]string) (bool, error) {
 	roleBinding := &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "RoleBinding"},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+			Labels:    label,
 		},
 	}
 	if role != "" {
@@ -631,6 +632,33 @@ func (c *GoClient) CreateRole(name, namespace string) (bool, error) {
 	}
 
 	_, err := c.client.RbacV1().Roles(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// cluster admin role for nocalhost
+func (c *GoClient) CreateClusterRole(name string) (bool, error) {
+	role := &rbacv1.ClusterRole{}
+	role.ObjectMeta = metav1.ObjectMeta{
+		Name: name,
+	}
+
+	//// resource quota && role's permission is limited
+	//rule, err := getPolicyRule(c)
+	//if err != nil {
+	//	return false, err
+	//}
+	//role.Rules = append(role.Rules, *rule...)
+
+	role.Rules = []rbacv1.PolicyRule{{
+		Verbs:     []string{"*"},
+		Resources: []string{"*"},
+		APIGroups: []string{"*"}},
+	}
+
+	_, err := c.client.RbacV1().ClusterRoles().Create(context.TODO(), role, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -805,6 +833,12 @@ func (c *GoClient) GetServiceAccount(name, namespace string) (*corev1.ServiceAcc
 // Get cluster node
 func (c *GoClient) GetClusterNode() (*corev1.NodeList, error) {
 	return c.client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+}
+
+func (c *GoClient) GetClusterRoleBindingByLabel(label string) (*rbacv1.ClusterRoleBindingList, error) {
+	return c.client.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{
+		LabelSelector: label,
+	})
 }
 
 // Get cluster version

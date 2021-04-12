@@ -75,7 +75,7 @@ func (c *clusterDevsSetUp) CreateRoleBinding(name, namespace, role, toServiceAcc
 }
 
 func (c *clusterDevsSetUp) CreateClusterRoleBinding(name, namespace, role, toServiceAccount string) *clusterDevsSetUp {
-	_, err := c.clientGo.CreateClusterRoleBinding(name, namespace, role, toServiceAccount)
+	_, err := c.clientGo.CreateClusterRoleBinding(name, namespace, role, toServiceAccount, map[string]string{})
 	if err != nil {
 		c.err = err
 		c.errCode = errno.ErrBindRoleBindingCreateErr

@@ -33,21 +33,6 @@ type ClusterModel struct {
 	DeletedAt    *time.Time `gorm:"column:deleted_at" json:"-"`
 }
 
-type ClusterDetailModel struct {
-	ID              uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
-	Name            string     `json:"name" gorm:"column:name;not null" binding:"required" validate:"min=1,max=32"`
-	Info            string     `json:"info" gorm:"column:info;"`
-	UserId          uint64     `gorm:"column:user_id;not null" json:"user_id"`
-	Server          string     `gorm:"column:server;not null" json:"server"`
-	KubeConfig      string     `json:"kubeconfig" gorm:"column:kubeconfig;not null" binding:"required"`
-	StorageClass    string     `json:"storage_class" gorm:"column:storage_class;not null"`
-	CreatedAt       time.Time  `gorm:"column:created_at" json:"created_at"`
-	UpdatedAt       time.Time  `gorm:"column:updated_at" json:"-"`
-	DeletedAt       *time.Time `gorm:"column:deleted_at" json:"-"`
-	IsReady         bool       `json:"is_ready"`
-	NotReadyMessage string     `json:"not_ready_message"`
-}
-
 type ClusterList struct {
 	ID              uint64    `gorm:"column:id" json:"id"`
 	ClusterName     string    `gorm:"column:name" json:"name"`
@@ -60,6 +45,7 @@ type ClusterList struct {
 	IsReady         bool      `json:"is_ready"`
 	NotReadyMessage string    `json:"not_ready_message"`
 	HasDevSpace     bool      `json:"has_dev_space"`
+	Server          string
 }
 
 // Validate the fields.

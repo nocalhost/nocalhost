@@ -14,6 +14,7 @@ limitations under the License.
 package model
 
 import (
+	"math/rand"
 	"time"
 
 	"nocalhost/pkg/nocalhost-api/pkg/auth"
@@ -26,6 +27,7 @@ type UserBaseModel struct {
 	ID        uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
 	Uuid      string     `gorm:"column:uuid;not null" json:"-"`
 	Name      string     `json:"name" gorm:"column:name;not null" json:"name"`
+	SaName    string     `json:"sa_ame" gorm:"column:sa_name;not null"`
 	Username  string     `json:"username" gorm:"column:username;not null" validate:"min=1,max=32"`
 	Password  string     `json:"-" gorm:"column:password;not null" binding:"required" validate:"min=5,max=128"`
 	Phone     int64      `gorm:"column:phone" json:"phone"`
@@ -57,6 +59,7 @@ type UserInfo struct {
 type UserList struct {
 	ID           uint64 `gorm:"column:id" json:"id"`
 	Name         string `gorm:"column:name" json:"name"`
+	SaName       string `gorm:"column:sa_name;not null" json:"sa_ame"`
 	Email        string `gorm:"column:email" json:"email"`
 	ClusterCount uint64 `gorm:"column:cluster_count" json:"cluster_count"`
 	Status       uint64 `gorm:"column:status" json:"status"`
@@ -83,4 +86,15 @@ func (u *UserBaseModel) Compare(pwd string) (err error) {
 func (u *UserBaseModel) Encrypt() (err error) {
 	u.Password, err = auth.Encrypt(u.Password)
 	return
+}
+
+// serviceaccount must match DNS-1123 label, capital doesn't allow
+func GenerateSaName() string {
+	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
+	rand.Seed(time.Now().UnixNano())
+	b := make([]rune, 10)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return "nhsa" + string(b)
 }

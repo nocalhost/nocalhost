@@ -100,4 +100,10 @@ var (
 	ErrListApplicationUser   = &Errno{Code: 60000, Message: "Failed to list application_user, please check params and try again"}
 	ErrInsertApplicationUser = &Errno{Code: 60001, Message: "Failed to batch insert application_user, please check params and try again"}
 	ErrDeleteApplicationUser = &Errno{Code: 60002, Message: "Failed to batch delete application_user, please check params and try again"}
+
+	// service-account
+	ErrServiceAccountCreate     = &Errno{Code: 70000, Message: "Failed to create service account, please check params and try again"}
+	ErrNameSpaceCreate          = &Errno{Code: 70001, Message: "Failed to create namespace, please check params and try again"}
+	ErrClusterRoleCreate        = &Errno{Code: 70002, Message: "Failed to create nocalhost common cluster role, please check your cluster and try again"}
+	ErrClusterRoleBindingCreate = &Errno{Code: 70003, Message: "Failed to create cluster role binding, please check your cluster and try again"}
 )
