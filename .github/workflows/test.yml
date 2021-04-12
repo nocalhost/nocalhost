@@ -12,48 +12,48 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: check images are alreay or not
-          run: |
-            COMMIT_ID=${GITHUB_SHA}
-            ProjectId=${{ secrets.coding_project_id }}
-            Token=${{ secrets.coding_token }}
+        run: |
+          COMMIT_ID=${GITHUB_SHA}
+          ProjectId=${{ secrets.coding_project_id }}
+          Token=${{ secrets.coding_token }}
+          while true; do
+            url='https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/nhctl-linux-amd64?version='$COMMIT_ID''
+            a=$(curl -s "$url")
+            if [[ $a =~ "File not found" ]]; then
+              sleep 5
+            else
+              break
+            fi
+          done
+          function wait() {
+            Action=$1
+            Repository=$2
+            Package=$3
+            PackageVersion=$4
             while true; do
-              url='https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/nhctl-linux-amd64?version='$COMMIT_ID''
-              a=$(curl -s "$url")
-              if [[ $a =~ "File not found" ]]; then
+              res=$(curl -X POST -s 'https://codingcorp.coding.net/open-api' \
+                --header 'Authorization: token '$Token'' \
+                --header 'Content-Type: text/plain' \
+                --data-raw '{
+                "Action": '"$Action"',
+                "ProjectId": '$ProjectId',
+                "Repository": '"$Repository"',
+                "Package": '"$Package"',
+                "PackageVersion":'"$PackageVersion"'
+              }')
+              if [[ $res =~ "version not found" ]]; then
                 sleep 5
               else
                 break
               fi
             done
-            function wait() {
-              Action=$1
-              Repository=$2
-              Package=$3
-              PackageVersion=$4
-              while true; do
-                res=$(curl -X POST -s 'https://codingcorp.coding.net/open-api' \
-                  --header 'Authorization: token '$Token'' \
-                  --header 'Content-Type: text/plain' \
-                  --data-raw '{
-                  "Action": '"$Action"',
-                  "ProjectId": '$ProjectId',
-                  "Repository": '"$Repository"',
-                  "Package": '"$Package"',
-                  "PackageVersion":'"$PackageVersion"'
-                }')
-                if [[ $res =~ "version not found" ]]; then
-                  sleep 5
-                else
-                  break
-                fi
-              done
-            }
-            echo 'wait for testcase'
-            wait "DescribeArtifactProperties" "public" "testcase" $COMMIT_ID
-            echo 'wait for api'
-            wait "DescribeArtifactProperties" "nhctl" "api" $COMMIT_ID
-            echo 'wait for dep'
-            wait "DescribeArtifactProperties" "public" "dep" $COMMIT_ID
+          }
+          echo 'wait for testcase'
+          wait "DescribeArtifactProperties" "public" "testcase" $COMMIT_ID
+          echo 'wait for api'
+          wait "DescribeArtifactProperties" "nhctl" "api" $COMMIT_ID
+          echo 'wait for dep'
+          wait "DescribeArtifactProperties" "public" "dep" $COMMIT_ID
   run-job:
     runs-on: ubuntu-latest
     needs: prepare
