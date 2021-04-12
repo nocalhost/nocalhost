@@ -38,27 +38,27 @@ jobs:
                 --header 'Authorization: token '$Token'' \
                 --header 'Content-Type: text/plain' \
                 --data-raw '{
-                "Action": '"$Action"',
+                "Action": "'"$Action"'",
                 "ProjectId": '$ProjectId',
-                "Repository": '"$Repository"',
-                "Package": '"$Package"',
-                "PackageVersion":'"$PackageVersion"'
+                "Repository": "'"$Repository"'",
+                "Package": "'"$Package"'",
+                "PackageVersion": "'"$PackageVersion"'"
               }')
               echo "wait for package: ""$Package""version: ""$PackageVersion"
               echo "response: ""$res"
-              if [[ $res =~ "version not found" ]]; then
-                sleep 5
-              else
+              if [[ $res =~ "InstanceSet" ]]; then
                 break
+              else
+                sleep 5
               fi
             done
           }
           echo 'wait for testcase'
           wait "DescribeArtifactProperties" "public" "testcase" $COMMIT_ID
-          echo 'wait for api'
-          wait "DescribeArtifactProperties" "nhctl" "api" $COMMIT_ID
-          echo 'wait for dep'
-          wait "DescribeArtifactProperties" "public" "dep" $COMMIT_ID
+          echo 'wait for nocalhost-api'
+          wait "DescribeArtifactProperties" "public" "nocalhost-api" $COMMIT_ID
+          echo 'wait for nocalhost-dep'
+          wait "DescribeArtifactProperties" "public" "nocalhost-dep" $COMMIT_ID
   run-job:
     runs-on: ubuntu-latest
     needs: prepare
