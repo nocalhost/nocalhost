@@ -151,6 +151,16 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		}
 	}
 
+	if appProfile == nil {
+		return nil, errors.New("Profile is nil")
+	}
+
+	if app.configV2 == nil {
+		return nil, errors.New("Config is nil")
+	} else if app.configV2.ApplicationConfig == nil {
+		return nil, errors.New("App config is nil")
+	}
+
 	if len(appProfile.PreInstall) == 0 && len(app.configV2.ApplicationConfig.PreInstall) > 0 {
 		appProfile.PreInstall = app.configV2.ApplicationConfig.PreInstall
 		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile); err != nil {
@@ -208,9 +218,9 @@ func (a *Application) LoadConfigV2() error {
 	if err = yaml.Unmarshal(rbytes, config); err != nil {
 		re, _ := regexp.Compile("remoteDebugPort: \"[0-9]*\"")
 		rep := re.ReplaceAllString(string(rbytes), "")
-		//log.Infof("zzzz %s", rep)
-		err = yaml.Unmarshal([]byte(rep), config)
-		return errors.Wrap(err, "")
+		if err = yaml.Unmarshal([]byte(rep), config); err != nil {
+			return errors.Wrap(err, "")
+		}
 	}
 	a.configV2 = config
 	return nil
