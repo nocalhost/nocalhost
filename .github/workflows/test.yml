@@ -8,8 +8,55 @@ on:
   workflow_dispatch:
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: check images are alreay or not
+          run: |
+            COMMIT_ID=${GITHUB_SHA}
+            ProjectId=${{ secrets.coding_project_id }}
+            Token=${{ secrets.coding_token }}
+            while true; do
+              url='https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/nhctl-linux-amd64?version='$COMMIT_ID''
+              a=$(curl -s "$url")
+              if [[ $a =~ "File not found" ]]; then
+                sleep 5
+              else
+                break
+              fi
+            done
+            function wait() {
+              Action=$1
+              Repository=$2
+              Package=$3
+              PackageVersion=$4
+              while true; do
+                res=$(curl -X POST -s 'https://codingcorp.coding.net/open-api' \
+                  --header 'Authorization: token '$Token'' \
+                  --header 'Content-Type: text/plain' \
+                  --data-raw '{
+                  "Action": '"$Action"',
+                  "ProjectId": '$ProjectId',
+                  "Repository": '"$Repository"',
+                  "Package": '"$Package"',
+                  "PackageVersion":'"$PackageVersion"'
+                }')
+                if [[ $res =~ "version not found" ]]; then
+                  sleep 5
+                else
+                  break
+                fi
+              done
+            }
+            echo 'wait for testcase'
+            wait "DescribeArtifactProperties" "public" "testcase" $COMMIT_ID
+            echo 'wait for api'
+            wait "DescribeArtifactProperties" "nhctl" "api" $COMMIT_ID
+            echo 'wait for dep'
+            wait "DescribeArtifactProperties" "public" "dep" $COMMIT_ID
   run-job:
     runs-on: ubuntu-latest
+    needs: prepare
     steps:
       - name: Kubectl tool installer
         uses: Azure/setup-kubectl@v1
@@ -18,9 +65,8 @@ jobs:
         run: |
           echo ${{ secrets.kube_config }} | base64 -d >> config
           cat <<EOF>>pod.json
-          {"apiVersion":"v1","kind":"Pod","metadata":{"name":"NAME","namespace":"test","labels":{"app":"test"}},"spec":{"restartPolicy":"Never","containers":[{"name":"test","image":"codingcorp-docker.pkg.coding.net/nocalhost/public/testcase:latest","imagePullPolicy":"Always","env":[{"name":"COMMIT_ID","value":"COMMITID"}],"volumeMounts":[{"name":"kubeconfig","mountPath":"/root/.kube/config","subPath":"config"}]}],"volumes":[{"name":"kubeconfig","hostPath":{"path":"/root/.kube/"}}]}}
+          {"apiVersion":"v1","kind":"Pod","metadata":{"name":"NAME","namespace":"test","labels":{"app":"test"}},"spec":{"restartPolicy":"Never","containers":[{"name":"test","image":"codingcorp-docker.pkg.coding.net/nocalhost/public/testcase:COMMITID","imagePullPolicy":"Always","env":[{"name":"COMMIT_ID","value":"COMMITID"}],"volumeMounts":[{"name":"kubeconfig","mountPath":"/root/.kube/config","subPath":"config"}]}],"volumes":[{"name":"kubeconfig","hostPath":{"path":"/root/.kube/"}}]}}
           EOF
-          sed -i "s#PATH#$(pwd)#g" pod.json
           sed -i "s/COMMITID/${GITHUB_SHA}/g" pod.json
           sed -i "s/NAME/${GITHUB_SHA}/g" pod.json
           cat pod.json
