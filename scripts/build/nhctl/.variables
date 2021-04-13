@@ -5,7 +5,7 @@ VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/
 GITCOMMIT=`git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty`
 DEVGITCOMMIT=`git rev-parse HEAD`
 BUILDTIME=`date +"%Y-%m-%dT%H:%M:%SZ"`
-BRANCH=`git rev-parse --abbrev-ref HEAD`
+BRANCH=${GITHUB_HEAD_REF:-$(git rev-parse --abbrev-ref HEAD)}
 
 GOOS="${GOOS:-$(go env GOHOSTOS)}"
 GOARCH="${GOARCH:-$(go env GOHOSTARCH)}"
