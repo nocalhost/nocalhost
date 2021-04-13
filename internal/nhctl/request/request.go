@@ -24,7 +24,6 @@ import (
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
-	"os"
 	"os/exec"
 	"strconv"
 )
@@ -118,14 +117,14 @@ func (q *ApiRequest) ExposeService() *ApiRequest {
 		q.KubeConfig,
 	}
 	cmd := exec.Command(q.Kubectl, params...)
-	cmd.Stdout = os.Stdout
+	// cmd.Stdout = os.Stdout
 	err := cmd.Start()
 	if err != nil {
 		log.Fatalf("fail to port-forward expose nocalhost-web, err: %s", err)
 	}
 
 	baseUrl := "http://127.0.0.1:" + strconv.Itoa(q.PortForwardPortLocally)
-	fmt.Printf("pid is %d, wait for port-forward... %s:%s \n", cmd.Process.Pid, strconv.Itoa(q.PortForwardPortLocally), strconv.Itoa(q.NocalhostWebPort))
+	log.Debugf("pid is %d, wait for port-forward... %s:%s \n", cmd.Process.Pid, strconv.Itoa(q.PortForwardPortLocally), strconv.Itoa(q.NocalhostWebPort))
 
 	for {
 		conn, _ := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(q.PortForwardPortLocally)), app.DefaultInitPortForwardTimeOut)
@@ -202,13 +201,13 @@ func (q *ApiRequest) Login(email, password string) *ApiRequest {
 
 	for i := 0; i < 3; i++ {
 		err = q.tryLogin(email, password)
-		log.Infof("Try login to the end point fail, retry %d..", i+1)
+		log.Debugf("Try login to the end point fail, retry %d..", i+1)
 		if err == nil {
 			return q
 		}
 	}
 
-	log.Info("Try login to nocalhost-web fail, try port forward...")
+	log.Debugf("Try login to nocalhost-web fail, try port forward...")
 	q.ExposeService()
 
 	for i := 0; i < 3; i++ {
@@ -278,7 +277,7 @@ func (q *ApiRequest) AddBookInfoApplication(context string) *ApiRequest {
 		log.Fatalf("init fail, add bookinfo application fail, err: %s", err)
 	}
 	q.ApplicationId = applicationId
-	fmt.Println("added bookinfo application")
+	log.Debugf("added bookinfo application")
 	return q
 }
 
@@ -319,7 +318,7 @@ func (q *ApiRequest) GetKubeConfig() *ApiRequest {
 		"--kubeconfig",
 		q.KubeConfig,
 	}
-	result, err := tools.ExecCommand(nil, true, q.Kubectl, params...)
+	result, err := tools.ExecCommand(nil, false, q.Kubectl, params...)
 	if err != nil {
 		log.Fatalf("get kubeconfig raw context fail, please check you --kubeconfig and kubeconfig file, err: %s", err)
 	}
@@ -353,7 +352,7 @@ func (q *ApiRequest) AddCluster() *ApiRequest {
 	}
 	q.ClusterId = clusterId
 	q.InternalKubeConfigRaw = kubeConfig
-	fmt.Println("added cluster")
+	log.Debugf("added cluster")
 	return q
 }
 
@@ -384,7 +383,7 @@ func (q *ApiRequest) AddUser(email, password, name string) *ApiRequest {
 		log.Fatalf("init fail, add bookinfo application fail, err: %s", err)
 	}
 	q.UserId = userId
-	fmt.Println("added user")
+	log.Debugf("added user")
 	return q
 }
 
@@ -408,12 +407,12 @@ func (q *ApiRequest) AddDevSpace() *ApiRequest {
 	if res.Code != 0 {
 		log.Fatalf("init fail, add dev space, err: %s", res.Message)
 	}
-	fmt.Println("added develop space")
+	log.Debugf("added develop space")
 	devSpaceId := int(res.Data["id"].(float64))
 	kubeConfig := res.Data["kubeconfig"].(string)
 	// TODO
 
-	fmt.Printf("create dev space kubeconfig %s", kubeConfig)
+	log.Debugf("create dev space kubeconfig %s", kubeConfig)
 
 	q.InternalKubeConfigRaw = kubeConfig
 	q.DevSpaceId = devSpaceId
@@ -429,7 +428,7 @@ func (q *ApiRequest) InjectBatchDevSpace(amount, offset int) *ApiRequest {
 	for i := offset; i < amount+offset; i++ {
 		userName := fmt.Sprintf(q.InjectBatchUserTemplate+"@nocalhost.dev", i)
 		name := fmt.Sprintf(q.InjectBatchUserTemplate, i)
-		fmt.Printf("username %s", userName)
+		log.Debugf("username %s", userName)
 		q.AddUser(userName, app.DefaultInitAdminPassWord, name)
 		q.AddDevSpace()
 	}

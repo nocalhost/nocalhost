@@ -93,8 +93,9 @@ func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params
 	}
 	cmdStr := []string{commandName}
 	cmdStr = append(cmdStr, params...)
-	log.Infof("cmd: %s", strings.Join(cmdStr, " "))
-
+	if isDisplay {
+		log.Infof("cmd: %s", strings.Join(cmdStr, " "))
+	}
 	// log.Info(cmd.Args)
 	stdoutIn, err := cmd.StdoutPipe()
 	stderrIn, err2 := cmd.StderrPipe()

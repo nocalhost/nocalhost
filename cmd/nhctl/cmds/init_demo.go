@@ -140,7 +140,7 @@ var InitCommand = &cobra.Command{
 			}
 		}
 		client, err := clientgoutils.NewClientGoUtils(kubeConfig, inits.NameSpace)
-		fmt.Printf("kubeconfig %s \n", kubeConfig)
+		log.Debugf("kubeconfig %s \n", kubeConfig)
 		if err != nil || client == nil {
 			log.Fatalf("new go client fail, err %s, or check you kubeconfig\n", err)
 		}
@@ -148,7 +148,7 @@ var InitCommand = &cobra.Command{
 		nhctl := tools.GetNhctl()
 		// if force init, remove all init data first
 		if inits.Force {
-			spinner := utils.NewSpinner(" waiting for delete old data, this will take a few minutes...")
+			spinner := utils.NewSpinner(" waiting for force uninstall Nocalhost...")
 			spinner.Start()
 			uninstall := []string{
 				"uninstall",
@@ -157,7 +157,7 @@ var InitCommand = &cobra.Command{
 				"-n",
 				inits.NameSpace,
 			}
-			_, err = tools.ExecCommand(nil, true, nhctl, uninstall...)
+			_, err = tools.ExecCommand(nil, false, nhctl, uninstall...)
 			if err != nil {
 				log.Warnf("uninstall %s application fail, ignore", app.DefaultInitInstallApplicationName)
 			}
@@ -177,6 +177,7 @@ var InitCommand = &cobra.Command{
 				}
 			}
 			spinner.Stop()
+			coloredoutput.Success("force uninstall Nocalhost successfully \n")
 		}
 
 		// normal init: check if exist namespace
@@ -190,17 +191,20 @@ var InitCommand = &cobra.Command{
 				log.Fatalf("init fail, create namespace %s fail, err: %s\n", inits.NameSpace, err.Error())
 			}
 		}
+		spinner := utils.NewSpinner(" waiting for get Nocalhost manifest...")
+		spinner.Start()
 		// call install command
-		_, err = tools.ExecCommand(nil, true, nhctl, params...)
+		_, err = tools.ExecCommand(nil, false, nhctl, params...)
 		if err != nil {
 			coloredoutput.Fail("execution nhctl install fail %s, try to add `--force` end of command manually\n", err.Error())
 			log.Fatal("exit init")
 		}
+		spinner.Stop()
 
 		// 1. watch nocalhost-api and nocalhost-web ready
 		// 2. print nocalhost-web service address
 		// 3. use nocalhost-web service address to set default data into cluster
-		spinner := utils.NewSpinner(" waiting for Nocalhost component ready, this will take a few minutes...")
+		spinner = utils.NewSpinner(" waiting for Nocalhost component ready, this will take a few minutes...")
 		spinner.Start()
 		err = client.NameSpace(inits.NameSpace).WaitDeploymentToBeReady(app.DefaultInitWatchDeployment)
 		if err != nil {
@@ -221,12 +225,15 @@ var InitCommand = &cobra.Command{
 			time.Sleep(time.Duration(200) * time.Millisecond)
 		}
 		spinner.Stop()
-
+		coloredoutput.Success("Nocalhost component get ready \n")
 		// bookinfo source from
 		//source := app.DefaultInitApplicationGithub
 		//if strings.ToLower(inits.Source) == "coding" {
 		//	source = app.DefaultInitApplicationCODING
 		//}
+
+		spinner = utils.NewSpinner(" waiting for init demo data...")
+		spinner.Start()
 
 		endpoint := findOutWebEndpoint(client)
 
@@ -237,6 +244,9 @@ var InitCommand = &cobra.Command{
 		if inits.InjectUserTemplate != "" && inits.InjectUserAmount > 0 {
 			_ = req.SetInjectBatchUserTemplate(inits.InjectUserTemplate).InjectBatchDevSpace(inits.InjectUserAmount, inits.InjectUserAmountOffset)
 		}
+		spinner.Stop()
+
+		coloredoutput.Success("init demo data successfully \n")
 
 		// wait for nocalhost-dep deployment in nocalhost-reserved namespace
 		spinner = utils.NewSpinner(" waiting for Nocalhost-dep ready, this will take a few minutes...")
@@ -331,7 +341,6 @@ func findOutWebEndpoint(client *clientgoutils.ClientGoUtils) string {
 	}
 
 	// should use loadbalancerIP > nodeExternalIP > nodeInternalIP
-	// fmt.Printf("%s %s %s", loadBalancerIP, nodeExternalIP, nodeInternalIP)
 	endPoint := ""
 	if nodeInternalIP != "" {
 		endPoint = nodeInternalIP + ":" + strconv.Itoa(port)
@@ -346,7 +355,7 @@ func findOutWebEndpoint(client *clientgoutils.ClientGoUtils) string {
 		}
 	}
 
-	fmt.Printf("Nocalhost get ready, endpoint is: %s \n", endPoint)
+	log.Debugf("Nocalhost get ready, endpoint is: %s \n", endPoint)
 
 	return endPoint
 }
@@ -365,11 +374,11 @@ func setComponentDockerImageVersion(params *[]string) {
 	// main branch, means use version for docker images
 	// Branch will set by make nhctl
 	if Branch == app.DefaultNocalhostMainBranch {
-		log.Infof("Init nocalhost component with release %s", Version)
+		log.Debugf("Init nocalhost component with release %s", Version)
 		*params = append(*params, "--set", "api.image.tag="+Version)
 		*params = append(*params, "--set", "web.image.tag="+Version)
 	} else {
-		log.Infof("Init nocalhost component with dev %s, but nocalhost-web with dev tag only", DevGitCommit)
+		log.Debugf("Init nocalhost component with dev %s, but nocalhost-web with dev tag only", DevGitCommit)
 		*params = append(*params, "--set", "api.image.tag="+DevGitCommit)
 		// because of web image and api has different commitID, so take latest dev tag
 		*params = append(*params, "--set", "web.image.tag=dev")
@@ -396,7 +405,7 @@ func setDepComponentDockerImage(kubectl, kubeConfig string) {
 		"--kubeconfig",
 		kubeConfig,
 	}
-	_, err := tools.ExecCommand(nil, true, kubectl, params...)
+	_, err := tools.ExecCommand(nil, false, kubectl, params...)
 	if err != nil {
 		log.Warnf("set nocalhost-dep component tag fail, err: %s", err)
 	}
