@@ -16,6 +16,8 @@ package main
 import (
 	"errors"
 	"nocalhost/test/nhctl"
+	"nocalhost/test/util"
+	"time"
 )
 
 func main() {
@@ -23,6 +25,7 @@ func main() {
 	if commitId == "" {
 		panic(errors.New("this is should not happen"))
 	}
+	go util.TimeoutChecker(1 * time.Hour)
 	nhctl.InstallNhctl(commitId)
 	go nhctl.Init()
 	if i := <-nhctl.StatusChan; i != 1 {

@@ -115,3 +115,13 @@ func WaitToBeStatus(namespace string, resource string, label string, checker fun
 	}
 	return true
 }
+
+func TimeoutChecker(d time.Duration) {
+	tick := time.Tick(d)
+	for {
+		select {
+		case <-tick:
+			panic(fmt.Sprintf("test case failed, timeout: %v", d))
+		}
+	}
+}
