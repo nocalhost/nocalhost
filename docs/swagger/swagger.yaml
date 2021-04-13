@@ -1,3 +1,4 @@
+basePath: '{{.BasePath}}'
 definitions:
   api.Response:
     properties:
@@ -18,8 +19,10 @@ definitions:
   applications.CreateAppRequest:
     properties:
       context:
-        example: '{"application_url":"git@github.com:nocalhost/bookinfo.git","application_name":"name","source":"git/helm_repo","install_type":"rawManifest/helm_chart","resource_dir":["manifest/templates"],"nocalhost_config_raw":"base64encode(config_templates)","nocalhost_config_path":"./nocalhost/config.yaml"}'
+        example: '{'
         type: string
+      public:
+        type: integer
       status:
         type: integer
     required:
@@ -138,7 +141,11 @@ definitions:
         type: string
       created_at:
         type: string
+      editable:
+        type: integer
       id:
+        type: integer
+      public:
         type: integer
       status:
         type: integer
@@ -146,12 +153,15 @@ definitions:
         type: integer
     required:
     - context
+    - public
     - status
     type: object
   model.ClusterList:
     properties:
       created_at:
         type: string
+      has_dev_space:
+        type: boolean
       id:
         type: integer
       info:
@@ -193,10 +203,6 @@ definitions:
     type: object
   model.ClusterUserJoinClusterAndAppAndUser:
     properties:
-      application_id:
-        type: integer
-      application_name:
-        type: string
       cluster_id:
         type: integer
       cluster_name:
@@ -223,6 +229,7 @@ definitions:
   model.ClusterUserModel:
     properties:
       application_id:
+        description: Deprecated
         type: integer
       cluster_id:
         type: integer
@@ -269,6 +276,8 @@ definitions:
         type: integer
       namespace:
         type: string
+      public:
+        type: integer
       space_name:
         type: string
       status:
@@ -380,9 +389,15 @@ definitions:
       status:
         type: integer
     type: object
+host: '{{.Host}}'
 info:
-  contact: {}
+  contact:
+    name: wangwei
+    url: codingcorp.coding.net
+  description: Nocalhost server api
   license: {}
+  title: Nocalhost docs api
+  version: "1.0"
 paths:
   /v1/application:
     get:
@@ -1493,3 +1508,4 @@ paths:
       summary: Get api server version
       tags:
       - Version
+swagger: "2.0"
