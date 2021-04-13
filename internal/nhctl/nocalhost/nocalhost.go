@@ -232,7 +232,7 @@ func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.Applica
 
 	appMeta, err := cli.SendGetApplicationMetaCommand(namespace, appName, string(bys))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "")
 	}
 
 	// applicationMeta use the kubeConfig content, but there use the path to init client

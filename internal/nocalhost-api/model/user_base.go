@@ -26,8 +26,8 @@ import (
 type UserBaseModel struct {
 	ID        uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
 	Uuid      string     `gorm:"column:uuid;not null" json:"-"`
+	SaName    string     `gorm:"column:sa_name" json:"sa_name"`
 	Name      string     `json:"name" gorm:"column:name;not null" json:"name"`
-	SaName    string     `json:"sa_ame" gorm:"column:sa_name;not null"`
 	Username  string     `json:"username" gorm:"column:username;not null" validate:"min=1,max=32"`
 	Password  string     `json:"-" gorm:"column:password;not null" binding:"required" validate:"min=5,max=128"`
 	Phone     int64      `gorm:"column:phone" json:"phone"`

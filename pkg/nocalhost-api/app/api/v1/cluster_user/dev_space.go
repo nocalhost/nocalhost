@@ -121,7 +121,15 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	// create cluster devs
 	devNamespace := goClient.GenerateNsName(userId)
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
-	secret, err := clusterDevsSetUp.CreateNS(devNamespace, "").CreateServiceAccount("", devNamespace).CreateRole(global.NocalhostDevRoleName, devNamespace).CreateRoleBinding(global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevServiceAccountName).CreateRoleBinding(global.NocalhostDevRoleDefaultBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevDefaultServiceAccountName).GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).GetServiceAccountSecret("", devNamespace)
+	secret, err := clusterDevsSetUp.
+		CreateNS(devNamespace, "").
+		CreateServiceAccount("", devNamespace).
+		CreateRole(global.NocalhostDevRoleName, devNamespace).
+		CreateRoleBinding(global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevServiceAccountName).
+		CreateRoleBinding(global.NocalhostDevRoleDefaultBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevDefaultServiceAccountName).
+		GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).
+		GetServiceAccountSecret("", devNamespace)
+
 	KubeConfigYaml, err, nerrno := setupcluster.NewDevKubeConfigReader(secret, clusterData.Server, devNamespace).GetCA().GetToken().AssembleDevKubeConfig().ToYamlString()
 	if err != nil {
 		return nil, nerrno

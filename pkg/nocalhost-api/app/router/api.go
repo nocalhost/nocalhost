@@ -19,6 +19,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/api/v1/applications"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster_user"
+	"nocalhost/pkg/nocalhost-api/app/api/v1/service_account"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/version"
 	"nocalhost/pkg/nocalhost-api/napp"
 
@@ -157,6 +158,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	pa := g.Group("/v1/plugin")
 	pa.Use(middleware.AuthMiddleware())
 	{
+		pa.GET("/service_accounts",service_account.ListAuthorization)
 		pa.GET("/dev_space", applications.PluginGet)
 		pa.POST("/:id/recreate", cluster_user.PluginReCreate)
 		pa.PUT("/application/:id/dev_space/:spaceId/plugin_sync", applications.UpdateApplicationInstall)

@@ -15,10 +15,7 @@ package service
 
 import (
 	"context"
-	"fmt"
-	"github.com/gin-gonic/gin"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"net/http/httptest"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service/application"
@@ -28,7 +25,6 @@ import (
 	"nocalhost/internal/nocalhost-api/service/cluster_user"
 	"nocalhost/internal/nocalhost-api/service/pre_pull"
 	"nocalhost/internal/nocalhost-api/service/user"
-	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
@@ -39,8 +35,9 @@ import (
 
 var (
 	// Svc global service var
-	Svc *Service
-	NOCALHOST_SA_KEY = "nocalhost.sa"
+	Svc                         *Service
+	NocalhostDefaultSaNs        = "default"
+	NocalhostDefaultRoleBinding = "nocalhost-role-binding"
 )
 
 // Service struct
@@ -118,6 +115,9 @@ func (s *Service) Close() {
 func (s *Service) dataMigrate() {
 	log.Info("Migrate data if needed... ")
 
+	// old version of nocalhost-api did not have saname for user
+	s.generateServiceAccountNameForUser()
+
 	// adapt cluster_user to application_user
 	s.migrateClusterUseToApplicationUser()
 
@@ -149,11 +149,8 @@ func (s *Service) migrateClusterUseToRoleBinding() {
 		log.Infof("Error while migrate data: %+v", err)
 	}
 
-	// do not need to care the gin context
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-
 	for _, clusterUser := range list {
-		AuthorizeNsToUser(c, clusterUser.ClusterId, clusterUser.UserId, clusterUser.Namespace)
+		_ = s.AuthorizeNsToUser(clusterUser.ClusterId, clusterUser.UserId, clusterUser.Namespace)
 	}
 }
 
@@ -280,11 +277,10 @@ func (s *Service) updateAllRole() error {
 	return nil
 }
 
-func AuthorizeNsToUser(c *gin.Context, clusterId, userId uint64, ns string) {
-	cl, err := Svc.ClusterSvc().Get(c, clusterId)
+func (s *Service) AuthorizeNsToUser(clusterId, userId uint64, ns string) error {
+	cl, err := s.ClusterSvc().Get(context.TODO(), clusterId)
 	if err != nil {
-		api.SendResponse(c, errno.ErrClusterNotFound, nil)
-		return
+		return errno.ErrClusterNotFound
 	}
 
 	// new client go
@@ -292,46 +288,42 @@ func AuthorizeNsToUser(c *gin.Context, clusterId, userId uint64, ns string) {
 
 	// get client go and check if is admin Kubeconfig
 	if err != nil {
-		switch err.(type) {
-		case *errno.Errno:
-			api.SendResponse(c, err, nil)
-		default:
-			api.SendResponse(c, errno.ErrClusterKubeErr, nil)
-		}
-		return
+		return err
 	}
 
-	u, err := Svc.UserSvc().GetUserByID(c, userId)
+	u, err := s.UserSvc().GetUserByID(context.TODO(), userId)
 	if err != nil {
-		api.SendResponse(c, errno.ErrUserNotFound, nil)
-		return
+		log.Error(err)
+		return errno.ErrUserNotFound
 	}
 
 	saName := u.SaName
 
-	if err := createServiceAccountINE(clientGo, saName); err != nil {
-		api.SendResponse(c, errno.ErrServiceAccountCreate, nil)
-		return
+	if err := createServiceAccountINE(clientGo, saName, NocalhostDefaultSaNs); err != nil {
+		log.Error(err)
+		return errno.ErrServiceAccountCreate
 	}
 
-	if err := createNamespaceINE(clientGo, saName); err != nil {
-		api.SendResponse(c, errno.ErrNameSpaceCreate, nil)
-		return
+	if err := createNamespaceINE(clientGo, ns); err != nil {
+		log.Error(err)
+		return errno.ErrNameSpaceCreate
 	}
 
 	if err := createClusterAdminRoleINE(clientGo); err != nil {
-		api.SendResponse(c, errno.ErrClusterRoleCreate, nil)
-		return
+		log.Error(err)
+		return errno.ErrClusterRoleCreate
 	}
 
-	if err := createClusterRoleBindingINE(clientGo, ns, saName); err != nil {
-		api.SendResponse(c, errno.ErrClusterRoleBindingCreate, nil)
-		return
+	if err := createRoleBindingINE(clientGo, ns, saName, NocalhostDefaultSaNs); err != nil {
+		log.Error(err)
+		return errno.ErrClusterRoleBindingCreate
 	}
+
+	return nil
 }
 
-func createServiceAccountINE(client *clientgo.GoClient, saName string) error {
-	if _, err := client.CreateServiceAccount(saName, "default"); err != nil && !k8serrors.IsAlreadyExists(err) {
+func createServiceAccountINE(client *clientgo.GoClient, saName string, saNs string) error {
+	if _, err := client.CreateServiceAccount(saName, saNs); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return err
 	}
 	return nil
@@ -351,11 +343,11 @@ func createClusterAdminRoleINE(client *clientgo.GoClient) error {
 	return nil
 }
 
-func createClusterRoleBindingINE(client *clientgo.GoClient, ns, saName string) error {
-	m := map[string]string{}
-	m[NOCALHOST_SA_KEY] = saName
+// nocalhost use nocalhost-saName for role binding storage container
+func createRoleBindingINE(client *clientgo.GoClient, ns, saName, saNs string) error {
 
-	if _, err := client.CreateClusterRoleBinding(fmt.Sprintf("%s-%s", saName, ns), ns, global.NocalhostDevRoleName, saName, m); err != nil && !k8serrors.IsAlreadyExists(err) {
+	// nocalhost create a role binding for each dev space
+	if _, err := client.AppendRoleBinding(NocalhostDefaultRoleBinding, ns, global.NocalhostDevRoleName, saName, saNs); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return err
 	}
 	return nil

@@ -557,13 +557,12 @@ func (c *GoClient) CreateRoleBinding(name, namespace, role, toServiceAccount str
 
 // create clusterRoleBinding
 // role=admin
-func (c *GoClient) CreateClusterRoleBinding(name, namespace, role, toServiceAccount string, label map[string]string) (bool, error) {
+func (c *GoClient) CreateClusterRoleBinding(name, namespace, role, toServiceAccount string) (bool, error) {
 	roleBinding := &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "RoleBinding"},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    label,
 		},
 	}
 	if role != "" {
@@ -606,6 +605,69 @@ func (c *GoClient) UpdateRole(name, namespace string) error {
 		return err
 	}
 	return nil
+}
+
+// create clusterRoleBinding
+// role=admin
+func (c *GoClient) AppendRoleBinding(name, namespace, role, toServiceAccount, toServiceAccountNs string) (bool, error) {
+	crb, err := c.client.RbacV1().RoleBindings(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil && !k8serrors.IsNotFound(err) {
+		return false, err
+	} else if k8serrors.IsNotFound(err) {
+
+		crb = &rbacv1.RoleBinding{
+			TypeMeta: metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "RoleBinding"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+				Labels:    map[string]string{},
+			},
+		}
+
+		if role != "" {
+			crb.RoleRef = rbacv1.RoleRef{
+				APIGroup: rbacv1.GroupName,
+				Kind:     "ClusterRole",
+				Name:     role,
+			}
+		}
+
+		// label for watch
+		crb.Labels["nocalhost-managed"] = "rb"
+
+		//  auth admin for current role binding ns
+		if toServiceAccount != "" {
+			crb.Subjects = append(crb.Subjects, rbacv1.Subject{
+				Kind:      rbacv1.ServiceAccountKind,
+				Namespace: toServiceAccountNs,
+				Name:      toServiceAccount,
+			})
+		}
+
+		_, err := c.client.RbacV1().RoleBindings(namespace).Create(context.TODO(), crb, metav1.CreateOptions{})
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+
+	for _, subject := range crb.Subjects {
+		if subject.Name == toServiceAccount {
+			return true, nil
+		}
+	}
+
+	crb.Subjects = append(crb.Subjects, rbacv1.Subject{
+		Kind:      rbacv1.ServiceAccountKind,
+		Namespace: "default",
+		Name:      toServiceAccount,
+	})
+
+	_, err = c.client.RbacV1().RoleBindings(namespace).Update(context.TODO(), crb, metav1.UpdateOptions{})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // create user role for single namespace
@@ -835,7 +897,11 @@ func (c *GoClient) GetClusterNode() (*corev1.NodeList, error) {
 	return c.client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 }
 
-func (c *GoClient) GetClusterRoleBindingByLabel(label string) (*rbacv1.ClusterRoleBindingList, error) {
+func (c *GoClient) GetClusterRoleBinding(name string) (*rbacv1.ClusterRoleBinding, error) {
+	return c.client.RbacV1().ClusterRoleBindings().Get(context.TODO(), name, metav1.GetOptions{})
+}
+
+func (c *GoClient) ListClusterRoleBindingByLabel(label string) (*rbacv1.ClusterRoleBindingList, error) {
 	return c.client.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{
 		LabelSelector: label,
 	})

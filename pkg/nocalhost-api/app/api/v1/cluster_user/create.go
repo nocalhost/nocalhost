@@ -66,7 +66,13 @@ func Create(c *gin.Context) {
 		api.SendResponse(c, err, nil)
 		return
 	}
-	service.AuthorizeNsToUser(c, *req.ClusterId, *req.UserId, result.Namespace)
+
+	err = service.Svc.AuthorizeNsToUser(*req.ClusterId, *req.UserId, result.Namespace)
+	if err != nil {
+		api.SendResponse(c, err, nil)
+		return
+	}
+
 	api.SendResponse(c, nil, result)
 }
 
