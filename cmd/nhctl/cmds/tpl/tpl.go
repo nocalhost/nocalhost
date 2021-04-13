@@ -1,23 +1,22 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package tpl
 
 import (
-	"bytes"
-	"text/template"
+  "bytes"
+  "text/template"
 
-	"github.com/pkg/errors"
+  "github.com/pkg/errors"
 )
 
 var applicationTpl = `
@@ -51,15 +50,15 @@ application:
   # default value: []
   # optional
   onPreInstall:
-  	# type: string
-  	# default value: null
-  	# required
-  	- path: "job-1.yaml"
+    # type: string
+    # default value: null
+    # required
+    - path: "job-1.yaml"
       # type: integer
       # default value: 0
       # optional
       priority: -1
-  	- path: "job-2.yaml"
+    - path: "job-2.yaml"
       priority: 5
 
 
@@ -121,10 +120,10 @@ containers:
       portForward:   # 安装后需要打通的端口
         - 3306:3306
     dev:
-	  # git url where the source code of this service resides
-	  # type: string
-	  # default value: null
-	  # required
+    # git url where the source code of this service resides
+    # type: string
+    # default value: null
+    # required
       gitUrl: xxx-job
 
       # develop container image
@@ -133,19 +132,19 @@ containers:
       # required
       image: java:8-jdk
 
-	  # The default shell of DevContainer
-	  # type: string
-	  # default value: "/bin/sh"
-	  # optional
+    # The default shell of DevContainer
+    # type: string
+    # default value: "/bin/sh"
+    # optional
       # shell: "bash"
 
-	  # work dir of develop container
-	  # type: string
-	  # default value: "/home/nocalhost-dev"
-	  # optional
+    # work dir of develop container
+    # type: string
+    # default value: "/home/nocalhost-dev"
+    # optional
       # workDir: "/root/nocalhost-dev"
 
-	  # resource requirements of dev container
+    # resource requirements of dev container
       # resources:
       #   limits:
       #     cpu: "1"
@@ -153,67 +152,67 @@ containers:
       #   requests:
       #     cpu: "0.5"
       #     memory: 512Mi
-	  # Dirs to be persisted in DevContainer
-	  # type: string[]
-	  # default value: ["/home/nocalhost-dev"]
-	  # optional
+    # Dirs to be persisted in DevContainer
+    # type: string[]
+    # default value: ["/home/nocalhost-dev"]
+    # optional
       # persistentVolumeDirs: 
-		# Dir to be persisted in DevContainer
-  		# type: string
-  		# default value: null
-  		# required
-		# - path: "/root"
-    	# Capability of the dir
-    	# type: string
-    	# default value: 10Gi
-    	# optional
+    # Dir to be persisted in DevContainer
+      # type: string
+      # default value: null
+      # required
+    # - path: "/root"
+      # Capability of the dir
+      # type: string
+      # default value: 10Gi
+      # optional
         #   capacity: 100Gi
       command: 
-		# Run command of the service
-		# type: string[]
-		# default value: [""]
-		# optional
+    # Run command of the service
+    # type: string[]
+    # default value: [""]
+    # optional
         build: ["./gradlew", "package"]
 
-		# Run command of the service
-		# type: string[]
-		# default value: [""]
-		# optional
+    # Run command of the service
+    # type: string[]
+    # default value: [""]
+    # optional
         # run: ["./gradlew", "bootRun"]
 
-		# Debug command of the service
-		# type: string[]
-		# default value: [""]
-		# optional
+    # Debug command of the service
+    # type: string[]
+    # default value: [""]
+    # optional
         # debug: ["./gradlew", "bootRun", "--debug-jvm"]
 
-		# Hot-reload run command of the service
-		# type: string[]
-		# default value: [""]
-		# optional
+    # Hot-reload run command of the service
+    # type: string[]
+    # default value: [""]
+    # optional
         hotReloadRun: ["bash", "-c", "gradlew bootRun"]
 
-		# Hot-reload debug command of the service
-		# type: string[]
-		# default value: [""]
-		# optional
+    # Hot-reload debug command of the service
+    # type: string[]
+    # default value: [""]
+    # optional
         hotReloadDebug: ["bash", "-c", "gradlew bootRun --debug-jvm"]
       debug:
         remoteDebugPort: 5005
       useDevContainer: false
       sync:
         type: send
-		# List of files and directories to be synchronized to DevContainer
-		# type: string[]
-		# default value: ["."]
-		# optional
+    # List of files and directories to be synchronized to DevContainer
+    # type: string[]
+    # default value: ["."]
+    # optional
         filePattern:
           - "./src"
           - "./pkg/fff"
-		# List of ignored files and directories to be synchronized to DevContainer
-		# type: string[]
-		# default value: []
-		# optional
+    # List of ignored files and directories to be synchronized to DevContainer
+    # type: string[]
+    # default value: []
+    # optional
         ignoreFilePattern:
           - ".git"
           - "./build"
@@ -226,30 +225,30 @@ containers:
         envFile:
           - path: dev.env
           - path: dev.env
-	  # ports which need to be forwarded
-	  # localPort:remotePort
-	  # type: string[]
-	  # default value: []
-	  # optional
+    # ports which need to be forwarded
+    # localPort:remotePort
+    # type: string[]
+    # default value: []
+    # optional
       # portForward:
       # - 3306:3306
-	  # random localPort, remotePort 8000
-	  # - :8000
+    # random localPort, remotePort 8000
+    # - :8000
 `
 
 func GetSvcTpl(svcName string) (string, error) {
-	t, err := template.New(svcName).Parse(svcTpl)
-	if err != nil {
-		return "", errors.Wrap(err, "")
-	}
-	buf := new(bytes.Buffer)
-	err = t.Execute(buf, svcName)
-	if err != nil {
-		return "", errors.Wrap(err, "")
-	}
-	return buf.String(), nil
+  t, err := template.New(svcName).Parse(svcTpl)
+  if err != nil {
+    return "", errors.Wrap(err, "")
+  }
+  buf := new(bytes.Buffer)
+  err = t.Execute(buf, svcName)
+  if err != nil {
+    return "", errors.Wrap(err, "")
+  }
+  return buf.String(), nil
 }
 
 func CombineTpl() string {
-	return applicationTpl + svcTpl
+  return applicationTpl + svcTpl
 }
