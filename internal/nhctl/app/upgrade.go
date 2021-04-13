@@ -100,12 +100,14 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 				envFile = configFile.RelOrAbs("../").RelOrAbs(relPath)
 
 				if e := envFile.CheckExist(); e != nil {
-					log.Log("Render %s Nocalhost config without env files, we found the env file had been configured as %s, but we can not found in %s", configFile.Abs(), relPath, envFile.Abs())
+					log.Log("Render %s Nocalhost config without env files, "+
+						"we found the env file had been configured as %s, but we can not found in %s", configFile.Abs(), relPath, envFile.Abs())
 				} else {
 					log.Log("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
 				}
 			} else {
-				log.Log("Render %s Nocalhost config without env files, you config your Nocalhost configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2", configFile.Abs())
+				log.Log("Render %s Nocalhost config without env files, you config your Nocalhost configuration "+
+					"such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2", configFile.Abs())
 			}
 
 			renderedStr, err := envsubst.Render(configFile, envFile)

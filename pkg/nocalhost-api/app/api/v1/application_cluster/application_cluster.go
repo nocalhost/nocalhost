@@ -13,5 +13,5 @@
 package application_cluster
 
 type ApplicationClusterRequest struct {
-    ClusterId *uint64 `json:"cluster_id" binding:"required"`
+	ClusterId *uint64 `json:"cluster_id" binding:"required"`
 }

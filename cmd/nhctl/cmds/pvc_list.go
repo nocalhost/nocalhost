@@ -117,7 +117,6 @@ func makePVCObjectList(pvcList []v1.PersistentVolumeClaim) []*pvcObject {
 			pY.StorageClass = *pvc.Spec.StorageClassName
 		}
 		pvcObjectList = append(pvcObjectList, pY)
-		//fmt.Printf("%s %s %s %s %s\n", pvc.Name, labels[app.AppLabel], labels[app.ServiceLabel], quantity.String(), pvc.Status.Phase)
 	}
 
 	return pvcObjectList

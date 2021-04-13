@@ -35,7 +35,9 @@ import (
 
 // When a application is installed, something representing the application will build, including:
 // 1. An directory (NhctlAppDir) under $NhctlHomeDir/ns/$NameSpace will be created and initiated
-// 2. An .config_v2.yaml will be created under $NhctlAppDir, it may come from an config file under .nocalhost in your git repository or an outer config file in your local file system
+// 2. An .config_v2.yaml will be created under $NhctlAppDir,
+// it may come from an config file under.
+// nocalhost in your git repository or an outer config file in your local file system
 // 3. An .profile_v2.yaml will be created under $NhctlAppDir, it will record the status of this application
 // build a new application
 func BuildApplication(
@@ -153,20 +155,6 @@ func BuildApplication(
 
 // V2
 func (a *Application) renderConfig(configFilePath string) error {
-	//configFilePath := outerConfigPath
-	//
-	//// Read from .nocalhost
-	//if configFilePath == "" {
-	//	_, err := os.Stat(a.getConfigPathInGitResourcesDir(configName))
-	//	if err != nil {
-	//		if os.IsNotExist(err) {
-	//			return errors.New(fmt.Sprintf("Nocalhost config %s not found. Please check if there is a file:\"%s\" under .nocalhost directory in your git repository", a.getConfigPathInGitResourcesDir(configName), configName))
-	//		}
-	//		return errors.Wrap(err, "")
-	//	}
-	//	configFilePath = a.getConfigPathInGitResourcesDir(configName)
-	//}
-
 	configFile := fp.NewFilePath(configFilePath)
 
 	var envFile *fp.FilePathEnhance

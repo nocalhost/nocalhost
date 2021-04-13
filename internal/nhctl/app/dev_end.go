@@ -97,7 +97,8 @@ func (a *Application) StopFileSyncOnly(svcName string) error {
 			if runtime.GOOS == "windows" {
 				// in windows, it will raise a "Access is denied" err when killing progress, so we can ignore this err
 				fmt.Printf(
-					"attempt to terminate syncthing process(pid: %d), you can run `tasklist | findstr %d` to make sure process was exited\n",
+					"attempt to terminate syncthing process(pid: %d), "+
+						"you can run `tasklist | findstr %d` to make sure process was exited\n",
 					portForwardPid,
 					portForwardPid,
 				)

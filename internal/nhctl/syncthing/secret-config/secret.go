@@ -13,10 +13,10 @@
 package secret_config
 
 const (
-    DefaultSyncthingHome       = "/var/syncthing"
-    DefaultSyncthingSecretHome = "/var/syncthing/secret"
-    SecretName                 = "nocalhost-syncthing-secret"
-    EmptyDir                   = "nocalhost-syncthing"
+	DefaultSyncthingHome       = "/var/syncthing"
+	DefaultSyncthingSecretHome = "/var/syncthing/secret"
+	SecretName                 = "nocalhost-syncthing-secret"
+	EmptyDir                   = "nocalhost-syncthing"
 )
 
 // MDPJNTF-OSPJC65-LZNCQGD-3AWRUW6-BYJULSS-GOCA2TU-5DWWBNC-TKM4VQ5

@@ -83,7 +83,8 @@ var installCmd = &cobra.Command{
 		}
 
 		if installFlags.GitUrl == "" &&
-			(installFlags.AppType != string(app.HelmRepo) && installFlags.AppType != string(app.ManifestLocal) && installFlags.AppType != string(app.HelmLocal)) {
+			(installFlags.AppType != string(app.HelmRepo) && installFlags.AppType != string(app.ManifestLocal) &&
+				installFlags.AppType != string(app.HelmLocal)) {
 			log.Fatalf("If app type is not %s , --git-url must be specified", app.HelmRepo)
 		}
 		if installFlags.AppType == string(app.HelmRepo) {

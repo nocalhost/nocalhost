@@ -15,11 +15,11 @@ package cmds
 import "github.com/spf13/cobra"
 
 func init() {
-    rootCmd.AddCommand(PortForwardCmd)
+	rootCmd.AddCommand(PortForwardCmd)
 }
 
 var PortForwardCmd = &cobra.Command{
-    Use:   "port-forward",
-    Short: "Start port-forward",
-    Long:  `Start port-forward`,
+	Use:   "port-forward",
+	Short: "Start port-forward",
+	Long:  `Start port-forward`,
 }

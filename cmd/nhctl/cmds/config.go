@@ -13,15 +13,15 @@
 package cmds
 
 import (
-    "github.com/spf13/cobra"
+	"github.com/spf13/cobra"
 )
 
 func init() {
-    rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(configCmd)
 }
 
 var configCmd = &cobra.Command{
-    Use:   "config [Name]",
-    Short: "Application config file",
-    Long:  "View, save and check application config file",
+	Use:   "config [Name]",
+	Short: "Application config file",
+	Long:  "View, save and check application config file",
 }

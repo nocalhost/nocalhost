@@ -90,7 +90,8 @@ var InitDepCommand = &cobra.Command{
 		}
 		spinner.Stop()
 		log.Info(
-			"nocalhost-dep has been installed, you can use `kubectl label namespace ${namespace} env=nocalhost` enable namespace dependency injection",
+			"nocalhost-dep has been installed, " +
+				"you can use `kubectl label namespace ${namespace} env=nocalhost` enable namespace dependency injection",
 		)
 	},
 }

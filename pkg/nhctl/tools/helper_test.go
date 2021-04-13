@@ -13,10 +13,10 @@
 package tools
 
 import (
-    "context"
-    "testing"
+	"context"
+	"testing"
 )
 
 func TestExecCommand(t *testing.T) {
-    ExecCommand(context.TODO(), true, "sleep", "3600")
+	ExecCommand(context.TODO(), true, "sleep", "3600")
 }

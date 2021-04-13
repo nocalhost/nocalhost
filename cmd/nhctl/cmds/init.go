@@ -15,11 +15,11 @@ package cmds
 import "github.com/spf13/cobra"
 
 func init() {
-    rootCmd.AddCommand(InitCmd)
+	rootCmd.AddCommand(InitCmd)
 }
 
 var InitCmd = &cobra.Command{
-    Use:   "init",
-    Short: "Init demo or dep component",
-    Long:  `Init demo or dep component`,
+	Use:   "init",
+	Short: "Init demo or dep component",
+	Long:  `Init demo or dep component`,
 }

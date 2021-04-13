@@ -13,15 +13,15 @@
 package cmds
 
 import (
-    "github.com/spf13/cobra"
+	"github.com/spf13/cobra"
 )
 
 func init() {
-    rootCmd.AddCommand(debugCmd)
+	rootCmd.AddCommand(debugCmd)
 }
 
 var debugCmd = &cobra.Command{
-    Use:   "dev",
-    Short: "Start DevMode",
-    Long:  `Start DevMode`,
+	Use:   "dev",
+	Short: "Start DevMode",
+	Long:  `Start DevMode`,
 }

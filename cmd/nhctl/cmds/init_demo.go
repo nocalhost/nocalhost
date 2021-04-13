@@ -57,7 +57,8 @@ func init() {
 	InitCommand.Flags().
 		BoolVar(&inits.Force, "force", false, "force to init, warning: it will remove all nocalhost old data")
 	InitCommand.Flags().
-		StringVar(&inits.InjectUserTemplate, "inject-user-template", "", "inject users template, example Techo%d, max length is 15")
+		StringVar(&inits.InjectUserTemplate, "inject-user-template", "",
+			"inject users template, example Techo%d, max length is 15")
 	InitCommand.Flags().
 		IntVar(&inits.InjectUserAmount, "inject-user-amount", 0, "inject user amount, example 10, max is 999")
 	InitCommand.Flags().

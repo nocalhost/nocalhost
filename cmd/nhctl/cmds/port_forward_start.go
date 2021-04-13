@@ -25,8 +25,8 @@ func init() {
 	portForwardStartCmd.Flags().
 		StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
 	portForwardStartCmd.Flags().
-		StringSliceVarP(&portForwardOptions.DevPort, "dev-port", "p", []string{}, "port-forward between pod and local, such 8080:8080 or :8080(random localPort)")
-	//portForwardStartCmd.Flags().BoolVarP(&portForwardOptions.RunAsDaemon, "daemon", "m", true, "if port-forward run as daemon")
+		StringSliceVarP(&portForwardOptions.DevPort, "dev-port", "p", []string{},
+			"port-forward between pod and local, such 8080:8080 or :8080(random localPort)")
 	portForwardStartCmd.Flags().
 		BoolVarP(&portForwardOptions.Forward, "forward", "f", false, "forward actually, deprecated")
 	portForwardStartCmd.Flags().

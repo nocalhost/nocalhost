@@ -307,7 +307,8 @@ func (a *Application) AppendDevEnvToContainer(
 	}
 }
 
-// In DevMode, nhctl will replace the container of your workload with two containers: one is called devContainer, the other is called sideCarContainer
+// In DevMode, nhctl will replace the container of your workload with two containers
+// one is called devContainer, the other is called sideCarContainer
 func (a *Application) ReplaceImage(
 	ctx context.Context,
 	svcName string,
@@ -390,7 +391,8 @@ func (a *Application) ReplaceImage(
 	// over write syncthing command
 	sideCarContainer.Command = []string{"/bin/sh", "-c"}
 	sideCarContainer.Args = []string{
-		"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome + "/* " + secret_config.DefaultSyncthingHome + "/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing",
+		"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome + "/* " +
+			secret_config.DefaultSyncthingHome + "/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing",
 	}
 
 	devContainer.Image = devImage

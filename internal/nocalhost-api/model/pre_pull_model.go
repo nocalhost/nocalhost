@@ -13,25 +13,25 @@
 package model
 
 import (
-    "time"
+	"time"
 
-    validator "github.com/go-playground/validator/v10"
+	validator "github.com/go-playground/validator/v10"
 )
 
 // PrePullModel
 type PrePullModel struct {
-    ID        uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
-    Images    string     `gorm:"column:images;not null"               json:"images"`
-    DeletedAt *time.Time `gorm:"column:deleted_at"                    json:"-"`
+	ID        uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
+	Images    string     `gorm:"column:images;not null"               json:"images"`
+	DeletedAt *time.Time `gorm:"column:deleted_at"                    json:"-"`
 }
 
 // Validate the fields.
 func (u *PrePullModel) Validate() error {
-    validate := validator.New()
-    return validate.Struct(u)
+	validate := validator.New()
+	return validate.Struct(u)
 }
 
 // TableName
 func (u *PrePullModel) TableName() string {
-    return "pre_pull"
+	return "pre_pull"
 }

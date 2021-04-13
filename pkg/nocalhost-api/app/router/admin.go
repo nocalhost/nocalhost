@@ -16,7 +16,7 @@ import "github.com/gin-gonic/gin"
 
 // LoadAdminRouter loads the middlewares, routes, handlers.
 func LoadAdminRouter(g *gin.Engine) *gin.Engine {
-    router := g
+	router := g
 
-    return router
+	return router
 }

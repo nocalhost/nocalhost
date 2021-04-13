@@ -13,9 +13,9 @@
 package constvar
 
 const (
-    // DefaultLimit
-    DefaultLimit = 50
+	// DefaultLimit
+	DefaultLimit = 50
 
-    // DefaultAvatar
-    DefaultAvatar = "default_avatar.png"
+	// DefaultAvatar
+	DefaultAvatar = "default_avatar.png"
 )

@@ -15,9 +15,9 @@
 package terminate
 
 import (
-    "github.com/mattn/psutil"
+	"github.com/mattn/psutil"
 )
 
 func Terminate(pid int, wait bool, typeName string) error {
-    return psutil.TerminateTree(pid, 0)
+	return psutil.TerminateTree(pid, 0)
 }

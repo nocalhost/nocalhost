@@ -94,19 +94,10 @@ var fileSyncCmd = &cobra.Command{
 			log.FatalE(err, "")
 		}
 
-		//profile := appProfile.FetchSvcProfileV2FromProfile(deployment)
-		//if svcProfile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync == nil {
-		//	svcProfile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync = &profile2.SyncConfig{}
-		//}
-		//if len(fileSyncOps.IgnoredPattern) != 0 {
-		//	svcProfile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync.IgnoreFilePattern = fileSyncOps.IgnoredPattern
-		//}
-		//if len(fileSyncOps.SyncedPattern) != 0 {
-		//	svcProfile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync.FilePattern = fileSyncOps.SyncedPattern
-		//}
-
 		// TODO
-		// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished), the files that have been synchronized will not be synchronized.
+		// If the file is deleted remotely,
+		// but the syncthing database is not reset (the development is not finished)
+		// the files that have been synchronized will not be synchronized.
 		newSyncthing, err := nocalhostApp.NewSyncthing(
 			deployment,
 			fileSyncOps.Container,

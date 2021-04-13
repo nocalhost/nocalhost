@@ -96,7 +96,8 @@ func (a *Application) NewSyncthing(
 		Client:           syncthing.NewAPIClient(),
 		FileWatcherDelay: syncthing.DefaultFileWatcherDelay,
 		GUIAddress:       fmt.Sprintf("%s:%d", syncthing.Bind, localGuiPort),
-		// TODO Be Careful if ResourcePath is not application path, Local syncthing HOME PATH will be used for cert and config.xml
+		// TODO Be Careful if ResourcePath is not application path
+		// TODO Local syncthing HOME PATH will be used for cert and config.xml
 		// it's `~/.nhctl/application/bookinfo/syncthing`
 		LocalHome:        filepath.Join(a.GetHomeDir(), "syncthing", deployment),
 		RemoteHome:       syncthing.RemoteHome,

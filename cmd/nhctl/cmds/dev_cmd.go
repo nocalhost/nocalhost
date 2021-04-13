@@ -39,7 +39,9 @@ func init() {
 	devCmdCmd.Flags().
 		StringVarP(&container, "container", "c", "", "which container of pod to run command")
 	devCmdCmd.Flags().
-		StringVar(&commandType, "dev-command-type", "", fmt.Sprintf("Dev command type can be: %s, %s, %s, %s, %s", buildCommand, runCommand, debugCommand, hotReloadRunCommand, hotReloadDebugCommand))
+		StringVar(&commandType, "dev-command-type", "",
+			fmt.Sprintf("Dev command type can be: %s, %s, %s, %s, %s",
+				buildCommand, runCommand, debugCommand, hotReloadRunCommand, hotReloadDebugCommand))
 	debugCmd.AddCommand(devCmdCmd)
 }
 

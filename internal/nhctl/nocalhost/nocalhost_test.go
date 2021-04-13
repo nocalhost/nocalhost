@@ -13,11 +13,11 @@
 package nocalhost
 
 import (
-    "testing"
+	"testing"
 
-    "nocalhost/cmd/nhctl/cmds"
+	"nocalhost/cmd/nhctl/cmds"
 )
 
 func TestListApplications(t *testing.T) {
-    cmds.ListApplications()
+	cmds.ListApplications()
 }

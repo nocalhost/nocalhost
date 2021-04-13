@@ -54,7 +54,8 @@ func init() {
 
 	// for debug only
 	devStartCmd.Flags().
-		StringVar(&devStartOps.SyncthingVersion, "syncthing-version", "", "versions of syncthing and this flag is use for debug only")
+		StringVar(&devStartOps.SyncthingVersion, "syncthing-version", "",
+			"versions of syncthing and this flag is use for debug only")
 	// LocalSyncDir is local absolute path to sync provided by plugin
 	devStartCmd.Flags().
 		StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{}, "local directory to sync")

@@ -13,10 +13,10 @@
 package tpl
 
 import (
-  "bytes"
-  "text/template"
+	"bytes"
+	"text/template"
 
-  "github.com/pkg/errors"
+	"github.com/pkg/errors"
 )
 
 var applicationTpl = `
@@ -237,18 +237,18 @@ containers:
 `
 
 func GetSvcTpl(svcName string) (string, error) {
-  t, err := template.New(svcName).Parse(svcTpl)
-  if err != nil {
-    return "", errors.Wrap(err, "")
-  }
-  buf := new(bytes.Buffer)
-  err = t.Execute(buf, svcName)
-  if err != nil {
-    return "", errors.Wrap(err, "")
-  }
-  return buf.String(), nil
+	t, err := template.New(svcName).Parse(svcTpl)
+	if err != nil {
+		return "", errors.Wrap(err, "")
+	}
+	buf := new(bytes.Buffer)
+	err = t.Execute(buf, svcName)
+	if err != nil {
+		return "", errors.Wrap(err, "")
+	}
+	return buf.String(), nil
 }
 
 func CombineTpl() string {
-  return applicationTpl + svcTpl
+	return applicationTpl + svcTpl
 }

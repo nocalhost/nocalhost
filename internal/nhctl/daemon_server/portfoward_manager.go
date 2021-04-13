@@ -372,7 +372,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(
 					log.Warn("Reconnecting after 30 seconds...")
 					heartBeatCancel()
 					p.lock.Lock()
-					err = nocalhostApp.UpdatePortForwardStatus(startCmd.Service, localPort, remotePort, "RECONNECTING", "Reconnecting after 30 seconds...")
+					err = nocalhostApp.UpdatePortForwardStatus(startCmd.Service, localPort, remotePort,
+						"RECONNECTING", "Reconnecting after 30 seconds...")
 					p.lock.Unlock()
 					if err != nil {
 						log.LogE(err)
