@@ -22,22 +22,22 @@ import (
 // ApplicationClusterModel
 type ApplicationClusterModel struct {
 	ID            uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
-	ApplicationId uint64     `gorm:"column:application_id;not null" json:"application_id"`
-	ClusterId     uint64     `gorm:"column:cluster_id;not null" json:"cluster_id"`
-	CreatedAt     time.Time  `gorm:"column:created_at" json:"-"`
-	UpdatedAt     time.Time  `gorm:"column:updated_at" json:"-"`
-	DeletedAt     *time.Time `gorm:"column:deleted_at" json:"-"`
+	ApplicationId uint64     `gorm:"column:application_id;not null"       json:"application_id"`
+	ClusterId     uint64     `gorm:"column:cluster_id;not null"           json:"cluster_id"`
+	CreatedAt     time.Time  `gorm:"column:created_at"                    json:"-"`
+	UpdatedAt     time.Time  `gorm:"column:updated_at"                    json:"-"`
+	DeletedAt     *time.Time `gorm:"column:deleted_at"                    json:"-"`
 }
 
 // ApplicationCluserJoinClusterModel
 type ApplicationClusterJoinModel struct {
-	ApplicationId               uint64    `gorm:"column:application_id" json:"application_id"`
-	ClusterId                   uint64    `gorm:"column:cluster_id" json:"cluster_id"`
-	ClusterName                 string    `gorm:"column:cluster_name" json:"cluster_name"`
+	ApplicationId               uint64    `gorm:"column:application_id"  json:"application_id"`
+	ClusterId                   uint64    `gorm:"column:cluster_id"      json:"cluster_id"`
+	ClusterName                 string    `gorm:"column:cluster_name"    json:"cluster_name"`
 	ClusterDevSpaceCount        uint64    `gorm:"column:dev_space_count" json:"dev_space_count"`
-	ClusterInfo                 string    `gorm:"column:cluster_info" json:"cluster_info"`
-	ClusterStatus               uint64    `gorm:"column:cluster_status" json:"cluster_status"`
-	ApplicationClusterCreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
+	ClusterInfo                 string    `gorm:"column:cluster_info"    json:"cluster_info"`
+	ClusterStatus               uint64    `gorm:"column:cluster_status"  json:"cluster_status"`
+	ApplicationClusterCreatedAt time.Time `gorm:"column:created_at"      json:"created_at"`
 }
 
 // Validate the fields.

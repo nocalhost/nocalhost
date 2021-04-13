@@ -159,7 +159,10 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	{
 		pa.GET("/dev_space", applications.PluginGet)
 		pa.POST("/:id/recreate", cluster_user.PluginReCreate)
-		pa.PUT("/application/:id/dev_space/:spaceId/plugin_sync", applications.UpdateApplicationInstall)
+		pa.PUT(
+			"/application/:id/dev_space/:spaceId/plugin_sync",
+			applications.UpdateApplicationInstall,
+		)
 	}
 
 	return g

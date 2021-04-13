@@ -61,7 +61,12 @@ var parseTests = []parseTest{
 	{"if $var not set, use empty string :+", "${NOTSET:+hello}", "", errNone},
 	{"multi line string", "hello $BAR\nhello ${EMPTY:=$FOO}", "hello bar\nhello foo", errNone},
 	{"issue #1", "${hello:=wo_rld} ${foo:=bar_baz}", "wo_rld bar_baz", errNone},
-	{"issue #2", "name: ${NAME:=foo_qux}, key: ${EMPTY:=baz_bar}", "name: foo_qux, key: baz_bar", errNone},
+	{
+		"issue #2",
+		"name: ${NAME:=foo_qux}, key: ${EMPTY:=baz_bar}",
+		"name: foo_qux, key: baz_bar",
+		errNone,
+	},
 	{"gh-issue-8", "prop=${HOME_URL-http://localhost:8080}", "prop=http://localhost:8080", errNone},
 	// bad substitution
 	{"closing brace expected", "hello ${", "", errAll},
@@ -120,7 +125,12 @@ var parseTests = []parseTest{
 }
 
 var negativeParseTests = []parseTest{
-	{"$NOTSET and EMPTY are displayed as in full error output", "${NOTSET} and $EMPTY", "variable ${NOTSET} not set\n: variable ${EMPTY} set but empty", errAllFull},
+	{
+		"$NOTSET and EMPTY are displayed as in full error output",
+		"${NOTSET} and $EMPTY",
+		"variable ${NOTSET} not set\n: variable ${EMPTY} set but empty",
+		errAllFull,
+	},
 }
 
 func TestParse(t *testing.T) {
@@ -152,7 +162,13 @@ func doTest(t *testing.T, m mode) {
 				test.name, hasErr, test.hasErr[m], test.input, result, err)
 		}
 		if result != test.expected {
-			t.Errorf("%s=(%q): got\n\t%v\nexpected\n\t%v", test.name, test.input, result, test.expected)
+			t.Errorf(
+				"%s=(%q): got\n\t%v\nexpected\n\t%v",
+				test.name,
+				test.input,
+				result,
+				test.expected,
+			)
 		}
 	}
 }
@@ -165,14 +181,22 @@ func doNegativeAssertTest(t *testing.T, m mode) {
 			env = append(env, e)
 		}
 
-		result, err := (*&Parser{Name: test.name, Env: env, Restrict: restrict[m], Mode: AllErrors}).ParseWithoutIncludation(test.input)
+		result, err := (*&Parser{Name: test.name, Env: env, Restrict: restrict[m], Mode: AllErrors}).ParseWithoutIncludation(
+			test.input,
+		)
 		hasErr := err != nil
 		if hasErr != test.hasErr[m] {
 			t.Errorf("%s=(error): got\n\t%v\nexpected\n\t%v\ninput: %s\nresult: %s\nerror: %v",
 				test.name, hasErr, test.hasErr[m], test.input, result, err)
 		}
 		if err.Error() != test.expected {
-			t.Errorf("%s=(%q): got\n\t%v\nexpected\n\t%v", test.name, test.input, err.Error(), test.expected)
+			t.Errorf(
+				"%s=(%q): got\n\t%v\nexpected\n\t%v",
+				test.name,
+				test.input,
+				err.Error(),
+				test.expected,
+			)
 		}
 	}
 }

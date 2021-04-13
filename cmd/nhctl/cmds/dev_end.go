@@ -22,7 +22,8 @@ import (
 )
 
 func init() {
-	devEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
+	devEndCmd.Flags().
+		StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	debugCmd.AddCommand(devEndCmd)
 }
 

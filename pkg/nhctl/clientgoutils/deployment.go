@@ -37,7 +37,10 @@ func (c *ClientGoUtils) ListDeployments() ([]v1.Deployment, error) {
 // 3. Latest revision of ReplicaSet is ready
 // After update, UpdateDeployment will clean up previous revision's events
 // If Latest revision of ReplicaSet fails to be ready, return err
-func (c *ClientGoUtils) UpdateDeployment(deployment *v1.Deployment, wait bool) (*v1.Deployment, error) {
+func (c *ClientGoUtils) UpdateDeployment(
+	deployment *v1.Deployment,
+	wait bool,
+) (*v1.Deployment, error) {
 	// Get current revision of replica set
 	rss, err := c.GetSortedReplicaSetsByDeployment(deployment.Name)
 	if err != nil {
@@ -113,7 +116,9 @@ func (c *ClientGoUtils) GetDeployment(name string) (*v1.Deployment, error) {
 }
 
 func (c *ClientGoUtils) CreateDeployment(deploy *v1.Deployment) (*v1.Deployment, error) {
-	dep, err := c.ClientSet.AppsV1().Deployments(c.namespace).Create(c.ctx, deploy, metav1.CreateOptions{})
+	dep, err := c.ClientSet.AppsV1().
+		Deployments(c.namespace).
+		Create(c.ctx, deploy, metav1.CreateOptions{})
 	return dep, errors.Wrap(err, "")
 }
 
@@ -131,7 +136,10 @@ func (c *ClientGoUtils) DeleteDeployment(name string, wait bool) error {
 	labelMap := dep.Spec.Selector.MatchLabels
 
 	if wait {
-		log.Infof("Waiting pods of %s to be terminated, this may take several minutes, depending on the load of your k8s cluster", name)
+		log.Infof(
+			"Waiting pods of %s to be terminated, this may take several minutes, depending on the load of your k8s cluster",
+			name,
+		)
 		terminated := false
 		for i := 0; i < 200; i++ {
 			list, err := c.ListPodsByLabels(labelMap)

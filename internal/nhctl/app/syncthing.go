@@ -30,7 +30,12 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-func (a *Application) NewSyncthing(deployment string, container string, localSyncDir []string, syncDouble bool) (*syncthing.Syncthing, error) {
+func (a *Application) NewSyncthing(
+	deployment string,
+	container string,
+	localSyncDir []string,
+	syncDouble bool,
+) (*syncthing.Syncthing, error) {
 	var err error
 
 	appProfile, err := a.GetProfile()
@@ -112,7 +117,9 @@ func (a *Application) NewSyncthing(deployment string, container string, localSyn
 	}
 	if svcProfile.GetContainerDevConfigOrDefault(container).Sync != nil {
 		s.SyncedPattern = svcProfile.GetContainerDevConfigOrDefault(container).Sync.FilePattern
-		s.IgnoredPattern = svcProfile.GetContainerDevConfigOrDefault(container).Sync.IgnoreFilePattern
+		s.IgnoredPattern = svcProfile.GetContainerDevConfigOrDefault(
+			container,
+		).Sync.IgnoreFilePattern
 	}
 
 	// TODO, warn: multi local sync dir is Deprecated, now it's implement by IgnoreFiles

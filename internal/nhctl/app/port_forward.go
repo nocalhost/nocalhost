@@ -28,14 +28,25 @@ import (
 	"time"
 )
 
-func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, remotePort int, portStatus string, reason string) error {
+func (a *Application) UpdatePortForwardStatus(
+	svcName string,
+	localPort int,
+	remotePort int,
+	portStatus string,
+	reason string,
+) error {
 	pf, err := a.GetPortForward(svcName, localPort, remotePort)
 	if err != nil {
 		return err
 	}
 
 	if pf.Status == portStatus {
-		log.Logf("Pf %d:%d's status is already %s, no need to update", pf.LocalPort, pf.RemotePort, pf.Status)
+		log.Logf(
+			"Pf %d:%d's status is already %s, no need to update",
+			pf.LocalPort,
+			pf.RemotePort,
+			pf.Status,
+		)
 		return nil
 	}
 
@@ -77,7 +88,10 @@ func (a *Application) GetPortForwardForSync(svcName string) (*profile.DevPortFor
 }
 
 // If not found return err
-func (a *Application) GetPortForward(svcName string, localPort, remotePort int) (*profile.DevPortForward, error) {
+func (a *Application) GetPortForward(
+	svcName string,
+	localPort, remotePort int,
+) (*profile.DevPortForward, error) {
 	var err error
 	svcProfile, err := a.GetSvcProfile(svcName)
 	if err != nil {
@@ -150,7 +164,11 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 	return profileV2.CloseDb()
 }
 
-func (a *Application) PortForwardAfterDevStart(svcName string, containerName string, svcType SvcType) error {
+func (a *Application) PortForwardAfterDevStart(
+	svcName string,
+	containerName string,
+	svcType SvcType,
+) error {
 	switch svcType {
 	case Deployment:
 

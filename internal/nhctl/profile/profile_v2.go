@@ -30,28 +30,28 @@ const (
 )
 
 type AppProfileV2 struct {
-	Name                    string            `json:"name" yaml:"name"`
-	ChartName               string            `json:"chart_name" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
+	Name                    string            `json:"name"                          yaml:"name"`
+	ChartName               string            `json:"chart_name"                    yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
 	ReleaseName             string            `json:"release_name yaml:releaseName"`
-	Namespace               string            `json:"namespace" yaml:"namespace"`
-	Kubeconfig              string            `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
-	DependencyConfigMapName string            `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
-	AppType                 string            `json:"app_type" yaml:"appType"`
-	SvcProfile              []*SvcProfileV2   `json:"svc_profile" yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
-	Installed               bool              `json:"installed" yaml:"installed"`
-	SyncDirs                []string          `json:"syncDirs" yaml:"syncDirs"` // dev start -s
-	ResourcePath            []string          `json:"resource_path" yaml:"resourcePath"`
-	IgnoredPath             []string          `json:"ignoredPath" yaml:"ignoredPath"`
-	PreInstall              []*PreInstallItem `json:"onPreInstall" yaml:"onPreInstall"`
+	Namespace               string            `json:"namespace"                     yaml:"namespace"`
+	Kubeconfig              string            `json:"kubeconfig"                    yaml:"kubeconfig,omitempty"`
+	DependencyConfigMapName string            `json:"dependency_config_map_name"    yaml:"dependencyConfigMapName,omitempty"`
+	AppType                 string            `json:"app_type"                      yaml:"appType"`
+	SvcProfile              []*SvcProfileV2   `json:"svc_profile"                   yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
+	Installed               bool              `json:"installed"                     yaml:"installed"`
+	SyncDirs                []string          `json:"syncDirs"                      yaml:"syncDirs"` // dev start -s
+	ResourcePath            []string          `json:"resource_path"                 yaml:"resourcePath"`
+	IgnoredPath             []string          `json:"ignoredPath"                   yaml:"ignoredPath"`
+	PreInstall              []*PreInstallItem `json:"onPreInstall"                  yaml:"onPreInstall"`
 
 	// After v2
-	GitUrl       string `json:"gitUrl" yaml:"gitUrl"`
-	GitRef       string `json:"gitRef" yaml:"gitRef"`
+	GitUrl       string `json:"gitUrl"      yaml:"gitUrl"`
+	GitRef       string `json:"gitRef"      yaml:"gitRef"`
 	HelmRepoUrl  string `json:"helmRepoUrl" yaml:"helmRepoUrl"`
 	HelmRepoName string `json:"helmRepoUrl" yaml:"helmRepoName"`
 	//HelmRepoChartVersion string `json:"helmRepoChartVersion" yaml:"helmRepoChartVersion"`
 
-	Env     []*Env  `json:"env" yaml:"env"`
+	Env     []*Env  `json:"env"     yaml:"env"`
 	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
 	db      *dbutils.LevelDBUtils
 	dbPath  string
@@ -178,23 +178,23 @@ func (a *AppProfileV2) CloseDb() error {
 }
 
 type SvcProfileV2 struct {
-	*ServiceConfigV2 `yaml:"rawConfig"`
-	ContainerProfile []*ContainerProfileV2 `json:"container_profile" yaml:"containerProfile"`
-	ActualName       string                `json:"actual_name" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
-	Developing       bool                  `json:"developing" yaml:"developing"`
-	PortForwarded    bool                  `json:"port_forwarded" yaml:"portForwarded"`
-	Syncing          bool                  `json:"syncing" yaml:"syncing"`
-	SyncDirs         []string              `json:"syncDirs" yaml:"syncDirs,omitempty"` // dev start -s
+	*ServiceConfigV2 `                      yaml:"rawConfig"`
+	ContainerProfile []*ContainerProfileV2 `yaml:"containerProfile"                       json:"container_profile"`
+	ActualName       string                `yaml:"actualName"                             json:"actual_name"` // for helm, actualName may be ReleaseName-Name
+	Developing       bool                  `yaml:"developing"                             json:"developing"`
+	PortForwarded    bool                  `yaml:"portForwarded"                          json:"port_forwarded"`
+	Syncing          bool                  `yaml:"syncing"                                json:"syncing"`
+	SyncDirs         []string              `yaml:"syncDirs,omitempty"                     json:"syncDirs"` // dev start -s
 	// same as local available port, use for port-forward
-	RemoteSyncthingPort int `json:"remoteSyncthingPort" yaml:"remoteSyncthingPort"`
+	RemoteSyncthingPort int `yaml:"remoteSyncthingPort"                    json:"remoteSyncthingPort"`
 	// same as local available port, use for port-forward
-	RemoteSyncthingGUIPort int    `json:"remoteSyncthingGUIPort" yaml:"remoteSyncthingGUIPort"`
-	SyncthingSecret        string `json:"syncthingSecret" yaml:"syncthingSecret"` // secret name
+	RemoteSyncthingGUIPort int    `yaml:"remoteSyncthingGUIPort"                 json:"remoteSyncthingGUIPort"`
+	SyncthingSecret        string `yaml:"syncthingSecret"                        json:"syncthingSecret"` // secret name
 	// syncthing local port
-	LocalSyncthingPort                     int               `json:"localSyncthingPort" yaml:"localSyncthingPort"`
-	LocalSyncthingGUIPort                  int               `json:"localSyncthingGUIPort" yaml:"localSyncthingGUIPort"`
-	LocalAbsoluteSyncDirFromDevStartPlugin []string          `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
-	DevPortForwardList                     []*DevPortForward `json:"devPortForwardList" yaml:"devPortForwardList"` // combine DevPortList,PortForwardStatusList and PortForwardPidList
+	LocalSyncthingPort                     int               `yaml:"localSyncthingPort"                     json:"localSyncthingPort"`
+	LocalSyncthingGUIPort                  int               `yaml:"localSyncthingGUIPort"                  json:"localSyncthingGUIPort"`
+	LocalAbsoluteSyncDirFromDevStartPlugin []string          `yaml:"localAbsoluteSyncDirFromDevStartPlugin" json:"localAbsoluteSyncDirFromDevStartPlugin"`
+	DevPortForwardList                     []*DevPortForward `yaml:"devPortForwardList"                     json:"devPortForwardList"` // combine DevPortList,PortForwardStatusList and PortForwardPidList
 	// Deprecated later
 	//DevPortList           []string `json:"devPortList" yaml:"devPortList"`
 	//PortForwardStatusList []string `json:"portForwardStatusList" yaml:"portForwardStatusList"`
@@ -211,7 +211,7 @@ type DevPortForward struct {
 	Role              string
 	Status            string
 	Reason            string
-	PodName           string `json:"podName" yaml:"podName"`
+	PodName           string `json:"podName"           yaml:"podName"`
 	Updated           string
 	Pid               int
 	RunByDaemonServer bool   `json:"runByDaemonServer" yaml:"runByDaemonServer"`

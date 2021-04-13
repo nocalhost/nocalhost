@@ -39,18 +39,26 @@ var devStartOps = &app.DevStartOptions{}
 
 func init() {
 
-	devStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
+	devStartCmd.Flags().
+		StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	devStartCmd.Flags().StringVarP(&devStartOps.DevImage, "image", "i", "", "image of DevContainer")
-	devStartCmd.Flags().StringVarP(&devStartOps.Container, "container", "c", "", "container to develop")
-	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory, same as sync path")
-	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "the StorageClass used by persistent volumes")
-	devStartCmd.Flags().StringVar(&devStartOps.PriorityClass, "priority-class", "", "the PriorityClass used by devContainer")
-	devStartCmd.Flags().StringVar(&devStartOps.SideCarImage, "sidecar-image", "", "image of nocalhost-sidecar container")
+	devStartCmd.Flags().
+		StringVarP(&devStartOps.Container, "container", "c", "", "container to develop")
+	devStartCmd.Flags().
+		StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory, same as sync path")
+	devStartCmd.Flags().
+		StringVar(&devStartOps.StorageClass, "storage-class", "", "the StorageClass used by persistent volumes")
+	devStartCmd.Flags().
+		StringVar(&devStartOps.PriorityClass, "priority-class", "", "the PriorityClass used by devContainer")
+	devStartCmd.Flags().
+		StringVar(&devStartOps.SideCarImage, "sidecar-image", "", "image of nocalhost-sidecar container")
 
 	// for debug only
-	devStartCmd.Flags().StringVar(&devStartOps.SyncthingVersion, "syncthing-version", "", "versions of syncthing and this flag is use for debug only")
+	devStartCmd.Flags().
+		StringVar(&devStartOps.SyncthingVersion, "syncthing-version", "", "versions of syncthing and this flag is use for debug only")
 	// LocalSyncDir is local absolute path to sync provided by plugin
-	devStartCmd.Flags().StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{}, "local directory to sync")
+	devStartCmd.Flags().
+		StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{}, "local directory to sync")
 	debugCmd.AddCommand(devStartCmd)
 }
 
@@ -76,7 +84,10 @@ var devStartCmd = &cobra.Command{
 		devStartOps.Kubeconfig = kubeConfig
 		log.Info("Starting DevMode...")
 
-		profileV2, err := profile.NewAppProfileV2ForUpdate(nocalhostApp.NameSpace, nocalhostApp.Name)
+		profileV2, err := profile.NewAppProfileV2ForUpdate(
+			nocalhostApp.NameSpace,
+			nocalhostApp.Name,
+		)
 		if err != nil {
 			log.FatalE(err, "")
 		}
@@ -100,7 +111,12 @@ var devStartCmd = &cobra.Command{
 		profileV2.Save()
 		profileV2.CloseDb()
 
-		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOps.Container, devStartOps.LocalSyncDir, false)
+		newSyncthing, err := nocalhostApp.NewSyncthing(
+			deployment,
+			devStartOps.Container,
+			devStartOps.LocalSyncDir,
+			false,
+		)
 		if err != nil {
 			log.FatalE(err, "Failed to create syncthing process, please try again.")
 		}
@@ -114,9 +130,13 @@ var devStartCmd = &cobra.Command{
 			downloadVersion = devStartOps.SyncthingVersion
 		}
 
-		_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
+		_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).
+			InstallIfNeeded()
 		if err != nil {
-			log.FatalE(err, "Failed to install syncthing, and no syncthing available locally in "+newSyncthing.BinPath+" please try again.")
+			log.FatalE(
+				err,
+				"Failed to install syncthing, and no syncthing available locally in "+newSyncthing.BinPath+" please try again.",
+			)
 		}
 		//}
 
@@ -135,7 +155,10 @@ var devStartCmd = &cobra.Command{
 		}
 		err = nocalhostApp.CreateSyncThingSecret(deployment, syncSecret)
 		if err != nil {
-			log.Fatalf("Failed to create syncthing secret, please try to delete \"%s\" secret first manually.", syncthing.SyncSecretName)
+			log.Fatalf(
+				"Failed to create syncthing secret, please try to delete \"%s\" secret first manually.",
+				syncthing.SyncSecretName,
+			)
 		}
 
 		// Stop port-forward

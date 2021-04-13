@@ -29,7 +29,8 @@ type RenderOps struct {
 }
 
 func init() {
-	renderCmd.Flags().StringVarP(&renderOps.envPath, "env path", "e", "", "the env file for render injection")
+	renderCmd.Flags().
+		StringVarP(&renderOps.envPath, "env path", "e", "", "the env file for render injection")
 	rootCmd.AddCommand(renderCmd)
 }
 

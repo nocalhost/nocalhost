@@ -78,7 +78,12 @@ func (a *Application) StopFileSyncOnly(svcName string) error {
 	if portForwardPid != 0 {
 		err = syncthing.Stop(portForwardPid, portForwardFilePath, "port-forward", true)
 		if err != nil {
-			log.Warnf("Failed stop port-forward progress pid %d, please run `kill -9 %d` by manual, err: %s\n", portForwardPid, portForwardPid, err)
+			log.Warnf(
+				"Failed stop port-forward progress pid %d, please run `kill -9 %d` by manual, err: %s\n",
+				portForwardPid,
+				portForwardPid,
+				err,
+			)
 		}
 	}
 
@@ -92,7 +97,11 @@ func (a *Application) StopFileSyncOnly(svcName string) error {
 		if err != nil {
 			if runtime.GOOS == "windows" {
 				// in windows, it will raise a "Access is denied" err when killing progress, so we can ignore this err
-				fmt.Printf("attempt to terminate syncthing process(pid: %d), you can run `tasklist | findstr %d` to make sure process was exited\n", portForwardPid, portForwardPid)
+				fmt.Printf(
+					"attempt to terminate syncthing process(pid: %d), you can run `tasklist | findstr %d` to make sure process was exited\n",
+					portForwardPid,
+					portForwardPid,
+				)
 			} else {
 				log.Warnf("Failed to terminate syncthing process(pid: %d), please run `kill -9 %d` manually, err: %s\n", portForwardPid, portForwardPid, err)
 			}
@@ -100,7 +109,11 @@ func (a *Application) StopFileSyncOnly(svcName string) error {
 	}
 
 	if err == nil { // none of them has error
-		fmt.Printf("Background port-forward process: %d and  syncthing process: %d terminated.\n", portForwardPid, syncthingPid)
+		fmt.Printf(
+			"Background port-forward process: %d and  syncthing process: %d terminated.\n",
+			portForwardPid,
+			syncthingPid,
+		)
 	}
 	return err
 }

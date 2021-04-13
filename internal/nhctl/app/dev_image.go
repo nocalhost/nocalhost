@@ -55,7 +55,9 @@ func (a *Application) markReplicaSetAsOriginalRevision(svcName string) error {
 			if rs.Annotations[DevImageRevisionAnnotationKey] == DevImageRevisionAnnotationValue {
 				firstRevisionName = rs.Name
 				if rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] == "" {
-					rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] = strconv.Itoa(originalPodReplicas)
+					rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] = strconv.Itoa(
+						originalPodReplicas,
+					)
 					_, err = a.client.UpdateReplicaSet(rs)
 					if err != nil {
 						return errors.New("Failed to update rs's annotation")
@@ -85,7 +87,9 @@ func (a *Application) markReplicaSetAsOriginalRevision(svcName string) error {
 // There are two volume used by syncthing in sideCarContainer:
 // 1. A EmptyDir volume mounts to /var/syncthing in sideCarContainer
 // 2. A volume mounts Secret to /var/syncthing/secret in sideCarContainer
-func (a *Application) generateSyncthingVolumesAndVolumeMounts(svcName string) ([]corev1.Volume, []corev1.VolumeMount) {
+func (a *Application) generateSyncthingVolumesAndVolumeMounts(
+	svcName string,
+) ([]corev1.Volume, []corev1.VolumeMount) {
 
 	syncthingVolumes := make([]corev1.Volume, 0)
 	syncthingVolumeMounts := make([]corev1.VolumeMount, 0)
@@ -141,14 +145,20 @@ func (a *Application) generateSyncthingVolumesAndVolumeMounts(svcName string) ([
 	}
 
 	syncthingVolumes = append(syncthingVolumes, syncthingEmptyDirVol, syncthingSecretVol)
-	syncthingVolumeMounts = append(syncthingVolumeMounts, syncthingHomeDirVolumeMount, syncthingSecretVolumeMount)
+	syncthingVolumeMounts = append(
+		syncthingVolumeMounts,
+		syncthingHomeDirVolumeMount,
+		syncthingSecretVolumeMount,
+	)
 	return syncthingVolumes, syncthingVolumeMounts
 }
 
 // If PVC exists, use it directly
 // If PVC not exists, try to create one
 // If PVC failed to create, the whole process of entering DevMode will fail
-func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, container, storageClass string) ([]corev1.Volume, []corev1.VolumeMount, error) {
+func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(
+	svcName, container, storageClass string,
+) ([]corev1.Volume, []corev1.VolumeMount, error) {
 
 	volumes := make([]corev1.Volume, 0)
 	volumeMounts := make([]corev1.VolumeMount, 0)
@@ -182,7 +192,13 @@ func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, co
 				continue
 			}
 			if len(claims) > 1 {
-				log.Warn(fmt.Sprintf("Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path))
+				log.Warn(
+					fmt.Sprintf(
+						"Find %d pvc for %s, expected 1, skipping this dir",
+						len(claims),
+						persistentVolume.Path,
+					),
+				)
 				continue
 			}
 
@@ -255,7 +271,9 @@ func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, co
 	return volumes, volumeMounts, nil
 }
 
-func (a *Application) generateResourceRequirementsForDevContainer(svcName string) *corev1.ResourceRequirements {
+func (a *Application) generateResourceRequirementsForDevContainer(
+	svcName string,
+) *corev1.ResourceRequirements {
 
 	var (
 		err          error
@@ -278,7 +296,11 @@ func (a *Application) generateResourceRequirementsForDevContainer(svcName string
 }
 
 // add dev start env
-func (a *Application) AppendDevEnvToContainer(devContainer *corev1.Container, svcName string, ops *DevStartOptions) {
+func (a *Application) AppendDevEnvToContainer(
+	devContainer *corev1.Container,
+	svcName string,
+	ops *DevStartOptions,
+) {
 	devEnv := a.GetDevContainerEnv(svcName, ops.Container)
 	for _, v := range devEnv.DevEnv {
 		env := corev1.EnvVar{Name: v.Name, Value: v.Value}
@@ -287,7 +309,11 @@ func (a *Application) AppendDevEnvToContainer(devContainer *corev1.Container, sv
 }
 
 // In DevMode, nhctl will replace the container of your workload with two containers: one is called devContainer, the other is called sideCarContainer
-func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *DevStartOptions) error {
+func (a *Application) ReplaceImage(
+	ctx context.Context,
+	svcName string,
+	ops *DevStartOptions,
+) error {
 
 	var err error
 	a.client.Context(ctx)
@@ -335,7 +361,11 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
-	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := a.generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, ops.Container, ops.StorageClass)
+	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := a.generateWorkDirAndPersistVolumeAndVolumeMounts(
+		svcName,
+		ops.Container,
+		ops.StorageClass,
+	)
 	if err != nil {
 		return err
 	}
@@ -343,7 +373,10 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	devModeMounts = append(devModeMounts, workDirAndPersistVolumeMounts...)
 
 	workDir := a.GetDefaultWorkDir(svcName, ops.Container)
-	devImage := a.GetDefaultDevImage(svcName, ops.Container) // Default : replace the first container
+	devImage := a.GetDefaultDevImage(
+		svcName,
+		ops.Container,
+	) // Default : replace the first container
 	sideCarImage := a.GetDefaultSideCarImage(svcName)
 	if ops.SideCarImage != "" {
 		sideCarImage = ops.SideCarImage
@@ -357,7 +390,9 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 
 	// over write syncthing command
 	sideCarContainer.Command = []string{"/bin/sh", "-c"}
-	sideCarContainer.Args = []string{"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome + "/* " + secret_config.DefaultSyncthingHome + "/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing"}
+	sideCarContainer.Args = []string{
+		"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome + "/* " + secret_config.DefaultSyncthingHome + "/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing",
+	}
 
 	devContainer.Image = devImage
 	devContainer.Name = "nocalhost-dev"
@@ -470,12 +505,17 @@ wait:
 	return nil
 }
 
-func convertResourceQuotaToResourceRequirements(quota *profile.ResourceQuota) (*corev1.ResourceRequirements, error) {
+func convertResourceQuotaToResourceRequirements(
+	quota *profile.ResourceQuota,
+) (*corev1.ResourceRequirements, error) {
 	var err error
 	requirements := &corev1.ResourceRequirements{}
 
 	if quota.Requests != nil {
-		requirements.Requests, err = convertToResourceList(quota.Requests.Cpu, quota.Requests.Memory)
+		requirements.Requests, err = convertToResourceList(
+			quota.Requests.Cpu,
+			quota.Requests.Memory,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -514,7 +554,11 @@ func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) 
 
 // Create a pvc for persistent volume dir, and waiting util pvc succeed to bound to a pv
 // If pvc failed to bound to a pv, the pvc will been deleted, and return nil
-func (a *Application) createPvcForPersistentVolumeDir(persistentVolume *profile.PersistentVolumeDir, labels map[string]string, storageClass string) (*corev1.PersistentVolumeClaim, error) {
+func (a *Application) createPvcForPersistentVolumeDir(
+	persistentVolume *profile.PersistentVolumeDir,
+	labels map[string]string,
+	storageClass string,
+) (*corev1.PersistentVolumeClaim, error) {
 	var (
 		pvc *corev1.PersistentVolumeClaim
 		err error
@@ -588,7 +632,11 @@ func (a *Application) scaleDeploymentReplicasToOne(ctx context.Context, deployme
 	}
 
 	if scale.Spec.Replicas > 1 {
-		log.Infof("Deployment %s's replicas is %d now, scaling it to 1", deployment, scale.Spec.Replicas)
+		log.Infof(
+			"Deployment %s's replicas is %d now, scaling it to 1",
+			deployment,
+			scale.Spec.Replicas,
+		)
 		scale.Spec.Replicas = 1
 		_, err = deploymentsClient.UpdateScale(ctx, deployment, scale, metav1.UpdateOptions{})
 		if err != nil {

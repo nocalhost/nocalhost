@@ -56,7 +56,11 @@ func Delete(c *gin.Context) {
 			}
 			_, err = goClient.DeleteNS(clusterUser.Namespace)
 			if err != nil {
-				log.Warnf("try to delete userid %d cluster namesapce %d fail", clusterUser.UserId, clusterUser.Namespace)
+				log.Warnf(
+					"try to delete userid %d cluster namesapce %d fail",
+					clusterUser.UserId,
+					clusterUser.Namespace,
+				)
 			}
 			log.Infof("deleted user cluster dev space %s", clusterUser.Namespace)
 			clusterUserIds = append(clusterUserIds, clusterUser.ID)

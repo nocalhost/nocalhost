@@ -32,7 +32,11 @@ type DevSpace struct {
 	KubeConfig     []byte
 }
 
-func NewDevSpace(devSpaceParams ClusterUserCreateRequest, c *gin.Context, kubeConfig []byte) *DevSpace {
+func NewDevSpace(
+	devSpaceParams ClusterUserCreateRequest,
+	c *gin.Context,
+	kubeConfig []byte,
+) *DevSpace {
 	return &DevSpace{
 		DevSpaceParams: devSpaceParams,
 		c:              c,
@@ -121,8 +125,18 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	// create cluster devs
 	devNamespace := goClient.GenerateNsName(userId)
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
-	secret, err := clusterDevsSetUp.CreateNS(devNamespace, "").CreateServiceAccount("", devNamespace).CreateRole(global.NocalhostDevRoleName, devNamespace).CreateRoleBinding(global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevServiceAccountName).CreateRoleBinding(global.NocalhostDevRoleDefaultBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevDefaultServiceAccountName).GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).GetServiceAccountSecret("", devNamespace)
-	KubeConfigYaml, err, nerrno := setupcluster.NewDevKubeConfigReader(secret, clusterData.Server, devNamespace).GetCA().GetToken().AssembleDevKubeConfig().ToYamlString()
+	secret, err := clusterDevsSetUp.CreateNS(devNamespace, "").
+		CreateServiceAccount("", devNamespace).
+		CreateRole(global.NocalhostDevRoleName, devNamespace).
+		CreateRoleBinding(global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevServiceAccountName).
+		CreateRoleBinding(global.NocalhostDevRoleDefaultBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevDefaultServiceAccountName).
+		GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).
+		GetServiceAccountSecret("", devNamespace)
+	KubeConfigYaml, err, nerrno := setupcluster.NewDevKubeConfigReader(secret, clusterData.Server, devNamespace).
+		GetCA().
+		GetToken().
+		AssembleDevKubeConfig().
+		ToYamlString()
 	if err != nil {
 		return nil, nerrno
 	}
@@ -137,11 +151,13 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 
 	clusterDevsSetUp.CreateResouceQuota("rq-"+devNamespace, devNamespace, res.SpaceReqMem,
 		res.SpaceReqCpu, res.SpaceLimitsMem, res.SpaceLimitsCpu, res.SpaceStorageCapacity, res.SpaceEphemeralStorage,
-		res.SpacePvcCount, res.SpaceLbCount).CreateLimitRange("lr-"+devNamespace, devNamespace,
-		res.ContainerReqMem, res.ContainerLimitsMem, res.ContainerReqCpu, res.ContainerLimitsCpu, res.ContainerEphemeralStorage)
+		res.SpacePvcCount, res.SpaceLbCount).
+		CreateLimitRange("lr-"+devNamespace, devNamespace,
+			res.ContainerReqMem, res.ContainerLimitsMem, res.ContainerReqCpu, res.ContainerLimitsCpu, res.ContainerEphemeralStorage)
 
 	resString, err := json.Marshal(res)
-	result, err := service.Svc.ClusterUser().Create(d.c, applicationId, *d.DevSpaceParams.ClusterId, userId, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu, KubeConfigYaml, devNamespace, spaceName, string(resString))
+	result, err := service.Svc.ClusterUser().
+		Create(d.c, applicationId, *d.DevSpaceParams.ClusterId, userId, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu, KubeConfigYaml, devNamespace, spaceName, string(resString))
 	if err != nil {
 		return nil, errno.ErrBindApplicationClsuter
 	}

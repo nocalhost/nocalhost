@@ -62,9 +62,11 @@ func GetCommitId() string {
 
 // get all pods, pod name is taskId, we will find the first create pod, judge it's my turns ro not
 func getAllCommitId() map[int64]string {
-	podList, err := util.Client.ClientSet.CoreV1().Pods("test").List(context.TODO(), metav1.ListOptions{
-		LabelSelector: "app=test",
-	})
+	podList, err := util.Client.ClientSet.CoreV1().
+		Pods("test").
+		List(context.TODO(), metav1.ListOptions{
+			LabelSelector: "app=test",
+		})
 	if err != nil {
 		panic(fmt.Sprintf("get commit configmap error: %v\n", err))
 	}

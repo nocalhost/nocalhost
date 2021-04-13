@@ -38,7 +38,9 @@ import (
 )
 
 var (
-	ignoredFileTemplate = template.Must(template.New("ignoredFileTemplate").Parse(local.IgnoredFileTemplate))
+	ignoredFileTemplate = template.Must(
+		template.New("ignoredFileTemplate").Parse(local.IgnoredFileTemplate),
+	)
 )
 
 const (
@@ -309,7 +311,9 @@ func Stop(pid int, pidFilePath string, typeName string, force bool) error {
 }
 
 func (s *Syncthing) GetRemoteConfigXML() ([]byte, error) {
-	configTemplate := template.Must(template.New("syncthingConfig").Parse(local.RemoteSyncConfigXML))
+	configTemplate := template.Must(
+		template.New("syncthingConfig").Parse(local.RemoteSyncConfigXML),
+	)
 	buf := new(bytes.Buffer)
 	if err := configTemplate.Execute(buf, s); err != nil {
 		return nil, err

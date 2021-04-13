@@ -20,11 +20,18 @@ import (
 )
 
 type ApplicationUserService interface {
-	ListByApplicationId(ctx context.Context, applicationId uint64) ([]*model.ApplicationUserModel, error)
+	ListByApplicationId(
+		ctx context.Context,
+		applicationId uint64,
+	) ([]*model.ApplicationUserModel, error)
 	ListByUserId(ctx context.Context, userId uint64) ([]*model.ApplicationUserModel, error)
 	BatchDelete(ctx context.Context, applicationId uint64, userIds []uint64) error
 	BatchInsert(ctx context.Context, applicationId uint64, userIds []uint64) error
-	GetByApplicationIdAndUserId(ctx context.Context, applicationId uint64, userId uint64) (*model.ApplicationUserModel, error)
+	GetByApplicationIdAndUserId(
+		ctx context.Context,
+		applicationId uint64,
+		userId uint64,
+	) (*model.ApplicationUserModel, error)
 	Close()
 }
 
@@ -37,23 +44,41 @@ func NewApplicationUserService() ApplicationUserService {
 	return &applicationUserService{repo: application_user.NewApplicationUserRepo(db)}
 }
 
-func (srv *applicationUserService) BatchDelete(ctx context.Context, applicationId uint64, userIds []uint64) error {
+func (srv *applicationUserService) BatchDelete(
+	ctx context.Context,
+	applicationId uint64,
+	userIds []uint64,
+) error {
 	return srv.repo.BatchDelete(ctx, applicationId, userIds)
 }
 
-func (srv *applicationUserService) BatchInsert(ctx context.Context, applicationId uint64, userIds []uint64) error {
+func (srv *applicationUserService) BatchInsert(
+	ctx context.Context,
+	applicationId uint64,
+	userIds []uint64,
+) error {
 	return srv.repo.BatchInsert(ctx, applicationId, userIds)
 }
 
-func (srv *applicationUserService) GetByApplicationIdAndUserId(ctx context.Context, applicationId uint64, userId uint64) (*model.ApplicationUserModel, error) {
+func (srv *applicationUserService) GetByApplicationIdAndUserId(
+	ctx context.Context,
+	applicationId uint64,
+	userId uint64,
+) (*model.ApplicationUserModel, error) {
 	return srv.repo.GetByApplicationIdAndUserId(ctx, applicationId, userId)
 }
 
-func (srv *applicationUserService) ListByApplicationId(ctx context.Context, id uint64) ([]*model.ApplicationUserModel, error) {
+func (srv *applicationUserService) ListByApplicationId(
+	ctx context.Context,
+	id uint64,
+) ([]*model.ApplicationUserModel, error) {
 	return srv.repo.ListByApplicationId(ctx, id)
 }
 
-func (srv *applicationUserService) ListByUserId(ctx context.Context, id uint64) ([]*model.ApplicationUserModel, error) {
+func (srv *applicationUserService) ListByUserId(
+	ctx context.Context,
+	id uint64,
+) ([]*model.ApplicationUserModel, error) {
 	return srv.repo.ListByUserId(ctx, id)
 }
 

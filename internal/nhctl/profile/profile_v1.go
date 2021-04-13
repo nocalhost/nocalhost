@@ -14,6 +14,6 @@ limitations under the License.
 package profile
 
 type PreInstallItem struct {
-	Path   string `json:"path" yaml:"path"`
+	Path   string `json:"path"   yaml:"path"`
 	Weight string `json:"weight" yaml:"weight"`
 }

@@ -26,7 +26,11 @@ func TestClientGoUtils_CreatePVC(t *testing.T) {
 	}
 
 	dirBase64 := base64.StdEncoding.EncodeToString([]byte("/var/tmp/tmp"))
-	labels := map[string]string{"nocalhost.dev/app": "app01", "nocalhost.dev/service": "details", "nocalhost.dev/dir": dirBase64}
+	labels := map[string]string{
+		"nocalhost.dev/app":     "app01",
+		"nocalhost.dev/service": "details",
+		"nocalhost.dev/dir":     dirBase64,
+	}
 	annotations := map[string]string{"nocalhost.dev/dir": "/var/tmp/tmp"}
 
 	pvc, err := client.CreatePVC("test01", labels, annotations, "10Gi", nil)

@@ -30,35 +30,35 @@ type CreateResponse struct {
 
 // RegisterRequest
 type RegisterRequest struct {
-	Email           string `json:"email" form:"email"`
-	Password        string `json:"password" form:"password"`
+	Email           string `json:"email"            form:"email"`
+	Password        string `json:"password"         form:"password"`
 	ConfirmPassword string `json:"confirm_password" form:"confirm_password"`
 }
 
 // CreateUserRequest
 type CreateUserRequest struct {
-	Email           string  `json:"email" form:"email" binding:"required"`
-	Name            string  `json:"name" form:"name" binding:"required"`
-	Password        string  `json:"password" form:"password" binding:"required"`
+	Email           string  `json:"email"            form:"email"            binding:"required"`
+	Name            string  `json:"name"             form:"name"             binding:"required"`
+	Password        string  `json:"password"         form:"password"         binding:"required"`
 	ConfirmPassword string  `json:"confirm_password" form:"confirm_password" binding:"required"`
-	Status          *uint64 `json:"status" form:"status" binding:"required"`
-	IsAdmin         *uint64 `json:"is_admin" form:"is_admin" binding:"required"`
+	Status          *uint64 `json:"status"           form:"status"           binding:"required"`
+	IsAdmin         *uint64 `json:"is_admin"         form:"is_admin"         binding:"required"`
 }
 
 // UpdateUserRequest
 type UpdateUserRequest struct {
-	Email    string  `json:"email" form:"email"`
-	Name     string  `json:"name" form:"name"`
+	Email    string  `json:"email"    form:"email"`
+	Name     string  `json:"name"     form:"name"`
 	Password string  `json:"password" form:"password"`
-	Status   *uint64 `json:"status" form:"status"`
+	Status   *uint64 `json:"status"   form:"status"`
 	IsAdmin  *uint64 `json:"is_admin" form:"is_admin"`
 }
 
 // LoginCredentials
 type LoginCredentials struct {
-	Email    string `json:"email" form:"email" binding:"required"`
+	Email    string `json:"email"    form:"email"    binding:"required"`
 	Password string `json:"password" form:"password" binding:"required"`
-	From     string `json:"from" form:"from" example:"only use for plugin, web interface do not send this key"`
+	From     string `json:"from"     form:"from"                        example:"only use for plugin, web interface do not send this key"`
 }
 
 // UpdateRequest

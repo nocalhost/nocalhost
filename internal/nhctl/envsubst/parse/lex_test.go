@@ -99,7 +99,13 @@ func TestLex(t *testing.T) {
 	for _, test := range lexTests {
 		items := collect(&test)
 		if !equal(items, test.items, false) {
-			t.Errorf("%s:\ninput\n\t%q\ngot\n\t%+v\nexpected\n\t%v", test.name, test.input, items, test.items)
+			t.Errorf(
+				"%s:\ninput\n\t%q\ngot\n\t%+v\nexpected\n\t%v",
+				test.name,
+				test.input,
+				items,
+				test.items,
+			)
 		}
 	}
 }

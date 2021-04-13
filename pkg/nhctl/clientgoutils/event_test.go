@@ -29,7 +29,13 @@ func TestClientGoUtils_ListEventsByReplicaSet(t *testing.T) {
 		panic(err)
 	}
 	for _, event := range list {
-		fmt.Printf("%s %s %s %s\n", event.Name, event.Reason, event.LastTimestamp.String(), event.Message)
+		fmt.Printf(
+			"%s %s %s %s\n",
+			event.Name,
+			event.Reason,
+			event.LastTimestamp.String(),
+			event.Message,
+		)
 	}
 }
 

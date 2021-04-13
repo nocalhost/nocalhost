@@ -39,5 +39,8 @@ func (c *ClientGoUtils) ListEventsByReplicaSet(rsName string) ([]corev1.Event, e
 }
 
 func (c *ClientGoUtils) DeleteEvent(name string) error {
-	return errors.Wrap(c.ClientSet.CoreV1().Events(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{}), "")
+	return errors.Wrap(
+		c.ClientSet.CoreV1().Events(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{}),
+		"",
+	)
 }

@@ -157,7 +157,11 @@ func (d *DaemonClient) SendGetDaemonServerStatusCommand() error {
 	return nil
 }
 
-func (d *DaemonClient) SendStartPortForwardCommand(nhSvc *model.NocalHostResource, localPort, remotePort int, role string) error {
+func (d *DaemonClient) SendStartPortForwardCommand(
+	nhSvc *model.NocalHostResource,
+	localPort, remotePort int,
+	role string,
+) error {
 
 	startPFCmd := &command.PortForwardCommand{
 		CommandType: command.StartPortForward,
@@ -182,7 +186,10 @@ func (d *DaemonClient) SendStartPortForwardCommand(nhSvc *model.NocalHostResourc
 	}
 }
 
-func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource, localPort, remotePort int) error {
+func (d *DaemonClient) SendStopPortForwardCommand(
+	nhSvc *model.NocalHostResource,
+	localPort, remotePort int,
+) error {
 
 	startPFCmd := &command.PortForwardCommand{
 		CommandType: command.StopPortForward,

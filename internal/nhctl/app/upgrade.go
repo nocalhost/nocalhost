@@ -67,7 +67,12 @@ func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error
 	}
 	useResourcePath := resourcesPath[0]
 
-	err = a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.NameSpace), useResourcePath)
+	err = a.client.ApplyForCreate(
+		[]string{},
+		true,
+		StandardNocalhostMetas(a.Name, a.NameSpace),
+		useResourcePath,
+	)
 	if err != nil {
 		return err
 	}
@@ -164,7 +169,11 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 	return moveDir(a.getUpgradeGitDir(), a.getGitDir())
 }
 
-func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*resource.Info, continueOnErr bool) error {
+func (a *Application) upgradeInfos(
+	oldInfos []*resource.Info,
+	upgradeInfos []*resource.Info,
+	continueOnErr bool,
+) error {
 
 	infosToDelete := make([]*resource.Info, 0)
 	infosToCreate := make([]*resource.Info, 0)
@@ -188,7 +197,11 @@ func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*re
 	}
 
 	for _, info := range infosToDelete {
-		log.Infof("Deleting resource(%s) %s", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
+		log.Infof(
+			"Deleting resource(%s) %s",
+			info.Object.GetObjectKind().GroupVersionKind().Kind,
+			info.Name,
+		)
 		err := a.client.DeleteResourceInfo(info)
 		if err != nil {
 			log.WarnE(err, fmt.Sprintf("Failed to delete resource %s", info.Name))
@@ -199,7 +212,11 @@ func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*re
 	}
 
 	for _, info := range infosToCreate {
-		log.Infof("Creating resource(%s) %s", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
+		log.Infof(
+			"Creating resource(%s) %s",
+			info.Object.GetObjectKind().GroupVersionKind().Kind,
+			info.Name,
+		)
 		err := a.client.ApplyResourceInfo(info, StandardNocalhostMetas(a.Name, a.NameSpace))
 		if err != nil {
 			log.WarnE(err, fmt.Sprintf("Failed to create resource %s", info.Name))
@@ -210,7 +227,11 @@ func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*re
 	}
 
 	for _, info := range infosToUpdate {
-		log.Infof("Updating resource(%s) %s", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
+		log.Infof(
+			"Updating resource(%s) %s",
+			info.Object.GetObjectKind().GroupVersionKind().Kind,
+			info.Name,
+		)
 		err := a.client.ApplyResourceInfo(info, StandardNocalhostMetas(a.Name, a.NameSpace))
 		if err != nil {
 			log.WarnE(err, fmt.Sprintf("Failed to create resource %s", info.Name))
@@ -227,7 +248,11 @@ func isContainsInfo(info *resource.Info, infos []*resource.Info) bool {
 		return false
 	}
 	for _, in := range infos {
-		if in.Name == info.Name && in.Object.GetObjectKind().GroupVersionKind() == info.Object.GetObjectKind().GroupVersionKind() {
+		if in.Name == info.Name &&
+			in.Object.GetObjectKind().
+				GroupVersionKind() ==
+				info.Object.GetObjectKind().
+					GroupVersionKind() {
 			return true
 		}
 	}

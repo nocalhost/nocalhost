@@ -158,7 +158,11 @@ func PluginGet(c *gin.Context) {
 	}
 	// get plugin dev start append command
 	for k := range result {
-		result[k].DevStartAppendCommand = fmt.Sprintf("%s %s", global.NocalhostDefaultPriorityclassKey, global.NocalhostDefaultPriorityclassName)
+		result[k].DevStartAppendCommand = fmt.Sprintf(
+			"%s %s",
+			global.NocalhostDefaultPriorityclassKey,
+			global.NocalhostDefaultPriorityclassName,
+		)
 	}
 	api.SendResponse(c, errno.OK, result)
 }

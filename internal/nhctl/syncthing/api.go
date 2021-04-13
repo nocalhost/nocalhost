@@ -43,7 +43,16 @@ func NewAPIClient() *http.Client {
 }
 
 // APICall calls the syncthing API and returns the parsed json or an error
-func (s *Syncthing) APICall(ctx context.Context, url, method string, code int, params map[string]string, local bool, body []byte, readBody bool, maxRetries int) ([]byte, error) {
+func (s *Syncthing) APICall(
+	ctx context.Context,
+	url, method string,
+	code int,
+	params map[string]string,
+	local bool,
+	body []byte,
+	readBody bool,
+	maxRetries int,
+) ([]byte, error) {
 	retries := 0
 	for {
 		result, err := s.callWithRetry(ctx, url, method, code, params, local, body, readBody)
@@ -59,7 +68,15 @@ func (s *Syncthing) APICall(ctx context.Context, url, method string, code int, p
 	}
 }
 
-func (s *Syncthing) callWithRetry(ctx context.Context, url, method string, code int, params map[string]string, local bool, body []byte, readBody bool) ([]byte, error) {
+func (s *Syncthing) callWithRetry(
+	ctx context.Context,
+	url, method string,
+	code int,
+	params map[string]string,
+	local bool,
+	body []byte,
+	readBody bool,
+) ([]byte, error) {
 	var urlPath string
 	if local {
 		urlPath = filepath.Join(s.GUIAddress, url)
@@ -96,7 +113,12 @@ func (s *Syncthing) callWithRetry(ctx context.Context, url, method string, code 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != code {
-		return nil, fmt.Errorf("unexpected response from syncthing [%s | %d]: %s", req.URL.String(), resp.StatusCode, string(body))
+		return nil, fmt.Errorf(
+			"unexpected response from syncthing [%s | %d]: %s",
+			req.URL.String(),
+			resp.StatusCode,
+			string(body),
+		)
 	}
 
 	if !readBody {

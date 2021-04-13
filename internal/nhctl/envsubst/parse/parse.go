@@ -142,7 +142,13 @@ func (p *Parser) Parse(text string, absPath string, hasBeenInclude []string) (st
 			currentAbsPath := includation.filePath.Abs()
 			circularDependency, route := circularDependency(currentAbsPath, hasBeenInclude)
 			if circularDependency {
-				out += fmt.Sprintf(ErrTmpl, errors.New("circular dependency found"), currentAbsPath, v, route)
+				out += fmt.Sprintf(
+					ErrTmpl,
+					errors.New("circular dependency found"),
+					currentAbsPath,
+					v,
+					route,
+				)
 				continue
 			}
 
@@ -217,7 +223,7 @@ func circularDependency(currentAbsPath string, hasBeenInclude []string) (bool, s
 		if absPath == currentAbsPath {
 			circularDependency = true
 
-			route +=     fmt.Sprintf("# ┌-->  %s\n# |        ↓ [Include]\n", absPath)
+			route += fmt.Sprintf("# ┌-->  %s\n# |        ↓ [Include]\n", absPath)
 		} else {
 			if circularDependency {
 				route += fmt.Sprintf("# |     %s\n# |        ↓ [Include]\n", absPath)
@@ -297,7 +303,9 @@ func parseIncludation(basePath, include string) *Includation {
 				if err != nil || indent < 0 {
 					return &Includation{
 						include: include,
-						err:     errors.New("Can not parse the indent, please make sure it's a positive integer: " + oper),
+						err: errors.New(
+							"Can not parse the indent, please make sure it's a positive integer: " + oper,
+						),
 					}
 				}
 
@@ -325,7 +333,9 @@ func parseIncludation(basePath, include string) *Includation {
 	default:
 		return &Includation{
 			include: include,
-			err:     errors.New("Can not resolve the include syntax (may contains multi '|', if your path sensitive character contains '|', use `\\|` to replace it): " + include),
+			err: errors.New(
+				"Can not resolve the include syntax (may contains multi '|', if your path sensitive character contains '|', use `\\|` to replace it): " + include,
+			),
 		}
 	}
 }

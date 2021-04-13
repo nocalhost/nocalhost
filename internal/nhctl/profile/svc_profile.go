@@ -14,24 +14,24 @@ limitations under the License.
 package profile
 
 type SvcProfile struct {
-	*ServiceDevOptions `yaml:"rawConfig"`
-	ActualName         string `json:"actual_name" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
-	Developing         bool   `json:"developing" yaml:"developing"`
-	PortForwarded      bool   `json:"port_forwarded" yaml:"portForwarded"`
-	Syncing            bool   `json:"syncing" yaml:"syncing"`
+	*ServiceDevOptions `         yaml:"rawConfig"`
+	ActualName         string `yaml:"actualName"                             json:"actual_name"` // for helm, actualName may be ReleaseName-Name
+	Developing         bool   `yaml:"developing"                             json:"developing"`
+	PortForwarded      bool   `yaml:"portForwarded"                          json:"port_forwarded"`
+	Syncing            bool   `yaml:"syncing"                                json:"syncing"`
 	// same as local available port, use for port-forward
-	RemoteSyncthingPort int `json:"remoteSyncthingPort" yaml:"remoteSyncthingPort"`
+	RemoteSyncthingPort int `yaml:"remoteSyncthingPort"                    json:"remoteSyncthingPort"`
 	// same as local available port, use for port-forward
-	RemoteSyncthingGUIPort int    `json:"remoteSyncthingGUIPort" yaml:"remoteSyncthingGUIPort"`
-	SyncthingSecret        string `json:"syncthingSecret" yaml:"syncthingSecret"` // secret name
+	RemoteSyncthingGUIPort int    `yaml:"remoteSyncthingGUIPort"                 json:"remoteSyncthingGUIPort"`
+	SyncthingSecret        string `yaml:"syncthingSecret"                        json:"syncthingSecret"` // secret name
 	// syncthing local port
-	LocalSyncthingPort                     int      `json:"localSyncthingPort" yaml:"localSyncthingPort"`
-	LocalSyncthingGUIPort                  int      `json:"localSyncthingGUIPort" yaml:"localSyncthingGUIPort"`
-	LocalAbsoluteSyncDirFromDevStartPlugin []string `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
-	DevPortList                            []string `json:"devPortList" yaml:"devPortList"`
-	PortForwardStatusList                  []string `json:"portForwardStatusList" yaml:"portForwardStatusList"`
-	PortForwardPidList                     []string `json:"portForwardPidList" yaml:"portForwardPidList"`
+	LocalSyncthingPort                     int      `yaml:"localSyncthingPort"                     json:"localSyncthingPort"`
+	LocalSyncthingGUIPort                  int      `yaml:"localSyncthingGUIPort"                  json:"localSyncthingGUIPort"`
+	LocalAbsoluteSyncDirFromDevStartPlugin []string `yaml:"localAbsoluteSyncDirFromDevStartPlugin" json:"localAbsoluteSyncDirFromDevStartPlugin"`
+	DevPortList                            []string `yaml:"devPortList"                            json:"devPortList"`
+	PortForwardStatusList                  []string `yaml:"portForwardStatusList"                  json:"portForwardStatusList"`
+	PortForwardPidList                     []string `yaml:"portForwardPidList"                     json:"portForwardPidList"`
 	// .nhignore's pattern configuration
-	SyncedPatterns  []string `json:"syncFilePattern" yaml:"syncFilePattern"`
-	IgnoredPatterns []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
+	SyncedPatterns  []string `yaml:"syncFilePattern"                        json:"syncFilePattern"`
+	IgnoredPatterns []string `yaml:"ignoreFilePattern"                      json:"ignoreFilePattern"`
 }

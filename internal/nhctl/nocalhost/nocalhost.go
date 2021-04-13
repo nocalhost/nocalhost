@@ -108,7 +108,9 @@ func moveApplicationDirToNsDir() error {
 				appDir := filepath.Join(appHomeDir, appDirInfo.Name())
 				ns := ""
 				// Get ns from v2
-				bytes, err := ioutil.ReadFile(filepath.Join(appDir, DefaultApplicationProfileV2Path))
+				bytes, err := ioutil.ReadFile(
+					filepath.Join(appDir, DefaultApplicationProfileV2Path),
+				)
 				if err == nil {
 					log.Logf("Try to get %s's namespace from v2", appDirInfo.Name())
 					profileV2 := &profile.AppProfileV2{}
@@ -122,7 +124,9 @@ func moveApplicationDirToNsDir() error {
 				if ns == "" {
 					// Get ns from v1
 					log.Logf("Try to get %s's namespace from v1", appDirInfo.Name())
-					bytes, err = ioutil.ReadFile(filepath.Join(appDir, DefaultApplicationProfilePath))
+					bytes, err = ioutil.ReadFile(
+						filepath.Join(appDir, DefaultApplicationProfilePath),
+					)
 					if err != nil {
 						log.WarnE(errors.Wrap(err, ""), "")
 						continue
@@ -141,13 +145,19 @@ func moveApplicationDirToNsDir() error {
 				}
 				// Create ns dir
 				log.Logf("Create ns dir %s", ns)
-				err = os.MkdirAll(filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), ns), DefaultNewFilePermission)
+				err = os.MkdirAll(
+					filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), ns),
+					DefaultNewFilePermission,
+				)
 				if err != nil {
 					log.WarnE(errors.Wrap(err, ""), "")
 					continue
 				}
 				// Moving dir
-				err = utils.CopyDir(appDir, filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), ns, appDirInfo.Name()))
+				err = utils.CopyDir(
+					appDir,
+					filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), ns, appDirInfo.Name()),
+				)
 				if err != nil {
 					log.WarnE(errors.Wrap(err, ""), "")
 				}
@@ -205,7 +215,11 @@ func CleanupAppFilesUnderNs(appName string, namespace string) error {
 }
 
 func GetSyncThingBinDir() string {
-	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), DefaultBinDirName, DefaultBinSyncThingDirName)
+	return filepath.Join(
+		nocalhost_path.GetNhctlHomeDir(),
+		DefaultBinDirName,
+		DefaultBinSyncThingDirName,
+	)
 }
 
 func GetLogDir() string {

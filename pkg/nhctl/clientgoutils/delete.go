@@ -51,7 +51,8 @@ func (c *ClientGoUtils) Delete(yamlPath string) error {
 			break
 		}
 
-		obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).Decode(rawObj.Raw, nil, nil)
+		obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).
+			Decode(rawObj.Raw, nil, nil)
 		unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 		if err != nil {
 			return err
@@ -77,13 +78,18 @@ func (c *ClientGoUtils) Delete(yamlPath string) error {
 			//} else if unstructuredObj.GetNamespace() == "" {
 			//	unstructuredObj.SetNamespace("default")
 			//}
-			dri = c.dynamicClient.Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
+			dri = c.dynamicClient.Resource(mapping.Resource).
+				Namespace(unstructuredObj.GetNamespace())
 		} else {
 			dri = c.dynamicClient.Resource(mapping.Resource)
 		}
 
 		propagationPolicy := metav1.DeletePropagationBackground
-		err = dri.Delete(context.Background(), unstructuredObj.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+		err = dri.Delete(
+			context.Background(),
+			unstructuredObj.GetName(),
+			metav1.DeleteOptions{PropagationPolicy: &propagationPolicy},
+		)
 		if err != nil {
 			return err
 		}

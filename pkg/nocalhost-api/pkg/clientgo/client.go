@@ -214,7 +214,9 @@ func (c *GoClient) requireClusterAdminClient() error {
 
 // get deployment
 func (c *GoClient) GetDepDeploymentStatus() error {
-	deployment, err := c.client.AppsV1().Deployments(global.NocalhostSystemNamespace).Get(context.TODO(), global.NocalhostDepName, metav1.GetOptions{})
+	deployment, err := c.client.AppsV1().
+		Deployments(global.NocalhostSystemNamespace).
+		Get(context.TODO(), global.NocalhostDepName, metav1.GetOptions{})
 	if err != nil {
 		return errors.New("nocalhost-dep component not found")
 	}
@@ -235,7 +237,9 @@ func (c *GoClient) GetDepDeploymentStatus() error {
 
 // check if exist namespace
 func (c *GoClient) IfNocalhostNameSpaceExist() (bool, error) {
-	_, err := c.client.CoreV1().Namespaces().Get(context.TODO(), global.NocalhostSystemNamespace, metav1.GetOptions{})
+	_, err := c.client.CoreV1().
+		Namespaces().
+		Get(context.TODO(), global.NocalhostSystemNamespace, metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -275,7 +279,9 @@ func (c *GoClient) ExistNs(namespace string) (bool, *corev1.Namespace) {
 }
 
 func (c *GoClient) ExistDeployment(namespace, deployment string) (bool, *apiappsV1.Deployment) {
-	get, err := c.client.AppsV1().Deployments(namespace).Get(context.TODO(), deployment, metav1.GetOptions{})
+	get, err := c.client.AppsV1().
+		Deployments(namespace).
+		Get(context.TODO(), deployment, metav1.GetOptions{})
 
 	if err != nil && k8serrors.IsNotFound(err) {
 		return false, nil
@@ -287,7 +293,9 @@ func (c *GoClient) ExistDeployment(namespace, deployment string) (bool, *apiapps
 }
 
 func (c *GoClient) ExistClusterRoleBinding(roleBinding string) (bool, *rbacv1.ClusterRoleBinding) {
-	get, err := c.client.RbacV1().ClusterRoleBindings().Get(context.TODO(), roleBinding, metav1.GetOptions{})
+	get, err := c.client.RbacV1().
+		ClusterRoleBindings().
+		Get(context.TODO(), roleBinding, metav1.GetOptions{})
 
 	if err != nil && k8serrors.IsNotFound(err) {
 		return false, nil
@@ -299,7 +307,9 @@ func (c *GoClient) ExistClusterRoleBinding(roleBinding string) (bool, *rbacv1.Cl
 }
 
 func (c *GoClient) ExistPriorityClass(name string) (bool, *schedulingv1.PriorityClass) {
-	get, err := c.client.SchedulingV1().PriorityClasses().Get(context.TODO(), name, metav1.GetOptions{})
+	get, err := c.client.SchedulingV1().
+		PriorityClasses().
+		Get(context.TODO(), name, metav1.GetOptions{})
 
 	if err != nil && k8serrors.IsNotFound(err) {
 		return false, nil
@@ -311,7 +321,9 @@ func (c *GoClient) ExistPriorityClass(name string) (bool, *schedulingv1.Priority
 }
 
 func (c *GoClient) ExistServiceAccount(namespace, name string) (bool, *corev1.ServiceAccount) {
-	get, err := c.client.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	get, err := c.client.CoreV1().
+		ServiceAccounts(namespace).
+		Get(context.TODO(), name, metav1.GetOptions{})
 
 	if err != nil && k8serrors.IsNotFound(err) {
 		return false, nil
@@ -360,7 +372,9 @@ func (c *GoClient) IsAdmin() (bool, error) {
 		},
 	}
 
-	response, err := c.client.AuthorizationV1().SelfSubjectAccessReviews().Create(context.TODO(), arg, metav1.CreateOptions{})
+	response, err := c.client.AuthorizationV1().
+		SelfSubjectAccessReviews().
+		Create(context.TODO(), arg, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -376,7 +390,9 @@ func (c *GoClient) CreateServiceAccount(name, namespace string) (bool, error) {
 	arg := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 	}
-	_, err := c.client.CoreV1().ServiceAccounts(namespace).Create(context.TODO(), arg, metav1.CreateOptions{})
+	_, err := c.client.CoreV1().
+		ServiceAccounts(namespace).
+		Create(context.TODO(), arg, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -399,7 +415,9 @@ apiVersion: v1
       services.loadbalancers: "10"
       requests.storage: "20Gi"
 */
-func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string) (bool, error) {
+func (c *GoClient) CreateResourceQuota(
+	name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string,
+) (bool, error) {
 
 	resourceQuota := &corev1.ResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
@@ -436,7 +454,9 @@ func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMe
 	resourceQuota.Spec = corev1.ResourceQuotaSpec{
 		Hard: resourceList,
 	}
-	_, err := c.client.CoreV1().ResourceQuotas(namespace).Create(context.TODO(), resourceQuota, metav1.CreateOptions{})
+	_, err := c.client.CoreV1().
+		ResourceQuotas(namespace).
+		Create(context.TODO(), resourceQuota, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -444,7 +464,9 @@ func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMe
 }
 
 func (c *GoClient) DeleteResourceQuota(name, namespace string) (bool, error) {
-	err := c.client.CoreV1().ResourceQuotas(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	err := c.client.CoreV1().
+		ResourceQuotas(namespace).
+		Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -467,7 +489,9 @@ spec:
       memory: 128Mi
     type: Container
 */
-func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string) (bool, error) {
+func (c *GoClient) CreateLimitRange(
+	name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string,
+) (bool, error) {
 	limitRange := &corev1.LimitRange{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 	}
@@ -499,7 +523,9 @@ func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, 
 		DefaultRequest: requests,
 		Type:           corev1.LimitTypeContainer,
 	})
-	_, err := c.client.CoreV1().LimitRanges(namespace).Create(context.TODO(), limitRange, metav1.CreateOptions{})
+	_, err := c.client.CoreV1().
+		LimitRanges(namespace).
+		Create(context.TODO(), limitRange, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -507,7 +533,9 @@ func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, 
 }
 
 func (c *GoClient) DeleteLimitRange(name, namespace string) (bool, error) {
-	err := c.client.CoreV1().LimitRanges(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	err := c.client.CoreV1().
+		LimitRanges(namespace).
+		Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -527,7 +555,10 @@ kubectl create rolebinding default-view \
 */
 func (c *GoClient) CreateRoleBinding(name, namespace, role, toServiceAccount string) (bool, error) {
 	roleBinding := &rbacv1.RoleBinding{
-		TypeMeta: metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "RoleBinding"},
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: rbacv1.SchemeGroupVersion.String(),
+			Kind:       "RoleBinding",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -548,7 +579,9 @@ func (c *GoClient) CreateRoleBinding(name, namespace, role, toServiceAccount str
 			Name:      toServiceAccount,
 		})
 	}
-	_, err := c.client.RbacV1().RoleBindings(namespace).Create(context.TODO(), roleBinding, metav1.CreateOptions{})
+	_, err := c.client.RbacV1().
+		RoleBindings(namespace).
+		Create(context.TODO(), roleBinding, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -557,9 +590,14 @@ func (c *GoClient) CreateRoleBinding(name, namespace, role, toServiceAccount str
 
 // create clusterRoleBinding
 // role=admin
-func (c *GoClient) CreateClusterRoleBinding(name, namespace, role, toServiceAccount string) (bool, error) {
+func (c *GoClient) CreateClusterRoleBinding(
+	name, namespace, role, toServiceAccount string,
+) (bool, error) {
 	roleBinding := &rbacv1.ClusterRoleBinding{
-		TypeMeta: metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "RoleBinding"},
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: rbacv1.SchemeGroupVersion.String(),
+			Kind:       "RoleBinding",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -580,7 +618,9 @@ func (c *GoClient) CreateClusterRoleBinding(name, namespace, role, toServiceAcco
 			Name:      toServiceAccount,
 		})
 	}
-	_, err := c.client.RbacV1().ClusterRoleBindings().Create(context.TODO(), roleBinding, metav1.CreateOptions{})
+	_, err := c.client.RbacV1().
+		ClusterRoleBindings().
+		Create(context.TODO(), roleBinding, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -600,7 +640,9 @@ func (c *GoClient) UpdateRole(name, namespace string) error {
 		APIGroups: []string{"*"}},
 	}
 
-	_, err = c.client.RbacV1().Roles(namespace).Update(context.TODO(), before, metav1.UpdateOptions{})
+	_, err = c.client.RbacV1().
+		Roles(namespace).
+		Update(context.TODO(), before, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -630,7 +672,9 @@ func (c *GoClient) CreateRole(name, namespace string) (bool, error) {
 		APIGroups: []string{"*"}},
 	}
 
-	_, err := c.client.RbacV1().Roles(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
+	_, err := c.client.RbacV1().
+		Roles(namespace).
+		Create(context.TODO(), role, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -665,7 +709,8 @@ func getPolicyRule(c *GoClient) (*[]rbacv1.PolicyRule, error) {
 }
 
 func isLimitedRules(rn string) bool {
-	return rn == "resourcequotas" || rn == "roles" || strings.HasPrefix(rn, "resourcequotas/") || strings.HasPrefix(rn, "roles/")
+	return rn == "resourcequotas" || rn == "roles" || strings.HasPrefix(rn, "resourcequotas/") ||
+		strings.HasPrefix(rn, "roles/")
 }
 
 // deploy priorityclass
@@ -677,7 +722,9 @@ func (c *GoClient) CreateNocalhostPriorityClass() error {
 		Value:       global.NocalhostDefaultPriorityclassDefaultValue,
 		Description: "This priority class should be used for Nocalhost service pods only.",
 	}
-	_, err := c.client.SchedulingV1().PriorityClasses().Create(context.TODO(), &priorityClass, metav1.CreateOptions{})
+	_, err := c.client.SchedulingV1().
+		PriorityClasses().
+		Create(context.TODO(), &priorityClass, metav1.CreateOptions{})
 	return err
 }
 
@@ -752,9 +799,16 @@ func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool,
 					InitContainers: initContainer,
 					Containers: []corev1.Container{
 						{
-							Name:    "kubectl",
-							Image:   "codingcorp-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
-							Command: []string{"kubectl", "delete", "ds", global.NocalhostPrePullDSName, "-n", global.NocalhostSystemNamespace},
+							Name:  "kubectl",
+							Image: "codingcorp-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
+							Command: []string{
+								"kubectl",
+								"delete",
+								"ds",
+								global.NocalhostPrePullDSName,
+								"-n",
+								global.NocalhostSystemNamespace,
+							},
 						},
 					},
 					ServiceAccountName: global.NocalhostSystemNamespaceServiceAccount,
@@ -762,7 +816,9 @@ func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool,
 			},
 		},
 	}
-	_, err := c.client.AppsV1().DaemonSets(namespace).Create(context.TODO(), daemonSet, metav1.CreateOptions{})
+	_, err := c.client.AppsV1().
+		DaemonSets(namespace).
+		Create(context.TODO(), daemonSet, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -785,7 +841,9 @@ func (c *GoClient) CreateConfigMap(name, namespace, key, value string) (bool, er
 		},
 		Data: configMapData,
 	}
-	_, err := c.client.CoreV1().ConfigMaps(namespace).Create(context.TODO(), configMap, metav1.CreateOptions{})
+	_, err := c.client.CoreV1().
+		ConfigMaps(namespace).
+		Create(context.TODO(), configMap, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -799,7 +857,9 @@ func (c *GoClient) GetSecret(name, namespace string) (*corev1.Secret, error) {
 
 // Get serviceAccount
 func (c *GoClient) GetServiceAccount(name, namespace string) (*corev1.ServiceAccount, error) {
-	return c.client.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	return c.client.CoreV1().
+		ServiceAccounts(namespace).
+		Get(context.TODO(), name, metav1.GetOptions{})
 }
 
 // Get cluster node
@@ -818,11 +878,13 @@ func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceA
 	resourceWatchTimeoutSeconds := int64(30)
 	log.Infof("GET ServiceAccount name %s, namespace %s: ", name, namespace)
 	var serviceAccount *corev1.ServiceAccount
-	watcher, err := c.client.CoreV1().ServiceAccounts(namespace).Watch(context.TODO(), metav1.ListOptions{
-		FieldSelector:  fields.Set{"metadata.name": name}.AsSelector().String(),
-		Watch:          true,
-		TimeoutSeconds: &resourceWatchTimeoutSeconds,
-	})
+	watcher, err := c.client.CoreV1().
+		ServiceAccounts(namespace).
+		Watch(context.TODO(), metav1.ListOptions{
+			FieldSelector:  fields.Set{"metadata.name": name}.AsSelector().String(),
+			Watch:          true,
+			TimeoutSeconds: &resourceWatchTimeoutSeconds,
+		})
 	if err != nil {
 
 	}
@@ -864,7 +926,9 @@ func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceA
 		if i > 300 {
 			break
 		}
-		serviceAccount, err = c.client.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		serviceAccount, err = c.client.CoreV1().
+			ServiceAccounts(namespace).
+			Get(context.TODO(), name, metav1.GetOptions{})
 		if serviceAccount != nil && len(serviceAccount.Secrets) > 0 {
 			break
 		}

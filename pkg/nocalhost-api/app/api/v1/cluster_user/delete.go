@@ -36,7 +36,8 @@ import (
 func Delete(c *gin.Context) {
 	// userId, _ := c.Get("userId")
 	devSpaceId := cast.ToUint64(c.Param("id"))
-	clusterUser, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId})
+	clusterUser, err := service.Svc.ClusterUser().
+		GetFirst(c, model.ClusterUserModel{ID: devSpaceId})
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		return
@@ -141,7 +142,8 @@ func PluginReCreate(c *gin.Context) {
 	// check permission
 	userId, _ := c.Get("userId")
 	devSpaceId := cast.ToUint64(c.Param("id"))
-	_, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId, UserId: userId.(uint64)})
+	_, err := service.Svc.ClusterUser().
+		GetFirst(c, model.ClusterUserModel{ID: devSpaceId, UserId: userId.(uint64)})
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		return

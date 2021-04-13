@@ -23,9 +23,12 @@ import (
 var portForwardEndOptions = &app.PortForwardEndOptions{}
 
 func init() {
-	portForwardEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
-	portForwardEndCmd.Flags().StringVarP(&portForwardEndOptions.Port, "port", "p", "", "stop specify port-forward")
-	portForwardEndCmd.Flags().StringVarP(&ServiceType, "type", "", "deployment", "specify service type")
+	portForwardEndCmd.Flags().
+		StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
+	portForwardEndCmd.Flags().
+		StringVarP(&portForwardEndOptions.Port, "port", "p", "", "stop specify port-forward")
+	portForwardEndCmd.Flags().
+		StringVarP(&ServiceType, "type", "", "deployment", "specify service type")
 	PortForwardCmd.AddCommand(portForwardEndCmd)
 }
 

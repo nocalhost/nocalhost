@@ -20,7 +20,10 @@ import (
 )
 
 func (c *ClientGoUtils) DeleteConfigMapByName(name string) error {
-	return errors.Wrap(c.ClientSet.CoreV1().ConfigMaps(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{}), "")
+	return errors.Wrap(
+		c.ClientSet.CoreV1().ConfigMaps(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{}),
+		"",
+	)
 }
 
 func (c *ClientGoUtils) GetConfigMaps() ([]v1.ConfigMap, error) {

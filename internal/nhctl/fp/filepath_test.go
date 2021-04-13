@@ -62,7 +62,9 @@ func TestFilePathComplex(t *testing.T) {
 		t.Error(err)
 	}
 
-	fp02 := NewFilePath(path).RelOrAbs("testdata/../testdata/////////././././tmp1/././././subtemp1/subtemp2/../../../tmp2/fp-02.test")
+	fp02 := NewFilePath(
+		path,
+	).RelOrAbs("testdata/../testdata/////////././././tmp1/././././subtemp1/subtemp2/../../../tmp2/fp-02.test")
 	if err != nil {
 		t.Error(err)
 	}

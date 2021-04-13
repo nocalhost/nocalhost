@@ -56,7 +56,14 @@ func Create(c *gin.Context) {
 	if sErr != nil {
 		errs := sErr.(validator.ValidationErrors)
 		for _, err := range errs {
-			api.SendResponse(c, &errno.Errno{Code: 40110, Message: err.StructNamespace() + " is illegal, require: " + err.Param()}, nil)
+			api.SendResponse(
+				c,
+				&errno.Errno{
+					Code:    40110,
+					Message: err.StructNamespace() + " is illegal, require: " + err.Param(),
+				},
+				nil,
+			)
 			return
 		}
 	}
@@ -71,7 +78,8 @@ func Create(c *gin.Context) {
 		api.SendResponse(c, &errno.Errno{Code: 40110, Message: errs[0]}, nil)
 		return
 	}
-	existApplication, _ := service.Svc.ApplicationSvc().GetByName(c, applicationContext.ApplicationName)
+	existApplication, _ := service.Svc.ApplicationSvc().
+		GetByName(c, applicationContext.ApplicationName)
 	if existApplication.ID != 0 {
 		api.SendResponse(c, errno.ErrApplicationNameExist, nil)
 		return
@@ -90,7 +98,8 @@ func Create(c *gin.Context) {
 	}
 
 	userId, _ := c.Get("userId")
-	a, err := service.Svc.ApplicationSvc().Create(c, req.Context, *req.Status, *req.Public, userId.(uint64))
+	a, err := service.Svc.ApplicationSvc().
+		Create(c, req.Context, *req.Status, *req.Public, userId.(uint64))
 	if err != nil {
 		log.Warnf("create Application err: %v", err)
 		api.SendResponse(c, errno.ErrApplicationCreate, nil)

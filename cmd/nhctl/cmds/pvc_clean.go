@@ -21,7 +21,8 @@ import (
 )
 
 func init() {
-	pvcCleanCmd.Flags().StringVar(&pvcFlags.App, "app", "", "Clean up PVCs of specified application")
+	pvcCleanCmd.Flags().
+		StringVar(&pvcFlags.App, "app", "", "Clean up PVCs of specified application")
 	pvcCleanCmd.Flags().StringVar(&pvcFlags.Svc, "svc", "", "Clean up PVCs of specified service")
 	pvcCleanCmd.Flags().StringVar(&pvcFlags.Name, "name", "", "Clean up specified PVC")
 	pvcCmd.AddCommand(pvcCleanCmd)

@@ -90,13 +90,13 @@ var pvcListCmd = &cobra.Command{
 }
 
 type pvcObject struct {
-	Name         string `json:"name" yaml:"name"`
-	AppName      string `json:"app_name" yaml:"appName"`
-	ServiceName  string `json:"service_name" yaml:"serviceName"`
-	Capacity     string `json:"capacity" yaml:"capacity"`
+	Name         string `json:"name"          yaml:"name"`
+	AppName      string `json:"app_name"      yaml:"appName"`
+	ServiceName  string `json:"service_name"  yaml:"serviceName"`
+	Capacity     string `json:"capacity"      yaml:"capacity"`
 	StorageClass string `json:"storage_class" yaml:"storageClass"`
-	Status       string `json:"status" yaml:"status"`
-	MountPath    string `json:"mount_path" yaml:"mountPath"`
+	Status       string `json:"status"        yaml:"status"`
+	MountPath    string `json:"mount_path"    yaml:"mountPath"`
 }
 
 func makePVCObjectList(pvcList []v1.PersistentVolumeClaim) []*pvcObject {
@@ -147,6 +147,13 @@ func DisplayPVCs(pvcList []v1.PersistentVolumeClaim) {
 	for _, pvc := range pvcList {
 		labels := pvc.Labels
 		quantity := pvc.Spec.Resources.Requests[v1.ResourceStorage]
-		fmt.Printf("%s %s %s %s %s\n", pvc.Name, labels[app.AppLabel], labels[app.ServiceLabel], quantity.String(), pvc.Status.Phase)
+		fmt.Printf(
+			"%s %s %s %s %s\n",
+			pvc.Name,
+			labels[app.AppLabel],
+			labels[app.ServiceLabel],
+			quantity.String(),
+			pvc.Status.Phase,
+		)
 	}
 }

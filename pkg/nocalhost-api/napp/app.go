@@ -91,7 +91,10 @@ func New(cfg *conf.Config) *Application {
 
 // Run start a app
 func (a *Application) Run() {
-	log.Printf("Start to listening the incoming requests on http address: %s", viper.GetString("app.addr"))
+	log.Printf(
+		"Start to listening the incoming requests on http address: %s",
+		viper.GetString("app.addr"),
+	)
 	srv := &http.Server{
 		Addr:    viper.GetString("app.addr"),
 		Handler: a.Router,

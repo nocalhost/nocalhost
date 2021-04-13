@@ -34,7 +34,11 @@ type ProgressBar struct {
 	lock sync.Mutex
 }
 
-func (cpb *ProgressBar) TrackProgress(src string, currentSize, totalSize int64, stream io.ReadCloser) io.ReadCloser {
+func (cpb *ProgressBar) TrackProgress(
+	src string,
+	currentSize, totalSize int64,
+	stream io.ReadCloser,
+) io.ReadCloser {
 	cpb.lock.Lock()
 	defer cpb.lock.Unlock()
 

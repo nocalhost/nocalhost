@@ -25,7 +25,10 @@ import (
 )
 
 func getClient() *ClientGoUtils {
-	client, err := NewClientGoUtils("/Users/xinxinhuang/.nh/plugin/kubeConfigs/13_177_config", "nh6rtnw")
+	client, err := NewClientGoUtils(
+		"/Users/xinxinhuang/.nh/plugin/kubeConfigs/13_177_config",
+		"nh6rtnw",
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -37,7 +40,13 @@ func TestNewClientGoUtils(t *testing.T) {
 	client, _ := NewClientGoUtils(namespaceForTest, namespace)
 	//client.WaitJobToBeReady()
 
-	f, err := fields.ParseSelector(fmt.Sprintf("involvedObject.kind=%s,involvedObject.name=%s", "ReplicaSet", "details-59c787d477"))
+	f, err := fields.ParseSelector(
+		fmt.Sprintf(
+			"involvedObject.kind=%s,involvedObject.name=%s",
+			"ReplicaSet",
+			"details-59c787d477",
+		),
+	)
 	//f, err := fields.ParseSelector(fmt.Sprintf("involvedObject.kind=%s", "ReplicaSet"))
 	if err != nil {
 		panic(err)
@@ -59,7 +68,12 @@ func TestNewClientGoUtils(t *testing.T) {
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				event := obj.(runtime.Object).(*corev1.Event)
-				fmt.Printf("Add %s %s %f\n", event.Name, event.Message, time.Now().Sub(event.LastTimestamp.Time).Seconds())
+				fmt.Printf(
+					"Add %s %s %f\n",
+					event.Name,
+					event.Message,
+					time.Now().Sub(event.LastTimestamp.Time).Seconds(),
+				)
 				//if event.Type == "Warning" && time.Now().Sub(event.LastTimestamp.Time).Seconds() < 10 {
 				//	//if event.Reason == "FailedCreate" {
 				//	//	//return errors.New(fmt.Sprintf("Latest ReplicaSet failed to be ready : %s", event.Message))

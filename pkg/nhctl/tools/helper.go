@@ -80,7 +80,12 @@ func CheckK8s() (string, bool) {
 }
 
 //execute command
-func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params ...string) (string, error) {
+func ExecCommand(
+	ctx context.Context,
+	isDisplay bool,
+	commandName string,
+	params ...string,
+) (string, error) {
 	var errStdout, errStderr error
 	var result []byte
 

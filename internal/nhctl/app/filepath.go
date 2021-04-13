@@ -33,7 +33,11 @@ func (a *Application) getUpgradeGitDir() string {
 
 func (a *Application) getUpgradeConfigPathInGitResourcesDir(configName string) string {
 	if configName == "" {
-		return filepath.Join(a.getUpgradeGitDir(), DefaultGitNocalhostDir, DefaultConfigNameInGitNocalhostDir)
+		return filepath.Join(
+			a.getUpgradeGitDir(),
+			DefaultGitNocalhostDir,
+			DefaultConfigNameInGitNocalhostDir,
+		)
 	} else {
 		return filepath.Join(a.getUpgradeGitDir(), DefaultGitNocalhostDir, configName)
 	}
@@ -45,7 +49,11 @@ func (a *Application) getGitNocalhostDir() string {
 
 func (a *Application) getConfigPathInGitResourcesDir(configName string) string {
 	if configName == "" {
-		return filepath.Join(a.getGitDir(), DefaultGitNocalhostDir, DefaultConfigNameInGitNocalhostDir)
+		return filepath.Join(
+			a.getGitDir(),
+			DefaultGitNocalhostDir,
+			DefaultConfigNameInGitNocalhostDir,
+		)
 	} else {
 		return filepath.Join(a.getGitDir(), DefaultGitNocalhostDir, configName)
 	}
@@ -56,11 +64,17 @@ func (a *Application) GetPortSyncLogFile(deployment string) string {
 }
 
 func (a *Application) GetPortForwardLogFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultBackGroundPortForwardLogFileName)
+	return filepath.Join(
+		a.GetApplicationSyncDir(deployment),
+		DefaultBackGroundPortForwardLogFileName,
+	)
 }
 
 func (a *Application) GetApplicationBackGroundOnlyPortForwardPidFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
+	return filepath.Join(
+		a.GetApplicationSyncDir(deployment),
+		DefaultApplicationOnlyPortForwardPidFile,
+	)
 }
 
 func (a *Application) GetFileLockPath(deployment string) string {
@@ -72,11 +86,17 @@ func (a *Application) GetApplicationSyncThingPidFile(deployment string) string {
 }
 
 func (a *Application) GetApplicationOnlyPortForwardPidFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
+	return filepath.Join(
+		a.GetApplicationSyncDir(deployment),
+		DefaultApplicationOnlyPortForwardPidFile,
+	)
 }
 
 func (a *Application) GetApplicationBackGroundPortForwardPidFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPortForwardPidFile)
+	return filepath.Join(
+		a.GetApplicationSyncDir(deployment),
+		DefaultApplicationSyncPortForwardPidFile,
+	)
 }
 
 func (a *Application) getProfilePath() string {

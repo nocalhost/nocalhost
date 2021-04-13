@@ -113,7 +113,12 @@ func (a *Application) moveProfileFromFileToLeveldb() error {
 	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
 }
 
-func NewApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
+func NewApplication(
+	name string,
+	ns string,
+	kubeconfig string,
+	initClient bool,
+) (*Application, error) {
 
 	app := &Application{
 		Name:      name,
@@ -376,7 +381,9 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 		if rs.Annotations[DevImageRevisionAnnotationKey] == DevImageRevisionAnnotationValue {
 			r = rs
 			if rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] != "" {
-				podReplicas, _ := strconv.Atoi(rs.Annotations[DevImageOriginalPodReplicasAnnotationKey])
+				podReplicas, _ := strconv.Atoi(
+					rs.Annotations[DevImageOriginalPodReplicasAnnotationKey],
+				)
 				podReplicas32 := int32(podReplicas)
 				originalPodReplicas = &podReplicas32
 			}
@@ -425,7 +432,8 @@ func (a *Application) RollBack(ctx context.Context, svcName string, reset bool) 
 
 	_, err = clientUtils.CreateDeployment(dep)
 	if err != nil {
-		if strings.Contains(err.Error(), "initContainers") && strings.Contains(err.Error(), "Duplicate") {
+		if strings.Contains(err.Error(), "initContainers") &&
+			strings.Contains(err.Error(), "Duplicate") {
 			log.Warn("[Warning] Nocalhost-dep needs to update")
 		}
 		return err
@@ -570,7 +578,11 @@ func (a *Application) ListContainersByDeployment(depName string) ([]corev1.Conta
 }
 
 // Role: If set to "SYNC", means it is a pf used for syncthing
-func (a *Application) PortForward(deployment, podName string, localPort, remotePort int, role string) error {
+func (a *Application) PortForward(
+	deployment, podName string,
+	localPort, remotePort int,
+	role string,
+) error {
 
 	//if isAvailable := ports.IsTCP4PortAvailable("0.0.0.0", localPort); isAvailable {
 	//	log.Infof("Port %d is available", localPort)
@@ -612,7 +624,12 @@ func (a *Application) PortForward(deployment, podName string, localPort, remoteP
 //	}
 //}
 
-func (a *Application) CheckPidPortStatus(ctx context.Context, deployment string, sLocalPort, sRemotePort int, lock *sync.Mutex) {
+func (a *Application) CheckPidPortStatus(
+	ctx context.Context,
+	deployment string,
+	sLocalPort, sRemotePort int,
+	lock *sync.Mutex,
+) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -623,7 +640,13 @@ func (a *Application) CheckPidPortStatus(ctx context.Context, deployment string,
 			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
 			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
 			lock.Lock()
-			_ = a.UpdatePortForwardStatus(deployment, sLocalPort, sRemotePort, portStatus, "Check Pid")
+			_ = a.UpdatePortForwardStatus(
+				deployment,
+				sLocalPort,
+				sRemotePort,
+				portStatus,
+				"Check Pid",
+			)
 			lock.Unlock()
 			//}
 			<-time.After(2 * time.Minute)
@@ -634,14 +657,19 @@ func (a *Application) CheckPidPortStatus(ctx context.Context, deployment string,
 func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error {
 	conn, err := net.Dial("tcp", addressWithPort)
 	if err != nil || conn == nil {
-		return errors.New(fmt.Sprintf("connect port-forward heartbeat address fail, %s", addressWithPort))
+		return errors.New(
+			fmt.Sprintf("connect port-forward heartbeat address fail, %s", addressWithPort),
+		)
 	}
 	// GET /heartbeat HTTP/1.1
 	_, err = conn.Write([]byte("ping"))
 	return errors.Wrap(err, "send port-forward heartbeat fail")
 }
 
-func (a *Application) GetBackgroundSyncPortForwardPid(deployment string, isTrunc bool) (int, string, error) {
+func (a *Application) GetBackgroundSyncPortForwardPid(
+	deployment string,
+	isTrunc bool,
+) (int, string, error) {
 	f, err := ioutil.ReadFile(a.GetApplicationBackGroundPortForwardPidFile(deployment))
 	if err != nil {
 		return 0, a.GetApplicationBackGroundPortForwardPidFile(deployment), err
@@ -656,7 +684,10 @@ func (a *Application) GetBackgroundSyncPortForwardPid(deployment string, isTrunc
 	return port, a.GetApplicationBackGroundPortForwardPidFile(deployment), nil
 }
 
-func (a *Application) GetBackgroundSyncThingPid(deployment string, isTrunc bool) (int, string, error) {
+func (a *Application) GetBackgroundSyncThingPid(
+	deployment string,
+	isTrunc bool,
+) (int, string, error) {
 	f, err := ioutil.ReadFile(a.GetApplicationSyncThingPidFile(deployment))
 	if err != nil {
 		return 0, a.GetApplicationSyncThingPidFile(deployment), err
@@ -671,7 +702,10 @@ func (a *Application) GetBackgroundSyncThingPid(deployment string, isTrunc bool)
 	return port, a.GetApplicationSyncThingPidFile(deployment), nil
 }
 
-func (a *Application) GetBackgroundOnlyPortForwardPid(deployment string, isTrunc bool) (int, string, error) {
+func (a *Application) GetBackgroundOnlyPortForwardPid(
+	deployment string,
+	isTrunc bool,
+) (int, string, error) {
 	f, err := ioutil.ReadFile(a.GetApplicationOnlyPortForwardPidFile(deployment))
 	if err != nil {
 		return 0, a.GetApplicationOnlyPortForwardPidFile(deployment), err
@@ -687,7 +721,11 @@ func (a *Application) GetBackgroundOnlyPortForwardPid(deployment string, isTrunc
 }
 
 func (a *Application) WriteBackgroundSyncPortForwardPidFile(deployment string, pid int) error {
-	file, err := os.OpenFile(a.GetApplicationBackGroundPortForwardPidFile(deployment), os.O_WRONLY|os.O_CREATE, 0666)
+	file, err := os.OpenFile(
+		a.GetApplicationBackGroundPortForwardPidFile(deployment),
+		os.O_WRONLY|os.O_CREATE,
+		0666,
+	)
 	if err != nil {
 		return errors.New("fail open application file sync background port-forward pid file")
 	}
@@ -700,7 +738,10 @@ func (a *Application) WriteBackgroundSyncPortForwardPidFile(deployment string, p
 	return nil
 }
 
-func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(svcName string, options *DevStartOptions) (*DevStartOptions, error) {
+func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(
+	svcName string,
+	options *DevStartOptions,
+) (*DevStartOptions, error) {
 	appProfile, _ := a.GetProfile()
 	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
 	if svcProfile == nil {
@@ -714,7 +755,11 @@ func (a *Application) GetPodsFromDeployment(deployment string) (*corev1.PodList,
 	return a.client.ListPodsByDeployment(deployment)
 }
 
-func (a *Application) GetDefaultPodName(ctx context.Context, svc string, t SvcType) (string, error) {
+func (a *Application) GetDefaultPodName(
+	ctx context.Context,
+	svc string,
+	t SvcType,
+) (string, error) {
 	var (
 		podList *corev1.PodList
 		err     error

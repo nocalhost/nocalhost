@@ -44,7 +44,6 @@ func listSaCached() map[string]corev1.ServiceAccount {
 		glog.Fatal("Error while listing namespace")
 	}
 
-
 	result := map[string]corev1.ServiceAccount{}
 
 	if list != nil {
@@ -90,7 +89,9 @@ func isClusterAdmin(sa *corev1.ServiceAccount) (bool, error) {
 		return false, nil
 	}
 
-	secret, err := clientset.CoreV1().Secrets(sa.Namespace).Get(context.TODO(), sa.Secrets[0].Name, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().
+		Secrets(sa.Namespace).
+		Get(context.TODO(), sa.Secrets[0].Name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -100,7 +101,11 @@ func isClusterAdmin(sa *corev1.ServiceAccount) (bool, error) {
 		return false, err
 	}
 
-	KubeConfigYaml, err, _ := setupcluster.NewDevKubeConfigReader(secret, config.Host, sa.Namespace).GetCA().GetToken().AssembleDevKubeConfig().ToYamlString()
+	KubeConfigYaml, err, _ := setupcluster.NewDevKubeConfigReader(secret, config.Host, sa.Namespace).
+		GetCA().
+		GetToken().
+		AssembleDevKubeConfig().
+		ToYamlString()
 	if err != nil {
 		return false, err
 	}
@@ -128,7 +133,9 @@ func isClusterAdmin(sa *corev1.ServiceAccount) (bool, error) {
 		},
 	}
 
-	response, err := cs.AuthorizationV1().SelfSubjectAccessReviews().Create(context.TODO(), arg, metav1.CreateOptions{})
+	response, err := cs.AuthorizationV1().
+		SelfSubjectAccessReviews().
+		Create(context.TODO(), arg, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}

@@ -171,8 +171,13 @@ func (c *ClientGoUtils) GetDefaultNamespace() (string, error) {
 	return ns, errors.Wrap(err, "")
 }
 
-func (c *ClientGoUtils) createUnstructuredResource(rawObj runtime.RawExtension, wait bool, flags *ApplyFlags) error {
-	obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).Decode(rawObj.Raw, nil, nil)
+func (c *ClientGoUtils) createUnstructuredResource(
+	rawObj runtime.RawExtension,
+	wait bool,
+	flags *ApplyFlags,
+) error {
+	obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).
+		Decode(rawObj.Raw, nil, nil)
 	if err != nil {
 		return &TypedError{ErrorType: InvalidYaml, Mes: err.Error()}
 	}
@@ -198,7 +203,9 @@ func (c *ClientGoUtils) createUnstructuredResource(rawObj runtime.RawExtension, 
 	var dri dynamic.ResourceInterface
 	if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
 		unstructuredObj.SetNamespace(c.namespace)
-		dri = c.GetDynamicClient().Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
+		dri = c.GetDynamicClient().
+			Resource(mapping.Resource).
+			Namespace(unstructuredObj.GetNamespace())
 	} else {
 		dri = c.GetDynamicClient().Resource(mapping.Resource)
 	}
@@ -389,7 +396,9 @@ OuterLoop:
 	return result, nil
 }
 
-func (c *ClientGoUtils) ListLatestRevisionPodsByDeployment(deployName string) ([]corev1.Pod, error) {
+func (c *ClientGoUtils) ListLatestRevisionPodsByDeployment(
+	deployName string,
+) ([]corev1.Pod, error) {
 	podClient := c.GetPodClient()
 
 	podList, err := podClient.List(c.ctx, metav1.ListOptions{})
@@ -466,7 +475,10 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 	return false, nil
 }
 
-func (c *ClientGoUtils) CreateSecret(secret *corev1.Secret, options metav1.CreateOptions) (*corev1.Secret, error) {
+func (c *ClientGoUtils) CreateSecret(
+	secret *corev1.Secret,
+	options metav1.CreateOptions,
+) (*corev1.Secret, error) {
 	return c.ClientSet.CoreV1().Secrets(c.namespace).Create(c.ctx, secret, options)
 }
 
@@ -492,9 +504,22 @@ func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 		return errors.Wrap(err, "")
 	}
 
-	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, &url.URL{Scheme: "https", Path: path, Host: hostIP})
+	dialer := spdy.NewDialer(
+		upgrader,
+		&http.Client{Transport: transport},
+		http.MethodPost,
+		&url.URL{Scheme: "https", Path: path, Host: hostIP},
+	)
 	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
-	fw, err := portforward.NewOnAddresses(dialer, req.Listen, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
+	fw, err := portforward.NewOnAddresses(
+		dialer,
+		req.Listen,
+		[]string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)},
+		req.StopCh,
+		req.ReadyCh,
+		req.Streams.Out,
+		req.Streams.ErrOut,
+	)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
@@ -527,7 +552,9 @@ func (c *ClientGoUtils) CheckExistNameSpace(name string) error {
 
 func (c *ClientGoUtils) CreateNameSpace(name string, customLabels map[string]string) error {
 	nsSpec := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name, Labels: customLabels}}
-	_, err := c.ClientSet.CoreV1().Namespaces().Create(context.TODO(), nsSpec, metav1.CreateOptions{})
+	_, err := c.ClientSet.CoreV1().
+		Namespaces().
+		Create(context.TODO(), nsSpec, metav1.CreateOptions{})
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
@@ -558,11 +585,17 @@ func (c *ClientGoUtils) DeleteNameSpace(name string, wait bool) error {
 }
 
 func (c *ClientGoUtils) DeleteStatefulSetAndPVC(name string) error {
-	_ = c.ClientSet.AppsV1().StatefulSets(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{GracePeriodSeconds: new(int64)})
-	pvc, err := c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Get(c.ctx, "data-nocalhost-mariadb-0", metav1.GetOptions{})
+	_ = c.ClientSet.AppsV1().
+		StatefulSets(c.namespace).
+		Delete(c.ctx, name, metav1.DeleteOptions{GracePeriodSeconds: new(int64)})
+	pvc, err := c.ClientSet.CoreV1().
+		PersistentVolumeClaims(c.namespace).
+		Get(c.ctx, "data-nocalhost-mariadb-0", metav1.GetOptions{})
 	if err != nil {
 		pvName := pvc.Spec.VolumeName
-		_ = c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Delete(c.ctx, "data-nocalhost-mariadb-0", metav1.DeleteOptions{})
+		_ = c.ClientSet.CoreV1().
+			PersistentVolumeClaims(c.namespace).
+			Delete(c.ctx, "data-nocalhost-mariadb-0", metav1.DeleteOptions{})
 		_ = c.ClientSet.CoreV1().PersistentVolumes().Delete(c.ctx, pvName, metav1.DeleteOptions{})
 	}
 	return nil

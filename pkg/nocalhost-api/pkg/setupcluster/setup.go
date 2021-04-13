@@ -79,7 +79,9 @@ func (c *setUpCluster) CreateServiceAccount(name, namespace string) *setUpCluste
 	return c
 }
 
-func (c *setUpCluster) CreateClusterRoleBinding(name, namespace, role, toServiceAccount string) *setUpCluster {
+func (c *setUpCluster) CreateClusterRoleBinding(
+	name, namespace, role, toServiceAccount string,
+) *setUpCluster {
 	_, err := c.clientGo.CreateClusterRoleBinding(name, namespace, role, toServiceAccount)
 	if err != nil {
 		c.errCode = errno.ErrBindRoleBindingCreateErr
@@ -158,7 +160,9 @@ func (c *setUpCluster) UpgradeCluster() (bool, error) {
 	existPc, _ := c.clientGo.ExistPriorityClass(global.NocalhostDefaultPriorityclassName)
 	if !existPc {
 
-		log.Info("PriorityClass " + global.NocalhostDefaultPriorityclassName + " is not exist so creat one.")
+		log.Info(
+			"PriorityClass " + global.NocalhostDefaultPriorityclassName + " is not exist so creat one.",
+		)
 		c.CreateNocalhostPriorityClass()
 
 		if c.err != nil {
@@ -177,34 +181,59 @@ func (c *setUpCluster) UpgradeCluster() (bool, error) {
 		}
 	}
 
-	existServiceAccount, _ := c.clientGo.ExistServiceAccount(global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount)
+	existServiceAccount, _ := c.clientGo.ExistServiceAccount(
+		global.NocalhostSystemNamespace,
+		global.NocalhostSystemNamespaceServiceAccount,
+	)
 	if !existServiceAccount {
 
-		log.Info("ServiceAccount " + global.NocalhostSystemNamespaceServiceAccount + " is not exist so creat one.")
-		c.CreateServiceAccount(global.NocalhostSystemNamespaceServiceAccount, global.NocalhostSystemNamespace)
+		log.Info(
+			"ServiceAccount " + global.NocalhostSystemNamespaceServiceAccount + " is not exist so creat one.",
+		)
+		c.CreateServiceAccount(
+			global.NocalhostSystemNamespaceServiceAccount,
+			global.NocalhostSystemNamespace,
+		)
 
 		if c.err != nil {
 			return false, c.err
 		}
 	}
 
-	existClusterRoleBinding, _ := c.clientGo.ExistClusterRoleBinding(global.NocalhostSystemRoleBindingName)
+	existClusterRoleBinding, _ := c.clientGo.ExistClusterRoleBinding(
+		global.NocalhostSystemRoleBindingName,
+	)
 	if !existClusterRoleBinding {
 
-		log.Info("ClusterAdmin-RoleBinding " + global.NocalhostSystemRoleBindingName + " is not exist so creat one.")
-		c.CreateClusterRoleBinding(global.NocalhostSystemRoleBindingName, global.NocalhostSystemNamespace, "cluster-admin", global.NocalhostSystemNamespaceServiceAccount)
+		log.Info(
+			"ClusterAdmin-RoleBinding " + global.NocalhostSystemRoleBindingName + " is not exist so creat one.",
+		)
+		c.CreateClusterRoleBinding(
+			global.NocalhostSystemRoleBindingName,
+			global.NocalhostSystemNamespace,
+			"cluster-admin",
+			global.NocalhostSystemNamespaceServiceAccount,
+		)
 
 		if c.err != nil {
 			return false, c.err
 		}
 	}
 
-	existDeployment, deployment := c.clientGo.ExistDeployment(global.NocalhostSystemNamespace, global.NocalhostDepName)
-	if !existDeployment || !c.CheckIfSameImage(deployment, c.clientGo.MatchedArtifactVersion(clientgo.Dep, "")) {
+	existDeployment, deployment := c.clientGo.ExistDeployment(
+		global.NocalhostSystemNamespace,
+		global.NocalhostDepName,
+	)
+	if !existDeployment ||
+		!c.CheckIfSameImage(deployment, c.clientGo.MatchedArtifactVersion(clientgo.Dep, "")) {
 
 		log.Info("Re-deploying nocalhost-dep... ")
 		c.DeleteOldDepJob(global.NocalhostSystemNamespace)
-		c.DeployNocalhostDep(global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount, "")
+		c.DeployNocalhostDep(
+			global.NocalhostSystemNamespace,
+			global.NocalhostSystemNamespaceServiceAccount,
+			"",
+		)
 
 		if c.err != nil {
 			return false, c.err
@@ -214,7 +243,10 @@ func (c *setUpCluster) UpgradeCluster() (bool, error) {
 	return true, nil
 }
 
-func (c *setUpCluster) CheckIfSameImage(deployment *apiappsV1.Deployment, image string) (same bool) {
+func (c *setUpCluster) CheckIfSameImage(
+	deployment *apiappsV1.Deployment,
+	image string,
+) (same bool) {
 	containers := deployment.Spec.Template.Spec.Containers
 
 	switch len(containers) {
@@ -229,7 +261,9 @@ func (c *setUpCluster) CheckIfSameImage(deployment *apiappsV1.Deployment, image 
 	}
 
 	if image != containers[0].Image {
-		log.Infof("Current image " + containers[0].Image + " is different from version matched " + image)
+		log.Infof(
+			"Current image " + containers[0].Image + " is different from version matched " + image,
+		)
 		return
 	} else {
 		same = true

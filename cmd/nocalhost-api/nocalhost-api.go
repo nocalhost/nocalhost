@@ -89,7 +89,12 @@ func main() {
 	// set global service
 	service.Svc = svc
 
-	fmt.Printf("current run version %s, tag %s, branch %s \n", global.CommitId, global.Version, global.Branch)
+	fmt.Printf(
+		"current run version %s, tag %s, branch %s \n",
+		global.CommitId,
+		global.Version,
+		global.Branch,
+	)
 
 	// start grpc server reserved
 	//go server.New(svc)

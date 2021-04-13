@@ -22,12 +22,16 @@ import (
 
 // This method can not list pods whose deployment is already deleted.
 func (c *ClientGoUtils) ListPodsByDeployment(name string) (*corev1.PodList, error) {
-	deployment, err := c.ClientSet.AppsV1().Deployments(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
+	deployment, err := c.ClientSet.AppsV1().
+		Deployments(c.namespace).
+		Get(c.ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
 	set := labels.Set(deployment.Spec.Selector.MatchLabels)
-	pods, err := c.ClientSet.CoreV1().Pods(c.namespace).List(c.ctx, metav1.ListOptions{LabelSelector: set.AsSelector().String()})
+	pods, err := c.ClientSet.CoreV1().
+		Pods(c.namespace).
+		List(c.ctx, metav1.ListOptions{LabelSelector: set.AsSelector().String()})
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
@@ -40,7 +44,9 @@ func (c *ClientGoUtils) ListPodsByStatefulSet(name string) (*corev1.PodList, err
 		return nil, errors.Wrap(err, "")
 	}
 	set := labels.Set(ss.Spec.Selector.MatchLabels)
-	pods, err := c.ClientSet.CoreV1().Pods(c.namespace).List(c.ctx, metav1.ListOptions{LabelSelector: set.AsSelector().String()})
+	pods, err := c.ClientSet.CoreV1().
+		Pods(c.namespace).
+		List(c.ctx, metav1.ListOptions{LabelSelector: set.AsSelector().String()})
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
@@ -49,7 +55,9 @@ func (c *ClientGoUtils) ListPodsByStatefulSet(name string) (*corev1.PodList, err
 
 func (c *ClientGoUtils) ListPodsByLabels(labelMap map[string]string) ([]corev1.Pod, error) {
 	set := labels.Set(labelMap)
-	pods, err := c.ClientSet.CoreV1().Pods(c.namespace).List(c.ctx, metav1.ListOptions{LabelSelector: set.AsSelector().String()})
+	pods, err := c.ClientSet.CoreV1().
+		Pods(c.namespace).
+		List(c.ctx, metav1.ListOptions{LabelSelector: set.AsSelector().String()})
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}

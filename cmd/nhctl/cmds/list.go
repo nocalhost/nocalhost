@@ -35,8 +35,10 @@ import (
 var listFlags = &app_flags.ListFlags{}
 
 func init() {
-	listCmd.Flags().BoolVar(&listFlags.Yaml, "yaml", false, "use yaml as out put, only supports for 'nhctl list'")
-	listCmd.Flags().BoolVar(&listFlags.Json, "json", false, "use json as out put, only supports for 'nhctl list'")
+	listCmd.Flags().
+		BoolVar(&listFlags.Yaml, "yaml", false, "use yaml as out put, only supports for 'nhctl list'")
+	listCmd.Flags().
+		BoolVar(&listFlags.Json, "json", false, "use json as out put, only supports for 'nhctl list'")
 	rootCmd.AddCommand(listCmd)
 }
 
@@ -71,11 +73,27 @@ func ListApplicationSvc(napp *app.Application) {
 	var data [][]string
 	appProfile, _ := napp.GetProfile()
 	for _, svcProfile := range appProfile.SvcProfile {
-		rols := []string{svcProfile.ActualName, strconv.FormatBool(svcProfile.Developing), strconv.FormatBool(svcProfile.Syncing), fmt.Sprintf("%v", svcProfile.DevPortForwardList), fmt.Sprintf("%s", svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin), strconv.Itoa(svcProfile.LocalSyncthingGUIPort)}
+		rols := []string{
+			svcProfile.ActualName,
+			strconv.FormatBool(svcProfile.Developing),
+			strconv.FormatBool(svcProfile.Syncing),
+			fmt.Sprintf("%v", svcProfile.DevPortForwardList),
+			fmt.Sprintf("%s", svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin),
+			strconv.Itoa(svcProfile.LocalSyncthingGUIPort),
+		}
 		data = append(data, rols)
 	}
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"NAME", "DEVELOPING", "SYNCING", "DEV-PORT-FORWARDED", "SYNC-PATH", "LOCAL-SYNCTHING-GUI"})
+	table.SetHeader(
+		[]string{
+			"NAME",
+			"DEVELOPING",
+			"SYNCING",
+			"DEV-PORT-FORWARDED",
+			"SYNC-PATH",
+			"LOCAL-SYNCTHING-GUI",
+		},
+	)
 
 	for _, v := range data {
 		table.Append(v)
@@ -163,7 +181,13 @@ func ListApplications() {
 				continue
 			}
 			profile, _ := app2.GetProfile()
-			fmt.Printf("%-14s %-14t %-14s %-14s\n", appName, profile.Installed, profile.Namespace, profile.AppType)
+			fmt.Printf(
+				"%-14s %-14t %-14s %-14s\n",
+				appName,
+				profile.Installed,
+				profile.Namespace,
+				profile.AppType,
+			)
 		}
 	}
 }

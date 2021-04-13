@@ -41,7 +41,11 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 			for _, reference := range o.OwnerReferences {
 				gv, err := schema.ParseGroupVersion(reference.APIVersion)
 				if err != nil {
-					glog.Infof("Can't not parse gv by apiVersion (%s): %v", reference.APIVersion, err)
+					glog.Infof(
+						"Can't not parse gv by apiVersion (%s): %v",
+						reference.APIVersion,
+						err,
+					)
 					continue
 				}
 
@@ -50,20 +54,35 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 					Kind:  reference.Kind,
 				}, gv.Version)
 				if err != nil {
-					glog.Infof("Fail to find gvr by gvk g(%s) v(%s) k(%s): %v", gv.Group, gv.Version, reference.Kind, err)
+					glog.Infof(
+						"Fail to find gvr by gvk g(%s) v(%s) k(%s): %v",
+						gv.Group,
+						gv.Version,
+						reference.Kind,
+						err,
+					)
 					continue
 				}
 				if mapping == nil {
-					glog.Infof("Can't not find gvr by gvk g(%s) v(%s) k(%s)", gv.Group, gv.Version, reference.Kind)
+					glog.Infof(
+						"Can't not find gvr by gvk g(%s) v(%s) k(%s)",
+						gv.Group,
+						gv.Version,
+						reference.Kind,
+					)
 					continue
 				}
 
 				name := reference.Name
 
 				go func() {
-					resource, err := client.Resource(mapping.Resource).Namespace("").Get(ctx, name, metav1.GetOptions{})
+					resource, err := client.Resource(mapping.Resource).
+						Namespace("").
+						Get(ctx, name, metav1.GetOptions{})
 					if err == nil && resource != nil {
-						if pair := containsAnnotationSign(resource.GetAnnotations()); len(pair) > 0 {
+						if pair := containsAnnotationSign(resource.GetAnnotations()); len(
+							pair,
+						) > 0 {
 							dataCh <- pair
 							recover()
 						}
@@ -73,9 +92,13 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 				}()
 
 				go func() {
-					resource, err := client.Resource(mapping.Resource).Namespace(ns).Get(ctx, name, metav1.GetOptions{})
+					resource, err := client.Resource(mapping.Resource).
+						Namespace(ns).
+						Get(ctx, name, metav1.GetOptions{})
 					if err == nil && resource != nil {
-						if pair := containsAnnotationSign(resource.GetAnnotations()); len(pair) > 0 {
+						if pair := containsAnnotationSign(resource.GetAnnotations()); len(
+							pair,
+						) > 0 {
 							dataCh <- pair
 							recover()
 						}

@@ -38,7 +38,11 @@ func (s *SyncthingHttpClient) get(path string) ([]byte, error) {
 }
 
 func (s *SyncthingHttpClient) Post(path, body string) ([]byte, error) {
-	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s/%s", s.guiHost, path), bytes.NewBufferString(body))
+	req, err := http.NewRequest(
+		"POST",
+		fmt.Sprintf("http://%s/%s", s.guiHost, path),
+		bytes.NewBufferString(body),
+	)
 	if err != nil {
 		return nil, err
 	}

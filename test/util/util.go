@@ -81,7 +81,12 @@ func WaitForCommandDone(command string) (bool, string) {
 	return cmd.ProcessState.Success(), b.String()
 }
 
-func WaitToBeStatus(namespace string, resource string, label string, checker func(interface{}) bool) bool {
+func WaitToBeStatus(
+	namespace string,
+	resource string,
+	label string,
+	checker func(interface{}) bool,
+) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -108,7 +113,13 @@ func WaitToBeStatus(namespace string, resource string, label string, checker fun
 	conditionFunc := func(e watch.Event) (bool, error) {
 		return checker(e.Object), nil
 	}
-	event, err := clientgowatch.UntilWithSync(ctx, watchlist, &v1.Pod{}, preConditionFunc, conditionFunc)
+	event, err := clientgowatch.UntilWithSync(
+		ctx,
+		watchlist,
+		&v1.Pod{},
+		preConditionFunc,
+		conditionFunc,
+	)
 	if err != nil {
 		fmt.Printf("wait to ready failed, error: %v, event: %v\n", err, event)
 		return false

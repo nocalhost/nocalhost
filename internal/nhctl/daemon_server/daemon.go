@@ -30,11 +30,15 @@ import (
 )
 
 var (
-	isSudo                      = false
-	version                     = "1.0"
-	pfManager                   *PortForwardManager
-	tcpCtx, tcpCancelFunc       = context.WithCancel(context.Background()) // For stopping listening tcp port
-	daemonCtx, daemonCancelFunc = context.WithCancel(context.Background()) // For exiting current daemon server
+	isSudo                = false
+	version               = "1.0"
+	pfManager             *PortForwardManager
+	tcpCtx, tcpCancelFunc = context.WithCancel(
+		context.Background(),
+	) // For stopping listening tcp port
+	daemonCtx, daemonCancelFunc = context.WithCancel(
+		context.Background(),
+	) // For exiting current daemon server
 )
 
 func init() {
@@ -76,7 +80,10 @@ func StartDaemon(isSudoUser bool, v string) error {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				if strings.Contains(strings.ToLower(err.Error()), "use of closed network connection") {
+				if strings.Contains(
+					strings.ToLower(err.Error()),
+					"use of closed network connection",
+				) {
 					log.Logf("Port %d has been closed", daemonListenPort())
 					return
 				}
@@ -161,7 +168,9 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType)
 		info := &daemon_common.DaemonServerInfo{Version: version}
 		response(conn, info)
 	case command.GetDaemonServerStatus:
-		status := &daemon_common.DaemonServerStatusResponse{PortForwardList: pfManager.ListAllRunningPortForwardGoRoutineProfile()}
+		status := &daemon_common.DaemonServerStatusResponse{
+			PortForwardList: pfManager.ListAllRunningPortForwardGoRoutineProfile(),
+		}
 		response(conn, status)
 	}
 }

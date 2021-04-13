@@ -133,12 +133,18 @@ func (s *SyncthingInstaller) install(version string, p getter.ProgressTracker) e
 		return err
 	}
 	if len(dirs) != 1 {
-		return fmt.Errorf("download syncthing from %s and extract multi dirs that are not expected", client.Src)
+		return fmt.Errorf(
+			"download syncthing from %s and extract multi dirs that are not expected",
+			client.Src,
+		)
 	}
 
 	info := dirs[0]
 	if !info.IsDir() {
-		return fmt.Errorf("download syncthing from %s and there is an unpredictable error occurred during decompression", client.Src)
+		return fmt.Errorf(
+			"download syncthing from %s and there is an unpredictable error occurred during decompression",
+			client.Src,
+		)
 	}
 
 	i := s.BinPath
@@ -181,7 +187,10 @@ func (s *SyncthingInstaller) needToDownloadByVersionAndCommitId() []string {
 
 	defer func() {
 		if len(installCandidate) > 0 {
-			log.Infof("Need to download from following versions according to the sequence: %s", strings.Join(installCandidate, ", "))
+			log.Infof(
+				"Need to download from following versions according to the sequence: %s",
+				strings.Join(installCandidate, ", "),
+			)
 		}
 	}()
 

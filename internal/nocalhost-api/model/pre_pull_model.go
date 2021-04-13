@@ -22,8 +22,8 @@ import (
 // PrePullModel
 type PrePullModel struct {
 	ID        uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
-	Images    string     `gorm:"column:images;not null" json:"images"`
-	DeletedAt *time.Time `gorm:"column:deleted_at" json:"-"`
+	Images    string     `gorm:"column:images;not null"               json:"images"`
+	DeletedAt *time.Time `gorm:"column:deleted_at"                    json:"-"`
 }
 
 // Validate the fields.

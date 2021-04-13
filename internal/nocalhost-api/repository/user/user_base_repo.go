@@ -26,7 +26,11 @@ import (
 // BaseRepo
 type BaseRepo interface {
 	Create(ctx context.Context, user model.UserBaseModel) (model.UserBaseModel, error)
-	Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) (*model.UserBaseModel, error)
+	Update(
+		ctx context.Context,
+		id uint64,
+		userMap *model.UserBaseModel,
+	) (*model.UserBaseModel, error)
 	Delete(ctx context.Context, id uint64) error
 	GetUserByID(ctx context.Context, id uint64) (*model.UserBaseModel, error)
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
@@ -50,7 +54,8 @@ func NewUserRepo(db *gorm.DB) BaseRepo {
 // GetUserList
 func (repo *userBaseRepo) GetUserList(ctx context.Context) ([]*model.UserList, error) {
 	var result []*model.UserList
-	repo.db.Raw("select u.id as id,u.name as name,u.email as email,count(distinct cu.id) as cluster_count,u.status as status, u.is_admin as is_admin from users as u left join clusters_users as cu on cu.user_id=u.id where u.deleted_at is null and cu.deleted_at is null group by u.id").Scan(&result)
+	repo.db.Raw("select u.id as id,u.name as name,u.email as email,count(distinct cu.id) as cluster_count,u.status as status, u.is_admin as is_admin from users as u left join clusters_users as cu on cu.user_id=u.id where u.deleted_at is null and cu.deleted_at is null group by u.id").
+		Scan(&result)
 	return result, nil
 }
 
@@ -66,7 +71,10 @@ func (repo *userBaseRepo) Delete(ctx context.Context, id uint64) error {
 }
 
 // Create
-func (repo *userBaseRepo) Create(ctx context.Context, user model.UserBaseModel) (model.UserBaseModel, error) {
+func (repo *userBaseRepo) Create(
+	ctx context.Context,
+	user model.UserBaseModel,
+) (model.UserBaseModel, error) {
 	err := repo.db.Create(&user).Error
 	if err != nil {
 		return user, errors.Wrap(err, "[user_repo] create user err")
@@ -76,7 +84,11 @@ func (repo *userBaseRepo) Create(ctx context.Context, user model.UserBaseModel) 
 }
 
 // Update
-func (repo *userBaseRepo) Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) (*model.UserBaseModel, error) {
+func (repo *userBaseRepo) Update(
+	ctx context.Context,
+	id uint64,
+	userMap *model.UserBaseModel,
+) (*model.UserBaseModel, error) {
 	user, err := repo.GetUserByID(ctx, id)
 	if user.ID != id {
 		return user, errors.New("[user_repo] user is not exsit.")
@@ -92,10 +104,17 @@ func (repo *userBaseRepo) Update(ctx context.Context, id uint64, userMap *model.
 }
 
 // GetUserByID
-func (repo *userBaseRepo) GetUserByID(ctx context.Context, uid uint64) (userBase *model.UserBaseModel, err error) {
+func (repo *userBaseRepo) GetUserByID(
+	ctx context.Context,
+	uid uint64,
+) (userBase *model.UserBaseModel, err error) {
 	start := time.Now()
 	defer func() {
-		log.Infof("[repo.user_base] get user by uid: %d cost: %d ns", uid, time.Now().Sub(start).Nanoseconds())
+		log.Infof(
+			"[repo.user_base] get user by uid: %d cost: %d ns",
+			uid,
+			time.Now().Sub(start).Nanoseconds(),
+		)
 	}()
 
 	data := new(model.UserBaseModel)
@@ -108,7 +127,10 @@ func (repo *userBaseRepo) GetUserByID(ctx context.Context, uid uint64) (userBase
 }
 
 // GetUserByPhone
-func (repo *userBaseRepo) GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error) {
+func (repo *userBaseRepo) GetUserByPhone(
+	ctx context.Context,
+	phone int64,
+) (*model.UserBaseModel, error) {
 	user := model.UserBaseModel{}
 	err := repo.db.Where("phone = ?", phone).First(&user).Error
 	if err != nil {
@@ -119,7 +141,10 @@ func (repo *userBaseRepo) GetUserByPhone(ctx context.Context, phone int64) (*mod
 }
 
 // GetUserByEmail
-func (repo *userBaseRepo) GetUserByEmail(ctx context.Context, phone string) (*model.UserBaseModel, error) {
+func (repo *userBaseRepo) GetUserByEmail(
+	ctx context.Context,
+	phone string,
+) (*model.UserBaseModel, error) {
 	user := model.UserBaseModel{}
 	err := repo.db.Where("email = ?", phone).First(&user).Error
 	if err != nil {

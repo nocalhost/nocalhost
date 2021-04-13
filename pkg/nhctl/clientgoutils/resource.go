@@ -102,7 +102,8 @@ func (r ResourceList) Intersect(rs ResourceList) ResourceList {
 
 // isMatchingInfo returns true if infos match on Name and GroupVersionKind.
 func isMatchingInfo(a, b *resource.Info) bool {
-	return a.Name == b.Name && a.Namespace == b.Namespace && a.Mapping.GroupVersionKind.Kind == b.Mapping.GroupVersionKind.Kind
+	return a.Name == b.Name && a.Namespace == b.Namespace &&
+		a.Mapping.GroupVersionKind.Kind == b.Mapping.GroupVersionKind.Kind
 }
 
 func LoadValidManifest(path, ignorePath []string) []string {

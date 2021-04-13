@@ -47,7 +47,10 @@ func Create(c *gin.Context) {
 	if req.SpaceResourceLimit != nil {
 		flag, message := ValidSpaceResourceLimit(*req.SpaceResourceLimit)
 		if !flag {
-			log.Errorf("Create devSpace fail. Incorrect Resource limit parameter [ %v ] format.", message)
+			log.Errorf(
+				"Create devSpace fail. Incorrect Resource limit parameter [ %v ] format.",
+				message,
+			)
 			api.SendResponse(c, errno.ErrFormatResourceLimitParam, message)
 			return
 		}
@@ -93,10 +96,12 @@ func ValidSpaceResourceLimit(resLimit SpaceResourceLimit) (bool, string) {
 	if len(resLimit.SpacePvcCount) > 0 && !numReg.MatchString(resLimit.SpacePvcCount) {
 		message = append(message, "space_pvc_count")
 	}
-	if len(resLimit.SpaceStorageCapacity) > 0 && !regStorage.MatchString(resLimit.SpaceStorageCapacity) {
+	if len(resLimit.SpaceStorageCapacity) > 0 &&
+		!regStorage.MatchString(resLimit.SpaceStorageCapacity) {
 		message = append(message, "space_storage_capacity")
 	}
-	if len(resLimit.SpaceEphemeralStorage) > 0 && !regStorage.MatchString(resLimit.SpaceEphemeralStorage) {
+	if len(resLimit.SpaceEphemeralStorage) > 0 &&
+		!regStorage.MatchString(resLimit.SpaceEphemeralStorage) {
 		message = append(message, "space_ephemeral_storage")
 	}
 	if len(resLimit.ContainerReqMem) > 0 && !regMem.MatchString(resLimit.ContainerReqMem) {
@@ -111,7 +116,8 @@ func ValidSpaceResourceLimit(resLimit SpaceResourceLimit) (bool, string) {
 	if len(resLimit.ContainerLimitsCpu) > 0 && !regCpu.MatchString(resLimit.ContainerLimitsCpu) {
 		message = append(message, "container_limits_cpu")
 	}
-	if len(resLimit.ContainerEphemeralStorage) > 0 && !regStorage.MatchString(resLimit.ContainerEphemeralStorage) {
+	if len(resLimit.ContainerEphemeralStorage) > 0 &&
+		!regStorage.MatchString(resLimit.ContainerEphemeralStorage) {
 		message = append(message, "container_ephemeral_storage")
 	}
 	if len(message) > 0 {

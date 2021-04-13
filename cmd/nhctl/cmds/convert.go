@@ -31,8 +31,10 @@ type convertFlags struct {
 var cFlags = convertFlags{}
 
 func init() {
-	convertCmd.Flags().StringVarP(&cFlags.SrcFile, "srcFile", "f", "", "File needs to get converted")
-	convertCmd.Flags().StringVarP(&cFlags.DestFile, "destFile", "d", "", "File saves converted config")
+	convertCmd.Flags().
+		StringVarP(&cFlags.SrcFile, "srcFile", "f", "", "File needs to get converted")
+	convertCmd.Flags().
+		StringVarP(&cFlags.DestFile, "destFile", "d", "", "File saves converted config")
 	convertCmd.Flags().StringVar(&cFlags.FromVersion, "from-version", "", "From which version")
 	convertCmd.Flags().StringVar(&cFlags.ToVersion, "to-version", "", "Convert to which version")
 	rootCmd.AddCommand(convertCmd)

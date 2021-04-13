@@ -20,49 +20,49 @@ import (
 // Deprecated
 type NocalHostAppConfig struct {
 	PreInstall   []*PreInstallItem    `json:"onPreInstall" yaml:"onPreInstall"`
-	SvcConfigs   []*ServiceDevOptions `json:"services" yaml:"services"`
-	Name         string               `json:"name" yaml:"name"`
+	SvcConfigs   []*ServiceDevOptions `json:"services"     yaml:"services"`
+	Name         string               `json:"name"         yaml:"name"`
 	Type         string               `json:"manifestType" yaml:"manifestType"`
 	ResourcePath []string             `json:"resourcePath" yaml:"resourcePath"`
-	IgnoredPath  []string             `json:"ignoredPath" yaml:"ignoredPath"`
+	IgnoredPath  []string             `json:"ignoredPath"  yaml:"ignoredPath"`
 }
 
 type PersistentVolumeDir struct {
-	Path     string `json:"path" yaml:"path"`
+	Path     string `json:"path"               yaml:"path"`
 	Capacity string `json:"capacity,omitempty" yaml:"capacity,omitempty"`
 }
 
 type ResourceQuota struct {
-	Limits   *QuotaList `json:"limits" yaml:"limits"`
+	Limits   *QuotaList `json:"limits"   yaml:"limits"`
 	Requests *QuotaList `json:"requests" yaml:"requests"`
 }
 
 type QuotaList struct {
 	Memory string `json:"memory" yaml:"memory"`
-	Cpu    string `json:"cpu" yaml:"cpu"`
+	Cpu    string `json:"cpu"    yaml:"cpu"`
 }
 
 type ServiceDevOptions struct {
-	Name                  string                 `json:"name" yaml:"name"`
-	Type                  string                 `json:"serviceType" yaml:"serviceType"`
-	GitUrl                string                 `json:"gitUrl" yaml:"gitUrl"`
-	DevImage              string                 `json:"devContainerImage" yaml:"devContainerImage"`
-	WorkDir               string                 `json:"workDir" yaml:"workDir"`
-	Sync                  []string               `json:"syncDirs" yaml:"syncDirs,omitempty"` // dev start -s
-	PriorityClass         string                 `json:"priorityClass,omitempty" yaml:"priorityClass,omitempty"`
-	PersistentVolumeDirs  []*PersistentVolumeDir `json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
-	BuildCommand          []string               `json:"buildCommand,omitempty" yaml:"buildCommand,omitempty"`
-	RunCommand            []string               `json:"runCommand,omitempty" yaml:"runCommand,omitempty"`
-	DebugCommand          []string               `json:"debugCommand,omitempty" yaml:"debugCommand,omitempty"`
-	HotReloadRunCommand   []string               `json:"hotReloadRunCommand,omitempty" yaml:"hotReloadRunCommand,omitempty"`
+	Name                  string                 `json:"name"                            yaml:"name"`
+	Type                  string                 `json:"serviceType"                     yaml:"serviceType"`
+	GitUrl                string                 `json:"gitUrl"                          yaml:"gitUrl"`
+	DevImage              string                 `json:"devContainerImage"               yaml:"devContainerImage"`
+	WorkDir               string                 `json:"workDir"                         yaml:"workDir"`
+	Sync                  []string               `json:"syncDirs"                        yaml:"syncDirs,omitempty"` // dev start -s
+	PriorityClass         string                 `json:"priorityClass,omitempty"         yaml:"priorityClass,omitempty"`
+	PersistentVolumeDirs  []*PersistentVolumeDir `json:"persistentVolumeDirs"            yaml:"persistentVolumeDirs"`
+	BuildCommand          []string               `json:"buildCommand,omitempty"          yaml:"buildCommand,omitempty"`
+	RunCommand            []string               `json:"runCommand,omitempty"            yaml:"runCommand,omitempty"`
+	DebugCommand          []string               `json:"debugCommand,omitempty"          yaml:"debugCommand,omitempty"`
+	HotReloadRunCommand   []string               `json:"hotReloadRunCommand,omitempty"   yaml:"hotReloadRunCommand,omitempty"`
 	HotReloadDebugCommand []string               `json:"hotReloadDebugCommand,omitempty" yaml:"hotReloadDebugCommand,omitempty"`
-	DevContainerShell     string                 `json:"devContainerShell" yaml:"devContainerShell"`
-	DevContainerResources *ResourceQuota         `json:"devContainerResources" yaml:"devContainerResources"`
-	DevPort               []string               `json:"devPorts" yaml:"devPorts"`
-	Jobs                  []string               `json:"dependJobsLabelSelector" yaml:"dependJobsLabelSelector,omitempty"`
-	Pods                  []string               `json:"dependPodsLabelSelector" yaml:"dependPodsLabelSelector,omitempty"`
-	SyncedPattern         []string               `json:"syncFilePattern" yaml:"syncFilePattern"`
-	IgnoredPattern        []string               `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
+	DevContainerShell     string                 `json:"devContainerShell"               yaml:"devContainerShell"`
+	DevContainerResources *ResourceQuota         `json:"devContainerResources"           yaml:"devContainerResources"`
+	DevPort               []string               `json:"devPorts"                        yaml:"devPorts"`
+	Jobs                  []string               `json:"dependJobsLabelSelector"         yaml:"dependJobsLabelSelector,omitempty"`
+	Pods                  []string               `json:"dependPodsLabelSelector"         yaml:"dependPodsLabelSelector,omitempty"`
+	SyncedPattern         []string               `json:"syncFilePattern"                 yaml:"syncFilePattern"`
+	IgnoredPattern        []string               `json:"ignoreFilePattern"               yaml:"ignoreFilePattern"`
 }
 
 type ComparableItems []*PreInstallItem

@@ -29,7 +29,10 @@ type ForwardPort struct {
 	RemotePort int
 }
 
-func (c *ClientGoUtils) CreatePortForwarder(pod string, fps []*ForwardPort) (*portforward.PortForwarder, error) {
+func (c *ClientGoUtils) CreatePortForwarder(
+	pod string,
+	fps []*ForwardPort,
+) (*portforward.PortForwarder, error) {
 	if fps == nil || len(fps) < 1 {
 		return nil, errors.New("forward ports can not be nil")
 	}

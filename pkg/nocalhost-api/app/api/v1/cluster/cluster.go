@@ -16,8 +16,8 @@ package cluster
 import "time"
 
 type CreateClusterRequest struct {
-	Name         string `json:"name" binding:"required"`
-	KubeConfig   string `json:"kubeconfig" binding:"required" example:"base64encode(value)"`
+	Name         string `json:"name"          binding:"required"`
+	KubeConfig   string `json:"kubeconfig"    binding:"required" example:"base64encode(value)"`
 	StorageClass string `json:"storage_class"`
 }
 
@@ -55,5 +55,5 @@ type ClusterDetailResponse struct {
 	Server       string    `json:"server"`
 	KubeConfig   string    `json:"kubeconfig"`
 	StorageClass string    `json:"storage_class"`
-	CreatedAt    time.Time `gorm:"column:created_at" json:"created_at"`
+	CreatedAt    time.Time `json:"created_at"    gorm:"column:created_at"`
 }

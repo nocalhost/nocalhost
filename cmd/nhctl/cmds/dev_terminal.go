@@ -22,7 +22,8 @@ import (
 //var container string
 
 func init() {
-	devTerminalCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
+	devTerminalCmd.Flags().
+		StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	devTerminalCmd.Flags().StringVarP(&container, "container", "c", "", "container to enter")
 	devTerminalCmd.Flags().StringVar(&pod, "pod", "", "pod to enter")
 	debugCmd.AddCommand(devTerminalCmd)

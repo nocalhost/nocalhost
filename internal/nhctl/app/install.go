@@ -55,7 +55,14 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 		// err = a.InstallKustomizeWithKubectl()
 		err = a.InstallKustomize()
 	default:
-		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
+		return errors.New(
+			fmt.Sprintf(
+				"unsupported application type, must be %s, %s or %s",
+				Helm,
+				HelmRepo,
+				Manifest,
+			),
+		)
 	}
 	if err != nil {
 		a.cleanUpDepConfigMap() // clean up dep config map
@@ -77,7 +84,12 @@ func (a *Application) InstallKustomize() error {
 		log.Warn(`There are multiple resourcesPath settings, will use first one`)
 	}
 	useResourcePath := resourcesPath[0]
-	err := a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.NameSpace), useResourcePath)
+	err := a.client.ApplyForCreate(
+		[]string{},
+		true,
+		StandardNocalhostMetas(a.Name, a.NameSpace),
+		useResourcePath,
+	)
 	if err != nil {
 		return err
 	}
@@ -189,7 +201,10 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 
 	profileV2.ReleaseName = releaseName
 	profileV2.Save()
-	log.Infof(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`, a.NameSpace)
+	log.Infof(
+		`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`,
+		a.NameSpace,
+	)
 	return nil
 }
 
@@ -240,7 +255,10 @@ func (a *Application) InstallDepConfigMap() error {
 		}
 		configMap.Labels["use-for"] = "nocalhost-dep"
 		if _, err = a.client.ClientSet.CoreV1().ConfigMaps(a.NameSpace).Create(context.TODO(), configMap, metav1.CreateOptions{}); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("fail to create dependency config %s", configMap.Name))
+			return errors.Wrap(
+				err,
+				fmt.Sprintf("fail to create dependency config %s", configMap.Name),
+			)
 		} else {
 			profileV2.DependencyConfigMapName = configMap.Name
 			profileV2.Save()
@@ -253,7 +271,12 @@ func (a *Application) InstallDepConfigMap() error {
 func (a *Application) installManifestRecursively() error {
 	log.Logf("%d manifest files to be installed", len(a.installManifest))
 	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForCreate(a.installManifest, true, StandardNocalhostMetas(a.Name, a.NameSpace), "")
+		err := a.client.ApplyForCreate(
+			a.installManifest,
+			true,
+			StandardNocalhostMetas(a.Name, a.NameSpace),
+			"",
+		)
 		if err != nil {
 			return err
 		}

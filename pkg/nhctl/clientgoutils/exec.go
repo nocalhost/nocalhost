@@ -40,7 +40,10 @@ func (c *ClientGoUtils) Exec(podName string, containerName string, command []str
 	}
 
 	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
-		return fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
+		return fmt.Errorf(
+			"cannot exec into a container in a completed pod; current phase is %s",
+			pod.Status.Phase,
+		)
 	}
 
 	if len(containerName) == 0 {
@@ -98,7 +101,15 @@ func (c *ClientGoUtils) Exec(podName string, containerName string, command []str
 	return nil
 }
 
-func Execute(method string, url *url.URL, config *restclient.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool, terminalSizeQueue remotecommand.TerminalSizeQueue) error {
+func Execute(
+	method string,
+	url *url.URL,
+	config *restclient.Config,
+	stdin io.Reader,
+	stdout, stderr io.Writer,
+	tty bool,
+	terminalSizeQueue remotecommand.TerminalSizeQueue,
+) error {
 	exec, err := remotecommand.NewSPDYExecutor(config, method, url)
 	if err != nil {
 		return err

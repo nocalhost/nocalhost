@@ -30,7 +30,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-func (c *ClientGoUtils) WaitForResourceReady(resourceType ResourceType, name string, isReady func(object runtime.Object) (bool, error)) error {
+func (c *ClientGoUtils) WaitForResourceReady(
+	resourceType ResourceType,
+	name string,
+	isReady func(object runtime.Object) (bool, error),
+) error {
 	var runtimeObject runtime.Object
 	var restClient rest.Interface
 	switch resourceType {

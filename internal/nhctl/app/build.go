@@ -39,7 +39,12 @@ import (
 // 2. An .config_v2.yaml will be created under $NhctlAppDir, it may come from an config file under .nocalhost in your git repository or an outer config file in your local file system
 // 3. An .profile_v2.yaml will be created under $NhctlAppDir, it will record the status of this application
 // build a new application
-func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig string, namespace string) (*Application, error) {
+func BuildApplication(
+	name string,
+	flags *app_flags.InstallFlags,
+	kubeconfig string,
+	namespace string,
+) (*Application, error) {
 
 	app := &Application{
 		Name:      name,
@@ -170,7 +175,12 @@ func (a *Application) renderConfig(configFilePath string) error {
 		envFile = configFile.RelOrAbs("../").RelOrAbs(relPath)
 
 		if e := envFile.CheckExist(); e != nil {
-			log.Log("Render %s Nocalhost config without env files, we found the env file had been configured as %s, but we can not found in %s", configFile.Abs(), relPath, envFile.Abs())
+			log.Log(
+				"Render %s Nocalhost config without env files, we found the env file had been configured as %s, but we can not found in %s",
+				configFile.Abs(),
+				relPath,
+				envFile.Abs(),
+			)
 		} else {
 			log.Log("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
 		}
@@ -203,12 +213,16 @@ func (a *Application) renderConfig(configFilePath string) error {
 	_ = yaml.Unmarshal([]byte(renderedStr), renderedConfig)
 
 	// remove the duplicate service config (we allow users to define duplicate service and keep the last one)
-	if renderedConfig.ApplicationConfig != nil && renderedConfig.ApplicationConfig.ServiceConfigs != nil {
+	if renderedConfig.ApplicationConfig != nil &&
+		renderedConfig.ApplicationConfig.ServiceConfigs != nil {
 		var maps = make(map[string]int)
 
 		for i, config := range renderedConfig.ApplicationConfig.ServiceConfigs {
 			if _, ok := maps[config.Name]; ok {
-				log.Log("Duplicate service %s found, Nocalhost will keep the last one according to the sequence", config.Name)
+				log.Log(
+					"Duplicate service %s found, Nocalhost will keep the last one according to the sequence",
+					config.Name,
+				)
 			}
 			maps[config.Name] = i
 		}
@@ -223,7 +237,11 @@ func (a *Application) renderConfig(configFilePath string) error {
 
 	marshal, _ := yaml.Marshal(renderedConfig)
 
-	err = ioutil.WriteFile(a.GetConfigV2Path(), marshal, 0644) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
+	err = ioutil.WriteFile(
+		a.GetConfigV2Path(),
+		marshal,
+		0644,
+	) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
 	if err != nil {
 		return errors.New(fmt.Sprintf("fail to create configFile : %s", configFilePath))
 	}
@@ -304,7 +322,11 @@ func (a *Application) initDir() error {
 }
 
 // svcName use actual name
-func (a *Application) loadConfigToSvcProfile(svcName string, appProfile *profile.AppProfileV2, svcType SvcType) {
+func (a *Application) loadConfigToSvcProfile(
+	svcName string,
+	appProfile *profile.AppProfileV2,
+	svcType SvcType,
+) {
 	if appProfile.SvcProfile == nil {
 		appProfile.SvcProfile = make([]*profile.SvcProfileV2, 0)
 	}

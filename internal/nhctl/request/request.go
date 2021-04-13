@@ -125,10 +125,19 @@ func (q *ApiRequest) ExposeService() *ApiRequest {
 	}
 
 	baseUrl := "http://127.0.0.1:" + strconv.Itoa(q.PortForwardPortLocally)
-	fmt.Printf("pid is %d, wait for port-forward... %s:%s \n", cmd.Process.Pid, strconv.Itoa(q.PortForwardPortLocally), strconv.Itoa(q.NocalhostWebPort))
+	fmt.Printf(
+		"pid is %d, wait for port-forward... %s:%s \n",
+		cmd.Process.Pid,
+		strconv.Itoa(q.PortForwardPortLocally),
+		strconv.Itoa(q.NocalhostWebPort),
+	)
 
 	for {
-		conn, _ := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(q.PortForwardPortLocally)), app.DefaultInitPortForwardTimeOut)
+		conn, _ := net.DialTimeout(
+			"tcp",
+			net.JoinHostPort("127.0.0.1", strconv.Itoa(q.PortForwardPortLocally)),
+			app.DefaultInitPortForwardTimeOut,
+		)
 		if conn != nil {
 			_ = conn.Close()
 			break
@@ -152,7 +161,11 @@ func (q *ApiRequest) IdleThePortForwardIfNeeded() error {
 				" 	'%s' \n"+
 				"  when you want to access the nocalhost-web next time",
 
-			fmt.Sprintf("kubectl port-forward service/nocalhost-web :%d -n %s ", q.NocalhostWebPort, q.NameSpace),
+			fmt.Sprintf(
+				"kubectl port-forward service/nocalhost-web :%d -n %s ",
+				q.NocalhostWebPort,
+				q.NameSpace,
+			),
 		)
 
 		// wait for port-forward
@@ -321,7 +334,10 @@ func (q *ApiRequest) GetKubeConfig() *ApiRequest {
 	}
 	result, err := tools.ExecCommand(nil, true, q.Kubectl, params...)
 	if err != nil {
-		log.Fatalf("get kubeconfig raw context fail, please check you --kubeconfig and kubeconfig file, err: %s", err)
+		log.Fatalf(
+			"get kubeconfig raw context fail, please check you --kubeconfig and kubeconfig file, err: %s",
+			err,
+		)
 	}
 	q.KubeConfigRaw = result
 	return q

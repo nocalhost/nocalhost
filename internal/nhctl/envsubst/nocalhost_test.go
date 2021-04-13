@@ -47,13 +47,16 @@ func TestSubst(t *testing.T) {
 func TestSubstWithMultiEnv(t *testing.T) {
 	initialEnv()
 
-	result, err := Render(fp.NewFilePath("testdata/nocalhost.yaml"), fp.NewFilePath("testdata/.env"))
+	result, err := Render(
+		fp.NewFilePath("testdata/nocalhost.yaml"),
+		fp.NewFilePath("testdata/.env"),
+	)
 	if err != nil {
 		fmt.Printf("%+v", err)
 		t.Error(err)
 	}
 
-	expected :=  fp.NewFilePath("testdata/nocalhost_subst_multi_env_result.yaml").ReadFile()
+	expected := fp.NewFilePath("testdata/nocalhost_subst_multi_env_result.yaml").ReadFile()
 	if result != expected || err != nil {
 		t.Errorf("got >>>>\n\t%v\nexpected >>>>\n\t%v", result, expected)
 	}

@@ -33,7 +33,12 @@ type redisCache struct {
 }
 
 // NewRedisCache
-func NewRedisCache(client *redis.Client, keyPrefix string, encoding Encoding, newObject func() interface{}) Driver {
+func NewRedisCache(
+	client *redis.Client,
+	keyPrefix string,
+	encoding Encoding,
+	newObject func() interface{},
+) Driver {
 	return &redisCache{
 		client:    client,
 		KeyPrefix: keyPrefix,

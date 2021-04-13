@@ -7,7 +7,9 @@ import (
 
 func (p *SyncthingHttpClient) Completion() (FolderCompletion, error) {
 
-	resp, err := p.get(fmt.Sprintf("rest/db/completion?device=%s&folder=%s", p.remoteDevice, p.folderName))
+	resp, err := p.get(
+		fmt.Sprintf("rest/db/completion?device=%s&folder=%s", p.remoteDevice, p.folderName),
+	)
 	if err != nil {
 		return FolderCompletion{}, err
 	}

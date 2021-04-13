@@ -71,7 +71,11 @@ func Delete(c *gin.Context) {
 }
 
 // Release target kubernetes cluster resources.
-func releaseTargetClusterResources(goClient *clientgo.GoClient, clusterId uint64, spaceNames []string) {
+func releaseTargetClusterResources(
+	goClient *clientgo.GoClient,
+	clusterId uint64,
+	spaceNames []string,
+) {
 	if goClient != nil {
 		_, err := goClient.DeleteNS(global.NocalhostSystemNamespace)
 		if err != nil {

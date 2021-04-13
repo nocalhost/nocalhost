@@ -48,7 +48,13 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(localPort, remotePort int)
 	key := fmt.Sprintf("%d:%d", localPort, remotePort)
 	pfProfile, ok := p.pfList[key]
 	if !ok {
-		return errors.New(fmt.Sprintf("Port-forward %d:%d is not managed by this PortForwardManger", localPort, remotePort))
+		return errors.New(
+			fmt.Sprintf(
+				"Port-forward %d:%d is not managed by this PortForwardManger",
+				localPort,
+				remotePort,
+			),
+		)
 	}
 	pfProfile.Cancel()
 	err := <-pfProfile.StopCh
@@ -75,8 +81,15 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string
 
 	for _, svcProfile := range profile.SvcProfile {
 		for _, pf := range svcProfile.DevPortForwardList {
-			if pf.RunByDaemonServer && pf.Sudo == isSudo { // Only recover port-forward managed by this daemon server
-				log.Logf("Recovering port-forward %d:%d of %s-%s", pf.LocalPort, pf.RemotePort, ns, appName)
+			if pf.RunByDaemonServer &&
+				pf.Sudo == isSudo { // Only recover port-forward managed by this daemon server
+				log.Logf(
+					"Recovering port-forward %d:%d of %s-%s",
+					pf.LocalPort,
+					pf.RemotePort,
+					ns,
+					appName,
+				)
 				err = p.StartPortForwardGoRoutine(&command.PortForwardCommand{
 					CommandType: command.StartPortForward,
 					NameSpace:   ns,
@@ -116,12 +129,19 @@ func (p *PortForwardManager) RecoverAllPortForward() error {
 
 // Start a port-forward
 // If saveToDB is true, record it to leveldb
-func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortForwardCommand, saveToDB bool) error {
+func (p *PortForwardManager) StartPortForwardGoRoutine(
+	startCmd *command.PortForwardCommand,
+	saveToDB bool,
+) error {
 
 	localPort, remotePort := startCmd.LocalPort, startCmd.RemotePort
 	key := fmt.Sprintf("%d:%d", localPort, remotePort)
 	if _, ok := p.pfList[key]; ok {
-		log.Logf("Port-forward %d:%d has been running in another go routine, stop it first", localPort, remotePort)
+		log.Logf(
+			"Port-forward %d:%d has been running in another go routine, stop it first",
+			localPort,
+			remotePort,
+		)
 		if err := p.StopPortForwardGoRoutine(localPort, remotePort); err != nil {
 			return err
 		}
@@ -135,7 +155,9 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 	if saveToDB {
 		// Check if port forward already exists
 		if existed, _ := nocalhostApp.CheckIfPortForwardExists(startCmd.Service, localPort, remotePort); existed {
-			return errors.New(fmt.Sprintf("Port forward %d:%d already exists", localPort, remotePort))
+			return errors.New(
+				fmt.Sprintf("Port forward %d:%d already exists", localPort, remotePort),
+			)
 		}
 		pf := &profile.DevPortForward{
 			LocalPort:         localPort,
@@ -184,7 +206,21 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			}
 		}
 
-		stdout, err := os.OpenFile(filepath.Join(logDir, fmt.Sprintf("%s_%s_%s_%d_%d", startCmd.NameSpace, startCmd.AppName, startCmd.Service, localPort, remotePort)), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+		stdout, err := os.OpenFile(
+			filepath.Join(
+				logDir,
+				fmt.Sprintf(
+					"%s_%s_%s_%d_%d",
+					startCmd.NameSpace,
+					startCmd.AppName,
+					startCmd.Service,
+					localPort,
+					remotePort,
+				),
+			),
+			os.O_WRONLY|os.O_APPEND|os.O_CREATE,
+			0666,
+		)
 		if err != nil {
 			log.LogE(err)
 		}
@@ -209,11 +245,19 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 
 			k8s_runtime.ErrorHandlers = append(k8s_runtime.ErrorHandlers, func(err error) {
 				if strings.Contains(err.Error(), "error creating error stream for port") {
-					log.Warnf("Port-forward %d:%d failed to create stream, try to reconnecting", localPort, remotePort)
+					log.Warnf(
+						"Port-forward %d:%d failed to create stream, try to reconnecting",
+						localPort,
+						remotePort,
+					)
 					select {
 					case _, isOpen := <-stopCh:
 						if isOpen {
-							log.Infof("Closing Port-forward %d:%d' by stop chan", localPort, remotePort)
+							log.Infof(
+								"Closing Port-forward %d:%d' by stop chan",
+								localPort,
+								remotePort,
+							)
 							close(stopCh)
 						} else {
 							log.Infof("Port-forward %d:%d has been closed, do nothing", localPort, remotePort)
@@ -239,7 +283,9 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 								return
 							default:
 								log.Infof("try to send port-forward heartbeat to %d", localPort)
-								err := nocalhostApp.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", "127.0.0.1", localPort))
+								err := nocalhostApp.SendPortForwardTCPHeartBeat(
+									fmt.Sprintf("%s:%v", "127.0.0.1", localPort),
+								)
 								if err != nil {
 									log.WarnE(err, "")
 									currentStatus = "HeartBeatLoss"
@@ -249,7 +295,13 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 								if lastStatus != currentStatus {
 									lastStatus = currentStatus
 									p.lock.Lock()
-									nocalhostApp.UpdatePortForwardStatus(startCmd.Service, localPort, remotePort, lastStatus, "Heart Beat")
+									nocalhostApp.UpdatePortForwardStatus(
+										startCmd.Service,
+										localPort,
+										remotePort,
+										lastStatus,
+										"Heart Beat",
+									)
 									p.lock.Unlock()
 								}
 								<-time.After(30 * time.Second)
@@ -282,10 +334,19 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			select {
 			case err := <-errCh:
 				if err != nil {
-					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") {
+					if strings.Contains(
+						err.Error(),
+						"unable to listen on any of the requested ports",
+					) {
 						log.Warnf("Unable to listen on port %d", localPort)
 						p.lock.Lock()
-						err2 := nocalhostApp.UpdatePortForwardStatus(startCmd.Service, localPort, remotePort, "DISCONNECTED", fmt.Sprintf("Unable to listen on port %d", localPort))
+						err2 := nocalhostApp.UpdatePortForwardStatus(
+							startCmd.Service,
+							localPort,
+							remotePort,
+							"DISCONNECTED",
+							fmt.Sprintf("Unable to listen on port %d", localPort),
+						)
 						p.lock.Unlock()
 						if err2 != nil {
 							log.LogE(err2)
@@ -296,7 +357,13 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 					log.WarnE(err, "Port-forward failed, reconnecting after 30 seconds...")
 					heartBeatCancel()
 					p.lock.Lock()
-					err = nocalhostApp.UpdatePortForwardStatus(startCmd.Service, localPort, remotePort, "RECONNECTING", "Port-forward failed, reconnecting after 30 seconds...")
+					err = nocalhostApp.UpdatePortForwardStatus(
+						startCmd.Service,
+						localPort,
+						remotePort,
+						"RECONNECTING",
+						"Port-forward failed, reconnecting after 30 seconds...",
+					)
 					p.lock.Unlock()
 					if err != nil {
 						log.LogE(err)

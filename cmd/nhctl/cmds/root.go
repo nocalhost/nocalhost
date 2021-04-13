@@ -36,7 +36,8 @@ func init() {
 	//settings = app_flags.NewEnvSettings()
 	rootCmd.PersistentFlags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", debug, "enable debug level log")
-	rootCmd.PersistentFlags().StringVar(&kubeConfig, "kubeconfig", "", "the path of the kubeconfig file")
+	rootCmd.PersistentFlags().
+		StringVar(&kubeConfig, "kubeconfig", "", "the path of the kubeconfig file")
 
 	//cobra.OnInitialize(func() {
 	//})

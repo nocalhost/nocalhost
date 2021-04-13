@@ -20,18 +20,18 @@ import (
 
 // Used by dep
 type InstallEnvForDep struct {
-	Global  []*profile.Env      `json:"global" yaml:"global"`
+	Global  []*profile.Env      `json:"global"  yaml:"global"`
 	Service []*ServiceEnvForDep `json:"service" yaml:"service"`
 }
 
 type ServiceEnvForDep struct {
-	Name      string                `json:"name" yaml:"name"`
-	Type      string                `json:"type" yaml:"type"`
+	Name      string                `json:"name"      yaml:"name"`
+	Type      string                `json:"type"      yaml:"type"`
 	Container []*ContainerEnvForDep `json:"container" yaml:"container"`
 }
 
 type ContainerEnvForDep struct {
-	Name       string         `json:"name" yaml:"name"`
+	Name       string         `json:"name"       yaml:"name"`
 	InstallEnv []*profile.Env `json:"installEnv" yaml:"installEnv"`
 }
 
@@ -95,7 +95,8 @@ func (a *Application) GetInstallEnvForDep() *InstallEnvForDep {
 	// Find service env
 	servcesEnv := make([]*ServiceEnvForDep, 0)
 	for _, svcProfile := range appProfileV2.SvcProfile {
-		if svcProfile.ServiceConfigV2 == nil || len(svcProfile.ServiceConfigV2.ContainerConfigs) == 0 {
+		if svcProfile.ServiceConfigV2 == nil ||
+			len(svcProfile.ServiceConfigV2.ContainerConfigs) == 0 {
 			continue
 		}
 		svcEnv := &ServiceEnvForDep{

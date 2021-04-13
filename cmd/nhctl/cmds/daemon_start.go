@@ -22,7 +22,8 @@ import (
 
 func init() {
 	daemonStartCmd.Flags().BoolVar(&isSudoUser, "sudo", false, "Is run as sudo")
-	daemonStartCmd.Flags().BoolVarP(&runInBackground, "daemon", "d", false, "Is run as daemon(background)")
+	daemonStartCmd.Flags().
+		BoolVarP(&runInBackground, "daemon", "d", false, "Is run as daemon(background)")
 	daemonCmd.AddCommand(daemonStartCmd)
 }
 

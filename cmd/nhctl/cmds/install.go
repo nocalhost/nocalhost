@@ -37,19 +37,31 @@ func init() {
 	installCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	installCmd.Flags().StringVarP(&installFlags.GitUrl, "git-url", "u", "", "resources git url")
 	installCmd.Flags().StringVarP(&installFlags.GitRef, "git-ref", "r", "", "resources git ref")
-	installCmd.Flags().StringSliceVar(&installFlags.ResourcePath, "resource-path", []string{}, "resources path")
-	installCmd.Flags().StringVarP(&installFlags.OuterConfig, "outer-config", "c", "", "specify a config.yaml in local path")
-	installCmd.Flags().StringVar(&installFlags.Config, "config", "", "specify a config relative to .nocalhost dir")
-	installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
-	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", fmt.Sprintf("nocalhost application type: %s, %s, %s, %s, %s or %s", app.HelmRepo, app.Helm, app.HelmLocal, app.Manifest, app.ManifestLocal, app.KustomizeGit))
-	installCmd.Flags().BoolVar(&installFlags.HelmWait, "wait", installFlags.HelmWait, "wait for completion")
-	installCmd.Flags().BoolVar(&installFlags.IgnorePreInstall, "ignore-pre-install", installFlags.IgnorePreInstall, "ignore pre-install")
-	installCmd.Flags().StringSliceVar(&installFlags.HelmSet, "set", []string{}, "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
-	installCmd.Flags().StringVar(&installFlags.HelmRepoName, "helm-repo-name", "", "chart repository name")
-	installCmd.Flags().StringVar(&installFlags.HelmRepoUrl, "helm-repo-url", "", "chart repository url where to locate the requested chart")
-	installCmd.Flags().StringVar(&installFlags.HelmRepoVersion, "helm-repo-version", "", "chart repository version")
+	installCmd.Flags().
+		StringSliceVar(&installFlags.ResourcePath, "resource-path", []string{}, "resources path")
+	installCmd.Flags().
+		StringVarP(&installFlags.OuterConfig, "outer-config", "c", "", "specify a config.yaml in local path")
+	installCmd.Flags().
+		StringVar(&installFlags.Config, "config", "", "specify a config relative to .nocalhost dir")
+	installCmd.Flags().
+		StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
+	installCmd.Flags().
+		StringVarP(&installFlags.AppType, "type", "t", "", fmt.Sprintf("nocalhost application type: %s, %s, %s, %s, %s or %s", app.HelmRepo, app.Helm, app.HelmLocal, app.Manifest, app.ManifestLocal, app.KustomizeGit))
+	installCmd.Flags().
+		BoolVar(&installFlags.HelmWait, "wait", installFlags.HelmWait, "wait for completion")
+	installCmd.Flags().
+		BoolVar(&installFlags.IgnorePreInstall, "ignore-pre-install", installFlags.IgnorePreInstall, "ignore pre-install")
+	installCmd.Flags().
+		StringSliceVar(&installFlags.HelmSet, "set", []string{}, "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
+	installCmd.Flags().
+		StringVar(&installFlags.HelmRepoName, "helm-repo-name", "", "chart repository name")
+	installCmd.Flags().
+		StringVar(&installFlags.HelmRepoUrl, "helm-repo-url", "", "chart repository url where to locate the requested chart")
+	installCmd.Flags().
+		StringVar(&installFlags.HelmRepoVersion, "helm-repo-version", "", "chart repository version")
 	installCmd.Flags().StringVar(&installFlags.HelmChartName, "helm-chart-name", "", "chart name")
-	installCmd.Flags().StringVar(&installFlags.LocalPath, "local-path", "", "local path for application")
+	installCmd.Flags().
+		StringVar(&installFlags.LocalPath, "local-path", "", "local path for application")
 	rootCmd.AddCommand(installCmd)
 }
 
@@ -71,15 +83,22 @@ var installCmd = &cobra.Command{
 			return
 		}
 
-		if installFlags.GitUrl == "" && (installFlags.AppType != string(app.HelmRepo) && installFlags.AppType != string(app.ManifestLocal) && installFlags.AppType != string(app.HelmLocal)) {
+		if installFlags.GitUrl == "" &&
+			(installFlags.AppType != string(app.HelmRepo) && installFlags.AppType != string(app.ManifestLocal) && installFlags.AppType != string(app.HelmLocal)) {
 			log.Fatalf("If app type is not %s , --git-url must be specified", app.HelmRepo)
 		}
 		if installFlags.AppType == string(app.HelmRepo) {
 			if installFlags.HelmChartName == "" {
-				log.Fatalf("--helm-chart-name must be specified when using %s", installFlags.AppType)
+				log.Fatalf(
+					"--helm-chart-name must be specified when using %s",
+					installFlags.AppType,
+				)
 			}
 			if installFlags.HelmRepoUrl == "" && installFlags.HelmRepoName == "" {
-				log.Fatalf("--helm-repo-url or --helm-repo-name must be specified when using %s", installFlags.AppType)
+				log.Fatalf(
+					"--helm-repo-url or --helm-repo-name must be specified when using %s",
+					installFlags.AppType,
+				)
 			}
 		}
 
@@ -131,7 +150,11 @@ var installCmd = &cobra.Command{
 				svcType := svcProfile.Type
 				log.Infof("Starting port-forward for %s %s", svcType, svcProfile.ActualName)
 				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
-				podName, err := nocalhostApp.GetDefaultPodName(ctx, svcProfile.ActualName, app.SvcType(svcType))
+				podName, err := nocalhostApp.GetDefaultPodName(
+					ctx,
+					svcProfile.ActualName,
+					app.SvcType(svcType),
+				)
 				if err != nil {
 					log.WarnE(err, "")
 					continue
@@ -175,7 +198,9 @@ func InstallApplication(applicationName string) error {
 	// add helmValue in config
 	helmValue := nocalhostApp.GetApplicationConfigV2().HelmValues
 	for _, v := range helmValue {
-		installFlags.HelmSet = append([]string{fmt.Sprintf("%s=%s", v.Key, v.Value)}, installFlags.HelmSet...)
+		installFlags.HelmSet = append(
+			[]string{fmt.Sprintf("%s=%s", v.Key, v.Value)},
+			installFlags.HelmSet...)
 	}
 
 	flags := &app.HelmFlags{

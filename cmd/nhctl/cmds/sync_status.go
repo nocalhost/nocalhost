@@ -14,8 +14,10 @@ var syncStatusOps = &app.SyncStatusOptions{}
 
 func init() {
 	//syncStatusCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
-	syncStatusCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
-	syncStatusCmd.Flags().BoolVar(&syncStatusOps.Override, "override", false, "override the remote changing according to the local sync folder")
+	syncStatusCmd.Flags().
+		StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
+	syncStatusCmd.Flags().
+		BoolVar(&syncStatusOps.Override, "override", false, "override the remote changing according to the local sync folder")
 
 	rootCmd.AddCommand(syncStatusCmd)
 }

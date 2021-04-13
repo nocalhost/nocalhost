@@ -27,7 +27,11 @@ type ClusterRepo interface {
 	Get(ctx context.Context, clusterId uint64) (model.ClusterModel, error)
 	Delete(ctx context.Context, clusterId uint64) error
 	GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error)
-	Update(ctx context.Context, update map[string]interface{}, clusterId uint64) (*model.ClusterModel, error)
+	Update(
+		ctx context.Context,
+		update map[string]interface{},
+		clusterId uint64,
+	) (*model.ClusterModel, error)
 	GetList(ctx context.Context) ([]*model.ClusterList, error)
 	Close()
 }
@@ -42,7 +46,11 @@ func NewClusterRepo(db *gorm.DB) ClusterRepo {
 	}
 }
 
-func (repo *clusterBaseRepo) Update(ctx context.Context, update map[string]interface{}, clusterId uint64) (*model.ClusterModel, error) {
+func (repo *clusterBaseRepo) Update(
+	ctx context.Context,
+	update map[string]interface{},
+	clusterId uint64,
+) (*model.ClusterModel, error) {
 	clusterModel := model.ClusterModel{}
 	clusterResult := repo.db.Where("id = ?", clusterId).First(&clusterModel)
 	if clusterResult.Error != nil {
@@ -63,7 +71,10 @@ func (repo *clusterBaseRepo) Delete(ctx context.Context, clusterId uint64) error
 	return result.Error
 }
 
-func (repo *clusterBaseRepo) GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error) {
+func (repo *clusterBaseRepo) GetAny(
+	ctx context.Context,
+	where map[string]interface{},
+) ([]*model.ClusterModel, error) {
 	cluster := make([]*model.ClusterModel, 0)
 	result := repo.db.Where(where).Find(&cluster)
 	if result.Error != nil {
@@ -77,11 +88,15 @@ func (repo *clusterBaseRepo) GetAny(ctx context.Context, where map[string]interf
 
 func (repo *clusterBaseRepo) GetList(ctx context.Context) ([]*model.ClusterList, error) {
 	var result []*model.ClusterList
-	repo.db.Raw("select c.id,c.kubeconfig,c.name,c.storage_class,c.info,c.user_id,c.created_at,count(distinct cu.id) as users_count from clusters as c left join clusters_users as cu on c.id=cu.cluster_id where c.deleted_at is null and cu.deleted_at is null group by c.id").Scan(&result)
+	repo.db.Raw("select c.id,c.kubeconfig,c.name,c.storage_class,c.info,c.user_id,c.created_at,count(distinct cu.id) as users_count from clusters as c left join clusters_users as cu on c.id=cu.cluster_id where c.deleted_at is null and cu.deleted_at is null group by c.id").
+		Scan(&result)
 	return result, nil
 }
 
-func (repo *clusterBaseRepo) Create(ctx context.Context, cluster model.ClusterModel) (model.ClusterModel, error) {
+func (repo *clusterBaseRepo) Create(
+	ctx context.Context,
+	cluster model.ClusterModel,
+) (model.ClusterModel, error) {
 	err := repo.db.Create(&cluster).Error
 	if err != nil {
 		return cluster, errors.Wrap(err, "[cluster_repo] create user err")
@@ -90,7 +105,10 @@ func (repo *clusterBaseRepo) Create(ctx context.Context, cluster model.ClusterMo
 	return cluster, nil
 }
 
-func (repo *clusterBaseRepo) Get(ctx context.Context, clusterId uint64) (model.ClusterModel, error) {
+func (repo *clusterBaseRepo) Get(
+	ctx context.Context,
+	clusterId uint64,
+) (model.ClusterModel, error) {
 	cluster := model.ClusterModel{}
 	if result := repo.db.Where("id=?", clusterId).First(&cluster); result.Error != nil {
 		log.Warnf("[cluster_repo] get cluster for id: %v error", clusterId)

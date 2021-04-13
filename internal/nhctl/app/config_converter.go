@@ -94,7 +94,9 @@ func convertProfileV1ToV2(profileV1 *profile2.AppProfile) (*profile2.AppProfileV
 	svcProfiles := make([]*profile2.SvcProfileV2, 0)
 	for _, svcProfileV1 := range profileV1.SvcProfile {
 		svcProfileV2 := &profile2.SvcProfileV2{
-			ServiceConfigV2:                        convertServiceConfigV1ToV2(svcProfileV1.ServiceDevOptions),
+			ServiceConfigV2: convertServiceConfigV1ToV2(
+				svcProfileV1.ServiceDevOptions,
+			),
 			ContainerProfile:                       nil,
 			ActualName:                             svcProfileV1.ActualName,
 			Developing:                             svcProfileV1.Developing,
@@ -116,7 +118,10 @@ func convertProfileV1ToV2(profileV1 *profile2.AppProfile) (*profile2.AppProfileV
 	profileV2.SvcProfile = svcProfiles
 	return profileV2, nil
 }
-func convertConfigV1ToV2(configV1 *profile2.NocalHostAppConfig) (*profile2.NocalHostAppConfigV2, error) {
+
+func convertConfigV1ToV2(
+	configV1 *profile2.NocalHostAppConfig,
+) (*profile2.NocalHostAppConfigV2, error) {
 	if configV1 == nil {
 		return nil, errors.New("V1 config can not be nil")
 	}

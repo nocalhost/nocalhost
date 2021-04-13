@@ -129,8 +129,12 @@ func (s *Service) dataMigrate() {
 			continue
 		}
 
-		_, err := s.applicationUserSvc.GetByApplicationIdAndUserId(context.TODO(), applicationId, userId)
-		if err != nil && strings.Contains(err.Error(),"record not found"){
+		_, err := s.applicationUserSvc.GetByApplicationIdAndUserId(
+			context.TODO(),
+			applicationId,
+			userId,
+		)
+		if err != nil && strings.Contains(err.Error(), "record not found") {
 			err := s.ApplicationUser().BatchInsert(context.TODO(), applicationId, []uint64{userId})
 			if err != nil {
 				log.Infof("Error while migrate data[BatchInsert]: %+v", err)
@@ -171,7 +175,10 @@ func (s *Service) upgradeAllClusters() error {
 			goClient, err := clientgo.NewAdminGoClient([]byte(clusterItem.KubeConfig))
 
 			if err != nil {
-				log.Errorf("Error while upgrade %s dep versions, can't not accessing cluster", clusterItem.ClusterName)
+				log.Errorf(
+					"Error while upgrade %s dep versions, can't not accessing cluster",
+					clusterItem.ClusterName,
+				)
 				return
 			}
 

@@ -112,7 +112,10 @@ func initNocalhostDefaultApplicationAndWait() error {
 
 		switch nocalhost.EstimateApplicationCounts(nameSpace) {
 		case 1: // means we can move user's configurations to default app
-			log.Logf("Init virtual application and copy unique app's configuration in ns %s ...", nameSpace)
+			log.Logf(
+				"Init virtual application and copy unique app's configuration in ns %s ...",
+				nameSpace,
+			)
 			err := InitDefaultApplicationByFirstValid()
 			if err != nil {
 				return err
@@ -132,13 +135,19 @@ func initNocalhostDefaultApplicationAndWait() error {
 func InitDefaultApplicationByFirstValid() error {
 	appNeedToCopy := nocalhost.GetFirstApplication(nameSpace)
 	if appNeedToCopy == app.DefaultNocalhostApplication {
-		log.Error("Error while init %s, %s need to be created but has been created. ", appNeedToCopy, appNeedToCopy)
+		log.Error(
+			"Error while init %s, %s need to be created but has been created. ",
+			appNeedToCopy,
+			appNeedToCopy,
+		)
 	}
 	var err error
 
 	defer func() {
 		if err != nil {
-			os.RemoveAll(nocalhost_path.GetAppDirUnderNs(app.DefaultNocalhostApplication, nameSpace))
+			os.RemoveAll(
+				nocalhost_path.GetAppDirUnderNs(app.DefaultNocalhostApplication, nameSpace),
+			)
 		}
 	}()
 
@@ -168,7 +177,8 @@ func InitDefaultApplicationInCurrentNs() error {
 
 	var cfg = ".default_config"
 
-	err = nocalhostDir.RelOrAbs(cfg).WriteFile("name: nocalhost.default\nmanifestType: rawManifestLocal")
+	err = nocalhostDir.RelOrAbs(cfg).
+		WriteFile("name: nocalhost.default\nmanifestType: rawManifestLocal")
 	if err != nil {
 		return err
 	}

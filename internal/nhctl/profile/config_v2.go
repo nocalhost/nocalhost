@@ -18,7 +18,7 @@ package profile
 
 type NocalHostAppConfigV2 struct {
 	ConfigProperties  *ConfigProperties  `json:"configProperties" yaml:"configProperties"`
-	ApplicationConfig *ApplicationConfig `json:"application" yaml:"application"`
+	ApplicationConfig *ApplicationConfig `json:"application"      yaml:"application"`
 }
 
 type ConfigProperties struct {
@@ -27,64 +27,64 @@ type ConfigProperties struct {
 }
 
 type ApplicationConfig struct {
-	Name           string             `json:"name" yaml:"name,omitempty"`
+	Name           string             `json:"name"         yaml:"name,omitempty"`
 	Type           string             `json:"manifestType" yaml:"manifestType,omitempty"`
 	ResourcePath   []string           `json:"resourcePath" yaml:"resourcePath"`
-	IgnoredPath    []string           `json:"ignoredPath" yaml:"ignoredPath"`
+	IgnoredPath    []string           `json:"ignoredPath"  yaml:"ignoredPath"`
 	PreInstall     []*PreInstallItem  `json:"onPreInstall" yaml:"onPreInstall"`
-	HelmValues     []*HelmValue       `json:"helmValues" yaml:"helmValues"`
-	Env            []*Env             `json:"env" yaml:"env"`
-	EnvFrom        EnvFrom            `json:"envFrom" yaml:"envFrom"`
-	ServiceConfigs []*ServiceConfigV2 `json:"services" yaml:"services,omitempty"`
+	HelmValues     []*HelmValue       `json:"helmValues"   yaml:"helmValues"`
+	Env            []*Env             `json:"env"          yaml:"env"`
+	EnvFrom        EnvFrom            `json:"envFrom"      yaml:"envFrom"`
+	ServiceConfigs []*ServiceConfigV2 `json:"services"     yaml:"services,omitempty"`
 }
 
 type ServiceConfigV2 struct {
-	Name                string               `json:"name" yaml:"name"`
-	Type                string               `json:"serviceType" yaml:"serviceType"`
+	Name                string               `json:"name"                    yaml:"name"`
+	Type                string               `json:"serviceType"             yaml:"serviceType"`
 	PriorityClass       string               `json:"priorityClass,omitempty" yaml:"priorityClass,omitempty"`
-	DependLabelSelector *DependLabelSelector `json:"dependLabelSelector" yaml:"dependLabelSelector"`
-	ContainerConfigs    []*ContainerConfig   `json:"containers" yaml:"containers"`
+	DependLabelSelector *DependLabelSelector `json:"dependLabelSelector"     yaml:"dependLabelSelector"`
+	ContainerConfigs    []*ContainerConfig   `json:"containers"              yaml:"containers"`
 }
 
 type ContainerConfig struct {
-	Name    string                  `json:"name" yaml:"name"`
+	Name    string                  `json:"name"    yaml:"name"`
 	Install *ContainerInstallConfig `json:"install" yaml:"install"`
-	Dev     *ContainerDevConfig     `json:"dev" yaml:"dev"`
+	Dev     *ContainerDevConfig     `json:"dev"     yaml:"dev"`
 }
 
 type ContainerInstallConfig struct {
-	Env         []*Env   `json:"env" yaml:"env"`
-	EnvFrom     EnvFrom  `json:"envFrom" yaml:"envFrom"`
+	Env         []*Env   `json:"env"         yaml:"env"`
+	EnvFrom     EnvFrom  `json:"envFrom"     yaml:"envFrom"`
 	PortForward []string `json:"portForward" yaml:"portForward"`
 }
 
 type ContainerDevConfig struct {
-	GitUrl                string                 `json:"gitUrl" yaml:"gitUrl"`
-	Image                 string                 `json:"image" yaml:"image"`
-	Shell                 string                 `json:"shell" yaml:"shell"`
-	WorkDir               string                 `json:"workDir" yaml:"workDir"`
-	DevContainerResources *ResourceQuota         `json:"resources" yaml:"resources"`
+	GitUrl                string                 `json:"gitUrl"               yaml:"gitUrl"`
+	Image                 string                 `json:"image"                yaml:"image"`
+	Shell                 string                 `json:"shell"                yaml:"shell"`
+	WorkDir               string                 `json:"workDir"              yaml:"workDir"`
+	DevContainerResources *ResourceQuota         `json:"resources"            yaml:"resources"`
 	PersistentVolumeDirs  []*PersistentVolumeDir `json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
-	Command               *DevCommands           `json:"command" yaml:"command"`
-	DebugConfig           *DebugConfig           `json:"debug" yaml:"debug"`
-	UseDevContainer       bool                   `json:"useDevContainer" yaml:"useDevContainer"`
-	Sync                  *SyncConfig            `json:"sync" yaml:"sync"`
-	Env                   []*Env                 `json:"env" yaml:"env"`
-	EnvFrom               *EnvFrom               `json:"envFrom" yaml:"envFrom"`
-	PortForward           []string               `json:"portForward" yaml:"portForward"`
+	Command               *DevCommands           `json:"command"              yaml:"command"`
+	DebugConfig           *DebugConfig           `json:"debug"                yaml:"debug"`
+	UseDevContainer       bool                   `json:"useDevContainer"      yaml:"useDevContainer"`
+	Sync                  *SyncConfig            `json:"sync"                 yaml:"sync"`
+	Env                   []*Env                 `json:"env"                  yaml:"env"`
+	EnvFrom               *EnvFrom               `json:"envFrom"              yaml:"envFrom"`
+	PortForward           []string               `json:"portForward"          yaml:"portForward"`
 }
 
 type DevCommands struct {
-	Build          []string `json:"build" yaml:"build"`
-	Run            []string `json:"run" yaml:"run"`
-	Debug          []string `json:"debug" yaml:"debug"`
-	HotReloadRun   []string `json:"hotReloadRun" yaml:"hotReloadRun"`
+	Build          []string `json:"build"          yaml:"build"`
+	Run            []string `json:"run"            yaml:"run"`
+	Debug          []string `json:"debug"          yaml:"debug"`
+	HotReloadRun   []string `json:"hotReloadRun"   yaml:"hotReloadRun"`
 	HotReloadDebug []string `json:"hotReloadDebug" yaml:"hotReloadDebug"`
 }
 
 type SyncConfig struct {
-	Type              string   `json:"type" yaml:"type"`
-	FilePattern       []string `json:"filePattern" yaml:"filePattern"`
+	Type              string   `json:"type"              yaml:"type"`
+	FilePattern       []string `json:"filePattern"       yaml:"filePattern"`
 	IgnoreFilePattern []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
 }
 
@@ -98,12 +98,12 @@ type DependLabelSelector struct {
 }
 
 type HelmValue struct {
-	Key   string `json:"key" yaml:"key"`
+	Key   string `json:"key"   yaml:"key"`
 	Value string `json:"value" yaml:"value"`
 }
 
 type Env struct {
-	Name  string `json:"name" yaml:"name"`
+	Name  string `json:"name"  yaml:"name"`
 	Value string `json:"value" yaml:"value"`
 }
 

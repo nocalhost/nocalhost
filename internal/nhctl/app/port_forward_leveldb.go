@@ -19,7 +19,10 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-func (a *Application) CheckIfPortForwardExists(svcName string, localPort, remotePort int) (bool, error) {
+func (a *Application) CheckIfPortForwardExists(
+	svcName string,
+	localPort, remotePort int,
+) (bool, error) {
 	svcProfile, err := a.GetSvcProfile(svcName)
 	if err != nil {
 		return false, err

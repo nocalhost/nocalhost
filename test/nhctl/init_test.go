@@ -40,7 +40,9 @@ func TestInit(t *testing.T) {
 }
 
 func TestCommandWait(t *testing.T) {
-	go util.WaitForCommandDone("kubectl wait --for=condition=Delete pods/test-74cb446f4b-hmp8g -n test")
+	go util.WaitForCommandDone(
+		"kubectl wait --for=condition=Delete pods/test-74cb446f4b-hmp8g -n test",
+	)
 	time.Sleep(7 * time.Second)
 }
 

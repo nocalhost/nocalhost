@@ -114,7 +114,10 @@ func (a *Application) SetDevEndProfileStatus(svcName string) error {
 	return profileV2.Save()
 }
 
-func (a *Application) SetSyncthingPort(svcName string, remotePort, remoteGUIPort, localPort, localGUIPort int) error {
+func (a *Application) SetSyncthingPort(
+	svcName string,
+	remotePort, remoteGUIPort, localPort, localGUIPort int,
+) error {
 	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
 		return err

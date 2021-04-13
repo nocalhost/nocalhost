@@ -82,8 +82,7 @@ func ListAll(c *gin.Context) {
 		return
 	}
 
-	cu := model.ClusterUserModel{
-	}
+	cu := model.ClusterUserModel{}
 
 	if ginbase.IsAdmin(c) {
 		if params.UserId != nil {
@@ -129,7 +128,10 @@ func ListByUserId(c *gin.Context) {
 			r.StorageClass = c.StorageClass
 		}
 
-		r.DevStartAppendCommand = []string{global.NocalhostDefaultPriorityclassKey, global.NocalhostDefaultPriorityclassName}
+		r.DevStartAppendCommand = []string{
+			global.NocalhostDefaultPriorityclassKey,
+			global.NocalhostDefaultPriorityclassName,
+		}
 	}
 	api.SendResponse(c, nil, result)
 }

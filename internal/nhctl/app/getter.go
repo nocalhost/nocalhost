@@ -21,7 +21,8 @@ func (a *Application) GetType() AppType {
 
 func (a *Application) IsHelm() bool {
 	appProfile := a.profileV2
-	return appProfile.AppType == string(Helm) || appProfile.AppType == string(HelmRepo) || appProfile.AppType == string(HelmLocal)
+	return appProfile.AppType == string(Helm) || appProfile.AppType == string(HelmRepo) ||
+		appProfile.AppType == string(HelmLocal)
 }
 
 func (a *Application) IsManifest() bool {

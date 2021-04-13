@@ -64,9 +64,14 @@ func IsSameYaml(src, dst string) error {
 	}
 
 	if !reflect.DeepEqual(resultMap, expectedMap) {
-		return errors.New(fmt.Sprintf("got >>>>>>>>>>>>>>>>>>>>\n%v\nexpected >>>>>>>>>>>>>>>>>>>>\n%v", src, dst))
+		return errors.New(
+			fmt.Sprintf(
+				"got >>>>>>>>>>>>>>>>>>>>\n%v\nexpected >>>>>>>>>>>>>>>>>>>>\n%v",
+				src,
+				dst,
+			),
+		)
 	}
 
 	return nil
 }
-

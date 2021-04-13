@@ -70,13 +70,16 @@ var InitDepCommand = &cobra.Command{
 			log.Fatalf("new go client fail, err: %s, or check you kubeconfig\n", err)
 		}
 		// wait for job and deployment
-		spinner := utils.NewSpinner(" waiting for nocalhost dep component ready, this will take a few minutes...")
+		spinner := utils.NewSpinner(
+			" waiting for nocalhost dep component ready, this will take a few minutes...",
+		)
 		spinner.Start()
 		// wait nocalhost-dep ready
 		// max 5 min
 		checkTime := 0
 		for {
-			isReady, _ := client.NameSpace(app.DefaultInitWaitNameSpace).CheckDeploymentReady(app.DefaultInitWaitDeployment)
+			isReady, _ := client.NameSpace(app.DefaultInitWaitNameSpace).
+				CheckDeploymentReady(app.DefaultInitWaitDeployment)
 			if isReady {
 				break
 			}
@@ -87,6 +90,8 @@ var InitDepCommand = &cobra.Command{
 			time.Sleep(time.Duration(200) * time.Millisecond)
 		}
 		spinner.Stop()
-		log.Info("nocalhost-dep has been installed, you can use `kubectl label namespace ${namespace} env=nocalhost` enable namespace dependency injection")
+		log.Info(
+			"nocalhost-dep has been installed, you can use `kubectl label namespace ${namespace} env=nocalhost` enable namespace dependency injection",
+		)
 	},
 }

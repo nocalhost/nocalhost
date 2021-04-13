@@ -41,7 +41,9 @@ func Sync(moduleName string) {
 	cmd := fmt.Sprintf("nhctl sync bookinfo -d %s -n test --kubeconfig="+util.CODING, moduleName)
 	ok, log := util.WaitForCommandDone(cmd)
 	if !ok {
-		panic(fmt.Sprintf("sync failed, reason: sync file failed, command: %s, log: %s\n", cmd, log))
+		panic(
+			fmt.Sprintf("sync failed, reason: sync file failed, command: %s, log: %s\n", cmd, log),
+		)
 	}
 
 	filename := "hello.test"
@@ -51,13 +53,31 @@ func Sync(moduleName string) {
 	}
 	// wait file to be synchronize
 	time.Sleep(10 * time.Second)
-	cmd = fmt.Sprintf("kubectl exec deployment/%s -n test --kubeconfig=%s -- cat %s\n", moduleName, util.CODING, filename)
+	cmd = fmt.Sprintf(
+		"kubectl exec deployment/%s -n test --kubeconfig=%s -- cat %s\n",
+		moduleName,
+		util.CODING,
+		filename,
+	)
 	ok, log = util.WaitForCommandDone(cmd)
 	if !ok {
-		panic(fmt.Sprintf("test case failed, reason: cat file %s error, command: %s, log: %v\n", filename, cmd, log))
+		panic(
+			fmt.Sprintf(
+				"test case failed, reason: cat file %s error, command: %s, log: %v\n",
+				filename,
+				cmd,
+				log,
+			),
+		)
 	}
 	if !strings.Contains(log, content) {
-		panic(fmt.Sprintf("test case failed, reason: file content: %s not equals command log: %s\n", content, log))
+		panic(
+			fmt.Sprintf(
+				"test case failed, reason: file content: %s not equals command log: %s\n",
+				content,
+				log,
+			),
+		)
 	}
 }
 
@@ -81,7 +101,13 @@ func PortForward() {
 func End(moduleName string) {
 	cmd := "nhctl dev end bookinfo -d %s -n test --kubeconfig " + util.CODING
 	if ok, log := util.WaitForCommandDone(fmt.Sprintf(cmd, moduleName)); !ok {
-		panic(fmt.Sprintf("test case failed, reason: nhctl dev end failed, command: %s, log: %s \n", cmd, log))
+		panic(
+			fmt.Sprintf(
+				"test case failed, reason: nhctl dev end failed, command: %s, log: %s \n",
+				cmd,
+				log,
+			),
+		)
 	}
 	util.WaitToBeStatus("test", "pods", "app=details", func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning && func() bool {

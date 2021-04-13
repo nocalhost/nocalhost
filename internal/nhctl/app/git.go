@@ -28,7 +28,8 @@ func cloneFromGit(gitUrl string, gitRef string, destPath string) error {
 		gitDirName string
 	)
 
-	if strings.HasPrefix(gitUrl, "https") || strings.HasPrefix(gitUrl, "git") || strings.HasPrefix(gitUrl, "http") {
+	if strings.HasPrefix(gitUrl, "https") || strings.HasPrefix(gitUrl, "git") ||
+		strings.HasPrefix(gitUrl, "http") {
 		if strings.HasSuffix(gitUrl, ".git") {
 			gitDirName = gitUrl[:len(gitUrl)-4]
 		} else {
@@ -37,7 +38,18 @@ func cloneFromGit(gitUrl string, gitRef string, destPath string) error {
 		strs := strings.Split(gitDirName, "/")
 		gitDirName = strs[len(strs)-1] // todo : for default application name
 		if len(gitRef) > 0 {
-			_, err = tools.ExecCommand(nil, true, "git", "clone", "--branch", gitRef, "--depth", "1", gitUrl, destPath)
+			_, err = tools.ExecCommand(
+				nil,
+				true,
+				"git",
+				"clone",
+				"--branch",
+				gitRef,
+				"--depth",
+				"1",
+				gitUrl,
+				destPath,
+			)
 		} else {
 			_, err = tools.ExecCommand(nil, true, "git", "clone", "--depth", "1", gitUrl, destPath)
 		}

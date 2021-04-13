@@ -183,7 +183,11 @@ func mutationRequired(ignoredList []string, metadata *metav1.ObjectMeta) bool {
 		}
 
 		if metadata.Namespace == namespace {
-			glog.Infof("Skip mutation for %v for it's in special namespace:%v", metadata.Name, metadata.Namespace)
+			glog.Infof(
+				"Skip mutation for %v for it's in special namespace:%v",
+				metadata.Name,
+				metadata.Namespace,
+			)
 			return false
 		}
 	}
@@ -203,7 +207,13 @@ func mutationRequired(ignoredList []string, metadata *metav1.ObjectMeta) bool {
 	// determine whether to perform mutation based on annotation for the target resource
 	var required = true
 
-	glog.Infof("Mutation policy for %v/%v: status: %q required:%v", metadata.Namespace, metadata.Name, status, required)
+	glog.Infof(
+		"Mutation policy for %v/%v: status: %q required:%v",
+		metadata.Namespace,
+		metadata.Name,
+		status,
+		required,
+	)
 	return required
 }
 
@@ -309,7 +319,14 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 		ap := omh.getOwnRefSignedAnnotation(req.Namespace)
 		annotationPair <- ap
 		if len(ap) > 0 {
-			glog.Infof("Kind: `%s` Name: `%s` in ns `%s` should patching his signed anno: [%s], meta: %s", req.Kind, req.Name, req.Namespace, strings.Join(ap, ", "), string(req.Object.Raw))
+			glog.Infof(
+				"Kind: `%s` Name: `%s` in ns `%s` should patching his signed anno: [%s], meta: %s",
+				req.Kind,
+				req.Name,
+				req.Namespace,
+				strings.Join(ap, ", "),
+				string(req.Object.Raw),
+			)
 		}
 	}()
 
@@ -411,7 +428,11 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 
 		isAdmin, err := isClusterAdmin(sa)
 		if err != nil {
-			glog.Errorf("Could not get role-binding from namespace %s, Err: %s", sa.Namespace, err.Error())
+			glog.Errorf(
+				"Could not get role-binding from namespace %s, Err: %s",
+				sa.Namespace,
+				err.Error(),
+			)
 			return &v1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
@@ -425,21 +446,39 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 			}
 		}
 
-		glog.Infof("Request user uuid %s, Sa uuid %s is from ns %s without cluster-admin role, so resource quota request denied", req.UserInfo.UID, sa.UID, sa.Namespace)
+		glog.Infof(
+			"Request user uuid %s, Sa uuid %s is from ns %s without cluster-admin role, so resource quota request denied",
+			req.UserInfo.UID,
+			sa.UID,
+			sa.Namespace,
+		)
 		return &v1.AdmissionResponse{
 			Allowed: false,
 		}
 	}
 
 	if resourceType != "ResourceQuota" {
-		glog.Infof("AdmissionReview for Kind=%v, Namespace=%v Name=%v UID=%v patchOperation=%v UserInfo=%v",
-			req.Kind, req.Namespace, req.Name, req.UID, req.Operation, req.UserInfo)
+		glog.Infof(
+			"AdmissionReview for Kind=%v, Namespace=%v Name=%v UID=%v patchOperation=%v UserInfo=%v",
+			req.Kind,
+			req.Namespace,
+			req.Name,
+			req.UID,
+			req.Operation,
+			req.UserInfo,
+		)
 		glog.Infof("unmarshal for Kind=%v, Namespace=%v Name=%v",
 			req.Kind, req.Namespace, req.Name)
 	}
 
 	// configmap
-	initContainers, EnvVar, err := nocalhostDepConfigmap(nocalhostNamespace, resourceName, resourceType, objectMeta, containers)
+	initContainers, EnvVar, err := nocalhostDepConfigmap(
+		nocalhostNamespace,
+		resourceName,
+		resourceType,
+		objectMeta,
+		containers,
+	)
 	glog.Infof("initContainers %v", initContainers)
 	glog.Infof("EnvVar %v", EnvVar)
 
@@ -491,7 +530,11 @@ func (whsvr *WebhookServer) Serve(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
 		glog.Errorf("Content-Type=%s, expect application/json", contentType)
-		http.Error(w, "invalid Content-Type, expect `application/json`", http.StatusUnsupportedMediaType)
+		http.Error(
+			w,
+			"invalid Content-Type, expect `application/json`",
+			http.StatusUnsupportedMediaType,
+		)
 		return
 	}
 
@@ -519,11 +562,19 @@ func (whsvr *WebhookServer) Serve(w http.ResponseWriter, r *http.Request) {
 	resp, err := json.Marshal(admissionReview)
 	if err != nil {
 		glog.Errorf("Can't encode response: %v", err)
-		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+		http.Error(
+			w,
+			fmt.Sprintf("could not encode response: %v", err),
+			http.StatusInternalServerError,
+		)
 	}
 	glog.Infof("Ready to write reponse ...")
 	if _, err := w.Write(resp); err != nil {
 		glog.Errorf("Can't write response: %v", err)
-		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+		http.Error(
+			w,
+			fmt.Sprintf("could not write response: %v", err),
+			http.StatusInternalServerError,
+		)
 	}
 }

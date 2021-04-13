@@ -103,7 +103,8 @@ func Create(c *gin.Context) {
 	}
 
 	userId, _ := c.Get("userId")
-	cluster, err := service.Svc.ClusterSvc().Create(c, req.Name, string(DecKubeconfig), req.StorageClass, t.Clusters[0].Cluster.Server, clusterInfo, userId.(uint64))
+	cluster, err := service.Svc.ClusterSvc().
+		Create(c, req.Name, string(DecKubeconfig), req.StorageClass, t.Clusters[0].Cluster.Server, clusterInfo, userId.(uint64))
 	if err != nil {
 		log.Warnf("create cluster err: %v", err)
 		api.SendResponse(c, errno.ErrClusterCreate, nil)

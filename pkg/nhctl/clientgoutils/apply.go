@@ -57,7 +57,13 @@ func (c *ClientGoUtils) UpdateResourceInfoByServerSide(info *resource.Info) erro
 
 	helper := resource.NewHelper(info.Client, info.Mapping)
 	forceConflicts := true
-	obj, err := helper.Patch(info.Namespace, info.Name, types.StrategicMergePatchType, data, &metav1.PatchOptions{Force: &forceConflicts, FieldManager: "kubectl"})
+	obj, err := helper.Patch(
+		info.Namespace,
+		info.Name,
+		types.StrategicMergePatchType,
+		data,
+		&metav1.PatchOptions{Force: &forceConflicts, FieldManager: "kubectl"},
+	)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
@@ -85,7 +91,11 @@ func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info, af *ApplyFlags) e
 		cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 		return &runtimeObjectPrinter{Operation: operation, Name: info.Name}, nil
 	}
-	o.IOStreams = genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stdout} // don't print log to stderr
+	o.IOStreams = genericclioptions.IOStreams{
+		In:     os.Stdin,
+		Out:    os.Stdout,
+		ErrOut: os.Stdout,
+	} // don't print log to stderr
 	return o.Run()
 }
 
@@ -99,9 +109,16 @@ func (c *ClientGoUtils) Apply(file string, af *ApplyFlags) error {
 	return o.Run()
 }
 
-func (c *ClientGoUtils) generateCompletedApplyOption(file string, af *ApplyFlags) (*apply.ApplyOptions, error) {
+func (c *ClientGoUtils) generateCompletedApplyOption(
+	file string,
+	af *ApplyFlags,
+) (*apply.ApplyOptions, error) {
 	var err error
-	ioStreams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr} // don't print log to stderr
+	ioStreams := genericclioptions.IOStreams{
+		In:     os.Stdin,
+		Out:    os.Stdout,
+		ErrOut: os.Stderr,
+	} // don't print log to stderr
 	o := apply.NewApplyOptions(ioStreams)
 	o.DeleteFlags.FileNameFlags.Filenames = &[]string{file}
 	o.OpenAPIPatch = true
@@ -159,7 +176,12 @@ func (c *ClientGoUtils) generateCompletedApplyOption(file string, af *ApplyFlags
 		}
 
 		// inject nocalhost label and annotations
-		err = resourceList.Visits([]resource.VisitorFunc{addLabels(af.MergeableLabel), addAnnotations(af.MergeableAnnotation)})
+		err = resourceList.Visits(
+			[]resource.VisitorFunc{
+				addLabels(af.MergeableLabel),
+				addAnnotations(af.MergeableAnnotation),
+			},
+		)
 		return nil
 	}
 	return o, nil
@@ -171,11 +193,20 @@ type runtimeObjectPrinter struct {
 }
 
 func (r *runtimeObjectPrinter) PrintObj(obj runtime.Object, writer io.Writer) error {
-	log.Infof("Resource(%s) %s %s", obj.GetObjectKind().GroupVersionKind().Kind, r.Name, r.Operation)
+	log.Infof(
+		"Resource(%s) %s %s",
+		obj.GetObjectKind().GroupVersionKind().Kind,
+		r.Name,
+		r.Operation,
+	)
 	return nil
 }
 
-func (c *ClientGoUtils) GetResourceInfoFromFiles(files []string, continueOnError bool, kustomize string) ([]*resource.Info, error) {
+func (c *ClientGoUtils) GetResourceInfoFromFiles(
+	files []string,
+	continueOnError bool,
+	kustomize string,
+) ([]*resource.Info, error) {
 
 	if len(files) == 0 && len(kustomize) == 0 {
 		return nil, errors.New("files must not be nil")

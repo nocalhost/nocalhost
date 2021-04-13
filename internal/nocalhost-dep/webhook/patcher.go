@@ -18,9 +18,18 @@ type Patcher struct {
 	patch []patchOperation
 }
 
-func (p *Patcher) patchInitContainer(objectInitContainer []corev1.Container, initContainers []corev1.Container) {
+func (p *Patcher) patchInitContainer(
+	objectInitContainer []corev1.Container,
+	initContainers []corev1.Container,
+) {
 	if initContainers != nil && len(initContainers) > 0 {
-		p.patch = append(p.patch, addInitContainer(objectInitContainer, initContainers, "/spec/template/spec/initContainers")...)
+		p.patch = append(
+			p.patch,
+			addInitContainer(
+				objectInitContainer,
+				initContainers,
+				"/spec/template/spec/initContainers",
+			)...)
 	}
 }
 
@@ -80,14 +89,22 @@ func addContainerEnvVar(k int, target []corev1.EnvVar, envVar []envVar) (patch [
 
 // get nocalhost dependents configmaps, this will get from specify namespace by labels
 // nhctl will create dependency configmap in users dev space
-func nocalhostDepConfigmap(namespace string, resourceName string, resourceType string, objectMeta *metav1.ObjectMeta, containers []corev1.Container) ([]corev1.Container, []envVar, error) {
+func nocalhostDepConfigmap(
+	namespace string,
+	resourceName string,
+	resourceType string,
+	objectMeta *metav1.ObjectMeta,
+	containers []corev1.Container,
+) ([]corev1.Container, []envVar, error) {
 	// labelSelector="use-for=nocalhost-dep"
 	labelSelector := map[string]string{
 		"use-for": "nocalhost-dep",
 	}
 	setLabelSelector := labels.Set(labelSelector)
 	startTime := time.Now()
-	configMaps, err := clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: setLabelSelector.AsSelector().String()})
+	configMaps, err := clientset.CoreV1().
+		ConfigMaps(namespace).
+		List(context.TODO(), metav1.ListOptions{LabelSelector: setLabelSelector.AsSelector().String()})
 	duration := time.Now().Sub(startTime)
 	glog.Infof("get configmap total cost %d", duration.Milliseconds())
 	initContainers := make([]corev1.Container, 0)
@@ -98,7 +115,10 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 	}
 	for i, cm := range configMaps.Items {
 		fmt.Printf("[%d] %s\n", i, cm.GetName())
-		if strings.Contains(cm.GetName(), "nocalhost-depends-do-not-overwrite") { // Dependency description configmap
+		if strings.Contains(
+			cm.GetName(),
+			"nocalhost-depends-do-not-overwrite",
+		) { // Dependency description configmap
 			if configMapValue, ok := cm.Data["nocalhost"]; ok {
 				fmt.Printf("[%d] %s\n", i, configMapValue)
 				dep := mainDep{}
@@ -125,7 +145,8 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 				}
 				// inject install service env
 				for _, env := range dep.Env.Service {
-					if env.Name == resourceName && (strings.ToLower(env.Type) == strings.ToLower(resourceType) || dep.ReleaseName+"-"+env.Name == resourceName) {
+					if env.Name == resourceName &&
+						(strings.ToLower(env.Type) == strings.ToLower(resourceType) || dep.ReleaseName+"-"+env.Name == resourceName) {
 						for _, container := range env.Container {
 							for k, objContainer := range containers {
 								addEnvList := make([]corev1.EnvVar, 0)
@@ -153,7 +174,8 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 					// K8S native type is case-sensitive, dependent descriptions are not distinguished, and unified into lowercase
 					// if has metadata.labels.release, then release-name should fix as dependency.Name
 					// helm install my-pro prometheus, deployment will be set my-pro-prometheus-alertmanager, if dependency set prometheus-alertmanager it will regrade as resourceName
-					if dependency.Name == resourceName && (strings.ToLower(dependency.Type) == strings.ToLower(resourceType) || dep.ReleaseName+"-"+dependency.Name == resourceName) {
+					if dependency.Name == resourceName &&
+						(strings.ToLower(dependency.Type) == strings.ToLower(resourceType) || dep.ReleaseName+"-"+dependency.Name == resourceName) {
 						// initContainer
 						if dependency.Pods != nil {
 							args := func(podsList []string) []string {
@@ -164,7 +186,10 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 										args = append(args, "&&")
 									}
 									args = append(args, "wait_for.sh", "pod")
-									if strings.ContainsAny(pod, "=") { // means define label, such as app.kubernetes.io/name=nginx
+									if strings.ContainsAny(
+										pod,
+										"=",
+									) { // means define label, such as app.kubernetes.io/name=nginx
 										args = append(args, fmt.Sprintf("-l%s", pod))
 									} else { // has not define label, default app label
 										args = append(args, fmt.Sprintf("-lapp=%s", pod))
@@ -178,7 +203,11 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 							cmd = append(cmd, "sh", "-c", waitCmd)
 
 							initContainer := corev1.Container{
-								Name:            "wait-for-pods-" + strconv.Itoa(i) + strconv.Itoa(key),
+								Name: "wait-for-pods-" + strconv.Itoa(
+									i,
+								) + strconv.Itoa(
+									key,
+								),
 								Image:           waitImages,
 								ImagePullPolicy: corev1.PullPolicy("Always"),
 								Command:         cmd,
@@ -194,7 +223,10 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 										args = append(args, "&&")
 									}
 									args = append(args, "wait_for.sh", "job")
-									if strings.ContainsAny(job, "=") { // means define label, such as app.kubernetes.io/name=nginx
+									if strings.ContainsAny(
+										job,
+										"=",
+									) { // means define label, such as app.kubernetes.io/name=nginx
 										args = append(args, fmt.Sprintf("-l%s", job))
 									} else { // has not define label, default app label
 										args = append(args, fmt.Sprintf("-lapp=%s", job))
@@ -208,7 +240,11 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 							cmd = append(cmd, "sh", "-c", waitCmd)
 
 							initContainer := corev1.Container{
-								Name:            "wait-for-jobs-" + strconv.Itoa(i) + strconv.Itoa(key),
+								Name: "wait-for-jobs-" + strconv.Itoa(
+									i,
+								) + strconv.Itoa(
+									key,
+								),
 								Image:           waitImages,
 								ImagePullPolicy: corev1.PullPolicy("Always"),
 								Command:         cmd,
@@ -224,7 +260,11 @@ func nocalhostDepConfigmap(namespace string, resourceName string, resourceType s
 }
 
 // add initContainers
-func addInitContainer(objectMeta []corev1.Container, initContainers []corev1.Container, path string) (patch []patchOperation) {
+func addInitContainer(
+	objectMeta []corev1.Container,
+	initContainers []corev1.Container,
+	path string,
+) (patch []patchOperation) {
 	first := len(objectMeta) == 0
 	var value interface{}
 	for _, add := range initContainers {

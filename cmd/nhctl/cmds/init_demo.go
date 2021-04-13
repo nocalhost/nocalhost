@@ -47,15 +47,22 @@ type Init struct {
 var inits = &Init{}
 
 func init() {
-	InitCommand.Flags().StringVarP(&inits.Type, "type", "t", "", "set NodePort or LoadBalancer to expose nocalhost service")
+	InitCommand.Flags().
+		StringVarP(&inits.Type, "type", "t", "", "set NodePort or LoadBalancer to expose nocalhost service")
 	InitCommand.Flags().IntVarP(&inits.Port, "port", "p", 80, "for NodePort usage set ports")
-	InitCommand.Flags().StringVarP(&inits.Source, "source", "s", "", "(Deprecated) bookinfo source, github or coding, default is github")
-	InitCommand.Flags().StringVarP(&inits.NameSpace, "namespace", "n", "nocalhost", "set init nocalhost namesapce")
+	InitCommand.Flags().
+		StringVarP(&inits.Source, "source", "s", "", "(Deprecated) bookinfo source, github or coding, default is github")
+	InitCommand.Flags().
+		StringVarP(&inits.NameSpace, "namespace", "n", "nocalhost", "set init nocalhost namesapce")
 	InitCommand.Flags().StringSliceVar(&inits.Set, "set", []string{}, "set values of helm")
-	InitCommand.Flags().BoolVar(&inits.Force, "force", false, "force to init, warning: it will remove all nocalhost old data")
-	InitCommand.Flags().StringVar(&inits.InjectUserTemplate, "inject-user-template", "", "inject users template, example Techo%d, max length is 15")
-	InitCommand.Flags().IntVar(&inits.InjectUserAmount, "inject-user-amount", 0, "inject user amount, example 10, max is 999")
-	InitCommand.Flags().IntVar(&inits.InjectUserAmountOffset, "inject-user-offset", 1, "inject user id offset, default is 1")
+	InitCommand.Flags().
+		BoolVar(&inits.Force, "force", false, "force to init, warning: it will remove all nocalhost old data")
+	InitCommand.Flags().
+		StringVar(&inits.InjectUserTemplate, "inject-user-template", "", "inject users template, example Techo%d, max length is 15")
+	InitCommand.Flags().
+		IntVar(&inits.InjectUserAmount, "inject-user-amount", 0, "inject user amount, example 10, max is 999")
+	InitCommand.Flags().
+		IntVar(&inits.InjectUserAmountOffset, "inject-user-offset", 1, "inject user id offset, default is 1")
 	InitCmd.AddCommand(InitCommand)
 }
 
@@ -74,7 +81,9 @@ var InitCommand = &cobra.Command{
 			log.Fatal("--inject-user-amount must less then 999")
 		}
 		if (len(strconv.Itoa(inits.InjectUserAmountOffset)) + len(inits.InjectUserTemplate)) > 20 {
-			log.Fatal("--inject-user-offset and --inject-user-template length can not greater than 20")
+			log.Fatal(
+				"--inject-user-offset and --inject-user-template length can not greater than 20",
+			)
 		}
 		switch inits.NameSpace {
 		case "default":
@@ -148,7 +157,9 @@ var InitCommand = &cobra.Command{
 		nhctl := tools.GetNhctl()
 		// if force init, remove all init data first
 		if inits.Force {
-			spinner := utils.NewSpinner(" waiting for delete old data, this will take a few minutes...")
+			spinner := utils.NewSpinner(
+				" waiting for delete old data, this will take a few minutes...",
+			)
 			spinner.Start()
 			uninstall := []string{
 				"uninstall",
@@ -159,7 +170,10 @@ var InitCommand = &cobra.Command{
 			}
 			_, err = tools.ExecCommand(nil, true, nhctl, uninstall...)
 			if err != nil {
-				log.Warnf("uninstall %s application fail, ignore", app.DefaultInitInstallApplicationName)
+				log.Warnf(
+					"uninstall %s application fail, ignore",
+					app.DefaultInitInstallApplicationName,
+				)
 			}
 			// delete nocalhost(server namespace), nocalhost-reserved(dep) namespace if exist
 			if nsErr := client.CheckExistNameSpace(inits.NameSpace); nsErr == nil {
@@ -187,30 +201,45 @@ var InitCommand = &cobra.Command{
 			}
 			err = client.CreateNameSpace(inits.NameSpace, customLabels)
 			if err != nil {
-				log.Fatalf("init fail, create namespace %s fail, err: %s\n", inits.NameSpace, err.Error())
+				log.Fatalf(
+					"init fail, create namespace %s fail, err: %s\n",
+					inits.NameSpace,
+					err.Error(),
+				)
 			}
 		}
 		// call install command
 		_, err = tools.ExecCommand(nil, true, nhctl, params...)
 		if err != nil {
-			coloredoutput.Fail("execution nhctl install fail %s, try to add `--force` end of command manually\n", err.Error())
+			coloredoutput.Fail(
+				"execution nhctl install fail %s, try to add `--force` end of command manually\n",
+				err.Error(),
+			)
 			log.Fatal("exit init")
 		}
 
 		// 1. watch nocalhost-api and nocalhost-web ready
 		// 2. print nocalhost-web service address
 		// 3. use nocalhost-web service address to set default data into cluster
-		spinner := utils.NewSpinner(" waiting for Nocalhost component ready, this will take a few minutes...")
+		spinner := utils.NewSpinner(
+			" waiting for Nocalhost component ready, this will take a few minutes...",
+		)
 		spinner.Start()
-		err = client.NameSpace(inits.NameSpace).WaitDeploymentToBeReady(app.DefaultInitWatchDeployment)
+		err = client.NameSpace(inits.NameSpace).
+			WaitDeploymentToBeReady(app.DefaultInitWatchDeployment)
 		if err != nil {
-			log.Fatalf("watch deployment %s timeout, err: %s\n", app.DefaultInitWatchDeployment, err.Error())
+			log.Fatalf(
+				"watch deployment %s timeout, err: %s\n",
+				app.DefaultInitWatchDeployment,
+				err.Error(),
+			)
 		}
 		// wait nocalhost-web ready
 		// max 5 min
 		checkTime := 0
 		for {
-			isReady, _ := client.NameSpace(inits.NameSpace).CheckDeploymentReady(app.DefaultInitWatchWebDeployment)
+			isReady, _ := client.NameSpace(inits.NameSpace).
+				CheckDeploymentReady(app.DefaultInitWatchWebDeployment)
 			if isReady {
 				break
 			}
@@ -231,19 +260,33 @@ var InitCommand = &cobra.Command{
 		endpoint := findOutWebEndpoint(client)
 
 		// set default cluster, application, users
-		req := request.NewReq(fmt.Sprintf("http://%s", endpoint), kubeConfig, kubectl, inits.NameSpace, inits.Port).Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).GetKubeConfig().AddBookInfoApplicationForThree().AddCluster().AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).AddDevSpace()
+		req := request.NewReq(fmt.Sprintf("http://%s", endpoint), kubeConfig, kubectl, inits.NameSpace, inits.Port).
+			Login(app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord).
+			GetKubeConfig().
+			AddBookInfoApplicationForThree().
+			AddCluster().
+			AddUser(app.DefaultInitUserEmail, app.DefaultInitPassword, app.DefaultInitName).
+			AddDevSpace()
 
 		// should inject batch user
 		if inits.InjectUserTemplate != "" && inits.InjectUserAmount > 0 {
-			_ = req.SetInjectBatchUserTemplate(inits.InjectUserTemplate).InjectBatchDevSpace(inits.InjectUserAmount, inits.InjectUserAmountOffset)
+			_ = req.SetInjectBatchUserTemplate(inits.InjectUserTemplate).
+				InjectBatchDevSpace(inits.InjectUserAmount, inits.InjectUserAmountOffset)
 		}
 
 		// wait for nocalhost-dep deployment in nocalhost-reserved namespace
-		spinner = utils.NewSpinner(" waiting for Nocalhost-dep ready, this will take a few minutes...")
+		spinner = utils.NewSpinner(
+			" waiting for Nocalhost-dep ready, this will take a few minutes...",
+		)
 		spinner.Start()
-		err = client.NameSpace(app.DefaultInitWaitNameSpace).WaitDeploymentToBeReady(app.DefaultInitWaitDeployment)
+		err = client.NameSpace(app.DefaultInitWaitNameSpace).
+			WaitDeploymentToBeReady(app.DefaultInitWaitDeployment)
 		if err != nil {
-			log.Fatalf("watch deployment %s timeout, err: %s\n", app.DefaultInitWatchDeployment, err.Error())
+			log.Fatalf(
+				"watch deployment %s timeout, err: %s\n",
+				app.DefaultInitWatchDeployment,
+				err.Error(),
+			)
 		}
 
 		// change dep images tag
@@ -390,7 +433,12 @@ func setDepComponentDockerImage(kubectl, kubeConfig string) {
 		"set",
 		"image",
 		"deployment/" + app.DefaultInitWaitDeployment,
-		fmt.Sprintf("%s=%s:%s", app.DefaultInitWaitDeployment, app.DefaultNocalhostDepDockerRegistry, tag),
+		fmt.Sprintf(
+			"%s=%s:%s",
+			app.DefaultInitWaitDeployment,
+			app.DefaultNocalhostDepDockerRegistry,
+			tag,
+		),
 		"-n",
 		app.DefaultInitWaitNameSpace,
 		"--kubeconfig",

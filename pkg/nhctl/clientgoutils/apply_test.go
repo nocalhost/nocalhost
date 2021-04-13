@@ -20,7 +20,9 @@ import (
 
 func TestClientGoUtils_Apply(t *testing.T) {
 	client := getClient()
-	err := client.Apply("/Users/xinxinhuang/.nh/nhctl/application/bookinfo-coding/resources/manifest/templates/ratings.yaml")
+	err := client.Apply(
+		"/Users/xinxinhuang/.nh/nhctl/application/bookinfo-coding/resources/manifest/templates/ratings.yaml",
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -29,7 +31,12 @@ func TestClientGoUtils_Apply(t *testing.T) {
 func TestClientGoUtils_CreateResourceInfo(t *testing.T) {
 	client := getClient()
 
-	infos, err := client.GetResourceInfoFromFiles([]string{"/Users/xinxinhuang/.nh/nhctl/application/bookinfo-coding/resources/manifest/templates/ratings.yaml"}, true)
+	infos, err := client.GetResourceInfoFromFiles(
+		[]string{
+			"/Users/xinxinhuang/.nh/nhctl/application/bookinfo-coding/resources/manifest/templates/ratings.yaml",
+		},
+		true,
+	)
 	if err != nil {
 		panic(err)
 	}
