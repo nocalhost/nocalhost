@@ -58,6 +58,7 @@ var uninstallCmd = &cobra.Command{
 		}
 		if appMeta == nil || appMeta.IsNotInstall() {
 			log.Fatalf(appMeta.NotInstallTips())
+			return
 		}
 
 		log.Info("Uninstalling application...")
