@@ -351,7 +351,8 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 				},
 			}
 		}
-		resourceName, objectMeta, initContainer, containers = deployment.Name, &deployment.ObjectMeta, deployment.Spec.Template.Spec.InitContainers, deployment.Spec.Template.Spec.Containers
+		resourceName, objectMeta, initContainer, containers = deployment.Name, &deployment.ObjectMeta,
+			deployment.Spec.Template.Spec.InitContainers, deployment.Spec.Template.Spec.Containers
 	case "DaemonSet":
 		var daemonSet appsv1.DaemonSet
 		if err := json.Unmarshal(req.Object.Raw, &daemonSet); err != nil {
@@ -362,7 +363,8 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 				},
 			}
 		}
-		resourceName, objectMeta, initContainer, containers = daemonSet.Name, &daemonSet.ObjectMeta, daemonSet.Spec.Template.Spec.InitContainers, daemonSet.Spec.Template.Spec.Containers
+		resourceName, objectMeta, initContainer, containers = daemonSet.Name, &daemonSet.ObjectMeta,
+			daemonSet.Spec.Template.Spec.InitContainers, daemonSet.Spec.Template.Spec.Containers
 	case "ReplicaSet":
 		var replicaSet appsv1.ReplicaSet
 		if err := json.Unmarshal(req.Object.Raw, &replicaSet); err != nil {
@@ -373,7 +375,8 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 				},
 			}
 		}
-		resourceName, objectMeta, initContainer, containers = replicaSet.Name, &replicaSet.ObjectMeta, replicaSet.Spec.Template.Spec.InitContainers, replicaSet.Spec.Template.Spec.Containers
+		resourceName, objectMeta, initContainer, containers = replicaSet.Name, &replicaSet.ObjectMeta,
+			replicaSet.Spec.Template.Spec.InitContainers, replicaSet.Spec.Template.Spec.Containers
 	case "StatefulSet":
 		var statefulSet appsv1.StatefulSet
 		if err := json.Unmarshal(req.Object.Raw, &statefulSet); err != nil {
@@ -384,7 +387,8 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 				},
 			}
 		}
-		resourceName, objectMeta, initContainer, containers = statefulSet.Name, &statefulSet.ObjectMeta, statefulSet.Spec.Template.Spec.InitContainers, statefulSet.Spec.Template.Spec.Containers
+		resourceName, objectMeta, initContainer, containers = statefulSet.Name, &statefulSet.ObjectMeta,
+			statefulSet.Spec.Template.Spec.InitContainers, statefulSet.Spec.Template.Spec.Containers
 	case "Job":
 		var job batchv1.Job
 		if err := json.Unmarshal(req.Object.Raw, &job); err != nil {
@@ -395,7 +399,8 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 				},
 			}
 		}
-		resourceName, objectMeta, initContainer, containers = job.Name, &job.ObjectMeta, job.Spec.Template.Spec.InitContainers, job.Spec.Template.Spec.Containers
+		resourceName, objectMeta, initContainer, containers = job.Name, &job.ObjectMeta,
+			job.Spec.Template.Spec.InitContainers, job.Spec.Template.Spec.Containers
 	case "CronJob":
 		var cronJob batchv1beta1.CronJob
 		if err := json.Unmarshal(req.Object.Raw, &cronJob); err != nil {
@@ -406,7 +411,8 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 				},
 			}
 		}
-		resourceName, objectMeta, initContainer, containers = cronJob.Name, &cronJob.ObjectMeta, cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers, cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers
+		resourceName, objectMeta, initContainer, containers = cronJob.Name, &cronJob.ObjectMeta,
+			cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers, cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers
 	case "ResourceQuota":
 		//if req.UserInfo.UID == "" {
 		return &v1.AdmissionResponse{

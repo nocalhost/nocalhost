@@ -144,7 +144,8 @@ func UpdateResourceLimit(c *gin.Context) {
 	limiRangeName := "lr-" + devspace.Namespace
 	clusterDevsSetUp.DeleteLimitRange(limiRangeName, devspace.Namespace).
 		CreateLimitRange(limiRangeName, devspace.Namespace,
-			req.ContainerReqMem, req.ContainerLimitsMem, req.ContainerReqCpu, req.ContainerLimitsCpu, req.ContainerEphemeralStorage)
+			req.ContainerReqMem, req.ContainerLimitsMem, req.ContainerReqCpu,
+			req.ContainerLimitsCpu, req.ContainerEphemeralStorage)
 
 	// Update database clustUser's spaceResourceLimit
 	resSting, _ := json.Marshal(req)

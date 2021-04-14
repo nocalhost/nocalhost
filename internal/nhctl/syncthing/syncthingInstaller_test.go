@@ -1,10 +1,7 @@
 package syncthing
 
 import (
-	"encoding/json"
-	"fmt"
 	"io/ioutil"
-	"nocalhost/internal/nocalhost-dep/webhook"
 	"testing"
 )
 
@@ -119,7 +116,8 @@ func TestRepeatDownLoadWithCommitId(t *testing.T) {
 }
 
 // specify the commit id, and the VERSION is empty
-func TestRepeatDownLoadWithCommitIdAndEmptyVersion(t *testing.T) {
+// TestRepeatDownLoadWithCommitIdAndEmptyVersion
+func TestRepeatDownLoad(t *testing.T) {
 	versionToDownload := ""
 	commitId := "forunittestwithmockedcommitid"
 	tmpDir, _ := ioutil.TempDir("", "")
@@ -153,7 +151,8 @@ func TestRepeatDownLoadWithCommitIdAndEmptyVersion(t *testing.T) {
 }
 
 // specify the commit id, and the VERSION is empty
-func TestDownLoadWithCommitIdAndEmptyVersion(t *testing.T) {
+// TestDownLoadWithCommitIdAndEmptyVersion
+func TestDownLoad1(t *testing.T) {
 	versionToDownload := ""
 	commitId := "forunittestwithmockedcommitid"
 	tmpDir, _ := ioutil.TempDir("", "")
@@ -176,7 +175,8 @@ func TestDownLoadWithCommitIdAndEmptyVersion(t *testing.T) {
 }
 
 // specify the commit id, and the VERSION is empty
-func TestDownLoadWithCommitIdAnInvalidVersion(t *testing.T) {
+// TestDownLoadWithCommitIdAnInvalidVersion
+func TestDownLoad2(t *testing.T) {
 	versionToDownload := "invalidVersion"
 	commitId := "forunittestwithmockedcommitid"
 	tmpDir, _ := ioutil.TempDir("", "")
@@ -199,7 +199,8 @@ func TestDownLoadWithCommitIdAnInvalidVersion(t *testing.T) {
 }
 
 // specify the commit id, and the VERSION is empty
-func TestRepeatDownLoadWithCommitIdAnInvalidVersion(t *testing.T) {
+// TestRepeatDownLoadWithCommitIdAnInvalidVersion
+func TestRepeatDownLoad3(t *testing.T) {
 	versionToDownload := "invalidVersion"
 	commitId := "forunittestwithmockedcommitid"
 	tmpDir, _ := ioutil.TempDir("", "")
