@@ -141,7 +141,7 @@ func copyAndCapture(w io.Writer, r io.Reader, isDisplay bool) ([]byte, error) {
 		}
 		if err != nil {
 			// Read returns io.EOF at the end of file, which is not an error for us
-			if err == io.EOF {
+			if err == io.EOF || err == io.ErrClosedPipe {
 				err = nil
 			}
 			return out, err
