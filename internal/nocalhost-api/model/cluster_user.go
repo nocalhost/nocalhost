@@ -34,6 +34,7 @@ type ClusterUserModel struct {
 	SpaceResourceLimit string     `gorm:"cloumn:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
 	Namespace          string     `gorm:"column:namespace;not null" json:"namespace"`
 	Status             *uint64    `gorm:"column:status;default:0" json:"status"`
+	ClusterAdmin       *uint64    `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
 	CreatedAt          time.Time  `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt          time.Time  `gorm:"column:updated_at" json:"-"`
 	DeletedAt          *time.Time `gorm:"column:deleted_at" json:"-"`
@@ -77,6 +78,7 @@ type ClusterUserJoinClusterAndAppAndUser struct {
 	UserId             uint64    `gorm:"column:user_id" json:"user_id"`
 	UserName           string    `gorm:"column:user_name" json:"user_name"`
 	SpaceName          string    `gorm:"column:space_name" json:"space_name"`
+	ClusterAdmin       *uint64    `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
 	ClusterId          uint64    `gorm:"column:cluster_id" json:"cluster_id"`
 	ClusterName        string    `gorm:"column:cluster_name" json:"cluster_name"`
 	KubeConfig         string    `gorm:"column:kubeconfig" json:"kubeconfig"`

@@ -17,13 +17,11 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"nocalhost/pkg/nhctl/clientgoutils"
-	"os"
+	"nocalhost/internal/nhctl/appmeta"
 	"time"
 
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/app_flags"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
@@ -41,7 +39,7 @@ func init() {
 	installCmd.Flags().StringVarP(&installFlags.OuterConfig, "outer-config", "c", "", "specify a config.yaml in local path")
 	installCmd.Flags().StringVar(&installFlags.Config, "config", "", "specify a config relative to .nocalhost dir")
 	installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
-	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", fmt.Sprintf("nocalhost application type: %s, %s, %s, %s, %s or %s", app.HelmRepo, app.Helm, app.HelmLocal, app.Manifest, app.ManifestLocal, app.KustomizeGit))
+	installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "", fmt.Sprintf("nocalhost application type: %s, %s, %s, %s, %s or %s", appmeta.HelmRepo, appmeta.Helm, appmeta.HelmLocal, appmeta.Manifest, appmeta.ManifestLocal, appmeta.KustomizeGit))
 	installCmd.Flags().BoolVar(&installFlags.HelmWait, "wait", installFlags.HelmWait, "wait for completion")
 	installCmd.Flags().BoolVar(&installFlags.IgnorePreInstall, "ignore-pre-install", installFlags.IgnorePreInstall, "ignore pre-install")
 	installCmd.Flags().StringSliceVar(&installFlags.HelmSet, "set", []string{}, "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
@@ -64,17 +62,24 @@ var installCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		var err error
-		applicationName := args[0]
+		var (
+			err             error
+			applicationName = args[0]
+		)
+
+		if err := Prepare(); err != nil {
+			log.FatalE(err, "")
+		}
+
 		if applicationName == app.DefaultNocalhostApplication {
 			log.Error(app.DefaultNocalhostApplicationOperateErr)
 			return
 		}
 
-		if installFlags.GitUrl == "" && (installFlags.AppType != string(app.HelmRepo) && installFlags.AppType != string(app.ManifestLocal) && installFlags.AppType != string(app.HelmLocal)) {
-			log.Fatalf("If app type is not %s , --git-url must be specified", app.HelmRepo)
+		if installFlags.GitUrl == "" && (installFlags.AppType != string(appmeta.HelmRepo) && installFlags.AppType != string(appmeta.ManifestLocal) && installFlags.AppType != string(appmeta.HelmLocal)) {
+			log.Fatalf("If app type is not %s , --git-url must be specified", appmeta.HelmRepo)
 		}
-		if installFlags.AppType == string(app.HelmRepo) {
+		if installFlags.AppType == string(appmeta.HelmRepo) {
 			if installFlags.HelmChartName == "" {
 				log.Fatalf("--helm-chart-name must be specified when using %s", installFlags.AppType)
 			}
@@ -83,34 +88,11 @@ var installCmd = &cobra.Command{
 			}
 		}
 
-		if nameSpace == "" {
-			nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig)
-			if err != nil {
-				log.FatalE(err, "Failed to get namespace")
-			}
-			if nameSpace == "" {
-				log.Fatal("Namespace mush be provided")
-			}
-		}
-		if nocalhost.CheckIfApplicationExist(applicationName, nameSpace) {
-			log.Fatalf("Application %s already exists in namespace %s", applicationName, nameSpace)
-		}
-
 		log.Info("Installing application...")
-		err = InstallApplication(applicationName)
-		if err != nil {
-			log.WarnE(err, "Failed to install application")
-			log.Debug("Cleaning up resources...")
-			err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace)
-			if err != nil {
-				log.Errorf("Failed to clean up: %v", err)
-			} else {
-				log.Debug("Resources have been clean up")
-			}
-			os.Exit(-1)
-		} else {
-			log.Infof("Application %s installed", applicationName)
+		if err = InstallApplication(applicationName); err != nil {
+			log.FatalE(err, "")
 		}
+		log.Infof("Application %s installed", applicationName)
 
 		profileV2, err := nocalhostApp.GetProfile()
 		if err != nil {
@@ -162,14 +144,25 @@ func InstallApplication(applicationName string) error {
 	}
 	log.Logf("KubeConfig content: %s", string(bys))
 
-	nocalhostApp, err = app.BuildApplication(applicationName, installFlags, kubeConfig, nameSpace)
-	if err != nil {
+	// build Application will create the application meta and it's secret
+	// init the application's config
+	if nocalhostApp, err = app.BuildApplication(applicationName, installFlags, kubeConfig, nameSpace); err != nil {
 		return err
 	}
 
+	// if init appMeta successful, then should remove all things while fail
+	defer func() {
+		if err != nil {
+			if err := nocalhostApp.Uninstall(); err != nil {
+				log.WarnE(err, "")
+			}
+		}
+	}()
+
 	appType := nocalhostApp.GetType()
 	if appType == "" {
-		return errors.New("--type must be specified")
+		err = errors.New("--type must be specified")
+		return err
 	}
 
 	// add helmValue in config
@@ -188,5 +181,7 @@ func InstallApplication(applicationName string) error {
 		Version:  installFlags.HelmRepoVersion,
 	}
 
-	return nocalhostApp.Install(context.TODO(), flags)
+	err = nocalhostApp.Install(context.TODO(), flags)
+	_ = nocalhostApp.CleanUpTmpResources()
+	return err
 }

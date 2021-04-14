@@ -32,6 +32,7 @@ type BaseRepo interface {
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
 	GetUserList(ctx context.Context) ([]*model.UserList, error)
+	UpdateServiceAccountName(ctx context.Context, id uint64, saName string) error
 	Close()
 }
 
@@ -50,7 +51,7 @@ func NewUserRepo(db *gorm.DB) BaseRepo {
 // GetUserList
 func (repo *userBaseRepo) GetUserList(ctx context.Context) ([]*model.UserList, error) {
 	var result []*model.UserList
-	repo.db.Raw("select u.id as id,u.name as name,u.email as email,count(distinct cu.id) as cluster_count,u.status as status, u.is_admin as is_admin from users as u left join clusters_users as cu on cu.user_id=u.id where u.deleted_at is null and cu.deleted_at is null group by u.id").Scan(&result)
+	repo.db.Raw("select u.id as id,u.name as name,u.sa_name as sa_name,u.email as email,count(distinct cu.id) as cluster_count,u.status as status, u.is_admin as is_admin from users as u left join clusters_users as cu on cu.user_id=u.id where u.deleted_at is null and cu.deleted_at is null group by u.id").Scan(&result)
 	return result, nil
 }
 
@@ -89,6 +90,15 @@ func (repo *userBaseRepo) Update(ctx context.Context, id uint64, userMap *model.
 		return user, errors.Wrap(err, "[user_repo] update user data error")
 	}
 	return user, nil
+}
+
+// Update
+func (repo *userBaseRepo) UpdateServiceAccountName(ctx context.Context, id uint64, saName string) error {
+	if err := repo.db.Exec("UPDATE users SET sa_name = ? WHERE id = ?", saName, id).Error; err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetUserByID

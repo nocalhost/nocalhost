@@ -34,7 +34,7 @@ import (
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
 // @Router /v1/dev_space/{id} [delete]
 func Delete(c *gin.Context) {
-	// userId, _ := c.Get("userId")
+
 	devSpaceId := cast.ToUint64(c.Param("id"))
 	clusterUser, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId})
 	if err != nil {
@@ -42,23 +42,41 @@ func Delete(c *gin.Context) {
 		return
 	}
 
-	clusterData, err := service.Svc.ClusterSvc().Get(c, clusterUser.ClusterId)
-	if err != nil {
-		api.SendResponse(c, errno.ErrClusterNotFound, nil)
-		return
-	}
+	if clusterUser.ClusterAdmin != nil && *clusterUser.ClusterAdmin != 0 {
 
-	req := ClusterUserCreateRequest{
-		ID:        &clusterUser.ID,
-		NameSpace: clusterUser.Namespace,
-	}
-	devSpace := NewDevSpace(req, c, []byte(clusterData.KubeConfig))
-	err = devSpace.Delete()
-	if err != nil {
-		api.SendResponse(c, err, nil)
+		if err := service.Svc.UnAuthorizeClusterToUser(clusterUser.ClusterId, clusterUser.UserId); err != nil {
+			api.SendResponse(c, err, nil)
+			return
+		}
+
+		// delete database cluster-user dev space
+		if err := service.Svc.ClusterUser().Delete(c, devSpaceId); err != nil {
+			api.SendResponse(c, errno.ErrDeletedClusterButDatabaseFail, nil)
+			return
+		}
+
+		api.SendResponse(c, errno.OK, nil)
 		return
+	}else {
+		clusterData, err := service.Svc.ClusterSvc().Get(c, clusterUser.ClusterId)
+		if err != nil {
+			api.SendResponse(c, errno.ErrClusterNotFound, nil)
+			return
+		}
+
+		req := ClusterUserCreateRequest{
+			ID:        &clusterUser.ID,
+			NameSpace: clusterUser.Namespace,
+		}
+		devSpace := NewDevSpace(req, c, []byte(clusterData.KubeConfig))
+
+		if err := devSpace.Delete(); err != nil {
+			api.SendResponse(c, err, nil)
+			return
+		}
+
+		api.SendResponse(c, errno.OK, nil)
 	}
-	api.SendResponse(c, errno.OK, nil)
 }
 
 // ReCreate ReCreate devSpace
@@ -120,6 +138,12 @@ func ReCreate(c *gin.Context) {
 	result, err := devSpace.Create()
 
 	if err != nil {
+		api.SendResponse(c, err, nil)
+		return
+	}
+
+	// un authorize namespace to user
+	if err := service.Svc.AuthorizeNsToUser(result.ClusterId, result.UserId, result.Namespace); err != nil {
 		api.SendResponse(c, err, nil)
 		return
 	}

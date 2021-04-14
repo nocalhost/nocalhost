@@ -38,6 +38,7 @@ type FileSyncOptions struct {
 	Override       bool
 	Container      string // container name of pod to sync
 	Resume         bool
+	Stop           bool
 }
 
 type SyncStatusOptions struct {

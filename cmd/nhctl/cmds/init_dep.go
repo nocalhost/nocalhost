@@ -23,8 +23,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
-	"os/user"
-	"path/filepath"
 	"time"
 )
 
@@ -40,12 +38,10 @@ var InitDepCommand = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		if kubeConfig == "" {
-			u, err := user.Current()
-			if err == nil {
-				kubeConfig = filepath.Join(u.HomeDir, ".kube", "config")
-			}
+		if err := Prepare(); err != nil {
+			log.FatalE(err, "")
 		}
+
 		rawKubeConfig, err := ioutil.ReadFile(kubeConfig)
 		if err != nil {
 			log.Fatalf("read %s fail, err %s \n", kubeConfig, err.Error())

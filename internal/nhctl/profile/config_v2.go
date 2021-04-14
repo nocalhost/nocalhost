@@ -114,3 +114,12 @@ type EnvFrom struct {
 type EnvFile struct {
 	Path string `json:"path" yaml:"path"`
 }
+
+func (n *NocalHostAppConfigV2) GetSvcConfigV2(svcName string) *ServiceConfigV2 {
+	for _, config := range n.ApplicationConfig.ServiceConfigs {
+		if config.Name == svcName {
+			return config
+		}
+	}
+	return nil
+}

@@ -22,7 +22,8 @@ import (
 )
 
 type ClusterUserService interface {
-	Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string, spaceResourceLimit string) (model.ClusterUserModel, error)
+	Create(ctx context.Context, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string, spaceResourceLimit string) (model.ClusterUserModel, error)
+	CreateClusterAdminSpace(ctx context.Context, clusterId, userId uint64, spaceName string) (model.ClusterUserModel, error)
 	Delete(ctx context.Context, id uint64) error
 	DeleteByWhere(ctx context.Context, models model.ClusterUserModel) error
 	BatchDelete(ctx context.Context, ids []uint64) error
@@ -91,17 +92,34 @@ func (srv *clusterUserService) GetFirst(ctx context.Context, models model.Cluste
 	return result, nil
 }
 
-func (srv *clusterUserService) Create(ctx context.Context, applicationId, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string, spaceResourceLimit string) (model.ClusterUserModel, error) {
+func (srv *clusterUserService) Create(ctx context.Context, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string, spaceResourceLimit string) (model.ClusterUserModel, error) {
 	c := model.ClusterUserModel{
 
 		// Deprecated
-		ApplicationId:      applicationId,
+		ApplicationId:      0,
 		UserId:             userId,
 		ClusterId:          clusterId,
 		KubeConfig:         kubeConfig,
 		Namespace:          devNameSpace,
 		SpaceName:          spaceName,
 		SpaceResourceLimit: spaceResourceLimit,
+	}
+	result, err := srv.clusterUserRepo.Create(ctx, c)
+	if err != nil {
+		return result, errors.Wrapf(err, "create application_cluster")
+	}
+	return result, nil
+}
+
+func (srv *clusterUserService) CreateClusterAdminSpace(ctx context.Context, clusterId, userId uint64, spaceName string) (model.ClusterUserModel, error) {
+	trueFlag := uint64(1)
+
+	c := model.ClusterUserModel{
+		SpaceName:    spaceName,
+		ClusterId:    clusterId,
+		UserId:       userId,
+		Namespace:    "*",
+		ClusterAdmin: &trueFlag,
 	}
 	result, err := srv.clusterUserRepo.Create(ctx, c)
 	if err != nil {
@@ -118,7 +136,7 @@ func (srv *clusterUserService) GetJoinClusterAndAppAndUserDetail(ctx context.Con
 	return srv.clusterUserRepo.GetJoinClusterAndAppAndUserDetail(ctx, condition)
 }
 
-func (srv *clusterUserService) ListByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserPluginModel, error){
+func (srv *clusterUserService) ListByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserPluginModel, error) {
 	return srv.clusterUserRepo.ListByUser(ctx, userId)
 }
 

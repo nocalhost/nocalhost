@@ -69,8 +69,8 @@ var devStartCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
 
-		if b, _ := nocalhostApp.CheckIfSvcIsDeveloping(deployment); b {
-			log.Fatalf("Service \"%s\" is already in developing", deployment)
+		if !nocalhostApp.GetAppMeta().IsInstalled() {
+			log.Fatalf(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
 
 		devStartOps.Kubeconfig = kubeConfig
@@ -96,9 +96,16 @@ var devStartCmd = &cobra.Command{
 		if len(devStartOps.LocalSyncDir) > 0 {
 			svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 		}
+		profileV2.GenerateIdentifierIfNeeded()
+
 		//_ = nocalhostApp.SaveProfile()
 		profileV2.Save()
 		profileV2.CloseDb()
+
+		err = nocalhostApp.GetAppMeta().DeploymentDevStart(deployment, profileV2.Identifier)
+		if err != nil {
+			log.FatalE(err, "")
+		}
 
 		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOps.Container, devStartOps.LocalSyncDir, false)
 		if err != nil {
@@ -151,7 +158,7 @@ var devStartCmd = &cobra.Command{
 		if err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps); err != nil {
 			log.WarnE(err, "Failed to replace dev container")
 			log.Info("Resetting workload...")
-			nocalhostApp.Reset(deployment)
+			_ = nocalhostApp.DevEnd(deployment, true)
 			os.Exit(1)
 		}
 

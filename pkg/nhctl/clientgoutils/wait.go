@@ -138,13 +138,11 @@ func (c *ClientGoUtils) WaitJobToBeReady(name, format string) error {
 		0, //Duration is int64
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				//fmt.Printf("job added: %s \n", obj.(runtime.Object))
 			},
 			DeleteFunc: func(obj interface{}) {
 				fmt.Printf("Job %s deleted\n", name)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
-				//fmt.Printf("job %s changed: ", name)
 				if completed, _ := waitForJob(newObj.(runtime.Object), name); completed {
 					close(stop)
 					exit <- 1

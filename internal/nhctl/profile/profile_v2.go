@@ -15,11 +15,13 @@ package profile
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"gopkg.in/yaml.v2"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
 	"strings"
 )
@@ -30,25 +32,25 @@ const (
 )
 
 type AppProfileV2 struct {
-	Name                    string            `json:"name" yaml:"name"`
-	ChartName               string            `json:"chart_name" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
-	ReleaseName             string            `json:"release_name yaml:releaseName"`
-	Namespace               string            `json:"namespace" yaml:"namespace"`
-	Kubeconfig              string            `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
-	DependencyConfigMapName string            `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
-	AppType                 string            `json:"app_type" yaml:"appType"`
-	SvcProfile              []*SvcProfileV2   `json:"svc_profile" yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
-	Installed               bool              `json:"installed" yaml:"installed"`
-	SyncDirs                []string          `json:"syncDirs" yaml:"syncDirs"` // dev start -s
-	ResourcePath            []string          `json:"resource_path" yaml:"resourcePath"`
-	IgnoredPath             []string          `json:"ignoredPath" yaml:"ignoredPath"`
-	PreInstall              []*PreInstallItem `json:"onPreInstall" yaml:"onPreInstall"`
+	Name                    string          `json:"name" yaml:"name"`
+	ChartName               string          `json:"chart_name" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
+	ReleaseName             string          `json:"release_name yaml:releaseName"`
+	Namespace               string          `json:"namespace" yaml:"namespace"`
+	Kubeconfig              string          `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
+	DependencyConfigMapName string          `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
+	SvcProfile              []*SvcProfileV2 `json:"svc_profile" yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
+	Installed               bool            `json:"installed" yaml:"installed"`
+	SyncDirs                []string        `json:"syncDirs" yaml:"syncDirs"` // dev start -s
+	ResourcePath            RelPath         `json:"resource_path" yaml:"resourcePath"`
+	IgnoredPath             RelPath         `json:"ignoredPath" yaml:"ignoredPath"`
+	PreInstall              SortedRelPath   `json:"onPreInstall" yaml:"onPreInstall"`
+	Identifier              string          `json:"identifier" yaml:"identifier"`
 
 	// After v2
-	GitUrl       string `json:"gitUrl" yaml:"gitUrl"`
-	GitRef       string `json:"gitRef" yaml:"gitRef"`
-	HelmRepoUrl  string `json:"helmRepoUrl" yaml:"helmRepoUrl"`
-	HelmRepoName string `json:"helmRepoUrl" yaml:"helmRepoName"`
+	//GitUrl       string `json:"gitUrl" yaml:"gitUrl"`
+	//GitRef       string `json:"gitRef" yaml:"gitRef"`
+	//HelmRepoUrl  string `json:"helmRepoUrl" yaml:"helmRepoUrl"`
+	//HelmRepoName string `json:"helmRepoUrl" yaml:"helmRepoName"`
 	//HelmRepoChartVersion string `json:"helmRepoChartVersion" yaml:"helmRepoChartVersion"`
 
 	Env     []*Env  `json:"env" yaml:"env"`
@@ -57,6 +59,14 @@ type AppProfileV2 struct {
 	dbPath  string
 	appName string
 	ns      string
+}
+
+func (appProfile *AppProfileV2) LoadManifests(tmpDir string) ([]string, []string) {
+	preInstallManifests := appProfile.PreInstall.Load(tmpDir)
+	allManifests := appProfile.ResourcePath.Load(tmpDir)
+	ignore := appProfile.IgnoredPath.Load(tmpDir)
+
+	return preInstallManifests, clientgoutils.LoadValidManifest(allManifests, append(preInstallManifests, ignore...))
 }
 
 func ProfileV2Key(ns, app string) string {
@@ -156,6 +166,15 @@ func (a *AppProfileV2) FetchSvcProfileV2FromProfile(svcName string) *SvcProfileV
 	return svcProfile
 }
 
+// this method will not save the Identifier,
+// make sure it will be saving while use
+func (a *AppProfileV2) GenerateIdentifierIfNeeded() {
+	if a.Identifier == "" && a != nil {
+		u, _ := uuid.NewRandom()
+		a.Identifier = u.String()
+	}
+}
+
 func (a *AppProfileV2) Save() error {
 	if a.db == nil {
 		return nil
@@ -195,10 +214,10 @@ type SvcProfileV2 struct {
 	LocalSyncthingGUIPort                  int               `json:"localSyncthingGUIPort" yaml:"localSyncthingGUIPort"`
 	LocalAbsoluteSyncDirFromDevStartPlugin []string          `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
 	DevPortForwardList                     []*DevPortForward `json:"devPortForwardList" yaml:"devPortForwardList"` // combine DevPortList,PortForwardStatusList and PortForwardPidList
-	// Deprecated later
-	//DevPortList           []string `json:"devPortList" yaml:"devPortList"`
-	//PortForwardStatusList []string `json:"portForwardStatusList" yaml:"portForwardStatusList"`
-	//PortForwardPidList    []string `json:"portForwardPidList" yaml:"portForwardPidList"`
+
+	// mean the current svc is possess by current nhctl context
+	// and the syncthing process is listen on current device
+	Possess bool
 }
 
 type ContainerProfileV2 struct {

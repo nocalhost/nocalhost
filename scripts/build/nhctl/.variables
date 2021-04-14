@@ -17,13 +17,12 @@ if [ "${GOOS}" = "windows" ]; then
 fi
 
 export LDFLAGS="\
-    -w \
     -X \"nocalhost/cmd/nhctl/cmds.GitCommit=${GITCOMMIT}\" \
     -X \"nocalhost/cmd/nhctl/cmds.BuildTime=${BUILDTIME}\" \
     -X \"nocalhost/cmd/nhctl/cmds.Version=${VERSION}\" \
     -X \"nocalhost/cmd/nhctl/cmds.Branch=${BRANCH}\" \
     -X \"nocalhost/cmd/nhctl/cmds.DevGitCommit=${DEVGITCOMMIT}\" \
-	-X \"nocalhost/cmd/nhctl/cmds.OsArch=${OS_ARCH}\" \
+	  -X \"nocalhost/cmd/nhctl/cmds.OsArch=${OS_ARCH}\" \
 "
 export TARGET
 

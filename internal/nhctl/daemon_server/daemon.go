@@ -18,9 +18,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"io/ioutil"
 	"net"
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/appmeta_manager"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
@@ -61,15 +66,32 @@ func StartDaemon(isSudoUser bool, v string) error {
 		return errors.Wrap(err, "")
 	}
 
-	// Recovering port forward
-	if err = pfManager.RecoverAllPortForward(); err != nil {
-		log.LogE(err)
-	}
-
-	// Recovering syncthing
-	// nhctl sync bookinfo -d productpage --resume --kubeconfig /Users/xxx/.nh/plugin/kubeConfigs/293_config
-	if err = recoverSyncthing(); err != nil {
-		log.LogE(err)
+	// run the dev event listener
+	if !isSudoUser {
+		appmeta_manager.Init()
+		appmeta_manager.RegisterListener(func(pack *appmeta_manager.ApplicationEventPack) error {
+			kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
+			if err != nil {
+				return nil
+			}
+			nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, false)
+			if err != nil {
+				return nil
+			}
+			if pack.Event.EventType == appmeta.DEV_END {
+				log.Logf("Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName, pack.Event.ResourceName)
+				if err := nhApp.StopSyncAndPortForwardProcess(pack.Event.ResourceName, true); err != nil {
+					return nil
+				}
+			} else if pack.Event.EventType == appmeta.DEV_STA {
+				log.Logf("Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName, pack.Event.ResourceName)
+				if err := nhApp.StopAllPortForward(pack.Event.ResourceName); err != nil {
+					return nil
+				}
+			}
+			return nil
+		})
+		appmeta_manager.Start()
 	}
 
 	go func() {
@@ -83,19 +105,14 @@ func StartDaemon(isSudoUser bool, v string) error {
 				log.LogE(errors.Wrap(err, ""))
 				continue
 			}
-			rBytes := make([]byte, 2048)
-			n, err := conn.Read(rBytes)
-			if err != nil {
-				log.LogE(errors.Wrap(err, ""))
-				continue
-			}
-			rBytes = rBytes[0:n]
-			cmdType, err := command.ParseCommandType(rBytes)
+
+			bytes, err := ioutil.ReadAll(conn)
+			cmdType, err := command.ParseCommandType(bytes)
 			if err != nil {
 				log.LogE(err)
 				continue
 			}
-			go handleCommand(conn, rBytes, cmdType)
+			go handleCommand(conn, bytes, cmdType)
 		}
 	}()
 
@@ -106,6 +123,17 @@ func StartDaemon(isSudoUser bool, v string) error {
 			_ = listener.Close()
 		}
 	}()
+
+	// Recovering port forward
+	if err = pfManager.RecoverAllPortForward(); err != nil {
+		log.LogE(err)
+	}
+
+	// Recovering syncthing
+	// nhctl sync bookinfo -d productpage --resume --kubeconfig /Users/xxx/.nh/plugin/kubeConfigs/293_config
+	if err = recoverSyncthing(); err != nil {
+		log.LogE(err)
+	}
 
 	select {
 	case <-daemonCtx.Done():
@@ -163,6 +191,27 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType)
 	case command.GetDaemonServerStatus:
 		status := &daemon_common.DaemonServerStatusResponse{PortForwardList: pfManager.ListAllRunningPortForwardGoRoutineProfile()}
 		response(conn, status)
+	case command.GetApplicationMeta:
+		gamCmd := &command.GetApplicationMetaCommand{}
+		if err = json.Unmarshal(bys, gamCmd); err != nil {
+			log.LogE(errors.Wrap(err, ""))
+			response(conn, &daemon_common.CommonResponse{ErrInfo: err.Error()})
+			return
+		}
+
+		meta := appmeta_manager.GetApplicationMeta(gamCmd.NameSpace, gamCmd.AppName, gamCmd.KubeConfig)
+		response(conn, meta)
+
+	case command.GetApplicationMetas:
+		gamsCmd := &command.GetApplicationMetasCommand{}
+		if err = json.Unmarshal(bys, gamsCmd); err != nil {
+			log.LogE(errors.Wrap(err, ""))
+			response(conn, &daemon_common.CommonResponse{ErrInfo: err.Error()})
+			return
+		}
+
+		metas := appmeta_manager.GetApplicationMetas(gamsCmd.NameSpace, gamsCmd.KubeConfig)
+		response(conn, metas)
 	}
 }
 
@@ -174,6 +223,10 @@ func response(conn net.Conn, v interface{}) {
 	}
 	if _, err = conn.Write(bys); err != nil {
 		log.LogE(errors.Wrap(err, ""))
+	}
+	cw, ok := conn.(interface{ CloseWrite() error })
+	if ok {
+		cw.CloseWrite()
 	}
 }
 

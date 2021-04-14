@@ -127,7 +127,11 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		}
 	}
 
-	nocalhostApp, err := app.NewApplication(startCmd.AppName, startCmd.NameSpace, "", true)
+	kube, err := nocalhost.GetKubeConfigFromProfile(startCmd.NameSpace, startCmd.AppName)
+	if err != nil {
+		return err
+	}
+	nocalhostApp, err := app.NewApplication(startCmd.AppName, startCmd.NameSpace, kube, true)
 	if err != nil {
 		return err
 	}

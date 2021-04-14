@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Nocalhost Authors.
+Copyright 2020 The Nocalhost Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -11,9 +11,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package profile
+package clientgoutils
 
-type PreInstallItem struct {
-	Path   string `json:"path" yaml:"path"`
-	Weight string `json:"weight" yaml:"weight"`
+import (
+	"testing"
+)
+
+//func TestClientGoUtils_CreateResource(t *testing.T) {
+//	client, err := NewClientGoUtils("", "")
+//	Must(err)
+//	err = client.Apply([]string{"/tmp/pre-install-cm.yaml"}, true)
+//	if err != nil {
+//		fmt.Printf("%s\n", err.Error())
+//	}
+//}
+
+func TestClientGoUtils_Exec(t *testing.T) {
+	client, err := NewClientGoUtils("", "")
+	Must(err)
+	err = client.Exec("details-555cc5597f-gx5px", "", []string{"ls"})
+	Must(err)
 }

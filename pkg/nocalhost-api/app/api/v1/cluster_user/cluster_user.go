@@ -8,6 +8,7 @@ type ClusterUserCreateRequest struct {
 	Memory             *uint64             `json:"memory"`
 	Cpu                *uint64             `json:"cpu"`
 	ApplicationId      *uint64             `json:"application_id"`
+	ClusterAdmin       *uint64             `json:"cluster_admin"`
 	NameSpace          string              `json:"namespace"`
 	SpaceResourceLimit *SpaceResourceLimit `json:"space_resource_limit"`
 }

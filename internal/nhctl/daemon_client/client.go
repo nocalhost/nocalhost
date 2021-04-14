@@ -18,7 +18,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"io/ioutil"
 	"net"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/model"
@@ -88,6 +90,7 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 		if err = StartDaemonServer(isSudoUser); err != nil {
 			return nil, err
 		}
+		log.Log("Waiting daemon to start")
 		if err = waitForTCPPortToBeReady(client.daemonServerListenPort, 10*time.Second); err != nil {
 			return nil, err
 		}
@@ -155,6 +158,41 @@ func (d *DaemonClient) SendGetDaemonServerStatusCommand() error {
 	}
 	log.Infof("%s", string(bys))
 	return nil
+}
+
+func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfig string) (*appmeta.ApplicationMeta, error) {
+	gamCmd := &command.GetApplicationMetaCommand{
+		CommandType: command.GetApplicationMeta,
+		NameSpace:   ns,
+		AppName:     appName,
+		KubeConfig:  kubeConfig,
+	}
+
+	bys, err := json.Marshal(gamCmd)
+	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
+		return nil, err
+	} else {
+		meta := &appmeta.ApplicationMeta{}
+		err := json.Unmarshal(bys, meta)
+		return meta, err
+	}
+}
+
+func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]*appmeta.ApplicationMeta, error) {
+	gamCmd := &command.GetApplicationMetasCommand{
+		CommandType: command.GetApplicationMetas,
+		NameSpace:   ns,
+		KubeConfig:  kubeConfig,
+	}
+
+	bys, err := json.Marshal(gamCmd)
+	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
+		return nil, err
+	} else {
+		var meta []*appmeta.ApplicationMeta
+		err := json.Unmarshal(bys, &meta)
+		return meta, err
+	}
 }
 
 func (d *DaemonClient) SendStartPortForwardCommand(nhSvc *model.NocalHostResource, localPort, remotePort int, role string) error {
@@ -225,10 +263,11 @@ func (d *DaemonClient) sendDataToDaemonServerAndWaitForResponse(data []byte) ([]
 	if _, err = conn.Write(data); err != nil {
 		return nil, errors.Wrap(err, "")
 	}
-	bys := make([]byte, 4096)
-	n, err := conn.Read(bys)
-	if err != nil {
-		return nil, errors.Wrap(err, "")
+	cw, ok := conn.(interface{ CloseWrite() error })
+	if !ok {
+		return nil, errors.Wrap(err, "Error to close write to daemon server ")
 	}
-	return bys[0:n], nil
+	cw.CloseWrite()
+
+	return ioutil.ReadAll(conn)
 }

@@ -19,9 +19,11 @@ import (
 	"gopkg.in/yaml.v2"
 	"k8s.io/cli-runtime/pkg/resource"
 	flag "nocalhost/internal/nhctl/app_flags"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
@@ -45,18 +47,17 @@ func (a *Application) PrepareForUpgrade(installFlags *flag.InstallFlags) error {
 func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
 
 	switch a.GetType() {
-	case HelmRepo:
+	case appmeta.HelmRepo:
 		return a.upgradeForHelm(installFlags, true)
-	case Helm, HelmLocal:
+	case appmeta.Helm, appmeta.HelmLocal:
 		return a.upgradeForHelm(installFlags, false)
-	case Manifest, ManifestLocal:
+	case appmeta.Manifest, appmeta.ManifestLocal:
 		return a.upgradeForManifest(installFlags)
-	case KustomizeGit:
+	case appmeta.KustomizeGit:
 		return a.upgradeForKustomize(installFlags)
 	default:
 		return errors.New("Unsupported app type")
 	}
-
 }
 
 func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error {
@@ -67,11 +68,16 @@ func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error
 	}
 	useResourcePath := resourcesPath[0]
 
-	err = a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.NameSpace), useResourcePath)
+	err = a.client.Apply([]string{}, true,
+		StandardNocalhostMetas(a.Name, a.NameSpace).SetBeforeApply(func(manifest string) error {
+			a.appMeta.Manifest = manifest
+			return a.appMeta.Update()
+		}),
+		useResourcePath)
 	if err != nil {
 		return err
 	}
-	return moveDir(a.getUpgradeGitDir(), a.getGitDir())
+	return moveDir(a.getUpgradeGitDir(), a.ResourceTmpDir)
 }
 
 func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error {
@@ -131,37 +137,43 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 								upgradeResourcePath = configV1.ResourcePath
 							}
 						}
-
 					}
 				}
 			}
 		}
 	}
 
+	// todo need to refactor
+	a.profileV2.ResourcePath = upgradeResourcePath
+	_, manifests := a.profileV2.LoadManifests(a.getUpgradeGitDir())
+
 	// Read upgrade resource obj
-	a.loadUpgradePreInstallAndInstallManifest(upgradeResourcePath)
-	upgradeInfos, err := a.client.GetResourceInfoFromFiles(a.upgradeInstallManifest, true, "")
+	updateResource, err := clientgoutils.NewManifestResourceReader(manifests).LoadResource()
+	if err != nil {
+		return err
+	}
+
+	upgradeInfos, err := updateResource.GetResourceInfo(a.client, true)
 	if err != nil {
 		return err
 	}
 
 	// Read current resource obj
-	a.loadPreInstallAndInstallManifest()
-	oldInfos, err := a.client.GetResourceInfoFromFiles(a.installManifest, true, "")
+	oldInfos, err := a.appMeta.NewResourceReader().GetResourceInfo(a.client, true)
 	if err != nil {
 		return err
 	}
 
-	err = a.upgradeInfos(oldInfos, upgradeInfos, true)
-	if err != nil {
+	if err = a.upgradeInfos(oldInfos, upgradeInfos, true); err != nil {
 		return err
 	}
-	if len(upgradeResourcePath) > 0 {
-		appProfile, _ := a.GetProfile()
-		appProfile.ResourcePath = upgradeResourcePath
-		_ = a.SaveProfile(appProfile)
+
+	a.appMeta.Manifest = updateResource.String()
+	if err := a.appMeta.Update(); err != nil {
+		return err
 	}
-	return moveDir(a.getUpgradeGitDir(), a.getGitDir())
+
+	return moveDir(a.getUpgradeGitDir(), a.ResourceTmpDir)
 }
 
 func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*resource.Info, continueOnErr bool) error {
@@ -191,7 +203,7 @@ func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*re
 		log.Infof("Deleting resource(%s) %s", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
 		err := a.client.DeleteResourceInfo(info)
 		if err != nil {
-			log.WarnE(err, fmt.Sprintf("Failed to delete resource %s", info.Name))
+			log.WarnE(err, fmt.Sprintf("Failed to delete resource %s , Err: %s ", info.Name, err.Error()))
 			if !continueOnErr {
 				return err
 			}
@@ -219,6 +231,7 @@ func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*re
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -252,8 +265,8 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 
 	if fromRepo {
 		chartName := installFlags.HelmChartName
-		if a.configV2 != nil && a.configV2.ApplicationConfig.Name != "" {
-			chartName = a.configV2.ApplicationConfig.Name
+		if a.appMeta.Config != nil && a.appMeta.Config.ApplicationConfig.Name != "" {
+			chartName = a.appMeta.Config.ApplicationConfig.Name
 		}
 		if installFlags.HelmRepoUrl != "" {
 			params = append(params, chartName, "--repo", installFlags.HelmRepoUrl)

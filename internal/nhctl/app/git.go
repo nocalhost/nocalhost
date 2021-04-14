@@ -49,8 +49,8 @@ func cloneFromGit(gitUrl string, gitRef string, destPath string) error {
 
 }
 
-func (a *Application) downloadResourcesFromGit(gitUrl string, gitRef string) error {
-	return cloneFromGit(gitUrl, gitRef, a.getGitDir())
+func (a *Application) downloadResourcesFromGit(gitUrl, gitRef, destPath string) error {
+	return cloneFromGit(gitUrl, gitRef, destPath)
 }
 
 func (a *Application) copyUpgradeResourcesFromLocalDir(localDir string) error {
@@ -87,7 +87,7 @@ func (a *Application) downloadUpgradeResourcesFromGit(gitUrl string, gitRef stri
 }
 
 func (a *Application) saveUpgradeResources() error {
-	return moveDir(a.getUpgradeGitDir(), a.getGitDir())
+	return moveDir(a.getUpgradeGitDir(), a.ResourceTmpDir)
 }
 
 // Move srcDir to destDir

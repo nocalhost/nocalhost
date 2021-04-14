@@ -46,6 +46,7 @@ type UserService interface {
 	GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
 	UpdateUser(ctx context.Context, id uint64, user *model.UserBaseModel) (*model.UserBaseModel, error)
 	GetUserList(ctx context.Context) ([]*model.UserList, error)
+	UpdateServiceAccountName(ctx context.Context, id uint64, saName string) error
 	Close()
 }
 
@@ -77,6 +78,7 @@ func (srv *userService) Delete(ctx context.Context, id uint64) error {
 func (srv *userService) Create(ctx context.Context, email, password, name string, status uint64, isAdmin uint64) (model.UserBaseModel, error) {
 	pwd, err := auth.Encrypt(password)
 	u := model.UserBaseModel{
+		SaName:    model.GenerateSaName(),
 		Password:  pwd,
 		Email:     email,
 		Name:      name,
@@ -179,6 +181,10 @@ func (srv *userService) GetUserByEmail(ctx context.Context, email string) (*mode
 	}
 
 	return userModel, nil
+}
+
+func (srv *userService) UpdateServiceAccountName(ctx context.Context, id uint64, saName string) error {
+	return srv.userRepo.UpdateServiceAccountName(ctx, id, saName)
 }
 
 // Close close all user repo
