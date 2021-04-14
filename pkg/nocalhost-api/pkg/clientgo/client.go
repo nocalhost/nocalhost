@@ -398,22 +398,7 @@ func (c *GoClient) CreateServiceAccount(name, namespace string) (bool, error) {
 	return true, nil
 }
 
-// Create resource quota for namespace. such as:
-/**
-apiVersion: v1
-  kind: ResourceQuota
-  metadata:
-    name: namespace-name
-  spec:
-    hard:
-      limits.cpu: "10"
-      requests.cpu: "10"
-      limits.memory: "48Gi"
-      requests.memory: "40Gi"
-      persistentvolumeclaims: "10"
-      services.loadbalancers: "10"
-      requests.storage: "20Gi"
-*/
+// Create resource quota for namespace.
 func (c *GoClient) CreateResourceQuota(
 	name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string,
 ) (bool, error) {
@@ -477,16 +462,16 @@ func (c *GoClient) DeleteResourceQuota(name, namespace string) (bool, error) {
 apiVersion: v1
 kind: LimitRange
 metadata:
-  name: limits
+	name: limits
 spec:
-  limits:
-  - default:
-      cpu: 200m
-      memory: 512Mi
-    defaultRequest:
-      cpu: 100m
-      memory: 128Mi
-    type: Container
+	limits:
+	- default:
+		cpu: 200m
+		memory: 512Mi
+	defaultRequest:
+		cpu: 100m
+		memory: 128Mi
+	type: Container
 */
 func (c *GoClient) CreateLimitRange(
 	name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string,
@@ -548,9 +533,9 @@ func (c *GoClient) DeleteLimitRange(name, namespace string) (bool, error) {
 /*
 default serviceAccount default:view:
 kubectl create rolebinding default-view \
-        --clusterrole=view \
-        --serviceaccount={namespace}:default \
-        --namespace={namespace}
+		--clusterrole=view \
+		--serviceaccount={namespace}:default \
+		--namespace={namespace}
 */
 func (c *GoClient) CreateRoleBinding(name, namespace, role, toServiceAccount string) (bool, error) {
 	roleBinding := &rbacv1.RoleBinding{
