@@ -45,7 +45,7 @@ type ClusterList struct {
 	IsReady         bool      `json:"is_ready"`
 	NotReadyMessage string    `json:"not_ready_message"`
 	HasDevSpace     bool      `json:"has_dev_space"`
-	Server          string
+	Server          string    `gorm:"column:server;not null" json:"server"`
 }
 
 // Validate the fields.

@@ -15,7 +15,6 @@ package service_account
 
 import (
 	"context"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
@@ -101,23 +100,30 @@ func ListAuthorization(c *gin.Context) {
 				return
 			}
 
+			privilege := false
 			var nss []NS
-			for _, ns := range GetAllPermittedNs(string(clientGo.Config), user.SaName) {
 
-				var spaceName = fmt.Sprintf("Nocalhost-%s", ns)
-
-				if m, ok := spaceNameMap[cluster.ID]; ok {
-					if s, ok := m[ns]; ok {
-						spaceName = s
+			// new admin go client will request authorizationv1.SelfSubjectAccessReview
+			// then did not find any err, means cluster admin
+			if _, err = clientgo.NewAdminGoClient([]byte(kubeConfig)); err == nil {
+				privilege = true
+			} else {
+				for _, ns := range GetAllPermittedNs(string(clientGo.Config), user.SaName) {
+					//var spaceName = fmt.Sprintf("Nocalhost-%s", ns)
+					//var SpaceId = uint64(0)
+					if m, ok := spaceNameMap[cluster.ID]; ok {
+						if s, ok := m[ns]; ok {
+							nss = append(nss, NS{SpaceName: s.SpaceName, Namespace: ns, SpaceId: s.ID})
+						}
 					}
 				}
-				nss = append(nss, NS{SpaceName: spaceName, Namespace: ns})
-
 			}
 
-			lock.Lock()
-			result = append(result, &ServiceAccountModel{KubeConfig: kubeConfig, StorageClass: cluster.StorageClass, NS: nss})
-			lock.Unlock()
+			if len(nss) != 0 || privilege {
+				lock.Lock()
+				result = append(result, &ServiceAccountModel{KubeConfig: kubeConfig, StorageClass: cluster.StorageClass, NS: nss, Privilege: privilege})
+				lock.Unlock()
+			}
 		}()
 	}
 
@@ -125,15 +131,15 @@ func ListAuthorization(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
-func getCluster2Ns2SpaceNameMapping(devSpaces []*model.ClusterUserModel) map[uint64]map[string]string {
-	spaceNameMap := map[uint64]map[string]string{}
+func getCluster2Ns2SpaceNameMapping(devSpaces []*model.ClusterUserModel) map[uint64]map[string]*model.ClusterUserModel {
+	spaceNameMap := map[uint64]map[string]*model.ClusterUserModel{}
 	for _, space := range devSpaces {
 		m, ok := spaceNameMap[space.ClusterId]
 		if !ok {
-			m = map[string]string{}
+			m = map[string]*model.ClusterUserModel{}
 		}
 
-		m[space.Namespace] = space.SpaceName
+		m[space.Namespace] = space
 		spaceNameMap[space.ClusterId] = m
 	}
 	return spaceNameMap
@@ -157,11 +163,12 @@ func getServiceAccountKubeConfig(clientGo *clientgo.GoClient, saName, saNs, serv
 type ServiceAccountModel struct {
 	KubeConfig   string `json:"kubeconfig"`
 	StorageClass string `json:"storage_class"`
-	NS           []NS   `json:"ns"`
+	NS           []NS   `json:"namespace_packs"`
 	Privilege    bool   `json:"privilege"`
 }
 
 type NS struct {
+	SpaceId   uint64 `json:"space_id"`
 	Namespace string `json:"namespace"`
 	SpaceName string `json:"spacename"`
 }

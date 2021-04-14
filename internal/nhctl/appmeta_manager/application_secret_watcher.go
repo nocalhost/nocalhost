@@ -307,12 +307,10 @@ func (asw *applicationSecretWatcher) Prepare() error {
 	controller := NewController(queue, indexer, informer, asw)
 
 	// first get all nocalhost secrets for initial
-	list, err := clientset.CoreV1().Secrets(asw.ns).List(context.TODO(),
+	// ignore error prevent kubeconfig has not permission for get secret
+	list, _ := clientset.CoreV1().Secrets(asw.ns).List(context.TODO(),
 		metav1.ListOptions{FieldSelector: "type=" + appmeta.SecretType},
 	)
-	if err != nil {
-		return err
-	}
 
 	for _, item := range list.Items {
 		if err := controller.join(&item); err != nil {

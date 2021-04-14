@@ -24,20 +24,21 @@ import (
 
 // UserBaseModel
 type UserBaseModel struct {
-	ID        uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
-	Uuid      string     `gorm:"column:uuid;not null" json:"-"`
-	SaName    string     `gorm:"column:sa_name" json:"sa_name"`
-	Name      string     `json:"name" gorm:"column:name;not null" json:"name"`
-	Username  string     `json:"username" gorm:"column:username;not null" validate:"min=1,max=32"`
-	Password  string     `json:"-" gorm:"column:password;not null" binding:"required" validate:"min=5,max=128"`
-	Phone     int64      `gorm:"column:phone" json:"phone"`
-	Email     string     `gorm:"column:email" json:"email"`
-	IsAdmin   *uint64    `gorm:"column:is_admin" json:"is_admin"`
-	Status    *uint64    `gorm:"column:status" json:"status"`
-	Avatar    string     `gorm:"column:avatar" json:"avatar"`
-	CreatedAt time.Time  `gorm:"column:created_at" json:"-"`
-	UpdatedAt time.Time  `gorm:"column:updated_at" json:"-"`
-	DeletedAt *time.Time `gorm:"column:deleted_at" json:"-"`
+	ID           uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
+	Uuid         string     `gorm:"column:uuid;not null" json:"-"`
+	SaName       string     `gorm:"column:sa_name" json:"sa_name"`
+	Name         string     `json:"name" gorm:"column:name;not null" json:"name"`
+	Username     string     `json:"username" gorm:"column:username;not null" validate:"min=1,max=32"`
+	Password     string     `json:"-" gorm:"column:password;not null" binding:"required" validate:"min=5,max=128"`
+	Phone        int64      `gorm:"column:phone" json:"phone"`
+	Email        string     `gorm:"column:email" json:"email"`
+	IsAdmin      *uint64    `gorm:"column:is_admin" json:"is_admin"`
+	Status       *uint64    `gorm:"column:status" json:"status"`
+	ClusterAdmin *uint64    `gorm:"column:cluster_admin" json:"cluster_admin"`
+	Avatar       string     `gorm:"column:avatar" json:"avatar"`
+	CreatedAt    time.Time  `gorm:"column:created_at" json:"-"`
+	UpdatedAt    time.Time  `gorm:"column:updated_at" json:"-"`
+	DeletedAt    *time.Time `gorm:"column:deleted_at" json:"-"`
 }
 
 // Validate the fields.

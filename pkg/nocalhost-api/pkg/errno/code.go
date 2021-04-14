@@ -95,6 +95,7 @@ var (
 	ErrDeleteLimitRange                          = &Errno{Code: 50120, Message: "Delete limit range failed."}
 	ErrFormatResourceLimitParam                  = &Errno{Code: 50121, Message: "Incorrect Resource limit parameter."}
 	ErrValidateResourceQuota                     = &Errno{Code: 50122, Message: "If quota is enabled in a namespace for compute resources like cpu and memory, must specify requests or limits for those values."}
+	ErrAlreadyExist                              = &Errno{Code: 50123, Message: "Current user already authorization current cluster's cluster admin"}
 
 	// application-user
 	ErrListApplicationUser   = &Errno{Code: 60000, Message: "Failed to list application_user, please check params and try again"}
@@ -105,5 +106,8 @@ var (
 	ErrServiceAccountCreate     = &Errno{Code: 70000, Message: "Failed to create service account, please check params and try again"}
 	ErrNameSpaceCreate          = &Errno{Code: 70001, Message: "Failed to create namespace, please check params and try again"}
 	ErrClusterRoleCreate        = &Errno{Code: 70002, Message: "Failed to create nocalhost common cluster role, please check your cluster and try again"}
-	ErrClusterRoleBindingCreate = &Errno{Code: 70003, Message: "Failed to create cluster role binding, please check your cluster and try again"}
+	ErrRoleBindingCreate        = &Errno{Code: 70003, Message: "Failed to create role binding, please check your cluster and try again"}
+	ErrRoleBindingRemove        = &Errno{Code: 70004, Message: "Failed to remove role binding, please check your cluster and try again"}
+	ErrClusterRoleBindingCreate = &Errno{Code: 70005, Message: "Failed to create cluster role binding, please check your cluster and try again"}
+	ErrClusterRoleBindingRemove = &Errno{Code: 70006, Message: "Failed to remove cluster role binding, please check your cluster and try again"}
 )

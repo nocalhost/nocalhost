@@ -103,7 +103,7 @@ func (repo *clusterUserRepo) Update(ctx context.Context, models *model.ClusterUs
 
 func (repo *clusterUserRepo) GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error) {
 	result := make([]*model.ClusterUserModel, 0)
-	repo.db.Where(&models).Find(&result)
+	repo.db.Where(&models).Order("cluster_admin desc, user_id asc").Find(&result)
 	if len(result) > 0 {
 		return result, nil
 	}
@@ -150,7 +150,7 @@ func (repo *clusterUserRepo) GetJoinClusterAndAppAndUser(ctx context.Context, co
 func (repo *clusterUserRepo) GetJoinClusterAndAppAndUserDetail(ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser) (*model.ClusterUserJoinClusterAndAppAndUser, error) {
 	result := model.ClusterUserJoinClusterAndAppAndUser{}
 	sqlResult := repo.db.Table("clusters_users as cluster_user_join_cluster_and_app_and_users").
-		Select("cluster_user_join_cluster_and_app_and_users.id ,cluster_user_join_cluster_and_app_and_users.application_id, cluster_user_join_cluster_and_app_and_users.user_id, u.name as user_name, cluster_user_join_cluster_and_app_and_users.cluster_id, c.name as cluster_name,cluster_user_join_cluster_and_app_and_users.namespace,cluster_user_join_cluster_and_app_and_users.space_name,cluster_user_join_cluster_and_app_and_users.kubeconfig,cluster_user_join_cluster_and_app_and_users.space_resource_limit,cluster_user_join_cluster_and_app_and_users.status,cluster_user_join_cluster_and_app_and_users.created_at").Joins("left join users as u on cluster_user_join_cluster_and_app_and_users.user_id=u.id").Joins("left join clusters as c on cluster_user_join_cluster_and_app_and_users.cluster_id=c.id").Where(condition).Scan(&result)
+		Select("cluster_user_join_cluster_and_app_and_users.id,cluster_user_join_cluster_and_app_and_users.cluster_admin ,cluster_user_join_cluster_and_app_and_users.application_id, cluster_user_join_cluster_and_app_and_users.user_id, u.name as user_name, cluster_user_join_cluster_and_app_and_users.cluster_id, c.name as cluster_name,cluster_user_join_cluster_and_app_and_users.namespace,cluster_user_join_cluster_and_app_and_users.space_name,cluster_user_join_cluster_and_app_and_users.kubeconfig,cluster_user_join_cluster_and_app_and_users.space_resource_limit,cluster_user_join_cluster_and_app_and_users.status,cluster_user_join_cluster_and_app_and_users.created_at").Joins("left join users as u on cluster_user_join_cluster_and_app_and_users.user_id=u.id").Joins("left join clusters as c on cluster_user_join_cluster_and_app_and_users.cluster_id=c.id").Where(condition).Scan(&result)
 	if sqlResult.Error != nil {
 		return &result, sqlResult.Error
 	}

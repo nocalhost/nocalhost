@@ -277,31 +277,49 @@ func (s *Service) updateAllRole() error {
 	return nil
 }
 
-func (s *Service) AuthorizeNsToUser(clusterId, userId uint64, ns string) error {
+func (s *Service) prepareServiceAccountAndClientGo(clusterId, userId uint64) (clientGo *clientgo.GoClient, saName string, err error) {
 	cl, err := s.ClusterSvc().Get(context.TODO(), clusterId)
 	if err != nil {
-		return errno.ErrClusterNotFound
+		log.Error(err)
+		err = errno.ErrClusterNotFound
+		return
 	}
 
 	// new client go
-	clientGo, err := clientgo.NewAdminGoClient([]byte(cl.KubeConfig))
-
-	// get client go and check if is admin Kubeconfig
+	clientGo, err = clientgo.NewAdminGoClient([]byte(cl.KubeConfig))
 	if err != nil {
-		return err
+		log.Error(err)
+		err = errno.ErrBindServiceAccountKubeConfigJsonEncodeErr
+		return
 	}
 
 	u, err := s.UserSvc().GetUserByID(context.TODO(), userId)
 	if err != nil {
 		log.Error(err)
-		return errno.ErrUserNotFound
+		err = errno.ErrUserNotFound
+		return
 	}
 
-	saName := u.SaName
-
-	if err := createServiceAccountINE(clientGo, saName, NocalhostDefaultSaNs); err != nil {
+	if err = createServiceAccountINE(clientGo, u.SaName, NocalhostDefaultSaNs); err != nil {
 		log.Error(err)
-		return errno.ErrServiceAccountCreate
+		err = errno.ErrServiceAccountCreate
+		return
+	}
+
+	if err = createClusterAdminRoleINE(clientGo); err != nil {
+		log.Error(err)
+		err = errno.ErrClusterRoleCreate
+		return
+	}
+
+	saName = u.SaName
+	return
+}
+
+func (s *Service) AuthorizeNsToUser(clusterId, userId uint64, ns string) error {
+	clientGo, saName, err := s.prepareServiceAccountAndClientGo(clusterId, userId)
+	if err != nil {
+		return err
 	}
 
 	if err := createNamespaceINE(clientGo, ns); err != nil {
@@ -309,14 +327,51 @@ func (s *Service) AuthorizeNsToUser(clusterId, userId uint64, ns string) error {
 		return errno.ErrNameSpaceCreate
 	}
 
-	if err := createClusterAdminRoleINE(clientGo); err != nil {
+	if err := createOrUpdateRoleBindingINE(clientGo, ns, saName, NocalhostDefaultSaNs); err != nil {
 		log.Error(err)
-		return errno.ErrClusterRoleCreate
+		return errno.ErrRoleBindingCreate
 	}
 
-	if err := createRoleBindingINE(clientGo, ns, saName, NocalhostDefaultSaNs); err != nil {
+	return nil
+}
+
+func (s *Service) UnAuthorizeNsToUser(clusterId, userId uint64, ns string) error {
+	clientGo, saName, err := s.prepareServiceAccountAndClientGo(clusterId, userId)
+	if err != nil {
+		return err
+	}
+
+	if err := removeRoleBindingIfPresent(clientGo, ns, saName, NocalhostDefaultSaNs); err != nil {
+		log.Error(err)
+		return errno.ErrRoleBindingRemove
+	}
+
+	return nil
+}
+
+func (s *Service) AuthorizeClusterToUser(clusterId, userId uint64) error {
+	clientGo, saName, err := s.prepareServiceAccountAndClientGo(clusterId, userId)
+	if err != nil {
+		return err
+	}
+
+	if err := createOrUpdateClusterRoleBindingINE(clientGo, saName, NocalhostDefaultSaNs); err != nil {
 		log.Error(err)
 		return errno.ErrClusterRoleBindingCreate
+	}
+
+	return nil
+}
+
+func (s *Service) UnAuthorizeClusterToUser(clusterId, userId uint64) error {
+	clientGo, saName, err := s.prepareServiceAccountAndClientGo(clusterId, userId)
+	if err != nil {
+		return err
+	}
+
+	if err := removeClusterRoleBindingIfPresent(clientGo, saName, NocalhostDefaultSaNs); err != nil {
+		log.Error(err)
+		return errno.ErrClusterRoleBindingRemove
 	}
 
 	return nil
@@ -344,11 +399,19 @@ func createClusterAdminRoleINE(client *clientgo.GoClient) error {
 }
 
 // nocalhost use nocalhost-saName for role binding storage container
-func createRoleBindingINE(client *clientgo.GoClient, ns, saName, saNs string) error {
+// and nocalhost create a role binding for each dev space
+func createOrUpdateRoleBindingINE(client *clientgo.GoClient, ns, saName, saNs string) error {
+	return client.AppendRoleBinding(NocalhostDefaultRoleBinding, ns, global.NocalhostDevRoleName, saName, saNs)
+}
 
-	// nocalhost create a role binding for each dev space
-	if _, err := client.AppendRoleBinding(NocalhostDefaultRoleBinding, ns, global.NocalhostDevRoleName, saName, saNs); err != nil && !k8serrors.IsAlreadyExists(err) {
-		return err
-	}
-	return nil
+func removeRoleBindingIfPresent(client *clientgo.GoClient, ns, saName, saNs string) error {
+	return client.RemoveRoleBinding(NocalhostDefaultRoleBinding, ns, saName, saNs)
+}
+
+func createOrUpdateClusterRoleBindingINE(client *clientgo.GoClient, saName, saNs string) error {
+	return client.AppendClusterRoleBinding(NocalhostDefaultRoleBinding, global.NocalhostDevRoleName, saName, saNs)
+}
+
+func removeClusterRoleBindingIfPresent(client *clientgo.GoClient, saName, saNs string) error {
+	return client.RemoveClusterRoleBinding(NocalhostDefaultRoleBinding, saName, saNs)
 }

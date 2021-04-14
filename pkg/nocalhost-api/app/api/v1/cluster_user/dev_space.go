@@ -66,7 +66,6 @@ func (d *DevSpace) Delete() error {
 func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	userId := cast.ToUint64(d.DevSpaceParams.UserId)
 	clusterId := cast.ToUint64(d.DevSpaceParams.ClusterId)
-	applicationId := cast.ToUint64(d.DevSpaceParams.ApplicationId)
 
 	// get user
 	usersRecord, err := service.Svc.UserSvc().GetUserByID(d.c, userId)
@@ -74,39 +73,53 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		return nil, errno.ErrUserNotFound
 	}
 
+	// check cluster
 	clusterRecord, err := service.Svc.ClusterSvc().Get(context.TODO(), clusterId)
 	if err != nil {
 		return nil, errno.ErrClusterNotFound
 	}
+
+	if d.DevSpaceParams.ClusterAdmin == nil || *d.DevSpaceParams.ClusterAdmin == 0 {
+		return d.createDevSpace(clusterRecord, usersRecord)
+	} else {
+		return d.createClusterDevSpace(clusterRecord, usersRecord)
+	}
+}
+
+func (d *DevSpace) createClusterDevSpace(clusterRecord model.ClusterModel, usersRecord *model.UserBaseModel) (*model.ClusterUserModel, error) {
+	trueFlag := uint64(1)
+	list, err := service.Svc.ClusterUser().GetList(context.TODO(), model.ClusterUserModel{
+		ClusterId:    clusterRecord.ID,
+		UserId:       usersRecord.ID,
+		ClusterAdmin: &trueFlag,
+	})
+	if len(list) > 0 {
+		return nil, errno.ErrAlreadyExist
+	}
+
+	result, err := service.Svc.ClusterUser().CreateClusterAdminSpace(context.TODO(), clusterRecord.ID, usersRecord.ID, d.DevSpaceParams.SpaceName)
+	if err != nil {
+		return nil, errno.ErrBindApplicationClsuter
+	}
+
+	if err := service.Svc.AuthorizeClusterToUser(clusterRecord.ID, usersRecord.ID); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func (d *DevSpace) createDevSpace(clusterRecord model.ClusterModel, usersRecord *model.UserBaseModel) (*model.ClusterUserModel, error) {
+
+	applicationId := cast.ToUint64(d.DevSpaceParams.ApplicationId)
 
 	spaceName := clusterRecord.Name + "[" + usersRecord.Name + "]"
 	if d.DevSpaceParams.SpaceName != "" {
 		spaceName = d.DevSpaceParams.SpaceName
 	}
 
-	// check cluster
-	clusterData, err := service.Svc.ClusterSvc().Get(d.c, *d.DevSpaceParams.ClusterId)
-	if err != nil {
-		return nil, errno.ErrPermissionCluster
-	}
-
-	if applicationId != 0 {
-
-		// check if has created
-		cu := model.ClusterUserModel{
-			ApplicationId: applicationId,
-			UserId:        userId,
-		}
-		_, hasRecord := service.Svc.ClusterUser().GetFirst(d.c, cu)
-
-		// for adapt current version, prevent can't not create devSpace on same namespace
-		if hasRecord == nil {
-			return nil, errno.ErrBindUserApplicationRepeat
-		}
-	}
-
 	// create namespace
-	var KubeConfig = []byte(clusterData.KubeConfig)
+	var KubeConfig = []byte(clusterRecord.KubeConfig)
 	goClient, err := clientgo.NewAdminGoClient(KubeConfig)
 
 	// get client go and check if is admin Kubeconfig
@@ -119,7 +132,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		}
 	}
 	// create cluster devs
-	devNamespace := goClient.GenerateNsName(userId)
+	devNamespace := goClient.GenerateNsName(usersRecord.ID)
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
 	secret, err := clusterDevsSetUp.
 		CreateNS(devNamespace, "").
@@ -130,7 +143,11 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).
 		GetServiceAccountSecret("", devNamespace)
 
-	KubeConfigYaml, err, nerrno := setupcluster.NewDevKubeConfigReader(secret, clusterData.Server, devNamespace).GetCA().GetToken().AssembleDevKubeConfig().ToYamlString()
+	KubeConfigYaml, err, nerrno := setupcluster.
+		NewDevKubeConfigReader(secret, clusterRecord.Server, devNamespace).
+		GetCA().
+		GetToken().
+		AssembleDevKubeConfig().ToYamlString()
 	if err != nil {
 		return nil, nerrno
 	}
@@ -149,11 +166,18 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		res.ContainerReqMem, res.ContainerLimitsMem, res.ContainerReqCpu, res.ContainerLimitsCpu, res.ContainerEphemeralStorage)
 
 	resString, err := json.Marshal(res)
-	result, err := service.Svc.ClusterUser().Create(d.c, applicationId, *d.DevSpaceParams.ClusterId, userId, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu, KubeConfigYaml, devNamespace, spaceName, string(resString))
+	result, err := service.Svc.ClusterUser().Create(d.c, *d.DevSpaceParams.ClusterId, usersRecord.ID, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu, KubeConfigYaml, devNamespace, spaceName, string(resString))
 	if err != nil {
 		return nil, errno.ErrBindApplicationClsuter
 	}
 
-	_ = service.Svc.ApplicationUser().BatchInsert(d.c, applicationId, []uint64{userId})
+	// auth application to user
+	_ = service.Svc.ApplicationUser().BatchInsert(d.c, applicationId, []uint64{usersRecord.ID})
+
+	// authorize namespace to user
+	if err := service.Svc.AuthorizeNsToUser(clusterRecord.ID, usersRecord.ID, result.Namespace); err != nil {
+		return nil, err
+	}
+
 	return &result, nil
 }
