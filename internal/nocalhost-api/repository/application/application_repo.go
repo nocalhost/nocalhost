@@ -77,8 +77,12 @@ func (repo *applicationRepo) PluginGetList(
 ) ([]*model.PluginApplicationModel, error) {
 	var result []*model.PluginApplicationModel
 	repo.db.Table("applications").
-		Select("clusters.storage_class,applications.id,applications.context,applications.user_id,applications.status,clusters_users.cluster_id,clusters_users.space_name,clusters_users.kubeconfig,clusters_users.memory,clusters_users.cpu,clusters_users.namespace,clusters_users.status as install_status,clusters_users.id as devspace_id").
-		Joins("join clusters_users on applications.id=clusters_users.application_id and clusters_users.user_id=? join clusters on clusters.id=clusters_users.cluster_id", userId).
+		Select("clusters.storage_class,applications.id,applications.context,applications.user_id,applications.status,"+
+			"clusters_users.cluster_id,clusters_users.space_name,clusters_users.kubeconfig,clusters_users.memory,"+
+			"clusters_users.cpu,clusters_users.namespace,clusters_users.status as install_status,"+
+			"clusters_users.id as devspace_id").
+		Joins("join clusters_users on applications.id=clusters_users.application_id and "+
+			"clusters_users.user_id=? join clusters on clusters.id=clusters_users.cluster_id", userId).
 		Scan(&result)
 	return result, nil
 }
@@ -97,7 +101,8 @@ func (repo *applicationRepo) Create(
 
 func (repo *applicationRepo) Get(ctx context.Context, id uint64) (model.ApplicationModel, error) {
 	// Here is the Struct type, and Error will be thrown when the data is not available
-	//If the input is of the make([]*model.ApplicationModel,0) Slice type, then Error will never be thrown if no data is available
+	// If the input is of the make([]*model.ApplicationModel,0) Slice type,
+	// then Error will never be thrown if no data is available
 	application := model.ApplicationModel{}
 	result := repo.db.Where("status=1 and id=?", id).First(&application)
 	if err := result.Error; err != nil {

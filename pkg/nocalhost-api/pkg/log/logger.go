@@ -129,14 +129,3 @@ func Fatalf(format string, args ...interface{}) {
 func Panicf(format string, args ...interface{}) {
 	log.Panicf(format, args...)
 }
-
-// WithFields logger
-// output more field, eg:
-// 		contextLogger := coloredoutput.WithFields(coloredoutput.Fields{"key1": "value1"})
-// 		contextLogger.Info("print multi field")
-// or more sample to use:
-// 	    coloredoutput.WithFields(coloredoutput.Fields{"key1": "value1"}).Info("this is a test coloredoutput")
-// 	    coloredoutput.WithFields(coloredoutput.Fields{"key1": "value1"}).Infof("this is a test coloredoutput, user_id: %d", userID)
-func WithFields(keyValues Fields) Logger {
-	return log.WithFields(keyValues)
-}

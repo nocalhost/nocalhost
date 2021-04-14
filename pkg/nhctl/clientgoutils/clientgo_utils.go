@@ -510,7 +510,6 @@ func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 		http.MethodPost,
 		&url.URL{Scheme: "https", Path: path, Host: hostIP},
 	)
-	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
 	fw, err := portforward.NewOnAddresses(
 		dialer,
 		req.Listen,

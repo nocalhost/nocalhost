@@ -270,7 +270,7 @@ func (a *Application) generateWorkDirAndPV(
 	return volumes, volumeMounts, nil
 }
 
-func (a *Application) generateResourceRequirementsForDevContainer(
+func (a *Application) generateResourceRequirements(
 	svcName string,
 ) *corev1.ResourceRequirements {
 
@@ -285,7 +285,7 @@ func (a *Application) generateResourceRequirementsForDevContainer(
 
 	if resourceQuota != nil {
 		log.Debug("DevContainer uses resource limits defined in config")
-		requirements, err = convertResourceQuotaToResourceRequirements(resourceQuota)
+		requirements, err = convertResourceQuotaToRequirements(resourceQuota)
 		if err != nil {
 			log.WarnE(err, "Failed to parse resource requirements")
 		}
@@ -414,7 +414,7 @@ func (a *Application) ReplaceImage(
 	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
 	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, devModeMounts...)
 
-	requirements := a.generateResourceRequirementsForDevContainer(svcName)
+	requirements := a.generateResourceRequirements(svcName)
 	if requirements != nil {
 		devContainer.Resources = *requirements
 		sideCarContainer.Resources = *requirements
@@ -506,7 +506,7 @@ wait:
 	return nil
 }
 
-func convertResourceQuotaToResourceRequirements(
+func convertResourceQuotaToRequirements(
 	quota *profile.ResourceQuota,
 ) (*corev1.ResourceRequirements, error) {
 	var err error

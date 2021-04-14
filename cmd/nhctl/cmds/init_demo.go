@@ -419,7 +419,8 @@ func setComponentDockerImageVersion(params *[]string) {
 	}
 }
 
-// because of dep run latest docker image, so it can only use kubectl set image to set dep docker version same as nhctl version
+// because of dep run latest docker image,
+// so it can only use kubectl set image to set dep docker version same as nhctl version
 func setDepComponentDockerImage(kubectl, kubeConfig string) {
 	if Branch == "" {
 		return

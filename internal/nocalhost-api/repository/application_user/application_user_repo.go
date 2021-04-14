@@ -54,7 +54,8 @@ func (repo *applicationUserRepo) BatchDelete(
 		return errors.New("Can not batch delete applications_users with empty userIds ")
 	}
 
-	if err := repo.db.Exec("DELETE FROM applications_users WHERE application_id = ? AND user_id IN (?)", applicationId, userIds).Error; err != nil {
+	if err := repo.db.Exec("DELETE FROM applications_users WHERE application_id = ? AND user_id IN (?)",
+		applicationId, userIds).Error; err != nil {
 		return err
 	}
 	return nil

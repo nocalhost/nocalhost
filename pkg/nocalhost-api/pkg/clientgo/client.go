@@ -527,7 +527,8 @@ func (c *GoClient) DeleteLimitRange(name, namespace string) (bool, error) {
 }
 
 // bind roles for serviceAccount
-// this use for given default serviceAccount default:view case by initContainer need use kubectl get pods....(clusterRole=view)
+// this use for given default serviceAccount default:view
+// case by initContainer need use kubectl get pods....(clusterRole=view)
 // and this will use for bind developer serviceAccount roles(clusterRole=nocalhost-roles)
 
 /*
@@ -749,7 +750,8 @@ func (c *GoClient) DeployNocalhostDep(namespace, serviceAccount, tag string) (bo
 }
 
 // deploy pre pull images
-// use DaemonSet InitContainer make sure every Node pull images https://kubernetes.io/zh/docs/concepts/workloads/controllers/daemonset/
+// use DaemonSet InitContainer make sure every Node pull images
+// https://kubernetes.io/zh/docs/concepts/workloads/controllers/daemonset/
 // when started it should kill himself
 func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool, error) {
 	if namespace == "" {

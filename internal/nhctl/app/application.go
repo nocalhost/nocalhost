@@ -720,7 +720,7 @@ func (a *Application) GetBackgroundOnlyPortForwardPid(
 	return port, a.GetPortForwardPidFile(deployment), nil
 }
 
-func (a *Application) WriteBackgroundSyncPortForwardPidFile(deployment string, pid int) error {
+func (a *Application) WriteBackgroundSyncPFPidFile(deployment string, pid int) error {
 	file, err := os.OpenFile(
 		a.GetBackGroundPortForwardPidFile(deployment),
 		os.O_WRONLY|os.O_CREATE,
@@ -738,18 +738,18 @@ func (a *Application) WriteBackgroundSyncPortForwardPidFile(deployment string, p
 	return nil
 }
 
-func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(
-	svcName string,
-	options *DevStartOptions,
-) (*DevStartOptions, error) {
-	appProfile, _ := a.GetProfile()
-	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
-	if svcProfile == nil {
-		return options, errors.New("get " + svcName + " profile fail, please reinstall application")
-	}
-	options.LocalSyncDir = svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin
-	return options, nil
-}
+//func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(
+//	svcName string,
+//	options *DevStartOptions,
+//) (*DevStartOptions, error) {
+//	appProfile, _ := a.GetProfile()
+//	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
+//	if svcProfile == nil {
+//		return options, errors.New("get " + svcName + " profile fail, please reinstall application")
+//	}
+//	options.LocalSyncDir = svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin
+//	return options, nil
+//}
 
 func (a *Application) GetPodsFromDeployment(deployment string) (*corev1.PodList, error) {
 	return a.client.ListPodsByDeployment(deployment)

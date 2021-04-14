@@ -42,7 +42,7 @@ func initApp(appName string) {
 	if !nocalhost.CheckIfApplicationExist(appName, nameSpace) {
 		// init nocalhost default application and wait
 		if appName == app.DefaultNocalhostApplication {
-			err := initNocalhostDefaultApplicationAndWait()
+			err := initDefaultApplicationAndWait()
 			if err != nil {
 				log.FatalE(err, "Failed to init default application in ns "+nameSpace)
 			}
@@ -96,7 +96,7 @@ func initAppAndCheckIfSvcExist(appName string, svcName string, svcAttr []string)
 	CheckIfSvcExist(svcName, serviceType)
 }
 
-func initNocalhostDefaultApplicationAndWait() error {
+func initDefaultApplicationAndWait() error {
 	nsLock := nocalhost.NsLock(nameSpace)
 
 	err := nsLock.Lock()
