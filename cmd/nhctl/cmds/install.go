@@ -45,13 +45,16 @@ func init() {
 	installCmd.Flags().
 		StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
 	installCmd.Flags().
-		StringVarP(&installFlags.AppType, "type", "t", "", fmt.Sprintf("nocalhost application type: %s, %s, %s, %s, %s or %s", app.HelmRepo, app.Helm, app.HelmLocal, app.Manifest, app.ManifestLocal, app.KustomizeGit))
+		StringVarP(&installFlags.AppType, "type", "t", "",
+			fmt.Sprintf("nocalhost application type: %s, %s, %s, %s, %s or %s",
+				app.HelmRepo, app.Helm, app.HelmLocal, app.Manifest, app.ManifestLocal, app.KustomizeGit))
 	installCmd.Flags().
 		BoolVar(&installFlags.HelmWait, "wait", installFlags.HelmWait, "wait for completion")
 	installCmd.Flags().
 		BoolVar(&installFlags.IgnorePreInstall, "ignore-pre-install", installFlags.IgnorePreInstall, "ignore pre-install")
 	installCmd.Flags().
-		StringSliceVar(&installFlags.HelmSet, "set", []string{}, "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
+		StringSliceVar(&installFlags.HelmSet, "set", []string{},
+			"set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 	installCmd.Flags().
 		StringVar(&installFlags.HelmRepoName, "helm-repo-name", "", "chart repository name")
 	installCmd.Flags().

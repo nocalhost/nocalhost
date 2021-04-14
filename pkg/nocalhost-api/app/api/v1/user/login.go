@@ -48,7 +48,8 @@ func Login(c *gin.Context) {
 		api.SendResponse(c, errno.ErrParam, nil)
 		return
 	}
-	// By default, “From” is not passed in web login, and ordinary users are prohibited from logging in to the web interface
+	// By default, “From” is not passed in web login,
+	// and ordinary users are prohibited from logging in to the web interface
 	_, err := service.Svc.UserSvc().GetUserByEmail(c, req.Email)
 	if err != nil {
 		api.SendResponse(c, errno.ErrEmailOrPassword, nil)

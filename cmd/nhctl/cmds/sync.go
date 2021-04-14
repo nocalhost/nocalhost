@@ -38,7 +38,8 @@ func init() {
 	fileSyncCmd.Flags().
 		StringVar(&fileSyncOps.Container, "container", "", "container name of pod to sync")
 	fileSyncCmd.Flags().
-		BoolVar(&fileSyncOps.Override, "overwrite", true, "override the remote changing according to the local sync folder while start up")
+		BoolVar(&fileSyncOps.Override, "overwrite", true, "override the remote "+
+			"changing according to the local sync folder while start up")
 	rootCmd.AddCommand(fileSyncCmd)
 }
 
