@@ -86,7 +86,7 @@ func (a *Application) markReplicaSetAsOriginalRevision(svcName string) error {
 // There are two volume used by syncthing in sideCarContainer:
 // 1. A EmptyDir volume mounts to /var/syncthing in sideCarContainer
 // 2. A volume mounts Secret to /var/syncthing/secret in sideCarContainer
-func (a *Application) generateSyncthingVolumesAndVolumeMounts(
+func (a *Application) generateSyncthingVolumes(
 	svcName string,
 ) ([]corev1.Volume, []corev1.VolumeMount) {
 
@@ -155,7 +155,7 @@ func (a *Application) generateSyncthingVolumesAndVolumeMounts(
 // If PVC exists, use it directly
 // If PVC not exists, try to create one
 // If PVC failed to create, the whole process of entering DevMode will fail
-func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(
+func (a *Application) generateWorkDirAndPV(
 	svcName, container, storageClass string,
 ) ([]corev1.Volume, []corev1.VolumeMount, error) {
 
@@ -357,11 +357,11 @@ func (a *Application) ReplaceImage(
 	devModeMounts := make([]corev1.VolumeMount, 0)
 
 	// Set volumes
-	syncthingVolumes, syncthingVolumeMounts := a.generateSyncthingVolumesAndVolumeMounts(svcName)
+	syncthingVolumes, syncthingVolumeMounts := a.generateSyncthingVolumes(svcName)
 	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
-	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := a.generateWorkDirAndPersistVolumeAndVolumeMounts(
+	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := a.generateWorkDirAndPV(
 		svcName,
 		ops.Container,
 		ops.StorageClass,

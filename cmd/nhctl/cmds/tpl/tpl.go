@@ -105,18 +105,18 @@ dependLabelSelector:
 containers:
 	- name: xxx 
 	  install: 
-      env: 
-        - name: DEBUG
-          value: "true"
-        - name: DOMAIN
-          value: "www.coding.com"
-      envFrom: 
-        envFile: 
-          - path: dev.env
-          - path: dev.env
-      portForward:   # 安装后需要打通的端口
-        - 3306:3306
-    dev:
+	  env:
+		- name: DEBUG
+		  value: "true"
+		- name: DOMAIN
+		  value: "www.coding.com"
+	  envFrom: 
+	  envFile: 
+		- path: dev.env
+		- path: dev.env
+	  portForward:   # 安装后需要打通的端口
+		- 3306:3306
+	dev:
 		# git url where the source code of this service resides
 		# type: string
 		# default value: null
@@ -158,7 +158,7 @@ containers:
 			# type: string
 			# default value: null
 			# required
-    		# - path: "/root"
+			# - path: "/root"
 			# Capability of the dir
 			# type: string
 			# default value: 10Gi

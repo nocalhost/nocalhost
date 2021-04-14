@@ -103,7 +103,7 @@ func (a *Application) StopFileSyncOnly(svcName string) error {
 					portForwardPid,
 				)
 			} else {
-				log.Warnf("Failed to terminate syncthing process(pid: %d), please run `kill -9 %d` manually, err: %s\n", portForwardPid, portForwardPid, err)
+				log.WarnE(err, "Failed to terminate syncthing process")
 			}
 		}
 	}

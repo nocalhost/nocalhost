@@ -253,7 +253,8 @@ func (a *Application) InstallDepConfigMap() error {
 			configMap.Labels = make(map[string]string, 0)
 		}
 		configMap.Labels["use-for"] = "nocalhost-dep"
-		if _, err = a.client.ClientSet.CoreV1().ConfigMaps(a.NameSpace).Create(context.TODO(), configMap, metav1.CreateOptions{}); err != nil {
+		if _, err = a.client.ClientSet.CoreV1().ConfigMaps(a.NameSpace).
+			Create(context.TODO(), configMap, metav1.CreateOptions{}); err != nil {
 			return errors.Wrap(
 				err,
 				fmt.Sprintf("fail to create dependency config %s", configMap.Name),
@@ -306,7 +307,7 @@ func (a *Application) loadPreInstallAndInstallManifest() {
 	a.loadInstallManifest()
 }
 
-func (a *Application) loadUpgradePreInstallAndInstallManifest(resourcePath []string) {
+func (a *Application) loadUpgradeManifest(resourcePath []string) {
 	a.loadUpgradeSortedPreInstallManifest()
 	a.loadUpgradeInstallManifest(resourcePath)
 }

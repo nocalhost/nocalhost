@@ -30,7 +30,7 @@ func (a *Application) getUpgradeGitDir() string {
 	return filepath.Join(a.GetHomeDir(), DefaultUpgradeResourcesDir)
 }
 
-func (a *Application) getUpgradeConfigPathInGitResourcesDir(configName string) string {
+func (a *Application) getUpgradeConfigPath(configName string) string {
 	if configName == "" {
 		return filepath.Join(
 			a.getUpgradeGitDir(),
