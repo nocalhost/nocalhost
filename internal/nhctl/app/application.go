@@ -140,7 +140,6 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	}
 
 	if app.profileV2, err = nocalhost.GetProfileV2(app.NameSpace, app.Name); err != nil {
-		// todo
 		if _, err := os.Stat(app.getProfileV2Path()); err == nil {
 			if err = app.moveProfileFromFileToLeveldb(); err != nil {
 				return nil, err
