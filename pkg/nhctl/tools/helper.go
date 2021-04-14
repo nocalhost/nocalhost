@@ -136,7 +136,7 @@ func copyAndCapture(w io.Writer, r io.Reader, isDisplay bool) ([]byte, error) {
 			d := buf[:n]
 			out = append(out, d...)
 			if isDisplay {
-				os.Stdout.Write(d)
+				w.Write(d)
 			}
 		}
 		if err != nil {
