@@ -115,10 +115,7 @@ func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params
 		_, errStderr = copyAndCapture(os.Stderr, stderrIn, isDisplay)
 	}()
 
-	err = cmd.Wait()
-	if err != nil {
-		return "", errors.Wrap(err, "")
-	}
+	_ = cmd.Wait()
 	if errStderr != nil || errStdout != nil {
 		log.Infof("%s %s", errStderr, errStdout)
 		return "", errors.New("error occur when print")
@@ -141,7 +138,7 @@ func copyAndCapture(w io.Writer, r io.Reader, isDisplay bool) ([]byte, error) {
 		}
 		if err != nil {
 			// Read returns io.EOF at the end of file, which is not an error for us
-			if err == io.EOF || err == io.ErrClosedPipe {
+			if err == io.EOF || err == io.ErrClosedPipe || errors.Is(err, &os.PathError{}) {
 				err = nil
 			}
 			return out, err
