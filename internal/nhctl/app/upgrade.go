@@ -99,10 +99,11 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 				envFile = configFile.RelOrAbs("../").RelOrAbs(relPath)
 
 				if e := envFile.CheckExist(); e != nil {
-					log.Log("Render %s Nocalhost config without env files, "+
-						"we found the env file had been configured as %s, but we can not found in %s", configFile.Abs(), relPath, envFile.Abs())
+					log.Logf("Render %s Nocalhost config without env files, "+
+						"we found the env file had been configured as %s, "+
+						"but we can not found in %s", configFile.Abs(), relPath, envFile.Abs())
 				} else {
-					log.Log("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
+					log.Logf("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
 				}
 			} else {
 				log.Log("Render %s Nocalhost config without env files, you config your Nocalhost configuration "+

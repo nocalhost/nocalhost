@@ -670,18 +670,18 @@ func (a *Application) GetBackgroundSyncPortForwardPid(
 	deployment string,
 	isTrunc bool,
 ) (int, string, error) {
-	f, err := ioutil.ReadFile(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+	f, err := ioutil.ReadFile(a.GetBackGroundPortForwardPidFile(deployment))
 	if err != nil {
-		return 0, a.GetApplicationBackGroundPortForwardPidFile(deployment), err
+		return 0, a.GetBackGroundPortForwardPidFile(deployment), err
 	}
 	port, err := strconv.Atoi(string(f))
 	if err != nil {
-		return 0, a.GetApplicationBackGroundPortForwardPidFile(deployment), err
+		return 0, a.GetBackGroundPortForwardPidFile(deployment), err
 	}
 	if isTrunc {
-		_ = a.SetPidFileEmpty(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+		_ = a.SetPidFileEmpty(a.GetBackGroundPortForwardPidFile(deployment))
 	}
-	return port, a.GetApplicationBackGroundPortForwardPidFile(deployment), nil
+	return port, a.GetBackGroundPortForwardPidFile(deployment), nil
 }
 
 func (a *Application) GetBackgroundSyncThingPid(
@@ -697,7 +697,7 @@ func (a *Application) GetBackgroundSyncThingPid(
 		return 0, a.GetApplicationSyncThingPidFile(deployment), err
 	}
 	if isTrunc {
-		_ = a.SetPidFileEmpty(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+		_ = a.SetPidFileEmpty(a.GetBackGroundPortForwardPidFile(deployment))
 	}
 	return port, a.GetApplicationSyncThingPidFile(deployment), nil
 }
@@ -706,23 +706,23 @@ func (a *Application) GetBackgroundOnlyPortForwardPid(
 	deployment string,
 	isTrunc bool,
 ) (int, string, error) {
-	f, err := ioutil.ReadFile(a.GetApplicationOnlyPortForwardPidFile(deployment))
+	f, err := ioutil.ReadFile(a.GetPortForwardPidFile(deployment))
 	if err != nil {
-		return 0, a.GetApplicationOnlyPortForwardPidFile(deployment), err
+		return 0, a.GetPortForwardPidFile(deployment), err
 	}
 	port, err := strconv.Atoi(string(f))
 	if err != nil {
-		return 0, a.GetApplicationOnlyPortForwardPidFile(deployment), err
+		return 0, a.GetPortForwardPidFile(deployment), err
 	}
 	if isTrunc {
-		_ = a.SetPidFileEmpty(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+		_ = a.SetPidFileEmpty(a.GetBackGroundPortForwardPidFile(deployment))
 	}
-	return port, a.GetApplicationOnlyPortForwardPidFile(deployment), nil
+	return port, a.GetPortForwardPidFile(deployment), nil
 }
 
 func (a *Application) WriteBackgroundSyncPortForwardPidFile(deployment string, pid int) error {
 	file, err := os.OpenFile(
-		a.GetApplicationBackGroundPortForwardPidFile(deployment),
+		a.GetBackGroundPortForwardPidFile(deployment),
 		os.O_WRONLY|os.O_CREATE,
 		0666,
 	)
