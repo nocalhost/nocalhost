@@ -14,7 +14,9 @@ package local
 
 const LocalSyncConfigXML = `<configuration version="32">
 {{ range .Folders }}
-<folder id="nh-{{ .Name }}" label="{{ .Name }}" path="{{ .LocalPath }}" type="{{ $.Type }}" rescanIntervalS="{{ $.RescanInterval }}" fsWatcherEnabled="true" fsWatcherDelayS="1" ignorePerms="false" autoNormalize="true">
+<folder id="nh-{{ .Name }}" label="{{ .Name }}" path="{{ .LocalPath }}" type="{{ $.Type }}" 
+rescanIntervalS="{{ $.RescanInterval }}" fsWatcherEnabled="true" 
+fsWatcherDelayS="1" ignorePerms="false" autoNormalize="true">
 	<filesystemType>basic</filesystemType>
 	<device id="SJTYMUE-DI3REKX-JCLCRXU-F6UJHCG-XQGHAZJ-5O5D3JR-LALGSBC-TJ4I4QO" introducedBy=""></device>
 	<device id="{{$.RemoteDeviceID}}" introducedBy=""></device>
@@ -36,7 +38,9 @@ const LocalSyncConfigXML = `<configuration version="32">
 	<useLargeBlocks>false</useLargeBlocks>
 </folder>
 {{ end }}
-<device id="SJTYMUE-DI3REKX-JCLCRXU-F6UJHCG-XQGHAZJ-5O5D3JR-LALGSBC-TJ4I4QO" name="local" compression="local" introducer="false" skipIntroductionRemovals="false" introducedBy="">
+<device id="SJTYMUE-DI3REKX-JCLCRXU-F6UJHCG-XQGHAZJ-5O5D3JR-LALGSBC-TJ4I4QO" 
+name="local" compression="local" introducer="false" 
+skipIntroductionRemovals="false" introducedBy="">
 	<address>dynamic</address>
 	<paused>false</paused>
 	<autoAcceptFolders>false</autoAcceptFolders>
@@ -44,7 +48,8 @@ const LocalSyncConfigXML = `<configuration version="32">
 	<maxRecvKbps>0</maxRecvKbps>
 	<maxRequestKiB>0</maxRequestKiB>
 </device>
-<device id="{{.RemoteDeviceID}}" name="remote" compression="metadata" introducer="false" skipIntroductionRemovals="false" introducedBy="">
+<device id="{{.RemoteDeviceID}}" name="remote" compression="metadata" 
+introducer="false" skipIntroductionRemovals="false" introducedBy="">
 	<address>tcp://{{.RemoteAddress}}</address>
 	<paused>false</paused>
 	<autoAcceptFolders>false</autoAcceptFolders>
@@ -101,7 +106,9 @@ const LocalSyncConfigXML = `<configuration version="32">
 
 const RemoteSyncConfigXML = `<configuration version="32">
 {{ range .Folders }}
-<folder id="nh-{{ .Name }}" label="{{ .Name }}" path="{{ .RemotePath }}" type="sendreceive" rescanIntervalS="{{ $.RescanInterval }}" fsWatcherEnabled="true" fsWatcherDelayS="1" ignorePerms="false" autoNormalize="true">
+<folder id="nh-{{ .Name }}" label="{{ .Name }}" path="{{ .RemotePath }}" 
+type="sendreceive" rescanIntervalS="{{ $.RescanInterval }}" fsWatcherEnabled="true" 
+fsWatcherDelayS="1" ignorePerms="false" autoNormalize="true">
 	<filesystemType>basic</filesystemType>
 	<device id="SJTYMUE-DI3REKX-JCLCRXU-F6UJHCG-XQGHAZJ-5O5D3JR-LALGSBC-TJ4I4QO" introducedBy=""></device>
 	<device id="MDPJNTF-OSPJC65-LZNCQGD-3AWRUW6-BYJULSS-GOCA2TU-5DWWBNC-TKM4VQ5" introducedBy=""></device>
@@ -123,7 +130,8 @@ const RemoteSyncConfigXML = `<configuration version="32">
 	<useLargeBlocks>false</useLargeBlocks>
 </folder>
 {{ end }}
-<device id="SJTYMUE-DI3REKX-JCLCRXU-F6UJHCG-XQGHAZJ-5O5D3JR-LALGSBC-TJ4I4QO" name="local" compression="metadata" introducer="false" skipIntroductionRemovals="false" introducedBy="">
+<device id="SJTYMUE-DI3REKX-JCLCRXU-F6UJHCG-XQGHAZJ-5O5D3JR-LALGSBC-TJ4I4QO" name="local" 
+compression="metadata" introducer="false" skipIntroductionRemovals="false" introducedBy="">
 	<address>dynamic</address>
 	<paused>false</paused>
 	<autoAcceptFolders>false</autoAcceptFolders>
@@ -131,7 +139,8 @@ const RemoteSyncConfigXML = `<configuration version="32">
 	<maxRecvKbps>0</maxRecvKbps>
 	<maxRequestKiB>0</maxRequestKiB>
 </device>
-<device id="MDPJNTF-OSPJC65-LZNCQGD-3AWRUW6-BYJULSS-GOCA2TU-5DWWBNC-TKM4VQ5" name="remote" compression="metadata" introducer="false" skipIntroductionRemovals="false" introducedBy="">
+<device id="MDPJNTF-OSPJC65-LZNCQGD-3AWRUW6-BYJULSS-GOCA2TU-5DWWBNC-TKM4VQ5" name="remote" 
+compression="metadata" introducer="false" skipIntroductionRemovals="false" introducedBy="">
 	<address>dynamic</address>
 	<paused>false</paused>
 	<autoAcceptFolders>false</autoAcceptFolders>

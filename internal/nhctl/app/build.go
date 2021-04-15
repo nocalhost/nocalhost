@@ -173,7 +173,8 @@ func (a *Application) renderConfig(configFilePath string) error {
 		}
 	} else {
 		log.Log("Render %s Nocalhost config without env files, "+
-			"you config your Nocalhost configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2", configFile.Abs())
+			"you config your Nocalhost configuration such as: "+
+			"\nconfigProperties:\n  envFile: ./envs/env\n  version: v2", configFile.Abs())
 	}
 
 	renderedStr, err := envsubst.Render(configFile, envFile)

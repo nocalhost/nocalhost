@@ -87,7 +87,7 @@ func (c *ClientGoUtils) UpdateDeployment(
 		}
 	}
 
-	err = c.WaitLatestRevisionReplicaSetOfDeploymentToBeReady(dep.Name)
+	err = c.WaitLatestRevisionToBeReady(dep.Name)
 	if err != nil {
 		return nil, err
 	}

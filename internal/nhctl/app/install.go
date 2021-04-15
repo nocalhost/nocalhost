@@ -33,6 +33,7 @@ import (
 	"nocalhost/pkg/nhctl/tools"
 )
 
+//  Install a nocalhost application
 func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
 
 	err := a.InstallDepConfigMap()

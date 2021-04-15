@@ -79,7 +79,7 @@ func (c *ClientGoUtils) GetReplicaSetsByDeployment(
 	return rsMap, nil
 }
 
-func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(
+func (c *ClientGoUtils) WaitLatestRevisionToBeReady(
 	deploymentName string,
 ) error {
 

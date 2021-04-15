@@ -78,7 +78,8 @@ func getAllCommitId() map[int64]string {
 }
 
 func InstallNhctl(commitId string) {
-	str := "curl --fail -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/nhctl-linux-amd64?version=%s\" -o nhctl"
+	str := "curl --fail -L " +
+		"\"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/nhctl-linux-amd64?version=%s\" -o nhctl"
 	fmt.Printf(str, commitId)
 	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, commitId))
 	var output []byte

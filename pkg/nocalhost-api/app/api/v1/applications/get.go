@@ -34,7 +34,8 @@ import (
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":[{"id":1,"context":"application info","status":"1"}]}"
+// @Success 200 {object} api.Response
+// "{"code":0,"message":"OK","data":[{"id":1,"context":"application info","status":"1"}]}"
 // @Router /v1/application [get]
 func Get(c *gin.Context) {
 
