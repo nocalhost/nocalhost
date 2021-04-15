@@ -105,8 +105,6 @@ func (c *Controller) join(rb *rbacv1.RoleBinding) error {
 		serviceAccounts.put(subject.Name)
 	}
 	c.rbw.ownNs[rb.Namespace] = serviceAccounts
-
-	log.Infof("ns:%s set:%s", rb.Namespace, serviceAccounts.desc())
 	return nil
 }
 

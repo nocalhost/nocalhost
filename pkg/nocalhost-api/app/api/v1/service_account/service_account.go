@@ -121,7 +121,13 @@ func ListAuthorization(c *gin.Context) {
 
 			if len(nss) != 0 || privilege {
 				lock.Lock()
-				result = append(result, &ServiceAccountModel{KubeConfig: kubeConfig, StorageClass: cluster.StorageClass, NS: nss, Privilege: privilege})
+				result = append(result, &ServiceAccountModel{
+					ClusterId:    cluster.ID,
+					KubeConfig:   kubeConfig,
+					StorageClass: cluster.StorageClass,
+					NS:           nss,
+					Privilege:    privilege,
+				})
 				lock.Unlock()
 			}
 		}()
@@ -161,6 +167,7 @@ func getServiceAccountKubeConfig(clientGo *clientgo.GoClient, saName, saNs, serv
 }
 
 type ServiceAccountModel struct {
+	ClusterId    uint64 `json:"cluster_id"`
 	KubeConfig   string `json:"kubeconfig"`
 	StorageClass string `json:"storage_class"`
 	NS           []NS   `json:"namespace_packs"`

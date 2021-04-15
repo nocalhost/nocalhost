@@ -44,6 +44,7 @@ var devEndCmd = &cobra.Command{
 		meta, err := nocalhost.GetApplicationMetaInstalled(applicationName, nameSpace, kubeConfig)
 		if err != nil {
 			log.FatalE(err, "")
+			return
 		}
 
 		if b := meta.CheckIfDeploymentDeveloping(deployment); !b {

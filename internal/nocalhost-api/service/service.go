@@ -300,7 +300,7 @@ func (s *Service) prepareServiceAccountAndClientGo(clusterId, userId uint64) (cl
 		return
 	}
 
-	if err = createServiceAccountINE(clientGo, u.SaName, NocalhostDefaultSaNs); err != nil {
+	if err = createOrUpdateServiceAccountINE(clientGo, u.SaName, NocalhostDefaultSaNs); err != nil {
 		log.Error(err)
 		err = errno.ErrServiceAccountCreate
 		return
@@ -377,7 +377,7 @@ func (s *Service) UnAuthorizeClusterToUser(clusterId, userId uint64) error {
 	return nil
 }
 
-func createServiceAccountINE(client *clientgo.GoClient, saName string, saNs string) error {
+func createOrUpdateServiceAccountINE(client *clientgo.GoClient, saName string, saNs string) error {
 	if _, err := client.CreateServiceAccount(saName, saNs); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return err
 	}

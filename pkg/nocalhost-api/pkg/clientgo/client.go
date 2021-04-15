@@ -44,8 +44,9 @@ import (
 )
 
 const (
-	DepInstaller = "dep-installer-job"
-	Dep          = "nocalhost-dep"
+	DepInstaller   = "dep-installer-job"
+	Dep            = "nocalhost-dep"
+	NocalhostLabel = "nocalhost-managed"
 )
 
 var LimitedRules = &rbacv1.PolicyRule{
@@ -372,14 +373,33 @@ func (c *GoClient) CreateServiceAccount(name, namespace string) (bool, error) {
 	if name == "" {
 		name = global.NocalhostDevServiceAccountName
 	}
+
+	m := map[string]string{}
+	m[NocalhostLabel] = time.Now().String()
 	arg := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: m},
 	}
 	_, err := c.client.CoreV1().ServiceAccounts(namespace).Create(context.TODO(), arg, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
 	return true, nil
+}
+
+// nocalhost-dep watch the service account, so make some change to refresh the cache
+func (c *GoClient) RefreshServiceAccount(name, namespace string) {
+	if name == "" {
+		name = global.NocalhostDevServiceAccountName
+	}
+
+	if sa, err := c.client.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{}); err == nil {
+		if sa.Labels == nil {
+			sa.Labels = map[string]string{}
+		}
+
+		sa.Labels[NocalhostLabel] = time.Now().String()
+		_, _ = c.client.CoreV1().ServiceAccounts(namespace).Update(context.TODO(), sa, metav1.UpdateOptions{})
+	}
 }
 
 // Initial resource quota for namespace. such as:
@@ -648,7 +668,7 @@ func (c *GoClient) AppendRoleBinding(name, namespace, role, toServiceAccount, to
 	}
 
 	// label for watch
-	rb.Labels["nocalhost-managed"] = "rb"
+	rb.Labels[NocalhostLabel] = time.Now().String()
 
 	//  auth admin for current role binding ns
 	if toServiceAccount != "" {
@@ -708,7 +728,7 @@ func (c *GoClient) AppendClusterRoleBinding(name, role, toServiceAccount, toServ
 	}
 
 	// label for watch
-	crb.Labels["nocalhost-managed"] = "rb"
+	crb.Labels[NocalhostLabel] = time.Now().String()
 
 	//  auth admin for current role binding ns
 	if toServiceAccount != "" {
