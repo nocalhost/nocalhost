@@ -409,9 +409,15 @@ func removeRoleBindingIfPresent(client *clientgo.GoClient, ns, saName, saNs stri
 }
 
 func createOrUpdateClusterRoleBindingINE(client *clientgo.GoClient, saName, saNs string) error {
+	// refresh service account to notify dep to update the cache
+	defer client.RefreshServiceAccount(saName, saNs)
+
 	return client.AppendClusterRoleBinding(NocalhostDefaultRoleBinding, global.NocalhostDevRoleName, saName, saNs)
 }
 
 func removeClusterRoleBindingIfPresent(client *clientgo.GoClient, saName, saNs string) error {
+	// refresh service account to notify dep to update the cache
+	defer client.RefreshServiceAccount(saName, saNs)
+
 	return client.RemoveClusterRoleBinding(NocalhostDefaultRoleBinding, saName, saNs)
 }

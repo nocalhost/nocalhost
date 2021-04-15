@@ -375,7 +375,7 @@ func (c *GoClient) CreateServiceAccount(name, namespace string) (bool, error) {
 	}
 
 	m := map[string]string{}
-	m[NocalhostLabel] = time.Now().String()
+	m[NocalhostLabel] = time.Now().Format("20060102150405")
 	arg := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: m},
 	}
@@ -397,7 +397,7 @@ func (c *GoClient) RefreshServiceAccount(name, namespace string) {
 			sa.Labels = map[string]string{}
 		}
 
-		sa.Labels[NocalhostLabel] = time.Now().String()
+		sa.Labels[NocalhostLabel] = time.Now().Format("20060102150405")
 		_, _ = c.client.CoreV1().ServiceAccounts(namespace).Update(context.TODO(), sa, metav1.UpdateOptions{})
 	}
 }
@@ -668,7 +668,7 @@ func (c *GoClient) AppendRoleBinding(name, namespace, role, toServiceAccount, to
 	}
 
 	// label for watch
-	rb.Labels[NocalhostLabel] = time.Now().String()
+	rb.Labels[NocalhostLabel] = time.Now().Format("20060102150405")
 
 	//  auth admin for current role binding ns
 	if toServiceAccount != "" {
@@ -728,7 +728,7 @@ func (c *GoClient) AppendClusterRoleBinding(name, role, toServiceAccount, toServ
 	}
 
 	// label for watch
-	crb.Labels[NocalhostLabel] = time.Now().String()
+	crb.Labels[NocalhostLabel] = time.Now().Format("20060102150405")
 
 	//  auth admin for current role binding ns
 	if toServiceAccount != "" {

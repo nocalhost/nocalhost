@@ -133,7 +133,7 @@ func (c *Controller) handleErr(err error, key interface{}) {
 
 	// This controller retries 5 times if something goes wrong. After that, it stops trying.
 	if c.queue.NumRequeues(key) < 5 {
-		glog.Infof("Error while resolving %v %s: %v", key, err)
+		glog.Infof("Error while resolving %v: %v", key, err)
 
 		// Re-enqueue the key rate limited. Based on the rate limiter on the
 		// queue and the re-enqueue history, the key will be processed later again.
@@ -144,7 +144,7 @@ func (c *Controller) handleErr(err error, key interface{}) {
 	c.queue.Forget(key)
 	// Report to an external entity that, even after several retries, we could not successfully process this key
 	runtime.HandleError(err)
-	glog.Error("Dropping resolving %q out of the queue: %v", key, err)
+	glog.Errorf("Dropping resolving %v out of the queue: %v", key, err)
 }
 
 // Run begins watching and syncing.
