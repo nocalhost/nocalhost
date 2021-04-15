@@ -86,13 +86,8 @@ var InitCommand = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		kubectl, err := tools.CheckThirdPartyCLI()
-		if err != nil {
-			log.Fatalf("%s, you should install them first(helm3 and kubectl)", err.Error())
-		}
-
-		if err := Prepare(); err != nil {
-			log.FatalE(err, "")
-		}
+		mustI(err, "you should install them first(helm3 and kubectl)")
+		must(Prepare())
 
 		// init api and web
 		// nhctl install nocalhost -u https://e.coding.net/codingcorp/nocalhost/nocalhost.git -t helm --kubeconfig xxx -n xxx
@@ -183,10 +178,7 @@ var InitCommand = &cobra.Command{
 			customLabels := map[string]string{
 				"env": app.DefaultInitCreateNameSpaceLabels,
 			}
-			err = client.CreateNameSpace(inits.NameSpace, customLabels)
-			if err != nil {
-				log.Fatalf("init fail, create namespace %s fail, err: %s\n", inits.NameSpace, err.Error())
-			}
+			mustI(client.CreateNameSpace(inits.NameSpace, customLabels), "create namespace fail")
 		}
 		spinner := utils.NewSpinner(" waiting for get Nocalhost manifest...")
 		spinner.Start()
@@ -203,10 +195,7 @@ var InitCommand = &cobra.Command{
 		// 3. use nocalhost-web service address to set default data into cluster
 		spinner = utils.NewSpinner(" waiting for Nocalhost component ready, this will take a few minutes...")
 		spinner.Start()
-		err = client.NameSpace(inits.NameSpace).WaitDeploymentToBeReady(app.DefaultInitWatchDeployment)
-		if err != nil {
-			log.Fatalf("watch deployment %s timeout, err: %s\n", app.DefaultInitWatchDeployment, err.Error())
-		}
+		mustI(client.NameSpace(inits.NameSpace).WaitDeploymentToBeReady(app.DefaultInitWatchDeployment), "watch deployment timeout")
 		// wait nocalhost-web ready
 		// max 5 min
 		checkTime := 0
@@ -248,10 +237,7 @@ var InitCommand = &cobra.Command{
 		// wait for nocalhost-dep deployment in nocalhost-reserved namespace
 		spinner = utils.NewSpinner(" waiting for Nocalhost-dep ready, this will take a few minutes...")
 		spinner.Start()
-		err = client.NameSpace(app.DefaultInitWaitNameSpace).WaitDeploymentToBeReady(app.DefaultInitWaitDeployment)
-		if err != nil {
-			log.Fatalf("watch deployment %s timeout, err: %s\n", app.DefaultInitWatchDeployment, err.Error())
-		}
+		mustI(client.NameSpace(app.DefaultInitWaitNameSpace).WaitDeploymentToBeReady(app.DefaultInitWaitDeployment), "watch deployment timeout")
 
 		// change dep images tag
 		setDepComponentDockerImage(kubectl, kubeConfig)
@@ -277,10 +263,7 @@ var InitCommand = &cobra.Command{
 			app.DefaultInitAdminPassWord,
 		)
 
-		err = req.IdleThePortForwardIfNeeded()
-		if err != nil {
-			log.Fatal(err)
-		}
+		must(req.IdleThePortForwardIfNeeded())
 	},
 }
 
@@ -301,9 +284,7 @@ func findOutWebEndpoint(client *clientgoutils.ClientGoUtils) string {
 
 	// get Node ExternalIP
 	nodes, err := client.GetNodesList()
-	if err != nil {
-		log.Fatalf("get nodes fail, err %s\n", err)
-	}
+	must(err)
 
 	nodeExternalIP := ""
 	nodeInternalIP := ""
@@ -327,9 +308,7 @@ func findOutWebEndpoint(client *clientgoutils.ClientGoUtils) string {
 
 	// get loadbalancer service IP
 	service, err := client.NameSpace(inits.NameSpace).GetService(app.DefaultInitNocalhostService)
-	if err != nil {
-		log.Fatalf("get service %s fail, please try again\n", err)
-	}
+	must(err)
 	for _, ip := range service.Status.LoadBalancer.Ingress {
 		if ip.IP != "" {
 			loadBalancerIP = ip.IP

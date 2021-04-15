@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing/network/req"
-	"nocalhost/pkg/nhctl/log"
 )
 
 var syncStatusOps = &app.SyncStatusOptions{}
@@ -42,11 +41,7 @@ var syncStatusCmd = &cobra.Command{
 		client := nocalhostApp.NewSyncthingHttpClient(deployment)
 
 		if syncStatusOps.Override {
-			err := client.FolderOverride()
-			if err != nil {
-				log.Fatal(err)
-			}
-
+			must(client.FolderOverride())
 			display("Succeed")
 			return
 		}

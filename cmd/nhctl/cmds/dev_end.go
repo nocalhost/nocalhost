@@ -42,19 +42,13 @@ var devEndCmd = &cobra.Command{
 		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
 
 		meta, err := nocalhost.GetApplicationMetaInstalled(applicationName, nameSpace, kubeConfig)
-		if err != nil {
-			log.FatalE(err, "")
-			return
-		}
+		must(err)
 
 		if b := meta.CheckIfDeploymentDeveloping(deployment); !b {
 			log.Fatalf("Service %s is not in DevMode", deployment)
 		}
 
-		if err := nocalhostApp.DevEnd(deployment, false); err != nil {
-			log.FatalE(err, "")
-		}
-
+		must(nocalhostApp.DevEnd(deployment, false))
 		log.Infof("Service %s's DevMode has been ended", deployment)
 	},
 }

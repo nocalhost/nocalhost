@@ -15,8 +15,6 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-
-	"nocalhost/pkg/nhctl/log"
 )
 
 //var container string
@@ -39,13 +37,8 @@ var devTerminalCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		var err error
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
-
-		err = nocalhostApp.EnterPodTerminal(deployment, pod, container)
-		if err != nil {
-			log.FatalE(err, "Failed to enter terminal")
-		}
+		must(nocalhostApp.EnterPodTerminal(deployment, pod, container))
 	},
 }

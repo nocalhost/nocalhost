@@ -30,10 +30,7 @@ var dbCompactCmd = &cobra.Command{
 	Short: "compact leveldb data",
 	Long:  `compact leveldb data`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := nocalhost.CompactApplicationDb(nameSpace, appName, levelDbKey); err != nil {
-			log.FatalE(err, "")
-		} else {
-			log.Info("Db has been compacted")
-		}
+		must(nocalhost.CompactApplicationDb(nameSpace, appName, levelDbKey))
+		log.Info("Db has been compacted")
 	},
 }

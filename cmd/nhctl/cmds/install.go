@@ -67,9 +67,7 @@ var installCmd = &cobra.Command{
 			applicationName = args[0]
 		)
 
-		if err := Prepare(); err != nil {
-			log.FatalE(err, "")
-		}
+		must(Prepare())
 
 		if applicationName == app.DefaultNocalhostApplication {
 			log.Error(app.DefaultNocalhostApplicationOperateErr)
@@ -89,15 +87,11 @@ var installCmd = &cobra.Command{
 		}
 
 		log.Info("Installing application...")
-		if err = InstallApplication(applicationName); err != nil {
-			log.FatalE(err, "")
-		}
+		must(InstallApplication(applicationName))
 		log.Infof("Application %s installed", applicationName)
 
 		profileV2, err := nocalhostApp.GetProfile()
-		if err != nil {
-			log.FatalE(err, "")
-		}
+		must(err)
 
 		// Start port forward
 		for _, svcProfile := range profileV2.SvcProfile {
@@ -161,8 +155,7 @@ func InstallApplication(applicationName string) error {
 
 	appType := nocalhostApp.GetType()
 	if appType == "" {
-		err = errors.New("--type must be specified")
-		return err
+		return errors.New("--type must be specified")
 	}
 
 	// add helmValue in config
@@ -184,4 +177,16 @@ func InstallApplication(applicationName string) error {
 	err = nocalhostApp.Install(context.TODO(), flags)
 	_ = nocalhostApp.CleanUpTmpResources()
 	return err
+}
+
+func must(err error) {
+	if err != nil {
+		log.FatalE(err, "")
+	}
+}
+
+func mustI(err error, info string) {
+	if err != nil {
+		log.FatalE(err, info)
+	}
 }

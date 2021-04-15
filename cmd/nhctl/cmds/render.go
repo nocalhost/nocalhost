@@ -19,7 +19,6 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/fp"
-	"nocalhost/pkg/nhctl/log"
 )
 
 var renderOps = &RenderOps{}
@@ -45,10 +44,7 @@ var renderCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		render, err := envsubst.Render(fp.NewFilePath(args[0]), fp.NewFilePath(renderOps.envPath))
-		if err != nil {
-			log.Fatal(err)
-		}
-
+		must(errors.Wrap(err, ""))
 		fmt.Print(render)
 	},
 }

@@ -61,10 +61,7 @@ var convertCmd = &cobra.Command{
 		}
 
 		if cFlags.FromVersion == "v1" && cFlags.ToVersion == "v2" {
-			err := app.ConvertConfigFileV1ToV2(cFlags.SrcFile, cFlags.DestFile)
-			if err != nil {
-				log.Fatalf("Failed to convert: %s", err.Error())
-			}
+			must(app.ConvertConfigFileV1ToV2(cFlags.SrcFile, cFlags.DestFile))
 			log.Infof("Convert to %s", cFlags.DestFile)
 		} else {
 			log.Fatal("Unsupported converted")

@@ -34,13 +34,9 @@ var daemonStartCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		log.AddField("APP", "daemon-server")
 		if runInBackground {
-			if err := daemon_client.StartDaemonServer(isSudoUser); err != nil {
-				log.FatalE(err, "")
-			}
+			must(daemon_client.StartDaemonServer(isSudoUser))
 			return
 		}
-		if err := daemon_server.StartDaemon(isSudoUser, Version); err != nil {
-			log.FatalE(err, "")
-		}
+		must(daemon_server.StartDaemon(isSudoUser, Version))
 	},
 }
