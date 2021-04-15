@@ -233,26 +233,31 @@ func (saw *ServiceAccountWatcher) isClusterAdmin(sa *corev1.ServiceAccount) (boo
 
 	secret, err := saw.clientset.CoreV1().Secrets(sa.Namespace).Get(context.TODO(), sa.Secrets[0].Name, metav1.GetOptions{})
 	if err != nil {
+		glog.Error(err)
 		return false, err
 	}
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
+		glog.Error(err)
 		return false, err
 	}
 
 	KubeConfigYaml, err, _ := setupcluster.NewDevKubeConfigReader(secret, config.Host, sa.Namespace).GetCA().GetToken().AssembleDevKubeConfig().ToYamlString()
 	if err != nil {
+		glog.Error(err)
 		return false, err
 	}
 
 	cfg, err := clientcmd.RESTConfigFromKubeConfig([]byte(KubeConfigYaml))
 	if err != nil {
+		glog.Error(err)
 		return false, nil
 	}
 
 	cs, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
+		glog.Error(err)
 		return false, nil
 	}
 
@@ -271,6 +276,7 @@ func (saw *ServiceAccountWatcher) isClusterAdmin(sa *corev1.ServiceAccount) (boo
 
 	response, err := cs.AuthorizationV1().SelfSubjectAccessReviews().Create(context.TODO(), arg, metav1.CreateOptions{})
 	if err != nil {
+		glog.Error(err)
 		return false, err
 	}
 	return response.Status.Allowed, nil
