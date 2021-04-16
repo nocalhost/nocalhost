@@ -40,19 +40,11 @@ var dbPutCmd = &cobra.Command{
 		}
 
 		if levelDbValue != "" {
-			err := nocalhost.UpdateKey(nameSpace, appName, levelDbKey, levelDbValue)
-			if err != nil {
-				log.FatalE(err, "")
-			}
+			must(nocalhost.UpdateKey(nameSpace, appName, levelDbKey, levelDbValue))
 		} else if levelDbValueFile != "" {
 			bys, err := ioutil.ReadFile(levelDbValueFile)
-			if err != nil {
-				log.FatalE(errors.Wrap(err, ""), "")
-			}
-			err = nocalhost.UpdateKey(nameSpace, appName, levelDbKey, string(bys))
-			if err != nil {
-				log.FatalE(err, "")
-			}
+			must(errors.Wrap(err, ""))
+			must(nocalhost.UpdateKey(nameSpace, appName, levelDbKey, string(bys)))
 		} else {
 			log.Fatal("--value or --file must be specified")
 		}

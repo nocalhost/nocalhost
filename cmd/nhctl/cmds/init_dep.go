@@ -15,6 +15,7 @@ package cmds
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/app"
@@ -38,14 +39,10 @@ var InitDepCommand = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := Prepare(); err != nil {
-			log.FatalE(err, "")
-		}
+		must(Prepare())
 
 		rawKubeConfig, err := ioutil.ReadFile(kubeConfig)
-		if err != nil {
-			log.Fatalf("read %s fail, err %s \n", kubeConfig, err.Error())
-		}
+		must(errors.Wrap(err, ""))
 
 		goClient, err := clientgo.NewAdminGoClient(rawKubeConfig)
 		if err != nil || goClient == nil {
@@ -57,9 +54,8 @@ var InitDepCommand = &cobra.Command{
 			tag = DevGitCommit
 		}
 		_, err, _ = clusterSetUp.InitCluster(tag)
-		if err != nil {
-			log.Fatalf("init dep component fail, err: %s \n", err.Error())
-		}
+		mustI(err, "init dep component fail")
+
 		client, err := clientgoutils.NewClientGoUtils(kubeConfig, app.DefaultInitWaitNameSpace)
 		fmt.Printf("kubeconfig %s \n", kubeConfig)
 		if err != nil || client == nil {

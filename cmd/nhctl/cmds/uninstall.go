@@ -48,24 +48,20 @@ var uninstallCmd = &cobra.Command{
 			return
 		}
 
-		if err := Prepare(); err != nil {
-			log.FatalE(err, "")
-		}
+		must(Prepare())
 
 		appMeta, err := nocalhost.GetApplicationMeta(applicationName, nameSpace, kubeConfig)
-		if err != nil {
-			log.FatalE(err, "")
-		}
+		must(err)
+
 		if appMeta == nil || appMeta.IsNotInstall() {
 			log.Fatalf(appMeta.NotInstallTips())
+			return
 		}
 
 		log.Info("Uninstalling application...")
 
-		if //goland:noinspection ALL
-		err := appMeta.Uninstall(); err != nil {
-			log.Fatal("Error while uninstall application, %s", err.Error())
-		}
+		//goland:noinspection ALL
+		mustI(appMeta.Uninstall(), "Error while uninstall application")
 
 		log.Infof("Application \"%s\" is uninstalled", applicationName)
 	},

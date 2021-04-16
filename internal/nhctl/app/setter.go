@@ -50,7 +50,6 @@ func (a *Application) SetDevelopingStatus(svcName string, is bool) error {
 	return profileV2.Save()
 }
 
-
 func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
 	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
@@ -66,11 +65,6 @@ func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
 	return profileV2.Save()
 }
 
-//func (a *Application) SetRemoteSyncthingPort(svcName string, port int) error {
-//	a.GetSvcProfileV2(svcName).RemoteSyncthingPort = port
-//	return a.SaveProfile()
-//}
-
 func (a *Application) SetSyncingStatus(svcName string, is bool) error {
 	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
@@ -83,7 +77,6 @@ func (a *Application) SetSyncingStatus(svcName string, is bool) error {
 		return errors.New("Failed to get svc profile")
 	}
 	svcProfile.Syncing = is
-	//a.GetSvcProfileV2(svcName).Syncing = is
 	return profileV2.Save()
 }
 

@@ -32,6 +32,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/restmapper"
 	"net/http"
+	service_account "nocalhost/internal/nocalhost-dep/serviceaccount"
 	nocalhost "nocalhost/pkg/nocalhost-dep/go-client"
 	"strings"
 )
@@ -137,6 +138,7 @@ type depJobs struct {
 
 var clientset *kubernetes.Clientset
 var cachedRestMapper *restmapper.DeferredDiscoveryRESTMapper
+var watcher *service_account.ServiceAccountWatcher
 
 func init() {
 	_ = corev1.AddToScheme(runtimeScheme)
@@ -146,6 +148,13 @@ func init() {
 	_ = corev1.AddToScheme(runtimeScheme)
 	clientset = nocalhost.InitClientSet()
 	cachedRestMapper = nocalhost.InitCachedRestMapper()
+
+	watcher = service_account.NewServiceAccountWatcher(clientset)
+	_ = watcher.Prepare()
+
+	go func() {
+		watcher.Watch()
+	}()
 }
 
 // (https://github.com/kubernetes/kubernetes/issues/57982)
@@ -295,31 +304,51 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 	resourceType := req.Kind.Kind
 
 	var omh ObjectMetaHolder
-	if err := json.Unmarshal(req.Object.Raw, &omh); err != nil {
-		glog.Errorf("Could not unmarshal raw object: %v", err)
+
+	// skip delete operation expect resource quota
+	// skip all connect operation
+	switch string(req.Operation) {
+	case "DELETE":
+		if resourceType != "ResourceQuota" {
+			return &v1.AdmissionResponse{
+				Allowed: true,
+			}
+		}
+	case "CONNECT":
 		return &v1.AdmissionResponse{
-			Result: &metav1.Status{
-				Message: err.Error(),
-			},
+			Allowed: true,
+		}
+	default:
+		if err := json.Unmarshal(req.Object.Raw, &omh); err != nil {
+			glog.Errorf("Could not unmarshal raw object: %v, resource: %+v, name: %s, ns: %s, oper: %+v", err, req.Resource, req.Name, req.Namespace, req.Operation)
+			return &v1.AdmissionResponse{
+				Result: &metav1.Status{
+					Message: err.Error(),
+				},
+			}
+		}
+
+		// determine whether to perform mutation
+		if !mutationRequired(ignoredNamespaces, &omh.ObjectMeta) {
+			glog.Infof("Skipping mutation for %s/%s due to policy check", req.Namespace, req.Name)
+			return &v1.AdmissionResponse{
+				Allowed: true,
+			}
 		}
 	}
 
 	annotationPair := make(chan []string, 1)
 	go func() {
-		ap := omh.getOwnRefSignedAnnotation(req.Namespace)
-		annotationPair <- ap
-		if len(ap) > 0 {
-			glog.Infof("Kind: `%s` Name: `%s` in ns `%s` should patching his signed anno: [%s], meta: %s", req.Kind, req.Name, req.Namespace, strings.Join(ap, ", "), string(req.Object.Raw))
+		if &omh == nil {
+			annotationPair <- []string{}
+		}else {
+			ap := omh.getOwnRefSignedAnnotation(req.Namespace)
+			annotationPair <- ap
+			if len(ap) > 0 {
+				glog.Infof("Kind: `%s` Name: `%s` in ns `%s` should patching his signed anno: [%s], meta: %s", req.Kind, req.Name, req.Namespace, strings.Join(ap, ", "), string(req.Object.Raw))
+			}
 		}
 	}()
-
-	// determine whether to perform mutation
-	if !mutationRequired(ignoredNamespaces, &omh.ObjectMeta) {
-		glog.Infof("Skipping mutation for %s/%s due to policy check", req.Namespace, req.Name)
-		return &v1.AdmissionResponse{
-			Allowed: true,
-		}
-	}
 
 	// overwrite nocalhostNamespace for get dep config from devs namespace
 	nocalhostNamespace = req.Namespace
@@ -392,40 +421,30 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 		}
 		resourceName, objectMeta, initContainer, containers = cronJob.Name, &cronJob.ObjectMeta, cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers, cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers
 	case "ResourceQuota":
-		//if req.UserInfo.UID == "" {
-		return &v1.AdmissionResponse{
-			Allowed: true,
-		}
-		//}
-
-		sa := getSaByUid(req.UserInfo.UID)
-		if sa == nil {
-			var err = fmt.Errorf("Could not get service account with uuid: %s ", req.UserInfo.UID)
-			glog.Error(err)
-			return &v1.AdmissionResponse{
-				Result: &metav1.Status{
-					Message: err.Error(),
-				},
-			}
-		}
-
-		isAdmin, err := isClusterAdmin(sa)
-		if err != nil {
-			glog.Errorf("Could not get role-binding from namespace %s, Err: %s", sa.Namespace, err.Error())
-			return &v1.AdmissionResponse{
-				Result: &metav1.Status{
-					Message: err.Error(),
-				},
-			}
-		}
-
-		if isAdmin {
+		if req.UserInfo.UID == "" {
 			return &v1.AdmissionResponse{
 				Allowed: true,
 			}
 		}
 
-		glog.Infof("Request user uuid %s, Sa uuid %s is from ns %s without cluster-admin role, so resource quota request denied", req.UserInfo.UID, sa.UID, sa.Namespace)
+		isClusterAdmin := watcher.IsClusterAdmin(req.UserInfo.UID)
+		if isClusterAdmin == nil {
+			marshal, _ := json.Marshal(req)
+
+			var err = fmt.Errorf("Could not get service account with uuid: %s, %s", req.UserInfo.UID, marshal)
+			glog.Error(err)
+			return &v1.AdmissionResponse{
+				Allowed: true,
+			}
+		}
+
+		if *isClusterAdmin {
+			return &v1.AdmissionResponse{
+				Allowed: true,
+			}
+		}
+
+		glog.Infof("Request user uuid %s, Sa uuid %s without cluster-admin role, so resource quota request denied", req.UserInfo.UID, req.UserInfo.UID)
 		return &v1.AdmissionResponse{
 			Allowed: false,
 		}

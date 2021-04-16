@@ -20,7 +20,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"nocalhost/cmd/nhctl/cmds/tpl"
-	"nocalhost/pkg/nhctl/log"
 )
 
 type CommonFlags struct {
@@ -50,9 +49,7 @@ var configTemplateCmd = &cobra.Command{
 		commonFlags.AppName = args[0]
 		initAppAndCheckIfSvcExist(commonFlags.AppName, commonFlags.SvcName, nil)
 		t, err := tpl.GetSvcTpl(commonFlags.SvcName)
-		if err != nil {
-			log.FatalE(err, "fail to get svc tpl")
-		}
+		mustI(err, "fail to get svc tpl")
 		fmt.Println(t)
 	},
 }

@@ -48,7 +48,6 @@ var fileSyncCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		var err error
 		applicationName := args[0]
 
 		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
@@ -59,8 +58,7 @@ var fileSyncCmd = &cobra.Command{
 
 		// resume port-forward and syncthing
 		if fileSyncOps.Resume || fileSyncOps.Stop {
-			err = nocalhostApp.StopFileSyncOnly(deployment)
-			if err != nil {
+			if err := nocalhostApp.StopFileSyncOnly(deployment); err != nil {
 				log.WarnE(err, "Error occurs when stopping sync process, ignore")
 			}
 			if fileSyncOps.Stop {
@@ -69,18 +67,14 @@ var fileSyncCmd = &cobra.Command{
 		}
 
 		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
-		if err != nil {
-			log.FatalE(err, "No dev container found")
-		}
+		must(err)
 
 		log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.NameSpace)
 
 		svcProfile, _ := nocalhostApp.GetSvcProfile(deployment)
 		// Start a pf for syncthing
 		err = nocalhostApp.PortForward(svcProfile.ActualName, podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC")
-		if err != nil {
-			log.FatalE(err, "")
-		}
+		must(err)
 
 		// TODO
 		// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished), the files that have been synchronized will not be synchronized.
@@ -95,10 +89,7 @@ var fileSyncCmd = &cobra.Command{
 			log.WarnE(err, "Failed to run syncthing")
 		}
 
-		err = nocalhostApp.SetSyncingStatus(deployment, true)
-		if err != nil {
-			log.Fatal("Failed to update syncing status")
-		}
+		must(nocalhostApp.SetSyncingStatus(deployment, true))
 
 		if fileSyncOps.Override {
 			var i = 10
