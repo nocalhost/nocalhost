@@ -43,6 +43,14 @@ func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2) error {
 	return db.Put([]byte(profile.ProfileV2Key(ns, app)), bys)
 }
 
+func GetKubeConfigFromProfile(ns, app string) (string, error) {
+	p, err := GetProfileV2(ns, app)
+	if err != nil {
+		return "", err
+	}
+	return p.Kubeconfig, nil
+}
+
 func GetProfileV2(ns, app string) (*profile.AppProfileV2, error) {
 	var err error
 	db, err := nocalhostDb.OpenApplicationLevelDB(ns, app, true)
@@ -50,7 +58,7 @@ func GetProfileV2(ns, app string) (*profile.AppProfileV2, error) {
 		return nil, err
 	}
 	defer db.Close()
-	result := &profile.AppProfileV2{}
+
 	bys, err := db.Get([]byte(profile.ProfileV2Key(ns, app)))
 	if err != nil {
 		if err == leveldb.ErrNotFound {
@@ -72,11 +80,17 @@ func GetProfileV2(ns, app string) (*profile.AppProfileV2, error) {
 		return nil, errors.New("Profile not found")
 	}
 
-	err = yaml.Unmarshal(bys, result)
+	result, err := UnmarshalProfileUnStrict(bys)
+	return result, errors.Wrap(err, "")
+}
+
+func UnmarshalProfileUnStrict(p []byte) (*profile.AppProfileV2, error) {
+	result := &profile.AppProfileV2{}
+	err := yaml.Unmarshal(p, result)
 	if err != nil {
 		re, _ := regexp.Compile("remoteDebugPort: \"[0-9]*\"") // fix string convert int error
-		rep := re.ReplaceAllString(string(bys), "")
+		rep := re.ReplaceAllString(string(p), "")
 		err = yaml.Unmarshal([]byte(rep), result)
 	}
-	return result, errors.Wrap(err, "")
+	return result, err
 }

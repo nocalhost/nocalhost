@@ -50,7 +50,7 @@ var doc = `{
                 }
             },
             "post": {
-                "description": "Create Application",
+                "description": "Initial Application",
                 "consumes": [
                     "application/json"
                 ],
@@ -60,7 +60,7 @@ var doc = `{
                 "tags": [
                     "Application"
                 ],
-                "summary": "Create Application",
+                "summary": "Initial Application",
                 "parameters": [
                     {
                         "type": "string",
@@ -356,7 +356,7 @@ var doc = `{
         },
         "/v1/application/{id}/create_space": {
             "post": {
-                "description": "Create a development environment for application",
+                "description": "Initial a development environment for application",
                 "consumes": [
                     "application/json"
                 ],
@@ -366,7 +366,7 @@ var doc = `{
                 "tags": [
                     "Application"
                 ],
-                "summary": "Create a development environment for application",
+                "summary": "Initial a development environment for application",
                 "parameters": [
                     {
                         "type": "string",

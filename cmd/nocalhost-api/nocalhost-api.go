@@ -70,7 +70,7 @@ func main() {
 	// init app
 	napp.App = napp.New(conf.Conf)
 
-	// Create the Gin engine.
+	// Initial the Gin engine.
 	router := napp.App.Router
 
 	// Health Check

@@ -15,8 +15,6 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-
-	"nocalhost/pkg/nhctl/log"
 )
 
 type ExecFlags struct {
@@ -43,13 +41,8 @@ var execCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		var err error
 		execFlags.AppName = args[0]
 		initAppAndCheckIfSvcExist(execFlags.AppName, execFlags.SvcName, nil)
-
-		err = nocalhostApp.Exec(execFlags.SvcName, "", execFlags.Commands)
-		if err != nil {
-			log.Fatalf("Failed to exec command : %s", err.Error())
-		}
+		must(nocalhostApp.Exec(execFlags.SvcName, "", execFlags.Commands))
 	},
 }

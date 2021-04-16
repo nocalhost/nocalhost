@@ -50,6 +50,21 @@ func Create(c *gin.Context) {
 		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
 		return
 	}
+
+	goClient, err := clientgo.NewAdminGoClient(DecKubeconfig)
+
+	// get client go and check if is admin Kubeconfig
+	if err != nil {
+		switch err.(type) {
+		case *errno.Errno:
+			api.SendResponse(c, err, nil)
+		default:
+			api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		}
+		return
+	}
+
+	DecKubeconfig = goClient.Config
 	// check kubeconfig server already exist
 	t := KubeConfig{}
 	err = yaml.Unmarshal(DecKubeconfig, &t)
@@ -67,19 +82,6 @@ func Create(c *gin.Context) {
 	_, err = service.Svc.ClusterSvc().GetAny(c, where)
 	if err == nil {
 		api.SendResponse(c, errno.ErrClusterExistCreate, nil)
-		return
-	}
-
-	goClient, err := clientgo.NewAdminGoClient(DecKubeconfig)
-
-	// get client go and check if is admin Kubeconfig
-	if err != nil {
-		switch err.(type) {
-		case *errno.Errno:
-			api.SendResponse(c, err, nil)
-		default:
-			api.SendResponse(c, errno.ErrClusterKubeErr, nil)
-		}
 		return
 	}
 

@@ -29,22 +29,15 @@ var daemonRestartCmd = &cobra.Command{
 	Short: "Restart nhctl daemon",
 	Long:  `Restart nhctl daemon`,
 	Run: func(cmd *cobra.Command, args []string) {
-		var err error
 		isRunning := daemon_client.CheckIfDaemonServerRunning(isSudoUser)
 		if isRunning {
 			client, err := daemon_client.NewDaemonClient(isSudoUser)
-			if err != nil {
-				log.FatalE(err, "")
-			}
-			if err = client.SendRestartDaemonServerCommand(); err != nil {
-				log.FatalE(err, "")
-			}
+			must(err)
+			must(client.SendRestartDaemonServerCommand())
 			log.Info("RestartDaemonServerCommand has been sent")
 		} else {
 			log.Warnf("Daemon Server(sudo:%t) is not running", isSudoUser)
-			if err = daemon_client.StartDaemonServer(isSudoUser); err != nil {
-				log.FatalE(err, "")
-			}
+			must(daemon_client.StartDaemonServer(isSudoUser))
 		}
 	},
 }

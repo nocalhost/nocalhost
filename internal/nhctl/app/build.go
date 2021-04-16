@@ -19,7 +19,9 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app_flags"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -29,7 +31,6 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -42,8 +43,9 @@ import (
 func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig string, namespace string) (*Application, error) {
 
 	app := &Application{
-		Name:      name,
-		NameSpace: namespace,
+		Name:       name,
+		NameSpace:  namespace,
+		KubeConfig: kubeconfig,
 	}
 
 	err := app.initDir()
@@ -51,118 +53,150 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, err
 	}
 
-	if err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name); err != nil {
-		return nil, err
+	app.ResourceTmpDir, _ = ioutil.TempDir("", "")
+	err = os.MkdirAll(app.ResourceTmpDir, DefaultNewFilePermission)
+	if err != nil {
+		return nil, errors.New("Fail to create tmp dir for install")
 	}
 
-	appProfileV2 := &profile.AppProfileV2{Installed: true}
-
-	if kubeconfig == "" { // use default config
-		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	if err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name, false); err != nil {
+		return nil, err
 	}
 
 	if app.client, err = clientgoutils.NewClientGoUtils(kubeconfig, namespace); err != nil {
 		return nil, err
 	}
 
-	appProfileV2.Namespace = namespace
-	appProfileV2.Kubeconfig = kubeconfig
-
 	if flags.GitUrl != "" {
-		if err = app.downloadResourcesFromGit(flags.GitUrl, flags.GitRef); err != nil {
+		if err = app.downloadResourcesFromGit(flags.GitUrl, flags.GitRef, app.ResourceTmpDir); err != nil {
 			log.Debugf("Failed to clone : %s ref: %s", flags.GitUrl, flags.GitRef)
 			return nil, err
 		}
-		appProfileV2.GitUrl = flags.GitUrl
-		appProfileV2.GitRef = flags.GitRef
 	} else if flags.LocalPath != "" { // local path of application, copy to nocalhost resource
-		if err = utils.CopyDir(flags.LocalPath, app.getGitDir()); err != nil {
+		if err = utils.CopyDir(flags.LocalPath, app.ResourceTmpDir); err != nil {
 			return nil, err
 		}
 	}
 
-	configFilePath := flags.OuterConfig
-	// Read from .nocalhost
-	if configFilePath == "" {
-		_, err := os.Stat(app.getConfigPathInGitResourcesDir(flags.Config))
-		if err != nil {
-			if os.IsNotExist(err) {
-				// no config.yaml
-				renderedConfig := &profile.NocalHostAppConfigV2{
-					ConfigProperties: &profile.ConfigProperties{Version: "v2"},
-					ApplicationConfig: &profile.ApplicationConfig{
-						Name:           name,
-						Type:           flags.AppType,
-						ResourcePath:   flags.ResourcePath,
-						IgnoredPath:    nil,
-						PreInstall:     nil,
-						HelmValues:     nil,
-						Env:            nil,
-						EnvFrom:        profile.EnvFrom{},
-						ServiceConfigs: nil,
-					},
-				}
-				configBys, err := yaml.Marshal(renderedConfig)
-				if err = ioutil.WriteFile(app.GetConfigV2Path(), configBys, 0644); err != nil {
-					return nil, errors.New("fail to create configFile")
-				}
-				app.configV2 = renderedConfig
-			} else {
-				return nil, errors.Wrap(err, "")
-			}
-		} else {
-			configFilePath = app.getConfigPathInGitResourcesDir(flags.Config)
+	// load nocalhost config from dir
+	config, err := app.loadOrGenerateConfig(
+		flags.OuterConfig, flags.Config, flags.ResourcePath, flags.AppType,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// try to create a new application meta
+	appMeta, err := nocalhost.GetApplicationMeta(name, namespace, kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+
+	if appMeta.IsInstalled() {
+		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s has already been installed,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", name, namespace, name, namespace))
+	} else if appMeta.IsInstalling() {
+		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", name, namespace, name, namespace))
+	}
+
+	app.appMeta = appMeta
+
+	if err = appMeta.Initial(); err != nil {
+		if k8serrors.IsAlreadyExists(err) {
+			log.Error("Application %s has been installed, you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", app.Name, app.Name, app.NameSpace)
 		}
+		return nil, err
 	}
 
-	// config.yaml found
-	if configFilePath != "" {
-		err = app.renderConfig(configFilePath)
-		if err != nil {
-			return nil, err
-		}
+	appMeta.Config = config
+	appMeta.ApplicationType = appmeta.AppType(flags.AppType)
+	if err := appMeta.Update(); err != nil {
+		return nil, err
 	}
 
-	// Load config to profile
-	appProfileV2.AppType = app.configV2.ApplicationConfig.Type
-	appProfileV2.ResourcePath = app.configV2.ApplicationConfig.ResourcePath
-	appProfileV2.IgnoredPath = app.configV2.ApplicationConfig.IgnoredPath
-	appProfileV2.PreInstall = app.configV2.ApplicationConfig.PreInstall
-	appProfileV2.Env = app.configV2.ApplicationConfig.Env
-	appProfileV2.EnvFrom = app.configV2.ApplicationConfig.EnvFrom
-	for _, svcConfig := range app.configV2.ApplicationConfig.ServiceConfigs {
-		app.loadConfigToSvcProfile(svcConfig.Name, appProfileV2, Deployment)
-	}
+	appProfileV2 := generateProfileFromConfig(config)
+	appProfileV2.Secreted = true
+	appProfileV2.Namespace = namespace
+	appProfileV2.Kubeconfig = kubeconfig
 
-	if flags.AppType != "" {
-		appProfileV2.AppType = flags.AppType
-	}
 	if len(flags.ResourcePath) != 0 {
 		appProfileV2.ResourcePath = flags.ResourcePath
 	}
 
 	app.profileV2 = appProfileV2
-	app.KubeConfig = appProfileV2.Kubeconfig
 
 	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
 }
 
-// V2
-func (a *Application) renderConfig(configFilePath string) error {
-	//configFilePath := outerConfigPath
-	//
-	//// Read from .nocalhost
-	//if configFilePath == "" {
-	//	_, err := os.Stat(a.getConfigPathInGitResourcesDir(configName))
-	//	if err != nil {
-	//		if os.IsNotExist(err) {
-	//			return errors.New(fmt.Sprintf("Nocalhost config %s not found. Please check if there is a file:\"%s\" under .nocalhost directory in your git repository", a.getConfigPathInGitResourcesDir(configName), configName))
-	//		}
-	//		return errors.Wrap(err, "")
-	//	}
-	//	configFilePath = a.getConfigPathInGitResourcesDir(configName)
-	//}
+func (app *Application) loadOrGenerateConfig(outerConfig, config string, resourcePath []string, appType string) (*profile.NocalHostAppConfigV2, error) {
+	var nocalhostConfig *profile.NocalHostAppConfigV2
+	var err error
 
+	configFilePath := outerConfig
+	// Read from .nocalhost
+	if configFilePath == "" {
+		if _, err := os.Stat(app.getConfigPathInGitResourcesDir(config)); err != nil {
+			if !os.IsNotExist(err) {
+				return nil, errors.Wrap(err, "")
+			}
+			// no config.yaml
+			renderedConfig := &profile.NocalHostAppConfigV2{
+				ConfigProperties: &profile.ConfigProperties{Version: "v2"},
+				ApplicationConfig: &profile.ApplicationConfig{
+					Name:           app.Name,
+					Type:           appType,
+					ResourcePath:   resourcePath,
+					IgnoredPath:    nil,
+					PreInstall:     nil,
+					HelmValues:     nil,
+					Env:            nil,
+					EnvFrom:        profile.EnvFrom{},
+					ServiceConfigs: nil,
+				},
+			}
+			configBys, err := yaml.Marshal(renderedConfig)
+			if err = ioutil.WriteFile(app.GetConfigV2Path(), configBys, 0644); err != nil {
+				return nil, errors.New("fail to create configFile")
+			}
+			nocalhostConfig = renderedConfig
+		} else {
+			configFilePath = app.getConfigPathInGitResourcesDir(config)
+		}
+	}
+
+	// config.yaml found
+	if configFilePath != "" {
+		if nocalhostConfig, err = app.renderConfig(configFilePath); err != nil {
+			return nil, err
+		}
+	}
+
+	return nocalhostConfig, nil
+}
+
+func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.AppProfileV2 {
+	appProfileV2 := &profile.AppProfileV2{}
+	if config == nil {
+		return appProfileV2
+	}
+	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
+	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
+	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
+	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
+	appProfileV2.Env = config.ApplicationConfig.Env
+
+	appProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
+	for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {
+		svcProfile := &profile.SvcProfileV2{
+			ActualName: svcConfig.Name,
+		}
+		svcProfile.ServiceConfigV2 = svcConfig
+		appProfileV2.SvcProfile = append(appProfileV2.SvcProfile, svcProfile)
+	}
+	return appProfileV2
+}
+
+// V2
+func (a *Application) renderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) {
 	configFile := fp.NewFilePath(configFilePath)
 
 	var envFile *fp.FilePathEnhance
@@ -180,27 +214,31 @@ func (a *Application) renderConfig(configFilePath string) error {
 
 	renderedStr, err := envsubst.Render(configFile, envFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Check If config version
 	configVersion, err := checkConfigVersion(renderedStr)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if configVersion == "v1" {
-		err = ConvertConfigFileV1ToV2(configFilePath, a.GetConfigV2Path())
-		if err != nil {
-			return err
+		if err = ConvertConfigFileV1ToV2(configFilePath, a.GetConfigV2Path()); err != nil {
+			return nil, err
 		}
 
 		renderedStr, err = envsubst.Render(fp.NewFilePath(a.GetConfigV2Path()), envFile)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// convert un strict yaml to strict yaml
 	renderedConfig := &profile.NocalHostAppConfigV2{}
-	_ = yaml.Unmarshal([]byte(renderedStr), renderedConfig)
+	if err = yaml.Unmarshal([]byte(renderedStr), renderedConfig); err != nil {
+		return nil, err
+	}
 
 	// remove the duplicate service config (we allow users to define duplicate service and keep the last one)
 	if renderedConfig.ApplicationConfig != nil && renderedConfig.ApplicationConfig.ServiceConfigs != nil {
@@ -221,22 +259,7 @@ func (a *Application) renderConfig(configFilePath string) error {
 		renderedConfig.ApplicationConfig.ServiceConfigs = service
 	}
 
-	marshal, _ := yaml.Marshal(renderedConfig)
-
-	err = ioutil.WriteFile(a.GetConfigV2Path(), marshal, 0644) // replace .nocalhost/config.yam with outerConfig in git or config in absolution path
-	if err != nil {
-		return errors.New(fmt.Sprintf("fail to create configFile : %s", configFilePath))
-	}
-
-	err = a.LoadConfigV2()
-	if err != nil {
-		return err
-	}
-
-	if a.configV2 == nil {
-		return errors.New("Nocalhost config incorrect")
-	}
-	return nil
+	return renderedConfig, nil
 }
 
 func gettingRenderEnvFile(filepath string) string {
@@ -296,10 +319,6 @@ func (a *Application) initDir() error {
 		return errors.Wrap(err, "")
 	}
 
-	if err = os.MkdirAll(a.getGitDir(), DefaultNewFilePermission); err != nil {
-		return errors.Wrap(err, "")
-	}
-
 	return errors.Wrap(os.MkdirAll(a.getDbDir(), DefaultNewFilePermission), "")
 }
 
@@ -315,23 +334,23 @@ func (a *Application) loadConfigToSvcProfile(svcName string, appProfile *profile
 	}
 
 	// find svc config
-	svcConfig := a.GetSvcConfigV2(svcName)
+	svcConfig := a.appMeta.Config.GetSvcConfigV2(svcName)
 	if svcConfig == nil && len(appProfile.ReleaseName) > 0 {
 		if strings.HasPrefix(svcName, fmt.Sprintf("%s-", appProfile.ReleaseName)) {
 			name := strings.TrimPrefix(svcName, fmt.Sprintf("%s-", appProfile.ReleaseName))
-			svcConfig = a.GetSvcConfigV2(name) // support releaseName-svcName
+			svcConfig = a.appMeta.Config.GetSvcConfigV2(name) // support releaseName-svcName
 		}
 	}
 
 	svcProfile.ServiceConfigV2 = svcConfig
 
 	// If svcProfile already exists, updating it
-	for index, svc := range appProfile.SvcProfile {
-		if svc.ActualName == svcName {
-			appProfile.SvcProfile[index] = svcProfile
-			return
-		}
-	}
+	//for index, svc := range appProfile.SvcProfile {
+	//	if svc.ActualName == svcName {
+	//		appProfile.SvcProfile[index] = svcProfile
+	//		return
+	//	}
+	//}
 
 	// If svcProfile already exists, create one
 	appProfile.SvcProfile = append(appProfile.SvcProfile, svcProfile)

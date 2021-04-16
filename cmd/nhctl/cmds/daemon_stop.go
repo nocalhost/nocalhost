@@ -16,7 +16,6 @@ package cmds
 import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/daemon_client"
-	"nocalhost/pkg/nhctl/log"
 )
 
 func init() {
@@ -30,13 +29,7 @@ var daemonStopCmd = &cobra.Command{
 	Long:  `Stop nhctl daemon`,
 	Run: func(cmd *cobra.Command, args []string) {
 		client, err := daemon_client.NewDaemonClient(isSudoUser)
-		if err != nil {
-			log.FatalE(err, "")
-		}
-		err = client.SendStopDaemonServerCommand()
-		if err != nil {
-			log.FatalE(err, "")
-		}
-		//log.Info("StopDaemonServerCommand has been sent")
+		must(err)
+		must(client.SendStopDaemonServerCommand())
 	},
 }

@@ -17,12 +17,8 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/utils"
-	"nocalhost/pkg/nhctl/clientgoutils"
-	"os"
-	"path/filepath"
-	"sort"
 	"time"
 
 	"github.com/pkg/errors"
@@ -34,89 +30,84 @@ import (
 	"nocalhost/pkg/nhctl/tools"
 )
 
-func (a *Application) Install(ctx context.Context, flags *HelmFlags) error {
+func (a *Application) Install(ctx context.Context, flags *HelmFlags) (err error) {
 
-	err := a.InstallDepConfigMap()
+	err = a.InstallDepConfigMap(a.appMeta)
 	if err != nil {
 		return errors.Wrap(err, "failed to install dep config map")
 	}
-	//appProfile, err := a.GetProfile()
-	//if err != nil {
-	//	return err
-	//}
-	switch a.profileV2.AppType {
-	case string(Helm), string(HelmLocal):
-		err = a.installHelm(flags, false)
-	case string(HelmRepo):
-		err = a.installHelm(flags, true)
-	case string(Manifest), string(ManifestLocal):
-		err = a.InstallManifest()
-	case string(KustomizeGit):
-		// err = a.InstallKustomizeWithKubectl()
-		err = a.InstallKustomize()
+	switch a.appMeta.ApplicationType {
+	case appmeta.Helm, appmeta.HelmLocal:
+		err = a.installHelm(flags, a.ResourceTmpDir, false)
+	case appmeta.HelmRepo:
+		err = a.installHelm(flags, a.ResourceTmpDir, true)
+	case appmeta.Manifest, appmeta.ManifestLocal:
+		err = a.InstallManifest(a.appMeta, a.ResourceTmpDir, true)
+	case appmeta.KustomizeGit:
+		err = a.InstallKustomize(a.appMeta, a.ResourceTmpDir, true)
 	default:
-		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", Helm, HelmRepo, Manifest))
-	}
-	if err != nil {
-		a.cleanUpDepConfigMap() // clean up dep config map
-
-		// Clean up helm release after failed
-		if a.IsHelm() {
-			a.uninstallHelm()
-		}
-		return err
+		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", appmeta.Helm, appmeta.HelmRepo, appmeta.Manifest))
 	}
 
-	a.SetInstalledStatus(true)
-	return nil
+	a.appMeta.ApplicationState = appmeta.INSTALLED
+	return a.appMeta.Update()
 }
 
-func (a *Application) InstallKustomize() error {
-	resourcesPath := a.GetResourceDir()
+func (a *Application) InstallKustomize(appMeta *appmeta.ApplicationMeta, resourceDir string, doApply bool) error {
+	resourcesPath := a.GetResourceDir(resourceDir)
 	if len(resourcesPath) > 1 {
 		log.Warn(`There are multiple resourcesPath settings, will use first one`)
 	}
 	useResourcePath := resourcesPath[0]
-	err := a.client.ApplyForCreate([]string{}, true, StandardNocalhostMetas(a.Name, a.NameSpace), useResourcePath)
+
+	err := a.client.Apply([]string{}, true,
+		StandardNocalhostMetas(a.Name, a.NameSpace).
+			SetDoApply(doApply).
+			SetBeforeApply(
+				func(manifest string) error {
+					appMeta.Manifest = appMeta.Manifest + manifest
+					return appMeta.Update()
+				}),
+		useResourcePath)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (a *Application) InstallKustomizeWithKubectl() error {
-	err := utils.CheckKubectlVersion(14)
-	if err != nil {
-		log.Warn(err.Error())
-	}
-	resourcesPath := a.GetResourceDir()
-	if len(resourcesPath) > 1 {
-		log.Warn(`There are multiple resourcesPath settings, will use first one`)
-	}
-	useResourcePath := resourcesPath[0]
-	commonParams := []string{"apply", "-k", useResourcePath}
-	if a.NameSpace != "" {
-		commonParams = append(commonParams, "--namespace", a.NameSpace)
-	}
-	if a.KubeConfig != "" {
-		commonParams = append(commonParams, "--kubeconfig", a.KubeConfig)
-	}
-	_, err = tools.ExecCommand(nil, true, "kubectl", commonParams...)
+func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta, resourceDir string, doApply bool) error {
+	p, err := a.GetProfile()
 	if err != nil {
 		return err
 	}
-	return nil
+
+	preInstallManifests, manifests := p.LoadManifests(resourceDir)
+
+	err = a.client.ApplyAndWait(preInstallManifests, true,
+		StandardNocalhostMetas(a.Name, a.NameSpace).
+			SetDoApply(doApply).
+			SetBeforeApply(
+				func(manifest string) error {
+					appMeta.PreInstallManifest = appMeta.PreInstallManifest + manifest
+					return appMeta.Update()
+				}),
+	)
+	if err != nil { // that's the error that could not be skip
+		return err
+	}
+
+	return a.client.Apply(manifests, true,
+		StandardNocalhostMetas(a.Name, a.NameSpace).
+			SetDoApply(doApply).
+			SetBeforeApply(
+				func(manifest string) error {
+					appMeta.Manifest = appMeta.Manifest + manifest
+					return appMeta.Update()
+				}),
+		"")
 }
 
-func (a *Application) InstallManifest() error {
-	a.loadPreInstallAndInstallManifest()
-	a.preInstall()
-
-	// install manifest recursively, don't install pre-install workload again
-	return errors.Wrap(a.installManifestRecursively(), "")
-}
-
-func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
+func (a *Application) installHelm(flags *HelmFlags, resourceDir string, fromRepo bool) error {
 
 	releaseName := a.Name
 	commonParams := make([]string, 0)
@@ -132,7 +123,7 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 
 	var resourcesPath []string
 	if !fromRepo {
-		resourcesPath = a.GetResourceDir()
+		resourcesPath = a.GetResourceDir(resourceDir)
 	}
 	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
@@ -151,15 +142,15 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 		}
 	} else {
 		chartName := flags.Chart
-		if a.configV2 != nil && a.configV2.ApplicationConfig.Name != "" {
-			chartName = a.configV2.ApplicationConfig.Name
+		if a.appMeta.Config != nil && a.appMeta.Config.ApplicationConfig.Name != "" {
+			chartName = a.appMeta.Config.ApplicationConfig.Name
 		}
 		if flags.RepoUrl != "" {
 			installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
-			profileV2.HelmRepoUrl = flags.RepoUrl
+			//profileV2.HelmRepoUrl = flags.RepoUrl
 		} else if flags.RepoName != "" {
 			installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
-			profileV2.HelmRepoName = flags.RepoName
+			//profileV2.HelmRepoName = flags.RepoName
 		}
 		if flags.Version != "" {
 			installParams = append(installParams, "--version", flags.Version)
@@ -193,7 +184,7 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 	return nil
 }
 
-func (a *Application) InstallDepConfigMap() error {
+func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) error {
 	appDep := a.GetDependencies()
 	appEnv := a.GetInstallEnvForDep()
 	if len(appDep) > 0 || len(appEnv.Global) > 0 || len(appEnv.Service) > 0 {
@@ -212,7 +203,7 @@ func (a *Application) InstallDepConfigMap() error {
 		}
 		defer profileV2.CloseDb()
 		// release name a.Name
-		if profileV2.AppType != string(Manifest) {
+		if a.appMeta.ApplicationType != appmeta.Manifest {
 			depForYaml.ReleaseName = a.Name
 		}
 		yamlBytes, err := yaml.Marshal(depForYaml)
@@ -239,114 +230,16 @@ func (a *Application) InstallDepConfigMap() error {
 			configMap.Labels = make(map[string]string, 0)
 		}
 		configMap.Labels["use-for"] = "nocalhost-dep"
+
+		appMeta.DepConfigName += generateName
+		if err := appMeta.Update(); err != nil {
+			return err
+		}
+
 		if _, err = a.client.ClientSet.CoreV1().ConfigMaps(a.NameSpace).Create(context.TODO(), configMap, metav1.CreateOptions{}); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("fail to create dependency config %s", configMap.Name))
-		} else {
-			profileV2.DependencyConfigMapName = configMap.Name
-			profileV2.Save()
 		}
 	}
 	log.Logf("Dependency config map installed")
 	return nil
-}
-
-func (a *Application) installManifestRecursively() error {
-	log.Logf("%d manifest files to be installed", len(a.installManifest))
-	if len(a.installManifest) > 0 {
-		err := a.client.ApplyForCreate(a.installManifest, true, StandardNocalhostMetas(a.Name, a.NameSpace), "")
-		if err != nil {
-			return err
-		}
-	} else {
-		log.Logf("nothing need to be installed ??")
-	}
-	return nil
-}
-
-func (a *Application) SetInstalledStatus(is bool) {
-	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
-	if err != nil {
-		return
-	}
-	defer profileV2.CloseDb()
-	profileV2.Installed = is
-	profileV2.Save()
-}
-
-func (a *Application) loadInstallManifest() {
-	a.installManifest = clientgoutils.
-		LoadValidManifest(a.GetResourceDir(),
-			append(a.getIgnoredPath(), a.getPreInstallFiles()...))
-}
-
-func (a *Application) loadPreInstallAndInstallManifest() {
-	a.loadSortedPreInstallManifest()
-	a.loadInstallManifest()
-}
-
-func (a *Application) loadUpgradePreInstallAndInstallManifest(resourcePath []string) {
-	a.loadUpgradeSortedPreInstallManifest()
-	a.loadUpgradeInstallManifest(resourcePath)
-}
-
-func (a *Application) loadUpgradeInstallManifest(upgradeResourcePath []string) {
-	a.upgradeInstallManifest = clientgoutils.
-		LoadValidManifest(a.getUpgradeResourceDir(upgradeResourcePath),
-			append(a.getUpgradeIgnoredPath(), a.getUpgradePreInstallFiles()...))
-}
-
-func (a *Application) ignoredInUpgrade(manifest string) bool {
-	for _, pre := range a.upgradeSortedPreInstallManifest {
-		if pre == manifest {
-			return true
-		}
-	}
-	return false
-}
-
-func (a *Application) loadUpgradeSortedPreInstallManifest() {
-	appProfile, _ := a.GetProfile()
-	result := make([]string, 0)
-	if appProfile.PreInstall != nil {
-		sort.Sort(profile.ComparableItems(appProfile.PreInstall))
-		for _, item := range appProfile.PreInstall {
-			itemPath := filepath.Join(a.getUpgradeGitDir(), item.Path)
-			if _, err2 := os.Stat(itemPath); err2 != nil {
-				log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
-				continue
-			}
-			result = append(result, itemPath)
-		}
-	}
-	a.upgradeSortedPreInstallManifest = result
-}
-
-func (a *Application) loadSortedPreInstallManifest() {
-	appProfile, _ := a.GetProfile()
-	result := make([]string, 0)
-	if appProfile.PreInstall != nil {
-		sort.Sort(profile.ComparableItems(appProfile.PreInstall))
-		for _, item := range appProfile.PreInstall {
-			itemPath := filepath.Join(a.getGitDir(), item.Path)
-			if _, err2 := os.Stat(itemPath); err2 != nil {
-				log.Warnf("%s is not a valid pre install manifest : %s\n", itemPath, err2.Error())
-				continue
-			}
-			result = append(result, itemPath)
-		}
-	}
-	a.sortedPreInstallManifest = result
-}
-
-func (a *Application) preInstall() {
-
-	if len(a.sortedPreInstallManifest) > 0 {
-		log.Info("Run pre-install...")
-		for _, item := range a.sortedPreInstallManifest {
-			err := a.client.Create(item, true, false, StandardNocalhostMetas(a.Name, a.NameSpace))
-			if err != nil {
-				log.Warnf("error occurs when install %s : %s\n", item, err.Error())
-			}
-		}
-	}
 }

@@ -69,24 +69,21 @@ var devStartCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
 
-		if b, _ := nocalhostApp.CheckIfSvcIsDeveloping(deployment); b {
-			log.Fatalf("Service \"%s\" is already in developing", deployment)
+		if !nocalhostApp.GetAppMeta().IsInstalled() {
+			log.Fatalf(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
 
 		devStartOps.Kubeconfig = kubeConfig
 		log.Info("Starting DevMode...")
 
 		profileV2, err := profile.NewAppProfileV2ForUpdate(nocalhostApp.NameSpace, nocalhostApp.Name)
-		if err != nil {
-			log.FatalE(err, "")
-		}
+		must(err)
 
 		svcProfile := profileV2.FetchSvcProfileV2FromProfile(deployment)
 		if svcProfile == nil {
 			log.Fatal("Svc profile not found")
 			return
 		}
-		//svcProfile := nocalhostApp.GetSvcProfileV2(deployment)
 		if devStartOps.WorkDir != "" {
 			svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).WorkDir = devStartOps.WorkDir
 		}
@@ -96,17 +93,17 @@ var devStartCmd = &cobra.Command{
 		if len(devStartOps.LocalSyncDir) > 0 {
 			svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 		}
-		//_ = nocalhostApp.SaveProfile()
+		profileV2.GenerateIdentifierIfNeeded()
+
 		profileV2.Save()
 		profileV2.CloseDb()
 
+		must(nocalhostApp.GetAppMeta().DeploymentDevStart(deployment, profileV2.Identifier))
+
 		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, devStartOps.Container, devStartOps.LocalSyncDir, false)
-		if err != nil {
-			log.FatalE(err, "Failed to create syncthing process, please try again.")
-		}
+		mustI(err, "Failed to create syncthing process, please try again")
 
 		// try install syncthing
-		//if newSyncthing != nil {
 		var downloadVersion = Version
 
 		// for debug only
@@ -115,10 +112,7 @@ var devStartCmd = &cobra.Command{
 		}
 
 		_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
-		if err != nil {
-			log.FatalE(err, "Failed to install syncthing, and no syncthing available locally in "+newSyncthing.BinPath+" please try again.")
-		}
-		//}
+		mustI(err, "Failed to install syncthing, and no syncthing available locally in "+newSyncthing.BinPath+" please try again.")
 
 		// set syncthing secret
 		config, err := newSyncthing.GetRemoteConfigXML()
@@ -133,10 +127,7 @@ var devStartCmd = &cobra.Command{
 				"key.pem":    []byte(secret_config.KeyPEM),
 			},
 		}
-		err = nocalhostApp.CreateSyncThingSecret(deployment, syncSecret)
-		if err != nil {
-			log.Fatalf("Failed to create syncthing secret, please try to delete \"%s\" secret first manually.", syncthing.SyncSecretName)
-		}
+		must(nocalhostApp.CreateSyncThingSecret(deployment, syncSecret))
 
 		// Stop port-forward
 		appProfile, _ := nocalhostApp.GetProfile()
@@ -151,18 +142,13 @@ var devStartCmd = &cobra.Command{
 		if err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps); err != nil {
 			log.WarnE(err, "Failed to replace dev container")
 			log.Info("Resetting workload...")
-			nocalhostApp.Reset(deployment)
+			_ = nocalhostApp.DevEnd(deployment, true)
 			os.Exit(1)
 		}
-
-		if err = nocalhostApp.SetDevelopingStatus(deployment, true); err != nil {
-			log.Fatal("Failed to update \"developing\" status\n")
-		}
+		must(nocalhostApp.SetDevelopingStatus(deployment, true))
 
 		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
-		if err != nil {
-			log.FatalE(err, "")
-		}
+		must(err)
 
 		for _, pf := range pfList {
 			if err = nocalhostApp.PortForward(deployment, podName, pf.LocalPort, pf.RemotePort, pf.Role); err != nil {
@@ -170,9 +156,6 @@ var devStartCmd = &cobra.Command{
 			}
 		}
 
-		if err = nocalhostApp.PortForwardAfterDevStart(deployment, devStartOps.Container, app.Deployment); err != nil {
-			log.FatalE(err, "")
-		}
-
+		must(nocalhostApp.PortForwardAfterDevStart(deployment, devStartOps.Container, app.Deployment))
 	},
 }

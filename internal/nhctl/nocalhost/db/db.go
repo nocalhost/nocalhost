@@ -23,7 +23,7 @@ func OpenApplicationLevelDB(ns, app string, readonly bool) (*dbutils.LevelDBUtil
 	return dbutils.OpenLevelDB(path, readonly)
 }
 
-func CreateApplicationLevelDB(ns, app string) error {
+func CreateApplicationLevelDB(ns, app string, errorIfExist bool) error {
 	path := nocalhost_path.GetAppDbDir(ns, app)
-	return dbutils.CreateLevelDB(path)
+	return dbutils.CreateLevelDB(path, errorIfExist)
 }

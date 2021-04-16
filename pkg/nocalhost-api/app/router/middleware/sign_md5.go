@@ -48,7 +48,7 @@ func SignMd5Middleware() gin.HandlerFunc {
 // verifySign
 func verifySign(c *gin.Context) (map[string]string, error) {
 	requestUri := c.Request.RequestURI
-	// Create Verify validator
+	// Initial Verify validator
 	verifier := sign.NewVerifier()
 	sn := verifier.GetSign()
 

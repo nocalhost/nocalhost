@@ -155,7 +155,7 @@ func GetYamlFilesAndDirs(path string, ignorePaths []string) ([]string, []string,
 	for _, fi := range dir {
 		fPath := filepath.Join(path, fi.Name())
 		if isFileIgnored(fPath, ignorePaths) {
-			log.Infof("Ignoring file: %s", fPath)
+			log.Logf("Ignoring file: %s", fPath)
 			continue
 		}
 		if fi.IsDir() {

@@ -28,7 +28,8 @@ var fileSyncOps = &app.FileSyncOptions{}
 func init() {
 	fileSyncCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false, "if use double side sync")
-	fileSyncCmd.Flags().BoolVar(&fileSyncOps.Resume, "resume", false, "resume file sync, this will restart port-forward and syncthing")
+	fileSyncCmd.Flags().BoolVar(&fileSyncOps.Resume, "resume", false, "resume file sync")
+	fileSyncCmd.Flags().BoolVar(&fileSyncOps.Stop, "stop", false, "stop file sync")
 	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.SyncedPattern, "synced-pattern", "s", []string{}, "local synced pattern")
 	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.IgnoredPattern, "ignored-pattern", "i", []string{}, "local ignored pattern")
 	fileSyncCmd.Flags().StringVar(&fileSyncOps.Container, "container", "", "container name of pod to sync")
@@ -47,7 +48,6 @@ var fileSyncCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		var err error
 		applicationName := args[0]
 
 		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
@@ -57,41 +57,24 @@ var fileSyncCmd = &cobra.Command{
 		}
 
 		// resume port-forward and syncthing
-		if fileSyncOps.Resume {
-			err = nocalhostApp.StopFileSyncOnly(deployment)
-			if err != nil {
+		if fileSyncOps.Resume || fileSyncOps.Stop {
+			if err := nocalhostApp.StopFileSyncOnly(deployment); err != nil {
 				log.WarnE(err, "Error occurs when stopping sync process, ignore")
+			}
+			if fileSyncOps.Stop {
+				return
 			}
 		}
 
-		//if nocalhostApp.CheckIfSvcIsSyncthing(deployment) {
-		//	log.Fatalf("Service \"%s\" is already in syncing", deployment)
-		//}
-
 		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
-		if err != nil {
-			log.FatalE(err, "No dev container found")
-		}
+		must(err)
 
 		log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.NameSpace)
 
 		svcProfile, _ := nocalhostApp.GetSvcProfile(deployment)
 		// Start a pf for syncthing
 		err = nocalhostApp.PortForward(svcProfile.ActualName, podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC")
-		if err != nil {
-			log.FatalE(err, "")
-		}
-
-		//profile := appProfile.FetchSvcProfileV2FromProfile(deployment)
-		//if svcProfile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync == nil {
-		//	svcProfile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync = &profile2.SyncConfig{}
-		//}
-		//if len(fileSyncOps.IgnoredPattern) != 0 {
-		//	svcProfile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync.IgnoreFilePattern = fileSyncOps.IgnoredPattern
-		//}
-		//if len(fileSyncOps.SyncedPattern) != 0 {
-		//	svcProfile.GetContainerDevConfigOrDefault(fileSyncOps.Container).Sync.FilePattern = fileSyncOps.SyncedPattern
-		//}
+		must(err)
 
 		// TODO
 		// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished), the files that have been synchronized will not be synchronized.
@@ -106,10 +89,7 @@ var fileSyncCmd = &cobra.Command{
 			log.WarnE(err, "Failed to run syncthing")
 		}
 
-		err = nocalhostApp.SetSyncingStatus(deployment, true)
-		if err != nil {
-			log.Fatal("Failed to update syncing status")
-		}
+		must(nocalhostApp.SetSyncingStatus(deployment, true))
 
 		if fileSyncOps.Override {
 			var i = 10

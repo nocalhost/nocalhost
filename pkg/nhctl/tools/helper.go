@@ -93,8 +93,9 @@ func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params
 	}
 	cmdStr := []string{commandName}
 	cmdStr = append(cmdStr, params...)
-	log.Infof("cmd: %s", strings.Join(cmdStr, " "))
-
+	if isDisplay {
+		log.Infof("cmd: %s", strings.Join(cmdStr, " "))
+	}
 	// log.Info(cmd.Args)
 	stdoutIn, err := cmd.StdoutPipe()
 	stderrIn, err2 := cmd.StderrPipe()
@@ -114,10 +115,7 @@ func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params
 		_, errStderr = copyAndCapture(os.Stderr, stderrIn, isDisplay)
 	}()
 
-	err = cmd.Wait()
-	if err != nil {
-		return "", errors.Wrap(err, "")
-	}
+	_ = cmd.Wait()
 	if errStderr != nil || errStdout != nil {
 		log.Infof("%s %s", errStderr, errStdout)
 		return "", errors.New("error occur when print")
@@ -135,12 +133,12 @@ func copyAndCapture(w io.Writer, r io.Reader, isDisplay bool) ([]byte, error) {
 			d := buf[:n]
 			out = append(out, d...)
 			if isDisplay {
-				os.Stdout.Write(d)
+				w.Write(d)
 			}
 		}
 		if err != nil {
 			// Read returns io.EOF at the end of file, which is not an error for us
-			if err == io.EOF {
+			if err == io.EOF || err == io.ErrClosedPipe || errors.Is(err, &os.PathError{}) {
 				err = nil
 			}
 			return out, err

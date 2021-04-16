@@ -16,7 +16,6 @@ package cmds
 import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
@@ -49,56 +48,21 @@ var uninstallCmd = &cobra.Command{
 			return
 		}
 
-		if nameSpace == "" {
-			if nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig); err != nil {
-				log.FatalE(err, "Failed to get namespace")
-			}
-			if nameSpace == "" {
-				log.Fatal("Namespace mush be provided")
-			}
-		}
-		if !nocalhost.CheckIfApplicationExist(applicationName, nameSpace) {
-			log.Fatalf("Application \"%s\" not found", applicationName)
+		must(Prepare())
+
+		appMeta, err := nocalhost.GetApplicationMeta(applicationName, nameSpace, kubeConfig)
+		must(err)
+
+		if appMeta == nil || appMeta.IsNotInstall() {
+			log.Fatalf(appMeta.NotInstallTips())
+			return
 		}
 
 		log.Info("Uninstalling application...")
-		nhApp, err := app.NewApplication(applicationName, nameSpace, kubeConfig, true)
-		if err != nil {
-			if !force {
-				log.FatalE(err, "Failed to get application")
-			}
-			if err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace); err != nil {
-				log.WarnE(err, "Failed to clean up application resource")
-			}
-			log.Infof("Application \"%s\" is uninstalled anyway.\n", applicationName)
-			return
-		} else {
-			// check if there are services in developing state
-			appProfile, err := nhApp.GetProfile()
-			if err != nil {
-				log.FatalE(err, "")
-			}
-			for _, profile := range appProfile.SvcProfile {
-				if profile.Developing {
-					if err = nhApp.StopSyncAndPortForwardProcess(profile.ActualName, true); err != nil {
-						log.WarnE(err, "")
-					}
-				} else if len(profile.DevPortForwardList) > 0 {
-					if err = nhApp.StopAllPortForward(profile.ActualName); err != nil {
-						log.WarnE(err, "")
-					}
-				}
-			}
-		}
-		if err = nhApp.Uninstall(force); err != nil {
-			if !force {
-				log.Fatalf("failed to uninstall application, %v", err)
-			}
-			if err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace); err != nil {
-				log.WarnE(err, "Failed to clean up application resource:")
-			}
-			return
-		}
+
+		//goland:noinspection ALL
+		mustI(appMeta.Uninstall(), "Error while uninstall application")
+
 		log.Infof("Application \"%s\" is uninstalled", applicationName)
 	},
 }

@@ -17,19 +17,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"nocalhost/internal/nhctl/app_flags"
-	"nocalhost/internal/nhctl/daemon_client"
-	"nocalhost/internal/nhctl/utils"
+	"nocalhost/internal/nhctl/appmeta"
 	"os"
 	"strconv"
 
 	"gopkg.in/yaml.v2"
 
-	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/pkg/nhctl/log"
-
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/nocalhost"
 )
 
 var listFlags = &app_flags.ListFlags{}
@@ -37,6 +34,7 @@ var listFlags = &app_flags.ListFlags{}
 func init() {
 	listCmd.Flags().BoolVar(&listFlags.Yaml, "yaml", false, "use yaml as out put, only supports for 'nhctl list'")
 	listCmd.Flags().BoolVar(&listFlags.Json, "json", false, "use json as out put, only supports for 'nhctl list'")
+	listCmd.Flags().BoolVar(&listFlags.Full, "full", false, "list application meta full")
 	rootCmd.AddCommand(listCmd)
 }
 
@@ -47,8 +45,18 @@ var listCmd = &cobra.Command{
 	Long:    `List applications`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		// For start and upgrade daemon server automatically
-		_, _ = daemon_client.NewDaemonClient(utils.IsSudoUser())
+		must(Prepare())
+
+		// for earlier version adaption
+		if info, _ := nocalhost.GetNsAndApplicationInfo(); info != nil {
+			for ns, apps := range info {
+				if ns == nameSpace {
+					for _, application := range apps {
+						_, _ = app.NewApplication(application, nameSpace, kubeConfig, true)
+					}
+				}
+			}
+		}
 
 		if len(args) > 0 { // list application detail
 			applicationName := args[0]
@@ -61,6 +69,8 @@ var listCmd = &cobra.Command{
 			ListApplicationsYaml()
 		} else if listFlags.Json {
 			ListApplicationsJson()
+		} else if listFlags.Full {
+			ListApplicationsFull()
 		} else {
 			ListApplications()
 		}
@@ -83,88 +93,50 @@ func ListApplicationSvc(napp *app.Application) {
 	table.Render() // Send output
 }
 
-func ListApplicationsReuslt() []*Namespace {
-	appMap, err := nocalhost.GetNsAndApplicationInfo()
-	if err != nil {
-		log.FatalE(err, "Failed to get applications")
+func ListApplicationsResult() []*Namespace {
+	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
+	must(err)
+
+	var result []*Namespace
+	ns := &Namespace{
+		Namespace:   nameSpace,
+		Application: []*ApplicationInfo{},
 	}
-
-	result := []*Namespace{}
-	for ns, appList := range appMap {
-		for _, appName := range appList {
-			app2, err := app.NewApplication(appName, ns, "", false)
-			if err != nil {
-				continue
-			}
-
-			profile, _ := app2.GetProfile()
-
-			if !profile.Installed {
-				continue
-			}
-			var namespace *Namespace = nil
-			var index = 0
-			for rni, rns := range result {
-				if rns.Namespace == profile.Namespace {
-					namespace = rns
-					index = rni
-					break
-				}
-			}
-			if namespace == nil {
-				namespace = &Namespace{
-					Namespace:   profile.Namespace,
-					Application: []*ApplicationInfo{},
-				}
-				apps := append(namespace.Application, &ApplicationInfo{
-					Name: appName,
-					Type: profile.AppType,
-				})
-				namespace.Application = apps
-				result = append(result, namespace)
-			} else {
-				apps := append(namespace.Application, &ApplicationInfo{
-					Name: appName,
-					Type: profile.AppType,
-				})
-				namespace.Application = apps
-
-				result[index] = namespace
-			}
-		}
+	for _, meta := range metas {
+		ns.Application = append(ns.Application, &ApplicationInfo{
+			Name: meta.Application,
+			Type: meta.ApplicationType,
+		})
 	}
+	result = append(result, ns)
 	return result
 }
 
+func ListApplicationsFull() {
+	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
+	must(err)
+	marshal, _ := yaml.Marshal(metas.Desc())
+	fmt.Print(string(marshal))
+}
+
 func ListApplicationsJson() {
-	result := ListApplicationsReuslt()
+	result := ListApplicationsResult()
 	marshal, _ := json.Marshal(result)
 	fmt.Print(string(marshal))
 }
 
 func ListApplicationsYaml() {
-	result := ListApplicationsReuslt()
+	result := ListApplicationsResult()
 	marshal, _ := yaml.Marshal(result)
 	fmt.Print(string(marshal))
 }
 
 func ListApplications() {
-	appMap, err := nocalhost.GetNsAndApplicationInfo()
-	if err != nil {
-		log.FatalE(err, "Failed to get applications")
-	}
-	fmt.Printf("%-14s %-14s %-14s %-14s\n", "NAME", "INSTALLED", "NAMESPACE", "TYPE")
-	for ns, appList := range appMap {
-		for _, appName := range appList {
-			app2, err := app.NewApplication(appName, ns, "", false)
-			if err != nil {
-				log.WarnE(err, "Failed to new application")
-				fmt.Printf("%-14s\n", appName)
-				continue
-			}
-			profile, _ := app2.GetProfile()
-			fmt.Printf("%-14s %-14t %-14s %-14s\n", appName, profile.Installed, profile.Namespace, profile.AppType)
-		}
+	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
+	must(err)
+	fmt.Printf("%-20s %-20s %-20s %-20s\n", "NAME", "STATE", "NAMESPACE", "TYPE")
+	for _, meta := range metas {
+		fmt.Printf("%-20s %-20s %-20s %-20s\n", meta.Application, meta.ApplicationState, meta.Ns, meta.ApplicationType)
 	}
 }
 
@@ -175,5 +147,5 @@ type Namespace struct {
 
 type ApplicationInfo struct {
 	Name string
-	Type string
+	Type appmeta.AppType
 }

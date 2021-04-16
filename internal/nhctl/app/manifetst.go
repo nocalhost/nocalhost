@@ -12,5 +12,6 @@ func StandardNocalhostMetas(releaseName, releaseNamespace string) *clientgoutils
 			NocalhostApplicationName:      releaseName,
 			NocalhostApplicationNamespace: releaseNamespace,
 		},
+		DoApply: true,
 	}
 }

@@ -14,4 +14,4 @@ source ./scripts/build/nhctl/.variables
 TARGET="build/nhctl-$GOOS-$GOARCH"
 
 echo "Building $TARGET"
-go build -o "${TARGET}" --ldflags "${LDFLAGS}" "${SOURCE}"
+go build -o "${TARGET}" -gcflags "all=-N -l" --ldflags "${LDFLAGS}" "${SOURCE}"

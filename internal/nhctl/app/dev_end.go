@@ -14,7 +14,6 @@ limitations under the License.
 package app
 
 import (
-	"context"
 	"fmt"
 	"nocalhost/internal/nhctl/syncthing"
 	"runtime"
@@ -109,9 +108,8 @@ func (a *Application) StopSyncAndPortForwardProcess(svcName string, cleanRemoteS
 	err := a.StopFileSyncOnly(svcName)
 
 	log.Info("Stopping port forward")
-	err = a.StopAllPortForward(svcName)
-	if err != nil {
-		log.WarnE(err, err.Error())
+	if err = a.StopAllPortForward(svcName); err != nil {
+		log.WarnE(err, "")
 	}
 
 	// Clean up secret
@@ -136,47 +134,20 @@ func (a *Application) StopSyncAndPortForwardProcess(svcName string, cleanRemoteS
 	return err
 }
 
-func (a *Application) Reset(svcName string) {
-	var err error
-	err = a.StopSyncAndPortForwardProcess(svcName, true)
-	if err != nil {
-		log.Warnf("something incorrect occurs when stopping sync process: %s", err.Error())
-	}
-	err = a.RollBack(context.TODO(), svcName, true)
-	if err != nil {
-		log.Warnf("something incorrect occurs when rolling back: %s", err.Error())
-	}
-	err = a.SetDevEndProfileStatus(svcName)
-	if err != nil {
-		log.Warnf("fail to update \"developing\" status")
-	}
-}
-
-func (a *Application) EndDevelopMode(svcName string) error {
-	var err error
-
-	log.Info("Ending devMode...")
-
-	// end file sync
-	//log.Info("Terminating file sync process...")
-	//err = a.stopSyncAndPortForwardProcess(svcName)
-	//if err != nil {
-	//	log.WarnE(err, "Error occurs when stopping sync process")
-	//	return err
-	//}
-
-	// roll back workload
-	log.Debug("Rolling back workload...")
-	err = a.RollBack(context.TODO(), svcName, false)
-	if err != nil {
-		log.Error("Failed to rollback")
-		return err
+func (a *Application) DevEnd(svcName string, reset bool) error {
+	if err := a.RollBack(svcName, reset); err != nil {
+		if !reset {
+			return err
+		}
+		log.WarnE(err, "something incorrect occurs when rolling back")
 	}
 
-	err = a.SetDevEndProfileStatus(svcName)
-	if err != nil {
-		log.Warn("Failed to update \"developing\" status")
-		return err
+	if err := a.appMeta.DeploymentDevEnd(svcName); err != nil {
+		log.WarnE(err, "something incorrect occurs when updating secret")
+	}
+
+	if err := a.StopSyncAndPortForwardProcess(svcName, true); err != nil {
+		log.WarnE(err, "something incorrect occurs when stopping sync process")
 	}
 	return nil
 }

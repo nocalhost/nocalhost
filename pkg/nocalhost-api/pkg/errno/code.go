@@ -46,7 +46,7 @@ var (
 	ErrClusterKubeAdmin       = &Errno{Code: 30104, Message: "Please check Kubeconfig Admin permissions"}
 	ErrClusterKubeConnect     = &Errno{Code: 30104, Message: "Connect cluster fail, Please check cluster connectivity"}
 	ErrClusterDepSetup        = &Errno{Code: 30105, Message: "Initialize cluster: Failed to create dependent component Configmap"}
-	ErrClusterDepJobSetup     = &Errno{Code: 30106, Message: "Initialize the cluster: Create dependent component Job failed"}
+	ErrClusterDepJobSetup     = &Errno{Code: 30106, Message: "Initialize the cluster: Initial dependent component Job failed"}
 	ErrClusterNotFound        = &Errno{Code: 30107, Message: "Cluster has not found"}
 	ErrDeleteClusterNameSpace = &Errno{Code: 30108, Message: "Delete cluster namespace fail, please try again"}
 	ErrGetClusterStorageClass = &Errno{Code: 30109, Message: "Get cluster storage class fail, please try again"}
@@ -89,15 +89,25 @@ var (
 	ErrDeletedClusterDevSpaceDBButClusterDone    = &Errno{Code: 50114, Message: "Cluster nocalhost develop space has deleted, but space record delete fail"}
 	ErrDeletedClusterRecord                      = &Errno{Code: 50115, Message: "Delete dev space by application fail, please try again"}
 	ErrResetDevSpaceFail                         = &Errno{Code: 50116, Message: "reset dev space fail, please try again"}
-	ErrCreateResourceQuota                       = &Errno{Code: 50117, Message: "Create resource limit failed."}
+	ErrCreateResourceQuota                       = &Errno{Code: 50117, Message: "Initial resource limit failed."}
 	ErrDeleteResourceQuota                       = &Errno{Code: 50118, Message: "Delete resource limit failed."}
-	ErrCreateLimitRange                          = &Errno{Code: 50119, Message: "Create limit range failed."}
+	ErrCreateLimitRange                          = &Errno{Code: 50119, Message: "Initial limit range failed."}
 	ErrDeleteLimitRange                          = &Errno{Code: 50120, Message: "Delete limit range failed."}
 	ErrFormatResourceLimitParam                  = &Errno{Code: 50121, Message: "Incorrect Resource limit parameter."}
 	ErrValidateResourceQuota                     = &Errno{Code: 50122, Message: "If quota is enabled in a namespace for compute resources like cpu and memory, must specify requests or limits for those values."}
+	ErrAlreadyExist                              = &Errno{Code: 50123, Message: "Current user already authorization current cluster's cluster admin"}
 
 	// application-user
 	ErrListApplicationUser   = &Errno{Code: 60000, Message: "Failed to list application_user, please check params and try again"}
 	ErrInsertApplicationUser = &Errno{Code: 60001, Message: "Failed to batch insert application_user, please check params and try again"}
 	ErrDeleteApplicationUser = &Errno{Code: 60002, Message: "Failed to batch delete application_user, please check params and try again"}
+
+	// service-account
+	ErrServiceAccountCreate     = &Errno{Code: 70000, Message: "Failed to create service account, please check params and try again"}
+	ErrNameSpaceCreate          = &Errno{Code: 70001, Message: "Failed to create namespace, please check params and try again"}
+	ErrClusterRoleCreate        = &Errno{Code: 70002, Message: "Failed to create nocalhost common cluster role, please check your cluster and try again"}
+	ErrRoleBindingCreate        = &Errno{Code: 70003, Message: "Failed to create role binding, please check your cluster and try again"}
+	ErrRoleBindingRemove        = &Errno{Code: 70004, Message: "Failed to remove role binding, please check your cluster and try again"}
+	ErrClusterRoleBindingCreate = &Errno{Code: 70005, Message: "Failed to create cluster role binding, please check your cluster and try again"}
+	ErrClusterRoleBindingRemove = &Errno{Code: 70006, Message: "Failed to remove cluster role binding, please check your cluster and try again"}
 )

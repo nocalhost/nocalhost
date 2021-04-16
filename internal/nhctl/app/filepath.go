@@ -19,12 +19,13 @@ import (
 	"path/filepath"
 )
 
-func (a *Application) getGitDir() string {
-	return filepath.Join(a.GetHomeDir(), DefaultResourcesDir)
-}
-
 func (a *Application) getDbDir() string {
 	return filepath.Join(a.GetHomeDir(), nocalhost_path.DefaultApplicationDbDir)
+}
+
+// deprecated
+func (a *Application) getResourceDir() string {
+	return filepath.Join(a.GetHomeDir(), "resources")
 }
 
 func (a *Application) getUpgradeGitDir() string {
@@ -40,14 +41,14 @@ func (a *Application) getUpgradeConfigPathInGitResourcesDir(configName string) s
 }
 
 func (a *Application) getGitNocalhostDir() string {
-	return filepath.Join(a.getGitDir(), DefaultGitNocalhostDir)
+	return filepath.Join(a.ResourceTmpDir, DefaultGitNocalhostDir)
 }
 
 func (a *Application) getConfigPathInGitResourcesDir(configName string) string {
 	if configName == "" {
-		return filepath.Join(a.getGitDir(), DefaultGitNocalhostDir, DefaultConfigNameInGitNocalhostDir)
+		return filepath.Join(a.ResourceTmpDir, DefaultGitNocalhostDir, DefaultConfigNameInGitNocalhostDir)
 	} else {
-		return filepath.Join(a.getGitDir(), DefaultGitNocalhostDir, configName)
+		return filepath.Join(a.ResourceTmpDir, DefaultGitNocalhostDir, configName)
 	}
 }
 

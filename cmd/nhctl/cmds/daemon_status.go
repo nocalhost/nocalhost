@@ -16,7 +16,6 @@ package cmds
 import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/daemon_client"
-	"nocalhost/pkg/nhctl/log"
 )
 
 func init() {
@@ -30,12 +29,7 @@ var daemonStatusCmd = &cobra.Command{
 	Long:  `Get nhctl daemon status`,
 	Run: func(cmd *cobra.Command, args []string) {
 		client, err := daemon_client.NewDaemonClient(isSudoUser)
-		if err != nil {
-			log.FatalE(err, "")
-		}
-		err = client.SendGetDaemonServerStatusCommand()
-		if err != nil {
-			log.FatalE(err, "")
-		}
+		must(err)
+		must(client.SendGetDaemonServerStatusCommand())
 	},
 }

@@ -13,25 +13,28 @@ limitations under the License.
 
 package app
 
-import "nocalhost/pkg/nhctl/clientgoutils"
+import (
+	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/pkg/nhctl/clientgoutils"
+)
 
-func (a *Application) GetType() AppType {
-	return AppType(a.profileV2.AppType)
+func (a *Application) GetType() appmeta.AppType {
+	return a.appMeta.ApplicationType
 }
 
 func (a *Application) IsHelm() bool {
-	appProfile := a.profileV2
-	return appProfile.AppType == string(Helm) || appProfile.AppType == string(HelmRepo) || appProfile.AppType == string(HelmLocal)
+	t := a.GetType()
+	return t == appmeta.Helm || t == appmeta.HelmRepo || t == appmeta.HelmLocal
 }
 
 func (a *Application) IsManifest() bool {
-	appProfile := a.profileV2
-	return appProfile.AppType == string(Manifest) || appProfile.AppType == string(ManifestLocal)
+	t := a.GetType()
+	return t == appmeta.Manifest || t == appmeta.ManifestLocal
 }
 
 func (a *Application) IsKustomize() bool {
-	appProfile := a.profileV2
-	return appProfile.AppType == string(KustomizeGit)
+	t := a.GetType()
+	return t == appmeta.KustomizeGit
 }
 
 func (a *Application) GetClient() *clientgoutils.ClientGoUtils {

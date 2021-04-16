@@ -14,48 +14,59 @@ limitations under the License.
 package cmds
 
 import (
-	"fmt"
+	"errors"
 	"io/ioutil"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/fp"
-	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
 func initApp(appName string) {
 	var err error
 
+	must(Prepare())
+
+	nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
+	if err != nil {
+		// if default application not found, try to creat one
+		if errors.Is(err, app.ErrNotFound) && appName == app.DefaultNocalhostApplication {
+			// try init default application
+			mustI(InitDefaultApplicationInCurrentNs(), "Error while create default application")
+
+			// then reNew nocalhostApp
+			nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
+			mustI(err, "Error while init default application")
+
+		} else {
+			log.FatalE(err, "Failed to get application info")
+		}
+	}
+	log.AddField("APP", nocalhostApp.Name)
+}
+
+func Prepare() error {
+	if kubeConfig == "" { // use default config
+		kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	}
+
+	var err error
 	if nameSpace == "" {
-		nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig)
-		if err != nil {
-			log.FatalE(err, "Failed to get namespace")
+		if nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig); err != nil {
+			return err
 		}
 		if nameSpace == "" {
-			log.Fatal("--namespace or --kubeconfig mush be provided")
+			return errors.New("--namespace or --kubeconfig mush be provided")
 		}
 	}
 
-	if !nocalhost.CheckIfApplicationExist(appName, nameSpace) {
-		// init nocalhost default application and wait
-		if appName == app.DefaultNocalhostApplication {
-			err := initNocalhostDefaultApplicationAndWait()
-			if err != nil {
-				log.FatalE(err, "Failed to init default application in ns "+nameSpace)
-			}
-		} else {
-			log.Fatalf("Application %s in %s not found", appName, nameSpace)
-		}
-	}
-	nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
-	if err != nil {
-		log.FatalE(err, "Failed to get application info")
-	}
-	log.AddField("APP", nocalhostApp.Name)
+	return nil
 }
 
 func CheckIfSvcExist(svcName string, svcType ...string) {
@@ -80,7 +91,7 @@ func CheckIfSvcExist(svcName string, svcType ...string) {
 	}
 	exist, err := nocalhostApp.CheckIfSvcExist(svcName, serviceType)
 	if err != nil {
-		log.FatalE(err, fmt.Sprintf("failed to check if svc exists: %s", err.Error()))
+		log.FatalE(err, "failed to check if svc exists")
 	} else if !exist {
 		log.Fatalf("\"%s\" not found", svcName)
 	}
@@ -95,61 +106,6 @@ func initAppAndCheckIfSvcExist(appName string, svcName string, svcAttr []string)
 	}
 	initApp(appName)
 	CheckIfSvcExist(svcName, serviceType)
-}
-
-func initNocalhostDefaultApplicationAndWait() error {
-	nsLock := nocalhost.NsLock(nameSpace)
-
-	err := nsLock.Lock()
-	defer nsLock.Unlock()
-	if err != nil {
-		return err
-	}
-
-	// double check
-	if !nocalhost.CheckIfApplicationExist(app.DefaultNocalhostApplication, nameSpace) {
-		log.Logf("Default virtual application in ns %s haven't init yet...", nameSpace)
-
-		switch nocalhost.EstimateApplicationCounts(nameSpace) {
-		case 1: // means we can move user's configurations to default app
-			log.Logf("Init virtual application and copy unique app's configuration in ns %s ...", nameSpace)
-			err := InitDefaultApplicationByFirstValid()
-			if err != nil {
-				return err
-			}
-		default:
-			log.Logf("Init virtual application in ns %s ...", nameSpace)
-			err := InitDefaultApplicationInCurrentNs()
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func InitDefaultApplicationByFirstValid() error {
-	appNeedToCopy := nocalhost.GetFirstApplication(nameSpace)
-	if appNeedToCopy == app.DefaultNocalhostApplication {
-		log.Error("Error while init %s, %s need to be created but has been created. ", appNeedToCopy, appNeedToCopy)
-	}
-	var err error
-
-	defer func() {
-		if err != nil {
-			os.RemoveAll(nocalhost_path.GetAppDirUnderNs(app.DefaultNocalhostApplication, nameSpace))
-		}
-	}()
-
-	err = utils.CopyDir(
-		nocalhost_path.GetAppDirUnderNs(appNeedToCopy, nameSpace),
-		nocalhost_path.GetAppDirUnderNs(app.DefaultNocalhostApplication, nameSpace),
-	)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func InitDefaultApplicationInCurrentNs() error {
@@ -174,12 +130,11 @@ func InitDefaultApplicationInCurrentNs() error {
 	}
 
 	installFlags.Config = cfg
-	installFlags.AppType = string(app.ManifestLocal)
+	installFlags.AppType = string(appmeta.Manifest)
 	installFlags.LocalPath = baseDir.Abs()
-	err = InstallApplication(app.DefaultNocalhostApplication)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	if err = InstallApplication(app.DefaultNocalhostApplication); k8serrors.IsServerTimeout(err) {
+		return nil
+	}
+	return err
 }

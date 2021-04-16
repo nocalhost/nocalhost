@@ -19,7 +19,6 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
@@ -27,7 +26,6 @@ import (
 )
 
 func init() {
-	//resetCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	rootCmd.AddCommand(resetCmd)
 }
 
@@ -37,12 +35,11 @@ var resetCmd = &cobra.Command{
 	Long:  `reset application`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
-		if nameSpace == "" {
-			nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig)
-			if err != nil {
-				log.FatalE(err, "Failed to get namespace")
-			}
+
+		if err := Prepare(); err != nil {
+			log.FatalE(err, "")
 		}
+
 		if len(args) > 0 {
 			applicationName := args[0]
 			if applicationName != "" {
@@ -57,9 +54,7 @@ var resetCmd = &cobra.Command{
 
 		// Reset all applications under specify namespace
 		appMap, err := nocalhost.GetNsAndApplicationInfo()
-		if err != nil {
-			log.FatalE(err, "Failed to get applications")
-		}
+		mustI(err, "Failed to get applications")
 		for ns, appList := range appMap {
 			if ns != nameSpace {
 				continue
@@ -73,12 +68,8 @@ var resetCmd = &cobra.Command{
 		if nameSpace != "" {
 			nsDir := filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), nameSpace)
 			log.Infof("Removing ns dir : %s", nsDir)
-			err = os.RemoveAll(nsDir)
-			if err != nil {
-				log.FatalE(errors.Wrap(err, ""), "")
-			}
+			must(errors.Wrap(os.RemoveAll(nsDir), ""))
 		}
-
 	},
 }
 
@@ -89,13 +80,11 @@ func resetApplication(applicationName string) {
 	appProfile, _ := nocalhostApp.GetProfile()
 	for _, profile := range appProfile.SvcProfile {
 		if profile.Developing {
-			err = nocalhostApp.StopSyncAndPortForwardProcess(profile.ActualName, true)
-			if err != nil {
+			if err = nocalhostApp.StopSyncAndPortForwardProcess(profile.ActualName, true); err != nil {
 				log.WarnE(err, "")
 			}
 		} else if len(profile.DevPortForwardList) > 0 {
-			err = nocalhostApp.StopAllPortForward(profile.ActualName)
-			if err != nil {
+			if err = nocalhostApp.StopAllPortForward(profile.ActualName); err != nil {
 				log.WarnE(err, "")
 			}
 		}
@@ -103,8 +92,7 @@ func resetApplication(applicationName string) {
 
 	// Remove files
 	time.Sleep(1 * time.Second)
-	err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace)
-	if err != nil {
+	if err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace); err != nil {
 		log.WarnE(err, "")
 	} else {
 		log.Info("Files have been clean up")

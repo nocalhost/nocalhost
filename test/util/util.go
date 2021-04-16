@@ -62,8 +62,10 @@ func WaitForCommandDone(command string) (bool, string) {
 	go func() {
 		for {
 			line, isPrefix, err := lineBody.ReadLine()
-			if err != nil && err == io.EOF {
-				//fmt.Printf("error: %v", err)
+			if err != nil {
+				if err != io.EOF {
+					fmt.Printf("command log error: %v, log: %v\n", err, string(line))
+				}
 				break
 			}
 			if len(line) != 0 && !isPrefix {

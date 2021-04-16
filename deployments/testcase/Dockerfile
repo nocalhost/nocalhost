@@ -1,7 +1,7 @@
 FROM golang:1.15 as builder
 COPY . /opt/src
 WORKDIR /opt/src
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=readonly -o build/testcase nocalhost/test
+RUN CGO_ENABLED=0 GOOS=linux go build -o build/testcase nocalhost/test
 
 FROM ubuntu:latest
 # install kubectl
