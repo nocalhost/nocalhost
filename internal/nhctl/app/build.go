@@ -164,6 +164,9 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 
 func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.AppProfileV2 {
 	appProfileV2 := &profile.AppProfileV2{}
+	if config == nil {
+		return appProfileV2
+	}
 	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
 	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
 	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
