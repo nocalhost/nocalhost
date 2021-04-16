@@ -138,7 +138,7 @@ func copyAndCapture(w io.Writer, r io.Reader, isDisplay bool) ([]byte, error) {
 		}
 		if err != nil {
 			// Read returns io.EOF at the end of file, which is not an error for us
-			if err == io.EOF || err == io.ErrClosedPipe || errors.Is(err, &os.PathError{}) {
+			if err == io.EOF || err == io.ErrClosedPipe || strings.Contains(err.Error(), "closed") {
 				err = nil
 			}
 			return out, err
