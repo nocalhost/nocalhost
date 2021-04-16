@@ -96,7 +96,6 @@ func (a *Application) GetAppMeta() *appmeta.ApplicationMeta {
 }
 
 func (a *Application) moveProfileFromFileToLeveldb() error {
-
 	profileV2 := &profile.AppProfileV2{}
 
 	fBytes, err := ioutil.ReadFile(a.getProfileV2Path())
@@ -109,6 +108,7 @@ func (a *Application) moveProfileFromFileToLeveldb() error {
 	}
 	log.Log("Move profile to leveldb")
 
+	a.profileV2 = profileV2
 	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
 }
 
@@ -116,48 +116,49 @@ func (a *Application) moveProfileFromFileToLeveldb() error {
 // KubeConfig can be acquired from profile in leveldb
 func NewApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
 
+	var err error
 	app := &Application{
 		Name:       name,
 		NameSpace:  ns,
 		KubeConfig: kubeconfig,
 	}
 
-	var err error
 	if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
 		return nil, err
 	}
+
+	// 1. first try load profile from local or earlier version
+	// 2. check should generate secret for adapt earlier version
+	// 3. try load application meta from secret
+	// 4. update kubeconfig for profile
+	// 5. init go client inner Application
+
+	if err := app.tryLoadProfileFromLocal(); err != nil {
+		return nil, err
+	}
+
+	// if appMeta is not installed but application installed in earlier version
+	// should make a fake installation and generate an application meta
+	if app.generateSecretForEarlierVer() {
+
+		// load app meta if generate secret for earlier verion
+		if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
+			return nil, err
+		}
+	}
+
 	if !app.appMeta.IsInstalled() {
 		return nil, ErrNotFound
 	}
 
-	if db, err := nocalhostDb.OpenApplicationLevelDB(app.NameSpace, app.Name, true); err != nil {
-		err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name, true) // Init leveldb dir
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		_ = db.Close()
-	}
-
+	// if still not present
+	// load from secret
 	if app.profileV2, err = nocalhost.GetProfileV2(app.NameSpace, app.Name); err != nil {
-		if _, err := os.Stat(app.getProfileV2Path()); err == nil {
-			if err = app.moveProfileFromFileToLeveldb(); err != nil {
-				return nil, err
-			}
-		}
-
 		app.profileV2 = generateProfileFromConfig(app.appMeta.Config)
 		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.profileV2); err != nil {
 			return nil, err
 		}
 	}
-
-	//if len(appProfile.PreInstall) == 0 && len(app.configV2.ApplicationConfig.PreInstall) > 0 {
-	//	appProfile.PreInstall = app.configV2.ApplicationConfig.PreInstall
-	//	if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfile); err != nil {
-	//		return nil, err
-	//	}
-	//}
 
 	if kubeconfig != "" && kubeconfig != app.profileV2.Kubeconfig {
 		app.profileV2.Kubeconfig = kubeconfig
@@ -173,6 +174,113 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	}
 
 	return app, nil
+}
+
+func (a *Application) generateSecretForEarlierVer() bool {
+	if a.profileV2 != nil && !a.profileV2.Secreted && a.appMeta.IsNotInstall() && a.Name != DefaultNocalhostApplication {
+		defer func() {
+			log.Logf("Mark application %s in ns %s has been secreted", a.Name, a.NameSpace)
+			a.profileV2.Secreted = true
+			_ = nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.profileV2)
+		}()
+
+		if err := a.appMeta.Initial(); err != nil {
+			log.ErrorE(err, "")
+			return true
+		}
+		log.Logf("Earlier version installed application found, generate a secret...")
+
+
+		a.profileV2.GenerateIdentifierIfNeeded()
+		_ = nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.profileV2)
+
+		// config、manifest is missing while adaption update
+		a.appMeta.Config = a.newConfigFromProfile()
+		a.appMeta.DepConfigName = a.profileV2.DependencyConfigMapName
+		a.appMeta.Ns = a.NameSpace
+		a.appMeta.ApplicationType = appmeta.AppTypeOf(a.profileV2.AppType)
+
+		_ = a.appMeta.Update()
+
+		a.client = a.appMeta.GetClient()
+		switch a.profileV2.AppType {
+		case string(appmeta.Manifest), string(appmeta.ManifestLocal):
+			_ = a.InstallManifest(a.appMeta, a.getResourceDir(), false)
+		case string(appmeta.KustomizeGit):
+			_ = a.InstallKustomize(a.appMeta, a.getResourceDir(), false)
+		default:
+		}
+
+		for _, svc := range a.profileV2.SvcProfile {
+			if svc.Developing {
+				_ = a.appMeta.DeploymentDevStart(svc.Name, a.profileV2.Identifier)
+			}
+		}
+
+		a.appMeta.ApplicationState = appmeta.INSTALLED
+		_ = a.appMeta.Update()
+
+		log.Logf("Application %s in ns %s is completed secreted", a.Name, a.NameSpace)
+		return false
+	}
+
+	return false
+}
+
+func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {
+	return &profile.NocalHostAppConfigV2{
+		ConfigProperties: &profile.ConfigProperties{
+			Version: "v2",
+		},
+		ApplicationConfig: &profile.ApplicationConfig{
+			Name:           a.Name,
+			Type:           a.profileV2.AppType,
+			ResourcePath:   a.profileV2.ResourcePath,
+			IgnoredPath:    a.profileV2.IgnoredPath,
+			PreInstall:     a.profileV2.PreInstall,
+			Env:            a.profileV2.Env,
+			EnvFrom:        a.profileV2.EnvFrom,
+			ServiceConfigs: loadServiceConfigsFromProfile(a.profileV2.SvcProfile),
+		},
+	}
+}
+
+func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.ServiceConfigV2 {
+	var configs = []*profile.ServiceConfigV2{}
+
+	for _, p := range profiles {
+		configs = append(configs, &profile.ServiceConfigV2{
+			Name:                p.Name,
+			Type:                p.Type,
+			PriorityClass:       p.PriorityClass,
+			DependLabelSelector: p.DependLabelSelector,
+			ContainerConfigs:    p.ContainerConfigs,
+		})
+	}
+
+	return configs
+}
+
+func (a *Application) tryLoadProfileFromLocal() (err error) {
+	if db, err := nocalhostDb.OpenApplicationLevelDB(a.NameSpace, a.Name, true); err != nil {
+		if err = nocalhostDb.CreateApplicationLevelDB(a.NameSpace, a.Name, true); err != nil { // Init leveldb dir
+			return err
+		}
+	} else {
+		_ = db.Close()
+	}
+
+	// try load from db first
+	// then try load from disk(to supports earlier version)
+	if a.profileV2, err = nocalhost.GetProfileV2(a.NameSpace, a.Name); err != nil {
+		if _, err := os.Stat(a.getProfileV2Path()); err == nil {
+
+			// need not care what happen
+			_ = a.moveProfileFromFileToLeveldb()
+		}
+	}
+
+	return nil
 }
 
 func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
@@ -226,13 +334,7 @@ type HelmFlags struct {
 }
 
 func (a *Application) IsAnyServiceInDevMode() bool {
-	appProfile, _ := a.GetProfile()
-	for _, svc := range appProfile.SvcProfile {
-		if svc.Developing {
-			return true
-		}
-	}
-	return false
+	return len(a.appMeta.DevMeta) > 0
 }
 
 // Deprecated

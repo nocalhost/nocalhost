@@ -46,12 +46,7 @@ type AppProfileV2 struct {
 	PreInstall              SortedRelPath   `json:"onPreInstall" yaml:"onPreInstall"`
 	Identifier              string          `json:"identifier" yaml:"identifier"`
 
-	// After v2
-	//GitUrl       string `json:"gitUrl" yaml:"gitUrl"`
-	//GitRef       string `json:"gitRef" yaml:"gitRef"`
-	//HelmRepoUrl  string `json:"helmRepoUrl" yaml:"helmRepoUrl"`
-	//HelmRepoName string `json:"helmRepoUrl" yaml:"helmRepoName"`
-	//HelmRepoChartVersion string `json:"helmRepoChartVersion" yaml:"helmRepoChartVersion"`
+	Secreted bool `json:"secreted" yaml:"secreted"` // always true for new versions, but from earlier version, the flag for upload profile to secret
 
 	Env     []*Env  `json:"env" yaml:"env"`
 	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
@@ -59,6 +54,9 @@ type AppProfileV2 struct {
 	dbPath  string
 	appName string
 	ns      string
+
+	// Deprecated
+	AppType                 string            `json:"app_type" yaml:"appType"`
 }
 
 func (appProfile *AppProfileV2) LoadManifests(tmpDir string) ([]string, []string) {
@@ -200,6 +198,9 @@ type SvcProfileV2 struct {
 	*ServiceConfigV2 `yaml:"rawConfig"`
 	ContainerProfile []*ContainerProfileV2 `json:"container_profile" yaml:"containerProfile"`
 	ActualName       string                `json:"actual_name" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
+
+	// Deprecated from profile but appmeta
+	// Deprecated
 	Developing       bool                  `json:"developing" yaml:"developing"`
 	PortForwarded    bool                  `json:"port_forwarded" yaml:"portForwarded"`
 	Syncing          bool                  `json:"syncing" yaml:"syncing"`

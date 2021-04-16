@@ -23,6 +23,11 @@ func (a *Application) getDbDir() string {
 	return filepath.Join(a.GetHomeDir(), nocalhost_path.DefaultApplicationDbDir)
 }
 
+// deprecated
+func (a *Application) getResourceDir() string {
+	return filepath.Join(a.GetHomeDir(), "resources")
+}
+
 func (a *Application) getUpgradeGitDir() string {
 	return filepath.Join(a.GetHomeDir(), DefaultUpgradeResourcesDir)
 }

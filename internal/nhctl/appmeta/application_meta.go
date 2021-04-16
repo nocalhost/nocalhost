@@ -73,6 +73,25 @@ func GetApplicationName(secretName string) (string, error) {
 
 type AppType string
 
+func AppTypeOf(s string) AppType {
+	switch s {
+	case string(Helm):
+		return Helm
+	case string(HelmRepo):
+		return HelmRepo
+	case string(HelmLocal):
+		return HelmLocal
+	case string(Manifest):
+		return Manifest
+	case string(ManifestLocal):
+		return ManifestLocal
+	case string(KustomizeGit):
+		return KustomizeGit
+	default:
+		return Manifest
+	}
+}
+
 type ApplicationState string
 
 func ApplicationStateOf(s string) ApplicationState {
@@ -91,10 +110,12 @@ type ApplicationMetaSimples []*ApplicationMetaSimple
 func (as ApplicationMetas) Desc() (result ApplicationMetaSimples) {
 	for _, meta := range as {
 		result = append(result, &ApplicationMetaSimple{
-			Application:      meta.Application,
-			Ns:               meta.Ns,
-			ApplicationState: meta.ApplicationState,
-			DevMeta:          meta.DevMeta,
+			Application:        meta.Application,
+			Ns:                 meta.Ns,
+			ApplicationState:   meta.ApplicationState,
+			DevMeta:            meta.DevMeta,
+			Manifest:           meta.Manifest,
+			PreInstallManifest: meta.PreInstallManifest,
 		})
 	}
 	return result
@@ -105,7 +126,9 @@ type ApplicationMetaSimple struct {
 	Ns               string           `json:"ns"`
 	ApplicationState ApplicationState `json:"application_state"`
 	// manage the dev status of the application
-	DevMeta ApplicationDevMeta `json:"dev_meta"`
+	DevMeta            ApplicationDevMeta `json:"dev_meta"`
+	Manifest           string             `json:"manifest"`
+	PreInstallManifest string             `json:"pre_install_manifest"`
 }
 
 type ApplicationMeta struct {
@@ -121,7 +144,7 @@ type ApplicationMeta struct {
 	PreInstallManifest string           `json:"pre_install_manifest"`
 	Manifest           string           `json:"manifest"`
 
-	// the manifest apply by nhctl apply
+	// todo the manifest apply by nhctl apply
 	CustomManifest string `json:"custom_manifest"`
 
 	// manage the dev status of the application
@@ -185,6 +208,10 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 
 	appMeta.Secret = secret
 	return &appMeta, nil
+}
+
+func (a *ApplicationMeta) GetClient() *clientgoutils.ClientGoUtils {
+	return a.clientInner
 }
 
 func (a *ApplicationMeta) GetApplicationDevMeta() ApplicationDevMeta {
@@ -336,7 +363,7 @@ func (a *ApplicationMeta) NotInstallTips() string {
 }
 
 func (a *ApplicationMeta) IsHelm() bool {
-	return false
+	return  a.ApplicationType == Helm || a.ApplicationType == HelmRepo || a.ApplicationType == HelmLocal
 }
 
 func (a *ApplicationMeta) Uninstall() error {

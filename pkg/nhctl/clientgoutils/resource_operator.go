@@ -51,17 +51,19 @@ func (c *ClientGoUtils) ApplyAndWait(files []string, continueOnError bool, flags
 		}
 	}
 
-	//goland:noinspection GoNilness
-	for _, manifest := range loadResource.arr() {
-		if err = c.applyUnstructuredResource(manifest, true, flags); err != nil {
-			if !continueOnError {
-				return err
-			}
+	if flags != nil && flags.DoApply {
+		//goland:noinspection GoNilness
+		for _, manifest := range loadResource.arr() {
+			if err = c.applyUnstructuredResource(manifest, true, flags); err != nil {
+				if !continueOnError {
+					return err
+				}
 
-			if te, ok := err.(*TypedError); ok {
-				log.Warnf("Invalid yaml: %s", te.Mes)
-			} else {
-				log.Warnf("Fail to install manifest : %s", err.Error())
+				if te, ok := err.(*TypedError); ok {
+					log.Warnf("Invalid yaml: %s", te.Mes)
+				} else {
+					log.Warnf("Fail to install manifest : %s", err.Error())
+				}
 			}
 		}
 	}
@@ -97,9 +99,12 @@ func (c *ClientGoUtils) Apply(files []string, continueOnError bool, flags *Apply
 		}
 	}
 
-	for _, info := range infos {
-		_ = c.ApplyResourceInfo(info, flags)
+	if flags != nil && flags.DoApply {
+		for _, info := range infos {
+			_ = c.ApplyResourceInfo(info, flags)
+		}
 	}
+
 	return nil
 }
 
@@ -133,8 +138,10 @@ func (c *ClientGoUtils) Delete(files []string, continueOnError bool, flags *Appl
 		}
 	}
 
-	for _, info := range infos {
-		_ = c.DeleteResourceInfo(info)
+	if flags != nil && flags.DoApply {
+		for _, info := range infos {
+			_ = c.DeleteResourceInfo(info)
+		}
 	}
 	return nil
 }

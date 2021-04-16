@@ -19,7 +19,6 @@ import (
 	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/daemon_client"
-	"nocalhost/internal/nhctl/flock"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
@@ -272,48 +271,4 @@ func GetApplicationMetas(namespace, kubeConfig string) (appmeta.ApplicationMetas
 	}
 
 	return appMetas, nil
-}
-
-// todo it's worked by dir, so it may not be very accurate
-func EstimateApplicationCounts(namespace string) int {
-	appMap, err := GetNsAndApplicationInfo()
-	if err != nil || len(appMap) == 0 {
-		return 0
-	}
-
-	for ns, appList := range appMap {
-		if ns != namespace {
-			continue
-		}
-		return len(appList)
-	}
-	return 0
-}
-
-func GetFirstApplication(namespace string) string {
-	appMap, err := GetNsAndApplicationInfo()
-	if err != nil || len(appMap) == 0 {
-		return ""
-	}
-
-	for ns, appList := range appMap {
-		if ns != namespace {
-			continue
-		}
-		if len(appList) > 0 {
-			return appList[0]
-		}
-	}
-	return ""
-}
-
-func NsLock(namespace string) *flock.Flock {
-	return flock.New(
-		filepath.Join(defaultNsLockDir(), fmt.Sprintf("%s.flock", namespace)))
-}
-
-func defaultNsLockDir() string {
-	p := filepath.Join(nocalhost_path.GetNhctlHomeDir(), "nslock")
-	_ = os.Mkdir(p, 0700)
-	return p
 }
