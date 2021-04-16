@@ -56,7 +56,7 @@ type AppProfileV2 struct {
 	ns      string
 
 	// Deprecated
-	AppType                 string            `json:"app_type" yaml:"appType"`
+	AppType string `json:"app_type" yaml:"appType"`
 }
 
 func (appProfile *AppProfileV2) LoadManifests(tmpDir string) ([]string, []string) {
@@ -201,10 +201,10 @@ type SvcProfileV2 struct {
 
 	// Deprecated from profile but appmeta
 	// Deprecated
-	Developing       bool                  `json:"developing" yaml:"developing"`
-	PortForwarded    bool                  `json:"port_forwarded" yaml:"portForwarded"`
-	Syncing          bool                  `json:"syncing" yaml:"syncing"`
-	SyncDirs         []string              `json:"syncDirs" yaml:"syncDirs,omitempty"` // dev start -s
+	Developing    bool     `json:"developing" yaml:"developing"`
+	PortForwarded bool     `json:"port_forwarded" yaml:"portForwarded"`
+	Syncing       bool     `json:"syncing" yaml:"syncing"`
+	SyncDirs      []string `json:"syncDirs" yaml:"syncDirs,omitempty"` // dev start -s
 	// same as local available port, use for port-forward
 	RemoteSyncthingPort int `json:"remoteSyncthingPort" yaml:"remoteSyncthingPort"`
 	// same as local available port, use for port-forward

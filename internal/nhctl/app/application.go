@@ -190,7 +190,6 @@ func (a *Application) generateSecretForEarlierVer() bool {
 		}
 		log.Logf("Earlier version installed application found, generate a secret...")
 
-
 		a.profileV2.GenerateIdentifierIfNeeded()
 		_ = nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.profileV2)
 
@@ -228,6 +227,12 @@ func (a *Application) generateSecretForEarlierVer() bool {
 }
 
 func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {
+	if bys, err := ioutil.ReadFile(a.GetConfigV2Path()); err == nil {
+		p := &profile.NocalHostAppConfigV2{}
+		if err = yaml.Unmarshal(bys, p); err == nil {
+			return p
+		}
+	}
 	return &profile.NocalHostAppConfigV2{
 		ConfigProperties: &profile.ConfigProperties{
 			Version: "v2",
@@ -243,6 +248,7 @@ func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {
 			ServiceConfigs: loadServiceConfigsFromProfile(a.profileV2.SvcProfile),
 		},
 	}
+
 }
 
 func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.ServiceConfigV2 {

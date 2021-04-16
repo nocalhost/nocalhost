@@ -97,11 +97,13 @@ func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta, resource
 	}
 
 	return a.client.Apply(manifests, true,
-		StandardNocalhostMetas(a.Name, a.NameSpace).SetBeforeApply(
-			func(manifest string) error {
-				appMeta.Manifest = appMeta.Manifest + manifest
-				return appMeta.Update()
-			}),
+		StandardNocalhostMetas(a.Name, a.NameSpace).
+			SetDoApply(doApply).
+			SetBeforeApply(
+				func(manifest string) error {
+					appMeta.Manifest = appMeta.Manifest + manifest
+					return appMeta.Update()
+				}),
 		"")
 }
 

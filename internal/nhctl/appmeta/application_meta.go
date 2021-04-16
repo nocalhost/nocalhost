@@ -244,6 +244,7 @@ func (a *ApplicationMeta) Initial() error {
 		}
 		return errors.Wrap(err, "Error while Initial Application meta ")
 	}
+	a.ApplicationState = INSTALLING
 	a.Secret = createSecret
 	return nil
 }
