@@ -62,9 +62,7 @@ var devCmdCmd = &cobra.Command{
 		}
 
 		appProfile, err := nocalhostApp.GetProfile()
-		if err != nil {
-			log.FatalE(err, "")
-		}
+		must(err)
 		profile := appProfile.FetchSvcProfileV2FromProfile(deployment)
 		if profile == nil {
 			log.Fatal("Failed to get service profile")
@@ -94,9 +92,6 @@ var devCmdCmd = &cobra.Command{
 			log.Fatalf("%s command not defined", commandType)
 		}
 
-		err = nocalhostApp.Exec(deployment, container, targetCommand)
-		if err != nil {
-			log.Fatalf("Failed to exec : %s", err.Error())
-		}
+		must(nocalhostApp.Exec(deployment, container, targetCommand))
 	},
 }

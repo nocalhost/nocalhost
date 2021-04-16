@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/pkg/nhctl/log"
 )
 
 func init() {
@@ -32,9 +31,7 @@ var dbAllCmd = &cobra.Command{
 	Long:  `Get all leveldb data`,
 	Run: func(cmd *cobra.Command, args []string) {
 		result, err := nocalhost.ListAllFromApplicationDb(nameSpace, appName)
-		if err != nil {
-			log.FatalE(err, "")
-		}
+		must(err)
 		for key, val := range result {
 			fmt.Printf("%s=%s\n", key, val)
 		}

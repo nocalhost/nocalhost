@@ -15,7 +15,6 @@ package cmds
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app"
@@ -32,24 +31,19 @@ import (
 func initApp(appName string) {
 	var err error
 
-	if err := Prepare(); err != nil {
-		log.FatalE(err, "")
-	}
+	must(Prepare())
 
 	nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
-
-	// if default application not found, try to creat one
 	if err != nil {
+		// if default application not found, try to creat one
 		if errors.Is(err, app.ErrNotFound) && appName == app.DefaultNocalhostApplication {
 			// try init default application
-			if err := InitDefaultApplicationInCurrentNs(); err != nil {
-				log.FatalE(err, "Error while create default application")
-			}
+			mustI(InitDefaultApplicationInCurrentNs(), "Error while create default application")
 
 			// then reNew nocalhostApp
-			if nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true); err != nil {
-				log.FatalE(err, "Error while init default application")
-			}
+			nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
+			mustI(err, "Error while init default application")
+
 		} else {
 			log.FatalE(err, "Failed to get application info")
 		}
@@ -64,8 +58,7 @@ func Prepare() error {
 
 	var err error
 	if nameSpace == "" {
-		nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig)
-		if err != nil {
+		if nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig); err != nil {
 			return err
 		}
 		if nameSpace == "" {
@@ -98,7 +91,7 @@ func CheckIfSvcExist(svcName string, svcType ...string) {
 	}
 	exist, err := nocalhostApp.CheckIfSvcExist(svcName, serviceType)
 	if err != nil {
-		log.FatalE(err, fmt.Sprintf("failed to check if svc exists: %s", err.Error()))
+		log.FatalE(err, "failed to check if svc exists")
 	} else if !exist {
 		log.Fatalf("\"%s\" not found", svcName)
 	}
@@ -140,7 +133,7 @@ func InitDefaultApplicationInCurrentNs() error {
 	installFlags.AppType = string(appmeta.Manifest)
 	installFlags.LocalPath = baseDir.Abs()
 
-	if err := InstallApplication(app.DefaultNocalhostApplication); k8serrors.IsServerTimeout(err) {
+	if err = InstallApplication(app.DefaultNocalhostApplication); k8serrors.IsServerTimeout(err) {
 		return nil
 	}
 	return err

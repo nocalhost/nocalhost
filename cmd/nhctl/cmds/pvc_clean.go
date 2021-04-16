@@ -36,25 +36,15 @@ var pvcCleanCmd = &cobra.Command{
 			log.Fatal("--app mush be specified")
 		}
 
-		//if !nocalhost.CheckIfApplicationExist(pvcFlags.App, nameSpace) {
-		//	log.Fatalf("Application %s not found", pvcFlags.App)
-		//}
-		//nhApp, err := app.NewApplication(pvcFlags.App)
-		//if err != nil {
-		//	log.Fatalf("Failed to create application %s", pvcFlags.App)
-		//}
 		var err error
 		initApp(pvcFlags.App)
 
 		// Clean up specified pvc
 		if pvcFlags.Name != "" {
 			err = nocalhostApp.CleanUpPVC(pvcFlags.Name)
-			if err != nil {
-				log.FatalE(err, "Failed to clean up pvc: "+pvcFlags.Name)
-			} else {
-				log.Infof("%s cleaned up", pvcFlags.Name)
-				return
-			}
+			mustI(err, "Failed to clean up pvc: "+pvcFlags.Name)
+			log.Infof("%s cleaned up", pvcFlags.Name)
+			return
 		}
 
 		// Clean up PVCs of specified service
@@ -67,9 +57,6 @@ var pvcCleanCmd = &cobra.Command{
 			}
 		}
 
-		err = nocalhostApp.CleanUpPVCs(pvcFlags.Svc, true)
-		if err != nil {
-			log.FatalE(err, "Cleaning up pvcs failed")
-		}
+		mustI(nocalhostApp.CleanUpPVCs(pvcFlags.Svc, true), "Cleaning up pvcs failed")
 	},
 }

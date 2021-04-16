@@ -30,13 +30,9 @@ var daemonInfoCmd = &cobra.Command{
 	Long:  `Get nhctl daemon info`,
 	Run: func(cmd *cobra.Command, args []string) {
 		client, err := daemon_client.NewDaemonClient(isSudoUser)
-		if err != nil {
-			log.FatalE(err, "")
-		}
+		must(err)
 		bys, err := client.SendGetDaemonServerInfoCommand()
-		if err != nil {
-			log.FatalE(err, "")
-		}
+		must(err)
 		log.Info(string(bys))
 	},
 }

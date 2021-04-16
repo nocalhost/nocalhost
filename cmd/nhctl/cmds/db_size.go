@@ -31,9 +31,7 @@ var dbSizeCmd = &cobra.Command{
 	Long:  `Get all leveldb data`,
 	Run: func(cmd *cobra.Command, args []string) {
 		size, err := nocalhost.GetApplicationDbSize(nameSpace, appName)
-		if err != nil {
-			log.FatalE(err, "")
-		}
+		must(err)
 		log.Info(size)
 	},
 }

@@ -22,7 +22,6 @@ import (
 )
 
 func init() {
-	//applyCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	rootCmd.AddCommand(applyCmd)
 }
 

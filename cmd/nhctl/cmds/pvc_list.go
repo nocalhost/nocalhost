@@ -16,6 +16,7 @@ package cmds
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
 	"github.com/spf13/cobra"
@@ -51,13 +52,6 @@ var pvcListCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var pvcList []v1.PersistentVolumeClaim
 		if pvcFlags.App != "" {
-			//if !nocalhost.CheckIfApplicationExist(pvcFlags.App, nameSpace) {
-			//	log.Fatalf("Application %s not found", pvcFlags.App)
-			//}
-			//nhApp, err := app.NewApplication(pvcFlags.App)
-			//if err != nil {
-			//	log.Fatalf("Failed to create application %s", pvcFlags.App)
-			//}
 			var err error
 			initApp(pvcFlags.App)
 			if pvcFlags.Svc != "" {
@@ -68,14 +62,10 @@ var pvcListCmd = &cobra.Command{
 					log.Fatalf("\"%s\" not found", pvcFlags.Svc)
 				}
 				pvcList, err = nocalhostApp.GetPVCsBySvc(pvcFlags.Svc)
-				if err != nil {
-					log.FatalE(err, "Failed to get PVCs")
-				}
+				must(err)
 			} else {
 				pvcList, err = nocalhostApp.GetAllPVCs()
-				if err != nil {
-					log.FatalE(err, "Failed to get PVCs")
-				}
+				must(err)
 			}
 		}
 
@@ -118,7 +108,6 @@ func makePVCObjectList(pvcList []v1.PersistentVolumeClaim) []*pvcObject {
 			pY.StorageClass = *pvc.Spec.StorageClassName
 		}
 		pvcObjectList = append(pvcObjectList, pY)
-		//fmt.Printf("%s %s %s %s %s\n", pvc.Name, labels[app.AppLabel], labels[app.ServiceLabel], quantity.String(), pvc.Status.Phase)
 	}
 
 	return pvcObjectList
@@ -127,18 +116,14 @@ func makePVCObjectList(pvcList []v1.PersistentVolumeClaim) []*pvcObject {
 func DisplayPVCsByYaml(pvcList []v1.PersistentVolumeClaim) {
 	pvcObjectList := makePVCObjectList(pvcList)
 	bys, err := yaml.Marshal(pvcObjectList)
-	if err != nil {
-		log.FatalE(err, "fail to marshal")
-	}
+	must(errors.Wrap(err, ""))
 	fmt.Print(string(bys))
 }
 
 func DisplayPVCsByJson(pvcList []v1.PersistentVolumeClaim) {
 	pvcObjectList := makePVCObjectList(pvcList)
 	bys, err := json.Marshal(pvcObjectList)
-	if err != nil {
-		log.FatalE(err, "fail to marshal")
-	}
+	must(errors.Wrap(err, ""))
 	fmt.Print(string(bys))
 }
 

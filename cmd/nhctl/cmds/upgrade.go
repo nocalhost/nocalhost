@@ -15,7 +15,6 @@ package cmds
 
 import (
 	"context"
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
@@ -66,9 +65,8 @@ var upgradeCmd = &cobra.Command{
 
 		// Stop Port-forward
 		appProfile, err := nocalhostApp.GetProfile()
-		if err != nil {
-			log.FatalE(err, "")
-		}
+		must(err)
+
 		pfListMap := make(map[string][]*profile.DevPortForward, 0)
 		for _, svcProfile := range appProfile.SvcProfile {
 			pfList := make([]*profile.DevPortForward, 0)
@@ -90,13 +88,9 @@ var upgradeCmd = &cobra.Command{
 
 		// todo: Validate flags
 		// Prepare for upgrading
-		if err = nocalhostApp.PrepareForUpgrade(installFlags); err != nil {
-			log.FatalE(err, "")
-		}
-		err = nocalhostApp.Upgrade(installFlags)
-		if err != nil {
-			log.FatalE(err, fmt.Sprintf("Failed to upgrade application"))
-		}
+		must(nocalhostApp.PrepareForUpgrade(installFlags))
+
+		must(nocalhostApp.Upgrade(installFlags))
 
 		// Restart port forward
 		for svcName, pfList := range pfListMap {

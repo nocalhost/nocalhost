@@ -23,12 +23,10 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/pkg/nhctl/log"
-
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/nocalhost"
 )
 
 var listFlags = &app_flags.ListFlags{}
@@ -47,9 +45,7 @@ var listCmd = &cobra.Command{
 	Long:    `List applications`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		if err := Prepare(); err != nil {
-			log.FatalE(err, "")
-		}
+		must(Prepare())
 
 		if len(args) > 0 { // list application detail
 			applicationName := args[0]
@@ -88,9 +84,7 @@ func ListApplicationSvc(napp *app.Application) {
 
 func ListApplicationsResult() []*Namespace {
 	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
-	if err != nil {
-		log.FatalE(err, "Failed to get application metas")
-	}
+	must(err)
 
 	var result []*Namespace
 	ns := &Namespace{
@@ -109,9 +103,7 @@ func ListApplicationsResult() []*Namespace {
 
 func ListApplicationsFull() {
 	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
-	if err != nil {
-		log.FatalE(err, "Failed to get application metas")
-	}
+	must(err)
 	marshal, _ := yaml.Marshal(metas.Desc())
 	fmt.Print(string(marshal))
 }
@@ -130,9 +122,7 @@ func ListApplicationsYaml() {
 
 func ListApplications() {
 	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
-	if err != nil {
-		log.FatalE(err, "Failed to get applications")
-	}
+	must(err)
 	fmt.Printf("%-20s %-20s %-20s %-20s\n", "NAME", "STATE", "NAMESPACE", "TYPE")
 	for _, meta := range metas {
 		fmt.Printf("%-20s %-20s %-20s %-20s\n", meta.Application, meta.ApplicationState, meta.Ns, meta.ApplicationType)

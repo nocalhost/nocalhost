@@ -20,8 +20,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
-
-	"nocalhost/pkg/nhctl/log"
 )
 
 func init() {
@@ -52,17 +50,13 @@ var configGetCmd = &cobra.Command{
 		if commonFlags.AppConfig {
 			applicationConfig := nocalhostApp.GetAppProfileV2()
 			bys, err := yaml.Marshal(applicationConfig)
-			if err != nil {
-				log.FatalE(errors.Wrap(err, ""), "fail to get application config")
-			}
+			must(errors.Wrap(err, "fail to get application config"))
 			fmt.Println(string(bys))
 			return
 		}
 
 		appProfile, err := nocalhostApp.GetProfile()
-		if err != nil {
-			log.FatalE(err, "")
-		}
+		must(err)
 		if commonFlags.SvcName == "" {
 			config := &ConfigForPlugin{}
 			config.Services = make([]*profile.ServiceConfigV2, 0)
@@ -70,9 +64,7 @@ var configGetCmd = &cobra.Command{
 				config.Services = append(config.Services, svcPro.ServiceConfigV2)
 			}
 			bys, err := yaml.Marshal(config)
-			if err != nil {
-				log.FatalE(errors.Wrap(err, ""), "fail to get application config")
-			}
+			must(errors.Wrap(err, "fail to get application config"))
 			fmt.Println(string(bys))
 
 		} else {
@@ -80,9 +72,7 @@ var configGetCmd = &cobra.Command{
 			svcProfile := appProfile.FetchSvcProfileV2FromProfile(commonFlags.SvcName)
 			if svcProfile != nil {
 				bys, err := yaml.Marshal(svcProfile.ServiceConfigV2)
-				if err != nil {
-					log.FatalE(errors.Wrap(err, ""), "fail to get svc profile")
-				}
+				must(errors.Wrap(err, "fail to get svc profile"))
 				fmt.Println(string(bys))
 			}
 		}
