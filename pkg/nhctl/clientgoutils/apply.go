@@ -34,11 +34,18 @@ type ApplyFlags struct {
 	MergeableLabel      map[string]string
 	MergeableAnnotation map[string]string
 
+	// apply if set to true
+	DoApply     bool
 	BeforeApply func(string) error
 }
 
 func (a *ApplyFlags) SetBeforeApply(fun func(string) error) *ApplyFlags {
 	a.BeforeApply = fun
+	return a
+}
+
+func (a *ApplyFlags) SetDoApply(doApply bool) *ApplyFlags {
+	a.DoApply = doApply
 	return a
 }
 

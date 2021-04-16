@@ -47,6 +47,17 @@ var listCmd = &cobra.Command{
 
 		must(Prepare())
 
+		// for earlier version adaption
+		if info, _ := nocalhost.GetNsAndApplicationInfo(); info != nil {
+			for ns, apps := range info {
+				if ns == nameSpace {
+					for _, application := range apps {
+						_, _ = app.NewApplication(application, nameSpace, kubeConfig, true)
+					}
+				}
+			}
+		}
+
 		if len(args) > 0 { // list application detail
 			applicationName := args[0]
 			initApp(applicationName)

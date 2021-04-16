@@ -38,13 +38,13 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) (err error)
 	}
 	switch a.appMeta.ApplicationType {
 	case appmeta.Helm, appmeta.HelmLocal:
-		err = a.installHelm(flags, false)
+		err = a.installHelm(flags, a.ResourceTmpDir, false)
 	case appmeta.HelmRepo:
-		err = a.installHelm(flags, true)
+		err = a.installHelm(flags, a.ResourceTmpDir, true)
 	case appmeta.Manifest, appmeta.ManifestLocal:
-		err = a.InstallManifest(a.appMeta)
+		err = a.InstallManifest(a.appMeta, a.ResourceTmpDir, true)
 	case appmeta.KustomizeGit:
-		err = a.InstallKustomize(a.appMeta)
+		err = a.InstallKustomize(a.appMeta, a.ResourceTmpDir, true)
 	default:
 		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", appmeta.Helm, appmeta.HelmRepo, appmeta.Manifest))
 	}
@@ -53,56 +53,61 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) (err error)
 	return a.appMeta.Update()
 }
 
-func (a *Application) InstallKustomize(appMeta *appmeta.ApplicationMeta) error {
-	resourcesPath := a.GetResourceDir()
+func (a *Application) InstallKustomize(appMeta *appmeta.ApplicationMeta, resourceDir string, doApply bool) error {
+	resourcesPath := a.GetResourceDir(resourceDir)
 	if len(resourcesPath) > 1 {
 		log.Warn(`There are multiple resourcesPath settings, will use first one`)
 	}
 	useResourcePath := resourcesPath[0]
 
 	err := a.client.Apply([]string{}, true,
-		StandardNocalhostMetas(a.Name, a.NameSpace).SetBeforeApply(
-			func(manifest string) error {
-				appMeta.Manifest = appMeta.Manifest + manifest
-				return appMeta.Update()
-			}),
+		StandardNocalhostMetas(a.Name, a.NameSpace).
+			SetDoApply(doApply).
+			SetBeforeApply(
+				func(manifest string) error {
+					appMeta.Manifest = appMeta.Manifest + manifest
+					return appMeta.Update()
+				}),
 		useResourcePath)
 	if err != nil {
-		// todo delete secret if install fail
 		return err
 	}
 	return nil
 }
 
-func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta) error {
+func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta, resourceDir string, doApply bool) error {
 	p, err := a.GetProfile()
 	if err != nil {
 		return err
 	}
 
-	preInstallManifests, manifests := p.LoadManifests(a.ResourceTmpDir)
+	preInstallManifests, manifests := p.LoadManifests(resourceDir)
 
 	err = a.client.ApplyAndWait(preInstallManifests, true,
-		StandardNocalhostMetas(a.Name, a.NameSpace).SetBeforeApply(
-			func(manifest string) error {
-				appMeta.PreInstallManifest = appMeta.PreInstallManifest + manifest
-				return appMeta.Update()
-			}),
+		StandardNocalhostMetas(a.Name, a.NameSpace).
+			SetDoApply(doApply).
+			SetBeforeApply(
+				func(manifest string) error {
+					appMeta.PreInstallManifest = appMeta.PreInstallManifest + manifest
+					return appMeta.Update()
+				}),
 	)
 	if err != nil { // that's the error that could not be skip
 		return err
 	}
 
 	return a.client.Apply(manifests, true,
-		StandardNocalhostMetas(a.Name, a.NameSpace).SetBeforeApply(
-			func(manifest string) error {
-				appMeta.Manifest = appMeta.Manifest + manifest
-				return appMeta.Update()
-			}),
+		StandardNocalhostMetas(a.Name, a.NameSpace).
+			SetDoApply(doApply).
+			SetBeforeApply(
+				func(manifest string) error {
+					appMeta.Manifest = appMeta.Manifest + manifest
+					return appMeta.Update()
+				}),
 		"")
 }
 
-func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
+func (a *Application) installHelm(flags *HelmFlags, resourceDir string, fromRepo bool) error {
 
 	releaseName := a.Name
 	commonParams := make([]string, 0)
@@ -118,7 +123,7 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 
 	var resourcesPath []string
 	if !fromRepo {
-		resourcesPath = a.GetResourceDir()
+		resourcesPath = a.GetResourceDir(resourceDir)
 	}
 	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
@@ -237,14 +242,4 @@ func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) erro
 	}
 	log.Logf("Dependency config map installed")
 	return nil
-}
-
-func (a *Application) SetInstalledStatus(is bool) {
-	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
-	if err != nil {
-		return
-	}
-	defer profileV2.CloseDb()
-	profileV2.Installed = is
-	profileV2.Save()
 }
