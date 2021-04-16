@@ -320,9 +320,9 @@ func (a *Application) LoadConfigFromLocalV2() (*profile.NocalHostAppConfigV2, er
 	if err = yaml.Unmarshal(rbytes, config); err != nil {
 		re, _ := regexp.Compile("remoteDebugPort: \"[0-9]*\"")
 		rep := re.ReplaceAllString(string(rbytes), "")
-		//log.Infof("zzzz %s", rep)
-		err = yaml.Unmarshal([]byte(rep), config)
-		return nil, errors.Wrap(err, "")
+		if err = yaml.Unmarshal([]byte(rep), config); err != nil {
+			return errors.Wrap(err, "")
+		}
 	}
 
 	return config, nil

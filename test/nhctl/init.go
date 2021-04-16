@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
-	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/test/util"
 	"os"
@@ -119,9 +118,8 @@ func Init() {
 	go func() {
 		for {
 			line, isPrefix, err := lineBody.ReadLine()
-			if err != nil && err != io.EOF {
-				fmt.Printf("command error: %v, log : %v\n", err, string(line))
-				StatusChan <- -1
+			if err != nil {
+				fmt.Printf("error: %v", err)
 			}
 			if len(line) != 0 && !isPrefix {
 				fmt.Println(string(line))
