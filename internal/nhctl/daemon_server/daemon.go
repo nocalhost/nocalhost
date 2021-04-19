@@ -84,6 +84,13 @@ func StartDaemon(isSudoUser bool, v string) error {
 					return nil
 				}
 			} else if pack.Event.EventType == appmeta.DEV_STA {
+				profile, _ := nhApp.GetProfile()
+
+				// ignore the event from local
+				if profile.Identifier == pack.Event.Identifier {
+					return nil
+				}
+
 				log.Logf("Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName, pack.Event.ResourceName)
 				if err := nhApp.StopAllPortForward(pack.Event.ResourceName); err != nil {
 					return nil
