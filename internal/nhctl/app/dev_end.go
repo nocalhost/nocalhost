@@ -16,6 +16,7 @@ package app
 import (
 	"fmt"
 	"nocalhost/internal/nhctl/syncthing"
+	"nocalhost/internal/nhctl/utils"
 	"runtime"
 	"strconv"
 	"strings"
@@ -33,10 +34,7 @@ func (a *Application) StopAllPortForward(svcName string) error {
 	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
 
 	for _, portForward := range svcProfile.DevPortForwardList {
-		err = a.EndDevPortForward(svcName, portForward.LocalPort, portForward.RemotePort)
-		if err != nil {
-			log.WarnE(err, "")
-		}
+		utils.Should(a.EndDevPortForward(svcName, portForward.LocalPort, portForward.RemotePort))
 	}
 	return nil
 }
@@ -60,32 +58,22 @@ func (a *Application) StopFileSyncOnly(svcName string) error {
 	var err error
 
 	pf, err := a.GetPortForwardForSync(svcName)
-	if err != nil {
-		log.WarnE(err, "")
-	}
+	utils.Should(err)
 	if pf != nil {
-		if err = a.EndDevPortForward(svcName, pf.LocalPort, pf.RemotePort); err != nil {
-			log.WarnE(err, "")
-		}
+		utils.Should(a.EndDevPortForward(svcName, pf.LocalPort, pf.RemotePort))
 	}
 
 	// Deprecated: port-forward has moved to daemon server
 	portForwardPid, portForwardFilePath, err := a.GetBackgroundSyncPortForwardPid(svcName, false)
-	if err != nil {
-		log.Warn("Failed to get background port-forward pid file, ignored")
-	}
+	utils.ShouldI(err, "Failed to get background port-forward pid file")
 	if portForwardPid != 0 {
-		err = syncthing.Stop(portForwardPid, portForwardFilePath, "port-forward", true)
-		if err != nil {
-			log.Warnf("Failed stop port-forward progress pid %d, please run `kill -9 %d` by manual, err: %s\n", portForwardPid, portForwardPid, err)
-		}
+		utils.ShouldI(syncthing.Stop(portForwardPid, portForwardFilePath, "port-forward", true),
+			fmt.Sprintf("Failed stop port-forward progress pid %d, please run `kill -9 %d`", portForwardPid, portForwardPid))
 	}
 
 	// read and clean up pid file
 	syncthingPid, syncThingPath, err := a.GetBackgroundSyncThingPid(svcName, false)
-	if err != nil {
-		log.Warn("Failed to get background syncthing pid file, ignored")
-	}
+	utils.ShouldI(err, "Failed to get background syncthing pid file")
 	if syncthingPid != 0 {
 		err = syncthing.Stop(syncthingPid, syncThingPath, "syncthing", true)
 		if err != nil {
@@ -108,9 +96,7 @@ func (a *Application) StopSyncAndPortForwardProcess(svcName string, cleanRemoteS
 	err := a.StopFileSyncOnly(svcName)
 
 	log.Info("Stopping port forward")
-	if err = a.StopAllPortForward(svcName); err != nil {
-		log.WarnE(err, "")
-	}
+	utils.Should(a.StopAllPortForward(svcName))
 
 	// Clean up secret
 	if cleanRemoteSecret {
@@ -127,11 +113,7 @@ func (a *Application) StopSyncAndPortForwardProcess(svcName string, cleanRemoteS
 		}
 	}
 
-	// set profile status
-	// set port-forward port and ignore result
-	// err = a.SetSyncthingPort(svcName, 0, 0, 0, 0)
-	err = a.SetSyncthingProfileEndStatus(svcName)
-	return err
+	return a.SetSyncthingProfileEndStatus(svcName)
 }
 
 func (a *Application) DevEnd(svcName string, reset bool) error {
@@ -142,12 +124,8 @@ func (a *Application) DevEnd(svcName string, reset bool) error {
 		log.WarnE(err, "something incorrect occurs when rolling back")
 	}
 
-	if err := a.appMeta.DeploymentDevEnd(svcName); err != nil {
-		log.WarnE(err, "something incorrect occurs when updating secret")
-	}
+	utils.ShouldI(a.appMeta.DeploymentDevEnd(svcName), "something incorrect occurs when updating secret")
 
-	if err := a.StopSyncAndPortForwardProcess(svcName, true); err != nil {
-		log.WarnE(err, "something incorrect occurs when stopping sync process")
-	}
+	utils.ShouldI(a.StopSyncAndPortForwardProcess(svcName, true), "something incorrect occurs when stopping sync process")
 	return nil
 }

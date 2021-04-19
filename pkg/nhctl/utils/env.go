@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
@@ -37,10 +38,7 @@ func GetKVFromEnvFiles(files []string) map[string]string {
 		vip.AddConfigPath(filepath.Dir(file))
 		vip.SetConfigType("env")
 		vip.SetConfigName(filepath.Base(file))
-		err = vip.ReadInConfig()
-		if err != nil {
-			log.WarnE(errors.Wrap(err, ""), "Failed to read env file")
-		}
+		utils.Should(errors.Wrap(vip.ReadInConfig(), "Failed to read env file"))
 		for _, key := range vip.AllKeys() {
 			result[key] = vip.GetString(key)
 		}

@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"time"
 )
@@ -76,10 +77,7 @@ var upgradeCmd = &cobra.Command{
 				}
 				pfList = append(pfList, pf)
 				log.Infof("Stopping pf: %d:%d", pf.LocalPort, pf.RemotePort)
-				err = nocalhostApp.EndDevPortForward(svcProfile.ActualName, pf.LocalPort, pf.RemotePort)
-				if err != nil {
-					log.WarnE(err, "")
-				}
+				utils.Should(nocalhostApp.EndDevPortForward(svcProfile.ActualName, pf.LocalPort, pf.RemotePort))
 			}
 			if len(pfList) > 0 {
 				pfListMap[svcProfile.ActualName] = pfList
@@ -107,9 +105,7 @@ var upgradeCmd = &cobra.Command{
 			}
 			for _, pf := range pfList {
 				log.Infof("Starting pf %d:%d for %s", pf.LocalPort, pf.RemotePort, svcName)
-				if err = nocalhostApp.PortForward(svcName, podName, pf.LocalPort, pf.RemotePort, pf.Role); err != nil {
-					log.WarnE(err, "")
-				}
+				utils.Should(nocalhostApp.PortForward(svcName, podName, pf.LocalPort, pf.RemotePort, pf.Role))
 			}
 		}
 	},

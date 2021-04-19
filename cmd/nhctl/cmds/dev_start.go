@@ -19,6 +19,7 @@ import (
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 
@@ -134,9 +135,7 @@ var devStartCmd = &cobra.Command{
 		pfList := appProfile.FetchSvcProfileV2FromProfile(deployment).DevPortForwardList
 		for _, pf := range pfList {
 			log.Infof("Stopping %d:%d", pf.LocalPort, pf.RemotePort)
-			if err = nocalhostApp.EndDevPortForward(deployment, pf.LocalPort, pf.RemotePort); err != nil {
-				log.WarnE(err, "")
-			}
+			utils.Should(nocalhostApp.EndDevPortForward(deployment, pf.LocalPort, pf.RemotePort))
 		}
 
 		if err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps); err != nil {
@@ -151,9 +150,7 @@ var devStartCmd = &cobra.Command{
 		must(err)
 
 		for _, pf := range pfList {
-			if err = nocalhostApp.PortForward(deployment, podName, pf.LocalPort, pf.RemotePort, pf.Role); err != nil {
-				log.WarnE(err, "")
-			}
+			utils.Should(nocalhostApp.PortForward(deployment, podName, pf.LocalPort, pf.RemotePort, pf.Role))
 		}
 
 		must(nocalhostApp.PortForwardAfterDevStart(deployment, devStartOps.Container, app.Deployment))

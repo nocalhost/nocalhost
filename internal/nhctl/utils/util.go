@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
 	"os/user"
@@ -15,6 +16,17 @@ import (
 	"runtime"
 	"strconv"
 )
+
+func Should(err error) {
+	ShouldI(err, "")
+}
+
+// With info
+func ShouldI(err error, info string) {
+	if err != nil {
+		log.WarnE(err, info)
+	}
+}
 
 func GetHomePath() string {
 	if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {

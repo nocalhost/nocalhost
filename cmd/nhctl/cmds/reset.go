@@ -19,6 +19,7 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
@@ -80,13 +81,9 @@ func resetApplication(applicationName string) {
 	appProfile, _ := nocalhostApp.GetProfile()
 	for _, profile := range appProfile.SvcProfile {
 		if profile.Developing {
-			if err = nocalhostApp.StopSyncAndPortForwardProcess(profile.ActualName, true); err != nil {
-				log.WarnE(err, "")
-			}
+			utils.Should(nocalhostApp.StopSyncAndPortForwardProcess(profile.ActualName, true))
 		} else if len(profile.DevPortForwardList) > 0 {
-			if err = nocalhostApp.StopAllPortForward(profile.ActualName); err != nil {
-				log.WarnE(err, "")
-			}
+			utils.Should(nocalhostApp.StopAllPortForward(profile.ActualName))
 		}
 	}
 

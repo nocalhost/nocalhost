@@ -44,8 +44,9 @@ var portForwardEndCmd = &cobra.Command{
 		initAppAndCheckIfSvcExist(applicationName, deployment, []string{ServiceType})
 		err := nocalhostApp.StopPortForwardByPort(deployment, portForwardEndOptions.Port)
 		if err != nil {
-			log.Warnf("stop port-forward fail, %s", err.Error())
+			log.WarnE(err, "stop port-forward fail")
+		} else {
+			log.Infof("%s port-forward has been stop", portForwardEndOptions.Port)
 		}
-		log.Infof("%s port-forward has been stop", portForwardEndOptions.Port)
 	},
 }

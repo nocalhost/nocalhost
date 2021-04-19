@@ -136,12 +136,8 @@ func moveApplicationDirToNsDir() error {
 					continue
 				}
 				// Moving dir
-				err = utils.CopyDir(appDir, filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), ns, appDirInfo.Name()))
-				if err != nil {
-					log.WarnE(errors.Wrap(err, ""), "")
-				}
+				utils.Should(utils.CopyDir(appDir, filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), ns, appDirInfo.Name())))
 			}
-
 		} else {
 			return errors.Wrap(err, "")
 		}

@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"time"
 )
@@ -135,9 +136,7 @@ func (c *ClientGoUtils) DeleteDeployment(name string, wait bool) error {
 		terminated := false
 		for i := 0; i < 200; i++ {
 			list, err := c.ListPodsByLabels(labelMap)
-			if err != nil {
-				log.WarnE(err, "")
-			}
+			utils.Should(err)
 			if len(list) == 0 {
 				log.Infof("All pods of %s have been terminated", name)
 				terminated = true

@@ -150,23 +150,17 @@ var InitCommand = &cobra.Command{
 				inits.NameSpace,
 			}
 			_, err = tools.ExecCommand(nil, false, nhctl, uninstall...)
-			if err != nil {
-				log.Warnf("uninstall %s application fail, ignore", app.DefaultInitInstallApplicationName)
-			}
+			utils.ShouldI(err, fmt.Sprintf("uninstall %s application fail", app.DefaultInitInstallApplicationName))
 			// delete nocalhost(server namespace), nocalhost-reserved(dep) namespace if exist
 			if nsErr := client.CheckExistNameSpace(inits.NameSpace); nsErr == nil {
 				// try delete mariadb
 				_ = client.NameSpace(inits.NameSpace).DeleteStatefulSetAndPVC("nocalhost-mariadb")
-				err := client.DeleteNameSpace(inits.NameSpace, true)
-				if err != nil {
-					log.Warnf("delete namespace %s fail, ignore", inits.NameSpace)
-				}
+				utils.ShouldI(client.DeleteNameSpace(inits.NameSpace, true),
+					fmt.Sprintf("delete namespace %s faile", inits.NameSpace))
 			}
 			if nsErr := client.CheckExistNameSpace(app.DefaultInitWaitNameSpace); nsErr == nil {
 				err = client.DeleteNameSpace(app.DefaultInitWaitNameSpace, true)
-				if err != nil {
-					log.Warnf("delete namespace %s fail, ignore", app.DefaultInitWaitNameSpace)
-				}
+				utils.ShouldI(err, fmt.Sprintf("delete namespace %s fail", app.DefaultInitWaitNameSpace))
 			}
 			spinner.Stop()
 			coloredoutput.Success("force uninstall Nocalhost successfully \n")
@@ -382,7 +376,5 @@ func setDepComponentDockerImage(kubectl, kubeConfig string) {
 		kubeConfig,
 	}
 	_, err := tools.ExecCommand(nil, false, kubectl, params...)
-	if err != nil {
-		log.Warnf("set nocalhost-dep component tag fail, err: %s", err)
-	}
+	utils.ShouldI(err, "set nocalhost-dep component tag fail")
 }
