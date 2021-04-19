@@ -153,7 +153,7 @@ func cleanupDaemon(pid int, wait bool, typeName string) error {
 
 	if err != nil {
 		log.Fatalf("error when looking up the process: %s", err)
-		return err
+		return errors.Wrap(err, "")
 	}
 
 	if typeName == syncthing {

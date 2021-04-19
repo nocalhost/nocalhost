@@ -16,6 +16,7 @@ package cmds
 import (
 	"context"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"time"
 
@@ -58,9 +59,7 @@ var fileSyncCmd = &cobra.Command{
 
 		// resume port-forward and syncthing
 		if fileSyncOps.Resume || fileSyncOps.Stop {
-			if err := nocalhostApp.StopFileSyncOnly(deployment); err != nil {
-				log.WarnE(err, "Error occurs when stopping sync process, ignore")
-			}
+			utils.ShouldI(nocalhostApp.StopFileSyncOnly(deployment), "Error occurs when stopping sync process")
 			if fileSyncOps.Stop {
 				return
 			}
@@ -79,15 +78,10 @@ var fileSyncCmd = &cobra.Command{
 		// TODO
 		// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished), the files that have been synchronized will not be synchronized.
 		newSyncthing, err := nocalhostApp.NewSyncthing(deployment, fileSyncOps.Container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, fileSyncOps.SyncDouble)
-		if err != nil {
-			log.WarnE(err, "Failed to new syncthing")
-		}
+		utils.ShouldI(err, "Failed to new syncthing")
 
 		// starts up a local syncthing
-		err = newSyncthing.Run(context.TODO())
-		if err != nil {
-			log.WarnE(err, "Failed to run syncthing")
-		}
+		utils.ShouldI(newSyncthing.Run(context.TODO()), "Failed to run syncthing")
 
 		must(nocalhostApp.SetSyncingStatus(deployment, true))
 
