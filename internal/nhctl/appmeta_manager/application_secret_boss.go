@@ -70,7 +70,7 @@ func (s *Supervisor) inDeck(ns, config string) *applicationSecretWatcher {
 
 	log.Infof("Prepare for ns %s", ns)
 	if err := watcher.Prepare(); err != nil {
-		log.FatalE(err, "")
+		log.ErrorE(err, "")
 	}
 
 	log.Infof("Prepare complete, start to watch for ns %s", ns)
