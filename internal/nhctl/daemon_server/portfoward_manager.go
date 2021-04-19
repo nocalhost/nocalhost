@@ -188,7 +188,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			}
 		}
 
-		stdout, err := os.OpenFile(filepath.Join(logDir, fmt.Sprintf("%s_%s_%s_%d_%d", startCmd.NameSpace, startCmd.AppName, startCmd.Service, localPort, remotePort)), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+		stdout, err := os.OpenFile(filepath.Join(logDir, fmt.Sprintf("%s_%s_%s_%d_%d", startCmd.NameSpace, startCmd.AppName, startCmd.Service, localPort, remotePort)), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0755)
 		if err != nil {
 			log.LogE(err)
 		}

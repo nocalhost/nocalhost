@@ -161,8 +161,15 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	}
 
 	if kubeconfig != "" && kubeconfig != app.profileV2.Kubeconfig {
-		app.profileV2.Kubeconfig = kubeconfig
-		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.profileV2); err != nil {
+		//app.profileV2.Kubeconfig = kubeconfig
+		p, err := profile.NewAppProfileV2ForUpdate(app.NameSpace, app.Name)
+		if err != nil {
+			return nil, err
+		}
+		p.Kubeconfig = kubeconfig
+		_ = p.Save()
+
+		if err = p.CloseDb(); err != nil {
 			return nil, err
 		}
 	}
@@ -177,11 +184,16 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 }
 
 func (a *Application) generateSecretForEarlierVer() bool {
-	if a.profileV2 != nil && !a.profileV2.Secreted && a.appMeta.IsNotInstall() && a.Name != DefaultNocalhostApplication {
+	profileV2, _ := a.GetProfile()
+	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() && a.Name != DefaultNocalhostApplication {
 		defer func() {
 			log.Logf("Mark application %s in ns %s has been secreted", a.Name, a.NameSpace)
-			a.profileV2.Secreted = true
-			_ = nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.profileV2)
+			//a.profileV2.Secreted = true
+			p, _ := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
+			p.Secreted = true
+			p.Save()
+			p.CloseDb()
+			//_ = nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.profileV2)
 		}()
 
 		if err := a.appMeta.Initial(); err != nil {
@@ -190,12 +202,12 @@ func (a *Application) generateSecretForEarlierVer() bool {
 		}
 		log.Logf("Earlier version installed application found, generate a secret...")
 
-		a.profileV2.GenerateIdentifierIfNeeded()
-		_ = nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.profileV2)
+		profileV2.GenerateIdentifierIfNeeded()
+		_ = nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
 
 		// config、manifest is missing while adaption update
 		a.appMeta.Config = a.newConfigFromProfile()
-		a.appMeta.DepConfigName = a.profileV2.DependencyConfigMapName
+		a.appMeta.DepConfigName = profileV2.DependencyConfigMapName
 		a.appMeta.Ns = a.NameSpace
 		a.appMeta.ApplicationType = appmeta.AppTypeOf(a.profileV2.AppType)
 
@@ -210,7 +222,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 		default:
 		}
 
-		for _, svc := range a.profileV2.SvcProfile {
+		for _, svc := range profileV2.SvcProfile {
 			if svc.Developing {
 				_ = a.appMeta.DeploymentDevStart(svc.Name, a.profileV2.Identifier)
 			}
@@ -291,6 +303,11 @@ func (a *Application) tryLoadProfileFromLocal() (err error) {
 
 func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
 	return nocalhost.GetProfileV2(a.NameSpace, a.Name)
+}
+
+// You need to closeDB for profile explicitly
+func (a *Application) GetProfileForUpdate() (*profile.AppProfileV2, error) {
+	return profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 }
 
 func (a *Application) SaveProfile(p *profile.AppProfileV2) error {
