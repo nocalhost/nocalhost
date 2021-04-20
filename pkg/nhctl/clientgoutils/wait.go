@@ -29,7 +29,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-func (c *ClientGoUtils) WaitForResourceReady(resourceType ResourceType, name string, isReady func(object runtime.Object) (bool, error)) error {
+func (c *ClientGoUtils) WaitForResourceReady(
+	resourceType ResourceType, name string, isReady func(object runtime.Object) (bool, error),
+) error {
 	var runtimeObject runtime.Object
 	var restClient rest.Interface
 	switch resourceType {
@@ -57,7 +59,8 @@ func (c *ClientGoUtils) WaitForResourceReady(resourceType ResourceType, name str
 	stop := make(chan struct{})
 	defer close(stop)
 	exit := make(chan bool)
-	_, controller := cache.NewInformer( // also take a look at NewSharedIndexInformer
+	_, controller := cache.NewInformer(
+		// also take a look at NewSharedIndexInformer
 		watchlist,
 		runtimeObject,
 		0,
@@ -131,7 +134,8 @@ func (c *ClientGoUtils) WaitJobToBeReady(name, format string) error {
 	)
 	stop := make(chan struct{})
 	exit := make(chan int)
-	_, controller := cache.NewInformer( // also take a look at NewSharedIndexInformer
+	_, controller := cache.NewInformer(
+		// also take a look at NewSharedIndexInformer
 		watchlist,
 		&batchv1.Job{},
 		0, //Duration is int64

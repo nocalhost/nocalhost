@@ -50,7 +50,13 @@ func NewUserRepo(db *gorm.DB) BaseRepo {
 // GetUserList
 func (repo *userBaseRepo) GetUserList(ctx context.Context) ([]*model.UserList, error) {
 	var result []*model.UserList
-	repo.db.Raw("select u.id as id,u.name as name,u.sa_name as sa_name,u.email as email,count(distinct cu.id) as cluster_count,u.status as status, u.is_admin as is_admin from users as u left join clusters_users as cu on cu.user_id=u.id where u.deleted_at is null and cu.deleted_at is null group by u.id").Scan(&result)
+	repo.db.Raw(
+		"select u.id as id,u.name as name,u.sa_name as sa_name,u.email as email," +
+			"count(distinct cu.id) as cluster_count,u.status as status," +
+			" u.is_admin as is_admin from users as u left join clusters_users as cu on cu.user_id=u.id " +
+			"where u.deleted_at is null and cu.deleted_at is null group by u.id",
+	).
+		Scan(&result)
 	return result, nil
 }
 
@@ -76,7 +82,9 @@ func (repo *userBaseRepo) Create(ctx context.Context, user model.UserBaseModel) 
 }
 
 // Update
-func (repo *userBaseRepo) Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) (*model.UserBaseModel, error) {
+func (repo *userBaseRepo) Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) (
+	*model.UserBaseModel, error,
+) {
 	user, err := repo.GetUserByID(ctx, id)
 	if user.ID != id {
 		return user, errors.New("[user_repo] user is not exsit.")

@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	getter "github.com/hashicorp/go-getter"
+	"github.com/hashicorp/go-getter"
 
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/utils"
@@ -31,10 +31,14 @@ import (
 
 var (
 	downloadURLs = map[string]string{
-		"linux":   "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=%s",
-		"arm64":   "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-arm64.tar.gz?version=%s",
-		"darwin":  "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=%s",
-		"windows": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=%s",
+		"linux": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz" +
+			"?version=%s",
+		"arm64": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-arm64.tar.gz" +
+			"?version=%s",
+		"darwin": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip" +
+			"?version=%s",
+		"windows": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip" +
+			"?version=%s",
 	}
 )
 
@@ -132,12 +136,17 @@ func (s *SyncthingInstaller) install(version string, p getter.ProgressTracker) e
 		return err
 	}
 	if len(dirs) != 1 {
-		return fmt.Errorf("download syncthing from %s and extract multi dirs that are not expected", client.Src)
+		return fmt.Errorf(
+			"download syncthing from %s and extract multi dirs that are not expected", client.Src,
+		)
 	}
 
 	info := dirs[0]
 	if !info.IsDir() {
-		return fmt.Errorf("download syncthing from %s and there is an unpredictable error occurred during decompression", client.Src)
+		return fmt.Errorf(
+			"download syncthing from %s and "+
+				"there is an unpredictable error occurred during decompression", client.Src,
+		)
 	}
 
 	i := s.BinPath
@@ -158,7 +167,7 @@ func (s *SyncthingInstaller) install(version string, p getter.ProgressTracker) e
 	}
 
 	// fix if ~/.nh/nhctl/bin/syncthing not exist
-	if err := os.MkdirAll((GetDir(i)), 0700); err != nil {
+	if err := os.MkdirAll(GetDir(i), 0700); err != nil {
 		return fmt.Errorf("failed mkdir for %s: %s", i, err)
 	}
 
@@ -180,7 +189,10 @@ func (s *SyncthingInstaller) needToDownloadByVersionAndCommitId() []string {
 
 	defer func() {
 		if len(installCandidate) > 0 {
-			log.Infof("Need to download from following versions according to the sequence: %s", strings.Join(installCandidate, ", "))
+			log.Infof(
+				"Need to download from following versions according to the sequence: %s",
+				strings.Join(installCandidate, ", "),
+			)
 		}
 	}()
 

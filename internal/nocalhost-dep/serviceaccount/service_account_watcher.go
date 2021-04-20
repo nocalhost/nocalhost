@@ -42,7 +42,9 @@ type Controller struct {
 	saw      *ServiceAccountWatcher
 }
 
-func NewController(queue workqueue.RateLimitingInterface, indexer cache.Indexer, informer cache.Controller, saw *ServiceAccountWatcher) *Controller {
+func NewController(
+	queue workqueue.RateLimitingInterface, indexer cache.Indexer, informer cache.Controller, saw *ServiceAccountWatcher,
+) *Controller {
 	return &Controller{
 		informer: informer,
 		indexer:  indexer,
@@ -99,11 +101,14 @@ func (c *Controller) updateApplicationMeta(key string) error {
 }
 
 func (c *Controller) join(sa *corev1.ServiceAccount) error {
-	for key, _ := range sa.Labels {
+	for key := range sa.Labels {
 		if key == clientgo.NocalhostLabel {
 			isClusterAdmin, _ := c.saw.isClusterAdmin(sa)
 			c.saw.cache.record(string(sa.UID), isClusterAdmin, sa.Name)
-			glog.Infof("ServiceAccountCache: refresh nocalhost sa in ns: %s, is cluster admin: %t", sa.Namespace, isClusterAdmin)
+			glog.Infof(
+				"ServiceAccountCache: refresh nocalhost sa in ns: %s, is cluster admin: %t", sa.Namespace,
+				isClusterAdmin,
+			)
 			return nil
 		}
 	}
@@ -230,7 +235,9 @@ func (saw *ServiceAccountWatcher) isClusterAdmin(sa *corev1.ServiceAccount) (boo
 		return false, nil
 	}
 
-	secret, err := saw.clientset.CoreV1().Secrets(sa.Namespace).Get(context.TODO(), sa.Secrets[0].Name, metav1.GetOptions{})
+	secret, err := saw.clientset.CoreV1().Secrets(sa.Namespace).Get(
+		context.TODO(), sa.Secrets[0].Name, metav1.GetOptions{},
+	)
 	if err != nil {
 		glog.Error(err)
 		return false, err
@@ -242,7 +249,9 @@ func (saw *ServiceAccountWatcher) isClusterAdmin(sa *corev1.ServiceAccount) (boo
 		return false, err
 	}
 
-	KubeConfigYaml, err, _ := setupcluster.NewDevKubeConfigReader(secret, config.Host, sa.Namespace).GetCA().GetToken().AssembleDevKubeConfig().ToYamlString()
+	KubeConfigYaml, err, _ := setupcluster.NewDevKubeConfigReader(
+		secret, config.Host, sa.Namespace,
+	).GetCA().GetToken().AssembleDevKubeConfig().ToYamlString()
 	if err != nil {
 		glog.Error(err)
 		return false, err
@@ -296,7 +305,9 @@ func (saw *ServiceAccountWatcher) Quit() {
 
 func (saw *ServiceAccountWatcher) Prepare() error {
 	// create the service account watcher
-	saWatcher := cache.NewListWatchFromClient(saw.clientset.CoreV1().RESTClient(), "serviceaccounts", "default", fields.Everything())
+	saWatcher := cache.NewListWatchFromClient(
+		saw.clientset.CoreV1().RESTClient(), "serviceaccounts", "default", fields.Everything(),
+	)
 
 	// create the workqueue
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
@@ -305,38 +316,45 @@ func (saw *ServiceAccountWatcher) Prepare() error {
 	// whenever the cache is updated, the service account key is added to the workqueue.
 	// Note that when we finally process the item from the workqueue, we might see a newer version
 	// of the service account than the version which was responsible for triggering the update.
-	indexer, informer := cache.NewIndexerInformer(saWatcher, &corev1.ServiceAccount{}, 0, cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(obj)
-			if err == nil {
-				queue.Add(key)
-			}
-		},
-		UpdateFunc: func(old interface{}, new interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(new)
-			if err == nil {
-				queue.Add(key)
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			// IndexerInformer uses a delta queue, therefore for deletes we have to use this
-			// key function.
-			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-			if err == nil {
-				queue.Add(key)
-			}
-		},
-	}, cache.Indexers{})
+	indexer, informer := cache.NewIndexerInformer(
+		saWatcher, &corev1.ServiceAccount{}, 0, cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				key, err := cache.MetaNamespaceKeyFunc(obj)
+				if err == nil {
+					queue.Add(key)
+				}
+			},
+			UpdateFunc: func(old interface{}, new interface{}) {
+				key, err := cache.MetaNamespaceKeyFunc(new)
+				if err == nil {
+					queue.Add(key)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				// IndexerInformer uses a delta queue, therefore for deletes we have to use this
+				// key function.
+				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+				if err == nil {
+					queue.Add(key)
+				}
+			},
+		}, cache.Indexers{},
+	)
 
 	controller := NewController(queue, indexer, informer, saw)
 
-	if list, err := saw.clientset.CoreV1().ServiceAccounts("default").List(context.TODO(), metav1.ListOptions{}); err == nil {
+	if list, err := saw.clientset.CoreV1().ServiceAccounts("default").List(
+		context.TODO(), metav1.ListOptions{},
+	); err == nil {
 		for _, item := range list.Items {
-			for key, _ := range item.Labels {
+			for key := range item.Labels {
 				if key == clientgo.NocalhostLabel {
 					isClusterAdmin, _ := saw.isClusterAdmin(&item)
 					saw.cache.record(string(item.UID), isClusterAdmin, item.Name)
-					glog.Infof("ServiceAccountCache: refresh nocalhost sa in ns: %s, is cluster admin: %t", item.Namespace, isClusterAdmin)
+					glog.Infof(
+						"ServiceAccountCache: refresh nocalhost sa in ns: %s, is cluster admin: %t", item.Namespace,
+						isClusterAdmin,
+					)
 				}
 			}
 		}

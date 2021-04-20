@@ -158,12 +158,14 @@ func init() {
 
 // (https://github.com/kubernetes/kubernetes/issues/57982)
 func applyDefaultsWorkaround(containers []corev1.Container, volumes []corev1.Volume) {
-	defaulter.Default(&corev1.Pod{
-		Spec: corev1.PodSpec{
-			Containers: containers,
-			Volumes:    volumes,
+	defaulter.Default(
+		&corev1.Pod{
+			Spec: corev1.PodSpec{
+				Containers: containers,
+				Volumes:    volumes,
+			},
 		},
-	})
+	)
 }
 
 func LoadConfig(configFile string) (*Config, error) {
@@ -227,11 +229,13 @@ func addContainer(target, added []corev1.Container, basePath string) (patch []pa
 		} else {
 			path = path + "/-"
 		}
-		patch = append(patch, patchOperation{
-			Op:    "add",
-			Path:  path,
-			Value: value,
-		})
+		patch = append(
+			patch, patchOperation{
+				Op:    "add",
+				Path:  path,
+				Value: value,
+			},
+		)
 	}
 	return patch
 }
@@ -248,11 +252,13 @@ func addVolume(target, added []corev1.Volume, basePath string) (patch []patchOpe
 		} else {
 			path = path + "/-"
 		}
-		patch = append(patch, patchOperation{
-			Op:    "add",
-			Path:  path,
-			Value: value,
-		})
+		patch = append(
+			patch, patchOperation{
+				Op:    "add",
+				Path:  path,
+				Value: value,
+			},
+		)
 	}
 	return patch
 }
@@ -261,19 +267,23 @@ func updateAnnotation(target map[string]string, added map[string]string) (patch 
 	for key, value := range added {
 		if target == nil || target[key] == "" {
 			target = map[string]string{}
-			patch = append(patch, patchOperation{
-				Op:   "add",
-				Path: "/metadata/annotations",
-				Value: map[string]string{
-					key: value,
+			patch = append(
+				patch, patchOperation{
+					Op:   "add",
+					Path: "/metadata/annotations",
+					Value: map[string]string{
+						key: value,
+					},
 				},
-			})
+			)
 		} else {
-			patch = append(patch, patchOperation{
-				Op:    "replace",
-				Path:  "/metadata/annotations/" + key,
-				Value: value,
-			})
+			patch = append(
+				patch, patchOperation{
+					Op:    "replace",
+					Path:  "/metadata/annotations/" + key,
+					Value: value,
+				},
+			)
 		}
 	}
 	return patch
@@ -319,7 +329,10 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 		}
 	default:
 		if err := json.Unmarshal(req.Object.Raw, &omh); err != nil {
-			glog.Errorf("Could not unmarshal raw object: %v, resource: %+v, name: %s, ns: %s, oper: %+v", err, req.Resource, req.Name, req.Namespace, req.Operation)
+			glog.Errorf(
+				"Could not unmarshal raw object: %v, resource: %+v, name: %s, ns: %s, oper: %+v", err, req.Resource,
+				req.Name, req.Namespace, req.Operation,
+			)
 			return &v1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
@@ -344,7 +357,10 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 			ap := omh.getOwnRefSignedAnnotation(req.Namespace)
 			annotationPair <- ap
 			if len(ap) > 0 {
-				glog.Infof("Kind: `%s` Name: `%s` in ns `%s` should patching his signed anno: [%s], meta: %s", req.Kind, req.Name, req.Namespace, strings.Join(ap, ", "), string(req.Object.Raw))
+				glog.Infof(
+					"Kind: `%s` Name: `%s` in ns `%s` should patching his signed anno: [%s], meta: %s", req.Kind,
+					req.Name, req.Namespace, strings.Join(ap, ", "), string(req.Object.Raw),
+				)
 			}
 		}
 	}()
@@ -443,21 +459,30 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 			}
 		}
 
-		glog.Infof("Request user uuid %s, Sa uuid %s without cluster-admin role, so resource quota request denied", req.UserInfo.UID, req.UserInfo.UID)
+		glog.Infof(
+			"Request user uuid %s, Sa uuid %s without cluster-admin role, so resource quota request denied",
+			req.UserInfo.UID, req.UserInfo.UID,
+		)
 		return &v1.AdmissionResponse{
 			Allowed: false,
 		}
 	}
 
 	if resourceType != "ResourceQuota" {
-		glog.Infof("AdmissionReview for Kind=%v, Namespace=%v Name=%v UID=%v patchOperation=%v UserInfo=%v",
-			req.Kind, req.Namespace, req.Name, req.UID, req.Operation, req.UserInfo)
-		glog.Infof("unmarshal for Kind=%v, Namespace=%v Name=%v",
-			req.Kind, req.Namespace, req.Name)
+		glog.Infof(
+			"AdmissionReview for Kind=%v, Namespace=%v Name=%v UID=%v patchOperation=%v UserInfo=%v",
+			req.Kind, req.Namespace, req.Name, req.UID, req.Operation, req.UserInfo,
+		)
+		glog.Infof(
+			"unmarshal for Kind=%v, Namespace=%v Name=%v",
+			req.Kind, req.Namespace, req.Name,
+		)
 	}
 
 	// configmap
-	initContainers, EnvVar, err := nocalhostDepConfigmap(nocalhostNamespace, resourceName, resourceType, objectMeta, containers)
+	initContainers, EnvVar, err := nocalhostDepConfigmap(
+		nocalhostNamespace, resourceName, resourceType, objectMeta, containers,
+	)
 	glog.Infof("initContainers %v", initContainers)
 	glog.Infof("EnvVar %v", EnvVar)
 
