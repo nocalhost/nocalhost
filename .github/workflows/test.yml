@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main, dev ]
   workflow_dispatch:
+  workflow_run:
+    workflows: [ "release" ]
+    types: [ completed ]
 
 jobs:
   prepare:
@@ -14,6 +17,15 @@ jobs:
     steps:
       - uses: actions/checkout@master
         timeout-minutes: 10
+      - name: git tag
+        timeout-minutes: 60
+        if: ${{ github.event.workflow_run.conclusion == 'success' }}
+        run: |
+          git fetch --prune --unshallow --tags
+          TAG=$(git tag | tail -2)
+          echo $TAG
+          echo "RELEASE_VERSION=${TAG}" >> $GITHUB_ENV
+          echo ${{ env.RELEASE_VERSION }}
       - uses: engineerd/setup-kind@v0.5.0
         timeout-minutes: 10
       - name: Waiting for images to be ready
@@ -25,7 +37,7 @@ jobs:
           while true; do
             url='https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/nhctl-linux-amd64?version='$COMMIT_ID''
             echo "url: ""$url"
-            a=$(curl -s "$url")
+            a=$(curl -s "$url") || true
             echo "response: ""$a"
             if [[ $a =~ "File not found" ]]; then
               sleep 5
@@ -48,7 +60,7 @@ jobs:
                 "Repository": "'"$Repository"'",
                 "Package": "'"$Package"'",
                 "PackageVersion": "'"$PackageVersion"'"
-              }')
+              }') || true
               echo "wait for package: ""$Package""version: ""$PackageVersion"
               echo "response: ""$res"
               if [[ $res =~ "InstanceSet" ]]; then
@@ -79,6 +91,6 @@ jobs:
           SHA=${GITHUB_SHA}
           kubectl create namespace test || true
           IMAGE=codingcorp-docker.pkg.coding.net/nocalhost/public/testcase:$SHA
-          docker run -d -v /home/runner/.kube/config:/root/.kube/config -e COMMIT_ID=$SHA --network host --name $SHA $IMAGE
+          docker run -d -v /home/runner/.kube/config:/root/.kube/config -e COMMIT_ID=$SHA -e TAG=${{ env.RELEASE_VERSION }} --network host --name $SHA $IMAGE
           docker logs $SHA -f || true
           ID=$(docker inspect "$(docker ps -aq --filter name=$SHA)" --format='{{.State.ExitCode}}') && echo "$ID" | grep '^0$'

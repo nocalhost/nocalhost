@@ -77,7 +77,7 @@ func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error
 	if err != nil {
 		return err
 	}
-	return moveDir(a.getUpgradeGitDir(), a.ResourceTmpDir)
+	return removeDir(a.getUpgradeGitDir())
 }
 
 func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error {
@@ -177,7 +177,7 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 		return err
 	}
 
-	return moveDir(a.getUpgradeGitDir(), a.ResourceTmpDir)
+	return removeDir(a.getUpgradeGitDir())
 }
 
 func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*resource.Info, continueOnErr bool) error {
@@ -288,7 +288,7 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 		log.Info("building dependency...")
 		depParams := []string{"dependency", "build", resourcesPath[0]}
 		depParams = append(depParams, commonParams...)
-		if _, err = tools.ExecCommand(nil, true, "helm", depParams...); err != nil {
+		if _, err = tools.ExecCommand(nil, true, false, "helm", depParams...); err != nil {
 			return errors.Wrap(err, "fail to build dependency for helm app")
 		}
 	}
@@ -301,12 +301,9 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 
 	log.Info("Upgrade helm application, this may take several minutes, please waiting...")
 
-	if _, err = tools.ExecCommand(nil, true, "helm", params...); err != nil {
+	if _, err = tools.ExecCommand(nil, true, false, "helm", params...); err != nil {
 		return errors.Wrap(err, "")
 	}
 
-	if !fromRepo {
-		err = a.saveUpgradeResources()
-	}
 	return err
 }

@@ -37,9 +37,9 @@ func cloneFromGit(gitUrl string, gitRef string, destPath string) error {
 		strs := strings.Split(gitDirName, "/")
 		gitDirName = strs[len(strs)-1] // todo : for default application name
 		if len(gitRef) > 0 {
-			_, err = tools.ExecCommand(nil, true, "git", "clone", "--branch", gitRef, "--depth", "1", gitUrl, destPath)
+			_, err = tools.ExecCommand(nil, true, true, "git", "clone", "--branch", gitRef, "--depth", "1", gitUrl, destPath)
 		} else {
-			_, err = tools.ExecCommand(nil, true, "git", "clone", "--depth", "1", gitUrl, destPath)
+			_, err = tools.ExecCommand(nil, true, true, "git", "clone", "--depth", "1", gitUrl, destPath)
 		}
 		if err != nil {
 			return errors.Wrap(err, err.Error())
@@ -86,19 +86,15 @@ func (a *Application) downloadUpgradeResourcesFromGit(gitUrl string, gitRef stri
 	return cloneFromGit(gitUrl, gitRef, a.getUpgradeGitDir())
 }
 
-func (a *Application) saveUpgradeResources() error {
-	return moveDir(a.getUpgradeGitDir(), a.ResourceTmpDir)
-}
-
-// Move srcDir to destDir
+// remove srcDir to destDir
 // If destDir already exists, deleting it before move srcDir
-func moveDir(srcDir string, destDir string) error {
-	_, err := os.Stat(destDir)
+func removeDir(dir string) error {
+	_, err := os.Stat(dir)
 	if err == nil {
-		err = os.RemoveAll(destDir)
+		err = os.RemoveAll(dir)
 		if err != nil {
 			return errors.Wrap(err, "")
 		}
 	}
-	return errors.Wrap(os.Rename(srcDir, destDir), "")
+	return nil
 }
