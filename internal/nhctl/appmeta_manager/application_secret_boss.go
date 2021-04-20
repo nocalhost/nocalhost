@@ -16,7 +16,6 @@ package appmeta_manager
 import (
 	"crypto/sha256"
 	"encoding"
-	"encoding/json"
 	"fmt"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/pkg/nhctl/log"
@@ -83,10 +82,6 @@ func (s *Supervisor) inDeck(ns, config string) *applicationSecretWatcher {
 	}()
 
 	s.deck[watchDeck] = watcher
-
-	marshal, _ := json.Marshal(watcher.applicationMetas)
-	log.Infof("applicationMetas:   %s", marshal)
-
 	return watcher
 }
 
