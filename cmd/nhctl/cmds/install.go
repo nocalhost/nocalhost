@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/utils"
 	"time"
 
 	"nocalhost/internal/nhctl/app"
@@ -119,9 +120,7 @@ var installCmd = &cobra.Command{
 						continue
 					}
 					log.Infof("Port forward %d:%d", lPort, rPort)
-					if err = nocalhostApp.PortForward(svcProfile.ActualName, podName, lPort, rPort, ""); err != nil {
-						log.WarnE(err, "")
-					}
+					utils.Should(nocalhostApp.PortForward(svcProfile.ActualName, podName, lPort, rPort, ""))
 				}
 			}
 		}
@@ -147,9 +146,7 @@ func InstallApplication(applicationName string) error {
 	// if init appMeta successful, then should remove all things while fail
 	defer func() {
 		if err != nil {
-			if err := nocalhostApp.Uninstall(); err != nil {
-				log.WarnE(err, "")
-			}
+			utils.Should(nocalhostApp.Uninstall())
 		}
 	}()
 
@@ -180,9 +177,7 @@ func InstallApplication(applicationName string) error {
 }
 
 func must(err error) {
-	if err != nil {
-		log.FatalE(err, "")
-	}
+	mustI(err, "")
 }
 
 func mustI(err error, info string) {

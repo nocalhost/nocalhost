@@ -24,6 +24,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	profile2 "nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
@@ -364,7 +365,7 @@ func (a *ApplicationMeta) NotInstallTips() string {
 }
 
 func (a *ApplicationMeta) IsHelm() bool {
-	return  a.ApplicationType == Helm || a.ApplicationType == HelmRepo || a.ApplicationType == HelmLocal
+	return a.ApplicationType == Helm || a.ApplicationType == HelmRepo || a.ApplicationType == HelmLocal
 }
 
 func (a *ApplicationMeta) Uninstall() error {
@@ -409,9 +410,7 @@ func (a *ApplicationMeta) cleanManifest() {
 		log.Error("Error while loading manifest %s, err: %s ", a.Manifest, err)
 	}
 	for _, info := range infos {
-		if e := a.clientInner.DeleteResourceInfo(info); e != nil {
-			log.WarnE(err, fmt.Sprintf("Failed to delete resource %s%s ", info.Name, e.Error()))
-		}
+		utils.ShouldI(a.clientInner.DeleteResourceInfo(info), "Failed to delete resource "+info.Name)
 	}
 }
 
@@ -420,13 +419,10 @@ func (a *ApplicationMeta) cleanPreInstallManifest() {
 
 	//goland:noinspection GoNilness
 	infos, err := resource.GetResourceInfo(a.clientInner, true)
-	if err != nil {
-		log.Error("Error while loading pre install manifest %s, err: %s ", a.PreInstallManifest, err)
-	}
+	utils.ShouldI(err, "Error while loading pre install manifest "+a.PreInstallManifest)
+
 	for _, info := range infos {
-		if e := a.clientInner.DeleteResourceInfo(info); e != nil {
-			log.WarnE(err, fmt.Sprintf("Failed to delete resource %s%s ", info.Name, e.Error()))
-		}
+		utils.ShouldI(a.clientInner.DeleteResourceInfo(info), "Failed to delete resource "+info.Name)
 	}
 }
 
@@ -451,10 +447,7 @@ func (a *ApplicationMeta) cleanUpDepConfigMap() error {
 
 	for _, cfg := range list {
 		if strings.HasPrefix(cfg.Name, DependenceConfigMapPrefix) {
-			err = a.clientInner.DeleteConfigMapByName(cfg.Name)
-			if err != nil {
-				log.WarnE(err, fmt.Sprintf("Failed to clean up config map: %s", cfg.Name))
-			}
+			utils.ShouldI(a.clientInner.DeleteConfigMapByName(cfg.Name), "Failed to clean up config map"+cfg.Name)
 		}
 	}
 	return nil

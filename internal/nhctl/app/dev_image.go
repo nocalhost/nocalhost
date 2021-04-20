@@ -269,9 +269,7 @@ func (a *Application) generateResourceRequirementsForDevContainer(svcName string
 	if resourceQuota != nil {
 		log.Debug("DevContainer uses resource limits defined in config")
 		requirements, err = convertResourceQuotaToResourceRequirements(resourceQuota)
-		if err != nil {
-			log.WarnE(err, "Failed to parse resource requirements")
-		}
+		utils.ShouldI(err, "Failed to parse resource requirements")
 	}
 
 	return requirements

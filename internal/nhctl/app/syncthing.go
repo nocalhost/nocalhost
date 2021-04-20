@@ -33,10 +33,16 @@ import (
 func (a *Application) NewSyncthing(deployment string, container string, localSyncDir []string, syncDouble bool) (*syncthing.Syncthing, error) {
 	var err error
 
-	appProfile, err := a.GetProfile()
+	remotePath := a.GetDefaultWorkDir(deployment, container)
+	appProfile, err := a.GetProfileForUpdate()
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if appProfile != nil {
+			_ = appProfile.CloseDb()
+		}
+	}()
 	svcProfile := appProfile.FetchSvcProfileV2FromProfile(deployment)
 	remotePort := svcProfile.RemoteSyncthingPort
 	remoteGUIPort := svcProfile.RemoteSyncthingGUIPort
@@ -130,13 +136,13 @@ func (a *Application) NewSyncthing(deployment string, container string, localSyn
 				&syncthing.Folder{
 					Name:       strconv.Itoa(index),
 					LocalPath:  sync,
-					RemotePath: a.GetDefaultWorkDir(deployment, container),
+					RemotePath: remotePath,
 				},
 			)
 			index++
 		}
 	}
-	_ = a.SaveProfile(appProfile)
+	_ = appProfile.Save()
 	return s, nil
 }
 

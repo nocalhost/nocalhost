@@ -236,15 +236,15 @@ func (asw *applicationSecretWatcher) GetApplicationMetas() (result []*appmeta.Ap
 }
 
 // deep copy to prevent other func change the application meta
-func (asw *applicationSecretWatcher) GetApplicationMeta(application string) *appmeta.ApplicationMeta {
-	meta := asw.applicationMetas[application]
-	if meta != nil {
-		copyMeta := meta
+func (asw *applicationSecretWatcher) GetApplicationMeta(application, ns string) *appmeta.ApplicationMeta {
+	if asw != nil && asw.applicationMetas[application] != nil {
+		copyMeta := asw.applicationMetas[application]
 		return copyMeta
 	} else {
+
 		return &appmeta.ApplicationMeta{
 			ApplicationState:   appmeta.UNINSTALLED,
-			Ns:                 asw.ns,
+			Ns:                 ns,
 			Application:        application,
 			DepConfigName:      "",
 			PreInstallManifest: "",
@@ -305,20 +305,27 @@ func (asw *applicationSecretWatcher) Prepare() error {
 	}, cache.Indexers{})
 
 	controller := NewController(queue, indexer, informer, asw)
+	asw.watchController = controller
 
 	// first get all nocalhost secrets for initial
 	// ignore error prevent kubeconfig has not permission for get secret
-	list, _ := clientset.CoreV1().Secrets(asw.ns).List(context.TODO(),
+	// ignore fail
+	list, err := clientset.CoreV1().Secrets(asw.ns).List(context.TODO(),
 		metav1.ListOptions{FieldSelector: "type=" + appmeta.SecretType},
 	)
 
-	for _, item := range list.Items {
-		if err := controller.join(&item); err != nil {
-			return err
+	// if err occur while list
+	// the err can be ignored
+	if err != nil {
+		log.ErrorE(err, "")
+	} else {
+		for _, item := range list.Items {
+			if err := controller.join(&item); err != nil {
+				return err
+			}
 		}
 	}
 
-	asw.watchController = controller
 	return nil
 }
 

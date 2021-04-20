@@ -21,6 +21,7 @@ import (
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/syncthing/terminate"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"strconv"
@@ -183,9 +184,7 @@ func (a *Application) PortForwardAfterDevStart(svcName string, containerName str
 				continue
 			}
 			log.Infof("Forwarding %d:%d", lPort, rPort)
-			if err = a.PortForward(svcName, podName, lPort, rPort, ""); err != nil {
-				log.WarnE(err, "")
-			}
+			utils.Should(a.PortForward(svcName, podName, lPort, rPort, ""))
 		}
 	default:
 		return errors.New("SvcType not supported")

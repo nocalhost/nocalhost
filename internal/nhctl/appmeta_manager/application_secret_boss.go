@@ -16,7 +16,6 @@ package appmeta_manager
 import (
 	"crypto/sha256"
 	"encoding"
-	"encoding/json"
 	"fmt"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/pkg/nhctl/log"
@@ -41,7 +40,9 @@ func GetApplicationMetas(ns, config string) []*appmeta.ApplicationMeta {
 
 func GetApplicationMeta(ns, appName, config string) *appmeta.ApplicationMeta {
 	aws := supervisor.inDeck(ns, config)
-	meta := aws.GetApplicationMeta(appName)
+
+	// aws may nil if prepare fail
+	meta := aws.GetApplicationMeta(appName, ns)
 	return meta
 }
 
@@ -70,7 +71,8 @@ func (s *Supervisor) inDeck(ns, config string) *applicationSecretWatcher {
 
 	log.Infof("Prepare for ns %s", ns)
 	if err := watcher.Prepare(); err != nil {
-		log.FatalE(err, "")
+		log.ErrorE(err, "Error while prepare watcher for ns "+ns)
+		return nil
 	}
 
 	log.Infof("Prepare complete, start to watch for ns %s", ns)
@@ -80,10 +82,6 @@ func (s *Supervisor) inDeck(ns, config string) *applicationSecretWatcher {
 	}()
 
 	s.deck[watchDeck] = watcher
-
-	marshal, _ := json.Marshal(watcher.applicationMetas)
-	log.Infof("applicationMetas:   %s", marshal)
-
 	return watcher
 }
 
