@@ -24,7 +24,7 @@ jobs:
           git fetch --prune --unshallow --tags
           TAG=$(git tag | tail -2)
           echo $TAG
-          echo "RELEASE_VERSION=${TAG}" >> $GITHUB_ENV
+          echo "RELEASE_VERSION='${TAG}'" >> $GITHUB_ENV
           echo ${{ env.RELEASE_VERSION }}
       - uses: engineerd/setup-kind@v0.5.0
         timeout-minutes: 10
