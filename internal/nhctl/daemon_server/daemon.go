@@ -31,6 +31,7 @@ import (
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"os/exec"
+	"runtime/debug"
 	"strings"
 )
 
@@ -119,7 +120,14 @@ func StartDaemon(isSudoUser bool, v string) error {
 				log.LogE(err)
 				continue
 			}
-			go handleCommand(conn, bytes, cmdType)
+			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
+					}
+				}()
+				handleCommand(conn, bytes, cmdType)
+			}()
 		}
 	}()
 
