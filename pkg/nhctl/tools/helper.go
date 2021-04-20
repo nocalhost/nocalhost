@@ -80,7 +80,7 @@ func CheckK8s() (string, bool) {
 }
 
 //execute command
-func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params ...string) (string, error) {
+func ExecCommand(ctx context.Context, isDisplay bool, redirectStderr bool, commandName string, params ...string) (string, error) {
 	var errStdout, errStderr error
 	var result []byte
 
@@ -112,7 +112,11 @@ func ExecCommand(ctx context.Context, isDisplay bool, commandName string, params
 	}()
 
 	go func() {
-		_, errStderr = copyAndCapture(os.Stderr, stderrIn, isDisplay)
+		out := os.Stderr
+		if redirectStderr {
+			out = os.Stdout
+		}
+		_, errStderr = copyAndCapture(out, stderrIn, isDisplay)
 	}()
 
 	_ = cmd.Wait()

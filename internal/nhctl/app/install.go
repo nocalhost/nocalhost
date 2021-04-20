@@ -137,7 +137,7 @@ func (a *Application) installHelm(flags *HelmFlags, resourceDir string, fromRepo
 		log.Info("building dependency...")
 		depParams := []string{"dependency", "build", resourcesPath[0]}
 		depParams = append(depParams, commonParams...)
-		if _, err = tools.ExecCommand(nil, true, "helm", depParams...); err != nil {
+		if _, err = tools.ExecCommand(nil, true, false, "helm", depParams...); err != nil {
 			return errors.Wrap(err, "fail to build dependency for helm app")
 		}
 	} else {
@@ -174,7 +174,7 @@ func (a *Application) installHelm(flags *HelmFlags, resourceDir string, fromRepo
 
 	fmt.Println("install helm application, this may take several minutes, please waiting...")
 
-	if _, err = tools.ExecCommand(nil, true, "helm", installParams...); err != nil {
+	if _, err = tools.ExecCommand(nil, true, false, "helm", installParams...); err != nil {
 		return errors.Wrap(err, "fail to install helm application")
 	}
 

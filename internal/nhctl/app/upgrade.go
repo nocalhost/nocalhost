@@ -282,7 +282,7 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 		log.Info("building dependency...")
 		depParams := []string{"dependency", "build", resourcesPath[0]}
 		depParams = append(depParams, commonParams...)
-		if _, err = tools.ExecCommand(nil, true, "helm", depParams...); err != nil {
+		if _, err = tools.ExecCommand(nil, true, false, "helm", depParams...); err != nil {
 			return errors.Wrap(err, "fail to build dependency for helm app")
 		}
 	}
@@ -295,7 +295,7 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 
 	log.Info("Upgrade helm application, this may take several minutes, please waiting...")
 
-	if _, err = tools.ExecCommand(nil, true, "helm", params...); err != nil {
+	if _, err = tools.ExecCommand(nil, true, false, "helm", params...); err != nil {
 		return errors.Wrap(err, "")
 	}
 
