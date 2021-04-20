@@ -41,17 +41,19 @@ func NewApplicationClusterRepo(db *gorm.DB) ApplicationClusterRepo {
 func (repo *applicationClusterRepo) GetJoinCluster(
 	ctx context.Context, id uint64,
 ) ([]*model.ApplicationClusterJoinModel, error) {
-	//TODO group by in mysql 5.7 require full select cols
+	// TODO group by in mysql 5.7 require full select cols
 	// https://stackoverflow.com/questions/36207042/error-code-1055-incompatible-with-sql-mode-only-full-group-by
 	var result []*model.ApplicationClusterJoinModel
 	err := repo.db.Table("applications_clusters as ac").
 		Select(
 			"count(ac.id) as dev_space_count,ac.cluster_id,ac.application_id,c.name as cluster_name,"+
-				"c.info as cluster_info,min(ac.created_at) as created_at,if(c.info is null,\"0\",\"1\")"+
+				"c.info as "+
+				"cluster_info,min(ac.created_at) as created_at,if(c.info is null,\"0\",\"1\")"+
 				" as cluster_status",
 		).Joins("left join clusters as c on c.id=ac.cluster_id").Joins(
 		"left join clusters_users as cu "+
-			"on cu.application_id=ac.application_id and cu.cluster_id=ac.cluster_id",
+			"on cu.application_id=ac.application_id"+
+				" and cu.cluster_id=ac.cluster_id",
 	).Where(
 		"ac.application_id=?", id,
 	).Group("ac.cluster_id,ac.application_id,cluster_name,cluster_info,cluster_status").Scan(&result)
