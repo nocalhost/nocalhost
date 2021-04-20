@@ -90,9 +90,11 @@ func (r ResourceList) Contains(info *resource.Info) bool {
 
 // Difference will return a new Result with objects not contained in rs.
 func (r ResourceList) Difference(rs ResourceList) ResourceList {
-	return r.Filter(func(info *resource.Info) bool {
-		return !rs.Contains(info)
-	})
+	return r.Filter(
+		func(info *resource.Info) bool {
+			return !rs.Contains(info)
+		},
+	)
 }
 
 // Intersect will return a new Result with objects contained in both Results.

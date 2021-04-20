@@ -95,7 +95,10 @@ func ListAuthorization(c *gin.Context) {
 
 			// nocalhost provide every user a service account each cluster
 			var kubeConfig string
-			if kubeConfig = getServiceAccountKubeConfig(clientGo, user.SaName, service.NocalhostDefaultSaNs, cluster.Server); kubeConfig == "" {
+			if kubeConfig = getServiceAccountKubeConfig(
+				clientGo, user.SaName,
+				service.NocalhostDefaultSaNs, cluster.Server,
+			); kubeConfig == "" {
 				return
 			}
 
@@ -120,13 +123,15 @@ func ListAuthorization(c *gin.Context) {
 
 			if len(nss) != 0 || privilege {
 				lock.Lock()
-				result = append(result, &ServiceAccountModel{
-					ClusterId:    cluster.ID,
-					KubeConfig:   kubeConfig,
-					StorageClass: cluster.StorageClass,
-					NS:           nss,
-					Privilege:    privilege,
-				})
+				result = append(
+					result, &ServiceAccountModel{
+						ClusterId:    cluster.ID,
+						KubeConfig:   kubeConfig,
+						StorageClass: cluster.StorageClass,
+						NS:           nss,
+						Privilege:    privilege,
+					},
+				)
 				lock.Unlock()
 			}
 		}()
@@ -136,7 +141,9 @@ func ListAuthorization(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
-func getCluster2Ns2SpaceNameMapping(devSpaces []*model.ClusterUserModel) map[uint64]map[string]*model.ClusterUserModel {
+func getCluster2Ns2SpaceNameMapping(
+	devSpaces []*model.ClusterUserModel,
+) map[uint64]map[string]*model.ClusterUserModel {
 	spaceNameMap := map[uint64]map[string]*model.ClusterUserModel{}
 	for _, space := range devSpaces {
 		m, ok := spaceNameMap[space.ClusterId]
@@ -150,7 +157,10 @@ func getCluster2Ns2SpaceNameMapping(devSpaces []*model.ClusterUserModel) map[uin
 	return spaceNameMap
 }
 
-func getServiceAccountKubeConfig(clientGo *clientgo.GoClient, saName, saNs, serverAddr string) string {
+func getServiceAccountKubeConfig(
+	clientGo *clientgo.GoClient,
+	saName, saNs, serverAddr string,
+) string {
 	sa, err := clientGo.GetServiceAccount(saName, saNs)
 	if err != nil || len(sa.Secrets) == 0 {
 		return ""
@@ -161,7 +171,9 @@ func getServiceAccountKubeConfig(clientGo *clientgo.GoClient, saName, saNs, serv
 		return ""
 	}
 
-	kubeConfig, _, _ := setupcluster.NewDevKubeConfigReader(secret, serverAddr, saNs).GetCA().GetToken().AssembleDevKubeConfig().ToYamlString()
+	kubeConfig, _, _ := setupcluster.NewDevKubeConfigReader(
+		secret, serverAddr, saNs,
+	).GetCA().GetToken().AssembleDevKubeConfig().ToYamlString()
 	return kubeConfig
 }
 

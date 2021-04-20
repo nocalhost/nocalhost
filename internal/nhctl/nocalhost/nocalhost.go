@@ -211,14 +211,16 @@ func GetApplicationMetaInstalled(appName, namespace, kubeConfig string) (*appmet
 	if appMeta.IsInstalling() {
 		return nil, errors.New(
 			fmt.Sprintf(
-				"Application %s - namespace %s is installing,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ",
+				"Application %s - namespace %s is installing,  " +
+					"you can use 'nhctl uninstall %s -n %s' to uninstall this applications ",
 				appName, namespace, appName, namespace,
 			),
 		)
 	} else if appMeta.IsNotInstall() {
 		return nil, errors.New(
 			fmt.Sprintf(
-				"Application %s in ns %s is not installed or under installing, or maybe the kubeconfig provided has not permitted to this namespace ",
+				"Application %s in ns %s is not installed or under installing, " +
+					"or maybe the kubeconfig provided has not permitted to this namespace ",
 				appName, namespace,
 			),
 		)

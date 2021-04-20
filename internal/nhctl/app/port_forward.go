@@ -28,14 +28,20 @@ import (
 	"time"
 )
 
-func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, remotePort int, portStatus string, reason string) error {
+func (a *Application) UpdatePortForwardStatus(
+	svcName string, localPort int, remotePort int,
+	portStatus string, reason string,
+) error {
 	pf, err := a.GetPortForward(svcName, localPort, remotePort)
 	if err != nil {
 		return err
 	}
 
 	if pf.Status == portStatus {
-		log.Logf("Pf %d:%d's status is already %s, no need to update", pf.LocalPort, pf.RemotePort, pf.Status)
+		log.Logf(
+			"Pf %d:%d's status is already %s, no need to update",
+			pf.LocalPort, pf.RemotePort, pf.Status,
+		)
 		return nil
 	}
 
@@ -114,12 +120,14 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 				if err != nil {
 					return err
 				}
-				return client.SendStopPortForwardCommand(&model.NocalHostResource{
-					NameSpace:   a.NameSpace,
-					Application: a.Name,
-					Service:     svcName,
-					PodName:     "",
-				}, localPort, remotePort)
+				return client.SendStopPortForwardCommand(
+					&model.NocalHostResource{
+						NameSpace:   a.NameSpace,
+						Application: a.Name,
+						Service:     svcName,
+						PodName:     "",
+					}, localPort, remotePort,
+				)
 			} else {
 				log.Infof("Kill %v", *portForward)
 				err := terminate.Terminate(portForward.Pid, true, "port-forward")

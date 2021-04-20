@@ -324,7 +324,9 @@ func parseIncludation(basePath, include string) *Includation {
 	default:
 		return &Includation{
 			include: include,
-			err:     errors.New("Can not resolve the include syntax (may contains multi '|', if your path sensitive character contains '|', use `\\|` to replace it): " + include),
+			err:     errors.New("Can not resolve the include syntax " +
+				"(may contains multi '|', if your path sensitive character contains " +
+				"'|', use `\\|` to replace it): " + include),
 		}
 	}
 }

@@ -34,7 +34,9 @@ var fields = make(map[string]string, 0)
 var core zapcore.Core
 
 func init() {
-	outLogger = getDefaultOutLogger() // if log is not be initiated explicitly (use log.Init()), the default out logger will be used.
+	// if log is not be initiated explicitly (use log.Init()),
+	// the default out logger will be used.
+	outLogger = getDefaultOutLogger()
 	fields["PID"] = strconv.Itoa(os.Getpid())
 	fields["PPID"] = strconv.Itoa(os.Getppid())
 }
