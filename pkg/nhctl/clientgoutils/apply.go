@@ -51,9 +51,11 @@ func (a *ApplyFlags) SetDoApply(doApply bool) *ApplyFlags {
 func (c *ClientGoUtils) DeleteResourceInfo(info *resource.Info) error {
 	helper := resource.NewHelper(info.Client, info.Mapping)
 	propagationPolicy := metav1.DeletePropagationBackground
-	obj, err := helper.DeleteWithOptions(info.Namespace, info.Name, &metav1.DeleteOptions{
-		PropagationPolicy: &propagationPolicy,
-	})
+	obj, err := helper.DeleteWithOptions(
+		info.Namespace, info.Name, &metav1.DeleteOptions{
+			PropagationPolicy: &propagationPolicy,
+		},
+	)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
@@ -79,13 +81,17 @@ func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info, af *ApplyFlags) e
 		cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 		return &runtimeObjectPrinter{Operation: operation, Name: info.Name}, nil
 	}
-	o.IOStreams = genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stdout} // don't print log to stderr
+	o.IOStreams = genericclioptions.IOStreams{
+		In: os.Stdin, Out: os.Stdout, ErrOut: os.Stdout,
+	} // don't print log to stderr
 	return o.Run()
 }
 
 func (c *ClientGoUtils) generateCompletedApplyOption(af *ApplyFlags) (*apply.ApplyOptions, error) {
 	var err error
-	ioStreams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr} // don't print log to stderr
+	ioStreams := genericclioptions.IOStreams{
+		In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr,
+	} // don't print log to stderr
 	o := apply.NewApplyOptions(ioStreams)
 	o.DeleteFlags.FileNameFlags.Filenames = &[]string{""}
 	o.OpenAPIPatch = true
@@ -143,7 +149,11 @@ func (c *ClientGoUtils) generateCompletedApplyOption(af *ApplyFlags) (*apply.App
 		}
 
 		// inject nocalhost label and annotations
-		err = resourceList.Visits([]resource.VisitorFunc{addLabels(af.MergeableLabel), addAnnotations(af.MergeableAnnotation)})
+		err = resourceList.Visits(
+			[]resource.VisitorFunc{
+				addLabels(af.MergeableLabel), addAnnotations(af.MergeableAnnotation),
+			},
+		)
 		return nil
 	}
 	return o, nil
@@ -193,7 +203,9 @@ func (c *ClientGoUtils) GetResourceInfoFromReader(reader io.Reader, continueOnEr
 	return infos, nil
 }
 
-func (c *ClientGoUtils) GetResourceInfoFromFiles(files []string, continueOnError bool, kustomize string) ([]*resource.Info, error) {
+func (c *ClientGoUtils) GetResourceInfoFromFiles(
+	files []string, continueOnError bool, kustomize string,
+) ([]*resource.Info, error) {
 
 	if len(files) == 0 && len(kustomize) == 0 {
 		return nil, errors.New("files must not be nil")

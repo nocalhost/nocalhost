@@ -21,7 +21,9 @@ import (
 )
 
 type ApplicationService interface {
-	Create(ctx context.Context, context string, status uint8, public uint8, userId uint64) (model.ApplicationModel, error)
+	Create(ctx context.Context, context string, status uint8, public uint8, userId uint64) (
+		model.ApplicationModel, error,
+	)
 	Get(ctx context.Context, id uint64) (model.ApplicationModel, error)
 	GetByName(ctx context.Context, name string) (model.ApplicationModel, error)
 	PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error)
@@ -51,11 +53,15 @@ func (srv *applicationService) GetByName(ctx context.Context, name string) (mode
 	return srv.applicationRepo.GetByName(ctx, name)
 }
 
-func (srv *applicationService) PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error) {
+func (srv *applicationService) PluginGetList(ctx context.Context, userId uint64) (
+	[]*model.PluginApplicationModel, error,
+) {
 	return srv.applicationRepo.PluginGetList(ctx, userId)
 }
 
-func (srv *applicationService) Create(ctx context.Context, context string, status uint8, public uint8, userId uint64) (model.ApplicationModel, error) {
+func (srv *applicationService) Create(
+	ctx context.Context, context string, status uint8, public uint8, userId uint64,
+) (model.ApplicationModel, error) {
 	c := model.ApplicationModel{
 		Context: context,
 		UserId:  userId,
@@ -93,7 +99,9 @@ func (srv *applicationService) Delete(ctx context.Context, id uint64) error {
 	return nil
 }
 
-func (srv *applicationService) Update(ctx context.Context, applicationModel *model.ApplicationModel) (*model.ApplicationModel, error) {
+func (srv *applicationService) Update(
+	ctx context.Context, applicationModel *model.ApplicationModel,
+) (*model.ApplicationModel, error) {
 	_, err := srv.applicationRepo.Update(ctx, applicationModel)
 	if err != nil {
 		return applicationModel, errors.Wrapf(err, "update application error")

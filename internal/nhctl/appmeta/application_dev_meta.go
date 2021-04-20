@@ -27,10 +27,10 @@ type ApplicationDevMeta map[ApplicationDevType]map[ /* resource name */ string] 
 type ApplicationDevType string
 type EVENT string
 type ApplicationEvent struct {
-	Identifier   string
+	Identifier string
 	ResourceName string
-	EventType    EVENT
-	DevType      ApplicationDevType
+	EventType EVENT
+	DevType ApplicationDevType
 }
 
 func (from *ApplicationDevMeta) copy() ApplicationDevMeta {
@@ -69,18 +69,33 @@ func (from *ApplicationDevMeta) Events(to ApplicationDevMeta) *[]*ApplicationEve
 		toResourceNameIdentifierMap := to[devType]
 		for resourceName, identifier := range resourceNameIdentifierMap {
 			if toResourceNameIdentifierMap == nil {
-				result = append(result, &ApplicationEvent{EventType: DEV_END, ResourceName: resourceName, Identifier: identifier})
+				result = append(
+					result, &ApplicationEvent{EventType: DEV_END, ResourceName: resourceName, Identifier: identifier},
+				)
 			} else {
 				var toIdentifier, ok = toResourceNameIdentifierMap[resourceName]
 
 				if ok {
 					// means some resource dev end then dev start
 					if identifier != toIdentifier {
-						result = append(result, &ApplicationEvent{EventType: DEV_END, ResourceName: resourceName, Identifier: identifier, DevType: devType})
-						result = append(result, &ApplicationEvent{EventType: DEV_STA, ResourceName: resourceName, Identifier: toIdentifier, DevType: devType})
+						result = append(
+							result, &ApplicationEvent{
+								EventType: DEV_END, ResourceName: resourceName, Identifier: identifier, DevType: devType,
+							},
+						)
+						result = append(
+							result, &ApplicationEvent{
+								EventType: DEV_STA, ResourceName: resourceName, Identifier: toIdentifier,
+								DevType: devType,
+							},
+						)
 					}
 				} else {
-					result = append(result, &ApplicationEvent{EventType: DEV_END, ResourceName: resourceName, Identifier: identifier, DevType: devType})
+					result = append(
+						result, &ApplicationEvent{
+							EventType: DEV_END, ResourceName: resourceName, Identifier: identifier, DevType: devType,
+						},
+					)
 				}
 
 				delete(toResourceNameIdentifierMap, resourceName)
@@ -90,7 +105,11 @@ func (from *ApplicationDevMeta) Events(to ApplicationDevMeta) *[]*ApplicationEve
 
 	for devType, resourceNameIdentifierMap := range to {
 		for resourceName, identifier := range resourceNameIdentifierMap {
-			result = append(result, &ApplicationEvent{EventType: DEV_STA, ResourceName: resourceName, Identifier: identifier, DevType: devType})
+			result = append(
+				result, &ApplicationEvent{
+					EventType: DEV_STA, ResourceName: resourceName, Identifier: identifier, DevType: devType,
+				},
+			)
 		}
 	}
 

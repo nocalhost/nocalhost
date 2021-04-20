@@ -24,7 +24,9 @@ type ApplicationUserRepo interface {
 	ListByUserId(ctx context.Context, userId uint64) ([]*model.ApplicationUserModel, error)
 	BatchDelete(ctx context.Context, applicationId uint64, userIds []uint64) error
 	BatchInsert(ctx context.Context, applicationId uint64, userIds []uint64) error
-	GetByApplicationIdAndUserId(ctx context.Context, applicationId uint64, userId uint64) (*model.ApplicationUserModel, error)
+	GetByApplicationIdAndUserId(ctx context.Context, applicationId uint64, userId uint64) (
+		*model.ApplicationUserModel, error,
+	)
 	Close()
 }
 
@@ -43,7 +45,9 @@ func (repo *applicationUserRepo) BatchDelete(ctx context.Context, applicationId 
 		return errors.New("Can not batch delete applications_users with empty userIds ")
 	}
 
-	if err := repo.db.Exec("DELETE FROM applications_users WHERE application_id = ? AND user_id IN (?)", applicationId, userIds).Error; err != nil {
+	if err := repo.db.Exec(
+		"DELETE FROM applications_users WHERE application_id = ? AND user_id IN (?)", applicationId, userIds,
+	).Error; err != nil {
 		return err
 	}
 	return nil
@@ -55,16 +59,20 @@ func (repo *applicationUserRepo) BatchInsert(ctx context.Context, applicationId 
 	}
 
 	for _, userId := range userIds {
-		repo.db.Create(&model.ApplicationUserModel{
-			ApplicationId: applicationId,
-			UserId:        userId,
-		})
+		repo.db.Create(
+			&model.ApplicationUserModel{
+				ApplicationId: applicationId,
+				UserId:        userId,
+			},
+		)
 	}
 
 	return nil
 }
 
-func (repo *applicationUserRepo) ListByApplicationId(ctx context.Context, applicationId uint64) ([]*model.ApplicationUserModel, error) {
+func (repo *applicationUserRepo) ListByApplicationId(
+	ctx context.Context, applicationId uint64,
+) ([]*model.ApplicationUserModel, error) {
 	var result []*model.ApplicationUserModel
 	err := repo.db.Where("application_id=?", applicationId).Find(&result)
 	if err.Error != nil {
@@ -73,7 +81,9 @@ func (repo *applicationUserRepo) ListByApplicationId(ctx context.Context, applic
 	return result, nil
 }
 
-func (repo *applicationUserRepo) ListByUserId(ctx context.Context, userId uint64) ([]*model.ApplicationUserModel, error) {
+func (repo *applicationUserRepo) ListByUserId(ctx context.Context, userId uint64) (
+	[]*model.ApplicationUserModel, error,
+) {
 	var result []*model.ApplicationUserModel
 	err := repo.db.Where("user_id=?", userId).Find(&result)
 	if err.Error != nil {
@@ -82,12 +92,16 @@ func (repo *applicationUserRepo) ListByUserId(ctx context.Context, userId uint64
 	return result, nil
 }
 
-func (repo *applicationUserRepo) GetByApplicationIdAndUserId(ctx context.Context, applicationId uint64, userId uint64) (*model.ApplicationUserModel, error) {
+func (repo *applicationUserRepo) GetByApplicationIdAndUserId(
+	ctx context.Context, applicationId uint64, userId uint64,
+) (*model.ApplicationUserModel, error) {
 	var result = model.ApplicationUserModel{}
-	err := repo.db.Where(&model.ApplicationUserModel{
-		ApplicationId: applicationId,
-		UserId:        userId,
-	}).First(&result).Error
+	err := repo.db.Where(
+		&model.ApplicationUserModel{
+			ApplicationId: applicationId,
+			UserId:        userId,
+		},
+	).First(&result).Error
 
 	return &result, err
 }

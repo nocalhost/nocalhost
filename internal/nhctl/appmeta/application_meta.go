@@ -65,7 +65,10 @@ func GetApplicationName(secretName string) (string, error) {
 	}
 
 	if ct := strings.HasPrefix(secretName, SecretNamePrefix); !ct {
-		return "", fmt.Errorf("Error while decode Secret, Secret name %s is illegal, must start with %s. ", secretName, SecretNamePrefix)
+		return "", fmt.Errorf(
+			"Error while decode Secret, Secret name %s is illegal,"+
+				" must start with %s. ", secretName, SecretNamePrefix,
+		)
 	}
 
 	return secretName[len(SecretNamePrefix):], nil
@@ -109,14 +112,16 @@ type ApplicationMetaSimples []*ApplicationMetaSimple
 
 func (as ApplicationMetas) Desc() (result ApplicationMetaSimples) {
 	for _, meta := range as {
-		result = append(result, &ApplicationMetaSimple{
-			Application:        meta.Application,
-			Ns:                 meta.Ns,
-			ApplicationState:   meta.ApplicationState,
-			DevMeta:            meta.DevMeta,
-			Manifest:           meta.Manifest,
-			PreInstallManifest: meta.PreInstallManifest,
-		})
+		result = append(
+			result, &ApplicationMetaSimple{
+				Application:        meta.Application,
+				Ns:                 meta.Ns,
+				ApplicationState:   meta.ApplicationState,
+				DevMeta:            meta.DevMeta,
+				Manifest:           meta.Manifest,
+				PreInstallManifest: meta.PreInstallManifest,
+			},
+		)
 	}
 	return result
 }
@@ -173,7 +178,11 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 
 	bs, ok := secret.Data[SecretStateKey]
 	if !ok {
-		return nil, fmt.Errorf("Error while decode Secret, Secret %s is illegal, must contain with data key %s. ", secret.Name, SecretStateKey)
+		return nil, fmt.Errorf(
+			"Error while decode Secret, Secret %s is illegal,"+
+				" must contain with data key %s. ", secret.Name,
+			SecretStateKey,
+		)
 	}
 
 	appMeta := ApplicationMeta{
@@ -360,7 +369,11 @@ func (a *ApplicationMeta) IsNotInstall() bool {
 }
 
 func (a *ApplicationMeta) NotInstallTips() string {
-	return fmt.Sprintf("Application %s in ns %s is not installed or under installing, or maybe the kubeconfig provided has not permitted to this namespace ", a.Application, a.Ns)
+	return fmt.Sprintf(
+		"Application %s in ns %s is not installed or under installing, "+
+			"or maybe the kubeconfig provided has not permitted to this namespace ",
+		a.Application, a.Ns,
+	)
 }
 
 func (a *ApplicationMeta) IsHelm() bool {
@@ -386,7 +399,10 @@ func (a *ApplicationMeta) Uninstall() error {
 
 		uninstallParams := []string{"uninstall", a.Application}
 		uninstallParams = append(uninstallParams, commonParams...)
-		if _, err := tools.ExecCommand(nil, true, false, "helm", uninstallParams...); err != nil {
+		if _, err := tools.ExecCommand(
+			nil, true,
+			false, "helm", uninstallParams...,
+		); err != nil {
 			return err
 		}
 	}

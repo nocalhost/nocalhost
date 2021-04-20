@@ -213,7 +213,9 @@ func (c *GoClient) requireClusterAdminClient() error {
 
 // get deployment
 func (c *GoClient) GetDepDeploymentStatus() error {
-	deployment, err := c.client.AppsV1().Deployments(global.NocalhostSystemNamespace).Get(context.TODO(), global.NocalhostDepName, metav1.GetOptions{})
+	deployment, err := c.client.AppsV1().Deployments(global.NocalhostSystemNamespace).Get(
+		context.TODO(), global.NocalhostDepName, metav1.GetOptions{},
+	)
 	if err != nil {
 		return errors.New("nocalhost-dep component not found")
 	}
@@ -359,7 +361,9 @@ func (c *GoClient) IsAdmin() (bool, error) {
 		},
 	}
 
-	response, err := c.client.AuthorizationV1().SelfSubjectAccessReviews().Create(context.TODO(), arg, metav1.CreateOptions{})
+	response, err := c.client.AuthorizationV1().SelfSubjectAccessReviews().Create(
+		context.TODO(), arg, metav1.CreateOptions{},
+	)
 	if err != nil {
 		return false, err
 	}
@@ -391,7 +395,9 @@ func (c *GoClient) RefreshServiceAccount(name, namespace string) {
 		name = global.NocalhostDevServiceAccountName
 	}
 
-	if sa, err := c.client.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{}); err == nil {
+	if sa, err := c.client.CoreV1().ServiceAccounts(namespace).Get(
+		context.TODO(), name, metav1.GetOptions{},
+	); err == nil {
 		if sa.Labels == nil {
 			sa.Labels = map[string]string{}
 		}
@@ -417,7 +423,9 @@ apiVersion: v1
       services.loadbalancers: "10"
       requests.storage: "20Gi"
 */
-func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string) (bool, error) {
+func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string) (
+	bool, error,
+) {
 
 	resourceQuota := &corev1.ResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
@@ -485,7 +493,9 @@ spec:
       memory: 128Mi
     type: Container
 */
-func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string) (bool, error) {
+func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string) (
+	bool, error,
+) {
 	limitRange := &corev1.LimitRange{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 	}
@@ -512,11 +522,13 @@ func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, 
 	if len(limits) < 1 && len(requests) < 1 {
 		return true, nil
 	}
-	limitRange.Spec.Limits = append(limitRange.Spec.Limits, corev1.LimitRangeItem{
-		Default:        limits,
-		DefaultRequest: requests,
-		Type:           corev1.LimitTypeContainer,
-	})
+	limitRange.Spec.Limits = append(
+		limitRange.Spec.Limits, corev1.LimitRangeItem{
+			Default:        limits,
+			DefaultRequest: requests,
+			Type:           corev1.LimitTypeContainer,
+		},
+	)
 	_, err := c.client.CoreV1().LimitRanges(namespace).Create(context.TODO(), limitRange, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
@@ -559,12 +571,14 @@ func (c *GoClient) CreateRoleBinding(name, namespace, role, toServiceAccount str
 		}
 	}
 	if toServiceAccount != "" {
-		roleBinding.Subjects = append(roleBinding.Subjects, rbacv1.Subject{
-			Kind:      rbacv1.ServiceAccountKind,
-			APIGroup:  "",
-			Namespace: namespace,
-			Name:      toServiceAccount,
-		})
+		roleBinding.Subjects = append(
+			roleBinding.Subjects, rbacv1.Subject{
+				Kind:      rbacv1.ServiceAccountKind,
+				APIGroup:  "",
+				Namespace: namespace,
+				Name:      toServiceAccount,
+			},
+		)
 	}
 	_, err := c.client.RbacV1().RoleBindings(namespace).Create(context.TODO(), roleBinding, metav1.CreateOptions{})
 	if err != nil {
@@ -591,12 +605,14 @@ func (c *GoClient) CreateClusterRoleBinding(name, namespace, role, toServiceAcco
 		}
 	}
 	if toServiceAccount != "" {
-		roleBinding.Subjects = append(roleBinding.Subjects, rbacv1.Subject{
-			Kind:      rbacv1.ServiceAccountKind,
-			APIGroup:  "",
-			Namespace: namespace,
-			Name:      toServiceAccount,
-		})
+		roleBinding.Subjects = append(
+			roleBinding.Subjects, rbacv1.Subject{
+				Kind:      rbacv1.ServiceAccountKind,
+				APIGroup:  "",
+				Namespace: namespace,
+				Name:      toServiceAccount,
+			},
+		)
 	}
 	_, err := c.client.RbacV1().ClusterRoleBindings().Create(context.TODO(), roleBinding, metav1.CreateOptions{})
 	if err != nil {
@@ -612,10 +628,12 @@ func (c *GoClient) UpdateRole(name, namespace string) error {
 		return err
 	}
 
-	before.Rules = []rbacv1.PolicyRule{{
-		Verbs:     []string{"*"},
-		Resources: []string{"*"},
-		APIGroups: []string{"*"}},
+	before.Rules = []rbacv1.PolicyRule{
+		{
+			Verbs:     []string{"*"},
+			Resources: []string{"*"},
+			APIGroups: []string{"*"},
+		},
 	}
 
 	_, err = c.client.RbacV1().Roles(namespace).Update(context.TODO(), before, metav1.UpdateOptions{})
@@ -671,11 +689,13 @@ func (c *GoClient) AppendRoleBinding(name, namespace, role, toServiceAccount, to
 
 	//  auth admin for current role binding ns
 	if toServiceAccount != "" {
-		rb.Subjects = append(rb.Subjects, rbacv1.Subject{
-			Kind:      rbacv1.ServiceAccountKind,
-			Namespace: toServiceAccountNs,
-			Name:      toServiceAccount,
-		})
+		rb.Subjects = append(
+			rb.Subjects, rbacv1.Subject{
+				Kind:      rbacv1.ServiceAccountKind,
+				Namespace: toServiceAccountNs,
+				Name:      toServiceAccount,
+			},
+		)
 	}
 
 	if update {
@@ -731,11 +751,13 @@ func (c *GoClient) AppendClusterRoleBinding(name, role, toServiceAccount, toServ
 
 	//  auth admin for current role binding ns
 	if toServiceAccount != "" {
-		crb.Subjects = append(crb.Subjects, rbacv1.Subject{
-			Kind:      rbacv1.ServiceAccountKind,
-			Namespace: toServiceAccountNs,
-			Name:      toServiceAccount,
-		})
+		crb.Subjects = append(
+			crb.Subjects, rbacv1.Subject{
+				Kind:      rbacv1.ServiceAccountKind,
+				Namespace: toServiceAccountNs,
+				Name:      toServiceAccount,
+			},
+		)
 	}
 
 	if update {
@@ -819,10 +841,12 @@ func (c *GoClient) CreateRole(name, namespace string) (bool, error) {
 	//}
 	//role.Rules = append(role.Rules, *rule...)
 
-	role.Rules = []rbacv1.PolicyRule{{
-		Verbs:     []string{"*"},
-		Resources: []string{"*"},
-		APIGroups: []string{"*"}},
+	role.Rules = []rbacv1.PolicyRule{
+		{
+			Verbs:     []string{"*"},
+			Resources: []string{"*"},
+			APIGroups: []string{"*"},
+		},
 	}
 
 	_, err := c.client.RbacV1().Roles(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
@@ -846,10 +870,12 @@ func (c *GoClient) CreateClusterRole(name string) (bool, error) {
 	//}
 	//role.Rules = append(role.Rules, *rule...)
 
-	role.Rules = []rbacv1.PolicyRule{{
-		Verbs:     []string{"*"},
-		Resources: []string{"*"},
-		APIGroups: []string{"*"}},
+	role.Rules = []rbacv1.PolicyRule{
+		{
+			Verbs:     []string{"*"},
+			Resources: []string{"*"},
+			APIGroups: []string{"*"},
+		},
 	}
 
 	_, err := c.client.RbacV1().ClusterRoles().Create(context.TODO(), role, metav1.CreateOptions{})
@@ -873,11 +899,13 @@ func getPolicyRule(c *GoClient) (*[]rbacv1.PolicyRule, error) {
 
 			if apiResource.Namespaced && !isLimitedRules(resourceName) {
 
-				result = append(result, rbacv1.PolicyRule{
-					Verbs:     apiResource.Verbs,
-					Resources: []string{resourceName},
-					APIGroups: []string{"*"},
-				})
+				result = append(
+					result, rbacv1.PolicyRule{
+						Verbs:     apiResource.Verbs,
+						Resources: []string{resourceName},
+						APIGroups: []string{"*"},
+					},
+				)
 			}
 		}
 	}
@@ -887,7 +915,9 @@ func getPolicyRule(c *GoClient) (*[]rbacv1.PolicyRule, error) {
 }
 
 func isLimitedRules(rn string) bool {
-	return rn == "resourcequotas" || rn == "roles" || strings.HasPrefix(rn, "resourcequotas/") || strings.HasPrefix(rn, "roles/")
+	return rn == "resourcequotas" || rn == "roles" || strings.HasPrefix(rn, "resourcequotas/") || strings.HasPrefix(
+		rn, "roles/",
+	)
 }
 
 // deploy priorityclass
@@ -976,7 +1006,10 @@ func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool,
 						{
 							Name:    "kubectl",
 							Image:   "codingcorp-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
-							Command: []string{"kubectl", "delete", "ds", global.NocalhostPrePullDSName, "-n", global.NocalhostSystemNamespace},
+							Command: []string{
+								"kubectl", "delete", "ds", global.NocalhostPrePullDSName, "-n",
+								global.NocalhostSystemNamespace,
+							},
 						},
 					},
 					ServiceAccountName: global.NocalhostSystemNamespaceServiceAccount,
@@ -1034,9 +1067,11 @@ func (c *GoClient) GetClusterRoleBinding(name string) (*rbacv1.ClusterRoleBindin
 }
 
 func (c *GoClient) ListClusterRoleBindingByLabel(label string) (*rbacv1.ClusterRoleBindingList, error) {
-	return c.client.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{
-		LabelSelector: label,
-	})
+	return c.client.RbacV1().ClusterRoleBindings().List(
+		context.TODO(), metav1.ListOptions{
+			LabelSelector: label,
+		},
+	)
 }
 
 // Get cluster version
@@ -1050,11 +1085,13 @@ func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceA
 	resourceWatchTimeoutSeconds := int64(30)
 	log.Infof("GET ServiceAccount name %s, namespace %s: ", name, namespace)
 	var serviceAccount *corev1.ServiceAccount
-	watcher, err := c.client.CoreV1().ServiceAccounts(namespace).Watch(context.TODO(), metav1.ListOptions{
-		FieldSelector:  fields.Set{"metadata.name": name}.AsSelector().String(),
-		Watch:          true,
-		TimeoutSeconds: &resourceWatchTimeoutSeconds,
-	})
+	watcher, err := c.client.CoreV1().ServiceAccounts(namespace).Watch(
+		context.TODO(), metav1.ListOptions{
+			FieldSelector:  fields.Set{"metadata.name": name}.AsSelector().String(),
+			Watch:          true,
+			TimeoutSeconds: &resourceWatchTimeoutSeconds,
+		},
+	)
 	if err != nil {
 
 	}
@@ -1096,7 +1133,9 @@ func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceA
 		if i > 300 {
 			break
 		}
-		serviceAccount, err = c.client.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		serviceAccount, err = c.client.CoreV1().ServiceAccounts(namespace).Get(
+			context.TODO(), name, metav1.GetOptions{},
+		)
 		if serviceAccount != nil && len(serviceAccount.Secrets) > 0 {
 			break
 		}

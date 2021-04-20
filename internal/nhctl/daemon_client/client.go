@@ -32,7 +32,7 @@ import (
 )
 
 type DaemonClient struct {
-	isSudo                 bool
+	isSudo bool
 	daemonServerListenPort int
 }
 
@@ -189,7 +189,9 @@ func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]
 	}
 }
 
-func (d *DaemonClient) SendStartPortForwardCommand(nhSvc *model.NocalHostResource, localPort, remotePort int, role string) error {
+func (d *DaemonClient) SendStartPortForwardCommand(
+	nhSvc *model.NocalHostResource, localPort, remotePort int, role string,
+) error {
 
 	startPFCmd := &command.PortForwardCommand{
 		CommandType: command.StartPortForward,

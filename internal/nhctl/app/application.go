@@ -271,13 +271,15 @@ func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.
 	var configs = []*profile.ServiceConfigV2{}
 
 	for _, p := range profiles {
-		configs = append(configs, &profile.ServiceConfigV2{
-			Name:                p.Name,
-			Type:                p.Type,
-			PriorityClass:       p.PriorityClass,
-			DependLabelSelector: p.DependLabelSelector,
-			ContainerConfigs:    p.ContainerConfigs,
-		})
+		configs = append(
+			configs, &profile.ServiceConfigV2{
+				Name:                p.Name,
+				Type:                p.Type,
+				PriorityClass:       p.PriorityClass,
+				DependLabelSelector: p.DependLabelSelector,
+				ContainerConfigs:    p.ContainerConfigs,
+			},
+		)
 	}
 
 	return configs
@@ -701,7 +703,9 @@ func (a *Application) PortForward(deployment, podName string, localPort, remoteP
 	}
 }
 
-func (a *Application) CheckPidPortStatus(ctx context.Context, deployment string, sLocalPort, sRemotePort int, lock *sync.Mutex) {
+func (a *Application) CheckPidPortStatus(
+	ctx context.Context, deployment string, sLocalPort, sRemotePort int, lock *sync.Mutex,
+) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -776,7 +780,10 @@ func (a *Application) GetBackgroundOnlyPortForwardPid(deployment string, isTrunc
 }
 
 func (a *Application) WriteBackgroundSyncPortForwardPidFile(deployment string, pid int) error {
-	file, err := os.OpenFile(a.GetApplicationBackGroundPortForwardPidFile(deployment), os.O_WRONLY|os.O_CREATE, 0666)
+	file, err := os.OpenFile(
+		a.GetApplicationBackGroundPortForwardPidFile(deployment),
+		os.O_WRONLY|os.O_CREATE, 0666,
+	)
 	if err != nil {
 		return errors.New("fail open application file sync background port-forward pid file")
 	}
@@ -786,11 +793,14 @@ func (a *Application) WriteBackgroundSyncPortForwardPidFile(deployment string, p
 	return errors.Wrap(err, "")
 }
 
-func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(svcName string, options *DevStartOptions) (*DevStartOptions, error) {
+func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(
+	svcName string, options *DevStartOptions,
+) (*DevStartOptions, error) {
 	appProfile, _ := a.GetProfile()
 	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
 	if svcProfile == nil {
-		return options, errors.New("get " + svcName + " profile fail, please reinstall application")
+		return options,
+			errors.New("get " + svcName + " profile fail, please reinstall application")
 	}
 	options.LocalSyncDir = svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin
 	return options, nil
@@ -867,13 +877,19 @@ func (a *Application) SetPidFileEmpty(filePath string) error {
 
 func (a *Application) CleanUpTmpResources() error {
 	log.Log("Clean up tmp resources...")
-	return errors.Wrap(os.RemoveAll(a.ResourceTmpDir), fmt.Sprintf("fail to remove resources dir %s", a.ResourceTmpDir))
+	return errors.Wrap(
+		os.RemoveAll(a.ResourceTmpDir),
+		fmt.Sprintf("fail to remove resources dir %s", a.ResourceTmpDir),
+	)
 }
 
 func (a *Application) CleanupResources() error {
 	log.Info("Remove resource files...")
 	homeDir := a.GetHomeDir()
-	return errors.Wrap(os.RemoveAll(homeDir), fmt.Sprintf("fail to remove resources dir %s", homeDir))
+	return errors.Wrap(
+		os.RemoveAll(homeDir),
+		fmt.Sprintf("fail to remove resources dir %s", homeDir),
+	)
 }
 
 func (a *Application) Uninstall() error {

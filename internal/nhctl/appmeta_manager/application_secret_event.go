@@ -25,9 +25,17 @@ var (
 	eventListener = []func(*ApplicationEventPack) error{
 		func(pack *ApplicationEventPack) error {
 			if pack.Event.EventType == appmeta.DEV_STA {
-				log.Infof("Resource(%s - %s - %s), Name(%s) Start DevMode ", pack.Ns, pack.AppName, pack.Event.DevType, pack.Event.ResourceName)
+				log.Infof(
+					"Resource(%s - %s - %s), Name(%s) Start DevMode ",
+					pack.Ns, pack.AppName, pack.Event.DevType,
+					pack.Event.ResourceName,
+				)
 			} else {
-				log.Infof("Resource(%s - %s - %s), Name(%s) End DevMode ", pack.Ns, pack.AppName, pack.Event.DevType, pack.Event.ResourceName)
+				log.Infof(
+					"Resource(%s - %s - %s), Name(%s) End DevMode ",
+					pack.Ns, pack.AppName, pack.Event.DevType,
+					pack.Event.ResourceName,
+				)
 			}
 			return nil
 		},
