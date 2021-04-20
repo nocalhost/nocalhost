@@ -11,21 +11,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nhctl
+package testcase
 
 import (
 	"fmt"
 	"nocalhost/test/util"
+	"os"
 	"testing"
 	"time"
 )
 
 func TestInstallNhctl(t *testing.T) {
 	InstallNhctl("1f820388196a2bc57a7d118d46c40e9f99c8c119")
+	_ = os.Setenv("COMMIT_ID", "v0.3.7")
+	_ = os.Setenv("TAG", "v0.3.6 v0.3.7")
 }
 
 func TestInit(t *testing.T) {
-	go Init()
+	go Init(nil)
 	for {
 		select {
 		case status := <-StatusChan:
@@ -46,7 +49,7 @@ func TestCommandWait(t *testing.T) {
 
 func TestDev(t *testing.T) {
 	moduleName := "details"
-	Dev(moduleName)
-	Sync(moduleName)
-	End(moduleName)
+	DevStart(nil, moduleName)
+	Sync(nil, moduleName)
+	DevEnd(nil, moduleName)
 }

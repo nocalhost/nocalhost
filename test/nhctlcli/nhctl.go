@@ -11,12 +11,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nhctl
+package nhctlcli
 
-import (
-	"testing"
-)
+func NewNhctl(kubeconfig, namespace string) *CLI {
+	c := &Conf{
+		kubeconfig: kubeconfig,
+		namespace:  namespace,
+	}
+	return NewCLI(c, namespace)
+}
 
-func TestPortForward(t *testing.T) {
-	PortForward()
+type Conf struct {
+	kubeconfig string
+	namespace  string
+}
+
+func (c *Conf) GetKubeConfig() string {
+	return c.kubeconfig
+}
+func (c *Conf) GetNamespace() string {
+	return c.namespace
 }
