@@ -25,7 +25,7 @@ func main() {
 	go util.TimeoutChecker(1 * time.Hour)
 	v1, v2 := testcase.GetVersion()
 	testcase.InstallNhctl(v1)
-	cli := nhctlcli.NewNhctl("/Users/naison/codingtest", "test")
+	cli := nhctlcli.NewNhctl("/root/.kube/config", "test")
 	testcase.NhctlVersion(cli)
 	testcase.StopDaemon(cli)
 	go testcase.Init(cli)

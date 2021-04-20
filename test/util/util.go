@@ -28,7 +28,7 @@ import (
 
 var Client *clientgoutils.ClientGoUtils
 
-const CODING = "/Users/naison/codingtest"
+const CODING = "/root/.kube/config"
 
 func init() {
 	temp, err := clientgoutils.NewClientGoUtils(CODING, "test")
