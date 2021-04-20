@@ -33,7 +33,7 @@ func TestKustomize(t *testing.T) {
 	fmt.Println(string(out.Bytes()))
 }
 
-func TestClientGoUtils_ListEventsByReplicaSet(t *testing.T) {
+func TestListEventsByRS(t *testing.T) {
 	client, _ := NewClientGoUtils("", "nh6ihig")
 	list, err := client.ListEventsByReplicaSet("details-59c787d477")
 	if err != nil {

@@ -60,7 +60,8 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(localPort, remotePort int)
 	return err
 }
 
-func (p *PortForwardManager) ListAllRunningPortForwardGoRoutineProfile() []*daemon_common.PortForwardProfile {
+// ListAllRunningPortForwardGoRoutineProfile
+func (p *PortForwardManager) ListAllRunningPFGoRoutineProfile() []*daemon_common.PortForwardProfile {
 	result := make([]*daemon_common.PortForwardProfile, 0)
 	for _, v := range p.pfList {
 		result = append(result, v)

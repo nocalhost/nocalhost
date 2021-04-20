@@ -31,7 +31,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-func (a *Application) markReplicaSetAsOriginalRevision(svcName string) error {
+func (a *Application) markReplicaSetRevision(svcName string) error {
 
 	dep0, err := a.client.GetDeployment(svcName)
 	if err != nil {
@@ -148,7 +148,7 @@ func (a *Application) generateSyncthingVolumesAndVolumeMounts(svcName string) ([
 // If PVC exists, use it directly
 // If PVC not exists, try to create one
 // If PVC failed to create, the whole process of entering DevMode will fail
-func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, container, storageClass string) (
+func (a *Application) genWorkDirAndPVAndMounts(svcName, container, storageClass string) (
 	[]corev1.Volume, []corev1.VolumeMount, error,
 ) {
 
@@ -261,7 +261,7 @@ func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, co
 	return volumes, volumeMounts, nil
 }
 
-func (a *Application) generateResourceRequirementsForDevContainer(svcName string) *corev1.ResourceRequirements {
+func (a *Application) genResourceReq(svcName string) *corev1.ResourceRequirements {
 
 	var (
 		err          error
@@ -274,7 +274,7 @@ func (a *Application) generateResourceRequirementsForDevContainer(svcName string
 
 	if resourceQuota != nil {
 		log.Debug("DevContainer uses resource limits defined in config")
-		requirements, err = convertResourceQuotaToResourceRequirements(resourceQuota)
+		requirements, err = convertResourceQuota(resourceQuota)
 		utils.ShouldI(err, "Failed to parse resource requirements")
 	}
 
@@ -297,7 +297,7 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	var err error
 	a.client.Context(ctx)
 
-	err = a.markReplicaSetAsOriginalRevision(svcName)
+	err = a.markReplicaSetRevision(svcName)
 	if err != nil {
 		return err
 	}
@@ -340,7 +340,7 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
-	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := a.generateWorkDirAndPersistVolumeAndVolumeMounts(
+	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := a.genWorkDirAndPVAndMounts(
 		svcName, ops.Container, ops.StorageClass,
 	)
 	if err != nil {
@@ -389,7 +389,7 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
 	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, devModeMounts...)
 
-	requirements := a.generateResourceRequirementsForDevContainer(svcName)
+	requirements := a.genResourceReq(svcName)
 	if requirements != nil {
 		devContainer.Resources = *requirements
 		sideCarContainer.Resources = *requirements
@@ -481,7 +481,7 @@ wait:
 	return nil
 }
 
-func convertResourceQuotaToResourceRequirements(quota *profile.ResourceQuota) (*corev1.ResourceRequirements, error) {
+func convertResourceQuota(quota *profile.ResourceQuota) (*corev1.ResourceRequirements, error) {
 	var err error
 	requirements := &corev1.ResourceRequirements{}
 
