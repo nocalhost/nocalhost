@@ -357,7 +357,7 @@ type HelmFlags struct {
 }
 
 func (a *Application) IsAnyServiceInDevMode() bool {
-	return len(a.appMeta.DevMeta) > 0
+	return len(a.appMeta.DevMeta) > 0 && len(a.appMeta.DevMeta[appmeta.DEPLOYMENT]) > 0
 }
 
 // Deprecated
