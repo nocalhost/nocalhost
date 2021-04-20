@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 	"gopkg.in/yaml.v3"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/test/nhctlcli"
@@ -34,6 +35,9 @@ func StopDaemon(nhctl *nhctlcli.CLI) {
 }
 
 func Exec(nhctl *nhctlcli.CLI) {
+	util.WaitToBeStatus(nhctl.Namespace, "pods", "app=reviews", func(i interface{}) bool {
+		return i.(*v1.Pod).Status.Phase == v1.PodRunning
+	})
 	cmd := nhctl.Command(context.Background(), "exec", "bookinfo", "-d", "reviews", "-c", "ls")
 	nhctlcli.Runner.RunPanicIfError(cmd)
 }
