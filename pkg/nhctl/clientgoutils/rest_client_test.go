@@ -18,7 +18,8 @@ import (
 	"testing"
 )
 
-func TestClientGoUtils_GetResourcesByRestClient(t *testing.T) {
+// Test Client GoUtils Get Resources By Rest Client
+func TestClientGoUtilsGRBRC(t *testing.T) {
 	client, err := NewClientGoUtils("", "")
 	Must(err)
 	result := &corev1.PodList{}

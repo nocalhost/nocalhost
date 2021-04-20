@@ -72,7 +72,8 @@ func (c *ClientGoUtils) GetReplicaSetsByDeployment(deploymentName string) (map[i
 	return rsMap, nil
 }
 
-func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploymentName string) error {
+// WaitLatestRevisionReplicaSetOfDeploymentToBeReady
+func (c *ClientGoUtils) WaitLatestRevisionReady(deploymentName string) error {
 
 	printed := false
 	for {

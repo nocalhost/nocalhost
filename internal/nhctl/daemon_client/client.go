@@ -119,7 +119,7 @@ func (d *DaemonClient) SendGetDaemonServerInfoCommand() ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
-	return d.sendDataToDaemonServerAndWaitForResponse(bys)
+	return d.sendAndWaitForResponse(bys)
 }
 
 func (d *DaemonClient) SendRestartDaemonServerCommand() error {
@@ -146,7 +146,7 @@ func (d *DaemonClient) SendGetDaemonServerStatusCommand() error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys)
+	bys, err = d.sendAndWaitForResponse(bys)
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfig str
 	}
 
 	bys, err := json.Marshal(gamCmd)
-	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
+	if bys, err = d.sendAndWaitForResponse(bys); err != nil {
 		return nil, err
 	} else {
 		meta := &appmeta.ApplicationMeta{}
@@ -180,7 +180,7 @@ func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]
 	}
 
 	bys, err := json.Marshal(gamCmd)
-	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
+	if bys, err = d.sendAndWaitForResponse(bys); err != nil {
 		return nil, err
 	} else {
 		var meta []*appmeta.ApplicationMeta
@@ -208,7 +208,7 @@ func (d *DaemonClient) SendStartPortForwardCommand(
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
+	if bys, err = d.sendAndWaitForResponse(bys); err != nil {
 		return err
 	} else {
 		log.Infof("Response: %s", string(bys))
@@ -232,7 +232,7 @@ func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
+	if bys, err = d.sendAndWaitForResponse(bys); err != nil {
 		return err
 	} else {
 		log.Infof("Response: %s", string(bys))
@@ -250,7 +250,7 @@ func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 	return errors.Wrap(err, "")
 }
 
-func (d *DaemonClient) sendDataToDaemonServerAndWaitForResponse(data []byte) ([]byte, error) {
+func (d *DaemonClient) sendAndWaitForResponse(data []byte) ([]byte, error) {
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort))
 	if err != nil {
 		return nil, errors.Wrap(err, "")

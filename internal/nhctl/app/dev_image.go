@@ -435,7 +435,7 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 		}
 	}
 
-	//err = a.client.WaitLatestRevisionReplicaSetOfDeploymentToBeReady(dep.Name)
+	//err = a.client.WaitLatestRevisionReady(dep.Name)
 	//if err != nil {
 	//	return err
 	//}

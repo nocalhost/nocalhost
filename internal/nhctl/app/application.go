@@ -737,53 +737,53 @@ func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error 
 }
 
 func (a *Application) GetBackgroundSyncPortForwardPid(deployment string, isTrunc bool) (int, string, error) {
-	f, err := ioutil.ReadFile(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+	f, err := ioutil.ReadFile(a.GetABGPortForwardPidFile(deployment))
 	if err != nil {
-		return 0, a.GetApplicationBackGroundPortForwardPidFile(deployment), err
+		return 0, a.GetABGPortForwardPidFile(deployment), err
 	}
 	port, err := strconv.Atoi(string(f))
 	if err != nil {
-		return 0, a.GetApplicationBackGroundPortForwardPidFile(deployment), err
+		return 0, a.GetABGPortForwardPidFile(deployment), err
 	}
 	if isTrunc {
-		_ = a.SetPidFileEmpty(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+		_ = a.SetPidFileEmpty(a.GetABGPortForwardPidFile(deployment))
 	}
-	return port, a.GetApplicationBackGroundPortForwardPidFile(deployment), nil
+	return port, a.GetABGPortForwardPidFile(deployment), nil
 }
 
 func (a *Application) GetBackgroundSyncThingPid(deployment string, isTrunc bool) (int, string, error) {
-	f, err := ioutil.ReadFile(a.GetApplicationSyncThingPidFile(deployment))
+	f, err := ioutil.ReadFile(a.GetSyncThingPidFile(deployment))
 	if err != nil {
-		return 0, a.GetApplicationSyncThingPidFile(deployment), err
+		return 0, a.GetSyncThingPidFile(deployment), err
 	}
 	port, err := strconv.Atoi(string(f))
 	if err != nil {
-		return 0, a.GetApplicationSyncThingPidFile(deployment), err
+		return 0, a.GetSyncThingPidFile(deployment), err
 	}
 	if isTrunc {
-		_ = a.SetPidFileEmpty(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+		_ = a.SetPidFileEmpty(a.GetABGPortForwardPidFile(deployment))
 	}
-	return port, a.GetApplicationSyncThingPidFile(deployment), nil
+	return port, a.GetSyncThingPidFile(deployment), nil
 }
 
 func (a *Application) GetBackgroundOnlyPortForwardPid(deployment string, isTrunc bool) (int, string, error) {
-	f, err := ioutil.ReadFile(a.GetApplicationOnlyPortForwardPidFile(deployment))
+	f, err := ioutil.ReadFile(a.GetPortForwardPidFile(deployment))
 	if err != nil {
-		return 0, a.GetApplicationOnlyPortForwardPidFile(deployment), err
+		return 0, a.GetPortForwardPidFile(deployment), err
 	}
 	port, err := strconv.Atoi(string(f))
 	if err != nil {
-		return 0, a.GetApplicationOnlyPortForwardPidFile(deployment), err
+		return 0, a.GetPortForwardPidFile(deployment), err
 	}
 	if isTrunc {
-		_ = a.SetPidFileEmpty(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+		_ = a.SetPidFileEmpty(a.GetABGPortForwardPidFile(deployment))
 	}
-	return port, a.GetApplicationOnlyPortForwardPidFile(deployment), nil
+	return port, a.GetPortForwardPidFile(deployment), nil
 }
 
-func (a *Application) WriteBackgroundSyncPortForwardPidFile(deployment string, pid int) error {
+func (a *Application) WriteBGSyncPForwardPidFile(deployment string, pid int) error {
 	file, err := os.OpenFile(
-		a.GetApplicationBackGroundPortForwardPidFile(deployment),
+		a.GetABGPortForwardPidFile(deployment),
 		os.O_WRONLY|os.O_CREATE, 0666,
 	)
 	if err != nil {
@@ -795,7 +795,7 @@ func (a *Application) WriteBackgroundSyncPortForwardPidFile(deployment string, p
 	return errors.Wrap(err, "")
 }
 
-func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(
+func (a *Application) GetSyncDirFromProfile(
 	svcName string, options *DevStartOptions,
 ) (*DevStartOptions, error) {
 	appProfile, _ := a.GetProfile()

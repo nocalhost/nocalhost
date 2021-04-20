@@ -91,7 +91,7 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 		upgradeResourcePath = installFlags.ResourcePath
 	} else {
 		// Get resource path for upgrade .nocalhost
-		configFilePath := a.getUpgradeConfigPathInGitResourcesDir(installFlags.Config)
+		configFilePath := a.getUpgradeConfigPathGit(installFlags.Config)
 		_, err := os.Stat(configFilePath)
 		if err != nil {
 			log.WarnE(errors.Wrap(err, ""), "Failed to load config.yaml")

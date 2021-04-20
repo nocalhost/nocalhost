@@ -31,7 +31,7 @@ func (a *Application) getUpgradeGitDir() string {
 	return filepath.Join(a.GetHomeDir(), DefaultUpgradeResourcesDir)
 }
 
-func (a *Application) getUpgradeConfigPathInGitResourcesDir(configName string) string {
+func (a *Application) getUpgradeConfigPathGit(configName string) string {
 	if configName == "" {
 		return filepath.Join(a.getUpgradeGitDir(), DefaultGitNocalhostDir, DefaultConfigNameInGitNocalhostDir)
 	} else {
@@ -59,7 +59,7 @@ func (a *Application) GetPortForwardLogFile(deployment string) string {
 	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultBackGroundPortForwardLogFileName)
 }
 
-func (a *Application) GetApplicationBackGroundOnlyPortForwardPidFile(deployment string) string {
+func (a *Application) GetBGPortForwardPidFile(deployment string) string {
 	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
 }
 
@@ -67,15 +67,15 @@ func (a *Application) GetFileLockPath(deployment string) string {
 	return filepath.Join(a.GetApplicationSyncDir(deployment), GetFileLockPath)
 }
 
-func (a *Application) GetApplicationSyncThingPidFile(deployment string) string {
+func (a *Application) GetSyncThingPidFile(deployment string) string {
 	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPidFile)
 }
 
-func (a *Application) GetApplicationOnlyPortForwardPidFile(deployment string) string {
+func (a *Application) GetPortForwardPidFile(deployment string) string {
 	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
 }
 
-func (a *Application) GetApplicationBackGroundPortForwardPidFile(deployment string) string {
+func (a *Application) GetABGPortForwardPidFile(deployment string) string {
 	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPortForwardPidFile)
 }
 
