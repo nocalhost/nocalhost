@@ -127,7 +127,7 @@ func GetSpaceDetail(c *gin.Context) {
 	applicationId := cast.ToUint64(c.Param("id"))
 	models := model.ClusterUserModel{
 		// UserId:        userId.(uint64),
-		ClusterId:     clusterId,
+		ClusterId: clusterId,
 		ApplicationId: applicationId,
 	}
 	result, err := service.Svc.ClusterUser().GetList(c, models)
@@ -157,7 +157,9 @@ func PluginGet(c *gin.Context) {
 	}
 	// get plugin dev start append command
 	for k := range result {
-		result[k].DevStartAppendCommand = fmt.Sprintf("%s %s", global.NocalhostDefaultPriorityclassKey, global.NocalhostDefaultPriorityclassName)
+		result[k].DevStartAppendCommand = fmt.Sprintf(
+			"%s %s", global.NocalhostDefaultPriorityclassKey, global.NocalhostDefaultPriorityclassName,
+		)
 	}
 	api.SendResponse(c, errno.OK, result)
 }

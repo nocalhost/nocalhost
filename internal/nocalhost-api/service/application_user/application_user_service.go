@@ -23,7 +23,9 @@ type ApplicationUserService interface {
 	ListByUserId(ctx context.Context, userId uint64) ([]*model.ApplicationUserModel, error)
 	BatchDelete(ctx context.Context, applicationId uint64, userIds []uint64) error
 	BatchInsert(ctx context.Context, applicationId uint64, userIds []uint64) error
-	GetByApplicationIdAndUserId(ctx context.Context, applicationId uint64, userId uint64) (*model.ApplicationUserModel, error)
+	GetByApplicationIdAndUserId(ctx context.Context, applicationId uint64, userId uint64) (
+		*model.ApplicationUserModel, error,
+	)
 	Close()
 }
 
@@ -44,11 +46,15 @@ func (srv *applicationUserService) BatchInsert(ctx context.Context, applicationI
 	return srv.repo.BatchInsert(ctx, applicationId, userIds)
 }
 
-func (srv *applicationUserService) GetByApplicationIdAndUserId(ctx context.Context, applicationId uint64, userId uint64) (*model.ApplicationUserModel, error) {
+func (srv *applicationUserService) GetByApplicationIdAndUserId(
+	ctx context.Context, applicationId uint64, userId uint64,
+) (*model.ApplicationUserModel, error) {
 	return srv.repo.GetByApplicationIdAndUserId(ctx, applicationId, userId)
 }
 
-func (srv *applicationUserService) ListByApplicationId(ctx context.Context, id uint64) ([]*model.ApplicationUserModel, error) {
+func (srv *applicationUserService) ListByApplicationId(ctx context.Context, id uint64) (
+	[]*model.ApplicationUserModel, error,
+) {
 	return srv.repo.ListByApplicationId(ctx, id)
 }
 

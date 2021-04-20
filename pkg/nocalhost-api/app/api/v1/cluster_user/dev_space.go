@@ -85,18 +85,24 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	}
 }
 
-func (d *DevSpace) createClusterDevSpace(clusterRecord model.ClusterModel, usersRecord *model.UserBaseModel) (*model.ClusterUserModel, error) {
+func (d *DevSpace) createClusterDevSpace(
+	clusterRecord model.ClusterModel, usersRecord *model.UserBaseModel,
+) (*model.ClusterUserModel, error) {
 	trueFlag := uint64(1)
-	list, err := service.Svc.ClusterUser().GetList(context.TODO(), model.ClusterUserModel{
-		ClusterId:    clusterRecord.ID,
-		UserId:       usersRecord.ID,
-		ClusterAdmin: &trueFlag,
-	})
+	list, err := service.Svc.ClusterUser().GetList(
+		context.TODO(), model.ClusterUserModel{
+			ClusterId: clusterRecord.ID,
+			UserId: usersRecord.ID,
+			ClusterAdmin: &trueFlag,
+		},
+	)
 	if len(list) > 0 {
 		return nil, errno.ErrAlreadyExist
 	}
 
-	result, err := service.Svc.ClusterUser().CreateClusterAdminSpace(context.TODO(), clusterRecord.ID, usersRecord.ID, d.DevSpaceParams.SpaceName)
+	result, err := service.Svc.ClusterUser().CreateClusterAdminSpace(
+		context.TODO(), clusterRecord.ID, usersRecord.ID, d.DevSpaceParams.SpaceName,
+	)
 	if err != nil {
 		return nil, errno.ErrBindApplicationClsuter
 	}
@@ -108,7 +114,9 @@ func (d *DevSpace) createClusterDevSpace(clusterRecord model.ClusterModel, users
 	return &result, nil
 }
 
-func (d *DevSpace) createDevSpace(clusterRecord model.ClusterModel, usersRecord *model.UserBaseModel) (*model.ClusterUserModel, error) {
+func (d *DevSpace) createDevSpace(
+	clusterRecord model.ClusterModel, usersRecord *model.UserBaseModel,
+) (*model.ClusterUserModel, error) {
 
 	applicationId := cast.ToUint64(d.DevSpaceParams.ApplicationId)
 
@@ -137,8 +145,14 @@ func (d *DevSpace) createDevSpace(clusterRecord model.ClusterModel, usersRecord 
 		CreateNS(devNamespace, "").
 		CreateServiceAccount("", devNamespace).
 		CreateRole(global.NocalhostDevRoleName, devNamespace).
-		CreateRoleBinding(global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevServiceAccountName).
-		CreateRoleBinding(global.NocalhostDevRoleDefaultBindingName, devNamespace, global.NocalhostDevRoleName, global.NocalhostDevDefaultServiceAccountName).
+		CreateRoleBinding(
+		global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName,
+		global.NocalhostDevServiceAccountName,
+	).
+		CreateRoleBinding(
+		global.NocalhostDevRoleDefaultBindingName, devNamespace, global.NocalhostDevRoleName,
+		global.NocalhostDevDefaultServiceAccountName,
+		).
 		GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).
 		GetServiceAccountSecret("", devNamespace)
 
@@ -159,13 +173,21 @@ func (d *DevSpace) createDevSpace(clusterRecord model.ClusterModel, usersRecord 
 
 	res.ContainerEphemeralStorage = "1Gi"
 
-	clusterDevsSetUp.CreateResouceQuota("rq-"+devNamespace, devNamespace, res.SpaceReqMem,
+	clusterDevsSetUp.CreateResourceQuota(
+		"rq-"+devNamespace, devNamespace, res.SpaceReqMem,
 		res.SpaceReqCpu, res.SpaceLimitsMem, res.SpaceLimitsCpu, res.SpaceStorageCapacity, res.SpaceEphemeralStorage,
-		res.SpacePvcCount, res.SpaceLbCount).CreateLimitRange("lr-"+devNamespace, devNamespace,
-		res.ContainerReqMem, res.ContainerLimitsMem, res.ContainerReqCpu, res.ContainerLimitsCpu, res.ContainerEphemeralStorage)
+		res.SpacePvcCount, res.SpaceLbCount,
+	).CreateLimitRange(
+		"lr-"+devNamespace, devNamespace,
+		res.ContainerReqMem, res.ContainerLimitsMem, res.ContainerReqCpu, res.ContainerLimitsCpu,
+		res.ContainerEphemeralStorage,
+	)
 
 	resString, err := json.Marshal(res)
-	result, err := service.Svc.ClusterUser().Create(d.c, *d.DevSpaceParams.ClusterId, usersRecord.ID, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu, KubeConfigYaml, devNamespace, spaceName, string(resString))
+	result, err := service.Svc.ClusterUser().Create(
+		d.c, *d.DevSpaceParams.ClusterId, usersRecord.ID, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu,
+		KubeConfigYaml, devNamespace, spaceName, string(resString),
+	)
 	if err != nil {
 		return nil, errno.ErrBindApplicationClsuter
 	}

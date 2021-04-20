@@ -24,8 +24,14 @@ type ExecFlags struct {
 var execFlags = ExecFlags{}
 
 func init() {
-	execCmd.Flags().StringArrayVarP(&execFlags.Commands, "command", "c", nil, "command to execute in container")
-	execCmd.Flags().StringVarP(&execFlags.SvcName, "deployment", "d", "", "k8s deployment which your developing service exists")
+	execCmd.Flags().StringArrayVarP(
+		&execFlags.Commands, "command", "c", nil,
+		"command to execute in container",
+	)
+	execCmd.Flags().StringVarP(
+		&execFlags.SvcName, "deployment", "d", "",
+		"k8s deployment which your developing service exists",
+	)
 	rootCmd.AddCommand(execCmd)
 }
 

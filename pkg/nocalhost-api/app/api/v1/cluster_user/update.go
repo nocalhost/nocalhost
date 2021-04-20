@@ -132,7 +132,7 @@ func UpdateResourceLimit(c *gin.Context) {
 
 	// Recreate ResourceQuota
 	resourceQuotaName := "rq-" + devspace.Namespace
-	clusterDevsSetUp.DeleteResourceQuota(resourceQuotaName, devspace.Namespace).CreateResouceQuota(resourceQuotaName, devspace.Namespace, req.SpaceReqMem,
+	clusterDevsSetUp.DeleteResourceQuota(resourceQuotaName, devspace.Namespace).CreateResourceQuota(resourceQuotaName, devspace.Namespace, req.SpaceReqMem,
 		req.SpaceReqCpu, req.SpaceLimitsMem, req.SpaceLimitsCpu, req.SpaceStorageCapacity, req.SpaceEphemeralStorage,
 		req.SpacePvcCount, req.SpaceLbCount)
 

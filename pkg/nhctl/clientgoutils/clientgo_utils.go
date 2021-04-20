@@ -95,7 +95,8 @@ func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, 
 
 	client.ClientConfig = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfigPath},
-		&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: ""}})
+		&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: ""}},
+	)
 
 	client.restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
@@ -154,7 +155,8 @@ func GetNamespaceFromKubeConfig(kubeConfig string) (string, error) {
 
 	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfig},
-		&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: ""}})
+		&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: ""}},
+	)
 	ns, _, err := clientConfig.Namespace()
 	return ns, errors.Wrap(err, "")
 }
@@ -391,8 +393,10 @@ func (c *ClientGoUtils) DeleteSecret(name string) error {
 }
 
 func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
-	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward",
-		req.Pod.Namespace, req.Pod.Name)
+	path := fmt.Sprintf(
+		"/api/v1/namespaces/%s/pods/%s/portforward",
+		req.Pod.Namespace, req.Pod.Name,
+	)
 	clientConfig, err := c.ClientConfig.ClientConfig()
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -404,9 +408,15 @@ func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 		return errors.Wrap(err, "")
 	}
 
-	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, &url.URL{Scheme: "https", Path: path, Host: hostIP})
+	dialer := spdy.NewDialer(
+		upgrader, &http.Client{Transport: transport}, http.MethodPost,
+		&url.URL{Scheme: "https", Path: path, Host: hostIP},
+	)
 	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
-	fw, err := portforward.NewOnAddresses(dialer, req.Listen, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
+	fw, err := portforward.NewOnAddresses(
+		dialer, req.Listen, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh,
+		req.Streams.Out, req.Streams.ErrOut,
+	)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
@@ -470,11 +480,17 @@ func (c *ClientGoUtils) DeleteNameSpace(name string, wait bool) error {
 }
 
 func (c *ClientGoUtils) DeleteStatefulSetAndPVC(name string) error {
-	_ = c.ClientSet.AppsV1().StatefulSets(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{GracePeriodSeconds: new(int64)})
-	pvc, err := c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Get(c.ctx, "data-nocalhost-mariadb-0", metav1.GetOptions{})
+	_ = c.ClientSet.AppsV1().StatefulSets(c.namespace).Delete(
+		c.ctx, name, metav1.DeleteOptions{GracePeriodSeconds: new(int64)},
+	)
+	pvc, err := c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Get(
+		c.ctx, "data-nocalhost-mariadb-0", metav1.GetOptions{},
+	)
 	if err != nil {
 		pvName := pvc.Spec.VolumeName
-		_ = c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Delete(c.ctx, "data-nocalhost-mariadb-0", metav1.DeleteOptions{})
+		_ = c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Delete(
+			c.ctx, "data-nocalhost-mariadb-0", metav1.DeleteOptions{},
+		)
 		_ = c.ClientSet.CoreV1().PersistentVolumes().Delete(c.ctx, pvName, metav1.DeleteOptions{})
 	}
 	return nil

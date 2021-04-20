@@ -20,7 +20,10 @@ import (
 )
 
 func init() {
-	devResetCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
+	devResetCmd.Flags().StringVarP(
+		&deployment, "deployment", "d", "",
+		"k8s deployment which your developing service exists",
+	)
 	debugCmd.AddCommand(devResetCmd)
 }
 

@@ -24,7 +24,10 @@ type ClusterDevsSetUp interface {
 	CreateRole(name, namespace string) *clusterDevsSetUp
 	CreateRoleBinding(name, namespace, clusterRole, toServiceAccount string) *clusterDevsSetUp
 	GetServiceAccountSecret(name, namespace string) (*corev1.Secret, error)
-	CreateResouceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string) *clusterDevsSetUp
+	CreateResourceQuota(
+		name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity,
+		ephemeralStorage, pvcCount, lbCount string,
+	) *clusterDevsSetUp
 	DeleteResourceQuota(name, namespace string) *clusterDevsSetUp
 	CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string) *clusterDevsSetUp
 	DeleteLimitRange(name, namespace string) *clusterDevsSetUp
@@ -106,8 +109,13 @@ func (c *clusterDevsSetUp) GetServiceAccountSecret(name, namespace string) (*cor
 	return secret, err
 }
 
-func (c *clusterDevsSetUp) CreateResouceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string) *clusterDevsSetUp {
-	_, err := c.clientGo.CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount)
+func (c *clusterDevsSetUp) CreateResourceQuota(
+	name, namespace, reqMem, reqCpu, limitsMem,
+	limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string,
+) *clusterDevsSetUp {
+	_, err := c.clientGo.CreateResourceQuota(
+		name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount,
+	)
 	if err != nil {
 		c.err = err
 		c.errCode = errno.ErrCreateResourceQuota
@@ -124,8 +132,14 @@ func (c *clusterDevsSetUp) DeleteResourceQuota(name, namespace string) *clusterD
 	return c
 }
 
-func (c *clusterDevsSetUp) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string) *clusterDevsSetUp {
-	_, err := c.clientGo.CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage)
+func (c *clusterDevsSetUp) CreateLimitRange(
+	name, namespace, reqMem,
+	limitsMem, reqCpu, limitsCpu, ephemeralStorage string,
+) *clusterDevsSetUp {
+	_, err := c.clientGo.CreateLimitRange(
+		name, namespace, reqMem,
+		limitsMem, reqCpu, limitsCpu, ephemeralStorage,
+	)
 	if err != nil {
 		c.err = err
 		c.errCode = errno.ErrCreateLimitRange

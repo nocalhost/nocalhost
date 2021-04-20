@@ -34,9 +34,21 @@ var commandType string
 var container string
 
 func init() {
-	devCmdCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "K8s deployment which your developing service exists")
-	devCmdCmd.Flags().StringVarP(&container, "container", "c", "", "which container of pod to run command")
-	devCmdCmd.Flags().StringVar(&commandType, "dev-command-type", "", fmt.Sprintf("Dev command type can be: %s, %s, %s, %s, %s", buildCommand, runCommand, debugCommand, hotReloadRunCommand, hotReloadDebugCommand))
+	devCmdCmd.Flags().StringVarP(
+		&deployment, "deployment", "d", "",
+		"K8s deployment which your developing service exists",
+	)
+	devCmdCmd.Flags().StringVarP(
+		&container, "container", "c", "",
+		"which container of pod to run command",
+	)
+	devCmdCmd.Flags().StringVar(
+		&commandType, "dev-command-type", "", fmt.Sprintf(
+			"Dev command type can be: %s, %s, %s, %s, %s",
+			buildCommand, runCommand, debugCommand, hotReloadRunCommand,
+			hotReloadDebugCommand,
+		),
+	)
 	debugCmd.AddCommand(devCmdCmd)
 }
 
@@ -68,7 +80,8 @@ var devCmdCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if profile.GetContainerDevConfigOrDefault(container) == nil || profile.GetContainerDevConfigOrDefault(container).Command == nil {
+		if profile.GetContainerDevConfigOrDefault(container) == nil ||
+			profile.GetContainerDevConfigOrDefault(container).Command == nil {
 			log.Fatalf("%s command not defined", commandType)
 		}
 		var targetCommand []string

@@ -69,7 +69,8 @@ func (a *Application) markReplicaSetAsOriginalRevision(svcName string) error {
 			rs := rss[0]
 			rs.Annotations[DevImageRevisionAnnotationKey] = DevImageRevisionAnnotationValue
 			rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] = strconv.Itoa(originalPodReplicas)
-			//_, err = a.client.ClientSet.AppsV1().ReplicaSets(a.GetNamespace()).Update(ctx, rs, metav1.UpdateOptions{})
+			// _, err = a.client.ClientSet.AppsV1().
+			// ReplicaSets(a.GetNamespace()).Update(ctx, rs, metav1.UpdateOptions{})
 			_, err = a.client.UpdateReplicaSet(rs)
 			if err != nil {
 				return errors.New("Failed to update rs's annotation :" + err.Error())
@@ -147,7 +148,9 @@ func (a *Application) generateSyncthingVolumesAndVolumeMounts(svcName string) ([
 // If PVC exists, use it directly
 // If PVC not exists, try to create one
 // If PVC failed to create, the whole process of entering DevMode will fail
-func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, container, storageClass string) ([]corev1.Volume, []corev1.VolumeMount, error) {
+func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, container, storageClass string) (
+	[]corev1.Volume, []corev1.VolumeMount, error,
+) {
 
 	volumes := make([]corev1.Volume, 0)
 	volumeMounts := make([]corev1.VolumeMount, 0)
@@ -181,7 +184,11 @@ func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, co
 				continue
 			}
 			if len(claims) > 1 {
-				log.Warn(fmt.Sprintf("Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path))
+				log.Warn(
+					fmt.Sprintf(
+						"Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path,
+					),
+				)
 				continue
 			}
 
@@ -332,7 +339,9 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
-	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := a.generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, ops.Container, ops.StorageClass)
+	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := a.generateWorkDirAndPersistVolumeAndVolumeMounts(
+		svcName, ops.Container, ops.StorageClass,
+	)
 	if err != nil {
 		return err
 	}
@@ -511,7 +520,9 @@ func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) 
 
 // Initial a pvc for persistent volume dir, and waiting util pvc succeed to bound to a pv
 // If pvc failed to bound to a pv, the pvc will been deleted, and return nil
-func (a *Application) createPvcForPersistentVolumeDir(persistentVolume *profile.PersistentVolumeDir, labels map[string]string, storageClass string) (*corev1.PersistentVolumeClaim, error) {
+func (a *Application) createPvcForPersistentVolumeDir(
+	persistentVolume *profile.PersistentVolumeDir, labels map[string]string, storageClass string,
+) (*corev1.PersistentVolumeClaim, error) {
 	var (
 		pvc *corev1.PersistentVolumeClaim
 		err error
@@ -552,7 +563,10 @@ func (a *Application) createPvcForPersistentVolumeDir(persistentVolume *profile.
 				for _, condition := range pvc.Status.Conditions {
 					errorMes = condition.Message
 					if condition.Reason == "ProvisioningFailed" {
-						log.Warnf("Failed to create a pvc for %s, check if your StorageClass is set correctly", persistentVolume.Path)
+						log.Warnf(
+							"Failed to create a pvc for %s, check if your StorageClass is set correctly",
+							persistentVolume.Path,
+						)
 						break
 					}
 				}

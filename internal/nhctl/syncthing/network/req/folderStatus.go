@@ -22,19 +22,24 @@ func (p *SyncthingHttpClient) FolderStatus() (Model, error) {
 
 func (m *Model) StateChangedLog() string {
 	return fmt.Sprintf(
-		"Sync completed at: %v", m.StateChanged.Format("15:04:05"))
+		"Sync completed at: %v", m.StateChanged.Format("15:04:05"),
+	)
 }
 
 func (m *Model) OutOfSyncLog() string {
 	return fmt.Sprintf(
-		"Out of sync! : %v ", m.StateChanged.Format("15:04:05"))
+		"Out of sync! : %v ", m.StateChanged.Format("15:04:05"),
+	)
 }
 
 func (m *Model) IdleTips() string {
 	t := m.StateChanged.Format("15:04:05")
 
 	return fmt.Sprintf(
-		"The remote file is based on local sync dir at %v, local changed before %v has been complete synchronized to the k8s sidecar.", t, t)
+		"The remote file is based on local sync dir at %v,"+
+			" local changed before %v has been complete synchronized to the k8s sidecar.",
+		t, t,
+	)
 }
 
 func (m *Model) hasError() bool {
@@ -47,7 +52,12 @@ func (m *Model) isIdle() bool {
 
 func (m *Model) OutOfSyncTips() string {
 	if m.NeedFiles > 0 {
-		return fmt.Sprintf("There are %v remote files on work dir that are different from locally (may different or more than local), click the \"!\" on the left to hard reset remote according to local files.", m.NeedFiles)
+		return fmt.Sprintf(
+			"There are %v remote files on work dir that are different from locally "+
+				"(may different or more than local), click the \"!\""+
+				" on the left to hard reset remote according to local files.",
+			m.NeedFiles,
+		)
 	} else {
 		return ""
 	}
@@ -55,7 +65,12 @@ func (m *Model) OutOfSyncTips() string {
 
 func (m *Model) OutOfSync() string {
 	if m.NeedFiles > 0 {
-		return fmt.Sprintf("There are %v remote files on work dir that are different from locally (may different or more than local), click me to hard reset remote according to local files.", m.NeedFiles)
+		return fmt.Sprintf(
+			"There are %v remote files on work dir that are"+
+				" different from locally (may different or more than local), "+
+				"click me to hard reset remote according to local files.",
+			m.NeedFiles,
+		)
 	} else {
 		return ""
 	}
