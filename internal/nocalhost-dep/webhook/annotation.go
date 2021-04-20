@@ -30,6 +30,7 @@ type ObjectMetaHolder struct {
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 }
 
+// getting it's own ref annotation for annotated the current object
 func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 	// resolve object meta
 	if len(o.OwnerReferences) > 0 {
@@ -39,6 +40,7 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 			glog.Error(err)
 			return nil
 		}
+
 		// creates the clientset
 		client, err := dynamic.NewForConfig(config)
 		if err != nil {
@@ -57,6 +59,8 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 					continue
 				}
 
+				// adapt the gvk to gvr
+				// gvr can use to list the resources
 				mapping, err := cachedRestMapper.RESTMapping(schema.GroupKind{
 					Group: gv.Group,
 					Kind:  reference.Kind,
@@ -72,6 +76,7 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 
 				name := reference.Name
 
+				// find own ref from cluster scope, because the own ref may from cluster scope
 				go func() {
 					resource, err := client.Resource(mapping.Resource).Namespace("").Get(ctx, name, metav1.GetOptions{})
 					if err == nil && resource != nil {
@@ -84,6 +89,7 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 					}
 				}()
 
+				// find own ref from multiple namespace
 				go func() {
 					resource, err := client.Resource(mapping.Resource).Namespace(ns).Get(ctx, name, metav1.GetOptions{})
 					if err == nil && resource != nil {
@@ -98,6 +104,7 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 			}
 		}()
 
+		// wait until the context close or own ref found
 		select {
 		case group := <-dataCh:
 			cancel()

@@ -57,6 +57,7 @@ const (
 	DependenceConfigMapPrefix = "nocalhost-depends-do-not-overwrite"
 )
 
+// resolve Application name by k8s 'metadata.name'
 func GetApplicationName(secretName string) (string, error) {
 	if idx := strings.Index(secretName, "/"); idx > 0 {
 		if len(secretName) > idx+1 {
@@ -110,6 +111,7 @@ func ApplicationStateOf(s string) ApplicationState {
 type ApplicationMetas []*ApplicationMeta
 type ApplicationMetaSimples []*ApplicationMetaSimple
 
+// describe the applications meta for output
 func (as ApplicationMetas) Desc() (result ApplicationMetaSimples) {
 	for _, meta := range as {
 		result = append(
@@ -136,6 +138,7 @@ type ApplicationMetaSimple struct {
 	PreInstallManifest string             `json:"pre_install_manifest"`
 }
 
+// application meta is the application meta info container
 type ApplicationMeta struct {
 	// could not be updated
 	Application string `json:"application"`
@@ -380,6 +383,7 @@ func (a *ApplicationMeta) IsHelm() bool {
 	return a.ApplicationType == Helm || a.ApplicationType == HelmRepo || a.ApplicationType == HelmLocal
 }
 
+// Uninstall uninstall the application and delete the secret from k8s cluster
 func (a *ApplicationMeta) Uninstall() error {
 
 	if e := a.cleanUpDepConfigMap(); e != nil {

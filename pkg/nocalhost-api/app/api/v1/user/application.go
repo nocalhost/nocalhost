@@ -22,6 +22,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 )
 
+// List all authorized user in application
 func ListByApplication(c *gin.Context) {
 	// userId, _ := c.Get("userId")
 	users, err := listByApplication(c, true)
@@ -32,6 +33,7 @@ func ListByApplication(c *gin.Context) {
 	api.SendResponse(c, nil, users)
 }
 
+// List all unauthorized user in application
 func ListNotInApplication(c *gin.Context) {
 	// userId, _ := c.Get("userId")
 
@@ -43,6 +45,8 @@ func ListNotInApplication(c *gin.Context) {
 	api.SendResponse(c, nil, users)
 }
 
+// list user by application
+// in application means user has the permission to this application
 func listByApplication(c *gin.Context, inApp bool) ([]*model.UserList, error) {
 	applicationId := cast.ToUint64(c.Param("id"))
 	applicationUsers, err := service.Svc.ApplicationUser().ListByApplicationId(c, applicationId)
@@ -57,6 +61,10 @@ func listByApplication(c *gin.Context, inApp bool) ([]*model.UserList, error) {
 		log.Error(err)
 		return nil, errno.ErrListApplicationUser
 	}
+
+	// first list all user
+	// then while applicationUsers contain that user
+	// put into inApp list
 
 	set := map[uint64]interface{}{}
 	for _, au := range applicationUsers {
