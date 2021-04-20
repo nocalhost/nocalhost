@@ -234,6 +234,9 @@ func (a *ApplicationMeta) GetApplicationDevMeta() ApplicationDevMeta {
 	}
 }
 
+// Initial initial the application, try to create a secret
+// error if create fail
+// initial the application will set the state to INSTALLING
 func (a *ApplicationMeta) Initial() error {
 	b := false
 	m := map[string][]byte{}

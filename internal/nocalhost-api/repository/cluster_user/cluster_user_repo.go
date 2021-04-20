@@ -49,6 +49,7 @@ func NewApplicationClusterRepo(db *gorm.DB) ClusterUserRepo {
 	}
 }
 
+// UpdateKubeConfig Deprecated
 func (repo *clusterUserRepo) UpdateKubeConfig(
 	ctx context.Context, models *model.ClusterUserModel,
 ) (*model.ClusterUserModel, error) {
@@ -61,6 +62,7 @@ func (repo *clusterUserRepo) UpdateKubeConfig(
 	return models, errors.New("update fail")
 }
 
+// GetJoinCluster Get cluster user join users
 func (repo *clusterUserRepo) GetJoinCluster(
 	ctx context.Context, condition model.ClusterUserJoinCluster,
 ) ([]*model.ClusterUserJoinCluster, error) {
@@ -80,11 +82,13 @@ func (repo *clusterUserRepo) GetJoinCluster(
 	return cluserUserJoinCluster, nil
 }
 
+// DeleteByWhere
 func (repo *clusterUserRepo) DeleteByWhere(ctx context.Context, models model.ClusterUserModel) error {
 	result := repo.db.Unscoped().Delete(models)
 	return result.Error
 }
 
+// BatchDelete
 func (repo *clusterUserRepo) BatchDelete(ctx context.Context, ids []uint64) error {
 	result := repo.db.Unscoped().Delete(model.ClusterUserModel{}, ids)
 	if result.RowsAffected > 0 {
@@ -93,6 +97,7 @@ func (repo *clusterUserRepo) BatchDelete(ctx context.Context, ids []uint64) erro
 	return result.Error
 }
 
+// Delete
 func (repo *clusterUserRepo) Delete(ctx context.Context, id uint64) error {
 	result := repo.db.Unscoped().Delete(model.ClusterUserModel{}, id)
 	if result.RowsAffected > 0 {
@@ -101,6 +106,7 @@ func (repo *clusterUserRepo) Delete(ctx context.Context, id uint64) error {
 	return result.Error
 }
 
+// Update
 func (repo *clusterUserRepo) Update(ctx context.Context, models *model.ClusterUserModel) (
 	*model.ClusterUserModel, error,
 ) {
@@ -120,6 +126,7 @@ func (repo *clusterUserRepo) Update(ctx context.Context, models *model.ClusterUs
 	return models, errors.New("update dev space err")
 }
 
+// GetList
 func (repo *clusterUserRepo) GetList(ctx context.Context, models model.ClusterUserModel) (
 	[]*model.ClusterUserModel, error,
 ) {
@@ -131,6 +138,7 @@ func (repo *clusterUserRepo) GetList(ctx context.Context, models model.ClusterUs
 	return nil, errors.New("users cluster not found")
 }
 
+// ListByUser
 func (repo *clusterUserRepo) ListByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserPluginModel, error) {
 	result := make([]*model.ClusterUserPluginModel, 0)
 
@@ -141,6 +149,7 @@ func (repo *clusterUserRepo) ListByUser(ctx context.Context, userId uint64) ([]*
 	return nil, errors.New("users cluster not found")
 }
 
+// GetFirst
 func (repo *clusterUserRepo) GetFirst(ctx context.Context, models model.ClusterUserModel) (
 	*model.ClusterUserModel, error,
 ) {
@@ -152,6 +161,8 @@ func (repo *clusterUserRepo) GetFirst(ctx context.Context, models model.ClusterU
 	return &cluster, nil
 }
 
+
+// Create
 func (repo *clusterUserRepo) Create(ctx context.Context, model model.ClusterUserModel) (model.ClusterUserModel, error) {
 	err := repo.db.Create(&model).Error
 	if err != nil {
@@ -161,6 +172,8 @@ func (repo *clusterUserRepo) Create(ctx context.Context, model model.ClusterUser
 	return model, nil
 }
 
+
+// GetJoinClusterAndAppAndUser
 func (repo *clusterUserRepo) GetJoinClusterAndAppAndUser(
 	ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser,
 ) ([]*model.ClusterUserJoinClusterAndAppAndUser, error) {
@@ -188,6 +201,7 @@ func (repo *clusterUserRepo) GetJoinClusterAndAppAndUser(
 	return result, nil
 }
 
+// GetJoinClusterAndAppAndUserDetail
 func (repo *clusterUserRepo) GetJoinClusterAndAppAndUserDetail(
 	ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser,
 ) (*model.ClusterUserJoinClusterAndAppAndUser, error) {

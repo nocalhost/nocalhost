@@ -12,6 +12,9 @@
 
 package errno
 
+// managed all Errno for nocalhost-api
+// the message in errno will be displayed
+// by calling api.SendResponse(c, &errno.Errno{Code: 40110, Message: err.Error()}, nil)
 //nolint: golint
 var (
 	// Common errors
@@ -23,7 +26,7 @@ var (
 	RouterNotFound      = &Errno{Code: 10005, Message: "router not found"}
 	ErrLoginRequired    = &Errno{Code: 10006, Message: "log in required"}
 
-	// user errors
+	// user errors for user module request
 	ErrUserNotFound          = &Errno{Code: 20102, Message: "The user does not found."}
 	ErrTokenInvalid          = &Errno{Code: 20103, Message: "Token is invalid or login expired, please coloredoutput in again"}
 	ErrPermissionDenied      = &Errno{Code: 20104, Message: "permission denied"}
@@ -37,7 +40,7 @@ var (
 	ErrDeleteUser            = &Errno{Code: 20117, Message: "Failed to delete user"}
 	ErrUserLoginWebNotAllow  = &Errno{Code: 20118, Message: "Normal users are not allowed login web interface"}
 
-	// cluster errors
+	// cluster errors for cluster module request
 	ErrClusterCreate          = &Errno{Code: 30100, Message: "Failed to add cluster, please try again"}
 	ErrClusterExistCreate     = &Errno{Code: 30101, Message: "The cluster already exists (Duplicate Server)"}
 	ErrClusterKubeCreate      = &Errno{Code: 30102, Message: "It is not allowed to create this type of cluster (there are multiple Kubeconfig Clusters)"}
@@ -54,7 +57,7 @@ var (
 	ErrClusterName            = &Errno{Code: 30112, Message: "Failed to get current cluster from kubeconfig, please check cluster exists and manage by current context"}
 	ErrClusterTimeout         = &Errno{Code: 30113, Message: "Failed to get the connection from current cluster after short wait, please make sure the cluster exists and check it's network connectivity"}
 
-	// application errors
+	// application errors for application module request
 	ErrApplicationCreate        = &Errno{Code: 40100, Message: "Failed to add app, please try again"}
 	ErrApplicationGet           = &Errno{Code: 40101, Message: "Failed to get app, please try again"}
 	ErrApplicationDelete        = &Errno{Code: 40102, Message: "Failed to delete application, please try again"}
@@ -67,10 +70,10 @@ var (
 	ErrApplicationNameExist     = &Errno{Code: 40109, Message: "Application name already exist"}
 	ErrSensitiveApplicationName = &Errno{Code: 40109, Message: "Application name can't not be 'default.application'"}
 
-	// application-cluster
+	// application-cluster for application-cluster module request
 	ErrApplicationBoundClusterList = &Errno{Code: 40108, Message: "Failed to get application bound cluster list, please try again"}
 
-	// cluster-user errors
+	// cluster-user errors for cluster-user module request
 	ErrBindUserApplicationRepeat                 = &Errno{Code: 50099, Message: "The user has authorized this application"}
 	ErrBindNameSpaceCreate                       = &Errno{Code: 50101, Message: "Cluster user authorization failed: failed to create namespace"}
 	ErrBindServiceAccountCreateErr               = &Errno{Code: 50102, Message: "Cluster user authorization failed: Failed to create ServiceAccount"}
@@ -96,12 +99,12 @@ var (
 	ErrValidateResourceQuota                     = &Errno{Code: 50122, Message: "If quota is enabled in a namespace for compute resources like cpu and memory, must specify requests or limits for those values."}
 	ErrAlreadyExist                              = &Errno{Code: 50123, Message: "Current user already authorization current cluster's cluster admin"}
 
-	// application-user
+	// application-user for application-user module request
 	ErrListApplicationUser   = &Errno{Code: 60000, Message: "Failed to list application_user, please check params and try again"}
 	ErrInsertApplicationUser = &Errno{Code: 60001, Message: "Failed to batch insert application_user, please check params and try again"}
 	ErrDeleteApplicationUser = &Errno{Code: 60002, Message: "Failed to batch delete application_user, please check params and try again"}
 
-	// service-account
+	// service-account for service-account module request
 	ErrServiceAccountCreate     = &Errno{Code: 70000, Message: "Failed to create service account, please check params and try again"}
 	ErrNameSpaceCreate          = &Errno{Code: 70001, Message: "Failed to create namespace, please check params and try again"}
 	ErrClusterRoleCreate        = &Errno{Code: 70002, Message: "Failed to create nocalhost common cluster role, please check your cluster and try again"}

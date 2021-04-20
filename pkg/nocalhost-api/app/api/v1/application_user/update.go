@@ -9,6 +9,8 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
+// BatchInsert batch insert application_user
+// only admin user can request this interface
 func BatchInsert(c *gin.Context) {
 	// userId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
@@ -34,6 +36,8 @@ func BatchInsert(c *gin.Context) {
 	api.SendResponse(c, nil, nil)
 }
 
+// BatchDelete batch delete application_user
+// only admin user can request this interface
 func BatchDelete(c *gin.Context) {
 	// userId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
