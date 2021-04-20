@@ -30,6 +30,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -174,6 +175,12 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		RemotePort: startCmd.RemotePort,
 	}
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
+			}
+		}()
+
 		log.Logf("Forwarding %d:%d", localPort, localPort)
 
 		logDir := filepath.Join(nocalhost.GetLogDir(), "port-forward")
@@ -230,10 +237,22 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			})
 
 			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
+					}
+				}()
+
 				select {
 				case <-readyCh:
 					log.Infof("Port forward %d:%d is ready", localPort, remotePort)
 					go func() {
+						defer func() {
+							if r := recover(); r != nil {
+								log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
+							}
+						}()
+
 						lastStatus := ""
 						currentStatus := ""
 						for {
@@ -264,6 +283,12 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			}()
 
 			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
+					}
+				}()
+
 				select {
 				case errCh <- nocalhostApp.PortForwardAPod(clientgoutils.PortForwardAPodRequest{
 					Listen: []string{"0.0.0.0"},
