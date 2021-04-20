@@ -216,6 +216,7 @@ func (d *DaemonClient) SendStartPortForwardCommand(
 	}
 }
 
+// SendStopPortForwardCommand send port forward to daemon
 func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource, localPort, remotePort int) error {
 
 	startPFCmd := &command.PortForwardCommand{
@@ -240,6 +241,7 @@ func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource
 	}
 }
 
+// sendDataToDaemonServer send data only to daemon
 func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort))
 	if err != nil {
@@ -250,6 +252,7 @@ func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 	return errors.Wrap(err, "")
 }
 
+// sendAndWaitForResponse send data to daemon and wait for response
 func (d *DaemonClient) sendAndWaitForResponse(data []byte) ([]byte, error) {
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort))
 	if err != nil {

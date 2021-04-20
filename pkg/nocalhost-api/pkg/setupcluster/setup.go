@@ -51,6 +51,10 @@ type setUpCluster struct {
 	clusterInfo   string
 }
 
+// NewSetUpCluster cluster set up is a simple builder to
+// operate the cluster, if err occur, we should store the err msg
+// in err and errCode and then take it out at the end
+// then we can skip same error while operate the k8s cluster
 func NewSetUpCluster(client *clientgo.GoClient) SetUpCluster {
 	return &setUpCluster{
 		clientGo: client,

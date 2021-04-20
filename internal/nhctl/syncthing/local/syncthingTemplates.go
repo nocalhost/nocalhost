@@ -12,6 +12,7 @@
 
 package local
 
+// follow text is the default configuration template for syncthing local
 const LocalSyncConfigXML = `<configuration version="32">
 {{ range .Folders }}
 <folder id="nh-{{ .Name }}" label="{{ .Name }}" path="{{ .LocalPath }}" type="{{ $.Type }}" 
@@ -104,6 +105,7 @@ introducer="false" skipIntroductionRemovals="false" introducedBy="">
 </options>
 </configuration>`
 
+// follow text is the default configuration template for syncthing remote
 const RemoteSyncConfigXML = `<configuration version="32">
 {{ range .Folders }}
 <folder id="nh-{{ .Name }}" label="{{ .Name }}" path="{{ .RemotePath }}" 
@@ -198,6 +200,18 @@ compression="metadata" introducer="false" skipIntroductionRemovals="false" intro
 </options>
 </configuration>`
 
+// IgnoredFileTemplate ignore file pattern template
+// first block is ignored pattern
+// that's because we should make sure the ignored pattern with highest priority
+// if there is same configuration for synced pattern and ignored pattern,
+// the file will be ignored
+// such as:
+// build
+// !build
+// then the build file or dir will be ignored
+//
+// the last block is **
+// means, if we did not specify any pattern, no file will be synced
 const IgnoredFileTemplate = `// Ignored pattern block, the priority of ignored pattern is highest, default is ""
 {{.ignoredPattern}}
 

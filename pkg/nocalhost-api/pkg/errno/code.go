@@ -15,6 +15,9 @@ package errno
 // managed all Errno for nocalhost-api
 // the message in errno will be displayed
 // by calling api.SendResponse(c, &errno.Errno{Code: 40110, Message: err.Error()}, nil)
+// such as:
+// api.SendResponse(c, ErrBind, nil)
+// frontend will receive "Request fail, Please check request parameters"
 //nolint: golint
 var (
 	// Common errors
