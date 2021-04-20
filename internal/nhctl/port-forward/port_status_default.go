@@ -47,7 +47,7 @@ func PidPortStatus(pid int, port int) string {
 		"grep",
 		strconv.Itoa(port),
 	}
-	result, err := tools.ExecCommand(nil, false, "bash", "-c", strings.Join(params, " "))
+	result, err := tools.ExecCommand(nil, false, false, "bash", "-c", strings.Join(params, " "))
 	if err != nil {
 		log.Errorf("lsof error %s", err.Error())
 	}
