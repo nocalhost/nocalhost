@@ -143,9 +143,13 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 		}
 	}
 
+	profileV2, err := a.GetProfile()
+	if err != nil {
+		return err
+	}
 	// todo need to refactor
-	a.profileV2.ResourcePath = upgradeResourcePath
-	_, manifests := a.profileV2.LoadManifests(a.getUpgradeGitDir())
+	profileV2.ResourcePath = upgradeResourcePath
+	_, manifests := profileV2.LoadManifests(a.getUpgradeGitDir())
 
 	// Read upgrade resource obj
 	updateResource, err := clientgoutils.NewManifestResourceReader(manifests).LoadResource()
@@ -249,8 +253,10 @@ func isContainsInfo(info *resource.Info, infos []*resource.Info) bool {
 
 func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo bool) error {
 
-	var err error
-	appProfile := a.profileV2
+	appProfile, err := a.GetProfile()
+	if err != nil {
+		return err
+	}
 	releaseName := appProfile.ReleaseName
 
 	commonParams := make([]string, 0)

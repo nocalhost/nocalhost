@@ -122,7 +122,8 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		appProfileV2.ResourcePath = flags.ResourcePath
 	}
 
-	app.profileV2 = appProfileV2
+	//app.profileV2 = appProfileV2
+	app.AppType = appProfileV2.AppType
 
 	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
 }
