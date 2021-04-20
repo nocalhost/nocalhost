@@ -64,6 +64,7 @@ type Application struct {
 	Name       string
 	NameSpace  string
 	KubeConfig string
+	AppType    string
 
 	// may nil, only for install or upgrade
 	// dir use to load the user's resource
@@ -75,7 +76,7 @@ type Application struct {
 	// profileV2 will not be nil if you use NewApplication a get a Application
 	// you can only get const data from it, such as Namespace,AppType...
 	// don't save it to leveldb directly
-	profileV2 *profile.AppProfileV2
+	//profileV2 *profile.AppProfileV2
 
 	client *clientgoutils.ClientGoUtils
 
@@ -108,7 +109,7 @@ func (a *Application) moveProfileFromFileToLeveldb() error {
 	}
 	log.Log("Move profile to leveldb")
 
-	a.profileV2 = profileV2
+	//a.profileV2 = profileV2
 	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
 }
 
@@ -153,14 +154,16 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 
 	// if still not present
 	// load from secret
-	if app.profileV2, err = nocalhost.GetProfileV2(app.NameSpace, app.Name); err != nil {
-		app.profileV2 = generateProfileFromConfig(app.appMeta.Config)
-		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.profileV2); err != nil {
+	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
+	if err != nil {
+		profileV2 = generateProfileFromConfig(app.appMeta.Config)
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, profileV2); err != nil {
 			return nil, err
 		}
 	}
+	app.AppType = profileV2.AppType
 
-	if kubeconfig != "" && kubeconfig != app.profileV2.Kubeconfig {
+	if kubeconfig != "" && kubeconfig != profileV2.Kubeconfig {
 		//app.profileV2.Kubeconfig = kubeconfig
 		p, err := profile.NewAppProfileV2ForUpdate(app.NameSpace, app.Name)
 		if err != nil {
@@ -185,6 +188,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 
 func (a *Application) generateSecretForEarlierVer() bool {
 	profileV2, _ := a.GetProfile()
+	a.AppType = profileV2.AppType
 	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() && a.Name != DefaultNocalhostApplication {
 		defer func() {
 			log.Logf("Mark application %s in ns %s has been secreted", a.Name, a.NameSpace)
@@ -209,12 +213,12 @@ func (a *Application) generateSecretForEarlierVer() bool {
 		a.appMeta.Config = a.newConfigFromProfile()
 		a.appMeta.DepConfigName = profileV2.DependencyConfigMapName
 		a.appMeta.Ns = a.NameSpace
-		a.appMeta.ApplicationType = appmeta.AppTypeOf(a.profileV2.AppType)
+		a.appMeta.ApplicationType = appmeta.AppTypeOf(a.AppType)
 
 		_ = a.appMeta.Update()
 
 		a.client = a.appMeta.GetClient()
-		switch a.profileV2.AppType {
+		switch a.AppType {
 		case string(appmeta.Manifest), string(appmeta.ManifestLocal):
 			_ = a.InstallManifest(a.appMeta, a.getResourceDir(), false)
 		case string(appmeta.KustomizeGit):
@@ -224,7 +228,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 
 		for _, svc := range profileV2.SvcProfile {
 			if svc.Developing {
-				_ = a.appMeta.DeploymentDevStart(svc.Name, a.profileV2.Identifier)
+				_ = a.appMeta.DeploymentDevStart(svc.Name, profileV2.Identifier)
 			}
 		}
 
@@ -245,19 +249,20 @@ func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {
 			return p
 		}
 	}
+	profileV2, _ := a.GetProfile()
 	return &profile.NocalHostAppConfigV2{
 		ConfigProperties: &profile.ConfigProperties{
 			Version: "v2",
 		},
 		ApplicationConfig: &profile.ApplicationConfig{
 			Name:           a.Name,
-			Type:           a.profileV2.AppType,
-			ResourcePath:   a.profileV2.ResourcePath,
-			IgnoredPath:    a.profileV2.IgnoredPath,
-			PreInstall:     a.profileV2.PreInstall,
-			Env:            a.profileV2.Env,
-			EnvFrom:        a.profileV2.EnvFrom,
-			ServiceConfigs: loadServiceConfigsFromProfile(a.profileV2.SvcProfile),
+			Type:           profileV2.AppType,
+			ResourcePath:   profileV2.ResourcePath,
+			IgnoredPath:    profileV2.IgnoredPath,
+			PreInstall:     profileV2.PreInstall,
+			Env:            profileV2.Env,
+			EnvFrom:        profileV2.EnvFrom,
+			ServiceConfigs: loadServiceConfigsFromProfile(profileV2.SvcProfile),
 		},
 	}
 
@@ -290,7 +295,7 @@ func (a *Application) tryLoadProfileFromLocal() (err error) {
 
 	// try load from db first
 	// then try load from disk(to supports earlier version)
-	if a.profileV2, err = nocalhost.GetProfileV2(a.NameSpace, a.Name); err != nil {
+	if _, err = nocalhost.GetProfileV2(a.NameSpace, a.Name); err != nil {
 		if _, err := os.Stat(a.getProfileV2Path()); err == nil {
 
 			// need not care what happen
