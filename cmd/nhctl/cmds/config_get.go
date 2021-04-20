@@ -22,8 +22,14 @@ import (
 )
 
 func init() {
-	configGetCmd.Flags().StringVarP(&commonFlags.SvcName, "deployment", "d", "", "k8s deployment which your developing service exists")
-	configGetCmd.Flags().BoolVar(&commonFlags.AppConfig, "app-config", false, "get application config")
+	configGetCmd.Flags().StringVarP(
+		&commonFlags.SvcName, "deployment", "d", "",
+		"k8s deployment which your developing service exists",
+	)
+	configGetCmd.Flags().BoolVar(
+		&commonFlags.AppConfig, "app-config", false,
+		"get application config",
+	)
 	configCmd.AddCommand(configGetCmd)
 }
 

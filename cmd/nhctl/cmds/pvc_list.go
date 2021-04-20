@@ -131,6 +131,9 @@ func DisplayPVCs(pvcList []v1.PersistentVolumeClaim) {
 	for _, pvc := range pvcList {
 		labels := pvc.Labels
 		quantity := pvc.Spec.Resources.Requests[v1.ResourceStorage]
-		fmt.Printf("%s %s %s %s %s\n", pvc.Name, labels[app.AppLabel], labels[app.ServiceLabel], quantity.String(), pvc.Status.Phase)
+		fmt.Printf(
+			"%s %s %s %s %s\n", pvc.Name, labels[app.AppLabel], labels[app.ServiceLabel], quantity.String(),
+			pvc.Status.Phase,
+		)
 	}
 }

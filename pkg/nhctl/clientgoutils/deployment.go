@@ -131,7 +131,10 @@ func (c *ClientGoUtils) DeleteDeployment(name string, wait bool) error {
 	labelMap := dep.Spec.Selector.MatchLabels
 
 	if wait {
-		log.Infof("Waiting pods of %s to be terminated, this may take several minutes, depending on the load of your k8s cluster", name)
+		log.Infof(
+			"Waiting pods of %s to be terminated, this may take several minutes, depending on the load of your k8s cluster",
+			name,
+		)
 		terminated := false
 		for i := 0; i < 200; i++ {
 			list, err := c.ListPodsByLabels(labelMap)

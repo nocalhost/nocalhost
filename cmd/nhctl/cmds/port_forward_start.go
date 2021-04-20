@@ -22,14 +22,35 @@ import (
 var portForwardOptions = &app.PortForwardOptions{}
 
 func init() {
-	portForwardStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
-	portForwardStartCmd.Flags().StringSliceVarP(&portForwardOptions.DevPort, "dev-port", "p", []string{}, "port-forward between pod and local, such 8080:8080 or :8080(random localPort)")
-	//portForwardStartCmd.Flags().BoolVarP(&portForwardOptions.RunAsDaemon, "daemon", "m", true, "if port-forward run as daemon")
-	portForwardStartCmd.Flags().BoolVarP(&portForwardOptions.Forward, "forward", "f", false, "forward actually, deprecated")
-	portForwardStartCmd.Flags().StringVarP(&portForwardOptions.PodName, "pod", "", "", "specify pod name")
-	portForwardStartCmd.Flags().StringVarP(&container, "container", "c", "", "which container of pod to run command")
-	portForwardStartCmd.Flags().StringVarP(&portForwardOptions.ServiceType, "type", "", "deployment", "specify service type")
-	portForwardStartCmd.Flags().StringVarP(&portForwardOptions.Way, "way", "", "manual", "specify port-forward way, deprecated")
+	portForwardStartCmd.Flags().StringVarP(
+		&deployment, "deployment", "d", "", "k8s deployment which you want to forward to",
+	)
+	portForwardStartCmd.Flags().StringSliceVarP(
+		&portForwardOptions.DevPort, "dev-port", "p", []string{},
+		"port-forward between pod and local, such 8080:8080 or :8080(random localPort)",
+	)
+	//portForwardStartCmd.Flags().BoolVarP(&portForwardOptions.RunAsDaemon,
+	// "daemon", "m", true, "if port-forward run as daemon")
+	portForwardStartCmd.Flags().BoolVarP(
+		&portForwardOptions.Forward, "forward", "f", false,
+		"forward actually, deprecated",
+	)
+	portForwardStartCmd.Flags().StringVarP(
+		&portForwardOptions.PodName, "pod", "", "",
+		"specify pod name",
+	)
+	portForwardStartCmd.Flags().StringVarP(
+		&container, "container", "c", "",
+		"which container of pod to run command",
+	)
+	portForwardStartCmd.Flags().StringVarP(
+		&portForwardOptions.ServiceType, "type", "", "deployment",
+		"specify service type",
+	)
+	portForwardStartCmd.Flags().StringVarP(
+		&portForwardOptions.Way, "way", "", "manual",
+		"specify port-forward way, deprecated",
+	)
 	PortForwardCmd.AddCommand(portForwardStartCmd)
 }
 

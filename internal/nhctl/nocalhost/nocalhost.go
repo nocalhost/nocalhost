@@ -135,7 +135,11 @@ func moveApplicationDirToNsDir() error {
 					continue
 				}
 				// Moving dir
-				utils.Should(utils.CopyDir(appDir, filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), ns, appDirInfo.Name())))
+				utils.Should(
+					utils.CopyDir(
+						appDir, filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), ns, appDirInfo.Name()),
+					),
+				)
 			}
 		} else {
 			return errors.Wrap(err, "")
@@ -205,9 +209,19 @@ func GetApplicationMetaInstalled(appName, namespace, kubeConfig string) (*appmet
 		return nil, err
 	}
 	if appMeta.IsInstalling() {
-		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", appName, namespace, appName, namespace))
+		return nil, errors.New(
+			fmt.Sprintf(
+				"Application %s - namespace %s is installing,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ",
+				appName, namespace, appName, namespace,
+			),
+		)
 	} else if appMeta.IsNotInstall() {
-		return nil, errors.New(fmt.Sprintf("Application %s in ns %s is not installed or under installing, or maybe the kubeconfig provided has not permitted to this namespace ", appName, namespace))
+		return nil, errors.New(
+			fmt.Sprintf(
+				"Application %s in ns %s is not installed or under installing, or maybe the kubeconfig provided has not permitted to this namespace ",
+				appName, namespace,
+			),
+		)
 	}
 	return appMeta, nil
 }

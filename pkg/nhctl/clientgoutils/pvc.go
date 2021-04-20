@@ -25,14 +25,16 @@ import (
 
 // quantityStr: 10Gi, 10Mi ...
 // storageClassName: nil to use default storageClassName
-func (c *ClientGoUtils) CreatePVC(name string, labels map[string]string, annotations map[string]string, quantityStr string, storageClassName *string) (*v1.PersistentVolumeClaim, error) {
+func (c *ClientGoUtils) CreatePVC(
+	name string, labels map[string]string, annotations map[string]string, quantityStr string, storageClassName *string,
+) (*v1.PersistentVolumeClaim, error) {
 	q, err := resource.ParseQuantity(quantityStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
 
 	var persistentVolumeClaim = &v1.PersistentVolumeClaim{
-		TypeMeta:   metav1.TypeMeta{},
+		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{},
 		Spec: v1.PersistentVolumeClaimSpec{
 			AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
@@ -47,11 +49,17 @@ func (c *ClientGoUtils) CreatePVC(name string, labels map[string]string, annotat
 	persistentVolumeClaim.Labels = labels
 	persistentVolumeClaim.Annotations = annotations
 
-	return c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Create(c.ctx, persistentVolumeClaim, metav1.CreateOptions{})
+	return c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Create(
+		c.ctx, persistentVolumeClaim, metav1.CreateOptions{},
+	)
 }
 
 func (c *ClientGoUtils) DeletePVC(name string) error {
-	return errors.Wrap(c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{}), "")
+	return errors.Wrap(
+		c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Delete(
+			c.ctx, name, metav1.DeleteOptions{},
+		), "",
+	)
 }
 
 func (c *ClientGoUtils) GetPvcByLabels(labels map[string]string) ([]v1.PersistentVolumeClaim, error) {
@@ -63,7 +71,9 @@ func (c *ClientGoUtils) GetPvcByLabels(labels map[string]string) ([]v1.Persisten
 	}
 	labelSelector = strings.TrimPrefix(labelSelector, ",")
 
-	list, err := c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).List(c.ctx, metav1.ListOptions{LabelSelector: labelSelector})
+	list, err := c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).List(
+		c.ctx, metav1.ListOptions{LabelSelector: labelSelector},
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}

@@ -117,7 +117,9 @@ func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploy
 				for _, event := range events {
 					if event.Type == "Warning" {
 						if event.Reason == "FailedCreate" {
-							return errors.New(fmt.Sprintf("Latest ReplicaSet failed to be ready - %s", event.Message))
+							return errors.New(
+								fmt.Sprintf("Latest ReplicaSet failed to be ready - %s", event.Message),
+							)
 						}
 						log.Warnf("Warning event: %s", event.Message)
 					}
@@ -127,7 +129,11 @@ func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploy
 			if rs.Status.Replicas != 0 {
 				if !printed {
 					printed = true
-					log.Infof("Previous replicaSet %s has not been terminated, waiting revision %d to be ready", rs.Name, latestRevision)
+					log.Infof(
+						"Previous replicaSet %s has not been terminated, waiting revision %d to be ready",
+						rs.Name,
+						latestRevision,
+					)
 					log.Info("This may take several minutes, depending on the load of your k8s cluster")
 				}
 				isReady = false

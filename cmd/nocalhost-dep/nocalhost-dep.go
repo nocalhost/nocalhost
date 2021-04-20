@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"github.com/golang/glog"
 	"net/http"
-	webhook "nocalhost/internal/nocalhost-dep/webhook"
+	"nocalhost/internal/nocalhost-dep/webhook"
 	"os"
 	"os/signal"
 	"syscall"
@@ -34,9 +34,18 @@ func main() {
 
 	// get command line parameters
 	flag.IntVar(&parameters.Port, "port", 8443, "Webhook server port.")
-	flag.StringVar(&parameters.CertFile, "tlsCertFile", "/etc/webhook/certs/cert.pem", "File containing the x509 Certificate for HTTPS.")
-	flag.StringVar(&parameters.KeyFile, "tlsKeyFile", "/etc/webhook/certs/key.pem", "File containing the x509 private key to --tlsCertFile.")
-	flag.StringVar(&parameters.SidecarCfgFile, "sidecarCfgFile", "/etc/webhook/config/sidecarconfig.yaml", "File containing the mutation configuration.")
+	flag.StringVar(
+		&parameters.CertFile, "tlsCertFile", "/etc/webhook/certs/cert.pem",
+		"File containing the x509 Certificate for HTTPS.",
+	)
+	flag.StringVar(
+		&parameters.KeyFile, "tlsKeyFile", "/etc/webhook/certs/key.pem",
+		"File containing the x509 private key to --tlsCertFile.",
+	)
+	flag.StringVar(
+		&parameters.SidecarCfgFile, "sidecarCfgFile", "/etc/webhook/config/sidecarconfig.yaml",
+		"File containing the mutation configuration.",
+	)
 	flag.Parse()
 
 	glog.Infof("Current Version :[%s]", GIT_COMMIT_SHA)
@@ -54,7 +63,7 @@ func main() {
 	whsvr := &webhook.WebhookServer{
 		SidecarConfig: sidecarConfig,
 		Server: &http.Server{
-			Addr:      fmt.Sprintf(":%v", parameters.Port),
+			Addr: fmt.Sprintf(":%v", parameters.Port),
 			TLSConfig: &tls.Config{Certificates: []tls.Certificate{pair}},
 		},
 	}
@@ -81,10 +90,12 @@ func main() {
 }
 
 func timer(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		startTime := time.Now()
-		h.ServeHTTP(w, r)
-		duration := time.Now().Sub(startTime)
-		glog.Infof("total cost time %d", duration.Milliseconds())
-	})
+	return http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			startTime := time.Now()
+			h.ServeHTTP(w, r)
+			duration := time.Now().Sub(startTime)
+			glog.Infof("total cost time %d", duration.Milliseconds())
+		},
+	)
 }

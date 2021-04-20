@@ -80,7 +80,12 @@ func ListApplicationSvc(napp *app.Application) {
 	var data [][]string
 	appProfile, _ := napp.GetProfile()
 	for _, svcProfile := range appProfile.SvcProfile {
-		rols := []string{svcProfile.ActualName, strconv.FormatBool(svcProfile.Developing), strconv.FormatBool(svcProfile.Syncing), fmt.Sprintf("%v", svcProfile.DevPortForwardList), fmt.Sprintf("%s", svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin), strconv.Itoa(svcProfile.LocalSyncthingGUIPort)}
+		rols := []string{
+			svcProfile.ActualName, strconv.FormatBool(svcProfile.Developing), strconv.FormatBool(svcProfile.Syncing),
+			fmt.Sprintf("%v", svcProfile.DevPortForwardList),
+			fmt.Sprintf("%s", svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin),
+			strconv.Itoa(svcProfile.LocalSyncthingGUIPort),
+		}
 		data = append(data, rols)
 	}
 	table := tablewriter.NewWriter(os.Stdout)
@@ -102,10 +107,12 @@ func ListApplicationsResult() []*Namespace {
 		Application: []*ApplicationInfo{},
 	}
 	for _, meta := range metas {
-		ns.Application = append(ns.Application, &ApplicationInfo{
-			Name: meta.Application,
-			Type: meta.ApplicationType,
-		})
+		ns.Application = append(
+			ns.Application, &ApplicationInfo{
+				Name: meta.Application,
+				Type: meta.ApplicationType,
+			},
+		)
 	}
 	result = append(result, ns)
 	return result

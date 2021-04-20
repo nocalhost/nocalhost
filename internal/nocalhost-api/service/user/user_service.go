@@ -36,7 +36,9 @@ var _ UserService = (*userService)(nil)
 
 // UserService
 type UserService interface {
-	Create(ctx context.Context, email, password, name string, status uint64, isAdmin uint64) (model.UserBaseModel, error)
+	Create(ctx context.Context, email, password, name string, status uint64, isAdmin uint64) (
+		model.UserBaseModel, error,
+	)
 	Delete(ctx context.Context, id uint64) error
 	Register(ctx context.Context, email, password string) error
 	EmailLogin(ctx context.Context, email, password string) (tokenStr string, err error)
@@ -74,7 +76,9 @@ func (srv *userService) Delete(ctx context.Context, id uint64) error {
 }
 
 // Create
-func (srv *userService) Create(ctx context.Context, email, password, name string, status uint64, isAdmin uint64) (model.UserBaseModel, error) {
+func (srv *userService) Create(
+	ctx context.Context, email, password, name string, status uint64, isAdmin uint64,
+) (model.UserBaseModel, error) {
 	pwd, err := auth.Encrypt(password)
 	u := model.UserBaseModel{
 		SaName:    model.GenerateSaName(),
@@ -135,7 +139,9 @@ func (srv *userService) EmailLogin(ctx context.Context, email, password string) 
 		return "", errors.New("user not allow")
 	}
 
-	tokenStr, err = token.Sign(ctx, token.Context{UserID: u.ID, Username: u.Username, Uuid: u.Uuid, Email: u.Email, IsAdmin: *u.IsAdmin}, "")
+	tokenStr, err = token.Sign(
+		ctx, token.Context{UserID: u.ID, Username: u.Username, Uuid: u.Uuid, Email: u.Email, IsAdmin: *u.IsAdmin}, "",
+	)
 	if err != nil {
 		return "", errors.Wrapf(err, "gen token sign err")
 	}
@@ -144,7 +150,9 @@ func (srv *userService) EmailLogin(ctx context.Context, email, password string) 
 }
 
 // UpdateUser update user info
-func (srv *userService) UpdateUser(ctx context.Context, id uint64, user *model.UserBaseModel) (*model.UserBaseModel, error) {
+func (srv *userService) UpdateUser(ctx context.Context, id uint64, user *model.UserBaseModel) (
+	*model.UserBaseModel, error,
+) {
 	_, err := srv.userRepo.Update(ctx, id, user)
 
 	if err != nil {

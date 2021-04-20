@@ -123,10 +123,16 @@ func (q *ApiRequest) ExposeService() *ApiRequest {
 	}
 
 	baseUrl := "http://127.0.0.1:" + strconv.Itoa(q.PortForwardPortLocally)
-	log.Debugf("pid is %d, wait for port-forward... %s:%s \n", cmd.Process.Pid, strconv.Itoa(q.PortForwardPortLocally), strconv.Itoa(q.NocalhostWebPort))
+	log.Debugf(
+		"pid is %d, wait for port-forward... %s:%s \n", cmd.Process.Pid, strconv.Itoa(q.PortForwardPortLocally),
+		strconv.Itoa(q.NocalhostWebPort),
+	)
 
 	for {
-		conn, _ := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(q.PortForwardPortLocally)), app.DefaultInitPortForwardTimeOut)
+		conn, _ := net.DialTimeout(
+			"tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(q.PortForwardPortLocally)),
+			app.DefaultInitPortForwardTimeOut,
+		)
 		if conn != nil {
 			_ = conn.Close()
 			break

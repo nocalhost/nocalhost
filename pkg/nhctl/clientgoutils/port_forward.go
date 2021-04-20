@@ -61,7 +61,8 @@ func (c *ClientGoUtils) CreatePortForwarder(pod string, fps []*ForwardPort) (*po
 		stopChan,
 		readyChan,
 		ioutil.Discard,
-		out)
+		out,
+	)
 	if err != nil {
 		return nil, err
 	}
