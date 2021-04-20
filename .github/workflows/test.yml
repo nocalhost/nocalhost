@@ -37,7 +37,7 @@ jobs:
           while true; do
             url='https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/nhctl-linux-amd64?version='$COMMIT_ID''
             echo "url: ""$url"
-            a=$(curl -s "$url")
+            a=$(curl -s "$url") || true
             echo "response: ""$a"
             if [[ $a =~ "File not found" ]]; then
               sleep 5
@@ -60,7 +60,7 @@ jobs:
                 "Repository": "'"$Repository"'",
                 "Package": "'"$Package"'",
                 "PackageVersion": "'"$PackageVersion"'"
-              }')
+              }') || true
               echo "wait for package: ""$Package""version: ""$PackageVersion"
               echo "response: ""$res"
               if [[ $res =~ "InstanceSet" ]]; then
