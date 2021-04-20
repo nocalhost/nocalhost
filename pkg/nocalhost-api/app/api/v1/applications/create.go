@@ -55,7 +55,12 @@ func Create(c *gin.Context) {
 	if sErr != nil {
 		errs := sErr.(validator.ValidationErrors)
 		for _, err := range errs {
-			api.SendResponse(c, &errno.Errno{Code: 40110, Message: err.StructNamespace() + " is illegal, require: " + err.Param()}, nil)
+			api.SendResponse(
+				c, &errno.Errno{
+					Code: 40110, Message: err.StructNamespace() + " is illegal," +
+						" require: " + err.Param(),
+				}, nil,
+			)
 			return
 		}
 	}

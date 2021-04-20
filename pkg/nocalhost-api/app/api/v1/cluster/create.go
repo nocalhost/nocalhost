@@ -84,7 +84,8 @@ func Create(c *gin.Context) {
 		return
 	}
 
-	// 1. check if Namespace nocalhost-reserved already exist, ignore cause by nocalhost-dep-job installer.sh has checkout this condition and will exit
+	// 1. check if Namespace nocalhost-reserved already exist, ignore cause by nocalhost-dep-job installer.sh
+	//has checkout this condition and will exit
 	// 2. use admin Kubeconfig create configmap for nocalhost-dep-job to create admission webhook cert
 	// 3. deploy nocalhost-dep-job and pull on nocalhost-dep
 	// see https://codingcorp.coding.net/p/nocalhost/wiki/115
@@ -104,7 +105,10 @@ func Create(c *gin.Context) {
 	}
 
 	userId, _ := c.Get("userId")
-	cluster, err := service.Svc.ClusterSvc().Create(c, req.Name, string(DecKubeconfig), req.StorageClass, t.Clusters[0].Cluster.Server, clusterInfo, userId.(uint64))
+	cluster, err := service.Svc.ClusterSvc().Create(
+		c, req.Name, string(DecKubeconfig), req.StorageClass,
+		t.Clusters[0].Cluster.Server, clusterInfo, userId.(uint64),
+	)
 	if err != nil {
 		log.Warnf("create cluster err: %v", err)
 		api.SendResponse(c, errno.ErrClusterCreate, nil)

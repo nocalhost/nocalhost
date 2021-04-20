@@ -79,14 +79,16 @@ func (c *ClientGoUtils) Exec(podName string, containerName string, command []str
 			Name(pod.Name).
 			Namespace(pod.Namespace).
 			SubResource("exec")
-		req.VersionedParams(&corev1.PodExecOptions{
-			Container: containerName,
-			Command:   command,
-			Stdin:     true,
-			Stdout:    true,
-			Stderr:    false,
-			TTY:       true,
-		}, scheme.ParameterCodec)
+		req.VersionedParams(
+			&corev1.PodExecOptions{
+				Container: containerName,
+				Command:   command,
+				Stdin:     true,
+				Stdout:    true,
+				Stderr:    false,
+				TTY:       true,
+			}, scheme.ParameterCodec,
+		)
 
 		return Execute("POST", req.URL(), c.restConfig, t.In, t.Out, os.Stderr, t.Raw, sizeQueue)
 	}
@@ -97,16 +99,21 @@ func (c *ClientGoUtils) Exec(podName string, containerName string, command []str
 	return nil
 }
 
-func Execute(method string, url *url.URL, config *restclient.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool, terminalSizeQueue remotecommand.TerminalSizeQueue) error {
+func Execute(
+	method string, url *url.URL, config *restclient.Config,
+	stdin io.Reader, stdout, stderr io.Writer, tty bool, terminalSizeQueue remotecommand.TerminalSizeQueue,
+) error {
 	exec, err := remotecommand.NewSPDYExecutor(config, method, url)
 	if err != nil {
 		return err
 	}
-	return exec.Stream(remotecommand.StreamOptions{
-		Stdin:             stdin,
-		Stdout:            stdout,
-		Stderr:            stderr,
-		Tty:               tty,
-		TerminalSizeQueue: terminalSizeQueue,
-	})
+	return exec.Stream(
+		remotecommand.StreamOptions{
+			Stdin:             stdin,
+			Stdout:            stdout,
+			Stderr:            stderr,
+			Tty:               tty,
+			TerminalSizeQueue: terminalSizeQueue,
+		},
+	)
 }

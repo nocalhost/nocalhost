@@ -276,7 +276,9 @@ func (s *Service) updateAllRole() error {
 	return nil
 }
 
-func (s *Service) prepareServiceAccountAndClientGo(clusterId, userId uint64) (clientGo *clientgo.GoClient, saName string, err error) {
+func (s *Service) prepareServiceAccountAndClientGo(clusterId, userId uint64) (
+	clientGo *clientgo.GoClient, saName string, err error,
+) {
 	cl, err := s.ClusterSvc().Get(context.TODO(), clusterId)
 	if err != nil {
 		log.Error(err)

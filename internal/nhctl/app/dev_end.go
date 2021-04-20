@@ -66,8 +66,13 @@ func (a *Application) StopFileSyncOnly(svcName string) error {
 	portForwardPid, portForwardFilePath, err := a.GetBackgroundSyncPortForwardPid(svcName, false)
 	utils.ShouldI(err, "Failed to get background port-forward pid file")
 	if portForwardPid != 0 {
-		utils.ShouldI(syncthing.Stop(portForwardPid, portForwardFilePath, "port-forward", true),
-			fmt.Sprintf("Failed stop port-forward progress pid %d, please run `kill -9 %d`", portForwardPid, portForwardPid))
+		utils.ShouldI(
+			syncthing.Stop(portForwardPid, portForwardFilePath, "port-forward", true),
+			fmt.Sprintf(
+				"Failed stop port-forward progress pid %d, please run `kill -9 %d`",
+				portForwardPid, portForwardPid,
+			),
+		)
 	}
 
 	// read and clean up pid file
@@ -78,15 +83,25 @@ func (a *Application) StopFileSyncOnly(svcName string) error {
 		if err != nil {
 			if runtime.GOOS == "windows" {
 				// in windows, it will raise a "Access is denied" err when killing progress, so we can ignore this err
-				fmt.Printf("attempt to terminate syncthing process(pid: %d), you can run `tasklist | findstr %d` to make sure process was exited\n", portForwardPid, portForwardPid)
+				fmt.Printf(
+					"attempt to terminate syncthing process(pid: %d),"+
+						" you can run `tasklist | findstr %d` to make sure process was exited\n",
+					portForwardPid, portForwardPid,
+				)
 			} else {
-				log.Warnf("Failed to terminate syncthing process(pid: %d), please run `kill -9 %d` manually, err: %s\n", portForwardPid, portForwardPid, err)
+				log.Warnf(
+					"Failed to terminate syncthing process(pid: %d),"+
+						" please run `kill -9 %d` manually, err: %s\n", portForwardPid, portForwardPid, err,
+				)
 			}
 		}
 	}
 
 	if err == nil { // none of them has error
-		fmt.Printf("Background port-forward process: %d and  syncthing process: %d terminated.\n", portForwardPid, syncthingPid)
+		fmt.Printf(
+			"Background port-forward process: %d and  "+
+				"syncthing process: %d terminated.\n", portForwardPid, syncthingPid,
+		)
 	}
 	return err
 }
@@ -125,6 +140,9 @@ func (a *Application) DevEnd(svcName string, reset bool) error {
 
 	utils.ShouldI(a.appMeta.DeploymentDevEnd(svcName), "something incorrect occurs when updating secret")
 
-	utils.ShouldI(a.StopSyncAndPortForwardProcess(svcName, true), "something incorrect occurs when stopping sync process")
+	utils.ShouldI(
+		a.StopSyncAndPortForwardProcess(svcName, true),
+		"something incorrect occurs when stopping sync process",
+	)
 	return nil
 }
