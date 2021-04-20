@@ -14,28 +14,32 @@ limitations under the License.
 package main
 
 import (
-	"errors"
-	"nocalhost/test/nhctl"
+	"nocalhost/test/nhctlcli"
+	"nocalhost/test/nhctlcli/suite"
+	"nocalhost/test/nhctlcli/testcase"
 	"nocalhost/test/util"
 	"time"
 )
 
 func main() {
-	commitId := nhctl.GetCommitId()
-	if commitId == "" {
-		panic(errors.New("this is should not happen"))
-	}
 	go util.TimeoutChecker(1 * time.Hour)
-	nhctl.InstallNhctl(commitId)
-	go nhctl.Init()
-	if i := <-nhctl.StatusChan; i != 1 {
-		nhctl.StopChan <- 1
+	v1, v2 := testcase.GetVersion()
+	testcase.InstallNhctl(v1)
+	cli := nhctlcli.NewNhctl("/Users/naison/codingtest", "test")
+	testcase.NhctlVersion(cli)
+	testcase.StopDaemon(cli)
+	go testcase.Init(cli)
+	if i := <-testcase.StatusChan; i != 0 {
+		testcase.StopChan <- 1
 	}
-	defer nhctl.UninstallBookInfo()
-	nhctl.InstallBookInfo()
-	nhctl.PortForward()
-	module := "details"
-	nhctl.Dev(module)
-	nhctl.Sync(module)
-	nhctl.End(module)
+	// ---------base line-----------
+	t := suite.T{Cli: cli}
+	t.Run("install", suite.Install)
+	t.Run("dev", suite.Dev)
+	t.Run("port-forward", suite.PortForward)
+	t.Run("sync", suite.Sync)
+	t.Run("upgrade", suite.Upgrade)
+	t.Run("reset", suite.Reset)
+	t.Run("compatible", suite.Compatible, v2)
+	t.Clean()
 }
