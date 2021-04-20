@@ -77,7 +77,7 @@ func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error
 	if err != nil {
 		return err
 	}
-	return moveDir(a.getUpgradeGitDir(), a.ResourceTmpDir)
+	return removeDir(a.getUpgradeGitDir())
 }
 
 func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error {
@@ -173,7 +173,7 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 		return err
 	}
 
-	return moveDir(a.getUpgradeGitDir(), a.ResourceTmpDir)
+	return removeDir(a.getUpgradeGitDir())
 }
 
 func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*resource.Info, continueOnErr bool) error {
@@ -299,8 +299,5 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 		return errors.Wrap(err, "")
 	}
 
-	if !fromRepo {
-		err = a.saveUpgradeResources()
-	}
 	return err
 }

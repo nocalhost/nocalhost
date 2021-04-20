@@ -58,7 +58,7 @@ func Compatible(cli *nhctlcli.CLI, p ...string) {
 	testcase.PortForwardEnd(cli, module, port)
 	testcase.DevEnd(cli, module)
 	// for temporary
-	//testcase.Upgrade(cli)
+	testcase.Upgrade(cli)
 	testcase.Config(cli)
 	testcase.List(cli)
 	testcase.Db(cli)
