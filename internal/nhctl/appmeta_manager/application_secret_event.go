@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/pkg/nhctl/log"
+	"runtime/debug"
 	"sync"
 )
 
@@ -104,6 +105,12 @@ func Init() {
 
 	log.Info("Application Event Listener Start Up...")
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
+			}
+		}()
+
 		select {
 		case <-startCh:
 			for {
