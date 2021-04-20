@@ -60,8 +60,8 @@ func StartDaemon(isSudoUser bool, v string) error {
 		return errors.New("Failed to start daemon server with sudo")
 	}
 	isSudo = isSudoUser // Mark daemon server if it is run as sudo
-	ports.IsPortAvailable("0.0.0.0", daemonListenPort())
-	address := fmt.Sprintf("%s:%d", "0.0.0.0", daemonListenPort())
+	ports.IsPortAvailable("127.0.0.1", daemonListenPort())
+	address := fmt.Sprintf("%s:%d", "127.0.0.1", daemonListenPort())
 	listener, err := net.Listen("tcp4", address)
 	if err != nil {
 		return errors.Wrap(err, "")
