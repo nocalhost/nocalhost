@@ -85,7 +85,7 @@ func (a *Application) markReplicaSetRevision(svcName string) error {
 // There are two volume used by syncthing in sideCarContainer:
 // 1. A EmptyDir volume mounts to /var/syncthing in sideCarContainer
 // 2. A volume mounts Secret to /var/syncthing/secret in sideCarContainer
-func (a *Application) generateSyncthingVolumesAndVolumeMounts(svcName string) ([]corev1.Volume, []corev1.VolumeMount) {
+func (a *Application) generateSyncVolumesAndMounts(svcName string) ([]corev1.Volume, []corev1.VolumeMount) {
 
 	syncthingVolumes := make([]corev1.Volume, 0)
 	syncthingVolumeMounts := make([]corev1.VolumeMount, 0)
@@ -336,7 +336,7 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	devModeMounts := make([]corev1.VolumeMount, 0)
 
 	// Set volumes
-	syncthingVolumes, syncthingVolumeMounts := a.generateSyncthingVolumesAndVolumeMounts(svcName)
+	syncthingVolumes, syncthingVolumeMounts := a.generateSyncVolumesAndMounts(svcName)
 	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
