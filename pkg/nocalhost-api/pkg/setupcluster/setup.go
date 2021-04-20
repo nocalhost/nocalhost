@@ -144,7 +144,10 @@ func (c *setUpCluster) GetClusterInfo() *setUpCluster {
 func (c *setUpCluster) InitCluster(tag string) (string, error, error) {
 	return c.CreateNs(global.NocalhostSystemNamespace, "").
 		CreateServiceAccount(global.NocalhostSystemNamespaceServiceAccount, global.NocalhostSystemNamespace).
-		CreateClusterRoleBinding(global.NocalhostSystemRoleBindingName, global.NocalhostSystemNamespace, "cluster-admin", global.NocalhostSystemNamespaceServiceAccount).
+		CreateClusterRoleBinding(
+			global.NocalhostSystemRoleBindingName, global.NocalhostSystemNamespace, "cluster-admin",
+			global.NocalhostSystemNamespaceServiceAccount,
+		).
 		CreateNocalhostPriorityClass().
 		DeployNocalhostDep(global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount, tag).
 		GetClusterNode().
@@ -176,7 +179,9 @@ func (c *setUpCluster) UpgradeCluster() (bool, error) {
 		}
 	}
 
-	existServiceAccount, _ := c.clientGo.ExistServiceAccount(global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount)
+	existServiceAccount, _ := c.clientGo.ExistServiceAccount(
+		global.NocalhostSystemNamespace, global.NocalhostSystemNamespaceServiceAccount,
+	)
 	if !existServiceAccount {
 
 		log.Info("ServiceAccount " + global.NocalhostSystemNamespaceServiceAccount + " is not exist so creat one.")
@@ -191,7 +196,10 @@ func (c *setUpCluster) UpgradeCluster() (bool, error) {
 	if !existClusterRoleBinding {
 
 		log.Info("ClusterAdmin-RoleBinding " + global.NocalhostSystemRoleBindingName + " is not exist so creat one.")
-		c.CreateClusterRoleBinding(global.NocalhostSystemRoleBindingName, global.NocalhostSystemNamespace, "cluster-admin", global.NocalhostSystemNamespaceServiceAccount)
+		c.CreateClusterRoleBinding(
+			global.NocalhostSystemRoleBindingName, global.NocalhostSystemNamespace, "cluster-admin",
+			global.NocalhostSystemNamespaceServiceAccount,
+		)
 
 		if c.err != nil {
 			return false, c.err

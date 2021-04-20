@@ -62,7 +62,8 @@ func init() {
 	)
 	installCmd.Flags().StringVarP(
 		&installFlags.AppType, "type", "t", "", fmt.Sprintf(
-			"nocalhost application type: %s, %s, %s, %s, %s or %s", appmeta.HelmRepo, appmeta.Helm, appmeta.HelmLocal,
+			"nocalhost application type: %s, %s, %s, %s, %s or %s",
+			appmeta.HelmRepo, appmeta.Helm, appmeta.HelmLocal,
 			appmeta.Manifest, appmeta.ManifestLocal, appmeta.KustomizeGit,
 		),
 	)
@@ -76,14 +77,16 @@ func init() {
 	)
 	installCmd.Flags().StringSliceVar(
 		&installFlags.HelmSet, "set", []string{},
-		"set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)",
+		"set values on the command line (can specify multiple "+
+			"or separate values with commas: key1=val1,key2=val2)",
 	)
 	installCmd.Flags().StringVar(
 		&installFlags.HelmRepoName, "helm-repo-name", "",
 		"chart repository name",
 	)
 	installCmd.Flags().StringVar(
-		&installFlags.HelmRepoUrl, "helm-repo-url", "", "chart repository url where to locate the requested chart",
+		&installFlags.HelmRepoUrl, "helm-repo-url", "",
+		"chart repository url where to locate the requested chart",
 	)
 	installCmd.Flags().StringVar(
 		&installFlags.HelmRepoVersion, "helm-repo-version", "",
@@ -192,7 +195,10 @@ func InstallApplication(applicationName string) error {
 
 	// build Application will create the application meta and it's secret
 	// init the application's config
-	if nocalhostApp, err = app.BuildApplication(applicationName, installFlags, kubeConfig, nameSpace); err != nil {
+	if nocalhostApp, err = app.BuildApplication(
+		applicationName,
+		installFlags, kubeConfig, nameSpace,
+	); err != nil {
 		return err
 	}
 

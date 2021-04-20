@@ -30,7 +30,10 @@ type CommonFlags struct {
 var commonFlags = CommonFlags{}
 
 func init() {
-	configTemplateCmd.Flags().StringVarP(&commonFlags.SvcName, "deployment", "d", "", "k8s deployment which your developing service exists")
+	configTemplateCmd.Flags().StringVarP(
+		&commonFlags.SvcName, "deployment", "d", "",
+		"k8s deployment which your developing service exists",
+	)
 	configCmd.AddCommand(configTemplateCmd)
 }
 

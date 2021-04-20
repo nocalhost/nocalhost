@@ -29,7 +29,10 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-func (a *Application) NewSyncthing(deployment string, container string, localSyncDir []string, syncDouble bool) (*syncthing.Syncthing, error) {
+func (a *Application) NewSyncthing(
+	deployment string, container string,
+	localSyncDir []string, syncDouble bool,
+) (*syncthing.Syncthing, error) {
 	var err error
 
 	remotePath := a.GetDefaultWorkDir(deployment, container)
@@ -97,7 +100,8 @@ func (a *Application) NewSyncthing(deployment string, container string, localSyn
 		Client:           syncthing.NewAPIClient(),
 		FileWatcherDelay: syncthing.DefaultFileWatcherDelay,
 		GUIAddress:       fmt.Sprintf("%s:%d", syncthing.Bind, localGuiPort),
-		// TODO Be Careful if ResourcePath is not application path, Local syncthing HOME PATH will be used for cert and config.xml
+		// TODO Be Careful if ResourcePath is not application path, Local
+		// syncthing HOME PATH will be used for cert and config.xml
 		// it's `~/.nhctl/application/bookinfo/syncthing`
 		LocalHome:        filepath.Join(a.GetHomeDir(), "syncthing", deployment),
 		RemoteHome:       syncthing.RemoteHome,

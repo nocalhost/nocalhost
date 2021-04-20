@@ -27,13 +27,16 @@ func Dev(moduleName string) {
 	if err := os.MkdirAll(fmt.Sprintf("/tmp/%s", moduleName), 0777); err != nil {
 		panic(fmt.Sprintf("test case failed, reason: create directory error, error: %v\n", err))
 	}
-	cmd := "nhctl dev start bookinfo -d %s -s /tmp/%s --priority-class nocalhost-container-critical -n test --kubeconfig " + util.CODING
+	cmd := "nhctl dev start bookinfo -d %s -s /tmp/%s " +
+		"--priority-class nocalhost-container-critical -n test --kubeconfig " + util.CODING
 	if ok, _ := util.WaitForCommandDone(fmt.Sprintf(cmd, moduleName, moduleName)); !ok {
 		panic("test case failed, reason: nhctl dev start failed, command: " + cmd)
 	}
-	util.WaitToBeStatus("test", "pods", "app="+moduleName, func(i interface{}) bool {
-		return i.(*v1.Pod).Status.Phase == v1.PodRunning
-	})
+	util.WaitToBeStatus(
+		"test", "pods", "app="+moduleName, func(i interface{}) bool {
+			return i.(*v1.Pod).Status.Phase == v1.PodRunning
+		},
+	)
 }
 
 func Sync(moduleName string) {
@@ -45,18 +48,33 @@ func Sync(moduleName string) {
 
 	filename := "hello.test"
 	content := "this is a test"
-	if err := ioutil.WriteFile(fmt.Sprintf("/tmp/%s/%s", moduleName, filename), []byte(content), 0644); err != nil {
+	if err := ioutil.WriteFile(
+		fmt.Sprintf("/tmp/%s/%s", moduleName, filename),
+		[]byte(content), 0644,
+	); err != nil {
 		panic(fmt.Sprintf("test case failed, reason: write file %s error: %v\n", filename, err))
 	}
 	// wait file to be synchronize
 	time.Sleep(10 * time.Second)
-	cmd = fmt.Sprintf("kubectl exec deployment/%s -n test --kubeconfig=%s -- cat %s\n", moduleName, util.CODING, filename)
+	cmd = fmt.Sprintf(
+		"kubectl exec deployment/%s -n test --kubeconfig=%s -- cat %s\n", moduleName, util.CODING, filename,
+	)
 	ok, log = util.WaitForCommandDone(cmd)
 	if !ok {
-		panic(fmt.Sprintf("test case failed, reason: cat file %s error, command: %s, log: %v\n", filename, cmd, log))
+		panic(
+			fmt.Sprintf(
+				"test case failed, reason: cat file %s error,"+
+					" command: %s, log: %v\n", filename, cmd, log,
+			),
+		)
 	}
 	if !strings.Contains(log, content) {
-		panic(fmt.Sprintf("test case failed, reason: file content: %s not equals command log: %s\n", content, log))
+		panic(
+			fmt.Sprintf(
+				"test case failed, reason: file content:"+
+					" %s not equals command log: %s\n", content, log,
+			),
+		)
 	}
 }
 
@@ -80,16 +98,23 @@ func PortForward() {
 func End(moduleName string) {
 	cmd := "nhctl dev end bookinfo -d %s -n test --kubeconfig " + util.CODING
 	if ok, log := util.WaitForCommandDone(fmt.Sprintf(cmd, moduleName)); !ok {
-		panic(fmt.Sprintf("test case failed, reason: nhctl dev end failed, command: %s, log: %s \n", cmd, log))
+		panic(
+			fmt.Sprintf(
+				"test case failed, reason: nhctl dev end failed,"+
+					" command: %s, log: %s \n", cmd, log,
+			),
+		)
 	}
-	util.WaitToBeStatus("test", "pods", "app=details", func(i interface{}) bool {
-		return i.(*v1.Pod).Status.Phase == v1.PodRunning && func() bool {
-			for _, containerStatus := range i.(*v1.Pod).Status.ContainerStatuses {
-				if containerStatus.Ready {
-					return false
+	util.WaitToBeStatus(
+		"test", "pods", "app=details", func(i interface{}) bool {
+			return i.(*v1.Pod).Status.Phase == v1.PodRunning && func() bool {
+				for _, containerStatus := range i.(*v1.Pod).Status.ContainerStatuses {
+					if containerStatus.Ready {
+						return false
+					}
 				}
-			}
-			return true
-		}()
-	})
+				return true
+			}()
+		},
+	)
 }

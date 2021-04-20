@@ -38,7 +38,8 @@ func init() {
 		&installFlags.ResourcePath, "resource-path", []string{},
 		"resources path",
 	)
-	//installCmd.Flags().StringVarP(&installFlags.OuterConfig, "outer-config", "c", "", "specify a config.yaml in local path")
+	//installCmd.Flags().StringVarP(&installFlags.OuterConfig, "outer-config", "c", "",
+	//"specify a config.yaml in local path")
 	upgradeCmd.Flags().StringVar(
 		&installFlags.Config, "config", "",
 		"specify a config relative to .nocalhost dir",

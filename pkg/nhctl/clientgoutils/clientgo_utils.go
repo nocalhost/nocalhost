@@ -78,7 +78,8 @@ type PortForwardAPodRequest struct {
 }
 
 // If namespace is not specified, use namespace defined in kubeconfig
-// If namespace is not specified and can not get from kubeconfig, ClientGoUtils can not be created, and an error will be returned
+// If namespace is not specified and can not get from kubeconfig, ClientGoUtils can not be created,
+// and an error will be returned
 func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, error) {
 	var (
 		err error
@@ -412,7 +413,8 @@ func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 		upgrader, &http.Client{Transport: transport}, http.MethodPost,
 		&url.URL{Scheme: "https", Path: path, Host: hostIP},
 	)
-	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
+	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh,
+	//req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
 	fw, err := portforward.NewOnAddresses(
 		dialer, req.Listen, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh,
 		req.Streams.Out, req.Streams.ErrOut,

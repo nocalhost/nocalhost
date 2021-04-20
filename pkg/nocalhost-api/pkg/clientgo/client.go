@@ -423,7 +423,10 @@ apiVersion: v1
       services.loadbalancers: "10"
       requests.storage: "20Gi"
 */
-func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string) (
+func (c *GoClient) CreateResourceQuota(
+	name, namespace, reqMem, reqCpu, limitsMem,
+	limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string,
+) (
 	bool, error,
 ) {
 
@@ -545,7 +548,8 @@ func (c *GoClient) DeleteLimitRange(name, namespace string) (bool, error) {
 }
 
 // bind roles for serviceAccount
-// this use for given default serviceAccount default:view case by initContainer need use kubectl get pods....(clusterRole=view)
+// this use for given default serviceAccount default:view case by initContainer need
+// use kubectl get pods....(clusterRole=view)
 // and this will use for bind developer serviceAccount roles(clusterRole=nocalhost-roles)
 
 /*
@@ -915,9 +919,10 @@ func getPolicyRule(c *GoClient) (*[]rbacv1.PolicyRule, error) {
 }
 
 func isLimitedRules(rn string) bool {
-	return rn == "resourcequotas" || rn == "roles" || strings.HasPrefix(rn, "resourcequotas/") || strings.HasPrefix(
-		rn, "roles/",
-	)
+	return rn == "resourcequotas" || rn == "roles" || strings.HasPrefix(rn, "resourcequotas/") ||
+		strings.HasPrefix(
+			rn, "roles/",
+		)
 }
 
 // deploy priorityclass
@@ -970,7 +975,8 @@ func (c *GoClient) DeployNocalhostDep(namespace, serviceAccount, tag string) (bo
 }
 
 // deploy pre pull images
-// use DaemonSet InitContainer make sure every Node pull images https://kubernetes.io/zh/docs/concepts/workloads/controllers/daemonset/
+// use DaemonSet InitContainer make sure every Node pull images
+// https://kubernetes.io/zh/docs/concepts/workloads/controllers/daemonset/
 // when started it should kill himself
 func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool, error) {
 	if namespace == "" {
@@ -1004,8 +1010,8 @@ func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool,
 					InitContainers: initContainer,
 					Containers: []corev1.Container{
 						{
-							Name:    "kubectl",
-							Image:   "codingcorp-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
+							Name:  "kubectl",
+							Image: "codingcorp-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
 							Command: []string{
 								"kubectl", "delete", "ds", global.NocalhostPrePullDSName, "-n",
 								global.NocalhostSystemNamespace,
@@ -1109,7 +1115,8 @@ func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceA
 	// var secret *corev1.Secret
 	// TKE unknow: the server rejected our request for an unknown reason (get secrets) can not watch secret
 	//swatcher, err := c.client.CoreV1().Secrets(namespace).Watch(context.TODO(), metav1.ListOptions{
-	//	//FieldSelector:  fields.Set{"metadata.annotations.kubernetes.io/service-account.name": name}.AsSelector().String(),
+	//	//FieldSelector:  fields.Set{"metadata.annotations.kubernetes.io/service-account.name": name}.
+	//	AsSelector().String(),
 	//	FieldSelector:  "metadata.annotations.kubernetes.io/service-account.name=" + name,
 	//	Watch:          true,
 	//	TimeoutSeconds: &resourceWatchTimeoutSeconds,

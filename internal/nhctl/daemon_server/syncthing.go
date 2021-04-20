@@ -54,7 +54,7 @@ func recoverSyncthingForApplication(ns, appName string) error {
 
 	for _, svcProfile := range profile.SvcProfile {
 		if svcProfile.Syncing {
-			// nhctl sync bookinfo -d productpage --resume --kubeconfig /Users/xinxinhuang/.nh/plugin/kubeConfigs/293_config
+			// nhctl sync bookinfo -d productpage --resume --kubeconfig
 			args := []string{nhctlPath, "sync", appName, "-d", svcProfile.ActualName, "--resume", "-n", ns}
 			log.Logf("Resuming syncthing of %s-%s-%s", ns, appName, svcProfile.ActualName)
 			if err = daemon.RunSubProcess(args, nil, false); err != nil {
