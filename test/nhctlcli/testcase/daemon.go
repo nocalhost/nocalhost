@@ -19,8 +19,8 @@ import (
 	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	profile2 "nocalhost/internal/nhctl/profile"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/test/nhctlcli"
+	"nocalhost/test/util"
 )
 
 func RestartDaemon(nhctl *nhctlcli.CLI) {
@@ -39,11 +39,7 @@ func Exec(nhctl *nhctlcli.CLI) {
 }
 
 func PortForwardStart(nhctl *nhctlcli.CLI, module string, port int) {
-	cli, err := clientgoutils.NewClientGoUtils(nhctl.KubeConfig, nhctl.Namespace)
-	if err != nil {
-		panic(fmt.Sprintf("Init ClientGoUtils error: %v", err))
-	}
-	pods, err := cli.ClientSet.CoreV1().Pods(nhctl.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=" + module})
+	pods, err := util.Client.ClientSet.CoreV1().Pods(nhctl.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=" + module})
 	if err != nil {
 		panic(fmt.Sprintf("List pods error: %v", err))
 	}

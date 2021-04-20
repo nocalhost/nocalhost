@@ -22,18 +22,17 @@ import (
 	"k8s.io/client-go/tools/cache"
 	clientgowatch "k8s.io/client-go/tools/watch"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/test/nhctlcli"
 	"os/exec"
 	"time"
 )
 
 var Client *clientgoutils.ClientGoUtils
 
-const CODING = "/root/.kube/config"
-
-func init() {
-	temp, err := clientgoutils.NewClientGoUtils(CODING, "test")
+func Init(cli *nhctlcli.CLI) {
+	temp, err := clientgoutils.NewClientGoUtils(cli.KubeConfig, cli.Namespace)
 	if err != nil {
-		panic(fmt.Sprintf("init k8s client error: %v\n", err))
+		panic(fmt.Sprintf("init k8s client error: %v", err))
 	}
 	Client = temp
 }
@@ -81,7 +80,7 @@ func WaitToBeStatus(namespace string, resource string, label string, checker fun
 	}
 	event, err := clientgowatch.UntilWithSync(ctx, watchlist, &v1.Pod{}, preConditionFunc, conditionFunc)
 	if err != nil {
-		fmt.Printf("wait to ready failed, error: %v, event: %v\n", err, event)
+		fmt.Printf("wait to ready failed, error: %v, event: %v", err, event)
 		return false
 	}
 	return true

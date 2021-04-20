@@ -26,6 +26,7 @@ func main() {
 	v1, v2 := testcase.GetVersion()
 	testcase.InstallNhctl(v1)
 	cli := nhctlcli.NewNhctl("/root/.kube/config", "test")
+	util.Init(cli)
 	testcase.NhctlVersion(cli)
 	testcase.StopDaemon(cli)
 	go testcase.Init(cli)
