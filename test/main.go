@@ -18,6 +18,7 @@ import (
 	"nocalhost/test/nhctlcli/suite"
 	"nocalhost/test/nhctlcli/testcase"
 	"nocalhost/test/util"
+	"os"
 	"time"
 )
 
@@ -25,7 +26,11 @@ func main() {
 	go util.TimeoutChecker(1 * time.Hour)
 	v1, v2 := testcase.GetVersion()
 	testcase.InstallNhctl(v1)
-	cli := nhctlcli.NewNhctl("/root/.kube/config", "test")
+	path := os.Getenv("KUBECONFIG_PATH")
+	if path == "" {
+		path = "/root/.kube/config"
+	}
+	cli := nhctlcli.NewNhctl(path, "test")
 	util.Init(cli)
 	testcase.NhctlVersion(cli)
 	testcase.StopDaemon(cli)

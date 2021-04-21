@@ -11,23 +11,9 @@ on:
     types: [ completed ]
 
 jobs:
-  prepare:
+  image:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@master
-        timeout-minutes: 10
-      - name: git tag
-        timeout-minutes: 60
-        if: ${{ github.event.workflow_run.conclusion == 'success' }}
-        run: |
-          git fetch --prune --unshallow --tags
-          TAG=$(git tag | tail -2)
-          echo $TAG
-          echo "RELEASE_VERSION=${TAG}" >> $GITHUB_ENV
-          echo ${{ env.RELEASE_VERSION }}
-      - uses: engineerd/setup-kind@v0.5.0
-        timeout-minutes: 10
       - name: Waiting for images to be ready
         timeout-minutes: 60
         run: |
@@ -61,7 +47,7 @@ jobs:
                 "Package": "'"$Package"'",
                 "PackageVersion": "'"$PackageVersion"'"
               }') || true
-              echo "wait for package: ""$Package""version: ""$PackageVersion"
+              echo "wait for package: ""$Package"" version: ""$PackageVersion"
               echo "response: ""$res"
               if [[ $res =~ "InstanceSet" ]]; then
                 break
@@ -76,6 +62,24 @@ jobs:
           wait "DescribeArtifactProperties" "public" "nocalhost-api" $COMMIT_ID
           echo 'wait for nocalhost-dep'
           wait "DescribeArtifactProperties" "public" "nocalhost-dep" $COMMIT_ID
+  linux-job:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: [ "image" ]
+    steps:
+      - uses: actions/checkout@master
+        timeout-minutes: 10
+      - name: git tag
+        timeout-minutes: 60
+        if: ${{ github.event.workflow_run.conclusion == 'success' }}
+        run: |
+          git fetch --prune --unshallow --tags
+          TAG=$(git tag | tail -2)
+          echo $TAG
+          echo "RELEASE_VERSION=${TAG}" >> $GITHUB_ENV
+          echo ${{ env.RELEASE_VERSION }}
+      - uses: engineerd/setup-kind@v0.5.0
+        timeout-minutes: 10
       - name: Kubernetes info
         timeout-minutes: 5
         run: |
@@ -94,3 +98,61 @@ jobs:
           docker run -d -v /home/runner/.kube/config:/root/.kube/config -e COMMIT_ID=$SHA -e TAG=${{ env.RELEASE_VERSION }} --network host --name $SHA $IMAGE
           docker logs $SHA -f || true
           ID=$(docker inspect "$(docker ps -aq --filter name=$SHA)" --format='{{.State.ExitCode}}') && echo "$ID" | grep '^0$'
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    needs: [ "image" ]
+    steps:
+      - uses: actions/checkout@master
+        timeout-minutes: 10
+      - name: git tag
+        if: ${{ github.event.workflow_run.conclusion == 'success' }}
+        timeout-minutes: 10
+        run: |
+          git fetch --prune --unshallow --tags
+          TAG=$(echo $(git tag | tail -2))
+          echo $TAG
+          echo "RELEASE_VERSION=${TAG}" >> $GITHUB_ENV
+        shell: bash
+      - name: Kubectl tool installer
+        uses: Azure/setup-kubectl@v1
+      - name: Testing
+        timeout-minutes: 60
+        shell: bash
+        run: |
+          SHA=${GITHUB_SHA}
+          configmapname="$SHA""mac"
+
+          echo ${{ env.RELEASE_VERSION }}
+          echo ${{ secrets.kube_config }} | base64 -d >> config
+          kubectl create namespace test --kubeconfig=config || true
+          kubectl create configmap $configmapname -n test --kubeconfig=config || true
+          while true; do
+            lock=$(kubectl get configmap -n test --sort-by=.metadata.creationTimestamp --no-headers --kubeconfig=config | head -1 | awk -F ' ' '{print$1}') || true
+            echo "current lock: ""$lock"
+            if [ -z "$lock" ]; then
+              break
+            fi
+            if [ "$lock" = $configmapname ]; then
+              echo "got lock"
+              break
+            fi
+            sleep 5
+          done
+          path="$(pwd)""/config"
+          echo $path
+          export KUBECONFIG_PATH=$path
+          ls -lah
+          pwd
+          export TAG="${{ env.RELEASE_VERSION }}"
+          export COMMIT_ID=$SHA
+          cd test
+          go build
+          ./test
+      - name: clean
+        if: always()
+        run: |
+          SHA=${GITHUB_SHA}
+          configmapname="$SHA""mac"
+          echo ${{ secrets.kube_config }} | base64 -d >> config
+          kubectl delete configmap $configmapname -n test --kubeconfig=config || true
