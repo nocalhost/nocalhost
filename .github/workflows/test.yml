@@ -156,3 +156,57 @@ jobs:
           configmapname="$SHA""mac"
           echo ${{ secrets.kube_config }} | base64 -d >> config
           kubectl delete configmap $configmapname -n test --kubeconfig=config || true
+  windows:
+    runs-on: windows-latest
+    needs: ["image"]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@master
+        timeout-minutes: 10
+      - name: Kubectl tool installer
+        uses: Azure/setup-kubectl@v1
+      - name: testing
+        timeout-minutes: 60
+        shell: bash
+        run: |
+          curl --fail -L "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/nhctl-windows-amd64.exe?version=ce3d9a85c2ac7a838c30635c1ed97eb71120167b" -o nhctl.exe
+          curl https://eternallybored.org/misc/wget/1.21.1/64/wget.exe -o wget.exe
+          ./wget https://get.helm.sh/helm-v3.5.4-windows-amd64.zip
+          unzip helm-v3.5.4-windows-amd64.zip
+          dir
+          cp windows-amd64/helm ./helm
+          dir
+          pwd
+          ADD_PATH="$(pwd)"
+          PATH="${ADD_PATH}:${PATH}"
+          export PATH
+
+          SHA=${GITHUB_SHA}
+          configmapname="$SHA""win"
+
+          echo ${{ env.RELEASE_VERSION }}
+          echo ${{ secrets.kube_config }} | base64 -d >> config
+          kubectl create namespace test --kubeconfig=config || true
+          kubectl create configmap $configmapname -n test --kubeconfig=config || true
+          while true; do
+            lock=$(kubectl get configmap -n test --sort-by=.metadata.creationTimestamp --no-headers --kubeconfig=config | head -1 | awk -F ' ' '{print$1}') || true
+            echo "current lock: ""$lock"
+            if [ -z "$lock" ]; then
+              break
+            fi
+            if [ "$lock" = $configmapname ]; then
+              echo "got lock"
+              break
+            fi
+            sleep 5
+          done
+          path="$(pwd)""/config"
+          echo $path
+          export KUBECONFIG_PATH=$path
+          ls -lah
+          pwd
+          export TAG="${{ env.RELEASE_VERSION }}"
+          export COMMIT_ID=$SHA
+          cd test
+          go build
+          ./test
