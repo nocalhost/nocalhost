@@ -170,7 +170,8 @@ jobs:
         timeout-minutes: 60
         shell: bash
         run: |
-          curl --fail -L "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/nhctl-windows-amd64.exe?version=ce3d9a85c2ac7a838c30635c1ed97eb71120167b" -o nhctl.exe
+          SHA=${GITHUB_SHA}
+          curl --fail -L "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/nhctl-windows-amd64.exe?version=""$SHA" -o nhctl.exe
           curl https://eternallybored.org/misc/wget/1.21.1/64/wget.exe -o wget.exe
           ./wget https://get.helm.sh/helm-v3.5.4-windows-amd64.zip
           unzip helm-v3.5.4-windows-amd64.zip
@@ -182,9 +183,7 @@ jobs:
           PATH="${ADD_PATH}:${PATH}"
           export PATH
 
-          SHA=${GITHUB_SHA}
           configmapname="$SHA""win"
-
           echo ${{ env.RELEASE_VERSION }}
           echo ${{ secrets.kube_config }} | base64 -d >> config
           kubectl create namespace test --kubeconfig=config || true
@@ -214,6 +213,7 @@ jobs:
           ./test
       - name: clean
         if: always()
+        shell: bash
         run: |
           SHA=${GITHUB_SHA}
           configmapname="$SHA""win"
