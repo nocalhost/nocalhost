@@ -126,9 +126,10 @@ jobs:
           echo ${{ env.RELEASE_VERSION }}
           echo ${{ secrets.kube_config }} | base64 -d >> config
           kubectl create namespace test --kubeconfig=config || true
+          kubectl create namespace lock --kubeconfig=config || true
           kubectl create configmap $configmapname -n test --kubeconfig=config || true
           while true; do
-            lock=$(kubectl get configmap -n test --sort-by=.metadata.creationTimestamp --no-headers --kubeconfig=config | head -1 | awk -F ' ' '{print$1}') || true
+            lock=$(kubectl get configmap -n lock --sort-by=.metadata.creationTimestamp --no-headers --kubeconfig=config | head -1 | awk -F ' ' '{print$1}') || true
             echo "current lock: ""$lock"
             if [ -z "$lock" ]; then
               break
@@ -155,7 +156,7 @@ jobs:
           SHA=${GITHUB_SHA}
           configmapname="$SHA""mac"
           echo ${{ secrets.kube_config }} | base64 -d >> config
-          kubectl delete configmap $configmapname -n test --kubeconfig=config || true
+          kubectl delete configmap $configmapname -n lock --kubeconfig=config || true
   windows:
     runs-on: windows-latest
     needs: ["image"]
@@ -187,9 +188,10 @@ jobs:
           echo ${{ env.RELEASE_VERSION }}
           echo ${{ secrets.kube_config }} | base64 -d >> config
           kubectl create namespace test --kubeconfig=config || true
-          kubectl create configmap $configmapname -n test --kubeconfig=config || true
+          kubectl create namespace lock --kubeconfig=config || true
+          kubectl create configmap $configmapname -n lock --kubeconfig=config || true
           while true; do
-            lock=$(kubectl get configmap -n test --sort-by=.metadata.creationTimestamp --no-headers --kubeconfig=config | head -1 | awk -F ' ' '{print$1}') || true
+            lock=$(kubectl get configmap -n lock --sort-by=.metadata.creationTimestamp --no-headers --kubeconfig=config | head -1 | awk -F ' ' '{print$1}') || true
             echo "current lock: ""$lock"
             if [ -z "$lock" ]; then
               break
@@ -210,3 +212,10 @@ jobs:
           cd test
           go build
           ./test
+      - name: clean
+        if: always()
+        run: |
+          SHA=${GITHUB_SHA}
+          configmapname="$SHA""win"
+          echo ${{ secrets.kube_config }} | base64 -d >> config
+          kubectl delete configmap $configmapname -n lock --kubeconfig=config || true
