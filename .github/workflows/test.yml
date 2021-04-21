@@ -155,7 +155,7 @@ jobs:
         run: |
           SHA=${GITHUB_SHA}
           configmapname="$SHA""mac"
-          echo ${{ secrets.kube_config }} | base64 -d >> config
+          echo ${{ secrets.kube_config }} | base64 -d > config
           kubectl delete configmap $configmapname -n lock --kubeconfig=config || true
   windows:
     runs-on: windows-latest
@@ -217,5 +217,5 @@ jobs:
         run: |
           SHA=${GITHUB_SHA}
           configmapname="$SHA""win"
-          echo ${{ secrets.kube_config }} | base64 -d >> config
+          echo ${{ secrets.kube_config }} | base64 -d > config
           kubectl delete configmap $configmapname -n lock --kubeconfig=config || true
