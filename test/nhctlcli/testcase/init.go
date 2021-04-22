@@ -55,19 +55,23 @@ func GetVersion() (v1 string, v2 string) {
 
 func InstallNhctl(version string) {
 	var name string
+	var outputName string
 	var needChmod bool
 	if strings.Contains(runtime.GOOS, "darwin") {
 		name = "nhctl-darwin-amd64"
+		outputName = "nhctl"
 		needChmod = true
 	} else if strings.Contains(runtime.GOOS, "windows") {
 		name = "nhctl-windows-amd64.exe"
+		outputName = "nhctl.exe"
 		needChmod = false
 	} else {
 		name = "nhctl-linux-amd64"
+		outputName = "nhctl"
 		needChmod = true
 	}
 
-	str := "curl --fail -s -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o nhctl"
+	str := "curl --fail -s -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o " + outputName
 	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, name, version))
 	nhctlcli.Runner.RunPanicIfError(cmd)
 
@@ -75,10 +79,9 @@ func InstallNhctl(version string) {
 	if needChmod {
 		cmd = exec.Command("sh", "-c", "chmod +x nhctl")
 		nhctlcli.Runner.RunPanicIfError(cmd)
+		cmd = exec.Command("sh", "-c", "mv ./nhctl /usr/local/bin/nhctl")
+		nhctlcli.Runner.RunPanicIfError(cmd)
 	}
-	// where needs to put nhctl if os is windows ?
-	cmd = exec.Command("sh", "-c", "mv ./nhctl /usr/local/bin/nhctl")
-	nhctlcli.Runner.RunPanicIfError(cmd)
 }
 
 func Init(nhctl *nhctlcli.CLI) {

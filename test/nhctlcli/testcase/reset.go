@@ -15,6 +15,7 @@ package testcase
 
 import (
 	"context"
+	"io/ioutil"
 	"nocalhost/test/nhctlcli"
 )
 
@@ -60,6 +61,33 @@ func Pvc(nhctl *nhctlcli.CLI) {
 
 func NhctlVersion(nhctl *nhctlcli.CLI) {
 	cmd := nhctl.Command(context.Background(), "version")
+	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOut(cmd)
+	nhctlcli.Runner.CheckResult(cmd, stdout, stderr, err)
+}
+
+func Apply(nhctl *nhctlcli.CLI) {
+	content := `---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reviews
+  labels:
+    app: reviews
+    service: reviews
+    apply: apply
+spec:
+  ports:
+  - port: 9080
+    name: http
+  selector:
+    app: reviews
+`
+	f, _ := ioutil.TempFile("/tmp", "apply.yaml")
+	_, _ = f.WriteString(content)
+	_ = f.Sync()
+	defer f.Close()
+
+	cmd := nhctl.Command(context.Background(), "apply", "bookinfo", f.Name())
 	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOut(cmd)
 	nhctlcli.Runner.CheckResult(cmd, stdout, stderr, err)
 }
