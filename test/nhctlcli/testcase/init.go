@@ -71,9 +71,14 @@ func InstallNhctl(version string) {
 		needChmod = true
 	}
 
-	str := "curl --fail -s -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o " + outputName
+	str := "curl --fail -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o " + outputName
 	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, name, version))
-	nhctlcli.Runner.RunPanicIfError(cmd)
+	stdout, stderr, err := nhctlcli.Runner.Run(cmd)
+	if err != nil {
+		fmt.Println(stdout)
+		fmt.Println(stderr)
+		fmt.Println(err)
+	}
 
 	// unix and linux needs to add x permission
 	if needChmod {
