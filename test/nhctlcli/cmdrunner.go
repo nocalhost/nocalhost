@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
 	"strings"
@@ -33,6 +34,22 @@ func (r *CmdRunner) RunPanicIfError(cmd *exec.Cmd) {
 	if stdout, stderr, err := r.Run(cmd); err != nil {
 		panic(fmt.Sprintf("Run command: %s, error: %v, stdout: %s, stderr: %s\n", cmd.Args, err, stdout, stderr))
 	}
+}
+
+func (r *CmdRunner) RunRetryIfError(cmd *exec.Cmd, times ...int) {
+	var t = 1
+	if len(times) > 0 && times[0] > 0 {
+		t = times[0]
+	}
+	for i := 0; i < t; i++ {
+		if stdout, stderr, err := r.Run(cmd); err != nil {
+			log.Errorf("Run command error, retrying command: %s, error: %v, stdout: %s, stderr: %s",
+				cmd.Args, err, stdout, stderr)
+		} else {
+			return
+		}
+	}
+	panic(fmt.Sprintf("Run command error: %s", cmd.Args))
 }
 
 func (r *CmdRunner) CheckResult(cmd *exec.Cmd, stdout string, stderr string, err error) {
