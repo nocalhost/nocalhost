@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package app
 
@@ -37,10 +36,13 @@ import (
 
 // When a application is installed, something representing the application will build, including:
 // 1. An directory (NhctlAppDir) under $NhctlHomeDir/ns/$NameSpace will be created and initiated
-// 2. An .config_v2.yaml will be created under $NhctlAppDir, it may come from an config file under .nocalhost in your git repository or an outer config file in your local file system
+// 2. An .config_v2.yaml will be created under $NhctlAppDir, it may come from an config file under
+//   .nocalhost in your git repository or an outer config file in your local file system
 // 3. An .profile_v2.yaml will be created under $NhctlAppDir, it will record the status of this application
 // build a new application
-func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig string, namespace string) (*Application, error) {
+func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig string, namespace string) (
+	*Application, error,
+) {
 
 	app := &Application{
 		Name:       name,
@@ -93,16 +95,31 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	if appMeta.IsInstalled() {
-		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s has already been installed,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", name, namespace, name, namespace))
+		return nil, errors.New(
+			fmt.Sprintf(
+				"Application %s - namespace %s has already been installed, "+
+					"you can use 'nhctl uninstall %s -n %s' to uninstall this applications ",
+				name, namespace, name, namespace,
+			),
+		)
 	} else if appMeta.IsInstalling() {
-		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", name, namespace, name, namespace))
+		return nil, errors.New(
+			fmt.Sprintf(
+				"Application %s - namespace %s is installing, "+
+					"you can use 'nhctl uninstall %s -n %s' to uninstall this applications ",
+				name, namespace, name, namespace,
+			),
+		)
 	}
 
 	app.appMeta = appMeta
 
 	if err = appMeta.Initial(); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
-			log.Error("Application %s has been installed, you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", app.Name, app.Name, app.NameSpace)
+			log.Error(
+				"Application %s has been installed, you can use 'nhctl uninstall %s -n %s' to uninstall this applications ",
+				app.Name, app.Name, app.NameSpace,
+			)
 		}
 		return nil, err
 	}
@@ -128,7 +145,9 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
 }
 
-func (app *Application) loadOrGenerateConfig(outerConfig, config string, resourcePath []string, appType string) (*profile.NocalHostAppConfigV2, error) {
+func (app *Application) loadOrGenerateConfig(
+	outerConfig, config string, resourcePath []string, appType string,
+) (*profile.NocalHostAppConfigV2, error) {
 	var nocalhostConfig *profile.NocalHostAppConfigV2
 	var err error
 
@@ -205,12 +224,20 @@ func (a *Application) renderConfig(configFilePath string) (*profile.NocalHostApp
 		envFile = configFile.RelOrAbs("../").RelOrAbs(relPath)
 
 		if e := envFile.CheckExist(); e != nil {
-			log.Log("Render %s Nocalhost config without env files, we found the env file had been configured as %s, but we can not found in %s", configFile.Abs(), relPath, envFile.Abs())
+			log.Log(
+				"Render %s Nocalhost config without env files, we found the env file "+
+					"had been configured as %s, but we can not found in %s",
+				configFile.Abs(), relPath, envFile.Abs(),
+			)
 		} else {
 			log.Log("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
 		}
 	} else {
-		log.Log("Render %s Nocalhost config without env files, you config your Nocalhost configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2", configFile.Abs())
+		log.Log(
+			"Render %s Nocalhost config without env files, you config your Nocalhost "+
+				"configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2",
+			configFile.Abs(),
+		)
 	}
 
 	renderedStr, err := envsubst.Render(configFile, envFile)
@@ -247,7 +274,11 @@ func (a *Application) renderConfig(configFilePath string) (*profile.NocalHostApp
 
 		for i, config := range renderedConfig.ApplicationConfig.ServiceConfigs {
 			if _, ok := maps[config.Name]; ok {
-				log.Log("Duplicate service %s found, Nocalhost will keep the last one according to the sequence", config.Name)
+				log.Log(
+					"Duplicate service %s found, Nocalhost will "+
+						"keep the last one according to the sequence",
+					config.Name,
+				)
 			}
 			maps[config.Name] = i
 		}
@@ -344,14 +375,6 @@ func (a *Application) loadConfigToSvcProfile(svcName string, appProfile *profile
 	}
 
 	svcProfile.ServiceConfigV2 = svcConfig
-
-	// If svcProfile already exists, updating it
-	//for index, svc := range appProfile.SvcProfile {
-	//	if svc.ActualName == svcName {
-	//		appProfile.SvcProfile[index] = svcProfile
-	//		return
-	//	}
-	//}
 
 	// If svcProfile already exists, create one
 	appProfile.SvcProfile = append(appProfile.SvcProfile, svcProfile)

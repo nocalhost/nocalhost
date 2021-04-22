@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package service_account
 
@@ -96,7 +95,10 @@ func ListAuthorization(c *gin.Context) {
 
 			// nocalhost provide every user a service account each cluster
 			var kubeConfig string
-			if kubeConfig = getServiceAccountKubeConfig(clientGo, user.SaName, service.NocalhostDefaultSaNs, cluster.Server); kubeConfig == "" {
+			if kubeConfig = getServiceAccountKubeConfig(
+				clientGo, user.SaName,
+				service.NocalhostDefaultSaNs, cluster.Server,
+			); kubeConfig == "" {
 				return
 			}
 
@@ -121,13 +123,15 @@ func ListAuthorization(c *gin.Context) {
 
 			if len(nss) != 0 || privilege {
 				lock.Lock()
-				result = append(result, &ServiceAccountModel{
-					ClusterId:    cluster.ID,
-					KubeConfig:   kubeConfig,
-					StorageClass: cluster.StorageClass,
-					NS:           nss,
-					Privilege:    privilege,
-				})
+				result = append(
+					result, &ServiceAccountModel{
+						ClusterId:    cluster.ID,
+						KubeConfig:   kubeConfig,
+						StorageClass: cluster.StorageClass,
+						NS:           nss,
+						Privilege:    privilege,
+					},
+				)
 				lock.Unlock()
 			}
 		}()
@@ -137,7 +141,9 @@ func ListAuthorization(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
-func getCluster2Ns2SpaceNameMapping(devSpaces []*model.ClusterUserModel) map[uint64]map[string]*model.ClusterUserModel {
+func getCluster2Ns2SpaceNameMapping(
+	devSpaces []*model.ClusterUserModel,
+) map[uint64]map[string]*model.ClusterUserModel {
 	spaceNameMap := map[uint64]map[string]*model.ClusterUserModel{}
 	for _, space := range devSpaces {
 		m, ok := spaceNameMap[space.ClusterId]
@@ -151,7 +157,10 @@ func getCluster2Ns2SpaceNameMapping(devSpaces []*model.ClusterUserModel) map[uin
 	return spaceNameMap
 }
 
-func getServiceAccountKubeConfig(clientGo *clientgo.GoClient, saName, saNs, serverAddr string) string {
+func getServiceAccountKubeConfig(
+	clientGo *clientgo.GoClient,
+	saName, saNs, serverAddr string,
+) string {
 	sa, err := clientGo.GetServiceAccount(saName, saNs)
 	if err != nil || len(sa.Secrets) == 0 {
 		return ""
@@ -162,7 +171,9 @@ func getServiceAccountKubeConfig(clientGo *clientgo.GoClient, saName, saNs, serv
 		return ""
 	}
 
-	kubeConfig, _, _ := setupcluster.NewDevKubeConfigReader(secret, serverAddr, saNs).GetCA().GetToken().AssembleDevKubeConfig().ToYamlString()
+	kubeConfig, _, _ := setupcluster.NewDevKubeConfigReader(
+		secret, serverAddr, saNs,
+	).GetCA().GetToken().AssembleDevKubeConfig().ToYamlString()
 	return kubeConfig
 }
 

@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package applications
 
@@ -35,7 +34,8 @@ import (
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":[{"id":1,"context":"application info","status":"1"}]}"
+// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":
+//[{"id":1,"context":"application info","status":"1"}]}"
 // @Router /v1/application [get]
 func Get(c *gin.Context) {
 
@@ -128,7 +128,7 @@ func GetSpaceDetail(c *gin.Context) {
 	applicationId := cast.ToUint64(c.Param("id"))
 	models := model.ClusterUserModel{
 		// UserId:        userId.(uint64),
-		ClusterId:     clusterId,
+		ClusterId: clusterId,
 		ApplicationId: applicationId,
 	}
 	result, err := service.Svc.ClusterUser().GetList(c, models)
@@ -158,7 +158,9 @@ func PluginGet(c *gin.Context) {
 	}
 	// get plugin dev start append command
 	for k := range result {
-		result[k].DevStartAppendCommand = fmt.Sprintf("%s %s", global.NocalhostDefaultPriorityclassKey, global.NocalhostDefaultPriorityclassName)
+		result[k].DevStartAppendCommand = fmt.Sprintf(
+			"%s %s", global.NocalhostDefaultPriorityclassKey, global.NocalhostDefaultPriorityclassName,
+		)
 	}
 	api.SendResponse(c, errno.OK, result)
 }

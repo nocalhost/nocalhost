@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package appmeta
 
@@ -28,10 +27,10 @@ type ApplicationDevMeta map[ApplicationDevType]map[ /* resource name */ string] 
 type ApplicationDevType string
 type EVENT string
 type ApplicationEvent struct {
-	Identifier   string
+	Identifier string
 	ResourceName string
-	EventType    EVENT
-	DevType      ApplicationDevType
+	EventType EVENT
+	DevType ApplicationDevType
 }
 
 func (from *ApplicationDevMeta) copy() ApplicationDevMeta {
@@ -70,18 +69,33 @@ func (from *ApplicationDevMeta) Events(to ApplicationDevMeta) *[]*ApplicationEve
 		toResourceNameIdentifierMap := to[devType]
 		for resourceName, identifier := range resourceNameIdentifierMap {
 			if toResourceNameIdentifierMap == nil {
-				result = append(result, &ApplicationEvent{EventType: DEV_END, ResourceName: resourceName, Identifier: identifier})
+				result = append(
+					result, &ApplicationEvent{EventType: DEV_END, ResourceName: resourceName, Identifier: identifier},
+				)
 			} else {
 				var toIdentifier, ok = toResourceNameIdentifierMap[resourceName]
 
 				if ok {
 					// means some resource dev end then dev start
 					if identifier != toIdentifier {
-						result = append(result, &ApplicationEvent{EventType: DEV_END, ResourceName: resourceName, Identifier: identifier, DevType: devType})
-						result = append(result, &ApplicationEvent{EventType: DEV_STA, ResourceName: resourceName, Identifier: toIdentifier, DevType: devType})
+						result = append(
+							result, &ApplicationEvent{
+								EventType: DEV_END, ResourceName: resourceName, Identifier: identifier, DevType: devType,
+							},
+						)
+						result = append(
+							result, &ApplicationEvent{
+								EventType: DEV_STA, ResourceName: resourceName, Identifier: toIdentifier,
+								DevType: devType,
+							},
+						)
 					}
 				} else {
-					result = append(result, &ApplicationEvent{EventType: DEV_END, ResourceName: resourceName, Identifier: identifier, DevType: devType})
+					result = append(
+						result, &ApplicationEvent{
+							EventType: DEV_END, ResourceName: resourceName, Identifier: identifier, DevType: devType,
+						},
+					)
 				}
 
 				delete(toResourceNameIdentifierMap, resourceName)
@@ -91,7 +105,11 @@ func (from *ApplicationDevMeta) Events(to ApplicationDevMeta) *[]*ApplicationEve
 
 	for devType, resourceNameIdentifierMap := range to {
 		for resourceName, identifier := range resourceNameIdentifierMap {
-			result = append(result, &ApplicationEvent{EventType: DEV_STA, ResourceName: resourceName, Identifier: identifier, DevType: devType})
+			result = append(
+				result, &ApplicationEvent{
+					EventType: DEV_STA, ResourceName: resourceName, Identifier: identifier, DevType: devType,
+				},
+			)
 		}
 	}
 

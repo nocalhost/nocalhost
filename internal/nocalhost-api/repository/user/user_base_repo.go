@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package user
 
 import (
@@ -51,7 +50,13 @@ func NewUserRepo(db *gorm.DB) BaseRepo {
 // GetUserList
 func (repo *userBaseRepo) GetUserList(ctx context.Context) ([]*model.UserList, error) {
 	var result []*model.UserList
-	repo.db.Raw("select u.id as id,u.name as name,u.sa_name as sa_name,u.email as email,count(distinct cu.id) as cluster_count,u.status as status, u.is_admin as is_admin from users as u left join clusters_users as cu on cu.user_id=u.id where u.deleted_at is null and cu.deleted_at is null group by u.id").Scan(&result)
+	repo.db.Raw(
+		"select u.id as id,u.name as name,u.sa_name as sa_name,u.email as email," +
+			"count(distinct cu.id) as cluster_count,u.status as status," +
+			" u.is_admin as is_admin from users as u left join clusters_users as cu on cu.user_id=u.id " +
+			"where u.deleted_at is null and cu.deleted_at is null group by u.id",
+	).
+		Scan(&result)
 	return result, nil
 }
 
@@ -77,7 +82,9 @@ func (repo *userBaseRepo) Create(ctx context.Context, user model.UserBaseModel) 
 }
 
 // Update
-func (repo *userBaseRepo) Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) (*model.UserBaseModel, error) {
+func (repo *userBaseRepo) Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) (
+	*model.UserBaseModel, error,
+) {
 	user, err := repo.GetUserByID(ctx, id)
 	if user.ID != id {
 		return user, errors.New("[user_repo] user is not exsit.")

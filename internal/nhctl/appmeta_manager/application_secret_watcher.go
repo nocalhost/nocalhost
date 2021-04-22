@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package appmeta_manager
 
@@ -39,7 +38,10 @@ type Controller struct {
 	asw      *applicationSecretWatcher
 }
 
-func NewController(queue workqueue.RateLimitingInterface, indexer cache.Indexer, informer cache.Controller, asw *applicationSecretWatcher) *Controller {
+func NewController(
+	queue workqueue.RateLimitingInterface, indexer cache.Indexer, informer cache.Controller,
+	asw *applicationSecretWatcher,
+) *Controller {
 	return &Controller{
 		informer: informer,
 		indexer:  indexer,
@@ -80,7 +82,10 @@ func (c *Controller) updateApplicationMeta(key string) error {
 
 			return c.join(secret)
 		} else {
-			errInfo := fmt.Sprintf("Fetching secret with key %s but could not cast to secret: %v", key, obj)
+			errInfo := fmt.Sprintf(
+				"Fetching secret with key %s but "+
+					"could not cast to secret: %v", key, obj,
+			)
 			log.Error(errInfo)
 			return fmt.Errorf(errInfo)
 		}
@@ -118,12 +123,14 @@ func (c *Controller) join(secret *v1.Secret) error {
 	asw.applicationMetas[appName] = current
 
 	for _, event := range *devMetaBefore.Events(devMetaCurrent) {
-		EventPush(&ApplicationEventPack{
-			Event:      event,
-			Ns:         asw.ns,
-			AppName:    appName,
-			KubeConfig: asw.kubeConfig,
-		})
+		EventPush(
+			&ApplicationEventPack{
+				Event:      event,
+				Ns:         asw.ns,
+				AppName:    appName,
+				KubeConfig: asw.kubeConfig,
+			},
+		)
 	}
 
 	return nil
@@ -143,12 +150,14 @@ func (c *Controller) left(appName string) {
 	delete(asw.applicationMetas, appName)
 
 	for _, event := range *devMetaBefore.Events(devMetaCurrent) {
-		EventPush(&ApplicationEventPack{
-			Event:      event,
-			Ns:         asw.ns,
-			AppName:    appName,
-			KubeConfig: asw.kubeConfig,
-		})
+		EventPush(
+			&ApplicationEventPack{
+				Event:      event,
+				Ns:         asw.ns,
+				AppName:    appName,
+				KubeConfig: asw.kubeConfig,
+			},
+		)
 	}
 }
 
@@ -272,7 +281,10 @@ func (asw *applicationSecretWatcher) Prepare() error {
 	}
 
 	// create the secret watcher
-	secretWatcher := cache.NewListWatchFromClient(clientset.CoreV1().RESTClient(), "secrets", asw.ns, fields.OneTermEqualSelector("type", appmeta.SecretType))
+	secretWatcher := cache.NewListWatchFromClient(
+		clientset.CoreV1().RESTClient(), "secrets", asw.ns,
+		fields.OneTermEqualSelector("type", appmeta.SecretType),
+	)
 
 	// create the workqueue
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
@@ -281,28 +293,30 @@ func (asw *applicationSecretWatcher) Prepare() error {
 	// whenever the cache is updated, the secret key is added to the workqueue.
 	// Note that when we finally process the item from the workqueue, we might see a newer version
 	// of the Secret than the version which was responsible for triggering the update.
-	indexer, informer := cache.NewIndexerInformer(secretWatcher, &v1.Secret{}, 0, cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(obj)
-			if err == nil {
-				queue.Add(key)
-			}
-		},
-		UpdateFunc: func(old interface{}, new interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(new)
-			if err == nil {
-				queue.Add(key)
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			// IndexerInformer uses a delta queue, therefore for deletes we have to use this
-			// key function.
-			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-			if err == nil {
-				queue.Add(key)
-			}
-		},
-	}, cache.Indexers{})
+	indexer, informer := cache.NewIndexerInformer(
+		secretWatcher, &v1.Secret{}, 0, cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				key, err := cache.MetaNamespaceKeyFunc(obj)
+				if err == nil {
+					queue.Add(key)
+				}
+			},
+			UpdateFunc: func(old interface{}, new interface{}) {
+				key, err := cache.MetaNamespaceKeyFunc(new)
+				if err == nil {
+					queue.Add(key)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				// IndexerInformer uses a delta queue, therefore for deletes we have to use this
+				// key function.
+				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+				if err == nil {
+					queue.Add(key)
+				}
+			},
+		}, cache.Indexers{},
+	)
 
 	controller := NewController(queue, indexer, informer, asw)
 	asw.watchController = controller
@@ -310,7 +324,8 @@ func (asw *applicationSecretWatcher) Prepare() error {
 	// first get all nocalhost secrets for initial
 	// ignore error prevent kubeconfig has not permission for get secret
 	// ignore fail
-	list, err := clientset.CoreV1().Secrets(asw.ns).List(context.TODO(),
+	list, err := clientset.CoreV1().Secrets(asw.ns).List(
+		context.TODO(),
 		metav1.ListOptions{FieldSelector: "type=" + appmeta.SecretType},
 	)
 

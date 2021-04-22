@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package application_cluster
 
@@ -39,10 +38,25 @@ func NewApplicationClusterRepo(db *gorm.DB) ApplicationClusterRepo {
 	}
 }
 
-func (repo *applicationClusterRepo) GetJoinCluster(ctx context.Context, id uint64) ([]*model.ApplicationClusterJoinModel, error) {
-	//TODO group by in mysql 5.7 require full select cols https://stackoverflow.com/questions/36207042/error-code-1055-incompatible-with-sql-mode-only-full-group-by
+func (repo *applicationClusterRepo) GetJoinCluster(
+	ctx context.Context, id uint64,
+) ([]*model.ApplicationClusterJoinModel, error) {
+	// TODO group by in mysql 5.7 require full select cols
+	// https://stackoverflow.com/questions/36207042/error-code-1055-incompatible-with-sql-mode-only-full-group-by
 	var result []*model.ApplicationClusterJoinModel
-	err := repo.db.Table("applications_clusters as ac").Select("count(ac.id) as dev_space_count,ac.cluster_id,ac.application_id,c.name as cluster_name,c.info as cluster_info,min(ac.created_at) as created_at,if(c.info is null,\"0\",\"1\") as cluster_status").Joins("left join clusters as c on c.id=ac.cluster_id").Joins("left join clusters_users as cu on cu.application_id=ac.application_id and cu.cluster_id=ac.cluster_id").Where("ac.application_id=?", id).Group("ac.cluster_id,ac.application_id,cluster_name,cluster_info,cluster_status").Scan(&result)
+	err := repo.db.Table("applications_clusters as ac").
+		Select(
+			"count(ac.id) as dev_space_count,ac.cluster_id,ac.application_id,c.name as cluster_name,"+
+				"c.info as "+
+				"cluster_info,min(ac.created_at) as created_at,if(c.info is null,\"0\",\"1\")"+
+				" as cluster_status",
+		).Joins("left join clusters as c on c.id=ac.cluster_id").Joins(
+		"left join clusters_users as cu "+
+			"on cu.application_id=ac.application_id"+
+				" and cu.cluster_id=ac.cluster_id",
+	).Where(
+		"ac.application_id=?", id,
+	).Group("ac.cluster_id,ac.application_id,cluster_name,cluster_info,cluster_status").Scan(&result)
 	if err.Error != nil {
 		return result, err.Error
 	}
@@ -67,7 +81,9 @@ func (repo *applicationClusterRepo) GetFirst(ctx context.Context, id uint64) (mo
 	return result, nil
 }
 
-func (repo *applicationClusterRepo) Create(ctx context.Context, clusterModel model.ApplicationClusterModel) (model.ApplicationClusterModel, error) {
+func (repo *applicationClusterRepo) Create(
+	ctx context.Context, clusterModel model.ApplicationClusterModel,
+) (model.ApplicationClusterModel, error) {
 	err := repo.db.Create(&clusterModel).Error
 	if err != nil {
 		return clusterModel, errors.Wrap(err, "[application_cluster_repo] create application_cluster error")

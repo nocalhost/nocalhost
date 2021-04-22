@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package service_account
 
@@ -32,13 +31,15 @@ import (
 )
 
 type Controller struct {
-	indexer  cache.Indexer
-	queue    workqueue.RateLimitingInterface
+	indexer cache.Indexer
+	queue workqueue.RateLimitingInterface
 	informer cache.Controller
-	rbw      *roleBindingWatcher
+	rbw *roleBindingWatcher
 }
 
-func NewController(queue workqueue.RateLimitingInterface, indexer cache.Indexer, informer cache.Controller, rbw *roleBindingWatcher) *Controller {
+func NewController(
+	queue workqueue.RateLimitingInterface, indexer cache.Indexer, informer cache.Controller, rbw *roleBindingWatcher,
+) *Controller {
 	return &Controller{
 		informer: informer,
 		indexer:  indexer,
@@ -173,7 +174,7 @@ func (c *Controller) runWorker() {
 func NewRoleBindingWatcher(kubeConfig string) *roleBindingWatcher {
 	return &roleBindingWatcher{
 		kubeConfig: kubeConfig,
-		ownNs:      map[string /* serviceAccount */ ]*set /* ns */ {},
+		ownNs:      map[string] /* serviceAccount */ *set /* ns */ {},
 		quit:       make(chan bool),
 	}
 }
@@ -206,7 +207,7 @@ type roleBindingWatcher struct {
 	// todo recreate RBW if kubeConfig changed
 	kubeConfig string
 
-	ownNs map[string /* ns */ ]*set /* serviceAccount */
+	ownNs map[string] /* ns */ *set /* serviceAccount */
 	lock  sync.Mutex
 	quit  chan bool
 
@@ -230,7 +231,10 @@ func (rbw *roleBindingWatcher) Prepare() error {
 	}
 
 	// create the secret watcher
-	rbWatcher := cache.NewListWatchFromClient(clientset.RbacV1().RESTClient(), "rolebindings", "", fields.OneTermEqualSelector("metadata.name", service.NocalhostDefaultRoleBinding))
+	rbWatcher := cache.NewListWatchFromClient(
+		clientset.RbacV1().RESTClient(), "rolebindings", "",
+		fields.OneTermEqualSelector("metadata.name", service.NocalhostDefaultRoleBinding),
+	)
 
 	// create the workqueue
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
@@ -239,28 +243,30 @@ func (rbw *roleBindingWatcher) Prepare() error {
 	// whenever the cache is updated, the secret key is added to the workqueue.
 	// Note that when we finally process the item from the workqueue, we might see a newer version
 	// of the Secret than the version which was responsible for triggering the update.
-	indexer, informer := cache.NewIndexerInformer(rbWatcher, &rbacv1.RoleBinding{}, 0, cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(obj)
-			if err == nil {
-				queue.Add(key)
-			}
-		},
-		UpdateFunc: func(old interface{}, new interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(new)
-			if err == nil {
-				queue.Add(key)
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			// IndexerInformer uses a delta queue, therefore for deletes we have to use this
-			// key function.
-			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-			if err == nil {
-				queue.Add(key)
-			}
-		},
-	}, cache.Indexers{})
+	indexer, informer := cache.NewIndexerInformer(
+		rbWatcher, &rbacv1.RoleBinding{}, 0, cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				key, err := cache.MetaNamespaceKeyFunc(obj)
+				if err == nil {
+					queue.Add(key)
+				}
+			},
+			UpdateFunc: func(old interface{}, new interface{}) {
+				key, err := cache.MetaNamespaceKeyFunc(new)
+				if err == nil {
+					queue.Add(key)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				// IndexerInformer uses a delta queue, therefore for deletes we have to use this
+				// key function.
+				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+				if err == nil {
+					queue.Add(key)
+				}
+			},
+		}, cache.Indexers{},
+	)
 
 	controller := NewController(queue, indexer, informer, rbw)
 

@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package clientgoutils
 
@@ -79,7 +78,8 @@ type PortForwardAPodRequest struct {
 }
 
 // If namespace is not specified, use namespace defined in kubeconfig
-// If namespace is not specified and can not get from kubeconfig, ClientGoUtils can not be created, and an error will be returned
+// If namespace is not specified and can not get from kubeconfig, ClientGoUtils can not be created,
+// and an error will be returned
 func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, error) {
 	var (
 		err error
@@ -96,7 +96,8 @@ func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, 
 
 	client.ClientConfig = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfigPath},
-		&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: ""}})
+		&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: ""}},
+	)
 
 	client.restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
@@ -155,7 +156,8 @@ func GetNamespaceFromKubeConfig(kubeConfig string) (string, error) {
 
 	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfig},
-		&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: ""}})
+		&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: ""}},
+	)
 	ns, _, err := clientConfig.Namespace()
 	return ns, errors.Wrap(err, "")
 }
@@ -392,8 +394,10 @@ func (c *ClientGoUtils) DeleteSecret(name string) error {
 }
 
 func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
-	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward",
-		req.Pod.Namespace, req.Pod.Name)
+	path := fmt.Sprintf(
+		"/api/v1/namespaces/%s/pods/%s/portforward",
+		req.Pod.Namespace, req.Pod.Name,
+	)
 	clientConfig, err := c.ClientConfig.ClientConfig()
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -405,9 +409,16 @@ func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 		return errors.Wrap(err, "")
 	}
 
-	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, &url.URL{Scheme: "https", Path: path, Host: hostIP})
-	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
-	fw, err := portforward.NewOnAddresses(dialer, req.Listen, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
+	dialer := spdy.NewDialer(
+		upgrader, &http.Client{Transport: transport}, http.MethodPost,
+		&url.URL{Scheme: "https", Path: path, Host: hostIP},
+	)
+	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh,
+	//req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
+	fw, err := portforward.NewOnAddresses(
+		dialer, req.Listen, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh,
+		req.Streams.Out, req.Streams.ErrOut,
+	)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
@@ -471,11 +482,17 @@ func (c *ClientGoUtils) DeleteNameSpace(name string, wait bool) error {
 }
 
 func (c *ClientGoUtils) DeleteStatefulSetAndPVC(name string) error {
-	_ = c.ClientSet.AppsV1().StatefulSets(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{GracePeriodSeconds: new(int64)})
-	pvc, err := c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Get(c.ctx, "data-nocalhost-mariadb-0", metav1.GetOptions{})
+	_ = c.ClientSet.AppsV1().StatefulSets(c.namespace).Delete(
+		c.ctx, name, metav1.DeleteOptions{GracePeriodSeconds: new(int64)},
+	)
+	pvc, err := c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Get(
+		c.ctx, "data-nocalhost-mariadb-0", metav1.GetOptions{},
+	)
 	if err != nil {
 		pvName := pvc.Spec.VolumeName
-		_ = c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Delete(c.ctx, "data-nocalhost-mariadb-0", metav1.DeleteOptions{})
+		_ = c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Delete(
+			c.ctx, "data-nocalhost-mariadb-0", metav1.DeleteOptions{},
+		)
 		_ = c.ClientSet.CoreV1().PersistentVolumes().Delete(c.ctx, pvName, metav1.DeleteOptions{})
 	}
 	return nil

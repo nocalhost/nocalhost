@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package cmds
 
@@ -81,7 +80,12 @@ func ListApplicationSvc(napp *app.Application) {
 	var data [][]string
 	appProfile, _ := napp.GetProfile()
 	for _, svcProfile := range appProfile.SvcProfile {
-		rols := []string{svcProfile.ActualName, strconv.FormatBool(svcProfile.Developing), strconv.FormatBool(svcProfile.Syncing), fmt.Sprintf("%v", svcProfile.DevPortForwardList), fmt.Sprintf("%s", svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin), strconv.Itoa(svcProfile.LocalSyncthingGUIPort)}
+		rols := []string{
+			svcProfile.ActualName, strconv.FormatBool(svcProfile.Developing), strconv.FormatBool(svcProfile.Syncing),
+			fmt.Sprintf("%v", svcProfile.DevPortForwardList),
+			fmt.Sprintf("%s", svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin),
+			strconv.Itoa(svcProfile.LocalSyncthingGUIPort),
+		}
 		data = append(data, rols)
 	}
 	table := tablewriter.NewWriter(os.Stdout)
@@ -103,10 +107,12 @@ func ListApplicationsResult() []*Namespace {
 		Application: []*ApplicationInfo{},
 	}
 	for _, meta := range metas {
-		ns.Application = append(ns.Application, &ApplicationInfo{
-			Name: meta.Application,
-			Type: meta.ApplicationType,
-		})
+		ns.Application = append(
+			ns.Application, &ApplicationInfo{
+				Name: meta.Application,
+				Type: meta.ApplicationType,
+			},
+		)
 	}
 	result = append(result, ns)
 	return result

@@ -1,15 +1,14 @@
 /*
-Copyright 2021 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package app
 
@@ -68,12 +67,16 @@ func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error
 	}
 	useResourcePath := resourcesPath[0]
 
-	err = a.client.Apply([]string{}, true,
-		StandardNocalhostMetas(a.Name, a.NameSpace).SetBeforeApply(func(manifest string) error {
-			a.appMeta.Manifest = manifest
-			return a.appMeta.Update()
-		}),
-		useResourcePath)
+	err = a.client.Apply(
+		[]string{}, true,
+		StandardNocalhostMetas(a.Name, a.NameSpace).SetBeforeApply(
+			func(manifest string) error {
+				a.appMeta.Manifest = manifest
+				return a.appMeta.Update()
+			},
+		),
+		useResourcePath,
+	)
 	if err != nil {
 		return err
 	}
@@ -88,7 +91,7 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 		upgradeResourcePath = installFlags.ResourcePath
 	} else {
 		// Get resource path for upgrade .nocalhost
-		configFilePath := a.getUpgradeConfigPathInGitResourcesDir(installFlags.Config)
+		configFilePath := a.getUpgradeConfigPathGit(installFlags.Config)
 		_, err := os.Stat(configFilePath)
 		if err != nil {
 			log.WarnE(errors.Wrap(err, ""), "Failed to load config.yaml")
@@ -101,12 +104,20 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 				envFile = configFile.RelOrAbs("../").RelOrAbs(relPath)
 
 				if e := envFile.CheckExist(); e != nil {
-					log.Log("Render %s Nocalhost config without env files, we found the env file had been configured as %s, but we can not found in %s", configFile.Abs(), relPath, envFile.Abs())
+					log.Log(
+						"Render %s Nocalhost config without env files, we found the env "+
+							"file had been configured as %s, but we can not found in %s",
+						configFile.Abs(), relPath, envFile.Abs(),
+					)
 				} else {
 					log.Log("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
 				}
 			} else {
-				log.Log("Render %s Nocalhost config without env files, you config your Nocalhost configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2", configFile.Abs())
+				log.Log(
+					"Render %s Nocalhost config without env files, you config your Nocalhost "+
+						"configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2",
+					configFile.Abs(),
+				)
 			}
 
 			renderedStr, err := envsubst.Render(configFile, envFile)
@@ -244,7 +255,8 @@ func isContainsInfo(info *resource.Info, infos []*resource.Info) bool {
 		return false
 	}
 	for _, in := range infos {
-		if in.Name == info.Name && in.Object.GetObjectKind().GroupVersionKind() == info.Object.GetObjectKind().GroupVersionKind() {
+		if in.Name == info.Name && in.Object.GetObjectKind().GroupVersionKind() ==
+			info.Object.GetObjectKind().GroupVersionKind() {
 			return true
 		}
 	}
@@ -288,7 +300,8 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 		log.Info("building dependency...")
 		depParams := []string{"dependency", "build", resourcesPath[0]}
 		depParams = append(depParams, commonParams...)
-		if _, err = tools.ExecCommand(nil, true, false, "helm", depParams...); err != nil {
+		if _, err = tools.ExecCommand(nil, true, false, "helm", depParams...);
+			err != nil {
 			return errors.Wrap(err, "fail to build dependency for helm app")
 		}
 	}
@@ -301,7 +314,8 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 
 	log.Info("Upgrade helm application, this may take several minutes, please waiting...")
 
-	if _, err = tools.ExecCommand(nil, true, false, "helm", params...); err != nil {
+	if _, err = tools.ExecCommand(nil, true, false, "helm", params...);
+		err != nil {
 		return errors.Wrap(err, "")
 	}
 

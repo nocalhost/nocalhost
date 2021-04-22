@@ -1,15 +1,14 @@
 /*
-Copyright 2021 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package clientgoutils
 
@@ -80,14 +79,16 @@ func (c *ClientGoUtils) Exec(podName string, containerName string, command []str
 			Name(pod.Name).
 			Namespace(pod.Namespace).
 			SubResource("exec")
-		req.VersionedParams(&corev1.PodExecOptions{
-			Container: containerName,
-			Command:   command,
-			Stdin:     true,
-			Stdout:    true,
-			Stderr:    false,
-			TTY:       true,
-		}, scheme.ParameterCodec)
+		req.VersionedParams(
+			&corev1.PodExecOptions{
+				Container: containerName,
+				Command:   command,
+				Stdin:     true,
+				Stdout:    true,
+				Stderr:    false,
+				TTY:       true,
+			}, scheme.ParameterCodec,
+		)
 
 		return Execute("POST", req.URL(), c.restConfig, t.In, t.Out, os.Stderr, t.Raw, sizeQueue)
 	}
@@ -98,16 +99,21 @@ func (c *ClientGoUtils) Exec(podName string, containerName string, command []str
 	return nil
 }
 
-func Execute(method string, url *url.URL, config *restclient.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool, terminalSizeQueue remotecommand.TerminalSizeQueue) error {
+func Execute(
+	method string, url *url.URL, config *restclient.Config,
+	stdin io.Reader, stdout, stderr io.Writer, tty bool, terminalSizeQueue remotecommand.TerminalSizeQueue,
+) error {
 	exec, err := remotecommand.NewSPDYExecutor(config, method, url)
 	if err != nil {
 		return err
 	}
-	return exec.Stream(remotecommand.StreamOptions{
-		Stdin:             stdin,
-		Stdout:            stdout,
-		Stderr:            stderr,
-		Tty:               tty,
-		TerminalSizeQueue: terminalSizeQueue,
-	})
+	return exec.Stream(
+		remotecommand.StreamOptions{
+			Stdin:             stdin,
+			Stdout:            stdout,
+			Stderr:            stderr,
+			Tty:               tty,
+			TerminalSizeQueue: terminalSizeQueue,
+		},
+	)
 }
