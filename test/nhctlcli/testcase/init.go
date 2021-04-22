@@ -27,6 +27,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 )
 
 var StopChan = make(chan int32, 1)
@@ -54,6 +55,17 @@ func GetVersion() (v1 string, v2 string) {
 }
 
 func InstallNhctl(version string) {
+	for i := 0; i < 5; i++ {
+		if ok := installNhctl(version); !ok {
+			time.Sleep(time.Second * 5)
+			continue
+		} else {
+			break
+		}
+	}
+}
+
+func installNhctl(version string) bool {
 	var name string
 	var outputName string
 	var needChmod bool
@@ -73,15 +85,24 @@ func InstallNhctl(version string) {
 
 	str := "curl --fail -s -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o " + outputName
 	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, name, version))
-	nhctlcli.Runner.RunRetryIfError(cmd, 5)
-
+	if _, _, err := nhctlcli.Runner.Run(cmd); err != nil {
+		_ = cmd.Process.Kill()
+		return false
+	}
 	// unix and linux needs to add x permission
 	if needChmod {
 		cmd = exec.Command("sh", "-c", "chmod +x nhctl")
-		nhctlcli.Runner.RunPanicIfError(cmd)
+		if _, _, err := nhctlcli.Runner.Run(cmd); err != nil {
+			_ = cmd.Process.Kill()
+			return false
+		}
 		cmd = exec.Command("sh", "-c", "mv ./nhctl /usr/local/bin/nhctl")
-		nhctlcli.Runner.RunPanicIfError(cmd)
+		if _, _, err := nhctlcli.Runner.Run(cmd); err != nil {
+			_ = cmd.Process.Kill()
+			return false
+		}
 	}
+	return true
 }
 
 func Init(nhctl *nhctlcli.CLI) {
