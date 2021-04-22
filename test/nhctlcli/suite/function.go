@@ -73,6 +73,10 @@ func Reset(cli *nhctlcli.CLI, _ ...string) {
 	testcase.InstallBookInfo(cli)
 }
 
+func Apply(cli *nhctlcli.CLI, _ ...string) {
+	testcase.Apply(cli)
+}
+
 func Upgrade(cli *nhctlcli.CLI, _ ...string) {
 	testcase.InstallBookInfo(cli)
 	testcase.Upgrade(cli)
