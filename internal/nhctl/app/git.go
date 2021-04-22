@@ -85,19 +85,15 @@ func (a *Application) downloadUpgradeResourcesFromGit(gitUrl string, gitRef stri
 	return cloneFromGit(gitUrl, gitRef, a.getUpgradeGitDir())
 }
 
-func (a *Application) saveUpgradeResources() error {
-	return moveDir(a.getUpgradeGitDir(), a.ResourceTmpDir)
-}
-
-// Move srcDir to destDir
+// remove srcDir to destDir
 // If destDir already exists, deleting it before move srcDir
-func moveDir(srcDir string, destDir string) error {
-	_, err := os.Stat(destDir)
+func removeDir(dir string) error {
+	_, err := os.Stat(dir)
 	if err == nil {
-		err = os.RemoveAll(destDir)
+		err = os.RemoveAll(dir)
 		if err != nil {
 			return errors.Wrap(err, "")
 		}
 	}
-	return errors.Wrap(os.Rename(srcDir, destDir), "")
+	return nil
 }

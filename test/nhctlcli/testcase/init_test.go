@@ -10,36 +10,45 @@
  * limitations under the License.
  */
 
-package main
+package testcase
 
 import (
-	"nocalhost/test/nhctlcli"
-	"nocalhost/test/nhctlcli/suite"
-	"nocalhost/test/nhctlcli/testcase"
+	"fmt"
 	"nocalhost/test/util"
+	"os"
+	"testing"
 	"time"
 )
 
-func main() {
-	go util.TimeoutChecker(1 * time.Hour)
-	v1, v2 := testcase.GetVersion()
-	testcase.InstallNhctl(v1)
-	cli := nhctlcli.NewNhctl("/root/.kube/config", "test")
-	util.Init(cli)
-	testcase.NhctlVersion(cli)
-	testcase.StopDaemon(cli)
-	go testcase.Init(cli)
-	if i := <-testcase.StatusChan; i != 0 {
-		testcase.StopChan <- 1
+func TestInstallNhctl(t *testing.T) {
+	InstallNhctl("1f820388196a2bc57a7d118d46c40e9f99c8c119")
+	_ = os.Setenv("COMMIT_ID", "v0.3.7")
+	_ = os.Setenv("TAG", "v0.3.6 v0.3.7")
+}
+
+func TestInit(t *testing.T) {
+	go Init(nil)
+	for {
+		select {
+		case status := <-StatusChan:
+			if status == 0 {
+				fmt.Println("ok")
+				//StopChan <- 0
+			} else {
+				fmt.Printf("not ok")
+			}
+		}
 	}
-	// ---------base line-----------
-	t := suite.T{Cli: cli}
-	t.Run("install", suite.Install)
-	t.Run("dev", suite.Dev)
-	t.Run("port-forward", suite.PortForward)
-	t.Run("sync", suite.Sync)
-	t.Run("upgrade", suite.Upgrade)
-	t.Run("reset", suite.Reset)
-	t.Run("compatible", suite.Compatible, v2)
-	t.Clean()
+}
+
+func TestCommandWait(t *testing.T) {
+	go util.WaitForCommandDone("kubectl wait --for=condition=Delete pods/test-74cb446f4b-hmp8g -n test")
+	time.Sleep(7 * time.Second)
+}
+
+func TestDev(t *testing.T) {
+	moduleName := "details"
+	DevStart(nil, moduleName)
+	Sync(nil, moduleName)
+	DevEnd(nil, moduleName)
 }

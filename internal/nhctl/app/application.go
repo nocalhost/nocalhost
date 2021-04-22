@@ -188,7 +188,10 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 }
 
 func (a *Application) generateSecretForEarlierVer() bool {
-	profileV2, _ := a.GetProfile()
+	profileV2, err := a.GetProfile()
+	if err != nil {
+		return false
+	}
 	a.AppType = profileV2.AppType
 	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() && a.Name != DefaultNocalhostApplication {
 		defer func() {

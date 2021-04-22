@@ -10,21 +10,23 @@
  * limitations under the License.
  */
 
-package nhctl
+package testcase
 
 import (
 	v1 "k8s.io/api/core/v1"
+	"nocalhost/test/nhctlcli"
 	"nocalhost/test/util"
 	"testing"
 )
 
 func TestInstallBookInfo(t *testing.T) {
+	cli := nhctlcli.NewNhctl("/Users/naison/codingtest", "test")
 	cmd := "nhctl uninstall bookinfo -n test --force --kubeconfig " + util.CODING
 	util.WaitForCommandDone(cmd)
-	installBookInfoHelmGit()
-	installBookInfoKustomizeGit()
-	installBookInfoRawManifest()
-	PortForward()
+	installBookInfoHelmGit(cli)
+	installBookInfoKustomizeGit(cli)
+	installBookInfoRawManifest(cli)
+	PortForwardCheck(1)
 }
 
 func TestWait(t *testing.T) {
@@ -42,4 +44,9 @@ func TestWait(t *testing.T) {
 				return true
 			}()
 		})
+}
+
+func TestJson(t *testing.T) {
+	cli := nhctlcli.NewNhctl("/Users/naison/codingtest", "test")
+	StatusCheck(cli, "details")
 }
