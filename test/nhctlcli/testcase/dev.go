@@ -36,7 +36,7 @@ func DevStart(cli *nhctlcli.CLI, moduleName string) {
 		"-d", moduleName,
 		"-s", "/tmp/"+moduleName,
 		"--priority-class", "nocalhost-container-critical")
-	nhctlcli.Runner.RunRetryIfError(cmd)
+	nhctlcli.Runner.RunRetryIfError(cmd, 5)
 
 	util.WaitToBeStatus("test", "pods", "app="+moduleName, func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning
