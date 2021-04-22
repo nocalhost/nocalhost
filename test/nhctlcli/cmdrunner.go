@@ -53,15 +53,14 @@ func (r *CmdRunner) Run(cmd *exec.Cmd) (string, string, error) {
 		return "", "", fmt.Errorf("starting command %v: %w", cmd, err)
 	}
 
-	if err := cmd.Wait(); err != nil {
-		return stdout.String(), stderr.String(), err
-	}
+	_ = cmd.Wait()
 
-	if stderr.Len() > 0 {
-		fmt.Printf("Command output: [%s], stderr: %s", stdout.String(), stderr.String())
+	if cmd.ProcessState.Success() {
+		return stdout.String(), stderr.String(), nil
+	} else {
+		return stdout.String(), stderr.String(), fmt.Errorf(
+			"Execute command: %v, stdout: %v, stderr: %v\n", cmd.Args, stdout.String(), stderr.String())
 	}
-
-	return stdout.String(), stderr.String(), nil
 }
 
 func (r *CmdRunner) RunWithRollingOut(cmd *exec.Cmd) (string, string, error) {
