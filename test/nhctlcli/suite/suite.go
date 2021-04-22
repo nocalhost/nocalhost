@@ -15,8 +15,10 @@ package suite
 
 import (
 	"fmt"
+	v1 "k8s.io/api/core/v1"
 	"nocalhost/test/nhctlcli"
 	"nocalhost/test/nhctlcli/testcase"
+	"nocalhost/test/util"
 )
 
 type T struct {
@@ -25,6 +27,12 @@ type T struct {
 
 func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...string) {
 	testcase.InstallBookInfo(t.Cli)
+	util.WaitToBeStatus(t.Cli.Namespace, "pods", "app=reviews", func(i interface{}) bool {
+		return i.(*v1.Pod).Status.Phase == v1.PodRunning
+	})
+	util.WaitToBeStatus(t.Cli.Namespace, "pods", "app=ratings", func(i interface{}) bool {
+		return i.(*v1.Pod).Status.Phase == v1.PodRunning
+	})
 	fmt.Println("Testing " + name)
 	defer func() {
 		if err := recover(); err != nil {
