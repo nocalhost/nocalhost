@@ -62,7 +62,7 @@ jobs:
           wait "DescribeArtifactProperties" "public" "nocalhost-api" $COMMIT_ID
           echo 'wait for nocalhost-dep'
           wait "DescribeArtifactProperties" "public" "nocalhost-dep" $COMMIT_ID
-  linux-job:
+  linux:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: [ "image" ]
@@ -100,7 +100,7 @@ jobs:
           ID=$(docker inspect "$(docker ps -aq --filter name=$SHA)" --format='{{.State.ExitCode}}') && echo "$ID" | grep '^0$'
   macos:
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
     needs: [ "image" ]
     steps:
       - uses: actions/checkout@master
@@ -117,7 +117,7 @@ jobs:
       - name: Kubectl tool installer
         uses: Azure/setup-kubectl@v1
       - name: Testing
-        timeout-minutes: 60
+        timeout-minutes: 180
         shell: bash
         run: |
           SHA=${GITHUB_SHA}
@@ -160,18 +160,25 @@ jobs:
   windows:
     runs-on: windows-latest
     needs: ["image"]
-    timeout-minutes: 60
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@master
         timeout-minutes: 10
+      - name: git tag
+        if: ${{ github.event.workflow_run.conclusion == 'success' }}
+        timeout-minutes: 10
+        run: |
+          git fetch --prune --unshallow --tags
+          TAG=$(echo $(git tag | tail -2))
+          echo $TAG
+          echo "RELEASE_VERSION=${TAG}" >> $GITHUB_ENV
+        shell: bash
       - name: Kubectl tool installer
         uses: Azure/setup-kubectl@v1
       - name: testing
-        timeout-minutes: 60
+        timeout-minutes: 180
         shell: bash
         run: |
-          SHA=${GITHUB_SHA}
-          curl --fail -L "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/nhctl-windows-amd64.exe?version=""$SHA" -o nhctl.exe
           curl https://eternallybored.org/misc/wget/1.21.1/64/wget.exe -o wget.exe
           ./wget https://get.helm.sh/helm-v3.5.4-windows-amd64.zip
           unzip helm-v3.5.4-windows-amd64.zip
@@ -183,6 +190,7 @@ jobs:
           PATH="${ADD_PATH}:${PATH}"
           export PATH
 
+          SHA=${GITHUB_SHA}
           configmapname="$SHA""win"
           echo ${{ env.RELEASE_VERSION }}
           echo ${{ secrets.kube_config }} | base64 -d >> config

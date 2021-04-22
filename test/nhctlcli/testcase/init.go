@@ -80,8 +80,8 @@ func InstallNhctl(version string) {
 		cmd = exec.Command("sh", "-c", "chmod +x nhctl")
 		nhctlcli.Runner.RunPanicIfError(cmd)
 		cmd = exec.Command("sh", "-c", "mv ./nhctl /usr/local/bin/nhctl")
+		nhctlcli.Runner.RunPanicIfError(cmd)
 	}
-	nhctlcli.Runner.RunPanicIfError(cmd)
 }
 
 func Init(nhctl *nhctlcli.CLI) {
