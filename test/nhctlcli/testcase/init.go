@@ -59,7 +59,7 @@ func InstallNhctl(version string) {
 	var needChmod bool
 	if strings.Contains(runtime.GOOS, "darwin") {
 		name = "nhctl-darwin-amd64"
-		outputName = "nhctl"
+		outputName = "nhctlclient"
 		needChmod = true
 	} else if strings.Contains(runtime.GOOS, "windows") {
 		name = "nhctl-windows-amd64.exe"
@@ -67,7 +67,7 @@ func InstallNhctl(version string) {
 		needChmod = false
 	} else {
 		name = "nhctl-linux-amd64"
-		outputName = "nhctl"
+		outputName = "nhctlclient"
 		needChmod = true
 	}
 
@@ -82,9 +82,9 @@ func InstallNhctl(version string) {
 
 	// unix and linux needs to add x permission
 	if needChmod {
-		cmd = exec.Command("sh", "-c", "chmod +x nhctl")
+		cmd = exec.Command("sh", "-c", "chmod +x nhctlclient")
 		nhctlcli.Runner.RunPanicIfError(cmd)
-		cmd = exec.Command("sh", "-c", "mv ./nhctl /usr/local/bin/nhctl")
+		cmd = exec.Command("sh", "-c", "mv ./nhctlclient /usr/local/bin/nhctl")
 		nhctlcli.Runner.RunPanicIfError(cmd)
 	}
 }
