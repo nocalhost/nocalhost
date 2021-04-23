@@ -31,6 +31,7 @@ const (
 	DefaultApplicationSyncPidFile            = "syncthing.pid"
 	//DefaultApplicationDirName                = "application"
 
+	DefaultSecretGenSign               = "secreted"
 	DefaultApplicationConfigPath       = ".config.yaml"
 	DefaultApplicationConfigV2Path     = ".config_v2.yaml"
 	DefaultGitNocalhostDir             = ".nocalhost" // DefaultApplicationConfigDirName
@@ -63,7 +64,7 @@ const (
 	DefaultInitApplicationGithub  = "{\"source\":\"git\",\"install_type\":\"rawManifest\"," +
 		"\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo\"," +
 		"\"application_url\":\"https://github.com/nocalhost/bookinfo.git\"}"
-	DefaultInitApplicationHelm      = "{\"source\":\"git\",\"install_type\":\"helm_chart\"," +
+	DefaultInitApplicationHelm = "{\"source\":\"git\",\"install_type\":\"helm_chart\"," +
 		"\"application_url\":\"git@github.com:nocalhost/bookinfo.git\"," +
 		"\"application_config_path\":\"config.helm.yaml\",\"application_name\":" +
 		"\"bookinfo-helm\",\"resource_dir\":[]}"
@@ -71,7 +72,7 @@ const (
 		"\"application_name\":\"bookinfo-kustomize\",\"application_url\":" +
 		"\"git@github.com:nocalhost/bookinfo.git\",\"application_config_path\"" +
 		":\"config.kustomize.yaml\",\"resource_dir\":[]}"
-	DefaultInitApplicationCODING    = "{\"source\":\"git\",\"install_type\":" +
+	DefaultInitApplicationCODING = "{\"source\":\"git\",\"install_type\":" +
 		"\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\"" +
 		":\"bookinfo\",\"application_url\":" +
 		"\"https://e.coding.net/codingcorp/nocalhost/bookinfo.git\"}"

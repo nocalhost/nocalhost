@@ -188,12 +188,20 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 }
 
 func (a *Application) generateSecretForEarlierVer() bool {
+
+	a.GetHomeDir()
 	profileV2, err := a.GetProfile()
 	if err != nil {
 		return false
 	}
-	a.AppType = profileV2.AppType
-	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() && a.Name != DefaultNocalhostApplication {
+
+	if a.HasBeenGenerateSecret(){
+		return false
+	}
+
+	if  profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() && a.Name != DefaultNocalhostApplication {
+		a.AppType = profileV2.AppType
+
 		defer func() {
 			log.Logf("Mark application %s in ns %s has been secreted", a.Name, a.NameSpace)
 			//a.profileV2.Secreted = true
@@ -239,9 +247,12 @@ func (a *Application) generateSecretForEarlierVer() bool {
 		a.appMeta.ApplicationState = appmeta.INSTALLED
 		_ = a.appMeta.Update()
 
+
 		log.Logf("Application %s in ns %s is completed secreted", a.Name, a.NameSpace)
 		return false
 	}
+
+	a.MarkAsGenerated()
 
 	return false
 }
