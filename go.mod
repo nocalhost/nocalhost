@@ -54,16 +54,17 @@ require (
 	github.com/tebeka/strftime v0.1.5 // indirect
 	github.com/teris-io/shortid v0.0.0-20171029131806-771a37caa5cf
 	github.com/toolkits/net v0.0.0-20160910085801-3f39ab6fe3ce
+	github.com/ulikunitz/xz v0.5.8
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	github.com/willf/pad v0.0.0-20200313202418-172aa767f2a4
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da // indirect
 	go.uber.org/zap v1.15.0
 	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
-	golang.org/x/sys v0.0.0-20201112073958-5cba982894dd
+	golang.org/x/text v0.3.4
 	google.golang.org/grpc v1.27.1
 	google.golang.org/protobuf v1.25.0
-	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f
+	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
@@ -72,6 +73,8 @@ require (
 	k8s.io/cli-runtime v0.21.0-alpha.1
 	k8s.io/client-go v0.21.0-alpha.1
 	k8s.io/kubectl v0.21.0-alpha.1
+	sigs.k8s.io/kustomize v2.0.3+incompatible
+	sigs.k8s.io/yaml v1.2.0
 )
 
 replace (

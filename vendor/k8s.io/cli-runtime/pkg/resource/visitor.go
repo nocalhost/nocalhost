@@ -524,7 +524,7 @@ func (v *FileVisitor) Visit(fn VisitorFunc) error {
 	// Windows tools don't write the BOM
 	utf16bom := unicode.BOMOverride(unicode.UTF8.NewDecoder())
 	v.StreamVisitor.Reader = transform.NewReader(f, utf16bom)
-	
+
 	return v.StreamVisitor.Visit(fn)
 }
 
@@ -542,9 +542,6 @@ func (v *KustomizeVisitor) Visit(fn VisitorFunc) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("kustomize")
-	fmt.Println(string(out.Bytes()))
-	fmt.Println("kustomize")
 	v.StreamVisitor.Reader = bytes.NewReader(out.Bytes())
 	return v.StreamVisitor.Visit(fn)
 }

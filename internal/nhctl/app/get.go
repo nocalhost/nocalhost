@@ -115,9 +115,9 @@ func (a *Application) GetPersistentVolumeDirs(svcName, container string) []*prof
 	return nil
 }
 
-func (a *Application) GetDefaultSideCarImage(svcName string) string {
-	return DefaultSideCarImage
-}
+//func (a *Application) GetDefaultSideCarImage(svcName string) string {
+//	return DefaultSideCarImage
+//}
 
 func (a *Application) GetDefaultDevImage(svcName string, container string) string {
 	svcProfile, _ := a.GetSvcProfile(svcName)
