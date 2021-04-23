@@ -107,7 +107,7 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 		return nil, err
 	}
 
-	if info.Version != daemon_common.Version {
+	if info.Version != daemon_common.Version || info.CommitId != daemon_common.CommitId {
 		log.Log("Upgrading daemon server")
 		utils.Should(client.SendRestartDaemonServerCommand())
 	}
