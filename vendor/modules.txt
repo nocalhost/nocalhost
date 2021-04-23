@@ -254,7 +254,6 @@ github.com/jstemmer/go-junit-report/parser
 github.com/konsorten/go-windows-terminal-sequences
 # github.com/kr/text v0.2.0
 ## explicit
-github.com/kr/text
 # github.com/leodido/go-urn v1.2.0
 github.com/leodido/go-urn
 # github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
@@ -306,7 +305,6 @@ github.com/modern-go/concurrent
 github.com/modern-go/reflect2
 # github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e
 ## explicit
-github.com/niemeyer/pretty
 # github.com/olekukonko/tablewriter v0.0.4
 ## explicit
 github.com/olekukonko/tablewriter
@@ -402,6 +400,7 @@ github.com/toolkits/net
 # github.com/ugorji/go/codec v1.1.7
 github.com/ugorji/go/codec
 # github.com/ulikunitz/xz v0.5.8
+## explicit
 github.com/ulikunitz/xz
 github.com/ulikunitz/xz/internal/hash
 github.com/ulikunitz/xz/internal/xlog
@@ -479,12 +478,12 @@ golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
 # golang.org/x/sys v0.0.0-20201112073958-5cba982894dd
-## explicit
 golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/text v0.3.4
+## explicit
 golang.org/x/text/encoding
 golang.org/x/text/encoding/internal
 golang.org/x/text/encoding/internal/identifier
@@ -636,7 +635,6 @@ google.golang.org/protobuf/types/known/timestamppb
 google.golang.org/protobuf/types/pluginpb
 # gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f
 ## explicit
-gopkg.in/check.v1
 # gopkg.in/inf.v0 v0.9.1
 gopkg.in/inf.v0
 # gopkg.in/ini.v1 v1.51.0
@@ -920,6 +918,7 @@ k8s.io/utils/exec
 k8s.io/utils/integer
 k8s.io/utils/trace
 # sigs.k8s.io/kustomize v2.0.3+incompatible
+## explicit
 sigs.k8s.io/kustomize/pkg/commands/build
 sigs.k8s.io/kustomize/pkg/constants
 sigs.k8s.io/kustomize/pkg/expansion
@@ -945,6 +944,7 @@ sigs.k8s.io/kustomize/pkg/types
 # sigs.k8s.io/structured-merge-diff/v4 v4.0.2
 sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.2.0
+## explicit
 sigs.k8s.io/yaml
 # k8s.io/api => k8s.io/api v0.0.0-20210115125903-c873f2e8ab25
 # k8s.io/apimachinery => k8s.io/apimachinery v0.21.0-alpha.1.0.20210121071119-460d10991a52

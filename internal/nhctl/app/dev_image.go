@@ -85,7 +85,7 @@ func (a *Application) markReplicaSetRevision(svcName string) error {
 // There are two volume used by syncthing in sideCarContainer:
 // 1. A EmptyDir volume mounts to /var/syncthing in sideCarContainer
 // 2. A volume mounts Secret to /var/syncthing/secret in sideCarContainer
-func (a *Application) generateSyncVolumesAndMounts(svcName string) ([]corev1.Volume, []corev1.VolumeMount) {
+func generateSyncVolumesAndMounts(svcName string) ([]corev1.Volume, []corev1.VolumeMount) {
 
 	syncthingVolumes := make([]corev1.Volume, 0)
 	syncthingVolumeMounts := make([]corev1.VolumeMount, 0)
@@ -268,8 +268,7 @@ func (a *Application) genResourceReq(svcName string) *corev1.ResourceRequirement
 		requirements *corev1.ResourceRequirements
 	)
 
-	appProfile, _ := a.GetProfile()
-	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile, _ := a.GetSvcProfile(svcName)
 	resourceQuota := svcProfile.ContainerConfigs[0].Dev.DevContainerResources
 
 	if resourceQuota != nil {
@@ -281,15 +280,6 @@ func (a *Application) genResourceReq(svcName string) *corev1.ResourceRequirement
 	return requirements
 }
 
-// add dev start env
-func (a *Application) AppendDevEnvToContainer(devContainer *corev1.Container, svcName string, ops *DevStartOptions) {
-	devEnv := a.GetDevContainerEnv(svcName, ops.Container)
-	for _, v := range devEnv.DevEnv {
-		env := corev1.EnvVar{Name: v.Name, Value: v.Value}
-		devContainer.Env = append(devContainer.Env, env)
-	}
-}
-
 // In DevMode, nhctl will replace the container of your workload with two containers:
 // one is called devContainer, the other is called sideCarContainer
 func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *DevStartOptions) error {
@@ -297,13 +287,11 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	var err error
 	a.client.Context(ctx)
 
-	err = a.markReplicaSetRevision(svcName)
-	if err != nil {
+	if err = a.markReplicaSetRevision(svcName); err != nil {
 		return err
 	}
 
-	err = a.scaleDeploymentReplicasToOne(ctx, svcName)
-	if err != nil {
+	if err = a.scaleDeploymentReplicasToOne(ctx, svcName); err != nil {
 		return err
 	}
 
@@ -311,6 +299,7 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	if err != nil {
 		return err
 	}
+
 	var devContainer *corev1.Container
 	if ops.Container != "" {
 		for index, c := range dep.Spec.Template.Spec.Containers {
@@ -336,7 +325,7 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	devModeMounts := make([]corev1.VolumeMount, 0)
 
 	// Set volumes
-	syncthingVolumes, syncthingVolumeMounts := a.generateSyncVolumesAndMounts(svcName)
+	syncthingVolumes, syncthingVolumeMounts := generateSyncVolumesAndMounts(svcName)
 	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
@@ -351,7 +340,7 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 
 	workDir := a.GetDefaultWorkDir(svcName, ops.Container)
 	devImage := a.GetDefaultDevImage(svcName, ops.Container) // Default : replace the first container
-	sideCarImage := a.GetDefaultSideCarImage(svcName)
+	sideCarImage := DefaultSideCarImage
 	if ops.SideCarImage != "" {
 		sideCarImage = ops.SideCarImage
 	}
@@ -375,15 +364,12 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
 	devContainer.WorkingDir = workDir
 
-	// add dev start env
-	a.AppendDevEnvToContainer(devContainer, svcName, ops)
-
-	// Add volumes to deployment spec
-	if dep.Spec.Template.Spec.Volumes == nil {
-		log.Debugf("Service %s has no volume", dep.Name)
-		dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
+	// add env
+	devEnv := a.GetDevContainerEnv(svcName, ops.Container)
+	for _, v := range devEnv.DevEnv {
+		env := corev1.EnvVar{Name: v.Name, Value: v.Value}
+		devContainer.Env = append(devContainer.Env, env)
 	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
 
 	// Add volumeMounts to containers
 	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
@@ -394,6 +380,29 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 		devContainer.Resources = *requirements
 		sideCarContainer.Resources = *requirements
 	}
+
+	// Get latest deployment
+	if dep, err = a.client.GetDeployment(svcName); err != nil {
+		return err
+	}
+
+	if ops.Container != "" {
+		for index, c := range dep.Spec.Template.Spec.Containers {
+			if c.Name == ops.Container {
+				dep.Spec.Template.Spec.Containers[index] = *devContainer
+				break
+			}
+		}
+	} else {
+		dep.Spec.Template.Spec.Containers[0] = *devContainer
+	}
+
+	// Add volumes to deployment spec
+	if dep.Spec.Template.Spec.Volumes == nil {
+		log.Debugf("Service %s has no volume", dep.Name)
+		dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
+	}
+	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
 
 	// delete user's SecurityContext
 	dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
@@ -410,8 +419,8 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	// PriorityClass
 	priorityClass := ops.PriorityClass
 	if priorityClass == "" {
-		appProfile, _ := a.GetProfile()
-		priorityClass = appProfile.FetchSvcProfileV2FromProfile(svcName).PriorityClass
+		svcProfile, _ := a.GetSvcProfile(svcName)
+		priorityClass = svcProfile.PriorityClass
 	}
 	if priorityClass != "" {
 		log.Infof("Using priorityClass: %s...", priorityClass)
@@ -434,11 +443,6 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 			return err
 		}
 	}
-
-	//err = a.client.WaitLatestRevisionReady(dep.Name)
-	//if err != nil {
-	//	return err
-	//}
 
 	// Wait podList to be ready
 	spinner := utils.NewSpinner(" Waiting pod to start...")
