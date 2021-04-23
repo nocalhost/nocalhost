@@ -58,31 +58,31 @@ func NewClusterUserService() ClusterUserService {
 func (srv *clusterUserService) UpdateKubeConfig(
 	ctx context.Context, models *model.ClusterUserModel,
 ) (*model.ClusterUserModel, error) {
-	return srv.clusterUserRepo.UpdateKubeConfig(ctx, models)
+	return srv.clusterUserRepo.UpdateKubeConfig(models)
 }
 
 func (srv *clusterUserService) GetJoinCluster(
 	ctx context.Context, condition model.ClusterUserJoinCluster,
 ) ([]*model.ClusterUserJoinCluster, error) {
-	return srv.clusterUserRepo.GetJoinCluster(ctx, condition)
+	return srv.clusterUserRepo.GetJoinCluster(condition)
 }
 
 func (srv *clusterUserService) DeleteByWhere(ctx context.Context, models model.ClusterUserModel) error {
-	return srv.clusterUserRepo.DeleteByWhere(ctx, models)
+	return srv.clusterUserRepo.DeleteByWhere(models)
 }
 
 func (srv *clusterUserService) BatchDelete(ctx context.Context, ids []uint64) error {
-	return srv.clusterUserRepo.BatchDelete(ctx, ids)
+	return srv.clusterUserRepo.BatchDelete(ids)
 }
 
 func (srv *clusterUserService) Delete(ctx context.Context, id uint64) error {
-	return srv.clusterUserRepo.Delete(ctx, id)
+	return srv.clusterUserRepo.Delete(id)
 }
 
 func (srv *clusterUserService) Update(ctx context.Context, models *model.ClusterUserModel) (
 	*model.ClusterUserModel, error,
 ) {
-	_, err := srv.clusterUserRepo.Update(ctx, models)
+	_, err := srv.clusterUserRepo.Update(models)
 	if err != nil {
 		return models, err
 	}
@@ -93,7 +93,7 @@ func (srv *clusterUserService) GetList(ctx context.Context, models model.Cluster
 	[]*model.ClusterUserModel, error,
 ) {
 
-	result, err := srv.clusterUserRepo.GetList(ctx, models)
+	result, err := srv.clusterUserRepo.GetList(models)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (srv *clusterUserService) GetList(ctx context.Context, models model.Cluster
 func (srv *clusterUserService) GetFirst(ctx context.Context, models model.ClusterUserModel) (
 	*model.ClusterUserModel, error,
 ) {
-	result, err := srv.clusterUserRepo.GetFirst(ctx, models)
+	result, err := srv.clusterUserRepo.GetFirst(models)
 	if err != nil {
 		return nil, errors.Wrapf(err, "GetFirst users_cluster error")
 	}
@@ -125,7 +125,7 @@ func (srv *clusterUserService) Create(
 		SpaceName:          spaceName,
 		SpaceResourceLimit: spaceResourceLimit,
 	}
-	result, err := srv.clusterUserRepo.Create(ctx, c)
+	result, err := srv.clusterUserRepo.Create(c)
 	if err != nil {
 		return result, errors.Wrapf(err, "create application_cluster")
 	}
@@ -144,7 +144,7 @@ func (srv *clusterUserService) CreateClusterAdminSpace(
 		Namespace:    "*",
 		ClusterAdmin: &trueFlag,
 	}
-	result, err := srv.clusterUserRepo.Create(ctx, c)
+	result, err := srv.clusterUserRepo.Create(c)
 	if err != nil {
 		return result, errors.Wrapf(err, "create application_cluster")
 	}
@@ -154,17 +154,17 @@ func (srv *clusterUserService) CreateClusterAdminSpace(
 func (srv *clusterUserService) GetJoinClusterAndAppAndUser(
 	ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser,
 ) ([]*model.ClusterUserJoinClusterAndAppAndUser, error) {
-	return srv.clusterUserRepo.GetJoinClusterAndAppAndUser(ctx, condition)
+	return srv.clusterUserRepo.GetJoinClusterAndAppAndUser(condition)
 }
 
 func (srv *clusterUserService) GetJoinClusterAndAppAndUserDetail(
 	ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser,
 ) (*model.ClusterUserJoinClusterAndAppAndUser, error) {
-	return srv.clusterUserRepo.GetJoinClusterAndAppAndUserDetail(ctx, condition)
+	return srv.clusterUserRepo.GetJoinClusterAndAppAndUserDetail(condition)
 }
 
 func (srv *clusterUserService) ListByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserPluginModel, error) {
-	return srv.clusterUserRepo.ListByUser(ctx, userId)
+	return srv.clusterUserRepo.ListByUser(userId)
 }
 
 func (srv *clusterUserService) Close() {
