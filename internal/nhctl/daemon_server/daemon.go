@@ -37,6 +37,7 @@ import (
 var (
 	isSudo                      = false
 	version                     = "1.0"
+	commitId                    = ""
 	pfManager                   *PortForwardManager
 	tcpCtx, tcpCancelFunc       = context.WithCancel(context.Background()) // For stopping listening tcp port
 	daemonCtx, daemonCancelFunc = context.WithCancel(context.Background()) // For exiting current daemon server
@@ -53,8 +54,9 @@ func daemonListenPort() int {
 	return daemon_common.DefaultDaemonPort
 }
 
-func StartDaemon(isSudoUser bool, v string) error {
+func StartDaemon(isSudoUser bool, v string, c string) error {
 	version = v
+	commitId = c
 	if isSudoUser && !utils.IsSudoUser() {
 		return errors.New("Failed to start daemon server with sudo")
 	}
@@ -211,7 +213,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType)
 		log.Log("New daemon server is starting, exit this one")
 		daemonCancelFunc()
 	case command.GetDaemonServerInfo:
-		info := &daemon_common.DaemonServerInfo{Version: version}
+		info := &daemon_common.DaemonServerInfo{Version: version, CommitId: commitId}
 		response(conn, info)
 	case command.GetDaemonServerStatus:
 		status := &daemon_common.DaemonServerStatusResponse{

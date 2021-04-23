@@ -33,6 +33,7 @@ var (
 
 func init() {
 	daemon_common.Version = Version
+	daemon_common.CommitId = GitCommit
 	rootCmd.AddCommand(versionCmd)
 }
 

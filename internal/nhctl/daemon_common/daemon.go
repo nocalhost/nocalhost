@@ -21,10 +21,14 @@ const (
 	SudoDaemonPort    = 30124
 )
 
-var Version = "1.0"
+var (
+	Version  = "1.0"
+	CommitId = ""
+)
 
 type DaemonServerInfo struct {
-	Version string
+	Version  string
+	CommitId string
 }
 
 type PortForwardProfile struct {
