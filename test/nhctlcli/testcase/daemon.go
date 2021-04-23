@@ -42,7 +42,10 @@ func Exec(nhctl *nhctlcli.CLI) {
 }
 
 func PortForwardStart(nhctl *nhctlcli.CLI, module string, port int) {
-	pods, err := util.Client.ClientSet.CoreV1().Pods(nhctl.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=" + module})
+	pods, err := util.Client.ClientSet.
+		CoreV1().
+		Pods(nhctl.Namespace).
+		List(context.Background(), metav1.ListOptions{LabelSelector: "app=" + module})
 	if err != nil {
 		panic(fmt.Sprintf("List pods error: %v", err))
 	}
