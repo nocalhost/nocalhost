@@ -162,6 +162,7 @@ var InitCommand = &cobra.Command{
 		log.Debugf("kubeconfig %s \n", kubeConfig)
 		if err != nil || client == nil {
 			log.Fatalf("new go client fail, err %s, or check you kubeconfig\n", err)
+			return
 		}
 
 		nhctl := tools.GetNhctl()
