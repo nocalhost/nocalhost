@@ -13,20 +13,19 @@
 package application_user
 
 import (
-	"context"
 	"errors"
 	"github.com/jinzhu/gorm"
 	"nocalhost/internal/nocalhost-api/model"
 )
 
 type ApplicationUserRepo interface {
-	ListByApplicationId(ctx context.Context, applicationId uint64) ([]*model.ApplicationUserModel, error)
-	ListByUserId(ctx context.Context, userId uint64) ([]*model.ApplicationUserModel, error)
-	BatchDelete(ctx context.Context, applicationId uint64, userIds []uint64) error
-	BatchInsert(ctx context.Context, applicationId uint64, userIds []uint64) error
-	GetByApplicationIdAndUserId(ctx context.Context, applicationId uint64, userId uint64) (
+	GetByApplicationIdAndUserId(applicationId uint64, userId uint64) (
 		*model.ApplicationUserModel, error,
 	)
+	ListByApplicationIdFromRepo(applicationId uint64) ([]*model.ApplicationUserModel, error)
+	ListByUserIdFromRepo(userId uint64) ([]*model.ApplicationUserModel, error)
+	BatchDeleteFromRepo(applicationId uint64, userIds []uint64) error
+	BatchInsertIntoRepo(applicationId uint64, userIds []uint64) error
 	Close()
 }
 
@@ -40,7 +39,7 @@ func NewApplicationUserRepo(db *gorm.DB) ApplicationUserRepo {
 	}
 }
 
-func (repo *applicationUserRepo) BatchDelete(ctx context.Context, applicationId uint64, userIds []uint64) error {
+func (repo *applicationUserRepo) BatchDeleteFromRepo(applicationId uint64, userIds []uint64) error {
 	if len(userIds) == 0 {
 		return errors.New("Can not batch delete applications_users with empty userIds ")
 	}
@@ -53,7 +52,7 @@ func (repo *applicationUserRepo) BatchDelete(ctx context.Context, applicationId 
 	return nil
 }
 
-func (repo *applicationUserRepo) BatchInsert(ctx context.Context, applicationId uint64, userIds []uint64) error {
+func (repo *applicationUserRepo) BatchInsertIntoRepo(applicationId uint64, userIds []uint64) error {
 	if len(userIds) == 0 {
 		return errors.New("Can not batch insert applications_users with empty userIds ")
 	}
@@ -70,8 +69,8 @@ func (repo *applicationUserRepo) BatchInsert(ctx context.Context, applicationId 
 	return nil
 }
 
-func (repo *applicationUserRepo) ListByApplicationId(
-	ctx context.Context, applicationId uint64,
+func (repo *applicationUserRepo) ListByApplicationIdFromRepo(
+	applicationId uint64,
 ) ([]*model.ApplicationUserModel, error) {
 	var result []*model.ApplicationUserModel
 	err := repo.db.Where("application_id=?", applicationId).Find(&result)
@@ -81,7 +80,7 @@ func (repo *applicationUserRepo) ListByApplicationId(
 	return result, nil
 }
 
-func (repo *applicationUserRepo) ListByUserId(ctx context.Context, userId uint64) (
+func (repo *applicationUserRepo) ListByUserIdFromRepo(userId uint64) (
 	[]*model.ApplicationUserModel, error,
 ) {
 	var result []*model.ApplicationUserModel
@@ -93,7 +92,7 @@ func (repo *applicationUserRepo) ListByUserId(ctx context.Context, userId uint64
 }
 
 func (repo *applicationUserRepo) GetByApplicationIdAndUserId(
-	ctx context.Context, applicationId uint64, userId uint64,
+	applicationId uint64, userId uint64,
 ) (*model.ApplicationUserModel, error) {
 	var result = model.ApplicationUserModel{}
 	err := repo.db.Where(

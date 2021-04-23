@@ -39,27 +39,27 @@ func NewApplicationUserService() ApplicationUserService {
 }
 
 func (srv *applicationUserService) BatchDelete(ctx context.Context, applicationId uint64, userIds []uint64) error {
-	return srv.repo.BatchDelete(ctx, applicationId, userIds)
+	return srv.repo.BatchDeleteFromRepo(applicationId, userIds)
 }
 
 func (srv *applicationUserService) BatchInsert(ctx context.Context, applicationId uint64, userIds []uint64) error {
-	return srv.repo.BatchInsert(ctx, applicationId, userIds)
+	return srv.repo.BatchInsertIntoRepo(applicationId, userIds)
 }
 
 func (srv *applicationUserService) GetByApplicationIdAndUserId(
 	ctx context.Context, applicationId uint64, userId uint64,
 ) (*model.ApplicationUserModel, error) {
-	return srv.repo.GetByApplicationIdAndUserId(ctx, applicationId, userId)
+	return srv.repo.GetByApplicationIdAndUserId(applicationId, userId)
 }
 
 func (srv *applicationUserService) ListByApplicationId(ctx context.Context, id uint64) (
 	[]*model.ApplicationUserModel, error,
 ) {
-	return srv.repo.ListByApplicationId(ctx, id)
+	return srv.repo.ListByApplicationIdFromRepo(id)
 }
 
 func (srv *applicationUserService) ListByUserId(ctx context.Context, id uint64) ([]*model.ApplicationUserModel, error) {
-	return srv.repo.ListByUserId(ctx, id)
+	return srv.repo.ListByUserIdFromRepo(id)
 }
 
 func (srv *applicationUserService) Close() {
