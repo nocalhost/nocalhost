@@ -53,12 +53,10 @@ func (from *ApplicationDevMeta) Events(to ApplicationDevMeta) *[]*ApplicationEve
 	marshalFrom, err := json.Marshal(from)
 	if err != nil {
 		log.Error("Error while marshal 'From ApplicationDevMeta': %s", err.Error())
-		err = nil
 	}
 	marshalTo, err := json.Marshal(to)
 	if err != nil {
 		log.Error("Error while marshal 'To ApplicationDevMeta': %s", err.Error())
-		err = nil
 	}
 
 	if string(marshalTo) == string(marshalFrom) {

@@ -52,7 +52,7 @@ var uninstallCmd = &cobra.Command{
 		appMeta, err := nocalhost.GetApplicationMeta(applicationName, nameSpace, kubeConfig)
 		must(err)
 
-		if appMeta == nil || appMeta.IsNotInstall() {
+		if appMeta.IsNotInstall() {
 			log.Fatalf(appMeta.NotInstallTips())
 			return
 		}
