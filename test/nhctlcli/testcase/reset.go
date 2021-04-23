@@ -16,6 +16,7 @@ import (
 	"context"
 	"io/ioutil"
 	"nocalhost/test/nhctlcli"
+	"sigs.k8s.io/yaml"
 )
 
 func Reset(nhctl *nhctlcli.CLI) {
@@ -65,24 +66,32 @@ func NhctlVersion(nhctl *nhctlcli.CLI) {
 }
 
 func Apply(nhctl *nhctlcli.CLI) {
-	content := `---
-apiVersion: v1
-kind: Service
-metadata:
-  name: reviews
-  labels:
-    app: reviews
-    service: reviews
-    apply: apply
-spec:
-  ports:
-  - port: 9080
-    name: http
-  selector:
-    app: reviews
-`
-	f, _ := ioutil.TempFile("/tmp", "apply.yaml")
-	_, _ = f.WriteString(content)
+	content := `{
+	"apiVersion": "v1",
+	"kind": "Service",
+	"metadata": {
+		"name": "reviews",
+	"labels": {
+		"app": "reviews",
+		"service": "reviews",
+		"apply": "apply"
+		}
+	},
+	"spec": {
+	"ports": [
+		{
+		"port": 9080,
+		"name": "http"
+		}
+	],
+	"selector": {
+		"app": "reviews"
+		}
+	}
+}`
+	b, _ := yaml.JSONToYAML([]byte(content))
+	f, _ := ioutil.TempFile("/tmp", "*apply.yaml")
+	_, _ = f.Write(b)
 	_ = f.Sync()
 	defer f.Close()
 
