@@ -300,8 +300,7 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 		log.Info("building dependency...")
 		depParams := []string{"dependency", "build", resourcesPath[0]}
 		depParams = append(depParams, commonParams...)
-		if _, err = tools.ExecCommand(nil, true, false, "helm", depParams...);
-			err != nil {
+		if _, err = tools.ExecCommand(nil, true, false, "helm", depParams...); err != nil {
 			return errors.Wrap(err, "fail to build dependency for helm app")
 		}
 	}
@@ -309,15 +308,14 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 	if installFlags.HelmWait {
 		params = append(params, "--wait")
 	}
+	if installFlags.HelmValueFile != "" {
+		params = append(params, "-f", installFlags.HelmValueFile)
+	}
 	params = append(params, "--timeout", "60m")
 	params = append(params, commonParams...)
 
 	log.Info("Upgrade helm application, this may take several minutes, please waiting...")
 
-	if _, err = tools.ExecCommand(nil, true, false, "helm", params...);
-		err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	return err
+	_, err = tools.ExecCommand(nil, true, false, "helm", params...)
+	return errors.Wrap(err, "")
 }
