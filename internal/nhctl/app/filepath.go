@@ -15,6 +15,7 @@ package app
 import (
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"os"
 	"path/filepath"
 )
 
@@ -100,4 +101,17 @@ func (a *Application) GetConfigV2Path() string {
 func (a *Application) GetHomeDir() string {
 	//return nocalhost.GetAppDir(a.Name)
 	return nocalhost_path.GetAppDirUnderNs(a.Name, a.NameSpace)
+}
+
+func (a *Application) getSecretGeneratedSignDir() string {
+	return filepath.Join(a.GetHomeDir(), DefaultSecretGenSign)
+}
+
+func (a *Application) MarkAsGenerated() {
+	_, _ = os.Create(a.getSecretGeneratedSignDir())
+}
+
+func (a *Application) HasBeenGenerateSecret() bool {
+	_, err := os.Stat(a.getSecretGeneratedSignDir())
+	return err == nil
 }
