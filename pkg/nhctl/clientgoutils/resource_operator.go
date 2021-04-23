@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/restmapper"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -70,45 +71,35 @@ func (c *ClientGoUtils) ApplyAndWait(files []string, continueOnError bool, flags
 }
 
 func (c *ClientGoUtils) Apply(files []string, continueOnError bool, flags *ApplyFlags, kustomize string) error {
-	var reader ResourceReader
 
-	if kustomize == "" {
-		reader = NewManifestResourceReader(files)
-	} else {
-		reader = NewKustomizeResourceReader(kustomize)
-	}
-
-	loadResource, err := reader.LoadResource()
-	if err != nil && !continueOnError {
-		return err
-	}
-
-	//goland:noinspection GoNilness
-	infos, err := loadResource.GetResourceInfo(c, continueOnError)
-	if err != nil {
-		log.Logf("Error while resolve [ResourceInfo] from [Info] %s, err:%s", loadResource, err)
-		if !continueOnError {
-			return err
-		}
-	}
-
-	if flags != nil && flags.BeforeApply != nil {
-		if err := (flags.BeforeApply)(loadResource.String()); err != nil {
-			return err
-		}
-	}
-
-	if flags != nil && flags.DoApply {
-		for _, info := range infos {
-			_ = c.ApplyResourceInfo(info, flags)
-		}
-	}
-
-	return nil
+	return c.renderManifestAndThen(
+		files, continueOnError, flags, kustomize,
+		func(c *ClientGoUtils, r *resource.Info) error {
+			return c.ApplyResourceInfo(r, flags)
+		},
+	)
 }
 
 // useless temporally
 func (c *ClientGoUtils) Delete(files []string, continueOnError bool, flags *ApplyFlags, kustomize string) error {
+
+	return c.renderManifestAndThen(
+		files, continueOnError, flags, kustomize,
+		func(c *ClientGoUtils, r *resource.Info) error {
+
+			// for now the apply flag used to adding annotations
+			// while apply resource
+			// delete resource need not to do that
+			return c.DeleteResourceInfo(r)
+		},
+	)
+}
+
+// useless temporally
+func (c *ClientGoUtils) renderManifestAndThen(
+	files []string, continueOnError bool, flags *ApplyFlags,
+	kustomize string, doForResourceInfo func(c *ClientGoUtils, r *resource.Info) error,
+) error {
 	var reader ResourceReader
 
 	if kustomize == "" {
@@ -139,7 +130,9 @@ func (c *ClientGoUtils) Delete(files []string, continueOnError bool, flags *Appl
 
 	if flags != nil && flags.DoApply {
 		for _, info := range infos {
-			_ = c.DeleteResourceInfo(info)
+			if err := doForResourceInfo(c, info); err != nil && !continueOnError {
+				return errors.Wrap(err, "Error while apply resourceInfo")
+			}
 		}
 	}
 	return nil
