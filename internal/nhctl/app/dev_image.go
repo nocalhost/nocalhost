@@ -15,6 +15,7 @@ package app
 import (
 	"context"
 	"fmt"
+	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"nocalhost/internal/nhctl/profile"
 	"strconv"
@@ -280,6 +281,48 @@ func (a *Application) genResourceReq(svcName string) *corev1.ResourceRequirement
 	return requirements
 }
 
+func generateSideCarContainer(workDir string) corev1.Container {
+
+	sideCarContainer := corev1.Container{
+		Name:       "nocalhost-sidecar",
+		Image:      DefaultSideCarImage,
+		WorkingDir: workDir,
+	}
+
+	// over write syncthing command
+	sideCarContainer.Command = []string{"/bin/sh", "-c"}
+	sideCarContainer.Args = []string{
+		"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome +
+			"/* " + secret_config.DefaultSyncthingHome +
+			"/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing",
+	}
+	return sideCarContainer
+}
+
+func findDevContainer(dep *v1.Deployment, containerName string) (*corev1.Container, error) {
+	var devContainer *corev1.Container
+	if containerName != "" {
+		for index, c := range dep.Spec.Template.Spec.Containers {
+			if c.Name == containerName {
+				return &dep.Spec.Template.Spec.Containers[index], nil
+			}
+		}
+		if devContainer == nil {
+			return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
+		}
+	} else {
+		if len(dep.Spec.Template.Spec.Containers) > 1 {
+			return nil, errors.New(fmt.Sprintf("There are more than one container defined," +
+				"please specify one to start developing"))
+		}
+		if len(dep.Spec.Template.Spec.Containers) == 0 {
+			return nil, errors.New("No container defined ???")
+		}
+		devContainer = &dep.Spec.Template.Spec.Containers[0]
+	}
+	return devContainer, nil
+}
+
 // In DevMode, nhctl will replace the container of your workload with two containers:
 // one is called devContainer, the other is called sideCarContainer
 func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *DevStartOptions) error {
@@ -300,25 +343,9 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 		return err
 	}
 
-	var devContainer *corev1.Container
-	if ops.Container != "" {
-		for index, c := range dep.Spec.Template.Spec.Containers {
-			if c.Name == ops.Container {
-				devContainer = &dep.Spec.Template.Spec.Containers[index]
-				break
-			}
-		}
-		if devContainer == nil {
-			return errors.New(fmt.Sprintf("Container %s not found", ops.Container))
-		}
-	} else {
-		if len(dep.Spec.Template.Spec.Containers) > 1 {
-			return errors.New(fmt.Sprintf("There are more than one container defined, please specify one to start developing"))
-		}
-		if len(dep.Spec.Template.Spec.Containers) == 0 {
-			return errors.New("No container defined ???")
-		}
-		devContainer = &dep.Spec.Template.Spec.Containers[0]
+	devContainer, err := findDevContainer(dep, ops.Container)
+	if err != nil {
+		return err
 	}
 
 	devModeVolumes := make([]corev1.Volume, 0)
@@ -340,24 +367,8 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 
 	workDir := a.GetDefaultWorkDir(svcName, ops.Container)
 	devImage := a.GetDefaultDevImage(svcName, ops.Container) // Default : replace the first container
-	sideCarImage := DefaultSideCarImage
-	if ops.SideCarImage != "" {
-		sideCarImage = ops.SideCarImage
-	}
 
-	sideCarContainer := corev1.Container{
-		Name:       "nocalhost-sidecar",
-		Image:      sideCarImage,
-		WorkingDir: workDir,
-	}
-
-	// over write syncthing command
-	sideCarContainer.Command = []string{"/bin/sh", "-c"}
-	sideCarContainer.Args = []string{
-		"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome +
-			"/* " + secret_config.DefaultSyncthingHome +
-			"/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing",
-	}
+	sideCarContainer := generateSideCarContainer(workDir)
 
 	devContainer.Image = devImage
 	devContainer.Name = "nocalhost-dev"
@@ -443,7 +454,10 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 			return err
 		}
 	}
+	return a.waitingPodOfDeploymentToBeReady(dep.Name)
+}
 
+func (a *Application) waitingPodOfDeploymentToBeReady(deployName string) error {
 	// Wait podList to be ready
 	spinner := utils.NewSpinner(" Waiting pod to start...")
 	spinner.Start()
@@ -452,9 +466,8 @@ wait:
 	for {
 		<-time.NewTimer(time.Second * 1).C
 		// Get the latest revision
-		podList, err := a.client.ListLatestRevisionPodsByDeployment(dep.Name)
+		podList, err := a.client.ListLatestRevisionPodsByDeployment(deployName)
 		if err != nil {
-			log.WarnE(err, "Failed to get pods")
 			return err
 		}
 		if len(podList) == 1 {
@@ -464,7 +477,7 @@ wait:
 				continue
 			}
 			if len(pod.Spec.Containers) == 0 {
-				log.Fatalf("%s has no container ???", pod.Name)
+				return errors.New(fmt.Sprintf("%s has no container ???", pod.Name))
 			}
 
 			// Make sure all containers are ready and running
