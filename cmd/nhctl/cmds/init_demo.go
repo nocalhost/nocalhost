@@ -165,7 +165,11 @@ var InitCommand = &cobra.Command{
 			return
 		}
 
-		nhctl := tools.GetNhctl()
+		nhctl, err := utils.GetNhctlPath()
+		if err != nil {
+			log.FatalE(err, "")
+			return
+		}
 		// if force init, remove all init data first
 		if inits.Force {
 			spinner := utils.NewSpinner(" waiting for force uninstall Nocalhost...")

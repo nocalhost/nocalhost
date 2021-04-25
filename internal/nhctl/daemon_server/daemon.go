@@ -29,7 +29,6 @@ import (
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
-	"os/exec"
 	"runtime/debug"
 	"strings"
 )
@@ -261,9 +260,9 @@ func response(conn net.Conn, v interface{}) {
 
 func handlerRestartDaemonServerCommand(isSudoUser bool) error {
 	tcpCancelFunc() // Stop listening tcp port
-	nhctlPath, err := exec.LookPath(utils.GetNhctlBinName())
+	nhctlPath, err := utils.GetNhctlPath()
 	if err != nil {
-		return errors.Wrap(err, "")
+		return err
 	}
 	daemonArgs := []string{nhctlPath, "daemon", "start"}
 	if isSudoUser {

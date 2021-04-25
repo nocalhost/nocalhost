@@ -27,25 +27,23 @@ import (
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
-	"os/exec"
 	"time"
 )
 
 type DaemonClient struct {
-	isSudo bool
+	isSudo                 bool
 	daemonServerListenPort int
 }
 
 func StartDaemonServer(isSudoUser bool) error {
-	nhctlPath, err := exec.LookPath(utils.GetNhctlBinName())
+	nhctlPath, err := utils.GetNhctlPath()
 	if err != nil {
-		return errors.Wrap(err, "")
+		return err
 	}
 	daemonArgs := []string{nhctlPath, "daemon", "start"}
 	if isSudoUser {
 		daemonArgs = append(daemonArgs, "--sudo", "true")
 	}
-
 	return daemon.RunSubProcess(daemonArgs, nil, false)
 }
 

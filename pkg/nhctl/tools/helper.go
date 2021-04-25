@@ -192,13 +192,13 @@ func CheckThirdPartyCLI() (string, error) {
 	return kubectl, nil
 }
 
-func GetNhctl() string {
-	nhctl := "nhctl"
-	if runtime.GOOS == "windows" {
-		nhctl = "nhctl.exe"
-	}
-	return nhctl
-}
+//func GetNhctl() string {
+//	nhctl := "nhctl"
+//	if runtime.GOOS == "windows" {
+//		nhctl = "nhctl.exe"
+//	}
+//	return nhctl
+//}
 
 func GenerateRangeNum(min, max int) int {
 	rand.Seed(time.Now().Unix())

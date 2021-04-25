@@ -18,7 +18,6 @@ import (
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
-	"os/exec"
 )
 
 func recoverSyncthing() error {
@@ -47,9 +46,9 @@ func recoverSyncthingForApplication(ns, appName string) error {
 		return errors.New("Profile not found")
 	}
 
-	nhctlPath, err := exec.LookPath(utils.GetNhctlBinName())
+	nhctlPath, err := utils.GetNhctlPath()
 	if err != nil {
-		return errors.Wrap(err, "")
+		return err
 	}
 
 	for _, svcProfile := range profile.SvcProfile {
