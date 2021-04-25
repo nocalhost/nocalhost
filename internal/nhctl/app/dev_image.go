@@ -54,9 +54,14 @@ func (a *Application) markReplicaSetRevision(svcName string) error {
 		for _, rs := range rss {
 			if rs.Annotations[DevImageRevisionAnnotationKey] == DevImageRevisionAnnotationValue {
 				firstRevisionName = rs.Name
+
 				if rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] == "" {
-					rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] = strconv.Itoa(originalPodReplicas)
-					_, err = a.client.UpdateReplicaSet(rs)
+					//rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] = strconv.Itoa(originalPodReplicas)
+					//rsStr := strconv.Itoa(originalPodReplicas)
+					err = a.client.Patch("ReplicaSet", rs.Name,
+						fmt.Sprintf(`{"op": "add","path": "metadata/annotations", "value": "%s=%d" }`,
+							DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas))
+					//_, err = a.client.UpdateReplicaSet(rs)
 					if err != nil {
 						return errors.New("Failed to update rs's annotation")
 					}
