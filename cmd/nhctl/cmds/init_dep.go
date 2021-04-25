@@ -59,6 +59,7 @@ var InitDepCommand = &cobra.Command{
 		fmt.Printf("kubeconfig %s \n", kubeConfig)
 		if err != nil || client == nil {
 			log.Fatalf("new go client fail, err: %s, or check you kubeconfig\n", err)
+			return
 		}
 		// wait for job and deployment
 		spinner := utils.NewSpinner(

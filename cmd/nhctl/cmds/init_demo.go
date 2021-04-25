@@ -162,6 +162,7 @@ var InitCommand = &cobra.Command{
 		log.Debugf("kubeconfig %s \n", kubeConfig)
 		if err != nil || client == nil {
 			log.Fatalf("new go client fail, err %s, or check you kubeconfig\n", err)
+			return
 		}
 
 		nhctl := tools.GetNhctl()
@@ -313,6 +314,7 @@ func findOutWebEndpoint(client *clientgoutils.ClientGoUtils) string {
 		service, err := client.GetService("nocalhost-web")
 		if err != nil || service == nil {
 			log.Fatal("getting svc nocalhost-web from kubernetes failed")
+			return ""
 		}
 
 		ports := service.Spec.Ports
