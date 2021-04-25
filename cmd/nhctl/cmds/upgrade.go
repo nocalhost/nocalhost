@@ -25,44 +25,21 @@ import (
 
 func init() {
 
-	//upgradeCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
 	upgradeCmd.Flags().StringVarP(&installFlags.GitUrl, "git-url", "u", "", "resources git url")
 	upgradeCmd.Flags().StringVarP(&installFlags.GitRef, "git-ref", "r", "", "resources git ref")
 	upgradeCmd.Flags().StringSliceVar(&installFlags.ResourcePath, "resource-path", []string{}, "resources path")
-	//installCmd.Flags().StringVarP(&installFlags.OuterConfig, "outer-config", "c", "",
-	//"specify a config.yaml in local path")
 	upgradeCmd.Flags().StringVar(&installFlags.Config, "config", "", "specify a config relative to .nocalhost dir")
 	upgradeCmd.Flags().StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
 	//installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "",
 	//fmt.Sprintf("nocalhost application type: %s or %s or %s", app.HelmRepo, app.Helm, app.Manifest))
-
-	//installCmd.Flags().BoolVar(&installFlags.HelmWait, "wait", installFlags.HelmWait, "wait for completion")
-
-	//installCmd.Flags().BoolVar(&installFlags.IgnorePreInstall, "ignore-pre-install",
-	//installFlags.IgnorePreInstall, "ignore pre-install")
-
-	//installCmd.Flags().StringSliceVar(&installFlags.HelmSet, "set", []string{}, "set values on the command line
-	// (can specify multiple or separate values with commas: key1=val1,key2=val2)")
-	upgradeCmd.Flags().StringVar(
-		&installFlags.HelmRepoName, "helm-repo-name", "",
-		"chart repository name",
-	)
-	upgradeCmd.Flags().StringVar(
-		&installFlags.HelmRepoUrl, "helm-repo-url", "",
-		"chart repository url where to locate the requested chart",
-	)
-	upgradeCmd.Flags().StringVar(
-		&installFlags.HelmRepoVersion, "helm-repo-version", "",
-		"chart repository version",
-	)
-	upgradeCmd.Flags().StringVar(
-		&installFlags.HelmChartName, "helm-chart-name", "",
-		"chart name",
-	)
-	upgradeCmd.Flags().StringVar(
-		&installFlags.LocalPath, "local-path", "",
-		"local path for application",
-	)
+	upgradeCmd.Flags().StringSliceVar(&installFlags.HelmSet, "set", []string{},
+		"set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
+	upgradeCmd.Flags().StringVar(&installFlags.HelmRepoName, "helm-repo-name", "", "chart repository name")
+	upgradeCmd.Flags().StringVar(&installFlags.HelmRepoUrl, "helm-repo-url", "",
+		"chart repository url where to locate the requested chart")
+	upgradeCmd.Flags().StringVar(&installFlags.HelmRepoVersion, "helm-repo-version", "", "chart repository version")
+	upgradeCmd.Flags().StringVar(&installFlags.HelmChartName, "helm-chart-name", "", "chart name")
+	upgradeCmd.Flags().StringVar(&installFlags.LocalPath, "local-path", "", "local path for application")
 	rootCmd.AddCommand(upgradeCmd)
 }
 
