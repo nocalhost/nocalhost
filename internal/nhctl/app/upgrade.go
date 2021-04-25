@@ -311,6 +311,9 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 	if installFlags.HelmValueFile != "" {
 		params = append(params, "-f", installFlags.HelmValueFile)
 	}
+	for _, set := range installFlags.HelmSet {
+		params = append(params, "--set", set)
+	}
 	params = append(params, "--timeout", "60m")
 	params = append(params, commonParams...)
 
