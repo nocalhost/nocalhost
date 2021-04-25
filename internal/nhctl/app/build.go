@@ -145,7 +145,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
 }
 
-func (app *Application) loadOrGenerateConfig(
+func (a *Application) loadOrGenerateConfig(
 	outerConfig, config string, resourcePath []string, appType string,
 ) (*profile.NocalHostAppConfigV2, error) {
 	var nocalhostConfig *profile.NocalHostAppConfigV2
@@ -154,7 +154,7 @@ func (app *Application) loadOrGenerateConfig(
 	configFilePath := outerConfig
 	// Read from .nocalhost
 	if configFilePath == "" {
-		if _, err := os.Stat(app.getConfigPathInGitResourcesDir(config)); err != nil {
+		if _, err := os.Stat(a.getConfigPathInGitResourcesDir(config)); err != nil {
 			if !os.IsNotExist(err) {
 				return nil, errors.Wrap(err, "")
 			}
@@ -162,7 +162,7 @@ func (app *Application) loadOrGenerateConfig(
 			renderedConfig := &profile.NocalHostAppConfigV2{
 				ConfigProperties: &profile.ConfigProperties{Version: "v2"},
 				ApplicationConfig: &profile.ApplicationConfig{
-					Name:           app.Name,
+					Name:           a.Name,
 					Type:           appType,
 					ResourcePath:   resourcePath,
 					IgnoredPath:    nil,
@@ -174,18 +174,18 @@ func (app *Application) loadOrGenerateConfig(
 				},
 			}
 			configBys, err := yaml.Marshal(renderedConfig)
-			if err = ioutil.WriteFile(app.GetConfigV2Path(), configBys, 0644); err != nil {
+			if err = ioutil.WriteFile(a.GetConfigV2Path(), configBys, 0644); err != nil {
 				return nil, errors.New("fail to create configFile")
 			}
 			nocalhostConfig = renderedConfig
 		} else {
-			configFilePath = app.getConfigPathInGitResourcesDir(config)
+			configFilePath = a.getConfigPathInGitResourcesDir(config)
 		}
 	}
 
 	// config.yaml found
 	if configFilePath != "" {
-		if nocalhostConfig, err = app.renderConfig(configFilePath); err != nil {
+		if nocalhostConfig, err = a.renderConfig(configFilePath); err != nil {
 			return nil, err
 		}
 	}

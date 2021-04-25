@@ -26,25 +26,13 @@ import (
 func init() {
 
 	//upgradeCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
-	upgradeCmd.Flags().StringVarP(
-		&installFlags.GitUrl, "git-url", "u", "",
-		"resources git url",
-	)
-	upgradeCmd.Flags().StringVarP(
-		&installFlags.GitRef, "git-ref", "r", "",
-		"resources git ref",
-	)
-	upgradeCmd.Flags().StringSliceVar(
-		&installFlags.ResourcePath, "resource-path", []string{},
-		"resources path",
-	)
+	upgradeCmd.Flags().StringVarP(&installFlags.GitUrl, "git-url", "u", "", "resources git url")
+	upgradeCmd.Flags().StringVarP(&installFlags.GitRef, "git-ref", "r", "", "resources git ref")
+	upgradeCmd.Flags().StringSliceVar(&installFlags.ResourcePath, "resource-path", []string{}, "resources path")
 	//installCmd.Flags().StringVarP(&installFlags.OuterConfig, "outer-config", "c", "",
 	//"specify a config.yaml in local path")
-	upgradeCmd.Flags().StringVar(
-		&installFlags.Config, "config", "",
-		"specify a config relative to .nocalhost dir",
-	)
-	//installCmd.Flags().StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
+	upgradeCmd.Flags().StringVar(&installFlags.Config, "config", "", "specify a config relative to .nocalhost dir")
+	upgradeCmd.Flags().StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
 	//installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "",
 	//fmt.Sprintf("nocalhost application type: %s or %s or %s", app.HelmRepo, app.Helm, app.Manifest))
 
