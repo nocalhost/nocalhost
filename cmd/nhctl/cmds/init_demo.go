@@ -314,6 +314,7 @@ func findOutWebEndpoint(client *clientgoutils.ClientGoUtils) string {
 		service, err := client.GetService("nocalhost-web")
 		if err != nil || service == nil {
 			log.Fatal("getting svc nocalhost-web from kubernetes failed")
+			return ""
 		}
 
 		ports := service.Spec.Ports
