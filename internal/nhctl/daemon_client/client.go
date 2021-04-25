@@ -48,6 +48,10 @@ func StartDaemonServer(isSudoUser bool) error {
 }
 
 func waitForTCPPortToBeReady(port int, timeout time.Duration) error {
+	return waitTCPPort(false, port, timeout)
+}
+
+func waitTCPPort(available bool, port int, timeout time.Duration) error {
 	ctx, _ := context.WithTimeout(context.TODO(), timeout)
 	for {
 		select {
@@ -56,11 +60,15 @@ func waitForTCPPortToBeReady(port int, timeout time.Duration) error {
 		default:
 			<-time.Tick(1 * time.Second)
 			b := ports.IsTCP4PortAvailable("0.0.0.0", port)
-			if !b {
+			if b == available {
 				return nil
 			}
 		}
 	}
+}
+
+func waitForTCPPortToBeDown(port int, timeout time.Duration) error {
+	return waitTCPPort(true, port, timeout)
 }
 
 func CheckIfDaemonServerRunning(isSudoUser bool) bool {
@@ -83,14 +91,9 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 	} else {
 		client.daemonServerListenPort = daemon_common.DefaultDaemonPort
 	}
-	if ports.IsTCP4PortAvailable("0.0.0.0", client.daemonServerListenPort) {
-		if err = StartDaemonServer(isSudoUser); err != nil {
-			return nil, err
-		}
-		log.Log("Waiting daemon to start")
-		if err = waitForTCPPortToBeReady(client.daemonServerListenPort, 10*time.Second); err != nil {
-			return nil, err
-		}
+
+	if err = startDaemonServer(isSudoUser, client.daemonServerListenPort); err != nil {
+		return nil, err
 	}
 	// Check Server's version
 	bys, err := client.SendGetDaemonServerInfoCommand()
@@ -106,9 +109,27 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 
 	if info.Version != daemon_common.Version || info.CommitId != daemon_common.CommitId {
 		log.Log("Upgrading daemon server")
-		utils.Should(client.SendRestartDaemonServerCommand())
+		utils.Should(client.SendStopDaemonServerCommand())
+		utils.Should(waitForTCPPortToBeDown(client.daemonServerListenPort, 10*time.Second))
+		if err = startDaemonServer(isSudoUser, client.daemonServerListenPort); err != nil {
+			return nil, err
+		}
+		//utils.Should(client.SendRestartDaemonServerCommand())
 	}
 	return client, nil
+}
+
+func startDaemonServer(isSudoUser bool, port int) error {
+	if ports.IsTCP4PortAvailable("0.0.0.0", port) {
+		if err := StartDaemonServer(isSudoUser); err != nil {
+			return err
+		}
+		log.Log("Waiting daemon to start")
+		if err := waitForTCPPortToBeReady(port, 10*time.Second); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *DaemonClient) SendGetDaemonServerInfoCommand() ([]byte, error) {
