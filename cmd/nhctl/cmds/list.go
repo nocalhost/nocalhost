@@ -18,6 +18,7 @@ import (
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
 	"os"
+	"sort"
 	"strconv"
 
 	"gopkg.in/yaml.v2"
@@ -114,6 +115,13 @@ func ListApplicationsResult() []*Namespace {
 			},
 		)
 	}
+
+	sort.Slice(
+		ns.Application, func(i, j int) bool {
+			return ns.Application[i].Name > ns.Application[j].Name
+		},
+	)
+
 	result = append(result, ns)
 	return result
 }
