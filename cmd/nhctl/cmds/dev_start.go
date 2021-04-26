@@ -126,6 +126,14 @@ var devStartCmd = &cobra.Command{
 
 		must(nocalhostApp.GetAppMeta().DeploymentDevStart(deployment, profileV2.Identifier))
 
+		// prevent dev status modified but not actually enter dev mode
+		var devStartSuccess = false
+		defer func() {
+			if !devStartSuccess {
+				_ = nocalhostApp.GetAppMeta().DeploymentDevEnd(deployment)
+			}
+		}()
+
 		newSyncthing, err := nocalhostApp.NewSyncthing(
 			deployment, devStartOps.Container, devStartOps.LocalSyncDir, false,
 		)
@@ -179,6 +187,9 @@ var devStartCmd = &cobra.Command{
 
 		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
 		must(err)
+
+		// mark dev start as true
+		devStartSuccess = true
 
 		for _, pf := range pfList {
 			utils.Should(nocalhostApp.PortForward(deployment, podName, pf.LocalPort, pf.RemotePort, pf.Role))
