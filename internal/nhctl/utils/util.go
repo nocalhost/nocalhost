@@ -15,13 +15,14 @@ package utils
 import (
 	"crypto/sha1"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
 	"io/ioutil"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"reflect"
@@ -72,6 +73,16 @@ func GetNhctlBinName() string {
 		return "nhctl.exe"
 	}
 	return "nhctl"
+}
+
+func GetNhctlPath() (string, error) {
+	path, _ := filepath.Abs(os.Args[0])
+	if _, err := os.Stat(path); err != nil {
+		log.Info("Try to file nhctl from $PATH")
+		p, err := exec.LookPath(GetNhctlBinName())
+		return p, errors.Wrap(err, "")
+	}
+	return path, nil
 }
 
 func CopyFile(src, dst string) (err error) {
