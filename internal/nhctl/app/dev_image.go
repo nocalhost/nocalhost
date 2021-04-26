@@ -55,20 +55,16 @@ func (a *Application) markReplicaSetRevision(svcName string) error {
 				return nil
 			}
 		}
-
 		rs := rss[0]
 		err = a.client.Patch("ReplicaSet", rs.Name,
-			fmt.Sprintf(`{"op": "add","path": "/metadata/annotations", "value": "%s=%d" }`,
-				DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas))
-		//rs.Annotations[DevImageRevisionAnnotationKey] = DevImageRevisionAnnotationValue
-		//rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] = strconv.Itoa(originalPodReplicas)
-		//_, err = a.client.UpdateReplicaSet(rs)
+			fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
+				DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas, DevImageRevisionAnnotationKey,
+				DevImageRevisionAnnotationValue))
 		if err != nil {
 			return errors.New("Failed to update rs's annotation :" + err.Error())
 		} else {
 			log.Infof("%s has been marked as first revision", rs.Name)
 		}
-
 	}
 	return nil
 }

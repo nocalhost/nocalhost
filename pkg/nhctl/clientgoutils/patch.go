@@ -14,7 +14,6 @@ package clientgoutils
 
 import (
 	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/patch"
 	"os"
@@ -25,8 +24,9 @@ func (c *ClientGoUtils) Patch(resourceType string, name string, jsonStr string) 
 		In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr,
 	} // don't print log to stderr
 	o := patch.NewPatchOptions(ioStreams)
-
-	if err := o.Complete(c.newFactory(), &cobra.Command{}, []string{resourceType, name}); err != nil {
+	cmd := patch.NewCmdPatch(c.newFactory(), ioStreams)
+	//cmd.Flags()
+	if err := o.Complete(c.newFactory(), cmd, []string{resourceType, name}); err != nil {
 		return errors.Wrap(err, "")
 	}
 	o.Patch = jsonStr
