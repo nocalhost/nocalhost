@@ -37,13 +37,14 @@ import (
 
 // BuildApplication When a application is installed, something representing the application will build, including:
 // 1. An directory (NhctlAppDir) under $NhctlHomeDir/ns/$NameSpace will be created and initiated
-// 2. An .config_v2.yaml will be created under $NhctlAppDir, it may come from an config file under
+// 2. An config will be created and upload to the secret in the k8s cluster, it may come from an config file under
 //   .nocalhost in your git repository or an outer config file in your local file system
-// 3. An .profile_v2.yaml will be created under $NhctlAppDir, it will record the status of this application
+// 3. An leveldb will be created under $NhctlAppDir, it will record the status of this application
 // build a new application
 func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig string, namespace string) (
-	*Application, error,
-) {
+	*Application, error) {
+
+	var err error
 
 	app := &Application{
 		Name:       name,
@@ -51,8 +52,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		KubeConfig: kubeconfig,
 	}
 
-	err := app.initDir()
-	if err != nil {
+	if err = app.initDir(); err != nil {
 		return nil, err
 	}
 
@@ -70,8 +70,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	if flags.GitUrl != "" {
-		if err = app.downloadResourcesFromGit(flags.GitUrl, flags.GitRef, app.ResourceTmpDir); err != nil {
-			log.Debugf("Failed to clone : %s ref: %s", flags.GitUrl, flags.GitRef)
+		if err = downloadResourcesFromGit(flags.GitUrl, flags.GitRef, app.ResourceTmpDir); err != nil {
 			return nil, err
 		}
 	} else if flags.LocalPath != "" { // local path of application, copy to nocalhost resource
@@ -93,31 +92,16 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	if appMeta.IsInstalled() {
-		return nil, errors.New(
-			fmt.Sprintf(
-				"Application %s - namespace %s has already been installed, "+
-					"you can use 'nhctl uninstall %s -n %s' to uninstall this applications ",
-				name, namespace, name, namespace,
-			),
-		)
+		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s has already been installed", name, namespace))
 	} else if appMeta.IsInstalling() {
-		return nil, errors.New(
-			fmt.Sprintf(
-				"Application %s - namespace %s is installing, "+
-					"you can use 'nhctl uninstall %s -n %s' to uninstall this applications ",
-				name, namespace, name, namespace,
-			),
-		)
+		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing", name, namespace))
 	}
 
 	app.appMeta = appMeta
 
 	if err = appMeta.Initial(); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
-			log.Error(
-				"Application %s has been installed, you can use 'nhctl uninstall %s -n %s' to uninstall this applications ",
-				app.Name, app.Name, app.NameSpace,
-			)
+			log.Error("Application %s in %s has been installed", app.Name, app.NameSpace)
 		}
 		return nil, err
 	}
@@ -137,7 +121,6 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		appProfileV2.ResourcePath = flags.ResourcePath
 	}
 
-	//app.profileV2 = appProfileV2
 	app.AppType = appProfileV2.AppType
 
 	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
@@ -170,10 +153,6 @@ func (a *Application) loadOrGenerateConfig(outerConfig, config string, resourceP
 					ServiceConfigs: nil,
 				},
 			}
-			//configBys, err := yaml.Marshal(renderedConfig)
-			//if err = ioutil.WriteFile(a.GetConfigV2Path(), configBys, 0644); err != nil {
-			//	return nil, errors.New("fail to create configFile")
-			//}
 			nocalhostConfig = renderedConfig
 		} else {
 			configFilePath = a.getConfigPathInGitResourcesDir(config)
@@ -188,6 +167,10 @@ func (a *Application) loadOrGenerateConfig(outerConfig, config string, resourceP
 	}
 
 	return nocalhostConfig, nil
+}
+
+func updateProfileFromConfig(appProfile profile.AppProfileV2, config *profile.NocalHostAppConfigV2) {
+
 }
 
 func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.AppProfileV2 {
@@ -247,6 +230,9 @@ func renderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) 
 
 	if configVersion == "v1" {
 		v2TmpDir, _ := ioutil.TempDir("", "")
+		if err = os.MkdirAll(v2TmpDir, DefaultNewFilePermission); err != nil {
+			return nil, errors.Wrap(err, "Fail to create tmp dir")
+		}
 		defer func() {
 			_ = os.RemoveAll(v2TmpDir)
 		}()

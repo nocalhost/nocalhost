@@ -49,11 +49,7 @@ func (a *Application) GetDependencies() []*SvcDependency {
 // Get local path of resource dirs
 // If resource path undefined, use git url
 func (a *Application) GetResourceDir(tmpDir string) []string {
-	appProfile, err := a.GetProfile()
-	if err != nil {
-		log.Warn("Profile is nil ???")
-		panic(err) // todo
-	}
+	appProfile, _ := a.GetProfile()
 	var resourcePath []string
 	if len(appProfile.ResourcePath) != 0 {
 		for _, path := range appProfile.ResourcePath {
@@ -65,6 +61,7 @@ func (a *Application) GetResourceDir(tmpDir string) []string {
 	return []string{tmpDir}
 }
 
+// Deprecated
 func (a *Application) getUpgradeResourceDir(upgradeResourcePath []string) []string {
 	var resourcePath []string
 	if len(upgradeResourcePath) != 0 {

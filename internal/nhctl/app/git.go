@@ -48,10 +48,11 @@ func cloneFromGit(gitUrl string, gitRef string, destPath string) error {
 
 }
 
-func (a *Application) downloadResourcesFromGit(gitUrl, gitRef, destPath string) error {
+func downloadResourcesFromGit(gitUrl, gitRef, destPath string) error {
 	return cloneFromGit(gitUrl, gitRef, destPath)
 }
 
+// Deprecated
 func (a *Application) copyUpgradeResourcesFromLocalDir(localDir string) error {
 
 	_, err := os.Stat(a.getUpgradeGitDir())
@@ -69,6 +70,7 @@ func (a *Application) copyUpgradeResourcesFromLocalDir(localDir string) error {
 	return errors.Wrap(utils.CopyDir(localDir, a.getUpgradeGitDir()), "")
 }
 
+// Deprecated
 func (a *Application) downloadUpgradeResourcesFromGit(gitUrl string, gitRef string) error {
 	_, err := os.Stat(a.getUpgradeGitDir())
 	if err == nil {
@@ -90,10 +92,7 @@ func (a *Application) downloadUpgradeResourcesFromGit(gitUrl string, gitRef stri
 func removeDir(dir string) error {
 	_, err := os.Stat(dir)
 	if err == nil {
-		err = os.RemoveAll(dir)
-		if err != nil {
-			return errors.Wrap(err, "")
-		}
+		return errors.Wrap(os.RemoveAll(dir), "")
 	}
 	return nil
 }

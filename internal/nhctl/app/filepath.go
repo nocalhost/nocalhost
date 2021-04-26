@@ -93,7 +93,7 @@ func (a *Application) GetConfigPath() string {
 	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigPath)
 }
 
-// GetConfigV2Path Deprecated
+// Deprecated
 func (a *Application) GetConfigV2Path() string {
 	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigV2Path)
 }

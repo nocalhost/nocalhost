@@ -195,11 +195,11 @@ func (a *Application) generateSecretForEarlierVer() bool {
 		return false
 	}
 
-	if a.HasBeenGenerateSecret(){
+	if a.HasBeenGenerateSecret() {
 		return false
 	}
 
-	if  profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() && a.Name != DefaultNocalhostApplication {
+	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() && a.Name != DefaultNocalhostApplication {
 		a.AppType = profileV2.AppType
 
 		defer func() {
@@ -246,7 +246,6 @@ func (a *Application) generateSecretForEarlierVer() bool {
 
 		a.appMeta.ApplicationState = appmeta.INSTALLED
 		_ = a.appMeta.Update()
-
 
 		log.Logf("Application %s in ns %s is completed secreted", a.Name, a.NameSpace)
 		return false
@@ -893,8 +892,7 @@ func (a *Application) SetPidFileEmpty(filePath string) error {
 
 func (a *Application) CleanUpTmpResources() error {
 	log.Log("Clean up tmp resources...")
-	return errors.Wrap(
-		os.RemoveAll(a.ResourceTmpDir),
+	return errors.Wrap(os.RemoveAll(a.ResourceTmpDir),
 		fmt.Sprintf("fail to remove resources dir %s", a.ResourceTmpDir),
 	)
 }
@@ -902,8 +900,7 @@ func (a *Application) CleanUpTmpResources() error {
 func (a *Application) CleanupResources() error {
 	log.Info("Remove resource files...")
 	homeDir := a.GetHomeDir()
-	return errors.Wrap(
-		os.RemoveAll(homeDir),
+	return errors.Wrap(os.RemoveAll(homeDir),
 		fmt.Sprintf("fail to remove resources dir %s", homeDir),
 	)
 }
