@@ -87,6 +87,7 @@ var upgradeCmd = &cobra.Command{
 		must(nocalhostApp.PrepareForUpgrade(installFlags))
 
 		must(nocalhostApp.Upgrade(installFlags))
+		//must(nocalhostApp.CleanUpTmpResources())
 
 		// Restart port forward
 		for svcName, pfList := range pfListMap {

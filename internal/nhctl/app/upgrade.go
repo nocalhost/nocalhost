@@ -15,32 +15,51 @@ package app
 import (
 	"fmt"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	"io/ioutil"
 	"k8s.io/cli-runtime/pkg/resource"
 	flag "nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/envsubst"
-	"nocalhost/internal/nhctl/fp"
-	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
 )
 
-func (a *Application) PrepareForUpgrade(installFlags *flag.InstallFlags) error {
+func (a *Application) PrepareForUpgrade(flags *flag.InstallFlags) error {
 
 	var err error
-	if installFlags.GitUrl != "" {
-		if err = a.downloadUpgradeResourcesFromGit(installFlags.GitUrl, installFlags.GitRef); err != nil {
+	a.ResourceTmpDir, _ = ioutil.TempDir("", "")
+	if err = os.MkdirAll(a.ResourceTmpDir, DefaultNewFilePermission); err != nil {
+		return errors.New("Fail to create tmp dir for upgrade")
+	}
+	if flags.GitUrl != "" {
+		if err = downloadResourcesFromGit(flags.GitUrl, flags.GitRef, a.ResourceTmpDir); err != nil {
 			return err
 		}
-	} else if installFlags.LocalPath != "" {
-		if err = a.copyUpgradeResourcesFromLocalDir(installFlags.LocalPath); err != nil {
-			return errors.Wrap(err, "")
+	} else if flags.LocalPath != "" {
+		if err = utils.CopyDir(flags.LocalPath, a.ResourceTmpDir); err != nil {
+			return err
 		}
 	}
-	return nil
+
+	config, err := a.loadOrGenerateConfig(flags.OuterConfig, flags.Config, flags.ResourcePath, flags.AppType)
+	if err != nil {
+		return err
+	}
+
+	a.appMeta.Config = config
+	if err := a.appMeta.Update(); err != nil {
+		return err
+	}
+
+	p, err := a.GetProfileForUpdate()
+	if err != nil {
+		return err
+	}
+	defer p.CloseDb()
+	updateProfileFromConfig(p, config)
+	return p.Save()
 }
 
 func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
@@ -61,7 +80,7 @@ func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
 
 func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error {
 	var err error
-	resourcesPath := a.getUpgradeResourceDir(installFlags.ResourcePath)
+	resourcesPath := a.GetResourceDir(a.ResourceTmpDir)
 	if len(resourcesPath) > 1 {
 		log.Warn(`There are multiple resourcesPath settings, will use first one`)
 	}
@@ -80,87 +99,17 @@ func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error
 	if err != nil {
 		return err
 	}
-	return removeDir(a.getUpgradeGitDir())
+	return a.CleanUpTmpResources()
 }
 
 func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error {
-
-	var err error
-	var upgradeResourcePath []string
-	if len(installFlags.ResourcePath) > 0 {
-		upgradeResourcePath = installFlags.ResourcePath
-	} else {
-		// Get resource path for upgrade .nocalhost
-		configFilePath := a.getUpgradeConfigPathGit(installFlags.Config)
-		_, err := os.Stat(configFilePath)
-		if err != nil {
-			log.WarnE(errors.Wrap(err, ""), "Failed to load config.yaml")
-		} else {
-			// Render
-			configFile := fp.NewFilePath(configFilePath)
-
-			var envFile *fp.FilePathEnhance
-			if relPath := gettingRenderEnvFile(configFilePath); relPath != "" {
-				envFile = configFile.RelOrAbs("../").RelOrAbs(relPath)
-
-				if e := envFile.CheckExist(); e != nil {
-					log.Log(
-						"Render %s Nocalhost config without env files, we found the env "+
-							"file had been configured as %s, but we can not found in %s",
-						configFile.Abs(), relPath, envFile.Abs(),
-					)
-				} else {
-					log.Log("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
-				}
-			} else {
-				log.Log(
-					"Render %s Nocalhost config without env files, you config your Nocalhost "+
-						"configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2",
-					configFile.Abs(),
-				)
-			}
-
-			renderedStr, err := envsubst.Render(configFile, envFile)
-			//configBytes, err := ioutil.ReadFile(configFilePath)
-			if err != nil {
-				log.WarnE(errors.Wrap(err, ""), err.Error())
-			} else {
-				configBytes := []byte(renderedStr)
-				// render config bytes
-				configV2 := &profile.NocalHostAppConfigV2{}
-				err = yaml.Unmarshal(configBytes, configV2)
-				if err != nil {
-					log.WarnE(errors.Wrap(err, ""), "Failed to unmarshal config v2")
-				} else {
-					if configV2.ConfigProperties != nil && configV2.ConfigProperties.Version == "v2" {
-						if configV2.ApplicationConfig != nil && len(configV2.ApplicationConfig.ResourcePath) > 0 {
-							log.Info("Updating resource path from config v2")
-							upgradeResourcePath = configV2.ApplicationConfig.ResourcePath
-						}
-					} else {
-						configV1 := &profile.NocalHostAppConfig{}
-						err = yaml.Unmarshal(configBytes, configV1)
-						if err != nil {
-							log.WarnE(errors.Wrap(err, ""), "Failed to unmarshal config v1")
-						} else {
-							if len(configV1.ResourcePath) > 0 {
-								log.Info("Updating resource path from config v1")
-								upgradeResourcePath = configV1.ResourcePath
-							}
-						}
-					}
-				}
-			}
-		}
-	}
 
 	profileV2, err := a.GetProfile()
 	if err != nil {
 		return err
 	}
 	// todo need to refactor
-	profileV2.ResourcePath = upgradeResourcePath
-	_, manifests := profileV2.LoadManifests(a.getUpgradeGitDir())
+	_, manifests := profileV2.LoadManifests(a.ResourceTmpDir)
 
 	// Read upgrade resource obj
 	updateResource, err := clientgoutils.NewManifestResourceReader(manifests).LoadResource()
@@ -188,7 +137,7 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 		return err
 	}
 
-	return removeDir(a.getUpgradeGitDir())
+	return a.CleanUpTmpResources()
 }
 
 func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*resource.Info, continueOnErr bool) error {
@@ -265,6 +214,7 @@ func isContainsInfo(info *resource.Info, infos []*resource.Info) bool {
 
 func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo bool) error {
 
+	resourceDir := a.ResourceTmpDir
 	appProfile, err := a.GetProfile()
 	if err != nil {
 		return err
@@ -295,7 +245,7 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 			params = append(params, "--version", installFlags.HelmRepoVersion)
 		}
 	} else {
-		resourcesPath := a.getUpgradeResourceDir(appProfile.ResourcePath)
+		resourcesPath := a.GetResourceDir(resourceDir)
 		params = append(params, resourcesPath[0])
 		log.Info("building dependency...")
 		depParams := []string{"dependency", "build", resourcesPath[0]}

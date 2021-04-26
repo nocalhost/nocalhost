@@ -67,23 +67,12 @@ type Application struct {
 	KubeConfig string
 	AppType    string
 
-	// may nil, only for install or upgrade
+	// may be nil, only for install or upgrade
 	// dir use to load the user's resource
 	ResourceTmpDir string
 
 	appMeta *appmeta.ApplicationMeta
-
-	// profileV2 is created and saved to leveldb when `install`
-	// profileV2 will not be nil if you use NewApplication a get a Application
-	// you can only get const data from it, such as Namespace,AppType...
-	// don't save it to leveldb directly
-	//profileV2 *profile.AppProfileV2
-
-	client *clientgoutils.ClientGoUtils
-
-	// for upgrade
-	upgradeSortedPreInstallManifest []string
-	upgradeInstallManifest          []string
+	client  *clientgoutils.ClientGoUtils
 }
 
 type SvcDependency struct {
@@ -195,11 +184,11 @@ func (a *Application) generateSecretForEarlierVer() bool {
 		return false
 	}
 
-	if a.HasBeenGenerateSecret(){
+	if a.HasBeenGenerateSecret() {
 		return false
 	}
 
-	if  profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() && a.Name != DefaultNocalhostApplication {
+	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() && a.Name != DefaultNocalhostApplication {
 		a.AppType = profileV2.AppType
 
 		defer func() {
@@ -246,7 +235,6 @@ func (a *Application) generateSecretForEarlierVer() bool {
 
 		a.appMeta.ApplicationState = appmeta.INSTALLED
 		_ = a.appMeta.Update()
-
 
 		log.Logf("Application %s in ns %s is completed secreted", a.Name, a.NameSpace)
 		return false
@@ -893,8 +881,7 @@ func (a *Application) SetPidFileEmpty(filePath string) error {
 
 func (a *Application) CleanUpTmpResources() error {
 	log.Log("Clean up tmp resources...")
-	return errors.Wrap(
-		os.RemoveAll(a.ResourceTmpDir),
+	return errors.Wrap(os.RemoveAll(a.ResourceTmpDir),
 		fmt.Sprintf("fail to remove resources dir %s", a.ResourceTmpDir),
 	)
 }
@@ -902,8 +889,7 @@ func (a *Application) CleanUpTmpResources() error {
 func (a *Application) CleanupResources() error {
 	log.Info("Remove resource files...")
 	homeDir := a.GetHomeDir()
-	return errors.Wrap(
-		os.RemoveAll(homeDir),
+	return errors.Wrap(os.RemoveAll(homeDir),
 		fmt.Sprintf("fail to remove resources dir %s", homeDir),
 	)
 }

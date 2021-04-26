@@ -14,7 +14,6 @@ package app
 
 import (
 	"github.com/pkg/errors"
-	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
 	"strings"
@@ -48,41 +47,8 @@ func cloneFromGit(gitUrl string, gitRef string, destPath string) error {
 
 }
 
-func (a *Application) downloadResourcesFromGit(gitUrl, gitRef, destPath string) error {
+func downloadResourcesFromGit(gitUrl, gitRef, destPath string) error {
 	return cloneFromGit(gitUrl, gitRef, destPath)
-}
-
-func (a *Application) copyUpgradeResourcesFromLocalDir(localDir string) error {
-
-	_, err := os.Stat(a.getUpgradeGitDir())
-	if err == nil {
-		err = os.RemoveAll(a.getUpgradeGitDir())
-		if err != nil {
-			return errors.Wrap(err, "")
-		}
-	}
-
-	err = os.Mkdir(a.getUpgradeGitDir(), DefaultNewFilePermission)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	return errors.Wrap(utils.CopyDir(localDir, a.getUpgradeGitDir()), "")
-}
-
-func (a *Application) downloadUpgradeResourcesFromGit(gitUrl string, gitRef string) error {
-	_, err := os.Stat(a.getUpgradeGitDir())
-	if err == nil {
-		err = os.RemoveAll(a.getUpgradeGitDir())
-		if err != nil {
-			return errors.Wrap(err, "")
-		}
-	}
-
-	err = os.Mkdir(a.getUpgradeGitDir(), DefaultNewFilePermission)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	return cloneFromGit(gitUrl, gitRef, a.getUpgradeGitDir())
 }
 
 // remove srcDir to destDir
@@ -90,10 +56,7 @@ func (a *Application) downloadUpgradeResourcesFromGit(gitUrl string, gitRef stri
 func removeDir(dir string) error {
 	_, err := os.Stat(dir)
 	if err == nil {
-		err = os.RemoveAll(dir)
-		if err != nil {
-			return errors.Wrap(err, "")
-		}
+		return errors.Wrap(os.RemoveAll(dir), "")
 	}
 	return nil
 }

@@ -49,11 +49,7 @@ func (a *Application) GetDependencies() []*SvcDependency {
 // Get local path of resource dirs
 // If resource path undefined, use git url
 func (a *Application) GetResourceDir(tmpDir string) []string {
-	appProfile, err := a.GetProfile()
-	if err != nil {
-		log.Warn("Profile is nil ???")
-		panic(err) // todo
-	}
+	appProfile, _ := a.GetProfile()
 	var resourcePath []string
 	if len(appProfile.ResourcePath) != 0 {
 		for _, path := range appProfile.ResourcePath {
@@ -65,36 +61,11 @@ func (a *Application) GetResourceDir(tmpDir string) []string {
 	return []string{tmpDir}
 }
 
-func (a *Application) getUpgradeResourceDir(upgradeResourcePath []string) []string {
-	var resourcePath []string
-	if len(upgradeResourcePath) != 0 {
-		for _, path := range upgradeResourcePath {
-			fullPath := filepath.Join(a.getUpgradeGitDir(), path)
-			resourcePath = append(resourcePath, fullPath)
-		}
-		return resourcePath
-	}
-	return []string{a.getUpgradeGitDir()}
-}
-
 func (a *Application) getIgnoredPath() []string {
 	appProfile, _ := a.GetProfile()
 	results := make([]string, 0)
 	for _, path := range appProfile.IgnoredPath {
 		results = append(results, filepath.Join(a.ResourceTmpDir, path))
-	}
-	return results
-}
-
-func (a *Application) getUpgradePreInstallFiles() []string {
-	return a.upgradeSortedPreInstallManifest
-}
-
-func (a *Application) getUpgradeIgnoredPath() []string {
-	appProfile, _ := a.GetProfile()
-	results := make([]string, 0)
-	for _, path := range appProfile.IgnoredPath {
-		results = append(results, filepath.Join(a.getUpgradeGitDir(), path))
 	}
 	return results
 }

@@ -28,18 +28,6 @@ func (a *Application) getResourceDir() string {
 	return filepath.Join(a.GetHomeDir(), "resources")
 }
 
-func (a *Application) getUpgradeGitDir() string {
-	return filepath.Join(a.GetHomeDir(), DefaultUpgradeResourcesDir)
-}
-
-func (a *Application) getUpgradeConfigPathGit(configName string) string {
-	if configName == "" {
-		return filepath.Join(a.getUpgradeGitDir(), DefaultGitNocalhostDir, DefaultConfigNameInGitNocalhostDir)
-	} else {
-		return filepath.Join(a.getUpgradeGitDir(), DefaultGitNocalhostDir, configName)
-	}
-}
-
 func (a *Application) getGitNocalhostDir() string {
 	return filepath.Join(a.ResourceTmpDir, DefaultGitNocalhostDir)
 }
@@ -47,9 +35,8 @@ func (a *Application) getGitNocalhostDir() string {
 func (a *Application) getConfigPathInGitResourcesDir(configName string) string {
 	if configName == "" {
 		return filepath.Join(a.ResourceTmpDir, DefaultGitNocalhostDir, DefaultConfigNameInGitNocalhostDir)
-	} else {
-		return filepath.Join(a.ResourceTmpDir, DefaultGitNocalhostDir, configName)
 	}
+	return filepath.Join(a.ResourceTmpDir, DefaultGitNocalhostDir, configName)
 }
 
 func (a *Application) GetPortSyncLogFile(deployment string) string {
@@ -94,6 +81,7 @@ func (a *Application) GetConfigPath() string {
 	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigPath)
 }
 
+// Deprecated
 func (a *Application) GetConfigV2Path() string {
 	return filepath.Join(a.GetHomeDir(), DefaultApplicationConfigV2Path)
 }
