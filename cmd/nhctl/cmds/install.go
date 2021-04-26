@@ -195,10 +195,7 @@ func InstallApplication(applicationName string) error {
 
 	// build Application will create the application meta and it's secret
 	// init the application's config
-	if nocalhostApp, err = app.BuildApplication(
-		applicationName,
-		installFlags, kubeConfig, nameSpace,
-	); err != nil {
+	if nocalhostApp, err = app.BuildApplication(applicationName, installFlags, kubeConfig, nameSpace); err != nil {
 		return err
 	}
 

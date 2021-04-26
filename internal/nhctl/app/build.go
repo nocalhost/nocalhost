@@ -30,11 +30,12 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
 
-// When a application is installed, something representing the application will build, including:
+// BuildApplication When a application is installed, something representing the application will build, including:
 // 1. An directory (NhctlAppDir) under $NhctlHomeDir/ns/$NameSpace will be created and initiated
 // 2. An .config_v2.yaml will be created under $NhctlAppDir, it may come from an config file under
 //   .nocalhost in your git repository or an outer config file in your local file system
@@ -56,8 +57,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	app.ResourceTmpDir, _ = ioutil.TempDir("", "")
-	err = os.MkdirAll(app.ResourceTmpDir, DefaultNewFilePermission)
-	if err != nil {
+	if err = os.MkdirAll(app.ResourceTmpDir, DefaultNewFilePermission); err != nil {
 		return nil, errors.New("Fail to create tmp dir for install")
 	}
 
@@ -81,9 +81,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	// load nocalhost config from dir
-	config, err := app.loadOrGenerateConfig(
-		flags.OuterConfig, flags.Config, flags.ResourcePath, flags.AppType,
-	)
+	config, err := app.loadOrGenerateConfig(flags.OuterConfig, flags.Config, flags.ResourcePath, flags.AppType)
 	if err != nil {
 		return nil, err
 	}
@@ -145,8 +143,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
 }
 
-func (a *Application) loadOrGenerateConfig(
-	outerConfig, config string, resourcePath []string, appType string,
+func (a *Application) loadOrGenerateConfig(outerConfig, config string, resourcePath []string, appType string,
 ) (*profile.NocalHostAppConfigV2, error) {
 	var nocalhostConfig *profile.NocalHostAppConfigV2
 	var err error
@@ -173,10 +170,10 @@ func (a *Application) loadOrGenerateConfig(
 					ServiceConfigs: nil,
 				},
 			}
-			configBys, err := yaml.Marshal(renderedConfig)
-			if err = ioutil.WriteFile(a.GetConfigV2Path(), configBys, 0644); err != nil {
-				return nil, errors.New("fail to create configFile")
-			}
+			//configBys, err := yaml.Marshal(renderedConfig)
+			//if err = ioutil.WriteFile(a.GetConfigV2Path(), configBys, 0644); err != nil {
+			//	return nil, errors.New("fail to create configFile")
+			//}
 			nocalhostConfig = renderedConfig
 		} else {
 			configFilePath = a.getConfigPathInGitResourcesDir(config)
@@ -185,7 +182,7 @@ func (a *Application) loadOrGenerateConfig(
 
 	// config.yaml found
 	if configFilePath != "" {
-		if nocalhostConfig, err = a.renderConfig(configFilePath); err != nil {
+		if nocalhostConfig, err = renderConfig(configFilePath); err != nil {
 			return nil, err
 		}
 	}
@@ -216,7 +213,7 @@ func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.Ap
 }
 
 // V2
-func (a *Application) renderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) {
+func renderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) {
 	configFile := fp.NewFilePath(configFilePath)
 
 	var envFile *fp.FilePathEnhance
@@ -224,20 +221,17 @@ func (a *Application) renderConfig(configFilePath string) (*profile.NocalHostApp
 		envFile = configFile.RelOrAbs("../").RelOrAbs(relPath)
 
 		if e := envFile.CheckExist(); e != nil {
-			log.Log(
-				"Render %s Nocalhost config without env files, we found the env file "+
-					"had been configured as %s, but we can not found in %s",
-				configFile.Abs(), relPath, envFile.Abs(),
-			)
+			log.Logf(`Render %s Nocalhost config without env files, we found the env file 
+				had been configured as %s, but we can not found in %s`,
+				configFile.Abs(), relPath, envFile.Abs())
 		} else {
-			log.Log("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
+			log.Logf("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
 		}
 	} else {
 		log.Log(
 			"Render %s Nocalhost config without env files, you config your Nocalhost "+
 				"configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2",
-			configFile.Abs(),
-		)
+			configFile.Abs())
 	}
 
 	renderedStr, err := envsubst.Render(configFile, envFile)
@@ -252,12 +246,17 @@ func (a *Application) renderConfig(configFilePath string) (*profile.NocalHostApp
 	}
 
 	if configVersion == "v1" {
-		if err = ConvertConfigFileV1ToV2(configFilePath, a.GetConfigV2Path()); err != nil {
+		v2TmpDir, _ := ioutil.TempDir("", "")
+		defer func() {
+			_ = os.RemoveAll(v2TmpDir)
+		}()
+
+		v2Path := filepath.Join(v2TmpDir, DefaultApplicationConfigV2Path)
+		if err = ConvertConfigFileV1ToV2(configFilePath, v2Path); err != nil {
 			return nil, err
 		}
 
-		renderedStr, err = envsubst.Render(fp.NewFilePath(a.GetConfigV2Path()), envFile)
-		if err != nil {
+		if renderedStr, err = envsubst.Render(fp.NewFilePath(v2Path), envFile); err != nil {
 			return nil, err
 		}
 	}
