@@ -18,7 +18,6 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"nocalhost/internal/nhctl/profile"
-	"strconv"
 	"strings"
 	"time"
 
@@ -50,40 +49,26 @@ func (a *Application) markReplicaSetRevision(svcName string) error {
 		if dep0.Spec.Replicas != nil {
 			originalPodReplicas = int(*dep0.Spec.Replicas)
 		}
-		firstRevisionName := ""
 		for _, rs := range rss {
-			if rs.Annotations[DevImageRevisionAnnotationKey] == DevImageRevisionAnnotationValue {
-				firstRevisionName = rs.Name
+			if _, ok := rs.Annotations[DevImageRevisionAnnotationKey]; ok {
+				// already marked
+				return nil
+			}
+		}
 
-				if rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] == "" {
-					//rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] = strconv.Itoa(originalPodReplicas)
-					//rsStr := strconv.Itoa(originalPodReplicas)
-					err = a.client.Patch("ReplicaSet", rs.Name,
-						fmt.Sprintf(`{"op": "add","path": "metadata/annotations", "value": "%s=%d" }`,
-							DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas))
-					//_, err = a.client.UpdateReplicaSet(rs)
-					if err != nil {
-						return errors.New("Failed to update rs's annotation")
-					}
-				}
-				break
-			}
-		}
-		if firstRevisionName != "" {
-			log.Debugf("First revision replicaSet %s has already been marked", firstRevisionName)
+		rs := rss[0]
+		err = a.client.Patch("ReplicaSet", rs.Name,
+			fmt.Sprintf(`{"op": "add","path": "/metadata/annotations", "value": "%s=%d" }`,
+				DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas))
+		//rs.Annotations[DevImageRevisionAnnotationKey] = DevImageRevisionAnnotationValue
+		//rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] = strconv.Itoa(originalPodReplicas)
+		//_, err = a.client.UpdateReplicaSet(rs)
+		if err != nil {
+			return errors.New("Failed to update rs's annotation :" + err.Error())
 		} else {
-			rs := rss[0]
-			rs.Annotations[DevImageRevisionAnnotationKey] = DevImageRevisionAnnotationValue
-			rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] = strconv.Itoa(originalPodReplicas)
-			// _, err = a.client.ClientSet.AppsV1().
-			// ReplicaSets(a.GetNamespace()).Update(ctx, rs, metav1.UpdateOptions{})
-			_, err = a.client.UpdateReplicaSet(rs)
-			if err != nil {
-				return errors.New("Failed to update rs's annotation :" + err.Error())
-			} else {
-				log.Infof("%s has been marked as first revision", rs.Name)
-			}
+			log.Infof("%s has been marked as first revision", rs.Name)
 		}
+
 	}
 	return nil
 }
@@ -328,7 +313,7 @@ func findDevContainer(dep *v1.Deployment, containerName string) (*corev1.Contain
 	return devContainer, nil
 }
 
-// In DevMode, nhctl will replace the container of your workload with two containers:
+// ReplaceImage In DevMode, nhctl will replace the container of your workload with two containers:
 // one is called devContainer, the other is called sideCarContainer
 func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *DevStartOptions) error {
 
