@@ -57,9 +57,9 @@ func (a *Application) markReplicaSetRevision(svcName string) error {
 		}
 		rs := rss[0]
 		err = a.client.Patch("ReplicaSet", rs.Name,
-			fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
+			fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}, "namespace": "%s"}`,
 				DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas, DevImageRevisionAnnotationKey,
-				DevImageRevisionAnnotationValue))
+				DevImageRevisionAnnotationValue, a.NameSpace))
 		if err != nil {
 			return errors.New("Failed to update rs's annotation :" + err.Error())
 		} else {
