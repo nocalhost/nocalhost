@@ -109,6 +109,7 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 
 	if info.Version != daemon_common.Version || info.CommitId != daemon_common.CommitId {
 		log.Log("Upgrading daemon server")
+		// todo only use stop for v0.4.0
 		utils.Should(client.SendStopDaemonServerCommand())
 		utils.Should(waitForTCPPortToBeDown(client.daemonServerListenPort, 10*time.Second))
 		if err = startDaemonServer(isSudoUser, client.daemonServerListenPort); err != nil {
@@ -128,6 +129,7 @@ func startDaemonServer(isSudoUser bool, port int) error {
 		if err := waitForTCPPortToBeReady(port, 10*time.Second); err != nil {
 			return err
 		}
+		log.Log("Daemon started")
 	}
 	return nil
 }
