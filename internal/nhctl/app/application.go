@@ -67,23 +67,12 @@ type Application struct {
 	KubeConfig string
 	AppType    string
 
-	// may nil, only for install or upgrade
+	// may be nil, only for install or upgrade
 	// dir use to load the user's resource
 	ResourceTmpDir string
 
 	appMeta *appmeta.ApplicationMeta
-
-	// profileV2 is created and saved to leveldb when `install`
-	// profileV2 will not be nil if you use NewApplication a get a Application
-	// you can only get const data from it, such as Namespace,AppType...
-	// don't save it to leveldb directly
-	//profileV2 *profile.AppProfileV2
-
-	client *clientgoutils.ClientGoUtils
-
-	// for upgrade
-	upgradeSortedPreInstallManifest []string
-	upgradeInstallManifest          []string
+	client  *clientgoutils.ClientGoUtils
 }
 
 type SvcDependency struct {

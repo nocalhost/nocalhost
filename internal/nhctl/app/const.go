@@ -15,21 +15,13 @@ package app
 import "time"
 
 const (
-	DefaultSideCarImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
-	//DefaultDevImage            = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
-	//DefaultWorkDir             = "/home/nocalhost-dev"
-	DefaultUpgradeResourcesDir = "upgrade_resources"
-	//DefaultNhctlHomeDirName                  = ".nh/nhctl"
-	//DefaultBinDirName                        = "bin"
-	//DefaultLogDirName                        = "logs"
+	DefaultSideCarImage                      = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
 	DefaultSyncLogFileName                   = "sync-port-forward-child-process.log"
 	DefaultApplicationSyncPortForwardPidFile = "sync-port-forward.pid"
-	//DefaultBinSyncThingDirName               = "syncthing"
 	DefaultBackGroundPortForwardLogFileName  = "alone-port-forward-child-process.log"
 	DefaultApplicationOnlyPortForwardPidFile = "alone-port-forward.pid"
 	GetFileLockPath                          = "lock"
 	DefaultApplicationSyncPidFile            = "syncthing.pid"
-	//DefaultApplicationDirName                = "application"
 
 	DefaultSecretGenSign               = "secreted"
 	DefaultApplicationConfigPath       = ".config.yaml"

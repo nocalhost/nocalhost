@@ -61,37 +61,11 @@ func (a *Application) GetResourceDir(tmpDir string) []string {
 	return []string{tmpDir}
 }
 
-// Deprecated
-func (a *Application) getUpgradeResourceDir(upgradeResourcePath []string) []string {
-	var resourcePath []string
-	if len(upgradeResourcePath) != 0 {
-		for _, path := range upgradeResourcePath {
-			fullPath := filepath.Join(a.getUpgradeGitDir(), path)
-			resourcePath = append(resourcePath, fullPath)
-		}
-		return resourcePath
-	}
-	return []string{a.getUpgradeGitDir()}
-}
-
 func (a *Application) getIgnoredPath() []string {
 	appProfile, _ := a.GetProfile()
 	results := make([]string, 0)
 	for _, path := range appProfile.IgnoredPath {
 		results = append(results, filepath.Join(a.ResourceTmpDir, path))
-	}
-	return results
-}
-
-func (a *Application) getUpgradePreInstallFiles() []string {
-	return a.upgradeSortedPreInstallManifest
-}
-
-func (a *Application) getUpgradeIgnoredPath() []string {
-	appProfile, _ := a.GetProfile()
-	results := make([]string, 0)
-	for _, path := range appProfile.IgnoredPath {
-		results = append(results, filepath.Join(a.getUpgradeGitDir(), path))
 	}
 	return results
 }

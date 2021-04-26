@@ -169,8 +169,33 @@ func (a *Application) loadOrGenerateConfig(outerConfig, config string, resourceP
 	return nocalhostConfig, nil
 }
 
-func updateProfileFromConfig(appProfile profile.AppProfileV2, config *profile.NocalHostAppConfigV2) {
+func updateProfileFromConfig(appProfileV2 *profile.AppProfileV2, config *profile.NocalHostAppConfigV2) {
+	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
+	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
+	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
+	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
+	appProfileV2.Env = config.ApplicationConfig.Env
 
+	if len(appProfileV2.SvcProfile) == 0 {
+		appProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
+	}
+	for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {
+		var f bool
+		for _, svcP := range appProfileV2.SvcProfile {
+			if svcP.ActualName == svcConfig.Name {
+				svcP.ServiceConfigV2 = svcConfig
+				f = true
+				break
+			}
+		}
+		if !f {
+			svcProfile := &profile.SvcProfileV2{
+				ActualName:      svcConfig.Name,
+				ServiceConfigV2: svcConfig,
+			}
+			appProfileV2.SvcProfile = append(appProfileV2.SvcProfile, svcProfile)
+		}
+	}
 }
 
 func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.AppProfileV2 {
