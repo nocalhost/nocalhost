@@ -25,7 +25,6 @@ func (c *ClientGoUtils) Patch(resourceType string, name string, jsonStr string) 
 	} // don't print log to stderr
 	o := patch.NewPatchOptions(ioStreams)
 	cmd := patch.NewCmdPatch(c.newFactory(), ioStreams)
-	//cmd.Flags()
 	if err := o.Complete(c.newFactory(), cmd, []string{resourceType, name}); err != nil {
 		return errors.Wrap(err, "")
 	}

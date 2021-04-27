@@ -14,6 +14,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -57,14 +58,13 @@ func (a *Application) markReplicaSetRevision(svcName string) error {
 		}
 		rs := rss[0]
 		err = a.client.Patch("ReplicaSet", rs.Name,
-			fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}, "namespace": "%s"}`,
+			fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
 				DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas, DevImageRevisionAnnotationKey,
-				DevImageRevisionAnnotationValue, a.NameSpace))
+				DevImageRevisionAnnotationValue))
 		if err != nil {
 			return errors.New("Failed to update rs's annotation :" + err.Error())
-		} else {
-			log.Infof("%s has been marked as first revision", rs.Name)
 		}
+		log.Infof("%s has been marked as first revision", rs.Name)
 	}
 	return nil
 }
@@ -426,6 +426,15 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 
 	log.Info("Updating development container...")
 	_, err = a.client.UpdateDeployment(dep, true)
+	//  a.client.Patch("ReplicaSet", rs.Name,
+	//			fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
+	//				DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas, DevImageRevisionAnnotationKey,
+	//				DevImageRevisionAnnotationValue))
+	specJson, err := json.Marshal(&dep.Spec)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	a.client.Patch("Deployment", dep.Name, string(specJson))
 	if err != nil {
 		if strings.Contains(err.Error(), "no PriorityClass") {
 			log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
