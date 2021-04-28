@@ -198,14 +198,25 @@ jobs:
           kubectl create namespace lock --kubeconfig=config || true
           kubectl create configmap $configmapname -n lock --kubeconfig=config || true
           while true; do
+            name=$(kubectl get configmap -n lock --sort-by=.metadata.creationTimestamp --no-headers --kubeconfig=config | head -1 | awk -F ' ' '{print$1}') || true
+            time=$(kubectl get configmap "$name" -n lock -o jsonpath='{.metadata.creationTimestamp}' --kubeconfig=config)
+            timestamp=$(date +'%s' -d "$time")
+            now=$(date +'%s')
+            d=$((($now - $timestamp) / 3600))
+            if [[ $d -gt 3 ]]; then
+              echo "more than 3h, needs to delete lock""$name"
+              kubectl delete configmap $name -n lock --kubeconfig=config
+            else
+              echo "less than 3h, needs to do nothing"
+            fi
+          
             lock=$(kubectl get configmap -n lock --sort-by=.metadata.creationTimestamp --no-headers --kubeconfig=config | head -1 | awk -F ' ' '{print$1}') || true
             echo "current lock: ""$lock"
-            if [ -z "$lock" ]; then
-              break
-            fi
             if [ "$lock" = $configmapname ]; then
               echo "got lock"
               break
+            else
+              echo "Not me"
             fi
             sleep 5
           done
