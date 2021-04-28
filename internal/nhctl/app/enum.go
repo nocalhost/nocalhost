@@ -12,14 +12,14 @@
 
 package app
 
-type SvcType string
+//type SvcType string
 
 const (
-	Deployment  SvcType = "deployment"
-	StatefulSet SvcType = "statefulSet"
-	DaemonSet   SvcType = "daemonSet"
-	Job         SvcType = "job"
-	CronJob     SvcType = "cronJob"
+	//Deployment  SvcType = "deployment"
+	//StatefulSet SvcType = "statefulSet"
+	//DaemonSet   SvcType = "daemonSet"
+	//Job         SvcType = "job"
+	//CronJob     SvcType = "cronJob"
 
 	DevImageRevisionAnnotationKey            = "nhctl.dev.image.revision"
 	DevImageOriginalPodReplicasAnnotationKey = "nhctl.dev.image.original.pod.replicas"

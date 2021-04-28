@@ -13,7 +13,8 @@
 package cmds
 
 import (
-	"errors"
+	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app"
@@ -68,43 +69,45 @@ func Prepare() error {
 	return nil
 }
 
-func CheckIfSvcExist(svcName string, svcType ...string) {
-	serviceType := app.Deployment
-	if len(svcType) > 0 {
-		svcTypeLower := strings.ToLower(svcType[0])
-		switch svcTypeLower {
-		case strings.ToLower(string(app.StatefulSet)):
-			serviceType = app.StatefulSet
-		case strings.ToLower(string(app.DaemonSet)):
-			serviceType = app.DaemonSet
-		case strings.ToLower(string(app.Job)):
-			serviceType = app.Job
-		case strings.ToLower(string(app.CronJob)):
-			serviceType = app.CronJob
-		default:
-			serviceType = app.Deployment
-		}
-	}
+func checkIfSvcExist(svcName string, svcType string) {
 	if svcName == "" {
 		log.Fatal("please use -d to specify a k8s workload")
 	}
-	exist, err := nocalhostApp.CheckIfSvcExist(svcName, serviceType)
+
+	serviceType := appmeta.Deployment
+	if svcType != "" {
+		svcTypeLower := strings.ToLower(svcType)
+		switch svcTypeLower {
+		case strings.ToLower(string(appmeta.Deployment)):
+			serviceType = appmeta.Deployment
+		case strings.ToLower(string(appmeta.StatefulSet)):
+			serviceType = appmeta.StatefulSet
+		case strings.ToLower(string(appmeta.DaemonSet)):
+			serviceType = appmeta.DaemonSet
+		case strings.ToLower(string(appmeta.Job)):
+			serviceType = appmeta.Job
+		case strings.ToLower(string(appmeta.CronJob)):
+			serviceType = appmeta.CronJob
+		default:
+			log.Fatalf("Unsupported SvcType %s", svcType)
+		}
+	}
+
+	nSvc := nocalhostApp.GetService(svcName, serviceType)
+	exist, err := nSvc.CheckIfExist()
 	if err != nil {
 		log.FatalE(err, "failed to check if svc exists")
 	} else if !exist {
-		log.Fatalf("\"%s\" not found", svcName)
+		log.FatalE(errors.New(fmt.Sprintf("Service %s-%s not found!", string(serviceType), svcName)), "")
 	}
+	nocalhostSvc = nSvc
 
 	log.AddField("SVC", svcName)
 }
 
-func initAppAndCheckIfSvcExist(appName string, svcName string, svcAttr []string) {
-	serviceType := "deployment"
-	if len(svcAttr) > 0 {
-		serviceType = svcAttr[0]
-	}
+func initAppAndCheckIfSvcExist(appName string, svcName string, svcType string) {
 	initApp(appName)
-	CheckIfSvcExist(svcName, serviceType)
+	checkIfSvcExist(svcName, svcType)
 }
 
 func InitDefaultApplicationInCurrentNs() error {

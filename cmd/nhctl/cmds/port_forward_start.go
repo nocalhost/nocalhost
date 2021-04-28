@@ -44,7 +44,7 @@ func init() {
 		"which container of pod to run command",
 	)
 	portForwardStartCmd.Flags().StringVarP(
-		&portForwardOptions.ServiceType, "type", "", "deployment",
+		&serviceType, "type", "", "deployment",
 		"specify service type",
 	)
 	portForwardStartCmd.Flags().StringVarP(
@@ -70,7 +70,7 @@ var portForwardStartCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, []string{portForwardOptions.ServiceType})
+		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
 		log.Info("Starting port-forwarding")
 

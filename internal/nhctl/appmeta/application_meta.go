@@ -277,10 +277,10 @@ func (a *ApplicationMeta) DeploymentDevModePossessor(deployment, identifier stri
 		a.DevMeta = devMeta
 	}
 
-	if _, ok := devMeta[DEPLOYMENT]; !ok {
-		devMeta[DEPLOYMENT] = map[ /* resource name */ string] /* identifier */ string{}
+	if _, ok := devMeta[Deployment]; !ok {
+		devMeta[Deployment] = map[ /* resource name */ string] /* identifier */ string{}
 	}
-	m := devMeta[DEPLOYMENT]
+	m := devMeta[Deployment]
 	return m[deployment] == identifier && identifier != ""
 }
 
@@ -320,19 +320,19 @@ func (a *ApplicationMeta) DeploymentDevEnd(deployment string) error {
 	return a.Update()
 }
 
-func (a *ApplicationMeta) CheckIfDeploymentDeveloping(deployment string) bool {
+func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType SvcType) bool {
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
 		a.DevMeta = devMeta
 	}
 
-	if _, ok := devMeta[DEPLOYMENT]; !ok {
-		devMeta[DEPLOYMENT] = map[ /* resource name */ string] /* identifier */ string{}
+	if _, ok := devMeta[svcType.Alias()]; !ok {
+		devMeta[svcType.Alias()] = map[ /* resource name */ string] /* identifier */ string{}
 	}
-	m := devMeta[DEPLOYMENT]
+	m := devMeta[svcType.Alias()]
 
-	_, ok := m[deployment]
+	_, ok := m[name]
 	return ok
 }
 

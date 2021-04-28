@@ -58,10 +58,10 @@ type AppProfileV2 struct {
 	AppType string `json:"app_type" yaml:"appType"`
 }
 
-func (appProfile *AppProfileV2) LoadManifests(tmpDir string) ([]string, []string) {
-	preInstallManifests := appProfile.PreInstall.Load(tmpDir)
-	allManifests := appProfile.ResourcePath.Load(tmpDir)
-	ignore := appProfile.IgnoredPath.Load(tmpDir)
+func (a *AppProfileV2) LoadManifests(tmpDir string) ([]string, []string) {
+	preInstallManifests := a.PreInstall.Load(tmpDir)
+	allManifests := a.ResourcePath.Load(tmpDir)
+	ignore := a.IgnoredPath.Load(tmpDir)
 
 	return preInstallManifests, clientgoutils.LoadValidManifest(allManifests, append(preInstallManifests, ignore...))
 }
@@ -131,7 +131,7 @@ func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
 	return result, nil
 }
 
-func (a *AppProfileV2) FetchSvcProfileV2FromProfile(svcName string) *SvcProfileV2 {
+func (a *AppProfileV2) SvcProfileV2(svcName string) *SvcProfileV2 {
 
 	for _, svcProfile := range a.SvcProfile {
 		if svcProfile.ActualName == svcName {

@@ -365,22 +365,21 @@ func (a *Application) initDir() error {
 }
 
 // svcName use actual name
-func (a *Application) loadConfigToSvcProfile(svcName string, appProfile *profile.AppProfileV2, svcType SvcType) {
+func (a *Application) loadConfigToSvcProfile(svcName string, appProfile *profile.AppProfileV2, svcType appmeta.SvcType) {
 	if appProfile.SvcProfile == nil {
 		appProfile.SvcProfile = make([]*profile.SvcProfileV2, 0)
 	}
 
 	svcProfile := &profile.SvcProfileV2{
 		ActualName: svcName,
-		//Type:       svcType,
 	}
 
 	// find svc config
-	svcConfig := a.appMeta.Config.GetSvcConfigV2(svcName)
+	svcConfig := a.appMeta.Config.GetSvcConfigV2(svcName, string(svcType))
 	if svcConfig == nil && len(appProfile.ReleaseName) > 0 {
 		if strings.HasPrefix(svcName, fmt.Sprintf("%s-", appProfile.ReleaseName)) {
 			name := strings.TrimPrefix(svcName, fmt.Sprintf("%s-", appProfile.ReleaseName))
-			svcConfig = a.appMeta.Config.GetSvcConfigV2(name) // support releaseName-svcName
+			svcConfig = a.appMeta.Config.GetSvcConfigV2(name, string(svcType)) // support releaseName-svcName
 		}
 	}
 

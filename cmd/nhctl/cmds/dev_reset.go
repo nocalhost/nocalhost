@@ -20,10 +20,10 @@ import (
 )
 
 func init() {
-	devResetCmd.Flags().StringVarP(
-		&deployment, "deployment", "d", "",
-		"k8s deployment which your developing service exists",
-	)
+	devResetCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
+		"k8s deployment which your developing service exists")
+	devResetCmd.Flags().StringVarP(&serviceType, "svc-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet")
 	debugCmd.AddCommand(devResetCmd)
 }
 
@@ -40,7 +40,7 @@ var devResetCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
+		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
 		_ = nocalhostApp.DevEnd(deployment, true)
 

@@ -17,6 +17,7 @@ type DevStartOptions struct {
 	SideCarImage string
 	DevImage     string
 	Container    string
+	//SvcType      string
 
 	Kubeconfig string
 

@@ -42,8 +42,7 @@ func (a *Application) GetDevContainerEnv(svcName, container string) *ContainerDe
 	// Find service env
 	devEnv := make([]*profile.Env, 0)
 	kvMap := make(map[string]string, 0)
-	appProfile, _ := a.GetProfile()
-	serviceConfig := appProfile.FetchSvcProfileV2FromProfile(svcName)
+	serviceConfig, _ := a.GetSvcProfile(svcName)
 	for _, v := range serviceConfig.ContainerConfigs {
 		if v.Name == container || container == "" {
 			if v.Dev.EnvFrom != nil && len(v.Dev.EnvFrom.EnvFile) > 0 {

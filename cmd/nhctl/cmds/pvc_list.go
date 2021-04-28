@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+	"nocalhost/internal/nhctl/appmeta"
 
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
@@ -54,7 +55,7 @@ var pvcListCmd = &cobra.Command{
 			var err error
 			initApp(pvcFlags.App)
 			if pvcFlags.Svc != "" {
-				exist, err := nocalhostApp.CheckIfSvcExist(pvcFlags.Svc, app.Deployment)
+				exist, err := nocalhostApp.GetService(pvcFlags.Svc, appmeta.Deployment).CheckIfExist()
 				if err != nil {
 					log.FatalE(err, "failed to check if svc exists")
 				} else if !exist {

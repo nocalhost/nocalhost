@@ -16,7 +16,7 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
@@ -92,9 +92,9 @@ var upgradeCmd = &cobra.Command{
 		// Restart port forward
 		for svcName, pfList := range pfListMap {
 			// find first pod
-			svcType := app.Deployment
+			svcType := appmeta.Deployment
 			if len(pfList) > 0 {
-				svcType = app.SvcType(pfList[0].ServiceType)
+				svcType = appmeta.SvcType(pfList[0].ServiceType)
 			}
 			ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
 			podName, err := nocalhostApp.GetDefaultPodName(ctx, svcName, svcType)

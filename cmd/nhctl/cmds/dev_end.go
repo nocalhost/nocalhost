@@ -15,13 +15,13 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/nocalhost"
-
 	"nocalhost/pkg/nhctl/log"
 )
 
 func init() {
 	devEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
+	devEndCmd.Flags().StringVarP(&serviceType, "svc-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet")
 	debugCmd.AddCommand(devEndCmd)
 }
 
@@ -36,14 +36,13 @@ var devEndCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		var err error
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
+		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
-		meta, err := nocalhost.GetApplicationMetaInstalled(applicationName, nameSpace, kubeConfig)
-		must(err)
+		//meta, err := nocalhost.GetApplicationMetaInstalled(applicationName, nameSpace, kubeConfig)
+		//must(err)
 
-		if b := meta.CheckIfDeploymentDeveloping(deployment); !b {
+		if !nocalhostSvc.IsInDevMode() {
 			log.Fatalf("Service %s is not in DevMode", deployment)
 		}
 

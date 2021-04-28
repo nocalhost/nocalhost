@@ -40,7 +40,7 @@ func (a *Application) AddPortForwardToDB(svcName string, port *profile.DevPortFo
 	}
 	defer profileV2.CloseDb()
 
-	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile := profileV2.SvcProfileV2(svcName)
 	if svcProfile == nil {
 		return errors.New("Failed to get svc profile")
 	}
@@ -57,7 +57,7 @@ func (a *Application) DeletePortForwardFromDB(svcName string, localPort, remoteP
 	}
 	defer profileV2.CloseDb()
 
-	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile := profileV2.SvcProfileV2(svcName)
 	if svcProfile == nil {
 		return errors.New("Failed to add a port-forward to db")
 	}

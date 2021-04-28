@@ -45,7 +45,7 @@ func (a *Application) NewSyncthing(
 			_ = appProfile.CloseDb()
 		}
 	}()
-	svcProfile := appProfile.FetchSvcProfileV2FromProfile(deployment)
+	svcProfile := appProfile.SvcProfileV2(deployment)
 	remotePort := svcProfile.RemoteSyncthingPort
 	remoteGUIPort := svcProfile.RemoteSyncthingGUIPort
 	localListenPort := svcProfile.LocalSyncthingPort
@@ -178,7 +178,7 @@ func (a *Application) CreateSyncThingSecret(svcName string, syncSecret *corev1.S
 	}
 	defer profileV2.CloseDb()
 
-	svcPro := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	svcPro := profileV2.SvcProfileV2(svcName)
 	svcPro.SyncthingSecret = sc.Name
 	return profileV2.Save()
 }

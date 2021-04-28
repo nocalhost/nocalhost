@@ -17,38 +17,6 @@ import (
 	"nocalhost/internal/nhctl/profile"
 )
 
-//func (a *Application) SetRemoteSyncthingGUIPort(svcName string, port int) error {
-//	a.GetSvcProfileV2(svcName).RemoteSyncthingGUIPort = port
-//	return a.SaveProfile()
-//}
-
-//func (a *Application) SetLocalSyncthingPort(svcName string, port int) error {
-//	a.GetSvcProfileV2(svcName).LocalSyncthingPort = port
-//	return a.SaveProfile()
-//}
-
-//func (a *Application) SetLocalSyncthingGUIPort(svcName string, port int) error {
-//	a.GetSvcProfileV2(svcName).LocalSyncthingGUIPort = port
-//	return a.SaveProfile()
-//}
-
-func (a *Application) SetDevelopingStatus(svcName string, is bool) error {
-	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
-	if err != nil {
-		return err
-	}
-	defer profileV2.CloseDb()
-
-	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
-	if svcProfile == nil {
-		return errors.New("Failed to get svc profile")
-	}
-	svcProfile.Developing = is
-
-	//a.GetSvcProfileV2(svcName).Developing = is
-	return profileV2.Save()
-}
-
 func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
 	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 	if err != nil {
@@ -56,7 +24,7 @@ func (a *Application) SetPortForwardedStatus(svcName string, is bool) error {
 	}
 	defer profileV2.CloseDb()
 
-	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile := profileV2.SvcProfileV2(svcName)
 	if svcProfile == nil {
 		return errors.New("Failed to get svc profile")
 	}
@@ -71,27 +39,11 @@ func (a *Application) SetSyncingStatus(svcName string, is bool) error {
 	}
 	defer profileV2.CloseDb()
 
-	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile := profileV2.SvcProfileV2(svcName)
 	if svcProfile == nil {
 		return errors.New("Failed to get svc profile")
 	}
 	svcProfile.Syncing = is
-	return profileV2.Save()
-}
-
-func (a *Application) SetDevEndProfileStatus(svcName string) error {
-	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
-	if err != nil {
-		return err
-	}
-	defer profileV2.CloseDb()
-
-	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
-	if svcProfile == nil {
-		return errors.New("Failed to get svc profile")
-	}
-	svcProfile.Developing = false
-	//a.GetSvcProfileV2(svcName).Developing = false
 	return profileV2.Save()
 }
 
@@ -102,7 +54,7 @@ func (a *Application) SetSyncthingPort(svcName string, remotePort, remoteGUIPort
 	}
 	defer profileV2.CloseDb()
 
-	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile := profileV2.SvcProfileV2(svcName)
 	if svcProfile == nil {
 		return errors.New("Failed to get svc profile")
 	}
@@ -120,7 +72,7 @@ func (a *Application) SetSyncthingProfileEndStatus(svcName string) error {
 	}
 	defer profileV2.CloseDb()
 
-	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile := profileV2.SvcProfileV2(svcName)
 	if svcProfile == nil {
 		return errors.New("Failed to get svc profile")
 	}

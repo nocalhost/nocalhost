@@ -18,6 +18,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/svc"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 )
@@ -28,6 +29,7 @@ var (
 	debug        bool
 	kubeConfig   string // the path to the kubeconfig file
 	nocalhostApp *app.Application
+	nocalhostSvc *svc.Service
 )
 
 func init() {

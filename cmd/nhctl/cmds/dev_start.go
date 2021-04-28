@@ -15,6 +15,7 @@ package cmds
 import (
 	"context"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
@@ -30,53 +31,31 @@ import (
 
 var (
 	deployment  string
-	ServiceType string
-	//Container   string
-	pod string
+	serviceType string
+	pod         string
 )
 
 var devStartOps = &app.DevStartOptions{}
 
 func init() {
 
-	devStartCmd.Flags().StringVarP(
-		&deployment, "deployment", "d", "",
-		"k8s deployment which your developing service exists",
-	)
-	devStartCmd.Flags().StringVarP(
-		&devStartOps.DevImage, "image", "i", "",
-		"image of DevContainer",
-	)
-	devStartCmd.Flags().StringVarP(
-		&devStartOps.Container, "container", "c", "",
-		"container to develop",
-	)
-	devStartCmd.Flags().StringVar(
-		&devStartOps.WorkDir, "work-dir", "",
-		"container's work directory, same as sync path",
-	)
-	devStartCmd.Flags().StringVar(
-		&devStartOps.StorageClass, "storage-class", "",
-		"the StorageClass used by persistent volumes",
-	)
-	devStartCmd.Flags().StringVar(
-		&devStartOps.PriorityClass, "priority-class", "",
-		"the PriorityClass used by devContainer",
-	)
-	devStartCmd.Flags().StringVar(
-		&devStartOps.SideCarImage, "sidecar-image", "",
-		"image of nocalhost-sidecar container",
-	)
-
+	devStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
+		"k8s deployment your developing service exists")
+	devStartCmd.Flags().StringVarP(&serviceType, "svc-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet")
+	devStartCmd.Flags().StringVarP(&devStartOps.DevImage, "image", "i", "", "image of DevContainer")
+	devStartCmd.Flags().StringVarP(&devStartOps.Container, "container", "c", "", "container to develop")
+	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory")
+	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "StorageClass used by PV")
+	devStartCmd.Flags().StringVar(&devStartOps.PriorityClass, "priority-class", "", "PriorityClass used by devContainer")
+	devStartCmd.Flags().StringVar(&devStartOps.SideCarImage, "sidecar-image", "",
+		"image of nocalhost-sidecar container")
 	// for debug only
-	devStartCmd.Flags().StringVar(
-		&devStartOps.SyncthingVersion, "syncthing-version", "",
-		"versions of syncthing and this flag is use for debug only",
-	)
-	// LocalSyncDir is local absolute path to sync provided by plugin
-	devStartCmd.Flags().StringSliceVarP(
-		&devStartOps.LocalSyncDir, "local-sync", "s", []string{}, "local directory to sync",
-	)
+	devStartCmd.Flags().StringVar(&devStartOps.SyncthingVersion, "syncthing-version", "",
+		"versions of syncthing and this flag is use for debug only")
+	// local absolute paths to sync
+	devStartCmd.Flags().StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{},
+		"local directory to sync")
 	debugCmd.AddCommand(devStartCmd)
 }
 
@@ -93,10 +72,10 @@ var devStartCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
+		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
 		if !nocalhostApp.GetAppMeta().IsInstalled() {
-			log.Fatalf(nocalhostApp.GetAppMeta().NotInstallTips())
+			log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
 
 		devStartOps.Kubeconfig = kubeConfig
@@ -105,7 +84,7 @@ var devStartCmd = &cobra.Command{
 		profileV2, err := profile.NewAppProfileV2ForUpdate(nocalhostApp.NameSpace, nocalhostApp.Name)
 		must(err)
 
-		svcProfile := profileV2.FetchSvcProfileV2FromProfile(deployment)
+		svcProfile := profileV2.SvcProfileV2(deployment)
 		if svcProfile == nil {
 			log.Fatal("Svc profile not found")
 			return
@@ -120,7 +99,6 @@ var devStartCmd = &cobra.Command{
 			svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 		}
 		profileV2.GenerateIdentifierIfNeeded()
-
 		profileV2.Save()
 		profileV2.CloseDb()
 
@@ -148,11 +126,9 @@ var devStartCmd = &cobra.Command{
 		}
 
 		_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
-		mustI(
-			err,
-			"Failed to install syncthing, and no syncthing available locally in "+
-				newSyncthing.BinPath+" please try again.",
-		)
+		mustI(err,
+			"Failed to install syncthing, no syncthing available locally in "+
+				newSyncthing.BinPath+" please try again.")
 
 		// set syncthing secret
 		config, err := newSyncthing.GetRemoteConfigXML()
@@ -171,7 +147,7 @@ var devStartCmd = &cobra.Command{
 
 		// Stop port-forward
 		appProfile, _ := nocalhostApp.GetProfile()
-		pfList := appProfile.FetchSvcProfileV2FromProfile(deployment).DevPortForwardList
+		pfList := appProfile.SvcProfileV2(deployment).DevPortForwardList
 		for _, pf := range pfList {
 			log.Infof("Stopping %d:%d", pf.LocalPort, pf.RemotePort)
 			utils.Should(nocalhostApp.EndDevPortForward(deployment, pf.LocalPort, pf.RemotePort))
@@ -183,7 +159,6 @@ var devStartCmd = &cobra.Command{
 			_ = nocalhostApp.DevEnd(deployment, true)
 			os.Exit(1)
 		}
-		must(nocalhostApp.SetDevelopingStatus(deployment, true))
 
 		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
 		must(err)
@@ -195,6 +170,6 @@ var devStartCmd = &cobra.Command{
 			utils.Should(nocalhostApp.PortForward(deployment, podName, pf.LocalPort, pf.RemotePort, pf.Role))
 		}
 
-		must(nocalhostApp.PortForwardAfterDevStart(deployment, devStartOps.Container, app.Deployment))
+		must(nocalhostApp.PortForwardAfterDevStart(deployment, devStartOps.Container, appmeta.Deployment))
 	},
 }

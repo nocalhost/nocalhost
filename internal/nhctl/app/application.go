@@ -23,6 +23,7 @@ import (
 	"nocalhost/internal/nhctl/nocalhost"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/svc"
 	"nocalhost/internal/nhctl/utils"
 	"os"
 	"regexp"
@@ -392,7 +393,7 @@ func (a *Application) SaveSvcProfileV2(svcName string, config *profile.ServiceCo
 	}
 	defer profileV2.CloseDb()
 
-	svcPro := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	svcPro := profileV2.SvcProfileV2(svcName)
 	if svcPro != nil {
 		config.Name = svcName
 		svcPro.ServiceConfigV2 = config
@@ -539,11 +540,11 @@ func (a *Application) RollBack(svcName string, reset bool) error {
 }
 
 type PortForwardOptions struct {
-	Pid         int      `json:"pid" yaml:"pid"`
-	DevPort     []string // 8080:8080 or :8080 means random localPort
-	PodName     string   // directly port-forward pod
-	ServiceType string   // service type such deployment
-	Way         string   // port-forward way, value is manual or devPorts
+	Pid     int      `json:"pid" yaml:"pid"`
+	DevPort []string // 8080:8080 or :8080 means random localPort
+	PodName string   // directly port-forward pod
+	//ServiceType string   // service type such deployment
+	Way         string // port-forward way, value is manual or devPorts
 	RunAsDaemon bool
 	Forward     bool
 }
@@ -552,63 +553,38 @@ type PortForwardEndOptions struct {
 	Port string // 8080:8080
 }
 
-func (a *Application) CheckIfSvcExist(name string, svcType SvcType) (bool, error) {
-	switch svcType {
-	case Deployment:
-		//ctx, _ := context.WithTimeout(context.TODO(), DefaultClientGoTimeOut)
-		dep, err := a.client.GetDeployment(name)
-		if err != nil {
-			return false, errors.Wrap(err, "")
-		}
-		if dep == nil {
-			return false, nil
-		} else {
-			return true, nil
-		}
-	case StatefulSet:
-		dep, err := a.client.GetStatefulSet(name)
-		if err != nil {
-			return false, errors.Wrap(err, "")
-		}
-		if dep == nil {
-			return false, nil
-		} else {
-			return true, nil
-		}
-	case DaemonSet:
-		dep, err := a.client.GetDaemonSet(name)
-		if err != nil {
-			return false, errors.Wrap(err, "")
-		}
-		if dep == nil {
-			return false, nil
-		} else {
-			return true, nil
-		}
-	case Job:
-		dep, err := a.client.GetJobs(name)
-		if err != nil {
-			return false, errors.Wrap(err, "")
-		}
-		if dep == nil {
-			return false, nil
-		} else {
-			return true, nil
-		}
-	case CronJob:
-		dep, err := a.client.GetCronJobs(name)
-		if err != nil {
-			return false, errors.Wrap(err, "")
-		}
-		if dep == nil {
-			return false, nil
-		} else {
-			return true, nil
-		}
-	default:
-		return false, errors.New("unsupported svc type")
+func (a *Application) GetService(name string, svcType appmeta.SvcType) *svc.Service {
+	return &svc.Service{
+		NameSpace: a.NameSpace,
+		AppName:   a.Name,
+		Name:      name,
+		Type:      svcType,
+		Client:    a.client,
+		AppMeta:   a.appMeta,
 	}
 }
+
+//func (a *Application) CheckIfSvcExist(name string, svcType appmeta.SvcType) (bool, error) {
+//	var err error
+//	switch svcType {
+//	case appmeta.Deployment:
+//		_, err = a.client.GetDeployment(name)
+//	case appmeta.StatefulSet:
+//		_, err = a.client.GetStatefulSet(name)
+//	case appmeta.DaemonSet:
+//		_, err = a.client.GetDaemonSet(name)
+//	case appmeta.Job:
+//		_, err = a.client.GetJobs(name)
+//	case appmeta.CronJob:
+//		_, err = a.client.GetCronJobs(name)
+//	default:
+//		return false, errors.New("unsupported svc type")
+//	}
+//	if err != nil {
+//		return false, nil
+//	}
+//	return true, nil
+//}
 
 func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 	if len(pod.Status.ContainerStatuses) == 0 {
@@ -641,7 +617,7 @@ func (a *Application) GetDescription() string {
 		}
 		appProfile.Installed = meta.IsInstalled()
 		for _, svcProfile := range appProfile.SvcProfile {
-			svcProfile.Developing = meta.CheckIfDeploymentDeveloping(svcProfile.ActualName)
+			svcProfile.Developing = meta.CheckIfSvcDeveloping(svcProfile.ActualName, appmeta.SvcType(svcProfile.Type))
 			svcProfile.Possess = a.appMeta.DeploymentDevModePossessor(svcProfile.ActualName, appProfile.Identifier)
 		}
 		bytes, err := yaml.Marshal(appProfile)
@@ -655,9 +631,9 @@ func (a *Application) GetDescription() string {
 func (a *Application) GetSvcDescription(svcName string) string {
 	appProfile, _ := a.GetProfile()
 	desc := ""
-	profile := appProfile.FetchSvcProfileV2FromProfile(svcName)
+	profile := appProfile.SvcProfileV2(svcName)
 	if profile != nil {
-		profile.Developing = a.appMeta.CheckIfDeploymentDeveloping(svcName)
+		profile.Developing = a.appMeta.CheckIfSvcDeveloping(svcName, appmeta.SvcType(profile.Type))
 		profile.Possess = a.appMeta.DeploymentDevModePossessor(svcName, appProfile.Identifier)
 		bytes, err := yaml.Marshal(profile)
 		if err == nil {
@@ -801,7 +777,7 @@ func (a *Application) GetSyncDirFromProfile(
 	svcName string, options *DevStartOptions,
 ) (*DevStartOptions, error) {
 	appProfile, _ := a.GetProfile()
-	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile := appProfile.SvcProfileV2(svcName)
 	if svcProfile == nil {
 		return options,
 			errors.New("get " + svcName + " profile fail, please reinstall application")
@@ -814,7 +790,11 @@ func (a *Application) GetPodsFromDeployment(deployment string) (*corev1.PodList,
 	return a.client.ListPodsByDeployment(deployment)
 }
 
-func (a *Application) GetDefaultPodName(ctx context.Context, svc string, t SvcType) (string, error) {
+//func (a *Application) GetNocalHostSvc(name string, svcType appmeta.SvcType) *nocalhost_svc.NocalHostSvc {
+//	return &nocalhost_svc.NocalHostSvc{Name: name, SvcType: svcType}
+//}
+
+func (a *Application) GetDefaultPodName(ctx context.Context, svc string, t appmeta.SvcType) (string, error) {
 	var (
 		podList *corev1.PodList
 		err     error
@@ -825,12 +805,12 @@ func (a *Application) GetDefaultPodName(ctx context.Context, svc string, t SvcTy
 			return "", errors.New(fmt.Sprintf("Fail to get %s' pod", svc))
 		default:
 			switch t {
-			case Deployment:
+			case appmeta.Deployment:
 				podList, err = a.GetPodsFromDeployment(svc)
 				if err != nil {
 					return "", err
 				}
-			case StatefulSet:
+			case appmeta.StatefulSet:
 				podList, err = a.GetClient().ListPodsByStatefulSet(svc)
 				if err != nil {
 					return "", err

@@ -22,7 +22,7 @@ func (a *Application) GetSvcProfile(svcName string) (*profile.SvcProfileV2, erro
 	if err != nil {
 		return nil, err
 	}
-	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile := profileV2.SvcProfileV2(svcName)
 	if svcProfile == nil {
 		return nil, errors.New("Svc profile not found")
 	}
@@ -31,14 +31,9 @@ func (a *Application) GetSvcProfile(svcName string) (*profile.SvcProfileV2, erro
 }
 
 // Deprecated
-func (a *Application) CheckIfSvcIsDeveloping(svcName string) (bool, error) {
-
-	svcProfile, err := a.GetSvcProfile(svcName)
-	if err != nil {
-		return false, err
-	}
-	return svcProfile.Developing, nil
-}
+//func (a *Application) CheckIfSvcIsDeveloping(svcName string) (bool, error) {
+//	return a.appMeta.CheckIfSvcDeveloping(svcName)
+//}
 
 func (a *Application) CheckIfSvcIsSyncthing(svcName string) (bool, error) {
 	svcProfile, err := a.GetSvcProfile(svcName)

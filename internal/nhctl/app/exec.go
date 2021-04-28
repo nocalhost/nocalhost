@@ -35,8 +35,7 @@ func (a *Application) EnterPodTerminal(svcName string, podName, container string
 		pod = podList[0].Name
 	}
 	shell := ""
-	appProfile, _ := a.GetProfile()
-	profile := appProfile.FetchSvcProfileV2FromProfile(svcName)
+	profile, _ := a.GetSvcProfile(svcName)
 	if profile != nil {
 		devConfig := profile.GetContainerDevConfigOrDefault(container)
 		if devConfig != nil {

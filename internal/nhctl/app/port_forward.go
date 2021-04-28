@@ -15,6 +15,7 @@ package app
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
@@ -51,7 +52,7 @@ func (a *Application) UpdatePortForwardStatus(
 	}
 	defer profileV2.CloseDb()
 
-	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile := profileV2.SvcProfileV2(svcName)
 	if svcProfile == nil {
 		return errors.New("Failed to get svc profile")
 	}
@@ -105,7 +106,7 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 	}
 	defer profileV2.CloseDb()
 
-	svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile := profileV2.SvcProfileV2(svcName)
 	if svcProfile == nil {
 		return errors.New("Failed to get svc profile")
 	}
@@ -158,16 +159,16 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 	return profileV2.CloseDb()
 }
 
-func (a *Application) PortForwardAfterDevStart(svcName string, containerName string, svcType SvcType) error {
+func (a *Application) PortForwardAfterDevStart(svcName string, containerName string, svcType appmeta.SvcType) error {
 	switch svcType {
-	case Deployment:
+	case appmeta.Deployment:
 
 		profileV2, err := a.GetProfile()
 		if err != nil {
 			return err
 		}
 
-		svcProfile := profileV2.FetchSvcProfileV2FromProfile(svcName)
+		svcProfile := profileV2.SvcProfileV2(svcName)
 		if svcProfile == nil {
 			return errors.New("Failed to get svc profile")
 		}

@@ -31,18 +31,13 @@ type ConfigEditFlags struct {
 var configEditFlags = ConfigEditFlags{}
 
 func init() {
-	configEditCmd.Flags().StringVarP(
-		&configEditFlags.SvcName, "deployment", "d", "",
-		"k8s deployment which your developing service exists",
-	)
-	configEditCmd.Flags().StringVarP(
-		&configEditFlags.Content, "content", "c", "",
-		"base64 encode json content",
-	)
-	configEditCmd.Flags().BoolVar(
-		&configEditFlags.AppConfig, "app-config", false,
-		"edit application config",
-	)
+	configEditCmd.Flags().StringVarP(&configEditFlags.SvcName, "deployment", "d", "",
+		"k8s deployment which your developing service exists")
+	configEditCmd.Flags().StringVarP(&serviceType, "svc-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet")
+	configEditCmd.Flags().StringVarP(&configEditFlags.Content, "content", "c", "",
+		"base64 encode json content")
+	configEditCmd.Flags().BoolVar(&configEditFlags.AppConfig, "app-config", false, "edit application config")
 	configCmd.AddCommand(configEditCmd)
 }
 
@@ -77,7 +72,7 @@ var configEditCmd = &cobra.Command{
 		}
 
 		svcConfig := &profile.ServiceConfigV2{}
-		CheckIfSvcExist(configEditFlags.SvcName)
+		checkIfSvcExist(configEditFlags.SvcName, serviceType)
 
 		must(errors.Wrap(json.Unmarshal(bys, svcConfig), "fail to unmarshal content"))
 		must(nocalhostApp.SaveSvcProfileV2(configEditFlags.SvcName, svcConfig))

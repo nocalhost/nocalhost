@@ -26,11 +26,10 @@ import (
 )
 
 func (a *Application) StopAllPortForward(svcName string) error {
-	appProfile, err := a.GetProfile()
+	svcProfile, err := a.GetSvcProfile(svcName)
 	if err != nil {
 		return err
 	}
-	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
 
 	for _, portForward := range svcProfile.DevPortForwardList {
 		utils.Should(a.EndDevPortForward(svcName, portForward.LocalPort, portForward.RemotePort))
@@ -114,8 +113,7 @@ func (a *Application) StopSyncAndPortForwardProcess(svcName string, cleanRemoteS
 
 	// Clean up secret
 	if cleanRemoteSecret {
-		appProfile, _ := a.GetProfile()
-		svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
+		svcProfile, _ := a.GetSvcProfile(svcName)
 		if svcProfile.SyncthingSecret != "" {
 			log.Debugf("Cleaning up secret %s", svcProfile.SyncthingSecret)
 			err = a.client.DeleteSecret(svcProfile.SyncthingSecret)

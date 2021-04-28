@@ -14,8 +14,8 @@ package cmds
 
 import (
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/appmeta"
 
-	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -48,7 +48,7 @@ var pvcCleanCmd = &cobra.Command{
 
 		// Clean up PVCs of specified service
 		if pvcFlags.Svc != "" {
-			exist, err := nocalhostApp.CheckIfSvcExist(pvcFlags.Svc, app.Deployment)
+			exist, err := nocalhostApp.GetService(pvcFlags.Svc, appmeta.Deployment).CheckIfExist()
 			if err != nil {
 				log.FatalE(err, "failed to check if svc exists")
 			} else if !exist {
