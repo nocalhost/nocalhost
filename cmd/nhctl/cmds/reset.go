@@ -19,6 +19,7 @@ import (
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/utils"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
@@ -34,11 +35,8 @@ var resetCmd = &cobra.Command{
 	Short: "reset application",
 	Long:  `reset application`,
 	Run: func(cmd *cobra.Command, args []string) {
-		var err error
 
-		if err := Prepare(); err != nil {
-			log.FatalE(err, "")
-		}
+		must(Prepare())
 
 		if len(args) > 0 {
 			applicationName := args[0]
@@ -70,6 +68,12 @@ var resetCmd = &cobra.Command{
 			log.Infof("Removing ns dir : %s", nsDir)
 			must(errors.Wrap(os.RemoveAll(nsDir), ""))
 		}
+
+		// recreate current namespace
+		client, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
+		must(err)
+		must(client.DeleteNameSpace(nameSpace, true))
+		must(client.CreateNameSpace(nameSpace, nil))
 	},
 }
 
