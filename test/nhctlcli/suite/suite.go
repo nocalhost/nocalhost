@@ -37,7 +37,7 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 	fmt.Println("Testing " + name)
 	defer func() {
 		if err := recover(); err != nil {
-			t.Clean()
+			t.clean()
 			panic(err)
 		}
 	}()
@@ -47,6 +47,6 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 	testcase.UninstallBookInfo(t.Cli)
 }
 
-func (t *T) Clean() {
+func (t *T) clean() {
 	testcase.UninstallBookInfo(t.Cli)
 }

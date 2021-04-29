@@ -47,5 +47,4 @@ func main() {
 	t.Run("reset", suite.Reset)
 	t.Run("apply", suite.Apply)
 	t.Run("compatible", suite.Compatible, v2)
-	t.Clean()
 }
