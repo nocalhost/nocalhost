@@ -10,19 +10,24 @@
  * limitations under the License.
  */
 
-package app
+package svc
 
-type FileSyncOptions struct {
-	//RunAsDaemon    bool
-	SyncDouble     bool
-	SyncedPattern  []string
-	IgnoredPattern []string
-	Override       bool
-	Container      string // container name of pod to sync
-	Resume         bool
-	Stop           bool
-}
+import "nocalhost/internal/nhctl/profile"
 
-type SyncStatusOptions struct {
-	Override bool
+const (
+//DevImageRevisionAnnotationKey            = "nhctl.dev.image.revision"
+//DevImageOriginalPodReplicasAnnotationKey = "nhctl.dev.image.original.pod.replicas"
+//DevImageRevisionAnnotationValue          = "first"
+//
+//PersistentVolumeDirLabel = "nocalhost.dev/dir"
+//ServiceLabel             = "nocalhost.dev/service"
+//AppLabel                 = "nocalhost.dev/app"
+//
+//DefaultSideCarImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
+//
+//DefaultApplicationSyncPidFile = "syncthing.pid"
+)
+
+type ContainerDevEnv struct {
+	DevEnv []*profile.Env
 }

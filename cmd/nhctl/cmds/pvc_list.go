@@ -18,11 +18,11 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/nocalhost"
 
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 
-	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -55,7 +55,7 @@ var pvcListCmd = &cobra.Command{
 			var err error
 			initApp(pvcFlags.App)
 			if pvcFlags.Svc != "" {
-				exist, err := nocalhostApp.GetService(pvcFlags.Svc, appmeta.Deployment).CheckIfExist()
+				exist, err := nocalhostApp.Controller(pvcFlags.Svc, appmeta.Deployment).CheckIfExist()
 				if err != nil {
 					log.FatalE(err, "failed to check if svc exists")
 				} else if !exist {
@@ -98,11 +98,11 @@ func makePVCObjectList(pvcList []v1.PersistentVolumeClaim) []*pvcObject {
 		annotations := pvc.Annotations
 		pY := &pvcObject{
 			Name:        pvc.Name,
-			AppName:     labels[app.AppLabel],
-			ServiceName: labels[app.ServiceLabel],
+			AppName:     labels[nocalhost.AppLabel],
+			ServiceName: labels[nocalhost.ServiceLabel],
 			Capacity:    quantity.String(),
 			Status:      string(pvc.Status.Phase),
-			MountPath:   annotations[app.PersistentVolumeDirLabel],
+			MountPath:   annotations[nocalhost.PersistentVolumeDirLabel],
 		}
 		if pvc.Spec.StorageClassName != nil {
 			pY.StorageClass = *pvc.Spec.StorageClassName
@@ -133,7 +133,7 @@ func DisplayPVCs(pvcList []v1.PersistentVolumeClaim) {
 		labels := pvc.Labels
 		quantity := pvc.Spec.Resources.Requests[v1.ResourceStorage]
 		fmt.Printf(
-			"%s %s %s %s %s\n", pvc.Name, labels[app.AppLabel], labels[app.ServiceLabel], quantity.String(),
+			"%s %s %s %s %s\n", pvc.Name, labels[nocalhost.AppLabel], labels[nocalhost.ServiceLabel], quantity.String(),
 			pvc.Status.Phase,
 		)
 	}

@@ -39,6 +39,10 @@ func (s *SvcType) Alias() SvcType {
 	return *s
 }
 
+func (s *SvcType) String() string {
+	return string(*s)
+}
+
 type ApplicationDevMeta map[SvcType]map[ /* resource name */ string] /* identifier */ string
 
 //type ApplicationDevType string

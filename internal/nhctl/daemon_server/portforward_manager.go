@@ -21,6 +21,7 @@ import (
 	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -88,6 +89,7 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string
 						NameSpace:   ns,
 						AppName:     appName,
 						Service:     svcProfile.ActualName,
+						ServiceType: pf.ServiceType,
 						PodName:     pf.PodName,
 						LocalPort:   pf.LocalPort,
 						RemotePort:  pf.RemotePort,
@@ -143,9 +145,11 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		return err
 	}
 
+	nhController := nocalhostApp.Controller(startCmd.Service, appmeta.SvcType(startCmd.ServiceType))
+
 	if saveToDB {
 		// Check if port forward already exists
-		if existed, _ := nocalhostApp.CheckIfPortForwardExists(startCmd.Service, localPort, remotePort); existed {
+		if existed, _ := nhController.CheckIfPortForwardExists(localPort, remotePort); existed {
 			return errors.New(fmt.Sprintf("Port forward %d:%d already exists", localPort, remotePort))
 		}
 		pf := &profile.DevPortForward{
@@ -164,7 +168,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 
 		p.lock.Lock()
 		log.Logf("Saving port-forward %d:%d to db", pf.LocalPort, pf.RemotePort)
-		err = nocalhostApp.AddPortForwardToDB(startCmd.Service, pf)
+		err = nhController.AddPortForwardToDB(pf)
 		p.lock.Unlock()
 		if err != nil {
 			return err
@@ -292,9 +296,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 								if lastStatus != currentStatus {
 									lastStatus = currentStatus
 									p.lock.Lock()
-									nocalhostApp.UpdatePortForwardStatus(
-										startCmd.Service, localPort, remotePort, lastStatus, "Heart Beat",
-									)
+									nhController.UpdatePortForwardStatus(localPort, remotePort, lastStatus, "Heart Beat")
 									p.lock.Unlock()
 								}
 								<-time.After(30 * time.Second)
@@ -338,10 +340,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") {
 						log.Warnf("Unable to listen on port %d", localPort)
 						p.lock.Lock()
-						err2 := nocalhostApp.UpdatePortForwardStatus(
-							startCmd.Service, localPort, remotePort, "DISCONNECTED",
-							fmt.Sprintf("Unable to listen on port %d", localPort),
-						)
+						err2 := nhController.UpdatePortForwardStatus(localPort, remotePort, "DISCONNECTED",
+							fmt.Sprintf("Unable to listen on port %d", localPort))
 						p.lock.Unlock()
 						if err2 != nil {
 							log.LogE(err2)
@@ -352,10 +352,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 					log.WarnE(err, "Port-forward failed, reconnecting after 30 seconds...")
 					heartBeatCancel()
 					p.lock.Lock()
-					err = nocalhostApp.UpdatePortForwardStatus(
-						startCmd.Service, localPort, remotePort, "RECONNECTING",
-						"Port-forward failed, reconnecting after 30 seconds...",
-					)
+					err = nhController.UpdatePortForwardStatus(localPort, remotePort, "RECONNECTING",
+						"Port-forward failed, reconnecting after 30 seconds...")
 					p.lock.Unlock()
 					if err != nil {
 						log.LogE(err)
@@ -364,11 +362,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 					log.Warn("Reconnecting after 30 seconds...")
 					heartBeatCancel()
 					p.lock.Lock()
-					err = nocalhostApp.UpdatePortForwardStatus(
-						startCmd.Service, localPort, remotePort,
-						"RECONNECTING",
-						"Reconnecting after 30 seconds...",
-					)
+					err = nhController.UpdatePortForwardStatus(localPort, remotePort, "RECONNECTING",
+						"Reconnecting after 30 seconds...")
 					p.lock.Unlock()
 					if err != nil {
 						log.LogE(err)
@@ -393,7 +388,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				}
 				//delete(p.pfList, key)
 				log.Logf("Delete port-forward %d:%d record", localPort, remotePort)
-				err = nocalhostApp.DeletePortForwardFromDB(startCmd.Service, localPort, remotePort)
+				err = nhController.DeletePortForwardFromDB(localPort, remotePort)
 				if err != nil {
 					log.LogE(err)
 				}

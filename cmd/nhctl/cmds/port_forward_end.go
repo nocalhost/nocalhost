@@ -41,7 +41,7 @@ var portForwardEndCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
-		err := nocalhostApp.StopPortForwardByPort(deployment, portForwardEndOptions.Port)
+		err := nocalhostSvc.StopPortForwardByPort(portForwardEndOptions.Port)
 		if err != nil {
 			log.WarnE(err, "stop port-forward fail")
 		} else {

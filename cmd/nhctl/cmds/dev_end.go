@@ -46,7 +46,7 @@ var devEndCmd = &cobra.Command{
 			log.Fatalf("Service %s is not in DevMode", deployment)
 		}
 
-		must(nocalhostApp.DevEnd(deployment, false))
+		must(nocalhostSvc.DevEnd(false))
 		log.Infof("Service %s's DevMode has been ended", deployment)
 	},
 }

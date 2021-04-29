@@ -15,17 +15,19 @@ package app
 import (
 	"fmt"
 	v1 "k8s.io/api/core/v1"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 )
 
 // Get all PersistVolumeClaims created by this application
 func (a *Application) GetAllPVCs() ([]v1.PersistentVolumeClaim, error) {
-	return a.client.GetPvcByLabels(map[string]string{AppLabel: a.Name})
+	return a.client.GetPvcByLabels(map[string]string{nocalhost.AppLabel: a.Name})
 }
 
+// GetPVCsBySvc todo hxx: move to controller
 // Get all PersistVolumeClaims created by specified service
 func (a *Application) GetPVCsBySvc(svcName string) ([]v1.PersistentVolumeClaim, error) {
-	return a.client.GetPvcByLabels(map[string]string{AppLabel: a.Name, ServiceLabel: svcName})
+	return a.client.GetPvcByLabels(map[string]string{nocalhost.AppLabel: a.Name, nocalhost.ServiceLabel: svcName})
 }
 
 // If svcName specified, cleaning pvcs created by the service

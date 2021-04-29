@@ -40,11 +40,11 @@ type PortForwardCommand struct {
 	NameSpace   string `json:"nameSpace"`
 	AppName     string `json:"appName"`
 	Service     string `json:"service"`
+	ServiceType string `json:"serviceType"`
 	PodName     string `json:"podName"`
 	LocalPort   int    `json:"localPort"`
 	RemotePort  int    `json:"remotePort"`
 	Role        string `json:"role"`
-	//IsSudo      bool   `json:"isSudo"` // todo: move to profile?
 }
 
 type GetApplicationMetaCommand struct {

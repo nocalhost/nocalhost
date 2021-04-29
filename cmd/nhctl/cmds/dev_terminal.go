@@ -42,6 +42,6 @@ var devTerminalCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
-		must(nocalhostApp.EnterPodTerminal(deployment, pod, container))
+		must(nocalhostSvc.EnterPodTerminal(pod, container))
 	},
 }

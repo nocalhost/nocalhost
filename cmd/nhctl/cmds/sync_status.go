@@ -52,13 +52,14 @@ var syncStatusCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
 		initApp(applicationName)
+		nhSvc := initService(deployment, serviceType)
 
-		if !nocalhostApp.GetService(deployment, appmeta.SvcType(serviceType)).IsInDevMode() {
+		if !nhSvc.IsInDevMode() {
 			display(req.NotInDevModeTemplate)
 			return
 		}
 
-		client := nocalhostApp.NewSyncthingHttpClient(deployment)
+		client := nhSvc.NewSyncthingHttpClient()
 
 		if syncStatusOps.Override {
 			must(client.FolderOverride())

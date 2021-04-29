@@ -51,7 +51,7 @@ type Service struct {
 }
 
 // New init service
-func New() (s *Service) {
+func New() (c *Controller) {
 	s = &Service{
 		userSvc:               user.NewUserService(),
 		clusterSvc:            cluster.NewClusterService(),
@@ -73,45 +73,45 @@ func New() (s *Service) {
 }
 
 // UserSvc return user service
-func (s *Service) UserSvc() user.UserService {
+func (c *Controller) UserSvc() user.UserService {
 	return s.userSvc
 }
 
-func (s *Service) ClusterSvc() cluster.ClusterService {
+func (c *Controller) ClusterSvc() cluster.ClusterService {
 	return s.clusterSvc
 }
 
-func (s *Service) ApplicationSvc() application.ApplicationService {
+func (c *Controller) ApplicationSvc() application.ApplicationService {
 	return s.applicationSvc
 }
 
-func (s *Service) ApplicationClusterSvc() application_cluster.ApplicationClusterService {
+func (c *Controller) ApplicationClusterSvc() application_cluster.ApplicationClusterService {
 	return s.applicationClusterSvc
 }
 
-func (s *Service) ClusterUser() cluster_user.ClusterUserService {
+func (c *Controller) ClusterUser() cluster_user.ClusterUserService {
 	return s.clusterUserSvc
 }
 
-func (s *Service) PrePull() pre_pull.PrePullService {
+func (c *Controller) PrePull() pre_pull.PrePullService {
 	return s.prePullSvc
 }
 
-func (s *Service) ApplicationUser() application_user.ApplicationUserService {
+func (c *Controller) ApplicationUser() application_user.ApplicationUserService {
 	return s.applicationUserSvc
 }
 
 // Ping service
-func (s *Service) Ping() error {
+func (c *Controller) Ping() error {
 	return nil
 }
 
 // Close service
-func (s *Service) Close() {
+func (c *Controller) Close() {
 	s.userSvc.Close()
 }
 
-func (s *Service) dataMigrate() {
+func (c *Controller) dataMigrate() {
 	log.Info("Migrate data if needed... ")
 
 	// old version of nocalhost-api did not have saname for user
@@ -124,7 +124,7 @@ func (s *Service) dataMigrate() {
 	s.migrateClusterUseToRoleBinding()
 }
 
-func (s *Service) generateServiceAccountNameForUser() {
+func (c *Controller) generateServiceAccountNameForUser() {
 	list, err := s.userSvc.GetUserList(context.TODO())
 	if err != nil {
 		log.Infof("Error while generate user sa: %+v", err)
@@ -142,7 +142,7 @@ func (s *Service) generateServiceAccountNameForUser() {
 	}
 }
 
-func (s *Service) migrateClusterUseToRoleBinding() {
+func (c *Controller) migrateClusterUseToRoleBinding() {
 	list, err := s.clusterUserSvc.GetList(context.TODO(), model.ClusterUserModel{})
 	if err != nil {
 		log.Infof("Error while migrate data: %+v", err)
@@ -153,7 +153,7 @@ func (s *Service) migrateClusterUseToRoleBinding() {
 	}
 }
 
-func (s *Service) migrateClusterUseToApplicationUser() {
+func (c *Controller) migrateClusterUseToApplicationUser() {
 	list, err := s.clusterUserSvc.GetList(context.TODO(), model.ClusterUserModel{})
 	if err != nil {
 		log.Infof("Error while migrate data: %+v", err)
@@ -181,7 +181,7 @@ func (s *Service) migrateClusterUseToApplicationUser() {
 	}
 }
 
-func (s *Service) init() {
+func (c *Controller) init() {
 	log.Infof("Upgrading cluster...")
 
 	err := s.upgradeAllClusters()
@@ -198,7 +198,7 @@ func (s *Service) init() {
 }
 
 // Upgrade all cluster's versions of nocalhost-dep according to nocalhost-api's versions.
-func (s *Service) upgradeAllClusters() error {
+func (c *Controller) upgradeAllClusters() error {
 	result, _ := s.ClusterSvc().GetList(context.TODO())
 
 	wg := sync.WaitGroup{}
@@ -236,7 +236,7 @@ func (s *Service) upgradeAllClusters() error {
 	return nil
 }
 
-func (s *Service) updateAllRole() error {
+func (c *Controller) updateAllRole() error {
 	cu := model.ClusterUserModel{}
 
 	var results []*model.ClusterUserModel
@@ -276,7 +276,7 @@ func (s *Service) updateAllRole() error {
 	return nil
 }
 
-func (s *Service) prepareServiceAccountAndClientGo(clusterId, userId uint64) (
+func (c *Controller) prepareServiceAccountAndClientGo(clusterId, userId uint64) (
 	clientGo *clientgo.GoClient, saName string, err error,
 ) {
 	cl, err := s.ClusterSvc().Get(context.TODO(), clusterId)
@@ -317,7 +317,7 @@ func (s *Service) prepareServiceAccountAndClientGo(clusterId, userId uint64) (
 	return
 }
 
-func (s *Service) AuthorizeNsToUser(clusterId, userId uint64, ns string) error {
+func (c *Controller) AuthorizeNsToUser(clusterId, userId uint64, ns string) error {
 	clientGo, saName, err := s.prepareServiceAccountAndClientGo(clusterId, userId)
 	if err != nil {
 		return err
@@ -336,7 +336,7 @@ func (s *Service) AuthorizeNsToUser(clusterId, userId uint64, ns string) error {
 	return nil
 }
 
-func (s *Service) UnAuthorizeNsToUser(clusterId, userId uint64, ns string) error {
+func (c *Controller) UnAuthorizeNsToUser(clusterId, userId uint64, ns string) error {
 	clientGo, saName, err := s.prepareServiceAccountAndClientGo(clusterId, userId)
 	if err != nil {
 		return err
@@ -350,7 +350,7 @@ func (s *Service) UnAuthorizeNsToUser(clusterId, userId uint64, ns string) error
 	return nil
 }
 
-func (s *Service) AuthorizeClusterToUser(clusterId, userId uint64) error {
+func (c *Controller) AuthorizeClusterToUser(clusterId, userId uint64) error {
 	clientGo, saName, err := s.prepareServiceAccountAndClientGo(clusterId, userId)
 	if err != nil {
 		return err
@@ -364,7 +364,7 @@ func (s *Service) AuthorizeClusterToUser(clusterId, userId uint64) error {
 	return nil
 }
 
-func (s *Service) UnAuthorizeClusterToUser(clusterId, userId uint64) error {
+func (c *Controller) UnAuthorizeClusterToUser(clusterId, userId uint64) error {
 	clientGo, saName, err := s.prepareServiceAccountAndClientGo(clusterId, userId)
 	if err != nil {
 		return err

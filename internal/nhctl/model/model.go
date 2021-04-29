@@ -16,5 +16,6 @@ type NocalHostResource struct {
 	NameSpace   string
 	Application string
 	Service     string
+	ServiceType string
 	PodName     string
 }

@@ -87,16 +87,6 @@ func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
 	bys, err := db.Get([]byte(ProfileV2Key(ns, name)))
 	if err != nil {
 		if errors.Is(err, leveldb.ErrNotFound) {
-			//result := make(map[string][]byte, 0)
-			//iter := db.NewIterator(nil, nil)
-			//for iter.Next() {
-			//	result[string(iter.Key())] = iter.Value()
-			//}
-			//iter.Release()
-			//err = iter.Error()
-			//if err != nil {
-			//	return nil, errors.Wrap(err, "")
-			//}
 			result, err := db.ListAll()
 			if err != nil {
 				_ = db.Close()
@@ -131,10 +121,10 @@ func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
 	return result, nil
 }
 
-func (a *AppProfileV2) SvcProfileV2(svcName string) *SvcProfileV2 {
+func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV2 {
 
 	for _, svcProfile := range a.SvcProfile {
-		if svcProfile.ActualName == svcName {
+		if svcProfile.ActualName == svcName && svcProfile.Type == svcType {
 			return svcProfile
 		}
 	}
@@ -146,7 +136,7 @@ func (a *AppProfileV2) SvcProfileV2(svcName string) *SvcProfileV2 {
 	svcProfile := &SvcProfileV2{
 		ServiceConfigV2: &ServiceConfigV2{
 			Name: svcName,
-			Type: string("Deployment"),
+			Type: svcType,
 			ContainerConfigs: []*ContainerConfig{
 				{
 					Dev: &ContainerDevConfig{

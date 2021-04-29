@@ -48,7 +48,7 @@ var pvcCleanCmd = &cobra.Command{
 
 		// Clean up PVCs of specified service
 		if pvcFlags.Svc != "" {
-			exist, err := nocalhostApp.GetService(pvcFlags.Svc, appmeta.Deployment).CheckIfExist()
+			exist, err := nocalhostApp.Controller(pvcFlags.Svc, appmeta.Deployment).CheckIfExist()
 			if err != nil {
 				log.FatalE(err, "failed to check if svc exists")
 			} else if !exist {
