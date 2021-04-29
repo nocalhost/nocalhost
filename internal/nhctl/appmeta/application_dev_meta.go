@@ -39,6 +39,13 @@ func (s SvcType) Alias() SvcType {
 	return s
 }
 
+func (s SvcType) Origin() SvcType {
+	if s == DEPLOYMENT {
+		return Deployment
+	}
+	return s
+}
+
 func (s SvcType) String() string {
 	return string(s)
 }

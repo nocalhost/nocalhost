@@ -90,7 +90,7 @@ func initService(svcName string, svcType string) *svc.Controller {
 		case strings.ToLower(string(appmeta.CronJob)):
 			serviceType = appmeta.CronJob
 		default:
-			log.Fatalf("Unsupported SvcType %s", svcType)
+			log.FatalE(errors.New(fmt.Sprintf("Unsupported SvcType %s", svcType)), "")
 		}
 	}
 	return nocalhostApp.Controller(svcName, serviceType)

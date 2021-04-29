@@ -503,3 +503,12 @@ func (a *Application) CleanupResources() error {
 func (a *Application) Uninstall() error {
 	return a.appMeta.Uninstall()
 }
+
+func (a *Application) IsAnyServiceInDevMode() bool {
+	for _, m := range a.appMeta.DevMeta {
+		if len(m) > 0 {
+			return true
+		}
+	}
+	return false
+}

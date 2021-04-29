@@ -84,7 +84,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 				if pack.Event.EventType == appmeta.DEV_END {
 					log.Logf("Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName,
 						pack.Event.ResourceName)
-					nhController := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType)
+					nhController := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
 					if err := nhController.StopSyncAndPortForwardProcess(true); err != nil {
 						return nil
 					}
@@ -98,7 +98,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 					log.Logf("Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName,
 						pack.Event.ResourceName)
-					nhController := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType)
+					nhController := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
 					if err := nhController.StopAllPortForward(); err != nil {
 						return nil
 					}
