@@ -145,7 +145,7 @@ func ListAuthorization(c *gin.Context) {
 								},
 							)
 
-							kubeConfigStruct.CurrentContext = ns
+							kubeConfigStruct.CurrentContext = s.SpaceName
 
 							nss = append(
 								nss, NS{SpaceName: s.SpaceName, Namespace: ns, SpaceId: s.ID},
