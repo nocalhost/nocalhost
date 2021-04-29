@@ -187,7 +187,7 @@ func (c *Controller) PortForwardAfterDevStart(containerName string) error {
 	return nil
 }
 
-// Role: If set to "SYNC", means it is a pf used for syncthing
+// PortForward Role: If set to "SYNC", means it is a pf used for syncthing
 func (c *Controller) PortForward(podName string, localPort, remotePort int, role string) error {
 
 	isAdmin := utils.IsSudoUser()

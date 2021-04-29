@@ -174,7 +174,7 @@ var installCmd = &cobra.Command{
 						continue
 					}
 					log.Infof("Port forward %d:%d", lPort, rPort)
-					utils.Should(nocalhostSvc.PortForward(podName, lPort, rPort, ""))
+					utils.Should(nhSvc.PortForward(podName, lPort, rPort, ""))
 				}
 			}
 		}
