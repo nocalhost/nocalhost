@@ -24,6 +24,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
+	"sort"
 
 	"sync"
 )
@@ -122,10 +123,9 @@ func ListAuthorization(c *gin.Context) {
 			// new admin go client will request authorizationv1.SelfSubjectAccessReview
 			// then did not find any err, means cluster admin
 			if _, err = clientgo.NewAdminGoClient([]byte(kubeConfig)); err == nil {
+				kubeConfigStruct.Contexts[0].Context.Cluster = cluster.ClusterName
 				privilege = true
 			} else {
-
-
 				defaultContext := kubeConfigStruct.Contexts[0]
 				kubeConfigStruct.Contexts = []clientcmdapiv1.NamedContext{}
 
@@ -145,7 +145,7 @@ func ListAuthorization(c *gin.Context) {
 								},
 							)
 
-							kubeConfigStruct.CurrentContext = ns
+							kubeConfigStruct.CurrentContext = s.SpaceName
 
 							nss = append(
 								nss, NS{SpaceName: s.SpaceName, Namespace: ns, SpaceId: s.ID},
@@ -160,6 +160,12 @@ func ListAuthorization(c *gin.Context) {
 			}
 
 			if len(nss) != 0 || privilege {
+				sort.Slice(
+					nss, func(i, j int) bool {
+						return nss[i].Namespace > nss[j].Namespace
+					},
+				)
+
 				lock.Lock()
 				result = append(
 					result, &ServiceAccountModel{
@@ -174,6 +180,12 @@ func ListAuthorization(c *gin.Context) {
 			}
 		}()
 	}
+
+	sort.Slice(
+		result, func(i, j int) bool {
+			return result[i].ClusterId > result[j].ClusterId
+		},
+	)
 
 	wg.Wait()
 	api.SendResponse(c, nil, result)
@@ -228,5 +240,4 @@ type NS struct {
 	SpaceId    uint64 `json:"space_id"`
 	Namespace  string `json:"namespace"`
 	SpaceName  string `json:"spacename"`
-	KubeConfig string `json:"kubeconfig"`
 }
