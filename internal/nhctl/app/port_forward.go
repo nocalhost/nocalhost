@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package app
 
@@ -29,14 +28,20 @@ import (
 	"time"
 )
 
-func (a *Application) UpdatePortForwardStatus(svcName string, localPort int, remotePort int, portStatus string, reason string) error {
+func (a *Application) UpdatePortForwardStatus(
+	svcName string, localPort int, remotePort int,
+	portStatus string, reason string,
+) error {
 	pf, err := a.GetPortForward(svcName, localPort, remotePort)
 	if err != nil {
 		return err
 	}
 
 	if pf.Status == portStatus {
-		log.Logf("Pf %d:%d's status is already %s, no need to update", pf.LocalPort, pf.RemotePort, pf.Status)
+		log.Logf(
+			"Pf %d:%d's status is already %s, no need to update",
+			pf.LocalPort, pf.RemotePort, pf.Status,
+		)
 		return nil
 	}
 
@@ -115,12 +120,14 @@ func (a *Application) EndDevPortForward(svcName string, localPort int, remotePor
 				if err != nil {
 					return err
 				}
-				return client.SendStopPortForwardCommand(&model.NocalHostResource{
-					NameSpace:   a.NameSpace,
-					Application: a.Name,
-					Service:     svcName,
-					PodName:     "",
-				}, localPort, remotePort)
+				return client.SendStopPortForwardCommand(
+					&model.NocalHostResource{
+						NameSpace:   a.NameSpace,
+						Application: a.Name,
+						Service:     svcName,
+						PodName:     "",
+					}, localPort, remotePort,
+				)
 			} else {
 				log.Infof("Kill %v", *portForward)
 				err := terminate.Terminate(portForward.Pid, true, "port-forward")

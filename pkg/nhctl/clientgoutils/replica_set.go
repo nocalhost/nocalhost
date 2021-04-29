@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package clientgoutils
 
@@ -73,7 +72,8 @@ func (c *ClientGoUtils) GetReplicaSetsByDeployment(deploymentName string) (map[i
 	return rsMap, nil
 }
 
-func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploymentName string) error {
+// WaitLatestRevisionReplicaSetOfDeploymentToBeReady
+func (c *ClientGoUtils) WaitLatestRevisionReady(deploymentName string) error {
 
 	printed := false
 	for {
@@ -118,7 +118,9 @@ func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploy
 				for _, event := range events {
 					if event.Type == "Warning" {
 						if event.Reason == "FailedCreate" {
-							return errors.New(fmt.Sprintf("Latest ReplicaSet failed to be ready - %s", event.Message))
+							return errors.New(
+								fmt.Sprintf("Latest ReplicaSet failed to be ready - %s", event.Message),
+							)
 						}
 						log.Warnf("Warning event: %s", event.Message)
 					}
@@ -128,7 +130,11 @@ func (c *ClientGoUtils) WaitLatestRevisionReplicaSetOfDeploymentToBeReady(deploy
 			if rs.Status.Replicas != 0 {
 				if !printed {
 					printed = true
-					log.Infof("Previous replicaSet %s has not been terminated, waiting revision %d to be ready", rs.Name, latestRevision)
+					log.Infof(
+						"Previous replicaSet %s has not been terminated, waiting revision %d to be ready",
+						rs.Name,
+						latestRevision,
+					)
 					log.Info("This may take several minutes, depending on the load of your k8s cluster")
 				}
 				isReady = false

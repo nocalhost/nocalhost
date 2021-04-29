@@ -1,24 +1,23 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package app
 
 import (
 	"context"
 	"fmt"
+	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"nocalhost/internal/nhctl/profile"
-	"strconv"
 	"strings"
 	"time"
 
@@ -32,7 +31,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-func (a *Application) markReplicaSetAsOriginalRevision(svcName string) error {
+func (a *Application) markReplicaSetRevision(svcName string) error {
 
 	dep0, err := a.client.GetDeployment(svcName)
 	if err != nil {
@@ -50,34 +49,21 @@ func (a *Application) markReplicaSetAsOriginalRevision(svcName string) error {
 		if dep0.Spec.Replicas != nil {
 			originalPodReplicas = int(*dep0.Spec.Replicas)
 		}
-		firstRevisionName := ""
 		for _, rs := range rss {
-			if rs.Annotations[DevImageRevisionAnnotationKey] == DevImageRevisionAnnotationValue {
-				firstRevisionName = rs.Name
-				if rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] == "" {
-					rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] = strconv.Itoa(originalPodReplicas)
-					_, err = a.client.UpdateReplicaSet(rs)
-					if err != nil {
-						return errors.New("Failed to update rs's annotation")
-					}
-				}
-				break
+			if _, ok := rs.Annotations[DevImageRevisionAnnotationKey]; ok {
+				// already marked
+				return nil
 			}
 		}
-		if firstRevisionName != "" {
-			log.Debugf("First revision replicaSet %s has already been marked", firstRevisionName)
-		} else {
-			rs := rss[0]
-			rs.Annotations[DevImageRevisionAnnotationKey] = DevImageRevisionAnnotationValue
-			rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] = strconv.Itoa(originalPodReplicas)
-			//_, err = a.client.ClientSet.AppsV1().ReplicaSets(a.GetNamespace()).Update(ctx, rs, metav1.UpdateOptions{})
-			_, err = a.client.UpdateReplicaSet(rs)
-			if err != nil {
-				return errors.New("Failed to update rs's annotation :" + err.Error())
-			} else {
-				log.Infof("%s has been marked as first revision", rs.Name)
-			}
+		rs := rss[0]
+		err = a.client.Patch("ReplicaSet", rs.Name,
+			fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
+				DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas, DevImageRevisionAnnotationKey,
+				DevImageRevisionAnnotationValue))
+		if err != nil {
+			return errors.New("Failed to update rs's annotation :" + err.Error())
 		}
+		log.Infof("%s has been marked as first revision", rs.Name)
 	}
 	return nil
 }
@@ -85,7 +71,7 @@ func (a *Application) markReplicaSetAsOriginalRevision(svcName string) error {
 // There are two volume used by syncthing in sideCarContainer:
 // 1. A EmptyDir volume mounts to /var/syncthing in sideCarContainer
 // 2. A volume mounts Secret to /var/syncthing/secret in sideCarContainer
-func (a *Application) generateSyncthingVolumesAndVolumeMounts(svcName string) ([]corev1.Volume, []corev1.VolumeMount) {
+func generateSyncVolumesAndMounts(svcName string) ([]corev1.Volume, []corev1.VolumeMount) {
 
 	syncthingVolumes := make([]corev1.Volume, 0)
 	syncthingVolumeMounts := make([]corev1.VolumeMount, 0)
@@ -148,7 +134,9 @@ func (a *Application) generateSyncthingVolumesAndVolumeMounts(svcName string) ([
 // If PVC exists, use it directly
 // If PVC not exists, try to create one
 // If PVC failed to create, the whole process of entering DevMode will fail
-func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, container, storageClass string) ([]corev1.Volume, []corev1.VolumeMount, error) {
+func (a *Application) genWorkDirAndPVAndMounts(svcName, container, storageClass string) (
+	[]corev1.Volume, []corev1.VolumeMount, error,
+) {
 
 	volumes := make([]corev1.Volume, 0)
 	volumeMounts := make([]corev1.VolumeMount, 0)
@@ -182,7 +170,11 @@ func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, co
 				continue
 			}
 			if len(claims) > 1 {
-				log.Warn(fmt.Sprintf("Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path))
+				log.Warn(
+					fmt.Sprintf(
+						"Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path,
+					),
+				)
 				continue
 			}
 
@@ -255,48 +247,79 @@ func (a *Application) generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, co
 	return volumes, volumeMounts, nil
 }
 
-func (a *Application) generateResourceRequirementsForDevContainer(svcName string) *corev1.ResourceRequirements {
+func (a *Application) genResourceReq(svcName string) *corev1.ResourceRequirements {
 
 	var (
 		err          error
 		requirements *corev1.ResourceRequirements
 	)
 
-	appProfile, _ := a.GetProfile()
-	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
+	svcProfile, _ := a.GetSvcProfile(svcName)
 	resourceQuota := svcProfile.ContainerConfigs[0].Dev.DevContainerResources
 
 	if resourceQuota != nil {
 		log.Debug("DevContainer uses resource limits defined in config")
-		requirements, err = convertResourceQuotaToResourceRequirements(resourceQuota)
+		requirements, err = convertResourceQuota(resourceQuota)
 		utils.ShouldI(err, "Failed to parse resource requirements")
 	}
 
 	return requirements
 }
 
-// add dev start env
-func (a *Application) AppendDevEnvToContainer(devContainer *corev1.Container, svcName string, ops *DevStartOptions) {
-	devEnv := a.GetDevContainerEnv(svcName, ops.Container)
-	for _, v := range devEnv.DevEnv {
-		env := corev1.EnvVar{Name: v.Name, Value: v.Value}
-		devContainer.Env = append(devContainer.Env, env)
+func generateSideCarContainer(workDir string) corev1.Container {
+
+	sideCarContainer := corev1.Container{
+		Name:       "nocalhost-sidecar",
+		Image:      DefaultSideCarImage,
+		WorkingDir: workDir,
 	}
+
+	// over write syncthing command
+	sideCarContainer.Command = []string{"/bin/sh", "-c"}
+	sideCarContainer.Args = []string{
+		"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome +
+			"/* " + secret_config.DefaultSyncthingHome +
+			"/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing",
+	}
+	return sideCarContainer
 }
 
-// In DevMode, nhctl will replace the container of your workload with two containers: one is called devContainer, the other is called sideCarContainer
+func findDevContainer(dep *v1.Deployment, containerName string) (*corev1.Container, error) {
+	var devContainer *corev1.Container
+	if containerName != "" {
+		for index, c := range dep.Spec.Template.Spec.Containers {
+			if c.Name == containerName {
+				return &dep.Spec.Template.Spec.Containers[index], nil
+			}
+		}
+		if devContainer == nil {
+			return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
+		}
+	} else {
+		if len(dep.Spec.Template.Spec.Containers) > 1 {
+			return nil, errors.New(fmt.Sprintf("There are more than one container defined," +
+				"please specify one to start developing"))
+		}
+		if len(dep.Spec.Template.Spec.Containers) == 0 {
+			return nil, errors.New("No container defined ???")
+		}
+		devContainer = &dep.Spec.Template.Spec.Containers[0]
+	}
+	return devContainer, nil
+}
+
+// ReplaceImage In DevMode, nhctl will replace the container of your workload with two containers:
+// one is called devContainer, the other is called sideCarContainer
 func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *DevStartOptions) error {
 
 	var err error
 	a.client.Context(ctx)
 
-	err = a.markReplicaSetAsOriginalRevision(svcName)
-	if err != nil {
+	if err = a.markReplicaSetRevision(svcName); err != nil {
 		return err
 	}
 
-	err = a.scaleDeploymentReplicasToOne(ctx, svcName)
-	if err != nil {
+	if err = a.scaleDeploymentReplicasToOne(ctx, svcName); err != nil {
 		return err
 	}
 
@@ -304,36 +327,23 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	if err != nil {
 		return err
 	}
-	var devContainer *corev1.Container
-	if ops.Container != "" {
-		for index, c := range dep.Spec.Template.Spec.Containers {
-			if c.Name == ops.Container {
-				devContainer = &dep.Spec.Template.Spec.Containers[index]
-				break
-			}
-		}
-		if devContainer == nil {
-			return errors.New(fmt.Sprintf("Container %s not found", ops.Container))
-		}
-	} else {
-		if len(dep.Spec.Template.Spec.Containers) > 1 {
-			return errors.New(fmt.Sprintf("There are more than one container defined, please specify one to start developing"))
-		}
-		if len(dep.Spec.Template.Spec.Containers) == 0 {
-			return errors.New("No container defined ???")
-		}
-		devContainer = &dep.Spec.Template.Spec.Containers[0]
+
+	devContainer, err := findDevContainer(dep, ops.Container)
+	if err != nil {
+		return err
 	}
 
 	devModeVolumes := make([]corev1.Volume, 0)
 	devModeMounts := make([]corev1.VolumeMount, 0)
 
 	// Set volumes
-	syncthingVolumes, syncthingVolumeMounts := a.generateSyncthingVolumesAndVolumeMounts(svcName)
+	syncthingVolumes, syncthingVolumeMounts := generateSyncVolumesAndMounts(svcName)
 	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
-	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := a.generateWorkDirAndPersistVolumeAndVolumeMounts(svcName, ops.Container, ops.StorageClass)
+	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := a.genWorkDirAndPVAndMounts(
+		svcName, ops.Container, ops.StorageClass,
+	)
 	if err != nil {
 		return err
 	}
@@ -342,91 +352,114 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 
 	workDir := a.GetDefaultWorkDir(svcName, ops.Container)
 	devImage := a.GetDefaultDevImage(svcName, ops.Container) // Default : replace the first container
-	sideCarImage := a.GetDefaultSideCarImage(svcName)
-	if ops.SideCarImage != "" {
-		sideCarImage = ops.SideCarImage
-	}
 
-	sideCarContainer := corev1.Container{
-		Name:       "nocalhost-sidecar",
-		Image:      sideCarImage,
-		WorkingDir: workDir,
-	}
-
-	// over write syncthing command
-	sideCarContainer.Command = []string{"/bin/sh", "-c"}
-	sideCarContainer.Args = []string{"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome + "/* " + secret_config.DefaultSyncthingHome + "/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing"}
+	sideCarContainer := generateSideCarContainer(workDir)
 
 	devContainer.Image = devImage
 	devContainer.Name = "nocalhost-dev"
 	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
 	devContainer.WorkingDir = workDir
 
-	// add dev start env
-	a.AppendDevEnvToContainer(devContainer, svcName, ops)
-
-	// Add volumes to deployment spec
-	if dep.Spec.Template.Spec.Volumes == nil {
-		log.Debugf("Service %s has no volume", dep.Name)
-		dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
+	// add env
+	devEnv := a.GetDevContainerEnv(svcName, ops.Container)
+	for _, v := range devEnv.DevEnv {
+		env := corev1.EnvVar{Name: v.Name, Value: v.Value}
+		devContainer.Env = append(devContainer.Env, env)
 	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
 
 	// Add volumeMounts to containers
 	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
 	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, devModeMounts...)
 
-	requirements := a.generateResourceRequirementsForDevContainer(svcName)
+	requirements := a.genResourceReq(svcName)
 	if requirements != nil {
 		devContainer.Resources = *requirements
 		sideCarContainer.Resources = *requirements
 	}
 
-	// delete user's SecurityContext
-	dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
+	for {
+		// Get latest deployment
+		if dep, err = a.client.GetDeployment(svcName); err != nil {
+			return err
+		}
 
-	// disable readiness probes
-	for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
-		dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
-		dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
-		dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
-	}
+		if ops.Container != "" {
+			for index, c := range dep.Spec.Template.Spec.Containers {
+				if c.Name == ops.Container {
+					dep.Spec.Template.Spec.Containers[index] = *devContainer
+					break
+				}
+			}
+		} else {
+			dep.Spec.Template.Spec.Containers[0] = *devContainer
+		}
 
-	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
+		// Add volumes to deployment spec
+		if dep.Spec.Template.Spec.Volumes == nil {
+			log.Debugf("Service %s has no volume", dep.Name)
+			dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
+		}
+		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
 
-	// PriorityClass
-	priorityClass := ops.PriorityClass
-	if priorityClass == "" {
-		appProfile, _ := a.GetProfile()
-		priorityClass = appProfile.FetchSvcProfileV2FromProfile(svcName).PriorityClass
-	}
-	if priorityClass != "" {
-		log.Infof("Using priorityClass: %s...", priorityClass)
-		dep.Spec.Template.Spec.PriorityClassName = priorityClass
-	}
+		// delete user's SecurityContext
+		dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
 
-	log.Info("Updating development container...")
-	_, err = a.client.UpdateDeployment(dep, true)
-	if err != nil {
-		if strings.Contains(err.Error(), "no PriorityClass") {
-			log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
-			dep, err = a.client.GetDeployment(svcName)
+		// disable readiness probes
+		for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
+			dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
+			dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
+			dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
+		}
+
+		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
+
+		// PriorityClass
+		priorityClass := ops.PriorityClass
+		if priorityClass == "" {
+			svcProfile, _ := a.GetSvcProfile(svcName)
+			priorityClass = svcProfile.PriorityClass
+		}
+		if priorityClass != "" {
+			log.Infof("Using priorityClass: %s...", priorityClass)
+			dep.Spec.Template.Spec.PriorityClassName = priorityClass
+		}
+
+		log.Info("Updating development container...")
+		_, err = a.client.UpdateDeployment(dep, true)
+		//  a.client.Patch("ReplicaSet", rs.Name,
+		//			fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
+		//				DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas, DevImageRevisionAnnotationKey,
+		//				DevImageRevisionAnnotationValue))
+		//specJson, err := json.Marshal(&dep.Spec)
+		//if err != nil {
+		//	return errors.Wrap(err, "")
+		//}
+		//err = a.client.Patch("Deployment", dep.Name, string(specJson))
+		if err != nil {
+			if strings.Contains(err.Error(), "no PriorityClass") {
+				log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
+				dep, err = a.client.GetDeployment(svcName)
+				if err != nil {
+					return err
+				}
+				dep.Spec.Template.Spec.PriorityClassName = ""
+				_, err = a.client.UpdateDeployment(dep, true)
+			} else if strings.Contains(err.Error(), "the object has been modified") {
+				log.Infof("Try to get the latest deployment again")
+				continue
+			}
 			if err != nil {
 				return err
 			}
-			dep.Spec.Template.Spec.PriorityClassName = ""
-			_, err = a.client.UpdateDeployment(dep, true)
+			break
 		}
-		if err != nil {
-			return err
-		}
+		break
 	}
 
-	//err = a.client.WaitLatestRevisionReplicaSetOfDeploymentToBeReady(dep.Name)
-	//if err != nil {
-	//	return err
-	//}
+	return a.waitingPodOfDeploymentToBeReady(dep.Name)
+}
 
+func (a *Application) waitingPodOfDeploymentToBeReady(deployName string) error {
 	// Wait podList to be ready
 	spinner := utils.NewSpinner(" Waiting pod to start...")
 	spinner.Start()
@@ -435,9 +468,8 @@ wait:
 	for {
 		<-time.NewTimer(time.Second * 1).C
 		// Get the latest revision
-		podList, err := a.client.ListLatestRevisionPodsByDeployment(dep.Name)
+		podList, err := a.client.ListLatestRevisionPodsByDeployment(deployName)
 		if err != nil {
-			log.WarnE(err, "Failed to get pods")
 			return err
 		}
 		if len(podList) == 1 {
@@ -447,7 +479,7 @@ wait:
 				continue
 			}
 			if len(pod.Spec.Containers) == 0 {
-				log.Fatalf("%s has no container ???", pod.Name)
+				return errors.New(fmt.Sprintf("%s has no container ???", pod.Name))
 			}
 
 			// Make sure all containers are ready and running
@@ -468,7 +500,7 @@ wait:
 	return nil
 }
 
-func convertResourceQuotaToResourceRequirements(quota *profile.ResourceQuota) (*corev1.ResourceRequirements, error) {
+func convertResourceQuota(quota *profile.ResourceQuota) (*corev1.ResourceRequirements, error) {
 	var err error
 	requirements := &corev1.ResourceRequirements{}
 
@@ -512,7 +544,9 @@ func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) 
 
 // Initial a pvc for persistent volume dir, and waiting util pvc succeed to bound to a pv
 // If pvc failed to bound to a pv, the pvc will been deleted, and return nil
-func (a *Application) createPvcForPersistentVolumeDir(persistentVolume *profile.PersistentVolumeDir, labels map[string]string, storageClass string) (*corev1.PersistentVolumeClaim, error) {
+func (a *Application) createPvcForPersistentVolumeDir(
+	persistentVolume *profile.PersistentVolumeDir, labels map[string]string, storageClass string,
+) (*corev1.PersistentVolumeClaim, error) {
 	var (
 		pvc *corev1.PersistentVolumeClaim
 		err error
@@ -553,7 +587,10 @@ func (a *Application) createPvcForPersistentVolumeDir(persistentVolume *profile.
 				for _, condition := range pvc.Status.Conditions {
 					errorMes = condition.Message
 					if condition.Reason == "ProvisioningFailed" {
-						log.Warnf("Failed to create a pvc for %s, check if your StorageClass is set correctly", persistentVolume.Path)
+						log.Warnf(
+							"Failed to create a pvc for %s, check if your StorageClass is set correctly",
+							persistentVolume.Path,
+						)
 						break
 					}
 				}

@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package application
 
@@ -22,7 +21,9 @@ import (
 )
 
 type ApplicationService interface {
-	Create(ctx context.Context, context string, status uint8, public uint8, userId uint64) (model.ApplicationModel, error)
+	Create(ctx context.Context, context string, status uint8, public uint8, userId uint64) (
+		model.ApplicationModel, error,
+	)
 	Get(ctx context.Context, id uint64) (model.ApplicationModel, error)
 	GetByName(ctx context.Context, name string) (model.ApplicationModel, error)
 	PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error)
@@ -52,11 +53,15 @@ func (srv *applicationService) GetByName(ctx context.Context, name string) (mode
 	return srv.applicationRepo.GetByName(ctx, name)
 }
 
-func (srv *applicationService) PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error) {
+func (srv *applicationService) PluginGetList(ctx context.Context, userId uint64) (
+	[]*model.PluginApplicationModel, error,
+) {
 	return srv.applicationRepo.PluginGetList(ctx, userId)
 }
 
-func (srv *applicationService) Create(ctx context.Context, context string, status uint8, public uint8, userId uint64) (model.ApplicationModel, error) {
+func (srv *applicationService) Create(
+	ctx context.Context, context string, status uint8, public uint8, userId uint64,
+) (model.ApplicationModel, error) {
 	c := model.ApplicationModel{
 		Context: context,
 		UserId:  userId,
@@ -94,7 +99,9 @@ func (srv *applicationService) Delete(ctx context.Context, id uint64) error {
 	return nil
 }
 
-func (srv *applicationService) Update(ctx context.Context, applicationModel *model.ApplicationModel) (*model.ApplicationModel, error) {
+func (srv *applicationService) Update(
+	ctx context.Context, applicationModel *model.ApplicationModel,
+) (*model.ApplicationModel, error) {
 	_, err := srv.applicationRepo.Update(ctx, applicationModel)
 	if err != nil {
 		return applicationModel, errors.Wrapf(err, "update application error")

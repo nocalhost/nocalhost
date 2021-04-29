@@ -1,15 +1,14 @@
 /*
-Copyright 2021 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package daemon_client
 
@@ -28,7 +27,6 @@ import (
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
-	"os/exec"
 	"time"
 )
 
@@ -38,19 +36,22 @@ type DaemonClient struct {
 }
 
 func StartDaemonServer(isSudoUser bool) error {
-	nhctlPath, err := exec.LookPath(utils.GetNhctlBinName())
+	nhctlPath, err := utils.GetNhctlPath()
 	if err != nil {
-		return errors.Wrap(err, "")
+		return err
 	}
 	daemonArgs := []string{nhctlPath, "daemon", "start"}
 	if isSudoUser {
 		daemonArgs = append(daemonArgs, "--sudo", "true")
 	}
-
 	return daemon.RunSubProcess(daemonArgs, nil, false)
 }
 
 func waitForTCPPortToBeReady(port int, timeout time.Duration) error {
+	return waitTCPPort(false, port, timeout)
+}
+
+func waitTCPPort(available bool, port int, timeout time.Duration) error {
 	ctx, _ := context.WithTimeout(context.TODO(), timeout)
 	for {
 		select {
@@ -59,11 +60,15 @@ func waitForTCPPortToBeReady(port int, timeout time.Duration) error {
 		default:
 			<-time.Tick(1 * time.Second)
 			b := ports.IsTCP4PortAvailable("0.0.0.0", port)
-			if !b {
+			if b == available {
 				return nil
 			}
 		}
 	}
+}
+
+func waitForTCPPortToBeDown(port int, timeout time.Duration) error {
+	return waitTCPPort(true, port, timeout)
 }
 
 func CheckIfDaemonServerRunning(isSudoUser bool) bool {
@@ -86,14 +91,9 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 	} else {
 		client.daemonServerListenPort = daemon_common.DefaultDaemonPort
 	}
-	if ports.IsTCP4PortAvailable("0.0.0.0", client.daemonServerListenPort) {
-		if err = StartDaemonServer(isSudoUser); err != nil {
-			return nil, err
-		}
-		log.Log("Waiting daemon to start")
-		if err = waitForTCPPortToBeReady(client.daemonServerListenPort, 10*time.Second); err != nil {
-			return nil, err
-		}
+
+	if err = startDaemonServer(isSudoUser, client.daemonServerListenPort); err != nil {
+		return nil, err
 	}
 	// Check Server's version
 	bys, err := client.SendGetDaemonServerInfoCommand()
@@ -107,11 +107,31 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 		return nil, err
 	}
 
-	if info.Version != daemon_common.Version {
+	if info.Version != daemon_common.Version || info.CommitId != daemon_common.CommitId {
 		log.Log("Upgrading daemon server")
-		utils.Should(client.SendRestartDaemonServerCommand())
+		// todo only use stop for v0.4.0
+		utils.Should(client.SendStopDaemonServerCommand())
+		utils.Should(waitForTCPPortToBeDown(client.daemonServerListenPort, 10*time.Second))
+		if err = startDaemonServer(isSudoUser, client.daemonServerListenPort); err != nil {
+			return nil, err
+		}
+		//utils.Should(client.SendRestartDaemonServerCommand())
 	}
 	return client, nil
+}
+
+func startDaemonServer(isSudoUser bool, port int) error {
+	if ports.IsTCP4PortAvailable("0.0.0.0", port) {
+		if err := StartDaemonServer(isSudoUser); err != nil {
+			return err
+		}
+		log.Log("Waiting daemon to start")
+		if err := waitForTCPPortToBeReady(port, 10*time.Second); err != nil {
+			return err
+		}
+		log.Log("Daemon started")
+	}
+	return nil
 }
 
 func (d *DaemonClient) SendGetDaemonServerInfoCommand() ([]byte, error) {
@@ -120,7 +140,7 @@ func (d *DaemonClient) SendGetDaemonServerInfoCommand() ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
-	return d.sendDataToDaemonServerAndWaitForResponse(bys)
+	return d.sendAndWaitForResponse(bys)
 }
 
 func (d *DaemonClient) SendRestartDaemonServerCommand() error {
@@ -147,7 +167,7 @@ func (d *DaemonClient) SendGetDaemonServerStatusCommand() error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys)
+	bys, err = d.sendAndWaitForResponse(bys)
 	if err != nil {
 		return err
 	}
@@ -164,7 +184,7 @@ func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfig str
 	}
 
 	bys, err := json.Marshal(gamCmd)
-	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
+	if bys, err = d.sendAndWaitForResponse(bys); err != nil {
 		return nil, err
 	} else {
 		meta := &appmeta.ApplicationMeta{}
@@ -181,7 +201,7 @@ func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]
 	}
 
 	bys, err := json.Marshal(gamCmd)
-	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
+	if bys, err = d.sendAndWaitForResponse(bys); err != nil {
 		return nil, err
 	} else {
 		var meta []*appmeta.ApplicationMeta
@@ -190,7 +210,9 @@ func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]
 	}
 }
 
-func (d *DaemonClient) SendStartPortForwardCommand(nhSvc *model.NocalHostResource, localPort, remotePort int, role string) error {
+func (d *DaemonClient) SendStartPortForwardCommand(
+	nhSvc *model.NocalHostResource, localPort, remotePort int, role string,
+) error {
 
 	startPFCmd := &command.PortForwardCommand{
 		CommandType: command.StartPortForward,
@@ -207,7 +229,7 @@ func (d *DaemonClient) SendStartPortForwardCommand(nhSvc *model.NocalHostResourc
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
+	if bys, err = d.sendAndWaitForResponse(bys); err != nil {
 		return err
 	} else {
 		log.Infof("Response: %s", string(bys))
@@ -215,6 +237,7 @@ func (d *DaemonClient) SendStartPortForwardCommand(nhSvc *model.NocalHostResourc
 	}
 }
 
+// SendStopPortForwardCommand send port forward to daemon
 func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource, localPort, remotePort int) error {
 
 	startPFCmd := &command.PortForwardCommand{
@@ -231,7 +254,7 @@ func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	if bys, err = d.sendDataToDaemonServerAndWaitForResponse(bys); err != nil {
+	if bys, err = d.sendAndWaitForResponse(bys); err != nil {
 		return err
 	} else {
 		log.Infof("Response: %s", string(bys))
@@ -239,6 +262,7 @@ func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource
 	}
 }
 
+// sendDataToDaemonServer send data only to daemon
 func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort))
 	if err != nil {
@@ -249,7 +273,8 @@ func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 	return errors.Wrap(err, "")
 }
 
-func (d *DaemonClient) sendDataToDaemonServerAndWaitForResponse(data []byte) ([]byte, error) {
+// sendAndWaitForResponse send data to daemon and wait for response
+func (d *DaemonClient) sendAndWaitForResponse(data []byte) ([]byte, error) {
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort))
 	if err != nil {
 		return nil, errors.Wrap(err, "")

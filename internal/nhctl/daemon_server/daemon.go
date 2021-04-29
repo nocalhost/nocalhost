@@ -1,15 +1,14 @@
 /*
-Copyright 2021 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package daemon_server
 
@@ -30,7 +29,6 @@ import (
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
-	"os/exec"
 	"runtime/debug"
 	"strings"
 )
@@ -38,6 +36,7 @@ import (
 var (
 	isSudo                      = false
 	version                     = "1.0"
+	commitId                    = ""
 	pfManager                   *PortForwardManager
 	tcpCtx, tcpCancelFunc       = context.WithCancel(context.Background()) // For stopping listening tcp port
 	daemonCtx, daemonCancelFunc = context.WithCancel(context.Background()) // For exiting current daemon server
@@ -54,8 +53,9 @@ func daemonListenPort() int {
 	return daemon_common.DefaultDaemonPort
 }
 
-func StartDaemon(isSudoUser bool, v string) error {
+func StartDaemon(isSudoUser bool, v string, c string) error {
 	version = v
+	commitId = c
 	if isSudoUser && !utils.IsSudoUser() {
 		return errors.New("Failed to start daemon server with sudo")
 	}
@@ -70,35 +70,46 @@ func StartDaemon(isSudoUser bool, v string) error {
 	// run the dev event listener
 	if !isSudoUser {
 		appmeta_manager.Init()
-		appmeta_manager.RegisterListener(func(pack *appmeta_manager.ApplicationEventPack) error {
-			kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
-			if err != nil {
-				return nil
-			}
-			nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, false)
-			if err != nil {
-				return nil
-			}
-			if pack.Event.EventType == appmeta.DEV_END {
-				log.Logf("Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName, pack.Event.ResourceName)
-				if err := nhApp.StopSyncAndPortForwardProcess(pack.Event.ResourceName, true); err != nil {
+		appmeta_manager.RegisterListener(
+			func(pack *appmeta_manager.ApplicationEventPack) error {
+				kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
+				if err != nil {
 					return nil
 				}
-			} else if pack.Event.EventType == appmeta.DEV_STA {
-				profile, _ := nhApp.GetProfile()
+				nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, false)
+				if err != nil {
+					return nil
+				}
+				if pack.Event.EventType == appmeta.DEV_END {
+					log.Logf(
+						"Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName,
+						pack.Event.ResourceName,
+					)
+					if err := nhApp.StopSyncAndPortForwardProcess(
+						pack.Event.ResourceName,
+						true,
+					); err != nil {
+						return nil
+					}
+				} else if pack.Event.EventType == appmeta.DEV_STA {
+					profile, _ := nhApp.GetProfile()
 
-				// ignore the event from local
-				if profile.Identifier == pack.Event.Identifier {
-					return nil
-				}
+					// ignore the event from local
+					if profile.Identifier == pack.Event.Identifier {
+						return nil
+					}
 
-				log.Logf("Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName, pack.Event.ResourceName)
-				if err := nhApp.StopAllPortForward(pack.Event.ResourceName); err != nil {
-					return nil
+					log.Logf(
+						"Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName,
+						pack.Event.ResourceName,
+					)
+					if err := nhApp.StopAllPortForward(pack.Event.ResourceName); err != nil {
+						return nil
+					}
 				}
-			}
-			return nil
-		})
+				return nil
+			},
+		)
 		appmeta_manager.Start()
 	}
 
@@ -201,10 +212,12 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType)
 		log.Log("New daemon server is starting, exit this one")
 		daemonCancelFunc()
 	case command.GetDaemonServerInfo:
-		info := &daemon_common.DaemonServerInfo{Version: version}
+		info := &daemon_common.DaemonServerInfo{Version: version, CommitId: commitId}
 		response(conn, info)
 	case command.GetDaemonServerStatus:
-		status := &daemon_common.DaemonServerStatusResponse{PortForwardList: pfManager.ListAllRunningPortForwardGoRoutineProfile()}
+		status := &daemon_common.DaemonServerStatusResponse{
+			PortForwardList: pfManager.ListAllRunningPFGoRoutineProfile(),
+		}
 		response(conn, status)
 	case command.GetApplicationMeta:
 		gamCmd := &command.GetApplicationMetaCommand{}
@@ -247,9 +260,9 @@ func response(conn net.Conn, v interface{}) {
 
 func handlerRestartDaemonServerCommand(isSudoUser bool) error {
 	tcpCancelFunc() // Stop listening tcp port
-	nhctlPath, err := exec.LookPath(utils.GetNhctlBinName())
+	nhctlPath, err := utils.GetNhctlPath()
 	if err != nil {
-		return errors.Wrap(err, "")
+		return err
 	}
 	daemonArgs := []string{nhctlPath, "daemon", "start"}
 	if isSudoUser {

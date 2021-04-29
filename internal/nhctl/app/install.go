@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package app
 
@@ -46,7 +45,12 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) (err error)
 	case appmeta.KustomizeGit:
 		err = a.InstallKustomize(a.appMeta, a.ResourceTmpDir, true)
 	default:
-		return errors.New(fmt.Sprintf("unsupported application type, must be %s, %s or %s", appmeta.Helm, appmeta.HelmRepo, appmeta.Manifest))
+		return errors.New(
+			fmt.Sprintf(
+				"unsupported application type, must be %s, %s or %s",
+				appmeta.Helm, appmeta.HelmRepo, appmeta.Manifest,
+			),
+		)
 	}
 
 	a.appMeta.ApplicationState = appmeta.INSTALLED
@@ -60,15 +64,18 @@ func (a *Application) InstallKustomize(appMeta *appmeta.ApplicationMeta, resourc
 	}
 	useResourcePath := resourcesPath[0]
 
-	err := a.client.Apply([]string{}, true,
+	err := a.client.Apply(
+		[]string{}, true,
 		StandardNocalhostMetas(a.Name, a.NameSpace).
 			SetDoApply(doApply).
 			SetBeforeApply(
 				func(manifest string) error {
 					appMeta.Manifest = appMeta.Manifest + manifest
 					return appMeta.Update()
-				}),
-		useResourcePath)
+				},
+			),
+		useResourcePath,
+	)
 	if err != nil {
 		return err
 	}
@@ -83,28 +90,33 @@ func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta, resource
 
 	preInstallManifests, manifests := p.LoadManifests(resourceDir)
 
-	err = a.client.ApplyAndWait(preInstallManifests, true,
+	err = a.client.ApplyAndWait(
+		preInstallManifests, true,
 		StandardNocalhostMetas(a.Name, a.NameSpace).
 			SetDoApply(doApply).
 			SetBeforeApply(
 				func(manifest string) error {
 					appMeta.PreInstallManifest = appMeta.PreInstallManifest + manifest
 					return appMeta.Update()
-				}),
+				},
+			),
 	)
 	if err != nil { // that's the error that could not be skip
 		return err
 	}
 
-	return a.client.Apply(manifests, true,
+	return a.client.Apply(
+		manifests, true,
 		StandardNocalhostMetas(a.Name, a.NameSpace).
 			SetDoApply(doApply).
 			SetBeforeApply(
 				func(manifest string) error {
 					appMeta.Manifest = appMeta.Manifest + manifest
 					return appMeta.Update()
-				}),
-		"")
+				},
+			),
+		"",
+	)
 }
 
 func (a *Application) installHelm(flags *HelmFlags, resourceDir string, fromRepo bool) error {
@@ -137,7 +149,8 @@ func (a *Application) installHelm(flags *HelmFlags, resourceDir string, fromRepo
 		log.Info("building dependency...")
 		depParams := []string{"dependency", "build", resourcesPath[0]}
 		depParams = append(depParams, commonParams...)
-		if _, err = tools.ExecCommand(nil, true, false, "helm", depParams...); err != nil {
+		if _, err = tools.ExecCommand(nil, true, false, "helm", depParams...);
+			err != nil {
 			return errors.Wrap(err, "fail to build dependency for helm app")
 		}
 	} else {
@@ -174,13 +187,17 @@ func (a *Application) installHelm(flags *HelmFlags, resourceDir string, fromRepo
 
 	fmt.Println("install helm application, this may take several minutes, please waiting...")
 
-	if _, err = tools.ExecCommand(nil, true, false, "helm", installParams...); err != nil {
+	if _, err = tools.ExecCommand(nil, true, false, "helm", installParams...);
+		err != nil {
 		return errors.Wrap(err, "fail to install helm application")
 	}
 
 	profileV2.ReleaseName = releaseName
 	profileV2.Save()
-	log.Infof(`helm nocalhost app installed, use "helm list -n %s" to get the information of the helm release`, a.NameSpace)
+	log.Infof(
+		`helm nocalhost app installed, use "helm list -n %s" to
+get the information of the helm release`, a.NameSpace,
+	)
 	return nil
 }
 
@@ -236,7 +253,9 @@ func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) erro
 			return err
 		}
 
-		if _, err = a.client.ClientSet.CoreV1().ConfigMaps(a.NameSpace).Create(context.TODO(), configMap, metav1.CreateOptions{}); err != nil {
+		if _, err = a.client.ClientSet.CoreV1().ConfigMaps(a.NameSpace).Create(
+			context.TODO(), configMap, metav1.CreateOptions{},
+		); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("fail to create dependency config %s", configMap.Name))
 		}
 	}

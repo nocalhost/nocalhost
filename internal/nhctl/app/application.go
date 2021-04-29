@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package app
 
@@ -47,7 +46,9 @@ const (
 	// default is a special app type, it can be uninstalled neither installed
 	// it's a virtual application to managed that those manifest out of Nocalhost management
 	DefaultNocalhostApplication           = "default.application"
-	DefaultNocalhostApplicationOperateErr = "default.application is a virtual application to managed that those manifest out of Nocalhost management so can't be install, uninstall, reset, etc."
+	DefaultNocalhostApplicationOperateErr = "default.application is a virtual application " +
+		"to managed that those manifest out of Nocalhost" +
+		" management so can't be install, uninstall, reset, etc."
 
 	HelmReleaseName               = "meta.helm.sh/release-name"
 	AppManagedByLabel             = "app.kubernetes.io/managed-by"
@@ -66,23 +67,12 @@ type Application struct {
 	KubeConfig string
 	AppType    string
 
-	// may nil, only for install or upgrade
+	// may be nil, only for install or upgrade
 	// dir use to load the user's resource
 	ResourceTmpDir string
 
 	appMeta *appmeta.ApplicationMeta
-
-	// profileV2 is created and saved to leveldb when `install`
-	// profileV2 will not be nil if you use NewApplication a get a Application
-	// you can only get const data from it, such as Namespace,AppType...
-	// don't save it to leveldb directly
-	//profileV2 *profile.AppProfileV2
-
-	client *clientgoutils.ClientGoUtils
-
-	// for upgrade
-	upgradeSortedPreInstallManifest []string
-	upgradeInstallManifest          []string
+	client  *clientgoutils.ClientGoUtils
 }
 
 type SvcDependency struct {
@@ -187,12 +177,20 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 }
 
 func (a *Application) generateSecretForEarlierVer() bool {
+
+	a.GetHomeDir()
 	profileV2, err := a.GetProfile()
 	if err != nil {
 		return false
 	}
-	a.AppType = profileV2.AppType
+
+	if a.HasBeenGenerateSecret() {
+		return false
+	}
+
 	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() && a.Name != DefaultNocalhostApplication {
+		a.AppType = profileV2.AppType
+
 		defer func() {
 			log.Logf("Mark application %s in ns %s has been secreted", a.Name, a.NameSpace)
 			//a.profileV2.Secreted = true
@@ -242,6 +240,8 @@ func (a *Application) generateSecretForEarlierVer() bool {
 		return false
 	}
 
+	a.MarkAsGenerated()
+
 	return false
 }
 
@@ -275,13 +275,15 @@ func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.
 	var configs = []*profile.ServiceConfigV2{}
 
 	for _, p := range profiles {
-		configs = append(configs, &profile.ServiceConfigV2{
-			Name:                p.Name,
-			Type:                p.Type,
-			PriorityClass:       p.PriorityClass,
-			DependLabelSelector: p.DependLabelSelector,
-			ContainerConfigs:    p.ContainerConfigs,
-		})
+		configs = append(
+			configs, &profile.ServiceConfigV2{
+				Name:                p.Name,
+				Type:                p.Type,
+				PriorityClass:       p.PriorityClass,
+				DependLabelSelector: p.DependLabelSelector,
+				ContainerConfigs:    p.ContainerConfigs,
+			},
+		)
 	}
 
 	return configs
@@ -705,7 +707,9 @@ func (a *Application) PortForward(deployment, podName string, localPort, remoteP
 	}
 }
 
-func (a *Application) CheckPidPortStatus(ctx context.Context, deployment string, sLocalPort, sRemotePort int, lock *sync.Mutex) {
+func (a *Application) CheckPidPortStatus(
+	ctx context.Context, deployment string, sLocalPort, sRemotePort int, lock *sync.Mutex,
+) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -735,52 +739,55 @@ func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error 
 }
 
 func (a *Application) GetBackgroundSyncPortForwardPid(deployment string, isTrunc bool) (int, string, error) {
-	f, err := ioutil.ReadFile(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+	f, err := ioutil.ReadFile(a.GetABGPortForwardPidFile(deployment))
 	if err != nil {
-		return 0, a.GetApplicationBackGroundPortForwardPidFile(deployment), err
+		return 0, a.GetABGPortForwardPidFile(deployment), err
 	}
 	port, err := strconv.Atoi(string(f))
 	if err != nil {
-		return 0, a.GetApplicationBackGroundPortForwardPidFile(deployment), err
+		return 0, a.GetABGPortForwardPidFile(deployment), err
 	}
 	if isTrunc {
-		_ = a.SetPidFileEmpty(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+		_ = a.SetPidFileEmpty(a.GetABGPortForwardPidFile(deployment))
 	}
-	return port, a.GetApplicationBackGroundPortForwardPidFile(deployment), nil
+	return port, a.GetABGPortForwardPidFile(deployment), nil
 }
 
 func (a *Application) GetBackgroundSyncThingPid(deployment string, isTrunc bool) (int, string, error) {
-	f, err := ioutil.ReadFile(a.GetApplicationSyncThingPidFile(deployment))
+	f, err := ioutil.ReadFile(a.GetSyncThingPidFile(deployment))
 	if err != nil {
-		return 0, a.GetApplicationSyncThingPidFile(deployment), err
+		return 0, a.GetSyncThingPidFile(deployment), err
 	}
 	port, err := strconv.Atoi(string(f))
 	if err != nil {
-		return 0, a.GetApplicationSyncThingPidFile(deployment), err
+		return 0, a.GetSyncThingPidFile(deployment), err
 	}
 	if isTrunc {
-		_ = a.SetPidFileEmpty(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+		_ = a.SetPidFileEmpty(a.GetABGPortForwardPidFile(deployment))
 	}
-	return port, a.GetApplicationSyncThingPidFile(deployment), nil
+	return port, a.GetSyncThingPidFile(deployment), nil
 }
 
 func (a *Application) GetBackgroundOnlyPortForwardPid(deployment string, isTrunc bool) (int, string, error) {
-	f, err := ioutil.ReadFile(a.GetApplicationOnlyPortForwardPidFile(deployment))
+	f, err := ioutil.ReadFile(a.GetPortForwardPidFile(deployment))
 	if err != nil {
-		return 0, a.GetApplicationOnlyPortForwardPidFile(deployment), err
+		return 0, a.GetPortForwardPidFile(deployment), err
 	}
 	port, err := strconv.Atoi(string(f))
 	if err != nil {
-		return 0, a.GetApplicationOnlyPortForwardPidFile(deployment), err
+		return 0, a.GetPortForwardPidFile(deployment), err
 	}
 	if isTrunc {
-		_ = a.SetPidFileEmpty(a.GetApplicationBackGroundPortForwardPidFile(deployment))
+		_ = a.SetPidFileEmpty(a.GetABGPortForwardPidFile(deployment))
 	}
-	return port, a.GetApplicationOnlyPortForwardPidFile(deployment), nil
+	return port, a.GetPortForwardPidFile(deployment), nil
 }
 
-func (a *Application) WriteBackgroundSyncPortForwardPidFile(deployment string, pid int) error {
-	file, err := os.OpenFile(a.GetApplicationBackGroundPortForwardPidFile(deployment), os.O_WRONLY|os.O_CREATE, 0666)
+func (a *Application) WriteBGSyncPForwardPidFile(deployment string, pid int) error {
+	file, err := os.OpenFile(
+		a.GetABGPortForwardPidFile(deployment),
+		os.O_WRONLY|os.O_CREATE, 0666,
+	)
 	if err != nil {
 		return errors.New("fail open application file sync background port-forward pid file")
 	}
@@ -790,11 +797,14 @@ func (a *Application) WriteBackgroundSyncPortForwardPidFile(deployment string, p
 	return errors.Wrap(err, "")
 }
 
-func (a *Application) GetSyncthingLocalDirFromProfileSaveByDevStart(svcName string, options *DevStartOptions) (*DevStartOptions, error) {
+func (a *Application) GetSyncDirFromProfile(
+	svcName string, options *DevStartOptions,
+) (*DevStartOptions, error) {
 	appProfile, _ := a.GetProfile()
 	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
 	if svcProfile == nil {
-		return options, errors.New("get " + svcName + " profile fail, please reinstall application")
+		return options,
+			errors.New("get " + svcName + " profile fail, please reinstall application")
 	}
 	options.LocalSyncDir = svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin
 	return options, nil
@@ -871,13 +881,17 @@ func (a *Application) SetPidFileEmpty(filePath string) error {
 
 func (a *Application) CleanUpTmpResources() error {
 	log.Log("Clean up tmp resources...")
-	return errors.Wrap(os.RemoveAll(a.ResourceTmpDir), fmt.Sprintf("fail to remove resources dir %s", a.ResourceTmpDir))
+	return errors.Wrap(os.RemoveAll(a.ResourceTmpDir),
+		fmt.Sprintf("fail to remove resources dir %s", a.ResourceTmpDir),
+	)
 }
 
 func (a *Application) CleanupResources() error {
 	log.Info("Remove resource files...")
 	homeDir := a.GetHomeDir()
-	return errors.Wrap(os.RemoveAll(homeDir), fmt.Sprintf("fail to remove resources dir %s", homeDir))
+	return errors.Wrap(os.RemoveAll(homeDir),
+		fmt.Sprintf("fail to remove resources dir %s", homeDir),
+	)
 }
 
 func (a *Application) Uninstall() error {

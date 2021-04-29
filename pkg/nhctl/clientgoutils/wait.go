@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package clientgoutils
 
@@ -30,7 +29,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-func (c *ClientGoUtils) WaitForResourceReady(resourceType ResourceType, name string, isReady func(object runtime.Object) (bool, error)) error {
+func (c *ClientGoUtils) WaitForResourceReady(
+	resourceType ResourceType, name string, isReady func(object runtime.Object) (bool, error),
+) error {
 	var runtimeObject runtime.Object
 	var restClient rest.Interface
 	switch resourceType {
@@ -58,7 +59,8 @@ func (c *ClientGoUtils) WaitForResourceReady(resourceType ResourceType, name str
 	stop := make(chan struct{})
 	defer close(stop)
 	exit := make(chan bool)
-	_, controller := cache.NewInformer( // also take a look at NewSharedIndexInformer
+	_, controller := cache.NewInformer(
+		// also take a look at NewSharedIndexInformer
 		watchlist,
 		runtimeObject,
 		0,
@@ -132,7 +134,8 @@ func (c *ClientGoUtils) WaitJobToBeReady(name, format string) error {
 	)
 	stop := make(chan struct{})
 	exit := make(chan int)
-	_, controller := cache.NewInformer( // also take a look at NewSharedIndexInformer
+	_, controller := cache.NewInformer(
+		// also take a look at NewSharedIndexInformer
 		watchlist,
 		&batchv1.Job{},
 		0, //Duration is int64

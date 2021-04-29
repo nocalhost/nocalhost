@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package clientgoutils
 
@@ -22,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/restmapper"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -31,6 +31,7 @@ import (
 func (c *ClientGoUtils) newFactory() cmdutil.Factory {
 	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
 	kubeConfigFlags.KubeConfig = &c.kubeConfigFilePath
+	kubeConfigFlags.Namespace = &c.namespace
 	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
 	f := cmdutil.NewFactory(matchVersionKubeConfigFlags)
 	return f
@@ -71,45 +72,35 @@ func (c *ClientGoUtils) ApplyAndWait(files []string, continueOnError bool, flags
 }
 
 func (c *ClientGoUtils) Apply(files []string, continueOnError bool, flags *ApplyFlags, kustomize string) error {
-	var reader ResourceReader
 
-	if kustomize == "" {
-		reader = NewManifestResourceReader(files)
-	} else {
-		reader = NewKustomizeResourceReader(kustomize)
-	}
-
-	loadResource, err := reader.LoadResource()
-	if err != nil && !continueOnError {
-		return err
-	}
-
-	//goland:noinspection GoNilness
-	infos, err := loadResource.GetResourceInfo(c, continueOnError)
-	if err != nil {
-		log.Logf("Error while resolve [ResourceInfo] from [Info] %s, err:%s", loadResource, err)
-		if !continueOnError {
-			return err
-		}
-	}
-
-	if flags != nil && flags.BeforeApply != nil {
-		if err := (flags.BeforeApply)(loadResource.String()); err != nil {
-			return err
-		}
-	}
-
-	if flags != nil && flags.DoApply {
-		for _, info := range infos {
-			_ = c.ApplyResourceInfo(info, flags)
-		}
-	}
-
-	return nil
+	return c.renderManifestAndThen(
+		files, continueOnError, flags, kustomize,
+		func(c *ClientGoUtils, r *resource.Info) error {
+			return c.ApplyResourceInfo(r, flags)
+		},
+	)
 }
 
 // useless temporally
 func (c *ClientGoUtils) Delete(files []string, continueOnError bool, flags *ApplyFlags, kustomize string) error {
+
+	return c.renderManifestAndThen(
+		files, continueOnError, flags, kustomize,
+		func(c *ClientGoUtils, r *resource.Info) error {
+
+			// for now the apply flag used to adding annotations
+			// while apply resource
+			// delete resource need not to do that
+			return c.DeleteResourceInfo(r)
+		},
+	)
+}
+
+// useless temporally
+func (c *ClientGoUtils) renderManifestAndThen(
+	files []string, continueOnError bool, flags *ApplyFlags,
+	kustomize string, doForResourceInfo func(c *ClientGoUtils, r *resource.Info) error,
+) error {
 	var reader ResourceReader
 
 	if kustomize == "" {
@@ -140,7 +131,9 @@ func (c *ClientGoUtils) Delete(files []string, continueOnError bool, flags *Appl
 
 	if flags != nil && flags.DoApply {
 		for _, info := range infos {
-			_ = c.DeleteResourceInfo(info)
+			if err := doForResourceInfo(c, info); err != nil && !continueOnError {
+				return errors.Wrap(err, "Error while apply resourceInfo")
+			}
 		}
 	}
 	return nil

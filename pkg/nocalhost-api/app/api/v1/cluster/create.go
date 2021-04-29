@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package cluster
 
@@ -85,7 +84,8 @@ func Create(c *gin.Context) {
 		return
 	}
 
-	// 1. check if Namespace nocalhost-reserved already exist, ignore cause by nocalhost-dep-job installer.sh has checkout this condition and will exit
+	// 1. check if Namespace nocalhost-reserved already exist, ignore cause by nocalhost-dep-job installer.sh
+	//has checkout this condition and will exit
 	// 2. use admin Kubeconfig create configmap for nocalhost-dep-job to create admission webhook cert
 	// 3. deploy nocalhost-dep-job and pull on nocalhost-dep
 	// see https://codingcorp.coding.net/p/nocalhost/wiki/115
@@ -105,7 +105,10 @@ func Create(c *gin.Context) {
 	}
 
 	userId, _ := c.Get("userId")
-	cluster, err := service.Svc.ClusterSvc().Create(c, req.Name, string(DecKubeconfig), req.StorageClass, t.Clusters[0].Cluster.Server, clusterInfo, userId.(uint64))
+	cluster, err := service.Svc.ClusterSvc().Create(
+		c, req.Name, string(DecKubeconfig), req.StorageClass,
+		t.Clusters[0].Cluster.Server, clusterInfo, userId.(uint64),
+	)
 	if err != nil {
 		log.Warnf("create cluster err: %v", err)
 		api.SendResponse(c, errno.ErrClusterCreate, nil)

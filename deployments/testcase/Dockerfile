@@ -6,10 +6,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o build/testcase nocalhost/test
 FROM ubuntu:latest
 # install kubectl
 RUN sed -i s@/archive.ubuntu.com/@/mirrors.aliyun.com/@g /etc/apt/sources.list
-RUN apt-get update && (apt-get install git apt-transport-https gnupg2 curl wget -y)
-RUN (curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -)
-RUN echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | tee -a /etc/apt/sources.list.d/kubernetes.list
-RUN (apt-get update) && (apt-get install -y kubectl)
+RUN apt-get update && (apt-get install git curl wget -y)
+RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+RUN install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 # install helm
 RUN wget https://get.helm.sh/helm-v3.5.3-linux-amd64.tar.gz
 RUN (tar -zxvf helm-v3.5.3-linux-amd64.tar.gz) && (mv linux-amd64/helm /usr/local/bin/helm) && (rm helm-v3.5.3-linux-amd64.tar.gz)

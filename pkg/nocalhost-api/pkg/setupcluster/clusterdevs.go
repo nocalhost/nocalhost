@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package setupcluster
 
@@ -25,7 +24,10 @@ type ClusterDevsSetUp interface {
 	CreateRole(name, namespace string) *clusterDevsSetUp
 	CreateRoleBinding(name, namespace, clusterRole, toServiceAccount string) *clusterDevsSetUp
 	GetServiceAccountSecret(name, namespace string) (*corev1.Secret, error)
-	CreateResouceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string) *clusterDevsSetUp
+	CreateResourceQuota(
+		name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity,
+		ephemeralStorage, pvcCount, lbCount string,
+	) *clusterDevsSetUp
 	DeleteResourceQuota(name, namespace string) *clusterDevsSetUp
 	CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string) *clusterDevsSetUp
 	DeleteLimitRange(name, namespace string) *clusterDevsSetUp
@@ -107,8 +109,13 @@ func (c *clusterDevsSetUp) GetServiceAccountSecret(name, namespace string) (*cor
 	return secret, err
 }
 
-func (c *clusterDevsSetUp) CreateResouceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string) *clusterDevsSetUp {
-	_, err := c.clientGo.CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount)
+func (c *clusterDevsSetUp) CreateResourceQuota(
+	name, namespace, reqMem, reqCpu, limitsMem,
+	limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string,
+) *clusterDevsSetUp {
+	_, err := c.clientGo.CreateResourceQuota(
+		name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount,
+	)
 	if err != nil {
 		c.err = err
 		c.errCode = errno.ErrCreateResourceQuota
@@ -125,8 +132,14 @@ func (c *clusterDevsSetUp) DeleteResourceQuota(name, namespace string) *clusterD
 	return c
 }
 
-func (c *clusterDevsSetUp) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string) *clusterDevsSetUp {
-	_, err := c.clientGo.CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage)
+func (c *clusterDevsSetUp) CreateLimitRange(
+	name, namespace, reqMem,
+	limitsMem, reqCpu, limitsCpu, ephemeralStorage string,
+) *clusterDevsSetUp {
+	_, err := c.clientGo.CreateLimitRange(
+		name, namespace, reqMem,
+		limitsMem, reqCpu, limitsCpu, ephemeralStorage,
+	)
 	if err != nil {
 		c.err = err
 		c.errCode = errno.ErrCreateLimitRange

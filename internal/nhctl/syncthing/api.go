@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package syncthing
 
@@ -37,13 +36,17 @@ func (akt *addAPIKeyTransport) RoundTrip(req *http.Request) (*http.Response, err
 //NewAPIClient returns a new syncthing api client configured to call the syncthing api
 func NewAPIClient() *http.Client {
 	return &http.Client{
-		Timeout:   30 * time.Second,
+		Timeout: 30 * time.Second,
 		Transport: &addAPIKeyTransport{http.DefaultTransport},
 	}
 }
 
 // APICall calls the syncthing API and returns the parsed json or an error
-func (s *Syncthing) APICall(ctx context.Context, url, method string, code int, params map[string]string, local bool, body []byte, readBody bool, maxRetries int) ([]byte, error) {
+func (s *Syncthing) APICall(
+	ctx context.Context, url, method string, code int, params map[string]string, local bool,
+	body []byte, readBody bool,
+	maxRetries int,
+) ([]byte, error) {
 	retries := 0
 	for {
 		result, err := s.callWithRetry(ctx, url, method, code, params, local, body, readBody)
@@ -59,7 +62,9 @@ func (s *Syncthing) APICall(ctx context.Context, url, method string, code int, p
 	}
 }
 
-func (s *Syncthing) callWithRetry(ctx context.Context, url, method string, code int, params map[string]string, local bool, body []byte, readBody bool) ([]byte, error) {
+func (s *Syncthing) callWithRetry(
+	ctx context.Context, url, method string, code int, params map[string]string, local bool, body []byte, readBody bool,
+) ([]byte, error) {
 	var urlPath string
 	if local {
 		urlPath = filepath.Join(s.GUIAddress, url)
@@ -96,7 +101,9 @@ func (s *Syncthing) callWithRetry(ctx context.Context, url, method string, code 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != code {
-		return nil, fmt.Errorf("unexpected response from syncthing [%s | %d]: %s", req.URL.String(), resp.StatusCode, string(body))
+		return nil, fmt.Errorf(
+			"unexpected response from syncthing [%s | %d]: %s", req.URL.String(), resp.StatusCode, string(body),
+		)
 	}
 
 	if !readBody {

@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package application_cluster
 
@@ -38,11 +37,15 @@ func NewApplicationClusterService() ApplicationClusterService {
 	return &applicationClusterService{applicationClusterRepo: application_cluster.NewApplicationClusterRepo(db)}
 }
 
-func (srv *applicationClusterService) GetJoinCluster(ctx context.Context, id uint64) ([]*model.ApplicationClusterJoinModel, error) {
+func (srv *applicationClusterService) GetJoinCluster(
+	ctx context.Context, id uint64,
+) ([]*model.ApplicationClusterJoinModel, error) {
 	return srv.applicationClusterRepo.GetJoinCluster(ctx, id)
 }
 
-func (srv *applicationClusterService) GetList(ctx context.Context, id uint64) ([]*model.ApplicationClusterModel, error) {
+func (srv *applicationClusterService) GetList(ctx context.Context, id uint64) (
+	[]*model.ApplicationClusterModel, error,
+) {
 	return srv.applicationClusterRepo.GetList(ctx, id)
 }
 
@@ -50,7 +53,9 @@ func (srv *applicationClusterService) GetFirst(ctx context.Context, id uint64) (
 	return srv.applicationClusterRepo.GetFirst(ctx, id)
 }
 
-func (srv *applicationClusterService) Create(ctx context.Context, applicationId uint64, clusterId uint64) (model.ApplicationClusterModel, error) {
+func (srv *applicationClusterService) Create(
+	ctx context.Context, applicationId uint64, clusterId uint64,
+) (model.ApplicationClusterModel, error) {
 	c := model.ApplicationClusterModel{
 		ApplicationId: applicationId,
 		ClusterId:     clusterId,

@@ -1,10 +1,7 @@
 package syncthing
 
 import (
-	"encoding/json"
-	"fmt"
 	"io/ioutil"
-	"nocalhost/internal/nocalhost-dep/webhook"
 	"testing"
 )
 
@@ -85,7 +82,8 @@ func TestDownLoadWithCommitId(t *testing.T) {
 }
 
 // though specify the commit id, download the version of `VERSION` is high priority and repeat 'InstallIfNeeded()'
-func TestRepeatDownLoadWithCommitId(t *testing.T) {
+// TestRepeatDownLoadWithCommitId
+func TestRDLWC(t *testing.T) {
 	versionToDownload := "v0.0.1"
 	commitId := "forunittestwithmockedcommitid"
 	tmpDir, _ := ioutil.TempDir("", "")
@@ -119,7 +117,8 @@ func TestRepeatDownLoadWithCommitId(t *testing.T) {
 }
 
 // specify the commit id, and the VERSION is empty
-func TestRepeatDownLoadWithCommitIdAndEmptyVersion(t *testing.T) {
+// TestRepeatDownLoadWithCommitIdAndEmptyVersion
+func TestRDLWCIAEV(t *testing.T) {
 	versionToDownload := ""
 	commitId := "forunittestwithmockedcommitid"
 	tmpDir, _ := ioutil.TempDir("", "")
@@ -153,7 +152,8 @@ func TestRepeatDownLoadWithCommitIdAndEmptyVersion(t *testing.T) {
 }
 
 // specify the commit id, and the VERSION is empty
-func TestDownLoadWithCommitIdAndEmptyVersion(t *testing.T) {
+// TestDownLoadWithCommitIdAndEmptyVersion
+func TestDLWCIAEV(t *testing.T) {
 	versionToDownload := ""
 	commitId := "forunittestwithmockedcommitid"
 	tmpDir, _ := ioutil.TempDir("", "")
@@ -176,7 +176,8 @@ func TestDownLoadWithCommitIdAndEmptyVersion(t *testing.T) {
 }
 
 // specify the commit id, and the VERSION is empty
-func TestDownLoadWithCommitIdAnInvalidVersion(t *testing.T) {
+// TestDownLoadWithCommitIdAnInvalidVersion
+func TestTDLWCIAIV(t *testing.T) {
 	versionToDownload := "invalidVersion"
 	commitId := "forunittestwithmockedcommitid"
 	tmpDir, _ := ioutil.TempDir("", "")
@@ -199,7 +200,8 @@ func TestDownLoadWithCommitIdAnInvalidVersion(t *testing.T) {
 }
 
 // specify the commit id, and the VERSION is empty
-func TestRepeatDownLoadWithCommitIdAnInvalidVersion(t *testing.T) {
+// TestRepeatDownLoadWithCommitIdAnInvalidVersion
+func TestRDLCIAIV(t *testing.T) {
 	versionToDownload := "invalidVersion"
 	commitId := "forunittestwithmockedcommitid"
 	tmpDir, _ := ioutil.TempDir("", "")

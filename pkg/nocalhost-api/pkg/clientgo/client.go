@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package clientgo
 
@@ -214,7 +213,9 @@ func (c *GoClient) requireClusterAdminClient() error {
 
 // get deployment
 func (c *GoClient) GetDepDeploymentStatus() error {
-	deployment, err := c.client.AppsV1().Deployments(global.NocalhostSystemNamespace).Get(context.TODO(), global.NocalhostDepName, metav1.GetOptions{})
+	deployment, err := c.client.AppsV1().Deployments(global.NocalhostSystemNamespace).Get(
+		context.TODO(), global.NocalhostDepName, metav1.GetOptions{},
+	)
 	if err != nil {
 		return errors.New("nocalhost-dep component not found")
 	}
@@ -360,7 +361,9 @@ func (c *GoClient) IsAdmin() (bool, error) {
 		},
 	}
 
-	response, err := c.client.AuthorizationV1().SelfSubjectAccessReviews().Create(context.TODO(), arg, metav1.CreateOptions{})
+	response, err := c.client.AuthorizationV1().SelfSubjectAccessReviews().Create(
+		context.TODO(), arg, metav1.CreateOptions{},
+	)
 	if err != nil {
 		return false, err
 	}
@@ -392,7 +395,9 @@ func (c *GoClient) RefreshServiceAccount(name, namespace string) {
 		name = global.NocalhostDevServiceAccountName
 	}
 
-	if sa, err := c.client.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{}); err == nil {
+	if sa, err := c.client.CoreV1().ServiceAccounts(namespace).Get(
+		context.TODO(), name, metav1.GetOptions{},
+	); err == nil {
 		if sa.Labels == nil {
 			sa.Labels = map[string]string{}
 		}
@@ -402,23 +407,13 @@ func (c *GoClient) RefreshServiceAccount(name, namespace string) {
 	}
 }
 
-// Initial resource quota for namespace. such as:
-/**
-apiVersion: v1
-  kind: ResourceQuota
-  metadata:
-    name: namespace-name
-  spec:
-    hard:
-      limits.cpu: "10"
-      requests.cpu: "10"
-      limits.memory: "48Gi"
-      requests.memory: "40Gi"
-      persistentvolumeclaims: "10"
-      services.loadbalancers: "10"
-      requests.storage: "20Gi"
-*/
-func (c *GoClient) CreateResourceQuota(name, namespace, reqMem, reqCpu, limitsMem, limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string) (bool, error) {
+// CreateResourceQuota Initial resource quota for namespace
+func (c *GoClient) CreateResourceQuota(
+	name, namespace, reqMem, reqCpu, limitsMem,
+	limitsCpu, storageCapacity, ephemeralStorage, pvcCount, lbCount string,
+) (
+	bool, error,
+) {
 
 	resourceQuota := &corev1.ResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
@@ -470,23 +465,10 @@ func (c *GoClient) DeleteResourceQuota(name, namespace string) (bool, error) {
 	return true, err
 }
 
-// create default resource quota for container. such as:
-/**
-apiVersion: v1
-kind: LimitRange
-metadata:
-  name: limits
-spec:
-  limits:
-  - default:
-      cpu: 200m
-      memory: 512Mi
-    defaultRequest:
-      cpu: 100m
-      memory: 128Mi
-    type: Container
-*/
-func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string) (bool, error) {
+// CreateLimitRange create default resource quota for container
+func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, limitsCpu, ephemeralStorage string) (
+	bool, error,
+) {
 	limitRange := &corev1.LimitRange{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 	}
@@ -513,11 +495,13 @@ func (c *GoClient) CreateLimitRange(name, namespace, reqMem, limitsMem, reqCpu, 
 	if len(limits) < 1 && len(requests) < 1 {
 		return true, nil
 	}
-	limitRange.Spec.Limits = append(limitRange.Spec.Limits, corev1.LimitRangeItem{
-		Default:        limits,
-		DefaultRequest: requests,
-		Type:           corev1.LimitTypeContainer,
-	})
+	limitRange.Spec.Limits = append(
+		limitRange.Spec.Limits, corev1.LimitRangeItem{
+			Default:        limits,
+			DefaultRequest: requests,
+			Type:           corev1.LimitTypeContainer,
+		},
+	)
 	_, err := c.client.CoreV1().LimitRanges(namespace).Create(context.TODO(), limitRange, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
@@ -533,17 +517,10 @@ func (c *GoClient) DeleteLimitRange(name, namespace string) (bool, error) {
 	return true, err
 }
 
-// bind roles for serviceAccount
-// this use for given default serviceAccount default:view case by initContainer need use kubectl get pods....(clusterRole=view)
+// CreateRoleBinding bind roles for serviceAccount
+// this use for given default serviceAccount default:view case by initContainer need
+// use kubectl get pods....(clusterRole=view)
 // and this will use for bind developer serviceAccount roles(clusterRole=nocalhost-roles)
-
-/*
-default serviceAccount default:view:
-kubectl create rolebinding default-view \
-        --clusterrole=view \
-        --serviceaccount={namespace}:default \
-        --namespace={namespace}
-*/
 func (c *GoClient) CreateRoleBinding(name, namespace, role, toServiceAccount string) (bool, error) {
 	roleBinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "RoleBinding"},
@@ -560,12 +537,14 @@ func (c *GoClient) CreateRoleBinding(name, namespace, role, toServiceAccount str
 		}
 	}
 	if toServiceAccount != "" {
-		roleBinding.Subjects = append(roleBinding.Subjects, rbacv1.Subject{
-			Kind:      rbacv1.ServiceAccountKind,
-			APIGroup:  "",
-			Namespace: namespace,
-			Name:      toServiceAccount,
-		})
+		roleBinding.Subjects = append(
+			roleBinding.Subjects, rbacv1.Subject{
+				Kind:      rbacv1.ServiceAccountKind,
+				APIGroup:  "",
+				Namespace: namespace,
+				Name:      toServiceAccount,
+			},
+		)
 	}
 	_, err := c.client.RbacV1().RoleBindings(namespace).Create(context.TODO(), roleBinding, metav1.CreateOptions{})
 	if err != nil {
@@ -592,12 +571,14 @@ func (c *GoClient) CreateClusterRoleBinding(name, namespace, role, toServiceAcco
 		}
 	}
 	if toServiceAccount != "" {
-		roleBinding.Subjects = append(roleBinding.Subjects, rbacv1.Subject{
-			Kind:      rbacv1.ServiceAccountKind,
-			APIGroup:  "",
-			Namespace: namespace,
-			Name:      toServiceAccount,
-		})
+		roleBinding.Subjects = append(
+			roleBinding.Subjects, rbacv1.Subject{
+				Kind:      rbacv1.ServiceAccountKind,
+				APIGroup:  "",
+				Namespace: namespace,
+				Name:      toServiceAccount,
+			},
+		)
 	}
 	_, err := c.client.RbacV1().ClusterRoleBindings().Create(context.TODO(), roleBinding, metav1.CreateOptions{})
 	if err != nil {
@@ -613,10 +594,12 @@ func (c *GoClient) UpdateRole(name, namespace string) error {
 		return err
 	}
 
-	before.Rules = []rbacv1.PolicyRule{{
-		Verbs:     []string{"*"},
-		Resources: []string{"*"},
-		APIGroups: []string{"*"}},
+	before.Rules = []rbacv1.PolicyRule{
+		{
+			Verbs:     []string{"*"},
+			Resources: []string{"*"},
+			APIGroups: []string{"*"},
+		},
 	}
 
 	_, err = c.client.RbacV1().Roles(namespace).Update(context.TODO(), before, metav1.UpdateOptions{})
@@ -672,11 +655,13 @@ func (c *GoClient) AppendRoleBinding(name, namespace, role, toServiceAccount, to
 
 	//  auth admin for current role binding ns
 	if toServiceAccount != "" {
-		rb.Subjects = append(rb.Subjects, rbacv1.Subject{
-			Kind:      rbacv1.ServiceAccountKind,
-			Namespace: toServiceAccountNs,
-			Name:      toServiceAccount,
-		})
+		rb.Subjects = append(
+			rb.Subjects, rbacv1.Subject{
+				Kind:      rbacv1.ServiceAccountKind,
+				Namespace: toServiceAccountNs,
+				Name:      toServiceAccount,
+			},
+		)
 	}
 
 	if update {
@@ -732,11 +717,13 @@ func (c *GoClient) AppendClusterRoleBinding(name, role, toServiceAccount, toServ
 
 	//  auth admin for current role binding ns
 	if toServiceAccount != "" {
-		crb.Subjects = append(crb.Subjects, rbacv1.Subject{
-			Kind:      rbacv1.ServiceAccountKind,
-			Namespace: toServiceAccountNs,
-			Name:      toServiceAccount,
-		})
+		crb.Subjects = append(
+			crb.Subjects, rbacv1.Subject{
+				Kind:      rbacv1.ServiceAccountKind,
+				Namespace: toServiceAccountNs,
+				Name:      toServiceAccount,
+			},
+		)
 	}
 
 	if update {
@@ -820,10 +807,12 @@ func (c *GoClient) CreateRole(name, namespace string) (bool, error) {
 	//}
 	//role.Rules = append(role.Rules, *rule...)
 
-	role.Rules = []rbacv1.PolicyRule{{
-		Verbs:     []string{"*"},
-		Resources: []string{"*"},
-		APIGroups: []string{"*"}},
+	role.Rules = []rbacv1.PolicyRule{
+		{
+			Verbs:     []string{"*"},
+			Resources: []string{"*"},
+			APIGroups: []string{"*"},
+		},
 	}
 
 	_, err := c.client.RbacV1().Roles(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
@@ -847,10 +836,12 @@ func (c *GoClient) CreateClusterRole(name string) (bool, error) {
 	//}
 	//role.Rules = append(role.Rules, *rule...)
 
-	role.Rules = []rbacv1.PolicyRule{{
-		Verbs:     []string{"*"},
-		Resources: []string{"*"},
-		APIGroups: []string{"*"}},
+	role.Rules = []rbacv1.PolicyRule{
+		{
+			Verbs:     []string{"*"},
+			Resources: []string{"*"},
+			APIGroups: []string{"*"},
+		},
 	}
 
 	_, err := c.client.RbacV1().ClusterRoles().Create(context.TODO(), role, metav1.CreateOptions{})
@@ -874,11 +865,13 @@ func getPolicyRule(c *GoClient) (*[]rbacv1.PolicyRule, error) {
 
 			if apiResource.Namespaced && !isLimitedRules(resourceName) {
 
-				result = append(result, rbacv1.PolicyRule{
-					Verbs:     apiResource.Verbs,
-					Resources: []string{resourceName},
-					APIGroups: []string{"*"},
-				})
+				result = append(
+					result, rbacv1.PolicyRule{
+						Verbs:     apiResource.Verbs,
+						Resources: []string{resourceName},
+						APIGroups: []string{"*"},
+					},
+				)
 			}
 		}
 	}
@@ -888,7 +881,10 @@ func getPolicyRule(c *GoClient) (*[]rbacv1.PolicyRule, error) {
 }
 
 func isLimitedRules(rn string) bool {
-	return rn == "resourcequotas" || rn == "roles" || strings.HasPrefix(rn, "resourcequotas/") || strings.HasPrefix(rn, "roles/")
+	return rn == "resourcequotas" || rn == "roles" || strings.HasPrefix(rn, "resourcequotas/") ||
+		strings.HasPrefix(
+			rn, "roles/",
+		)
 }
 
 // deploy priorityclass
@@ -941,7 +937,8 @@ func (c *GoClient) DeployNocalhostDep(namespace, serviceAccount, tag string) (bo
 }
 
 // deploy pre pull images
-// use DaemonSet InitContainer make sure every Node pull images https://kubernetes.io/zh/docs/concepts/workloads/controllers/daemonset/
+// use DaemonSet InitContainer make sure every Node pull images
+// https://kubernetes.io/zh/docs/concepts/workloads/controllers/daemonset/
 // when started it should kill himself
 func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool, error) {
 	if namespace == "" {
@@ -975,9 +972,12 @@ func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool,
 					InitContainers: initContainer,
 					Containers: []corev1.Container{
 						{
-							Name:    "kubectl",
-							Image:   "codingcorp-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
-							Command: []string{"kubectl", "delete", "ds", global.NocalhostPrePullDSName, "-n", global.NocalhostSystemNamespace},
+							Name:  "kubectl",
+							Image: "codingcorp-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
+							Command: []string{
+								"kubectl", "delete", "ds", global.NocalhostPrePullDSName, "-n",
+								global.NocalhostSystemNamespace,
+							},
 						},
 					},
 					ServiceAccountName: global.NocalhostSystemNamespaceServiceAccount,
@@ -1035,9 +1035,11 @@ func (c *GoClient) GetClusterRoleBinding(name string) (*rbacv1.ClusterRoleBindin
 }
 
 func (c *GoClient) ListClusterRoleBindingByLabel(label string) (*rbacv1.ClusterRoleBindingList, error) {
-	return c.client.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{
-		LabelSelector: label,
-	})
+	return c.client.RbacV1().ClusterRoleBindings().List(
+		context.TODO(), metav1.ListOptions{
+			LabelSelector: label,
+		},
+	)
 }
 
 // Get cluster version
@@ -1051,11 +1053,13 @@ func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceA
 	resourceWatchTimeoutSeconds := int64(30)
 	log.Infof("GET ServiceAccount name %s, namespace %s: ", name, namespace)
 	var serviceAccount *corev1.ServiceAccount
-	watcher, err := c.client.CoreV1().ServiceAccounts(namespace).Watch(context.TODO(), metav1.ListOptions{
-		FieldSelector:  fields.Set{"metadata.name": name}.AsSelector().String(),
-		Watch:          true,
-		TimeoutSeconds: &resourceWatchTimeoutSeconds,
-	})
+	watcher, err := c.client.CoreV1().ServiceAccounts(namespace).Watch(
+		context.TODO(), metav1.ListOptions{
+			FieldSelector:  fields.Set{"metadata.name": name}.AsSelector().String(),
+			Watch:          true,
+			TimeoutSeconds: &resourceWatchTimeoutSeconds,
+		},
+	)
 	if err != nil {
 
 	}
@@ -1073,7 +1077,8 @@ func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceA
 	// var secret *corev1.Secret
 	// TKE unknow: the server rejected our request for an unknown reason (get secrets) can not watch secret
 	//swatcher, err := c.client.CoreV1().Secrets(namespace).Watch(context.TODO(), metav1.ListOptions{
-	//	//FieldSelector:  fields.Set{"metadata.annotations.kubernetes.io/service-account.name": name}.AsSelector().String(),
+	//	//FieldSelector:  fields.Set{"metadata.annotations.kubernetes.io/service-account.name": name}.
+	//	AsSelector().String(),
 	//	FieldSelector:  "metadata.annotations.kubernetes.io/service-account.name=" + name,
 	//	Watch:          true,
 	//	TimeoutSeconds: &resourceWatchTimeoutSeconds,
@@ -1097,7 +1102,9 @@ func (c *GoClient) WatchServiceAccount(name, namespace string) (*corev1.ServiceA
 		if i > 300 {
 			break
 		}
-		serviceAccount, err = c.client.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		serviceAccount, err = c.client.CoreV1().ServiceAccounts(namespace).Get(
+			context.TODO(), name, metav1.GetOptions{},
+		)
 		if serviceAccount != nil && len(serviceAccount.Secrets) > 0 {
 			break
 		}

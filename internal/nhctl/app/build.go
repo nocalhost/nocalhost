@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package app
 
@@ -31,16 +30,21 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
 
-// When a application is installed, something representing the application will build, including:
+// BuildApplication When a application is installed, something representing the application will build, including:
 // 1. An directory (NhctlAppDir) under $NhctlHomeDir/ns/$NameSpace will be created and initiated
-// 2. An .config_v2.yaml will be created under $NhctlAppDir, it may come from an config file under .nocalhost in your git repository or an outer config file in your local file system
-// 3. An .profile_v2.yaml will be created under $NhctlAppDir, it will record the status of this application
+// 2. An config will be created and upload to the secret in the k8s cluster, it may come from an config file under
+//   .nocalhost in your git repository or an outer config file in your local file system
+// 3. An leveldb will be created under $NhctlAppDir, it will record the status of this application
 // build a new application
-func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig string, namespace string) (*Application, error) {
+func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig string, namespace string) (
+	*Application, error) {
+
+	var err error
 
 	app := &Application{
 		Name:       name,
@@ -48,14 +52,12 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		KubeConfig: kubeconfig,
 	}
 
-	err := app.initDir()
-	if err != nil {
+	if err = app.initDir(); err != nil {
 		return nil, err
 	}
 
 	app.ResourceTmpDir, _ = ioutil.TempDir("", "")
-	err = os.MkdirAll(app.ResourceTmpDir, DefaultNewFilePermission)
-	if err != nil {
+	if err = os.MkdirAll(app.ResourceTmpDir, DefaultNewFilePermission); err != nil {
 		return nil, errors.New("Fail to create tmp dir for install")
 	}
 
@@ -68,8 +70,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	if flags.GitUrl != "" {
-		if err = app.downloadResourcesFromGit(flags.GitUrl, flags.GitRef, app.ResourceTmpDir); err != nil {
-			log.Debugf("Failed to clone : %s ref: %s", flags.GitUrl, flags.GitRef)
+		if err = downloadResourcesFromGit(flags.GitUrl, flags.GitRef, app.ResourceTmpDir); err != nil {
 			return nil, err
 		}
 	} else if flags.LocalPath != "" { // local path of application, copy to nocalhost resource
@@ -79,9 +80,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	// load nocalhost config from dir
-	config, err := app.loadOrGenerateConfig(
-		flags.OuterConfig, flags.Config, flags.ResourcePath, flags.AppType,
-	)
+	config, err := app.loadOrGenerateConfig(flags.OuterConfig, flags.Config, flags.ResourcePath, flags.AppType)
 	if err != nil {
 		return nil, err
 	}
@@ -93,16 +92,16 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	if appMeta.IsInstalled() {
-		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s has already been installed,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", name, namespace, name, namespace))
+		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s has already been installed", name, namespace))
 	} else if appMeta.IsInstalling() {
-		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing,  you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", name, namespace, name, namespace))
+		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing", name, namespace))
 	}
 
 	app.appMeta = appMeta
 
 	if err = appMeta.Initial(); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
-			log.Error("Application %s has been installed, you can use 'nhctl uninstall %s -n %s' to uninstall this applications ", app.Name, app.Name, app.NameSpace)
+			log.Error("Application %s in %s has been installed", app.Name, app.NameSpace)
 		}
 		return nil, err
 	}
@@ -122,20 +121,20 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		appProfileV2.ResourcePath = flags.ResourcePath
 	}
 
-	//app.profileV2 = appProfileV2
 	app.AppType = appProfileV2.AppType
 
 	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
 }
 
-func (app *Application) loadOrGenerateConfig(outerConfig, config string, resourcePath []string, appType string) (*profile.NocalHostAppConfigV2, error) {
+func (a *Application) loadOrGenerateConfig(outerConfig, config string, resourcePath []string, appType string,
+) (*profile.NocalHostAppConfigV2, error) {
 	var nocalhostConfig *profile.NocalHostAppConfigV2
 	var err error
 
 	configFilePath := outerConfig
 	// Read from .nocalhost
 	if configFilePath == "" {
-		if _, err := os.Stat(app.getConfigPathInGitResourcesDir(config)); err != nil {
+		if _, err := os.Stat(a.getConfigPathInGitResourcesDir(config)); err != nil {
 			if !os.IsNotExist(err) {
 				return nil, errors.Wrap(err, "")
 			}
@@ -143,7 +142,7 @@ func (app *Application) loadOrGenerateConfig(outerConfig, config string, resourc
 			renderedConfig := &profile.NocalHostAppConfigV2{
 				ConfigProperties: &profile.ConfigProperties{Version: "v2"},
 				ApplicationConfig: &profile.ApplicationConfig{
-					Name:           app.Name,
+					Name:           a.Name,
 					Type:           appType,
 					ResourcePath:   resourcePath,
 					IgnoredPath:    nil,
@@ -154,24 +153,49 @@ func (app *Application) loadOrGenerateConfig(outerConfig, config string, resourc
 					ServiceConfigs: nil,
 				},
 			}
-			configBys, err := yaml.Marshal(renderedConfig)
-			if err = ioutil.WriteFile(app.GetConfigV2Path(), configBys, 0644); err != nil {
-				return nil, errors.New("fail to create configFile")
-			}
 			nocalhostConfig = renderedConfig
 		} else {
-			configFilePath = app.getConfigPathInGitResourcesDir(config)
+			configFilePath = a.getConfigPathInGitResourcesDir(config)
 		}
 	}
 
 	// config.yaml found
 	if configFilePath != "" {
-		if nocalhostConfig, err = app.renderConfig(configFilePath); err != nil {
+		if nocalhostConfig, err = renderConfig(configFilePath); err != nil {
 			return nil, err
 		}
 	}
 
 	return nocalhostConfig, nil
+}
+
+func updateProfileFromConfig(appProfileV2 *profile.AppProfileV2, config *profile.NocalHostAppConfigV2) {
+	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
+	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
+	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
+	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
+	appProfileV2.Env = config.ApplicationConfig.Env
+
+	if len(appProfileV2.SvcProfile) == 0 {
+		appProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
+	}
+	for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {
+		var f bool
+		for _, svcP := range appProfileV2.SvcProfile {
+			if svcP.ActualName == svcConfig.Name {
+				svcP.ServiceConfigV2 = svcConfig
+				f = true
+				break
+			}
+		}
+		if !f {
+			svcProfile := &profile.SvcProfileV2{
+				ActualName:      svcConfig.Name,
+				ServiceConfigV2: svcConfig,
+			}
+			appProfileV2.SvcProfile = append(appProfileV2.SvcProfile, svcProfile)
+		}
+	}
 }
 
 func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.AppProfileV2 {
@@ -197,7 +221,7 @@ func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.Ap
 }
 
 // V2
-func (a *Application) renderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) {
+func renderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) {
 	configFile := fp.NewFilePath(configFilePath)
 
 	var envFile *fp.FilePathEnhance
@@ -205,12 +229,17 @@ func (a *Application) renderConfig(configFilePath string) (*profile.NocalHostApp
 		envFile = configFile.RelOrAbs("../").RelOrAbs(relPath)
 
 		if e := envFile.CheckExist(); e != nil {
-			log.Log("Render %s Nocalhost config without env files, we found the env file had been configured as %s, but we can not found in %s", configFile.Abs(), relPath, envFile.Abs())
+			log.Logf(`Render %s Nocalhost config without env files, we found the env file 
+				had been configured as %s, but we can not found in %s`,
+				configFile.Abs(), relPath, envFile.Abs())
 		} else {
-			log.Log("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
+			log.Logf("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
 		}
 	} else {
-		log.Log("Render %s Nocalhost config without env files, you config your Nocalhost configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2", configFile.Abs())
+		log.Log(
+			"Render %s Nocalhost config without env files, you config your Nocalhost "+
+				"configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2",
+			configFile.Abs())
 	}
 
 	renderedStr, err := envsubst.Render(configFile, envFile)
@@ -225,12 +254,20 @@ func (a *Application) renderConfig(configFilePath string) (*profile.NocalHostApp
 	}
 
 	if configVersion == "v1" {
-		if err = ConvertConfigFileV1ToV2(configFilePath, a.GetConfigV2Path()); err != nil {
+		v2TmpDir, _ := ioutil.TempDir("", "")
+		if err = os.MkdirAll(v2TmpDir, DefaultNewFilePermission); err != nil {
+			return nil, errors.Wrap(err, "Fail to create tmp dir")
+		}
+		defer func() {
+			_ = os.RemoveAll(v2TmpDir)
+		}()
+
+		v2Path := filepath.Join(v2TmpDir, DefaultApplicationConfigV2Path)
+		if err = ConvertConfigFileV1ToV2(configFilePath, v2Path); err != nil {
 			return nil, err
 		}
 
-		renderedStr, err = envsubst.Render(fp.NewFilePath(a.GetConfigV2Path()), envFile)
-		if err != nil {
+		if renderedStr, err = envsubst.Render(fp.NewFilePath(v2Path), envFile); err != nil {
 			return nil, err
 		}
 	}
@@ -247,7 +284,11 @@ func (a *Application) renderConfig(configFilePath string) (*profile.NocalHostApp
 
 		for i, config := range renderedConfig.ApplicationConfig.ServiceConfigs {
 			if _, ok := maps[config.Name]; ok {
-				log.Log("Duplicate service %s found, Nocalhost will keep the last one according to the sequence", config.Name)
+				log.Log(
+					"Duplicate service %s found, Nocalhost will "+
+						"keep the last one according to the sequence",
+					config.Name,
+				)
 			}
 			maps[config.Name] = i
 		}
@@ -344,14 +385,6 @@ func (a *Application) loadConfigToSvcProfile(svcName string, appProfile *profile
 	}
 
 	svcProfile.ServiceConfigV2 = svcConfig
-
-	// If svcProfile already exists, updating it
-	//for index, svc := range appProfile.SvcProfile {
-	//	if svc.ActualName == svcName {
-	//		appProfile.SvcProfile[index] = svcProfile
-	//		return
-	//	}
-	//}
 
 	// If svcProfile already exists, create one
 	appProfile.SvcProfile = append(appProfile.SvcProfile, svcProfile)

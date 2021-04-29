@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package cluster_user
 
@@ -75,48 +74,31 @@ func ValidSpaceResourceLimit(resLimit SpaceResourceLimit) (bool, string) {
 	regStorage, _ := regexp.Compile("^([+-]?[0-9.]+)Gi$")
 	numReg, _ := regexp.Compile("^([+-]?[0-9]+)$")
 
-	var message []string
-	if len(resLimit.SpaceReqMem) > 0 && !regMem.MatchString(resLimit.SpaceReqMem) {
-		message = append(message, "space_req_mem")
-	}
-	if len(resLimit.SpaceLimitsMem) > 0 && !regMem.MatchString(resLimit.SpaceLimitsMem) {
-		message = append(message, "space_limits_mem")
-	}
-	if len(resLimit.SpaceReqCpu) > 0 && !regCpu.MatchString(resLimit.SpaceReqCpu) {
-		message = append(message, "space_req_cpu")
-	}
-	if len(resLimit.SpaceLimitsCpu) > 0 && !regCpu.MatchString(resLimit.SpaceLimitsCpu) {
-		message = append(message, "space_limits_cpu")
-	}
-	if len(resLimit.SpaceLbCount) > 0 && !numReg.MatchString(resLimit.SpaceLbCount) {
-		message = append(message, "space_lb_count")
-	}
-	if len(resLimit.SpacePvcCount) > 0 && !numReg.MatchString(resLimit.SpacePvcCount) {
-		message = append(message, "space_pvc_count")
-	}
-	if len(resLimit.SpaceStorageCapacity) > 0 && !regStorage.MatchString(resLimit.SpaceStorageCapacity) {
-		message = append(message, "space_storage_capacity")
-	}
-	if len(resLimit.SpaceEphemeralStorage) > 0 && !regStorage.MatchString(resLimit.SpaceEphemeralStorage) {
-		message = append(message, "space_ephemeral_storage")
-	}
-	if len(resLimit.ContainerReqMem) > 0 && !regMem.MatchString(resLimit.ContainerReqMem) {
-		message = append(message, "container_req_mem")
-	}
-	if len(resLimit.ContainerReqCpu) > 0 && !regCpu.MatchString(resLimit.ContainerReqCpu) {
-		message = append(message, "container_req_cpu")
-	}
-	if len(resLimit.ContainerLimitsMem) > 0 && !regMem.MatchString(resLimit.ContainerLimitsMem) {
-		message = append(message, "container_limits_mem")
-	}
-	if len(resLimit.ContainerLimitsCpu) > 0 && !regCpu.MatchString(resLimit.ContainerLimitsCpu) {
-		message = append(message, "container_limits_cpu")
-	}
-	if len(resLimit.ContainerEphemeralStorage) > 0 && !regStorage.MatchString(resLimit.ContainerEphemeralStorage) {
-		message = append(message, "container_ephemeral_storage")
-	}
+	var message msgList = []string{}
+	message.appendWhileMatch(resLimit.SpaceReqMem, "space_req_mem", regMem)
+	message.appendWhileMatch(resLimit.SpaceLimitsMem,"space_limits_mem",regMem)
+	message.appendWhileMatch(resLimit.SpaceReqCpu,"space_req_cpu",regCpu)
+	message.appendWhileMatch(resLimit.SpaceLimitsCpu,"space_limits_cpu",regCpu)
+	message.appendWhileMatch(resLimit.SpaceLbCount,"space_lb_count",numReg)
+	message.appendWhileMatch(resLimit.SpacePvcCount,"space_pvc_count",numReg)
+	message.appendWhileMatch(resLimit.SpaceStorageCapacity,"space_storage_capacity",regStorage)
+	message.appendWhileMatch(resLimit.SpaceEphemeralStorage,"space_ephemeral_storage",regStorage)
+	message.appendWhileMatch(resLimit.ContainerReqMem,"container_req_mem",regMem)
+	message.appendWhileMatch(resLimit.ContainerReqCpu,"container_req_cpu",regCpu)
+	message.appendWhileMatch(resLimit.ContainerLimitsMem,"container_limits_mem",regMem)
+	message.appendWhileMatch(resLimit.ContainerLimitsCpu,"container_limits_cpu",regCpu)
+	message.appendWhileMatch(resLimit.ContainerEphemeralStorage,"container_ephemeral_storage",regStorage)
+
 	if len(message) > 0 {
 		return false, strings.Join(message, ",")
 	}
 	return true, strings.Join(message, ",")
+}
+
+type msgList []string
+
+func (l *msgList) appendWhileMatch(value string, key string, reg *regexp.Regexp) {
+	if len(value) > 0 && !reg.MatchString(value) {
+		*l = append(*l, key)
+	}
 }

@@ -1,15 +1,14 @@
 /*
-Copyright 2021 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package testcase
 
@@ -55,19 +54,23 @@ func GetVersion() (v1 string, v2 string) {
 
 func InstallNhctl(version string) {
 	var name string
+	var outputName string
 	var needChmod bool
 	if strings.Contains(runtime.GOOS, "darwin") {
 		name = "nhctl-darwin-amd64"
+		outputName = "nhctl"
 		needChmod = true
 	} else if strings.Contains(runtime.GOOS, "windows") {
 		name = "nhctl-windows-amd64.exe"
+		outputName = "nhctl.exe"
 		needChmod = false
 	} else {
 		name = "nhctl-linux-amd64"
+		outputName = "nhctl"
 		needChmod = true
 	}
 
-	str := "curl --fail -s -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o nhctl"
+	str := "curl --fail -s -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o " + outputName
 	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, name, version))
 	nhctlcli.Runner.RunPanicIfError(cmd)
 
@@ -75,10 +78,9 @@ func InstallNhctl(version string) {
 	if needChmod {
 		cmd = exec.Command("sh", "-c", "chmod +x nhctl")
 		nhctlcli.Runner.RunPanicIfError(cmd)
+		cmd = exec.Command("sh", "-c", "mv ./nhctl /usr/local/bin/nhctl")
+		nhctlcli.Runner.RunPanicIfError(cmd)
 	}
-	// where needs to put nhctl if os is windows ?
-	cmd = exec.Command("sh", "-c", "mv ./nhctl /usr/local/bin/nhctl")
-	nhctlcli.Runner.RunPanicIfError(cmd)
 }
 
 func Init(nhctl *nhctlcli.CLI) {

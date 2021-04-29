@@ -1,15 +1,14 @@
 /*
-Copyright 2021 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package testcase
 
@@ -51,20 +50,35 @@ func Sync(cli *nhctlcli.CLI, moduleName string) {
 func SyncCheck(cli *nhctlcli.CLI, moduleName string) {
 	filename := "hello.test"
 	content := "this is a test, random string: " + uuid.New().String()
-	if err := ioutil.WriteFile(fmt.Sprintf("/tmp/%s/%s", moduleName, filename), []byte(content), 0644); err != nil {
+	if err := ioutil.WriteFile(
+		fmt.Sprintf("/tmp/%s/%s", moduleName, filename),
+		[]byte(content), 0644,
+	); err != nil {
 		panic(fmt.Sprintf("test case failed, reason: write file %s error: %v", filename, err))
 	}
 	// wait file to be synchronize
 	time.Sleep(30 * time.Second)
 	// not use nhctl exec is just because nhctl exec will stuck while cat file
-	cmd := fmt.Sprintf("kubectl exec -t deployment/%s -n test --kubeconfig=%s -- cat %s", moduleName, cli.KubeConfig, filename)
+	cmd := fmt.Sprintf(
+		"kubectl exec -t deployment/%s -n test --kubeconfig=%s -- cat %s", moduleName, cli.KubeConfig, filename,
+	)
 	fmt.Println("Running command: " + cmd)
 	ok, log := util.WaitForCommandDone(cmd)
 	if !ok {
-		panic(fmt.Sprintf("test case failed, reason: cat file %s error, command: %s, log: %v", filename, cmd, log))
+		panic(
+			fmt.Sprintf(
+				"test case failed, reason: cat file %s error,"+
+					" command: %s, log: %v", filename, cmd, log,
+			),
+		)
 	}
 	if !strings.Contains(log, content) {
-		panic(fmt.Sprintf("test case failed, reason: file content: %s not equals command log: %s", content, log))
+		panic(
+			fmt.Sprintf(
+				"test case failed, reason: file content:"+
+					" %s not equals command log: %s", content, log,
+			),
+		)
 	}
 }
 

@@ -1,15 +1,14 @@
 /*
-Copyright 2020 The Nocalhost Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package appmeta
 
@@ -58,6 +57,7 @@ const (
 	DependenceConfigMapPrefix = "nocalhost-depends-do-not-overwrite"
 )
 
+// resolve Application name by k8s 'metadata.name'
 func GetApplicationName(secretName string) (string, error) {
 	if idx := strings.Index(secretName, "/"); idx > 0 {
 		if len(secretName) > idx+1 {
@@ -66,7 +66,10 @@ func GetApplicationName(secretName string) (string, error) {
 	}
 
 	if ct := strings.HasPrefix(secretName, SecretNamePrefix); !ct {
-		return "", fmt.Errorf("Error while decode Secret, Secret name %s is illegal, must start with %s. ", secretName, SecretNamePrefix)
+		return "", fmt.Errorf(
+			"Error while decode Secret, Secret name %s is illegal,"+
+				" must start with %s. ", secretName, SecretNamePrefix,
+		)
 	}
 
 	return secretName[len(SecretNamePrefix):], nil
@@ -108,16 +111,19 @@ func ApplicationStateOf(s string) ApplicationState {
 type ApplicationMetas []*ApplicationMeta
 type ApplicationMetaSimples []*ApplicationMetaSimple
 
+// describe the applications meta for output
 func (as ApplicationMetas) Desc() (result ApplicationMetaSimples) {
 	for _, meta := range as {
-		result = append(result, &ApplicationMetaSimple{
-			Application:        meta.Application,
-			Ns:                 meta.Ns,
-			ApplicationState:   meta.ApplicationState,
-			DevMeta:            meta.DevMeta,
-			Manifest:           meta.Manifest,
-			PreInstallManifest: meta.PreInstallManifest,
-		})
+		result = append(
+			result, &ApplicationMetaSimple{
+				Application:        meta.Application,
+				Ns:                 meta.Ns,
+				ApplicationState:   meta.ApplicationState,
+				DevMeta:            meta.DevMeta,
+				Manifest:           meta.Manifest,
+				PreInstallManifest: meta.PreInstallManifest,
+			},
+		)
 	}
 	return result
 }
@@ -132,6 +138,7 @@ type ApplicationMetaSimple struct {
 	PreInstallManifest string             `json:"pre_install_manifest"`
 }
 
+// application meta is the application meta info container
 type ApplicationMeta struct {
 	// could not be updated
 	Application string `json:"application"`
@@ -174,7 +181,11 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 
 	bs, ok := secret.Data[SecretStateKey]
 	if !ok {
-		return nil, fmt.Errorf("Error while decode Secret, Secret %s is illegal, must contain with data key %s. ", secret.Name, SecretStateKey)
+		return nil, fmt.Errorf(
+			"Error while decode Secret, Secret %s is illegal,"+
+				" must contain with data key %s. ", secret.Name,
+			SecretStateKey,
+		)
 	}
 
 	appMeta := ApplicationMeta{
@@ -223,6 +234,9 @@ func (a *ApplicationMeta) GetApplicationDevMeta() ApplicationDevMeta {
 	}
 }
 
+// Initial initial the application, try to create a secret
+// error if create fail
+// initial the application will set the state to INSTALLING
 func (a *ApplicationMeta) Initial() error {
 	b := false
 	m := map[string][]byte{}
@@ -361,13 +375,18 @@ func (a *ApplicationMeta) IsNotInstall() bool {
 }
 
 func (a *ApplicationMeta) NotInstallTips() string {
-	return fmt.Sprintf("Application %s in ns %s is not installed or under installing, or maybe the kubeconfig provided has not permitted to this namespace ", a.Application, a.Ns)
+	return fmt.Sprintf(
+		"Application %s in ns %s is not installed or under installing, "+
+			"or maybe the kubeconfig provided has not permitted to this namespace ",
+		a.Application, a.Ns,
+	)
 }
 
 func (a *ApplicationMeta) IsHelm() bool {
 	return a.ApplicationType == Helm || a.ApplicationType == HelmRepo || a.ApplicationType == HelmLocal
 }
 
+// Uninstall uninstall the application and delete the secret from k8s cluster
 func (a *ApplicationMeta) Uninstall() error {
 
 	if e := a.cleanUpDepConfigMap(); e != nil {
@@ -387,7 +406,10 @@ func (a *ApplicationMeta) Uninstall() error {
 
 		uninstallParams := []string{"uninstall", a.Application}
 		uninstallParams = append(uninstallParams, commonParams...)
-		if _, err := tools.ExecCommand(nil, true, false, "helm", uninstallParams...); err != nil {
+		if _, err := tools.ExecCommand(
+			nil, true,
+			false, "helm", uninstallParams...,
+		); err != nil {
 			return err
 		}
 	}
