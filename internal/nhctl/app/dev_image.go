@@ -14,7 +14,6 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -430,11 +429,11 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	//			fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
 	//				DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas, DevImageRevisionAnnotationKey,
 	//				DevImageRevisionAnnotationValue))
-	specJson, err := json.Marshal(&dep.Spec)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	a.client.Patch("Deployment", dep.Name, string(specJson))
+	//specJson, err := json.Marshal(&dep.Spec)
+	//if err != nil {
+	//	return errors.Wrap(err, "")
+	//}
+	//err = a.client.Patch("Deployment", dep.Name, string(specJson))
 	if err != nil {
 		if strings.Contains(err.Error(), "no PriorityClass") {
 			log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
