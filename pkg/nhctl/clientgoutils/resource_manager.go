@@ -49,7 +49,7 @@ func (r Resource) Append(s string) {
 }
 
 func (r Resource) String() string {
-	return strings.Join(r.resource, "")
+	return strings.Join(r.resource, "---")
 }
 
 func (r *Resource) arr() []string {
