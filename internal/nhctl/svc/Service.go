@@ -14,11 +14,14 @@ package svc
 
 import (
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/pkg/nhctl/clientgoutils"
 )
 
-type Service struct {
+// Controller presents a k8s controller
+// https://kubernetes.io/docs/concepts/architecture/controller
+type Controller struct {
 	NameSpace string
 	AppName   string
 	Name      string
@@ -27,23 +30,23 @@ type Service struct {
 	AppMeta   *appmeta.ApplicationMeta
 }
 
-func (s *Service) IsInDevMode() bool {
-	return s.AppMeta.CheckIfSvcDeveloping(s.Name, s.Type)
+func (c *Controller) IsInDevMode() bool {
+	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type)
 }
 
-func (s *Service) CheckIfExist() (bool, error) {
+func (c *Controller) CheckIfExist() (bool, error) {
 	var err error
-	switch s.Type {
+	switch c.Type {
 	case appmeta.Deployment:
-		_, err = s.Client.GetDeployment(s.Name)
+		_, err = c.Client.GetDeployment(c.Name)
 	case appmeta.StatefulSet:
-		_, err = s.Client.GetStatefulSet(s.Name)
+		_, err = c.Client.GetStatefulSet(c.Name)
 	case appmeta.DaemonSet:
-		_, err = s.Client.GetDaemonSet(s.Name)
+		_, err = c.Client.GetDaemonSet(c.Name)
 	case appmeta.Job:
-		_, err = s.Client.GetJobs(s.Name)
+		_, err = c.Client.GetJobs(c.Name)
 	case appmeta.CronJob:
-		_, err = s.Client.GetCronJobs(s.Name)
+		_, err = c.Client.GetCronJobs(c.Name)
 	default:
 		return false, errors.New("unsupported svc type")
 	}
@@ -51,4 +54,22 @@ func (s *Service) CheckIfExist() (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+func (c *Controller) GetDescription() string {
+	appProfile, err := c.GetAppProfile()
+	if err != nil {
+		return ""
+	}
+	svcProfile := appProfile.SvcProfileV2(c.Name, string(c.Type))
+	desc := ""
+	if svcProfile != nil {
+		svcProfile.Developing = c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type)
+		svcProfile.Possess = c.AppMeta.SvcDevModePossessor(c.Name, c.Type, appProfile.Identifier)
+		bytes, err := yaml.Marshal(svcProfile)
+		if err == nil {
+			desc = string(bytes)
+		}
+	}
+	return desc
 }

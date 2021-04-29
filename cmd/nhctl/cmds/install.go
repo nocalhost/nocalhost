@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/svc"
 	"nocalhost/internal/nhctl/utils"
 	"time"
 
@@ -152,6 +153,7 @@ var installCmd = &cobra.Command{
 
 		// Start port forward
 		for _, svcProfile := range profileV2.SvcProfile {
+			nhSvc := nocalhostApp.Controller(svcProfile.ActualName, appmeta.SvcType(svcProfile.Type))
 			for _, cc := range svcProfile.ContainerConfigs {
 				if cc.Install == nil || len(cc.Install.PortForward) == 0 {
 					continue
@@ -160,19 +162,19 @@ var installCmd = &cobra.Command{
 				svcType := svcProfile.Type
 				log.Infof("Starting port-forward for %s %s", svcType, svcProfile.ActualName)
 				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
-				podName, err := nocalhostApp.GetDefaultPodName(ctx, svcProfile.ActualName, appmeta.SvcType(svcType))
+				podName, err := nhSvc.GetDefaultPodName(ctx)
 				if err != nil {
 					log.WarnE(err, "")
 					continue
 				}
 				for _, pf := range cc.Install.PortForward {
-					lPort, rPort, err := app.GetPortForwardForString(pf)
+					lPort, rPort, err := svc.GetPortForwardForString(pf)
 					if err != nil {
 						log.WarnE(err, "")
 						continue
 					}
 					log.Infof("Port forward %d:%d", lPort, rPort)
-					utils.Should(nocalhostApp.PortForward(svcProfile.ActualName, podName, lPort, rPort, ""))
+					utils.Should(nocalhostSvc.PortForward(podName, lPort, rPort, ""))
 				}
 			}
 		}

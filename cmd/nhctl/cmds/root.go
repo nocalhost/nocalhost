@@ -29,7 +29,7 @@ var (
 	debug        bool
 	kubeConfig   string // the path to the kubeconfig file
 	nocalhostApp *app.Application
-	nocalhostSvc *svc.Service
+	nocalhostSvc *svc.Controller
 )
 
 func init() {

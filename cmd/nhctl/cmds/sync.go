@@ -66,37 +66,32 @@ var fileSyncCmd = &cobra.Command{
 
 		// resume port-forward and syncthing
 		if fileSyncOps.Resume || fileSyncOps.Stop {
-			utils.ShouldI(nocalhostApp.StopFileSyncOnly(deployment), "Error occurs when stopping sync process")
+			utils.ShouldI(nocalhostSvc.StopFileSyncOnly(), "Error occurs when stopping sync process")
 			if fileSyncOps.Stop {
 				return
 			}
 		}
 
-		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
+		podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
 		must(err)
 
 		log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.NameSpace)
 
-		svcProfile, _ := nocalhostApp.GetSvcProfile(deployment)
+		svcProfile, _ := nocalhostSvc.GetProfile()
 		// Start a pf for syncthing
-		err = nocalhostApp.PortForward(
-			svcProfile.ActualName, podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC",
-		)
-		must(err)
+		must(nocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC"))
 
 		// TODO
 		// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished),
 		// the files that have been synchronized will not be synchronized.
-		newSyncthing, err := nocalhostApp.NewSyncthing(
-			deployment, fileSyncOps.Container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin,
-			fileSyncOps.SyncDouble,
-		)
+		newSyncthing, err := nocalhostSvc.NewSyncthing(fileSyncOps.Container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin,
+			fileSyncOps.SyncDouble)
 		utils.ShouldI(err, "Failed to new syncthing")
 
 		// starts up a local syncthing
 		utils.ShouldI(newSyncthing.Run(context.TODO()), "Failed to run syncthing")
 
-		must(nocalhostApp.SetSyncingStatus(deployment, true))
+		must(nocalhostSvc.SetSyncingStatus(true))
 
 		if fileSyncOps.Override {
 			var i = 10
@@ -105,8 +100,7 @@ var fileSyncCmd = &cobra.Command{
 
 				i--
 				// to force override the remote changing
-				client := nocalhostApp.NewSyncthingHttpClient(deployment)
-
+				client := nocalhostSvc.NewSyncthingHttpClient()
 				err = client.FolderOverride()
 				if err == nil {
 					log.Info("Force overriding workDir's remote changing")

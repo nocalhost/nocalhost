@@ -65,7 +65,7 @@ var devCmdCmd = &cobra.Command{
 			log.Fatalf("%s is not in DevMode", deployment)
 		}
 
-		profile, err := nocalhostApp.GetSvcProfile(deployment)
+		profile, err := nocalhostSvc.GetProfile()
 		must(err)
 
 		if profile.GetContainerDevConfigOrDefault(container) == nil ||

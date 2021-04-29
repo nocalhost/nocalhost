@@ -13,29 +13,19 @@
 package app
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/daemon_client"
-	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/svc"
-	"nocalhost/internal/nhctl/utils"
 	"os"
 	"regexp"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 
 	"gopkg.in/yaml.v3"
-	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	port_forward "nocalhost/internal/nhctl/port-forward"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 
@@ -51,11 +41,7 @@ const (
 		"to managed that those manifest out of Nocalhost" +
 		" management so can't be install, uninstall, reset, etc."
 
-	HelmReleaseName               = "meta.helm.sh/release-name"
-	AppManagedByLabel             = "app.kubernetes.io/managed-by"
-	AppManagedByNocalhost         = "nocalhost"
-	NocalhostApplicationName      = "dev.nocalhost/application-name"
-	NocalhostApplicationNamespace = "dev.nocalhost/application-namespace"
+	HelmReleaseName = "meta.helm.sh/release-name"
 )
 
 var (
@@ -230,7 +216,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 
 		for _, svc := range profileV2.SvcProfile {
 			if svc.Developing {
-				_ = a.appMeta.DeploymentDevStart(svc.Name, profileV2.Identifier)
+				_ = a.appMeta.SvcDevStart(svc.Name, appmeta.SvcType(svc.Type), profileV2.Identifier)
 			}
 		}
 
@@ -367,50 +353,16 @@ type HelmFlags struct {
 	Version  string
 }
 
+// Todo hxx
 func (a *Application) IsAnyServiceInDevMode() bool {
 	return len(a.appMeta.DevMeta) > 0 && len(a.appMeta.DevMeta[appmeta.DEPLOYMENT]) > 0
 }
-
-// Deprecated
-//func (a *Application) GetSvcConfigV2(svcName string) *profile.ServiceConfigV2 {
-//	for _, config := range a.appMeta.Config.ApplicationConfig.ServiceConfigs {
-//		if config.Name == svcName {
-//			return config
-//		}
-//	}
-//	return nil
-//}
 
 func (a *Application) GetApplicationConfigV2() *profile.ApplicationConfig {
 	return a.appMeta.Config.ApplicationConfig
 }
 
-func (a *Application) SaveSvcProfileV2(svcName string, config *profile.ServiceConfigV2) error {
-
-	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
-	if err != nil {
-		return err
-	}
-	defer profileV2.CloseDb()
-
-	svcPro := profileV2.SvcProfileV2(svcName)
-	if svcPro != nil {
-		config.Name = svcName
-		svcPro.ServiceConfigV2 = config
-	} else {
-		config.Name = svcName
-		svcPro = &profile.SvcProfileV2{
-			ServiceConfigV2: config,
-			ActualName:      svcName,
-		}
-		profileV2.SvcProfile = append(profileV2.SvcProfile, svcPro)
-	}
-
-	return profileV2.Save()
-}
-
 func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
-	//a.LoadAppProfileV2()
 	profileV2, _ := a.GetProfile()
 	return &profile.ApplicationConfig{
 		ResourcePath: profileV2.ResourcePath,
@@ -428,12 +380,6 @@ func (a *Application) SaveAppProfileV2(config *profile.ApplicationConfig) error 
 	}
 	defer profileV2.CloseDb()
 
-	//a.AppProfileV2.ResourcePath = config.ResourcePath
-	//a.AppProfileV2.IgnoredPath = config.IgnoredPath
-	//a.AppProfileV2.PreInstall = config.PreInstall
-	//a.AppProfileV2.Env = config.Env
-	//a.AppProfileV2.EnvFrom = config.EnvFrom
-
 	profileV2.ResourcePath = config.ResourcePath
 	profileV2.IgnoredPath = config.IgnoredPath
 	profileV2.PreInstall = config.PreInstall
@@ -441,102 +387,6 @@ func (a *Application) SaveAppProfileV2(config *profile.ApplicationConfig) error 
 	profileV2.EnvFrom = config.EnvFrom
 
 	return profileV2.Save()
-}
-
-func (a *Application) RollBack(svcName string, reset bool) error {
-	clientUtils := a.client
-	//clientUtils.deployment
-
-	dep, err := clientUtils.GetDeployment(svcName)
-	if err != nil {
-		return err
-	}
-
-	rss, err := clientUtils.GetSortedReplicaSetsByDeployment(svcName)
-	if err != nil {
-		log.WarnE(err, "Failed to get rs list")
-		return err
-	}
-
-	// Find previous replicaSet
-	if len(rss) < 2 {
-		log.Warn("No history to roll back")
-		return nil
-	}
-
-	var r *v1.ReplicaSet
-	var originalPodReplicas *int32
-	for _, rs := range rss {
-		if rs.Annotations == nil {
-			continue
-		}
-		// Mark the original revision
-		if rs.Annotations[DevImageRevisionAnnotationKey] == DevImageRevisionAnnotationValue {
-			r = rs
-			if rs.Annotations[DevImageOriginalPodReplicasAnnotationKey] != "" {
-				podReplicas, _ := strconv.Atoi(rs.Annotations[DevImageOriginalPodReplicasAnnotationKey])
-				podReplicas32 := int32(podReplicas)
-				originalPodReplicas = &podReplicas32
-			}
-		}
-	}
-	if r == nil {
-		if !reset {
-			return errors.New("Failed to find the proper revision to rollback")
-		} else {
-			r = rss[0]
-		}
-	}
-
-	dep.Spec.Template = r.Spec.Template
-	if originalPodReplicas != nil {
-		dep.Spec.Replicas = originalPodReplicas
-	}
-
-	//spinner := utils.NewSpinner(" Rolling container's revision back...")
-	//spinner.Start()
-	//dep, err = clientUtils.UpdateDeployment(dep, true)
-	log.Info(" Deleting current revision...")
-	err = clientUtils.DeleteDeployment(dep.Name, false)
-	if err != nil {
-		return err
-	}
-
-	log.Info(" Recreating original revision...")
-	dep.ResourceVersion = ""
-	if len(dep.Annotations) == 0 {
-		dep.Annotations = make(map[string]string, 0)
-	}
-	dep.Annotations["nocalhost-dep-ignore"] = "true"
-
-	// Add labels and annotations
-	if dep.Labels == nil {
-		dep.Labels = make(map[string]string, 0)
-	}
-	dep.Labels[AppManagedByLabel] = AppManagedByNocalhost
-
-	if dep.Annotations == nil {
-		dep.Annotations = make(map[string]string, 0)
-	}
-	dep.Annotations[NocalhostApplicationName] = a.Name
-	dep.Annotations[NocalhostApplicationNamespace] = a.NameSpace
-
-	_, err = clientUtils.CreateDeployment(dep)
-	if err != nil {
-		if strings.Contains(err.Error(), "initContainers") && strings.Contains(err.Error(), "Duplicate") {
-			log.Warn("[Warning] Nocalhost-dep needs to update")
-		}
-		return err
-	}
-
-	//spinner.Stop()
-	//if err != nil {
-	//	coloredoutput.Fail("Failed to roll revision back")
-	//} else {
-	//	coloredoutput.Success("Workload has been rollback")
-	//}
-
-	return err
 }
 
 type PortForwardOptions struct {
@@ -553,8 +403,8 @@ type PortForwardEndOptions struct {
 	Port string // 8080:8080
 }
 
-func (a *Application) GetService(name string, svcType appmeta.SvcType) *svc.Service {
-	return &svc.Service{
+func (a *Application) Controller(name string, svcType appmeta.SvcType) *svc.Controller {
+	return &svc.Controller{
 		NameSpace: a.NameSpace,
 		AppName:   a.Name,
 		Name:      name,
@@ -562,40 +412,6 @@ func (a *Application) GetService(name string, svcType appmeta.SvcType) *svc.Serv
 		Client:    a.client,
 		AppMeta:   a.appMeta,
 	}
-}
-
-//func (a *Application) CheckIfSvcExist(name string, svcType appmeta.SvcType) (bool, error) {
-//	var err error
-//	switch svcType {
-//	case appmeta.Deployment:
-//		_, err = a.client.GetDeployment(name)
-//	case appmeta.StatefulSet:
-//		_, err = a.client.GetStatefulSet(name)
-//	case appmeta.DaemonSet:
-//		_, err = a.client.GetDaemonSet(name)
-//	case appmeta.Job:
-//		_, err = a.client.GetJobs(name)
-//	case appmeta.CronJob:
-//		_, err = a.client.GetCronJobs(name)
-//	default:
-//		return false, errors.New("unsupported svc type")
-//	}
-//	if err != nil {
-//		return false, nil
-//	}
-//	return true, nil
-//}
-
-func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
-	if len(pod.Status.ContainerStatuses) == 0 {
-		return false
-	}
-	for _, status := range pod.Status.ContainerStatuses {
-		if status.Name == containerName && status.Ready && status.State.Running != nil {
-			return true
-		}
-	}
-	return false
 }
 
 func (a *Application) GetConfigFile() (string, error) {
@@ -618,7 +434,8 @@ func (a *Application) GetDescription() string {
 		appProfile.Installed = meta.IsInstalled()
 		for _, svcProfile := range appProfile.SvcProfile {
 			svcProfile.Developing = meta.CheckIfSvcDeveloping(svcProfile.ActualName, appmeta.SvcType(svcProfile.Type))
-			svcProfile.Possess = a.appMeta.DeploymentDevModePossessor(svcProfile.ActualName, appProfile.Identifier)
+			svcProfile.Possess = a.appMeta.SvcDevModePossessor(svcProfile.ActualName, appmeta.SvcType(svcProfile.Type),
+				appProfile.Identifier)
 		}
 		bytes, err := yaml.Marshal(appProfile)
 		if err == nil {
@@ -628,20 +445,20 @@ func (a *Application) GetDescription() string {
 	return desc
 }
 
-func (a *Application) GetSvcDescription(svcName string) string {
-	appProfile, _ := a.GetProfile()
-	desc := ""
-	profile := appProfile.SvcProfileV2(svcName)
-	if profile != nil {
-		profile.Developing = a.appMeta.CheckIfSvcDeveloping(svcName, appmeta.SvcType(profile.Type))
-		profile.Possess = a.appMeta.DeploymentDevModePossessor(svcName, appProfile.Identifier)
-		bytes, err := yaml.Marshal(profile)
-		if err == nil {
-			desc = string(bytes)
-		}
-	}
-	return desc
-}
+//func (a *Application) GetSvcDescription(svcName string) string {
+//	appProfile, _ := a.GetProfile()
+//	desc := ""
+//	profile := appProfile.SvcProfileV2(svcName)
+//	if profile != nil {
+//		profile.Developing = a.appMeta.CheckIfSvcDeveloping(svcName, appmeta.SvcType(profile.Type))
+//		profile.Possess = a.appMeta.DeploymentDevModePossessor(svcName, appProfile.Identifier)
+//		bytes, err := yaml.Marshal(profile)
+//		if err == nil {
+//			desc = string(bytes)
+//		}
+//	}
+//	return desc
+//}
 
 func (a *Application) ListContainersByDeployment(depName string) ([]corev1.Container, error) {
 	pods, err := a.client.ListPodsByDeployment(depName)
@@ -654,56 +471,6 @@ func (a *Application) ListContainersByDeployment(depName string) ([]corev1.Conta
 	return pods.Items[0].Spec.Containers, nil
 }
 
-// Role: If set to "SYNC", means it is a pf used for syncthing
-func (a *Application) PortForward(deployment, podName string, localPort, remotePort int, role string) error {
-
-	//if isAvailable := ports.IsTCP4PortAvailable("0.0.0.0", localPort); isAvailable {
-	//	log.Infof("Port %d is available", localPort)
-	//} else {
-	//	return errors.New(fmt.Sprintf("Port %d is unavailable", localPort))
-	//}
-
-	isAdmin := utils.IsSudoUser()
-	client, err := daemon_client.NewDaemonClient(isAdmin)
-	if err != nil {
-		return err
-	}
-	nhResource := &model.NocalHostResource{
-		NameSpace:   a.NameSpace,
-		Application: a.Name,
-		Service:     deployment,
-		PodName:     podName,
-	}
-
-	if err = client.SendStartPortForwardCommand(nhResource, localPort, remotePort, role); err != nil {
-		return err
-	} else {
-		log.Infof("Port-forward %d:%d has been started", localPort, remotePort)
-		return a.SetPortForwardedStatus(deployment, true) //  todo: move port-forward start
-	}
-}
-
-func (a *Application) CheckPidPortStatus(
-	ctx context.Context, deployment string, sLocalPort, sRemotePort int, lock *sync.Mutex,
-) {
-	for {
-		select {
-		case <-ctx.Done():
-			log.Info("Stop Checking port status")
-			//_ = a.UpdatePortForwardStatus(deployment, sLocalPort, sRemotePort, portStatus, "Stopping")
-			return
-		default:
-			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
-			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
-			lock.Lock()
-			_ = a.UpdatePortForwardStatus(deployment, sLocalPort, sRemotePort, portStatus, "Check Pid")
-			lock.Unlock()
-			//}
-			<-time.After(2 * time.Minute)
-		}
-	}
-}
-
 func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error {
 	conn, err := net.Dial("tcp", addressWithPort)
 	if err != nil || conn == nil {
@@ -712,142 +479,6 @@ func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error 
 	// GET /heartbeat HTTP/1.1
 	_, err = conn.Write([]byte("ping"))
 	return errors.Wrap(err, "send port-forward heartbeat fail")
-}
-
-func (a *Application) GetBackgroundSyncPortForwardPid(deployment string, isTrunc bool) (int, string, error) {
-	f, err := ioutil.ReadFile(a.GetABGPortForwardPidFile(deployment))
-	if err != nil {
-		return 0, a.GetABGPortForwardPidFile(deployment), err
-	}
-	port, err := strconv.Atoi(string(f))
-	if err != nil {
-		return 0, a.GetABGPortForwardPidFile(deployment), err
-	}
-	if isTrunc {
-		_ = a.SetPidFileEmpty(a.GetABGPortForwardPidFile(deployment))
-	}
-	return port, a.GetABGPortForwardPidFile(deployment), nil
-}
-
-func (a *Application) GetBackgroundSyncThingPid(deployment string, isTrunc bool) (int, string, error) {
-	f, err := ioutil.ReadFile(a.GetSyncThingPidFile(deployment))
-	if err != nil {
-		return 0, a.GetSyncThingPidFile(deployment), err
-	}
-	port, err := strconv.Atoi(string(f))
-	if err != nil {
-		return 0, a.GetSyncThingPidFile(deployment), err
-	}
-	if isTrunc {
-		_ = a.SetPidFileEmpty(a.GetABGPortForwardPidFile(deployment))
-	}
-	return port, a.GetSyncThingPidFile(deployment), nil
-}
-
-func (a *Application) GetBackgroundOnlyPortForwardPid(deployment string, isTrunc bool) (int, string, error) {
-	f, err := ioutil.ReadFile(a.GetPortForwardPidFile(deployment))
-	if err != nil {
-		return 0, a.GetPortForwardPidFile(deployment), err
-	}
-	port, err := strconv.Atoi(string(f))
-	if err != nil {
-		return 0, a.GetPortForwardPidFile(deployment), err
-	}
-	if isTrunc {
-		_ = a.SetPidFileEmpty(a.GetABGPortForwardPidFile(deployment))
-	}
-	return port, a.GetPortForwardPidFile(deployment), nil
-}
-
-func (a *Application) WriteBGSyncPForwardPidFile(deployment string, pid int) error {
-	file, err := os.OpenFile(
-		a.GetABGPortForwardPidFile(deployment),
-		os.O_WRONLY|os.O_CREATE, 0666,
-	)
-	if err != nil {
-		return errors.New("fail open application file sync background port-forward pid file")
-	}
-	defer file.Close()
-	sPid := strconv.Itoa(pid)
-	_, err = file.Write([]byte(sPid))
-	return errors.Wrap(err, "")
-}
-
-func (a *Application) GetSyncDirFromProfile(
-	svcName string, options *DevStartOptions,
-) (*DevStartOptions, error) {
-	appProfile, _ := a.GetProfile()
-	svcProfile := appProfile.SvcProfileV2(svcName)
-	if svcProfile == nil {
-		return options,
-			errors.New("get " + svcName + " profile fail, please reinstall application")
-	}
-	options.LocalSyncDir = svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin
-	return options, nil
-}
-
-func (a *Application) GetPodsFromDeployment(deployment string) (*corev1.PodList, error) {
-	return a.client.ListPodsByDeployment(deployment)
-}
-
-//func (a *Application) GetNocalHostSvc(name string, svcType appmeta.SvcType) *nocalhost_svc.NocalHostSvc {
-//	return &nocalhost_svc.NocalHostSvc{Name: name, SvcType: svcType}
-//}
-
-func (a *Application) GetDefaultPodName(ctx context.Context, svc string, t appmeta.SvcType) (string, error) {
-	var (
-		podList *corev1.PodList
-		err     error
-	)
-	for {
-		select {
-		case <-ctx.Done():
-			return "", errors.New(fmt.Sprintf("Fail to get %s' pod", svc))
-		default:
-			switch t {
-			case appmeta.Deployment:
-				podList, err = a.GetPodsFromDeployment(svc)
-				if err != nil {
-					return "", err
-				}
-			case appmeta.StatefulSet:
-				podList, err = a.GetClient().ListPodsByStatefulSet(svc)
-				if err != nil {
-					return "", err
-				}
-			default:
-				return "", errors.New(fmt.Sprintf("Service type %s not support", t))
-			}
-		}
-		if podList == nil || len(podList.Items) == 0 {
-			log.Infof("Pod of %s has not been ready, waiting for it...", svc)
-			time.Sleep(time.Second)
-		} else {
-			return podList.Items[0].Name, nil
-		}
-	}
-}
-
-func (a *Application) GetNocalhostDevContainerPod(deployment string) (string, error) {
-	checkPodsList, err := a.GetPodsFromDeployment(deployment)
-	if err != nil {
-		return "", err
-	}
-	found := false
-	for _, pod := range checkPodsList.Items {
-		if pod.Status.Phase == "Running" {
-			for _, container := range pod.Spec.Containers {
-				if container.Name == DefaultNocalhostSideCarName {
-					found = true
-					break
-				}
-			}
-			if found {
-				return pod.Name, nil
-			}
-		}
-	}
-	return "", errors.New("dev container not found")
 }
 
 func (a *Application) PortForwardAPod(req clientgoutils.PortForwardAPodRequest) error {

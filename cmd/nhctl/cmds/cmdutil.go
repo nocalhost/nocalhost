@@ -20,6 +20,7 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/fp"
+	"nocalhost/internal/nhctl/svc"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -69,7 +70,7 @@ func Prepare() error {
 	return nil
 }
 
-func checkIfSvcExist(svcName string, svcType string) {
+func initService(svcName string, svcType string) *svc.Controller {
 	if svcName == "" {
 		log.Fatal("please use -d to specify a k8s workload")
 	}
@@ -92,16 +93,17 @@ func checkIfSvcExist(svcName string, svcType string) {
 			log.Fatalf("Unsupported SvcType %s", svcType)
 		}
 	}
+	return nocalhostApp.Controller(svcName, serviceType)
+}
 
-	nSvc := nocalhostApp.GetService(svcName, serviceType)
-	exist, err := nSvc.CheckIfExist()
+func checkIfSvcExist(svcName string, svcType string) {
+	nocalhostSvc = initService(svcName, svcType)
+	exist, err := nocalhostSvc.CheckIfExist()
 	if err != nil {
 		log.FatalE(err, "failed to check if svc exists")
 	} else if !exist {
 		log.FatalE(errors.New(fmt.Sprintf("Service %s-%s not found!", string(serviceType), svcName)), "")
 	}
-	nocalhostSvc = nSvc
-
 	log.AddField("SVC", svcName)
 }
 

@@ -72,7 +72,7 @@ var configGetCmd = &cobra.Command{
 
 		} else {
 			checkIfSvcExist(commonFlags.SvcName, serviceType)
-			svcProfile := appProfile.SvcProfileV2(commonFlags.SvcName)
+			svcProfile := appProfile.SvcProfileV2(commonFlags.SvcName, serviceType)
 			if svcProfile != nil {
 				bys, err := yaml.Marshal(svcProfile.ServiceConfigV2)
 				must(errors.Wrap(err, "fail to get svc profile"))

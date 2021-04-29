@@ -14,9 +14,8 @@ package cmds
 
 import (
 	"context"
-	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/svc"
 	"nocalhost/internal/nhctl/syncthing"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/internal/nhctl/utils"
@@ -35,7 +34,7 @@ var (
 	pod         string
 )
 
-var devStartOps = &app.DevStartOptions{}
+var devStartOps = &svc.DevStartOptions{}
 
 func init() {
 
@@ -84,7 +83,7 @@ var devStartCmd = &cobra.Command{
 		profileV2, err := profile.NewAppProfileV2ForUpdate(nocalhostApp.NameSpace, nocalhostApp.Name)
 		must(err)
 
-		svcProfile := profileV2.SvcProfileV2(deployment)
+		svcProfile := profileV2.SvcProfileV2(deployment, string(nocalhostSvc.Type))
 		if svcProfile == nil {
 			log.Fatal("Svc profile not found")
 			return
@@ -102,19 +101,17 @@ var devStartCmd = &cobra.Command{
 		profileV2.Save()
 		profileV2.CloseDb()
 
-		must(nocalhostApp.GetAppMeta().DeploymentDevStart(deployment, profileV2.Identifier))
+		must(nocalhostSvc.AppMeta.SvcDevStart(nocalhostSvc.Name, nocalhostSvc.Type, profileV2.Identifier))
 
 		// prevent dev status modified but not actually enter dev mode
 		var devStartSuccess = false
 		defer func() {
 			if !devStartSuccess {
-				_ = nocalhostApp.GetAppMeta().DeploymentDevEnd(deployment)
+				_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type)
 			}
 		}()
 
-		newSyncthing, err := nocalhostApp.NewSyncthing(
-			deployment, devStartOps.Container, devStartOps.LocalSyncDir, false,
-		)
+		newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
 		mustI(err, "Failed to create syncthing process, please try again")
 
 		// try install syncthing
@@ -143,33 +140,31 @@ var devStartCmd = &cobra.Command{
 				"key.pem":    []byte(secret_config.KeyPEM),
 			},
 		}
-		must(nocalhostApp.CreateSyncThingSecret(deployment, syncSecret))
+		must(nocalhostSvc.CreateSyncThingSecret(syncSecret))
 
 		// Stop port-forward
 		appProfile, _ := nocalhostApp.GetProfile()
-		pfList := appProfile.SvcProfileV2(deployment).DevPortForwardList
+		pfList := appProfile.SvcProfileV2(deployment, string(nocalhostSvc.Type)).DevPortForwardList
 		for _, pf := range pfList {
 			log.Infof("Stopping %d:%d", pf.LocalPort, pf.RemotePort)
-			utils.Should(nocalhostApp.EndDevPortForward(deployment, pf.LocalPort, pf.RemotePort))
+			utils.Should(nocalhostSvc.EndDevPortForward(pf.LocalPort, pf.RemotePort))
 		}
 
-		if err = nocalhostApp.ReplaceImage(context.TODO(), deployment, devStartOps); err != nil {
+		if err = nocalhostSvc.ReplaceImage(context.TODO(), devStartOps); err != nil {
 			log.WarnE(err, "Failed to replace dev container")
 			log.Info("Resetting workload...")
-			_ = nocalhostApp.DevEnd(deployment, true)
+			_ = nocalhostSvc.DevEnd(true)
 			os.Exit(1)
 		}
 
-		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
+		podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
 		must(err)
 
 		// mark dev start as true
 		devStartSuccess = true
-
 		for _, pf := range pfList {
-			utils.Should(nocalhostApp.PortForward(deployment, podName, pf.LocalPort, pf.RemotePort, pf.Role))
+			utils.Should(nocalhostSvc.PortForward(podName, pf.LocalPort, pf.RemotePort, pf.Role))
 		}
-
-		must(nocalhostApp.PortForwardAfterDevStart(deployment, devStartOps.Container, appmeta.Deployment))
+		must(nocalhostSvc.PortForwardAfterDevStart(devStartOps.Container))
 	},
 }

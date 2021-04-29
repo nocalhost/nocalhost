@@ -45,7 +45,7 @@ var describeCmd = &cobra.Command{
 			fmt.Print(nocalhostApp.GetDescription())
 		} else {
 			checkIfSvcExist(deploy, serviceType)
-			fmt.Print(nocalhostApp.GetSvcDescription(deploy))
+			fmt.Print(nocalhostSvc.GetDescription())
 		}
 	},
 }
