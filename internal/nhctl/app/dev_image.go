@@ -377,77 +377,85 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 		sideCarContainer.Resources = *requirements
 	}
 
-	// Get latest deployment
-	if dep, err = a.client.GetDeployment(svcName); err != nil {
-		return err
-	}
-
-	if ops.Container != "" {
-		for index, c := range dep.Spec.Template.Spec.Containers {
-			if c.Name == ops.Container {
-				dep.Spec.Template.Spec.Containers[index] = *devContainer
-				break
-			}
+	for {
+		// Get latest deployment
+		if dep, err = a.client.GetDeployment(svcName); err != nil {
+			return err
 		}
-	} else {
-		dep.Spec.Template.Spec.Containers[0] = *devContainer
-	}
 
-	// Add volumes to deployment spec
-	if dep.Spec.Template.Spec.Volumes == nil {
-		log.Debugf("Service %s has no volume", dep.Name)
-		dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
-	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
+		if ops.Container != "" {
+			for index, c := range dep.Spec.Template.Spec.Containers {
+				if c.Name == ops.Container {
+					dep.Spec.Template.Spec.Containers[index] = *devContainer
+					break
+				}
+			}
+		} else {
+			dep.Spec.Template.Spec.Containers[0] = *devContainer
+		}
 
-	// delete user's SecurityContext
-	dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
+		// Add volumes to deployment spec
+		if dep.Spec.Template.Spec.Volumes == nil {
+			log.Debugf("Service %s has no volume", dep.Name)
+			dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
+		}
+		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
 
-	// disable readiness probes
-	for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
-		dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
-		dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
-		dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
-	}
+		// delete user's SecurityContext
+		dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
 
-	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
+		// disable readiness probes
+		for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
+			dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
+			dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
+			dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
+		}
 
-	// PriorityClass
-	priorityClass := ops.PriorityClass
-	if priorityClass == "" {
-		svcProfile, _ := a.GetSvcProfile(svcName)
-		priorityClass = svcProfile.PriorityClass
-	}
-	if priorityClass != "" {
-		log.Infof("Using priorityClass: %s...", priorityClass)
-		dep.Spec.Template.Spec.PriorityClassName = priorityClass
-	}
+		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
 
-	log.Info("Updating development container...")
-	_, err = a.client.UpdateDeployment(dep, true)
-	//  a.client.Patch("ReplicaSet", rs.Name,
-	//			fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
-	//				DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas, DevImageRevisionAnnotationKey,
-	//				DevImageRevisionAnnotationValue))
-	//specJson, err := json.Marshal(&dep.Spec)
-	//if err != nil {
-	//	return errors.Wrap(err, "")
-	//}
-	//err = a.client.Patch("Deployment", dep.Name, string(specJson))
-	if err != nil {
-		if strings.Contains(err.Error(), "no PriorityClass") {
-			log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
-			dep, err = a.client.GetDeployment(svcName)
+		// PriorityClass
+		priorityClass := ops.PriorityClass
+		if priorityClass == "" {
+			svcProfile, _ := a.GetSvcProfile(svcName)
+			priorityClass = svcProfile.PriorityClass
+		}
+		if priorityClass != "" {
+			log.Infof("Using priorityClass: %s...", priorityClass)
+			dep.Spec.Template.Spec.PriorityClassName = priorityClass
+		}
+
+		log.Info("Updating development container...")
+		_, err = a.client.UpdateDeployment(dep, true)
+		//  a.client.Patch("ReplicaSet", rs.Name,
+		//			fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
+		//				DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas, DevImageRevisionAnnotationKey,
+		//				DevImageRevisionAnnotationValue))
+		//specJson, err := json.Marshal(&dep.Spec)
+		//if err != nil {
+		//	return errors.Wrap(err, "")
+		//}
+		//err = a.client.Patch("Deployment", dep.Name, string(specJson))
+		if err != nil {
+			if strings.Contains(err.Error(), "no PriorityClass") {
+				log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
+				dep, err = a.client.GetDeployment(svcName)
+				if err != nil {
+					return err
+				}
+				dep.Spec.Template.Spec.PriorityClassName = ""
+				_, err = a.client.UpdateDeployment(dep, true)
+			} else if strings.Contains(err.Error(), "the object has been modified") {
+				log.Infof("Try to get the latest deployment again")
+				continue
+			}
 			if err != nil {
 				return err
 			}
-			dep.Spec.Template.Spec.PriorityClassName = ""
-			_, err = a.client.UpdateDeployment(dep, true)
+			break
 		}
-		if err != nil {
-			return err
-		}
+		break
 	}
+
 	return a.waitingPodOfDeploymentToBeReady(dep.Name)
 }
 
