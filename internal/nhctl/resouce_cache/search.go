@@ -381,26 +381,37 @@ func byApplicationFunc(obj interface{}) ([]string, error) {
 		return []string{}, err
 	}
 	anno := metadata.GetAnnotations()
-	if anno == nil || len(anno) == 0 || anno[app.NocalhostApplicationName] == "" {
-		return []string{"default.application"}, nil
+	if anno == nil || len(anno) == 0 ||
+		(anno[app.NocalhostApplicationName] == "" && anno[app.HelmReleaseName] == "") {
+		return []string{app.DefaultNocalhostApplication}, nil
 	}
-	return []string{anno[app.NocalhostApplicationName]}, nil
+	if anno[app.NocalhostApplicationName] != "" {
+		return []string{anno[app.NocalhostApplicationName]}, nil
+	} else {
+		return []string{anno[app.HelmReleaseName]}, nil
+	}
 }
 
 func byNamespaceAndAppFunc(obj interface{}) ([]string, error) {
 	metadata, err := meta.Accessor(obj)
 	if err != nil {
 		log.Error(err)
-		return []string{nsResource("default", "default.application")}, nil
+		return []string{nsResource("default", app.DefaultNocalhostApplication)}, nil
 	}
 	ns := metadata.GetNamespace()
 	anno := metadata.GetAnnotations()
-	if anno == nil || len(anno) == 0 || anno[app.NocalhostApplicationName] == "" {
-		return []string{nsResource(ns, "default.application")}, nil
+	if anno == nil || len(anno) == 0 ||
+		(anno[app.NocalhostApplicationName] == "" && anno[app.HelmReleaseName] == "") {
+		return []string{nsResource(ns, app.DefaultNocalhostApplication)}, nil
 	}
-	return []string{nsResource(ns, anno[app.NocalhostApplicationName])}, nil
+	if anno[app.NocalhostApplicationName] != "" {
+		return []string{nsResource(ns, anno[app.NocalhostApplicationName])}, nil
+	} else {
+		return []string{nsResource(ns, anno[app.HelmReleaseName])}, nil
+	}
 }
 
+// vendor/k8s.io/client-go/tools/cache/store.go:99, the reason why using ns/resource to get resource
 func nsResource(ns, resourceName string) string {
 	return fmt.Sprintf("%s/%s", ns, resourceName)
 }
