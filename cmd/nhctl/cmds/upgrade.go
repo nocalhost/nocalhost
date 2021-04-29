@@ -67,6 +67,7 @@ var upgradeCmd = &cobra.Command{
 
 		pfListMap := make(map[string][]*profile.DevPortForward, 0)
 		for _, svcProfile := range appProfile.SvcProfile {
+			nhSvc := initService(svcProfile.ActualName, svcProfile.Type)
 			pfList := make([]*profile.DevPortForward, 0)
 			for _, pf := range svcProfile.DevPortForwardList {
 				if pf.ServiceType == "" {
@@ -74,7 +75,7 @@ var upgradeCmd = &cobra.Command{
 				}
 				pfList = append(pfList, pf)
 				log.Infof("Stopping pf: %d:%d", pf.LocalPort, pf.RemotePort)
-				utils.Should(nocalhostSvc.EndDevPortForward(pf.LocalPort, pf.RemotePort))
+				utils.Should(nhSvc.EndDevPortForward(pf.LocalPort, pf.RemotePort))
 			}
 			if len(pfList) > 0 {
 				pfListMap[svcProfile.ActualName] = pfList
