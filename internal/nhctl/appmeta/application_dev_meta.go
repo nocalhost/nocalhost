@@ -32,15 +32,15 @@ const (
 )
 
 // Alias For compatibility with meta
-func (s *SvcType) Alias() SvcType {
-	if *s == Deployment {
+func (s SvcType) Alias() SvcType {
+	if s == Deployment {
 		return DEPLOYMENT
 	}
-	return *s
+	return s
 }
 
-func (s *SvcType) String() string {
-	return string(*s)
+func (s SvcType) String() string {
+	return string(s)
 }
 
 type ApplicationDevMeta map[SvcType]map[ /* resource name */ string] /* identifier */ string

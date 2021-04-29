@@ -353,11 +353,6 @@ type HelmFlags struct {
 	Version  string
 }
 
-// Todo hxx
-func (a *Application) IsAnyServiceInDevMode() bool {
-	return len(a.appMeta.DevMeta) > 0 && len(a.appMeta.DevMeta[appmeta.DEPLOYMENT]) > 0
-}
-
 func (a *Application) GetApplicationConfigV2() *profile.ApplicationConfig {
 	return a.appMeta.Config.ApplicationConfig
 }

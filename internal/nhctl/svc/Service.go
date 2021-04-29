@@ -73,3 +73,12 @@ func (c *Controller) GetDescription() string {
 	}
 	return desc
 }
+
+func (c *Controller) IsAnyServiceInDevMode() bool {
+	for _, m := range c.AppMeta.DevMeta {
+		if len(m) > 0 {
+			return true
+		}
+	}
+	return false
+}
