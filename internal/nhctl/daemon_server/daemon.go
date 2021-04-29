@@ -25,6 +25,7 @@ import (
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/resouce_cache"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
@@ -240,6 +241,16 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType)
 
 		metas := appmeta_manager.GetApplicationMetas(gamsCmd.NameSpace, gamsCmd.KubeConfig)
 		response(conn, metas)
+	case command.GetResourceInfo:
+		cmd := &command.GetResourceInfoCommand{}
+		if err = json.Unmarshal(bys, cmd); err != nil {
+			log.LogE(errors.Wrap(err, ""))
+			response(conn, &daemon_common.CommonResponse{ErrInfo: err.Error()})
+			return
+		}
+
+		res := resouce_cache.HandleGetResourceInfoRequest(cmd)
+		response(conn, res)
 	}
 }
 

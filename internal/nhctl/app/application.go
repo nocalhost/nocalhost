@@ -630,41 +630,33 @@ func (a *Application) GetConfigFile() (string, error) {
 	return "", err
 }
 
-func (a *Application) GetDescription() string {
+func (a *Application) GetDescription() *profile.AppProfileV2 {
 	appProfile, _ := a.GetProfile()
-	desc := ""
 	if appProfile != nil {
 		meta, err := nocalhost.GetApplicationMeta(a.Name, a.NameSpace, a.KubeConfig)
 		if err != nil {
 			log.LogE(err)
-			return ""
+			return nil
 		}
 		appProfile.Installed = meta.IsInstalled()
 		for _, svcProfile := range appProfile.SvcProfile {
 			svcProfile.Developing = meta.CheckIfDeploymentDeveloping(svcProfile.ActualName)
 			svcProfile.Possess = a.appMeta.DeploymentDevModePossessor(svcProfile.ActualName, appProfile.Identifier)
 		}
-		bytes, err := yaml.Marshal(appProfile)
-		if err == nil {
-			desc = string(bytes)
-		}
+		return appProfile
 	}
-	return desc
+	return nil
 }
 
-func (a *Application) GetSvcDescription(svcName string) string {
+func (a *Application) GetSvcDescription(svcName string) *profile.SvcProfileV2 {
 	appProfile, _ := a.GetProfile()
-	desc := ""
-	profile := appProfile.FetchSvcProfileV2FromProfile(svcName)
-	if profile != nil {
-		profile.Developing = a.appMeta.CheckIfDeploymentDeveloping(svcName)
-		profile.Possess = a.appMeta.DeploymentDevModePossessor(svcName, appProfile.Identifier)
-		bytes, err := yaml.Marshal(profile)
-		if err == nil {
-			desc = string(bytes)
-		}
+	svcProfile := appProfile.FetchSvcProfileV2FromProfile(svcName)
+	if svcProfile != nil {
+		svcProfile.Developing = a.appMeta.CheckIfDeploymentDeveloping(svcName)
+		svcProfile.Possess = a.appMeta.DeploymentDevModePossessor(svcName, appProfile.Identifier)
+		return svcProfile
 	}
-	return desc
+	return nil
 }
 
 func (a *Application) ListContainersByDeployment(depName string) ([]corev1.Container, error) {
