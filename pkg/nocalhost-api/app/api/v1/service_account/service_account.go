@@ -115,7 +115,14 @@ func ListAuthorization(c *gin.Context) {
 					//var SpaceId = uint64(0)
 					if m, ok := spaceNameMap[cluster.ID]; ok {
 						if s, ok := m[ns]; ok {
-							nss = append(nss, NS{SpaceName: s.SpaceName, Namespace: ns, SpaceId: s.ID})
+							if kc := getServiceAccountKubeConfig(
+								clientGo, user.SaName,
+								ns, cluster.Server,
+							); kc != "" {
+								nss = append(
+									nss, NS{SpaceName: s.SpaceName, Namespace: ns, SpaceId: s.ID, KubeConfig: kc},
+								)
+							}
 						}
 					}
 				}
@@ -186,7 +193,8 @@ type ServiceAccountModel struct {
 }
 
 type NS struct {
-	SpaceId   uint64 `json:"space_id"`
-	Namespace string `json:"namespace"`
-	SpaceName string `json:"spacename"`
+	SpaceId    uint64 `json:"space_id"`
+	Namespace  string `json:"namespace"`
+	SpaceName  string `json:"spacename"`
+	KubeConfig string `json:"kubeconfig"`
 }
