@@ -78,7 +78,7 @@ func GetNhctlBinName() string {
 func GetNhctlPath() (string, error) {
 	path, _ := filepath.Abs(os.Args[0])
 	if _, err := os.Stat(path); err != nil {
-		log.Info("Try to file nhctl from $PATH")
+		log.Log("Try to file nhctl from $PATH")
 		p, err := exec.LookPath(GetNhctlBinName())
 		return p, errors.Wrap(err, "")
 	}

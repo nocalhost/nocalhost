@@ -42,7 +42,7 @@ var applyCmd = &cobra.Command{
 		manifests := clientgoutils.LoadValidManifest([]string{path}, []string{})
 
 		err := nocalhostApp.GetClient().Apply(
-			manifests, true,
+			manifests, false,
 			app.StandardNocalhostMetas(nocalhostApp.Name, nocalhostApp.NameSpace), "",
 		)
 		if err != nil {

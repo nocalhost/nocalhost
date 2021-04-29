@@ -26,7 +26,8 @@ import (
 )
 
 const (
-	DefaultDevImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
+	// codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
+	DefaultDevImage = ""
 	DefaultWorkDir  = "/home/nocalhost-dev"
 )
 
