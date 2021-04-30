@@ -71,7 +71,7 @@ jobs:
         timeout-minutes: 10
       - name: git tag
         timeout-minutes: 60
-        if: ${{ github.event.workflow_run.conclusion == 'success' }}
+#        if: ${{ github.event.workflow_run.conclusion == 'success' }}
         run: |
           git fetch --prune --unshallow --tags
           TAG=$(git tag | tail -2)
