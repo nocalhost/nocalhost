@@ -23,6 +23,8 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/test/nhctlcli"
 	"os/exec"
+	"runtime"
+	"strings"
 	"time"
 )
 
@@ -92,5 +94,15 @@ func TimeoutChecker(d time.Duration) {
 		case <-tick:
 			panic(fmt.Sprintf("test case failed, timeout: %v", d))
 		}
+	}
+}
+
+func NeedsToInitK8sOnTke() bool {
+	if strings.Contains(runtime.GOOS, "darwin") {
+		return true
+	} else if strings.Contains(runtime.GOOS, "windows") {
+		return true
+	} else {
+		return false
 	}
 }

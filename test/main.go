@@ -16,20 +16,20 @@ import (
 	"nocalhost/test/nhctlcli"
 	"nocalhost/test/nhctlcli/suite"
 	"nocalhost/test/nhctlcli/testcase"
+	"nocalhost/test/tke"
 	"nocalhost/test/util"
-	"os"
 	"time"
 )
 
 func main() {
 	go util.TimeoutChecker(1 * time.Hour)
+	if util.NeedsToInitK8sOnTke() {
+		t := tke.CreateK8s()
+		defer tke.DeleteTke(t)
+	}
 	v1, v2 := testcase.GetVersion()
 	testcase.InstallNhctl(v1)
-	path := os.Getenv("KUBECONFIG_PATH")
-	if path == "" {
-		path = "/root/.kube/config"
-	}
-	cli := nhctlcli.NewNhctl(path, "test")
+	cli := nhctlcli.NewNhctl("test")
 	util.Init(cli)
 	testcase.NhctlVersion(cli)
 	testcase.StopDaemon(cli)

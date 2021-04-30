@@ -12,7 +12,13 @@
 
 package nhctlcli
 
-func NewNhctl(kubeconfig, namespace string) *CLI {
+import "os"
+
+func NewNhctl(namespace string) *CLI {
+	kubeconfig := os.Getenv("KUBECONFIG_PATH")
+	if kubeconfig == "" {
+		kubeconfig = "/root/.kube/config"
+	}
 	c := &Conf{
 		kubeconfig: kubeconfig,
 		namespace:  namespace,
