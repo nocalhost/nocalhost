@@ -41,7 +41,7 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-[ -z ${service} ] && service=nocalhost-sidecar-injector-svc
+[ -z ${service} ] && service=nocalhost-sidecar-injector-controller
 [ -z ${secret} ] && secret=nocalhost-sidecar-injector-certs
 [ -z ${namespace} ] && namespace=nocalhost-reserved
 

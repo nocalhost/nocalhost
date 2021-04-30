@@ -91,7 +91,7 @@ func main() {
 	fmt.Printf("current run version %s, tag %s, branch %s \n", global.CommitId, global.Version, global.Branch)
 
 	// start grpc server reserved
-	//go server.New(svc)
+	//go server.New(controller)
 
 	// start server
 	napp.App.Run()

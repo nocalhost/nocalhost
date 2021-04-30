@@ -29,7 +29,7 @@ func init() {
 	syncStatusCmd.Flags().StringVarP(&deployment, "deployment", "d", string(appmeta.Deployment),
 		"k8s deployment which your developing service exists",
 	)
-	syncStatusCmd.Flags().StringVarP(&serviceType, "svc-type", "t", "deployment",
+	syncStatusCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet")
 	syncStatusCmd.Flags().BoolVar(
 		&syncStatusOps.Override, "override", false,

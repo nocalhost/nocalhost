@@ -10,7 +10,7 @@
  * limitations under the License.
  */
 
-package svc
+package controller
 
 import (
 	"fmt"
@@ -97,7 +97,7 @@ func (c *Controller) SetSyncingStatus(is bool) error {
 
 	svcProfile := profileV2.SvcProfileV2(c.Name, c.Type.String())
 	if svcProfile == nil {
-		return errors.New("Failed to get svc profile")
+		return errors.New("Failed to get controller profile")
 	}
 	svcProfile.Syncing = is
 	return profileV2.Save()

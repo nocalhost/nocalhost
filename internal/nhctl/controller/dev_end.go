@@ -10,27 +10,22 @@
  * limitations under the License.
  */
 
-package cmds
+package controller
 
 import (
-	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 )
 
-func init() {
-	dbSizeCmd.Flags().StringVar(&appName, "app", "", "List leveldb data of specified application")
-	//pvcListCmd.Flags().StringVar(&pvcFlags.Svc, "controller", "", "List PVCs of specified service")
-	dbCmd.AddCommand(dbSizeCmd)
-}
+func (c *Controller) DevEnd(reset bool) error {
+	if err := c.BuildPodController().RollBack(reset); err != nil {
+		if !reset {
+			return err
+		}
+		log.WarnE(err, "something incorrect occurs when rolling back")
+	}
 
-var dbSizeCmd = &cobra.Command{
-	Use:   "size [NAME]",
-	Short: "Get all leveldb data",
-	Long:  `Get all leveldb data`,
-	Run: func(cmd *cobra.Command, args []string) {
-		size, err := nocalhost.GetApplicationDbSize(nameSpace, appName)
-		must(err)
-		log.Info(size)
-	},
+	utils.ShouldI(c.AppMeta.SvcDevEnd(c.Name, c.Type), "something incorrect occurs when updating secret")
+	utils.ShouldI(c.StopSyncAndPortForwardProcess(true), "something incorrect occurs when stopping sync process")
+	return nil
 }

@@ -33,7 +33,7 @@ var configEditFlags = ConfigEditFlags{}
 func init() {
 	configEditCmd.Flags().StringVarP(&configEditFlags.SvcName, "deployment", "d", "",
 		"k8s deployment which your developing service exists")
-	configEditCmd.Flags().StringVarP(&serviceType, "svc-type", "t", "deployment",
+	configEditCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet")
 	configEditCmd.Flags().StringVarP(&configEditFlags.Content, "content", "c", "",
 		"base64 encode json content")

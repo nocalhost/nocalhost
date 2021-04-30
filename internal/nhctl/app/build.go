@@ -374,7 +374,7 @@ func (a *Application) loadConfigToSvcProfile(svcName string, appProfile *profile
 		ActualName: svcName,
 	}
 
-	// find svc config
+	// find controller config
 	svcConfig := a.appMeta.Config.GetSvcConfigV2(svcName, string(svcType))
 	if svcConfig == nil && len(appProfile.ReleaseName) > 0 {
 		if strings.HasPrefix(svcName, fmt.Sprintf("%s-", appProfile.ReleaseName)) {

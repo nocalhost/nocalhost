@@ -19,3 +19,21 @@ type NocalHostResource struct {
 	ServiceType string
 	PodName     string
 }
+
+type DevStartOptions struct {
+	WorkDir      string
+	SideCarImage string
+	DevImage     string
+	Container    string
+	//SvcType      string
+
+	Kubeconfig string
+
+	// for debug
+	SyncthingVersion string
+
+	// Now it's only use to specify the `root dir` user want to sync
+	LocalSyncDir  []string
+	StorageClass  string
+	PriorityClass string
+}

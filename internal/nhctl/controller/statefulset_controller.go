@@ -10,24 +10,8 @@
  * limitations under the License.
  */
 
-package svc
+package controller
 
-import "nocalhost/internal/nhctl/profile"
-
-const (
-//DevImageRevisionAnnotationKey            = "nhctl.dev.image.revision"
-//DevImageOriginalPodReplicasAnnotationKey = "nhctl.dev.image.original.pod.replicas"
-//DevImageRevisionAnnotationValue          = "first"
-//
-//PersistentVolumeDirLabel = "nocalhost.dev/dir"
-//ServiceLabel             = "nocalhost.dev/service"
-//AppLabel                 = "nocalhost.dev/app"
-//
-//DefaultSideCarImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
-//
-//DefaultApplicationSyncPidFile = "syncthing.pid"
-)
-
-type ContainerDevEnv struct {
-	DevEnv []*profile.Env
+type StatefulSetController struct {
+	Controller
 }

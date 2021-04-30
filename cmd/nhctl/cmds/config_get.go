@@ -23,7 +23,7 @@ import (
 func init() {
 	configGetCmd.Flags().StringVarP(&commonFlags.SvcName, "deployment", "d", "",
 		"k8s deployment which your developing service exists")
-	configGetCmd.Flags().StringVarP(&serviceType, "svc-type", "t", "",
+	configGetCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
 		"kind of k8s controller,such as deployment,statefulSet")
 	configGetCmd.Flags().BoolVar(&commonFlags.AppConfig, "app-config", false,
 		"get application config")
@@ -74,7 +74,7 @@ var configGetCmd = &cobra.Command{
 			svcProfile := appProfile.SvcProfileV2(commonFlags.SvcName, serviceType)
 			if svcProfile != nil {
 				bys, err := yaml.Marshal(svcProfile.ServiceConfigV2)
-				must(errors.Wrap(err, "fail to get svc profile"))
+				must(errors.Wrap(err, "fail to get controller profile"))
 				fmt.Println(string(bys))
 			}
 		}

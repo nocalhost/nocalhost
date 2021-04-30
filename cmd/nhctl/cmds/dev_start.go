@@ -14,8 +14,8 @@ package cmds
 
 import (
 	"context"
+	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/svc"
 	"nocalhost/internal/nhctl/syncthing"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/internal/nhctl/utils"
@@ -34,13 +34,13 @@ var (
 	pod         string
 )
 
-var devStartOps = &svc.DevStartOptions{}
+var devStartOps = &model.DevStartOptions{}
 
 func init() {
 
 	devStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
 		"k8s deployment your developing service exists")
-	devStartCmd.Flags().StringVarP(&serviceType, "svc-type", "t", "",
+	devStartCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
 		"kind of k8s controller,such as deployment,statefulSet")
 	devStartCmd.Flags().StringVarP(&devStartOps.DevImage, "image", "i", "", "image of DevContainer")
 	devStartCmd.Flags().StringVarP(&devStartOps.Container, "container", "c", "", "container to develop")
@@ -123,9 +123,8 @@ var devStartCmd = &cobra.Command{
 		}
 
 		_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
-		mustI(err,
-			"Failed to install syncthing, no syncthing available locally in "+
-				newSyncthing.BinPath+" please try again.")
+		mustI(err, "Failed to install syncthing, no syncthing available locally in "+
+			newSyncthing.BinPath+" please try again.")
 
 		// set syncthing secret
 		config, err := newSyncthing.GetRemoteConfigXML()
@@ -150,7 +149,7 @@ var devStartCmd = &cobra.Command{
 			utils.Should(nocalhostSvc.EndDevPortForward(pf.LocalPort, pf.RemotePort))
 		}
 
-		if err = nocalhostSvc.ReplaceImage(context.TODO(), devStartOps); err != nil {
+		if err = nocalhostSvc.BuildPodController().ReplaceImage(context.TODO(), devStartOps); err != nil {
 			log.WarnE(err, "Failed to replace dev container")
 			log.Info("Resetting workload...")
 			_ = nocalhostSvc.DevEnd(true)

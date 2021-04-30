@@ -19,8 +19,8 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/fp"
-	"nocalhost/internal/nhctl/svc"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -70,7 +70,7 @@ func Prepare() error {
 	return nil
 }
 
-func initService(svcName string, svcType string) *svc.Controller {
+func initService(svcName string, svcType string) *controller.Controller {
 	if svcName == "" {
 		log.Fatal("please use -d to specify a k8s workload")
 	}
@@ -100,7 +100,7 @@ func checkIfSvcExist(svcName string, svcType string) {
 	nocalhostSvc = initService(svcName, svcType)
 	exist, err := nocalhostSvc.CheckIfExist()
 	if err != nil {
-		log.FatalE(err, "failed to check if svc exists")
+		log.FatalE(err, "failed to check if controller exists")
 	} else if !exist {
 		log.FatalE(errors.New(fmt.Sprintf("Service %s-%s not found!", string(serviceType), svcName)), "")
 	}

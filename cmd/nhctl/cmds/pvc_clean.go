@@ -21,7 +21,7 @@ import (
 
 func init() {
 	pvcCleanCmd.Flags().StringVar(&pvcFlags.App, "app", "", "Clean up PVCs of specified application")
-	pvcCleanCmd.Flags().StringVar(&pvcFlags.Svc, "svc", "", "Clean up PVCs of specified service")
+	pvcCleanCmd.Flags().StringVar(&pvcFlags.Svc, "controller", "", "Clean up PVCs of specified service")
 	pvcCleanCmd.Flags().StringVar(&pvcFlags.Name, "name", "", "Clean up specified PVC")
 	pvcCmd.AddCommand(pvcCleanCmd)
 }
@@ -50,7 +50,7 @@ var pvcCleanCmd = &cobra.Command{
 		if pvcFlags.Svc != "" {
 			exist, err := nocalhostApp.Controller(pvcFlags.Svc, appmeta.Deployment).CheckIfExist()
 			if err != nil {
-				log.FatalE(err, "failed to check if svc exists")
+				log.FatalE(err, "failed to check if controller exists")
 			} else if !exist {
 				log.Fatalf("\"%s\" not found", pvcFlags.Svc)
 			}

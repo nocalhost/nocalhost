@@ -10,7 +10,7 @@
  * limitations under the License.
  */
 
-package svc
+package controller
 
 import (
 	"github.com/pkg/errors"
@@ -92,7 +92,7 @@ func (c *Controller) SetPortForwardedStatus(is bool) error {
 
 	svcProfile := profileV2.SvcProfileV2(c.Name, c.Type.String())
 	if svcProfile == nil {
-		return errors.New("Failed to get svc profile")
+		return errors.New("Failed to get controller profile")
 	}
 	svcProfile.PortForwarded = is
 	return profileV2.Save()
@@ -107,7 +107,7 @@ func (c *Controller) setSyncthingProfileEndStatus() error {
 
 	svcProfile := profileV2.SvcProfileV2(c.Name, string(c.Type))
 	if svcProfile == nil {
-		return errors.New("Failed to get svc profile")
+		return errors.New("Failed to get controller profile")
 	}
 	svcProfile.RemoteSyncthingPort = 0
 	svcProfile.RemoteSyncthingGUIPort = 0
@@ -130,7 +130,7 @@ func (c *Controller) AddPortForwardToDB(port *profile.DevPortForward) error {
 
 	svcProfile := profileV2.SvcProfileV2(c.Name, c.Type.String())
 	if svcProfile == nil {
-		return errors.New("Failed to get svc profile")
+		return errors.New("Failed to get controller profile")
 	}
 
 	svcProfile.DevPortForwardList = append(svcProfile.DevPortForwardList, port)
@@ -182,7 +182,7 @@ func (c *Controller) SetSyncthingPort(remotePort, remoteGUIPort, localPort, loca
 
 	svcProfile := profileV2.SvcProfileV2(c.Name, c.Type.String())
 	if svcProfile == nil {
-		return errors.New("Failed to get svc profile")
+		return errors.New("Failed to get controller profile")
 	}
 	svcProfile.RemoteSyncthingPort = remotePort
 	svcProfile.RemoteSyncthingGUIPort = remoteGUIPort

@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/svc"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -85,7 +85,7 @@ var portForwardStartCmd = &cobra.Command{
 
 		var localPorts, remotePorts []int
 		for _, port := range portForwardOptions.DevPort {
-			localPort, remotePort, err := svc.GetPortForwardForString(port)
+			localPort, remotePort, err := controller.GetPortForwardForString(port)
 			if err != nil {
 				log.WarnE(err, "")
 				continue

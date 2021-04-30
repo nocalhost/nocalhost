@@ -17,10 +17,10 @@ import (
 	"io/ioutil"
 	"net"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/svc"
 	"os"
 	"regexp"
 
@@ -398,8 +398,8 @@ type PortForwardEndOptions struct {
 	Port string // 8080:8080
 }
 
-func (a *Application) Controller(name string, svcType appmeta.SvcType) *svc.Controller {
-	return &svc.Controller{
+func (a *Application) Controller(name string, svcType appmeta.SvcType) *controller.Controller {
+	return &controller.Controller{
 		NameSpace: a.NameSpace,
 		AppName:   a.Name,
 		Name:      name,

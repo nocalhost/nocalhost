@@ -10,27 +10,24 @@
  * limitations under the License.
  */
 
-package cmds
+package controller
 
-import (
-	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/pkg/nhctl/log"
+import "nocalhost/internal/nhctl/profile"
+
+const (
+//DevImageRevisionAnnotationKey            = "nhctl.dev.image.revision"
+//DevImageOriginalPodReplicasAnnotationKey = "nhctl.dev.image.original.pod.replicas"
+//DevImageRevisionAnnotationValue          = "first"
+//
+//PersistentVolumeDirLabel = "nocalhost.dev/dir"
+//ServiceLabel             = "nocalhost.dev/service"
+//AppLabel                 = "nocalhost.dev/app"
+//
+//DefaultSideCarImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
+//
+//DefaultApplicationSyncPidFile = "syncthing.pid"
 )
 
-func init() {
-	dbSizeCmd.Flags().StringVar(&appName, "app", "", "List leveldb data of specified application")
-	//pvcListCmd.Flags().StringVar(&pvcFlags.Svc, "controller", "", "List PVCs of specified service")
-	dbCmd.AddCommand(dbSizeCmd)
-}
-
-var dbSizeCmd = &cobra.Command{
-	Use:   "size [NAME]",
-	Short: "Get all leveldb data",
-	Long:  `Get all leveldb data`,
-	Run: func(cmd *cobra.Command, args []string) {
-		size, err := nocalhost.GetApplicationDbSize(nameSpace, appName)
-		must(err)
-		log.Info(size)
-	},
+type ContainerDevEnv struct {
+	DevEnv []*profile.Env
 }

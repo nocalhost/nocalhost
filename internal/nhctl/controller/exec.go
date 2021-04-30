@@ -10,12 +10,11 @@
  * limitations under the License.
  */
 
-package svc
+package controller
 
 import (
 	"errors"
 	"fmt"
-	"nocalhost/internal/nhctl/appmeta"
 )
 
 // EnterPodTerminal Try to use shell defined in devContainerShell to enter pod's terminal
@@ -25,19 +24,16 @@ func (c *Controller) EnterPodTerminal(podName, container string) error {
 	pod := podName
 	if pod == "" {
 		// todo hxx
-		switch c.Type {
-		case appmeta.Deployment:
-			podList, err := c.Client.ListLatestRevisionPodsByDeployment(c.Name)
-			if err != nil {
-				return err
-			}
-			if len(podList) != 1 {
-				return errors.New(fmt.Sprintf("The number of pods of %s is not 1 ???", c.Name))
-			}
-			pod = podList[0].Name
-		default:
-			return errors.New("unsupported type")
+
+		podList, err := c.Client.ListLatestRevisionPodsByDeployment(c.Name)
+		if err != nil {
+			return err
 		}
+		if len(podList) != 1 {
+			return errors.New(fmt.Sprintf("The number of pods of %s is not 1 ???", c.Name))
+		}
+		pod = podList[0].Name
+
 	}
 	shell := ""
 	profile, _ := c.GetProfile()

@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/svc"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/utils"
 	"time"
 
@@ -162,13 +162,13 @@ var installCmd = &cobra.Command{
 				svcType := svcProfile.Type
 				log.Infof("Starting port-forward for %s %s", svcType, svcProfile.ActualName)
 				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
-				podName, err := nhSvc.GetDefaultPodName(ctx)
+				podName, err := nhSvc.BuildPodController().GetDefaultPodName(ctx)
 				if err != nil {
 					log.WarnE(err, "")
 					continue
 				}
 				for _, pf := range cc.Install.PortForward {
-					lPort, rPort, err := svc.GetPortForwardForString(pf)
+					lPort, rPort, err := controller.GetPortForwardForString(pf)
 					if err != nil {
 						log.WarnE(err, "")
 						continue

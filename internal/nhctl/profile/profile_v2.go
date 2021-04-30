@@ -206,7 +206,7 @@ type SvcProfileV2 struct {
 	LocalAbsoluteSyncDirFromDevStartPlugin []string          `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
 	DevPortForwardList                     []*DevPortForward `json:"devPortForwardList" yaml:"devPortForwardList"` // combine DevPortList,PortForwardStatusList and PortForwardPidList
 
-	// mean the current svc is possess by current nhctl context
+	// mean the current controller is possess by current nhctl context
 	// and the syncthing process is listen on current device
 	Possess bool
 }

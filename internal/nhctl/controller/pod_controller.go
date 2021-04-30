@@ -10,27 +10,17 @@
  * limitations under the License.
  */
 
-package cmds
+package controller
 
 import (
-	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/pkg/nhctl/log"
+	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/pod_controller"
 )
 
-func init() {
-	dbSizeCmd.Flags().StringVar(&appName, "app", "", "List leveldb data of specified application")
-	//pvcListCmd.Flags().StringVar(&pvcFlags.Svc, "controller", "", "List PVCs of specified service")
-	dbCmd.AddCommand(dbSizeCmd)
-}
-
-var dbSizeCmd = &cobra.Command{
-	Use:   "size [NAME]",
-	Short: "Get all leveldb data",
-	Long:  `Get all leveldb data`,
-	Run: func(cmd *cobra.Command, args []string) {
-		size, err := nocalhost.GetApplicationDbSize(nameSpace, appName)
-		must(err)
-		log.Info(size)
-	},
+func (c *Controller) BuildPodController() pod_controller.PodController {
+	switch c.Type {
+	case appmeta.Deployment:
+		return &DeploymentController{Controller: c}
+	}
+	return nil
 }

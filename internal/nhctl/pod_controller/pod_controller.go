@@ -10,27 +10,19 @@
  * limitations under the License.
  */
 
-package cmds
+package pod_controller
 
 import (
-	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/pkg/nhctl/log"
+	"context"
+	corev1 "k8s.io/api/core/v1"
+	"nocalhost/internal/nhctl/model"
 )
 
-func init() {
-	dbSizeCmd.Flags().StringVar(&appName, "app", "", "List leveldb data of specified application")
-	//pvcListCmd.Flags().StringVar(&pvcFlags.Svc, "controller", "", "List PVCs of specified service")
-	dbCmd.AddCommand(dbSizeCmd)
-}
-
-var dbSizeCmd = &cobra.Command{
-	Use:   "size [NAME]",
-	Short: "Get all leveldb data",
-	Long:  `Get all leveldb data`,
-	Run: func(cmd *cobra.Command, args []string) {
-		size, err := nocalhost.GetApplicationDbSize(nameSpace, appName)
-		must(err)
-		log.Info(size)
-	},
+type PodController interface {
+	ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error
+	ScaleReplicasToOne(ctx context.Context) error
+	FindDevContainer(containerName string) (*corev1.Container, error)
+	RollBack(reset bool) error
+	GetDefaultPodName(ctx context.Context) (string, error)
+	GetPodList() ([]corev1.Pod, error)
 }

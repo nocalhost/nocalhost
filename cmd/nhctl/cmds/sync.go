@@ -28,7 +28,7 @@ var fileSyncOps = &app.FileSyncOptions{}
 func init() {
 	fileSyncCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
 		"k8s deployment which your developing service exists")
-	fileSyncCmd.Flags().StringVarP(&serviceType, "svc-type", "t", "",
+	fileSyncCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
 		"kind of k8s controller,such as deployment,statefulSet")
 	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false,
 		"if use double side sync")

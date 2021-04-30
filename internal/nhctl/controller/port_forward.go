@@ -10,7 +10,7 @@
  * limitations under the License.
  */
 
-package svc
+package controller
 
 import (
 	"context"
@@ -104,7 +104,7 @@ func (c *Controller) UpdatePortForwardStatus(localPort int, remotePort int, port
 
 	svcProfile := profileV2.SvcProfileV2(c.Name, string(c.Type))
 	if svcProfile == nil {
-		return errors.New("Failed to get svc profile")
+		return errors.New("Failed to get controller profile")
 	}
 
 	for _, portForward := range svcProfile.DevPortForwardList {

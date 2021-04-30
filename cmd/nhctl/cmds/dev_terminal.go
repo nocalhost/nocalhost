@@ -22,7 +22,7 @@ import (
 func init() {
 	devTerminalCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
 		"k8s deployment which your developing service exists")
-	devTerminalCmd.Flags().StringVarP(&serviceType, "svc-type", "t", "",
+	devTerminalCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
 		"kind of k8s controller,such as deployment,statefulSet")
 	devTerminalCmd.Flags().StringVarP(&container, "container", "c", "", "container to enter")
 	devTerminalCmd.Flags().StringVar(&pod, "pod", "", "pod to enter")

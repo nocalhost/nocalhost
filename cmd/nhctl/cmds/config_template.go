@@ -32,7 +32,7 @@ var commonFlags = CommonFlags{}
 func init() {
 	configTemplateCmd.Flags().StringVarP(&commonFlags.SvcName, "deployment", "d", "",
 		"k8s deployment which your developing service exists")
-	configTemplateCmd.Flags().StringVarP(&serviceType, "svc-type", "t", "",
+	configTemplateCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
 		"kind of k8s controller,such as deployment,statefulSet")
 	configCmd.AddCommand(configTemplateCmd)
 }
@@ -51,7 +51,7 @@ var configTemplateCmd = &cobra.Command{
 		commonFlags.AppName = args[0]
 		initAppAndCheckIfSvcExist(commonFlags.AppName, commonFlags.SvcName, serviceType)
 		t, err := tpl.GetSvcTpl(commonFlags.SvcName)
-		mustI(err, "fail to get svc tpl")
+		mustI(err, "fail to get controller tpl")
 		fmt.Println(t)
 	},
 }

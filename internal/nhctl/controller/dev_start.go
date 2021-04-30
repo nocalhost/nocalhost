@@ -10,15 +10,13 @@
  * limitations under the License.
  */
 
-package svc
+package controller
 
 import (
-	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -30,166 +28,6 @@ import (
 	"strings"
 	"time"
 )
-
-type DevStartOptions struct {
-	WorkDir      string
-	SideCarImage string
-	DevImage     string
-	Container    string
-	//SvcType      string
-
-	Kubeconfig string
-
-	// for debug
-	SyncthingVersion string
-
-	// Now it's only use to specify the `root dir` user want to sync
-	LocalSyncDir  []string
-	StorageClass  string
-	PriorityClass string
-}
-
-// ReplaceImage In DevMode, nhctl will replace the container of your workload with two containers:
-// one is called devContainer, the other is called sideCarContainer
-func (c *Controller) ReplaceImage(ctx context.Context, ops *DevStartOptions) error {
-
-	var err error
-	c.Client.Context(ctx)
-
-	if err = c.markReplicaSetRevision(); err != nil {
-		return err
-	}
-
-	if err = c.scaleReplicasToOne(ctx); err != nil {
-		return err
-	}
-
-	devContainer, err := c.findDevContainer(ops.Container)
-	if err != nil {
-		return err
-	}
-
-	devModeVolumes := make([]corev1.Volume, 0)
-	devModeMounts := make([]corev1.VolumeMount, 0)
-
-	// Set volumes
-	syncthingVolumes, syncthingVolumeMounts := c.generateSyncVolumesAndMounts()
-	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
-	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
-
-	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := c.genWorkDirAndPVAndMounts(
-		ops.Container, ops.StorageClass)
-
-	if err != nil {
-		return err
-	}
-	devModeVolumes = append(devModeVolumes, workDirAndPersistVolumes...)
-	devModeMounts = append(devModeMounts, workDirAndPersistVolumeMounts...)
-
-	workDir := c.GetWorkDir(ops.Container)
-	devImage := c.GetDevImage(ops.Container) // Default : replace the first container
-
-	sideCarContainer := generateSideCarContainer(workDir)
-
-	devContainer.Image = devImage
-	devContainer.Name = "nocalhost-dev"
-	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
-	devContainer.WorkingDir = workDir
-
-	// add env
-	devEnv := c.GetDevContainerEnv(ops.Container)
-	for _, v := range devEnv.DevEnv {
-		env := corev1.EnvVar{Name: v.Name, Value: v.Value}
-		devContainer.Env = append(devContainer.Env, env)
-	}
-
-	// Add volumeMounts to containers
-	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
-	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, devModeMounts...)
-
-	requirements := c.genResourceReq()
-	if requirements != nil {
-		devContainer.Resources = *requirements
-		sideCarContainer.Resources = *requirements
-	}
-
-	// todo hxx
-	switch c.Type {
-	case appmeta.Deployment:
-		// Get latest deployment
-		dep, err := c.Client.GetDeployment(c.Name)
-		if err != nil {
-			return err
-		}
-
-		if ops.Container != "" {
-			for index, c := range dep.Spec.Template.Spec.Containers {
-				if c.Name == ops.Container {
-					dep.Spec.Template.Spec.Containers[index] = *devContainer
-					break
-				}
-			}
-		} else {
-			dep.Spec.Template.Spec.Containers[0] = *devContainer
-		}
-
-		// Add volumes to deployment spec
-		if dep.Spec.Template.Spec.Volumes == nil {
-			log.Debugf("Service %s has no volume", dep.Name)
-			dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
-		}
-		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
-
-		// delete user's SecurityContext
-		dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
-
-		// disable readiness probes
-		for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
-			dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
-			dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
-			dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
-		}
-
-		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
-
-		// PriorityClass
-		priorityClass := ops.PriorityClass
-		if priorityClass == "" {
-			svcProfile, _ := c.GetProfile()
-			priorityClass = svcProfile.PriorityClass
-		}
-		if priorityClass != "" {
-			log.Infof("Using priorityClass: %s...", priorityClass)
-			dep.Spec.Template.Spec.PriorityClassName = priorityClass
-		}
-
-		log.Info("Updating development container...")
-		_, err = c.Client.UpdateDeployment(dep, true)
-		//specJson, err := json.Marshal(&dep.Spec)
-		//if err != nil {
-		//	return errors.Wrap(err, "")
-		//}
-		//err = c.Client.Patch("Deployment", dep.Name, string(specJson))
-		if err != nil {
-			if strings.Contains(err.Error(), "no PriorityClass") {
-				log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
-				dep, err = c.Client.GetDeployment(c.Name)
-				if err != nil {
-					return err
-				}
-				dep.Spec.Template.Spec.PriorityClassName = ""
-				_, err = c.Client.UpdateDeployment(dep, true)
-			}
-			if err != nil {
-				return err
-			}
-		}
-		return c.waitingPodToBeReady()
-	default:
-		return errors.New(fmt.Sprintf("%s has not support yet", c.Type))
-
-	}
-}
 
 func (c *Controller) GetDevContainerEnv(container string) *ContainerDevEnv {
 	// Find service env
@@ -223,120 +61,37 @@ func (c *Controller) GetDevContainerEnv(container string) *ContainerDevEnv {
 
 func (c *Controller) markReplicaSetRevision() error {
 
-	// todo hxx
-	switch c.Type {
-	case appmeta.Deployment:
-		dep0, err := c.Client.GetDeployment(c.Name)
-		if err != nil {
-			return err
-		}
-
-		// Mark current revision for rollback
-		rss, err := c.Client.GetSortedReplicaSetsByDeployment(c.Name)
-		if err != nil {
-			return err
-		}
-		if len(rss) > 0 {
-			// Recording original pod replicas for dev end to recover
-			originalPodReplicas := 1
-			if dep0.Spec.Replicas != nil {
-				originalPodReplicas = int(*dep0.Spec.Replicas)
-			}
-			for _, rs := range rss {
-				if _, ok := rs.Annotations[nocalhost.DevImageRevisionAnnotationKey]; ok {
-					// already marked
-					return nil
-				}
-			}
-			rs := rss[0]
-			err = c.Client.Patch("ReplicaSet", rs.Name,
-				fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
-					nocalhost.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
-					nocalhost.DevImageRevisionAnnotationKey, nocalhost.DevImageRevisionAnnotationValue))
-			if err != nil {
-				return errors.New("Failed to update rs's annotation :" + err.Error())
-			}
-			log.Infof("%s has been marked as first revision", rs.Name)
-		}
-	default:
-		return errors.New(fmt.Sprintf("%s has not supported devMode", c.Type))
+	dep0, err := c.Client.GetDeployment(c.Name)
+	if err != nil {
+		return err
 	}
 
-	return nil
-}
-
-func (c *Controller) findDevContainer(containerName string) (*corev1.Container, error) {
-	var devContainer *corev1.Container
-
-	// todo hxx
-	switch c.Type {
-	case appmeta.Deployment:
-		dep, err := c.Client.GetDeployment(c.Name)
-		if err != nil {
-			return nil, err
-		}
-		if containerName != "" {
-			for index, c := range dep.Spec.Template.Spec.Containers {
-				if c.Name == containerName {
-					return &dep.Spec.Template.Spec.Containers[index], nil
-				}
-			}
-			if devContainer == nil {
-				return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
-			}
-		} else {
-			if len(dep.Spec.Template.Spec.Containers) > 1 {
-				return nil, errors.New(fmt.Sprintf("There are more than one container defined," +
-					"please specify one to start developing"))
-			}
-			if len(dep.Spec.Template.Spec.Containers) == 0 {
-				return nil, errors.New("No container defined ???")
-			}
-			devContainer = &dep.Spec.Template.Spec.Containers[0]
-		}
-
-	default:
-		return nil, errors.New(fmt.Sprintf("%s has not support yet", c.Type))
-
+	// Mark current revision for rollback
+	rss, err := c.Client.GetSortedReplicaSetsByDeployment(c.Name)
+	if err != nil {
+		return err
 	}
-
-	return devContainer, nil
-}
-
-func (c *Controller) scaleReplicasToOne(ctx context.Context) error {
-
-	// todo hxx
-	switch c.Type {
-	case appmeta.Deployment:
-		deploymentsClient := c.Client.GetDeploymentClient()
-		scale, err := deploymentsClient.GetScale(ctx, c.Name, metav1.GetOptions{})
-		if err != nil {
-			return errors.Wrap(err, "")
+	if len(rss) > 0 {
+		// Recording original pod replicas for dev end to recover
+		originalPodReplicas := 1
+		if dep0.Spec.Replicas != nil {
+			originalPodReplicas = int(*dep0.Spec.Replicas)
 		}
-
-		if scale.Spec.Replicas > 1 {
-			log.Infof("Deployment %s's replicas is %d now, scaling it to 1", c.Name, scale.Spec.Replicas)
-			scale.Spec.Replicas = 1
-			_, err = deploymentsClient.UpdateScale(ctx, c.Name, scale, metav1.UpdateOptions{})
-			if err != nil {
-				log.Error("Failed to scale replicas to 1")
-			} else {
-				for i := 0; i < 60; i++ {
-					time.Sleep(time.Second * 1)
-					scale, err = deploymentsClient.GetScale(ctx, c.Name, metav1.GetOptions{})
-					if scale.Spec.Replicas > 1 {
-						log.Debugf("Waiting replicas scaling to 1")
-					} else {
-						log.Info("Replicas has been set to 1")
-						break
-					}
-				}
+		for _, rs := range rss {
+			if _, ok := rs.Annotations[nocalhost.DevImageRevisionAnnotationKey]; ok {
+				// already marked
+				return nil
 			}
-		} else {
-			log.Infof("Deployment %s's replicas is already 1, no need to scale", c.Name)
 		}
-	default:
-		return errors.New(fmt.Sprintf("%s has not supported devMode", c.Type))
+		rs := rss[0]
+		err = c.Client.Patch("ReplicaSet", rs.Name,
+			fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
+				nocalhost.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
+				nocalhost.DevImageRevisionAnnotationKey, nocalhost.DevImageRevisionAnnotationValue))
+		if err != nil {
+			return errors.New("Failed to update rs's annotation :" + err.Error())
+		}
+		log.Infof("%s has been marked as first revision", rs.Name)
 	}
 	return nil
 }

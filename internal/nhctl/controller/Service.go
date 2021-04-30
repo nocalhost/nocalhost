@@ -10,7 +10,7 @@
  * limitations under the License.
  */
 
-package svc
+package controller
 
 import (
 	"github.com/pkg/errors"
@@ -48,7 +48,7 @@ func (c *Controller) CheckIfExist() (bool, error) {
 	case appmeta.CronJob:
 		_, err = c.Client.GetCronJobs(c.Name)
 	default:
-		return false, errors.New("unsupported svc type")
+		return false, errors.New("unsupported controller type")
 	}
 	if err != nil {
 		return false, nil
