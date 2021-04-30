@@ -27,8 +27,8 @@ import (
 )
 
 func CreateK8s() *task {
-	id := os.Getenv("SECRET_ID")
-	key := os.Getenv("SECRET_KEY")
+	id := os.Getenv("TKE_SECRET_ID")
+	key := os.Getenv("TKE_SECRET_KEY")
 	if id == "" || key == "" {
 		panic("SECRET_ID or SECRET_KEY is null, please make sure you have set it correctly")
 	}
