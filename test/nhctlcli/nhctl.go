@@ -12,13 +12,17 @@
 
 package nhctlcli
 
-import "os"
+import (
+	"nocalhost/test/util"
+	"os"
+)
 
 func NewNhctl(namespace string) *CLI {
 	kubeconfig := os.Getenv("KUBECONFIG_PATH")
 	if kubeconfig == "" {
 		kubeconfig = "/root/.kube/config"
 	}
+	util.CreateNamespaceIgnoreError(namespace, kubeconfig)
 	c := &Conf{
 		kubeconfig: kubeconfig,
 		namespace:  namespace,

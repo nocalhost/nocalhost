@@ -13,7 +13,6 @@
 package tke
 
 import (
-	"context"
 	"fmt"
 	"github.com/google/uuid"
 	"io/ioutil"
@@ -33,9 +32,6 @@ func CreateK8s() *task {
 		panic("SECRET_ID or SECRET_KEY is null, please make sure you have set it correctly")
 	}
 	t := NewTask(id, key)
-	ctx := context.Background()
-	ctx, cancelFunc := context.WithTimeout(ctx, time.Minute*30)
-	defer cancelFunc()
 	t.CreateTKE()
 	t.WaitClusterToBeReady()
 	t.WaitInstanceToBeReady()

@@ -15,10 +15,13 @@ package util
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/clientcmd"
 	clientgowatch "k8s.io/client-go/tools/watch"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/test/nhctlcli"
@@ -105,4 +108,15 @@ func NeedsToInitK8sOnTke() bool {
 	} else {
 		return false
 	}
+}
+
+func CreateNamespaceIgnoreError(ns, kubeconfig string) {
+	kubeconfigBytes, _ := ioutil.ReadFile(kubeconfig)
+	config, _ := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
+	Clients, _ := kubernetes.NewForConfig(config)
+	_, _ = Clients.CoreV1().Namespaces().Create(context.Background(), &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: ns,
+		},
+	}, metav1.CreateOptions{})
 }
