@@ -29,7 +29,10 @@ func main() {
 	}
 	v1, v2 := testcase.GetVersion()
 	testcase.InstallNhctl(v1)
-	cli := nhctlcli.NewNhctl("test")
+	kubeconfig := util.GetKubeconfig()
+	ns := "test"
+	cli := nhctlcli.NewNhctl(ns, kubeconfig)
+	util.CreateNamespaceIgnoreError(ns, kubeconfig)
 	util.Init(cli)
 	testcase.NhctlVersion(cli)
 	testcase.StopDaemon(cli)

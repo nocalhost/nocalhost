@@ -25,6 +25,7 @@ import (
 	clientgowatch "k8s.io/client-go/tools/watch"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/test/nhctlcli"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -119,4 +120,12 @@ func CreateNamespaceIgnoreError(ns, kubeconfig string) {
 			Name: ns,
 		},
 	}, metav1.CreateOptions{})
+}
+
+func GetKubeconfig() string {
+	kubeconfig := os.Getenv("KUBECONFIG_PATH")
+	if kubeconfig == "" {
+		kubeconfig = "/root/.kube/config"
+	}
+	return kubeconfig
 }
