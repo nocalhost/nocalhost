@@ -125,6 +125,8 @@ jobs:
           SHA=${GITHUB_SHA}
           export TAG="${{ env.RELEASE_VERSION }}"
           export COMMIT_ID=$SHA
+          export TKE_SECRET_ID=${{ secrets.TKE_SECRET_ID }}
+          export TKE_SECRET_KEY=${{ secrets.TKE_SECRET_KEY }}
           cd test
           go build
           ./test
@@ -165,6 +167,8 @@ jobs:
           echo ${{ env.RELEASE_VERSION }}
           export TAG="${{ env.RELEASE_VERSION }}"
           export COMMIT_ID=$SHA
+          export TKE_SECRET_ID=${{ secrets.TKE_SECRET_ID }}
+          export TKE_SECRET_KEY=${{ secrets.TKE_SECRET_KEY }}
           cd test
           go build
           ./test
