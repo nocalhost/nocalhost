@@ -74,7 +74,7 @@ jobs:
         if: ${{ github.event.workflow_run.conclusion == 'success' }}
         run: |
           git fetch --prune --unshallow --tags
-          TAG=$(git tag | tail -2)
+          TAG=$(git tag | tail -2 | xargs)
           echo $TAG
           echo "RELEASE_VERSION=${TAG}" >> $GITHUB_ENV
           echo ${{ env.RELEASE_VERSION }}
@@ -95,7 +95,7 @@ jobs:
           SHA=${GITHUB_SHA}
           kubectl create namespace test || true
           IMAGE=codingcorp-docker.pkg.coding.net/nocalhost/public/testcase:$SHA
-          docker run -d -v /home/runner/.kube/config:/root/.kube/config -e COMMIT_ID=$SHA -e TAG=${{ env.RELEASE_VERSION }} --network host --name $SHA $IMAGE
+          docker run -d -v /home/runner/.kube/config:/root/.kube/config -e COMMIT_ID=$SHA -e TAG="${{ env.RELEASE_VERSION }}" --network host --name $SHA $IMAGE
           docker logs $SHA -f || true
           ID=$(docker inspect "$(docker ps -aq --filter name=$SHA)" --format='{{.State.ExitCode}}') && echo "$ID" | grep '^0$'
   macos:
