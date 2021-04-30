@@ -21,6 +21,9 @@ func (c *Controller) BuildPodController() pod_controller.PodController {
 	switch c.Type {
 	case appmeta.Deployment:
 		return &DeploymentController{Controller: c}
+	case appmeta.StatefulSet:
+		return &StatefulSetController{Controller: c}
+
 	}
 	return nil
 }

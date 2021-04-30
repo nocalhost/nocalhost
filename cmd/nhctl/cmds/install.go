@@ -162,7 +162,7 @@ var installCmd = &cobra.Command{
 				svcType := svcProfile.Type
 				log.Infof("Starting port-forward for %s %s", svcType, svcProfile.ActualName)
 				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
-				podName, err := nhSvc.BuildPodController().GetDefaultPodName(ctx)
+				podName, err := nhSvc.BuildPodController().GetDefaultPodNameWait(ctx)
 				if err != nil {
 					log.WarnE(err, "")
 					continue

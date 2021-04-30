@@ -19,9 +19,9 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/pod_controller"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
 	"strings"
@@ -30,6 +30,10 @@ import (
 
 type DeploymentController struct {
 	*Controller
+}
+
+func (d *DeploymentController) Name() string {
+	return d.Controller.Name
 }
 
 // ReplaceImage In DevMode, nhctl will replace the container of your workload with two containers:
@@ -47,7 +51,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		return err
 	}
 
-	devContainer, err := d.FindDevContainer(ops.Container)
+	devContainer, err := d.Container(ops.Container)
 	if err != nil {
 		return err
 	}
@@ -97,7 +101,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 	}
 
 	// Get latest deployment
-	dep, err := d.Client.GetDeployment(d.Name)
+	dep, err := d.Client.GetDeployment(d.Name())
 	if err != nil {
 		return err
 	}
@@ -153,7 +157,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 	if err != nil {
 		if strings.Contains(err.Error(), "no PriorityClass") {
 			log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
-			dep, err = d.Client.GetDeployment(d.Name)
+			dep, err = d.Client.GetDeployment(d.Name())
 			if err != nil {
 				return err
 			}
@@ -171,7 +175,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 func (d *DeploymentController) ScaleReplicasToOne(ctx context.Context) error {
 
 	deploymentsClient := d.Client.GetDeploymentClient()
-	scale, err := deploymentsClient.GetScale(ctx, d.Name, metav1.GetOptions{})
+	scale, err := deploymentsClient.GetScale(ctx, d.Name(), metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
@@ -179,20 +183,20 @@ func (d *DeploymentController) ScaleReplicasToOne(ctx context.Context) error {
 	if scale.Spec.Replicas > 1 {
 		log.Infof("Deployment %s's replicas is %d now, scaling it to 1", d.Name, scale.Spec.Replicas)
 		scale.Spec.Replicas = 1
-		_, err = deploymentsClient.UpdateScale(ctx, d.Name, scale, metav1.UpdateOptions{})
+		_, err = deploymentsClient.UpdateScale(ctx, d.Name(), scale, metav1.UpdateOptions{})
 		if err != nil {
-			log.Error("Failed to scale replicas to 1")
+			return errors.Wrap(err, "")
 		} else {
-			for i := 0; i < 60; i++ {
-				time.Sleep(time.Second * 1)
-				scale, err = deploymentsClient.GetScale(ctx, d.Name, metav1.GetOptions{})
-				if scale.Spec.Replicas > 1 {
-					log.Debugf("Waiting replicas scaling to 1")
-				} else {
-					log.Info("Replicas has been set to 1")
-					break
-				}
-			}
+			//for i := 0; i < 60; i++ {
+			//	time.Sleep(time.Second * 1)
+			//	scale, err = deploymentsClient.GetScale(ctx, d.Name(), metav1.GetOptions{})
+			//	if scale.Spec.Replicas > 1 {
+			//		log.Debugf("Waiting replicas scaling to 1")
+			//	} else {
+			//		break
+			//	}
+			//}
+			log.Info("Replicas has been set to 1")
 		}
 	} else {
 		log.Infof("Deployment %s's replicas is already 1, no need to scale", d.Name)
@@ -200,10 +204,10 @@ func (d *DeploymentController) ScaleReplicasToOne(ctx context.Context) error {
 	return nil
 }
 
-func (d *DeploymentController) FindDevContainer(containerName string) (*corev1.Container, error) {
+func (d *DeploymentController) Container(containerName string) (*corev1.Container, error) {
 	var devContainer *corev1.Container
 
-	dep, err := d.Client.GetDeployment(d.Name)
+	dep, err := d.Client.GetDeployment(d.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -232,12 +236,12 @@ func (d *DeploymentController) FindDevContainer(containerName string) (*corev1.C
 func (d *DeploymentController) RollBack(reset bool) error {
 	clientUtils := d.Client
 
-	dep, err := clientUtils.GetDeployment(d.Name)
+	dep, err := clientUtils.GetDeployment(d.Name())
 	if err != nil {
 		return err
 	}
 
-	rss, err := clientUtils.GetSortedReplicaSetsByDeployment(d.Name)
+	rss, err := clientUtils.GetSortedReplicaSetsByDeployment(d.Name())
 	if err != nil {
 		log.WarnE(err, "Failed to get rs list")
 		return err
@@ -314,44 +318,31 @@ func (d *DeploymentController) RollBack(reset bool) error {
 	return nil
 }
 
-func (d *DeploymentController) GetDefaultPodName(ctx context.Context) (string, error) {
-	return d.getDefaultPodName(ctx)
+func (d *DeploymentController) GetDefaultPodNameWait(ctx context.Context) (string, error) {
+	return getDefaultPodName(ctx, d)
 }
 
-func (c *Controller) getDefaultPodName(ctx context.Context) (string, error) {
+func getDefaultPodName(ctx context.Context, p pod_controller.PodController) (string, error) {
 	var (
-		podList *corev1.PodList
+		podList []corev1.Pod
 		err     error
 	)
 	for {
 		select {
 		case <-ctx.Done():
-			return "", errors.New(fmt.Sprintf("Fail to get %s' pod", c.Name))
+			return "", errors.New(fmt.Sprintf("Fail to get %s' pod", p.Name()))
 		default:
-			switch c.Type { // todo hxx
-			case appmeta.Deployment:
-				podList, err = c.Client.ListPodsByDeployment(c.Name)
-				if err != nil {
-					return "", err
-				}
-			case appmeta.StatefulSet:
-				podList, err = c.Client.ListPodsByStatefulSet(c.Name)
-				if err != nil {
-					return "", err
-				}
-			default:
-				return "", errors.New(fmt.Sprintf("Service type %s not support", c.Type))
-			}
+			podList, err = p.GetPodList()
 		}
-		if podList == nil || len(podList.Items) == 0 {
-			log.Infof("Pod of %s has not been ready, waiting for it...", c.Name)
+		if err != nil {
+			log.Infof("Pod of %s has not been ready, waiting for it...", p.Name())
 			time.Sleep(time.Second)
 		} else {
-			return podList.Items[0].Name, nil
+			return podList[0].Name, nil
 		}
 	}
 }
 
 func (d *DeploymentController) GetPodList() ([]corev1.Pod, error) {
-	return d.Client.ListLatestRevisionPodsByDeployment(d.Name)
+	return d.Client.ListLatestRevisionPodsByDeployment(d.Name())
 }

@@ -21,8 +21,9 @@ import (
 type PodController interface {
 	ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error
 	ScaleReplicasToOne(ctx context.Context) error
-	FindDevContainer(containerName string) (*corev1.Container, error)
+	Container(containerName string) (*corev1.Container, error)
+	Name() string
 	RollBack(reset bool) error
-	GetDefaultPodName(ctx context.Context) (string, error)
+	GetDefaultPodNameWait(ctx context.Context) (string, error)
 	GetPodList() ([]corev1.Pod, error)
 }
