@@ -249,18 +249,20 @@ func (t *task) WaitNetworkToBeReady() {
 
 	for {
 		time.Sleep(time.Second * 5)
-		kubeconfig, err := t.GetClient().DescribeClusterEndpointVipStatus(request)
+		response, err := t.GetClient().DescribeClusterEndpointVipStatus(request)
 		if err != nil {
 			fmt.Println("Wait network to be ready error, " + err.Error())
 			continue
 		}
-		if kubeconfig != nil && kubeconfig.Response != nil && kubeconfig.Response.Status != nil {
-			switch *kubeconfig.Response.Status {
+		if response != nil && response.Response != nil && response.Response.Status != nil {
+			switch *response.Response.Status {
 			case "Created":
 				return
 			case "CreateFailed":
 				fmt.Println("network endpoint create failed, retrying")
 			}
+		} else {
+			fmt.Println("Waiting for network ready")
 		}
 	}
 }
