@@ -546,6 +546,7 @@ type PortForwardOptions struct {
 	Way         string   // port-forward way, value is manual or devPorts
 	RunAsDaemon bool
 	Forward     bool
+	Follow      bool // will stock until send ctrl+c or occurs error
 }
 
 type PortForwardEndOptions struct {
@@ -888,4 +889,39 @@ func (a *Application) CleanupResources() error {
 
 func (a *Application) Uninstall() error {
 	return a.appMeta.Uninstall()
+}
+
+func (a *Application) PortForwardFollow(podName string, localPort int, remotePort int, kubeconfig, ns string) error {
+	client, err := clientgoutils.NewClientGoUtils(kubeconfig, ns)
+	if err != nil {
+		panic(err)
+	}
+
+	fps := []*clientgoutils.ForwardPort{{LocalPort: localPort, RemotePort: remotePort}}
+
+	pf, err := client.CreatePortForwarder(podName, fps)
+	if err != nil {
+		panic(err)
+	}
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- pf.ForwardPorts()
+	}()
+	go func() {
+		for {
+			select {
+			case <-pf.Ready:
+				fmt.Printf("Forwarding from 127.0.0.1:%d -> %d\n", localPort, remotePort)
+				fmt.Printf("Forwarding from [::1]:%d -> %d\n", localPort, remotePort)
+				return
+			}
+		}
+	}()
+	for {
+		select {
+		case <-errChan:
+			fmt.Println("err")
+		}
+	}
 }
