@@ -15,6 +15,7 @@ package clientgoutils
 type ResourceType string
 
 const (
-	JobType        ResourceType = "jobs"
-	DeploymentType ResourceType = "deployments"
+	JobType         ResourceType = "jobs"
+	DeploymentType  ResourceType = "deployments"
+	StatefulSetType ResourceType = "statefulSet"
 )

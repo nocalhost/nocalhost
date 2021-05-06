@@ -104,6 +104,10 @@ func (c *ClientGoUtils) WaitDeploymentToBeReady(name string) error {
 	return c.WaitForResourceReady(DeploymentType, name, isDeploymentReady)
 }
 
+func (c *ClientGoUtils) WaitStatefulSetToBeReady(name string) error {
+	return c.WaitForResourceReady(StatefulSetType, name, isStatefulSetReady)
+}
+
 func isDeploymentReady(obj runtime.Object) (bool, error) {
 	o, ok := obj.(*v1.Deployment)
 	if !ok {
@@ -117,6 +121,20 @@ func isDeploymentReady(obj runtime.Object) (bool, error) {
 		}
 	}
 	log.Debug("Deployment has not been ready yet")
+	return false, nil
+}
+
+func isStatefulSetReady(obj runtime.Object) (bool, error) {
+	o, ok := obj.(*v1.StatefulSet)
+	if !ok {
+		return true, errors.Errorf("expected a *StatefulSet, got %T", obj)
+	}
+
+	for _, c := range o.Status.Conditions {
+		if c.Status == "True" {
+			return true, nil
+		}
+	}
 	return false, nil
 }
 

@@ -20,6 +20,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/pod_controller"
 	"nocalhost/internal/nhctl/profile"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/internal/nhctl/utils"
@@ -439,49 +440,46 @@ func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) 
 	return requestMap, nil
 }
 
-func (c *Controller) waitingPodToBeReady() error {
+func waitingPodToBeReady(controller pod_controller.PodController) error {
 	// Wait podList to be ready
 	spinner := utils.NewSpinner(" Waiting pod to start...")
 	spinner.Start()
 
-	switch c.Type {
-	case appmeta.Deployment:
-	wait:
-		for {
-			<-time.NewTimer(time.Second * 1).C
-			// Get the latest revision
-			podList, err := c.Client.ListLatestRevisionPodsByDeployment(c.Name)
-			if err != nil {
-				return err
-			}
-			if len(podList) == 1 {
-				pod := podList[0]
-				if pod.Status.Phase != corev1.PodRunning {
-					spinner.Update(fmt.Sprintf("Waiting for pod %s to be running", pod.Name))
-					continue
-				}
-				if len(pod.Spec.Containers) == 0 {
-					return errors.New(fmt.Sprintf("%s has no container ???", pod.Name))
-				}
-
-				// Make sure all containers are ready and running
-				for _, c := range pod.Spec.Containers {
-					if !isContainerReadyAndRunning(c.Name, &pod) {
-						spinner.Update(fmt.Sprintf("Container %s is not ready, waiting...", c.Name))
-						continue wait
-					}
-				}
-				spinner.Update("All containers are ready")
-				break
-			} else {
-				spinner.Update(fmt.Sprintf("Waiting pod to be replaced..."))
-			}
+wait:
+	for {
+		<-time.NewTimer(time.Second * 1).C
+		// Get the latest revision
+		//podList, err := c.Client.ListLatestRevisionPodsByDeployment(c.Name)
+		podList, err := controller.GetPodList()
+		if err != nil {
+			return err
 		}
-		spinner.Stop()
-		coloredoutput.Success("Development container has been updated")
-	default:
-		return errors.New(fmt.Sprintf("%s has not supported yet", c.Type))
+		if len(podList) == 1 {
+			pod := podList[0]
+			if pod.Status.Phase != corev1.PodRunning {
+				spinner.Update(fmt.Sprintf("Waiting for pod %s to be running", pod.Name))
+				continue
+			}
+			if len(pod.Spec.Containers) == 0 {
+				return errors.New(fmt.Sprintf("%s has no container ???", pod.Name))
+			}
+
+			// Make sure all containers are ready and running
+			for _, c := range pod.Spec.Containers {
+				if !isContainerReadyAndRunning(c.Name, &pod) {
+					spinner.Update(fmt.Sprintf("Container %s is not ready, waiting...", c.Name))
+					continue wait
+				}
+			}
+			spinner.Update("All containers are ready")
+			break
+		} else {
+			spinner.Update(fmt.Sprintf("Waiting pod to be replaced..."))
+		}
 	}
+	spinner.Stop()
+	coloredoutput.Success("Development container has been updated")
+
 	return nil
 }
 
