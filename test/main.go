@@ -13,33 +13,11 @@
 package main
 
 import (
-	"nocalhost/test/nhctlcli"
 	"nocalhost/test/nhctlcli/suite"
-	"nocalhost/test/nhctlcli/testcase"
-	"nocalhost/test/tke"
-	"nocalhost/test/util"
-	"time"
 )
 
 func main() {
-	go util.TimeoutChecker(1 * time.Hour)
-	if util.NeedsToInitK8sOnTke() {
-		t := tke.CreateK8s()
-		defer tke.DeleteTke(t)
-	}
-	v1, v2 := testcase.GetVersion()
-	testcase.InstallNhctl(v1)
-	kubeconfig := util.GetKubeconfig()
-	ns := "test"
-	cli := nhctlcli.NewNhctl(ns, kubeconfig)
-	util.CreateNamespaceIgnoreError(ns, kubeconfig)
-	util.Init(cli)
-	testcase.NhctlVersion(cli)
-	testcase.StopDaemon(cli)
-	go testcase.Init(cli)
-	if i := <-testcase.StatusChan; i != 0 {
-		testcase.StopChan <- 1
-	}
+	cli, _, v2 := suite.Prepare()
 	// ---------base line-----------
 	t := suite.T{Cli: cli}
 	t.Run("install", suite.Install)

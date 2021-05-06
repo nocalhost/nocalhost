@@ -91,11 +91,14 @@ func WaitToBeStatus(namespace string, resource string, label string, checker fun
 	return true
 }
 
-func TimeoutChecker(d time.Duration) {
+func TimeoutChecker(d time.Duration, cancanFunc func()) {
 	tick := time.Tick(d)
 	for {
 		select {
 		case <-tick:
+			if cancanFunc != nil {
+				cancanFunc()
+			}
 			panic(fmt.Sprintf("test case failed, timeout: %v", d))
 		}
 	}
@@ -116,9 +119,7 @@ func CreateNamespaceIgnoreError(ns, kubeconfig string) {
 	config, _ := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
 	Clients, _ := kubernetes.NewForConfig(config)
 	_, _ = Clients.CoreV1().Namespaces().Create(context.Background(), &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: ns,
-		},
+		ObjectMeta: metav1.ObjectMeta{Name: ns},
 	}, metav1.CreateOptions{})
 }
 
