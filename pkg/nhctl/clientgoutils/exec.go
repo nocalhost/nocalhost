@@ -31,7 +31,7 @@ func (c *ClientGoUtils) ExecShell(podName string, containerName string, shell st
 }
 
 func (c *ClientGoUtils) Exec(podName string, containerName string, command []string) error {
-	f := c.newFactory()
+	f := c.NewFactory()
 
 	pod, err := c.ClientSet.CoreV1().Pods(c.namespace).Get(c.ctx, podName, metav1.GetOptions{})
 	if err != nil {

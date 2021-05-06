@@ -86,7 +86,7 @@ func Upgrade(cli *nhctlcli.CLI, _ ...string) {
 
 func Install(cli *nhctlcli.CLI, _ ...string) {
 	testcase.InstallBookInfoThreeTimes(cli)
-	testcase.PortForwardCheck(39080)
+	//testcase.PortForwardCheck(39080)
 }
 
 // Prepare will install a nhctl client, create a k8s cluster if necessary

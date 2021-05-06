@@ -42,9 +42,12 @@ func init() {
 var getCmd = &cobra.Command{
 	Use:   "get type",
 	Short: "Get resource info",
-	Long: `Get resource info
-Examples: 
-  # Get all application
+	Long: `
+Get resource info
+nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
+`,
+	Example: `
+# Get all application
   nhctl get application --kubeconfig=kubeconfigfile
 
   # Get all application in namespace
@@ -52,9 +55,6 @@ Examples:
   
   # Get all deployment of application in namespace
   nhctl get deployment -n namespaceName -a bookinfo --kubeconfig=kubeconfigpath
-
-usage: nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
-
 `,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {

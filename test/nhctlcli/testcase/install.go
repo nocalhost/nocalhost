@@ -20,7 +20,7 @@ import (
 func InstallBookInfo(nhctl *nhctlcli.CLI) {
 	UninstallBookInfo(nhctl)
 	installBookInfoRawManifest(nhctl)
-	PortForwardCheck(39080)
+	//PortForwardCheck(39080)
 }
 
 func InstallBookInfoThreeTimes(nhctl *nhctlcli.CLI) {
@@ -29,11 +29,11 @@ func InstallBookInfoThreeTimes(nhctl *nhctlcli.CLI) {
 	//PortForwardCheck(39080)
 	//UninstallBookInfo(nhctl)
 	installBookInfoKustomizeGit(nhctl)
-	PortForwardCheck(39080)
+	//PortForwardCheck(39080)
 
 	UninstallBookInfo(nhctl)
 	installBookInfoRawManifest(nhctl)
-	PortForwardCheck(39080)
+	//PortForwardCheck(39080)
 }
 
 func UninstallBookInfo(nhctl *nhctlcli.CLI) {
