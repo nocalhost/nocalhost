@@ -29,6 +29,7 @@ const (
 	GetDaemonServerStatus DaemonCommandType = "GetDaemonServerStatus"
 	GetApplicationMeta    DaemonCommandType = "GetApplicationMeta"
 	GetApplicationMetas   DaemonCommandType = "GetApplicationMetas"
+	GetResourceInfo       DaemonCommandType = "GetResourceInfo"
 )
 
 type BaseCommand struct {
@@ -58,6 +59,15 @@ type GetApplicationMetasCommand struct {
 	CommandType DaemonCommandType
 	NameSpace   string `json:"nameSpace"`
 	KubeConfig  string `json:"kubeConfig"`
+}
+
+type GetResourceInfoCommand struct {
+	CommandType  DaemonCommandType
+	KubeConfig   string `json:"kubeConfig"`
+	Namespace    string `json:"namespace"`
+	AppName      string `json:"appName"`
+	Resource     string `json:"resource"`
+	ResourceName string `json:"resourceName"`
 }
 
 func ParseCommandType(bys []byte) (DaemonCommandType, error) {

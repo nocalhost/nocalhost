@@ -15,6 +15,9 @@ package suite
 import (
 	"nocalhost/test/nhctlcli"
 	"nocalhost/test/nhctlcli/testcase"
+	"nocalhost/test/tke"
+	"nocalhost/test/util"
+	"time"
 )
 
 func PortForward(cli *nhctlcli.CLI, _ ...string) {
@@ -83,5 +86,35 @@ func Upgrade(cli *nhctlcli.CLI, _ ...string) {
 
 func Install(cli *nhctlcli.CLI, _ ...string) {
 	testcase.InstallBookInfoThreeTimes(cli)
-	testcase.PortForwardCheck(39080)
+	//testcase.PortForwardCheck(39080)
+}
+
+// Prepare will install a nhctl client, create a k8s cluster if necessary
+func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string) {
+	var cancelFunc func()
+	if util.NeedsToInitK8sOnTke() {
+		t := tke.CreateK8s()
+		cancelFunc = t.Delete
+		defer func() {
+			if err := recover(); err != nil {
+				t.Delete()
+				panic(err)
+			}
+		}()
+	}
+	go util.TimeoutChecker(1*time.Hour, cancelFunc)
+	v1, v2 = testcase.GetVersion()
+	testcase.InstallNhctl(v1)
+	kubeconfig := util.GetKubeconfig()
+	ns := "test"
+	cli = nhctlcli.NewNhctl(ns, kubeconfig)
+	util.CreateNamespaceIgnoreError(ns, kubeconfig)
+	util.Init(cli)
+	testcase.NhctlVersion(cli)
+	testcase.StopDaemon(cli)
+	go testcase.Init(cli)
+	if i := <-testcase.StatusChan; i != 0 {
+		testcase.StopChan <- 1
+	}
+	return
 }

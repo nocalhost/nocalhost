@@ -14,6 +14,8 @@ package cmds
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v3"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -42,10 +44,18 @@ var describeCmd = &cobra.Command{
 		applicationName := args[0]
 		initApp(applicationName)
 		if deploy == "" {
-			fmt.Print(nocalhostApp.GetDescription())
+			appProfile := nocalhostApp.GetDescription()
+			bytes, err := yaml.Marshal(appProfile)
+			if err == nil {
+				fmt.Print(string(bytes))
+			}
 		} else {
 			checkIfSvcExist(deploy, serviceType)
-			fmt.Print(nocalhostSvc.GetDescription())
+			appProfile := nocalhostSvc.GetDescription()
+			bytes, err := yaml.Marshal(appProfile)
+			if err == nil {
+				fmt.Print(string(bytes))
+			}
 		}
 	},
 }

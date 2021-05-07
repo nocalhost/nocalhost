@@ -392,6 +392,7 @@ type PortForwardOptions struct {
 	Way         string // port-forward way, value is manual or devPorts
 	RunAsDaemon bool
 	Forward     bool
+	Follow      bool // will stock until send ctrl+c or occurs error
 }
 
 type PortForwardEndOptions struct {
@@ -417,14 +418,13 @@ func (a *Application) GetConfigFile() (string, error) {
 	return "", err
 }
 
-func (a *Application) GetDescription() string {
+func (a *Application) GetDescription() *profile.AppProfileV2 {
 	appProfile, _ := a.GetProfile()
-	desc := ""
 	if appProfile != nil {
 		meta, err := nocalhost.GetApplicationMeta(a.Name, a.NameSpace, a.KubeConfig)
 		if err != nil {
 			log.LogE(err)
-			return ""
+			return nil
 		}
 		appProfile.Installed = meta.IsInstalled()
 		for _, svcProfile := range appProfile.SvcProfile {
@@ -432,12 +432,9 @@ func (a *Application) GetDescription() string {
 			svcProfile.Possess = a.appMeta.SvcDevModePossessor(svcProfile.ActualName, appmeta.SvcType(svcProfile.Type),
 				appProfile.Identifier)
 		}
-		bytes, err := yaml.Marshal(appProfile)
-		if err == nil {
-			desc = string(bytes)
-		}
+		return appProfile
 	}
-	return desc
+	return nil
 }
 
 //func (a *Application) GetSvcDescription(svcName string) string {
@@ -511,4 +508,39 @@ func (a *Application) IsAnyServiceInDevMode() bool {
 		}
 	}
 	return false
+}
+
+func (a *Application) PortForwardFollow(podName string, localPort int, remotePort int, kubeconfig, ns string) error {
+	client, err := clientgoutils.NewClientGoUtils(kubeconfig, ns)
+	if err != nil {
+		panic(err)
+	}
+
+	fps := []*clientgoutils.ForwardPort{{LocalPort: localPort, RemotePort: remotePort}}
+
+	pf, err := client.CreatePortForwarder(podName, fps)
+	if err != nil {
+		panic(err)
+	}
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- pf.ForwardPorts()
+	}()
+	go func() {
+		for {
+			select {
+			case <-pf.Ready:
+				fmt.Printf("Forwarding from 127.0.0.1:%d -> %d\n", localPort, remotePort)
+				fmt.Printf("Forwarding from [::1]:%d -> %d\n", localPort, remotePort)
+				return
+			}
+		}
+	}()
+	for {
+		select {
+		case <-errChan:
+			fmt.Println("err")
+		}
+	}
 }

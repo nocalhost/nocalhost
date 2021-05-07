@@ -15,14 +15,20 @@ package util
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/clientcmd"
 	clientgowatch "k8s.io/client-go/tools/watch"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/test/nhctlcli"
+	"os"
 	"os/exec"
+	"runtime"
+	"strings"
 	"time"
 )
 
@@ -85,12 +91,42 @@ func WaitToBeStatus(namespace string, resource string, label string, checker fun
 	return true
 }
 
-func TimeoutChecker(d time.Duration) {
+func TimeoutChecker(d time.Duration, cancanFunc func()) {
 	tick := time.Tick(d)
 	for {
 		select {
 		case <-tick:
+			if cancanFunc != nil {
+				cancanFunc()
+			}
 			panic(fmt.Sprintf("test case failed, timeout: %v", d))
 		}
 	}
+}
+
+func NeedsToInitK8sOnTke() bool {
+	if strings.Contains(runtime.GOOS, "darwin") {
+		return true
+	} else if strings.Contains(runtime.GOOS, "windows") {
+		return true
+	} else {
+		return false
+	}
+}
+
+func CreateNamespaceIgnoreError(ns, kubeconfig string) {
+	kubeconfigBytes, _ := ioutil.ReadFile(kubeconfig)
+	config, _ := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
+	Clients, _ := kubernetes.NewForConfig(config)
+	_, _ = Clients.CoreV1().Namespaces().Create(context.Background(), &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: ns},
+	}, metav1.CreateOptions{})
+}
+
+func GetKubeconfig() string {
+	kubeconfig := os.Getenv("KUBECONFIG_PATH")
+	if kubeconfig == "" {
+		kubeconfig = "/root/.kube/config"
+	}
+	return kubeconfig
 }

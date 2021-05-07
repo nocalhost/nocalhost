@@ -52,6 +52,10 @@ func init() {
 		&portForwardOptions.Way, "way", "", "manual",
 		"specify port-forward way, deprecated",
 	)
+	portForwardStartCmd.Flags().BoolVarP(
+		&portForwardOptions.Follow, "follow", "", false,
+		"stock here waiting for disconnect or return immediately",
+	)
 	PortForwardCmd.AddCommand(portForwardStartCmd)
 }
 
@@ -95,7 +99,11 @@ var portForwardStartCmd = &cobra.Command{
 		}
 
 		for index, localPort := range localPorts {
-			must(nocalhostSvc.PortForward(podName, localPort, remotePorts[index], ""))
+			if portForwardOptions.Follow {
+				must(nocalhostApp.PortForwardFollow(podName, localPort, remotePorts[index], kubeConfig, nameSpace))
+			} else {
+				must(nocalhostSvc.PortForward(podName, localPort, remotePorts[index], ""))
+			}
 		}
 	},
 }
