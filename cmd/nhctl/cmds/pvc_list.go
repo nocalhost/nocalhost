@@ -17,11 +17,12 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/nocalhost"
 
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 
-	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -37,7 +38,7 @@ var pvcFlags = PVCFlags{}
 
 func init() {
 	pvcListCmd.Flags().StringVar(&pvcFlags.App, "app", "", "List PVCs of specified application")
-	pvcListCmd.Flags().StringVar(&pvcFlags.Svc, "svc", "", "List PVCs of specified service")
+	pvcListCmd.Flags().StringVar(&pvcFlags.Svc, "controller", "", "List PVCs of specified service")
 	pvcListCmd.Flags().BoolVar(&pvcFlags.Yaml, "yaml", false, "Use yaml as the output format")
 	pvcListCmd.Flags().BoolVar(&pvcFlags.Json, "json", false, "Use json as the output format")
 	pvcCmd.AddCommand(pvcListCmd)
@@ -54,9 +55,9 @@ var pvcListCmd = &cobra.Command{
 			var err error
 			initApp(pvcFlags.App)
 			if pvcFlags.Svc != "" {
-				exist, err := nocalhostApp.CheckIfSvcExist(pvcFlags.Svc, app.Deployment)
+				exist, err := nocalhostApp.Controller(pvcFlags.Svc, appmeta.Deployment).CheckIfExist()
 				if err != nil {
-					log.FatalE(err, "failed to check if svc exists")
+					log.FatalE(err, "failed to check if controller exists")
 				} else if !exist {
 					log.Fatalf("\"%s\" not found", pvcFlags.Svc)
 				}
@@ -97,11 +98,11 @@ func makePVCObjectList(pvcList []v1.PersistentVolumeClaim) []*pvcObject {
 		annotations := pvc.Annotations
 		pY := &pvcObject{
 			Name:        pvc.Name,
-			AppName:     labels[app.AppLabel],
-			ServiceName: labels[app.ServiceLabel],
+			AppName:     labels[nocalhost.AppLabel],
+			ServiceName: labels[nocalhost.ServiceLabel],
 			Capacity:    quantity.String(),
 			Status:      string(pvc.Status.Phase),
-			MountPath:   annotations[app.PersistentVolumeDirLabel],
+			MountPath:   annotations[nocalhost.PersistentVolumeDirLabel],
 		}
 		if pvc.Spec.StorageClassName != nil {
 			pY.StorageClass = *pvc.Spec.StorageClassName
@@ -132,7 +133,7 @@ func DisplayPVCs(pvcList []v1.PersistentVolumeClaim) {
 		labels := pvc.Labels
 		quantity := pvc.Spec.Resources.Requests[v1.ResourceStorage]
 		fmt.Printf(
-			"%s %s %s %s %s\n", pvc.Name, labels[app.AppLabel], labels[app.ServiceLabel], quantity.String(),
+			"%s %s %s %s %s\n", pvc.Name, labels[nocalhost.AppLabel], labels[nocalhost.ServiceLabel], quantity.String(),
 			pvc.Status.Phase,
 		)
 	}

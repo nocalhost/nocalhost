@@ -14,7 +14,7 @@ webhooks:
           values: [ "nocalhost" ]  # 只对有 label env=nocalhost 的 namespace 处理，避免 kube-system istio-system
     clientConfig:
       service:
-        name: nocalhost-sidecar-injector-svc
+        name: nocalhost-sidecar-injector-controller
         namespace: nocalhost-reserved
         path: "/mutate"
       caBundle: ${CA_BUNDLE}

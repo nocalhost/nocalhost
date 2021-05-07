@@ -16,7 +16,6 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
@@ -68,6 +67,7 @@ var upgradeCmd = &cobra.Command{
 
 		pfListMap := make(map[string][]*profile.DevPortForward, 0)
 		for _, svcProfile := range appProfile.SvcProfile {
+			nhSvc := initService(svcProfile.ActualName, svcProfile.Type)
 			pfList := make([]*profile.DevPortForward, 0)
 			for _, pf := range svcProfile.DevPortForwardList {
 				if pf.ServiceType == "" {
@@ -75,7 +75,7 @@ var upgradeCmd = &cobra.Command{
 				}
 				pfList = append(pfList, pf)
 				log.Infof("Stopping pf: %d:%d", pf.LocalPort, pf.RemotePort)
-				utils.Should(nocalhostApp.EndDevPortForward(svcProfile.ActualName, pf.LocalPort, pf.RemotePort))
+				utils.Should(nhSvc.EndDevPortForward(pf.LocalPort, pf.RemotePort))
 			}
 			if len(pfList) > 0 {
 				pfListMap[svcProfile.ActualName] = pfList
@@ -87,24 +87,20 @@ var upgradeCmd = &cobra.Command{
 		must(nocalhostApp.PrepareForUpgrade(installFlags))
 
 		must(nocalhostApp.Upgrade(installFlags))
-		//must(nocalhostApp.CleanUpTmpResources())
 
 		// Restart port forward
 		for svcName, pfList := range pfListMap {
-			// find first pod
-			svcType := app.Deployment
-			if len(pfList) > 0 {
-				svcType = app.SvcType(pfList[0].ServiceType)
-			}
-			ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
-			podName, err := nocalhostApp.GetDefaultPodName(ctx, svcName, svcType)
-			if err != nil {
-				log.WarnE(err, "")
-				continue
-			}
 			for _, pf := range pfList {
+				// find first pod
+				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
+				nhSvc := initService(svcName, pf.ServiceType)
+				podName, err := nhSvc.BuildPodController().GetDefaultPodNameWait(ctx)
+				if err != nil {
+					log.WarnE(err, "")
+					continue
+				}
 				log.Infof("Starting pf %d:%d for %s", pf.LocalPort, pf.RemotePort, svcName)
-				utils.Should(nocalhostApp.PortForward(svcName, podName, pf.LocalPort, pf.RemotePort, pf.Role))
+				utils.Should(nhSvc.PortForward(podName, pf.LocalPort, pf.RemotePort, pf.Role))
 			}
 		}
 	},

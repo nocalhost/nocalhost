@@ -9,6 +9,7 @@
  * either express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package cmds
 
 import (
@@ -24,14 +25,12 @@ type ExecFlags struct {
 var execFlags = ExecFlags{}
 
 func init() {
-	execCmd.Flags().StringArrayVarP(
-		&execFlags.Commands, "command", "c", nil,
-		"command to execute in container",
-	)
-	execCmd.Flags().StringVarP(
-		&execFlags.SvcName, "deployment", "d", "",
-		"k8s deployment which your developing service exists",
-	)
+	execCmd.Flags().StringArrayVarP(&execFlags.Commands, "command", "c", nil,
+		"command to execute in container")
+	execCmd.Flags().StringVarP(&execFlags.SvcName, "deployment", "d", "",
+		"k8s deployment which your developing service exists")
+	execCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet")
 	rootCmd.AddCommand(execCmd)
 }
 
@@ -47,7 +46,7 @@ var execCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		execFlags.AppName = args[0]
-		initAppAndCheckIfSvcExist(execFlags.AppName, execFlags.SvcName, nil)
+		initAppAndCheckIfSvcExist(execFlags.AppName, execFlags.SvcName, serviceType)
 		must(nocalhostApp.Exec(execFlags.SvcName, "", execFlags.Commands))
 	},
 }

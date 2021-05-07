@@ -16,7 +16,7 @@ package daemon_server
 //	dbPortForwardLocker sync.Mutex
 //)
 
-//func checkLocalPortStatus(ctx context.Context, svc *model.NocalHostResource, sLocalPort, sRemotePort int) {
+//func checkLocalPortStatus(ctx context.Context, controller *model.NocalHostResource, sLocalPort, sRemotePort int) {
 //	for {
 //		select {
 //		case <-ctx.Done():
@@ -33,7 +33,7 @@ package daemon_server
 //			}
 //			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
 //
-//			err := updatePortForwardStatus(svc, sLocalPort, sRemotePort, portStatus, "Check local port status")
+//			err := updatePortForwardStatus(controller, sLocalPort, sRemotePort, portStatus, "Check local port status")
 //			if err != nil {
 //				log.LogE(err)
 //			} else {

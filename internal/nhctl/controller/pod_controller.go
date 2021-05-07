@@ -10,19 +10,19 @@
  * limitations under the License.
  */
 
-package app
+package controller
 
-type FileSyncOptions struct {
-	//RunAsDaemon    bool
-	SyncDouble     bool
-	SyncedPattern  []string
-	IgnoredPattern []string
-	Override       bool
-	Container      string // container name of pod to sync
-	Resume         bool
-	Stop           bool
-}
+import (
+	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/pod_controller"
+)
 
-type SyncStatusOptions struct {
-	Override bool
+func (c *Controller) BuildPodController() pod_controller.PodController {
+	switch c.Type {
+	case appmeta.Deployment:
+		return &DeploymentController{Controller: c}
+	case appmeta.StatefulSet:
+		return &StatefulSetController{Controller: c}
+	}
+	return nil
 }

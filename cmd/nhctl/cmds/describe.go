@@ -14,20 +14,17 @@ package cmds
 
 import (
 	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
+var deploy string
+
 func init() {
-	describeCmd.Flags().StringVarP(
-		&deployment, "deployment", "d", "",
+	describeCmd.Flags().StringVarP(&deploy, "deployment", "d", "",
 		"k8s deployment which your developing service exists",
 	)
-	describeCmd.Flags().StringVarP(
-		&ServiceType, "type", "", "deployment",
-		"specify service type",
-	)
+	describeCmd.Flags().StringVarP(&serviceType, "type", "", "", "specify service type")
 	rootCmd.AddCommand(describeCmd)
 }
 
@@ -44,11 +41,11 @@ var describeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
 		initApp(applicationName)
-		if deployment == "" {
+		if deploy == "" {
 			fmt.Print(nocalhostApp.GetDescription())
 		} else {
-			CheckIfSvcExist(deployment, ServiceType)
-			fmt.Print(nocalhostApp.GetSvcDescription(deployment))
+			checkIfSvcExist(deploy, serviceType)
+			fmt.Print(nocalhostSvc.GetDescription())
 		}
 	},
 }

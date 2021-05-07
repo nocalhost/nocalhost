@@ -10,12 +10,13 @@
  * limitations under the License.
  */
 
-package app
+package controller
 
 import (
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/network/req"
@@ -29,14 +30,10 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-func (a *Application) NewSyncthing(
-	deployment string, container string,
-	localSyncDir []string, syncDouble bool,
-) (*syncthing.Syncthing, error) {
+func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncDouble bool) (*syncthing.Syncthing, error) {
 	var err error
-
-	remotePath := a.GetDefaultWorkDir(deployment, container)
-	appProfile, err := a.GetProfileForUpdate()
+	remotePath := c.GetWorkDir(container)
+	appProfile, err := c.GetProfileForUpdate()
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +42,7 @@ func (a *Application) NewSyncthing(
 			_ = appProfile.CloseDb()
 		}
 	}()
-	svcProfile := appProfile.FetchSvcProfileV2FromProfile(deployment)
+	svcProfile := appProfile.SvcProfileV2(c.Name, c.Type.String())
 	remotePort := svcProfile.RemoteSyncthingPort
 	remoteGUIPort := svcProfile.RemoteSyncthingGUIPort
 	localListenPort := svcProfile.LocalSyncthingPort
@@ -92,6 +89,15 @@ func (a *Application) NewSyncthing(
 	if !syncDouble {
 		sendMode = syncthing.SendOnlySyncMode
 	}
+	localHomeDir := filepath.Join(c.getAppHomeDir(), "syncthing", c.Name)
+	if c.Type != appmeta.Deployment {
+		localHomeDir = filepath.Join(c.getAppHomeDir(), "syncthing", c.Type.String()+"-"+c.Name)
+	}
+	logPath := filepath.Join(c.getAppHomeDir(), "syncthing", c.Name, syncthing.LogFile)
+	if c.Type != appmeta.Deployment {
+		logPath = filepath.Join(c.getAppHomeDir(), "syncthing", c.Type.String()+"-"+c.Name, syncthing.LogFile)
+	}
+
 	s := &syncthing.Syncthing{
 		APIKey:           syncthing.DefaultAPIKey,
 		GUIPassword:      "nocalhost",
@@ -102,10 +108,9 @@ func (a *Application) NewSyncthing(
 		GUIAddress:       fmt.Sprintf("%s:%d", syncthing.Bind, localGuiPort),
 		// TODO Be Careful if ResourcePath is not application path, Local
 		// syncthing HOME PATH will be used for cert and config.xml
-		// it's `~/.nhctl/application/bookinfo/syncthing`
-		LocalHome:        filepath.Join(a.GetHomeDir(), "syncthing", deployment),
+		LocalHome:        localHomeDir,
 		RemoteHome:       syncthing.RemoteHome,
-		LogPath:          filepath.Join(a.GetHomeDir(), "syncthing", deployment, syncthing.LogFile),
+		LogPath:          logPath,
 		RemoteAddress:    fmt.Sprintf("%s:%d", syncthing.Bind, remotePort),
 		RemoteDeviceID:   syncthing.DefaultRemoteDeviceID,
 		RemoteGUIAddress: fmt.Sprintf("%s:%d", syncthing.Bind, remoteGUIPort),
@@ -149,8 +154,8 @@ func (a *Application) NewSyncthing(
 	return s, nil
 }
 
-func (a *Application) NewSyncthingHttpClient(svcName string) *req.SyncthingHttpClient {
-	svcProfile, _ := a.GetSvcProfile(svcName)
+func (c *Controller) NewSyncthingHttpClient() *req.SyncthingHttpClient {
+	svcProfile, _ := c.GetProfile()
 
 	return req.NewSyncthingHttpClient(
 		fmt.Sprintf("127.0.0.1:%d", svcProfile.LocalSyncthingGUIPort),
@@ -160,25 +165,25 @@ func (a *Application) NewSyncthingHttpClient(svcName string) *req.SyncthingHttpC
 	)
 }
 
-func (a *Application) CreateSyncThingSecret(svcName string, syncSecret *corev1.Secret) error {
+func (c *Controller) CreateSyncThingSecret(syncSecret *corev1.Secret) error {
 
 	// check if secret exist
-	exist, err := a.client.GetSecret(syncSecret.Name)
+	exist, err := c.Client.GetSecret(syncSecret.Name)
 	if exist.Name != "" {
-		_ = a.client.DeleteSecret(syncSecret.Name)
+		_ = c.Client.DeleteSecret(syncSecret.Name)
 	}
-	sc, err := a.client.CreateSecret(syncSecret, metav1.CreateOptions{})
+	sc, err := c.Client.CreateSecret(syncSecret, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
 
-	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName)
 	if err != nil {
 		return err
 	}
 	defer profileV2.CloseDb()
 
-	svcPro := profileV2.FetchSvcProfileV2FromProfile(svcName)
+	svcPro := profileV2.SvcProfileV2(c.Name, c.Type.String())
 	svcPro.SyncthingSecret = sc.Name
 	return profileV2.Save()
 }

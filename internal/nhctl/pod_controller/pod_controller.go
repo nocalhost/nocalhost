@@ -10,19 +10,20 @@
  * limitations under the License.
  */
 
-package app
+package pod_controller
 
-type FileSyncOptions struct {
-	//RunAsDaemon    bool
-	SyncDouble     bool
-	SyncedPattern  []string
-	IgnoredPattern []string
-	Override       bool
-	Container      string // container name of pod to sync
-	Resume         bool
-	Stop           bool
-}
+import (
+	"context"
+	corev1 "k8s.io/api/core/v1"
+	"nocalhost/internal/nhctl/model"
+)
 
-type SyncStatusOptions struct {
-	Override bool
+type PodController interface {
+	ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error
+	ScaleReplicasToOne(ctx context.Context) error
+	Container(containerName string) (*corev1.Container, error)
+	Name() string
+	RollBack(reset bool) error
+	GetDefaultPodNameWait(ctx context.Context) (string, error)
+	GetPodList() ([]corev1.Pod, error)
 }

@@ -10,19 +10,22 @@
  * limitations under the License.
  */
 
-package app
+package controller
 
-type FileSyncOptions struct {
-	//RunAsDaemon    bool
-	SyncDouble     bool
-	SyncedPattern  []string
-	IgnoredPattern []string
-	Override       bool
-	Container      string // container name of pod to sync
-	Resume         bool
-	Stop           bool
-}
+import (
+	"nocalhost/internal/nhctl/utils"
+	"nocalhost/pkg/nhctl/log"
+)
 
-type SyncStatusOptions struct {
-	Override bool
+func (c *Controller) DevEnd(reset bool) error {
+	if err := c.BuildPodController().RollBack(reset); err != nil {
+		if !reset {
+			return err
+		}
+		log.WarnE(err, "something incorrect occurs when rolling back")
+	}
+
+	utils.ShouldI(c.AppMeta.SvcDevEnd(c.Name, c.Type), "something incorrect occurs when updating secret")
+	utils.ShouldI(c.StopSyncAndPortForwardProcess(true), "something incorrect occurs when stopping sync process")
+	return nil
 }

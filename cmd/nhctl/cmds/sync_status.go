@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/syncthing/network/req"
 )
 
@@ -25,10 +26,11 @@ var syncStatusOps = &app.SyncStatusOptions{}
 
 func init() {
 	//syncStatusCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
-	syncStatusCmd.Flags().StringVarP(
-		&deployment, "deployment", "d", "",
+	syncStatusCmd.Flags().StringVarP(&deployment, "deployment", "d", string(appmeta.Deployment),
 		"k8s deployment which your developing service exists",
 	)
+	syncStatusCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
+		"kind of k8s controller,such as deployment,statefulSet")
 	syncStatusCmd.Flags().BoolVar(
 		&syncStatusOps.Override, "override", false,
 		"override the remote changing according to the local sync folder",
@@ -50,13 +52,14 @@ var syncStatusCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
 		initApp(applicationName)
+		nhSvc := initService(deployment, serviceType)
 
-		if b, _ := nocalhostApp.CheckIfSvcIsDeveloping(deployment); !b {
+		if !nhSvc.IsInDevMode() {
 			display(req.NotInDevModeTemplate)
 			return
 		}
 
-		client := nocalhostApp.NewSyncthingHttpClient(deployment)
+		client := nhSvc.NewSyncthingHttpClient()
 
 		if syncStatusOps.Override {
 			must(client.FolderOverride())
