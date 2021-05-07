@@ -95,7 +95,12 @@ func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string) {
 	if util.NeedsToInitK8sOnTke() {
 		t := tke.CreateK8s()
 		cancelFunc = t.Delete
-		defer func() { t.Delete() }()
+		defer func() {
+			if err := recover(); err != nil {
+				t.Delete()
+				panic(err)
+			}
+		}()
 	}
 	go util.TimeoutChecker(1*time.Hour, cancelFunc)
 	v1, v2 = testcase.GetVersion()
