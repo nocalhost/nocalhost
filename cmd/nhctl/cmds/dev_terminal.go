@@ -15,6 +15,7 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/pkg/nhctl/log"
 )
 
 //var container string
@@ -42,6 +43,14 @@ var devTerminalCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
+		if pod == "" {
+			podList, err := nocalhostSvc.BuildPodController().GetPodList()
+			must(err)
+			if len(podList) != 1 {
+				log.Fatal("Pod num is not 1, please specify one")
+			}
+			pod = podList[0].Name
+		}
 		must(nocalhostSvc.EnterPodTerminal(pod, container))
 	},
 }

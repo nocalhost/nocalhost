@@ -13,7 +13,6 @@
 package controller
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -22,19 +21,16 @@ import (
 // If container not specified, the first container will be used
 func (c *Controller) EnterPodTerminal(podName, container string) error {
 	pod := podName
-	if pod == "" {
-		// todo hxx
-
-		podList, err := c.Client.ListLatestRevisionPodsByDeployment(c.Name)
-		if err != nil {
-			return err
-		}
-		if len(podList) != 1 {
-			return errors.New(fmt.Sprintf("The number of pods of %s is not 1 ???", c.Name))
-		}
-		pod = podList[0].Name
-
-	}
+	//if pod == "" {
+	//	podList, err := c.Client.ListLatestRevisionPodsByDeployment(c.Name)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	if len(podList) != 1 {
+	//		return errors.New(fmt.Sprintf("The number of pods of %s is not 1 ???", c.Name))
+	//	}
+	//	pod = podList[0].Name
+	//}
 	shell := ""
 	profile, _ := c.GetProfile()
 	if profile != nil {

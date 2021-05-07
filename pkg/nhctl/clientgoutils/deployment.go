@@ -29,7 +29,7 @@ func (c *ClientGoUtils) ListDeployments() ([]v1.Deployment, error) {
 	return deps.Items, nil
 }
 
-// Update deployment
+// UpdateDeployment Update deployment
 // If wait, UpdateDeployment will not return until:
 // 1. Deployment is ready
 // 2. Previous revision of ReplicaSet terminated

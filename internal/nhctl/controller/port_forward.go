@@ -16,7 +16,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
-	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/model"
 	port_forward "nocalhost/internal/nhctl/port-forward"
@@ -152,37 +151,32 @@ func (c *Controller) CheckPidPortStatus(ctx context.Context, sLocalPort, sRemote
 }
 
 func (c *Controller) PortForwardAfterDevStart(containerName string) error {
-	switch c.Type {
-	case appmeta.Deployment:
 
-		profileV2, err := c.GetProfile()
-		if err != nil {
-			return err
-		}
+	profileV2, err := c.GetProfile()
+	if err != nil {
+		return err
+	}
 
-		p := profileV2
-		if p.ContainerConfigs == nil {
-			return nil
-		}
-		cc := p.GetContainerDevConfigOrDefault(containerName)
-		if cc == nil {
-			return nil
-		}
-		podName, err := c.GetNocalhostDevContainerPod()
+	p := profileV2
+	if p.ContainerConfigs == nil {
+		return nil
+	}
+	cc := p.GetContainerDevConfigOrDefault(containerName)
+	if cc == nil {
+		return nil
+	}
+	podName, err := c.GetNocalhostDevContainerPod()
+	if err != nil {
+		return err
+	}
+	for _, pf := range cc.PortForward {
+		lPort, rPort, err := GetPortForwardForString(pf)
 		if err != nil {
-			return err
+			log.WarnE(err, "")
+			continue
 		}
-		for _, pf := range cc.PortForward {
-			lPort, rPort, err := GetPortForwardForString(pf)
-			if err != nil {
-				log.WarnE(err, "")
-				continue
-			}
-			log.Infof("Forwarding %d:%d", lPort, rPort)
-			utils.Should(c.PortForward(podName, lPort, rPort, ""))
-		}
-	default:
-		return errors.New("SvcType not supported")
+		log.Infof("Forwarding %d:%d", lPort, rPort)
+		utils.Should(c.PortForward(podName, lPort, rPort, ""))
 	}
 	return nil
 }

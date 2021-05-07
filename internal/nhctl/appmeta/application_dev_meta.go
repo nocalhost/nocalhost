@@ -21,7 +21,7 @@ type SvcType string
 
 const (
 	Deployment  SvcType = "deployment"
-	StatefulSet SvcType = "statefulSet"
+	StatefulSet SvcType = "statefulset"
 	DaemonSet   SvcType = "daemonSet"
 	Job         SvcType = "job"
 	CronJob     SvcType = "cronJob"

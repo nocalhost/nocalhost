@@ -20,7 +20,6 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/internal/nhctl/pod_controller"
 	"nocalhost/internal/nhctl/profile"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/internal/nhctl/utils"
@@ -97,6 +96,10 @@ func (c *Controller) markReplicaSetRevision() error {
 	return nil
 }
 
+func (c *Controller) GetSyncThingSecretName() string {
+	return c.Name + "-" + c.Type.String() + "-" + secret_config.SecretName
+}
+
 // There are two volume used by syncthing in sideCarContainer:
 // 1. A EmptyDir volume mounts to /var/syncthing in sideCarContainer
 // 2. A volume mounts Secret to /var/syncthing/secret in sideCarContainer
@@ -113,12 +116,12 @@ func (c *Controller) generateSyncVolumesAndMounts() ([]corev1.Volume, []corev1.V
 		},
 	}
 
-	secretName := ""
-	if c.Type == appmeta.Deployment {
-		secretName = c.Name + "-" + secret_config.SecretName
-	} else {
-		secretName = c.Name + "-" + string(c.Type) + "-" + secret_config.SecretName
-	}
+	secretName := c.GetSyncThingSecretName()
+	//if c.Type == appmeta.Deployment {
+	//	secretName = c.Name + "-" + secret_config.SecretName
+	//} else {
+	//	secretName = c.Name + "-" + string(c.Type) + "-" + secret_config.SecretName
+	//}
 	defaultMode := int32(nocalhost.DefaultNewFilePermission)
 	syncthingSecretVol := corev1.Volume{
 		Name: secret_config.SecretName,
@@ -440,45 +443,45 @@ func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) 
 	return requestMap, nil
 }
 
-func waitingPodToBeReady(controller pod_controller.PodController) error {
+func (c *Controller) waitingPodToBeReady() error {
 	// Wait podList to be ready
 	spinner := utils.NewSpinner(" Waiting pod to start...")
 	spinner.Start()
 
-wait:
+	//wait:
 	for {
 		<-time.NewTimer(time.Second * 1).C
 		// Get the latest revision
 		//podList, err := c.Client.ListLatestRevisionPodsByDeployment(c.Name)
-		podList, err := controller.GetPodList()
-		if err != nil {
-			return err
-		}
-		if len(podList) == 1 {
-			pod := podList[0]
-			if pod.Status.Phase != corev1.PodRunning {
-				spinner.Update(fmt.Sprintf("Waiting for pod %s to be running", pod.Name))
-				continue
-			}
-			if len(pod.Spec.Containers) == 0 {
-				return errors.New(fmt.Sprintf("%s has no container ???", pod.Name))
-			}
-
-			// Make sure all containers are ready and running
-			for _, c := range pod.Spec.Containers {
-				if !isContainerReadyAndRunning(c.Name, &pod) {
-					spinner.Update(fmt.Sprintf("Container %s is not ready, waiting...", c.Name))
-					continue wait
-				}
-			}
-			spinner.Update("All containers are ready")
+		//podList, err := controller.GetPodList()
+		if _, err := c.GetNocalhostDevContainerPod(); err == nil {
 			break
-		} else {
-			spinner.Update(fmt.Sprintf("Waiting pod to be replaced..."))
 		}
+		//if len(podList) == 1 {
+		//	pod := podList[0]
+		//	if pod.Status.Phase != corev1.PodRunning {
+		//		spinner.Update(fmt.Sprintf("Waiting for pod %s to be running", pod.Name))
+		//		continue
+		//	}
+		//	if len(pod.Spec.Containers) == 0 {
+		//		return errors.New(fmt.Sprintf("%s has no container ???", pod.Name))
+		//	}
+		//
+		//	// Make sure all containers are ready and running
+		//	for _, c := range pod.Spec.Containers {
+		//		if !isContainerReadyAndRunning(c.Name, &pod) {
+		//			spinner.Update(fmt.Sprintf("Container %s is not ready, waiting...", c.Name))
+		//			continue wait
+		//		}
+		//	}
+		//	spinner.Update("All containers are ready")
+		//	break
+		//} else {
+		//	spinner.Update(fmt.Sprintf("Waiting pod to be replaced..."))
+		//}
 	}
 	spinner.Stop()
-	coloredoutput.Success("Development container has been updated")
+	coloredoutput.Success("Dev container has been updated")
 
 	return nil
 }
@@ -496,7 +499,6 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 }
 
 func (c *Controller) GetNocalhostDevContainerPod() (string, error) {
-	// todo hxx
 	var (
 		checkPodsList *corev1.PodList
 		err           error
@@ -504,6 +506,8 @@ func (c *Controller) GetNocalhostDevContainerPod() (string, error) {
 	switch c.Type {
 	case appmeta.Deployment:
 		checkPodsList, err = c.Client.ListPodsByDeployment(c.Name)
+	case appmeta.StatefulSet:
+		checkPodsList, err = c.Client.ListPodsByStatefulSet(c.Name)
 	default:
 		return "", errors.New("Unsupported type")
 	}

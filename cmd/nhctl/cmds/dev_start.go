@@ -128,9 +128,10 @@ var devStartCmd = &cobra.Command{
 
 		// set syncthing secret
 		config, err := newSyncthing.GetRemoteConfigXML()
+
 		syncSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: deployment + "-" + secret_config.SecretName,
+				Name: nocalhostSvc.GetSyncThingSecretName(),
 			},
 			Type: corev1.SecretTypeOpaque,
 			Data: map[string][]byte{

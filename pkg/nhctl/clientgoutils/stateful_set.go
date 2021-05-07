@@ -30,10 +30,13 @@ func (c *ClientGoUtils) UpdateStatefulSet(statefulSet *v1.StatefulSet, wait bool
 		return ss, nil
 	}
 
-	for _, sc := range ss.Status.Conditions {
-		if sc.Status == "True" {
-			return ss, nil
-		}
+	//for _, sc := range ss.Status.Conditions {
+	//	if sc.Status == "True" {
+	//		return ss, nil
+	//	}
+	//}
+	if ss.Status.ReadyReplicas == 1 {
+		return ss, nil
 	}
 	log.Debug("StatefulSet has not been ready yet")
 

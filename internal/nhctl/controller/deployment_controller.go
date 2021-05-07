@@ -168,7 +168,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 			return err
 		}
 	}
-	return waitingPodToBeReady(d)
+	return d.waitingPodToBeReady()
 
 }
 
@@ -181,7 +181,7 @@ func (d *DeploymentController) ScaleReplicasToOne(ctx context.Context) error {
 	}
 
 	if scale.Spec.Replicas > 1 {
-		log.Infof("Deployment %s's replicas is %d now, scaling it to 1", d.Name, scale.Spec.Replicas)
+		log.Infof("Deployment %s replicas is %d now, scaling it to 1", d.Name(), scale.Spec.Replicas)
 		scale.Spec.Replicas = 1
 		_, err = deploymentsClient.UpdateScale(ctx, d.Name(), scale, metav1.UpdateOptions{})
 		if err != nil {
@@ -199,7 +199,7 @@ func (d *DeploymentController) ScaleReplicasToOne(ctx context.Context) error {
 			log.Info("Replicas has been set to 1")
 		}
 	} else {
-		log.Infof("Deployment %s's replicas is already 1, no need to scale", d.Name)
+		log.Infof("Deployment %s replicas is already 1, no need to scale", d.Name)
 	}
 	return nil
 }

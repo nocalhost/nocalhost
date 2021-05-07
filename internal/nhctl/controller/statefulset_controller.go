@@ -74,6 +74,9 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 
 	workDir := s.GetWorkDir(ops.Container)
 	devImage := s.GetDevImage(ops.Container) // Default : replace the first container
+	if devImage == "" {
+		return errors.New("Dev image must be specified")
+	}
 
 	sideCarContainer := generateSideCarContainer(workDir)
 
@@ -169,7 +172,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 			return err
 		}
 	}
-	return waitingPodToBeReady(s)
+	return s.waitingPodToBeReady()
 }
 
 func (s *StatefulSetController) ScaleReplicasToOne(ctx context.Context) error {

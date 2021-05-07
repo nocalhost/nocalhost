@@ -45,7 +45,7 @@ func init() {
 		"which container of pod to run command",
 	)
 	portForwardStartCmd.Flags().StringVarP(
-		&serviceType, "type", "", "deployment",
+		&serviceType, "type", "t", "deployment",
 		"specify service type",
 	)
 	portForwardStartCmd.Flags().StringVarP(
