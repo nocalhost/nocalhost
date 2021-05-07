@@ -24,15 +24,13 @@ import (
 	"sort"
 )
 
-func getServiceProfile(ns, appName string) (map[string]*profile.SvcProfileV2, string) {
+func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 	serviceMap := make(map[string]*profile.SvcProfileV2)
 	profileV2, err := nocalhost.GetProfileV2(ns, appName)
 	if err != nil {
 		log.Error(err)
 	}
-	var kubeconfig string
 	if profileV2 != nil {
-		kubeconfig = profileV2.Kubeconfig
 		nocalhostApp, err2 := app.NewApplication(appName, ns, profileV2.Kubeconfig, true)
 		if err2 != nil {
 			log.Error(err2)
@@ -48,7 +46,7 @@ func getServiceProfile(ns, appName string) (map[string]*profile.SvcProfileV2, st
 			}
 		}
 	}
-	return serviceMap, kubeconfig
+	return serviceMap
 }
 
 func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) interface{} {
@@ -86,9 +84,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		}
 		return getApplicationByNs(request.Namespace, request.KubeConfig, search)
 	case "app", "application":
-		_, kubeconfig := getServiceProfile(request.Namespace, request.ResourceName)
 		if request.ResourceName == "" {
-			metas := appmeta_manager.GetApplicationMetas(request.Namespace, kubeconfig)
+			metas := appmeta_manager.GetApplicationMetas(request.Namespace, request.KubeConfig)
 			if metas != nil {
 				sort.SliceStable(metas, func(i, j int) bool {
 					var n1, n2 string
@@ -106,10 +103,10 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			}
 			return metas
 		} else {
-			return appmeta_manager.GetApplicationMeta(request.Namespace, request.AppName, kubeconfig)
+			return appmeta_manager.GetApplicationMeta(request.Namespace, request.ResourceName, request.KubeConfig)
 		}
 	default:
-		serviceMap, _ := getServiceProfile(request.Namespace, request.ResourceName)
+		serviceMap := getServiceProfile(request.Namespace, request.ResourceName)
 		// get all resource in namespace
 		var items []interface{}
 		var err error
@@ -162,7 +159,7 @@ func getApp(namespace, appName string, search *Search) App {
 		"Storages":       {"persistentvolumes", "persistentvolumeclaims", "storageclasses"},
 	}
 	result := App{Name: appName}
-	profileMap, _ := getServiceProfile(namespace, appName)
+	profileMap := getServiceProfile(namespace, appName)
 	for groupName, types := range groupToTypeMap {
 		resources := make([]Resource, 0, len(types))
 		for _, resource := range types {
