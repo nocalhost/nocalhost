@@ -13,6 +13,8 @@
 package suite
 
 import (
+	"errors"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/test/nhctlcli"
 	"nocalhost/test/nhctlcli/testcase"
 	"nocalhost/test/tke"
@@ -106,15 +108,30 @@ func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string) {
 	v1, v2 = testcase.GetVersion()
 	testcase.InstallNhctl(v1)
 	kubeconfig := util.GetKubeconfig()
-	ns := "test"
-	cli = nhctlcli.NewNhctl(ns, kubeconfig)
-	util.CreateNamespaceIgnoreError(ns, kubeconfig)
+	var ns string
+	var err error
+	if ns, err = clientgoutils.GetNamespaceFromKubeConfig(kubeconfig); err != nil {
+		panic(err)
+	}
+	if ns == "" {
+		panic(errors.New("--namespace or --kubeconfig mush be provided"))
+	}
+	tempCli := nhctlcli.NewNhctl(ns, kubeconfig)
 	util.Init(cli)
-	testcase.NhctlVersion(cli)
-	testcase.StopDaemon(cli)
-	go testcase.Init(cli)
+	testcase.NhctlVersion(tempCli)
+	testcase.StopDaemon(tempCli)
+	go testcase.Init(tempCli)
 	if i := <-testcase.StatusChan; i != 0 {
 		testcase.StopChan <- 1
 	}
+	web := <-testcase.WebServerEndpointChan
+	newKubeconfig := testcase.GetKubeconfig(ns, web, kubeconfig)
+	if ns, err = clientgoutils.GetNamespaceFromKubeConfig(newKubeconfig); err != nil {
+		panic(err)
+	}
+	if ns == "" {
+		panic(errors.New("--namespace or --kubeconfig mush be provided"))
+	}
+	cli = nhctlcli.NewNhctl(ns, kubeconfig)
 	return
 }
