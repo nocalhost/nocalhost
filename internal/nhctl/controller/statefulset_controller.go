@@ -41,10 +41,15 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 	var err error
 	s.Client.Context(ctx)
 
-	// todo
-	//if err = d.markReplicaSetRevision(); err != nil {
-	//	return err
-	//}
+	dep, err := s.Client.GetStatefulSet(s.Name())
+	if err != nil {
+		return err
+	}
+
+	originalSpecJson, err := json.Marshal(&dep.Spec)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
 
 	if err = s.ScaleReplicasToOne(ctx); err != nil {
 		return err
@@ -100,17 +105,6 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 	if requirements != nil {
 		devContainer.Resources = *requirements
 		sideCarContainer.Resources = *requirements
-	}
-
-	// Get latest deployment
-	dep, err := s.Client.GetStatefulSet(s.Name())
-	if err != nil {
-		return err
-	}
-
-	originalSpecJson, err := json.Marshal(&dep.Spec)
-	if err != nil {
-		return errors.Wrap(err, "")
 	}
 
 	if ops.Container != "" {

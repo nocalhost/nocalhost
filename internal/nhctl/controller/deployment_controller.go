@@ -149,11 +149,6 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 
 	log.Info("Updating development container...")
 	_, err = d.Client.UpdateDeployment(dep, true)
-	//specJson, err := json.Marshal(&dep.Spec)
-	//if err != nil {
-	//	return errors.Wrap(err, "")
-	//}
-	//err = c.Client.Patch("Deployment", dep.Name, string(specJson))
 	if err != nil {
 		if strings.Contains(err.Error(), "no PriorityClass") {
 			log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
