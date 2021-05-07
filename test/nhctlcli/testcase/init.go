@@ -16,20 +16,29 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/imroc/req"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"io"
+	"io/ioutil"
+	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/request"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/tools"
+	"nocalhost/pkg/nocalhost-api/app/api/v1/service_account"
 	"nocalhost/test/nhctlcli"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strings"
 )
 
 var StopChan = make(chan int32, 1)
 var StatusChan = make(chan int32, 1)
+var WebServerEndpointChan = make(chan string)
 
 func GetVersion() (v1 string, v2 string) {
 	commitId := os.Getenv("COMMIT_ID")
@@ -108,6 +117,13 @@ func Init(nhctl *nhctlcli.CLI) {
 				fmt.Println(string(line))
 			}
 			if strings.Contains(string(line), "Nocalhost init completed") {
+				reg := regexp.MustCompile("http://(.*?):(.*?) ")
+				submatch := reg.FindStringSubmatch(string(line))
+				if len(submatch) == 0 {
+					StatusChan <- 1
+					break
+				}
+				WebServerEndpointChan <- submatch[0]
 				StatusChan <- 0
 				break
 			}
@@ -145,4 +161,51 @@ func StatusCheck(nhctl *nhctlcli.CLI, moduleName string) {
 	if !service.Syncing {
 		panic("test case failed, should be synchronizing")
 	}
+}
+
+var WebServerServiceAccountApi = "/v1/plugin/service_accounts"
+
+func GetKubeconfig(ns, webEndpoint, kubeconfig string) string {
+	client, err := clientgoutils.NewClientGoUtils(kubeconfig, ns)
+	log.Debugf("kubeconfig %s \n", kubeconfig)
+	if err != nil || client == nil {
+		log.Fatalf("new go client fail, err %s, or check you kubeconfig\n", err)
+		panic("new go client fail, or check you kubeconfig")
+	}
+	kubectl, err := tools.CheckThirdPartyCLI()
+	res := request.
+		NewReq(webEndpoint, kubeconfig, kubectl, ns, 7000).
+		Login(app.DefaultInitUserEmail, app.DefaultInitPassword)
+	header := req.Header{
+		"Accept":        "application/json",
+		"Authorization": "Bearer " + res.AuthToken,
+	}
+	r, err := req.New().Get(webEndpoint+WebServerServiceAccountApi, header)
+	if err != nil {
+		log.Fatalf("init fail, add dev space fail, err: %s", err)
+		panic("init fail, add dev space fail")
+	}
+	re := Response{}
+	err = r.ToJSON(&re)
+	if re.Code != 0 || len(re.Data) == 0 || re.Data[0] == nil {
+		log.Fatalf("init fail, add dev space, err: %s", re.Message)
+		panic("init fail, add dev space")
+	}
+	config := re.Data[0].KubeConfig
+	if config != "" {
+		f, _ := ioutil.TempFile("/tmp", "*kubeconfig")
+		_, _ = f.WriteString(config)
+		_ = f.Sync()
+		return f.Name()
+	} else {
+		fmt.Println("Not found")
+		panic("Not found")
+	}
+
+}
+
+type Response struct {
+	Code    int                                    `json:"code"`
+	Message string                                 `json:"message"`
+	Data    []*service_account.ServiceAccountModel `json:"data"`
 }
