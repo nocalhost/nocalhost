@@ -117,7 +117,7 @@ func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string) {
 		panic(errors.New("--namespace or --kubeconfig mush be provided"))
 	}
 	tempCli := nhctlcli.NewNhctl(ns, kubeconfig)
-	util.Init(cli)
+	util.Init(tempCli)
 	testcase.NhctlVersion(tempCli)
 	testcase.StopDaemon(tempCli)
 	go testcase.Init(tempCli)
