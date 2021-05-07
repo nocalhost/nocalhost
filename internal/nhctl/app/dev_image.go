@@ -360,6 +360,10 @@ func (a *Application) ReplaceImage(ctx context.Context, svcName string, ops *Dev
 	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
 	devContainer.WorkingDir = workDir
 
+	// set image pull policy
+	sideCarContainer.ImagePullPolicy = DefaultSidecarImagePullPolicy
+	devContainer.ImagePullPolicy = DefaultSidecarImagePullPolicy
+
 	// add env
 	devEnv := a.GetDevContainerEnv(svcName, ops.Container)
 	for _, v := range devEnv.DevEnv {

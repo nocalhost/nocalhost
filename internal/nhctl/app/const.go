@@ -75,7 +75,8 @@ const (
 	// file sync
 	DefaultNocalhostSideCarName = "nocalhost-sidecar"
 
-	DefaultDevContainerShell = "(zsh || bash || sh)"
+	DefaultDevContainerShell      = "(zsh || bash || sh)"
+	DefaultSidecarImagePullPolicy = "Always"
 
 	DependenceConfigMapPrefix = "nocalhost-depends-do-not-overwrite"
 
