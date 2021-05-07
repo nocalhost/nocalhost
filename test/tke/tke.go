@@ -35,8 +35,19 @@ func CreateK8s() *task {
 	t.CreateTKE()
 	t.WaitClusterToBeReady()
 	t.WaitInstanceToBeReady()
-	t.EnableInternetAccess()
-	t.WaitNetworkToBeReady()
+	retryTimes := 250
+	var ok = false
+	for i := 0; i < retryTimes; i++ {
+		t.EnableInternetAccess()
+		if t.WaitNetworkToBeReady() {
+			ok = true
+			break
+		}
+		time.Sleep(time.Second * 2)
+	}
+	if !ok {
+		panic("Enable internet access error, please checkout you tke cluster")
+	}
 	t.GetKubeconfig()
 	return t
 }
@@ -243,10 +254,9 @@ func (t *task) EnableInternetAccess() {
 	}
 }
 
-func (t *task) WaitNetworkToBeReady() {
+func (t *task) WaitNetworkToBeReady() bool {
 	request := tke.NewDescribeClusterEndpointVipStatusRequest()
 	request.ClusterId = &t.clusterId
-
 	for {
 		time.Sleep(time.Second * 5)
 		response, err := t.GetClient().DescribeClusterEndpointVipStatus(request)
@@ -257,9 +267,10 @@ func (t *task) WaitNetworkToBeReady() {
 		if response != nil && response.Response != nil && response.Response.Status != nil {
 			switch *response.Response.Status {
 			case "Created":
-				return
+				return true
 			case "CreateFailed":
 				fmt.Println("network endpoint create failed, retrying, response: " + response.ToJsonString())
+				return false
 			}
 		} else {
 			fmt.Println("Waiting for network ready")
