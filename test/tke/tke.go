@@ -259,7 +259,7 @@ func (t *task) WaitNetworkToBeReady() {
 			case "Created":
 				return
 			case "CreateFailed":
-				fmt.Println("network endpoint create failed, retrying")
+				fmt.Println("network endpoint create failed, retrying, response: " + response.ToJsonString())
 			}
 		} else {
 			fmt.Println("Waiting for network ready")
