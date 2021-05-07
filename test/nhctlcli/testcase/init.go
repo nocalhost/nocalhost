@@ -118,12 +118,12 @@ func Init(nhctl *nhctlcli.CLI) {
 			}
 			if strings.Contains(string(line), "Nocalhost init completed") {
 				StatusChan <- 0
-				break
 			}
 			reg := regexp.MustCompile("http://(.*?):(.*?) ")
 			submatch := reg.FindStringSubmatch(string(line))
 			if len(submatch) > 0 {
 				WebServerEndpointChan <- submatch[0]
+				fmt.Printf("Found webserver endpoint: %s", submatch[0])
 				break
 			}
 		}
