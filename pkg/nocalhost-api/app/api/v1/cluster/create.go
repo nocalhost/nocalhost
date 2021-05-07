@@ -63,7 +63,6 @@ func Create(c *gin.Context) {
 		return
 	}
 
-	DecKubeconfig = goClient.Config
 	// check kubeconfig server already exist
 	t := KubeConfig{}
 	err = yaml.Unmarshal(DecKubeconfig, &t)
