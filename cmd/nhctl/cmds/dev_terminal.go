@@ -9,28 +9,24 @@
  * either express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package cmds
 
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/pkg/nhctl/log"
 )
 
 //var container string
 
 func init() {
-	devTerminalCmd.Flags().StringVarP(
-		&deployment, "deployment", "d", "",
-		"k8s deployment which your developing service exists",
-	)
-	devTerminalCmd.Flags().StringVarP(
-		&container, "container", "c", "",
-		"container to enter",
-	)
-	devTerminalCmd.Flags().StringVar(
-		&pod, "pod", "",
-		"pod to enter",
-	)
+	devTerminalCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
+		"k8s deployment which your developing service exists")
+	devTerminalCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet")
+	devTerminalCmd.Flags().StringVarP(&container, "container", "c", "", "container to enter")
+	devTerminalCmd.Flags().StringVar(&pod, "pod", "", "pod to enter")
 	debugCmd.AddCommand(devTerminalCmd)
 }
 
@@ -46,7 +42,15 @@ var devTerminalCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
-		must(nocalhostApp.EnterPodTerminal(deployment, pod, container))
+		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
+		if pod == "" {
+			podList, err := nocalhostSvc.BuildPodController().GetPodList()
+			must(err)
+			if len(podList) != 1 {
+				log.Fatal("Pod num is not 1, please specify one")
+			}
+			pod = podList[0].Name
+		}
+		must(nocalhostSvc.EnterPodTerminal(pod, container))
 	},
 }

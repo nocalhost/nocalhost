@@ -79,10 +79,11 @@ func resetApplication(applicationName string) {
 	// Stop BackGroup Process
 	appProfile, _ := nocalhostApp.GetProfile()
 	for _, profile := range appProfile.SvcProfile {
-		if profile.Developing {
-			utils.Should(nocalhostApp.StopSyncAndPortForwardProcess(profile.ActualName, true))
+		nhSvc := initService(profile.ActualName, profile.Type)
+		if nhSvc.IsInDevMode() {
+			utils.Should(nhSvc.StopSyncAndPortForwardProcess(true))
 		} else if len(profile.DevPortForwardList) > 0 {
-			utils.Should(nocalhostApp.StopAllPortForward(profile.ActualName))
+			utils.Should(nhSvc.StopAllPortForward())
 		}
 	}
 

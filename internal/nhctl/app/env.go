@@ -34,41 +34,6 @@ type ContainerEnvForDep struct {
 	InstallEnv []*profile.Env `json:"installEnv" yaml:"installEnv"`
 }
 
-type ContainerDevEnv struct {
-	DevEnv []*profile.Env
-}
-
-func (a *Application) GetDevContainerEnv(svcName, container string) *ContainerDevEnv {
-	// Find service env
-	devEnv := make([]*profile.Env, 0)
-	kvMap := make(map[string]string, 0)
-	appProfile, _ := a.GetProfile()
-	serviceConfig := appProfile.FetchSvcProfileV2FromProfile(svcName)
-	for _, v := range serviceConfig.ContainerConfigs {
-		if v.Name == container || container == "" {
-			if v.Dev.EnvFrom != nil && len(v.Dev.EnvFrom.EnvFile) > 0 {
-				envFiles := make([]string, 0)
-				for _, f := range v.Dev.EnvFrom.EnvFile {
-					envFiles = append(envFiles, f.Path)
-				}
-				kvMap = utils.GetKVFromEnvFiles(envFiles)
-			}
-			// Env has a higher priority than envFrom
-			for _, env := range v.Dev.Env {
-				kvMap[env.Name] = env.Value
-			}
-		}
-	}
-	for k, v := range kvMap {
-		env := &profile.Env{
-			Name:  k,
-			Value: v,
-		}
-		devEnv = append(devEnv, env)
-	}
-	return &ContainerDevEnv{DevEnv: devEnv}
-}
-
 func (a *Application) GetInstallEnvForDep() *InstallEnvForDep {
 	appProfileV2, _ := a.GetProfile()
 

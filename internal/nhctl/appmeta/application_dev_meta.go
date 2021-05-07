@@ -17,24 +17,52 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
+type SvcType string
+
 const (
-	DEPLOYMENT ApplicationDevType = "D"
-	DEV_STA    EVENT              = "DEV_STA"
-	DEV_END    EVENT              = "DEV_END"
+	Deployment  SvcType = "deployment"
+	StatefulSet SvcType = "statefulset"
+	DaemonSet   SvcType = "daemonSet"
+	Job         SvcType = "job"
+	CronJob     SvcType = "cronJob"
+
+	DEPLOYMENT SvcType = "D"
+	DEV_STA    EVENT   = "DEV_STA"
+	DEV_END    EVENT   = "DEV_END"
 )
 
-type ApplicationDevMeta map[ApplicationDevType]map[ /* resource name */ string] /* identifier */ string
-type ApplicationDevType string
+// Alias For compatibility with meta
+func (s SvcType) Alias() SvcType {
+	if s == Deployment {
+		return DEPLOYMENT
+	}
+	return s
+}
+
+func (s SvcType) Origin() SvcType {
+	if s == DEPLOYMENT {
+		return Deployment
+	}
+	return s
+}
+
+func (s SvcType) String() string {
+	return string(s)
+}
+
+type ApplicationDevMeta map[SvcType]map[ /* resource name */ string] /* identifier */ string
+
+//type ApplicationDevType string
 type EVENT string
 type ApplicationEvent struct {
-	Identifier string
+	Identifier   string
 	ResourceName string
-	EventType EVENT
-	DevType ApplicationDevType
+	EventType    EVENT
+	DevType      SvcType
 }
 
 func (from *ApplicationDevMeta) copy() ApplicationDevMeta {
-	m := map[ApplicationDevType]map[ /* resource name */ string]string{}
+	m := map[SvcType]map[ /* resource name */ string]string{}
 	for k, v := range *from {
 		im := map[ /* resource name */ string]string{}
 		for ik, iv := range v {

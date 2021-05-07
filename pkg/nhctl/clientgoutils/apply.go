@@ -185,64 +185,7 @@ func (c *ClientGoUtils) GetResourceInfoFromReader(reader io.Reader, continueOnEr
 
 	if result.Err() != nil {
 		if continueOnError {
-			log.WarnE(err, "error occurs in results")
-		} else {
-			return nil, errors.Wrap(result.Err(), "")
-		}
-	}
-
-	infos, err := result.Infos()
-	if err != nil {
-		if continueOnError {
-			log.WarnE(err, "error occurs in results")
-		} else {
-			return nil, errors.Wrap(err, "")
-		}
-	}
-
-	return infos, nil
-}
-
-func (c *ClientGoUtils) GetResourceInfoFromFiles(
-	files []string, continueOnError bool, kustomize string,
-) ([]*resource.Info, error) {
-
-	if len(files) == 0 && len(kustomize) == 0 {
-		return nil, errors.New("files must not be nil")
-	}
-
-	f := c.NewFactory()
-	builder := f.NewBuilder()
-	validate, err := f.Validator(true)
-	if err != nil {
-		if continueOnError {
-			log.Warnf("Build validator err:", err.Error())
-		} else {
-			return nil, errors.Wrap(err, "")
-		}
-	}
-	filenames := resource.FilenameOptions{
-		Filenames: files,
-		Kustomize: kustomize,
-		Recursive: false,
-	}
-	if continueOnError {
-		builder.ContinueOnError()
-	}
-	result := builder.
-		Unstructured().
-		Schema(validate).
-		ContinueOnError().
-		NamespaceParam(c.namespace).
-		DefaultNamespace().
-		FilenameParam(true, &filenames).
-		//LabelSelectorParam(o.Selector).
-		Flatten().
-		Do()
-
-	if result.Err() != nil {
-		if continueOnError {
-			log.WarnE(err, "error occurs in results")
+			log.WarnE(errors.Wrap(result.Err(), ""), "error occurs in results")
 		} else {
 			return nil, errors.Wrap(result.Err(), "")
 		}

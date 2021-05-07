@@ -15,14 +15,6 @@ package app
 import "time"
 
 const (
-	DefaultSideCarImage                      = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing"
-	DefaultSyncLogFileName                   = "sync-port-forward-child-process.log"
-	DefaultApplicationSyncPortForwardPidFile = "sync-port-forward.pid"
-	DefaultBackGroundPortForwardLogFileName  = "alone-port-forward-child-process.log"
-	DefaultApplicationOnlyPortForwardPidFile = "alone-port-forward.pid"
-	GetFileLockPath                          = "lock"
-	DefaultApplicationSyncPidFile            = "syncthing.pid"
-
 	DefaultSecretGenSign               = "secreted"
 	DefaultApplicationConfigPath       = ".config.yaml"
 	DefaultApplicationConfigV2Path     = ".config_v2.yaml"
@@ -71,9 +63,6 @@ const (
 	// Init Component Version Control, HEAD means build from tag
 	DefaultNocalhostMainBranch        = "HEAD"
 	DefaultNocalhostDepDockerRegistry = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep"
-
-	// file sync
-	DefaultNocalhostSideCarName = "nocalhost-sidecar"
 
 	DefaultDevContainerShell = "(zsh || bash || sh)"
 

@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -44,7 +45,7 @@ func init() {
 		"which container of pod to run command",
 	)
 	portForwardStartCmd.Flags().StringVarP(
-		&portForwardOptions.ServiceType, "type", "", "deployment",
+		&serviceType, "type", "t", "deployment",
 		"specify service type",
 	)
 	portForwardStartCmd.Flags().StringVarP(
@@ -74,12 +75,12 @@ var portForwardStartCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, []string{portForwardOptions.ServiceType})
+		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
 		log.Info("Starting port-forwarding")
 
 		// find deployment pods
-		podName, err := nocalhostApp.GetNocalhostDevContainerPod(deployment)
+		podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
 		if err != nil {
 			// use serviceType get pods name
 			// can not find devContainer, means need port-forward normal service, get pods from command flags
@@ -88,7 +89,7 @@ var portForwardStartCmd = &cobra.Command{
 
 		var localPorts, remotePorts []int
 		for _, port := range portForwardOptions.DevPort {
-			localPort, remotePort, err := app.GetPortForwardForString(port)
+			localPort, remotePort, err := controller.GetPortForwardForString(port)
 			if err != nil {
 				log.WarnE(err, "")
 				continue
@@ -101,7 +102,7 @@ var portForwardStartCmd = &cobra.Command{
 			if portForwardOptions.Follow {
 				must(nocalhostApp.PortForwardFollow(podName, localPort, remotePorts[index], kubeConfig, nameSpace))
 			} else {
-				must(nocalhostApp.PortForward(deployment, podName, localPort, remotePorts[index], ""))
+				must(nocalhostSvc.PortForward(podName, localPort, remotePorts[index], ""))
 			}
 		}
 	},

@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 	"sort"
 	"strings"
@@ -382,11 +383,11 @@ func byApplicationFunc(obj interface{}) ([]string, error) {
 	}
 	anno := metadata.GetAnnotations()
 	if anno == nil || len(anno) == 0 ||
-		(anno[app.NocalhostApplicationName] == "" && anno[app.HelmReleaseName] == "") {
+		(anno[nocalhost.NocalhostApplicationName] == "" && anno[app.HelmReleaseName] == "") {
 		return []string{app.DefaultNocalhostApplication}, nil
 	}
-	if anno[app.NocalhostApplicationName] != "" {
-		return []string{anno[app.NocalhostApplicationName]}, nil
+	if anno[nocalhost.NocalhostApplicationName] != "" {
+		return []string{anno[nocalhost.NocalhostApplicationName]}, nil
 	} else {
 		return []string{anno[app.HelmReleaseName]}, nil
 	}
@@ -401,11 +402,11 @@ func byNamespaceAndAppFunc(obj interface{}) ([]string, error) {
 	ns := metadata.GetNamespace()
 	anno := metadata.GetAnnotations()
 	if anno == nil || len(anno) == 0 ||
-		(anno[app.NocalhostApplicationName] == "" && anno[app.HelmReleaseName] == "") {
+		(anno[nocalhost.NocalhostApplicationName] == "" && anno[app.HelmReleaseName] == "") {
 		return []string{nsResource(ns, app.DefaultNocalhostApplication)}, nil
 	}
-	if anno[app.NocalhostApplicationName] != "" {
-		return []string{nsResource(ns, anno[app.NocalhostApplicationName])}, nil
+	if anno[nocalhost.NocalhostApplicationName] != "" {
+		return []string{nsResource(ns, anno[nocalhost.NocalhostApplicationName])}, nil
 	} else {
 		return []string{nsResource(ns, anno[app.HelmReleaseName])}, nil
 	}

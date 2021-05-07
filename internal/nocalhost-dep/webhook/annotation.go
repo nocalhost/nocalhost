@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/nocalhost"
 	"time"
 )
 
@@ -121,7 +122,7 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 func containsAnnotationSign(annos map[string]string) []string {
 	for k, desiredVal := range annos {
 		glog.Infof("anno key: %s", k)
-		if k == app.NocalhostApplicationName || k == app.HelmReleaseName {
+		if k == nocalhost.NocalhostApplicationName || k == app.HelmReleaseName {
 			return []string{k, desiredVal}
 		}
 	}

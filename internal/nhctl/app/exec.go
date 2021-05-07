@@ -18,38 +18,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-// Try to use shell defined in devContainerShell to enter pod's terminal
-// If devContainerShell is not defined or shell defined in devContainerShell failed to enter terminal, use /bin/sh
-// If container not specified, the first container will be used
-func (a *Application) EnterPodTerminal(svcName string, podName, container string) error {
-	pod := podName
-	if pod == "" {
-		podList, err := a.client.ListLatestRevisionPodsByDeployment(svcName)
-		if err != nil {
-			return err
-		}
-		if len(podList) != 1 {
-			log.Warnf("The number of pods of %s is not 1 ???", svcName)
-			return errors.New(fmt.Sprintf("The number of pods of %s is not 1 ???", svcName))
-		}
-		pod = podList[0].Name
-	}
-	shell := ""
-	appProfile, _ := a.GetProfile()
-	profile := appProfile.FetchSvcProfileV2FromProfile(svcName)
-	if profile != nil {
-		devConfig := profile.GetContainerDevConfigOrDefault(container)
-		if devConfig != nil {
-			shell = devConfig.Shell
-		}
-	}
-	cmd := "(zsh || bash || sh)"
-	if shell != "" {
-		cmd = fmt.Sprintf("(%s || zsh || bash || sh)", shell)
-	}
-	return a.client.ExecShell(pod, container, cmd)
-}
-
 func (a *Application) Exec(svcName string, container string, commands []string) error {
 	podList, err := a.client.ListPodsByDeployment(svcName)
 	if err != nil {

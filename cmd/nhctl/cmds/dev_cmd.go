@@ -17,7 +17,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/pkg/nhctl/log"
-	"os"
 )
 
 type DevCommandType string
@@ -34,21 +33,15 @@ var commandType string
 var container string
 
 func init() {
-	devCmdCmd.Flags().StringVarP(
-		&deployment, "deployment", "d", "",
-		"K8s deployment which your developing service exists",
-	)
-	devCmdCmd.Flags().StringVarP(
-		&container, "container", "c", "",
-		"which container of pod to run command",
-	)
-	devCmdCmd.Flags().StringVar(
-		&commandType, "dev-command-type", "", fmt.Sprintf(
-			"Dev command type can be: %s, %s, %s, %s, %s",
-			buildCommand, runCommand, debugCommand, hotReloadRunCommand,
-			hotReloadDebugCommand,
-		),
-	)
+	devCmdCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
+		"K8s deployment which your developing service exists")
+	devCmdCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet")
+	devCmdCmd.Flags().StringVarP(&container, "container", "c", "",
+		"which container of pod to run command")
+	devCmdCmd.Flags().StringVar(&commandType, "dev-command-type", "", fmt.Sprintf(
+		"Dev command type can be: %s, %s, %s, %s, %s",
+		buildCommand, runCommand, debugCommand, hotReloadRunCommand, hotReloadDebugCommand))
 	debugCmd.AddCommand(devCmdCmd)
 }
 
@@ -67,18 +60,13 @@ var devCmdCmd = &cobra.Command{
 			log.Fatal("--dev-command-type mush be specified")
 		}
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, nil)
-		if b, _ := nocalhostApp.CheckIfSvcIsDeveloping(deployment); !b {
+		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
+		if !nocalhostSvc.IsInDevMode() {
 			log.Fatalf("%s is not in DevMode", deployment)
 		}
 
-		appProfile, err := nocalhostApp.GetProfile()
+		profile, err := nocalhostSvc.GetProfile()
 		must(err)
-		profile := appProfile.FetchSvcProfileV2FromProfile(deployment)
-		if profile == nil {
-			log.Fatal("Failed to get service profile")
-			os.Exit(1)
-		}
 
 		if profile.GetContainerDevConfigOrDefault(container) == nil ||
 			profile.GetContainerDevConfigOrDefault(container).Command == nil {

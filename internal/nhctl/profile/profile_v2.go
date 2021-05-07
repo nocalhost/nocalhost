@@ -59,10 +59,10 @@ type AppProfileV2 struct {
 	AppType string `json:"app_type" yaml:"appType"`
 }
 
-func (appProfile *AppProfileV2) LoadManifests(tmpDir string) ([]string, []string) {
-	preInstallManifests := appProfile.PreInstall.Load(tmpDir)
-	allManifests := appProfile.ResourcePath.Load(tmpDir)
-	ignore := appProfile.IgnoredPath.Load(tmpDir)
+func (a *AppProfileV2) LoadManifests(tmpDir string) ([]string, []string) {
+	preInstallManifests := a.PreInstall.Load(tmpDir)
+	allManifests := a.ResourcePath.Load(tmpDir)
+	ignore := a.IgnoredPath.Load(tmpDir)
 
 	return preInstallManifests, clientgoutils.LoadValidManifest(allManifests, append(preInstallManifests, ignore...))
 }
@@ -88,16 +88,6 @@ func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
 	bys, err := db.Get([]byte(ProfileV2Key(ns, name)))
 	if err != nil {
 		if errors.Is(err, leveldb.ErrNotFound) {
-			//result := make(map[string][]byte, 0)
-			//iter := db.NewIterator(nil, nil)
-			//for iter.Next() {
-			//	result[string(iter.Key())] = iter.Value()
-			//}
-			//iter.Release()
-			//err = iter.Error()
-			//if err != nil {
-			//	return nil, errors.Wrap(err, "")
-			//}
 			result, err := db.ListAll()
 			if err != nil {
 				_ = db.Close()
@@ -132,10 +122,10 @@ func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
 	return result, nil
 }
 
-func (a *AppProfileV2) FetchSvcProfileV2FromProfile(svcName string) *SvcProfileV2 {
+func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV2 {
 
 	for _, svcProfile := range a.SvcProfile {
-		if svcProfile.ActualName == svcName {
+		if svcProfile.ActualName == svcName && svcProfile.Type == svcType {
 			return svcProfile
 		}
 	}
@@ -147,7 +137,7 @@ func (a *AppProfileV2) FetchSvcProfileV2FromProfile(svcName string) *SvcProfileV
 	svcProfile := &SvcProfileV2{
 		ServiceConfigV2: &ServiceConfigV2{
 			Name: svcName,
-			Type: string("Deployment"),
+			Type: svcType,
 			ContainerConfigs: []*ContainerConfig{
 				{
 					Dev: &ContainerDevConfig{
@@ -216,7 +206,7 @@ type SvcProfileV2 struct {
 	LocalAbsoluteSyncDirFromDevStartPlugin []string          `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
 	DevPortForwardList                     []*DevPortForward `json:"devPortForwardList" yaml:"devPortForwardList"` // combine DevPortList,PortForwardStatusList and PortForwardPidList
 
-	// mean the current svc is possess by current nhctl context
+	// mean the current controller is possess by current nhctl context
 	// and the syncthing process is listen on current device
 	Possess bool
 }
