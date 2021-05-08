@@ -152,7 +152,6 @@ func GetKubeconfig(ns, webEndpoint, kubeconfig string) string {
 	client, err := clientgoutils.NewClientGoUtils(kubeconfig, ns)
 	log.Debugf("kubeconfig %s \n", kubeconfig)
 	if err != nil || client == nil {
-		log.Fatalf("new go client fail, err %s, or check you kubeconfig\n", err)
 		panic("new go client fail, or check you kubeconfig")
 	}
 	kubectl, err := tools.CheckThirdPartyCLI()
@@ -165,13 +164,11 @@ func GetKubeconfig(ns, webEndpoint, kubeconfig string) string {
 	}
 	r, err := req.New().Get(webEndpoint+WebServerServiceAccountApi, header)
 	if err != nil {
-		log.Fatalf("get kubeconfig error, err: %s", err)
 		panic(errors.Errorf("get kubeconfig error, err: %v, response: %v", err, r))
 	}
 	re := Response{}
 	err = r.ToJSON(&re)
 	if re.Code != 0 || len(re.Data) == 0 || re.Data[0] == nil {
-		log.Fatalf("get kubeconfig response error, err: %s", re.Message)
 		panic(errors.Errorf("get kubeconfig response error, err: %s", re.Message))
 	}
 	config := re.Data[0].KubeConfig
