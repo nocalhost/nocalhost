@@ -86,7 +86,7 @@ func InstallNhctl(version string) {
 	if needChmod {
 		cmd = exec.Command("sh", "-c", "chmod +x nhctl")
 		nhctlcli.Runner.RunPanicIfError(cmd)
-		cmd = exec.Command("sh", "-c", "mv ./nhctl /usr/local/bin/nhctl")
+		cmd = exec.Command("sh", "-c", "sudo mv ./nhctl /usr/local/bin/nhctl")
 		nhctlcli.Runner.RunPanicIfError(cmd)
 	}
 }
