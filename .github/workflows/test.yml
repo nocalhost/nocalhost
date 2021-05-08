@@ -62,7 +62,6 @@ jobs:
           wait "DescribeArtifactProperties" "public" "nocalhost-dep" $COMMIT_ID
   linux:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
     needs: [ "image" ]
     steps:
       - uses: actions/checkout@master
@@ -86,7 +85,6 @@ jobs:
           cat ~/.kube/config
           ls -lah ~/.kube/config
       - name: Testing
-        timeout-minutes: 60
         run: |
           export TAG="${{ env.RELEASE_VERSION }}"
           export COMMIT_ID=${GITHUB_SHA}
@@ -96,7 +94,6 @@ jobs:
           ./test
   macos:
     runs-on: macos-latest
-    timeout-minutes: 180
     needs: [ "image" ]
     steps:
       - uses: actions/checkout@master
@@ -113,7 +110,6 @@ jobs:
       - name: Kubectl tool installer
         uses: Azure/setup-kubectl@v1
       - name: Testing
-        timeout-minutes: 180
         shell: bash
         run: |
           export TAG="${{ env.RELEASE_VERSION }}"
@@ -126,7 +122,6 @@ jobs:
   windows:
     runs-on: windows-latest
     needs: [ "image" ]
-    timeout-minutes: 180
     steps:
       - uses: actions/checkout@master
         timeout-minutes: 10
@@ -141,8 +136,7 @@ jobs:
         shell: bash
       - name: Kubectl tool installer
         uses: Azure/setup-kubectl@v1
-      - name: testing
-        timeout-minutes: 180
+      - name: Testing
         shell: bash
         run: |
           curl https://eternallybored.org/misc/wget/1.21.1/64/wget.exe -o wget.exe
@@ -166,7 +160,6 @@ jobs:
           ./test
   minikube-linux:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
     needs: [ "image" ]
     steps:
       - uses: actions/checkout@master
@@ -197,7 +190,6 @@ jobs:
           cat ~/.kube/config
           ls -lah ~/.kube/config
       - name: Testing
-        timeout-minutes: 180
         run: |
           export TAG="${{ env.RELEASE_VERSION }}"
           export COMMIT_ID=${GITHUB_SHA}
