@@ -180,8 +180,8 @@ jobs:
           kubernetes version: 'v1.19.2'
           github token: ${{ secrets.GITHUB_TOKEN }}
         timeout-minutes: 10
-      - name: Sleep 30 seconds waiting for minikube ready
-        run: sleep 30
+      - name: Sleep 180 seconds waiting for minikube ready
+        run: sleep 180
       - name: Kubernetes info
         timeout-minutes: 5
         run: |
