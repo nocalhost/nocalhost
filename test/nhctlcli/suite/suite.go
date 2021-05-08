@@ -22,7 +22,8 @@ import (
 
 // test suite
 type T struct {
-	Cli *nhctlcli.CLI
+	Cli       *nhctlcli.CLI
+	CleanFunc func()
 }
 
 // Run command and clean environment after finished
@@ -37,7 +38,7 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 	fmt.Println("Testing " + name)
 	defer func() {
 		if err := recover(); err != nil {
-			t.clean()
+			t.Clean()
 			panic(err)
 		}
 	}()
@@ -47,6 +48,8 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 	testcase.UninstallBookInfo(t.Cli)
 }
 
-func (t *T) clean() {
-	testcase.UninstallBookInfo(t.Cli)
+func (t *T) Clean() {
+	if t.CleanFunc != nil {
+		t.CleanFunc()
+	}
 }

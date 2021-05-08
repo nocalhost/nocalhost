@@ -34,9 +34,9 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"time"
 )
 
-var StopChan = make(chan int32, 1)
 var StatusChan = make(chan int32, 1)
 var WebServerEndpointChan = make(chan string)
 
@@ -87,7 +87,7 @@ func InstallNhctl(version string) {
 	if needChmod {
 		cmd = exec.Command("sh", "-c", "chmod +x nhctl")
 		nhctlcli.Runner.RunPanicIfError(cmd)
-		cmd = exec.Command("sh", "-c", "mv ./nhctl /usr/local/bin/nhctl")
+		cmd = exec.Command("sh", "-c", "sudo mv ./nhctl /usr/local/bin/nhctl")
 		nhctlcli.Runner.RunPanicIfError(cmd)
 	}
 }
@@ -106,40 +106,24 @@ func Init(nhctl *nhctlcli.CLI) {
 	defer cmd.Wait()
 	defer stdoutRead.Close()
 	lineBody := bufio.NewReaderSize(stdoutRead, 1024)
-	go func() {
-		for {
-			line, isPrefix, err := lineBody.ReadLine()
-			if err != nil && err != io.EOF && !strings.Contains(err.Error(), "closed") {
-				fmt.Printf("command error: %v, log : %v", err, string(line))
-				StatusChan <- 1
-			}
-			if len(line) != 0 && !isPrefix {
-				fmt.Println(string(line))
-			}
-			if strings.Contains(string(line), "Nocalhost init completed") {
-				reg := regexp.MustCompile("http://(.*?):(.*?) ")
-				submatch := reg.FindStringSubmatch(string(line))
-				if len(submatch) == 0 {
-					StatusChan <- 1
-					break
-				}
-				WebServerEndpointChan <- submatch[0]
-				StatusChan <- 0
-				break
-			}
-		}
-	}()
 	for {
-		select {
-		case stat := <-StopChan:
-			switch stat {
-			case 0: // ok
-				_ = cmd.Process.Kill()
-				return
-			default:
-				_ = cmd.Process.Kill()
-				panic("test case failed, exiting")
-			}
+		line, isPrefix, err := lineBody.ReadLine()
+		if err != nil && err != io.EOF && !strings.Contains(err.Error(), "closed") {
+			fmt.Printf("command error: %v, log : %v", err, string(line))
+			StatusChan <- 1
+		}
+		if len(line) != 0 && !isPrefix {
+			fmt.Println(string(line))
+		}
+		if strings.Contains(string(line), "Nocalhost init completed") {
+			StatusChan <- 0
+		}
+		reg := regexp.MustCompile("http://(.*?):([0-9]+)")
+		submatch := reg.FindStringSubmatch(string(line))
+		if len(submatch) > 0 {
+			WebServerEndpointChan <- submatch[0]
+			fmt.Println("Found webserver endpoint: " + submatch[0])
+			break
 		}
 	}
 }
@@ -169,39 +153,43 @@ func GetKubeconfig(ns, webEndpoint, kubeconfig string) string {
 	client, err := clientgoutils.NewClientGoUtils(kubeconfig, ns)
 	log.Debugf("kubeconfig %s \n", kubeconfig)
 	if err != nil || client == nil {
-		log.Fatalf("new go client fail, err %s, or check you kubeconfig\n", err)
 		panic("new go client fail, or check you kubeconfig")
 	}
 	kubectl, err := tools.CheckThirdPartyCLI()
 	res := request.
 		NewReq(webEndpoint, kubeconfig, kubectl, ns, 7000).
 		Login(app.DefaultInitUserEmail, app.DefaultInitPassword)
+	fmt.Println("Bearer: " + res.AuthToken)
 	header := req.Header{
 		"Accept":        "application/json",
 		"Authorization": "Bearer " + res.AuthToken,
 	}
-	r, err := req.New().Get(webEndpoint+WebServerServiceAccountApi, header)
-	if err != nil {
-		log.Fatalf("init fail, add dev space fail, err: %s", err)
-		panic("init fail, add dev space fail")
+	retryTimes := 20
+	var config string
+	for i := 0; i < retryTimes; i++ {
+		time.Sleep(time.Second * 2)
+		r, err := req.New().Get(webEndpoint+WebServerServiceAccountApi, header)
+		if err != nil {
+			fmt.Printf("get kubeconfig error, err: %v, response: %v, retrying\n", err, r)
+			continue
+		}
+		re := Response{}
+		err = r.ToJSON(&re)
+		if re.Code != 0 || len(re.Data) == 0 || re.Data[0] == nil || re.Data[0].KubeConfig == "" {
+			toString, _ := r.ToString()
+			fmt.Printf("get kubeconfig response error, response: %v, string: %s, retrying\n", re, toString)
+			continue
+		}
+		config = re.Data[0].KubeConfig
+		break
 	}
-	re := Response{}
-	err = r.ToJSON(&re)
-	if re.Code != 0 || len(re.Data) == 0 || re.Data[0] == nil {
-		log.Fatalf("init fail, add dev space, err: %s", re.Message)
-		panic("init fail, add dev space")
+	if config == "" {
+		panic("Can't not get kubeconfig from webserver, please check your code")
 	}
-	config := re.Data[0].KubeConfig
-	if config != "" {
-		f, _ := ioutil.TempFile("/tmp", "*kubeconfig")
-		_, _ = f.WriteString(config)
-		_ = f.Sync()
-		return f.Name()
-	} else {
-		fmt.Println("Not found")
-		panic("Not found")
-	}
-
+	f, _ := ioutil.TempFile("", "*newkubeconfig")
+	_, _ = f.WriteString(config)
+	_ = f.Sync()
+	return f.Name()
 }
 
 type Response struct {
