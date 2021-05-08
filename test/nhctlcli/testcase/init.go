@@ -165,14 +165,14 @@ func GetKubeconfig(ns, webEndpoint, kubeconfig string) string {
 	}
 	r, err := req.New().Get(webEndpoint+WebServerServiceAccountApi, header)
 	if err != nil {
-		log.Fatalf("init fail, add dev space fail, err: %s", err)
-		panic("init fail, add dev space fail")
+		log.Fatalf("get kubeconfig error, err: %s", err)
+		panic(errors.Errorf("get kubeconfig error, err: %v, response: %v", err, r))
 	}
 	re := Response{}
 	err = r.ToJSON(&re)
 	if re.Code != 0 || len(re.Data) == 0 || re.Data[0] == nil {
-		log.Fatalf("init fail, add dev space, err: %s", re.Message)
-		panic("init fail, add dev space")
+		log.Fatalf("get kubeconfig response error, err: %s", re.Message)
+		panic(errors.Errorf("get kubeconfig response error, err: %s", re.Message))
 	}
 	config := re.Data[0].KubeConfig
 	if config != "" {
