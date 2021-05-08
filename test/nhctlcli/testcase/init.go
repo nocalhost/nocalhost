@@ -186,7 +186,7 @@ func GetKubeconfig(ns, webEndpoint, kubeconfig string) string {
 	if config == "" {
 		panic("Can't not get kubeconfig from webserver, please check your code")
 	}
-	f, _ := ioutil.TempFile("/tmp", "*kubeconfig")
+	f, _ := ioutil.TempFile("", "*newkubeconfig")
 	_, _ = f.WriteString(config)
 	_ = f.Sync()
 	return f.Name()

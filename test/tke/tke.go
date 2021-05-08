@@ -278,6 +278,9 @@ func (t *task) WaitNetworkToBeReady() bool {
 				fmt.Printf("cluster: %s network endpoint create failed, retrying, response: %s\n",
 					t.clusterId, response.ToJsonString())
 				return false
+			default:
+				fmt.Printf("cluster: %s, network endpoint status: %s, waiting to be ready\n",
+					t.clusterId, *response.Response.Status)
 			}
 		} else {
 			fmt.Printf("waiting for cluster: %s network ready\n", t.clusterId)
