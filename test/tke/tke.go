@@ -296,7 +296,7 @@ func (t *task) GetKubeconfig() {
 			continue
 		}
 		var fi *os.File
-		if fi, err = ioutil.TempFile("/tmp", "*.yaml"); err != nil {
+		if fi, err = ioutil.TempFile("", "*kubeconfig"); err != nil {
 			fmt.Printf("create temp kubeconfig file error: %v\n", err)
 			continue
 		}
