@@ -176,11 +176,13 @@ func (t *task) CreateTKE() {
 
 		response, err := t.GetClient().CreateCluster(request)
 		if err != nil {
+			var s string
 			if strings.Contains(err.Error(), "CIDR_CONFLICT_WITH") {
-				fmt.Println("cidr conflicted, retrying " + string(rune(i)))
+				s = "cidr conflicted, retrying " + string(rune(i))
 			} else {
-				fmt.Printf("error has returned: %s, retrying\n", err.Error())
+				s = fmt.Sprintf("error has returned: %s, retrying", err.Error())
 			}
+			fmt.Println(s)
 			continue
 		}
 		if response != nil && response.Response != nil && response.Response.ClusterId != nil {
@@ -252,10 +254,9 @@ func (t *task) EnableInternetAccess() {
 		if _, err := t.GetClient().CreateClusterEndpointVip(request); err != nil {
 			fmt.Printf("error has returned: %v\n", err)
 			continue
-		} else {
-			fmt.Printf("enabled cluster: %s internet access\n", t.clusterId)
-			break
 		}
+		fmt.Printf("enabled cluster: %s internet access\n", t.clusterId)
+		return
 	}
 }
 
@@ -269,21 +270,25 @@ func (t *task) WaitNetworkToBeReady() bool {
 			fmt.Printf("Wait cluster: %s network to be ready error: %v\n", t.clusterId, err.Error())
 			continue
 		}
-		if response != nil && response.Response != nil && response.Response.Status != nil {
-			switch *response.Response.Status {
-			case "Created":
-				fmt.Printf("cluster: %s, network nedpoint create sucuessfully\n", t.clusterId)
-				return true
-			case "CreateFailed":
-				fmt.Printf("cluster: %s network endpoint create failed, retrying, response: %s\n",
-					t.clusterId, response.ToJsonString())
-				return false
-			default:
-				fmt.Printf("cluster: %s, network endpoint status: %s, waiting to be ready\n",
-					t.clusterId, *response.Response.Status)
-			}
-		} else {
+		if response == nil || response.Response == nil || response.Response.Status == nil {
 			fmt.Printf("waiting for cluster: %s network ready\n", t.clusterId)
+			continue
+		}
+		switch *response.Response.Status {
+		case "Created":
+			fmt.Printf("cluster: %s, network nedpoint create sucuessfully\n", t.clusterId)
+			return true
+		case "CreateFailed":
+			fmt.Printf("cluster: %s network endpoint create failed, retrying, response: %s\n",
+				t.clusterId, response.ToJsonString())
+			return false
+		case "Creating":
+			fmt.Printf("cluster: %s, network endpoint creating\n", t.clusterId)
+			continue
+		default:
+			fmt.Printf("cluster: %s, network endpoint status: %s, waiting to be ready\n",
+				t.clusterId, *response.Response.Status)
+			return false
 		}
 	}
 }
@@ -326,10 +331,10 @@ func (t *task) Delete() {
 		time.Sleep(time.Second * 5)
 		_, err := t.GetClient().DeleteCluster(request)
 		if err != nil {
-			fmt.Printf("Delete tke cluster: %s error, retrying, error info: %v\n", t.clusterId, err)
-		} else {
-			fmt.Printf("Delete tke cluster: %s successfully\n", t.clusterId)
-			return
+			fmt.Printf("delete tke cluster: %s error, retrying, error info: %v\n", t.clusterId, err)
+			continue
 		}
+		fmt.Printf("delete tke cluster: %s successfully\n", t.clusterId)
+		return
 	}
 }
