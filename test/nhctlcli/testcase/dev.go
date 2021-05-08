@@ -64,22 +64,24 @@ func SyncCheck(cli *nhctlcli.CLI, moduleName string) {
 		moduleName, cli.Namespace, cli.KubeConfig, filename,
 	)
 	fmt.Println("Running command: " + cmd)
-	ok, log := util.WaitForCommandDone(cmd)
+	var log string
+	var ok bool
+	for i := 0; i < 100; i++ {
+		time.Sleep(time.Second * 2)
+		ok, log = util.WaitForCommandDone(cmd)
+		if !ok {
+			fmt.Printf("kubectl exec command error, log: %s, retry\n", log)
+			continue
+		}
+		break
+	}
 	if !ok {
-		panic(
-			fmt.Sprintf(
-				"test case failed, reason: cat file %s error,"+
-					" command: %s, log: %v", filename, cmd, log,
-			),
-		)
+		panic(fmt.Sprintf("test case failed, reason: cat file %s error,"+
+			" command: %s, log: %v", filename, cmd, log))
 	}
 	if !strings.Contains(log, content) {
-		panic(
-			fmt.Sprintf(
-				"test case failed, reason: file content:"+
-					" %s not equals command log: %s", content, log,
-			),
-		)
+		panic(fmt.Sprintf("test case failed, reason: file content:"+
+			" %s not equals command log: %s", content, log))
 	}
 }
 
