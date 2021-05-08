@@ -28,6 +28,12 @@ type T struct {
 
 // Run command and clean environment after finished
 func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...string) {
+	defer func() {
+		if err := recover(); err != nil {
+			t.Clean()
+			panic(err)
+		}
+	}()
 	testcase.InstallBookInfo(t.Cli)
 	util.WaitToBeStatus(t.Cli.Namespace, "pods", "app=reviews", func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning
@@ -36,12 +42,6 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning
 	})
 	fmt.Println("Testing " + name)
-	defer func() {
-		if err := recover(); err != nil {
-			t.Clean()
-			panic(err)
-		}
-	}()
 	fn(t.Cli, pp...)
 	fmt.Println("Testing done " + name)
 	//testcase.Reset(t.Cli)
