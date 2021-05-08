@@ -22,7 +22,8 @@ import (
 
 // test suite
 type T struct {
-	Cli *nhctlcli.CLI
+	Cli       *nhctlcli.CLI
+	CleanFunc func()
 }
 
 // Run command and clean environment after finished
@@ -48,5 +49,7 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 }
 
 func (t *T) clean() {
-	testcase.UninstallBookInfo(t.Cli)
+	if t.CleanFunc != nil {
+		t.CleanFunc()
+	}
 }

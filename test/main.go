@@ -18,13 +18,8 @@ import (
 
 func main() {
 	cli, _, v2, cancelFunc := suite.Prepare()
-	defer func() {
-		if cancelFunc != nil {
-			cancelFunc()
-		}
-	}()
 	// ---------base line-----------
-	t := suite.T{Cli: cli}
+	t := suite.T{Cli: cli, CleanFunc: cancelFunc}
 	t.Run("install", suite.Install)
 	t.Run("dev", suite.Dev)
 	t.Run("port-forward", suite.PortForward)
