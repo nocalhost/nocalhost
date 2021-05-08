@@ -137,6 +137,7 @@ jobs:
         curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${{ env.RELEASE_VERSION }}"
 
     - name: Update Homebrew tap
+      if: "!contains(github.ref,'rc')"
       run: |
         git clone https://github.com/nocalhost/homebrew-repo.git
         ./scripts/release/tap.rb ${{ env.RELEASE_VERSION }} `cat build/nhctl-darwin-amd64-SHA256` `cat build/nhctl-linux-amd64-SHA256` > homebrew-repo/Formula/nocalhost.rb
@@ -158,6 +159,7 @@ jobs:
         git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost-web.git ${{ env.RELEASE_VERSION }}
 
     - name: Release vscode plugin
+      if: "!contains(github.ref,'rc')"
       run: |
         git clone https://github.com/nocalhost/nocalhost-vscode-plugin.git
         cd nocalhost-vscode-plugin
@@ -168,6 +170,7 @@ jobs:
         git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost-vscode-plugin.git ${{ env.RELEASE_VERSION }}
 
     - name: Release Intellij plugin
+      if: "!contains(github.ref,'rc')"
       run: |
         git clone https://github.com/nocalhost/nocalhost-intellij-plugin.git
         cd nocalhost-intellij-plugin
