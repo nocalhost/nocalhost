@@ -34,6 +34,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"time"
 )
 
 var StatusChan = make(chan int32, 1)
@@ -158,32 +159,37 @@ func GetKubeconfig(ns, webEndpoint, kubeconfig string) string {
 	res := request.
 		NewReq(webEndpoint, kubeconfig, kubectl, ns, 7000).
 		Login(app.DefaultInitUserEmail, app.DefaultInitPassword)
-	fmt.Println("Token: " + res.AuthToken)
+	fmt.Println("Bearer: " + res.AuthToken)
 	header := req.Header{
 		"Accept":        "application/json",
 		"Authorization": "Bearer " + res.AuthToken,
 	}
-	r, err := req.New().Get(webEndpoint+WebServerServiceAccountApi, header)
-	if err != nil {
-		panic(errors.Errorf("get kubeconfig error, err: %v, response: %v", err, r))
+	retryTimes := 20
+	var config string
+	for i := 0; i < retryTimes; i++ {
+		time.Sleep(time.Second * 2)
+		r, err := req.New().Get(webEndpoint+WebServerServiceAccountApi, header)
+		if err != nil {
+			fmt.Printf("get kubeconfig error, err: %v, response: %v, retrying\n", err, r)
+			continue
+		}
+		re := Response{}
+		err = r.ToJSON(&re)
+		if re.Code != 0 || len(re.Data) == 0 || re.Data[0] == nil || re.Data[0].KubeConfig == "" {
+			toString, _ := r.ToString()
+			fmt.Printf("get kubeconfig response error, response: %v, string: %s, retrying\n", re, toString)
+			continue
+		}
+		config = re.Data[0].KubeConfig
+		break
 	}
-	re := Response{}
-	err = r.ToJSON(&re)
-	if re.Code != 0 || len(re.Data) == 0 || re.Data[0] == nil {
-		toString, _ := r.ToString()
-		panic(errors.Errorf("get kubeconfig response error, response: %v, string: %s", re, toString))
+	if config == "" {
+		panic("Can't not get kubeconfig from webserver, please check your code")
 	}
-	config := re.Data[0].KubeConfig
-	if config != "" {
-		f, _ := ioutil.TempFile("/tmp", "*kubeconfig")
-		_, _ = f.WriteString(config)
-		_ = f.Sync()
-		return f.Name()
-	} else {
-		fmt.Println("Not found")
-		panic("Not found")
-	}
-
+	f, _ := ioutil.TempFile("/tmp", "*kubeconfig")
+	_, _ = f.WriteString(config)
+	_ = f.Sync()
+	return f.Name()
 }
 
 type Response struct {

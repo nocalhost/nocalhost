@@ -195,7 +195,7 @@ func (t *task) WaitClusterToBeReady() {
 		time.Sleep(time.Second * 5)
 		response, err := t.GetClient().DescribeClusters(request)
 		if err != nil {
-			fmt.Println("wait Cluster to be ready occurs a error, info: " + err.Error())
+			fmt.Printf("wait Cluster: %s to be ready occurs a error, info: %v\n", t.clusterId, err)
 			continue
 		}
 		if response != nil &&
@@ -203,10 +203,10 @@ func (t *task) WaitClusterToBeReady() {
 			response.Response.Clusters != nil &&
 			len(response.Response.Clusters) != 0 &&
 			"Running" == *response.Response.Clusters[0].ClusterStatus {
-			fmt.Println("cluster ready")
+			fmt.Printf("cluster: %s ready\n", t.clusterId)
 			return
 		} else {
-			fmt.Println("cluster not ready")
+			fmt.Printf("cluster: %s not ready\n", t.clusterId)
 			continue
 		}
 	}
@@ -219,7 +219,7 @@ func (t task) WaitInstanceToBeReady() {
 		time.Sleep(time.Second * 5)
 		response, err := t.GetClient().DescribeClusterInstances(request)
 		if err != nil {
-			fmt.Println("wait instance to be ready occurs error, info: " + err.Error())
+			fmt.Printf("wait cluster: %s instance to be ready occurs error, info: %v", t.clusterId, err.Error())
 			continue
 		}
 		if response != nil &&
@@ -229,10 +229,10 @@ func (t task) WaitInstanceToBeReady() {
 			response.Response.InstanceSet[0] != nil &&
 			response.Response.InstanceSet[0].InstanceState != nil &&
 			*response.Response.InstanceSet[0].InstanceState == "running" {
-			fmt.Println("instance ready")
+			fmt.Printf("cluster: %s instance ready\n", t.clusterId)
 			return
 		}
-		fmt.Println("instance not ready")
+		fmt.Printf("cluster: %s instance not ready\n", t.clusterId)
 	}
 }
 
@@ -245,11 +245,11 @@ func (t *task) EnableInternetAccess() {
 	for {
 		time.Sleep(time.Second * 5)
 		if _, err := t.GetClient().CreateClusterEndpointVip(request); err != nil {
-			fmt.Printf("error has returned: %v", err)
+			fmt.Printf("error has returned: %v\n", err)
 			continue
 		} else {
-			fmt.Println("enable internet access successfully")
-			return
+			fmt.Printf("enabled cluster: %s internet access\n", t.clusterId)
+			break
 		}
 	}
 }
@@ -261,7 +261,7 @@ func (t *task) WaitNetworkToBeReady() bool {
 		time.Sleep(time.Second * 5)
 		response, err := t.GetClient().DescribeClusterEndpointVipStatus(request)
 		if err != nil {
-			fmt.Println("Wait network to be ready error, " + err.Error())
+			fmt.Printf("Wait cluster: %s network to be ready error: %v\n", t.clusterId, err.Error())
 			continue
 		}
 		if response != nil && response.Response != nil && response.Response.Status != nil {
@@ -269,11 +269,12 @@ func (t *task) WaitNetworkToBeReady() bool {
 			case "Created":
 				return true
 			case "CreateFailed":
-				fmt.Println("network endpoint create failed, retrying, response: " + response.ToJsonString())
+				fmt.Printf("cluster: %s network endpoint create failed, retrying, response: %s\n",
+					t.clusterId, response.ToJsonString())
 				return false
 			}
 		} else {
-			fmt.Println("Waiting for network ready")
+			fmt.Printf("Waiting for cluster: %s network ready\n", t.clusterId)
 		}
 	}
 }
@@ -313,9 +314,9 @@ func (t *task) Delete() {
 		time.Sleep(time.Second * 5)
 		_, err := t.GetClient().DeleteCluster(request)
 		if err != nil {
-			fmt.Printf("Delete tke error, retrying, error info: %v", err)
+			fmt.Printf("Delete tke cluster: %s error, retrying, error info: %v\n", t.clusterId, err)
 		} else {
-			fmt.Println("Delete tke successfully")
+			fmt.Printf("Delete tke cluster: %s successfully\n", t.clusterId)
 			return
 		}
 	}
