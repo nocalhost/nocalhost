@@ -81,6 +81,9 @@ var DefaultConfig = defaultConfig{
 	internetMaxBandwidthOut:   100,
 	maxNum:                    32,
 	ignoreClusterCIDRConflict: true,
+	endpoint:                  "tke.tencentcloudapi.com",
+	region:                    "ap-guangzhou",
+	cidrPattern:               "10.%d.0.0/24",
 }
 
 type defaultConfig struct {
@@ -95,14 +98,17 @@ type defaultConfig struct {
 	internetMaxBandwidthOut   int
 	maxNum                    uint64
 	ignoreClusterCIDRConflict bool
+	endpoint                  string
+	region                    string
+	cidrPattern               string
 }
 
 func (t *task) GetClient() *tke.Client {
 	if t.client == nil {
 		credential := common.NewCredential(t.secretId, t.secretKey)
 		cpf := profile.NewClientProfile()
-		cpf.HttpProfile.Endpoint = "tke.tencentcloudapi.com"
-		client, _ := tke.NewClient(credential, "ap-guangzhou", cpf)
+		cpf.HttpProfile.Endpoint = DefaultConfig.endpoint
+		client, _ := tke.NewClient(credential, DefaultConfig.region, cpf)
 		t.client = client
 	}
 	return t.client
@@ -110,7 +116,6 @@ func (t *task) GetClient() *tke.Client {
 
 func (t *task) CreateTKE() {
 	retryTimes := 250
-	cidrPattern := "10.%d.0.0/24"
 	clusterName := "test-" + uuid.New().String()
 
 	request := tke.NewCreateClusterRequest()
@@ -166,7 +171,7 @@ func (t *task) CreateTKE() {
 
 	for i := 0; i < retryTimes; i++ {
 		time.Sleep(time.Second * 5)
-		cidr := fmt.Sprintf(cidrPattern, i)
+		cidr := fmt.Sprintf(DefaultConfig.cidrPattern, i)
 		request.ClusterCIDRSettings.ClusterCIDR = &cidr
 
 		response, err := t.GetClient().CreateCluster(request)
@@ -267,6 +272,7 @@ func (t *task) WaitNetworkToBeReady() bool {
 		if response != nil && response.Response != nil && response.Response.Status != nil {
 			switch *response.Response.Status {
 			case "Created":
+				fmt.Printf("cluster: %s, network nedpoint create sucuessfully\n", t.clusterId)
 				return true
 			case "CreateFailed":
 				fmt.Printf("cluster: %s network endpoint create failed, retrying, response: %s\n",
@@ -274,7 +280,7 @@ func (t *task) WaitNetworkToBeReady() bool {
 				return false
 			}
 		} else {
-			fmt.Printf("Waiting for cluster: %s network ready\n", t.clusterId)
+			fmt.Printf("waiting for cluster: %s network ready\n", t.clusterId)
 		}
 	}
 }
@@ -287,21 +293,24 @@ func (t *task) GetKubeconfig() {
 		response, err := t.GetClient().DescribeClusterKubeconfig(request)
 		if err != nil || response == nil || response.Response == nil || response.Response.Kubeconfig == nil {
 			fmt.Println("Retry to get kubeconfig")
-		} else {
-			var fi *os.File
-			if fi, err = ioutil.TempFile("/tmp", "*.yaml"); err != nil {
-				continue
-			}
-			if _, err = fi.WriteString(*response.Response.Kubeconfig); err != nil {
-				continue
-			}
-			if err = fi.Sync(); err != nil {
-				continue
-			}
-			_ = os.Setenv("KUBECONFIG_PATH", fi.Name())
-			fmt.Println(fi.Name())
-			return
+			continue
 		}
+		var fi *os.File
+		if fi, err = ioutil.TempFile("/tmp", "*.yaml"); err != nil {
+			fmt.Printf("create temp kubeconfig file error: %v\n", err)
+			continue
+		}
+		if _, err = fi.WriteString(*response.Response.Kubeconfig); err != nil {
+			fmt.Printf("write kubeconfig to temp file error: %v\n", err)
+			continue
+		}
+		if err = fi.Sync(); err != nil {
+			fmt.Printf("flush kubeconfig to disk error: %v\n", err)
+			continue
+		}
+		_ = os.Setenv("KUBECONFIG_PATH", fi.Name())
+		fmt.Println(fi.Name())
+		return
 	}
 }
 
