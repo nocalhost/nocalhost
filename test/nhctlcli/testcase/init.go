@@ -36,7 +36,6 @@ import (
 	"strings"
 )
 
-var StopChan = make(chan int32, 1)
 var StatusChan = make(chan int32, 1)
 var WebServerEndpointChan = make(chan string)
 
@@ -106,39 +105,24 @@ func Init(nhctl *nhctlcli.CLI) {
 	defer cmd.Wait()
 	defer stdoutRead.Close()
 	lineBody := bufio.NewReaderSize(stdoutRead, 1024)
-	go func() {
-		for {
-			line, isPrefix, err := lineBody.ReadLine()
-			if err != nil && err != io.EOF && !strings.Contains(err.Error(), "closed") {
-				fmt.Printf("command error: %v, log : %v", err, string(line))
-				StatusChan <- 1
-			}
-			if len(line) != 0 && !isPrefix {
-				fmt.Println(string(line))
-			}
-			if strings.Contains(string(line), "Nocalhost init completed") {
-				StatusChan <- 0
-			}
-			reg := regexp.MustCompile("http://(.*?):(.*?) ")
-			submatch := reg.FindStringSubmatch(string(line))
-			if len(submatch) > 0 {
-				WebServerEndpointChan <- submatch[0]
-				fmt.Printf("Found webserver endpoint: %s", submatch[0])
-				break
-			}
-		}
-	}()
 	for {
-		select {
-		case stat := <-StopChan:
-			switch stat {
-			case 0: // ok
-				_ = cmd.Process.Kill()
-				return
-			default:
-				_ = cmd.Process.Kill()
-				panic("test case failed, exiting")
-			}
+		line, isPrefix, err := lineBody.ReadLine()
+		if err != nil && err != io.EOF && !strings.Contains(err.Error(), "closed") {
+			fmt.Printf("command error: %v, log : %v", err, string(line))
+			StatusChan <- 1
+		}
+		if len(line) != 0 && !isPrefix {
+			fmt.Println(string(line))
+		}
+		if strings.Contains(string(line), "Nocalhost init completed") {
+			StatusChan <- 0
+		}
+		reg := regexp.MustCompile("http://(.*?):([0-9]+)")
+		submatch := reg.FindStringSubmatch(string(line))
+		if len(submatch) > 0 {
+			WebServerEndpointChan <- submatch[0]
+			fmt.Println("Found webserver endpoint: " + submatch[0])
+			break
 		}
 	}
 }

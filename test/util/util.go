@@ -82,7 +82,7 @@ func WaitToBeStatus(namespace string, resource string, label string, checker fun
 	}
 	event, err := clientgowatch.UntilWithSync(ctx, watchlist, &v1.Pod{}, preConditionFunc, conditionFunc)
 	if err != nil {
-		fmt.Printf("wait to ready failed, error: %v, event: %v", err, event)
+		fmt.Printf("wait to ready failed, error: %v, event: %v\n", err, event)
 		return false
 	}
 	return true

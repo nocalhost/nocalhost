@@ -60,7 +60,7 @@ func SyncCheck(cli *nhctlcli.CLI, moduleName string) {
 	time.Sleep(30 * time.Second)
 	// not use nhctl exec is just because nhctl exec will stuck while cat file
 	cmd := fmt.Sprintf(
-		"kubectl exec -t deployment/%s -n test --kubeconfig=%s -- cat %s", moduleName, cli.KubeConfig, filename,
+		"kubectl exec -t deployment/%s -n %s --kubeconfig=%s -- cat %s", moduleName, cli.Namespace, cli.KubeConfig, filename,
 	)
 	fmt.Println("Running command: " + cmd)
 	ok, log := util.WaitForCommandDone(cmd)

@@ -108,23 +108,18 @@ func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string) {
 	v1, v2 = testcase.GetVersion()
 	testcase.InstallNhctl(v1)
 	kubeconfig := util.GetKubeconfig()
-	var ns string
-	var err error
-	if ns, err = clientgoutils.GetNamespaceFromKubeConfig(kubeconfig); err != nil {
-		panic(err)
-	}
-	if ns == "" {
-		panic(errors.New("--namespace or --kubeconfig mush be provided"))
-	}
-	tempCli := nhctlcli.NewNhctl(ns, kubeconfig)
+
+	tempCli := nhctlcli.NewNhctl("", kubeconfig)
 	util.Init(tempCli)
 	testcase.NhctlVersion(tempCli)
 	testcase.StopDaemon(tempCli)
 	go testcase.Init(tempCli)
 	if i := <-testcase.StatusChan; i != 0 {
-		testcase.StopChan <- 1
+		panic("Init nocalhost occurs error, exiting")
 	}
 	web := <-testcase.WebServerEndpointChan
+	var ns string
+	var err error
 	newKubeconfig := testcase.GetKubeconfig(ns, web, kubeconfig)
 	if ns, err = clientgoutils.GetNamespaceFromKubeConfig(newKubeconfig); err != nil {
 		panic(err)
@@ -132,6 +127,6 @@ func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string) {
 	if ns == "" {
 		panic(errors.New("--namespace or --kubeconfig mush be provided"))
 	}
-	cli = nhctlcli.NewNhctl(ns, kubeconfig)
+	cli = nhctlcli.NewNhctl(ns, newKubeconfig)
 	return
 }
