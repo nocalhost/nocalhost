@@ -62,13 +62,13 @@ jobs:
           wait "DescribeArtifactProperties" "public" "nocalhost-dep" $COMMIT_ID
   linux:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
     needs: [ "image" ]
     steps:
       - uses: actions/checkout@master
         timeout-minutes: 10
       - name: git tag
-        timeout-minutes: 60
+        timeout-minutes: 10
         if: ${{ github.event.workflow_run.conclusion == 'success' }}
         run: |
           git fetch --prune --unshallow --tags
@@ -161,6 +161,40 @@ jobs:
           export COMMIT_ID=${GITHUB_SHA}
           export TKE_SECRET_ID=${{ secrets.TKE_SECRET_ID }}
           export TKE_SECRET_KEY=${{ secrets.TKE_SECRET_KEY }}
+          cd test
+          go build
+          ./test
+  minikube-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    needs: [ "image" ]
+    steps:
+      - uses: actions/checkout@master
+        timeout-minutes: 10
+      - name: git tag
+        timeout-minutes: 10
+        if: ${{ github.event.workflow_run.conclusion == 'success' }}
+        run: |
+          git fetch --prune --unshallow --tags
+          TAG=$(git tag | tail -2 | xargs)
+          echo $TAG
+          echo "RELEASE_VERSION=${TAG}" >> $GITHUB_ENV
+        shell: bash
+      - uses: medyagh/setup-minikube@v0.0.2
+        timeout-minutes: 10
+      - name: Kubernetes info
+        timeout-minutes: 5
+        run: |
+          kubectl cluster-info
+          kubectl get pods -n kube-system
+          cat ~/.kube/config
+          ls -lah ~/.kube/config
+      - name: Testing
+        timeout-minutes: 180
+        run: |
+          export TAG="${{ env.RELEASE_VERSION }}"
+          export COMMIT_ID=${GITHUB_SHA}
+          export KUBECONFIG_PATH=/home/runner/.kube/config
           cd test
           go build
           ./test
