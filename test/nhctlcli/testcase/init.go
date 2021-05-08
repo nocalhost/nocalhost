@@ -158,6 +158,7 @@ func GetKubeconfig(ns, webEndpoint, kubeconfig string) string {
 	res := request.
 		NewReq(webEndpoint, kubeconfig, kubectl, ns, 7000).
 		Login(app.DefaultInitUserEmail, app.DefaultInitPassword)
+	fmt.Println("Token: " + res.AuthToken)
 	header := req.Header{
 		"Accept":        "application/json",
 		"Authorization": "Bearer " + res.AuthToken,
@@ -169,7 +170,8 @@ func GetKubeconfig(ns, webEndpoint, kubeconfig string) string {
 	re := Response{}
 	err = r.ToJSON(&re)
 	if re.Code != 0 || len(re.Data) == 0 || re.Data[0] == nil {
-		panic(errors.Errorf("get kubeconfig response error, err: %s", re.Message))
+		toString, _ := r.ToString()
+		panic(errors.Errorf("get kubeconfig response error, response: %v, string: %s", re, toString))
 	}
 	config := re.Data[0].KubeConfig
 	if config != "" {
