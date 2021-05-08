@@ -59,27 +59,25 @@ func SyncCheck(cli *nhctlcli.CLI, moduleName string) {
 	// wait file to be synchronize
 	time.Sleep(30 * time.Second)
 	// not use nhctl exec is just because nhctl exec will stuck while cat file
-	/*cmd := fmt.Sprintf(
-		"kubectl exec -t deployment/%s -n %s cat %s --kubeconfig=%s",
-		moduleName, cli.Namespace, filename, cli.KubeConfig,
-	)*/
-	cmd := cli.Command(context.Background(), "exec", "bookinfo", "-d", moduleName, "-c", "cat "+filename)
-	stdout, _, err := nhctlcli.Runner.Run(cmd)
-	//fmt.Println("Running command: " + cmd)
-	//ok, log := util.WaitForCommandDone(cmd)
-	if err != nil {
+	cmd := fmt.Sprintf(
+		"kubectl exec -t deployment/%s -n %s --kubeconfig=%s -- cat %s",
+		moduleName, cli.Namespace, cli.KubeConfig, filename,
+	)
+	fmt.Println("Running command: " + cmd)
+	ok, log := util.WaitForCommandDone(cmd)
+	if !ok {
 		panic(
 			fmt.Sprintf(
 				"test case failed, reason: cat file %s error,"+
-					" command: %s, log: %v", filename, cmd, stdout,
+					" command: %s, log: %v", filename, cmd, log,
 			),
 		)
 	}
-	if !strings.Contains(stdout, content) {
+	if !strings.Contains(log, content) {
 		panic(
 			fmt.Sprintf(
 				"test case failed, reason: file content:"+
-					" %s not equals command log: %s", content, stdout,
+					" %s not equals command log: %s", content, log,
 			),
 		)
 	}
