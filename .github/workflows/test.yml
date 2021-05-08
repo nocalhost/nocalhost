@@ -56,8 +56,6 @@ jobs:
               fi
             done
           }
-          echo 'wait for testcase'
-          wait "DescribeArtifactProperties" "public" "testcase" $COMMIT_ID
           echo 'wait for nocalhost-api'
           wait "DescribeArtifactProperties" "public" "nocalhost-api" $COMMIT_ID
           echo 'wait for nocalhost-dep'
@@ -76,9 +74,7 @@ jobs:
           git fetch --prune --unshallow --tags
           TAG=$(git tag | tail -2 | xargs)
           echo $TAG
-          echo "RELEASE_VERSION<<EOF" >> $GITHUB_ENV
-          echo "$TAG" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          echo "RELEASE_VERSION=${TAG}" >> $GITHUB_ENV
         shell: bash
       - uses: engineerd/setup-kind@v0.5.0
         timeout-minutes: 10
@@ -89,17 +85,15 @@ jobs:
           kubectl get pods -n kube-system
           cat ~/.kube/config
           ls -lah ~/.kube/config
-          cd ~/.kube/
-          pwd
       - name: Testing
         timeout-minutes: 60
         run: |
-          SHA=${GITHUB_SHA}
-          kubectl create namespace test || true
-          IMAGE=codingcorp-docker.pkg.coding.net/nocalhost/public/testcase:$SHA
-          docker run -d -v /home/runner/.kube/config:/root/.kube/config -e COMMIT_ID=$SHA -e TAG="${{ env.RELEASE_VERSION }}" --network host --name $SHA $IMAGE
-          docker logs $SHA -f || true
-          ID=$(docker inspect "$(docker ps -aq --filter name=$SHA)" --format='{{.State.ExitCode}}') && echo "$ID" | grep '^0$'
+          export TAG="${{ env.RELEASE_VERSION }}"
+          export COMMIT_ID=${GITHUB_SHA}
+          export KUBECONFIG_PATH=/home/runner/.kube/config
+          cd test
+          go build
+          ./test
   macos:
     runs-on: macos-latest
     timeout-minutes: 180
@@ -122,9 +116,8 @@ jobs:
         timeout-minutes: 180
         shell: bash
         run: |
-          SHA=${GITHUB_SHA}
           export TAG="${{ env.RELEASE_VERSION }}"
-          export COMMIT_ID=$SHA
+          export COMMIT_ID=${GITHUB_SHA}
           export TKE_SECRET_ID=${{ secrets.TKE_SECRET_ID }}
           export TKE_SECRET_KEY=${{ secrets.TKE_SECRET_KEY }}
           cd test
@@ -163,10 +156,9 @@ jobs:
           PATH="${ADD_PATH}:${PATH}"
           export PATH
 
-          SHA=${GITHUB_SHA}
           echo ${{ env.RELEASE_VERSION }}
           export TAG="${{ env.RELEASE_VERSION }}"
-          export COMMIT_ID=$SHA
+          export COMMIT_ID=${GITHUB_SHA}
           export TKE_SECRET_ID=${{ secrets.TKE_SECRET_ID }}
           export TKE_SECRET_KEY=${{ secrets.TKE_SECRET_KEY }}
           cd test
