@@ -57,9 +57,5 @@ gotool: ## run go tool 'fmt' and 'vet'
 dep: ## Get the dependencies
 	@go mod download
 
-.PHONY: testcase
-testcase:
-	@bash ./scripts/build/testcase/docker
-
 clean: ### Remove build dir
 	@rm -fr build
