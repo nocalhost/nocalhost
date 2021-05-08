@@ -49,6 +49,7 @@ func Sync(cli *nhctlcli.CLI, _ ...string) {
 func Compatible(cli *nhctlcli.CLI, p ...string) {
 	module := "ratings"
 	port := 49080
+	testcase.Exec(cli)
 	testcase.DevStart(cli, module)
 	testcase.Sync(cli, module)
 	testcase.PortForwardStart(cli, module, port)
@@ -69,7 +70,6 @@ func Compatible(cli *nhctlcli.CLI, p ...string) {
 	testcase.Pvc(cli)
 	testcase.Reset(cli)
 	testcase.InstallBookInfoThreeTimes(cli)
-	testcase.Exec(cli)
 }
 
 func Reset(cli *nhctlcli.CLI, _ ...string) {
