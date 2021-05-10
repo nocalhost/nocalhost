@@ -12,21 +12,21 @@
 
 package app
 
-type SvcType string
+//type SvcType string
 
 const (
-	Deployment  SvcType = "deployment"
-	StatefulSet SvcType = "statefulSet"
-	DaemonSet   SvcType = "daemonSet"
-	Job         SvcType = "job"
-	CronJob     SvcType = "cronJob"
+//Deployment  SvcType = "deployment"
+//StatefulSet SvcType = "statefulSet"
+//DaemonSet   SvcType = "daemonSet"
+//Job         SvcType = "job"
+//CronJob     SvcType = "cronJob"
 
-	DevImageRevisionAnnotationKey            = "nhctl.dev.image.revision"
-	DevImageOriginalPodReplicasAnnotationKey = "nhctl.dev.image.original.pod.replicas"
-	DevImageRevisionAnnotationValue          = "first"
+//DevImageRevisionAnnotationKey            = "nhctl.dev.image.revision"
+//DevImageOriginalPodReplicasAnnotationKey = "nhctl.dev.image.original.pod.replicas"
+//DevImageRevisionAnnotationValue          = "first"
 
-	AppLabel     = "nocalhost.dev/app"
-	ServiceLabel = "nocalhost.dev/service"
+//AppLabel = "nocalhost.dev/app"
+//ServiceLabel = "nocalhost.dev/service"
 
-	PersistentVolumeDirLabel = "nocalhost.dev/dir"
+//PersistentVolumeDirLabel = "nocalhost.dev/dir"
 )

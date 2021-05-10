@@ -20,19 +20,24 @@ import (
 func InstallBookInfo(nhctl *nhctlcli.CLI) {
 	UninstallBookInfo(nhctl)
 	installBookInfoRawManifest(nhctl)
+	//PortForwardCheck(39080)
 }
 
 func InstallBookInfoThreeTimes(nhctl *nhctlcli.CLI) {
 	UninstallBookInfo(nhctl)
 	//installBookInfoHelmGit(nhctl)
+	//PortForwardCheck(39080)
 	//UninstallBookInfo(nhctl)
 	installBookInfoKustomizeGit(nhctl)
+	//PortForwardCheck(39080)
+
 	UninstallBookInfo(nhctl)
 	installBookInfoRawManifest(nhctl)
+	//PortForwardCheck(39080)
 }
 
 func UninstallBookInfo(nhctl *nhctlcli.CLI) {
-	nhctl.RunWithRollingOut(context.Background(), "uninstall", "bookinfo", "--force")
+	_, _, _ = nhctl.RunWithRollingOut(context.Background(), "uninstall", "bookinfo", "--force")
 }
 
 func installBookInfoRawManifest(nhctl *nhctlcli.CLI) {

@@ -28,7 +28,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-func (c *ClientGoUtils) newFactory() cmdutil.Factory {
+func (c *ClientGoUtils) NewFactory() cmdutil.Factory {
 	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
 	kubeConfigFlags.KubeConfig = &c.kubeConfigFilePath
 	kubeConfigFlags.Namespace = &c.namespace

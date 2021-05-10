@@ -219,6 +219,7 @@ func (d *DaemonClient) SendStartPortForwardCommand(
 		NameSpace:   nhSvc.NameSpace,
 		AppName:     nhSvc.Application,
 		Service:     nhSvc.Service,
+		ServiceType: nhSvc.ServiceType,
 		PodName:     nhSvc.PodName,
 		LocalPort:   localPort,
 		RemotePort:  remotePort,
@@ -245,6 +246,7 @@ func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource
 		NameSpace:   nhSvc.NameSpace,
 		AppName:     nhSvc.Application,
 		Service:     nhSvc.Service,
+		ServiceType: nhSvc.ServiceType,
 		PodName:     nhSvc.PodName,
 		LocalPort:   localPort,
 		RemotePort:  remotePort,
@@ -259,6 +261,34 @@ func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource
 	} else {
 		log.Infof("Response: %s", string(bys))
 		return nil
+	}
+}
+
+// SendGetAllInfoCommand send get resource info request to daemon
+func (d *DaemonClient) SendGetResourceInfoCommand(kubeconfig, ns, appName, resource, resourceName string,
+) (interface{}, error) {
+	cmd := &command.GetResourceInfoCommand{
+		CommandType:  command.GetResourceInfo,
+		KubeConfig:   kubeconfig,
+		Namespace:    ns,
+		AppName:      appName,
+		Resource:     resource,
+		ResourceName: resourceName,
+	}
+
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	if bys, err = d.sendAndWaitForResponse(bys); err != nil {
+		return nil, err
+	} else {
+		var result interface{}
+		if err = json.Unmarshal(bys, &result); err != nil {
+			return nil, err
+		}
+		//log.Infof("Response: %s", string(bys))
+		return result, nil
 	}
 }
 

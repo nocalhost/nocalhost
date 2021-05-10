@@ -16,20 +16,29 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/imroc/req"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"io"
+	"io/ioutil"
+	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/request"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/tools"
+	"nocalhost/pkg/nocalhost-api/app/api/v1/service_account"
 	"nocalhost/test/nhctlcli"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strings"
+	"time"
 )
 
-var StopChan = make(chan int32, 1)
 var StatusChan = make(chan int32, 1)
+var WebServerEndpointChan = make(chan string)
 
 func GetVersion() (v1 string, v2 string) {
 	commitId := os.Getenv("COMMIT_ID")
@@ -78,7 +87,7 @@ func InstallNhctl(version string) {
 	if needChmod {
 		cmd = exec.Command("sh", "-c", "chmod +x nhctl")
 		nhctlcli.Runner.RunPanicIfError(cmd)
-		cmd = exec.Command("sh", "-c", "mv ./nhctl /usr/local/bin/nhctl")
+		cmd = exec.Command("sh", "-c", "sudo mv ./nhctl /usr/local/bin/nhctl")
 		nhctlcli.Runner.RunPanicIfError(cmd)
 	}
 }
@@ -97,33 +106,24 @@ func Init(nhctl *nhctlcli.CLI) {
 	defer cmd.Wait()
 	defer stdoutRead.Close()
 	lineBody := bufio.NewReaderSize(stdoutRead, 1024)
-	go func() {
-		for {
-			line, isPrefix, err := lineBody.ReadLine()
-			if err != nil && err != io.EOF && !strings.Contains(err.Error(), "closed") {
-				fmt.Printf("command error: %v, log : %v", err, string(line))
-				StatusChan <- 1
-			}
-			if len(line) != 0 && !isPrefix {
-				fmt.Println(string(line))
-			}
-			if strings.Contains(string(line), "Nocalhost init completed") {
-				StatusChan <- 0
-				break
-			}
-		}
-	}()
 	for {
-		select {
-		case stat := <-StopChan:
-			switch stat {
-			case 0: // ok
-				_ = cmd.Process.Kill()
-				return
-			default:
-				_ = cmd.Process.Kill()
-				panic("test case failed, exiting")
-			}
+		line, isPrefix, err := lineBody.ReadLine()
+		if err != nil && err != io.EOF && !strings.Contains(err.Error(), "closed") {
+			fmt.Printf("command error: %v, log : %v", err, string(line))
+			StatusChan <- 1
+		}
+		if len(line) != 0 && !isPrefix {
+			fmt.Println(string(line))
+		}
+		if strings.Contains(string(line), "Nocalhost init completed") {
+			StatusChan <- 0
+		}
+		reg := regexp.MustCompile("http://(.*?):([0-9]+)")
+		submatch := reg.FindStringSubmatch(string(line))
+		if len(submatch) > 0 {
+			WebServerEndpointChan <- submatch[0]
+			fmt.Println("Found webserver endpoint: " + submatch[0])
+			break
 		}
 	}
 }
@@ -145,4 +145,54 @@ func StatusCheck(nhctl *nhctlcli.CLI, moduleName string) {
 	if !service.Syncing {
 		panic("test case failed, should be synchronizing")
 	}
+}
+
+var WebServerServiceAccountApi = "/v1/plugin/service_accounts"
+
+func GetKubeconfig(ns, webEndpoint, kubeconfig string) string {
+	client, err := clientgoutils.NewClientGoUtils(kubeconfig, ns)
+	log.Debugf("kubeconfig %s \n", kubeconfig)
+	if err != nil || client == nil {
+		panic("new go client fail, or check you kubeconfig")
+	}
+	kubectl, err := tools.CheckThirdPartyCLI()
+	res := request.
+		NewReq(webEndpoint, kubeconfig, kubectl, ns, 7000).
+		Login(app.DefaultInitUserEmail, app.DefaultInitPassword)
+	header := req.Header{
+		"Accept":        "application/json",
+		"Authorization": "Bearer " + res.AuthToken,
+	}
+	retryTimes := 20
+	var config string
+	for i := 0; i < retryTimes; i++ {
+		time.Sleep(time.Second * 2)
+		r, err := req.New().Get(webEndpoint+WebServerServiceAccountApi, header)
+		if err != nil {
+			log.Infof("get kubeconfig error, err: %v, response: %v, retrying", err, r)
+			continue
+		}
+		re := Response{}
+		err = r.ToJSON(&re)
+		if re.Code != 0 || len(re.Data) == 0 || re.Data[0] == nil || re.Data[0].KubeConfig == "" {
+			toString, _ := r.ToString()
+			log.Infof("get kubeconfig response error, response: %v, string: %s, retrying", re, toString)
+			continue
+		}
+		config = re.Data[0].KubeConfig
+		break
+	}
+	if config == "" {
+		panic("Can't not get kubeconfig from webserver, please check your code")
+	}
+	f, _ := ioutil.TempFile("", "*newkubeconfig")
+	_, _ = f.WriteString(config)
+	_ = f.Sync()
+	return f.Name()
+}
+
+type Response struct {
+	Code    int                                    `json:"code"`
+	Message string                                 `json:"message"`
+	Data    []*service_account.ServiceAccountModel `json:"data"`
 }

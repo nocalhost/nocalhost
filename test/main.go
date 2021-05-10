@@ -13,32 +13,13 @@
 package main
 
 import (
-	"nocalhost/test/nhctlcli"
 	"nocalhost/test/nhctlcli/suite"
-	"nocalhost/test/nhctlcli/testcase"
-	"nocalhost/test/util"
-	"os"
-	"time"
 )
 
 func main() {
-	go util.TimeoutChecker(1 * time.Hour)
-	v1, v2 := testcase.GetVersion()
-	testcase.InstallNhctl(v1)
-	path := os.Getenv("KUBECONFIG_PATH")
-	if path == "" {
-		path = "/root/.kube/config"
-	}
-	cli := nhctlcli.NewNhctl(path, "test")
-	util.Init(cli)
-	testcase.NhctlVersion(cli)
-	testcase.StopDaemon(cli)
-	go testcase.Init(cli)
-	if i := <-testcase.StatusChan; i != 0 {
-		testcase.StopChan <- 1
-	}
+	cli, _, v2, cancelFunc := suite.Prepare()
 	// ---------base line-----------
-	t := suite.T{Cli: cli}
+	t := suite.T{Cli: cli, CleanFunc: cancelFunc}
 	t.Run("install", suite.Install)
 	t.Run("dev", suite.Dev)
 	t.Run("port-forward", suite.PortForward)

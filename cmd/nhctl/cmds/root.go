@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap/zapcore"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -28,6 +29,7 @@ var (
 	debug        bool
 	kubeConfig   string // the path to the kubeconfig file
 	nocalhostApp *app.Application
+	nocalhostSvc *controller.Controller
 )
 
 func init() {

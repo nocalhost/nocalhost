@@ -270,69 +270,69 @@ func (a *ApplicationMeta) InitGoClient(kubeConfigPath string) error {
 	return err
 }
 
-func (a *ApplicationMeta) DeploymentDevModePossessor(deployment, identifier string) bool {
+func (a *ApplicationMeta) SvcDevModePossessor(name string, svcType SvcType, identifier string) bool {
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
 		a.DevMeta = devMeta
 	}
 
-	if _, ok := devMeta[DEPLOYMENT]; !ok {
-		devMeta[DEPLOYMENT] = map[ /* resource name */ string] /* identifier */ string{}
+	if _, ok := devMeta[svcType.Alias()]; !ok {
+		devMeta[svcType.Alias()] = map[ /* resource name */ string] /* identifier */ string{}
 	}
-	m := devMeta[DEPLOYMENT]
-	return m[deployment] == identifier && identifier != ""
+	m := devMeta[svcType.Alias()]
+	return m[name] == identifier && identifier != ""
 }
 
-func (a *ApplicationMeta) DeploymentDevStart(deployment, identifier string) error {
+func (a *ApplicationMeta) SvcDevStart(name string, svcType SvcType, identifier string) error {
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
 		a.DevMeta = devMeta
 	}
 
-	if _, ok := devMeta[DEPLOYMENT]; !ok {
-		devMeta[DEPLOYMENT] = map[ /* resource name */ string] /* identifier */ string{}
+	if _, ok := devMeta[svcType.Alias()]; !ok {
+		devMeta[svcType.Alias()] = map[ /* resource name */ string] /* identifier */ string{}
 	}
-	m := devMeta[DEPLOYMENT]
+	m := devMeta[svcType.Alias()]
 
-	if _, ok := m[deployment]; ok {
-		return errors.New(fmt.Sprintf("Deployment %s is already in DevMode! ", deployment))
+	if _, ok := m[name]; ok {
+		return errors.New(fmt.Sprintf("%s %s is already in DevMode! ", svcType, name))
 	}
 
-	m[deployment] = identifier
+	m[name] = identifier
 	return a.Update()
 }
 
-func (a *ApplicationMeta) DeploymentDevEnd(deployment string) error {
+func (a *ApplicationMeta) SvcDevEnd(name string, svcType SvcType) error {
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
 		a.DevMeta = devMeta
 	}
 
-	if _, ok := devMeta[DEPLOYMENT]; !ok {
-		devMeta[DEPLOYMENT] = map[ /* resource name */ string] /* identifier */ string{}
+	if _, ok := devMeta[svcType.Alias()]; !ok {
+		devMeta[svcType.Alias()] = map[ /* resource name */ string] /* identifier */ string{}
 	}
-	m := devMeta[DEPLOYMENT]
+	m := devMeta[svcType.Alias()]
 
-	delete(m, deployment)
+	delete(m, name)
 	return a.Update()
 }
 
-func (a *ApplicationMeta) CheckIfDeploymentDeveloping(deployment string) bool {
+func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType SvcType) bool {
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
 		a.DevMeta = devMeta
 	}
 
-	if _, ok := devMeta[DEPLOYMENT]; !ok {
-		devMeta[DEPLOYMENT] = map[ /* resource name */ string] /* identifier */ string{}
+	if _, ok := devMeta[svcType.Alias()]; !ok {
+		devMeta[svcType.Alias()] = map[ /* resource name */ string] /* identifier */ string{}
 	}
-	m := devMeta[DEPLOYMENT]
+	m := devMeta[svcType.Alias()]
 
-	_, ok := m[deployment]
+	_, ok := m[name]
 	return ok
 }
 

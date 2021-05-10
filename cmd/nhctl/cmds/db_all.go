@@ -20,7 +20,7 @@ import (
 
 func init() {
 	dbAllCmd.Flags().StringVar(&appName, "app", "", "List leveldb data of specified application")
-	//pvcListCmd.Flags().StringVar(&pvcFlags.Svc, "svc", "", "List PVCs of specified service")
+	//pvcListCmd.Flags().StringVar(&pvcFlags.Svc, "controller", "", "List PVCs of specified service")
 	dbCmd.AddCommand(dbAllCmd)
 }
 

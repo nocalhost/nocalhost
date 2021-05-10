@@ -14,20 +14,19 @@ package cmds
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v3"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
+var deploy string
+
 func init() {
-	describeCmd.Flags().StringVarP(
-		&deployment, "deployment", "d", "",
+	describeCmd.Flags().StringVarP(&deploy, "deployment", "d", "",
 		"k8s deployment which your developing service exists",
 	)
-	describeCmd.Flags().StringVarP(
-		&ServiceType, "type", "", "deployment",
-		"specify service type",
-	)
+	describeCmd.Flags().StringVarP(&serviceType, "type", "", "", "specify service type")
 	rootCmd.AddCommand(describeCmd)
 }
 
@@ -44,11 +43,19 @@ var describeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
 		initApp(applicationName)
-		if deployment == "" {
-			fmt.Print(nocalhostApp.GetDescription())
+		if deploy == "" {
+			appProfile := nocalhostApp.GetDescription()
+			bytes, err := yaml.Marshal(appProfile)
+			if err == nil {
+				fmt.Print(string(bytes))
+			}
 		} else {
-			CheckIfSvcExist(deployment, ServiceType)
-			fmt.Print(nocalhostApp.GetSvcDescription(deployment))
+			checkIfSvcExist(deploy, serviceType)
+			appProfile := nocalhostSvc.GetDescription()
+			bytes, err := yaml.Marshal(appProfile)
+			if err == nil {
+				fmt.Print(string(bytes))
+			}
 		}
 	},
 }

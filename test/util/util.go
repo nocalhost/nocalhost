@@ -21,8 +21,12 @@ import (
 	"k8s.io/client-go/tools/cache"
 	clientgowatch "k8s.io/client-go/tools/watch"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/nhctlcli"
+	"os"
 	"os/exec"
+	"runtime"
+	"strings"
 	"time"
 )
 
@@ -36,10 +40,10 @@ func Init(cli *nhctlcli.CLI) {
 	Client = temp
 }
 
-func WaitForCommandDone(command string) (bool, string) {
+func WaitForCommandDone(command string, args ...string) (bool, string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "sh", "-c", command)
+	cmd := exec.CommandContext(ctx, command, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return false, err.Error()
@@ -79,18 +83,39 @@ func WaitToBeStatus(namespace string, resource string, label string, checker fun
 	}
 	event, err := clientgowatch.UntilWithSync(ctx, watchlist, &v1.Pod{}, preConditionFunc, conditionFunc)
 	if err != nil {
-		fmt.Printf("wait to ready failed, error: %v, event: %v", err, event)
+		log.Infof("wait pod has the label: %s to ready failed, error: %v, event: %v", label, err, event)
 		return false
 	}
 	return true
 }
 
-func TimeoutChecker(d time.Duration) {
+func TimeoutChecker(d time.Duration, cancanFunc func()) {
 	tick := time.Tick(d)
 	for {
 		select {
 		case <-tick:
+			if cancanFunc != nil {
+				cancanFunc()
+			}
 			panic(fmt.Sprintf("test case failed, timeout: %v", d))
 		}
 	}
+}
+
+func NeedsToInitK8sOnTke() bool {
+	if strings.Contains(runtime.GOOS, "darwin") {
+		return true
+	} else if strings.Contains(runtime.GOOS, "windows") {
+		return true
+	} else {
+		return false
+	}
+}
+
+func GetKubeconfig() string {
+	kubeconfig := os.Getenv("KUBECONFIG_PATH")
+	if kubeconfig == "" {
+		kubeconfig = "/root/.kube/config"
+	}
+	return kubeconfig
 }

@@ -12,7 +12,7 @@
 
 package nhctlcli
 
-func NewNhctl(kubeconfig, namespace string) *CLI {
+func NewNhctl(namespace, kubeconfig string) *CLI {
 	c := &Conf{
 		kubeconfig: kubeconfig,
 		namespace:  namespace,

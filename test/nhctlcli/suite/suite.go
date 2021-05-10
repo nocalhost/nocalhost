@@ -13,8 +13,8 @@
 package suite
 
 import (
-	"fmt"
 	v1 "k8s.io/api/core/v1"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/nhctlcli"
 	"nocalhost/test/nhctlcli/testcase"
 	"nocalhost/test/util"
@@ -22,11 +22,18 @@ import (
 
 // test suite
 type T struct {
-	Cli *nhctlcli.CLI
+	Cli       *nhctlcli.CLI
+	CleanFunc func()
 }
 
 // Run command and clean environment after finished
 func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...string) {
+	defer func() {
+		if err := recover(); err != nil {
+			t.Clean()
+			panic(err)
+		}
+	}()
 	testcase.InstallBookInfo(t.Cli)
 	util.WaitToBeStatus(t.Cli.Namespace, "pods", "app=reviews", func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning
@@ -34,19 +41,15 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 	util.WaitToBeStatus(t.Cli.Namespace, "pods", "app=ratings", func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning
 	})
-	fmt.Println("Testing " + name)
-	defer func() {
-		if err := recover(); err != nil {
-			t.Clean()
-			panic(err)
-		}
-	}()
+	log.Info("Testing " + name)
 	fn(t.Cli, pp...)
-	fmt.Println("Testing done " + name)
+	log.Info("Testing done " + name)
 	//testcase.Reset(t.Cli)
 	testcase.UninstallBookInfo(t.Cli)
 }
 
 func (t *T) Clean() {
-	testcase.UninstallBookInfo(t.Cli)
+	if t.CleanFunc != nil {
+		t.CleanFunc()
+	}
 }

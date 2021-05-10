@@ -13,10 +13,6 @@
 package app
 
 import (
-	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/internal/nhctl/profile"
-	"nocalhost/pkg/nhctl/log"
-	"os"
 	"path/filepath"
 )
 
@@ -68,51 +64,4 @@ func (a *Application) getIgnoredPath() []string {
 		results = append(results, filepath.Join(a.ResourceTmpDir, path))
 	}
 	return results
-}
-
-func (a *Application) GetDefaultWorkDir(svcName, container string) string {
-	svcProfile, _ := a.GetSvcProfile(svcName)
-	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).WorkDir != "" {
-		return svcProfile.GetContainerDevConfigOrDefault(container).WorkDir
-	}
-	return profile.DefaultWorkDir
-}
-
-func (a *Application) GetPersistentVolumeDirs(svcName, container string) []*profile.PersistentVolumeDir {
-	svcProfile, _ := a.GetSvcProfile(svcName)
-	if svcProfile != nil {
-		return svcProfile.GetContainerDevConfigOrDefault(container).PersistentVolumeDirs
-	}
-	return nil
-}
-
-//func (a *Application) GetDefaultSideCarImage(svcName string) string {
-//	return DefaultSideCarImage
-//}
-
-func (a *Application) GetDefaultDevImage(svcName string, container string) string {
-	svcProfile, _ := a.GetSvcProfile(svcName)
-	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).Image != "" {
-		return svcProfile.GetContainerDevConfigOrDefault(container).Image
-	}
-	return profile.DefaultDevImage
-}
-
-func (a *Application) GetDefaultDevPort(svcName string, container string) []string {
-	svcProfile, _ := a.GetSvcProfile(svcName)
-	if svcProfile != nil && len(svcProfile.GetContainerDevConfigOrDefault(container).PortForward) > 0 {
-		return svcProfile.GetContainerDevConfigOrDefault(container).PortForward
-	}
-	return []string{}
-}
-
-func (a *Application) GetApplicationSyncDir(deployment string) string {
-	dirPath := filepath.Join(a.GetHomeDir(), nocalhost.DefaultBinSyncThingDirName, deployment)
-	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-		err = os.MkdirAll(dirPath, 0700)
-		if err != nil {
-			log.Fatalf("fail to create syncthing directory: %s", dirPath)
-		}
-	}
-	return dirPath
 }

@@ -13,7 +13,6 @@
 package clientgoutils
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +29,7 @@ func (c *ClientGoUtils) ListDeployments() ([]v1.Deployment, error) {
 	return deps.Items, nil
 }
 
-// Update deployment
+// UpdateDeployment Update deployment
 // If wait, UpdateDeployment will not return until:
 // 1. Deployment is ready
 // 2. Previous revision of ReplicaSet terminated
@@ -38,11 +37,6 @@ func (c *ClientGoUtils) ListDeployments() ([]v1.Deployment, error) {
 // After update, UpdateDeployment will clean up previous revision's events
 // If Latest revision of ReplicaSet fails to be ready, return err
 func (c *ClientGoUtils) UpdateDeployment(deployment *v1.Deployment, wait bool) (*v1.Deployment, error) {
-	// Get current revision of replica set
-	rss, err := c.GetSortedReplicaSetsByDeployment(deployment.Name)
-	if err != nil {
-		return nil, err
-	}
 
 	dep, err := c.GetDeploymentClient().Update(c.ctx, deployment, metav1.UpdateOptions{})
 	if err != nil {
@@ -59,29 +53,6 @@ func (c *ClientGoUtils) UpdateDeployment(deployment *v1.Deployment, wait bool) (
 		err = c.WaitDeploymentToBeReady(dep.Name)
 		if err != nil {
 			return nil, err
-		}
-	}
-
-	// Delete previous revision ReplicaSet's event
-	if len(rss) == 0 { // No event needs to delete
-		return dep, err
-	}
-
-	rsName := rss[len(rss)-1].Name
-	events, err := c.ListEventsByReplicaSet(rsName)
-	if err != nil {
-		log.WarnE(err, fmt.Sprintf("Failed to delete events of %s", rsName))
-		return dep, nil
-	} else {
-		log.Debugf("Clean up events of %s", rsName)
-	}
-
-	for _, event := range events {
-		err = c.DeleteEvent(event.Name)
-		if err != nil {
-			log.WarnE(err, fmt.Sprintf("Failed to delete event %s", event.Name))
-		} else {
-			log.Logf("Event %s deleted", event.Name)
 		}
 	}
 
