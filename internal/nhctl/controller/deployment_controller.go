@@ -329,7 +329,7 @@ func getDefaultPodName(ctx context.Context, p pod_controller.PodController) (str
 		default:
 			podList, err = p.GetPodList()
 		}
-		if err != nil {
+		if err != nil || len(podList) == 0 {
 			log.Infof("Pod of %s has not been ready, waiting for it...", p.Name())
 			time.Sleep(time.Second)
 		} else {
