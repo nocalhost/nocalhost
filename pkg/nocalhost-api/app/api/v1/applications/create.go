@@ -17,7 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"k8s.io/apimachinery/pkg/util/validation"
-	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
@@ -65,7 +65,7 @@ func Create(c *gin.Context) {
 		}
 	}
 
-	if applicationContext.ApplicationName == app.DefaultNocalhostApplication {
+	if applicationContext.ApplicationName == nocalhost.DefaultNocalhostApplication {
 		api.SendResponse(c, errno.ErrSensitiveApplicationName, nil)
 	}
 

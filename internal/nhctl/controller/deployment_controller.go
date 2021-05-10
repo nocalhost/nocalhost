@@ -194,7 +194,7 @@ func (d *DeploymentController) ScaleReplicasToOne(ctx context.Context) error {
 			log.Info("Replicas has been set to 1")
 		}
 	} else {
-		log.Infof("Deployment %s replicas is already 1, no need to scale", d.Name)
+		log.Infof("Deployment %s replicas is already 1, no need to scale", d.Name())
 	}
 	return nil
 }
