@@ -21,6 +21,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	clientgowatch "k8s.io/client-go/tools/watch"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/nhctlcli"
 	"os"
 	"os/exec"
@@ -82,7 +83,7 @@ func WaitToBeStatus(namespace string, resource string, label string, checker fun
 	}
 	event, err := clientgowatch.UntilWithSync(ctx, watchlist, &v1.Pod{}, preConditionFunc, conditionFunc)
 	if err != nil {
-		fmt.Printf("wait pod has the label: %s to ready failed, error: %v, event: %v\n", label, err, event)
+		log.Infof("wait pod has the label: %s to ready failed, error: %v, event: %v", label, err, event)
 		return false
 	}
 	return true

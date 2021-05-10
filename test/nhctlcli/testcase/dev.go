@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	"net/http"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"nocalhost/test/nhctlcli"
 	"nocalhost/test/util"
@@ -75,7 +76,7 @@ func SyncCheck(cli *nhctlcli.CLI, moduleName string) {
 	if err != nil {
 		panic("can't find kubectl, please make sure kubectl is installed and in executable path")
 	}
-	fmt.Printf("Running command: %s %s\n", kubectl, args)
+	log.Infof("Running command: %s %s\n", kubectl, args)
 	var log string
 	var ok bool
 	for i := 0; i < 100; i++ {

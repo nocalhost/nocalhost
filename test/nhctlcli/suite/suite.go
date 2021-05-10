@@ -13,8 +13,8 @@
 package suite
 
 import (
-	"fmt"
 	v1 "k8s.io/api/core/v1"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/nhctlcli"
 	"nocalhost/test/nhctlcli/testcase"
 	"nocalhost/test/util"
@@ -41,9 +41,9 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 	util.WaitToBeStatus(t.Cli.Namespace, "pods", "app=ratings", func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning
 	})
-	fmt.Println("Testing " + name)
+	log.Info("Testing " + name)
 	fn(t.Cli, pp...)
-	fmt.Println("Testing done " + name)
+	log.Info("Testing done " + name)
 	//testcase.Reset(t.Cli)
 	testcase.UninstallBookInfo(t.Cli)
 }
