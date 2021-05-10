@@ -84,10 +84,16 @@ func (c *Controller) markReplicaSetRevision() error {
 			}
 		}
 		rs := rss[0]
-		err = c.Client.Patch("ReplicaSet", rs.Name,
-			fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
-				nocalhost.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
-				nocalhost.DevImageRevisionAnnotationKey, nocalhost.DevImageRevisionAnnotationValue))
+		retryTimes := 5
+		for i := 0; i < retryTimes; i++ {
+			time.Sleep(time.Second * 1)
+			if err = c.Client.Patch("ReplicaSet", rs.Name,
+				fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
+					nocalhost.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
+					nocalhost.DevImageRevisionAnnotationKey, nocalhost.DevImageRevisionAnnotationValue)); err == nil {
+				break
+			}
+		}
 		if err != nil {
 			return errors.New("Failed to update rs's annotation :" + err.Error())
 		}
