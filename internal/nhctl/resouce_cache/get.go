@@ -50,7 +50,7 @@ func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 }
 
 func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) interface{} {
-	var search *Search
+	var s *search
 	var err error
 	var ns string
 	if request.Namespace == "" {
@@ -58,9 +58,9 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		if err != nil && config != nil {
 			ns, _, _ = config.Namespace()
 		}
-		search, err = GetSearch(request.KubeConfig, ns)
+		s, err = GetSearch(request.KubeConfig, ns)
 	} else {
-		search, err = GetSearch(request.KubeConfig, request.Namespace)
+		s, err = GetSearch(request.KubeConfig, request.Namespace)
 	}
 	if err != nil {
 		return nil
@@ -70,11 +70,11 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	case "all":
 		// means it's cluster kubeconfig
 		if request.Namespace == "" {
-			nsObjectList, err := search.GetAllByResourceType("namespaces")
+			nsObjectList, err := s.GetAllByResourceType("namespaces")
 			if err == nil && nsObjectList != nil && len(nsObjectList) > 0 {
 				result := make([]Result, 0, len(nsObjectList))
 				for _, nsObject := range nsObjectList {
-					result = append(result, getApplicationByNs(nsObject.(metav1.Object).GetName(), request.KubeConfig, search))
+					result = append(result, getApplicationByNs(nsObject.(metav1.Object).GetName(), request.KubeConfig, s))
 				}
 				return result
 			} else {
@@ -82,7 +82,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				request.Namespace = ns
 			}
 		}
-		return getApplicationByNs(request.Namespace, request.KubeConfig, search)
+		return getApplicationByNs(request.Namespace, request.KubeConfig, s)
 	case "app", "application":
 		if request.ResourceName == "" {
 			metas := appmeta_manager.GetApplicationMetas(request.Namespace, request.KubeConfig)
@@ -112,9 +112,9 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		var err error
 		if request.ResourceName == "" {
 			if request.AppName == "" {
-				items, err = search.GetByResourceAndNamespace(request.Resource, "", request.Namespace)
+				items, err = s.GetByResourceAndNamespace(request.Resource, "", request.Namespace)
 			} else {
-				items, err = search.GetByResourceAndNameAndAppAndNamespace(request.Resource, "", request.AppName, request.Namespace)
+				items, err = s.GetByResourceAndNameAndAppAndNamespace(request.Resource, "", request.AppName, request.Namespace)
 			}
 			if err != nil || len(items) == 0 {
 				return nil
@@ -128,9 +128,9 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		} else {
 			// get specify resource name in namespace
 			if request.AppName == "" {
-				items, err = search.GetByResourceAndNamespace(request.Resource, request.ResourceName, request.Namespace)
+				items, err = s.GetByResourceAndNamespace(request.Resource, request.ResourceName, request.Namespace)
 			} else {
-				items, err = search.GetByResourceAndNameAndAppAndNamespace(request.Resource, request.ResourceName, request.AppName, request.Namespace)
+				items, err = s.GetByResourceAndNameAndAppAndNamespace(request.Resource, request.ResourceName, request.AppName, request.Namespace)
 			}
 			if err != nil || len(items) == 0 {
 				return nil
@@ -140,7 +140,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	}
 }
 
-func getApplicationByNs(ns, kubeconfig string, search *Search) Result {
+func getApplicationByNs(ns, kubeconfig string, search *search) Result {
 	result := Result{Namespace: ns}
 	applicationMetaList := appmeta_manager.GetApplicationMetas(ns, kubeconfig)
 	for _, applicationMeta := range applicationMetaList {
@@ -151,7 +151,7 @@ func getApplicationByNs(ns, kubeconfig string, search *Search) Result {
 	return result
 }
 
-func getApp(namespace, appName string, search *Search) App {
+func getApp(namespace, appName string, search *search) App {
 	groupToTypeMap := map[string][]string{
 		"Workloads":      {"deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods"},
 		"Networks":       {"services", "endpoints", "ingresses", "networkpolicies"},

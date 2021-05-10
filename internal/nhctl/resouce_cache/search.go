@@ -40,10 +40,10 @@ const (
 )
 
 // cache search for each kubeconfig
-var searchMap = NewLRU(10, func(i interface{}) { i.(*Search).Stop() })
+var searchMap = NewLRU(10, func(i interface{}) { i.(*search).Stop() })
 var lock sync.Mutex
 
-type Search struct {
+type search struct {
 	kubeconfig      string
 	informerFactory informers.SharedInformerFactory
 	supportSchema   map[string]schema.GroupVersionResource
@@ -101,15 +101,15 @@ func GetSupportGroupVersionResource(kubeconfigBytes []byte) ([]schema.GroupVersi
 	return gvrList, uniqueNameToGVR
 }
 
-func GetSearch(kubeconfigBytes string, namespace string) (*Search, error) {
+func GetSearch(kubeconfigBytes string, namespace string) (*search, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	// calculate kubeconfig content's sha value as unique cluster id
 	h := sha1.New()
 	h.Write([]byte(kubeconfigBytes))
 	sum := string(h.Sum([]byte(namespace)))
-	search, exist := searchMap.Get(sum)
-	if !exist || search == nil {
+	searcher, exist := searchMap.Get(sum)
+	if !exist || searcher == nil {
 		config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeconfigBytes))
 		if err != nil {
 			return nil, err
@@ -150,7 +150,7 @@ func GetSearch(kubeconfigBytes string, namespace string) (*Search, error) {
 		}()
 		<-firstSyncChannel
 
-		newSearcher := &Search{
+		newSearcher := &search{
 			kubeconfig:      kubeconfigBytes,
 			informerFactory: informerFactory,
 			supportSchema:   name2gvr,
@@ -158,19 +158,19 @@ func GetSearch(kubeconfigBytes string, namespace string) (*Search, error) {
 		}
 		searchMap.Add(sum, newSearcher)
 	}
-	search, _ = searchMap.Get(sum)
-	return search.(*Search), nil
+	searcher, _ = searchMap.Get(sum)
+	return searcher.(*search), nil
 }
 
-func (s *Search) Start() {
+func (s *search) Start() {
 	<-s.stopChannel
 }
 
-func (s *Search) Stop() {
+func (s *search) Stop() {
 	s.stopChannel <- struct{}{}
 }
 
-func (s *Search) GetByApplication(obj runtime.Object, appName string) (i []interface{}, e error) {
+func (s *search) GetByApplication(obj runtime.Object, appName string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -179,7 +179,7 @@ func (s *Search) GetByApplication(obj runtime.Object, appName string) (i []inter
 	return s.informerFactory.InformerFor(obj, nil).GetIndexer().ByIndex(byApplication, appName)
 }
 
-func (s *Search) GetByNamespace(obj runtime.Object, namespace string) (i []interface{}, e error) {
+func (s *search) GetByNamespace(obj runtime.Object, namespace string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -188,7 +188,7 @@ func (s *Search) GetByNamespace(obj runtime.Object, namespace string) (i []inter
 	return s.informerFactory.InformerFor(obj, nil).GetIndexer().ByIndex(byNamespace, namespace)
 }
 
-func (s *Search) GetByAppAndNamespace(obj runtime.Object, app, namespace string) (i []interface{}, e error) {
+func (s *search) GetByAppAndNamespace(obj runtime.Object, app, namespace string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -198,7 +198,7 @@ func (s *Search) GetByAppAndNamespace(obj runtime.Object, app, namespace string)
 }
 
 // example, po --> pods, Pods --> pods, pod --> pods, all works
-func (s *Search) GetAllByResourceType(resourceType string) (i []interface{}, e error) {
+func (s *search) GetAllByResourceType(resourceType string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -215,7 +215,7 @@ func (s *Search) GetAllByResourceType(resourceType string) (i []interface{}, e e
 	return informer.Informer().GetIndexer().List(), nil
 }
 
-func (s *Search) GetAllByResourceTypeAndNameAndNs(resourceType, resourceName, ns string) (i interface{}, b bool, e error) {
+func (s *search) GetAllByResourceTypeAndNameAndNs(resourceType, resourceName, ns string) (i interface{}, b bool, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -232,7 +232,7 @@ func (s *Search) GetAllByResourceTypeAndNameAndNs(resourceType, resourceName, ns
 	return informer.Informer().GetIndexer().GetByKey(nsResource(ns, resourceName))
 }
 
-func (s Search) GetAllByResourceTypeAndNs(resourceType, ns string) (i []interface{}, e error) {
+func (s search) GetAllByResourceTypeAndNs(resourceType, ns string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -249,7 +249,7 @@ func (s Search) GetAllByResourceTypeAndNs(resourceType, ns string) (i []interfac
 	return informer.Informer().GetIndexer().ByIndex(byNamespace, ns)
 }
 
-func (s *Search) GetByResourceAndApplication(resourceType string, appName string) (i []interface{}, e error) {
+func (s *search) GetByResourceAndApplication(resourceType string, appName string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -268,7 +268,7 @@ func (s *Search) GetByResourceAndApplication(resourceType string, appName string
 	return informer.Informer().GetIndexer().ByIndex(byApplication, appName)
 }
 
-func (s *Search) GetGvr(resourceType string) (schema.GroupVersionResource, error) {
+func (s *search) GetGvr(resourceType string) (schema.GroupVersionResource, error) {
 	if !s.supportSchema[resourceType].Empty() {
 		return s.supportSchema[resourceType], nil
 	}
@@ -278,7 +278,7 @@ func (s *Search) GetGvr(resourceType string) (schema.GroupVersionResource, error
 	return schema.GroupVersionResource{}, errors.New("Not support resource type: " + resourceType)
 }
 
-func (s *Search) GetByResourceAndNamespace(resourceType, resourceName, namespace string) (i []interface{}, e error) {
+func (s *search) GetByResourceAndNamespace(resourceType, resourceName, namespace string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -306,7 +306,7 @@ func (s *Search) GetByResourceAndNamespace(resourceType, resourceName, namespace
 	}
 }
 
-func (s *Search) GetByResourceAndAppAndNamespace(resourceType, appName, namespace string) (i []interface{}, e error) {
+func (s *search) GetByResourceAndAppAndNamespace(resourceType, appName, namespace string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -323,7 +323,7 @@ func (s *Search) GetByResourceAndAppAndNamespace(resourceType, appName, namespac
 	return informer.Informer().GetIndexer().ByIndex(byAppAndNs, nsResource(namespace, appName))
 }
 
-func (s *Search) GetByResourceAndNameAndAppAndNamespace(resourceType, resourceName, appName, namespace string) (i []interface{}, e error) {
+func (s *search) GetByResourceAndNameAndAppAndNamespace(resourceType, resourceName, appName, namespace string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -352,7 +352,7 @@ func (s *Search) GetByResourceAndNameAndAppAndNamespace(resourceType, resourceNa
 	return item, nil
 }
 
-func (s *Search) GetAllByType(obj runtime.Object) (i []interface{}, e error) {
+func (s *search) GetAllByType(obj runtime.Object) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -361,7 +361,7 @@ func (s *Search) GetAllByType(obj runtime.Object) (i []interface{}, e error) {
 	return s.informerFactory.InformerFor(obj, nil).GetIndexer().List(), nil
 }
 
-func (s *Search) GetByName(obj runtime.Object, namespace, name string) (item interface{}, exists bool, e error) {
+func (s *search) GetByName(obj runtime.Object, namespace, name string) (item interface{}, exists bool, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			exists = false
