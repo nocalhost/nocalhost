@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"io/ioutil"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"strings"
 	"time"
@@ -182,15 +183,15 @@ func (t *task) CreateTKE() {
 			} else {
 				s = fmt.Sprintf("error has returned: %s, retrying", err.Error())
 			}
-			fmt.Println(s)
+			log.Info(s)
 			continue
 		}
 		if response != nil && response.Response != nil && response.Response.ClusterId != nil {
 			t.clusterId = *response.Response.ClusterId
-			fmt.Println("create tke successfully, clusterId: " + t.clusterId)
+			log.Info("create tke successfully, clusterId: " + t.clusterId)
 			return
 		} else {
-			fmt.Println("response is null, retrying " + string(rune(i)))
+			log.Info("response is null, retrying " + string(rune(i)))
 		}
 	}
 }
@@ -202,7 +203,7 @@ func (t *task) WaitClusterToBeReady() {
 		time.Sleep(time.Second * 5)
 		response, err := t.GetClient().DescribeClusters(request)
 		if err != nil {
-			fmt.Printf("wait Cluster: %s to be ready occurs a error, info: %v\n", t.clusterId, err)
+			log.Infof("wait Cluster: %s to be ready occurs a error, info: %v", t.clusterId, err)
 			continue
 		}
 		if response != nil &&
@@ -210,10 +211,10 @@ func (t *task) WaitClusterToBeReady() {
 			response.Response.Clusters != nil &&
 			len(response.Response.Clusters) != 0 &&
 			"Running" == *response.Response.Clusters[0].ClusterStatus {
-			fmt.Printf("cluster: %s ready\n", t.clusterId)
+			log.Infof("cluster: %s ready", t.clusterId)
 			return
 		} else {
-			fmt.Printf("cluster: %s not ready\n", t.clusterId)
+			log.Infof("cluster: %s not ready", t.clusterId)
 			continue
 		}
 	}
@@ -226,7 +227,7 @@ func (t task) WaitInstanceToBeReady() {
 		time.Sleep(time.Second * 5)
 		response, err := t.GetClient().DescribeClusterInstances(request)
 		if err != nil {
-			fmt.Printf("wait cluster: %s instance to be ready occurs error, info: %v", t.clusterId, err.Error())
+			log.Infof("wait cluster: %s instance to be ready occurs error, info: %v", t.clusterId, err.Error())
 			continue
 		}
 		if response != nil &&
@@ -236,10 +237,10 @@ func (t task) WaitInstanceToBeReady() {
 			response.Response.InstanceSet[0] != nil &&
 			response.Response.InstanceSet[0].InstanceState != nil &&
 			*response.Response.InstanceSet[0].InstanceState == "running" {
-			fmt.Printf("cluster: %s instance ready\n", t.clusterId)
+			log.Infof("cluster: %s instance ready", t.clusterId)
 			return
 		}
-		fmt.Printf("cluster: %s instance not ready\n", t.clusterId)
+		log.Infof("cluster: %s instance not ready", t.clusterId)
 	}
 }
 
@@ -252,10 +253,10 @@ func (t *task) EnableInternetAccess() {
 	for {
 		time.Sleep(time.Second * 5)
 		if _, err := t.GetClient().CreateClusterEndpointVip(request); err != nil {
-			fmt.Printf("error has returned: %v\n", err)
+			log.Infof("error has returned: %v", err)
 			continue
 		}
-		fmt.Printf("enabled cluster: %s internet access\n", t.clusterId)
+		log.Infof("enabled cluster: %s internet access", t.clusterId)
 		return
 	}
 }
@@ -267,26 +268,26 @@ func (t *task) WaitNetworkToBeReady() bool {
 		time.Sleep(time.Second * 5)
 		response, err := t.GetClient().DescribeClusterEndpointVipStatus(request)
 		if err != nil {
-			fmt.Printf("Wait cluster: %s network to be ready error: %v\n", t.clusterId, err.Error())
+			log.Infof("Wait cluster: %s network to be ready error: %v", t.clusterId, err.Error())
 			continue
 		}
 		if response == nil || response.Response == nil || response.Response.Status == nil {
-			fmt.Printf("waiting for cluster: %s network ready\n", t.clusterId)
+			log.Infof("waiting for cluster: %s network ready", t.clusterId)
 			continue
 		}
 		switch *response.Response.Status {
 		case "Created":
-			fmt.Printf("cluster: %s, network nedpoint create sucuessfully\n", t.clusterId)
+			log.Infof("cluster: %s, network endpoint create successfully", t.clusterId)
 			return true
 		case "CreateFailed":
-			fmt.Printf("cluster: %s network endpoint create failed, retrying, response: %s\n",
+			log.Infof("cluster: %s network endpoint create failed, retrying, response: %s",
 				t.clusterId, response.ToJsonString())
 			return false
 		case "Creating":
-			fmt.Printf("cluster: %s, network endpoint creating\n", t.clusterId)
+			log.Infof("cluster: %s, network endpoint creating", t.clusterId)
 			continue
 		default:
-			fmt.Printf("cluster: %s, network endpoint status: %s, waiting to be ready\n",
+			log.Infof("cluster: %s, network endpoint status: %s, waiting to be ready",
 				t.clusterId, *response.Response.Status)
 			return false
 		}
@@ -300,24 +301,24 @@ func (t *task) GetKubeconfig() {
 		time.Sleep(time.Second * 5)
 		response, err := t.GetClient().DescribeClusterKubeconfig(request)
 		if err != nil || response == nil || response.Response == nil || response.Response.Kubeconfig == nil {
-			fmt.Println("Retry to get kubeconfig")
+			log.Info("Retry to get kubeconfig")
 			continue
 		}
 		var fi *os.File
 		if fi, err = ioutil.TempFile("", "*kubeconfig"); err != nil {
-			fmt.Printf("create temp kubeconfig file error: %v\n", err)
+			log.Infof("create temp kubeconfig file error: %v", err)
 			continue
 		}
 		if _, err = fi.WriteString(*response.Response.Kubeconfig); err != nil {
-			fmt.Printf("write kubeconfig to temp file error: %v\n", err)
+			log.Infof("write kubeconfig to temp file error: %v", err)
 			continue
 		}
 		if err = fi.Sync(); err != nil {
-			fmt.Printf("flush kubeconfig to disk error: %v\n", err)
+			log.Infof("flush kubeconfig to disk error: %v", err)
 			continue
 		}
 		_ = os.Setenv("KUBECONFIG_PATH", fi.Name())
-		fmt.Println(fi.Name())
+		log.Info(fi.Name())
 		return
 	}
 }
@@ -331,10 +332,10 @@ func (t *task) Delete() {
 		time.Sleep(time.Second * 5)
 		_, err := t.GetClient().DeleteCluster(request)
 		if err != nil {
-			fmt.Printf("delete tke cluster: %s error, retrying, error info: %v\n", t.clusterId, err)
+			log.Infof("delete tke cluster: %s error, retrying, error info: %v", t.clusterId, err)
 			continue
 		}
-		fmt.Printf("delete tke cluster: %s successfully\n", t.clusterId)
+		log.Infof("delete tke cluster: %s successfully", t.clusterId)
 		return
 	}
 }
