@@ -211,7 +211,7 @@ func GetApplicationMetaInstalled(appName, namespace, kubeConfig string) (*appmet
 	if appMeta.IsInstalling() {
 		return nil, errors.New(
 			fmt.Sprintf(
-				"Application %s - namespace %s is installing,  " +
+				"Application %s - namespace %s is installing,  "+
 					"you can use 'nhctl uninstall %s -n %s' to uninstall this applications ",
 				appName, namespace, appName, namespace,
 			),
@@ -219,7 +219,7 @@ func GetApplicationMetaInstalled(appName, namespace, kubeConfig string) (*appmet
 	} else if appMeta.IsNotInstall() {
 		return nil, errors.New(
 			fmt.Sprintf(
-				"Application %s in ns %s is not installed or under installing, " +
+				"Application %s in ns %s is not installed or under installing, "+
 					"or maybe the kubeconfig provided has not permitted to this namespace ",
 				appName, namespace,
 			),

@@ -24,7 +24,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 	"sort"
@@ -39,7 +38,7 @@ const (
 	byAppAndNs    = "byAppAndNs"
 )
 
-// cache search for each kubeconfig
+// cache Search for each kubeconfig
 var searchMap = NewLRU(10, func(i interface{}) { i.(*Search).Stop() })
 var lock sync.Mutex
 
@@ -108,8 +107,8 @@ func GetSearch(kubeconfigBytes string, namespace string) (*Search, error) {
 	h := sha1.New()
 	h.Write([]byte(kubeconfigBytes))
 	sum := string(h.Sum([]byte(namespace)))
-	search, exist := searchMap.Get(sum)
-	if !exist || search == nil {
+	searcher, exist := searchMap.Get(sum)
+	if !exist || searcher == nil {
 		config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeconfigBytes))
 		if err != nil {
 			return nil, err
@@ -158,8 +157,8 @@ func GetSearch(kubeconfigBytes string, namespace string) (*Search, error) {
 		}
 		searchMap.Add(sum, newSearcher)
 	}
-	search, _ = searchMap.Get(sum)
-	return search.(*Search), nil
+	searcher, _ = searchMap.Get(sum)
+	return searcher.(*Search), nil
 }
 
 func (s *Search) Start() {
@@ -383,13 +382,13 @@ func byApplicationFunc(obj interface{}) ([]string, error) {
 	}
 	anno := metadata.GetAnnotations()
 	if anno == nil || len(anno) == 0 ||
-		(anno[nocalhost.NocalhostApplicationName] == "" && anno[app.HelmReleaseName] == "") {
-		return []string{app.DefaultNocalhostApplication}, nil
+		(anno[nocalhost.NocalhostApplicationName] == "" && anno[nocalhost.HelmReleaseName] == "") {
+		return []string{nocalhost.DefaultNocalhostApplication}, nil
 	}
 	if anno[nocalhost.NocalhostApplicationName] != "" {
 		return []string{anno[nocalhost.NocalhostApplicationName]}, nil
 	} else {
-		return []string{anno[app.HelmReleaseName]}, nil
+		return []string{anno[nocalhost.HelmReleaseName]}, nil
 	}
 }
 
@@ -397,18 +396,18 @@ func byNamespaceAndAppFunc(obj interface{}) ([]string, error) {
 	metadata, err := meta.Accessor(obj)
 	if err != nil {
 		log.Error(err)
-		return []string{nsResource("default", app.DefaultNocalhostApplication)}, nil
+		return []string{nsResource("default", nocalhost.DefaultNocalhostApplication)}, nil
 	}
 	ns := metadata.GetNamespace()
 	anno := metadata.GetAnnotations()
 	if anno == nil || len(anno) == 0 ||
-		(anno[nocalhost.NocalhostApplicationName] == "" && anno[app.HelmReleaseName] == "") {
-		return []string{nsResource(ns, app.DefaultNocalhostApplication)}, nil
+		(anno[nocalhost.NocalhostApplicationName] == "" && anno[nocalhost.HelmReleaseName] == "") {
+		return []string{nsResource(ns, nocalhost.DefaultNocalhostApplication)}, nil
 	}
 	if anno[nocalhost.NocalhostApplicationName] != "" {
 		return []string{nsResource(ns, anno[nocalhost.NocalhostApplicationName])}, nil
 	} else {
-		return []string{nsResource(ns, anno[app.HelmReleaseName])}, nil
+		return []string{nsResource(ns, anno[nocalhost.HelmReleaseName])}, nil
 	}
 }
 

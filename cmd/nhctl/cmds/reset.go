@@ -15,7 +15,6 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/utils"
@@ -43,8 +42,8 @@ var resetCmd = &cobra.Command{
 		if len(args) > 0 {
 			applicationName := args[0]
 			if applicationName != "" {
-				if applicationName == app.DefaultNocalhostApplication {
-					log.Error(app.DefaultNocalhostApplicationOperateErr)
+				if applicationName == nocalhost.DefaultNocalhostApplication {
+					log.Error(nocalhost.DefaultNocalhostApplicationOperateErr)
 					return
 				}
 				resetApplication(applicationName)
