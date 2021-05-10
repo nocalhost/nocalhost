@@ -40,18 +40,6 @@ const (
 	DefaultApplicationProfileV2Path = ".profile_v2.yaml"
 )
 
-const (
-
-	// default is a special app type, it can be uninstalled neither installed
-	// it's a virtual application to managed that those manifest out of Nocalhost management
-	DefaultNocalhostApplication           = "default.application"
-	DefaultNocalhostApplicationOperateErr = "default.application is a virtual application " +
-		"to managed that those manifest out of Nocalhost" +
-		" management so can't be install, uninstall, reset, etc."
-
-	HelmReleaseName = "meta.helm.sh/release-name"
-)
-
 func Init() error {
 	var err error
 	nhctlHomeDir := nocalhost_path.GetNhctlHomeDir()
