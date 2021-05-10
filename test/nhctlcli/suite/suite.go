@@ -35,10 +35,10 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 		}
 	}()
 	testcase.InstallBookInfo(t.Cli)
-	util.WaitToBeStatus(t.Cli.Namespace, "pods", "app=reviews", func(i interface{}) bool {
+	util.WaitResourceToBeStatus(t.Cli.Namespace, "pods", "app=reviews", func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning
 	})
-	util.WaitToBeStatus(t.Cli.Namespace, "pods", "app=ratings", func(i interface{}) bool {
+	util.WaitResourceToBeStatus(t.Cli.Namespace, "pods", "app=ratings", func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning
 	})
 	log.Info("Testing " + name)

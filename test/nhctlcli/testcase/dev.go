@@ -40,7 +40,7 @@ func DevStart(cli *nhctlcli.CLI, moduleName string) {
 		"--priority-class", "nocalhost-container-critical")
 	nhctlcli.Runner.RunPanicIfError(cmd)
 
-	util.WaitToBeStatus("test", "pods", "app="+moduleName, func(i interface{}) bool {
+	util.WaitResourceToBeStatus("test", "pods", "app="+moduleName, func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning
 	})
 }
@@ -76,7 +76,7 @@ func SyncCheck(cli *nhctlcli.CLI, moduleName string) {
 	if err != nil {
 		panic("can't find kubectl, please make sure kubectl is installed and in executable path")
 	}
-	log.Infof("Running command: %s %s\n", kubectl, args)
+	log.Infof("Running command: %s %s", kubectl, args)
 	var log string
 	var ok bool
 	for i := 0; i < 100; i++ {
@@ -116,7 +116,7 @@ func DevEnd(cli *nhctlcli.CLI, moduleName string) {
 	cmd := cli.Command(context.Background(), "dev", "end", "bookinfo", "-d", moduleName)
 	nhctlcli.Runner.RunPanicIfError(cmd)
 
-	util.WaitToBeStatus("test", "pods", "app="+moduleName, func(i interface{}) bool {
+	util.WaitResourceToBeStatus("test", "pods", "app="+moduleName, func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning && func() bool {
 			for _, containerStatus := range i.(*v1.Pod).Status.ContainerStatuses {
 				if containerStatus.Ready {

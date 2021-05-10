@@ -42,7 +42,7 @@ func (r *CmdRunner) CheckResult(cmd *exec.Cmd, stdout string, stderr string, err
 }
 
 func (r *CmdRunner) Run(cmd *exec.Cmd) (string, string, error) {
-	log.Infof("Running command: %s\n", cmd.Args)
+	log.Infof("Running command: %s", cmd.Args)
 
 	stdout := bytes.Buffer{}
 	cmd.Stdout = &stdout
