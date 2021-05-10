@@ -40,6 +40,18 @@ const (
 	DefaultApplicationProfileV2Path = ".profile_v2.yaml"
 )
 
+const (
+
+	// default is a special app type, it can be uninstalled neither installed
+	// it's a virtual application to managed that those manifest out of Nocalhost management
+	DefaultNocalhostApplication           = "default.application"
+	DefaultNocalhostApplicationOperateErr = "default.application is a virtual application " +
+		"to managed that those manifest out of Nocalhost" +
+		" management so can't be install, uninstall, reset, etc."
+
+	HelmReleaseName = "meta.helm.sh/release-name"
+)
+
 func Init() error {
 	var err error
 	nhctlHomeDir := nocalhost_path.GetNhctlHomeDir()
@@ -211,7 +223,7 @@ func GetApplicationMetaInstalled(appName, namespace, kubeConfig string) (*appmet
 	if appMeta.IsInstalling() {
 		return nil, errors.New(
 			fmt.Sprintf(
-				"Application %s - namespace %s is installing,  " +
+				"Application %s - namespace %s is installing,  "+
 					"you can use 'nhctl uninstall %s -n %s' to uninstall this applications ",
 				appName, namespace, appName, namespace,
 			),
@@ -219,7 +231,7 @@ func GetApplicationMetaInstalled(appName, namespace, kubeConfig string) (*appmet
 	} else if appMeta.IsNotInstall() {
 		return nil, errors.New(
 			fmt.Sprintf(
-				"Application %s in ns %s is not installed or under installing, " +
+				"Application %s in ns %s is not installed or under installing, "+
 					"or maybe the kubeconfig provided has not permitted to this namespace ",
 				appName, namespace,
 			),

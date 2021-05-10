@@ -10,7 +10,7 @@
  * limitations under the License.
  */
 
-package resouce_cache
+package daemon_handler
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,6 +20,7 @@ import (
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/resouce_cache"
 	"nocalhost/pkg/nhctl/log"
 	"sort"
 )
@@ -50,7 +51,7 @@ func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 }
 
 func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) interface{} {
-	var s *search
+	var s *resouce_cache.Search
 	var err error
 	var ns string
 	if request.Namespace == "" {
@@ -58,9 +59,9 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		if err != nil && config != nil {
 			ns, _, _ = config.Namespace()
 		}
-		s, err = GetSearch(request.KubeConfig, ns)
+		s, err = resouce_cache.GetSearch(request.KubeConfig, ns)
 	} else {
-		s, err = GetSearch(request.KubeConfig, request.Namespace)
+		s, err = resouce_cache.GetSearch(request.KubeConfig, request.Namespace)
 	}
 	if err != nil {
 		return nil
@@ -119,7 +120,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			if err != nil || len(items) == 0 {
 				return nil
 			}
-			SortByCreateTimestampAsc(items)
+			resouce_cache.SortByCreateTimestampAsc(items)
 			result := make([]Item, 0, len(items))
 			for _, i := range items {
 				result = append(result, Item{Metadata: i, Description: serviceMap[i.(metav1.Object).GetName()]})
@@ -140,7 +141,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	}
 }
 
-func getApplicationByNs(ns, kubeconfig string, search *search) Result {
+func getApplicationByNs(ns, kubeconfig string, search *resouce_cache.Search) Result {
 	result := Result{Namespace: ns}
 	applicationMetaList := appmeta_manager.GetApplicationMetas(ns, kubeconfig)
 	for _, applicationMeta := range applicationMetaList {
@@ -151,7 +152,7 @@ func getApplicationByNs(ns, kubeconfig string, search *search) Result {
 	return result
 }
 
-func getApp(namespace, appName string, search *search) App {
+func getApp(namespace, appName string, search *resouce_cache.Search) App {
 	groupToTypeMap := map[string][]string{
 		"Workloads":      {"deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods"},
 		"Networks":       {"services", "endpoints", "ingresses", "networkpolicies"},

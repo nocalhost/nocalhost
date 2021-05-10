@@ -24,7 +24,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 	"sort"
@@ -39,11 +38,11 @@ const (
 	byAppAndNs    = "byAppAndNs"
 )
 
-// cache search for each kubeconfig
-var searchMap = NewLRU(10, func(i interface{}) { i.(*search).Stop() })
+// cache Search for each kubeconfig
+var searchMap = NewLRU(10, func(i interface{}) { i.(*Search).Stop() })
 var lock sync.Mutex
 
-type search struct {
+type Search struct {
 	kubeconfig      string
 	informerFactory informers.SharedInformerFactory
 	supportSchema   map[string]schema.GroupVersionResource
@@ -101,7 +100,7 @@ func GetSupportGroupVersionResource(kubeconfigBytes []byte) ([]schema.GroupVersi
 	return gvrList, uniqueNameToGVR
 }
 
-func GetSearch(kubeconfigBytes string, namespace string) (*search, error) {
+func GetSearch(kubeconfigBytes string, namespace string) (*Search, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	// calculate kubeconfig content's sha value as unique cluster id
@@ -150,7 +149,7 @@ func GetSearch(kubeconfigBytes string, namespace string) (*search, error) {
 		}()
 		<-firstSyncChannel
 
-		newSearcher := &search{
+		newSearcher := &Search{
 			kubeconfig:      kubeconfigBytes,
 			informerFactory: informerFactory,
 			supportSchema:   name2gvr,
@@ -159,18 +158,18 @@ func GetSearch(kubeconfigBytes string, namespace string) (*search, error) {
 		searchMap.Add(sum, newSearcher)
 	}
 	searcher, _ = searchMap.Get(sum)
-	return searcher.(*search), nil
+	return searcher.(*Search), nil
 }
 
-func (s *search) Start() {
+func (s *Search) Start() {
 	<-s.stopChannel
 }
 
-func (s *search) Stop() {
+func (s *Search) Stop() {
 	s.stopChannel <- struct{}{}
 }
 
-func (s *search) GetByApplication(obj runtime.Object, appName string) (i []interface{}, e error) {
+func (s *Search) GetByApplication(obj runtime.Object, appName string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -179,7 +178,7 @@ func (s *search) GetByApplication(obj runtime.Object, appName string) (i []inter
 	return s.informerFactory.InformerFor(obj, nil).GetIndexer().ByIndex(byApplication, appName)
 }
 
-func (s *search) GetByNamespace(obj runtime.Object, namespace string) (i []interface{}, e error) {
+func (s *Search) GetByNamespace(obj runtime.Object, namespace string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -188,7 +187,7 @@ func (s *search) GetByNamespace(obj runtime.Object, namespace string) (i []inter
 	return s.informerFactory.InformerFor(obj, nil).GetIndexer().ByIndex(byNamespace, namespace)
 }
 
-func (s *search) GetByAppAndNamespace(obj runtime.Object, app, namespace string) (i []interface{}, e error) {
+func (s *Search) GetByAppAndNamespace(obj runtime.Object, app, namespace string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -198,7 +197,7 @@ func (s *search) GetByAppAndNamespace(obj runtime.Object, app, namespace string)
 }
 
 // example, po --> pods, Pods --> pods, pod --> pods, all works
-func (s *search) GetAllByResourceType(resourceType string) (i []interface{}, e error) {
+func (s *Search) GetAllByResourceType(resourceType string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -215,7 +214,7 @@ func (s *search) GetAllByResourceType(resourceType string) (i []interface{}, e e
 	return informer.Informer().GetIndexer().List(), nil
 }
 
-func (s *search) GetAllByResourceTypeAndNameAndNs(resourceType, resourceName, ns string) (i interface{}, b bool, e error) {
+func (s *Search) GetAllByResourceTypeAndNameAndNs(resourceType, resourceName, ns string) (i interface{}, b bool, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -232,7 +231,7 @@ func (s *search) GetAllByResourceTypeAndNameAndNs(resourceType, resourceName, ns
 	return informer.Informer().GetIndexer().GetByKey(nsResource(ns, resourceName))
 }
 
-func (s search) GetAllByResourceTypeAndNs(resourceType, ns string) (i []interface{}, e error) {
+func (s Search) GetAllByResourceTypeAndNs(resourceType, ns string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -249,7 +248,7 @@ func (s search) GetAllByResourceTypeAndNs(resourceType, ns string) (i []interfac
 	return informer.Informer().GetIndexer().ByIndex(byNamespace, ns)
 }
 
-func (s *search) GetByResourceAndApplication(resourceType string, appName string) (i []interface{}, e error) {
+func (s *Search) GetByResourceAndApplication(resourceType string, appName string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -268,7 +267,7 @@ func (s *search) GetByResourceAndApplication(resourceType string, appName string
 	return informer.Informer().GetIndexer().ByIndex(byApplication, appName)
 }
 
-func (s *search) GetGvr(resourceType string) (schema.GroupVersionResource, error) {
+func (s *Search) GetGvr(resourceType string) (schema.GroupVersionResource, error) {
 	if !s.supportSchema[resourceType].Empty() {
 		return s.supportSchema[resourceType], nil
 	}
@@ -278,7 +277,7 @@ func (s *search) GetGvr(resourceType string) (schema.GroupVersionResource, error
 	return schema.GroupVersionResource{}, errors.New("Not support resource type: " + resourceType)
 }
 
-func (s *search) GetByResourceAndNamespace(resourceType, resourceName, namespace string) (i []interface{}, e error) {
+func (s *Search) GetByResourceAndNamespace(resourceType, resourceName, namespace string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -306,7 +305,7 @@ func (s *search) GetByResourceAndNamespace(resourceType, resourceName, namespace
 	}
 }
 
-func (s *search) GetByResourceAndAppAndNamespace(resourceType, appName, namespace string) (i []interface{}, e error) {
+func (s *Search) GetByResourceAndAppAndNamespace(resourceType, appName, namespace string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -323,7 +322,7 @@ func (s *search) GetByResourceAndAppAndNamespace(resourceType, appName, namespac
 	return informer.Informer().GetIndexer().ByIndex(byAppAndNs, nsResource(namespace, appName))
 }
 
-func (s *search) GetByResourceAndNameAndAppAndNamespace(resourceType, resourceName, appName, namespace string) (i []interface{}, e error) {
+func (s *Search) GetByResourceAndNameAndAppAndNamespace(resourceType, resourceName, appName, namespace string) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -352,7 +351,7 @@ func (s *search) GetByResourceAndNameAndAppAndNamespace(resourceType, resourceNa
 	return item, nil
 }
 
-func (s *search) GetAllByType(obj runtime.Object) (i []interface{}, e error) {
+func (s *Search) GetAllByType(obj runtime.Object) (i []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
@@ -361,7 +360,7 @@ func (s *search) GetAllByType(obj runtime.Object) (i []interface{}, e error) {
 	return s.informerFactory.InformerFor(obj, nil).GetIndexer().List(), nil
 }
 
-func (s *search) GetByName(obj runtime.Object, namespace, name string) (item interface{}, exists bool, e error) {
+func (s *Search) GetByName(obj runtime.Object, namespace, name string) (item interface{}, exists bool, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			exists = false
@@ -383,13 +382,13 @@ func byApplicationFunc(obj interface{}) ([]string, error) {
 	}
 	anno := metadata.GetAnnotations()
 	if anno == nil || len(anno) == 0 ||
-		(anno[nocalhost.NocalhostApplicationName] == "" && anno[app.HelmReleaseName] == "") {
-		return []string{app.DefaultNocalhostApplication}, nil
+		(anno[nocalhost.NocalhostApplicationName] == "" && anno[nocalhost.HelmReleaseName] == "") {
+		return []string{nocalhost.DefaultNocalhostApplication}, nil
 	}
 	if anno[nocalhost.NocalhostApplicationName] != "" {
 		return []string{anno[nocalhost.NocalhostApplicationName]}, nil
 	} else {
-		return []string{anno[app.HelmReleaseName]}, nil
+		return []string{anno[nocalhost.HelmReleaseName]}, nil
 	}
 }
 
@@ -397,18 +396,18 @@ func byNamespaceAndAppFunc(obj interface{}) ([]string, error) {
 	metadata, err := meta.Accessor(obj)
 	if err != nil {
 		log.Error(err)
-		return []string{nsResource("default", app.DefaultNocalhostApplication)}, nil
+		return []string{nsResource("default", nocalhost.DefaultNocalhostApplication)}, nil
 	}
 	ns := metadata.GetNamespace()
 	anno := metadata.GetAnnotations()
 	if anno == nil || len(anno) == 0 ||
-		(anno[nocalhost.NocalhostApplicationName] == "" && anno[app.HelmReleaseName] == "") {
-		return []string{nsResource(ns, app.DefaultNocalhostApplication)}, nil
+		(anno[nocalhost.NocalhostApplicationName] == "" && anno[nocalhost.HelmReleaseName] == "") {
+		return []string{nsResource(ns, nocalhost.DefaultNocalhostApplication)}, nil
 	}
 	if anno[nocalhost.NocalhostApplicationName] != "" {
 		return []string{nsResource(ns, anno[nocalhost.NocalhostApplicationName])}, nil
 	} else {
-		return []string{nsResource(ns, anno[app.HelmReleaseName])}, nil
+		return []string{nsResource(ns, anno[nocalhost.HelmReleaseName])}, nil
 	}
 }
 
