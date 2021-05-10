@@ -25,9 +25,9 @@ func InstallBookInfo(nhctl *nhctlcli.CLI) {
 
 func InstallBookInfoThreeTimes(nhctl *nhctlcli.CLI) {
 	UninstallBookInfo(nhctl)
-	installBookInfoHelmGit(nhctl)
-	List(nhctl)
-	UninstallBookInfo(nhctl)
+	//installBookInfoHelmGit(nhctl)
+	//List(nhctl)
+	//UninstallBookInfo(nhctl)
 	installBookInfoKustomizeGit(nhctl)
 	List(nhctl)
 	UninstallBookInfo(nhctl)

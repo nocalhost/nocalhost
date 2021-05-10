@@ -32,18 +32,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-
-	// default is a special app type, it can be uninstalled neither installed
-	// it's a virtual application to managed that those manifest out of Nocalhost management
-	DefaultNocalhostApplication           = "default.application"
-	DefaultNocalhostApplicationOperateErr = "default.application is a virtual application " +
-		"to managed that those manifest out of Nocalhost" +
-		" management so can't be install, uninstall, reset, etc."
-
-	HelmReleaseName = "meta.helm.sh/release-name"
-)
-
 var (
 	ErrNotFound = errors.New("Application not found")
 )
@@ -175,7 +163,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 		return false
 	}
 
-	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() && a.Name != DefaultNocalhostApplication {
+	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() && a.Name != nocalhost.DefaultNocalhostApplication {
 		a.AppType = profileV2.AppType
 
 		defer func() {
