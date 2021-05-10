@@ -40,7 +40,7 @@ func init() {
 		"kubernetes namespace",
 	)
 	rootCmd.PersistentFlags().BoolVar(
-		&debug, "debug", debug,
+		&debug, "debug", true,
 		"enable debug level log",
 	)
 	rootCmd.PersistentFlags().StringVar(
