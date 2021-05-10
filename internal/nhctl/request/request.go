@@ -25,6 +25,7 @@ import (
 	"nocalhost/pkg/nhctl/tools"
 	"os/exec"
 	"strconv"
+	"time"
 )
 
 const (
@@ -217,6 +218,8 @@ func (q *ApiRequest) Login(email, password string) *ApiRequest {
 	q.ExposeService()
 
 	for i := 0; i < 3; i++ {
+		time.Sleep(time.Second * 2)
+		log.Debugf("Try login to the end point with port-forward, times %d..", i+1)
 		err = q.tryLogin(email, password)
 		if err == nil {
 			log.Debugf("Login in endpoint with port forward successfully")
@@ -240,7 +243,7 @@ func (q *ApiRequest) tryLogin(email, password string) error {
 	res := LoginRes{}
 	err = r.ToJSON(&res)
 	if err != nil {
-		return errors.Errorf("init fail, request for login fail, err: %s", err)
+		return errors.Errorf("init fail, response for login fail, err: %s", err)
 	}
 	q.AuthToken = res.Data.Token
 	return nil
