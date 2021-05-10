@@ -38,23 +38,35 @@ var devStartOps = &model.DevStartOptions{}
 
 func init() {
 
-	devStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
-		"k8s deployment your developing service exists")
-	devStartCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
-		"kind of k8s controller,such as deployment,statefulSet")
+	devStartCmd.Flags().StringVarP(
+		&deployment, "deployment", "d", "",
+		"k8s deployment your developing service exists",
+	)
+	devStartCmd.Flags().StringVarP(
+		&serviceType, "controller-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet",
+	)
 	devStartCmd.Flags().StringVarP(&devStartOps.DevImage, "image", "i", "", "image of DevContainer")
 	devStartCmd.Flags().StringVarP(&devStartOps.Container, "container", "c", "", "container to develop")
 	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory")
 	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "StorageClass used by PV")
-	devStartCmd.Flags().StringVar(&devStartOps.PriorityClass, "priority-class", "", "PriorityClass used by devContainer")
-	devStartCmd.Flags().StringVar(&devStartOps.SideCarImage, "sidecar-image", "",
-		"image of nocalhost-sidecar container")
+	devStartCmd.Flags().StringVar(
+		&devStartOps.PriorityClass, "priority-class", "", "PriorityClass used by devContainer",
+	)
+	devStartCmd.Flags().StringVar(
+		&devStartOps.SideCarImage, "sidecar-image", "",
+		"image of nocalhost-sidecar container",
+	)
 	// for debug only
-	devStartCmd.Flags().StringVar(&devStartOps.SyncthingVersion, "syncthing-version", "",
-		"versions of syncthing and this flag is use for debug only")
+	devStartCmd.Flags().StringVar(
+		&devStartOps.SyncthingVersion, "syncthing-version", "",
+		"versions of syncthing and this flag is use for debug only",
+	)
 	// local absolute paths to sync
-	devStartCmd.Flags().StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{},
-		"local directory to sync")
+	devStartCmd.Flags().StringSliceVarP(
+		&devStartOps.LocalSyncDir, "local-sync", "s", []string{},
+		"local directory to sync",
+	)
 	debugCmd.AddCommand(devStartCmd)
 }
 
@@ -80,10 +92,10 @@ var devStartCmd = &cobra.Command{
 		devStartOps.Kubeconfig = kubeConfig
 		log.Info("Starting DevMode...")
 
-		profileV2, err := profile.NewAppProfileV2ForUpdate(nocalhostApp.NameSpace, nocalhostApp.Name)
+		p, err := nocalhostApp.GetProfile()
 		must(err)
 
-		svcProfile := profileV2.SvcProfileV2(deployment, string(nocalhostSvc.Type))
+		svcProfile := p.SvcProfileV2(deployment, string(nocalhostSvc.Type))
 		if svcProfile == nil {
 			log.Fatal("Svc profile not found")
 			return
@@ -97,11 +109,16 @@ var devStartCmd = &cobra.Command{
 		if len(devStartOps.LocalSyncDir) > 0 {
 			svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 		}
-		profileV2.GenerateIdentifierIfNeeded()
-		profileV2.Save()
-		profileV2.CloseDb()
 
-		must(nocalhostSvc.AppMeta.SvcDevStart(nocalhostSvc.Name, nocalhostSvc.Type, profileV2.Identifier))
+		must(
+			nocalhostApp.UpdateProfile(
+				func(p *profile.AppProfileV2) error {
+					return nocalhostSvc.AppMeta.SvcDevStart(
+						nocalhostSvc.Name, nocalhostSvc.Type, p.GenerateIdentifierIfNeeded(),
+					)
+				},
+			),
+		)
 
 		// prevent dev status modified but not actually enter dev mode
 		var devStartSuccess = false
@@ -123,8 +140,10 @@ var devStartCmd = &cobra.Command{
 		}
 
 		_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
-		mustI(err, "Failed to install syncthing, no syncthing available locally in "+
-			newSyncthing.BinPath+" please try again.")
+		mustI(
+			err, "Failed to install syncthing, no syncthing available locally in "+
+				newSyncthing.BinPath+" please try again.",
+		)
 
 		// set syncthing secret
 		config, err := newSyncthing.GetRemoteConfigXML()

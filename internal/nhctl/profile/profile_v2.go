@@ -77,11 +77,6 @@ func ProfileV2Key(ns, app string) string {
 	return fmt.Sprintf("%s.%s.profile.v2", ns, app)
 }
 
-//func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) {
-//	path := nocalhost_path.GetAppDbDir(ns, app)
-//	return dbutils.OpenLevelDB(path, readonly)
-//}
-
 func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
 	path := nocalhost_path.GetAppDbDir(ns, name)
 	db, err := dbutils.OpenLevelDB(path, false)
@@ -162,11 +157,12 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 
 // this method will not save the Identifier,
 // make sure it will be saving while use
-func (a *AppProfileV2) GenerateIdentifierIfNeeded() {
+func (a *AppProfileV2) GenerateIdentifierIfNeeded() string {
 	if a.Identifier == "" && a != nil {
 		u, _ := uuid.NewRandom()
 		a.Identifier = u.String()
 	}
+	return a.Identifier
 }
 
 func (a *AppProfileV2) Save() error {
@@ -209,8 +205,16 @@ type SvcProfileV2 struct {
 	LocalAbsoluteSyncDirFromDevStartPlugin []string          `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
 	DevPortForwardList                     []*DevPortForward `json:"devPortForwardList" yaml:"devPortForwardList"` // combine DevPortList,PortForwardStatusList and PortForwardPidList
 
+	// nocalhost supports config from local dir under "Associate" Path
+	// but only load once, and user can use nhctl config reload to reload
+	// config from local or secret
+	LocalConfigLoaded bool `json:"local_config_loaded"`
+
+	// associate for the local dir
+	Associate string `json:"associate"`
+
 	// from app meta
-	Developing    bool     `json:"developing" yaml:"developing"`
+	Developing bool `json:"developing" yaml:"developing"`
 
 	// mean the current controller is possess by current nhctl context
 	// and the syncthing process is listen on current device
