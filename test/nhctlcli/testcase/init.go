@@ -144,21 +144,35 @@ func Init(nhctl *nhctlcli.CLI) {
 }
 
 func StatusCheck(nhctl *nhctlcli.CLI, moduleName string) {
-	cmd := nhctl.Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
-	stdout, stderr, err := nhctlcli.Runner.Run(cmd)
-	if err != nil {
-		panic(fmt.Sprintf("Run command: %s, error: %v, stdout: %s, stderr: %s", cmd.Args, err, stdout, stderr))
+	retryTimes := 10
+	var ok bool
+	for i := 0; i < retryTimes; i++ {
+		time.Sleep(time.Second * 3)
+		cmd := nhctl.Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
+		stdout, stderr, err := nhctlcli.Runner.Run(cmd)
+		if err != nil {
+			log.Infof("Run command: %s, error: %v, stdout: %s, stderr: %s, retry", cmd.Args, err, stdout, stderr)
+			continue
+		}
+		service := profile.SvcProfileV2{}
+		_ = yaml.Unmarshal([]byte(stdout), &service)
+		if !service.Developing {
+			log.Info("test case failed, should be in developing, retry")
+			continue
+		}
+		if !service.PortForwarded {
+			log.Info("test case failed, should be in port forwarding, retry")
+			continue
+		}
+		if !service.Syncing {
+			log.Info("test case failed, should be in synchronizing, retry")
+			continue
+		}
+		ok = true
+		break
 	}
-	service := profile.SvcProfileV2{}
-	_ = yaml.Unmarshal([]byte(stdout), &service)
-	if !service.Developing {
-		panic("test case failed, should be developing")
-	}
-	if !service.PortForwarded {
-		panic("test case failed, should be port forwarding")
-	}
-	if !service.Syncing {
-		panic("test case failed, should be synchronizing")
+	if !ok {
+		panic("test case failed, status check not pass")
 	}
 }
 
