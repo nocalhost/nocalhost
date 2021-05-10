@@ -14,14 +14,9 @@ package controller
 
 import (
 	"github.com/pkg/errors"
-	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/resouce_cache"
 	"nocalhost/pkg/nhctl/clientgoutils"
-	"nocalhost/pkg/nhctl/log"
-	"strings"
-	"time"
 )
 
 // Controller presents a k8s controller
@@ -39,7 +34,7 @@ func (c *Controller) IsInDevMode() bool {
 	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type)
 }
 
-func (c *Controller) CheckIfExistOld() (bool, error) {
+func (c *Controller) CheckIfExist() (bool, error) {
 	var err error
 	switch c.Type {
 	case appmeta.Deployment:
@@ -59,26 +54,6 @@ func (c *Controller) CheckIfExistOld() (bool, error) {
 		return false, nil
 	}
 	return true, nil
-}
-
-func (c *Controller) CheckIfExist() (bool, error) {
-	path := c.Client.KubeConfigFilePath()
-	b, err := ioutil.ReadFile(path)
-	clientgoutils.Must(err)
-	search, err := resouce_cache.GetSearch(string(b), c.NameSpace)
-	clientgoutils.Must(err)
-	resourceType := strings.ToLower(c.Type.String()) + "s"
-	retryTimes := 5
-	for i := 0; i < retryTimes; i++ {
-		time.Sleep(time.Second * 2)
-		namespace, err := search.GetByResourceAndNamespace(resourceType, c.Name, c.NameSpace)
-		if err != nil || len(namespace) == 0 {
-			continue
-		}
-		return true, nil
-	}
-	log.Infof("not found %s/%s in namespace: %s, using client to query it again", resourceType, c.Name, c.NameSpace)
-	return c.CheckIfExistOld()
 }
 
 func (c *Controller) GetDescription() *profile.SvcProfileV2 {
