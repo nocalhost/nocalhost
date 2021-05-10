@@ -39,10 +39,10 @@ func Init(cli *nhctlcli.CLI) {
 	Client = temp
 }
 
-func WaitForCommandDone(command string) (bool, string) {
+func WaitForCommandDone(command string, args ...string) (bool, string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "sh", "-c", command)
+	cmd := exec.CommandContext(ctx, command, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return false, err.Error()
