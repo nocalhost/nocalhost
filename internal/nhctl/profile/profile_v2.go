@@ -32,31 +32,37 @@ const (
 )
 
 type AppProfileV2 struct {
-	Name                    string          `json:"name" yaml:"name"`
-	ChartName               string          `json:"chart_name" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
-	ReleaseName             string          `json:"release_name yaml:releaseName"`
-	Namespace               string          `json:"namespace" yaml:"namespace"`
-	Kubeconfig              string          `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
-	DependencyConfigMapName string          `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
-	SvcProfile              []*SvcProfileV2 `json:"svc_profile" yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
-	Installed               bool            `json:"installed" yaml:"installed"`
-	SyncDirs                []string        `json:"syncDirs" yaml:"syncDirs"` // dev start -s
-	ResourcePath            RelPath         `json:"resource_path" yaml:"resourcePath"`
-	IgnoredPath             RelPath         `json:"ignoredPath" yaml:"ignoredPath"`
-	PreInstall              SortedRelPath   `json:"onPreInstall" yaml:"onPreInstall"`
-	Identifier              string          `json:"identifier" yaml:"identifier"`
+	Name string `json:"name" yaml:"name"`
 
-	Secreted bool `json:"secreted" yaml:"secreted"` // always true for new versions, but from earlier version, the flag for upload profile to secret
+	// install/uninstall field, should move out of profile
+	ChartName               string        `json:"chart_name" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
+	ReleaseName             string        `json:"release_name yaml:releaseName"`
+	DependencyConfigMapName string        `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
+	Installed               bool          `json:"installed" yaml:"installed"`
+	ResourcePath            RelPath       `json:"resource_path" yaml:"resourcePath"`
+	IgnoredPath             RelPath       `json:"ignoredPath" yaml:"ignoredPath"`
+	PreInstall              SortedRelPath `json:"onPreInstall" yaml:"onPreInstall"`
+	// Deprecated
+	AppType string `json:"app_type" yaml:"appType"`
+
+	// app global field
+	Namespace  string `json:"namespace" yaml:"namespace"`
+	Kubeconfig string `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
+	db         *dbutils.LevelDBUtils
+
+	// app global status
+	Identifier string `json:"identifier" yaml:"identifier"`
+	Secreted   bool   `json:"secreted" yaml:"secreted"` // always true for new versions, but from earlier version, the flag for upload profile to secret
+
+	// svc runtime status
+	SvcProfile []*SvcProfileV2 `json:"svc_profile" yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
 
 	Env     []*Env  `json:"env" yaml:"env"`
 	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
-	db      *dbutils.LevelDBUtils
+
 	dbPath  string
 	appName string
 	ns      string
-
-	// Deprecated
-	AppType string `json:"app_type" yaml:"appType"`
 }
 
 func (a *AppProfileV2) LoadManifests(tmpDir string) ([]string, []string) {
@@ -189,9 +195,6 @@ type SvcProfileV2 struct {
 	ContainerProfile []*ContainerProfileV2 `json:"container_profile" yaml:"containerProfile"`
 	ActualName       string                `json:"actual_name" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
 
-	// Deprecated from profile but appmeta
-	// Deprecated
-	Developing    bool     `json:"developing" yaml:"developing"`
 	PortForwarded bool     `json:"port_forwarded" yaml:"portForwarded"`
 	Syncing       bool     `json:"syncing" yaml:"syncing"`
 	SyncDirs      []string `json:"syncDirs" yaml:"syncDirs,omitempty"` // dev start -s
@@ -205,6 +208,9 @@ type SvcProfileV2 struct {
 	LocalSyncthingGUIPort                  int               `json:"localSyncthingGUIPort" yaml:"localSyncthingGUIPort"`
 	LocalAbsoluteSyncDirFromDevStartPlugin []string          `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
 	DevPortForwardList                     []*DevPortForward `json:"devPortForwardList" yaml:"devPortForwardList"` // combine DevPortList,PortForwardStatusList and PortForwardPidList
+
+	// from app meta
+	Developing    bool     `json:"developing" yaml:"developing"`
 
 	// mean the current controller is possess by current nhctl context
 	// and the syncthing process is listen on current device
@@ -241,9 +247,6 @@ func (s *SvcProfileV2) GetContainerDevConfigOrDefault(containerName string) *Con
 }
 
 func (s *SvcProfileV2) GetDefaultContainerDevConfig() *ContainerDevConfig {
-	//if s.ContainerConfigs[0].Name == "" {
-	//	return s.ContainerConfigs[0].Dev
-	//}
 	if len(s.ContainerConfigs) == 0 {
 		return nil
 	}
