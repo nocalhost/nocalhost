@@ -42,7 +42,8 @@ import (
 // 3. An leveldb will be created under $NhctlAppDir, it will record the status of this application
 // build a new application
 func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig string, namespace string) (
-	*Application, error) {
+	*Application, error,
+) {
 
 	var err error
 
@@ -126,7 +127,8 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
 }
 
-func (a *Application) loadOrGenerateConfig(outerConfig, config string, resourcePath []string, appType string,
+func (a *Application) loadOrGenerateConfig(
+	outerConfig, config string, resourcePath []string, appType string,
 ) (*profile.NocalHostAppConfigV2, error) {
 	var nocalhostConfig *profile.NocalHostAppConfigV2
 	var err error
@@ -229,9 +231,11 @@ func renderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) 
 		envFile = configFile.RelOrAbs("../").RelOrAbs(relPath)
 
 		if e := envFile.CheckExist(); e != nil {
-			log.Logf(`Render %s Nocalhost config without env files, we found the env file 
+			log.Logf(
+				`Render %s Nocalhost config without env files, we found the env file 
 				had been configured as %s, but we can not found in %s`,
-				configFile.Abs(), relPath, envFile.Abs())
+				configFile.Abs(), relPath, envFile.Abs(),
+			)
 		} else {
 			log.Logf("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
 		}
@@ -239,7 +243,8 @@ func renderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) 
 		log.Log(
 			"Render %s Nocalhost config without env files, you config your Nocalhost "+
 				"configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2",
-			configFile.Abs())
+			configFile.Abs(),
+		)
 	}
 
 	renderedStr, err := envsubst.Render(configFile, envFile)
@@ -362,29 +367,4 @@ func (a *Application) initDir() error {
 	}
 
 	return errors.Wrap(os.MkdirAll(a.getDbDir(), DefaultNewFilePermission), "")
-}
-
-// svcName use actual name
-func (a *Application) loadConfigToSvcProfile(svcName string, appProfile *profile.AppProfileV2, svcType appmeta.SvcType) {
-	if appProfile.SvcProfile == nil {
-		appProfile.SvcProfile = make([]*profile.SvcProfileV2, 0)
-	}
-
-	svcProfile := &profile.SvcProfileV2{
-		ActualName: svcName,
-	}
-
-	// find controller config
-	svcConfig := a.appMeta.Config.GetSvcConfigV2(svcName, string(svcType))
-	if svcConfig == nil && len(appProfile.ReleaseName) > 0 {
-		if strings.HasPrefix(svcName, fmt.Sprintf("%s-", appProfile.ReleaseName)) {
-			name := strings.TrimPrefix(svcName, fmt.Sprintf("%s-", appProfile.ReleaseName))
-			svcConfig = a.appMeta.Config.GetSvcConfigV2(name, string(svcType)) // support releaseName-svcName
-		}
-	}
-
-	svcProfile.ServiceConfigV2 = svcConfig
-
-	// If svcProfile already exists, create one
-	appProfile.SvcProfile = append(appProfile.SvcProfile, svcProfile)
 }
