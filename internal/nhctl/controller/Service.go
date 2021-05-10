@@ -17,6 +17,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"time"
 )
 
 // Controller presents a k8s controller
@@ -36,24 +37,29 @@ func (c *Controller) IsInDevMode() bool {
 
 func (c *Controller) CheckIfExist() (bool, error) {
 	var err error
-	switch c.Type {
-	case appmeta.Deployment:
-		_, err = c.Client.GetDeployment(c.Name)
-	case appmeta.StatefulSet:
-		_, err = c.Client.GetStatefulSet(c.Name)
-	case appmeta.DaemonSet:
-		_, err = c.Client.GetDaemonSet(c.Name)
-	case appmeta.Job:
-		_, err = c.Client.GetJobs(c.Name)
-	case appmeta.CronJob:
-		_, err = c.Client.GetCronJobs(c.Name)
-	default:
-		return false, errors.New("unsupported controller type")
+	var retryTimes = 10
+	for i := 0; i < retryTimes; i++ {
+		time.Sleep(time.Second * 2)
+		switch c.Type {
+		case appmeta.Deployment:
+			_, err = c.Client.GetDeployment(c.Name)
+		case appmeta.StatefulSet:
+			_, err = c.Client.GetStatefulSet(c.Name)
+		case appmeta.DaemonSet:
+			_, err = c.Client.GetDaemonSet(c.Name)
+		case appmeta.Job:
+			_, err = c.Client.GetJobs(c.Name)
+		case appmeta.CronJob:
+			_, err = c.Client.GetCronJobs(c.Name)
+		default:
+			return false, errors.New("unsupported controller type")
+		}
+		if err != nil {
+			continue
+		}
+		return true, nil
 	}
-	if err != nil {
-		return false, nil
-	}
-	return true, nil
+	return false, nil
 }
 
 func (c *Controller) GetDescription() *profile.SvcProfileV2 {
