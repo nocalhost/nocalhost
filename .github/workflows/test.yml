@@ -175,7 +175,6 @@ jobs:
         shell: bash
       - name: Setup Minikube
         uses: medyagh/setup-minikube@master
-        timeout-minutes: 10
       - name: Sleep 180 seconds waiting for minikube ready
         run: sleep 180
       - name: Kubernetes info
