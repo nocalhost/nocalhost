@@ -15,6 +15,7 @@ package suite
 import (
 	"errors"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/nhctlcli"
 	"nocalhost/test/nhctlcli/testcase"
 	"nocalhost/test/tke"
@@ -75,6 +76,7 @@ func Compatible(cli *nhctlcli.CLI, p ...string) {
 func Reset(cli *nhctlcli.CLI, _ ...string) {
 	testcase.Reset(cli)
 	testcase.InstallBookInfo(cli)
+	testcase.List(cli)
 }
 
 func Apply(cli *nhctlcli.CLI, _ ...string) {
@@ -84,11 +86,11 @@ func Apply(cli *nhctlcli.CLI, _ ...string) {
 func Upgrade(cli *nhctlcli.CLI, _ ...string) {
 	testcase.InstallBookInfo(cli)
 	testcase.Upgrade(cli)
+	testcase.List(cli)
 }
 
 func Install(cli *nhctlcli.CLI, _ ...string) {
 	testcase.InstallBookInfoThreeTimes(cli)
-	//testcase.PortForwardCheck(39080)
 }
 
 // Prepare will install a nhctl client, create a k8s cluster if necessary
@@ -112,11 +114,9 @@ func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string, cancelFunc func()) {
 	util.Init(tempCli)
 	testcase.NhctlVersion(tempCli)
 	testcase.StopDaemon(tempCli)
-	go testcase.Init(tempCli)
-	if i := <-testcase.StatusChan; i != 0 {
-		panic("Init nocalhost occurs error, exiting")
-	}
-	web := <-testcase.WebServerEndpointChan
+	testcase.Init(tempCli)
+	log.Info("wait for api server endpoint")
+	web := <-testcase.ApiServerEndpointChan
 	var ns string
 	var err error
 	newKubeconfig := testcase.GetKubeconfig(ns, web, kubeconfig)
@@ -124,7 +124,7 @@ func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string, cancelFunc func()) {
 		panic(err)
 	}
 	if ns == "" {
-		panic(errors.New("--namespace or --kubeconfig mush be provided"))
+		panic(errors.New("--namespace or --kubeconfig must be provided"))
 	}
 	cli = nhctlcli.NewNhctl(ns, newKubeconfig)
 	return
