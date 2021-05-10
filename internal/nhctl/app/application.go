@@ -230,16 +230,6 @@ func (a *Application) generateSecretForEarlierVer() bool {
 	return false
 }
 
-func (a *Application) associateLocalDir(svcName, svcType, associate string) error {
-	return a.UpdateSvcProfile(
-		svcName, svcType,
-		func(svcProfile *profile.SvcProfileV2) error {
-			svcProfile.Associate = associate
-			return nil
-		},
-	)
-}
-
 func (a *Application) loadSvcCfgFromLocalIfNeeded(svcName, svcType string) {
 	p, err := a.GetProfile()
 	if err != nil {
@@ -271,8 +261,7 @@ func (a *Application) loadSvcCfgFromLocalIfNeeded(svcName, svcType string) {
 	}
 
 	// means should load svc cfg from local
-	err = a.UpdateSvcProfile(
-		svcName, svcType,
+	err = a.Controller(svcName, appmeta.SvcTypeOf(svcType)).UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
 			svcProfile.ServiceConfigV2 = svcProfileConfig
 			svcProfile.LocalConfigLoaded = true
@@ -304,7 +293,6 @@ func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {
 			ServiceConfigs: loadServiceConfigsFromProfile(profileV2.SvcProfile),
 		},
 	}
-
 }
 
 func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.ServiceConfigV2 {
@@ -362,14 +350,6 @@ func (a *Application) UpdateProfile(modify func(*profile.AppProfileV2) error) er
 		return err
 	}
 	return p.Save()
-}
-
-func (a *Application) UpdateSvcProfile(svcName, svcType string, modify func(*profile.SvcProfileV2) error) error {
-	return a.UpdateProfile(
-		func(p *profile.AppProfileV2) error {
-			return modify(p.SvcProfileV2(svcName, svcType))
-		},
-	)
 }
 
 // You need to closeDB for profile explicitly
@@ -443,7 +423,8 @@ func (a *Application) SaveAppProfileV2(config *profile.ApplicationConfig) error 
 			p.Env = config.Env
 			p.EnvFrom = config.EnvFrom
 			return nil
-		})
+		},
+	)
 }
 
 type PortForwardOptions struct {

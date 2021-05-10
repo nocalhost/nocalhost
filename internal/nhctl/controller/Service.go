@@ -69,3 +69,29 @@ func (c *Controller) GetDescription() *profile.SvcProfileV2 {
 	}
 	return nil
 }
+
+func (c *Controller) UpdateSvcProfile(modify func(*profile.SvcProfileV2) error) error {
+	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName)
+	if err != nil {
+		return err
+	}
+	defer profileV2.CloseDb()
+
+	if err := modify(profileV2.SvcProfileV2(c.Name, c.Type.String())); err != nil {
+		return err
+	}
+	return profileV2.Save()
+}
+
+func (c *Controller) UpdateProfile(modify func(*profile.AppProfileV2, *profile.SvcProfileV2) error) error {
+	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName)
+	if err != nil {
+		return err
+	}
+	defer profileV2.CloseDb()
+
+	if err := modify(profileV2, profileV2.SvcProfileV2(c.Name, c.Type.String())); err != nil {
+		return err
+	}
+	return profileV2.Save()
+}

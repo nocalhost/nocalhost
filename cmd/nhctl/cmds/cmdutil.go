@@ -26,7 +26,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 func initApp(appName string) {
@@ -74,26 +73,7 @@ func initService(svcName string, svcType string) *controller.Controller {
 	if svcName == "" {
 		log.Fatal("please use -d to specify a k8s workload")
 	}
-
-	serviceType := appmeta.Deployment
-	if svcType != "" {
-		svcTypeLower := strings.ToLower(svcType)
-		switch svcTypeLower {
-		case strings.ToLower(string(appmeta.Deployment)):
-			serviceType = appmeta.Deployment
-		case strings.ToLower(string(appmeta.StatefulSet)):
-			serviceType = appmeta.StatefulSet
-		case strings.ToLower(string(appmeta.DaemonSet)):
-			serviceType = appmeta.DaemonSet
-		case strings.ToLower(string(appmeta.Job)):
-			serviceType = appmeta.Job
-		case strings.ToLower(string(appmeta.CronJob)):
-			serviceType = appmeta.CronJob
-		default:
-			log.FatalE(errors.New(fmt.Sprintf("Unsupported SvcType %s", svcType)), "")
-		}
-	}
-	return nocalhostApp.Controller(svcName, serviceType)
+	return nocalhostApp.Controller(svcName, appmeta.SvcTypeOf(svcType))
 }
 
 func checkIfSvcExist(svcName string, svcType string) {

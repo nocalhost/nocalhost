@@ -30,7 +30,9 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncDouble bool) (*syncthing.Syncthing, error) {
+func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncDouble bool) (
+	*syncthing.Syncthing, error,
+) {
 	var err error
 	remotePath := c.GetWorkDir(container)
 	appProfile, err := c.GetProfileForUpdate()
@@ -169,6 +171,10 @@ func (c *Controller) CreateSyncThingSecret(syncSecret *corev1.Secret) error {
 
 	// check if secret exist
 	exist, err := c.Client.GetSecret(syncSecret.Name)
+	if err != nil {
+		return err
+	}
+
 	if exist.Name != "" {
 		_ = c.Client.DeleteSecret(syncSecret.Name)
 	}
@@ -177,13 +183,11 @@ func (c *Controller) CreateSyncThingSecret(syncSecret *corev1.Secret) error {
 		return err
 	}
 
-	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName)
-	if err != nil {
-		return err
-	}
-	defer profileV2.CloseDb()
+	return c.UpdateSvcProfile(
+		func(svcPro *profile.SvcProfileV2) error {
+			svcPro.SyncthingSecret = sc.Name
+			return nil
+		},
+	)
 
-	svcPro := profileV2.SvcProfileV2(c.Name, c.Type.String())
-	svcPro.SyncthingSecret = sc.Name
-	return profileV2.Save()
 }

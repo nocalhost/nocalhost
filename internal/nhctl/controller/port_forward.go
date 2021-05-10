@@ -90,32 +90,31 @@ func (c *Controller) UpdatePortForwardStatus(localPort int, remotePort int, port
 	}
 
 	if pf.Status == portStatus {
-		log.Logf("Pf %d:%d's status is already %s, no need to update",
-			pf.LocalPort, pf.RemotePort, pf.Status)
+		log.Logf(
+			"Pf %d:%d's status is already %s, no need to update",
+			pf.LocalPort, pf.RemotePort, pf.Status,
+		)
 		return nil
 	}
 
-	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName)
-	if err != nil {
-		return err
-	}
-	defer profileV2.CloseDb()
+	return c.UpdateSvcProfile(
+		func(svcProfile *profile.SvcProfileV2) error {
+			if svcProfile == nil {
+				return errors.New("Failed to get controller profile")
+			}
 
-	svcProfile := profileV2.SvcProfileV2(c.Name, string(c.Type))
-	if svcProfile == nil {
-		return errors.New("Failed to get controller profile")
-	}
-
-	for _, portForward := range svcProfile.DevPortForwardList {
-		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
-			portForward.Status = portStatus
-			portForward.Reason = reason
-			portForward.Pid = os.Getpid()
-			portForward.Updated = time.Now().Format("2006-01-02 15:04:05")
-			break
-		}
-	}
-	return profileV2.Save()
+			for _, portForward := range svcProfile.DevPortForwardList {
+				if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
+					portForward.Status = portStatus
+					portForward.Reason = reason
+					portForward.Pid = os.Getpid()
+					portForward.Updated = time.Now().Format("2006-01-02 15:04:05")
+					break
+				}
+			}
+			return nil
+		},
+	)
 }
 
 // GetPortForward If not found return err
