@@ -208,6 +208,7 @@ func (q *ApiRequest) Login(email, password string) *ApiRequest {
 		err = q.tryLogin(email, password)
 		log.Debugf("Try login to the end point fail, retry %d..", i+1)
 		if err == nil {
+			log.Debugf("Login in endpoint successfully")
 			return q
 		}
 	}
@@ -218,6 +219,7 @@ func (q *ApiRequest) Login(email, password string) *ApiRequest {
 	for i := 0; i < 3; i++ {
 		err = q.tryLogin(email, password)
 		if err == nil {
+			log.Debugf("Login in endpoint with port forward successfully")
 			return q
 		}
 	}
@@ -328,6 +330,7 @@ func (q *ApiRequest) GetKubeConfig() *ApiRequest {
 		log.Fatalf("get kubeconfig raw context fail, please check you --kubeconfig and kubeconfig file, err: %s", err)
 	}
 	q.KubeConfigRaw = result
+	log.Debug("get kubeconfig successfully")
 	return q
 }
 
