@@ -18,6 +18,7 @@ const (
 	AppManagedByLabel             = "app.kubernetes.io/managed-by"
 	AppManagedByNocalhost         = "nocalhost"
 	DefaultNocalhostSideCarName   = "nocalhost-sidecar"
+	DefaultSidecarImagePullPolicy = "Always"
 
 	DevImageRevisionAnnotationKey            = "nhctl.dev.image.revision"
 	DevImageOriginalPodReplicasAnnotationKey = "nhctl.dev.image.original.pod.replicas"
