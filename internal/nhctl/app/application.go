@@ -429,8 +429,10 @@ func (a *Application) GetDescription() *profile.AppProfileV2 {
 		appProfile.Installed = meta.IsInstalled()
 		for _, svcProfile := range appProfile.SvcProfile {
 			svcProfile.Developing = meta.CheckIfSvcDeveloping(svcProfile.ActualName, appmeta.SvcType(svcProfile.Type))
-			svcProfile.Possess = a.appMeta.SvcDevModePossessor(svcProfile.ActualName, appmeta.SvcType(svcProfile.Type),
-				appProfile.Identifier)
+			svcProfile.Possess = a.appMeta.SvcDevModePossessor(
+				svcProfile.ActualName, appmeta.SvcType(svcProfile.Type),
+				appProfile.Identifier,
+			)
 		}
 		return appProfile
 	}
@@ -484,7 +486,8 @@ func (a *Application) SetPidFileEmpty(filePath string) error {
 
 func (a *Application) CleanUpTmpResources() error {
 	log.Log("Clean up tmp resources...")
-	return errors.Wrap(os.RemoveAll(a.ResourceTmpDir),
+	return errors.Wrap(
+		os.RemoveAll(a.ResourceTmpDir),
 		fmt.Sprintf("fail to remove resources dir %s", a.ResourceTmpDir),
 	)
 }
@@ -492,7 +495,8 @@ func (a *Application) CleanUpTmpResources() error {
 func (a *Application) CleanupResources() error {
 	log.Info("Remove resource files...")
 	homeDir := a.GetHomeDir()
-	return errors.Wrap(os.RemoveAll(homeDir),
+	return errors.Wrap(
+		os.RemoveAll(homeDir),
 		fmt.Sprintf("fail to remove resources dir %s", homeDir),
 	)
 }

@@ -15,15 +15,13 @@ package util
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 	clientgowatch "k8s.io/client-go/tools/watch"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/nhctlcli"
 	"os"
 	"os/exec"
@@ -42,10 +40,10 @@ func Init(cli *nhctlcli.CLI) {
 	Client = temp
 }
 
-func WaitForCommandDone(command string) (bool, string) {
+func WaitForCommandDone(command string, args ...string) (bool, string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "sh", "-c", command)
+	cmd := exec.CommandContext(ctx, command, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return false, err.Error()
@@ -85,7 +83,7 @@ func WaitToBeStatus(namespace string, resource string, label string, checker fun
 	}
 	event, err := clientgowatch.UntilWithSync(ctx, watchlist, &v1.Pod{}, preConditionFunc, conditionFunc)
 	if err != nil {
-		fmt.Printf("wait to ready failed, error: %v, event: %v", err, event)
+		log.Infof("wait pod has the label: %s to ready failed, error: %v, event: %v", label, err, event)
 		return false
 	}
 	return true
@@ -112,15 +110,6 @@ func NeedsToInitK8sOnTke() bool {
 	} else {
 		return false
 	}
-}
-
-func CreateNamespaceIgnoreError(ns, kubeconfig string) {
-	kubeconfigBytes, _ := ioutil.ReadFile(kubeconfig)
-	config, _ := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
-	Clients, _ := kubernetes.NewForConfig(config)
-	_, _ = Clients.CoreV1().Namespaces().Create(context.Background(), &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{Name: ns},
-	}, metav1.CreateOptions{})
 }
 
 func GetKubeconfig() string {

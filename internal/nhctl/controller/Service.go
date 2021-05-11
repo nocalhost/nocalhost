@@ -57,22 +57,6 @@ func (c *Controller) CheckIfExist() (bool, error) {
 }
 
 func (c *Controller) GetDescription() *profile.SvcProfileV2 {
-	//appProfile, err := c.GetAppProfile()
-	//if err != nil {
-	//	return ""
-	//}
-	//svcProfile :=Ø appProfile.SvcProfileV2(c.Name, string(c.Type))
-	//desc := ""
-	//if svcProfile != nil {
-	//	svcProfile.Developing = c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type)
-	//	svcProfile.Possess = c.AppMeta.SvcDevModePossessor(c.Name, c.Type, appProfile.Identifier)
-	//	bytes, err := yaml.Marshal(svcProfile)
-	//	if err == nil {
-	//		desc = string(bytes)
-	//	}
-	//}
-	//return desc
-
 	appProfile, err := c.GetAppProfile()
 	if err != nil {
 		return nil

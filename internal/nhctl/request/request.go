@@ -216,8 +216,8 @@ func (q *ApiRequest) Login(email, password string) *ApiRequest {
 	q.ExposeService()
 
 	for i := 0; i < 3; i++ {
-		errAfterPortForward := q.tryLogin(email, password)
-		if errAfterPortForward == nil {
+		err = q.tryLogin(email, password)
+		if err == nil {
 			return q
 		}
 	}

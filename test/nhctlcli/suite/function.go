@@ -13,6 +13,8 @@
 package suite
 
 import (
+	"errors"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/test/nhctlcli"
 	"nocalhost/test/nhctlcli/testcase"
 	"nocalhost/test/tke"
@@ -47,6 +49,7 @@ func Sync(cli *nhctlcli.CLI, _ ...string) {
 func Compatible(cli *nhctlcli.CLI, p ...string) {
 	module := "ratings"
 	port := 49080
+	testcase.Exec(cli)
 	testcase.DevStart(cli, module)
 	testcase.Sync(cli, module)
 	testcase.PortForwardStart(cli, module, port)
@@ -67,7 +70,6 @@ func Compatible(cli *nhctlcli.CLI, p ...string) {
 	testcase.Pvc(cli)
 	testcase.Reset(cli)
 	testcase.InstallBookInfoThreeTimes(cli)
-	testcase.Exec(cli)
 }
 
 func Reset(cli *nhctlcli.CLI, _ ...string) {
@@ -90,8 +92,7 @@ func Install(cli *nhctlcli.CLI, _ ...string) {
 }
 
 // Prepare will install a nhctl client, create a k8s cluster if necessary
-func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string) {
-	var cancelFunc func()
+func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string, cancelFunc func()) {
 	if util.NeedsToInitK8sOnTke() {
 		t := tke.CreateK8s()
 		cancelFunc = t.Delete
@@ -106,15 +107,25 @@ func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string) {
 	v1, v2 = testcase.GetVersion()
 	testcase.InstallNhctl(v1)
 	kubeconfig := util.GetKubeconfig()
-	ns := "test"
-	cli = nhctlcli.NewNhctl(ns, kubeconfig)
-	util.CreateNamespaceIgnoreError(ns, kubeconfig)
-	util.Init(cli)
-	testcase.NhctlVersion(cli)
-	testcase.StopDaemon(cli)
-	go testcase.Init(cli)
+
+	tempCli := nhctlcli.NewNhctl("", kubeconfig)
+	util.Init(tempCli)
+	testcase.NhctlVersion(tempCli)
+	testcase.StopDaemon(tempCli)
+	go testcase.Init(tempCli)
 	if i := <-testcase.StatusChan; i != 0 {
-		testcase.StopChan <- 1
+		panic("Init nocalhost occurs error, exiting")
 	}
+	web := <-testcase.WebServerEndpointChan
+	var ns string
+	var err error
+	newKubeconfig := testcase.GetKubeconfig(ns, web, kubeconfig)
+	if ns, err = clientgoutils.GetNamespaceFromKubeConfig(newKubeconfig); err != nil {
+		panic(err)
+	}
+	if ns == "" {
+		panic(errors.New("--namespace or --kubeconfig mush be provided"))
+	}
+	cli = nhctlcli.NewNhctl(ns, newKubeconfig)
 	return
 }
