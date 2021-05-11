@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
 	"strings"
@@ -41,7 +42,8 @@ func (r *CmdRunner) CheckResult(cmd *exec.Cmd, stdout string, stderr string, err
 }
 
 func (r *CmdRunner) Run(cmd *exec.Cmd) (string, string, error) {
-	fmt.Printf("Running command: %s\n", cmd.Args)
+	time.Sleep(time.Second * 5)
+	log.Infof("Running command: %s", cmd.Args)
 
 	stdout := bytes.Buffer{}
 	cmd.Stdout = &stdout
@@ -57,14 +59,15 @@ func (r *CmdRunner) Run(cmd *exec.Cmd) (string, string, error) {
 	}
 
 	if stderr.Len() > 0 {
-		fmt.Printf("Command output: [%s], stderr: %s", stdout.String(), stderr.String())
+		log.Infof("Command output: [%s], stderr: %s", stdout.String(), stderr.String())
 	}
 
 	return stdout.String(), stderr.String(), nil
 }
 
 func (r *CmdRunner) RunWithRollingOut(cmd *exec.Cmd) (string, string, error) {
-	fmt.Printf("Running command: %s\n", cmd.Args)
+	time.Sleep(time.Second * 5)
+	log.Infof("Running command: %s", cmd.Args)
 	var stdoutLog strings.Builder
 	var stderrLog strings.Builder
 	stdoutPipe, err := cmd.StdoutPipe()

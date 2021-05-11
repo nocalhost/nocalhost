@@ -23,9 +23,9 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
 	"nocalhost/internal/nhctl/daemon_common"
+	"nocalhost/internal/nhctl/daemon_handler"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/internal/nhctl/resouce_cache"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
@@ -245,7 +245,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType)
 			return
 		}
 
-		res := resouce_cache.HandleGetResourceInfoRequest(cmd)
+		res := daemon_handler.HandleGetResourceInfoRequest(cmd)
 		response(conn, res)
 	}
 }

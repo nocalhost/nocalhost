@@ -171,9 +171,6 @@ func (c *Controller) CreateSyncThingSecret(syncSecret *corev1.Secret) error {
 
 	// check if secret exist
 	exist, err := c.Client.GetSecret(syncSecret.Name)
-	if err != nil {
-		return err
-	}
 
 	if exist.Name != "" {
 		_ = c.Client.DeleteSecret(syncSecret.Name)

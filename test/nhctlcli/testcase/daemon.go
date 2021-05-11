@@ -34,7 +34,7 @@ func StopDaemon(nhctl *nhctlcli.CLI) {
 }
 
 func Exec(nhctl *nhctlcli.CLI) {
-	util.WaitToBeStatus(nhctl.Namespace, "pods", "app=reviews", func(i interface{}) bool {
+	util.WaitResourceToBeStatus(nhctl.Namespace, "pods", "app=reviews", func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning
 	})
 	cmd := nhctl.Command(context.Background(), "exec", "bookinfo", "-d", "reviews", "-c", "ls")
@@ -66,7 +66,8 @@ func StatusCheckPortForward(nhctl *nhctlcli.CLI, moduleName string, port int) {
 	cmd := nhctl.Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
 	stdout, stderr, err := nhctlcli.Runner.Run(cmd)
 	if err != nil {
-		panic(fmt.Sprintf("exec command: %s, error: %v, stdout: %s, stderr: %s\n", cmd.Args, err, stdout, stderr))
+		panic(fmt.Sprintf(
+			"exec command: %s, error: %v, stdout: %s, stderr: %s\n", cmd.Args, err, stdout, stderr))
 	}
 	service := profile2.SvcProfileV2{}
 	_ = yaml.Unmarshal([]byte(stdout), &service)

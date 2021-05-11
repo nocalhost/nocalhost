@@ -102,7 +102,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 
 	if err = appMeta.Initial(); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
-			log.Error("Application %s in %s has been installed", app.Name, app.NameSpace)
+			log.Errorf("Application %s in %s has been installed", app.Name, app.NameSpace)
 		}
 		return nil, err
 	}

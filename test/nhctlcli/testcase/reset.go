@@ -90,7 +90,7 @@ func Apply(nhctl *nhctlcli.CLI) {
 	}
 }`
 	b, _ := yaml.JSONToYAML([]byte(content))
-	f, _ := ioutil.TempFile("/tmp", "*apply.yaml")
+	f, _ := ioutil.TempFile("", "*apply.yaml")
 	_, _ = f.Write(b)
 	_ = f.Sync()
 	defer f.Close()

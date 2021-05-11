@@ -14,16 +14,17 @@ package util
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 	clientgowatch "k8s.io/client-go/tools/watch"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/nhctlcli"
 	"os"
 	"os/exec"
@@ -42,10 +43,10 @@ func Init(cli *nhctlcli.CLI) {
 	Client = temp
 }
 
-func WaitForCommandDone(command string) (bool, string) {
+func WaitForCommandDone(command string, args ...string) (bool, string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "sh", "-c", command)
+	cmd := exec.CommandContext(ctx, command, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return false, err.Error()
@@ -56,7 +57,7 @@ func WaitForCommandDone(command string) (bool, string) {
 	return cmd.ProcessState.Success(), string(output)
 }
 
-func WaitToBeStatus(namespace string, resource string, label string, checker func(interface{}) bool) bool {
+func WaitResourceToBeStatus(namespace string, resource string, label string, checker func(interface{}) bool) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -64,9 +65,7 @@ func WaitToBeStatus(namespace string, resource string, label string, checker fun
 		Client.ClientSet.CoreV1().RESTClient(),
 		resource,
 		namespace,
-		func(options *metav1.ListOptions) {
-			options.LabelSelector = label
-		})
+		func(options *metav1.ListOptions) { options.LabelSelector = label })
 
 	preConditionFunc := func(store cache.Store) (bool, error) {
 		if len(store.List()) == 0 {
@@ -79,16 +78,31 @@ func WaitToBeStatus(namespace string, resource string, label string, checker fun
 		}
 		return true, nil
 	}
-
-	conditionFunc := func(e watch.Event) (bool, error) {
-		return checker(e.Object), nil
-	}
-	event, err := clientgowatch.UntilWithSync(ctx, watchlist, &v1.Pod{}, preConditionFunc, conditionFunc)
+	conditionFunc := func(e watch.Event) (bool, error) { return checker(e.Object), nil }
+	obj, err := getRuntimeObjectByResource(resource)
 	if err != nil {
-		fmt.Printf("wait to ready failed, error: %v, event: %v", err, event)
+		return false
+	}
+	event, err := clientgowatch.UntilWithSync(ctx, watchlist, obj, preConditionFunc, conditionFunc)
+	if err != nil {
+		log.Infof("wait pod has the label: %s to ready failed, error: %v, event: %v", label, err, event)
 		return false
 	}
 	return true
+}
+
+// todo how to make it more elegant
+func getRuntimeObjectByResource(resource string) (k8sruntime.Object, error) {
+	switch resource {
+	case "pods":
+		return &v1.Pod{}, nil
+	case "deployments":
+		return &appsv1.Deployment{}, nil
+	case "statefulsets":
+		return &appsv1.StatefulSet{}, nil
+	default:
+		return nil, errors.New("not support resouce type: " + resource)
+	}
 }
 
 func TimeoutChecker(d time.Duration, cancanFunc func()) {
@@ -112,15 +126,6 @@ func NeedsToInitK8sOnTke() bool {
 	} else {
 		return false
 	}
-}
-
-func CreateNamespaceIgnoreError(ns, kubeconfig string) {
-	kubeconfigBytes, _ := ioutil.ReadFile(kubeconfig)
-	config, _ := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
-	Clients, _ := kubernetes.NewForConfig(config)
-	_, _ = Clients.CoreV1().Namespaces().Create(context.Background(), &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{Name: ns},
-	}, metav1.CreateOptions{})
 }
 
 func GetKubeconfig() string {

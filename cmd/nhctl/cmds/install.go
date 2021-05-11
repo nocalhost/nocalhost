@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/controller"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
 	"time"
 
@@ -122,8 +123,8 @@ var installCmd = &cobra.Command{
 
 		must(Prepare())
 
-		if applicationName == app.DefaultNocalhostApplication {
-			log.Error(app.DefaultNocalhostApplicationOperateErr)
+		if applicationName == nocalhost.DefaultNocalhostApplication {
+			log.Error(nocalhost.DefaultNocalhostApplicationOperateErr)
 			return
 		}
 

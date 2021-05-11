@@ -19,6 +19,8 @@ import (
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	"net/http"
+	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/tools"
 	"nocalhost/test/nhctlcli"
 	"nocalhost/test/util"
 	"os"
@@ -38,7 +40,7 @@ func DevStart(cli *nhctlcli.CLI, moduleName string) {
 		"--priority-class", "nocalhost-container-critical")
 	nhctlcli.Runner.RunPanicIfError(cmd)
 
-	util.WaitToBeStatus("test", "pods", "app="+moduleName, func(i interface{}) bool {
+	util.WaitResourceToBeStatus("test", "pods", "app="+moduleName, func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning
 	})
 }
@@ -59,26 +61,40 @@ func SyncCheck(cli *nhctlcli.CLI, moduleName string) {
 	// wait file to be synchronize
 	time.Sleep(30 * time.Second)
 	// not use nhctl exec is just because nhctl exec will stuck while cat file
-	cmd := fmt.Sprintf(
-		"kubectl exec -t deployment/%s -n test --kubeconfig=%s -- cat %s", moduleName, cli.KubeConfig, filename,
-	)
-	fmt.Println("Running command: " + cmd)
-	ok, log := util.WaitForCommandDone(cmd)
+	args := []string{
+		"exec",
+		"-t",
+		"deployment/" + moduleName,
+		"-n", cli.Namespace,
+		"--kubeconfig",
+		cli.KubeConfig,
+		"--",
+		"cat",
+		filename,
+	}
+	kubectl, err := tools.CheckThirdPartyCLI()
+	if err != nil {
+		panic("can't find kubectl, please make sure kubectl is installed and in executable path")
+	}
+	log.Infof("Running command: %s %s", kubectl, args)
+	var log string
+	var ok bool
+	for i := 0; i < 100; i++ {
+		time.Sleep(time.Second * 2)
+		ok, log = util.WaitForCommandDone(kubectl, args...)
+		if !ok {
+			fmt.Printf("kubectl exec command error, log: %s, retry\n", log)
+			continue
+		}
+		break
+	}
 	if !ok {
-		panic(
-			fmt.Sprintf(
-				"test case failed, reason: cat file %s error,"+
-					" command: %s, log: %v", filename, cmd, log,
-			),
-		)
+		panic(fmt.Sprintf("test case failed, reason: cat file %s error,"+
+			" command: %s, log: %v", filename, args, log))
 	}
 	if !strings.Contains(log, content) {
-		panic(
-			fmt.Sprintf(
-				"test case failed, reason: file content:"+
-					" %s not equals command log: %s", content, log,
-			),
-		)
+		panic(fmt.Sprintf("test case failed, reason: file content:"+
+			" %s not equals command log: %s", content, log))
 	}
 }
 
@@ -100,7 +116,7 @@ func DevEnd(cli *nhctlcli.CLI, moduleName string) {
 	cmd := cli.Command(context.Background(), "dev", "end", "bookinfo", "-d", moduleName)
 	nhctlcli.Runner.RunPanicIfError(cmd)
 
-	util.WaitToBeStatus("test", "pods", "app="+moduleName, func(i interface{}) bool {
+	util.WaitResourceToBeStatus("test", "pods", "app="+moduleName, func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning && func() bool {
 			for _, containerStatus := range i.(*v1.Pod).Status.ContainerStatuses {
 				if containerStatus.Ready {
