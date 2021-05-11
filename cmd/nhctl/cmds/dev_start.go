@@ -96,8 +96,8 @@ var devStartCmd = &cobra.Command{
 		must(err)
 
 		must(
-			nocalhostSvc.UpdateSvcProfile(
-				func(svcProfile *profile.SvcProfileV2) error {
+			nocalhostSvc.UpdateProfile(
+				func(p *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
 					if svcProfile == nil {
 						return errors.New("Svc profile not found")
 					}
@@ -107,17 +107,24 @@ var devStartCmd = &cobra.Command{
 					if devStartOps.DevImage != "" {
 						svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).Image = devStartOps.DevImage
 					}
-					if len(devStartOps.LocalSyncDir) > 0 {
+					if len(devStartOps.LocalSyncDir) == 1 {
 						svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
+						svcProfile.Associate = devStartOps.LocalSyncDir[0]
+					} else {
+						return errors.New("Can not define multi 'local-sync(-s)'")
 					}
+
+					p.GenerateIdentifierIfNeeded()
 					return nil
 				},
 			),
 		)
 
+		must(nocalhostApp.ReloadSvcCfg(deployment, serviceType))
+
 		must(
 			nocalhostSvc.AppMeta.SvcDevStart(
-				nocalhostSvc.Name, nocalhostSvc.Type, p.GenerateIdentifierIfNeeded(),
+				nocalhostSvc.Name, nocalhostSvc.Type, p.Identifier,
 			),
 		)
 

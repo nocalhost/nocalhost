@@ -218,48 +218,74 @@ func (a *Application) generateSecretForEarlierVer() bool {
 	return false
 }
 
-func (a *Application) reloadSvcCfg(svcName, svcType string){
+func (a *Application) ReloadCfg() error {
+	secretCfg := a.appMeta.Config
+	for _, config := range secretCfg.ApplicationConfig.ServiceConfigs {
+		if err := a.ReloadSvcCfg(config.Name, config.Type); err != nil {
+			log.LogE(err)
+		}
+	}
 
+	return nil
 }
 
-func (a *Application) loadSvcCfgFromLocalIfNeeded(svcName, svcType string) {
+func (a *Application) ReloadSvcCfg(svcName, svcType string) error {
+	if !a.loadSvcCfgFromLocalIfNeeded(svcName, svcType) {
+		return a.Controller(svcName, appmeta.SvcTypeOf(svcType)).UpdateSvcProfile(
+			func(svcProfile *profile.SvcProfileV2) error {
+				svcProfile.ServiceConfigV2 = a.appMeta.Config.GetSvcConfigV2(svcName, svcType)
+				svcProfile.LocalConfigLoaded = false
+				return nil
+			},
+		)
+	}
+	return nil
+}
+
+func (a *Application) loadSvcCfgFromLocalIfNeeded(svcName, svcType string) bool {
 	p, err := a.GetProfile()
 	if err != nil {
-		return
+		return false
 	}
 
 	svcProfile := p.SvcProfileV2(svcName, svcType)
 	if svcProfile.LocalConfigLoaded {
-		return
+		return false
 	}
 
 	if svcProfile.Associate == "" {
-		return
+		return false
 	}
 
 	configFile := fp.NewFilePath(svcProfile.Associate).RelOrAbs(nocalhost.NocalhostLocalConfigName)
 	if err = configFile.CheckExist(); err != nil {
-		return
+		return false
 	}
 
 	content, err := configFile.ReadFileCompel()
 	if err != nil || content == "" {
-		return
+		log.LogE(err)
+		return false
 	}
 
 	svcProfileConfig := &profile.ServiceConfigV2{}
 	if err := yaml.Unmarshal([]byte(content), svcProfile); err != nil {
-		return
+		log.LogE(err)
+		return false
 	}
 
 	// means should load svc cfg from local
-	err = a.Controller(svcName, appmeta.SvcTypeOf(svcType)).UpdateSvcProfile(
+	if err := a.Controller(svcName, appmeta.SvcTypeOf(svcType)).UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
 			svcProfile.ServiceConfigV2 = svcProfileConfig
 			svcProfile.LocalConfigLoaded = true
 			return nil
 		},
-	)
+	); err != nil {
+		log.LogE(err)
+		return false
+	}
+	return true
 }
 
 func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {

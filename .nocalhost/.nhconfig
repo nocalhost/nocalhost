@@ -1,0 +1,39 @@
+name: git-event-server
+serviceType: deployment
+dependLabelSelector:
+  pods:
+    - app=rabbitmq
+  jobs: []
+containers:
+  - name: ""
+    install: null
+    dev:
+      gitUrl: git@e.coding.net:codingcorp/vcs-project/go-event-server.git
+      image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang:latest
+      shell: zsh
+      workDir: /root/nocalhost-dev
+      resources:
+        limits:
+          memory: 4Gi
+          cpu: "1"
+        requests:
+          memory: 2Gi
+          cpu: "0.5"
+      persistentVolumeDirs:
+        - path: /root
+      command: null
+      debug:
+        remoteDebugPort: 5005
+      useDevContainer: false
+      sync:
+        type: send
+        filePattern:
+          - .
+        ignoreFilePattern:
+          - .git
+          - ./build
+          - ./bin
+      env: []
+      envFrom: null
+      portForward: []
+

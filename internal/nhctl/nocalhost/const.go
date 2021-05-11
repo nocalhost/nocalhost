@@ -40,5 +40,5 @@ const (
 
 	HelmReleaseName = "meta.helm.sh/release-name"
 
-	NocalhostLocalConfigName = ".nocalhost"
+	NocalhostLocalConfigName = ".nhconfig"
 )
