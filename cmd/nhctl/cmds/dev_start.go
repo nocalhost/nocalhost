@@ -95,28 +95,29 @@ var devStartCmd = &cobra.Command{
 		p, err := nocalhostApp.GetProfile()
 		must(err)
 
-		svcProfile := p.SvcProfileV2(deployment, string(nocalhostSvc.Type))
-		if svcProfile == nil {
-			log.Fatal("Svc profile not found")
-			return
-		}
-		if devStartOps.WorkDir != "" {
-			svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).WorkDir = devStartOps.WorkDir
-		}
-		if devStartOps.DevImage != "" {
-			svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).Image = devStartOps.DevImage
-		}
-		if len(devStartOps.LocalSyncDir) > 0 {
-			svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
-		}
+		must(
+			nocalhostSvc.UpdateSvcProfile(
+				func(svcProfile *profile.SvcProfileV2) error {
+					if svcProfile == nil {
+						return errors.New("Svc profile not found")
+					}
+					if devStartOps.WorkDir != "" {
+						svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).WorkDir = devStartOps.WorkDir
+					}
+					if devStartOps.DevImage != "" {
+						svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).Image = devStartOps.DevImage
+					}
+					if len(devStartOps.LocalSyncDir) > 0 {
+						svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
+					}
+					return nil
+				},
+			),
+		)
 
 		must(
-			nocalhostApp.UpdateProfile(
-				func(p *profile.AppProfileV2) error {
-					return nocalhostSvc.AppMeta.SvcDevStart(
-						nocalhostSvc.Name, nocalhostSvc.Type, p.GenerateIdentifierIfNeeded(),
-					)
-				},
+			nocalhostSvc.AppMeta.SvcDevStart(
+				nocalhostSvc.Name, nocalhostSvc.Type, p.GenerateIdentifierIfNeeded(),
 			),
 		)
 

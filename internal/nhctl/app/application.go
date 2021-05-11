@@ -218,6 +218,10 @@ func (a *Application) generateSecretForEarlierVer() bool {
 	return false
 }
 
+func (a *Application) reloadSvcCfg(svcName, svcType string){
+
+}
+
 func (a *Application) loadSvcCfgFromLocalIfNeeded(svcName, svcType string) {
 	p, err := a.GetProfile()
 	if err != nil {
