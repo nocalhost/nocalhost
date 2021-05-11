@@ -1,0 +1,19 @@
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nocalhost-dep-hpa
+  namespace: nocalhost-reserved
+  labels:
+    app: nocalhost-dep
+spec:
+  maxReplicas: 5
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nocalhost-dep
+  metrics:
+    - type: Pods
+      pods:
+        metricName: k8s_pod_rate_cpu_core_used_request
+        targetAverageValue: "80"

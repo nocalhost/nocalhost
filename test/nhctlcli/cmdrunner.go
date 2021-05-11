@@ -42,7 +42,8 @@ func (r *CmdRunner) CheckResult(cmd *exec.Cmd, stdout string, stderr string, err
 }
 
 func (r *CmdRunner) Run(cmd *exec.Cmd) (string, string, error) {
-	log.Infof("Running command: %s\n", cmd.Args)
+	time.Sleep(time.Second * 5)
+	log.Infof("Running command: %s", cmd.Args)
 
 	stdout := bytes.Buffer{}
 	cmd.Stdout = &stdout
@@ -65,6 +66,7 @@ func (r *CmdRunner) Run(cmd *exec.Cmd) (string, string, error) {
 }
 
 func (r *CmdRunner) RunWithRollingOut(cmd *exec.Cmd) (string, string, error) {
+	time.Sleep(time.Second * 5)
 	log.Infof("Running command: %s", cmd.Args)
 	var stdoutLog strings.Builder
 	var stderrLog strings.Builder

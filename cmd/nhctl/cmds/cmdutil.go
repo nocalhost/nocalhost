@@ -21,6 +21,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/fp"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -37,7 +38,7 @@ func initApp(appName string) {
 	nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
 	if err != nil {
 		// if default application not found, try to creat one
-		if errors.Is(err, app.ErrNotFound) && appName == app.DefaultNocalhostApplication {
+		if errors.Is(err, app.ErrNotFound) && appName == nocalhost.DefaultNocalhostApplication {
 			// try init default application
 			mustI(InitDefaultApplicationInCurrentNs(), "Error while create default application")
 
@@ -137,7 +138,7 @@ func InitDefaultApplicationInCurrentNs() error {
 	installFlags.AppType = string(appmeta.Manifest)
 	installFlags.LocalPath = baseDir.Abs()
 
-	if err = InstallApplication(app.DefaultNocalhostApplication); k8serrors.IsServerTimeout(err) {
+	if err = InstallApplication(nocalhost.DefaultNocalhostApplication); k8serrors.IsServerTimeout(err) {
 		return nil
 	}
 	return err
