@@ -107,51 +107,58 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		sideCarContainer.Resources = *requirements
 	}
 
-	if ops.Container != "" {
-		for index, c := range dep.Spec.Template.Spec.Containers {
-			if c.Name == ops.Container {
-				dep.Spec.Template.Spec.Containers[index] = *devContainer
-				break
-			}
-		}
-	} else {
-		dep.Spec.Template.Spec.Containers[0] = *devContainer
-	}
-
-	// Add volumes to deployment spec
-	if dep.Spec.Template.Spec.Volumes == nil {
-		log.Debugf("Service %s has no volume", dep.Name)
-		dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
-	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
-
-	// delete user's SecurityContext
-	dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
-
-	// disable readiness probes
-	for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
-		dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
-		dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
-		dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
-	}
-
-	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
-
-	// PriorityClass
-	priorityClass := ops.PriorityClass
-	if priorityClass == "" {
-		svcProfile, _ := s.GetProfile()
-		priorityClass = svcProfile.PriorityClass
-	}
-	if priorityClass != "" {
-		log.Infof("Using priorityClass: %s...", priorityClass)
-		dep.Spec.Template.Spec.PriorityClassName = priorityClass
-	}
-
-	dep.Annotations[OriginSpecJson] = string(originalSpecJson)
-
-	log.Info("Updating development container...")
 	for i := 0; i < 10; i++ {
+		// Get the latest stateful set
+		dep, err = s.Client.GetStatefulSet(s.Name())
+		if err != nil {
+			return err
+		}
+
+		if ops.Container != "" {
+			for index, c := range dep.Spec.Template.Spec.Containers {
+				if c.Name == ops.Container {
+					dep.Spec.Template.Spec.Containers[index] = *devContainer
+					break
+				}
+			}
+		} else {
+			dep.Spec.Template.Spec.Containers[0] = *devContainer
+		}
+
+		// Add volumes to deployment spec
+		if dep.Spec.Template.Spec.Volumes == nil {
+			log.Debugf("Service %s has no volume", dep.Name)
+			dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
+		}
+		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
+
+		// delete user's SecurityContext
+		dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
+
+		// disable readiness probes
+		for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
+			dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
+			dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
+			dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
+		}
+
+		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
+
+		// PriorityClass
+		priorityClass := ops.PriorityClass
+		if priorityClass == "" {
+			svcProfile, _ := s.GetProfile()
+			priorityClass = svcProfile.PriorityClass
+		}
+		if priorityClass != "" {
+			log.Infof("Using priorityClass: %s...", priorityClass)
+			dep.Spec.Template.Spec.PriorityClassName = priorityClass
+		}
+
+		dep.Annotations[OriginSpecJson] = string(originalSpecJson)
+
+		log.Info("Updating development container...")
+
 		_, err = s.Client.UpdateStatefulSet(dep, true)
 		if err != nil {
 			if strings.Contains(err.Error(), "no PriorityClass") {
