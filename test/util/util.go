@@ -14,8 +14,8 @@ package util
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,12 +35,13 @@ import (
 
 var Client *clientgoutils.ClientGoUtils
 
-func Init(cli *nhctlcli.CLI) {
+func Init(cli *nhctlcli.CLI) error {
 	temp, err := clientgoutils.NewClientGoUtils(cli.KubeConfig, cli.Namespace)
 	if err != nil {
-		panic(fmt.Sprintf("init k8s client error: %v", err))
+		return errors.Errorf("init k8s client error: %v", err)
 	}
 	Client = temp
+	return nil
 }
 
 func WaitForCommandDone(command string, args ...string) (bool, string) {

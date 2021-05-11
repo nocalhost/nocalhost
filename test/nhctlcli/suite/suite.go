@@ -13,11 +13,13 @@
 package suite
 
 import (
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/nhctlcli"
 	"nocalhost/test/nhctlcli/testcase"
 	"nocalhost/test/util"
+	"time"
 )
 
 // test suite
@@ -34,7 +36,19 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 			panic(err)
 		}
 	}()
-	testcase.InstallBookInfo(t.Cli)
+	var retryTimes = 5
+	var err error
+	for i := 0; i < retryTimes; i++ {
+		if err = testcase.InstallBookInfo(t.Cli); err != nil {
+			_ = testcase.Reset(t.Cli)
+			time.Sleep(time.Second * 2)
+			continue
+		}
+		break
+	}
+	if err != nil {
+		panic(errors.Wrap(err, "test suite failed, install bookinfo error"))
+	}
 	util.WaitResourceToBeStatus(t.Cli.Namespace, "pods", "app=reviews", func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning
 	})
@@ -45,7 +59,13 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 	fn(t.Cli, pp...)
 	log.Info("Testing done " + name)
 	//testcase.Reset(t.Cli)
-	testcase.UninstallBookInfo(t.Cli)
+	for i := 0; i < retryTimes; i++ {
+		if err = testcase.UninstallBookInfo(t.Cli); err != nil {
+			time.Sleep(time.Second * 2)
+			continue
+		}
+		break
+	}
 }
 
 func (t *T) Clean() {

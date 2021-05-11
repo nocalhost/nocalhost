@@ -18,7 +18,6 @@ import (
 
 func main() {
 	cli, _, v2, cancelFunc := suite.Prepare()
-	// ---------base line-----------
 	t := suite.T{Cli: cli, CleanFunc: cancelFunc}
 	t.Run("install", suite.Install)
 	t.Run("dev", suite.Dev)
