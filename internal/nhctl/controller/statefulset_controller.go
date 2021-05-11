@@ -151,21 +151,29 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 	dep.Annotations[OriginSpecJson] = string(originalSpecJson)
 
 	log.Info("Updating development container...")
-	_, err = s.Client.UpdateStatefulSet(dep, true)
-	if err != nil {
-		if strings.Contains(err.Error(), "no PriorityClass") {
-			log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
-			dep, err = s.Client.GetStatefulSet(s.Name())
-			if err != nil {
-				return err
-			}
-			dep.Spec.Template.Spec.PriorityClassName = ""
-			_, err = s.Client.UpdateStatefulSet(dep, true)
-		}
+	for i := 0; i < 10; i++ {
+		_, err = s.Client.UpdateStatefulSet(dep, true)
 		if err != nil {
-			return err
+			if strings.Contains(err.Error(), "no PriorityClass") {
+				log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
+				dep, err = s.Client.GetStatefulSet(s.Name())
+				if err != nil {
+					return err
+				}
+				dep.Spec.Template.Spec.PriorityClassName = ""
+				_, err = s.Client.UpdateStatefulSet(dep, true)
+			}
+			if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
+				log.Warn("StatefulSet has been modified, retrying...")
+				continue
+			}
 		}
+		break
 	}
+	if err != nil {
+		return err
+	}
+
 	return s.waitingPodToBeReady()
 }
 
