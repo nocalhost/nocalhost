@@ -12,6 +12,8 @@
 
 package clientgoutils
 
+import "github.com/pkg/errors"
+
 //func getHomePath() string {
 //	u, err := user.Current()
 //	if err == nil {
@@ -23,5 +25,11 @@ package clientgoutils
 func Must(err error) {
 	if err != nil {
 		panic(err)
+	}
+}
+
+func MustI(err error, s string) {
+	if err != nil {
+		panic(errors.Wrap(err, s))
 	}
 }

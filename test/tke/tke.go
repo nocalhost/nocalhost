@@ -13,6 +13,7 @@
 package tke
 
 import (
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"io/ioutil"
@@ -26,11 +27,11 @@ import (
 	tke "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tke/v20180525"
 )
 
-func CreateK8s() *task {
+func CreateK8s() (*task, error) {
 	id := os.Getenv("TKE_SECRET_ID")
 	key := os.Getenv("TKE_SECRET_KEY")
 	if id == "" || key == "" {
-		panic("SECRET_ID or SECRET_KEY is null, please make sure you have set it correctly")
+		return nil, errors.New("SECRET_ID or SECRET_KEY is null, please make sure you have set it correctly")
 	}
 	t := NewTask(id, key)
 	t.CreateTKE()
@@ -47,11 +48,12 @@ func CreateK8s() *task {
 		time.Sleep(time.Second * 2)
 	}
 	if !ok {
-		panic("Enable internet access error, please checkout you tke cluster")
+		return t, errors.New("enable internet access error, please checkout you tke cluster")
 	}
 	t.GetKubeconfig()
-	return t
+	return t, nil
 }
+
 func DeleteTke(t *task) {
 	t.Delete()
 }

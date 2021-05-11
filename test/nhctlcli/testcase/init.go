@@ -37,8 +37,9 @@ import (
 	"time"
 )
 
-var StatusChan = make(chan int32, 1)
+var StatusChan = make(chan int32)
 var ApiServerEndpointChan = make(chan string)
+var WebServerServiceAccountApi = "/v1/plugin/service_accounts"
 
 func GetVersion() (v1 string, v2 string) {
 	commitId := os.Getenv("COMMIT_ID")
@@ -61,7 +62,7 @@ func GetVersion() (v1 string, v2 string) {
 	return
 }
 
-func InstallNhctl(version string) {
+func InstallNhctl(version string) error {
 	var name string
 	var output string
 	var needChmod bool
@@ -78,32 +79,37 @@ func InstallNhctl(version string) {
 		output = "nhctl"
 		needChmod = true
 	}
-
 	str := "curl --fail -s -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o " + output
 	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, name, version))
-	nhctlcli.Runner.RunPanicIfError(cmd)
-
+	if err := nhctlcli.Runner.RunPanicIfError(cmd); err != nil {
+		return err
+	}
 	// unix and linux needs to add x permission
 	if needChmod {
 		cmd = exec.Command("sh", "-c", "chmod +x nhctl")
-		nhctlcli.Runner.RunPanicIfError(cmd)
+		if err := nhctlcli.Runner.RunPanicIfError(cmd); err != nil {
+			return err
+		}
 		cmd = exec.Command("sh", "-c", "sudo mv ./nhctl /usr/local/bin/nhctl")
-		nhctlcli.Runner.RunPanicIfError(cmd)
+		if err := nhctlcli.Runner.RunPanicIfError(cmd); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func Init(nhctl *nhctlcli.CLI) {
+func Init(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.CommandWithNamespace(context.Background(),
 		"init", "nocalhost", "demo", "-p", "7000", "--force")
 	log.Infof("Running command: %s", cmd.Args)
 	var stdoutRead io.ReadCloser
 	var err error
 	if stdoutRead, err = cmd.StdoutPipe(); err != nil {
-		panic(errors.Wrap(err, "stdout error"))
+		return errors.Wrap(err, "stdout error")
 	}
 	if err = cmd.Start(); err != nil {
 		_ = cmd.Process.Kill()
-		panic(fmt.Sprintf("nhctl init error: %v", err))
+		return errors.Errorf("nhctl init error: %v", err)
 	}
 	go func() {
 		if err = cmd.Wait(); err != nil {
@@ -124,7 +130,7 @@ func Init(nhctl *nhctlcli.CLI) {
 				StatusChan <- 1
 			}
 			if len(line) != 0 && !isPrefix {
-				fmt.Println(string(line))
+				log.Info(line)
 			}
 			if strings.Contains(string(line), "Nocalhost init completed") {
 				StatusChan <- 0
@@ -133,17 +139,18 @@ func Init(nhctl *nhctlcli.CLI) {
 			submatch := reg.FindStringSubmatch(string(line))
 			if len(submatch) > 0 {
 				ApiServerEndpointChan <- submatch[0]
-				fmt.Println("Found webserver endpoint: " + submatch[0])
+				log.Info("Found webserver endpoint: " + submatch[0])
 				break
 			}
 		}
 	}()
 	if i := <-StatusChan; i != 0 {
-		panic("Init nocalhost occurs error, exiting")
+		return errors.New("Init nocalhost occurs error, exiting")
 	}
+	return nil
 }
 
-func StatusCheck(nhctl *nhctlcli.CLI, moduleName string) {
+func StatusCheck(nhctl *nhctlcli.CLI, moduleName string) error {
 	retryTimes := 10
 	var ok bool
 	for i := 0; i < retryTimes; i++ {
@@ -172,26 +179,24 @@ func StatusCheck(nhctl *nhctlcli.CLI, moduleName string) {
 		break
 	}
 	if !ok {
-		panic("test case failed, status check not pass")
+		return errors.New("test case failed, status check not pass")
 	}
+	return nil
 }
 
-var WebServerServiceAccountApi = "/v1/plugin/service_accounts"
-
-func GetKubeconfig(ns, webEndpoint, kubeconfig string) string {
+func GetKubeconfig(ns, webEndpoint, kubeconfig string) (string, error) {
 	client, err := clientgoutils.NewClientGoUtils(kubeconfig, ns)
-	log.Debugf("kubeconfig %s \n", kubeconfig)
+	log.Debugf("kubeconfig %s", kubeconfig)
 	if err != nil || client == nil {
-		panic("new go client fail, or check you kubeconfig")
+		return "", errors.Errorf("new go client fail, or check you kubeconfig, err: %v", err)
 	}
 	kubectl, err := tools.CheckThirdPartyCLI()
-	res := request.
-		NewReq(webEndpoint, kubeconfig, kubectl, ns, 7000).
-		Login(app.DefaultInitUserEmail, app.DefaultInitPassword)
-	header := req.Header{
-		"Accept":        "application/json",
-		"Authorization": "Bearer " + res.AuthToken,
+	if err != nil {
+		return "", errors.Errorf("check kubectl error, err: %v", err)
 	}
+	res := request.NewReq(webEndpoint, kubeconfig, kubectl, ns, 7000).
+		Login(app.DefaultInitUserEmail, app.DefaultInitPassword)
+	header := req.Header{"Accept": "application/json", "Authorization": "Bearer " + res.AuthToken}
 	retryTimes := 20
 	var config string
 	for i := 0; i < retryTimes; i++ {
@@ -212,12 +217,12 @@ func GetKubeconfig(ns, webEndpoint, kubeconfig string) string {
 		break
 	}
 	if config == "" {
-		panic("Can't not get kubeconfig from webserver, please check your code")
+		return "", errors.New("Can't not get kubeconfig from webserver, please check your code")
 	}
 	f, _ := ioutil.TempFile("", "*newkubeconfig")
 	_, _ = f.WriteString(config)
 	_ = f.Sync()
-	return f.Name()
+	return f.Name(), nil
 }
 
 type Response struct {
