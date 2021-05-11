@@ -325,9 +325,15 @@ func (t *task) GetKubeconfig() {
 
 func (t *task) Delete() {
 	mode := "terminate"
+	cbs := "CBS"
 	request := tke.NewDeleteClusterRequest()
 	request.ClusterId = &t.clusterId
 	request.InstanceDeleteMode = &mode
+	option := tke.ResourceDeleteOption{
+		ResourceType: &cbs,
+		DeleteMode:   &mode,
+	}
+	request.ResourceDeleteOptions = []*tke.ResourceDeleteOption{&option}
 	for {
 		time.Sleep(time.Second * 5)
 		_, err := t.GetClient().DeleteCluster(request)
