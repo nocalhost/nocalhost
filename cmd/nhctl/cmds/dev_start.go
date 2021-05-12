@@ -116,9 +116,6 @@ var devStartCmd = &cobra.Command{
 			}
 		}
 
-		profileV2, err := profile.NewAppProfileV2ForUpdate(nocalhostApp.NameSpace, nocalhostApp.Name)
-		must(err)
-
 		must(
 			nocalhostSvc.UpdateProfile(
 				func(p *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
@@ -142,6 +139,9 @@ var devStartCmd = &cobra.Command{
 				},
 			),
 		)
+
+		p, err := nocalhostApp.GetProfile()
+		must(err)
 
 		must(
 			nocalhostSvc.AppMeta.SvcDevStart(
