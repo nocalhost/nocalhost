@@ -18,6 +18,13 @@ import (
 )
 
 func (c *Controller) DevEnd(reset bool) error {
+	if err := c.StopSyncAndPortForwardProcess(true); err != nil {
+		if !reset {
+			return err // `dev end` must make sure syncthing is terminated
+		}
+		log.WarnE(err, "StopSyncAndPortForwardProcess failed")
+	}
+
 	if err := c.BuildPodController().RollBack(reset); err != nil {
 		if !reset {
 			return err
@@ -26,6 +33,5 @@ func (c *Controller) DevEnd(reset bool) error {
 	}
 
 	utils.ShouldI(c.AppMeta.SvcDevEnd(c.Name, c.Type), "something incorrect occurs when updating secret")
-	utils.ShouldI(c.StopSyncAndPortForwardProcess(true), "something incorrect occurs when stopping sync process")
 	return nil
 }

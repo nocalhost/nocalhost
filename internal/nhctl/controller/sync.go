@@ -35,7 +35,9 @@ func (c *Controller) StopFileSyncOnly() error {
 
 	// read and clean up pid file
 	syncthingPid, syncThingPath, err := c.GetSyncThingPid()
-	utils.ShouldI(err, "Failed to get background syncthing pid file")
+	if err != nil {
+		return err
+	}
 	if syncthingPid != 0 {
 		err = syncthing.Stop(syncthingPid, syncThingPath, true)
 		if err != nil {
@@ -47,6 +49,7 @@ func (c *Controller) StopFileSyncOnly() error {
 			} else {
 				log.WarnE(err, fmt.Sprintf("Failed to terminate syncthing process(pid: %d)", syncthingPid))
 			}
+			return err
 		}
 	}
 	return err
