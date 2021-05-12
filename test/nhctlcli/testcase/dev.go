@@ -42,7 +42,7 @@ func DevStart(cli *nhctlcli.CLI, moduleName string) error {
 	if err := nhctlcli.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
 	}
-	util.WaitResourceToBeStatus("test", "pods", "app="+moduleName, func(i interface{}) bool {
+	util.WaitResourceToBeStatus(cli.Namespace, "pods", "app="+moduleName, func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning
 	})
 	return nil
@@ -111,7 +111,7 @@ func DevEnd(cli *nhctlcli.CLI, moduleName string) error {
 	if err := nhctlcli.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
 	}
-	util.WaitResourceToBeStatus("test", "pods", "app="+moduleName, func(i interface{}) bool {
+	util.WaitResourceToBeStatus(cli.Namespace, "pods", "app="+moduleName, func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning && func() bool {
 			for _, containerStatus := range i.(*v1.Pod).Status.ContainerStatuses {
 				if containerStatus.Ready {
