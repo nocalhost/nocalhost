@@ -14,6 +14,7 @@ package cmds
 
 import (
 	"context"
+	"github.com/mitchellh/go-ps"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
@@ -80,6 +81,21 @@ var devStartCmd = &cobra.Command{
 		devStartOps.Kubeconfig = kubeConfig
 		log.Info("Starting DevMode...")
 
+		// Clean up previous syncthing
+		previousSyncThingPid, _, err := nocalhostSvc.GetSyncThingPid()
+		if err != nil {
+			log.Info("Failed to find previous syncthing pid (ignore)")
+			log.LogE(err)
+		} else {
+			pro, err := ps.FindProcess(previousSyncThingPid)
+			if err == nil && pro == nil {
+				log.Infof("No previous syncthing process (%d) found", previousSyncThingPid)
+			} else {
+				log.Infof("Previous syncthing process %d found, terminating it", previousSyncThingPid)
+				must(syncthing.Stop(previousSyncThingPid, "", false))
+			}
+		}
+
 		profileV2, err := profile.NewAppProfileV2ForUpdate(nocalhostApp.NameSpace, nocalhostApp.Name)
 		must(err)
 
@@ -128,6 +144,7 @@ var devStartCmd = &cobra.Command{
 
 		// set syncthing secret
 		config, err := newSyncthing.GetRemoteConfigXML()
+		must(err)
 
 		syncSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
