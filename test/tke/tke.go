@@ -13,10 +13,12 @@
 package tke
 
 import (
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"io/ioutil"
 	"nocalhost/pkg/nhctl/log"
+	"nocalhost/test/util"
 	"os"
 	"strings"
 	"time"
@@ -26,11 +28,11 @@ import (
 	tke "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tke/v20180525"
 )
 
-func CreateK8s() *task {
-	id := os.Getenv("TKE_SECRET_ID")
-	key := os.Getenv("TKE_SECRET_KEY")
+func CreateK8s() (*task, error) {
+	id := os.Getenv(util.SecretId)
+	key := os.Getenv(util.SecretKey)
 	if id == "" || key == "" {
-		panic("SECRET_ID or SECRET_KEY is null, please make sure you have set it correctly")
+		return nil, errors.New("SECRET_ID or SECRET_KEY is null, please make sure you have set it correctly")
 	}
 	t := NewTask(id, key)
 	t.CreateTKE()
@@ -47,11 +49,12 @@ func CreateK8s() *task {
 		time.Sleep(time.Second * 2)
 	}
 	if !ok {
-		panic("Enable internet access error, please checkout you tke cluster")
+		return t, errors.New("enable internet access error, please checkout you tke cluster")
 	}
 	t.GetKubeconfig()
-	return t
+	return t, nil
 }
+
 func DeleteTke(t *task) {
 	t.Delete()
 }
@@ -317,7 +320,7 @@ func (t *task) GetKubeconfig() {
 			log.Infof("flush kubeconfig to disk error: %v", err)
 			continue
 		}
-		_ = os.Setenv("KUBECONFIG_PATH", fi.Name())
+		_ = os.Setenv(util.KubeconfigPath, fi.Name())
 		log.Info(fi.Name())
 		return
 	}
@@ -325,9 +328,15 @@ func (t *task) GetKubeconfig() {
 
 func (t *task) Delete() {
 	mode := "terminate"
+	cbs := "CBS"
 	request := tke.NewDeleteClusterRequest()
 	request.ClusterId = &t.clusterId
 	request.InstanceDeleteMode = &mode
+	option := tke.ResourceDeleteOption{
+		ResourceType: &cbs,
+		DeleteMode:   &mode,
+	}
+	request.ResourceDeleteOptions = []*tke.ResourceDeleteOption{&option}
 	for {
 		time.Sleep(time.Second * 5)
 		_, err := t.GetClient().DeleteCluster(request)

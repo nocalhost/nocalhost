@@ -14,8 +14,8 @@ package util
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,12 +35,13 @@ import (
 
 var Client *clientgoutils.ClientGoUtils
 
-func Init(cli *nhctlcli.CLI) {
+func Init(cli *nhctlcli.CLI) error {
 	temp, err := clientgoutils.NewClientGoUtils(cli.KubeConfig, cli.Namespace)
 	if err != nil {
-		panic(fmt.Sprintf("init k8s client error: %v", err))
+		return errors.Errorf("init k8s client error: %v", err)
 	}
 	Client = temp
+	return nil
 }
 
 func WaitForCommandDone(command string, args ...string) (bool, string) {
@@ -119,6 +120,10 @@ func TimeoutChecker(d time.Duration, cancanFunc func()) {
 }
 
 func NeedsToInitK8sOnTke() bool {
+	debug := os.Getenv(Local)
+	if debug != "" {
+		return false
+	}
 	if strings.Contains(runtime.GOOS, "darwin") {
 		return true
 	} else if strings.Contains(runtime.GOOS, "windows") {
@@ -129,7 +134,7 @@ func NeedsToInitK8sOnTke() bool {
 }
 
 func GetKubeconfig() string {
-	kubeconfig := os.Getenv("KUBECONFIG_PATH")
+	kubeconfig := os.Getenv(KubeconfigPath)
 	if kubeconfig == "" {
 		kubeconfig = "/root/.kube/config"
 	}

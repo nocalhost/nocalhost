@@ -18,11 +18,11 @@ import (
 
 func main() {
 	cli, _, v2, cancelFunc := suite.Prepare()
-	// ---------base line-----------
 	t := suite.T{Cli: cli, CleanFunc: cancelFunc}
 	t.Run("install", suite.Install)
 	t.Run("dev", suite.Dev)
 	t.Run("port-forward", suite.PortForward)
+	//t.Run("port-forward service", suite.PortForwardService)
 	t.Run("sync", suite.Sync)
 	t.Run("upgrade", suite.Upgrade)
 	t.Run("reset", suite.Reset)

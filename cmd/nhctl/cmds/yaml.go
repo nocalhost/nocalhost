@@ -10,26 +10,16 @@
  * limitations under the License.
  */
 
-package clientgoutils
+package cmds
 
-import "github.com/pkg/errors"
+import "github.com/spf13/cobra"
 
-//func getHomePath() string {
-//	u, err := user.Current()
-//	if err == nil {
-//		return u.HomeDir
-//	}
-//	return ""
-//}
-
-func Must(err error) {
-	if err != nil {
-		panic(err)
-	}
+func init() {
+	rootCmd.AddCommand(YamlCmd)
 }
 
-func MustI(err error, s string) {
-	if err != nil {
-		panic(errors.Wrap(err, s))
-	}
+var YamlCmd = &cobra.Command{
+	Use:   "yaml",
+	Short: "Yaml tool",
+	Long:  `Yaml tool`,
 }

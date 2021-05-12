@@ -20,11 +20,13 @@ import (
 type CLI struct {
 	KubeConfig string
 	Namespace  string
+	Cmd        string
 }
 
 type Config interface {
 	GetKubeConfig() string
 	GetNamespace() string
+	GetCmd() string
 }
 
 func NewCLI(cfg Config, defaultNamespace string) *CLI {
@@ -35,17 +37,18 @@ func NewCLI(cfg Config, defaultNamespace string) *CLI {
 	return &CLI{
 		KubeConfig: cfg.GetKubeConfig(),
 		Namespace:  namespace,
+		Cmd:        cfg.GetCmd(),
 	}
 }
 
 func (c *CLI) Command(ctx context.Context, command string, arg ...string) *exec.Cmd {
 	args := c.argsAppendNamespaceAndKubeconfig(command, "", arg...)
-	return exec.CommandContext(ctx, "nhctl", args...)
+	return exec.CommandContext(ctx, c.Cmd, args...)
 }
 
 func (c *CLI) CommandWithNamespace(ctx context.Context, command string, namespace string, arg ...string) *exec.Cmd {
 	args := c.argsAppendNamespaceAndKubeconfig(command, namespace, arg...)
-	return exec.CommandContext(ctx, "nhctl", args...)
+	return exec.CommandContext(ctx, c.Cmd, args...)
 }
 
 func (c CLI) Run(ctx context.Context, command string, arg ...string) (string, string, error) {
