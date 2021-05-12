@@ -104,68 +104,80 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		sideCarContainer.Resources = *requirements
 	}
 
-	// Get latest deployment
-	dep, err := d.Client.GetDeployment(d.Name())
-	if err != nil {
-		return err
-	}
-
-	if ops.Container != "" {
-		for index, c := range dep.Spec.Template.Spec.Containers {
-			if c.Name == ops.Container {
-				dep.Spec.Template.Spec.Containers[index] = *devContainer
-				break
-			}
-		}
-	} else {
-		dep.Spec.Template.Spec.Containers[0] = *devContainer
-	}
-
-	// Add volumes to deployment spec
-	if dep.Spec.Template.Spec.Volumes == nil {
-		log.Debugf("Service %s has no volume", dep.Name)
-		dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
-	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
-
-	// delete user's SecurityContext
-	dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
-
-	// disable readiness probes
-	for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
-		dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
-		dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
-		dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
-	}
-
-	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
-
-	// PriorityClass
-	priorityClass := ops.PriorityClass
-	if priorityClass == "" {
-		svcProfile, _ := d.GetProfile()
-		priorityClass = svcProfile.PriorityClass
-	}
-	if priorityClass != "" {
-		log.Infof("Using priorityClass: %s...", priorityClass)
-		dep.Spec.Template.Spec.PriorityClassName = priorityClass
-	}
-
-	log.Info("Updating development container...")
-	_, err = d.Client.UpdateDeployment(dep, true)
-	if err != nil {
-		if strings.Contains(err.Error(), "no PriorityClass") {
-			log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
-			dep, err = d.Client.GetDeployment(d.Name())
-			if err != nil {
-				return err
-			}
-			dep.Spec.Template.Spec.PriorityClassName = ""
-			_, err = d.Client.UpdateDeployment(dep, true)
-		}
+	for i := 0; i < 10; i++ {
+		// Get latest deployment
+		dep, err := d.Client.GetDeployment(d.Name())
 		if err != nil {
 			return err
 		}
+
+		if ops.Container != "" {
+			for index, c := range dep.Spec.Template.Spec.Containers {
+				if c.Name == ops.Container {
+					dep.Spec.Template.Spec.Containers[index] = *devContainer
+					break
+				}
+			}
+		} else {
+			dep.Spec.Template.Spec.Containers[0] = *devContainer
+		}
+
+		// Add volumes to deployment spec
+		if dep.Spec.Template.Spec.Volumes == nil {
+			log.Debugf("Service %s has no volume", dep.Name)
+			dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
+		}
+		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
+
+		// delete user's SecurityContext
+		dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
+
+		// disable readiness probes
+		for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
+			dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
+			dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
+			dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
+		}
+
+		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
+
+		// PriorityClass
+		priorityClass := ops.PriorityClass
+		if priorityClass == "" {
+			svcProfile, _ := d.GetProfile()
+			priorityClass = svcProfile.PriorityClass
+		}
+		if priorityClass != "" {
+			log.Infof("Using priorityClass: %s...", priorityClass)
+			dep.Spec.Template.Spec.PriorityClassName = priorityClass
+		}
+
+		log.Info("Updating development container...")
+		_, err = d.Client.UpdateDeployment(dep, true)
+		if err != nil {
+			if strings.Contains(err.Error(), "no PriorityClass") {
+				log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
+				dep, err = d.Client.GetDeployment(d.Name())
+				if err != nil {
+					return err
+				}
+				dep.Spec.Template.Spec.PriorityClassName = ""
+				_, err = d.Client.UpdateDeployment(dep, true)
+				if err != nil {
+					if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
+						log.Warn("Deployment has been modified, retrying...")
+						continue
+					}
+					return err
+				}
+				break
+			} else if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
+				log.Warn("Deployment has been modified, retrying...")
+				continue
+			}
+			return err
+		}
+		break
 	}
 	return d.waitingPodToBeReady()
 
