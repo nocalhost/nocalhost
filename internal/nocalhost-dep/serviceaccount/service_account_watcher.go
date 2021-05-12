@@ -26,7 +26,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/watcher"
-	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 	"strings"
 	"sync"
@@ -67,17 +66,13 @@ func (saw *ServiceAccountWatcher) WatcherInfo() string {
 }
 
 func (saw *ServiceAccountWatcher) join(sa *corev1.ServiceAccount) error {
-	for key := range sa.Labels {
-		if key == clientgo.NocalhostLabel {
-			isClusterAdmin, _ := saw.isClusterAdmin(sa)
-			saw.cache.record(string(sa.UID), isClusterAdmin, sa.Name)
-			glog.Infof(
-				"ServiceAccountCache: refresh nocalhost sa in ns: %s, is cluster admin: %t", sa.Namespace,
-				isClusterAdmin,
-			)
-			return nil
-		}
-	}
+
+	isClusterAdmin, _ := saw.isClusterAdmin(sa)
+	saw.cache.record(string(sa.UID), isClusterAdmin, sa.Name)
+	glog.Infof(
+		"ServiceAccountCache: refresh nocalhost sa in ns: %s, is cluster admin: %t", sa.Namespace,
+		isClusterAdmin,
+	)
 	return nil
 }
 
@@ -204,28 +199,24 @@ func (saw *ServiceAccountWatcher) Quit() {
 	saw.quit <- true
 }
 
-func (saw *ServiceAccountWatcher) Prepare() error {
+func (saw *ServiceAccountWatcher) Prepare(namespace string) error {
 	// create the service account watcher
 	saWatcher := cache.NewListWatchFromClient(
-		saw.clientset.CoreV1().RESTClient(), "serviceaccounts", "default", fields.Everything(),
+		saw.clientset.CoreV1().RESTClient(), "serviceaccounts", namespace, fields.Everything(),
 	)
 
 	controller := watcher.NewController(saw, saWatcher, &corev1.ServiceAccount{})
 
-	if list, err := saw.clientset.CoreV1().ServiceAccounts("default").List(
+	if list, err := saw.clientset.CoreV1().ServiceAccounts(namespace).List(
 		context.TODO(), metav1.ListOptions{},
 	); err == nil {
 		for _, item := range list.Items {
-			for key := range item.Labels {
-				if key == clientgo.NocalhostLabel {
-					isClusterAdmin, _ := saw.isClusterAdmin(&item)
-					saw.cache.record(string(item.UID), isClusterAdmin, item.Name)
-					glog.Infof(
-						"ServiceAccountCache: refresh nocalhost sa in ns: %s, is cluster admin: %t", item.Namespace,
-						isClusterAdmin,
-					)
-				}
-			}
+			isClusterAdmin, _ := saw.isClusterAdmin(&item)
+			saw.cache.record(string(item.UID), isClusterAdmin, item.Name)
+			glog.Infof(
+				"ServiceAccountCache: refresh nocalhost sa in ns: %s, is cluster admin: %t", item.Namespace,
+				isClusterAdmin,
+			)
 		}
 	}
 
