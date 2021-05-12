@@ -19,53 +19,53 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func Reset(nhctl *nhctlcli.CLI) {
+func Reset(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.Command(context.Background(), "reset", "bookinfo")
-	nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
-func Upgrade(nhctl *nhctlcli.CLI) {
+func Upgrade(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.Command(context.Background(), "upgrade",
 		"bookinfo",
 		"-u",
 		"https://github.com/nocalhost/bookinfo.git",
 		"--resource-path",
 		"manifest/templates")
-	nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
-func Config(nhctl *nhctlcli.CLI) {
+func Config(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.Command(context.Background(), "config", "get", "bookinfo")
-	nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
-func SyncStatus(nhctl *nhctlcli.CLI, module string) {
+func SyncStatus(nhctl *nhctlcli.CLI, module string) error {
 	cmd := nhctl.Command(context.Background(), "sync-status", "bookinfo", "-d", module)
-	nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
-func List(nhctl *nhctlcli.CLI) {
+func List(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.Command(context.Background(), "list", "bookinfo")
-	nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
-func Db(nhctl *nhctlcli.CLI) {
+func Db(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.Command(context.Background(), "db", "size", "--app", "bookinfo")
-	nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
-func Pvc(nhctl *nhctlcli.CLI) {
+func Pvc(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.Command(context.Background(), "pvc", "list")
-	nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
-func NhctlVersion(nhctl *nhctlcli.CLI) {
+func NhctlVersion(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.Command(context.Background(), "version")
 	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOut(cmd)
-	nhctlcli.Runner.CheckResult(cmd, stdout, stderr, err)
+	return nhctlcli.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
-func Apply(nhctl *nhctlcli.CLI) {
+func Apply(nhctl *nhctlcli.CLI) error {
 	content := `{
 	"apiVersion": "v1",
 	"kind": "Service",
@@ -97,5 +97,5 @@ func Apply(nhctl *nhctlcli.CLI) {
 
 	cmd := nhctl.Command(context.Background(), "apply", "bookinfo", f.Name())
 	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOut(cmd)
-	nhctlcli.Runner.CheckResult(cmd, stdout, stderr, err)
+	return nhctlcli.Runner.CheckResult(cmd, stdout, stderr, err)
 }
