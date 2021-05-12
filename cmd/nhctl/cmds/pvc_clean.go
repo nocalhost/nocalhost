@@ -15,6 +15,7 @@ package cmds
 import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/pkg/nhctl/clientgoutils"
 
 	"nocalhost/pkg/nhctl/log"
 )
@@ -31,20 +32,22 @@ var pvcCleanCmd = &cobra.Command{
 	Short: "Clean up PersistVolumeClaims",
 	Long:  `Clean up PersistVolumeClaims`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if pvcFlags.App == "" {
-			log.Fatal("--app mush be specified")
-		}
-
-		var err error
-		initApp(pvcFlags.App)
 
 		// Clean up specified pvc
 		if pvcFlags.Name != "" {
-			err = nocalhostApp.CleanUpPVC(pvcFlags.Name)
+			cli, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
+			must(err)
+			err = cli.DeletePVC(pvcFlags.Name)
 			mustI(err, "Failed to clean up pvc: "+pvcFlags.Name)
 			log.Infof("%s cleaned up", pvcFlags.Name)
 			return
 		}
+
+		if pvcFlags.App == "" {
+			log.Fatal("--app mush be specified")
+		}
+
+		initApp(pvcFlags.App)
 
 		// Clean up PVCs of specified service
 		if pvcFlags.Svc != "" {

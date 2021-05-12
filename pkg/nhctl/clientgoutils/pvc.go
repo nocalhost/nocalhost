@@ -55,11 +55,8 @@ func (c *ClientGoUtils) CreatePVC(
 }
 
 func (c *ClientGoUtils) DeletePVC(name string) error {
-	return errors.Wrap(
-		c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Delete(
-			c.ctx, name, metav1.DeleteOptions{},
-		), "",
-	)
+	return errors.Wrap(c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).Delete(
+		c.ctx, name, metav1.DeleteOptions{}), "")
 }
 
 func (c *ClientGoUtils) ListPvcs() ([]v1.PersistentVolumeClaim, error) {
