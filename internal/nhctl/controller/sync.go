@@ -35,9 +35,11 @@ func (c *Controller) StopFileSyncOnly() error {
 
 	// read and clean up pid file
 	syncthingPid, syncThingPath, err := c.GetSyncThingPid()
-	utils.ShouldI(err, "Failed to get background syncthing pid file")
+	if err != nil {
+		return err
+	}
 	if syncthingPid != 0 {
-		err = syncthing.Stop(syncthingPid, syncThingPath, "syncthing", true)
+		err = syncthing.Stop(syncthingPid, syncThingPath, true)
 		if err != nil {
 			if runtime.GOOS == "windows" {
 				// in windows, it will raise a "Access is denied" err when killing progress, so we can ignore this err
@@ -47,6 +49,7 @@ func (c *Controller) StopFileSyncOnly() error {
 			} else {
 				log.WarnE(err, fmt.Sprintf("Failed to terminate syncthing process(pid: %d)", syncthingPid))
 			}
+			return err
 		}
 	}
 	return err
@@ -56,17 +59,20 @@ func (c *Controller) GetSyncThingPid() (int, string, error) {
 	pidFile := c.GetSyncThingPidFile()
 	f, err := ioutil.ReadFile(pidFile)
 	if err != nil {
-		return 0, pidFile, err
+		return 0, pidFile, errors.Wrap(err, "")
 	}
 	port, err := strconv.Atoi(string(f))
 	if err != nil {
-		return 0, pidFile, err
+		return 0, pidFile, errors.Wrap(err, "")
 	}
 	return port, pidFile, nil
 }
 
 func (c *Controller) StopSyncAndPortForwardProcess(cleanRemoteSecret bool) error {
 	err := c.StopFileSyncOnly()
+	if err != nil {
+		return err
+	}
 
 	log.Info("Stopping port forward")
 	utils.Should(c.StopAllPortForward())

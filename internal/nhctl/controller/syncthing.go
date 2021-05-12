@@ -16,7 +16,6 @@ import (
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/network/req"
@@ -91,14 +90,8 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 	if !syncDouble {
 		sendMode = syncthing.SendOnlySyncMode
 	}
-	localHomeDir := filepath.Join(c.getAppHomeDir(), "syncthing", c.Name)
-	if c.Type != appmeta.Deployment {
-		localHomeDir = filepath.Join(c.getAppHomeDir(), "syncthing", c.Type.String()+"-"+c.Name)
-	}
-	logPath := filepath.Join(c.getAppHomeDir(), "syncthing", c.Name, syncthing.LogFile)
-	if c.Type != appmeta.Deployment {
-		logPath = filepath.Join(c.getAppHomeDir(), "syncthing", c.Type.String()+"-"+c.Name, syncthing.LogFile)
-	}
+	localHomeDir := c.GetApplicationSyncDir()
+	logPath := filepath.Join(c.GetApplicationSyncDir(), syncthing.LogFile)
 
 	s := &syncthing.Syncthing{
 		APIKey:           syncthing.DefaultAPIKey,

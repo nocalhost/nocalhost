@@ -10,28 +10,42 @@
  * limitations under the License.
  */
 
-package controller
+package cmds
 
 import (
-	"nocalhost/internal/nhctl/utils"
+	"encoding/json"
+	"fmt"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
+	"io"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 )
 
-func (c *Controller) DevEnd(reset bool) error {
-	if err := c.StopSyncAndPortForwardProcess(true); err != nil {
-		if !reset {
-			return err // `dev end` must make sure syncthing is terminated
-		}
-		log.WarnE(err, "StopSyncAndPortForwardProcess failed")
-	}
+func init() {
+	YamlCmd.AddCommand(yamlFromJsonCmd)
+}
 
-	if err := c.BuildPodController().RollBack(reset); err != nil {
-		if !reset {
-			return err
+var yamlFromJsonCmd = &cobra.Command{
+	Use:   "from-json",
+	Short: "Convert json to yaml",
+	Long:  `Convert json to yaml`,
+	Run: func(cmd *cobra.Command, args []string) {
+		b, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			log.Fatalf("fail to read from stdin: %v", err)
 		}
-		log.WarnE(err, "something incorrect occurs when rolling back")
-	}
 
-	utils.ShouldI(c.AppMeta.SvcDevEnd(c.Name, c.Type), "something incorrect occurs when updating secret")
-	return nil
+		v := make(map[string]interface{})
+		if err := json.Unmarshal(b, &v); err != nil {
+			log.Fatalf("fail to unmarshal from json: %v", err)
+		}
+
+		y, err := yaml.Marshal(v)
+		if err != nil {
+			log.Fatalf("fail to marshal to yaml: %v", err)
+		}
+
+		fmt.Println(string(y))
+	},
 }
