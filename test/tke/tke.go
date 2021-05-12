@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"io/ioutil"
 	"nocalhost/pkg/nhctl/log"
+	"nocalhost/test/util"
 	"os"
 	"strings"
 	"time"
@@ -28,8 +29,8 @@ import (
 )
 
 func CreateK8s() (*task, error) {
-	id := os.Getenv("TKE_SECRET_ID")
-	key := os.Getenv("TKE_SECRET_KEY")
+	id := os.Getenv(util.SecretId)
+	key := os.Getenv(util.SecretKey)
 	if id == "" || key == "" {
 		return nil, errors.New("SECRET_ID or SECRET_KEY is null, please make sure you have set it correctly")
 	}
@@ -319,7 +320,7 @@ func (t *task) GetKubeconfig() {
 			log.Infof("flush kubeconfig to disk error: %v", err)
 			continue
 		}
-		_ = os.Setenv("KUBECONFIG_PATH", fi.Name())
+		_ = os.Setenv(util.KubeconfigPath, fi.Name())
 		log.Info(fi.Name())
 		return
 	}

@@ -29,23 +29,21 @@ import (
 	"nocalhost/pkg/nhctl/tools"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/service_account"
 	"nocalhost/test/nhctlcli"
+	"nocalhost/test/util"
 	"os"
 	"os/exec"
-	"regexp"
 	"runtime"
 	"strings"
 	"time"
 )
 
-var StatusChan = make(chan int32)
-var ApiServerEndpointChan = make(chan string)
-var WebServerServiceAccountApi = "/v1/plugin/service_accounts"
+var StatusChan = make(chan int32, 1)
 
 func GetVersion() (v1 string, v2 string) {
-	commitId := os.Getenv("COMMIT_ID")
+	commitId := os.Getenv(util.CommitId)
 	var tags []string
-	if len(os.Getenv("TAG")) != 0 {
-		tags = strings.Split(strings.TrimSuffix(os.Getenv("TAG"), "\n"), " ")
+	if len(os.Getenv(util.Tag)) != 0 {
+		tags = strings.Split(strings.TrimSuffix(os.Getenv(util.Tag), "\n"), " ")
 	}
 	if commitId == "" && len(tags) == 0 {
 		panic(fmt.Sprintf("test case failed, can not found any version, commit_id: %v, tag: %v", commitId, tags))
@@ -81,17 +79,17 @@ func InstallNhctl(version string) error {
 	}
 	str := "curl --fail -s -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o " + output
 	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, name, version))
-	if err := nhctlcli.Runner.RunPanicIfError(cmd); err != nil {
+	if err := nhctlcli.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
 	}
 	// unix and linux needs to add x permission
 	if needChmod {
 		cmd = exec.Command("sh", "-c", "chmod +x nhctl")
-		if err := nhctlcli.Runner.RunPanicIfError(cmd); err != nil {
+		if err := nhctlcli.Runner.RunWithCheckResult(cmd); err != nil {
 			return err
 		}
 		cmd = exec.Command("sh", "-c", "sudo mv ./nhctl /usr/local/bin/nhctl")
-		if err := nhctlcli.Runner.RunPanicIfError(cmd); err != nil {
+		if err := nhctlcli.Runner.RunWithCheckResult(cmd); err != nil {
 			return err
 		}
 	}
@@ -128,18 +126,13 @@ func Init(nhctl *nhctlcli.CLI) error {
 			if err != nil && err != io.EOF && !strings.Contains(err.Error(), "closed") {
 				fmt.Printf("command error: %v, log : %v", err, string(line))
 				StatusChan <- 1
+				break
 			}
 			if len(line) != 0 && !isPrefix {
-				log.Info(line)
+				log.Info(string(line))
 			}
 			if strings.Contains(string(line), "Nocalhost init completed") {
 				StatusChan <- 0
-			}
-			reg := regexp.MustCompile("http://(.*?):([0-9]+)")
-			submatch := reg.FindStringSubmatch(string(line))
-			if len(submatch) > 0 {
-				ApiServerEndpointChan <- submatch[0]
-				log.Info("Found webserver endpoint: " + submatch[0])
 				break
 			}
 		}
@@ -147,6 +140,7 @@ func Init(nhctl *nhctlcli.CLI) error {
 	if i := <-StatusChan; i != 0 {
 		return errors.New("Init nocalhost occurs error, exiting")
 	}
+	log.Infof("init successfully")
 	return nil
 }
 
@@ -184,9 +178,9 @@ func StatusCheck(nhctl *nhctlcli.CLI, moduleName string) error {
 	return nil
 }
 
-func GetKubeconfig(ns, webEndpoint, kubeconfig string) (string, error) {
+func GetKubeconfig(ns, kubeconfig string) (string, error) {
 	client, err := clientgoutils.NewClientGoUtils(kubeconfig, ns)
-	log.Debugf("kubeconfig %s", kubeconfig)
+	log.Infof("kubeconfig %s", kubeconfig)
 	if err != nil || client == nil {
 		return "", errors.Errorf("new go client fail, or check you kubeconfig, err: %v", err)
 	}
@@ -194,14 +188,15 @@ func GetKubeconfig(ns, webEndpoint, kubeconfig string) (string, error) {
 	if err != nil {
 		return "", errors.Errorf("check kubectl error, err: %v", err)
 	}
-	res := request.NewReq(webEndpoint, kubeconfig, kubectl, ns, 7000).
-		Login(app.DefaultInitUserEmail, app.DefaultInitPassword)
+	res := request.NewReq("", kubeconfig, kubectl, ns, 7000)
+	res.ExposeService()
+	res.Login(app.DefaultInitUserEmail, app.DefaultInitPassword)
 	header := req.Header{"Accept": "application/json", "Authorization": "Bearer " + res.AuthToken}
 	retryTimes := 20
 	var config string
 	for i := 0; i < retryTimes; i++ {
 		time.Sleep(time.Second * 2)
-		r, err := req.New().Get(webEndpoint+WebServerServiceAccountApi, header)
+		r, err := req.New().Get(res.BaseUrl+util.WebServerServiceAccountApi, header)
 		if err != nil {
 			log.Infof("get kubeconfig error, err: %v, response: %v, retrying", err, r)
 			continue

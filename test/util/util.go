@@ -120,6 +120,10 @@ func TimeoutChecker(d time.Duration, cancanFunc func()) {
 }
 
 func NeedsToInitK8sOnTke() bool {
+	debug := os.Getenv(Local)
+	if debug != "" {
+		return false
+	}
 	if strings.Contains(runtime.GOOS, "darwin") {
 		return true
 	} else if strings.Contains(runtime.GOOS, "windows") {
@@ -130,7 +134,7 @@ func NeedsToInitK8sOnTke() bool {
 }
 
 func GetKubeconfig() string {
-	kubeconfig := os.Getenv("KUBECONFIG_PATH")
+	kubeconfig := os.Getenv(KubeconfigPath)
 	if kubeconfig == "" {
 		kubeconfig = "/root/.kube/config"
 	}

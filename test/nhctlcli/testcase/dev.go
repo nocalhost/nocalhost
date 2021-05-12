@@ -39,7 +39,7 @@ func DevStart(cli *nhctlcli.CLI, moduleName string) error {
 		"-d", moduleName,
 		"-s", "/tmp/"+moduleName,
 		"--priority-class", "nocalhost-container-critical")
-	if err := nhctlcli.Runner.RunPanicIfError(cmd); err != nil {
+	if err := nhctlcli.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
 	}
 	util.WaitResourceToBeStatus("test", "pods", "app="+moduleName, func(i interface{}) bool {
@@ -50,7 +50,7 @@ func DevStart(cli *nhctlcli.CLI, moduleName string) error {
 
 func Sync(cli *nhctlcli.CLI, moduleName string) error {
 	cmd := cli.Command(context.Background(), "sync", "bookinfo", "-d", moduleName)
-	return nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
 func SyncCheck(cli *nhctlcli.CLI, moduleName string) error {
@@ -108,10 +108,9 @@ func PortForwardCheck(port int) error {
 
 func DevEnd(cli *nhctlcli.CLI, moduleName string) error {
 	cmd := cli.Command(context.Background(), "dev", "end", "bookinfo", "-d", moduleName)
-	if err := nhctlcli.Runner.RunPanicIfError(cmd); err != nil {
+	if err := nhctlcli.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
 	}
-
 	util.WaitResourceToBeStatus("test", "pods", "app="+moduleName, func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning && func() bool {
 			for _, containerStatus := range i.(*v1.Pod).Status.ContainerStatuses {
@@ -122,6 +121,5 @@ func DevEnd(cli *nhctlcli.CLI, moduleName string) error {
 			return true
 		}()
 	})
-
 	return nil
 }

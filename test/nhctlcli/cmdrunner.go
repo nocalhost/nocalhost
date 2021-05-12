@@ -29,18 +29,18 @@ var Runner = &CmdRunner{}
 
 type CmdRunner struct{}
 
-func (r *CmdRunner) RunPanicIfError(cmd *exec.Cmd) error {
+func (r *CmdRunner) RunWithCheckResult(cmd *exec.Cmd) error {
 	if stdout, stderr, err := r.Run(cmd); err != nil {
-		return errors.Errorf("Run command: %s, error: %v, stdout: %s, stderr: %s",
-			cmd.Args, err, stdout, stderr)
+		return errors.Errorf(
+			"Run command: %s, error: %v, stdout: %s, stderr: %s", cmd.Args, err, stdout, stderr)
 	}
 	return nil
 }
 
 func (r *CmdRunner) CheckResult(cmd *exec.Cmd, stdout string, stderr string, err error) error {
 	if err != nil {
-		return errors.Errorf("Run command: %s, error: %v, stdout: %s, stderr: %s",
-			cmd.Args, err, stdout, stderr)
+		return errors.Errorf(
+			"Run command: %s, error: %v, stdout: %s, stderr: %s", cmd.Args, err, stdout, stderr)
 	}
 	return nil
 }
@@ -92,7 +92,8 @@ func (r *CmdRunner) RunWithRollingOut(cmd *exec.Cmd) (string, string, error) {
 			line, isPrefix, err := stdoutReader.ReadLine()
 			if err != nil {
 				if err != io.EOF && !strings.Contains(err.Error(), "closed") {
-					_, _ = os.Stdout.WriteString(fmt.Sprintf("command log error: %v, log: %v\n", err, string(line)))
+					_, _ = os.Stdout.WriteString(
+						fmt.Sprintf("command log error: %v, log: %v\n", err, string(line)))
 				}
 				break
 			}
@@ -107,7 +108,8 @@ func (r *CmdRunner) RunWithRollingOut(cmd *exec.Cmd) (string, string, error) {
 			line, isPrefix, err := stderrReader.ReadLine()
 			if err != nil {
 				if err != io.EOF && !strings.Contains(err.Error(), "closed") {
-					_, _ = os.Stderr.WriteString(fmt.Sprintf("command log error: %v, log: %v\n", err, string(line)))
+					_, _ = os.Stderr.WriteString(
+						fmt.Sprintf("command log error: %v, log: %v\n", err, string(line)))
 				}
 				break
 			}
