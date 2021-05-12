@@ -78,6 +78,10 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		return nil, errno.ErrClusterNotFound
 	}
 
+	if d.DevSpaceParams.SpaceName == "" {
+		d.DevSpaceParams.SpaceName = clusterRecord.Name + "[" + usersRecord.Name + "]"
+	}
+
 	if d.DevSpaceParams.ClusterAdmin == nil || *d.DevSpaceParams.ClusterAdmin == 0 {
 		return d.createDevSpace(clusterRecord, usersRecord)
 	} else {
@@ -91,8 +95,8 @@ func (d *DevSpace) createClusterDevSpace(
 	trueFlag := uint64(1)
 	list, err := service.Svc.ClusterUser().GetList(
 		context.TODO(), model.ClusterUserModel{
-			ClusterId: clusterRecord.ID,
-			UserId: usersRecord.ID,
+			ClusterId:    clusterRecord.ID,
+			UserId:       usersRecord.ID,
 			ClusterAdmin: &trueFlag,
 		},
 	)
@@ -120,11 +124,6 @@ func (d *DevSpace) createDevSpace(
 
 	applicationId := cast.ToUint64(d.DevSpaceParams.ApplicationId)
 
-	spaceName := clusterRecord.Name + "[" + usersRecord.Name + "]"
-	if d.DevSpaceParams.SpaceName != "" {
-		spaceName = d.DevSpaceParams.SpaceName
-	}
-
 	// create namespace
 	var KubeConfig = []byte(clusterRecord.KubeConfig)
 	goClient, err := clientgo.NewAdminGoClient(KubeConfig)
@@ -146,12 +145,12 @@ func (d *DevSpace) createDevSpace(
 		CreateServiceAccount("", devNamespace).
 		CreateRole(global.NocalhostDevRoleName, devNamespace).
 		CreateRoleBinding(
-		global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName,
-		global.NocalhostDevServiceAccountName,
-	).
+			global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName,
+			global.NocalhostDevServiceAccountName,
+		).
 		CreateRoleBinding(
-		global.NocalhostDevRoleDefaultBindingName, devNamespace, global.NocalhostDevRoleName,
-		global.NocalhostDevDefaultServiceAccountName,
+			global.NocalhostDevRoleDefaultBindingName, devNamespace, global.NocalhostDevRoleName,
+			global.NocalhostDevDefaultServiceAccountName,
 		).
 		GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).
 		GetServiceAccountSecret("", devNamespace)
@@ -171,8 +170,6 @@ func (d *DevSpace) createDevSpace(
 		res = &SpaceResourceLimit{}
 	}
 
-	res.ContainerEphemeralStorage = "1Gi"
-
 	clusterDevsSetUp.CreateResourceQuota(
 		"rq-"+devNamespace, devNamespace, res.SpaceReqMem,
 		res.SpaceReqCpu, res.SpaceLimitsMem, res.SpaceLimitsCpu, res.SpaceStorageCapacity, res.SpaceEphemeralStorage,
@@ -186,7 +183,7 @@ func (d *DevSpace) createDevSpace(
 	resString, err := json.Marshal(res)
 	result, err := service.Svc.ClusterUser().Create(
 		d.c, *d.DevSpaceParams.ClusterId, usersRecord.ID, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu,
-		KubeConfigYaml, devNamespace, spaceName, string(resString),
+		KubeConfigYaml, devNamespace, d.DevSpaceParams.SpaceName, string(resString),
 	)
 	if err != nil {
 		return nil, errno.ErrBindApplicationClsuter
