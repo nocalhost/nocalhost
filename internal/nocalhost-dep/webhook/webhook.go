@@ -34,6 +34,7 @@ import (
 	service_account "nocalhost/internal/nocalhost-dep/serviceaccount"
 	nocalhost "nocalhost/pkg/nocalhost-dep/go-client"
 	"strings"
+	"sync"
 )
 
 var (
@@ -137,7 +138,8 @@ type depJobs struct {
 
 var clientset *kubernetes.Clientset
 var cachedRestMapper *restmapper.DeferredDiscoveryRESTMapper
-var watcher *service_account.ServiceAccountWatcher
+var lock = sync.Mutex{}
+var watchers = map[string]*service_account.ServiceAccountWatcher{}
 
 func init() {
 	_ = corev1.AddToScheme(runtimeScheme)
@@ -147,13 +149,25 @@ func init() {
 	_ = corev1.AddToScheme(runtimeScheme)
 	clientset = nocalhost.InitClientSet()
 	cachedRestMapper = nocalhost.InitCachedRestMapper()
+}
 
-	watcher = service_account.NewServiceAccountWatcher(clientset)
-	_ = watcher.Prepare()
+func getWatcher(ns string) *service_account.ServiceAccountWatcher {
+	if watcher, ok := watchers[ns]; ok {
+		return watcher
+	}
+
+	lock.Lock()
+	defer lock.Unlock()
+
+	watcher := service_account.NewServiceAccountWatcher(clientset)
+	_ = watcher.Prepare(ns)
 
 	go func() {
 		watcher.Watch()
 	}()
+
+	watchers[ns] = watcher
+	return watcher
 }
 
 // (https://github.com/kubernetes/kubernetes/issues/57982)
@@ -406,8 +420,8 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 			}
 		}
 		resourceName, objectMeta, initContainer, containers = replicaSet.Name,
-		&replicaSet.ObjectMeta, replicaSet.Spec.Template.Spec.InitContainers,
-		replicaSet.Spec.Template.Spec.Containers
+			&replicaSet.ObjectMeta, replicaSet.Spec.Template.Spec.InitContainers,
+			replicaSet.Spec.Template.Spec.Containers
 	case "StatefulSet":
 		var statefulSet appsv1.StatefulSet
 		if err := json.Unmarshal(req.Object.Raw, &statefulSet); err != nil {
@@ -419,8 +433,8 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 			}
 		}
 		resourceName, objectMeta, initContainer, containers = statefulSet.Name,
-		&statefulSet.ObjectMeta, statefulSet.Spec.Template.Spec.InitContainers,
-		statefulSet.Spec.Template.Spec.Containers
+			&statefulSet.ObjectMeta, statefulSet.Spec.Template.Spec.InitContainers,
+			statefulSet.Spec.Template.Spec.Containers
 	case "Job":
 		var job batchv1.Job
 		if err := json.Unmarshal(req.Object.Raw, &job); err != nil {
@@ -432,7 +446,7 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 			}
 		}
 		resourceName, objectMeta, initContainer, containers = job.Name, &job.ObjectMeta,
-		job.Spec.Template.Spec.InitContainers, job.Spec.Template.Spec.Containers
+			job.Spec.Template.Spec.InitContainers, job.Spec.Template.Spec.Containers
 	case "CronJob":
 		var cronJob batchv1beta1.CronJob
 		if err := json.Unmarshal(req.Object.Raw, &cronJob); err != nil {
@@ -444,17 +458,39 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 			}
 		}
 		resourceName, objectMeta, initContainer, containers = cronJob.Name, &cronJob.ObjectMeta,
-		cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers,
-		cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers
+			cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers,
+			cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers
 	case "ResourceQuota":
-		if req.UserInfo.UID == "" {
+		namespace := req.Namespace
+
+		glog.Infof(
+			fmt.Sprintf(
+				"request for ns %s, resourcename %s, reqName %s, uuid %s", namespace, omh.Name, req.Name,
+				req.UserInfo.UID,
+			),
+		)
+		glog.Infof(fmt.Sprintf("request for %s", omh.String()))
+
+		if req.UserInfo.UID == "" || (omh.Name != "rq-"+namespace && req.Name != "rq-"+namespace) {
 			return &v1.AdmissionResponse{
 				Allowed: true,
 			}
 		}
 
-		isClusterAdmin := watcher.IsClusterAdmin(req.UserInfo.UID)
+		isClusterAdmin := getWatcher(namespace).IsClusterAdmin(req.UserInfo.UID)
+
+		// try load sa from default namespace
 		if isClusterAdmin == nil {
+			isClusterAdmin = getWatcher("default").IsClusterAdmin(req.UserInfo.UID)
+		}
+
+		if isClusterAdmin == nil {
+			glog.Infof(
+				fmt.Sprintf(
+					"request for ns %s, resourcename %s, reqName %s, isClusteradmin is null, uid %s", namespace,
+					omh.Name, req.Name, req.UserInfo.UID,
+				),
+			)
 			marshal, _ := json.Marshal(req)
 
 			var err = fmt.Errorf("Could not get service account with uuid: %s, %s", req.UserInfo.UID, marshal)
