@@ -90,6 +90,10 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
 	devContainer.WorkingDir = workDir
 
+	// set image pull policy
+	sideCarContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
+	devContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
+
 	// add env
 	devEnv := s.GetDevContainerEnv(ops.Container)
 	for _, v := range devEnv.DevEnv {

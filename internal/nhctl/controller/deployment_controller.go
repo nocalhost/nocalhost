@@ -83,6 +83,10 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
 	devContainer.WorkingDir = workDir
 
+	// set image pull policy
+	sideCarContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
+	devContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
+
 	// add env
 	devEnv := d.GetDevContainerEnv(ops.Container)
 	for _, v := range devEnv.DevEnv {
