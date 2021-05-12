@@ -64,7 +64,7 @@ func PortForwardService(cli *nhctlcli.CLI, _ ...string) {
 
 func Dev(cli *nhctlcli.CLI, _ ...string) {
 	module := "ratings"
-	funcs := []func(*nhctlcli.CLI, string) error{testcase.DevStart, testcase.DevEnd}
+	funcs := []func(*nhctlcli.CLI, string) error{testcase.DevStart, testcase.Sync, testcase.DevEnd}
 	util.RetryWith2Params("Dev", funcs, cli, module)
 }
 
