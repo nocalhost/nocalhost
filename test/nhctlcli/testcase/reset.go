@@ -21,7 +21,7 @@ import (
 
 func Reset(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.Command(context.Background(), "reset", "bookinfo")
-	return nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
 func Upgrade(nhctl *nhctlcli.CLI) error {
@@ -31,32 +31,32 @@ func Upgrade(nhctl *nhctlcli.CLI) error {
 		"https://github.com/nocalhost/bookinfo.git",
 		"--resource-path",
 		"manifest/templates")
-	return nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
 func Config(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.Command(context.Background(), "config", "get", "bookinfo")
-	return nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
 func SyncStatus(nhctl *nhctlcli.CLI, module string) error {
 	cmd := nhctl.Command(context.Background(), "sync-status", "bookinfo", "-d", module)
-	return nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
 func List(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.Command(context.Background(), "list", "bookinfo")
-	return nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
 func Db(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.Command(context.Background(), "db", "size", "--app", "bookinfo")
-	return nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
 func Pvc(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.Command(context.Background(), "pvc", "list")
-	return nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
 func NhctlVersion(nhctl *nhctlcli.CLI) error {

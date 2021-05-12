@@ -19,7 +19,6 @@ import (
 	"nocalhost/test/nhctlcli"
 	"nocalhost/test/nhctlcli/testcase"
 	"nocalhost/test/util"
-	"time"
 )
 
 // test suite
@@ -40,8 +39,8 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 	var err error
 	for i := 0; i < retryTimes; i++ {
 		if err = testcase.InstallBookInfo(t.Cli); err != nil {
+			_ = testcase.UninstallBookInfo(t.Cli)
 			_ = testcase.Reset(t.Cli)
-			time.Sleep(time.Second * 2)
 			continue
 		}
 		break
@@ -61,7 +60,6 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 	//testcase.Reset(t.Cli)
 	for i := 0; i < retryTimes; i++ {
 		if err = testcase.UninstallBookInfo(t.Cli); err != nil {
-			time.Sleep(time.Second * 2)
 			continue
 		}
 		break
