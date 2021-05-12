@@ -173,6 +173,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 			}
 			return err
 		}
+		break
 	}
 	return d.waitingPodToBeReady()
 
