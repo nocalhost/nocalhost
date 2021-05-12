@@ -169,18 +169,22 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 				}
 				dep.Spec.Template.Spec.PriorityClassName = ""
 				_, err = s.Client.UpdateStatefulSet(dep, true)
-			}
-			if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
+				if err != nil {
+					if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
+						log.Warn("StatefulSet has been modified, retrying...")
+						continue
+					}
+					return err
+				}
+				break
+			} else if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
 				log.Warn("StatefulSet has been modified, retrying...")
 				continue
 			}
+			return err
 		}
 		break
 	}
-	if err != nil {
-		return err
-	}
-
 	return s.waitingPodToBeReady()
 }
 
