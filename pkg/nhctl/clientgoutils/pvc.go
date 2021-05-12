@@ -34,7 +34,7 @@ func (c *ClientGoUtils) CreatePVC(
 	}
 
 	var persistentVolumeClaim = &v1.PersistentVolumeClaim{
-		TypeMeta: metav1.TypeMeta{},
+		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{},
 		Spec: v1.PersistentVolumeClaimSpec{
 			AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
@@ -60,6 +60,14 @@ func (c *ClientGoUtils) DeletePVC(name string) error {
 			c.ctx, name, metav1.DeleteOptions{},
 		), "",
 	)
+}
+
+func (c *ClientGoUtils) ListPvcs() ([]v1.PersistentVolumeClaim, error) {
+	list, err := c.ClientSet.CoreV1().PersistentVolumeClaims(c.namespace).List(c.ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	return list.Items, nil
 }
 
 func (c *ClientGoUtils) GetPvcByLabels(labels map[string]string) ([]v1.PersistentVolumeClaim, error) {
