@@ -182,7 +182,6 @@ func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string, cancelFunc func()) {
 	kubeconfig := util.GetKubeconfig()
 	nocalhost := "nocalhost"
 	tempCli := nhctlcli.NewNhctl(nocalhost, kubeconfig)
-	clientgoutils.Must(util.Init(tempCli))
 	clientgoutils.Must(testcase.NhctlVersion(tempCli))
 	_ = testcase.StopDaemon(tempCli)
 	util.RetryWith1Params("Prepare", []func(*nhctlcli.CLI) error{testcase.Init}, tempCli)
@@ -194,5 +193,6 @@ func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string, cancelFunc func()) {
 		panic(errors.New("--namespace or --kubeconfig must be provided"))
 	}
 	cli = nhctlcli.NewNhctl(ns, newKubeconfig)
+	clientgoutils.Must(util.Init(cli))
 	return
 }
