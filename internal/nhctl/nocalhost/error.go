@@ -12,18 +12,8 @@
 
 package nocalhost
 
-import (
-	"fmt"
-	"github.com/pkg/errors"
-	"testing"
+import "errors"
+
+var (
+	CreatePvcFailed = errors.New("create PVC failed")
 )
-
-func TestError(t *testing.T) {
-	err := errors.Wrap(CreatePvcFailed, "")
-	if errors.Is(err, CreatePvcFailed) {
-		fmt.Println(true)
-	} else {
-		fmt.Println(false)
-	}
-
-}
