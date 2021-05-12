@@ -88,7 +88,7 @@ func StatusCheckPortForward(nhctl *nhctlcli.CLI, moduleName string, port int) er
 	service := profile2.SvcProfileV2{}
 	_ = yaml.Unmarshal([]byte(stdout), &service)
 	bytes, _ := json.Marshal(service)
-	log.Info(bytes)
+	log.Info(string(bytes))
 	if !service.PortForwarded {
 		return errors.New("test case failed, should be port forwarding")
 	}
