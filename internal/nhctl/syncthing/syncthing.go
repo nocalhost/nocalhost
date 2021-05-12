@@ -144,24 +144,25 @@ func IsSubPathFolder(path string, paths []string) (bool, error) {
 	return false, errors.New("not found")
 }
 
-func cleanupDaemon(pid int, wait bool, typeName string) error {
+func cleanupDaemon(pid int, wait bool) error {
 	process, err := ps.FindProcess(pid)
 	if process == nil && err == nil {
 		return nil
 	}
 
 	if err != nil {
-		log.Fatalf("error when looking up the process: %s", err)
+		//log.Fatalf("error when looking up the process: %s", err)
 		return errors.Wrap(err, "")
 	}
 
-	if typeName == syncthing {
-		if process.Executable() != GetBinaryName() {
-			return nil
-		}
+	//if typeName == syncthing {
+	if process.Executable() != GetBinaryName() {
+		log.Infof("%d is not a syncthing process", pid)
+		return nil
 	}
+	//}
 
-	err = terminate.Terminate(pid, wait, typeName)
+	err = terminate.Terminate(pid, wait)
 	if err == nil {
 		log.Debugf("terminated syncthing with pid %d", pid)
 	}
@@ -292,19 +293,21 @@ func (s *Syncthing) Run(ctx context.Context) error {
 	return nil
 }
 
-// Stop syncthing background process or port-forward progress, and clean up pid files.
-func Stop(pid int, pidFilePath string, typeName string, force bool) error {
-	if err := cleanupDaemon(pid, force, typeName); err != nil {
+// Stop syncthing background process
+func Stop(pid int, pidFilePath string, force bool) error {
+	if err := cleanupDaemon(pid, force); err != nil {
 		return err
 	}
-
-	if err := os.Remove(pidFilePath); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		fmt.Printf("failed to delete pidfile %d: %s", pid, err)
-	}
 	return nil
+
+	// Don't remove pid file
+	//if err := os.Remove(pidFilePath); err != nil {
+	//	if os.IsNotExist(err) {
+	//		return nil
+	//	}
+	//	fmt.Printf("failed to delete pidfile %d: %s", pid, err)
+	//}
+	//return nil
 }
 
 func (s *Syncthing) GetRemoteConfigXML() ([]byte, error) {

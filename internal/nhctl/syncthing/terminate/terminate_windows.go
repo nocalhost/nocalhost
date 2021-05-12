@@ -18,6 +18,6 @@ import (
 	"github.com/mattn/psutil"
 )
 
-func Terminate(pid int, wait bool, typeName string) error {
+func Terminate(pid int, wait bool) error {
 	return psutil.TerminateTree(pid, 0)
 }
