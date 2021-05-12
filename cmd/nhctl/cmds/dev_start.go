@@ -80,6 +80,8 @@ var devStartCmd = &cobra.Command{
 		devStartOps.Kubeconfig = kubeConfig
 		log.Info("Starting DevMode...")
 
+		// Clean up previous syncthing
+
 		profileV2, err := profile.NewAppProfileV2ForUpdate(nocalhostApp.NameSpace, nocalhostApp.Name)
 		must(err)
 
@@ -128,6 +130,7 @@ var devStartCmd = &cobra.Command{
 
 		// set syncthing secret
 		config, err := newSyncthing.GetRemoteConfigXML()
+		must(err)
 
 		syncSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{

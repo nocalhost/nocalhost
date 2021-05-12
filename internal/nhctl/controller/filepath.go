@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 )
 
+// GetSyncThingPidFile Deprecated move to profile
 func (c *Controller) GetSyncThingPidFile() string {
 	return filepath.Join(c.GetApplicationSyncDir(), nocalhost.DefaultApplicationSyncPidFile)
 }

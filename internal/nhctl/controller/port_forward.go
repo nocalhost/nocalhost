@@ -13,12 +13,10 @@
 package controller
 
 import (
-	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/model"
-	port_forward "nocalhost/internal/nhctl/port-forward"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
@@ -26,7 +24,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -130,25 +127,26 @@ func (c *Controller) GetPortForward(localPort, remotePort int) (*profile.DevPort
 			return pf, nil
 		}
 	}
-	return nil, errors.New("Pf not found")
+	log.Logf("type %s, name %s", c.Type, svcProfile.ActualName)
+	return nil, errors.New(fmt.Sprintf("Pf %d:%d not found", localPort, remotePort))
 }
 
-func (c *Controller) CheckPidPortStatus(ctx context.Context, sLocalPort, sRemotePort int, lock *sync.Mutex) {
-	for {
-		select {
-		case <-ctx.Done():
-			log.Info("Stop Checking port status")
-			return
-		default:
-			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
-			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
-			lock.Lock()
-			_ = c.UpdatePortForwardStatus(sLocalPort, sRemotePort, portStatus, "Check Pid")
-			lock.Unlock()
-			<-time.After(2 * time.Minute)
-		}
-	}
-}
+//func (c *Controller) CheckPidPortStatus(ctx context.Context, sLocalPort, sRemotePort int, lock *sync.Mutex) {
+//	for {
+//		select {
+//		case <-ctx.Done():
+//			log.Info("Stop Checking port status")
+//			return
+//		default:
+//			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
+//			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
+//			lock.Lock()
+//			_ = c.UpdatePortForwardStatus(sLocalPort, sRemotePort, portStatus, "Check Pid")
+//			lock.Unlock()
+//			<-time.After(2 * time.Minute)
+//		}
+//	}
+//}
 
 func (c *Controller) PortForwardAfterDevStart(containerName string) error {
 
