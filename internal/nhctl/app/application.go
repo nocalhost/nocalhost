@@ -14,27 +14,29 @@ package app
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	corev1 "k8s.io/api/core/v1"
 	"net"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/profile"
-	"os"
-	"regexp"
-
-	"gopkg.in/yaml.v3"
-	corev1 "k8s.io/api/core/v1"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
+	"os"
+	"regexp"
+	"strconv"
 
 	"github.com/pkg/errors"
 )
 
 var (
 	ErrNotFound = errors.New("Application not found")
+	indent      = 70
 )
 
 type Application struct {
@@ -218,10 +220,10 @@ func (a *Application) generateSecretForEarlierVer() bool {
 	return false
 }
 
-func (a *Application) ReloadCfg() error {
+func (a *Application) ReloadCfg(force bool) error {
 	secretCfg := a.appMeta.Config
 	for _, config := range secretCfg.ApplicationConfig.ServiceConfigs {
-		if err := a.ReloadSvcCfg(config.Name, config.Type); err != nil {
+		if err := a.ReloadSvcCfg(config.Name, config.Type, force); err != nil {
 			log.LogE(err)
 		}
 	}
@@ -229,10 +231,20 @@ func (a *Application) ReloadCfg() error {
 	return nil
 }
 
-func (a *Application) ReloadSvcCfg(svcName, svcType string) error {
-	if !a.loadSvcCfgFromLocalIfNeeded(svcName, svcType) {
+func (a *Application) ReloadSvcCfg(svcName, svcType string, force bool) error {
+	if !a.LoadSvcCfgFromLocalIfNeeded(svcName, svcType, force) {
 		return a.Controller(svcName, appmeta.SvcTypeOf(svcType)).UpdateSvcProfile(
 			func(svcProfile *profile.SvcProfileV2) error {
+
+				metaInfo := fmt.Sprintf("[name: %s serviceType: %s]", svcName, svcType)
+				log.Infof(
+					fmt.Sprintf(
+						"%-"+strconv.Itoa(indent)+"s %s",
+						metaInfo,
+						"Load nocalhost svc config from application config",
+					),
+				)
+
 				svcProfile.ServiceConfigV2 = a.appMeta.Config.GetSvcConfigV2(svcName, svcType)
 				svcProfile.LocalConfigLoaded = false
 				return nil
@@ -242,14 +254,14 @@ func (a *Application) ReloadSvcCfg(svcName, svcType string) error {
 	return nil
 }
 
-func (a *Application) loadSvcCfgFromLocalIfNeeded(svcName, svcType string) bool {
+func (a *Application) LoadSvcCfgFromLocalIfNeeded(svcName, svcType string, force bool) bool {
 	p, err := a.GetProfile()
 	if err != nil {
 		return false
 	}
 
 	svcProfile := p.SvcProfileV2(svcName, svcType)
-	if svcProfile.LocalConfigLoaded {
+	if svcProfile.LocalConfigLoaded && !force {
 		return false
 	}
 
@@ -257,7 +269,7 @@ func (a *Application) loadSvcCfgFromLocalIfNeeded(svcName, svcType string) bool 
 		return false
 	}
 
-	configFile := fp.NewFilePath(svcProfile.Associate).RelOrAbs(nocalhost.NocalhostLocalConfigName)
+	configFile := fp.NewFilePath(svcProfile.Associate).RelOrAbs(DefaultGitNocalhostDir).RelOrAbs(DefaultConfigNameInGitNocalhostDir)
 	if err = configFile.CheckExist(); err != nil {
 		return false
 	}
@@ -268,15 +280,49 @@ func (a *Application) loadSvcCfgFromLocalIfNeeded(svcName, svcType string) bool 
 		return false
 	}
 
-	svcProfileConfig := &profile.ServiceConfigV2{}
-	if err := yaml.Unmarshal([]byte(content), svcProfile); err != nil {
-		log.LogE(err)
+	metaInfo := fmt.Sprintf("[name: %s serviceType: %s]", svcName, svcType)
+
+	appConfig := profile.NocalHostAppConfigV2{}
+	if err := yaml.Unmarshal([]byte(content), &appConfig); err != nil {
+		coloredoutput.Fail(
+			"%-"+strconv.Itoa(indent)+"s %s",
+			metaInfo,
+			fmt.Sprintf(
+				"Load nocalhost svc config from local file %s but fail\n[%s]\nplease fix the issues and try reload config again",
+				configFile.Path, err.Error(),
+			),
+		)
 		return false
 	}
+
+	svcProfileConfig := appConfig.GetSvcConfigV2(svcName, svcType)
+
+	if svcProfileConfig == nil {
+
+		coloredoutput.Hint(
+			"%-"+strconv.Itoa(indent)+"s %s",
+			metaInfo,
+			fmt.Sprintf(
+				"Load nocalhost svc config from local file %s but do not found config with %s\n",
+				configFile.Path, metaInfo,
+			),
+		)
+		return false
+	}
+
+	svcProfileConfig.Name = svcName
+	svcProfileConfig.Type = svcType
 
 	// means should load svc cfg from local
 	if err := a.Controller(svcName, appmeta.SvcTypeOf(svcType)).UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
+			log.Infof(
+				fmt.Sprintf(
+					"%-"+strconv.Itoa(indent)+"s %s",
+					fmt.Sprintf("[Name: %s, Type: %s]", svcName, svcType),
+					fmt.Sprintf("Load nocalhost svc config from local file "+configFile.Path),
+				),
+			)
 			svcProfile.ServiceConfigV2 = svcProfileConfig
 			svcProfile.LocalConfigLoaded = true
 			return nil

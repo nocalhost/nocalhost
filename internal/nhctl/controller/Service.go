@@ -70,6 +70,21 @@ func (c *Controller) GetDescription() *profile.SvcProfileV2 {
 	return nil
 }
 
+func (c *Controller) Associate(dir string) error {
+
+	return c.UpdateProfile(
+		func(p *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
+			if svcProfile.Associate == dir{
+				return nil
+			}
+
+			svcProfile.Associate = dir
+			svcProfile.LocalConfigLoaded = false
+			return nil
+		},
+	)
+}
+
 func (c *Controller) UpdateSvcProfile(modify func(*profile.SvcProfileV2) error) error {
 	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName)
 	if err != nil {

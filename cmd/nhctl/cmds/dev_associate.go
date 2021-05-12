@@ -18,22 +18,25 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
+var workDir string
+
 func init() {
-	configReloadCmd.Flags().StringVarP(
+	devAssociateCmd.Flags().StringVarP(
 		&commonFlags.SvcName, "deployment", "d", "",
 		"k8s deployment which your developing service exists",
 	)
-	configReloadCmd.Flags().StringVarP(
+	devAssociateCmd.Flags().StringVarP(
 		&serviceType, "controller-type", "t", "",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
-	configCmd.AddCommand(configReloadCmd)
+	devAssociateCmd.Flags().StringVarP(&workDir, "associate", "s", "", "dev mode work directory")
+	debugCmd.AddCommand(devAssociateCmd)
 }
 
-var configReloadCmd = &cobra.Command{
-	Use:   "reload [Name]",
-	Short: "reload application/service config",
-	Long:  "reload application/service config",
+var devAssociateCmd = &cobra.Command{
+	Use:   "associate [Name]",
+	Short: "associate service dev dir",
+	Long:  "associate service dev dir",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
@@ -44,15 +47,13 @@ var configReloadCmd = &cobra.Command{
 		commonFlags.AppName = args[0]
 		initApp(commonFlags.AppName)
 
-		if commonFlags.SvcName == "" {
-			if err := nocalhostApp.ReloadCfg(true); err != nil {
-				log.Fatal(errors.Wrap(err, ""))
-			}
-		} else {
-			checkIfSvcExist(commonFlags.SvcName, serviceType)
-			if err := nocalhostApp.ReloadSvcCfg(commonFlags.SvcName, serviceType, true); err != nil {
-				log.Fatal(errors.Wrap(err, ""))
-			}
+		if workDir == "" {
+			log.Fatal("associate must specify")
 		}
+
+		checkIfSvcExist(commonFlags.SvcName, serviceType)
+		must(nocalhostSvc.Associate(workDir))
+
+		nocalhostApp.LoadSvcCfgFromLocalIfNeeded(nocalhostSvc.Name, nocalhostSvc.Type.String(), false)
 	},
 }

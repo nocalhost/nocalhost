@@ -89,6 +89,14 @@ var devStartCmd = &cobra.Command{
 			log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
 
+		if len(devStartOps.LocalSyncDir) == 1 {
+			must(nocalhostSvc.Associate(devStartOps.LocalSyncDir[0]))
+		} else {
+			log.Fatal(errors.New("Can not define multi 'local-sync(-s)'"))
+		}
+
+		nocalhostApp.LoadSvcCfgFromLocalIfNeeded(deployment, serviceType, false)
+
 		devStartOps.Kubeconfig = kubeConfig
 		log.Info("Starting DevMode...")
 
@@ -109,7 +117,6 @@ var devStartCmd = &cobra.Command{
 					}
 					if len(devStartOps.LocalSyncDir) == 1 {
 						svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
-						svcProfile.Associate = devStartOps.LocalSyncDir[0]
 					} else {
 						return errors.New("Can not define multi 'local-sync(-s)'")
 					}
@@ -119,8 +126,6 @@ var devStartCmd = &cobra.Command{
 				},
 			),
 		)
-
-		must(nocalhostApp.ReloadSvcCfg(deployment, serviceType))
 
 		must(
 			nocalhostSvc.AppMeta.SvcDevStart(

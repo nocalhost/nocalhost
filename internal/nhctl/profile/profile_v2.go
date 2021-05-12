@@ -35,15 +35,26 @@ type AppProfileV2 struct {
 	Name string `json:"name" yaml:"name"`
 
 	// install/uninstall field, should move out of profile
-	ChartName               string        `json:"chart_name" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
-	ReleaseName             string        `json:"release_name yaml:releaseName"`
-	DependencyConfigMapName string        `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
-	Installed               bool          `json:"installed" yaml:"installed"`
-	ResourcePath            RelPath       `json:"resource_path" yaml:"resourcePath"`
-	IgnoredPath             RelPath       `json:"ignoredPath" yaml:"ignoredPath"`
-	PreInstall              SortedRelPath `json:"onPreInstall" yaml:"onPreInstall"`
+	// Deprecated
+	ChartName string `json:"chart_name" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
+	// Deprecated TODO move to appMeta
+	ReleaseName string `json:"release_name yaml:releaseName"`
+	// Deprecated
+	DependencyConfigMapName string `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
+	// Deprecated
+	Installed bool `json:"installed" yaml:"installed"`
+	// Deprecated
+	ResourcePath RelPath `json:"resource_path" yaml:"resourcePath"`
+	// Deprecated
+	IgnoredPath RelPath `json:"ignoredPath" yaml:"ignoredPath"`
+	// Deprecated
+	PreInstall SortedRelPath `json:"onPreInstall" yaml:"onPreInstall"`
 	// Deprecated
 	AppType string `json:"app_type" yaml:"appType"`
+	// Deprecated
+	Env []*Env `json:"env" yaml:"env"`
+	// Deprecated
+	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
 
 	// app global field
 	Namespace  string `json:"namespace" yaml:"namespace"`
@@ -56,9 +67,6 @@ type AppProfileV2 struct {
 
 	// svc runtime status
 	SvcProfile []*SvcProfileV2 `json:"svc_profile" yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
-
-	Env     []*Env  `json:"env" yaml:"env"`
-	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
 
 	dbPath  string
 	appName string

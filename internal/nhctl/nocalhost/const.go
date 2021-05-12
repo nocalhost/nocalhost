@@ -39,6 +39,4 @@ const (
 		" management so can't be install, uninstall, reset, etc."
 
 	HelmReleaseName = "meta.helm.sh/release-name"
-
-	NocalhostLocalConfigName = ".nhconfig"
 )
