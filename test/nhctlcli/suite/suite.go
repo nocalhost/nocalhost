@@ -13,12 +13,16 @@
 package suite
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
+	"net/http"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/nhctlcli"
 	"nocalhost/test/nhctlcli/testcase"
 	"nocalhost/test/util"
+	"os"
+	"strings"
 )
 
 // test suite
@@ -32,6 +36,7 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 	defer func() {
 		if err := recover(); err != nil {
 			t.Clean()
+			t.Alert()
 			panic(err)
 		}
 	}()
@@ -69,5 +74,25 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 func (t *T) Clean() {
 	if t.CleanFunc != nil {
 		t.CleanFunc()
+	}
+}
+
+func (t *T) Alert() {
+	if oldV, newV := testcase.GetVersion(); oldV != "" && newV != "" {
+		if webhook := os.Getenv(util.TestcaseWebhook); webhook != "" {
+			s := `{"msgtype":"text","text":{"content":"兼容性测试(%s --> %s)没通过，请相关同学注意啦!",
+"mentioned_mobile_list":["@all"]}}`
+			var req *http.Request
+			var err error
+			data := strings.NewReader(fmt.Sprintf(s, oldV, newV))
+			if req, err = http.NewRequest("POST", webhook, data); err != nil {
+				log.Info(err)
+				return
+			}
+			req.Header.Set("Content-Type", "application/json")
+			if _, err = http.DefaultClient.Do(req); err != nil {
+				log.Info(err)
+			}
+		}
 	}
 }

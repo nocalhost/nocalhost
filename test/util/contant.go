@@ -8,4 +8,5 @@ const (
 	SecretId                   = "TKE_SECRET_ID"
 	SecretKey                  = "TKE_SECRET_KEY"
 	WebServerServiceAccountApi = "/v1/plugin/service_accounts"
+	TestcaseWebhook            = "TESTCASE_WEBHOOK"
 )
