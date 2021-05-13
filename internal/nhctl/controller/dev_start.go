@@ -222,7 +222,11 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 				claimName = claims[0].Name
 			} else { // no pvc for this path, create one
 				var pvc *corev1.PersistentVolumeClaim
-				log.Infof("No PVC for %s found, trying to create one...", persistentVolume.Path)
+				if c.GetStorageClass(container) != "" {
+					storageClass = c.GetStorageClass(container)
+				}
+				log.Infof("No PVC for %s found, trying to create one with storage class %s...",
+					persistentVolume.Path, storageClass)
 				pvc, err = c.createPvcForPersistentVolumeDir(persistentVolume, labels, storageClass)
 				if err != nil || pvc == nil {
 					return nil, nil, errors.Wrap(nocalhost.CreatePvcFailed, "Failed to create pvc for "+persistentVolume.Path)

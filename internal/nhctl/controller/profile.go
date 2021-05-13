@@ -57,6 +57,14 @@ func (c *Controller) GetWorkDir(container string) string {
 	return profile.DefaultWorkDir
 }
 
+func (c *Controller) GetStorageClass(container string) string {
+	svcProfile, _ := c.GetProfile()
+	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).StorageClass != "" {
+		return svcProfile.GetContainerDevConfigOrDefault(container).StorageClass
+	}
+	return ""
+}
+
 func (c *Controller) GetDevImage(container string) string {
 	svcProfile, _ := c.GetProfile()
 	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).Image != "" {

@@ -62,6 +62,7 @@ type ContainerDevConfig struct {
 	Image                 string                 `json:"image" yaml:"image"`
 	Shell                 string                 `json:"shell" yaml:"shell"`
 	WorkDir               string                 `json:"workDir" yaml:"workDir"`
+	StorageClass          string                 `json:"storageClass" yaml:"storageClass"`
 	DevContainerResources *ResourceQuota         `json:"resources" yaml:"resources"`
 	PersistentVolumeDirs  []*PersistentVolumeDir `json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
 	Command               *DevCommands           `json:"command" yaml:"command"`
