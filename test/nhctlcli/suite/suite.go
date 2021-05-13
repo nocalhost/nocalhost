@@ -81,7 +81,7 @@ func (t *T) Alert() {
 	if oldV, newV := testcase.GetVersion(); oldV != "" && newV != "" {
 		if webhook := os.Getenv(util.TestcaseWebhook); webhook != "" {
 			s := `{"msgtype":"text","text":{"content":"兼容性测试(%s --> %s)没通过，请相关同学注意啦!",
-"mentioned_mobile_list":["@all"]}}`
+"mentioned_mobile_list":["18511859195"]}}`
 			var req *http.Request
 			var err error
 			data := strings.NewReader(fmt.Sprintf(s, oldV, newV))
