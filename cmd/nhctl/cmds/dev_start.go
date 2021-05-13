@@ -16,6 +16,7 @@ import (
 	"context"
 	"github.com/mitchellh/go-ps"
 	"nocalhost/internal/nhctl/model"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
@@ -171,6 +172,9 @@ var devStartCmd = &cobra.Command{
 			log.WarnE(err, "Failed to replace dev container")
 			log.Info("Resetting workload...")
 			_ = nocalhostSvc.DevEnd(true)
+			if errors.Is(err, nocalhost.CreatePvcFailed) {
+				log.Info("Create PVC failed, please make sure you have the required PVC quota")
+			}
 			os.Exit(1)
 		}
 

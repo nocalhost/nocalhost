@@ -213,11 +213,7 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 				continue
 			}
 			if len(claims) > 1 {
-				log.Warn(
-					fmt.Sprintf(
-						"Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path,
-					),
-				)
+				log.Warn(fmt.Sprintf("Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path))
 				continue
 			}
 
@@ -229,7 +225,7 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 				log.Infof("No PVC for %s found, trying to create one...", persistentVolume.Path)
 				pvc, err = c.createPvcForPersistentVolumeDir(persistentVolume, labels, storageClass)
 				if err != nil || pvc == nil {
-					return nil, nil, errors.New("Failed to create pvc for " + persistentVolume.Path)
+					return nil, nil, errors.Wrap(nocalhost.CreatePvcFailed, "Failed to create pvc for "+persistentVolume.Path)
 				}
 				claimName = pvc.Name
 			}

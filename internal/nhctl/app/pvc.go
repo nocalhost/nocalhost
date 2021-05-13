@@ -65,6 +65,6 @@ func (a *Application) CleanUpPVCs(svcName string, continueOnErr bool) error {
 	return nil
 }
 
-func (a *Application) CleanUpPVC(name string) error {
-	return a.client.DeletePVC(name)
-}
+//func (a *Application) CleanUpPVC(name string) error {
+//	return a.client.DeletePVC(name)
+//}

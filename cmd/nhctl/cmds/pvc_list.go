@@ -19,6 +19,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/pkg/nhctl/clientgoutils"
 
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
@@ -67,6 +68,12 @@ var pvcListCmd = &cobra.Command{
 				pvcList, err = nocalhostApp.GetAllPVCs()
 				must(err)
 			}
+		} else {
+			// List all pvc of current namespace
+			cli, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
+			must(err)
+			pvcList, err = cli.ListPvcs()
+			must(err)
 		}
 
 		if pvcFlags.Yaml {
