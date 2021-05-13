@@ -219,7 +219,14 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 	if err != nil {
 		return err
 	}
+
 	releaseName := appProfile.ReleaseName
+	if releaseName == "" {
+		releaseName = a.appMeta.HelmReleaseName
+	}
+	if releaseName == "" {
+		releaseName = a.appMeta.Application
+	}
 
 	commonParams := make([]string, 0)
 	if a.NameSpace != "" {
