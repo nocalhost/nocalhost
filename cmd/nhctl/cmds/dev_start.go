@@ -15,6 +15,7 @@ package cmds
 import (
 	"context"
 	"github.com/mitchellh/go-ps"
+	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
@@ -22,6 +23,7 @@ import (
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/tools"
 	"os"
 
 	"github.com/pkg/errors"
@@ -91,12 +93,22 @@ var devStartCmd = &cobra.Command{
 			log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
 
+		// 1) reload svc config if needed
+		// 2) stop previous syncthing
+		// 3) recording profile
+		// 4) mark app meta as developing
+		// 5) initial syncthing runtime env
+		// 6) stop port-forward
+		// 7) enter developing (replace image)
+		// 8) port forward for dev-container
+
+		// when re enter dev mode, nocalhost will check the associate dir
+		// nocalhost will load svc config from associate dir if needed
 		if len(devStartOps.LocalSyncDir) == 1 {
 			must(nocalhostSvc.Associate(devStartOps.LocalSyncDir[0]))
 		} else {
 			log.Fatal(errors.New("Can not define multi 'local-sync(-s)'"))
 		}
-
 		nocalhostApp.LoadSvcCfgFromLocalIfNeeded(deployment, serviceType, false)
 
 		devStartOps.Kubeconfig = kubeConfig
@@ -141,12 +153,9 @@ var devStartCmd = &cobra.Command{
 			),
 		)
 
-		p, err := nocalhostApp.GetProfile()
-		must(err)
-
 		must(
 			nocalhostSvc.AppMeta.SvcDevStart(
-				nocalhostSvc.Name, nocalhostSvc.Type, p.Identifier,
+				nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier,
 			),
 		)
 
@@ -219,5 +228,21 @@ var devStartCmd = &cobra.Command{
 			utils.Should(nocalhostSvc.PortForward(podName, pf.LocalPort, pf.RemotePort, pf.Role))
 		}
 		must(nocalhostSvc.PortForwardAfterDevStart(devStartOps.Container))
+
+		println()
+		coloredoutput.Success("Dev container has been updated")
+		println()
+
+		nhctl, err := utils.GetNhctlPath()
+		must(err)
+
+		_, err = tools.ExecCommand(
+			nil, true, true,
+			nhctl, "sync", nocalhostApp.Name, "-d", nocalhostSvc.Name, "-t", nocalhostSvc.Type.String(),
+			"--kubeconfig", kubeConfig, "-n", nameSpace,
+		)
+
+		println()
+		coloredoutput.Success("File sync started")
 	},
 }

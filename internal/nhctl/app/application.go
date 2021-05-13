@@ -300,7 +300,7 @@ func (a *Application) LoadSvcCfgFromLocalIfNeeded(svcName, svcType string, force
 	if svcProfileConfig == nil {
 
 		coloredoutput.Hint(
-			"%-"+strconv.Itoa(indent)+"s %s",
+			"\n%-"+strconv.Itoa(indent)+"s %s",
 			metaInfo,
 			fmt.Sprintf(
 				"Load nocalhost svc config from local file %s but do not found config with %s\n",
@@ -401,6 +401,12 @@ func (a *Application) tryLoadProfileFromLocal() (err error) {
 
 func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
 	return nocalhost.GetProfileV2(a.NameSpace, a.Name)
+}
+
+func (a *Application) GetProfileCompel() *profile.AppProfileV2 {
+	v2, err := nocalhost.GetProfileV2(a.NameSpace, a.Name)
+	clientgoutils.Must(err)
+	return v2
 }
 
 func (a *Application) UpdateProfile(modify func(*profile.AppProfileV2) error) error {
