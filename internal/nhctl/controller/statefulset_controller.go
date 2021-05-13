@@ -21,8 +21,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
+	"time"
 )
 
 const (
@@ -111,6 +113,16 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		sideCarContainer.Resources = *requirements
 	}
 
+	//sfs4Poriority, err := s.Client.GetStatefulSet(s.Name())
+	//if err != nil {
+	//	return err
+	//}
+
+	events, err := s.Client.ListEventsByStatefulSet(s.Name())
+	utils.Should(err)
+	_ = s.Client.DeleteEvents(events, true)
+
+	needToRemovePriorityClass := false
 	for i := 0; i < 10; i++ {
 		// Get the latest stateful set
 		dep, err = s.Client.GetStatefulSet(s.Name())
@@ -166,11 +178,38 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		_, err = s.Client.UpdateStatefulSet(dep, true)
 		if err != nil {
 			if strings.Contains(err.Error(), "no PriorityClass") {
-				log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
-				dep, err = s.Client.GetStatefulSet(s.Name())
-				if err != nil {
-					return err
+				//log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
+				//dep, err = s.Client.GetStatefulSet(s.Name())
+				//if err != nil {
+				//	return err
+				//}
+				//dep.Spec.Template.Spec.PriorityClassName = ""
+				//_, err = s.Client.UpdateStatefulSet(dep, true)
+				//if err != nil {
+				//	if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
+				//		log.Warn("StatefulSet has been modified, retrying...")
+				//		continue
+				//	}
+				//	return err
+				//}
+				//break
+			} else if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
+				log.Warn("StatefulSet has been modified, retrying...")
+				continue
+			}
+			return err
+		} else {
+			// Check if priorityClass exists
+			time.Sleep(5 * time.Second)
+			events, err = s.Client.ListEventsByStatefulSet(s.Name())
+			for _, event := range events {
+				if strings.Contains(event.Message, "no PriorityClass") {
+					log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
+					needToRemovePriorityClass = true
+					break
 				}
+			}
+			if needToRemovePriorityClass {
 				dep.Spec.Template.Spec.PriorityClassName = ""
 				_, err = s.Client.UpdateStatefulSet(dep, true)
 				if err != nil {
@@ -181,11 +220,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 					return err
 				}
 				break
-			} else if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
-				log.Warn("StatefulSet has been modified, retrying...")
-				continue
 			}
-			return err
 		}
 		break
 	}
