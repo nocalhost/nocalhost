@@ -83,17 +83,21 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string
 		for _, pf := range svcProfile.DevPortForwardList {
 			if pf.RunByDaemonServer && pf.Sudo == isSudo { // Only recover port-forward managed by this daemon server
 				log.Logf("Recovering port-forward %d:%d of %s-%s", pf.LocalPort, pf.RemotePort, ns, appName)
-				//svcType := pf.ServiceType
-				//if svcType == "" {
-				//
-				//}
+				svcType := pf.ServiceType
+				// For compatibility
+				if svcType == "" {
+					svcType = svcProfile.Type
+				}
+				if svcType == "" {
+					svcType = "deployment"
+				}
 				err = p.StartPortForwardGoRoutine(
 					&command.PortForwardCommand{
 						CommandType: command.StartPortForward,
 						NameSpace:   ns,
 						AppName:     appName,
 						Service:     svcProfile.ActualName,
-						ServiceType: pf.ServiceType,
+						ServiceType: svcType,
 						PodName:     pf.PodName,
 						LocalPort:   pf.LocalPort,
 						RemotePort:  pf.RemotePort,
