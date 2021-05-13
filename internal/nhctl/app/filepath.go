@@ -39,34 +39,6 @@ func (a *Application) getConfigPathInGitResourcesDir(configName string) string {
 	return filepath.Join(a.ResourceTmpDir, DefaultGitNocalhostDir, configName)
 }
 
-func (a *Application) GetPortSyncLogFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultSyncLogFileName)
-}
-
-func (a *Application) GetPortForwardLogFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultBackGroundPortForwardLogFileName)
-}
-
-func (a *Application) GetBGPortForwardPidFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
-}
-
-func (a *Application) GetFileLockPath(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), GetFileLockPath)
-}
-
-func (a *Application) GetSyncThingPidFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPidFile)
-}
-
-func (a *Application) GetPortForwardPidFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationOnlyPortForwardPidFile)
-}
-
-func (a *Application) GetABGPortForwardPidFile(deployment string) string {
-	return filepath.Join(a.GetApplicationSyncDir(deployment), DefaultApplicationSyncPortForwardPidFile)
-}
-
 func (a *Application) getProfilePath() string {
 	return filepath.Join(a.GetHomeDir(), nocalhost.DefaultApplicationProfilePath)
 }
@@ -87,7 +59,6 @@ func (a *Application) GetConfigV2Path() string {
 }
 
 func (a *Application) GetHomeDir() string {
-	//return nocalhost.GetAppDir(a.Name)
 	return nocalhost_path.GetAppDirUnderNs(a.Name, a.NameSpace)
 }
 

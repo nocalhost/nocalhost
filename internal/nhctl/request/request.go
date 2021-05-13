@@ -25,6 +25,7 @@ import (
 	"nocalhost/pkg/nhctl/tools"
 	"os/exec"
 	"strconv"
+	"time"
 )
 
 const (
@@ -208,6 +209,7 @@ func (q *ApiRequest) Login(email, password string) *ApiRequest {
 		err = q.tryLogin(email, password)
 		log.Debugf("Try login to the end point fail, retry %d..", i+1)
 		if err == nil {
+			log.Debugf("Login in endpoint successfully")
 			return q
 		}
 	}
@@ -216,8 +218,11 @@ func (q *ApiRequest) Login(email, password string) *ApiRequest {
 	q.ExposeService()
 
 	for i := 0; i < 3; i++ {
-		errAfterPortForward := q.tryLogin(email, password)
-		if errAfterPortForward == nil {
+		time.Sleep(time.Second * 2)
+		log.Debugf("Try login to the end point with port-forward, times %d..", i+1)
+		err = q.tryLogin(email, password)
+		if err == nil {
+			log.Debugf("Login in endpoint with port forward successfully")
 			return q
 		}
 	}
@@ -238,7 +243,7 @@ func (q *ApiRequest) tryLogin(email, password string) error {
 	res := LoginRes{}
 	err = r.ToJSON(&res)
 	if err != nil {
-		return errors.Errorf("init fail, request for login fail, err: %s", err)
+		return errors.Errorf("init fail, response for login fail, err: %s", err)
 	}
 	q.AuthToken = res.Data.Token
 	return nil
@@ -328,6 +333,7 @@ func (q *ApiRequest) GetKubeConfig() *ApiRequest {
 		log.Fatalf("get kubeconfig raw context fail, please check you --kubeconfig and kubeconfig file, err: %s", err)
 	}
 	q.KubeConfigRaw = result
+	log.Debug("get kubeconfig successfully")
 	return q
 }
 

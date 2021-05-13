@@ -12,10 +12,20 @@
 
 package nhctlcli
 
-func NewNhctl(kubeconfig, namespace string) *CLI {
+func NewNhctl(namespace, kubeconfig string) *CLI {
 	c := &Conf{
 		kubeconfig: kubeconfig,
 		namespace:  namespace,
+		cmd:        "nhctl",
+	}
+	return NewCLI(c, namespace)
+}
+
+func NewKubectl(namespace, kubeconfig string) *CLI {
+	c := &Conf{
+		kubeconfig: kubeconfig,
+		namespace:  namespace,
+		cmd:        "kubectl",
 	}
 	return NewCLI(c, namespace)
 }
@@ -23,6 +33,7 @@ func NewNhctl(kubeconfig, namespace string) *CLI {
 type Conf struct {
 	kubeconfig string
 	namespace  string
+	cmd        string
 }
 
 func (c *Conf) GetKubeConfig() string {
@@ -30,4 +41,7 @@ func (c *Conf) GetKubeConfig() string {
 }
 func (c *Conf) GetNamespace() string {
 	return c.namespace
+}
+func (c Conf) GetCmd() string {
+	return c.cmd
 }

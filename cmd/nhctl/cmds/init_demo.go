@@ -254,7 +254,7 @@ var InitCommand = &cobra.Command{
 		spinner = utils.NewSpinner(" waiting for init demo data...")
 		spinner.Start()
 
-		endpoint := findOutWebEndpoint(client)
+		endpoint := FindOutWebEndpoint(client)
 
 		// set default cluster, application, users
 		req := request.NewReq(
@@ -311,13 +311,13 @@ var InitCommand = &cobra.Command{
 	},
 }
 
-func findOutWebEndpoint(client *clientgoutils.ClientGoUtils) string {
+func FindOutWebEndpoint(client *clientgoutils.ClientGoUtils) string {
 	var port = inits.Port
 
 	if inits.Type == "NodePort" {
 		service, err := client.GetService("nocalhost-web")
 		if err != nil || service == nil {
-			log.Fatal("getting svc nocalhost-web from kubernetes failed")
+			log.Fatal("getting controller nocalhost-web from kubernetes failed")
 			return ""
 		}
 

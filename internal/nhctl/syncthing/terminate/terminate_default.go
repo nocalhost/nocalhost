@@ -23,29 +23,27 @@ const (
 	syncthing = "syncthing"
 )
 
-func Terminate(pid int, wait bool, typeName string) error {
+func Terminate(pid int, wait bool) error {
 	// if typeName=syncthing, it should use proc.Signal(os.Inte)
 	proc := os.Process{Pid: pid}
-	if typeName == syncthing {
-		if err := proc.Signal(os.Interrupt); err != nil {
-			if strings.Contains(err.Error(), "process already finished") {
-				return nil
-			}
-			return err
-		}
-		return nil
-	}
-
-	// dev port-forward and sync port-forward can only use proc.Kill()
-	if err := proc.Kill(); err != nil {
+	if err := proc.Signal(os.Interrupt); err != nil {
 		if strings.Contains(err.Error(), "process already finished") {
 			return nil
 		}
 		return err
 	}
-
-	if wait {
-		defer proc.Wait() // nolint: errcheck
-	}
 	return nil
+
+	// dev port-forward and sync port-forward can only use proc.Kill()
+	//if err := proc.Kill(); err != nil {
+	//	if strings.Contains(err.Error(), "process already finished") {
+	//		return nil
+	//	}
+	//	return err
+	//}
+
+	//if wait {
+	//	defer proc.Wait() // nolint: errcheck
+	//}
+	//return nil
 }

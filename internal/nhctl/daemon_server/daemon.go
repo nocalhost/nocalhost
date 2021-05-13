@@ -23,6 +23,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
 	"nocalhost/internal/nhctl/daemon_common"
+	"nocalhost/internal/nhctl/daemon_handler"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/syncthing/daemon"
@@ -80,15 +81,12 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 				if err != nil {
 					return nil
 				}
+
 				if pack.Event.EventType == appmeta.DEV_END {
-					log.Logf(
-						"Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName,
-						pack.Event.ResourceName,
-					)
-					if err := nhApp.StopSyncAndPortForwardProcess(
-						pack.Event.ResourceName,
-						true,
-					); err != nil {
+					log.Logf("Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName,
+						pack.Event.ResourceName)
+					nhController := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
+					if err := nhController.StopSyncAndPortForwardProcess(true); err != nil {
 						return nil
 					}
 				} else if pack.Event.EventType == appmeta.DEV_STA {
@@ -99,11 +97,10 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 						return nil
 					}
 
-					log.Logf(
-						"Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName,
-						pack.Event.ResourceName,
-					)
-					if err := nhApp.StopAllPortForward(pack.Event.ResourceName); err != nil {
+					log.Logf("Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName,
+						pack.Event.ResourceName)
+					nhController := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
+					if err := nhController.StopAllPortForward(); err != nil {
 						return nil
 					}
 				}
@@ -240,6 +237,16 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType)
 
 		metas := appmeta_manager.GetApplicationMetas(gamsCmd.NameSpace, gamsCmd.KubeConfig)
 		response(conn, metas)
+	case command.GetResourceInfo:
+		cmd := &command.GetResourceInfoCommand{}
+		if err = json.Unmarshal(bys, cmd); err != nil {
+			log.LogE(errors.Wrap(err, ""))
+			response(conn, &daemon_common.CommonResponse{ErrInfo: err.Error()})
+			return
+		}
+
+		res := daemon_handler.HandleGetResourceInfoRequest(cmd)
+		response(conn, res)
 	}
 }
 

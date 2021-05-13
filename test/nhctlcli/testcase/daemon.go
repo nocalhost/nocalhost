@@ -14,42 +14,45 @@ package testcase
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	profile2 "nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/nhctlcli"
 	"nocalhost/test/util"
 )
 
-func RestartDaemon(nhctl *nhctlcli.CLI) {
+func RestartDaemon(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.Command(context.Background(), "daemon", "restart")
-	nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
-func StopDaemon(nhctl *nhctlcli.CLI) {
+func StopDaemon(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.Command(context.Background(), "daemon", "stop")
-	nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
-func Exec(nhctl *nhctlcli.CLI) {
-	util.WaitToBeStatus(nhctl.Namespace, "pods", "app=reviews", func(i interface{}) bool {
+func Exec(nhctl *nhctlcli.CLI) error {
+	util.WaitResourceToBeStatus(nhctl.Namespace, "pods", "app=reviews", func(i interface{}) bool {
 		return i.(*v1.Pod).Status.Phase == v1.PodRunning
 	})
 	cmd := nhctl.Command(context.Background(), "exec", "bookinfo", "-d", "reviews", "-c", "ls")
-	nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
-func PortForwardStart(nhctl *nhctlcli.CLI, module string, port int) {
+func PortForwardStart(nhctl *nhctlcli.CLI, module string, port int) error {
 	pods, err := util.Client.ClientSet.CoreV1().
 		Pods(nhctl.Namespace).
 		List(context.Background(), metav1.ListOptions{LabelSelector: "app=" + module})
 	if err != nil {
-		panic(fmt.Sprintf("List pods error: %v", err))
+		return errors.Wrap(err, "List pods error")
 	}
 	if pods == nil || len(pods.Items) < 1 {
-		panic(fmt.Sprintf("Not found pods of module %v", module))
+		return errors.Errorf("Not found pods of module %v", module)
 	}
 	cmd := nhctl.Command(context.Background(), "port-forward",
 		"start",
@@ -59,34 +62,50 @@ func PortForwardStart(nhctl *nhctlcli.CLI, module string, port int) {
 		"--pod",
 		pods.Items[0].Name,
 		fmt.Sprintf("-p%d:9080", port))
-	nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
-func StatusCheckPortForward(nhctl *nhctlcli.CLI, moduleName string, port int) {
+func PortForwardServiceStart(cli *nhctlcli.CLI, module string, port int) error {
+	service, err := util.Client.ClientSet.CoreV1().
+		Services(cli.Namespace).
+		Get(context.Background(), module, metav1.GetOptions{})
+	if err != nil || service == nil {
+		return errors.Errorf("service %s not found", module)
+	}
+	cmd := cli.Command(context.Background(), "port-forward",
+		"service/"+module,
+		fmt.Sprintf("%d:9080", port))
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
+}
+
+func StatusCheckPortForward(nhctl *nhctlcli.CLI, moduleName string, port int) error {
 	cmd := nhctl.Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
 	stdout, stderr, err := nhctlcli.Runner.Run(cmd)
 	if err != nil {
-		panic(fmt.Sprintf("exec command: %s, error: %v, stdout: %s, stderr: %s\n", cmd.Args, err, stdout, stderr))
+		return errors.Errorf("exec command: %v, error: %v, stdout: %s, stderr: %s",
+			cmd.Args, err, stdout, stderr)
 	}
 	service := profile2.SvcProfileV2{}
 	_ = yaml.Unmarshal([]byte(stdout), &service)
-	fmt.Println(service)
+	bytes, _ := json.Marshal(service)
+	log.Info(string(bytes))
 	if !service.PortForwarded {
-		panic("test case failed, should be port forwarding")
+		return errors.New("test case failed, should be port forwarding")
 	}
 	for _, e := range service.DevPortForwardList {
 		if e.LocalPort == port && (e.Status != "LISTEN" && e.Status != "New") {
-			panic(fmt.Sprintf("status: %s is not correct", e.Status))
+			return errors.Errorf("status: %s is not correct", e.Status)
 		}
 	}
+	return nil
 }
 
-func PortForwardEnd(nhctl *nhctlcli.CLI, module string, port int) {
+func PortForwardEnd(nhctl *nhctlcli.CLI, module string, port int) error {
 	cmd := nhctl.Command(context.Background(), "port-forward",
 		"end",
 		"bookinfo",
 		"-d",
 		module,
 		fmt.Sprintf("-p%d:9080", port))
-	nhctlcli.Runner.RunPanicIfError(cmd)
+	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }

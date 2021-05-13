@@ -15,9 +15,10 @@ package nhctlcli
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
 	"strings"
@@ -28,20 +29,25 @@ var Runner = &CmdRunner{}
 
 type CmdRunner struct{}
 
-func (r *CmdRunner) RunPanicIfError(cmd *exec.Cmd) {
+func (r *CmdRunner) RunWithCheckResult(cmd *exec.Cmd) error {
 	if stdout, stderr, err := r.Run(cmd); err != nil {
-		panic(fmt.Sprintf("Run command: %s, error: %v, stdout: %s, stderr: %s\n", cmd.Args, err, stdout, stderr))
+		return errors.Errorf(
+			"Run command: %s, error: %v, stdout: %s, stderr: %s", cmd.Args, err, stdout, stderr)
 	}
+	return nil
 }
 
-func (r *CmdRunner) CheckResult(cmd *exec.Cmd, stdout string, stderr string, err error) {
+func (r *CmdRunner) CheckResult(cmd *exec.Cmd, stdout string, stderr string, err error) error {
 	if err != nil {
-		panic(fmt.Sprintf("Run command: %s, error: %v, stdout: %s, stderr: %s\n", cmd.Args, err, stdout, stderr))
+		return errors.Errorf(
+			"Run command: %s, error: %v, stdout: %s, stderr: %s", cmd.Args, err, stdout, stderr)
 	}
+	return nil
 }
 
 func (r *CmdRunner) Run(cmd *exec.Cmd) (string, string, error) {
-	fmt.Printf("Running command: %s\n", cmd.Args)
+	time.Sleep(time.Second * 5)
+	log.Infof("Running command: %s", cmd.Args)
 
 	stdout := bytes.Buffer{}
 	cmd.Stdout = &stdout
@@ -49,22 +55,23 @@ func (r *CmdRunner) Run(cmd *exec.Cmd) (string, string, error) {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Start(); err != nil {
-		return "", "", fmt.Errorf("starting command %v: %w", cmd, err)
+		return "", "", errors.Errorf("starting command %v: %v", cmd, err)
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return stdout.String(), stderr.String(), err
+		return stdout.String(), stderr.String(), errors.Wrap(err, "")
 	}
 
 	if stderr.Len() > 0 {
-		fmt.Printf("Command output: [%s], stderr: %s", stdout.String(), stderr.String())
+		log.Infof("Command output: [%s], stderr: %s", stdout.String(), stderr.String())
 	}
 
 	return stdout.String(), stderr.String(), nil
 }
 
 func (r *CmdRunner) RunWithRollingOut(cmd *exec.Cmd) (string, string, error) {
-	fmt.Printf("Running command: %s\n", cmd.Args)
+	time.Sleep(time.Second * 5)
+	log.Infof("Running command: %s", cmd.Args)
 	var stdoutLog strings.Builder
 	var stderrLog strings.Builder
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -85,12 +92,13 @@ func (r *CmdRunner) RunWithRollingOut(cmd *exec.Cmd) (string, string, error) {
 			line, isPrefix, err := stdoutReader.ReadLine()
 			if err != nil {
 				if err != io.EOF && !strings.Contains(err.Error(), "closed") {
-					os.Stdout.WriteString(fmt.Sprintf("command log error: %v, log: %v\n", err, string(line)))
+					_, _ = os.Stdout.WriteString(
+						fmt.Sprintf("command log error: %v, log: %v\n", err, string(line)))
 				}
 				break
 			}
 			if len(line) != 0 && !isPrefix {
-				os.Stdout.WriteString(string(line) + "\n")
+				_, _ = os.Stdout.WriteString(string(line) + "\n")
 				stdoutLog.WriteString(string(line) + "\n")
 			}
 		}
@@ -100,12 +108,13 @@ func (r *CmdRunner) RunWithRollingOut(cmd *exec.Cmd) (string, string, error) {
 			line, isPrefix, err := stderrReader.ReadLine()
 			if err != nil {
 				if err != io.EOF && !strings.Contains(err.Error(), "closed") {
-					os.Stderr.WriteString(fmt.Sprintf("command log error: %v, log: %v\n", err, string(line)))
+					_, _ = os.Stderr.WriteString(
+						fmt.Sprintf("command log error: %v, log: %v\n", err, string(line)))
 				}
 				break
 			}
 			if len(line) != 0 && !isPrefix {
-				os.Stderr.WriteString(string(line) + "\n")
+				_, _ = os.Stderr.WriteString(string(line) + "\n")
 				stderrLog.WriteString(string(line) + "\n")
 			}
 		}

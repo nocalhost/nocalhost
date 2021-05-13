@@ -96,7 +96,7 @@ func (c *ClientGoUtils) generateCompletedApplyOption(af *ApplyFlags) (*apply.App
 	o.DeleteFlags.FileNameFlags.Filenames = &[]string{""}
 	o.OpenAPIPatch = true
 
-	f := c.newFactory()
+	f := c.NewFactory()
 	// From o.Complete
 	o.ServerSideApply = false
 	o.ForceConflicts = false
@@ -161,7 +161,7 @@ func (c *ClientGoUtils) generateCompletedApplyOption(af *ApplyFlags) (*apply.App
 
 func (c *ClientGoUtils) GetResourceInfoFromReader(reader io.Reader, continueOnError bool) ([]*resource.Info, error) {
 
-	f := c.newFactory()
+	f := c.NewFactory()
 	builder := f.NewBuilder()
 	validate, err := f.Validator(true)
 	if err != nil {

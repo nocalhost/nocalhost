@@ -15,7 +15,6 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/utils"
@@ -43,8 +42,8 @@ var resetCmd = &cobra.Command{
 		if len(args) > 0 {
 			applicationName := args[0]
 			if applicationName != "" {
-				if applicationName == app.DefaultNocalhostApplication {
-					log.Error(app.DefaultNocalhostApplicationOperateErr)
+				if applicationName == nocalhost.DefaultNocalhostApplication {
+					log.Error(nocalhost.DefaultNocalhostApplicationOperateErr)
 					return
 				}
 				resetApplication(applicationName)
@@ -79,10 +78,11 @@ func resetApplication(applicationName string) {
 	// Stop BackGroup Process
 	appProfile, _ := nocalhostApp.GetProfile()
 	for _, profile := range appProfile.SvcProfile {
-		if profile.Developing {
-			utils.Should(nocalhostApp.StopSyncAndPortForwardProcess(profile.ActualName, true))
+		nhSvc := initService(profile.ActualName, profile.Type)
+		if nhSvc.IsInDevMode() {
+			utils.Should(nhSvc.StopSyncAndPortForwardProcess(true))
 		} else if len(profile.DevPortForwardList) > 0 {
-			utils.Should(nocalhostApp.StopAllPortForward(profile.ActualName))
+			utils.Should(nhSvc.StopAllPortForward())
 		}
 	}
 
