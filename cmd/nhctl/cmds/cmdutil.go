@@ -57,7 +57,12 @@ func Prepare() error {
 		kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
 	}
 
-	var err error
+	abs, err := filepath.Abs(kubeConfig)
+	if err != nil {
+		log.FatalE(err, "please make sure kubeconfig path is reachable")
+	}
+	kubeConfig = abs
+
 	if nameSpace == "" {
 		if nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig); err != nil {
 			return err
