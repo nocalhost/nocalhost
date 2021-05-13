@@ -35,13 +35,14 @@ const (
 	SecretType       = "dev.nocalhost/application.meta"
 	SecretNamePrefix = "dev.nocalhost.application."
 
-	SecretPreInstallKey = "p"
-	SecretManifestKey   = "m"
-	SecretDevMetaKey    = "v"
-	SecretAppTypeKey    = "t"
-	SecretConfigKey     = "c"
-	SecretStateKey      = "s"
-	SecretDepKey        = "d"
+	SecretHelmReleaseNameKey = "r"
+	SecretPreInstallKey      = "p"
+	SecretManifestKey        = "m"
+	SecretDevMetaKey         = "v"
+	SecretAppTypeKey         = "t"
+	SecretConfigKey          = "c"
+	SecretStateKey           = "s"
+	SecretDepKey             = "d"
 
 	Helm          AppType = "helmGit"
 	HelmRepo      AppType = "helmRepo"
@@ -142,6 +143,8 @@ type ApplicationMetaSimple struct {
 type ApplicationMeta struct {
 	// could not be updated
 	Application string `json:"application"`
+
+	HelmReleaseName string `json:"helm_release_name"`
 
 	// could not be updated
 	Ns string `json:"ns"`
@@ -357,6 +360,7 @@ func (a *ApplicationMeta) prepare() {
 	a.Secret.Data[SecretStateKey] = []byte(a.ApplicationState)
 	a.Secret.Data[SecretDepKey] = []byte(a.DepConfigName)
 	a.Secret.Data[SecretAppTypeKey] = []byte(a.ApplicationType)
+	a.Secret.Data[SecretHelmReleaseNameKey] = []byte(a.HelmReleaseName)
 
 	devMeta, _ := yaml.Marshal(&a.DevMeta)
 	a.Secret.Data[SecretDevMetaKey] = devMeta
@@ -404,7 +408,14 @@ func (a *ApplicationMeta) Uninstall() error {
 			commonParams = append(commonParams, "--kubeconfig", a.clientInner.KubeConfigFilePath())
 		}
 
-		uninstallParams := []string{"uninstall", a.Application}
+		uninstallParams := []string{"uninstall"}
+
+		if a.HelmReleaseName != "" {
+			uninstallParams = append(uninstallParams, a.HelmReleaseName)
+		} else {
+			uninstallParams = append(uninstallParams, a.Application)
+		}
+
 		uninstallParams = append(uninstallParams, commonParams...)
 		if _, err := tools.ExecCommand(
 			nil, true,
