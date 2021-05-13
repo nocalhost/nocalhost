@@ -95,16 +95,13 @@ func (c *Controller) StopSyncAndPortForwardProcess(cleanRemoteSecret bool) error
 }
 
 func (c *Controller) SetSyncingStatus(is bool) error {
-	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName)
-	if err != nil {
-		return err
-	}
-	defer profileV2.CloseDb()
+	return c.UpdateSvcProfile(
+		func(svcProfile *profile.SvcProfileV2) error {
+			if svcProfile == nil {
+				return errors.New("Failed to get controller profile")
+			}
 
-	svcProfile := profileV2.SvcProfileV2(c.Name, c.Type.String())
-	if svcProfile == nil {
-		return errors.New("Failed to get controller profile")
-	}
-	svcProfile.Syncing = is
-	return profileV2.Save()
+			svcProfile.Syncing = is
+			return nil
+		})
 }

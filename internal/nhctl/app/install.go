@@ -160,10 +160,8 @@ func (a *Application) installHelm(flags *HelmFlags, resourceDir string, fromRepo
 		}
 		if flags.RepoUrl != "" {
 			installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
-			//profileV2.HelmRepoUrl = flags.RepoUrl
 		} else if flags.RepoName != "" {
 			installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
-			//profileV2.HelmRepoName = flags.RepoName
 		}
 		if flags.Version != "" {
 			installParams = append(installParams, "--version", flags.Version)
@@ -214,11 +212,14 @@ func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) erro
 			InstallEnv: appEnv,
 		}
 
-		profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
-		if err != nil {
+		if err := a.UpdateProfile(
+			func(_ *profile.AppProfileV2) error {
+				return nil
+			},
+		); err != nil {
 			return err
 		}
-		defer profileV2.CloseDb()
+
 		// release name a.Name
 		if a.appMeta.ApplicationType != appmeta.Manifest {
 			depForYaml.ReleaseName = a.Name

@@ -35,15 +35,26 @@ type AppProfileV2 struct {
 	Name string `json:"name" yaml:"name"`
 
 	// install/uninstall field, should move out of profile
-	ChartName               string        `json:"chart_name" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
-	ReleaseName             string        `json:"release_name yaml:releaseName"`
-	DependencyConfigMapName string        `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
-	Installed               bool          `json:"installed" yaml:"installed"`
-	ResourcePath            RelPath       `json:"resource_path" yaml:"resourcePath"`
-	IgnoredPath             RelPath       `json:"ignoredPath" yaml:"ignoredPath"`
-	PreInstall              SortedRelPath `json:"onPreInstall" yaml:"onPreInstall"`
+	// Deprecated
+	ChartName string `json:"chart_name" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
+	// Deprecated TODO move to appMeta
+	ReleaseName string `json:"release_name yaml:releaseName"`
+	// Deprecated
+	DependencyConfigMapName string `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
+	// Deprecated
+	Installed bool `json:"installed" yaml:"installed"`
+	// Deprecated
+	ResourcePath RelPath `json:"resource_path" yaml:"resourcePath"`
+	// Deprecated
+	IgnoredPath RelPath `json:"ignoredPath" yaml:"ignoredPath"`
+	// Deprecated
+	PreInstall SortedRelPath `json:"onPreInstall" yaml:"onPreInstall"`
 	// Deprecated
 	AppType string `json:"app_type" yaml:"appType"`
+	// Deprecated
+	Env []*Env `json:"env" yaml:"env"`
+	// Deprecated
+	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
 
 	// app global field
 	Namespace  string `json:"namespace" yaml:"namespace"`
@@ -56,9 +67,6 @@ type AppProfileV2 struct {
 
 	// svc runtime status
 	SvcProfile []*SvcProfileV2 `json:"svc_profile" yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
-
-	Env     []*Env  `json:"env" yaml:"env"`
-	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
 
 	dbPath  string
 	appName string
@@ -76,11 +84,6 @@ func (a *AppProfileV2) LoadManifests(tmpDir string) ([]string, []string) {
 func ProfileV2Key(ns, app string) string {
 	return fmt.Sprintf("%s.%s.profile.v2", ns, app)
 }
-
-//func OpenApplicationLevelDB(ns, app string, readonly bool) (*leveldb.DB, error) {
-//	path := nocalhost_path.GetAppDbDir(ns, app)
-//	return dbutils.OpenLevelDB(path, readonly)
-//}
 
 func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
 	path := nocalhost_path.GetAppDbDir(ns, name)
@@ -162,11 +165,12 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 
 // this method will not save the Identifier,
 // make sure it will be saving while use
-func (a *AppProfileV2) GenerateIdentifierIfNeeded() {
+func (a *AppProfileV2) GenerateIdentifierIfNeeded() string {
 	if a.Identifier == "" && a != nil {
 		u, _ := uuid.NewRandom()
 		a.Identifier = u.String()
 	}
+	return a.Identifier
 }
 
 func (a *AppProfileV2) Save() error {
@@ -209,8 +213,16 @@ type SvcProfileV2 struct {
 	LocalAbsoluteSyncDirFromDevStartPlugin []string          `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
 	DevPortForwardList                     []*DevPortForward `json:"devPortForwardList" yaml:"devPortForwardList"` // combine DevPortList,PortForwardStatusList and PortForwardPidList
 
+	// nocalhost supports config from local dir under "Associate" Path
+	// but only load once, and user can use nhctl config reload to reload
+	// config from local or secret
+	LocalConfigLoaded bool `json:"local_config_loaded"`
+
+	// associate for the local dir
+	Associate string `json:"associate"`
+
 	// from app meta
-	Developing    bool     `json:"developing" yaml:"developing"`
+	Developing bool `json:"developing" yaml:"developing"`
 
 	// mean the current controller is possess by current nhctl context
 	// and the syncthing process is listen on current device
