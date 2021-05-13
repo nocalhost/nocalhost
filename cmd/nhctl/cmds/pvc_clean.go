@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"path/filepath"
 
 	"nocalhost/pkg/nhctl/log"
 )
@@ -35,6 +36,9 @@ var pvcCleanCmd = &cobra.Command{
 
 		// Clean up specified pvc
 		if pvcFlags.Name != "" {
+			if abs, err := filepath.Abs(kubeConfig); err == nil {
+				kubeConfig = abs
+			}
 			cli, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
 			must(err)
 			err = cli.DeletePVC(pvcFlags.Name)

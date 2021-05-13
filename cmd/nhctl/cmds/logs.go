@@ -13,15 +13,12 @@
 package cmds
 
 import (
-	"errors"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	logs "k8s.io/kubectl/pkg/cmd/logs"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
-	"path/filepath"
 )
 
 var logOptions = logs.NewLogsOptions(
@@ -33,9 +30,8 @@ var cmdLog = &cobra.Command{
 	Long:    `nhctl logs [podName] -c [containerName] -t [lines] -f true --kubeconfig=[kubeconfigPath]`,
 	Short:   ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		kubeconfigPath, ns, err := PrepareCheck()
-		must(err)
-		clientGoUtils, err := clientgoutils.NewClientGoUtils(kubeconfigPath, ns)
+		must(Prepare())
+		clientGoUtils, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
 		must(err)
 		cmdutil.CheckErr(logOptions.Complete(clientGoUtils.NewFactory(), cmd, args))
 		cmdutil.CheckErr(logOptions.Validate())
@@ -45,21 +41,4 @@ var cmdLog = &cobra.Command{
 func init() {
 	logOptions.AddFlags(cmdLog)
 	rootCmd.AddCommand(cmdLog)
-}
-
-func PrepareCheck() (string, string, error) {
-	if kubeConfig == "" { // use default config
-		kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
-	}
-	var err error
-	if nameSpace == "" {
-		if nameSpace, err = clientgoutils.GetNamespaceFromKubeConfig(kubeConfig); err != nil {
-			return "", "", err
-		}
-		if nameSpace == "" {
-			return "", "", errors.New("--namespace or --kubeconfig mush be provided")
-		}
-	}
-
-	return kubeConfig, nameSpace, nil
 }
