@@ -15,6 +15,7 @@ package cmds
 import (
 	"context"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"time"
@@ -26,22 +27,36 @@ import (
 var fileSyncOps = &app.FileSyncOptions{}
 
 func init() {
-	fileSyncCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
-		"k8s deployment which your developing service exists")
-	fileSyncCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
-		"kind of k8s controller,such as deployment,statefulSet")
-	fileSyncCmd.Flags().BoolVarP(&fileSyncOps.SyncDouble, "double", "b", false,
-		"if use double side sync")
-	fileSyncCmd.Flags().BoolVar(&fileSyncOps.Resume, "resume", false,
-		"resume file sync")
+	fileSyncCmd.Flags().StringVarP(
+		&deployment, "deployment", "d", "",
+		"k8s deployment which your developing service exists",
+	)
+	fileSyncCmd.Flags().StringVarP(
+		&serviceType, "controller-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet",
+	)
+	fileSyncCmd.Flags().BoolVarP(
+		&fileSyncOps.SyncDouble, "double", "b", false,
+		"if use double side sync",
+	)
+	fileSyncCmd.Flags().BoolVar(
+		&fileSyncOps.Resume, "resume", false,
+		"resume file sync",
+	)
 	fileSyncCmd.Flags().BoolVar(&fileSyncOps.Stop, "stop", false, "stop file sync")
-	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.SyncedPattern, "synced-pattern", "s", []string{},
-		"local synced pattern")
-	fileSyncCmd.Flags().StringSliceVarP(&fileSyncOps.IgnoredPattern, "ignored-pattern", "i", []string{},
-		"local ignored pattern")
+	fileSyncCmd.Flags().StringSliceVarP(
+		&fileSyncOps.SyncedPattern, "synced-pattern", "s", []string{},
+		"local synced pattern",
+	)
+	fileSyncCmd.Flags().StringSliceVarP(
+		&fileSyncOps.IgnoredPattern, "ignored-pattern", "i", []string{},
+		"local ignored pattern",
+	)
 	fileSyncCmd.Flags().StringVar(&fileSyncOps.Container, "container", "", "container name of pod to sync")
-	fileSyncCmd.Flags().BoolVar(&fileSyncOps.Override, "overwrite", true,
-		"override the remote changing according to the local sync folder while start up")
+	fileSyncCmd.Flags().BoolVar(
+		&fileSyncOps.Override, "overwrite", true,
+		"override the remote changing according to the local sync folder while start up",
+	)
 	rootCmd.AddCommand(fileSyncCmd)
 }
 
@@ -70,6 +85,15 @@ var fileSyncCmd = &cobra.Command{
 			if fileSyncOps.Stop {
 				return
 			}
+		} else {
+			if err := nocalhostSvc.FindOutSyncthingProcess(
+				func(pid int, pidFile string) error {
+					coloredoutput.Hint("Syncthing has been started")
+					return errors.New("")
+				},
+			); err != nil {
+				return
+			}
 		}
 
 		podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
@@ -84,8 +108,10 @@ var fileSyncCmd = &cobra.Command{
 		// TODO
 		// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished),
 		// the files that have been synchronized will not be synchronized.
-		newSyncthing, err := nocalhostSvc.NewSyncthing(fileSyncOps.Container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin,
-			fileSyncOps.SyncDouble)
+		newSyncthing, err := nocalhostSvc.NewSyncthing(
+			fileSyncOps.Container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin,
+			fileSyncOps.SyncDouble,
+		)
 		utils.ShouldI(err, "Failed to new syncthing")
 
 		// starts up a local syncthing
