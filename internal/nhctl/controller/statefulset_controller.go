@@ -113,14 +113,11 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		sideCarContainer.Resources = *requirements
 	}
 
-	//sfs4Poriority, err := s.Client.GetStatefulSet(s.Name())
-	//if err != nil {
-	//	return err
-	//}
-
 	events, err := s.Client.ListEventsByStatefulSet(s.Name())
 	utils.Should(err)
 	_ = s.Client.DeleteEvents(events, true)
+
+	// Make sure replicas is 1
 
 	needToRemovePriorityClass := false
 	for i := 0; i < 10; i++ {
@@ -166,42 +163,29 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 			svcProfile, _ := s.GetProfile()
 			priorityClass = svcProfile.PriorityClass
 		}
-		if priorityClass != "" {
+		if priorityClass != "" && !needToRemovePriorityClass {
 			log.Infof("Using priorityClass: %s...", priorityClass)
 			dep.Spec.Template.Spec.PriorityClassName = priorityClass
 		}
 
-		dep.Annotations[OriginSpecJson] = string(originalSpecJson)
+		if _, ok := dep.Annotations[OriginSpecJson]; !ok {
+			dep.Annotations[OriginSpecJson] = string(originalSpecJson)
+		}
 
 		log.Info("Updating development container...")
 
 		_, err = s.Client.UpdateStatefulSet(dep, true)
 		if err != nil {
-			if strings.Contains(err.Error(), "no PriorityClass") {
-				//log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
-				//dep, err = s.Client.GetStatefulSet(s.Name())
-				//if err != nil {
-				//	return err
-				//}
-				//dep.Spec.Template.Spec.PriorityClassName = ""
-				//_, err = s.Client.UpdateStatefulSet(dep, true)
-				//if err != nil {
-				//	if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
-				//		log.Warn("StatefulSet has been modified, retrying...")
-				//		continue
-				//	}
-				//	return err
-				//}
-				//break
-			} else if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
+			if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
 				log.Warn("StatefulSet has been modified, retrying...")
 				continue
 			}
 			return err
 		} else {
 			// Check if priorityClass exists
-			time.Sleep(5 * time.Second)
+			time.Sleep(15 * time.Second)
 			events, err = s.Client.ListEventsByStatefulSet(s.Name())
+			log.Infof("Find %d events", len(events))
 			for _, event := range events {
 				if strings.Contains(event.Message, "no PriorityClass") {
 					log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
@@ -210,6 +194,10 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 				}
 			}
 			if needToRemovePriorityClass {
+				dep, err = s.Client.GetStatefulSet(s.Name())
+				if err != nil {
+					return err
+				}
 				dep.Spec.Template.Spec.PriorityClassName = ""
 				_, err = s.Client.UpdateStatefulSet(dep, true)
 				if err != nil {
@@ -236,7 +224,24 @@ func (s *StatefulSetController) ScaleReplicasToOne(ctx context.Context) error {
 	if scale.Spec.Replicas > 1 {
 		scale.Spec.Replicas = 1
 		_, err = s.Client.GetStatefulSetClient().UpdateScale(ctx, s.Name(), scale, metav1.UpdateOptions{})
-		return errors.Wrap(err, "")
+		if err != nil {
+			return errors.Wrap(err, "")
+		}
+		log.Info("Waiting replicas scale to 1, it may take several minutes...")
+		for i := 0; i < 300; i++ {
+			time.Sleep(1 * time.Second)
+			ss, err := s.Client.GetStatefulSet(s.Name())
+			if err != nil {
+				return errors.Wrap(err, "")
+			}
+			if ss.Status.ReadyReplicas == 1 && ss.Status.Replicas == 1 {
+				log.Info("Replicas has been scaled to 1")
+				return nil
+			}
+		}
+		return errors.New("Waiting replicas scaling to 1 timeout")
+	} else {
+		log.Info("Replicas has already been scaled to 1")
 	}
 	return nil
 }
