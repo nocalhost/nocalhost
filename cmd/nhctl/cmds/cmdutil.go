@@ -84,11 +84,9 @@ func initService(svcName string, svcType string) *controller.Controller {
 
 func checkIfSvcExist(svcName string, svcType string) {
 	nocalhostSvc = initService(svcName, svcType)
-	exist, err := nocalhostSvc.CheckIfExist()
+	_, err := nocalhostSvc.CheckIfExist()
 	if err != nil {
-		log.FatalE(err, "failed to check if controller exists")
-	} else if !exist {
-		log.FatalE(errors.New(fmt.Sprintf("Service %s-%s not found!", string(serviceType), svcName)), "")
+		log.FatalE(err, fmt.Sprintf("Resource: %s-%s not found!", svcType, svcName))
 	}
 	log.AddField("SVC", svcName)
 }

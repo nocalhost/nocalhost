@@ -51,7 +51,7 @@ func (c *Controller) CheckIfExist() (bool, error) {
 		return false, errors.New("unsupported controller type")
 	}
 	if err != nil {
-		return false, nil
+		return false, err
 	}
 	return true, nil
 }
@@ -74,7 +74,7 @@ func (c *Controller) Associate(dir string) error {
 
 	return c.UpdateProfile(
 		func(p *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
-			if svcProfile.Associate == dir{
+			if svcProfile.Associate == dir {
 				return nil
 			}
 
