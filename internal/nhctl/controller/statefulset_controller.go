@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/model"
@@ -113,14 +114,12 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		sideCarContainer.Resources = *requirements
 	}
 
-	events, err := s.Client.ListEventsByStatefulSet(s.Name())
-	utils.Should(err)
-	_ = s.Client.DeleteEvents(events, true)
-
-	// Make sure replicas is 1
-
 	needToRemovePriorityClass := false
 	for i := 0; i < 10; i++ {
+		events, err := s.Client.ListEventsByStatefulSet(s.Name())
+		utils.Should(err)
+		_ = s.Client.DeleteEvents(events, true)
+
 		// Get the latest stateful set
 		dep, err = s.Client.GetStatefulSet(s.Name())
 		if err != nil {
@@ -157,16 +156,16 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 
 		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
 
-		// PriorityClass
-		priorityClass := ops.PriorityClass
-		if priorityClass == "" {
-			svcProfile, _ := s.GetProfile()
-			priorityClass = svcProfile.PriorityClass
-		}
-		if priorityClass != "" && !needToRemovePriorityClass {
-			log.Infof("Using priorityClass: %s...", priorityClass)
-			dep.Spec.Template.Spec.PriorityClassName = priorityClass
-		}
+		// todo PriorityClass
+		//priorityClass := ops.PriorityClass
+		//if priorityClass == "" {
+		//	svcProfile, _ := s.GetProfile()
+		//	priorityClass = svcProfile.PriorityClass
+		//}
+		//if priorityClass != "" && !needToRemovePriorityClass {
+		//	log.Infof("Using priorityClass: %s...", priorityClass)
+		//	dep.Spec.Template.Spec.PriorityClassName = priorityClass
+		//}
 
 		if _, ok := dep.Annotations[OriginSpecJson]; !ok {
 			dep.Annotations[OriginSpecJson] = string(originalSpecJson)
@@ -183,22 +182,30 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 			return err
 		} else {
 			// Check if priorityClass exists
-			time.Sleep(15 * time.Second)
-			events, err = s.Client.ListEventsByStatefulSet(s.Name())
-			log.Infof("Find %d events", len(events))
-			for _, event := range events {
-				if strings.Contains(event.Message, "no PriorityClass") {
-					log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
-					needToRemovePriorityClass = true
-					break
+		outer:
+			for i := 0; i < 20; i++ {
+				time.Sleep(1 * time.Second)
+				events, err = s.Client.ListEventsByStatefulSet(s.Name())
+				//log.Infof("Find %d events", len(events))
+				for _, event := range events {
+					if strings.Contains(event.Message, "no PriorityClass") {
+						log.Warn("PriorityClass not found, disable it...")
+						needToRemovePriorityClass = true
+						break outer
+					} else if event.Reason == "SuccessfulCreate" {
+						log.Infof("Pod SuccessfulCreate")
+						break outer
+					}
 				}
 			}
+
 			if needToRemovePriorityClass {
 				dep, err = s.Client.GetStatefulSet(s.Name())
 				if err != nil {
 					return err
 				}
 				dep.Spec.Template.Spec.PriorityClassName = ""
+				log.Info("Removing priorityClass")
 				_, err = s.Client.UpdateStatefulSet(dep, true)
 				if err != nil {
 					if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
@@ -292,18 +299,14 @@ func (s *StatefulSetController) RollBack(reset bool) error {
 		return errors.New("No spec json found to rollback")
 	}
 
-	if err = json.Unmarshal([]byte(osj), &dep.Spec); err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	// todo: hxx
-	//if originalPodReplicas != nil {
-	//	dep.Spec.Replicas = originalPodReplicas
-	//}
-
 	log.Info(" Deleting current revision...")
 	if err = clientUtils.DeleteStatefulSet(dep.Name); err != nil {
 		return err
+	}
+
+	dep.Spec = v1.StatefulSetSpec{}
+	if err = json.Unmarshal([]byte(osj), &dep.Spec); err != nil {
+		return errors.Wrap(err, "")
 	}
 
 	log.Info(" Recreating original revision...")
@@ -312,6 +315,7 @@ func (s *StatefulSetController) RollBack(reset bool) error {
 		dep.Annotations = make(map[string]string, 0)
 	}
 	dep.Annotations["nocalhost-dep-ignore"] = "true"
+	dep.Annotations[OriginSpecJson] = osj
 
 	// Add labels and annotations
 	if dep.Labels == nil {
