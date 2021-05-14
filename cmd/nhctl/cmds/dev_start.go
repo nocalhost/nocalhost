@@ -14,10 +14,7 @@ package cmds
 
 import (
 	"context"
-<<<<<<< HEAD
-=======
 	"nocalhost/internal/nhctl/coloredoutput"
->>>>>>> 1ad5d5451955f9e045a3bb85c3709291b1282e2c
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
