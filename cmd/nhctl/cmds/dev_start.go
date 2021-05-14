@@ -207,7 +207,7 @@ var devStartCmd = &cobra.Command{
 			log.Info("Resetting workload...")
 			_ = nocalhostSvc.DevEnd(true)
 			if errors.Is(err, nocalhost.CreatePvcFailed) {
-				log.Info("Create PVC failed, please make sure you have the required PVC quota")
+				log.Info("Failed to provision persistent volume due to insufficient resources")
 			}
 			os.Exit(1)
 		}
