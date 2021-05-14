@@ -99,7 +99,7 @@ func ListApplicationSvc(napp *app.Application) {
 }
 
 func ListApplicationsResult() []*Namespace {
-	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
+	metas, err := DoGetApplicationMetas()
 	must(err)
 
 	var result []*Namespace
@@ -127,7 +127,7 @@ func ListApplicationsResult() []*Namespace {
 }
 
 func ListApplicationsFull() {
-	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
+	metas, err := DoGetApplicationMetas()
 	must(err)
 	marshal, _ := yaml.Marshal(metas.Desc())
 	fmt.Print(string(marshal))
@@ -146,12 +146,24 @@ func ListApplicationsYaml() {
 }
 
 func ListApplications() {
-	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
+	metas, err := DoGetApplicationMetas()
 	must(err)
 	fmt.Printf("%-20s %-20s %-20s %-20s\n", "NAME", "STATE", "NAMESPACE", "TYPE")
 	for _, meta := range metas {
 		fmt.Printf("%-20s %-20s %-20s %-20s\n", meta.Application, meta.ApplicationState, meta.Ns, meta.ApplicationType)
 	}
+}
+
+// do get application metas
+// and create default application if needed
+func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
+	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
+	if err == nil && len(metas) == 0 {
+		// try init default application
+		mustI(InitDefaultApplicationInCurrentNs(), "Error while create default application")
+		return []*appmeta.ApplicationMeta{nocalhostApp.GetAppMeta()}, nil
+	}
+	return metas, err
 }
 
 type Namespace struct {

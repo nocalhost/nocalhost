@@ -87,7 +87,7 @@ func Compatible(cli *nhctlcli.CLI, p ...string) {
 	// install new version of nhctl
 	if len(p) > 0 && p[0] != "" {
 		util.RetryWithString(suiteName, []func(string) error{testcase.InstallNhctl}, p[0])
-		_ = testcase.RestartDaemon(cli)
+		//_ = testcase.RestartDaemon(cli)
 		_ = testcase.NhctlVersion(cli)
 	}
 	funcsList := []func(*nhctlcli.CLI, string) error{testcase.StatusCheck, testcase.SyncCheck}
