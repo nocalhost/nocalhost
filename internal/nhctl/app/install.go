@@ -37,9 +37,9 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) (err error)
 	}
 	switch a.appMeta.ApplicationType {
 	case appmeta.Helm, appmeta.HelmLocal:
-		err = a.installHelm(flags, a.ResourceTmpDir, false)
+		err = a.installHelm(a.appMeta, flags, a.ResourceTmpDir, false)
 	case appmeta.HelmRepo:
-		err = a.installHelm(flags, a.ResourceTmpDir, true)
+		err = a.installHelm(a.appMeta, flags, a.ResourceTmpDir, true)
 	case appmeta.Manifest, appmeta.ManifestLocal:
 		err = a.InstallManifest(a.appMeta, a.ResourceTmpDir, true)
 	case appmeta.KustomizeGit:
@@ -119,9 +119,15 @@ func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta, resource
 	)
 }
 
-func (a *Application) installHelm(flags *HelmFlags, resourceDir string, fromRepo bool) error {
-
+func (a *Application) installHelm(
+	appMeta *appmeta.ApplicationMeta, flags *HelmFlags, resourceDir string, fromRepo bool,
+) error {
 	releaseName := a.Name
+	appMeta.HelmReleaseName = releaseName
+	if err := appMeta.Update(); err != nil {
+		return err
+	}
+
 	commonParams := make([]string, 0)
 	if a.NameSpace != "" {
 		commonParams = append(commonParams, "--namespace", a.NameSpace)
@@ -137,11 +143,6 @@ func (a *Application) installHelm(flags *HelmFlags, resourceDir string, fromRepo
 	if !fromRepo {
 		resourcesPath = a.GetResourceDir(resourceDir)
 	}
-	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
-	if err != nil {
-		return err
-	}
-	defer profileV2.CloseDb()
 
 	installParams := []string{"install", releaseName}
 	if !fromRepo {
@@ -149,7 +150,7 @@ func (a *Application) installHelm(flags *HelmFlags, resourceDir string, fromRepo
 		log.Info("building dependency...")
 		depParams := []string{"dependency", "build", resourcesPath[0]}
 		depParams = append(depParams, commonParams...)
-		if _, err = tools.ExecCommand(nil, true, false, "helm", depParams...);
+		if _, err := tools.ExecCommand(nil, true, false, "helm", depParams...);
 			err != nil {
 			return errors.Wrap(err, "fail to build dependency for helm app")
 		}
@@ -160,15 +161,12 @@ func (a *Application) installHelm(flags *HelmFlags, resourceDir string, fromRepo
 		}
 		if flags.RepoUrl != "" {
 			installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
-			//profileV2.HelmRepoUrl = flags.RepoUrl
 		} else if flags.RepoName != "" {
 			installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
-			//profileV2.HelmRepoName = flags.RepoName
 		}
 		if flags.Version != "" {
 			installParams = append(installParams, "--version", flags.Version)
 		}
-		profileV2.ChartName = chartName
 	}
 
 	if flags.Wait {
@@ -187,13 +185,11 @@ func (a *Application) installHelm(flags *HelmFlags, resourceDir string, fromRepo
 
 	fmt.Println("install helm application, this may take several minutes, please waiting...")
 
-	if _, err = tools.ExecCommand(nil, true, false, "helm", installParams...);
+	if _, err := tools.ExecCommand(nil, true, false, "helm", installParams...);
 		err != nil {
 		return errors.Wrap(err, "fail to install helm application")
 	}
 
-	profileV2.ReleaseName = releaseName
-	profileV2.Save()
 	log.Infof(
 		`helm nocalhost app installed, use "helm list -n %s" to
 get the information of the helm release`, a.NameSpace,
@@ -214,11 +210,14 @@ func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) erro
 			InstallEnv: appEnv,
 		}
 
-		profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
-		if err != nil {
+		if err := a.UpdateProfile(
+			func(_ *profile.AppProfileV2) error {
+				return nil
+			},
+		); err != nil {
 			return err
 		}
-		defer profileV2.CloseDb()
+
 		// release name a.Name
 		if a.appMeta.ApplicationType != appmeta.Manifest {
 			depForYaml.ReleaseName = a.Name

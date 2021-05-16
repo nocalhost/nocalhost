@@ -14,6 +14,7 @@ package controller
 
 import (
 	"fmt"
+	"github.com/mitchellh/go-ps"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/profile"
@@ -43,9 +44,11 @@ func (c *Controller) StopFileSyncOnly() error {
 		if err != nil {
 			if runtime.GOOS == "windows" {
 				// in windows, it will raise a "Access is denied" err when killing progress, so we can ignore this err
-				fmt.Printf("attempt to terminate syncthing process(pid: %d),"+
-					" you can run `tasklist | findstr %d` to make sure process was exited\n",
-					syncthingPid, syncthingPid)
+				fmt.Printf(
+					"attempt to terminate syncthing process(pid: %d),"+
+						" you can run `tasklist | findstr %d` to make sure process was exited\n",
+					syncthingPid, syncthingPid,
+				)
 			} else {
 				log.WarnE(err, fmt.Sprintf("Failed to terminate syncthing process(pid: %d)", syncthingPid))
 			}
@@ -53,6 +56,23 @@ func (c *Controller) StopFileSyncOnly() error {
 		}
 	}
 	return err
+}
+
+func (c *Controller) FindOutSyncthingProcess(whileProcessFound func(int, string) error) error {
+	previousSyncThingPid, pidFile, err := c.GetSyncThingPid()
+
+	if err != nil {
+		log.Info("Failed to find previous syncthing pid (ignore)")
+		log.LogE(err)
+	} else {
+		pro, err := ps.FindProcess(previousSyncThingPid)
+		if err == nil && pro == nil {
+			log.Infof("No previous syncthing process (%d) found", previousSyncThingPid)
+		} else {
+			return whileProcessFound(previousSyncThingPid, pidFile)
+		}
+	}
+	return nil
 }
 
 func (c *Controller) GetSyncThingPid() (int, string, error) {
@@ -95,16 +115,14 @@ func (c *Controller) StopSyncAndPortForwardProcess(cleanRemoteSecret bool) error
 }
 
 func (c *Controller) SetSyncingStatus(is bool) error {
-	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName)
-	if err != nil {
-		return err
-	}
-	defer profileV2.CloseDb()
+	return c.UpdateSvcProfile(
+		func(svcProfile *profile.SvcProfileV2) error {
+			if svcProfile == nil {
+				return errors.New("Failed to get controller profile")
+			}
 
-	svcProfile := profileV2.SvcProfileV2(c.Name, c.Type.String())
-	if svcProfile == nil {
-		return errors.New("Failed to get controller profile")
-	}
-	svcProfile.Syncing = is
-	return profileV2.Save()
+			svcProfile.Syncing = is
+			return nil
+		},
+	)
 }

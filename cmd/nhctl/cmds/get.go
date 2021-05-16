@@ -19,6 +19,7 @@ import (
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"path/filepath"
 	"sigs.k8s.io/yaml"
 
 	"github.com/pkg/errors"
@@ -70,6 +71,9 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		}
 		if appName != "" {
 			initApp(appName)
+		}
+		if abs, err := filepath.Abs(kubeConfig); err == nil {
+			kubeConfig = abs
 		}
 		bytes, err := ioutil.ReadFile(kubeConfig)
 		if err != nil {

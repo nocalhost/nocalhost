@@ -14,13 +14,15 @@ package cmds
 
 import (
 	"context"
-	"github.com/mitchellh/go-ps"
+	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/model"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"nocalhost/pkg/nhctl/tools"
 	"os"
 
 	"github.com/pkg/errors"
@@ -39,23 +41,35 @@ var devStartOps = &model.DevStartOptions{}
 
 func init() {
 
-	devStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
-		"k8s deployment your developing service exists")
-	devStartCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
-		"kind of k8s controller,such as deployment,statefulSet")
+	devStartCmd.Flags().StringVarP(
+		&deployment, "deployment", "d", "",
+		"k8s deployment your developing service exists",
+	)
+	devStartCmd.Flags().StringVarP(
+		&serviceType, "controller-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet",
+	)
 	devStartCmd.Flags().StringVarP(&devStartOps.DevImage, "image", "i", "", "image of DevContainer")
 	devStartCmd.Flags().StringVarP(&devStartOps.Container, "container", "c", "", "container to develop")
 	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory")
 	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "StorageClass used by PV")
-	devStartCmd.Flags().StringVar(&devStartOps.PriorityClass, "priority-class", "", "PriorityClass used by devContainer")
-	devStartCmd.Flags().StringVar(&devStartOps.SideCarImage, "sidecar-image", "",
-		"image of nocalhost-sidecar container")
+	devStartCmd.Flags().StringVar(
+		&devStartOps.PriorityClass, "priority-class", "", "PriorityClass used by devContainer",
+	)
+	devStartCmd.Flags().StringVar(
+		&devStartOps.SideCarImage, "sidecar-image", "",
+		"image of nocalhost-sidecar container",
+	)
 	// for debug only
-	devStartCmd.Flags().StringVar(&devStartOps.SyncthingVersion, "syncthing-version", "",
-		"versions of syncthing and this flag is use for debug only")
+	devStartCmd.Flags().StringVar(
+		&devStartOps.SyncthingVersion, "syncthing-version", "",
+		"versions of syncthing and this flag is use for debug only",
+	)
 	// local absolute paths to sync
-	devStartCmd.Flags().StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{},
-		"local directory to sync")
+	devStartCmd.Flags().StringSliceVarP(
+		&devStartOps.LocalSyncDir, "local-sync", "s", []string{},
+		"local directory to sync",
+	)
 	debugCmd.AddCommand(devStartCmd)
 }
 
@@ -78,46 +92,65 @@ var devStartCmd = &cobra.Command{
 			log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
 
+		// 1) reload svc config if needed
+		// 2) stop previous syncthing
+		// 3) recording profile
+		// 4) mark app meta as developing
+		// 5) initial syncthing runtime env
+		// 6) stop port-forward
+		// 7) enter developing (replace image)
+		// 8) port forward for dev-container
+
+		// when re enter dev mode, nocalhost will check the associate dir
+		// nocalhost will load svc config from associate dir if needed
+		if len(devStartOps.LocalSyncDir) == 1 {
+			must(nocalhostSvc.Associate(devStartOps.LocalSyncDir[0]))
+		} else {
+			log.Fatal(errors.New("Can not define multi 'local-sync(-s)'"))
+		}
+		nocalhostApp.LoadSvcCfgFromLocalIfNeeded(deployment, serviceType, false)
+
 		devStartOps.Kubeconfig = kubeConfig
 		log.Info("Starting DevMode...")
 
 		// Clean up previous syncthing
-		previousSyncThingPid, _, err := nocalhostSvc.GetSyncThingPid()
-		if err != nil {
-			log.Info("Failed to find previous syncthing pid (ignore)")
-			log.LogE(err)
-		} else {
-			pro, err := ps.FindProcess(previousSyncThingPid)
-			if err == nil && pro == nil {
-				log.Infof("No previous syncthing process (%d) found", previousSyncThingPid)
-			} else {
-				log.Infof("Previous syncthing process %d found, terminating it", previousSyncThingPid)
-				must(syncthing.Stop(previousSyncThingPid, "", false))
-			}
-		}
+		must(
+			nocalhostSvc.FindOutSyncthingProcess(
+				func(pid int, pidFile string) error {
+					return syncthing.Stop(pid, "", false)
+				},
+			),
+		)
 
-		profileV2, err := profile.NewAppProfileV2ForUpdate(nocalhostApp.NameSpace, nocalhostApp.Name)
-		must(err)
+		must(
+			nocalhostSvc.UpdateProfile(
+				func(p *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
+					if svcProfile == nil {
+						return errors.New("Svc profile not found")
+					}
+					if devStartOps.WorkDir != "" {
+						svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).WorkDir = devStartOps.WorkDir
+					}
+					if devStartOps.DevImage != "" {
+						svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).Image = devStartOps.DevImage
+					}
+					if len(devStartOps.LocalSyncDir) == 1 {
+						svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
+					} else {
+						return errors.New("Can not define multi 'local-sync(-s)'")
+					}
 
-		svcProfile := profileV2.SvcProfileV2(deployment, string(nocalhostSvc.Type))
-		if svcProfile == nil {
-			log.Fatal("Svc profile not found")
-			return
-		}
-		if devStartOps.WorkDir != "" {
-			svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).WorkDir = devStartOps.WorkDir
-		}
-		if devStartOps.DevImage != "" {
-			svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).Image = devStartOps.DevImage
-		}
-		if len(devStartOps.LocalSyncDir) > 0 {
-			svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
-		}
-		profileV2.GenerateIdentifierIfNeeded()
-		profileV2.Save()
-		profileV2.CloseDb()
+					p.GenerateIdentifierIfNeeded()
+					return nil
+				},
+			),
+		)
 
-		must(nocalhostSvc.AppMeta.SvcDevStart(nocalhostSvc.Name, nocalhostSvc.Type, profileV2.Identifier))
+		must(
+			nocalhostSvc.AppMeta.SvcDevStart(
+				nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier,
+			),
+		)
 
 		// prevent dev status modified but not actually enter dev mode
 		var devStartSuccess = false
@@ -139,8 +172,10 @@ var devStartCmd = &cobra.Command{
 		}
 
 		_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
-		mustI(err, "Failed to install syncthing, no syncthing available locally in "+
-			newSyncthing.BinPath+" please try again.")
+		mustI(
+			err, "Failed to install syncthing, no syncthing available locally in "+
+				newSyncthing.BinPath+" please try again.",
+		)
 
 		// set syncthing secret
 		config, err := newSyncthing.GetRemoteConfigXML()
@@ -171,6 +206,9 @@ var devStartCmd = &cobra.Command{
 			log.WarnE(err, "Failed to replace dev container")
 			log.Info("Resetting workload...")
 			_ = nocalhostSvc.DevEnd(true)
+			if errors.Is(err, nocalhost.CreatePvcFailed) {
+				log.Info("Failed to provision persistent volume due to insufficient resources")
+			}
 			os.Exit(1)
 		}
 
@@ -183,5 +221,21 @@ var devStartCmd = &cobra.Command{
 			utils.Should(nocalhostSvc.PortForward(podName, pf.LocalPort, pf.RemotePort, pf.Role))
 		}
 		must(nocalhostSvc.PortForwardAfterDevStart(devStartOps.Container))
+
+		println()
+		coloredoutput.Success("Dev container has been updated")
+		println()
+
+		nhctl, err := utils.GetNhctlPath()
+		must(err)
+
+		_, err = tools.ExecCommand(
+			nil, true, true,
+			nhctl, "sync", nocalhostApp.Name, "-d", nocalhostSvc.Name, "-t", nocalhostSvc.Type.String(),
+			"--kubeconfig", kubeConfig, "-n", nameSpace,
+		)
+
+		println()
+		coloredoutput.Success("File sync started")
 	},
 }

@@ -15,21 +15,28 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/pkg/nhctl/log"
 )
 
+var workDir string
+
 func init() {
-	devEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
-	devEndCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
-		"kind of k8s controller,such as deployment,statefulSet")
-	debugCmd.AddCommand(devEndCmd)
+	devAssociateCmd.Flags().StringVarP(
+		&commonFlags.SvcName, "deployment", "d", "",
+		"k8s deployment which your developing service exists",
+	)
+	devAssociateCmd.Flags().StringVarP(
+		&serviceType, "controller-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet",
+	)
+	devAssociateCmd.Flags().StringVarP(&workDir, "associate", "s", "", "dev mode work directory")
+	debugCmd.AddCommand(devAssociateCmd)
 }
 
-var devEndCmd = &cobra.Command{
-	Use:   "end [NAME]",
-	Short: "end dev model",
-	Long:  `end dev model`,
+var devAssociateCmd = &cobra.Command{
+	Use:   "associate [Name]",
+	Short: "associate service dev dir",
+	Long:  "associate service dev dir",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
@@ -37,19 +44,16 @@ var devEndCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
+		commonFlags.AppName = args[0]
+		initApp(commonFlags.AppName)
 
-		//meta, err := nocalhost.GetApplicationMetaInstalled(applicationName, nameSpace, kubeConfig)
-		//must(err)
-
-		if !nocalhostSvc.IsInDevMode() {
-			log.Fatalf("Service %s is not in DevMode", deployment)
+		if workDir == "" {
+			log.Fatal("associate must specify")
 		}
 
-		must(nocalhostSvc.DevEnd(false))
+		checkIfSvcExist(commonFlags.SvcName, serviceType)
+		must(nocalhostSvc.Associate(workDir))
 
-		println()
-		coloredoutput.Success("DevMode has been ended")
+		nocalhostApp.LoadSvcCfgFromLocalIfNeeded(nocalhostSvc.Name, nocalhostSvc.Type.String(), false)
 	},
 }

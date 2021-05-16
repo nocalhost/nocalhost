@@ -17,16 +17,47 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
+	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/profile"
 )
 
+var notificationPrefix = `
+# This is the runtime configuration which stored in the memory. Modifications 
+# to the development configuration will take effect the next time you enter
+# the DevMode, but any modification will not be persisted.
+#
+# If you want to persist the configuration, you can create a configuration
+# file named config.yaml in the root directory of your project under the
+# folder .nocalhost (/.nocalhost/config.yaml). Then perform the following 
+# configuration, and it will become part of your project, you can easily 
+# share configuration with other developers, or develop on any other devices
+#`
+
+var svcNotificationTips = `
+# Tips: You can generate your configuration into %s if needed.`
+var svcNotificationTipsLoaded = `
+# Tips: This configuration is a in-memory replica of %s.`
+
+var notificationSuffix = `
+#
+# In addition, if you use the Server-version of Nocalhost, you can also 
+# configure under the definition of the application, such as:
+# https://github.com/nocalhost/bookinfo/tree/main/.nocalhost
+`
+
 func init() {
-	configGetCmd.Flags().StringVarP(&commonFlags.SvcName, "deployment", "d", "",
-		"k8s deployment which your developing service exists")
-	configGetCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
-		"kind of k8s controller,such as deployment,statefulSet")
-	configGetCmd.Flags().BoolVar(&commonFlags.AppConfig, "app-config", false,
-		"get application config")
+	configGetCmd.Flags().StringVarP(
+		&commonFlags.SvcName, "deployment", "d", "",
+		"k8s deployment which your developing service exists",
+	)
+	configGetCmd.Flags().StringVarP(
+		&serviceType, "controller-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet",
+	)
+	configGetCmd.Flags().BoolVar(
+		&commonFlags.AppConfig, "app-config", false,
+		"get application config",
+	)
 	configCmd.AddCommand(configGetCmd)
 }
 
@@ -75,7 +106,30 @@ var configGetCmd = &cobra.Command{
 			if svcProfile != nil {
 				bys, err := yaml.Marshal(svcProfile.ServiceConfigV2)
 				must(errors.Wrap(err, "fail to get controller profile"))
-				fmt.Println(string(bys))
+
+				path := fp.NewFilePath(svcProfile.Associate).
+					RelOrAbs(".nocalhost").
+					RelOrAbs("config.yaml").Path
+
+				notification := notificationPrefix
+				if !svcProfile.LocalConfigLoaded {
+					notification += fmt.Sprintf(
+						svcNotificationTips,
+						path,
+					)
+				} else {
+					notification += fmt.Sprintf(
+						svcNotificationTipsLoaded,
+						path,
+					)
+				}
+				notification += notificationSuffix
+
+				fmt.Println(
+					fmt.Sprintf(
+						"%s \n%s", notification, string(bys),
+					),
+				)
 			}
 		}
 	},

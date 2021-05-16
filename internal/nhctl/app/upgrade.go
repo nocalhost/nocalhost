@@ -19,6 +19,7 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	flag "nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -53,13 +54,12 @@ func (a *Application) PrepareForUpgrade(flags *flag.InstallFlags) error {
 		return err
 	}
 
-	p, err := a.GetProfileForUpdate()
-	if err != nil {
-		return err
-	}
-	defer p.CloseDb()
-	updateProfileFromConfig(p, config)
-	return p.Save()
+	return a.UpdateProfile(
+		func(p *profile.AppProfileV2) error {
+			updateProfileFromConfig(p, config)
+			return nil
+		},
+	)
 }
 
 func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
@@ -219,7 +219,14 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 	if err != nil {
 		return err
 	}
+
 	releaseName := appProfile.ReleaseName
+	if releaseName == "" {
+		releaseName = a.appMeta.HelmReleaseName
+	}
+	if releaseName == "" {
+		releaseName = a.appMeta.Application
+	}
 
 	commonParams := make([]string, 0)
 	if a.NameSpace != "" {

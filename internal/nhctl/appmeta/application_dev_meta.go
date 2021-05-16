@@ -14,7 +14,10 @@ package appmeta
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"nocalhost/pkg/nhctl/log"
+	"strings"
 )
 
 type SvcType string
@@ -30,6 +33,28 @@ const (
 	DEV_STA    EVENT   = "DEV_STA"
 	DEV_END    EVENT   = "DEV_END"
 )
+
+func SvcTypeOf(svcType string) SvcType {
+	serviceType := Deployment
+	if svcType != "" {
+		svcTypeLower := strings.ToLower(svcType)
+		switch svcTypeLower {
+		case strings.ToLower(string(Deployment)):
+			serviceType = Deployment
+		case strings.ToLower(string(StatefulSet)):
+			serviceType = StatefulSet
+		case strings.ToLower(string(DaemonSet)):
+			serviceType = DaemonSet
+		case strings.ToLower(string(Job)):
+			serviceType = Job
+		case strings.ToLower(string(CronJob)):
+			serviceType = CronJob
+		default:
+			log.FatalE(errors.New(fmt.Sprintf("Unsupported SvcType %s", svcType)), "")
+		}
+	}
+	return serviceType
+}
 
 // Alias For compatibility with meta
 func (s SvcType) Alias() SvcType {
@@ -106,7 +131,8 @@ func (from *ApplicationDevMeta) Events(to ApplicationDevMeta) *[]*ApplicationEve
 					if identifier != toIdentifier {
 						result = append(
 							result, &ApplicationEvent{
-								EventType: DEV_END, ResourceName: resourceName, Identifier: identifier, DevType: devType,
+								EventType: DEV_END, ResourceName: resourceName, Identifier: identifier,
+								DevType: devType,
 							},
 						)
 						result = append(

@@ -14,26 +14,29 @@ package app
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	corev1 "k8s.io/api/core/v1"
 	"net"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/controller"
+	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/profile"
-	"os"
-	"regexp"
-
-	"gopkg.in/yaml.v3"
-	corev1 "k8s.io/api/core/v1"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
+	"os"
+	"regexp"
+	"strconv"
 
 	"github.com/pkg/errors"
 )
 
 var (
 	ErrNotFound = errors.New("Application not found")
+	indent      = 70
 )
 
 type Application struct {
@@ -129,15 +132,12 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	app.AppType = profileV2.AppType
 
 	if kubeconfig != "" && kubeconfig != profileV2.Kubeconfig {
-		//app.profileV2.Kubeconfig = kubeconfig
-		p, err := profile.NewAppProfileV2ForUpdate(app.NameSpace, app.Name)
-		if err != nil {
-			return nil, err
-		}
-		p.Kubeconfig = kubeconfig
-		_ = p.Save()
-
-		if err = p.CloseDb(); err != nil {
+		if err := app.UpdateProfile(
+			func(p *profile.AppProfileV2) error {
+				p.Kubeconfig = kubeconfig
+				return nil
+			},
+		); err != nil {
 			return nil, err
 		}
 	}
@@ -168,12 +168,12 @@ func (a *Application) generateSecretForEarlierVer() bool {
 
 		defer func() {
 			log.Logf("Mark application %s in ns %s has been secreted", a.Name, a.NameSpace)
-			//a.profileV2.Secreted = true
-			p, _ := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
-			p.Secreted = true
-			p.Save()
-			p.CloseDb()
-			//_ = nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.profileV2)
+			_ = a.UpdateProfile(
+				func(p *profile.AppProfileV2) error {
+					p.Secreted = true
+					return nil
+				},
+			)
 		}()
 
 		if err := a.appMeta.Initial(); err != nil {
@@ -220,6 +220,120 @@ func (a *Application) generateSecretForEarlierVer() bool {
 	return false
 }
 
+func (a *Application) ReloadCfg(force bool) error {
+	secretCfg := a.appMeta.Config
+	for _, config := range secretCfg.ApplicationConfig.ServiceConfigs {
+		if err := a.ReloadSvcCfg(config.Name, config.Type, force); err != nil {
+			log.LogE(err)
+		}
+	}
+
+	return nil
+}
+
+func (a *Application) ReloadSvcCfg(svcName, svcType string, force bool) error {
+	if !a.LoadSvcCfgFromLocalIfNeeded(svcName, svcType, force) {
+		return a.Controller(svcName, appmeta.SvcTypeOf(svcType)).UpdateSvcProfile(
+			func(svcProfile *profile.SvcProfileV2) error {
+
+				metaInfo := fmt.Sprintf("[name: %s serviceType: %s]", svcName, svcType)
+				log.Infof(
+					fmt.Sprintf(
+						"%-"+strconv.Itoa(indent)+"s %s",
+						metaInfo,
+						"Load nocalhost svc config from application config",
+					),
+				)
+
+				svcProfile.ServiceConfigV2 = a.appMeta.Config.GetSvcConfigV2(svcName, svcType)
+				svcProfile.LocalConfigLoaded = false
+				return nil
+			},
+		)
+	}
+	return nil
+}
+
+func (a *Application) LoadSvcCfgFromLocalIfNeeded(svcName, svcType string, force bool) bool {
+	p, err := a.GetProfile()
+	if err != nil {
+		return false
+	}
+
+	svcProfile := p.SvcProfileV2(svcName, svcType)
+	if svcProfile.LocalConfigLoaded && !force {
+		return false
+	}
+
+	if svcProfile.Associate == "" {
+		return false
+	}
+
+	configFile := fp.NewFilePath(svcProfile.Associate).RelOrAbs(DefaultGitNocalhostDir).RelOrAbs(DefaultConfigNameInGitNocalhostDir)
+	if err = configFile.CheckExist(); err != nil {
+		return false
+	}
+
+	content, err := configFile.ReadFileCompel()
+	if err != nil || content == "" {
+		log.LogE(err)
+		return false
+	}
+
+	metaInfo := fmt.Sprintf("[name: %s serviceType: %s]", svcName, svcType)
+
+	appConfig := profile.NocalHostAppConfigV2{}
+	if err := yaml.Unmarshal([]byte(content), &appConfig); err != nil {
+		coloredoutput.Fail(
+			"%-"+strconv.Itoa(indent)+"s %s",
+			metaInfo,
+			fmt.Sprintf(
+				"Load nocalhost svc config from local file %s but fail\n[%s]\nplease fix the issues and try reload config again",
+				configFile.Path, err.Error(),
+			),
+		)
+		return false
+	}
+
+	svcProfileConfig := appConfig.GetSvcConfigV2(svcName, svcType)
+
+	if svcProfileConfig == nil {
+
+		coloredoutput.Hint(
+			"\n%-"+strconv.Itoa(indent)+"s %s",
+			metaInfo,
+			fmt.Sprintf(
+				"Load nocalhost svc config from local file %s but do not found config with %s\n",
+				configFile.Path, metaInfo,
+			),
+		)
+		return false
+	}
+
+	svcProfileConfig.Name = svcName
+	svcProfileConfig.Type = svcType
+
+	// means should load svc cfg from local
+	if err := a.Controller(svcName, appmeta.SvcTypeOf(svcType)).UpdateSvcProfile(
+		func(svcProfile *profile.SvcProfileV2) error {
+			log.Infof(
+				fmt.Sprintf(
+					"%-"+strconv.Itoa(indent)+"s %s",
+					fmt.Sprintf("[Name: %s, Type: %s]", svcName, svcType),
+					fmt.Sprintf("Load nocalhost svc config from local file "+configFile.Path),
+				),
+			)
+			svcProfile.ServiceConfigV2 = svcProfileConfig
+			svcProfile.LocalConfigLoaded = true
+			return nil
+		},
+	); err != nil {
+		log.LogE(err)
+		return false
+	}
+	return true
+}
+
 func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {
 	if bys, err := ioutil.ReadFile(a.GetConfigV2Path()); err == nil {
 		p := &profile.NocalHostAppConfigV2{}
@@ -243,7 +357,6 @@ func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {
 			ServiceConfigs: loadServiceConfigsFromProfile(profileV2.SvcProfile),
 		},
 	}
-
 }
 
 func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.ServiceConfigV2 {
@@ -290,13 +403,28 @@ func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
 	return nocalhost.GetProfileV2(a.NameSpace, a.Name)
 }
 
-// You need to closeDB for profile explicitly
-func (a *Application) GetProfileForUpdate() (*profile.AppProfileV2, error) {
-	return profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
+func (a *Application) GetProfileCompel() *profile.AppProfileV2 {
+	v2, err := nocalhost.GetProfileV2(a.NameSpace, a.Name)
+	clientgoutils.Must(err)
+	return v2
 }
 
-func (a *Application) SaveProfile(p *profile.AppProfileV2) error {
-	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, p)
+func (a *Application) UpdateProfile(modify func(*profile.AppProfileV2) error) error {
+	p, err := a.getProfileForUpdate()
+	if err != nil {
+		return err
+	}
+	defer p.CloseDb()
+
+	if err := modify(p); err != nil {
+		return err
+	}
+	return p.Save()
+}
+
+// You need to closeDB for profile explicitly
+func (a *Application) getProfileForUpdate() (*profile.AppProfileV2, error) {
+	return profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
 }
 
 func (a *Application) LoadConfigFromLocalV2() (*profile.NocalHostAppConfigV2, error) {
@@ -357,19 +485,16 @@ func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
 }
 
 func (a *Application) SaveAppProfileV2(config *profile.ApplicationConfig) error {
-	profileV2, err := profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
-	if err != nil {
-		return err
-	}
-	defer profileV2.CloseDb()
-
-	profileV2.ResourcePath = config.ResourcePath
-	profileV2.IgnoredPath = config.IgnoredPath
-	profileV2.PreInstall = config.PreInstall
-	profileV2.Env = config.Env
-	profileV2.EnvFrom = config.EnvFrom
-
-	return profileV2.Save()
+	return a.UpdateProfile(
+		func(p *profile.AppProfileV2) error {
+			p.ResourcePath = config.ResourcePath
+			p.IgnoredPath = config.IgnoredPath
+			p.PreInstall = config.PreInstall
+			p.Env = config.Env
+			p.EnvFrom = config.EnvFrom
+			return nil
+		},
+	)
 }
 
 type PortForwardOptions struct {

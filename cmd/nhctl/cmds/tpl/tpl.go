@@ -141,6 +141,12 @@ containers:
 		# optional
 		# workDir: "/root/nocalhost-dev"
 
+		# storage of pv
+		# type: string
+		# default value: ""
+		# optional
+		# storage: "cbs"
+
 		# resource requirements of dev container
 		# resources:
 		#   limits:

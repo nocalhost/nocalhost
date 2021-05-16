@@ -15,21 +15,25 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/pkg/nhctl/log"
 )
 
 func init() {
-	devEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
-	devEndCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
-		"kind of k8s controller,such as deployment,statefulSet")
-	debugCmd.AddCommand(devEndCmd)
+	configReloadCmd.Flags().StringVarP(
+		&commonFlags.SvcName, "deployment", "d", "",
+		"k8s deployment which your developing service exists",
+	)
+	configReloadCmd.Flags().StringVarP(
+		&serviceType, "controller-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet",
+	)
+	configCmd.AddCommand(configReloadCmd)
 }
 
-var devEndCmd = &cobra.Command{
-	Use:   "end [NAME]",
-	Short: "end dev model",
-	Long:  `end dev model`,
+var configReloadCmd = &cobra.Command{
+	Use:   "reload [Name]",
+	Short: "reload application/service config",
+	Long:  "reload application/service config",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
@@ -37,19 +41,18 @@ var devEndCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
+		commonFlags.AppName = args[0]
+		initApp(commonFlags.AppName)
 
-		//meta, err := nocalhost.GetApplicationMetaInstalled(applicationName, nameSpace, kubeConfig)
-		//must(err)
-
-		if !nocalhostSvc.IsInDevMode() {
-			log.Fatalf("Service %s is not in DevMode", deployment)
+		if commonFlags.SvcName == "" {
+			if err := nocalhostApp.ReloadCfg(true); err != nil {
+				log.Fatal(errors.Wrap(err, ""))
+			}
+		} else {
+			checkIfSvcExist(commonFlags.SvcName, serviceType)
+			if err := nocalhostApp.ReloadSvcCfg(commonFlags.SvcName, serviceType, true); err != nil {
+				log.Fatal(errors.Wrap(err, ""))
+			}
 		}
-
-		must(nocalhostSvc.DevEnd(false))
-
-		println()
-		coloredoutput.Success("DevMode has been ended")
 	},
 }

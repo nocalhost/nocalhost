@@ -77,9 +77,8 @@ type PortForwardAPodRequest struct {
 	ReadyCh chan struct{}
 }
 
-// If namespace is not specified, use namespace defined in kubeconfig
-// If namespace is not specified and can not get from kubeconfig, ClientGoUtils can not be created,
-// and an error will be returned
+// NewClientGoUtils If namespace is not specified, use namespace defined in kubeconfig
+// If namespace is not specified and can not get from kubeconfig, return error
 func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, error) {
 	var (
 		err error
