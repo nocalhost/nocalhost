@@ -121,7 +121,7 @@ func ExecCommand(
 	}()
 
 	err = cmd.Wait()
-	if !ignoreCmdErr && err != nil {
+	if !ignoreCmdErr && !cmd.ProcessState.Success() {
 		return "", errors.Wrapf(err, "Error occur while exec command %v", cmdStr)
 	}
 

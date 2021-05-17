@@ -13,6 +13,7 @@
 package cmds
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/coloredoutput"
@@ -49,7 +50,7 @@ var devEndCmd = &cobra.Command{
 
 		must(nocalhostSvc.DevEnd(false))
 
-		println()
+		fmt.Println()
 		coloredoutput.Success("DevMode has been ended")
 	},
 }
