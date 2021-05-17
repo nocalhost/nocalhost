@@ -79,7 +79,9 @@ func CheckK8s() (string, bool) {
 }
 
 //execute command
-func ExecCommand(ctx context.Context, isDisplay bool, redirectStderr bool, commandName string, params ...string) (string, error) {
+func ExecCommand(
+	ctx context.Context, isDisplay bool, redirectStderr bool, ignoreCmdErr bool, commandName string, params ...string,
+) (string, error) {
 	var errStdout, errStderr error
 	var result []byte
 
@@ -118,7 +120,11 @@ func ExecCommand(ctx context.Context, isDisplay bool, redirectStderr bool, comma
 		_, errStderr = copyAndCapture(out, stderrIn, isDisplay)
 	}()
 
-	_ = cmd.Wait()
+	err = cmd.Wait()
+	if !ignoreCmdErr && err != nil {
+		return "", errors.Wrapf(err, "Error occur while exec command %v", cmdStr)
+	}
+
 	if errStderr != nil || errStdout != nil {
 		log.Infof("%s %s", errStderr, errStdout)
 		return "", errors.New("error occur when print")

@@ -418,8 +418,8 @@ func (a *ApplicationMeta) Uninstall() error {
 
 		uninstallParams = append(uninstallParams, commonParams...)
 		if _, err := tools.ExecCommand(
-			nil, true,
-			false, "helm", uninstallParams...,
+			nil, true, true,
+			true, "helm", uninstallParams...,
 		); err != nil {
 			return err
 		}

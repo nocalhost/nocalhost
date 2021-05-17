@@ -185,7 +185,7 @@ func CopyDir(src string, dst string) (err error) {
 
 func CheckKubectlVersion(compareMinor int) error {
 	commonParams := []string{"version", "-o", "json"}
-	jsonBody, err := tools.ExecCommand(nil, false, false, "kubectl", commonParams...)
+	jsonBody, err := tools.ExecCommand(nil, false, false, false, "kubectl", commonParams...)
 	if err != nil {
 		return err
 	}

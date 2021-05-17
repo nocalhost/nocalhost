@@ -230,7 +230,7 @@ var devStartCmd = &cobra.Command{
 		must(err)
 
 		_, err = tools.ExecCommand(
-			nil, true, true,
+			nil, true, true, false,
 			nhctl, "sync", nocalhostApp.Name, "-d", nocalhostSvc.Name, "-t", nocalhostSvc.Type.String(),
 			"--kubeconfig", kubeConfig, "-n", nameSpace,
 		)
