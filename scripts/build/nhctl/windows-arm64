@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#
+# Build a windows binary from linux
+#
+
+set -eu -o pipefail
+
+export GOOS=windows
+export GOARCH=arm64
+
+source ./scripts/build/nhctl/.variables
+
+# Override TARGET
+TARGET="build/nhctl-$GOOS-$GOARCH.exe"
+
+echo "Building $TARGET"
+go build -o "${TARGET}" --ldflags "${LDFLAGS}" "${SOURCE}"

@@ -9,9 +9,12 @@ BUILDDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export SHELL=bash
 
 jobs=(
-    "$BUILDDIR/windows" \
-    "$BUILDDIR/osx" \
-    "$BUILDDIR/linux"
+    "$BUILDDIR/windows-amd64" \
+    "$BUILDDIR/windows-arm64" \
+    "$BUILDDIR/macos-amd64" \
+    "$BUILDDIR/macos-arm64" \
+    "$BUILDDIR/linux-amd64" \
+    "$BUILDDIR/linux-arm64"
 )
 
 for job in "${jobs[@]}"

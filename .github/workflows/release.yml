@@ -13,7 +13,7 @@ jobs:
     - name: Set up Go 1.x
       uses: actions/setup-go@v2
       with:
-        go-version: ^1.14
+        go-version: ^1.17
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
@@ -27,8 +27,11 @@ jobs:
       run: |
         make nhctl-cross
         shasum -a 256 build/nhctl-linux-amd64 | awk '{print $1}' > build/nhctl-linux-amd64-SHA256
+        shasum -a 256 build/nhctl-linux-arm64 | awk '{print $1}' > build/nhctl-linux-arm64-SHA256
         shasum -a 256 build/nhctl-darwin-amd64 | awk '{print $1}' > build/nhctl-darwin-amd64-SHA256
+        shasum -a 256 build/nhctl-darwin-arm64 | awk '{print $1}' > build/nhctl-darwin-arm64-SHA256
         shasum -a 256 build/nhctl-windows-amd64.exe | awk '{print $1}' > build/nhctl-windows-amd64-SHA256
+        shasum -a 256 build/nhctl-windows-arm64.exe | awk '{print $1}' > build/nhctl-windows-arm64-SHA256
 
     - name: Create nhctl Release
       id: create_release
@@ -85,6 +88,26 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/nhctl-windows-arm64
+        asset_name: nhctl-windows-arm64
+        asset_content_type: application/octet-stream
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/nhctl-windows-arm64-SHA256
+        asset_name: nhctl-windows-arm64-SHA256
+        asset_content_type: application/octet-stream
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: build/nhctl-darwin-amd64
         asset_name: nhctl-darwin-amd64
         asset_content_type: application/octet-stream
@@ -97,6 +120,26 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: build/nhctl-darwin-amd64-SHA256
         asset_name: nhctl-darwin-amd64-SHA256
+        asset_content_type: application/octet-stream
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/nhctl-darwin-arm64
+        asset_name: nhctl-darwin-arm64
+        asset_content_type: application/octet-stream
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/nhctl-darwin-arm64-SHA256
+        asset_name: nhctl-darwin-arm64-SHA256
         asset_content_type: application/octet-stream
 
     - name: Upload Release Asset
@@ -119,22 +162,54 @@ jobs:
         asset_name: nhctl-linux-amd64-SHA256
         asset_content_type: application/octet-stream
 
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/nhctl-linux-arm64
+        asset_name: nhctl-linux-arm64
+        asset_content_type: application/octet-stream
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/nhctl-linux-arm64-SHA256
+        asset_name: nhctl-linux-arm64-SHA256
+        asset_content_type: application/octet-stream
+
     - name: Push nhctl to Coding Artifacts
       env:
-        WINDOWS_BINARY: 'nhctl-windows-amd64.exe'
-        OSX_BINARY: 'nhctl-darwin-amd64'
-        LINUX_BINARY: 'nhctl-linux-amd64'
+        WINDOWS_AMD64_BINARY: 'nhctl-windows-amd64.exe'
+        WINDOWS_ARM64_BINARY: 'nhctl-windows-arm64.exe'
+        MACOS_AMD64_BINARY: 'nhctl-darwin-amd64'
+        MACOS_ARM64_BINARY: 'nhctl-darwin-arm64'
+        LINUX_AMD64_BINARY: 'nhctl-linux-amd64'
+        LINUX_ARM64_BINARY: 'nhctl-linux-arm64'
       run: |
         cd build
-        curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${GITHUB_SHA}"
-        curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${GITHUB_SHA}"
-        curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${GITHUB_SHA}"
-        curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=latest"
-        curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=latest"
-        curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=latest"
-        curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${{ env.RELEASE_VERSION }}"
-        curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${{ env.RELEASE_VERSION }}"
-        curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${{ env.RELEASE_VERSION }}"
+        curl -T ${WINDOWS_AMD64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_AMD64_BINARY}?version=${GITHUB_SHA}"
+        curl -T ${WINDOWS_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_ARM64_BINARY}?version=${GITHUB_SHA}"
+        curl -T ${MACOS_AMD64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${MACOS_AMD64_BINARY}?version=${GITHUB_SHA}"
+        curl -T ${MACOS_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${MACOS_ARM64_BINARY}?version=${GITHUB_SHA}"
+        curl -T ${LINUX_AMD64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_AMD64_BINARY}?version=${GITHUB_SHA}"
+        curl -T ${LINUX_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_ARM64_BINARY}?version=${GITHUB_SHA}"
+        curl -T ${WINDOWS_AMD64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_AMD64_BINARY}?version=latest"
+        curl -T ${WINDOWS_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_ARM64_BINARY}?version=latest"
+        curl -T ${MACOS_AMD64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${MACOS_AMD64_BINARY}?version=latest"
+        curl -T ${MACOS_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${MACOS_ARM64_BINARY}?version=latest"
+        curl -T ${LINUX_AMD64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_AMD64_BINARY}?version=latest"
+        curl -T ${LINUX_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_ARM64_BINARY}?version=latest"
+        curl -T ${WINDOWS_AMD64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_AMD64_BINARY}?version=${{ env.RELEASE_VERSION }}"
+        curl -T ${WINDOWS_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_ARM64_BINARY}?version=${{ env.RELEASE_VERSION }}"
+        curl -T ${MACOS_AMD64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${MACOS_AMD64_BINARY}?version=${{ env.RELEASE_VERSION }}"
+        curl -T ${MACOS_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${MACOS_ARM64_BINARY}?version=${{ env.RELEASE_VERSION }}"
+        curl -T ${LINUX_AMD64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_AMD64_BINARY}?version=${{ env.RELEASE_VERSION }}"
+        curl -T ${LINUX_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_ARM64_BINARY}?version=${{ env.RELEASE_VERSION }}"
 
     - name: Update Homebrew tap
       #if: "!contains(github.ref,'rc')"

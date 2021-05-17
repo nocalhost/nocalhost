@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#
+# Build an macOS binary from linux
+#
+
+set -eu -o pipefail
+
+export GOOS=darwin
+export GOARCH=arm64
+
+source ./scripts/build/nhctl/.variables
+
+# Override TARGET
+TARGET="build/nhctl-$GOOS-$GOARCH"
+
+echo "Building $TARGET"
+go build -o "${TARGET}" -gcflags "all=-N -l" --ldflags "${LDFLAGS}" "${SOURCE}"

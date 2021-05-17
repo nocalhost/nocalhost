@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# Build an osx binary from linux
+# Build a linux binary
 #
 
 set -eu -o pipefail
 
-export GOOS=darwin
+export GOOS=linux
 export GOARCH=amd64
 
 source ./scripts/build/nhctl/.variables
@@ -14,4 +14,4 @@ source ./scripts/build/nhctl/.variables
 TARGET="build/nhctl-$GOOS-$GOARCH"
 
 echo "Building $TARGET"
-go build -o "${TARGET}" -gcflags "all=-N -l" --ldflags "${LDFLAGS}" "${SOURCE}"
+go build -o "${TARGET}" --ldflags "${LDFLAGS}" "${SOURCE}"

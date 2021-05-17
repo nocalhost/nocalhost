@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#
+# Build a macOS universal binary
+#
+
+set -eu -o pipefail
+
+source ./scripts/build/nhctl/.variables
+
+# Override TARGET
+TARGET="build/nhctl-darwin-universal"
+
+echo "Building $TARGET"
+GOOS=darwin GOARCH=amd64 go build -o "build/nhctl-darwin-amd64" -gcflags "all=-N -l" --ldflags "${LDFLAGS}" "${SOURCE}"
+GOOS=darwin GOARCH=arm64 go build -o "build/nhctl-darwin-arm64" -gcflags "all=-N -l" --ldflags "${LDFLAGS}" "${SOURCE}"
+cd build && lipo -create -output nhctl-darwin-universal nhctl-darwin-amd64 nhctl-darwin-arm64

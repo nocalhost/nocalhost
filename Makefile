@@ -36,17 +36,33 @@ nhctl: ## Build nhctl for current OS
 nhctl-cross: ## build executable for Linux and macOS and Windows
 	@bash ./scripts/build/nhctl/cross
 
-.PHONY: nhctl-windows
-nhctl-windows: ## build executable for Windows
-	@bash ./scripts/build/nhctl/windows
+.PHONY: nhctl-windows-amd64
+nhctl-windows-amd64: ## build amd64 executable for Windows
+	@bash ./scripts/build/nhctl/windows-amd64
 
-.PHONY: nhctl-osx
-nhctl-osx: ## build executable for macOS
-	@bash ./scripts/build/nhctl/osx
+.PHONY: nhctl-windows-arm64
+nhctl-windows-arm64: ## build arm64 executable for Windows
+	@bash ./scripts/build/nhctl/windows-arm64
 
-.PHONY: nhctl-linux
-nhctl-linux: ## build executable for Linux
-	@bash ./scripts/build/nhctl/linux
+.PHONY: nhctl-macos-amd64
+nhctl-macos-amd64: ## build amd64 executable for macOS
+	@bash ./scripts/build/nhctl/macos-amd64
+
+.PHONY: nhctl-macos-arm64
+nhctl-macos-arm64: ## build arm64 executable for macOS
+	@bash ./scripts/build/nhctl/macos-arm64
+
+.PHONY: nhctl-macos-universal
+nhctl-macos-universal: ## build universal executable for macOS
+	@bash ./scripts/build/nhctl/macos-universal
+
+.PHONY: nhctl-linux-amd64
+nhctl-linux-amd64: ## build amd64 executable for Linux
+	@bash ./scripts/build/nhctl/linux-amd64
+
+.PHONY: nhctl-linux-arm64
+nhctl-linux-arm64: ## build arm64 executable for Linux
+	@bash ./scripts/build/nhctl/linux-arm64
 
 .PHONY: gotool
 gotool: ## run go tool 'fmt' and 'vet'
