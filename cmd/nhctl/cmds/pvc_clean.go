@@ -43,7 +43,7 @@ var pvcCleanCmd = &cobra.Command{
 			must(err)
 			err = cli.DeletePVC(pvcFlags.Name)
 			mustI(err, "Failed to clean up pvc: "+pvcFlags.Name)
-			log.Infof("%s cleaned up", pvcFlags.Name)
+			log.Infof("Persistent volume %s has been cleaned up", pvcFlags.Name)
 			return
 		}
 
