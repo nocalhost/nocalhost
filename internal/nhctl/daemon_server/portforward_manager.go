@@ -45,20 +45,35 @@ func NewPortForwardManager() *PortForwardManager {
 	return &PortForwardManager{pfList: map[string]*daemon_common.PortForwardProfile{}}
 }
 
-func (p *PortForwardManager) StopPortForwardGoRoutine(localPort, remotePort int) error {
-	key := fmt.Sprintf("%d:%d", localPort, remotePort)
+func (p *PortForwardManager) StopPortForwardGoRoutine(cmd *command.PortForwardCommand) error {
+	key := fmt.Sprintf("%d:%d", cmd.LocalPort, cmd.RemotePort)
 	pfProfile, ok := p.pfList[key]
-	if !ok {
-		return errors.New(
-			fmt.Sprintf(
-				"Port-forward %d:%d is not managed by this PortForwardManger", localPort, remotePort,
-			),
-		)
+	if ok {
+		pfProfile.Cancel()
+		err := <-pfProfile.StopCh
+		delete(p.pfList, key)
+		return err
 	}
-	pfProfile.Cancel()
-	err := <-pfProfile.StopCh
-	delete(p.pfList, key)
-	return err
+
+	kube, err := nocalhost.GetKubeConfigFromProfile(cmd.NameSpace, cmd.AppName)
+	if err != nil {
+		return err
+	}
+	nocalhostApp, err := app.NewApplication(cmd.AppName, cmd.NameSpace, kube, false)
+	if err != nil {
+		return err
+	}
+
+	if cmd.ServiceType == "" {
+		cmd.ServiceType = "deployment"
+	}
+	nhController := nocalhostApp.Controller(cmd.Service, appmeta.SvcType(cmd.ServiceType))
+	return nhController.DeletePortForwardFromDB(cmd.LocalPort, cmd.RemotePort)
+	//return errors.New(
+	//	fmt.Sprintf(
+	//		"Port-forward %d:%d is not managed by this PortForwardManger", localPort, remotePort),
+	//)
+	//return err
 }
 
 // ListAllRunningPortForwardGoRoutineProfile
@@ -139,7 +154,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 	key := fmt.Sprintf("%d:%d", localPort, remotePort)
 	if _, ok := p.pfList[key]; ok {
 		log.Logf("Port-forward %d:%d has been running in another go routine, stop it first", localPort, remotePort)
-		if err := p.StopPortForwardGoRoutine(localPort, remotePort); err != nil {
+		if err := p.StopPortForwardGoRoutine(startCmd); err != nil {
 			return err
 		}
 	}

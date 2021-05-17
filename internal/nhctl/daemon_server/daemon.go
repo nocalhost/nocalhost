@@ -280,7 +280,7 @@ func handlerRestartDaemonServerCommand(isSudoUser bool) error {
 
 func handleStopPortForwardCommand(cmd *command.PortForwardCommand) error {
 	// For compatibility
-	return pfManager.StopPortForwardGoRoutine(cmd.LocalPort, cmd.RemotePort)
+	return pfManager.StopPortForwardGoRoutine(cmd)
 }
 
 // If a port-forward already exist, skip it(don't do anything), and return an error
