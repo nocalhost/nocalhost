@@ -14,6 +14,7 @@ package cmds
 
 import (
 	"context"
+	"fmt"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -222,9 +223,9 @@ var devStartCmd = &cobra.Command{
 		}
 		must(nocalhostSvc.PortForwardAfterDevStart(devStartOps.Container))
 
-		println()
+		fmt.Println()
 		coloredoutput.Success("Dev container has been updated")
-		println()
+		fmt.Println()
 
 		nhctl, err := utils.GetNhctlPath()
 		must(err)
@@ -235,7 +236,7 @@ var devStartCmd = &cobra.Command{
 			"--kubeconfig", kubeConfig, "-n", nameSpace,
 		)
 
-		println()
+		fmt.Println()
 		coloredoutput.Success("File sync started")
 	},
 }
