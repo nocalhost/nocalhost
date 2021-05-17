@@ -46,7 +46,7 @@ func (a *Application) CleanUpPVCs(svcName string, continueOnErr bool) error {
 		return err
 	}
 	if len(pvcs) == 0 {
-		log.Infof("No pvc need to be cleaned up")
+		log.Info("No Persistent volume needs to be cleaned up")
 		return nil
 	}
 
@@ -54,17 +54,13 @@ func (a *Application) CleanUpPVCs(svcName string, continueOnErr bool) error {
 	for _, pvc := range pvcs {
 		err = a.client.DeletePVC(pvc.Name)
 		if err != nil {
-			log.WarnE(err, fmt.Sprintf("error occurs while deleting pvc %s", pvc.Name))
+			log.WarnE(err, fmt.Sprintf("error occurs while deleting persistent volume %s", pvc.Name))
 			if !continueOnErr {
 				return err
 			}
 		} else {
-			log.Infof("Pvc %s cleaned up", pvc.Name)
+			log.Infof("Persistent volume %s has been cleaned up", pvc.Name)
 		}
 	}
 	return nil
 }
-
-//func (a *Application) CleanUpPVC(name string) error {
-//	return a.client.DeletePVC(name)
-//}
