@@ -328,7 +328,7 @@ func (q *ApiRequest) GetKubeConfig() *ApiRequest {
 		"--kubeconfig",
 		q.KubeConfig,
 	}
-	result, err := tools.ExecCommand(nil, false, false, q.Kubectl, params...)
+	result, err := tools.ExecCommand(nil, false, false, false, q.Kubectl, params...)
 	if err != nil {
 		log.Fatalf("get kubeconfig raw context fail, please check you --kubeconfig and kubeconfig file, err: %s", err)
 	}

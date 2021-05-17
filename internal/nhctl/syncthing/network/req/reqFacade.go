@@ -69,22 +69,22 @@ func (p *SyncthingHttpClient) getSyncthingStatus() *SyncthingStatus {
 		}
 	}
 
-	// first find if is syncing
-	if !completion.isComplete() {
-		return &SyncthingStatus{
-			Status:    Syncing,
-			Msg:       completion.UploadPct(),
-			Tips:      status.StateChangedLog(),
-			OutOfSync: status.OutOfSync(),
-		}
-	}
-
-	// then need synced force
+	// first check need synced force
 	if completion.NeedOverrideForce() {
 		return &SyncthingStatus{
 			Status:    OutOfSync,
 			Msg:       status.OutOfSyncLog(),
 			Tips:      status.OutOfSyncTips(),
+			OutOfSync: status.OutOfSync(),
+		}
+	}
+
+	// then find if is syncing
+	if !completion.isComplete() {
+		return &SyncthingStatus{
+			Status:    Syncing,
+			Msg:       completion.UploadPct(),
+			Tips:      status.StateChangedLog(),
 			OutOfSync: status.OutOfSync(),
 		}
 	}

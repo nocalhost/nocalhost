@@ -181,7 +181,7 @@ var InitCommand = &cobra.Command{
 				"-n",
 				inits.NameSpace,
 			}
-			_, err = tools.ExecCommand(nil, false, false, nhctl, uninstall...)
+			_, err = tools.ExecCommand(nil, false, false, true, nhctl, uninstall...)
 			utils.ShouldI(err, fmt.Sprintf("uninstall %s application fail", app.DefaultInitInstallApplicationName))
 			// delete nocalhost(server namespace), nocalhost-reserved(dep) namespace if exist
 			if nsErr := client.CheckExistNameSpace(inits.NameSpace); nsErr == nil {
@@ -211,7 +211,7 @@ var InitCommand = &cobra.Command{
 		spinner := utils.NewSpinner(" waiting for get Nocalhost manifest...")
 		spinner.Start()
 		// call install command
-		_, err = tools.ExecCommand(nil, false, false, nhctl, params...)
+		_, err = tools.ExecCommand(nil, false, false, true, nhctl, params...)
 		if err != nil {
 			coloredoutput.Fail(
 				"execution nhctl install fail %s, try to add `--force` end of command manually\n", err.Error(),
@@ -427,6 +427,6 @@ func setDepComponentDockerImage(kubectl, kubeConfig string) {
 		"--kubeconfig",
 		kubeConfig,
 	}
-	_, err := tools.ExecCommand(nil, false, false, kubectl, params...)
+	_, err := tools.ExecCommand(nil, false, false, false, kubectl, params...)
 	utils.ShouldI(err, "set nocalhost-dep component tag fail")
 }

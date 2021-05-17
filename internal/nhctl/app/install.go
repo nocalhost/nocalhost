@@ -29,7 +29,7 @@ import (
 	"nocalhost/pkg/nhctl/tools"
 )
 
-func (a *Application) Install(ctx context.Context, flags *HelmFlags) (err error) {
+func (a *Application) Install(flags *HelmFlags) (err error) {
 
 	err = a.InstallDepConfigMap(a.appMeta)
 	if err != nil {
@@ -51,6 +51,10 @@ func (a *Application) Install(ctx context.Context, flags *HelmFlags) (err error)
 				appmeta.Helm, appmeta.HelmRepo, appmeta.Manifest,
 			),
 		)
+	}
+
+	if err != nil {
+		return err
 	}
 
 	a.appMeta.ApplicationState = appmeta.INSTALLED
@@ -150,7 +154,7 @@ func (a *Application) installHelm(
 		log.Info("building dependency...")
 		depParams := []string{"dependency", "build", resourcesPath[0]}
 		depParams = append(depParams, commonParams...)
-		if _, err := tools.ExecCommand(nil, true, false, "helm", depParams...);
+		if _, err := tools.ExecCommand(nil, true, false, false, "helm", depParams...);
 			err != nil {
 			return errors.Wrap(err, "fail to build dependency for helm app")
 		}
@@ -185,7 +189,7 @@ func (a *Application) installHelm(
 
 	fmt.Println("install helm application, this may take several minutes, please waiting...")
 
-	if _, err := tools.ExecCommand(nil, true, false, "helm", installParams...);
+	if _, err := tools.ExecCommand(nil, true, false, false, "helm", installParams...);
 		err != nil {
 		return errors.Wrap(err, "fail to install helm application")
 	}
