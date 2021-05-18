@@ -41,6 +41,11 @@ func recoverSyncthing() error {
 func recoverSyncthingForApplication(ns, appName string) error {
 	profile, err := nocalhost.GetProfileV2(ns, appName)
 	if err != nil {
+		if errors.Is(err, nocalhost.ProfileNotFound){
+			log.Warnf("Profile is not exist, so ignore for recovering")
+			return nil
+		}
+
 		return err
 	}
 	if profile == nil {
