@@ -112,20 +112,20 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 
 	// force update earlier version
 	if info.NhctlPath == "" {
+		log.Log("Daemon server need to stop and re start")
 		utils.Should(client.SendStopDaemonServerCommand())
 		utils.Should(waitForTCPPortToBeDown(client.daemonServerListenPort, 10*time.Second))
 		if err = startDaemonServer(isSudoUser, client.daemonServerListenPort); err != nil {
 			return nil, err
 		}
-	} else {
-		// if from same nhctl
-		if nhctlPath == info.NhctlPath && (info.Version != daemon_common.Version || info.CommitId != daemon_common.CommitId) {
-			log.Log("Upgrading daemon server")
-			utils.Should(client.SendRestartDaemonServerCommand())
-		}
+	} else if info.Version != daemon_common.Version || info.CommitId != daemon_common.CommitId {
 
-		// else do not update the daemon
-		if nhctlPath != info.NhctlPath {
+		// if from same nhctl
+		if nhctlPath == info.NhctlPath {
+			log.Log("Daemon server need to upgrade")
+			utils.Should(client.SendRestartDaemonServerCommand())
+		} else {
+			// else do not update the daemon
 			log.Log(
 				"Current nhctl is %s but daemon server use %s, "+
 					"nocalhost will not update the daemon automatic.",
