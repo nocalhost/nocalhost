@@ -108,9 +108,29 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 		return nil, err
 	}
 
-	if info.Version != daemon_common.Version || info.CommitId != daemon_common.CommitId {
-		log.Log("Upgrading daemon server")
-		utils.Should(client.SendRestartDaemonServerCommand())
+	nhctlPath, _ := utils.GetNhctlPath()
+
+	// force update earlier version
+	if info.NhctlPath == "" {
+		utils.Should(client.SendStopDaemonServerCommand())
+		utils.Should(waitForTCPPortToBeDown(client.daemonServerListenPort, 10*time.Second))
+		if err = startDaemonServer(isSudoUser, client.daemonServerListenPort); err != nil {
+			return nil, err
+		}
+	} else {
+		// if from same nhctl
+		if nhctlPath == nhctlPath && (info.Version != daemon_common.Version || info.CommitId != daemon_common.CommitId) {
+			log.Log("Upgrading daemon server")
+			utils.Should(client.SendRestartDaemonServerCommand())
+		}
+
+		// else do not update the daemon
+		if nhctlPath != nhctlPath {
+			log.Log(
+				"Current nhctl is %s but daemon server use %s, " +
+					"nocalhost will not update the daemon automatic.",
+			)
+		}
 	}
 	return client, nil
 }
@@ -175,9 +195,9 @@ func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfig str
 		CommandType: command.GetApplicationMeta,
 		ClientStack: string(debug.Stack()),
 
-		NameSpace:   ns,
-		AppName:     appName,
-		KubeConfig:  kubeConfig,
+		NameSpace:  ns,
+		AppName:    appName,
+		KubeConfig: kubeConfig,
 	}
 
 	bys, err := json.Marshal(gamCmd)
@@ -195,8 +215,8 @@ func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]
 		CommandType: command.GetApplicationMetas,
 		ClientStack: string(debug.Stack()),
 
-		NameSpace:   ns,
-		KubeConfig:  kubeConfig,
+		NameSpace:  ns,
+		KubeConfig: kubeConfig,
 	}
 
 	bys, err := json.Marshal(gamCmd)
@@ -272,7 +292,7 @@ func (d *DaemonClient) SendGetResourceInfoCommand(
 	kubeconfig, ns, appName, resource, resourceName string,
 ) (interface{}, error) {
 	cmd := &command.GetResourceInfoCommand{
-		CommandType:  command.GetResourceInfo,
+		CommandType: command.GetResourceInfo,
 		ClientStack: string(debug.Stack()),
 
 		KubeConfig:   kubeconfig,

@@ -41,6 +41,7 @@ var (
 	pfManager                   *PortForwardManager
 	tcpCtx, tcpCancelFunc       = context.WithCancel(context.Background()) // For stopping listening tcp port
 	daemonCtx, daemonCancelFunc = context.WithCancel(context.Background()) // For exiting current daemon server
+	startUpPath                 string
 )
 
 func init() {
@@ -55,6 +56,8 @@ func daemonListenPort() int {
 }
 
 func StartDaemon(isSudoUser bool, v string, c string) error {
+	startUpPath, _ = utils.GetNhctlPath()
+
 	version = v
 	commitId = c
 	if isSudoUser && !utils.IsSudoUser() {
@@ -210,7 +213,6 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 		conn.Close()
 		tcpCancelFunc()
 
-
 		// todo: clean up resources
 		daemonCancelFunc()
 	case command.RestartDaemonServer:
@@ -222,7 +224,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 		log.Log("New daemon server is starting, exit this one")
 		daemonCancelFunc()
 	case command.GetDaemonServerInfo:
-		info := &daemon_common.DaemonServerInfo{Version: version, CommitId: commitId}
+		info := &daemon_common.DaemonServerInfo{Version: version, CommitId: commitId, NhctlPath: startUpPath}
 		response(conn, info)
 	case command.GetDaemonServerStatus:
 		status := &daemon_common.DaemonServerStatusResponse{
