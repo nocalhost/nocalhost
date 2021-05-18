@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -52,13 +53,33 @@ var profileGetCmd = &cobra.Command{
 			if err != nil {
 				log.FatalE(err, "")
 			}
+			var defaultContainerConfig *profile.ContainerConfig
 			for _, c := range p.ContainerConfigs {
 				if c.Name == container {
 					if c.Dev != nil && c.Dev.Image != "" {
 						fmt.Printf(`{"image": "%s"}`, c.Dev.Image)
 					}
 					return
+				} else if c.Name == "" {
+					defaultContainerConfig = c
 				}
+			}
+			if defaultContainerConfig != nil && defaultContainerConfig.Dev != nil && defaultContainerConfig.Dev.Image != "" {
+				must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
+					var defaultIndex = -1
+					for i, c := range v2.ContainerConfigs {
+						if c.Name == "" {
+							defaultIndex = i
+						}
+					}
+					if defaultIndex >= 0 {
+						v2.ContainerConfigs[defaultIndex] = defaultContainerConfig
+						defaultContainerConfig.Name = container // setting container name
+						return nil
+					}
+					return nil
+				}))
+				fmt.Printf(`{"image": "%s"}`, defaultContainerConfig.Dev.Image)
 			}
 		default:
 			log.Fatalf("Getting config key %s is unsupported", configKey)
