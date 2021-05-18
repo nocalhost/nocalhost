@@ -209,6 +209,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 	case command.StopDaemonServer:
 		conn.Close()
 		tcpCancelFunc()
+
 		// todo: clean up resources
 		daemonCancelFunc()
 	case command.RestartDaemonServer:
