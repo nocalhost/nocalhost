@@ -27,6 +27,7 @@ import (
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"runtime/debug"
 	"time"
 )
 
@@ -109,13 +110,6 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 
 	if info.Version != daemon_common.Version || info.CommitId != daemon_common.CommitId {
 		log.Log("Upgrading daemon server")
-		//// todo only use stop for v0.4.0
-		//utils.Should(client.SendStopDaemonServerCommand())
-		//utils.Should(waitForTCPPortToBeDown(client.daemonServerListenPort, 10*time.Second))
-		//if err = startDaemonServer(isSudoUser, client.daemonServerListenPort); err != nil {
-		//	return nil, err
-		//}
-		// zzz
 		utils.Should(client.SendRestartDaemonServerCommand())
 	}
 	return client, nil
@@ -136,7 +130,7 @@ func startDaemonServer(isSudoUser bool, port int) error {
 }
 
 func (d *DaemonClient) SendGetDaemonServerInfoCommand() ([]byte, error) {
-	cmd := &command.BaseCommand{CommandType: command.GetDaemonServerInfo}
+	cmd := &command.BaseCommand{CommandType: command.GetDaemonServerInfo, ClientStack: string(debug.Stack())}
 	bys, err := json.Marshal(cmd)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
@@ -145,7 +139,7 @@ func (d *DaemonClient) SendGetDaemonServerInfoCommand() ([]byte, error) {
 }
 
 func (d *DaemonClient) SendRestartDaemonServerCommand() error {
-	cmd := &command.BaseCommand{CommandType: command.RestartDaemonServer}
+	cmd := &command.BaseCommand{CommandType: command.RestartDaemonServer, ClientStack: string(debug.Stack())}
 	bys, err := json.Marshal(cmd)
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -154,7 +148,7 @@ func (d *DaemonClient) SendRestartDaemonServerCommand() error {
 }
 
 func (d *DaemonClient) SendStopDaemonServerCommand() error {
-	cmd := &command.BaseCommand{CommandType: command.StopDaemonServer}
+	cmd := &command.BaseCommand{CommandType: command.StopDaemonServer, ClientStack: string(debug.Stack())}
 	bys, err := json.Marshal(cmd)
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -163,7 +157,7 @@ func (d *DaemonClient) SendStopDaemonServerCommand() error {
 }
 
 func (d *DaemonClient) SendGetDaemonServerStatusCommand() error {
-	cmd := &command.BaseCommand{CommandType: command.GetDaemonServerStatus}
+	cmd := &command.BaseCommand{CommandType: command.GetDaemonServerStatus, ClientStack: string(debug.Stack())}
 	bys, err := json.Marshal(cmd)
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -179,6 +173,8 @@ func (d *DaemonClient) SendGetDaemonServerStatusCommand() error {
 func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfig string) (*appmeta.ApplicationMeta, error) {
 	gamCmd := &command.GetApplicationMetaCommand{
 		CommandType: command.GetApplicationMeta,
+		ClientStack: string(debug.Stack()),
+
 		NameSpace:   ns,
 		AppName:     appName,
 		KubeConfig:  kubeConfig,
@@ -197,6 +193,8 @@ func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfig str
 func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]*appmeta.ApplicationMeta, error) {
 	gamCmd := &command.GetApplicationMetasCommand{
 		CommandType: command.GetApplicationMetas,
+		ClientStack: string(debug.Stack()),
+
 		NameSpace:   ns,
 		KubeConfig:  kubeConfig,
 	}
@@ -217,6 +215,8 @@ func (d *DaemonClient) SendStartPortForwardCommand(
 
 	startPFCmd := &command.PortForwardCommand{
 		CommandType: command.StartPortForward,
+		ClientStack: string(debug.Stack()),
+
 		NameSpace:   nhSvc.NameSpace,
 		AppName:     nhSvc.Application,
 		Service:     nhSvc.Service,
@@ -244,6 +244,8 @@ func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource
 
 	startPFCmd := &command.PortForwardCommand{
 		CommandType: command.StopPortForward,
+		ClientStack: string(debug.Stack()),
+
 		NameSpace:   nhSvc.NameSpace,
 		AppName:     nhSvc.Application,
 		Service:     nhSvc.Service,
@@ -266,10 +268,13 @@ func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource
 }
 
 // SendGetAllInfoCommand send get resource info request to daemon
-func (d *DaemonClient) SendGetResourceInfoCommand(kubeconfig, ns, appName, resource, resourceName string,
+func (d *DaemonClient) SendGetResourceInfoCommand(
+	kubeconfig, ns, appName, resource, resourceName string,
 ) (interface{}, error) {
 	cmd := &command.GetResourceInfoCommand{
 		CommandType:  command.GetResourceInfo,
+		ClientStack: string(debug.Stack()),
+
 		KubeConfig:   kubeconfig,
 		Namespace:    ns,
 		AppName:      appName,

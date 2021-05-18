@@ -83,8 +83,10 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 				}
 
 				if pack.Event.EventType == appmeta.DEV_END {
-					log.Logf("Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName,
-						pack.Event.ResourceName)
+					log.Logf(
+						"Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName,
+						pack.Event.ResourceName,
+					)
 					nhController := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
 					if err := nhController.StopSyncAndPortForwardProcess(true); err != nil {
 						return nil
@@ -97,8 +99,10 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 						return nil
 					}
 
-					log.Logf("Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName,
-						pack.Event.ResourceName)
+					log.Logf(
+						"Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName,
+						pack.Event.ResourceName,
+					)
 					nhController := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
 					if err := nhController.StopAllPortForward(); err != nil {
 						return nil
@@ -123,7 +127,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 			}
 
 			bytes, err := ioutil.ReadAll(conn)
-			cmdType, err := command.ParseCommandType(bytes)
+			cmdType, clientStack, err := command.ParseBaseCommand(bytes)
 			if err != nil {
 				log.LogE(err)
 				continue
@@ -134,7 +138,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 						log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
 					}
 				}()
-				handleCommand(conn, bytes, cmdType)
+				handleCommand(conn, bytes, cmdType, clientStack)
 			}()
 		}
 	}()
@@ -165,9 +169,16 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	}
 }
 
-func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType) {
+func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType, clientStack string) {
 	var err error
 	log.Infof("Handling %s command", cmdType)
+
+	defer func() {
+		if err != nil {
+			log.Log("Client Stack: " + clientStack)
+		}
+	}()
+
 	switch cmdType {
 	case command.StartPortForward:
 		startCmd := &command.PortForwardCommand{}

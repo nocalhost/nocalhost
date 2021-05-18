@@ -34,10 +34,13 @@ const (
 
 type BaseCommand struct {
 	CommandType DaemonCommandType
+	ClientStack string
 }
 
 type PortForwardCommand struct {
 	CommandType DaemonCommandType
+	ClientStack string
+
 	NameSpace   string `json:"nameSpace"`
 	AppName     string `json:"appName"`
 	Service     string `json:"service"`
@@ -50,6 +53,8 @@ type PortForwardCommand struct {
 
 type GetApplicationMetaCommand struct {
 	CommandType DaemonCommandType
+	ClientStack string
+
 	NameSpace   string `json:"nameSpace"`
 	AppName     string `json:"appName"`
 	KubeConfig  string `json:"kubeConfig"`
@@ -57,12 +62,16 @@ type GetApplicationMetaCommand struct {
 
 type GetApplicationMetasCommand struct {
 	CommandType DaemonCommandType
+	ClientStack string
+
 	NameSpace   string `json:"nameSpace"`
 	KubeConfig  string `json:"kubeConfig"`
 }
 
 type GetResourceInfoCommand struct {
 	CommandType  DaemonCommandType
+	ClientStack string
+
 	KubeConfig   string `json:"kubeConfig"`
 	Namespace    string `json:"namespace"`
 	AppName      string `json:"appName"`
@@ -70,11 +79,11 @@ type GetResourceInfoCommand struct {
 	ResourceName string `json:"resourceName"`
 }
 
-func ParseCommandType(bys []byte) (DaemonCommandType, error) {
+func ParseBaseCommand(bys []byte) (DaemonCommandType, string, error) {
 	base := &BaseCommand{}
 	err := json.Unmarshal(bys, base)
 	if err != nil {
-		return "", errors.Wrap(err, "")
+		return "", "", errors.Wrap(err, "")
 	}
-	return base.CommandType, nil
+	return base.CommandType, base.ClientStack, nil
 }
