@@ -210,6 +210,14 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 		}
 		response(conn, &daemon_common.CommonResponse{ErrInfo: errInfo})
 	case command.StopDaemonServer:
+
+		//// compatible, prevent elder version to update daemon, because
+		//// elder version will stop daemon while commit id or version is different
+		//if clientStack == "" {
+		//	log.Logf("Receive elder version of stop daemon cmd, and it should not take effect!")
+		//	return
+		//}
+
 		conn.Close()
 		tcpCancelFunc()
 
