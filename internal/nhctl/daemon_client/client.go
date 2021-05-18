@@ -298,6 +298,7 @@ func (d *DaemonClient) SendGetResourceInfoCommand(
 	}
 }
 
+// zzz
 // sendDataToDaemonServer send data only to daemon
 func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort))
