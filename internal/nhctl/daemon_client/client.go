@@ -96,6 +96,7 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 	if err = startDaemonServer(isSudoUser, client.daemonServerListenPort); err != nil {
 		return nil, err
 	}
+
 	// Check Server's version
 	bys, err := client.SendGetDaemonServerInfoCommand()
 	if err != nil {
