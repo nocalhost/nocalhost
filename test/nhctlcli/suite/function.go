@@ -141,6 +141,11 @@ func Upgrade(cli *nhctlcli.CLI, _ ...string) {
 	clientgoutils.Must(testcase.List(cli))
 }
 
+func Profile(cli *nhctlcli.CLI, _ ...string) {
+	util.RetryWith1Params("Profile", []func(*nhctlcli.CLI) error{testcase.Profile}, cli)
+	clientgoutils.Must(testcase.List(cli))
+}
+
 func Install(cli *nhctlcli.CLI, _ ...string) {
 	retryTimes := 5
 	var err error

@@ -17,6 +17,7 @@ import (
 	"io/ioutil"
 	"nocalhost/test/nhctlcli"
 	"sigs.k8s.io/yaml"
+	"time"
 )
 
 func Reset(nhctl *nhctlcli.CLI) error {
@@ -32,6 +33,18 @@ func Upgrade(nhctl *nhctlcli.CLI) error {
 		"--resource-path",
 		"manifest/templates")
 	return nhctlcli.Runner.RunWithCheckResult(cmd)
+}
+
+func Profile(nhctl *nhctlcli.CLI) error {
+	ctx, _ := context.WithTimeout(context.Background(), 1*time.Minute)
+	cmd := nhctl.Command(ctx, "profile",
+		"bookinfo",
+		"-u",
+		"https://github.com/nocalhost/bookinfo.git",
+		"--resource-path",
+		"manifest/templates")
+	nhctlcli.Runner.Run(cmd)
+	return
 }
 
 func Config(nhctl *nhctlcli.CLI) error {
