@@ -13,6 +13,7 @@
 package controller
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
@@ -159,7 +160,7 @@ func (c *Controller) DeletePortForwardFromDB(localPort, remotePort int) error {
 				svcProfile.DevPortForwardList = newList
 				return nil
 			}
-			return nil
+			return errors.New(fmt.Sprintf("Port forward %d-%d not found", localPort, remotePort))
 		},
 	)
 }
