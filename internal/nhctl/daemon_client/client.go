@@ -123,12 +123,12 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 
 		// if from same nhctl
 		if nhctlPath == info.NhctlPath {
-			log.Log("Daemon server need to upgrade")
+			log.Logf("Daemon server [%s] need to upgrade", info.NhctlPath)
 			utils.Should(client.SendRestartDaemonServerCommand())
 		} else {
 			// else do not update the daemon
-			log.Log(
-				"Current nhctl is %s but daemon server use %s, "+
+			log.Logf(
+				"Current nhctl [%s] but daemon server use [%s], "+
 					"nocalhost will not update the daemon automatic.",
 				nhctlPath, info.NhctlPath,
 			)
