@@ -54,7 +54,7 @@ var profileGetCmd = &cobra.Command{
 			}
 			for _, c := range p.ContainerConfigs {
 				if c.Name == container {
-					if c.Dev != nil {
+					if c.Dev != nil && c.Dev.Image != "" {
 						fmt.Printf(`{"image": "%s"}`, c.Dev.Image)
 					}
 					return
