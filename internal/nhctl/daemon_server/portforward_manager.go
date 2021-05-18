@@ -74,7 +74,7 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string
 	profile, err := nocalhost.GetProfileV2(ns, appName)
 	if err != nil {
 		if errors.Is(err, nocalhost.ProfileNotFound){
-			log.Warnf("Profile is not exist, so ignore for recovering")
+			log.Warnf("Profile is not exist, so ignore for recovering port forward")
 			return nil
 		}
 		return err
