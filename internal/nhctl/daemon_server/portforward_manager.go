@@ -88,10 +88,14 @@ func (p *PortForwardManager) ListAllRunningPFGoRoutineProfile() []*daemon_common
 func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string) error {
 	profile, err := nocalhost.GetProfileV2(ns, appName)
 	if err != nil {
+		if errors.Is(err, nocalhost.ProfileNotFound){
+			log.Warnf("Profile is not exist, so ignore for recovering port forward")
+			return nil
+		}
 		return err
 	}
 	if profile == nil {
-		return errors.New("Profile not found")
+		return errors.New(fmt.Sprintf("Profile not found %s-%s", ns, appName))
 	}
 
 	for _, svcProfile := range profile.SvcProfile {

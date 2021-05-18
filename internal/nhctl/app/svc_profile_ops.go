@@ -13,6 +13,7 @@
 package app
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/profile"
@@ -25,8 +26,11 @@ func (a *Application) GetSvcProfile(svcName string, svcType appmeta.SvcType) (*p
 	}
 	svcProfile := profileV2.SvcProfileV2(svcName, string(svcType))
 	if svcProfile == nil {
-		return nil, errors.New("Svc profile not found")
+		return nil, errors.New(
+			fmt.Sprintf(
+				"Svc Profile not found %s-%s-%s", profileV2.Namespace, svcType.String(), svcName,
+			),
+		)
 	}
 	return svcProfile, nil
-
 }

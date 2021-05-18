@@ -127,7 +127,11 @@ var devStartCmd = &cobra.Command{
 			nocalhostSvc.UpdateProfile(
 				func(p *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
 					if svcProfile == nil {
-						return errors.New("Svc profile not found")
+						return errors.New(
+							fmt.Sprintf(
+								"Svc Profile not found %s-%s-%s", p.Namespace, nocalhostSvc.Type, nocalhostSvc.Name,
+							),
+						)
 					}
 					if devStartOps.WorkDir != "" {
 						svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).WorkDir = devStartOps.WorkDir

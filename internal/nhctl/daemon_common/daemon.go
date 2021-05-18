@@ -27,8 +27,9 @@ var (
 )
 
 type DaemonServerInfo struct {
-	Version  string
-	CommitId string
+	Version   string
+	CommitId  string
+	NhctlPath string
 }
 
 type PortForwardProfile struct {

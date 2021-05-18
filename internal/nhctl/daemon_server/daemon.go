@@ -41,6 +41,7 @@ var (
 	pfManager                   *PortForwardManager
 	tcpCtx, tcpCancelFunc       = context.WithCancel(context.Background()) // For stopping listening tcp port
 	daemonCtx, daemonCancelFunc = context.WithCancel(context.Background()) // For exiting current daemon server
+	startUpPath                 string
 )
 
 func init() {
@@ -55,6 +56,8 @@ func daemonListenPort() int {
 }
 
 func StartDaemon(isSudoUser bool, v string, c string) error {
+	startUpPath, _ = utils.GetNhctlPath()
+
 	version = v
 	commitId = c
 	if isSudoUser && !utils.IsSudoUser() {
@@ -83,8 +86,10 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 				}
 
 				if pack.Event.EventType == appmeta.DEV_END {
-					log.Logf("Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName,
-						pack.Event.ResourceName)
+					log.Logf(
+						"Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName,
+						pack.Event.ResourceName,
+					)
 					nhController := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
 					if err := nhController.StopSyncAndPortForwardProcess(true); err != nil {
 						return nil
@@ -97,8 +102,10 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 						return nil
 					}
 
-					log.Logf("Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName,
-						pack.Event.ResourceName)
+					log.Logf(
+						"Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName,
+						pack.Event.ResourceName,
+					)
 					nhController := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
 					if err := nhController.StopAllPortForward(); err != nil {
 						return nil
@@ -123,7 +130,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 			}
 
 			bytes, err := ioutil.ReadAll(conn)
-			cmdType, err := command.ParseCommandType(bytes)
+			cmdType, clientStack, err := command.ParseBaseCommand(bytes)
 			if err != nil {
 				log.LogE(err)
 				continue
@@ -134,7 +141,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 						log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
 					}
 				}()
-				handleCommand(conn, bytes, cmdType)
+				handleCommand(conn, bytes, cmdType, clientStack)
 			}()
 		}
 	}()
@@ -165,9 +172,16 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	}
 }
 
-func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType) {
+func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType, clientStack string) {
 	var err error
 	log.Infof("Handling %s command", cmdType)
+
+	defer func() {
+		if err != nil {
+			log.Log("Client Stack: " + clientStack)
+		}
+	}()
+
 	switch cmdType {
 	case command.StartPortForward:
 		startCmd := &command.PortForwardCommand{}
@@ -196,8 +210,17 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType)
 		}
 		response(conn, &daemon_common.CommonResponse{ErrInfo: errInfo})
 	case command.StopDaemonServer:
+
+		//// compatible, prevent elder version to update daemon, because
+		//// elder version will stop daemon while commit id or version is different
+		//if clientStack == "" {
+		//	log.Logf("Receive elder version of stop daemon cmd, and it should not take effect!")
+		//	return
+		//}
+
 		conn.Close()
 		tcpCancelFunc()
+
 		// todo: clean up resources
 		daemonCancelFunc()
 	case command.RestartDaemonServer:
@@ -209,7 +232,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType)
 		log.Log("New daemon server is starting, exit this one")
 		daemonCancelFunc()
 	case command.GetDaemonServerInfo:
-		info := &daemon_common.DaemonServerInfo{Version: version, CommitId: commitId}
+		info := &daemon_common.DaemonServerInfo{Version: version, CommitId: commitId, NhctlPath: startUpPath}
 		response(conn, info)
 	case command.GetDaemonServerStatus:
 		status := &daemon_common.DaemonServerStatusResponse{
