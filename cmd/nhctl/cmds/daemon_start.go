@@ -36,6 +36,7 @@ var daemonStartCmd = &cobra.Command{
 			must(daemon_client.StartDaemonServer(isSudoUser))
 			return
 		}
+
 		must(daemon_server.StartDaemon(isSudoUser, Version, GitCommit))
 	},
 }
