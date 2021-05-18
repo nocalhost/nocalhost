@@ -13,14 +13,10 @@
 package cmds
 
 import (
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
-	"os"
-	"path/filepath"
 	"time"
 )
 
@@ -52,22 +48,10 @@ var resetCmd = &cobra.Command{
 		}
 
 		// Reset all applications under specify namespace
-		appMap, err := nocalhost.GetNsAndApplicationInfo()
+		metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
 		mustI(err, "Failed to get applications")
-		for ns, appList := range appMap {
-			if ns != nameSpace {
-				continue
-			}
-			for _, appName := range appList {
-				resetApplication(appName)
-			}
-		}
-		// remove ns dir
-		time.Sleep(1 * time.Second)
-		if nameSpace != "" {
-			nsDir := filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), nameSpace)
-			log.Infof("Removing ns dir : %s", nsDir)
-			must(errors.Wrap(os.RemoveAll(nsDir), ""))
+		for _, meta := range metas {
+			resetApplication(meta.Application)
 		}
 	},
 }
