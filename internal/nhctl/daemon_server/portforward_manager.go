@@ -76,7 +76,7 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string
 		return err
 	}
 	if profile == nil {
-		return errors.New("Profile not found")
+		return errors.New(fmt.Sprintf("Profile not found %s-%s", ns, appName))
 	}
 
 	for _, svcProfile := range profile.SvcProfile {

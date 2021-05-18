@@ -13,6 +13,7 @@
 package nocalhost
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"gopkg.in/yaml.v2"
@@ -76,7 +77,7 @@ func GetProfileV2(ns, app string) (*profile.AppProfileV2, error) {
 		}
 	}
 	if len(bys) == 0 {
-		return nil, errors.New("Profile not found")
+		return nil,errors.New(fmt.Sprintf("Profile not found %s-%s", ns, app))
 	}
 
 	result, err := UnmarshalProfileUnStrict(bys)

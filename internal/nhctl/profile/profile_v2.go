@@ -115,7 +115,7 @@ func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
 	}
 	if len(bys) == 0 {
 		_ = db.Close()
-		return nil, errors.New("Profile not found")
+		return nil, errors.New(fmt.Sprintf("Profile not found %s-%s", ns, name))
 	}
 
 	err = yaml.Unmarshal(bys, result)

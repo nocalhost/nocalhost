@@ -115,6 +115,7 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 		//if err = startDaemonServer(isSudoUser, client.daemonServerListenPort); err != nil {
 		//	return nil, err
 		//}
+		// zzz
 		utils.Should(client.SendRestartDaemonServerCommand())
 	}
 	return client, nil
