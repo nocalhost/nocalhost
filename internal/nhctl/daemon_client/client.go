@@ -257,6 +257,14 @@ func (d *DaemonClient) SendStartPortForwardCommand(
 		return err
 	} else {
 		log.Infof("Response: %s", string(bys))
+		resp := &daemon_common.CommonResponse{}
+		err := json.Unmarshal(bys, resp)
+		if err != nil {
+			return errors.Wrap(err, "")
+		}
+		if resp.ErrInfo != "" {
+			return errors.New(resp.ErrInfo)
+		}
 		return nil
 	}
 }
