@@ -250,24 +250,13 @@ func mustI(err error, info string) {
 	}
 }
 
-type Muster struct {
-	deferFunc func()
+func mustP(err error) {
+	mustPI(err, "")
 }
 
-func (m *Muster) must(err error) {
+func mustPI(err error, info string) {
 	if err != nil {
-		if m.deferFunc != nil {
-			m.deferFunc()
-		}
-		mustI(err, "")
-	}
-}
-
-func (m *Muster) mustI(err error, info string) {
-	if err != nil {
-		if m.deferFunc != nil {
-			m.deferFunc()
-		}
-		log.FatalE(err, info)
+		log.ErrorE(err, info)
+		panic(err)
 	}
 }
