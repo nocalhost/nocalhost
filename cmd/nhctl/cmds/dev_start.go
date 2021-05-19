@@ -15,6 +15,10 @@ package cmds
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -25,11 +29,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
-
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -161,12 +160,17 @@ var devStartCmd = &cobra.Command{
 		var devStartSuccess = false
 		defer func() {
 			if !devStartSuccess {
+				log.Infof("Roll backing dev mode... \n")
 				_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type)
+			}
+
+			if r := recover(); r != nil {
+				os.Exit(1)
 			}
 		}()
 
 		newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
-		mustI(err, "Failed to create syncthing process, please try again")
+		mustPI(err, "Failed to create syncthing process, please try again")
 
 		// try install syncthing
 		var downloadVersion = Version
@@ -177,14 +181,14 @@ var devStartCmd = &cobra.Command{
 		}
 
 		_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
-		mustI(
+		mustPI(
 			err, "Failed to install syncthing, no syncthing available locally in "+
 				newSyncthing.BinPath+" please try again.",
 		)
 
 		// set syncthing secret
 		config, err := newSyncthing.GetRemoteConfigXML()
-		must(err)
+		mustP(err)
 
 		syncSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -197,7 +201,7 @@ var devStartCmd = &cobra.Command{
 				"key.pem":    []byte(secret_config.KeyPEM),
 			},
 		}
-		must(nocalhostSvc.CreateSyncThingSecret(syncSecret))
+		mustP(nocalhostSvc.CreateSyncThingSecret(syncSecret))
 
 		// Stop port-forward
 		appProfile, _ := nocalhostApp.GetProfile()
@@ -214,25 +218,25 @@ var devStartCmd = &cobra.Command{
 			if errors.Is(err, nocalhost.CreatePvcFailed) {
 				log.Info("Failed to provision persistent volume due to insufficient resources")
 			}
-			os.Exit(1)
+			mustP(err)
 		}
 
 		podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
-		must(err)
+		mustP(err)
 
 		// mark dev start as true
 		devStartSuccess = true
 		for _, pf := range pfList {
 			utils.Should(nocalhostSvc.PortForward(podName, pf.LocalPort, pf.RemotePort, pf.Role))
 		}
-		must(nocalhostSvc.PortForwardAfterDevStart(devStartOps.Container))
+		mustP(nocalhostSvc.PortForwardAfterDevStart(devStartOps.Container))
 
 		fmt.Println()
 		coloredoutput.Success("Dev container has been updated")
 		fmt.Println()
 
 		nhctl, err := utils.GetNhctlPath()
-		must(err)
+		mustP(err)
 
 		_, err = tools.ExecCommand(
 			nil, true, true, false,

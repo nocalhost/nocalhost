@@ -249,3 +249,14 @@ func mustI(err error, info string) {
 		log.FatalE(err, info)
 	}
 }
+
+func mustP(err error) {
+	mustPI(err, "")
+}
+
+func mustPI(err error, info string) {
+	if err != nil {
+		log.ErrorE(err, info)
+		panic(err)
+	}
+}
