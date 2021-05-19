@@ -15,27 +15,31 @@ package cmds
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"nocalhost/internal/nhctl/daemon_client"
-	"nocalhost/internal/nhctl/utils"
-	"nocalhost/pkg/nhctl/log"
-	"path/filepath"
-	"sigs.k8s.io/yaml"
-
+	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"io/ioutil"
+	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/daemon_handler"
+	"nocalhost/internal/nhctl/utils"
+	"nocalhost/pkg/nhctl/log"
+	"os"
+	"path/filepath"
+	"sigs.k8s.io/yaml"
 )
 
 var outputType string
 
 const JSON = "json"
+const YAML = "yaml"
 
 func init() {
 	getCmd.PersistentFlags().StringVarP(
 		&appName, "application", "a", "", "application name",
 	)
 	getCmd.PersistentFlags().StringVarP(
-		&outputType, "outputType", "o", JSON, "json or yaml",
+		&outputType, "outputType", "o", "", "json or yaml",
 	)
 	rootCmd.AddCommand(getCmd)
 }
@@ -83,18 +87,127 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		if err != nil {
 			log.Fatal(err)
 		}
-		appMeta, err := cli.SendGetResourceInfoCommand(string(bytes), nameSpace, appName, resourceType, resourceName)
-		if appMeta != nil && err == nil {
-			var b []byte
-			var err error
-			if JSON == outputType {
-				b, err = json.Marshal(appMeta)
-			} else {
-				b, err = yaml.Marshal(appMeta)
-			}
-			if err == nil {
-				fmt.Print(string(b))
+		data, err := cli.SendGetResourceInfoCommand(string(bytes), nameSpace, appName, resourceType, resourceName)
+		if data != nil && err == nil {
+			switch outputType {
+			case YAML:
+				if bytes, err = yaml.Marshal(data); err == nil {
+					fmt.Print(string(bytes))
+				}
+			case JSON:
+				if bytes, err = json.Marshal(data); err == nil {
+					fmt.Print(string(bytes))
+				}
+			default:
+				bytes, err = json.Marshal(data)
+				if err != nil {
+					return
+				}
+				switch resourceType {
+				case "all":
+					var results []daemon_handler.Result
+					if err = json.Unmarshal(bytes, &results); err != nil {
+						var result daemon_handler.Result
+						if err = json.Unmarshal(bytes, &result); err == nil {
+							results = append(results, result)
+						}
+					}
+					for _, result := range results {
+						var needsToComplete = true
+						var rows [][]string
+						for _, app := range result.Application {
+							for _, group := range app.Groups {
+								for _, list := range group.List {
+									for _, item := range list.List {
+										if item.Metadata != nil {
+											needsToComplete = false
+											_, name := getNamespaceAndName(item.Metadata)
+											row := []string{result.Namespace, app.Name, group.GroupName, list.Name + "/" + name}
+											rows = append(rows, row)
+										}
+									}
+								}
+							}
+						}
+						if needsToComplete {
+							rows = append(rows, []string{result.Namespace})
+						}
+						write([]string{"Namespace", "Application", "Group", "Name"}, rows)
+					}
+				case "app", "application":
+					var metas []*appmeta.ApplicationMeta
+					if resourceName == "" {
+						_ = json.Unmarshal(bytes, &metas)
+					} else {
+						var meta *appmeta.ApplicationMeta
+						if err := json.Unmarshal(bytes, &meta); err == nil {
+							metas = append(metas, meta)
+						}
+					}
+					var rows [][]string
+					for _, meta := range metas {
+						rows = append(rows, []string{
+							meta.Ns, meta.Application, string(meta.ApplicationType), string(meta.ApplicationState)})
+					}
+					write([]string{"Namespace", "Application", "Type", "State"}, rows)
+				default:
+					var items []daemon_handler.Item
+					if resourceName == "" {
+						_ = json.Unmarshal(bytes, &items)
+					} else {
+						var item daemon_handler.Item
+						if err = json.Unmarshal(bytes, &item); err == nil {
+							items = append(items, item)
+						}
+					}
+					var rows [][]string
+					for _, item := range items {
+						if item.Metadata != nil {
+							namespace, name := getNamespaceAndName(item.Metadata)
+							rows = append(rows, []string{namespace, name})
+						}
+					}
+					write([]string{"namespace", "name"}, rows)
+				}
 			}
 		}
 	},
+}
+
+func write(headers []string, rows [][]string) {
+	writer := tablewriter.NewWriter(os.Stdout)
+	writer.SetBorder(false)
+	writer.SetColumnSeparator("")
+	writer.SetRowSeparator("")
+	writer.SetCenterSeparator("")
+	writer.SetHeaderLine(false)
+	writer.SetHeader(headers)
+	writer.AppendBulk(rows)
+	writer.Render()
+}
+
+type object struct {
+	Metadata metadata `json:"metadata"`
+}
+type metadata struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+}
+
+func (o *object) GetName() string {
+	return o.Metadata.Name
+}
+func (o *object) GetNamespace() string {
+	return o.Metadata.Namespace
+}
+
+func getNamespaceAndName(o interface{}) (namespace, name string) {
+	var obj object
+	marshal, err := json.Marshal(o)
+	utils.Should(err)
+	err = json.Unmarshal(marshal, &obj)
+	utils.Should(err)
+	name = obj.GetName()
+	namespace = obj.GetNamespace()
+	return
 }
