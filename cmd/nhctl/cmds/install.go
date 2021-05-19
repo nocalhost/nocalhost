@@ -249,3 +249,25 @@ func mustI(err error, info string) {
 		log.FatalE(err, info)
 	}
 }
+
+type Muster struct {
+	deferFunc func()
+}
+
+func (m *Muster) must(err error) {
+	if err != nil {
+		if m.deferFunc != nil {
+			m.deferFunc()
+		}
+		mustI(err, "")
+	}
+}
+
+func (m *Muster) mustI(err error, info string) {
+	if err != nil {
+		if m.deferFunc != nil {
+			m.deferFunc()
+		}
+		log.FatalE(err, info)
+	}
+}

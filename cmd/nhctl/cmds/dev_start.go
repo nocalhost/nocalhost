@@ -159,14 +159,17 @@ var devStartCmd = &cobra.Command{
 
 		// prevent dev status modified but not actually enter dev mode
 		var devStartSuccess = false
-		defer func() {
-			if !devStartSuccess {
-				_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type)
-			}
-		}()
+		var muster = &Muster{
+			deferFunc: func() {
+				if !devStartSuccess {
+					log.Infof("Roll backing dev mode... \n")
+					_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type)
+				}
+			},
+		}
 
 		newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
-		mustI(err, "Failed to create syncthing process, please try again")
+		muster.mustI(err, "Failed to create syncthing process, please try again")
 
 		// try install syncthing
 		var downloadVersion = Version
@@ -177,14 +180,14 @@ var devStartCmd = &cobra.Command{
 		}
 
 		_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
-		mustI(
+		muster.mustI(
 			err, "Failed to install syncthing, no syncthing available locally in "+
 				newSyncthing.BinPath+" please try again.",
 		)
 
 		// set syncthing secret
 		config, err := newSyncthing.GetRemoteConfigXML()
-		must(err)
+		muster.must(err)
 
 		syncSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -197,7 +200,7 @@ var devStartCmd = &cobra.Command{
 				"key.pem":    []byte(secret_config.KeyPEM),
 			},
 		}
-		must(nocalhostSvc.CreateSyncThingSecret(syncSecret))
+		muster.must(nocalhostSvc.CreateSyncThingSecret(syncSecret))
 
 		// Stop port-forward
 		appProfile, _ := nocalhostApp.GetProfile()
@@ -218,21 +221,21 @@ var devStartCmd = &cobra.Command{
 		}
 
 		podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
-		must(err)
+		muster.must(err)
 
 		// mark dev start as true
 		devStartSuccess = true
 		for _, pf := range pfList {
 			utils.Should(nocalhostSvc.PortForward(podName, pf.LocalPort, pf.RemotePort, pf.Role))
 		}
-		must(nocalhostSvc.PortForwardAfterDevStart(devStartOps.Container))
+		muster.must(nocalhostSvc.PortForwardAfterDevStart(devStartOps.Container))
 
 		fmt.Println()
 		coloredoutput.Success("Dev container has been updated")
 		fmt.Println()
 
 		nhctl, err := utils.GetNhctlPath()
-		must(err)
+		muster.must(err)
 
 		_, err = tools.ExecCommand(
 			nil, true, true, false,
