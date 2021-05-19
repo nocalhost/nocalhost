@@ -53,41 +53,56 @@ var profileSetCmd = &cobra.Command{
 			log.Fatal("--container must be specified")
 		}
 
-		switch configKey {
-		case "image":
-			nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-				var defaultContainerConfig, targetContainerConfig *profile.ContainerConfig
-				for _, c := range v2.ContainerConfigs {
-					if c.Name == "" {
-						defaultContainerConfig = c
-					} else if c.Name == container {
-						targetContainerConfig = c
-						break
-					}
-				}
-				if targetContainerConfig != nil {
-					if targetContainerConfig.Dev == nil {
-						targetContainerConfig.Dev = &profile.ContainerDevConfig{}
-					}
-					targetContainerConfig.Dev.Image = configVal
-					return nil
-				}
-				if defaultContainerConfig != nil {
-					defaultContainerConfig.Name = container
-					if defaultContainerConfig.Dev == nil {
-						defaultContainerConfig.Dev = &profile.ContainerDevConfig{}
-					}
-					defaultContainerConfig.Dev.Image = configVal
-					return nil
-				}
-				// Create one
-				targetContainerConfig = &profile.ContainerConfig{Dev: &profile.ContainerDevConfig{Image: configVal},
-					Name: container}
-				v2.ContainerConfigs = append(v2.ContainerConfigs, targetContainerConfig)
-				return nil
-			})
-		default:
-			log.Fatalf("Setting config key %s is unsupported", configKey)
+		supportedConfigKey := []string{"image", "git-url"}
+		if !stringSliceContains(supportedConfigKey, configKey) {
+			log.Fatalf("Config key %s is unsupported", configKey)
 		}
+
+		nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
+			var defaultContainerConfig, targetContainerConfig *profile.ContainerConfig
+			for _, c := range v2.ContainerConfigs {
+				if c.Name == "" {
+					defaultContainerConfig = c
+				} else if c.Name == container {
+					targetContainerConfig = c
+					break
+				}
+			}
+			if targetContainerConfig == nil && defaultContainerConfig != nil {
+				defaultContainerConfig.Name = container
+				targetContainerConfig = defaultContainerConfig
+			}
+
+			if targetContainerConfig != nil {
+				if targetContainerConfig.Dev == nil {
+					targetContainerConfig.Dev = &profile.ContainerDevConfig{}
+				}
+				if configKey == "image" {
+					targetContainerConfig.Dev.Image = configVal
+				} else if configKey == "git-url" {
+					targetContainerConfig.Dev.GitUrl = configVal
+				}
+				return nil
+			}
+			// Create one
+			targetContainerConfig = &profile.ContainerConfig{Dev: &profile.ContainerDevConfig{}, Name: container}
+			switch configKey {
+			case "image":
+				targetContainerConfig.Dev.Image = configVal
+			case "git-url":
+				targetContainerConfig.Dev.GitUrl = configVal
+			}
+			v2.ContainerConfigs = append(v2.ContainerConfigs, targetContainerConfig)
+			return nil
+		})
 	},
+}
+
+func stringSliceContains(ss []string, item string) bool {
+	for _, s := range ss {
+		if s == item {
+			return true
+		}
+	}
+	return false
 }
