@@ -56,7 +56,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	var ns string
 	if request.Namespace == "" {
 		config, err := clientcmd.NewClientConfigFromBytes([]byte(request.KubeConfig))
-		if err != nil && config != nil {
+		if err == nil && config != nil {
 			ns, _, _ = config.Namespace()
 		}
 		s, err = resouce_cache.GetSearch(request.KubeConfig, ns)
