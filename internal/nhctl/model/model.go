@@ -27,8 +27,6 @@ type DevStartOptions struct {
 	Container    string
 	//SvcType      string
 
-	Kubeconfig string
-
 	// for debug
 	SyncthingVersion string
 
