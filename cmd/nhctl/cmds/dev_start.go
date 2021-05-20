@@ -201,11 +201,15 @@ func startSyncthing(resume bool) {
 
 	if resume {
 		params = append(params, "--resume")
-		fmt.Println()
-		coloredoutput.Success("File sync resuming")
-	}else {
-		fmt.Println()
-		coloredoutput.Success("File sync starting")
+		defer func() {
+			fmt.Println()
+			coloredoutput.Success("File sync resumed")
+		}()
+	} else {
+		defer func() {
+			fmt.Println()
+			coloredoutput.Success("File sync started")
+		}()
 	}
 
 	_, err = tools.ExecCommand(

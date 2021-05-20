@@ -269,32 +269,20 @@ func (a *Application) LoadSvcCfgFromLocalIfNeeded(svcName, svcType string, force
 		return false
 	}
 
+
+
 	configFile := fp.NewFilePath(svcProfile.Associate).RelOrAbs(DefaultGitNocalhostDir).RelOrAbs(DefaultConfigNameInGitNocalhostDir)
 	if err = configFile.CheckExist(); err != nil {
 		return false
 	}
 
-	content, err := configFile.ReadFileCompel()
-	if err != nil || content == "" {
+	appConfig, err := RenderConfig(configFile.Path)
+	if err != nil {
 		log.LogE(err)
 		return false
 	}
 
 	metaInfo := fmt.Sprintf("[name: %s serviceType: %s]", svcName, svcType)
-
-	appConfig := profile.NocalHostAppConfigV2{}
-	if err := yaml.Unmarshal([]byte(content), &appConfig); err != nil {
-		coloredoutput.Fail(
-			"%-"+strconv.Itoa(indent)+"s %s",
-			metaInfo,
-			fmt.Sprintf(
-				"Load nocalhost svc config from local file %s but fail\n[%s]\nplease fix the issues and try reload config again",
-				configFile.Path, err.Error(),
-			),
-		)
-		return false
-	}
-
 	svcProfileConfig := appConfig.GetSvcConfigV2(svcName, svcType)
 
 	if svcProfileConfig == nil {
