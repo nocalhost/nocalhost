@@ -60,8 +60,8 @@ func installBookInfoRawManifest(nhctl *nhctlcli.CLI) error {
 		"bookinfo",
 		"-u",
 		"https://github.com/nocalhost/bookinfo.git",
-		"-t",
-		"rawManifest",
+		"-t", "rawManifest",
+		"-r", "test-case",
 		"--resource-path",
 		"manifest/templates")
 	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOut(cmd)

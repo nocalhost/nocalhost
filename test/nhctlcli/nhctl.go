@@ -12,11 +12,20 @@
 
 package nhctlcli
 
+import (
+	"os/exec"
+)
+
 func NewNhctl(namespace, kubeconfig string) *CLI {
 	c := &Conf{
 		kubeconfig: kubeconfig,
 		namespace:  namespace,
-		cmd:        "nhctl",
+	}
+	n, err := exec.LookPath("nhctl")
+	if err != nil {
+		c.cmd = "nhctl"
+	} else {
+		c.cmd = n
 	}
 	return NewCLI(c, namespace)
 }

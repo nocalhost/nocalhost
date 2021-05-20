@@ -131,9 +131,14 @@ func GetSearch(kubeconfigBytes string, namespace string) (*Search, error) {
 				continue
 			}
 			informer, err := informerFactory.ForResource(gvr)
-			checkError(err)
-			err = informer.Informer().AddIndexers(indexers)
-			checkError(err)
+			if err != nil {
+				log.Warnf("can't create informer for resource: %v, error info: %v, ignored", gvr, err)
+				continue
+			}
+			if err = informer.Informer().AddIndexers(indexers); err != nil {
+				log.WarnE(err, "informer add indexers error")
+				continue
+			}
 		}
 		stopChannel := make(chan struct{})
 		firstSyncChannel := make(chan struct{})
@@ -426,10 +431,4 @@ func SortByCreateTimestampAsc(item []interface{}) []interface{} {
 		return true
 	})
 	return item
-}
-
-func checkError(err error) {
-	if err != nil {
-		// ignore
-	}
 }

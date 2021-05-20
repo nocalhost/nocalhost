@@ -53,12 +53,9 @@ func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) interface{} {
 	var s *resouce_cache.Search
 	var err error
-	var ns string
+	var ns = request.Namespace
 	if request.Namespace == "" {
-		config, err := clientcmd.NewClientConfigFromBytes([]byte(request.KubeConfig))
-		if err != nil && config != nil {
-			ns, _, _ = config.Namespace()
-		}
+		ns = getNamespace("", []byte(request.KubeConfig))
 		s, err = resouce_cache.GetSearch(request.KubeConfig, ns)
 	} else {
 		s, err = resouce_cache.GetSearch(request.KubeConfig, request.Namespace)
@@ -66,7 +63,6 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	if err != nil {
 		return nil
 	}
-
 	switch request.Resource {
 	case "all":
 		// means it's cluster kubeconfig
@@ -78,15 +74,13 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 					result = append(result, getApplicationByNs(nsObject.(metav1.Object).GetName(), request.KubeConfig, s))
 				}
 				return result
-			} else {
-				// default namespace
-				request.Namespace = ns
 			}
 		}
-		return getApplicationByNs(request.Namespace, request.KubeConfig, s)
+		return getApplicationByNs(ns, request.KubeConfig, s)
 	case "app", "application":
+		ns = getNamespace(request.Namespace, []byte(request.KubeConfig))
 		if request.ResourceName == "" {
-			metas := appmeta_manager.GetApplicationMetas(request.Namespace, request.KubeConfig)
+			metas := appmeta_manager.GetApplicationMetas(ns, request.KubeConfig)
 			if metas != nil {
 				sort.SliceStable(metas, func(i, j int) bool {
 					var n1, n2 string
@@ -104,18 +98,19 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			}
 			return metas
 		} else {
-			return appmeta_manager.GetApplicationMeta(request.Namespace, request.ResourceName, request.KubeConfig)
+			return appmeta_manager.GetApplicationMeta(ns, request.ResourceName, request.KubeConfig)
 		}
 	default:
-		serviceMap := getServiceProfile(request.Namespace, request.ResourceName)
+		ns = getNamespace(request.Namespace, []byte(request.KubeConfig))
+		serviceMap := getServiceProfile(ns, request.ResourceName)
 		// get all resource in namespace
 		var items []interface{}
 		var err error
 		if request.ResourceName == "" {
 			if request.AppName == "" {
-				items, err = s.GetByResourceAndNamespace(request.Resource, "", request.Namespace)
+				items, err = s.GetByResourceAndNamespace(request.Resource, "", ns)
 			} else {
-				items, err = s.GetByResourceAndNameAndAppAndNamespace(request.Resource, "", request.AppName, request.Namespace)
+				items, err = s.GetByResourceAndNameAndAppAndNamespace(request.Resource, "", request.AppName, ns)
 			}
 			if err != nil || len(items) == 0 {
 				return nil
@@ -129,9 +124,9 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		} else {
 			// get specify resource name in namespace
 			if request.AppName == "" {
-				items, err = s.GetByResourceAndNamespace(request.Resource, request.ResourceName, request.Namespace)
+				items, err = s.GetByResourceAndNamespace(request.Resource, request.ResourceName, ns)
 			} else {
-				items, err = s.GetByResourceAndNameAndAppAndNamespace(request.Resource, request.ResourceName, request.AppName, request.Namespace)
+				items, err = s.GetByResourceAndNameAndAppAndNamespace(request.Resource, request.ResourceName, request.AppName, ns)
 			}
 			if err != nil || len(items) == 0 {
 				return nil
@@ -139,6 +134,19 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			return Item{Metadata: items[0], Description: serviceMap[items[0].(metav1.Object).GetName()]}
 		}
 	}
+}
+
+func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
+	if namespace != "" {
+		ns = namespace
+		return
+	}
+	config, err := clientcmd.NewClientConfigFromBytes(kubeconfigBytes)
+	if err == nil && config != nil {
+		ns, _, _ = config.Namespace()
+		return ns
+	}
+	return ""
 }
 
 func getApplicationByNs(ns, kubeconfig string, search *resouce_cache.Search) Result {
@@ -199,6 +207,6 @@ type Resource struct {
 }
 
 type Item struct {
-	Metadata    interface{} `json:"data,omitempty"`
-	Description interface{} `json:"description,omitempty"`
+	Metadata    interface{}           `json:"data,omitempty"`
+	Description *profile.SvcProfileV2 `json:"description,omitempty"`
 }
