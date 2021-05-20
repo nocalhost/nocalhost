@@ -101,7 +101,7 @@ func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
 	return gvrList, uniqueNameToGVR
 }
 
-func GetSearch(kubeconfigBytes string, namespace string) (*Search, error) {
+func GetSearch(kubeconfigBytes string, namespace string, isCluster bool) (*Search, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	// calculate kubeconfig content's sha value as unique cluster id
@@ -119,8 +119,14 @@ func GetSearch(kubeconfigBytes string, namespace string) (*Search, error) {
 			return nil, err
 		}
 
-		informerFactory := informers.NewSharedInformerFactoryWithOptions(
-			Clients, time.Second*5, informers.WithNamespace(namespace))
+		var informerFactory informers.SharedInformerFactory
+		if isCluster {
+			informerFactory = informers.NewSharedInformerFactoryWithOptions(
+				Clients, time.Second*5, informers.WithNamespace(namespace))
+		} else {
+			informerFactory = informers.NewSharedInformerFactory(Clients, time.Second*5)
+		}
+
 		indexers := cache.Indexers{
 			byNamespace:   byNamespaceFunc,
 			byApplication: byApplicationFunc,
