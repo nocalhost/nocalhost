@@ -65,13 +65,18 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	}
 	switch request.Resource {
 	case "all":
+		if request.AppName != "" {
+			return Result{Namespace: ns, Application: []App{getApp(ns, request.AppName, s)}}
+		}
 		// means it's cluster kubeconfig
 		if request.Namespace == "" {
-			nsObjectList, err := s.GetAllByResourceType("namespaces")
+			nsObjectList, err := resouce_cache.NewCriteria(s).ResourceType("namespaces").Query()
 			if err == nil && nsObjectList != nil && len(nsObjectList) > 0 {
 				result := make([]Result, 0, len(nsObjectList))
 				for _, nsObject := range nsObjectList {
-					result = append(result, getApplicationByNs(nsObject.(metav1.Object).GetName(), request.KubeConfig, s))
+					result = append(result,
+						getApplicationByNs(nsObject.(metav1.Object).GetName(), request.KubeConfig, s),
+					)
 				}
 				return result
 			}
@@ -90,7 +95,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 					if metas[j] != nil {
 						n2 = metas[j].Application
 					}
-					if n1 > n2 {
+					if n1 >= n2 {
 						return false
 					}
 					return true
@@ -105,17 +110,11 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		serviceMap := getServiceProfile(ns, request.ResourceName)
 		// get all resource in namespace
 		var items []interface{}
-		var err error
 		if request.ResourceName == "" {
-			if request.AppName == "" {
-				items, err = s.GetByResourceAndNamespace(request.Resource, "", ns)
-			} else {
-				items, err = s.GetByResourceAndNameAndAppAndNamespace(request.Resource, "", request.AppName, ns)
-			}
+			items, err = resouce_cache.NewCriteria(s).ResourceType(request.Resource).AppName(request.AppName).Namespace(ns).Query()
 			if err != nil || len(items) == 0 {
 				return nil
 			}
-			resouce_cache.SortByCreateTimestampAsc(items)
 			result := make([]Item, 0, len(items))
 			for _, i := range items {
 				result = append(result, Item{Metadata: i, Description: serviceMap[i.(metav1.Object).GetName()]})
@@ -123,15 +122,16 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			return result
 		} else {
 			// get specify resource name in namespace
-			if request.AppName == "" {
-				items, err = s.GetByResourceAndNamespace(request.Resource, request.ResourceName, ns)
-			} else {
-				items, err = s.GetByResourceAndNameAndAppAndNamespace(request.Resource, request.ResourceName, request.AppName, ns)
-			}
-			if err != nil || len(items) == 0 {
+			one, err := resouce_cache.NewCriteria(s).
+				ResourceType(request.Resource).
+				ResourceName(request.ResourceName).
+				Namespace(ns).
+				AppName(request.AppName).
+				QueryOne()
+			if err != nil || one == nil {
 				return nil
 			}
-			return Item{Metadata: items[0], Description: serviceMap[items[0].(metav1.Object).GetName()]}
+			return Item{Metadata: one, Description: serviceMap[one.(metav1.Object).GetName()]}
 		}
 	}
 }
@@ -172,7 +172,8 @@ func getApp(namespace, appName string, search *resouce_cache.Search) App {
 	for groupName, types := range groupToTypeMap {
 		resources := make([]Resource, 0, len(types))
 		for _, resource := range types {
-			resourceList, err := search.GetByResourceAndNamespace(resource, "", namespace)
+			resourceList, err := resouce_cache.NewCriteria(search).
+				ResourceType(resource).AppName(appName).Namespace(namespace).Query()
 			if err == nil {
 				items := make([]Item, 0, len(resourceList))
 				for _, v := range resourceList {
