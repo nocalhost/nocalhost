@@ -35,6 +35,7 @@ var (
 	deployment  string
 	serviceType string
 	pod         string
+	shell       string
 )
 
 var devStartOps = &model.DevStartOptions{}
@@ -49,10 +50,22 @@ func init() {
 		&serviceType, "controller-type", "t", "",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
-	devStartCmd.Flags().StringVarP(&devStartOps.DevImage, "image", "i", "", "image of DevContainer")
-	devStartCmd.Flags().StringVarP(&devStartOps.Container, "container", "c", "", "container to develop")
-	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory")
-	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "StorageClass used by PV")
+	devStartCmd.Flags().StringVarP(
+		&devStartOps.DevImage, "image", "i", "",
+		"image of DevContainer",
+	)
+	devStartCmd.Flags().StringVarP(
+		&devStartOps.Container, "container", "c", "",
+		"container to develop",
+	)
+	devStartCmd.Flags().StringVar(
+		&devStartOps.WorkDir, "work-dir", "",
+		"container's work directory",
+	)
+	devStartCmd.Flags().StringVar(
+		&devStartOps.StorageClass, "storage-class", "",
+		"StorageClass used by PV",
+	)
 	devStartCmd.Flags().StringVar(
 		&devStartOps.PriorityClass, "priority-class", "", "PriorityClass used by devContainer",
 	)
@@ -69,6 +82,10 @@ func init() {
 	devStartCmd.Flags().StringSliceVarP(
 		&devStartOps.LocalSyncDir, "local-sync", "s", []string{},
 		"local directory to sync",
+	)
+	devStartCmd.Flags().StringVarP(
+		&shell, "shell", "", "",
+		"shell cmd while enter dev container",
 	)
 	debugCmd.AddCommand(devStartCmd)
 }
@@ -95,10 +112,10 @@ var devStartCmd = &cobra.Command{
 			coloredoutput.Hint("Already in DevMode... entering container")
 
 			podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
-			mustP(err)
+			must(err)
 
 			startSyncthing(true)
-			must(nocalhostSvc.EnterPodTerminal(podName, container))
+			must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
 		} else {
 
 			// 1) reload svc config from local if needed
@@ -119,7 +136,7 @@ var devStartCmd = &cobra.Command{
 			recordingProfile()
 			podName := enterDevMode()
 			startSyncthing(false)
-			must(nocalhostSvc.EnterPodTerminal(podName, container))
+			must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
 		}
 	},
 }

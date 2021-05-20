@@ -19,16 +19,19 @@ import (
 // EnterPodTerminal Try to use shell defined in devContainerShell to enter pod's terminal
 // If devContainerShell is not defined or shell defined in devContainerShell failed to enter terminal, use /bin/sh
 // If container not specified, the first container will be used
-func (c *Controller) EnterPodTerminal(podName, container string) error {
+func (c *Controller) EnterPodTerminal(podName, container string, shell string) error {
 	pod := podName
-	shell := ""
-	profile, _ := c.GetProfile()
-	if profile != nil {
-		devConfig := profile.GetContainerDevConfigOrDefault(container)
-		if devConfig != nil {
-			shell = devConfig.Shell
+
+	if shell == "" {
+		profile, _ := c.GetProfile()
+		if profile != nil {
+			devConfig := profile.GetContainerDevConfigOrDefault(container)
+			if devConfig != nil {
+				shell = devConfig.Shell
+			}
 		}
 	}
+
 	cmd := "(zsh || bash || sh)"
 	if shell != "" {
 		cmd = fmt.Sprintf("(%s || zsh || bash || sh)", shell)
