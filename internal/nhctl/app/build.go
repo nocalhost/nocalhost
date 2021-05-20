@@ -163,7 +163,7 @@ func (a *Application) loadOrGenerateConfig(
 
 	// config.yaml found
 	if configFilePath != "" {
-		if nocalhostConfig, err = renderConfig(configFilePath); err != nil {
+		if nocalhostConfig, err = RenderConfig(configFilePath); err != nil {
 			return nil, err
 		}
 	}
@@ -223,7 +223,7 @@ func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.Ap
 }
 
 // V2
-func renderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) {
+func RenderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) {
 	configFile := fp.NewFilePath(configFilePath)
 
 	var envFile *fp.FilePathEnhance

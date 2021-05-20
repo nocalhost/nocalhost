@@ -21,12 +21,20 @@ import (
 //var container string
 
 func init() {
-	devTerminalCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
-		"k8s deployment which your developing service exists")
-	devTerminalCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
-		"kind of k8s controller,such as deployment,statefulSet")
+	devTerminalCmd.Flags().StringVarP(
+		&deployment, "deployment", "d", "",
+		"k8s deployment which your developing service exists",
+	)
+	devTerminalCmd.Flags().StringVarP(
+		&serviceType, "controller-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet",
+	)
 	devTerminalCmd.Flags().StringVarP(&container, "container", "c", "", "container to enter")
 	devTerminalCmd.Flags().StringVar(&pod, "pod", "", "pod to enter")
+	devTerminalCmd.Flags().StringVarP(
+		&shell, "shell", "", "",
+		"shell cmd while enter dev container",
+	)
 	debugCmd.AddCommand(devTerminalCmd)
 }
 
@@ -51,6 +59,6 @@ var devTerminalCmd = &cobra.Command{
 			}
 			pod = podList[0].Name
 		}
-		must(nocalhostSvc.EnterPodTerminal(pod, container))
+		must(nocalhostSvc.EnterPodTerminal(pod, container, shell))
 	},
 }

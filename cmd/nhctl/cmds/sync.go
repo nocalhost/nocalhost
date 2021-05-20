@@ -79,6 +79,13 @@ var fileSyncCmd = &cobra.Command{
 			log.Fatalf("Service \"%s\" is not in developing", deployment)
 		}
 
+		if !nocalhostSvc.IsProcessor() {
+			log.Fatalf(
+				"Service \"%s\" is not process by current device (DevMode is start by other device),"+
+					" so can not operate the file sync", deployment,
+			)
+		}
+
 		// resume port-forward and syncthing
 		if fileSyncOps.Resume || fileSyncOps.Stop {
 			utils.ShouldI(nocalhostSvc.StopFileSyncOnly(), "Error occurs when stopping sync process")

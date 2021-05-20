@@ -59,6 +59,11 @@ var syncStatusCmd = &cobra.Command{
 			return
 		}
 
+		if !nhSvc.IsProcessor(){
+			display(req.NotProcessor)
+			return
+		}
+
 		client := nhSvc.NewSyncthingHttpClient()
 
 		if syncStatusOps.Override {

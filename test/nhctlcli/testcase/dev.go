@@ -37,19 +37,25 @@ func DevStartT(cli *nhctlcli.CLI, moduleName string, moduleType string) error {
 	if err := os.MkdirAll(fmt.Sprintf("/tmp/%s", moduleName), 0777); err != nil {
 		return errors.Errorf("test case failed, reason: create directory error, error: %v", err)
 	}
-	cmd := cli.Command(context.Background(), "dev",
+	cmd := cli.Command(
+		context.Background(), "dev",
 		"start",
 		"bookinfo",
 		"-d", moduleName,
 		"-s", "/tmp/"+moduleName,
 		"-t", moduleType,
-		"--priority-class", "nocalhost-container-critical")
+		"--priority-class", "nocalhost-container-critical",
+    		// prevent tty to block testcase
+		"--shell", "exit",
+  )
 	if err := nhctlcli.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
 	}
-	util.WaitResourceToBeStatus(cli.Namespace, "pods", "app="+moduleName, func(i interface{}) bool {
-		return i.(*v1.Pod).Status.Phase == v1.PodRunning
-	})
+	util.WaitResourceToBeStatus(
+		cli.Namespace, "pods", "app="+moduleName, func(i interface{}) bool {
+			return i.(*v1.Pod).Status.Phase == v1.PodRunning
+		},
+	)
 	return nil
 }
 
@@ -96,12 +102,16 @@ func SyncCheckT(cli *nhctlcli.CLI, moduleName string, moduleType string) error {
 	var logStr string
 	var ok bool
 	if ok, logStr = util.WaitForCommandDone(kubectl, args...); !ok {
-		return errors.Errorf("test case failed, reason: cat file %s error, command: %s, log: %v",
-			filename, args, logStr)
+		return errors.Errorf(
+			"test case failed, reason: cat file %s error, command: %s, log: %v",
+			filename, args, logStr,
+		)
 	}
 	if !strings.Contains(logStr, content) {
-		return errors.Errorf("test case failed, reason: file content: %s not equals command log: %s",
-			content, logStr)
+		return errors.Errorf(
+			"test case failed, reason: file content: %s not equals command log: %s",
+			content, logStr,
+		)
 	}
 	return nil
 }
@@ -130,15 +140,17 @@ func DevEndT(cli *nhctlcli.CLI, moduleName string, moduleType string) error {
 	if err := nhctlcli.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
 	}
-	util.WaitResourceToBeStatus(cli.Namespace, "pods", "app="+moduleName, func(i interface{}) bool {
-		return i.(*v1.Pod).Status.Phase == v1.PodRunning && func() bool {
-			for _, containerStatus := range i.(*v1.Pod).Status.ContainerStatuses {
-				if containerStatus.Ready {
-					return false
+	util.WaitResourceToBeStatus(
+		cli.Namespace, "pods", "app="+moduleName, func(i interface{}) bool {
+			return i.(*v1.Pod).Status.Phase == v1.PodRunning && func() bool {
+				for _, containerStatus := range i.(*v1.Pod).Status.ContainerStatuses {
+					if containerStatus.Ready {
+						return false
+					}
 				}
-			}
-			return true
-		}()
-	})
+				return true
+			}()
+		},
+	)
 	return nil
 }

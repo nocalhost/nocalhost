@@ -58,6 +58,8 @@ const (
 	DependenceConfigMapPrefix = "nocalhost-depends-do-not-overwrite"
 )
 
+var ErrAlreadyDev = errors.New("Svc already in dev mode")
+
 // resolve Application name by k8s 'metadata.name'
 func GetApplicationName(secretName string) (string, error) {
 	if idx := strings.Index(secretName, "/"); idx > 0 {
@@ -300,7 +302,7 @@ func (a *ApplicationMeta) SvcDevStart(name string, svcType SvcType, identifier s
 	m := devMeta[svcType.Alias()]
 
 	if _, ok := m[name]; ok {
-		return errors.New(fmt.Sprintf("%s %s is already in DevMode! ", svcType, name))
+		return ErrAlreadyDev
 	}
 
 	m[name] = identifier
