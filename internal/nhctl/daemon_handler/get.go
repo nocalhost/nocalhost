@@ -171,17 +171,20 @@ func getApplicationByNs(ns, kubeconfigBytes string, search *resouce_cache.Search
 }
 
 func getApp(namespace, appName string, search *resouce_cache.Searcher) App {
-	groupToTypeMap := map[string][]string{
-		"Workloads":      {"deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods"},
-		"Networks":       {"services", "endpoints", "ingresses", "networkpolicies"},
-		"Configurations": {"configmaps", "secrets", "horizontalpodautoscalers", "resourcequotas", "poddisruptionbudgets"},
-		"Storages":       {"persistentvolumes", "persistentvolumeclaims", "storageclasses"},
+	groupToTypeMap := []struct {
+		k string
+		v []string
+	}{
+		{k: "Workloads", v: []string{"deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods"}},
+		{k: "Networks", v: []string{"services", "endpoints", "ingresses", "networkpolicies"}},
+		{k: "Configurations", v: []string{"configmaps", "secrets", "horizontalpodautoscalers", "resourcequotas", "poddisruptionbudgets"}},
+		{k: "Storages", v: []string{"persistentvolumes", "persistentvolumeclaims", "storageclasses"}},
 	}
 	result := App{Name: appName}
 	profileMap := getServiceProfile(namespace, appName)
-	for groupName, types := range groupToTypeMap {
-		resources := make([]Resource, 0, len(types))
-		for _, resource := range types {
+	for _, entry := range groupToTypeMap {
+		resources := make([]Resource, 0, len(entry.v))
+		for _, resource := range entry.v {
 			resourceList, err := search.Criteria().
 				ResourceType(resource).AppName(appName).Namespace(namespace).Query()
 			if err == nil {
@@ -192,7 +195,7 @@ func getApp(namespace, appName string, search *resouce_cache.Searcher) App {
 				resources = append(resources, Resource{Name: resource, List: items})
 			}
 		}
-		result.Groups = append(result.Groups, Group{GroupName: groupName, List: resources})
+		result.Groups = append(result.Groups, Group{GroupName: entry.k, List: resources})
 	}
 	return result
 }
