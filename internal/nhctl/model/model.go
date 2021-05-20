@@ -25,7 +25,6 @@ type DevStartOptions struct {
 	SideCarImage string
 	DevImage     string
 	Container    string
-	//SvcType      string
 
 	// for debug
 	SyncthingVersion string
@@ -35,4 +34,5 @@ type DevStartOptions struct {
 	StorageClass  string
 	PriorityClass string
 
+	Terminal bool
 }

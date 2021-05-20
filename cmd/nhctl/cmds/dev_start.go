@@ -83,9 +83,13 @@ func init() {
 		&devStartOps.LocalSyncDir, "local-sync", "s", []string{},
 		"local directory to sync",
 	)
+	devStartCmd.Flags().BoolVar(
+		&devStartOps.Terminal, "terminal", false,
+		"enter terminal while dev start success",
+	)
 	devStartCmd.Flags().StringVarP(
 		&shell, "shell", "", "",
-		"shell cmd while enter dev container",
+		"use current shell cmd to enter terminal while dev start success",
 	)
 	debugCmd.AddCommand(devStartCmd)
 }
@@ -109,7 +113,7 @@ var devStartCmd = &cobra.Command{
 		}
 
 		if nocalhostSvc.IsInDevMode() {
-			coloredoutput.Hint("Already in DevMode... entering container")
+			coloredoutput.Hint("Already in DevMode...")
 
 			podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
 			must(err)
@@ -118,7 +122,10 @@ var devStartCmd = &cobra.Command{
 				startSyncthing(true)
 			}
 
-			must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
+			if devStartOps.Terminal || shell != "" {
+				must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
+			}
+
 		} else {
 
 			// 1) reload svc config from local if needed
@@ -139,7 +146,10 @@ var devStartCmd = &cobra.Command{
 			recordingProfile()
 			podName := enterDevMode()
 			startSyncthing(false)
-			must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
+
+			if devStartOps.Terminal || shell != "" {
+				must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
+			}
 		}
 	},
 }
