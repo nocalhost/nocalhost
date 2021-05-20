@@ -75,6 +75,18 @@ func Sync(cli *nhctlcli.CLI, _ ...string) {
 	_ = testcase.DevEnd(cli, module)
 }
 
+func StatefulSet(cli *nhctlcli.CLI, _ ...string) {
+	module := "web"
+	moduleType := "statefulset"
+	funcs := []func() error{
+		func() error { return testcase.DevStartT(cli, module, moduleType) },
+		func() error { return testcase.SyncT(cli, module, moduleType) },
+		func() error { return testcase.SyncCheckT(cli, module, moduleType) },
+		func() error { return testcase.DevEndT(cli, module, moduleType) },
+	}
+	util.Retry("StatefulSet", funcs)
+}
+
 func Compatible(cli *nhctlcli.CLI, p ...string) {
 	module := "ratings"
 	port := 49080
