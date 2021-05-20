@@ -114,7 +114,10 @@ var devStartCmd = &cobra.Command{
 			podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
 			must(err)
 
-			startSyncthing(true)
+			if nocalhostSvc.IsProcessor() {
+				startSyncthing(true)
+			}
+
 			must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
 		} else {
 
