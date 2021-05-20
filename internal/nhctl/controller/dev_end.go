@@ -15,11 +15,12 @@ package controller
 import (
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 )
 
 func (c *Controller) DevEnd(reset bool) error {
 	if err := c.StopSyncAndPortForwardProcess(true); err != nil {
-		if !reset {
+		if !reset && !os.IsNotExist(err) {
 			return err // `dev end` must make sure syncthing is terminated
 		}
 		log.WarnE(err, "StopSyncAndPortForwardProcess failed")

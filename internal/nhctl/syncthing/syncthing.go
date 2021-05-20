@@ -299,15 +299,6 @@ func Stop(pid int, pidFilePath string, force bool) error {
 		return err
 	}
 	return nil
-
-	// Don't remove pid file
-	//if err := os.Remove(pidFilePath); err != nil {
-	//	if os.IsNotExist(err) {
-	//		return nil
-	//	}
-	//	fmt.Printf("failed to delete pidfile %d: %s", pid, err)
-	//}
-	//return nil
 }
 
 func (s *Syncthing) GetRemoteConfigXML() ([]byte, error) {

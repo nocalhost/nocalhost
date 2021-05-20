@@ -79,7 +79,7 @@ func (c *Controller) GetSyncThingPid() (int, string, error) {
 	pidFile := c.GetSyncThingPidFile()
 	f, err := ioutil.ReadFile(pidFile)
 	if err != nil {
-		return 0, pidFile, errors.Wrap(err, "")
+		return 0, pidFile, err
 	}
 	port, err := strconv.Atoi(string(f))
 	if err != nil {
