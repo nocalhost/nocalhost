@@ -38,11 +38,11 @@ const (
 	byAppAndNs    = "byAppAndNs"
 )
 
-// cache Search for each kubeconfig
-var searchMap = NewLRU(10, func(i interface{}) { i.(*Search).Stop() })
+// cache Searcher for each kubeconfig
+var searchMap = NewLRU(10, func(i interface{}) { i.(*Searcher).Stop() })
 var lock sync.Mutex
 
-type Search struct {
+type Searcher struct {
 	kubeconfig      string
 	informerFactory informers.SharedInformerFactory
 	supportSchema   map[string]schema.GroupVersionResource
@@ -101,7 +101,7 @@ func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
 	return gvrList, uniqueNameToGVR
 }
 
-func GetSearch(kubeconfigBytes string, namespace string, isCluster bool) (*Search, error) {
+func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Searcher, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	// calculate kubeconfig content's sha value as unique cluster id
@@ -162,7 +162,7 @@ func GetSearch(kubeconfigBytes string, namespace string, isCluster bool) (*Searc
 		}()
 		<-firstSyncChannel
 
-		newSearcher := &Search{
+		newSearcher := &Searcher{
 			kubeconfig:      kubeconfigBytes,
 			informerFactory: informerFactory,
 			supportSchema:   name2gvr,
@@ -171,18 +171,18 @@ func GetSearch(kubeconfigBytes string, namespace string, isCluster bool) (*Searc
 		searchMap.Add(sum, newSearcher)
 	}
 	searcher, _ = searchMap.Get(sum)
-	return searcher.(*Search), nil
+	return searcher.(*Searcher), nil
 }
 
-func (s *Search) Start() {
+func (s *Searcher) Start() {
 	<-s.stopChannel
 }
 
-func (s *Search) Stop() {
+func (s *Searcher) Stop() {
 	s.stopChannel <- struct{}{}
 }
 
-func (s *Search) GetGvr(resourceType string) (schema.GroupVersionResource, error) {
+func (s *Searcher) GetGvr(resourceType string) (schema.GroupVersionResource, error) {
 	if !s.supportSchema[resourceType].Empty() {
 		return s.supportSchema[resourceType], nil
 	}
@@ -235,8 +235,12 @@ func SortByNameAsc(item []interface{}) {
 	})
 }
 
-type Criteria struct {
-	search *Search
+func (s *Searcher) Criteria() *criteria {
+	return newCriteria(s)
+}
+
+type criteria struct {
+	search *Searcher
 	// those two just needs one is enough
 	kind         runtime.Object
 	resourceType string
@@ -246,35 +250,35 @@ type Criteria struct {
 	ns           string
 }
 
-func NewCriteria(search *Search) *Criteria {
-	return &Criteria{search: search}
+func newCriteria(search *Searcher) *criteria {
+	return &criteria{search: search}
 }
-func (c *Criteria) Namespace(namespace string) *Criteria {
+func (c *criteria) Namespace(namespace string) *criteria {
 	c.ns = namespace
 	return c
 }
 
-func (c *Criteria) AppName(appName string) *Criteria {
+func (c *criteria) AppName(appName string) *criteria {
 	c.appName = appName
 	return c
 }
 
-func (c *Criteria) ResourceType(resourceType string) *Criteria {
+func (c *criteria) ResourceType(resourceType string) *criteria {
 	c.resourceType = resourceType
 	return c
 }
 
-func (c *Criteria) Kind(object runtime.Object) *Criteria {
+func (c *criteria) Kind(object runtime.Object) *criteria {
 	c.kind = object
 	return c
 }
 
-func (c *Criteria) ResourceName(resourceName string) *Criteria {
+func (c *criteria) ResourceName(resourceName string) *criteria {
 	c.resourceName = resourceName
 	return c
 }
 
-func (c Criteria) QueryOne() (interface{}, error) {
+func (c *criteria) QueryOne() (interface{}, error) {
 	query, err := c.Query()
 	if err != nil {
 		return nil, err
@@ -285,7 +289,7 @@ func (c Criteria) QueryOne() (interface{}, error) {
 	return query[0], nil
 }
 
-func (c *Criteria) Query() (data []interface{}, e error) {
+func (c *criteria) Query() (data []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)

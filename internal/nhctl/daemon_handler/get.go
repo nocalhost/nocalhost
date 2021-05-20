@@ -51,14 +51,14 @@ func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 }
 
 func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) interface{} {
-	var s *resouce_cache.Search
+	var s *resouce_cache.Searcher
 	var err error
 	var ns = request.Namespace
 	if request.Namespace == "" {
 		ns = getNamespace("", []byte(request.KubeConfig))
-		s, err = resouce_cache.GetSearch(request.KubeConfig, ns, false)
+		s, err = resouce_cache.GetSearcher(request.KubeConfig, ns, false)
 	} else {
-		s, err = resouce_cache.GetSearch(request.KubeConfig, request.Namespace, false)
+		s, err = resouce_cache.GetSearcher(request.KubeConfig, request.Namespace, false)
 	}
 	if err != nil {
 		return nil
@@ -70,23 +70,23 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		}
 		// means it's cluster kubeconfig
 		if request.Namespace == "" {
-			nsObjectList, err := resouce_cache.NewCriteria(s).ResourceType("namespaces").Query()
+			nsObjectList, err := s.Criteria().ResourceType("namespaces").Query()
 			if err == nil && nsObjectList != nil && len(nsObjectList) > 0 {
 				result := make([]Result, 0, len(nsObjectList))
-				// try to init a cluster level search
-				search, err2 := resouce_cache.GetSearch(request.KubeConfig, "", true)
+				// try to init a cluster level searcher
+				searcher, err2 := resouce_cache.GetSearcher(request.KubeConfig, "", true)
 				for _, nsObject := range nsObjectList {
 					name := nsObject.(metav1.Object).GetName()
 					if err2 != nil {
 						log.Error(err2)
-						// if cluster level search init failed, then try to init a namespace level search
-						search, err2 = resouce_cache.GetSearch(request.KubeConfig, name, false)
+						// if cluster level searcher init failed, then try to init a namespace level searcher
+						searcher, err2 = resouce_cache.GetSearcher(request.KubeConfig, name, false)
 						if err2 != nil {
 							log.Error(err2)
 							continue
 						}
 					}
-					result = append(result, getApplicationByNs(name, request.KubeConfig, search))
+					result = append(result, getApplicationByNs(name, request.KubeConfig, searcher))
 				}
 				return result
 			}
@@ -121,7 +121,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		// get all resource in namespace
 		var items []interface{}
 		if request.ResourceName == "" {
-			items, err = resouce_cache.NewCriteria(s).ResourceType(request.Resource).AppName(request.AppName).Namespace(ns).Query()
+			items, err = s.Criteria().ResourceType(request.Resource).AppName(request.AppName).Namespace(ns).Query()
 			if err != nil || len(items) == 0 {
 				return nil
 			}
@@ -132,7 +132,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			return result
 		} else {
 			// get specify resource name in namespace
-			one, err := resouce_cache.NewCriteria(s).
+			one, err := s.Criteria().
 				ResourceType(request.Resource).
 				ResourceName(request.ResourceName).
 				Namespace(ns).
@@ -159,7 +159,7 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 	return ""
 }
 
-func getApplicationByNs(ns, kubeconfigBytes string, search *resouce_cache.Search) Result {
+func getApplicationByNs(ns, kubeconfigBytes string, search *resouce_cache.Searcher) Result {
 	result := Result{Namespace: ns}
 	applicationMetaList := appmeta_manager.GetApplicationMetas(ns, kubeconfigBytes)
 	for _, applicationMeta := range applicationMetaList {
@@ -170,7 +170,7 @@ func getApplicationByNs(ns, kubeconfigBytes string, search *resouce_cache.Search
 	return result
 }
 
-func getApp(namespace, appName string, search *resouce_cache.Search) App {
+func getApp(namespace, appName string, search *resouce_cache.Searcher) App {
 	groupToTypeMap := map[string][]string{
 		"Workloads":      {"deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods"},
 		"Networks":       {"services", "endpoints", "ingresses", "networkpolicies"},
@@ -182,7 +182,7 @@ func getApp(namespace, appName string, search *resouce_cache.Search) App {
 	for groupName, types := range groupToTypeMap {
 		resources := make([]Resource, 0, len(types))
 		for _, resource := range types {
-			resourceList, err := resouce_cache.NewCriteria(search).
+			resourceList, err := search.Criteria().
 				ResourceType(resource).AppName(appName).Namespace(namespace).Query()
 			if err == nil {
 				items := make([]Item, 0, len(resourceList))
