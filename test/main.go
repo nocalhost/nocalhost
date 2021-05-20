@@ -20,7 +20,7 @@ func main() {
 	cli, _, v2, cancelFunc := suite.Prepare()
 	t := suite.T{Cli: cli, CleanFunc: cancelFunc}
 
-	// For local test
+	// For local test11
 	//cli := nhctlcli.NewNhctl("nhtest1", utils.GetHomePath()+"/.kube/config")
 	//clientgoutils.Must(util.Init(cli))
 	//t := suite.T{Cli: cli}
