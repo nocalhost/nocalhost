@@ -246,5 +246,7 @@ var devStartCmd = &cobra.Command{
 
 		fmt.Println()
 		coloredoutput.Success("File sync started")
+
+		must(nocalhostSvc.EnterPodTerminal(podName, container))
 	},
 }
