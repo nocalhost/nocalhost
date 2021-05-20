@@ -108,7 +108,7 @@ var devStartCmd = &cobra.Command{
 			log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
 
-		if nocalhostApp.GetAppMeta().CheckIfSvcDeveloping(nocalhostSvc.Name, nocalhostSvc.Type) {
+		if nocalhostSvc.IsInDevMode() {
 			coloredoutput.Hint("Already in DevMode... entering container")
 
 			podName, err := nocalhostSvc.GetNocalhostDevContainerPod()

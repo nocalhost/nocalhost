@@ -34,6 +34,14 @@ func (c *Controller) IsInDevMode() bool {
 	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type)
 }
 
+func (c *Controller) IsProcessor() bool {
+	appProfile, err := c.GetAppProfile()
+	if err != nil {
+		return false
+	}
+	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, appProfile.Identifier)
+}
+
 func (c *Controller) CheckIfExist() (bool, error) {
 	var err error
 	switch c.Type {
@@ -64,7 +72,7 @@ func (c *Controller) GetDescription() *profile.SvcProfileV2 {
 	svcProfile := appProfile.SvcProfileV2(c.Name, string(c.Type))
 	if svcProfile != nil {
 		svcProfile.Developing = c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type)
-		svcProfile.Possess = c.AppMeta.SvcDevModePossessor(c.Name, c.Type, appProfile.Identifier)
+		svcProfile.Possess = c.IsProcessor()
 		return svcProfile
 	}
 	return nil
