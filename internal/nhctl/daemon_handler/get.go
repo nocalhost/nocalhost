@@ -56,9 +56,9 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	var ns = request.Namespace
 	if request.Namespace == "" {
 		ns = getNamespace("", []byte(request.KubeConfig))
-		s, err = resouce_cache.GetSearch(request.KubeConfig, ns)
+		s, err = resouce_cache.GetSearch(request.KubeConfig, ns, false)
 	} else {
-		s, err = resouce_cache.GetSearch(request.KubeConfig, request.Namespace)
+		s, err = resouce_cache.GetSearch(request.KubeConfig, request.Namespace, false)
 	}
 	if err != nil {
 		return nil
@@ -73,10 +73,20 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			nsObjectList, err := resouce_cache.NewCriteria(s).ResourceType("namespaces").Query()
 			if err == nil && nsObjectList != nil && len(nsObjectList) > 0 {
 				result := make([]Result, 0, len(nsObjectList))
+				// try to init a cluster level search
+				search, err2 := resouce_cache.GetSearch(request.KubeConfig, "", true)
 				for _, nsObject := range nsObjectList {
-					result = append(result,
-						getApplicationByNs(nsObject.(metav1.Object).GetName(), request.KubeConfig, s),
-					)
+					name := nsObject.(metav1.Object).GetName()
+					if err2 != nil {
+						log.Error(err2)
+						// if cluster level search init failed, then try to init a namespace level search
+						search, err2 = resouce_cache.GetSearch(request.KubeConfig, name, false)
+						if err2 != nil {
+							log.Error(err2)
+							continue
+						}
+					}
+					result = append(result, getApplicationByNs(name, request.KubeConfig, search))
 				}
 				return result
 			}
@@ -149,9 +159,9 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 	return ""
 }
 
-func getApplicationByNs(ns, kubeconfig string, search *resouce_cache.Search) Result {
+func getApplicationByNs(ns, kubeconfigBytes string, search *resouce_cache.Search) Result {
 	result := Result{Namespace: ns}
-	applicationMetaList := appmeta_manager.GetApplicationMetas(ns, kubeconfig)
+	applicationMetaList := appmeta_manager.GetApplicationMetas(ns, kubeconfigBytes)
 	for _, applicationMeta := range applicationMetaList {
 		if applicationMeta != nil {
 			result.Application = append(result.Application, getApp(ns, applicationMeta.Application, search))
