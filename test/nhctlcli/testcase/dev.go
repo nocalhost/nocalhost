@@ -30,6 +30,10 @@ import (
 )
 
 func DevStart(cli *nhctlcli.CLI, moduleName string) error {
+	return DevStartT(cli, moduleName, "")
+}
+
+func DevStartT(cli *nhctlcli.CLI, moduleName string, moduleType string) error {
 	if err := os.MkdirAll(fmt.Sprintf("/tmp/%s", moduleName), 0777); err != nil {
 		return errors.Errorf("test case failed, reason: create directory error, error: %v", err)
 	}
@@ -38,6 +42,7 @@ func DevStart(cli *nhctlcli.CLI, moduleName string) error {
 		"bookinfo",
 		"-d", moduleName,
 		"-s", "/tmp/"+moduleName,
+		"-t", moduleType,
 		"--priority-class", "nocalhost-container-critical")
 	if err := nhctlcli.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
@@ -49,23 +54,33 @@ func DevStart(cli *nhctlcli.CLI, moduleName string) error {
 }
 
 func Sync(cli *nhctlcli.CLI, moduleName string) error {
-	cmd := cli.Command(context.Background(), "sync", "bookinfo", "-d", moduleName)
+	return SyncT(cli, moduleName, "")
+}
+
+func SyncT(cli *nhctlcli.CLI, moduleName string, moduleType string) error {
+	cmd := cli.Command(context.Background(), "sync", "bookinfo", "-d", moduleName, "-t", moduleType)
 	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
 
 func SyncCheck(cli *nhctlcli.CLI, moduleName string) error {
+	return SyncCheckT(cli, moduleName, "deployment")
+}
+
+func SyncCheckT(cli *nhctlcli.CLI, moduleName string, moduleType string) error {
 	filename := "hello.test"
 	content := "this is a test, random string: " + uuid.New().String()
 	if err := ioutil.WriteFile(fmt.Sprintf("/tmp/%s/%s", moduleName, filename), []byte(content), 0644); err != nil {
 		return errors.Errorf("test case failed, reason: write file %s error: %v", filename, err)
 	}
 	// wait file to be synchronize
-	time.Sleep(30 * time.Second)
+	time.Sleep(10 * time.Second)
+	if moduleType == "" {
+		moduleType = "deployment"
+	}
 	// not use nhctl exec is just because nhctl exec will stuck while cat file
 	args := []string{
 		"exec",
-		"-t",
-		"deployment/" + moduleName,
+		"-t", fmt.Sprintf("%s/%s", moduleType, moduleName),
 		"-n", cli.Namespace,
 		"--kubeconfig",
 		cli.KubeConfig,
@@ -107,7 +122,11 @@ func PortForwardCheck(port int) error {
 }
 
 func DevEnd(cli *nhctlcli.CLI, moduleName string) error {
-	cmd := cli.Command(context.Background(), "dev", "end", "bookinfo", "-d", moduleName)
+	return DevEndT(cli, moduleName, "")
+}
+
+func DevEndT(cli *nhctlcli.CLI, moduleName string, moduleType string) error {
+	cmd := cli.Command(context.Background(), "dev", "end", "bookinfo", "-d", moduleName, "-t", moduleType)
 	if err := nhctlcli.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
 	}

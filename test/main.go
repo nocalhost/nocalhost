@@ -19,6 +19,12 @@ import (
 func main() {
 	cli, _, v2, cancelFunc := suite.Prepare()
 	t := suite.T{Cli: cli, CleanFunc: cancelFunc}
+
+	// For local test
+	//cli := nhctlcli.NewNhctl("nhtest1", utils.GetHomePath()+"/.kube/config")
+	//clientgoutils.Must(util.Init(cli))
+	//t := suite.T{Cli: cli}
+
 	t.Run("install", suite.Install)
 	t.Run("dev", suite.Dev)
 	t.Run("port-forward", suite.PortForward)
@@ -28,6 +34,7 @@ func main() {
 	t.Run("reset", suite.Reset)
 	t.Run("apply", suite.Apply)
 	t.Run("profile", suite.Profile)
+	t.Run("statefulSet", suite.StatefulSet)
 	t.Run("compatible", suite.Compatible, v2)
 	t.Clean()
 }
