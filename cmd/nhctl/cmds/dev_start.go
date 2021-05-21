@@ -27,7 +27,6 @@ import (
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/tools"
 	"os"
 )
 
@@ -221,32 +220,19 @@ func stopPreviousSyncthing() {
 }
 
 func startSyncthing(resume bool) {
-	nhctl, err := utils.GetNhctlPath()
-	must(err)
-
-	var params = []string{
-		"sync", nocalhostApp.Name, "-d", nocalhostSvc.Name, "-t", nocalhostSvc.Type.String(),
-		"--kubeconfig", kubeConfig, "-n", nameSpace,
-	}
-
 	if resume {
-		params = append(params, "--resume")
+		StartSyncthing(true, false, "", false, true)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync resumed")
 		}()
 	} else {
+		StartSyncthing(false, false, "", false, true)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync started")
 		}()
 	}
-
-	_, err = tools.ExecCommand(
-		nil, true, true, false,
-		nhctl, params...,
-	)
-	must(err)
 }
 
 func enterDevMode() string {

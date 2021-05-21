@@ -31,9 +31,10 @@ const (
 	GetApplicationMetas   DaemonCommandType = "GetApplicationMetas"
 	GetResourceInfo       DaemonCommandType = "GetResourceInfo"
 
-	SUCCESS       = 0
-	FAIL          = 1
-	INTERNAL_FAIL = 2
+	PREVIEW_VERSION = 0
+	SUCCESS         = 200
+	FAIL            = 400
+	INTERNAL_FAIL   = 500
 )
 
 type BaseCommand struct {
