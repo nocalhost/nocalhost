@@ -60,7 +60,7 @@ require (
 	github.com/willf/pad v0.0.0-20200313202418-172aa767f2a4
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da // indirect
 	go.uber.org/zap v1.15.0
-	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
+	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
 	golang.org/x/text v0.3.4
 	google.golang.org/grpc v1.27.1
@@ -74,6 +74,7 @@ require (
 	k8s.io/cli-runtime v0.21.0-alpha.1
 	k8s.io/client-go v0.21.0-alpha.1
 	k8s.io/kubectl v0.21.0-alpha.1
+	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
 	sigs.k8s.io/kustomize v2.0.3+incompatible
 	sigs.k8s.io/yaml v1.2.0
 )
