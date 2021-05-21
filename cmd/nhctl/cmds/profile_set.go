@@ -22,6 +22,11 @@ import (
 var configKey string
 var configVal string
 
+const (
+	imageKey  = "image"
+	gitUrlKey = "gitUrl"
+)
+
 func init() {
 	profileSetCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s workload name")
 	profileSetCmd.Flags().StringVarP(&serviceType, "type", "t", "deployment", "specify service type")
@@ -53,7 +58,7 @@ var profileSetCmd = &cobra.Command{
 			log.Fatal("--container must be specified")
 		}
 
-		supportedConfigKey := []string{"image", "git-url"}
+		supportedConfigKey := []string{imageKey, gitUrlKey}
 		if !stringSliceContains(supportedConfigKey, configKey) {
 			log.Fatalf("Config key %s is unsupported", configKey)
 		}
@@ -77,9 +82,9 @@ var profileSetCmd = &cobra.Command{
 				if targetContainerConfig.Dev == nil {
 					targetContainerConfig.Dev = &profile.ContainerDevConfig{}
 				}
-				if configKey == "image" {
+				if configKey == imageKey {
 					targetContainerConfig.Dev.Image = configVal
-				} else if configKey == "git-url" {
+				} else if configKey == gitUrlKey {
 					targetContainerConfig.Dev.GitUrl = configVal
 				}
 				return nil
@@ -87,9 +92,9 @@ var profileSetCmd = &cobra.Command{
 			// Create one
 			targetContainerConfig = &profile.ContainerConfig{Dev: &profile.ContainerDevConfig{}, Name: container}
 			switch configKey {
-			case "image":
+			case imageKey:
 				targetContainerConfig.Dev.Image = configVal
-			case "git-url":
+			case gitUrlKey:
 				targetContainerConfig.Dev.GitUrl = configVal
 			}
 			v2.ContainerConfigs = append(v2.ContainerConfigs, targetContainerConfig)
