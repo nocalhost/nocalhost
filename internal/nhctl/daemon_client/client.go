@@ -98,13 +98,7 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 	}
 
 	// Check Server's version
-	bys, err := client.SendGetDaemonServerInfoCommand()
-	if err != nil {
-		return nil, err
-	}
-
-	info := &daemon_common.DaemonServerInfo{}
-	err = json.Unmarshal(bys, info)
+	daemonServerInfo, err := client.SendGetDaemonServerInfoCommand()
 	if err != nil {
 		return nil, err
 	}
@@ -112,25 +106,25 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 	nhctlPath, _ := utils.GetNhctlPath()
 
 	// force update earlier version
-	if info.NhctlPath == "" {
+	if daemonServerInfo.NhctlPath == "" {
 		log.Log("Daemon server need to stop and re start")
 		utils.Should(client.SendStopDaemonServerCommand())
 		utils.Should(waitForTCPPortToBeDown(client.daemonServerListenPort, 10*time.Second))
 		if err = startDaemonServer(isSudoUser, client.daemonServerListenPort); err != nil {
 			return nil, err
 		}
-	} else if info.Version != daemon_common.Version || info.CommitId != daemon_common.CommitId {
+	} else if daemonServerInfo.Version != daemon_common.Version || daemonServerInfo.CommitId != daemon_common.CommitId {
 
 		// if from same nhctl
-		if nhctlPath == info.NhctlPath {
-			log.Logf("Daemon server [%s] need to upgrade", info.NhctlPath)
+		if nhctlPath == daemonServerInfo.NhctlPath {
+			log.Logf("Daemon server [%s] need to upgrade", daemonServerInfo.NhctlPath)
 			utils.Should(client.SendRestartDaemonServerCommand())
 		} else {
 			// else do not update the daemon
 			log.Logf(
 				"Current nhctl [%s] but daemon server use [%s], "+
 					"nocalhost will not update the daemon automatic.",
-				nhctlPath, info.NhctlPath,
+				nhctlPath, daemonServerInfo.NhctlPath,
 			)
 		}
 	}
@@ -151,13 +145,18 @@ func startDaemonServer(isSudoUser bool, port int) error {
 	return nil
 }
 
-func (d *DaemonClient) SendGetDaemonServerInfoCommand() ([]byte, error) {
+func (d *DaemonClient) SendGetDaemonServerInfoCommand() (*daemon_common.DaemonServerInfo, error) {
 	cmd := &command.BaseCommand{CommandType: command.GetDaemonServerInfo, ClientStack: string(debug.Stack())}
 	bys, err := json.Marshal(cmd)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
-	return d.sendAndWaitForResponse(bys)
+
+	daemonServerInfo := &daemon_common.DaemonServerInfo{}
+	if err := d.sendAndWaitForResponse(bys, daemonServerInfo); err != nil {
+		return nil, err
+	}
+	return daemonServerInfo, err
 }
 
 func (d *DaemonClient) SendRestartDaemonServerCommand() error {
@@ -178,18 +177,18 @@ func (d *DaemonClient) SendStopDaemonServerCommand() error {
 	return d.sendDataToDaemonServer(bys)
 }
 
-func (d *DaemonClient) SendGetDaemonServerStatusCommand() error {
+func (d *DaemonClient) SendGetDaemonServerStatusCommand() (*daemon_common.DaemonServerStatusResponse, error) {
 	cmd := &command.BaseCommand{CommandType: command.GetDaemonServerStatus, ClientStack: string(debug.Stack())}
 	bys, err := json.Marshal(cmd)
 	if err != nil {
-		return errors.Wrap(err, "")
+		return nil, errors.Wrap(err, "")
 	}
-	bys, err = d.sendAndWaitForResponse(bys)
-	if err != nil {
-		return err
+
+	status := &daemon_common.DaemonServerStatusResponse{}
+	if err = d.sendAndWaitForResponse(bys, status); err != nil {
+		return nil, err
 	}
-	log.Infof("%s", string(bys))
-	return nil
+	return status, nil
 }
 
 func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfig string) (*appmeta.ApplicationMeta, error) {
@@ -203,13 +202,12 @@ func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfig str
 	}
 
 	bys, err := json.Marshal(gamCmd)
-	if bys, err = d.sendAndWaitForResponse(bys); err != nil {
+
+	meta := &appmeta.ApplicationMeta{}
+	if err = d.sendAndWaitForResponse(bys, meta); err != nil {
 		return nil, err
-	} else {
-		meta := &appmeta.ApplicationMeta{}
-		err := json.Unmarshal(bys, meta)
-		return meta, err
 	}
+	return meta, nil
 }
 
 func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]*appmeta.ApplicationMeta, error) {
@@ -222,13 +220,12 @@ func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]
 	}
 
 	bys, err := json.Marshal(gamCmd)
-	if bys, err = d.sendAndWaitForResponse(bys); err != nil {
+
+	var meta []*appmeta.ApplicationMeta
+	if err = d.sendAndWaitForResponse(bys, &meta); err != nil {
 		return nil, err
-	} else {
-		var meta []*appmeta.ApplicationMeta
-		err := json.Unmarshal(bys, &meta)
-		return meta, err
 	}
+	return meta, nil
 }
 
 func (d *DaemonClient) SendStartPortForwardCommand(
@@ -253,20 +250,9 @@ func (d *DaemonClient) SendStartPortForwardCommand(
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	if bys, err = d.sendAndWaitForResponse(bys); err != nil {
-		return err
-	} else {
-		log.Infof("Response: %s", string(bys))
-		resp := &daemon_common.CommonResponse{}
-		err := json.Unmarshal(bys, resp)
-		if err != nil {
-			return errors.Wrap(err, "")
-		}
-		if resp.ErrInfo != "" {
-			return errors.New(resp.ErrInfo)
-		}
-		return nil
-	}
+
+	response := &command.BaseResponse{}
+	return d.sendAndWaitForResponse(bys, response)
 }
 
 // SendStopPortForwardCommand send port forward to daemon
@@ -289,12 +275,9 @@ func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	if bys, err = d.sendAndWaitForResponse(bys); err != nil {
-		return err
-	} else {
-		log.Infof("Response: %s", string(bys))
-		return nil
-	}
+
+	response := &command.BaseResponse{}
+	return d.sendAndWaitForResponse(bys, response)
 }
 
 // SendGetAllInfoCommand send get resource info request to daemon
@@ -316,19 +299,14 @@ func (d *DaemonClient) SendGetResourceInfoCommand(
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
-	if bys, err = d.sendAndWaitForResponse(bys); err != nil {
+
+	var result interface{}
+	if err := d.sendAndWaitForResponse(bys, &result); err != nil {
 		return nil, err
-	} else {
-		var result interface{}
-		if err = json.Unmarshal(bys, &result); err != nil {
-			return nil, err
-		}
-		//log.Infof("Response: %s", string(bys))
-		return result, nil
 	}
+	return result, nil
 }
 
-// zzz
 // sendDataToDaemonServer send data only to daemon
 func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort))
@@ -341,20 +319,41 @@ func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 }
 
 // sendAndWaitForResponse send data to daemon and wait for response
-func (d *DaemonClient) sendAndWaitForResponse(data []byte) ([]byte, error) {
+func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) error {
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort))
 	if err != nil {
-		return nil, errors.Wrap(err, "")
+		return errors.Wrap(err, "")
 	}
 	defer conn.Close()
-	if _, err = conn.Write(data); err != nil {
-		return nil, errors.Wrap(err, "")
+	if _, err = conn.Write(req); err != nil {
+		return errors.Wrap(err, "")
 	}
 	cw, ok := conn.(interface{ CloseWrite() error })
 	if !ok {
-		return nil, errors.Wrap(err, "Error to close write to daemon server ")
+		return errors.Wrap(err, "Error to close write to daemon server ")
 	}
 	cw.CloseWrite()
 
-	return ioutil.ReadAll(conn)
+	respBytes, err := ioutil.ReadAll(conn)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	response := command.BaseResponse{}
+	if err := json.Unmarshal(respBytes, &response); err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	if response.Status != command.SUCCESS {
+		return errors.Wrap(err,
+			fmt.Sprintf("Error occur from daemon, status [%d], msg [%s].",
+				response.Status, response.Msg),
+		)
+	}
+
+	if err := json.Unmarshal(response.Data, resp); err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	return nil
 }
