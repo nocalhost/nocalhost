@@ -152,6 +152,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 			dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
 			dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
 			dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
+			dep.Spec.Template.Spec.Containers[i].SecurityContext = nil
 		}
 
 		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
