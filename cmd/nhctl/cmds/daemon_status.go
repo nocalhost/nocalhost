@@ -13,6 +13,7 @@
 package cmds
 
 import (
+	"encoding/json"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/pkg/nhctl/log"
@@ -31,8 +32,12 @@ var daemonStatusCmd = &cobra.Command{
 		client, err := daemon_client.NewDaemonClient(isSudoUser)
 		must(err)
 
-		command, err := client.SendGetDaemonServerStatusCommand()
+		status, err := client.SendGetDaemonServerStatusCommand()
 		must(err)
-		log.Infof("%+v", command)
+
+		marshal, err := json.Marshal(status)
+		must(err)
+
+		log.Infof("%s", marshal)
 	},
 }

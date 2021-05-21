@@ -342,7 +342,18 @@ func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) erro
 		return errors.Wrap(err, "")
 	}
 
-	if response.Status != command.SUCCESS {
+	switch response.Status {
+	case command.SUCCESS:
+
+		// do nothing
+	case command.PREVIEW_VERSION:
+
+		// may from elder version
+		if err := json.Unmarshal(respBytes, &resp); err == nil {
+			return nil
+		}
+	default:
+
 		return errors.Wrap(err,
 			fmt.Sprintf("Error occur from daemon, status [%d], msg [%s].",
 				response.Status, response.Msg),

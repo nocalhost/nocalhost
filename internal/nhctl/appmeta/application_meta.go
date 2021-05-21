@@ -344,11 +344,13 @@ func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType SvcType) boo
 func (a *ApplicationMeta) Update() error {
 	a.prepare()
 
+	log.Logf("Before update Secret dev meta %+v, app: %s", string(a.Secret.Data[SecretDevMetaKey]), a.Application)
 	secret, err := a.clientInner.NameSpace(a.Ns).UpdateSecret(a.Secret, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Error while update Application meta ")
 	}
 	a.Secret = secret
+	log.Logf("After update Secret dev meta %+v, app: %s", string(a.Secret.Data[SecretDevMetaKey]), a.Application)
 	return nil
 }
 

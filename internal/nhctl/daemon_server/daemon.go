@@ -80,7 +80,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 				if err != nil {
 					return nil
 				}
-				nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, false)
+				nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, true)
 				if err != nil {
 					return nil
 				}
@@ -298,7 +298,7 @@ func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error 
 		resp.Status = command.SUCCESS
 
 		if result != nil {
-			if bs, err := json.Marshal(result); err != nil {
+			if bs, err := json.Marshal(&result); err != nil {
 				resp.Status = command.INTERNAL_FAIL
 				resp.Msg = err.Error()
 			} else {
@@ -308,14 +308,14 @@ func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error 
 	}
 
 	// try marshal again if fail
-	bys, err := json.Marshal(resp)
+	bys, err := json.Marshal(&resp)
 	if err != nil {
 		log.LogE(errors.Wrap(err, ""))
 
 		resp.Status = command.INTERNAL_FAIL
 		resp.Msg = resp.Msg + fmt.Sprintf(" | INTERNAL_FAIL:[%s]", err.Error())
 
-		if bys, err = json.Marshal(resp); err != nil {
+		if bys, err = json.Marshal(&resp); err != nil {
 			log.LogE(errors.Wrap(err, ""))
 			return err
 		}
