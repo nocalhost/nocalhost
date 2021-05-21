@@ -325,6 +325,7 @@ func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error 
 		log.LogE(errors.Wrap(err, ""))
 		return err
 	}
+
 	cw, ok := conn.(interface{ CloseWrite() error })
 	if ok {
 		err := cw.CloseWrite()
