@@ -14,8 +14,8 @@ package resouce_cache
 
 import (
 	"crypto/sha1"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,18 +38,19 @@ const (
 	byAppAndNs    = "byAppAndNs"
 )
 
-// cache Search for each kubeconfig
-var searchMap = NewLRU(10, func(i interface{}) { i.(*Search).Stop() })
+// cache Searcher for each kubeconfig
+var searchMap = NewLRU(10, func(i interface{}) { i.(*Searcher).Stop() })
 var lock sync.Mutex
 
-type Search struct {
+type Searcher struct {
 	kubeconfig      string
 	informerFactory informers.SharedInformerFactory
 	supportSchema   map[string]schema.GroupVersionResource
 	stopChannel     chan struct{}
 }
 
-func GetSupportGroupVersionResource(kubeconfigBytes []byte) ([]schema.GroupVersionResource, map[string]schema.GroupVersionResource) {
+func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
+	[]schema.GroupVersionResource, map[string]schema.GroupVersionResource) {
 	config, _ := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
 	Clients, _ := kubernetes.NewForConfig(config)
 	g, v, _ := Clients.ServerGroupsAndResources()
@@ -100,7 +101,7 @@ func GetSupportGroupVersionResource(kubeconfigBytes []byte) ([]schema.GroupVersi
 	return gvrList, uniqueNameToGVR
 }
 
-func GetSearch(kubeconfigBytes string, namespace string) (*Search, error) {
+func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Searcher, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	// calculate kubeconfig content's sha value as unique cluster id
@@ -118,7 +119,14 @@ func GetSearch(kubeconfigBytes string, namespace string) (*Search, error) {
 			return nil, err
 		}
 
-		informerFactory := informers.NewSharedInformerFactoryWithOptions(Clients, time.Second*5, informers.WithNamespace(namespace))
+		var informerFactory informers.SharedInformerFactory
+		if isCluster {
+			informerFactory = informers.NewSharedInformerFactoryWithOptions(
+				Clients, time.Second*5, informers.WithNamespace(namespace))
+		} else {
+			informerFactory = informers.NewSharedInformerFactory(Clients, time.Second*5)
+		}
+
 		indexers := cache.Indexers{
 			byNamespace:   byNamespaceFunc,
 			byApplication: byApplicationFunc,
@@ -154,7 +162,7 @@ func GetSearch(kubeconfigBytes string, namespace string) (*Search, error) {
 		}()
 		<-firstSyncChannel
 
-		newSearcher := &Search{
+		newSearcher := &Searcher{
 			kubeconfig:      kubeconfigBytes,
 			informerFactory: informerFactory,
 			supportSchema:   name2gvr,
@@ -163,116 +171,18 @@ func GetSearch(kubeconfigBytes string, namespace string) (*Search, error) {
 		searchMap.Add(sum, newSearcher)
 	}
 	searcher, _ = searchMap.Get(sum)
-	return searcher.(*Search), nil
+	return searcher.(*Searcher), nil
 }
 
-func (s *Search) Start() {
+func (s *Searcher) Start() {
 	<-s.stopChannel
 }
 
-func (s *Search) Stop() {
+func (s *Searcher) Stop() {
 	s.stopChannel <- struct{}{}
 }
 
-func (s *Search) GetByApplication(obj runtime.Object, appName string) (i []interface{}, e error) {
-	defer func() {
-		if err := recover(); err != nil {
-			e = err.(error)
-		}
-	}()
-	return s.informerFactory.InformerFor(obj, nil).GetIndexer().ByIndex(byApplication, appName)
-}
-
-func (s *Search) GetByNamespace(obj runtime.Object, namespace string) (i []interface{}, e error) {
-	defer func() {
-		if err := recover(); err != nil {
-			e = err.(error)
-		}
-	}()
-	return s.informerFactory.InformerFor(obj, nil).GetIndexer().ByIndex(byNamespace, namespace)
-}
-
-func (s *Search) GetByAppAndNamespace(obj runtime.Object, app, namespace string) (i []interface{}, e error) {
-	defer func() {
-		if err := recover(); err != nil {
-			e = err.(error)
-		}
-	}()
-	return s.informerFactory.InformerFor(obj, nil).GetIndexer().ByIndex(byAppAndNs, nsResource(namespace, app))
-}
-
-// example, po --> pods, Pods --> pods, pod --> pods, all works
-func (s *Search) GetAllByResourceType(resourceType string) (i []interface{}, e error) {
-	defer func() {
-		if err := recover(); err != nil {
-			e = err.(error)
-		}
-	}()
-	gvr, err := s.GetGvr(resourceType)
-	if err != nil {
-		return nil, errors.New("Not support resource type: " + resourceType)
-	}
-	informer, err := s.informerFactory.ForResource(gvr)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Get informer for resource: %v error", s.supportSchema[resourceType]))
-	}
-	return informer.Informer().GetIndexer().List(), nil
-}
-
-func (s *Search) GetAllByResourceTypeAndNameAndNs(resourceType, resourceName, ns string) (i interface{}, b bool, e error) {
-	defer func() {
-		if err := recover(); err != nil {
-			e = err.(error)
-		}
-	}()
-	gvr, err := s.GetGvr(resourceType)
-	if err != nil {
-		return nil, false, errors.New("Not support resource type: " + resourceType)
-	}
-	informer, err := s.informerFactory.ForResource(gvr)
-	if err != nil {
-		return nil, false, errors.New(fmt.Sprintf("Get informer for resource: %v error", s.supportSchema[resourceType]))
-	}
-	return informer.Informer().GetIndexer().GetByKey(nsResource(ns, resourceName))
-}
-
-func (s Search) GetAllByResourceTypeAndNs(resourceType, ns string) (i []interface{}, e error) {
-	defer func() {
-		if err := recover(); err != nil {
-			e = err.(error)
-		}
-	}()
-	gvr, err := s.GetGvr(resourceType)
-	if err != nil {
-		return nil, errors.New("Not support resource type: " + resourceType)
-	}
-	informer, err := s.informerFactory.ForResource(gvr)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Get informer for resource: %v error", s.supportSchema[resourceType]))
-	}
-	return informer.Informer().GetIndexer().ByIndex(byNamespace, ns)
-}
-
-func (s *Search) GetByResourceAndApplication(resourceType string, appName string) (i []interface{}, e error) {
-	defer func() {
-		if err := recover(); err != nil {
-			e = err.(error)
-		}
-	}()
-
-	gvr, err := s.GetGvr(resourceType)
-	if err != nil {
-		return nil, errors.New("Not support resource type: " + resourceType)
-	}
-	informer, err := s.informerFactory.ForResource(gvr)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Get informer for resource: %v error", s.supportSchema[resourceType]))
-	}
-
-	return informer.Informer().GetIndexer().ByIndex(byApplication, appName)
-}
-
-func (s *Search) GetGvr(resourceType string) (schema.GroupVersionResource, error) {
+func (s *Searcher) GetGvr(resourceType string) (schema.GroupVersionResource, error) {
 	if !s.supportSchema[resourceType].Empty() {
 		return s.supportSchema[resourceType], nil
 	}
@@ -280,99 +190,6 @@ func (s *Search) GetGvr(resourceType string) (schema.GroupVersionResource, error
 		return s.supportSchema[strings.ToLower(resourceType)], nil
 	}
 	return schema.GroupVersionResource{}, errors.New("Not support resource type: " + resourceType)
-}
-
-func (s *Search) GetByResourceAndNamespace(resourceType, resourceName, namespace string) (i []interface{}, e error) {
-	defer func() {
-		if err := recover(); err != nil {
-			e = err.(error)
-		}
-	}()
-	gvr, err := s.GetGvr(resourceType)
-	if err != nil {
-		return nil, errors.New("Not support resource type: " + resourceType)
-	}
-	informer, err := s.informerFactory.ForResource(gvr)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Get informer for resource: %v error", s.supportSchema[resourceType]))
-	}
-	if resourceName == "" {
-		return informer.Informer().GetIndexer().ByIndex("byNamespace", namespace)
-	} else {
-		i, found, err2 := informer.Informer().GetIndexer().GetByKey(nsResource(namespace, resourceName))
-		if err2 != nil {
-			return nil, err2
-		} else if !found {
-			return nil, errors.New("not found resource")
-		} else {
-			return []interface{}{i}, nil
-		}
-	}
-}
-
-func (s *Search) GetByResourceAndAppAndNamespace(resourceType, appName, namespace string) (i []interface{}, e error) {
-	defer func() {
-		if err := recover(); err != nil {
-			e = err.(error)
-		}
-	}()
-	gvr, err := s.GetGvr(resourceType)
-	if err != nil {
-		return nil, errors.New("Not support resource type: " + resourceType)
-	}
-	informer, err := s.informerFactory.ForResource(gvr)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Get informer for resource: %v error", s.supportSchema[resourceType]))
-	}
-	return informer.Informer().GetIndexer().ByIndex(byAppAndNs, nsResource(namespace, appName))
-}
-
-func (s *Search) GetByResourceAndNameAndAppAndNamespace(resourceType, resourceName, appName, namespace string) (i []interface{}, e error) {
-	defer func() {
-		if err := recover(); err != nil {
-			e = err.(error)
-		}
-	}()
-	gvr, err := s.GetGvr(resourceType)
-	if err != nil {
-		return nil, errors.New("Not support resource type: " + resourceType)
-	}
-	informer, err := s.informerFactory.ForResource(gvr)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Get informer for resource: %v error", s.supportSchema[resourceType]))
-	}
-	item, err := informer.Informer().GetIndexer().ByIndex(byAppAndNs, nsResource(namespace, appName))
-	if err != nil {
-		return nil, err
-	}
-	if resourceName != "" {
-		for _, i := range item {
-			if i.(metav1.Object).GetName() == resourceName {
-				return []interface{}{i}, nil
-			}
-		}
-		return nil, errors.New("not found")
-	}
-	return item, nil
-}
-
-func (s *Search) GetAllByType(obj runtime.Object) (i []interface{}, e error) {
-	defer func() {
-		if err := recover(); err != nil {
-			e = err.(error)
-		}
-	}()
-	return s.informerFactory.InformerFor(obj, nil).GetIndexer().List(), nil
-}
-
-func (s *Search) GetByName(obj runtime.Object, namespace, name string) (item interface{}, exists bool, e error) {
-	defer func() {
-		if err := recover(); err != nil {
-			exists = false
-			e = err.(error)
-		}
-	}()
-	return s.informerFactory.InformerFor(obj, nil).GetIndexer().GetByKey(nsResource(namespace, name))
 }
 
 func byNamespaceFunc(obj interface{}) ([]string, error) {
@@ -385,16 +202,7 @@ func byApplicationFunc(obj interface{}) ([]string, error) {
 		log.Error(err)
 		return []string{}, err
 	}
-	anno := metadata.GetAnnotations()
-	if anno == nil || len(anno) == 0 ||
-		(anno[nocalhost.NocalhostApplicationName] == "" && anno[nocalhost.HelmReleaseName] == "") {
-		return []string{nocalhost.DefaultNocalhostApplication}, nil
-	}
-	if anno[nocalhost.NocalhostApplicationName] != "" {
-		return []string{anno[nocalhost.NocalhostApplicationName]}, nil
-	} else {
-		return []string{anno[nocalhost.HelmReleaseName]}, nil
-	}
+	return []string{getAppName(metadata.GetAnnotations())}, nil
 }
 
 func byNamespaceAndAppFunc(obj interface{}) ([]string, error) {
@@ -403,17 +211,17 @@ func byNamespaceAndAppFunc(obj interface{}) ([]string, error) {
 		log.Error(err)
 		return []string{nsResource("default", nocalhost.DefaultNocalhostApplication)}, nil
 	}
-	ns := metadata.GetNamespace()
-	anno := metadata.GetAnnotations()
-	if anno == nil || len(anno) == 0 ||
-		(anno[nocalhost.NocalhostApplicationName] == "" && anno[nocalhost.HelmReleaseName] == "") {
-		return []string{nsResource(ns, nocalhost.DefaultNocalhostApplication)}, nil
+	return []string{nsResource(metadata.GetNamespace(), getAppName(metadata.GetAnnotations()))}, nil
+}
+
+func getAppName(annotations map[string]string) string {
+	if annotations != nil && annotations[nocalhost.NocalhostApplicationName] != "" {
+		return annotations[nocalhost.NocalhostApplicationName]
 	}
-	if anno[nocalhost.NocalhostApplicationName] != "" {
-		return []string{nsResource(ns, anno[nocalhost.NocalhostApplicationName])}, nil
-	} else {
-		return []string{nsResource(ns, anno[nocalhost.HelmReleaseName])}, nil
+	if annotations != nil && annotations[nocalhost.HelmReleaseName] != "" {
+		return annotations[nocalhost.HelmReleaseName]
 	}
+	return nocalhost.DefaultNocalhostApplication
 }
 
 // vendor/k8s.io/client-go/tools/cache/store.go:99, the reason why using ns/resource to get resource
@@ -421,14 +229,134 @@ func nsResource(ns, resourceName string) string {
 	return fmt.Sprintf("%s/%s", ns, resourceName)
 }
 
-func SortByCreateTimestampAsc(item []interface{}) []interface{} {
+func SortByNameAsc(item []interface{}) {
 	sort.SliceStable(item, func(i, j int) bool {
-		t1 := item[i].(metav1.Object).GetCreationTimestamp().UnixNano()
-		t2 := item[j].(metav1.Object).GetCreationTimestamp().UnixNano()
-		if t1 > t2 {
-			return false
-		}
-		return true
+		return item[i].(metav1.Object).GetName() < item[j].(metav1.Object).GetName()
 	})
-	return item
+}
+
+func (s *Searcher) Criteria() *criteria {
+	return newCriteria(s)
+}
+
+type criteria struct {
+	search *Searcher
+	// those two just needs one is enough
+	kind         runtime.Object
+	resourceType string
+
+	resourceName string
+	appName      string
+	ns           string
+}
+
+func newCriteria(search *Searcher) *criteria {
+	return &criteria{search: search}
+}
+func (c *criteria) Namespace(namespace string) *criteria {
+	c.ns = namespace
+	return c
+}
+
+func (c *criteria) AppName(appName string) *criteria {
+	c.appName = appName
+	return c
+}
+
+func (c *criteria) ResourceType(resourceType string) *criteria {
+	c.resourceType = resourceType
+	return c
+}
+
+func (c *criteria) Kind(object runtime.Object) *criteria {
+	c.kind = object
+	return c
+}
+
+func (c *criteria) ResourceName(resourceName string) *criteria {
+	c.resourceName = resourceName
+	return c
+}
+
+func (c *criteria) QueryOne() (interface{}, error) {
+	query, err := c.Query()
+	if err != nil {
+		return nil, err
+	}
+	if len(query) == 0 {
+		return nil, errors.New("not found")
+	}
+	return query[0], nil
+}
+
+func (c *criteria) Query() (data []interface{}, e error) {
+	defer func() {
+		if err := recover(); err != nil {
+			e = err.(error)
+		}
+	}()
+
+	if c.search == nil {
+		return nil, errors.New("search should not be null")
+	}
+	if c.resourceType == "" && c.kind == nil {
+		return nil, errors.New("resource type and kind should not be null at the same time")
+	}
+	var info cache.SharedIndexInformer
+	if c.kind != nil {
+		info = c.search.informerFactory.InformerFor(c.kind, nil)
+	} else {
+		gvr, err := c.search.GetGvr(c.resourceType)
+		if err != nil {
+			return nil, errors.Wrapf(err, "not support resource type: %v", c.resourceType)
+		}
+		informer, err := c.search.informerFactory.ForResource(gvr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "get informer failed for resource type: %v", c.resourceType)
+		}
+		info = informer.Informer()
+	}
+	if info == nil {
+		return nil, errors.New("create informer failed, please check your code")
+	}
+
+	if c.ns != "" && c.resourceName != "" {
+		item, exists, err1 := info.GetIndexer().GetByKey(nsResource(c.ns, c.resourceName))
+		if !exists {
+			return nil, errors.Errorf("not found for resource : %s-%s in namespace: %s", c.resourceType, c.resourceName, c.ns)
+		}
+		if err1 != nil {
+			return nil, errors.Wrap(err1, "search occur error")
+		}
+
+		// this is a filter
+		if c.appName == "" || c.appName == getAppName(item.(metav1.Object).GetAnnotations()) {
+			return append(data, item), nil
+		}
+		return
+	}
+	var indexName, indexValue string
+	if c.ns != "" && c.appName != "" {
+		indexName = byAppAndNs
+		indexValue = nsResource(c.ns, c.appName)
+	} else if c.appName != "" {
+		indexName = byApplication
+		indexValue = c.appName
+	} else if c.ns != "" {
+		indexName = byNamespace
+		indexValue = c.ns
+	} else {
+		indexName = ""
+		indexValue = ""
+	}
+	if indexName != "" && indexValue != "" {
+		data, e = info.GetIndexer().ByIndex(indexName, indexValue)
+		if e == nil {
+			SortByNameAsc(data)
+		}
+	} else {
+		data = info.GetIndexer().List()
+		SortByNameAsc(data)
+	}
+	return
 }

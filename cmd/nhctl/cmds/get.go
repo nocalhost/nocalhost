@@ -19,6 +19,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtimejson "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_handler"
@@ -76,6 +78,9 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		if appName != "" {
 			initApp(appName)
 		}
+		if kubeConfig == "" {
+			kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+		}
 		if abs, err := filepath.Abs(kubeConfig); err == nil {
 			kubeConfig = abs
 		}
@@ -119,11 +124,14 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 							for _, group := range app.Groups {
 								for _, list := range group.List {
 									for _, item := range list.List {
-										if item.Metadata != nil {
+										_, name, err2 := getNsAndName(item.Metadata)
+										if err2 == nil {
 											needsToComplete = false
-											_, name := getNamespaceAndName(item.Metadata)
-											row := []string{result.Namespace, app.Name, group.GroupName, list.Name + "/" + name}
+											row := []string{result.Namespace, app.Name, group.GroupName,
+												list.Name + "/" + name}
 											rows = append(rows, row)
+										} else {
+											log.Error(err2)
 										}
 									}
 								}
@@ -162,9 +170,11 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 					}
 					var rows [][]string
 					for _, item := range items {
-						if item.Metadata != nil {
-							namespace, name := getNamespaceAndName(item.Metadata)
+						namespace, name, err2 := getNsAndName(item.Metadata)
+						if err2 == nil {
 							rows = append(rows, []string{namespace, name})
+						} else {
+							log.Error(err2)
 						}
 					}
 					write([]string{"namespace", "name"}, rows)
@@ -186,28 +196,20 @@ func write(headers []string, rows [][]string) {
 	writer.Render()
 }
 
-type object struct {
-	Metadata metadata `json:"metadata"`
-}
-type metadata struct {
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
-}
-
-func (o *object) GetName() string {
-	return o.Metadata.Name
-}
-func (o *object) GetNamespace() string {
-	return o.Metadata.Namespace
+func getNsAndName(obj interface{}) (namespace, name string, errs error) {
+	var caseSensitiveJsonIterator = runtimejson.CaseSensitiveJSONIterator()
+	marshal, errs := caseSensitiveJsonIterator.Marshal(obj)
+	if errs != nil {
+		return
+	}
+	v := &metadataOnlyObject{}
+	if errs = caseSensitiveJsonIterator.Unmarshal(marshal, v); errs != nil {
+		return
+	}
+	return v.Namespace, v.Name, nil
 }
 
-func getNamespaceAndName(o interface{}) (namespace, name string) {
-	var obj object
-	marshal, err := json.Marshal(o)
-	utils.Should(err)
-	err = json.Unmarshal(marshal, &obj)
-	utils.Should(err)
-	name = obj.GetName()
-	namespace = obj.GetNamespace()
-	return
+type metadataOnlyObject struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 }
