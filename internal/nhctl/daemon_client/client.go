@@ -251,8 +251,7 @@ func (d *DaemonClient) SendStartPortForwardCommand(
 		return errors.Wrap(err, "")
 	}
 
-	response := &command.BaseResponse{}
-	return d.sendAndWaitForResponse(bys, response)
+	return d.sendAndWaitForResponse(bys, nil)
 }
 
 // SendStopPortForwardCommand send port forward to daemon
@@ -276,8 +275,7 @@ func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource
 		return errors.Wrap(err, "")
 	}
 
-	response := &command.BaseResponse{}
-	return d.sendAndWaitForResponse(bys, response)
+	return d.sendAndWaitForResponse(bys, nil)
 }
 
 // SendGetAllInfoCommand send get resource info request to daemon
@@ -349,6 +347,10 @@ func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) erro
 			fmt.Sprintf("Error occur from daemon, status [%d], msg [%s].",
 				response.Status, response.Msg),
 		)
+	}
+
+	if resp == nil {
+		return nil
 	}
 
 	if err := json.Unmarshal(response.Data, resp); err != nil {
