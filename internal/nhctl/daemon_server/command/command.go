@@ -30,11 +30,23 @@ const (
 	GetApplicationMeta    DaemonCommandType = "GetApplicationMeta"
 	GetApplicationMetas   DaemonCommandType = "GetApplicationMetas"
 	GetResourceInfo       DaemonCommandType = "GetResourceInfo"
+
+	SUCCESS       = 0
+	FAIL          = 1
+	INTERNAL_FAIL = 2
 )
 
 type BaseCommand struct {
 	CommandType DaemonCommandType
 	ClientStack string
+	ClientPath  string
+}
+
+type BaseResponse struct {
+	// zero for success
+	Status int    `json:"status"`
+	Msg    string `json:"msg"`
+	Data   []byte `json:"data"`
 }
 
 type PortForwardCommand struct {
@@ -55,21 +67,21 @@ type GetApplicationMetaCommand struct {
 	CommandType DaemonCommandType
 	ClientStack string
 
-	NameSpace   string `json:"nameSpace"`
-	AppName     string `json:"appName"`
-	KubeConfig  string `json:"kubeConfig"`
+	NameSpace  string `json:"nameSpace"`
+	AppName    string `json:"appName"`
+	KubeConfig string `json:"kubeConfig"`
 }
 
 type GetApplicationMetasCommand struct {
 	CommandType DaemonCommandType
 	ClientStack string
 
-	NameSpace   string `json:"nameSpace"`
-	KubeConfig  string `json:"kubeConfig"`
+	NameSpace  string `json:"nameSpace"`
+	KubeConfig string `json:"kubeConfig"`
 }
 
 type GetResourceInfoCommand struct {
-	CommandType  DaemonCommandType
+	CommandType DaemonCommandType
 	ClientStack string
 
 	KubeConfig   string `json:"kubeConfig"`

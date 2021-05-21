@@ -30,8 +30,8 @@ var daemonInfoCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		client, err := daemon_client.NewDaemonClient(isSudoUser)
 		must(err)
-		bys, err := client.SendGetDaemonServerInfoCommand()
+		daemonServerInfo, err := client.SendGetDaemonServerInfoCommand()
 		must(err)
-		log.Info(string(bys))
+		log.Infof("%+v", daemonServerInfo)
 	},
 }
