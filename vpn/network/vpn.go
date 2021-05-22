@@ -41,6 +41,7 @@ type Sshuttle interface {
 	Outbound()
 	Inbound()
 }
+
 /**
  * 1) create dns server
  * 2) port-forward dns server
@@ -87,11 +88,73 @@ func Start() {
 	if runtime.GOOS == "windows" || os.Getenv("debug") != "" {
 		go sshD(privateKeyPath, localSshPort)
 	} else {
-		go sshuttle(serviceIp, privateKeyPath, localSshPort)
+		go sshuttle(serviceIp, privateKeyPath, localSshPort, GetCidr())
 	}
 	time.Sleep(6 * time.Second)
 	Inbound(privateKeyPath)
 	select {}
+}
+
+func parseCidr(ip string, cidrs *[]string) {
+	split := strings.Split(ip, ".")
+	if len(split) == 4 {
+		p := "%s.%s.0.0/16"
+		*cidrs = append(*cidrs, fmt.Sprintf(p, split[0], split[1]))
+	}
+}
+
+func GetCidr() []string {
+	var cidrs []string
+	nodeList, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	if err == nil {
+		for _, node := range nodeList.Items {
+			if node.Spec.PodCIDR != "" {
+				cidrs = append(cidrs, node.Spec.PodCIDR)
+			}
+			if len(node.Spec.PodCIDRs) > 0 {
+				cidrs = append(cidrs, node.Spec.PodCIDRs...)
+			}
+		}
+	} else {
+		log.Printf("failed to get node's cidr")
+	}
+	serviceList, err := clientset.CoreV1().Services(v1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+	if err == nil {
+		for _, service := range serviceList.Items {
+			parseCidr(service.Spec.ClusterIP, &cidrs)
+			for _, clusterIP := range service.Spec.ClusterIPs {
+				parseCidr(clusterIP, &cidrs)
+			}
+		}
+	} else {
+		log.Printf("failed to get service's cidr")
+	}
+
+	list, err := clientset.CoreV1().Endpoints(v1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+	if err == nil {
+		for _, endpoints := range list.Items {
+			for _, subset := range endpoints.Subsets {
+				for _, address := range subset.Addresses {
+					parseCidr(address.IP, &cidrs)
+				}
+			}
+		}
+	} else {
+		log.Println("failed to get endpoint's cidr")
+	}
+
+	return distinct(cidrs)
+}
+
+func distinct(strings []string) (result []string) {
+	m := make(map[string]string)
+	for _, s := range strings {
+		m[s] = s
+	}
+	for _, s := range m {
+		result = append(result, s)
+	}
+	return
 }
 
 /**
@@ -459,18 +522,18 @@ func portForwardService(kubeconfigPath string, localSshPort int) {
 	}
 }
 
-func sshuttle(serviceIp, sshPrivateKeyPath string, localSshPort int) {
+func sshuttle(serviceIp, sshPrivateKeyPath string, localSshPort int, cidrs []string) {
 	args := []string{
 		"-r",
 		"root@127.0.0.1:" + strconv.Itoa(localSshPort),
 		"-e", "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i " + sshPrivateKeyPath,
-		"0/0",
 		"-x",
 		"127.0.0.1",
 		"--dns",
 		"--to-ns",
 		serviceIp,
 	}
+	args = append(args, cidrs...)
 	cmd := osexec.CommandContext(context.TODO(), "sshuttle", args...)
 	out, s, err := nhctlcli.Runner.RunWithRollingOut(cmd)
 	if err != nil {
