@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -29,6 +30,7 @@ import (
 	osexec "os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -39,20 +41,6 @@ type Sshuttle interface {
 	Outbound()
 	Inbound()
 }
-
-type vpn func(string)
-
-func (s vpn) Outbound() {
-	str := "sshuttle -r root@106.55.60.68 -e \"ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i /Users/naison/.ssh/mytke_id_rsa\" 192.168.0.0/26 -x 106.55.60.68"
-	cmd := exec.New().Command(str)
-	cmd.Start()
-}
-
-func (s vpn) Inbound() {
-	_ = "kubectl expose deployment/nginx-deployment --type=NodePort --name=nginx-test"
-	_ = "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i /Users/naison/.ssh/mytke_id_rsa -R 31586:127.0.0.1:8888 root@106.55.60.68 -p 22"
-}
-
 /**
  * 1) create dns server
  * 2) port-forward dns server
@@ -69,6 +57,9 @@ const name = "dnsserver"
 const refCountKey = "ref-count"
 
 var kubeconfig = flag.String("kubeconfig", "", "your k8s cluster kubeconfig path")
+var serviceName = flag.String("name", "", "service name and deployment name, should be same")
+var serviceNamespace = flag.String("namespace", "", "service namespace")
+var portPair = flag.String("expose", "", "port pair, remote-port:local-port, such as: service-port1:local-port1,service-port2:local-port2...")
 
 func Start() {
 	flag.Parse()
@@ -84,24 +75,154 @@ func Start() {
 	addCleanUpResource()
 	serviceIp, _ := createDnsPod(sshInfo)
 	// random port
-	port, err := ports.GetAvailablePort()
+	localSshPort, err := ports.GetAvailablePort()
 	if err != nil {
 		log.Fatal(err)
 	}
-	go portForwardService(*kubeconfig, port)
+	go portForwardService(*kubeconfig, localSshPort)
 	time.Sleep(3 * time.Second)
 	updateRefCount(1)
 	log.Println("port forward ready")
-	sshuttle(serviceIp, privateKeyPath, port)
+	// todo cidr network
+	if runtime.GOOS == "windows" || os.Getenv("debug") != "" {
+		go sshD(privateKeyPath, localSshPort)
+	} else {
+		go sshuttle(serviceIp, privateKeyPath, localSshPort)
+	}
+	time.Sleep(6 * time.Second)
+	Inbound(privateKeyPath)
+	select {}
 }
 
-func addCleanUpResource() {
-	ch := make(chan os.Signal)
-	signal.Notify(ch, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL)
+/**
+ * 1) scale deployment replicas to zero
+ * 2) relabel new shadow pod, make sure traffic which from service will receive by shadow pod
+ * 3) using another images to listen local and transfer traffic
+ */
+func Inbound(privateKeyPath string) {
+	if serviceName == nil || serviceNamespace == nil || portPair == nil ||
+		*serviceName == "" || *serviceNamespace == "" || *portPair == "" {
+		log.Println("no need to expose local service to remote")
+		return
+	}
+	log.Println("prepare to expose local service to remote")
+
+	podShadow := createPodShadow()
+	if podShadow == nil {
+		log.Println("fail to create shadow")
+		return
+	}
+	log.Printf("wait for shadow: %s to be ready...\n", podShadow.Name)
+	WaitPodToBeStatus(*serviceNamespace, "name="+podShadow.Name, func(pod *v1.Pod) bool { return v1.PodRunning == pod.Status.Phase })
+
+	localSshPort, err := ports.GetAvailablePort()
+	if err != nil {
+		log.Fatal(err)
+	}
+	readyChan := make(chan struct{})
+	stopsChan := make(chan struct{})
 	go func() {
-		<-ch
+		if err = portForwardPod(podShadow.Name, podShadow.Namespace, localSshPort, readyChan, stopsChan); err != nil {
+			log.Printf("port forward error, exiting")
+			panic(err)
+		}
+	}()
+	<-readyChan
+	log.Println("port forward ready")
+	remote2Local := strings.Split(*portPair, ",")
+	for _, pair := range remote2Local {
+		p := strings.Split(pair, ":")
+		go sshReverseProxy(p[0], p[1], localSshPort, privateKeyPath)
+	}
+	// hang up
+	select {}
+}
+
+// multiple remote service port
+func sshReverseProxy(remotePort, localPort string, sshLocalPort int, privateKeyPath string) {
+	log.Println("prepare to start reverse proxy")
+	cmd := osexec.Command("ssh", "-NR",
+		fmt.Sprintf("0.0.0.0:%s:127.0.0.1:%s", remotePort, localPort),
+		"root@127.0.0.1", "-p", strconv.Itoa(sshLocalPort),
+		"-oStrictHostKeyChecking=no",
+		"-oUserKnownHostsFile=/dev/null",
+		"-i",
+		privateKeyPath)
+	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOut(cmd)
+	if err != nil {
+		log.Printf("start reverse proxy failed, error: %v, stdout: %s, stderr: %s", err, stdout, stderr)
+		stopChan <- syscall.SIGQUIT
+		return
+	}
+}
+
+func createPodShadow() *v1.Pod {
+	service, err := clientset.CoreV1().Services(*serviceNamespace).Get(context.TODO(), *serviceName, metav1.GetOptions{})
+	if err != nil {
+		log.Println(err)
+	}
+	labels := service.Spec.Selector
+	// todo version
+	newName := *serviceName + "-" + "shadow"
+	deployment, err := clientset.AppsV1().Deployments(*serviceNamespace).Get(context.TODO(), *serviceName, metav1.GetOptions{})
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	ForkSshConfigMapToNamespace()
+	pod := newPod(newName, *serviceNamespace, labels, deployment.Spec.Template.Spec.Containers[0].Ports)
+	_ = clientset.CoreV1().Pods(*serviceNamespace).Delete(context.TODO(), newName, metav1.DeleteOptions{})
+	pods, err := clientset.CoreV1().Pods(*serviceNamespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+	if err != nil {
+		log.Println(err)
+	}
+	return pods
+}
+
+func ForkSshConfigMapToNamespace() {
+	_, err := clientset.CoreV1().ConfigMaps(*serviceNamespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err == nil {
+		log.Printf("ssh configmap already exist in namespace: %s, no need to fork it\n", *serviceNamespace)
+		return
+	}
+	configMap, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("can't find configmap: %s in namespace: %s\n", name, namespace)
+		return
+	}
+	newConfigmap := v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: *serviceNamespace,
+		},
+		Data: configMap.Data,
+	}
+	_, err = clientset.CoreV1().ConfigMaps(*serviceNamespace).Create(context.TODO(), &newConfigmap, metav1.CreateOptions{})
+	if err == nil {
+		log.Printf("fork configmap secuessfully")
+	} else {
+		log.Printf("fork configmap failed")
+	}
+}
+
+func scaleDeploymentReplicasToZero() {
+	_, err := clientset.AppsV1().Deployments(*serviceNamespace).
+		UpdateScale(context.TODO(), *serviceName, &autoscalingv1.Scale{Spec: autoscalingv1.ScaleSpec{Replicas: 0}}, metav1.UpdateOptions{})
+	if err != nil {
+		log.Printf("update deployment: %s to replicas to zero failed, error: %v\n", *serviceName, err)
+	}
+}
+
+var stopChan = make(chan os.Signal)
+
+func addCleanUpResource() {
+
+	signal.Notify(stopChan, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL)
+	go func() {
+		<-stopChan
 		log.Println("prepare to exit, cleaning up")
 		cleanUp()
+		cleanHosts()
 		log.Println("clean up successful")
 		os.Exit(0)
 	}()
@@ -177,6 +298,19 @@ func cleanUp() {
 	}
 }
 
+func cleanHosts() {
+	if _, err := os.Stat("/etc/hosts.bak"); err != nil {
+		log.Println("no backup host file found, no needs to restore")
+	}
+	_, err2 := CopyFile("/etc/hosts", "/etc/hosts.bak")
+	if err2 != nil {
+		log.Printf("restore hosts file failed")
+	} else {
+		log.Printf("restore hosts file secuessfully")
+	}
+	_ = os.Remove("/etc/hosts.bak")
+}
+
 func initClient(kubeconfigPath string) {
 	if _, err := os.Stat(kubeconfigPath); err != nil {
 		kubeconfigPath = filepath.Join(HomeDir(), ".kube", "config")
@@ -246,31 +380,35 @@ func createDnsPod(info *SSHInfo) (serviceIp, podName string) {
 	return
 }
 
-func portForward(resource string, name string, port int32, readyChan, stopChan chan struct{}) (*portforward.PortForwarder, error) {
-	log.Printf("%s-%s\n", resource, name)
-	url := clientset.AppsV1().
+func portForwardPod(podName string, namespace string, port int, readyChan, stopChan chan struct{}) error {
+	log.Printf("%s-%s\n", "pods", podName)
+	url := clientset.CoreV1().
 		RESTClient().
 		Post().
-		Resource(resource).
+		Resource("pods").
 		Namespace(namespace).
-		Name(name).
+		Name(podName).
 		SubResource("portforward").
 		URL()
 	transport, upgrader, err := spdy.RoundTripperFor(config)
 	log.Println("url: " + url.String())
 	if err != nil {
 		log.Println(err)
-		return nil, err
+		return err
 	}
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, "POST", url)
 	out := new(bytes.Buffer)
-	ports := []string{fmt.Sprintf("%d:%d", port, 22)}
-	pf, err := portforward.New(dialer, ports, stopChan, readyChan, ioutil.Discard, out)
+	p := []string{fmt.Sprintf("%d:%d", port, 22)}
+	forwarder, err := portforward.New(dialer, p, stopChan, readyChan, ioutil.Discard, out)
 	if err != nil {
 		log.Println(err)
-		return nil, err
+		return err
 	}
-	return pf, nil
+
+	if err = forwarder.ForwardPorts(); err != nil {
+		panic(err)
+	}
+	return nil
 }
 
 func WaitPodToBeStatus(namespace string, label string, checker func(*v1.Pod) bool) bool {
@@ -303,14 +441,14 @@ func WaitPodToBeStatus(namespace string, label string, checker func(*v1.Pod) boo
 	return true
 }
 
-func portForwardService(kubeconfigPath string, localPort int) {
+func portForwardService(kubeconfigPath string, localSshPort int) {
 	cmd := exec.New().
 		CommandContext(
 			context.TODO(),
 			"kubectl",
 			"port-forward",
 			"service/dnsserver",
-			strconv.Itoa(localPort)+":22",
+			strconv.Itoa(localSshPort)+":22",
 			"--namespace",
 			"default",
 			"--kubeconfig", kubeconfigPath)
@@ -321,10 +459,10 @@ func portForwardService(kubeconfigPath string, localPort int) {
 	}
 }
 
-func sshuttle(serviceIp, sshPrivateKeyPath string, port int) {
+func sshuttle(serviceIp, sshPrivateKeyPath string, localSshPort int) {
 	args := []string{
 		"-r",
-		"root@127.0.0.1:" + strconv.Itoa(port),
+		"root@127.0.0.1:" + strconv.Itoa(localSshPort),
 		"-e", "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i " + sshPrivateKeyPath,
 		"0/0",
 		"-x",
@@ -422,6 +560,44 @@ func newDnsPodService() *v1.Service {
 			},
 			Selector: map[string]string{"app": name},
 			Type:     v1.ServiceTypeClusterIP,
+		},
+	}
+}
+
+func newPod(podName, namespace string, labels map[string]string, port []v1.ContainerPort) *v1.Pod {
+	labels["nocalhost"] = "nocalhost"
+	labels["name"] = podName
+	return &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podName,
+			Namespace: namespace,
+			Labels:    labels,
+		},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{{
+				Image:           "naison/dnsserver:latest",
+				Ports:           port,
+				Name:            podName,
+				ImagePullPolicy: v1.PullAlways,
+				VolumeMounts: []v1.VolumeMount{{
+					Name:      "ssh-key",
+					MountPath: "/root",
+				}},
+			}},
+			Volumes: []v1.Volume{{
+				Name: "ssh-key",
+				VolumeSource: v1.VolumeSource{
+					ConfigMap: &v1.ConfigMapVolumeSource{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: name,
+						},
+						Items: []v1.KeyToPath{{
+							Key:  "authorized",
+							Path: "authorized_keys",
+						}},
+					},
+				},
+			}},
 		},
 	}
 }

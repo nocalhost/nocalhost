@@ -109,7 +109,5 @@ func MakeSSHKeyPair() (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-
-	//glog.Info("privateKey=[%s]\n pubKey=[%s]",string(EncodePrivateKey(pkey)),string(pub))
 	return string(EncodePrivateKey(pkey)), string(pub), nil
 }

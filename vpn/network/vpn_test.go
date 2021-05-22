@@ -15,6 +15,7 @@ func TestVpn(t *testing.T) {
 	_ = os.Setenv("http_proxy", "")
 	_ = os.Setenv("https_proxy", "")
 	_ = os.Setenv("HOMEBREW_NO_AUTO_UPDATE", "true")
+	_ = os.Setenv("debug", "true")
 	Start()
 }
 
@@ -31,21 +32,18 @@ func TestSsh1(t *testing.T) {
 }
 
 func TestPortForward(t *testing.T) {
+	_ = os.Setenv("http_proxy", "")
+	_ = os.Setenv("https_proxy", "")
 	initClient("")
 	readyChan := make(chan struct{})
-	stopChan := make(chan struct{})
-	forwarder, err := portForward("pods", "dnsserver-7bbc9d676f-b4rb5", 5000, readyChan, stopChan)
+	stopsChan := make(chan struct{})
+	err := portForwardPod("tomcat-shadow", "test", 5005, readyChan, stopsChan)
 	if err != nil {
 		log.Fatal(err)
 	}
-	go func() {
-		if err = forwarder.ForwardPorts(); err != nil {
-			panic(err)
-		}
-	}()
 	<-readyChan
 	fmt.Println("port forward ready")
-	<-stopChan
+	<-stopsChan
 }
 
 func TestKubectl(t *testing.T) {
