@@ -297,9 +297,18 @@ func addCleanUpResource() {
 		cleanHosts()
 		scaleDeploymentReplicasTo(1)
 		cleanShadow(false)
+		cleanSsh()
 		log.Println("clean up successful")
 		os.Exit(0)
 	}()
+}
+
+func cleanSsh() {
+	if runtime.GOOS == "windows" {
+		_ = exec.New().Command("taskkill.exe", "/f", "/im", "Ssh.exe").Run()
+	} else {
+		_ = exec.New().Command("ps", "-ef | grep ssh | grep -v grep | awk -F ' ' '{print$2}' | xargs kill").Run()
+	}
 }
 
 func cleanShadow(wait bool) {
