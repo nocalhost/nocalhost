@@ -90,7 +90,7 @@ func Start() {
 	} else {
 		go sshuttle(serviceIp, privateKeyPath, localSshPort, GetCidr())
 	}
-	time.Sleep(6 * time.Second)
+	time.Sleep(3 * time.Second)
 	Inbound(privateKeyPath)
 	select {}
 }
@@ -169,7 +169,7 @@ func Inbound(privateKeyPath string) {
 		return
 	}
 	log.Println("prepare to expose local service to remote")
-
+	scaleDeploymentReplicasTo(0)
 	podShadow := createPodShadow()
 	if podShadow == nil {
 		log.Println("fail to create shadow")
@@ -197,6 +197,7 @@ func Inbound(privateKeyPath string) {
 		p := strings.Split(pair, ":")
 		go sshReverseProxy(p[0], p[1], localSshPort, privateKeyPath)
 	}
+	log.Println("expose local to remote successfully, you can develop now, if you not need it anymore, can using ctrl+c to stop it")
 	// hang up
 	select {}
 }
@@ -216,6 +217,9 @@ func sshReverseProxy(remotePort, localPort string, sshLocalPort int, privateKeyP
 		log.Printf("start reverse proxy failed, error: %v, stdout: %s, stderr: %s", err, stdout, stderr)
 		stopChan <- syscall.SIGQUIT
 		return
+	} else {
+		log.Println("stdout: " + stdout)
+		log.Println("stderr: " + stderr)
 	}
 }
 
@@ -234,7 +238,7 @@ func createPodShadow() *v1.Pod {
 	}
 	ForkSshConfigMapToNamespace()
 	pod := newPod(newName, *serviceNamespace, labels, deployment.Spec.Template.Spec.Containers[0].Ports)
-	_ = clientset.CoreV1().Pods(*serviceNamespace).Delete(context.TODO(), newName, metav1.DeleteOptions{})
+	cleanShadow(true)
 	pods, err := clientset.CoreV1().Pods(*serviceNamespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 	if err != nil {
 		log.Println(err)
@@ -268,27 +272,63 @@ func ForkSshConfigMapToNamespace() {
 	}
 }
 
-func scaleDeploymentReplicasToZero() {
+func scaleDeploymentReplicasTo(replicas int32) {
 	_, err := clientset.AppsV1().Deployments(*serviceNamespace).
-		UpdateScale(context.TODO(), *serviceName, &autoscalingv1.Scale{Spec: autoscalingv1.ScaleSpec{Replicas: 0}}, metav1.UpdateOptions{})
+		UpdateScale(context.TODO(), *serviceName, &autoscalingv1.Scale{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      *serviceName,
+				Namespace: *serviceNamespace,
+			},
+			Spec: autoscalingv1.ScaleSpec{Replicas: replicas},
+		}, metav1.UpdateOptions{})
 	if err != nil {
-		log.Printf("update deployment: %s to replicas to zero failed, error: %v\n", *serviceName, err)
+		log.Printf("update deployment: %s's replicas to %d failed, error: %v\n", *serviceName, replicas, err)
 	}
 }
 
 var stopChan = make(chan os.Signal)
 
 func addCleanUpResource() {
-
-	signal.Notify(stopChan, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL)
+	signal.Notify(stopChan, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGSTOP)
 	go func() {
 		<-stopChan
 		log.Println("prepare to exit, cleaning up")
 		cleanUp()
 		cleanHosts()
+		scaleDeploymentReplicasTo(1)
+		cleanShadow(false)
 		log.Println("clean up successful")
 		os.Exit(0)
 	}()
+}
+
+func cleanShadow(wait bool) {
+	shadowName := *serviceName + "-" + "shadow"
+	err := clientset.CoreV1().Pods(*serviceNamespace).Delete(context.TODO(), shadowName, metav1.DeleteOptions{})
+	if !wait {
+		return
+	}
+	if err == nil {
+		w, err := clientset.CoreV1().Pods(*serviceNamespace).Watch(context.TODO(), metav1.ListOptions{
+			LabelSelector: "name=" + shadowName,
+			Watch:         true,
+		})
+		if err != nil {
+			log.Println(err)
+		}
+	out:
+		for {
+			select {
+			case event := <-w.ResultChan():
+				if watch.Deleted == event.Type {
+					break out
+				}
+			}
+		}
+		log.Printf("delete pod: %s suecessfully\n", shadowName)
+	} else {
+		log.Println("not found shadow pod, no need to delete it")
+	}
 }
 
 // vendor/k8s.io/kubectl/pkg/polymorphichelpers/rollback.go:99
@@ -444,7 +484,6 @@ func createDnsPod(info *SSHInfo) (serviceIp, podName string) {
 }
 
 func portForwardPod(podName string, namespace string, port int, readyChan, stopChan chan struct{}) error {
-	log.Printf("%s-%s\n", "pods", podName)
 	url := clientset.CoreV1().
 		RESTClient().
 		Post().
@@ -454,7 +493,6 @@ func portForwardPod(podName string, namespace string, port int, readyChan, stopC
 		SubResource("portforward").
 		URL()
 	transport, upgrader, err := spdy.RoundTripperFor(config)
-	log.Println("url: " + url.String())
 	if err != nil {
 		log.Println(err)
 		return err
@@ -541,6 +579,7 @@ func sshuttle(serviceIp, sshPrivateKeyPath string, localSshPort int, cidrs []str
 	} else {
 		log.Printf(out)
 	}
+	log.Println("expose remote to local successfully, you can access your cluster network on your localhost envirment")
 }
 
 func newSshConfigmap(privateKey, publicKey []byte) *v1.ConfigMap {

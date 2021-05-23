@@ -72,3 +72,17 @@ func TestInstall(t *testing.T) {
 	err := preCheck()
 	clientgoutils.Must(err)
 }
+
+func TestDeleteDone(t *testing.T) {
+	_ = os.Setenv("http_proxy", "")
+	_ = os.Setenv("https_proxy", "")
+	initClient("")
+	tomcat := "tomcat"
+	ns := "test"
+	port := "8080:8090"
+	serviceName = &tomcat
+	serviceNamespace = &ns
+	portPair = &port
+	scaleDeploymentReplicasTo(0)
+	//cleanShadow()
+}

@@ -38,7 +38,7 @@ func sshD(privateKeyPath string, localSshPort int) {
 	}()
 	time.Sleep(time.Second * 3)
 	dumpServiceToHosts()
-	fmt.Printf(`please export http_proxy=socks5://127.0.0.1:%d, and the you can access cluster ip or domain`, sock5Port)
+	fmt.Printf(`please export http_proxy=socks5://127.0.0.1:%d, and the you can access cluster ip or domain`+"\n", sock5Port)
 }
 
 func dumpServiceToHosts() {
