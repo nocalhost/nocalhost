@@ -13,6 +13,7 @@
 package daemon_server
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/syncthing/daemon"
@@ -40,10 +41,15 @@ func recoverSyncthing() error {
 func recoverSyncthingForApplication(ns, appName string) error {
 	profile, err := nocalhost.GetProfileV2(ns, appName)
 	if err != nil {
+		if errors.Is(err, nocalhost.ProfileNotFound){
+			log.Warnf("Profile is not exist, so ignore for recovering for syncthing")
+			return nil
+		}
+
 		return err
 	}
 	if profile == nil {
-		return errors.New("Profile not found")
+		return errors.New(fmt.Sprintf("Profile not found %s-%s", ns, appName))
 	}
 
 	nhctlPath, err := utils.GetNhctlPath()

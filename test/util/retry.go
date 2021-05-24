@@ -44,6 +44,20 @@ func RetryWith2Params(
 	}
 }
 
+func Retry(suiteName string, funcs []func() error) {
+	var err error
+	for _, f := range funcs {
+		for i := 0; i < retryTimes; i++ {
+			if err = f(); err == nil {
+				break
+			}
+			log.Info(err)
+		}
+		clientgoutils.MustI(err, fmt.Sprintf("error on step %s - %s",
+			suiteName, getFunctionName(reflect.ValueOf(f))))
+	}
+}
+
 func RetryWith1Params(suiteName string, funcs []func(*nhctlcli.CLI) error, cli *nhctlcli.CLI) {
 	var err error
 	for _, f := range funcs {

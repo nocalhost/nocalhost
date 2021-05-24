@@ -27,8 +27,9 @@ var (
 )
 
 type DaemonServerInfo struct {
-	Version  string
-	CommitId string
+	Version   string
+	CommitId  string
+	NhctlPath string
 }
 
 type PortForwardProfile struct {
@@ -36,16 +37,15 @@ type PortForwardProfile struct {
 	StopCh     chan error         `json:"-"`
 	NameSpace  string             `json:"nameSpace"`
 	AppName    string             `json:"appName"`
+	SvcName    string             `json:"svcName"`
+	SvcType    string             `json:"svcType"`
+	Role       string             `json:"role"`
 	LocalPort  int                `json:"localPort"`
 	RemotePort int                `json:"remotePort"`
 }
 
 func NewDaemonServerInfo() *DaemonServerInfo {
 	return &DaemonServerInfo{Version: Version}
-}
-
-type CommonResponse struct {
-	ErrInfo string `json:"errInfo"`
 }
 
 type DaemonServerStatusResponse struct {

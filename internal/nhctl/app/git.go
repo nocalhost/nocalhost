@@ -22,7 +22,7 @@ import (
 func cloneFromGit(gitUrl string, gitRef string, destPath string) error {
 
 	var (
-		err        error
+		err error
 		gitDirName string
 	)
 
@@ -35,9 +35,11 @@ func cloneFromGit(gitUrl string, gitRef string, destPath string) error {
 		strs := strings.Split(gitDirName, "/")
 		gitDirName = strs[len(strs)-1] // todo : for default application name
 		if len(gitRef) > 0 {
-			_, err = tools.ExecCommand(nil, true, true, "git", "clone", "--branch", gitRef, "--depth", "1", gitUrl, destPath)
+			_, err = tools.ExecCommand(
+				nil, true, true, false, "git", "clone", "--branch", gitRef, "--depth", "1", gitUrl, destPath,
+			)
 		} else {
-			_, err = tools.ExecCommand(nil, true, true, "git", "clone", "--depth", "1", gitUrl, destPath)
+			_, err = tools.ExecCommand(nil, true, true, false, "git", "clone", "--depth", "1", gitUrl, destPath)
 		}
 		if err != nil {
 			return errors.Wrap(err, err.Error())

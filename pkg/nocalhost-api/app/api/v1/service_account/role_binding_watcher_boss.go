@@ -64,6 +64,7 @@ func (s *Supervisor) getInDeck(kubeConfig string) *roleBindingWatcher {
 
 	if err := watcher.Prepare(); err != nil {
 		log.ErrorE(err, "Error while prepare role binding watcher")
+		return watcher
 	}
 
 	go func() {

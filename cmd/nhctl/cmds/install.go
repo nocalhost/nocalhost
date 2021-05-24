@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
@@ -207,6 +208,8 @@ func InstallApplication(applicationName string) error {
 	// if init appMeta successful, then should remove all things while fail
 	defer func() {
 		if err != nil {
+			coloredoutput.Fail(err.Error())
+			log.LogE(err)
 			utils.Should(nocalhostApp.Uninstall())
 		}
 	}()
@@ -232,7 +235,7 @@ func InstallApplication(applicationName string) error {
 		Version:  installFlags.HelmRepoVersion,
 	}
 
-	err = nocalhostApp.Install(context.TODO(), flags)
+	err = nocalhostApp.Install(flags)
 	_ = nocalhostApp.CleanUpTmpResources()
 	return err
 }
@@ -244,5 +247,16 @@ func must(err error) {
 func mustI(err error, info string) {
 	if err != nil {
 		log.FatalE(err, info)
+	}
+}
+
+func mustP(err error) {
+	mustPI(err, "")
+}
+
+func mustPI(err error, info string) {
+	if err != nil {
+		log.ErrorE(err, info)
+		panic(err)
 	}
 }

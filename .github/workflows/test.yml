@@ -66,6 +66,10 @@ jobs:
     steps:
       - uses: actions/checkout@master
         timeout-minutes: 10
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '^1.16.4'
+      - run: go version
       - name: git tag
         timeout-minutes: 10
         if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -89,6 +93,7 @@ jobs:
           export TAG="${{ env.RELEASE_VERSION }}"
           export COMMIT_ID=${GITHUB_SHA}
           export KUBECONFIG_PATH=/home/runner/.kube/config
+          export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
           cd test
           go build
           ./test
@@ -98,6 +103,10 @@ jobs:
     steps:
       - uses: actions/checkout@master
         timeout-minutes: 10
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '^1.16.4'
+      - run: go version
       - name: git tag
         if: ${{ github.event.workflow_run.conclusion == 'success' }}
         timeout-minutes: 10
@@ -116,6 +125,7 @@ jobs:
           export COMMIT_ID=${GITHUB_SHA}
           export TKE_SECRET_ID=${{ secrets.TKE_SECRET_ID }}
           export TKE_SECRET_KEY=${{ secrets.TKE_SECRET_KEY }}
+          export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
           cd test
           go build
           ./test
@@ -125,6 +135,10 @@ jobs:
     steps:
       - uses: actions/checkout@master
         timeout-minutes: 10
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '^1.16.4'
+      - run: go version
       - name: git tag
         if: ${{ github.event.workflow_run.conclusion == 'success' }}
         timeout-minutes: 10
@@ -155,6 +169,7 @@ jobs:
           export COMMIT_ID=${GITHUB_SHA}
           export TKE_SECRET_ID=${{ secrets.TKE_SECRET_ID }}
           export TKE_SECRET_KEY=${{ secrets.TKE_SECRET_KEY }}
+          export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
           cd test
           go build
           ./test
@@ -164,6 +179,10 @@ jobs:
     steps:
       - uses: actions/checkout@master
         timeout-minutes: 10
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '^1.16.4'
+      - run: go version
       - name: git tag
         timeout-minutes: 10
         if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -190,6 +209,7 @@ jobs:
           export TAG="${{ env.RELEASE_VERSION }}"
           export COMMIT_ID=${GITHUB_SHA}
           export KUBECONFIG_PATH=/home/runner/.kube/config
+          export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
           cd test
           go build
           ./test

@@ -12,32 +12,14 @@
 
 package cmds
 
-import (
-	"encoding/json"
-	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/daemon_client"
-	"nocalhost/pkg/nhctl/log"
-)
+import "github.com/spf13/cobra"
 
 func init() {
-	daemonStatusCmd.Flags().BoolVar(&isSudoUser, "sudo", false, "Is run as sudo")
-	daemonCmd.AddCommand(daemonStatusCmd)
+	rootCmd.AddCommand(profileCmd)
 }
 
-var daemonStatusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Get nhctl daemon status",
-	Long:  `Get nhctl daemon status`,
-	Run: func(cmd *cobra.Command, args []string) {
-		client, err := daemon_client.NewDaemonClient(isSudoUser)
-		must(err)
-
-		status, err := client.SendGetDaemonServerStatusCommand()
-		must(err)
-
-		marshal, err := json.Marshal(status)
-		must(err)
-
-		log.Infof("%s", marshal)
-	},
+var profileCmd = &cobra.Command{
+	Use:   "profile",
+	Short: "Manage Profile",
+	Long:  `Manage Profile`,
 }

@@ -139,19 +139,27 @@ func ListAuthorization(c *gin.Context) {
 									Name: s.SpaceName,
 									Context: clientcmdapiv1.Context{
 										Namespace: ns,
-										Cluster:  cluster.ClusterName,
-										AuthInfo: defaultContext.Context.AuthInfo,
+										Cluster:   cluster.ClusterName,
+										AuthInfo:  defaultContext.Context.AuthInfo,
 									},
 								},
 							)
-
-							kubeConfigStruct.CurrentContext = s.SpaceName
 
 							nss = append(
 								nss, NS{SpaceName: s.SpaceName, Namespace: ns, SpaceId: s.ID},
 							)
 						}
 					}
+				}
+
+				if len(nss) > 0 {
+					// sort nss
+					sort.Slice(
+						nss, func(i, j int) bool {
+							return nss[i].SpaceId > nss[i].SpaceId
+						},
+					)
+					kubeConfigStruct.CurrentContext = nss[len(nss)-1].SpaceName
 				}
 			}
 
@@ -237,7 +245,7 @@ type ServiceAccountModel struct {
 }
 
 type NS struct {
-	SpaceId    uint64 `json:"space_id"`
-	Namespace  string `json:"namespace"`
-	SpaceName  string `json:"spacename"`
+	SpaceId   uint64 `json:"space_id"`
+	Namespace string `json:"namespace"`
+	SpaceName string `json:"spacename"`
 }

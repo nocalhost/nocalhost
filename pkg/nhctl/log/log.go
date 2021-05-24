@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strconv"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -69,15 +70,28 @@ func Init(level zapcore.Level, dir, fileName string) error {
 	}
 	writeSyncer := zapcore.AddSync(rolling)
 	encoderConfig := zap.NewProductionEncoderConfig()
-	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-	//encoder := zapcore.NewConsoleEncoder(encoderConfig)
-	encoder := zapcore.NewJSONEncoder(encoderConfig)
+	encoderConfig.EncodeTime = CustomTimeEncoder
+	encoderConfig.EncodeLevel = CustomLevelEncoder
+	encoderConfig.EncodeDuration = CustomDurationEncoder
+
+	encoder := zapcore.NewConsoleEncoder(encoderConfig)
 	core = zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
 
 	refreshFileLoggerWithFields()
 	logFile = logPath
 	return nil
+}
+
+func CustomDurationEncoder(t time.Duration, enc zapcore.PrimitiveArrayEncoder) {
+	enc.AppendString(t.String())
+}
+
+func CustomTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+	enc.AppendString(t.Format(time.RFC3339))
+}
+
+func CustomLevelEncoder(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
+	enc.AppendString("[" + level.CapitalString() + "]")
 }
 
 func refreshFileLoggerWithFields() {

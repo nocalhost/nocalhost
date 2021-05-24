@@ -41,6 +41,7 @@ var (
 	pfManager                   *PortForwardManager
 	tcpCtx, tcpCancelFunc       = context.WithCancel(context.Background()) // For stopping listening tcp port
 	daemonCtx, daemonCancelFunc = context.WithCancel(context.Background()) // For exiting current daemon server
+	startUpPath                 string
 )
 
 func init() {
@@ -55,6 +56,8 @@ func daemonListenPort() int {
 }
 
 func StartDaemon(isSudoUser bool, v string, c string) error {
+	startUpPath, _ = utils.GetNhctlPath()
+
 	version = v
 	commitId = c
 	if isSudoUser && !utils.IsSudoUser() {
@@ -77,14 +80,16 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 				if err != nil {
 					return nil
 				}
-				nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, false)
+				nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, true)
 				if err != nil {
 					return nil
 				}
 
 				if pack.Event.EventType == appmeta.DEV_END {
-					log.Logf("Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName,
-						pack.Event.ResourceName)
+					log.Logf(
+						"Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName,
+						pack.Event.ResourceName,
+					)
 					nhController := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
 					if err := nhController.StopSyncAndPortForwardProcess(true); err != nil {
 						return nil
@@ -97,8 +102,10 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 						return nil
 					}
 
-					log.Logf("Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName,
-						pack.Event.ResourceName)
+					log.Logf(
+						"Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName,
+						pack.Event.ResourceName,
+					)
 					nhController := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
 					if err := nhController.StopAllPortForward(); err != nil {
 						return nil
@@ -123,7 +130,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 			}
 
 			bytes, err := ioutil.ReadAll(conn)
-			cmdType, err := command.ParseCommandType(bytes)
+			cmdType, clientStack, err := command.ParseBaseCommand(bytes)
 			if err != nil {
 				log.LogE(err)
 				continue
@@ -134,7 +141,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 						log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
 					}
 				}()
-				handleCommand(conn, bytes, cmdType)
+				handleCommand(conn, bytes, cmdType, clientStack)
 			}()
 		}
 	}()
@@ -165,104 +172,167 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	}
 }
 
-func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType) {
+func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType, clientStack string) {
 	var err error
 	log.Infof("Handling %s command", cmdType)
+
+	defer func() {
+		if err != nil {
+			log.Log("Client Stack: " + clientStack)
+		}
+	}()
+
+	// prevent elder version to send cmd to daemon
+	if clientStack == "" {
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			return nil, errors.New(
+				fmt.Sprintf("There are multiple nhctl detected on your device, and current nhctl's version "+
+					" is too old.  please update the current nhctl's version up to %s and try again.",
+					version))
+		})
+		return
+	}
+
 	switch cmdType {
 	case command.StartPortForward:
-		startCmd := &command.PortForwardCommand{}
-		errInfo := ""
-		if err = json.Unmarshal(bys, startCmd); err != nil {
-			log.LogE(errors.Wrap(err, ""))
-			response(conn, &daemon_common.CommonResponse{ErrInfo: err.Error()})
-			return
-		}
-		if err = handleStartPortForwardCommand(startCmd); err != nil {
-			errInfo = err.Error()
-			log.LogE(err)
-		}
-		response(conn, &daemon_common.CommonResponse{ErrInfo: errInfo})
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			startCmd := &command.PortForwardCommand{}
+			if err = json.Unmarshal(bys, startCmd); err != nil {
+				return nil, err
+			}
+
+			if err = handleStartPortForwardCommand(startCmd); err != nil {
+				return nil, err
+			}
+
+			return nil, nil
+		})
+
 	case command.StopPortForward:
-		pfCmd := &command.PortForwardCommand{}
-		errInfo := ""
-		if err = json.Unmarshal(bys, pfCmd); err != nil {
-			log.LogE(errors.Wrap(err, ""))
-			response(conn, &daemon_common.CommonResponse{ErrInfo: err.Error()})
-			return
-		}
-		if err = handleStopPortForwardCommand(pfCmd); err != nil {
-			log.LogE(err)
-			errInfo = err.Error()
-		}
-		response(conn, &daemon_common.CommonResponse{ErrInfo: errInfo})
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			pfCmd := &command.PortForwardCommand{}
+			if err = json.Unmarshal(bys, pfCmd); err != nil {
+				return nil, err
+			}
+			if err = handleStopPortForwardCommand(pfCmd); err != nil {
+				return nil, err
+			}
+
+			return nil, nil
+		})
+
 	case command.StopDaemonServer:
-		conn.Close()
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			return nil, nil
+		})
+
 		tcpCancelFunc()
 		// todo: clean up resources
 		daemonCancelFunc()
+
 	case command.RestartDaemonServer:
-		conn.Close()
-		if err = handlerRestartDaemonServerCommand(isSudo); err != nil {
-			log.LogE(err)
-			return
-		}
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			return nil, handlerRestartDaemonServerCommand(isSudo)
+		})
+
 		log.Log("New daemon server is starting, exit this one")
 		daemonCancelFunc()
-	case command.GetDaemonServerInfo:
-		info := &daemon_common.DaemonServerInfo{Version: version, CommitId: commitId}
-		response(conn, info)
-	case command.GetDaemonServerStatus:
-		status := &daemon_common.DaemonServerStatusResponse{
-			PortForwardList: pfManager.ListAllRunningPFGoRoutineProfile(),
-		}
-		response(conn, status)
-	case command.GetApplicationMeta:
-		gamCmd := &command.GetApplicationMetaCommand{}
-		if err = json.Unmarshal(bys, gamCmd); err != nil {
-			log.LogE(errors.Wrap(err, ""))
-			response(conn, &daemon_common.CommonResponse{ErrInfo: err.Error()})
-			return
-		}
 
-		meta := appmeta_manager.GetApplicationMeta(gamCmd.NameSpace, gamCmd.AppName, gamCmd.KubeConfig)
-		response(conn, meta)
+	case command.GetDaemonServerInfo:
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			return &daemon_common.DaemonServerInfo{
+				Version: version, CommitId: commitId, NhctlPath: startUpPath,
+			}, nil
+		})
+
+	case command.GetDaemonServerStatus:
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			return &daemon_common.DaemonServerStatusResponse{
+				PortForwardList: pfManager.ListAllRunningPFGoRoutineProfile(),
+			}, nil
+		})
+
+	case command.GetApplicationMeta:
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			gamCmd := &command.GetApplicationMetaCommand{}
+			if err = json.Unmarshal(bys, gamCmd); err != nil {
+				return nil, err
+			}
+
+			return appmeta_manager.GetApplicationMeta(gamCmd.NameSpace, gamCmd.AppName, gamCmd.KubeConfig), nil
+		})
 
 	case command.GetApplicationMetas:
-		gamsCmd := &command.GetApplicationMetasCommand{}
-		if err = json.Unmarshal(bys, gamsCmd); err != nil {
-			log.LogE(errors.Wrap(err, ""))
-			response(conn, &daemon_common.CommonResponse{ErrInfo: err.Error()})
-			return
-		}
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			gamsCmd := &command.GetApplicationMetasCommand{}
+			if err = json.Unmarshal(bys, gamsCmd); err != nil {
+				return nil, err
+			}
 
-		metas := appmeta_manager.GetApplicationMetas(gamsCmd.NameSpace, gamsCmd.KubeConfig)
-		response(conn, metas)
+			return appmeta_manager.GetApplicationMetas(gamsCmd.NameSpace, gamsCmd.KubeConfig), nil
+		})
+
 	case command.GetResourceInfo:
-		cmd := &command.GetResourceInfoCommand{}
-		if err = json.Unmarshal(bys, cmd); err != nil {
-			log.LogE(errors.Wrap(err, ""))
-			response(conn, &daemon_common.CommonResponse{ErrInfo: err.Error()})
-			return
-		}
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			cmd := &command.GetResourceInfoCommand{}
+			if err = json.Unmarshal(bys, cmd); err != nil {
+				return nil, errors.Wrap(err, "")
+			}
 
-		res := daemon_handler.HandleGetResourceInfoRequest(cmd)
-		response(conn, res)
+			return daemon_handler.HandleGetResourceInfoRequest(cmd), nil
+		})
 	}
 }
 
-func response(conn net.Conn, v interface{}) {
+func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error {
 	defer conn.Close()
-	bys, err := json.Marshal(v)
+
+	resp := command.BaseResponse{}
+
+	result, errFromFun := fun(conn)
+	if errFromFun != nil {
+		log.LogE(errFromFun)
+		resp.Status = command.FAIL
+		resp.Msg = errFromFun.Error()
+	} else {
+		resp.Status = command.SUCCESS
+
+		if result != nil {
+			if bs, err := json.Marshal(&result); err != nil {
+				resp.Status = command.INTERNAL_FAIL
+				resp.Msg = err.Error()
+			} else {
+				resp.Data = bs
+			}
+		}
+	}
+
+	// try marshal again if fail
+	bys, err := json.Marshal(&resp)
 	if err != nil {
 		log.LogE(errors.Wrap(err, ""))
+
+		resp.Status = command.INTERNAL_FAIL
+		resp.Msg = resp.Msg + fmt.Sprintf(" | INTERNAL_FAIL:[%s]", err.Error())
+
+		if bys, err = json.Marshal(&resp); err != nil {
+			log.LogE(errors.Wrap(err, ""))
+			return err
+		}
 	}
+
 	if _, err = conn.Write(bys); err != nil {
 		log.LogE(errors.Wrap(err, ""))
+		return err
 	}
+
 	cw, ok := conn.(interface{ CloseWrite() error })
 	if ok {
-		cw.CloseWrite()
+		err := cw.CloseWrite()
+		return err
 	}
+
+	return errFromFun
 }
 
 func handlerRestartDaemonServerCommand(isSudoUser bool) error {
@@ -280,7 +350,7 @@ func handlerRestartDaemonServerCommand(isSudoUser bool) error {
 
 func handleStopPortForwardCommand(cmd *command.PortForwardCommand) error {
 	// For compatibility
-	return pfManager.StopPortForwardGoRoutine(cmd.LocalPort, cmd.RemotePort)
+	return pfManager.StopPortForwardGoRoutine(cmd)
 }
 
 // If a port-forward already exist, skip it(don't do anything), and return an error
