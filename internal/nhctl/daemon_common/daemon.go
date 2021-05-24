@@ -37,6 +37,9 @@ type PortForwardProfile struct {
 	StopCh     chan error         `json:"-"`
 	NameSpace  string             `json:"nameSpace"`
 	AppName    string             `json:"appName"`
+	SvcName    string             `json:"svcName"`
+	SvcType    string             `json:"svcType"`
+	Role       string             `json:"role"`
 	LocalPort  int                `json:"localPort"`
 	RemotePort int                `json:"remotePort"`
 }
