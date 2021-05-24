@@ -118,7 +118,7 @@ var devStartCmd = &cobra.Command{
 			must(err)
 
 			if nocalhostSvc.IsProcessor() {
-				startSyncthing(true)
+				startSyncthing(podName, true)
 			}
 
 			if devStartOps.Terminal || shell != "" {
@@ -144,7 +144,7 @@ var devStartCmd = &cobra.Command{
 			stopPreviousSyncthing()
 			recordingProfile()
 			podName := enterDevMode()
-			startSyncthing(false)
+			startSyncthing(podName, false)
 
 			if devStartOps.Terminal || shell != "" {
 				must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
@@ -219,15 +219,15 @@ func stopPreviousSyncthing() {
 	)
 }
 
-func startSyncthing(resume bool) {
+func startSyncthing(podName string, resume bool) {
 	if resume {
-		StartSyncthing(true, false, "", false, true)
+		StartSyncthing(podName, true, false, "", false, true)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync resumed")
 		}()
 	} else {
-		StartSyncthing(false, false, "", false, true)
+		StartSyncthing(podName, false, false, "", false, true)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync started")
