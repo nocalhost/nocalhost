@@ -140,7 +140,7 @@ var devStartCmd = &cobra.Command{
 
 			coloredoutput.Hint("Starting DevMode...")
 
-			loadLocalConfigIfNeeded()
+			loadLocalConfigIfValid()
 			stopPreviousSyncthing()
 			recordingProfile()
 			podName := enterDevMode()
@@ -185,7 +185,7 @@ func recordingProfile() {
 
 // when re enter dev mode, nocalhost will check the associate dir
 // nocalhost will load svc config from associate dir if needed
-func loadLocalConfigIfNeeded() {
+func loadLocalConfigIfValid() {
 
 	switch len(devStartOps.LocalSyncDir) {
 	case 0:
@@ -197,10 +197,10 @@ func loadLocalConfigIfNeeded() {
 		}
 		devStartOps.LocalSyncDir = append(devStartOps.LocalSyncDir, p.Associate)
 
-		nocalhostApp.LoadSvcCfgFromLocalIfNeeded(deployment, serviceType, false)
+		nocalhostApp.LoadSvcCfgFromLocalIfValid(deployment, serviceType)
 	case 1:
 		must(nocalhostSvc.Associate(devStartOps.LocalSyncDir[0]))
-		nocalhostApp.LoadSvcCfgFromLocalIfNeeded(deployment, serviceType, false)
+		nocalhostApp.LoadSvcCfgFromLocalIfValid(deployment, serviceType)
 	default:
 		log.Fatal(errors.New("Can not define multi 'local-sync(-s)'"))
 	}

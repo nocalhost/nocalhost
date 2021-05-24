@@ -220,10 +220,10 @@ func (a *Application) generateSecretForEarlierVer() bool {
 	return false
 }
 
-func (a *Application) ReloadCfg(force bool) error {
+func (a *Application) ReloadCfg() error {
 	secretCfg := a.appMeta.Config
 	for _, config := range secretCfg.ApplicationConfig.ServiceConfigs {
-		if err := a.ReloadSvcCfg(config.Name, config.Type, force); err != nil {
+		if err := a.ReloadSvcCfg(config.Name, config.Type); err != nil {
 			log.LogE(err)
 		}
 	}
@@ -231,8 +231,8 @@ func (a *Application) ReloadCfg(force bool) error {
 	return nil
 }
 
-func (a *Application) ReloadSvcCfg(svcName, svcType string, force bool) error {
-	if !a.LoadSvcCfgFromLocalIfNeeded(svcName, svcType, force) {
+func (a *Application) ReloadSvcCfg(svcName, svcType string) error {
+	if !a.LoadSvcCfgFromLocalIfValid(svcName, svcType) {
 		return a.Controller(svcName, appmeta.SvcTypeOf(svcType)).UpdateSvcProfile(
 			func(svcProfile *profile.SvcProfileV2) error {
 
@@ -254,22 +254,17 @@ func (a *Application) ReloadSvcCfg(svcName, svcType string, force bool) error {
 	return nil
 }
 
-func (a *Application) LoadSvcCfgFromLocalIfNeeded(svcName, svcType string, force bool) bool {
+func (a *Application) LoadSvcCfgFromLocalIfValid(svcName, svcType string) bool {
 	p, err := a.GetProfile()
 	if err != nil {
 		return false
 	}
 
 	svcProfile := p.SvcProfileV2(svcName, svcType)
-	if svcProfile.LocalConfigLoaded && !force {
-		return false
-	}
 
 	if svcProfile.Associate == "" {
 		return false
 	}
-
-
 
 	configFile := fp.NewFilePath(svcProfile.Associate).RelOrAbs(DefaultGitNocalhostDir).RelOrAbs(DefaultConfigNameInGitNocalhostDir)
 	if err = configFile.CheckExist(); err != nil {
