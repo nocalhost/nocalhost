@@ -354,7 +354,7 @@ func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) erro
 		}
 	default:
 
-		return errors.Wrap(err,
+		return errors.New(
 			fmt.Sprintf("Error occur from daemon, status [%d], msg [%s].",
 				response.Status, response.Msg),
 		)
