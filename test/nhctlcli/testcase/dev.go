@@ -45,9 +45,9 @@ func DevStartT(cli *nhctlcli.CLI, moduleName string, moduleType string) error {
 		"-s", "/tmp/"+moduleName,
 		"-t", moduleType,
 		"--priority-class", "nocalhost-container-critical",
-    		// prevent tty to block testcase
-		"--shell", "exit",
-  )
+		// prevent tty to block testcase
+		// "--shell", "exit",
+	)
 	if err := nhctlcli.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
 	}
