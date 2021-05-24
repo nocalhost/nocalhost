@@ -494,7 +494,7 @@ func (c *Controller) GetNocalhostDevContainerPod() (string, error) {
 
 	found := false
 	for _, pod := range checkPodsList.Items {
-		if pod.Status.Phase == "Running" {
+		if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
 			for _, container := range pod.Spec.Containers {
 				if container.Name == nocalhost.DefaultNocalhostSideCarName {
 					found = true
