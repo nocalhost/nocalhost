@@ -12,6 +12,7 @@ import (
 	"nocalhost/test/nhctlcli"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"time"
 )
@@ -21,7 +22,7 @@ func sshD(privateKeyPath string, localSshPort int) {
 	sock5Port, _ := ports.GetAvailablePort()
 	_, _ = proxy.SOCKS5("", "", nil, nil)
 	_ = "ssh -ND 0.0.0.0:8080 root@127.0.0.1 -p 5000 -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i /Users/naison/.nh/ssh/private/key"
-	_ = "curl --socks5 127.0.0.1:8080 172.16.255.110:8080"
+	_ = "curl --socks5-hostname 127.0.0.1:8080 172.16.255.110:8080"
 	_ = "export http_proxy=socks5://127.0.0.1:8080"
 	cmd := exec.Command("ssh", "-ND",
 		"0.0.0.0:"+strconv.Itoa(sock5Port),
@@ -37,8 +38,10 @@ func sshD(privateKeyPath string, localSshPort int) {
 		}
 	}()
 	time.Sleep(time.Second * 3)
-	dumpServiceToHosts()
-	fmt.Printf(`please export http_proxy=socks5://127.0.0.1:%d, and the you can access cluster ip or domain`+"\n", sock5Port)
+	// not necessary
+	//dumpServiceToHosts()
+	// socks5h means dns resolve should in remote pod, not local
+	fmt.Printf(`please export http_proxy=socks5h://127.0.0.1:%d, and the you can access cluster ip or domain`+"\n", sock5Port)
 }
 
 func dumpServiceToHosts() {
@@ -55,7 +58,12 @@ func dumpServiceToHosts() {
 		log.Printf("backup hosts file secuessfully")
 	}
 
-	f, err := os.OpenFile("/etc/hosts", os.O_APPEND|os.O_WRONLY, 0700)
+	hostpath := "c:/windows/system32/drivers/etc/hosts"
+	if runtime.GOOS == "mac" || runtime.GOOS == "linux" {
+		hostpath = "/etc/hosts"
+	}
+
+	f, err := os.OpenFile(hostpath, os.O_APPEND|os.O_WRONLY, 0700)
 	if err != nil {
 		log.Println("error while open hosts files")
 	}

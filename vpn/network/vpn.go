@@ -67,7 +67,7 @@ func Start() {
 	log.Printf("kubeconfig path: %s\n", *kubeconfig)
 	err := preCheck()
 	if err != nil {
-		panic(err)
+		log.Println(err)
 	}
 	privateKeyPath := filepath.Join(HomeDir(), ".nh", "ssh", "private", "key")
 	public := filepath.Join(HomeDir(), ".nh", "ssh", "private", "pub")
@@ -289,7 +289,7 @@ func scaleDeploymentReplicasTo(replicas int32) {
 var stopChan = make(chan os.Signal)
 
 func addCleanUpResource() {
-	signal.Notify(stopChan, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGSTOP)
+	signal.Notify(stopChan, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL /*, syscall.SIGSTOP*/)
 	go func() {
 		<-stopChan
 		log.Println("prepare to exit, cleaning up")
@@ -317,6 +317,7 @@ func cleanShadow(wait bool) {
 	if !wait {
 		return
 	}
+	log.Printf("waiting for pod: %s to be deleted...\n", shadowName)
 	if err == nil {
 		w, err := clientset.CoreV1().Pods(*serviceNamespace).Watch(context.TODO(), metav1.ListOptions{
 			LabelSelector: "name=" + shadowName,
