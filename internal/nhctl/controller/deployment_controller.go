@@ -14,6 +14,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
@@ -43,8 +44,18 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 	var err error
 	d.Client.Context(ctx)
 
-	if err = d.markReplicaSetRevision(); err != nil {
+	//if err = d.markReplicaSetRevision(); err != nil {
+	//	return err
+	//}
+
+	dep, err := d.Client.GetDeployment(d.Name())
+	if err != nil {
 		return err
+	}
+
+	originalSpecJson, err := json.Marshal(&dep.Spec)
+	if err != nil {
+		return errors.Wrap(err, "")
 	}
 
 	if err = d.ScaleReplicasToOne(ctx); err != nil {
@@ -153,6 +164,10 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 			dep.Spec.Template.Spec.PriorityClassName = priorityClass
 		}
 
+		if _, ok := dep.Annotations[OriginSpecJson]; !ok {
+			dep.Annotations[OriginSpecJson] = string(originalSpecJson)
+		}
+
 		log.Info("Updating development container...")
 		_, err = d.Client.UpdateDeployment(dep, true)
 		if err != nil {
@@ -253,50 +268,62 @@ func (d *DeploymentController) RollBack(reset bool) error {
 		return err
 	}
 
-	rss, err := clientUtils.GetSortedReplicaSetsByDeployment(d.Name())
-	if err != nil {
-		log.WarnE(err, "Failed to get rs list")
-		return err
-	}
+	osj, ok := dep.Annotations[OriginSpecJson]
 
-	// Find previous replicaSet
-	if len(rss) < 2 {
-		log.Warn("No history to roll back")
-		return nil
-	}
+	rss, _ := clientUtils.GetSortedReplicaSetsByDeployment(d.Name())
 
-	var r *v1.ReplicaSet
-	var originalPodReplicas *int32
-	for _, rs := range rss {
-		if rs.Annotations == nil {
-			continue
-		}
-		// Mark the original revision
-		if rs.Annotations[nocalhost.DevImageRevisionAnnotationKey] == nocalhost.DevImageRevisionAnnotationValue {
-			r = rs
-			if rs.Annotations[nocalhost.DevImageOriginalPodReplicasAnnotationKey] != "" {
-				podReplicas, _ := strconv.Atoi(rs.Annotations[nocalhost.DevImageOriginalPodReplicasAnnotationKey])
-				podReplicas32 := int32(podReplicas)
-				originalPodReplicas = &podReplicas32
+	findPodSpecFromRs := false
+	if len(rss) >= 2 {
+		var r *v1.ReplicaSet
+		var originalPodReplicas *int32
+		for _, rs := range rss {
+			if rs.Annotations == nil {
+				continue
+			}
+			// Mark the original revision
+			if rs.Annotations[nocalhost.DevImageRevisionAnnotationKey] == nocalhost.DevImageRevisionAnnotationValue {
+				r = rs
+				if rs.Annotations[nocalhost.DevImageOriginalPodReplicasAnnotationKey] != "" {
+					podReplicas, _ := strconv.Atoi(rs.Annotations[nocalhost.DevImageOriginalPodReplicasAnnotationKey])
+					podReplicas32 := int32(podReplicas)
+					originalPodReplicas = &podReplicas32
+				}
 			}
 		}
-	}
-	if r == nil {
-		if !reset {
-			return errors.New("Failed to find the proper revision to rollback")
-		} else {
+
+		if r == nil && reset {
 			r = rss[0]
 		}
-	}
 
-	dep.Spec.Template = r.Spec.Template
-	if originalPodReplicas != nil {
-		dep.Spec.Replicas = originalPodReplicas
+		if r != nil {
+			dep.Spec.Template = r.Spec.Template
+			if originalPodReplicas != nil {
+				dep.Spec.Replicas = originalPodReplicas
+			}
+			findPodSpecFromRs = true
+		}
+	}
+	if !findPodSpecFromRs {
+		if ok {
+			log.Info("No history to roll back, try to use nocalhost.origin.spec.json annotation")
+		} else {
+			return errors.New("No spec json found to rollback")
+		}
+
+		dep.Spec = v1.DeploymentSpec{}
+		if err = json.Unmarshal([]byte(osj), &dep.Spec); err != nil {
+			return errors.Wrap(err, "")
+		}
+
+		log.Info(" Recreating original revision...")
+		if len(dep.Annotations) == 0 {
+			dep.Annotations = make(map[string]string, 0)
+		}
+		dep.Annotations[OriginSpecJson] = osj
 	}
 
 	log.Info(" Deleting current revision...")
-	err = clientUtils.DeleteDeployment(dep.Name, false)
-	if err != nil {
+	if err = clientUtils.DeleteDeployment(dep.Name, false); err != nil {
 		return err
 	}
 
@@ -306,6 +333,8 @@ func (d *DeploymentController) RollBack(reset bool) error {
 		dep.Annotations = make(map[string]string, 0)
 	}
 	dep.Annotations["nocalhost-dep-ignore"] = "true"
+	dep.Annotations[nocalhost.NocalhostApplicationName] = d.AppName
+	dep.Annotations[nocalhost.NocalhostApplicationNamespace] = d.NameSpace
 
 	// Add labels and annotations
 	if dep.Labels == nil {
@@ -313,20 +342,12 @@ func (d *DeploymentController) RollBack(reset bool) error {
 	}
 	dep.Labels[nocalhost.AppManagedByLabel] = nocalhost.AppManagedByNocalhost
 
-	if dep.Annotations == nil {
-		dep.Annotations = make(map[string]string, 0)
-	}
-	dep.Annotations[nocalhost.NocalhostApplicationName] = d.AppName
-	dep.Annotations[nocalhost.NocalhostApplicationNamespace] = d.NameSpace
-
-	_, err = clientUtils.CreateDeployment(dep)
-	if err != nil {
+	if _, err = clientUtils.CreateDeployment(dep); err != nil {
 		if strings.Contains(err.Error(), "initContainers") && strings.Contains(err.Error(), "Duplicate") {
 			log.Warn("[Warning] Nocalhost-dep needs to update")
 		}
 		return err
 	}
-
 	return nil
 }
 
