@@ -91,6 +91,12 @@ swag init -g cmd/nocalhost-api/nocalhost-api.go
 - 对 Nocalhost 有任何意见和建议，请提交 GitHub Issue: https://github.com/nocalhost/nocalhost/issues
 - 您可以通过提交 Pull Request 来参与社区贡献：https://github.com/nocalhost/nocalhost/pulls
 
+# 社区和交流
+
+* Slack: [Nocalhost Slack 频道](https://nocalhost.slack.com/)
+* WeChat: 扫描添加 CODING 小助手并备注 Nocalhost，然后小助手会把您拉进群里
+
+
 # 🔥招聘
 
 如果你对 Nocalhost 感兴趣，欢迎投递简历至：wangweimax@coding.net（接受远程）

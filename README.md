@@ -102,6 +102,13 @@ Then you can visit: http://127.0.0.1:8080/swagger/index.html
 - Pull Requests are welcomed: https://github.com/nocalhost/nocalhost/pulls
 
 
+## Community
+
+* Slack: [Nocalhost Slack Channel](https://nocalhost.slack.com/)
+* WeChat: Scan the QR Code to add CODING assistance with note "Nocalhost", assistance will add you into our WeChat group
+
+
+
 # 🔥We're Hiring
 
 If you are interested with Nocalhost, please send resume to email: wangweimax@coding.net(Accept Remote Work)
