@@ -14,6 +14,7 @@ package suite
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -22,7 +23,6 @@ import (
 	"nocalhost/test/nhctlcli/testcase"
 	"nocalhost/test/tke"
 	"nocalhost/test/util"
-	"strconv"
 	"time"
 )
 
@@ -30,20 +30,25 @@ func PortForward(cli *nhctlcli.CLI, _ ...string) {
 	module := "reviews"
 	port := 49080
 
-	funcs := []func(*nhctlcli.CLI, string, int) error{testcase.PortForwardStart}
-	util.RetryWith3Params("PortForward", funcs, cli, module, port)
+	//funcs := []func() error{func() error { return testcase.PortForwardStart(cli, module, port) }}
+	//util.Retry("PortForward", funcs)
 
-	clientgoutils.Must(testcase.PortForwardCheck(port))
-	funcs = []func(*nhctlcli.CLI, string, int) error{testcase.StatusCheckPortForward}
-	util.RetryWith3Params("PortForward", funcs, cli, module, port)
+	//clientgoutils.Must(testcase.PortForwardCheck(port))
+	funcs := []func() error{
+		func() error { return testcase.PortForwardStart(cli, module, port) },
+		func() error { return testcase.PortForwardCheck(port) },
+		func() error { return testcase.StatusCheckPortForward(cli, module, port) },
+		func() error { return testcase.PortForwardEnd(cli, module, port) },
+	}
+	util.Retry("PortForward", funcs)
 
-	funcs = []func(*nhctlcli.CLI, string, int) error{testcase.PortForwardEnd}
-	util.RetryWith3Params("PortForward", funcs, cli, module, port)
+	//funcs = []func() error{func() error { return testcase.PortForwardEnd(cli, module, port) }}
+	//util.Retry("PortForward", funcs)
 }
 
 func PortForwardService(cli *nhctlcli.CLI, _ ...string) {
 	module := "productpage"
-	removePort := 9080
+	remotePort := 9080
 	localPort, err := ports.GetAvailablePort()
 	if err != nil {
 		panic(errors.Errorf("fail to get available port, err: %s", err))
@@ -52,7 +57,7 @@ func PortForwardService(cli *nhctlcli.CLI, _ ...string) {
 	cmd := kubectl.Command(context.Background(),
 		"port-forward",
 		"service/"+module,
-		strconv.Itoa(localPort)+":"+strconv.Itoa(removePort),
+		fmt.Sprintf("%d:%d", localPort, remotePort),
 	)
 	log.Infof("Running command: %v", cmd.Args)
 	if err = cmd.Start(); err != nil {
@@ -62,18 +67,32 @@ func PortForwardService(cli *nhctlcli.CLI, _ ...string) {
 	_ = cmd.Process.Kill()
 }
 
-func Dev(cli *nhctlcli.CLI, _ ...string) {
+func Deployment(cli *nhctlcli.CLI, _ ...string) {
+	PortForward(cli)
+	PortForwardService(cli)
 	module := "ratings"
-	funcs := []func(*nhctlcli.CLI, string) error{testcase.DevStart, testcase.Sync, testcase.DevEnd}
-	util.RetryWith2Params("Dev", funcs, cli, module)
+	funcs := []func() error{
+
+		func() error { return testcase.DevStart(cli, module) },
+		func() error { return testcase.Sync(cli, module) },
+		func() error { return testcase.SyncCheck(cli, module) },
+		func() error { return testcase.SyncStatus(cli, module) },
+		func() error { return testcase.DevEnd(cli, module) },
+	}
+	util.Retry("Dev", funcs)
 }
 
-func Sync(cli *nhctlcli.CLI, _ ...string) {
-	module := "ratings"
-	funcs := []func(*nhctlcli.CLI, string) error{testcase.DevStart, testcase.Sync, testcase.SyncCheck, testcase.SyncStatus}
-	util.RetryWith2Params("Sync", funcs, cli, module)
-	_ = testcase.DevEnd(cli, module)
-}
+//func Sync(cli *nhctlcli.CLI, _ ...string) {
+//	module := "ratings"
+//	funcs := []func() error{
+//		func() error { return testcase.DevStart(cli, module) },
+//		func() error { return testcase.Sync(cli, module) },
+//		func() error { return testcase.SyncCheck(cli, module) },
+//		func() error { return testcase.SyncStatus(cli, module) },
+//	}
+//	util.Retry("Sync", funcs)
+//	_ = testcase.DevEnd(cli, module)
+//}
 
 func StatefulSet(cli *nhctlcli.CLI, _ ...string) {
 	module := "web"
@@ -91,37 +110,42 @@ func Compatible(cli *nhctlcli.CLI, p ...string) {
 	module := "ratings"
 	port := 49080
 	suiteName := "Compatible"
-	util.RetryWith1Params(suiteName, []func(*nhctlcli.CLI) error{testcase.Exec}, cli)
-	m := []func(*nhctlcli.CLI, string) error{testcase.DevStart, testcase.Sync}
-	util.RetryWith2Params(suiteName, m, cli, module)
-	m2 := []func(*nhctlcli.CLI, string, int) error{testcase.PortForwardStart}
-	util.RetryWith3Params(suiteName, m2, cli, module, port)
+	util.Retry(suiteName, []func() error{func() error { return testcase.Exec(cli) }})
+	m := []func() error{
+		func() error { return testcase.DevStart(cli, module) },
+		func() error { return testcase.Sync(cli, module) },
+	}
+	util.Retry(suiteName, m)
+	m2 := []func() error{func() error { return testcase.PortForwardStart(cli, module, port) }}
+	util.Retry(suiteName, m2)
 	// install new version of nhctl
 	if len(p) > 0 && p[0] != "" {
-		util.RetryWithString(suiteName, []func(string) error{testcase.InstallNhctl}, p[0])
+		util.Retry(suiteName, []func() error{func() error { return testcase.InstallNhctl(p[0]) }})
 		//_ = testcase.RestartDaemon(cli)
 		_ = testcase.NhctlVersion(cli)
 	}
-	funcsList := []func(*nhctlcli.CLI, string) error{testcase.StatusCheck, testcase.SyncCheck}
-	util.RetryWith2Params(suiteName, funcsList, cli, module)
-	util.RetryWith3Params(suiteName, []func(*nhctlcli.CLI, string, int) error{testcase.PortForwardEnd},
-		cli, module, port)
+	funcsList := []func() error{
+		func() error { return testcase.StatusCheck(cli, module) },
+		func() error { return testcase.SyncCheck(cli, module) },
+	}
+	util.Retry(suiteName, funcsList)
+	util.Retry(suiteName, []func() error{func() error { return testcase.PortForwardEnd(cli, module, port) }})
 	//util.RetryWith2Params(suiteName,
 	//	map[string]func(*nhctlcli.CLI, string) error{"DevEnd": testcase.DevEnd},
 	//	cli,
 	//	module)
 	clientgoutils.Must(testcase.DevEnd(cli, module))
 	// for temporary
-	funcs := []func(*nhctlcli.CLI) error{
-		testcase.Upgrade,
-		testcase.Config,
-		testcase.List,
-		testcase.Db,
-		testcase.Pvc,
-		testcase.Reset,
-		testcase.InstallBookInfoThreeTimes,
+	funcs := []func() error{
+		func() error { return testcase.Upgrade(cli) },
+		func() error { return testcase.Config(cli) },
+		func() error { return testcase.List(cli) },
+		func() error { return testcase.Db(cli) },
+		func() error { return testcase.Pvc(cli) },
+		func() error { return testcase.Reset(cli) },
+		func() error { return testcase.InstallBookInfoThreeTimes(cli) },
 	}
-	util.RetryWith1Params(suiteName, funcs, cli)
+	util.Retry(suiteName, funcs)
 }
 
 func Reset(cli *nhctlcli.CLI, _ ...string) {
@@ -129,7 +153,6 @@ func Reset(cli *nhctlcli.CLI, _ ...string) {
 	_ = testcase.UninstallBookInfo(cli)
 	retryTimes := 5
 	var err error
-	clientgoutils.Must(err)
 	for i := 0; i < retryTimes; i++ {
 		if err = testcase.InstallBookInfo(cli); err != nil {
 			log.Infof("install bookinfo error, error: %v, retrying...", err)
@@ -144,18 +167,24 @@ func Reset(cli *nhctlcli.CLI, _ ...string) {
 }
 
 func Apply(cli *nhctlcli.CLI, _ ...string) {
-	util.RetryWith1Params("Apply", []func(*nhctlcli.CLI) error{testcase.Apply}, cli)
+	util.Retry("Apply", []func() error{func() error { return testcase.Apply(cli) }})
 	clientgoutils.Must(testcase.List(cli))
 }
 
 func Upgrade(cli *nhctlcli.CLI, _ ...string) {
-	util.RetryWith1Params("Upgrade", []func(*nhctlcli.CLI) error{testcase.Upgrade}, cli)
+	util.Retry("Upgrade", []func() error{func() error { return testcase.Upgrade(cli) }})
 	clientgoutils.Must(testcase.List(cli))
+	Reset(cli)
+	Apply(cli)
+	Profile(cli)
 }
 
 func Profile(cli *nhctlcli.CLI, _ ...string) {
-	util.RetryWith1Params("Profile", []func(*nhctlcli.CLI) error{testcase.ProfileGetUbuntuWithJson,
-		testcase.ProfileGetDetailsWithoutJson, testcase.ProfileSetDetails}, cli)
+	util.Retry("Profile", []func() error{
+		func() error { return testcase.ProfileGetUbuntuWithJson(cli) },
+		func() error { return testcase.ProfileGetDetailsWithoutJson(cli) },
+		func() error { return testcase.ProfileSetDetails(cli) },
+	})
 	clientgoutils.Must(testcase.List(cli))
 }
 
@@ -196,13 +225,13 @@ func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string, cancelFunc func()) {
 	}
 	go util.TimeoutChecker(1*time.Hour, cancelFunc)
 	v1, v2 = testcase.GetVersion()
-	util.RetryWithString("Prepare", []func(string) error{testcase.InstallNhctl}, v1)
+	util.Retry("Prepare", []func() error{func() error { return testcase.InstallNhctl(v1) }})
 	kubeconfig := util.GetKubeconfig()
 	nocalhost := "nocalhost"
 	tempCli := nhctlcli.NewNhctl(nocalhost, kubeconfig)
 	clientgoutils.Must(testcase.NhctlVersion(tempCli))
 	_ = testcase.StopDaemon(tempCli)
-	util.RetryWith1Params("Prepare", []func(*nhctlcli.CLI) error{testcase.Init}, tempCli)
+	util.Retry("Prepare", []func() error{func() error { return testcase.Init(tempCli) }})
 	newKubeconfig, err := testcase.GetKubeconfig(nocalhost, kubeconfig)
 	clientgoutils.Must(err)
 	ns, err := clientgoutils.GetNamespaceFromKubeConfig(newKubeconfig)

@@ -21,8 +21,7 @@ import (
 	"nocalhost/internal/nhctl/profile"
 )
 
-var notificationPrefix = `
-# This is the runtime configuration which stored in the memory. Modifications 
+var notificationPrefix = `# This is the runtime configuration which stored in the memory. Modifications 
 # to the development configuration will take effect the next time you enter
 # the DevMode, but any modification will not be persisted.
 #
@@ -35,14 +34,20 @@ var notificationPrefix = `
 
 var svcNotificationTips = `
 # Tips: You can generate your configuration into %s if needed.`
-var svcNotificationTipsLoaded = `
-# Tips: This configuration is a in-memory replica of %s.`
 
 var notificationSuffix = `
 #
 # In addition, if you use the Server-version of Nocalhost, you can also 
 # configure under the definition of the application, such as:
 # https://github.com/nocalhost/bookinfo/tree/main/.nocalhost
+`
+
+var svcNotificationTipsLoaded = `# Tips: This configuration is a in-memory replica of local file: 
+# 
+# '%s'
+# 
+# You should modify your configuration in local file, and the
+# modification will take effect the next time you enter the DevMode.
 `
 
 func init() {
@@ -111,19 +116,20 @@ var configGetCmd = &cobra.Command{
 					RelOrAbs(".nocalhost").
 					RelOrAbs("config.yaml").Path
 
-				notification := notificationPrefix
+				notification := ""
 				if !svcProfile.LocalConfigLoaded {
+					notification += notificationPrefix
 					notification += fmt.Sprintf(
 						svcNotificationTips,
 						path,
 					)
+					notification += notificationSuffix
 				} else {
 					notification += fmt.Sprintf(
 						svcNotificationTipsLoaded,
 						path,
 					)
 				}
-				notification += notificationSuffix
 
 				fmt.Println(
 					fmt.Sprintf(

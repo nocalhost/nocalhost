@@ -74,12 +74,14 @@ var fileSyncCmd = &cobra.Command{
 
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
-		StartSyncthing(fileSyncOps.Resume, fileSyncOps.Stop, fileSyncOps.Container,
-			fileSyncOps.SyncDouble, fileSyncOps.Override)
+		StartSyncthing(
+			"", fileSyncOps.Resume, fileSyncOps.Stop, fileSyncOps.Container,
+			fileSyncOps.SyncDouble, fileSyncOps.Override,
+		)
 	},
 }
 
-func StartSyncthing(resume bool, stop bool, container string, syncDouble bool, override bool) {
+func StartSyncthing(podName string, resume bool, stop bool, container string, syncDouble bool, override bool) {
 	if !nocalhostSvc.IsInDevMode() {
 		log.Fatalf("Service \"%s\" is not in developing", deployment)
 	}
@@ -108,9 +110,12 @@ func StartSyncthing(resume bool, stop bool, container string, syncDouble bool, o
 		}
 	}
 
-	podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
-	must(err)
-
+	if podName == "" {
+		var err error
+		if podName, err = nocalhostSvc.GetNocalhostDevContainerPod(); err != nil {
+			must(err)
+		}
+	}
 	log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.NameSpace)
 
 	svcProfile, _ := nocalhostSvc.GetProfile()

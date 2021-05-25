@@ -38,10 +38,6 @@ var resetCmd = &cobra.Command{
 		if len(args) > 0 {
 			applicationName := args[0]
 			if applicationName != "" {
-				if applicationName == nocalhost.DefaultNocalhostApplication {
-					log.Error(nocalhost.DefaultNocalhostApplicationOperateErr)
-					return
-				}
 				resetApplication(applicationName)
 				return
 			}
