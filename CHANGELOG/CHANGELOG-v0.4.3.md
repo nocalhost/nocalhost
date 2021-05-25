@@ -1,4 +1,4 @@
-# NOCALHOST Change Log
+# NOCALHOST Changelog
 
 ## 0.4.3 (2021-05-24)
 
