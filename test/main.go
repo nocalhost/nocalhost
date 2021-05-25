@@ -13,10 +13,13 @@
 package main
 
 import (
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/nhctlcli/suite"
+	"time"
 )
 
 func main() {
+	start := time.Now()
 	cli, _, v2, cancelFunc := suite.Prepare()
 	t := suite.T{Cli: cli, CleanFunc: cancelFunc}
 
@@ -26,15 +29,17 @@ func main() {
 	//t := suite.T{Cli: cli}
 
 	t.Run("install", suite.Install)
-	t.Run("dev", suite.Dev)
-	t.Run("port-forward", suite.PortForward)
-	t.Run("port-forward service", suite.PortForwardService)
-	t.Run("sync", suite.Sync)
-	t.Run("upgrade", suite.Upgrade)
-	t.Run("reset", suite.Reset)
-	t.Run("apply", suite.Apply)
-	t.Run("profile", suite.Profile)
+	t.Run("deployment", suite.Deployment)
+	//t.Run("port-forward", suite.PortForward)
+	//t.Run("port-forward service", suite.PortForwardService)
+	//t.Run("sync", suite.Sync)
+	t.Run("application", suite.Upgrade)
+	//t.Run("reset", suite.Reset)
+	//t.Run("apply", suite.Apply)
+	//t.Run("profile", suite.Profile)
 	t.Run("statefulSet", suite.StatefulSet)
 	t.Run("compatible", suite.Compatible, v2)
 	t.Clean()
+
+	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
 }
