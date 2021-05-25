@@ -14,4 +14,4 @@
 - Fixed file synchronization stability issue
 - Fixed the port forwarding issue “not manager by this daemon” issue
 - Fixed the port forwarding failed to exit issue
-- Optimize JetBrains Plugin
+- Optimize JetBrains plugin performance
