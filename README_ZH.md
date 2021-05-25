@@ -96,6 +96,7 @@ swag init -g cmd/nocalhost-api/nocalhost-api.go
 * Slack: [Nocalhost Slack 频道](https://nocalhost.slack.com/)
 * WeChat: 扫描添加 CODING 小助手并备注 Nocalhost，然后小助手会把您拉进群里
 
+nocal-host-wechat-sm![image](https://user-images.githubusercontent.com/3713305/119478317-4c64ba80-bd82-11eb-83ef-3f787fe1c71f.png)
 
 # 🔥招聘
 
