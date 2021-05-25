@@ -54,6 +54,6 @@ var devAssociateCmd = &cobra.Command{
 		checkIfSvcExist(commonFlags.SvcName, serviceType)
 		must(nocalhostSvc.Associate(workDir))
 
-		nocalhostApp.LoadSvcCfgFromLocalIfNeeded(nocalhostSvc.Name, nocalhostSvc.Type.String(), false)
+		nocalhostApp.LoadSvcCfgFromLocalIfValid(nocalhostSvc.Name, nocalhostSvc.Type.String())
 	},
 }
