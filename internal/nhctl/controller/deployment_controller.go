@@ -164,9 +164,9 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 			dep.Spec.Template.Spec.PriorityClassName = priorityClass
 		}
 
-		if _, ok := dep.Annotations[OriginSpecJson]; !ok {
-			dep.Annotations[OriginSpecJson] = string(originalSpecJson)
-		}
+		//if _, ok := dep.Annotations[OriginSpecJson]; !ok {
+		dep.Annotations[OriginSpecJson] = string(originalSpecJson)
+		//}
 
 		log.Info("Updating development container...")
 		_, err = d.Client.UpdateDeployment(dep, true)
@@ -214,15 +214,6 @@ func (d *DeploymentController) ScaleReplicasToOne(ctx context.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "")
 		} else {
-			//for i := 0; i < 60; i++ {
-			//	time.Sleep(time.Second * 1)
-			//	scale, err = deploymentsClient.GetScale(ctx, d.Name(), metav1.GetOptions{})
-			//	if scale.Spec.Replicas > 1 {
-			//		log.Debugf("Waiting replicas scaling to 1")
-			//	} else {
-			//		break
-			//	}
-			//}
 			log.Info("Replicas has been set to 1")
 		}
 	} else {
@@ -269,57 +260,53 @@ func (d *DeploymentController) RollBack(reset bool) error {
 	}
 
 	osj, ok := dep.Annotations[OriginSpecJson]
-
-	rss, _ := clientUtils.GetSortedReplicaSetsByDeployment(d.Name())
-
-	findPodSpecFromRs := false
-	if len(rss) >= 2 {
-		var r *v1.ReplicaSet
-		var originalPodReplicas *int32
-		for _, rs := range rss {
-			if rs.Annotations == nil {
-				continue
-			}
-			// Mark the original revision
-			if rs.Annotations[nocalhost.DevImageRevisionAnnotationKey] == nocalhost.DevImageRevisionAnnotationValue {
-				r = rs
-				if rs.Annotations[nocalhost.DevImageOriginalPodReplicasAnnotationKey] != "" {
-					podReplicas, _ := strconv.Atoi(rs.Annotations[nocalhost.DevImageOriginalPodReplicasAnnotationKey])
-					podReplicas32 := int32(podReplicas)
-					originalPodReplicas = &podReplicas32
-				}
-			}
-		}
-
-		if r == nil && reset {
-			r = rss[0]
-		}
-
-		if r != nil {
-			dep.Spec.Template = r.Spec.Template
-			if originalPodReplicas != nil {
-				dep.Spec.Replicas = originalPodReplicas
-			}
-			findPodSpecFromRs = true
-		}
-	}
-	if !findPodSpecFromRs {
-		if ok {
-			log.Info("No history to roll back, try to use nocalhost.origin.spec.json annotation")
-		} else {
-			return errors.New("No spec json found to rollback")
-		}
-
+	if ok {
+		log.Info("Annotation nocalhost.origin.spec.json found, use it")
 		dep.Spec = v1.DeploymentSpec{}
 		if err = json.Unmarshal([]byte(osj), &dep.Spec); err != nil {
 			return errors.Wrap(err, "")
 		}
 
-		log.Info(" Recreating original revision...")
 		if len(dep.Annotations) == 0 {
 			dep.Annotations = make(map[string]string, 0)
 		}
 		dep.Annotations[OriginSpecJson] = osj
+	} else {
+		log.Info("Annotation nocalhost.origin.spec.json not found, try to find it from rs")
+		rss, _ := clientUtils.GetSortedReplicaSetsByDeployment(d.Name())
+		if len(rss) >= 1 {
+			var r *v1.ReplicaSet
+			var originalPodReplicas *int32
+			for _, rs := range rss {
+				if rs.Annotations == nil {
+					continue
+				}
+				// Mark the original revision
+				if rs.Annotations[nocalhost.DevImageRevisionAnnotationKey] == nocalhost.DevImageRevisionAnnotationValue {
+					r = rs
+					if rs.Annotations[nocalhost.DevImageOriginalPodReplicasAnnotationKey] != "" {
+						podReplicas, _ := strconv.Atoi(rs.Annotations[nocalhost.DevImageOriginalPodReplicasAnnotationKey])
+						podReplicas32 := int32(podReplicas)
+						originalPodReplicas = &podReplicas32
+					}
+				}
+			}
+
+			if r == nil && reset {
+				r = rss[0]
+			}
+
+			if r != nil {
+				dep.Spec.Template = r.Spec.Template
+				if originalPodReplicas != nil {
+					dep.Spec.Replicas = originalPodReplicas
+				}
+			} else {
+				return errors.New("Failed to find revision to rollout")
+			}
+		} else {
+			return errors.New("Failed to find revision to rollout(no rs found)")
+		}
 	}
 
 	log.Info(" Deleting current revision...")
