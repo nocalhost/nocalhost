@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -41,7 +42,7 @@ func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 			if description != nil {
 				for _, svcProfileV2 := range description.SvcProfile {
 					if svcProfileV2 != nil {
-						serviceMap[svcProfileV2.Name] = svcProfileV2
+						serviceMap["deployments/"+svcProfileV2.Name] = svcProfileV2
 					}
 				}
 			}
@@ -96,21 +97,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		ns = getNamespace(request.Namespace, []byte(request.KubeConfig))
 		if request.ResourceName == "" {
 			metas := appmeta_manager.GetApplicationMetas(ns, request.KubeConfig)
-			if metas != nil {
-				sort.SliceStable(metas, func(i, j int) bool {
-					var n1, n2 string
-					if metas[i] != nil {
-						n1 = metas[i].Application
-					}
-					if metas[j] != nil {
-						n2 = metas[j].Application
-					}
-					if n1 >= n2 {
-						return false
-					}
-					return true
-				})
-			}
+			SortApplication(metas)
 			return metas
 		} else {
 			return appmeta_manager.GetApplicationMeta(ns, request.ResourceName, request.KubeConfig)
@@ -127,7 +114,11 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			}
 			result := make([]Item, 0, len(items))
 			for _, i := range items {
-				result = append(result, Item{Metadata: i, Description: serviceMap[i.(metav1.Object).GetName()]})
+				gvr, _ := s.GetGvr(request.Resource)
+				result = append(result, Item{
+					Metadata:    i,
+					Description: serviceMap[gvr.Resource+"/"+i.(metav1.Object).GetName()],
+				})
 			}
 			return result
 		} else {
@@ -141,7 +132,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			if err != nil || one == nil {
 				return nil
 			}
-			return Item{Metadata: one, Description: serviceMap[one.(metav1.Object).GetName()]}
+			gvr, _ := s.GetGvr(request.Resource)
+			return Item{Metadata: one, Description: serviceMap[gvr.Resource+"/"+one.(metav1.Object).GetName()]}
 		}
 	}
 }
@@ -162,6 +154,7 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 func getApplicationByNs(ns, kubeconfigBytes string, search *resouce_cache.Searcher) Result {
 	result := Result{Namespace: ns}
 	applicationMetaList := appmeta_manager.GetApplicationMetas(ns, kubeconfigBytes)
+	SortApplication(applicationMetaList)
 	for _, applicationMeta := range applicationMetaList {
 		if applicationMeta != nil {
 			result.Application = append(result.Application, getApp(ns, applicationMeta.Application, search))
@@ -190,7 +183,9 @@ func getApp(namespace, appName string, search *resouce_cache.Searcher) App {
 			if err == nil {
 				items := make([]Item, 0, len(resourceList))
 				for _, v := range resourceList {
-					items = append(items, Item{Metadata: v, Description: profileMap[v.(metav1.Object).GetName()]})
+					items = append(items, Item{
+						Metadata: v, Description: profileMap[resource+"/"+v.(metav1.Object).GetName()],
+					})
 				}
 				resources = append(resources, Resource{Name: resource, List: items})
 			}
@@ -221,6 +216,25 @@ type Resource struct {
 }
 
 type Item struct {
-	Metadata    interface{}           `json:"data,omitempty"`
+	Metadata    interface{}           `json:"info,omitempty"`
 	Description *profile.SvcProfileV2 `json:"description,omitempty"`
+}
+
+func SortApplication(metas []*appmeta.ApplicationMeta) {
+	if metas == nil {
+		return
+	}
+	sort.SliceStable(metas, func(i, j int) bool {
+		var n1, n2 string
+		if metas[i] != nil {
+			n1 = metas[i].Application
+		}
+		if metas[j] != nil {
+			n2 = metas[j].Application
+		}
+		if n1 >= n2 {
+			return false
+		}
+		return true
+	})
 }
