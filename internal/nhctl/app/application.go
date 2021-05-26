@@ -523,13 +523,36 @@ func (a *Application) GetDescription() *profile.AppProfileV2 {
 			return nil
 		}
 		appProfile.Installed = meta.IsInstalled()
+		devMeta := meta.DevMeta
+
+		// first iter from local svcProfile
 		for _, svcProfile := range appProfile.SvcProfile {
-			svcProfile.Developing = meta.CheckIfSvcDeveloping(svcProfile.ActualName, appmeta.SvcType(svcProfile.Type))
+			svcType := appmeta.SvcType(svcProfile.Type)
+
+			svcProfile.Developing = meta.CheckIfSvcDeveloping(svcProfile.ActualName, svcType)
 			svcProfile.Possess = a.appMeta.SvcDevModePossessor(
-				svcProfile.ActualName, appmeta.SvcType(svcProfile.Type),
+				svcProfile.ActualName, svcType,
 				appProfile.Identifier,
 			)
+
+			if m := devMeta[svcType.Alias()]; m != nil {
+				delete(m, svcProfile.ActualName)
+			}
 		}
+
+		// then gen the fake profile for remote svc
+		for svcTypeAlias, m := range devMeta {
+			for svcName, _ := range m {
+				svcProfile := appProfile.SvcProfileV2(svcName, string(svcTypeAlias.Origin()))
+
+				svcProfile.Developing = true
+				svcProfile.Possess = a.appMeta.SvcDevModePossessor(
+					svcProfile.ActualName, svcTypeAlias.Origin(),
+					appProfile.Identifier,
+				)
+			}
+		}
+
 		return appProfile
 	}
 	return nil
