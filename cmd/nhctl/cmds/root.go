@@ -21,6 +21,7 @@ import (
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 	"os"
+	"strings"
 )
 
 var (
@@ -67,6 +68,7 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			log.FatalE(err, "Fail to init nhctl")
 		}
+		serviceType = strings.ToLower(serviceType)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Debug("hello nhctl")
