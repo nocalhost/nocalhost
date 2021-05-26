@@ -27,28 +27,29 @@ var notificationPrefix = `# This is the runtime configuration which stored in th
 #
 # If you want to persist the configuration, you can create a configuration
 # file named config.yaml in the root directory of your project under the
-# folder .nocalhost (/.nocalhost/config.yaml). Then perform the following 
-# configuration, and it will become part of your project, you can easily 
-# share configuration with other developers, or develop on any other devices
+# folder .nocalhost (/.nocalhost/config.yaml). It will become part of your 
+# project, you can easily share configuration with other developers, or
+# develop on any other devices
 #`
 
 var svcNotificationTips = `
-# Tips: You can generate your configuration into %s if needed.`
+# Tips: You can paste the configuration follow into 
+# %s`
 
 var notificationSuffix = `
 #
-# In addition, if you use the Server-version of Nocalhost, you can also 
-# configure under the definition of the application, such as:
-# https://github.com/nocalhost/bookinfo/tree/main/.nocalhost
-`
+# In addition, if you want to config multi service in same config.yaml, or use
+# the Server-version of Nocalhost, you can also configure under the definition 
+# of the application, such as:
+# https://github.com/nocalhost/bookinfo/blob/main/.nocalhost/config.yaml
+#`
 
 var svcNotificationTipsLoaded = `# Tips: This configuration is a in-memory replica of local file: 
 # 
 # '%s'
 # 
 # You should modify your configuration in local file, and the
-# modification will take effect the next time you enter the DevMode.
-`
+# modification will take effect the next time you enter the DevMode.`
 
 func init() {
 	configGetCmd.Flags().StringVarP(
@@ -123,13 +124,14 @@ var configGetCmd = &cobra.Command{
 						svcNotificationTips,
 						path,
 					)
-					notification += notificationSuffix
 				} else {
 					notification += fmt.Sprintf(
 						svcNotificationTipsLoaded,
 						path,
 					)
 				}
+
+				notification += notificationSuffix
 
 				fmt.Println(
 					fmt.Sprintf(

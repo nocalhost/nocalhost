@@ -222,6 +222,37 @@ func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.Ap
 	return appProfileV2
 }
 
+func RenderConfigForSvc(configFilePath string) ([]*profile.ServiceConfigV2, error) {
+	configFile := fp.NewFilePath(configFilePath)
+
+	var envFile *fp.FilePathEnhance
+	envFile = configFile.RelOrAbs("../").RelOrAbs(".env")
+
+	if e := envFile.CheckExist(); e != nil {
+		log.Logf(
+			`Render %s Nocalhost config without env files, you can put your env file in %s`,
+			configFile.Abs(), envFile.Abs(),
+		)
+		envFile = nil
+	} else {
+		log.Logf("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
+	}
+
+	renderedStr, err := envsubst.Render(configFile, envFile)
+	if err != nil {
+		return nil, err
+	}
+
+	var renderedConfig []*profile.ServiceConfigV2
+	if err = yaml.Unmarshal([]byte(renderedStr), &renderedConfig); err != nil {
+		var singleSvcConfig profile.ServiceConfigV2
+		if err = yaml.Unmarshal([]byte(renderedStr), &singleSvcConfig); err == nil {
+			renderedConfig = append(renderedConfig, &singleSvcConfig)
+		}
+	}
+	return renderedConfig, nil
+}
+
 // V2
 func RenderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) {
 	configFile := fp.NewFilePath(configFilePath)
