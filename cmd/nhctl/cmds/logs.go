@@ -28,7 +28,7 @@ var cmdLog = &cobra.Command{
 	Use:     "logs",
 	Example: `nhctl logs [podName] -c [containerName] -f=true --tail=1 --namespace nocalhost-reserved --kubeconfig=[kubeconfigPath]`,
 	Long:    `nhctl logs [podName] -c [containerName] -t [lines] -f true --kubeconfig=[kubeconfigPath]`,
-	Short:   ``,
+	Short:   `Print the logs for a container in a pod or specified resource`,
 	Run: func(cmd *cobra.Command, args []string) {
 		must(Prepare())
 		clientGoUtils, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)

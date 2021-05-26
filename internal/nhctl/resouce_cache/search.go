@@ -16,6 +16,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,6 +27,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -46,11 +48,13 @@ type Searcher struct {
 	kubeconfig      string
 	informerFactory informers.SharedInformerFactory
 	supportSchema   map[string]schema.GroupVersionResource
-	stopChannel     chan struct{}
+	// is namespaced resource or cluster resource
+	namespaced  map[string]bool
+	stopChannel chan struct{}
 }
 
 func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
-	[]schema.GroupVersionResource, map[string]schema.GroupVersionResource) {
+	[]schema.GroupVersionResource, map[string]schema.GroupVersionResource, map[string]bool) {
 	config, _ := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
 	Clients, _ := kubernetes.NewForConfig(config)
 	g, v, _ := Clients.ServerGroupsAndResources()
@@ -61,6 +65,7 @@ func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
 	}
 	nameToUniqueName := make(map[string]string)
 	uniqueNameToGroupVersion := make(map[string]string)
+	namespaced := make(map[string]bool)
 	for _, version := range v {
 		if preferredVersion[version.GroupVersion] != nil {
 			for _, resource := range version.APIResources {
@@ -70,6 +75,7 @@ func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
 					nameToUniqueName[resource.Kind] = resource.Name
 					nameToUniqueName[strings.ToLower(resource.Kind)] = resource.Name
 					uniqueNameToGroupVersion[resource.Name] = version.GroupVersion
+					namespaced[resource.Name] = resource.Namespaced
 				}
 			}
 		}
@@ -98,7 +104,7 @@ func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
 			uniqueNameToGVR[name] = uniqueNameToGVR[uniqueName]
 		}
 	}
-	return gvrList, uniqueNameToGVR
+	return gvrList, uniqueNameToGVR, namespaced
 }
 
 func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Searcher, error) {
@@ -132,7 +138,7 @@ func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Sea
 			byApplication: byApplicationFunc,
 			byAppAndNs:    byNamespaceAndAppFunc}
 
-		gvrList, name2gvr := GetSupportGroupVersionResource([]byte(kubeconfigBytes))
+		gvrList, name2gvr, namespaced := GetSupportGroupVersionResource([]byte(kubeconfigBytes))
 		for _, gvr := range gvrList {
 			// informer not support those two kinds of resource
 			if gvr.Resource == "componentstatuses" || gvr.Resource == "customresourcedefinitions" {
@@ -166,6 +172,7 @@ func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Sea
 			kubeconfig:      kubeconfigBytes,
 			informerFactory: informerFactory,
 			supportSchema:   name2gvr,
+			namespaced:      namespaced,
 			stopChannel:     stopChannel,
 		}
 		searchMap.Add(sum, newSearcher)
@@ -245,6 +252,7 @@ type criteria struct {
 	kind         runtime.Object
 	resourceType string
 
+	namespaced   bool
 	resourceName string
 	appName      string
 	ns           string
@@ -265,11 +273,18 @@ func (c *criteria) AppName(appName string) *criteria {
 
 func (c *criteria) ResourceType(resourceType string) *criteria {
 	c.resourceType = resourceType
+	if gvr, err := c.search.GetGvr(c.resourceType); err == nil {
+		c.namespaced = c.search.namespaced[gvr.Resource]
+	}
 	return c
 }
 
 func (c *criteria) Kind(object runtime.Object) *criteria {
 	c.kind = object
+	// how to make it more elegant
+	if reflect.TypeOf(object).AssignableTo(reflect.TypeOf(&corev1.Namespace{})) {
+		c.namespaced = false
+	}
 	return c
 }
 
@@ -318,6 +333,12 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	}
 	if info == nil {
 		return nil, errors.New("create informer failed, please check your code")
+	}
+
+	if !c.namespaced {
+		list := info.GetStore().List()
+		SortByNameAsc(list)
+		return list, nil
 	}
 
 	if c.ns != "" && c.resourceName != "" {
