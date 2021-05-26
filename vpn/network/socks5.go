@@ -1,9 +1,7 @@
 package network
 
 import (
-	"io"
 	"log"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -27,18 +25,4 @@ func sshOutbound(privateKeyPath string, sock5Port, localSshPort int, c chan stru
 	if err != nil {
 		log.Printf("ssh -d err: %v, stdout: %s, stderr: %s\n", err, stdout, stderr)
 	}
-}
-
-func CopyFile(dstName, srcName string) (written int64, err error) {
-	src, err := os.Open(srcName)
-	if err != nil {
-		return
-	}
-	defer src.Close()
-	dst, err := os.OpenFile(dstName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return
-	}
-	defer dst.Close()
-	return io.Copy(dst, src)
 }

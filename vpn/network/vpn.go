@@ -310,7 +310,6 @@ func addCleanUpResource() {
 		<-stopChan
 		log.Println("prepare to exit, cleaning up")
 		cleanUp()
-		cleanHosts()
 		scaleDeploymentReplicasTo(1)
 		cleanShadow(false)
 		cleanSsh()
@@ -436,19 +435,6 @@ func cleanUp() {
 		_ = clientset.AppsV1().Deployments(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 		_ = clientset.CoreV1().Services(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	}
-}
-
-func cleanHosts() {
-	if _, err := os.Stat("/etc/hosts.bak"); err != nil {
-		log.Println("no backup host file found, no needs to restore")
-	}
-	_, err2 := CopyFile("/etc/hosts", "/etc/hosts.bak")
-	if err2 != nil {
-		log.Printf("restore hosts file failed")
-	} else {
-		log.Printf("restore hosts file secuessfully")
-	}
-	_ = os.Remove("/etc/hosts.bak")
 }
 
 func initClient(kubeconfigPath *string) {
