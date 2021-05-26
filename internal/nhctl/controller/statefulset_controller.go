@@ -168,9 +168,9 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		//	dep.Spec.Template.Spec.PriorityClassName = priorityClass
 		//}
 
-		if _, ok := dep.Annotations[OriginSpecJson]; !ok {
-			dep.Annotations[OriginSpecJson] = string(originalSpecJson)
-		}
+		//if _, ok := dep.Annotations[OriginSpecJson]; !ok {
+		dep.Annotations[OriginSpecJson] = string(originalSpecJson)
+		//}
 
 		log.Info("Updating development container...")
 
