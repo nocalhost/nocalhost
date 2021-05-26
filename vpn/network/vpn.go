@@ -320,10 +320,15 @@ func addCleanUpResource() {
 }
 
 func cleanSsh() {
+	var err error
 	if runtime.GOOS == "windows" {
-		_ = exec.New().Command("taskkill.exe", "/f", "/im", "Ssh.exe").Run()
+		err = exec.New().Command("taskkill.exe", "/f", "/im", "Ssh.exe").Run()
 	} else {
-		_ = exec.New().Command("ps", "-ef | grep ssh | grep -v grep | awk -F ' ' '{print$2}' | xargs kill").Run()
+		cmd := "ps -ef | grep ssh | grep -v grep | awk -F ' ' '{print$2}' | xargs kill"
+		err = exec.New().Command("/bin/bash", "-c", cmd).Run()
+	}
+	if err != nil {
+		log.Println(err)
 	}
 }
 

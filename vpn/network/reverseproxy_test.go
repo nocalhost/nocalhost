@@ -34,3 +34,7 @@ func TestCommand(t *testing.T) {
 	})
 	<-c
 }
+
+func TestSshS(t *testing.T) {
+	cleanSsh()
+}
