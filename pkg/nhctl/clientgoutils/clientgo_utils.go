@@ -323,6 +323,10 @@ func (c *ClientGoUtils) ListLatestRevisionPodsByDeployment(deployName string) ([
 		}
 	}
 
+	if len(revisions) < 1 {
+		return nil, errors.New("No replicaSets found")
+	}
+
 	sort.Ints(revisions)
 
 	latestRevision := revisions[len(revisions)-1]
