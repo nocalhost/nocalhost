@@ -69,11 +69,6 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(cmd *command.PortForwardCo
 	}
 	nhController := nocalhostApp.Controller(cmd.Service, appmeta.SvcType(cmd.ServiceType))
 	return nhController.DeletePortForwardFromDB(cmd.LocalPort, cmd.RemotePort)
-	//return errors.New(
-	//	fmt.Sprintf(
-	//		"Port-forward %d:%d is not managed by this PortForwardManger", localPort, remotePort),
-	//)
-	//return err
 }
 
 // ListAllRunningPortForwardGoRoutineProfile
@@ -159,7 +154,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 	if _, ok := p.pfList[key]; ok {
 		log.Logf("Port-forward %d:%d has been running in another go routine, stop it first", localPort, remotePort)
 		if err := p.StopPortForwardGoRoutine(startCmd); err != nil {
-			return err
+			log.LogE(err)
 		}
 	}
 
