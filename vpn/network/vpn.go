@@ -33,6 +33,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -64,33 +65,39 @@ var portPair = flag.String("expose", "", "port pair, remote-port:local-port, suc
 
 func Start() {
 	flag.Parse()
-	log.Printf("kubeconfig path: %s\n", *kubeconfig)
-	err := preCheck()
-	if err != nil {
-		log.Println(err)
+	if err := preCheck(); err != nil {
+		panic(err)
 	}
 	privateKeyPath := filepath.Join(HomeDir(), ".nh", "ssh", "private", "key")
-	public := filepath.Join(HomeDir(), ".nh", "ssh", "private", "pub")
-	sshInfo := generateSSH(privateKeyPath, public)
-	initClient(*kubeconfig)
+	publicKeyPath := filepath.Join(HomeDir(), ".nh", "ssh", "private", "pub")
+	info, err := generateSshKey(privateKeyPath, publicKeyPath)
+	if err != nil && info == nil {
+		panic(err)
+	}
+	initClient(kubeconfig)
 	addCleanUpResource()
-	serviceIp, _ := createDnsPod(sshInfo)
+	serviceIp, _ := createDnsPod(info)
 	// random port
 	localSshPort, err := ports.GetAvailablePort()
 	if err != nil {
 		log.Fatal(err)
 	}
-	go portForwardService(*kubeconfig, localSshPort)
-	time.Sleep(3 * time.Second)
+	c := make(chan struct{})
+	go portForwardService(*kubeconfig, localSshPort, c)
+	<-c
 	updateRefCount(1)
 	log.Println("port forward ready")
-	// todo cidr network
 	if runtime.GOOS == "windows" || os.Getenv("debug") != "" {
-		go sshD(privateKeyPath, localSshPort)
+		sock5Port, _ := ports.GetAvailablePort()
+		go sshOutbound(privateKeyPath, sock5Port, localSshPort, c)
+		<-c
+		// socks5h means dns resolve should in remote pod, not local
+		fmt.Printf(`please export http_proxy=socks5h://127.0.0.1:%d, and the you can access cluster ip or domain`+"\n", sock5Port)
 	} else {
-		go sshuttle(serviceIp, privateKeyPath, localSshPort, GetCidr())
+		go sshuttleOutbound(serviceIp, privateKeyPath, localSshPort, GetCidr(), c)
+		<-c
+		log.Println("expose remote to local successfully, you can access your cluster network on your local environment")
 	}
-	time.Sleep(3 * time.Second)
 	Inbound(privateKeyPath)
 	select {}
 }
@@ -193,17 +200,20 @@ func Inbound(privateKeyPath string) {
 	<-readyChan
 	log.Println("port forward ready")
 	remote2Local := strings.Split(*portPair, ",")
+	wg := sync.WaitGroup{}
 	for _, pair := range remote2Local {
 		p := strings.Split(pair, ":")
-		go sshReverseProxy(p[0], p[1], localSshPort, privateKeyPath)
+		wg.Add(1)
+		go sshReverseProxy(p[0], p[1], localSshPort, privateKeyPath, &wg)
 	}
+	wg.Wait()
 	log.Println("expose local to remote successfully, you can develop now, if you not need it anymore, can using ctrl+c to stop it")
 	// hang up
 	select {}
 }
 
 // multiple remote service port
-func sshReverseProxy(remotePort, localPort string, sshLocalPort int, privateKeyPath string) {
+func sshReverseProxy(remotePort, localPort string, sshLocalPort int, privateKeyPath string, wg *sync.WaitGroup) {
 	log.Println("prepare to start reverse proxy")
 	cmd := osexec.Command("ssh", "-NR",
 		fmt.Sprintf("0.0.0.0:%s:127.0.0.1:%s", remotePort, localPort),
@@ -212,7 +222,13 @@ func sshReverseProxy(remotePort, localPort string, sshLocalPort int, privateKeyP
 		"-oUserKnownHostsFile=/dev/null",
 		"-i",
 		privateKeyPath)
-	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOut(cmd)
+	stdout, stderr, err := RunWithRollingOut(cmd, func(s string) bool {
+		if strings.Contains(s, "Permanently added") {
+			wg.Done()
+			return true
+		}
+		return false
+	})
 	if err != nil {
 		log.Printf("start reverse proxy failed, error: %v, stdout: %s, stderr: %s", err, stdout, stderr)
 		stopChan <- syscall.SIGQUIT
@@ -370,22 +386,28 @@ func updateRefCount(increment int) {
 }
 
 func preCheck() error {
-	_, err := osexec.LookPath("kubectl")
-	if err != nil {
+	if _, err := osexec.LookPath("kubectl"); err != nil {
 		log.Println("can not found kubectl, please install it previously")
 		return err
 	}
-	_, err = osexec.LookPath("sshuttle")
-	if err != nil {
-		if _, err = osexec.LookPath("brew"); err == nil {
-			log.Println("try to install sshuttle")
-			cmd := osexec.Command("brew", "install", "sshuttle")
-			_, stderr, err2 := nhctlcli.Runner.RunWithRollingOut(cmd)
-			if err2 != nil {
-				log.Printf("try to install sshuttle failed, error: %v, stderr: %s", err2, stderr)
-				return err2
+	if _, err := osexec.LookPath("ssh"); err != nil {
+		log.Println("can not found ssh, please install it previously")
+		return err
+	}
+	if _, err := osexec.LookPath("sshuttle"); err != nil {
+		if runtime.GOOS == "macos" {
+			if _, err = osexec.LookPath("brew"); err == nil {
+				_ = os.Setenv("HOMEBREW_NO_AUTO_UPDATE", "true")
+				log.Println("try to using homebrew to install sshuttle")
+				cmd := osexec.Command("brew", "install", "sshuttle")
+				_, stderr, err2 := nhctlcli.Runner.RunWithRollingOut(cmd)
+				if err2 != nil {
+					log.Printf("try to install sshuttle failed, error: %v, stderr: %s", err2, stderr)
+					return nil
+				} else {
+					fmt.Println("install sshuttle successfully")
+				}
 			}
-			fmt.Println("install sshuttle successfully")
 		}
 	}
 	return nil
@@ -424,15 +446,16 @@ func cleanHosts() {
 	_ = os.Remove("/etc/hosts.bak")
 }
 
-func initClient(kubeconfigPath string) {
-	if _, err := os.Stat(kubeconfigPath); err != nil {
-		kubeconfigPath = filepath.Join(HomeDir(), ".kube", "config")
+func initClient(kubeconfigPath *string) {
+	if _, err := os.Stat(*kubeconfigPath); err != nil {
+		log.Println("using default kubeconfig")
+		*kubeconfigPath = filepath.Join(HomeDir(), ".kube", "config")
 	}
-	config, _ = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	config, _ = clientcmd.BuildConfigFromFlags("", *kubeconfigPath)
 	clientset, _ = kubernetes.NewForConfig(config)
 }
 
-func createDnsPod(info *SSHInfo) (serviceIp, podName string) {
+func createDnsPod(info *sshInfo) (serviceIp, podName string) {
 	configmap, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -552,8 +575,8 @@ func WaitPodToBeStatus(namespace string, label string, checker func(*v1.Pod) boo
 	return true
 }
 
-func portForwardService(kubeconfigPath string, localSshPort int) {
-	cmd := exec.New().
+func portForwardService(kubeconfigPath string, localSshPort int, okChan chan struct{}) {
+	cmd := osexec.
 		CommandContext(
 			context.TODO(),
 			"kubectl",
@@ -563,14 +586,19 @@ func portForwardService(kubeconfigPath string, localSshPort int) {
 			"--namespace",
 			"default",
 			"--kubeconfig", kubeconfigPath)
-	cmd.Start()
-	err := cmd.Wait()
+	_, _, err := RunWithRollingOut(cmd, func(s string) bool {
+		if strings.Contains(s, "Forwarding from") {
+			okChan <- struct{}{}
+			return true
+		}
+		return false
+	})
 	if err != nil {
 		log.Println(err)
 	}
 }
 
-func sshuttle(serviceIp, sshPrivateKeyPath string, localSshPort int, cidrs []string) {
+func sshuttleOutbound(serviceIp, sshPrivateKeyPath string, localSshPort int, cidrs []string, c chan struct{}) {
 	args := []string{
 		"-r",
 		"root@127.0.0.1:" + strconv.Itoa(localSshPort),
@@ -583,13 +611,16 @@ func sshuttle(serviceIp, sshPrivateKeyPath string, localSshPort int, cidrs []str
 	}
 	args = append(args, cidrs...)
 	cmd := osexec.CommandContext(context.TODO(), "sshuttle", args...)
-	out, s, err := nhctlcli.Runner.RunWithRollingOut(cmd)
+	out, s, err := RunWithRollingOut(cmd, func(s string) bool {
+		if strings.Contains(s, "Connected to server") {
+			c <- struct{}{}
+			return true
+		}
+		return false
+	})
 	if err != nil {
 		log.Printf("error: %v, stdout: %s, stderr: %s", err, out, s)
-	} else {
-		log.Printf(out)
 	}
-	log.Println("expose remote to local successfully, you can access your cluster network on your localhost envirment")
 }
 
 func newSshConfigmap(privateKey, publicKey []byte) *v1.ConfigMap {

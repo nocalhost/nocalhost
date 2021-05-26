@@ -20,21 +20,13 @@ func TestVpn(t *testing.T) {
 }
 
 func TestSsh(t *testing.T) {
-	generateSSH("", "")
-}
-
-func TestSsh1(t *testing.T) {
-	pair, s, err := MakeSSHKeyPair()
-
-	fmt.Println(pair)
-	fmt.Println(s)
-	fmt.Println(err)
+	generateSshKey("", "")
 }
 
 func TestPortForward(t *testing.T) {
 	_ = os.Setenv("http_proxy", "")
 	_ = os.Setenv("https_proxy", "")
-	initClient("")
+	initClient(nil)
 	readyChan := make(chan struct{})
 	stopsChan := make(chan struct{})
 	err := portForwardPod("tomcat-shadow", "test", 5005, readyChan, stopsChan)
@@ -76,7 +68,7 @@ func TestInstall(t *testing.T) {
 func TestDeleteDone(t *testing.T) {
 	_ = os.Setenv("http_proxy", "")
 	_ = os.Setenv("https_proxy", "")
-	initClient("")
+	initClient(nil)
 	tomcat := "tomcat"
 	ns := "test"
 	port := "8080:8090"
