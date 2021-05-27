@@ -224,12 +224,28 @@ func (s *Syncthing) generateIgnoredFileConfig() (string, error) {
 		syncedPatternAdaption[i] = "!" + afterAdapt
 	}
 
+	var ignoredPatternAdaption = make([]string, len(s.IgnoredPattern))
+	for i, ignored := range s.IgnoredPattern {
+		var afterAdapt = ignored
+
+		// previews version support such this syntax
+		if ignored == "." {
+			afterAdapt = "**"
+		}
+
+		if strings.Index(ignored, "./") == 0 {
+			afterAdapt = ignored[1:]
+		}
+
+		ignoredPatternAdaption[i] = afterAdapt
+	}
+
 	if len(syncedPatternAdaption) == 0 {
 		syncedPatternAdaption = []string{"!**"}
 	}
 
 	var values = map[string]string{
-		"ignoredPattern": strings.Join(s.IgnoredPattern, "\n"),
+		"ignoredPattern": strings.Join(ignoredPatternAdaption, "\n"),
 		"syncedPattern":  strings.Join(syncedPatternAdaption, "\n"),
 	}
 
