@@ -61,10 +61,12 @@ func init() {
 	// local absolute paths to sync
 	devStartCmd.Flags().StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{},
 		"local directory to sync")
-	devStartCmd.Flags().BoolVar(&devStartOps.Terminal, "terminal", false,
-		"enter terminal while dev start success")
 	devStartCmd.Flags().StringVarP(&shell, "shell", "", "",
 		"use current shell cmd to enter terminal while dev start success")
+	devStartCmd.Flags().BoolVar(
+		&devStartOps.NoTerminal, "without-terminal", false,
+		"do not enter terminal directly while dev start success",
+	)
 	debugCmd.AddCommand(devStartCmd)
 }
 
@@ -96,7 +98,7 @@ var devStartCmd = &cobra.Command{
 				startSyncthing(podName, true)
 			}
 
-			if devStartOps.Terminal || shell != "" {
+			if !devStartOps.NoTerminal || shell != "" {
 				must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
 			}
 
@@ -121,7 +123,7 @@ var devStartCmd = &cobra.Command{
 			podName := enterDevMode()
 			startSyncthing(podName, false)
 
-			if devStartOps.Terminal || shell != "" {
+			if !devStartOps.NoTerminal || shell != "" {
 				must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
 			}
 		}

@@ -118,6 +118,8 @@ jobs:
         shell: bash
       - name: Kubectl tool installer
         uses: Azure/setup-kubectl@v1
+      - name: Helm tool installer
+        uses: Azure/setup-helm@v1
       - name: Testing
         shell: bash
         run: |
@@ -150,20 +152,11 @@ jobs:
         shell: bash
       - name: Kubectl tool installer
         uses: Azure/setup-kubectl@v1
+      - name: Helm tool installer
+        uses: Azure/setup-helm@v1
       - name: Testing
         shell: bash
         run: |
-          curl https://eternallybored.org/misc/wget/1.21.1/64/wget.exe -o wget.exe
-          ./wget https://get.helm.sh/helm-v3.5.4-windows-amd64.zip
-          unzip helm-v3.5.4-windows-amd64.zip
-          dir
-          cp windows-amd64/helm ./helm
-          dir
-          pwd
-          ADD_PATH="$(pwd)"
-          PATH="${ADD_PATH}:${PATH}"
-          export PATH
-
           echo ${{ env.RELEASE_VERSION }}
           export TAG="${{ env.RELEASE_VERSION }}"
           export COMMIT_ID=${GITHUB_SHA}
@@ -173,6 +166,7 @@ jobs:
           cd test
           go build
           ./test
+
   minikube-linux:
     runs-on: ubuntu-latest
     needs: [ "image" ]
