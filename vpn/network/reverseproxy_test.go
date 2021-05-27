@@ -19,7 +19,7 @@ func TestInbound(t *testing.T) {
 	OPTION.serviceNamespace = ns
 	OPTION.portPair = port
 	privateKeyPath := filepath.Join(HomeDir(), ".nh", "ssh", "private", "key")
-	Inbound(
+	Inbound(OPTION, privateKeyPath)
 }
 
 func TestCommand(t *testing.T) {
