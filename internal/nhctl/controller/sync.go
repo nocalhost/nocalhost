@@ -35,13 +35,12 @@ func (c *Controller) StopFileSyncOnly() error {
 	}
 
 	// read and clean up pid file
-	syncthingPid, syncThingPath, err := c.GetSyncThingPid()
+	syncthingPid, err := c.GetSyncThingPid()
 	if err != nil {
 		return err
 	}
 	if syncthingPid != 0 {
-		err = syncthing.Stop(syncthingPid, syncThingPath, true)
-		if err != nil {
+		if err = syncthing.Stop(syncthingPid, true); err != nil {
 			if runtime.GOOS == "windows" {
 				// in windows, it will raise a "Access is denied" err when killing progress, so we can ignore this err
 				fmt.Printf(
@@ -58,8 +57,8 @@ func (c *Controller) StopFileSyncOnly() error {
 	return err
 }
 
-func (c *Controller) FindOutSyncthingProcess(whileProcessFound func(int, string) error) error {
-	previousSyncThingPid, pidFile, err := c.GetSyncThingPid()
+func (c *Controller) FindOutSyncthingProcess(whileProcessFound func(int) error) error {
+	previousSyncThingPid, err := c.GetSyncThingPid()
 
 	if err != nil {
 		log.Info("Failed to find previous syncthing pid (ignore)")
@@ -69,23 +68,23 @@ func (c *Controller) FindOutSyncthingProcess(whileProcessFound func(int, string)
 		if err == nil && pro == nil {
 			log.Infof("No previous syncthing process (%d) found", previousSyncThingPid)
 		} else {
-			return whileProcessFound(previousSyncThingPid, pidFile)
+			return whileProcessFound(previousSyncThingPid)
 		}
 	}
 	return nil
 }
 
-func (c *Controller) GetSyncThingPid() (int, string, error) {
+func (c *Controller) GetSyncThingPid() (int, error) {
 	pidFile := c.GetSyncThingPidFile()
 	f, err := ioutil.ReadFile(pidFile)
 	if err != nil {
-		return 0, pidFile, err
+		return 0, err
 	}
 	port, err := strconv.Atoi(string(f))
 	if err != nil {
-		return 0, pidFile, errors.Wrap(err, "")
+		return 0, errors.Wrap(err, "")
 	}
-	return port, pidFile, nil
+	return port, nil
 }
 
 func (c *Controller) StopSyncAndPortForwardProcess(cleanRemoteSecret bool) error {

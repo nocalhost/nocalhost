@@ -101,7 +101,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 		}
 	} else {
 		if err := nocalhostSvc.FindOutSyncthingProcess(
-			func(pid int, pidFile string) error {
+			func(pid int) error {
 				coloredoutput.Hint("Syncthing has been started")
 				return errors.New("")
 			},

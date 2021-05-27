@@ -41,9 +41,6 @@ var devEndCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
-		//meta, err := nocalhost.GetApplicationMetaInstalled(applicationName, nameSpace, kubeConfig)
-		//must(err)
-
 		if !nocalhostSvc.IsInDevMode() {
 			log.Fatalf("Service %s is not in DevMode", deployment)
 		}
