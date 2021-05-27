@@ -27,7 +27,6 @@ import (
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
-	"os"
 )
 
 var (
@@ -41,54 +40,31 @@ var devStartOps = &model.DevStartOptions{}
 
 func init() {
 
-	devStartCmd.Flags().StringVarP(
-		&deployment, "deployment", "d", "",
-		"k8s deployment your developing service exists",
-	)
-	devStartCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "",
-		"kind of k8s controller,such as deployment,statefulSet",
-	)
-	devStartCmd.Flags().StringVarP(
-		&devStartOps.DevImage, "image", "i", "",
-		"image of DevContainer",
-	)
-	devStartCmd.Flags().StringVarP(
-		&devStartOps.Container, "container", "c", "",
-		"container to develop",
-	)
+	devStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
+		"k8s deployment your developing service exists")
+	devStartCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet")
+	devStartCmd.Flags().StringVarP(&devStartOps.DevImage, "image", "i", "",
+		"image of DevContainer")
+	devStartCmd.Flags().StringVarP(&devStartOps.Container, "container", "c", "",
+		"container to develop")
+	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory")
+	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "StorageClass used by PV")
 	devStartCmd.Flags().StringVar(
-		&devStartOps.WorkDir, "work-dir", "",
-		"container's work directory",
-	)
-	devStartCmd.Flags().StringVar(
-		&devStartOps.StorageClass, "storage-class", "",
-		"StorageClass used by PV",
-	)
-	devStartCmd.Flags().StringVar(
-		&devStartOps.PriorityClass, "priority-class", "", "PriorityClass used by devContainer",
-	)
-	devStartCmd.Flags().StringVar(
-		&devStartOps.SideCarImage, "sidecar-image", "",
-		"image of nocalhost-sidecar container",
-	)
+		&devStartOps.PriorityClass, "priority-class", "", "PriorityClass used by devContainer")
+	devStartCmd.Flags().StringVar(&devStartOps.SideCarImage, "sidecar-image", "",
+		"image of nocalhost-sidecar container")
 	// for debug only
-	devStartCmd.Flags().StringVar(
-		&devStartOps.SyncthingVersion, "syncthing-version", "",
-		"versions of syncthing and this flag is use for debug only",
-	)
+	devStartCmd.Flags().StringVar(&devStartOps.SyncthingVersion, "syncthing-version", "",
+		"versions of syncthing and this flag is use for debug only")
 	// local absolute paths to sync
-	devStartCmd.Flags().StringSliceVarP(
-		&devStartOps.LocalSyncDir, "local-sync", "s", []string{},
-		"local directory to sync",
-	)
+	devStartCmd.Flags().StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{},
+		"local directory to sync")
+	devStartCmd.Flags().StringVarP(&shell, "shell", "", "",
+		"use current shell cmd to enter terminal while dev start success")
 	devStartCmd.Flags().BoolVar(
-		&devStartOps.Terminal, "terminal", false,
-		"enter terminal while dev start success",
-	)
-	devStartCmd.Flags().StringVarP(
-		&shell, "shell", "", "",
-		"use current shell cmd to enter terminal while dev start success",
+		&devStartOps.NoTerminal, "without-terminal", false,
+		"do not enter terminal directly while dev start success",
 	)
 	debugCmd.AddCommand(devStartCmd)
 }
@@ -121,7 +97,7 @@ var devStartCmd = &cobra.Command{
 				startSyncthing(podName, true)
 			}
 
-			if devStartOps.Terminal || shell != "" {
+			if !devStartOps.NoTerminal || shell != "" {
 				must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
 			}
 
@@ -146,7 +122,7 @@ var devStartCmd = &cobra.Command{
 			podName := enterDevMode()
 			startSyncthing(podName, false)
 
-			if devStartOps.Terminal || shell != "" {
+			if !devStartOps.NoTerminal || shell != "" {
 				must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
 			}
 		}
@@ -212,8 +188,8 @@ func stopPreviousSyncthing() {
 	// Clean up previous syncthing
 	must(
 		nocalhostSvc.FindOutSyncthingProcess(
-			func(pid int, pidFile string) error {
-				return syncthing.Stop(pid, "", false)
+			func(pid int) error {
+				return syncthing.Stop(pid, false)
 			},
 		),
 	)
@@ -248,10 +224,6 @@ func enterDevMode() string {
 		if !devStartSuccess {
 			log.Infof("Roll backing dev mode... \n")
 			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type)
-		}
-
-		if r := recover(); r != nil {
-			os.Exit(1)
 		}
 	}()
 

@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
@@ -111,8 +112,13 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 	requirements := s.genResourceReq()
 	if requirements != nil {
 		devContainer.Resources = *requirements
-		sideCarContainer.Resources = *requirements
 	}
+	r := &profile.ResourceQuota{
+		Limits:   &profile.QuotaList{Memory: "200Mi", Cpu: "200m"},
+		Requests: &profile.QuotaList{Memory: "200Mi", Cpu: "200m"},
+	}
+	rq, _ := convertResourceQuota(r)
+	sideCarContainer.Resources = *rq
 
 	needToRemovePriorityClass := false
 	for i := 0; i < 10; i++ {
@@ -168,9 +174,9 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		//	dep.Spec.Template.Spec.PriorityClassName = priorityClass
 		//}
 
-		if _, ok := dep.Annotations[OriginSpecJson]; !ok {
-			dep.Annotations[OriginSpecJson] = string(originalSpecJson)
-		}
+		//if _, ok := dep.Annotations[OriginSpecJson]; !ok {
+		dep.Annotations[OriginSpecJson] = string(originalSpecJson)
+		//}
 
 		log.Info("Updating development container...")
 

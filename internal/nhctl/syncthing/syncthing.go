@@ -151,19 +151,15 @@ func cleanupDaemon(pid int, wait bool) error {
 	}
 
 	if err != nil {
-		//log.Fatalf("error when looking up the process: %s", err)
 		return errors.Wrap(err, "")
 	}
 
-	//if typeName == syncthing {
 	if process.Executable() != GetBinaryName() {
 		log.Infof("%d is not a syncthing process", pid)
 		return nil
 	}
-	//}
 
-	err = terminate.Terminate(pid, wait)
-	if err == nil {
+	if err = terminate.Terminate(pid, wait); err == nil {
 		log.Debugf("terminated syncthing with pid %d", pid)
 	}
 
@@ -224,12 +220,28 @@ func (s *Syncthing) generateIgnoredFileConfig() (string, error) {
 		syncedPatternAdaption[i] = "!" + afterAdapt
 	}
 
+	var ignoredPatternAdaption = make([]string, len(s.IgnoredPattern))
+	for i, ignored := range s.IgnoredPattern {
+		var afterAdapt = ignored
+
+		// previews version support such this syntax
+		if ignored == "." {
+			afterAdapt = "**"
+		}
+
+		if strings.Index(ignored, "./") == 0 {
+			afterAdapt = ignored[1:]
+		}
+
+		ignoredPatternAdaption[i] = afterAdapt
+	}
+
 	if len(syncedPatternAdaption) == 0 {
 		syncedPatternAdaption = []string{"!**"}
 	}
 
 	var values = map[string]string{
-		"ignoredPattern": strings.Join(s.IgnoredPattern, "\n"),
+		"ignoredPattern": strings.Join(ignoredPatternAdaption, "\n"),
 		"syncedPattern":  strings.Join(syncedPatternAdaption, "\n"),
 	}
 
@@ -294,7 +306,7 @@ func (s *Syncthing) Run(ctx context.Context) error {
 }
 
 // Stop syncthing background process
-func Stop(pid int, pidFilePath string, force bool) error {
+func Stop(pid int, force bool) error {
 	if err := cleanupDaemon(pid, force); err != nil {
 		return err
 	}

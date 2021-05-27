@@ -14,6 +14,7 @@ package service_account
 
 import (
 	"nocalhost/pkg/nhctl/log"
+	"sort"
 	"sync"
 )
 
@@ -44,6 +45,7 @@ func GetAllPermittedNs(kubeConfig string, saName string) []string {
 		}
 	}
 
+	sort.Strings(result)
 	return result
 }
 
