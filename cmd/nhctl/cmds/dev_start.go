@@ -27,7 +27,6 @@ import (
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
-	"os"
 )
 
 var (
@@ -248,10 +247,6 @@ func enterDevMode() string {
 		if !devStartSuccess {
 			log.Infof("Roll backing dev mode... \n")
 			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type)
-		}
-
-		if r := recover(); r != nil {
-			os.Exit(1)
 		}
 	}()
 

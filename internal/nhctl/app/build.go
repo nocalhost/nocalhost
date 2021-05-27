@@ -247,7 +247,9 @@ func RenderConfigForSvc(configFilePath string) ([]*profile.ServiceConfigV2, erro
 	if err = yaml.Unmarshal([]byte(renderedStr), &renderedConfig); err != nil {
 		var singleSvcConfig profile.ServiceConfigV2
 		if err = yaml.Unmarshal([]byte(renderedStr), &singleSvcConfig); err == nil {
-			renderedConfig = append(renderedConfig, &singleSvcConfig)
+			if len(singleSvcConfig.ContainerConfigs) > 0 {
+				renderedConfig = append(renderedConfig, &singleSvcConfig)
+			}
 		}
 	}
 	return renderedConfig, nil

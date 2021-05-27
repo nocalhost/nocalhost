@@ -276,7 +276,7 @@ func (a *Application) LoadSvcCfgFromLocalIfValid(svcName, svcType string) bool {
 
 	var svcCfg *profile.ServiceConfigV2
 	if svcCfg = doLoadProfileFromSvcConfig(configFile, svcName, svcType); svcCfg == nil {
-		if svcCfg = doLoadProfileFromAppConfig(configFile, svcName, svcType);svcCfg==nil{
+		if svcCfg = doLoadProfileFromAppConfig(configFile, svcName, svcType); svcCfg == nil {
 			return false
 		}
 	}
@@ -321,17 +321,6 @@ func doLoadProfileFromSvcConfig(configFile *fp.FilePathEnhance, svcName, svcType
 			return svcConfig
 		}
 	}
-
-	metaInfo := fmt.Sprintf("[name: %s serviceType: %s]", svcName, svcType)
-
-	coloredoutput.Hint(
-		"\n%-"+strconv.Itoa(indent)+"s %s",
-		metaInfo,
-		fmt.Sprintf(
-			"[SvcLoader] Load nocalhost svc config from local file %s but do not found config with %s\n",
-			configFile.Path, metaInfo,
-		),
-	)
 	return nil
 }
 
