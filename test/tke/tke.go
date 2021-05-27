@@ -13,6 +13,7 @@
 package tke
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
@@ -74,20 +75,21 @@ type task struct {
 }
 
 var DefaultConfig = defaultConfig{
-	vpcId:                     "vpc-6z0motnx",
-	subNet:                    "subnet-g7vr4qce",
+	vpcId:                     "vpc-ejqejan1",
+	subNet:                    "subnet-nei8cjdw",
 	k8sVersion:                "1.18.4",
 	os:                        "centos7.6.0_x64",
 	clusterType:               "MANAGED_CLUSTER",
-	zone:                      "ap-guangzhou-3",
-	instanceType:              "SA2.SMALL4",
+	zone:                      "na-siliconvalley-1",
+	instanceType:              "S3.SMALL1",
+	diskType:                  "CLOUD_SSD",
 	nodeRole:                  "WORKER",
 	internetMaxBandwidthOut:   100,
 	maxNum:                    32,
 	ignoreClusterCIDRConflict: true,
 	endpoint:                  "tke.tencentcloudapi.com",
-	region:                    "ap-guangzhou",
-	cidrPattern:               "10.%d.0.0/24",
+	region:                    "na-siliconvalley",
+	cidrPattern:               "10.%d.0.0/16",
 }
 
 type defaultConfig struct {
@@ -98,6 +100,7 @@ type defaultConfig struct {
 	clusterType               string
 	zone                      string
 	instanceType              string
+	diskType                  string
 	nodeRole                  string
 	internetMaxBandwidthOut   int
 	maxNum                    uint64
@@ -136,38 +139,30 @@ func (t *task) CreateTKE() {
 		MaxNodePodNum:             &DefaultConfig.maxNum,
 		IgnoreClusterCIDRConflict: &DefaultConfig.ignoreClusterCIDRConflict,
 	}
-	configStr := `
-{
-   "VirtualPrivateCloud":{
-      "SubnetId":"%s",
-      "VpcId":"%s"
-   },
-   "Placement":{
-      "Zone":"%s"
-   },
-   "InstanceType":"%s",
-   "SystemDisk":{
-      "DiskType":"CLOUD_PREMIUM"
-   },
-   "DataDisks":[
-      {
-         "DiskType":"CLOUD_PREMIUM",
-         "DiskSize":50
-      }
-   ],
-   "InstanceCount":1,
-   "InternetAccessible":{
-      "PublicIpAssigned":true,
-      "InternetMaxBandwidthOut":%d
-   }
-}
-`
-	configStr = fmt.Sprintf(configStr,
-		DefaultConfig.subNet,
-		DefaultConfig.vpcId,
-		DefaultConfig.zone,
-		DefaultConfig.instanceType,
-		DefaultConfig.internetMaxBandwidthOut)
+	p := Parameter{
+		VirtualPrivateCloud: VirtualPrivateCloud{
+			SubnetID: DefaultConfig.subNet,
+			VpcID:    DefaultConfig.vpcId,
+		},
+		Placement: Placement{
+			Zone: DefaultConfig.zone,
+		},
+		InstanceType: DefaultConfig.instanceType,
+		SystemDisk: SystemDisk{
+			DiskType: DefaultConfig.diskType,
+		},
+		DataDisks: []DataDisks{{
+			DiskType: DefaultConfig.diskType,
+			DiskSize: 50,
+		}},
+		InstanceCount: 1,
+		InternetAccessible: InternetAccessible{
+			PublicIPAssigned:        true,
+			InternetMaxBandwidthOut: DefaultConfig.internetMaxBandwidthOut,
+		},
+	}
+	bytes, _ := json.Marshal(p)
+	configStr := string(bytes)
 	request.RunInstancesForNode = []*tke.RunInstancesForNode{{
 		NodeRole:         &DefaultConfig.nodeRole,
 		RunInstancesPara: []*string{&configStr},
@@ -347,4 +342,37 @@ func (t *task) Delete() {
 		log.Infof("delete tke cluster: %s successfully", t.clusterId)
 		return
 	}
+}
+
+type Parameter struct {
+	VirtualPrivateCloud VirtualPrivateCloud `json:"VirtualPrivateCloud"`
+	Placement           Placement           `json:"Placement"`
+	InstanceType        string              `json:"InstanceType"`
+	SystemDisk          SystemDisk          `json:"SystemDisk"`
+	DataDisks           []DataDisks         `json:"DataDisks"`
+	InstanceCount       int                 `json:"InstanceCount"`
+	InternetAccessible  InternetAccessible  `json:"InternetAccessible"`
+}
+
+type VirtualPrivateCloud struct {
+	SubnetID string `json:"SubnetId"`
+	VpcID    string `json:"VpcId"`
+}
+
+type Placement struct {
+	Zone string `json:"Zone"`
+}
+
+type SystemDisk struct {
+	DiskType string `json:"DiskType"`
+}
+
+type DataDisks struct {
+	DiskType string `json:"DiskType"`
+	DiskSize int    `json:"DiskSize"`
+}
+
+type InternetAccessible struct {
+	PublicIPAssigned        bool `json:"PublicIpAssigned"`
+	InternetMaxBandwidthOut int  `json:"InternetMaxBandwidthOut"`
 }
