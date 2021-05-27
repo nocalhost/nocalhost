@@ -24,6 +24,7 @@ import (
 	"nocalhost/internal/nhctl/resouce_cache"
 	"nocalhost/pkg/nhctl/log"
 	"sort"
+	"strings"
 )
 
 func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
@@ -42,7 +43,8 @@ func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 			if description != nil {
 				for _, svcProfileV2 := range description.SvcProfile {
 					if svcProfileV2 != nil {
-						serviceMap["deployments/"+svcProfileV2.Name] = svcProfileV2
+						name := strings.ToLower(svcProfileV2.Type) + "s"
+						serviceMap[name+"/"+svcProfileV2.Name] = svcProfileV2
 					}
 				}
 			}
