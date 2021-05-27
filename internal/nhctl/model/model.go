@@ -34,5 +34,5 @@ type DevStartOptions struct {
 	StorageClass  string
 	PriorityClass string
 
-	Terminal bool
+	NoTerminal bool
 }
