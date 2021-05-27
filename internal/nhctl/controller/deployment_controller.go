@@ -23,6 +23,7 @@ import (
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/pod_controller"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
 	"strings"
@@ -112,8 +113,13 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 	requirements := d.genResourceReq()
 	if requirements != nil {
 		devContainer.Resources = *requirements
-		sideCarContainer.Resources = *requirements
 	}
+	r := &profile.ResourceQuota{
+		Limits:   &profile.QuotaList{Memory: "200Mi", Cpu: "200m"},
+		Requests: &profile.QuotaList{Memory: "200Mi", Cpu: "200m"},
+	}
+	rq, _ := convertResourceQuota(r)
+	sideCarContainer.Resources = *rq
 
 	for i := 0; i < 10; i++ {
 		// Get latest deployment
