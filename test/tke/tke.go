@@ -75,20 +75,20 @@ type task struct {
 }
 
 var DefaultConfig = defaultConfig{
-	vpcId:                     "vpc-ejqejan1",
-	subNet:                    "subnet-nei8cjdw",
+	vpcId:                     "Default-VPC",
+	subNet:                    "Default-Subnet",
 	k8sVersion:                "1.18.4",
 	os:                        "centos7.6.0_x64",
 	clusterType:               "MANAGED_CLUSTER",
-	zone:                      "na-siliconvalley-1",
-	instanceType:              "S3.SMALL1",
-	diskType:                  "CLOUD_SSD",
+	zone:                      "ap-hongkong-2",
+	instanceType:              "SA2.SMALL1",
+	diskType:                  "CLOUD_PREMIUM",
 	nodeRole:                  "WORKER",
 	internetMaxBandwidthOut:   100,
 	maxNum:                    32,
 	ignoreClusterCIDRConflict: true,
 	endpoint:                  "tke.tencentcloudapi.com",
-	region:                    "na-siliconvalley",
+	region:                    "ap-hongkong",
 	cidrPattern:               "10.%d.0.0/16",
 }
 
