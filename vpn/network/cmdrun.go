@@ -11,11 +11,12 @@ import (
 
 func RunWithRollingOut(cmd *exec.Cmd, checker func(string) bool) (string, string, error) {
 	log.Println(cmd.Args)
-	var stdoutBuf, stderrBuf bytes.Buffer
+	stdoutBuf := bytes.NewBuffer(make([]byte, 1024))
+	stderrBuf := bytes.NewBuffer(make([]byte, 1024))
 	stdoutPipe, _ := cmd.StdoutPipe()
 	stderrPipe, _ := cmd.StderrPipe()
-	stdout := io.MultiWriter(os.Stdout, &stdoutBuf)
-	stderr := io.MultiWriter(os.Stderr, &stderrBuf)
+	stdout := io.MultiWriter(os.Stdout, stdoutBuf)
+	stderr := io.MultiWriter(os.Stderr, stderrBuf)
 	go func() {
 		_, _ = io.Copy(stdout, stdoutPipe)
 	}()
@@ -24,8 +25,7 @@ func RunWithRollingOut(cmd *exec.Cmd, checker func(string) bool) (string, string
 	}()
 	go func() {
 		for {
-			if (stdoutBuf.Len() > 0 && (checker(stdoutBuf.String()))) ||
-				(stderrBuf.Len() > 0 && (checker(stderrBuf.String()))) {
+			if checker(stdoutBuf.String()) || checker(stderrBuf.String()) {
 				break
 			}
 		}

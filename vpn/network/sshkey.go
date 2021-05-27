@@ -15,6 +15,8 @@ import (
 type sshInfo struct {
 	PrivateKeyBytes []byte
 	PublicKeyBytes  []byte
+	PrivateKeyPath  string
+	PublicKeyPath   string
 }
 
 func generateSshKey(privateKeyPath string, publicKeyPath string) (*sshInfo, error) {
@@ -35,7 +37,12 @@ func generateSshKey(privateKeyPath string, publicKeyPath string) (*sshInfo, erro
 	publicKeyBytes := ssh.MarshalAuthorizedKey(publicKey)
 	privateKeyBytes := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)})
 
-	info := sshInfo{PublicKeyBytes: publicKeyBytes, PrivateKeyBytes: privateKeyBytes}
+	info := sshInfo{
+		PublicKeyBytes:  publicKeyBytes,
+		PrivateKeyBytes: privateKeyBytes,
+		PrivateKeyPath:  privateKeyPath,
+		PublicKeyPath:   publicKeyPath,
+	}
 	if err = saveKeyToDisk(privateKeyPath, privateKeyBytes); err != nil {
 		log.Printf("write private key failed, error: %v\n", err)
 		return &info, err

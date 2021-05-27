@@ -26,7 +26,7 @@ func TestSsh(t *testing.T) {
 func TestPortForward(t *testing.T) {
 	_ = os.Setenv("http_proxy", "")
 	_ = os.Setenv("https_proxy", "")
-	initClient(nil)
+	initClient("")
 	readyChan := make(chan struct{})
 	stopsChan := make(chan struct{})
 	err := portForwardPod("tomcat-shadow", "test", 5005, readyChan, stopsChan)
@@ -68,13 +68,10 @@ func TestInstall(t *testing.T) {
 func TestDeleteDone(t *testing.T) {
 	_ = os.Setenv("http_proxy", "")
 	_ = os.Setenv("https_proxy", "")
-	initClient(nil)
-	tomcat := "tomcat"
-	ns := "test"
-	port := "8080:8090"
-	serviceName = &tomcat
-	serviceNamespace = &ns
-	portPair = &port
-	scaleDeploymentReplicasTo(0)
+	initClient("")
+	OPTION.serviceName = "tomcat"
+	OPTION.serviceNamespace = "test"
+	OPTION.portPair = "8080:8090"
+	scaleDeploymentReplicasTo(OPTION, 0)
 	//cleanShadow()
 }
