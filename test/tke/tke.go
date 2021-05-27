@@ -74,6 +74,44 @@ type task struct {
 	client    *tke.Client
 }
 
+// guangzhou
+var _ = defaultConfig{
+	vpcId:                     "vpc-6z0motnx",
+	subNet:                    "subnet-g7vr4qce",
+	k8sVersion:                "1.18.4",
+	os:                        "centos7.6.0_x64",
+	clusterType:               "MANAGED_CLUSTER",
+	zone:                      "ap-guangzhou-3",
+	instanceType:              "SA2.SMALL4",
+	diskType:                  "CLOUD_PREMIUM",
+	nodeRole:                  "WORKER",
+	internetMaxBandwidthOut:   100,
+	maxNum:                    32,
+	ignoreClusterCIDRConflict: true,
+	endpoint:                  "tke.tencentcloudapi.com",
+	region:                    "ap-guangzhou",
+	cidrPattern:               "10.%d.0.0/24",
+}
+
+// siliconValley
+var _ = defaultConfig{
+	vpcId:                     "vpc-ejqejan1",
+	subNet:                    "subnet-nei8cjdw",
+	k8sVersion:                "1.18.4",
+	os:                        "centos7.6.0_x64",
+	clusterType:               "MANAGED_CLUSTER",
+	zone:                      "na-siliconvalley-1",
+	instanceType:              "S3.SMALL2",
+	diskType:                  "CLOUD_SSD",
+	nodeRole:                  "WORKER",
+	internetMaxBandwidthOut:   100,
+	maxNum:                    32,
+	ignoreClusterCIDRConflict: true,
+	endpoint:                  "tke.tencentcloudapi.com",
+	region:                    "na-siliconvalley",
+	cidrPattern:               "10.%d.0.0/16",
+}
+
 var DefaultConfig = defaultConfig{
 	vpcId:                     "vpc-1ds1cs38",
 	subNet:                    "subnet-gjfyzxor",
