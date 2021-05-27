@@ -75,8 +75,8 @@ type task struct {
 }
 
 var DefaultConfig = defaultConfig{
-	vpcId:                     "Default-VPC",
-	subNet:                    "Default-Subnet",
+	vpcId:                     "vpc-1ds1cs38",
+	subNet:                    "subnet-gjfyzxor",
 	k8sVersion:                "1.18.4",
 	os:                        "centos7.6.0_x64",
 	clusterType:               "MANAGED_CLUSTER",
