@@ -1,4 +1,4 @@
-package network
+package pkg
 
 import (
 	appsv1 "k8s.io/api/apps/v1"

@@ -1,4 +1,4 @@
-package network
+package pkg
 
 import (
 	"os"
@@ -11,13 +11,13 @@ import (
 func TestInbound(t *testing.T) {
 	_ = os.Setenv("http_proxy", "")
 	_ = os.Setenv("https_proxy", "")
-	initClient("")
+	initClient(OPTION)
 	tomcat := "tomcat"
 	ns := "test"
 	port := "8080:8090"
-	OPTION.serviceName = tomcat
-	OPTION.serviceNamespace = ns
-	OPTION.portPair = port
+	OPTION.ServiceName = tomcat
+	OPTION.ServiceNamespace = ns
+	OPTION.PortPair = port
 	privateKeyPath := filepath.Join(HomeDir(), ".nh", "ssh", "private", "key")
 	Inbound(OPTION, privateKeyPath)
 }

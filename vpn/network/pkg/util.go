@@ -1,4 +1,4 @@
-package network
+package pkg
 
 import (
 	"bytes"
@@ -104,15 +104,15 @@ func portForwardService(kubeconfigPath string, localSshPort int, okChan chan str
 }
 
 func scaleDeploymentReplicasTo(options Options, replicas int32) {
-	_, err := clientset.AppsV1().Deployments(options.serviceNamespace).
-		UpdateScale(context.TODO(), options.serviceName, &autoscalingv1.Scale{
+	_, err := clientset.AppsV1().Deployments(options.ServiceNamespace).
+		UpdateScale(context.TODO(), options.ServiceName, &autoscalingv1.Scale{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      options.serviceName,
-				Namespace: options.serviceNamespace,
+				Name:      options.ServiceName,
+				Namespace: options.ServiceNamespace,
 			},
 			Spec: autoscalingv1.ScaleSpec{Replicas: replicas},
 		}, metav1.UpdateOptions{})
 	if err != nil {
-		log.Printf("update deployment: %s's replicas to %d failed, error: %v\n", options.serviceName, replicas, err)
+		log.Printf("update deployment: %s's replicas to %d failed, error: %v\n", options.ServiceName, replicas, err)
 	}
 }

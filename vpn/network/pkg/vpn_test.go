@@ -1,4 +1,4 @@
-package network
+package pkg
 
 import (
 	"context"
@@ -16,7 +16,7 @@ func TestVpn(t *testing.T) {
 	_ = os.Setenv("https_proxy", "")
 	_ = os.Setenv("HOMEBREW_NO_AUTO_UPDATE", "true")
 	_ = os.Setenv("debug", "true")
-	Start()
+	Start(OPTION)
 }
 
 func TestSsh(t *testing.T) {
@@ -26,7 +26,7 @@ func TestSsh(t *testing.T) {
 func TestPortForward(t *testing.T) {
 	_ = os.Setenv("http_proxy", "")
 	_ = os.Setenv("https_proxy", "")
-	initClient("")
+	initClient(OPTION)
 	readyChan := make(chan struct{})
 	stopsChan := make(chan struct{})
 	err := portForwardPod("tomcat-shadow", "test", 5005, readyChan, stopsChan)
@@ -61,17 +61,17 @@ func TestInstall(t *testing.T) {
 	_ = os.Setenv("http_proxy", "")
 	_ = os.Setenv("https_proxy", "")
 	_ = os.Setenv("HOMEBREW_NO_AUTO_UPDATE", "true")
-	err := preCheck()
+	err := PreCheck()
 	clientgoutils.Must(err)
 }
 
 func TestDeleteDone(t *testing.T) {
 	_ = os.Setenv("http_proxy", "")
 	_ = os.Setenv("https_proxy", "")
-	initClient("")
-	OPTION.serviceName = "tomcat"
-	OPTION.serviceNamespace = "test"
-	OPTION.portPair = "8080:8090"
+	initClient(OPTION)
+	OPTION.ServiceName = "tomcat"
+	OPTION.ServiceNamespace = "test"
+	OPTION.PortPair = "8080:8090"
 	scaleDeploymentReplicasTo(OPTION, 0)
 	//cleanShadow()
 }
