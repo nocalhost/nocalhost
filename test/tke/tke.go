@@ -81,7 +81,7 @@ var DefaultConfig = defaultConfig{
 	os:                        "centos7.6.0_x64",
 	clusterType:               "MANAGED_CLUSTER",
 	zone:                      "ap-hongkong-2",
-	instanceType:              "SA2.SMALL1",
+	instanceType:              "SA2.SMALL2",
 	diskType:                  "CLOUD_PREMIUM",
 	nodeRole:                  "WORKER",
 	internetMaxBandwidthOut:   100,
