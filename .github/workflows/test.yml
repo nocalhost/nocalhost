@@ -166,6 +166,7 @@ jobs:
           cd test
           go build
           ./test
+
   minikube-linux:
     runs-on: ubuntu-latest
     needs: [ "image" ]
