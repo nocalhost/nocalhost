@@ -83,7 +83,7 @@ func init() {
 		"local directory to sync",
 	)
 	devStartCmd.Flags().BoolVar(
-		&devStartOps.NoTerminal, "no-terminal", false,
+		&devStartOps.NoTerminal, "without-terminal", false,
 		"do not enter terminal directly while dev start success",
 	)
 	devStartCmd.Flags().StringVarP(
