@@ -122,6 +122,7 @@ func (t *task) GetClient() *tke.Client {
 }
 
 func (t *task) CreateTKE() {
+
 	retryTimes := 250
 	clusterName := "test-" + uuid.New().String()
 
