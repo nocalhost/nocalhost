@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -48,6 +49,7 @@ type Searcher struct {
 	kubeconfig      string
 	informerFactory informers.SharedInformerFactory
 	supportSchema   map[string]schema.GroupVersionResource
+	mapper          meta.RESTMapper
 	// is namespaced resource or cluster resource
 	namespaced  map[string]bool
 	stopChannel chan struct{}
@@ -160,10 +162,13 @@ func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Sea
 		}()
 		<-firstSyncChannel
 
+		gr, _ := restmapper.GetAPIGroupResources(Clients)
+
 		newSearcher := &Searcher{
 			kubeconfig:      kubeconfigBytes,
 			informerFactory: informerFactory,
 			supportSchema:   name2gvr,
+			mapper:          restmapper.NewDiscoveryRESTMapper(gr),
 			namespaced:      namespaced,
 			stopChannel:     stopChannel,
 		}
@@ -300,6 +305,13 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
+		}
+		if gvr, errs := c.search.GetGvr(c.resourceType); errs == nil {
+			if kind, err2 := c.search.mapper.KindFor(gvr); err2 == nil {
+				for _, d := range data {
+					d.(runtime.Object).GetObjectKind().SetGroupVersionKind(kind)
+				}
+			}
 		}
 	}()
 
