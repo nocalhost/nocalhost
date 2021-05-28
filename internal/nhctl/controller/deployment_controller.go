@@ -115,8 +115,8 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		devContainer.Resources = *requirements
 	}
 	r := &profile.ResourceQuota{
-		Limits:   &profile.QuotaList{Memory: "200Mi", Cpu: "200m"},
-		Requests: &profile.QuotaList{Memory: "200Mi", Cpu: "200m"},
+		Limits:   &profile.QuotaList{Memory: "1Gi", Cpu: "1"},
+		Requests: &profile.QuotaList{Memory: "50Mi", Cpu: "100m"},
 	}
 	rq, _ := convertResourceQuota(r)
 	sideCarContainer.Resources = *rq
