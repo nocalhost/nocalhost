@@ -14,9 +14,9 @@ package profile
 
 type SvcProfile struct {
 	*ServiceDevOptions `yaml:"rawConfig"`
-	ActualName         string `json:"actual_name" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
+	ActualName         string `json:"actualName" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
 	Developing         bool   `json:"developing" yaml:"developing"`
-	PortForwarded      bool   `json:"port_forwarded" yaml:"portForwarded"`
+	PortForwarded      bool   `json:"portForwarded" yaml:"portForwarded"`
 	Syncing            bool   `json:"syncing" yaml:"syncing"`
 	// same as local available port, use for port-forward
 	RemoteSyncthingPort int `json:"remoteSyncthingPort" yaml:"remoteSyncthingPort"`
