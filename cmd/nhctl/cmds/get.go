@@ -97,66 +97,53 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		if data == nil || err != nil {
 			return
 		}
-		bytes, err = json.Marshal(data)
-		if err != nil {
-			return
-		}
-		switch resourceType {
-		case "all":
-			multiple := reflect.ValueOf(data).Kind() == reflect.Slice
-			var results []daemon_handler.Result
-			var result daemon_handler.Result
-			if multiple {
-				_ = json.Unmarshal(bytes, &results)
-			} else {
-				_ = json.Unmarshal(bytes, &result)
+
+		switch outputType {
+		case JSON:
+			out(json.Marshal, data)
+		case YAML:
+			out(yaml.Marshal, data)
+		default:
+			bytes, err = json.Marshal(data)
+			if err != nil {
+				return
 			}
-			switch outputType {
-			case YAML:
-				out(yaml.Marshal, multiple, results, result)
-			case JSON:
-				out(json.Marshal, multiple, results, result)
-			default:
+			switch resourceType {
+			case "all":
+				multiple := reflect.ValueOf(data).Kind() == reflect.Slice
+				var results []daemon_handler.Result
+				var result daemon_handler.Result
+				if multiple {
+					_ = json.Unmarshal(bytes, &results)
+				} else {
+					_ = json.Unmarshal(bytes, &result)
+				}
 				if !multiple {
 					results = append(results, result)
 				}
 				printResult(results)
-			}
-		case "app", "application":
-			multiple := reflect.ValueOf(data).Kind() == reflect.Slice
-			var metas []*appmeta.ApplicationMeta
-			var meta *appmeta.ApplicationMeta
-			if multiple {
-				_ = json.Unmarshal(bytes, &metas)
-			} else {
-				_ = json.Unmarshal(bytes, &meta)
-			}
-			switch outputType {
-			case YAML:
-				out(yaml.Marshal, multiple, metas, meta)
-			case JSON:
-				out(json.Marshal, multiple, metas, meta)
-			default:
+			case "app", "application":
+				multiple := reflect.ValueOf(data).Kind() == reflect.Slice
+				var metas []*appmeta.ApplicationMeta
+				var meta *appmeta.ApplicationMeta
+				if multiple {
+					_ = json.Unmarshal(bytes, &metas)
+				} else {
+					_ = json.Unmarshal(bytes, &meta)
+				}
 				if !multiple {
 					metas = append(metas, meta)
 				}
 				printMeta(metas)
-			}
-		default:
-			multiple := reflect.ValueOf(data).Kind() == reflect.Slice
-			var items []daemon_handler.Item
-			var item daemon_handler.Item
-			if multiple {
-				_ = json.Unmarshal(bytes, &items)
-			} else {
-				_ = json.Unmarshal(bytes, &item)
-			}
-			switch outputType {
-			case YAML:
-				out(yaml.Marshal, multiple, items, item)
-			case JSON:
-				out(json.Marshal, multiple, items, item)
 			default:
+				multiple := reflect.ValueOf(data).Kind() == reflect.Slice
+				var items []daemon_handler.Item
+				var item daemon_handler.Item
+				if multiple {
+					_ = json.Unmarshal(bytes, &items)
+				} else {
+					_ = json.Unmarshal(bytes, &item)
+				}
 				if !multiple {
 					items = append(items, item)
 				}
@@ -166,11 +153,7 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 	},
 }
 
-func out(f func(interface{}) ([]byte, error), b bool, trueData, falseData interface{}) {
-	data := trueData
-	if !b {
-		data = falseData
-	}
+func out(f func(interface{}) ([]byte, error), data interface{}) {
 	if bytes, err := f(data); err == nil {
 		fmt.Print(string(bytes))
 	}

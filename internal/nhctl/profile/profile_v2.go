@@ -36,21 +36,21 @@ type AppProfileV2 struct {
 
 	// install/uninstall field, should move out of profile
 	// Deprecated
-	ChartName string `json:"chart_name" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
+	ChartName string `json:"chartName" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
 	// Deprecated TODO move to appMeta
-	ReleaseName string `json:"release_name yaml:releaseName"`
+	ReleaseName string `json:"releaseName yaml:releaseName"`
 	// Deprecated
-	DependencyConfigMapName string `json:"dependency_config_map_name" yaml:"dependencyConfigMapName,omitempty"`
+	DependencyConfigMapName string `json:"dependencyConfigMapName" yaml:"dependencyConfigMapName,omitempty"`
 	// Deprecated
 	Installed bool `json:"installed" yaml:"installed"`
 	// Deprecated
-	ResourcePath RelPath `json:"resource_path" yaml:"resourcePath"`
+	ResourcePath RelPath `json:"resourcePath" yaml:"resourcePath"`
 	// Deprecated
 	IgnoredPath RelPath `json:"ignoredPath" yaml:"ignoredPath"`
 	// Deprecated
 	PreInstall SortedRelPath `json:"onPreInstall" yaml:"onPreInstall"`
 	// Deprecated
-	AppType string `json:"app_type" yaml:"appType"`
+	AppType string `json:"appType" yaml:"appType"`
 	// Deprecated
 	Env []*Env `json:"env" yaml:"env"`
 	// Deprecated
@@ -66,7 +66,7 @@ type AppProfileV2 struct {
 	Secreted   bool   `json:"secreted" yaml:"secreted"` // always true for new versions, but from earlier version, the flag for upload profile to secret
 
 	// svc runtime status
-	SvcProfile []*SvcProfileV2 `json:"svc_profile" yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
+	SvcProfile []*SvcProfileV2 `json:"svcProfile" yaml:"svcProfile"` // This will not be nil after `dev start`, and after `dev start`, application.GetSvcProfile() should not be nil
 
 	dbPath  string
 	appName string
@@ -196,10 +196,10 @@ func (a *AppProfileV2) CloseDb() error {
 
 type SvcProfileV2 struct {
 	*ServiceConfigV2 `yaml:"rawConfig"`
-	ContainerProfile []*ContainerProfileV2 `json:"container_profile" yaml:"containerProfile"`
-	ActualName       string                `json:"actual_name" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
+	ContainerProfile []*ContainerProfileV2 `json:"containerProfile" yaml:"containerProfile"`
+	ActualName       string                `json:"actualName" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
 
-	PortForwarded bool     `json:"port_forwarded" yaml:"portForwarded"`
+	PortForwarded bool     `json:"portForwarded" yaml:"portForwarded"`
 	Syncing       bool     `json:"syncing" yaml:"syncing"`
 	SyncDirs      []string `json:"syncDirs" yaml:"syncDirs,omitempty"` // dev start -s
 	// same as local available port, use for port-forward
@@ -216,7 +216,7 @@ type SvcProfileV2 struct {
 	// nocalhost supports config from local dir under "Associate" Path
 	// but only load once, and user can use nhctl config reload to reload
 	// config from local or secret
-	LocalConfigLoaded bool `json:"local_config_loaded"`
+	LocalConfigLoaded bool `json:"localConfigLoaded"`
 
 	// associate for the local dir
 	Associate string `json:"associate"`
@@ -226,7 +226,7 @@ type SvcProfileV2 struct {
 
 	// mean the current controller is possess by current nhctl context
 	// and the syncthing process is listen on current device
-	Possess bool
+	Possess bool `json:"possess" yaml:"possess"`
 }
 
 type ContainerProfileV2 struct {
