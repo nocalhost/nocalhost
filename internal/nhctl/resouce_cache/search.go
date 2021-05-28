@@ -84,19 +84,11 @@ func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
 	gvrList := make([]schema.GroupVersionResource, 0, len(uniqueNameToGroupVersion))
 	uniqueNameToGVR := make(map[string]schema.GroupVersionResource)
 	for resource, groupVersion := range uniqueNameToGroupVersion {
-		gv := strings.Split(groupVersion, "/")
-		var group, version string
-		if len(gv) == 0 {
-			continue
-		} else if len(gv) == 1 {
-			version = gv[0]
-		} else if len(gv) == 2 {
-			group = gv[0]
-			version = gv[1]
+		if parseGroupVersion, err := schema.ParseGroupVersion(groupVersion); err == nil {
+			groupVersionResource := parseGroupVersion.WithResource(resource)
+			gvrList = append(gvrList, groupVersionResource)
+			uniqueNameToGVR[resource] = groupVersionResource
 		}
-		gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
-		gvrList = append(gvrList, gvr)
-		uniqueNameToGVR[resource] = gvr
 	}
 
 	for name, uniqueName := range nameToUniqueName {
