@@ -199,28 +199,28 @@ func getApp(namespace, appName string, search *resouce_cache.Searcher) App {
 }
 
 type Result struct {
-	Namespace   string `json:"namespace"`
-	Application []App  `json:"application"`
+	Namespace   string `json:"namespace" yaml:"namespace"`
+	Application []App  `json:"application" yaml:"application"`
 }
 
 type App struct {
-	Name   string  `json:"name"`
-	Groups []Group `json:"group"`
+	Name   string  `json:"name" yaml:"name"`
+	Groups []Group `json:"group" yaml:"group"`
 }
 
 type Group struct {
-	GroupName string     `json:"type"`
-	List      []Resource `json:"resource"`
+	GroupName string     `json:"type" yaml:"type"`
+	List      []Resource `json:"resource" yaml:"resource"`
 }
 
 type Resource struct {
-	Name string `json:"name"`
-	List []Item `json:"list"`
+	Name string `json:"name" yaml:"name"`
+	List []Item `json:"list" yaml:"list"`
 }
 
 type Item struct {
-	Metadata    interface{}           `json:"info,omitempty"`
-	Description *profile.SvcProfileV2 `json:"description,omitempty"`
+	Metadata    interface{}           `json:"info,omitempty" yaml:"info"`
+	Description *profile.SvcProfileV2 `json:"description,omitempty" yaml:"description"`
 }
 
 func SortApplication(metas []*appmeta.ApplicationMeta) {
