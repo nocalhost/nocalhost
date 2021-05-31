@@ -195,7 +195,7 @@ func (a *AppProfileV2) CloseDb() error {
 }
 
 type SvcProfileV2 struct {
-	*ServiceConfigV2 `yaml:"rawConfig"`
+	*ServiceConfigV2 `json:"rawConfig" yaml:"rawConfig"`
 	ContainerProfile []*ContainerProfileV2 `json:"containerProfile" yaml:"containerProfile"`
 	ActualName       string                `json:"actualName" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
 
