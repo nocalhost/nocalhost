@@ -216,10 +216,10 @@ type SvcProfileV2 struct {
 	// nocalhost supports config from local dir under "Associate" Path
 	// but only load once, and user can use nhctl config reload to reload
 	// config from local or secret
-	LocalConfigLoaded bool `json:"localConfigLoaded"`
+	LocalConfigLoaded bool `json:"localconfigloaded" yaml:"localconfigloaded"`
 
 	// associate for the local dir
-	Associate string `json:"associate"`
+	Associate string `json:"associate" yaml:"associate"`
 
 	// from app meta
 	Developing bool `json:"developing" yaml:"developing"`
