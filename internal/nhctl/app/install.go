@@ -29,6 +29,7 @@ import (
 	"nocalhost/pkg/nhctl/tools"
 )
 
+// Install different type of Application: Helm, Manifest, Kustomize
 func (a *Application) Install(flags *HelmFlags) (err error) {
 
 	err = a.InstallDepConfigMap(a.appMeta)
@@ -61,6 +62,7 @@ func (a *Application) Install(flags *HelmFlags) (err error) {
 	return a.appMeta.Update()
 }
 
+// Install different type of Application: Kustomize
 func (a *Application) InstallKustomize(appMeta *appmeta.ApplicationMeta, resourceDir string, doApply bool) error {
 	resourcesPath := a.GetResourceDir(resourceDir)
 	if len(resourcesPath) > 1 {
@@ -86,6 +88,7 @@ func (a *Application) InstallKustomize(appMeta *appmeta.ApplicationMeta, resourc
 	return nil
 }
 
+// Install different type of Application: Manifest
 func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta, resourceDir string, doApply bool) error {
 	p, err := a.GetProfile()
 	if err != nil {
@@ -123,6 +126,7 @@ func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta, resource
 	)
 }
 
+// Install different type of Application: Helm
 func (a *Application) installHelm(
 	appMeta *appmeta.ApplicationMeta, flags *HelmFlags, resourceDir string, fromRepo bool,
 ) error {
@@ -154,8 +158,7 @@ func (a *Application) installHelm(
 		log.Info("building dependency...")
 		depParams := []string{"dependency", "build", resourcesPath[0]}
 		depParams = append(depParams, commonParams...)
-		if _, err := tools.ExecCommand(nil, true, false, false, "helm", depParams...);
-			err != nil {
+		if _, err := tools.ExecCommand(nil, true, false, false, "helm", depParams...); err != nil {
 			return errors.Wrap(err, "fail to build dependency for helm app")
 		}
 	} else {
@@ -189,8 +192,7 @@ func (a *Application) installHelm(
 
 	fmt.Println("install helm application, this may take several minutes, please waiting...")
 
-	if _, err := tools.ExecCommand(nil, true, false, false, "helm", installParams...);
-		err != nil {
+	if _, err := tools.ExecCommand(nil, true, false, false, "helm", installParams...); err != nil {
 		return errors.Wrap(err, "fail to install helm application")
 	}
 

@@ -172,7 +172,8 @@ func getApp(namespace, appName string, search *resouce_cache.Searcher) App {
 	}{
 		{k: "Workloads", v: []string{"deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods"}},
 		{k: "Networks", v: []string{"services", "endpoints", "ingresses", "networkpolicies"}},
-		{k: "Configurations", v: []string{"configmaps", "secrets", "horizontalpodautoscalers", "resourcequotas", "poddisruptionbudgets"}},
+		{k: "Configurations",
+			v: []string{"configmaps", "secrets", "horizontalpodautoscalers", "resourcequotas", "poddisruptionbudgets"}},
 		{k: "Storages", v: []string{"persistentvolumes", "persistentvolumeclaims", "storageclasses"}},
 	}
 	result := App{Name: appName}
