@@ -1005,6 +1005,7 @@ k8s.io/kube-openapi/pkg/util/proto/validation
 k8s.io/kubectl/pkg/apps
 k8s.io/kubectl/pkg/cmd/apply
 k8s.io/kubectl/pkg/cmd/delete
+k8s.io/kubectl/pkg/cmd/exec
 k8s.io/kubectl/pkg/cmd/logs
 k8s.io/kubectl/pkg/cmd/patch
 k8s.io/kubectl/pkg/cmd/util
