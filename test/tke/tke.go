@@ -62,6 +62,7 @@ func DeleteTke(t *task) {
 	t.Delete()
 }
 
+// NewTask
 func NewTask(secretId, secretKey string) *task {
 	return &task{
 		secretId:  secretId,
@@ -76,7 +77,7 @@ type task struct {
 	client    *tke.Client
 }
 
-// guangzhou
+// guangzhou area
 var _ = defaultConfig{
 	vpcId:                     "vpc-6z0motnx",
 	subNet:                    "subnet-g7vr4qce",
@@ -264,6 +265,7 @@ func (t *task) WaitClusterToBeReady() {
 	}
 }
 
+// WaitInstanceToBeReady
 func (t task) WaitInstanceToBeReady() {
 	request := tke.NewDescribeClusterInstancesRequest()
 	request.ClusterId = &t.clusterId
@@ -340,6 +342,7 @@ func (t *task) WaitNetworkToBeReady() bool {
 	}
 }
 
+// GetKubeconfig
 func (t *task) GetKubeconfig() {
 	request := tke.NewDescribeClusterKubeconfigRequest()
 	request.ClusterId = &t.clusterId
@@ -393,6 +396,7 @@ func (t *task) Delete() {
 	}
 }
 
+// Parameter struct
 type Parameter struct {
 	VirtualPrivateCloud VirtualPrivateCloud `json:"VirtualPrivateCloud"`
 	Placement           Placement           `json:"Placement"`
@@ -403,15 +407,18 @@ type Parameter struct {
 	InternetAccessible  InternetAccessible  `json:"InternetAccessible"`
 }
 
+// VirtualPrivateCloud struct
 type VirtualPrivateCloud struct {
 	SubnetID string `json:"SubnetId"`
 	VpcID    string `json:"VpcId"`
 }
 
+// Placement struct
 type Placement struct {
 	Zone string `json:"Zone"`
 }
 
+// SystemDisk struct
 type SystemDisk struct {
 	DiskType string `json:"DiskType"`
 }
@@ -421,6 +428,7 @@ type DataDisks struct {
 	DiskSize int    `json:"DiskSize"`
 }
 
+// InternetAccessible struct
 type InternetAccessible struct {
 	PublicIPAssigned        bool `json:"PublicIpAssigned"`
 	InternetMaxBandwidthOut int  `json:"InternetMaxBandwidthOut"`
