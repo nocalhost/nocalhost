@@ -120,7 +120,7 @@ func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Sea
 		}
 
 		var informerFactory informers.SharedInformerFactory
-		if isCluster {
+		if !isCluster {
 			informerFactory = informers.NewSharedInformerFactoryWithOptions(
 				Clients, time.Second*5, informers.WithNamespace(namespace))
 		} else {
