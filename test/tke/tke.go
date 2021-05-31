@@ -30,6 +30,8 @@ import (
 )
 
 // CreateK8s TKE Cluster
+// TKE package is use for manage TKE Cluster when test has been start
+// Each Github PR will create TKE Cluster for running test case
 func CreateK8s() (*task, error) {
 	id := os.Getenv(util.SecretId)
 	key := os.Getenv(util.SecretKey)
@@ -423,6 +425,7 @@ type SystemDisk struct {
 	DiskType string `json:"DiskType"`
 }
 
+// DataDisks struct
 type DataDisks struct {
 	DiskType string `json:"DiskType"`
 	DiskSize int    `json:"DiskSize"`
