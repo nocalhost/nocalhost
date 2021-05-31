@@ -14,9 +14,9 @@ echo "${BRANCH}"
 
 if [ "${BRANCH}" = "HEAD" ]; then
 	BUILDARG=${VERSION}
-	if [ -z "${VERSION}" ]; then
-	    BUILDARG="latest"
-	fi
+#	if [ -z "${VERSION}" ]; then
+#	    BUILDARG="latest"
+#	fi
 fi
 
 docker build --build-arg dep_version=${BUILDARG} -t ${TARGET} -f ${DOCKERFILE} .
