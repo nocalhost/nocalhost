@@ -19,6 +19,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
 	"nocalhost/internal/nhctl/daemon_server/command"
+	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/resouce_cache"
@@ -99,10 +100,10 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		ns = getNamespace(request.Namespace, []byte(request.KubeConfig))
 		if request.ResourceName == "" {
 			metas := appmeta_manager.GetApplicationMetas(ns, request.KubeConfig)
-			SortApplication(metas)
-			return metas
+			return ParseApplicationsResult(ns, metas)
 		} else {
-			return appmeta_manager.GetApplicationMeta(ns, request.ResourceName, request.KubeConfig)
+			meta := appmeta_manager.GetApplicationMeta(ns, request.ResourceName, request.KubeConfig)
+			return ParseApplicationsResult(ns, []*appmeta.ApplicationMeta{meta})
 		}
 	default:
 		ns = getNamespace(request.Namespace, []byte(request.KubeConfig))
@@ -239,4 +240,29 @@ func SortApplication(metas []*appmeta.ApplicationMeta) {
 		}
 		return true
 	})
+}
+
+func ParseApplicationsResult(namespace string, metas []*appmeta.ApplicationMeta) []*model.Namespace {
+	var result []*model.Namespace
+	ns := &model.Namespace{
+		Namespace:   namespace,
+		Application: []*model.ApplicationInfo{},
+	}
+	for _, meta := range metas {
+		ns.Application = append(
+			ns.Application, &model.ApplicationInfo{
+				Name: meta.Application,
+				Type: meta.ApplicationType,
+			},
+		)
+	}
+
+	sort.Slice(
+		ns.Application, func(i, j int) bool {
+			return ns.Application[i].Name > ns.Application[j].Name
+		},
+	)
+
+	result = append(result, ns)
+	return result
 }
