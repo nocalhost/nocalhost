@@ -43,15 +43,12 @@ const DNSPOD = "dnsserver"
 const RefCountKey = "ref-count"
 
 func Start(option Options) {
-	clientgoutils.Must(initClient(option))
+	clientgoutils.Must(initClient(&option))
 	addCleanUpResource(option)
-	privateKeyPath := createOrDumpSshPrivateKeyDnsPodConfigMap(option)
-	dnsServer := createDnsPod(option)
+	privateKeyPath := createOrDumpSshPrivateKeyDnsPodConfigMap(option.Namespace)
+	dnsServer := createDnsPod(option.Namespace)
 	// random port
-	localSshPort, err := ports.GetAvailablePort()
-	if err != nil {
-		log.Fatal(err)
-	}
+	localSshPort, _ := ports.GetAvailablePort()
 	c := make(chan struct{})
 	go portForwardService(option, localSshPort, c)
 	<-c
@@ -72,53 +69,44 @@ func Start(option Options) {
 	select {}
 }
 
-func parseCidr(ip string, cidrs *[]string) {
+func parseCidr(ip string, cidrList *[]string) {
 	split := strings.Split(ip, ".")
 	if len(split) == 4 {
 		p := "%s.%s.0.0/16"
-		*cidrs = append(*cidrs, fmt.Sprintf(p, split[0], split[1]))
+		*cidrList = append(*cidrList, fmt.Sprintf(p, split[0], split[1]))
 	}
 }
 
 func GetCidr() []string {
-	var cidrs []string
-	nodeList, err := clientset.CoreV1().
-		Nodes().
-		List(context.TODO(), metav1.ListOptions{})
-	if err == nil {
+	var cidrList []string
+	if nodeList, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{}); err == nil {
 		for _, node := range nodeList.Items {
 			if node.Spec.PodCIDR != "" {
-				cidrs = append(cidrs, node.Spec.PodCIDR)
+				cidrList = append(cidrList, node.Spec.PodCIDR)
 			}
 			if len(node.Spec.PodCIDRs) > 0 {
-				cidrs = append(cidrs, node.Spec.PodCIDRs...)
+				cidrList = append(cidrList, node.Spec.PodCIDRs...)
 			}
 		}
 	} else {
 		log.Printf("failed to get node's cidr")
 	}
-	serviceList, err := clientset.CoreV1().
-		Services(v1.NamespaceAll).
-		List(context.TODO(), metav1.ListOptions{})
-	if err == nil {
-		for _, service := range serviceList.Items {
-			parseCidr(service.Spec.ClusterIP, &cidrs)
+	if services, err := clientset.CoreV1().Services(v1.NamespaceAll).List(context.TODO(), metav1.ListOptions{}); err == nil {
+		for _, service := range services.Items {
+			parseCidr(service.Spec.ClusterIP, &cidrList)
 			for _, clusterIP := range service.Spec.ClusterIPs {
-				parseCidr(clusterIP, &cidrs)
+				parseCidr(clusterIP, &cidrList)
 			}
 		}
 	} else {
 		log.Printf("failed to get service's cidr")
 	}
 
-	list, err := clientset.CoreV1().
-		Endpoints(v1.NamespaceAll).
-		List(context.TODO(), metav1.ListOptions{})
-	if err == nil {
+	if list, err := clientset.CoreV1().Endpoints(v1.NamespaceAll).List(context.TODO(), metav1.ListOptions{}); err == nil {
 		for _, endpoints := range list.Items {
 			for _, subset := range endpoints.Subsets {
 				for _, address := range subset.Addresses {
-					parseCidr(address.IP, &cidrs)
+					parseCidr(address.IP, &cidrList)
 				}
 			}
 		}
@@ -126,7 +114,7 @@ func GetCidr() []string {
 		log.Println("failed to get endpoint's cidr")
 	}
 
-	return distinct(cidrs)
+	return distinct(cidrList)
 }
 
 func distinct(strings []string) (result []string) {
@@ -135,7 +123,12 @@ func distinct(strings []string) (result []string) {
 		m[s] = s
 	}
 	for _, s := range m {
-		result = append(result, s)
+		if s != "" {
+			result = append(result, s)
+		}
+	}
+	if len(result) == 0 {
+		result = append(result, "0/0")
 	}
 	return
 }
@@ -375,7 +368,7 @@ func cleanUp(option Options) {
 	}
 }
 
-func initClient(options Options) error {
+func initClient(options *Options) error {
 	if _, err := os.Stat(options.Kubeconfig); err != nil {
 		log.Println("using default kubeconfig")
 		options.Kubeconfig = filepath.Join(HomeDir(), ".kube", "config")
@@ -395,16 +388,16 @@ func initClient(options Options) error {
 	return err
 }
 
-func CreateDNSPodDeployment(option Options) {
+func CreateDNSPodDeployment(namespace string) {
 	_, err := clientset.AppsV1().
-		Deployments(option.Namespace).
+		Deployments(namespace).
 		Get(context.Background(), DNSPOD, metav1.GetOptions{})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			log.Println("prepare to create deployment: " + DNSPOD)
 			_, err = clientset.AppsV1().
-				Deployments(option.Namespace).
-				Create(context.Background(), newDnsPodDeployment(option), metav1.CreateOptions{})
+				Deployments(namespace).
+				Create(context.Background(), newDnsPodDeployment(namespace), metav1.CreateOptions{})
 			if err != nil {
 				log.Println(err)
 			}
@@ -416,17 +409,16 @@ func CreateDNSPodDeployment(option Options) {
 		log.Println("deployment already exist")
 	}
 	log.Println("wait for pod ready...")
-	WaitPodToBeStatus(option.Namespace, "app="+DNSPOD, func(pod *v1.Pod) bool {
+	WaitPodToBeStatus(namespace, "app="+DNSPOD, func(pod *v1.Pod) bool {
 		return v1.PodRunning == pod.Status.Phase
 	})
 	log.Printf("pod: %s ready\n", DNSPOD)
 }
-func createOrDumpSshPrivateKeyDnsPodConfigMap(option Options) string {
-	privateKeyPath := filepath.Join(HomeDir(), ".nh", "ssh", "private", "key")
+func createOrDumpSshPrivateKeyDnsPodConfigMap(namespace string) string {
+	file, _ := ioutil.TempFile("", "")
+	privateKeyPath := file.Name()
 
-	configmap, err := clientset.CoreV1().
-		ConfigMaps(option.Namespace).
-		Get(context.Background(), DNSPOD, metav1.GetOptions{})
+	configmap, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.Background(), DNSPOD, metav1.GetOptions{})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			log.Println("try to generate ssh info")
@@ -435,9 +427,8 @@ func createOrDumpSshPrivateKeyDnsPodConfigMap(option Options) string {
 				panic(err)
 			}
 			log.Println("prepare to create configmap")
-			sshConfigmap := newSshConfigmap(option, info.PrivateKeyBytes, info.PublicKeyBytes)
-			_, err = clientset.CoreV1().
-				ConfigMaps(option.Namespace).
+			sshConfigmap := newSshConfigmap(namespace, info.PrivateKeyBytes, info.PublicKeyBytes)
+			_, err = clientset.CoreV1().ConfigMaps(namespace).
 				Create(context.Background(), sshConfigmap, metav1.CreateOptions{})
 			if err != nil {
 				log.Println(err)
@@ -459,17 +450,14 @@ func createOrDumpSshPrivateKeyDnsPodConfigMap(option Options) string {
 	}
 }
 
-func createDnsPod(option Options) (serviceIp string) {
-	CreateDNSPodDeployment(option)
-	service, err := clientset.CoreV1().
-		Services(option.Namespace).
-		Get(context.Background(), DNSPOD, metav1.GetOptions{})
+func createDnsPod(namespace string) (serviceIp string) {
+	CreateDNSPodDeployment(namespace)
+	service, err := clientset.CoreV1().Services(namespace).Get(context.Background(), DNSPOD, metav1.GetOptions{})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			log.Println("prepare to create service: " + DNSPOD)
-			service, err = clientset.CoreV1().
-				Services(option.Namespace).
-				Create(context.Background(), newDnsPodService(option), metav1.CreateOptions{})
+			service, err = clientset.CoreV1().Services(namespace).
+				Create(context.Background(), newDnsPodService(namespace), metav1.CreateOptions{})
 		}
 	} else {
 		log.Println("service already exist")

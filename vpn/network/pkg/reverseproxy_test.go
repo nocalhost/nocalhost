@@ -11,7 +11,7 @@ import (
 func TestInbound(t *testing.T) {
 	_ = os.Setenv("http_proxy", "")
 	_ = os.Setenv("https_proxy", "")
-	initClient(Option)
+	initClient(&Option)
 	tomcat := "tomcat"
 	ns := "test"
 	port := "8080:8090"

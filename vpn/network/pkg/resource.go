@@ -7,18 +7,18 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func newSshConfigmap(option Options, privateKey, publicKey []byte) *v1.ConfigMap {
+func newSshConfigmap(namespace string, privateKey, publicKey []byte) *v1.ConfigMap {
 	return &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        DNSPOD,
-			Namespace:   option.Namespace,
+			Namespace:   namespace,
 			Annotations: map[string]string{RefCountKey: "0"},
 		},
 		Data: map[string]string{"authorized": string(publicKey), "privateKey": string(privateKey)},
 	}
 }
 
-func newDnsPodDeployment(option Options) *appsv1.Deployment {
+func newDnsPodDeployment(namespace string) *appsv1.Deployment {
 	one := int32(1)
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -27,7 +27,7 @@ func newDnsPodDeployment(option Options) *appsv1.Deployment {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      DNSPOD,
-			Namespace: option.Namespace,
+			Namespace: namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &one,
@@ -35,7 +35,7 @@ func newDnsPodDeployment(option Options) *appsv1.Deployment {
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      DNSPOD,
-					Namespace: option.Namespace,
+					Namespace: namespace,
 					Labels:    map[string]string{"app": DNSPOD},
 				},
 				Spec: v1.PodSpec{
@@ -73,11 +73,11 @@ func newDnsPodDeployment(option Options) *appsv1.Deployment {
 	}
 }
 
-func newDnsPodService(option Options) *v1.Service {
+func newDnsPodService(namespace string) *v1.Service {
 	return &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      DNSPOD,
-			Namespace: option.Namespace,
+			Namespace: namespace,
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
