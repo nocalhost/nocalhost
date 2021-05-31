@@ -1,4 +1,4 @@
-package pkg
+package network
 
 import (
 	"bytes"
@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/transport/spdy"
 	"log"
 	"net/http"
+	"nocalhost/internal/nhctl/model"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -80,13 +81,13 @@ func portForwardPod(podName string, namespace string, port int, readyChan, stopC
 	return nil
 }
 
-func portForwardService(options Options, localSshPort int, okChan chan struct{}) {
+func portForwardService(options model.Options, localSshPort int, okChan chan struct{}) {
 	cmd := exec.
 		CommandContext(
 			context.TODO(),
 			"kubectl",
 			"port-forward",
-			"service/dnsserver",
+			"service/"+DNSPOD,
 			strconv.Itoa(localSshPort)+":22",
 			"--namespace",
 			options.Namespace,
@@ -104,7 +105,7 @@ func portForwardService(options Options, localSshPort int, okChan chan struct{})
 	}
 }
 
-func scaleDeploymentReplicasTo(options Options, replicas int32) {
+func scaleDeploymentReplicasTo(options model.Options, replicas int32) {
 	_, err := clientset.AppsV1().Deployments(options.Namespace).
 		UpdateScale(context.TODO(), options.ServiceName, &autoscalingv1.Scale{
 			ObjectMeta: metav1.ObjectMeta{

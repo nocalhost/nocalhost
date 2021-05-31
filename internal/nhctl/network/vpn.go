@@ -1,4 +1,4 @@
-package pkg
+package network
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/exec"
 	"log"
+	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/test/nhctlcli"
@@ -42,7 +43,7 @@ const DNSPOD = "dnsserver"
 // the reason why using ref-count are all start operation will using single one dns pod, save resource
 const RefCountKey = "ref-count"
 
-func Start(option Options) {
+func Start(option model.Options) {
 	clientgoutils.Must(initClient(&option))
 	addCleanUpResource(option)
 	privateKeyPath := createOrDumpSshPrivateKeyDnsPodConfigMap(option.Namespace)
@@ -52,7 +53,7 @@ func Start(option Options) {
 	c := make(chan struct{})
 	go portForwardService(option, localSshPort, c)
 	<-c
-	updateRefCount(option, 1)
+	updateRefCount(option.Namespace, 1)
 	log.Println("port forward ready")
 	if runtime.GOOS == "windows" || os.Getenv("debug") != "" {
 		sock5Port, _ := ports.GetAvailablePort()
@@ -138,7 +139,7 @@ func distinct(strings []string) (result []string) {
  * 2) relabel new shadow pod, make sure traffic which from service will receive by shadow pod
  * 3) using another images to listen local and transfer traffic
  */
-func Inbound(options Options, privateKeyPath string) {
+func Inbound(options model.Options, privateKeyPath string) {
 	if options.ServiceName == "" || options.Namespace == "" || options.PortPairs == "" {
 		log.Println("no need to expose local service to remote")
 		return
@@ -180,7 +181,7 @@ func Inbound(options Options, privateKeyPath string) {
 	select {}
 }
 
-func createPodShadow(options Options) *v1.Pod {
+func createPodShadow(options model.Options) *v1.Pod {
 	service, err := clientset.CoreV1().Services(options.Namespace).Get(context.TODO(), options.ServiceName, metav1.GetOptions{})
 	if err != nil {
 		log.Println(err)
@@ -203,7 +204,7 @@ func createPodShadow(options Options) *v1.Pod {
 	return pods
 }
 
-func forkSshConfigMapToNamespace(options Options) {
+func forkSshConfigMapToNamespace(options model.Options) {
 	_, err := clientset.CoreV1().ConfigMaps(options.Namespace).Get(context.TODO(), DNSPOD, metav1.GetOptions{})
 	if err == nil {
 		log.Printf("ssh configmap already exist in namespace: %s, no need to fork it\n", options.Namespace)
@@ -231,12 +232,12 @@ func forkSshConfigMapToNamespace(options Options) {
 
 var stopChan = make(chan os.Signal)
 
-func addCleanUpResource(options Options) {
+func addCleanUpResource(options model.Options) {
 	signal.Notify(stopChan, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL /*, syscall.SIGSTOP*/)
 	go func() {
 		<-stopChan
 		log.Println("prepare to exit, cleaning up")
-		cleanUp(Option)
+		cleanUp(options)
 		scaleDeploymentReplicasTo(options, 1)
 		cleanShadow(options, false)
 		cleanSsh()
@@ -258,7 +259,7 @@ func cleanSsh() {
 	}
 }
 
-func cleanShadow(options Options, wait bool) {
+func cleanShadow(options model.Options, wait bool) {
 	shadowName := options.ServiceName + "-" + "shadow"
 	err := clientset.CoreV1().Pods(options.Namespace).Delete(context.TODO(), shadowName, metav1.DeleteOptions{})
 	if !wait {
@@ -289,9 +290,9 @@ func cleanShadow(options Options, wait bool) {
 }
 
 // vendor/k8s.io/kubectl/pkg/polymorphichelpers/rollback.go:99
-func updateRefCount(option Options, increment int) {
+func updateRefCount(namespace string, increment int) {
 	get, err := clientset.CoreV1().
-		ConfigMaps(option.Namespace).
+		ConfigMaps(namespace).
 		Get(context.TODO(), DNSPOD, metav1.GetOptions{})
 	if err != nil {
 		log.Println("this should not happened")
@@ -309,7 +310,7 @@ func updateRefCount(option Options, increment int) {
 			"value": strconv.Itoa(curCount + increment),
 		},
 	})
-	_, err = clientset.CoreV1().ConfigMaps(option.Namespace).Patch(context.TODO(),
+	_, err = clientset.CoreV1().ConfigMaps(namespace).Patch(context.TODO(),
 		DNSPOD, types.JSONPatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		log.Printf("update ref count error, error: %v\n", err)
@@ -346,8 +347,8 @@ func PreCheck() error {
 	return nil
 }
 
-func cleanUp(option Options) {
-	updateRefCount(option, -1)
+func cleanUp(option model.Options) {
+	updateRefCount(option.Namespace, -1)
 	configMap, err := clientset.CoreV1().
 		ConfigMaps(option.Namespace).
 		Get(context.TODO(), DNSPOD, metav1.GetOptions{})
@@ -368,7 +369,7 @@ func cleanUp(option Options) {
 	}
 }
 
-func initClient(options *Options) error {
+func initClient(options *model.Options) error {
 	if _, err := os.Stat(options.Kubeconfig); err != nil {
 		log.Println("using default kubeconfig")
 		options.Kubeconfig = filepath.Join(HomeDir(), ".kube", "config")

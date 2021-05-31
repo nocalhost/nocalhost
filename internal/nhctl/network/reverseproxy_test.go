@@ -1,6 +1,7 @@
-package pkg
+package network
 
 import (
+	"nocalhost/internal/nhctl/model"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,15 +12,15 @@ import (
 func TestInbound(t *testing.T) {
 	_ = os.Setenv("http_proxy", "")
 	_ = os.Setenv("https_proxy", "")
-	initClient(&Option)
+	initClient(&model.Option)
 	tomcat := "tomcat"
 	ns := "test"
 	port := "8080:8090"
-	Option.ServiceName = tomcat
-	Option.Namespace = ns
-	Option.PortPairs = port
+	model.Option.ServiceName = tomcat
+	model.Option.Namespace = ns
+	model.Option.PortPairs = port
 	privateKeyPath := filepath.Join(HomeDir(), ".nh", "ssh", "private", "key")
-	Inbound(Option, privateKeyPath)
+	Inbound(model.Option, privateKeyPath)
 }
 
 func TestCommand(t *testing.T) {

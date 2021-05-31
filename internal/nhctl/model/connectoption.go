@@ -1,4 +1,4 @@
-package pkg
+package model
 
 var Option Options
 
