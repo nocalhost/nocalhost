@@ -15,6 +15,7 @@ import (
 	"k8s.io/utils/exec"
 	"log"
 	"nocalhost/internal/nhctl/syncthing/ports"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/test/nhctlcli"
 	"os"
 	osexec "os/exec"
@@ -36,31 +37,25 @@ import (
 var config *restclient.Config
 var clientset *kubernetes.Clientset
 
-const DefaultNamespace = "default"
 const DNSPOD = "dnsserver"
 
 // the reason why using ref-count are all start operation will using single one dns pod, save resource
-const refCountKey = "ref-count"
+const RefCountKey = "ref-count"
 
-func Start(OPTION Options) {
-	privateKeyPath := filepath.Join(HomeDir(), ".nh", "ssh", "private", "key")
-	publicKeyPath := filepath.Join(HomeDir(), ".nh", "ssh", "private", "pub")
-	info, err := generateSshKey(privateKeyPath, publicKeyPath)
-	if err != nil && info == nil {
-		panic(err)
-	}
-	initClient(OPTION)
-	addCleanUpResource(OPTION)
-	serviceIp, _ := createDnsPod(info)
+func Start(option Options) {
+	clientgoutils.Must(initClient(option))
+	addCleanUpResource(option)
+	privateKeyPath := createOrDumpSshPrivateKeyDnsPodConfigMap(option)
+	dnsServer := createDnsPod(option)
 	// random port
 	localSshPort, err := ports.GetAvailablePort()
 	if err != nil {
 		log.Fatal(err)
 	}
 	c := make(chan struct{})
-	go portForwardService(OPTION.Kubeconfig, localSshPort, c)
+	go portForwardService(option, localSshPort, c)
 	<-c
-	updateRefCount(1)
+	updateRefCount(option, 1)
 	log.Println("port forward ready")
 	if runtime.GOOS == "windows" || os.Getenv("debug") != "" {
 		sock5Port, _ := ports.GetAvailablePort()
@@ -69,11 +64,11 @@ func Start(OPTION Options) {
 		// socks5h means dns resolve should in remote pod, not local
 		fmt.Printf(`please export http_proxy=socks5h://127.0.0.1:%d, and the you can access cluster ip or domain`+"\n", sock5Port)
 	} else {
-		go sshuttleOutbound(serviceIp, privateKeyPath, localSshPort, GetCidr(), c)
+		go sshuttleOutbound(dnsServer, privateKeyPath, localSshPort, GetCidr(), c)
 		<-c
 		log.Println("expose remote to local successfully, you can access your cluster network on your local environment")
 	}
-	Inbound(OPTION, privateKeyPath)
+	Inbound(option, privateKeyPath)
 	select {}
 }
 
@@ -151,7 +146,7 @@ func distinct(strings []string) (result []string) {
  * 3) using another images to listen local and transfer traffic
  */
 func Inbound(options Options, privateKeyPath string) {
-	if options.ServiceName == "" || options.ServiceNamespace == "" || options.PortPair == "" {
+	if options.ServiceName == "" || options.Namespace == "" || options.PortPairs == "" {
 		log.Println("no need to expose local service to remote")
 		return
 	}
@@ -163,7 +158,7 @@ func Inbound(options Options, privateKeyPath string) {
 		return
 	}
 	log.Printf("wait for shadow: %s to be ready...\n", podShadow.Name)
-	WaitPodToBeStatus(options.ServiceNamespace, "name="+podShadow.Name, func(pod *v1.Pod) bool { return v1.PodRunning == pod.Status.Phase })
+	WaitPodToBeStatus(options.Namespace, "name="+podShadow.Name, func(pod *v1.Pod) bool { return v1.PodRunning == pod.Status.Phase })
 
 	localSshPort, err := ports.GetAvailablePort()
 	if err != nil {
@@ -179,7 +174,7 @@ func Inbound(options Options, privateKeyPath string) {
 	}()
 	<-readyChan
 	log.Println("port forward ready")
-	remote2Local := strings.Split(options.PortPair, ",")
+	remote2Local := strings.Split(options.PortPairs, ",")
 	wg := sync.WaitGroup{}
 	for _, pair := range remote2Local {
 		p := strings.Split(pair, ":")
@@ -193,22 +188,22 @@ func Inbound(options Options, privateKeyPath string) {
 }
 
 func createPodShadow(options Options) *v1.Pod {
-	service, err := clientset.CoreV1().Services(options.ServiceNamespace).Get(context.TODO(), options.ServiceName, metav1.GetOptions{})
+	service, err := clientset.CoreV1().Services(options.Namespace).Get(context.TODO(), options.ServiceName, metav1.GetOptions{})
 	if err != nil {
 		log.Println(err)
 	}
 	labels := service.Spec.Selector
 	// todo version
 	newName := options.ServiceName + "-" + "shadow"
-	deployment, err := clientset.AppsV1().Deployments(options.ServiceNamespace).Get(context.TODO(), options.ServiceName, metav1.GetOptions{})
+	deployment, err := clientset.AppsV1().Deployments(options.Namespace).Get(context.TODO(), options.ServiceName, metav1.GetOptions{})
 	if err != nil {
 		log.Println(err)
 		return nil
 	}
 	forkSshConfigMapToNamespace(options)
-	pod := newPod(newName, options.ServiceNamespace, labels, deployment.Spec.Template.Spec.Containers[0].Ports)
+	pod := newPod(newName, options.Namespace, labels, deployment.Spec.Template.Spec.Containers[0].Ports)
 	cleanShadow(options, true)
-	pods, err := clientset.CoreV1().Pods(options.ServiceNamespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+	pods, err := clientset.CoreV1().Pods(options.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 	if err != nil {
 		log.Println(err)
 	}
@@ -216,24 +211,24 @@ func createPodShadow(options Options) *v1.Pod {
 }
 
 func forkSshConfigMapToNamespace(options Options) {
-	_, err := clientset.CoreV1().ConfigMaps(options.ServiceNamespace).Get(context.TODO(), DNSPOD, metav1.GetOptions{})
+	_, err := clientset.CoreV1().ConfigMaps(options.Namespace).Get(context.TODO(), DNSPOD, metav1.GetOptions{})
 	if err == nil {
-		log.Printf("ssh configmap already exist in namespace: %s, no need to fork it\n", options.ServiceNamespace)
+		log.Printf("ssh configmap already exist in namespace: %s, no need to fork it\n", options.Namespace)
 		return
 	}
-	configMap, err := clientset.CoreV1().ConfigMaps(DefaultNamespace).Get(context.TODO(), DNSPOD, metav1.GetOptions{})
+	configMap, err := clientset.CoreV1().ConfigMaps(options.Namespace).Get(context.TODO(), DNSPOD, metav1.GetOptions{})
 	if err != nil {
-		log.Printf("can't find configmap: %s in namespace: %s\n", DNSPOD, DefaultNamespace)
+		log.Printf("can't find configmap: %s in namespace: %s\n", DNSPOD, options.Namespace)
 		return
 	}
 	newConfigmap := v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      DNSPOD,
-			Namespace: options.ServiceNamespace,
+			Namespace: options.Namespace,
 		},
 		Data: configMap.Data,
 	}
-	_, err = clientset.CoreV1().ConfigMaps(options.ServiceNamespace).Create(context.TODO(), &newConfigmap, metav1.CreateOptions{})
+	_, err = clientset.CoreV1().ConfigMaps(options.Namespace).Create(context.TODO(), &newConfigmap, metav1.CreateOptions{})
 	if err == nil {
 		log.Printf("fork configmap secuessfully")
 	} else {
@@ -248,7 +243,7 @@ func addCleanUpResource(options Options) {
 	go func() {
 		<-stopChan
 		log.Println("prepare to exit, cleaning up")
-		cleanUp()
+		cleanUp(Option)
 		scaleDeploymentReplicasTo(options, 1)
 		cleanShadow(options, false)
 		cleanSsh()
@@ -272,13 +267,13 @@ func cleanSsh() {
 
 func cleanShadow(options Options, wait bool) {
 	shadowName := options.ServiceName + "-" + "shadow"
-	err := clientset.CoreV1().Pods(options.ServiceNamespace).Delete(context.TODO(), shadowName, metav1.DeleteOptions{})
+	err := clientset.CoreV1().Pods(options.Namespace).Delete(context.TODO(), shadowName, metav1.DeleteOptions{})
 	if !wait {
 		return
 	}
 	log.Printf("waiting for pod: %s to be deleted...\n", shadowName)
 	if err == nil {
-		w, err := clientset.CoreV1().Pods(options.ServiceNamespace).Watch(context.TODO(), metav1.ListOptions{
+		w, err := clientset.CoreV1().Pods(options.Namespace).Watch(context.TODO(), metav1.ListOptions{
 			LabelSelector: "name=" + shadowName,
 			Watch:         true,
 		})
@@ -301,15 +296,15 @@ func cleanShadow(options Options, wait bool) {
 }
 
 // vendor/k8s.io/kubectl/pkg/polymorphichelpers/rollback.go:99
-func updateRefCount(increment int) {
+func updateRefCount(option Options, increment int) {
 	get, err := clientset.CoreV1().
-		ConfigMaps(DefaultNamespace).
+		ConfigMaps(option.Namespace).
 		Get(context.TODO(), DNSPOD, metav1.GetOptions{})
 	if err != nil {
 		log.Println("this should not happened")
 		return
 	}
-	curCount, err := strconv.Atoi(get.GetAnnotations()[refCountKey])
+	curCount, err := strconv.Atoi(get.GetAnnotations()[RefCountKey])
 	if err != nil {
 		curCount = 0
 	}
@@ -317,11 +312,11 @@ func updateRefCount(increment int) {
 	patch, _ := json.Marshal([]interface{}{
 		map[string]interface{}{
 			"op":    "replace",
-			"path":  "/metadata/annotations/" + refCountKey,
+			"path":  "/metadata/annotations/" + RefCountKey,
 			"value": strconv.Itoa(curCount + increment),
 		},
 	})
-	_, err = clientset.CoreV1().ConfigMaps(DefaultNamespace).Patch(context.TODO(),
+	_, err = clientset.CoreV1().ConfigMaps(option.Namespace).Patch(context.TODO(),
 		DNSPOD, types.JSONPatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		log.Printf("update ref count error, error: %v\n", err)
@@ -358,47 +353,58 @@ func PreCheck() error {
 	return nil
 }
 
-func cleanUp() {
-	updateRefCount(-1)
+func cleanUp(option Options) {
+	updateRefCount(option, -1)
 	configMap, err := clientset.CoreV1().
-		ConfigMaps(DefaultNamespace).
+		ConfigMaps(option.Namespace).
 		Get(context.TODO(), DNSPOD, metav1.GetOptions{})
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	refCount, err := strconv.Atoi(configMap.GetAnnotations()[refCountKey])
+	refCount, err := strconv.Atoi(configMap.GetAnnotations()[RefCountKey])
 	if err != nil {
 		log.Println(err)
 	}
 	// if refcount is less than zero or equals to zero, means no body will using this dns pod, so clean it
 	if refCount <= 0 {
 		log.Println("refCount is zero, prepare to clean up resource")
-		_ = clientset.CoreV1().ConfigMaps(DefaultNamespace).Delete(context.TODO(), DNSPOD, metav1.DeleteOptions{})
-		_ = clientset.AppsV1().Deployments(DefaultNamespace).Delete(context.TODO(), DNSPOD, metav1.DeleteOptions{})
-		_ = clientset.CoreV1().Services(DefaultNamespace).Delete(context.TODO(), DNSPOD, metav1.DeleteOptions{})
+		_ = clientset.CoreV1().ConfigMaps(option.Namespace).Delete(context.TODO(), DNSPOD, metav1.DeleteOptions{})
+		_ = clientset.AppsV1().Deployments(option.Namespace).Delete(context.TODO(), DNSPOD, metav1.DeleteOptions{})
+		_ = clientset.CoreV1().Services(option.Namespace).Delete(context.TODO(), DNSPOD, metav1.DeleteOptions{})
 	}
 }
 
-func initClient(options Options) {
+func initClient(options Options) error {
 	if _, err := os.Stat(options.Kubeconfig); err != nil {
 		log.Println("using default kubeconfig")
 		options.Kubeconfig = filepath.Join(HomeDir(), ".kube", "config")
 	}
-	config, _ = clientcmd.BuildConfigFromFlags("", options.Kubeconfig)
-	clientset, _ = kubernetes.NewForConfig(config)
+	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: options.Kubeconfig}, &clientcmd.ConfigOverrides{})
+	if options.Namespace == "" {
+		namespace, _, _ := clientConfig.Namespace()
+		options.Namespace = namespace
+	}
+	var err error
+	config, err = clientConfig.ClientConfig()
+	if err != nil {
+		return err
+	}
+	clientset, err = kubernetes.NewForConfig(config)
+	return err
 }
 
-func CreateDNSPodDeployment() {
+func CreateDNSPodDeployment(option Options) {
 	_, err := clientset.AppsV1().
-		Deployments(DefaultNamespace).
+		Deployments(option.Namespace).
 		Get(context.Background(), DNSPOD, metav1.GetOptions{})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			log.Println("prepare to create deployment: " + DNSPOD)
 			_, err = clientset.AppsV1().
-				Deployments(DefaultNamespace).
-				Create(context.Background(), newDnsPodDeployment(), metav1.CreateOptions{})
+				Deployments(option.Namespace).
+				Create(context.Background(), newDnsPodDeployment(option), metav1.CreateOptions{})
 			if err != nil {
 				log.Println(err)
 			}
@@ -410,58 +416,60 @@ func CreateDNSPodDeployment() {
 		log.Println("deployment already exist")
 	}
 	log.Println("wait for pod ready...")
-	WaitPodToBeStatus(DefaultNamespace, "app="+DNSPOD, func(pod *v1.Pod) bool {
+	WaitPodToBeStatus(option.Namespace, "app="+DNSPOD, func(pod *v1.Pod) bool {
 		return v1.PodRunning == pod.Status.Phase
 	})
+	log.Printf("pod: %s ready\n", DNSPOD)
 }
-func createOrDumpSshPrivateKeyDnsPodConfigMap(info *sshInfo) {
+func createOrDumpSshPrivateKeyDnsPodConfigMap(option Options) string {
+	privateKeyPath := filepath.Join(HomeDir(), ".nh", "ssh", "private", "key")
+
 	configmap, err := clientset.CoreV1().
-		ConfigMaps(DefaultNamespace).
+		ConfigMaps(option.Namespace).
 		Get(context.Background(), DNSPOD, metav1.GetOptions{})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
+			log.Println("try to generate ssh info")
+			info, err := generateSshKey(privateKeyPath)
+			if info == nil {
+				panic(err)
+			}
 			log.Println("prepare to create configmap")
+			sshConfigmap := newSshConfigmap(option, info.PrivateKeyBytes, info.PublicKeyBytes)
 			_, err = clientset.CoreV1().
-				ConfigMaps(DefaultNamespace).
-				Create(context.Background(), newSshConfigmap(info.PrivateKeyBytes, info.PublicKeyBytes), metav1.CreateOptions{})
+				ConfigMaps(option.Namespace).
+				Create(context.Background(), sshConfigmap, metav1.CreateOptions{})
 			if err != nil {
 				log.Println(err)
 			}
+			return privateKeyPath
 		} else {
 			log.Fatal(err)
+			return ""
 		}
 	} else {
 		log.Println("configmap already exist, dump private key")
 		s := configmap.Data["privateKey"]
-		err = ioutil.WriteFile(info.PrivateKeyPath, []byte(s), 0700)
+		err = ioutil.WriteFile(privateKeyPath, []byte(s), 0700)
 		if err != nil {
 			log.Println(err)
 		}
 		log.Println("dump private key ok")
+		return privateKeyPath
 	}
 }
 
-func createDnsPod(info *sshInfo) (serviceIp, podName string) {
-	createOrDumpSshPrivateKeyDnsPodConfigMap(info)
-	CreateDNSPodDeployment()
-
-	list, err := clientset.CoreV1().
-		Pods(DefaultNamespace).
-		List(context.TODO(), metav1.ListOptions{LabelSelector: "app=" + DNSPOD})
-	if err != nil {
-		log.Fatal(err)
-	}
-	podName = list.Items[0].Name
-	log.Println("pod ready")
+func createDnsPod(option Options) (serviceIp string) {
+	CreateDNSPodDeployment(option)
 	service, err := clientset.CoreV1().
-		Services(DefaultNamespace).
+		Services(option.Namespace).
 		Get(context.Background(), DNSPOD, metav1.GetOptions{})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			log.Println("prepare to create service: " + DNSPOD)
 			service, err = clientset.CoreV1().
-				Services(DefaultNamespace).
-				Create(context.Background(), newDnsPodService(), metav1.CreateOptions{})
+				Services(option.Namespace).
+				Create(context.Background(), newDnsPodService(option), metav1.CreateOptions{})
 		}
 	} else {
 		log.Println("service already exist")

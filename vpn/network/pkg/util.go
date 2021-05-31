@@ -80,7 +80,7 @@ func portForwardPod(podName string, namespace string, port int, readyChan, stopC
 	return nil
 }
 
-func portForwardService(kubeconfigPath string, localSshPort int, okChan chan struct{}) {
+func portForwardService(options Options, localSshPort int, okChan chan struct{}) {
 	cmd := exec.
 		CommandContext(
 			context.TODO(),
@@ -89,8 +89,9 @@ func portForwardService(kubeconfigPath string, localSshPort int, okChan chan str
 			"service/dnsserver",
 			strconv.Itoa(localSshPort)+":22",
 			"--namespace",
-			"default",
-			"--kubeconfig", kubeconfigPath)
+			options.Namespace,
+			"--kubeconfig",
+			options.Kubeconfig)
 	_, _, err := RunWithRollingOut(cmd, func(s string) bool {
 		if strings.Contains(s, "Forwarding from") {
 			okChan <- struct{}{}
@@ -104,11 +105,11 @@ func portForwardService(kubeconfigPath string, localSshPort int, okChan chan str
 }
 
 func scaleDeploymentReplicasTo(options Options, replicas int32) {
-	_, err := clientset.AppsV1().Deployments(options.ServiceNamespace).
+	_, err := clientset.AppsV1().Deployments(options.Namespace).
 		UpdateScale(context.TODO(), options.ServiceName, &autoscalingv1.Scale{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      options.ServiceName,
-				Namespace: options.ServiceNamespace,
+				Namespace: options.Namespace,
 			},
 			Spec: autoscalingv1.ScaleSpec{Replicas: replicas},
 		}, metav1.UpdateOptions{})

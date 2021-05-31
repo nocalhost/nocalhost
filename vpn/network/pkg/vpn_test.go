@@ -3,6 +3,7 @@ package pkg
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/exec"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -16,17 +17,17 @@ func TestVpn(t *testing.T) {
 	_ = os.Setenv("https_proxy", "")
 	_ = os.Setenv("HOMEBREW_NO_AUTO_UPDATE", "true")
 	_ = os.Setenv("debug", "true")
-	Start(OPTION)
+	Start(Option)
 }
 
 func TestSsh(t *testing.T) {
-	generateSshKey("", "")
+	generateSshKey("")
 }
 
 func TestPortForward(t *testing.T) {
 	_ = os.Setenv("http_proxy", "")
 	_ = os.Setenv("https_proxy", "")
-	initClient(OPTION)
+	initClient(Option)
 	readyChan := make(chan struct{})
 	stopsChan := make(chan struct{})
 	err := portForwardPod("tomcat-shadow", "test", 5005, readyChan, stopsChan)
@@ -68,10 +69,17 @@ func TestInstall(t *testing.T) {
 func TestDeleteDone(t *testing.T) {
 	_ = os.Setenv("http_proxy", "")
 	_ = os.Setenv("https_proxy", "")
-	initClient(OPTION)
-	OPTION.ServiceName = "tomcat"
-	OPTION.ServiceNamespace = "test"
-	OPTION.PortPair = "8080:8090"
-	scaleDeploymentReplicasTo(OPTION, 0)
+	initClient(Option)
+	Option.ServiceName = "tomcat"
+	Option.Namespace = "test"
+	Option.PortPairs = "8080:8090"
+	scaleDeploymentReplicasTo(Option, 0)
 	//cleanShadow()
+}
+
+func TestNamespace(t *testing.T) {
+	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: "/Users/naison/.kube/config"}, &clientcmd.ConfigOverrides{})
+	namespace, _, _ := clientConfig.Namespace()
+	fmt.Println(namespace)
 }

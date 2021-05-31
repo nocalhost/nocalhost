@@ -16,10 +16,9 @@ type sshInfo struct {
 	PrivateKeyBytes []byte
 	PublicKeyBytes  []byte
 	PrivateKeyPath  string
-	PublicKeyPath   string
 }
 
-func generateSshKey(privateKeyPath string, publicKeyPath string) (*sshInfo, error) {
+func generateSshKey(privateKeyPath string) (*sshInfo, error) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 3072)
 	if err != nil {
 		log.Println(err)
@@ -41,14 +40,9 @@ func generateSshKey(privateKeyPath string, publicKeyPath string) (*sshInfo, erro
 		PublicKeyBytes:  publicKeyBytes,
 		PrivateKeyBytes: privateKeyBytes,
 		PrivateKeyPath:  privateKeyPath,
-		PublicKeyPath:   publicKeyPath,
 	}
 	if err = saveKeyToDisk(privateKeyPath, privateKeyBytes); err != nil {
 		log.Printf("write private key failed, error: %v\n", err)
-		return &info, err
-	}
-	if err = saveKeyToDisk(publicKeyPath, publicKeyBytes); err != nil {
-		log.Printf("write public key failed, error: %v\n", err)
 		return &info, err
 	}
 	return &info, nil

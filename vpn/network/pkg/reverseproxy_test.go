@@ -11,15 +11,15 @@ import (
 func TestInbound(t *testing.T) {
 	_ = os.Setenv("http_proxy", "")
 	_ = os.Setenv("https_proxy", "")
-	initClient(OPTION)
+	initClient(Option)
 	tomcat := "tomcat"
 	ns := "test"
 	port := "8080:8090"
-	OPTION.ServiceName = tomcat
-	OPTION.ServiceNamespace = ns
-	OPTION.PortPair = port
+	Option.ServiceName = tomcat
+	Option.Namespace = ns
+	Option.PortPairs = port
 	privateKeyPath := filepath.Join(HomeDir(), ".nh", "ssh", "private", "key")
-	Inbound(OPTION, privateKeyPath)
+	Inbound(Option, privateKeyPath)
 }
 
 func TestCommand(t *testing.T) {

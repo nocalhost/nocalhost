@@ -6,10 +6,10 @@ import (
 )
 
 func parseParam() {
-	flag.StringVar(&pkg.OPTION.Kubeconfig, "kubeconfig", "", "your k8s cluster kubeconfig path")
-	flag.StringVar(&pkg.OPTION.ServiceName, "name", "", "service name and deployment name, should be same")
-	flag.StringVar(&pkg.OPTION.ServiceNamespace, "namespace", "", "service namespace")
-	flag.StringVar(&pkg.OPTION.PortPair, "expose", "", "port pair, remote-port:local-port, such as: service-port1:local-port1,service-port2:local-port2...")
+	flag.StringVar(&pkg.Option.Kubeconfig, "kubeconfig", "", "your k8s cluster kubeconfig path")
+	flag.StringVar(&pkg.Option.ServiceName, "name", "", "service name and deployment name, should be same")
+	flag.StringVar(&pkg.Option.Namespace, "namespace", "", "service namespace")
+	flag.StringVar(&pkg.Option.PortPairs, "expose", "", "port pair, remote-port:local-port, such as: service-port1:local-port1,service-port2:local-port2...")
 	flag.Parse()
 }
 
@@ -21,5 +21,5 @@ func main() {
 		panic(err)
 	}
 	parseParam()
-	pkg.Start(pkg.OPTION)
+	pkg.Start(pkg.Option)
 }
