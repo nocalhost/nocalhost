@@ -17,8 +17,9 @@ import (
 	"fmt"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/daemon_handler"
+	"nocalhost/internal/nhctl/model"
 	"os"
-	"sort"
 	"strconv"
 
 	"gopkg.in/yaml.v2"
@@ -98,32 +99,10 @@ func ListApplicationSvc(napp *app.Application) {
 	table.Render() // Send output
 }
 
-func ListApplicationsResult() []*Namespace {
+func ListApplicationsResult() []*model.Namespace {
 	metas, err := DoGetApplicationMetas()
 	must(err)
-
-	var result []*Namespace
-	ns := &Namespace{
-		Namespace:   nameSpace,
-		Application: []*ApplicationInfo{},
-	}
-	for _, meta := range metas {
-		ns.Application = append(
-			ns.Application, &ApplicationInfo{
-				Name: meta.Application,
-				Type: meta.ApplicationType,
-			},
-		)
-	}
-
-	sort.Slice(
-		ns.Application, func(i, j int) bool {
-			return ns.Application[i].Name > ns.Application[j].Name
-		},
-	)
-
-	result = append(result, ns)
-	return result
+	return daemon_handler.ParseApplicationsResult(nameSpace, metas)
 }
 
 func ListApplicationsFull() {
@@ -164,14 +143,4 @@ func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 		return []*appmeta.ApplicationMeta{nocalhostApp.GetAppMeta()}, nil
 	}
 	return metas, err
-}
-
-type Namespace struct {
-	Namespace   string
-	Application []*ApplicationInfo
-}
-
-type ApplicationInfo struct {
-	Name string
-	Type appmeta.AppType
 }

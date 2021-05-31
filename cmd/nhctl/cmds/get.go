@@ -22,9 +22,9 @@ import (
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtimejson "k8s.io/apimachinery/pkg/runtime/serializer/json"
-	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_handler"
+	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -124,8 +124,8 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 				printResult(results)
 			case "app", "application":
 				multiple := reflect.ValueOf(data).Kind() == reflect.Slice
-				var metas []*appmeta.ApplicationMeta
-				var meta *appmeta.ApplicationMeta
+				var metas []*model.Namespace
+				var meta *model.Namespace
 				if multiple {
 					_ = json.Unmarshal(bytes, &metas)
 				} else {
@@ -206,12 +206,14 @@ func printItem(items []daemon_handler.Item) {
 	write([]string{"namespace", "name"}, rows)
 }
 
-func printMeta(metas []*appmeta.ApplicationMeta) {
+func printMeta(metas []*model.Namespace) {
 	var rows [][]string
 	for _, e := range metas {
-		rows = append(rows, []string{e.Ns, e.Application, string(e.ApplicationType), string(e.ApplicationState)})
+		for _, info := range e.Application {
+			rows = append(rows, []string{e.Namespace, info.Name, string(info.Type)})
+		}
 	}
-	write([]string{"namespace", "application", "type", "state"}, rows)
+	write([]string{"namespace", "name", "type"}, rows)
 }
 
 func getNamespaceAndName(obj interface{}) (namespace, name string, errs error) {
