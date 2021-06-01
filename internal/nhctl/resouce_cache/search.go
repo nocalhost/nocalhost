@@ -60,37 +60,33 @@ func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
 	[]schema.GroupVersionResource, map[string]schema.GroupVersionResource, map[string]bool) {
 	config, _ := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
 	Clients, _ := kubernetes.NewForConfig(config)
-	g, v, _ := Clients.ServerGroupsAndResources()
-
-	preferredVersion := make(map[string]*metav1.GroupVersionForDiscovery)
-	for _, gg := range g {
-		preferredVersion[gg.PreferredVersion.GroupVersion] = &gg.PreferredVersion
-	}
+	apiResourceLists, _ := Clients.ServerPreferredResources()
 	nameToUniqueName := make(map[string]string)
-	uniqueNameToGroupVersion := make(map[string]string)
-	namespaced := make(map[string]bool)
-	for _, version := range v {
-		if preferredVersion[version.GroupVersion] != nil {
-			for _, resource := range version.APIResources {
-				nameToUniqueName[resource.Name] = resource.Name
-				nameToUniqueName[resource.Kind] = resource.Name
-				nameToUniqueName[strings.ToLower(resource.Kind)] = resource.Name
-				uniqueNameToGroupVersion[resource.Name] = version.GroupVersion
-				namespaced[resource.Name] = resource.Namespaced
-				if len(resource.ShortNames) != 0 {
-					nameToUniqueName[resource.ShortNames[0]] = resource.Name
-				}
-			}
-		}
-	}
+	groupResources, _ := restmapper.GetAPIGroupResources(Clients)
+	mapper := restmapper.NewDiscoveryRESTMapper(groupResources)
 
-	gvrList := make([]schema.GroupVersionResource, 0, len(uniqueNameToGroupVersion))
+	namespaced := make(map[string]bool)
+	gvrList := make([]schema.GroupVersionResource, 0)
 	uniqueNameToGVR := make(map[string]schema.GroupVersionResource)
-	for resource, groupVersion := range uniqueNameToGroupVersion {
-		if parseGroupVersion, err := schema.ParseGroupVersion(groupVersion); err == nil {
-			groupVersionResource := parseGroupVersion.WithResource(resource)
-			gvrList = append(gvrList, groupVersionResource)
-			uniqueNameToGVR[resource] = groupVersionResource
+	versionResource := schema.GroupVersionResource{}
+	for _, resourceList := range apiResourceLists {
+		for _, resource := range resourceList.APIResources {
+			if uniqueNameToGVR[resource.Name] != versionResource {
+				continue
+			}
+			nameToUniqueName[resource.Name] = resource.Name
+			nameToUniqueName[resource.Kind] = resource.Name
+			nameToUniqueName[strings.ToLower(resource.Kind)] = resource.Name
+			namespaced[resource.Name] = resource.Namespaced
+			if len(resource.ShortNames) != 0 {
+				nameToUniqueName[resource.ShortNames[0]] = resource.Name
+			}
+			if parseGroupVersion, err := schema.ParseGroupVersion(resourceList.GroupVersion); err == nil {
+				groupVersionResource := parseGroupVersion.WithKind(resource.Kind)
+				mapping, _ := mapper.RESTMapping(groupVersionResource.GroupKind(), groupVersionResource.Version)
+				gvrList = append(gvrList, mapping.Resource)
+				uniqueNameToGVR[resource.Name] = mapping.Resource
+			}
 		}
 	}
 
