@@ -29,9 +29,9 @@ var options = &logs.ExecOptions{
 	Executor: &logs.DefaultRemoteExecutor{},
 }
 
-var cmdKexec = &cobra.Command{
-	Use:     "kexec",
-	Example: "kexec (POD | TYPE/NAME) [-c CONTAINER] [flags] -- COMMAND [args...]",
+var cmdExec = &cobra.Command{
+	Use:     "exec",
+	Example: "exec (POD | TYPE/NAME) [-c CONTAINER] [flags] -- COMMAND [args...]",
 	Long:    `Execute a command in a container`,
 	Short:   `Execute a command in a container`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -47,8 +47,8 @@ var cmdKexec = &cobra.Command{
 }
 
 func init() {
-	cmdKexec.Flags().StringVarP(&options.ContainerName, "container", "c", options.ContainerName, "Container name. If omitted, the first container in the pod will be chosen")
-	cmdKexec.Flags().BoolVarP(&options.Stdin, "stdin", "i", options.Stdin, "Pass stdin to the container")
-	cmdKexec.Flags().BoolVarP(&options.TTY, "tty", "t", options.TTY, "Stdin is a TTY")
-	rootCmd.AddCommand(cmdKexec)
+	cmdExec.Flags().StringVarP(&options.ContainerName, "container", "c", options.ContainerName, "Container name. If omitted, the first container in the pod will be chosen")
+	cmdExec.Flags().BoolVarP(&options.Stdin, "stdin", "i", options.Stdin, "Pass stdin to the container")
+	cmdExec.Flags().BoolVarP(&options.TTY, "tty", "t", options.TTY, "Stdin is a TTY")
+	kubectlCmd.AddCommand(cmdExec)
 }
