@@ -72,13 +72,13 @@ func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
 	for _, version := range v {
 		if preferredVersion[version.GroupVersion] != nil {
 			for _, resource := range version.APIResources {
+				nameToUniqueName[resource.Name] = resource.Name
+				nameToUniqueName[resource.Kind] = resource.Name
+				nameToUniqueName[strings.ToLower(resource.Kind)] = resource.Name
+				uniqueNameToGroupVersion[resource.Name] = version.GroupVersion
+				namespaced[resource.Name] = resource.Namespaced
 				if len(resource.ShortNames) != 0 {
 					nameToUniqueName[resource.ShortNames[0]] = resource.Name
-					nameToUniqueName[resource.Name] = resource.Name
-					nameToUniqueName[resource.Kind] = resource.Name
-					nameToUniqueName[strings.ToLower(resource.Kind)] = resource.Name
-					uniqueNameToGroupVersion[resource.Name] = version.GroupVersion
-					namespaced[resource.Name] = resource.Namespaced
 				}
 			}
 		}
@@ -136,13 +136,9 @@ func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Sea
 
 		gvrList, name2gvr, namespaced := GetSupportGroupVersionResource([]byte(kubeconfigBytes))
 		for _, gvr := range gvrList {
-			// informer not support those two kinds of resource
-			if gvr.Resource == "componentstatuses" || gvr.Resource == "customresourcedefinitions" {
-				continue
-			}
 			informer, err := informerFactory.ForResource(gvr)
 			if err != nil {
-				log.Warnf("can't create informer for resource: %v, error info: %v, ignored", gvr, err)
+				log.Warnf("can't create informer for resource: %v, error info: %v, ignored", gvr.Resource, err.Error())
 				continue
 			}
 			if err = informer.Informer().AddIndexers(indexers); err != nil {
