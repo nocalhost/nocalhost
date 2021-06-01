@@ -19,7 +19,6 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
@@ -55,7 +54,11 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		return errors.Wrap(err, "")
 	}
 
-	if err = s.ScaleReplicasToOne(ctx); err != nil {
+	//if err = s.ScaleReplicasToOne(ctx); err != nil {
+	//	return err
+	//}
+	s.Client.Context(ctx)
+	if err = s.Client.ScaleStatefulSetReplicasToOne(s.Name()); err != nil {
 		return err
 	}
 
@@ -227,37 +230,6 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		break
 	}
 	return s.waitingPodToBeReady()
-}
-
-func (s *StatefulSetController) ScaleReplicasToOne(ctx context.Context) error {
-	scale, err := s.Client.GetStatefulSetClient().GetScale(ctx, s.Name(), metav1.GetOptions{})
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	if scale.Spec.Replicas > 1 {
-		scale.Spec.Replicas = 1
-		_, err = s.Client.GetStatefulSetClient().UpdateScale(ctx, s.Name(), scale, metav1.UpdateOptions{})
-		if err != nil {
-			return errors.Wrap(err, "")
-		}
-		log.Info("Waiting replicas scale to 1, it may take several minutes...")
-		for i := 0; i < 300; i++ {
-			time.Sleep(1 * time.Second)
-			ss, err := s.Client.GetStatefulSet(s.Name())
-			if err != nil {
-				return errors.Wrap(err, "")
-			}
-			if ss.Status.ReadyReplicas == 1 && ss.Status.Replicas == 1 {
-				log.Info("Replicas has been scaled to 1")
-				return nil
-			}
-		}
-		return errors.New("Waiting replicas scaling to 1 timeout")
-	} else {
-		log.Info("Replicas has already been scaled to 1")
-	}
-	return nil
 }
 
 // Container Get specify container

@@ -19,7 +19,6 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/pod_controller"
@@ -45,10 +44,6 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 	var err error
 	d.Client.Context(ctx)
 
-	//if err = d.markReplicaSetRevision(); err != nil {
-	//	return err
-	//}
-
 	dep, err := d.Client.GetDeployment(d.Name())
 	if err != nil {
 		return err
@@ -59,7 +54,8 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		return errors.Wrap(err, "")
 	}
 
-	if err = d.ScaleReplicasToOne(ctx); err != nil {
+	d.Client.Context(ctx)
+	if err = d.Client.ScaleDeploymentReplicasToOne(d.Name()); err != nil {
 		return err
 	}
 
@@ -203,29 +199,6 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 	}
 	return d.waitingPodToBeReady()
 
-}
-
-func (d *DeploymentController) ScaleReplicasToOne(ctx context.Context) error {
-
-	deploymentsClient := d.Client.GetDeploymentClient()
-	scale, err := deploymentsClient.GetScale(ctx, d.Name(), metav1.GetOptions{})
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	if scale.Spec.Replicas > 1 {
-		log.Infof("Deployment %s replicas is %d now, scaling it to 1", d.Name(), scale.Spec.Replicas)
-		scale.Spec.Replicas = 1
-		_, err = deploymentsClient.UpdateScale(ctx, d.Name(), scale, metav1.UpdateOptions{})
-		if err != nil {
-			return errors.Wrap(err, "")
-		} else {
-			log.Info("Replicas has been set to 1")
-		}
-	} else {
-		log.Infof("Deployment %s replicas is already 1, no need to scale", d.Name())
-	}
-	return nil
 }
 
 func (d *DeploymentController) Container(containerName string) (*corev1.Container, error) {

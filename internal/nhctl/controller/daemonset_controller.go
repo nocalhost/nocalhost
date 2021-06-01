@@ -13,18 +13,35 @@
 package controller
 
 import (
-	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/pod_controller"
+	"context"
+	corev1 "k8s.io/api/core/v1"
+	"nocalhost/internal/nhctl/model"
 )
 
-func (c *Controller) BuildPodController() pod_controller.PodController {
-	switch c.Type {
-	case appmeta.Deployment:
-		return &DeploymentController{Controller: c}
-	case appmeta.StatefulSet:
-		return &StatefulSetController{Controller: c}
-	case appmeta.DaemonSet:
-		return &DaemonSetController{Controller: c}
-	}
-	return nil
+type DaemonSetController struct {
+	*Controller
+}
+
+func (d DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
+	panic("implement me")
+}
+
+func (d DaemonSetController) Container(containerName string) (*corev1.Container, error) {
+	panic("implement me")
+}
+
+func (d DaemonSetController) Name() string {
+	return d.Controller.Name
+}
+
+func (d DaemonSetController) RollBack(reset bool) error {
+	panic("implement me")
+}
+
+func (d DaemonSetController) GetDefaultPodNameWait(ctx context.Context) (string, error) {
+	panic("implement me")
+}
+
+func (d DaemonSetController) GetPodList() ([]corev1.Pod, error) {
+	panic("implement me")
 }

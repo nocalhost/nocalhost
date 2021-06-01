@@ -123,3 +123,25 @@ func (c *ClientGoUtils) DeleteDeployment(name string, wait bool) error {
 	}
 	return nil
 }
+
+func (c *ClientGoUtils) ScaleDeploymentReplicasToOne(name string) error {
+	deploymentsClient := c.GetDeploymentClient()
+	scale, err := deploymentsClient.GetScale(c.ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	if scale.Spec.Replicas > 1 {
+		log.Infof("Deployment %s replicas is %d now, scaling it to 1", name, scale.Spec.Replicas)
+		scale.Spec.Replicas = 1
+		_, err = deploymentsClient.UpdateScale(c.ctx, name, scale, metav1.UpdateOptions{})
+		if err != nil {
+			return errors.Wrap(err, "")
+		} else {
+			log.Info("Replicas has been set to 1")
+		}
+	} else {
+		log.Infof("Deployment %s replicas is already 1, no need to scale", name)
+	}
+	return nil
+}
