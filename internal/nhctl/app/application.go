@@ -163,7 +163,8 @@ func (a *Application) generateSecretForEarlierVer() bool {
 		return false
 	}
 
-	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() && a.Name != nocalhost.DefaultNocalhostApplication {
+	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() &&
+		a.Name != nocalhost.DefaultNocalhostApplication {
 		a.AppType = profileV2.AppType
 
 		defer func() {

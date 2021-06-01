@@ -55,14 +55,14 @@ Get resource info
 nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 `,
 	Example: `
-# Get all application
-  nhctl get application --kubeconfig=kubeconfigfile
+	# Get all application
+	nhctl get application --kubeconfig=kubeconfigfile
 
-  # Get all application in namespace
-  nhctl get application -n namespaceName --kubeconfig=kubeoconfigpath
+	# Get all application in namespace
+	nhctl get application -n namespaceName --kubeconfig=kubeoconfigpath
   
-  # Get all deployment of application in namespace
-  nhctl get deployment -n namespaceName -a bookinfo --kubeconfig=kubeconfigpath
+	# Get all deployment of application in namespace
+	nhctl get deployment -n namespaceName -a bookinfo --kubeconfig=kubeconfigpath
 `,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
