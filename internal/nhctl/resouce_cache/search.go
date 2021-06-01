@@ -55,6 +55,7 @@ type Searcher struct {
 	stopChannel chan struct{}
 }
 
+// GetSupportGroupVersionResource
 func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
 	[]schema.GroupVersionResource, map[string]schema.GroupVersionResource, map[string]bool) {
 	config, _ := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
@@ -101,6 +102,7 @@ func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
 	return gvrList, uniqueNameToGVR, namespaced
 }
 
+// GetSearcher
 func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Searcher, error) {
 	lock.Lock()
 	defer lock.Unlock()
@@ -178,6 +180,7 @@ func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Sea
 	return searcher.(*Searcher), nil
 }
 
+// Start
 func (s *Searcher) Start() {
 	<-s.stopChannel
 }
@@ -209,6 +212,7 @@ func byApplicationFunc(obj interface{}) ([]string, error) {
 	return []string{getAppName(metadata.GetAnnotations())}, nil
 }
 
+// byNamespaceAndAppFunc
 func byNamespaceAndAppFunc(obj interface{}) ([]string, error) {
 	metadata, err := meta.Accessor(obj)
 	if err != nil {
@@ -218,6 +222,7 @@ func byNamespaceAndAppFunc(obj interface{}) ([]string, error) {
 	return []string{nsResource(metadata.GetNamespace(), getAppName(metadata.GetAnnotations()))}, nil
 }
 
+// getAppName
 func getAppName(annotations map[string]string) string {
 	if annotations != nil && annotations[nocalhost.NocalhostApplicationName] != "" {
 		return annotations[nocalhost.NocalhostApplicationName]
@@ -301,6 +306,7 @@ func (c *criteria) QueryOne() (interface{}, error) {
 	return query[0], nil
 }
 
+// Get Query
 func (c *criteria) Query() (data []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {

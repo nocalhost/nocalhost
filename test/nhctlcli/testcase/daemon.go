@@ -54,13 +54,23 @@ func PortForwardStart(nhctl *nhctlcli.CLI, module string, port int) error {
 	if pods == nil || len(pods.Items) < 1 {
 		return errors.Errorf("Not found pods of module %v", module)
 	}
+	var name string
+	for _, pod := range pods.Items {
+		if v1.PodRunning == pod.Status.Phase {
+			name = pod.Name
+			break
+		}
+	}
+	if name == "" {
+		return errors.New("pods status is not running")
+	}
 	cmd := nhctl.Command(context.Background(), "port-forward",
 		"start",
 		"bookinfo",
 		"-d",
 		module,
 		"--pod",
-		pods.Items[0].Name,
+		name,
 		fmt.Sprintf("-p%d:9080", port))
 	return nhctlcli.Runner.RunWithCheckResult(cmd)
 }
