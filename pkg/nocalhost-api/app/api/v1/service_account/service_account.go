@@ -229,6 +229,17 @@ func GenKubeconfig(
 					return nss[i].SpaceId > nss[i].SpaceId
 				},
 			)
+
+			sort.Slice(kubeConfigStruct.Contexts, func(i, j int) bool {
+				if nss[i].Namespace == specifyNameSpace {
+					return false
+				}
+				if nss[j].Namespace == specifyNameSpace {
+					return true
+				}
+
+				return nss[i].SpaceId > nss[i].SpaceId
+			})
 			kubeConfigStruct.CurrentContext = nss[len(nss)-1].SpaceName
 		}
 	}
