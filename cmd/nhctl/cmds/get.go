@@ -85,15 +85,14 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		if abs, err := filepath.Abs(kubeConfig); err == nil {
 			kubeConfig = abs
 		}
-		bytes, err := ioutil.ReadFile(kubeConfig)
-		if err != nil {
+		if _, err := ioutil.ReadFile(kubeConfig); err != nil {
 			log.Fatal(err)
 		}
 		cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
 		if err != nil {
 			log.Fatal(err)
 		}
-		data, err := cli.SendGetResourceInfoCommand(string(bytes), nameSpace, appName, resourceType, resourceName)
+		data, err := cli.SendGetResourceInfoCommand(kubeConfig, nameSpace, appName, resourceType, resourceName)
 		if data == nil || err != nil {
 			return
 		}
@@ -104,7 +103,7 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		case YAML:
 			out(yaml.Marshal, data)
 		default:
-			bytes, err = json.Marshal(data)
+			bytes, err := json.Marshal(data)
 			if err != nil {
 				return
 			}

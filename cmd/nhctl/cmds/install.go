@@ -15,15 +15,13 @@ package cmds
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
 	"time"
 
-	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/pkg/nhctl/log"
 
@@ -147,7 +145,7 @@ var installCmd = &cobra.Command{
 		}
 
 		log.Info("Installing application...")
-		must(InstallApplication(applicationName))
+		must(common.InstallApplication(installFlags, applicationName, kubeConfig, nameSpace))
 		log.Infof("Application %s installed", applicationName)
 
 		profileV2, err := nocalhostApp.GetProfile()
@@ -187,57 +185,6 @@ var installCmd = &cobra.Command{
 			}
 		}
 	},
-}
-
-func InstallApplication(applicationName string) error {
-	var err error
-
-	log.Logf("KubeConfig path: %s", kubeConfig)
-	bys, err := ioutil.ReadFile(kubeConfig)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	log.Logf("KubeConfig content: %s", string(bys))
-
-	// build Application will create the application meta and it's secret
-	// init the application's config
-	if nocalhostApp, err = app.BuildApplication(applicationName, installFlags, kubeConfig, nameSpace); err != nil {
-		return err
-	}
-
-	// if init appMeta successful, then should remove all things while fail
-	defer func() {
-		if err != nil {
-			coloredoutput.Fail(err.Error())
-			log.LogE(err)
-			utils.Should(nocalhostApp.Uninstall())
-		}
-	}()
-
-	appType := nocalhostApp.GetType()
-	if appType == "" {
-		return errors.New("--type must be specified")
-	}
-
-	// add helmValue in config
-	helmValue := nocalhostApp.GetApplicationConfigV2().HelmValues
-	for _, v := range helmValue {
-		installFlags.HelmSet = append([]string{fmt.Sprintf("%s=%s", v.Key, v.Value)}, installFlags.HelmSet...)
-	}
-
-	flags := &app.HelmFlags{
-		Values:   installFlags.HelmValueFile,
-		Set:      installFlags.HelmSet,
-		Wait:     installFlags.HelmWait,
-		Chart:    installFlags.HelmChartName,
-		RepoUrl:  installFlags.HelmRepoUrl,
-		RepoName: installFlags.HelmRepoName,
-		Version:  installFlags.HelmRepoVersion,
-	}
-
-	err = nocalhostApp.Install(flags)
-	_ = nocalhostApp.CleanUpTmpResources()
-	return err
 }
 
 func must(err error) {

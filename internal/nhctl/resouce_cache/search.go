@@ -46,7 +46,7 @@ var searchMap = NewLRU(10, func(i interface{}) { i.(*Searcher).Stop() })
 var lock sync.Mutex
 
 type Searcher struct {
-	kubeconfig      string
+	kubeconfig      []byte
 	informerFactory informers.SharedInformerFactory
 	supportSchema   map[string]schema.GroupVersionResource
 	mapper          meta.RESTMapper
@@ -99,16 +99,16 @@ func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
 }
 
 // GetSearcher
-func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Searcher, error) {
+func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Searcher, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	// calculate kubeconfig content's sha value as unique cluster id
 	h := sha1.New()
-	h.Write([]byte(kubeconfigBytes))
+	h.Write(kubeconfigBytes)
 	sum := string(h.Sum([]byte(namespace)))
 	searcher, exist := searchMap.Get(sum)
 	if !exist || searcher == nil {
-		config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeconfigBytes))
+		config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
 		if err != nil {
 			return nil, err
 		}

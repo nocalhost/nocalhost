@@ -13,16 +13,19 @@
 package daemon_handler
 
 import (
+	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
+	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/resouce_cache"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"sort"
 	"strings"
@@ -55,14 +58,15 @@ func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 }
 
 func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) interface{} {
+	KubeConfigBytes, _ := ioutil.ReadFile(request.KubeConfig)
 	var s *resouce_cache.Searcher
 	var err error
 	var ns = request.Namespace
 	if request.Namespace == "" {
-		ns = getNamespace("", []byte(request.KubeConfig))
-		s, err = resouce_cache.GetSearcher(request.KubeConfig, ns, false)
+		ns = getNamespace("", KubeConfigBytes)
+		s, err = resouce_cache.GetSearcher(KubeConfigBytes, ns, false)
 	} else {
-		s, err = resouce_cache.GetSearcher(request.KubeConfig, request.Namespace, false)
+		s, err = resouce_cache.GetSearcher(KubeConfigBytes, request.Namespace, false)
 	}
 	if err != nil {
 		return nil
@@ -78,13 +82,13 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			if err == nil && nsObjectList != nil && len(nsObjectList) > 0 {
 				result := make([]Result, 0, len(nsObjectList))
 				// try to init a cluster level searcher
-				searcher, err2 := resouce_cache.GetSearcher(request.KubeConfig, "", true)
+				searcher, err2 := resouce_cache.GetSearcher(KubeConfigBytes, "", true)
 				for _, nsObject := range nsObjectList {
 					name := nsObject.(metav1.Object).GetName()
 					if err2 != nil {
 						log.Error(err2)
 						// if cluster level searcher init failed, then try to init a namespace level searcher
-						searcher, err2 = resouce_cache.GetSearcher(request.KubeConfig, name, false)
+						searcher, err2 = resouce_cache.GetSearcher(KubeConfigBytes, name, false)
 						if err2 != nil {
 							log.Error(err2)
 							continue
@@ -97,16 +101,15 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		}
 		return getApplicationByNs(ns, request.KubeConfig, s)
 	case "app", "application":
-		ns = getNamespace(request.Namespace, []byte(request.KubeConfig))
+		ns = getNamespace(request.Namespace, KubeConfigBytes)
 		if request.ResourceName == "" {
-			metas := appmeta_manager.GetApplicationMetas(ns, request.KubeConfig)
-			return ParseApplicationsResult(ns, metas)
+			return ParseApplicationsResult(ns, InitDefaultAppIfNecessary(ns, request.KubeConfig))
 		} else {
-			meta := appmeta_manager.GetApplicationMeta(ns, request.ResourceName, request.KubeConfig)
+			meta := appmeta_manager.GetApplicationMeta(ns, request.ResourceName, string(KubeConfigBytes))
 			return ParseApplicationsResult(ns, []*appmeta.ApplicationMeta{meta})
 		}
 	default:
-		ns = getNamespace(request.Namespace, []byte(request.KubeConfig))
+		ns = getNamespace(request.Namespace, KubeConfigBytes)
 		serviceMap := getServiceProfile(ns, request.AppName)
 		// get all resource in namespace
 		var items []interface{}
@@ -154,9 +157,9 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 	return ""
 }
 
-func getApplicationByNs(ns, kubeconfigBytes string, search *resouce_cache.Searcher) Result {
+func getApplicationByNs(ns, kubeconfigPath string, search *resouce_cache.Searcher) Result {
 	result := Result{Namespace: ns}
-	applicationMetaList := appmeta_manager.GetApplicationMetas(ns, kubeconfigBytes)
+	applicationMetaList := InitDefaultAppIfNecessary(ns, kubeconfigPath)
 	SortApplication(applicationMetaList)
 	for _, applicationMeta := range applicationMetaList {
 		if applicationMeta != nil {
@@ -266,4 +269,22 @@ func ParseApplicationsResult(namespace string, metas []*appmeta.ApplicationMeta)
 
 	result = append(result, ns)
 	return result
+}
+
+func InitDefaultAppIfNecessary(namespace, kubeconfigPath string) []*appmeta.ApplicationMeta {
+	kubeconfigBytes, _ := ioutil.ReadFile(kubeconfigPath)
+	applicationMetaList := appmeta_manager.GetApplicationMetas(namespace, string(kubeconfigBytes))
+	var foundDefaultApp bool
+	for _, meta := range applicationMetaList {
+		if meta.Application == nocalhost.DefaultNocalhostApplication {
+			foundDefaultApp = true
+			break
+		}
+	}
+	if !foundDefaultApp {
+		// try init default application
+		utils.ShouldI(common.InitDefaultApplicationInCurrentNs(namespace, kubeconfigPath), "Error while create default application")
+		return appmeta_manager.GetApplicationMetas(namespace, string(kubeconfigBytes))
+	}
+	return applicationMetaList
 }
