@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/daemon_handler"
 	"nocalhost/internal/nhctl/model"
 	"os"
@@ -139,7 +140,7 @@ func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
 	if err == nil && len(metas) == 0 {
 		// try init default application
-		mustI(InitDefaultApplicationInCurrentNs(), "Error while create default application")
+		mustI(common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig), "Error while create default application")
 		return []*appmeta.ApplicationMeta{nocalhostApp.GetAppMeta()}, nil
 	}
 	return metas, err
