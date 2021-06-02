@@ -22,7 +22,7 @@ import (
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/pod_controller"
-	"nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
 	"strings"
@@ -59,63 +59,16 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		return err
 	}
 
-	devContainer, err := d.Container(ops.Container)
+	devContainer, err := findContainerInDeployment(d.Name(), ops.Container, d.Client)
 	if err != nil {
 		return err
 	}
 
-	devModeVolumes := make([]corev1.Volume, 0)
-	devModeMounts := make([]corev1.VolumeMount, 0)
-
-	// Set volumes
-	syncthingVolumes, syncthingVolumeMounts := d.generateSyncVolumesAndMounts()
-	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
-	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
-
-	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := d.genWorkDirAndPVAndMounts(
-		ops.Container, ops.StorageClass)
+	devContainer, sideCarContainer, devModeVolumes, err :=
+		d.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass)
 	if err != nil {
 		return err
 	}
-
-	devModeVolumes = append(devModeVolumes, workDirAndPersistVolumes...)
-	devModeMounts = append(devModeMounts, workDirAndPersistVolumeMounts...)
-
-	workDir := d.GetWorkDir(ops.Container)
-	devImage := d.GetDevImage(ops.Container) // Default : replace the first container
-
-	sideCarContainer := generateSideCarContainer(workDir)
-
-	devContainer.Image = devImage
-	devContainer.Name = "nocalhost-dev"
-	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
-	devContainer.WorkingDir = workDir
-
-	// set image pull policy
-	sideCarContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
-	devContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
-
-	// add env
-	devEnv := d.GetDevContainerEnv(ops.Container)
-	for _, v := range devEnv.DevEnv {
-		env := corev1.EnvVar{Name: v.Name, Value: v.Value}
-		devContainer.Env = append(devContainer.Env, env)
-	}
-
-	// Add volumeMounts to containers
-	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
-	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, devModeMounts...)
-
-	requirements := d.genResourceReq()
-	if requirements != nil {
-		devContainer.Resources = *requirements
-	}
-	r := &profile.ResourceQuota{
-		Limits:   &profile.QuotaList{Memory: "1Gi", Cpu: "1"},
-		Requests: &profile.QuotaList{Memory: "50Mi", Cpu: "100m"},
-	}
-	rq, _ := convertResourceQuota(r)
-	sideCarContainer.Resources = *rq
 
 	for i := 0; i < 10; i++ {
 		// Get latest deployment
@@ -153,7 +106,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 			dep.Spec.Template.Spec.Containers[i].SecurityContext = nil
 		}
 
-		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
+		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, *sideCarContainer)
 
 		// PriorityClass
 		priorityClass := ops.PriorityClass
@@ -201,10 +154,10 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 
 }
 
-func (d *DeploymentController) Container(containerName string) (*corev1.Container, error) {
+func findContainerInDeployment(deployName, containerName string, client *clientgoutils.ClientGoUtils) (*corev1.Container, error) {
 	var devContainer *corev1.Container
 
-	dep, err := d.Client.GetDeployment(d.Name())
+	dep, err := client.GetDeployment(deployName)
 	if err != nil {
 		return nil, err
 	}

@@ -10,18 +10,13 @@
  * limitations under the License.
  */
 
-package pod_controller
+package controller
 
-import (
-	"context"
-	corev1 "k8s.io/api/core/v1"
-	"nocalhost/internal/nhctl/model"
-)
+import "testing"
 
-type PodController interface {
-	ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error
-	Name() string // Controller name
-	RollBack(reset bool) error
-	GetDefaultPodNameWait(ctx context.Context) (string, error)
-	GetPodList() ([]corev1.Pod, error)
+func TestController_scale(t *testing.T) {
+	err := scaleDaemonSetReplicasToZero("fluentd-elasticsearch")
+	if err != nil {
+		panic(err)
+	}
 }

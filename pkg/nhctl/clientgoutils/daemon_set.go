@@ -10,18 +10,15 @@
  * limitations under the License.
  */
 
-package pod_controller
+package clientgoutils
 
 import (
-	"context"
-	corev1 "k8s.io/api/core/v1"
-	"nocalhost/internal/nhctl/model"
+	"github.com/pkg/errors"
+	v1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type PodController interface {
-	ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error
-	Name() string // Controller name
-	RollBack(reset bool) error
-	GetDefaultPodNameWait(ctx context.Context) (string, error)
-	GetPodList() ([]corev1.Pod, error)
+func (c *ClientGoUtils) UpdateDaemonSet(ds *v1.DaemonSet) (*v1.DaemonSet, error) {
+	ds, err := c.GetDaemonSetClient().Update(c.ctx, ds, metav1.UpdateOptions{})
+	return ds, errors.Wrap(err, "")
 }

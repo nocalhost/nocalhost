@@ -14,34 +14,146 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/model"
+	"nocalhost/internal/nhctl/utils"
+	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
+	"time"
 )
 
 type DaemonSetController struct {
 	*Controller
 }
 
-func (d DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
+const daemonSetGenDeployPrefix = "daemon-set-generated-deploy-"
+
+func scaleDaemonSetReplicasToZero(name string, client *clientgoutils.ClientGoUtils) error {
+
+	// Scale pod to 0
+	ds, err := client.GetDaemonSet(name)
+	if err != nil {
+		return err
+	}
+
+	ds.Spec.Template.Spec.NodeName = "nocalhost.unreachable"
+	if _, err = client.UpdateDaemonSet(ds); err != nil {
+		return err
+	}
+
+	log.Info("Wait replicas scaling to 0 (timeout: 5min)")
+	sp := utils.NewSpinner(fmt.Sprintf("Replicas is %d now", ds.Status.CurrentNumberScheduled))
+	sp.Start()
+	for i := 0; i < 300; i++ {
+		time.Sleep(1 * time.Second)
+		ds, err = client.GetDaemonSet(name)
+		if err != nil {
+			return err
+		}
+		if ds.Status.CurrentNumberScheduled != 0 {
+			sp.Update(fmt.Sprintf("Replicas is %d now", ds.Status.CurrentNumberScheduled))
+		} else {
+			sp.Update("Replicas has been scaled to 0")
+			sp.Stop()
+			break
+		}
+	}
+	return nil
+}
+
+// ReplaceImage For DaemonSet,
+func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
+
+	d.Client.Context(ctx)
+	ds, err := d.Client.GetDaemonSet(d.Name())
+	if err != nil {
+		return err
+	}
+
+	// Scale pod to 0
+	err = scaleDaemonSetReplicasToZero(d.Name(), d.Client)
+	if err != nil {
+		return err
+	}
+
+	// Create a deployment from DaemonSet spec
+	generatedDeployment := v1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   fmt.Sprintf("daemon-set-generated-deploy-%s", d.Name()),
+			Labels: map[string]string{"nocalhost.dev.workload.ignored": "true"},
+		},
+		Spec: v1.DeploymentSpec{
+			Selector: ds.Spec.Selector,
+			Template: ds.Spec.Template,
+		},
+	}
+
+	devContainer, err := findContainerInDeployment(d.Name(), ops.Container, d.Client)
+	if err != nil {
+		return err
+	}
+
+	devContainer, sideCarContainer, devModeVolumes, err :=
+		d.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass)
+	if err != nil {
+		return err
+	}
+
+	if ops.Container != "" {
+		for index, c := range generatedDeployment.Spec.Template.Spec.Containers {
+			if c.Name == ops.Container {
+				generatedDeployment.Spec.Template.Spec.Containers[index] = *devContainer
+				break
+			}
+		}
+	} else {
+		generatedDeployment.Spec.Template.Spec.Containers[0] = *devContainer
+	}
+
+	// Add volumes to deployment spec
+	if generatedDeployment.Spec.Template.Spec.Volumes == nil {
+		generatedDeployment.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
+	}
+	generatedDeployment.Spec.Template.Spec.Volumes = append(generatedDeployment.Spec.Template.Spec.Volumes, devModeVolumes...)
+
+	// delete user's SecurityContext
+	generatedDeployment.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
+
+	// disable readiness probes
+	for i := 0; i < len(generatedDeployment.Spec.Template.Spec.Containers); i++ {
+		generatedDeployment.Spec.Template.Spec.Containers[i].LivenessProbe = nil
+		generatedDeployment.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
+		generatedDeployment.Spec.Template.Spec.Containers[i].StartupProbe = nil
+		generatedDeployment.Spec.Template.Spec.Containers[i].SecurityContext = nil
+	}
+
+	generatedDeployment.Spec.Template.Spec.Containers =
+		append(generatedDeployment.Spec.Template.Spec.Containers, *sideCarContainer)
+
+	// Create generated deployment
+
 	panic("implement me")
 }
 
-func (d DaemonSetController) Container(containerName string) (*corev1.Container, error) {
-	panic("implement me")
-}
+//func (d *DaemonSetController) Container(containerName string) (*corev1.Container, error) {
+//	panic("implement me")
+//}
 
-func (d DaemonSetController) Name() string {
+func (d *DaemonSetController) Name() string {
 	return d.Controller.Name
 }
 
-func (d DaemonSetController) RollBack(reset bool) error {
+func (d *DaemonSetController) RollBack(reset bool) error {
 	panic("implement me")
 }
 
-func (d DaemonSetController) GetDefaultPodNameWait(ctx context.Context) (string, error) {
+func (d *DaemonSetController) GetDefaultPodNameWait(ctx context.Context) (string, error) {
 	panic("implement me")
 }
 
-func (d DaemonSetController) GetPodList() ([]corev1.Pod, error) {
+func (d *DaemonSetController) GetPodList() ([]corev1.Pod, error) {
 	panic("implement me")
 }
