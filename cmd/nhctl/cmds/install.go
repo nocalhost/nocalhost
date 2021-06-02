@@ -145,7 +145,8 @@ var installCmd = &cobra.Command{
 		}
 
 		log.Info("Installing application...")
-		must(common.InstallApplication(installFlags, applicationName, kubeConfig, nameSpace))
+		nocalhostApp, err = common.InstallApplication(installFlags, applicationName, kubeConfig, nameSpace)
+		must(err)
 		log.Infof("Application %s installed", applicationName)
 
 		profileV2, err := nocalhostApp.GetProfile()

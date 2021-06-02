@@ -43,19 +43,19 @@ func InitDefaultApplicationInCurrentNs(namespace string, kubeconfigPath string) 
 		LocalPath: baseDir.Abs(),
 	}
 
-	if err = InstallApplication(f, nocalhost.DefaultNocalhostApplication, kubeconfigPath, namespace); errors.IsServerTimeout(err) {
+	if _, err = InstallApplication(f, nocalhost.DefaultNocalhostApplication, kubeconfigPath, namespace); errors.IsServerTimeout(err) {
 		return nil
 	}
 	return err
 }
 
-func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconfig, namespace string) error {
+func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconfig, namespace string) (*app.Application, error) {
 	var err error
 
 	log.Logf("KubeConfig path: %s", kubeconfig)
 	bys, err := ioutil.ReadFile(kubeconfig)
 	if err != nil {
-		return errors2.Wrap(err, "")
+		return nil, errors2.Wrap(err, "")
 	}
 	log.Logf("KubeConfig content: %s", string(bys))
 
@@ -63,7 +63,7 @@ func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconf
 	// init the application's config
 	nocalhostApp, err := app.BuildApplication(applicationName, flags, kubeconfig, namespace)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// if init appMeta successful, then should remove all things while fail
@@ -77,7 +77,7 @@ func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconf
 
 	appType := nocalhostApp.GetType()
 	if appType == "" {
-		return errors2.New("--type must be specified")
+		return nil, errors2.New("--type must be specified")
 	}
 
 	// add helmValue in config
@@ -98,5 +98,5 @@ func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconf
 
 	err = nocalhostApp.Install(flag)
 	_ = nocalhostApp.CleanUpTmpResources()
-	return err
+	return nocalhostApp, err
 }
