@@ -24,9 +24,9 @@ import (
 var logOptions = logs.NewLogsOptions(
 	genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}, false)
 
-var cmdLog = &cobra.Command{
+var cmdLogs = &cobra.Command{
 	Use:     "logs",
-	Example: `nhctl logs [podName] -c [containerName] -f=true --tail=1 --namespace nocalhost-reserved --kubeconfig=[kubeconfigPath]`,
+	Example: `nhctl logs [podName] -c [containerName] -f=true --tail=1 --namespace nocalhost-reserved --kubeconfig=[path]`,
 	Long:    `nhctl logs [podName] -c [containerName] -t [lines] -f true --kubeconfig=[kubeconfigPath]`,
 	Short:   `Print the logs for a container in a pod or specified resource`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -39,6 +39,6 @@ var cmdLog = &cobra.Command{
 	}}
 
 func init() {
-	logOptions.AddFlags(cmdLog)
-	rootCmd.AddCommand(cmdLog)
+	logOptions.AddFlags(cmdLogs)
+	kubectlCmd.AddCommand(cmdLogs)
 }

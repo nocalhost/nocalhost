@@ -61,7 +61,6 @@ application:
 	- path: "job-2.yaml"
 	  priority: 5
 
-
 	# Values for helm
 	helmValues:
 	- key: DOMAIN
@@ -73,10 +72,10 @@ application:
 	  value: ${DEBUG:-true}
 	- name: DOMAIN
 	  value: "www.coding.com"
-	envFrom: 
-	envFile: 
-	- path: dev.env
-	- path: dev.env
+	envFrom:
+	  envFile: 
+	  - path: dev.env
+	  - path: dev.env
 `
 
 var svcTpl = `
@@ -105,18 +104,18 @@ dependLabelSelector:
 containers:
 	- name: xxx 
 	  install: 
-	  env:
+	  	env:
 		- name: DEBUG
 		  value: "true"
 		- name: DOMAIN
 		  value: "www.coding.com"
-	  envFrom: 
-	  envFile: 
-		- path: dev.env
-		- path: dev.env
-	  portForward:   # 安装后需要打通的端口
+	  	envFrom: 
+	  		envFile: 
+			- path: dev.env
+			- path: dev.env
+	  	portForward:   # 安装后需要打通的端口
 		- 3306:3306
-	dev:
+	  dev:
 		# git url where the source code of this service resides
 		# type: string
 		# default value: null
@@ -145,7 +144,7 @@ containers:
 		# type: string
 		# default value: ""
 		# optional
-		# storage: "cbs"
+		# storageClass: "cbs"
 
 		# resource requirements of dev container
 		# resources:
@@ -155,6 +154,7 @@ containers:
 		#   requests:
 		#     cpu: "0.5"
 		#     memory: 512Mi
+
 		# Dirs to be persisted in DevContainer
 		# type: string[]
 		# default value: ["/home/nocalhost-dev"]
@@ -170,6 +170,7 @@ containers:
 			# default value: 10Gi
 			# optional
 			#   capacity: 100Gi
+
 		command: 
 			# Run command of the service
 			# type: string[]
@@ -200,9 +201,12 @@ containers:
 			# default value: [""]
 			# optional
 			hotReloadDebug: ["bash", "-c", "gradlew bootRun --debug-jvm"]
+
 		debug:
 			remoteDebugPort: 5005
+
 		useDevContainer: false
+
 		sync:
 			type: send
 			# List of files and directories to be synchronized to DevContainer
@@ -219,15 +223,19 @@ containers:
 			ignoreFilePattern:
 				- ".git"
 				- "./build"
+
 		env:
 		- name: DEBUG
 		  value: "true"
 		- name: DOMAIN
 		  value: "www.coding.com"
+
 		envFrom:
+
 		envFile:
 		- path: dev.env
 		- path: dev.env
+
 		# ports which need to be forwarded
 		# localPort:remotePort
 		# type: string[]

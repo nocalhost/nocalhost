@@ -15,17 +15,14 @@ package cmds
 import (
 	"fmt"
 	"github.com/pkg/errors"
-	"io/ioutil"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/controller"
-	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
-	"os"
 	"path/filepath"
 )
 
@@ -39,7 +36,7 @@ func initApp(appName string) {
 		// if default application not found, try to creat one
 		if errors.Is(err, app.ErrNotFound) && appName == nocalhost.DefaultNocalhostApplication {
 			// try init default application
-			mustI(InitDefaultApplicationInCurrentNs(), "Error while create default application")
+			mustI(common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig), "Error while create default application")
 
 			// then reNew nocalhostApp
 			nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
@@ -94,35 +91,4 @@ func checkIfSvcExist(svcName string, svcType string) {
 func initAppAndCheckIfSvcExist(appName string, svcName string, svcType string) {
 	initApp(appName)
 	checkIfSvcExist(svcName, svcType)
-}
-
-func InitDefaultApplicationInCurrentNs() error {
-	tmpDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpDir)
-
-	baseDir := fp.NewFilePath(tmpDir)
-	nocalhostDir := baseDir.RelOrAbs(app.DefaultGitNocalhostDir)
-	err = nocalhostDir.Mkdir()
-	if err != nil {
-		return err
-	}
-
-	var cfg = ".default_config"
-
-	err = nocalhostDir.RelOrAbs(cfg).WriteFile("name: nocalhost.default\nmanifestType: rawManifestLocal")
-	if err != nil {
-		return err
-	}
-
-	installFlags.Config = cfg
-	installFlags.AppType = string(appmeta.Manifest)
-	installFlags.LocalPath = baseDir.Abs()
-
-	if err = InstallApplication(nocalhost.DefaultNocalhostApplication); k8serrors.IsServerTimeout(err) {
-		return nil
-	}
-	return err
 }

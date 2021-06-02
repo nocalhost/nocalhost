@@ -18,6 +18,45 @@ import (
 	validator "github.com/go-playground/validator/v10"
 )
 
+type ClusterPack interface {
+	GetClusterId() uint64
+	GetKubeConfig() string
+	GetClusterServer() string
+	GetClusterName() string
+}
+
+func (cl *ClusterList) GetClusterId() uint64 {
+	return cl.ID
+}
+
+func (cl *ClusterList) GetKubeConfig() string {
+	return cl.KubeConfig
+}
+
+func (cl *ClusterList) GetClusterServer() string {
+	return cl.Server
+}
+
+func (cl *ClusterList) GetClusterName() string {
+	return cl.ClusterName
+}
+
+func (cm *ClusterModel) GetClusterId() uint64 {
+	return cm.ID
+}
+
+func (cm *ClusterModel) GetKubeConfig() string {
+	return cm.KubeConfig
+}
+
+func (cm *ClusterModel) GetClusterServer() string {
+	return cm.Server
+}
+
+func (cm *ClusterModel) GetClusterName() string {
+	return cm.Name
+}
+
 // ClusterModel
 type ClusterModel struct {
 	ID           uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
@@ -48,12 +87,12 @@ type ClusterList struct {
 }
 
 // Validate the fields.
-func (u *ClusterModel) Validate() error {
+func (cm *ClusterModel) Validate() error {
 	validate := validator.New()
-	return validate.Struct(u)
+	return validate.Struct(cm)
 }
 
 // TableName
-func (u *ClusterModel) TableName() string {
+func (cm *ClusterModel) TableName() string {
 	return "clusters"
 }

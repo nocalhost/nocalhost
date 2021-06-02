@@ -1,3 +1,15 @@
+/*
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package resouce_cache
 
 import (
@@ -21,6 +33,7 @@ type lru struct {
 	tail     *cacheItem
 }
 
+// Add LRU Cache
 func (l *lru) Add(key string, i interface{}) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
@@ -43,6 +56,7 @@ func (l *lru) size() int32 {
 	return int32(len(l.cache))
 }
 
+// Get LRU Cache
 func (l *lru) Get(key string) (interface{}, bool) {
 	l.lock.RLocker().Lock()
 	defer l.lock.RLocker().Unlock()
@@ -55,7 +69,6 @@ func (l *lru) Get(key string) (interface{}, bool) {
 	}
 }
 
-// todo have bug
 func (l *lru) afterAccessNode(b *cacheItem) {
 	a := b.before
 	c := b.after

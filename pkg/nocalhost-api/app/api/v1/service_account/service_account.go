@@ -78,7 +78,7 @@ func ListAuthorization(c *gin.Context) {
 		return
 	}
 
-	spaceNameMap := getCluster2Ns2SpaceNameMapping(devSpaces)
+	spaceNameMap := GetCluster2Ns2SpaceNameMapping(devSpaces)
 
 	result := []*ServiceAccountModel{}
 	var lock sync.Mutex
@@ -89,103 +89,30 @@ func ListAuthorization(c *gin.Context) {
 		cluster := cluster
 		go func() {
 			defer wg.Done()
+			GenKubeconfig(
+				user.SaName, cluster, spaceNameMap, "",
+				func(nss []NS, privilege bool, kubeConfig string) {
+					if len(nss) != 0 || privilege {
+						sort.Slice(
+							nss, func(i, j int) bool {
+								return nss[i].Namespace > nss[j].Namespace
+							},
+						)
 
-			// new client go
-			clientGo, err := clientgo.NewAdminGoClient([]byte(cluster.KubeConfig))
-			if err != nil {
-				return
-			}
-
-			// nocalhost provide every user a service account each cluster
-			// first check if config valid
-			var reader setupcluster.DevKubeConfigReader
-			if reader = getServiceAccountKubeConfigReader(
-				clientGo, user.SaName,
-				service.NocalhostDefaultSaNs, cluster.Server,
-			); reader == nil {
-				return
-			}
-
-			var kubeConfig string
-			if kubeConfig, _, _ = reader.ToYamlString(); kubeConfig == "" {
-				return
-			}
-
-			// rewrite context info if needed
-			// for un privilege cluster, should append all devspace to it's context
-			kubeConfigStruct, _, _ := reader.ToStruct()
-			kubeConfigStruct.Clusters[0].Name = cluster.ClusterName
-
-			// then check if has privilege (cluster admin)
-			privilege := false
-			var nss []NS
-
-			// new admin go client will request authorizationv1.SelfSubjectAccessReview
-			// then did not find any err, means cluster admin
-			if _, err = clientgo.NewAdminGoClient([]byte(kubeConfig)); err == nil {
-				kubeConfigStruct.Contexts[0].Context.Cluster = cluster.ClusterName
-				privilege = true
-			} else {
-				defaultContext := kubeConfigStruct.Contexts[0]
-				kubeConfigStruct.Contexts = []clientcmdapiv1.NamedContext{}
-
-				for _, ns := range GetAllPermittedNs(string(clientGo.Config), user.SaName) {
-					//var spaceName = fmt.Sprintf("Nocalhost-%s", ns)
-					//var SpaceId = uint64(0)
-					if m, ok := spaceNameMap[cluster.ID]; ok {
-						if s, ok := m[ns]; ok {
-							kubeConfigStruct.Contexts = append(
-								kubeConfigStruct.Contexts, clientcmdapiv1.NamedContext{
-									Name: s.SpaceName,
-									Context: clientcmdapiv1.Context{
-										Namespace: ns,
-										Cluster:   cluster.ClusterName,
-										AuthInfo:  defaultContext.Context.AuthInfo,
-									},
-								},
-							)
-
-							nss = append(
-								nss, NS{SpaceName: s.SpaceName, Namespace: ns, SpaceId: s.ID},
-							)
-						}
+						lock.Lock()
+						result = append(
+							result, &ServiceAccountModel{
+								ClusterId:    cluster.ID,
+								KubeConfig:   kubeConfig,
+								StorageClass: cluster.StorageClass,
+								NS:           nss,
+								Privilege:    privilege,
+							},
+						)
+						lock.Unlock()
 					}
-				}
-
-				if len(nss) > 0 {
-					// sort nss
-					sort.Slice(
-						nss, func(i, j int) bool {
-							return nss[i].SpaceId > nss[i].SpaceId
-						},
-					)
-					kubeConfigStruct.CurrentContext = nss[len(nss)-1].SpaceName
-				}
-			}
-
-			if kubeConfig, _, _ = reader.ToYamlString(); kubeConfig == "" {
-				return
-			}
-
-			if len(nss) != 0 || privilege {
-				sort.Slice(
-					nss, func(i, j int) bool {
-						return nss[i].Namespace > nss[j].Namespace
-					},
-				)
-
-				lock.Lock()
-				result = append(
-					result, &ServiceAccountModel{
-						ClusterId:    cluster.ID,
-						KubeConfig:   kubeConfig,
-						StorageClass: cluster.StorageClass,
-						NS:           nss,
-						Privilege:    privilege,
-					},
-				)
-				lock.Unlock()
-			}
+				},
+			)
 		}()
 	}
 
@@ -199,7 +126,131 @@ func ListAuthorization(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
-func getCluster2Ns2SpaceNameMapping(
+func GenKubeconfig(
+	saName string, cp model.ClusterPack,
+	spaceNameMap map[uint64]map[string]*model.ClusterUserModel,
+	specifyNameSpace string,
+	then func(nss []NS, privilege bool, kubeConfig string),
+) {
+	// new client go
+	clientGo, err := clientgo.NewAdminGoClient([]byte(cp.GetKubeConfig()))
+	if err != nil {
+		return
+	}
+
+	// nocalhost provide every user a service account each cluster
+	// first check if config valid
+	var reader setupcluster.DevKubeConfigReader
+	if reader = getServiceAccountKubeConfigReader(
+		clientGo, saName,
+		service.NocalhostDefaultSaNs, cp.GetClusterServer(),
+	); reader == nil {
+		return
+	}
+
+	var kubeConfig string
+	if kubeConfig, _, _ = reader.ToYamlString(); kubeConfig == "" {
+		return
+	}
+
+	// rewrite context info if needed
+	// for un privilege cluster, should append all devspace to it's context
+	kubeConfigStruct, _, _ := reader.ToStruct()
+	kubeConfigStruct.Clusters[0].Name = cp.GetClusterName()
+
+	// then check if has privilege (cluster admin)
+	privilege := false
+	var nss []NS
+
+	// new admin go client will request authorizationv1.SelfSubjectAccessReview
+	// then did not find any err, means cluster admin
+	if _, err = clientgo.NewAdminGoClient([]byte(kubeConfig)); err == nil {
+		kubeConfigStruct.Contexts[0].Context.Cluster = cp.GetClusterName()
+		privilege = true
+
+		// if namespace provided, set the space to current context
+		if specifyNameSpace != "" && specifyNameSpace != "*" {
+			defaultContext := kubeConfigStruct.Contexts[0]
+			kubeConfigStruct.Contexts = []clientcmdapiv1.NamedContext{}
+
+			if m, ok := spaceNameMap[cp.GetClusterId()]; ok {
+				if s, ok := m[specifyNameSpace]; ok {
+					kubeConfigStruct.Contexts = append(
+						kubeConfigStruct.Contexts, clientcmdapiv1.NamedContext{
+							Name: s.SpaceName,
+							Context: clientcmdapiv1.Context{
+								Namespace: specifyNameSpace,
+								Cluster:   cp.GetClusterName(),
+								AuthInfo:  defaultContext.Context.AuthInfo,
+							},
+						},
+					)
+				}
+			}
+		}
+	} else {
+		defaultContext := kubeConfigStruct.Contexts[0]
+		kubeConfigStruct.Contexts = []clientcmdapiv1.NamedContext{}
+
+		for _, ns := range GetAllPermittedNs(string(clientGo.Config), saName) {
+			//var spaceName = fmt.Sprintf("Nocalhost-%s", ns)
+			//var SpaceId = uint64(0)
+			if m, ok := spaceNameMap[cp.GetClusterId()]; ok {
+				if s, ok := m[ns]; ok {
+					kubeConfigStruct.Contexts = append(
+						kubeConfigStruct.Contexts, clientcmdapiv1.NamedContext{
+							Name: s.SpaceName,
+							Context: clientcmdapiv1.Context{
+								Namespace: ns,
+								Cluster:   cp.GetClusterName(),
+								AuthInfo:  defaultContext.Context.AuthInfo,
+							},
+						},
+					)
+
+					nss = append(
+						nss, NS{SpaceName: s.SpaceName, Namespace: ns, SpaceId: s.ID},
+					)
+				}
+			}
+		}
+
+		if len(nss) > 0 {
+			// sort nss
+			sort.Slice(
+				nss, func(i, j int) bool {
+					if nss[i].Namespace == specifyNameSpace {
+						return false
+					}
+					if nss[j].Namespace == specifyNameSpace {
+						return true
+					}
+
+					return nss[i].SpaceId > nss[i].SpaceId
+				},
+			)
+
+			sort.Slice(kubeConfigStruct.Contexts, func(i, j int) bool {
+				if nss[i].Namespace == specifyNameSpace {
+					return false
+				}
+				if nss[j].Namespace == specifyNameSpace {
+					return true
+				}
+
+				return nss[i].SpaceId > nss[i].SpaceId
+			})
+			kubeConfigStruct.CurrentContext = nss[len(nss)-1].SpaceName
+		}
+	}
+
+	if kubeConfig, _, _ = reader.ToYamlString(); kubeConfig == "" {
+		return
+	}
+	then(nss, privilege, kubeConfig)
+}
+
+func GetCluster2Ns2SpaceNameMapping(
 	devSpaces []*model.ClusterUserModel,
 ) map[uint64]map[string]*model.ClusterUserModel {
 	spaceNameMap := map[uint64]map[string]*model.ClusterUserModel{}

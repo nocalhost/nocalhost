@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -45,58 +46,48 @@ var searchMap = NewLRU(10, func(i interface{}) { i.(*Searcher).Stop() })
 var lock sync.Mutex
 
 type Searcher struct {
-	kubeconfig      string
+	kubeconfig      []byte
 	informerFactory informers.SharedInformerFactory
 	supportSchema   map[string]schema.GroupVersionResource
+	mapper          meta.RESTMapper
 	// is namespaced resource or cluster resource
 	namespaced  map[string]bool
 	stopChannel chan struct{}
 }
 
+// GetSupportGroupVersionResource
 func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
 	[]schema.GroupVersionResource, map[string]schema.GroupVersionResource, map[string]bool) {
 	config, _ := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
 	Clients, _ := kubernetes.NewForConfig(config)
-	g, v, _ := Clients.ServerGroupsAndResources()
-
-	preferredVersion := make(map[string]*metav1.GroupVersionForDiscovery)
-	for _, gg := range g {
-		preferredVersion[gg.PreferredVersion.GroupVersion] = &gg.PreferredVersion
-	}
+	apiResourceLists, _ := Clients.ServerPreferredResources()
 	nameToUniqueName := make(map[string]string)
-	uniqueNameToGroupVersion := make(map[string]string)
+	groupResources, _ := restmapper.GetAPIGroupResources(Clients)
+	mapper := restmapper.NewDiscoveryRESTMapper(groupResources)
+
 	namespaced := make(map[string]bool)
-	for _, version := range v {
-		if preferredVersion[version.GroupVersion] != nil {
-			for _, resource := range version.APIResources {
-				if len(resource.ShortNames) != 0 {
-					nameToUniqueName[resource.ShortNames[0]] = resource.Name
-					nameToUniqueName[resource.Name] = resource.Name
-					nameToUniqueName[resource.Kind] = resource.Name
-					nameToUniqueName[strings.ToLower(resource.Kind)] = resource.Name
-					uniqueNameToGroupVersion[resource.Name] = version.GroupVersion
-					namespaced[resource.Name] = resource.Namespaced
-				}
+	gvrList := make([]schema.GroupVersionResource, 0)
+	uniqueNameToGVR := make(map[string]schema.GroupVersionResource)
+	versionResource := schema.GroupVersionResource{}
+	for _, resourceList := range apiResourceLists {
+		for _, resource := range resourceList.APIResources {
+			if uniqueNameToGVR[resource.Name] != versionResource {
+				continue
+			}
+			nameToUniqueName[resource.Name] = resource.Name
+			nameToUniqueName[resource.Kind] = resource.Name
+			nameToUniqueName[strings.ToLower(resource.Kind)] = resource.Name
+			namespaced[resource.Name] = resource.Namespaced
+			if len(resource.ShortNames) != 0 {
+				nameToUniqueName[resource.ShortNames[0]] = resource.Name
+			}
+			if parseGroupVersion, err := schema.ParseGroupVersion(resourceList.GroupVersion); err == nil {
+				groupVersionResource := parseGroupVersion.WithKind(resource.Kind)
+				mapping, _ := mapper.RESTMapping(groupVersionResource.GroupKind(), groupVersionResource.Version)
+				gvrList = append(gvrList, mapping.Resource)
+				uniqueNameToGVR[resource.Name] = mapping.Resource
 			}
 		}
-	}
-
-	gvrList := make([]schema.GroupVersionResource, 0, len(uniqueNameToGroupVersion))
-	uniqueNameToGVR := make(map[string]schema.GroupVersionResource)
-	for resource, groupVersion := range uniqueNameToGroupVersion {
-		gv := strings.Split(groupVersion, "/")
-		var group, version string
-		if len(gv) == 0 {
-			continue
-		} else if len(gv) == 1 {
-			version = gv[0]
-		} else if len(gv) == 2 {
-			group = gv[0]
-			version = gv[1]
-		}
-		gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
-		gvrList = append(gvrList, gvr)
-		uniqueNameToGVR[resource] = gvr
 	}
 
 	for name, uniqueName := range nameToUniqueName {
@@ -107,16 +98,17 @@ func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
 	return gvrList, uniqueNameToGVR, namespaced
 }
 
-func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Searcher, error) {
+// GetSearcher
+func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Searcher, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	// calculate kubeconfig content's sha value as unique cluster id
 	h := sha1.New()
-	h.Write([]byte(kubeconfigBytes))
+	h.Write(kubeconfigBytes)
 	sum := string(h.Sum([]byte(namespace)))
 	searcher, exist := searchMap.Get(sum)
 	if !exist || searcher == nil {
-		config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeconfigBytes))
+		config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -126,7 +118,7 @@ func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Sea
 		}
 
 		var informerFactory informers.SharedInformerFactory
-		if isCluster {
+		if !isCluster {
 			informerFactory = informers.NewSharedInformerFactoryWithOptions(
 				Clients, time.Second*5, informers.WithNamespace(namespace))
 		} else {
@@ -140,13 +132,9 @@ func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Sea
 
 		gvrList, name2gvr, namespaced := GetSupportGroupVersionResource([]byte(kubeconfigBytes))
 		for _, gvr := range gvrList {
-			// informer not support those two kinds of resource
-			if gvr.Resource == "componentstatuses" || gvr.Resource == "customresourcedefinitions" {
-				continue
-			}
 			informer, err := informerFactory.ForResource(gvr)
 			if err != nil {
-				log.Warnf("can't create informer for resource: %v, error info: %v, ignored", gvr, err)
+				log.Warnf("can't create informer for resource: %v, error info: %v, ignored", gvr.Resource, err.Error())
 				continue
 			}
 			if err = informer.Informer().AddIndexers(indexers); err != nil {
@@ -168,10 +156,13 @@ func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Sea
 		}()
 		<-firstSyncChannel
 
+		gr, _ := restmapper.GetAPIGroupResources(Clients)
+
 		newSearcher := &Searcher{
 			kubeconfig:      kubeconfigBytes,
 			informerFactory: informerFactory,
 			supportSchema:   name2gvr,
+			mapper:          restmapper.NewDiscoveryRESTMapper(gr),
 			namespaced:      namespaced,
 			stopChannel:     stopChannel,
 		}
@@ -181,6 +172,7 @@ func GetSearcher(kubeconfigBytes string, namespace string, isCluster bool) (*Sea
 	return searcher.(*Searcher), nil
 }
 
+// Start
 func (s *Searcher) Start() {
 	<-s.stopChannel
 }
@@ -212,6 +204,7 @@ func byApplicationFunc(obj interface{}) ([]string, error) {
 	return []string{getAppName(metadata.GetAnnotations())}, nil
 }
 
+// byNamespaceAndAppFunc
 func byNamespaceAndAppFunc(obj interface{}) ([]string, error) {
 	metadata, err := meta.Accessor(obj)
 	if err != nil {
@@ -221,6 +214,7 @@ func byNamespaceAndAppFunc(obj interface{}) ([]string, error) {
 	return []string{nsResource(metadata.GetNamespace(), getAppName(metadata.GetAnnotations()))}, nil
 }
 
+// getAppName
 func getAppName(annotations map[string]string) string {
 	if annotations != nil && annotations[nocalhost.NocalhostApplicationName] != "" {
 		return annotations[nocalhost.NocalhostApplicationName]
@@ -304,10 +298,18 @@ func (c *criteria) QueryOne() (interface{}, error) {
 	return query[0], nil
 }
 
+// Get Query
 func (c *criteria) Query() (data []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = err.(error)
+		}
+		if gvr, errs := c.search.GetGvr(c.resourceType); errs == nil {
+			if kind, err2 := c.search.mapper.KindFor(gvr); err2 == nil {
+				for _, d := range data {
+					d.(runtime.Object).GetObjectKind().SetGroupVersionKind(kind)
+				}
+			}
 		}
 	}()
 

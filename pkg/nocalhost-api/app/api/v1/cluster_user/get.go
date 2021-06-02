@@ -17,8 +17,10 @@ import (
 	"github.com/spf13/cast"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
+	"nocalhost/pkg/nocalhost-api/app/api/v1/service_account"
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"nocalhost/internal/nocalhost-api/service"
@@ -216,5 +218,72 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 		api.SendResponse(c, nil, nil)
 		return
 	}
-	api.SendResponse(c, nil, result)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	userChan := make(chan *model.UserBaseModel, 1)
+	clusterChan := make(chan model.ClusterPack, 1)
+	spaceNameMapChan := make(chan map[uint64]map[string]*model.ClusterUserModel, 1)
+	configMapChan := make(chan string, 1)
+
+	defer func() {
+		close(userChan)
+		close(clusterChan)
+		close(spaceNameMapChan)
+		close(configMapChan)
+	}()
+
+	go func() {
+		userRecord, err := service.Svc.UserSvc().GetUserByID(c, result.UserId)
+		if err != nil {
+			return
+		}
+
+		userChan <- userRecord
+	}()
+
+	go func() {
+		clusterRecord, err := service.Svc.ClusterSvc().Get(c, result.ClusterId)
+		if err != nil {
+			return
+		}
+
+		clusterChan <- &clusterRecord
+	}()
+
+	go func() {
+		devSpaces, err := service.Svc.ClusterUser().GetList(context.TODO(), model.ClusterUserModel{})
+		if err != nil {
+			return
+		}
+
+		spaceNameMap := service_account.GetCluster2Ns2SpaceNameMapping(devSpaces)
+		spaceNameMapChan <- spaceNameMap
+	}()
+
+	go func() {
+		userModel := <-userChan
+		pack := <-clusterChan
+		m := <-spaceNameMapChan
+
+		service_account.GenKubeconfig(
+			userModel.SaName, pack, m, result.Namespace,
+			func(nss []service_account.NS, privilege bool, kubeConfig string) {
+				configMapChan <- kubeConfig
+			},
+		)
+	}()
+
+	select {
+	case <-ctx.Done():
+		api.SendResponse(c, errno.InternalServerTimeoutError, nil)
+	case kubeConfig, ok := <-configMapChan:
+		if ok {
+			result.KubeConfig = kubeConfig
+			api.SendResponse(c, nil, result)
+		} else {
+			api.SendResponse(c, errno.InternalServerError, nil)
+		}
+	}
 }

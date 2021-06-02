@@ -29,6 +29,9 @@ import (
 	tke "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tke/v20180525"
 )
 
+// CreateK8s TKE Cluster
+// TKE package is use for manage TKE Cluster when test has been start
+// Each Github PR will create TKE Cluster for running test case
 func CreateK8s() (*task, error) {
 	id := os.Getenv(util.SecretId)
 	key := os.Getenv(util.SecretKey)
@@ -56,10 +59,12 @@ func CreateK8s() (*task, error) {
 	return t, nil
 }
 
+// DeleteTke Delete TKE Cluster
 func DeleteTke(t *task) {
 	t.Delete()
 }
 
+// NewTask
 func NewTask(secretId, secretKey string) *task {
 	return &task{
 		secretId:  secretId,
@@ -74,7 +79,7 @@ type task struct {
 	client    *tke.Client
 }
 
-// guangzhou
+// guangzhou area
 var _ = defaultConfig{
 	vpcId:                     "vpc-6z0motnx",
 	subNet:                    "subnet-g7vr4qce",
@@ -148,6 +153,7 @@ type defaultConfig struct {
 	cidrPattern               string
 }
 
+// GetClient of openapi
 func (t *task) GetClient() *tke.Client {
 	if t.client == nil {
 		credential := common.NewCredential(t.secretId, t.secretKey)
@@ -159,6 +165,7 @@ func (t *task) GetClient() *tke.Client {
 	return t.client
 }
 
+// CreateTKE Create TKE Cluster
 func (t *task) CreateTKE() {
 
 	retryTimes := 250
@@ -178,6 +185,8 @@ func (t *task) CreateTKE() {
 		MaxNodePodNum:             &DefaultConfig.maxNum,
 		IgnoreClusterCIDRConflict: &DefaultConfig.ignoreClusterCIDRConflict,
 	}
+
+	// RunInstancesPara use for CVM type
 	p := Parameter{
 		VirtualPrivateCloud: VirtualPrivateCloud{
 			SubnetID: DefaultConfig.subNet,
@@ -233,6 +242,7 @@ func (t *task) CreateTKE() {
 	}
 }
 
+// WaitClusterToBeReady include TKE create success
 func (t *task) WaitClusterToBeReady() {
 	request := tke.NewDescribeClustersRequest()
 	request.ClusterIds = []*string{&t.clusterId}
@@ -257,6 +267,7 @@ func (t *task) WaitClusterToBeReady() {
 	}
 }
 
+// WaitInstanceToBeReady
 func (t task) WaitInstanceToBeReady() {
 	request := tke.NewDescribeClusterInstancesRequest()
 	request.ClusterId = &t.clusterId
@@ -281,6 +292,7 @@ func (t task) WaitInstanceToBeReady() {
 	}
 }
 
+// EnableInternetAccess open ip white list
 func (t *task) EnableInternetAccess() {
 	request := tke.NewCreateClusterEndpointVipRequest()
 	request.ClusterId = &t.clusterId
@@ -298,6 +310,7 @@ func (t *task) EnableInternetAccess() {
 	}
 }
 
+// WaitNetworkToBeReady wait connection ready
 func (t *task) WaitNetworkToBeReady() bool {
 	request := tke.NewDescribeClusterEndpointVipStatusRequest()
 	request.ClusterId = &t.clusterId
@@ -331,6 +344,7 @@ func (t *task) WaitNetworkToBeReady() bool {
 	}
 }
 
+// GetKubeconfig
 func (t *task) GetKubeconfig() {
 	request := tke.NewDescribeClusterKubeconfigRequest()
 	request.ClusterId = &t.clusterId
@@ -360,6 +374,7 @@ func (t *task) GetKubeconfig() {
 	}
 }
 
+// Delete Cluster
 func (t *task) Delete() {
 	mode := "terminate"
 	cbs := "CBS"
@@ -383,6 +398,7 @@ func (t *task) Delete() {
 	}
 }
 
+// Parameter struct
 type Parameter struct {
 	VirtualPrivateCloud VirtualPrivateCloud `json:"VirtualPrivateCloud"`
 	Placement           Placement           `json:"Placement"`
@@ -393,24 +409,29 @@ type Parameter struct {
 	InternetAccessible  InternetAccessible  `json:"InternetAccessible"`
 }
 
+// VirtualPrivateCloud struct
 type VirtualPrivateCloud struct {
 	SubnetID string `json:"SubnetId"`
 	VpcID    string `json:"VpcId"`
 }
 
+// Placement struct
 type Placement struct {
 	Zone string `json:"Zone"`
 }
 
+// SystemDisk struct
 type SystemDisk struct {
 	DiskType string `json:"DiskType"`
 }
 
+// DataDisks struct
 type DataDisks struct {
 	DiskType string `json:"DiskType"`
 	DiskSize int    `json:"DiskSize"`
 }
 
+// InternetAccessible struct
 type InternetAccessible struct {
 	PublicIPAssigned        bool `json:"PublicIpAssigned"`
 	InternetMaxBandwidthOut int  `json:"InternetMaxBandwidthOut"`

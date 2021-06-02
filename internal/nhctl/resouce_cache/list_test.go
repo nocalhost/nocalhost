@@ -25,7 +25,7 @@ import (
 
 func TestName(t *testing.T) {
 	b, _ := ioutil.ReadFile("/Users/naison/t")
-	search, err := GetSearcher(string(b), "nh7wump", false)
+	search, err := GetSearcher(b, "nh7wump", false)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -95,8 +95,8 @@ func TestName(t *testing.T) {
 //}
 
 func TestGetDeployment(t *testing.T) {
-	b, _ := ioutil.ReadFile("/Users/naison/zzz")
-	s, _ := GetSearcher(string(b), "", false)
+	bytes, _ := ioutil.ReadFile("/Users/naison/zzz")
+	s, _ := GetSearcher(bytes, "", false)
 
 	i, _ := s.Criteria().ResourceType("Pods").Namespace("default").Query()
 	for _, dep := range i {
@@ -113,8 +113,8 @@ func TestGetDeployment(t *testing.T) {
 }
 
 func TestGetPods(t *testing.T) {
-	b, _ := ioutil.ReadFile("/Users/naison/zzz")
-	s, _ := GetSearcher(string(b), "", false)
+	bytes, _ := ioutil.ReadFile("/Users/naison/zzz")
+	s, _ := GetSearcher(bytes, "", false)
 	i, e := s.Criteria().ResourceType("pods").Namespace("default").Query()
 	if e != nil {
 		log.Error(e)
@@ -131,8 +131,8 @@ func TestGetPods(t *testing.T) {
 }
 
 func TestGetDefault(t *testing.T) {
-	b, _ := ioutil.ReadFile("/Users/naison/zzz")
-	s, _ := GetSearcher(string(b), "nocalhost", false)
+	bytes, _ := ioutil.ReadFile("/Users/naison/zzz")
+	s, _ := GetSearcher(bytes, "nocalhost", false)
 	i, e := s.Criteria().ResourceType("deployments").
 		ResourceName("nocalhost-api").
 		AppName("nocalhost").
@@ -154,8 +154,8 @@ func TestGetDefault(t *testing.T) {
 }
 
 func TestGetWithNsHaveNoPermission(t *testing.T) {
-	b, _ := ioutil.ReadFile("/Users/naison/ZZZ")
-	s, _ := GetSearcher(string(b), "nh2qpiv", false)
+	bytes, _ := ioutil.ReadFile("/Users/naison/ZZZ")
+	s, _ := GetSearcher(bytes, "nh2qpiv", false)
 	i, e := s.Criteria().ResourceType("deployments").
 		AppName("bookinfo").ResourceName("details").QueryOne()
 	if e != nil {
@@ -169,7 +169,7 @@ func TestGetWithNsHaveNoPermission(t *testing.T) {
 
 func TestGetNamespace(t *testing.T) {
 	kubeconfigBytes, _ := ioutil.ReadFile("/Users/naison/zzz")
-	s, _ := GetSearcher(string(kubeconfigBytes), "", false)
+	s, _ := GetSearcher(kubeconfigBytes, "", false)
 	list, er := s.Criteria().ResourceType("namespaces").Namespace("default").Query()
 	if er != nil {
 		fmt.Println(er)
@@ -180,8 +180,8 @@ func TestGetNamespace(t *testing.T) {
 }
 
 func TestGetDeploy(t *testing.T) {
-	kubeconfigBytes, _ := ioutil.ReadFile("/Users/naison/zzz")
-	s, _ := GetSearcher(string(kubeconfigBytes), "", false)
+	kubeconfigBytes, _ := ioutil.ReadFile("/Users/naison/.kube/config")
+	s, _ := GetSearcher(kubeconfigBytes, "", false)
 	list, er := s.Criteria().Kind(&v1.Deployment{}).Namespace("default").Query()
 	if er != nil {
 		fmt.Println(er)
