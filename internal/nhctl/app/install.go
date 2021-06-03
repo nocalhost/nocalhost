@@ -43,7 +43,7 @@ func (a *Application) Install(flags *HelmFlags) (err error) {
 		err = a.installHelm(a.appMeta, flags, a.ResourceTmpDir, true)
 	case appmeta.Manifest, appmeta.ManifestLocal, appmeta.ManifestGit:
 		err = a.InstallManifest(a.appMeta, a.ResourceTmpDir, true)
-	case appmeta.KustomizeGit:
+	case appmeta.KustomizeGit, appmeta.KustomizeLocal:
 		err = a.InstallKustomize(a.appMeta, a.ResourceTmpDir, true)
 	default:
 		return errors.New(

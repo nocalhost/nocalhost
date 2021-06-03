@@ -71,7 +71,7 @@ func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
 		return a.upgradeForHelm(installFlags, false)
 	case appmeta.Manifest, appmeta.ManifestLocal, appmeta.ManifestGit:
 		return a.upgradeForManifest(installFlags)
-	case appmeta.KustomizeGit:
+	case appmeta.KustomizeGit, appmeta.KustomizeLocal:
 		return a.upgradeForKustomize(installFlags)
 	default:
 		return errors.New("Unsupported app type")
