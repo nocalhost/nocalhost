@@ -41,15 +41,16 @@ func (a *Application) Install(flags *HelmFlags) (err error) {
 		err = a.installHelm(a.appMeta, flags, a.ResourceTmpDir, false)
 	case appmeta.HelmRepo:
 		err = a.installHelm(a.appMeta, flags, a.ResourceTmpDir, true)
-	case appmeta.Manifest, appmeta.ManifestLocal:
+	case appmeta.Manifest, appmeta.ManifestLocal, appmeta.ManifestGit:
 		err = a.InstallManifest(a.appMeta, a.ResourceTmpDir, true)
-	case appmeta.KustomizeGit:
+	case appmeta.KustomizeGit, appmeta.KustomizeLocal:
 		err = a.InstallKustomize(a.appMeta, a.ResourceTmpDir, true)
 	default:
 		return errors.New(
 			fmt.Sprintf(
-				"unsupported application type, must be %s, %s or %s",
-				appmeta.Helm, appmeta.HelmRepo, appmeta.Manifest,
+				"unsupported application type, must be  %s, %s, %s, %s, %s, %s or %s",
+				appmeta.HelmRepo, appmeta.Helm, appmeta.HelmLocal,
+				appmeta.Manifest, appmeta.ManifestGit, appmeta.ManifestLocal, appmeta.KustomizeGit,
 			),
 		)
 	}
@@ -225,7 +226,7 @@ func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) erro
 		}
 
 		// release name a.Name
-		if a.appMeta.ApplicationType != appmeta.Manifest {
+		if a.appMeta.ApplicationType != appmeta.Manifest && a.appMeta.ApplicationType != appmeta.ManifestGit {
 			depForYaml.ReleaseName = a.Name
 		}
 		yamlBytes, err := yaml.Marshal(depForYaml)
