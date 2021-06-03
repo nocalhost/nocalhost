@@ -87,7 +87,7 @@ swag init -g cmd/nocalhost-api/nocalhost-api.go
 
 # 变更日志
 
-/CHANGELOG
+[Changelogs](https://github.com/nocalhost/nocalhost/tree/main/CHANGELOG)
 
 # 参与贡献指南
 
