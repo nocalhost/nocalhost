@@ -46,12 +46,14 @@ const (
 	SecretStateKey           = "s"
 	SecretDepKey             = "d"
 
-	Helm          AppType = "helmGit"
-	HelmRepo      AppType = "helmRepo"
-	Manifest      AppType = "rawManifest"
-	ManifestLocal AppType = "rawManifestLocal"
-	HelmLocal     AppType = "helmLocal"
-	KustomizeGit  AppType = "kustomizeGit"
+	Helm           AppType = "helmGit"
+	HelmRepo       AppType = "helmRepo"
+	Manifest       AppType = "rawManifest"
+	ManifestGit    AppType = "rawManifestGit"
+	ManifestLocal  AppType = "rawManifestLocal"
+	HelmLocal      AppType = "helmLocal"
+	KustomizeGit   AppType = "kustomizeGit"
+	KustomizeLocal AppType = "kustomizeLocal"
 
 	UNINSTALLED ApplicationState = "UNINSTALLED"
 	INSTALLING  ApplicationState = "INSTALLING"
@@ -96,6 +98,8 @@ func AppTypeOf(s string) AppType {
 		return HelmLocal
 	case string(Manifest):
 		return Manifest
+	case string(ManifestGit):
+		return ManifestGit
 	case string(ManifestLocal):
 		return ManifestLocal
 	case string(KustomizeGit):

@@ -39,7 +39,7 @@ func InitDefaultApplicationInCurrentNs(namespace string, kubeconfigPath string) 
 
 	f := &app_flags.InstallFlags{
 		Config:    cfg,
-		AppType:   string(appmeta.Manifest),
+		AppType:   string(appmeta.ManifestLocal),
 		LocalPath: baseDir.Abs(),
 	}
 

@@ -196,7 +196,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 
 		a.client = a.appMeta.GetClient()
 		switch a.AppType {
-		case string(appmeta.Manifest), string(appmeta.ManifestLocal):
+		case string(appmeta.Manifest), string(appmeta.ManifestLocal), string(appmeta.ManifestGit):
 			_ = a.InstallManifest(a.appMeta, a.getResourceDir(), false)
 		case string(appmeta.KustomizeGit):
 			_ = a.InstallKustomize(a.appMeta, a.getResourceDir(), false)

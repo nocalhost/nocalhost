@@ -63,9 +63,9 @@ func init() {
 	)
 	installCmd.Flags().StringVarP(
 		&installFlags.AppType, "type", "t", "", fmt.Sprintf(
-			"nocalhost application type: %s, %s, %s, %s, %s or %s",
+			"nocalhost application type: %s, %s, %s, %s, %s, %s or %s",
 			appmeta.HelmRepo, appmeta.Helm, appmeta.HelmLocal,
-			appmeta.Manifest, appmeta.ManifestLocal, appmeta.KustomizeGit,
+			appmeta.Manifest, appmeta.ManifestGit, appmeta.ManifestLocal, appmeta.KustomizeGit,
 		),
 	)
 	installCmd.Flags().BoolVar(
@@ -129,7 +129,8 @@ var installCmd = &cobra.Command{
 
 		if installFlags.GitUrl == "" && (installFlags.AppType != string(appmeta.HelmRepo) &&
 			installFlags.AppType != string(appmeta.ManifestLocal) &&
-			installFlags.AppType != string(appmeta.HelmLocal)) {
+			installFlags.AppType != string(appmeta.HelmLocal) &&
+			installFlags.AppType != string(appmeta.KustomizeLocal)) {
 			log.Fatalf("If app type is not %s , --git-url must be specified", appmeta.HelmRepo)
 		}
 		if installFlags.AppType == string(appmeta.HelmRepo) {

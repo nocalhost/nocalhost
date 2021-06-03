@@ -41,16 +41,28 @@ var pvcCleanCmd = &cobra.Command{
 			}
 			cli, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
 			must(err)
-			err = cli.DeletePVC(pvcFlags.Name)
-			mustI(err, "Failed to clean up pvc: "+pvcFlags.Name)
+			mustI(cli.DeletePVC(pvcFlags.Name), "Failed to clean up pvc: "+pvcFlags.Name)
 			log.Infof("Persistent volume %s has been cleaned up", pvcFlags.Name)
 			return
 		}
 
 		if pvcFlags.App == "" {
-			log.Fatal("--app mush be specified")
+			// Clean up all pvcs in namespace
+			cli, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
+			must(err)
+			pvcList, err := cli.ListPvcs()
+			must(err)
+			if len(pvcList) == 0 {
+				log.Info("No pvc found")
+			}
+			for _, pvc := range pvcList {
+				must(cli.DeletePVC(pvc.Name))
+				log.Infof("Persistent volume %s has been cleaned up", pvc.Name)
+			}
+			return
 		}
 
+		// Clean up all pvcs in application
 		initApp(pvcFlags.App)
 
 		// Clean up PVCs of specified service

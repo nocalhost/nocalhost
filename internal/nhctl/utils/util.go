@@ -75,6 +75,10 @@ func GetNhctlBinName() string {
 	return "nhctl"
 }
 
+func IsWindows() bool {
+	return runtime.GOOS == "windows"
+}
+
 func GetNhctlPath() (string, error) {
 	path, _ := filepath.Abs(os.Args[0])
 	if _, err := os.Stat(path); err != nil {

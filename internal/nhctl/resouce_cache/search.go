@@ -35,12 +35,6 @@ import (
 	"time"
 )
 
-const (
-	byNamespace   = "byNamespace"
-	byApplication = "byApplication"
-	byAppAndNs    = "byAppAndNs"
-)
-
 // cache Searcher for each kubeconfig
 var searchMap = NewLRU(10, func(i interface{}) { i.(*Searcher).Stop() })
 var lock sync.Mutex
@@ -56,22 +50,28 @@ type Searcher struct {
 }
 
 // GetSupportGroupVersionResource
-func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
+func GetSupportGroupVersionResource(Clients *kubernetes.Clientset, mapper meta.RESTMapper) (
 	[]schema.GroupVersionResource, map[string]schema.GroupVersionResource, map[string]bool) {
-	config, _ := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
-	Clients, _ := kubernetes.NewForConfig(config)
 	apiResourceLists, _ := Clients.ServerPreferredResources()
 	nameToUniqueName := make(map[string]string)
-	groupResources, _ := restmapper.GetAPIGroupResources(Clients)
-	mapper := restmapper.NewDiscoveryRESTMapper(groupResources)
 
 	namespaced := make(map[string]bool)
 	gvrList := make([]schema.GroupVersionResource, 0)
 	uniqueNameToGVR := make(map[string]schema.GroupVersionResource)
+
+	var resourceNeeded = map[string]string{"namespaces": "namespaces"}
+	for _, v := range GroupToTypeMap {
+		for _, s := range v.V {
+			resourceNeeded[s] = s
+		}
+	}
 	versionResource := schema.GroupVersionResource{}
 	for _, resourceList := range apiResourceLists {
 		for _, resource := range resourceList.APIResources {
 			if uniqueNameToGVR[resource.Name] != versionResource {
+				continue
+			}
+			if resourceNeeded[resource.Name] == "" {
 				continue
 			}
 			nameToUniqueName[resource.Name] = resource.Name
@@ -124,21 +124,13 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 		} else {
 			informerFactory = informers.NewSharedInformerFactory(Clients, time.Second*5)
 		}
-
-		indexers := cache.Indexers{
-			byNamespace:   byNamespaceFunc,
-			byApplication: byApplicationFunc,
-			byAppAndNs:    byNamespaceAndAppFunc}
-
-		gvrList, name2gvr, namespaced := GetSupportGroupVersionResource([]byte(kubeconfigBytes))
+		gr, _ := restmapper.GetAPIGroupResources(Clients)
+		mapper := restmapper.NewDiscoveryRESTMapper(gr)
+		gvrList, name2gvr, namespaced := GetSupportGroupVersionResource(Clients, mapper)
 		for _, gvr := range gvrList {
-			informer, err := informerFactory.ForResource(gvr)
-			if err != nil {
-				log.Warnf("can't create informer for resource: %v, error info: %v, ignored", gvr.Resource, err.Error())
-				continue
-			}
-			if err = informer.Informer().AddIndexers(indexers); err != nil {
-				log.WarnE(err, "informer add indexers error")
+			if _, err = informerFactory.ForResource(gvr); err != nil {
+				log.Warnf("can't create informer for resource: %v, error info: %v, ignored",
+					gvr.Resource, err.Error())
 				continue
 			}
 		}
@@ -150,19 +142,17 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 			firstSyncChannel <- struct{}{}
 		}()
 		go func() {
-			t := time.NewTicker(time.Second * 3)
+			t := time.NewTicker(time.Second * 2)
 			<-t.C
 			firstSyncChannel <- struct{}{}
 		}()
 		<-firstSyncChannel
 
-		gr, _ := restmapper.GetAPIGroupResources(Clients)
-
 		newSearcher := &Searcher{
 			kubeconfig:      kubeconfigBytes,
 			informerFactory: informerFactory,
 			supportSchema:   name2gvr,
-			mapper:          restmapper.NewDiscoveryRESTMapper(gr),
+			mapper:          mapper,
 			namespaced:      namespaced,
 			stopChannel:     stopChannel,
 		}
@@ -191,36 +181,22 @@ func (s *Searcher) GetGvr(resourceType string) (schema.GroupVersionResource, err
 	return schema.GroupVersionResource{}, errors.New("Not support resource type: " + resourceType)
 }
 
-func byNamespaceFunc(obj interface{}) ([]string, error) {
-	return []string{obj.(metav1.Object).GetNamespace()}, nil
-}
-
-func byApplicationFunc(obj interface{}) ([]string, error) {
-	metadata, err := meta.Accessor(obj)
-	if err != nil {
-		log.Error(err)
-		return []string{}, err
-	}
-	return []string{getAppName(metadata.GetAnnotations())}, nil
-}
-
-// byNamespaceAndAppFunc
-func byNamespaceAndAppFunc(obj interface{}) ([]string, error) {
-	metadata, err := meta.Accessor(obj)
-	if err != nil {
-		log.Error(err)
-		return []string{nsResource("default", nocalhost.DefaultNocalhostApplication)}, nil
-	}
-	return []string{nsResource(metadata.GetNamespace(), getAppName(metadata.GetAnnotations()))}, nil
-}
-
-// getAppName
-func getAppName(annotations map[string]string) string {
+// e's annotation appName must in appNameRange, other wise app name is not available
+func getAppName(e interface{}, availableAppName []string) string {
+	annotations := e.(metav1.Object).GetAnnotations()
+	var appName string
 	if annotations != nil && annotations[nocalhost.NocalhostApplicationName] != "" {
-		return annotations[nocalhost.NocalhostApplicationName]
+		appName = annotations[nocalhost.NocalhostApplicationName]
 	}
 	if annotations != nil && annotations[nocalhost.HelmReleaseName] != "" {
-		return annotations[nocalhost.HelmReleaseName]
+		appName = annotations[nocalhost.HelmReleaseName]
+	}
+	availableAppNameMap := make(map[string]string)
+	for _, app := range availableAppName {
+		availableAppNameMap[app] = app
+	}
+	if availableAppNameMap[appName] != "" {
+		return appName
 	}
 	return nocalhost.DefaultNocalhostApplication
 }
@@ -246,10 +222,11 @@ type criteria struct {
 	kind         runtime.Object
 	resourceType string
 
-	namespaced   bool
-	resourceName string
-	appName      string
-	ns           string
+	namespaced       bool
+	resourceName     string
+	appName          string
+	ns               string
+	availableAppName []string
 }
 
 func newCriteria(search *Searcher) *criteria {
@@ -262,6 +239,17 @@ func (c *criteria) Namespace(namespace string) *criteria {
 
 func (c *criteria) AppName(appName string) *criteria {
 	c.appName = appName
+	return c
+}
+
+func (c *criteria) AppNameNotIn(appNames ...string) *criteria {
+	var result []string
+	for _, appName := range appNames {
+		if appName != nocalhost.DefaultNocalhostApplication {
+			result = append(result, appName)
+		}
+	}
+	c.availableAppName = result
 	return c
 }
 
@@ -353,33 +341,76 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		}
 
 		// this is a filter
-		if c.appName == "" || c.appName == getAppName(item.(metav1.Object).GetAnnotations()) {
+		if c.appName == "" || c.appName == getAppName(item, c.availableAppName) {
 			return append(data, item), nil
 		}
 		return
 	}
-	var indexName, indexValue string
-	if c.ns != "" && c.appName != "" {
-		indexName = byAppAndNs
-		indexValue = nsResource(c.ns, c.appName)
-	} else if c.appName != "" {
-		indexName = byApplication
-		indexValue = c.appName
-	} else if c.ns != "" {
-		indexName = byNamespace
-		indexValue = c.ns
-	} else {
-		indexName = ""
-		indexValue = ""
+	return newFilter(info.GetIndexer().List()).namespace(c.ns).appName(c.availableAppName, c.appName).sort().toSlice(), nil
+}
+
+type filter struct {
+	element []interface{}
+}
+
+func newFilter(element []interface{}) *filter {
+	return &filter{element: element}
+}
+
+func (n *filter) namespace(namespace string) *filter {
+	if namespace == "" {
+		return n
 	}
-	if indexName != "" && indexValue != "" {
-		data, e = info.GetIndexer().ByIndex(indexName, indexValue)
-		if e == nil {
-			SortByNameAsc(data)
+	var result []interface{}
+	for _, e := range n.element {
+		if e.(metav1.Object).GetNamespace() == namespace {
+			result = append(result, e)
 		}
-	} else {
-		data = info.GetIndexer().List()
-		SortByNameAsc(data)
 	}
-	return
+	n.element = result[0:]
+	return n
+}
+
+func (n *filter) appName(availableAppName []string, appName string) *filter {
+	if appName == "" {
+		return n
+	}
+	if appName == nocalhost.DefaultNocalhostApplication {
+		return n.appNameNotIn(availableAppName)
+	}
+	var result []interface{}
+	for _, e := range n.element {
+		if getAppName(e, availableAppName) == appName {
+			result = append(result, e)
+		}
+	}
+	n.element = result[0:]
+	return n
+}
+
+func (n *filter) appNameNotIn(appNames []string) *filter {
+	m := make(map[string]string)
+	for _, appName := range appNames {
+		m[appName] = appName
+	}
+	var result []interface{}
+	for _, e := range n.element {
+		appName := getAppName(e, appNames)
+		if m[appName] == "" {
+			result = append(result, e)
+		}
+	}
+	n.element = result
+	return n
+}
+
+func (n *filter) sort() *filter {
+	sort.SliceStable(n.element, func(i, j int) bool {
+		return n.element[i].(metav1.Object).GetName() < n.element[j].(metav1.Object).GetName()
+	})
+	return n
+}
+
+func (n *filter) toSlice() []interface{} {
+	return n.element[0:]
 }
