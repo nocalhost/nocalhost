@@ -125,20 +125,11 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 			informerFactory = informers.NewSharedInformerFactory(Clients, time.Second*5)
 		}
 
-		indexers := cache.Indexers{
-			byNamespace:   byNamespaceFunc,
-			byApplication: byApplicationFunc,
-			byAppAndNs:    byNamespaceAndAppFunc}
-
 		gvrList, name2gvr, namespaced := GetSupportGroupVersionResource([]byte(kubeconfigBytes))
 		for _, gvr := range gvrList {
-			informer, err := informerFactory.ForResource(gvr)
+			_, err := informerFactory.ForResource(gvr)
 			if err != nil {
 				log.Warnf("can't create informer for resource: %v, error info: %v, ignored", gvr.Resource, err.Error())
-				continue
-			}
-			if err = informer.Informer().AddIndexers(indexers); err != nil {
-				log.WarnE(err, "informer add indexers error")
 				continue
 			}
 		}
@@ -191,36 +182,22 @@ func (s *Searcher) GetGvr(resourceType string) (schema.GroupVersionResource, err
 	return schema.GroupVersionResource{}, errors.New("Not support resource type: " + resourceType)
 }
 
-func byNamespaceFunc(obj interface{}) ([]string, error) {
-	return []string{obj.(metav1.Object).GetNamespace()}, nil
-}
-
-func byApplicationFunc(obj interface{}) ([]string, error) {
-	metadata, err := meta.Accessor(obj)
-	if err != nil {
-		log.Error(err)
-		return []string{}, err
-	}
-	return []string{getAppName(metadata.GetAnnotations())}, nil
-}
-
-// byNamespaceAndAppFunc
-func byNamespaceAndAppFunc(obj interface{}) ([]string, error) {
-	metadata, err := meta.Accessor(obj)
-	if err != nil {
-		log.Error(err)
-		return []string{nsResource("default", nocalhost.DefaultNocalhostApplication)}, nil
-	}
-	return []string{nsResource(metadata.GetNamespace(), getAppName(metadata.GetAnnotations()))}, nil
-}
-
-// getAppName
-func getAppName(annotations map[string]string) string {
+// e's annotation appName must in appNameRange, other wise app name is not available
+func getAppName(e interface{}, availableAppName []string) string {
+	annotations := e.(metav1.Object).GetAnnotations()
+	var appName string
 	if annotations != nil && annotations[nocalhost.NocalhostApplicationName] != "" {
-		return annotations[nocalhost.NocalhostApplicationName]
+		appName = annotations[nocalhost.NocalhostApplicationName]
 	}
 	if annotations != nil && annotations[nocalhost.HelmReleaseName] != "" {
-		return annotations[nocalhost.HelmReleaseName]
+		appName = annotations[nocalhost.HelmReleaseName]
+	}
+	availableAppNameMap := make(map[string]string)
+	for _, app := range availableAppName {
+		availableAppNameMap[app] = app
+	}
+	if availableAppNameMap[appName] != "" {
+		return appName
 	}
 	return nocalhost.DefaultNocalhostApplication
 }
@@ -246,10 +223,11 @@ type criteria struct {
 	kind         runtime.Object
 	resourceType string
 
-	namespaced   bool
-	resourceName string
-	appName      string
-	ns           string
+	namespaced       bool
+	resourceName     string
+	appName          string
+	ns               string
+	availableAppName []string
 }
 
 func newCriteria(search *Searcher) *criteria {
@@ -262,6 +240,17 @@ func (c *criteria) Namespace(namespace string) *criteria {
 
 func (c *criteria) AppName(appName string) *criteria {
 	c.appName = appName
+	return c
+}
+
+func (c *criteria) AppNameNotIn(appNames ...string) *criteria {
+	var result []string
+	for _, appName := range appNames {
+		if appName != nocalhost.DefaultNocalhostApplication {
+			result = append(result, appName)
+		}
+	}
+	c.availableAppName = result
 	return c
 }
 
@@ -353,33 +342,76 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		}
 
 		// this is a filter
-		if c.appName == "" || c.appName == getAppName(item.(metav1.Object).GetAnnotations()) {
+		if c.appName == "" || c.appName == getAppName(item, c.availableAppName) {
 			return append(data, item), nil
 		}
 		return
 	}
-	var indexName, indexValue string
-	if c.ns != "" && c.appName != "" {
-		indexName = byAppAndNs
-		indexValue = nsResource(c.ns, c.appName)
-	} else if c.appName != "" {
-		indexName = byApplication
-		indexValue = c.appName
-	} else if c.ns != "" {
-		indexName = byNamespace
-		indexValue = c.ns
-	} else {
-		indexName = ""
-		indexValue = ""
+	return NewFilter(info.GetIndexer().List()).namespace(c.ns).appName(c.availableAppName, c.appName).sort().toSlice(), nil
+}
+
+type name struct {
+	element []interface{}
+}
+
+func NewFilter(element []interface{}) *name {
+	return &name{element: element}
+}
+
+func (n *name) namespace(namespace string) *name {
+	if namespace == "" {
+		return n
 	}
-	if indexName != "" && indexValue != "" {
-		data, e = info.GetIndexer().ByIndex(indexName, indexValue)
-		if e == nil {
-			SortByNameAsc(data)
+	var result []interface{}
+	for _, e := range n.element {
+		if e.(metav1.Object).GetNamespace() == namespace {
+			result = append(result, e)
 		}
-	} else {
-		data = info.GetIndexer().List()
-		SortByNameAsc(data)
 	}
-	return
+	n.element = result[0:]
+	return n
+}
+
+func (n *name) appName(availableAppName []string, appName string) *name {
+	if appName == "" {
+		return n
+	}
+	if appName == nocalhost.DefaultNocalhostApplication {
+		return n.appNameNotIn(availableAppName)
+	}
+	var result []interface{}
+	for _, e := range n.element {
+		if getAppName(e, availableAppName) == appName {
+			result = append(result, e)
+		}
+	}
+	n.element = result[0:]
+	return n
+}
+
+func (n *name) appNameNotIn(appNames []string) *name {
+	m := make(map[string]string)
+	for _, appName := range appNames {
+		m[appName] = appName
+	}
+	var result []interface{}
+	for _, e := range n.element {
+		appName := getAppName(e, appNames)
+		if m[appName] == "" {
+			result = append(result, e)
+		}
+	}
+	n.element = result
+	return n
+}
+
+func (n *name) sort() *name {
+	sort.SliceStable(n.element, func(i, j int) bool {
+		return n.element[i].(metav1.Object).GetName() < n.element[j].(metav1.Object).GetName()
+	})
+	return n
+}
+
+func (n *name) toSlice() []interface{} {
+	return n.element
 }

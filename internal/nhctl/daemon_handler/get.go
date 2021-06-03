@@ -74,7 +74,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	switch request.Resource {
 	case "all":
 		if request.AppName != "" {
-			return Result{Namespace: ns, Application: []App{getApp(ns, request.AppName, s)}}
+			return Result{Namespace: ns, Application: []App{getApp(nil, ns, request.AppName, s)}}
 		}
 		// means it's cluster kubeconfig
 		if request.Namespace == "" {
@@ -111,10 +111,15 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	default:
 		ns = getNamespace(request.Namespace, KubeConfigBytes)
 		serviceMap := getServiceProfile(ns, request.AppName)
+		applicationMetaList := InitDefaultAppIfNecessary(ns, request.KubeConfig)
+		var availableAppName []string
+		for _, meta := range applicationMetaList {
+			availableAppName = append(availableAppName, meta.Application)
+		}
 		// get all resource in namespace
 		var items []interface{}
 		if request.ResourceName == "" {
-			items, err = s.Criteria().ResourceType(request.Resource).AppName(request.AppName).Namespace(ns).Query()
+			items, err = s.Criteria().ResourceType(request.Resource).AppName(request.AppName).AppNameNotIn(availableAppName...).Namespace(ns).Query()
 			if err != nil || len(items) == 0 {
 				return nil
 			}
@@ -133,6 +138,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				ResourceType(request.Resource).
 				ResourceName(request.ResourceName).
 				Namespace(ns).
+				AppNameNotIn(availableAppName...).
 				AppName(request.AppName).
 				QueryOne()
 			if err != nil || one == nil {
@@ -160,16 +166,20 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 func getApplicationByNs(ns, kubeconfigPath string, search *resouce_cache.Searcher) Result {
 	result := Result{Namespace: ns}
 	applicationMetaList := InitDefaultAppIfNecessary(ns, kubeconfigPath)
+	var availableAppName []string
+	for _, meta := range applicationMetaList {
+		availableAppName = append(availableAppName, meta.Application)
+	}
 	SortApplication(applicationMetaList)
 	for _, applicationMeta := range applicationMetaList {
 		if applicationMeta != nil {
-			result.Application = append(result.Application, getApp(ns, applicationMeta.Application, search))
+			result.Application = append(result.Application, getApp(availableAppName, ns, applicationMeta.Application, search))
 		}
 	}
 	return result
 }
 
-func getApp(namespace, appName string, search *resouce_cache.Searcher) App {
+func getApp(name []string, namespace, appName string, search *resouce_cache.Searcher) App {
 	groupToTypeMap := []struct {
 		k string
 		v []string
@@ -186,7 +196,7 @@ func getApp(namespace, appName string, search *resouce_cache.Searcher) App {
 		resources := make([]Resource, 0, len(entry.v))
 		for _, resource := range entry.v {
 			resourceList, err := search.Criteria().
-				ResourceType(resource).AppName(appName).Namespace(namespace).Query()
+				ResourceType(resource).AppName(appName).AppNameNotIn(name...).Namespace(namespace).Query()
 			if err == nil {
 				items := make([]Item, 0, len(resourceList))
 				for _, v := range resourceList {
