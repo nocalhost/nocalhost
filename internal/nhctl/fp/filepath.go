@@ -46,6 +46,11 @@ type FilePathEnhance struct {
 	mu      sync.Mutex
 }
 
+func NewRandomTempPath() *FilePathEnhance{
+	dir, _ := ioutil.TempDir("", "")
+	return NewFilePath(dir)
+}
+
 func NewFilePath(path string) *FilePathEnhance {
 	absPath, _ := filepath.Abs(path)
 
@@ -157,6 +162,11 @@ func (f *FilePathEnhance) CheckExist() error {
 
 func (f *FilePathEnhance) Mkdir() error {
 	return os.MkdirAll(f.absPath, nocalhost.DefaultNewFilePermission)
+}
+
+func (f *FilePathEnhance) MkdirThen() *FilePathEnhance{
+	_ = os.MkdirAll(f.absPath, nocalhost.DefaultNewFilePermission)
+	return f
 }
 
 // DownloadFile will download a url to a local file. It's efficient because it will

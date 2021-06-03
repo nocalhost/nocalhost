@@ -196,9 +196,9 @@ func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfig str
 		CommandType: command.GetApplicationMeta,
 		ClientStack: string(debug.Stack()),
 
-		NameSpace:  ns,
-		AppName:    appName,
-		KubeConfig: kubeConfig,
+		NameSpace:         ns,
+		AppName:           appName,
+		KubeConfigContent: kubeConfig,
 	}
 
 	bys, err := json.Marshal(gamCmd)
@@ -215,8 +215,8 @@ func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]
 		CommandType: command.GetApplicationMetas,
 		ClientStack: string(debug.Stack()),
 
-		NameSpace:  ns,
-		KubeConfig: kubeConfig,
+		NameSpace:         ns,
+		KubeConfigContent: kubeConfig,
 	}
 
 	bys, err := json.Marshal(gamCmd)
@@ -355,8 +355,10 @@ func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) erro
 	default:
 
 		return errors.New(
-			fmt.Sprintf("Error occur from daemon, status [%d], msg [%s].",
-				response.Status, response.Msg),
+			fmt.Sprintf(
+				"Error occur from daemon, status [%d], msg [%s].",
+				response.Status, response.Msg,
+			),
 		)
 	}
 

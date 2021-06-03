@@ -47,6 +47,8 @@ var profileGetCmd = &cobra.Command{
 			log.Fatal("--container must be specified")
 		}
 
+		_ = nocalhostApp.ReloadSvcCfg(deployment, serviceType, false, true)
+
 		switch configKey {
 		case "image":
 			p, err := nocalhostSvc.GetProfile()
@@ -65,20 +67,24 @@ var profileGetCmd = &cobra.Command{
 				}
 			}
 			if defaultContainerConfig != nil && defaultContainerConfig.Dev != nil && defaultContainerConfig.Dev.Image != "" {
-				must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-					var defaultIndex = -1
-					for i, c := range v2.ContainerConfigs {
-						if c.Name == "" {
-							defaultIndex = i
-						}
-					}
-					if defaultIndex >= 0 {
-						v2.ContainerConfigs[defaultIndex] = defaultContainerConfig
-						defaultContainerConfig.Name = container // setting container name
-						return nil
-					}
-					return nil
-				}))
+				must(
+					nocalhostSvc.UpdateSvcProfile(
+						func(v2 *profile.SvcProfileV2) error {
+							var defaultIndex = -1
+							for i, c := range v2.ContainerConfigs {
+								if c.Name == "" {
+									defaultIndex = i
+								}
+							}
+							if defaultIndex >= 0 {
+								v2.ContainerConfigs[defaultIndex] = defaultContainerConfig
+								defaultContainerConfig.Name = container // setting container name
+								return nil
+							}
+							return nil
+						},
+					),
+				)
 				fmt.Printf(`{"image": "%s"}`, defaultContainerConfig.Dev.Image)
 			}
 		default:

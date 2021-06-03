@@ -41,13 +41,13 @@ type ServiceConfigV2 struct {
 	Name                string               `json:"name" yaml:"name"`
 	Type                string               `json:"serviceType" yaml:"serviceType"`
 	PriorityClass       string               `json:"priorityClass,omitempty" yaml:"priorityClass,omitempty"`
-	DependLabelSelector *DependLabelSelector `json:"dependLabelSelector" yaml:"dependLabelSelector"`
+	DependLabelSelector *DependLabelSelector `json:"dependLabelSelector,omitempty" yaml:"dependLabelSelector,omitempty"`
 	ContainerConfigs    []*ContainerConfig   `json:"containers" yaml:"containers"`
 }
 
 type ContainerConfig struct {
 	Name    string                  `json:"name" yaml:"name"`
-	Install *ContainerInstallConfig `json:"install" yaml:"install"`
+	Install *ContainerInstallConfig `json:"install,omitempty" yaml:"install,omitempty"`
 	Dev     *ContainerDevConfig     `json:"dev" yaml:"dev"`
 }
 

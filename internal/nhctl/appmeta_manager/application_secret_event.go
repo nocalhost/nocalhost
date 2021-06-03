@@ -48,8 +48,9 @@ var (
 )
 
 type ApplicationEventPack struct {
-	Event                   *appmeta.ApplicationEvent
-	Ns, AppName, KubeConfig string
+	Event           *appmeta.ApplicationEvent
+	Ns, AppName     string
+	KubeConfigBytes []byte
 }
 
 func RegisterListener(fun func(*ApplicationEventPack) error) {
