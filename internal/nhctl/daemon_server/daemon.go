@@ -42,6 +42,7 @@ var (
 	tcpCtx, tcpCancelFunc       = context.WithCancel(context.Background()) // For stopping listening tcp port
 	daemonCtx, daemonCancelFunc = context.WithCancel(context.Background()) // For exiting current daemon server
 	startUpPath                 string
+	upgrading                   bool
 )
 
 func init() {
@@ -232,7 +233,14 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 
 	case command.RestartDaemonServer:
 		err = Process(conn, func(conn net.Conn) (interface{}, error) {
-			return nil, handlerRestartDaemonServerCommand(isSudo)
+			if upgrading {
+				return nil, errors.New("DaemonServer is upgrading, please try it later")
+			}
+			baseCmd := &command.BaseCommand{}
+			if err = json.Unmarshal(bys, baseCmd); err != nil {
+				return nil, err
+			}
+			return nil, handlerRestartDaemonServerCommand(isSudo, baseCmd.ClientPath)
 		})
 
 		log.Log("New daemon server is starting, exit this one")
@@ -241,7 +249,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 	case command.GetDaemonServerInfo:
 		err = Process(conn, func(conn net.Conn) (interface{}, error) {
 			return &daemon_common.DaemonServerInfo{
-				Version: version, CommitId: commitId, NhctlPath: startUpPath,
+				Version: version, CommitId: commitId, NhctlPath: startUpPath, Upgrading: upgrading,
 			}, nil
 		})
 
@@ -335,16 +343,33 @@ func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error 
 	return errFromFun
 }
 
-func handlerRestartDaemonServerCommand(isSudoUser bool) error {
-	tcpCancelFunc() // Stop listening tcp port
-	nhctlPath, err := utils.GetNhctlPath()
-	if err != nil {
-		return err
+func handlerRestartDaemonServerCommand(isSudoUser bool, clientPath string) error {
+	if upgrading {
+		return errors.New("DaemonServer is upgrading, please try it later.")
+	} else {
+		upgrading = true
 	}
+	var nhctlPath string
+	var err error
+
+	if utils.IsWindows() {
+		if clientPath == "" {
+			return errors.New("ClientPath can not be nil in windows")
+		}
+		if nhctlPath, err = daemon_common.CopyNhctlBinaryToTmpDir(clientPath); err != nil {
+			return err
+		}
+	} else {
+		if nhctlPath, err = utils.GetNhctlPath(); err != nil {
+			return err
+		}
+	}
+
 	daemonArgs := []string{nhctlPath, "daemon", "start"}
 	if isSudoUser {
 		daemonArgs = append(daemonArgs, "--sudo", "true")
 	}
+	tcpCancelFunc() // Stop listening tcp port
 	return daemon.RunSubProcess(daemonArgs, nil, false)
 }
 

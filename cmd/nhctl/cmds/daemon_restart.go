@@ -15,6 +15,7 @@ package cmds
 import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -36,7 +37,7 @@ var daemonRestartCmd = &cobra.Command{
 			log.Info("RestartDaemonServerCommand has been sent")
 		} else {
 			log.Warnf("Daemon Server(sudo:%t) is not running", isSudoUser)
-			must(daemon_client.StartDaemonServer(isSudoUser))
+			must(daemon_common.StartDaemonServerBySubProcess(isSudoUser))
 		}
 	},
 }

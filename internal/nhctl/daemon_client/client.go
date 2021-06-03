@@ -23,10 +23,10 @@ import (
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 	"runtime/debug"
 	"time"
 )
@@ -36,17 +36,34 @@ type DaemonClient struct {
 	daemonServerListenPort int
 }
 
-func StartDaemonServer(isSudoUser bool) error {
-	nhctlPath, err := utils.GetNhctlPath()
-	if err != nil {
-		return err
-	}
-	daemonArgs := []string{nhctlPath, "daemon", "start"}
-	if isSudoUser {
-		daemonArgs = append(daemonArgs, "--sudo", "true")
-	}
-	return daemon.RunSubProcess(daemonArgs, nil, false)
-}
+//func StartDaemonServer(isSudoUser bool) error {
+//	var (
+//		nhctlPath string
+//		err       error
+//	)
+//	if utils.IsWindows() {
+//		daemonDir, err := ioutil.TempDir("", "nhctl-daemon")
+//		if err != nil {
+//			return errors.Wrap(err, "")
+//		}
+//		// cp nhctl to daemonDir
+//		err = utils.CopyFile(os.Args[0], filepath.Join(daemonDir, utils.GetNhctlBinName()))
+//		if err != nil {
+//			return errors.Wrap(err, "")
+//		}
+//		nhctlPath = filepath.Join(daemonDir, utils.GetNhctlBinName())
+//	} else {
+//		nhctlPath, err = utils.GetNhctlPath()
+//		if err != nil {
+//			return err
+//		}
+//	}
+//	daemonArgs := []string{nhctlPath, "daemon", "start"}
+//	if isSudoUser {
+//		daemonArgs = append(daemonArgs, "--sudo", "true")
+//	}
+//	return daemon.RunSubProcess(daemonArgs, nil, false)
+//}
 
 func waitForTCPPortToBeReady(port int, timeout time.Duration) error {
 	return waitTCPPort(false, port, timeout)
@@ -93,7 +110,7 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 		client.daemonServerListenPort = daemon_common.DefaultDaemonPort
 	}
 
-	if err = startDaemonServer(isSudoUser, client.daemonServerListenPort); err != nil {
+	if err = startDaemonServerIfNotRunning(isSudoUser, client.daemonServerListenPort); err != nil {
 		return nil, err
 	}
 
@@ -103,20 +120,24 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 		return nil, err
 	}
 
+	if daemonServerInfo.Upgrading {
+		return nil, errors.New("DaemonServer is upgrading. Please Try it later.")
+	}
+
 	nhctlPath, _ := utils.GetNhctlPath()
 
 	// force update earlier version
 	if daemonServerInfo.NhctlPath == "" {
-		log.Log("Daemon server need to stop and re start")
+		log.Log("Daemon server need to stop and restart")
 		utils.Should(client.SendStopDaemonServerCommand())
 		utils.Should(waitForTCPPortToBeDown(client.daemonServerListenPort, 10*time.Second))
-		if err = startDaemonServer(isSudoUser, client.daemonServerListenPort); err != nil {
+		if err = startDaemonServerIfNotRunning(isSudoUser, client.daemonServerListenPort); err != nil {
 			return nil, err
 		}
 	} else if daemonServerInfo.Version != daemon_common.Version || daemonServerInfo.CommitId != daemon_common.CommitId {
 
 		// if from same nhctl
-		if nhctlPath == daemonServerInfo.NhctlPath {
+		if nhctlPath == daemonServerInfo.NhctlPath || utils.IsWindows() {
 			log.Logf("Daemon server [%s] need to upgrade", daemonServerInfo.NhctlPath)
 			utils.Should(client.SendRestartDaemonServerCommand())
 		} else {
@@ -131,9 +152,9 @@ func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 	return client, nil
 }
 
-func startDaemonServer(isSudoUser bool, port int) error {
+func startDaemonServerIfNotRunning(isSudoUser bool, port int) error {
 	if ports.IsTCP4PortAvailable("0.0.0.0", port) {
-		if err := StartDaemonServer(isSudoUser); err != nil {
+		if err := daemon_common.StartDaemonServerBySubProcess(isSudoUser); err != nil {
 			return err
 		}
 		log.Log("Waiting daemon to start")
@@ -159,8 +180,17 @@ func (d *DaemonClient) SendGetDaemonServerInfoCommand() (*daemon_common.DaemonSe
 	return daemonServerInfo, err
 }
 
+// SendRestartDaemonServerCommand
+// This command tells DaemonServer to run a newer version(by sub progress) with nhctl binary
+// in ClientPath and then stops itself.
+// By doing this, we can make sure newer DaemonServer have the same permission with older one.
+// DaemonServer needs to copy nhctl.exe from ClientPath to a tmpDir in windows.
 func (d *DaemonClient) SendRestartDaemonServerCommand() error {
-	cmd := &command.BaseCommand{CommandType: command.RestartDaemonServer, ClientStack: string(debug.Stack())}
+	cmd := &command.BaseCommand{
+		CommandType: command.RestartDaemonServer,
+		ClientStack: string(debug.Stack()),
+		ClientPath:  os.Args[0],
+	}
 	bys, err := json.Marshal(cmd)
 	if err != nil {
 		return errors.Wrap(err, "")
