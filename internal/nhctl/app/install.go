@@ -171,8 +171,13 @@ func (a *Application) installHelm(
 		} else if flags.RepoName != "" {
 			installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
 		}
+
 		if flags.Version != "" {
 			installParams = append(installParams, "--version", flags.Version)
+		} else {
+			if a.appMeta.Config != nil && a.appMeta.Config.ApplicationConfig.HelmVersion != "" {
+				installParams = append(installParams, "--version", a.appMeta.Config.ApplicationConfig.HelmVersion)
+			}
 		}
 	}
 

@@ -32,6 +32,7 @@ type ApplicationConfig struct {
 	IgnoredPath    []string           `json:"ignoredPath" yaml:"ignoredPath"`
 	PreInstall     []*PreInstallItem  `json:"onPreInstall" yaml:"onPreInstall"`
 	HelmValues     []*HelmValue       `json:"helmValues" yaml:"helmValues"`
+	HelmVersion    string             `json:"helmVersion" yaml:"helmVersion"`
 	Env            []*Env             `json:"env" yaml:"env"`
 	EnvFrom        EnvFrom            `json:"envFrom" yaml:"envFrom"`
 	ServiceConfigs []*ServiceConfigV2 `json:"services" yaml:"services,omitempty"`
