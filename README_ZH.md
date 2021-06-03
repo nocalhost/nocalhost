@@ -85,11 +85,22 @@ swag init -g cmd/nocalhost-api/nocalhost-api.go
 ```
 访问地址：http://127.0.0.1:8080/swagger/index.html
 
+# 变更日志
+
+[Changelogs](https://github.com/nocalhost/nocalhost/tree/main/CHANGELOG)
+
 # 参与贡献指南
 
 - 贡献者行为准则：https://github.com/cncf/foundation/blob/master/code-of-conduct.md
 - 对 Nocalhost 有任何意见和建议，请提交 GitHub Issue: https://github.com/nocalhost/nocalhost/issues
 - 您可以通过提交 Pull Request 来参与社区贡献：https://github.com/nocalhost/nocalhost/pulls
+
+# 社区和交流
+
+* Slack: [Nocalhost Slack 频道](https://nocalhost.slack.com/)
+* WeChat: 扫描添加 CODING 小助手并备注 Nocalhost，然后小助手会把您拉进群里
+
+![image](https://user-images.githubusercontent.com/3713305/119478317-4c64ba80-bd82-11eb-83ef-3f787fe1c71f.png)
 
 # 🔥招聘
 

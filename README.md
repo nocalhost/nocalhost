@@ -94,6 +94,9 @@ swag init -g cmd/nocalhost-api/nocalhost-api.go
 
 Then you can visit: http://127.0.0.1:8080/swagger/index.html
 
+# Changelog
+
+[Changelogs](https://github.com/nocalhost/nocalhost/tree/main/CHANGELOG)
 
 # Contribution
 
@@ -101,6 +104,12 @@ Then you can visit: http://127.0.0.1:8080/swagger/index.html
 - Any suggestions could be committed as a GitHub Issue: https://github.com/nocalhost/nocalhost/issues
 - Pull Requests are welcomed: https://github.com/nocalhost/nocalhost/pulls
 
+# Community
+
+* Slack: [Nocalhost Slack Channel](https://nocalhost.slack.com/)
+* WeChat: Scan the QR Code to add CODING assistance with note "Nocalhost", assistance will add you into our WeChat group
+
+![image](https://user-images.githubusercontent.com/3713305/119478245-3bb44480-bd82-11eb-878f-ff40cb5b2020.png)
 
 # 🔥We're Hiring
 
