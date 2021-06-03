@@ -13,6 +13,7 @@
 package applications
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/spf13/cast"
 	"nocalhost/cmd/nhctl/cmds/tpl"
@@ -128,7 +129,7 @@ func GetSpaceDetail(c *gin.Context) {
 	applicationId := cast.ToUint64(c.Param("id"))
 	models := model.ClusterUserModel{
 		// UserId:        userId.(uint64),
-		ClusterId: clusterId,
+		ClusterId:     clusterId,
 		ApplicationId: applicationId,
 	}
 	result, err := service.Svc.ClusterUser().GetList(c, models)
@@ -192,6 +193,13 @@ func listOwner(c *gin.Context, userId *uint64) ([]*model.ApplicationModel, error
 	for _, applicationModel := range result {
 		currentUser, _ := ginbase.LoginUser(c)
 		applicationModel.FillEditable(ginbase.IsAdmin(c), currentUser)
+		var applicationContext ApplicationJsonContext
+		err := json.Unmarshal([]byte(applicationModel.Context), &applicationContext)
+		if err != nil {
+			continue
+		}
+		applicationType := getApplicationType(applicationContext.ApplicationSource, applicationContext.ApplicationInstallType)
+		applicationModel.FillApplicationType(applicationType)
 	}
 
 	return result, nil
@@ -230,12 +238,49 @@ func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, er
 
 			// has permission
 			ok {
-
+			var applicationContext ApplicationJsonContext
+			err := json.Unmarshal([]byte(app.Context), &applicationContext)
+			if err != nil {
+				continue
+			}
+			applicationType := getApplicationType(applicationContext.ApplicationSource, applicationContext.ApplicationInstallType)
 			currentUser, _ := ginbase.LoginUser(c)
 			app.FillEditable(ginbase.IsAdmin(c), currentUser)
+			app.FillApplicationType(applicationType)
 			result = append(result, app)
 		}
 	}
 
 	return result, nil
+}
+
+func getApplicationType(source, installType string) string {
+	if source == SourceGit {
+		if installType == ITHelmChart {
+			return HelmGit
+		}
+		if installType == ITRawManifest {
+			return ManifestGit
+		}
+		if installType == ITKustomize {
+			return KustomizeGit
+		}
+	}
+	if source == SourceLocal {
+		if installType == ITHelmLocal {
+			return HelmLocal
+		}
+		if installType == ITRawManifestLocal {
+			return ManifestLocal
+		}
+		if installType == ITKustomizeLocal {
+			return KustomizeLocal
+		}
+	}
+	if source == SourceHelmRepo {
+		if installType == ITHelmChart {
+			return HelmRepo
+		}
+	}
+	return ManifestGit
 }

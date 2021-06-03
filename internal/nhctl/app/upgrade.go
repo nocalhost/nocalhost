@@ -69,7 +69,7 @@ func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
 		return a.upgradeForHelm(installFlags, true)
 	case appmeta.Helm, appmeta.HelmLocal:
 		return a.upgradeForHelm(installFlags, false)
-	case appmeta.Manifest, appmeta.ManifestLocal:
+	case appmeta.Manifest, appmeta.ManifestLocal, appmeta.ManifestGit:
 		return a.upgradeForManifest(installFlags)
 	case appmeta.KustomizeGit:
 		return a.upgradeForKustomize(installFlags)

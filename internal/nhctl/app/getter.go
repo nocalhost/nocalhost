@@ -28,7 +28,7 @@ func (a *Application) IsHelm() bool {
 
 func (a *Application) IsManifest() bool {
 	t := a.GetType()
-	return t == appmeta.Manifest || t == appmeta.ManifestLocal
+	return t == appmeta.Manifest || t == appmeta.ManifestLocal || t == appmeta.ManifestGit
 }
 
 func (a *Application) IsKustomize() bool {
