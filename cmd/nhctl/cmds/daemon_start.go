@@ -14,7 +14,7 @@ package cmds
 
 import (
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server"
 	"nocalhost/pkg/nhctl/log"
 )
@@ -33,7 +33,7 @@ var daemonStartCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		log.AddField("APP", "daemon-server")
 		if runInBackground {
-			must(daemon_client.StartDaemonServer(isSudoUser))
+			must(daemon_common.StartDaemonServerBySubProcess(isSudoUser))
 			return
 		}
 
