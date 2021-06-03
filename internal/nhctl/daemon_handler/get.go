@@ -74,7 +74,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	switch request.Resource {
 	case "all":
 		if request.AppName != "" {
-			return Result{Namespace: ns, Application: []App{getApp(nil, ns, request.AppName, s)}}
+			names := getAvailableAppName(ns, request.KubeConfig)
+			return Result{Namespace: ns, Application: []App{getApp(names, ns, request.AppName, s)}}
 		}
 		// means it's cluster kubeconfig
 		if request.Namespace == "" {
@@ -111,15 +112,16 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	default:
 		ns = getNamespace(request.Namespace, KubeConfigBytes)
 		serviceMap := getServiceProfile(ns, request.AppName)
-		applicationMetaList := InitDefaultAppIfNecessary(ns, request.KubeConfig)
-		var availableAppName []string
-		for _, meta := range applicationMetaList {
-			availableAppName = append(availableAppName, meta.Application)
-		}
+		appNameList := getAvailableAppName(ns, request.KubeConfig)
 		// get all resource in namespace
 		var items []interface{}
 		if request.ResourceName == "" {
-			items, err = s.Criteria().ResourceType(request.Resource).AppName(request.AppName).AppNameNotIn(availableAppName...).Namespace(ns).Query()
+			items, err = s.Criteria().
+				ResourceType(request.Resource).
+				AppName(request.AppName).
+				AppNameNotIn(appNameList...).
+				Namespace(ns).
+				Query()
 			if err != nil || len(items) == 0 {
 				return nil
 			}
@@ -138,7 +140,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				ResourceType(request.Resource).
 				ResourceName(request.ResourceName).
 				Namespace(ns).
-				AppNameNotIn(availableAppName...).
+				AppNameNotIn(appNameList...).
 				AppName(request.AppName).
 				QueryOne()
 			if err != nil || one == nil {
@@ -163,18 +165,11 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 	return ""
 }
 
-func getApplicationByNs(ns, kubeconfigPath string, search *resouce_cache.Searcher) Result {
-	result := Result{Namespace: ns}
-	applicationMetaList := InitDefaultAppIfNecessary(ns, kubeconfigPath)
-	var availableAppName []string
-	for _, meta := range applicationMetaList {
-		availableAppName = append(availableAppName, meta.Application)
-	}
-	SortApplication(applicationMetaList)
-	for _, applicationMeta := range applicationMetaList {
-		if applicationMeta != nil {
-			result.Application = append(result.Application, getApp(availableAppName, ns, applicationMeta.Application, search))
-		}
+func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher) Result {
+	result := Result{Namespace: namespace}
+	nameList := getAvailableAppName(namespace, kubeconfigPath)
+	for _, name := range nameList {
+		result.Application = append(result.Application, getApp(nameList, namespace, name, search))
 	}
 	return result
 }
@@ -239,7 +234,7 @@ func SortApplication(metas []*appmeta.ApplicationMeta) {
 		if metas[j] != nil {
 			n2 = metas[j].Application
 		}
-		if n1 >= n2 {
+		if n1 < n2 {
 			return false
 		}
 		return true
@@ -271,6 +266,18 @@ func ParseApplicationsResult(namespace string, metas []*appmeta.ApplicationMeta)
 	return result
 }
 
+func getAvailableAppName(namespace, kubeconfig string) []string {
+	applicationMetaList := InitDefaultAppIfNecessary(namespace, kubeconfig)
+	var availableAppName []string
+	for _, meta := range applicationMetaList {
+		if meta != nil {
+			availableAppName = append(availableAppName, meta.Application)
+		}
+	}
+	sort.SliceStable(availableAppName, func(i, j int) bool { return availableAppName[i] < availableAppName[j] })
+	return availableAppName
+}
+
 func InitDefaultAppIfNecessary(namespace, kubeconfigPath string) []*appmeta.ApplicationMeta {
 	kubeconfigBytes, _ := ioutil.ReadFile(kubeconfigPath)
 	applicationMetaList := appmeta_manager.GetApplicationMetas(namespace, string(kubeconfigBytes))
@@ -284,7 +291,8 @@ func InitDefaultAppIfNecessary(namespace, kubeconfigPath string) []*appmeta.Appl
 	if !foundDefaultApp {
 		// try init default application
 		utils.ShouldI(common.InitDefaultApplicationInCurrentNs(namespace, kubeconfigPath), "Error while create default application")
-		return appmeta_manager.GetApplicationMetas(namespace, string(kubeconfigBytes))
+		applicationMetaList = appmeta_manager.GetApplicationMetas(namespace, string(kubeconfigBytes))
 	}
+	SortApplication(applicationMetaList)
 	return applicationMetaList
 }
