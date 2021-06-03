@@ -35,12 +35,6 @@ import (
 	"time"
 )
 
-const (
-	byNamespace   = "byNamespace"
-	byApplication = "byApplication"
-	byAppAndNs    = "byAppAndNs"
-)
-
 // cache Searcher for each kubeconfig
 var searchMap = NewLRU(10, func(i interface{}) { i.(*Searcher).Stop() })
 var lock sync.Mutex
@@ -56,22 +50,28 @@ type Searcher struct {
 }
 
 // GetSupportGroupVersionResource
-func GetSupportGroupVersionResource(kubeconfigBytes []byte) (
+func GetSupportGroupVersionResource(Clients *kubernetes.Clientset, mapper meta.RESTMapper) (
 	[]schema.GroupVersionResource, map[string]schema.GroupVersionResource, map[string]bool) {
-	config, _ := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
-	Clients, _ := kubernetes.NewForConfig(config)
 	apiResourceLists, _ := Clients.ServerPreferredResources()
 	nameToUniqueName := make(map[string]string)
-	groupResources, _ := restmapper.GetAPIGroupResources(Clients)
-	mapper := restmapper.NewDiscoveryRESTMapper(groupResources)
 
 	namespaced := make(map[string]bool)
 	gvrList := make([]schema.GroupVersionResource, 0)
 	uniqueNameToGVR := make(map[string]schema.GroupVersionResource)
+
+	var resourceNeeded = map[string]string{"namespaces": "namespaces"}
+	for _, v := range GroupToTypeMap {
+		for _, s := range v.V {
+			resourceNeeded[s] = s
+		}
+	}
 	versionResource := schema.GroupVersionResource{}
 	for _, resourceList := range apiResourceLists {
 		for _, resource := range resourceList.APIResources {
 			if uniqueNameToGVR[resource.Name] != versionResource {
+				continue
+			}
+			if resourceNeeded[resource.Name] == "" {
 				continue
 			}
 			nameToUniqueName[resource.Name] = resource.Name
@@ -124,12 +124,13 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 		} else {
 			informerFactory = informers.NewSharedInformerFactory(Clients, time.Second*5)
 		}
-
-		gvrList, name2gvr, namespaced := GetSupportGroupVersionResource([]byte(kubeconfigBytes))
+		gr, _ := restmapper.GetAPIGroupResources(Clients)
+		mapper := restmapper.NewDiscoveryRESTMapper(gr)
+		gvrList, name2gvr, namespaced := GetSupportGroupVersionResource(Clients, mapper)
 		for _, gvr := range gvrList {
-			_, err := informerFactory.ForResource(gvr)
-			if err != nil {
-				log.Warnf("can't create informer for resource: %v, error info: %v, ignored", gvr.Resource, err.Error())
+			if _, err = informerFactory.ForResource(gvr); err != nil {
+				log.Warnf("can't create informer for resource: %v, error info: %v, ignored",
+					gvr.Resource, err.Error())
 				continue
 			}
 		}
@@ -141,19 +142,17 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 			firstSyncChannel <- struct{}{}
 		}()
 		go func() {
-			t := time.NewTicker(time.Second * 3)
+			t := time.NewTicker(time.Second * 2)
 			<-t.C
 			firstSyncChannel <- struct{}{}
 		}()
 		<-firstSyncChannel
 
-		gr, _ := restmapper.GetAPIGroupResources(Clients)
-
 		newSearcher := &Searcher{
 			kubeconfig:      kubeconfigBytes,
 			informerFactory: informerFactory,
 			supportSchema:   name2gvr,
-			mapper:          restmapper.NewDiscoveryRESTMapper(gr),
+			mapper:          mapper,
 			namespaced:      namespaced,
 			stopChannel:     stopChannel,
 		}
@@ -347,18 +346,18 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		}
 		return
 	}
-	return NewFilter(info.GetIndexer().List()).namespace(c.ns).appName(c.availableAppName, c.appName).sort().toSlice(), nil
+	return newFilter(info.GetIndexer().List()).namespace(c.ns).appName(c.availableAppName, c.appName).sort().toSlice(), nil
 }
 
-type name struct {
+type filter struct {
 	element []interface{}
 }
 
-func NewFilter(element []interface{}) *name {
-	return &name{element: element}
+func newFilter(element []interface{}) *filter {
+	return &filter{element: element}
 }
 
-func (n *name) namespace(namespace string) *name {
+func (n *filter) namespace(namespace string) *filter {
 	if namespace == "" {
 		return n
 	}
@@ -372,7 +371,7 @@ func (n *name) namespace(namespace string) *name {
 	return n
 }
 
-func (n *name) appName(availableAppName []string, appName string) *name {
+func (n *filter) appName(availableAppName []string, appName string) *filter {
 	if appName == "" {
 		return n
 	}
@@ -389,7 +388,7 @@ func (n *name) appName(availableAppName []string, appName string) *name {
 	return n
 }
 
-func (n *name) appNameNotIn(appNames []string) *name {
+func (n *filter) appNameNotIn(appNames []string) *filter {
 	m := make(map[string]string)
 	for _, appName := range appNames {
 		m[appName] = appName
@@ -405,13 +404,13 @@ func (n *name) appNameNotIn(appNames []string) *name {
 	return n
 }
 
-func (n *name) sort() *name {
+func (n *filter) sort() *filter {
 	sort.SliceStable(n.element, func(i, j int) bool {
 		return n.element[i].(metav1.Object).GetName() < n.element[j].(metav1.Object).GetName()
 	})
 	return n
 }
 
-func (n *name) toSlice() []interface{} {
-	return n.element
+func (n *filter) toSlice() []interface{} {
+	return n.element[0:]
 }
