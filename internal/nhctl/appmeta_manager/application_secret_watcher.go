@@ -141,11 +141,11 @@ func (asw *applicationSecretWatcher) GetApplicationMetas() (result []*appmeta.Ap
 	return
 }
 
-// deep copy to prevent other func change the application meta
+// prevent other func change the application meta
+// caution!!!!!
 func (asw *applicationSecretWatcher) GetApplicationMeta(application, ns string) *appmeta.ApplicationMeta {
 	if asw != nil && asw.applicationMetas[application] != nil {
-		copyMeta := asw.applicationMetas[application]
-		return copyMeta
+		return asw.applicationMetas[application]
 	} else {
 
 		return &appmeta.ApplicationMeta{

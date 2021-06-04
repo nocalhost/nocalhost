@@ -165,6 +165,5 @@ func (from *ApplicationDevMeta) Events(to ApplicationDevMeta) *[]*ApplicationEve
 		}
 	}
 
-	log.Infof("Event: %v", result)
 	return &result
 }
