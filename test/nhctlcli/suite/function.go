@@ -76,7 +76,13 @@ func Deployment(cli *nhctlcli.CLI, _ ...string) {
 	module := "ratings"
 	funcs := []func() error{
 
-		func() error { return testcase.DevStart(cli, module) },
+		func() error {
+			if err := testcase.DevStart(cli, module); err != nil {
+				_ = testcase.DevEnd(cli, module)
+				return err
+			}
+			return nil
+		},
 		func() error { return testcase.Sync(cli, module) },
 		func() error { return testcase.SyncCheck(cli, module) },
 		func() error { return testcase.SyncStatus(cli, module) },
@@ -201,8 +207,8 @@ func Profile(cli *nhctlcli.CLI, _ ...string) {
 				_, _, _ = kubectl.Run(context.TODO(), "delete", "configmap", "dev.nocalhost.config.bookinfo")
 				return nil
 			},
-			func() error {return testcase.DeAssociate(cli,"details","deployment")},
-			func() error {return testcase.DeAssociate(cli,"ratings","deployment")},
+			func() error { return testcase.DeAssociate(cli, "details", "deployment") },
+			func() error { return testcase.DeAssociate(cli, "ratings", "deployment") },
 
 			func() error {
 				return singleSvcConfig.
@@ -267,7 +273,7 @@ func Profile(cli *nhctlcli.CLI, _ ...string) {
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1Cm") },
 			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2Cm") },
 
-			// clear env
+			// clean env
 			func() error {
 				kubectl := nhctlcli.NewKubectl(cli.Namespace, cli.KubeConfig)
 				_, _, _ = kubectl.Run(context.TODO(), "delete", "configmap", "dev.nocalhost.config.bookinfo")
@@ -277,6 +283,10 @@ func Profile(cli *nhctlcli.CLI, _ ...string) {
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1") },
 			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2") },
 
+			func() error { return testcase.DeAssociate(cli, "details", "deployment") },
+			func() error { return testcase.DeAssociate(cli, "ratings", "deployment") },
+
+			func() error { return testcase.ConfigReload(cli) },
 		},
 	)
 	clientgoutils.Must(testcase.List(cli))

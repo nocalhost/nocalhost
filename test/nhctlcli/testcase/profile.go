@@ -100,6 +100,19 @@ func ValidateImage(nhctl *nhctlcli.CLI, svcName string, svcType string, expectCo
 	)
 }
 
+func ConfigReload(nhctl *nhctlcli.CLI) error {
+	cmd := nhctl.Command(
+		context.TODO(), "config",
+		"reload", "bookinfo",
+	)
+
+	return nhctlcli.Runner.RunSimple(
+		cmd, func(s string) error {
+			return nil
+		},
+	)
+}
+
 func DeAssociate(nhctl *nhctlcli.CLI, svcName string, svcType string) error {
 	cmd := nhctl.Command(
 		context.TODO(), "dev",
