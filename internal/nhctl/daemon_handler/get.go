@@ -290,7 +290,8 @@ func InitDefaultAppIfNecessary(namespace, kubeconfigPath string) []*appmeta.Appl
 	}
 	if !foundDefaultApp {
 		// try init default application
-		utils.ShouldI(common.InitDefaultApplicationInCurrentNs(namespace, kubeconfigPath), "Error while create default application")
+		_, err := common.InitDefaultApplicationInCurrentNs(namespace, kubeconfigPath)
+		utils.ShouldI(err, "Error while create default application")
 		applicationMetaList = appmeta_manager.GetApplicationMetas(namespace, string(kubeconfigBytes))
 	}
 	SortApplication(applicationMetaList)
