@@ -57,15 +57,19 @@ var retryTimes = 10
 
 func Retry(suiteName string, funcs []func() error) {
 	var err error
-	for _, f := range funcs {
+	for i, f := range funcs {
 		for i := 0; i < retryTimes; i++ {
 			if err = f(); err == nil {
 				break
 			}
 			log.Info(err)
 		}
-		clientgoutils.MustI(err, fmt.Sprintf("error on step %s - %s",
-			suiteName, getFunctionName(reflect.ValueOf(f))))
+		clientgoutils.MustI(
+			err, fmt.Sprintf(
+				"error on step [%d] %s - %s",
+				i, suiteName, getFunctionName(reflect.ValueOf(f)),
+			),
+		)
 	}
 }
 

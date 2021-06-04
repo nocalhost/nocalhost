@@ -68,17 +68,17 @@ type GetApplicationMetaCommand struct {
 	CommandType DaemonCommandType
 	ClientStack string
 
-	NameSpace  string `json:"nameSpace"`
-	AppName    string `json:"appName"`
-	KubeConfig string `json:"kubeConfig"`
+	NameSpace         string `json:"nameSpace"`
+	AppName           string `json:"appName"`
+	KubeConfigContent string `json:"kubeConfig"`
 }
 
 type GetApplicationMetasCommand struct {
 	CommandType DaemonCommandType
 	ClientStack string
 
-	NameSpace  string `json:"nameSpace"`
-	KubeConfig string `json:"kubeConfig"`
+	NameSpace         string `json:"nameSpace"`
+	KubeConfigContent string `json:"kubeConfig"`
 }
 
 type GetResourceInfoCommand struct {

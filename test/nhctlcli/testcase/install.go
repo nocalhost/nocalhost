@@ -47,49 +47,58 @@ func InstallBookInfoThreeTimes(nhctl *nhctlcli.CLI) error {
 
 func UninstallBookInfo(nhctl *nhctlcli.CLI) error {
 	stdout, stderr, err := nhctl.RunWithRollingOut(
-		context.Background(), "uninstall", "bookinfo", "--force")
+		context.Background(), "uninstall", "bookinfo", "--force",
+	)
 	if err != nil {
-		return errors.Errorf("Run command uninstall bookinfo error: %v, stdout: %s, stderr: %s",
-			err, stdout, stderr)
+		return errors.Errorf(
+			"Run command uninstall bookinfo error: %v, stdout: %s, stderr: %s",
+			err, stdout, stderr,
+		)
 	}
 	return nil
 }
 
 func installBookInfoRawManifest(nhctl *nhctlcli.CLI) error {
-	cmd := nhctl.Command(context.Background(), "install",
+	cmd := nhctl.Command(
+		context.Background(), "install",
 		"bookinfo",
 		"-u",
 		"https://github.com/nocalhost/bookinfo.git",
 		"-t", "rawManifest",
 		"-r", "test-case",
 		"--resource-path",
-		"manifest/templates")
+		"manifest/templates",
+	)
 	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOut(cmd)
 	return nhctlcli.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
 func installBookInfoHelmGit(nhctl *nhctlcli.CLI) error {
-	cmd := nhctl.Command(context.Background(), "install",
+	cmd := nhctl.Command(
+		context.Background(), "install",
 		"bookinfo",
 		"-u",
 		"https://github.com/nocalhost/bookinfo.git",
 		"-t",
 		"helmGit",
 		"--resource-path",
-		"charts/bookinfo")
+		"charts/bookinfo",
+	)
 	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOut(cmd)
 	return nhctlcli.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
 func installBookInfoKustomizeGit(nhctl *nhctlcli.CLI) error {
-	cmd := nhctl.Command(context.Background(), "install",
+	cmd := nhctl.Command(
+		context.Background(), "install",
 		"bookinfo",
 		"-u",
 		"https://github.com/nocalhost/bookinfo.git",
 		"-t",
 		"kustomizeGit",
 		"--resource-path",
-		"kustomize/base")
+		"kustomize/base",
+	)
 	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOut(cmd)
 	return nhctlcli.Runner.CheckResult(cmd, stdout, stderr, err)
 }

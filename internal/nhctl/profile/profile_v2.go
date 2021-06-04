@@ -214,9 +214,10 @@ type SvcProfileV2 struct {
 	DevPortForwardList                     []*DevPortForward `json:"devPortForwardList" yaml:"devPortForwardList"` // combine DevPortList,PortForwardStatusList and PortForwardPidList
 
 	// nocalhost supports config from local dir under "Associate" Path
-	// but only load once, and user can use nhctl config reload to reload
-	// config from local or secret
 	LocalConfigLoaded bool `json:"localconfigloaded" yaml:"localconfigloaded"`
+
+	// nocalhost also supports config from cm, it's priority is highest
+	CmConfigLoaded bool `json:"cmconfigloaded" yaml:"cmconfigloaded"`
 
 	// associate for the local dir
 	Associate string `json:"associate" yaml:"associate"`

@@ -32,7 +32,8 @@ type CmdRunner struct{}
 func (r *CmdRunner) RunWithCheckResult(cmd *exec.Cmd) error {
 	if stdout, stderr, err := r.Run(cmd); err != nil {
 		return errors.Errorf(
-			"Run command: %s, error: %v, stdout: %s, stderr: %s", cmd.Args, err, stdout, stderr)
+			"Run command: %s, error: %v, stdout: %s, stderr: %s", cmd.Args, err, stdout, stderr,
+		)
 	}
 	return nil
 }
@@ -40,9 +41,23 @@ func (r *CmdRunner) RunWithCheckResult(cmd *exec.Cmd) error {
 func (r *CmdRunner) CheckResult(cmd *exec.Cmd, stdout string, stderr string, err error) error {
 	if err != nil {
 		return errors.Errorf(
-			"Run command: %s, error: %v, stdout: %s, stderr: %s", cmd.Args, err, stdout, stderr)
+			"Run command: %s, error: %v, stdout: %s, stderr: %s", cmd.Args, err, stdout, stderr,
+		)
 	}
 	return nil
+}
+
+func (r *CmdRunner) RunSimple(cmd *exec.Cmd, stdoutConsumer func(string) error) error {
+	stdout, stderr, err := r.Run(cmd)
+
+	if err != nil {
+		return err
+	}
+	if stderr != "" {
+		return errors.New(stderr)
+	}
+
+	return stdoutConsumer(stdout)
 }
 
 func (r *CmdRunner) Run(cmd *exec.Cmd) (string, string, error) {
@@ -93,7 +108,8 @@ func (r *CmdRunner) RunWithRollingOut(cmd *exec.Cmd) (string, string, error) {
 			if err != nil {
 				if err != io.EOF && !strings.Contains(err.Error(), "closed") {
 					_, _ = os.Stdout.WriteString(
-						fmt.Sprintf("command log error: %v, log: %v\n", err, string(line)))
+						fmt.Sprintf("command log error: %v, log: %v\n", err, string(line)),
+					)
 				}
 				break
 			}
@@ -109,7 +125,8 @@ func (r *CmdRunner) RunWithRollingOut(cmd *exec.Cmd) (string, string, error) {
 			if err != nil {
 				if err != io.EOF && !strings.Contains(err.Error(), "closed") {
 					_, _ = os.Stderr.WriteString(
-						fmt.Sprintf("command log error: %v, log: %v\n", err, string(line)))
+						fmt.Sprintf("command log error: %v, log: %v\n", err, string(line)),
+					)
 				}
 				break
 			}
