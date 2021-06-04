@@ -16,10 +16,10 @@ import (
 	"os"
 )
 
-func InitDefaultApplicationInCurrentNs(namespace string, kubeconfigPath string) error {
+func InitDefaultApplicationInCurrentNs(namespace string, kubeconfigPath string) (*app.Application, error) {
 	tmpDir, err := ioutil.TempDir("", "")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer os.RemoveAll(tmpDir)
 
@@ -27,14 +27,14 @@ func InitDefaultApplicationInCurrentNs(namespace string, kubeconfigPath string) 
 	nocalhostDir := baseDir.RelOrAbs(app.DefaultGitNocalhostDir)
 	err = nocalhostDir.Mkdir()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var cfg = ".default_config"
 
 	err = nocalhostDir.RelOrAbs(cfg).WriteFile("name: nocalhost.default\nmanifestType: rawManifestLocal")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	f := &app_flags.InstallFlags{
@@ -42,11 +42,11 @@ func InitDefaultApplicationInCurrentNs(namespace string, kubeconfigPath string) 
 		AppType:   string(appmeta.ManifestLocal),
 		LocalPath: baseDir.Abs(),
 	}
-
-	if _, err = InstallApplication(f, nocalhost.DefaultNocalhostApplication, kubeconfigPath, namespace); errors.IsServerTimeout(err) {
-		return nil
+	application, err := InstallApplication(f, nocalhost.DefaultNocalhostApplication, kubeconfigPath, namespace)
+	if errors.IsServerTimeout(err) {
+		return application, nil
 	}
-	return err
+	return application, err
 }
 
 func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconfig, namespace string) (*app.Application, error) {

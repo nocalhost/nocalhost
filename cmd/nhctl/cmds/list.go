@@ -140,7 +140,8 @@ func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
 	if err == nil && len(metas) == 0 {
 		// try init default application
-		mustI(common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig), "Error while create default application")
+		nocalhostApp, err = common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig)
+		mustI(err, "Error while create default application")
 		return []*appmeta.ApplicationMeta{nocalhostApp.GetAppMeta()}, nil
 	}
 	return metas, err

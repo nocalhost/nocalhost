@@ -36,7 +36,8 @@ func initApp(appName string) {
 		// if default application not found, try to creat one
 		if errors.Is(err, app.ErrNotFound) && appName == nocalhost.DefaultNocalhostApplication {
 			// try init default application
-			mustI(common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig), "Error while create default application")
+			_, err = common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig)
+			mustI(err, "Error while create default application")
 
 			// then reNew nocalhostApp
 			nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
