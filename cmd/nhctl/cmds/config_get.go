@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/profile"
 )
@@ -34,22 +35,31 @@ var notificationPrefix = `# This is the runtime configuration which stored in th
 
 var svcNotificationTips = `
 # Tips: You can paste the configuration follow into 
-# %s`
+# %s
+#`
 
 var notificationSuffix = `
-#
 # In addition, if you want to config multi service in same config.yaml, or use
 # the Server-version of Nocalhost, you can also configure under the definition 
 # of the application, such as:
 # https://github.com/nocalhost/bookinfo/blob/main/.nocalhost/config.yaml
 #`
 
-var svcNotificationTipsLoaded = `# Tips: This configuration is a in-memory replica of local file: 
+var svcNotificationTipsLocalLoaded = `# Tips: This configuration is a in-memory replica of local file: 
 # 
 # '%s'
 # 
-# You should modify your configuration in local file, and the
-# modification will take effect the next time you enter the DevMode.`
+# You should modify your configuration in local file, and the modification will
+# take effect immediately. (Dev modification will take effect the next time you enter the DevMode)
+#`
+
+var svcNotificationTipsCmLoaded = `# Tips: This configuration is a in-memory replica of configmap: 
+# 
+# '%s'
+# 
+# You should modify your configuration in configmap, and the modification will
+# take effect immediately. (Dev modification will take effect the next time you enter the DevMode)
+#`
 
 func init() {
 	configGetCmd.Flags().StringVarP(
@@ -87,6 +97,10 @@ var configGetCmd = &cobra.Command{
 
 		// get application config
 		if commonFlags.AppConfig {
+
+			// need to load latest config
+			_ = nocalhostApp.ReloadCfg(false, true)
+
 			applicationConfig := nocalhostApp.GetAppProfileV2()
 			bys, err := yaml.Marshal(applicationConfig)
 			must(errors.Wrap(err, "fail to get application config"))
@@ -97,6 +111,10 @@ var configGetCmd = &cobra.Command{
 		appProfile, err := nocalhostApp.GetProfile()
 		must(err)
 		if commonFlags.SvcName == "" {
+
+			// need to load latest config
+			_ = nocalhostApp.ReloadCfg(false, true)
+
 			config := &ConfigForPlugin{}
 			config.Services = make([]*profile.ServiceConfigV2, 0)
 			for _, svcPro := range appProfile.SvcProfile {
@@ -108,6 +126,10 @@ var configGetCmd = &cobra.Command{
 
 		} else {
 			checkIfSvcExist(commonFlags.SvcName, serviceType)
+
+			// need to load latest config
+			_ = nocalhostApp.ReloadSvcCfg(commonFlags.SvcName, serviceType, false, true)
+
 			svcProfile := appProfile.SvcProfileV2(commonFlags.SvcName, serviceType)
 			if svcProfile != nil {
 				bys, err := yaml.Marshal(svcProfile.ServiceConfigV2)
@@ -118,20 +140,25 @@ var configGetCmd = &cobra.Command{
 					RelOrAbs("config.yaml").Path
 
 				notification := ""
-				if !svcProfile.LocalConfigLoaded {
+				if svcProfile.LocalConfigLoaded {
+					notification += fmt.Sprintf(
+						svcNotificationTipsLocalLoaded,
+						path,
+					)
+					notification += notificationSuffix
+				} else if svcProfile.CmConfigLoaded {
+					notification += fmt.Sprintf(
+						svcNotificationTipsCmLoaded,
+						appmeta.ConfigMapName(commonFlags.AppName),
+					)
+				} else {
 					notification += notificationPrefix
 					notification += fmt.Sprintf(
 						svcNotificationTips,
 						path,
 					)
-				} else {
-					notification += fmt.Sprintf(
-						svcNotificationTipsLoaded,
-						path,
-					)
+					notification += notificationSuffix
 				}
-
-				notification += notificationSuffix
 
 				fmt.Println(
 					fmt.Sprintf(

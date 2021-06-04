@@ -34,6 +34,8 @@ import (
 const (
 	SecretType       = "dev.nocalhost/application.meta"
 	SecretNamePrefix = "dev.nocalhost.application."
+	CmNamePrefix     = "dev.nocalhost.config."
+	CmConfigKey      = "config"
 
 	SecretHelmReleaseNameKey = "r"
 	SecretPreInstallKey      = "p"
@@ -44,12 +46,14 @@ const (
 	SecretStateKey           = "s"
 	SecretDepKey             = "d"
 
-	Helm          AppType = "helmGit"
-	HelmRepo      AppType = "helmRepo"
-	Manifest      AppType = "rawManifest"
-	ManifestLocal AppType = "rawManifestLocal"
-	HelmLocal     AppType = "helmLocal"
-	KustomizeGit  AppType = "kustomizeGit"
+	Helm           AppType = "helmGit"
+	HelmRepo       AppType = "helmRepo"
+	Manifest       AppType = "rawManifest"
+	ManifestGit    AppType = "rawManifestGit"
+	ManifestLocal  AppType = "rawManifestLocal"
+	HelmLocal      AppType = "helmLocal"
+	KustomizeGit   AppType = "kustomizeGit"
+	KustomizeLocal AppType = "kustomizeLocal"
 
 	UNINSTALLED ApplicationState = "UNINSTALLED"
 	INSTALLING  ApplicationState = "INSTALLING"
@@ -59,6 +63,10 @@ const (
 )
 
 var ErrAlreadyDev = errors.New("Svc already in dev mode")
+
+func ConfigMapName(appName string) string {
+	return CmNamePrefix + appName
+}
 
 // resolve Application name by k8s 'metadata.name'
 func GetApplicationName(secretName string) (string, error) {
@@ -90,6 +98,8 @@ func AppTypeOf(s string) AppType {
 		return HelmLocal
 	case string(Manifest):
 		return Manifest
+	case string(ManifestGit):
+		return ManifestGit
 	case string(ManifestLocal):
 		return ManifestLocal
 	case string(KustomizeGit):

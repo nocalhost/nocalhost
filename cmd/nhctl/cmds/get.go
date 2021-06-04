@@ -23,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtimejson "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"nocalhost/internal/nhctl/daemon_client"
-	"nocalhost/internal/nhctl/daemon_handler"
+	"nocalhost/internal/nhctl/daemon_handler/item"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
@@ -110,8 +110,8 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 			switch resourceType {
 			case "all":
 				multiple := reflect.ValueOf(data).Kind() == reflect.Slice
-				var results []daemon_handler.Result
-				var result daemon_handler.Result
+				var results []item.Result
+				var result item.Result
 				if multiple {
 					_ = json.Unmarshal(bytes, &results)
 				} else {
@@ -136,8 +136,8 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 				printMeta(metas)
 			default:
 				multiple := reflect.ValueOf(data).Kind() == reflect.Slice
-				var items []daemon_handler.Item
-				var item daemon_handler.Item
+				var items []item.Item
+				var item item.Item
 				if multiple {
 					_ = json.Unmarshal(bytes, &items)
 				} else {
@@ -170,7 +170,7 @@ func write(headers []string, rows [][]string) {
 	writer.Render()
 }
 
-func printResult(results []daemon_handler.Result) {
+func printResult(results []item.Result) {
 	for _, r := range results {
 		var needsToComplete = true
 		var rows [][]string
@@ -195,7 +195,7 @@ func printResult(results []daemon_handler.Result) {
 	}
 }
 
-func printItem(items []daemon_handler.Item) {
+func printItem(items []item.Item) {
 	var rows [][]string
 	for _, i := range items {
 		if namespace, name, err2 := getNamespaceAndName(i.Metadata); err2 == nil {

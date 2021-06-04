@@ -20,15 +20,16 @@ import (
 
 // ApplicationModel
 type ApplicationModel struct {
-	ID        uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
-	Context   string     `json:"context" gorm:"column:context;not null" binding:"required"`
-	UserId    uint64     `gorm:"column:user_id;not null" json:"user_id"`
-	CreatedAt time.Time  `gorm:"column:created_at" json:"created_at"`
-	UpdatedAt time.Time  `gorm:"column:updated_at" json:"-"`
-	DeletedAt *time.Time `gorm:"column:deleted_at" json:"-"`
-	Public    uint8      `json:"public" gorm:"column:public;not null" binding:"required"`
-	Status    uint8      `json:"status" gorm:"column:status;not null" binding:"required"`
-	Editable  uint8      `json:"editable"`
+	ID              uint64     `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
+	Context         string     `json:"context" gorm:"column:context;not null" binding:"required"`
+	UserId          uint64     `gorm:"column:user_id;not null" json:"user_id"`
+	CreatedAt       time.Time  `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt       time.Time  `gorm:"column:updated_at" json:"-"`
+	DeletedAt       *time.Time `gorm:"column:deleted_at" json:"-"`
+	Public          uint8      `json:"public" gorm:"column:public;not null" binding:"required"`
+	Status          uint8      `json:"status" gorm:"column:status;not null" binding:"required"`
+	Editable        uint8      `json:"editable"`
+	ApplicationType string     `json:"application_type"`
 }
 
 type PluginApplicationModel struct {
@@ -55,6 +56,10 @@ func (u *ApplicationModel) FillEditable(admin bool, currentUser uint64) {
 	} else {
 		u.Editable = 0
 	}
+}
+
+func (u *ApplicationModel) FillApplicationType(ApplicationType string) {
+	u.ApplicationType = ApplicationType
 }
 
 // Validate the fields.

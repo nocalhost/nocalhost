@@ -40,28 +40,45 @@ var devStartOps = &model.DevStartOptions{}
 
 func init() {
 
-	devStartCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
-		"k8s deployment your developing service exists")
-	devStartCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
-		"kind of k8s controller,such as deployment,statefulSet")
-	devStartCmd.Flags().StringVarP(&devStartOps.DevImage, "image", "i", "",
-		"image of DevContainer")
-	devStartCmd.Flags().StringVarP(&devStartOps.Container, "container", "c", "",
-		"container to develop")
+	devStartCmd.Flags().StringVarP(
+		&deployment, "deployment", "d", "",
+		"k8s deployment your developing service exists",
+	)
+	devStartCmd.Flags().StringVarP(
+		&serviceType, "controller-type", "t", "",
+		"kind of k8s controller,such as deployment,statefulSet",
+	)
+	devStartCmd.Flags().StringVarP(
+		&devStartOps.DevImage, "image", "i", "",
+		"image of DevContainer",
+	)
+	devStartCmd.Flags().StringVarP(
+		&devStartOps.Container, "container", "c", "",
+		"container to develop",
+	)
 	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory")
 	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "StorageClass used by PV")
 	devStartCmd.Flags().StringVar(
-		&devStartOps.PriorityClass, "priority-class", "", "PriorityClass used by devContainer")
-	devStartCmd.Flags().StringVar(&devStartOps.SideCarImage, "sidecar-image", "",
-		"image of nocalhost-sidecar container")
+		&devStartOps.PriorityClass, "priority-class", "", "PriorityClass used by devContainer",
+	)
+	devStartCmd.Flags().StringVar(
+		&devStartOps.SideCarImage, "sidecar-image", "",
+		"image of nocalhost-sidecar container",
+	)
 	// for debug only
-	devStartCmd.Flags().StringVar(&devStartOps.SyncthingVersion, "syncthing-version", "",
-		"versions of syncthing and this flag is use for debug only")
+	devStartCmd.Flags().StringVar(
+		&devStartOps.SyncthingVersion, "syncthing-version", "",
+		"versions of syncthing and this flag is use for debug only",
+	)
 	// local absolute paths to sync
-	devStartCmd.Flags().StringSliceVarP(&devStartOps.LocalSyncDir, "local-sync", "s", []string{},
-		"local directory to sync")
-	devStartCmd.Flags().StringVarP(&shell, "shell", "", "",
-		"use current shell cmd to enter terminal while dev start success")
+	devStartCmd.Flags().StringSliceVarP(
+		&devStartOps.LocalSyncDir, "local-sync", "s", []string{},
+		"local directory to sync",
+	)
+	devStartCmd.Flags().StringVarP(
+		&shell, "shell", "", "",
+		"use current shell cmd to enter terminal while dev start success",
+	)
 	devStartCmd.Flags().BoolVar(
 		&devStartOps.NoTerminal, "without-terminal", false,
 		"do not enter terminal directly while dev start success",
@@ -116,7 +133,7 @@ var devStartCmd = &cobra.Command{
 
 			coloredoutput.Hint("Starting DevMode...")
 
-			loadLocalConfigIfValid()
+			loadLocalOrCmConfigIfValid()
 			stopPreviousSyncthing()
 			recordingProfile()
 			podName := enterDevMode()
@@ -161,7 +178,7 @@ func recordingProfile() {
 
 // when re enter dev mode, nocalhost will check the associate dir
 // nocalhost will load svc config from associate dir if needed
-func loadLocalConfigIfValid() {
+func loadLocalOrCmConfigIfValid() {
 
 	switch len(devStartOps.LocalSyncDir) {
 	case 0:
@@ -173,10 +190,11 @@ func loadLocalConfigIfValid() {
 		}
 		devStartOps.LocalSyncDir = append(devStartOps.LocalSyncDir, p.Associate)
 
-		nocalhostApp.LoadSvcCfgFromLocalIfValid(deployment, serviceType)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, serviceType, false, false)
 	case 1:
 		must(nocalhostSvc.Associate(devStartOps.LocalSyncDir[0]))
-		nocalhostApp.LoadSvcCfgFromLocalIfValid(deployment, serviceType)
+
+		_ = nocalhostApp.ReloadSvcCfg(deployment, serviceType, false, false)
 	default:
 		log.Fatal(errors.New("Can not define multi 'local-sync(-s)'"))
 	}

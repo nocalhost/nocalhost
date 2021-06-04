@@ -13,20 +13,35 @@
 package main
 
 import (
+	"nocalhost/internal/nhctl/utils"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
+	"nocalhost/test/nhctlcli"
 	"nocalhost/test/nhctlcli/suite"
+	"nocalhost/test/util"
+	"os"
 	"time"
 )
 
 func main() {
-	start := time.Now()
-	cli, _, v2, cancelFunc := suite.Prepare()
-	t := suite.T{Cli: cli, CleanFunc: cancelFunc}
+	//_ = os.Setenv("LocalTest", "true")
 
-	// For local test
-	//cli := nhctlcli.NewNhctl("nhtest1", utils.GetHomePath()+"/.kube/config")
-	//clientgoutils.Must(util.Init(cli))
-	//t := suite.T{Cli: cli}
+	start := time.Now()
+
+	var v2 string
+	var t suite.T
+
+	if _, ok := os.LookupEnv("LocalTest"); ok {
+		// For local test
+		cli := nhctlcli.NewNhctl("nocalhost", utils.GetHomePath()+"/.kube/config")
+		clientgoutils.Must(util.Init(cli))
+		t = suite.T{Cli: cli}
+		_ = os.Setenv("commit_id", "test")
+	} else {
+		cli, _, v2Tmp, cancelFunc := suite.Prepare()
+		v2 = v2Tmp
+		t = suite.T{Cli: cli, CleanFunc: cancelFunc}
+	}
 
 	t.Run("install", suite.Install)
 	t.Run("deployment", suite.Deployment)

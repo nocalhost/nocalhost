@@ -19,6 +19,7 @@ import (
 )
 
 var workDir string
+var deAssociate bool
 
 func init() {
 	devAssociateCmd.Flags().StringVarP(
@@ -30,6 +31,7 @@ func init() {
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	devAssociateCmd.Flags().StringVarP(&workDir, "associate", "s", "", "dev mode work directory")
+	devAssociateCmd.Flags().BoolVar(&deAssociate, "de-associate", false, "de associate(for test)")
 	debugCmd.AddCommand(devAssociateCmd)
 }
 
@@ -47,13 +49,17 @@ var devAssociateCmd = &cobra.Command{
 		commonFlags.AppName = args[0]
 		initApp(commonFlags.AppName)
 
-		if workDir == "" {
-			log.Fatal("associate must specify")
+		checkIfSvcExist(commonFlags.SvcName, serviceType)
+
+		if deAssociate {
+			must(nocalhostSvc.Associate(""))
+		} else {
+			if workDir == "" {
+				log.Fatal("associate must specify")
+			}
+			must(nocalhostSvc.Associate(workDir))
 		}
 
-		checkIfSvcExist(commonFlags.SvcName, serviceType)
-		must(nocalhostSvc.Associate(workDir))
-
-		nocalhostApp.LoadSvcCfgFromLocalIfValid(nocalhostSvc.Name, nocalhostSvc.Type.String())
+		must(nocalhostApp.ReloadSvcCfg(nocalhostSvc.Name, nocalhostSvc.Type.String(), false, false))
 	},
 }

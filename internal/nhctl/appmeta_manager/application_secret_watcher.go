@@ -30,8 +30,8 @@ import (
 
 type applicationSecretWatcher struct {
 	// todo recreate ASW if kubeConfig changed
-	kubeConfig string
-	ns         string
+	configBytes []byte
+	ns          string
 
 	applicationMetas map[string]*appmeta.ApplicationMeta
 	lock             sync.Mutex
@@ -90,10 +90,10 @@ func (asw *applicationSecretWatcher) join(secret *v1.Secret) error {
 	for _, event := range *devMetaBefore.Events(devMetaCurrent) {
 		EventPush(
 			&ApplicationEventPack{
-				Event:      event,
-				Ns:         asw.ns,
-				AppName:    appName,
-				KubeConfig: asw.kubeConfig,
+				Event:           event,
+				Ns:              asw.ns,
+				AppName:         appName,
+				KubeConfigBytes: asw.configBytes,
 			},
 		)
 	}
@@ -116,18 +116,18 @@ func (asw *applicationSecretWatcher) left(appName string) {
 	for _, event := range *devMetaBefore.Events(devMetaCurrent) {
 		EventPush(
 			&ApplicationEventPack{
-				Event:      event,
-				Ns:         asw.ns,
-				AppName:    appName,
-				KubeConfig: asw.kubeConfig,
+				Event:           event,
+				Ns:              asw.ns,
+				AppName:         appName,
+				KubeConfigBytes: asw.configBytes,
 			},
 		)
 	}
 }
 
-func NewApplicationSecretWatcher(kubeConfig string, ns string) *applicationSecretWatcher {
+func NewApplicationSecretWatcher(configBytes []byte, ns string) *applicationSecretWatcher {
 	return &applicationSecretWatcher{
-		kubeConfig:       kubeConfig,
+		configBytes:      configBytes,
 		ns:               ns,
 		applicationMetas: map[string]*appmeta.ApplicationMeta{},
 		quit:             make(chan bool),
@@ -141,11 +141,11 @@ func (asw *applicationSecretWatcher) GetApplicationMetas() (result []*appmeta.Ap
 	return
 }
 
-// deep copy to prevent other func change the application meta
+// prevent other func change the application meta
+// caution!!!!!
 func (asw *applicationSecretWatcher) GetApplicationMeta(application, ns string) *appmeta.ApplicationMeta {
 	if asw != nil && asw.applicationMetas[application] != nil {
-		copyMeta := asw.applicationMetas[application]
-		return copyMeta
+		return asw.applicationMetas[application]
 	} else {
 
 		return &appmeta.ApplicationMeta{
@@ -166,7 +166,7 @@ func (asw *applicationSecretWatcher) Quit() {
 }
 
 func (asw *applicationSecretWatcher) Prepare() error {
-	c, err := clientcmd.RESTConfigFromKubeConfig([]byte(asw.kubeConfig))
+	c, err := clientcmd.RESTConfigFromKubeConfig(asw.configBytes)
 	if err != nil {
 		return err
 	}
