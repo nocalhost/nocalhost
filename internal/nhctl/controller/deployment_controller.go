@@ -270,11 +270,11 @@ func (d *DeploymentController) RollBack(reset bool) error {
 	return nil
 }
 
-func (d *DeploymentController) GetDefaultPodNameWait(ctx context.Context) (string, error) {
-	return getDefaultPodName(ctx, d)
-}
+//func (d *DeploymentController) GetDefaultPodNameWait(ctx context.Context) (string, error) {
+//	return getDefaultPodName(ctx, d)
+//}
 
-func getDefaultPodName(ctx context.Context, p pod_controller.PodController) (string, error) {
+func GetDefaultPodName(ctx context.Context, p pod_controller.PodController) (string, error) {
 	var (
 		podList []corev1.Pod
 		err     error

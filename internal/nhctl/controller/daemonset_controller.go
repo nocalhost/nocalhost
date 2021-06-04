@@ -64,7 +64,12 @@ func scaleDaemonSetReplicasToZero(name string, client *clientgoutils.ClientGoUti
 	return nil
 }
 
-// ReplaceImage For DaemonSet,
+func (d *DaemonSetController) getGeneratedDeploymentName() string {
+	return fmt.Sprintf("%s%s", daemonSetGenDeployPrefix, d.Name())
+}
+
+// ReplaceImage For DaemonSet, we don't replace the DaemonSet' image
+// but create a deployment with dev container instead
 func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 
 	d.Client.Context(ctx)
@@ -80,9 +85,9 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 	}
 
 	// Create a deployment from DaemonSet spec
-	generatedDeployment := v1.Deployment{
+	generatedDeployment := &v1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   fmt.Sprintf("daemon-set-generated-deploy-%s", d.Name()),
+			Name:   d.getGeneratedDeploymentName(),
 			Labels: map[string]string{"nocalhost.dev.workload.ignored": "true"},
 		},
 		Spec: v1.DeploymentSpec{
@@ -134,26 +139,41 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 		append(generatedDeployment.Spec.Template.Spec.Containers, *sideCarContainer)
 
 	// Create generated deployment
+	if _, err = d.Client.CreateDeployment(generatedDeployment); err != nil {
+		return err
+	}
 
-	panic("implement me")
+	return d.waitingPodToBeReady()
 }
-
-//func (d *DaemonSetController) Container(containerName string) (*corev1.Container, error) {
-//	panic("implement me")
-//}
 
 func (d *DaemonSetController) Name() string {
 	return d.Controller.Name
 }
 
 func (d *DaemonSetController) RollBack(reset bool) error {
-	panic("implement me")
+	// Delete generated Deployment
+	err := d.Client.DeleteDeployment(d.getGeneratedDeploymentName(), false)
+	if err != nil {
+		return err
+	}
+
+	// Remove nodeName in pod spec
+	ds, err := d.Client.GetDaemonSet(d.Name())
+	if err != nil {
+		return err
+	}
+
+	ds.Spec.Template.Spec.NodeName = ""
+	_, err = d.Client.UpdateDaemonSet(ds)
+	return err
 }
 
-func (d *DaemonSetController) GetDefaultPodNameWait(ctx context.Context) (string, error) {
-	panic("implement me")
-}
-
+// GetPodList
+// In DevMode, return pod list of generated Deployment.
+// Otherwise, return pod list of DaemonSet
 func (d *DaemonSetController) GetPodList() ([]corev1.Pod, error) {
-	panic("implement me")
+	if d.IsInDevMode() {
+		return d.Client.ListLatestRevisionPodsByDeployment(d.getGeneratedDeploymentName())
+	}
+	return d.Client.ListPodsByDaemonSet(d.Name())
 }

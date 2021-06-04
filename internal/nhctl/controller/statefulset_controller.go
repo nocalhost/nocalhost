@@ -318,10 +318,6 @@ func (s *StatefulSetController) RollBack(reset bool) error {
 	return nil
 }
 
-func (s *StatefulSetController) GetDefaultPodNameWait(ctx context.Context) (string, error) {
-	return getDefaultPodName(ctx, s)
-}
-
 func (s *StatefulSetController) GetPodList() ([]corev1.Pod, error) {
 	list, err := s.Client.ListPodsByStatefulSet(s.Name())
 	if err != nil {

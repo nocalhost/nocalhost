@@ -470,6 +470,8 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 	return false
 }
 
+// GetNocalhostDevContainerPod
+// A nocalhost dev container pod always has a container named nocalhost-sidecar
 func (c *Controller) GetNocalhostDevContainerPod() (string, error) {
 	var (
 		checkPodsList *corev1.PodList
@@ -480,6 +482,8 @@ func (c *Controller) GetNocalhostDevContainerPod() (string, error) {
 		checkPodsList, err = c.Client.ListPodsByDeployment(c.Name)
 	case appmeta.StatefulSet:
 		checkPodsList, err = c.Client.ListPodsByStatefulSet(c.Name)
+	case appmeta.DaemonSet:
+		checkPodsList, err = c.Client.ListPodsByDeployment(daemonSetGenDeployPrefix + c.Name)
 	default:
 		return "", errors.New("Unsupported type")
 	}
