@@ -24,7 +24,7 @@ import (
 )
 
 func main() {
-	_ = os.Setenv("LocalTest", "true")
+	//_ = os.Setenv("LocalTest", "true")
 
 	start := time.Now()
 
