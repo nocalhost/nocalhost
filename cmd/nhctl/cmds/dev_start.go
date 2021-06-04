@@ -190,13 +190,11 @@ func loadLocalOrCmConfigIfValid() {
 		}
 		devStartOps.LocalSyncDir = append(devStartOps.LocalSyncDir, p.Associate)
 
-		err = nocalhostApp.ReloadSvcCfg(deployment, serviceType, false, false)
-		log.Error("Error while load cfg: %s", err)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, serviceType, false, false)
 	case 1:
 		must(nocalhostSvc.Associate(devStartOps.LocalSyncDir[0]))
 
-		err := nocalhostApp.ReloadSvcCfg(deployment, serviceType, false, false)
-		log.Error("Error while load cfg: %s", err)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, serviceType, false, false)
 	default:
 		log.Fatal(errors.New("Can not define multi 'local-sync(-s)'"))
 	}

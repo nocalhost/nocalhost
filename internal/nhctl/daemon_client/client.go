@@ -221,14 +221,14 @@ func (d *DaemonClient) SendGetDaemonServerStatusCommand() (*daemon_common.Daemon
 	return status, nil
 }
 
-func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfig string) (*appmeta.ApplicationMeta, error) {
+func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfigContent string) (*appmeta.ApplicationMeta, error) {
 	gamCmd := &command.GetApplicationMetaCommand{
 		CommandType: command.GetApplicationMeta,
 		ClientStack: string(debug.Stack()),
 
 		NameSpace:         ns,
 		AppName:           appName,
-		KubeConfigContent: kubeConfig,
+		KubeConfigContent: kubeConfigContent,
 	}
 
 	bys, err := json.Marshal(gamCmd)

@@ -13,6 +13,7 @@
 package daemon_handler
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
@@ -58,7 +59,17 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 	kubeConfigContent := fp.NewFilePath(appProfile.Kubeconfig).ReadFile()
 
 	if appProfile != nil {
-		meta := appmeta_manager.GetApplicationMeta(ns, appName, []byte(kubeConfigContent))
+		// deep copy
+		marshal, err := json.Marshal(appmeta_manager.GetApplicationMeta(ns, appName, []byte(kubeConfigContent)))
+		if err != nil {
+			return nil
+		}
+
+		var meta appmeta.ApplicationMeta
+		if err := json.Unmarshal(marshal, &meta); err != nil {
+			return nil
+		}
+
 		appProfile.Installed = meta.IsInstalled()
 		devMeta := meta.DevMeta
 
