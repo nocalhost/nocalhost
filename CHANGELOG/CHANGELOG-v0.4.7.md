@@ -1,6 +1,6 @@
 # NOCALHOST Changelog
 
-## 0.4.7 (2021-06-03)
+## 0.4.7 (2021-06-04)
 
 #### :bug:  &nbsp; Bug Fixed
 
@@ -11,6 +11,8 @@
 **IDEA Plugin**
 
 - Optimize performance
+- Fixed: extend sync status update interval
+- Fixed: project settings saving
 
 **VSCode Plugin**
 
@@ -23,4 +25,5 @@
 - Supports dev parameters of `configmap` type
 - Supports read configuration file from source code
 - Supports read configuration file from `configmap`
+- Supports user values file when using helm upgrade
 
