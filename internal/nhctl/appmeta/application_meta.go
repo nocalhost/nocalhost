@@ -34,6 +34,8 @@ import (
 const (
 	SecretType       = "dev.nocalhost/application.meta"
 	SecretNamePrefix = "dev.nocalhost.application."
+	CmNamePrefix     = "dev.nocalhost.config."
+	CmConfigKey      = "config"
 
 	SecretHelmReleaseNameKey = "r"
 	SecretPreInstallKey      = "p"
@@ -61,6 +63,10 @@ const (
 )
 
 var ErrAlreadyDev = errors.New("Svc already in dev mode")
+
+func ConfigMapName(appName string) string {
+	return CmNamePrefix + appName
+}
 
 // resolve Application name by k8s 'metadata.name'
 func GetApplicationName(secretName string) (string, error) {

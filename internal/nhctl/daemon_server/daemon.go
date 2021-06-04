@@ -267,7 +267,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				return nil, err
 			}
 
-			return appmeta_manager.GetApplicationMeta(gamCmd.NameSpace, gamCmd.AppName, gamCmd.KubeConfig), nil
+			return appmeta_manager.GetApplicationMeta(gamCmd.NameSpace, gamCmd.AppName, []byte(gamCmd.KubeConfigContent)), nil
 		})
 
 	case command.GetApplicationMetas:
@@ -277,7 +277,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				return nil, err
 			}
 
-			return appmeta_manager.GetApplicationMetas(gamsCmd.NameSpace, gamsCmd.KubeConfig), nil
+			return appmeta_manager.GetApplicationMetas(gamsCmd.NameSpace, []byte(gamsCmd.KubeConfigContent)), nil
 		})
 
 	case command.GetResourceInfo:

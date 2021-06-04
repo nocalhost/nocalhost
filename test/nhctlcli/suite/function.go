@@ -16,11 +16,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/nhctlcli"
 	"nocalhost/test/nhctlcli/testcase"
+	"nocalhost/test/nhctlcli/testdata"
 	"nocalhost/test/tke"
 	"nocalhost/test/util"
 	"time"
@@ -54,7 +56,8 @@ func PortForwardService(cli *nhctlcli.CLI, _ ...string) {
 		panic(errors.Errorf("fail to get available port, err: %s", err))
 	}
 	kubectl := nhctlcli.NewKubectl(cli.Namespace, cli.KubeConfig)
-	cmd := kubectl.Command(context.Background(),
+	cmd := kubectl.Command(
+		context.Background(),
 		"port-forward",
 		"service/"+module,
 		fmt.Sprintf("%d:%d", localPort, remotePort),
@@ -73,7 +76,13 @@ func Deployment(cli *nhctlcli.CLI, _ ...string) {
 	module := "ratings"
 	funcs := []func() error{
 
-		func() error { return testcase.DevStart(cli, module) },
+		func() error {
+			if err := testcase.DevStart(cli, module); err != nil {
+				_ = testcase.DevEnd(cli, module)
+				return err
+			}
+			return nil
+		},
 		func() error { return testcase.Sync(cli, module) },
 		func() error { return testcase.SyncCheck(cli, module) },
 		func() error { return testcase.SyncStatus(cli, module) },
@@ -180,11 +189,106 @@ func Upgrade(cli *nhctlcli.CLI, _ ...string) {
 }
 
 func Profile(cli *nhctlcli.CLI, _ ...string) {
-	util.Retry("Profile", []func() error{
-		func() error { return testcase.ProfileGetUbuntuWithJson(cli) },
-		func() error { return testcase.ProfileGetDetailsWithoutJson(cli) },
-		func() error { return testcase.ProfileSetDetails(cli) },
-	})
+
+	singleSvcConfig := fp.NewRandomTempPath()
+	multiSvcConfig := fp.NewRandomTempPath()
+	fullConfig := fp.NewRandomTempPath()
+
+	singleSvcConfigCm := fp.NewRandomTempPath().MkdirThen().RelOrAbs("cm.yaml")
+	multiSvcConfigCm := fp.NewRandomTempPath().MkdirThen().RelOrAbs("cm.yaml")
+	fullConfigCm := fp.NewRandomTempPath().MkdirThen().RelOrAbs("cm.yaml")
+
+	util.Retry(
+		"Profile", []func() error{
+
+			// clear env
+			func() error {
+				kubectl := nhctlcli.NewKubectl(cli.Namespace, cli.KubeConfig)
+				_, _, _ = kubectl.Run(context.TODO(), "delete", "configmap", "dev.nocalhost.config.bookinfo")
+				return nil
+			},
+			func() error { return testcase.DeAssociate(cli, "details", "deployment") },
+			func() error { return testcase.DeAssociate(cli, "ratings", "deployment") },
+
+			func() error {
+				return singleSvcConfig.
+					RelOrAbs(".nocalhost").
+					MkdirThen().
+					RelOrAbs("config.yaml").
+					WriteFile(testdata.SingleSvcConfig)
+			},
+			func() error {
+				return multiSvcConfig.
+					RelOrAbs(".nocalhost").
+					MkdirThen().
+					RelOrAbs("config.yaml").
+					WriteFile(testdata.MultipleSvcConfig)
+			},
+			func() error {
+				return fullConfig.
+					RelOrAbs(".nocalhost").
+					MkdirThen().
+					RelOrAbs("config.yaml").
+					WriteFile(testdata.FullConfig)
+			},
+
+			func() error {
+				return singleSvcConfigCm.
+					WriteFile(testdata.SingleSvcConfigCm)
+			},
+			func() error {
+				return multiSvcConfigCm.
+					WriteFile(testdata.MultipleSvcConfigCm)
+			},
+			func() error {
+				return fullConfigCm.
+					WriteFile(testdata.FullConfigCm)
+			},
+
+			func() error { return testcase.ProfileGetUbuntuWithJson(cli) },
+			func() error { return testcase.ProfileGetDetailsWithoutJson(cli) },
+			func() error { return testcase.ProfileSetDetails(cli) },
+
+			func() error { return testcase.Associate(cli, "details", "deployment", singleSvcConfig) },
+			func() error { return testcase.ValidateImage(cli, "details", "deployment", "singleSvcConfig") },
+
+			func() error { return testcase.Associate(cli, "details", "deployment", multiSvcConfig) },
+			func() error { return testcase.Associate(cli, "ratings", "deployment", multiSvcConfig) },
+			func() error { return testcase.ValidateImage(cli, "details", "deployment", "multipleSvcConfig1") },
+			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "multipleSvcConfig2") },
+
+			func() error { return testcase.Associate(cli, "details", "deployment", fullConfig) },
+			func() error { return testcase.Associate(cli, "ratings", "deployment", fullConfig) },
+			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1") },
+			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2") },
+
+			func() error { return testcase.ApplyCmForConfig(cli, singleSvcConfigCm) },
+			func() error { return testcase.ValidateImage(cli, "details", "deployment", "singleSvcConfigCm") },
+
+			func() error { return testcase.ApplyCmForConfig(cli, multiSvcConfigCm) },
+			func() error { return testcase.ValidateImage(cli, "details", "deployment", "multipleSvcConfig1Cm") },
+			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "multipleSvcConfig2Cm") },
+
+			func() error { return testcase.ApplyCmForConfig(cli, fullConfigCm) },
+			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1Cm") },
+			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2Cm") },
+
+			// clean env
+			func() error {
+				kubectl := nhctlcli.NewKubectl(cli.Namespace, cli.KubeConfig)
+				_, _, _ = kubectl.Run(context.TODO(), "delete", "configmap", "dev.nocalhost.config.bookinfo")
+				return nil
+			},
+
+			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1") },
+			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2") },
+
+			func() error { return testcase.DeAssociate(cli, "details", "deployment") },
+			func() error { return testcase.DeAssociate(cli, "ratings", "deployment") },
+
+			func() error { return testcase.ConfigReload(cli) },
+		},
+	)
 	clientgoutils.Must(testcase.List(cli))
 }
 

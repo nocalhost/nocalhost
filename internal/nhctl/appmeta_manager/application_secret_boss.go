@@ -32,28 +32,28 @@ type Supervisor struct {
 	lock sync.Mutex
 }
 
-func GetApplicationMetas(ns, config string) []*appmeta.ApplicationMeta {
-	aws := supervisor.inDeck(ns, config)
+func GetApplicationMetas(ns string, configBytes []byte) []*appmeta.ApplicationMeta {
+	aws := supervisor.inDeck(ns, configBytes)
 	return aws.GetApplicationMetas()
 }
 
-func GetApplicationMeta(ns, appName, config string) *appmeta.ApplicationMeta {
-	aws := supervisor.inDeck(ns, config)
+func GetApplicationMeta(ns, appName string, configBytes []byte) *appmeta.ApplicationMeta {
+	aws := supervisor.inDeck(ns, configBytes)
 
 	// aws may nil if prepare fail
 	meta := aws.GetApplicationMeta(appName, ns)
 	return meta
 }
 
-func (s *Supervisor) getIDeck(ns, config string) *applicationSecretWatcher {
-	if asw, ok := s.deck[s.key(ns, config)]; ok {
+func (s *Supervisor) getIDeck(ns string, configBytes []byte) *applicationSecretWatcher {
+	if asw, ok := s.deck[s.key(ns, configBytes)]; ok {
 		return asw
 	}
 	return nil
 }
 
-func (s *Supervisor) inDeck(ns, config string) *applicationSecretWatcher {
-	if asw := s.getIDeck(ns, config); asw != nil {
+func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWatcher {
+	if asw := s.getIDeck(ns, configBytes); asw != nil {
 		return asw
 	}
 
@@ -61,12 +61,12 @@ func (s *Supervisor) inDeck(ns, config string) *applicationSecretWatcher {
 	defer s.lock.Unlock()
 
 	// double check
-	if asw := s.getIDeck(ns, config); asw != nil {
+	if asw := s.getIDeck(ns, configBytes); asw != nil {
 		return asw
 	}
-	watchDeck := s.key(ns, config)
+	watchDeck := s.key(ns, configBytes)
 
-	watcher := NewApplicationSecretWatcher(config, ns)
+	watcher := NewApplicationSecretWatcher(configBytes, ns)
 
 	log.Infof("Prepare for ns %s", ns)
 	if err := watcher.Prepare(); err != nil {
@@ -77,22 +77,22 @@ func (s *Supervisor) inDeck(ns, config string) *applicationSecretWatcher {
 	log.Infof("Prepare complete, start to watch for ns %s", ns)
 	go func() {
 		watcher.Watch()
-		s.outDeck(ns, config)
+		s.outDeck(ns, configBytes)
 	}()
 
 	s.deck[watchDeck] = watcher
 	return watcher
 }
 
-func (s *Supervisor) outDeck(ns, config string) {
+func (s *Supervisor) outDeck(ns string, configBytes []byte) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	delete(s.deck, s.key(ns, config))
+	delete(s.deck, s.key(ns, configBytes))
 }
 
-func (s *Supervisor) key(ns, kubeConfig string) string {
+func (s *Supervisor) key(ns string, configBytes []byte) string {
 	sha := sha256.New()
-	sha.Write([]byte(kubeConfig))
+	sha.Write(configBytes)
 
 	marshaler, ok := sha.(encoding.BinaryMarshaler)
 	if !ok {

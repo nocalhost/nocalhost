@@ -13,7 +13,6 @@
 package nocalhost
 
 import (
-	"fmt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
@@ -203,31 +202,6 @@ func GetNsAndApplicationInfo() (map[string][]string, error) {
 	return result, nil
 }
 
-func GetApplicationMetaInstalled(appName, namespace, kubeConfig string) (*appmeta.ApplicationMeta, error) {
-	appMeta, err := GetApplicationMeta(appName, namespace, kubeConfig)
-	if err != nil {
-		return nil, err
-	}
-	if appMeta.IsInstalling() {
-		return nil, errors.New(
-			fmt.Sprintf(
-				"Application %s - namespace %s is installing,  "+
-					"you can use 'nhctl uninstall %s -n %s' to uninstall this applications ",
-				appName, namespace, appName, namespace,
-			),
-		)
-	} else if appMeta.IsNotInstall() {
-		return nil, errors.New(
-			fmt.Sprintf(
-				"Application %s in ns %s is not installed or under installing, "+
-					"or maybe the kubeconfig provided has not permitted to this namespace ",
-				appName, namespace,
-			),
-		)
-	}
-	return appMeta, nil
-}
-
 func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.ApplicationMeta, error) {
 	cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
 	if err != nil {
@@ -237,7 +211,7 @@ func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.Applica
 	bys, err := ioutil.ReadFile(kubeConfig)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Error to get ApplicationMeta")
+		return nil, errors.Wrap(err, "Error to get ApplicationMeta while read kubeconfig")
 	}
 
 	appMeta, err := cli.SendGetApplicationMetaCommand(namespace, appName, string(bys))

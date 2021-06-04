@@ -273,7 +273,7 @@ func RenderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) 
 			log.Logf("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
 		}
 	} else {
-		log.Log(
+		log.Logf(
 			"Render %s Nocalhost config without env files, you config your Nocalhost "+
 				"configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2",
 			configFile.Abs(),
