@@ -26,4 +26,3 @@
 - Supports read configuration file from source code
 - Supports read configuration file from `configmap`
 - Supports user values file when using helm upgrade
-
