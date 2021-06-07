@@ -95,7 +95,7 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string
 
 	for _, svcProfile := range profile.SvcProfile {
 		for _, pf := range svcProfile.DevPortForwardList {
-			if pf.RunByDaemonServer && pf.Sudo == isSudo { // Only recover port-forward managed by this daemon server
+			if pf.Sudo == isSudo { // Only recover port-forward managed by this daemon server
 				log.Logf("Recovering port-forward %d:%d of %s-%s", pf.LocalPort, pf.RemotePort, ns, appName)
 				svcType := pf.ServiceType
 				// For compatibility
@@ -175,18 +175,18 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			return errors.New(fmt.Sprintf("Port forward %d:%d already exists", localPort, remotePort))
 		}
 		pf := &profile.DevPortForward{
-			LocalPort:         localPort,
-			RemotePort:        remotePort,
-			Role:              startCmd.Role,
-			Status:            "New",
-			Reason:            "Add",
-			PodName:           startCmd.PodName,
-			Updated:           time.Now().Format("2006-01-02 15:04:05"),
-			Pid:               0,
-			RunByDaemonServer: true,
-			Sudo:              isSudo,
-			DaemonServerPid:   os.Getpid(),
-			ServiceType:       startCmd.ServiceType,
+			LocalPort:  localPort,
+			RemotePort: remotePort,
+			Role:       startCmd.Role,
+			Status:     "New",
+			Reason:     "Add",
+			PodName:    startCmd.PodName,
+			Updated:    time.Now().Format("2006-01-02 15:04:05"),
+			//Pid:        0,
+			//RunByDaemonServer: true,
+			Sudo:            isSudo,
+			DaemonServerPid: os.Getpid(),
+			ServiceType:     startCmd.ServiceType,
 		}
 
 		p.lock.Lock()
