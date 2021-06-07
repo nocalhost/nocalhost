@@ -69,7 +69,7 @@ func installBookInfoRawManifest(nhctl *nhctlcli.CLI) error {
 		"--resource-path",
 		"manifest/templates",
 	)
-	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOut(cmd)
+	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOutWithChecker(cmd, nil)
 	return nhctlcli.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
@@ -84,7 +84,7 @@ func installBookInfoHelmGit(nhctl *nhctlcli.CLI) error {
 		"--resource-path",
 		"charts/bookinfo",
 	)
-	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOut(cmd)
+	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOutWithChecker(cmd, nil)
 	return nhctlcli.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
@@ -99,6 +99,6 @@ func installBookInfoKustomizeGit(nhctl *nhctlcli.CLI) error {
 		"--resource-path",
 		"kustomize/base",
 	)
-	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOut(cmd)
+	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOutWithChecker(cmd, nil)
 	return nhctlcli.Runner.CheckResult(cmd, stdout, stderr, err)
 }

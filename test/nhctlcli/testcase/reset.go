@@ -61,7 +61,7 @@ func Pvc(nhctl *nhctlcli.CLI) error {
 
 func NhctlVersion(nhctl *nhctlcli.CLI) error {
 	cmd := nhctl.Command(context.Background(), "version")
-	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOut(cmd)
+	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOutWithChecker(cmd, nil)
 	return nhctlcli.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
@@ -96,6 +96,6 @@ func Apply(nhctl *nhctlcli.CLI) error {
 	defer f.Close()
 
 	cmd := nhctl.Command(context.Background(), "apply", "bookinfo", f.Name())
-	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOut(cmd)
+	stdout, stderr, err := nhctlcli.Runner.RunWithRollingOutWithChecker(cmd, nil)
 	return nhctlcli.Runner.CheckResult(cmd, stdout, stderr, err)
 }
