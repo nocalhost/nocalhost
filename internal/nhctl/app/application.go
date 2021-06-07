@@ -245,6 +245,16 @@ func (a *Application) ReloadSvcCfg(svcName, svcType string, reloadFromMeta, sile
 		return nil
 	}
 
+	preCheck, err := a.Controller(svcName, appmeta.SvcTypeOf(svcType)).GetProfile()
+	if err != nil {
+		return err
+	}
+
+	// skip the case do not need to reload cfg
+	if preCheck.LocalConfigLoaded == false && preCheck.CmConfigLoaded == false && !reloadFromMeta {
+		return nil
+	}
+
 	return a.Controller(svcName, appmeta.SvcTypeOf(svcType)).UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
 
