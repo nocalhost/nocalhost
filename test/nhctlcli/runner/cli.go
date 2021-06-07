@@ -10,7 +10,7 @@
  * limitations under the License.
  */
 
-package nhctlcli
+package runner
 
 import (
 	"context"
