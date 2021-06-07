@@ -44,6 +44,10 @@ func (a *Application) PrepareForUpgrade(flags *flag.InstallFlags) error {
 		}
 	}
 
+	if flags.OuterConfig == "" && a.GetType() == appmeta.HelmRepo {
+		return nil
+	}
+
 	config, err := a.loadOrGenerateConfig(flags.OuterConfig, flags.Config, flags.ResourcePath, flags.AppType)
 	if err != nil {
 		return err
