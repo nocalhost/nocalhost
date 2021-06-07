@@ -43,21 +43,66 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
     ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; \
     Check: NeedsAddPath('{app}')
 
+
 [Code]
 function NeedsAddPath(Param: string): boolean;
 var
   OrigPath: string;
 begin
-  if not RegQueryStringValue(HKEY_LOCAL_MACHINE,
-    'SYSTEM\CurrentControlSet\Control\Session Manager\Environment',
-    'Path', OrigPath)
+  if not RegQueryStringValue({#EnvironmentRootKey}, '{#EnvironmentKey}', 'Path', OrigPath)
   then begin
     Result := True;
     exit;
   end;
-  { look for the path with leading and trailing semicolon }
-  { Pos() returns 0 if not found }
   Result := Pos(';' + Param + ';', ';' + OrigPath + ';') = 0;
 end;
 
 
+// https://stackoverflow.com/a/23838239/261019
+procedure Explode(var Dest: TArrayOfString; Text: String; Separator: String);
+var
+  i, p: Integer;
+begin
+  i := 0;
+  repeat
+    SetArrayLength(Dest, i+1);
+    p := Pos(Separator,Text);
+    if p > 0 then begin
+      Dest[i] := Copy(Text, 1, p-1);
+      Text := Copy(Text, p + Length(Separator), Length(Text));
+      i := i + 1;
+    end else begin
+      Dest[i] := Text;
+      Text := '';
+    end;
+  until Length(Text)=0;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Path: string;
+  ThisAppPath: string;
+  Parts: TArrayOfString;
+  NewPath: string;
+  i: Integer;
+begin
+  if not CurUninstallStep = usUninstall then begin
+    exit;
+  end;
+  if not RegQueryStringValue({#EnvironmentRootKey}, '{#EnvironmentKey}', 'Path', Path)
+  then begin
+    exit;
+  end;
+  NewPath := '';
+  ThisAppPath := ExpandConstant('{app}')
+  Explode(Parts, Path, ';');
+  for i:=0 to GetArrayLength(Parts)-1 do begin
+    if CompareText(Parts[i], ThisAppPath) <> 0 then begin
+      NewPath := NewPath + Parts[i];
+      if i < GetArrayLength(Parts) - 1 then begin
+        NewPath := NewPath + ';';
+      end;
+    end;
+  end;
+  RegWriteExpandStringValue({#EnvironmentRootKey}, '{#EnvironmentKey}', 'Path', NewPath);
+end;
