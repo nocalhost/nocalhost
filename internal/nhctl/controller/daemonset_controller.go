@@ -96,7 +96,7 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 		},
 	}
 
-	devContainer, err := findContainerInDeployment(d.Name(), ops.Container, d.Client)
+	devContainer, err := findContainerInDeploy(generatedDeployment, ops.Container)
 	if err != nil {
 		return err
 	}

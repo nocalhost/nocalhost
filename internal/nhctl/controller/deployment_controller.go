@@ -155,21 +155,23 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 }
 
 func findContainerInDeployment(deployName, containerName string, client *clientgoutils.ClientGoUtils) (*corev1.Container, error) {
-	var devContainer *corev1.Container
-
 	dep, err := client.GetDeployment(deployName)
 	if err != nil {
 		return nil, err
 	}
+	return findContainerInDeploy(dep, containerName)
+}
+
+func findContainerInDeploy(dep *v1.Deployment, containerName string) (*corev1.Container, error) {
+	var devContainer *corev1.Container
+
 	if containerName != "" {
 		for index, c := range dep.Spec.Template.Spec.Containers {
 			if c.Name == containerName {
 				return &dep.Spec.Template.Spec.Containers[index], nil
 			}
 		}
-		if devContainer == nil {
-			return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
-		}
+		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
 	} else {
 		if len(dep.Spec.Template.Spec.Containers) > 1 {
 			return nil, errors.New(fmt.Sprintf("There are more than one container defined," +
