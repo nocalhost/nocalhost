@@ -24,7 +24,7 @@ import (
 var retryTimes = 10
 
 //func RetryWith3Params(
-//	suiteName string, funcs []func(*nhctlcli.CLI, string, int) error, cli *nhctlcli.CLI, moduleName string, port int,
+//	suiteName string, funcs []func(*nhctlcli.CLI, string, int) error, cli nhctlcli.Client, moduleName string, port int,
 //) {
 //	var err error
 //	for _, f := range funcs {
@@ -40,7 +40,7 @@ var retryTimes = 10
 //}
 
 //func RetryWith2Params(
-//	suiteName string, funcs []func(*nhctlcli.CLI, string) error, cli *nhctlcli.CLI, moduleName string,
+//	suiteName string, funcs []func(*nhctlcli.CLI, string) error, cli nhctlcli.Client, moduleName string,
 //) {
 //	var err error
 //	for _, f := range funcs {
@@ -73,7 +73,7 @@ func Retry(suiteName string, funcs []func() error) {
 	}
 }
 
-//func RetryWith1Params(suiteName string, funcs []func(*nhctlcli.CLI) error, cli *nhctlcli.CLI) {
+//func RetryWith1Params(suiteName string, funcs []func(*nhctlcli.CLI) error, cli nhctlcli.Client) {
 //	var err error
 //	for _, f := range funcs {
 //		for i := 0; i < retryTimes; i++ {

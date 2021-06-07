@@ -20,7 +20,7 @@ import (
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/test/nhctlcli"
+	"nocalhost/test/nhctlcli/runner"
 	"nocalhost/test/nhctlcli/testcase"
 	"nocalhost/test/nhctlcli/testdata"
 	"nocalhost/test/tke"
@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-func PortForward(cli *nhctlcli.CLI, _ ...string) {
+func PortForward(client runner.Client, _ ...string) {
 	module := "reviews"
 	port := 49080
 
@@ -37,10 +37,10 @@ func PortForward(cli *nhctlcli.CLI, _ ...string) {
 
 	//clientgoutils.Must(testcase.PortForwardCheck(port))
 	funcs := []func() error{
-		func() error { return testcase.PortForwardStart(cli, module, port) },
+		func() error { return testcase.PortForwardStart(client, module, port) },
 		func() error { return testcase.PortForwardCheck(port) },
-		func() error { return testcase.StatusCheckPortForward(cli, module, port) },
-		func() error { return testcase.PortForwardEnd(cli, module, port) },
+		func() error { return testcase.StatusCheckPortForward(client, module, port) },
+		func() error { return testcase.PortForwardEnd(client, module, port) },
 	}
 	util.Retry("PortForward", funcs)
 
@@ -48,15 +48,14 @@ func PortForward(cli *nhctlcli.CLI, _ ...string) {
 	//util.Retry("PortForward", funcs)
 }
 
-func PortForwardService(cli *nhctlcli.CLI, _ ...string) {
+func PortForwardService(client runner.Client, _ ...string) {
 	module := "productpage"
 	remotePort := 9080
 	localPort, err := ports.GetAvailablePort()
 	if err != nil {
 		panic(errors.Errorf("fail to get available port, err: %s", err))
 	}
-	kubectl := nhctlcli.NewKubectl(cli.Namespace, cli.KubeConfig)
-	cmd := kubectl.Command(
+	cmd := client.GetKubectl().Command(
 		context.Background(),
 		"port-forward",
 		"service/"+module,
@@ -70,7 +69,7 @@ func PortForwardService(cli *nhctlcli.CLI, _ ...string) {
 	_ = cmd.Process.Kill()
 }
 
-func Deployment(cli *nhctlcli.CLI, _ ...string) {
+func Deployment(cli runner.Client, _ ...string) {
 	PortForward(cli)
 	PortForwardService(cli)
 	module := "ratings"
@@ -91,7 +90,7 @@ func Deployment(cli *nhctlcli.CLI, _ ...string) {
 	util.Retry("Dev", funcs)
 }
 
-//func Sync(cli *nhctlcli.CLI, _ ...string) {
+//func Sync(cli nhctlcli.Client, _ ...string) {
 //	module := "ratings"
 //	funcs := []func() error{
 //		func() error { return testcase.DevStart(cli, module) },
@@ -103,7 +102,7 @@ func Deployment(cli *nhctlcli.CLI, _ ...string) {
 //	_ = testcase.DevEnd(cli, module)
 //}
 
-func StatefulSet(cli *nhctlcli.CLI, _ ...string) {
+func StatefulSet(cli runner.Client, _ ...string) {
 	module := "web"
 	moduleType := "statefulset"
 	funcs := []func() error{
@@ -115,7 +114,7 @@ func StatefulSet(cli *nhctlcli.CLI, _ ...string) {
 	util.Retry("StatefulSet", funcs)
 }
 
-func Compatible(cli *nhctlcli.CLI, p ...string) {
+func Compatible(cli runner.Client, p ...string) {
 	module := "ratings"
 	port := 49080
 	suiteName := "Compatible"
@@ -131,7 +130,7 @@ func Compatible(cli *nhctlcli.CLI, p ...string) {
 	if len(p) > 0 && p[0] != "" {
 		util.Retry(suiteName, []func() error{func() error { return testcase.InstallNhctl(p[0]) }})
 		//_ = testcase.RestartDaemon(cli)
-		_ = testcase.NhctlVersion(cli)
+		_ = testcase.NhctlVersion(cli.GetNhctl())
 	}
 	funcsList := []func() error{
 		func() error { return testcase.StatusCheck(cli, module) },
@@ -157,7 +156,7 @@ func Compatible(cli *nhctlcli.CLI, p ...string) {
 	util.Retry(suiteName, funcs)
 }
 
-func Reset(cli *nhctlcli.CLI, _ ...string) {
+func Reset(cli runner.Client, _ ...string) {
 	clientgoutils.Must(testcase.Reset(cli))
 	_ = testcase.UninstallBookInfo(cli)
 	retryTimes := 5
@@ -175,12 +174,12 @@ func Reset(cli *nhctlcli.CLI, _ ...string) {
 	clientgoutils.Must(testcase.List(cli))
 }
 
-func Apply(cli *nhctlcli.CLI, _ ...string) {
+func Apply(cli runner.Client, _ ...string) {
 	util.Retry("Apply", []func() error{func() error { return testcase.Apply(cli) }})
 	clientgoutils.Must(testcase.List(cli))
 }
 
-func Upgrade(cli *nhctlcli.CLI, _ ...string) {
+func Upgrade(cli runner.Client, _ ...string) {
 	util.Retry("Upgrade", []func() error{func() error { return testcase.Upgrade(cli) }})
 	clientgoutils.Must(testcase.List(cli))
 	Reset(cli)
@@ -188,7 +187,7 @@ func Upgrade(cli *nhctlcli.CLI, _ ...string) {
 	Profile(cli)
 }
 
-func Profile(cli *nhctlcli.CLI, _ ...string) {
+func Profile(cli runner.Client, _ ...string) {
 
 	singleSvcConfig := fp.NewRandomTempPath()
 	multiSvcConfig := fp.NewRandomTempPath()
@@ -203,8 +202,7 @@ func Profile(cli *nhctlcli.CLI, _ ...string) {
 
 			// clear env
 			func() error {
-				kubectl := nhctlcli.NewKubectl(cli.Namespace, cli.KubeConfig)
-				_, _, _ = kubectl.Run(context.TODO(), "delete", "configmap", "dev.nocalhost.config.bookinfo")
+				_, _, _ = cli.GetKubectl().Run(context.TODO(), "delete", "configmap", "dev.nocalhost.config.bookinfo")
 				return nil
 			},
 			func() error { return testcase.DeAssociate(cli, "details", "deployment") },
@@ -275,8 +273,7 @@ func Profile(cli *nhctlcli.CLI, _ ...string) {
 
 			// clean env
 			func() error {
-				kubectl := nhctlcli.NewKubectl(cli.Namespace, cli.KubeConfig)
-				_, _, _ = kubectl.Run(context.TODO(), "delete", "configmap", "dev.nocalhost.config.bookinfo")
+				_, _, _ = cli.GetKubectl().Run(context.TODO(), "delete", "configmap", "dev.nocalhost.config.bookinfo")
 				return nil
 			},
 
@@ -292,7 +289,7 @@ func Profile(cli *nhctlcli.CLI, _ ...string) {
 	clientgoutils.Must(testcase.List(cli))
 }
 
-func Install(cli *nhctlcli.CLI, _ ...string) {
+func Install(cli runner.Client, _ ...string) {
 	retryTimes := 5
 	var err error
 	for i := 0; i < retryTimes; i++ {
@@ -309,7 +306,7 @@ func Install(cli *nhctlcli.CLI, _ ...string) {
 }
 
 // Prepare will install a nhctl client, create a k8s cluster if necessary
-func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string, cancelFunc func()) {
+func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 	if util.NeedsToInitK8sOnTke() {
 		t, err := tke.CreateK8s()
 		if err != nil {
@@ -328,22 +325,17 @@ func Prepare() (cli *nhctlcli.CLI, v1 string, v2 string, cancelFunc func()) {
 		}()
 	}
 	go util.TimeoutChecker(1*time.Hour, cancelFunc)
-	v1, v2 = testcase.GetVersion()
+	v1, _ := testcase.GetVersion()
 	util.Retry("Prepare", []func() error{func() error { return testcase.InstallNhctl(v1) }})
 	kubeconfig := util.GetKubeconfig()
 	nocalhost := "nocalhost"
-	tempCli := nhctlcli.NewNhctl(nocalhost, kubeconfig)
+	tempCli := runner.NewNhctl(nocalhost, kubeconfig)
 	clientgoutils.Must(testcase.NhctlVersion(tempCli))
 	_ = testcase.StopDaemon(tempCli)
 	util.Retry("Prepare", []func() error{func() error { return testcase.Init(tempCli) }})
-	newKubeconfig, err := testcase.GetKubeconfig(nocalhost, kubeconfig)
+	kubeconfigResult, err := testcase.GetKubeconfig(nocalhost, kubeconfig)
 	clientgoutils.Must(err)
-	ns, err := clientgoutils.GetNamespaceFromKubeConfig(newKubeconfig)
+	namespaceResult, err = clientgoutils.GetNamespaceFromKubeConfig(kubeconfigResult)
 	clientgoutils.Must(err)
-	if ns == "" {
-		panic(errors.New("--namespace or --kubeconfig must be provided"))
-	}
-	cli = nhctlcli.NewNhctl(ns, newKubeconfig)
-	clientgoutils.Must(util.Init(cli))
 	return
 }

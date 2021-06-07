@@ -23,47 +23,19 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 	clientgowatch "k8s.io/client-go/tools/watch"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/test/nhctlcli"
 	"os"
-	"os/exec"
 	"runtime"
 	"strings"
 	"time"
 )
 
-var Client *clientgoutils.ClientGoUtils
-
-func Init(cli *nhctlcli.CLI) error {
-	temp, err := clientgoutils.NewClientGoUtils(cli.KubeConfig, cli.Namespace)
-	if err != nil {
-		return errors.Errorf("init k8s client error: %v", err)
-	}
-	Client = temp
-	return nil
-}
-
-func WaitForCommandDone(command string, args ...string) (bool, string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, command, args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return false, err.Error()
-	}
-	if ctx.Err() == context.DeadlineExceeded {
-		return false, "Command timeout"
-	}
-	return cmd.ProcessState.Success(), string(output)
-}
-
-func WaitResourceToBeStatus(namespace string, resource string, label string, checker func(interface{}) bool) bool {
+func WaitResourceToBeStatus(g cache.Getter, namespace string, resource string, label string, checker func(interface{}) bool) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
 	watchlist := cache.NewFilteredListWatchFromClient(
-		Client.ClientSet.CoreV1().RESTClient(),
+		g,
 		resource,
 		namespace,
 		func(options *metav1.ListOptions) { options.LabelSelector = label })

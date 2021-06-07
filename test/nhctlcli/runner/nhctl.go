@@ -10,9 +10,10 @@
  * limitations under the License.
  */
 
-package nhctlcli
+package runner
 
 import (
+	"k8s.io/client-go/kubernetes"
 	"os/exec"
 )
 
@@ -53,4 +54,26 @@ func (c *Conf) GetNamespace() string {
 }
 func (c Conf) GetCmd() string {
 	return c.cmd
+}
+
+type Client interface {
+	GetNhctl() *CLI
+	GetKubectl() *CLI
+	GetClientset() *kubernetes.Clientset
+}
+
+type ClientImpl struct {
+	Nhctl     *CLI
+	Kubectl   *CLI
+	Clientset *kubernetes.Clientset
+}
+
+func (i *ClientImpl) GetNhctl() *CLI {
+	return i.Nhctl
+}
+func (i *ClientImpl) GetKubectl() *CLI {
+	return i.Kubectl
+}
+func (i *ClientImpl) GetClientset() *kubernetes.Clientset {
+	return i.Clientset
 }

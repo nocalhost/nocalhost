@@ -22,31 +22,35 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/test/nhctlcli"
+	"nocalhost/test/nhctlcli/runner"
 	"nocalhost/test/util"
 )
 
-func RestartDaemon(nhctl *nhctlcli.CLI) error {
-	cmd := nhctl.Command(context.Background(), "daemon", "restart")
-	return nhctlcli.Runner.RunWithCheckResult(cmd)
+func RestartDaemon(nhctl runner.Client) error {
+	cmd := nhctl.GetNhctl().Command(context.Background(), "daemon", "restart")
+	return runner.Runner.RunWithCheckResult(cmd)
 }
 
-func StopDaemon(nhctl *nhctlcli.CLI) error {
+func StopDaemon(nhctl *runner.CLI) error {
 	cmd := nhctl.Command(context.Background(), "daemon", "stop")
-	return nhctlcli.Runner.RunWithCheckResult(cmd)
+	return runner.Runner.RunWithCheckResult(cmd)
 }
 
-func Exec(nhctl *nhctlcli.CLI) error {
-	util.WaitResourceToBeStatus(nhctl.Namespace, "pods", "app=reviews", func(i interface{}) bool {
-		return i.(*v1.Pod).Status.Phase == v1.PodRunning
-	})
-	cmd := nhctl.Command(context.Background(), "exec", "bookinfo", "-d", "reviews", "-c", "ls")
-	return nhctlcli.Runner.RunWithCheckResult(cmd)
+func Exec(client runner.Client) error {
+	util.WaitResourceToBeStatus(
+		client.GetClientset().CoreV1().RESTClient(),
+		client.GetNhctl().Namespace,
+		"pods",
+		"app=reviews",
+		func(i interface{}) bool { return i.(*v1.Pod).Status.Phase == v1.PodRunning },
+	)
+	cmd := client.GetNhctl().Command(context.Background(), "exec", "bookinfo", "-d", "reviews", "-c", "ls")
+	return runner.Runner.RunWithCheckResult(cmd)
 }
 
-func PortForwardStart(nhctl *nhctlcli.CLI, module string, port int) error {
-	pods, err := util.Client.ClientSet.CoreV1().
-		Pods(nhctl.Namespace).
+func PortForwardStart(nhctl runner.Client, module string, port int) error {
+	pods, err := nhctl.GetClientset().CoreV1().
+		Pods(nhctl.GetNhctl().Namespace).
 		List(context.Background(), metav1.ListOptions{LabelSelector: "app=" + module})
 	if err != nil {
 		return errors.Wrap(err, "List pods error")
@@ -64,7 +68,7 @@ func PortForwardStart(nhctl *nhctlcli.CLI, module string, port int) error {
 	if name == "" {
 		return errors.New("pods status is not running")
 	}
-	cmd := nhctl.Command(context.Background(), "port-forward",
+	cmd := nhctl.GetNhctl().Command(context.Background(), "port-forward",
 		"start",
 		"bookinfo",
 		"-d",
@@ -72,25 +76,25 @@ func PortForwardStart(nhctl *nhctlcli.CLI, module string, port int) error {
 		"--pod",
 		name,
 		fmt.Sprintf("-p%d:9080", port))
-	return nhctlcli.Runner.RunWithCheckResult(cmd)
+	return runner.Runner.RunWithCheckResult(cmd)
 }
 
-func PortForwardServiceStart(cli *nhctlcli.CLI, module string, port int) error {
-	service, err := util.Client.ClientSet.CoreV1().
-		Services(cli.Namespace).
+func PortForwardServiceStart(cli runner.Client, module string, port int) error {
+	service, err := cli.GetClientset().CoreV1().
+		Services(cli.GetNhctl().Namespace).
 		Get(context.Background(), module, metav1.GetOptions{})
 	if err != nil || service == nil {
 		return errors.Errorf("service %s not found", module)
 	}
-	cmd := cli.Command(context.Background(), "port-forward",
+	cmd := cli.GetKubectl().Command(context.Background(), "port-forward",
 		"service/"+module,
 		fmt.Sprintf("%d:9080", port))
-	return nhctlcli.Runner.RunWithCheckResult(cmd)
+	return runner.Runner.RunWithCheckResult(cmd)
 }
 
-func StatusCheckPortForward(nhctl *nhctlcli.CLI, moduleName string, port int) error {
-	cmd := nhctl.Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
-	stdout, stderr, err := nhctlcli.Runner.Run(cmd)
+func StatusCheckPortForward(nhctl runner.Client, moduleName string, port int) error {
+	cmd := nhctl.GetNhctl().Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
+	stdout, stderr, err := runner.Runner.Run(cmd)
 	if err != nil {
 		return errors.Errorf("exec command: %v, error: %v, stdout: %s, stderr: %s",
 			cmd.Args, err, stdout, stderr)
@@ -110,12 +114,12 @@ func StatusCheckPortForward(nhctl *nhctlcli.CLI, moduleName string, port int) er
 	return nil
 }
 
-func PortForwardEnd(nhctl *nhctlcli.CLI, module string, port int) error {
-	cmd := nhctl.Command(context.Background(), "port-forward",
+func PortForwardEnd(nhctl runner.Client, module string, port int) error {
+	cmd := nhctl.GetNhctl().Command(context.Background(), "port-forward",
 		"end",
 		"bookinfo",
 		"-d",
 		module,
 		fmt.Sprintf("-p%d:9080", port))
-	return nhctlcli.Runner.RunWithCheckResult(cmd)
+	return runner.Runner.RunWithCheckResult(cmd)
 }

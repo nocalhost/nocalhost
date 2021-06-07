@@ -17,8 +17,9 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"net/http"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/test/nhctlcli"
+	"nocalhost/test/nhctlcli/runner"
 	"nocalhost/test/nhctlcli/testcase"
 	"nocalhost/test/util"
 	"os"
@@ -27,12 +28,24 @@ import (
 
 // test suite
 type T struct {
-	Cli       *nhctlcli.CLI
+	Cli       runner.Client
 	CleanFunc func()
 }
 
+func NewT(namespace, kubeconfig string, f func()) *T {
+	temp, _ := clientgoutils.NewClientGoUtils(kubeconfig, namespace)
+	return &T{
+		Cli: &runner.ClientImpl{
+			Nhctl:     runner.NewNhctl(namespace, kubeconfig),
+			Kubectl:   runner.NewKubectl(namespace, kubeconfig),
+			Clientset: temp.ClientSet,
+		},
+		CleanFunc: f,
+	}
+}
+
 // Run command and clean environment after finished
-func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...string) {
+func (t *T) Run(name string, fn func(cli runner.Client, p ...string), pp ...string) {
 	defer func() {
 		if err := recover(); err != nil {
 			t.Clean()
@@ -53,12 +66,24 @@ func (t *T) Run(name string, fn func(cli *nhctlcli.CLI, p ...string), pp ...stri
 	if err != nil {
 		panic(errors.Wrap(err, "test suite failed, install bookinfo error"))
 	}
-	util.WaitResourceToBeStatus(t.Cli.Namespace, "pods", "app=reviews", func(i interface{}) bool {
-		return i.(*v1.Pod).Status.Phase == v1.PodRunning
-	})
-	util.WaitResourceToBeStatus(t.Cli.Namespace, "pods", "app=ratings", func(i interface{}) bool {
-		return i.(*v1.Pod).Status.Phase == v1.PodRunning
-	})
+	util.WaitResourceToBeStatus(
+		t.Cli.GetClientset().CoreV1().RESTClient(),
+		t.Cli.GetNhctl().Namespace,
+		"pods",
+		"app=reviews",
+		func(i interface{}) bool {
+			return i.(*v1.Pod).Status.Phase == v1.PodRunning
+		},
+	)
+	util.WaitResourceToBeStatus(
+		t.Cli.GetClientset().CoreV1().RESTClient(),
+		t.Cli.GetNhctl().Namespace,
+		"pods",
+		"app=ratings",
+		func(i interface{}) bool {
+			return i.(*v1.Pod).Status.Phase == v1.PodRunning
+		},
+	)
 	log.Info("Testing " + name)
 	fn(t.Cli, pp...)
 	log.Info("Testing done " + name)

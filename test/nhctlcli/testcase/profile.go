@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/fp"
-	"nocalhost/test/nhctlcli"
+	"nocalhost/test/nhctlcli/runner"
 	"strings"
 	"time"
 )
@@ -27,18 +27,18 @@ type containerImage struct {
 	Image string `json:"image"`
 }
 
-func ProfileGetUbuntuWithJson(nhctl *nhctlcli.CLI) error {
+func ProfileGetUbuntuWithJson(nhctl runner.Client) error {
 	return profileGetWithJson(nhctl, "ubuntu", "any")
 }
 
-func ProfileGetDetailsWithoutJson(nhctl *nhctlcli.CLI) error {
+func ProfileGetDetailsWithoutJson(nhctl runner.Client) error {
 	ctx, _ := context.WithTimeout(context.Background(), 1*time.Minute)
-	cmd := nhctl.Command(
+	cmd := nhctl.GetNhctl().Command(
 		ctx, "profile",
 		"get", "bookinfo",
 		"-d", "details", "-t", "deployment", "--container", "details", "--key", "image",
 	)
-	stdout, stderr, err := nhctlcli.Runner.Run(cmd)
+	stdout, stderr, err := runner.Runner.Run(cmd)
 	if err != nil {
 		return err
 	}
@@ -51,15 +51,15 @@ func ProfileGetDetailsWithoutJson(nhctl *nhctlcli.CLI) error {
 	return nil
 }
 
-func ProfileSetDetails(nhctl *nhctlcli.CLI) error {
+func ProfileSetDetails(nhctl runner.Client) error {
 	ctx, _ := context.WithTimeout(context.Background(), 1*time.Minute)
-	cmd := nhctl.Command(
+	cmd := nhctl.GetNhctl().Command(
 		ctx, "profile",
 		"set", "bookinfo",
 		"-d", "details", "-t", "deployment", "--container", "details", "--key", "image",
 		"--value", "helloWorld",
 	)
-	err := nhctlcli.Runner.RunWithCheckResult(cmd)
+	err := runner.Runner.RunWithCheckResult(cmd)
 	if err != nil {
 		return err
 	}
@@ -67,26 +67,26 @@ func ProfileSetDetails(nhctl *nhctlcli.CLI) error {
 	return profileGetWithJson(nhctl, "details", "helloWorld")
 }
 
-func ApplyCmForConfig(nhctl *nhctlcli.CLI, filePath *fp.FilePathEnhance) error {
-	cmd := nhctl.Command(
+func ApplyCmForConfig(nhctl runner.Client, filePath *fp.FilePathEnhance) error {
+	cmd := nhctl.GetNhctl().Command(
 		context.TODO(), "apply", "bookinfo", filePath.Abs(),
 	)
 
-	return nhctlcli.Runner.RunSimple(
+	return runner.Runner.RunSimple(
 		cmd, func(s string) error {
 			return nil
 		},
 	)
 }
 
-func ValidateImage(nhctl *nhctlcli.CLI, svcName string, svcType string, expectContain string) error {
-	cmd := nhctl.Command(
+func ValidateImage(nhctl runner.Client, svcName string, svcType string, expectContain string) error {
+	cmd := nhctl.GetNhctl().Command(
 		context.TODO(), "profile", "get", "bookinfo", "-d", svcName, "-t", svcType,
 		"--container", "xx",
 		"--key", "image",
 	)
 
-	return nhctlcli.Runner.RunSimple(
+	return runner.Runner.RunSimple(
 		cmd, func(s string) error {
 			if !strings.Contains(s, expectContain) {
 				return errors.New(
@@ -100,56 +100,56 @@ func ValidateImage(nhctl *nhctlcli.CLI, svcName string, svcType string, expectCo
 	)
 }
 
-func ConfigReload(nhctl *nhctlcli.CLI) error {
-	cmd := nhctl.Command(
+func ConfigReload(nhctl runner.Client) error {
+	cmd := nhctl.GetNhctl().Command(
 		context.TODO(), "config",
 		"reload", "bookinfo",
 	)
 
-	return nhctlcli.Runner.RunSimple(
+	return runner.Runner.RunSimple(
 		cmd, func(s string) error {
 			return nil
 		},
 	)
 }
 
-func DeAssociate(nhctl *nhctlcli.CLI, svcName string, svcType string) error {
-	cmd := nhctl.Command(
+func DeAssociate(nhctl runner.Client, svcName string, svcType string) error {
+	cmd := nhctl.GetNhctl().Command(
 		context.TODO(), "dev",
 		"associate", "bookinfo",
 		"-d", svcName, "-t", svcType, "--de-associate",
 	)
 
-	return nhctlcli.Runner.RunSimple(
+	return runner.Runner.RunSimple(
 		cmd, func(s string) error {
 			return nil
 		},
 	)
 }
 
-func Associate(nhctl *nhctlcli.CLI, svcName string, svcType string, dir *fp.FilePathEnhance) error {
-	cmd := nhctl.Command(
+func Associate(nhctl runner.Client, svcName string, svcType string, dir *fp.FilePathEnhance) error {
+	cmd := nhctl.GetNhctl().Command(
 		context.TODO(), "dev",
 		"associate", "bookinfo",
 		"-d", svcName, "-t", svcType, "--associate", dir.Abs(),
 	)
 
-	return nhctlcli.Runner.RunSimple(
+	return runner.Runner.RunSimple(
 		cmd, func(s string) error {
 			return nil
 		},
 	)
 }
 
-func profileGetWithJson(nhctl *nhctlcli.CLI, container string, image string) error {
+func profileGetWithJson(nhctl runner.Client, container string, image string) error {
 	tmp := &containerImage{}
 	ctx, _ := context.WithTimeout(context.Background(), 1*time.Minute)
-	cmd := nhctl.Command(
+	cmd := nhctl.GetNhctl().Command(
 		ctx, "profile",
 		"get", "bookinfo",
 		"-d", "details", "-t", "deployment", "--container", container, "--key", "image",
 	)
-	stdout, stderr, err := nhctlcli.Runner.Run(cmd)
+	stdout, stderr, err := runner.Runner.Run(cmd)
 	if err != nil {
 		return err
 	}
