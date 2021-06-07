@@ -99,7 +99,8 @@ var configGetCmd = &cobra.Command{
 		if commonFlags.AppConfig {
 
 			// need to load latest config
-			_ = nocalhostApp.ReloadCfg(false, true)
+			// hotfix for v0.4.7 due to plugin blocking
+			//_ = nocalhostApp.ReloadCfg(false, true)
 
 			applicationConfig := nocalhostApp.GetAppProfileV2()
 			bys, err := yaml.Marshal(applicationConfig)
@@ -113,7 +114,8 @@ var configGetCmd = &cobra.Command{
 		if commonFlags.SvcName == "" {
 
 			// need to load latest config
-			_ = nocalhostApp.ReloadCfg(false, true)
+			// hotfix for v0.4.7 due to plugin blocking
+			//_ = nocalhostApp.ReloadCfg(false, true)
 
 			config := &ConfigForPlugin{}
 			config.Services = make([]*profile.ServiceConfigV2, 0)
