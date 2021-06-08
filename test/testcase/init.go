@@ -26,7 +26,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/service_account"
-	"nocalhost/test/nhctlcli/runner"
+	"nocalhost/test/runner"
 	"nocalhost/test/util"
 	"os"
 	"os/exec"

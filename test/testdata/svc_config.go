@@ -169,7 +169,7 @@ application:
                 memory: 100Mi
 `
 
-const SingleSvcConfigCm =`
+const SingleSvcConfigCm = `
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -186,7 +186,7 @@ data:
            shell: bash
            workDir: /home/nocalhost-dev`
 
-const MultipleSvcConfigCm =`
+const MultipleSvcConfigCm = `
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -250,7 +250,7 @@ data:
           portForward: []
 `
 
-const FullConfigCm =`
+const FullConfigCm = `
 apiVersion: v1
 kind: ConfigMap
 metadata:
