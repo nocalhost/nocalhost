@@ -124,7 +124,10 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	case "all":
 		if request.AppName != "" {
 			names := getAvailableAppName(ns, request.KubeConfig)
-			return item.Result{Namespace: ns, Application: []item.App{getApp(names, ns, request.AppName, s)}}
+			return item.Result{
+				Namespace:   ns,
+				Application: []item.App{getApp(names, ns, request.AppName, s, request.Label)},
+			}
 		}
 		// means it's cluster kubeconfig
 		if request.Namespace == "" {
@@ -144,12 +147,12 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 							continue
 						}
 					}
-					result = append(result, getApplicationByNs(name, request.KubeConfig, searcher))
+					result = append(result, getApplicationByNs(name, request.KubeConfig, searcher, request.Label))
 				}
 				return result
 			}
 		}
-		return getApplicationByNs(ns, request.KubeConfig, s)
+		return getApplicationByNs(ns, request.KubeConfig, s, request.Label)
 	case "app", "application":
 		ns = getNamespace(request.Namespace, KubeConfigBytes)
 		if request.ResourceName == "" {
@@ -170,6 +173,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				AppName(request.AppName).
 				AppNameNotIn(appNameList...).
 				Namespace(ns).
+				Label(request.Label).
 				Query()
 			if err != nil || len(items) == 0 {
 				return nil
@@ -216,23 +220,28 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 	return ""
 }
 
-func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher) item.Result {
+func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher, label map[string]string) item.Result {
 	result := item.Result{Namespace: namespace}
 	nameList := getAvailableAppName(namespace, kubeconfigPath)
 	for _, name := range nameList {
-		result.Application = append(result.Application, getApp(nameList, namespace, name, search))
+		result.Application = append(result.Application, getApp(nameList, namespace, name, search, label))
 	}
 	return result
 }
 
-func getApp(name []string, namespace, appName string, search *resouce_cache.Searcher) item.App {
+func getApp(name []string, namespace, appName string, search *resouce_cache.Searcher, label map[string]string) item.App {
 	result := item.App{Name: appName}
 	profileMap := getServiceProfile(namespace, appName)
 	for _, entry := range resouce_cache.GroupToTypeMap {
 		resources := make([]item.Resource, 0, len(entry.V))
 		for _, resource := range entry.V {
 			resourceList, err := search.Criteria().
-				ResourceType(resource).AppName(appName).AppNameNotIn(name...).Namespace(namespace).Query()
+				ResourceType(resource).
+				AppName(appName).
+				AppNameNotIn(name...).
+				Namespace(namespace).
+				Label(label).
+				Query()
 			if err == nil {
 				items := make([]item.Item, 0, len(resourceList))
 				for _, v := range resourceList {

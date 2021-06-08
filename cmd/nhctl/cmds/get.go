@@ -33,6 +33,7 @@ import (
 )
 
 var outputType string
+var label map[string]string
 
 const JSON = "json"
 const YAML = "yaml"
@@ -43,6 +44,10 @@ func init() {
 	)
 	getCmd.PersistentFlags().StringVarP(
 		&outputType, "outputType", "o", "", "json or yaml",
+	)
+	getCmd.PersistentFlags().StringToStringVarP(
+		&label, "selector", "l", map[string]string{}, "Selector (label query) to filter on, "+
+			"supports '=', '==', and '!='.(e.g. -l key1=value1,key2=value2)",
 	)
 	rootCmd.AddCommand(getCmd)
 }
@@ -92,7 +97,7 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		if err != nil {
 			log.Fatal(err)
 		}
-		data, err := cli.SendGetResourceInfoCommand(kubeConfig, nameSpace, appName, resourceType, resourceName)
+		data, err := cli.SendGetResourceInfoCommand(kubeConfig, nameSpace, appName, resourceType, resourceName, label)
 		if data == nil || err != nil {
 			return
 		}

@@ -227,6 +227,7 @@ type criteria struct {
 	appName          string
 	ns               string
 	availableAppName []string
+	label            map[string]string
 }
 
 func newCriteria(search *Searcher) *criteria {
@@ -272,6 +273,11 @@ func (c *criteria) Kind(object runtime.Object) *criteria {
 
 func (c *criteria) ResourceName(resourceName string) *criteria {
 	c.resourceName = resourceName
+	return c
+}
+
+func (c *criteria) Label(label map[string]string) *criteria {
+	c.label = label
 	return c
 }
 
@@ -346,7 +352,12 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		}
 		return
 	}
-	return newFilter(info.GetIndexer().List()).namespace(c.ns).appName(c.availableAppName, c.appName).sort().toSlice(), nil
+	return newFilter(info.GetIndexer().List()).
+		namespace(c.ns).
+		appName(c.availableAppName, c.appName).
+		label(c.label).
+		sort().
+		toSlice(), nil
 }
 
 type filter struct {
@@ -401,6 +412,25 @@ func (n *filter) appNameNotIn(appNames []string) *filter {
 		}
 	}
 	n.element = result
+	return n
+}
+
+func (n *filter) label(label map[string]string) *filter {
+	var result []interface{}
+	for _, e := range n.element {
+		labels := e.(metav1.Object).GetLabels()
+		match := true
+		for k, v := range label {
+			if labels[k] != v {
+				match = false
+				break
+			}
+		}
+		if match {
+			result = append(result, e)
+		}
+	}
+	n.element = result[0:]
 	return n
 }
 
