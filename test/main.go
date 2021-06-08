@@ -15,8 +15,8 @@ package main
 import (
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/test/nhctlcli/suite"
-	"nocalhost/test/nhctlcli/testcase"
+	"nocalhost/test/suite"
+	"nocalhost/test/testcase"
 	"os"
 	"path/filepath"
 	"time"

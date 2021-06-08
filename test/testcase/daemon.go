@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/test/nhctlcli/runner"
+	"nocalhost/test/runner"
 	"nocalhost/test/util"
 )
 

@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/fp"
-	"nocalhost/test/nhctlcli/runner"
+	"nocalhost/test/runner"
 	"strings"
 	"time"
 )

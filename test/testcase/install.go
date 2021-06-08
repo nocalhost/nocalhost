@@ -15,7 +15,7 @@ package testcase
 import (
 	"context"
 	"github.com/pkg/errors"
-	"nocalhost/test/nhctlcli/runner"
+	"nocalhost/test/runner"
 )
 
 func InstallBookInfo(nhctl runner.Client) error {

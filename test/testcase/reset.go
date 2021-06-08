@@ -15,7 +15,7 @@ package testcase
 import (
 	"context"
 	"io/ioutil"
-	"nocalhost/test/nhctlcli/runner"
+	"nocalhost/test/runner"
 	"sigs.k8s.io/yaml"
 )
 

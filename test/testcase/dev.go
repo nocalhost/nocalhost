@@ -20,7 +20,7 @@ import (
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	"net/http"
-	"nocalhost/test/nhctlcli/runner"
+	"nocalhost/test/runner"
 	"nocalhost/test/util"
 	"os"
 	"strings"
