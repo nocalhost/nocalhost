@@ -183,8 +183,8 @@ func (d *DaemonClient) SendGetDaemonServerInfoCommand() (*daemon_common.DaemonSe
 // SendRestartDaemonServerCommand
 // This command tells DaemonServer to run a newer version(by sub progress) with nhctl binary
 // in ClientPath and then stops itself.
-// By doing this, we can make sure newer DaemonServer have the same permission with older one.
-// DaemonServer needs to copy nhctl.exe from ClientPath to a tmpDir in windows.
+// By doing this, we can make sure newer DaemonServer has the same permission with older one.
+// DaemonServer needs to copy nhctl.exe from ClientPath to a tmpDir in Windows OS.
 func (d *DaemonClient) SendRestartDaemonServerCommand() error {
 	cmd := &command.BaseCommand{
 		CommandType: command.RestartDaemonServer,
