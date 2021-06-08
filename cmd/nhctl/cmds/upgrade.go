@@ -16,6 +16,7 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
@@ -96,7 +97,8 @@ var upgradeCmd = &cobra.Command{
 				// find first pod
 				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
 				nhSvc := initService(svcName, pf.ServiceType)
-				podName, err := nhSvc.BuildPodController().GetDefaultPodNameWait(ctx)
+				controller.GetDefaultPodName(ctx, nhSvc.BuildPodController())
+				podName, err := controller.GetDefaultPodName(ctx, nhSvc.BuildPodController())
 				if err != nil {
 					log.WarnE(err, "")
 					continue

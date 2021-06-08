@@ -17,6 +17,7 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/pkg/nhctl/log"
+	"time"
 )
 
 func (c *ClientGoUtils) UpdateStatefulSet(statefulSet *v1.StatefulSet, wait bool) (*v1.StatefulSet, error) {
@@ -48,4 +49,35 @@ func (c *ClientGoUtils) DeleteStatefulSet(name string) error {
 func (c *ClientGoUtils) CreateStatefulSet(s *v1.StatefulSet) (*v1.StatefulSet, error) {
 	ss, err := c.ClientSet.AppsV1().StatefulSets(c.namespace).Create(c.ctx, s, metav1.CreateOptions{})
 	return ss, errors.Wrap(err, "")
+}
+
+func (c *ClientGoUtils) ScaleStatefulSetReplicasToOne(name string) error {
+	scale, err := c.GetStatefulSetClient().GetScale(c.ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	if scale.Spec.Replicas > 1 {
+		scale.Spec.Replicas = 1
+		_, err = c.GetStatefulSetClient().UpdateScale(c.ctx, name, scale, metav1.UpdateOptions{})
+		if err != nil {
+			return errors.Wrap(err, "")
+		}
+		log.Info("Waiting replicas scale to 1, it may take several minutes...")
+		for i := 0; i < 300; i++ {
+			time.Sleep(1 * time.Second)
+			ss, err := c.GetStatefulSet(name)
+			if err != nil {
+				return errors.Wrap(err, "")
+			}
+			if ss.Status.ReadyReplicas == 1 && ss.Status.Replicas == 1 {
+				log.Info("Replicas has been scaled to 1")
+				return nil
+			}
+		}
+		return errors.New("Waiting replicas scaling to 1 timeout")
+	} else {
+		log.Info("Replicas has already been scaled to 1")
+	}
+	return nil
 }

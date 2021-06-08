@@ -122,11 +122,6 @@ func (c *Controller) generateSyncVolumesAndMounts() ([]corev1.Volume, []corev1.V
 	}
 
 	secretName := c.GetSyncThingSecretName()
-	//if c.Type == appmeta.Deployment {
-	//	secretName = c.Name + "-" + secret_config.SecretName
-	//} else {
-	//	secretName = c.Name + "-" + string(c.Type) + "-" + secret_config.SecretName
-	//}
 	defaultMode := int32(nocalhost.DefaultNewFilePermission)
 	syncthingSecretVol := corev1.Volume{
 		Name: secret_config.SecretName,
@@ -475,6 +470,8 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 	return false
 }
 
+// GetNocalhostDevContainerPod
+// A nocalhost dev container pod always has a container named nocalhost-sidecar
 func (c *Controller) GetNocalhostDevContainerPod() (string, error) {
 	var (
 		checkPodsList *corev1.PodList
@@ -485,6 +482,8 @@ func (c *Controller) GetNocalhostDevContainerPod() (string, error) {
 		checkPodsList, err = c.Client.ListPodsByDeployment(c.Name)
 	case appmeta.StatefulSet:
 		checkPodsList, err = c.Client.ListPodsByStatefulSet(c.Name)
+	case appmeta.DaemonSet:
+		checkPodsList, err = c.Client.ListPodsByDeployment(daemonSetGenDeployPrefix + c.Name)
 	default:
 		return "", errors.New("Unsupported type")
 	}
@@ -507,4 +506,62 @@ func (c *Controller) GetNocalhostDevContainerPod() (string, error) {
 		}
 	}
 	return "", errors.New("dev container not found")
+}
+
+func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
+	containerName, storageClass string) (*corev1.Container, *corev1.Container, []corev1.Volume, error) {
+
+	devModeVolumes := make([]corev1.Volume, 0)
+	devModeMounts := make([]corev1.VolumeMount, 0)
+
+	// Set volumes
+	syncthingVolumes, syncthingVolumeMounts := c.generateSyncVolumesAndMounts()
+	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
+	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
+
+	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := c.genWorkDirAndPVAndMounts(
+		containerName, storageClass)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	devModeVolumes = append(devModeVolumes, workDirAndPersistVolumes...)
+	devModeMounts = append(devModeMounts, workDirAndPersistVolumeMounts...)
+
+	workDir := c.GetWorkDir(containerName)
+	devImage := c.GetDevImage(containerName) // Default : replace the first container
+
+	sideCarContainer := generateSideCarContainer(workDir)
+
+	devContainer.Image = devImage
+	devContainer.Name = "nocalhost-dev"
+	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
+	devContainer.WorkingDir = workDir
+
+	// set image pull policy
+	sideCarContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
+	devContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
+
+	// add env
+	devEnv := c.GetDevContainerEnv(containerName)
+	for _, v := range devEnv.DevEnv {
+		env := corev1.EnvVar{Name: v.Name, Value: v.Value}
+		devContainer.Env = append(devContainer.Env, env)
+	}
+
+	// Add volumeMounts to containers
+	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
+	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, devModeMounts...)
+
+	requirements := c.genResourceReq()
+	if requirements != nil {
+		devContainer.Resources = *requirements
+	}
+	r := &profile.ResourceQuota{
+		Limits:   &profile.QuotaList{Memory: "1Gi", Cpu: "1"},
+		Requests: &profile.QuotaList{Memory: "50Mi", Cpu: "100m"},
+	}
+	rq, _ := convertResourceQuota(r)
+	sideCarContainer.Resources = *rq
+	return devContainer, &sideCarContainer, devModeVolumes, nil
 }

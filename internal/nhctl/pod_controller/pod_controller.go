@@ -20,10 +20,7 @@ import (
 
 type PodController interface {
 	ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error
-	ScaleReplicasToOne(ctx context.Context) error
-	Container(containerName string) (*corev1.Container, error)
-	Name() string
+	Name() string // Controller name
 	RollBack(reset bool) error
-	GetDefaultPodNameWait(ctx context.Context) (string, error)
 	GetPodList() ([]corev1.Pod, error)
 }

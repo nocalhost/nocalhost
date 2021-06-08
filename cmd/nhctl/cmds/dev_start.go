@@ -246,7 +246,7 @@ func enterDevMode() string {
 	}()
 
 	newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
-	mustPI(err, "Failed to create syncthing process, please try again")
+	mustI(err, "Failed to create syncthing process, please try again")
 
 	// try install syncthing
 	var downloadVersion = Version
@@ -257,14 +257,14 @@ func enterDevMode() string {
 	}
 
 	_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
-	mustPI(
+	mustI(
 		err, "Failed to install syncthing, no syncthing available locally in "+
 			newSyncthing.BinPath+" please try again.",
 	)
 
 	// set syncthing secret
 	config, err := newSyncthing.GetRemoteConfigXML()
-	mustP(err)
+	must(err)
 
 	syncSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -277,7 +277,7 @@ func enterDevMode() string {
 			"key.pem":    []byte(secret_config.KeyPEM),
 		},
 	}
-	mustP(nocalhostSvc.CreateSyncThingSecret(syncSecret))
+	must(nocalhostSvc.CreateSyncThingSecret(syncSecret))
 
 	// Stop port-forward
 	appProfile, _ := nocalhostApp.GetProfile()
@@ -294,19 +294,19 @@ func enterDevMode() string {
 		if errors.Is(err, nocalhost.CreatePvcFailed) {
 			log.Info("Failed to provision persistent volume due to insufficient resources")
 		}
-		mustP(err)
+		must(err)
 	}
 
 	// mark dev start as true
 	devStartSuccess = true
 
 	podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
-	mustP(err)
+	must(err)
 
 	for _, pf := range pfList {
 		utils.Should(nocalhostSvc.PortForward(podName, pf.LocalPort, pf.RemotePort, pf.Role))
 	}
-	mustP(nocalhostSvc.PortForwardAfterDevStart(devStartOps.Container))
+	must(nocalhostSvc.PortForwardAfterDevStart(devStartOps.Container))
 
 	fmt.Println()
 	coloredoutput.Success("Dev container has been updated")

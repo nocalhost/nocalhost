@@ -61,7 +61,7 @@ func (c *Controller) FindOutSyncthingProcess(whileProcessFound func(int) error) 
 	previousSyncThingPid, err := c.GetSyncThingPid()
 
 	if err != nil {
-		log.Info("Failed to find previous syncthing pid (ignore)")
+		log.Info("No previous syncthing pid found(ignore)")
 		log.LogE(err)
 	} else {
 		pro, err := ps.FindProcess(previousSyncThingPid)

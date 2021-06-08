@@ -12,19 +12,11 @@
 
 package controller
 
-import (
-	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/pod_controller"
-)
+import "testing"
 
-func (c *Controller) BuildPodController() pod_controller.PodController {
-	switch c.Type {
-	case appmeta.Deployment:
-		return &DeploymentController{Controller: c}
-	case appmeta.StatefulSet:
-		return &StatefulSetController{Controller: c}
-	case appmeta.DaemonSet:
-		return &DaemonSetController{Controller: c}
+func TestController_scale(t *testing.T) {
+	err := scaleDaemonSetReplicasToZero("fluentd-elasticsearch")
+	if err != nil {
+		panic(err)
 	}
-	return nil
 }
