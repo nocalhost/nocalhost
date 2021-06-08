@@ -47,7 +47,7 @@ func init() {
 	)
 	getCmd.PersistentFlags().StringToStringVarP(
 		&label, "selector", "l", map[string]string{}, "Selector (label query) to filter on, "+
-			"supports '=', '==', and '!='.(e.g. -l key1=value1,key2=value2)",
+			"only supports '='.(e.g. -l key1=value1,key2=value2)",
 	)
 	rootCmd.AddCommand(getCmd)
 }
