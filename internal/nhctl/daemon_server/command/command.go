@@ -85,11 +85,12 @@ type GetResourceInfoCommand struct {
 	CommandType DaemonCommandType
 	ClientStack string
 
-	KubeConfig   string `json:"kubeConfig"`
-	Namespace    string `json:"namespace"`
-	AppName      string `json:"appName"`
-	Resource     string `json:"resource"`
-	ResourceName string `json:"resourceName"`
+	KubeConfig   string            `json:"kubeConfig" yaml:"kubeConfig"`
+	Namespace    string            `json:"namespace" yaml:"namespace"`
+	AppName      string            `json:"appName" yaml:"appName"`
+	Resource     string            `json:"resource" yaml:"resource"`
+	ResourceName string            `json:"resourceName" yaml:"resourceName"`
+	Label        map[string]string `json:"label" yaml:"label"`
 }
 
 func ParseBaseCommand(bys []byte) (DaemonCommandType, string, error) {

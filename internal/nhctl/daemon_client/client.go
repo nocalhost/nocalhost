@@ -310,7 +310,12 @@ func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource
 
 // SendGetAllInfoCommand send get resource info request to daemon
 func (d *DaemonClient) SendGetResourceInfoCommand(
-	kubeconfig, ns, appName, resource, resourceName string,
+	kubeconfig,
+	ns,
+	appName,
+	resource,
+	resourceName string,
+	label map[string]string,
 ) (interface{}, error) {
 	cmd := &command.GetResourceInfoCommand{
 		CommandType: command.GetResourceInfo,
@@ -321,6 +326,7 @@ func (d *DaemonClient) SendGetResourceInfoCommand(
 		AppName:      appName,
 		Resource:     resource,
 		ResourceName: resourceName,
+		Label:        label,
 	}
 
 	bys, err := json.Marshal(cmd)
