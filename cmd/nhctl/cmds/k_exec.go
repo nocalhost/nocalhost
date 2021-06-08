@@ -15,18 +15,18 @@ package cmds
 import (
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	logs "k8s.io/kubectl/pkg/cmd/exec"
+	"k8s.io/kubectl/pkg/cmd/exec"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
 	"time"
 )
 
-var options = &logs.ExecOptions{
-	StreamOptions: logs.StreamOptions{
+var options = &exec.ExecOptions{
+	StreamOptions: exec.StreamOptions{
 		IOStreams: genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr},
 	},
-	Executor: &logs.DefaultRemoteExecutor{},
+	Executor: &exec.DefaultRemoteExecutor{},
 }
 
 var cmdExec = &cobra.Command{
