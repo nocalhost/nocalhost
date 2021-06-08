@@ -356,6 +356,7 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		namespace(c.ns).
 		appName(c.availableAppName, c.appName).
 		label(c.label).
+		notLabel(map[string]string{nocalhost.DevWorkloadIgnored: "true"}).
 		sort().
 		toSlice(), nil
 }
@@ -415,13 +416,25 @@ func (n *filter) appNameNotIn(appNames []string) *filter {
 	return n
 }
 
+// support equals, like: a == b
 func (n *filter) label(label map[string]string) *filter {
+	n.element = labelSelector(n.element, label, func(v1, v2 string) bool { return v1 == v2 })
+	return n
+}
+
+// support not equal, like a != b
+func (n *filter) notLabel(label map[string]string) *filter {
+	n.element = labelSelector(n.element, label, func(v1, v2 string) bool { return v1 != v2 })
+	return n
+}
+
+func labelSelector(element []interface{}, label map[string]string, f func(string, string) bool) []interface{} {
 	var result []interface{}
-	for _, e := range n.element {
+	for _, e := range element {
 		labels := e.(metav1.Object).GetLabels()
 		match := true
 		for k, v := range label {
-			if labels[k] != v {
+			if !f(labels[k], v) {
 				match = false
 				break
 			}
@@ -430,8 +443,7 @@ func (n *filter) label(label map[string]string) *filter {
 			result = append(result, e)
 		}
 	}
-	n.element = result[0:]
-	return n
+	return result[0:]
 }
 
 func (n *filter) sort() *filter {
