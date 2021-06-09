@@ -55,10 +55,8 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 		log.Error(err)
 		return nil
 	}
-
-	kubeConfigContent := fp.NewFilePath(appProfile.Kubeconfig).ReadFile()
-
 	if appProfile != nil {
+		kubeConfigContent := fp.NewFilePath(appProfile.Kubeconfig).ReadFile()
 		// deep copy
 		marshal, err := json.Marshal(appmeta_manager.GetApplicationMeta(ns, appName, []byte(kubeConfigContent)))
 		if err != nil {
@@ -66,7 +64,7 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 		}
 
 		var meta appmeta.ApplicationMeta
-		if err := json.Unmarshal(marshal, &meta); err != nil {
+		if err = json.Unmarshal(marshal, &meta); err != nil {
 			return nil
 		}
 
@@ -75,6 +73,9 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 
 		// first iter from local svcProfile
 		for _, svcProfile := range appProfile.SvcProfile {
+			if svcProfile == nil {
+				continue
+			}
 			svcType := appmeta.SvcTypeOf(svcProfile.Type)
 
 			svcProfile.Developing = meta.CheckIfSvcDeveloping(svcProfile.ActualName, svcType)
@@ -92,15 +93,15 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 		for svcTypeAlias, m := range devMeta {
 			for svcName, _ := range m {
 				svcProfile := appProfile.SvcProfileV2(svcName, string(svcTypeAlias.Origin()))
-
-				svcProfile.Developing = true
-				svcProfile.Possess = meta.SvcDevModePossessor(
-					svcProfile.ActualName, svcTypeAlias.Origin(),
-					appProfile.Identifier,
-				)
+				if svcProfile != nil {
+					svcProfile.Developing = true
+					svcProfile.Possess = meta.SvcDevModePossessor(
+						svcProfile.ActualName, svcTypeAlias.Origin(),
+						appProfile.Identifier,
+					)
+				}
 			}
 		}
-
 		return appProfile
 	}
 	return nil
