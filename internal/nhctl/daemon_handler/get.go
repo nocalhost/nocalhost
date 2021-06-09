@@ -107,13 +107,11 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 		for svcTypeAlias, m := range devMeta {
 			for svcName, _ := range m {
 				svcProfile := appProfile.SvcProfileV2(svcName, string(svcTypeAlias.Origin()))
-				if svcProfile != nil {
-					svcProfile.Developing = true
-					svcProfile.Possess = meta.SvcDevModePossessor(
-						svcProfile.ActualName, svcTypeAlias.Origin(),
-						appProfile.Identifier,
-					)
-				}
+				svcProfile.Developing = true
+				svcProfile.Possess = meta.SvcDevModePossessor(
+					svcProfile.ActualName, svcTypeAlias.Origin(),
+					appProfile.Identifier,
+				)
 			}
 		}
 		return appProfile
