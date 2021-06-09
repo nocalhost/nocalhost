@@ -176,7 +176,7 @@ jobs:
         cd nocalhost-intellij-plugin
         git config user.email "nocalhost@nocalhost.dev"
         git config user.name "nocalhost"
-        git checkout main
+        git checkout 211
         git tag '${{ env.RELEASE_VERSION }}-2021.1'
         git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost-intellij-plugin.git '${{ env.RELEASE_VERSION }}-2021.1'
         git checkout 203
