@@ -76,6 +76,20 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 			if svcProfile == nil {
 				continue
 			}
+			if svcProfile.ServiceConfigV2 == nil {
+				svcProfile.ServiceConfigV2 = &profile.ServiceConfigV2{
+					Name: svcProfile.Name,
+					Type: appmeta.Deployment.String(),
+					ContainerConfigs: []*profile.ContainerConfig{
+						{
+							Dev: &profile.ContainerDevConfig{
+								Image:   profile.DefaultDevImage,
+								WorkDir: profile.DefaultWorkDir,
+							},
+						},
+					},
+				}
+			}
 			svcType := appmeta.SvcTypeOf(svcProfile.Type)
 
 			svcProfile.Developing = meta.CheckIfSvcDeveloping(svcProfile.ActualName, svcType)
