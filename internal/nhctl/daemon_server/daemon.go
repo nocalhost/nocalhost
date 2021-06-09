@@ -27,7 +27,6 @@ import (
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/syncthing/daemon"
-	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"runtime/debug"
@@ -65,7 +64,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		return errors.New("Failed to start daemon server with sudo")
 	}
 	isSudo = isSudoUser // Mark daemon server if it is run as sudo
-	ports.IsPortAvailable("0.0.0.0", daemonListenPort())
+	//ports.IsPortAvailable("0.0.0.0", daemonListenPort())
 	address := fmt.Sprintf("%s:%d", "0.0.0.0", daemonListenPort())
 	listener, err := net.Listen("tcp4", address)
 	if err != nil {
@@ -161,7 +160,6 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	}
 
 	// Recovering syncthing
-	// nhctl sync bookinfo -d productpage --resume --kubeconfig /Users/xxx/.nh/plugin/kubeConfigs/293_config
 	if err = recoverSyncthing(); err != nil {
 		log.LogE(err)
 	}

@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"net"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/daemon_common"
@@ -166,6 +167,13 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 	if err != nil {
 		return err
 	}
+
+	address := fmt.Sprintf("0.0.0.0:%d", startCmd.LocalPort)
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Port %d is unavailable: %s", startCmd.LocalPort, err.Error()))
+	}
+	_ = listener.Close()
 
 	nhController := nocalhostApp.Controller(startCmd.Service, appmeta.SvcType(startCmd.ServiceType))
 
