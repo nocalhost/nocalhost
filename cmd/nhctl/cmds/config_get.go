@@ -130,9 +130,11 @@ var configGetCmd = &cobra.Command{
 			checkIfSvcExist(commonFlags.SvcName, serviceType)
 
 			// need to load latest config
-			_ = nocalhostApp.ReloadSvcCfg(commonFlags.SvcName, serviceType, false, true)
+			_ = nocalhostApp.ReloadSvcCfg(commonFlags.SvcName, nocalhostSvc.Type, false, true)
 
-			svcProfile := appProfile.SvcProfileV2(commonFlags.SvcName, serviceType)
+			svcProfile, err := nocalhostSvc.GetProfile()
+			must(err)
+
 			if svcProfile != nil {
 				bys, err := yaml.Marshal(svcProfile.ServiceConfigV2)
 				must(errors.Wrap(err, "fail to get controller profile"))

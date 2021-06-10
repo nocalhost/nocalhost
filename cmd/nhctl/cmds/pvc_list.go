@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
-	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/clientgoutils"
 
@@ -56,7 +56,7 @@ var pvcListCmd = &cobra.Command{
 			var err error
 			initApp(pvcFlags.App)
 			if pvcFlags.Svc != "" {
-				exist, err := nocalhostApp.Controller(pvcFlags.Svc, appmeta.Deployment).CheckIfExist()
+				exist, err := nocalhostApp.Controller(pvcFlags.Svc, base.Deployment).CheckIfExist()
 				if err != nil {
 					log.FatalE(err, "failed to check if controller exists")
 				} else if !exist {

@@ -60,6 +60,6 @@ var devAssociateCmd = &cobra.Command{
 			must(nocalhostSvc.Associate(workDir))
 		}
 
-		must(nocalhostApp.ReloadSvcCfg(nocalhostSvc.Name, nocalhostSvc.Type.String(), false, false))
+		must(nocalhostApp.ReloadSvcCfg(nocalhostSvc.Name, nocalhostSvc.Type, false, false))
 	},
 }

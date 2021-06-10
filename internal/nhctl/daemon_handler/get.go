@@ -20,6 +20,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
 	"nocalhost/internal/nhctl/common"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/daemon_handler/item"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/fp"
@@ -79,7 +80,7 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 			if svcProfile.ServiceConfigV2 == nil {
 				svcProfile.ServiceConfigV2 = &profile.ServiceConfigV2{
 					Name: svcProfile.Name,
-					Type: appmeta.Deployment.String(),
+					Type: base.Deployment.String(),
 					ContainerConfigs: []*profile.ContainerConfig{
 						{
 							Dev: &profile.ContainerDevConfig{
@@ -90,7 +91,7 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 					},
 				}
 			}
-			svcType := appmeta.SvcTypeOf(svcProfile.Type)
+			svcType := base.SvcTypeOf(svcProfile.Type)
 
 			svcProfile.Developing = meta.CheckIfSvcDeveloping(svcProfile.ActualName, svcType)
 			svcProfile.Possess = meta.SvcDevModePossessor(

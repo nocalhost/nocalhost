@@ -22,6 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"nocalhost/internal/nhctl/common/base"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -285,7 +286,7 @@ func (a *ApplicationMeta) InitGoClient(kubeConfigPath string) error {
 	return err
 }
 
-func (a *ApplicationMeta) SvcDevModePossessor(name string, svcType SvcType, identifier string) bool {
+func (a *ApplicationMeta) SvcDevModePossessor(name string, svcType base.SvcType, identifier string) bool {
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -299,7 +300,7 @@ func (a *ApplicationMeta) SvcDevModePossessor(name string, svcType SvcType, iden
 	return m[name] == identifier && identifier != ""
 }
 
-func (a *ApplicationMeta) SvcDevStart(name string, svcType SvcType, identifier string) error {
+func (a *ApplicationMeta) SvcDevStart(name string, svcType base.SvcType, identifier string) error {
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -319,7 +320,7 @@ func (a *ApplicationMeta) SvcDevStart(name string, svcType SvcType, identifier s
 	return a.Update()
 }
 
-func (a *ApplicationMeta) SvcDevEnd(name string, svcType SvcType) error {
+func (a *ApplicationMeta) SvcDevEnd(name string, svcType base.SvcType) error {
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -335,7 +336,7 @@ func (a *ApplicationMeta) SvcDevEnd(name string, svcType SvcType) error {
 	return a.Update()
 }
 
-func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType SvcType) bool {
+func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType) bool {
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
