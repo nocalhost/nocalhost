@@ -18,7 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/syncthing/network/req"
 )
 
@@ -26,7 +26,7 @@ var syncStatusOps = &app.SyncStatusOptions{}
 
 func init() {
 	//syncStatusCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
-	syncStatusCmd.Flags().StringVarP(&deployment, "deployment", "d", string(appmeta.Deployment),
+	syncStatusCmd.Flags().StringVarP(&deployment, "deployment", "d", string(base.Deployment),
 		"k8s deployment which your developing service exists",
 	)
 	syncStatusCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",

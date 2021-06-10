@@ -15,6 +15,7 @@ package controller
 import (
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
 )
@@ -25,7 +26,7 @@ type Controller struct {
 	NameSpace string
 	AppName   string
 	Name      string
-	Type      appmeta.SvcType
+	Type      base.SvcType
 	Client    *clientgoutils.ClientGoUtils
 	AppMeta   *appmeta.ApplicationMeta
 }
@@ -45,15 +46,15 @@ func (c *Controller) IsProcessor() bool {
 func (c *Controller) CheckIfExist() (bool, error) {
 	var err error
 	switch c.Type {
-	case appmeta.Deployment:
+	case base.Deployment:
 		_, err = c.Client.GetDeployment(c.Name)
-	case appmeta.StatefulSet:
+	case base.StatefulSet:
 		_, err = c.Client.GetStatefulSet(c.Name)
-	case appmeta.DaemonSet:
+	case base.DaemonSet:
 		_, err = c.Client.GetDaemonSet(c.Name)
-	case appmeta.Job:
+	case base.Job:
 		_, err = c.Client.GetJobs(c.Name)
-	case appmeta.CronJob:
+	case base.CronJob:
 		_, err = c.Client.GetCronJobs(c.Name)
 	default:
 		return false, errors.New("unsupported controller type")

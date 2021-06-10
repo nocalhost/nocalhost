@@ -16,8 +16,8 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
@@ -77,7 +77,7 @@ func initService(svcName string, svcType string) *controller.Controller {
 	if svcName == "" {
 		log.Fatal("please use -d to specify a k8s workload")
 	}
-	return nocalhostApp.Controller(svcName, appmeta.SvcTypeOf(svcType))
+	return nocalhostApp.Controller(svcName, base.SvcTypeOf(svcType))
 }
 
 func checkIfSvcExist(svcName string, svcType string) {

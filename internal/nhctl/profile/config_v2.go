@@ -12,6 +12,8 @@
 
 package profile
 
+import "nocalhost/internal/nhctl/common/base"
+
 //type AppType string
 //type SvcType string
 
@@ -115,9 +117,9 @@ type EnvFile struct {
 	Path string `json:"path" yaml:"path"`
 }
 
-func (n *NocalHostAppConfigV2) GetSvcConfigV2(svcName string, svcType string) *ServiceConfigV2 {
+func (n *NocalHostAppConfigV2) GetSvcConfigV2(svcName string, svcType base.SvcType) *ServiceConfigV2 {
 	for _, config := range n.ApplicationConfig.ServiceConfigs {
-		if config.Name == svcName && config.Type == svcType {
+		if config.Name == svcName && base.SvcTypeOf(config.Type) == svcType {
 			return config
 		}
 	}

@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
@@ -478,11 +478,11 @@ func (c *Controller) GetNocalhostDevContainerPod() (string, error) {
 		err           error
 	)
 	switch c.Type {
-	case appmeta.Deployment:
+	case base.Deployment:
 		checkPodsList, err = c.Client.ListPodsByDeployment(c.Name)
-	case appmeta.StatefulSet:
+	case base.StatefulSet:
 		checkPodsList, err = c.Client.ListPodsByStatefulSet(c.Name)
-	case appmeta.DaemonSet:
+	case base.DaemonSet:
 		checkPodsList, err = c.Client.ListPodsByDeployment(daemonSetGenDeployPrefix + c.Name)
 	default:
 		return "", errors.New("Unsupported type")

@@ -14,68 +14,16 @@ package appmeta
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/pkg/nhctl/log"
-	"strings"
 )
 
-type SvcType string
-
-const (
-	Deployment  SvcType = "deployment"
-	StatefulSet SvcType = "statefulset"
-	DaemonSet   SvcType = "daemonset"
-	Job         SvcType = "job"
-	CronJob     SvcType = "cronjob"
-
-	DEPLOYMENT SvcType = "D"
+const(
 	DEV_STA    EVENT   = "DEV_STA"
 	DEV_END    EVENT   = "DEV_END"
 )
 
-func SvcTypeOf(svcType string) SvcType {
-	serviceType := Deployment
-	if svcType != "" {
-		svcTypeLower := strings.ToLower(svcType)
-		switch svcTypeLower {
-		case strings.ToLower(string(Deployment)):
-			serviceType = Deployment
-		case strings.ToLower(string(StatefulSet)):
-			serviceType = StatefulSet
-		case strings.ToLower(string(DaemonSet)):
-			serviceType = DaemonSet
-		case strings.ToLower(string(Job)):
-			serviceType = Job
-		case strings.ToLower(string(CronJob)):
-			serviceType = CronJob
-		default:
-			log.FatalE(errors.New(fmt.Sprintf("Unsupported SvcType %s", svcType)), "")
-		}
-	}
-	return serviceType
-}
-
-// Alias For compatibility with meta
-func (s SvcType) Alias() SvcType {
-	if s == Deployment {
-		return DEPLOYMENT
-	}
-	return s
-}
-
-func (s SvcType) Origin() SvcType {
-	if s == DEPLOYMENT {
-		return Deployment
-	}
-	return s
-}
-
-func (s SvcType) String() string {
-	return string(s)
-}
-
-type ApplicationDevMeta map[SvcType]map[ /* resource name */ string] /* identifier */ string
+type ApplicationDevMeta map[base.SvcType]map[ /* resource name */ string] /* identifier */ string
 
 //type ApplicationDevType string
 type EVENT string
@@ -83,11 +31,11 @@ type ApplicationEvent struct {
 	Identifier   string
 	ResourceName string
 	EventType    EVENT
-	DevType      SvcType
+	DevType      base.SvcType
 }
 
 func (from *ApplicationDevMeta) copy() ApplicationDevMeta {
-	m := map[SvcType]map[ /* resource name */ string]string{}
+	m := map[base.SvcType]map[ /* resource name */ string]string{}
 	for k, v := range *from {
 		im := map[ /* resource name */ string]string{}
 		for ik, iv := range v {

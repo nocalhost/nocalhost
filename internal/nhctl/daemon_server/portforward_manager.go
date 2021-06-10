@@ -22,7 +22,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"net"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -68,7 +68,7 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(cmd *command.PortForwardCo
 	if cmd.ServiceType == "" {
 		cmd.ServiceType = "deployment"
 	}
-	nhController := nocalhostApp.Controller(cmd.Service, appmeta.SvcType(cmd.ServiceType))
+	nhController := nocalhostApp.Controller(cmd.Service, base.SvcType(cmd.ServiceType))
 	return nhController.DeletePortForwardFromDB(cmd.LocalPort, cmd.RemotePort)
 }
 
@@ -175,7 +175,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 	}
 	_ = listener.Close()
 
-	nhController := nocalhostApp.Controller(startCmd.Service, appmeta.SvcType(startCmd.ServiceType))
+	nhController := nocalhostApp.Controller(startCmd.Service, base.SvcType(startCmd.ServiceType))
 
 	if saveToDB {
 		// Check if port forward already exists

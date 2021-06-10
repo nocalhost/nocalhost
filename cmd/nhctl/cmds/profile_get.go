@@ -47,7 +47,7 @@ var profileGetCmd = &cobra.Command{
 			log.Fatal("--container must be specified")
 		}
 
-		_ = nocalhostApp.ReloadSvcCfg(deployment, serviceType, false, true)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, nocalhostSvc.Type, false, true)
 
 		switch configKey {
 		case "image":
