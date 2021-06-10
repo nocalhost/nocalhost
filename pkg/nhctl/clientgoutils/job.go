@@ -26,7 +26,9 @@ func (c *ClientGoUtils) CreateJob(job *batchv1.Job) (*batchv1.Job, error) {
 }
 
 func (c *ClientGoUtils) DeleteJob(name string) error {
-	return errors.Wrap(c.ClientSet.BatchV1().Jobs(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{}), "")
+	propagationPolicy := metav1.DeletePropagationBackground
+	return errors.Wrap(c.ClientSet.BatchV1().Jobs(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{
+		PropagationPolicy: &propagationPolicy}), "")
 }
 
 // This method can not list pods whose deployment is already deleted.

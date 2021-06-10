@@ -63,6 +63,10 @@ func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOpt
 		},
 	}
 
+	delete(generatedJob.Spec.Template.ObjectMeta.Labels, "controller-uid")
+	delete(generatedJob.Spec.Template.ObjectMeta.Labels, "job-name")
+	delete(generatedJob.Spec.Selector.MatchLabels, "controller-uid")
+
 	devContainer, err := findContainerInJobSpec(generatedJob, ops.Container)
 	if err != nil {
 		return err
