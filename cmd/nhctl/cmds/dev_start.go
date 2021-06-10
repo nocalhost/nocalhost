@@ -107,7 +107,7 @@ var devStartCmd = &cobra.Command{
 		if nocalhostSvc.IsInDevMode() {
 			coloredoutput.Hint("Already in DevMode...")
 
-			podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
+			podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
 			must(err)
 
 			if nocalhostSvc.IsProcessor() {
@@ -300,13 +300,13 @@ func enterDevMode() string {
 	// mark dev start as true
 	devStartSuccess = true
 
-	podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
+	podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
 	must(err)
 
 	for _, pf := range pfList {
 		utils.Should(nocalhostSvc.PortForward(podName, pf.LocalPort, pf.RemotePort, pf.Role))
 	}
-	must(nocalhostSvc.PortForwardAfterDevStart(devStartOps.Container))
+	must(nocalhostSvc.PortForwardAfterDevStart(podName, devStartOps.Container))
 
 	fmt.Println()
 	coloredoutput.Success("Dev container has been updated")

@@ -32,6 +32,14 @@ type DaemonSetController struct {
 
 const daemonSetGenDeployPrefix = "daemon-set-generated-deploy-"
 
+func (d *DaemonSetController) GetNocalhostDevContainerPod() (string, error) {
+	checkPodsList, err := d.Client.ListPodsByDeployment(d.getGeneratedDeploymentName())
+	if err != nil {
+		return "", err
+	}
+	return findDevPod(checkPodsList)
+}
+
 func scaleDaemonSetReplicasToZero(name string, client *clientgoutils.ClientGoUtils) error {
 
 	// Scale pod to 0
@@ -97,7 +105,7 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 		},
 	}
 
-	devContainer, err := findContainerInDeploy(generatedDeployment, ops.Container)
+	devContainer, err := findContainerInDeploySpec(generatedDeployment, ops.Container)
 	if err != nil {
 		return err
 	}
@@ -144,7 +152,7 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 		return err
 	}
 
-	return d.waitingPodToBeReady()
+	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
 }
 
 func (d *DaemonSetController) Name() string {

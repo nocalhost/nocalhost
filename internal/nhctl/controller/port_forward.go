@@ -146,7 +146,7 @@ func (c *Controller) GetPortForward(localPort, remotePort int) (*profile.DevPort
 //	}
 //}
 
-func (c *Controller) PortForwardAfterDevStart(containerName string) error {
+func (c *Controller) PortForwardAfterDevStart(podName, containerName string) error {
 
 	profileV2, err := c.GetProfile()
 	if err != nil {
@@ -161,10 +161,10 @@ func (c *Controller) PortForwardAfterDevStart(containerName string) error {
 	if cc == nil {
 		return nil
 	}
-	podName, err := c.GetNocalhostDevContainerPod()
-	if err != nil {
-		return err
-	}
+	//podName, err := c.GetNocalhostDevContainerPod()
+	//if err != nil {
+	//	return err
+	//}
 	for _, pf := range cc.PortForward {
 		lPort, rPort, err := GetPortForwardForString(pf)
 		if err != nil {

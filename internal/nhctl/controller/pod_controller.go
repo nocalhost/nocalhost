@@ -25,6 +25,8 @@ func (c *Controller) BuildPodController() pod_controller.PodController {
 		return &StatefulSetController{Controller: c}
 	case appmeta.DaemonSet:
 		return &DaemonSetController{Controller: c}
+	case appmeta.Job:
+		return &JobController{Controller: c}
 	}
 	return nil
 }

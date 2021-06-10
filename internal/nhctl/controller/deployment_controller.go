@@ -33,6 +33,14 @@ type DeploymentController struct {
 	*Controller
 }
 
+func (d *DeploymentController) GetNocalhostDevContainerPod() (string, error) {
+	checkPodsList, err := d.Client.ListPodsByDeployment(d.Name())
+	if err != nil {
+		return "", err
+	}
+	return findDevPod(checkPodsList)
+}
+
 func (d *DeploymentController) Name() string {
 	return d.Controller.Name
 }
@@ -150,7 +158,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		}
 		break
 	}
-	return d.waitingPodToBeReady()
+	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
 
 }
 
@@ -159,10 +167,10 @@ func findContainerInDeployment(deployName, containerName string, client *clientg
 	if err != nil {
 		return nil, err
 	}
-	return findContainerInDeploy(dep, containerName)
+	return findContainerInDeploySpec(dep, containerName)
 }
 
-func findContainerInDeploy(dep *v1.Deployment, containerName string) (*corev1.Container, error) {
+func findContainerInDeploySpec(dep *v1.Deployment, containerName string) (*corev1.Container, error) {
 	var devContainer *corev1.Container
 
 	if containerName != "" {
