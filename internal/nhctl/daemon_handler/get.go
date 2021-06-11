@@ -20,6 +20,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
 	"nocalhost/internal/nhctl/common"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/daemon_handler/item"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/fp"
@@ -55,10 +56,8 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 		log.Error(err)
 		return nil
 	}
-
-	kubeConfigContent := fp.NewFilePath(appProfile.Kubeconfig).ReadFile()
-
 	if appProfile != nil {
+		kubeConfigContent := fp.NewFilePath(appProfile.Kubeconfig).ReadFile()
 		// deep copy
 		marshal, err := json.Marshal(appmeta_manager.GetApplicationMeta(ns, appName, []byte(kubeConfigContent)))
 		if err != nil {
@@ -66,7 +65,7 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 		}
 
 		var meta appmeta.ApplicationMeta
-		if err := json.Unmarshal(marshal, &meta); err != nil {
+		if err = json.Unmarshal(marshal, &meta); err != nil {
 			return nil
 		}
 
@@ -75,7 +74,24 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 
 		// first iter from local svcProfile
 		for _, svcProfile := range appProfile.SvcProfile {
-			svcType := appmeta.SvcTypeOf(svcProfile.Type)
+			if svcProfile == nil {
+				continue
+			}
+			if svcProfile.ServiceConfigV2 == nil {
+				svcProfile.ServiceConfigV2 = &profile.ServiceConfigV2{
+					Name: svcProfile.Name,
+					Type: base.Deployment.String(),
+					ContainerConfigs: []*profile.ContainerConfig{
+						{
+							Dev: &profile.ContainerDevConfig{
+								Image:   profile.DefaultDevImage,
+								WorkDir: profile.DefaultWorkDir,
+							},
+						},
+					},
+				}
+			}
+			svcType := base.SvcTypeOf(svcProfile.Type)
 
 			svcProfile.Developing = meta.CheckIfSvcDeveloping(svcProfile.ActualName, svcType)
 			svcProfile.Possess = meta.SvcDevModePossessor(
@@ -92,7 +108,6 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 		for svcTypeAlias, m := range devMeta {
 			for svcName, _ := range m {
 				svcProfile := appProfile.SvcProfileV2(svcName, string(svcTypeAlias.Origin()))
-
 				svcProfile.Developing = true
 				svcProfile.Possess = meta.SvcDevModePossessor(
 					svcProfile.ActualName, svcTypeAlias.Origin(),
@@ -100,7 +115,6 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 				)
 			}
 		}
-
 		return appProfile
 	}
 	return nil

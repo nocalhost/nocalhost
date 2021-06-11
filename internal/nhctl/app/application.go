@@ -20,6 +20,7 @@ import (
 	"net"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -205,7 +206,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 
 		for _, svc := range profileV2.SvcProfile {
 			if svc.Developing {
-				_ = a.appMeta.SvcDevStart(svc.Name, appmeta.SvcType(svc.Type), profileV2.Identifier)
+				_ = a.appMeta.SvcDevStart(svc.Name, base.SvcType(svc.Type), profileV2.Identifier)
 			}
 		}
 
@@ -224,7 +225,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 func (a *Application) ReloadCfg(reloadFromMeta, silence bool) error {
 	secretCfg := a.appMeta.Config
 	for _, config := range secretCfg.ApplicationConfig.ServiceConfigs {
-		if err := a.ReloadSvcCfg(config.Name, config.Type, reloadFromMeta, silence); err != nil {
+		if err := a.ReloadSvcCfg(config.Name, base.SvcTypeOf(config.Type), reloadFromMeta, silence); err != nil {
 			log.LogE(err)
 		}
 	}
@@ -235,7 +236,7 @@ func (a *Application) ReloadCfg(reloadFromMeta, silence bool) error {
 // ReloadSvcCfg try load config from cm first
 // then load from local under associateDir/.nocalhost/config.yaml
 // at last load config from local profile
-func (a *Application) ReloadSvcCfg(svcName, svcType string, reloadFromMeta, silence bool) error {
+func (a *Application) ReloadSvcCfg(svcName string, svcType base.SvcType, reloadFromMeta, silence bool) error {
 
 	if a.loadSvcCfgFromCmIfValid(svcName, svcType, silence) {
 		return nil
@@ -245,7 +246,7 @@ func (a *Application) ReloadSvcCfg(svcName, svcType string, reloadFromMeta, sile
 		return nil
 	}
 
-	preCheck, err := a.Controller(svcName, appmeta.SvcTypeOf(svcType)).GetProfile()
+	preCheck, err := a.Controller(svcName, svcType).GetProfile()
 	if err != nil {
 		return err
 	}
@@ -255,7 +256,7 @@ func (a *Application) ReloadSvcCfg(svcName, svcType string, reloadFromMeta, sile
 		return nil
 	}
 
-	return a.Controller(svcName, appmeta.SvcTypeOf(svcType)).UpdateSvcProfile(
+	return a.Controller(svcName, svcType).UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
 
 			if reloadFromMeta {
@@ -279,7 +280,7 @@ func (a *Application) ReloadSvcCfg(svcName, svcType string, reloadFromMeta, sile
 	)
 }
 
-func (a *Application) loadSvcCfgFromCmIfValid(svcName, svcType string, silence bool) bool {
+func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcType, silence bool) bool {
 	metaInfo := fmt.Sprintf("[name: %s serviceType: %s]", svcName, svcType)
 	hint := func(format string, s ...string) {
 		if !silence {
@@ -333,11 +334,11 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName, svcType string, silence b
 	}
 
 	// means should cm cfg is valid, persist to profile
-	if err := a.Controller(svcName, appmeta.SvcTypeOf(svcType)).UpdateSvcProfile(
+	if err := a.Controller(svcName, svcType).UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
 			hint("Success load svc config from cm")
 			svcCfg.Name = svcName
-			svcCfg.Type = svcType
+			svcCfg.Type = svcType.String()
 
 			svcProfile.ServiceConfigV2 = svcCfg
 			svcProfile.CmConfigLoaded = true
@@ -351,7 +352,7 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName, svcType string, silence b
 	return true
 }
 
-func (a *Application) loadSvcCfgFromLocalIfValid(svcName, svcType string, silence bool) bool {
+func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.SvcType, silence bool) bool {
 	metaInfo := fmt.Sprintf("[name: %s serviceType: %s]", svcName, svcType)
 	hint := func(format string, s ...string) {
 		if !silence {
@@ -375,7 +376,7 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName, svcType string, silenc
 		return false
 	}
 
-	svcProfile := p.SvcProfileV2(svcName, svcType)
+	svcProfile := p.SvcProfileV2(svcName, svcType.String())
 
 	if svcProfile.Associate == "" {
 		return false
@@ -400,11 +401,11 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName, svcType string, silenc
 	}
 
 	// means should load svc cfg from local
-	if err := a.Controller(svcName, appmeta.SvcTypeOf(svcType)).UpdateSvcProfile(
+	if err := a.Controller(svcName, svcType).UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
 			hint("Success load svc config from local file %s", configFile.Abs())
 			svcCfg.Name = svcName
-			svcCfg.Type = svcType
+			svcCfg.Type = svcType.String()
 
 			svcProfile.ServiceConfigV2 = svcCfg
 			svcProfile.LocalConfigLoaded = true
@@ -418,7 +419,7 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName, svcType string, silenc
 	return true
 }
 
-func doLoadProfileFromSvcConfig(configFile *fp.FilePathEnhance, svcName, svcType string) (
+func doLoadProfileFromSvcConfig(configFile *fp.FilePathEnhance, svcName string, svcType base.SvcType) (
 	*profile.ServiceConfigV2, error,
 ) {
 	config, err := RenderConfigForSvc(configFile.Path)
@@ -431,7 +432,7 @@ func doLoadProfileFromSvcConfig(configFile *fp.FilePathEnhance, svcName, svcType
 	}
 
 	for _, svcConfig := range config {
-		if svcConfig.Name == svcName && svcConfig.Type == svcType {
+		if svcConfig.Name == svcName && base.SvcTypeOf(svcConfig.Type) == svcType {
 			return svcConfig, nil
 		}
 	}
@@ -439,7 +440,7 @@ func doLoadProfileFromSvcConfig(configFile *fp.FilePathEnhance, svcName, svcType
 	return nil, errors.New("Local config loaded, but no valid config found")
 }
 
-func doLoadProfileFromAppConfig(configFile *fp.FilePathEnhance, svcName, svcType string) (
+func doLoadProfileFromAppConfig(configFile *fp.FilePathEnhance, svcName string, svcType base.SvcType) (
 	*profile.ServiceConfigV2, error,
 ) {
 	appConfig, err := RenderConfig(configFile.Path)
@@ -628,7 +629,7 @@ type PortForwardEndOptions struct {
 	Port string // 8080:8080
 }
 
-func (a *Application) Controller(name string, svcType appmeta.SvcType) *controller.Controller {
+func (a *Application) Controller(name string, svcType base.SvcType) *controller.Controller {
 	return &controller.Controller{
 		NameSpace: a.NameSpace,
 		AppName:   a.Name,
@@ -660,7 +661,7 @@ func (a *Application) GetDescription() *profile.AppProfileV2 {
 
 		// first iter from local svcProfile
 		for _, svcProfile := range appProfile.SvcProfile {
-			svcType := appmeta.SvcTypeOf(svcProfile.Type)
+			svcType := base.SvcTypeOf(svcProfile.Type)
 
 			svcProfile.Developing = meta.CheckIfSvcDeveloping(svcProfile.ActualName, svcType)
 			svcProfile.Possess = a.appMeta.SvcDevModePossessor(

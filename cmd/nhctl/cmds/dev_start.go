@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
@@ -190,11 +191,11 @@ func loadLocalOrCmConfigIfValid() {
 		}
 		devStartOps.LocalSyncDir = append(devStartOps.LocalSyncDir, p.Associate)
 
-		_ = nocalhostApp.ReloadSvcCfg(deployment, serviceType, false, false)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
 	case 1:
 		must(nocalhostSvc.Associate(devStartOps.LocalSyncDir[0]))
 
-		_ = nocalhostApp.ReloadSvcCfg(deployment, serviceType, false, false)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
 	default:
 		log.Fatal(errors.New("Can not define multi 'local-sync(-s)'"))
 	}

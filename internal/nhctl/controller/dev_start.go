@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	//"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"

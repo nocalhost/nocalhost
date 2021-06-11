@@ -50,7 +50,7 @@ var configReloadCmd = &cobra.Command{
 			}
 		} else {
 			checkIfSvcExist(commonFlags.SvcName, serviceType)
-			if err := nocalhostApp.ReloadSvcCfg(commonFlags.SvcName, serviceType, true, false); err != nil {
+			if err := nocalhostApp.ReloadSvcCfg(commonFlags.SvcName, nocalhostSvc.Type, true, false); err != nil {
 				log.Fatal(errors.Wrap(err, ""))
 			}
 		}
