@@ -118,7 +118,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	}
 
 	if !app.appMeta.IsInstalled() {
-		return nil, ErrNotFound
+		return nil, errors.Wrap(ErrNotFound, fmt.Sprintf("%s-%s not found", app.NameSpace, app.Name))
 	}
 
 	// if still not present
