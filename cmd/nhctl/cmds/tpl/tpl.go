@@ -32,11 +32,17 @@ application:
 	# uniq
 	name: coding-agile
 
-	# appplication resource type
+	# application resource type
 	# type: select，options：helmGit/helmRepo/rawManifest/kustomize
 	# default value: null
 	# required
 	manifestType: rawManifest
+
+	# helmRepo application's default version
+	# type: string
+	# default value: null
+	# optional
+	helmVersion: 0.0.1
 
 	# Manifest resources path(relative to the root directory)
 	# type: string[]
