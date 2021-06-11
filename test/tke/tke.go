@@ -118,13 +118,13 @@ var _ = defaultConfig{
 }
 
 var DefaultConfig = defaultConfig{
-	vpcId:                     "vpc-1ds1cs38",
-	subNet:                    "subnet-gjfyzxor",
+	vpcId:                     "vpc-93iqnk7q",
+	subNet:                    "subnet-d7m18ag1",
 	k8sVersion:                "1.18.4",
 	os:                        "centos7.6.0_x64",
 	clusterType:               "MANAGED_CLUSTER",
 	zone:                      "ap-hongkong-2",
-	instanceType:              "SA2.SMALL2",
+	instanceType:              "S2.SMALL2",
 	diskType:                  "CLOUD_PREMIUM",
 	nodeRole:                  "WORKER",
 	internetMaxBandwidthOut:   100,
