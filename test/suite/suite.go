@@ -16,14 +16,18 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"net/http"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/runner"
 	"nocalhost/test/testcase"
 	"nocalhost/test/util"
 	"os"
 	"strings"
+	"time"
 )
 
 // test suite
@@ -66,23 +70,19 @@ func (t *T) Run(name string, fn func(cli runner.Client, p ...string), pp ...stri
 	if err != nil {
 		panic(errors.Wrap(err, "test suite failed, install bookinfo error"))
 	}
-	util.WaitResourceToBeStatus(
-		t.Cli.GetClientset().CoreV1().RESTClient(),
+	_ = k8sutils.WaitPod(
+		t.Cli.GetClientset(),
 		t.Cli.GetNhctl().Namespace,
-		"pods",
-		"app=reviews",
-		func(i interface{}) bool {
-			return i.(*v1.Pod).Status.Phase == v1.PodRunning
-		},
+		metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "reviews").String()},
+		func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
+		time.Minute*2,
 	)
-	util.WaitResourceToBeStatus(
-		t.Cli.GetClientset().CoreV1().RESTClient(),
+	_ = k8sutils.WaitPod(
+		t.Cli.GetClientset(),
 		t.Cli.GetNhctl().Namespace,
-		"pods",
-		"app=ratings",
-		func(i interface{}) bool {
-			return i.(*v1.Pod).Status.Phase == v1.PodRunning
-		},
+		metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "ratings").String()},
+		func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
+		time.Minute*2,
 	)
 	log.Info("Testing " + name)
 	fn(t.Cli, pp...)

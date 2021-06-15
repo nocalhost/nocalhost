@@ -19,9 +19,11 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"net/http"
+	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/test/runner"
-	"nocalhost/test/util"
 	"os"
 	"strings"
 	"time"
@@ -49,14 +51,12 @@ func DevStartT(cli runner.Client, moduleName string, moduleType string) error {
 	if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
 	}
-	util.WaitResourceToBeStatus(
-		cli.GetClientset().CoreV1().RESTClient(),
+	_ = k8sutils.WaitPod(
+		cli.GetClientset(),
 		cli.GetNhctl().Namespace,
-		"pods",
-		"app="+moduleName,
-		func(i interface{}) bool {
-			return i.(*v1.Pod).Status.Phase == v1.PodRunning
-		},
+		metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", moduleName).String()},
+		func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
+		time.Minute*2,
 	)
 	return nil
 }
@@ -132,14 +132,13 @@ func DevEndT(cli runner.Client, moduleName string, moduleType string) error {
 	if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
 	}
-	util.WaitResourceToBeStatus(
-		cli.GetClientset().CoreV1().RESTClient(),
+	_ = k8sutils.WaitPod(
+		cli.GetClientset(),
 		cli.GetNhctl().Namespace,
-		"pods",
-		"app="+moduleName,
-		func(i interface{}) bool {
-			return i.(*v1.Pod).Status.Phase == v1.PodRunning && func() bool {
-				for _, containerStatus := range i.(*v1.Pod).Status.ContainerStatuses {
+		metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", moduleName).String()},
+		func(i *v1.Pod) bool {
+			return i.Status.Phase == v1.PodRunning && func() bool {
+				for _, containerStatus := range i.Status.ContainerStatuses {
 					if containerStatus.Ready {
 						return false
 					}
@@ -147,6 +146,7 @@ func DevEndT(cli runner.Client, moduleName string, moduleType string) error {
 				return true
 			}()
 		},
+		time.Minute*2,
 	)
 	return nil
 }

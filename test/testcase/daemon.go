@@ -20,10 +20,12 @@ import (
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	profile2 "nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/runner"
-	"nocalhost/test/util"
+	"time"
 )
 
 func RestartDaemon(nhctl runner.Client) error {
@@ -37,12 +39,12 @@ func StopDaemon(nhctl *runner.CLI) error {
 }
 
 func Exec(client runner.Client) error {
-	util.WaitResourceToBeStatus(
-		client.GetClientset().CoreV1().RESTClient(),
+	_ = k8sutils.WaitPod(
+		client.GetClientset(),
 		client.GetNhctl().Namespace,
-		"pods",
-		"app=reviews",
-		func(i interface{}) bool { return i.(*v1.Pod).Status.Phase == v1.PodRunning },
+		metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "reviews").String()},
+		func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
+		time.Minute*2,
 	)
 	cmd := client.GetNhctl().Command(context.Background(), "exec", "bookinfo", "-d", "reviews", "-c", "ls")
 	return runner.Runner.RunWithCheckResult(cmd)
