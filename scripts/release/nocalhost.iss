@@ -34,6 +34,9 @@ Source: "..\..\build\kubectl.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\build\windows-amd64\helm.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
+[Tasks]
+Name: "addtopath"; Description: "Add to PATH (requires shell restart)"; GroupDescription: "Other:"
+
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
