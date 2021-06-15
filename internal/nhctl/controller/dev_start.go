@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"nocalhost/internal/nhctl/common/base"
+	//"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
@@ -443,14 +443,14 @@ func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) 
 	return requestMap, nil
 }
 
-func (c *Controller) waitingPodToBeReady() error {
+func waitingPodToBeReady(f func() (string, error)) error {
 	// Wait podList to be ready
 	spinner := utils.NewSpinner(" Waiting pod to start...")
 	spinner.Start()
 
 	for i := 0; i < 300; i++ {
 		<-time.NewTimer(time.Second * 1).C
-		if _, err := c.GetNocalhostDevContainerPod(); err == nil {
+		if _, err := f(); err == nil {
 			break
 		}
 	}
@@ -472,27 +472,31 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 
 // GetNocalhostDevContainerPod
 // A nocalhost dev container pod always has a container named nocalhost-sidecar
-func (c *Controller) GetNocalhostDevContainerPod() (string, error) {
-	var (
-		checkPodsList *corev1.PodList
-		err           error
-	)
-	switch c.Type {
-	case base.Deployment:
-		checkPodsList, err = c.Client.ListPodsByDeployment(c.Name)
-	case base.StatefulSet:
-		checkPodsList, err = c.Client.ListPodsByStatefulSet(c.Name)
-	case base.DaemonSet:
-		checkPodsList, err = c.Client.ListPodsByDeployment(daemonSetGenDeployPrefix + c.Name)
-	default:
-		return "", errors.New("Unsupported type")
-	}
-	if err != nil {
-		return "", err
-	}
+//func (c *Controller) GetNocalhostDevContainerPod1() (string, error) {
+//	var (
+//		checkPodsList *corev1.PodList
+//		err           error
+//	)
+//	switch c.Type {
+//	case appmeta.Deployment:
+//		checkPodsList, err = c.Client.ListPodsByDeployment(c.Name)
+//	case appmeta.StatefulSet:
+//		checkPodsList, err = c.Client.ListPodsByStatefulSet(c.Name)
+//	case appmeta.DaemonSet:
+//		checkPodsList, err = c.Client.ListPodsByDeployment(daemonSetGenDeployPrefix + c.Name)
+//	default:
+//		return "", errors.New("Unsupported type")
+//	}
+//	if err != nil {
+//		return "", err
+//	}
+//
+//	return findDevPod(checkPodsList)
+//}
 
+func findDevPod(podList *corev1.PodList) (string, error) {
 	found := false
-	for _, pod := range checkPodsList.Items {
+	for _, pod := range podList.Items {
 		if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
 			for _, container := range pod.Spec.Containers {
 				if container.Name == nocalhost.DefaultNocalhostSideCarName {

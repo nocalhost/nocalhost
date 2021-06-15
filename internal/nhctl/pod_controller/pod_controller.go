@@ -20,6 +20,7 @@ import (
 
 type PodController interface {
 	ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error
+	GetNocalhostDevContainerPod() (string, error)
 	Name() string // Controller name
 	RollBack(reset bool) error
 	GetPodList() ([]corev1.Pod, error)

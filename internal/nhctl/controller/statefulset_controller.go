@@ -36,6 +36,15 @@ type StatefulSetController struct {
 	*Controller
 }
 
+func (s *StatefulSetController) GetNocalhostDevContainerPod() (string, error) {
+	checkPodsList, err := s.Client.ListPodsByStatefulSet(s.Name())
+	if err != nil {
+		return "", err
+	}
+
+	return findDevPod(checkPodsList)
+}
+
 func (s *StatefulSetController) Name() string {
 	return s.Controller.Name
 }
@@ -229,7 +238,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		}
 		break
 	}
-	return s.waitingPodToBeReady()
+	return waitingPodToBeReady(s.GetNocalhostDevContainerPod)
 }
 
 // Container Get specify container
