@@ -22,6 +22,7 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/request"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
@@ -59,24 +60,14 @@ func GetVersion() (v1 string, v2 string) {
 }
 
 func InstallNhctl(version string) error {
-	var name string
-	var output string
-	var needChmod bool
-	if strings.Contains(runtime.GOOS, "darwin") {
-		name = "nhctl-darwin-amd64"
-		output = "nhctl"
-		needChmod = true
-	} else if strings.Contains(runtime.GOOS, "windows") {
+	name := "nhctl-darwin-amd64"
+	needChmod := true
+	if runtime.GOOS == "windows" {
 		name = "nhctl-windows-amd64.exe"
-		output = "nhctl.exe"
 		needChmod = false
-	} else {
-		name = "nhctl-linux-amd64"
-		output = "nhctl"
-		needChmod = true
 	}
-	str := "curl --fail -s -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o " + output
-	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, name, version))
+	str := "curl --fail -s -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o %s"
+	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, name, version, utils.GetNhctlBinName()))
 	if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
 	}
