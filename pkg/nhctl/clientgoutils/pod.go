@@ -19,7 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-// This method can not list pods whose deployment is already deleted.
+// ListPodsByDeployment This method can not list pods whose deployment is already deleted.
 func (c *ClientGoUtils) ListPodsByDeployment(name string) (*corev1.PodList, error) {
 	deployment, err := c.ClientSet.AppsV1().Deployments(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
 	if err != nil {
@@ -63,4 +63,18 @@ func (c *ClientGoUtils) ListPodsByLabels(labelMap map[string]string) ([]corev1.P
 		result = append(result, pod)
 	}
 	return result, nil
+}
+
+func (c *ClientGoUtils) DeletePodByName(name string) error {
+	return errors.Wrap(c.ClientSet.CoreV1().Pods(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{}), "")
+}
+
+func (c *ClientGoUtils) CreatePod(pod *corev1.Pod) (*corev1.Pod, error) {
+	pod2, err := c.ClientSet.CoreV1().Pods(c.namespace).Create(c.ctx, pod, metav1.CreateOptions{})
+	return pod2, errors.Wrap(err, "")
+}
+
+func (c *ClientGoUtils) UpdatePod(pod *corev1.Pod) (*corev1.Pod, error) {
+	pod2, err := c.GetPodClient().Update(c.ctx, pod, metav1.UpdateOptions{})
+	return pod2, errors.Wrap(err, "")
 }

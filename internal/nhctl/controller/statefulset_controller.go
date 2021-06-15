@@ -42,7 +42,7 @@ func (s *StatefulSetController) GetNocalhostDevContainerPod() (string, error) {
 		return "", err
 	}
 
-	return findDevPod(checkPodsList)
+	return findDevPod(checkPodsList.Items)
 }
 
 func (s *StatefulSetController) Name() string {
