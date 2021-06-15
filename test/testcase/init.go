@@ -60,11 +60,17 @@ func GetVersion() (v1 string, v2 string) {
 }
 
 func InstallNhctl(version string) error {
-	name := "nhctl-darwin-amd64"
-	needChmod := true
-	if runtime.GOOS == "windows" {
+	var name string
+	var needChmod bool
+	if runtime.GOOS == "darwin" {
+		name = "nhctl-darwin-amd64"
+		needChmod = true
+	} else if runtime.GOOS == "windows" {
 		name = "nhctl-windows-amd64.exe"
 		needChmod = false
+	} else {
+		name = "nhctl-linux-amd64"
+		needChmod = true
 	}
 	str := "curl --fail -s -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o %s"
 	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, name, version, utils.GetNhctlBinName()))
