@@ -14,12 +14,13 @@ package clientgoutils
 
 import (
 	"github.com/pkg/errors"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-// This method can not list pods whose deployment is already deleted.
+// ListPodsByCronJob This method can not list pods whose deployment is already deleted.
 func (c *ClientGoUtils) ListPodsByCronJob(name string) (*corev1.PodList, error) {
 	job, err := c.ClientSet.BatchV1beta1().CronJobs(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
 	if err != nil {
@@ -33,4 +34,9 @@ func (c *ClientGoUtils) ListPodsByCronJob(name string) (*corev1.PodList, error) 
 		return nil, errors.Wrap(err, "")
 	}
 	return pods, nil
+}
+
+func (c *ClientGoUtils) UpdateCronJob(cj *batchv1beta1.CronJob) (*batchv1beta1.CronJob, error) {
+	cj, err := c.GetCronJobsClient().Update(c.ctx, cj, metav1.UpdateOptions{})
+	return cj, errors.Wrap(err, "")
 }

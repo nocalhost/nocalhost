@@ -20,13 +20,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/pkg/nhctl/log"
 )
 
 type CronJobController struct {
 	*Controller
 }
 
-const cronjobGeneratedJobPrefix = "cronjob-generated-job-"
+const (
+	cronjobGeneratedJobPrefix = "cronjob-generated-job-"
+	cronjobScheduleAnnotation = "nocalhost.dev.cronjob.schedule"
+)
 
 func (j *CronJobController) GetNocalhostDevContainerPod() (string, error) {
 	checkPodsList, err := j.Client.ListPodsByJob(j.getGeneratedJobName())
@@ -50,7 +54,14 @@ func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStar
 		return err
 	}
 
-	originJob.Spec.Schedule = ""
+	if originJob.Annotations == nil {
+		originJob.Annotations = make(map[string]string, 0)
+	}
+	originJob.Annotations[cronjobScheduleAnnotation] = originJob.Spec.Schedule
+	originJob.Spec.Schedule = "1 1 1 1 1"
+	if _, err = j.Client.UpdateCronJob(originJob); err != nil {
+		return err
+	}
 
 	// Create a Job from origin Job's spec
 	generatedJob := &batchv1.Job{
@@ -123,7 +134,24 @@ func (j *CronJobController) Name() string {
 }
 
 func (j *CronJobController) RollBack(reset bool) error {
-	return j.Client.DeleteJob(j.getGeneratedJobName())
+	originJob, err := j.Client.GetCronJobs(j.Name())
+	if err != nil {
+		return err
+	}
+	schedule, ok := originJob.Annotations[cronjobScheduleAnnotation]
+	if ok {
+		originJob.Spec.Schedule = schedule
+		if _, err = j.Client.UpdateCronJob(originJob); err != nil {
+			return err
+		}
+	}
+	if err = j.Client.DeleteJob(j.getGeneratedJobName()); err != nil {
+		if !reset {
+			return err
+		}
+		log.WarnE(err, "")
+	}
+	return nil
 }
 
 // GetPodList
