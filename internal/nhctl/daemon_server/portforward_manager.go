@@ -20,8 +20,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"net"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -67,7 +68,7 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(cmd *command.PortForwardCo
 	if cmd.ServiceType == "" {
 		cmd.ServiceType = "deployment"
 	}
-	nhController := nocalhostApp.Controller(cmd.Service, appmeta.SvcType(cmd.ServiceType))
+	nhController := nocalhostApp.Controller(cmd.Service, base.SvcType(cmd.ServiceType))
 	return nhController.DeletePortForwardFromDB(cmd.LocalPort, cmd.RemotePort)
 }
 
@@ -95,7 +96,7 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string
 
 	for _, svcProfile := range profile.SvcProfile {
 		for _, pf := range svcProfile.DevPortForwardList {
-			if pf.RunByDaemonServer && pf.Sudo == isSudo { // Only recover port-forward managed by this daemon server
+			if pf.Sudo == isSudo { // Only recover port-forward managed by this daemon server
 				log.Logf("Recovering port-forward %d:%d of %s-%s", pf.LocalPort, pf.RemotePort, ns, appName)
 				svcType := pf.ServiceType
 				// For compatibility
@@ -167,7 +168,14 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		return err
 	}
 
-	nhController := nocalhostApp.Controller(startCmd.Service, appmeta.SvcType(startCmd.ServiceType))
+	address := fmt.Sprintf("0.0.0.0:%d", startCmd.LocalPort)
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Port %d is unavailable: %s", startCmd.LocalPort, err.Error()))
+	}
+	_ = listener.Close()
+
+	nhController := nocalhostApp.Controller(startCmd.Service, base.SvcType(startCmd.ServiceType))
 
 	if saveToDB {
 		// Check if port forward already exists
@@ -175,18 +183,18 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			return errors.New(fmt.Sprintf("Port forward %d:%d already exists", localPort, remotePort))
 		}
 		pf := &profile.DevPortForward{
-			LocalPort:         localPort,
-			RemotePort:        remotePort,
-			Role:              startCmd.Role,
-			Status:            "New",
-			Reason:            "Add",
-			PodName:           startCmd.PodName,
-			Updated:           time.Now().Format("2006-01-02 15:04:05"),
-			Pid:               0,
-			RunByDaemonServer: true,
-			Sudo:              isSudo,
-			DaemonServerPid:   os.Getpid(),
-			ServiceType:       startCmd.ServiceType,
+			LocalPort:  localPort,
+			RemotePort: remotePort,
+			Role:       startCmd.Role,
+			Status:     "New",
+			Reason:     "Add",
+			PodName:    startCmd.PodName,
+			Updated:    time.Now().Format("2006-01-02 15:04:05"),
+			//Pid:        0,
+			//RunByDaemonServer: true,
+			Sudo:            isSudo,
+			DaemonServerPid: os.Getpid(),
+			ServiceType:     startCmd.ServiceType,
 		}
 
 		p.lock.Lock()

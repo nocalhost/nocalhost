@@ -227,6 +227,7 @@ type criteria struct {
 	appName          string
 	ns               string
 	availableAppName []string
+	label            map[string]string
 }
 
 func newCriteria(search *Searcher) *criteria {
@@ -272,6 +273,11 @@ func (c *criteria) Kind(object runtime.Object) *criteria {
 
 func (c *criteria) ResourceName(resourceName string) *criteria {
 	c.resourceName = resourceName
+	return c
+}
+
+func (c *criteria) Label(label map[string]string) *criteria {
+	c.label = label
 	return c
 }
 
@@ -346,7 +352,13 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		}
 		return
 	}
-	return newFilter(info.GetIndexer().List()).namespace(c.ns).appName(c.availableAppName, c.appName).sort().toSlice(), nil
+	return newFilter(info.GetIndexer().List()).
+		namespace(c.ns).
+		appName(c.availableAppName, c.appName).
+		label(c.label).
+		notLabel(map[string]string{nocalhost.DevWorkloadIgnored: "true"}).
+		sort().
+		toSlice(), nil
 }
 
 type filter struct {
@@ -402,6 +414,36 @@ func (n *filter) appNameNotIn(appNames []string) *filter {
 	}
 	n.element = result
 	return n
+}
+
+// support equals, like: a == b
+func (n *filter) label(label map[string]string) *filter {
+	n.element = labelSelector(n.element, label, func(v1, v2 string) bool { return v1 == v2 })
+	return n
+}
+
+// support not equal, like a != b
+func (n *filter) notLabel(label map[string]string) *filter {
+	n.element = labelSelector(n.element, label, func(v1, v2 string) bool { return v1 != v2 })
+	return n
+}
+
+func labelSelector(element []interface{}, label map[string]string, f func(string, string) bool) []interface{} {
+	var result []interface{}
+	for _, e := range element {
+		labels := e.(metav1.Object).GetLabels()
+		match := true
+		for k, v := range label {
+			if !f(labels[k], v) {
+				match = false
+				break
+			}
+		}
+		if match {
+			result = append(result, e)
+		}
+	}
+	return result[0:]
 }
 
 func (n *filter) sort() *filter {

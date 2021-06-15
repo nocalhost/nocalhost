@@ -10,18 +10,15 @@
  * limitations under the License.
  */
 
-package nhctlcli
+package runner
 
 import (
-	"bufio"
 	"bytes"
-	"fmt"
 	"github.com/pkg/errors"
 	"io"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
-	"strings"
 	"time"
 )
 
@@ -84,63 +81,38 @@ func (r *CmdRunner) Run(cmd *exec.Cmd) (string, string, error) {
 	return stdout.String(), stderr.String(), nil
 }
 
-func (r *CmdRunner) RunWithRollingOut(cmd *exec.Cmd) (string, string, error) {
+func (r *CmdRunner) RunWithRollingOutWithChecker(cmd *exec.Cmd, checker func(log string) bool) (string, string, error) {
 	time.Sleep(time.Second * 5)
 	log.Infof("Running command: %s", cmd.Args)
-	var stdoutLog strings.Builder
-	var stderrLog strings.Builder
-	stdoutPipe, err := cmd.StdoutPipe()
-	stderrPipe, err := cmd.StderrPipe()
-	if err != nil {
-		return stdoutLog.String(), stderrLog.String(), err
-	}
-	if err = cmd.Start(); err != nil {
+	stdoutBuf := bytes.NewBuffer(make([]byte, 1024))
+	stderrBuf := bytes.NewBuffer(make([]byte, 1024))
+	stdoutPipe, _ := cmd.StdoutPipe()
+	stderrPipe, _ := cmd.StderrPipe()
+	stdout := io.MultiWriter(os.Stdout, stdoutBuf)
+	stderr := io.MultiWriter(os.Stderr, stderrBuf)
+	go func() {
+		_, _ = io.Copy(stdout, stdoutPipe)
+	}()
+	go func() {
+		_, _ = io.Copy(stderr, stderrPipe)
+	}()
+	go func() {
+		if checker != nil {
+			for {
+				if checker(stdoutBuf.String()) || checker(stderrBuf.String()) {
+					break
+				}
+			}
+		}
+	}()
+	if err := cmd.Start(); err != nil {
 		_ = cmd.Process.Kill()
-		return "", "", err
+		return stdoutBuf.String(), stderrBuf.String(), err
 	}
-	defer stdoutPipe.Close()
-	defer stderrPipe.Close()
-	stdoutReader := bufio.NewReaderSize(stdoutPipe, 1024)
-	stderrReader := bufio.NewReaderSize(stderrPipe, 1024)
-	go func() {
-		for {
-			line, isPrefix, err := stdoutReader.ReadLine()
-			if err != nil {
-				if err != io.EOF && !strings.Contains(err.Error(), "closed") {
-					_, _ = os.Stdout.WriteString(
-						fmt.Sprintf("command log error: %v, log: %v\n", err, string(line)),
-					)
-				}
-				break
-			}
-			if len(line) != 0 && !isPrefix {
-				_, _ = os.Stdout.WriteString(string(line) + "\n")
-				stdoutLog.WriteString(string(line) + "\n")
-			}
-		}
-	}()
-	go func() {
-		for {
-			line, isPrefix, err := stderrReader.ReadLine()
-			if err != nil {
-				if err != io.EOF && !strings.Contains(err.Error(), "closed") {
-					_, _ = os.Stderr.WriteString(
-						fmt.Sprintf("command log error: %v, log: %v\n", err, string(line)),
-					)
-				}
-				break
-			}
-			if len(line) != 0 && !isPrefix {
-				_, _ = os.Stderr.WriteString(string(line) + "\n")
-				stderrLog.WriteString(string(line) + "\n")
-			}
-		}
-	}()
 	_ = cmd.Wait()
-	time.Sleep(2 * time.Second)
-	if cmd.ProcessState.Success() && stderrLog.Len() == 0 {
-		return stdoutLog.String(), "", nil
-	} else {
-		return stdoutLog.String(), stderrLog.String(), errors.New("exit code is not 0")
+	var err error
+	if !cmd.ProcessState.Success() {
+		err = errors.New("exit code is not 0")
 	}
+	return stdoutBuf.String(), stderrBuf.String(), err
 }

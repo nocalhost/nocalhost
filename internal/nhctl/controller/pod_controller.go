@@ -13,16 +13,20 @@
 package controller
 
 import (
-	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/pod_controller"
 )
 
 func (c *Controller) BuildPodController() pod_controller.PodController {
 	switch c.Type {
-	case appmeta.Deployment:
+	case base.Deployment:
 		return &DeploymentController{Controller: c}
-	case appmeta.StatefulSet:
+	case base.StatefulSet:
 		return &StatefulSetController{Controller: c}
+	case base.DaemonSet:
+		return &DaemonSetController{Controller: c}
+	case base.Job:
+		return &JobController{Controller: c}
 	}
 	return nil
 }

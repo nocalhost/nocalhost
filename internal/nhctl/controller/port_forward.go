@@ -21,7 +21,6 @@ import (
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -104,7 +103,7 @@ func (c *Controller) UpdatePortForwardStatus(localPort int, remotePort int, port
 				if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
 					portForward.Status = portStatus
 					portForward.Reason = reason
-					portForward.Pid = os.Getpid()
+					//portForward.Pid = os.Getpid()
 					portForward.Updated = time.Now().Format("2006-01-02 15:04:05")
 					break
 				}
@@ -147,7 +146,7 @@ func (c *Controller) GetPortForward(localPort, remotePort int) (*profile.DevPort
 //	}
 //}
 
-func (c *Controller) PortForwardAfterDevStart(containerName string) error {
+func (c *Controller) PortForwardAfterDevStart(podName, containerName string) error {
 
 	profileV2, err := c.GetProfile()
 	if err != nil {
@@ -162,10 +161,10 @@ func (c *Controller) PortForwardAfterDevStart(containerName string) error {
 	if cc == nil {
 		return nil
 	}
-	podName, err := c.GetNocalhostDevContainerPod()
-	if err != nil {
-		return err
-	}
+	//podName, err := c.GetNocalhostDevContainerPod()
+	//if err != nil {
+	//	return err
+	//}
 	for _, pf := range cc.PortForward {
 		lPort, rPort, err := GetPortForwardForString(pf)
 		if err != nil {

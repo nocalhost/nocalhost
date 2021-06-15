@@ -14,6 +14,7 @@ package clientgoutils
 
 import (
 	"fmt"
+	dockerterm "github.com/moby/term"
 	"github.com/pkg/errors"
 	"io"
 	corev1 "k8s.io/api/core/v1"
@@ -49,9 +50,10 @@ func (c *ClientGoUtils) Exec(podName string, containerName string, command []str
 		containerName = pod.Spec.Containers[0].Name
 	}
 
+	in, out, _ := dockerterm.StdStreams()
 	t := term.TTY{
-		Out: os.Stdout,
-		In:  os.Stdin,
+		Out: out,
+		In:  in,
 		Raw: true,
 	}
 

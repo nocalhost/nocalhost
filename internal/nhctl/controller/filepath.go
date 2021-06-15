@@ -13,7 +13,7 @@
 package controller
 
 import (
-	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/utils"
@@ -27,7 +27,7 @@ func (c *Controller) GetSyncThingPidFile() string {
 
 func (c *Controller) GetApplicationSyncDir() string {
 	dirPath := ""
-	if c.Type == appmeta.Deployment {
+	if c.Type == base.Deployment {
 		dirPath = filepath.Join(c.getAppHomeDir(), nocalhost.DefaultBinSyncThingDirName, c.Name)
 	} else {
 		dirPath = filepath.Join(c.getAppHomeDir(), nocalhost.DefaultBinSyncThingDirName, string(c.Type)+"-"+c.Name)

@@ -10,7 +10,7 @@
  * limitations under the License.
  */
 
-package nhctlcli
+package runner
 
 import (
 	"context"
@@ -58,7 +58,7 @@ func (c CLI) Run(ctx context.Context, command string, arg ...string) (string, st
 
 func (c CLI) RunWithRollingOut(ctx context.Context, command string, arg ...string) (string, string, error) {
 	cmd := c.Command(ctx, command, arg...)
-	return Runner.RunWithRollingOut(cmd)
+	return Runner.RunWithRollingOutWithChecker(cmd, nil)
 }
 
 func (c *CLI) argsAppendNamespaceAndKubeconfig(command string, namespace string, arg ...string) []string {

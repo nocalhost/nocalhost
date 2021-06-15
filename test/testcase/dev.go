@@ -19,25 +19,25 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"net/http"
-	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/tools"
-	"nocalhost/test/nhctlcli"
-	"nocalhost/test/util"
+	"nocalhost/pkg/nhctl/k8sutils"
+	"nocalhost/test/runner"
 	"os"
 	"strings"
 	"time"
 )
 
-func DevStart(cli *nhctlcli.CLI, moduleName string) error {
+func DevStart(cli runner.Client, moduleName string) error {
 	return DevStartT(cli, moduleName, "")
 }
 
-func DevStartT(cli *nhctlcli.CLI, moduleName string, moduleType string) error {
+func DevStartT(cli runner.Client, moduleName string, moduleType string) error {
 	if err := os.MkdirAll(fmt.Sprintf("/tmp/%s", moduleName), 0777); err != nil {
 		return errors.Errorf("test case failed, reason: create directory error, error: %v", err)
 	}
-	cmd := cli.Command(
+	cmd := cli.GetNhctl().Command(
 		context.Background(), "dev",
 		"start",
 		"bookinfo",
@@ -48,31 +48,33 @@ func DevStartT(cli *nhctlcli.CLI, moduleName string, moduleType string) error {
 		// prevent tty to block testcase
 		"--without-terminal",
 	)
-	if err := nhctlcli.Runner.RunWithCheckResult(cmd); err != nil {
+	if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
 	}
-	util.WaitResourceToBeStatus(
-		cli.Namespace, "pods", "app="+moduleName, func(i interface{}) bool {
-			return i.(*v1.Pod).Status.Phase == v1.PodRunning
-		},
+	_ = k8sutils.WaitPod(
+		cli.GetClientset(),
+		cli.GetNhctl().Namespace,
+		metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", moduleName).String()},
+		func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
+		time.Minute*2,
 	)
 	return nil
 }
 
-func Sync(cli *nhctlcli.CLI, moduleName string) error {
+func Sync(cli runner.Client, moduleName string) error {
 	return SyncT(cli, moduleName, "")
 }
 
-func SyncT(cli *nhctlcli.CLI, moduleName string, moduleType string) error {
-	cmd := cli.Command(context.Background(), "sync", "bookinfo", "-d", moduleName, "-t", moduleType)
-	return nhctlcli.Runner.RunWithCheckResult(cmd)
+func SyncT(cli runner.Client, moduleName string, moduleType string) error {
+	cmd := cli.GetNhctl().Command(context.Background(), "sync", "bookinfo", "-d", moduleName, "-t", moduleType)
+	return runner.Runner.RunWithCheckResult(cmd)
 }
 
-func SyncCheck(cli *nhctlcli.CLI, moduleName string) error {
+func SyncCheck(cli runner.Client, moduleName string) error {
 	return SyncCheckT(cli, moduleName, "deployment")
 }
 
-func SyncCheckT(cli *nhctlcli.CLI, moduleName string, moduleType string) error {
+func SyncCheckT(cli runner.Client, moduleName string, moduleType string) error {
 	filename := "hello.test"
 	content := "this is a test, random string: " + uuid.New().String()
 	if err := ioutil.WriteFile(fmt.Sprintf("/tmp/%s/%s", moduleName, filename), []byte(content), 0644); err != nil {
@@ -85,23 +87,13 @@ func SyncCheckT(cli *nhctlcli.CLI, moduleName string, moduleType string) error {
 	}
 	// not use nhctl exec is just because nhctl exec will stuck while cat file
 	args := []string{
-		"exec",
 		"-t", fmt.Sprintf("%s/%s", moduleType, moduleName),
-		"-n", cli.Namespace,
-		"--kubeconfig",
-		cli.KubeConfig,
 		"--",
 		"cat",
 		filename,
 	}
-	kubectl, err := tools.CheckThirdPartyCLI()
+	logStr, _, err := cli.GetKubectl().Run(context.Background(), "exec", args...)
 	if err != nil {
-		return errors.New("can't find kubectl, please make sure kubectl is installed and in executable path")
-	}
-	log.Infof("Running command: %s %s", kubectl, args)
-	var logStr string
-	var ok bool
-	if ok, logStr = util.WaitForCommandDone(kubectl, args...); !ok {
 		return errors.Errorf(
 			"test case failed, reason: cat file %s error, command: %s, log: %v",
 			filename, args, logStr,
@@ -131,19 +123,22 @@ func PortForwardCheck(port int) error {
 	return errors.Errorf("test case failed, reason: can't access endpoint: %s", endpoint)
 }
 
-func DevEnd(cli *nhctlcli.CLI, moduleName string) error {
+func DevEnd(cli runner.Client, moduleName string) error {
 	return DevEndT(cli, moduleName, "")
 }
 
-func DevEndT(cli *nhctlcli.CLI, moduleName string, moduleType string) error {
-	cmd := cli.Command(context.Background(), "dev", "end", "bookinfo", "-d", moduleName, "-t", moduleType)
-	if err := nhctlcli.Runner.RunWithCheckResult(cmd); err != nil {
+func DevEndT(cli runner.Client, moduleName string, moduleType string) error {
+	cmd := cli.GetNhctl().Command(context.Background(), "dev", "end", "bookinfo", "-d", moduleName, "-t", moduleType)
+	if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
 	}
-	util.WaitResourceToBeStatus(
-		cli.Namespace, "pods", "app="+moduleName, func(i interface{}) bool {
-			return i.(*v1.Pod).Status.Phase == v1.PodRunning && func() bool {
-				for _, containerStatus := range i.(*v1.Pod).Status.ContainerStatuses {
+	_ = k8sutils.WaitPod(
+		cli.GetClientset(),
+		cli.GetNhctl().Namespace,
+		metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", moduleName).String()},
+		func(i *v1.Pod) bool {
+			return i.Status.Phase == v1.PodRunning && func() bool {
+				for _, containerStatus := range i.Status.ContainerStatuses {
 					if containerStatus.Ready {
 						return false
 					}
@@ -151,6 +146,7 @@ func DevEndT(cli *nhctlcli.CLI, moduleName string, moduleType string) error {
 				return true
 			}()
 		},
+		time.Minute*2,
 	)
 	return nil
 }

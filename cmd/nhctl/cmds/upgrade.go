@@ -16,6 +16,7 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
@@ -28,6 +29,8 @@ func init() {
 	upgradeCmd.Flags().StringVarP(&installFlags.GitRef, "git-ref", "r", "", "resources git ref")
 	upgradeCmd.Flags().StringSliceVar(&installFlags.ResourcePath, "resource-path", []string{}, "resources path")
 	upgradeCmd.Flags().StringVar(&installFlags.Config, "config", "", "specify a config relative to .nocalhost dir")
+	upgradeCmd.Flags().StringVarP(&installFlags.OuterConfig, "outer-config", "c", "",
+		"specify a config.yaml in local path")
 	upgradeCmd.Flags().StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
 	//installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "",
 	//fmt.Sprintf("nocalhost application type: %s or %s or %s", app.HelmRepo, app.Helm, app.Manifest))
@@ -94,7 +97,8 @@ var upgradeCmd = &cobra.Command{
 				// find first pod
 				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
 				nhSvc := initService(svcName, pf.ServiceType)
-				podName, err := nhSvc.BuildPodController().GetDefaultPodNameWait(ctx)
+				controller.GetDefaultPodName(ctx, nhSvc.BuildPodController())
+				podName, err := controller.GetDefaultPodName(ctx, nhSvc.BuildPodController())
 				if err != nil {
 					log.WarnE(err, "")
 					continue

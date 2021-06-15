@@ -35,7 +35,7 @@ func (a *Application) getResource(resourceName, resourceType string) (interface{
 	}
 
 	data, err := cli.SendGetResourceInfoCommand(
-		a.KubeConfig, a.NameSpace, a.GetAppMeta().Application, resourceType, resourceName,
+		a.KubeConfig, a.NameSpace, a.GetAppMeta().Application, resourceType, resourceName, nil,
 	)
 	if data == nil || err != nil {
 		return nil, errors.Wrap(err, "Fail to get resource info from daemon")

@@ -10,47 +10,13 @@
  * limitations under the License.
  */
 
-package nhctlcli
+package controller
 
-import (
-	"os/exec"
-)
+import "testing"
 
-func NewNhctl(namespace, kubeconfig string) *CLI {
-	c := &Conf{
-		kubeconfig: kubeconfig,
-		namespace:  namespace,
-	}
-	n, err := exec.LookPath("nhctl")
+func TestController_scale(t *testing.T) {
+	err := scaleDaemonSetReplicasToZero("fluentd-elasticsearch")
 	if err != nil {
-		c.cmd = "nhctl"
-	} else {
-		c.cmd = n
+		panic(err)
 	}
-	return NewCLI(c, namespace)
-}
-
-func NewKubectl(namespace, kubeconfig string) *CLI {
-	c := &Conf{
-		kubeconfig: kubeconfig,
-		namespace:  namespace,
-		cmd:        "kubectl",
-	}
-	return NewCLI(c, namespace)
-}
-
-type Conf struct {
-	kubeconfig string
-	namespace  string
-	cmd        string
-}
-
-func (c *Conf) GetKubeConfig() string {
-	return c.kubeconfig
-}
-func (c *Conf) GetNamespace() string {
-	return c.namespace
-}
-func (c Conf) GetCmd() string {
-	return c.cmd
 }

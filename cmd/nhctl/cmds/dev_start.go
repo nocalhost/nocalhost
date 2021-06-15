@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
@@ -107,7 +108,7 @@ var devStartCmd = &cobra.Command{
 		if nocalhostSvc.IsInDevMode() {
 			coloredoutput.Hint("Already in DevMode...")
 
-			podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
+			podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
 			must(err)
 
 			if nocalhostSvc.IsProcessor() {
@@ -190,11 +191,11 @@ func loadLocalOrCmConfigIfValid() {
 		}
 		devStartOps.LocalSyncDir = append(devStartOps.LocalSyncDir, p.Associate)
 
-		_ = nocalhostApp.ReloadSvcCfg(deployment, serviceType, false, false)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
 	case 1:
 		must(nocalhostSvc.Associate(devStartOps.LocalSyncDir[0]))
 
-		_ = nocalhostApp.ReloadSvcCfg(deployment, serviceType, false, false)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
 	default:
 		log.Fatal(errors.New("Can not define multi 'local-sync(-s)'"))
 	}
@@ -246,7 +247,7 @@ func enterDevMode() string {
 	}()
 
 	newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
-	mustPI(err, "Failed to create syncthing process, please try again")
+	mustI(err, "Failed to create syncthing process, please try again")
 
 	// try install syncthing
 	var downloadVersion = Version
@@ -257,14 +258,14 @@ func enterDevMode() string {
 	}
 
 	_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
-	mustPI(
+	mustI(
 		err, "Failed to install syncthing, no syncthing available locally in "+
 			newSyncthing.BinPath+" please try again.",
 	)
 
 	// set syncthing secret
 	config, err := newSyncthing.GetRemoteConfigXML()
-	mustP(err)
+	must(err)
 
 	syncSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -277,7 +278,7 @@ func enterDevMode() string {
 			"key.pem":    []byte(secret_config.KeyPEM),
 		},
 	}
-	mustP(nocalhostSvc.CreateSyncThingSecret(syncSecret))
+	must(nocalhostSvc.CreateSyncThingSecret(syncSecret))
 
 	// Stop port-forward
 	appProfile, _ := nocalhostApp.GetProfile()
@@ -294,19 +295,19 @@ func enterDevMode() string {
 		if errors.Is(err, nocalhost.CreatePvcFailed) {
 			log.Info("Failed to provision persistent volume due to insufficient resources")
 		}
-		mustP(err)
+		must(err)
 	}
 
 	// mark dev start as true
 	devStartSuccess = true
 
-	podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
-	mustP(err)
+	podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
+	must(err)
 
 	for _, pf := range pfList {
 		utils.Should(nocalhostSvc.PortForward(podName, pf.LocalPort, pf.RemotePort, pf.Role))
 	}
-	mustP(nocalhostSvc.PortForwardAfterDevStart(devStartOps.Container))
+	must(nocalhostSvc.PortForwardAfterDevStart(podName, devStartOps.Container))
 
 	fmt.Println()
 	coloredoutput.Success("Dev container has been updated")

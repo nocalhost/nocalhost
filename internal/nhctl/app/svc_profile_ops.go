@@ -15,11 +15,11 @@ package app
 import (
 	"fmt"
 	"github.com/pkg/errors"
-	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/profile"
 )
 
-func (a *Application) GetSvcProfile(svcName string, svcType appmeta.SvcType) (*profile.SvcProfileV2, error) {
+func (a *Application) GetSvcProfile(svcName string, svcType base.SvcType) (*profile.SvcProfileV2, error) {
 	profileV2, err := a.GetProfile()
 	if err != nil {
 		return nil, err

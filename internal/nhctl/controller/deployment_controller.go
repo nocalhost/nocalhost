@@ -19,11 +19,10 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/pod_controller"
-	"nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
 	"strings"
@@ -32,6 +31,14 @@ import (
 
 type DeploymentController struct {
 	*Controller
+}
+
+func (d *DeploymentController) GetNocalhostDevContainerPod() (string, error) {
+	checkPodsList, err := d.Client.ListPodsByDeployment(d.Name())
+	if err != nil {
+		return "", err
+	}
+	return findDevPod(checkPodsList)
 }
 
 func (d *DeploymentController) Name() string {
@@ -45,10 +52,6 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 	var err error
 	d.Client.Context(ctx)
 
-	//if err = d.markReplicaSetRevision(); err != nil {
-	//	return err
-	//}
-
 	dep, err := d.Client.GetDeployment(d.Name())
 	if err != nil {
 		return err
@@ -59,67 +62,21 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		return errors.Wrap(err, "")
 	}
 
-	if err = d.ScaleReplicasToOne(ctx); err != nil {
+	d.Client.Context(ctx)
+	if err = d.Client.ScaleDeploymentReplicasToOne(d.Name()); err != nil {
 		return err
 	}
 
-	devContainer, err := d.Container(ops.Container)
+	devContainer, err := findContainerInDeployment(d.Name(), ops.Container, d.Client)
 	if err != nil {
 		return err
 	}
 
-	devModeVolumes := make([]corev1.Volume, 0)
-	devModeMounts := make([]corev1.VolumeMount, 0)
-
-	// Set volumes
-	syncthingVolumes, syncthingVolumeMounts := d.generateSyncVolumesAndMounts()
-	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
-	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
-
-	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := d.genWorkDirAndPVAndMounts(
-		ops.Container, ops.StorageClass)
+	devContainer, sideCarContainer, devModeVolumes, err :=
+		d.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass)
 	if err != nil {
 		return err
 	}
-
-	devModeVolumes = append(devModeVolumes, workDirAndPersistVolumes...)
-	devModeMounts = append(devModeMounts, workDirAndPersistVolumeMounts...)
-
-	workDir := d.GetWorkDir(ops.Container)
-	devImage := d.GetDevImage(ops.Container) // Default : replace the first container
-
-	sideCarContainer := generateSideCarContainer(workDir)
-
-	devContainer.Image = devImage
-	devContainer.Name = "nocalhost-dev"
-	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
-	devContainer.WorkingDir = workDir
-
-	// set image pull policy
-	sideCarContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
-	devContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
-
-	// add env
-	devEnv := d.GetDevContainerEnv(ops.Container)
-	for _, v := range devEnv.DevEnv {
-		env := corev1.EnvVar{Name: v.Name, Value: v.Value}
-		devContainer.Env = append(devContainer.Env, env)
-	}
-
-	// Add volumeMounts to containers
-	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
-	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, devModeMounts...)
-
-	requirements := d.genResourceReq()
-	if requirements != nil {
-		devContainer.Resources = *requirements
-	}
-	r := &profile.ResourceQuota{
-		Limits:   &profile.QuotaList{Memory: "1Gi", Cpu: "1"},
-		Requests: &profile.QuotaList{Memory: "50Mi", Cpu: "100m"},
-	}
-	rq, _ := convertResourceQuota(r)
-	sideCarContainer.Resources = *rq
 
 	for i := 0; i < 10; i++ {
 		// Get latest deployment
@@ -157,7 +114,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 			dep.Spec.Template.Spec.Containers[i].SecurityContext = nil
 		}
 
-		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
+		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, *sideCarContainer)
 
 		// PriorityClass
 		priorityClass := ops.PriorityClass
@@ -201,49 +158,28 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		}
 		break
 	}
-	return d.waitingPodToBeReady()
+	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
 
 }
 
-func (d *DeploymentController) ScaleReplicasToOne(ctx context.Context) error {
-
-	deploymentsClient := d.Client.GetDeploymentClient()
-	scale, err := deploymentsClient.GetScale(ctx, d.Name(), metav1.GetOptions{})
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	if scale.Spec.Replicas > 1 {
-		log.Infof("Deployment %s replicas is %d now, scaling it to 1", d.Name(), scale.Spec.Replicas)
-		scale.Spec.Replicas = 1
-		_, err = deploymentsClient.UpdateScale(ctx, d.Name(), scale, metav1.UpdateOptions{})
-		if err != nil {
-			return errors.Wrap(err, "")
-		} else {
-			log.Info("Replicas has been set to 1")
-		}
-	} else {
-		log.Infof("Deployment %s replicas is already 1, no need to scale", d.Name())
-	}
-	return nil
-}
-
-func (d *DeploymentController) Container(containerName string) (*corev1.Container, error) {
-	var devContainer *corev1.Container
-
-	dep, err := d.Client.GetDeployment(d.Name())
+func findContainerInDeployment(deployName, containerName string, client *clientgoutils.ClientGoUtils) (*corev1.Container, error) {
+	dep, err := client.GetDeployment(deployName)
 	if err != nil {
 		return nil, err
 	}
+	return findContainerInDeploySpec(dep, containerName)
+}
+
+func findContainerInDeploySpec(dep *v1.Deployment, containerName string) (*corev1.Container, error) {
+	var devContainer *corev1.Container
+
 	if containerName != "" {
 		for index, c := range dep.Spec.Template.Spec.Containers {
 			if c.Name == containerName {
 				return &dep.Spec.Template.Spec.Containers[index], nil
 			}
 		}
-		if devContainer == nil {
-			return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
-		}
+		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
 	} else {
 		if len(dep.Spec.Template.Spec.Containers) > 1 {
 			return nil, errors.New(fmt.Sprintf("There are more than one container defined," +
@@ -344,11 +280,11 @@ func (d *DeploymentController) RollBack(reset bool) error {
 	return nil
 }
 
-func (d *DeploymentController) GetDefaultPodNameWait(ctx context.Context) (string, error) {
-	return getDefaultPodName(ctx, d)
-}
+//func (d *DeploymentController) GetDefaultPodNameWait(ctx context.Context) (string, error) {
+//	return getDefaultPodName(ctx, d)
+//}
 
-func getDefaultPodName(ctx context.Context, p pod_controller.PodController) (string, error) {
+func GetDefaultPodName(ctx context.Context, p pod_controller.PodController) (string, error) {
 	var (
 		podList []corev1.Pod
 		err     error
