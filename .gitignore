@@ -35,3 +35,4 @@ sync_for_test
 /build
 
 /conf/config.local.yaml
+.vscode/settings.json
