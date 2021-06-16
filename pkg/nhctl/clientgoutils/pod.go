@@ -65,8 +65,16 @@ func (c *ClientGoUtils) ListPodsByLabels(labelMap map[string]string) ([]corev1.P
 	return result, nil
 }
 
-func (c *ClientGoUtils) DeletePodByName(name string) error {
-	return errors.Wrap(c.ClientSet.CoreV1().Pods(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{}), "")
+// DeletePodByName
+// gracePeriodSeconds: The duration in seconds before the object should be deleted.
+// The value zero indicates delete immediately. If this value is negative integer, the default grace period for the
+// specified type will be used.
+func (c *ClientGoUtils) DeletePodByName(name string, gracePeriodSeconds int64) error {
+	deleteOps := metav1.DeleteOptions{}
+	if gracePeriodSeconds >= 0 {
+		deleteOps.GracePeriodSeconds = &gracePeriodSeconds
+	}
+	return errors.Wrap(c.ClientSet.CoreV1().Pods(c.namespace).Delete(c.ctx, name, deleteOps), "")
 }
 
 func (c *ClientGoUtils) CreatePod(pod *corev1.Pod) (*corev1.Pod, error) {

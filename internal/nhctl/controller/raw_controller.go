@@ -19,7 +19,6 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
 	"time"
 )
@@ -54,6 +53,8 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 	}
 
 	originalPod.Status = corev1.PodStatus{}
+	originalPod.ResourceVersion = ""
+
 	bys, err := json.Marshal(originalPod)
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -106,21 +107,20 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 	originalPod.Spec.Containers = append(originalPod.Spec.Containers, *sideCarContainer)
 
 	log.Info("Delete original pod...")
-	if err = r.Client.DeletePodByName(r.Name()); err != nil {
+	if err = r.Client.DeletePodByName(r.Name(), 0); err != nil {
 		return err
 	}
 
-	log.Info("Waiting pod to be deleted")
-	err = k8sutils.WaitPodByName(r.Client.ClientSet, r.NameSpace, r.Name(),
-		func(pod *corev1.Pod) bool {
-			return pod.DeletionTimestamp != nil
-		},
-		1*time.Minute)
-	if err != nil {
-		return err
-	}
+	time.Sleep(1 * time.Second)
+	//log.Info("Waiting pod to be deleted")
+	//if err = k8sutils.WaitPodDeleted(r.Client.ClientSet, r.NameSpace, r.Name(), 10*time.Minute); err != nil {
+	//	log.Info("Recovering pod...")
+	//	if _, err := r.Client.CreatePod(originalPod); err != nil {
+	//		return err
+	//	}
+	//	return err
+	//}
 
-	originalPod.ResourceVersion = ""
 	log.Info("Create dev pod...")
 	if _, err = r.Client.CreatePod(originalPod); err != nil {
 		return err
@@ -148,12 +148,14 @@ func (r *RawPodController) RollBack(reset bool) error {
 		return err1
 	}
 
+	originPod = &corev1.Pod{}
+
 	if err = json.Unmarshal([]byte(podSpec), originPod); err != nil {
 		return err
 	}
 
 	log.Info(" Deleting current revision...")
-	if err = r.Client.DeletePodByName(r.Name()); err != nil {
+	if err = r.Client.DeletePodByName(r.Name(), 0); err != nil {
 		return err
 	}
 

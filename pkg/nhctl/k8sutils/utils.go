@@ -76,6 +76,40 @@ func WaitDeployment(client *kubernetes.Clientset, namespace string, listOptions 
 	)
 }
 
+func WaitPodDeleted(client *kubernetes.Clientset, namespace string, name string, timeout time.Duration) error {
+	gvk := corev1.SchemeGroupVersion.WithKind("Pod")
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	groupResources, _ := restmapper.GetAPIGroupResources(client)
+	mapper := restmapper.NewDiscoveryRESTMapper(groupResources)
+	restMapping, _ := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+
+	watchlist := cache.NewFilteredListWatchFromClient(
+		client.CoreV1().RESTClient(),
+		restMapping.Resource.Resource,
+		namespace,
+		func(options *v1.ListOptions) {
+			options.FieldSelector = fields.OneTermEqualSelector("metadata.name", name).String()
+		})
+
+	object, err := scheme.Scheme.New(gvk)
+	if err != nil {
+		return err
+	}
+
+	conditionFunc := func(e watch.Event) (bool, error) {
+		return e.Type == watch.Deleted, nil
+	}
+	event, err := toolswatch.UntilWithSync(ctx, watchlist, object, nil, conditionFunc)
+	if err != nil {
+		log.Infof("wait resource: %s to delete failed, error: %v, event: %v",
+			restMapping.Resource.Resource, err, event)
+		return err
+	}
+	return nil
+}
+
 func WaitResource(client *kubernetes.Clientset, g cache.Getter, namespace string, gvk schema.GroupVersionKind,
 	listOptions v1.ListOptions, checker func(interface{}) bool, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
