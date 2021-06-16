@@ -254,7 +254,7 @@ func (s *StatefulSetController) Container(containerName string) (*corev1.Contain
 		}
 	} else {
 		if len(ss.Spec.Template.Spec.Containers) > 1 {
-			return nil, errors.New(fmt.Sprintf("There are more than one container defined," +
+			return nil, errors.New(fmt.Sprintf("There are more than one container defined, " +
 				"please specify one to start developing"))
 		}
 		if len(ss.Spec.Template.Spec.Containers) == 0 {

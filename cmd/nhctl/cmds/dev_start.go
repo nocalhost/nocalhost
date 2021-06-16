@@ -84,6 +84,10 @@ func init() {
 		&devStartOps.NoTerminal, "without-terminal", false,
 		"do not enter terminal directly while dev start success",
 	)
+	devStartCmd.Flags().BoolVar(
+		&devStartOps.NoSyncthing, "without-sync", false,
+		"do not start file-sync while dev start success",
+	)
 	debugCmd.AddCommand(devStartCmd)
 }
 
@@ -111,8 +115,12 @@ var devStartCmd = &cobra.Command{
 			podName, err := nocalhostSvc.GetNocalhostDevContainerPod()
 			must(err)
 
-			if nocalhostSvc.IsProcessor() {
-				startSyncthing(podName, true)
+			if !devStartOps.NoSyncthing {
+				if nocalhostSvc.IsProcessor() {
+					startSyncthing(podName, true)
+				}
+			} else {
+				coloredoutput.Success("File sync is not resumed caused by --without-sync flag.")
 			}
 
 			if !devStartOps.NoTerminal || shell != "" {
@@ -138,7 +146,12 @@ var devStartCmd = &cobra.Command{
 			stopPreviousSyncthing()
 			recordingProfile()
 			podName := enterDevMode()
-			startSyncthing(podName, false)
+
+			if !devStartOps.NoSyncthing {
+				startSyncthing(podName, false)
+			} else {
+				coloredoutput.Success("File sync is not started caused by --without-sync flag..")
+			}
 
 			if !devStartOps.NoTerminal || shell != "" {
 				must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
