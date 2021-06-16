@@ -16,6 +16,8 @@ import (
 	"context"
 	"fmt"
 	"k8s.io/api/batch/v1beta1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/watch"
 	"net/http"
 	"net/url"
 	"nocalhost/internal/nhctl/utils"
@@ -26,6 +28,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
 	v1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -498,5 +502,42 @@ func (c *ClientGoUtils) DeleteStatefulSetAndPVC(name string) error {
 		)
 		_ = c.ClientSet.CoreV1().PersistentVolumes().Delete(c.ctx, pvName, metav1.DeleteOptions{})
 	}
+	return nil
+}
+
+func (c *ClientGoUtils) DeletePod(ctx context.Context, podName string, wait bool, duration time.Duration) error {
+	err := c.ClientSet.CoreV1().Pods(c.namespace).Delete(ctx, podName, metav1.DeleteOptions{})
+	if !wait {
+		return err
+	}
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			log.Info("not found shadow pod, no need to delete it")
+			return nil
+		}
+		return err
+	}
+	log.Infof("waiting for pod: %s to be deleted...", podName)
+	w, errs := c.ClientSet.CoreV1().Pods(c.namespace).
+		Watch(ctx, metav1.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector("metadata.name", podName).String(),
+			Watch:         true,
+		})
+	if errs != nil {
+		log.Error(errs)
+		return errs
+	}
+out:
+	for {
+		select {
+		case event := <-w.ResultChan():
+			if watch.Deleted == event.Type {
+				break out
+			}
+		case <-time.Tick(duration):
+			return errors.New("timeout")
+		}
+	}
+	log.Infof("delete pod: %s successfully", podName)
 	return nil
 }
