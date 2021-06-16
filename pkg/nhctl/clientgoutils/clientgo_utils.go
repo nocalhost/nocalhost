@@ -505,8 +505,11 @@ func (c *ClientGoUtils) DeleteStatefulSetAndPVC(name string) error {
 	return nil
 }
 
-func (c *ClientGoUtils) DeletePod(podName string, wait bool) error {
-	err := c.ClientSet.CoreV1().Pods(c.namespace).Delete(c.ctx, podName, metav1.DeleteOptions{})
+func (c *ClientGoUtils) DeletePod(podName string, wait bool, duration time.Duration) error {
+	ctx, cancelFunc := context.WithTimeout(context.TODO(), duration)
+	defer cancelFunc()
+
+	err := c.ClientSet.CoreV1().Pods(c.namespace).Delete(ctx, podName, metav1.DeleteOptions{})
 	if !wait {
 		return err
 	}
@@ -518,7 +521,7 @@ func (c *ClientGoUtils) DeletePod(podName string, wait bool) error {
 		return err
 	}
 	log.Infof("waiting for pod: %s to be deleted...", podName)
-	w, errs := c.ClientSet.CoreV1().Pods(c.namespace).Watch(c.ctx, metav1.ListOptions{
+	w, errs := c.ClientSet.CoreV1().Pods(c.namespace).Watch(ctx, metav1.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector("metadata.name", podName).String(),
 		Watch:         true,
 	})
@@ -533,7 +536,7 @@ out:
 			if watch.Deleted == event.Type {
 				break out
 			}
-		case <-c.ctx.Done():
+		case <-ctx.Done():
 			return errors.New("timeout")
 		}
 	}
