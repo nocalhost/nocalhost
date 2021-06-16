@@ -19,12 +19,13 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/model"
+	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
+	"time"
 )
 
 const originalPodDefine = "nocalhost.dev.origin.pod.define"
 
-// RawPodController
 // RawPodController represents a pod not managed by any controller
 type RawPodController struct {
 	*Controller
@@ -106,6 +107,16 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 
 	log.Info("Delete original pod...")
 	if err = r.Client.DeletePodByName(r.Name()); err != nil {
+		return err
+	}
+
+	log.Info("Waiting pod to be deleted")
+	err = k8sutils.WaitPodByName(r.Client.ClientSet, r.NameSpace, r.Name(),
+		func(pod *corev1.Pod) bool {
+			return pod.DeletionTimestamp != nil
+		},
+		1*time.Minute)
+	if err != nil {
 		return err
 	}
 

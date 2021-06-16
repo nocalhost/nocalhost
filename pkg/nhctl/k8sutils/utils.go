@@ -17,6 +17,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/watch"
@@ -47,6 +48,17 @@ func WaitPod(client *kubernetes.Clientset, namespace string, listOptions v1.List
 		corev1.SchemeGroupVersion.WithKind("Pod"),
 		listOptions,
 		func(i interface{}) bool { return checker(i.(*corev1.Pod)) },
+		timeout,
+	)
+}
+
+func WaitPodByName(client *kubernetes.Clientset, namespace string, name string,
+	checker func(*corev1.Pod) bool, timeout time.Duration) error {
+	return WaitPod(
+		client,
+		namespace,
+		v1.ListOptions{FieldSelector: fields.OneTermEqualSelector("metadata.name", name).String()},
+		checker,
 		timeout,
 	)
 }
