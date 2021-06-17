@@ -35,4 +35,5 @@ type DevStartOptions struct {
 	PriorityClass string
 
 	NoTerminal bool
+	NoSyncthing bool
 }

@@ -182,7 +182,7 @@ func findContainerInDeploySpec(dep *v1.Deployment, containerName string) (*corev
 		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
 	} else {
 		if len(dep.Spec.Template.Spec.Containers) > 1 {
-			return nil, errors.New(fmt.Sprintf("There are more than one container defined," +
+			return nil, errors.New(fmt.Sprintf("There are more than one container defined, " +
 				"please specify one to start developing"))
 		}
 		if len(dep.Spec.Template.Spec.Containers) == 0 {
