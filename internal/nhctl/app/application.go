@@ -739,8 +739,8 @@ func (a *Application) CleanupResources() error {
 	)
 }
 
-func (a *Application) Uninstall() error {
-	return a.appMeta.Uninstall()
+func (a *Application) Uninstall(force bool) error {
+	return a.appMeta.Uninstall(force)
 }
 
 func (a *Application) IsAnyServiceInDevMode() bool {
