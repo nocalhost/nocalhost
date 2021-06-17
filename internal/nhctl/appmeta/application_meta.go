@@ -406,7 +406,7 @@ func (a *ApplicationMeta) IsHelm() bool {
 }
 
 // Uninstall uninstall the application and delete the secret from k8s cluster
-func (a *ApplicationMeta) Uninstall() error {
+func (a *ApplicationMeta) Uninstall(force bool) error {
 
 	if e := a.cleanUpDepConfigMap(); e != nil {
 		log.Error("Error while clean up dep config map %s ", e.Error())
@@ -435,7 +435,7 @@ func (a *ApplicationMeta) Uninstall() error {
 		if _, err := tools.ExecCommand(
 			nil, true, true,
 			true, "helm", uninstallParams...,
-		); err != nil {
+		); err != nil && !force {
 			return err
 		}
 	}

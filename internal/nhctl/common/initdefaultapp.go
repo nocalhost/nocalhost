@@ -69,9 +69,15 @@ func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconf
 	// if init appMeta successful, then should remove all things while fail
 	defer func() {
 		if err != nil {
-			coloredoutput.Fail(err.Error())
+			coloredoutput.Fail("Install application fail, try to rollback..")
 			log.LogE(err)
-			utils.Should(nocalhostApp.Uninstall())
+			if err := nocalhostApp.Uninstall(true); err != nil {
+				coloredoutput.Fail("Try uninstall fail, nocalhost will uninstall in force (There may be some residue in k8s)")
+				utils.Should(nocalhostApp.Uninstall(true))
+				coloredoutput.Success("Rollback success (There may be some residue in k8s)")
+			}else {
+				coloredoutput.Success("Rollback success")
+			}
 		}
 	}()
 
