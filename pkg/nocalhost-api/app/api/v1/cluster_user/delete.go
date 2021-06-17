@@ -105,6 +105,12 @@ func ReCreate(c *gin.Context) {
 		return
 	}
 
+	// refuse to recreate cluster_admin devSpace
+	if clusterUser.ClusterAdmin != nil && *clusterUser.ClusterAdmin != uint64(0) {
+		api.SendResponse(c, nil, nil)
+		return
+	}
+
 	clusterData, err := service.Svc.ClusterSvc().Get(c, clusterUser.ClusterId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
