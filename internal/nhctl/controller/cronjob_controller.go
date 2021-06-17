@@ -15,21 +15,24 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/pkg/nhctl/log"
 )
 
-type JobController struct {
+type CronJobController struct {
 	*Controller
 }
 
-const jobGeneratedJobPrefix = "job-generated-job-"
+const (
+	cronjobGeneratedJobPrefix = "cronjob-generated-job-"
+	cronjobScheduleAnnotation = "nocalhost.dev.cronjob.schedule"
+)
 
-func (j *JobController) GetNocalhostDevContainerPod() (string, error) {
+func (j *CronJobController) GetNocalhostDevContainerPod() (string, error) {
 	checkPodsList, err := j.Client.ListPodsByJob(j.getGeneratedJobName())
 	if err != nil {
 		return "", err
@@ -37,17 +40,26 @@ func (j *JobController) GetNocalhostDevContainerPod() (string, error) {
 	return findDevPod(checkPodsList)
 }
 
-func (j *JobController) getGeneratedJobName() string {
-	return fmt.Sprintf("%s%s", jobGeneratedJobPrefix, j.Name())
+func (j *CronJobController) getGeneratedJobName() string {
+	return fmt.Sprintf("%s%s", cronjobGeneratedJobPrefix, j.Name())
 }
 
 // ReplaceImage For Job, we can't replace the Job' image
 // but create a job with dev container instead
-func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
+func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 
 	j.Client.Context(ctx)
-	originJob, err := j.Client.GetJobs(j.Name())
+	originJob, err := j.Client.GetCronJobs(j.Name())
 	if err != nil {
+		return err
+	}
+
+	if originJob.Annotations == nil {
+		originJob.Annotations = make(map[string]string, 0)
+	}
+	originJob.Annotations[cronjobScheduleAnnotation] = originJob.Spec.Schedule
+	originJob.Spec.Schedule = "1 1 1 1 1"
+	if _, err = j.Client.UpdateCronJob(originJob); err != nil {
 		return err
 	}
 
@@ -58,8 +70,8 @@ func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOpt
 			Labels: map[string]string{nocalhost.DevWorkloadIgnored: "true"},
 		},
 		Spec: batchv1.JobSpec{
-			Selector: originJob.Spec.Selector,
-			Template: originJob.Spec.Template,
+			Selector: originJob.Spec.JobTemplate.Spec.Selector,
+			Template: originJob.Spec.JobTemplate.Spec.Template,
 		},
 	}
 
@@ -121,18 +133,36 @@ func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOpt
 	return waitingPodToBeReady(j.GetNocalhostDevContainerPod)
 }
 
-func (j *JobController) Name() string {
+func (j *CronJobController) Name() string {
 	return j.Controller.Name
 }
 
-func (j *JobController) RollBack(reset bool) error {
-	return j.Client.DeleteJob(j.getGeneratedJobName())
+func (j *CronJobController) RollBack(reset bool) error {
+	originJob, err := j.Client.GetCronJobs(j.Name())
+	if err != nil {
+		return err
+	}
+	schedule, ok := originJob.Annotations[cronjobScheduleAnnotation]
+	if ok {
+		originJob.Spec.Schedule = schedule
+		log.Infof("Recover schedule to %s", schedule)
+		if _, err = j.Client.UpdateCronJob(originJob); err != nil {
+			return err
+		}
+	}
+	if err = j.Client.DeleteJob(j.getGeneratedJobName()); err != nil {
+		if !reset {
+			return err
+		}
+		log.WarnE(err, "")
+	}
+	return nil
 }
 
 // GetPodList
 // In DevMode, return pod list of generated Job.
 // Otherwise, return pod list of original Job
-func (j *JobController) GetPodList() ([]corev1.Pod, error) {
+func (j *CronJobController) GetPodList() ([]corev1.Pod, error) {
 	if j.IsInDevMode() {
 		pl, err := j.Client.ListPodsByJob(j.getGeneratedJobName())
 		if err != nil {
@@ -140,32 +170,9 @@ func (j *JobController) GetPodList() ([]corev1.Pod, error) {
 		}
 		return pl.Items, nil
 	}
-	pl, err := j.Client.ListPodsByJob(j.Name())
+	pl, err := j.Client.ListPodsByCronJob(j.Name())
 	if err != nil {
 		return nil, err
 	}
 	return pl.Items, nil
-}
-
-func findContainerInJobSpec(job *batchv1.Job, containerName string) (*corev1.Container, error) {
-	var devContainer *corev1.Container
-
-	if containerName != "" {
-		for index, c := range job.Spec.Template.Spec.Containers {
-			if c.Name == containerName {
-				return &job.Spec.Template.Spec.Containers[index], nil
-			}
-		}
-		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
-	} else {
-		if len(job.Spec.Template.Spec.Containers) > 1 {
-			return nil, errors.New(fmt.Sprintf("There are more than one container defined," +
-				"please specify one to start developing"))
-		}
-		if len(job.Spec.Template.Spec.Containers) == 0 {
-			return nil, errors.New("No container defined ???")
-		}
-		devContainer = &job.Spec.Template.Spec.Containers[0]
-	}
-	return devContainer, nil
 }

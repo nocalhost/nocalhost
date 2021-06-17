@@ -59,7 +59,7 @@ var uninstallCmd = &cobra.Command{
 		log.Info("Uninstalling application...")
 
 		//goland:noinspection ALL
-		mustI(appMeta.Uninstall(), "Error while uninstall application")
+		mustI(appMeta.Uninstall(true), "Error while uninstall application")
 
 		log.Infof("Application \"%s\" is uninstalled", applicationName)
 	},

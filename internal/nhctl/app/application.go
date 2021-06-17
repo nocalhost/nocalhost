@@ -118,7 +118,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	}
 
 	if !app.appMeta.IsInstalled() {
-		return nil, ErrNotFound
+		return nil, errors.Wrap(ErrNotFound, fmt.Sprintf("%s-%s not found", app.NameSpace, app.Name))
 	}
 
 	// if still not present
@@ -739,8 +739,8 @@ func (a *Application) CleanupResources() error {
 	)
 }
 
-func (a *Application) Uninstall() error {
-	return a.appMeta.Uninstall()
+func (a *Application) Uninstall(force bool) error {
+	return a.appMeta.Uninstall(force)
 }
 
 func (a *Application) IsAnyServiceInDevMode() bool {
