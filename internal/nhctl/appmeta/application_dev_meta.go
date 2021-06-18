@@ -18,9 +18,9 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-const(
-	DEV_STA    EVENT   = "DEV_STA"
-	DEV_END    EVENT   = "DEV_END"
+const (
+	DEV_STA EVENT = "DEV_STA"
+	DEV_END EVENT = "DEV_END"
 )
 
 type ApplicationDevMeta map[base.SvcType]map[ /* resource name */ string] /* identifier */ string
@@ -64,12 +64,13 @@ func (from *ApplicationDevMeta) Events(to ApplicationDevMeta) *[]*ApplicationEve
 		return &result
 	}
 
-	for devType, resourceNameIdentifierMap := range *from {
+	for devType, fromResourceNameIdentifierMap := range *from {
 		toResourceNameIdentifierMap := to[devType]
-		for resourceName, identifier := range resourceNameIdentifierMap {
+		for resourceName, identifier := range fromResourceNameIdentifierMap {
 			if toResourceNameIdentifierMap == nil {
 				result = append(
-					result, &ApplicationEvent{EventType: DEV_END, ResourceName: resourceName, Identifier: identifier},
+					result, &ApplicationEvent{EventType: DEV_END, ResourceName: resourceName, Identifier: identifier,
+						DevType: devType},
 				)
 			} else {
 				var toIdentifier, ok = toResourceNameIdentifierMap[resourceName]

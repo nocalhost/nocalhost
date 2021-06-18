@@ -51,7 +51,11 @@ var syncStatusCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		initApp(applicationName)
+		if err := initAppMutate(applicationName); err != nil {
+			display(req.AppNotInstalledTemplate)
+			return
+		}
+
 		nhSvc := initService(deployment, serviceType)
 
 		if !nhSvc.IsInDevMode() {

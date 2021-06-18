@@ -177,7 +177,12 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		}
 	default:
 		ns = getNamespace(request.Namespace, KubeConfigBytes)
-		serviceMap := getServiceProfile(ns, request.AppName)
+
+		var serviceMap map[string]*profile.SvcProfileV2
+		if request.AppName != "" {
+			serviceMap = getServiceProfile(ns, request.AppName)
+		}
+
 		appNameList := getAvailableAppName(ns, request.KubeConfig)
 		// get all resource in namespace
 		var items []interface{}
