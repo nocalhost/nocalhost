@@ -68,7 +68,7 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 
 	watcher := NewApplicationSecretWatcher(configBytes, ns)
 
-	log.Infof("Prepare for ns %s", ns)
+	log.Infof("Prepare SecretWatcher for ns %s", ns)
 	if err := watcher.Prepare(); err != nil {
 		log.ErrorE(err, "Error while prepare watcher for ns "+ns)
 		return nil
@@ -79,6 +79,24 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 		watcher.Watch()
 		s.outDeck(ns, configBytes)
 	}()
+
+	helmSecretWatcher := NewHelmSecretWatcher(configBytes,ns)
+	log.Infof("Prepare HelmSecretWatcher for ns %s", ns)
+	if err := helmSecretWatcher.Prepare(); err == nil {
+		log.Infof("Prepare complete, start to watch helm secret for ns %s", ns)
+		go func() {
+			helmSecretWatcher.Watch()
+		}()
+	}
+
+	helmConfigmapWatcher := NewHelmCmWatcher(configBytes,ns)
+	log.Infof("Prepare HelmCmWatcher for ns %s", ns)
+	if err := helmConfigmapWatcher.Prepare(); err == nil {
+		log.Infof("Prepare complete, start to watch helm cm for ns %s", ns)
+		go func() {
+			helmConfigmapWatcher.Watch()
+		}()
+	}
 
 	s.deck[watchDeck] = watcher
 	return watcher
