@@ -15,6 +15,7 @@ package resouce_cache
 import (
 	"crypto/sha1"
 	"fmt"
+	"github.com/hashicorp/golang-lru/simplelru"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -36,7 +37,7 @@ import (
 )
 
 // cache Searcher for each kubeconfig
-var searchMap = NewLRU(10, func(i interface{}) { i.(*Searcher).Stop() })
+var searchMap, _ = simplelru.NewLRU(10, func(_ interface{}, value interface{}) { value.(*Searcher).Stop() })
 var lock sync.Mutex
 
 type Searcher struct {

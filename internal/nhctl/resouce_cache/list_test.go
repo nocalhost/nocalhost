@@ -14,6 +14,7 @@ package resouce_cache
 
 import (
 	"fmt"
+	"github.com/hashicorp/golang-lru/simplelru"
 	"io/ioutil"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -145,12 +146,12 @@ func TestGetDefault(t *testing.T) {
 	}
 
 	/*i, e = s.GetByAppAndNs(&v1.Deployment{}, "default.application", "default")
-	if e != nil {
-		log.Error(e)
-	}
-	for _, dep := range i {
-		fmt.Println(dep.(metav1.Object).GetName())
-	}*/
+	  if e != nil {
+	  	log.Error(e)
+	  }
+	  for _, dep := range i {
+	  	fmt.Println(dep.(metav1.Object).GetName())
+	  }*/
 }
 
 func TestGetWithNsHaveNoPermission(t *testing.T) {
@@ -192,14 +193,14 @@ func TestGetDeploy(t *testing.T) {
 }
 
 func TestNewLRU(t *testing.T) {
-	lru := NewLRU(4)
+	lru, _ := simplelru.NewLRU(2, nil)
 	lru.Add("a", 1)
 	lru.Add("b", 1)
 	lru.Get("a")
-	lru.Delete("b")
+	lru.Remove("b")
 	lru.Add("c", 2)
 	lru.Add("d", 2)
 	lru.Add("c", 2)
 	lru.Get("a")
-	fmt.Println(lru.cache)
+	fmt.Println(lru.Keys())
 }
