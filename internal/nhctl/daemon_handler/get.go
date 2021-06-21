@@ -36,7 +36,9 @@ import (
 
 func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 	serviceMap := make(map[string]*profile.SvcProfileV2)
-
+	if appName == "" || ns == "" {
+		return serviceMap
+	}
 	description := GetDescriptionDaemon(ns, appName)
 	if description != nil {
 		for _, svcProfileV2 := range description.SvcProfile {

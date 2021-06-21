@@ -29,6 +29,8 @@ func (c *Controller) BuildPodController() pod_controller.PodController {
 		return &JobController{Controller: c}
 	case base.CronJob:
 		return &CronJobController{Controller: c}
+	case base.Pod:
+		return &RawPodController{Controller: c}
 	}
 	return nil
 }

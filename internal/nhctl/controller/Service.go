@@ -56,6 +56,8 @@ func (c *Controller) CheckIfExist() (bool, error) {
 		_, err = c.Client.GetJobs(c.Name)
 	case base.CronJob:
 		_, err = c.Client.GetCronJobs(c.Name)
+	case base.Pod:
+		_, err = c.Client.GetPod(c.Name)
 	default:
 		return false, errors.New("unsupported controller type")
 	}

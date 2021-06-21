@@ -17,6 +17,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/watch"
@@ -51,6 +52,17 @@ func WaitPod(client *kubernetes.Clientset, namespace string, listOptions v1.List
 	)
 }
 
+func WaitPodByName(client *kubernetes.Clientset, namespace string, name string,
+	checker func(*corev1.Pod) bool, timeout time.Duration) error {
+	return WaitPod(
+		client,
+		namespace,
+		v1.ListOptions{FieldSelector: fields.OneTermEqualSelector("metadata.name", name).String()},
+		checker,
+		timeout,
+	)
+}
+
 func WaitDeployment(client *kubernetes.Clientset, namespace string, listOptions v1.ListOptions,
 	checker func(*appsv1.Deployment) bool, timeout time.Duration) error {
 	return WaitResource(
@@ -62,6 +74,40 @@ func WaitDeployment(client *kubernetes.Clientset, namespace string, listOptions 
 		func(i interface{}) bool { return checker(i.(*appsv1.Deployment)) },
 		timeout,
 	)
+}
+
+func WaitPodDeleted(client *kubernetes.Clientset, namespace string, name string, timeout time.Duration) error {
+	gvk := corev1.SchemeGroupVersion.WithKind("Pod")
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	groupResources, _ := restmapper.GetAPIGroupResources(client)
+	mapper := restmapper.NewDiscoveryRESTMapper(groupResources)
+	restMapping, _ := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+
+	watchlist := cache.NewFilteredListWatchFromClient(
+		client.CoreV1().RESTClient(),
+		restMapping.Resource.Resource,
+		namespace,
+		func(options *v1.ListOptions) {
+			options.FieldSelector = fields.OneTermEqualSelector("metadata.name", name).String()
+		})
+
+	object, err := scheme.Scheme.New(gvk)
+	if err != nil {
+		return err
+	}
+
+	conditionFunc := func(e watch.Event) (bool, error) {
+		return e.Type == watch.Deleted, nil
+	}
+	event, err := toolswatch.UntilWithSync(ctx, watchlist, object, nil, conditionFunc)
+	if err != nil {
+		log.Infof("wait resource: %s to delete failed, error: %v, event: %v",
+			restMapping.Resource.Resource, err, event)
+		return err
+	}
+	return nil
 }
 
 func WaitResource(client *kubernetes.Clientset, g cache.Getter, namespace string, gvk schema.GroupVersionKind,
