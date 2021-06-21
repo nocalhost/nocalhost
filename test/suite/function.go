@@ -28,6 +28,26 @@ import (
 	"time"
 )
 
+func HelmAdaption(client runner.Client, _ ...string) {
+	util.Retry(
+		"HelmAdaption", []func() error{
+			func() error { return testcase.UninstallBookInfo(client) },
+
+			func() error { return testcase.InstallBookInfoWithNativeHelm(client) },
+			func() error { return testcase.UninstallBookInfoWithNativeHelm(client) },
+
+			func() error { return testcase.InstallBookInfoWithNhctl(client) },
+			func() error { return testcase.UninstallBookInfoWithNhctl(client) },
+
+			func() error { return testcase.InstallBookInfoWithNativeHelm(client) },
+			func() error { return testcase.UninstallBookInfoWithNhctl(client) },
+
+			func() error { return testcase.InstallBookInfoWithNhctl(client) },
+			func() error { return testcase.UninstallBookInfoWithNativeHelm(client) },
+		},
+	)
+}
+
 func PortForward(client runner.Client, _ ...string) {
 	module := "reviews"
 	port := 49080

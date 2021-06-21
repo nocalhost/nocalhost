@@ -40,6 +40,7 @@ func main() {
 		_, v2 = testcase.GetVersion()
 	}
 
+	t.Run("helm-adaption",suite.HelmAdaption)
 	t.Run("install", suite.Install)
 	t.Run("deployment", suite.Deployment)
 	//t.Run("port-forward", suite.PortForward)
