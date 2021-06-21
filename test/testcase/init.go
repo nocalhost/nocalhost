@@ -14,6 +14,7 @@ package testcase
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/imroc/req"
 	"github.com/pkg/errors"
@@ -92,8 +93,10 @@ func InstallNhctl(version string) error {
 }
 
 func Init(nhctl *runner.CLI) error {
-	cmd := nhctl.CommandWithNamespace(context.Background(),
-		"init", "nocalhost", "demo", "-p", "7000", "--force")
+	cmd := nhctl.CommandWithNamespace(
+		context.Background(),
+		"init", "nocalhost", "demo", "-p", "7000", "--force",
+	)
 	log.Infof("Running command: %s", cmd.Args)
 	go func() {
 		_, _, err := runner.Runner.RunWithRollingOutWithChecker(
@@ -164,8 +167,21 @@ func GetKubeconfig(ns, kubeconfig string) (string, error) {
 	}
 	res := request.NewReq("", kubeconfig, kubectl, ns, 7000)
 	res.ExposeService()
-	res.Login(app.DefaultInitUserEmail, app.DefaultInitPassword)
+	res.Login(app.DefaultInitAdminUserName, app.DefaultInitPassword)
+
 	header := req.Header{"Accept": "application/json", "Authorization": "Bearer " + res.AuthToken}
+
+	var params = make(map[string]interface{})
+	params["space_name"] = "Suuuuuuper"
+	params["cluster_id"] = 1
+	params["cluster_admin"] = 1
+	params["cpu"] = 0
+	params["memory"] = 0
+	params["isLimit"] = false
+
+	marshal, _ := json.Marshal(&params)
+	_, _ = req.New().Post(res.BaseUrl+util.WebDevSpace, header, req.BodyJSON(marshal))
+
 	retryTimes := 20
 	var config string
 	for i := 0; i < retryTimes; i++ {

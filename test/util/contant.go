@@ -19,6 +19,7 @@ const (
 	KubeconfigPath             = "KUBECONFIG_PATH"
 	SecretId                   = "TKE_SECRET_ID"
 	SecretKey                  = "TKE_SECRET_KEY"
+	WebDevSpace                = "/v1/dev_space"
 	WebServerServiceAccountApi = "/v1/plugin/service_accounts"
 	TestcaseWebhook            = "TESTCASE_WEBHOOK"
 )

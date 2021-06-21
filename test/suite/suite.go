@@ -42,6 +42,7 @@ func NewT(namespace, kubeconfig string, f func()) *T {
 		Cli: &runner.ClientImpl{
 			Nhctl:     runner.NewNhctl(namespace, kubeconfig),
 			Kubectl:   runner.NewKubectl(namespace, kubeconfig),
+			Helm:      runner.NewHelm(namespace, kubeconfig),
 			Clientset: temp.ClientSet,
 		},
 		CleanFunc: f,
@@ -84,9 +85,9 @@ func (t *T) Run(name string, fn func(cli runner.Client, p ...string), pp ...stri
 		func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
 		time.Minute*2,
 	)
-	log.Info("Testing " + name)
+	log.Infof("\n============= Testing %s =============\n", name)
 	fn(t.Cli, pp...)
-	log.Info("Testing done " + name)
+	log.Infof("\n============= Testing done %s =============\n", name)
 	//testcase.Reset(t.Cli)
 	for i := 0; i < retryTimes; i++ {
 		if err = testcase.UninstallBookInfo(t.Cli); err != nil {

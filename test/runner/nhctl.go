@@ -40,6 +40,15 @@ func NewKubectl(namespace, kubeconfig string) *CLI {
 	return NewCLI(c, namespace)
 }
 
+func NewHelm(namespace, kubeconfig string) *CLI {
+	c := &Conf{
+		kubeconfig: kubeconfig,
+		namespace:  namespace,
+		cmd:        "helm",
+	}
+	return NewCLI(c, namespace)
+}
+
 type Conf struct {
 	kubeconfig string
 	namespace  string
@@ -59,12 +68,14 @@ func (c Conf) GetCmd() string {
 type Client interface {
 	GetNhctl() *CLI
 	GetKubectl() *CLI
+	GetHelm() *CLI
 	GetClientset() *kubernetes.Clientset
 }
 
 type ClientImpl struct {
 	Nhctl     *CLI
 	Kubectl   *CLI
+	Helm      *CLI
 	Clientset *kubernetes.Clientset
 }
 
@@ -76,4 +87,7 @@ func (i *ClientImpl) GetKubectl() *CLI {
 }
 func (i *ClientImpl) GetClientset() *kubernetes.Clientset {
 	return i.Clientset
+}
+func (i *ClientImpl) GetHelm() *CLI{
+	return i.Helm
 }
