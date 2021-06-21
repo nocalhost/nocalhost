@@ -25,6 +25,7 @@ require (
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/uuid v1.1.2
 	github.com/hashicorp/go-getter v1.5.1
+	github.com/hashicorp/golang-lru v0.5.1
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/imroc/req v0.3.0
 	github.com/jehiah/go-strftime v0.0.0-20171201141054-1d33003b3869 // indirect
@@ -36,6 +37,7 @@ require (
 	github.com/mattn/psutil v0.0.0-20170126005127-e6c88f1e9be6
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/mapstructure v1.3.2 // indirect
+	github.com/moby/term v0.0.0-20200312100748-672ec06f55cd
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/onsi/ginkgo v1.12.3 // indirect
@@ -62,6 +64,7 @@ require (
 	go.uber.org/zap v1.15.0
 	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
+	golang.org/x/sys v0.0.0-20201112073958-5cba982894dd
 	golang.org/x/text v0.3.4
 	google.golang.org/grpc v1.27.1
 	google.golang.org/protobuf v1.25.0
