@@ -211,10 +211,10 @@ var InitCommand = &cobra.Command{
 		spinner := utils.NewSpinner(" waiting for get Nocalhost manifest...")
 		spinner.Start()
 		// call install command
-		installResult, err := tools.ExecCommand(nil, false, true, false, nhctl, params...)
+		_, err = tools.ExecCommand(nil, false, true, false, nhctl, params...)
 		if err != nil {
 			coloredoutput.Fail(
-				"execution nhctl install fail %s, try to add `--force` end of command manually\n", installResult,
+				"\n nhctl init fail, try to add `--force` end of command manually\n",
 			)
 			log.Fatal("exit init")
 		}
