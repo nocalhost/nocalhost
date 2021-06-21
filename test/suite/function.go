@@ -31,18 +31,6 @@ import (
 func HelmAdaption(client runner.Client, _ ...string) {
 	util.Retry(
 		"HelmAdaption", []func() error{
-			func() error {
-				return runner.Runner.RunSimple(
-					client.GetKubectl().Command(context.Background(), "auth", "can-i", "list", "ns"),
-					func(s string) error {
-						if s != "yes" {
-							return errors.New("zzzzz")
-						}
-						return nil
-					},
-				)
-			},
-
 			func() error { return testcase.UninstallBookInfo(client) },
 
 			func() error { return testcase.InstallBookInfoWithNativeHelm(client) },

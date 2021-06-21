@@ -14,8 +14,13 @@ package runner
 
 import (
 	"k8s.io/client-go/kubernetes"
+	"math/rand"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"os/exec"
+	"time"
 )
+
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
 
 func NewNhctl(namespace, kubeconfig string) *CLI {
 	c := &Conf{
@@ -70,13 +75,41 @@ type Client interface {
 	GetKubectl() *CLI
 	GetHelm() *CLI
 	GetClientset() *kubernetes.Clientset
+
+	NameSpace() string
+	RandomNsCli() Client
+}
+
+func NewClient(kubeconfig, namespace string) Client {
+	temp, _ := clientgoutils.NewClientGoUtils(kubeconfig, namespace)
+	return &ClientImpl{
+		kubeconfig: kubeconfig,
+		namespace:  namespace,
+
+		Nhctl:     NewNhctl(namespace, kubeconfig),
+		Kubectl:   NewKubectl(namespace, kubeconfig),
+		Helm:      NewHelm(namespace, kubeconfig),
+		Clientset: temp.ClientSet,
+	}
 }
 
 type ClientImpl struct {
+	kubeconfig string
+	namespace  string
+
 	Nhctl     *CLI
 	Kubectl   *CLI
 	Helm      *CLI
 	Clientset *kubernetes.Clientset
+}
+
+func (i *ClientImpl) NameSpace() string {
+	return i.namespace
+}
+
+func (i *ClientImpl) RandomNsCli() Client {
+	ns := RandStringRunes()
+	return NewClient(i.kubeconfig, ns)
 }
 
 func (i *ClientImpl) GetNhctl() *CLI {
@@ -88,6 +121,15 @@ func (i *ClientImpl) GetKubectl() *CLI {
 func (i *ClientImpl) GetClientset() *kubernetes.Clientset {
 	return i.Clientset
 }
-func (i *ClientImpl) GetHelm() *CLI{
+func (i *ClientImpl) GetHelm() *CLI {
 	return i.Helm
+}
+
+func RandStringRunes() string {
+	rand.Seed(time.Now().UnixNano())
+	b := make([]rune, 10)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
 }

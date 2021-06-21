@@ -14,7 +14,6 @@ package testcase
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/imroc/req"
 	"github.com/pkg/errors"
@@ -169,22 +168,18 @@ func GetKubeconfig(ns, kubeconfig string) (string, error) {
 	res.ExposeService()
 	res.Login(app.DefaultInitAdminUserName, app.DefaultInitPassword)
 
-	header := req.Header{"Accept": "application/json", "Authorization": "Bearer " + res.AuthToken}
-
-	var params = make(map[string]interface{})
-	params["space_name"] = "Suuuuuuper"
-	params["cluster_id"] = 1
-	params["cluster_admin"] = 1
-	params["cpu"] = 0
-	params["memory"] = 0
-	params["isLimit"] = false
-
-	marshal, _ := json.Marshal(&params)
-	_, _ = req.New().Post(res.BaseUrl+util.WebDevSpace, header, req.BodyJSON(marshal))
+	header := req.Header{"Accept": "application/json", "Authorization": "Bearer " + res.AuthToken, "content-type": "text/plain"}
 
 	retryTimes := 20
 	var config string
 	for i := 0; i < retryTimes; i++ {
+
+		resp, _ := req.New().Post(
+			res.BaseUrl+util.WebDevSpace, header,
+			`{"cluster_id":1,"space_name":"suuuper","user_id":1,"cluster_admin":1,"cpu":0,"memory":0,"isLimit":false,"space_resource_limit":{}}`,
+		)
+		log.Infof(resp.String())
+
 		time.Sleep(time.Second * 2)
 		r, err := req.New().Get(res.BaseUrl+util.WebServerServiceAccountApi, header)
 		if err != nil {
