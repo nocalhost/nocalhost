@@ -267,6 +267,19 @@ func Profile(cli runner.Client, _ ...string) {
 			func() error { return testcase.ProfileGetDetailsWithoutJson(cli) },
 			func() error { return testcase.ProfileSetDetails(cli) },
 
+			// test cfg load from cm
+			func() error { return testcase.ApplyCmForConfig(cli, singleSvcConfigCm) },
+			func() error { return testcase.ValidateImage(cli, "details", "deployment", "singleSvcConfigCm") },
+
+			func() error { return testcase.ApplyCmForConfig(cli, multiSvcConfigCm) },
+			func() error { return testcase.ValidateImage(cli, "details", "deployment", "multipleSvcConfig1Cm") },
+			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "multipleSvcConfig2Cm") },
+
+			func() error { return testcase.ApplyCmForConfig(cli, fullConfigCm) },
+			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1Cm") },
+			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2Cm") },
+
+			// test cfg load from local
 			func() error { return testcase.Associate(cli, "details", "deployment", singleSvcConfig) },
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "singleSvcConfig") },
 
@@ -280,14 +293,10 @@ func Profile(cli runner.Client, _ ...string) {
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1") },
 			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2") },
 
-			func() error { return testcase.ApplyCmForConfig(cli, singleSvcConfigCm) },
-			func() error { return testcase.ValidateImage(cli, "details", "deployment", "singleSvcConfigCm") },
+			// de associate the cfg, then will load from local
+			func() error { return testcase.DeAssociate(cli, "details", "deployment") },
+			func() error { return testcase.DeAssociate(cli, "ratings", "deployment") },
 
-			func() error { return testcase.ApplyCmForConfig(cli, multiSvcConfigCm) },
-			func() error { return testcase.ValidateImage(cli, "details", "deployment", "multipleSvcConfig1Cm") },
-			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "multipleSvcConfig2Cm") },
-
-			func() error { return testcase.ApplyCmForConfig(cli, fullConfigCm) },
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1Cm") },
 			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2Cm") },
 
@@ -297,11 +306,9 @@ func Profile(cli runner.Client, _ ...string) {
 				return nil
 			},
 
-			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1") },
-			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2") },
-
-			func() error { return testcase.DeAssociate(cli, "details", "deployment") },
-			func() error { return testcase.DeAssociate(cli, "ratings", "deployment") },
+			// config will not change, after env clean and no local, cm, annotation cfg
+			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1Cm") },
+			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2Cm") },
 
 			func() error { return testcase.ConfigReload(cli) },
 		},
