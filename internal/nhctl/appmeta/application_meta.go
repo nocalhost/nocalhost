@@ -19,17 +19,20 @@ import (
 	"github.com/ulikunitz/xz"
 	"gopkg.in/yaml.v2"
 	"io"
+	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"nocalhost/internal/nhctl/appmeta/secret_operator"
 	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/daemon_client"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -295,15 +298,24 @@ func (a *ApplicationMeta) Initial() error {
 
 func (a *ApplicationMeta) InitGoClient(kubeConfigPath string) error {
 	clientGo, err := clientgoutils.NewClientGoUtils(kubeConfigPath, a.Ns)
+	if kubeConfigPath == "" { // use default config
+		kubeConfigPath = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	}
+	content, err := ioutil.ReadFile(kubeConfigPath)
+	if err != nil {
+		log.Errorf("can not read kubeconfig content, path: %s, err: %v", kubeConfigPath, err)
+	}
 	a.operator = &secret_operator.ClientGoUtilSecretOperator{
-		ClientInner: clientGo,
+		ClientInner:     clientGo,
+		KubeconfigBytes: content,
 	}
 	return err
 }
 
-func (a *ApplicationMeta) InjectGoClient(clientSet *kubernetes.Clientset) {
+func (a *ApplicationMeta) InjectGoClient(clientSet *kubernetes.Clientset, configBytes []byte) {
 	a.operator = &secret_operator.ClientGoSecretOperator{
-		ClientSet: clientSet,
+		ClientSet:       clientSet,
+		KubeconfigBytes: configBytes,
 	}
 }
 
@@ -380,6 +392,12 @@ func (a *ApplicationMeta) Update() error {
 		return errors.Wrap(err, "Error while update Application meta ")
 	}
 	a.Secret = secret
+	// update daemon application meta manually
+	if client, err := daemon_client.NewDaemonClient(false); err == nil {
+		_, _ = client.SendUpdateApplicationMetaCommand(
+			string(a.operator.GetKubeconfigBytes()), a.Ns, a.Secret.Name, a.Secret,
+		)
+	}
 	return nil
 }
 
@@ -551,11 +569,18 @@ func (a *ApplicationMeta) cleanUpDepConfigMap() error {
 func (a *ApplicationMeta) Delete() error {
 	a.Secret.Data[SecretManifestKey] = []byte(a.Manifest)
 
+	name := a.Secret.Name
 	err := a.operator.Delete(a.Ns, a.Secret.Name)
 	if err != nil && !k8serrors.IsNotFound(err) {
 		return errors.Wrap(err, "Error while Delete Application meta ")
 	}
 	a.Secret = nil
+	// update daemon application meta manually
+	if client, err := daemon_client.NewDaemonClient(false); err == nil {
+		_, _ = client.SendUpdateApplicationMetaCommand(
+			string(a.operator.GetKubeconfigBytes()), a.Ns, name, nil,
+		)
+	}
 	return nil
 }
 

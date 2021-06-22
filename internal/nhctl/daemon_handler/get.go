@@ -311,7 +311,7 @@ func ParseApplicationsResult(namespace string, metas []*appmeta.ApplicationMeta)
 		ns.Application = append(
 			ns.Application, &model.ApplicationInfo{
 				Name: meta.Application,
-				Type: meta.ApplicationType,
+				Type: string(meta.ApplicationType),
 			},
 		)
 	}
