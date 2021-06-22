@@ -15,6 +15,7 @@ package util
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -50,7 +51,8 @@ func NeedsToInitK8sOnTke() bool {
 func GetKubeconfig() string {
 	kubeconfig := os.Getenv(KubeconfigPath)
 	if kubeconfig == "" {
-		kubeconfig = "/root/.kube/config"
+		dir, _ := os.UserHomeDir()
+		kubeconfig = filepath.Join(dir, ".kube", "config")
 	}
 	return kubeconfig
 }

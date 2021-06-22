@@ -75,7 +75,7 @@ func (r *CmdRunner) Run(cmd *exec.Cmd) (string, string, error) {
 	}
 
 	if stderr.Len() > 0 {
-		log.Infof("Command output: [%s], stderr: %s", stdout.String(), stderr.String())
+		log.Infof("Command output: [\n%s\n], stderr: [\n%s\n]", stdout.String(), stderr.String())
 	}
 
 	return stdout.String(), stderr.String(), nil

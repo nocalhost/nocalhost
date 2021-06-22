@@ -26,9 +26,12 @@ import (
 	"path/filepath"
 )
 
-func initApp(appName string) {
-	var err error
+func initApp(appName string)  {
+	must(initAppMutate(appName))
+}
 
+func initAppMutate(appName string) error {
+	var err error
 	must(Prepare())
 
 	nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
@@ -36,18 +39,22 @@ func initApp(appName string) {
 		// if default application not found, try to creat one
 		if errors.Is(err, app.ErrNotFound) && appName == nocalhost.DefaultNocalhostApplication {
 			// try init default application
-			_, err = common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig)
-			mustI(err, "Error while create default application")
+			if _, err := common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig); err != nil {
+				return errors.Wrap(err, "Error while create default application")
+			}
 
 			// then reNew nocalhostApp
-			nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
-			mustI(err, "Error while init default application")
+			if nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true); err != nil {
+				return errors.Wrap(err, "Error while init default application")
+			}
+
 
 		} else {
-			log.FatalE(err, "Failed to get application info")
+			return errors.New("Failed to get application info")
 		}
 	}
 	log.AddField("APP", nocalhostApp.Name)
+	return nil
 }
 
 func Prepare() error {

@@ -465,6 +465,10 @@ func (c *ClientGoUtils) CreateNameSpace(name string, customLabels map[string]str
 	return nil
 }
 
+func (c *ClientGoUtils) GetContext() context.Context {
+	return c.ctx
+}
+
 func (c *ClientGoUtils) DeleteNameSpace(name string, wait bool) error {
 	err := c.ClientSet.CoreV1().Namespaces().Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if wait {
@@ -521,10 +525,12 @@ func (c *ClientGoUtils) DeletePod(podName string, wait bool, duration time.Durat
 		return err
 	}
 	log.Infof("waiting for pod: %s to be deleted...", podName)
-	w, errs := c.ClientSet.CoreV1().Pods(c.namespace).Watch(ctx, metav1.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector("metadata.name", podName).String(),
-		Watch:         true,
-	})
+	w, errs := c.ClientSet.CoreV1().Pods(c.namespace).Watch(
+		ctx, metav1.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector("metadata.name", podName).String(),
+			Watch:         true,
+		},
+	)
 	if errs != nil {
 		log.Error(errs)
 		return errs

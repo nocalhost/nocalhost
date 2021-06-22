@@ -40,18 +40,42 @@ func main() {
 		_, v2 = testcase.GetVersion()
 	}
 
-	t.Run("install", suite.Install)
-	t.Run("deployment", suite.Deployment)
-	//t.Run("port-forward", suite.PortForward)
-	//t.Run("port-forward service", suite.PortForwardService)
-	//t.Run("sync", suite.Sync)
-	t.Run("application", suite.Upgrade)
-	//t.Run("reset", suite.Reset)
-	//t.Run("apply", suite.Apply)
-	//t.Run("profile", suite.Profile)
-	t.Run("statefulSet", suite.StatefulSet)
-	t.Run("compatible", suite.Compatible, v2)
+	//wg := sync.WaitGroup{}
+	//wg.Add(6)
+
+	//go func() {
+		t.Run("helm-adaption", suite.HelmAdaption)
+		//wg.Done()
+	//}()
+
+	//go func() {
+		t.Run("install", suite.Install)
+		//wg.Done()
+	//}()
+
+	//go func() {
+		t.Run("deployment", suite.Deployment)
+		//wg.Done()
+	//}()
+
+	//go func() {
+		t.Run("application", suite.Upgrade)
+		//wg.Done()
+	//}()
+
+	//go func() {
+		t.Run("statefulSet", suite.StatefulSet)
+		//wg.Done()
+	//}()
+
+	//go func() {
+		t.Run("compatible", suite.Compatible, v2)
+		//wg.Done()
+	//}()
+
+	//wg.Wait()
 	t.Clean()
 
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
 }
+

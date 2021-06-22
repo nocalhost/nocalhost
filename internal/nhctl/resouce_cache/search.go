@@ -120,7 +120,8 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 		var informerFactory informers.SharedInformerFactory
 		if !isCluster {
 			informerFactory = informers.NewSharedInformerFactoryWithOptions(
-				Clients, time.Second*5, informers.WithNamespace(namespace))
+				Clients, time.Second*5, informers.WithNamespace(namespace),
+			)
 		} else {
 			informerFactory = informers.NewSharedInformerFactory(Clients, time.Second*5)
 		}
@@ -129,8 +130,10 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 		gvrList, name2gvr, namespaced := GetSupportGroupVersionResource(Clients, mapper)
 		for _, gvr := range gvrList {
 			if _, err = informerFactory.ForResource(gvr); err != nil {
-				log.Warnf("can't create informer for resource: %v, error info: %v, ignored",
-					gvr.Resource, err.Error())
+				log.Warnf(
+					"can't create informer for resource: %v, error info: %v, ignored",
+					gvr.Resource, err.Error(),
+				)
 				continue
 			}
 		}
@@ -207,9 +210,11 @@ func nsResource(ns, resourceName string) string {
 }
 
 func SortByNameAsc(item []interface{}) {
-	sort.SliceStable(item, func(i, j int) bool {
-		return item[i].(metav1.Object).GetName() < item[j].(metav1.Object).GetName()
-	})
+	sort.SliceStable(
+		item, func(i, j int) bool {
+			return item[i].(metav1.Object).GetName() < item[j].(metav1.Object).GetName()
+		},
+	)
 }
 
 func (s *Searcher) Criteria() *criteria {
@@ -292,6 +297,15 @@ func (c *criteria) QueryOne() (interface{}, error) {
 	return query[0], nil
 }
 
+func (c *criteria) Consume(consumer func([]interface{}) error) error {
+	query, err := c.Query()
+	if err != nil {
+		return err
+	}
+
+	return consumer(query)
+}
+
 // Get Query
 func (c *criteria) Query() (data []interface{}, e error) {
 	defer func() {
@@ -340,7 +354,9 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	if c.ns != "" && c.resourceName != "" {
 		item, exists, err1 := info.GetIndexer().GetByKey(nsResource(c.ns, c.resourceName))
 		if !exists {
-			return nil, errors.Errorf("not found for resource : %s-%s in namespace: %s", c.resourceType, c.resourceName, c.ns)
+			return nil, errors.Errorf(
+				"not found for resource : %s-%s in namespace: %s", c.resourceType, c.resourceName, c.ns,
+			)
 		}
 		if err1 != nil {
 			return nil, errors.Wrap(err1, "search occur error")
@@ -447,9 +463,11 @@ func labelSelector(element []interface{}, label map[string]string, f func(string
 }
 
 func (n *filter) sort() *filter {
-	sort.SliceStable(n.element, func(i, j int) bool {
-		return n.element[i].(metav1.Object).GetName() < n.element[j].(metav1.Object).GetName()
-	})
+	sort.SliceStable(
+		n.element, func(i, j int) bool {
+			return n.element[i].(metav1.Object).GetName() < n.element[j].(metav1.Object).GetName()
+		},
+	)
 	return n
 }
 

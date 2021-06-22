@@ -19,41 +19,10 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"time"
 )
 
 var retryTimes = 10
-
-//func RetryWith3Params(
-//	suiteName string, funcs []func(*nhctlcli.CLI, string, int) error, cli nhctlcli.Client, moduleName string, port int,
-//) {
-//	var err error
-//	for _, f := range funcs {
-//		for i := 0; i < retryTimes; i++ {
-//			if err = f(cli, moduleName, port); err == nil {
-//				break
-//			}
-//			log.Info(err)
-//		}
-//		clientgoutils.MustI(err, fmt.Sprintf("error on step %s - %s",
-//			suiteName, getFunctionName(reflect.ValueOf(f))))
-//	}
-//}
-
-//func RetryWith2Params(
-//	suiteName string, funcs []func(*nhctlcli.CLI, string) error, cli nhctlcli.Client, moduleName string,
-//) {
-//	var err error
-//	for _, f := range funcs {
-//		for i := 0; i < retryTimes; i++ {
-//			if err = f(cli, moduleName); err == nil {
-//				break
-//			}
-//			log.Info(err)
-//		}
-//		clientgoutils.MustI(err, fmt.Sprintf("error on step %s - %s",
-//			suiteName, getFunctionName(reflect.ValueOf(f))))
-//	}
-//}
 
 func Retry(suiteName string, funcs []func() error) {
 	var err error
@@ -73,33 +42,16 @@ func Retry(suiteName string, funcs []func() error) {
 	}
 }
 
-//func RetryWith1Params(suiteName string, funcs []func(*nhctlcli.CLI) error, cli nhctlcli.Client) {
-//	var err error
-//	for _, f := range funcs {
-//		for i := 0; i < retryTimes; i++ {
-//			if err = f(cli); err == nil {
-//				break
-//			}
-//			log.Info(err)
-//		}
-//		clientgoutils.MustI(err, fmt.Sprintf("error on step %s - %s",
-//			suiteName, getFunctionName(reflect.ValueOf(f))))
-//	}
-//}
-
-//func RetryWithString(suiteName string, funcs []func(string) error, parameter string) {
-//	var err error
-//	for _, f := range funcs {
-//		for i := 0; i < retryTimes; i++ {
-//			if err = f(parameter); err == nil {
-//				break
-//			}
-//			log.Info(err)
-//		}
-//		clientgoutils.MustI(err, fmt.Sprintf("error on step %s - %s",
-//			suiteName, getFunctionName(reflect.ValueOf(f))))
-//	}
-//}
+func RetryFunc(fun func() error) error {
+	var err error
+	for i := 0; i < retryTimes; i++ {
+		time.Sleep(1 * time.Second)
+		if err = fun(); err == nil {
+			break
+		}
+	}
+	return err
+}
 
 func getFunctionName(f reflect.Value) string {
 	fn := runtime.FuncForPC(f.Pointer()).Name()

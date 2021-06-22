@@ -28,6 +28,26 @@ import (
 	"time"
 )
 
+func HelmAdaption(client runner.Client, _ ...string) {
+	util.Retry(
+		"HelmAdaption", []func() error{
+			func() error { return testcase.UninstallBookInfo(client) },
+
+			func() error { return testcase.InstallBookInfoWithNativeHelm(client) },
+			func() error { return testcase.UninstallBookInfoWithNativeHelm(client) },
+
+			func() error { return testcase.InstallBookInfoWithNhctl(client) },
+			func() error { return testcase.UninstallBookInfoWithNhctl(client) },
+
+			func() error { return testcase.InstallBookInfoWithNativeHelm(client) },
+			func() error { return testcase.UninstallBookInfoWithNhctl(client) },
+
+			func() error { return testcase.InstallBookInfoWithNhctl(client) },
+			func() error { return testcase.UninstallBookInfoWithNativeHelm(client) },
+		},
+	)
+}
+
 func PortForward(client runner.Client, _ ...string) {
 	module := "reviews"
 	port := 49080
@@ -333,6 +353,7 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 	clientgoutils.Must(testcase.NhctlVersion(tempCli))
 	_ = testcase.StopDaemon(tempCli)
 	util.Retry("Prepare", []func() error{func() error { return testcase.Init(tempCli) }})
+
 	kubeconfigResult, err := testcase.GetKubeconfig(nocalhost, kubeconfig)
 	clientgoutils.Must(err)
 	namespaceResult, err = clientgoutils.GetNamespaceFromKubeConfig(kubeconfigResult)
