@@ -287,6 +287,17 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 
 			return daemon_handler.HandleGetResourceInfoRequest(cmd), nil
 		})
+
+	case command.UpdateApplicationMeta:
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			cmd := &command.UpdateApplicationMetaCommand{}
+			if err = json.Unmarshal(bys, cmd); err != nil {
+				return nil, errors.Wrap(err, "")
+			}
+			return appmeta_manager.UpdateApplicationMetasManually(
+				cmd.Namespace, []byte(cmd.KubeConfig), cmd.SecretName, cmd.Secret,
+			), nil
+		})
 	}
 }
 
