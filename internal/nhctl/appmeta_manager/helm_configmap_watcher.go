@@ -13,7 +13,6 @@
 package appmeta_manager
 
 import (
-	"context"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,8 +20,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/resouce_cache"
 	"nocalhost/internal/nhctl/watcher"
 	"nocalhost/pkg/nhctl/log"
@@ -56,23 +53,13 @@ func (hcmw *helmCmWatcher) CreateOrUpdate(key string, obj interface{}) error {
 }
 
 func (hcmw *helmCmWatcher) Delete(key string) error {
-	nsAndKeyWithoutPrefix := strings.Split(key, "sh.helm.release.v1.")
-
-	if len(nsAndKeyWithoutPrefix) == 0 {
-		log.Error("Invalid Helm Key while delete event watched, not contain 'sh.helm.release.v1.'.")
+	rlsName, err := GetRlsNameFromKey(key)
+	if err != nil {
+		log.Error(err)
 		return nil
 	}
 
-	var keyWithoutPrefix = nsAndKeyWithoutPrefix[len(nsAndKeyWithoutPrefix)-1]
-
-	elems := strings.Split(keyWithoutPrefix, ".v")
-
-	if len(elems) != 2 {
-		log.Error("Invalid Helm Key while delete event watched.")
-		return nil
-	}
-
-	return hcmw.left(elems[0])
+	return hcmw.left(rlsName)
 }
 
 func (hcmw *helmCmWatcher) WatcherInfo() string {
@@ -129,16 +116,18 @@ func (hcmw *helmCmWatcher) Quit() {
 	hcmw.quit <- true
 }
 
-func (hcmw *helmCmWatcher) Prepare() error {
+// Prepare for watcher and return the exist helm Release application
+func (hcmw *helmCmWatcher) Prepare() (existRelease []string, err error) {
+
 	c, err := clientcmd.RESTConfigFromKubeConfig(hcmw.configBytes)
 	if err != nil {
-		return err
+		return
 	}
 
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(c)
 	if err != nil {
-		return err
+		return
 	}
 
 	// create the configmap watcher
@@ -155,7 +144,7 @@ func (hcmw *helmCmWatcher) Prepare() error {
 	// creates the clientset
 	hcmw.clientSet, err = kubernetes.NewForConfig(c)
 	if err != nil {
-		return err
+		return
 	}
 
 	// first get all configmaps for initial
@@ -164,7 +153,7 @@ func (hcmw *helmCmWatcher) Prepare() error {
 	searcher, err := resouce_cache.GetSearcher(hcmw.configBytes, hcmw.ns, false)
 	if err != nil {
 		log.ErrorE(err, "")
-		return nil
+		return
 	}
 
 	cms, err := searcher.Criteria().
@@ -172,10 +161,8 @@ func (hcmw *helmCmWatcher) Prepare() error {
 		ResourceType("configmaps").Query()
 	if err != nil {
 		log.ErrorE(err, "")
-		return nil
+		return
 	}
-
-	helmMap := make(map[string]*v1.ConfigMap)
 
 	for _, configmap := range cms {
 		v := configmap.(*v1.ConfigMap)
@@ -183,44 +170,15 @@ func (hcmw *helmCmWatcher) Prepare() error {
 		// this may cause bug that contains sh.helm.release
 		// may not managed by helm
 		if strings.Contains(v.Name, "sh.helm.release.v1") {
-			helmMap[v.Name] = v
-			continue
+			if release, err := DecodeRelease(v.Data["release"]); err == nil && release.Info.Deleted == "" {
+				if rlsName, err := GetRlsNameFromKey(v.Name); err == nil {
+					existRelease = append(existRelease, rlsName)
+				}
+			}
 		}
 	}
 
-	return searcher.Criteria().
-		Namespace(hcmw.ns).
-		ResourceType("secrets").
-		Consume(
-			func(i []interface{}) error {
-				nocalhostMap := make(map[string]*v1.Secret)
-
-				for _, secret := range i {
-					v := secret.(*v1.Secret)
-					if v.Type == appmeta.SecretType {
-						nocalhostMap[v.Name] = v
-						continue
-					}
-				}
-
-				for k, _ := range helmMap {
-					delete(nocalhostMap, k)
-				}
-
-				// the application need to delete
-				for k, _ := range nocalhostMap {
-					if app, err := appmeta.GetApplicationName(k);
-						err == nil &&
-							app != nocalhost.DefaultNocalhostApplication {
-						_ = hcmw.clientSet.CoreV1().
-							Secrets(hcmw.ns).
-							Delete(context.TODO(), k, metav1.DeleteOptions{})
-					}
-				}
-
-				return nil
-			},
-		)
+	return
 }
 
 // todo stop while Ns deleted
