@@ -13,10 +13,16 @@
 package appmeta_manager
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding"
 	"fmt"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/resouce_cache"
 	"nocalhost/pkg/nhctl/log"
 	"sync"
 )
@@ -79,26 +85,113 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 		watcher.Watch()
 		s.outDeck(ns, configBytes)
 	}()
-
-	helmSecretWatcher := NewHelmSecretWatcher(configBytes,ns)
-	log.Infof("Prepare HelmSecretWatcher for ns %s", ns)
-	if err := helmSecretWatcher.Prepare(); err == nil {
-		log.Infof("Prepare complete, start to watch helm secret for ns %s", ns)
-		go func() {
-			helmSecretWatcher.Watch()
-		}()
-	}
-
-	helmConfigmapWatcher := NewHelmCmWatcher(configBytes,ns)
-	log.Infof("Prepare HelmCmWatcher for ns %s", ns)
-	if err := helmConfigmapWatcher.Prepare(); err == nil {
-		log.Infof("Prepare complete, start to watch helm cm for ns %s", ns)
-		go func() {
-			helmConfigmapWatcher.Watch()
-		}()
-	}
-
 	s.deck[watchDeck] = watcher
+
+	helmSecretWatcher := NewHelmSecretWatcher(configBytes, ns)
+	log.Infof("Prepare HelmSecretWatcher for ns %s", ns)
+	installedSecretRls, err := helmSecretWatcher.Prepare()
+
+	// prevent appmeta watcher initial fail
+	if err != nil {
+		log.ErrorE(err, "Fail to init helm secret Watcher, and helm watch feature will not be enable")
+		return watcher
+	}
+
+	helmConfigmapWatcher := NewHelmCmWatcher(configBytes, ns)
+	log.Infof("Prepare HelmCmWatcher for ns %s", ns)
+	installedCmRls, err := helmConfigmapWatcher.Prepare()
+	// prevent appmeta watcher initial fail
+	if err != nil {
+		log.ErrorE(err, "Fail to init helm cm Watcher, and helm watch feature will not be enable")
+		return watcher
+	}
+
+	searcher, err := resouce_cache.GetSearcher(configBytes, ns, false)
+	if err != nil {
+		log.ErrorE(err, "Fail to init searcher, and helm watch feature will not be enable")
+		return watcher
+	}
+
+	// for o(1)
+	sets := make(map[string]interface{})
+	for _, rl := range installedSecretRls {
+		sets[rl] = ""
+	}
+	for _, rl := range installedCmRls {
+		sets[rl] = ""
+	}
+
+	c, err := clientcmd.RESTConfigFromKubeConfig(configBytes)
+	if err != nil {
+		log.ErrorE(err, "Fail to init clientSet, and helm watch feature will not be enable")
+		return watcher
+	}
+
+	clientSet, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		log.ErrorE(err, "Fail to init clientSet, and helm watch feature will not be enable")
+		return watcher
+	}
+
+	// we should delete those application installed by helm (still record in secrets)
+	// but already deleted
+	_ = searcher.Criteria().Namespace(ns).ResourceType("secrets").Consume(
+		func(secrets []interface{}) error {
+			for _, secret := range secrets {
+				v := secret.(*v1.Secret)
+				if v.Type == appmeta.SecretType {
+					needToDestroy := false
+
+					decode, err := appmeta.Decode(v)
+					if err != nil {
+						// delete the secret that can not be correctly decode
+						log.TLogf(
+							"Watcher", "Application Secret '%s' will be deleted, the secret is broken.",
+							v.Name,
+						)
+
+						needToDestroy = true
+					} else if _, ok := sets[decode.HelmReleaseName]; !ok && decode.ApplicationType.IsHelm() {
+
+						// delete the secret that do not have correspond helm rls
+						log.TLogf(
+							"Watcher", "Application Secret '%s' will be deleted, "+
+								"correspond helm rls is deleted.",
+							v.Name,
+						)
+
+						needToDestroy = true
+					}
+
+					if needToDestroy {
+						if err := clientSet.CoreV1().
+							Secrets(ns).
+							Delete(context.TODO(), v.Name, metav1.DeleteOptions{}); err != nil {
+							log.Error(
+								err, "Application Secret '%s' need to deleted "+
+									"but fail.",
+								v.Name,
+							)
+						} else {
+							log.TLogf(
+								"Watcher", "Application Secret '%s' has been be deleted. "+
+									v.Name,
+							)
+						}
+					}
+				}
+			}
+			return nil
+		},
+	)
+
+	go func() {
+		helmSecretWatcher.Watch()
+	}()
+	go func() {
+		helmConfigmapWatcher.Watch()
+	}()
+
 	return watcher
 }
 

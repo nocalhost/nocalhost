@@ -23,6 +23,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
+	"strings"
 )
 
 // Release describes a deployment of a chart, together with the chart
@@ -68,6 +69,22 @@ type Status string
 var b64 = base64.StdEncoding
 
 var magicGzip = []byte{0x1f, 0x8b, 0x08}
+
+func GetRlsNameFromKey(key string) (string, error) {
+	nsAndKeyWithoutPrefix := strings.Split(key, "sh.helm.release.v1.")
+
+	if len(nsAndKeyWithoutPrefix) == 0 {
+		return "", errors.New("Invalid Helm Key while delete event watched, not contain 'sh.helm.release.v1.'. ")
+	}
+
+	var keyWithoutPrefix = nsAndKeyWithoutPrefix[len(nsAndKeyWithoutPrefix)-1]
+	elems := strings.Split(keyWithoutPrefix, ".v")
+
+	if len(elems) != 2 {
+		return "", errors.New("Invalid Helm Key while delete event watched. ")
+	}
+	return elems[0], nil
+}
 
 func tryDelAppFromHelmRelease(appName, ns string, configBytes []byte, clientSet *kubernetes.Clientset) error {
 	meta := GetApplicationMeta(ns, appName, configBytes)

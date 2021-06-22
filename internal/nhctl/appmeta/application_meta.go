@@ -112,6 +112,10 @@ func AppTypeOf(s string) AppType {
 	}
 }
 
+func (a AppType) IsHelm() bool {
+	return a == Helm || a == HelmRepo || a == HelmLocal
+}
+
 type ApplicationState string
 
 func ApplicationStateOf(s string) ApplicationState {

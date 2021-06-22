@@ -13,7 +13,6 @@
 package appmeta_manager
 
 import (
-	"context"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,8 +20,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/resouce_cache"
 	"nocalhost/internal/nhctl/watcher"
 	"nocalhost/pkg/nhctl/log"
@@ -56,23 +53,13 @@ func (hws *helmSecretWatcher) CreateOrUpdate(key string, obj interface{}) error 
 }
 
 func (hws *helmSecretWatcher) Delete(key string) error {
-	nsAndKeyWithoutPrefix := strings.Split(key, "sh.helm.release.v1.")
-
-	if len(nsAndKeyWithoutPrefix) == 0 {
-		log.Error("Invalid Helm Key while delete event watched, not contain 'sh.helm.release.v1.'.")
+	rlsName, err := GetRlsNameFromKey(key)
+	if err != nil {
+		log.Error(err)
 		return nil
 	}
 
-	var keyWithoutPrefix = nsAndKeyWithoutPrefix[len(nsAndKeyWithoutPrefix)-1]
-
-	elems := strings.Split(keyWithoutPrefix, ".v")
-
-	if len(elems) != 2 {
-		log.Error("Invalid Helm Key while delete event watched.")
-		return nil
-	}
-
-	return hws.left(elems[0])
+	return hws.left(rlsName)
 }
 
 func (hws *helmSecretWatcher) WatcherInfo() string {
@@ -129,16 +116,16 @@ func (hws *helmSecretWatcher) Quit() {
 	hws.quit <- true
 }
 
-func (hws *helmSecretWatcher) Prepare() error {
+func (hws *helmSecretWatcher) Prepare() (existRelease []string, err error) {
 	c, err := clientcmd.RESTConfigFromKubeConfig(hws.configBytes)
 	if err != nil {
-		return err
+		return
 	}
 
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(c)
 	if err != nil {
-		return err
+		return
 	}
 
 	// create the secret watcher
@@ -155,59 +142,40 @@ func (hws *helmSecretWatcher) Prepare() error {
 	// creates the clientset
 	hws.clientSet, err = kubernetes.NewForConfig(c)
 	if err != nil {
-		return err
+		return
 	}
 
 	// first get all secrets for initial
 	// and find out the invalid nocalhost application
-	// then delete it
 	searcher, err := resouce_cache.GetSearcher(hws.configBytes, hws.ns, false)
 	if err != nil {
 		log.ErrorE(err, "")
-		return nil
+		return
 	}
 
-	return searcher.Criteria().
+	ss, err := searcher.Criteria().
 		Namespace(hws.ns).
-		ResourceType("secrets").
-		Consume(
-			func(i []interface{}) error {
-				nocalhostMap := make(map[string]*v1.Secret)
-				helmMap := make(map[string]*v1.Secret)
+		ResourceType("secrets").Query()
+	if err != nil {
+		log.ErrorE(err, "")
+		return
+	}
 
-				for _, secret := range i {
-					v := secret.(*v1.Secret)
-					if v.Type == appmeta.SecretType {
-						nocalhostMap[v.Name] = v
-						continue
-					}
+	for _, secret := range ss {
+		v := secret.(*v1.Secret)
 
-					// this may cause bug that contains sh.helm.release
-					// may not managed by helm
-					if strings.Contains(v.Name, "sh.helm.release.v1") {
-						helmMap[v.Name] = v
-						continue
-					}
+		// this may cause bug that contains sh.helm.release
+		// may not managed by helm
+		if strings.Contains(v.Name, "sh.helm.release.v1") {
+			if release, err := DecodeRelease(string(v.Data["release"])); err == nil && release.Info.Deleted == "" {
+				if rlsName, err := GetRlsNameFromKey(v.Name); err == nil {
+					existRelease = append(existRelease, rlsName)
 				}
+			}
+		}
+	}
 
-				for k, _ := range helmMap {
-					delete(nocalhostMap, k)
-				}
-
-				// the application need to delete
-				for k, _ := range nocalhostMap {
-					if app, err := appmeta.GetApplicationName(k);
-						err == nil &&
-							app != nocalhost.DefaultNocalhostApplication {
-						_ = hws.clientSet.CoreV1().
-							Secrets(hws.ns).
-							Delete(context.TODO(), k, metav1.DeleteOptions{})
-					}
-				}
-
-				return nil
-			},
-		)
+	return
 }
 
 // todo stop while Ns deleted
