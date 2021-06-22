@@ -241,14 +241,22 @@ func (a *Application) ReloadCfg(reloadFromMeta, silence bool) error {
 // at last load config from local profile
 func (a *Application) ReloadSvcCfg(svcName string, svcType base.SvcType, reloadFromMeta, silence bool) error {
 
-	if a.loadSvcCfgFromCmIfValid(svcName, svcType, silence) {
-		return nil
-	}
-
 	if a.loadSvcCfgFromLocalIfValid(svcName, svcType, silence) {
 		return nil
 	}
 
+	if a.loadSvcCfmFromAnnotationIfValid(svcName, svcType, silence) {
+		return nil
+	}
+
+	if a.loadSvcCfgFromCmIfValid(svcName, svcType, silence) {
+		return nil
+	}
+
+	return a.loadSvcCfgFromMetaIfNeeded(svcName, svcType, reloadFromMeta, silence)
+}
+
+func (a *Application) loadSvcCfgFromMetaIfNeeded(svcName string, svcType base.SvcType, reloadFromMeta, silence bool) error {
 	preCheck, err := a.Controller(svcName, svcType).GetProfile()
 	if err != nil {
 		return err
@@ -277,30 +285,67 @@ func (a *Application) ReloadSvcCfg(svcName string, svcType base.SvcType, reloadF
 			}
 
 			svcProfile.LocalConfigLoaded = false
+			svcProfile.AnnotationsConfigLoaded = false
 			svcProfile.CmConfigLoaded = false
 			return nil
 		},
 	)
 }
 
-func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcType, silence bool) bool {
-	metaInfo := fmt.Sprintf("[name: %s serviceType: %s]", svcName, svcType)
-	hint := func(format string, s ...string) {
-		if !silence {
-			var output string
-			if len(s) == 0 {
-				output = format
-			} else {
-				output = fmt.Sprintf(format, s)
-			}
+func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType base.SvcType, silence bool) bool {
+	hint := hintFunc(svcName, svcType, silence)
 
-			coloredoutput.Hint(
-				"%-"+strconv.Itoa(indent)+"s %s",
-				metaInfo,
-				output,
-			)
-		}
+	mw, err := a.GetObjectMeta(svcName, svcType.String())
+	if err != nil {
+		return false
 	}
+
+	if mw.GetObjectMeta() == nil {
+		return false
+	}
+
+	if mw.GetObjectMeta().GetAnnotations() == nil {
+		return false
+	}
+
+	if v, ok := mw.GetObjectMeta().GetAnnotations()[appmeta.AnnotationKey]; !ok || v == "" {
+		return false
+	} else {
+		svcCfg, err := loadSvcCfgFromStrIfValid(v, svcName, svcType)
+		if err != nil {
+			hint(
+				"Load nocalhost svc config from [Resource:%s, Name:%s] annotation fail, err: %s",
+				mw.GetObjectMeta().GetResourceVersion(), mw.GetObjectMeta().GetName(), err.Error(),
+			)
+			return false
+		}
+
+		// means should cm cfg is valid, persist to profile
+		if err := a.Controller(svcName, svcType).UpdateSvcProfile(
+			func(svcProfile *profile.SvcProfileV2) error {
+				hint("Success load svc config from cm")
+				svcProfile.ServiceConfigV2 = svcCfg
+
+				svcProfile.Name = svcName
+				svcProfile.Type = svcType.String()
+				svcProfile.LocalConfigLoaded = false
+				svcProfile.AnnotationsConfigLoaded = true
+				svcProfile.CmConfigLoaded = false
+				return nil
+			},
+		); err != nil {
+			hint(
+				"Load nocalhost svc config from [Resource:%s, Name:%s] annotation fail, fail while updating svc profile, err: %s",
+				mw.GetObjectMeta().GetResourceVersion(), mw.GetObjectMeta().GetName(), err.Error(),
+			)
+			return false
+		}
+		return true
+	}
+}
+
+func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcType, silence bool) bool {
+	hint := hintFunc(svcName, svcType, silence)
 
 	configMap, err := a.GetConfigMap(appmeta.ConfigMapName(a.appMeta.Application))
 	if err != nil {
@@ -312,40 +357,23 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcTy
 		return false
 	}
 
-	dir, err := ioutil.TempDir("", "")
+	svcCfg, err := loadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
 	if err != nil {
 		hint("Load nocalhost svc config from cm fail, err: %s", err.Error())
 		return false
-	}
-
-	tmpFp := fp.NewFilePath(dir).RelOrAbs("config.yaml")
-
-	err = tmpFp.WriteFile(cfgStr)
-	if err != nil {
-		hint("Load nocalhost svc config from cm fail, err: %s", err.Error())
-		return false
-	}
-
-	var svcCfg *profile.ServiceConfigV2
-	if svcCfg, err = doLoadProfileFromSvcConfig(tmpFp, svcName, svcType); svcCfg == nil {
-		if svcCfg, _ = doLoadProfileFromAppConfig(tmpFp, svcName, svcType); svcCfg == nil {
-			if err != nil {
-				hint("Load nocalhost svc config from cm fail, err: %s", err.Error())
-			}
-			return false
-		}
 	}
 
 	// means should cm cfg is valid, persist to profile
 	if err := a.Controller(svcName, svcType).UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
 			hint("Success load svc config from cm")
-			svcCfg.Name = svcName
-			svcCfg.Type = svcType.String()
-
 			svcProfile.ServiceConfigV2 = svcCfg
-			svcProfile.CmConfigLoaded = true
+
+			svcProfile.Name = svcName
+			svcProfile.Type = svcType.String()
 			svcProfile.LocalConfigLoaded = false
+			svcProfile.AnnotationsConfigLoaded = false
+			svcProfile.CmConfigLoaded = true
 			return nil
 		},
 	); err != nil {
@@ -355,24 +383,31 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcTy
 	return true
 }
 
-func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.SvcType, silence bool) bool {
-	metaInfo := fmt.Sprintf("[name: %s serviceType: %s]", svcName, svcType)
-	hint := func(format string, s ...string) {
-		if !silence {
-			var output string
-			if len(s) == 0 {
-				output = format
-			} else {
-				output = fmt.Sprintf(format, s)
-			}
+func loadSvcCfgFromStrIfValid(config string, svcName string, svcType base.SvcType) (*profile.ServiceConfigV2, error) {
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		return nil, err
+	}
 
-			coloredoutput.Hint(
-				"%-"+strconv.Itoa(indent)+"s %s",
-				metaInfo,
-				output,
-			)
+	tmpFp := fp.NewFilePath(dir).RelOrAbs("config.yaml")
+
+	err = tmpFp.WriteFile(config)
+	if err != nil {
+		return nil, err
+	}
+
+	var svcCfg *profile.ServiceConfigV2
+	if svcCfg, err = doLoadProfileFromSvcConfig(tmpFp, svcName, svcType); svcCfg == nil {
+		if svcCfg, _ = doLoadProfileFromAppConfig(tmpFp, svcName, svcType); svcCfg == nil {
+			return nil, errors.New("can not load cfg, may has syntax error! ")
 		}
 	}
+
+	return svcCfg, nil
+}
+
+func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.SvcType, silence bool) bool {
+	hint := hintFunc(svcName, svcType, silence)
 
 	p, err := a.GetProfile()
 	if err != nil {
@@ -412,6 +447,7 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.Sv
 
 			svcProfile.ServiceConfigV2 = svcCfg
 			svcProfile.LocalConfigLoaded = true
+			svcProfile.AnnotationsConfigLoaded = false
 			svcProfile.CmConfigLoaded = false
 			return nil
 		},
@@ -420,6 +456,26 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.Sv
 		return false
 	}
 	return true
+}
+
+func hintFunc(svcName string, svcType base.SvcType, silence bool) func(string, ...string) {
+	metaInfo := fmt.Sprintf("[name: %s serviceType: %s]", svcName, svcType)
+	return func(format string, s ...string) {
+		if !silence {
+			var output string
+			if len(s) == 0 {
+				output = format
+			} else {
+				output = fmt.Sprintf(format, s)
+			}
+
+			coloredoutput.Hint(
+				"%-"+strconv.Itoa(indent)+"s %s",
+				metaInfo,
+				output,
+			)
+		}
+	}
 }
 
 func doLoadProfileFromSvcConfig(configFile *fp.FilePathEnhance, svcName string, svcType base.SvcType) (
