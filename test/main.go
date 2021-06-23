@@ -19,6 +19,7 @@ import (
 	"nocalhost/test/testcase"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -40,42 +41,41 @@ func main() {
 		_, v2 = testcase.GetVersion()
 	}
 
-	//wg := sync.WaitGroup{}
-	//wg.Add(6)
+	wg := sync.WaitGroup{}
+	wg.Add(6)
 
-	//go func() {
-		t.Run("helm-adaption", suite.HelmAdaption)
-		//wg.Done()
-	//}()
+	go func() {
+		t.RunWithBookInfo(false, "helm-adaption", suite.HelmAdaption)
+		wg.Done()
+	}()
 
-	//go func() {
+	go func() {
 		t.Run("install", suite.Install)
-		//wg.Done()
-	//}()
+		wg.Done()
+	}()
 
-	//go func() {
+	go func() {
 		t.Run("deployment", suite.Deployment)
-		//wg.Done()
-	//}()
+		wg.Done()
+	}()
 
-	//go func() {
+	go func() {
 		t.Run("application", suite.Upgrade)
-		//wg.Done()
-	//}()
+		wg.Done()
+	}()
 
-	//go func() {
+	go func() {
 		t.Run("statefulSet", suite.StatefulSet)
-		//wg.Done()
-	//}()
+		wg.Done()
+	}()
 
-	//go func() {
+	go func() {
 		t.Run("compatible", suite.Compatible, v2)
-		//wg.Done()
-	//}()
+		wg.Done()
+	}()
 
-	//wg.Wait()
+	wg.Wait()
 	t.Clean()
 
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
 }
-

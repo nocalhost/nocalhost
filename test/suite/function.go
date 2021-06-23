@@ -31,8 +31,6 @@ import (
 func HelmAdaption(client runner.Client, _ ...string) {
 	util.Retry(
 		"HelmAdaption", []func() error{
-			func() error { return testcase.UninstallBookInfo(client) },
-
 			func() error { return testcase.InstallBookInfoWithNativeHelm(client) },
 			func() error { return testcase.UninstallBookInfoWithNativeHelm(client) },
 
@@ -128,7 +126,7 @@ func StatefulSet(cli runner.Client, _ ...string) {
 	funcs := []func() error{
 		func() error { return testcase.DevStartT(cli, module, moduleType) },
 		func() error { return testcase.SyncT(cli, module, moduleType) },
-		func() error { return testcase.SyncCheckT(cli, module, moduleType) },
+		func() error { return testcase.SyncCheckT(cli, cli.NameSpace(), module, moduleType) },
 		func() error { return testcase.DevEndT(cli, module, moduleType) },
 	}
 	util.Retry("StatefulSet", funcs)
@@ -182,7 +180,8 @@ func Reset(cli runner.Client, _ ...string) {
 	retryTimes := 5
 	var err error
 	for i := 0; i < retryTimes; i++ {
-		if err = testcase.InstallBookInfo(cli); err != nil {
+		timeoutCtx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
+		if err = testcase.InstallBookInfo(timeoutCtx, cli); err != nil {
 			log.Infof("install bookinfo error, error: %v, retrying...", err)
 			_ = testcase.UninstallBookInfo(cli)
 			_ = testcase.Reset(cli)
