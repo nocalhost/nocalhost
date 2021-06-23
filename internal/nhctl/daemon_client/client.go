@@ -221,6 +221,8 @@ func (d *DaemonClient) SendGetDaemonServerStatusCommand() (*daemon_common.Daemon
 	return status, nil
 }
 
+// the reason why return a interface is applicationMeta needs to using this client,
+// otherwise it will cause cycle import
 func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfigContent string) (interface{}, error) {
 	gamCmd := &command.GetApplicationMetaCommand{
 		CommandType: command.GetApplicationMeta,
@@ -240,6 +242,8 @@ func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfigCont
 	return meta, nil
 }
 
+// the reason why return a interface array is applicationMeta needs to using this client,
+// otherwise it will cause cycle import
 func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]interface{}, error) {
 	gamCmd := &command.GetApplicationMetasCommand{
 		CommandType: command.GetApplicationMetas,
