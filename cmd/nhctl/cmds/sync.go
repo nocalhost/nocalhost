@@ -22,7 +22,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	utils2 "nocalhost/pkg/nhctl/utils"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -135,7 +134,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	}
 
 	// Delete service folder
-	dir := filepath.Join(nocalhostSvc.GetApplicationSyncDir(), svcProfile.ActualName)
+	dir := nocalhostSvc.GetApplicationSyncDir()
 	if err2 := os.RemoveAll(dir); err2 != nil {
 		log.Warnf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
 	}
