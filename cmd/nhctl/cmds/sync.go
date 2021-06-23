@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	utils2 "nocalhost/pkg/nhctl/utils"
@@ -126,7 +127,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	must(nocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC"))
 
 	// kill syncthing process by find find it with terminal
-	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), utils.GetHomePath(), "")
+	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
 	if utils.IsWindows() {
 		utils2.KillSyncthingProcessOnWindows(str)
 	} else {

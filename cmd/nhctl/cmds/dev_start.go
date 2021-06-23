@@ -23,6 +23,7 @@ import (
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
@@ -263,7 +264,7 @@ func enterDevMode() string {
 	}()
 
 	// kill syncthing process by find find it with terminal
-	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), utils.GetHomePath(), "")
+	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
 	if utils.IsWindows() {
 		utils2.KillSyncthingProcessOnWindows(str)
 	} else {
