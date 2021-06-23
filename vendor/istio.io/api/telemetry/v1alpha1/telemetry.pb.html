@@ -1,0 +1,396 @@
+---
+title: istio.telemetry.v1alpha1
+layout: protoc-gen-docs
+generator: protoc-gen-docs
+number_of_entries: 7
+---
+<h2 id="Telemetry">Telemetry</h2>
+<section>
+<p>Telemetry defines how the telemetry is generated for workloads within a mesh.</p>
+
+<p>For mesh level configuration, put the resource in root configuration namespace for
+your Istio installation <em>without</em> a workload selector.</p>
+
+<p>For any namespace, including the root configuration namespace, it is only valid
+to have a single workload selector-less Telemetry resource.</p>
+
+<p>For resources with a workload selector, it is only valid to have one resource selecting
+any given workload.</p>
+
+<p>Telemetry configuration will use a &ldquo;shallow merge&rdquo; semantic for configuration override
+for each telemetry type (Tracing, Metrics, AccessLogging). For example, Tracing configuration
+will support overrides of the fields <code>providers</code>, <code>random_sampling_percentage</code>, <code>disable_span_reporting</code>,
+and <code>custom_tags</code> at each level in the configuration hierarchy, with missing values filled in
+from parent resources. However, when specified, fields like <code>custom_tags</code> will
+fully replace any values provided by parent configuration.</p>
+
+<p>The hierarchy of Telemetry configuration is as follows:
+1. Workload-specific configuration
+1. Namespace-specific configuration
+1. Root namespace configuration</p>
+
+<p>WARNING: Support for Telemetry policies is under active development and is <em>not</em>
+stable or supported by Istio at this time.</p>
+
+<p>Examples:</p>
+
+<p>Policy to enable random sampling for 10% of traffic:</p>
+
+<pre><code class="language-yaml">apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: mesh-default
+  namespace: istio-system
+spec:
+  tracing:
+  - randomSamplingPercentage: 10.00
+</code></pre>
+
+<p>Policy to disable trace reporting for the &ldquo;foo&rdquo; workload (note: tracing
+context will still be propagated):</p>
+
+<pre><code class="language-yaml">apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: foo-tracing
+  namespace: bar
+spec:
+  selector:
+    labels:
+      service.istio.io/canonical-name: foo
+  tracing:
+  - disableSpanReporting: true
+</code></pre>
+
+<p>Policy to select the alternate zipkin provider for trace reporting:</p>
+
+<pre><code class="language-yaml">apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: foo-tracing-alternate
+  namespace: baz
+spec:
+  selector:
+    labels:
+      service.istio.io/canonical-name: foo
+  tracing:
+  - providers:
+    - name: &quot;zipkin-alternate&quot;
+    randomSamplingPercentage: 10.00
+</code></pre>
+
+<p>Policy to add a custom tag from a literal value:</p>
+
+<pre><code class="language-yaml">apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: mesh-default
+  namespace: istio-system
+spec:
+  tracing:
+  - randomSamplingPercentage: 10.00
+    customTags:
+      my_new_foo_tag:
+        literal:
+          value: &quot;foo&quot;
+</code></pre>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Telemetry-selector">
+<td><code>selector</code></td>
+<td><code><a href="https://istio.io/docs/reference/config/type/workload-selector.html#WorkloadSelector">WorkloadSelector</a></code></td>
+<td>
+<p>Optional. The selector decides where to apply the Telemetry policy.
+If not set, the Telemetry policy will be applied to all workloads in the
+same namespace as the Telemetry policy.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="Telemetry-tracing">
+<td><code>tracing</code></td>
+<td><code><a href="#Tracing">Tracing[]</a></code></td>
+<td>
+<p>Optional. Tracing configures the tracing behavior for all
+selected workloads.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="Tracing">Tracing</h2>
+<section>
+<p>Tracing configures tracing behavior for workloads within a mesh.
+It can be used to enable/disable tracing, as well as to set sampling
+rates and custom tag extraction.</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tracing-providers">
+<td><code>providers</code></td>
+<td><code><a href="#ProviderRef">ProviderRef[]</a></code></td>
+<td>
+<p>Optional. Name of provider(s) to use for span reporting. If a provider is
+not specified, the <em>default tracing provider</em>
+will be used.
+NOTE: At the moment, only a single provider can be specified in a given
+Tracing rule.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="Tracing-random_sampling_percentage">
+<td><code>randomSamplingPercentage</code></td>
+<td><code><a href="https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#doublevalue">DoubleValue</a></code></td>
+<td>
+<p>Controls the rate at which traffic will be selected for tracing if no
+prior sampling decision has been made. If a prior sampling decision has been
+made, that decision will be respected. However, if no sampling decision
+has been made (example: no <code>x-b3-sampled</code> tracing header was present in the
+requests), the traffic will be selected for telemetry generation at the
+percentage specified.</p>
+
+<p>Defaults to 0%. Valid values [0.00-100.00]. Can be specified in 0.01%
+increments.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="Tracing-disable_span_reporting">
+<td><code>disableSpanReporting</code></td>
+<td><code><a href="https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#boolvalue">BoolValue</a></code></td>
+<td>
+<p>Controls span reporting. If set to true, no spans will be reported for
+impacted workloads. This does NOT impact context propagation or trace
+sampling behavior.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="Tracing-custom_tags">
+<td><code>customTags</code></td>
+<td><code>map&lt;string,&nbsp;<a href="#Tracing-CustomTag">CustomTag</a>&gt;</code></td>
+<td>
+<p>Optional. Configures additional custom tags to the generated trace spans.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="ProviderRef">ProviderRef</h2>
+<section>
+<p>Used to bind Telemetry configuration to specific providers for
+targeted customization.</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr id="ProviderRef-name">
+<td><code>name</code></td>
+<td><code>string</code></td>
+<td>
+<p>Required. Name of Telemetry provider in MeshConfig.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="Tracing-CustomTag">Tracing.CustomTag</h2>
+<section>
+<p>CustomTag defines a tag to be added to a trace span that is based on
+an operator-supplied value. This value can either be a hard-coded value,
+a value taken from an environment variable known to the sidecar proxy, or
+from a request header.</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tracing-CustomTag-literal" class="oneof oneof-start">
+<td><code>literal</code></td>
+<td><code><a href="#Tracing-Literal">Literal (oneof)</a></code></td>
+<td>
+<p>Literal adds the same, hard-coded value to each span.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="Tracing-CustomTag-environment" class="oneof">
+<td><code>environment</code></td>
+<td><code><a href="#Tracing-Environment">Environment (oneof)</a></code></td>
+<td>
+<p>Environment adds the value of an environment variable to each span.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="Tracing-CustomTag-header" class="oneof">
+<td><code>header</code></td>
+<td><code><a href="#Tracing-RequestHeader">RequestHeader (oneof)</a></code></td>
+<td>
+<p>RequestHeader adds the value of an header from the request to each span.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="Tracing-Literal">Tracing.Literal</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tracing-Literal-value">
+<td><code>value</code></td>
+<td><code>string</code></td>
+<td>
+<p>The tag value to use.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="Tracing-Environment">Tracing.Environment</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tracing-Environment-name">
+<td><code>name</code></td>
+<td><code>string</code></td>
+<td>
+<p>Name of the environment variable from which to extract the tag value.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="Tracing-Environment-default_value">
+<td><code>defaultValue</code></td>
+<td><code>string</code></td>
+<td>
+<p>Optional. If the environment variable is not found, this value will be
+used instead.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="Tracing-RequestHeader">Tracing.RequestHeader</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tracing-RequestHeader-name">
+<td><code>name</code></td>
+<td><code>string</code></td>
+<td>
+<p>Name of the header from which to extract the tag value.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="Tracing-RequestHeader-default_value">
+<td><code>defaultValue</code></td>
+<td><code>string</code></td>
+<td>
+<p>Optional. If the header is not found, this value will be
+used instead.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+</tbody>
+</table>
+</section>

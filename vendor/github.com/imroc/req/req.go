@@ -168,7 +168,6 @@ func (r *Req) Do(method, rawurl string, vs ...interface{}) (resp *Resp, err erro
 		Proto:      "HTTP/1.1",
 		ProtoMajor: 1,
 		ProtoMinor: 1,
-		
 	}
 	resp = &Resp{req: req, r: r}
 
