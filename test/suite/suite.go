@@ -84,6 +84,7 @@ func (t *T) Run(name string, fn func(cli runner.Client, p ...string), pp ...stri
 	var retryTimes = 10
 	var err error
 	for i := 0; i < retryTimes; i++ {
+		log.Infof("\n============= Testing (Installing BookInfo %d)%s =============\n", i, name)
 		if err = testcase.InstallBookInfo(clientForRunner); err != nil {
 			log.Infof("\n============= Testing (Install BookInfo Failed)%s =============\n", name)
 			_ = testcase.UninstallBookInfo(clientForRunner)
@@ -119,7 +120,7 @@ func (t *T) Run(name string, fn func(cli runner.Client, p ...string), pp ...stri
 	log.Infof("\n============= Testing done %s =============\n", name)
 
 	timeAfter := time.Now()
-	log.Infof("\n============= Cost %s-%vs =============\n", name,timeAfter.Second()-timeBefore.Second())
+	log.Infof("\n============= Cost %s-%vs =============\n", name, timeAfter.Second()-timeBefore.Second())
 
 	//testcase.Reset(clientForRunner)
 	for i := 0; i < retryTimes; i++ {
