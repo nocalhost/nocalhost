@@ -91,7 +91,7 @@ func (c *setUpCluster) CreateClusterRoleBinding(name, namespace, role, toService
 }
 
 func (c *setUpCluster) CreateConfigMap(name, namespace, key, value string) *setUpCluster {
-	_, c.err = c.clientGo.CreateConfigMap(name, namespace, key, value)
+	_, c.err = c.clientGo.CreateConfigMapWithValue(name, namespace, key, value)
 	if c.err != nil {
 		c.errCode = errno.ErrClusterDepSetup
 	}

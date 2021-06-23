@@ -101,7 +101,7 @@ func (c *clusterDevsSetUp) GetServiceAccountSecret(name, namespace string) (*cor
 	if name == "" {
 		name = c.serviceAccountSecretName
 	}
-	secret, err := c.clientGo.GetSecret(name, namespace)
+	secret, err := c.clientGo.GetSecret(namespace, name)
 	if err != nil {
 		c.err = err
 		c.errCode = errno.ErrBindSecretGetErr
