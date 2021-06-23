@@ -129,7 +129,7 @@ func DevEnd(cli runner.Client, moduleName string) error {
 
 func DevEndT(cli runner.Client, moduleName string, moduleType string) error {
 	cmd := cli.GetNhctl().Command(context.Background(), "dev", "end", "bookinfo", "-d", moduleName, "-t", moduleType)
-	if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
+	if stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil); runner.Runner.CheckResult(cmd, stdout, stderr, err) != nil {
 		return err
 	}
 	_ = k8sutils.WaitPod(
