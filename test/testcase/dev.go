@@ -50,7 +50,7 @@ func DevStartT(cli runner.Client, moduleName string, moduleType string) error {
 		// prevent tty to block testcase
 		"--without-terminal",
 	)
-	if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
+	if stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil); runner.Runner.CheckResult(cmd, stdout, stderr, err) != nil {
 		return err
 	}
 	_ = k8sutils.WaitPod(
