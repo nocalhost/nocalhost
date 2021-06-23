@@ -159,3 +159,79 @@ func UpdateResourceLimit(c *gin.Context) {
 	}
 	api.SendResponse(c, nil, result)
 }
+
+// @Summary Update mesh dev space info
+// @Description Update mesh dev space info
+// @Tags Cluster
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path string true "devspace id"
+// @Param MeshDevInfo body model.MeshDevInfo true "mesh dev space info"
+// @Success 200 {object} model.ClusterUserModel
+// @Router /v1/dev_space/{id}/update_resource_limit [put]
+func UpdateMeshDevSpaceInfo(c *gin.Context) {
+	var req model.MeshDevInfo
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Warnf("bind resource limits params err: %v", err)
+		api.SendResponse(c, errno.ErrBind, nil)
+		return
+	}
+
+	devSpaceId := cast.ToUint64(c.Param("id"))
+
+
+	condition := model.ClusterUserModel{
+		ID: devSpaceId,
+	}
+	devspace, err := service.Svc.ClusterUser().GetFirst(c, condition)
+	if err != nil || devspace == nil {
+		log.Errorf("Dev space has not found")
+		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+		return
+	}
+
+	// Build goclient with administrator kubeconfig
+	clusterData, err := service.Svc.ClusterSvc().Get(c, devspace.ClusterId)
+	if err != nil {
+		log.Errorf("Getting cluster information failed, cluster id = [ %v ] ", devspace.ClusterId)
+		api.SendResponse(c, errno.ErrPermissionCluster, nil)
+		return
+	}
+	var KubeConfig = []byte(clusterData.KubeConfig)
+	goClient, err := clientgo.NewAdminGoClient(KubeConfig)
+
+	// get client go and check if is admin Kubeconfig
+	if err != nil {
+		switch err.(type) {
+		case *errno.Errno:
+			api.SendResponse(c, err, nil)
+		default:
+			api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		}
+		return
+	}
+
+	info := devspace.MeshDevInfo
+	info.Header = req.Header
+	info.APPS = req.APPS
+
+	meshManager, err := setupcluster.NewMeshManager(goClient, info)
+	if err != nil {
+		api.SendResponse(c, nil, nil)
+		return
+	}
+
+	if err := meshManager.InjectMeshDevSpace(); err != nil {
+		api.SendResponse(c, nil, nil)
+		return
+	}
+
+	devspace.MeshDevInfo = info
+	result, err := service.Svc.ClusterUser().Update(c, devspace)
+	if err != nil {
+		api.SendResponse(c, nil, nil)
+		return
+	}
+	api.SendResponse(c, nil, result)
+}
