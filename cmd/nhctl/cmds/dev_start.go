@@ -221,7 +221,7 @@ func stopPreviousSyncthing() {
 	must(
 		nocalhostSvc.FindOutSyncthingProcess(
 			func(pid int) error {
-				return syncthing.Stop(pid, false)
+				return syncthing.Stop(pid, true)
 			},
 		),
 	)
