@@ -4,12 +4,18 @@ import (
 	"encoding/json"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_handler/item"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"reflect"
 )
+
+type MetaWrapper struct {
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+}
+
 
 func (a *Application) GetConfigMap(resourceName string) (*v1.ConfigMap, error) {
 	if result, err := a.getResource(resourceName, "configmaps"); err != nil {
@@ -28,6 +34,23 @@ func (a *Application) GetConfigMap(resourceName string) (*v1.ConfigMap, error) {
 	}
 }
 
+func (a *Application) GetObjectMeta(resourceName, resourceType string) (*MetaWrapper, error) {
+	if any, err := a.getResource(resourceName, resourceType); err != nil {
+		return nil, err
+	}else {
+		if marshal, err := json.Marshal(any); err != nil {
+			return nil, err
+		} else {
+			var mw MetaWrapper
+
+			if err := json.Unmarshal(marshal, &mw); err != nil {
+				return nil, err
+			}
+			return &mw, nil
+		}
+	}
+}
+
 func (a *Application) getResource(resourceName, resourceType string) (interface{}, error) {
 	cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
 	if err != nil {
@@ -35,7 +58,7 @@ func (a *Application) getResource(resourceName, resourceType string) (interface{
 	}
 
 	data, err := cli.SendGetResourceInfoCommand(
-		a.KubeConfig, a.NameSpace, a.GetAppMeta().Application, resourceType, resourceName, nil,
+		a.KubeConfig, a.NameSpace, "", resourceType, resourceName, nil,
 	)
 	if data == nil || err != nil {
 		return nil, errors.Wrap(err, "Fail to get resource info from daemon")

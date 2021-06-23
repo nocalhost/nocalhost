@@ -61,6 +61,16 @@ var svcNotificationTipsCmLoaded = `# Tips: This configuration is a in-memory rep
 # take effect immediately. (Dev modification will take effect the next time you enter the DevMode)
 #`
 
+var svcNotificationTipsAnnotationLoaded = `# Tips: This configuration is a in-memory replica of annotation: 
+# 
+# annotations:
+#   %s: |
+#     [Your Config]
+# 
+# You should modify your configuration in resource's annotation', and the modification will
+# take effect immediately. (Dev modification will take effect the next time you enter the DevMode)
+#`
+
 func init() {
 	configGetCmd.Flags().StringVarP(
 		&commonFlags.SvcName, "deployment", "d", "",
@@ -154,6 +164,11 @@ var configGetCmd = &cobra.Command{
 					notification += fmt.Sprintf(
 						svcNotificationTipsCmLoaded,
 						appmeta.ConfigMapName(commonFlags.AppName),
+					)
+				} else if svcProfile.AnnotationsConfigLoaded {
+					notification += fmt.Sprintf(
+						svcNotificationTipsAnnotationLoaded,
+						appmeta.AnnotationKey,
 					)
 				} else {
 					notification += notificationPrefix

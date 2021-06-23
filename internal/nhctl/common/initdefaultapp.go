@@ -53,11 +53,10 @@ func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconf
 	var err error
 
 	log.Logf("KubeConfig path: %s", kubeconfig)
-	bys, err := ioutil.ReadFile(kubeconfig)
+	_, err = ioutil.ReadFile(kubeconfig)
 	if err != nil {
 		return nil, errors2.Wrap(err, "")
 	}
-	log.Logf("KubeConfig content: %s", string(bys))
 
 	// build Application will create the application meta and it's secret
 	// init the application's config

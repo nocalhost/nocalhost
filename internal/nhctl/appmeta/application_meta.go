@@ -38,6 +38,7 @@ const (
 	SecretType       = "dev.nocalhost/application.meta"
 	SecretNamePrefix = "dev.nocalhost.application."
 	CmNamePrefix     = "dev.nocalhost.config."
+	AnnotationKey    = "dev.nocalhost"
 	CmConfigKey      = "config"
 
 	SecretHelmReleaseNameKey = "r"
