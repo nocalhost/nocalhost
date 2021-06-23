@@ -31,6 +31,7 @@ import (
 	utils2 "nocalhost/pkg/nhctl/utils"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 var (
@@ -263,10 +264,11 @@ func enterDevMode() string {
 	}()
 
 	// kill syncthing process by find find it with terminal
+	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), utils.GetHomePath(), "")
 	if utils.IsWindows() {
-		utils2.KillSyncthingProcessOnWindows(nocalhostSvc.NameSpace, nocalhostSvc.AppName, nocalhostSvc.Name, nocalhostSvc.Type)
+		utils2.KillSyncthingProcessOnWindows(str)
 	} else {
-		utils2.KillSyncthingProcessOnUnix(nocalhostSvc.NameSpace, nocalhostSvc.AppName, nocalhostSvc.Name, nocalhostSvc.Type)
+		utils2.KillSyncthingProcessOnUnix(str)
 	}
 
 	// Delete service folder
