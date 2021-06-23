@@ -38,6 +38,19 @@ type Supervisor struct {
 	lock sync.Mutex
 }
 
+func UpdateApplicationMetasManually(ns string, configBytes []byte, secretName string, secret *v1.Secret) error {
+	aws := supervisor.inDeck(ns, configBytes)
+	if secret == nil {
+		err := aws.Delete(ns + "/" + secretName)
+		log.Infof("receive delete secret operation, name: %s, err: %v", secretName, err)
+		return err
+	} else {
+		err := aws.CreateOrUpdate(ns+"/"+secretName, secret)
+		log.Infof("receive update secret operation, name: %s, err: %v", secretName, err)
+		return err
+	}
+}
+
 func GetApplicationMetas(ns string, configBytes []byte) []*appmeta.ApplicationMeta {
 	aws := supervisor.inDeck(ns, configBytes)
 	return aws.GetApplicationMetas()

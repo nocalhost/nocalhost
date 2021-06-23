@@ -214,7 +214,7 @@ func printMeta(metas []*model.Namespace) {
 	var rows [][]string
 	for _, e := range metas {
 		for _, info := range e.Application {
-			rows = append(rows, []string{e.Namespace, info.Name, string(info.Type)})
+			rows = append(rows, []string{e.Namespace, info.Name, info.Type})
 		}
 	}
 	write([]string{"namespace", "name", "type"}, rows)

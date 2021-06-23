@@ -92,7 +92,7 @@ func tryDelAppFromHelmRelease(appName, ns string, configBytes []byte, clientSet 
 		return nil
 	}
 
-	meta.InjectGoClient(clientSet)
+	meta.InjectGoClient(clientSet, configBytes)
 
 	if err := meta.Delete(); err != nil {
 		return err
@@ -124,7 +124,7 @@ func tryNewAppFromHelmRelease(releaseStr, ns string, configBytes []byte, clientS
 		return nil
 	}
 
-	meta.InjectGoClient(clientSet)
+	meta.InjectGoClient(clientSet, configBytes)
 
 	if err := meta.Initial(); err != nil {
 		return err

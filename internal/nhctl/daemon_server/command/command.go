@@ -15,6 +15,7 @@ package command
 import (
 	"encoding/json"
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 )
 
 type DaemonCommandType string
@@ -30,6 +31,7 @@ const (
 	GetApplicationMeta    DaemonCommandType = "GetApplicationMeta"
 	GetApplicationMetas   DaemonCommandType = "GetApplicationMetas"
 	GetResourceInfo       DaemonCommandType = "GetResourceInfo"
+	UpdateApplicationMeta DaemonCommandType = "UpdateApplicationMeta"
 
 	PREVIEW_VERSION = 0
 	SUCCESS         = 200
@@ -91,6 +93,16 @@ type GetResourceInfoCommand struct {
 	Resource     string            `json:"resource" yaml:"resource"`
 	ResourceName string            `json:"resourceName" yaml:"resourceName"`
 	Label        map[string]string `json:"label" yaml:"label"`
+}
+
+type UpdateApplicationMetaCommand struct {
+	CommandType DaemonCommandType
+	ClientStack string
+
+	KubeConfig string     `json:"kubeConfig" yaml:"kubeConfig"`
+	Namespace  string     `json:"namespace" yaml:"namespace"`
+	SecretName string     `json:"secretName" yaml:"secretName"`
+	Secret     *v1.Secret `json:"secret" yaml:"secret"`
 }
 
 func ParseBaseCommand(bys []byte) (DaemonCommandType, string, error) {

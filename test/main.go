@@ -45,7 +45,7 @@ func main() {
 	wg.Add(6)
 
 	go func() {
-		t.Run("helm-adaption", suite.HelmAdaption)
+		t.RunWithBookInfo(false, "helm-adaption", suite.HelmAdaption)
 		wg.Done()
 	}()
 
@@ -79,4 +79,3 @@ func main() {
 
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
 }
-

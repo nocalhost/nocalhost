@@ -24,10 +24,12 @@ type SecretOperator interface {
 	Create(ns string, secret *corev1.Secret) (*corev1.Secret, error)
 	Update(ns string, secret *corev1.Secret) (*corev1.Secret, error)
 	Delete(ns, name string) error
+	GetKubeconfigBytes() []byte
 }
 
 type ClientGoUtilSecretOperator struct {
-	ClientInner *clientgoutils.ClientGoUtils
+	ClientInner     *clientgoutils.ClientGoUtils
+	KubeconfigBytes []byte
 }
 
 func (cso *ClientGoUtilSecretOperator) Create(ns string, secret *corev1.Secret) (*corev1.Secret, error) {
@@ -45,9 +47,13 @@ func (cso *ClientGoUtilSecretOperator) Delete(ns, name string) error {
 		cso.ClientInner.GetContext(), name, metav1.DeleteOptions{},
 	)
 }
+func (cso *ClientGoUtilSecretOperator) GetKubeconfigBytes() []byte {
+	return cso.KubeconfigBytes
+}
 
 type ClientGoSecretOperator struct {
-	ClientSet *kubernetes.Clientset
+	ClientSet       *kubernetes.Clientset
+	KubeconfigBytes []byte
 }
 
 func (cso *ClientGoSecretOperator) Create(ns string, secret *corev1.Secret) (*corev1.Secret, error) {
@@ -64,4 +70,7 @@ func (cso *ClientGoSecretOperator) Delete(ns, name string) error {
 	return cso.ClientSet.CoreV1().Secrets(ns).Delete(
 		context.TODO(), name, metav1.DeleteOptions{},
 	)
+}
+func (cso *ClientGoSecretOperator) GetKubeconfigBytes() []byte {
+	return cso.KubeconfigBytes
 }
