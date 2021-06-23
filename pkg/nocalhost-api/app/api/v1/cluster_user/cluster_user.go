@@ -12,6 +12,8 @@
 
 package cluster_user
 
+import "nocalhost/internal/nocalhost-api/model"
+
 type ClusterUserCreateRequest struct {
 	ID                 *uint64             `json:"id"`
 	ClusterId          *uint64             `json:"cluster_id" binding:"required"`
@@ -23,6 +25,8 @@ type ClusterUserCreateRequest struct {
 	ClusterAdmin       *uint64             `json:"cluster_admin"`
 	NameSpace          string              `json:"namespace"`
 	SpaceResourceLimit *SpaceResourceLimit `json:"space_resource_limit"`
+	IsMeshDevSpace     bool                `json:"is_mesh_dev_space"`
+	MeshDevInfo        *model.MeshDevInfo  `json:"mesh_dev_info"`
 }
 
 type ClusterUserListQuery struct {

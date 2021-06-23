@@ -15,8 +15,11 @@ package cluster_user
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
+
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
@@ -82,11 +85,25 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		d.DevSpaceParams.SpaceName = clusterRecord.Name + "[" + usersRecord.Name + "]"
 	}
 
+	clusterUserModel := &model.ClusterUserModel{}
 	if d.DevSpaceParams.ClusterAdmin == nil || *d.DevSpaceParams.ClusterAdmin == 0 {
-		return d.createDevSpace(clusterRecord, usersRecord)
+		clusterUserModel, err = d.createDevSpace(clusterRecord, usersRecord)
+		if err != nil {
+			return nil, err
+		}
 	} else {
-		return d.createClusterDevSpace(clusterRecord, usersRecord)
+		clusterUserModel, err = d.createClusterDevSpace(clusterRecord, usersRecord)
+		if err != nil {
+			return nil, err
+		}
 	}
+
+	// init mesh dev space
+	if d.DevSpaceParams.IsMeshDevSpace && d.DevSpaceParams.MeshDevInfo != nil {
+		return d.initMeshDevSpace(&clusterRecord, clusterUserModel)
+	}
+
+	return clusterUserModel, nil
 }
 
 func (d *DevSpace) createClusterDevSpace(
@@ -198,4 +215,36 @@ func (d *DevSpace) createDevSpace(
 	}
 
 	return &result, nil
+}
+
+func (d *DevSpace) initMeshDevSpace(clusterRecord *model.ClusterModel, clusterUserModel *model.ClusterUserModel,
+) (*model.ClusterUserModel, error) {
+	var KubeConfig = []byte(clusterRecord.KubeConfig)
+	goClient, err := clientgo.NewAdminGoClient(KubeConfig)
+
+	// get client go and check if is admin Kubeconfig
+	if err != nil {
+		switch err.(type) {
+		case *errno.Errno:
+			return nil, err
+		default:
+			return nil, errno.ErrClusterKubeErr
+		}
+	}
+
+	// init mesh dev space
+	meshDevInfo := *d.DevSpaceParams.MeshDevInfo
+	meshDevInfo.MeshDevNamespace = clusterUserModel.Namespace
+	meshManager, _ := setupcluster.NewMeshManager(goClient, meshDevInfo)
+	if err := meshManager.InitMeshDevSpace(); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	if len(d.DevSpaceParams.MeshDevInfo.APPS) > 0 {
+		if err := meshManager.InjectMeshDevSpace(); err != nil {
+			return nil, errors.WithStack(err)
+		}
+	}
+	clusterUserModel.MeshDevInfo = meshDevInfo
+	clusterUserModel.BaseDevSpaceId = meshDevInfo.BaseDevSpaceId
+	return service.Svc.ClusterUser().Update(d.c, clusterUserModel)
 }
