@@ -127,9 +127,9 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 
 	// kill syncthing process by find find it with terminal
 	if utils.IsWindows() {
-		utils2.KillSyncthingProcessOnWindows(nocalhostSvc.NameSpace, nocalhostSvc.AppName, svcProfile.ActualName)
+		utils2.KillSyncthingProcessOnWindows(nocalhostSvc.NameSpace, nocalhostSvc.AppName, svcProfile.ActualName, nocalhostSvc.Type)
 	} else {
-		utils2.KillSyncthingProcessOnUnix(nocalhostSvc.NameSpace, nocalhostSvc.AppName, svcProfile.ActualName)
+		utils2.KillSyncthingProcessOnUnix(nocalhostSvc.NameSpace, nocalhostSvc.AppName, svcProfile.ActualName, nocalhostSvc.Type)
 	}
 
 	// Delete service folder

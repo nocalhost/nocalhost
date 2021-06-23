@@ -264,9 +264,9 @@ func enterDevMode() string {
 
 	// kill syncthing process by find find it with terminal
 	if utils.IsWindows() {
-		utils2.KillSyncthingProcessOnWindows(nocalhostSvc.NameSpace, nocalhostSvc.AppName, nocalhostSvc.Name)
+		utils2.KillSyncthingProcessOnWindows(nocalhostSvc.NameSpace, nocalhostSvc.AppName, nocalhostSvc.Name, nocalhostSvc.Type)
 	} else {
-		utils2.KillSyncthingProcessOnUnix(nocalhostSvc.NameSpace, nocalhostSvc.AppName, nocalhostSvc.Name)
+		utils2.KillSyncthingProcessOnUnix(nocalhostSvc.NameSpace, nocalhostSvc.AppName, nocalhostSvc.Name, nocalhostSvc.Type)
 	}
 
 	// Delete service folder
