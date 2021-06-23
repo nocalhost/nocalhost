@@ -15,7 +15,10 @@ package utils
 import (
 	"fmt"
 	"io"
+	"nocalhost/internal/nhctl/syncthing/terminate"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -84,4 +87,28 @@ func RenderProgressBar(prefix string, current, scalingFactor float64) string {
 	_, _ = sb.WriteString("]")
 	_, _ = sb.WriteString(fmt.Sprintf(" %3v%%", int(current)))
 	return sb.String()
+}
+
+func KillSyncthingProcessOnWindows(namespace, appname, servicename string) {
+	cmd := exec.Command("wmic", "process", "get", "processid", ",", "commandline")
+	s, err := cmd.CombinedOutput()
+	if err != nil {
+		return
+	}
+	for _, item := range strings.Split(string(s), "\n") {
+		join := filepath.Join("nhctl", "ns", namespace, appname, "syncthing", servicename)
+		if strings.Contains(item, join) {
+			for _, segment := range strings.Split(item, " ") {
+				if pid, err := strconv.Atoi(segment); err == nil {
+					_ = terminate.Terminate(pid, false)
+				}
+			}
+		}
+	}
+}
+
+func KillSyncthingProcessOnUnix(namespace, appname, servicename string) {
+	s := filepath.Join("nhctl", "ns", namespace, appname, "syncthing", servicename)
+	command := exec.Command("sh", "-c", "ps -ef | grep "+s+"  | awk -F ' ' '{print $2}' | xargs kill")
+	_ = command.Run()
 }
