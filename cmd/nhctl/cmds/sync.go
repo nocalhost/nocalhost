@@ -20,6 +20,8 @@ import (
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -121,6 +123,12 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	svcProfile, _ := nocalhostSvc.GetProfile()
 	// Start a pf for syncthing
 	must(nocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC"))
+
+	// Delete service folder
+	dir := filepath.Join(nocalhostSvc.GetApplicationSyncDir(), svcProfile.ActualName)
+	if err2 := os.RemoveAll(dir); err2 != nil {
+		log.Warnf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
+	}
 
 	// TODO
 	// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished),
