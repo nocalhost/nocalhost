@@ -23,6 +23,7 @@ import (
 	utils2 "nocalhost/pkg/nhctl/utils"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -126,10 +127,11 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	must(nocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC"))
 
 	// kill syncthing process by find find it with terminal
+	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), utils.GetHomePath(), "")
 	if utils.IsWindows() {
-		utils2.KillSyncthingProcessOnWindows(nocalhostSvc.NameSpace, nocalhostSvc.AppName, svcProfile.ActualName, nocalhostSvc.Type)
+		utils2.KillSyncthingProcessOnWindows(str)
 	} else {
-		utils2.KillSyncthingProcessOnUnix(nocalhostSvc.NameSpace, nocalhostSvc.AppName, svcProfile.ActualName, nocalhostSvc.Type)
+		utils2.KillSyncthingProcessOnUnix(str)
 	}
 
 	// Delete service folder

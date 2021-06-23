@@ -15,8 +15,6 @@ package utils
 import (
 	"fmt"
 	"io"
-	"nocalhost/internal/nhctl/common/base"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/syncthing/terminate"
 	"os/exec"
 	"path/filepath"
@@ -91,20 +89,15 @@ func RenderProgressBar(prefix string, current, scalingFactor float64) string {
 	return sb.String()
 }
 
-func KillSyncthingProcessOnWindows(namespace, appname, servicename string, svcType base.SvcType) {
+func KillSyncthingProcessOnWindows(keyword string) {
 	cmd := exec.Command("wmic", "process", "get", "processid", ",", "commandline")
 	s, err := cmd.CombinedOutput()
 	if err != nil {
 		return
 	}
-	var dirPath string
-	if svcType == base.Deployment {
-		dirPath = filepath.Join("nhctl", "ns", namespace, appname, nocalhost.DefaultBinSyncThingDirName, servicename)
-	} else {
-		dirPath = filepath.Join("nhctl", "ns", namespace, appname, nocalhost.DefaultBinSyncThingDirName, string(svcType)+"-"+servicename)
-	}
+
 	for _, item := range strings.Split(string(s), "\n") {
-		if strings.Contains(item, dirPath) {
+		if strings.Contains(item, keyword) {
 			for _, segment := range strings.Split(item, " ") {
 				if pid, err := strconv.Atoi(segment); err == nil {
 					_ = terminate.Terminate(pid, false)
@@ -114,13 +107,7 @@ func KillSyncthingProcessOnWindows(namespace, appname, servicename string, svcTy
 	}
 }
 
-func KillSyncthingProcessOnUnix(namespace, appname, servicename string, svcType base.SvcType) {
-	var dirPath string
-	if svcType == base.Deployment {
-		dirPath = filepath.Join("nhctl", "ns", namespace, appname, nocalhost.DefaultBinSyncThingDirName, servicename)
-	} else {
-		dirPath = filepath.Join("nhctl", "ns", namespace, appname, nocalhost.DefaultBinSyncThingDirName, string(svcType)+"-"+servicename)
-	}
-	command := exec.Command("sh", "-c", "ps -ef | grep "+dirPath+"  | awk -F ' ' '{print $2}' | xargs kill")
+func KillSyncthingProcessOnUnix(keyword string) {
+	command := exec.Command("sh", "-c", "ps -ef | grep "+keyword+"  | awk -F ' ' '{print $2}' | xargs kill")
 	_ = command.Run()
 }
