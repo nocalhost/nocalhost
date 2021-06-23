@@ -15,6 +15,8 @@ package utils
 import (
 	"fmt"
 	"io"
+	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/syncthing/terminate"
 	"os/exec"
 	"path/filepath"
@@ -89,15 +91,20 @@ func RenderProgressBar(prefix string, current, scalingFactor float64) string {
 	return sb.String()
 }
 
-func KillSyncthingProcessOnWindows(namespace, appname, servicename string) {
+func KillSyncthingProcessOnWindows(namespace, appname, servicename string, svcType base.SvcType) {
 	cmd := exec.Command("wmic", "process", "get", "processid", ",", "commandline")
 	s, err := cmd.CombinedOutput()
 	if err != nil {
 		return
 	}
+	var dirPath string
+	if svcType == base.Deployment {
+		dirPath = filepath.Join("nhctl", "ns", namespace, appname, nocalhost.DefaultBinSyncThingDirName, servicename)
+	} else {
+		dirPath = filepath.Join("nhctl", "ns", namespace, appname, nocalhost.DefaultBinSyncThingDirName, string(svcType)+"-"+servicename)
+	}
 	for _, item := range strings.Split(string(s), "\n") {
-		join := filepath.Join("nhctl", "ns", namespace, appname, "syncthing", servicename)
-		if strings.Contains(item, join) {
+		if strings.Contains(item, dirPath) {
 			for _, segment := range strings.Split(item, " ") {
 				if pid, err := strconv.Atoi(segment); err == nil {
 					_ = terminate.Terminate(pid, false)
@@ -107,8 +114,13 @@ func KillSyncthingProcessOnWindows(namespace, appname, servicename string) {
 	}
 }
 
-func KillSyncthingProcessOnUnix(namespace, appname, servicename string) {
-	s := filepath.Join("nhctl", "ns", namespace, appname, "syncthing", servicename)
-	command := exec.Command("sh", "-c", "ps -ef | grep "+s+"  | awk -F ' ' '{print $2}' | xargs kill")
+func KillSyncthingProcessOnUnix(namespace, appname, servicename string, svcType base.SvcType) {
+	var dirPath string
+	if svcType == base.Deployment {
+		dirPath = filepath.Join("nhctl", "ns", namespace, appname, nocalhost.DefaultBinSyncThingDirName, servicename)
+	} else {
+		dirPath = filepath.Join("nhctl", "ns", namespace, appname, nocalhost.DefaultBinSyncThingDirName, string(svcType)+"-"+servicename)
+	}
+	command := exec.Command("sh", "-c", "ps -ef | grep "+dirPath+"  | awk -F ' ' '{print $2}' | xargs kill")
 	_ = command.Run()
 }
