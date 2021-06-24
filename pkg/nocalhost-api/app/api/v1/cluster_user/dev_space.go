@@ -156,8 +156,13 @@ func (d *DevSpace) createDevSpace(
 	// create cluster devs
 	devNamespace := goClient.GenerateNsName(usersRecord.ID)
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
+	// set labels for istio proxy sidecar injection
+	labels := make(map[string]string)
+	if d.DevSpaceParams.BaseDevSpaceId > 0 {
+		labels["istio-injection"] = "enabled"
+	}
 	secret, err := clusterDevsSetUp.
-		CreateNS(devNamespace, "").
+		CreateNS(devNamespace, labels).
 		CreateServiceAccount("", devNamespace).
 		CreateRole(global.NocalhostDevRoleName, devNamespace).
 		CreateRoleBinding(

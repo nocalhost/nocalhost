@@ -19,7 +19,7 @@ import (
 )
 
 type ClusterDevsSetUp interface {
-	CreateNS(namespace, label string) *clusterDevsSetUp
+	CreateNS(namespace string, labels map[string]string) *clusterDevsSetUp
 	CreateServiceAccount(name, namespace string) *clusterDevsSetUp
 	CreateRole(name, namespace string) *clusterDevsSetUp
 	CreateRoleBinding(name, namespace, clusterRole, toServiceAccount string) *clusterDevsSetUp
@@ -40,8 +40,8 @@ type clusterDevsSetUp struct {
 	serviceAccountSecretName string
 }
 
-func (c *clusterDevsSetUp) CreateNS(namespace, label string) *clusterDevsSetUp {
-	_, err := c.clientGo.CreateNS(namespace, label)
+func (c *clusterDevsSetUp) CreateNS(namespace string, labels map[string]string) *clusterDevsSetUp {
+	_, err := c.clientGo.CreateNS(namespace, labels)
 	if err != nil {
 		c.err = err
 		c.errCode = errno.ErrBindNameSpaceCreate

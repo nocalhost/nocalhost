@@ -386,7 +386,7 @@ func createOrUpdateServiceAccountINE(client *clientgo.GoClient, saName string, s
 }
 
 func createNamespaceINE(client *clientgo.GoClient, ns string) error {
-	if _, err := client.CreateNS(ns, ""); err != nil && !k8serrors.IsAlreadyExists(err) {
+	if _, err := client.CreateNS(ns, map[string]string{}); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return err
 	}
 	return nil

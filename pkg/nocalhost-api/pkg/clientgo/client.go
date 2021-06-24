@@ -275,16 +275,17 @@ func (c *GoClient) IfNocalhostNameSpaceExist() (bool, error) {
 
 // When create sub namespace for developer, label should set "nocalhost" for nocalhost-dep admission webhook muting
 // when create nocalhost-reserved namesapce, label should set "nocalhost-reserved"
-func (c *GoClient) CreateNS(namespace, label string) (bool, error) {
-	if label == "" {
+func (c *GoClient) CreateNS(namespace string, labels map[string]string) (bool, error) {
+	if labels == nil {
+		labels = make(map[string]string, 0)
+	}
+	if labels["env"] == "" {
 		if namespace == global.NocalhostSystemNamespace {
-			label = global.NocalhostSystemNamespaceLabel
+			labels["env"] = global.NocalhostSystemNamespaceLabel
 		} else {
-			label = global.NocalhostDevNamespaceLabel
+			labels["env"] = global.NocalhostDevNamespaceLabel
 		}
 	}
-	labels := make(map[string]string, 0)
-	labels["env"] = label
 	nsSpec := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace, Labels: labels}}
 	_, err := c.client.CoreV1().Namespaces().Create(context.TODO(), nsSpec, metav1.CreateOptions{})
 	if err != nil {
