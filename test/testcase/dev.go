@@ -34,7 +34,9 @@ func DevStart(cli runner.Client, moduleName string) error {
 }
 
 func DevStartT(cli runner.Client, moduleName string, moduleType string) error {
-	if err := os.MkdirAll(fmt.Sprintf("/tmp/%s", moduleName), 0777); err != nil {
+	syncDir := fmt.Sprintf("/tmp/%s/%s", cli.NameSpace(), moduleName)
+
+	if err := os.MkdirAll(syncDir, 0777); err != nil {
 		return errors.Errorf("test case failed, reason: create directory error, error: %v", err)
 	}
 	cmd := cli.GetNhctl().Command(
@@ -42,7 +44,7 @@ func DevStartT(cli runner.Client, moduleName string, moduleType string) error {
 		"start",
 		"bookinfo",
 		"-d", moduleName,
-		"-s", "/tmp/"+moduleName,
+		"-s", syncDir,
 		"-t", moduleType,
 		"--priority-class", "nocalhost-container-critical",
 		// prevent tty to block testcase
@@ -71,13 +73,15 @@ func SyncT(cli runner.Client, moduleName string, moduleType string) error {
 }
 
 func SyncCheck(cli runner.Client, moduleName string) error {
-	return SyncCheckT(cli, moduleName, "deployment")
+	return SyncCheckT(cli, cli.NameSpace(), moduleName, "deployment")
 }
 
-func SyncCheckT(cli runner.Client, moduleName string, moduleType string) error {
+func SyncCheckT(cli runner.Client, ns, moduleName string, moduleType string) error {
 	filename := "hello.test"
+	syncFile := fmt.Sprintf("/tmp/%s/%s/%s", cli.NameSpace(), moduleName, filename)
+
 	content := "this is a test, random string: " + uuid.New().String()
-	if err := ioutil.WriteFile(fmt.Sprintf("/tmp/%s/%s", moduleName, filename), []byte(content), 0644); err != nil {
+	if err := ioutil.WriteFile(syncFile, []byte(content), 0644); err != nil {
 		return errors.Errorf("test case failed, reason: write file %s error: %v", filename, err)
 	}
 	// wait file to be synchronize
