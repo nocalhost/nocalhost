@@ -108,20 +108,34 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 			panic(errors.Wrap(err, "test suite failed, install bookinfo error"))
 		}
 
-		_ = k8sutils.WaitPod(
-			clientForRunner.GetClientset(),
-			clientForRunner.GetNhctl().Namespace,
-			metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "reviews").String()},
-			func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
-			time.Minute*5,
-		)
-		_ = k8sutils.WaitPod(
-			clientForRunner.GetClientset(),
-			clientForRunner.GetNhctl().Namespace,
-			metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "ratings").String()},
-			func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
-			time.Minute*5,
-		)
+		for i := 0; i < retryTimes; i++ {
+
+			log.Infof("\n============= Testing (Wait BookInfo %d)%s =============\n", i, name)
+
+			err = k8sutils.WaitPod(
+				clientForRunner.GetClientset(),
+				clientForRunner.GetNhctl().Namespace,
+				metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "reviews").String()},
+				func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
+				time.Minute*5,
+			)
+
+			err = k8sutils.WaitPod(
+				clientForRunner.GetClientset(),
+				clientForRunner.GetNhctl().Namespace,
+				metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "ratings").String()},
+				func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
+				time.Minute*5,
+			)
+
+			if err == nil {
+				break
+			}
+		}
+
+		if err != nil {
+			panic(errors.Wrap(err, "test suite failed, install bookinfo error while wait for pod ready"))
+		}
 	}
 
 	log.Infof("\n============= Testing (Test)%s =============\n", name)

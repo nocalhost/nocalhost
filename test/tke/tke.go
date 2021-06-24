@@ -128,7 +128,7 @@ var DefaultConfig = defaultConfig{
 	diskType:                  "CLOUD_PREMIUM",
 	nodeRole:                  "WORKER",
 	internetMaxBandwidthOut:   100,
-	maxNum:                    32,
+	maxNum:                    256,
 	ignoreClusterCIDRConflict: true,
 	endpoint:                  "tke.tencentcloudapi.com",
 	region:                    "ap-hongkong",

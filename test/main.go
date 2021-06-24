@@ -42,7 +42,7 @@ func main() {
 	}
 
 	wg := sync.WaitGroup{}
-	wg.Add(6)
+	wg.Add(5)
 
 	go func() {
 		t.RunWithBookInfo(false, "helm-adaption", suite.HelmAdaption)
@@ -69,12 +69,9 @@ func main() {
 		wg.Done()
 	}()
 
-	go func() {
-		t.Run("compatible", suite.Compatible, v2)
-		wg.Done()
-	}()
-
 	wg.Wait()
+
+	t.Run("compatible", suite.Compatible, v2)
 	t.Clean()
 
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
