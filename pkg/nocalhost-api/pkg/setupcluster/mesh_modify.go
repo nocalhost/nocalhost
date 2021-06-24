@@ -14,7 +14,7 @@ package setupcluster
 
 import (
 	"fmt"
-	
+
 	"github.com/pkg/errors"
 	istiov1alpha3 "istio.io/api/networking/v1alpha3"
 	"istio.io/client-go/pkg/apis/networking/v1alpha3"
@@ -96,6 +96,10 @@ func commonModifier(ns string, rs *unstructured.Unstructured) error {
 	if annotations != nil && annotations[nocalhost.HelmReleaseName] != "" {
 		annotations[nocalhost.HelmReleaseName] = ns
 	}
+	delete(annotations, "deployment.kubernetes.io/revision")
+	delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
+	delete(annotations, "control-plane.alpha.kubernetes.io/leader")
+	rs.SetAnnotations(annotations)
 	return nil
 }
 
