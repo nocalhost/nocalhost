@@ -31,12 +31,20 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 )
 
-type MeshManager struct {
+type MeshManager interface {
+	InitMeshDevSpace() error
+	UpdateDstDevSpace() error
+	InjectMeshDevSpace() error
+	PatchResourcesOnBaseDevSpace() error
+	GetBaseDevSpaceAppInfo() []model.MeshDevApp
+}
+
+type meshManager struct {
 	mu                sync.Mutex
 	client            *clientgo.GoClient
 	cache             cache
 	baseDevSpacePatch []unstructured.Unstructured
-	MeshDevInfo       model.MeshDevInfo
+	meshDevInfo       model.MeshDevInfo
 }
 
 type cache struct {
@@ -51,18 +59,18 @@ func (c *cache) getResources() []unstructured.Unstructured {
 	return rs
 }
 
-func (m *MeshManager) InitMeshDevSpace() error {
+func (m *meshManager) InitMeshDevSpace() error {
 	return m.initMeshDevSpace()
 }
 
-func (m *MeshManager) UpdateDstDevSpace() error {
+func (m *meshManager) UpdateDstDevSpace() error {
 	return m.initMeshDevSpace()
 }
 
-func (m *MeshManager) InjectMeshDevSpace() error {
+func (m *meshManager) InjectMeshDevSpace() error {
 	// get dev space workloads from cache
 	ws := make(map[string]struct{})
-	for _, a := range m.MeshDevInfo.APPS {
+	for _, a := range m.meshDevInfo.APPS {
 		for _, w := range a.Workloads {
 			ws[w.Kind+"/"+w.Name] = struct{}{}
 		}
@@ -70,7 +78,7 @@ func (m *MeshManager) InjectMeshDevSpace() error {
 	rs := make([]unstructured.Unstructured, 0)
 	for _, r := range m.cache.getResources() {
 		if _, ok := ws[r.GetKind()+"/"+r.GetName()]; ok {
-			if err := meshDevModify(m.MeshDevInfo.MeshDevNamespace, &r); err != nil {
+			if err := meshDevModify(m.meshDevInfo.MeshDevNamespace, &r); err != nil {
 				return err
 			}
 			rs = append(rs, r)
@@ -86,7 +94,7 @@ func (m *MeshManager) InjectMeshDevSpace() error {
 	return nil
 }
 
-func (m *MeshManager) PatchResourcesOnBaseDevSpace() error {
+func (m *meshManager) PatchResourcesOnBaseDevSpace() error {
 	if err := m.setBaseDevSpacePatchResources(); err != nil {
 		return err
 	}
@@ -100,7 +108,7 @@ func (m *MeshManager) PatchResourcesOnBaseDevSpace() error {
 	return nil
 }
 
-func (m *MeshManager) GetBaseDevSpaceAppInfo() []model.MeshDevApp {
+func (m *meshManager) GetBaseDevSpaceAppInfo() []model.MeshDevApp {
 	appNames := make([]string, 0)
 	appInfo := make([]model.MeshDevApp, 0)
 	appConfigsTmp := newAppMatcher(m.cache.getResources()).kind("Secret").namePrefix(appmeta.SecretNamePrefix).match()
@@ -148,7 +156,7 @@ func (m *MeshManager) GetBaseDevSpaceAppInfo() []model.MeshDevApp {
 	return appInfo
 }
 
-func (m *MeshManager) initMeshDevSpace() error {
+func (m *meshManager) initMeshDevSpace() error {
 	// apply app config
 	appConfigsTmp := newAppMatcher(m.cache.getResources()).kind("Secret").namePrefix(appmeta.SecretNamePrefix).match()
 	for _, c := range appConfigsTmp {
@@ -164,7 +172,7 @@ func (m *MeshManager) initMeshDevSpace() error {
 			continue
 		}
 
-		if err := meshDevModify(m.MeshDevInfo.MeshDevNamespace, &c); err != nil {
+		if err := meshDevModify(m.meshDevInfo.MeshDevNamespace, &c); err != nil {
 			return err
 		}
 		_, err = m.client.Apply(&c)
@@ -177,10 +185,10 @@ func (m *MeshManager) initMeshDevSpace() error {
 	svcs := newAppMatcher(m.cache.getResources()).kind("Service").match()
 	vss := make([]v1alpha3.VirtualService, len(svcs))
 	for i := range svcs {
-		if err := meshDevModify(m.MeshDevInfo.MeshDevNamespace, &svcs[i]); err != nil {
+		if err := meshDevModify(m.meshDevInfo.MeshDevNamespace, &svcs[i]); err != nil {
 			return err
 		}
-		vs, err := genVirtualService(m.MeshDevInfo.BaseNamespace, svcs[i])
+		vs, err := genVirtualService(m.meshDevInfo.BaseNamespace, svcs[i])
 		if err != nil {
 			return err
 		}
@@ -213,12 +221,12 @@ func (m *MeshManager) initMeshDevSpace() error {
 	return g.Wait()
 }
 
-func (m *MeshManager) setBaseDevSpacePatchResources() error {
-
+func (m *meshManager) setBaseDevSpacePatchResources() error {
+	//TODO
 	return nil
 }
 
-func (m *MeshManager) buildCache() error {
+func (m *meshManager) buildCache() error {
 	rs := make([]schema.GroupVersionResource, 0)
 	addGVR(&rs, schema.GroupVersionResource{
 		Group:    "networking.istio.io",
@@ -252,7 +260,7 @@ func (m *MeshManager) buildCache() error {
 		g.Go(func() error {
 			l, err := m.client.DynamicClient.
 				Resource(r).
-				Namespace(m.MeshDevInfo.BaseNamespace).
+				Namespace(m.meshDevInfo.BaseNamespace).
 				List(context.TODO(), metav1.ListOptions{})
 			if err != nil {
 				return errors.WithStack(err)
@@ -431,10 +439,10 @@ func (m *appMatcher) match() []unstructured.Unstructured {
 	return m.matchResources
 }
 
-func NewMeshManager(client *clientgo.GoClient, info model.MeshDevInfo) (*MeshManager, error) {
-	m := &MeshManager{}
+func NewMeshManager(client *clientgo.GoClient, info model.MeshDevInfo) (MeshManager, error) {
+	m := &meshManager{}
 	m.client = client
-	m.MeshDevInfo = info
+	m.meshDevInfo = info
 	// cache resources
 	if err := m.buildCache(); err != nil {
 		return nil, errors.WithStack(err)
