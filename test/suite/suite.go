@@ -13,9 +13,12 @@
 package suite
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,7 +30,10 @@ import (
 	"nocalhost/test/testcase"
 	"nocalhost/test/util"
 	"os"
+	"runtime"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -177,6 +183,92 @@ func (t *T) Alert() {
 			if _, err = http.DefaultClient.Do(req); err != nil {
 				log.Info(err)
 			}
+		}
+	}
+}
+
+// wait for image and nhctl ready
+func (t *T) WaitForMaterialReady() error {
+	commitId := os.Getenv(util.CommitId)
+	token := os.Getenv(util.Token)
+	projectId, _ := strconv.ParseInt(os.Getenv(util.ProjectId), 10, 64)
+	waitGroup := sync.WaitGroup{}
+	errChan := make(chan error)
+	go func() {
+		waitGroup.Add(1)
+		errChan <- waitNhctl(commitId, time.Minute*10)
+		waitGroup.Done()
+	}()
+	go func() {
+		waitGroup.Add(1)
+		errChan <- waitImage(projectId, "nocalhost-api", commitId, token, time.Minute*10)
+		waitGroup.Done()
+	}()
+	go func() {
+		waitGroup.Add(1)
+		errChan <- waitImage(projectId, "nocalhost-dep", commitId, token, time.Minute*10)
+		waitGroup.Done()
+	}()
+	okChan := make(chan struct{})
+	go func() {
+		waitGroup.Wait()
+		okChan <- struct{}{}
+	}()
+	for {
+		select {
+		case err := <-errChan:
+			if err != nil {
+				return err
+			}
+		case <-okChan:
+			return nil
+		}
+	}
+}
+
+func waitNhctl(commitId string, duration time.Duration) error {
+	var name string
+	if runtime.GOOS == "darwin" {
+		name = "nhctl-darwin-amd64"
+	} else if runtime.GOOS == "windows" {
+		name = "nhctl-windows-amd64.exe"
+	} else {
+		name = "nhctl-linux-amd64"
+	}
+	s := fmt.Sprintf("https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version="+commitId, name)
+	request, _ := http.NewRequest("GET", s, nil)
+	return do(request, func(body string) bool { return !strings.Contains(body, "File not found") }, duration)
+}
+
+func waitImage(projectId int64, packageName, packageVersion, token string, duration time.Duration) error {
+	marshal, _ := json.Marshal(map[string]interface{}{
+		"Action":         "DescribeArtifactProperties",
+		"Repository":     "public",
+		"ProjectId":      projectId,
+		"Package":        packageName,
+		"PackageVersion": packageVersion,
+	})
+	request, _ := http.NewRequest("POST", "https://codingcorp.coding.net/open-api", bytes.NewReader(marshal))
+	request.Header.Add("Authorization", "token "+token)
+	request.Header.Add("Content-Type", "text/plain")
+	return do(request, func(body string) bool { return strings.Contains(body, "InstanceSet") }, duration)
+}
+
+func do(req *http.Request, checker func(body string) bool, duration time.Duration) error {
+	tick := time.Tick(duration)
+	for {
+		select {
+		case <-tick:
+			return errors.New("timeout")
+		default:
+			if response, err := http.DefaultClient.Do(req); err == nil {
+				if all, err := ioutil.ReadAll(response.Body); err == nil && len(all) > 0 {
+					if checker(string(all)) {
+						return nil
+					}
+				}
+			}
+			time.Sleep(time.Second * 5)
 		}
 	}
 }

@@ -14,6 +14,8 @@ package util
 
 const (
 	CommitId                   = "COMMIT_ID"
+	ProjectId                  = "ProjectId"
+	Token                      = "Token"
 	Tag                        = "TAG"
 	Local                      = "LOCAL"
 	KubeconfigPath             = "KUBECONFIG_PATH"
