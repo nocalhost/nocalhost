@@ -23,11 +23,15 @@ import (
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	utils2 "nocalhost/pkg/nhctl/utils"
+	"os"
+	"strings"
 )
 
 var (
@@ -221,7 +225,7 @@ func stopPreviousSyncthing() {
 	must(
 		nocalhostSvc.FindOutSyncthingProcess(
 			func(pid int) error {
-				return syncthing.Stop(pid, false)
+				return syncthing.Stop(pid, true)
 			},
 		),
 	)
@@ -258,6 +262,20 @@ func enterDevMode() string {
 			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type)
 		}
 	}()
+
+	// kill syncthing process by find find it with terminal
+	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
+	if utils.IsWindows() {
+		utils2.KillSyncthingProcessOnWindows(str)
+	} else {
+		utils2.KillSyncthingProcessOnUnix(str)
+	}
+
+	// Delete service folder
+	dir := nocalhostSvc.GetApplicationSyncDir()
+	if err2 := os.RemoveAll(dir); err2 != nil {
+		log.Warnf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
+	}
 
 	newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
 	mustI(err, "Failed to create syncthing process, please try again")

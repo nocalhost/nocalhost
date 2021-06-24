@@ -26,11 +26,14 @@ const (
 func Terminate(pid int, wait bool) error {
 	// if typeName=syncthing, it should use proc.Signal(os.Inte)
 	proc := os.Process{Pid: pid}
-	if err := proc.Signal(os.Interrupt); err != nil {
+	if err := proc.Kill(); err != nil {
 		if strings.Contains(err.Error(), "process already finished") {
 			return nil
 		}
 		return err
+	}
+	if wait {
+		_, _ = proc.Wait()
 	}
 	return nil
 
