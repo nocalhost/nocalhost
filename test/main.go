@@ -41,38 +41,54 @@ func main() {
 		_, v2 = testcase.GetVersion()
 	}
 
+	compatibleChan := make(chan interface{}, 1)
 	wg := sync.WaitGroup{}
-	wg.Add(5)
 
-	go func() {
+	DoRun(false, &wg, func() {
 		t.RunWithBookInfo(false, "helm-adaption", suite.HelmAdaption)
-		wg.Done()
-	}()
+	})
 
-	go func() {
+	DoRun(false, &wg, func() {
 		t.Run("install", suite.Install)
-		wg.Done()
-	}()
+	})
 
-	go func() {
+	DoRun(false, &wg, func() {
 		t.Run("deployment", suite.Deployment)
-		wg.Done()
-	}()
+	})
 
-	go func() {
+	DoRun(false, &wg, func() {
 		t.Run("application", suite.Upgrade)
-		wg.Done()
-	}()
+	})
 
-	go func() {
+	DoRun(false, &wg, func() {
 		t.Run("statefulSet", suite.StatefulSet)
-		wg.Done()
-	}()
+	})
+
+	DoRun(v2 != "", &wg, func() {
+		t.Run("compatible", suite.Compatible, v2)
+		compatibleChan <- "Done"
+	})
 
 	wg.Wait()
+	log.Infof("All Async Test Done")
+	<-compatibleChan
 
-	t.Run("compatible", suite.Compatible, v2)
 	t.Clean()
 
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
+}
+
+func DoRun(doAfterWgDone bool, wg *sync.WaitGroup, do func()) {
+	if !doAfterWgDone {
+		wg.Add(1)
+		go func() {
+			do()
+			wg.Done()
+		}()
+	} else {
+		go func() {
+			wg.Wait()
+			do()
+		}()
+	}
 }

@@ -91,11 +91,10 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 		for i := 0; i < retryTimes; i++ {
 			timeBeforeInstall := time.Now()
 			log.Infof("\n============= Testing (Installing BookInfo %d)%s =============\n", i, name)
-			timeoutCtx, _ := context.WithTimeout(context.Background(), 10*time.Minute)
+			timeoutCtx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
 			if err = testcase.InstallBookInfo(timeoutCtx, clientForRunner); err != nil {
 				log.Infof("\n============= Testing (Install BookInfo Failed)%s =============, Err: \n", name, err.Error())
 				_ = testcase.UninstallBookInfo(clientForRunner)
-				_ = testcase.Reset(clientForRunner)
 				continue
 			}
 			timeAfterInstall := time.Now()
