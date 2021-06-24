@@ -20,8 +20,8 @@ import (
 
 type PodController interface {
 	ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error
-	GetNocalhostDevContainerPod() (string, error)
-	Name() string // Controller name
+	GetNocalhostDevContainerPod() (string, error) // Dev container not found, return err
+	Name() string                                 // Controller name
 	RollBack(reset bool) error
-	GetPodList() ([]corev1.Pod, error)
+	GetPodList() ([]corev1.Pod, error) // Find pods to port-forward and enter terminal
 }

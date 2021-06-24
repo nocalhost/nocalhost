@@ -97,7 +97,6 @@ var upgradeCmd = &cobra.Command{
 				// find first pod
 				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
 				nhSvc := initService(svcName, pf.ServiceType)
-				controller.GetDefaultPodName(ctx, nhSvc.BuildPodController())
 				podName, err := controller.GetDefaultPodName(ctx, nhSvc.BuildPodController())
 				if err != nil {
 					log.WarnE(err, "")
