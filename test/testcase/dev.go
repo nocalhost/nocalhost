@@ -85,7 +85,7 @@ func SyncCheckT(cli runner.Client, ns, moduleName string, moduleType string) err
 		return errors.Errorf("test case failed, reason: write file %s error: %v", filename, err)
 	}
 	// wait file to be synchronize
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 	if moduleType == "" {
 		moduleType = "deployment"
 	}
