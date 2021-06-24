@@ -78,7 +78,7 @@ func SyncCheck(cli runner.Client, moduleName string) error {
 
 func SyncCheckT(cli runner.Client, ns, moduleName string, moduleType string) error {
 	filename := "hello.test"
-	syncFile := fmt.Sprintf("/tmp/%s/%s/%s", cli.NameSpace(), moduleName, filename)
+	syncFile := fmt.Sprintf("/tmp/%s/%s/%s",ns, moduleName, filename)
 
 	content := "this is a test, random string: " + uuid.New().String()
 	if err := ioutil.WriteFile(syncFile, []byte(content), 0644); err != nil {

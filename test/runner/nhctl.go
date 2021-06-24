@@ -17,6 +17,7 @@ import (
 	"math/rand"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"os/exec"
+	"sync"
 	"time"
 )
 
@@ -125,7 +126,15 @@ func (i *ClientImpl) GetHelm() *CLI {
 	return i.Helm
 }
 
+var lock = sync.Mutex{}
+
 func RandStringRunes() string {
+	lock.Lock()
+	defer lock.Unlock()
+
+	// prevent seed conflict
+	time.Sleep(100 * time.Millisecond)
+
 	rand.Seed(time.Now().UnixNano())
 	b := make([]rune, 10)
 	for i := range b {
