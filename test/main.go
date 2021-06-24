@@ -44,35 +44,35 @@ func main() {
 	wg := sync.WaitGroup{}
 	wg.Add(6)
 
-	go func() {
-		t.RunWithBookInfo(false, "helm-adaption", suite.HelmAdaption)
-		wg.Done()
-	}()
+	//go func() {
+	t.RunWithBookInfo(false, "helm-adaption", suite.HelmAdaption)
+	wg.Done()
+	//}()
 
-	go func() {
-		t.Run("install", suite.Install)
-		wg.Done()
-	}()
+	//go func() {
+	t.Run("install", suite.Install)
+	wg.Done()
+	//}()
 
-	go func() {
-		t.Run("deployment", suite.Deployment)
-		wg.Done()
-	}()
+	//go func() {
+	t.Run("deployment", suite.Deployment)
+	wg.Done()
+	//}()
 
-	go func() {
-		t.Run("application", suite.Upgrade)
-		wg.Done()
-	}()
+	//go func() {
+	t.Run("application", suite.Upgrade)
+	wg.Done()
+	//}()
 
-	go func() {
-		t.Run("statefulSet", suite.StatefulSet)
-		wg.Done()
-	}()
+	//go func() {
+	t.Run("statefulSet", suite.StatefulSet)
+	wg.Done()
+	//}()
 
-	go func() {
-		t.Run("compatible", suite.Compatible, v2)
-		wg.Done()
-	}()
+	//go func() {
+	t.Run("compatible", suite.Compatible, v2)
+	wg.Done()
+	//}()
 
 	wg.Wait()
 	t.Clean()
