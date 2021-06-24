@@ -124,7 +124,7 @@ func StatusCheck(nhctl runner.Client, moduleName string) error {
 	retryTimes := 10
 	var ok bool
 	for i := 0; i < retryTimes; i++ {
-		time.Sleep(time.Second * 3)
+		time.Sleep(time.Second * 2)
 		cmd := nhctl.GetNhctl().Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
 		stdout, stderr, err := runner.Runner.Run(cmd)
 		if err != nil {
