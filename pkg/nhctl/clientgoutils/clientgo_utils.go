@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -409,16 +408,21 @@ func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	hostIP := strings.TrimLeft(clientConfig.Host, "https://")
 
 	transport, upgrader, err := spdy.RoundTripperFor(clientConfig)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
 
+	parseUrl, err := url.Parse(clientConfig.Host)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	parseUrl.Path = path
 	dialer := spdy.NewDialer(
 		upgrader, &http.Client{Transport: transport}, http.MethodPost,
-		&url.URL{Scheme: "https", Path: path, Host: hostIP},
+		//&url.URL{Scheme: schema, Path: path, Host: hostIP},
+		parseUrl,
 	)
 	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh,
 	//req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
