@@ -15,11 +15,10 @@ package cluster_user
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
 	"github.com/spf13/cast"
-
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
@@ -235,16 +234,33 @@ func (d *DevSpace) initMeshDevSpace(clusterRecord *model.ClusterModel, clusterUs
 	// init mesh dev space
 	meshDevInfo := *d.DevSpaceParams.MeshDevInfo
 	meshDevInfo.MeshDevNamespace = clusterUserModel.Namespace
+
+	// check base dev space
+	condition := model.ClusterUserModel{
+		ID: meshDevInfo.BaseDevSpaceId,
+	}
+	baseDevspace, err := service.Svc.ClusterUser().GetFirst(d.c, condition)
+	if err != nil || baseDevspace == nil {
+		return nil, errors.New("base dev space has not found")
+	}
+	if baseDevspace.Namespace == "*" || baseDevspace.Namespace == "" {
+		return nil, errors.New("base dev namespace has not found")
+	}
+	meshDevInfo.BaseNamespace = baseDevspace.Namespace
+
 	meshManager, _ := setupcluster.NewMeshManager(goClient, meshDevInfo)
 	if err := meshManager.InitMeshDevSpace(); err != nil {
-		return nil, errors.WithStack(err)
+		// todo set up error msg for response
+		return nil, err
 	}
 	if len(d.DevSpaceParams.MeshDevInfo.APPS) > 0 {
 		if err := meshManager.InjectMeshDevSpace(); err != nil {
-			return nil, errors.WithStack(err)
+			// todo set up error msg for response
+			return nil, err
 		}
 	}
 	clusterUserModel.MeshDevInfo = meshDevInfo
 	clusterUserModel.BaseDevSpaceId = meshDevInfo.BaseDevSpaceId
+	// todo set up error msg for response
 	return service.Svc.ClusterUser().Update(d.c, clusterUserModel)
 }
