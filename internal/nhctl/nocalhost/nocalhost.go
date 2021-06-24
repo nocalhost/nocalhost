@@ -224,7 +224,7 @@ func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.Applica
 		return nil, errors.Wrap(err, "")
 	}
 	appMeta := &appmeta.ApplicationMeta{}
-	err = json.Unmarshal(marshal, &appMeta)
+	err = json.Unmarshal(marshal, appMeta)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
