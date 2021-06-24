@@ -104,7 +104,6 @@ func (u *ClusterUserModel) TableName() string {
 }
 
 type MeshDevInfo struct {
-	BaseDevSpaceId   uint64            `json:"base_dev_space_id"`
 	BaseNamespace    string            `json:"base_namespace"`
 	MeshDevNamespace string            `json:"mesh_dev_namespace"`
 	Header           map[string]string `json:"header"`

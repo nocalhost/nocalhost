@@ -25,7 +25,7 @@ type ClusterUserCreateRequest struct {
 	ClusterAdmin       *uint64             `json:"cluster_admin"`
 	NameSpace          string              `json:"namespace"`
 	SpaceResourceLimit *SpaceResourceLimit `json:"space_resource_limit"`
-	IsMeshDevSpace     bool                `json:"is_mesh_dev_space"`
+	BaseDevSpaceId     uint64              `json:"base_dev_space_id"`
 	MeshDevInfo        *model.MeshDevInfo  `json:"mesh_dev_info"`
 }
 

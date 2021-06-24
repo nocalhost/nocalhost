@@ -98,7 +98,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	}
 
 	// init mesh dev space
-	if d.DevSpaceParams.IsMeshDevSpace && d.DevSpaceParams.MeshDevInfo != nil {
+	if d.DevSpaceParams.BaseDevSpaceId > 0 {
 		return d.initMeshDevSpace(&clusterRecord, clusterUserModel)
 	}
 
@@ -237,7 +237,7 @@ func (d *DevSpace) initMeshDevSpace(clusterRecord *model.ClusterModel, clusterUs
 
 	// check base dev space
 	condition := model.ClusterUserModel{
-		ID: meshDevInfo.BaseDevSpaceId,
+		ID: d.DevSpaceParams.BaseDevSpaceId,
 	}
 	baseDevspace, err := service.Svc.ClusterUser().GetFirst(d.c, condition)
 	if err != nil || baseDevspace == nil {
@@ -260,7 +260,7 @@ func (d *DevSpace) initMeshDevSpace(clusterRecord *model.ClusterModel, clusterUs
 		}
 	}
 	clusterUserModel.MeshDevInfo = meshDevInfo
-	clusterUserModel.BaseDevSpaceId = meshDevInfo.BaseDevSpaceId
+	clusterUserModel.BaseDevSpaceId = d.DevSpaceParams.BaseDevSpaceId
 	// todo set up error msg for response
 	return service.Svc.ClusterUser().Update(d.c, clusterUserModel)
 }
