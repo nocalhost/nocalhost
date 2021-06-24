@@ -48,7 +48,7 @@ func HelmAdaption(client runner.Client, _ ...string) {
 
 func PortForward(client runner.Client, _ ...string) {
 	module := "reviews"
-	port := 49080
+	port := 49088
 
 	//funcs := []func() error{func() error { return testcase.PortForwardStart(cli, module, port) }}
 	//util.Retry("PortForward", funcs)
@@ -100,7 +100,6 @@ func Deployment(cli runner.Client, _ ...string) {
 			}
 			return nil
 		},
-		func() error { return testcase.Sync(cli, module) },
 		func() error { return testcase.SyncCheck(cli, module) },
 		func() error { return testcase.SyncStatus(cli, module) },
 		func() error { return testcase.DevEnd(cli, module) },
@@ -108,24 +107,17 @@ func Deployment(cli runner.Client, _ ...string) {
 	util.Retry("Dev", funcs)
 }
 
-//func Sync(cli nhctlcli.Client, _ ...string) {
-//	module := "ratings"
-//	funcs := []func() error{
-//		func() error { return testcase.DevStart(cli, module) },
-//		func() error { return testcase.Sync(cli, module) },
-//		func() error { return testcase.SyncCheck(cli, module) },
-//		func() error { return testcase.SyncStatus(cli, module) },
-//	}
-//	util.Retry("Sync", funcs)
-//	_ = testcase.DevEnd(cli, module)
-//}
-
 func StatefulSet(cli runner.Client, _ ...string) {
 	module := "web"
 	moduleType := "statefulset"
 	funcs := []func() error{
-		func() error { return testcase.DevStartT(cli, module, moduleType) },
-		func() error { return testcase.SyncT(cli, module, moduleType) },
+		func() error {
+			if err := testcase.DevStartT(cli, module, moduleType); err != nil {
+				_ =testcase.DevEndT(cli, module, moduleType)
+				return err
+			}
+			return nil
+		},
 		func() error { return testcase.SyncCheckT(cli, cli.NameSpace(), module, moduleType) },
 		func() error { return testcase.DevEndT(cli, module, moduleType) },
 	}
