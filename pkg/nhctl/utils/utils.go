@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"nocalhost/internal/nhctl/syncthing/terminate"
+	"nocalhost/pkg/nhctl/log"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -92,15 +93,16 @@ func RenderProgressBar(prefix string, current, scalingFactor float64) string {
 func KillSyncthingProcessOnWindows(keyword string) {
 	cmd := exec.Command("wmic", "process", "get", "processid", ",", "commandline")
 	s, err := cmd.CombinedOutput()
+	log.Infof("execute wmic command, keyword: %s, error: %v", keyword, err)
 	if err != nil {
 		return
 	}
-
 	for _, item := range strings.Split(string(s), "\n") {
 		if strings.Contains(item, keyword) {
 			for _, segment := range strings.Split(item, " ") {
-				if pid, err := strconv.Atoi(segment); err == nil {
-					_ = terminate.Terminate(pid, false)
+				if pid, err1 := strconv.Atoi(segment); err1 == nil {
+					err = terminate.Terminate(pid, false)
+					log.Infof("terminate syncthing pid: %v, error: %v", pid, err)
 				}
 			}
 		}
@@ -109,5 +111,6 @@ func KillSyncthingProcessOnWindows(keyword string) {
 
 func KillSyncthingProcessOnUnix(keyword string) {
 	command := exec.Command("sh", "-c", "ps -ef | grep "+keyword+"  | awk -F ' ' '{print $2}' | xargs kill")
-	_ = command.Run()
+	err := command.Run()
+	log.Infof("kill syncthing process, keyword: %s, command: %v, err: %v", keyword, command.Args, err)
 }
