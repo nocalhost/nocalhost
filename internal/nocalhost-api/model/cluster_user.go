@@ -37,7 +37,7 @@ type ClusterUserModel struct {
 	Namespace          string      `gorm:"column:namespace;not null" json:"namespace"`
 	Status             *uint64     `gorm:"column:status;default:0" json:"status"`
 	ClusterAdmin       *uint64     `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
-	BaseDevSpaceId     uint64      `gorm:"column:base_dev_space;default:0" json:"base_dev_space_id"`
+	BaseDevSpaceId     uint64      `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`
 	MeshDevInfo        MeshDevInfo `gorm:"cloumn:mesh_dev_info;type:text;" json:"mesh_dev_info"`
 	CreatedAt          time.Time   `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt          time.Time   `gorm:"column:updated_at" json:"-"`
