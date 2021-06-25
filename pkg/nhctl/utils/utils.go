@@ -93,7 +93,7 @@ func RenderProgressBar(prefix string, current, scalingFactor float64) string {
 func KillSyncthingProcessOnWindows(keyword string) {
 	cmd := exec.Command("wmic", "process", "get", "processid", ",", "commandline")
 	s, err := cmd.CombinedOutput()
-	log.Debugf("execute wmic command, keyword: %s, error: %v", keyword, err)
+	log.Logf("execute wmic command, keyword: %s, error: %v", keyword, err)
 	if err != nil {
 		return
 	}
@@ -102,7 +102,7 @@ func KillSyncthingProcessOnWindows(keyword string) {
 			for _, segment := range strings.Split(item, " ") {
 				if pid, err1 := strconv.Atoi(segment); err1 == nil {
 					err = terminate.Terminate(pid, false)
-					log.Debugf("terminate syncthing pid: %v, error: %v", pid, err)
+					log.Logf("terminate syncthing pid: %v, error: %v", pid, err)
 				}
 			}
 		}
@@ -112,5 +112,5 @@ func KillSyncthingProcessOnWindows(keyword string) {
 func KillSyncthingProcessOnUnix(keyword string) {
 	command := exec.Command("sh", "-c", "ps -ef | grep "+keyword+"  | awk -F ' ' '{print $2}' | xargs kill")
 	err := command.Run()
-	log.Debugf("kill syncthing process, keyword: %s, command: %v, err: %v", keyword, command.Args, err)
+	log.Logf("kill syncthing process, keyword: %s, command: %v, err: %v", keyword, command.Args, err)
 }

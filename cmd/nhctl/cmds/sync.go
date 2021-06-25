@@ -137,7 +137,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	// Delete service folder
 	dir := nocalhostSvc.GetApplicationSyncDir()
 	if err2 := os.RemoveAll(dir); err2 != nil {
-		log.Warnf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
+		log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
 	}
 
 	// TODO

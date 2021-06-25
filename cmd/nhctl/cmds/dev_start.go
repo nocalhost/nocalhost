@@ -274,7 +274,7 @@ func enterDevMode() string {
 	// Delete service folder
 	dir := nocalhostSvc.GetApplicationSyncDir()
 	if err2 := os.RemoveAll(dir); err2 != nil {
-		log.Warnf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
+		log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
 	}
 
 	newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
