@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/test/runner"
+	"nocalhost/test/util"
 	"os"
 	"strings"
 	"time"
@@ -50,7 +51,9 @@ func DevStartT(cli runner.Client, moduleName string, moduleType string) error {
 		// prevent tty to block testcase
 		"--without-terminal",
 	)
-	if stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil); runner.Runner.CheckResult(cmd, stdout, stderr, err) != nil {
+	if stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil); runner.Runner.CheckResult(
+		cmd, stdout, stderr, err,
+	) != nil {
 		return err
 	}
 	_ = k8sutils.WaitPod(
@@ -78,38 +81,43 @@ func SyncCheck(cli runner.Client, moduleName string) error {
 
 func SyncCheckT(cli runner.Client, ns, moduleName string, moduleType string) error {
 	filename := "hello.test"
-	syncFile := fmt.Sprintf("/tmp/%s/%s/%s",ns, moduleName, filename)
+	syncFile := fmt.Sprintf("/tmp/%s/%s/%s", ns, moduleName, filename)
 
 	content := "this is a test, random string: " + uuid.New().String()
 	if err := ioutil.WriteFile(syncFile, []byte(content), 0644); err != nil {
 		return errors.Errorf("test case failed, reason: write file %s error: %v", filename, err)
 	}
-	// wait file to be synchronize
-	time.Sleep(5 * time.Second)
-	if moduleType == "" {
-		moduleType = "deployment"
-	}
-	// not use nhctl exec is just because nhctl exec will stuck while cat file
-	args := []string{
-		"-t", fmt.Sprintf("%s/%s", moduleType, moduleName),
-		"--",
-		"cat",
-		filename,
-	}
-	logStr, _, err := cli.GetKubectl().Run(context.Background(), "exec", args...)
-	if err != nil {
-		return errors.Errorf(
-			"test case failed, reason: cat file %s error, command: %s, log: %v",
-			filename, args, logStr,
-		)
-	}
-	if !strings.Contains(logStr, content) {
-		return errors.Errorf(
-			"test case failed, reason: file content: %s not equals command log: %s",
-			content, logStr,
-		)
-	}
-	return nil
+
+	return util.RetryFunc(
+		func() error {
+			// wait file to be synchronize
+			time.Sleep(5 * time.Second)
+			if moduleType == "" {
+				moduleType = "deployment"
+			}
+			// not use nhctl exec is just because nhctl exec will stuck while cat file
+			args := []string{
+				"-t", fmt.Sprintf("%s/%s", moduleType, moduleName),
+				"--",
+				"cat",
+				filename,
+			}
+			logStr, _, err := cli.GetKubectl().Run(context.Background(), "exec", args...)
+			if err != nil {
+				return errors.Errorf(
+					"test case failed, reason: cat file %s error, command: %s, log: %v",
+					filename, args, logStr,
+				)
+			}
+			if !strings.Contains(logStr, content) {
+				return errors.Errorf(
+					"test case failed, reason: file content: %s not equals command log: %s",
+					content, logStr,
+				)
+			}
+			return nil
+		},
+	)
 }
 
 func PortForwardCheck(port int) error {
@@ -133,7 +141,9 @@ func DevEnd(cli runner.Client, moduleName string) error {
 
 func DevEndT(cli runner.Client, moduleName string, moduleType string) error {
 	cmd := cli.GetNhctl().Command(context.Background(), "dev", "end", "bookinfo", "-d", moduleName, "-t", moduleType)
-	if stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil); runner.Runner.CheckResult(cmd, stdout, stderr, err) != nil {
+	if stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil); runner.Runner.CheckResult(
+		cmd, stdout, stderr, err,
+	) != nil {
 		return err
 	}
 	_ = k8sutils.WaitPod(
