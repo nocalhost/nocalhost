@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nocalhost-api/global"
 )
 
 func meshDevModify(ns string, r *unstructured.Unstructured) error {
@@ -103,7 +104,7 @@ func commonModifier(ns string, rs *unstructured.Unstructured) error {
 	return nil
 }
 
-func genVirtualService(baseNs string, r unstructured.Unstructured) (*v1alpha3.VirtualService, error) {
+func genVirtualServiceForMeshDevSpace(baseNs string, r unstructured.Unstructured) (*v1alpha3.VirtualService, error) {
 	if r.GetKind() != "Service" {
 		return nil, errors.Errorf("The kind of %s is %s, only support Service", r.GetName(), r.GetKind())
 	}
@@ -138,6 +139,60 @@ func genVirtualService(baseNs string, r unstructured.Unstructured) (*v1alpha3.Vi
 	tcp := &istiov1alpha3.TCPRoute{Route: tcpDsts}
 	tcpRoute = append(tcpRoute, tcp)
 	vs.Spec.Tcp = tcpRoute
+
+	return vs, nil
+}
+
+func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header map[string]string) (*v1alpha3.VirtualService, error) {
+	if len(header) == 0 {
+		return nil, errors.New("can not find tracing header")
+	}
+	vs := &v1alpha3.VirtualService{}
+	vs.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "networking.istio.io",
+		Version: "v1alpha3",
+		Kind:    "VirtualService",
+	})
+	vs.SetName(name)
+	vs.SetNamespace(baseNs)
+	vs.Spec.Hosts = []string{name}
+	vs.Spec.Http = []*istiov1alpha3.HTTPRoute{}
+
+	// http route
+	host := fmt.Sprintf("%s.%s.%s.%s", name, devNs, "svc", "cluster.local")
+	httpRoutes := make([]*istiov1alpha3.HTTPRoute, 0)
+	httpDsts := make([]*istiov1alpha3.HTTPRouteDestination, 0)
+	httpDst := &istiov1alpha3.HTTPRouteDestination{Destination: &istiov1alpha3.Destination{Host: host}}
+	httpDsts = append(httpDsts, httpDst)
+	headers := make(map[string]*istiov1alpha3.StringMatch)
+	// set exact match header
+	for k, v := range header {
+		headers[k] = &istiov1alpha3.StringMatch{
+			MatchType: &istiov1alpha3.StringMatch_Exact{
+				Exact: v,
+			},
+		}
+	}
+	http := &istiov1alpha3.HTTPRoute{
+		Name: global.NocalhostDevNamespaceLabel + "-" + name,
+		Match: []*istiov1alpha3.HTTPMatchRequest{
+			{
+				Headers: headers,
+			},
+		},
+		Route: httpDsts,
+	}
+	httpRoutes = append(httpRoutes, http)
+
+	//default http route
+	defaultHost := fmt.Sprintf("%s.%s.%s.%s", name, baseNs, "svc", "cluster.local")
+	defaultHttpDsts := make([]*istiov1alpha3.HTTPRouteDestination, 0)
+	defaultHttpDst := &istiov1alpha3.HTTPRouteDestination{Destination: &istiov1alpha3.Destination{Host: defaultHost}}
+	defaultHttpDsts = append(defaultHttpDsts, defaultHttpDst)
+	defaultHttp := &istiov1alpha3.HTTPRoute{Route: defaultHttpDsts}
+	httpRoutes = append(httpRoutes, defaultHttp)
+
+	vs.Spec.Http = httpRoutes
 
 	return vs, nil
 }

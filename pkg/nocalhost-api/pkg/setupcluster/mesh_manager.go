@@ -14,6 +14,7 @@ package setupcluster
 
 import (
 	"context"
+
 	"strings"
 	"sync"
 
@@ -27,24 +28,22 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nocalhost-api/model"
-	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
 type MeshManager interface {
 	InitMeshDevSpace() error
 	UpdateDstDevSpace() error
 	InjectMeshDevSpace() error
-	PatchResourcesOnBaseDevSpace() error
 	GetBaseDevSpaceAppInfo() []model.MeshDevApp
 }
 
 type meshManager struct {
-	mu                sync.Mutex
-	client            *clientgo.GoClient
-	cache             cache
-	baseDevSpacePatch []unstructured.Unstructured
-	meshDevInfo       model.MeshDevInfo
+	mu          sync.Mutex
+	client      *clientgo.GoClient
+	cache       cache
+	meshDevInfo model.MeshDevInfo
 }
 
 type cache struct {
@@ -60,7 +59,13 @@ func (c *cache) getResources() []unstructured.Unstructured {
 }
 
 func (m *meshManager) InitMeshDevSpace() error {
-	return m.initMeshDevSpace()
+	if err := m.initMeshDevSpace(); err != nil {
+		return err
+	}
+	if len(m.meshDevInfo.Header) > 0 {
+		return m.updateVirtualserviceOnBaseDevSpace()
+	}
+	return nil
 }
 
 func (m *meshManager) UpdateDstDevSpace() error {
@@ -94,16 +99,29 @@ func (m *meshManager) InjectMeshDevSpace() error {
 	return nil
 }
 
-func (m *meshManager) PatchResourcesOnBaseDevSpace() error {
-	if err := m.setBaseDevSpacePatchResources(); err != nil {
-		return err
+func (m *meshManager) updateVirtualserviceOnBaseDevSpace() error {
+	// TODO, create vs by service name, not workload name
+	// TODO, just update if the vs already exists
+	ws := make([]model.MeshDevWorkload, 0)
+	for _, a := range m.meshDevInfo.APPS {
+		ws = append(ws, a.Workloads...)
 	}
-	for _, rs := range m.baseDevSpacePatch {
-		_, err := m.client.Apply(rs)
+
+	for _, w := range ws {
+		vs, err := genVirtualServiceForBaseDevSpace(
+			m.meshDevInfo.BaseNamespace,
+			m.meshDevInfo.MeshDevNamespace,
+			w.Name,
+			m.meshDevInfo.Header,
+		)
 		if err != nil {
 			return err
 		}
-		log.Debugf("patch the %s: %s/%s", rs.GetKind(), rs.GetNamespace(), rs.GetName())
+		_, err = m.client.Apply(vs)
+		if err != nil {
+			return err
+		}
+		log.Debugf("apply the virtualservice: %s/%s", m.meshDevInfo.BaseNamespace, w.Name)
 	}
 	return nil
 }
@@ -188,7 +206,7 @@ func (m *meshManager) initMeshDevSpace() error {
 		if err := meshDevModify(m.meshDevInfo.MeshDevNamespace, &svcs[i]); err != nil {
 			return err
 		}
-		vs, err := genVirtualService(m.meshDevInfo.BaseNamespace, svcs[i])
+		vs, err := genVirtualServiceForMeshDevSpace(m.meshDevInfo.BaseNamespace, svcs[i])
 		if err != nil {
 			return err
 		}
