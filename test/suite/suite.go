@@ -261,7 +261,7 @@ func do(req *http.Request, checker func(body string) bool, duration time.Duratio
 		case <-tick:
 			return errors.New("timeout")
 		default:
-			if response, err := http.DefaultClient.Do(req); err == nil {
+			if response, err := http.DefaultClient.Do(req); err == nil && response.StatusCode == 200 {
 				if all, err := ioutil.ReadAll(response.Body); err == nil && len(all) > 0 {
 					if checker(string(all)) {
 						return nil
