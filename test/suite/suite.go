@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
-	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -196,7 +195,7 @@ func WaitForMaterialReady() error {
 	waitGroup.Add(3)
 	errChan := make(chan error)
 	go func() {
-		errChan <- waitNhctl(commitId, time.Minute*10)
+		errChan <- WaitNhctl(commitId, time.Minute*10)
 		waitGroup.Done()
 	}()
 	go func() {
@@ -224,7 +223,7 @@ func WaitForMaterialReady() error {
 	}
 }
 
-func waitNhctl(commitId string, duration time.Duration) error {
+func WaitNhctl(commitId string, duration time.Duration) error {
 	var name string
 	if runtime.GOOS == "darwin" {
 		name = "nhctl-darwin-amd64"
@@ -260,8 +259,9 @@ func do(req *http.Request, checker func(body string) bool, duration time.Duratio
 			return errors.New("timeout")
 		default:
 			if response, err := http.DefaultClient.Do(req); err == nil && response.StatusCode == 200 {
-				if all, err := ioutil.ReadAll(response.Body); err == nil && len(all) > 0 {
-					if checker(string(all)) {
+				buf := make([]byte, 1024)
+				if read, err := response.Body.Read(buf); err == nil && read > 0 {
+					if checker(string(buf)) {
 						return nil
 					}
 				}
