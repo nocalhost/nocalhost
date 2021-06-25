@@ -26,7 +26,6 @@ import (
 )
 
 func (c *Controller) StopFileSyncOnly() error {
-	var err error
 
 	pf, err := c.GetPortForwardForSync()
 	utils.Should(err)
@@ -37,7 +36,8 @@ func (c *Controller) StopFileSyncOnly() error {
 	// read and clean up pid file
 	syncthingPid, err := c.GetSyncThingPid()
 	if err != nil {
-		return err
+		log.WarnE(err, "Failed to get syncthing pid")
+		return nil
 	}
 	if syncthingPid != 0 {
 		if err = syncthing.Stop(syncthingPid, true); err != nil {
