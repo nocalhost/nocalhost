@@ -59,13 +59,7 @@ func (c *cache) getResources() []unstructured.Unstructured {
 }
 
 func (m *meshManager) InitMeshDevSpace() error {
-	if err := m.initMeshDevSpace(); err != nil {
-		return err
-	}
-	if len(m.meshDevInfo.Header) > 0 {
-		return m.updateVirtualserviceOnBaseDevSpace()
-	}
-	return nil
+	return m.initMeshDevSpace()
 }
 
 func (m *meshManager) UpdateDstDevSpace() error {
@@ -90,13 +84,23 @@ func (m *meshManager) InjectMeshDevSpace() error {
 		}
 	}
 
-	for i := range rs {
-		if _, err := m.client.Apply(&rs[i]); err != nil {
-			return err
-		}
+	g, _ := errgroup.WithContext(context.Background())
+	for _, r := range rs {
+		r := r
+		g.Go(func() error {
+			if _, err := m.client.Apply(&r); err != nil {
+				return err
+			}
+			return nil
+		})
+
 	}
 
-	return nil
+	g.Go(func() error {
+		return m.updateVirtualserviceOnBaseDevSpace()
+	})
+
+	return g.Wait()
 }
 
 func (m *meshManager) updateVirtualserviceOnBaseDevSpace() error {
