@@ -15,8 +15,8 @@ package utils
 import (
 	"fmt"
 	"io"
-	"nocalhost/internal/nhctl/syncthing/terminate"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -101,8 +101,11 @@ func KillSyncthingProcessOnWindows(keyword string) {
 		if strings.Contains(item, keyword) {
 			for _, segment := range strings.Split(item, " ") {
 				if pid, err1 := strconv.Atoi(segment); err1 == nil {
-					err = terminate.Terminate(pid, false)
-					log.Debugf("terminate syncthing pid: %v, error: %v", pid, err)
+					proc := os.Process{Pid: pid}
+					if err = proc.Kill(); err != nil {
+						log.Debugf("terminate syncthing pid: %v, error: %v", pid, err)
+					}
+					_, _ = proc.Wait()
 				}
 			}
 		}
