@@ -265,7 +265,8 @@ func (d *DevSpace) initMeshDevSpace(clusterRecord *model.ClusterModel, clusterUs
 			return nil, err
 		}
 	}
-	clusterUserModel.MeshDevInfo = meshDevInfo
+
+	clusterUserModel.TraceHeader = d.DevSpaceParams.MeshDevInfo.Header
 	clusterUserModel.BaseDevSpaceId = d.DevSpaceParams.BaseDevSpaceId
 	// todo set up error msg for response
 	return service.Svc.ClusterUser().Update(d.c, clusterUserModel)

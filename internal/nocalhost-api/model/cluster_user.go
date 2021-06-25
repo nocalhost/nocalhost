@@ -26,22 +26,22 @@ type ClusterUserModel struct {
 	ID uint64 `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
 
 	// Deprecated
-	ApplicationId      uint64      `gorm:"column:application_id;not null" json:"application_id"`
-	UserId             uint64      `gorm:"column:user_id;not null" json:"user_id"`
-	SpaceName          string      `gorm:"column:space_name;not null;type:VARCHAR(100);comment:'default is application[username]'" json:"space_name"`
-	ClusterId          uint64      `gorm:"column:cluster_id;not null" json:"cluster_id"`
-	KubeConfig         string      `gorm:"column:kubeconfig;not null" json:"kubeconfig"`
-	Memory             uint64      `gorm:"column:memory;not null" json:"memory"`
-	Cpu                uint64      `gorm:"column:cpu;not null" json:"cpu"`
-	SpaceResourceLimit string      `gorm:"cloumn:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
-	Namespace          string      `gorm:"column:namespace;not null" json:"namespace"`
-	Status             *uint64     `gorm:"column:status;default:0" json:"status"`
-	ClusterAdmin       *uint64     `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
-	BaseDevSpaceId     uint64      `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`
-	MeshDevInfo        MeshDevInfo `gorm:"cloumn:mesh_dev_info;type:text;" json:"mesh_dev_info"`
-	CreatedAt          time.Time   `gorm:"column:created_at" json:"created_at"`
-	UpdatedAt          time.Time   `gorm:"column:updated_at" json:"-"`
-	DeletedAt          *time.Time  `gorm:"column:deleted_at" json:"-"`
+	ApplicationId      uint64     `gorm:"column:application_id;not null" json:"application_id"`
+	UserId             uint64     `gorm:"column:user_id;not null" json:"user_id"`
+	SpaceName          string     `gorm:"column:space_name;not null;type:VARCHAR(100);comment:'default is application[username]'" json:"space_name"`
+	ClusterId          uint64     `gorm:"column:cluster_id;not null" json:"cluster_id"`
+	KubeConfig         string     `gorm:"column:kubeconfig;not null" json:"kubeconfig"`
+	Memory             uint64     `gorm:"column:memory;not null" json:"memory"`
+	Cpu                uint64     `gorm:"column:cpu;not null" json:"cpu"`
+	SpaceResourceLimit string     `gorm:"cloumn:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
+	Namespace          string     `gorm:"column:namespace;not null" json:"namespace"`
+	Status             *uint64    `gorm:"column:status;default:0" json:"status"`
+	ClusterAdmin       *uint64    `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
+	BaseDevSpaceId     uint64     `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`
+	TraceHeader        Header     `gorm:"cloumn:trace_header;type:VARCHAR(256);" json:"trace_header"`
+	CreatedAt          time.Time  `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt          time.Time  `gorm:"column:updated_at" json:"-"`
+	DeletedAt          *time.Time `gorm:"column:deleted_at" json:"-"`
 }
 
 type ClusterUserPluginModel struct {
@@ -103,24 +103,9 @@ func (u *ClusterUserModel) TableName() string {
 	return "clusters_users"
 }
 
-type MeshDevInfo struct {
-	BaseNamespace    string            `json:"base_namespace"`
-	MeshDevNamespace string            `json:"mesh_dev_namespace"`
-	Header           map[string]string `json:"header"`
-	APPS             []MeshDevApp      `json:"apps"`
-}
+type Header map[string]string
 
-type MeshDevApp struct {
-	Name      string            `json:"name"`
-	Workloads []MeshDevWorkload `json:"workloads"`
-}
-
-type MeshDevWorkload struct {
-	Kind string `json:"kind"`
-	Name string `json:"name"`
-}
-
-func (m *MeshDevInfo) Scan(value interface{}) error {
+func (h Header) Scan(value interface{}) error {
 	if value == nil {
 		return nil
 	}
@@ -129,9 +114,12 @@ func (m *MeshDevInfo) Scan(value interface{}) error {
 	if !ok {
 		return errors.Errorf("value is not []byte, value: %v", value)
 	}
-	return json.Unmarshal(b, m)
+	return json.Unmarshal(b, h)
 }
 
-func (m MeshDevInfo) Value() (driver.Value, error) {
-	return json.Marshal(m)
+func (h Header) Value() (driver.Value, error) {
+	if len(h) == 0 {
+		return nil, nil
+	}
+	return json.Marshal(h)
 }

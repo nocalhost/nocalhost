@@ -168,10 +168,10 @@ func UpdateResourceLimit(c *gin.Context) {
 // @param Authorization header string true "Authorization"
 // @Param id path string true "devspace id"
 // @Param MeshDevInfo body model.MeshDevInfo true "mesh dev space info"
-// @Success 200 {object} model.ClusterUserModel
+// @Success 200 {object} setupcluster.ClusterUserModel
 // @Router /v1/dev_space/{id}/update_resource_limit [put]
 func UpdateMeshDevSpaceInfo(c *gin.Context) {
-	var req model.MeshDevInfo
+	var req setupcluster.MeshDevInfo
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Warnf("bind resource limits params err: %v", err)
 		api.SendResponse(c, errno.ErrBind, nil)
@@ -179,7 +179,6 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	}
 
 	devSpaceId := cast.ToUint64(c.Param("id"))
-
 
 	condition := model.ClusterUserModel{
 		ID: devSpaceId,
@@ -212,9 +211,7 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 		return
 	}
 
-	info := devspace.MeshDevInfo
-	info.Header = req.Header
-	info.APPS = req.APPS
+	info := req
 
 	meshManager, err := setupcluster.NewMeshManager(goClient, info)
 	if err != nil {
@@ -227,7 +224,7 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 		return
 	}
 
-	devspace.MeshDevInfo = info
+	devspace.TraceHeader = info.Header
 	result, err := service.Svc.ClusterUser().Update(c, devspace)
 	if err != nil {
 		api.SendResponse(c, nil, nil)

@@ -27,7 +27,6 @@ import (
 
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
@@ -36,14 +35,15 @@ type MeshManager interface {
 	InitMeshDevSpace() error
 	UpdateDstDevSpace() error
 	InjectMeshDevSpace() error
-	GetBaseDevSpaceAppInfo() []model.MeshDevApp
+	GetBaseDevSpaceAppInfo() []MeshDevApp
 }
 
 type meshManager struct {
-	mu          sync.Mutex
-	client      *clientgo.GoClient
+	mu     sync.Mutex
+	client *clientgo.GoClient
+	// TODO, use dynamicinformer to build cache
 	cache       cache
-	meshDevInfo model.MeshDevInfo
+	meshDevInfo MeshDevInfo
 }
 
 type cache struct {
@@ -106,7 +106,7 @@ func (m *meshManager) InjectMeshDevSpace() error {
 func (m *meshManager) updateVirtualserviceOnBaseDevSpace() error {
 	// TODO, create vs by service name, not workload name
 	// TODO, just update if the vs already exists
-	ws := make([]model.MeshDevWorkload, 0)
+	ws := make([]MeshDevWorkload, 0)
 	for _, a := range m.meshDevInfo.APPS {
 		ws = append(ws, a.Workloads...)
 	}
@@ -130,9 +130,9 @@ func (m *meshManager) updateVirtualserviceOnBaseDevSpace() error {
 	return nil
 }
 
-func (m *meshManager) GetBaseDevSpaceAppInfo() []model.MeshDevApp {
+func (m *meshManager) GetBaseDevSpaceAppInfo() []MeshDevApp {
 	appNames := make([]string, 0)
-	appInfo := make([]model.MeshDevApp, 0)
+	appInfo := make([]MeshDevApp, 0)
 	appConfigsTmp := newAppMatcher(m.cache.getResources()).kind("Secret").namePrefix(appmeta.SecretNamePrefix).match()
 	for _, c := range appConfigsTmp {
 		name := c.GetName()[len(appmeta.SecretNamePrefix):]
@@ -149,28 +149,28 @@ func (m *meshManager) GetBaseDevSpaceAppInfo() []model.MeshDevApp {
 		}
 
 		appNames = append(appNames, name)
-		w := make([]model.MeshDevWorkload, 0)
+		w := make([]MeshDevWorkload, 0)
 		for _, r := range newAppMatcher(m.cache.getResources()).app(name).kind("Deployment").match() {
-			w = append(w, model.MeshDevWorkload{
+			w = append(w, MeshDevWorkload{
 				Kind: r.GetKind(),
 				Name: r.GetName(),
 			})
 		}
-		appInfo = append(appInfo, model.MeshDevApp{
+		appInfo = append(appInfo, MeshDevApp{
 			Name:      name,
 			Workloads: w,
 		})
 	}
 
 	// default.application
-	w := make([]model.MeshDevWorkload, 0)
+	w := make([]MeshDevWorkload, 0)
 	for _, r := range newAppMatcher(m.cache.getResources()).excludeApps(appNames).kind("Deployment").match() {
-		w = append(w, model.MeshDevWorkload{
+		w = append(w, MeshDevWorkload{
 			Kind: r.GetKind(),
 			Name: r.GetName(),
 		})
 	}
-	appInfo = append(appInfo, model.MeshDevApp{
+	appInfo = append(appInfo, MeshDevApp{
 		Name:      nocalhost.DefaultNocalhostApplication,
 		Workloads: w,
 	})
@@ -241,11 +241,6 @@ func (m *meshManager) initMeshDevSpace() error {
 	})
 
 	return g.Wait()
-}
-
-func (m *meshManager) setBaseDevSpacePatchResources() error {
-	//TODO
-	return nil
 }
 
 func (m *meshManager) buildCache() error {
@@ -461,7 +456,7 @@ func (m *appMatcher) match() []unstructured.Unstructured {
 	return m.matchResources
 }
 
-func NewMeshManager(client *clientgo.GoClient, info model.MeshDevInfo) (MeshManager, error) {
+func NewMeshManager(client *clientgo.GoClient, info MeshDevInfo) (MeshManager, error) {
 	m := &meshManager{}
 	m.client = client
 	m.meshDevInfo = info
@@ -471,3 +466,21 @@ func NewMeshManager(client *clientgo.GoClient, info model.MeshDevInfo) (MeshMana
 	}
 	return m, nil
 }
+
+type MeshDevInfo struct {
+	BaseNamespace    string            `json:"base_namespace"`
+	MeshDevNamespace string            `json:"mesh_dev_namespace"`
+	Header           map[string]string `json:"header"`
+	APPS             []MeshDevApp      `json:"apps"`
+}
+
+type MeshDevApp struct {
+	Name      string            `json:"name"`
+	Workloads []MeshDevWorkload `json:"workloads"`
+}
+
+type MeshDevWorkload struct {
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+}
+
