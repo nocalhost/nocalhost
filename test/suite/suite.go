@@ -193,19 +193,17 @@ func (t *T) WaitForMaterialReady() error {
 	token := os.Getenv(util.Token)
 	projectId, _ := strconv.ParseInt(os.Getenv(util.ProjectId), 10, 64)
 	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(3)
 	errChan := make(chan error)
 	go func() {
-		waitGroup.Add(1)
 		errChan <- waitNhctl(commitId, time.Minute*10)
 		waitGroup.Done()
 	}()
 	go func() {
-		waitGroup.Add(1)
 		errChan <- waitImage(projectId, "nocalhost-api", commitId, token, time.Minute*10)
 		waitGroup.Done()
 	}()
 	go func() {
-		waitGroup.Add(1)
 		errChan <- waitImage(projectId, "nocalhost-dep", commitId, token, time.Minute*10)
 		waitGroup.Done()
 	}()
