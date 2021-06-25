@@ -188,7 +188,7 @@ func (t *T) Alert() {
 }
 
 // wait for image and nhctl ready
-func (t *T) WaitForMaterialReady() error {
+func WaitForMaterialReady() error {
 	commitId := os.Getenv(util.CommitId)
 	token := os.Getenv(util.Token)
 	projectId, _ := strconv.ParseInt(os.Getenv(util.ProjectId), 10, 64)

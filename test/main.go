@@ -39,8 +39,10 @@ func main() {
 		cancelFunc, ns, kubeconfig := suite.Prepare()
 		t = suite.NewT(ns, kubeconfig, cancelFunc)
 		_, v2 = testcase.GetVersion()
-		if err := t.WaitForMaterialReady(); err != nil {
-			cancelFunc()
+		if err := suite.WaitForMaterialReady(); err != nil {
+			if cancelFunc != nil {
+				cancelFunc()
+			}
 			panic(err)
 		}
 	}
