@@ -323,7 +323,7 @@ func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType ba
 		// means should cm cfg is valid, persist to profile
 		if err := a.Controller(svcName, svcType).UpdateSvcProfile(
 			func(svcProfile *profile.SvcProfileV2) error {
-				hint("Success load svc config from cm")
+				hint("Success load svc config from annotation")
 				svcProfile.ServiceConfigV2 = svcCfg
 
 				svcProfile.Name = svcName
