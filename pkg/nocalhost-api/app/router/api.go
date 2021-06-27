@@ -152,6 +152,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		dv.GET("/:id/detail", cluster_user.GetJoinClusterAndAppAndUserDetail)
 		dv.PUT("/:id/update_resource_limit", cluster_user.UpdateResourceLimit)
 		dv.PUT("/:id/update_mesh_dev_space_info", cluster_user.UpdateMeshDevSpaceInfo)
+		dv.GET("/:id/mesh_apps_info", cluster_user.GetAppsInfo)
 	}
 
 	// Plug-in

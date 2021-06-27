@@ -45,6 +45,7 @@ type MeshManager interface {
 	UpdateMeshDevSpace() error
 	InjectMeshDevSpace() error
 	GetBaseDevSpaceAppInfo() []MeshDevApp
+	GetAPPInfo() ([]MeshDevApp, error)
 }
 
 type meshManager struct {
@@ -224,6 +225,27 @@ func (m *meshManager) GetBaseDevSpaceAppInfo() []MeshDevApp {
 	})
 
 	return appInfo
+}
+
+func (m *meshManager) GetAPPInfo() ([]MeshDevApp, error) {
+	if err := m.buildMeshDevCache(); err != nil {
+		return nil, err
+	}
+
+	status := make(map[string]struct{})
+	for _, r := range m.cache.getMeshDevResources() {
+		status[r.GetKind()+"/"+r.GetName()] = struct{}{}
+	}
+
+	apps := m.GetBaseDevSpaceAppInfo()
+	for i, a := range apps {
+		for j, w := range a.Workloads {
+			if _, ok := status[w.Kind+"/"+w.Name]; ok {
+				apps[i].Workloads[j].Status = Selected
+			}
+		}
+	}
+	return apps, nil
 }
 
 func (m *meshManager) initMeshDevSpace() error {

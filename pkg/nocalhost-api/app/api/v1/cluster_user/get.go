@@ -14,17 +14,21 @@ package cluster_user
 
 import (
 	"context"
-	"github.com/spf13/cast"
-	"nocalhost/internal/nocalhost-api/global"
-	"nocalhost/internal/nocalhost-api/model"
-	"nocalhost/pkg/nocalhost-api/app/api/v1/service_account"
-	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
-	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/cast"
+
+	"nocalhost/internal/nocalhost-api/global"
+	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/app/api/v1/service_account"
+	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
+	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
+	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
 // @Summary Plug-in Get personal application development environment (kubeconfig) (obsolete)
@@ -286,4 +290,98 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 			api.SendResponse(c, errno.InternalServerError, nil)
 		}
 	}
+}
+
+// @Summary Get mesh apps info
+// @Description Get mesh apps info
+// @Tags Cluster
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path string true "devspace id"
+// @Param MeshDevInfo body setupcluster.MeshDevInfo true "mesh apps info"
+// @Success 200 {object} setupcluster.ClusterUserModel
+// @Router /v1/dev_space/{id}/mesh_apps_info [get]
+func GetAppsInfo(c *gin.Context) {
+	devSpaceId := cast.ToUint64(c.Param("id"))
+
+	condition := model.ClusterUserModel{
+		ID: devSpaceId,
+	}
+	devspace, err := service.Svc.ClusterUser().GetFirst(c, condition)
+	if err != nil || devspace == nil {
+		log.Errorf("Dev space has not found")
+		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+		return
+	}
+	isBasespace := devspace.BaseDevSpaceId == 0
+
+	// check base dev space
+	basespace := &model.ClusterUserModel{}
+	if !isBasespace {
+		baseCondition := model.ClusterUserModel{
+			ID: devspace.BaseDevSpaceId,
+		}
+		basespace, err = service.Svc.ClusterUser().GetFirst(c, baseCondition)
+		if err != nil || basespace == nil {
+			log.Errorf("Base space has not found")
+			api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+			return
+		}
+	}
+
+	// Build goclient with administrator kubeconfig
+	clusterData, err := service.Svc.ClusterSvc().Get(c, devspace.ClusterId)
+	if err != nil {
+		log.Errorf("Getting cluster information failed, cluster id = [ %v ] ", devspace.ClusterId)
+		api.SendResponse(c, errno.ErrPermissionCluster, nil)
+		return
+	}
+	var KubeConfig = []byte(clusterData.KubeConfig)
+	goClient, err := clientgo.NewAdminGoClient(KubeConfig)
+
+	// get client go and check if is admin Kubeconfig
+	if err != nil {
+		switch err.(type) {
+		case *errno.Errno:
+			api.SendResponse(c, err, nil)
+		default:
+			api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		}
+		return
+	}
+
+	var meshManager setupcluster.MeshManager
+	if isBasespace {
+		meshManager, err = setupcluster.NewMeshManager(goClient, setupcluster.MeshDevInfo{
+			BaseNamespace: devspace.Namespace,
+		})
+		if err != nil {
+			api.SendResponse(c, nil, nil)
+			return
+		}
+		apps := meshManager.GetBaseDevSpaceAppInfo()
+		api.SendResponse(c, nil, setupcluster.MeshDevInfo{
+			BaseNamespace: devspace.Namespace,
+			Header:        map[string]string{},
+			APPS:          apps,
+		})
+		return
+	}
+
+	meshManager, err = setupcluster.NewMeshManager(goClient, setupcluster.MeshDevInfo{
+		BaseNamespace:    basespace.Namespace,
+		MeshDevNamespace: devspace.Namespace,
+	})
+	if err != nil {
+		api.SendResponse(c, nil, nil)
+		return
+	}
+	apps, err := meshManager.GetAPPInfo()
+	api.SendResponse(c, nil, setupcluster.MeshDevInfo{
+		BaseNamespace:    basespace.Namespace,
+		MeshDevNamespace: devspace.Namespace,
+		Header:           devspace.TraceHeader,
+		APPS:             apps,
+	})
 }
