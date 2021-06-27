@@ -14,7 +14,6 @@ package setupcluster
 
 import (
 	"context"
-
 	"strings"
 	"sync"
 
@@ -31,29 +30,66 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
+const (
+	NotInstalled = iota
+	ShouldBeInstalled
+	Installed
+	ShouldBeDeleted
+
+	Unselected = NotInstalled
+	Selected   = ShouldBeInstalled
+)
+
 type MeshManager interface {
 	InitMeshDevSpace() error
-	UpdateDstDevSpace() error
+	UpdateMeshDevSpace() error
 	InjectMeshDevSpace() error
 	GetBaseDevSpaceAppInfo() []MeshDevApp
 }
 
 type meshManager struct {
-	mu     sync.Mutex
-	client *clientgo.GoClient
-	// TODO, use dynamicinformer to build cache
+	mu          sync.Mutex
+	client      *clientgo.GoClient
 	cache       cache
 	meshDevInfo MeshDevInfo
 }
 
+type MeshDevInfo struct {
+	BaseNamespace    string            `json:"base_namespace"`
+	MeshDevNamespace string            `json:"mesh_dev_namespace"`
+	Header           map[string]string `json:"header"`
+	APPS             []MeshDevApp      `json:"apps"`
+}
+
+type MeshDevApp struct {
+	Name      string            `json:"name"`
+	Workloads []MeshDevWorkload `json:"workloads"`
+}
+
+type MeshDevWorkload struct {
+	Kind   string `json:"kind"`
+	Name   string `json:"name"`
+	Status int    `json:"status"`
+}
+
+// TODO, use dynamicinformer to build cache
 type cache struct {
-	resources []unstructured.Unstructured
+	baseDevResources []unstructured.Unstructured
+	meshDevResources []unstructured.Unstructured
 }
 
 func (c *cache) getResources() []unstructured.Unstructured {
-	rs := make([]unstructured.Unstructured, len(c.resources))
-	for i := range c.resources {
-		c.resources[i].DeepCopyInto(&rs[i])
+	rs := make([]unstructured.Unstructured, len(c.baseDevResources))
+	for i := range c.baseDevResources {
+		c.baseDevResources[i].DeepCopyInto(&rs[i])
+	}
+	return rs
+}
+
+func (c *cache) getMeshDevResources() []unstructured.Unstructured {
+	rs := make([]unstructured.Unstructured, len(c.meshDevResources))
+	for i := range c.meshDevResources {
+		c.meshDevResources[i].DeepCopyInto(&rs[i])
 	}
 	return rs
 }
@@ -62,44 +98,56 @@ func (m *meshManager) InitMeshDevSpace() error {
 	return m.initMeshDevSpace()
 }
 
-func (m *meshManager) UpdateDstDevSpace() error {
-	return m.initMeshDevSpace()
+func (m *meshManager) UpdateMeshDevSpace() error {
+	if err := m.setWorkloadStatus(); err != nil {
+		return err
+	}
+	return m.InjectMeshDevSpace()
 }
 
 func (m *meshManager) InjectMeshDevSpace() error {
 	// get dev space workloads from cache
-	ws := make(map[string]struct{})
+	log.Debugf("inject workloads to %s", m.meshDevInfo.MeshDevNamespace)
+	ws := make(map[string]int)
 	for _, a := range m.meshDevInfo.APPS {
 		for _, w := range a.Workloads {
-			ws[w.Kind+"/"+w.Name] = struct{}{}
+			ws[w.Kind+"/"+w.Name] = w.Status
 		}
 	}
-	rs := make([]unstructured.Unstructured, 0)
+	irs := make([]unstructured.Unstructured, 0)
+	drs := make([]unstructured.Unstructured, 0)
 	for _, r := range m.cache.getResources() {
-		if _, ok := ws[r.GetKind()+"/"+r.GetName()]; ok {
-			if err := meshDevModify(m.meshDevInfo.MeshDevNamespace, &r); err != nil {
-				return err
-			}
-			rs = append(rs, r)
+		if ws[r.GetKind()+"/"+r.GetName()] == ShouldBeInstalled {
+			irs = append(irs, r)
+			continue
+		}
+		if ws[r.GetKind()+"/"+r.GetName()] == ShouldBeDeleted {
+			drs = append(drs, r)
 		}
 	}
 
 	g, _ := errgroup.WithContext(context.Background())
-	for _, r := range rs {
-		r := r
-		g.Go(func() error {
+	// apply workload
+	g.Go(func() error {
+		for _, r := range irs {
+			log.Debugf("inject the workload %s/%s to %s", r.GetKind(), r.GetName(), m.meshDevInfo.MeshDevNamespace)
+			if err := meshDevModify(m.meshDevInfo.MeshDevNamespace, &r); err != nil {
+				return err
+			}
 			if _, err := m.client.Apply(&r); err != nil {
 				return err
 			}
-			return nil
-		})
+		}
+		return nil
+	})
 
-	}
-
+	// update base dev space vs
 	g.Go(func() error {
 		return m.updateVirtualserviceOnBaseDevSpace()
 	})
 
+	// delete mesh dev space workload
+	// TODO
 	return g.Wait()
 }
 
@@ -284,12 +332,69 @@ func (m *meshManager) buildCache() error {
 			}
 			m.mu.Lock()
 			defer m.mu.Unlock()
-			m.cache.resources = append(m.cache.resources, l.Items...)
+			m.cache.baseDevResources = append(m.cache.baseDevResources, l.Items...)
 			return nil
 		})
-
 	}
 	return g.Wait()
+}
+
+func (m *meshManager) buildMeshDevCache() error {
+	gvr := schema.GroupVersionResource{
+		Group:    "apps",
+		Version:  "v1",
+		Resource: "deployments",
+	}
+	l, err := m.client.DynamicClient.
+		Resource(gvr).
+		Namespace(m.meshDevInfo.MeshDevNamespace).
+		List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	m.cache.meshDevResources = append(m.cache.meshDevResources, l.Items...)
+	return nil
+}
+
+func (m *meshManager) getMeshDevSpaceWorkloads() ([]MeshDevWorkload, error) {
+	if err := m.buildMeshDevCache(); err != nil {
+		return nil, err
+	}
+	w := make([]MeshDevWorkload, 0)
+	for _, r := range m.cache.getMeshDevResources() {
+		w = append(w, MeshDevWorkload{
+			Kind:   r.GetKind(),
+			Name:   r.GetName(),
+			Status: Installed,
+		})
+	}
+	return w, nil
+}
+
+func (m *meshManager) setWorkloadStatus() error {
+	log.Debug("set workloads status")
+	devWs, err := m.getMeshDevSpaceWorkloads()
+	if err != nil {
+		return err
+	}
+	devMap := make(map[string]MeshDevWorkload)
+	for _, w := range devWs {
+		devMap[w.Kind+"/"+w.Name] = w
+	}
+	apps := m.meshDevInfo.APPS
+	for i, a := range apps {
+		for j, w := range a.Workloads {
+			if w.Status == Selected && devMap[w.Kind+"/"+w.Name].Status == Installed {
+				apps[i].Workloads[j].Status = Installed
+			}
+			if w.Status == Unselected && devMap[w.Kind+"/"+w.Name].Status == Installed {
+				apps[i].Workloads[j].Status = ShouldBeDeleted
+			}
+		}
+	}
+	m.meshDevInfo.APPS = apps
+	return nil
+
 }
 
 func addGVR(rs *[]schema.GroupVersionResource, gvr schema.GroupVersionResource) {
@@ -466,21 +571,3 @@ func NewMeshManager(client *clientgo.GoClient, info MeshDevInfo) (MeshManager, e
 	}
 	return m, nil
 }
-
-type MeshDevInfo struct {
-	BaseNamespace    string            `json:"base_namespace"`
-	MeshDevNamespace string            `json:"mesh_dev_namespace"`
-	Header           map[string]string `json:"header"`
-	APPS             []MeshDevApp      `json:"apps"`
-}
-
-type MeshDevApp struct {
-	Name      string            `json:"name"`
-	Workloads []MeshDevWorkload `json:"workloads"`
-}
-
-type MeshDevWorkload struct {
-	Kind string `json:"kind"`
-	Name string `json:"name"`
-}
-

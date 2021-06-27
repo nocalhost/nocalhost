@@ -105,7 +105,7 @@ func (u *ClusterUserModel) TableName() string {
 
 type Header map[string]string
 
-func (h Header) Scan(value interface{}) error {
+func (h *Header) Scan(value interface{}) error {
 	if value == nil {
 		return nil
 	}

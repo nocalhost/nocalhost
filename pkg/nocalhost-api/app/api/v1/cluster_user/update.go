@@ -169,7 +169,7 @@ func UpdateResourceLimit(c *gin.Context) {
 // @Param id path string true "devspace id"
 // @Param MeshDevInfo body model.MeshDevInfo true "mesh dev space info"
 // @Success 200 {object} setupcluster.ClusterUserModel
-// @Router /v1/dev_space/{id}/update_resource_limit [put]
+// @Router /v1/dev_space/{id}/update_mesh_dev_space_info [put]
 func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	var req setupcluster.MeshDevInfo
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -186,6 +186,17 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	devspace, err := service.Svc.ClusterUser().GetFirst(c, condition)
 	if err != nil || devspace == nil {
 		log.Errorf("Dev space has not found")
+		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+		return
+	}
+
+	// check base dev space
+	baseCondition := model.ClusterUserModel{
+		ID: devspace.BaseDevSpaceId,
+	}
+	basespace, err := service.Svc.ClusterUser().GetFirst(c, baseCondition)
+	if err != nil || basespace == nil {
+		log.Errorf("Base space has not found")
 		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		return
 	}
@@ -212,6 +223,8 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	}
 
 	info := req
+	info.MeshDevNamespace = devspace.Namespace
+	info.BaseNamespace = basespace.Namespace
 
 	meshManager, err := setupcluster.NewMeshManager(goClient, info)
 	if err != nil {
@@ -219,7 +232,9 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 		return
 	}
 
-	if err := meshManager.InjectMeshDevSpace(); err != nil {
+	log.Debugf("update mesh info for %s", devspace.SpaceName)
+	log.Debugf("the mesh info: %s", info)
+	if err := meshManager.UpdateMeshDevSpace(); err != nil {
 		api.SendResponse(c, nil, nil)
 		return
 	}
