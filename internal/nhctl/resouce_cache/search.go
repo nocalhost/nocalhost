@@ -32,13 +32,11 @@ import (
 	"reflect"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 )
 
 // cache Searcher for each kubeconfig
-var searchMap, _ = simplelru.NewLRU(10, func(_ interface{}, value interface{}) { value.(*Searcher).Stop() })
-var lock sync.Mutex
+var searchMap, _ = simplelru.NewLRU(15, func(_ interface{}, value interface{}) { value.(*Searcher).Stop() })
 
 type Searcher struct {
 	kubeconfig      []byte
@@ -101,8 +99,6 @@ func GetSupportGroupVersionResource(Clients *kubernetes.Clientset, mapper meta.R
 
 // GetSearcher
 func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Searcher, error) {
-	lock.Lock()
-	defer lock.Unlock()
 	// calculate kubeconfig content's sha value as unique cluster id
 	h := sha1.New()
 	h.Write(kubeconfigBytes)
@@ -160,10 +156,14 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 			namespaced:      namespaced,
 			stopChannel:     stopChannel,
 		}
-		searchMap.Add(sum, newSearcher)
+		if searcher, exist = searchMap.Get(sum); !exist || searcher == nil {
+			searchMap.Add(sum, newSearcher)
+		}
 	}
-	searcher, _ = searchMap.Get(sum)
-	return searcher.(*Searcher), nil
+	if searcher, exist = searchMap.Get(sum); exist && searcher != nil {
+		return searcher.(*Searcher), nil
+	}
+	return nil, errors.New("error on init search")
 }
 
 // Start
