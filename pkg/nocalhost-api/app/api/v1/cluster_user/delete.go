@@ -25,7 +25,7 @@ import (
 // Delete Completely delete the development environment
 // @Summary Completely delete the development environment
 // @Description Completely delete the development environment, including deleting the K8S namespace
-// @Tags Application
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
@@ -81,7 +81,7 @@ func Delete(c *gin.Context) {
 // ReCreate ReCreate devSpace
 // @Summary ReCreate devSpace
 // @Description delete devSpace and create a new one
-// @Tags Application
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"

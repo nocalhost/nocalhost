@@ -70,7 +70,7 @@ func Update(c *gin.Context) {
 
 // @Summary Update dev space
 // @Description Update dev space
-// @Tags Cluster
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
@@ -164,7 +164,7 @@ func UpdateResourceLimit(c *gin.Context) {
 
 // @Summary Update mesh dev space info
 // @Description Update mesh dev space info
-// @Tags Cluster
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"

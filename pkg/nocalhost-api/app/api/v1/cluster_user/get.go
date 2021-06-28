@@ -199,7 +199,7 @@ func GetJoinClusterAndAppAndUser(c *gin.Context) {
 
 // @Summary Get the details of a development environment of the application
 // @Description Get dev space detail from application
-// @Tags Application
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
@@ -294,7 +294,7 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 
 // @Summary Get mesh apps info
 // @Description Get mesh apps info
-// @Tags Cluster
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"

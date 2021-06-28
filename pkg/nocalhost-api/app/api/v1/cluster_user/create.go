@@ -76,16 +76,16 @@ func ValidSpaceResourceLimit(resLimit SpaceResourceLimit) (bool, string) {
 
 	var message msgList = []string{}
 	message.appendWhileMatch(resLimit.SpaceReqMem, "space_req_mem", regMem)
-	message.appendWhileMatch(resLimit.SpaceLimitsMem,"space_limits_mem",regMem)
-	message.appendWhileMatch(resLimit.SpaceReqCpu,"space_req_cpu",regCpu)
-	message.appendWhileMatch(resLimit.SpaceLimitsCpu,"space_limits_cpu",regCpu)
-	message.appendWhileMatch(resLimit.SpaceLbCount,"space_lb_count",numReg)
-	message.appendWhileMatch(resLimit.SpacePvcCount,"space_pvc_count",numReg)
-	message.appendWhileMatch(resLimit.SpaceStorageCapacity,"space_storage_capacity",regStorage)
-	message.appendWhileMatch(resLimit.ContainerReqMem,"container_req_mem",regMem)
-	message.appendWhileMatch(resLimit.ContainerReqCpu,"container_req_cpu",regCpu)
-	message.appendWhileMatch(resLimit.ContainerLimitsMem,"container_limits_mem",regMem)
-	message.appendWhileMatch(resLimit.ContainerLimitsCpu,"container_limits_cpu",regCpu)
+	message.appendWhileMatch(resLimit.SpaceLimitsMem, "space_limits_mem", regMem)
+	message.appendWhileMatch(resLimit.SpaceReqCpu, "space_req_cpu", regCpu)
+	message.appendWhileMatch(resLimit.SpaceLimitsCpu, "space_limits_cpu", regCpu)
+	message.appendWhileMatch(resLimit.SpaceLbCount, "space_lb_count", numReg)
+	message.appendWhileMatch(resLimit.SpacePvcCount, "space_pvc_count", numReg)
+	message.appendWhileMatch(resLimit.SpaceStorageCapacity, "space_storage_capacity", regStorage)
+	message.appendWhileMatch(resLimit.ContainerReqMem, "container_req_mem", regMem)
+	message.appendWhileMatch(resLimit.ContainerReqCpu, "container_req_cpu", regCpu)
+	message.appendWhileMatch(resLimit.ContainerLimitsMem, "container_limits_mem", regMem)
+	message.appendWhileMatch(resLimit.ContainerLimitsCpu, "container_limits_cpu", regCpu)
 
 	if len(message) > 0 {
 		return false, strings.Join(message, ",")
