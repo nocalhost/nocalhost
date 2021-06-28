@@ -169,8 +169,8 @@ func UpdateResourceLimit(c *gin.Context) {
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param id path string true "devspace id"
-// @Param MeshDevInfo body model.MeshDevInfo true "mesh dev space info"
-// @Success 200 {object} setupcluster.ClusterUserModel
+// @Param MeshDevInfo body setupcluster.MeshDevInfo true "mesh dev space info"
+// @Success 200 {object} model.ClusterUserModel
 // @Router /v1/dev_space/{id}/update_mesh_dev_space_info [put]
 func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	var req setupcluster.MeshDevInfo

@@ -299,8 +299,7 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param id path string true "devspace id"
-// @Param MeshDevInfo body setupcluster.MeshDevInfo true "mesh apps info"
-// @Success 200 {object} setupcluster.ClusterUserModel
+// @Success 200 {object} setupcluster.MeshDevInfo
 // @Router /v1/dev_space/{id}/mesh_apps_info [get]
 func GetAppsInfo(c *gin.Context) {
 	devSpaceId := cast.ToUint64(c.Param("id"))
