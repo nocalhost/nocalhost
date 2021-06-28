@@ -108,7 +108,6 @@ func (m *meshManager) UpdateMeshDevSpace() error {
 
 func (m *meshManager) InjectMeshDevSpace() error {
 	// get dev space workloads from cache
-	log.Debugf("inject workloads to %s", m.meshDevInfo.MeshDevNamespace)
 	ws := make(map[string]int)
 	for _, a := range m.meshDevInfo.APPS {
 		for _, w := range a.Workloads {
@@ -128,7 +127,7 @@ func (m *meshManager) InjectMeshDevSpace() error {
 	}
 
 	g, _ := errgroup.WithContext(context.Background())
-	// apply workload
+	// apply workloads
 	g.Go(func() error {
 		for _, r := range irs {
 			log.Debugf("inject the workload %s/%s to %s", r.GetKind(), r.GetName(), m.meshDevInfo.MeshDevNamespace)
@@ -147,8 +146,17 @@ func (m *meshManager) InjectMeshDevSpace() error {
 		return m.updateVirtualserviceOnBaseDevSpace()
 	})
 
-	// delete mesh dev space workload
-	// TODO
+	// delete workloads
+	g.Go(func() error {
+		for _, r := range drs {
+			log.Debugf("delete the workload %s/%s from %s", r.GetKind(), r.GetName(), m.meshDevInfo.MeshDevNamespace)
+			if err := meshDevModify(m.meshDevInfo.MeshDevNamespace, &r); err != nil {
+				return err
+			}
+			return m.client.Delete(&r)
+		}
+		return nil
+	})
 	return g.Wait()
 }
 

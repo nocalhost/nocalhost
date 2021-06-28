@@ -51,6 +51,23 @@ func (c *GoClient) Apply(object interface{}) (*unstructured.Unstructured, error)
 	return result, errors.WithStack(err)
 }
 
+func (c *GoClient) Delete(object interface{}) error {
+
+	obj := &unstructured.Unstructured{}
+	var err error
+	obj.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(object)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	client, err := c.buildDynamicResourceClient(obj)
+	if err != nil {
+		return err
+	}
+
+	return errors.WithStack(client.Delete(context.TODO(), obj.GetName(), metav1.DeleteOptions{}))
+}
+
 func (c *GoClient) buildDynamicResourceClient(obj *unstructured.Unstructured) (dynamic.ResourceInterface, error) {
 	gvk := obj.GroupVersionKind()
 
