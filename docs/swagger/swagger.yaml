@@ -459,40 +459,6 @@ info:
   title: Nocalhost docs api
   version: "1.0"
 paths:
-  /v1/{id}:
-    post:
-      consumes:
-      - application/json
-      description: Create a development environment for application
-      parameters:
-      - description: Authorization
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: cluster user info
-        in: body
-        name: CreateAppRequest
-        required: true
-        schema:
-          $ref: '#/definitions/cluster_user.ClusterUserCreateRequest'
-          type: object
-      - description: Application ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/model.ClusterModel'
-            type: object
-      summary: Create a development environment for application
-      tags:
-      - DevSpace
   /v1/application:
     get:
       consumes:
@@ -1089,6 +1055,60 @@ paths:
             $ref: '#/definitions/api.Response'
             type: object
       summary: Completely delete the development environment
+      tags:
+      - DevSpace
+    get:
+      consumes:
+      - application/json
+      description: ListAll dev spaces
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: ListAll dev spaces
+      tags:
+      - DevSpace
+    post:
+      consumes:
+      - application/json
+      description: Create dev space
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: cluster user info
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/cluster_user.ClusterUserCreateRequest'
+          type: object
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Create dev space
       tags:
       - DevSpace
     put:

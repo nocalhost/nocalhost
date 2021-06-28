@@ -21,17 +21,17 @@ import (
 	"strings"
 )
 
-// Create Create a development environment for application
-// @Summary Create a development environment for application
-// @Description Create a development environment for application
+// Create Create dev space
+// @Summary Create dev space
+// @Description Create dev space
 // @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param CreateAppRequest body cluster_user.ClusterUserCreateRequest true "cluster user info"
 // @Param id path uint64 true "Application ID"
-// @Success 200 {object} model.ClusterModel
-// @Router /v1/{id} [post]
+// @Success 200 {object} model.ClusterUserModel
+// @Router /v1/dev_space/{id} [post]
 func Create(c *gin.Context) {
 	var req ClusterUserCreateRequest
 	defaultNum := uint64(0)

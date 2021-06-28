@@ -79,6 +79,15 @@ func GetList(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
+// ListAll dev spaces
+// @Summary ListAll dev spaces
+// @Description ListAll dev spaces
+// @Tags DevSpace
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Success 200 {object} model.ClusterUserModel
+// @Router /v1/dev_space/{id} [get]
 func ListAll(c *gin.Context) {
 
 	var params ClusterUserListQuery
