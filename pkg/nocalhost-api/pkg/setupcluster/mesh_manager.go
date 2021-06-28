@@ -143,7 +143,7 @@ func (m *meshManager) InjectMeshDevSpace() error {
 
 	// update base dev space vs
 	g.Go(func() error {
-		return m.updateVirtualserviceOnBaseDevSpace()
+		return m.updateVirtualserviceOnBaseDevSpace(irs, drs)
 	})
 
 	// delete workloads
@@ -160,29 +160,43 @@ func (m *meshManager) InjectMeshDevSpace() error {
 	return g.Wait()
 }
 
-func (m *meshManager) updateVirtualserviceOnBaseDevSpace() error {
+func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured.Unstructured) error {
 	// TODO, create vs by service name, not workload name
 	// TODO, just update if the vs already exists
-	ws := make([]MeshDevWorkload, 0)
-	for _, a := range m.meshDevInfo.APPS {
-		ws = append(ws, a.Workloads...)
-	}
-
-	for _, w := range ws {
+	info := m.meshDevInfo
+	for _, r := range irs {
 		vs, err := genVirtualServiceForBaseDevSpace(
-			m.meshDevInfo.BaseNamespace,
-			m.meshDevInfo.MeshDevNamespace,
-			w.Name,
-			m.meshDevInfo.Header,
+			info.BaseNamespace,
+			info.MeshDevNamespace,
+			r.GetName(),
+			info.Header,
 		)
 		if err != nil {
 			return err
 		}
+		log.Debugf("apply the Virtualservice/%s to the base namespace %s", info.BaseNamespace, r.GetName())
 		_, err = m.client.Apply(vs)
 		if err != nil {
 			return err
 		}
-		log.Debugf("apply the virtualservice: %s/%s", m.meshDevInfo.BaseNamespace, w.Name)
+	}
+
+	// TODO just delete the header match form vs
+	for _, r := range drs {
+		vs := &unstructured.Unstructured{}
+		vs.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "networking.istio.io",
+			Version: "v1alpha3",
+			Kind:    "VirtualService",
+		})
+		vs.SetNamespace(r.GetNamespace())
+		vs.SetName(r.GetName())
+
+		log.Debugf("delete the Virtualservice/%s from the base namespace %s", info.BaseNamespace, r.GetName())
+		err := m.client.Delete(vs)
+		if err != nil {
+			log.Debug(err)
+		}
 	}
 	return nil
 }
