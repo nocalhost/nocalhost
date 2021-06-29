@@ -105,9 +105,9 @@ func commonModifier(ns string, rs *unstructured.Unstructured) error {
 }
 
 func genVirtualServiceForMeshDevSpace(baseNs string, r unstructured.Unstructured) (*v1alpha3.VirtualService, error) {
-	if r.GetKind() != "Service" {
-		return nil, errors.Errorf("The kind of %s is %s, only support Service", r.GetName(), r.GetKind())
-	}
+	//if r.GetKind() != "Service" {
+	//	return nil, errors.Errorf("The kind of %s is %s, only support Service", r.GetName(), r.GetKind())
+	//}
 	vs := &v1alpha3.VirtualService{}
 	vs.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   "networking.istio.io",

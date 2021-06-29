@@ -129,16 +129,7 @@ func (m *meshManager) InjectMeshDevSpace() error {
 	g, _ := errgroup.WithContext(context.Background())
 	// apply workloads
 	g.Go(func() error {
-		for _, r := range irs {
-			log.Debugf("inject the workload %s/%s to %s", r.GetKind(), r.GetName(), m.meshDevInfo.MeshDevNamespace)
-			if err := meshDevModify(m.meshDevInfo.MeshDevNamespace, &r); err != nil {
-				return err
-			}
-			if _, err := m.client.Apply(&r); err != nil {
-				return err
-			}
-		}
-		return nil
+		return m.applyWorkloadsToMeshDevSpace(irs)
 	})
 
 	// update base dev space vs
@@ -148,16 +139,61 @@ func (m *meshManager) InjectMeshDevSpace() error {
 
 	// delete workloads
 	g.Go(func() error {
-		for _, r := range drs {
-			log.Debugf("delete the workload %s/%s from %s", r.GetKind(), r.GetName(), m.meshDevInfo.MeshDevNamespace)
-			if err := meshDevModify(m.meshDevInfo.MeshDevNamespace, &r); err != nil {
-				return err
-			}
-			return m.client.Delete(&r)
-		}
-		return nil
+		return m.deleteWorkloadsFromMeshDevSpace(drs)
 	})
 	return g.Wait()
+}
+
+func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstructured) error {
+	for _, r := range drs {
+		log.Debugf("delete the workload %s/%s from %s", r.GetKind(), r.GetName(), m.meshDevInfo.MeshDevNamespace)
+		if err := meshDevModify(m.meshDevInfo.MeshDevNamespace, &r); err != nil {
+			return err
+		}
+		err := m.client.Delete(&r)
+		if err != nil {
+			log.Errorf("%+v", err)
+			continue
+		}
+		vs, err := genVirtualServiceForMeshDevSpace(m.meshDevInfo.BaseNamespace, r)
+		if err != nil {
+			log.Errorf("%+v", err)
+			continue
+		}
+		log.Debugf("apply the Virtualservice/%s to the base namespace %s", r.GetName(), r.GetNamespace())
+		if _, err := m.client.Apply(vs); err != nil {
+			log.Errorf("%+v", err)
+		}
+	}
+	return nil
+}
+
+func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructured) error {
+	for _, r := range irs {
+		log.Debugf("inject the workload %s/%s to %s", r.GetKind(), r.GetName(), m.meshDevInfo.MeshDevNamespace)
+		if err := meshDevModify(m.meshDevInfo.MeshDevNamespace, &r); err != nil {
+			return err
+		}
+		if _, err := m.client.Apply(&r); err != nil {
+			return err
+		}
+		// delete vs form mesh dev space
+		vs := &unstructured.Unstructured{}
+		vs.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "networking.istio.io",
+			Version: "v1alpha3",
+			Kind:    "VirtualService",
+		})
+		vs.SetNamespace(r.GetNamespace())
+		vs.SetName(r.GetName())
+
+		log.Debugf("delete the Virtualservice/%s from the base namespace %s", r.GetName(), r.GetNamespace())
+		err := m.client.Delete(vs)
+		if err != nil {
+			log.Debug(err)
+		}
+	}
+	return nil
 }
 
 func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured.Unstructured) error {
@@ -174,7 +210,7 @@ func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured
 		if err != nil {
 			return err
 		}
-		log.Debugf("apply the Virtualservice/%s to the base namespace %s", info.BaseNamespace, r.GetName())
+		log.Debugf("apply the Virtualservice/%s to the base namespace %s", r.GetName(), info.BaseNamespace)
 		_, err = m.client.Apply(vs)
 		if err != nil {
 			return err
@@ -192,7 +228,7 @@ func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured
 		vs.SetNamespace(r.GetNamespace())
 		vs.SetName(r.GetName())
 
-		log.Debugf("delete the Virtualservice/%s from the base namespace %s", info.BaseNamespace, r.GetName())
+		log.Debugf("delete the Virtualservice/%s from the base namespace %s", r.GetName(), info.BaseNamespace)
 		err := m.client.Delete(vs)
 		if err != nil {
 			log.Debug(err)
