@@ -75,7 +75,7 @@ jobs:
         if: ${{ github.event.workflow_run.conclusion == 'success' }}
         run: |
           git fetch --prune --unshallow --tags
-          TAG=$(git tag | tail -2 | xargs)
+          TAG=$(git tag -l --sort=v:refname | tail -2 | xargs)
           echo $TAG
           echo "RELEASE_VERSION=${TAG}" >> $GITHUB_ENV
         shell: bash
@@ -112,7 +112,7 @@ jobs:
         timeout-minutes: 10
         run: |
           git fetch --prune --unshallow --tags
-          TAG=$(echo $(git tag | tail -2))
+          TAG=$(git tag -l --sort=v:refname | tail -2 | xargs)
           echo $TAG
           echo "RELEASE_VERSION=${TAG}" >> $GITHUB_ENV
         shell: bash
@@ -146,7 +146,7 @@ jobs:
         timeout-minutes: 10
         run: |
           git fetch --prune --unshallow --tags
-          TAG=$(echo $(git tag | tail -2))
+          TAG=$(git tag -l --sort=v:refname | tail -2 | xargs)
           echo $TAG
           echo "RELEASE_VERSION=${TAG}" >> $GITHUB_ENV
         shell: bash
@@ -182,7 +182,7 @@ jobs:
         if: ${{ github.event.workflow_run.conclusion == 'success' }}
         run: |
           git fetch --prune --unshallow --tags
-          TAG=$(git tag | tail -2 | xargs)
+          TAG=$(git tag -l --sort=v:refname | tail -2 | xargs)
           echo $TAG
           echo "RELEASE_VERSION=${TAG}" >> $GITHUB_ENV
         shell: bash
