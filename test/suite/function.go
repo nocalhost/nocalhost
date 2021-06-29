@@ -372,7 +372,7 @@ func KillSyncthingProcess(cli runner.Client, _ ...string) {
 		},
 		func() error { return testcase.SyncCheck(cli, module) },
 		func() error { return testcase.SyncStatus(cli, module) },
-		//func() error { return testcase.RemoveSyncthingPidFile(cli, module) },
+		func() error { return testcase.RemoveSyncthingPidFile(cli, module) },
 		func() error { return testcase.DevEnd(cli, module) },
 		func() error {
 			if err := testcase.DevStart(cli, module); err != nil {
