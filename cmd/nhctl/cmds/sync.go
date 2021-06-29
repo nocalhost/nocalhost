@@ -18,8 +18,12 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	utils2 "nocalhost/pkg/nhctl/utils"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -121,6 +125,20 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	svcProfile, _ := nocalhostSvc.GetProfile()
 	// Start a pf for syncthing
 	must(nocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC"))
+
+	// kill syncthing process by find find it with terminal
+	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
+	if utils.IsWindows() {
+		utils2.KillSyncthingProcessOnWindows(str)
+	} else {
+		utils2.KillSyncthingProcessOnUnix(str)
+	}
+
+	// Delete service folder
+	dir := nocalhostSvc.GetApplicationSyncDir()
+	if err2 := os.RemoveAll(dir); err2 != nil {
+		log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
+	}
 
 	// TODO
 	// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished),

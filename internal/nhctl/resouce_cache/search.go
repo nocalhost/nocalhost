@@ -15,6 +15,7 @@ package resouce_cache
 import (
 	"crypto/sha1"
 	"fmt"
+	"github.com/hashicorp/golang-lru/simplelru"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -31,13 +32,11 @@ import (
 	"reflect"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 )
 
 // cache Searcher for each kubeconfig
-var searchMap = NewLRU(10, func(i interface{}) { i.(*Searcher).Stop() })
-var lock sync.Mutex
+var searchMap, _ = simplelru.NewLRU(15, func(_ interface{}, value interface{}) { value.(*Searcher).Stop() })
 
 type Searcher struct {
 	kubeconfig      []byte
@@ -100,8 +99,6 @@ func GetSupportGroupVersionResource(Clients *kubernetes.Clientset, mapper meta.R
 
 // GetSearcher
 func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Searcher, error) {
-	lock.Lock()
-	defer lock.Unlock()
 	// calculate kubeconfig content's sha value as unique cluster id
 	h := sha1.New()
 	h.Write(kubeconfigBytes)
@@ -120,7 +117,8 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 		var informerFactory informers.SharedInformerFactory
 		if !isCluster {
 			informerFactory = informers.NewSharedInformerFactoryWithOptions(
-				Clients, time.Second*5, informers.WithNamespace(namespace))
+				Clients, time.Second*5, informers.WithNamespace(namespace),
+			)
 		} else {
 			informerFactory = informers.NewSharedInformerFactory(Clients, time.Second*5)
 		}
@@ -129,8 +127,10 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 		gvrList, name2gvr, namespaced := GetSupportGroupVersionResource(Clients, mapper)
 		for _, gvr := range gvrList {
 			if _, err = informerFactory.ForResource(gvr); err != nil {
-				log.Warnf("can't create informer for resource: %v, error info: %v, ignored",
-					gvr.Resource, err.Error())
+				log.Warnf(
+					"can't create informer for resource: %v, error info: %v, ignored",
+					gvr.Resource, err.Error(),
+				)
 				continue
 			}
 		}
@@ -156,10 +156,14 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 			namespaced:      namespaced,
 			stopChannel:     stopChannel,
 		}
-		searchMap.Add(sum, newSearcher)
+		if searcher, exist = searchMap.Get(sum); !exist || searcher == nil {
+			searchMap.Add(sum, newSearcher)
+		}
 	}
-	searcher, _ = searchMap.Get(sum)
-	return searcher.(*Searcher), nil
+	if searcher, exist = searchMap.Get(sum); exist && searcher != nil {
+		return searcher.(*Searcher), nil
+	}
+	return nil, errors.New("error on init search")
 }
 
 // Start
@@ -207,9 +211,11 @@ func nsResource(ns, resourceName string) string {
 }
 
 func SortByNameAsc(item []interface{}) {
-	sort.SliceStable(item, func(i, j int) bool {
-		return item[i].(metav1.Object).GetName() < item[j].(metav1.Object).GetName()
-	})
+	sort.SliceStable(
+		item, func(i, j int) bool {
+			return item[i].(metav1.Object).GetName() < item[j].(metav1.Object).GetName()
+		},
+	)
 }
 
 func (s *Searcher) Criteria() *criteria {
@@ -292,6 +298,15 @@ func (c *criteria) QueryOne() (interface{}, error) {
 	return query[0], nil
 }
 
+func (c *criteria) Consume(consumer func([]interface{}) error) error {
+	query, err := c.Query()
+	if err != nil {
+		return err
+	}
+
+	return consumer(query)
+}
+
 // Get Query
 func (c *criteria) Query() (data []interface{}, e error) {
 	defer func() {
@@ -340,7 +355,9 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	if c.ns != "" && c.resourceName != "" {
 		item, exists, err1 := info.GetIndexer().GetByKey(nsResource(c.ns, c.resourceName))
 		if !exists {
-			return nil, errors.Errorf("not found for resource : %s-%s in namespace: %s", c.resourceType, c.resourceName, c.ns)
+			return nil, errors.Errorf(
+				"not found for resource : %s-%s in namespace: %s", c.resourceType, c.resourceName, c.ns,
+			)
 		}
 		if err1 != nil {
 			return nil, errors.Wrap(err1, "search occur error")
@@ -447,9 +464,11 @@ func labelSelector(element []interface{}, label map[string]string, f func(string
 }
 
 func (n *filter) sort() *filter {
-	sort.SliceStable(n.element, func(i, j int) bool {
-		return n.element[i].(metav1.Object).GetName() < n.element[j].(metav1.Object).GetName()
-	})
+	sort.SliceStable(
+		n.element, func(i, j int) bool {
+			return n.element[i].(metav1.Object).GetName() < n.element[j].(metav1.Object).GetName()
+		},
+	)
 	return n
 }
 

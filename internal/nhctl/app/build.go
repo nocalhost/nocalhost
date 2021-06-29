@@ -202,7 +202,7 @@ func updateProfileFromConfig(appProfileV2 *profile.AppProfileV2, config *profile
 
 func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.AppProfileV2 {
 	appProfileV2 := &profile.AppProfileV2{}
-	if config == nil {
+	if config == nil || config.ApplicationConfig == nil {
 		return appProfileV2
 	}
 	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom

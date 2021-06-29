@@ -28,9 +28,27 @@ import (
 	"time"
 )
 
+func HelmAdaption(client runner.Client, _ ...string) {
+	util.Retry(
+		"HelmAdaption", []func() error{
+			func() error { return testcase.InstallBookInfoWithNativeHelm(client) },
+			func() error { return testcase.UninstallBookInfoWithNativeHelm(client) },
+
+			func() error { return testcase.InstallBookInfoWithNhctl(client) },
+			func() error { return testcase.UninstallBookInfoWithNhctl(client) },
+
+			func() error { return testcase.InstallBookInfoWithNativeHelm(client) },
+			func() error { return testcase.UninstallBookInfoWithNhctl(client) },
+
+			func() error { return testcase.InstallBookInfoWithNhctl(client) },
+			func() error { return testcase.UninstallBookInfoWithNativeHelm(client) },
+		},
+	)
+}
+
 func PortForward(client runner.Client, _ ...string) {
 	module := "reviews"
-	port := 49080
+	port := 49088
 
 	//funcs := []func() error{func() error { return testcase.PortForwardStart(cli, module, port) }}
 	//util.Retry("PortForward", funcs)
@@ -82,7 +100,6 @@ func Deployment(cli runner.Client, _ ...string) {
 			}
 			return nil
 		},
-		func() error { return testcase.Sync(cli, module) },
 		func() error { return testcase.SyncCheck(cli, module) },
 		func() error { return testcase.SyncStatus(cli, module) },
 		func() error { return testcase.DevEnd(cli, module) },
@@ -90,25 +107,18 @@ func Deployment(cli runner.Client, _ ...string) {
 	util.Retry("Dev", funcs)
 }
 
-//func Sync(cli nhctlcli.Client, _ ...string) {
-//	module := "ratings"
-//	funcs := []func() error{
-//		func() error { return testcase.DevStart(cli, module) },
-//		func() error { return testcase.Sync(cli, module) },
-//		func() error { return testcase.SyncCheck(cli, module) },
-//		func() error { return testcase.SyncStatus(cli, module) },
-//	}
-//	util.Retry("Sync", funcs)
-//	_ = testcase.DevEnd(cli, module)
-//}
-
 func StatefulSet(cli runner.Client, _ ...string) {
 	module := "web"
 	moduleType := "statefulset"
 	funcs := []func() error{
-		func() error { return testcase.DevStartT(cli, module, moduleType) },
-		func() error { return testcase.SyncT(cli, module, moduleType) },
-		func() error { return testcase.SyncCheckT(cli, module, moduleType) },
+		func() error {
+			if err := testcase.DevStartT(cli, module, moduleType); err != nil {
+				_ =testcase.DevEndT(cli, module, moduleType)
+				return err
+			}
+			return nil
+		},
+		func() error { return testcase.SyncCheckT(cli, cli.NameSpace(), module, moduleType) },
 		func() error { return testcase.DevEndT(cli, module, moduleType) },
 	}
 	util.Retry("StatefulSet", funcs)
@@ -162,7 +172,8 @@ func Reset(cli runner.Client, _ ...string) {
 	retryTimes := 5
 	var err error
 	for i := 0; i < retryTimes; i++ {
-		if err = testcase.InstallBookInfo(cli); err != nil {
+		timeoutCtx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
+		if err = testcase.InstallBookInfo(timeoutCtx, cli); err != nil {
 			log.Infof("install bookinfo error, error: %v, retrying...", err)
 			_ = testcase.UninstallBookInfo(cli)
 			_ = testcase.Reset(cli)
@@ -247,6 +258,19 @@ func Profile(cli runner.Client, _ ...string) {
 			func() error { return testcase.ProfileGetDetailsWithoutJson(cli) },
 			func() error { return testcase.ProfileSetDetails(cli) },
 
+			// test cfg load from cm
+			func() error { return testcase.ApplyCmForConfig(cli, singleSvcConfigCm) },
+			func() error { return testcase.ValidateImage(cli, "details", "deployment", "singleSvcConfigCm") },
+
+			func() error { return testcase.ApplyCmForConfig(cli, multiSvcConfigCm) },
+			func() error { return testcase.ValidateImage(cli, "details", "deployment", "multipleSvcConfig1Cm") },
+			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "multipleSvcConfig2Cm") },
+
+			func() error { return testcase.ApplyCmForConfig(cli, fullConfigCm) },
+			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1Cm") },
+			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2Cm") },
+
+			// test cfg load from local
 			func() error { return testcase.Associate(cli, "details", "deployment", singleSvcConfig) },
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "singleSvcConfig") },
 
@@ -260,14 +284,10 @@ func Profile(cli runner.Client, _ ...string) {
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1") },
 			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2") },
 
-			func() error { return testcase.ApplyCmForConfig(cli, singleSvcConfigCm) },
-			func() error { return testcase.ValidateImage(cli, "details", "deployment", "singleSvcConfigCm") },
+			// de associate the cfg, then will load from local
+			func() error { return testcase.DeAssociate(cli, "details", "deployment") },
+			func() error { return testcase.DeAssociate(cli, "ratings", "deployment") },
 
-			func() error { return testcase.ApplyCmForConfig(cli, multiSvcConfigCm) },
-			func() error { return testcase.ValidateImage(cli, "details", "deployment", "multipleSvcConfig1Cm") },
-			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "multipleSvcConfig2Cm") },
-
-			func() error { return testcase.ApplyCmForConfig(cli, fullConfigCm) },
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1Cm") },
 			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2Cm") },
 
@@ -277,11 +297,9 @@ func Profile(cli runner.Client, _ ...string) {
 				return nil
 			},
 
-			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1") },
-			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2") },
-
-			func() error { return testcase.DeAssociate(cli, "details", "deployment") },
-			func() error { return testcase.DeAssociate(cli, "ratings", "deployment") },
+			// config will not change, after env clean and no local, cm, annotation cfg
+			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1Cm") },
+			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2Cm") },
 
 			func() error { return testcase.ConfigReload(cli) },
 		},
@@ -333,6 +351,7 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 	clientgoutils.Must(testcase.NhctlVersion(tempCli))
 	_ = testcase.StopDaemon(tempCli)
 	util.Retry("Prepare", []func() error{func() error { return testcase.Init(tempCli) }})
+
 	kubeconfigResult, err := testcase.GetKubeconfig(nocalhost, kubeconfig)
 	clientgoutils.Must(err)
 	namespaceResult, err = clientgoutils.GetNamespaceFromKubeConfig(kubeconfigResult)

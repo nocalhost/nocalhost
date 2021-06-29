@@ -76,7 +76,6 @@ func (pk *ApplicationEventPack) consume(fun func(*ApplicationEventPack) error, r
 }
 
 func EventPush(a *ApplicationEventPack) {
-	log.Info("do push")
 	lock.L.Lock()
 	defer lock.L.Unlock()
 	if len(Events) == 0 {
@@ -86,11 +85,9 @@ func EventPush(a *ApplicationEventPack) {
 }
 
 func EventPop() *ApplicationEventPack {
-	log.Info("do pop")
 	lock.L.Lock()
 	defer lock.L.Unlock()
 	if len(Events) == 0 {
-		log.Info("lock wait")
 		lock.Wait()
 	}
 

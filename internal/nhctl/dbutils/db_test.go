@@ -17,6 +17,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -81,25 +82,6 @@ func TestOpenLevelDBForIter(t *testing.T) {
 	}
 }
 
-func TestOpenLevelDBForOpenManyTime(t *testing.T) {
-	var longString = ""
-
-	for i := 0; i < 100; i++ {
-		db, err := leveldb.OpenFile("/tmp/tmp/db2", &opt.Options{ErrorIfMissing: true})
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println("db opened111", i)
-		err = db.Put([]byte("aaa"), []byte(fmt.Sprintf("%s %d", longString, i)), nil)
-		if err != nil {
-			panic(err)
-		}
-		time.Sleep(1 * time.Second)
-		db.Close()
-	}
-
-}
-
 func TestOpenLevelDBForGetting(t *testing.T) {
 	db, err := leveldb.OpenFile("/tmp/tmp/db", &opt.Options{ErrorIfMissing: true})
 	if err != nil {
@@ -155,4 +137,20 @@ func TestOpenLevelDBForCompact(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	db.Close()
 
+}
+
+func TestOpenLevelDBForOpenManyTime(t *testing.T) {
+
+	for i := 0; i < 20; i++ {
+		db, err := leveldb.OpenFile("/tmp/tmp/db2", &opt.Options{ErrorIfMissing: false, ReadOnly: false})
+		if err != nil {
+			panic(err)
+		}
+		bytes := []byte(strconv.Itoa(i))
+		err = db.Put(bytes, bytes, nil)
+		if err != nil {
+			//fmt.Println(err)
+		}
+		db.Close()
+	}
 }

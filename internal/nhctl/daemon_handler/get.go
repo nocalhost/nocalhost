@@ -36,7 +36,9 @@ import (
 
 func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 	serviceMap := make(map[string]*profile.SvcProfileV2)
-
+	if appName == "" || ns == "" {
+		return serviceMap
+	}
 	description := GetDescriptionDaemon(ns, appName)
 	if description != nil {
 		for _, svcProfileV2 := range description.SvcProfile {
@@ -177,7 +179,12 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		}
 	default:
 		ns = getNamespace(request.Namespace, KubeConfigBytes)
-		serviceMap := getServiceProfile(ns, request.AppName)
+
+		var serviceMap map[string]*profile.SvcProfileV2
+		if request.AppName != "" {
+			serviceMap = getServiceProfile(ns, request.AppName)
+		}
+
 		appNameList := getAvailableAppName(ns, request.KubeConfig)
 		// get all resource in namespace
 		var items []interface{}
@@ -304,7 +311,7 @@ func ParseApplicationsResult(namespace string, metas []*appmeta.ApplicationMeta)
 		ns.Application = append(
 			ns.Application, &model.ApplicationInfo{
 				Name: meta.Application,
-				Type: meta.ApplicationType,
+				Type: string(meta.ApplicationType),
 			},
 		)
 	}

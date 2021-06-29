@@ -16,10 +16,11 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"nocalhost/test/runner"
+	"time"
 )
 
-func InstallBookInfo(nhctl runner.Client) error {
-	return installBookInfoRawManifest(nhctl)
+func InstallBookInfo(ctx context.Context, nhctl runner.Client) error {
+	return installBookInfoRawManifest(ctx, nhctl)
 }
 
 func InstallBookInfoThreeTimes(nhctl runner.Client) error {
@@ -36,7 +37,9 @@ func InstallBookInfoThreeTimes(nhctl runner.Client) error {
 	if err := UninstallBookInfo(nhctl); err != nil {
 		return err
 	}
-	if err := installBookInfoRawManifest(nhctl); err != nil {
+
+	timeoutCtx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
+	if err := installBookInfoRawManifest(timeoutCtx, nhctl); err != nil {
 		return err
 	}
 	if err := List(nhctl); err != nil {
@@ -58,9 +61,9 @@ func UninstallBookInfo(nhctl runner.Client) error {
 	return nil
 }
 
-func installBookInfoRawManifest(nhctl runner.Client) error {
+func installBookInfoRawManifest(ctx context.Context, nhctl runner.Client) error {
 	cmd := nhctl.GetNhctl().Command(
-		context.Background(), "install",
+		ctx, "install",
 		"bookinfo",
 		"-u",
 		"https://github.com/nocalhost/bookinfo.git",
@@ -68,21 +71,6 @@ func installBookInfoRawManifest(nhctl runner.Client) error {
 		"-r", "test-case",
 		"--resource-path",
 		"manifest/templates",
-	)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
-	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
-}
-
-func installBookInfoHelmGit(nhctl runner.Client) error {
-	cmd := nhctl.GetNhctl().Command(
-		context.Background(), "install",
-		"bookinfo",
-		"-u",
-		"https://github.com/nocalhost/bookinfo.git",
-		"-t",
-		"helmGit",
-		"--resource-path",
-		"charts/bookinfo",
 	)
 	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)

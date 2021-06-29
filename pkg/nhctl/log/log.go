@@ -232,6 +232,12 @@ func Logf(format string, args ...interface{}) {
 	}
 }
 
+func TLogf(tag, format string, args ...interface{}) {
+	if fileEntry != nil {
+		fileEntry.With("tag", tag).Infof(format, args...)
+	}
+}
+
 func LogStack() {
 	if fileEntry != nil {
 		fileEntry.Debug(string(debug.Stack()))

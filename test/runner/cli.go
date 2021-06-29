@@ -42,12 +42,17 @@ func NewCLI(cfg Config, defaultNamespace string) *CLI {
 }
 
 func (c *CLI) Command(ctx context.Context, command string, arg ...string) *exec.Cmd {
-	args := c.argsAppendNamespaceAndKubeconfig(command, "", arg...)
+	args := c.argsAppendNamespaceAndKubeconfig(false, command, "", arg...)
+	return exec.CommandContext(ctx, c.Cmd, args...)
+}
+
+func (c *CLI) CommandWithoutNs(ctx context.Context, command string, arg ...string) *exec.Cmd {
+	args := c.argsAppendNamespaceAndKubeconfig(true, command, "", arg...)
 	return exec.CommandContext(ctx, c.Cmd, args...)
 }
 
 func (c *CLI) CommandWithNamespace(ctx context.Context, command string, namespace string, arg ...string) *exec.Cmd {
-	args := c.argsAppendNamespaceAndKubeconfig(command, namespace, arg...)
+	args := c.argsAppendNamespaceAndKubeconfig(false, command, namespace, arg...)
 	return exec.CommandContext(ctx, c.Cmd, args...)
 }
 
@@ -56,15 +61,20 @@ func (c CLI) Run(ctx context.Context, command string, arg ...string) (string, st
 	return Runner.Run(cmd)
 }
 
+func (c CLI) RunClusterScope(ctx context.Context, command string, arg ...string) (string, string, error) {
+	cmd := c.CommandWithoutNs(ctx, command, arg...)
+	return Runner.Run(cmd)
+}
+
 func (c CLI) RunWithRollingOut(ctx context.Context, command string, arg ...string) (string, string, error) {
 	cmd := c.Command(ctx, command, arg...)
 	return Runner.RunWithRollingOutWithChecker(cmd, nil)
 }
 
-func (c *CLI) argsAppendNamespaceAndKubeconfig(command string, namespace string, arg ...string) []string {
+func (c *CLI) argsAppendNamespaceAndKubeconfig(clusterScope bool, command string, namespace string, arg ...string) []string {
 	var args []string
 	namespace = c.getNamespace(namespace)
-	if namespace != "" {
+	if namespace != "" && !clusterScope {
 		args = append(args, "--namespace", namespace)
 	}
 	if c.KubeConfig != "" {

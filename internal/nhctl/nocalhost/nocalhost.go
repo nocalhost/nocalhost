@@ -13,6 +13,7 @@
 package nocalhost
 
 import (
+	"encoding/json"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
@@ -214,11 +215,19 @@ func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.Applica
 		return nil, errors.Wrap(err, "Error to get ApplicationMeta while read kubeconfig")
 	}
 
-	appMeta, err := cli.SendGetApplicationMetaCommand(namespace, appName, string(bys))
+	data, err := cli.SendGetApplicationMetaCommand(namespace, appName, string(bys))
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
-
+	marshal, err := json.Marshal(data)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	appMeta := &appmeta.ApplicationMeta{}
+	err = json.Unmarshal(marshal, appMeta)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
 	// applicationMeta use the kubeConfig content, but there use the path to init client
 	// unexpect error occur if someone change the content of kubeConfig before InitGoClient
 	// and after SendGetApplicationMetaCommand
@@ -241,11 +250,16 @@ func GetApplicationMetas(namespace, kubeConfig string) (appmeta.ApplicationMetas
 		return nil, errors.Wrap(err, "Error to get ApplicationMeta")
 	}
 
-	appMetas, err := cli.SendGetApplicationMetasCommand(namespace, string(bys))
+	data, err := cli.SendGetApplicationMetasCommand(namespace, string(bys))
 	if err != nil {
 		return nil, err
 	}
-
+	var appMetas []*appmeta.ApplicationMeta
+	marshal, err := json.Marshal(data)
+	err = json.Unmarshal(marshal, &appMetas)
+	if err != nil {
+		return nil, err
+	}
 	// applicationMeta use the kubeConfig content, but there use the path to init client
 	// unexpect error occur if someone change the content of kubeConfig before InitGoClient
 	// and after SendGetApplicationMetaCommand

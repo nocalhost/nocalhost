@@ -213,10 +213,13 @@ type SvcProfileV2 struct {
 	LocalAbsoluteSyncDirFromDevStartPlugin []string          `json:"localAbsoluteSyncDirFromDevStartPlugin" yaml:"localAbsoluteSyncDirFromDevStartPlugin"`
 	DevPortForwardList                     []*DevPortForward `json:"devPortForwardList" yaml:"devPortForwardList"` // combine DevPortList,PortForwardStatusList and PortForwardPidList
 
-	// nocalhost supports config from local dir under "Associate" Path
+	// nocalhost supports config from local dir under "Associate" Path, it's priority is highest
 	LocalConfigLoaded bool `json:"localconfigloaded" yaml:"localconfigloaded"`
 
-	// nocalhost also supports config from cm, it's priority is highest
+	// nocalhost also supports cfg from annotations, it's priority is lower than local cfg and higher than cm cfg
+	AnnotationsConfigLoaded bool `json:"annotationsconfigloaded" yaml:"annotationsconfigloaded"`
+
+	// nocalhost also supports config from cm, lowest priority
 	CmConfigLoaded bool `json:"cmconfigloaded" yaml:"cmconfigloaded"`
 
 	// associate for the local dir
@@ -252,6 +255,9 @@ type DevPortForward struct {
 // Compatible for v1
 // Finding `containerName` config, if not found, use the first container config
 func (s *SvcProfileV2) GetContainerDevConfigOrDefault(containerName string) *ContainerDevConfig {
+	if containerName == "" {
+		return s.GetDefaultContainerDevConfig()
+	}
 	config := s.GetContainerDevConfig(containerName)
 	if config == nil {
 		config = s.GetDefaultContainerDevConfig()

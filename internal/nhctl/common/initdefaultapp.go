@@ -53,11 +53,10 @@ func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconf
 	var err error
 
 	log.Logf("KubeConfig path: %s", kubeconfig)
-	bys, err := ioutil.ReadFile(kubeconfig)
+	_, err = ioutil.ReadFile(kubeconfig)
 	if err != nil {
 		return nil, errors2.Wrap(err, "")
 	}
-	log.Logf("KubeConfig content: %s", string(bys))
 
 	// build Application will create the application meta and it's secret
 	// init the application's config
@@ -70,12 +69,12 @@ func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconf
 	defer func() {
 		if err != nil {
 			coloredoutput.Fail("Install application fail, try to rollback..")
-			log.LogE(err)
+			log.ErrorE(err, "")
 			if err := nocalhostApp.Uninstall(true); err != nil {
 				coloredoutput.Fail("Try uninstall fail, nocalhost will uninstall in force (There may be some residue in k8s)")
 				utils.Should(nocalhostApp.Uninstall(true))
 				coloredoutput.Success("Rollback success (There may be some residue in k8s)")
-			}else {
+			} else {
 				coloredoutput.Success("Rollback success")
 			}
 		}

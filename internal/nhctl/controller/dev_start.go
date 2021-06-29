@@ -382,7 +382,7 @@ func generateSideCarContainer(workDir string) corev1.Container {
 	return sideCarContainer
 }
 
-func (c *Controller) genResourceReq() *corev1.ResourceRequirements {
+func (c *Controller) genResourceReq(container string) *corev1.ResourceRequirements {
 
 	var (
 		err          error
@@ -390,7 +390,7 @@ func (c *Controller) genResourceReq() *corev1.ResourceRequirements {
 	)
 
 	svcProfile, _ := c.GetProfile()
-	resourceQuota := svcProfile.ContainerConfigs[0].Dev.DevContainerResources
+	resourceQuota := svcProfile.GetContainerDevConfigOrDefault(container).DevContainerResources
 
 	if resourceQuota != nil {
 		log.Debug("DevContainer uses resource limits defined in config")
@@ -470,42 +470,13 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 	return false
 }
 
-// GetNocalhostDevContainerPod
-// A nocalhost dev container pod always has a container named nocalhost-sidecar
-//func (c *Controller) GetNocalhostDevContainerPod1() (string, error) {
-//	var (
-//		checkPodsList *corev1.PodList
-//		err           error
-//	)
-//	switch c.Type {
-//	case appmeta.Deployment:
-//		checkPodsList, err = c.Client.ListPodsByDeployment(c.Name)
-//	case appmeta.StatefulSet:
-//		checkPodsList, err = c.Client.ListPodsByStatefulSet(c.Name)
-//	case appmeta.DaemonSet:
-//		checkPodsList, err = c.Client.ListPodsByDeployment(daemonSetGenDeployPrefix + c.Name)
-//	default:
-//		return "", errors.New("Unsupported type")
-//	}
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	return findDevPod(checkPodsList)
-//}
-
-func findDevPod(podList *corev1.PodList) (string, error) {
-	found := false
-	for _, pod := range podList.Items {
+func findDevPod(podList []corev1.Pod) (string, error) {
+	for _, pod := range podList {
 		if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
 			for _, container := range pod.Spec.Containers {
 				if container.Name == nocalhost.DefaultNocalhostSideCarName {
-					found = true
-					break
+					return pod.Name, nil
 				}
-			}
-			if found {
-				return pod.Name, nil
 			}
 		}
 	}
@@ -557,7 +528,7 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
 	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, devModeMounts...)
 
-	requirements := c.genResourceReq()
+	requirements := c.genResourceReq(containerName)
 	if requirements != nil {
 		devContainer.Resources = *requirements
 	}

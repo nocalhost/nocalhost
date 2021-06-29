@@ -34,7 +34,7 @@ func (j *JobController) GetNocalhostDevContainerPod() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return findDevPod(checkPodsList)
+	return findDevPod(checkPodsList.Items)
 }
 
 func (j *JobController) getGeneratedJobName() string {

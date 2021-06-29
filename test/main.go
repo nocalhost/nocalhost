@@ -19,6 +19,7 @@ import (
 	"nocalhost/test/testcase"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -40,18 +41,54 @@ func main() {
 		_, v2 = testcase.GetVersion()
 	}
 
-	t.Run("install", suite.Install)
-	t.Run("deployment", suite.Deployment)
-	//t.Run("port-forward", suite.PortForward)
-	//t.Run("port-forward service", suite.PortForwardService)
-	//t.Run("sync", suite.Sync)
-	t.Run("application", suite.Upgrade)
-	//t.Run("reset", suite.Reset)
-	//t.Run("apply", suite.Apply)
-	//t.Run("profile", suite.Profile)
-	t.Run("statefulSet", suite.StatefulSet)
-	t.Run("compatible", suite.Compatible, v2)
+	compatibleChan := make(chan interface{}, 1)
+	wg := sync.WaitGroup{}
+
+	DoRun(false, &wg, func() {
+		t.RunWithBookInfo(false, "helm-adaption", suite.HelmAdaption)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("install", suite.Install)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("deployment", suite.Deployment)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("application", suite.Upgrade)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("statefulSet", suite.StatefulSet)
+	})
+
+	DoRun(v2 != "", &wg, func() {
+		t.Run("compatible", suite.Compatible, v2)
+		compatibleChan <- "Done"
+	})
+
+	wg.Wait()
+	log.Infof("All Async Test Done")
+	<-compatibleChan
+
 	t.Clean()
 
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
+}
+
+func DoRun(doAfterWgDone bool, wg *sync.WaitGroup, do func()) {
+	if !doAfterWgDone {
+		wg.Add(1)
+		go func() {
+			do()
+			wg.Done()
+		}()
+	} else {
+		go func() {
+			wg.Wait()
+			do()
+		}()
+	}
 }

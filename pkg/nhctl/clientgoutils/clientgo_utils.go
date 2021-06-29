@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -409,16 +408,21 @@ func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	hostIP := strings.TrimLeft(clientConfig.Host, "https://")
 
 	transport, upgrader, err := spdy.RoundTripperFor(clientConfig)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
 
+	parseUrl, err := url.Parse(clientConfig.Host)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	parseUrl.Path = path
 	dialer := spdy.NewDialer(
 		upgrader, &http.Client{Transport: transport}, http.MethodPost,
-		&url.URL{Scheme: "https", Path: path, Host: hostIP},
+		//&url.URL{Scheme: schema, Path: path, Host: hostIP},
+		parseUrl,
 	)
 	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh,
 	//req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
@@ -463,6 +467,10 @@ func (c *ClientGoUtils) CreateNameSpace(name string, customLabels map[string]str
 		return errors.Wrap(err, "")
 	}
 	return nil
+}
+
+func (c *ClientGoUtils) GetContext() context.Context {
+	return c.ctx
 }
 
 func (c *ClientGoUtils) DeleteNameSpace(name string, wait bool) error {
@@ -521,10 +529,12 @@ func (c *ClientGoUtils) DeletePod(podName string, wait bool, duration time.Durat
 		return err
 	}
 	log.Infof("waiting for pod: %s to be deleted...", podName)
-	w, errs := c.ClientSet.CoreV1().Pods(c.namespace).Watch(ctx, metav1.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector("metadata.name", podName).String(),
-		Watch:         true,
-	})
+	w, errs := c.ClientSet.CoreV1().Pods(c.namespace).Watch(
+		ctx, metav1.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector("metadata.name", podName).String(),
+			Watch:         true,
+		},
+	)
 	if errs != nil {
 		log.Error(errs)
 		return errs

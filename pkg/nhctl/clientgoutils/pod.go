@@ -19,7 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-// This method can not list pods whose deployment is already deleted.
+// ListPodsByDeployment This method can not list pods whose deployment is already deleted.
 func (c *ClientGoUtils) ListPodsByDeployment(name string) (*corev1.PodList, error) {
 	deployment, err := c.ClientSet.AppsV1().Deployments(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
 	if err != nil {
@@ -63,4 +63,26 @@ func (c *ClientGoUtils) ListPodsByLabels(labelMap map[string]string) ([]corev1.P
 		result = append(result, pod)
 	}
 	return result, nil
+}
+
+// DeletePodByName
+// gracePeriodSeconds: The duration in seconds before the object should be deleted.
+// The value zero indicates delete immediately. If this value is negative integer, the default grace period for the
+// specified type will be used.
+func (c *ClientGoUtils) DeletePodByName(name string, gracePeriodSeconds int64) error {
+	deleteOps := metav1.DeleteOptions{}
+	if gracePeriodSeconds >= 0 {
+		deleteOps.GracePeriodSeconds = &gracePeriodSeconds
+	}
+	return errors.Wrap(c.ClientSet.CoreV1().Pods(c.namespace).Delete(c.ctx, name, deleteOps), "")
+}
+
+func (c *ClientGoUtils) CreatePod(pod *corev1.Pod) (*corev1.Pod, error) {
+	pod2, err := c.ClientSet.CoreV1().Pods(c.namespace).Create(c.ctx, pod, metav1.CreateOptions{})
+	return pod2, errors.Wrap(err, "")
+}
+
+func (c *ClientGoUtils) UpdatePod(pod *corev1.Pod) (*corev1.Pod, error) {
+	pod2, err := c.GetPodClient().Update(c.ctx, pod, metav1.UpdateOptions{})
+	return pod2, errors.Wrap(err, "")
 }

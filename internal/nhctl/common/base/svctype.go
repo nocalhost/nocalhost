@@ -15,6 +15,7 @@ const (
 	DaemonSet   SvcType = "daemonset"
 	Job         SvcType = "job"
 	CronJob     SvcType = "cronjob"
+	Pod         SvcType = "pod"
 
 	DEPLOYMENT SvcType = "D"
 )
@@ -34,6 +35,8 @@ func SvcTypeOf(svcType string) SvcType {
 			serviceType = Job
 		case strings.ToLower(string(CronJob)):
 			serviceType = CronJob
+		case strings.ToLower(string(Pod)):
+			serviceType = Pod
 		default:
 			log.FatalE(errors.New(fmt.Sprintf("Unsupported SvcType %s", svcType)), "")
 		}

@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
 	"net"
-	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/model"
@@ -221,7 +221,9 @@ func (d *DaemonClient) SendGetDaemonServerStatusCommand() (*daemon_common.Daemon
 	return status, nil
 }
 
-func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfigContent string) (*appmeta.ApplicationMeta, error) {
+// the reason why return a interface is applicationMeta needs to using this client,
+// otherwise it will cause cycle import
+func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfigContent string) (interface{}, error) {
 	gamCmd := &command.GetApplicationMetaCommand{
 		CommandType: command.GetApplicationMeta,
 		ClientStack: string(debug.Stack()),
@@ -233,14 +235,16 @@ func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfigCont
 
 	bys, err := json.Marshal(gamCmd)
 
-	meta := &appmeta.ApplicationMeta{}
-	if err = d.sendAndWaitForResponse(bys, meta); err != nil {
+	var meta interface{}
+	if err = d.sendAndWaitForResponse(bys, &meta); err != nil {
 		return nil, err
 	}
 	return meta, nil
 }
 
-func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]*appmeta.ApplicationMeta, error) {
+// the reason why return a interface array is applicationMeta needs to using this client,
+// otherwise it will cause cycle import
+func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]interface{}, error) {
 	gamCmd := &command.GetApplicationMetasCommand{
 		CommandType: command.GetApplicationMetas,
 		ClientStack: string(debug.Stack()),
@@ -251,7 +255,7 @@ func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]
 
 	bys, err := json.Marshal(gamCmd)
 
-	var meta []*appmeta.ApplicationMeta
+	var meta []interface{}
 	if err = d.sendAndWaitForResponse(bys, &meta); err != nil {
 		return nil, err
 	}
@@ -339,6 +343,35 @@ func (d *DaemonClient) SendGetResourceInfoCommand(
 		return nil, err
 	}
 	return result, nil
+}
+
+// SendGetAllInfoCommand send get resource info request to daemon
+func (d *DaemonClient) SendUpdateApplicationMetaCommand(
+	kubeconfig,
+	ns,
+	secretName string,
+	secret *v1.Secret,
+) (bool, error) {
+	cmd := &command.UpdateApplicationMetaCommand{
+		CommandType: command.UpdateApplicationMeta,
+		ClientStack: string(debug.Stack()),
+
+		KubeConfig: kubeconfig,
+		Namespace:  ns,
+		Secret:     secret,
+		SecretName: secretName,
+	}
+
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return false, errors.Wrap(err, "")
+	}
+
+	var result interface{}
+	if err := d.sendAndWaitForResponse(bys, &result); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // sendDataToDaemonServer send data only to daemon

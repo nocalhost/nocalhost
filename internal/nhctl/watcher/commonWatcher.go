@@ -141,7 +141,7 @@ func (c *Controller) handleErr(err error, key interface{}) {
 	c.queue.Forget(key)
 	// Report to an external entity that, even after several retries, we could not successfully process this key
 	runtime.HandleError(err)
-	log.Error("Dropping resolving %q  %s out of the queue: %v", key, err)
+	log.Errorf("Dropping resolving %q %s out of the queue: %v", key, err)
 }
 
 // Run begins watching and syncing.

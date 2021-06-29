@@ -42,7 +42,7 @@ func (s *StatefulSetController) GetNocalhostDevContainerPod() (string, error) {
 		return "", err
 	}
 
-	return findDevPod(checkPodsList)
+	return findDevPod(checkPodsList.Items)
 }
 
 func (s *StatefulSetController) Name() string {
@@ -121,7 +121,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
 	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, devModeMounts...)
 
-	requirements := s.genResourceReq()
+	requirements := s.genResourceReq(ops.Container)
 	if requirements != nil {
 		devContainer.Resources = *requirements
 	}
@@ -175,20 +175,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 
 		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
 
-		// todo PriorityClass
-		//priorityClass := ops.PriorityClass
-		//if priorityClass == "" {
-		//	svcProfile, _ := s.GetProfile()
-		//	priorityClass = svcProfile.PriorityClass
-		//}
-		//if priorityClass != "" && !needToRemovePriorityClass {
-		//	log.Infof("Using priorityClass: %s...", priorityClass)
-		//	dep.Spec.Template.Spec.PriorityClassName = priorityClass
-		//}
-
-		//if _, ok := dep.Annotations[OriginSpecJson]; !ok {
 		dep.Annotations[OriginSpecJson] = string(originalSpecJson)
-		//}
 
 		log.Info("Updating development container...")
 
@@ -205,7 +192,6 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 			for i := 0; i < 20; i++ {
 				time.Sleep(1 * time.Second)
 				events, err = s.Client.ListEventsByStatefulSet(s.Name())
-				//log.Infof("Find %d events", len(events))
 				for _, event := range events {
 					if strings.Contains(event.Message, "no PriorityClass") {
 						log.Warn("PriorityClass not found, disable it...")

@@ -131,6 +131,13 @@ const (
 	Identifier = "(Nocalhost): "
 )
 
+
+var AppNotInstalledTemplate = &SyncthingStatus{
+	Status: End,
+	Msg:    "Application not installed",
+	Tips:   Identifier + "Current Application is not installed, please check your application is installed correctly.",
+}
+
 var NotInDevModeTemplate = &SyncthingStatus{
 	Status: End,
 	Msg:    "Not in DevMode",

@@ -92,8 +92,10 @@ func InstallNhctl(version string) error {
 }
 
 func Init(nhctl *runner.CLI) error {
-	cmd := nhctl.CommandWithNamespace(context.Background(),
-		"init", "nocalhost", "demo", "-p", "7000", "--force")
+	cmd := nhctl.CommandWithNamespace(
+		context.Background(),
+		"init", "nocalhost", "demo", "-p", "7000", "--force",
+	)
 	log.Infof("Running command: %s", cmd.Args)
 	go func() {
 		_, _, err := runner.Runner.RunWithRollingOutWithChecker(
@@ -122,7 +124,7 @@ func StatusCheck(nhctl runner.Client, moduleName string) error {
 	retryTimes := 10
 	var ok bool
 	for i := 0; i < retryTimes; i++ {
-		time.Sleep(time.Second * 3)
+		time.Sleep(time.Second * 2)
 		cmd := nhctl.GetNhctl().Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
 		stdout, stderr, err := runner.Runner.Run(cmd)
 		if err != nil {
@@ -164,11 +166,20 @@ func GetKubeconfig(ns, kubeconfig string) (string, error) {
 	}
 	res := request.NewReq("", kubeconfig, kubectl, ns, 7000)
 	res.ExposeService()
-	res.Login(app.DefaultInitUserEmail, app.DefaultInitPassword)
-	header := req.Header{"Accept": "application/json", "Authorization": "Bearer " + res.AuthToken}
+	res.Login(app.DefaultInitAdminUserName, app.DefaultInitPassword)
+
+	header := req.Header{"Accept": "application/json", "Authorization": "Bearer " + res.AuthToken, "content-type": "text/plain"}
+
 	retryTimes := 20
 	var config string
 	for i := 0; i < retryTimes; i++ {
+
+		resp, _ := req.New().Post(
+			res.BaseUrl+util.WebDevSpace, header,
+			`{"cluster_id":1,"space_name":"suuuper","user_id":1,"cluster_admin":1,"cpu":0,"memory":0,"isLimit":false,"space_resource_limit":{}}`,
+		)
+		log.Infof(resp.String())
+
 		time.Sleep(time.Second * 2)
 		r, err := req.New().Get(res.BaseUrl+util.WebServerServiceAccountApi, header)
 		if err != nil {
