@@ -64,6 +64,14 @@ func main() {
 		t.Run("statefulSet", suite.StatefulSet)
 	})
 
+	DoRun(false, &wg, func() {
+		t.Run("remove syncthing pid file manually", suite.KillSyncthingProcess)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("Get", suite.Get)
+	})
+
 	DoRun(v2 != "", &wg, func() {
 		t.Run("compatible", suite.Compatible, v2)
 		compatibleChan <- "Done"

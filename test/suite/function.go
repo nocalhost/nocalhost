@@ -25,6 +25,7 @@ import (
 	"nocalhost/test/testdata"
 	"nocalhost/test/tke"
 	"nocalhost/test/util"
+	"strings"
 	"time"
 )
 
@@ -113,7 +114,7 @@ func StatefulSet(cli runner.Client, _ ...string) {
 	funcs := []func() error{
 		func() error {
 			if err := testcase.DevStartT(cli, module, moduleType); err != nil {
-				_ =testcase.DevEndT(cli, module, moduleType)
+				_ = testcase.DevEndT(cli, module, moduleType)
 				return err
 			}
 			return nil
@@ -357,4 +358,64 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 	namespaceResult, err = clientgoutils.GetNamespaceFromKubeConfig(kubeconfigResult)
 	clientgoutils.Must(err)
 	return
+}
+
+func KillSyncthingProcess(cli runner.Client, _ ...string) {
+	module := "ratings"
+	funcs := []func() error{
+		func() error {
+			if err := testcase.DevStart(cli, module); err != nil {
+				_ = testcase.DevEnd(cli, module)
+				return err
+			}
+			return nil
+		},
+		func() error { return testcase.SyncCheck(cli, module) },
+		func() error { return testcase.SyncStatus(cli, module) },
+		//func() error { return testcase.RemoveSyncthingPidFile(cli, module) },
+		func() error { return testcase.DevEnd(cli, module) },
+		func() error {
+			if err := testcase.DevStart(cli, module); err != nil {
+				_ = testcase.DevEnd(cli, module)
+				return err
+			}
+			return nil
+		},
+		func() error { return testcase.SyncCheck(cli, module) },
+		func() error { return testcase.SyncStatus(cli, module) },
+		func() error { return testcase.DevEnd(cli, module) },
+	}
+	util.Retry("remove syncthing pid file", funcs)
+}
+
+func Get(cli runner.Client, _ ...string) {
+	cases := []struct {
+		resource string
+		appName  string
+		keywords []string
+	}{
+		{resource: "deployments", appName: "bookinfo", keywords: []string{"details", "productpage", "ratings", "reviews"}},
+		{resource: "jobs", appName: "bookinfo", keywords: []string{"print-num-01"}},
+		{resource: "service", appName: "bookinfo", keywords: []string{"details", "productpage", "ratings", "reviews"}},
+		{resource: "pods", appName: "", keywords: []string{"details", "productpage", "ratings", "reviews"}},
+	}
+	funcs := []func() error{
+		func() error {
+			for _, item := range cases {
+				err := testcase.Get(cli, item.resource, item.appName, func(result string) error {
+					for _, s := range item.keywords {
+						if !strings.Contains(result, s) {
+							return errors.Errorf("nhctl get %s, result not contains resource: %s", item.resource, s)
+						}
+					}
+					return nil
+				})
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	}
+	util.Retry("get", funcs)
 }
