@@ -56,8 +56,8 @@ type meshManager struct {
 }
 
 type MeshDevInfo struct {
-	BaseNamespace    string            `json:"base_namespace"`
-	MeshDevNamespace string            `json:"mesh_dev_namespace"`
+	BaseNamespace    string            `json:"-"`
+	MeshDevNamespace string            `json:"-"`
 	Header           map[string]string `json:"header"`
 	APPS             []MeshDevApp      `json:"apps"`
 }
