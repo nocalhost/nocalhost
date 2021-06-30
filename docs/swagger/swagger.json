@@ -2326,14 +2326,8 @@
                         "$ref": "#/definitions/setupcluster.MeshDevApp"
                     }
                 },
-                "base_namespace": {
-                    "type": "string"
-                },
                 "header": {
                     "type": "object"
-                },
-                "mesh_dev_namespace": {
-                    "type": "string"
                 }
             }
         },

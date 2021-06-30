@@ -376,12 +376,8 @@ definitions:
         items:
           $ref: '#/definitions/setupcluster.MeshDevApp'
         type: array
-      base_namespace:
-        type: string
       header:
         type: object
-      mesh_dev_namespace:
-        type: string
     type: object
   setupcluster.MeshDevWorkload:
     properties:
