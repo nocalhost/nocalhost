@@ -275,7 +275,11 @@ definitions:
         type: integer
     type: object
   model.Header:
-    additionalProperties: {}
+    properties:
+      key:
+        type: string
+      value:
+        type: string
     type: object
   model.PluginApplicationModel:
     properties:
@@ -377,6 +381,7 @@ definitions:
           $ref: '#/definitions/setupcluster.MeshDevApp'
         type: array
       header:
+        $ref: '#/definitions/model.Header'
         type: object
     type: object
   setupcluster.MeshDevWorkload:

@@ -2173,7 +2173,14 @@
         },
         "model.Header": {
             "type": "object",
-            "additionalProperties": {}
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
         },
         "model.PluginApplicationModel": {
             "type": "object",
@@ -2327,7 +2334,8 @@
                     }
                 },
                 "header": {
-                    "type": "object"
+                    "type": "object",
+                    "$ref": "#/definitions/model.Header"
                 }
             }
         },
