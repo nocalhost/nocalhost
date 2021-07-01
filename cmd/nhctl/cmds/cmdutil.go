@@ -26,7 +26,7 @@ import (
 	"path/filepath"
 )
 
-func initApp(appName string)  {
+func initApp(appName string) {
 	must(initAppMutate(appName))
 }
 
@@ -36,7 +36,8 @@ func initAppMutate(appName string) error {
 
 	nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true)
 	if err != nil {
-		// if default application not found, try to creat one
+		log.Logf("Get application %s on namespace %s occurs error: %v", appName, nameSpace, err)
+		// if default application not found, try to create one
 		if errors.Is(err, app.ErrNotFound) && appName == nocalhost.DefaultNocalhostApplication {
 			// try init default application
 			if _, err := common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig); err != nil {
@@ -47,7 +48,6 @@ func initAppMutate(appName string) error {
 			if nocalhostApp, err = app.NewApplication(appName, nameSpace, kubeConfig, true); err != nil {
 				return errors.Wrap(err, "Error while init default application")
 			}
-
 
 		} else {
 			return errors.New("Failed to get application info")
