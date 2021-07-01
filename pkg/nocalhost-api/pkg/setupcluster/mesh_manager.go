@@ -14,6 +14,7 @@ package setupcluster
 
 import (
 	"context"
+	"nocalhost/internal/nocalhost-api/model"
 	"strings"
 	"sync"
 
@@ -56,10 +57,10 @@ type meshManager struct {
 }
 
 type MeshDevInfo struct {
-	BaseNamespace    string            `json:"-"`
-	MeshDevNamespace string            `json:"-"`
-	Header           map[string]string `json:"header"`
-	APPS             []MeshDevApp      `json:"apps"`
+	BaseNamespace    string       `json:"-"`
+	MeshDevNamespace string       `json:"-"`
+	Header           model.Header `json:"header"`
+	APPS             []MeshDevApp `json:"apps"`
 }
 
 type MeshDevApp struct {
@@ -200,7 +201,7 @@ func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured
 	// TODO, create vs by service name, not workload name
 	// TODO, just update if the vs already exists
 	info := m.meshDevInfo
-	if len(info.Header) == 1 {
+	if info.Header.TraceKey != "" || info.Header.TraceValue != "" {
 		for _, r := range irs {
 			vs, err := genVirtualServiceForBaseDevSpace(
 				info.BaseNamespace,

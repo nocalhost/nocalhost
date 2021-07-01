@@ -14,6 +14,7 @@ package setupcluster
 
 import (
 	"fmt"
+	"nocalhost/internal/nocalhost-api/model"
 
 	"github.com/pkg/errors"
 	istiov1alpha3 "istio.io/api/networking/v1alpha3"
@@ -143,8 +144,8 @@ func genVirtualServiceForMeshDevSpace(baseNs string, r unstructured.Unstructured
 	return vs, nil
 }
 
-func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header map[string]string) (*v1alpha3.VirtualService, error) {
-	if len(header) == 0 {
+func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.Header) (*v1alpha3.VirtualService, error) {
+	if header.TraceKey == "" || header.TraceValue == "" {
 		return nil, errors.New("can not find tracing header")
 	}
 	vs := &v1alpha3.VirtualService{}
@@ -166,13 +167,12 @@ func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header map[str
 	httpDsts = append(httpDsts, httpDst)
 	headers := make(map[string]*istiov1alpha3.StringMatch)
 	// set exact match header
-	for k, v := range header {
-		headers[k] = &istiov1alpha3.StringMatch{
-			MatchType: &istiov1alpha3.StringMatch_Exact{
-				Exact: v,
-			},
-		}
+	headers[header.TraceKey] = &istiov1alpha3.StringMatch{
+		MatchType: &istiov1alpha3.StringMatch_Exact{
+			Exact: header.TraceValue,
+		},
 	}
+
 	http := &istiov1alpha3.HTTPRoute{
 		Name: global.NocalhostDevNamespaceLabel + "-" + name,
 		Match: []*istiov1alpha3.HTTPMatchRequest{

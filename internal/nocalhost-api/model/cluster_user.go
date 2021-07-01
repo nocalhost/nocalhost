@@ -103,7 +103,10 @@ func (u *ClusterUserModel) TableName() string {
 	return "clusters_users"
 }
 
-type Header map[string]string
+type Header struct {
+	TraceKey   string `json:"key"`
+	TraceValue string `json:"value"`
+}
 
 func (h *Header) Scan(value interface{}) error {
 	if value == nil {
@@ -118,8 +121,5 @@ func (h *Header) Scan(value interface{}) error {
 }
 
 func (h Header) Value() (driver.Value, error) {
-	if len(h) == 0 {
-		return nil, nil
-	}
 	return json.Marshal(h)
 }
