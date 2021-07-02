@@ -19,16 +19,60 @@ import (
 	"io"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/client-go/util/exec"
 	"k8s.io/kubectl/pkg/util/term"
 	"net/url"
 	"os"
+	"time"
 )
 
 func (c *ClientGoUtils) ExecShell(podName string, containerName string, shell string) error {
-	return c.Exec(podName, containerName, []string{"sh", "-c", fmt.Sprintf("clear; %s", shell)})
+	t := term.TTY{Raw: true}
+	t.MonitorSize(t.GetSize())
+
+	retry := false
+	k8sruntime.ErrorHandlers = []func(err error){
+		func(err error) {
+			if errors.Is(err, io.EOF) {
+				// check the reason why terminal disconnect is network broke
+				if _, errs := c.GetPod(podName); errs == nil {
+					os.Exit(0)
+				}
+			}
+			retry = true
+		}}
+	first := true
+	go func() {
+		for {
+			cmd := shell
+			if first {
+				cmd = fmt.Sprintf("clear; %s", shell)
+				first = false
+			}
+			err := c.Exec(podName, containerName, []string{"sh", "-c", cmd})
+			if err != nil {
+				if e, ok := err.(exec.CodeExitError); ok {
+					if e.Code == 127 {
+						os.Exit(0)
+					}
+				}
+			}
+			if retry {
+				time.Sleep(2 * time.Second)
+				continue
+			}
+			if _, err = c.GetPod(podName); err == nil {
+				os.Exit(0)
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}()
+
+	return t.Safe(func() error { select {} })
 }
 
 func (c *ClientGoUtils) Exec(podName string, containerName string, command []string) error {
