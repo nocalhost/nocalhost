@@ -14,9 +14,9 @@ package setupcluster
 
 import (
 	"context"
-	"nocalhost/internal/nocalhost-api/model"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -24,9 +24,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
@@ -76,8 +79,44 @@ type MeshDevWorkload struct {
 
 // TODO, use dynamicinformer to build cache
 type cache struct {
+	informers        dynamicinformer.DynamicSharedInformerFactory
 	baseDevResources []unstructured.Unstructured
 	meshDevResources []unstructured.Unstructured
+}
+
+func (c *cache) build(client dynamic.Interface, stopCh <-chan struct{}) {
+	c.informers = dynamicinformer.NewDynamicSharedInformerFactory(client, time.Minute)
+	rs := make([]schema.GroupVersionResource, 0)
+	addGVR(&rs, schema.GroupVersionResource{
+		Group:    "networking.istio.io",
+		Version:  "v1alpha3",
+		Resource: "virtualservices",
+	})
+	addGVR(&rs, schema.GroupVersionResource{
+		Group:    "apps",
+		Version:  "v1",
+		Resource: "deployments",
+	})
+	addGVR(&rs, schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "configmaps",
+	})
+	addGVR(&rs, schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "services",
+	})
+	addGVR(&rs, schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "secrets",
+	})
+	for _, r := range rs {
+		c.informers.ForResource(r)
+	}
+	c.informers.Start(stopCh)
+	c.informers.WaitForCacheSync(stopCh)
 }
 
 func (c *cache) getResources() []unstructured.Unstructured {
