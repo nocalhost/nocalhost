@@ -121,14 +121,14 @@ var devStartCmd = &cobra.Command{
 
 			if !devStartOps.NoSyncthing {
 				if nocalhostSvc.IsProcessor() {
-					startSyncthing(podName, true)
+					startSyncthing(podName, devStartOps.Container, true)
 				}
 			} else {
 				coloredoutput.Success("File sync is not resumed caused by --without-sync flag.")
 			}
 
 			if !devStartOps.NoTerminal || shell != "" {
-				must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
+				must(nocalhostSvc.EnterPodTerminal(podName, devStartOps.Container, shell))
 			}
 
 		} else {
@@ -152,13 +152,13 @@ var devStartCmd = &cobra.Command{
 			podName := enterDevMode()
 
 			if !devStartOps.NoSyncthing {
-				startSyncthing(podName, false)
+				startSyncthing(podName, devStartOps.Container, false)
 			} else {
 				coloredoutput.Success("File sync is not started caused by --without-sync flag..")
 			}
 
 			if !devStartOps.NoTerminal || shell != "" {
-				must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
+				must(nocalhostSvc.EnterPodTerminal(podName, devStartOps.Container, shell))
 			}
 		}
 	},
@@ -231,15 +231,15 @@ func stopPreviousSyncthing() {
 	)
 }
 
-func startSyncthing(podName string, resume bool) {
+func startSyncthing(podName, container string, resume bool) {
 	if resume {
-		StartSyncthing(podName, true, false, "", false, true)
+		StartSyncthing(podName, true, false, container, false, true)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync resumed")
 		}()
 	} else {
-		StartSyncthing(podName, false, false, "", false, true)
+		StartSyncthing(podName, false, false, container, false, true)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync started")
