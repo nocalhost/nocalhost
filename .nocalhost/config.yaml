@@ -5,20 +5,10 @@ application:
   name: nocalhost
   manifestType: helmGit
   resourcePath: [ "deployments/chart" ]
+
   helmValues:
     - key: service.type
       value: ClusterIP
-
-  helmVals:
-    hub:
-      deploy:
-        resources:
-          limits:
-            memory: 5Gi
-            cpu: "5"
-          requests:
-            memory: 512Mi
-            cpu: "0.5"
 
   services:
     - name: nocalhost-api

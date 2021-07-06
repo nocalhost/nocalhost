@@ -19,10 +19,6 @@ import (
 	"time"
 )
 
-func InstallBookInfo(ctx context.Context, nhctl runner.Client) error {
-	return installBookInfoRawManifest(ctx, nhctl)
-}
-
 func InstallBookInfoThreeTimes(nhctl runner.Client) error {
 	_ = UninstallBookInfo(nhctl)
 	//installBookInfoHelmGit(nhctl)
@@ -46,6 +42,10 @@ func InstallBookInfoThreeTimes(nhctl runner.Client) error {
 		return err
 	}
 	return nil
+}
+
+func InstallBookInfo(ctx context.Context, nhctl runner.Client) error {
+	return installBookInfoRawManifest(ctx, nhctl)
 }
 
 func UninstallBookInfo(nhctl runner.Client) error {
