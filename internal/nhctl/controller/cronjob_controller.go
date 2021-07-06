@@ -21,6 +21,7 @@ import (
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
+	"strconv"
 )
 
 type CronJobController struct {
@@ -29,7 +30,8 @@ type CronJobController struct {
 
 const (
 	cronjobGeneratedJobPrefix = "cronjob-generated-job-"
-	cronjobScheduleAnnotation = "nocalhost.dev.cronjob.schedule"
+	cronjobScheduleAnnotation = "nocalhost.dev.cronjob.schedule" // deprecated
+	cronjobSuspendAnnotation  = "nocalhost.dev.cronjob.suspend"
 )
 
 func (j *CronJobController) GetNocalhostDevContainerPod() (string, error) {
@@ -57,8 +59,18 @@ func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStar
 	if originJob.Annotations == nil {
 		originJob.Annotations = make(map[string]string, 0)
 	}
-	originJob.Annotations[cronjobScheduleAnnotation] = originJob.Spec.Schedule
-	originJob.Spec.Schedule = "1 1 1 1 1"
+	if _, ok := originJob.Annotations[cronjobScheduleAnnotation]; ok {
+		log.Infof("Removing deprecated annotation %s", cronjobScheduleAnnotation)
+		delete(originJob.Annotations, cronjobScheduleAnnotation)
+	}
+	//originJob.Annotations[cronjobScheduleAnnotation] = originJob.Spec.Schedule
+	if originJob.Spec.Suspend != nil {
+		originJob.Annotations[cronjobSuspendAnnotation] = fmt.Sprintf("%t", *originJob.Spec.Suspend)
+	}
+	//originJob.Spec.Schedule = "1 1 1 1 1"
+	isSuspend := true
+	originJob.Spec.Suspend = &isSuspend
+	log.Info("Suspending cronjob...")
 	if _, err = j.Client.UpdateCronJob(originJob); err != nil {
 		return err
 	}
@@ -142,10 +154,20 @@ func (j *CronJobController) RollBack(reset bool) error {
 	if err != nil {
 		return err
 	}
-	schedule, ok := originJob.Annotations[cronjobScheduleAnnotation]
+	schedule, ok := originJob.Annotations[cronjobScheduleAnnotation] // for compatibility
 	if ok {
 		originJob.Spec.Schedule = schedule
 		log.Infof("Recover schedule to %s", schedule)
+		if _, err = j.Client.UpdateCronJob(originJob); err != nil {
+			return err
+		}
+	} else {
+		s := false
+		suspend, ok := originJob.Annotations[cronjobSuspendAnnotation]
+		if ok {
+			s, _ = strconv.ParseBool(suspend)
+		}
+		originJob.Spec.Suspend = &s
 		if _, err = j.Client.UpdateCronJob(originJob); err != nil {
 			return err
 		}
