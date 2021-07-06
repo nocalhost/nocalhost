@@ -14,7 +14,7 @@ package app
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	"net"
@@ -638,7 +638,7 @@ type HelmFlags struct {
 	Debug    bool
 	Wait     bool
 	Set      []string
-	Values   string
+	Values   []string
 	Chart    string
 	RepoName string
 	RepoUrl  string

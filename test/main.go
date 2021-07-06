@@ -48,6 +48,7 @@ func main() {
 		t.RunWithBookInfo(false, "helm-adaption", suite.HelmAdaption)
 	})
 
+
 	DoRun(false, &wg, func() {
 		t.Run("install", suite.Install)
 	})

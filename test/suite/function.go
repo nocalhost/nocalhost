@@ -32,6 +32,9 @@ import (
 func HelmAdaption(client runner.Client, _ ...string) {
 	util.Retry(
 		"HelmAdaption", []func() error{
+			func() error { return testcase.InstallBookInfoUseHelmVals(client) },
+			func() error { return testcase.UninstallBookInfoWithNativeHelm(client) },
+
 			func() error { return testcase.InstallBookInfoWithNativeHelm(client) },
 			func() error { return testcase.UninstallBookInfoWithNativeHelm(client) },
 

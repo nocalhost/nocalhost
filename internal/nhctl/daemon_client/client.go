@@ -36,35 +36,6 @@ type DaemonClient struct {
 	daemonServerListenPort int
 }
 
-//func StartDaemonServer(isSudoUser bool) error {
-//	var (
-//		nhctlPath string
-//		err       error
-//	)
-//	if utils.IsWindows() {
-//		daemonDir, err := ioutil.TempDir("", "nhctl-daemon")
-//		if err != nil {
-//			return errors.Wrap(err, "")
-//		}
-//		// cp nhctl to daemonDir
-//		err = utils.CopyFile(os.Args[0], filepath.Join(daemonDir, utils.GetNhctlBinName()))
-//		if err != nil {
-//			return errors.Wrap(err, "")
-//		}
-//		nhctlPath = filepath.Join(daemonDir, utils.GetNhctlBinName())
-//	} else {
-//		nhctlPath, err = utils.GetNhctlPath()
-//		if err != nil {
-//			return err
-//		}
-//	}
-//	daemonArgs := []string{nhctlPath, "daemon", "start"}
-//	if isSudoUser {
-//		daemonArgs = append(daemonArgs, "--sudo", "true")
-//	}
-//	return daemon.RunSubProcess(daemonArgs, nil, false)
-//}
-
 func waitForTCPPortToBeReady(port int, timeout time.Duration) error {
 	return waitTCPPort(false, port, timeout)
 }

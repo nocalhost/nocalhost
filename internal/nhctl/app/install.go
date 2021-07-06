@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -190,8 +190,10 @@ func (a *Application) installHelm(
 		installParams = append(installParams, "--set", set)
 	}
 
-	if flags.Values != "" {
-		installParams = append(installParams, "-f", flags.Values)
+	if len(flags.Values) > 0 {
+		for _, value := range flags.Values {
+			installParams = append(installParams, "-f", value)
+		}
 	}
 	installParams = append(installParams, "--timeout", "60m")
 	installParams = append(installParams, commonParams...)

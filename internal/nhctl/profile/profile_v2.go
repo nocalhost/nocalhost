@@ -17,7 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/pkg/nhctl/clientgoutils"
