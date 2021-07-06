@@ -254,13 +254,13 @@ func (d *DevSpace) initMeshDevSpace(clusterRecord *model.ClusterModel, clusterUs
 	}
 	meshDevInfo.BaseNamespace = baseDevspace.Namespace
 
-	meshManager, _ := setupcluster.NewMeshManager(goClient, meshDevInfo)
-	if err := meshManager.InitMeshDevSpace(); err != nil {
+	meshManager, _ := setupcluster.NewMeshManager(goClient, &meshDevInfo)
+	if err := meshManager.InitMeshDevSpace(&meshDevInfo); err != nil {
 		// todo set up error msg for response
 		return nil, err
 	}
 	if len(d.DevSpaceParams.MeshDevInfo.APPS) > 0 {
-		if err := meshManager.InjectMeshDevSpace(); err != nil {
+		if err := meshManager.InjectMeshDevSpace(&meshDevInfo); err != nil {
 			// todo set up error msg for response
 			return nil, err
 		}

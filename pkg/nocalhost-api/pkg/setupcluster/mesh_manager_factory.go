@@ -26,7 +26,7 @@ func GetSharedMeshManagerFactory() SharedMeshManagerFactory {
 }
 
 type SharedMeshManagerFactory interface {
-	Manager(string, MeshDevInfo) (MeshManager, error)
+	Manager(string, *MeshDevInfo) (MeshManager, error)
 }
 
 func NewSharedMeshManagerFactory() SharedMeshManagerFactory {
@@ -40,13 +40,12 @@ type sharedMeshManagerFactory struct {
 	manager map[string]MeshManager
 }
 
-func (f *sharedMeshManagerFactory) Manager(kubeconfig string, info MeshDevInfo) (MeshManager, error) {
+func (f *sharedMeshManagerFactory) Manager(kubeconfig string, info *MeshDevInfo) (MeshManager, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	manager, exists := f.manager[kubeconfig]
 	if exists {
-		manager.SetMeshDevInfo(info)
 		return manager, nil
 	}
 	client, err := clientgo.NewAdminGoClient([]byte(kubeconfig))

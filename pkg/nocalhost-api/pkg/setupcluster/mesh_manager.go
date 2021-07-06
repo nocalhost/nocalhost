@@ -45,18 +45,18 @@ const (
 )
 
 type MeshManager interface {
-	InitMeshDevSpace() error
-	UpdateMeshDevSpace() error
-	InjectMeshDevSpace() error
+	InitMeshDevSpace(*MeshDevInfo) error
+	UpdateMeshDevSpace(*MeshDevInfo) error
+	InjectMeshDevSpace(*MeshDevInfo) error
 	GetBaseDevSpaceAppInfo() []MeshDevApp
-	GetAPPInfo() ([]MeshDevApp, error)
+	GetAPPInfo(*MeshDevInfo) ([]MeshDevApp, error)
 }
 
 type meshManager struct {
-	mu          sync.Mutex
-	client      *clientgo.GoClient
-	cache       cache
-	meshDevInfo MeshDevInfo
+	mu     sync.Mutex
+	client *clientgo.GoClient
+	cache  cache
+	//meshDevInfo MeshDevInfo
 }
 
 type MeshDevInfo struct {
@@ -135,21 +135,21 @@ func (c *cache) getMeshDevResources() []unstructured.Unstructured {
 	return rs
 }
 
-func (m *meshManager) InitMeshDevSpace() error {
-	return m.initMeshDevSpace()
+func (m *meshManager) InitMeshDevSpace(info *MeshDevInfo) error {
+	return m.initMeshDevSpace(info)
 }
 
-func (m *meshManager) UpdateMeshDevSpace() error {
-	if err := m.setWorkloadStatus(); err != nil {
+func (m *meshManager) UpdateMeshDevSpace(info *MeshDevInfo) error {
+	if err := m.setWorkloadStatus(info); err != nil {
 		return err
 	}
-	return m.InjectMeshDevSpace()
+	return m.InjectMeshDevSpace(info)
 }
 
-func (m *meshManager) InjectMeshDevSpace() error {
+func (m *meshManager) InjectMeshDevSpace(info *MeshDevInfo) error {
 	// get dev space workloads from cache
 	ws := make(map[string]int)
-	for _, a := range m.meshDevInfo.APPS {
+	for _, a := range info.APPS {
 		for _, w := range a.Workloads {
 			ws[w.Kind+"/"+w.Name] = w.Status
 		}
@@ -169,25 +169,25 @@ func (m *meshManager) InjectMeshDevSpace() error {
 	g, _ := errgroup.WithContext(context.Background())
 	// apply workloads
 	g.Go(func() error {
-		return m.applyWorkloadsToMeshDevSpace(irs)
+		return m.applyWorkloadsToMeshDevSpace(irs, info)
 	})
 
 	// update base dev space vs
 	g.Go(func() error {
-		return m.updateVirtualserviceOnBaseDevSpace(irs, drs)
+		return m.updateVirtualserviceOnBaseDevSpace(irs, drs, info)
 	})
 
 	// delete workloads
 	g.Go(func() error {
-		return m.deleteWorkloadsFromMeshDevSpace(drs)
+		return m.deleteWorkloadsFromMeshDevSpace(drs, info)
 	})
 	return g.Wait()
 }
 
-func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstructured) error {
+func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstructured, info *MeshDevInfo) error {
 	for _, r := range drs {
-		log.Debugf("delete the workload %s/%s from %s", r.GetKind(), r.GetName(), m.meshDevInfo.MeshDevNamespace)
-		if err := meshDevModify(m.meshDevInfo.MeshDevNamespace, &r); err != nil {
+		log.Debugf("delete the workload %s/%s from %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
+		if err := meshDevModify(info.MeshDevNamespace, &r); err != nil {
 			return err
 		}
 		err := m.client.Delete(&r)
@@ -195,7 +195,7 @@ func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstruc
 			log.Errorf("%+v", err)
 			continue
 		}
-		vs, err := genVirtualServiceForMeshDevSpace(m.meshDevInfo.BaseNamespace, r)
+		vs, err := genVirtualServiceForMeshDevSpace(info.BaseNamespace, r)
 		if err != nil {
 			log.Errorf("%+v", err)
 			continue
@@ -208,10 +208,10 @@ func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstruc
 	return nil
 }
 
-func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructured) error {
+func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructured, info *MeshDevInfo) error {
 	for _, r := range irs {
-		log.Debugf("inject the workload %s/%s to %s", r.GetKind(), r.GetName(), m.meshDevInfo.MeshDevNamespace)
-		if err := meshDevModify(m.meshDevInfo.MeshDevNamespace, &r); err != nil {
+		log.Debugf("inject the workload %s/%s to %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
+		if err := meshDevModify(info.MeshDevNamespace, &r); err != nil {
 			return err
 		}
 		if _, err := m.client.Apply(&r); err != nil {
@@ -236,10 +236,9 @@ func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructur
 	return nil
 }
 
-func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured.Unstructured) error {
+func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured.Unstructured, info *MeshDevInfo) error {
 	// TODO, create vs by service name, not workload name
 	// TODO, just update if the vs already exists
-	info := m.meshDevInfo
 	if info.Header.TraceKey != "" || info.Header.TraceValue != "" {
 		for _, r := range irs {
 			vs, err := genVirtualServiceForBaseDevSpace(
@@ -327,8 +326,8 @@ func (m *meshManager) GetBaseDevSpaceAppInfo() []MeshDevApp {
 	return appInfo
 }
 
-func (m *meshManager) GetAPPInfo() ([]MeshDevApp, error) {
-	if err := m.buildMeshDevCache(); err != nil {
+func (m *meshManager) GetAPPInfo(info *MeshDevInfo) ([]MeshDevApp, error) {
+	if err := m.buildMeshDevCache(info); err != nil {
 		return nil, err
 	}
 
@@ -348,7 +347,7 @@ func (m *meshManager) GetAPPInfo() ([]MeshDevApp, error) {
 	return apps, nil
 }
 
-func (m *meshManager) initMeshDevSpace() error {
+func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 	// apply app config
 	appConfigsTmp := newAppMatcher(m.cache.getResources()).kind("Secret").namePrefix(appmeta.SecretNamePrefix).match()
 	for _, c := range appConfigsTmp {
@@ -364,7 +363,7 @@ func (m *meshManager) initMeshDevSpace() error {
 			continue
 		}
 
-		if err := meshDevModify(m.meshDevInfo.MeshDevNamespace, &c); err != nil {
+		if err := meshDevModify(info.MeshDevNamespace, &c); err != nil {
 			return err
 		}
 		_, err = m.client.Apply(&c)
@@ -377,10 +376,10 @@ func (m *meshManager) initMeshDevSpace() error {
 	svcs := newAppMatcher(m.cache.getResources()).kind("Service").match()
 	vss := make([]v1alpha3.VirtualService, len(svcs))
 	for i := range svcs {
-		if err := meshDevModify(m.meshDevInfo.MeshDevNamespace, &svcs[i]); err != nil {
+		if err := meshDevModify(info.MeshDevNamespace, &svcs[i]); err != nil {
 			return err
 		}
-		vs, err := genVirtualServiceForMeshDevSpace(m.meshDevInfo.BaseNamespace, svcs[i])
+		vs, err := genVirtualServiceForMeshDevSpace(info.BaseNamespace, svcs[i])
 		if err != nil {
 			return err
 		}
@@ -413,7 +412,7 @@ func (m *meshManager) initMeshDevSpace() error {
 	return g.Wait()
 }
 
-func (m *meshManager) buildCache() error {
+func (m *meshManager) buildCache(info *MeshDevInfo) error {
 	rs := make([]schema.GroupVersionResource, 0)
 	addGVR(&rs, schema.GroupVersionResource{
 		Group:    "networking.istio.io",
@@ -447,7 +446,7 @@ func (m *meshManager) buildCache() error {
 		g.Go(func() error {
 			l, err := m.client.DynamicClient.
 				Resource(r).
-				Namespace(m.meshDevInfo.BaseNamespace).
+				Namespace(info.BaseNamespace).
 				List(context.TODO(), metav1.ListOptions{})
 			if err != nil {
 				return errors.WithStack(err)
@@ -461,7 +460,7 @@ func (m *meshManager) buildCache() error {
 	return g.Wait()
 }
 
-func (m *meshManager) buildMeshDevCache() error {
+func (m *meshManager) buildMeshDevCache(info *MeshDevInfo) error {
 	gvr := schema.GroupVersionResource{
 		Group:    "apps",
 		Version:  "v1",
@@ -469,7 +468,7 @@ func (m *meshManager) buildMeshDevCache() error {
 	}
 	l, err := m.client.DynamicClient.
 		Resource(gvr).
-		Namespace(m.meshDevInfo.MeshDevNamespace).
+		Namespace(info.MeshDevNamespace).
 		List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return errors.WithStack(err)
@@ -478,8 +477,8 @@ func (m *meshManager) buildMeshDevCache() error {
 	return nil
 }
 
-func (m *meshManager) getMeshDevSpaceWorkloads() ([]MeshDevWorkload, error) {
-	if err := m.buildMeshDevCache(); err != nil {
+func (m *meshManager) getMeshDevSpaceWorkloads(info *MeshDevInfo) ([]MeshDevWorkload, error) {
+	if err := m.buildMeshDevCache(info); err != nil {
 		return nil, err
 	}
 	w := make([]MeshDevWorkload, 0)
@@ -493,9 +492,9 @@ func (m *meshManager) getMeshDevSpaceWorkloads() ([]MeshDevWorkload, error) {
 	return w, nil
 }
 
-func (m *meshManager) setWorkloadStatus() error {
+func (m *meshManager) setWorkloadStatus(info *MeshDevInfo) error {
 	log.Debug("set workloads status")
-	devWs, err := m.getMeshDevSpaceWorkloads()
+	devWs, err := m.getMeshDevSpaceWorkloads(info)
 	if err != nil {
 		return err
 	}
@@ -503,7 +502,7 @@ func (m *meshManager) setWorkloadStatus() error {
 	for _, w := range devWs {
 		devMap[w.Kind+"/"+w.Name] = w
 	}
-	apps := m.meshDevInfo.APPS
+	apps := info.APPS
 	for i, a := range apps {
 		for j, w := range a.Workloads {
 			if w.Status == Selected && devMap[w.Kind+"/"+w.Name].Status == Installed {
@@ -514,7 +513,7 @@ func (m *meshManager) setWorkloadStatus() error {
 			}
 		}
 	}
-	m.meshDevInfo.APPS = apps
+	info.APPS = apps
 	return nil
 
 }
@@ -683,12 +682,12 @@ func (m *appMatcher) match() []unstructured.Unstructured {
 	return m.matchResources
 }
 
-func NewMeshManager(client *clientgo.GoClient, info MeshDevInfo) (MeshManager, error) {
+func NewMeshManager(client *clientgo.GoClient, info *MeshDevInfo) (MeshManager, error) {
 	m := &meshManager{}
 	m.client = client
-	m.meshDevInfo = info
+
 	// cache resources
-	if err := m.buildCache(); err != nil {
+	if err := m.buildCache(info); err != nil {
 		return nil, errors.WithStack(err)
 	}
 	return m, nil

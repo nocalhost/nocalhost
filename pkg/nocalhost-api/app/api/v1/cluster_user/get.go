@@ -360,7 +360,7 @@ func GetAppsInfo(c *gin.Context) {
 	}
 
 	if isBasespace {
-		meshManager, err := setupcluster.NewMeshManager(goClient, setupcluster.MeshDevInfo{
+		meshManager, err := setupcluster.NewMeshManager(goClient, &setupcluster.MeshDevInfo{
 			BaseNamespace: devspace.Namespace,
 		})
 		if err != nil {
@@ -374,15 +374,16 @@ func GetAppsInfo(c *gin.Context) {
 		return
 	}
 
-	meshManager, err := setupcluster.NewMeshManager(goClient, setupcluster.MeshDevInfo{
+	info := &setupcluster.MeshDevInfo{
 		BaseNamespace:    basespace.Namespace,
 		MeshDevNamespace: devspace.Namespace,
-	})
+	}
+	meshManager, err := setupcluster.NewMeshManager(goClient, info)
 	if err != nil {
 		api.SendResponse(c, nil, nil)
 		return
 	}
-	apps, err := meshManager.GetAPPInfo()
+	apps, err := meshManager.GetAPPInfo(info)
 	api.SendResponse(c, nil, setupcluster.MeshDevInfo{
 		Header: devspace.TraceHeader,
 		APPS:   apps,
