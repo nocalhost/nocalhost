@@ -165,7 +165,7 @@ func Compatible(cli runner.Client, p ...string) {
 		func() error { return testcase.Db(cli) },
 		func() error { return testcase.Pvc(cli) },
 		func() error { return testcase.Reset(cli) },
-		func() error { return testcase.InstallBookInfoThreeTimes(cli) },
+		func() error { return testcase.InstallBookInfoDifferentType(cli) },
 	}
 	util.Retry(suiteName, funcs)
 }
@@ -315,7 +315,7 @@ func Install(cli runner.Client, _ ...string) {
 	retryTimes := 5
 	var err error
 	for i := 0; i < retryTimes; i++ {
-		if err = testcase.InstallBookInfoThreeTimes(cli); err != nil {
+		if err = testcase.InstallBookInfoDifferentType(cli); err != nil {
 			log.Info(err)
 			_ = testcase.Reset(cli)
 			continue
