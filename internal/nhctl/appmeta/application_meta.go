@@ -244,6 +244,10 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 		appMeta.Config = config
 	}
 
+	if bs, ok := secret.Data[SecretHelmReleaseNameKey]; ok {
+		appMeta.HelmReleaseName = string(bs)
+	}
+
 	appMeta.Secret = secret
 	return &appMeta, nil
 }

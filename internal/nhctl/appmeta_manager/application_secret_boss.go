@@ -159,7 +159,8 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 					if err != nil {
 						// delete the secret that can not be correctly decode
 						log.TLogf(
-							"Watcher", "Application Secret '%s' will be deleted, the secret is broken.",
+							"Watcher", "Application Secret '%s' will be deleted, "+
+								"the secret is broken.",
 							v.Name,
 						)
 
@@ -181,14 +182,14 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 							Secrets(ns).
 							Delete(context.TODO(), v.Name, metav1.DeleteOptions{}); err != nil {
 							log.Error(
-								err, "Application Secret '%s' need to deleted "+
+								err, "Application Secret '%s' from ns %s need to deleted "+
 									"but fail.",
-								v.Name,
+								v.Name, ns,
 							)
 						} else {
 							log.TLogf(
-								"Watcher", "Application Secret '%s' has been be deleted. "+
-									v.Name,
+								"Watcher", "Application Secret '%s' from ns %s has been be deleted. ",
+								v.Name, ns,
 							)
 						}
 					}
