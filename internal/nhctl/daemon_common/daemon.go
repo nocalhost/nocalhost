@@ -18,7 +18,6 @@ import (
 	"io/ioutil"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/utils"
-	"os"
 	"path/filepath"
 )
 
@@ -60,22 +59,21 @@ type DaemonServerStatusResponse struct {
 }
 
 // StartDaemonServerBySubProcess
-// In windows, we need to copy nhctl.exe to a tmpDir and then run daemon from tmpDir.
-// Otherwise, we can not upgrade nhctl.exe when daemon is running
+// Start daemon server from client
 func StartDaemonServerBySubProcess(isSudoUser bool) error {
 	var (
 		nhctlPath string
 		err       error
 	)
-	if utils.IsWindows() {
-		if nhctlPath, err = CopyNhctlBinaryToTmpDir(os.Args[0]); err != nil {
-			return err
-		}
-	} else {
-		if nhctlPath, err = utils.GetNhctlPath(); err != nil {
-			return err
-		}
+	//if utils.IsWindows() {
+	//	if nhctlPath, err = CopyNhctlBinaryToTmpDir(os.Args[0]); err != nil {
+	//		return err
+	//	}
+	//} else {
+	if nhctlPath, err = utils.GetNhctlPath(); err != nil {
+		return err
 	}
+	//}
 	daemonArgs := []string{nhctlPath, "daemon", "start"}
 	if isSudoUser {
 		daemonArgs = append(daemonArgs, "--sudo", "true")

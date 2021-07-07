@@ -14,8 +14,12 @@ package testcase
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"io/ioutil"
+	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/test/runner"
+	"os"
 	"sigs.k8s.io/yaml"
 )
 
@@ -47,6 +51,22 @@ func SyncStatus(nhctl runner.Client, module string) error {
 func List(nhctl runner.Client) error {
 	cmd := nhctl.GetNhctl().Command(context.Background(), "list", "bookinfo")
 	return runner.Runner.RunWithCheckResult(cmd)
+}
+
+func Get(nhctl runner.Client, types, appName string, checker func(string2 string) error) error {
+	args := []string{types}
+	if appName != "" {
+		args = append(args, "-a", appName)
+	}
+	cmd := nhctl.GetNhctl().Command(context.Background(), "get", args...)
+	stdout, stderr, err := runner.Runner.Run(cmd)
+	if err != nil {
+		return err
+	}
+	if stderr != "" {
+		return errors.New(stderr)
+	}
+	return checker(stdout)
 }
 
 func Db(nhctl runner.Client) error {
@@ -98,4 +118,14 @@ func Apply(nhctl runner.Client) error {
 	cmd := nhctl.GetNhctl().Command(context.Background(), "apply", "bookinfo", f.Name())
 	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
+}
+
+func RemoveSyncthingPidFile(nhctl runner.Client, module string) error {
+	c := controller.Controller{
+		NameSpace: nhctl.GetKubectl().Namespace,
+		AppName:   "bookinfo",
+		Name:      module,
+		Type:      base.Deployment,
+	}
+	return os.Remove(c.GetSyncThingPidFile())
 }

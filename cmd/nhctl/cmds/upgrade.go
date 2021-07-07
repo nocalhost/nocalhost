@@ -31,7 +31,7 @@ func init() {
 	upgradeCmd.Flags().StringVar(&installFlags.Config, "config", "", "specify a config relative to .nocalhost dir")
 	upgradeCmd.Flags().StringVarP(&installFlags.OuterConfig, "outer-config", "c", "",
 		"specify a config.yaml in local path")
-	upgradeCmd.Flags().StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
+	upgradeCmd.Flags().StringArrayVarP(&installFlags.HelmValueFile, "helm-values", "f", []string{}, "helm's Value.yaml")
 	//installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "",
 	//fmt.Sprintf("nocalhost application type: %s or %s or %s", app.HelmRepo, app.Helm, app.Manifest))
 	upgradeCmd.Flags().StringSliceVar(&installFlags.HelmSet, "set", []string{},
