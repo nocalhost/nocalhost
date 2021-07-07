@@ -14,6 +14,7 @@ package setupcluster
 
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
@@ -115,6 +116,27 @@ func (c *cache) GetListByKindAndNamespace(kind, n string) []unstructured.Unstruc
 		r := obj.(*unstructured.Unstructured)
 		if r.GetNamespace() == n {
 			ret = append(ret, *r.DeepCopy())
+		}
+	}
+	return ret
+}
+
+func (c *cache) MatchServicesByWorkload(ns string, r unstructured.Unstructured) []unstructured.Unstructured {
+	ret := make([]unstructured.Unstructured, 0)
+	ls := make(map[string]string)
+	m, _, _ := unstructured.NestedMap(r.UnstructuredContent(), "spec", "template", "metadata", "labels")
+	for k, v := range m {
+		ls[k] = v.(string)
+	}
+
+	for _, s := range c.GetServicesListByNameSpace(ns) {
+		sls := make(map[string]string)
+		m, _, _ := unstructured.NestedMap(s.UnstructuredContent(), "spec", "selector")
+		for k, v := range m {
+			sls[k] = v.(string)
+		}
+		if labels.Set(sls).AsSelector().Matches(labels.Set(ls)) {
+			ret = append(ret, s)
 		}
 	}
 	return ret
