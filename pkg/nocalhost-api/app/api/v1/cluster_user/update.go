@@ -220,7 +220,7 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 		api.SendResponse(c, nil, nil)
 		return
 	}
-	if err := meshManager.RefreshCache(); err != nil {
+	if err := meshManager.BuildCache(); err != nil {
 		api.SendResponse(c, nil, nil)
 		return
 	}

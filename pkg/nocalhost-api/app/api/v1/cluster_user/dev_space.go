@@ -245,7 +245,7 @@ func (d *DevSpace) initMeshDevSpace(clusterRecord *model.ClusterModel, clusterUs
 	if err != nil {
 		return nil, err
 	}
-	if err := meshManager.RefreshCache(); err != nil {
+	if err := meshManager.BuildCache(); err != nil {
 		return nil, err
 	}
 	if err := meshManager.InitMeshDevSpace(&meshDevInfo); err != nil {

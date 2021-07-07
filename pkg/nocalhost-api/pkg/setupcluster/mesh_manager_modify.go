@@ -29,7 +29,7 @@ import (
 	"nocalhost/internal/nocalhost-api/global"
 )
 
-func meshDevModify(ns string, r *unstructured.Unstructured) error {
+func meshDevModifier(ns string, r *unstructured.Unstructured) error {
 	switch r.GetKind() {
 	case "Deployment":
 		if err := deploymentModifier(r); err != nil {

@@ -46,7 +46,7 @@ type MeshManager interface {
 	InjectMeshDevSpace(*MeshDevInfo) error
 	GetBaseDevSpaceAppInfo(*MeshDevInfo) []MeshDevApp
 	GetAPPInfo(*MeshDevInfo) ([]MeshDevApp, error)
-	RefreshCache() error
+	BuildCache() error
 }
 
 type meshManager struct {
@@ -192,14 +192,14 @@ func (m *meshManager) GetAPPInfo(info *MeshDevInfo) ([]MeshDevApp, error) {
 	return apps, nil
 }
 
-func (m *meshManager) RefreshCache() error {
+func (m *meshManager) BuildCache() error {
 	return m.buildCache()
 }
 
 func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstructured, info *MeshDevInfo) error {
 	for _, r := range drs {
 		log.Debugf("delete the workload %s/%s from %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
-		if err := meshDevModify(info.MeshDevNamespace, &r); err != nil {
+		if err := meshDevModifier(info.MeshDevNamespace, &r); err != nil {
 			return err
 		}
 		err := m.client.Delete(&r)
@@ -223,7 +223,7 @@ func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstruc
 func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructured, info *MeshDevInfo) error {
 	for _, r := range irs {
 		log.Debugf("inject the workload %s/%s to %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
-		if err := meshDevModify(info.MeshDevNamespace, &r); err != nil {
+		if err := meshDevModifier(info.MeshDevNamespace, &r); err != nil {
 			return err
 		}
 		if _, err := m.client.Apply(&r); err != nil {
@@ -308,7 +308,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 			continue
 		}
 
-		if err := meshDevModify(info.MeshDevNamespace, &c); err != nil {
+		if err := meshDevModifier(info.MeshDevNamespace, &c); err != nil {
 			return err
 		}
 		_, err = m.client.Apply(&c)
@@ -321,7 +321,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 	svcs := m.cache.GetServicesListByNameSpace(info.BaseNamespace)
 	vss := make([]v1alpha3.VirtualService, len(svcs))
 	for i := range svcs {
-		if err := meshDevModify(info.MeshDevNamespace, &svcs[i]); err != nil {
+		if err := meshDevModifier(info.MeshDevNamespace, &svcs[i]); err != nil {
 			return err
 		}
 		vs, err := genVirtualServiceForMeshDevSpace(info.BaseNamespace, svcs[i])

@@ -22,7 +22,6 @@ import (
 	"nocalhost/internal/nhctl/nocalhost"
 )
 
-// TODO, use dynamicinformer to build cache
 type cache struct {
 	stopCh    chan struct{}
 	informers dynamicinformer.DynamicSharedInformerFactory
