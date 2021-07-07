@@ -210,26 +210,17 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 		api.SendResponse(c, errno.ErrPermissionCluster, nil)
 		return
 	}
-	var KubeConfig = []byte(clusterData.KubeConfig)
-	goClient, err := clientgo.NewAdminGoClient(KubeConfig)
-
-	// get client go and check if is admin Kubeconfig
-	if err != nil {
-		switch err.(type) {
-		case *errno.Errno:
-			api.SendResponse(c, err, nil)
-		default:
-			api.SendResponse(c, errno.ErrClusterKubeErr, nil)
-		}
-		return
-	}
 
 	info := req
 	info.MeshDevNamespace = devspace.Namespace
 	info.BaseNamespace = basespace.Namespace
 
-	meshManager, err := setupcluster.NewMeshManager(goClient, &info)
+	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(clusterData.KubeConfig)
 	if err != nil {
+		api.SendResponse(c, nil, nil)
+		return
+	}
+	if err := meshManager.RefreshCache(); err != nil {
 		api.SendResponse(c, nil, nil)
 		return
 	}

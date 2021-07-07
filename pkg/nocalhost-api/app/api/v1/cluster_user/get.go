@@ -25,7 +25,6 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/service_account"
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
-	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
@@ -345,31 +344,20 @@ func GetAppsInfo(c *gin.Context) {
 		api.SendResponse(c, errno.ErrPermissionCluster, nil)
 		return
 	}
-	var KubeConfig = []byte(clusterData.KubeConfig)
-	goClient, err := clientgo.NewAdminGoClient(KubeConfig)
 
-	// get client go and check if is admin Kubeconfig
+	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(clusterData.KubeConfig)
 	if err != nil {
-		switch err.(type) {
-		case *errno.Errno:
-			api.SendResponse(c, err, nil)
-		default:
-			api.SendResponse(c, errno.ErrClusterKubeErr, nil)
-		}
+		api.SendResponse(c, nil, nil)
 		return
 	}
-
+	if err := meshManager.RefreshCache(); err != nil {
+		api.SendResponse(c, nil, nil)
+		return
+	}
 	if isBasespace {
-		meshManager, err := setupcluster.NewMeshManager(goClient, &setupcluster.MeshDevInfo{
-			BaseNamespace: devspace.Namespace,
-		})
-		if err != nil {
-			api.SendResponse(c, nil, nil)
-			return
-		}
-
 		api.SendResponse(c, nil, setupcluster.MeshDevInfo{
-			APPS: meshManager.GetBaseDevSpaceAppInfo(),
+			APPS: meshManager.GetBaseDevSpaceAppInfo(&setupcluster.MeshDevInfo{
+				BaseNamespace: devspace.Namespace}),
 		})
 		return
 	}
@@ -377,11 +365,6 @@ func GetAppsInfo(c *gin.Context) {
 	info := &setupcluster.MeshDevInfo{
 		BaseNamespace:    basespace.Namespace,
 		MeshDevNamespace: devspace.Namespace,
-	}
-	meshManager, err := setupcluster.NewMeshManager(goClient, info)
-	if err != nil {
-		api.SendResponse(c, nil, nil)
-		return
 	}
 	apps, err := meshManager.GetAPPInfo(info)
 	api.SendResponse(c, nil, setupcluster.MeshDevInfo{

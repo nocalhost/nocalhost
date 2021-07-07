@@ -224,19 +224,6 @@ func (d *DevSpace) createDevSpace(
 
 func (d *DevSpace) initMeshDevSpace(clusterRecord *model.ClusterModel, clusterUserModel *model.ClusterUserModel,
 ) (*model.ClusterUserModel, error) {
-	var KubeConfig = []byte(clusterRecord.KubeConfig)
-	goClient, err := clientgo.NewAdminGoClient(KubeConfig)
-
-	// get client go and check if is admin Kubeconfig
-	if err != nil {
-		switch err.(type) {
-		case *errno.Errno:
-			return nil, err
-		default:
-			return nil, errno.ErrClusterKubeErr
-		}
-	}
-
 	// init mesh dev space
 	meshDevInfo := *d.DevSpaceParams.MeshDevInfo
 	meshDevInfo.MeshDevNamespace = clusterUserModel.Namespace
@@ -254,7 +241,13 @@ func (d *DevSpace) initMeshDevSpace(clusterRecord *model.ClusterModel, clusterUs
 	}
 	meshDevInfo.BaseNamespace = baseDevspace.Namespace
 
-	meshManager, _ := setupcluster.NewMeshManager(goClient, &meshDevInfo)
+	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(clusterRecord.KubeConfig)
+	if err != nil {
+		return nil, err
+	}
+	if err := meshManager.RefreshCache(); err != nil {
+		return nil, err
+	}
 	if err := meshManager.InitMeshDevSpace(&meshDevInfo); err != nil {
 		// todo set up error msg for response
 		return nil, err

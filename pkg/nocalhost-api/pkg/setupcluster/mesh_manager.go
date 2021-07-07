@@ -14,17 +14,13 @@ package setupcluster
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"istio.io/client-go/pkg/apis/networking/v1alpha3"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 
 	"nocalhost/internal/nhctl/appmeta"
@@ -48,8 +44,9 @@ type MeshManager interface {
 	InitMeshDevSpace(*MeshDevInfo) error
 	UpdateMeshDevSpace(*MeshDevInfo) error
 	InjectMeshDevSpace(*MeshDevInfo) error
-	GetBaseDevSpaceAppInfo() []MeshDevApp
+	GetBaseDevSpaceAppInfo(*MeshDevInfo) []MeshDevApp
 	GetAPPInfo(*MeshDevInfo) ([]MeshDevApp, error)
+	RefreshCache() error
 }
 
 type meshManager struct {
@@ -77,64 +74,6 @@ type MeshDevWorkload struct {
 	Status int    `json:"status"`
 }
 
-// TODO, use dynamicinformer to build cache
-type cache struct {
-	informers        dynamicinformer.DynamicSharedInformerFactory
-	baseDevResources []unstructured.Unstructured
-	meshDevResources []unstructured.Unstructured
-}
-
-func (c *cache) build(client dynamic.Interface, stopCh <-chan struct{}) {
-	c.informers = dynamicinformer.NewDynamicSharedInformerFactory(client, time.Minute)
-	rs := make([]schema.GroupVersionResource, 0)
-	addGVR(&rs, schema.GroupVersionResource{
-		Group:    "networking.istio.io",
-		Version:  "v1alpha3",
-		Resource: "virtualservices",
-	})
-	addGVR(&rs, schema.GroupVersionResource{
-		Group:    "apps",
-		Version:  "v1",
-		Resource: "deployments",
-	})
-	addGVR(&rs, schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "configmaps",
-	})
-	addGVR(&rs, schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "services",
-	})
-	addGVR(&rs, schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "secrets",
-	})
-	for _, r := range rs {
-		c.informers.ForResource(r)
-	}
-	c.informers.Start(stopCh)
-	c.informers.WaitForCacheSync(stopCh)
-}
-
-func (c *cache) getResources() []unstructured.Unstructured {
-	rs := make([]unstructured.Unstructured, len(c.baseDevResources))
-	for i := range c.baseDevResources {
-		c.baseDevResources[i].DeepCopyInto(&rs[i])
-	}
-	return rs
-}
-
-func (c *cache) getMeshDevResources() []unstructured.Unstructured {
-	rs := make([]unstructured.Unstructured, len(c.meshDevResources))
-	for i := range c.meshDevResources {
-		c.meshDevResources[i].DeepCopyInto(&rs[i])
-	}
-	return rs
-}
-
 func (m *meshManager) InitMeshDevSpace(info *MeshDevInfo) error {
 	return m.initMeshDevSpace(info)
 }
@@ -156,7 +95,7 @@ func (m *meshManager) InjectMeshDevSpace(info *MeshDevInfo) error {
 	}
 	irs := make([]unstructured.Unstructured, 0)
 	drs := make([]unstructured.Unstructured, 0)
-	for _, r := range m.cache.getResources() {
+	for _, r := range m.cache.GetDeploymentsListByNameSpace(info.BaseNamespace) {
 		if ws[r.GetKind()+"/"+r.GetName()] == ShouldBeInstalled {
 			irs = append(irs, r)
 			continue
@@ -182,6 +121,79 @@ func (m *meshManager) InjectMeshDevSpace(info *MeshDevInfo) error {
 		return m.deleteWorkloadsFromMeshDevSpace(drs, info)
 	})
 	return g.Wait()
+}
+
+func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
+	appNames := make([]string, 0)
+	appInfo := make([]MeshDevApp, 0)
+	appConfigsTmp := newAppMatcher(m.cache.GetSecretsListByNameSpace(info.BaseNamespace)).
+		namePrefix(appmeta.SecretNamePrefix).
+		match()
+	for _, c := range appConfigsTmp {
+		name := c.GetName()[len(appmeta.SecretNamePrefix):]
+		if name == nocalhost.DefaultNocalhostApplication {
+			continue
+		}
+
+		val, found, err := unstructured.NestedString(c.UnstructuredContent(), "type")
+		if !found || err != nil {
+			continue
+		}
+		if val != appmeta.SecretType {
+			continue
+		}
+
+		appNames = append(appNames, name)
+		w := make([]MeshDevWorkload, 0)
+		for _, r := range newAppMatcher(m.cache.GetDeploymentsListByNameSpace(info.BaseNamespace)).app(name).match() {
+			w = append(w, MeshDevWorkload{
+				Kind: r.GetKind(),
+				Name: r.GetName(),
+			})
+		}
+		appInfo = append(appInfo, MeshDevApp{
+			Name:      name,
+			Workloads: w,
+		})
+	}
+
+	// default.application
+	w := make([]MeshDevWorkload, 0)
+	for _, r := range newAppMatcher(m.cache.GetDeploymentsListByNameSpace(info.BaseNamespace)).
+		excludeApps(appNames).
+		match() {
+		w = append(w, MeshDevWorkload{
+			Kind: r.GetKind(),
+			Name: r.GetName(),
+		})
+	}
+	appInfo = append(appInfo, MeshDevApp{
+		Name:      nocalhost.DefaultNocalhostApplication,
+		Workloads: w,
+	})
+
+	return appInfo
+}
+
+func (m *meshManager) GetAPPInfo(info *MeshDevInfo) ([]MeshDevApp, error) {
+	status := make(map[string]struct{})
+	for _, r := range m.cache.GetDeploymentsListByNameSpace(info.MeshDevNamespace) {
+		status[r.GetKind()+"/"+r.GetName()] = struct{}{}
+	}
+
+	apps := m.GetBaseDevSpaceAppInfo(info)
+	for i, a := range apps {
+		for j, w := range a.Workloads {
+			if _, ok := status[w.Kind+"/"+w.Name]; ok {
+				apps[i].Workloads[j].Status = Selected
+			}
+		}
+	}
+	return apps, nil
+}
+
+func (m *meshManager) RefreshCache() error {
+	return m.buildCache()
 }
 
 func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstructured, info *MeshDevInfo) error {
@@ -278,78 +290,11 @@ func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured
 	return nil
 }
 
-func (m *meshManager) GetBaseDevSpaceAppInfo() []MeshDevApp {
-	appNames := make([]string, 0)
-	appInfo := make([]MeshDevApp, 0)
-	appConfigsTmp := newAppMatcher(m.cache.getResources()).kind("Secret").namePrefix(appmeta.SecretNamePrefix).match()
-	for _, c := range appConfigsTmp {
-		name := c.GetName()[len(appmeta.SecretNamePrefix):]
-		if name == nocalhost.DefaultNocalhostApplication {
-			continue
-		}
-
-		val, found, err := unstructured.NestedString(c.UnstructuredContent(), "type")
-		if !found || err != nil {
-			continue
-		}
-		if val != appmeta.SecretType {
-			continue
-		}
-
-		appNames = append(appNames, name)
-		w := make([]MeshDevWorkload, 0)
-		for _, r := range newAppMatcher(m.cache.getResources()).app(name).kind("Deployment").match() {
-			w = append(w, MeshDevWorkload{
-				Kind: r.GetKind(),
-				Name: r.GetName(),
-			})
-		}
-		appInfo = append(appInfo, MeshDevApp{
-			Name:      name,
-			Workloads: w,
-		})
-	}
-
-	// default.application
-	w := make([]MeshDevWorkload, 0)
-	for _, r := range newAppMatcher(m.cache.getResources()).excludeApps(appNames).kind("Deployment").match() {
-		w = append(w, MeshDevWorkload{
-			Kind: r.GetKind(),
-			Name: r.GetName(),
-		})
-	}
-	appInfo = append(appInfo, MeshDevApp{
-		Name:      nocalhost.DefaultNocalhostApplication,
-		Workloads: w,
-	})
-
-	return appInfo
-}
-
-func (m *meshManager) GetAPPInfo(info *MeshDevInfo) ([]MeshDevApp, error) {
-	if err := m.buildMeshDevCache(info); err != nil {
-		return nil, err
-	}
-
-	status := make(map[string]struct{})
-	for _, r := range m.cache.getMeshDevResources() {
-		status[r.GetKind()+"/"+r.GetName()] = struct{}{}
-	}
-
-	apps := m.GetBaseDevSpaceAppInfo()
-	for i, a := range apps {
-		for j, w := range a.Workloads {
-			if _, ok := status[w.Kind+"/"+w.Name]; ok {
-				apps[i].Workloads[j].Status = Selected
-			}
-		}
-	}
-	return apps, nil
-}
-
 func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 	// apply app config
-	appConfigsTmp := newAppMatcher(m.cache.getResources()).kind("Secret").namePrefix(appmeta.SecretNamePrefix).match()
+	appConfigsTmp := newAppMatcher(m.cache.GetSecretsListByNameSpace(info.BaseNamespace)).
+		namePrefix(appmeta.SecretNamePrefix).
+		match()
 	for _, c := range appConfigsTmp {
 		name := c.GetName()[len(appmeta.SecretNamePrefix):]
 		if name == nocalhost.DefaultNocalhostApplication {
@@ -373,7 +318,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 		}
 	}
 	// get svc, gen vs
-	svcs := newAppMatcher(m.cache.getResources()).kind("Service").match()
+	svcs := m.cache.GetServicesListByNameSpace(info.BaseNamespace)
 	vss := make([]v1alpha3.VirtualService, len(svcs))
 	for i := range svcs {
 		if err := meshDevModify(info.MeshDevNamespace, &svcs[i]); err != nil {
@@ -412,92 +357,29 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 	return g.Wait()
 }
 
-func (m *meshManager) buildCache(info *MeshDevInfo) error {
-	rs := make([]schema.GroupVersionResource, 0)
-	addGVR(&rs, schema.GroupVersionResource{
-		Group:    "networking.istio.io",
-		Version:  "v1alpha3",
-		Resource: "virtualservices",
-	})
-	addGVR(&rs, schema.GroupVersionResource{
-		Group:    "apps",
-		Version:  "v1",
-		Resource: "deployments",
-	})
-	addGVR(&rs, schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "configmaps",
-	})
-	addGVR(&rs, schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "services",
-	})
-	addGVR(&rs, schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "secrets",
-	})
-
-	g, _ := errgroup.WithContext(context.Background())
-	for _, r := range rs {
-		r := r
-		g.Go(func() error {
-			l, err := m.client.DynamicClient.
-				Resource(r).
-				Namespace(info.BaseNamespace).
-				List(context.TODO(), metav1.ListOptions{})
-			if err != nil {
-				return errors.WithStack(err)
-			}
-			m.mu.Lock()
-			defer m.mu.Unlock()
-			m.cache.baseDevResources = append(m.cache.baseDevResources, l.Items...)
-			return nil
-		})
-	}
-	return g.Wait()
+func (m *meshManager) setInformerFactory() {
+	m.cache.informers = dynamicinformer.NewDynamicSharedInformerFactory(m.client.DynamicClient, time.Minute)
 }
 
-func (m *meshManager) buildMeshDevCache(info *MeshDevInfo) error {
-	gvr := schema.GroupVersionResource{
-		Group:    "apps",
-		Version:  "v1",
-		Resource: "deployments",
-	}
-	l, err := m.client.DynamicClient.
-		Resource(gvr).
-		Namespace(info.MeshDevNamespace).
-		List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return errors.WithStack(err)
-	}
-	m.cache.meshDevResources = append(m.cache.meshDevResources, l.Items...)
+func (m *meshManager) buildCache() error {
+	m.cache.build()
 	return nil
 }
-
-func (m *meshManager) getMeshDevSpaceWorkloads(info *MeshDevInfo) ([]MeshDevWorkload, error) {
-	if err := m.buildMeshDevCache(info); err != nil {
-		return nil, err
-	}
+func (m *meshManager) getMeshDevSpaceWorkloads(info *MeshDevInfo) []MeshDevWorkload {
 	w := make([]MeshDevWorkload, 0)
-	for _, r := range m.cache.getMeshDevResources() {
+	for _, r := range m.cache.GetDeploymentsListByNameSpace(info.MeshDevNamespace) {
 		w = append(w, MeshDevWorkload{
 			Kind:   r.GetKind(),
 			Name:   r.GetName(),
 			Status: Installed,
 		})
 	}
-	return w, nil
+	return w
 }
 
 func (m *meshManager) setWorkloadStatus(info *MeshDevInfo) error {
 	log.Debug("set workloads status")
-	devWs, err := m.getMeshDevSpaceWorkloads(info)
-	if err != nil {
-		return err
-	}
+	devWs := m.getMeshDevSpaceWorkloads(info)
 	devMap := make(map[string]MeshDevWorkload)
 	for _, w := range devWs {
 		devMap[w.Kind+"/"+w.Name] = w
@@ -518,177 +400,9 @@ func (m *meshManager) setWorkloadStatus(info *MeshDevInfo) error {
 
 }
 
-func addGVR(rs *[]schema.GroupVersionResource, gvr schema.GroupVersionResource) {
-	*rs = append(*rs, gvr)
-}
-
-type appMatcher struct {
-	matchResources []unstructured.Unstructured
-}
-
-func newAppMatcher(resources []unstructured.Unstructured) *appMatcher {
-	m := &appMatcher{}
-	m.matchResources = make([]unstructured.Unstructured, len(resources))
-	for i := range resources {
-		resources[i].DeepCopyInto(&m.matchResources[i])
-	}
-	return m
-}
-
-// match by kind
-func (m *appMatcher) kind(kind string) *appMatcher {
-	match := make([]unstructured.Unstructured, 0)
-	for _, r := range m.matchResources {
-		if r.GetKind() == kind {
-			match = append(match, r)
-		}
-	}
-	m.matchResources = match
-	return m
-}
-
-// match by app name
-func (m *appMatcher) app(appName string) *appMatcher {
-	match := make([]unstructured.Unstructured, 0)
-	for _, r := range m.matchResources {
-		a := r.GetAnnotations()
-		if a == nil {
-			continue
-		}
-		if a[nocalhost.NocalhostApplicationName] == appName {
-			match = append(match, r)
-			continue
-		}
-		if a[nocalhost.HelmReleaseName] == appName {
-			match = append(match, r)
-		}
-	}
-	m.matchResources = match
-	return m
-}
-
-// match exclude app name
-func (m *appMatcher) excludeApp(appName string) *appMatcher {
-	match := make([]unstructured.Unstructured, 0)
-	for _, r := range m.matchResources {
-		a := r.GetAnnotations()
-		if a == nil {
-			match = append(match, r)
-			continue
-		}
-		if a[nocalhost.NocalhostApplicationName] == appName {
-			continue
-		}
-		if a[nocalhost.HelmReleaseName] == appName {
-			continue
-		}
-		match = append(match, r)
-	}
-	m.matchResources = match
-	return m
-}
-
-// match by app names
-func (m *appMatcher) apps(appNames []string) *appMatcher {
-	match := make([]unstructured.Unstructured, 0)
-	am := make(map[string]struct{})
-	for _, n := range appNames {
-		if n != "" {
-			am[n] = struct{}{}
-		}
-	}
-	for _, r := range m.matchResources {
-		a := r.GetAnnotations()
-		if a == nil {
-			continue
-		}
-		if _, ok := am[a[nocalhost.NocalhostApplicationName]]; ok {
-			match = append(match, r)
-			continue
-		}
-		if _, ok := am[a[nocalhost.HelmReleaseName]]; ok {
-			match = append(match, r)
-		}
-	}
-	m.matchResources = match
-	return m
-}
-
-// match exclude app names
-func (m *appMatcher) excludeApps(appNames []string) *appMatcher {
-	match := make([]unstructured.Unstructured, 0)
-	am := make(map[string]struct{})
-	for _, n := range appNames {
-		if n != "" {
-			am[n] = struct{}{}
-		}
-	}
-	for _, r := range m.matchResources {
-		a := r.GetAnnotations()
-		if a == nil {
-			match = append(match, r)
-			continue
-		}
-		if _, ok := am[a[nocalhost.NocalhostApplicationName]]; ok {
-			continue
-		}
-		if _, ok := am[a[nocalhost.HelmReleaseName]]; ok {
-			continue
-		}
-		match = append(match, r)
-	}
-	m.matchResources = match
-	return m
-}
-
-func (m *appMatcher) name(name string) *appMatcher {
-	match := make([]unstructured.Unstructured, 0)
-	for _, r := range m.matchResources {
-		if r.GetName() == name {
-			match = append(match, r)
-		}
-	}
-	m.matchResources = match
-	return m
-}
-
-func (m *appMatcher) namePrefix(prefix string) *appMatcher {
-	match := make([]unstructured.Unstructured, 0)
-	for _, r := range m.matchResources {
-		if strings.HasPrefix(r.GetName(), prefix) {
-			match = append(match, r)
-		}
-	}
-	m.matchResources = match
-	return m
-}
-
-func (m *appMatcher) names(name []string) *appMatcher {
-	nm := make(map[string]struct{})
-	for _, n := range name {
-		nm[n] = struct{}{}
-	}
-	match := make([]unstructured.Unstructured, 0)
-	for _, r := range m.matchResources {
-		if _, ok := nm[r.GetName()]; ok {
-			match = append(match, r)
-		}
-	}
-	m.matchResources = match
-	return m
-}
-
-func (m *appMatcher) match() []unstructured.Unstructured {
-	return m.matchResources
-}
-
-func NewMeshManager(client *clientgo.GoClient, info *MeshDevInfo) (MeshManager, error) {
+func NewMeshManager(client *clientgo.GoClient) MeshManager {
 	m := &meshManager{}
 	m.client = client
-
-	// cache resources
-	if err := m.buildCache(info); err != nil {
-		return nil, errors.WithStack(err)
-	}
-	return m, nil
+	m.setInformerFactory()
+	return m
 }
