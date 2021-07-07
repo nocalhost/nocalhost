@@ -53,7 +53,7 @@ type meshManager struct {
 	mu     sync.Mutex
 	client *clientgo.GoClient
 	cache  cache
-	//meshDevInfo MeshDevInfo
+	stopCh chan struct{}
 }
 
 type MeshDevInfo struct {
@@ -358,6 +358,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 }
 
 func (m *meshManager) setInformerFactory() {
+	m.cache.stopCh = make(chan struct{})
 	m.cache.informers = dynamicinformer.NewDynamicSharedInformerFactory(m.client.DynamicClient, time.Minute)
 }
 

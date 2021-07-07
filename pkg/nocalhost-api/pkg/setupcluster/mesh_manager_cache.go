@@ -24,9 +24,8 @@ import (
 
 // TODO, use dynamicinformer to build cache
 type cache struct {
-	informers        dynamicinformer.DynamicSharedInformerFactory
-	baseDevResources []unstructured.Unstructured
-	meshDevResources []unstructured.Unstructured
+	stopCh    chan struct{}
+	informers dynamicinformer.DynamicSharedInformerFactory
 }
 
 func (c *cache) build() {
@@ -34,10 +33,8 @@ func (c *cache) build() {
 	for _, r := range rs {
 		c.informers.ForResource(r)
 	}
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-	c.informers.Start(stopCh)
-	c.informers.WaitForCacheSync(stopCh)
+	c.informers.Start(c.stopCh)
+	c.informers.WaitForCacheSync(c.stopCh)
 }
 
 func (c *cache) Configmap() informers.GenericInformer {
