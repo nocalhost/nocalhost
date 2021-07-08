@@ -13,12 +13,15 @@
 package setupcluster
 
 import (
+	"strings"
+
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
-	"strings"
+	toolscache "k8s.io/client-go/tools/cache"
 
 	"nocalhost/internal/nhctl/nocalhost"
 )
@@ -86,7 +89,7 @@ func (c *cache) GetServicesListByNameSpace(n string) []unstructured.Unstructured
 }
 
 func (c *cache) GetVirtualServicesListByNameSpace(n string) []unstructured.Unstructured {
-	return c.GetListByKindAndNamespace("VirtualServices", n)
+	return c.GetListByKindAndNamespace("VirtualService", n)
 }
 
 func (c *cache) GetSecretsListByNameSpace(n string) []unstructured.Unstructured {
@@ -98,48 +101,60 @@ func (c *cache) GetDeploymentsListByNameSpace(n string) []unstructured.Unstructu
 }
 
 func (c *cache) GetListByKindAndNamespace(kind, n string) []unstructured.Unstructured {
-	ret := make([]unstructured.Unstructured, 0)
-	objs := make([]interface{}, 0)
+	var objs []interface{}
 	switch kind {
 	case "Deployment":
-		objs = c.Deployment().Informer().GetIndexer().List()
+		objs, _ = c.Deployment().Informer().GetIndexer().ByIndex(toolscache.NamespaceIndex, n)
 	case "Secret":
-		objs = c.Secret().Informer().GetIndexer().List()
+		objs, _ = c.Secret().Informer().GetIndexer().ByIndex(toolscache.NamespaceIndex, n)
 	case "Configmap":
-		objs = c.Configmap().Informer().GetIndexer().List()
+		objs, _ = c.Configmap().Informer().GetIndexer().ByIndex(toolscache.NamespaceIndex, n)
 	case "Service":
-		objs = c.Service().Informer().GetIndexer().List()
+		objs, _ = c.Service().Informer().GetIndexer().ByIndex(toolscache.NamespaceIndex, n)
 	case "VirtualService":
-		objs = c.VirtualService().Informer().GetIndexer().List()
+		objs, _ = c.VirtualService().Informer().GetIndexer().ByIndex(toolscache.NamespaceIndex, n)
 	}
-	for _, obj := range objs {
-		r := obj.(*unstructured.Unstructured)
-		if r.GetNamespace() == n {
-			ret = append(ret, *r.DeepCopy())
-		}
+	ret := make([]unstructured.Unstructured, len(objs))
+	for i := range objs {
+		ret[i] = *objs[i].(*unstructured.Unstructured).DeepCopy()
 	}
 	return ret
 }
 
-func (c *cache) MatchServicesByWorkload(ns string, r unstructured.Unstructured) []unstructured.Unstructured {
-	ret := make([]unstructured.Unstructured, 0)
-	ls := make(map[string]string)
-	m, _, _ := unstructured.NestedMap(r.UnstructuredContent(), "spec", "template", "metadata", "labels")
-	for k, v := range m {
-		ls[k] = v.(string)
+func (c *cache) MatchServicesByWorkload(r unstructured.Unstructured) []unstructured.Unstructured {
+	ns := r.GetNamespace()
+	if ns == corev1.NamespaceAll {
+		return make([]unstructured.Unstructured, 0)
+	}
+	ls, _, _ := unstructured.NestedStringMap(r.UnstructuredContent(), "spec", "template", "metadata", "labels")
+
+	return resourcesFilter(c.GetServicesListByNameSpace(ns), func(r unstructured.Unstructured) bool {
+		m, _, _ := unstructured.NestedStringMap(r.UnstructuredContent(), "spec", "selector")
+		return labels.Set(m).AsSelector().Matches(labels.Set(ls))
+	})
+}
+
+func (c *cache) MatchVirtualServiceByWorkload(r unstructured.Unstructured) []unstructured.Unstructured {
+	ns := r.GetNamespace()
+	if ns == corev1.NamespaceAll {
+		return make([]unstructured.Unstructured, 0)
 	}
 
-	for _, s := range c.GetServicesListByNameSpace(ns) {
-		sls := make(map[string]string)
-		m, _, _ := unstructured.NestedMap(s.UnstructuredContent(), "spec", "selector")
-		for k, v := range m {
-			sls[k] = v.(string)
-		}
-		if labels.Set(sls).AsSelector().Matches(labels.Set(ls)) {
-			ret = append(ret, s)
-		}
+	smap := make(map[string]struct{})
+	svc := c.MatchServicesByWorkload(r)
+	for _, s := range svc {
+		smap[s.GetName()] = struct{}{}
 	}
-	return ret
+
+	vs := c.GetVirtualServicesListByNameSpace(ns)
+	return resourcesFilter(vs, func(r unstructured.Unstructured) bool {
+		hosts, _, _ := unstructured.NestedStringSlice(r.UnstructuredContent(), "spec", "hosts")
+		for _, host := range hosts {
+			_, ok := smap[host]
+			return ok
+		}
+		return false
+	})
 }
 
 type appMatcher struct {
@@ -330,4 +345,15 @@ func defaultGvr() []schema.GroupVersionResource {
 			Resource: "secrets",
 		},
 	}
+}
+
+func resourcesFilter(rs []unstructured.Unstructured, f func(
+	r unstructured.Unstructured) bool) []unstructured.Unstructured {
+	ret := make([]unstructured.Unstructured, 0)
+	for _, r := range rs {
+		if f(r) {
+			ret = append(ret, r)
+		}
+	}
+	return ret
 }

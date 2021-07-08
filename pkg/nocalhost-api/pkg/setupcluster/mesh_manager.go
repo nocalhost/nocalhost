@@ -249,24 +249,30 @@ func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructur
 }
 
 func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured.Unstructured, info *MeshDevInfo) error {
-	// TODO, create vs by service name, not workload name
 	// TODO, just update if the vs already exists
+	vs := make([]*v1alpha3.VirtualService, 0)
 	if info.Header.TraceKey != "" && info.Header.TraceValue != "" {
 		for _, r := range irs {
-			vs, err := genVirtualServiceForBaseDevSpace(
-				info.BaseNamespace,
-				info.MeshDevNamespace,
-				r.GetName(),
-				info.Header,
-			)
-			if err != nil {
-				return err
+			for _, s := range m.cache.MatchServicesByWorkload(r) {
+				v, err := genVirtualServiceForBaseDevSpace(
+					info.BaseNamespace,
+					info.MeshDevNamespace,
+					s.GetName(),
+					info.Header,
+				)
+				if err != nil {
+					return err
+				}
+				vs = append(vs, v)
 			}
-			log.Debugf("apply the VirtualService/%s to the base namespace %s", r.GetName(), info.BaseNamespace)
-			_, err = m.client.Apply(vs)
-			if err != nil {
-				return err
-			}
+
+		}
+	}
+
+	for i := range vs {
+		log.Debugf("apply the VirtualService/%s to the base namespace %s", vs[i].GetName(), info.BaseNamespace)
+		if _, err := m.client.Apply(vs[i]); err != nil {
+			return err
 		}
 	}
 
