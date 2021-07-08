@@ -212,7 +212,7 @@ func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstruc
 			log.Errorf("%+v", err)
 			continue
 		}
-		log.Debugf("apply the Virtualservice/%s to the base namespace %s", r.GetName(), r.GetNamespace())
+		log.Debugf("apply the VirtualService/%s to the base namespace %s", r.GetName(), r.GetNamespace())
 		if _, err := m.client.Apply(vs); err != nil {
 			log.Errorf("%+v", err)
 		}
@@ -239,7 +239,7 @@ func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructur
 		vs.SetNamespace(r.GetNamespace())
 		vs.SetName(r.GetName())
 
-		log.Debugf("delete the Virtualservice/%s from the base namespace %s", r.GetName(), r.GetNamespace())
+		log.Debugf("delete the VirtualService/%s from the base namespace %s", r.GetName(), r.GetNamespace())
 		err := m.client.Delete(vs)
 		if err != nil {
 			log.Debug(err)
@@ -251,7 +251,7 @@ func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructur
 func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured.Unstructured, info *MeshDevInfo) error {
 	// TODO, create vs by service name, not workload name
 	// TODO, just update if the vs already exists
-	if info.Header.TraceKey != "" || info.Header.TraceValue != "" {
+	if info.Header.TraceKey != "" && info.Header.TraceValue != "" {
 		for _, r := range irs {
 			vs, err := genVirtualServiceForBaseDevSpace(
 				info.BaseNamespace,
@@ -262,7 +262,7 @@ func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured
 			if err != nil {
 				return err
 			}
-			log.Debugf("apply the Virtualservice/%s to the base namespace %s", r.GetName(), info.BaseNamespace)
+			log.Debugf("apply the VirtualService/%s to the base namespace %s", r.GetName(), info.BaseNamespace)
 			_, err = m.client.Apply(vs)
 			if err != nil {
 				return err

@@ -117,8 +117,16 @@ func genVirtualServiceForMeshDevSpace(baseNs string, r unstructured.Unstructured
 	})
 	vs.SetName(r.GetName())
 	vs.SetNamespace(r.GetNamespace())
-	vs.SetLabels(r.GetLabels())
-	vs.SetAnnotations(r.GetAnnotations())
+	labels := r.GetLabels()
+	labels["app.kubernetes.io/created-by"] = "nocalhost"
+	vs.SetLabels(labels)
+
+	annotations := r.GetAnnotations()
+	delete(annotations, "deployment.kubernetes.io/revision")
+	delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
+	delete(annotations, "control-plane.alpha.kubernetes.io/leader")
+	annotations[nocalhost.AppManagedByLabel] = nocalhost.AppManagedByNocalhost
+	vs.SetAnnotations(annotations)
 	vs.Spec.Hosts = []string{r.GetName()}
 	vs.Spec.Http = []*istiov1alpha3.HTTPRoute{}
 
@@ -156,6 +164,14 @@ func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.H
 	})
 	vs.SetName(name)
 	vs.SetNamespace(baseNs)
+	vs.SetLabels(map[string]string{
+		nocalhost.AppManagedByLabel:    nocalhost.AppManagedByNocalhost,
+		"app.kubernetes.io/created-by": "nocalhost",
+	})
+	vs.SetAnnotations(map[string]string{
+		nocalhost.AppManagedByLabel:    nocalhost.AppManagedByNocalhost,
+		"app.kubernetes.io/created-by": "nocalhost",
+	})
 	vs.Spec.Hosts = []string{name}
 	vs.Spec.Http = []*istiov1alpha3.HTTPRoute{}
 
