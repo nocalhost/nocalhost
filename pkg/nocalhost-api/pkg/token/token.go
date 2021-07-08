@@ -13,7 +13,6 @@
 package token
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -21,6 +20,11 @@ import (
 	jwt "github.com/dgrijalva/jwt-go/v4"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+)
+
+const (
+	JWT_SECRET         = "jwt_secret"
+	JWT_REFRESH_SECRET = "jwt_refresh_secret"
 )
 
 var (
@@ -49,20 +53,61 @@ func secretFunc(secret string) jwt.Keyfunc {
 	}
 }
 
+func RefreshFromRequest(c *gin.Context) (neoSignToken, neoRefreshToken string, err error) {
+	header := c.Request.Header.Get("Authorization")
+
+	if len(header) == 0 {
+		return "", "", ErrMissingHeader
+	}
+
+	var t string
+	// Parse the header to get the token part.
+	_, err = fmt.Sscanf(header, "Bearer %s", &t)
+	if err != nil {
+		fmt.Printf("fmt.Sscanf err: %+v", err)
+	}
+
+	rt := c.GetHeader("Reraeb")
+	return refreshToken(t, rt)
+}
+
+func refreshToken(signToken, refreshToken string) (neoSignToken, neoRefreshToken string, err error) {
+	// Load the jwt secret from the Gin config if the secret does not specified.
+	secret := ""
+	secret = viper.GetString(JWT_SECRET)
+
+	signTokenCtx, err := Parse(signToken, secret, false)
+	if err != nil {
+		return "", "", err
+	}
+
+	secret = viper.GetString(JWT_REFRESH_SECRET)
+	refreshTokenCtx, err := Parse(refreshToken, secret, true)
+	if err != nil {
+		return "", "", err
+	}
+
+	if signTokenCtx.IsAdmin == refreshTokenCtx.IsAdmin &&
+		signTokenCtx.UserID == refreshTokenCtx.UserID &&
+		signTokenCtx.Email == refreshTokenCtx.Email &&
+		signTokenCtx.Uuid == refreshTokenCtx.Uuid &&
+		signTokenCtx.Username == refreshTokenCtx.Username {
+
+		return Sign(*refreshTokenCtx)
+	}
+
+	return "", "", errors.New("Current refreshToken is not the corresponding token of signToken ")
+}
+
 // Parse validates the token with the specified secret,
 // and returns the context if the token was valid.
-func Parse(tokenString string, secret string) (*Context, error) {
+func Parse(tokenString string, secret string, shouldCheckValid bool) (*Context, error) {
 	ctx := &Context{}
-
-	// Parse the token.
 	token, err := jwt.Parse(tokenString, secretFunc(secret))
 
-	// Parse error.
 	if err != nil {
 		return ctx, err
-
-		// Read the token if it's valid.
-	} else if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+	} else if claims, ok := token.Claims.(jwt.MapClaims); ok && (shouldCheckValid || token.Valid) {
 		ctx.UserID = uint64(claims["user_id"].(float64))
 		ctx.Username = claims["username"].(string)
 		ctx.Uuid = claims["uuid"].(string)
@@ -82,7 +127,7 @@ func ParseRequest(c *gin.Context) (*Context, error) {
 	header := c.Request.Header.Get("Authorization")
 
 	// Load the jwt secret from config
-	secret := viper.GetString("jwt_secret")
+	secret := viper.GetString(JWT_SECRET)
 
 	if len(header) == 0 {
 		return &Context{}, ErrMissingHeader
@@ -94,15 +139,39 @@ func ParseRequest(c *gin.Context) (*Context, error) {
 	if err != nil {
 		fmt.Printf("fmt.Sscanf err: %+v", err)
 	}
-	return Parse(t, secret)
+	return Parse(t, secret, true)
+}
+
+func Sign(ctx Context) (tokenString, refreshToken string, err error) {
+	if signToken, err := SignToken(ctx); err != nil {
+		return "", "", err
+	} else {
+		if refreshToken, err := SignRefreshToken(ctx); err != nil {
+			return "", "", err
+		} else {
+			return signToken, refreshToken, nil
+		}
+	}
+}
+
+func SignToken(ctx Context) (tokenString string, err error) {
+	// Load the jwt secret from the Gin config if the secret does not specified.
+	secret := ""
+	secret = viper.GetString("jwt_secret")
+
+	return sign(ctx, secret, 1)
+}
+
+func SignRefreshToken(ctx Context) (tokenString string, err error) {
+	// Load the jwt secret from the Gin config if the secret does not specified.
+	secret := ""
+	secret = viper.GetString("jwt_refresh_secret")
+
+	return sign(ctx, secret, 14)
 }
 
 // Sign signs the context with the specified secret.
-func Sign(ctx context.Context, c Context, secret string) (tokenString string, err error) {
-	// Load the jwt secret from the Gin config if the secret isn't specified.
-	if secret == "" {
-		secret = viper.GetString("jwt_secret")
-	}
+func sign(c Context, secret string, expDays int) (tokenString string, err error) {
 
 	// The token content.
 	// iss: （Issuer）
@@ -120,10 +189,11 @@ func Sign(ctx context.Context, c Context, secret string) (tokenString string, er
 		"is_admin": c.IsAdmin,
 		"nbf":      time.Now().Unix(),
 		"iat":      time.Now().Unix(),
-		"exp":      time.Now().AddDate(0, 0, 15).Unix(), //默认 15 天过期
+		"exp": time.Now().
+			AddDate(0, 0, expDays).
+			Unix(),
 	})
 	// Sign the token with the specified secret.
 	tokenString, err = token.SignedString([]byte(secret))
-
 	return
 }
