@@ -77,6 +77,7 @@ func Prepare() error {
 		}
 	}
 
+	log.Debugf("Nocalhost Prepare successful, getting kubeconfig from %s, namespace %s", kubeConfig, nameSpace)
 	return nil
 }
 

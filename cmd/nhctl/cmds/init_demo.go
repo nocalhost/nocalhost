@@ -181,7 +181,7 @@ var InitCommand = &cobra.Command{
 				"-n",
 				inits.NameSpace,
 			}
-			_, err = tools.ExecCommand(nil, false, false, true, nhctl, uninstall...)
+			_, err = tools.ExecCommand(nil, debug, false, true, nhctl, uninstall...)
 			utils.ShouldI(err, fmt.Sprintf("uninstall %s application fail", app.DefaultInitInstallApplicationName))
 			// delete nocalhost(server namespace), nocalhost-reserved(dep) namespace if exist
 			if nsErr := client.CheckExistNameSpace(inits.NameSpace); nsErr == nil {
@@ -200,6 +200,7 @@ var InitCommand = &cobra.Command{
 			coloredoutput.Success("force uninstall Nocalhost successfully \n")
 		}
 
+		log.Debugf("checking namespace %s if exist", inits.NameSpace)
 		// normal init: check if exist namespace
 		err = client.CheckExistNameSpace(inits.NameSpace)
 		if err != nil {
@@ -211,7 +212,7 @@ var InitCommand = &cobra.Command{
 		spinner := utils.NewSpinner(" waiting for get Nocalhost manifest...")
 		spinner.Start()
 		// call install command
-		_, err = tools.ExecCommand(nil, false, true, false, nhctl, params...)
+		_, err = tools.ExecCommand(nil, debug, true, false, nhctl, params...)
 		if err != nil {
 			coloredoutput.Fail(
 				"\n nhctl init fail, try to add `--force` end of command manually\n",
@@ -254,8 +255,10 @@ var InitCommand = &cobra.Command{
 		spinner = utils.NewSpinner(" waiting for init demo data...")
 		spinner.Start()
 
+		log.Debugf("try to find out web endpoint")
 		endpoint := FindOutWebEndpoint(client)
 
+		log.Debugf("try login and init nocalhost web(User、DevSpace and demo applications)")
 		// set default cluster, application, users
 		req := request.NewReq(
 			fmt.Sprintf("http://%s", endpoint), kubeConfig, kubectl, inits.NameSpace, inits.Port,
@@ -427,6 +430,6 @@ func setDepComponentDockerImage(kubectl, kubeConfig string) {
 		"--kubeconfig",
 		kubeConfig,
 	}
-	_, err := tools.ExecCommand(nil, false, false, false, kubectl, params...)
+	_, err := tools.ExecCommand(nil, debug, false, false, kubectl, params...)
 	utils.ShouldI(err, "set nocalhost-dep component tag fail")
 }
