@@ -48,6 +48,7 @@ func main() {
 		t.RunWithBookInfo(false, "helm-adaption", suite.HelmAdaption)
 	})
 
+
 	DoRun(false, &wg, func() {
 		t.Run("install", suite.Install)
 	})
@@ -62,6 +63,14 @@ func main() {
 
 	DoRun(false, &wg, func() {
 		t.Run("statefulSet", suite.StatefulSet)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("remove syncthing pid file manually", suite.KillSyncthingProcess)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("Get", suite.Get)
 	})
 
 	DoRun(v2 != "", &wg, func() {

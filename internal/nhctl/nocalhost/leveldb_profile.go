@@ -15,7 +15,7 @@ package nocalhost
 import (
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"

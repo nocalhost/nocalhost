@@ -180,6 +180,8 @@ func nocalhostDepConfigmap(
 					}
 				}
 
+				var waitCmd string
+
 				for key, dependency := range dep.Dependency {
 					// K8S native type is case-sensitive, dependent descriptions
 					// are not distinguished, and unified into lowercase
@@ -210,17 +212,7 @@ func nocalhostDepConfigmap(
 								return args
 							}(dependency.Pods)
 
-							waitCmd := strings.Join(args, " ")
-							var cmd []string
-							cmd = append(cmd, "sh", "-c", waitCmd)
-
-							initContainer := corev1.Container{
-								Name:            "wait-for-pods-" + strconv.Itoa(i) + strconv.Itoa(key),
-								Image:           waitImages,
-								ImagePullPolicy: corev1.PullPolicy("Always"),
-								Command:         cmd,
-							}
-							initContainers = append(initContainers, initContainer)
+							waitCmd += strings.Join(args, " ")
 						}
 						if dependency.Jobs != nil {
 							args := func(jobsList []string) []string {
@@ -242,18 +234,24 @@ func nocalhostDepConfigmap(
 								return args
 							}(dependency.Jobs)
 
-							waitCmd := strings.Join(args, " ")
-							var cmd []string
-							cmd = append(cmd, "sh", "-c", waitCmd)
-
-							initContainer := corev1.Container{
-								Name:            "wait-for-jobs-" + strconv.Itoa(i) + strconv.Itoa(key),
-								Image:           waitImages,
-								ImagePullPolicy: corev1.PullPolicy("Always"),
-								Command:         cmd,
+							if waitCmd != "" {
+								waitCmd += "&&"
 							}
-							initContainers = append(initContainers, initContainer)
+							waitCmd += strings.Join(args, " ")
 						}
+					}
+
+					if waitCmd != "" {
+						var cmd []string
+						cmd = append(cmd, "sh", "-c", waitCmd)
+
+						initContainer := corev1.Container{
+							Name:            "wait-for-jobs-" + strconv.Itoa(i) + strconv.Itoa(key),
+							Image:           waitImages,
+							ImagePullPolicy: corev1.PullPolicy("Always"),
+							Command:         cmd,
+						}
+						initContainers = append(initContainers, initContainer)
 					}
 				}
 			}

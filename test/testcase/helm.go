@@ -2,6 +2,7 @@ package testcase
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"nocalhost/test/runner"
@@ -11,6 +12,61 @@ import (
 	"path/filepath"
 	"strings"
 )
+
+// InstallBookInfoUseHelmVals install bookinfo use .nocalhost cfg:
+//
+// application:
+//  helmVals:
+//    service:
+//      port: 9082
+//
+//    bookinfo:
+//      deploy:
+//        resources:
+//          limits:
+//            cpu: 1m
+//            memory: 1Mi
+//          requests:
+//            cpu: 1m
+//            memory: 1Mi
+//
+// and should make sure helm's template is correctly rendered
+func InstallBookInfoUseHelmVals(c runner.Client) error {
+	_ = runner.Runner.RunWithCheckResult(
+		c.GetNhctl().Command(
+			context.Background(), "install", "bookinfohelm",
+			"-u", "https://github.com/nocalhost/bookinfo.git", "-t",
+			"helmGit", "-r", "test-case", "--resource-path", "charts/bookinfo", "--config", "config.helm.helmvals.yaml",
+		),
+	)
+
+	if err := runner.Runner.RunSimple(
+		c.GetKubectl().Command(context.Background(), "get", "deployment", "details", "-o", "yaml"),
+		func(sout string) error {
+			if !strings.Contains(sout, "- containerPort: 9082") {
+				return errors.New(
+					fmt.Sprintf(
+						"deployment[details] should contains '- containerPort: 9082', but actually: %s", sout,
+					),
+				)
+			}
+
+			if !strings.Contains(sout, "memory: 1Mi") || !strings.Contains(sout, "cpu: 1m") {
+				return errors.New(
+					fmt.Sprintf(
+						"deployment[details] should contains 'memory: 1Mi and cpu: 1Mi', but actually: %s", sout,
+					),
+				)
+			}
+
+			return nil
+		},
+	); err != nil {
+		return err
+	}
+
+	return listBookInfoHelm(c, true)
+}
 
 // use nhctl install to install bookinfohelm,
 // then check the result on nhctl and helm

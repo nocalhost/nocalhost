@@ -16,7 +16,7 @@ type InstallFlags struct {
 	GitUrl           string // resource url
 	GitRef           string
 	AppType          string
-	HelmValueFile    string
+	HelmValueFile    []string
 	ForceInstall     bool
 	IgnorePreInstall bool
 	HelmSet          []string
