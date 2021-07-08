@@ -174,7 +174,7 @@ func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.H
 	}
 
 	http := &istiov1alpha3.HTTPRoute{
-		Name: global.NocalhostDevNamespaceLabel + "-" + name,
+		Name: global.NocalhostDevNamespaceLabel + "-" + devNs,
 		Match: []*istiov1alpha3.HTTPMatchRequest{
 			{
 				Headers: headers,
