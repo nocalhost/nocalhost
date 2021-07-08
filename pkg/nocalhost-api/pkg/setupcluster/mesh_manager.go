@@ -213,7 +213,7 @@ func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstruc
 			continue
 		}
 		log.Debugf("apply the VirtualService/%s to the base namespace %s", r.GetName(), r.GetNamespace())
-		if _, err := m.client.Apply(vs); err != nil {
+		if _, err := m.client.ApplyForce(vs); err != nil {
 			log.Errorf("%+v", err)
 		}
 	}
@@ -226,7 +226,7 @@ func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructur
 		if err := meshDevModifier(info.MeshDevNamespace, &r); err != nil {
 			return err
 		}
-		if _, err := m.client.Apply(&r); err != nil {
+		if _, err := m.client.ApplyForce(&r); err != nil {
 			return err
 		}
 		// delete vs form mesh dev space
@@ -271,7 +271,7 @@ func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured
 
 	for i := range vs {
 		log.Debugf("apply the VirtualService/%s to the base namespace %s", vs[i].GetName(), info.BaseNamespace)
-		if _, err := m.client.Apply(vs[i]); err != nil {
+		if _, err := m.client.ApplyForce(vs[i]); err != nil {
 			return err
 		}
 	}
@@ -317,7 +317,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 		if err := meshDevModifier(info.MeshDevNamespace, &c); err != nil {
 			return err
 		}
-		_, err = m.client.Apply(&c)
+		_, err = m.client.ApplyForce(&c)
 		if err != nil {
 			return err
 
@@ -341,7 +341,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 	g, _ := errgroup.WithContext(context.Background())
 	g.Go(func() error {
 		for _, svc := range svcs {
-			_, err := m.client.Apply(&svc)
+			_, err := m.client.ApplyForce(&svc)
 			if err != nil {
 				return err
 			}
@@ -351,7 +351,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 
 	g.Go(func() error {
 		for _, vs := range vss {
-			_, err := m.client.Apply(&vs)
+			_, err := m.client.ApplyForce(&vs)
 			if err != nil {
 				return err
 			}

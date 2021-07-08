@@ -51,6 +51,34 @@ func (c *GoClient) Apply(object interface{}) (*unstructured.Unstructured, error)
 	return result, errors.WithStack(err)
 }
 
+func (c *GoClient) ApplyForce(object interface{}) (*unstructured.Unstructured, error) {
+
+	obj := &unstructured.Unstructured{}
+	var err error
+	obj.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(object)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	data, err := obj.MarshalJSON()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	client, err := c.buildDynamicResourceClient(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	force := true
+	result, err := client.Patch(context.TODO(),
+		obj.GetName(),
+		types.ApplyPatchType,
+		data,
+		metav1.PatchOptions{FieldManager: Api, Force: &force})
+	return result, errors.WithStack(err)
+}
+
 func (c *GoClient) Delete(object interface{}) error {
 
 	obj := &unstructured.Unstructured{}
