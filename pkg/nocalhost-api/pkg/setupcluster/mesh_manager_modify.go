@@ -14,7 +14,7 @@ package setupcluster
 
 import (
 	"fmt"
-	"nocalhost/internal/nocalhost-api/model"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 
 	"github.com/pkg/errors"
 	istiov1alpha3 "istio.io/api/networking/v1alpha3"
@@ -27,6 +27,7 @@ import (
 
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nocalhost-api/global"
+	"nocalhost/internal/nocalhost-api/model"
 )
 
 func meshDevModifier(ns string, r *unstructured.Unstructured) error {
@@ -73,8 +74,7 @@ func serviceModifier(rs *unstructured.Unstructured) error {
 	return nil
 }
 
-func commonModifier(ns string, rs *unstructured.Unstructured) error {
-	// reset
+func resetModifier(rs *unstructured.Unstructured) {
 	rs.SetGenerateName("")
 	rs.SetSelfLink("")
 	rs.SetUID("")
@@ -86,6 +86,11 @@ func commonModifier(ns string, rs *unstructured.Unstructured) error {
 	rs.SetOwnerReferences(nil)
 	rs.SetFinalizers(nil)
 	rs.SetManagedFields(nil)
+}
+
+func commonModifier(ns string, rs *unstructured.Unstructured) error {
+	// reset
+	resetModifier(rs)
 
 	// set namespace
 	rs.SetNamespace(ns)
@@ -105,7 +110,7 @@ func commonModifier(ns string, rs *unstructured.Unstructured) error {
 	return nil
 }
 
-func genVirtualServiceForMeshDevSpace(baseNs string, r unstructured.Unstructured) (*v1alpha3.VirtualService, error) {
+func genVirtualServiceForMeshDevSpace(baseNs string, r unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	//if r.GetKind() != "Service" {
 	//	return nil, errors.Errorf("The kind of %s is %s, only support Service", r.GetName(), r.GetKind())
 	//}
@@ -149,10 +154,16 @@ func genVirtualServiceForMeshDevSpace(baseNs string, r unstructured.Unstructured
 	tcpRoute = append(tcpRoute, tcp)
 	vs.Spec.Tcp = tcpRoute
 
-	return vs, nil
+	var err error
+	rs := &unstructured.Unstructured{}
+	rs.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(vs)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return rs, nil
 }
 
-func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.Header) (*v1alpha3.VirtualService, error) {
+func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.Header) (*unstructured.Unstructured, error) {
 	if header.TraceKey == "" || header.TraceValue == "" {
 		return nil, errors.New("can not find tracing header")
 	}
@@ -210,17 +221,26 @@ func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.H
 
 	vs.Spec.Http = httpRoutes
 
-	return vs, nil
+	var err error
+	rs := &unstructured.Unstructured{}
+	rs.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(vs)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return rs, nil
 }
 
-func addHeaderToVirtualService(origVs unstructured.Unstructured, devNs string, header model.Header) (
-	*v1alpha3.VirtualService, error) {
+func addHeaderToVirtualService(rs *unstructured.Unstructured, devNs string, header model.Header) error {
+	resetModifier(rs)
+
 	if header.TraceKey == "" || header.TraceValue == "" {
-		return nil, errors.New("can not find tracing header")
+		log.Debugf("can not find tracing header to update virtual service on the namespace %s",
+			rs.GetNamespace())
 	}
+
 	vs := &v1alpha3.VirtualService{}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(origVs.UnstructuredContent(), vs); err != nil {
-		return nil, errors.WithStack(err)
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), vs); err != nil {
+		return errors.WithStack(err)
 	}
 	name := global.NocalhostDevNamespaceLabel + "-" + devNs
 	route := vs.Spec.Http
@@ -258,14 +278,20 @@ func addHeaderToVirtualService(origVs unstructured.Unstructured, devNs string, h
 	route[0] = http
 	vs.Spec.Http = route
 
-	return vs, nil
+	var err error
+	rs.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(vs)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
 }
 
-func deleteHeaderFromVirtualService(origVs unstructured.Unstructured, devNs string, header model.Header) (
-	*v1alpha3.VirtualService, error) {
+func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, devNs string, header model.Header) error {
+	resetModifier(rs)
+
 	vs := &v1alpha3.VirtualService{}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(origVs.UnstructuredContent(), vs); err != nil {
-		return nil, errors.WithStack(err)
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), vs); err != nil {
+		return errors.WithStack(err)
 	}
 	name := global.NocalhostDevNamespaceLabel + "-" + devNs
 	route := vs.Spec.Http
@@ -276,5 +302,11 @@ func deleteHeaderFromVirtualService(origVs unstructured.Unstructured, devNs stri
 		}
 	}
 	vs.Spec.Http = route
-	return vs, nil
+
+	var err error
+	rs.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(vs)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
 }

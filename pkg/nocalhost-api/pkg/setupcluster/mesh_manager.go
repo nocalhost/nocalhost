@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
-	"istio.io/client-go/pkg/apis/networking/v1alpha3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/dynamicinformer"
@@ -250,16 +249,15 @@ func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructur
 
 func (m *meshManager) deleteHeaderFromVirtualService(rs []unstructured.Unstructured, info *MeshDevInfo) error {
 	// delete header from vs
-	vs := make([]*v1alpha3.VirtualService, 0)
+	vs := make([]*unstructured.Unstructured, 0)
 	for _, r := range rs {
 		origVs := m.cache.MatchVirtualServiceByWorkload(r)
 		if len(origVs) > 0 {
 			for _, v := range origVs {
-				v, err := deleteHeaderFromVirtualService(v, info.MeshDevNamespace, info.Header)
-				if err != nil {
+				if err := deleteHeaderFromVirtualService(&v, info.MeshDevNamespace, info.Header); err != nil {
 					return err
 				}
-				vs = append(vs, v)
+				vs = append(vs, &v)
 			}
 			continue
 		}
@@ -282,17 +280,16 @@ func (m *meshManager) addHeaderToVirtualService(rs []unstructured.Unstructured, 
 			info.BaseNamespace)
 		return nil
 	}
-	vs := make([]*v1alpha3.VirtualService, 0)
+	vs := make([]*unstructured.Unstructured, 0)
 	for _, r := range rs {
 		// update vs if already existed
 		origVs := m.cache.MatchVirtualServiceByWorkload(r)
 		if len(origVs) > 0 {
 			for _, v := range origVs {
-				v, err := addHeaderToVirtualService(v, info.MeshDevNamespace, info.Header)
-				if err != nil {
+				if err := addHeaderToVirtualService(&v, info.MeshDevNamespace, info.Header); err != nil {
 					return err
 				}
-				vs = append(vs, v)
+				vs = append(vs, &v)
 			}
 			continue
 		}
@@ -362,7 +359,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 	}
 	// get svc, gen vs
 	svcs := m.cache.GetServicesListByNameSpace(info.BaseNamespace)
-	vss := make([]v1alpha3.VirtualService, len(svcs))
+	vss := make([]unstructured.Unstructured, len(svcs))
 	for i := range svcs {
 		if err := meshDevModifier(info.MeshDevNamespace, &svcs[i]); err != nil {
 			return err
