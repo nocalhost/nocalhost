@@ -248,52 +248,89 @@ func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructur
 	return nil
 }
 
-func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured.Unstructured, info *MeshDevInfo) error {
-	// TODO, just update if the vs already exists
+func (m *meshManager) deleteHeaderFromVirtualService(rs []unstructured.Unstructured, info *MeshDevInfo) error {
+	// delete header from vs
 	vs := make([]*v1alpha3.VirtualService, 0)
-	if info.Header.TraceKey != "" && info.Header.TraceValue != "" {
-		for _, r := range irs {
-			for _, s := range m.cache.MatchServicesByWorkload(r) {
-				v, err := genVirtualServiceForBaseDevSpace(
-					info.BaseNamespace,
-					info.MeshDevNamespace,
-					s.GetName(),
-					info.Header,
-				)
+	for _, r := range rs {
+		origVs := m.cache.MatchVirtualServiceByWorkload(r)
+		if len(origVs) > 0 {
+			for _, v := range origVs {
+				v, err := deleteHeaderFromVirtualService(v, info.MeshDevNamespace, info.Header)
 				if err != nil {
 					return err
 				}
 				vs = append(vs, v)
 			}
-
+			continue
 		}
 	}
 
 	for i := range vs {
-		log.Debugf("apply the VirtualService/%s to the base namespace %s", vs[i].GetName(), info.BaseNamespace)
+		log.Debugf("delete the header %s/%s from VirtualService/%s, namespace %s",
+			info.Header.TraceKey, info.Header.TraceValue, vs[i].GetName(), vs[i].GetNamespace())
+		if _, err := m.client.Apply(vs[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *meshManager) addHeaderToVirtualService(rs []unstructured.Unstructured, info *MeshDevInfo) error {
+	// update vs
+	if info.Header.TraceKey == "" || info.Header.TraceValue == "" {
+		log.Debugf("can not find tracing header to update virtual service on the namespace %s",
+			info.BaseNamespace)
+		return nil
+	}
+	vs := make([]*v1alpha3.VirtualService, 0)
+	for _, r := range rs {
+		// update vs if already existed
+		origVs := m.cache.MatchVirtualServiceByWorkload(r)
+		if len(origVs) > 0 {
+			for _, v := range origVs {
+				v, err := addHeaderToVirtualService(v, info.MeshDevNamespace, info.Header)
+				if err != nil {
+					return err
+				}
+				vs = append(vs, v)
+			}
+			continue
+		}
+
+		// generate vs if does not exist
+		for _, s := range m.cache.MatchServicesByWorkload(r) {
+			v, err := genVirtualServiceForBaseDevSpace(
+				info.BaseNamespace,
+				info.MeshDevNamespace,
+				s.GetName(),
+				info.Header,
+			)
+			if err != nil {
+				return err
+			}
+			vs = append(vs, v)
+		}
+
+	}
+
+	for i := range vs {
+		log.Debugf("apply the VirtualService/%s to the base namespace %s", vs[i].GetName(), vs[i].GetNamespace())
 		if _, err := m.client.ApplyForce(vs[i]); err != nil {
 			return err
 		}
 	}
-
-	// TODO just delete the header match form vs
-	for _, r := range drs {
-		vs := &unstructured.Unstructured{}
-		vs.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   "networking.istio.io",
-			Version: "v1alpha3",
-			Kind:    "VirtualService",
-		})
-		vs.SetNamespace(r.GetNamespace())
-		vs.SetName(r.GetName())
-
-		log.Debugf("delete the Virtualservice/%s from the base namespace %s", r.GetName(), info.BaseNamespace)
-		err := m.client.Delete(vs)
-		if err != nil {
-			log.Debug(err)
-		}
-	}
 	return nil
+}
+
+func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured.Unstructured, info *MeshDevInfo) error {
+	g, _ := errgroup.WithContext(context.Background())
+	g.Go(func() error {
+		return m.deleteHeaderFromVirtualService(drs, info)
+	})
+	g.Go(func() error {
+		return m.addHeaderToVirtualService(irs, info)
+	})
+	return g.Wait()
 }
 
 func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {

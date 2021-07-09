@@ -212,3 +212,69 @@ func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.H
 
 	return vs, nil
 }
+
+func addHeaderToVirtualService(origVs unstructured.Unstructured, devNs string, header model.Header) (
+	*v1alpha3.VirtualService, error) {
+	if header.TraceKey == "" || header.TraceValue == "" {
+		return nil, errors.New("can not find tracing header")
+	}
+	vs := &v1alpha3.VirtualService{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(origVs.UnstructuredContent(), vs); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	name := global.NocalhostDevNamespaceLabel + "-" + devNs
+	route := vs.Spec.Http
+	for i := 0; i < len(route); i++ {
+		if route[i].GetName() == name {
+			route = route[:i+copy(route[i:], route[i+1:])]
+			i--
+		}
+	}
+
+	// add header
+	host := fmt.Sprintf("%s.%s.%s.%s", name, devNs, "svc", "cluster.local")
+	httpDsts := make([]*istiov1alpha3.HTTPRouteDestination, 0)
+	httpDst := &istiov1alpha3.HTTPRouteDestination{Destination: &istiov1alpha3.Destination{Host: host}}
+	httpDsts = append(httpDsts, httpDst)
+	headers := make(map[string]*istiov1alpha3.StringMatch)
+	// set exact match header
+	headers[header.TraceKey] = &istiov1alpha3.StringMatch{
+		MatchType: &istiov1alpha3.StringMatch_Exact{
+			Exact: header.TraceValue,
+		},
+	}
+
+	http := &istiov1alpha3.HTTPRoute{
+		Name: global.NocalhostDevNamespaceLabel + "-" + devNs,
+		Match: []*istiov1alpha3.HTTPMatchRequest{
+			{
+				Headers: headers,
+			},
+		},
+		Route: httpDsts,
+	}
+	route = append(route, &istiov1alpha3.HTTPRoute{})
+	copy(route[1:], route[:])
+	route[0] = http
+	vs.Spec.Http = route
+
+	return vs, nil
+}
+
+func deleteHeaderFromVirtualService(origVs unstructured.Unstructured, devNs string, header model.Header) (
+	*v1alpha3.VirtualService, error) {
+	vs := &v1alpha3.VirtualService{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(origVs.UnstructuredContent(), vs); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	name := global.NocalhostDevNamespaceLabel + "-" + devNs
+	route := vs.Spec.Http
+	for i := 0; i < len(route); i++ {
+		if route[i].GetName() == name {
+			route = route[:i+copy(route[i:], route[i+1:])]
+			i--
+		}
+	}
+	vs.Spec.Http = route
+	return vs, nil
+}
