@@ -157,164 +157,152 @@ func (c *cache) MatchVirtualServiceByWorkload(r unstructured.Unstructured) []uns
 	})
 }
 
-type appMatcher struct {
-	matchResources []unstructured.Unstructured
+type resourcesMatcher struct {
+	resources []unstructured.Unstructured
 }
 
-func newAppMatcher(resources []unstructured.Unstructured) *appMatcher {
-	m := &appMatcher{}
-	m.matchResources = make([]unstructured.Unstructured, len(resources))
+func newResourcesMatcher(resources []unstructured.Unstructured) *resourcesMatcher {
+	m := &resourcesMatcher{}
+	m.resources = make([]unstructured.Unstructured, len(resources))
 	for i := range resources {
-		resources[i].DeepCopyInto(&m.matchResources[i])
+		resources[i].DeepCopyInto(&m.resources[i])
 	}
 	return m
 }
 
 // match by kind
-func (m *appMatcher) kind(kind string) *appMatcher {
-	match := make([]unstructured.Unstructured, 0)
-	for _, r := range m.matchResources {
-		if r.GetKind() == kind {
-			match = append(match, r)
-		}
-	}
-	m.matchResources = match
+func (m *resourcesMatcher) kind(kind string) *resourcesMatcher {
+	m.resources = resourcesFilter(m.resources, func(r unstructured.Unstructured) bool {
+		return r.GetKind() == kind
+	})
 	return m
 }
 
 // match by app name
-func (m *appMatcher) app(appName string) *appMatcher {
-	match := make([]unstructured.Unstructured, 0)
-	for _, r := range m.matchResources {
+func (m *resourcesMatcher) app(appName string) *resourcesMatcher {
+	m.resources = resourcesFilter(m.resources, func(r unstructured.Unstructured) bool {
 		a := r.GetAnnotations()
 		if a == nil {
-			continue
+			return false
 		}
 		if a[nocalhost.NocalhostApplicationName] == appName {
-			match = append(match, r)
-			continue
+			return true
 		}
 		if a[nocalhost.HelmReleaseName] == appName {
-			match = append(match, r)
+			return true
 		}
-	}
-	m.matchResources = match
+		return false
+	})
 	return m
 }
 
 // match exclude app name
-func (m *appMatcher) excludeApp(appName string) *appMatcher {
-	match := make([]unstructured.Unstructured, 0)
-	for _, r := range m.matchResources {
+func (m *resourcesMatcher) excludeApp(appName string) *resourcesMatcher {
+	m.resources = resourcesFilter(m.resources, func(r unstructured.Unstructured) bool {
 		a := r.GetAnnotations()
 		if a == nil {
-			match = append(match, r)
-			continue
+			return true
 		}
 		if a[nocalhost.NocalhostApplicationName] == appName {
-			continue
+			return false
 		}
 		if a[nocalhost.HelmReleaseName] == appName {
-			continue
+			return false
 		}
-		match = append(match, r)
-	}
-	m.matchResources = match
+		return true
+	})
 	return m
 }
 
 // match by app names
-func (m *appMatcher) apps(appNames []string) *appMatcher {
-	match := make([]unstructured.Unstructured, 0)
+func (m *resourcesMatcher) apps(appNames []string) *resourcesMatcher {
 	am := make(map[string]struct{})
 	for _, n := range appNames {
 		if n != "" {
 			am[n] = struct{}{}
 		}
 	}
-	for _, r := range m.matchResources {
+	m.resources = resourcesFilter(m.resources, func(r unstructured.Unstructured) bool {
 		a := r.GetAnnotations()
 		if a == nil {
-			continue
+			return false
 		}
 		if _, ok := am[a[nocalhost.NocalhostApplicationName]]; ok {
-			match = append(match, r)
-			continue
+			return true
 		}
 		if _, ok := am[a[nocalhost.HelmReleaseName]]; ok {
-			match = append(match, r)
+			return true
 		}
-	}
-	m.matchResources = match
+		return false
+	})
 	return m
 }
 
 // match exclude app names
-func (m *appMatcher) excludeApps(appNames []string) *appMatcher {
-	match := make([]unstructured.Unstructured, 0)
+func (m *resourcesMatcher) excludeApps(appNames []string) *resourcesMatcher {
 	am := make(map[string]struct{})
 	for _, n := range appNames {
 		if n != "" {
 			am[n] = struct{}{}
 		}
 	}
-	for _, r := range m.matchResources {
+	m.resources = resourcesFilter(m.resources, func(r unstructured.Unstructured) bool {
 		a := r.GetAnnotations()
 		if a == nil {
-			match = append(match, r)
-			continue
+			return true
 		}
 		if _, ok := am[a[nocalhost.NocalhostApplicationName]]; ok {
-			continue
+			return false
 		}
 		if _, ok := am[a[nocalhost.HelmReleaseName]]; ok {
-			continue
+			return false
 		}
-		match = append(match, r)
-	}
-	m.matchResources = match
+		return true
+	})
 	return m
 }
 
-func (m *appMatcher) name(name string) *appMatcher {
-	match := make([]unstructured.Unstructured, 0)
-	for _, r := range m.matchResources {
-		if r.GetName() == name {
-			match = append(match, r)
-		}
-	}
-	m.matchResources = match
+func (m *resourcesMatcher) name(name string) *resourcesMatcher {
+	m.resources = resourcesFilter(m.resources, func(r unstructured.Unstructured) bool {
+		return r.GetName() == name
+	})
 	return m
 }
 
-func (m *appMatcher) namePrefix(prefix string) *appMatcher {
-	match := make([]unstructured.Unstructured, 0)
-	for _, r := range m.matchResources {
-		if strings.HasPrefix(r.GetName(), prefix) {
-			match = append(match, r)
-		}
-	}
-	m.matchResources = match
+func (m *resourcesMatcher) namePrefix(prefix string) *resourcesMatcher {
+	m.resources = resourcesFilter(m.resources, func(r unstructured.Unstructured) bool {
+		return strings.HasPrefix(r.GetName(), prefix)
+	})
 	return m
 }
 
-func (m *appMatcher) names(name []string) *appMatcher {
+func (m *resourcesMatcher) names(name []string) *resourcesMatcher {
 	nm := make(map[string]struct{})
 	for _, n := range name {
 		nm[n] = struct{}{}
 	}
-	match := make([]unstructured.Unstructured, 0)
-	for _, r := range m.matchResources {
-		if _, ok := nm[r.GetName()]; ok {
-			match = append(match, r)
-		}
-	}
-	m.matchResources = match
+
+	m.resources = resourcesFilter(m.resources, func(r unstructured.Unstructured) bool {
+		_, ok := nm[r.GetName()]
+		return ok
+	})
+
 	return m
 }
 
-func (m *appMatcher) match() []unstructured.Unstructured {
-	return m.matchResources
+func (m *resourcesMatcher) match() []unstructured.Unstructured {
+	return m.resources
+}
+
+func resourcesFilter(rs []unstructured.Unstructured, f func(
+	r unstructured.Unstructured) bool) []unstructured.Unstructured {
+	ret := make([]unstructured.Unstructured, 0)
+	for _, r := range rs {
+		if f(r) {
+			ret = append(ret, r)
+		}
+	}
+	return ret
 }
 
 func defaultGvr() []schema.GroupVersionResource {
@@ -345,15 +333,4 @@ func defaultGvr() []schema.GroupVersionResource {
 			Resource: "secrets",
 		},
 	}
-}
-
-func resourcesFilter(rs []unstructured.Unstructured, f func(
-	r unstructured.Unstructured) bool) []unstructured.Unstructured {
-	ret := make([]unstructured.Unstructured, 0)
-	for _, r := range rs {
-		if f(r) {
-			ret = append(ret, r)
-		}
-	}
-	return ret
 }

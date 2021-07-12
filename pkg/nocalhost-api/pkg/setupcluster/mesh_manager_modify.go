@@ -47,25 +47,17 @@ func meshDevModifier(ns string, r *unstructured.Unstructured) error {
 }
 
 func deploymentModifier(rs *unstructured.Unstructured) error {
-	dep := &appsv1.Deployment{}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), dep); err != nil {
+	deploy := &appsv1.Deployment{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), deploy); err != nil {
 		return errors.WithStack(err)
 	}
-	dep.Status.Reset()
+	deploy.Status.Reset()
 
-	// modify the init containers
-	initC := dep.Spec.Template.Spec.InitContainers
-	for i := 0; i < len(initC); i++ {
-		if strings.HasPrefix(initC[i].Name, "wait-for-pods-") ||
-			strings.HasPrefix(initC[i].Name, "wait-for-jobs-") {
-			initC = initC[:i+copy(initC[i:], initC[i+1:])]
-			i--
-		}
-	}
-	dep.Spec.Template.Spec.InitContainers = initC
+	// TODO handle pod dependencies
+	podDependencyModifier(&deploy.Spec.Template.Spec)
 
 	var err error
-	if rs.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(dep); err != nil {
+	if rs.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(deploy); err != nil {
 		return errors.WithStack(err)
 	}
 	return nil
@@ -85,18 +77,6 @@ func serviceModifier(rs *unstructured.Unstructured) error {
 		return errors.WithStack(err)
 	}
 	return nil
-}
-
-func resetModifier(rs *unstructured.Unstructured) {
-	rs.SetGenerateName("")
-	rs.SetSelfLink("")
-	rs.SetUID("")
-	rs.SetResourceVersion("")
-	rs.SetGeneration(0)
-	rs.SetDeletionGracePeriodSeconds(nil)
-	rs.SetOwnerReferences(nil)
-	rs.SetFinalizers(nil)
-	rs.SetManagedFields(nil)
 }
 
 func commonModifier(ns string, rs *unstructured.Unstructured) error {
@@ -119,6 +99,88 @@ func commonModifier(ns string, rs *unstructured.Unstructured) error {
 	delete(annotations, "control-plane.alpha.kubernetes.io/leader")
 	rs.SetAnnotations(annotations)
 	return nil
+}
+
+func podDependencyModifier(spec *corev1.PodSpec) []unstructured.Unstructured {
+	// modify the init containers
+	initContainersModifier(spec)
+
+	// modify volumes
+	return volumeModifier(spec)
+}
+
+func initContainersModifier(spec *corev1.PodSpec) {
+	initC := spec.InitContainers
+	for i := 0; i < len(initC); i++ {
+		if strings.HasPrefix(initC[i].Name, "wait-for-pods-") ||
+			strings.HasPrefix(initC[i].Name, "wait-for-jobs-") {
+			initC = initC[:i+copy(initC[i:], initC[i+1:])]
+			i--
+		}
+	}
+	spec.InitContainers = initC
+}
+
+func volumeModifier(spec *corev1.PodSpec) []unstructured.Unstructured {
+	// copy emptyDir, downwardAPI, hostPath, configMap, secret to new namespace, deprecate other volumes
+	// TODO handle dependencies
+	dependencies := make([]MeshDevWorkload, 0)
+	delVolumesMounts := make(map[string]struct{})
+	volumes := spec.Volumes
+	for i := 0; i < len(volumes); i++ {
+		if volumes[i].EmptyDir != nil ||
+			volumes[i].DownwardAPI != nil ||
+			volumes[i].HostPath != nil {
+			continue
+		}
+		if volumes[i].ConfigMap != nil {
+			dependencies = append(dependencies, MeshDevWorkload{
+				Kind:   "ConfigMap",
+				Name:   volumes[i].ConfigMap.Name,
+				Status: Selected,
+			})
+			continue
+		}
+		if volumes[i].Secret != nil {
+			dependencies = append(dependencies, MeshDevWorkload{
+				Kind:   "Secret",
+				Name:   volumes[i].Secret.SecretName,
+				Status: Selected,
+			})
+			continue
+		}
+		delVolumesMounts[volumes[i].Name] = struct{}{}
+		volumes = volumes[:i+copy(volumes[i:], volumes[i+1:])]
+		i--
+	}
+
+	// delete volumes mounts
+	containers := spec.Containers
+	for i, c := range containers {
+		v := c.VolumeMounts
+		for j := 0; j < len(v); j++ {
+			if _, ok := delVolumesMounts[v[j].Name]; !ok {
+				continue
+			}
+			v = v[:j+copy(v[j:], v[j+1:])]
+			j--
+		}
+		containers[i].VolumeMounts = v
+	}
+	spec.Containers = containers
+	return []unstructured.Unstructured{}
+}
+
+func resetModifier(rs *unstructured.Unstructured) {
+	rs.SetGenerateName("")
+	rs.SetSelfLink("")
+	rs.SetUID("")
+	rs.SetResourceVersion("")
+	rs.SetGeneration(0)
+	rs.SetDeletionGracePeriodSeconds(nil)
+	rs.SetOwnerReferences(nil)
+	rs.SetFinalizers(nil)
+	rs.SetManagedFields(nil)
 }
 
 func genVirtualServiceForMeshDevSpace(baseNs string, r unstructured.Unstructured) (*unstructured.Unstructured, error) {

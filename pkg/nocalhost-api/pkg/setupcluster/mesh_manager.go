@@ -125,7 +125,7 @@ func (m *meshManager) InjectMeshDevSpace(info *MeshDevInfo) error {
 func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
 	appNames := make([]string, 0)
 	appInfo := make([]MeshDevApp, 0)
-	appConfigsTmp := newAppMatcher(m.cache.GetSecretsListByNameSpace(info.BaseNamespace)).
+	appConfigsTmp := newResourcesMatcher(m.cache.GetSecretsListByNameSpace(info.BaseNamespace)).
 		namePrefix(appmeta.SecretNamePrefix).
 		match()
 	for _, c := range appConfigsTmp {
@@ -144,7 +144,7 @@ func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
 
 		appNames = append(appNames, name)
 		w := make([]MeshDevWorkload, 0)
-		for _, r := range newAppMatcher(m.cache.GetDeploymentsListByNameSpace(info.BaseNamespace)).app(name).match() {
+		for _, r := range newResourcesMatcher(m.cache.GetDeploymentsListByNameSpace(info.BaseNamespace)).app(name).match() {
 			w = append(w, MeshDevWorkload{
 				Kind: r.GetKind(),
 				Name: r.GetName(),
@@ -158,7 +158,7 @@ func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
 
 	// default.application
 	w := make([]MeshDevWorkload, 0)
-	for _, r := range newAppMatcher(m.cache.GetDeploymentsListByNameSpace(info.BaseNamespace)).
+	for _, r := range newResourcesMatcher(m.cache.GetDeploymentsListByNameSpace(info.BaseNamespace)).
 		excludeApps(appNames).
 		match() {
 		w = append(w, MeshDevWorkload{
@@ -332,7 +332,7 @@ func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured
 
 func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 	// apply app config
-	appConfigsTmp := newAppMatcher(m.cache.GetSecretsListByNameSpace(info.BaseNamespace)).
+	appConfigsTmp := newResourcesMatcher(m.cache.GetSecretsListByNameSpace(info.BaseNamespace)).
 		namePrefix(appmeta.SecretNamePrefix).
 		match()
 	for _, c := range appConfigsTmp {
