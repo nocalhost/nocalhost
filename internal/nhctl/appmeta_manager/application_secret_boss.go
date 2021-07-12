@@ -40,35 +40,35 @@ type Supervisor struct {
 }
 
 func UpdateApplicationMetasManually(ns string, configBytes []byte, secretName string, secret *v1.Secret) error {
-	aws := supervisor.inDeck(ns, configBytes)
-	if aws == nil {
-		return errors.New("aws is nil")
+	asw := supervisor.inDeck(ns, configBytes)
+	if asw == nil {
+		return errors.New("Error while update application manually cause by asw is nil ")
 	}
 	if secret == nil {
-		err := aws.Delete(ns + "/" + secretName)
+		err := asw.Delete(ns + "/" + secretName)
 		log.Infof("receive delete secret operation, name: %s, err: %v", secretName, err)
 		return err
 	} else {
-		err := aws.CreateOrUpdate(ns+"/"+secretName, secret)
+		err := asw.CreateOrUpdate(ns+"/"+secretName, secret)
 		log.Infof("receive update secret operation, name: %s, err: %v", secretName, err)
 		return err
 	}
 }
 
 func GetApplicationMetas(ns string, configBytes []byte) []*appmeta.ApplicationMeta {
-	aws := supervisor.inDeck(ns, configBytes)
+	asw := supervisor.inDeck(ns, configBytes)
 
-	if aws == nil {
+	if asw == nil {
 		return []*appmeta.ApplicationMeta{}
 	}
-	return aws.GetApplicationMetas()
+	return asw.GetApplicationMetas()
 }
 
 func GetApplicationMeta(ns, appName string, configBytes []byte) *appmeta.ApplicationMeta {
-	aws := supervisor.inDeck(ns, configBytes)
+	asw := supervisor.inDeck(ns, configBytes)
 
-	// aws may nil if prepare fail
-	meta := aws.GetApplicationMeta(appName, ns)
+	// asw may nil if prepare fail
+	meta := asw.GetApplicationMeta(appName, ns)
 	return meta
 }
 
