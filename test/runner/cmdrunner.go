@@ -19,6 +19,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
+	"time"
 )
 
 var Runner = &CmdRunner{}
@@ -58,6 +59,7 @@ func (r *CmdRunner) RunSimple(cmd *exec.Cmd, stdoutConsumer func(string) error) 
 
 func (r *CmdRunner) Run(cmd *exec.Cmd) (string, string, error) {
 	log.Infof("Running command: %s", cmd.Args)
+	time.Sleep(time.Second * 5)
 
 	stdout := bytes.Buffer{}
 	cmd.Stdout = &stdout
@@ -81,6 +83,7 @@ func (r *CmdRunner) Run(cmd *exec.Cmd) (string, string, error) {
 
 func (r *CmdRunner) RunWithRollingOutWithChecker(cmd *exec.Cmd, checker func(log string) bool) (string, string, error) {
 	log.Infof("Running command: %s", cmd.Args)
+	time.Sleep(time.Second * 5)
 	stdoutBuf := bytes.NewBuffer(make([]byte, 1024))
 	stderrBuf := bytes.NewBuffer(make([]byte, 1024))
 	stdoutPipe, _ := cmd.StdoutPipe()
