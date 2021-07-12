@@ -36,6 +36,7 @@ import (
 )
 
 var (
+	// do not change this error message
 	ErrNotFound = errors.New("Application not found")
 	indent      = 70
 )
