@@ -82,13 +82,13 @@ func refreshToken(signToken, refreshToken string) (neoSignToken, neoRefreshToken
 	secret := ""
 	secret = viper.GetString(JWT_SECRET)
 
-	signTokenCtx, err := Parse(signToken, secret, false)
+	signTokenCtx, err := Parse(signToken, secret, true)
 	if err != nil {
 		return "", "", err
 	}
 
 	secret = viper.GetString(JWT_REFRESH_SECRET)
-	refreshTokenCtx, err := Parse(refreshToken, secret, true)
+	refreshTokenCtx, err := Parse(refreshToken, secret, false)
 	if err != nil {
 		return "", "", err
 	}
@@ -107,13 +107,17 @@ func refreshToken(signToken, refreshToken string) (neoSignToken, neoRefreshToken
 
 // Parse validates the token with the specified secret,
 // and returns the context if the token was valid.
-func Parse(tokenString string, secret string, shouldCheckValid bool) (*Context, error) {
+func Parse(tokenString string, secret string, skipValidation bool) (*Context, error) {
 	ctx := &Context{}
 	token, err := jwt.Parse(tokenString, secretFunc(secret))
 
-	if err != nil {
+	if !skipValidation && err != nil {
 		return ctx, err
-	} else if claims, ok := token.Claims.(jwt.MapClaims); ok && (shouldCheckValid || token.Valid) {
+	} else if token == nil {
+		return ctx, errors.New("Token can't not be parsed correctly ")
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok  &&(skipValidation || token.Valid) {
 		ctx.UserID = uint64(claims["user_id"].(float64))
 		ctx.Username = claims["username"].(string)
 		ctx.Uuid = claims["uuid"].(string)
@@ -145,7 +149,7 @@ func ParseRequest(c *gin.Context) (*Context, error) {
 	if err != nil {
 		fmt.Printf("fmt.Sscanf err: %+v", err)
 	}
-	return Parse(t, secret, true)
+	return Parse(t, secret, false)
 }
 
 func Sign(ctx Context) (tokenString, refreshToken string, err error) {
@@ -177,7 +181,7 @@ func SignRefreshToken(ctx Context) (tokenString string, err error) {
 }
 
 // Sign signs the context with the specified secret.
-func sign(c Context, secret string, expDays int) (tokenString string, err error) {
+func sign(c Context, secret string, expDays int64) (tokenString string, err error) {
 
 	// The token content.
 	// iss: （Issuer）
@@ -195,9 +199,7 @@ func sign(c Context, secret string, expDays int) (tokenString string, err error)
 		"is_admin": c.IsAdmin,
 		"nbf":      time.Now().Unix(),
 		"iat":      time.Now().Unix(),
-		"exp": time.Now().
-			AddDate(0, 0, expDays).
-			Unix(),
+		"exp":      time.Now().Add(time.Duration(expDays) * time.Minute).Unix(),
 	})
 	// Sign the token with the specified secret.
 	tokenString, err = token.SignedString([]byte(secret))
