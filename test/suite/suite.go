@@ -44,12 +44,12 @@ func NewT(namespace, kubeconfig string, f func()) *T {
 	}
 }
 
-func (t *T) Run(name string, fn func(cli runner.Client, p ...string), pp ...string) {
-	t.RunWithBookInfo(true, name, fn, pp...)
+func (t *T) Run(name string, fn func(cli runner.Client)) {
+	t.RunWithBookInfo(true, name, fn)
 }
 
 // Run command and clean environment after finished
-func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.Client, p ...string), pp ...string) {
+func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.Client)) {
 	log.Infof("\n============= Testing (Start)%s  =============\n", name)
 	timeBefore := time.Now()
 
@@ -139,7 +139,7 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 
 	log.Infof("\n============= Testing (Test)%s =============\n", name)
 
-	fn(clientForRunner, pp...)
+	fn(clientForRunner)
 
 	timeAfter := time.Now()
 	log.Infof("\n============= Testing done, Cost(%fs) %s =============\n", timeAfter.Sub(timeBefore).Seconds(), name)
@@ -162,13 +162,13 @@ func (t *T) Clean() {
 }
 
 func (t *T) Alert() {
-	if oldV, newV := testcase.GetVersion(); oldV != "" && newV != "" {
+	if lastVersion, currentVersion := testcase.GetVersion(); lastVersion != "" && currentVersion != "" {
 		if webhook := os.Getenv(util.TestcaseWebhook); webhook != "" {
 			s := `{"msgtype":"text","text":{"content":"兼容性测试(%s --> %s)没通过，请相关同学注意啦!",
 "mentioned_mobile_list":["18511859195"]}}`
 			var req *http.Request
 			var err error
-			data := strings.NewReader(fmt.Sprintf(s, oldV, newV))
+			data := strings.NewReader(fmt.Sprintf(s, lastVersion, currentVersion))
 			if req, err = http.NewRequest("POST", webhook, data); err != nil {
 				log.Info(err)
 				return
