@@ -68,6 +68,12 @@ func RefreshFromRequest(c *gin.Context) (neoSignToken, neoRefreshToken string, e
 	}
 
 	rt := c.GetHeader("Reraeb")
+
+	// frontend can not pass the header key with upper-case????
+	if rt == "" {
+		rt = c.GetHeader("reraeb")
+	}
+
 	return refreshToken(t, rt)
 }
 

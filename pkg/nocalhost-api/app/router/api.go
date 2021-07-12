@@ -75,7 +75,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 
 	g.POST("/v1/register", user.Register)
 	g.POST("/v1/login", user.Login)
-	g.POST("/v1/refresh/token", user.RefreshToken)
+	g.POST("/v1/token/refresh", user.RefreshToken)
 
 	u := g.Group("/v1/users")
 	u.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
