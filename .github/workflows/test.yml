@@ -89,6 +89,7 @@ jobs:
           export COMMIT_ID=${GITHUB_SHA}
           export TKE_SECRET_ID=${{ secrets.TKE_SECRET_ID }}
           export TKE_SECRET_KEY=${{ secrets.TKE_SECRET_KEY }}
+          export TIMEOUT_WEBHOOK=${{ secrets.TIMEOUT_WEBHOOK }}
           export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
           cd test
           go build
@@ -123,6 +124,7 @@ jobs:
           export COMMIT_ID=${GITHUB_SHA}
           export TKE_SECRET_ID=${{ secrets.TKE_SECRET_ID }}
           export TKE_SECRET_KEY=${{ secrets.TKE_SECRET_KEY }}
+          export TIMEOUT_WEBHOOK=${{ secrets.TIMEOUT_WEBHOOK }}
           export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
           cd test
           go build
@@ -158,6 +160,7 @@ jobs:
           export COMMIT_ID=${GITHUB_SHA}
           export TKE_SECRET_ID=${{ secrets.TKE_SECRET_ID }}
           export TKE_SECRET_KEY=${{ secrets.TKE_SECRET_KEY }}
+          export TIMEOUT_WEBHOOK=${{ secrets.TIMEOUT_WEBHOOK }}
           export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
           cd test
           go build
