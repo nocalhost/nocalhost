@@ -16,6 +16,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding"
+	"errors"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,6 +41,9 @@ type Supervisor struct {
 
 func UpdateApplicationMetasManually(ns string, configBytes []byte, secretName string, secret *v1.Secret) error {
 	aws := supervisor.inDeck(ns, configBytes)
+	if aws == nil {
+		return errors.New("aws is nil")
+	}
 	if secret == nil {
 		err := aws.Delete(ns + "/" + secretName)
 		log.Infof("receive delete secret operation, name: %s, err: %v", secretName, err)
@@ -53,6 +57,10 @@ func UpdateApplicationMetasManually(ns string, configBytes []byte, secretName st
 
 func GetApplicationMetas(ns string, configBytes []byte) []*appmeta.ApplicationMeta {
 	aws := supervisor.inDeck(ns, configBytes)
+
+	if aws == nil {
+		return []*appmeta.ApplicationMeta{}
+	}
 	return aws.GetApplicationMetas()
 }
 
@@ -89,7 +97,8 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 
 	log.Infof("Prepare SecretWatcher for ns %s", ns)
 	if err := watcher.Prepare(); err != nil {
-		log.ErrorE(err, "Error while prepare watcher for ns "+ns)
+		log.TLogf("MetaSecret", "Error while get application in deck from ns %s.. "+
+			"return empty array.., Error: %s", ns, err.Error())
 		return nil
 	}
 
