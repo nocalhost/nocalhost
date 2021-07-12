@@ -14,7 +14,7 @@ package setupcluster
 
 import (
 	"fmt"
-	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"strings"
 
 	"github.com/pkg/errors"
 	istiov1alpha3 "istio.io/api/networking/v1alpha3"
@@ -28,6 +28,7 @@ import (
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
 func meshDevModifier(ns string, r *unstructured.Unstructured) error {
@@ -51,6 +52,18 @@ func deploymentModifier(rs *unstructured.Unstructured) error {
 		return errors.WithStack(err)
 	}
 	dep.Status.Reset()
+
+	// modify the init containers
+	initC := dep.Spec.Template.Spec.InitContainers
+	for i := 0; i < len(initC); i++ {
+		if strings.HasPrefix(initC[i].Name, "wait-for-pods-") ||
+			strings.HasPrefix(initC[i].Name, "wait-for-jobs-") {
+			initC = initC[:i+copy(initC[i:], initC[i+1:])]
+			i--
+		}
+	}
+	dep.Spec.Template.Spec.InitContainers = initC
+
 	var err error
 	if rs.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(dep); err != nil {
 		return errors.WithStack(err)
@@ -80,8 +93,6 @@ func resetModifier(rs *unstructured.Unstructured) {
 	rs.SetUID("")
 	rs.SetResourceVersion("")
 	rs.SetGeneration(0)
-	//rs.SetCreationTimestamp(metav1.Time{})
-	//rs.SetDeletionTimestamp(&metav1.Time{})
 	rs.SetDeletionGracePeriodSeconds(nil)
 	rs.SetOwnerReferences(nil)
 	rs.SetFinalizers(nil)
