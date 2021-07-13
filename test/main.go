@@ -78,7 +78,7 @@ func main() {
 	log.Infof("All Async Test Done")
 	<-compatibleChan
 
-	t.Clean()
+	t.Clean(false)
 
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
 }
