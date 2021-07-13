@@ -21,6 +21,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/util"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -169,7 +170,8 @@ func (t *task) GetClient() *tke.Client {
 func (t *task) CreateTKE() {
 
 	retryTimes := 250
-	clusterName := "test-" + uuid.New().String()
+	clusterName := "test-" + uuid.New().String() + "(" + runtime.GOOS + ")"
+	os.Setenv("TKE_NAME", clusterName)
 
 	request := tke.NewCreateClusterRequest()
 	request.ClusterType = &DefaultConfig.clusterType

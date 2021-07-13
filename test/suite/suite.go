@@ -93,13 +93,17 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 			log.Infof("\n============= Testing (Installing BookInfo %d)%s =============\n", i, name)
 			timeoutCtx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
 			if err = testcase.InstallBookInfo(timeoutCtx, clientForRunner); err != nil {
-				log.Infof("\n============= Testing (Install BookInfo Failed)%s =============, Err: \n", name, err.Error())
+				log.Infof(
+					"\n============= Testing (Install BookInfo Failed)%s =============, Err: \n", name, err.Error(),
+				)
 				_ = testcase.UninstallBookInfo(clientForRunner)
 				continue
 			}
 			timeAfterInstall := time.Now()
-			log.Infof("\n============= Testing (BookInfo Installed, Cost(%fs) %s =============\n",
-				timeAfterInstall.Sub(timeBeforeInstall).Seconds(), name)
+			log.Infof(
+				"\n============= Testing (BookInfo Installed, Cost(%fs) %s =============\n",
+				timeAfterInstall.Sub(timeBeforeInstall).Seconds(), name,
+			)
 			break
 		}
 
@@ -156,6 +160,7 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 }
 
 func (t *T) Clean() {
+	t.AlertForImagePull()
 	if t.CleanFunc != nil {
 		t.CleanFunc()
 	}
@@ -178,5 +183,45 @@ func (t *T) Alert() {
 				log.Info(err)
 			}
 		}
+	}
+}
+
+// cli must be kubectl
+func (t *T) AlertForImagePull() {
+	if webhook := os.Getenv(util.TimeoutWebhook); webhook != "" {
+		s := `{"msgtype":"text","text":{"content":"WARN（不一定只有镜像拉不下来）：集群：%s，Events：%s",
+"mentioned_mobile_list":[""]}}`
+		var req *http.Request
+		var err error
+
+		// some event may not timely
+		time.Sleep(time.Minute)
+
+		s1, s2, _ := t.Cli.GetKubectl().RunClusterScope(context.TODO(), "get", "events", "-A")
+		outPut := s1 + s2
+
+		if strings.Contains(outPut, "ErrImagePull") || strings.Contains(outPut, "ImagePullBackOff") {
+			robotHint := ""
+			for _, event := range strings.Split(outPut, "\n") {
+				if strings.Contains(event, "ErrImagePull") || strings.Contains(event, "ImagePullBackOff") {
+					robotHint += event + "\n"
+				}
+			}
+
+			data := strings.NewReader(fmt.Sprintf(s, os.Getenv("TKE_NAME"), robotHint))
+			if req, err = http.NewRequest("POST", webhook, data); err != nil {
+				log.Info(err)
+				return
+			}
+
+			req.Header.Set("Content-Type", "application/json")
+			if _, err = http.DefaultClient.Do(req); err != nil {
+				log.Info(err)
+			}
+		}
+
+		log.Infof("Event while panic: \n %s%s", s1, s2)
+
+		time.Sleep(time.Second * 30)
 	}
 }

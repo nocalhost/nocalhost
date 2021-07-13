@@ -373,6 +373,7 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 	tempCli := runner.NewNhctl(nocalhost, kubeconfig)
 	clientgoutils.Must(testcase.NhctlVersion(tempCli))
 	_ = testcase.StopDaemon(tempCli)
+
 	util.Retry("Prepare", []func() error{func() error { return testcase.Init(tempCli) }})
 
 	kubeconfigResult, err := testcase.GetKubeconfig(nocalhost, kubeconfig)
