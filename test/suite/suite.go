@@ -120,7 +120,7 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 				clientForRunner.GetNhctl().Namespace,
 				metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "reviews").String()},
 				func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
-				time.Minute*5,
+				time.Hour*1,
 			)
 
 			err = k8sutils.WaitPod(
@@ -128,7 +128,7 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 				clientForRunner.GetNhctl().Namespace,
 				metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "ratings").String()},
 				func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
-				time.Minute*5,
+				time.Hour*1,
 			)
 
 			if err == nil {

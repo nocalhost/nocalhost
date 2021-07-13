@@ -61,7 +61,7 @@ func DevStartT(cli runner.Client, moduleName string, moduleType string) error {
 		cli.GetNhctl().Namespace,
 		metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", moduleName).String()},
 		func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
-		time.Minute*2,
+		time.Minute*30,
 	)
 	return nil
 }
@@ -160,7 +160,7 @@ func DevEndT(cli runner.Client, moduleName string, moduleType string) error {
 				return true
 			}()
 		},
-		time.Minute*2,
+		time.Minute*30,
 	)
 	return nil
 }
