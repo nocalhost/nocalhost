@@ -55,7 +55,7 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 
 	defer func() {
 		if err := recover(); err != nil {
-			t.Clean()
+			t.Clean(true)
 			t.Alert()
 			panic(err)
 		}
@@ -159,8 +159,8 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 	}
 }
 
-func (t *T) Clean() {
-	t.AlertForImagePull()
+func (t *T) Clean(fail bool) {
+	t.AlertForImagePull(fail)
 	if t.CleanFunc != nil {
 		t.CleanFunc()
 	}
@@ -187,9 +187,9 @@ func (t *T) Alert() {
 }
 
 // cli must be kubectl
-func (t *T) AlertForImagePull() {
+func (t *T) AlertForImagePull(fail bool) {
 	if webhook := os.Getenv(util.TimeoutWebhook); webhook != "" {
-		s := `{"msgtype":"text","text":{"content":"WARN（不一定只有镜像拉不下来）：集群：%s，Events：%s",
+		s := `{"msgtype":"text","text":{"content":"WARN(ImagePullBackOff)：Clusters：%s，Events：%s",
 "mentioned_mobile_list":[""]}}`
 		var req *http.Request
 		var err error
@@ -200,7 +200,7 @@ func (t *T) AlertForImagePull() {
 		s1, s2, _ := t.Cli.GetKubectl().RunClusterScope(context.TODO(), "get", "events", "-A")
 		outPut := s1 + s2
 
-		if strings.Contains(outPut, "ErrImagePull") || strings.Contains(outPut, "ImagePullBackOff") {
+		if fail && strings.Contains(outPut, "ErrImagePull") || strings.Contains(outPut, "ImagePullBackOff") {
 			robotHint := ""
 			for _, event := range strings.Split(outPut, "\n") {
 				if strings.Contains(event, "ErrImagePull") || strings.Contains(event, "ImagePullBackOff") {
@@ -220,7 +220,7 @@ func (t *T) AlertForImagePull() {
 			}
 		}
 
-		log.Infof("Event while panic: \n %s%s", s1, s2)
+		log.Infof("Events show: \n %s%s", s1, s2)
 
 		time.Sleep(time.Second * 30)
 	}
