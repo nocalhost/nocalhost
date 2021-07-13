@@ -22,4 +22,5 @@ const (
 	WebDevSpace                = "/v1/dev_space"
 	WebServerServiceAccountApi = "/v1/plugin/service_accounts"
 	TestcaseWebhook            = "TESTCASE_WEBHOOK"
+	TimeoutWebhook             = "TIMEOUT_WEBHOOK"
 )

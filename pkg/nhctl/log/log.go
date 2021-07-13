@@ -87,7 +87,7 @@ func CustomDurationEncoder(t time.Duration, enc zapcore.PrimitiveArrayEncoder) {
 }
 
 func CustomTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-	enc.AppendString(t.Format(time.RFC3339))
+	enc.AppendString(t.Format(time.Stamp))
 }
 
 func CustomLevelEncoder(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
