@@ -358,7 +358,7 @@ func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 
 // sendAndWaitForResponse send data to daemon and wait for response
 func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) error {
-	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort))
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort), time.Second*30)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
