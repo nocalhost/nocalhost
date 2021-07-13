@@ -142,10 +142,11 @@ func (c *cache) MatchServicesByWorkload(r unstructured.Unstructured) []unstructu
 	})
 }
 
-func (c *cache) MatchVirtualServiceByWorkload(r unstructured.Unstructured) []unstructured.Unstructured {
+func (c *cache) MatchVirtualServiceByWorkload(r unstructured.Unstructured) map[string][]unstructured.Unstructured {
+	vmap := make(map[string][]unstructured.Unstructured)
 	ns := r.GetNamespace()
 	if ns == corev1.NamespaceAll {
-		return make([]unstructured.Unstructured, 0)
+		return vmap
 	}
 
 	smap := make(map[string]struct{})
@@ -155,14 +156,20 @@ func (c *cache) MatchVirtualServiceByWorkload(r unstructured.Unstructured) []uns
 	}
 
 	vs := c.GetVirtualServicesListByNameSpace(ns)
-	return resourcesFilter(vs, func(r unstructured.Unstructured) bool {
-		hosts, _, _ := unstructured.NestedStringSlice(r.UnstructuredContent(), "spec", "hosts")
+	for _, v := range vs {
+		hosts, _, _ := unstructured.NestedStringSlice(v.UnstructuredContent(), "spec", "hosts")
 		for _, host := range hosts {
-			_, ok := smap[host]
-			return ok
+			if _, ok := smap[host]; !ok {
+				continue
+			}
+			if _, ok := vmap[host]; ok {
+				vmap[host] = append(vmap[host], v)
+				continue
+			}
+			vmap[host] = []unstructured.Unstructured{v}
 		}
-		return false
-	})
+	}
+	return vmap
 }
 
 type resourcesMatcher struct {

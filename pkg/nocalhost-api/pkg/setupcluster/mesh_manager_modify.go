@@ -308,7 +308,7 @@ func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.H
 	return rs, nil
 }
 
-func addHeaderToVirtualService(rs *unstructured.Unstructured, devNs string, header model.Header) error {
+func addHeaderToVirtualService(rs *unstructured.Unstructured, devNs, svcName string, header model.Header) error {
 	resetModifier(rs)
 
 	if header.TraceKey == "" || header.TraceValue == "" {
@@ -320,7 +320,7 @@ func addHeaderToVirtualService(rs *unstructured.Unstructured, devNs string, head
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), vs); err != nil {
 		return errors.WithStack(err)
 	}
-	name := global.NocalhostDevNamespaceLabel + "-" + devNs
+	name := svcName
 	route := vs.Spec.Http
 	for i := 0; i < len(route); i++ {
 		if route[i].GetName() == name {

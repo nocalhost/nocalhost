@@ -257,15 +257,17 @@ func (m *meshManager) deleteHeaderFromVirtualService(rs []unstructured.Unstructu
 	// delete header from vs
 	vs := make([]*unstructured.Unstructured, 0)
 	for _, r := range rs {
-		origVs := m.cache.MatchVirtualServiceByWorkload(r)
-		if len(origVs) > 0 {
-			for _, v := range origVs {
-				if err := deleteHeaderFromVirtualService(&v, info.MeshDevNamespace, info.Header); err != nil {
-					return err
-				}
-				vs = append(vs, &v)
+		origVsMap := m.cache.MatchVirtualServiceByWorkload(r)
+		origVs := make([]unstructured.Unstructured, 0)
+		for _, ovs := range origVsMap {
+			origVs = append(origVs, ovs...)
+		}
+
+		for _, v := range origVs {
+			if err := deleteHeaderFromVirtualService(&v, info.MeshDevNamespace, info.Header); err != nil {
+				return err
 			}
-			continue
+			vs = append(vs, &v)
 		}
 	}
 
@@ -289,17 +291,19 @@ func (m *meshManager) addHeaderToVirtualService(rs []unstructured.Unstructured, 
 	vs := make([]*unstructured.Unstructured, 0)
 	for _, r := range rs {
 		// update vs if already existed
-		origVs := m.cache.MatchVirtualServiceByWorkload(r)
-		if len(origVs) > 0 {
+		origVsMap := m.cache.MatchVirtualServiceByWorkload(r)
+
+		for svcName, origVs := range origVsMap {
 			for _, v := range origVs {
-				if err := addHeaderToVirtualService(&v, info.MeshDevNamespace, info.Header); err != nil {
+				if err := addHeaderToVirtualService(&v, info.MeshDevNamespace, svcName, info.Header); err != nil {
 					return err
 				}
 				vs = append(vs, &v)
 			}
+		}
+		if len(origVsMap) > 0 {
 			continue
 		}
-
 		// generate vs if does not exist
 		for _, s := range m.cache.MatchServicesByWorkload(r) {
 			v, err := genVirtualServiceForBaseDevSpace(
