@@ -26,6 +26,14 @@ import (
 	"nocalhost/internal/nhctl/nocalhost"
 )
 
+const (
+	ConfigMap      = "ConfigMap"
+	Service        = "Service"
+	VirtualService = "VirtualService"
+	Secret         = "Secret"
+	Deployment     = "Deployment"
+)
+
 type cache struct {
 	stopCh    chan struct{}
 	informers dynamicinformer.DynamicSharedInformerFactory
@@ -80,38 +88,38 @@ func (c *cache) Deployment() informers.GenericInformer {
 	})
 }
 
-func (c *cache) GetConfigmapsListByNameSpace(n string) []unstructured.Unstructured {
-	return c.GetListByKindAndNamespace("Configmap", n)
+func (c *cache) GetConfigMapsListByNameSpace(n string) []unstructured.Unstructured {
+	return c.GetListByKindAndNamespace(ConfigMap, n)
 }
 
 func (c *cache) GetServicesListByNameSpace(n string) []unstructured.Unstructured {
-	return c.GetListByKindAndNamespace("Service", n)
+	return c.GetListByKindAndNamespace(Service, n)
 }
 
 func (c *cache) GetVirtualServicesListByNameSpace(n string) []unstructured.Unstructured {
-	return c.GetListByKindAndNamespace("VirtualService", n)
+	return c.GetListByKindAndNamespace(VirtualService, n)
 }
 
 func (c *cache) GetSecretsListByNameSpace(n string) []unstructured.Unstructured {
-	return c.GetListByKindAndNamespace("Secret", n)
+	return c.GetListByKindAndNamespace(Secret, n)
 }
 
 func (c *cache) GetDeploymentsListByNameSpace(n string) []unstructured.Unstructured {
-	return c.GetListByKindAndNamespace("Deployment", n)
+	return c.GetListByKindAndNamespace(Deployment, n)
 }
 
 func (c *cache) GetListByKindAndNamespace(kind, n string) []unstructured.Unstructured {
 	var objs []interface{}
 	switch kind {
-	case "Deployment":
+	case Deployment:
 		objs, _ = c.Deployment().Informer().GetIndexer().ByIndex(toolscache.NamespaceIndex, n)
-	case "Secret":
+	case Secret:
 		objs, _ = c.Secret().Informer().GetIndexer().ByIndex(toolscache.NamespaceIndex, n)
-	case "Configmap":
+	case ConfigMap:
 		objs, _ = c.Configmap().Informer().GetIndexer().ByIndex(toolscache.NamespaceIndex, n)
-	case "Service":
+	case Service:
 		objs, _ = c.Service().Informer().GetIndexer().ByIndex(toolscache.NamespaceIndex, n)
-	case "VirtualService":
+	case VirtualService:
 		objs, _ = c.VirtualService().Informer().GetIndexer().ByIndex(toolscache.NamespaceIndex, n)
 	}
 	ret := make([]unstructured.Unstructured, len(objs))

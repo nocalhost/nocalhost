@@ -31,36 +31,41 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
-func meshDevModifier(ns string, r *unstructured.Unstructured) error {
+func meshDevModifier(ns string, r *unstructured.Unstructured) ([]MeshDevWorkload, error) {
+	dependencies := make([]MeshDevWorkload, 0)
+	var err error
 	switch r.GetKind() {
-	case "Deployment":
-		if err := deploymentModifier(r); err != nil {
-			return err
+	case Deployment:
+		if dependencies, err = deploymentModifier(r); err != nil {
+			return nil, err
 		}
-	case "Service":
+	case Service:
 		if err := serviceModifier(r); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return commonModifier(ns, r)
+	if err := commonModifier(ns, r); err != nil {
+		return nil, err
+	}
+
+	return dependencies, nil
 }
 
-func deploymentModifier(rs *unstructured.Unstructured) error {
+func deploymentModifier(rs *unstructured.Unstructured) ([]MeshDevWorkload, error) {
 	deploy := &appsv1.Deployment{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), deploy); err != nil {
-		return errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 	deploy.Status.Reset()
 
-	// TODO handle pod dependencies
-	podDependencyModifier(&deploy.Spec.Template.Spec)
+	dependencies := podDependencyModifier(&deploy.Spec.Template.Spec)
 
 	var err error
 	if rs.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(deploy); err != nil {
-		return errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
-	return nil
+	return dependencies, nil
 }
 
 func serviceModifier(rs *unstructured.Unstructured) error {
@@ -101,7 +106,7 @@ func commonModifier(ns string, rs *unstructured.Unstructured) error {
 	return nil
 }
 
-func podDependencyModifier(spec *corev1.PodSpec) []unstructured.Unstructured {
+func podDependencyModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 	// modify the init containers
 	initContainersModifier(spec)
 
@@ -121,9 +126,8 @@ func initContainersModifier(spec *corev1.PodSpec) {
 	spec.InitContainers = initC
 }
 
-func volumeModifier(spec *corev1.PodSpec) []unstructured.Unstructured {
+func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 	// copy emptyDir, downwardAPI, hostPath, configMap, secret to new namespace, deprecate other volumes
-	// TODO handle dependencies
 	dependencies := make([]MeshDevWorkload, 0)
 	delVolumesMounts := make(map[string]struct{})
 	volumes := spec.Volumes
@@ -135,7 +139,7 @@ func volumeModifier(spec *corev1.PodSpec) []unstructured.Unstructured {
 		}
 		if volumes[i].ConfigMap != nil {
 			dependencies = append(dependencies, MeshDevWorkload{
-				Kind:   "ConfigMap",
+				Kind:   ConfigMap,
 				Name:   volumes[i].ConfigMap.Name,
 				Status: Selected,
 			})
@@ -143,7 +147,7 @@ func volumeModifier(spec *corev1.PodSpec) []unstructured.Unstructured {
 		}
 		if volumes[i].Secret != nil {
 			dependencies = append(dependencies, MeshDevWorkload{
-				Kind:   "Secret",
+				Kind:   Secret,
 				Name:   volumes[i].Secret.SecretName,
 				Status: Selected,
 			})
@@ -168,7 +172,7 @@ func volumeModifier(spec *corev1.PodSpec) []unstructured.Unstructured {
 		containers[i].VolumeMounts = v
 	}
 	spec.Containers = containers
-	return []unstructured.Unstructured{}
+	return dependencies
 }
 
 func resetModifier(rs *unstructured.Unstructured) {

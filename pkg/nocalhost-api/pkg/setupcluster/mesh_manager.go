@@ -198,7 +198,7 @@ func (m *meshManager) BuildCache() error {
 func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstructured, info *MeshDevInfo) error {
 	for _, r := range drs {
 		log.Debugf("delete the workload %s/%s from %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
-		if err := meshDevModifier(info.MeshDevNamespace, &r); err != nil {
+		if err := commonModifier(info.MeshDevNamespace, &r); err != nil {
 			return err
 		}
 		err := m.client.Delete(&r)
@@ -222,12 +222,19 @@ func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstruc
 func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructured, info *MeshDevInfo) error {
 	for _, r := range irs {
 		log.Debugf("inject the workload %s/%s to %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
-		if err := meshDevModifier(info.MeshDevNamespace, &r); err != nil {
+		dependencies, err := meshDevModifier(info.MeshDevNamespace, &r)
+		if err != nil {
 			return err
 		}
+
+		if err := m.applyDependencyToMeshDevSpace(dependencies, info); err != nil {
+			return err
+		}
+
 		if _, err := m.client.ApplyForce(&r); err != nil {
 			return err
 		}
+
 		// delete vs form mesh dev space
 		vs := &unstructured.Unstructured{}
 		vs.SetGroupVersionKind(schema.GroupVersionKind{
@@ -239,9 +246,8 @@ func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructur
 		vs.SetName(r.GetName())
 
 		log.Debugf("delete the VirtualService/%s from the base namespace %s", r.GetName(), r.GetNamespace())
-		err := m.client.Delete(vs)
-		if err != nil {
-			log.Debug(err)
+		if err := m.client.Delete(vs); err != nil {
+			log.Error(err)
 		}
 	}
 	return nil
@@ -348,7 +354,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 			continue
 		}
 
-		if err := meshDevModifier(info.MeshDevNamespace, &c); err != nil {
+		if err := commonModifier(info.MeshDevNamespace, &c); err != nil {
 			return err
 		}
 		_, err = m.client.ApplyForce(&c)
@@ -361,7 +367,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 	svcs := m.cache.GetServicesListByNameSpace(info.BaseNamespace)
 	vss := make([]unstructured.Unstructured, len(svcs))
 	for i := range svcs {
-		if err := meshDevModifier(info.MeshDevNamespace, &svcs[i]); err != nil {
+		if _, err := meshDevModifier(info.MeshDevNamespace, &svcs[i]); err != nil {
 			return err
 		}
 		vs, err := genVirtualServiceForMeshDevSpace(info.BaseNamespace, svcs[i])
@@ -406,6 +412,7 @@ func (m *meshManager) buildCache() error {
 	m.cache.build()
 	return nil
 }
+
 func (m *meshManager) getMeshDevSpaceWorkloads(info *MeshDevInfo) []MeshDevWorkload {
 	w := make([]MeshDevWorkload, 0)
 	for _, r := range m.cache.GetDeploymentsListByNameSpace(info.MeshDevNamespace) {
@@ -439,6 +446,34 @@ func (m *meshManager) setWorkloadStatus(info *MeshDevInfo) error {
 	info.APPS = apps
 	return nil
 
+}
+
+func (m *meshManager) applyDependencyToMeshDevSpace(dependencies []MeshDevWorkload, info *MeshDevInfo) error {
+	wm := make(map[string][]string)
+	for _, d := range dependencies {
+		if _, ok := wm[d.Kind]; ok {
+			wm[d.Kind] = append(wm[d.Kind], d.Name)
+		}
+	}
+
+	// get resources from cache
+	rs := make([]unstructured.Unstructured, 0)
+	for k, v := range wm {
+		rs = append(rs, newResourcesMatcher(m.cache.GetListByKindAndNamespace(k, info.BaseNamespace)).
+			names(v).match()...)
+	}
+
+	// apply resources
+	for _, r := range rs {
+		log.Debugf("inject the workload dependency %s/%s to %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
+		if err := commonModifier(info.MeshDevNamespace, &r); err != nil {
+			return err
+		}
+		if _, err := m.client.ApplyForce(&r); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func NewMeshManager(client *clientgo.GoClient) MeshManager {
