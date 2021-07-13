@@ -453,7 +453,9 @@ func (m *meshManager) applyDependencyToMeshDevSpace(dependencies []MeshDevWorklo
 	for _, d := range dependencies {
 		if _, ok := wm[d.Kind]; ok {
 			wm[d.Kind] = append(wm[d.Kind], d.Name)
+			continue
 		}
+		wm[d.Kind] = []string{d.Name}
 	}
 
 	// get resources from cache
