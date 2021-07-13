@@ -157,6 +157,7 @@ func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 		volumes = volumes[:i+copy(volumes[i:], volumes[i+1:])]
 		i--
 	}
+	spec.Volumes = volumes
 
 	// delete volumes mounts
 	containers := spec.Containers
