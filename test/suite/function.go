@@ -29,9 +29,12 @@ import (
 	"time"
 )
 
-func HelmAdaption(client runner.Client, _ ...string) {
+func HelmAdaption(client runner.Client) {
 	util.Retry(
 		"HelmAdaption", []func() error{
+			func() error { return testcase.InstallBookInfoUseHelmVals(client) },
+			func() error { return testcase.UninstallBookInfoWithNativeHelm(client) },
+
 			func() error { return testcase.InstallBookInfoWithNativeHelm(client) },
 			func() error { return testcase.UninstallBookInfoWithNativeHelm(client) },
 
@@ -47,7 +50,7 @@ func HelmAdaption(client runner.Client, _ ...string) {
 	)
 }
 
-func PortForward(client runner.Client, _ ...string) {
+func PortForward(client runner.Client) {
 	module := "reviews"
 	port := 49088
 
@@ -67,7 +70,7 @@ func PortForward(client runner.Client, _ ...string) {
 	//util.Retry("PortForward", funcs)
 }
 
-func PortForwardService(client runner.Client, _ ...string) {
+func PortForwardService(client runner.Client) {
 	module := "productpage"
 	remotePort := 9080
 	localPort, err := ports.GetAvailablePort()
@@ -88,7 +91,7 @@ func PortForwardService(client runner.Client, _ ...string) {
 	_ = cmd.Process.Kill()
 }
 
-func Deployment(cli runner.Client, _ ...string) {
+func Deployment(cli runner.Client) {
 	PortForward(cli)
 	PortForwardService(cli)
 	module := "ratings"
@@ -108,7 +111,7 @@ func Deployment(cli runner.Client, _ ...string) {
 	util.Retry("Dev", funcs)
 }
 
-func StatefulSet(cli runner.Client, _ ...string) {
+func StatefulSet(cli runner.Client) {
 	module := "web"
 	moduleType := "statefulset"
 	funcs := []func() error{
@@ -125,10 +128,29 @@ func StatefulSet(cli runner.Client, _ ...string) {
 	util.Retry("StatefulSet", funcs)
 }
 
-func Compatible(cli runner.Client, p ...string) {
+/**
+main step:
+install a old version of nhctl
+  (1) enter dev mode
+  (2) start port-forward
+  (3) start file sync
+then, install a new version of nhctl
+  (1) check sync status, developing status, port-forward status
+  (2) check sync is ok or not
+  (3) try to end port-forward
+  (4) try to end dev mode
+using new version of nhctl to do more operation
+*/
+func Compatible(cli runner.Client) {
 	module := "ratings"
 	port := 49080
 	suiteName := "Compatible"
+	lastVersion, currentVersion := testcase.GetVersion()
+	if lastVersion != "" {
+		util.Retry(suiteName, []func() error{func() error { return testcase.InstallNhctl(lastVersion) }})
+		util.Retry(suiteName, []func() error{func() error { return testcase.StopDaemon(cli.GetNhctl()) }})
+		_ = testcase.NhctlVersion(cli.GetNhctl())
+	}
 	util.Retry(suiteName, []func() error{func() error { return testcase.Exec(cli) }})
 	m := []func() error{
 		func() error { return testcase.DevStart(cli, module) },
@@ -138,8 +160,8 @@ func Compatible(cli runner.Client, p ...string) {
 	m2 := []func() error{func() error { return testcase.PortForwardStart(cli, module, port) }}
 	util.Retry(suiteName, m2)
 	// install new version of nhctl
-	if len(p) > 0 && p[0] != "" {
-		util.Retry(suiteName, []func() error{func() error { return testcase.InstallNhctl(p[0]) }})
+	if lastVersion != "" {
+		util.Retry(suiteName, []func() error{func() error { return testcase.InstallNhctl(currentVersion) }})
 		//_ = testcase.RestartDaemon(cli)
 		_ = testcase.NhctlVersion(cli.GetNhctl())
 	}
@@ -162,12 +184,12 @@ func Compatible(cli runner.Client, p ...string) {
 		func() error { return testcase.Db(cli) },
 		func() error { return testcase.Pvc(cli) },
 		func() error { return testcase.Reset(cli) },
-		func() error { return testcase.InstallBookInfoThreeTimes(cli) },
+		func() error { return testcase.InstallBookInfoDifferentType(cli) },
 	}
 	util.Retry(suiteName, funcs)
 }
 
-func Reset(cli runner.Client, _ ...string) {
+func Reset(cli runner.Client) {
 	clientgoutils.Must(testcase.Reset(cli))
 	_ = testcase.UninstallBookInfo(cli)
 	retryTimes := 5
@@ -186,12 +208,12 @@ func Reset(cli runner.Client, _ ...string) {
 	clientgoutils.Must(testcase.List(cli))
 }
 
-func Apply(cli runner.Client, _ ...string) {
+func Apply(cli runner.Client) {
 	util.Retry("Apply", []func() error{func() error { return testcase.Apply(cli) }})
 	clientgoutils.Must(testcase.List(cli))
 }
 
-func Upgrade(cli runner.Client, _ ...string) {
+func Upgrade(cli runner.Client) {
 	util.Retry("Upgrade", []func() error{func() error { return testcase.Upgrade(cli) }})
 	clientgoutils.Must(testcase.List(cli))
 	Reset(cli)
@@ -199,7 +221,7 @@ func Upgrade(cli runner.Client, _ ...string) {
 	Profile(cli)
 }
 
-func Profile(cli runner.Client, _ ...string) {
+func Profile(cli runner.Client) {
 
 	singleSvcConfig := fp.NewRandomTempPath()
 	multiSvcConfig := fp.NewRandomTempPath()
@@ -308,11 +330,11 @@ func Profile(cli runner.Client, _ ...string) {
 	clientgoutils.Must(testcase.List(cli))
 }
 
-func Install(cli runner.Client, _ ...string) {
+func Install(cli runner.Client) {
 	retryTimes := 5
 	var err error
 	for i := 0; i < retryTimes; i++ {
-		if err = testcase.InstallBookInfoThreeTimes(cli); err != nil {
+		if err = testcase.InstallBookInfoDifferentType(cli); err != nil {
 			log.Info(err)
 			_ = testcase.Reset(cli)
 			continue
@@ -344,13 +366,14 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 		}()
 	}
 	go util.TimeoutChecker(1*time.Hour, cancelFunc)
-	v1, _ := testcase.GetVersion()
-	util.Retry("Prepare", []func() error{func() error { return testcase.InstallNhctl(v1) }})
+	_, currentVersion := testcase.GetVersion()
+	util.Retry("Prepare", []func() error{func() error { return testcase.InstallNhctl(currentVersion) }})
 	kubeconfig := util.GetKubeconfig()
 	nocalhost := "nocalhost"
 	tempCli := runner.NewNhctl(nocalhost, kubeconfig)
 	clientgoutils.Must(testcase.NhctlVersion(tempCli))
 	_ = testcase.StopDaemon(tempCli)
+
 	util.Retry("Prepare", []func() error{func() error { return testcase.Init(tempCli) }})
 
 	kubeconfigResult, err := testcase.GetKubeconfig(nocalhost, kubeconfig)
@@ -360,7 +383,7 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 	return
 }
 
-func KillSyncthingProcess(cli runner.Client, _ ...string) {
+func KillSyncthingProcess(cli runner.Client) {
 	module := "ratings"
 	funcs := []func() error{
 		func() error {
@@ -388,7 +411,7 @@ func KillSyncthingProcess(cli runner.Client, _ ...string) {
 	util.Retry("remove syncthing pid file", funcs)
 }
 
-func Get(cli runner.Client, _ ...string) {
+func Get(cli runner.Client) {
 	cases := []struct {
 		resource string
 		appName  string

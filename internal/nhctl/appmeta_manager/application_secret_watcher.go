@@ -40,9 +40,9 @@ type applicationSecretWatcher struct {
 	watchController *watcher.Controller
 }
 
-func (aws *applicationSecretWatcher) CreateOrUpdate(key string, obj interface{}) error {
+func (asw *applicationSecretWatcher) CreateOrUpdate(key string, obj interface{}) error {
 	if secret, ok := obj.(*v1.Secret); ok {
-		return aws.join(secret)
+		return asw.join(secret)
 	} else {
 		errInfo := fmt.Sprintf(
 			"Fetching secret with key %s but "+
@@ -53,18 +53,18 @@ func (aws *applicationSecretWatcher) CreateOrUpdate(key string, obj interface{})
 	}
 }
 
-func (aws *applicationSecretWatcher) Delete(key string) error {
+func (asw *applicationSecretWatcher) Delete(key string) error {
 	appName, err := appmeta.GetApplicationName(key)
 	if err != nil {
 		return err
 	}
 
-	aws.left(appName)
+	asw.left(appName)
 	return nil
 }
 
-func (aws *applicationSecretWatcher) WatcherInfo() string {
-	return fmt.Sprintf("'Secret - ns:%s'", aws.ns)
+func (asw *applicationSecretWatcher) WatcherInfo() string {
+	return fmt.Sprintf("'Secret - ns:%s'", asw.ns)
 }
 
 func (asw *applicationSecretWatcher) join(secret *v1.Secret) error {

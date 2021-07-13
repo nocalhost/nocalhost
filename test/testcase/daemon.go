@@ -44,7 +44,7 @@ func Exec(client runner.Client) error {
 		client.GetNhctl().Namespace,
 		metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "reviews").String()},
 		func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
-		time.Minute*2,
+		time.Minute*30,
 	)
 	cmd := client.GetNhctl().Command(context.Background(), "exec", "bookinfo", "-d", "reviews", "-c", "ls")
 	return runner.Runner.RunWithCheckResult(cmd)

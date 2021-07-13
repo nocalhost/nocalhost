@@ -14,7 +14,7 @@ package nocalhost
 
 import (
 	"encoding/json"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/daemon_client"

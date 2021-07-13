@@ -44,6 +44,7 @@ func (c *Controller) EndDevPortForward(localPort int, remotePort int) error {
 					NameSpace:   c.NameSpace,
 					Application: c.AppName,
 					Service:     c.Name,
+					ServiceType: string(c.Type),
 					PodName:     "",
 				}, localPort, remotePort,
 			)

@@ -73,7 +73,8 @@ func (u *UserBaseModel) TableName() string {
 
 // Token represents a JSON web token.
 type Token struct {
-	Token string `json:"token"`
+	Token        string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 // Compare with the plain text password. Returns true if it's the same as the encrypted one (in the `User` struct).

@@ -16,7 +16,6 @@ import (
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/suite"
-	"nocalhost/test/testcase"
 	"os"
 	"path/filepath"
 	"sync"
@@ -28,7 +27,6 @@ func main() {
 
 	start := time.Now()
 
-	var v2 string
 	var t *suite.T
 
 	if _, ok := os.LookupEnv("LocalTest"); ok {
@@ -38,7 +36,6 @@ func main() {
 	} else {
 		cancelFunc, ns, kubeconfig := suite.Prepare()
 		t = suite.NewT(ns, kubeconfig, cancelFunc)
-		_, v2 = testcase.GetVersion()
 	}
 
 	compatibleChan := make(chan interface{}, 1)
@@ -72,8 +69,8 @@ func main() {
 		t.Run("Get", suite.Get)
 	})
 
-	DoRun(v2 != "", &wg, func() {
-		t.Run("compatible", suite.Compatible, v2)
+	DoRun(true, &wg, func() {
+		t.Run("compatible", suite.Compatible)
 		compatibleChan <- "Done"
 	})
 
@@ -81,7 +78,7 @@ func main() {
 	log.Infof("All Async Test Done")
 	<-compatibleChan
 
-	t.Clean()
+	t.Clean(false)
 
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
 }
