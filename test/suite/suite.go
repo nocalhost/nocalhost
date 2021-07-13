@@ -197,7 +197,7 @@ func (t *T) AlertForImagePull() {
 		// some event may not timely
 		time.Sleep(time.Minute)
 
-		s1, s2, _ := t.Cli.GetNhctl().Run(context.TODO(), "get", "events")
+		s1, s2, _ := t.Cli.GetKubectl().RunClusterScope(context.TODO(), "get", "events", "-A")
 
 		if strings.Contains(s1, "Warning") || strings.Contains(s2, "Warning") {
 			data := strings.NewReader(fmt.Sprintf(s, os.Getenv("TKE_NAME"), s1, s2))
