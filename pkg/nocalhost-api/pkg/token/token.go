@@ -68,6 +68,12 @@ func RefreshFromRequest(c *gin.Context) (neoSignToken, neoRefreshToken string, e
 	}
 
 	rt := c.GetHeader("Reraeb")
+
+	// frontend can not pass the header key with upper-case????
+	if rt == "" {
+		rt = c.GetHeader("reraeb")
+	}
+
 	return refreshToken(t, rt)
 }
 
@@ -76,13 +82,13 @@ func refreshToken(signToken, refreshToken string) (neoSignToken, neoRefreshToken
 	secret := ""
 	secret = viper.GetString(JWT_SECRET)
 
-	signTokenCtx, err := Parse(signToken, secret, false)
+	signTokenCtx, err := Parse(signToken, secret, true)
 	if err != nil {
 		return "", "", err
 	}
 
 	secret = viper.GetString(JWT_REFRESH_SECRET)
-	refreshTokenCtx, err := Parse(refreshToken, secret, true)
+	refreshTokenCtx, err := Parse(refreshToken, secret, false)
 	if err != nil {
 		return "", "", err
 	}
@@ -101,13 +107,17 @@ func refreshToken(signToken, refreshToken string) (neoSignToken, neoRefreshToken
 
 // Parse validates the token with the specified secret,
 // and returns the context if the token was valid.
-func Parse(tokenString string, secret string, shouldCheckValid bool) (*Context, error) {
+func Parse(tokenString string, secret string, skipValidation bool) (*Context, error) {
 	ctx := &Context{}
 	token, err := jwt.Parse(tokenString, secretFunc(secret))
 
-	if err != nil {
+	if !skipValidation && err != nil {
 		return ctx, err
-	} else if claims, ok := token.Claims.(jwt.MapClaims); ok && (shouldCheckValid || token.Valid) {
+	} else if token == nil {
+		return ctx, errors.New("Token can't not be parsed correctly ")
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && (skipValidation || token.Valid) {
 		ctx.UserID = uint64(claims["user_id"].(float64))
 		ctx.Username = claims["username"].(string)
 		ctx.Uuid = claims["uuid"].(string)
@@ -139,7 +149,7 @@ func ParseRequest(c *gin.Context) (*Context, error) {
 	if err != nil {
 		fmt.Printf("fmt.Sscanf err: %+v", err)
 	}
-	return Parse(t, secret, true)
+	return Parse(t, secret, false)
 }
 
 func Sign(ctx Context) (tokenString, refreshToken string, err error) {
@@ -181,18 +191,18 @@ func sign(c Context, secret string, expDays int) (tokenString string, err error)
 	// sub: （Subject）
 	// nbf: （Not Before）
 	// jti: （JWT ID）
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id":  c.UserID,
-		"username": c.Username,
-		"uuid":     c.Uuid,
-		"email":    c.Email,
-		"is_admin": c.IsAdmin,
-		"nbf":      time.Now().Unix(),
-		"iat":      time.Now().Unix(),
-		"exp": time.Now().
-			AddDate(0, 0, expDays).
-			Unix(),
-	})
+	token := jwt.NewWithClaims(
+		jwt.SigningMethodHS256, jwt.MapClaims{
+			"user_id":  c.UserID,
+			"username": c.Username,
+			"uuid":     c.Uuid,
+			"email":    c.Email,
+			"is_admin": c.IsAdmin,
+			"nbf":      time.Now().Unix(),
+			"iat":      time.Now().Unix(),
+			"exp":      time.Now().AddDate(0, 0, expDays).Unix(),
+		},
+	)
 	// Sign the token with the specified secret.
 	tokenString, err = token.SignedString([]byte(secret))
 	return
