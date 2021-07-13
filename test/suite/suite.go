@@ -189,7 +189,7 @@ func (t *T) Alert() {
 // cli must be kubectl
 func (t *T) AlertForImagePull() {
 	if webhook := os.Getenv(util.TimeoutWebhook); webhook != "" {
-		s := `{"msgtype":"text","text":{"content":"WARN（不一定只有镜像拉不下来）：集群：%s，Events：%s%s",
+		s := `{"msgtype":"text","text":{"content":"WARN（不一定只有镜像拉不下来）：集群：%s，Events：%s",
 "mentioned_mobile_list":[""]}}`
 		var req *http.Request
 		var err error
@@ -198,13 +198,22 @@ func (t *T) AlertForImagePull() {
 		time.Sleep(time.Minute)
 
 		s1, s2, _ := t.Cli.GetKubectl().RunClusterScope(context.TODO(), "get", "events", "-A")
+		outPut := s1 + s2
 
-		if strings.Contains(s1, "Warning") || strings.Contains(s2, "Warning") {
-			data := strings.NewReader(fmt.Sprintf(s, os.Getenv("TKE_NAME"), s1, s2))
+		if strings.Contains(outPut, "ErrImagePull") || strings.Contains(outPut, "ImagePullBackOff") {
+			robotHint := ""
+			for _, event := range strings.Split(outPut, "\n") {
+				if strings.Contains(event, "ErrImagePull") || strings.Contains(event, "ImagePullBackOff") {
+					robotHint += event + "\n"
+				}
+			}
+
+			data := strings.NewReader(fmt.Sprintf(s, os.Getenv("TKE_NAME"), robotHint))
 			if req, err = http.NewRequest("POST", webhook, data); err != nil {
 				log.Info(err)
 				return
 			}
+
 			req.Header.Set("Content-Type", "application/json")
 			if _, err = http.DefaultClient.Do(req); err != nil {
 				log.Info(err)
