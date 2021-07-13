@@ -117,7 +117,7 @@ func Parse(tokenString string, secret string, skipValidation bool) (*Context, er
 		return ctx, errors.New("Token can't not be parsed correctly ")
 	}
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok  &&(skipValidation || token.Valid) {
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && (skipValidation || token.Valid) {
 		ctx.UserID = uint64(claims["user_id"].(float64))
 		ctx.Username = claims["username"].(string)
 		ctx.Uuid = claims["uuid"].(string)
@@ -181,7 +181,7 @@ func SignRefreshToken(ctx Context) (tokenString string, err error) {
 }
 
 // Sign signs the context with the specified secret.
-func sign(c Context, secret string, expDays int64) (tokenString string, err error) {
+func sign(c Context, secret string, expDays int) (tokenString string, err error) {
 
 	// The token content.
 	// iss: （Issuer）
@@ -191,16 +191,18 @@ func sign(c Context, secret string, expDays int64) (tokenString string, err erro
 	// sub: （Subject）
 	// nbf: （Not Before）
 	// jti: （JWT ID）
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id":  c.UserID,
-		"username": c.Username,
-		"uuid":     c.Uuid,
-		"email":    c.Email,
-		"is_admin": c.IsAdmin,
-		"nbf":      time.Now().Unix(),
-		"iat":      time.Now().Unix(),
-		"exp":      time.Now().Add(time.Duration(expDays) * time.Minute).Unix(),
-	})
+	token := jwt.NewWithClaims(
+		jwt.SigningMethodHS256, jwt.MapClaims{
+			"user_id":  c.UserID,
+			"username": c.Username,
+			"uuid":     c.Uuid,
+			"email":    c.Email,
+			"is_admin": c.IsAdmin,
+			"nbf":      time.Now().Unix(),
+			"iat":      time.Now().Unix(),
+			"exp":      time.Now().AddDate(0, 0, expDays).Unix(),
+		},
+	)
 	// Sign the token with the specified secret.
 	tokenString, err = token.SignedString([]byte(secret))
 	return
