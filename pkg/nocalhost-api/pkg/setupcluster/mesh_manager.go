@@ -112,7 +112,7 @@ func (m *meshManager) InjectMeshDevSpace(info *MeshDevInfo) error {
 
 	// update base dev space vs
 	g.Go(func() error {
-		return m.updateVirtualserviceOnBaseDevSpace(irs, drs, info)
+		return m.updateVirtualServiceOnBaseDevSpace(irs, drs, info)
 	})
 
 	// delete workloads
@@ -325,7 +325,7 @@ func (m *meshManager) addHeaderToVirtualService(rs []unstructured.Unstructured, 
 	return nil
 }
 
-func (m *meshManager) updateVirtualserviceOnBaseDevSpace(irs, drs []unstructured.Unstructured, info *MeshDevInfo) error {
+func (m *meshManager) updateVirtualServiceOnBaseDevSpace(irs, drs []unstructured.Unstructured, info *MeshDevInfo) error {
 	g, _ := errgroup.WithContext(context.Background())
 	g.Go(func() error {
 		return m.deleteHeaderFromVirtualService(drs, info)
@@ -357,6 +357,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 		if err := commonModifier(info.MeshDevNamespace, &c); err != nil {
 			return err
 		}
+		log.Debugf("apply the %s/%s to %s", c.GetKind(), c.GetName(), c.GetNamespace())
 		_, err = m.client.ApplyForce(&c)
 		if err != nil {
 			return err
@@ -381,6 +382,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 	g, _ := errgroup.WithContext(context.Background())
 	g.Go(func() error {
 		for _, svc := range svcs {
+			log.Debugf("apply the %s/%s to %s", svc.GetKind(), svc.GetName(), svc.GetNamespace())
 			_, err := m.client.ApplyForce(&svc)
 			if err != nil {
 				return err
@@ -391,6 +393,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 
 	g.Go(func() error {
 		for _, vs := range vss {
+			log.Debugf("apply the %s/%s to %s", vs.GetKind(), vs.GetName(), vs.GetNamespace())
 			_, err := m.client.ApplyForce(&vs)
 			if err != nil {
 				return err
