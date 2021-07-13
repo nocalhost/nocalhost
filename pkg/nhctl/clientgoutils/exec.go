@@ -15,6 +15,7 @@ package clientgoutils
 import (
 	"fmt"
 	dockerterm "github.com/moby/term"
+	"github.com/nocalhost/remotecommand"
 	"github.com/pkg/errors"
 	"io"
 	corev1 "k8s.io/api/core/v1"
@@ -22,7 +23,7 @@ import (
 	k8sruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/remotecommand"
+	k8sremotecommand "k8s.io/client-go/tools/remotecommand"
 	"k8s.io/client-go/util/exec"
 	"k8s.io/kubectl/pkg/util/term"
 	"net/url"
@@ -33,18 +34,8 @@ import (
 func (c *ClientGoUtils) ExecShell(podName string, containerName string, shell string) error {
 	t := term.TTY{Raw: true}
 	t.MonitorSize(t.GetSize())
-
-	retry := false
-	k8sruntime.ErrorHandlers = []func(err error){
-		func(err error) {
-			if errors.Is(err, io.EOF) {
-				// check the reason why terminal disconnect is network broke
-				if _, errs := c.GetPod(podName); errs == nil {
-					os.Exit(0)
-				}
-			}
-			retry = true
-		}}
+	// remove log eof
+	k8sruntime.ErrorHandlers = k8sruntime.ErrorHandlers[1:]
 	first := true
 	go func() {
 		for {
@@ -54,21 +45,13 @@ func (c *ClientGoUtils) ExecShell(podName string, containerName string, shell st
 				first = false
 			}
 			err := c.Exec(podName, containerName, []string{"sh", "-c", cmd})
-			if err != nil {
-				if e, ok := err.(exec.CodeExitError); ok {
-					if e.Code == 127 {
-						os.Exit(0)
-					}
-				}
-			}
-			if retry {
-				time.Sleep(2 * time.Second)
-				continue
-			}
-			if _, err = c.GetPod(podName); err == nil {
+			if err == nil {
 				os.Exit(0)
 			}
-			time.Sleep(2 * time.Second)
+			if e, ok := err.(exec.CodeExitError); ok && e.Code == 0 {
+				os.Exit(0)
+			}
+			time.Sleep(time.Second * 1)
 		}
 	}()
 
@@ -105,7 +88,7 @@ func (c *ClientGoUtils) Exec(podName string, containerName string, command []str
 		fmt.Errorf("unable to use a TTY - input is not a terminal or the right kind of file")
 	}
 
-	var sizeQueue remotecommand.TerminalSizeQueue
+	var sizeQueue k8sremotecommand.TerminalSizeQueue
 	if t.Raw {
 		// this call spawns a goroutine to monitor/update the terminal size
 		sizeQueue = t.MonitorSize(t.GetSize())
@@ -147,13 +130,13 @@ func (c *ClientGoUtils) Exec(podName string, containerName string, command []str
 
 func Execute(
 	method string, url *url.URL, config *restclient.Config,
-	stdin io.Reader, stdout, stderr io.Writer, tty bool, terminalSizeQueue remotecommand.TerminalSizeQueue,
+	stdin io.Reader, stdout, stderr io.Writer, tty bool, terminalSizeQueue k8sremotecommand.TerminalSizeQueue,
 ) error {
-	exec, err := remotecommand.NewSPDYExecutor(config, method, url)
+	spdyExecutor, err := remotecommand.NewSPDYExecutor(config, method, url)
 	if err != nil {
 		return err
 	}
-	return exec.Stream(
+	return spdyExecutor.Stream(
 		remotecommand.StreamOptions{
 			Stdin:             stdin,
 			Stdout:            stdout,
