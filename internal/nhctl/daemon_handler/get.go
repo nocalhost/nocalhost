@@ -14,6 +14,7 @@ package daemon_handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
@@ -32,7 +33,10 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"sort"
 	"strings"
+	"time"
 )
+
+var svcProfileCacheMap = NewCache(time.Second * 2)
 
 func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 	serviceMap := make(map[string]*profile.SvcProfileV2)
@@ -53,7 +57,16 @@ func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 }
 
 func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
-	appProfile, err := nocalhost.GetProfileV2(ns, appName)
+	var appProfile *profile.AppProfileV2
+	var err error
+	appProfileCache, found := svcProfileCacheMap.Get(fmt.Sprintf("%s/%s", ns, appName))
+	if !found || appProfileCache == nil {
+		if appProfile, err = nocalhost.GetProfileV2(ns, appName); err == nil {
+			svcProfileCacheMap.Set(fmt.Sprintf("%s/%s", ns, appName), appProfile)
+		}
+	} else {
+		appProfile = appProfileCache.(*profile.AppProfileV2)
+	}
 	if err != nil {
 		log.Error(err)
 		return nil
