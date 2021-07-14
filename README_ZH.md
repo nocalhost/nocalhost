@@ -17,7 +17,7 @@ Nocalhost 一词源于 No Local，它是一款基于 IDE 的云原生开发工�
 
 通过 Nocalhost 开发云原生应用时，任何代码修改都可以立即在远端生效，免去了提交、构建和推送镜像等操作，能大幅提速编码自测的反馈过程，让研发效率更高效。
 
-为了更好的了解 Nocalhost 是如何运行的，推荐您可以阅读我们的博客 [Nocalhost - 重新定义云原生开发环境](https://nocalhost.dev/zh/Blog/redefine-cloud-native-dev-environment/) 或观看产品概述视频
+为了更好的了解 Nocalhost 是如何运行的，推荐可以阅读我们的博客 [Nocalhost - 重新定义云原生开发环境](https://nocalhost.dev/zh/Blog/redefine-cloud-native-dev-environment/) 或观看产品视频
 
 [![Nocalhost](https://img.youtube.com/vi/z7I-vopn-gQ/0.jpg)](https://www.bilibili.com/video/BV1RX4y1w7hB?share_source=copy_web)
 
@@ -29,9 +29,9 @@ Nocalhost 为 VS Code 和 JetBrains 提供了 IDE 插件，帮助开发者在本
 
 #### 一键连接云端，快速进入开发
 
-不再需要在本地配置和部署负载的开发环境。 Nocalhost 可以助您一键连接到远端 K8s 环境，快速进入开发状态。
+不再需要在本地配置和部署负载的开发环境。 Nocalhost 可以助您一键连接到远端 K8s 环境，快速开始应用开发。
 
-#### 自动化的文件同步，无需重构镜像或重启容器
+#### 代码修改秒级生效，无需重构镜像或重启容器
 
 Nocalhost 可以在每次进行修改后自动将代码同步到远端，免去了提交、构建和推送镜像等操作，能大幅提速编码自测的反馈过程，代码修改能实现秒级生效。
 
