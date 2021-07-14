@@ -111,10 +111,16 @@ func podDependencyModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 	initContainersModifier(spec)
 
 	// modify volumes
-	return volumeModifier(spec)
+	dependencies := volumeModifier(spec)
+
+	// get env dependencies
+	dependencies = append(dependencies, getEnvDependency(spec)...)
+
+	return dependencies
 }
 
 func initContainersModifier(spec *corev1.PodSpec) {
+	// remove wait init containers
 	initC := spec.InitContainers
 	for i := 0; i < len(initC); i++ {
 		if strings.HasPrefix(initC[i].Name, "wait-for-pods-") ||
@@ -129,7 +135,7 @@ func initContainersModifier(spec *corev1.PodSpec) {
 func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 	// copy emptyDir, downwardAPI, hostPath, configMap, secret to new namespace, deprecate other volumes
 	dependencies := make([]MeshDevWorkload, 0)
-	delVolumesMounts := make(map[string]struct{})
+	delVolumeMounts := make(map[string]struct{})
 	volumes := spec.Volumes
 	for i := 0; i < len(volumes); i++ {
 		if volumes[i].EmptyDir != nil ||
@@ -153,7 +159,7 @@ func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 			})
 			continue
 		}
-		delVolumesMounts[volumes[i].Name] = struct{}{}
+		delVolumeMounts[volumes[i].Name] = struct{}{}
 		volumes = volumes[:i+copy(volumes[i:], volumes[i+1:])]
 		i--
 	}
@@ -164,7 +170,7 @@ func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 	for i, c := range containers {
 		v := c.VolumeMounts
 		for j := 0; j < len(v); j++ {
-			if _, ok := delVolumesMounts[v[j].Name]; !ok {
+			if _, ok := delVolumeMounts[v[j].Name]; !ok {
 				continue
 			}
 			v = v[:j+copy(v[j:], v[j+1:])]
@@ -179,7 +185,7 @@ func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 	for i, c := range initContainers {
 		v := c.VolumeMounts
 		for j := 0; j < len(v); j++ {
-			if _, ok := delVolumesMounts[v[j].Name]; !ok {
+			if _, ok := delVolumeMounts[v[j].Name]; !ok {
 				continue
 			}
 			v = v[:j+copy(v[j:], v[j+1:])]
@@ -189,6 +195,58 @@ func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 	}
 	spec.InitContainers = initContainers
 
+	return dependencies
+}
+
+func getEnvDependency(spec *corev1.PodSpec) []MeshDevWorkload {
+	dependencies := make([]MeshDevWorkload, 0)
+	for _, container := range spec.Containers {
+		dependencies = append(dependencies, getEnvDependencyFromContainer(container)...)
+	}
+	for _, container := range spec.InitContainers {
+		dependencies = append(dependencies, getEnvDependencyFromContainer(container)...)
+	}
+	return dependencies
+}
+
+func getEnvDependencyFromContainer(container corev1.Container) []MeshDevWorkload {
+	dependencies := make([]MeshDevWorkload, 0)
+	for _, e := range container.Env {
+		if e.ValueFrom == nil {
+			continue
+		}
+		if e.ValueFrom.ConfigMapKeyRef != nil {
+			dependencies = append(dependencies, MeshDevWorkload{
+				Kind:   ConfigMap,
+				Name:   e.ValueFrom.ConfigMapKeyRef.Name,
+				Status: Selected,
+			})
+		}
+		if e.ValueFrom.SecretKeyRef != nil {
+			dependencies = append(dependencies, MeshDevWorkload{
+				Kind:   Secret,
+				Name:   e.ValueFrom.SecretKeyRef.Name,
+				Status: Selected,
+			})
+		}
+	}
+
+	for _, e := range container.EnvFrom {
+		if e.ConfigMapRef != nil {
+			dependencies = append(dependencies, MeshDevWorkload{
+				Kind:   ConfigMap,
+				Name:   e.ConfigMapRef.Name,
+				Status: Selected,
+			})
+		}
+		if e.SecretRef != nil {
+			dependencies = append(dependencies, MeshDevWorkload{
+				Kind:   Secret,
+				Name:   e.SecretRef.Name,
+				Status: Selected,
+			})
+		}
+	}
 	return dependencies
 }
 
