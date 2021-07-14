@@ -159,7 +159,7 @@ func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 	}
 	spec.Volumes = volumes
 
-	// delete volumes mounts
+	// remove volumes mount from containers
 	containers := spec.Containers
 	for i, c := range containers {
 		v := c.VolumeMounts
@@ -173,6 +173,22 @@ func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 		containers[i].VolumeMounts = v
 	}
 	spec.Containers = containers
+
+	// remove volumes mount from init containers
+	initContainers := spec.InitContainers
+	for i, c := range initContainers {
+		v := c.VolumeMounts
+		for j := 0; j < len(v); j++ {
+			if _, ok := delVolumesMounts[v[j].Name]; !ok {
+				continue
+			}
+			v = v[:j+copy(v[j:], v[j+1:])]
+			j--
+		}
+		initContainers[i].VolumeMounts = v
+	}
+	spec.InitContainers = initContainers
+
 	return dependencies
 }
 
