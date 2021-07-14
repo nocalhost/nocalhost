@@ -18,6 +18,7 @@ const (
 	NocalhostSystemRoleBindingName         = "nocalhost-reserved-role-binding"
 	NocalhostSystemNamespaceLabel          = "nocalhost-reserved"
 	NocalhostDepName                       = "nocalhost-dep"
+	NocalhostName                          = "nocalhost"
 	NocalhostDevNamespaceLabel             = "nocalhost"
 	NocalhostDevServiceAccountName         = "nocalhost-dev-account"
 	NocalhostDevDefaultServiceAccountName  = "default"

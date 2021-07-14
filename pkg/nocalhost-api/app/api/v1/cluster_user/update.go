@@ -225,17 +225,18 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 		return
 	}
 
-	log.Debugf("update mesh info for %s", devspace.SpaceName)
-	log.Debugf("the mesh info: %v", info)
+	log.Debugf("update mesh info for dev space %s, the namespace is %s", devspace.SpaceName, devspace.Namespace)
 	if err := meshManager.UpdateMeshDevSpace(&info); err != nil {
-		api.SendResponse(c, nil, nil)
+		log.Error(err)
+		api.SendResponse(c, err, nil)
 		return
 	}
 
 	devspace.TraceHeader = info.Header
 	result, err := service.Svc.ClusterUser().Update(c, devspace)
 	if err != nil {
-		api.SendResponse(c, nil, nil)
+		log.Error(err)
+		api.SendResponse(c, err, nil)
 		return
 	}
 	api.SendResponse(c, nil, result)

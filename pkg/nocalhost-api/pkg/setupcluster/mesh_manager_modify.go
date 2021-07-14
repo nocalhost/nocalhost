@@ -319,6 +319,7 @@ func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.H
 	if header.TraceKey == "" || header.TraceValue == "" {
 		return nil, errors.New("can not find tracing header")
 	}
+	log.Debugf("generate %s/%s", "VirtualService", name)
 	vs := &v1alpha3.VirtualService{}
 	vs.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   "networking.istio.io",
@@ -353,9 +354,10 @@ func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.H
 	}
 
 	http := &istiov1alpha3.HTTPRoute{
-		Name: global.NocalhostDevNamespaceLabel + "-" + devNs,
+		Name: global.NocalhostName + "-" + devNs,
 		Match: []*istiov1alpha3.HTTPMatchRequest{
 			{
+				Name:    fmt.Sprintf("%s-%s-%s", global.NocalhostName, devNs, "tracing-header"),
 				Headers: headers,
 			},
 		},
@@ -386,10 +388,12 @@ func addHeaderToVirtualService(rs *unstructured.Unstructured, devNs, svcName str
 	resetModifier(rs)
 
 	if header.TraceKey == "" || header.TraceValue == "" {
-		log.Debugf("can not find tracing header to update virtual service on the namespace %s",
+		log.Debugf("can not find tracing header to update virtual service in the namespace %s",
 			rs.GetNamespace())
 	}
 
+	log.Debugf("add the tracing header %s:%s to %s/%s",
+		header.TraceKey, header.TraceValue, rs.GetName(), rs.GetNamespace())
 	vs := &v1alpha3.VirtualService{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), vs); err != nil {
 		return errors.WithStack(err)
@@ -417,9 +421,10 @@ func addHeaderToVirtualService(rs *unstructured.Unstructured, devNs, svcName str
 	}
 
 	http := &istiov1alpha3.HTTPRoute{
-		Name: global.NocalhostDevNamespaceLabel + "-" + devNs,
+		Name: global.NocalhostName + "-" + devNs,
 		Match: []*istiov1alpha3.HTTPMatchRequest{
 			{
+				Name:    fmt.Sprintf("%s-%s-%s", global.NocalhostName, devNs, "tracing-header"),
 				Headers: headers,
 			},
 		},
@@ -445,7 +450,7 @@ func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, devNs string,
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), vs); err != nil {
 		return errors.WithStack(err)
 	}
-	name := global.NocalhostDevNamespaceLabel + "-" + devNs
+	name := global.NocalhostName + "-" + devNs
 	route := vs.Spec.Http
 	for i := 0; i < len(route); i++ {
 		if route[i].GetName() == name {
@@ -461,4 +466,53 @@ func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, devNs string,
 		return errors.WithStack(err)
 	}
 	return nil
+}
+
+func updateHeaderToVirtualService(rs *unstructured.Unstructured, devNs string, header model.Header) (bool, error) {
+	resetModifier(rs)
+	vs := &v1alpha3.VirtualService{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), vs); err != nil {
+		return false, errors.WithStack(err)
+	}
+
+	headers := make(map[string]*istiov1alpha3.StringMatch)
+	// set exact match header
+	headers[header.TraceKey] = &istiov1alpha3.StringMatch{
+		MatchType: &istiov1alpha3.StringMatch_Exact{
+			Exact: header.TraceValue,
+		},
+	}
+
+	var updateStatus bool
+	name := fmt.Sprintf("%s-%s", global.NocalhostName, devNs)
+	matchName := fmt.Sprintf("%s-%s", name, "tracing-header")
+	route := vs.Spec.Http
+	for i := 0; i < len(route); i++ {
+		if route[i].GetName() != name {
+			continue
+		}
+		for j, match := range route[i].Match {
+			if match.Name != matchName {
+				continue
+			}
+			value := match.Headers[header.TraceKey]
+			if value == nil || value.GetExact() != header.TraceValue {
+				log.Debugf("update %s/%s, route: %s, tracing header: %s",
+					rs.GetKind(), rs.GetName(), route[i].GetName(), header.TraceKey+":"+header.TraceValue)
+				route[i].Match[j] = &istiov1alpha3.HTTPMatchRequest{
+					Name:    matchName,
+					Headers: headers,
+				}
+				updateStatus = true
+			}
+		}
+	}
+	vs.Spec.Http = route
+
+	var err error
+	rs.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(vs)
+	if err != nil {
+		return false, errors.WithStack(err)
+	}
+	return updateStatus, nil
 }

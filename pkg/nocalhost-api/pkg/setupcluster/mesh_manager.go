@@ -80,11 +80,17 @@ func (m *meshManager) UpdateMeshDevSpace(info *MeshDevInfo) error {
 	if err := m.setWorkloadStatus(info); err != nil {
 		return err
 	}
-	return m.InjectMeshDevSpace(info)
+
+	if err := m.InjectMeshDevSpace(info); err != nil {
+		return err
+	}
+
+	return m.updateHeaderToVirtualServices(info)
 }
 
 func (m *meshManager) InjectMeshDevSpace(info *MeshDevInfo) error {
 	// get dev space workloads from cache
+	log.Debugf("inject workloads into dev namespace %s", info.MeshDevNamespace)
 	ws := make(map[string]int)
 	for _, a := range info.APPS {
 		for _, w := range a.Workloads {
@@ -196,6 +202,7 @@ func (m *meshManager) BuildCache() error {
 
 func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstructured, info *MeshDevInfo) error {
 	for _, r := range drs {
+		r := *r.DeepCopy()
 		log.Debugf("delete the workload %s/%s from %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
 		if err := commonModifier(info.MeshDevNamespace, &r); err != nil {
 			return err
@@ -220,7 +227,8 @@ func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstruc
 
 func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructured, info *MeshDevInfo) error {
 	for _, r := range irs {
-		log.Debugf("inject the workload %s/%s to %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
+		r := *r.DeepCopy()
+		log.Debugf("inject the workload %s/%s into dev namespace %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
 		dependencies, err := meshDevModifier(info.MeshDevNamespace, &r)
 		if err != nil {
 			return err
@@ -254,6 +262,7 @@ func (m *meshManager) deleteHeaderFromVirtualService(rs []unstructured.Unstructu
 	// delete header from vs
 	vs := make([]*unstructured.Unstructured, 0)
 	for _, r := range rs {
+		r := *r.DeepCopy()
 		origVsMap := m.cache.MatchVirtualServiceByWorkload(r)
 		origVs := make([]unstructured.Unstructured, 0)
 		for _, ovs := range origVsMap {
@@ -268,7 +277,7 @@ func (m *meshManager) deleteHeaderFromVirtualService(rs []unstructured.Unstructu
 	}
 
 	for i := range vs {
-		log.Debugf("delete the header %s/%s from VirtualService/%s, namespace %s",
+		log.Debugf("delete the header %s:%s from VirtualService/%s, namespace %s",
 			info.Header.TraceKey, info.Header.TraceValue, vs[i].GetName(), vs[i].GetNamespace())
 		if _, err := m.client.Apply(vs[i]); err != nil {
 			return err
@@ -280,13 +289,14 @@ func (m *meshManager) deleteHeaderFromVirtualService(rs []unstructured.Unstructu
 func (m *meshManager) addHeaderToVirtualService(rs []unstructured.Unstructured, info *MeshDevInfo) error {
 	// update vs
 	if info.Header.TraceKey == "" || info.Header.TraceValue == "" {
-		log.Debugf("can not find tracing header to update virtual service on the namespace %s",
+		log.Debugf("can not find tracing header to update virtual service in the namespace %s",
 			info.BaseNamespace)
 		return nil
 	}
 	vs := make([]*unstructured.Unstructured, 0)
 	for _, r := range rs {
 		// update vs if already existed
+		r := *r.DeepCopy()
 		origVsMap := m.cache.MatchVirtualServiceByWorkload(r)
 
 		for svcName, origVs := range origVsMap {
@@ -325,6 +335,33 @@ func (m *meshManager) addHeaderToVirtualService(rs []unstructured.Unstructured, 
 	return nil
 }
 
+func (m *meshManager) updateHeaderToVirtualServices(info *MeshDevInfo) error {
+	header := info.Header
+	if header.TraceKey == "" || header.TraceValue == "" {
+		return nil
+	}
+	updatedVs := make([]unstructured.Unstructured, 0)
+	for _, vs := range m.cache.GetVirtualServicesListByNameSpace(info.BaseNamespace) {
+		isUpdate, err := updateHeaderToVirtualService(&vs, info.MeshDevNamespace, info.Header)
+		if err != nil {
+			return err
+		}
+		if isUpdate {
+			updatedVs = append(updatedVs, vs)
+		}
+	}
+
+	for i := range updatedVs {
+		log.Debugf("apply the VirtualService/%s to the base namespace %s",
+			updatedVs[i].GetName(), updatedVs[i].GetNamespace())
+		if _, err := m.client.ApplyForce(&updatedVs[i]); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *meshManager) updateVirtualServiceOnBaseDevSpace(irs, drs []unstructured.Unstructured, info *MeshDevInfo) error {
 	g, _ := errgroup.WithContext(context.Background())
 	g.Go(func() error {
@@ -338,6 +375,7 @@ func (m *meshManager) updateVirtualServiceOnBaseDevSpace(irs, drs []unstructured
 
 func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 	// apply app config
+	log.Debugf("init the dev namespace %s", info.MeshDevNamespace)
 	appConfigsTmp := newResourcesMatcher(m.cache.GetSecretsListByNameSpace(info.BaseNamespace)).
 		namePrefix(appmeta.SecretNamePrefix).
 		match()
@@ -357,7 +395,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 		if err := commonModifier(info.MeshDevNamespace, &c); err != nil {
 			return err
 		}
-		log.Debugf("apply the %s/%s to %s", c.GetKind(), c.GetName(), c.GetNamespace())
+		log.Debugf("apply the %s/%s to dev namespace %s", c.GetKind(), c.GetName(), c.GetNamespace())
 		_, err = m.client.ApplyForce(&c)
 		if err != nil {
 			return err
@@ -382,7 +420,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 	g, _ := errgroup.WithContext(context.Background())
 	g.Go(func() error {
 		for _, svc := range svcs {
-			log.Debugf("apply the %s/%s to %s", svc.GetKind(), svc.GetName(), svc.GetNamespace())
+			log.Debugf("apply the %s/%s to dev namespace %s", svc.GetKind(), svc.GetName(), svc.GetNamespace())
 			_, err := m.client.ApplyForce(&svc)
 			if err != nil {
 				return err
@@ -393,7 +431,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 
 	g.Go(func() error {
 		for _, vs := range vss {
-			log.Debugf("apply the %s/%s to %s", vs.GetKind(), vs.GetName(), vs.GetNamespace())
+			log.Debugf("apply the %s/%s to dev namespace %s", vs.GetKind(), vs.GetName(), vs.GetNamespace())
 			_, err := m.client.ApplyForce(&vs)
 			if err != nil {
 				return err
@@ -470,7 +508,7 @@ func (m *meshManager) applyDependencyToMeshDevSpace(dependencies []MeshDevWorklo
 
 	// apply resources
 	for _, r := range rs {
-		log.Debugf("inject the workload dependency %s/%s to %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
+		log.Debugf("inject the workload dependency %s/%s into dev namespace %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
 		if err := commonModifier(info.MeshDevNamespace, &r); err != nil {
 			return err
 		}
