@@ -120,7 +120,7 @@ func podDependencyModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 }
 
 func initContainersModifier(spec *corev1.PodSpec) {
-	// remove wait init containers
+	// delete wait init containers
 	initC := spec.InitContainers
 	for i := 0; i < len(initC); i++ {
 		if strings.HasPrefix(initC[i].Name, "wait-for-pods-") ||
@@ -165,7 +165,7 @@ func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 	}
 	spec.Volumes = volumes
 
-	// remove volumes mount from containers
+	// delete volumes mount from containers
 	containers := spec.Containers
 	for i, c := range containers {
 		v := c.VolumeMounts
@@ -180,7 +180,7 @@ func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 	}
 	spec.Containers = containers
 
-	// remove volumes mount from init containers
+	// delete volumes mount from init containers
 	initContainers := spec.InitContainers
 	for i, c := range initContainers {
 		v := c.VolumeMounts

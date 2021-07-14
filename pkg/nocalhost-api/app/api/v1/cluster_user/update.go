@@ -226,7 +226,7 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	}
 
 	log.Debugf("update mesh info for %s", devspace.SpaceName)
-	log.Debugf("the mesh info: %s", info)
+	log.Debugf("the mesh info: %v", info)
 	if err := meshManager.UpdateMeshDevSpace(&info); err != nil {
 		api.SendResponse(c, nil, nil)
 		return

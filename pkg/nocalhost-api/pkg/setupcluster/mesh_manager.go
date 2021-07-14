@@ -19,7 +19,6 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 
 	"nocalhost/internal/nhctl/appmeta"
@@ -213,7 +212,7 @@ func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstruc
 		}
 		log.Debugf("apply the VirtualService/%s to the base namespace %s", r.GetName(), r.GetNamespace())
 		if _, err := m.client.ApplyForce(vs); err != nil {
-			log.Errorf("%+v", err)
+			return err
 		}
 	}
 	return nil
@@ -235,19 +234,17 @@ func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructur
 			return err
 		}
 
-		// delete vs form mesh dev space
-		vs := &unstructured.Unstructured{}
-		vs.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   "networking.istio.io",
-			Version: "v1alpha3",
-			Kind:    "VirtualService",
-		})
-		vs.SetNamespace(r.GetNamespace())
-		vs.SetName(r.GetName())
-
-		log.Debugf("delete the VirtualService/%s from the base namespace %s", r.GetName(), r.GetNamespace())
-		if err := m.client.Delete(vs); err != nil {
-			log.Error(err)
+		// get virtual service from mesh dev space by workload
+		delVs := make([]unstructured.Unstructured, 0)
+		for _, v := range m.cache.MatchVirtualServiceByWorkload(r) {
+			delVs = append(delVs, v...)
+		}
+		// delete virtual service form mesh dev space
+		for _, v := range delVs {
+			log.Debugf("delete the VirtualService/%s from dev namespace %s", v.GetName(), v.GetNamespace())
+			if err := m.client.Delete(&v); err != nil {
+				log.Error(err)
+			}
 		}
 	}
 	return nil
@@ -262,7 +259,6 @@ func (m *meshManager) deleteHeaderFromVirtualService(rs []unstructured.Unstructu
 		for _, ovs := range origVsMap {
 			origVs = append(origVs, ovs...)
 		}
-
 		for _, v := range origVs {
 			if err := deleteHeaderFromVirtualService(&v, info.MeshDevNamespace, info.Header); err != nil {
 				return err
