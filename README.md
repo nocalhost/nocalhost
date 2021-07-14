@@ -17,7 +17,7 @@ The term Nocalhost originates from No Local, which is a cloud-native development
 
 When developing cloud-based application in Nocalhost, any code changes can immediately take effects in remote side, and there is no need to rebuild a new image. This can shorten the entire development feedback loops and massively improve R&D efficiency.
 
-In order to give you a better understanding of Nocalhost, it is recommended that you read our blog post [Nocalhost - Refine Cloud Native Dev Environment](https://nocalhost.dev/Blog/redefine-cloud-native-dev-environment/)
+In order to give you a better understanding of Nocalhost, it is recommended that you read our blog post [Nocalhost - Refine Cloud Native Dev Environment](https://nocalhost.dev/eng/Blog/redefine-cloud-native-dev-environment/) and watch the video below.
 
 [![Nocalhost](https://img.youtube.com/vi/z7I-vopn-gQ/0.jpg)](https://www.youtube.com/watch?v=z7I-vopn-gQ)
 
@@ -29,11 +29,11 @@ Nocalhost provides easy-to-use IDE extension for JetBrains and VSCode. These ext
 
 #### Develop cloud-based application in one click
 
-No need to config complex dev environments in your local machine anymore. Nocalhost helps you to connect to remote side dev environment in one click.
+No need to config complex dev environments in your local machine anymore. Nocalhost helps you to connect to remote side Kubernetes environment in one click.
 
-#### HotReload without rebuild images or restart containers
+#### Automated file sync without rebuild image or restart container
 
-Any code changes will be synchronized immediately to the remote side without rebuild images or restart containers.
+Any code changes will be synchronized immediately to the remote side without rebuild images or restart containers. You can see the result under a second. 
 
 #### Isolated development space
 
@@ -41,9 +41,9 @@ Every team member can enjoy their own independent development space to ensure th
 
 ## Getting Started
 
-* [Installation](https://nocalhost.dev/installation/)
+* [Installation](https://nocalhost.dev/eng/installation/)
 * [Quick Start](https://nocalhost.dev/eng/getting-started/)
-* [How it works](https://nocalhost.dev/references/architecture/)
+* [How it works](https://nocalhost.dev/eng/core-concept/)
 
 ## Documentation
 
@@ -60,7 +60,7 @@ Full documentation is available on the [Nocalhost](https://nocalhost.dev/)
 
 | Engagement | Link |
 | ---------- | ---- |
-| :video_camera: &nbsp; Videos  | [https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw](https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw) |
+| :video_camera: &nbsp; Videos  | [YouTube Channel](https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw) |
 
 ## Contributing
 
