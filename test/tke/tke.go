@@ -96,7 +96,7 @@ var DefaultConfig = defaultConfig{
 	ignoreClusterCIDRConflict: true,
 	endpoint:                  "tke.tencentcloudapi.com",
 	region:                    "ap-guangzhou",
-	cidrPattern:               "10.%d.0.0/24",
+	cidrPattern:               "10.%d.0.0/16",
 }
 
 // siliconValley
