@@ -206,7 +206,7 @@ func (t *T) AlertForImagePull(fail bool) {
 				if strings.Contains(event, "ErrImagePull") || strings.Contains(event, "ImagePullBackOff") {
 					robotHint += event + "\n"
 				}
-			}internal/nocalhost-dep/webhook/patcher.go
+			}
 
 			data := strings.NewReader(fmt.Sprintf(s, os.Getenv("TKE_NAME"), robotHint))
 			if req, err = http.NewRequest("POST", webhook, data); err != nil {
