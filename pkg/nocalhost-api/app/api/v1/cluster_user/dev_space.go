@@ -25,6 +25,7 @@ import (
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
@@ -55,14 +56,14 @@ func (d *DevSpace) Delete() error {
 		}
 	}
 
-	_, _ = goClient.DeleteNS(d.DevSpaceParams.NameSpace)
-
 	// delete tracing header from base space
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
 		if err := d.deleteTracingHeader(); err != nil {
 			return err
 		}
 	}
+
+	_, _ = goClient.DeleteNS(d.DevSpaceParams.NameSpace)
 
 	// delete database cluster-user dev space
 	dErr := service.Svc.ClusterUser().Delete(d.c, *d.DevSpaceParams.ID)
@@ -282,10 +283,12 @@ func (d *DevSpace) deleteTracingHeader() error {
 		ID: d.DevSpaceParams.BaseDevSpaceId,
 	})
 	if err != nil || baseDevspace == nil {
-		return errors.New("base dev space has not found")
+		log.Debug("can not find base namespace, does not delete tracing header")
+		return nil
 	}
 	if baseDevspace.Namespace == "*" || baseDevspace.Namespace == "" {
-		return errors.New("base dev namespace has not found")
+		log.Debug("can not find base namespace, does not delete tracing header")
+		return nil
 	}
 
 	meshDevInfo := d.DevSpaceParams.MeshDevInfo
