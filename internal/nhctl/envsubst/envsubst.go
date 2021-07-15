@@ -37,7 +37,7 @@ func readEnvFile(envFile *fp.FilePathEnhance) []string {
 
 	file, err := os.Open(envFile.Abs())
 	if err != nil {
-		log.ErrorE(err, "Error while opening file "+envFile.Path)
+		log.Debug(err, "Error while opening file "+envFile.Path)
 	}
 
 	defer file.Close()
