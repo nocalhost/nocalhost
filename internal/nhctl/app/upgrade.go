@@ -218,6 +218,11 @@ func isContainsInfo(info *resource.Info, infos []*resource.Info) bool {
 
 func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo bool) error {
 
+	_, err := tools.ExecCommand(nil, true, false, false, "helm", "repo", "update")
+	if err != nil {
+		log.Info(err.Error())
+	}
+
 	resourceDir := a.ResourceTmpDir
 	appProfile, err := a.GetProfile()
 	if err != nil {
@@ -269,7 +274,7 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 	if installFlags.HelmWait {
 		params = append(params, "--wait")
 	}
-	if len(installFlags.HelmValueFile)>0 {
+	if len(installFlags.HelmValueFile) > 0 {
 		for _, values := range installFlags.HelmValueFile {
 			params = append(params, "-f", values)
 		}
