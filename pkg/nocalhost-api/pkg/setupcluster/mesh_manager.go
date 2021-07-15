@@ -42,6 +42,7 @@ type MeshManager interface {
 	InitMeshDevSpace(*MeshDevInfo) error
 	UpdateMeshDevSpace(*MeshDevInfo) error
 	InjectMeshDevSpace(*MeshDevInfo) error
+	DeleteTracingHeader(*MeshDevInfo) error
 	GetBaseDevSpaceAppInfo(*MeshDevInfo) []MeshDevApp
 	GetAPPInfo(*MeshDevInfo) ([]MeshDevApp, error)
 	BuildCache() error
@@ -125,6 +126,24 @@ func (m *meshManager) InjectMeshDevSpace(info *MeshDevInfo) error {
 		return m.deleteWorkloadsFromMeshDevSpace(drs, info)
 	})
 	return g.Wait()
+}
+
+func (m *meshManager) DeleteTracingHeader(info *MeshDevInfo) error {
+
+	for _, vs := range m.cache.GetVirtualServicesListByNameSpace(info.BaseNamespace) {
+		ok, err := deleteHeaderFromVirtualService(&vs, info.MeshDevNamespace, info.Header)
+		if err != nil {
+			log.Error(err)
+		}
+		if ok {
+			log.Debugf("delete the header %s:%s from VirtualService/%s, namespace %s",
+				info.Header.TraceKey, info.Header.TraceValue, vs.GetName(), vs.GetNamespace())
+			if _, err := m.client.ApplyForce(&vs); err != nil {
+				log.Error(err)
+			}
+		}
+	}
+	return nil
 }
 
 func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
@@ -269,10 +288,13 @@ func (m *meshManager) deleteHeaderFromVirtualService(rs []unstructured.Unstructu
 			origVs = append(origVs, ovs...)
 		}
 		for _, v := range origVs {
-			if err := deleteHeaderFromVirtualService(&v, info.MeshDevNamespace, info.Header); err != nil {
+			ok, err := deleteHeaderFromVirtualService(&v, info.MeshDevNamespace, info.Header)
+			if err != nil {
 				return err
 			}
-			vs = append(vs, &v)
+			if ok {
+				vs = append(vs, &v)
+			}
 		}
 	}
 

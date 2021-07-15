@@ -443,19 +443,21 @@ func addHeaderToVirtualService(rs *unstructured.Unstructured, devNs, svcName str
 	return nil
 }
 
-func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, devNs string, header model.Header) error {
+func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, devNs string, header model.Header) (bool, error) {
 	resetModifier(rs)
 
 	vs := &v1alpha3.VirtualService{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), vs); err != nil {
-		return errors.WithStack(err)
+		return false, errors.WithStack(err)
 	}
 	name := global.NocalhostName + "-" + devNs
 	route := vs.Spec.Http
+	var ok bool
 	for i := 0; i < len(route); i++ {
 		if route[i].GetName() == name {
 			route = route[:i+copy(route[i:], route[i+1:])]
 			i--
+			ok = true
 		}
 	}
 	vs.Spec.Http = route
@@ -463,9 +465,9 @@ func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, devNs string,
 	var err error
 	rs.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(vs)
 	if err != nil {
-		return errors.WithStack(err)
+		return false, errors.WithStack(err)
 	}
-	return nil
+	return ok, nil
 }
 
 func updateHeaderToVirtualService(rs *unstructured.Unstructured, devNs string, header model.Header) (bool, error) {

@@ -20,6 +20,7 @@ import (
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
 // Delete Completely delete the development environment
@@ -63,9 +64,14 @@ func Delete(c *gin.Context) {
 			return
 		}
 
+		meshDevInfo := &setupcluster.MeshDevInfo{
+			Header: clusterUser.TraceHeader,
+		}
 		req := ClusterUserCreateRequest{
-			ID:        &clusterUser.ID,
-			NameSpace: clusterUser.Namespace,
+			ID:             &clusterUser.ID,
+			NameSpace:      clusterUser.Namespace,
+			BaseDevSpaceId: clusterUser.BaseDevSpaceId,
+			MeshDevInfo:    meshDevInfo,
 		}
 		devSpace := NewDevSpace(req, c, []byte(clusterData.KubeConfig))
 
@@ -120,6 +126,9 @@ func ReCreate(c *gin.Context) {
 	res := SpaceResourceLimit{}
 	json.Unmarshal([]byte(clusterUser.SpaceResourceLimit), &res)
 	// create a new dev space
+	meshDevInfo := &setupcluster.MeshDevInfo{
+		Header: clusterUser.TraceHeader,
+	}
 	req := ClusterUserCreateRequest{
 		ClusterId:          &clusterUser.ClusterId,
 		UserId:             &clusterUser.UserId,
@@ -130,6 +139,8 @@ func ReCreate(c *gin.Context) {
 		NameSpace:          clusterUser.Namespace,
 		ID:                 &clusterUser.ID,
 		SpaceResourceLimit: &res,
+		BaseDevSpaceId:     clusterUser.BaseDevSpaceId,
+		MeshDevInfo:        meshDevInfo,
 	}
 
 	// delete devSpace space first, it will delete database record whatever success delete namespace or not
