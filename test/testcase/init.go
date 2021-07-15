@@ -38,7 +38,7 @@ import (
 
 var StatusChan = make(chan int32, 1)
 
-func GetVersion() (v1 string, v2 string) {
+func GetVersion() (lastVersion string, currentVersion string) {
 	commitId := os.Getenv(util.CommitId)
 	var tags []string
 	if len(os.Getenv(util.Tag)) != 0 {
@@ -48,14 +48,14 @@ func GetVersion() (v1 string, v2 string) {
 		panic(fmt.Sprintf("test case failed, can not found any version, commit_id: %v, tag: %v", commitId, tags))
 	}
 	if len(tags) >= 2 {
-		v1 = tags[0]
-		v2 = tags[1]
+		lastVersion = tags[0]
+		currentVersion = tags[1]
 	} else if len(tags) == 1 {
-		v1 = tags[0]
+		currentVersion = tags[0]
 	} else {
-		v1 = commitId
+		currentVersion = commitId
 	}
-	log.Infof("version info, v1: %s, v2: %s", v1, v2)
+	log.Infof("version info, lastVersion: %s, currentVersion: %s", lastVersion, currentVersion)
 	return
 }
 
@@ -124,7 +124,7 @@ func StatusCheck(nhctl runner.Client, moduleName string) error {
 	retryTimes := 10
 	var ok bool
 	for i := 0; i < retryTimes; i++ {
-		time.Sleep(time.Second * 3)
+		time.Sleep(time.Second * 2)
 		cmd := nhctl.GetNhctl().Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
 		stdout, stderr, err := runner.Runner.Run(cmd)
 		if err != nil {

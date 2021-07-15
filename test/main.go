@@ -16,9 +16,9 @@ import (
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/suite"
-	"nocalhost/test/testcase"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -27,7 +27,6 @@ func main() {
 
 	start := time.Now()
 
-	var v2 string
 	var t *suite.T
 
 	if _, ok := os.LookupEnv("LocalTest"); ok {
@@ -37,45 +36,64 @@ func main() {
 	} else {
 		cancelFunc, ns, kubeconfig := suite.Prepare()
 		t = suite.NewT(ns, kubeconfig, cancelFunc)
-		_, v2 = testcase.GetVersion()
 	}
 
-	//wg := sync.WaitGroup{}
-	//wg.Add(6)
+	compatibleChan := make(chan interface{}, 1)
+	wg := sync.WaitGroup{}
 
-	//go func() {
-		t.Run("helm-adaption", suite.HelmAdaption)
-		//wg.Done()
-	//}()
+	DoRun(false, &wg, func() {
+		t.RunWithBookInfo(false, "helm-adaption", suite.HelmAdaption)
+	})
 
-	//go func() {
+	DoRun(false, &wg, func() {
 		t.Run("install", suite.Install)
-		//wg.Done()
-	//}()
+	})
 
-	//go func() {
+	DoRun(false, &wg, func() {
 		t.Run("deployment", suite.Deployment)
-		//wg.Done()
-	//}()
+	})
 
-	//go func() {
+	DoRun(false, &wg, func() {
 		t.Run("application", suite.Upgrade)
-		//wg.Done()
-	//}()
+	})
 
-	//go func() {
+	DoRun(false, &wg, func() {
 		t.Run("statefulSet", suite.StatefulSet)
-		//wg.Done()
-	//}()
+	})
 
-	//go func() {
-		t.Run("compatible", suite.Compatible, v2)
-		//wg.Done()
-	//}()
+	DoRun(false, &wg, func() {
+		t.Run("remove syncthing pid file manually", suite.KillSyncthingProcess)
+	})
 
-	//wg.Wait()
-	t.Clean()
+	DoRun(false, &wg, func() {
+		t.Run("Get", suite.Get)
+	})
+
+	DoRun(true, &wg, func() {
+		t.Run("compatible", suite.Compatible)
+		compatibleChan <- "Done"
+	})
+
+	wg.Wait()
+	log.Infof("All Async Test Done")
+	<-compatibleChan
+
+	t.Clean(false)
 
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
 }
 
+func DoRun(doAfterWgDone bool, wg *sync.WaitGroup, do func()) {
+	if !doAfterWgDone {
+		wg.Add(1)
+		go func() {
+			do()
+			wg.Done()
+		}()
+	} else {
+		go func() {
+			wg.Wait()
+			do()
+		}()
+	}
+}

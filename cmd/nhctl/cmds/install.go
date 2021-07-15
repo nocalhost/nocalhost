@@ -57,8 +57,8 @@ func init() {
 		&installFlags.Config, "config", "",
 		"specify a config relative to .nocalhost dir",
 	)
-	installCmd.Flags().StringVarP(
-		&installFlags.HelmValueFile, "helm-values", "f", "",
+	installCmd.Flags().StringArrayVarP(
+		&installFlags.HelmValueFile, "helm-values", "f", []string{},
 		"helm's Value.yaml",
 	)
 	installCmd.Flags().StringVarP(

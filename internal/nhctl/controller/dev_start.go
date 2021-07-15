@@ -382,7 +382,7 @@ func generateSideCarContainer(workDir string) corev1.Container {
 	return sideCarContainer
 }
 
-func (c *Controller) genResourceReq() *corev1.ResourceRequirements {
+func (c *Controller) genResourceReq(container string) *corev1.ResourceRequirements {
 
 	var (
 		err          error
@@ -390,7 +390,7 @@ func (c *Controller) genResourceReq() *corev1.ResourceRequirements {
 	)
 
 	svcProfile, _ := c.GetProfile()
-	resourceQuota := svcProfile.ContainerConfigs[0].Dev.DevContainerResources
+	resourceQuota := svcProfile.GetContainerDevConfigOrDefault(container).DevContainerResources
 
 	if resourceQuota != nil {
 		log.Debug("DevContainer uses resource limits defined in config")
@@ -528,7 +528,7 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
 	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, devModeMounts...)
 
-	requirements := c.genResourceReq()
+	requirements := c.genResourceReq(containerName)
 	if requirements != nil {
 		devContainer.Resources = *requirements
 	}

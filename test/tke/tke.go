@@ -21,6 +21,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/util"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -106,7 +107,7 @@ var _ = defaultConfig{
 	os:                        "centos7.6.0_x64",
 	clusterType:               "MANAGED_CLUSTER",
 	zone:                      "na-siliconvalley-1",
-	instanceType:              "S3.SMALL2",
+	instanceType:              "C3.LARGE8",
 	diskType:                  "CLOUD_SSD",
 	nodeRole:                  "WORKER",
 	internetMaxBandwidthOut:   100,
@@ -124,11 +125,11 @@ var DefaultConfig = defaultConfig{
 	os:                        "centos7.6.0_x64",
 	clusterType:               "MANAGED_CLUSTER",
 	zone:                      "ap-hongkong-2",
-	instanceType:              "S2.SMALL2",
+	instanceType:              "SA2.MEDIUM8",
 	diskType:                  "CLOUD_PREMIUM",
 	nodeRole:                  "WORKER",
 	internetMaxBandwidthOut:   100,
-	maxNum:                    32,
+	maxNum:                    256,
 	ignoreClusterCIDRConflict: true,
 	endpoint:                  "tke.tencentcloudapi.com",
 	region:                    "ap-hongkong",
@@ -169,7 +170,8 @@ func (t *task) GetClient() *tke.Client {
 func (t *task) CreateTKE() {
 
 	retryTimes := 250
-	clusterName := "test-" + uuid.New().String()
+	clusterName := "test-" + uuid.New().String() + "(" + runtime.GOOS + ")"
+	os.Setenv("TKE_NAME", clusterName)
 
 	request := tke.NewCreateClusterRequest()
 	request.ClusterType = &DefaultConfig.clusterType

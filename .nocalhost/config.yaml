@@ -5,6 +5,7 @@ application:
   name: nocalhost
   manifestType: helmGit
   resourcePath: [ "deployments/chart" ]
+
   helmValues:
     - key: service.type
       value: ClusterIP

@@ -14,7 +14,7 @@ package app
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	"net"
@@ -36,6 +36,7 @@ import (
 )
 
 var (
+	// do not change this error message
 	ErrNotFound = errors.New("Application not found")
 	indent      = 70
 )
@@ -323,7 +324,7 @@ func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType ba
 		// means should cm cfg is valid, persist to profile
 		if err := a.Controller(svcName, svcType).UpdateSvcProfile(
 			func(svcProfile *profile.SvcProfileV2) error {
-				hint("Success load svc config from cm")
+				hint("Success load svc config from annotation")
 				svcProfile.ServiceConfigV2 = svcCfg
 
 				svcProfile.Name = svcName
@@ -638,7 +639,7 @@ type HelmFlags struct {
 	Debug    bool
 	Wait     bool
 	Set      []string
-	Values   string
+	Values   []string
 	Chart    string
 	RepoName string
 	RepoUrl  string

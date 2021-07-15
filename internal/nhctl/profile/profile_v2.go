@@ -17,7 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -255,6 +255,9 @@ type DevPortForward struct {
 // Compatible for v1
 // Finding `containerName` config, if not found, use the first container config
 func (s *SvcProfileV2) GetContainerDevConfigOrDefault(containerName string) *ContainerDevConfig {
+	if containerName == "" {
+		return s.GetDefaultContainerDevConfig()
+	}
 	config := s.GetContainerDevConfig(containerName)
 	if config == nil {
 		config = s.GetDefaultContainerDevConfig()

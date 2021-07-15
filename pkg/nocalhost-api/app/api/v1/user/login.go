@@ -13,6 +13,7 @@
 package user
 
 import (
+	"nocalhost/pkg/nocalhost-api/pkg/token"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -23,6 +24,27 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
+
+func RefreshToken(c *gin.Context) {
+	t, rt, err := token.RefreshFromRequest(c)
+
+	if err != nil {
+		if strings.Contains(err.Error(), "allow") {
+			api.SendResponse(c, errno.ErrUserNotAllow, nil)
+			return
+		}
+		log.Warnf("refresh token err: %v", err)
+		api.SendResponse(c, errno.RefreshTokenInvalidOrNotMatch, nil)
+		return
+	}
+
+	api.SendResponse(
+		c, nil, model.Token{
+			Token:        t,
+			RefreshToken: rt,
+		},
+	)
+}
 
 // Login Web and plug-in login
 // @Summary Web and plug-in login
@@ -62,7 +84,7 @@ func Login(c *gin.Context) {
 	//	return
 	//}
 
-	t, err := service.Svc.UserSvc().EmailLogin(c, req.Email, req.Password)
+	t, rt, err := service.Svc.UserSvc().EmailLogin(c, req.Email, req.Password)
 	if err != nil {
 		if strings.Contains(err.Error(), "allow") {
 			api.SendResponse(c, errno.ErrUserNotAllow, nil)
@@ -75,7 +97,8 @@ func Login(c *gin.Context) {
 
 	api.SendResponse(
 		c, nil, model.Token{
-			Token: t,
+			Token:        t,
+			RefreshToken: rt,
 		},
 	)
 }

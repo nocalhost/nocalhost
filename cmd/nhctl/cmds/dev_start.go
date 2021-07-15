@@ -23,11 +23,15 @@ import (
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	utils2 "nocalhost/pkg/nhctl/utils"
+	"os"
+	"strings"
 )
 
 var (
@@ -117,14 +121,14 @@ var devStartCmd = &cobra.Command{
 
 			if !devStartOps.NoSyncthing {
 				if nocalhostSvc.IsProcessor() {
-					startSyncthing(podName, true)
+					startSyncthing(podName, devStartOps.Container, true)
 				}
 			} else {
 				coloredoutput.Success("File sync is not resumed caused by --without-sync flag.")
 			}
 
 			if !devStartOps.NoTerminal || shell != "" {
-				must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
+				must(nocalhostSvc.EnterPodTerminal(podName, devStartOps.Container, shell))
 			}
 
 		} else {
@@ -148,13 +152,13 @@ var devStartCmd = &cobra.Command{
 			podName := enterDevMode()
 
 			if !devStartOps.NoSyncthing {
-				startSyncthing(podName, false)
+				startSyncthing(podName, devStartOps.Container, false)
 			} else {
 				coloredoutput.Success("File sync is not started caused by --without-sync flag..")
 			}
 
 			if !devStartOps.NoTerminal || shell != "" {
-				must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
+				must(nocalhostSvc.EnterPodTerminal(podName, devStartOps.Container, shell))
 			}
 		}
 	},
@@ -221,21 +225,21 @@ func stopPreviousSyncthing() {
 	must(
 		nocalhostSvc.FindOutSyncthingProcess(
 			func(pid int) error {
-				return syncthing.Stop(pid, false)
+				return syncthing.Stop(pid, true)
 			},
 		),
 	)
 }
 
-func startSyncthing(podName string, resume bool) {
+func startSyncthing(podName, container string, resume bool) {
 	if resume {
-		StartSyncthing(podName, true, false, "", false, true)
+		StartSyncthing(podName, true, false, container, false, true)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync resumed")
 		}()
 	} else {
-		StartSyncthing(podName, false, false, "", false, true)
+		StartSyncthing(podName, false, false, container, false, true)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync started")
@@ -258,6 +262,20 @@ func enterDevMode() string {
 			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type)
 		}
 	}()
+
+	// kill syncthing process by find find it with terminal
+	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
+	if utils.IsWindows() {
+		utils2.KillSyncthingProcessOnWindows(str)
+	} else {
+		utils2.KillSyncthingProcessOnUnix(str)
+	}
+
+	// Delete service folder
+	dir := nocalhostSvc.GetApplicationSyncDir()
+	if err2 := os.RemoveAll(dir); err2 != nil {
+		log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
+	}
 
 	newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
 	mustI(err, "Failed to create syncthing process, please try again")

@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/ulikunitz/xz"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"io"
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
@@ -242,6 +242,10 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 	if bs, ok := secret.Data[SecretConfigKey]; ok {
 		config, _ := unmarshalConfigUnStrict(decompress(bs))
 		appMeta.Config = config
+	}
+
+	if bs, ok := secret.Data[SecretHelmReleaseNameKey]; ok {
+		appMeta.HelmReleaseName = string(bs)
 	}
 
 	appMeta.Secret = secret

@@ -16,8 +16,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"time"
 )
 
@@ -39,13 +37,14 @@ func NeedsToInitK8sOnTke() bool {
 	if debug != "" {
 		return false
 	}
-	if strings.Contains(runtime.GOOS, "darwin") {
-		return true
-	} else if strings.Contains(runtime.GOOS, "windows") {
-		return true
-	} else {
-		return false
-	}
+	return true
+	//if strings.Contains(runtime.GOOS, "darwin") {
+	//	return true
+	//} else if strings.Contains(runtime.GOOS, "windows") {
+	//	return true
+	//} else {
+	//	return false
+	//}
 }
 
 func GetKubeconfig() string {
