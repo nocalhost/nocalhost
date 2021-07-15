@@ -81,18 +81,18 @@ type task struct {
 }
 
 // guangzhou area
-var _ = defaultConfig{
+var DefaultConfig = defaultConfig{
 	vpcId:                     "vpc-6z0motnx",
 	subNet:                    "subnet-g7vr4qce",
 	k8sVersion:                "1.18.4",
 	os:                        "centos7.6.0_x64",
 	clusterType:               "MANAGED_CLUSTER",
 	zone:                      "ap-guangzhou-3",
-	instanceType:              "SA2.SMALL4",
+	instanceType:              "SA2.MEDIUM8",
 	diskType:                  "CLOUD_PREMIUM",
 	nodeRole:                  "WORKER",
 	internetMaxBandwidthOut:   100,
-	maxNum:                    32,
+	maxNum:                    256,
 	ignoreClusterCIDRConflict: true,
 	endpoint:                  "tke.tencentcloudapi.com",
 	region:                    "ap-guangzhou",
@@ -111,14 +111,14 @@ var _ = defaultConfig{
 	diskType:                  "CLOUD_SSD",
 	nodeRole:                  "WORKER",
 	internetMaxBandwidthOut:   100,
-	maxNum:                    32,
+	maxNum:                    256,
 	ignoreClusterCIDRConflict: true,
 	endpoint:                  "tke.tencentcloudapi.com",
 	region:                    "na-siliconvalley",
 	cidrPattern:               "10.%d.0.0/16",
 }
 
-var DefaultConfig = defaultConfig{
+var _ = defaultConfig{
 	vpcId:                     "vpc-93iqnk7q",
 	subNet:                    "subnet-d7m18ag1",
 	k8sVersion:                "1.18.4",
