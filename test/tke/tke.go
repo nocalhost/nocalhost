@@ -100,14 +100,14 @@ var _ = defaultConfig{
 }
 
 // siliconValley
-var _ = defaultConfig{
+var DefaultConfig = defaultConfig{
 	vpcId:                     "vpc-ejqejan1",
 	subNet:                    "subnet-nei8cjdw",
 	k8sVersion:                "1.18.4",
 	os:                        "centos7.6.0_x64",
 	clusterType:               "MANAGED_CLUSTER",
 	zone:                      "na-siliconvalley-1",
-	instanceType:              "C3.LARGE8",
+	instanceType:              "S2.MEDIUM8",
 	diskType:                  "CLOUD_SSD",
 	nodeRole:                  "WORKER",
 	internetMaxBandwidthOut:   100,
@@ -118,7 +118,7 @@ var _ = defaultConfig{
 	cidrPattern:               "10.%d.0.0/16",
 }
 
-var DefaultConfig = defaultConfig{
+var _ = defaultConfig{
 	vpcId:                     "vpc-93iqnk7q",
 	subNet:                    "subnet-d7m18ag1",
 	k8sVersion:                "1.18.4",
