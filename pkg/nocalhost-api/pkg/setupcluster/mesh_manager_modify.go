@@ -109,12 +109,12 @@ func commonModifier(ns string, rs *unstructured.Unstructured) error {
 func podDependencyModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 	// modify the init containers
 	initContainersModifier(spec)
-
 	// modify volumes
 	dependencies := volumeModifier(spec)
-
 	// get env dependencies
 	dependencies = append(dependencies, getEnvDependency(spec)...)
+	// get image pull secret dependencies
+	dependencies = append(dependencies, getImagePullSecretDependency(spec)...)
 
 	return dependencies
 }
@@ -195,6 +195,21 @@ func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 	}
 	spec.InitContainers = initContainers
 
+	return dependencies
+}
+
+func getImagePullSecretDependency(spec *corev1.PodSpec) []MeshDevWorkload {
+	dependencies := make([]MeshDevWorkload, 0)
+	for _, secret := range spec.ImagePullSecrets {
+		if secret.Name == "" {
+			continue
+		}
+		dependencies = append(dependencies, MeshDevWorkload{
+			Kind:   Secret,
+			Name:   secret.Name,
+			Status: Selected,
+		})
+	}
 	return dependencies
 }
 
