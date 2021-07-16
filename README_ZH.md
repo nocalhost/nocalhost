@@ -1,107 +1,79 @@
-# Nocalhost
+![api-docker](https://github.com/nocalhost/nocalhost/workflows/api-docker/badge.svg?branch=main)
+![nhctl](https://github.com/nocalhost/nocalhost/workflows/nhctl/badge.svg?branch=main)
+[![Go Report Card](https://goreportcard.com/badge/github.com/nocalhost/nocalhost)](https://goreportcard.com/report/github.com/nocalhost/nocalhost)
+[![LICENSE](https://img.shields.io/github/license/nocalhost/nocalhost)](https://github.com/nocalhost/nocalhost/blob/main/LICENSE)
 
-Nocalhost 是云原生开发环境。
+<p align="center">
+    <a href="https://nocalhost.dev">
+        <img src='https://user-images.githubusercontent.com/3713305/123894696-305fc480-d991-11eb-960a-e87d8bd7acbf.png' width="200"/>
+    </a>
+    <br />
+    <em>让云原生开发更高效</em>
+</p>
 
-Nocalhost 一词源于 No localhost，其愿景是开发者在云时代实现无须在本地电脑配置开发、调试、测试环境，直接使用远端的云原生开发环境完成开发。
+## Nocalhost
 
-你可以使用 Nocalhost:
+Nocalhost 一词源于 No Local，它是一款基于 IDE 的云原生开发工具，提供实时的云原生应用开发体验。
 
-- 一键配置复杂的微服务应用到云原生开发环境
-- 在预配置好的情况下，快速开发某个微服务组件
-- 与协作者无缝共享开发环境
-- 快速的“编码->构建->运行->调试”反馈循环
+使用 Nocalhost 开发云原生应用时，任何代码更改都可以立即在远程端生效，免去了提交、构建和推送镜像等步骤。能大幅提速编码自测的反馈过程，所以代码修改能实现秒级生效，提升研发效率。
 
+为了让你更好的了解 Nocalhost，建议您可以先阅读我们的博客文章 [Nocalhost - 重新定义云原生开发](https://nocalhost.dev/zh/Blog/redefine-cloud-native-dev-environment/)
 
-## 为什么要做 Nocalhost 项目？
-随着微服务越来越流行，应用的微服务数量越来越多，团队会使用 `容器化` 技术来屏蔽微服务的环境差异。
+[![Nocalhost](https://img.youtube.com/vi/z7I-vopn-gQ/0.jpg)](https://www.bilibili.com/video/BV1RX4y1w7hB?share_source=copy_web)
 
-而对于使用 Kubernetes 作为基础环境的系统来说，他们的开发和调试变得越来越困难，主要体现在以下几点：
+## 核心功能
 
-- 为了对某一个微服务进行开发，需要启动整个环境以及所有的微服务，对本机资源性能要求高，体验差且成本高昂；
-- 开发人员往往只专注于自己负责的服务，随着服务和配置的不断迭代，本机启动`最新`且`完整`的开发环境越来越困难；
-- 每次代码改动，都需要 build 镜像 -> 推送镜像 -> 拉取镜像 -> 重建应用（Pod） 的流程，开发的反馈循环极慢；
-- 当涉及两人或更多的人远程协作，联合调试时，本地开发环境更是只能依赖 VPN 等方式实现，配置复杂
+### IDE 支持
 
-## 如何解决？
-Nocalhost 是云原生开发环境，现阶段在 Kubernetes 的基础上，为用户提供以下能力：
-* 为每一位团队成员快速创建基于 Kubernetes Namespace 隔离的应用开发环境，开发调试互不影响；
-* 云原生体验的微服务开发和调试：远端启动应用环境后，本机不再需要启动任何微服务，一切开发基于远端的 K8S 开发环境，无需重建 Docker 镜像，任何代码改动的影响将立即同步到对应远端的 Pod。
-* 以 Sidecar 的方式解决服务启动依赖问题和服务启动顺序的编排，例如实现以下启动顺序：Mysql (UP & Init) -> RabbitMQ (UP) -> Server A (UP) —> Server B (UP)
+Nocalhost 为 JetBrains 和 VSCode 提供易于使用的 IDE 插件，让开发人员能够在他们的本地机器上可以方便地开发和调试基于云的应用程序。
 
-## 愿景
-Nocalhost 的最终目标是实现极致的云开发体验：
+## 一键连接远端 K8s 集群，快速开始云原生应用开发
 
-* 在 IDE 中登录 Nocalhost 自动获取有权开发的应用和云资源；
-* 选择应用并部署独立的云开发环境；
-* 部署完成，选择要开发的微服务组件，点击我要开发按钮；
-* 自动检出代码，并编辑器内的改动自动同步到远端对应微服务容器内；
-* 远端容器自动运行新的代码，改动实时生效；
-* 如需调试，点击调试按钮，自动与远端建立调试通道，接收调试信息；
-* 开发结束，可选销毁或者重置环境。
+无需再本地机器中配置复杂的开发环境，Nocalhost 可以帮助您一键连接到任何 Kubernetes 环境，快速开始云原生应用的开发。
 
-# Nocalhost 组成
-## Web 端
-Web 端提供应用管理、应用授权、集群管理、用户管理和应用-集群授权等功能。
+### 代码修改秒级生效
 
-## nhctl
-nhctl 是运行在开发者本地的客户端，主要提供本地和远端云资源的交互能力，现阶段只具备操作 Kubernetes 集群的能力。
+自动的文件同步能将本地代码修改实时同步到远端容器，消除了提交、构建和推送步骤，能大幅提速编码自测的反馈过程，所以代码修改能实现秒级生效。
 
-## IDE 插件
+### 独立的开发空间
 
-Nocalhost 以开发者体验为中心，会把与开发者相关 nhctl，登录认证等能力都封装到 IDE 插件中，开发者只要打开 IDE，即可畅享云原生开发。
+每个团队成员都可以享受自己独立的发展空间，确保在开发过过程中不受他人干扰。
 
-- [Visual Studio Code 插件](https://marketplace.visualstudio.com/items?itemName=nocalhost.nocalhost)
-- [IntelliJ 系列插件](https://plugins.jetbrains.com/plugin/16058-nocalhost)
+## 快速入门
 
-插件提供对远程开发环境的工作负载展示、进入开发环境，克隆项目代码，调试等能力。
+* [安装](https://nocalhost.dev/zh/installation/)
+* [快速开始](https://nocalhost.dev/zh/getting-started/)
+* [核心概念](https://nocalhost.dev/zh/core-concept/)
 
-# 安装和开始使用
+## 文档
 
-[https://nocalhost.dev/getting-started/](https://nocalhost.dev/getting-started/)
+可以访问我们的 [Nocalhost](https://nocalhost.dev/) 查阅所有文档
 
-# 开发
+## 社区
 
-## 构建 nhctl
+* Slack: [Nocalhost Slack Channel](https://nocalhost.slack.com/)
+* 微信群：扫码添加小助手，发送 **Nocalhost**，小助手会拉您进群
 
-```
-make nhctl
-```
+![nocal-host-wechat](https://user-images.githubusercontent.com/3713305/123894953-a2d0a480-d991-11eb-88af-9082d14b0c2c.png)
 
-## 构建 Api Server
+## 宣讲和资料
 
-```
-make api
-```
+| 类型 | 连接 |
+| ---------- | ---- |
+| :video_camera: &nbsp; 视频 | [https://space.bilibili.com/1849382439](https://space.bilibili.com/1849382439) |
 
-## 构建 nocalhost-dep
+## 贡献
 
-```
-make nocalhost-dep
-```
+查看我们的 [贡献说明](./CONTRIBUTING)
 
-## 生成 API 文档
-```
-swag init -g cmd/nocalhost-api/nocalhost-api.go
-```
-访问地址：http://127.0.0.1:8080/swagger/index.html
+## 行为守则
 
-# 变更日志
+Nocalhost 遵循 [CNCF 行为守则](https://github.com/cncf/foundation/blob/master/code-of-conduct.md)
 
-[Changelogs](https://github.com/nocalhost/nocalhost/tree/main/CHANGELOG)
+## 许可
 
-# 参与贡献指南
+Nocalhost 使用 [Apache 2.0 许可证](./LICENSE)
 
-- 贡献者行为准则：https://github.com/cncf/foundation/blob/master/code-of-conduct.md
-- 对 Nocalhost 有任何意见和建议，请提交 GitHub Issue: https://github.com/nocalhost/nocalhost/issues
-- 您可以通过提交 Pull Request 来参与社区贡献：https://github.com/nocalhost/nocalhost/pulls
+## 🔥 &nbsp; 招聘
 
-# 社区和交流
-
-* Slack: [Nocalhost Slack 频道](https://nocalhost.slack.com/)
-* WeChat: 扫描添加 CODING 小助手并备注 Nocalhost，然后小助手会把您拉进群里
-
-![image](https://user-images.githubusercontent.com/3713305/119478317-4c64ba80-bd82-11eb-83ef-3f787fe1c71f.png)
-
-# 🔥招聘
-
-如果你对 Nocalhost 感兴趣，欢迎投递简历至：wangweimax@coding.net（接受远程）
+如果你对 Nocalhost 感兴趣，并愿意加入我们，请发送您的简历至：wangweimax@coding.net (我们支持远程工作)
