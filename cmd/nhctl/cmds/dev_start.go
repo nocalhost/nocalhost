@@ -314,6 +314,7 @@ func enterDevMode() string {
 	// Stop port-forward
 	appProfile, _ := nocalhostApp.GetProfile()
 	pfList := appProfile.SvcProfileV2(deployment, string(nocalhostSvc.Type)).DevPortForwardList
+	// todo-by-naison batch to close port-forward
 	for _, pf := range pfList {
 		log.Infof("Stopping %d:%d", pf.LocalPort, pf.RemotePort)
 		utils.Should(nocalhostSvc.EndDevPortForward(pf.LocalPort, pf.RemotePort))
@@ -335,6 +336,7 @@ func enterDevMode() string {
 	podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
 	must(err)
 
+	// todo-by-naison parallel and singleton client
 	for _, pf := range pfList {
 		utils.Should(nocalhostSvc.PortForward(podName, pf.LocalPort, pf.RemotePort, pf.Role))
 	}

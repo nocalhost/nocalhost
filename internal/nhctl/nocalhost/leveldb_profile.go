@@ -28,11 +28,6 @@ var ProfileNotFound = errors.New("Profile Not Found")
 
 func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2) error {
 	var err error
-	db, err := nocalhostDb.OpenApplicationLevelDB(ns, app, false)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
 	bys, err := yaml.Marshal(profileV2)
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -41,6 +36,11 @@ func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2) error {
 	if _, err = os.Stat(nocalhost_path.GetAppDbDir(ns, app)); err != nil {
 		return errors.Wrap(err, "")
 	}
+	db, err := nocalhostDb.OpenApplicationLevelDB(ns, app, false)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
 	return db.Put([]byte(profile.ProfileV2Key(ns, app)), bys)
 }
 
@@ -56,6 +56,9 @@ func GetProfileV2(ns, app string) (*profile.AppProfileV2, error) {
 	var err error
 	db, err := nocalhostDb.OpenApplicationLevelDB(ns, app, true)
 	if err != nil {
+		if db != nil {
+			_ = db.Close()
+		}
 		return nil, err
 	}
 	defer db.Close()

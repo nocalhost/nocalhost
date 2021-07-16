@@ -89,7 +89,9 @@ func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
 	path := nocalhost_path.GetAppDbDir(ns, name)
 	db, err := dbutils.OpenLevelDB(path, false)
 	if err != nil {
-		_ = db.Close()
+		if db != nil {
+			_ = db.Close()
+		}
 		return nil, err
 	}
 

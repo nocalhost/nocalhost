@@ -53,6 +53,7 @@ func (c *Controller) EndDevPortForward(localPort int, remotePort int) error {
 	return nil
 }
 
+// todo-by-naison parallel notify, client singleton
 func (c *Controller) StopAllPortForward() error {
 	svcProfile, err := c.GetProfile()
 	if err != nil {
@@ -166,6 +167,7 @@ func (c *Controller) PortForwardAfterDevStart(podName, containerName string) err
 	//if err != nil {
 	//	return err
 	//}
+	// todo-by-naison port-forward batch to daemon
 	for _, pf := range cc.PortForward {
 		lPort, rPort, err := GetPortForwardForString(pf)
 		if err != nil {
