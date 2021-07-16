@@ -253,9 +253,7 @@ func (d *DevSpace) initMeshDevSpace(clusterRecord *model.ClusterModel, clusterUs
 	if err != nil {
 		return nil, err
 	}
-	if err := meshManager.BuildCache(); err != nil {
-		return nil, err
-	}
+
 	if err := meshManager.InitMeshDevSpace(&meshDevInfo); err != nil {
 		// todo set up error msg for response
 		return nil, err
@@ -297,9 +295,6 @@ func (d *DevSpace) deleteTracingHeader() error {
 
 	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(string(d.KubeConfig))
 	if err != nil {
-		return err
-	}
-	if err := meshManager.BuildCache(); err != nil {
 		return err
 	}
 

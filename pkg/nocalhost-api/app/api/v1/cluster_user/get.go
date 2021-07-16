@@ -350,10 +350,6 @@ func GetAppsInfo(c *gin.Context) {
 		api.SendResponse(c, nil, nil)
 		return
 	}
-	if err := meshManager.BuildCache(); err != nil {
-		api.SendResponse(c, nil, nil)
-		return
-	}
 	if isBasespace {
 		api.SendResponse(c, nil, setupcluster.MeshDevInfo{
 			APPS: meshManager.GetBaseDevSpaceAppInfo(&setupcluster.MeshDevInfo{

@@ -220,10 +220,6 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 		api.SendResponse(c, nil, nil)
 		return
 	}
-	if err := meshManager.BuildCache(); err != nil {
-		api.SendResponse(c, nil, nil)
-		return
-	}
 
 	log.Debugf("update mesh info for dev space %s, the namespace is %s", devspace.SpaceName, devspace.Namespace)
 	if err := meshManager.UpdateMeshDevSpace(&info); err != nil {
