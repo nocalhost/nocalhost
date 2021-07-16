@@ -34,15 +34,16 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 ) {
 	var err error
 	remotePath := c.GetWorkDir(container)
-	appProfile, err := c.GetProfileForUpdate()
+	appProfile, err := c.GetAppProfile()
+	//appProfile, err := c.GetProfileForUpdate()
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if appProfile != nil {
-			_ = appProfile.CloseDb()
-		}
-	}()
+	//defer func() {
+	//	if appProfile != nil {
+	//		_ = appProfile.CloseDb()
+	//	}
+	//}()
 	svcProfile := appProfile.SvcProfileV2(c.Name, c.Type.String())
 	remotePort := svcProfile.RemoteSyncthingPort
 	remoteGUIPort := svcProfile.RemoteSyncthingGUIPort
@@ -145,8 +146,9 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 			index++
 		}
 	}
-	_ = appProfile.Save()
-	return s, nil
+
+	//_ = appProfile.Save()
+	return s, nocalhost.UpdateProfileV2(c.NameSpace, c.AppName, appProfile)
 }
 
 func (c *Controller) NewSyncthingHttpClient() *req.SyncthingHttpClient {
