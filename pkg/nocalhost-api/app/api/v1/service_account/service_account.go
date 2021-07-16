@@ -157,6 +157,10 @@ func GenKubeconfig(
 	// for un privilege cluster, should append all devspace to it's context
 	kubeConfigStruct, _, _ := reader.ToStruct()
 	kubeConfigStruct.Clusters[0].Name = cp.GetClusterName()
+	kubeConfigStruct.Contexts[0].Context.Cluster = cp.GetClusterName()
+	authInfo := kubeConfigStruct.Contexts[0].Context.AuthInfo
+
+	kubeConfigStruct.Contexts = []clientcmdapiv1.NamedContext{}
 
 	// then check if has privilege (cluster admin)
 	privilege := false
@@ -165,14 +169,16 @@ func GenKubeconfig(
 	// new admin go client will request authorizationv1.SelfSubjectAccessReview
 	// then did not find any err, means cluster admin
 	if _, err = clientgo.NewAdminGoClient([]byte(kubeConfig)); err == nil {
-		kubeConfigStruct.Contexts[0].Context.Cluster = cp.GetClusterName()
+
 		privilege = true
-
 		// if namespace provided, set the space to current context
-		if specifyNameSpace != "" && specifyNameSpace != "*" {
-			defaultContext := kubeConfigStruct.Contexts[0]
-			kubeConfigStruct.Contexts = []clientcmdapiv1.NamedContext{}
 
+		// if found the specified ns found, set the context to those space
+		// else gen a empty space named default ant set to default
+		found := false
+		kubeConfigStruct.Contexts = []clientcmdapiv1.NamedContext{}
+
+		if specifyNameSpace != "" && specifyNameSpace != "*" {
 			if m, ok := spaceNameMap[cp.GetClusterId()]; ok {
 				if s, ok := m[specifyNameSpace]; ok {
 					kubeConfigStruct.Contexts = append(
@@ -181,17 +187,33 @@ func GenKubeconfig(
 							Context: clientcmdapiv1.Context{
 								Namespace: specifyNameSpace,
 								Cluster:   cp.GetClusterName(),
-								AuthInfo:  defaultContext.Context.AuthInfo,
+								AuthInfo:  authInfo,
 							},
 						},
 					)
+
+					kubeConfigStruct.CurrentContext = s.SpaceName
+					found = true
 				}
 			}
 		}
-	} else {
-		defaultContext := kubeConfigStruct.Contexts[0]
-		kubeConfigStruct.Contexts = []clientcmdapiv1.NamedContext{}
 
+		if !found {
+			kubeConfigStruct.Contexts = append(
+				kubeConfigStruct.Contexts, clientcmdapiv1.NamedContext{
+					Name: "default",
+					Context: clientcmdapiv1.Context{
+						Namespace: "default",
+						Cluster:   cp.GetClusterName(),
+						AuthInfo:  authInfo,
+					},
+				},
+			)
+
+			kubeConfigStruct.CurrentContext = "default"
+		}
+
+	} else {
 		for _, ns := range GetAllPermittedNs(string(clientGo.Config), saName) {
 			//var spaceName = fmt.Sprintf("Nocalhost-%s", ns)
 			//var SpaceId = uint64(0)
@@ -203,7 +225,7 @@ func GenKubeconfig(
 							Context: clientcmdapiv1.Context{
 								Namespace: ns,
 								Cluster:   cp.GetClusterName(),
-								AuthInfo:  defaultContext.Context.AuthInfo,
+								AuthInfo:  authInfo,
 							},
 						},
 					)

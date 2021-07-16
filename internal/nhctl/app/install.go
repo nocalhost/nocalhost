@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -131,6 +131,12 @@ func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta, resource
 func (a *Application) installHelm(
 	appMeta *appmeta.ApplicationMeta, flags *HelmFlags, resourceDir string, fromRepo bool,
 ) error {
+	log.Info("Updating helm repo...")
+	_, err := tools.ExecCommand(nil, true, false, false, "helm", "repo", "update")
+	if err != nil {
+		log.Info(err.Error())
+	}
+
 	releaseName := a.Name
 	appMeta.HelmReleaseName = releaseName
 	if err := appMeta.Update(); err != nil {
@@ -190,13 +196,15 @@ func (a *Application) installHelm(
 		installParams = append(installParams, "--set", set)
 	}
 
-	if flags.Values != "" {
-		installParams = append(installParams, "-f", flags.Values)
+	if len(flags.Values) > 0 {
+		for _, value := range flags.Values {
+			installParams = append(installParams, "-f", value)
+		}
 	}
 	installParams = append(installParams, "--timeout", "60m")
 	installParams = append(installParams, commonParams...)
 
-	fmt.Println("install helm application, this may take several minutes, please waiting...")
+	log.Info("Installing helm application, this may take several minutes, please waiting...")
 
 	if _, err := tools.ExecCommand(nil, true, false, false, "helm", installParams...); err != nil {
 		return errors.Wrap(err, "fail to install helm application")

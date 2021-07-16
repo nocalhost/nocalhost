@@ -15,8 +15,8 @@ package main
 import (
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"nocalhost/test/runner"
 	"nocalhost/test/suite"
-	"nocalhost/test/testcase"
 	"os"
 	"path/filepath"
 	"sync"
@@ -28,7 +28,6 @@ func main() {
 
 	start := time.Now()
 
-	var v2 string
 	var t *suite.T
 
 	if _, ok := os.LookupEnv("LocalTest"); ok {
@@ -38,8 +37,9 @@ func main() {
 	} else {
 		cancelFunc, ns, kubeconfig := suite.Prepare()
 		t = suite.NewT(ns, kubeconfig, cancelFunc)
-		_, v2 = testcase.GetVersion()
 	}
+	// try to prepare bookinfo image, in case of pull image parallel
+	t.RunWithBookInfo(true, "prepare image", func(cli runner.Client) {})
 
 	compatibleChan := make(chan interface{}, 1)
 	wg := sync.WaitGroup{}
@@ -64,8 +64,16 @@ func main() {
 		t.Run("statefulSet", suite.StatefulSet)
 	})
 
-	DoRun(v2 != "", &wg, func() {
-		t.Run("compatible", suite.Compatible, v2)
+	DoRun(false, &wg, func() {
+		t.Run("remove syncthing pid file manually", suite.KillSyncthingProcess)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("Get", suite.Get)
+	})
+
+	DoRun(true, &wg, func() {
+		t.Run("compatible", suite.Compatible)
 		compatibleChan <- "Done"
 	})
 
@@ -73,7 +81,7 @@ func main() {
 	log.Infof("All Async Test Done")
 	<-compatibleChan
 
-	t.Clean()
+	t.Clean(false)
 
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
 }

@@ -44,18 +44,18 @@ func NewT(namespace, kubeconfig string, f func()) *T {
 	}
 }
 
-func (t *T) Run(name string, fn func(cli runner.Client, p ...string), pp ...string) {
-	t.RunWithBookInfo(true, name, fn, pp...)
+func (t *T) Run(name string, fn func(cli runner.Client)) {
+	t.RunWithBookInfo(true, name, fn)
 }
 
 // Run command and clean environment after finished
-func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.Client, p ...string), pp ...string) {
+func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.Client)) {
 	log.Infof("\n============= Testing (Start)%s  =============\n", name)
 	timeBefore := time.Now()
 
 	defer func() {
 		if err := recover(); err != nil {
-			t.Clean()
+			t.Clean(true)
 			t.Alert()
 			panic(err)
 		}
@@ -93,13 +93,17 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 			log.Infof("\n============= Testing (Installing BookInfo %d)%s =============\n", i, name)
 			timeoutCtx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
 			if err = testcase.InstallBookInfo(timeoutCtx, clientForRunner); err != nil {
-				log.Infof("\n============= Testing (Install BookInfo Failed)%s =============, Err: \n", name, err.Error())
+				log.Infof(
+					"\n============= Testing (Install BookInfo Failed)%s =============, Err: \n", name, err.Error(),
+				)
 				_ = testcase.UninstallBookInfo(clientForRunner)
 				continue
 			}
 			timeAfterInstall := time.Now()
-			log.Infof("\n============= Testing (BookInfo Installed, Cost(%fs) %s =============\n",
-				timeAfterInstall.Sub(timeBeforeInstall).Seconds(), name)
+			log.Infof(
+				"\n============= Testing (BookInfo Installed, Cost(%fs) %s =============\n",
+				timeAfterInstall.Sub(timeBeforeInstall).Seconds(), name,
+			)
 			break
 		}
 
@@ -116,7 +120,7 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 				clientForRunner.GetNhctl().Namespace,
 				metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "reviews").String()},
 				func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
-				time.Minute*5,
+				time.Hour*1,
 			)
 
 			err = k8sutils.WaitPod(
@@ -124,7 +128,7 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 				clientForRunner.GetNhctl().Namespace,
 				metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "ratings").String()},
 				func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
-				time.Minute*5,
+				time.Hour*1,
 			)
 
 			if err == nil {
@@ -139,7 +143,7 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 
 	log.Infof("\n============= Testing (Test)%s =============\n", name)
 
-	fn(clientForRunner, pp...)
+	fn(clientForRunner)
 
 	timeAfter := time.Now()
 	log.Infof("\n============= Testing done, Cost(%fs) %s =============\n", timeAfter.Sub(timeBefore).Seconds(), name)
@@ -155,20 +159,21 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 	}
 }
 
-func (t *T) Clean() {
+func (t *T) Clean(fail bool) {
+	t.AlertForImagePull(fail)
 	if t.CleanFunc != nil {
 		t.CleanFunc()
 	}
 }
 
 func (t *T) Alert() {
-	if oldV, newV := testcase.GetVersion(); oldV != "" && newV != "" {
+	if lastVersion, currentVersion := testcase.GetVersion(); lastVersion != "" && currentVersion != "" {
 		if webhook := os.Getenv(util.TestcaseWebhook); webhook != "" {
 			s := `{"msgtype":"text","text":{"content":"兼容性测试(%s --> %s)没通过，请相关同学注意啦!",
 "mentioned_mobile_list":["18511859195"]}}`
 			var req *http.Request
 			var err error
-			data := strings.NewReader(fmt.Sprintf(s, oldV, newV))
+			data := strings.NewReader(fmt.Sprintf(s, lastVersion, currentVersion))
 			if req, err = http.NewRequest("POST", webhook, data); err != nil {
 				log.Info(err)
 				return
@@ -178,5 +183,45 @@ func (t *T) Alert() {
 				log.Info(err)
 			}
 		}
+	}
+}
+
+// cli must be kubectl
+func (t *T) AlertForImagePull(fail bool) {
+	if webhook := os.Getenv(util.TimeoutWebhook); webhook != "" {
+		s := `{"msgtype":"text","text":{"content":"WARN(ImagePullBackOff)：Clusters：%s，Events：%s",
+"mentioned_mobile_list":[""]}}`
+		var req *http.Request
+		var err error
+
+		// some event may not timely
+		time.Sleep(time.Minute)
+
+		s1, s2, _ := t.Cli.GetKubectl().RunClusterScope(context.TODO(), "get", "events", "-A")
+		outPut := s1 + s2
+
+		if fail && strings.Contains(outPut, "ErrImagePull") || strings.Contains(outPut, "ImagePullBackOff") {
+			robotHint := ""
+			for _, event := range strings.Split(outPut, "\n") {
+				if strings.Contains(event, "ErrImagePull") || strings.Contains(event, "ImagePullBackOff") {
+					robotHint += event + "\n"
+				}
+			}
+
+			data := strings.NewReader(fmt.Sprintf(s, os.Getenv("TKE_NAME"), robotHint))
+			if req, err = http.NewRequest("POST", webhook, data); err != nil {
+				log.Info(err)
+				return
+			}
+
+			req.Header.Set("Content-Type", "application/json")
+			if _, err = http.DefaultClient.Do(req); err != nil {
+				log.Info(err)
+			}
+		}
+
+		log.Infof("Events show: \n %s%s", s1, s2)
+
+		time.Sleep(time.Second * 30)
 	}
 }

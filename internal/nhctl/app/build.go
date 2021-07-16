@@ -75,8 +75,21 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 			return nil, err
 		}
 	} else if flags.LocalPath != "" { // local path of application, copy to nocalhost resource
-		if err = utils.CopyDir(flags.LocalPath, app.ResourceTmpDir); err != nil {
+
+		if err = utils.CopyDir(
+			filepath.Join(flags.LocalPath, ".nocalhost"),
+			filepath.Join(app.ResourceTmpDir, ".nocalhost"),
+		); err != nil {
 			return nil, err
+		}
+
+		for _, needToCopy := range flags.ResourcePath {
+			if err = utils.CopyDir(
+				filepath.Join(flags.LocalPath, needToCopy),
+				filepath.Join(app.ResourceTmpDir, needToCopy),
+			); err != nil {
+				return nil, err
+			}
 		}
 	}
 

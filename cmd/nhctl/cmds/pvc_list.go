@@ -16,7 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/clientgoutils"

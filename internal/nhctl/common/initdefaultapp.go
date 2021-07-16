@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	errors2 "github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app"
@@ -89,6 +90,22 @@ func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconf
 	helmValue := nocalhostApp.GetApplicationConfigV2().HelmValues
 	for _, v := range helmValue {
 		flags.HelmSet = append([]string{fmt.Sprintf("%s=%s", v.Key, v.Value)}, flags.HelmSet...)
+	}
+
+	// the values.yaml config in nocalhost is the most highest priority
+	// -f in helm, append it to the last
+	vals := nocalhostApp.GetApplicationConfigV2().HelmVals
+	if vals != nil && vals != "" {
+		helmvals := fp.NewRandomTempPath().MkdirThen().RelOrAbs("nocalhost.helmvals")
+
+		if marshal, err := yaml.Marshal(vals); err != nil {
+			return nil, err
+		} else {
+			if err := helmvals.WriteFile(string(marshal)); err != nil {
+				return nil, err
+			}
+			flags.HelmValueFile = append(flags.HelmValueFile, helmvals.Abs())
+		}
 	}
 
 	flag := &app.HelmFlags{
