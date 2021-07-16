@@ -15,6 +15,7 @@ package main
 import (
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"nocalhost/test/runner"
 	"nocalhost/test/suite"
 	"os"
 	"path/filepath"
@@ -37,6 +38,8 @@ func main() {
 		cancelFunc, ns, kubeconfig := suite.Prepare()
 		t = suite.NewT(ns, kubeconfig, cancelFunc)
 	}
+	// try to prepare bookinfo image, in case of pull image parallel
+	t.RunWithBookInfo(true, "prepare image", func(cli runner.Client) {})
 
 	compatibleChan := make(chan interface{}, 1)
 	wg := sync.WaitGroup{}
