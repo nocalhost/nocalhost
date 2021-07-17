@@ -396,7 +396,9 @@ func handlerRestartDaemonServerCommand(isSudoUser bool, clientPath string) error
 	//		return err
 	//	}
 	//} else {
-	if nhctlPath, err = utils.GetNhctlPath(); err != nil {
+	if clientPath != "" {
+		nhctlPath = clientPath
+	} else if nhctlPath, err = utils.GetNhctlPath(); err != nil {
 		return err
 	}
 	//}
