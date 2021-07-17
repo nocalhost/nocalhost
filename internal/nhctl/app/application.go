@@ -812,8 +812,8 @@ func (a *Application) IsAnyServiceInDevMode() bool {
 	return false
 }
 
-func (a *Application) PortForwardFollow(podName string, localPort int, remotePort int, kubeconfig, ns string) error {
-	client, err := clientgoutils.NewClientGoUtils(kubeconfig, ns)
+func (a *Application) PortForwardFollow(podName string, localPort int, remotePort int, okchan chan struct{}) error {
+	client, err := clientgoutils.NewClientGoUtils(a.KubeConfig, a.NameSpace)
 	if err != nil {
 		panic(err)
 	}
@@ -835,6 +835,9 @@ func (a *Application) PortForwardFollow(podName string, localPort int, remotePor
 			case <-pf.Ready:
 				fmt.Printf("Forwarding from 127.0.0.1:%d -> %d\n", localPort, remotePort)
 				fmt.Printf("Forwarding from [::1]:%d -> %d\n", localPort, remotePort)
+				if okchan != nil {
+					okchan <- struct{}{}
+				}
 				return
 			}
 		}

@@ -97,7 +97,7 @@ var portForwardStartCmd = &cobra.Command{
 
 		for index, localPort := range localPorts {
 			if portForwardOptions.Follow {
-				must(nocalhostApp.PortForwardFollow(podName, localPort, remotePorts[index], kubeConfig, nameSpace))
+				must(nocalhostApp.PortForwardFollow(podName, localPort, remotePorts[index], nil))
 			} else {
 				must(nocalhostSvc.PortForward(podName, localPort, remotePorts[index], ""))
 			}
