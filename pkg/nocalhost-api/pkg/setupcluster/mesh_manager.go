@@ -60,6 +60,7 @@ type MeshDevInfo struct {
 	MeshDevNamespace string       `json:"-"`
 	Header           model.Header `json:"header"`
 	APPS             []MeshDevApp `json:"apps"`
+	resources        meshDevResources
 }
 
 type MeshDevApp struct {
@@ -73,14 +74,17 @@ type MeshDevWorkload struct {
 	Status int    `json:"status"`
 }
 
+type meshDevResources struct {
+	install []unstructured.Unstructured
+	delete  []unstructured.Unstructured
+}
+
 func (m *meshManager) InitMeshDevSpace(info *MeshDevInfo) error {
 	return m.initMeshDevSpace(info)
 }
 
 func (m *meshManager) UpdateMeshDevSpace(info *MeshDevInfo) error {
-	if err := m.setWorkloadStatus(info); err != nil {
-		return err
-	}
+	m.setWorkloadStatus(info)
 
 	if err := m.InjectMeshDevSpace(info); err != nil {
 		return err
@@ -90,40 +94,24 @@ func (m *meshManager) UpdateMeshDevSpace(info *MeshDevInfo) error {
 }
 
 func (m *meshManager) InjectMeshDevSpace(info *MeshDevInfo) error {
-	// get dev space workloads from cache
+	m.tagResources(info)
+
 	log.Debugf("inject workloads into dev namespace %s", info.MeshDevNamespace)
-	ws := make(map[string]int)
-	for _, a := range info.APPS {
-		for _, w := range a.Workloads {
-			ws[w.Kind+"/"+w.Name] = w.Status
-		}
-	}
-	irs := make([]unstructured.Unstructured, 0)
-	drs := make([]unstructured.Unstructured, 0)
-	for _, r := range m.cache.GetDeploymentsListByNameSpace(info.BaseNamespace) {
-		if ws[r.GetKind()+"/"+r.GetName()] == ShouldBeInstalled {
-			irs = append(irs, r)
-			continue
-		}
-		if ws[r.GetKind()+"/"+r.GetName()] == ShouldBeDeleted {
-			drs = append(drs, r)
-		}
-	}
 
 	g, _ := errgroup.WithContext(context.Background())
 	// apply workloads
 	g.Go(func() error {
-		return m.applyWorkloadsToMeshDevSpace(irs, info)
+		return m.applyWorkloadsToMeshDevSpace(info)
 	})
 
 	// update base dev space vs
 	g.Go(func() error {
-		return m.updateVirtualServiceOnBaseDevSpace(irs, drs, info)
+		return m.updateVirtualServiceOnBaseDevSpace(info)
 	})
 
 	// delete workloads
 	g.Go(func() error {
-		return m.deleteWorkloadsFromMeshDevSpace(drs, info)
+		return m.deleteWorkloadsFromMeshDevSpace(info)
 	})
 	return g.Wait()
 }
@@ -219,8 +207,8 @@ func (m *meshManager) BuildCache() error {
 	return m.buildCache()
 }
 
-func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstructured, info *MeshDevInfo) error {
-	for _, r := range drs {
+func (m *meshManager) deleteWorkloadsFromMeshDevSpace(info *MeshDevInfo) error {
+	for _, r := range info.resources.delete {
 		r := *r.DeepCopy()
 		log.Debugf("delete the workload %s/%s from %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
 		if err := commonModifier(info.MeshDevNamespace, &r); err != nil {
@@ -244,8 +232,8 @@ func (m *meshManager) deleteWorkloadsFromMeshDevSpace(drs []unstructured.Unstruc
 	return nil
 }
 
-func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructured, info *MeshDevInfo) error {
-	for _, r := range irs {
+func (m *meshManager) applyWorkloadsToMeshDevSpace(info *MeshDevInfo) error {
+	for _, r := range info.resources.install {
 		r := *r.DeepCopy()
 		log.Debugf("inject the workload %s/%s into dev namespace %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
 		dependencies, err := meshDevModifier(info.MeshDevNamespace, &r)
@@ -277,10 +265,10 @@ func (m *meshManager) applyWorkloadsToMeshDevSpace(irs []unstructured.Unstructur
 	return nil
 }
 
-func (m *meshManager) deleteHeaderFromVirtualService(rs []unstructured.Unstructured, info *MeshDevInfo) error {
+func (m *meshManager) deleteHeaderFromVirtualService(info *MeshDevInfo) error {
 	// delete header from vs
 	vs := make([]*unstructured.Unstructured, 0)
-	for _, r := range rs {
+	for _, r := range info.resources.delete {
 		r := *r.DeepCopy()
 		origVsMap := m.cache.MatchVirtualServiceByWorkload(r)
 		origVs := make([]unstructured.Unstructured, 0)
@@ -308,7 +296,7 @@ func (m *meshManager) deleteHeaderFromVirtualService(rs []unstructured.Unstructu
 	return nil
 }
 
-func (m *meshManager) addHeaderToVirtualService(rs []unstructured.Unstructured, info *MeshDevInfo) error {
+func (m *meshManager) addHeaderToVirtualService(info *MeshDevInfo) error {
 	// update vs
 	if info.Header.TraceKey == "" || info.Header.TraceValue == "" {
 		log.Debugf("can not find tracing header to update virtual service in the namespace %s",
@@ -316,7 +304,7 @@ func (m *meshManager) addHeaderToVirtualService(rs []unstructured.Unstructured, 
 		return nil
 	}
 	vs := make([]*unstructured.Unstructured, 0)
-	for _, r := range rs {
+	for _, r := range info.resources.install {
 		// update vs if already existed
 		r := *r.DeepCopy()
 		origVsMap := m.cache.MatchVirtualServiceByWorkload(r)
@@ -384,13 +372,13 @@ func (m *meshManager) updateHeaderToVirtualServices(info *MeshDevInfo) error {
 	return nil
 }
 
-func (m *meshManager) updateVirtualServiceOnBaseDevSpace(irs, drs []unstructured.Unstructured, info *MeshDevInfo) error {
+func (m *meshManager) updateVirtualServiceOnBaseDevSpace(info *MeshDevInfo) error {
 	g, _ := errgroup.WithContext(context.Background())
 	g.Go(func() error {
-		return m.deleteHeaderFromVirtualService(drs, info)
+		return m.deleteHeaderFromVirtualService(info)
 	})
 	g.Go(func() error {
-		return m.addHeaderToVirtualService(irs, info)
+		return m.addHeaderToVirtualService(info)
 	})
 	return g.Wait()
 }
@@ -488,7 +476,7 @@ func (m *meshManager) getMeshDevSpaceWorkloads(info *MeshDevInfo) []MeshDevWorkl
 	return w
 }
 
-func (m *meshManager) setWorkloadStatus(info *MeshDevInfo) error {
+func (m *meshManager) setWorkloadStatus(info *MeshDevInfo) {
 	log.Debug("set workloads status")
 	devWs := m.getMeshDevSpaceWorkloads(info)
 	devMap := make(map[string]MeshDevWorkload)
@@ -507,8 +495,29 @@ func (m *meshManager) setWorkloadStatus(info *MeshDevInfo) error {
 		}
 	}
 	info.APPS = apps
-	return nil
+}
 
+func (m *meshManager) tagResources(info *MeshDevInfo) {
+	ws := make(map[string]int)
+	for _, a := range info.APPS {
+		for _, w := range a.Workloads {
+			ws[w.Kind+"/"+w.Name] = w.Status
+		}
+	}
+	irs := make([]unstructured.Unstructured, 0)
+	drs := make([]unstructured.Unstructured, 0)
+	for _, r := range m.cache.GetDeploymentsListByNameSpace(info.BaseNamespace) {
+		if ws[r.GetKind()+"/"+r.GetName()] == ShouldBeInstalled {
+			irs = append(irs, r)
+			continue
+		}
+		if ws[r.GetKind()+"/"+r.GetName()] == ShouldBeDeleted {
+			drs = append(drs, r)
+		}
+	}
+
+	info.resources.install = irs
+	info.resources.delete = drs
 }
 
 func (m *meshManager) applyDependencyToMeshDevSpace(dependencies []MeshDevWorkload, info *MeshDevInfo) error {

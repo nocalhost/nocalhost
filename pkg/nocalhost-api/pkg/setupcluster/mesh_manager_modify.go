@@ -400,7 +400,7 @@ func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.H
 }
 
 func addHeaderToVirtualService(rs *unstructured.Unstructured, devNs, svcName string, header model.Header) error {
-	resetModifier(rs)
+	rs.SetManagedFields(nil)
 
 	if header.TraceKey == "" || header.TraceValue == "" {
 		log.Debugf("can not find tracing header to update virtual service in the namespace %s",
@@ -459,7 +459,7 @@ func addHeaderToVirtualService(rs *unstructured.Unstructured, devNs, svcName str
 }
 
 func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, devNs string, header model.Header) (bool, error) {
-	resetModifier(rs)
+	rs.SetManagedFields(nil)
 
 	vs := &v1alpha3.VirtualService{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), vs); err != nil {
@@ -486,7 +486,7 @@ func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, devNs string,
 }
 
 func updateHeaderToVirtualService(rs *unstructured.Unstructured, devNs string, header model.Header) (bool, error) {
-	resetModifier(rs)
+	rs.SetManagedFields(nil)
 	vs := &v1alpha3.VirtualService{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), vs); err != nil {
 		return false, errors.WithStack(err)
