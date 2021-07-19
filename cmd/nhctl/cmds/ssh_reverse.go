@@ -30,7 +30,7 @@ var (
 
 func init() {
 	sshRCmd.PersistentFlags().StringVarP(&podName, "pod", "", "", "pod name witch has ssh server")
-	sshRCmd.PersistentFlags().IntVarP(&podSshPort, "sshport", "p", 22, "pod ssh service port")
+	sshRCmd.PersistentFlags().IntVarP(&podSshPort, "sshport", "p", 50022, "pod ssh service port")
 	sshRCmd.PersistentFlags().IntVarP(&remotePort, "remote", "", 2222, "remote port")
 	sshRCmd.PersistentFlags().IntVarP(&localPort, "local", "", 2222, "local port")
 	sshCmd.AddCommand(sshRCmd)
