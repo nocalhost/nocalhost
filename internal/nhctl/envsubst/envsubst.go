@@ -31,19 +31,24 @@ func Render(fp, envFile *fp.FilePathEnhance) (string, error) {
 }
 
 func readEnvFile(envFile *fp.FilePathEnhance) []string {
+	var envFiles []string
+
 	if envFile == nil {
-		return nil
+		return envFiles
+	}
+
+	if err := envFile.CheckExist(); err != nil {
+		return envFiles
 	}
 
 	file, err := os.Open(envFile.Abs())
 	if err != nil {
-		log.ErrorE(err, "Error while opening file "+envFile.Path)
+		log.ErrorE(err, "Can't not reading env file from "+envFile.Path)
 	}
 
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	var envFiles []string
 
 	for scanner.Scan() {
 		text := scanner.Text()
