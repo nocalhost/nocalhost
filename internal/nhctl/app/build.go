@@ -115,9 +115,9 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 
 	if err = appMeta.Initial(); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
-			log.Errorf("Application %s in %s has been installed", app.Name, app.NameSpace)
+			log.Logf("Application %s in %s has been installed", app.Name, app.NameSpace)
 		}
-		return nil, err
+		return app, err
 	}
 
 	appMeta.Config = config
