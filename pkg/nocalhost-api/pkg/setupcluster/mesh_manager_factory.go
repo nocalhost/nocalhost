@@ -27,6 +27,8 @@ func GetSharedMeshManagerFactory() SharedMeshManagerFactory {
 
 type SharedMeshManagerFactory interface {
 	Manager(string) (MeshManager, error)
+	Check(string) bool
+	Delete(string)
 }
 
 func NewSharedMeshManagerFactory() SharedMeshManagerFactory {
@@ -63,4 +65,17 @@ func (f *sharedMeshManagerFactory) Manager(kubeconfig string) (MeshManager, erro
 	}
 	f.manager[kubeconfig] = manager
 	return manager, nil
+}
+
+func (f *sharedMeshManagerFactory) Delete(kubeconfig string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.manager, kubeconfig)
+}
+
+func (f *sharedMeshManagerFactory) Check(kubeconfig string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	_, exists := f.manager[kubeconfig]
+	return exists
 }

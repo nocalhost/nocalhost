@@ -22,6 +22,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
 // GetList Delete the cluster completely
@@ -42,6 +43,8 @@ func Delete(c *gin.Context) {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
 		return
 	}
+
+	deleteMeshManager(cluster.KubeConfig)
 
 	goClient, err := clientgo.NewAdminGoClient([]byte(cluster.KubeConfig))
 	if err != nil {
@@ -102,4 +105,12 @@ func deleteNocalhostManagedData(c *gin.Context, clusterId uint64, spaceIds []uin
 		}
 	}
 	return true
+}
+
+// Delete manager form factory
+func deleteMeshManager(kubeconfig string) {
+	managerFactory := setupcluster.GetSharedMeshManagerFactory()
+	if managerFactory.Check(kubeconfig) {
+		managerFactory.Delete(kubeconfig)
+	}
 }
