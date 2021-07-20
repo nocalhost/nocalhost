@@ -58,6 +58,7 @@ type meshManager struct {
 type MeshDevInfo struct {
 	BaseNamespace    string       `json:"-"`
 	MeshDevNamespace string       `json:"-"`
+	IsUpdateHeader   bool         `json:"-"`
 	Header           model.Header `json:"header"`
 	APPS             []MeshDevApp `json:"apps"`
 	resources        meshDevResources
@@ -90,7 +91,10 @@ func (m *meshManager) UpdateMeshDevSpace(info *MeshDevInfo) error {
 		return err
 	}
 
-	return m.updateHeaderToVirtualServices(info)
+	if info.IsUpdateHeader {
+		return m.updateHeaderToVirtualServices(info)
+	}
+	return nil
 }
 
 func (m *meshManager) InjectMeshDevSpace(info *MeshDevInfo) error {

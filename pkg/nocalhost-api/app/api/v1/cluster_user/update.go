@@ -162,6 +162,7 @@ func UpdateResourceLimit(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
+// UpdateMeshDevSpaceInfo update mesh dev space info
 // @Summary Update mesh dev space info
 // @Description Update mesh dev space info
 // @Tags DevSpace
@@ -214,6 +215,8 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	info := req
 	info.MeshDevNamespace = devspace.Namespace
 	info.BaseNamespace = basespace.Namespace
+	info.IsUpdateHeader = basespace.TraceHeader.TraceKey != info.Header.TraceKey ||
+		basespace.TraceHeader.TraceValue != info.Header.TraceValue
 
 	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(clusterData.KubeConfig)
 	if err != nil {
