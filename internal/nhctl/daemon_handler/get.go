@@ -214,13 +214,11 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			}
 			result := make([]item.Item, 0, len(items))
 			for _, i := range items {
-				gvr, _ := s.GetGvr(request.Resource)
-				result = append(
-					result, item.Item{
-						Metadata:    i,
-						Description: serviceMap[gvr.Resource+"/"+i.(metav1.Object).GetName()],
-					},
-				)
+				tempItem := item.Item{Metadata: i}
+				if gvr, err := s.GetRestMapping(request.Resource); err == nil {
+					tempItem.Description = serviceMap[gvr.Resource.Resource+"/"+i.(metav1.Object).GetName()]
+				}
+				result = append(result, tempItem)
 			}
 			return result
 		} else {
@@ -235,8 +233,11 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			if err != nil || one == nil {
 				return nil
 			}
-			gvr, _ := s.GetGvr(request.Resource)
-			return item.Item{Metadata: one, Description: serviceMap[gvr.Resource+"/"+one.(metav1.Object).GetName()]}
+			i := item.Item{Metadata: one}
+			if gvr, err := s.GetRestMapping(request.Resource); err == nil {
+				i.Description = serviceMap[gvr.Resource.Resource+"/"+one.(metav1.Object).GetName()]
+			}
+			return i
 		}
 	}
 }
