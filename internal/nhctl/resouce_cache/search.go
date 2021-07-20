@@ -41,60 +41,47 @@ var searchMap, _ = simplelru.NewLRU(15, func(_ interface{}, value interface{}) {
 type Searcher struct {
 	kubeconfig      []byte
 	informerFactory informers.SharedInformerFactory
-	supportSchema   map[string]schema.GroupVersionResource
+	supportSchema   map[string]*meta.RESTMapping
 	mapper          meta.RESTMapper
-	// is namespaced resource or cluster resource
-	namespaced  map[string]bool
-	stopChannel chan struct{}
+	stopChannel     chan struct{}
 }
 
-// GetSupportGroupVersionResource
-func GetSupportGroupVersionResource(Clients *kubernetes.Clientset, mapper meta.RESTMapper) (
-	[]schema.GroupVersionResource, map[string]schema.GroupVersionResource, map[string]bool) {
-	apiResourceLists, _ := Clients.ServerPreferredResources()
-	nameToUniqueName := make(map[string]string)
-
-	namespaced := make(map[string]bool)
-	gvrList := make([]schema.GroupVersionResource, 0)
-	uniqueNameToGVR := make(map[string]schema.GroupVersionResource)
-
+// GetSupportedSchema
+func GetSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (map[string]*meta.RESTMapping, error) {
 	var resourceNeeded = map[string]string{"namespaces": "namespaces"}
 	for _, v := range GroupToTypeMap {
 		for _, s := range v.V {
 			resourceNeeded[s] = s
 		}
 	}
-	versionResource := schema.GroupVersionResource{}
+	apiResourceLists, err := c.ServerPreferredResources()
+	if err != nil {
+		return nil, err
+	}
+	nameToMapping := make(map[string]*meta.RESTMapping)
 	for _, resourceList := range apiResourceLists {
 		for _, resource := range resourceList.APIResources {
-			if uniqueNameToGVR[resource.Name] != versionResource {
-				continue
-			}
 			if resourceNeeded[resource.Name] == "" {
 				continue
 			}
-			nameToUniqueName[resource.Name] = resource.Name
-			nameToUniqueName[resource.Kind] = resource.Name
-			nameToUniqueName[strings.ToLower(resource.Kind)] = resource.Name
-			namespaced[resource.Name] = resource.Namespaced
-			if len(resource.ShortNames) != 0 {
-				nameToUniqueName[resource.ShortNames[0]] = resource.Name
+			if nameToMapping[resource.Name] != nil {
+				log.Logf("already exist resource type: %s, restMapping: %v",
+					resource.Name, nameToMapping[resource.Name])
+				continue
 			}
-			if parseGroupVersion, err := schema.ParseGroupVersion(resourceList.GroupVersion); err == nil {
-				groupVersionResource := parseGroupVersion.WithKind(resource.Kind)
-				mapping, _ := mapper.RESTMapping(groupVersionResource.GroupKind(), groupVersionResource.Version)
-				gvrList = append(gvrList, mapping.Resource)
-				uniqueNameToGVR[resource.Name] = mapping.Resource
+			if groupVersion, err := schema.ParseGroupVersion(resourceList.GroupVersion); err == nil {
+				gvk := groupVersion.WithKind(resource.Kind)
+				mapping, _ := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+				nameToMapping[resource.Name] = mapping
+				nameToMapping[resource.Kind] = mapping
+				nameToMapping[strings.ToLower(resource.Kind)] = mapping
+				for _, name := range resource.ShortNames {
+					nameToMapping[name] = mapping
+				}
 			}
 		}
 	}
-
-	for name, uniqueName := range nameToUniqueName {
-		if !uniqueNameToGVR[uniqueName].Empty() {
-			uniqueNameToGVR[name] = uniqueNameToGVR[uniqueName]
-		}
-	}
-	return gvrList, uniqueNameToGVR, namespaced
+	return nameToMapping, nil
 }
 
 // GetSearcher
@@ -109,7 +96,7 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 		if err != nil {
 			return nil, err
 		}
-		Clients, err := kubernetes.NewForConfig(config)
+		clientset, err := kubernetes.NewForConfig(config)
 		if err != nil {
 			return nil, err
 		}
@@ -117,19 +104,24 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 		var informerFactory informers.SharedInformerFactory
 		if !isCluster {
 			informerFactory = informers.NewSharedInformerFactoryWithOptions(
-				Clients, time.Second*5, informers.WithNamespace(namespace),
+				clientset, time.Second*5, informers.WithNamespace(namespace),
 			)
 		} else {
-			informerFactory = informers.NewSharedInformerFactory(Clients, time.Second*5)
+			informerFactory = informers.NewSharedInformerFactory(clientset, time.Second*5)
 		}
-		gr, _ := restmapper.GetAPIGroupResources(Clients)
+		gr, err := restmapper.GetAPIGroupResources(clientset)
+		if err != nil {
+			return nil, err
+		}
 		mapper := restmapper.NewDiscoveryRESTMapper(gr)
-		gvrList, name2gvr, namespaced := GetSupportGroupVersionResource(Clients, mapper)
-		for _, gvr := range gvrList {
-			if _, err = informerFactory.ForResource(gvr); err != nil {
+		restMappingList, err := GetSupportedSchema(clientset, mapper)
+		if err != nil {
+			return nil, err
+		}
+		for _, restMapping := range restMappingList {
+			if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
 				log.Warnf(
-					"can't create informer for resource: %v, error info: %v, ignored",
-					gvr.Resource, err.Error(),
+					"can't create informer for resource: %v, error info: %v, ignored", restMapping.Resource, err.Error(),
 				)
 				continue
 			}
@@ -151,9 +143,8 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 		newSearcher := &Searcher{
 			kubeconfig:      kubeconfigBytes,
 			informerFactory: informerFactory,
-			supportSchema:   name2gvr,
+			supportSchema:   restMappingList,
 			mapper:          mapper,
-			namespaced:      namespaced,
 			stopChannel:     stopChannel,
 		}
 		if searcher, exist = searchMap.Get(sum); !exist || searcher == nil {
@@ -175,14 +166,11 @@ func (s *Searcher) Stop() {
 	s.stopChannel <- struct{}{}
 }
 
-func (s *Searcher) GetGvr(resourceType string) (schema.GroupVersionResource, error) {
-	if !s.supportSchema[resourceType].Empty() {
-		return s.supportSchema[resourceType], nil
-	}
-	if !s.supportSchema[strings.ToLower(resourceType)].Empty() {
+func (s *Searcher) GetRestMapping(resourceType string) (*meta.RESTMapping, error) {
+	if s.supportSchema[strings.ToLower(resourceType)] != nil {
 		return s.supportSchema[strings.ToLower(resourceType)], nil
 	}
-	return schema.GroupVersionResource{}, errors.New("Not support resource type: " + resourceType)
+	return nil, errors.New("Not support resource type: " + resourceType)
 }
 
 // e's annotation appName must in appNameRange, other wise app name is not available
@@ -261,9 +249,10 @@ func (c *criteria) AppNameNotIn(appNames ...string) *criteria {
 }
 
 func (c *criteria) ResourceType(resourceType string) *criteria {
-	c.resourceType = resourceType
-	if gvr, err := c.search.GetGvr(c.resourceType); err == nil {
-		c.namespaced = c.search.namespaced[gvr.Resource]
+	if mapping, err := c.search.GetRestMapping(resourceType); err == nil {
+		log.Logf("can not found restMapping for resource type: %s", resourceType)
+		c.resourceType = resourceType
+		c.namespaced = mapping.Scope.Name() == meta.RESTScopeNameNamespace
 	}
 	return c
 }
@@ -313,11 +302,9 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		if err := recover(); err != nil {
 			e = err.(error)
 		}
-		if gvr, errs := c.search.GetGvr(c.resourceType); errs == nil {
-			if kind, err2 := c.search.mapper.KindFor(gvr); err2 == nil {
-				for _, d := range data {
-					d.(runtime.Object).GetObjectKind().SetGroupVersionKind(kind)
-				}
+		if restMapping, errs := c.search.GetRestMapping(c.resourceType); errs == nil {
+			for _, d := range data {
+				d.(runtime.Object).GetObjectKind().SetGroupVersionKind(restMapping.GroupVersionKind)
 			}
 		}
 	}()
@@ -328,32 +315,32 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	if c.resourceType == "" && c.kind == nil {
 		return nil, errors.New("resource type and kind should not be null at the same time")
 	}
-	var info cache.SharedIndexInformer
+	var informer cache.SharedIndexInformer
 	if c.kind != nil {
-		info = c.search.informerFactory.InformerFor(c.kind, nil)
+		informer = c.search.informerFactory.InformerFor(c.kind, nil)
 	} else {
-		gvr, err := c.search.GetGvr(c.resourceType)
+		mapping, err := c.search.GetRestMapping(c.resourceType)
 		if err != nil {
 			return nil, errors.Wrapf(err, "not support resource type: %v", c.resourceType)
 		}
-		informer, err := c.search.informerFactory.ForResource(gvr)
+		genericInformer, err := c.search.informerFactory.ForResource(mapping.Resource)
 		if err != nil {
 			return nil, errors.Wrapf(err, "get informer failed for resource type: %v", c.resourceType)
 		}
-		info = informer.Informer()
+		informer = genericInformer.Informer()
 	}
-	if info == nil {
+	if informer == nil {
 		return nil, errors.New("create informer failed, please check your code")
 	}
 
 	if !c.namespaced {
-		list := info.GetStore().List()
+		list := informer.GetStore().List()
 		SortByNameAsc(list)
 		return list, nil
 	}
 
 	if c.ns != "" && c.resourceName != "" {
-		item, exists, err1 := info.GetIndexer().GetByKey(nsResource(c.ns, c.resourceName))
+		item, exists, err1 := informer.GetIndexer().GetByKey(nsResource(c.ns, c.resourceName))
 		if !exists {
 			return nil, errors.Errorf(
 				"not found for resource : %s-%s in namespace: %s", c.resourceType, c.resourceName, c.ns,
@@ -369,7 +356,7 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		}
 		return
 	}
-	return newFilter(info.GetIndexer().List()).
+	return newFilter(informer.GetIndexer().List()).
 		namespace(c.ns).
 		appName(c.availableAppName, c.appName).
 		label(c.label).
