@@ -1,3 +1,15 @@
+/*
+ * Tencent is pleased to support the open source community by making Nocalhost available.,
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under,
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package utils
 
 import (
@@ -8,31 +20,30 @@ import (
 	"time"
 )
 
-var DefaultRoot = &Certificate{
+var DefaultRoot = &Account{
 	Username: "root",
 	Password: "root",
 }
 
-type Certificate struct {
+type Account struct {
 	Username string
 	Password string
 }
 
-func Reverse(cert *Certificate, sshEndpoint, remoteEndpoint, localEndpoint string) (err error) {
+func Reverse(account *Account, sshEndpoint, remoteEndpoint, localEndpoint string) (err error) {
 	sshConfig := &ssh.ClientConfig{
-		User:            cert.Username,
-		Auth:            []ssh.AuthMethod{ssh.Password(cert.Password)},
+		User:            account.Username,
+		Auth:            []ssh.AuthMethod{ssh.Password(account.Password)},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Timeout:         time.Second * 60,
 	}
 	sshConn, err := ssh.Dial("tcp", sshEndpoint, sshConfig)
 	if err != nil {
-		log.Error("fail to create ssh tunnel")
+		log.Error("fail to create ssh connection")
 		return err
 	}
 	defer sshConn.Close()
 
-	// Listen on remote server port
 	listener, err := sshConn.Listen("tcp", remoteEndpoint)
 	if err != nil {
 		log.Error("fail to listen remote endpoint")
@@ -42,12 +53,10 @@ func Reverse(cert *Certificate, sshEndpoint, remoteEndpoint, localEndpoint strin
 
 	log.Infof("Forwarding to %s <- %s", localEndpoint, remoteEndpoint)
 
-	// handle incoming connections on reverse forwarded tunnel
 	for {
-		// Open a (local) connection to localEndpoint whose content will be forwarded so serverEndpoint
 		localConn, err := net.Dial("tcp", localEndpoint)
 		if err != nil {
-			log.Error("dial local service error: %s", err)
+			log.Errorf("dial local service error, err: %v", err)
 			return err
 		}
 
@@ -56,11 +65,11 @@ func Reverse(cert *Certificate, sshEndpoint, remoteEndpoint, localEndpoint strin
 			log.Error("error: %s", err)
 			return err
 		}
-		copy(remoteConn, localConn)
+		copyStream(remoteConn, localConn)
 	}
 }
 
-func copy(remoteConn net.Conn, localConn net.Conn) {
+func copyStream(remoteConn net.Conn, localConn net.Conn) {
 	stop := make(chan struct{})
 	// remote -> local
 	go func() {
@@ -79,6 +88,5 @@ func copy(remoteConn net.Conn, localConn net.Conn) {
 		}
 		stop <- struct{}{}
 	}()
-
 	<-stop
 }
