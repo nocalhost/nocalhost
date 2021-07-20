@@ -844,8 +844,10 @@ func (a *Application) PortForwardFollow(podName string, localPort int, remotePor
 	}()
 	for {
 		select {
-		case err := <-errChan:
-			fmt.Printf("err: %v", err)
+		case err = <-errChan:
+			if err != nil {
+				return err
+			}
 		}
 	}
 }
