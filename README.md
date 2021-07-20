@@ -17,7 +17,7 @@ The term Nocalhost originates from No Local, which is a cloud-native development
 
 When developing cloud-based application in Nocalhost, any code changes can immediately take effects in remote side, and there is no need to rebuild a new image. This can shorten the entire development feedback loops and massively improve R&D efficiency.
 
-In order to give you a better understanding of Nocalhost, it is recommended that you read our blog post [Nocalhost - Refine Cloud Native Dev Environment](https://nocalhost.dev/Blog/redefine-cloud-native-dev-environment/)
+In order to give you a better understanding of Nocalhost, it is recommended that you read our blog post [Nocalhost - Refine Cloud Native Dev Environment](https://nocalhost.dev/eng/Blog/redefine-cloud-native-dev-environment/)
 
 [![Nocalhost](https://img.youtube.com/vi/z7I-vopn-gQ/0.jpg)](https://www.youtube.com/watch?v=z7I-vopn-gQ)
 
