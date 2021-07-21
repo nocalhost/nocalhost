@@ -13,6 +13,7 @@
 package utils
 
 import (
+	"context"
 	"golang.org/x/crypto/ssh"
 	"io"
 	"net"
@@ -70,23 +71,18 @@ func Reverse(account *Account, sshEndpoint, remoteEndpoint, localEndpoint string
 }
 
 func copyStream(remoteConn net.Conn, localConn net.Conn) {
-	stop := make(chan struct{})
-	// remote -> local
+	cancel, cancelFunc := context.WithCancel(context.Background())
 	go func() {
-		_, err := io.Copy(localConn, remoteConn)
-		if err != nil {
+		if _, err := io.Copy(localConn, remoteConn); err != nil {
 			log.Error("error occurs while copy local -> remote: %s", err)
 		}
-		stop <- struct{}{}
+		cancelFunc()
 	}()
-
-	// local -> remote
 	go func() {
-		_, err := io.Copy(remoteConn, localConn)
-		if err != nil {
-			log.Error("error while copy remote -> local: %s", err)
+		if _, err := io.Copy(remoteConn, localConn); err != nil {
+			log.Error("error occurs while copy remote -> local: %s", err)
 		}
-		stop <- struct{}{}
+		cancelFunc()
 	}()
-	<-stop
+	<-cancel.Done()
 }
