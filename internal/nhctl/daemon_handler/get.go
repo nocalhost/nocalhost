@@ -171,7 +171,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				}
 				var wg sync.WaitGroup
 				wg.Add(len(nsObjectList))
-				okChan := make(chan struct{}, 10)
+				okChan := make(chan struct{}, 2)
 				go func() {
 					time.Sleep(time.Second * 10)
 					okChan <- struct{}{}
@@ -271,7 +271,7 @@ func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.
 	nameList := getAvailableAppName(namespace, kubeconfigPath)
 	var wg sync.WaitGroup
 	wg.Add(len(nameList))
-	okChan := make(chan struct{}, 10)
+	okChan := make(chan struct{}, 2)
 	go func() {
 		time.Sleep(time.Second * 10)
 		okChan <- struct{}{}
