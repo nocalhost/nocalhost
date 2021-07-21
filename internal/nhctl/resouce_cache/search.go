@@ -65,7 +65,7 @@ func GetSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (map[st
 				continue
 			}
 			if nameToMapping[resource.Name] != nil {
-				log.Logf("already exist resource type: %s, restMapping: %v",
+				log.Logf("Already exist resource type: %s, restMapping: %v",
 					resource.Name, nameToMapping[resource.Name])
 				continue
 			}
@@ -81,6 +81,9 @@ func GetSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (map[st
 			}
 		}
 	}
+	if len(nameToMapping) == 0 {
+		return nil, errors.New("RestMapping is empty, this should not happened")
+	}
 	return nameToMapping, nil
 }
 
@@ -89,8 +92,8 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 	// calculate kubeconfig content's sha value as unique cluster id
 	h := sha1.New()
 	h.Write(kubeconfigBytes)
-	sum := string(h.Sum([]byte(namespace)))
-	searcher, exist := searchMap.Get(sum)
+	key := string(h.Sum([]byte(namespace)))
+	searcher, exist := searchMap.Get(key)
 	if !exist || searcher == nil {
 		config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
 		if err != nil {
@@ -121,20 +124,21 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 		for _, restMapping := range restMappingList {
 			if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
 				log.Warnf(
-					"can't create informer for resource: %v, error info: %v, ignored", restMapping.Resource, err.Error(),
+					"Can't create informer for resource: %v, error info: %v, ignored",
+					restMapping.Resource, err.Error(),
 				)
 				continue
 			}
 		}
-		stopChannel := make(chan struct{})
-		firstSyncChannel := make(chan struct{})
+		stopChannel := make(chan struct{}, len(restMappingList))
+		firstSyncChannel := make(chan struct{}, 2)
 		informerFactory.Start(stopChannel)
 		go func() {
 			informerFactory.WaitForCacheSync(firstSyncChannel)
 			firstSyncChannel <- struct{}{}
 		}()
 		go func() {
-			t := time.NewTicker(time.Second * 2)
+			t := time.NewTicker(time.Second * 3)
 			<-t.C
 			firstSyncChannel <- struct{}{}
 		}()
@@ -147,14 +151,14 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 			mapper:          mapper,
 			stopChannel:     stopChannel,
 		}
-		if searcher, exist = searchMap.Get(sum); !exist || searcher == nil {
-			searchMap.Add(sum, newSearcher)
+		if searcher, exist = searchMap.Get(key); !exist || searcher == nil {
+			searchMap.Add(key, newSearcher)
 		}
 	}
-	if searcher, exist = searchMap.Get(sum); exist && searcher != nil {
+	if searcher, exist = searchMap.Get(key); exist && searcher != nil {
 		return searcher.(*Searcher), nil
 	}
-	return nil, errors.New("error on init search")
+	return nil, errors.New("Error occurs while init informer searcher")
 }
 
 // Start
@@ -163,14 +167,16 @@ func (s *Searcher) Start() {
 }
 
 func (s *Searcher) Stop() {
-	s.stopChannel <- struct{}{}
+	for i := 0; i < len(s.supportSchema); i++ {
+		s.stopChannel <- struct{}{}
+	}
 }
 
 func (s *Searcher) GetRestMapping(resourceType string) (*meta.RESTMapping, error) {
 	if s.supportSchema[strings.ToLower(resourceType)] != nil {
 		return s.supportSchema[strings.ToLower(resourceType)], nil
 	}
-	return nil, errors.New("Not support resource type: " + resourceType)
+	return nil, errors.New(fmt.Sprintf("Can't get restMapping, resource type: %s", resourceType))
 }
 
 // e's annotation appName must in appNameRange, other wise app name is not available
@@ -302,9 +308,9 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		if err := recover(); err != nil {
 			e = err.(error)
 		}
-		if restMapping, errs := c.search.GetRestMapping(c.resourceType); errs == nil {
+		if mapping, errs := c.search.GetRestMapping(c.resourceType); errs == nil {
 			for _, d := range data {
-				d.(runtime.Object).GetObjectKind().SetGroupVersionKind(restMapping.GroupVersionKind)
+				d.(runtime.Object).GetObjectKind().SetGroupVersionKind(mapping.GroupVersionKind)
 			}
 		}
 	}()

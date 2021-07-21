@@ -33,6 +33,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -165,19 +166,29 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				result := make([]item.Result, 0, len(nsObjectList))
 				// try to init a cluster level searcher
 				searcher, err2 := resouce_cache.GetSearcher(KubeConfigBytes, "", true)
-				for _, nsObject := range nsObjectList {
-					name := nsObject.(metav1.Object).GetName()
-					if err2 != nil {
-						log.Error(err2)
-						// if cluster level searcher init failed, then try to init a namespace level searcher
-						searcher, err2 = resouce_cache.GetSearcher(KubeConfigBytes, name, false)
-						if err2 != nil {
-							log.Error(err2)
-							continue
-						}
-					}
-					result = append(result, getApplicationByNs(name, request.KubeConfig, searcher, request.Label))
+				if err2 != nil {
+					return nil
 				}
+				var wg sync.WaitGroup
+				wg.Add(len(nsObjectList))
+				okChan := make(chan struct{}, 10)
+				go func() {
+					time.Sleep(time.Second * 10)
+					okChan <- struct{}{}
+				}()
+				for _, nsObject := range nsObjectList {
+					finalNs := nsObject
+					go func() {
+						name := finalNs.(metav1.Object).GetName()
+						result = append(result, getApplicationByNs(name, request.KubeConfig, searcher, request.Label))
+						wg.Done()
+					}()
+				}
+				go func() {
+					wg.Wait()
+					okChan <- struct{}{}
+				}()
+				<-okChan
 				return result
 			}
 		}
@@ -215,8 +226,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			result := make([]item.Item, 0, len(items))
 			for _, i := range items {
 				tempItem := item.Item{Metadata: i}
-				if gvr, err := s.GetRestMapping(request.Resource); err == nil {
-					tempItem.Description = serviceMap[gvr.Resource.Resource+"/"+i.(metav1.Object).GetName()]
+				if mapping, err := s.GetRestMapping(request.Resource); err == nil {
+					tempItem.Description = serviceMap[mapping.Resource.Resource+"/"+i.(metav1.Object).GetName()]
 				}
 				result = append(result, tempItem)
 			}
@@ -234,8 +245,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				return nil
 			}
 			i := item.Item{Metadata: one}
-			if gvr, err := s.GetRestMapping(request.Resource); err == nil {
-				i.Description = serviceMap[gvr.Resource.Resource+"/"+one.(metav1.Object).GetName()]
+			if mapping, err := s.GetRestMapping(request.Resource); err == nil {
+				i.Description = serviceMap[mapping.Resource.Resource+"/"+one.(metav1.Object).GetName()]
 			}
 			return i
 		}
@@ -258,9 +269,25 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher, label map[string]string) item.Result {
 	result := item.Result{Namespace: namespace}
 	nameList := getAvailableAppName(namespace, kubeconfigPath)
+	var wg sync.WaitGroup
+	wg.Add(len(nameList))
+	okChan := make(chan struct{}, 10)
+	go func() {
+		time.Sleep(time.Second * 10)
+		okChan <- struct{}{}
+	}()
 	for _, name := range nameList {
-		result.Application = append(result.Application, getApp(nameList, namespace, name, search, label))
+		finalName := name
+		go func() {
+			result.Application = append(result.Application, getApp(nameList, namespace, finalName, search, label))
+			wg.Done()
+		}()
 	}
+	go func() {
+		wg.Wait()
+		okChan <- struct{}{}
+	}()
+	<-okChan
 	return result
 }
 

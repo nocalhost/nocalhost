@@ -255,6 +255,9 @@ func GetApplicationMetas(namespace, kubeConfig string) (appmeta.ApplicationMetas
 		return nil, err
 	}
 	var appMetas []*appmeta.ApplicationMeta
+	if data == nil {
+		return appMetas, nil
+	}
 	marshal, err := json.Marshal(data)
 	err = json.Unmarshal(marshal, &appMetas)
 	if err != nil {
