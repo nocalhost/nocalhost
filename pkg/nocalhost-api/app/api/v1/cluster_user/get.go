@@ -347,7 +347,8 @@ func GetAppsInfo(c *gin.Context) {
 
 	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(clusterData.KubeConfig)
 	if err != nil {
-		api.SendResponse(c, nil, nil)
+		log.Error(err)
+		api.SendResponse(c, errno.ErrGetDevSpaceAppInfo, nil)
 		return
 	}
 	if isBasespace {
@@ -363,6 +364,11 @@ func GetAppsInfo(c *gin.Context) {
 		MeshDevNamespace: devspace.Namespace,
 	}
 	apps, err := meshManager.GetAPPInfo(info)
+	if err != nil {
+		log.Error(err)
+		api.SendResponse(c, errno.ErrGetDevSpaceAppInfo, nil)
+		return
+	}
 	api.SendResponse(c, nil, setupcluster.MeshDevInfo{
 		Header: devspace.TraceHeader,
 		APPS:   apps,

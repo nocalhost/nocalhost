@@ -59,7 +59,8 @@ func (d *DevSpace) Delete() error {
 	// delete tracing header from base space
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
 		if err := d.deleteTracingHeader(); err != nil {
-			return err
+			log.Error(err)
+			return errno.ErrDeleteTracingHeaderFailed
 		}
 	}
 
@@ -76,6 +77,23 @@ func (d *DevSpace) Delete() error {
 func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	userId := cast.ToUint64(d.DevSpaceParams.UserId)
 	clusterId := cast.ToUint64(d.DevSpaceParams.ClusterId)
+
+	// check base dev space
+	baseClusterUser := &model.ClusterUserModel{}
+	if d.DevSpaceParams.BaseDevSpaceId > 0 {
+		var err error
+		baseClusterUser, err = service.Svc.ClusterUser().GetFirst(d.c, model.ClusterUserModel{
+			ID: d.DevSpaceParams.BaseDevSpaceId,
+		})
+		if err != nil || baseClusterUser == nil {
+			log.Error(err)
+			return nil, errno.ErrMeshClusterUserNotFound
+		}
+		if baseClusterUser.Namespace == "*" || baseClusterUser.Namespace == "" {
+			log.Error(errors.New("base dev namespace has not found"))
+			return nil, errno.ErrMeshClusterUserNamespaceNotFound
+		}
+	}
 
 	// get user
 	usersRecord, err := service.Svc.UserSvc().GetUserByID(d.c, userId)
@@ -108,7 +126,10 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 
 	// init mesh dev space
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
-		return d.initMeshDevSpace(&clusterRecord, clusterUserModel)
+		if clusterUserModel, err = d.initMeshDevSpace(&clusterRecord, clusterUserModel, baseClusterUser); err != nil {
+			log.Error(err)
+			return nil, errno.ErrInitMeshSpaceFailed
+		}
 	}
 
 	return clusterUserModel, nil
@@ -230,24 +251,14 @@ func (d *DevSpace) createDevSpace(
 	return &result, nil
 }
 
-func (d *DevSpace) initMeshDevSpace(clusterRecord *model.ClusterModel, clusterUserModel *model.ClusterUserModel,
-) (*model.ClusterUserModel, error) {
+func (d *DevSpace) initMeshDevSpace(
+	clusterRecord *model.ClusterModel, clusterUser, baseClusterUser *model.ClusterUserModel) (
+	*model.ClusterUserModel, error) {
 	// init mesh dev space
 	meshDevInfo := *d.DevSpaceParams.MeshDevInfo
-	meshDevInfo.MeshDevNamespace = clusterUserModel.Namespace
+	meshDevInfo.MeshDevNamespace = clusterUser.Namespace
 
-	// check base dev space
-	condition := model.ClusterUserModel{
-		ID: d.DevSpaceParams.BaseDevSpaceId,
-	}
-	baseDevspace, err := service.Svc.ClusterUser().GetFirst(d.c, condition)
-	if err != nil || baseDevspace == nil {
-		return nil, errors.New("base dev space has not found")
-	}
-	if baseDevspace.Namespace == "*" || baseDevspace.Namespace == "" {
-		return nil, errors.New("base dev namespace has not found")
-	}
-	meshDevInfo.BaseNamespace = baseDevspace.Namespace
+	meshDevInfo.BaseNamespace = baseClusterUser.Namespace
 
 	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(clusterRecord.KubeConfig)
 	if err != nil {
@@ -260,15 +271,13 @@ func (d *DevSpace) initMeshDevSpace(clusterRecord *model.ClusterModel, clusterUs
 	}
 	if len(d.DevSpaceParams.MeshDevInfo.APPS) > 0 {
 		if err := meshManager.InjectMeshDevSpace(&meshDevInfo); err != nil {
-			// todo set up error msg for response
 			return nil, err
 		}
 	}
 
-	clusterUserModel.TraceHeader = d.DevSpaceParams.MeshDevInfo.Header
-	clusterUserModel.BaseDevSpaceId = d.DevSpaceParams.BaseDevSpaceId
-	// todo set up error msg for response
-	return service.Svc.ClusterUser().Update(d.c, clusterUserModel)
+	clusterUser.TraceHeader = d.DevSpaceParams.MeshDevInfo.Header
+	clusterUser.BaseDevSpaceId = d.DevSpaceParams.BaseDevSpaceId
+	return service.Svc.ClusterUser().Update(d.c, clusterUser)
 }
 
 func (d *DevSpace) deleteTracingHeader() error {

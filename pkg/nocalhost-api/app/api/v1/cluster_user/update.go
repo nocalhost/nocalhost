@@ -193,6 +193,12 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 		return
 	}
 
+	if devspace.BaseDevSpaceId == 0 {
+		log.Errorf("Base space can't be updated")
+		api.SendResponse(c, errno.ErrUpdateBaseSpace, nil)
+		return
+	}
+
 	// check base dev space
 	baseCondition := model.ClusterUserModel{
 		ID: devspace.BaseDevSpaceId,
@@ -200,7 +206,7 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	basespace, err := service.Svc.ClusterUser().GetFirst(c, baseCondition)
 	if err != nil || basespace == nil {
 		log.Errorf("Base space has not found")
-		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+		api.SendResponse(c, errno.ErrMeshClusterUserNotFound, nil)
 		return
 	}
 
@@ -220,14 +226,15 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 
 	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(clusterData.KubeConfig)
 	if err != nil {
-		api.SendResponse(c, nil, nil)
+		log.Error(err)
+		api.SendResponse(c, errno.ErrUpdateMeshSpaceFailed, nil)
 		return
 	}
 
 	log.Debugf("update mesh info for dev space %s, the namespace is %s", devspace.SpaceName, devspace.Namespace)
 	if err := meshManager.UpdateMeshDevSpace(&info); err != nil {
 		log.Error(err)
-		api.SendResponse(c, err, nil)
+		api.SendResponse(c, errno.ErrUpdateMeshSpaceFailed, nil)
 		return
 	}
 
@@ -235,7 +242,7 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	result, err := service.Svc.ClusterUser().Update(c, devspace)
 	if err != nil {
 		log.Error(err)
-		api.SendResponse(c, err, nil)
+		api.SendResponse(c, errno.ErrUpdateMeshSpaceFailed, nil)
 		return
 	}
 	api.SendResponse(c, nil, result)
