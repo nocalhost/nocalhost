@@ -73,6 +73,8 @@ Full documentation is available on the [Nocalhost](https://nocalhost.dev/)
 | ---------- | ---- |
 | :video_camera: &nbsp; Videos  | [https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw](https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw) |
 | :video_camera: &nbsp; 开源的云原生开发环境 —— Nocalhost | [https://www.bilibili.com/video/BV1ch411C716](https://www.bilibili.com/video/BV1ch411C716) |
+| :video_camera: &nbsp; Nocalhost - 五星级的云原生开发体验 | [https://cloud.tencent.com/developer/salon/salon-1398/agenda-10004](https://cloud.tencent.com/developer/salon/salon-1398/agenda-10004) |
+
 
 ## Contributing
 
