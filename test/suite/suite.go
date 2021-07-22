@@ -131,6 +131,14 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 				time.Hour*1,
 			)
 
+			err = k8sutils.WaitPod(
+				clientForRunner.GetClientset(),
+				clientForRunner.GetNhctl().Namespace,
+				metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "productpage").String()},
+				func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
+				time.Hour*1,
+			)
+
 			if err == nil {
 				break
 			}
