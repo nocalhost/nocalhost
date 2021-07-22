@@ -74,6 +74,10 @@ Nocalhost 遵循 [CNCF 行为守则](https://github.com/cncf/foundation/blob/mas
 
 Nocalhost 使用 [Apache 2.0 许可证](./LICENSE)
 
+## 路线图
+
+参考 [ROADMAP](./ROADMAP.md)
+
 ## 🔥 &nbsp; 招聘
 
 如果你对 Nocalhost 感兴趣，并愿意加入我们，请发送您的简历至：wangweimax@coding.net (我们支持远程工作)

@@ -74,6 +74,10 @@ Nocalhost adopts [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/
 
 Nocalhost is [Apache 2.0 licensed](./LICENSE)
 
+## Roadmap
+
+See [ROADMAP](./ROADMAP.md)
+
 ## 🔥 &nbsp; We Are Hiring!
 
 If you are interested with Nocalhost, please send resume to email: wangweimax@coding.net (Accept Remote Work)
