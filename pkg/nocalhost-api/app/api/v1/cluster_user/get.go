@@ -352,10 +352,13 @@ func GetAppsInfo(c *gin.Context) {
 		return
 	}
 	if isBasespace {
-		api.SendResponse(c, nil, setupcluster.MeshDevInfo{
-			APPS: meshManager.GetBaseDevSpaceAppInfo(&setupcluster.MeshDevInfo{
+		result := setupcluster.MeshDevInfo{
+			Header: devspace.TraceHeader,
+			Apps: meshManager.GetBaseDevSpaceAppInfo(&setupcluster.MeshDevInfo{
 				BaseNamespace: devspace.Namespace}),
-		})
+		}
+		result.SortApps()
+		api.SendResponse(c, nil, result)
 		return
 	}
 
@@ -369,8 +372,10 @@ func GetAppsInfo(c *gin.Context) {
 		api.SendResponse(c, errno.ErrGetDevSpaceAppInfo, nil)
 		return
 	}
-	api.SendResponse(c, nil, setupcluster.MeshDevInfo{
+	result := setupcluster.MeshDevInfo{
 		Header: devspace.TraceHeader,
-		APPS:   apps,
-	})
+		Apps:   apps,
+	}
+	result.SortApps()
+	api.SendResponse(c, nil, result)
 }

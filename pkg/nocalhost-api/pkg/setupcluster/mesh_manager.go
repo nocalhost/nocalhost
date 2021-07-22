@@ -14,6 +14,7 @@ package setupcluster
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
 
@@ -47,19 +48,12 @@ type MeshManager interface {
 	BuildCache() error
 }
 
-type meshManager struct {
-	mu     sync.Mutex
-	client *clientgo.GoClient
-	cache  cache
-	stopCh chan struct{}
-}
-
 type MeshDevInfo struct {
 	BaseNamespace    string       `json:"-"`
 	MeshDevNamespace string       `json:"-"`
 	IsUpdateHeader   bool         `json:"-"`
 	Header           model.Header `json:"header"`
-	APPS             []MeshDevApp `json:"apps"`
+	Apps             []MeshDevApp `json:"apps"`
 	resources        meshDevResources
 }
 
@@ -79,11 +73,39 @@ type meshDevResources struct {
 	delete  []unstructured.Unstructured
 }
 
+type SortAppsByName []MeshDevApp
+
+func (a SortAppsByName) Len() int           { return len(a) }
+func (a SortAppsByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a SortAppsByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
+
+type SortWorkloadsByKindAndName []MeshDevWorkload
+
+func (w SortWorkloadsByKindAndName) Len() int      { return len(w) }
+func (w SortWorkloadsByKindAndName) Swap(i, j int) { w[i], w[j] = w[j], w[i] }
+func (w SortWorkloadsByKindAndName) Less(i, j int) bool {
+	return w[i].Kind+w[i].Name < w[j].Kind+w[j].Name
+}
+
+func (info *MeshDevInfo) SortApps() {
+	sort.Sort(SortAppsByName(info.Apps))
+	for i := 0; i < len(info.Apps); i++ {
+		sort.Sort(SortWorkloadsByKindAndName(info.Apps[i].Workloads))
+	}
+}
+
+type meshManager struct {
+	mu     sync.Mutex
+	client *clientgo.GoClient
+	cache  cache
+	stopCh chan struct{}
+}
+
 func (m *meshManager) InitMeshDevSpace(info *MeshDevInfo) error {
 	if err := m.initMeshDevSpace(info); err != nil {
 		return err
 	}
-	if len(info.APPS) > 0 {
+	if len(info.Apps) > 0 {
 		return m.injectMeshDevSpace(info)
 	}
 	return nil
@@ -103,7 +125,6 @@ func (m *meshManager) UpdateMeshDevSpace(info *MeshDevInfo) error {
 }
 
 func (m *meshManager) DeleteTracingHeader(info *MeshDevInfo) error {
-
 	for _, vs := range m.cache.GetVirtualServicesListByNameSpace(info.BaseNamespace) {
 		ok, err := deleteHeaderFromVirtualService(&vs, info.MeshDevNamespace, info.Header)
 		if err != nil {
@@ -493,7 +514,7 @@ func (m *meshManager) setWorkloadStatus(info *MeshDevInfo) {
 	for _, w := range devWs {
 		devMap[w.Kind+"/"+w.Name] = w
 	}
-	apps := info.APPS
+	apps := info.Apps
 	for i, a := range apps {
 		for j, w := range a.Workloads {
 			if w.Status == Selected && devMap[w.Kind+"/"+w.Name].Status == Installed {
@@ -504,12 +525,12 @@ func (m *meshManager) setWorkloadStatus(info *MeshDevInfo) {
 			}
 		}
 	}
-	info.APPS = apps
+	info.Apps = apps
 }
 
 func (m *meshManager) tagResources(info *MeshDevInfo) {
 	ws := make(map[string]int)
-	for _, a := range info.APPS {
+	for _, a := range info.Apps {
 		for _, w := range a.Workloads {
 			ws[w.Kind+"/"+w.Name] = w.Status
 		}
