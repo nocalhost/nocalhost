@@ -88,23 +88,23 @@ func (c *cache) Deployment() informers.GenericInformer {
 	})
 }
 
-func (c *cache) GetConfigMapsListByNameSpace(n string) []unstructured.Unstructured {
+func (c *cache) GetConfigMapsListByNamespace(n string) []unstructured.Unstructured {
 	return c.GetListByKindAndNamespace(ConfigMap, n)
 }
 
-func (c *cache) GetServicesListByNameSpace(n string) []unstructured.Unstructured {
+func (c *cache) GetServicesListByNamespace(n string) []unstructured.Unstructured {
 	return c.GetListByKindAndNamespace(Service, n)
 }
 
-func (c *cache) GetVirtualServicesListByNameSpace(n string) []unstructured.Unstructured {
+func (c *cache) GetVirtualServicesListByNamespace(n string) []unstructured.Unstructured {
 	return c.GetListByKindAndNamespace(VirtualService, n)
 }
 
-func (c *cache) GetSecretsListByNameSpace(n string) []unstructured.Unstructured {
+func (c *cache) GetSecretsListByNamespace(n string) []unstructured.Unstructured {
 	return c.GetListByKindAndNamespace(Secret, n)
 }
 
-func (c *cache) GetDeploymentsListByNameSpace(n string) []unstructured.Unstructured {
+func (c *cache) GetDeploymentsListByNamespace(n string) []unstructured.Unstructured {
 	return c.GetListByKindAndNamespace(Deployment, n)
 }
 
@@ -136,7 +136,7 @@ func (c *cache) MatchServicesByWorkload(r unstructured.Unstructured) []unstructu
 	}
 	ls, _, _ := unstructured.NestedStringMap(r.UnstructuredContent(), "spec", "template", "metadata", "labels")
 
-	return resourcesFilter(c.GetServicesListByNameSpace(ns), func(r unstructured.Unstructured) bool {
+	return resourcesFilter(c.GetServicesListByNamespace(ns), func(r unstructured.Unstructured) bool {
 		m, _, _ := unstructured.NestedStringMap(r.UnstructuredContent(), "spec", "selector")
 		return labels.Set(m).AsSelector().Matches(labels.Set(ls))
 	})
@@ -155,7 +155,7 @@ func (c *cache) MatchVirtualServiceByWorkload(r unstructured.Unstructured) map[s
 		smap[s.GetName()] = struct{}{}
 	}
 
-	vs := c.GetVirtualServicesListByNameSpace(ns)
+	vs := c.GetVirtualServicesListByNamespace(ns)
 	for _, v := range vs {
 		hosts, _, _ := unstructured.NestedStringSlice(v.UnstructuredContent(), "spec", "hosts")
 		for _, host := range hosts {

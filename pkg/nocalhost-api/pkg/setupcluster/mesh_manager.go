@@ -125,7 +125,7 @@ func (m *meshManager) UpdateMeshDevSpace(info *MeshDevInfo) error {
 }
 
 func (m *meshManager) DeleteTracingHeader(info *MeshDevInfo) error {
-	for _, vs := range m.cache.GetVirtualServicesListByNameSpace(info.BaseNamespace) {
+	for _, vs := range m.cache.GetVirtualServicesListByNamespace(info.BaseNamespace) {
 		ok, err := deleteHeaderFromVirtualService(&vs, info.MeshDevNamespace, info.Header)
 		if err != nil {
 			log.Error(err)
@@ -144,7 +144,7 @@ func (m *meshManager) DeleteTracingHeader(info *MeshDevInfo) error {
 func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
 	appNames := make([]string, 0)
 	appInfo := make([]MeshDevApp, 0)
-	appConfigsTmp := newResourcesMatcher(m.cache.GetSecretsListByNameSpace(info.BaseNamespace)).
+	appConfigsTmp := newResourcesMatcher(m.cache.GetSecretsListByNamespace(info.BaseNamespace)).
 		namePrefix(appmeta.SecretNamePrefix).
 		match()
 	for _, c := range appConfigsTmp {
@@ -163,7 +163,7 @@ func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
 
 		appNames = append(appNames, name)
 		w := make([]MeshDevWorkload, 0)
-		for _, r := range newResourcesMatcher(m.cache.GetDeploymentsListByNameSpace(info.BaseNamespace)).
+		for _, r := range newResourcesMatcher(m.cache.GetDeploymentsListByNamespace(info.BaseNamespace)).
 			app(name).match() {
 			w = append(w, MeshDevWorkload{
 				Kind: r.GetKind(),
@@ -178,7 +178,7 @@ func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
 
 	// default.application
 	w := make([]MeshDevWorkload, 0)
-	for _, r := range newResourcesMatcher(m.cache.GetDeploymentsListByNameSpace(info.BaseNamespace)).
+	for _, r := range newResourcesMatcher(m.cache.GetDeploymentsListByNamespace(info.BaseNamespace)).
 		excludeApps(appNames).
 		match() {
 		w = append(w, MeshDevWorkload{
@@ -196,7 +196,7 @@ func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
 
 func (m *meshManager) GetAPPInfo(info *MeshDevInfo) ([]MeshDevApp, error) {
 	status := make(map[string]struct{})
-	for _, r := range m.cache.GetDeploymentsListByNameSpace(info.MeshDevNamespace) {
+	for _, r := range m.cache.GetDeploymentsListByNamespace(info.MeshDevNamespace) {
 		status[r.GetKind()+"/"+r.GetName()] = struct{}{}
 	}
 
@@ -382,7 +382,7 @@ func (m *meshManager) updateHeaderToVirtualServices(info *MeshDevInfo) error {
 		return nil
 	}
 	updatedVs := make([]unstructured.Unstructured, 0)
-	for _, vs := range m.cache.GetVirtualServicesListByNameSpace(info.BaseNamespace) {
+	for _, vs := range m.cache.GetVirtualServicesListByNamespace(info.BaseNamespace) {
 		isUpdate, err := updateHeaderToVirtualService(&vs, info.MeshDevNamespace, info.Header)
 		if err != nil {
 			return err
@@ -417,7 +417,7 @@ func (m *meshManager) updateVirtualServiceOnBaseDevSpace(info *MeshDevInfo) erro
 func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 	// apply app config
 	log.Debugf("init the dev namespace %s", info.MeshDevNamespace)
-	appConfigsTmp := newResourcesMatcher(m.cache.GetSecretsListByNameSpace(info.BaseNamespace)).
+	appConfigsTmp := newResourcesMatcher(m.cache.GetSecretsListByNamespace(info.BaseNamespace)).
 		namePrefix(appmeta.SecretNamePrefix).
 		match()
 	for _, c := range appConfigsTmp {
@@ -444,7 +444,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 		}
 	}
 	// get svc, gen vs
-	svcs := m.cache.GetServicesListByNameSpace(info.BaseNamespace)
+	svcs := m.cache.GetServicesListByNamespace(info.BaseNamespace)
 	vss := make([]unstructured.Unstructured, len(svcs))
 	for i := range svcs {
 		if _, err := meshDevModifier(info.MeshDevNamespace, &svcs[i]); err != nil {
@@ -497,7 +497,7 @@ func (m *meshManager) buildCache() error {
 
 func (m *meshManager) getMeshDevSpaceWorkloads(info *MeshDevInfo) []MeshDevWorkload {
 	w := make([]MeshDevWorkload, 0)
-	for _, r := range m.cache.GetDeploymentsListByNameSpace(info.MeshDevNamespace) {
+	for _, r := range m.cache.GetDeploymentsListByNamespace(info.MeshDevNamespace) {
 		w = append(w, MeshDevWorkload{
 			Kind:   r.GetKind(),
 			Name:   r.GetName(),
@@ -537,7 +537,7 @@ func (m *meshManager) tagResources(info *MeshDevInfo) {
 	}
 	irs := make([]unstructured.Unstructured, 0)
 	drs := make([]unstructured.Unstructured, 0)
-	for _, r := range m.cache.GetDeploymentsListByNameSpace(info.BaseNamespace) {
+	for _, r := range m.cache.GetDeploymentsListByNamespace(info.BaseNamespace) {
 		if ws[r.GetKind()+"/"+r.GetName()] == ShouldBeInstalled {
 			irs = append(irs, r)
 			continue
