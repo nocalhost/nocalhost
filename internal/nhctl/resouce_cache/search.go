@@ -256,9 +256,10 @@ func (c *criteria) AppNameNotIn(appNames ...string) *criteria {
 
 func (c *criteria) ResourceType(resourceType string) *criteria {
 	if mapping, err := c.search.GetRestMapping(resourceType); err == nil {
-		log.Logf("can not found restMapping for resource type: %s", resourceType)
 		c.resourceType = resourceType
 		c.namespaced = mapping.Scope.Name() == meta.RESTScopeNameNamespace
+	} else {
+		log.Logf("Can not found restMapping for resource type: %s", resourceType)
 	}
 	return c
 }
