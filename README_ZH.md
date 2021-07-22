@@ -56,6 +56,18 @@ Nocalhost 为 JetBrains 和 VSCode 提供易于使用的 IDE 插件，让开发�
 
 ![nocal-host-wechat](https://user-images.githubusercontent.com/3713305/123894953-a2d0a480-d991-11eb-88af-9082d14b0c2c.png)
 
+## Blogs
+
+* [专访 CNCF 大使王炜：让云原生开发回归原始而又简单](https://mp.weixin.qq.com/s/nb4pgaqFX_gssx4HySKIoA)
+* [Nocalhost - 重新定义云原生开发环境](https://mp.weixin.qq.com/s/Royq17eSgC7c-WSPbKlfuw)
+* [开发环境上云，打造五星级开发体验](https://help.coding.net/insight/posts/b18262fc/)
+* [Nocalhsot vs. Other Software](https://nocalhost.dev/zh/Blog/compare-with-x/)
+* [如何调试 Kubernetes 中的微服务——proxy、sidecar 还是 service mesh？](https://www.tetrate.io/blog/how-to-debug-microservices-in-kubernetes-with-proxy-sidecar-or-service-mesh/?lang=zh-hans)
+* [Nocalhost 云端开发](https://codeandcode.cn/2021/01/15/Nocalhost%E4%BB%8B%E7%BB%8D/)
+* [解读容器的 2020：寻找云原生的下一站](https://xie.infoq.cn/article/b0b27ecb2ae91ff59e5faa392)
+* [新一代架构 water：超越 Serverless 的云研发架构模式](https://www.phodal.com/blog/next-generation-code-architecture/)
+
+
 ## 宣讲和资料
 
 | 类型 | 连接 |
