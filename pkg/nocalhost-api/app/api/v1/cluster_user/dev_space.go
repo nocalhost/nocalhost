@@ -266,13 +266,7 @@ func (d *DevSpace) initMeshDevSpace(
 	}
 
 	if err := meshManager.InitMeshDevSpace(&meshDevInfo); err != nil {
-		// todo set up error msg for response
 		return nil, err
-	}
-	if len(d.DevSpaceParams.MeshDevInfo.APPS) > 0 {
-		if err := meshManager.InjectMeshDevSpace(&meshDevInfo); err != nil {
-			return nil, err
-		}
 	}
 
 	clusterUser.TraceHeader = d.DevSpaceParams.MeshDevInfo.Header

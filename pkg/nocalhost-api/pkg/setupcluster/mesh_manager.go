@@ -41,7 +41,6 @@ const (
 type MeshManager interface {
 	InitMeshDevSpace(*MeshDevInfo) error
 	UpdateMeshDevSpace(*MeshDevInfo) error
-	InjectMeshDevSpace(*MeshDevInfo) error
 	DeleteTracingHeader(*MeshDevInfo) error
 	GetBaseDevSpaceAppInfo(*MeshDevInfo) []MeshDevApp
 	GetAPPInfo(*MeshDevInfo) ([]MeshDevApp, error)
@@ -81,13 +80,19 @@ type meshDevResources struct {
 }
 
 func (m *meshManager) InitMeshDevSpace(info *MeshDevInfo) error {
-	return m.initMeshDevSpace(info)
+	if err := m.initMeshDevSpace(info); err != nil {
+		return err
+	}
+	if len(info.APPS) > 0 {
+		return m.injectMeshDevSpace(info)
+	}
+	return nil
 }
 
 func (m *meshManager) UpdateMeshDevSpace(info *MeshDevInfo) error {
 	m.setWorkloadStatus(info)
 
-	if err := m.InjectMeshDevSpace(info); err != nil {
+	if err := m.injectMeshDevSpace(info); err != nil {
 		return err
 	}
 
@@ -95,29 +100,6 @@ func (m *meshManager) UpdateMeshDevSpace(info *MeshDevInfo) error {
 		return m.updateHeaderToVirtualServices(info)
 	}
 	return nil
-}
-
-func (m *meshManager) InjectMeshDevSpace(info *MeshDevInfo) error {
-	m.tagResources(info)
-
-	log.Debugf("inject workloads into dev namespace %s", info.MeshDevNamespace)
-
-	g, _ := errgroup.WithContext(context.Background())
-	// apply workloads
-	g.Go(func() error {
-		return m.applyWorkloadsToMeshDevSpace(info)
-	})
-
-	// update base dev space vs
-	g.Go(func() error {
-		return m.updateVirtualServiceOnBaseDevSpace(info)
-	})
-
-	// delete workloads
-	g.Go(func() error {
-		return m.deleteWorkloadsFromMeshDevSpace(info)
-	})
-	return g.Wait()
 }
 
 func (m *meshManager) DeleteTracingHeader(info *MeshDevInfo) error {
@@ -210,6 +192,29 @@ func (m *meshManager) GetAPPInfo(info *MeshDevInfo) ([]MeshDevApp, error) {
 
 func (m *meshManager) BuildCache() error {
 	return m.buildCache()
+}
+
+func (m *meshManager) injectMeshDevSpace(info *MeshDevInfo) error {
+	m.tagResources(info)
+
+	log.Debugf("inject workloads into dev namespace %s", info.MeshDevNamespace)
+
+	g, _ := errgroup.WithContext(context.Background())
+	// apply workloads
+	g.Go(func() error {
+		return m.applyWorkloadsToMeshDevSpace(info)
+	})
+
+	// update base dev space vs
+	g.Go(func() error {
+		return m.updateVirtualServiceOnBaseDevSpace(info)
+	})
+
+	// delete workloads
+	g.Go(func() error {
+		return m.deleteWorkloadsFromMeshDevSpace(info)
+	})
+	return g.Wait()
 }
 
 func (m *meshManager) deleteWorkloadsFromMeshDevSpace(info *MeshDevInfo) error {
