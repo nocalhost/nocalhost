@@ -99,9 +99,9 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 		if err != nil {
 			return nil, err
 		}
-		clientset, err := kubernetes.NewForConfig(config)
-		if err != nil {
-			return nil, err
+		clientset, err1 := kubernetes.NewForConfig(config)
+		if err1 != nil {
+			return nil, err1
 		}
 
 		var informerFactory informers.SharedInformerFactory
@@ -112,14 +112,14 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 		} else {
 			informerFactory = informers.NewSharedInformerFactory(clientset, time.Second*5)
 		}
-		gr, err := restmapper.GetAPIGroupResources(clientset)
-		if err != nil {
-			return nil, err
+		gr, err2 := restmapper.GetAPIGroupResources(clientset)
+		if err2 != nil {
+			return nil, err2
 		}
 		mapper := restmapper.NewDiscoveryRESTMapper(gr)
-		restMappingList, err := GetSupportedSchema(clientset, mapper)
-		if err != nil {
-			return nil, err
+		restMappingList, err3 := GetSupportedSchema(clientset, mapper)
+		if err3 != nil {
+			return nil, err3
 		}
 		for _, restMapping := range restMappingList {
 			if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
