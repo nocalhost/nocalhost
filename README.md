@@ -72,6 +72,7 @@ Full documentation is available on the [Nocalhost](https://nocalhost.dev/)
 | Engagement | Link |
 | ---------- | ---- |
 | :video_camera: &nbsp; Videos  | [https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw](https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw) |
+| :video_camera: &nbsp; 开源的云原生开发环境 —— Nocalhost | [https://www.bilibili.com/video/BV1ch411C716](https://www.bilibili.com/video/BV1ch411C716) |
 
 ## Contributing
 

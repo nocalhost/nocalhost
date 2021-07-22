@@ -73,6 +73,7 @@ Nocalhost 为 JetBrains 和 VSCode 提供易于使用的 IDE 插件，让开发�
 | 类型 | 连接 |
 | ---------- | ---- |
 | :video_camera: &nbsp; 视频 | [https://space.bilibili.com/1849382439](https://space.bilibili.com/1849382439) |
+| :video_camera: &nbsp; 开源的云原生开发环境 —— Nocalhost | [https://www.bilibili.com/video/BV1ch411C716](https://www.bilibili.com/video/BV1ch411C716) |
 
 ## 贡献
 
