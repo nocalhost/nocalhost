@@ -33,8 +33,8 @@ application:
                 - "./build"
             command:
               build: [ "make", "api" ]
-              run: [ "./build/nocalhost-api", "-c", "/app/config/config.yaml" ]
-              debug: [ "dlv", "--listen=:2345", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "./build/nocalhost-api", "--", "-c", "/app/config/config.yaml" ]
+              run: [ "make", "api", "&&", "./build/nocalhost-api", "-c", "/app/config/config.yaml" ]
+              debug: [ "make", "api", "&&", "dlv", "--listen=:2345", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "./build/nocalhost-api", "--", "-c", "/app/config/config.yaml" ]
             debug:
               remoteDebugPort: 2345
             env:
