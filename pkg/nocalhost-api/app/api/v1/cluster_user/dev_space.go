@@ -89,6 +89,9 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 			log.Error(err)
 			return nil, errno.ErrMeshClusterUserNotFound
 		}
+		if baseClusterUser.BaseDevSpaceId > 0 {
+			return nil, errno.ErrUseAsBaseSpace
+		}
 		if baseClusterUser.Namespace == "*" || baseClusterUser.Namespace == "" {
 			log.Error(errors.New("base dev namespace has not found"))
 			return nil, errno.ErrMeshClusterUserNamespaceNotFound

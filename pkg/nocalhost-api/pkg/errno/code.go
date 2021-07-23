@@ -171,6 +171,7 @@ var (
 	ErrUpdateMeshSpaceFailed            = &Errno{Code: 50204, Message: "Failed to update mesh space"}
 	ErrDeleteTracingHeaderFailed        = &Errno{Code: 50205, Message: "Failed to delete tracing header"}
 	ErrUpdateBaseSpace                  = &Errno{Code: 50206, Message: "Base space can't be updated"}
+	ErrUseAsBaseSpace                   = &Errno{Code: 50206, Message: "Can't be used as base space"}
 
 	// application-user for application-user module request
 	ErrListApplicationUser = &Errno{
