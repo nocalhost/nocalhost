@@ -34,6 +34,24 @@ const (
 	Deployment     = "Deployment"
 )
 
+type ExtendInformer interface {
+	informers.GenericInformer
+	ByIndex(indexName, indexedValue string) []unstructured.Unstructured
+}
+
+type Informer struct {
+	informers.GenericInformer
+}
+
+func (informer *Informer) ByIndex(indexName, indexedValue string) []unstructured.Unstructured {
+	objs, _ := informer.Informer().GetIndexer().ByIndex(indexName, indexedValue)
+	ret := make([]unstructured.Unstructured, len(objs))
+	for i := range objs {
+		ret[i] = *objs[i].(*unstructured.Unstructured).DeepCopy()
+	}
+	return ret
+}
+
 type cache struct {
 	stopCh    chan struct{}
 	informers dynamicinformer.DynamicSharedInformerFactory
@@ -48,85 +66,90 @@ func (c *cache) build() {
 	c.informers.WaitForCacheSync(c.stopCh)
 }
 
-func (c *cache) Configmap() informers.GenericInformer {
-	return c.informers.ForResource(schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "configmaps",
-	})
+func (c *cache) ConfigMap() ExtendInformer {
+	return &Informer{
+		GenericInformer: c.informers.ForResource(schema.GroupVersionResource{
+			Group:    "",
+			Version:  "v1",
+			Resource: "configmaps",
+		}),
+	}
 }
 
-func (c *cache) Service() informers.GenericInformer {
-	return c.informers.ForResource(schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "services",
-	})
+func (c *cache) Service() ExtendInformer {
+	return &Informer{
+		GenericInformer: c.informers.ForResource(schema.GroupVersionResource{
+			Group:    "",
+			Version:  "v1",
+			Resource: "services",
+		}),
+	}
 }
 
-func (c *cache) Secret() informers.GenericInformer {
-	return c.informers.ForResource(schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "secrets",
-	})
+func (c *cache) Secret() ExtendInformer {
+	return &Informer{
+		GenericInformer: c.informers.ForResource(schema.GroupVersionResource{
+			Group:    "",
+			Version:  "v1",
+			Resource: "secrets",
+		}),
+	}
 }
 
-func (c *cache) VirtualService() informers.GenericInformer {
-	return c.informers.ForResource(schema.GroupVersionResource{
-		Group:    "networking.istio.io",
-		Version:  "v1alpha3",
-		Resource: "virtualservices",
-	})
+func (c *cache) VirtualService() ExtendInformer {
+	return &Informer{
+		GenericInformer: c.informers.ForResource(schema.GroupVersionResource{
+			Group:    "networking.istio.io",
+			Version:  "v1alpha3",
+			Resource: "virtualservices",
+		}),
+	}
 }
 
-func (c *cache) Deployment() informers.GenericInformer {
-	return c.informers.ForResource(schema.GroupVersionResource{
-		Group:    "apps",
-		Version:  "v1",
-		Resource: "deployments",
-	})
+func (c *cache) Deployment() ExtendInformer {
+	return &Informer{
+		GenericInformer: c.informers.ForResource(schema.GroupVersionResource{
+			Group:    "apps",
+			Version:  "v1",
+			Resource: "deployments",
+		}),
+	}
 }
 
-func (c *cache) GetConfigMapsListByNamespace(n string) []unstructured.Unstructured {
-	return c.GetListByKindAndNamespace(ConfigMap, n)
+func (c *cache) GetConfigMapsListByNamespace(ns string) []unstructured.Unstructured {
+	return c.ConfigMap().ByIndex(toolscache.NamespaceIndex, ns)
 }
 
-func (c *cache) GetServicesListByNamespace(n string) []unstructured.Unstructured {
-	return c.GetListByKindAndNamespace(Service, n)
+func (c *cache) GetServicesListByNamespace(ns string) []unstructured.Unstructured {
+	return c.Service().ByIndex(toolscache.NamespaceIndex, ns)
 }
 
-func (c *cache) GetVirtualServicesListByNamespace(n string) []unstructured.Unstructured {
-	return c.GetListByKindAndNamespace(VirtualService, n)
+func (c *cache) GetVirtualServicesListByNamespace(ns string) []unstructured.Unstructured {
+	return c.VirtualService().ByIndex(toolscache.NamespaceIndex, ns)
 }
 
-func (c *cache) GetSecretsListByNamespace(n string) []unstructured.Unstructured {
-	return c.GetListByKindAndNamespace(Secret, n)
+func (c *cache) GetSecretsListByNamespace(ns string) []unstructured.Unstructured {
+	return c.Secret().ByIndex(toolscache.NamespaceIndex, ns)
 }
 
-func (c *cache) GetDeploymentsListByNamespace(n string) []unstructured.Unstructured {
-	return c.GetListByKindAndNamespace(Deployment, n)
+func (c *cache) GetDeploymentsListByNamespace(ns string) []unstructured.Unstructured {
+	return c.Deployment().ByIndex(toolscache.NamespaceIndex, ns)
 }
 
-func (c *cache) GetListByKindAndNamespace(kind, n string) []unstructured.Unstructured {
-	var objs []interface{}
+func (c *cache) GetListByKindAndNamespace(kind, ns string) []unstructured.Unstructured {
 	switch kind {
 	case Deployment:
-		objs, _ = c.Deployment().Informer().GetIndexer().ByIndex(toolscache.NamespaceIndex, n)
+		return c.Deployment().ByIndex(toolscache.NamespaceIndex, ns)
 	case Secret:
-		objs, _ = c.Secret().Informer().GetIndexer().ByIndex(toolscache.NamespaceIndex, n)
+		return c.Secret().ByIndex(toolscache.NamespaceIndex, ns)
 	case ConfigMap:
-		objs, _ = c.Configmap().Informer().GetIndexer().ByIndex(toolscache.NamespaceIndex, n)
+		return c.ConfigMap().ByIndex(toolscache.NamespaceIndex, ns)
 	case Service:
-		objs, _ = c.Service().Informer().GetIndexer().ByIndex(toolscache.NamespaceIndex, n)
+		return c.Service().ByIndex(toolscache.NamespaceIndex, ns)
 	case VirtualService:
-		objs, _ = c.VirtualService().Informer().GetIndexer().ByIndex(toolscache.NamespaceIndex, n)
+		return c.VirtualService().ByIndex(toolscache.NamespaceIndex, ns)
 	}
-	ret := make([]unstructured.Unstructured, len(objs))
-	for i := range objs {
-		ret[i] = *objs[i].(*unstructured.Unstructured).DeepCopy()
-	}
-	return ret
+	return []unstructured.Unstructured{}
 }
 
 func (c *cache) MatchServicesByWorkload(r unstructured.Unstructured) []unstructured.Unstructured {
