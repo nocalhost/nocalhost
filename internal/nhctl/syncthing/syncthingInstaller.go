@@ -13,12 +13,10 @@
 package syncthing
 
 import (
-	"context"
 	"fmt"
 	"io"
-	"io/fs"
-	"io/ioutil"
 	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/syncthing/bin"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,10 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-getter"
-
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/utils"
 )
 
 var (
@@ -105,14 +100,12 @@ func (s *SyncthingInstaller) downloadSyncthing(version string) (string, error) {
 	var err error
 	var errorTips string
 	for i := 0; i < 3; i++ {
-		p := &utils.ProgressBar{}
-		d := 20 * time.Second
-		errorTips, err = s.install(version, p, d)
+		errorTips, err = s.install(version)
 		if err == nil {
 			return "", nil
 		}
 
-		log.Error("Fail to download syncthing, retry...")
+		log.Error("Fail to copy syncthing, retry...")
 
 		if i < 2 {
 			<-t.C
@@ -123,77 +116,10 @@ func (s *SyncthingInstaller) downloadSyncthing(version string) (string, error) {
 }
 
 // Install installs syncthing
-func (s *SyncthingInstaller) install(version string, p getter.ProgressTracker, d time.Duration) (string, error) {
+func (s *SyncthingInstaller) install(version string) (string, error) {
 	var err error
 
-	ctx, _ := context.WithTimeout(context.Background(), d)
-
 	i := s.BinPath
-	var downloadURL string
-	downloadURL, err = GetDownloadURL(runtime.GOOS, runtime.GOARCH, version)
-	if err != nil {
-		return "", err
-	}
-
-	var errorTips = fmt.Sprintf(downloadErrorTips, downloadURL, i, i)
-
-	opts := []getter.ClientOption{}
-	if p != nil {
-		opts = []getter.ClientOption{getter.WithProgress(p)}
-	}
-
-	var dir string
-	dir, err = ioutil.TempDir("", "")
-	if err != nil {
-		return errorTips, fmt.Errorf("failed to create temp download dir")
-	}
-
-	client := &getter.Client{
-		Ctx:     ctx,
-		Src:     downloadURL,
-		Dst:     dir,
-		Mode:    getter.ClientModeDir,
-		Options: opts,
-	}
-
-	defer os.RemoveAll(dir)
-
-	if err = client.Get(); err != nil {
-		return errorTips, fmt.Errorf("failed to download syncthing from %s: %s", client.Src, err)
-	}
-
-	var dirs []fs.FileInfo
-	dirs, err = ioutil.ReadDir(client.Dst)
-	if err != nil {
-		return errorTips, err
-	}
-	if len(dirs) != 1 {
-		err = fmt.Errorf(
-			"download syncthing from %s and extract multi dirs that are not expected", client.Src,
-		)
-		return errorTips, err
-	}
-
-	info := dirs[0]
-	if !info.IsDir() {
-		err = fmt.Errorf(
-			"download syncthing from %s and "+
-				"there is an unpredictable error occurred during decompression", client.Src,
-		)
-		return errorTips, err
-	}
-
-	b := getBinaryPathInDownload(dir, info.Name())
-
-	if _, err = os.Stat(b); err != nil {
-		err = fmt.Errorf("%s didn't include the syncthing binary: %s", downloadURL, err)
-		return errorTips, err
-	}
-
-	if err = os.Chmod(b, 0700); err != nil {
-		err = fmt.Errorf("failed to set permissions to %s: %s", b, err)
-		return errorTips, err
-	}
 
 	if FileExists(i) {
 		if err := os.Remove(i); err != nil {
@@ -204,15 +130,14 @@ func (s *SyncthingInstaller) install(version string, p getter.ProgressTracker, d
 	// fix if ~/.nh/nhctl/bin/syncthing not exist
 	if err = os.MkdirAll(GetDir(i), 0700); err != nil {
 		err = fmt.Errorf("failed mkdir for %s: %s", i, err)
-		return errorTips, err
+		return "", err
 	}
 
-	if err = CopyFile(b, i); err != nil {
-		err = fmt.Errorf("failed to write %s: %s", i, err)
-		return errorTips, err
+	if err = bin.CopyToBinPath(i); err != nil {
+		err = fmt.Errorf("failed to copy file to: %s, err: %v", i, err)
 	}
 
-	fmt.Printf("downloaded syncthing %s to %s\n", version, i)
+	fmt.Printf("copyed syncthing %s to %s\n", version, i)
 	return "", nil
 }
 
