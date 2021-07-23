@@ -19,7 +19,9 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 
 	"nocalhost/internal/nhctl/appmeta"
@@ -334,23 +336,40 @@ func (m *meshManager) addHeaderToVirtualService(info *MeshDevInfo) error {
 			info.BaseNamespace)
 		return nil
 	}
-	vs := make([]*unstructured.Unstructured, 0)
-	for _, r := range info.resources.install {
-		// update vs if already existed
-		r := *r.DeepCopy()
-		origVsMap := m.cache.MatchVirtualServiceByWorkload(r)
 
-		for svcName, origVs := range origVsMap {
-			for _, v := range origVs {
-				if err := addHeaderToVirtualService(&v, info.MeshDevNamespace, svcName, info.Header); err != nil {
-					return err
-				}
-				vs = append(vs, &v)
+	for _, r := range info.resources.install {
+		r := *r.DeepCopy()
+		origVsMap := make(map[string][]unstructured.Unstructured)
+
+		// update vs if already existed
+		if err := wait.Poll(100*time.Millisecond, 8*time.Second, func() (bool, error) {
+			origVsMap = m.cache.MatchVirtualServiceByWorkload(r)
+			if len(origVsMap) == 0 {
+				return true, nil
 			}
+			for svcName, origVs := range origVsMap {
+				for _, v := range origVs {
+					if err := addHeaderToVirtualService(&v, info.MeshDevNamespace, svcName, info.Header); err != nil {
+						return false, err
+					}
+					log.Debugf("apply the VirtualService/%s to the base namespace %s", v.GetName(), v.GetNamespace())
+					if _, err := m.client.ApplyForce(&v); err != nil {
+						if k8serrors.IsConflict(err) {
+							log.Error(err)
+							return false, nil
+						}
+						return false, err
+					}
+				}
+			}
+			return true, nil
+		}); err != nil {
+			return err
 		}
 		if len(origVsMap) > 0 {
 			continue
 		}
+
 		// generate vs if does not exist
 		for _, s := range m.cache.MatchServicesByWorkload(r) {
 			v, err := genVirtualServiceForBaseDevSpace(
@@ -362,17 +381,13 @@ func (m *meshManager) addHeaderToVirtualService(info *MeshDevInfo) error {
 			if err != nil {
 				return err
 			}
-			vs = append(vs, v)
-		}
-
-	}
-
-	for i := range vs {
-		log.Debugf("apply the VirtualService/%s to the base namespace %s", vs[i].GetName(), vs[i].GetNamespace())
-		if _, err := m.client.ApplyForce(vs[i]); err != nil {
-			return err
+			log.Debugf("apply the VirtualService/%s to the base namespace %s", v.GetName(), v.GetNamespace())
+			if _, err := m.client.ApplyForce(&v); err != nil {
+				return err
+			}
 		}
 	}
+
 	return nil
 }
 
@@ -381,26 +396,34 @@ func (m *meshManager) updateHeaderToVirtualServices(info *MeshDevInfo) error {
 	if header.TraceKey == "" || header.TraceValue == "" {
 		return nil
 	}
-	updatedVs := make([]unstructured.Unstructured, 0)
-	for _, vs := range m.cache.GetVirtualServicesListByNamespace(info.BaseNamespace) {
-		isUpdate, err := updateHeaderToVirtualService(&vs, info.MeshDevNamespace, info.Header)
-		if err != nil {
-			return err
+	updatedVs := make(map[string]struct{})
+	return wait.Poll(100*time.Millisecond, 8*time.Second, func() (bool, error) {
+		updatedHeaderVs := make([]unstructured.Unstructured, 0)
+		for _, vs := range m.cache.GetVirtualServicesListByNamespace(info.BaseNamespace) {
+			isUpdate, err := updateHeaderToVirtualService(&vs, info.MeshDevNamespace, info.Header)
+			if err != nil {
+				return false, err
+			}
+			_, ok := updatedVs[vs.GetName()]
+			if isUpdate && !ok {
+				updatedHeaderVs = append(updatedHeaderVs, vs)
+			}
 		}
-		if isUpdate {
-			updatedVs = append(updatedVs, vs)
-		}
-	}
 
-	for i := range updatedVs {
-		log.Debugf("apply the VirtualService/%s to the base namespace %s",
-			updatedVs[i].GetName(), updatedVs[i].GetNamespace())
-		if _, err := m.client.ApplyForce(&updatedVs[i]); err != nil {
-			return err
+		for i := range updatedHeaderVs {
+			log.Debugf("apply the VirtualService/%s to the base namespace %s",
+				updatedHeaderVs[i].GetName(), updatedHeaderVs[i].GetNamespace())
+			if _, err := m.client.ApplyForce(&updatedHeaderVs[i]); err != nil {
+				if k8serrors.IsConflict(err) {
+					log.Error(err)
+					return false, nil
+				}
+				return false, err
+			}
+			updatedVs[updatedHeaderVs[i].GetName()] = struct{}{}
 		}
-	}
-
-	return nil
+		return true, nil
+	})
 }
 
 func (m *meshManager) updateVirtualServiceOnBaseDevSpace(info *MeshDevInfo) error {
