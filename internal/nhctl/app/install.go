@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"math/rand"
 	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/profile"
 	"time"
 
 	"github.com/pkg/errors"
@@ -230,13 +229,13 @@ func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) erro
 			InstallEnv: appEnv,
 		}
 
-		if err := a.UpdateProfile(
-			func(_ *profile.AppProfileV2) error {
-				return nil
-			},
-		); err != nil {
-			return err
-		}
+		//if err := a.UpdateProfile(
+		//	func(_ *profile.AppProfileV2) error {
+		//		return nil
+		//	},
+		//); err != nil {
+		//	return err
+		//}
 
 		// release name a.Name
 		if a.appMeta.ApplicationType != appmeta.Manifest && a.appMeta.ApplicationType != appmeta.ManifestGit {

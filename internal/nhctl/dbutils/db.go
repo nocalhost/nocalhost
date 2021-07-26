@@ -19,6 +19,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
+	"syscall"
 	"time"
 )
 
@@ -51,10 +52,12 @@ func OpenLevelDB(path string, readonly bool) (*LevelDBUtils, error) {
 		if leveldb_errors.IsCorrupted(err) {
 			log.Log("Recovering leveldb file...")
 			db, err = leveldb.RecoverFile(path, nil)
+		} else if errors.Is(err, syscall.ENOENT) {
+			return nil, errors.Wrap(err, "File not exist, not need to retry")
 		} else /*if errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EBUSY)*/ {
-			log.Logf("Another process is accessing leveldb: %s, wait for 0.2s to retry, err: %v", path, err)
-			for i := 0; i < 300; i++ {
-				time.Sleep(200 * time.Millisecond)
+			log.Logf("Another process is accessing leveldb: %s, wait for 0.002s to retry, err: %v", path, err)
+			for i := 0; i < 3000; i++ {
+				time.Sleep(20 * time.Millisecond)
 				db, err = leveldb.OpenFile(path, o)
 				if err == nil {
 					log.Logf("Success after %v times, open leveldb: %s", i, path)
