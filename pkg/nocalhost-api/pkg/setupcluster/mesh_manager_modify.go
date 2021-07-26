@@ -399,16 +399,16 @@ func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.H
 	return rs, nil
 }
 
-func addHeaderToVirtualService(rs *unstructured.Unstructured, devNs, svcName string, header model.Header) error {
+func addHeaderToVirtualService(rs *unstructured.Unstructured, svcName string, info *MeshDevInfo) error {
 	rs.SetManagedFields(nil)
 
-	if header.TraceKey == "" || header.TraceValue == "" {
+	if info.Header.TraceKey == "" || info.Header.TraceValue == "" {
 		log.Debugf("can not find tracing header to update virtual service in the namespace %s",
 			rs.GetNamespace())
 	}
 
 	log.Debugf("add the tracing header %s:%s to %s/%s",
-		header.TraceKey, header.TraceValue, rs.GetName(), rs.GetNamespace())
+		info.Header.TraceKey, info.Header.TraceValue, rs.GetName(), rs.GetNamespace())
 	vs := &v1alpha3.VirtualService{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), vs); err != nil {
 		return errors.WithStack(err)
@@ -423,23 +423,23 @@ func addHeaderToVirtualService(rs *unstructured.Unstructured, devNs, svcName str
 	}
 
 	// add header
-	host := fmt.Sprintf("%s.%s.%s.%s", name, devNs, "svc", "cluster.local")
+	host := fmt.Sprintf("%s.%s.%s.%s", name, info.MeshDevNamespace, "svc", "cluster.local")
 	httpDsts := make([]*istiov1alpha3.HTTPRouteDestination, 0)
 	httpDst := &istiov1alpha3.HTTPRouteDestination{Destination: &istiov1alpha3.Destination{Host: host}}
 	httpDsts = append(httpDsts, httpDst)
 	headers := make(map[string]*istiov1alpha3.StringMatch)
 	// set exact match header
-	headers[header.TraceKey] = &istiov1alpha3.StringMatch{
+	headers[info.Header.TraceKey] = &istiov1alpha3.StringMatch{
 		MatchType: &istiov1alpha3.StringMatch_Exact{
-			Exact: header.TraceValue,
+			Exact: info.Header.TraceValue,
 		},
 	}
 
 	http := &istiov1alpha3.HTTPRoute{
-		Name: global.NocalhostName + "-" + devNs,
+		Name: global.NocalhostName + "-" + info.MeshDevNamespace,
 		Match: []*istiov1alpha3.HTTPMatchRequest{
 			{
-				Name:    fmt.Sprintf("%s-%s-%s", global.NocalhostName, devNs, "tracing-header"),
+				Name:    fmt.Sprintf("%s-%s-%s", global.NocalhostName, info.MeshDevNamespace, "tracing-header"),
 				Headers: headers,
 			},
 		},
@@ -485,51 +485,57 @@ func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, devNs string,
 	return ok, nil
 }
 
-func updateHeaderToVirtualService(rs *unstructured.Unstructured, devNs string, header model.Header) (bool, error) {
+func updateHeaderToVirtualService(rs *unstructured.Unstructured, info *MeshDevInfo) (
+	[]*istiov1alpha3.HTTPRoute, bool, error) {
+
 	rs.SetManagedFields(nil)
 	vs := &v1alpha3.VirtualService{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), vs); err != nil {
-		return false, errors.WithStack(err)
+		return nil, false, errors.WithStack(err)
 	}
 
 	headers := make(map[string]*istiov1alpha3.StringMatch)
 	// set exact match header
-	headers[header.TraceKey] = &istiov1alpha3.StringMatch{
+	headers[info.Header.TraceKey] = &istiov1alpha3.StringMatch{
 		MatchType: &istiov1alpha3.StringMatch_Exact{
-			Exact: header.TraceValue,
+			Exact: info.Header.TraceValue,
 		},
 	}
 
 	var updateStatus bool
-	name := fmt.Sprintf("%s-%s", global.NocalhostName, devNs)
+	ret := make([]*istiov1alpha3.HTTPRoute, 0)
+	name := fmt.Sprintf("%s-%s", global.NocalhostName, info.MeshDevNamespace)
 	matchName := fmt.Sprintf("%s-%s", name, "tracing-header")
-	route := vs.Spec.Http
-	for i := 0; i < len(route); i++ {
-		if route[i].GetName() != name {
+	routes := vs.Spec.Http
+	for i := 0; i < len(routes); i++ {
+		if routes[i].GetName() != name {
 			continue
 		}
-		for j, match := range route[i].Match {
+		route := routes[i].DeepCopy()
+		for j, match := range route.Match {
 			if match.Name != matchName {
 				continue
 			}
-			value := match.Headers[header.TraceKey]
-			if value == nil || value.GetExact() != header.TraceValue {
-				log.Debugf("update %s/%s, route: %s, tracing header: %s",
-					rs.GetKind(), rs.GetName(), route[i].GetName(), header.TraceKey+":"+header.TraceValue)
-				route[i].Match[j] = &istiov1alpha3.HTTPMatchRequest{
+			value := match.Headers[info.Header.TraceKey]
+			if value == nil || value.GetExact() != info.Header.TraceValue {
+				log.Debugf("update %s/%s, routes: %s, tracing header: %s",
+					rs.GetKind(), rs.GetName(), route.GetName(), info.Header.TraceKey+":"+info.Header.TraceValue)
+				route.Match[j] = &istiov1alpha3.HTTPMatchRequest{
 					Name:    matchName,
 					Headers: headers,
 				}
 				updateStatus = true
 			}
 		}
+		ret = append(ret, routes[i])
+		routes[i] = route
 	}
-	vs.Spec.Http = route
+	vs.Spec.Http = routes
 
 	var err error
 	rs.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(vs)
 	if err != nil {
-		return false, errors.WithStack(err)
+		return nil, false, errors.WithStack(err)
 	}
-	return updateStatus, nil
+	return ret, updateStatus, nil
 }

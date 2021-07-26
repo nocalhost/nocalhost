@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
+	istiov1alpha3 "istio.io/api/networking/v1alpha3"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -57,6 +58,8 @@ type MeshDevInfo struct {
 	Header           model.Header `json:"header"`
 	Apps             []MeshDevApp `json:"apps"`
 	resources        meshDevResources
+	rollback         rollback
+	mu               sync.Mutex
 }
 
 type MeshDevApp struct {
@@ -73,6 +76,15 @@ type MeshDevWorkload struct {
 type meshDevResources struct {
 	install []unstructured.Unstructured
 	delete  []unstructured.Unstructured
+}
+
+type rollback struct {
+	header rollbackHeader
+}
+
+type rollbackHeader struct {
+	add    map[string][]string
+	update map[string][]*istiov1alpha3.HTTPRoute
 }
 
 type SortAppsByName []MeshDevApp
@@ -349,7 +361,7 @@ func (m *meshManager) addHeaderToVirtualService(info *MeshDevInfo) error {
 			}
 			for svcName, origVs := range origVsMap {
 				for _, v := range origVs {
-					if err := addHeaderToVirtualService(&v, info.MeshDevNamespace, svcName, info.Header); err != nil {
+					if err := addHeaderToVirtualService(&v, svcName, info); err != nil {
 						return false, err
 					}
 					log.Debugf("apply the VirtualService/%s to the base namespace %s", v.GetName(), v.GetNamespace())
@@ -400,13 +412,28 @@ func (m *meshManager) updateHeaderToVirtualServices(info *MeshDevInfo) error {
 	return wait.Poll(100*time.Millisecond, 8*time.Second, func() (bool, error) {
 		updatedHeaderVs := make([]unstructured.Unstructured, 0)
 		for _, vs := range m.cache.GetVirtualServicesListByNamespace(info.BaseNamespace) {
-			isUpdate, err := updateHeaderToVirtualService(&vs, info.MeshDevNamespace, info.Header)
+			routes, isUpdate, err := updateHeaderToVirtualService(&vs, info)
 			if err != nil {
 				return false, err
 			}
 			_, ok := updatedVs[vs.GetName()]
 			if isUpdate && !ok {
 				updatedHeaderVs = append(updatedHeaderVs, vs)
+				log.Debugf("apply the VirtualService/%s to the base namespace %s",
+					vs.GetName(), vs.GetNamespace())
+				if _, err := m.client.ApplyForce(&vs); err != nil {
+					if k8serrors.IsConflict(err) {
+						log.Error(err)
+						return false, nil
+					}
+					return false, err
+				}
+
+				if info.rollback.header.update == nil {
+					info.rollback.header.update = make(map[string][]*istiov1alpha3.HTTPRoute)
+				}
+				info.rollback.header.update[vs.GetName()] = routes
+				updatedVs[vs.GetName()] = struct{}{}
 			}
 		}
 
@@ -510,7 +537,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 
 func (m *meshManager) setInformerFactory() {
 	m.cache.stopCh = make(chan struct{})
-	m.cache.informers = dynamicinformer.NewDynamicSharedInformerFactory(m.client.DynamicClient, time.Minute)
+	m.cache.informers = dynamicinformer.NewDynamicSharedInformerFactory(m.client.DynamicClient, 10*time.Minute)
 }
 
 func (m *meshManager) buildCache() error {
