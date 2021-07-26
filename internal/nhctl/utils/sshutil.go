@@ -55,15 +55,14 @@ func Reverse(account *Account, sshEndpoint, remoteEndpoint, localEndpoint string
 	log.Infof("Forwarding to %s <- %s", localEndpoint, remoteEndpoint)
 
 	for {
-		localConn, err := net.Dial("tcp", localEndpoint)
-		if err != nil {
-			log.Errorf("dial local service error, err: %v", err)
-			return err
-		}
-
 		remoteConn, err := listener.Accept()
 		if err != nil {
 			log.Error("error: %s", err)
+			return err
+		}
+		localConn, err := net.Dial("tcp", localEndpoint)
+		if err != nil {
+			log.Errorf("dial local service error, err: %v", err)
 			return err
 		}
 		copyStream(remoteConn, localConn)

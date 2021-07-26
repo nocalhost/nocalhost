@@ -50,8 +50,7 @@ var sshRCmd = &cobra.Command{
 		}
 		okchan := make(chan struct{})
 		go func() {
-			err := app.PortForwardFollow(podName, port, podSshPort, okchan)
-			if err != nil {
+			if err := app.PortForwardFollow(podName, port, podSshPort, okchan); err != nil {
 				log.Fatal(err)
 			}
 		}()
