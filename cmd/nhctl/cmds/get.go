@@ -98,7 +98,10 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 			log.Fatal(err)
 		}
 		data, err := cli.SendGetResourceInfoCommand(kubeConfig, nameSpace, appName, resourceType, resourceName, label)
-		if data == nil || err != nil {
+		if err != nil {
+			log.Fatal(err)
+		}
+		if data == nil {
 			return
 		}
 
@@ -110,7 +113,7 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		default:
 			bytes, err := json.Marshal(data)
 			if err != nil {
-				return
+				log.Fatal(err)
 			}
 			switch resourceType {
 			case "all":
