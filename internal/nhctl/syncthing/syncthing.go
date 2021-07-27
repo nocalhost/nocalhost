@@ -277,13 +277,16 @@ func (s *Syncthing) Run(ctx context.Context) error {
 	pidPath := filepath.Join(s.LocalHome, syncthingPidFile)
 
 	cmdArgs := []string{
-		"-home", s.LocalHome,
-		"-no-browser",
-		"-verbose",
-		"-logfile", s.LogPath,
-		"-log-max-old-files=0",
-		"-ignore-file-path=" + ignoreFilePath,
+		"serve",
+		"--home", s.LocalHome,
+		"--no-browser",
+		"--verbose",
+		"--logfile", s.LogPath,
+		"--log-max-old-files=0",
+		"--ignore-file-path=" + ignoreFilePath,
 	}
+
+	log.Debug(cmdArgs)
 	s.cmd = exec.Command(s.BinPath, cmdArgs...) //nolint: gas, gosec
 	s.cmd.Env = append(os.Environ(), "STNOUPGRADE=1")
 

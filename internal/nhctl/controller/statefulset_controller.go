@@ -175,6 +175,9 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 
 		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
 
+		if len(dep.Annotations) == 0 {
+			dep.Annotations = make(map[string]string, 0)
+		}
 		dep.Annotations[OriginSpecJson] = string(originalSpecJson)
 
 		log.Info("Updating development container...")

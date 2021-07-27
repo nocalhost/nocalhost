@@ -74,6 +74,12 @@ func InstallNhctl(version string) error {
 	}
 	str := "curl --fail -s -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o %s"
 	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, name, version, utils.GetNhctlBinName()))
+	if utils.IsWindows() {
+		delCmd := exec.Command("sh", "-c", fmt.Sprintf("rm %s", utils.GetNhctlBinName()))
+		if _, _, err := runner.Runner.RunWithRollingOutWithChecker(delCmd, nil); err != nil {
+			log.Error(err)
+		}
+	}
 	if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
 		return err
 	}

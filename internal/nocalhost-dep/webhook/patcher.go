@@ -122,6 +122,9 @@ func nocalhostDepConfigmap(
 		glog.Fatalln("failed to get config map:", err)
 		return initContainers, envVarArray, err
 	}
+
+	var waitCmd string
+
 	for i, cm := range configMaps.Items {
 		fmt.Printf("[%d] %s\n", i, cm.GetName())
 		if strings.Contains(
@@ -180,9 +183,7 @@ func nocalhostDepConfigmap(
 					}
 				}
 
-				var waitCmd string
-
-				for key, dependency := range dep.Dependency {
+				for _, dependency := range dep.Dependency {
 					// K8S native type is case-sensitive, dependent descriptions
 					// are not distinguished, and unified into lowercase
 					// if has metadata.labels.release, then release-name should fix as dependency.Name
@@ -212,6 +213,9 @@ func nocalhostDepConfigmap(
 								return args
 							}(dependency.Pods)
 
+							if waitCmd != "" {
+								waitCmd += " && "
+							}
 							waitCmd += strings.Join(args, " ")
 						}
 						if dependency.Jobs != nil {
@@ -235,25 +239,25 @@ func nocalhostDepConfigmap(
 							}(dependency.Jobs)
 
 							if waitCmd != "" {
-								waitCmd += "&&"
+								waitCmd += " && "
 							}
 							waitCmd += strings.Join(args, " ")
 						}
 					}
-
-					if waitCmd != "" {
-						var cmd []string
-						cmd = append(cmd, "sh", "-c", waitCmd)
-
-						initContainer := corev1.Container{
-							Name:            "wait-for-jobs-" + strconv.Itoa(i) + strconv.Itoa(key),
-							Image:           waitImages,
-							ImagePullPolicy: corev1.PullPolicy("Always"),
-							Command:         cmd,
-						}
-						initContainers = append(initContainers, initContainer)
-					}
 				}
+			}
+
+			if waitCmd != "" {
+				var cmd []string
+				cmd = append(cmd, "sh", "-c", waitCmd)
+
+				initContainer := corev1.Container{
+					Name:            "nocalhost-dependency-waiting-job",
+					Image:           waitImages,
+					ImagePullPolicy: corev1.PullPolicy("Always"),
+					Command:         cmd,
+				}
+				initContainers = append(initContainers, initContainer)
 			}
 		}
 	}

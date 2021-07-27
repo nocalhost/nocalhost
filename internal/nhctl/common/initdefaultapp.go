@@ -44,7 +44,8 @@ func InitDefaultApplicationInCurrentNs(namespace string, kubeconfigPath string) 
 		LocalPath: baseDir.Abs(),
 	}
 	application, err := InstallApplication(f, nocalhost.DefaultNocalhostApplication, kubeconfigPath, namespace)
-	if errors.IsServerTimeout(err) {
+	if errors.IsServerTimeout(err) || errors.IsAlreadyExists(err) {
+		log.Logf("Create default.application failed, err: %v", err)
 		return application, nil
 	}
 	return application, err

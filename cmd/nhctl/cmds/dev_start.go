@@ -233,13 +233,13 @@ func stopPreviousSyncthing() {
 
 func startSyncthing(podName, container string, resume bool) {
 	if resume {
-		StartSyncthing(podName, true, false, container, false, true)
+		StartSyncthing(podName, true, false, container, false, false)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync resumed")
 		}()
 	} else {
-		StartSyncthing(podName, false, false, container, false, true)
+		StartSyncthing(podName, false, false, container, false, false)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync started")
@@ -279,20 +279,6 @@ func enterDevMode() string {
 
 	newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
 	mustI(err, "Failed to create syncthing process, please try again")
-
-	// try install syncthing
-	var downloadVersion = Version
-
-	// for debug only
-	if devStartOps.SyncthingVersion != "" {
-		downloadVersion = devStartOps.SyncthingVersion
-	}
-
-	_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
-	mustI(
-		err, "Failed to install syncthing, no syncthing available locally in "+
-			newSyncthing.BinPath+" please try again.",
-	)
 
 	// set syncthing secret
 	config, err := newSyncthing.GetRemoteConfigXML()

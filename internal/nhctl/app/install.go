@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"math/rand"
 	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/profile"
 	"time"
 
 	"github.com/pkg/errors"
@@ -131,6 +130,12 @@ func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta, resource
 func (a *Application) installHelm(
 	appMeta *appmeta.ApplicationMeta, flags *HelmFlags, resourceDir string, fromRepo bool,
 ) error {
+	log.Info("Updating helm repo...")
+	_, err := tools.ExecCommand(nil, true, false, false, "helm", "repo", "update")
+	if err != nil {
+		log.Info(err.Error())
+	}
+
 	releaseName := a.Name
 	appMeta.HelmReleaseName = releaseName
 	if err := appMeta.Update(); err != nil {
@@ -198,7 +203,7 @@ func (a *Application) installHelm(
 	installParams = append(installParams, "--timeout", "60m")
 	installParams = append(installParams, commonParams...)
 
-	fmt.Println("install helm application, this may take several minutes, please waiting...")
+	log.Info("Installing helm application, this may take several minutes, please waiting...")
 
 	if _, err := tools.ExecCommand(nil, true, false, false, "helm", installParams...); err != nil {
 		return errors.Wrap(err, "fail to install helm application")
@@ -224,13 +229,13 @@ func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) erro
 			InstallEnv: appEnv,
 		}
 
-		if err := a.UpdateProfile(
-			func(_ *profile.AppProfileV2) error {
-				return nil
-			},
-		); err != nil {
-			return err
-		}
+		//if err := a.UpdateProfile(
+		//	func(_ *profile.AppProfileV2) error {
+		//		return nil
+		//	},
+		//); err != nil {
+		//	return err
+		//}
 
 		// release name a.Name
 		if a.appMeta.ApplicationType != appmeta.Manifest && a.appMeta.ApplicationType != appmeta.ManifestGit {
