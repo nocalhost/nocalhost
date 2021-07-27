@@ -133,14 +133,11 @@ func (s *SyncthingInstaller) install(version string) (string, error) {
 	})
 
 	if FileExists(i) {
-		if err = os.Remove(i); err != nil {
-			log.Debugf("Failed to delete %s, will try to overwrite: %s", i, err)
-			if err = os.Rename(i, filepath.Join(filepath.Dir(i), uuid.New().String()+filepath.Base(i))); err != nil {
-				str := fmt.Sprintf("Can't rename file: %s --> %s", i, uuid.New().String()+filepath.Base(i))
-				log.Debugf(str)
-				if utils.IsWindows() {
-					return str, err
-				}
+		log.Debugf("Failed to delete %s, will try to overwrite: %s", i, err)
+		if err = os.Rename(i, filepath.Join(filepath.Dir(i), uuid.New().String()+filepath.Base(i))); err != nil {
+			log.Debugf(fmt.Sprintf("Can't rename file: %s --> %s", i, uuid.New().String()+filepath.Base(i)))
+			if utils.IsWindows() {
+				return "", nil
 			}
 		}
 	}
