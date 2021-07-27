@@ -20,8 +20,10 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	istiov1alpha3 "istio.io/api/networking/v1alpha3"
+	"istio.io/client-go/pkg/apis/networking/v1alpha3"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 
@@ -48,6 +50,7 @@ type MeshManager interface {
 	DeleteTracingHeader(*MeshDevInfo) error
 	GetBaseDevSpaceAppInfo(*MeshDevInfo) []MeshDevApp
 	GetAPPInfo(*MeshDevInfo) ([]MeshDevApp, error)
+	Rollback(*MeshDevInfo) error
 	BuildCache() error
 }
 
@@ -223,6 +226,44 @@ func (m *meshManager) GetAPPInfo(info *MeshDevInfo) ([]MeshDevApp, error) {
 		}
 	}
 	return apps, nil
+}
+
+func (m *meshManager) Rollback(info *MeshDevInfo) error {
+	return wait.Poll(200*time.Millisecond, 5*time.Second, func() (bool, error) {
+		for name, routes := range info.rollback.header.update {
+			routesMap := make(map[string]*istiov1alpha3.HTTPRoute)
+			for _, route := range routes {
+				routesMap[route.Name] = route
+			}
+			r, err := m.cache.GetVirtualServiceByNamespaceAndName(info.BaseNamespace, name)
+			r.SetManagedFields(nil)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			vs := &v1alpha3.VirtualService{}
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(r.UnstructuredContent(), vs); err != nil {
+				log.Error(err)
+				continue
+			}
+			httpRoutes := vs.Spec.Http
+			for i, route := range httpRoutes {
+				if rollRoute, ok := routesMap[route.Name]; ok {
+					httpRoutes[i] = rollRoute
+				}
+			}
+			if _, err := m.client.ApplyForce(vs); err != nil {
+				log.Error(err)
+				continue
+			}
+			log.Debugf("rollback %s/%s in namespace %s", r.GetKind(), r.GetName(), r.GetNamespace())
+			delete(info.rollback.header.update, name)
+		}
+		if len(info.rollback.header.update) > 0 {
+			return false, nil
+		}
+		return true, nil
+	})
 }
 
 func (m *meshManager) BuildCache() error {
@@ -410,7 +451,6 @@ func (m *meshManager) updateHeaderToVirtualServices(info *MeshDevInfo) error {
 	}
 	updatedVs := make(map[string]struct{})
 	return wait.Poll(100*time.Millisecond, 8*time.Second, func() (bool, error) {
-		updatedHeaderVs := make([]unstructured.Unstructured, 0)
 		for _, vs := range m.cache.GetVirtualServicesListByNamespace(info.BaseNamespace) {
 			routes, isUpdate, err := updateHeaderToVirtualService(&vs, info)
 			if err != nil {
@@ -418,7 +458,6 @@ func (m *meshManager) updateHeaderToVirtualServices(info *MeshDevInfo) error {
 			}
 			_, ok := updatedVs[vs.GetName()]
 			if isUpdate && !ok {
-				updatedHeaderVs = append(updatedHeaderVs, vs)
 				log.Debugf("apply the VirtualService/%s to the base namespace %s",
 					vs.GetName(), vs.GetNamespace())
 				if _, err := m.client.ApplyForce(&vs); err != nil {
@@ -435,19 +474,6 @@ func (m *meshManager) updateHeaderToVirtualServices(info *MeshDevInfo) error {
 				info.rollback.header.update[vs.GetName()] = routes
 				updatedVs[vs.GetName()] = struct{}{}
 			}
-		}
-
-		for i := range updatedHeaderVs {
-			log.Debugf("apply the VirtualService/%s to the base namespace %s",
-				updatedHeaderVs[i].GetName(), updatedHeaderVs[i].GetNamespace())
-			if _, err := m.client.ApplyForce(&updatedHeaderVs[i]); err != nil {
-				if k8serrors.IsConflict(err) {
-					log.Error(err)
-					return false, nil
-				}
-				return false, err
-			}
-			updatedVs[updatedHeaderVs[i].GetName()] = struct{}{}
 		}
 		return true, nil
 	})
