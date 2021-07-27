@@ -15,6 +15,7 @@ package setupcluster
 import (
 	"strings"
 
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -134,6 +135,46 @@ func (c *cache) GetSecretsListByNamespace(ns string) []unstructured.Unstructured
 
 func (c *cache) GetDeploymentsListByNamespace(ns string) []unstructured.Unstructured {
 	return c.Deployment().ByIndex(toolscache.NamespaceIndex, ns)
+}
+
+func (c *cache) GetConfigMapByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
+	obj, err := c.ConfigMap().Lister().ByNamespace(ns).Get(name)
+	if err != nil {
+		return unstructured.Unstructured{}, errors.WithStack(err)
+	}
+	return *obj.(*unstructured.Unstructured).DeepCopy(), nil
+}
+
+func (c *cache) GetServiceByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
+	obj, err := c.Service().Lister().ByNamespace(ns).Get(name)
+	if err != nil {
+		return unstructured.Unstructured{}, errors.WithStack(err)
+	}
+	return *obj.(*unstructured.Unstructured).DeepCopy(), nil
+}
+
+func (c *cache) GetVirtualServiceByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
+	obj, err := c.VirtualService().Lister().ByNamespace(ns).Get(name)
+	if err != nil {
+		return unstructured.Unstructured{}, errors.WithStack(err)
+	}
+	return *obj.(*unstructured.Unstructured).DeepCopy(), nil
+}
+
+func (c *cache) GetSecretByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
+	obj, err := c.Secret().Lister().ByNamespace(ns).Get(name)
+	if err != nil {
+		return unstructured.Unstructured{}, errors.WithStack(err)
+	}
+	return *obj.(*unstructured.Unstructured).DeepCopy(), nil
+}
+
+func (c *cache) GetDeploymentByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
+	obj, err := c.Deployment().Lister().ByNamespace(ns).Get(name)
+	if err != nil {
+		return unstructured.Unstructured{}, errors.WithStack(err)
+	}
+	return *obj.(*unstructured.Unstructured).DeepCopy(), nil
 }
 
 func (c *cache) GetListByKindAndNamespace(kind, ns string) []unstructured.Unstructured {
