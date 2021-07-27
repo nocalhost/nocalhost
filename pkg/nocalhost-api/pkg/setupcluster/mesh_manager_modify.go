@@ -330,9 +330,10 @@ func genVirtualServiceForMeshDevSpace(baseNs string, r unstructured.Unstructured
 	return rs, nil
 }
 
-func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.Header) (*unstructured.Unstructured, error) {
+func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.Header) (
+	*unstructured.Unstructured, *istiov1alpha3.HTTPRoute, error) {
 	if header.TraceKey == "" || header.TraceValue == "" {
-		return nil, errors.New("can not find tracing header")
+		return nil, nil, errors.New("can not find tracing header")
 	}
 	log.Debugf("generate %s/%s", "VirtualService", name)
 	vs := &v1alpha3.VirtualService{}
@@ -394,12 +395,14 @@ func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.H
 	rs := &unstructured.Unstructured{}
 	rs.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(vs)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, nil, errors.WithStack(err)
 	}
-	return rs, nil
+	return rs, http.DeepCopy(), nil
 }
 
-func addHeaderToVirtualService(rs *unstructured.Unstructured, svcName string, info *MeshDevInfo) error {
+func addHeaderToVirtualService(rs *unstructured.Unstructured, svcName string, info *MeshDevInfo) (
+	*istiov1alpha3.HTTPRoute, error) {
+
 	rs.SetManagedFields(nil)
 
 	if info.Header.TraceKey == "" || info.Header.TraceValue == "" {
@@ -411,13 +414,13 @@ func addHeaderToVirtualService(rs *unstructured.Unstructured, svcName string, in
 		info.Header.TraceKey, info.Header.TraceValue, rs.GetName(), rs.GetNamespace())
 	vs := &v1alpha3.VirtualService{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), vs); err != nil {
-		return errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 	name := svcName
-	route := vs.Spec.Http
-	for i := 0; i < len(route); i++ {
-		if route[i].GetName() == name {
-			route = route[:i+copy(route[i:], route[i+1:])]
+	routes := vs.Spec.Http
+	for i := 0; i < len(routes); i++ {
+		if routes[i].GetName() == name {
+			routes = routes[:i+copy(routes[i:], routes[i+1:])]
 			i--
 		}
 	}
@@ -445,17 +448,17 @@ func addHeaderToVirtualService(rs *unstructured.Unstructured, svcName string, in
 		},
 		Route: httpDsts,
 	}
-	route = append(route, &istiov1alpha3.HTTPRoute{})
-	copy(route[1:], route[:])
-	route[0] = http
-	vs.Spec.Http = route
+	routes = append(routes, &istiov1alpha3.HTTPRoute{})
+	copy(routes[1:], routes[:])
+	routes[0] = http
+	vs.Spec.Http = routes
 
 	var err error
 	rs.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(vs)
 	if err != nil {
-		return errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
-	return nil
+	return http.DeepCopy(), nil
 }
 
 func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, devNs string, header model.Header) (bool, error) {

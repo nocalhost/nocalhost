@@ -86,7 +86,7 @@ type rollback struct {
 }
 
 type rollbackHeader struct {
-	add    map[string][]string
+	add    map[string]*istiov1alpha3.HTTPRoute
 	update map[string][]*istiov1alpha3.HTTPRoute
 }
 
@@ -229,7 +229,43 @@ func (m *meshManager) GetAPPInfo(info *MeshDevInfo) ([]MeshDevApp, error) {
 }
 
 func (m *meshManager) Rollback(info *MeshDevInfo) error {
-	return wait.Poll(200*time.Millisecond, 5*time.Second, func() (bool, error) {
+	// rollback after add tracing header failure
+	wait.Poll(200*time.Millisecond, 5*time.Second, func() (bool, error) {
+		for name, route := range info.rollback.header.add {
+			r, err := m.cache.GetVirtualServiceByNamespaceAndName(info.BaseNamespace, name)
+			r.SetManagedFields(nil)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			vs := &v1alpha3.VirtualService{}
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(r.UnstructuredContent(), vs); err != nil {
+				log.Error(err)
+				continue
+			}
+			routes := vs.Spec.Http
+			for i := 0; i < len(routes); i++ {
+				if routes[i].GetName() == route.Name {
+					routes = routes[:i+copy(routes[i:], routes[i+1:])]
+					i--
+				}
+			}
+			vs.Spec.Http = routes
+			if _, err := m.client.ApplyForce(vs); err != nil {
+				log.Error(err)
+				continue
+			}
+			log.Debugf("rollback %s/%s in namespace %s", r.GetKind(), r.GetName(), r.GetNamespace())
+			delete(info.rollback.header.add, name)
+		}
+		if len(info.rollback.header.add) > 0 {
+			return false, nil
+		}
+		return true, nil
+	})
+
+	// rollback after update tracing header failure
+	wait.Poll(200*time.Millisecond, 5*time.Second, func() (bool, error) {
 		for name, routes := range info.rollback.header.update {
 			routesMap := make(map[string]*istiov1alpha3.HTTPRoute)
 			for _, route := range routes {
@@ -264,6 +300,8 @@ func (m *meshManager) Rollback(info *MeshDevInfo) error {
 		}
 		return true, nil
 	})
+
+	return nil
 }
 
 func (m *meshManager) BuildCache() error {
@@ -402,7 +440,8 @@ func (m *meshManager) addHeaderToVirtualService(info *MeshDevInfo) error {
 			}
 			for svcName, origVs := range origVsMap {
 				for _, v := range origVs {
-					if err := addHeaderToVirtualService(&v, svcName, info); err != nil {
+					route, err := addHeaderToVirtualService(&v, svcName, info)
+					if err != nil {
 						return false, err
 					}
 					log.Debugf("apply the VirtualService/%s to the base namespace %s", v.GetName(), v.GetNamespace())
@@ -413,6 +452,10 @@ func (m *meshManager) addHeaderToVirtualService(info *MeshDevInfo) error {
 						}
 						return false, err
 					}
+					if info.rollback.header.add == nil {
+						info.rollback.header.add = make(map[string]*istiov1alpha3.HTTPRoute)
+					}
+					info.rollback.header.add[v.GetName()] = route
 				}
 			}
 			return true, nil
@@ -425,7 +468,7 @@ func (m *meshManager) addHeaderToVirtualService(info *MeshDevInfo) error {
 
 		// generate vs if does not exist
 		for _, s := range m.cache.MatchServicesByWorkload(r) {
-			v, err := genVirtualServiceForBaseDevSpace(
+			v, route, err := genVirtualServiceForBaseDevSpace(
 				info.BaseNamespace,
 				info.MeshDevNamespace,
 				s.GetName(),
@@ -438,6 +481,10 @@ func (m *meshManager) addHeaderToVirtualService(info *MeshDevInfo) error {
 			if _, err := m.client.ApplyForce(&v); err != nil {
 				return err
 			}
+			if info.rollback.header.add == nil {
+				info.rollback.header.add = make(map[string]*istiov1alpha3.HTTPRoute)
+			}
+			info.rollback.header.add[v.GetName()] = route
 		}
 	}
 

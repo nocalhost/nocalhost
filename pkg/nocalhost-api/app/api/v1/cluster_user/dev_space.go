@@ -269,6 +269,7 @@ func (d *DevSpace) initMeshDevSpace(
 	}
 
 	if err := meshManager.InitMeshDevSpace(&meshDevInfo); err != nil {
+		meshManager.Rollback(&meshDevInfo)
 		return nil, err
 	}
 
