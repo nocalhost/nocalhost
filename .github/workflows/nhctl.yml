@@ -76,7 +76,7 @@ jobs:
         with:
           repository: nocalhost/syncthing
           path: ./syncthing-source
-          ref: marge/from/v1.18.0
+          ref: dev
 
       - name: Build syncthing-amd64
         working-directory: ./syncthing-source
@@ -102,7 +102,7 @@ jobs:
         with:
           repository: nocalhost/syncthing
           path: ./syncthing-source
-          ref: marge/from/v1.18.0
+          ref: dev
 
       - name: Build syncthing
         working-directory: ./syncthing-source

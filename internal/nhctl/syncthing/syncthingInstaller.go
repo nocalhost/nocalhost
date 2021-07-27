@@ -234,14 +234,14 @@ func (s *SyncthingInstaller) needToDownloadByVersionAndCommitId() []string {
 	}()
 
 	if s.Version != "" {
-		if s.exec("serve", "-nocalhost") == s.Version {
+		if s.exec("serve", "--nocalhost") == s.Version {
 			return installCandidate
 		}
 		installCandidate = append(installCandidate, s.Version)
 	}
 
 	if s.CommitId != "" {
-		if s.exec("serve", "-nocalhost-commit-id") == s.CommitId {
+		if s.exec("serve", "--nocalhost-commit-id") == s.CommitId {
 			return installCandidate
 		}
 		installCandidate = append(installCandidate, s.CommitId)
