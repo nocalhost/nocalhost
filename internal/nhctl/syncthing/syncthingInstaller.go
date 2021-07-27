@@ -14,9 +14,12 @@ package syncthing
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"io"
+	"io/fs"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/syncthing/bin"
+	"nocalhost/internal/nhctl/utils"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -70,12 +73,15 @@ func (s *SyncthingInstaller) InstallIfNeeded() (bool, error) {
 
 	// first try to download the version matched Version
 	// then try the version matched commit id
-	downloadCandidate := s.needToDownloadByVersionAndCommitId()
+	syncthingCandidate, needCopy := s.getCompatibilityByVersionAndCommitId()
+	if !needCopy {
+		return false, nil
+	}
 
 	// download all the candidates version of syncthing
 	// if download fail at all, use the local binPath's syncthing or else throw the error
-	var maxIndex = len(downloadCandidate) - 1
-	for i, version := range downloadCandidate {
+	var maxIndex = len(syncthingCandidate) - 1
+	for i, version := range syncthingCandidate {
 		errTips, err := s.downloadSyncthing(version)
 		if err != nil {
 			if errTips != "" {
@@ -84,15 +90,15 @@ func (s *SyncthingInstaller) InstallIfNeeded() (bool, error) {
 			}
 
 			if maxIndex == i && !s.isInstalled() {
-				return len(downloadCandidate) != 0, err
+				return len(syncthingCandidate) != 0, err
 			}
 		} else {
 			// return while download success
-			return len(downloadCandidate) != 0, nil
+			return len(syncthingCandidate) != 0, nil
 		}
 	}
 
-	return len(downloadCandidate) != 0, nil
+	return len(syncthingCandidate) != 0, nil
 }
 
 func (s *SyncthingInstaller) downloadSyncthing(version string) (string, error) {
@@ -121,9 +127,21 @@ func (s *SyncthingInstaller) install(version string) (string, error) {
 
 	i := s.BinPath
 
+	_ = filepath.WalkDir(filepath.Dir(i), func(path string, d fs.DirEntry, err error) error {
+		_ = os.Remove(path)
+		return nil
+	})
+
 	if FileExists(i) {
-		if err := os.Remove(i); err != nil {
+		if err = os.Remove(i); err != nil {
 			log.Debugf("Failed to delete %s, will try to overwrite: %s", i, err)
+			if err = os.Rename(i, filepath.Join(filepath.Dir(i), uuid.New().String()+filepath.Base(i))); err != nil {
+				str := fmt.Sprintf("Can't rename file: %s --> %s", i, uuid.New().String()+filepath.Base(i))
+				log.Debugf(str)
+				if utils.IsWindows() {
+					return str, err
+				}
+			}
 		}
 	}
 
@@ -146,7 +164,7 @@ func (s *SyncthingInstaller) isInstalled() bool {
 	return !os.IsNotExist(err)
 }
 
-func (s *SyncthingInstaller) needToDownloadByVersionAndCommitId() []string {
+func (s *SyncthingInstaller) getCompatibilityByVersionAndCommitId() ([]string, bool) {
 	var installCandidate []string
 
 	defer func() {
@@ -160,19 +178,19 @@ func (s *SyncthingInstaller) needToDownloadByVersionAndCommitId() []string {
 
 	if s.Version != "" {
 		if s.exec("-nocalhost") == s.Version {
-			return installCandidate
+			return installCandidate, false
 		}
 		installCandidate = append(installCandidate, s.Version)
 	}
 
 	if s.CommitId != "" {
 		if s.exec("-nocalhost-commit-id") == s.CommitId {
-			return installCandidate
+			return installCandidate, false
 		}
 		installCandidate = append(installCandidate, s.CommitId)
 	}
 
-	return installCandidate
+	return installCandidate, true
 }
 
 func (s *SyncthingInstaller) exec(flag string) string {
