@@ -34,13 +34,13 @@ import (
 
 var (
 	downloadURLs = map[string]string{
-		"linux": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz" +
+		"linux-amd64": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz" +
 			"?version=%s",
-		"arm64": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-arm64.tar.gz" +
+		"darwin-arm64": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.tar.gz" +
 			"?version=%s",
-		"darwin": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip" +
+		"darwin-amd64": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip" +
 			"?version=%s",
-		"windows": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip" +
+		"windows-amd64": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip" +
 			"?version=%s",
 	}
 
@@ -106,7 +106,7 @@ func (s *SyncthingInstaller) downloadSyncthing(version string) (string, error) {
 	var errorTips string
 	for i := 0; i < 3; i++ {
 		p := &utils.ProgressBar{}
-		d := 20 * time.Second
+		d := 40 * time.Second
 		errorTips, err = s.install(version, p, d)
 		if err == nil {
 			return "", nil
@@ -212,7 +212,7 @@ func (s *SyncthingInstaller) install(version string, p getter.ProgressTracker, d
 		return errorTips, err
 	}
 
-	fmt.Printf("downloaded syncthing %s to %s\n", version, i)
+	log.Infof("downloaded syncthing %s to %s\n", version, i)
 	return "", nil
 }
 
@@ -234,14 +234,14 @@ func (s *SyncthingInstaller) needToDownloadByVersionAndCommitId() []string {
 	}()
 
 	if s.Version != "" {
-		if s.exec("-nocalhost") == s.Version {
+		if s.exec("serve", "-nocalhost") == s.Version {
 			return installCandidate
 		}
 		installCandidate = append(installCandidate, s.Version)
 	}
 
 	if s.CommitId != "" {
-		if s.exec("-nocalhost-commit-id") == s.CommitId {
+		if s.exec("serve", "-nocalhost-commit-id") == s.CommitId {
 			return installCandidate
 		}
 		installCandidate = append(installCandidate, s.CommitId)
@@ -250,11 +250,9 @@ func (s *SyncthingInstaller) needToDownloadByVersionAndCommitId() []string {
 	return installCandidate
 }
 
-func (s *SyncthingInstaller) exec(flag string) string {
-	cmdArgs := []string{
-		flag,
-	}
-	output, err := exec.Command(s.BinPath, cmdArgs...).Output()
+func (s *SyncthingInstaller) exec(flags ...string) string {
+
+	output, err := exec.Command(s.BinPath, flags...).Output()
 	if err != nil {
 		return ""
 	}
@@ -300,18 +298,11 @@ func FileExists(name string) bool {
 }
 
 func GetDownloadURL(os, arch, version string) (string, error) {
-	src, ok := downloadURLs[os]
-	if !ok {
-		return "", fmt.Errorf("%s is not a supported platform", os)
-	}
+	osArch := fmt.Sprintf("%s-%s", os, arch)
 
-	if os == "linux" {
-		switch arch {
-		case "arm":
-			return downloadURLs["arm"], nil
-		case "arm64":
-			return downloadURLs["arm64"], nil
-		}
+	src, ok := downloadURLs[osArch]
+	if !ok {
+		return "", fmt.Errorf("%s is not supported temporary!! you can contact us to support this version. ", osArch)
 	}
 
 	return fmt.Sprintf(src, version), nil

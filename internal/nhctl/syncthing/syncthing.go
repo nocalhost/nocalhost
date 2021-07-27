@@ -277,6 +277,7 @@ func (s *Syncthing) Run(ctx context.Context) error {
 	pidPath := filepath.Join(s.LocalHome, syncthingPidFile)
 
 	cmdArgs := []string{
+		"serve",
 		"-home", s.LocalHome,
 		"-no-browser",
 		"-verbose",
