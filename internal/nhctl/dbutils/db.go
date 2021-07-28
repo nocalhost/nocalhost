@@ -17,7 +17,9 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	leveldb_errors "github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/syndtr/goleveldb/leveldb/storage"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 	"strconv"
 	"syscall"
 	"time"
@@ -26,11 +28,27 @@ import (
 // Initial a level db
 // If leveldb already exists, return error
 func CreateLevelDB(path string, errorIfExist bool) error {
-	db, err := leveldb.OpenFile(path, &opt.Options{
-		ErrorIfExist: errorIfExist,
-	})
-	if db != nil {
-		_ = db.Close()
+	options := &opt.Options{ErrorIfExist: errorIfExist}
+	db, err := leveldb.OpenFile(path, options)
+	defer func() {
+		if db != nil {
+			_ = db.Close()
+		}
+	}()
+	if errors.Is(err, storage.ErrLocked) {
+		log.Logf("Create leveldb failed, another process is accessing it, will retry after 0.002s")
+		for i := 0; i < 3000; i++ {
+			time.Sleep(time.Millisecond * 20)
+			db, err = leveldb.OpenFile(path, options)
+			if errors.Is(err, storage.ErrLocked) {
+				continue
+			} else {
+				if err == nil {
+					log.Logf("Create leveldb success, path: %s", path)
+				}
+				break
+			}
+		}
 	}
 	return errors.Wrap(err, "")
 }
@@ -52,7 +70,7 @@ func OpenLevelDB(path string, readonly bool) (*LevelDBUtils, error) {
 		if leveldb_errors.IsCorrupted(err) {
 			log.Log("Recovering leveldb file...")
 			db, err = leveldb.RecoverFile(path, nil)
-		} else if errors.Is(err, syscall.ENOENT) {
+		} else if errors.Is(err, syscall.ENOENT) || os.IsNotExist(err) {
 			return nil, errors.Wrap(err, "File not exist, not need to retry")
 		} else /*if errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EBUSY)*/ {
 			log.Logf("Another process is accessing leveldb: %s, wait for 0.002s to retry, err: %v", path, err)
