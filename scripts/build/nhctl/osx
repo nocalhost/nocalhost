@@ -13,5 +13,14 @@ source ./scripts/build/nhctl/.variables
 # Override TARGET
 TARGET="build/nhctl-$GOOS-$GOARCH"
 
+git clone https://github.com/nocalhost/syncthing.git
+cd syncthing
+go run build.go -targetName=syncthing -nocalhostVersion="${VERSION}" -nocalhostCommitId="${GITCOMMIT}"
+mv bin/syncthing ./../internal/nhctl/syncthing/bin/syncthing_macos_amd64 || true
+COPY bin/syncthing ./../internal/nhctl/syncthing/bin/syncthing_macos_amd64 || true
+cd ..
+rm -fr syncthing || true
+rmdir /s/q syncthing || true
+
 echo "Building $TARGET"
 go build -o "${TARGET}" -gcflags "all=-N -l" --ldflags "${LDFLAGS}" "${SOURCE}"
