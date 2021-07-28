@@ -812,22 +812,21 @@ func (a *Application) IsAnyServiceInDevMode() bool {
 	return false
 }
 
-func (a *Application) PortForwardFollow(podName string, localPort int, remotePort int, kubeconfig, ns string) error {
-	client, err := clientgoutils.NewClientGoUtils(kubeconfig, ns)
+func (a *Application) PortForwardFollow(podName string, localPort int, remotePort int, okChan chan struct{}) error {
+	client, err := clientgoutils.NewClientGoUtils(a.KubeConfig, a.NameSpace)
 	if err != nil {
-		panic(err)
+		return err
 	}
-
 	fps := []*clientgoutils.ForwardPort{{LocalPort: localPort, RemotePort: remotePort}}
-
 	pf, err := client.CreatePortForwarder(podName, fps)
 	if err != nil {
-		panic(err)
+		return err
 	}
-
 	errChan := make(chan error, 1)
 	go func() {
-		errChan <- pf.ForwardPorts()
+		if err = pf.ForwardPorts(); err != nil {
+			errChan <- err
+		}
 	}()
 	go func() {
 		for {
@@ -835,14 +834,12 @@ func (a *Application) PortForwardFollow(podName string, localPort int, remotePor
 			case <-pf.Ready:
 				fmt.Printf("Forwarding from 127.0.0.1:%d -> %d\n", localPort, remotePort)
 				fmt.Printf("Forwarding from [::1]:%d -> %d\n", localPort, remotePort)
+				if okChan != nil {
+					okChan <- struct{}{}
+				}
 				return
 			}
 		}
 	}()
-	for {
-		select {
-		case <-errChan:
-			fmt.Println("err")
-		}
-	}
+	return <-errChan
 }

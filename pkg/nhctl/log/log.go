@@ -27,7 +27,8 @@ import (
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
-var outLogger *zap.SugaredLogger
+var stdoutLogger *zap.SugaredLogger
+var stderrLogger *zap.SugaredLogger
 var fileEntry *zap.SugaredLogger
 var logFile string
 
@@ -37,17 +38,18 @@ var core zapcore.Core
 func init() {
 	// if log is not be initiated explicitly (use log.Init()),
 	// the default out logger will be used.
-	outLogger = getDefaultOutLogger()
+	stdoutLogger = getDefaultOutLogger(os.Stdout)
+	stderrLogger = getDefaultOutLogger(os.Stderr)
 	fields["PID"] = strconv.Itoa(os.Getpid())
 	fields["PPID"] = strconv.Itoa(os.Getppid())
 }
 
-func getDefaultOutLogger() *zap.SugaredLogger {
+func getDefaultOutLogger(w zapcore.WriteSyncer) *zap.SugaredLogger {
 	encoderConfig0 := zap.NewProductionEncoderConfig()
 	encoderConfig0.EncodeTime = nil
 	encoderConfig0.EncodeLevel = nil
 	encoder2 := zapcore.NewConsoleEncoder(encoderConfig0)
-	return zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stdout), zap.InfoLevel)).Sugar()
+	return zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stdout), zap.InfoLevel), zap.ErrorOutput(w)).Sugar()
 }
 
 func Init(level zapcore.Level, dir, fileName string) error {
@@ -57,7 +59,8 @@ func Init(level zapcore.Level, dir, fileName string) error {
 	encoderConfig0.EncodeTime = nil
 	encoderConfig0.EncodeLevel = nil
 	encoder2 := zapcore.NewConsoleEncoder(encoderConfig0)
-	outLogger = zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stdout), level)).Sugar()
+	stdoutLogger = zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stdout), level)).Sugar()
+	stderrLogger = zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stderr), level)).Sugar()
 
 	// file logger
 	logPath := filepath.Join(dir, fileName)
@@ -108,42 +111,42 @@ func AddField(key, val string) {
 }
 
 func Debug(args ...interface{}) {
-	outLogger.Debug(args...)
+	stdoutLogger.Debug(args...)
 	if fileEntry != nil {
 		fileEntry.Debug(args...)
 	}
 }
 
 func Debugf(format string, args ...interface{}) {
-	outLogger.Debugf(format, args...)
+	stdoutLogger.Debugf(format, args...)
 	if fileEntry != nil {
 		fileEntry.Debugf(format, args...)
 	}
 }
 
 func Info(args ...interface{}) {
-	outLogger.Info(args...)
+	stdoutLogger.Info(args...)
 	if fileEntry != nil {
 		fileEntry.Info(args...)
 	}
 }
 
 func Infof(format string, args ...interface{}) {
-	outLogger.Infof(format, args...)
+	stdoutLogger.Infof(format, args...)
 	if fileEntry != nil {
 		fileEntry.Infof(format, args...)
 	}
 }
 
 func Warn(args ...interface{}) {
-	outLogger.Warn(args...)
+	stdoutLogger.Warn(args...)
 	if fileEntry != nil {
 		fileEntry.Warn(args...)
 	}
 }
 
 func Warnf(format string, args ...interface{}) {
-	outLogger.Warnf(format, args...)
+	stdoutLogger.Warnf(format, args...)
 	if fileEntry != nil {
 		fileEntry.Warnf(format, args...)
 	}
@@ -155,21 +158,21 @@ func WarnE(err error, message string) {
 	}
 
 	if err != nil {
-		outLogger.Warn(fmt.Sprintf("%s: %s", message, err.Error()))
+		stdoutLogger.Warn(fmt.Sprintf("%s: %s", message, err.Error()))
 	} else {
-		outLogger.Warn(fmt.Sprintf("%s", message))
+		stdoutLogger.Warn(fmt.Sprintf("%s", message))
 	}
 }
 
 func Error(args ...interface{}) {
-	outLogger.Error(args...)
+	stdoutLogger.Error(args...)
 	if fileEntry != nil {
 		fileEntry.Error(args...)
 	}
 }
 
 func Errorf(format string, args ...interface{}) {
-	outLogger.Errorf(format, args...)
+	stdoutLogger.Errorf(format, args...)
 	if fileEntry != nil {
 		fileEntry.Errorf(format, args...)
 	}
@@ -180,9 +183,9 @@ func ErrorE(err error, message string) {
 		fileEntry.Errorf("%s, err: %+v", message, err)
 	}
 	if err != nil {
-		outLogger.Errorf("%s: %s", message, err.Error())
+		stdoutLogger.Errorf("%s: %s", message, err.Error())
 	} else {
-		outLogger.Errorf("%s", message)
+		stdoutLogger.Errorf("%s", message)
 	}
 }
 
@@ -190,23 +193,23 @@ func Fatal(args ...interface{}) {
 	if fileEntry != nil {
 		fileEntry.Error(args...)
 	}
-	outLogger.Fatal(args...)
+	stderrLogger.Fatal(args...)
 }
 
 func Fatalf(format string, args ...interface{}) {
 	if fileEntry != nil {
 		fileEntry.Errorf(format, args...)
 	}
-	outLogger.Fatalf(format, args...)
+	stderrLogger.Fatalf(format, args...)
 }
 
 // log with error
 func FatalE(err error, message string) {
 
 	if err != nil {
-		outLogger.Errorf("%s: %s", message, err.Error())
+		stderrLogger.Errorf("%s: %s", message, err.Error())
 	} else {
-		outLogger.Errorf("%s", message)
+		stderrLogger.Errorf("%s", message)
 	}
 
 	if fileEntry != nil {

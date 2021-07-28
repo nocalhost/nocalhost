@@ -19,6 +19,7 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	utils2 "nocalhost/pkg/nhctl/utils"
@@ -147,6 +148,20 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 		container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, syncDouble,
 	)
 	utils.ShouldI(err, "Failed to new syncthing")
+
+	// try install syncthing
+	var downloadVersion = Version
+
+	// for debug only
+	if devStartOps.SyncthingVersion != "" {
+		downloadVersion = devStartOps.SyncthingVersion
+	}
+
+	_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
+	mustI(
+		err, "Failed to install syncthing, no syncthing available locally in "+
+			newSyncthing.BinPath+" please try again.",
+	)
 
 	// starts up a local syncthing
 	utils.ShouldI(newSyncthing.Run(context.TODO()), "Failed to run syncthing")

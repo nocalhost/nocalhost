@@ -376,7 +376,7 @@ func generateSideCarContainer(workDir string) corev1.Container {
 	// over write syncthing command
 	sideCarContainer.Command = []string{"/bin/sh", "-c"}
 	sideCarContainer.Args = []string{
-		"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome +
+		"rc-service sshd restart && unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome +
 			"/* " + secret_config.DefaultSyncthingHome +
 			"/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing",
 	}

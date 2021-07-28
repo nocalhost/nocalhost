@@ -280,20 +280,6 @@ func enterDevMode() string {
 	newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
 	mustI(err, "Failed to create syncthing process, please try again")
 
-	// try install syncthing
-	var downloadVersion = Version
-
-	// for debug only
-	if devStartOps.SyncthingVersion != "" {
-		downloadVersion = devStartOps.SyncthingVersion
-	}
-
-	_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
-	mustI(
-		err, "Failed to install syncthing, no syncthing available locally in "+
-			newSyncthing.BinPath+" please try again.",
-	)
-
 	// set syncthing secret
 	config, err := newSyncthing.GetRemoteConfigXML()
 	must(err)

@@ -13,12 +13,14 @@
 package clientgoutils
 
 import (
+	"context"
 	"fmt"
 	dockerterm "github.com/moby/term"
 	"github.com/nocalhost/remotecommand"
 	"github.com/pkg/errors"
 	"io"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -27,6 +29,7 @@ import (
 	"k8s.io/client-go/util/exec"
 	"k8s.io/kubectl/pkg/util/term"
 	"net/url"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"time"
 )
@@ -52,6 +55,10 @@ func (c *ClientGoUtils) ExecShell(podName string, containerName string, shell st
 				os.Exit(0)
 			}
 			time.Sleep(time.Second * 1)
+			_, err = c.ClientSet.CoreV1().Pods(c.namespace).Get(context.Background(), podName, metav1.GetOptions{})
+			if k8serrors.IsNotFound(err) {
+				log.Fatal(err)
+			}
 		}
 	}()
 
