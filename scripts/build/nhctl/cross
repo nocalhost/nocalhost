@@ -11,7 +11,8 @@ export SHELL=bash
 jobs=(
     "$BUILDDIR/windows" \
     "$BUILDDIR/osx" \
-    "$BUILDDIR/linux"
+    "$BUILDDIR/linux" \
+    "$BUILDDIR/osx-arm"
 )
 
 for job in "${jobs[@]}"
