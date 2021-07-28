@@ -74,17 +74,17 @@ func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
 	case appmeta.Helm, appmeta.HelmLocal:
 		return a.upgradeForHelm(installFlags, false)
 	case appmeta.Manifest, appmeta.ManifestLocal, appmeta.ManifestGit:
-		return a.upgradeForManifest(installFlags)
+		return a.upgradeForManifest()
 	case appmeta.KustomizeGit, appmeta.KustomizeLocal:
-		return a.upgradeForKustomize(installFlags)
+		return a.upgradeForKustomize()
 	default:
 		return errors.New("Unsupported app type")
 	}
 }
 
-func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error {
+func (a *Application) upgradeForKustomize() error {
 	var err error
-	resourcesPath := a.GetResourceDir(a.ResourceTmpDir)
+	resourcesPath := a.GetAppMeta().LoadPath(a.ResourceTmpDir, appmeta.ResourcePath)
 	if len(resourcesPath) > 1 {
 		log.Warn(`There are multiple resourcesPath settings, will use first one`)
 	}
@@ -106,14 +106,8 @@ func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error
 	return a.CleanUpTmpResources()
 }
 
-func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error {
-
-	profileV2, err := a.GetProfile()
-	if err != nil {
-		return err
-	}
-	// todo need to refactor
-	_, manifests := profileV2.LoadManifests(a.ResourceTmpDir)
+func (a *Application) upgradeForManifest() error {
+	manifests := a.GetAppMeta().LoadManifestsEscapeHook(a.ResourceTmpDir)
 
 	// Read upgrade resource obj
 	updateResource, err := clientgoutils.NewManifestResourceReader(manifests).LoadResource()
@@ -223,13 +217,7 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 		log.Info(err.Error())
 	}
 
-	resourceDir := a.ResourceTmpDir
-	appProfile, err := a.GetProfile()
-	if err != nil {
-		return err
-	}
-
-	releaseName := appProfile.ReleaseName
+	var releaseName string
 	if releaseName == "" {
 		releaseName = a.appMeta.HelmReleaseName
 	}
@@ -261,7 +249,12 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 			params = append(params, "--version", installFlags.HelmRepoVersion)
 		}
 	} else {
-		resourcesPath := a.GetResourceDir(resourceDir)
+		resourcesPath := a.GetAppMeta().LoadPath(a.ResourceTmpDir, appmeta.ResourcePath)
+
+		if len(resourcesPath) > 1 {
+			log.Warn(`There are multiple resourcesPath settings, will use first one`)
+		}
+
 		params = append(params, resourcesPath[0])
 		log.Info("building dependency...")
 		depParams := []string{"dependency", "build", resourcesPath[0]}

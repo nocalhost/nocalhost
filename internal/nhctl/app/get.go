@@ -12,10 +12,6 @@
 
 package app
 
-import (
-	"path/filepath"
-)
-
 func (a *Application) GetDependencies() []*SvcDependency {
 	result := make([]*SvcDependency, 0)
 
@@ -42,26 +38,26 @@ func (a *Application) GetDependencies() []*SvcDependency {
 	return result
 }
 
-// Get local path of resource dirs
-// If resource path undefined, use git url
-func (a *Application) GetResourceDir(tmpDir string) []string {
-	appProfile, _ := a.GetProfile()
-	var resourcePath []string
-	if len(appProfile.ResourcePath) != 0 {
-		for _, path := range appProfile.ResourcePath {
-			fullPath := filepath.Join(tmpDir, path)
-			resourcePath = append(resourcePath, fullPath)
-		}
-		return resourcePath
-	}
-	return []string{tmpDir}
-}
+//// Get local path of resource dirs
+//// If resource path undefined, use git url
+//func (a *Application) GetResourceDir(tmpDir string) []string {
+//	appProfile, _ := a.GetProfile()
+//	var resourcePath []string
+//	if len(appProfile.ResourcePath) != 0 {
+//		for _, path := range appProfile.ResourcePath {
+//			fullPath := filepath.Join(tmpDir, path)
+//			resourcePath = append(resourcePath, fullPath)
+//		}
+//		return resourcePath
+//	}
+//	return []string{tmpDir}
+//}
 
-func (a *Application) getIgnoredPath() []string {
-	appProfile, _ := a.GetProfile()
-	results := make([]string, 0)
-	for _, path := range appProfile.IgnoredPath {
-		results = append(results, filepath.Join(a.ResourceTmpDir, path))
-	}
-	return results
-}
+//func (a *Application) getIgnoredPath() []string {
+//	appProfile, _ := a.GetProfile()
+//	results := make([]string, 0)
+//	for _, path := range appProfile.IgnoredPath {
+//		results = append(results, filepath.Join(a.ResourceTmpDir, path))
+//	}
+//	return results
+//}

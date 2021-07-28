@@ -132,10 +132,9 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	appProfileV2.Kubeconfig = kubeconfig
 
 	if len(flags.ResourcePath) != 0 {
-		appProfileV2.ResourcePath = flags.ResourcePath
+		// may cause nil pointer but should fix
+		appMeta.Config.ApplicationConfig.ResourcePath = flags.ResourcePath
 	}
-
-	app.AppType = appProfileV2.AppType
 
 	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
 }
@@ -185,11 +184,11 @@ func (a *Application) loadOrGenerateConfig(
 }
 
 func updateProfileFromConfig(appProfileV2 *profile.AppProfileV2, config *profile.NocalHostAppConfigV2) {
-	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
-	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
-	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
-	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
-	appProfileV2.Env = config.ApplicationConfig.Env
+	//appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
+	//appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
+	//appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
+	//appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
+	//appProfileV2.Env = config.ApplicationConfig.Env
 
 	if len(appProfileV2.SvcProfile) == 0 {
 		appProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
@@ -218,11 +217,11 @@ func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.Ap
 	if config == nil || config.ApplicationConfig == nil {
 		return appProfileV2
 	}
-	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
-	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
-	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
-	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
-	appProfileV2.Env = config.ApplicationConfig.Env
+	//appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
+	//appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
+	//appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
+	//appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
+	//appProfileV2.Env = config.ApplicationConfig.Env
 
 	appProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
 	for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {

@@ -15,10 +15,11 @@ package fp
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/syncthing/network/req"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +47,7 @@ type FilePathEnhance struct {
 	mu      sync.Mutex
 }
 
-func NewRandomTempPath() *FilePathEnhance{
+func NewRandomTempPath() *FilePathEnhance {
 	dir, _ := ioutil.TempDir("", "")
 	return NewFilePath(dir)
 }
@@ -161,11 +162,11 @@ func (f *FilePathEnhance) CheckExist() error {
 }
 
 func (f *FilePathEnhance) Mkdir() error {
-	return os.MkdirAll(f.absPath, nocalhost.DefaultNewFilePermission)
+	return os.MkdirAll(f.absPath, 0700)
 }
 
-func (f *FilePathEnhance) MkdirThen() *FilePathEnhance{
-	_ = os.MkdirAll(f.absPath, nocalhost.DefaultNewFilePermission)
+func (f *FilePathEnhance) MkdirThen() *FilePathEnhance {
+	_ = os.MkdirAll(f.absPath, 0700)
 	return f
 }
 
@@ -200,4 +201,31 @@ func downloadFile(url string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	return bs, nil
+}
+
+func (f *FilePathEnhance) ReadAsEnvFile() map[string]string {
+	result := make(map[string]string, 0)
+	return f.ReadAsEnvFileInto(result)
+}
+
+func (f *FilePathEnhance) ReadAsEnvFileInto(readInto map[string] string) map[string]string {
+	if err := f.CheckExist(); err != nil {
+		log.WarnE(errors.Wrap(err, ""), fmt.Sprintf("Failed to read env file from: %s, file not exist.", f.absPath))
+		return readInto
+	}
+
+	vip := viper.New()
+	vip.AddConfigPath(filepath.Dir(f.absPath))
+	vip.SetConfigType("env")
+	vip.SetConfigName(filepath.Base(f.absPath))
+
+	if err := vip.ReadInConfig(); err != nil {
+		log.WarnE(errors.Wrap(err, ""), fmt.Sprintf("Failed to read env file from: %s", f.absPath))
+	}
+
+	for _, key := range vip.AllKeys() {
+		readInto[key] = vip.GetString(key)
+	}
+
+	return readInto
 }

@@ -12,21 +12,14 @@
 
 package profile
 
-import (
-	"os"
-	"path/filepath"
-	"sort"
-	"strconv"
-)
-
 // Deprecated
 type NocalHostAppConfig struct {
-	PreInstall   SortedRelPath        `json:"onPreInstall" yaml:"onPreInstall"`
-	ResourcePath RelPath              `json:"resourcePath" yaml:"resourcePath"`
-	SvcConfigs   []*ServiceDevOptions `json:"services" yaml:"services"`
-	Name         string               `json:"name" yaml:"name"`
-	Type         string               `json:"manifestType" yaml:"manifestType"`
-	IgnoredPath  RelPath              `json:"ignoredPath" yaml:"ignoredPath"`
+	PreInstall   SortedRelPath `json:"onPreInstall" yaml:"onPreInstall"`
+	ResourcePath RelPath       `json:"resourcePath" yaml:"resourcePath"`
+	SvcConfigs   []*ServiceDevOptions  `json:"services" yaml:"services"`
+	Name         string                `json:"name" yaml:"name"`
+	Type         string                `json:"manifestType" yaml:"manifestType"`
+	IgnoredPath  RelPath       `json:"ignoredPath" yaml:"ignoredPath"`
 }
 
 type PersistentVolumeDir struct {
@@ -65,61 +58,4 @@ type ServiceDevOptions struct {
 	Pods                  []string               `json:"dependPodsLabelSelector" yaml:"dependPodsLabelSelector,omitempty"`
 	SyncedPattern         []string               `json:"syncFilePattern" yaml:"syncFilePattern"`
 	IgnoredPattern        []string               `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
-}
-
-type PreInstallItem struct {
-	Path   string `json:"path" yaml:"path"`
-	Weight string `json:"weight" yaml:"weight"`
-}
-
-type NocalhostResource interface {
-	Load(resourceDir string) []string
-}
-
-type SortedRelPath []*PreInstallItem
-
-func (c *SortedRelPath) Load(resourceDir string) []string {
-	result := make([]string, 0)
-	if c != nil {
-		sort.Sort(c)
-		for _, item := range *c {
-			itemPath := filepath.Join(resourceDir, item.Path)
-			if _, err2 := os.Stat(itemPath); err2 != nil {
-				continue
-			}
-			result = append(result, itemPath)
-		}
-	}
-	return result
-}
-
-type RelPath []string
-
-func (c *RelPath) Load(resourceDir string) []string {
-	result := make([]string, 0)
-	if c != nil {
-		for _, item := range *c {
-			itemPath := filepath.Join(resourceDir, item)
-			if _, err2 := os.Stat(itemPath); err2 != nil {
-				continue
-			}
-			result = append(result, itemPath)
-		}
-	}
-	return result
-}
-
-func (a SortedRelPath) Len() int      { return len(a) }
-func (a SortedRelPath) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a SortedRelPath) Less(i, j int) bool {
-	iW, err := strconv.Atoi(a[i].Weight)
-	if err != nil {
-		iW = 0
-	}
-
-	jW, err := strconv.Atoi(a[j].Weight)
-	if err != nil {
-		jW = 0
-	}
-	return iW < jW
 }

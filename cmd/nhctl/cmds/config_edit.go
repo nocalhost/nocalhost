@@ -67,7 +67,8 @@ var configEditCmd = &cobra.Command{
 		if configEditFlags.AppConfig {
 			applicationConfig := &profile.ApplicationConfig{}
 			must(errors.Wrap(json.Unmarshal(bys, applicationConfig), "fail to unmarshal content"))
-			must(nocalhostApp.SaveAppProfileV2(applicationConfig))
+			nocalhostApp.GetAppMeta().Config.ApplicationConfig = applicationConfig
+			must(nocalhostApp.GetAppMeta().Update())
 			return
 		}
 

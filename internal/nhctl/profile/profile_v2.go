@@ -20,7 +20,6 @@ import (
 	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
 	"strings"
 )
@@ -35,26 +34,26 @@ type AppProfileV2 struct {
 	Name string `json:"name" yaml:"name"`
 
 	// install/uninstall field, should move out of profile
-	// Deprecated
-	ChartName string `json:"chartName" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
-	// Deprecated TODO move to appMeta
-	ReleaseName string `json:"releaseName yaml:releaseName"`
-	// Deprecated
-	DependencyConfigMapName string `json:"dependencyConfigMapName" yaml:"dependencyConfigMapName,omitempty"`
+	//// Deprecated
+	//ChartName string `json:"chartName" yaml:"chartName,omitempty"` // This name may come from config.yaml or --helm-chart-name
+	//// Deprecated TODO move to appMeta
+	//ReleaseName string `json:"releaseName yaml:releaseName"`
+	//// Deprecated
+	//DependencyConfigMapName string `json:"dependencyConfigMapName" yaml:"dependencyConfigMapName,omitempty"`
 	// Deprecated
 	Installed bool `json:"installed" yaml:"installed"`
-	// Deprecated
-	ResourcePath RelPath `json:"resourcePath" yaml:"resourcePath"`
-	// Deprecated
-	IgnoredPath RelPath `json:"ignoredPath" yaml:"ignoredPath"`
-	// Deprecated
-	PreInstall SortedRelPath `json:"onPreInstall" yaml:"onPreInstall"`
-	// Deprecated
-	AppType string `json:"appType" yaml:"appType"`
-	// Deprecated
-	Env []*Env `json:"env" yaml:"env"`
-	// Deprecated
-	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
+	//// Deprecated
+	//ResourcePath RelPath `json:"resourcePath" yaml:"resourcePath"`
+	//// Deprecated
+	//IgnoredPath RelPath `json:"ignoredPath" yaml:"ignoredPath"`
+	//// Deprecated
+	//PreInstall SortedRelPath `json:"onPreInstall" yaml:"onPreInstall"`
+	//// Deprecated
+	//AppType string `json:"appType" yaml:"appType"`
+	//// Deprecated
+	//Env []*Env `json:"env" yaml:"env"`
+	//// Deprecated
+	//EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
 
 	// app global field
 	Namespace  string `json:"namespace" yaml:"namespace"`
@@ -73,13 +72,17 @@ type AppProfileV2 struct {
 	ns      string
 }
 
-func (a *AppProfileV2) LoadManifests(tmpDir string) ([]string, []string) {
-	preInstallManifests := a.PreInstall.Load(tmpDir)
-	allManifests := a.ResourcePath.Load(tmpDir)
-	ignore := a.IgnoredPath.Load(tmpDir)
-
-	return preInstallManifests, clientgoutils.LoadValidManifest(allManifests, append(preInstallManifests, ignore...))
-}
+//func (a *AppProfileV2) LoadPreInstallManifest(parentDir string) []string {
+//	return a.PreInstall.Load(parentDir)
+//}
+//
+//func (a *AppProfileV2) LoadManifestsEscapeHook(parentDir string) []string {
+//	preInstallManifests := a.PreInstall.Load(parentDir)
+//	allManifests := a.ResourcePath.Load(parentDir)
+//	ignore := a.IgnoredPath.Load(parentDir)
+//
+//	return clientgoutils.LoadValidManifest(allManifests, append(preInstallManifests, ignore...))
+//}
 
 func ProfileV2Key(ns, app string) string {
 	return fmt.Sprintf("%s.%s.profile.v2", ns, app)

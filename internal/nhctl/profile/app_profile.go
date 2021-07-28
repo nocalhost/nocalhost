@@ -12,6 +12,13 @@
 
 package profile
 
+import (
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+)
+
 // Deprecated: this struct is deprecated
 type AppProfile struct {
 	path                    string
@@ -26,4 +33,62 @@ type AppProfile struct {
 	Installed               bool          `json:"installed" yaml:"installed"`
 	ResourcePath            []string      `json:"resource_path" yaml:"resourcePath"`
 	IgnoredPath             []string      `json:"ignoredPath" yaml:"ignoredPath"`
+}
+
+
+type WeightablePath struct {
+	Path   string `json:"path" yaml:"path"`
+	Weight string `json:"weight" yaml:"weight"`
+}
+
+type NocalhostResource interface {
+	Load(resourceDir string) []string
+}
+
+type SortedRelPath []*WeightablePath
+
+func (s *SortedRelPath) Load(resourceDir string) []string {
+	result := make([]string, 0)
+	if s != nil {
+		sort.Sort(s)
+		for _, item := range *s {
+			itemPath := filepath.Join(resourceDir, item.Path)
+			if _, err2 := os.Stat(itemPath); err2 != nil {
+				continue
+			}
+			result = append(result, itemPath)
+		}
+	}
+	return result
+}
+
+type RelPath []string
+
+func (c *RelPath) Load(resourceDir string) []string {
+	result := make([]string, 0)
+	if c != nil {
+		for _, item := range *c {
+			itemPath := filepath.Join(resourceDir, item)
+			if _, err2 := os.Stat(itemPath); err2 != nil {
+				continue
+			}
+			result = append(result, itemPath)
+		}
+	}
+	return result
+}
+
+func (s SortedRelPath) Len() int      { return len(s) }
+func (s SortedRelPath) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s SortedRelPath) Less(i, j int) bool {
+	iW, err := strconv.Atoi(s[i].Weight)
+	if err != nil {
+		iW = 0
+	}
+
+	jW, err := strconv.Atoi(s[j].Weight)
+	if err != nil {
+		jW = 0
+	}
+	return iW < jW
 }

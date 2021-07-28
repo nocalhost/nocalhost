@@ -37,13 +37,13 @@ func (a *Application) Install(flags *HelmFlags) (err error) {
 	}
 	switch a.appMeta.ApplicationType {
 	case appmeta.Helm, appmeta.HelmLocal:
-		err = a.installHelm(a.appMeta, flags, a.ResourceTmpDir, false)
+		err = a.installHelm(flags, false)
 	case appmeta.HelmRepo:
-		err = a.installHelm(a.appMeta, flags, a.ResourceTmpDir, true)
+		err = a.installHelm(flags, true)
 	case appmeta.Manifest, appmeta.ManifestLocal, appmeta.ManifestGit:
-		err = a.InstallManifest(a.appMeta, a.ResourceTmpDir, true)
+		err = a.InstallManifest(true)
 	case appmeta.KustomizeGit, appmeta.KustomizeLocal:
-		err = a.InstallKustomize(a.appMeta, a.ResourceTmpDir, true)
+		err = a.InstallKustomize(true)
 	default:
 		return errors.New(
 			fmt.Sprintf(
@@ -63,8 +63,8 @@ func (a *Application) Install(flags *HelmFlags) (err error) {
 }
 
 // Install different type of Application: Kustomize
-func (a *Application) InstallKustomize(appMeta *appmeta.ApplicationMeta, resourceDir string, doApply bool) error {
-	resourcesPath := a.GetResourceDir(resourceDir)
+func (a *Application) InstallKustomize(doApply bool) error {
+	resourcesPath := a.GetAppMeta().LoadPath(a.ResourceTmpDir, appmeta.ResourcePath)
 	if len(resourcesPath) > 1 {
 		log.Warn(`There are multiple resourcesPath settings, will use first one`)
 	}
@@ -76,8 +76,8 @@ func (a *Application) InstallKustomize(appMeta *appmeta.ApplicationMeta, resourc
 			SetDoApply(doApply).
 			SetBeforeApply(
 				func(manifest string) error {
-					appMeta.Manifest = appMeta.Manifest + manifest
-					return appMeta.Update()
+					a.GetAppMeta().Manifest = a.GetAppMeta().Manifest + manifest
+					return a.GetAppMeta().Update()
 				},
 			),
 		useResourcePath,
@@ -89,28 +89,28 @@ func (a *Application) InstallKustomize(appMeta *appmeta.ApplicationMeta, resourc
 }
 
 // Install different type of Application: Manifest
-func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta, resourceDir string, doApply bool) error {
-	p, err := a.GetProfile()
-	if err != nil {
-		return err
-	}
+func (a *Application) InstallManifest(doApply bool) error {
+	//p, err := a.GetProfile()
+	//if err != nil {
+	//	return err
+	//}
 
-	preInstallManifests, manifests := p.LoadManifests(resourceDir)
-
-	err = a.client.ApplyAndWait(
-		preInstallManifests, true,
-		StandardNocalhostMetas(a.Name, a.NameSpace).
-			SetDoApply(doApply).
-			SetBeforeApply(
-				func(manifest string) error {
-					appMeta.PreInstallManifest = appMeta.PreInstallManifest + manifest
-					return appMeta.Update()
-				},
-			),
-	)
-	if err != nil { // that's the error that could not be skip
-		return err
-	}
+	manifests := a.GetAppMeta().LoadManifestsEscapeHook(a.ResourceTmpDir)
+	//
+	//err = a.client.ApplyAndWait(
+	//	preInstallManifests, true,
+	//	StandardNocalhostMetas(a.Name, a.NameSpace).
+	//		SetDoApply(doApply).
+	//		SetBeforeApply(
+	//			func(manifest string) error {
+	//				appMeta.PreInstallManifest = appMeta.PreInstallManifest + manifest
+	//				return appMeta.Update()
+	//			},
+	//		),
+	//)
+	//if err != nil { // that's the error that could not be skip
+	//	return err
+	//}
 
 	return a.client.Apply(
 		manifests, true,
@@ -118,8 +118,8 @@ func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta, resource
 			SetDoApply(doApply).
 			SetBeforeApply(
 				func(manifest string) error {
-					appMeta.Manifest = appMeta.Manifest + manifest
-					return appMeta.Update()
+					a.GetAppMeta().Manifest = a.GetAppMeta().Manifest + manifest
+					return a.GetAppMeta().Update()
 				},
 			),
 		"",
@@ -127,9 +127,7 @@ func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta, resource
 }
 
 // Install different type of Application: Helm
-func (a *Application) installHelm(
-	appMeta *appmeta.ApplicationMeta, flags *HelmFlags, resourceDir string, fromRepo bool,
-) error {
+func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 	log.Info("Updating helm repo...")
 	_, err := tools.ExecCommand(nil, true, false, false, "helm", "repo", "update")
 	if err != nil {
@@ -137,8 +135,8 @@ func (a *Application) installHelm(
 	}
 
 	releaseName := a.Name
-	appMeta.HelmReleaseName = releaseName
-	if err := appMeta.Update(); err != nil {
+	a.GetAppMeta().HelmReleaseName = releaseName
+	if err := a.GetAppMeta().Update(); err != nil {
 		return err
 	}
 
@@ -153,13 +151,14 @@ func (a *Application) installHelm(
 		commonParams = append(commonParams, "--debug")
 	}
 
-	var resourcesPath []string
-	if !fromRepo {
-		resourcesPath = a.GetResourceDir(resourceDir)
-	}
-
 	installParams := []string{"install", releaseName}
 	if !fromRepo {
+		resourcesPath := a.GetAppMeta().LoadPath(a.ResourceTmpDir, appmeta.ResourcePath)
+
+		if len(resourcesPath) > 1 {
+			log.Warn(`There are multiple resourcesPath settings, will use first one`)
+		}
+
 		installParams = append(installParams, resourcesPath[0])
 		log.Info("building dependency...")
 		depParams := []string{"dependency", "build", resourcesPath[0]}

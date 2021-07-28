@@ -19,32 +19,6 @@ import (
 	profile2 "nocalhost/internal/nhctl/profile"
 )
 
-func ConvertAppProfileFileV1ToV2(srcFile string, destFile string) error {
-	bytes, err := ioutil.ReadFile(srcFile)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	profile := &profile2.AppProfile{}
-	err = yaml.Unmarshal(bytes, profile)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	profileV2, err := convertProfileV1ToV2(profile)
-	if err != nil {
-		return err
-	}
-
-	v2Bytes, err := yaml.Marshal(profileV2)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	err = ioutil.WriteFile(destFile, v2Bytes, 0644)
-	return errors.Wrap(err, "")
-}
-
 func ConvertConfigFileV1ToV2(srcFile string, destFile string) error {
 	bytes, err := ioutil.ReadFile(srcFile)
 	if err != nil {
@@ -71,49 +45,6 @@ func ConvertConfigFileV1ToV2(srcFile string, destFile string) error {
 	return errors.Wrap(err, "")
 }
 
-func convertProfileV1ToV2(profileV1 *profile2.AppProfile) (*profile2.AppProfileV2, error) {
-	if profileV1 == nil {
-		return nil, errors.New("V1 profile can not be nil")
-	}
-
-	profileV2 := &profile2.AppProfileV2{
-		Name:                    profileV1.Name,
-		ChartName:               profileV1.ChartName,
-		ReleaseName:             profileV1.ReleaseName,
-		Namespace:               profileV1.Namespace,
-		Kubeconfig:              profileV1.Kubeconfig,
-		DependencyConfigMapName: profileV1.DependencyConfigMapName,
-		SvcProfile:              nil,
-		Installed:               profileV1.Installed,
-		ResourcePath:            profileV1.ResourcePath,
-		IgnoredPath:             profileV1.IgnoredPath,
-	}
-
-	svcProfiles := make([]*profile2.SvcProfileV2, 0)
-	for _, svcProfileV1 := range profileV1.SvcProfile {
-		svcProfileV2 := &profile2.SvcProfileV2{
-			ServiceConfigV2:                        convertServiceConfigV1ToV2(svcProfileV1.ServiceDevOptions),
-			ContainerProfile:                       nil,
-			ActualName:                             svcProfileV1.ActualName,
-			Developing:                             svcProfileV1.Developing,
-			PortForwarded:                          svcProfileV1.PortForwarded,
-			Syncing:                                svcProfileV1.Syncing,
-			RemoteSyncthingPort:                    svcProfileV1.RemoteSyncthingPort,
-			RemoteSyncthingGUIPort:                 svcProfileV1.RemoteSyncthingGUIPort,
-			SyncthingSecret:                        svcProfileV1.SyncthingSecret,
-			LocalSyncthingPort:                     svcProfileV1.LocalSyncthingPort,
-			LocalSyncthingGUIPort:                  svcProfileV1.LocalSyncthingGUIPort,
-			LocalAbsoluteSyncDirFromDevStartPlugin: svcProfileV1.LocalAbsoluteSyncDirFromDevStartPlugin,
-			//DevPortList:                            svcProfileV1.DevPortList,
-			//PortForwardStatusList: svcProfileV1.PortForwardStatusList,
-			//PortForwardPidList: svcProfileV1.PortForwardPidList,
-		}
-		svcProfiles = append(svcProfiles, svcProfileV2)
-	}
-
-	profileV2.SvcProfile = svcProfiles
-	return profileV2, nil
-}
 func convertConfigV1ToV2(configV1 *profile2.NocalHostAppConfig) (*profile2.NocalHostAppConfigV2, error) {
 	if configV1 == nil {
 		return nil, errors.New("V1 config can not be nil")

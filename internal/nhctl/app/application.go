@@ -45,7 +45,6 @@ type Application struct {
 	Name       string
 	NameSpace  string
 	KubeConfig string
-	AppType    string
 
 	// may be nil, only for install or upgrade
 	// dir use to load the user's resource
@@ -108,15 +107,15 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		return nil, err
 	}
 
-	// if appMeta is not installed but application installed in earlier version
-	// should make a fake installation and generate an application meta
-	if app.generateSecretForEarlierVer() {
-
-		// load app meta if generate secret for earlier verion
-		if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
-			return nil, err
-		}
-	}
+	//// if appMeta is not installed but application installed in earlier version
+	//// should make a fake installation and generate an application meta
+	//if app.generateSecretForEarlierVer() {
+	//
+	//	// load app meta if generate secret for earlier verion
+	//	if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
+	//		return nil, err
+	//	}
+	//}
 
 	if !app.appMeta.IsInstalled() {
 		return nil, errors.Wrap(ErrNotFound, fmt.Sprintf("%s-%s not found", app.NameSpace, app.Name))
@@ -131,7 +130,6 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 			return nil, err
 		}
 	}
-	app.AppType = profileV2.AppType
 
 	if kubeconfig != "" && kubeconfig != profileV2.Kubeconfig {
 		if err := app.UpdateProfile(
@@ -153,78 +151,78 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	return app, nil
 }
 
-func (a *Application) generateSecretForEarlierVer() bool {
-
-	a.GetHomeDir()
-	profileV2, err := a.GetProfile()
-	if err != nil {
-		return false
-	}
-
-	if a.HasBeenGenerateSecret() {
-		return false
-	}
-
-	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() &&
-		a.Name != nocalhost.DefaultNocalhostApplication {
-		a.AppType = profileV2.AppType
-
-		defer func() {
-			log.Logf("Mark application %s in ns %s has been secreted", a.Name, a.NameSpace)
-			_ = a.UpdateProfile(
-				func(p *profile.AppProfileV2) error {
-					p.Secreted = true
-					return nil
-				},
-			)
-		}()
-
-		if err := a.appMeta.Initial(); err != nil {
-			log.ErrorE(err, "")
-			return true
-		}
-		log.Logf("Earlier version installed application found, generate a secret...")
-
-		profileV2.GenerateIdentifierIfNeeded()
-		_ = nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
-
-		// config、manifest is missing while adaption update
-		a.appMeta.Config = a.newConfigFromProfile()
-		a.appMeta.DepConfigName = profileV2.DependencyConfigMapName
-		a.appMeta.Ns = a.NameSpace
-		a.appMeta.ApplicationType = appmeta.AppTypeOf(a.AppType)
-
-		_ = a.appMeta.Update()
-
-		a.client, err = a.appMeta.GetClient()
-		if err != nil {
-			log.Error(err)
-		}
-		switch a.AppType {
-		case string(appmeta.Manifest), string(appmeta.ManifestLocal), string(appmeta.ManifestGit):
-			_ = a.InstallManifest(a.appMeta, a.getResourceDir(), false)
-		case string(appmeta.KustomizeGit):
-			_ = a.InstallKustomize(a.appMeta, a.getResourceDir(), false)
-		default:
-		}
-
-		for _, svc := range profileV2.SvcProfile {
-			if svc.Developing {
-				_ = a.appMeta.SvcDevStart(svc.Name, base.SvcType(svc.Type), profileV2.Identifier)
-			}
-		}
-
-		a.appMeta.ApplicationState = appmeta.INSTALLED
-		_ = a.appMeta.Update()
-
-		log.Logf("Application %s in ns %s is completed secreted", a.Name, a.NameSpace)
-		return false
-	}
-
-	a.MarkAsGenerated()
-
-	return false
-}
+//func (a *Application) generateSecretForEarlierVer() bool {
+//
+//	a.GetHomeDir()
+//	profileV2, err := a.GetProfile()
+//	if err != nil {
+//		return false
+//	}
+//
+//	if a.HasBeenGenerateSecret() {
+//		return false
+//	}
+//
+//	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() &&
+//		a.Name != nocalhost.DefaultNocalhostApplication {
+//		a.AppType = profileV2.AppType
+//
+//		defer func() {
+//			log.Logf("Mark application %s in ns %s has been secreted", a.Name, a.NameSpace)
+//			_ = a.UpdateProfile(
+//				func(p *profile.AppProfileV2) error {
+//					p.Secreted = true
+//					return nil
+//				},
+//			)
+//		}()
+//
+//		if err := a.appMeta.Initial(); err != nil {
+//			log.ErrorE(err, "")
+//			return true
+//		}
+//		log.Logf("Earlier version installed application found, generate a secret...")
+//
+//		profileV2.GenerateIdentifierIfNeeded()
+//		_ = nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
+//
+//		// config、manifest is missing while adaption update
+//		a.appMeta.Config = a.newConfigFromProfile()
+//		a.appMeta.DepConfigName = profileV2.DependencyConfigMapName
+//		a.appMeta.Ns = a.NameSpace
+//		a.appMeta.ApplicationType = appmeta.AppTypeOf(a.AppType)
+//
+//		_ = a.appMeta.Update()
+//
+//		a.client, err = a.appMeta.GetClient()
+//		if err != nil {
+//			log.Error(err)
+//		}
+//		switch a.AppType {
+//		case string(appmeta.Manifest), string(appmeta.ManifestLocal), string(appmeta.ManifestGit):
+//			_ = a.InstallManifest(a.appMeta, a.getResourceDir(), false)
+//		case string(appmeta.KustomizeGit):
+//			_ = a.InstallKustomize(a.appMeta, a.getResourceDir(), false)
+//		default:
+//		}
+//
+//		for _, svc := range profileV2.SvcProfile {
+//			if svc.Developing {
+//				_ = a.appMeta.SvcDevStart(svc.Name, base.SvcType(svc.Type), profileV2.Identifier)
+//			}
+//		}
+//
+//		a.appMeta.ApplicationState = appmeta.INSTALLED
+//		_ = a.appMeta.Update()
+//
+//		log.Logf("Application %s in ns %s is completed secreted", a.Name, a.NameSpace)
+//		return false
+//	}
+//
+//	a.MarkAsGenerated()
+//
+//	return false
+//}
 
 func (a *Application) ReloadCfg(reloadFromMeta, silence bool) error {
 	secretCfg := a.appMeta.Config
@@ -511,30 +509,30 @@ func doLoadProfileFromAppConfig(configFile *fp.FilePathEnhance, svcName string, 
 	return appConfig.GetSvcConfigV2(svcName, svcType), nil
 }
 
-func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {
-	if bys, err := ioutil.ReadFile(a.GetConfigV2Path()); err == nil {
-		p := &profile.NocalHostAppConfigV2{}
-		if err = yaml.Unmarshal(bys, p); err == nil {
-			return p
-		}
-	}
-	profileV2, _ := a.GetProfile()
-	return &profile.NocalHostAppConfigV2{
-		ConfigProperties: &profile.ConfigProperties{
-			Version: "v2",
-		},
-		ApplicationConfig: &profile.ApplicationConfig{
-			Name:           a.Name,
-			Type:           profileV2.AppType,
-			ResourcePath:   profileV2.ResourcePath,
-			IgnoredPath:    profileV2.IgnoredPath,
-			PreInstall:     profileV2.PreInstall,
-			Env:            profileV2.Env,
-			EnvFrom:        profileV2.EnvFrom,
-			ServiceConfigs: loadServiceConfigsFromProfile(profileV2.SvcProfile),
-		},
-	}
-}
+//func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {
+//	if bys, err := ioutil.ReadFile(a.GetConfigV2Path()); err == nil {
+//		p := &profile.NocalHostAppConfigV2{}
+//		if err = yaml.Unmarshal(bys, p); err == nil {
+//			return p
+//		}
+//	}
+//	profileV2, _ := a.GetProfile()
+//	return &profile.NocalHostAppConfigV2{
+//		ConfigProperties: &profile.ConfigProperties{
+//			Version: "v2",
+//		},
+//		ApplicationConfig: &profile.ApplicationConfig{
+//			Name:           a.Name,
+//			Type:           profileV2.AppType,
+//			ResourcePath:   profileV2.ResourcePath,
+//			IgnoredPath:    profileV2.IgnoredPath,
+//			PreInstall:     profileV2.PreInstall,
+//			Env:            profileV2.Env,
+//			EnvFrom:        profileV2.EnvFrom,
+//			ServiceConfigs: loadServiceConfigsFromProfile(profileV2.SvcProfile),
+//		},
+//	}
+//}
 
 func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.ServiceConfigV2 {
 	var configs = []*profile.ServiceConfigV2{}
@@ -651,27 +649,18 @@ func (a *Application) GetApplicationConfigV2() *profile.ApplicationConfig {
 }
 
 func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
-	profileV2, _ := a.GetProfile()
-	return &profile.ApplicationConfig{
-		ResourcePath: profileV2.ResourcePath,
-		IgnoredPath:  profileV2.IgnoredPath,
-		PreInstall:   profileV2.PreInstall,
-		Env:          profileV2.Env,
-		EnvFrom:      profileV2.EnvFrom,
+	cfg := a.appMeta.Config
+	if cfg == nil || cfg.ApplicationConfig == nil {
+		return &profile.ApplicationConfig{}
 	}
-}
 
-func (a *Application) SaveAppProfileV2(config *profile.ApplicationConfig) error {
-	return a.UpdateProfile(
-		func(p *profile.AppProfileV2) error {
-			p.ResourcePath = config.ResourcePath
-			p.IgnoredPath = config.IgnoredPath
-			p.PreInstall = config.PreInstall
-			p.Env = config.Env
-			p.EnvFrom = config.EnvFrom
-			return nil
-		},
-	)
+	return &profile.ApplicationConfig{
+		ResourcePath: cfg.ApplicationConfig.ResourcePath,
+		IgnoredPath:  cfg.ApplicationConfig.IgnoredPath,
+		PreInstall:   cfg.ApplicationConfig.PreInstall,
+		Env:          cfg.ApplicationConfig.Env,
+		EnvFrom:      cfg.ApplicationConfig.EnvFrom,
+	}
 }
 
 type PortForwardOptions struct {

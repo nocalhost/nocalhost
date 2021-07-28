@@ -14,7 +14,6 @@ package app
 
 import (
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/pkg/nhctl/utils"
 )
 
 // Used by dep
@@ -37,23 +36,15 @@ type ContainerEnvForDep struct {
 func (a *Application) GetInstallEnvForDep() *InstallEnvForDep {
 	appProfileV2, _ := a.GetProfile()
 
-	envFiles := make([]string, 0)
-	for _, f := range appProfileV2.EnvFrom.EnvFile {
-		envFiles = append(envFiles, f.Path)
-	}
-	kvMap := utils.GetKVFromEnvFiles(envFiles)
-
-	// Env has a higher priority than envFrom
-	for _, env := range appProfileV2.Env {
-		kvMap[env.Name] = env.Value
-	}
-
+	envMap := a.GetAppMeta().LoadAppInstallEnv(a.ResourceTmpDir)
 	globalEnv := make([]*profile.Env, 0)
-	for key, val := range kvMap {
-		globalEnv = append(globalEnv, &profile.Env{
-			Name:  key,
-			Value: val,
-		})
+	for key, val := range envMap {
+		globalEnv = append(
+			globalEnv, &profile.Env{
+				Name:  key,
+				Value: val,
+			},
+		)
 	}
 
 	// Find service env
@@ -79,7 +70,10 @@ func (a *Application) GetInstallEnvForDep() *InstallEnvForDep {
 			for _, f := range config.Install.EnvFrom.EnvFile {
 				envFiles1 = append(envFiles1, f.Path)
 			}
-			kvMap1 := utils.GetKVFromEnvFiles(envFiles1)
+
+			// todo there is a bug that should pass the abs path of the file
+			kvMap1 := map[string]string{}
+			//utils.GetKVFromEnvFiles(envFiles1)
 
 			// Env has a higher priority than envFrom
 			for _, env := range config.Install.Env {
@@ -88,16 +82,20 @@ func (a *Application) GetInstallEnvForDep() *InstallEnvForDep {
 
 			containerEnv := make([]*profile.Env, 0)
 			for key, val := range kvMap1 {
-				containerEnv = append(containerEnv, &profile.Env{
-					Name:  key,
-					Value: val,
-				})
+				containerEnv = append(
+					containerEnv, &profile.Env{
+						Name:  key,
+						Value: val,
+					},
+				)
 			}
 
-			svcEnv.Container = append(svcEnv.Container, &ContainerEnvForDep{
-				Name:       config.Name,
-				InstallEnv: containerEnv,
-			})
+			svcEnv.Container = append(
+				svcEnv.Container, &ContainerEnvForDep{
+					Name:       config.Name,
+					InstallEnv: containerEnv,
+				},
+			)
 		}
 		if len(svcEnv.Container) > 0 {
 			servcesEnv = append(servcesEnv, svcEnv)

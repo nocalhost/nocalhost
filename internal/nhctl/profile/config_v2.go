@@ -12,7 +12,9 @@
 
 package profile
 
-import "nocalhost/internal/nhctl/common/base"
+import (
+	"nocalhost/internal/nhctl/common/base"
+)
 
 //type AppType string
 //type SvcType string
@@ -28,17 +30,17 @@ type ConfigProperties struct {
 }
 
 type ApplicationConfig struct {
-	Name           string             `json:"name" yaml:"name,omitempty"`
-	Type           string             `json:"manifestType" yaml:"manifestType,omitempty"`
-	ResourcePath   []string           `json:"resourcePath" yaml:"resourcePath"`
-	IgnoredPath    []string           `json:"ignoredPath" yaml:"ignoredPath"`
-	PreInstall     []*PreInstallItem  `json:"onPreInstall" yaml:"onPreInstall"`
-	HelmValues     []*HelmValue       `json:"helmValues" yaml:"helmValues"`
-	HelmVals       interface{}        `json:"helmVals" yaml:"helmVals"`
-	HelmVersion    string             `json:"helmVersion" yaml:"helmVersion"`
-	Env            []*Env             `json:"env" yaml:"env"`
-	EnvFrom        EnvFrom            `json:"envFrom" yaml:"envFrom"`
-	ServiceConfigs []*ServiceConfigV2 `json:"services" yaml:"services,omitempty"`
+	Name           string                    `json:"name" yaml:"name,omitempty"`
+	Type           string                    `json:"manifestType" yaml:"manifestType,omitempty"`
+	ResourcePath   []string                  `json:"resourcePath" yaml:"resourcePath"`
+	IgnoredPath    []string                  `json:"ignoredPath" yaml:"ignoredPath"`
+	PreInstall     []*WeightablePath `json:"onPreInstall" yaml:"onPreInstall"`
+	HelmValues     []*HelmValue              `json:"helmValues" yaml:"helmValues"`
+	HelmVals       interface{}               `json:"helmVals" yaml:"helmVals"`
+	HelmVersion    string                    `json:"helmVersion" yaml:"helmVersion"`
+	Env            []*Env                    `json:"env" yaml:"env"`
+	EnvFrom        EnvFrom                   `json:"envFrom" yaml:"envFrom"`
+	ServiceConfigs []*ServiceConfigV2        `json:"services" yaml:"services,omitempty"`
 }
 
 type ServiceConfigV2 struct {
