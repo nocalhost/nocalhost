@@ -250,42 +250,42 @@ func LogStack() {
 // For IDE Plugin
 
 func PWarn(info string) {
-	outLogger.Info("[WARNING] " + info)
+	stdoutLogger.Info("[WARNING] " + info)
 	if fileEntry != nil {
 		fileEntry.Warn(info)
 	}
 }
 
 func PWarnf(format string, args ...interface{}) {
-	outLogger.Warnf("[WARNING] "+format, args...)
+	stdoutLogger.Warnf("[WARNING] "+format, args...)
 	if fileEntry != nil {
 		fileEntry.Warnf(format, args...)
 	}
 }
 
 func PInfo(info string) {
-	outLogger.Info("[INFO] " + info)
+	stdoutLogger.Info("[INFO] " + info)
 	if fileEntry != nil {
 		fileEntry.Info(info)
 	}
 }
 
 func PInfof(format string, args ...interface{}) {
-	outLogger.Infof("[INFO] "+format, args...)
+	stdoutLogger.Infof("[INFO] "+format, args...)
 	if fileEntry != nil {
 		fileEntry.Infof(format, args...)
 	}
 }
 
 func PError(info string) {
-	outLogger.Info("[ERROR] " + info)
+	stdoutLogger.Info("[ERROR] " + info)
 	if fileEntry != nil {
 		fileEntry.Info(info)
 	}
 }
 
 func PErrorf(format string, args ...interface{}) {
-	outLogger.Infof("[ERROR] "+format, args...)
+	stdoutLogger.Infof("[ERROR] "+format, args...)
 	if fileEntry != nil {
 		fileEntry.Errorf(format, args...)
 	}
