@@ -98,7 +98,6 @@ func tryDelAppFromHelmRelease(appName, ns string, configBytes []byte) error {
 		log.TLogf("Watcher", "Error while uninstall application %s by managed helm, can not init kubeconfig", appName)
 		return nil
 	}
-	defer meta.RemoveGoClient()
 
 	if err := meta.InitGoClient(random.Abs()); err != nil {
 		log.TLogf("Watcher", "Error while uninstall application %s by managed helm, can not init go client", appName)
@@ -135,12 +134,18 @@ func tryNewAppFromHelmRelease(releaseStr, ns string, configBytes []byte) error {
 		return nil
 	}
 
-	random := fp.NewRandomTempPath().RelOrAbs(fmt.Sprintf("%s-%s", releaseStr, ns))
+	random := fp.NewRandomTempPath().MkdirThen().RelOrAbs(fmt.Sprintf("%s-%s", release.Name, ns))
 	if err := random.WriteFile(string(configBytes)); err != nil {
-		log.TLogf("Watcher", "Error while uninstall release %s by managed helm, can not init kubeconfig", releaseStr)
+		log.TLogf(
+			"Watcher", "Error while install release %s by managed helm, can not init kubeconfig, Error: %s",
+			release.Name, err.Error(),
+		)
 		return nil
 	}
-	defer meta.RemoveGoClient()
+
+	if err := meta.InitGoClient(random.Abs()); err != nil {
+		return err
+	}
 
 	if err := meta.Initial(); err != nil {
 		return err

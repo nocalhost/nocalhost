@@ -352,10 +352,6 @@ func (a *ApplicationMeta) InitGoClient(kubeConfigPath string) error {
 	return nil
 }
 
-func (a *ApplicationMeta) RemoveGoClient() {
-	a.operator = nil
-}
-
 func (a *ApplicationMeta) SvcDevModePossessor(name string, svcType base.SvcType, identifier string) bool {
 	devMeta := a.DevMeta
 	if devMeta == nil {
@@ -567,25 +563,6 @@ func (a *ApplicationMeta) cleanManifest() {
 		utils.ShouldI(clientgoutils.DeleteResourceInfo(info), "Failed to delete resource "+info.Name)
 	}
 }
-
-//func (a *ApplicationMeta) cleanPreInstallManifest() {
-//	if operator, ok := a.operator.(*secret_operator.ClientGoUtilClient); ok {
-//		resource := clientgoutils.NewResourceFromStr(a.PreInstallManifest)
-//
-//		//goland:noinspection GoNilness
-//		infos, err := resource.GetResourceInfo(operator.ClientInner, true)
-//		utils.ShouldI(err, "Error while loading pre install manifest "+a.PreInstallManifest)
-//
-//		for _, info := range infos {
-//			utils.ShouldI(operator.ClientInner.DeleteResourceInfo(info), "Failed to delete resource "+info.Name)
-//		}
-//	} else {
-//		log.Warnf(
-//			"Current Application Meta did not hold the ClientGoUtilClient as K8sClient," +
-//				" so can not clean pre install manifest. ",
-//		)
-//	}
-//}
 
 func (a *ApplicationMeta) cleanUpDepConfigMap() error {
 	operator := a.operator
