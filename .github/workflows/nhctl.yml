@@ -17,7 +17,7 @@ jobs:
     - name: Set up Go 1.x
       uses: actions/setup-go@v2
       with:
-        go-version: ^1.14
+        go-version: ^1.16
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
@@ -69,7 +69,7 @@ jobs:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
-          go-version: ^1.15.6
+          go-version: ^1.16
 
       - name: Checkout syncthing
         uses: actions/checkout@v2.3.4
@@ -95,7 +95,7 @@ jobs:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
-          go-version: ^1.15.6
+          go-version: ^1.16
 
       - name: Checkout syncthing
         uses: actions/checkout@v2.3.4
