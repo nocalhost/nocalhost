@@ -406,6 +406,9 @@ func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) erro
 		return nil
 	}
 
+	if len(response.Data) == 0 {
+		return nil
+	}
 	if err := json.Unmarshal(response.Data, resp); err != nil {
 		return errors.Wrap(err, "")
 	}

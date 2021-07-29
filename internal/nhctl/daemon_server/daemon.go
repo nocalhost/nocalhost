@@ -351,6 +351,9 @@ func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error 
 		}
 	}
 
+	//if len(resp.Data) == 0 {
+	//	resp.Data = []byte("{}")
+	//}
 	// try marshal again if fail
 	bys, err := json.Marshal(&resp)
 	if err != nil {
