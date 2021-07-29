@@ -31,6 +31,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -371,7 +372,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			select {
 			case err := <-errCh:
 				if err != nil {
-					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") {
+					found, _ := regexp.Match("pods \"(.*?)\" not found", []byte(err.Error()))
+					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") || found {
 						log.Warnf("Unable to listen on port %d", localPort)
 						p.lock.Lock()
 						err2 := nhController.UpdatePortForwardStatus(localPort, remotePort, "DISCONNECTED",
