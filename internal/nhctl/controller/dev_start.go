@@ -13,6 +13,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -532,6 +533,17 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	if requirements != nil {
 		devContainer.Resources = *requirements
 	}
+
+	if IsResourcesLimitTooLow(&devContainer.Resources) {
+		limits := ""
+		if devContainer.Resources.Limits != nil {
+			bys, _ := json.Marshal(devContainer.Resources.Limits)
+			limits = string(bys)
+		}
+		log.PWarnf(`Resources Limits %s is less than the recommended minimum {"cpu":"2","memory":"2Gi"}. `+
+			"Running programs in DevContainer may fail. You can increase Resource Limits in Nocalhost Config", limits)
+	}
+
 	r := &profile.ResourceQuota{
 		Limits:   &profile.QuotaList{Memory: "1Gi", Cpu: "1"},
 		Requests: &profile.QuotaList{Memory: "50Mi", Cpu: "100m"},
@@ -539,4 +551,25 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	rq, _ := convertResourceQuota(r)
 	sideCarContainer.Resources = *rq
 	return devContainer, &sideCarContainer, devModeVolumes, nil
+}
+
+// IsResourcesLimitTooLow
+// Check if resource limit is lower than 2 cpu, 2Gi men
+func IsResourcesLimitTooLow(r *corev1.ResourceRequirements) bool {
+	if r == nil || r.Limits == nil {
+		return false
+	}
+	if r.Limits.Memory() != nil {
+		q, _ := resource.ParseQuantity("2Gi")
+		if r.Limits.Memory().Cmp(q) < 0 {
+			return true
+		}
+	}
+	if r.Limits.Cpu() != nil {
+		q, _ := resource.ParseQuantity("2")
+		if r.Limits.Cpu().Cmp(q) < 0 {
+			return true
+		}
+	}
+	return false
 }

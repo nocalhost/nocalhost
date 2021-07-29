@@ -10,28 +10,11 @@
  * limitations under the License.
  */
 
-package controller
+package log
 
-import (
-	"encoding/json"
-	"fmt"
-	"nocalhost/internal/nhctl/profile"
-	"testing"
-)
+import "testing"
 
-func TestIsResourcesLimitToLow(t *testing.T) {
-	r := &profile.ResourceQuota{
-		Limits:   &profile.QuotaList{Memory: "1.5Gi", Cpu: "1"},
-		Requests: &profile.QuotaList{Memory: "50Mi", Cpu: "100m"},
-	}
-	rq, _ := convertResourceQuota(r)
-	//bys, _ := json.Marshal(rq)
-	//fmt.Printf("%v\n", string(bys))
-	bys, _ := json.Marshal(rq.Limits)
-	fmt.Println(string(bys))
-	fmt.Println(IsResourcesLimitTooLow(rq))
-	fmt.Println(IsResourcesLimitTooLow(nil))
-	r.Limits = nil
-	rq, _ = convertResourceQuota(r)
-	fmt.Println(IsResourcesLimitTooLow(rq))
+func TestPWarn(t *testing.T) {
+	PWarn("This is a warning")
+	PWarnf("This is a warning in %d/%d/%d", 2021, 07, 25)
 }

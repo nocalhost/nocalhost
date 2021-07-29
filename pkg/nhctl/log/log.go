@@ -246,3 +246,47 @@ func LogStack() {
 		fileEntry.Debug(string(debug.Stack()))
 	}
 }
+
+// For IDE Plugin
+
+func PWarn(info string) {
+	stdoutLogger.Info("[WARNING] " + info)
+	if fileEntry != nil {
+		fileEntry.Warn(info)
+	}
+}
+
+func PWarnf(format string, args ...interface{}) {
+	stdoutLogger.Warnf("[WARNING] "+format, args...)
+	if fileEntry != nil {
+		fileEntry.Warnf(format, args...)
+	}
+}
+
+func PInfo(info string) {
+	stdoutLogger.Info("[INFO] " + info)
+	if fileEntry != nil {
+		fileEntry.Info(info)
+	}
+}
+
+func PInfof(format string, args ...interface{}) {
+	stdoutLogger.Infof("[INFO] "+format, args...)
+	if fileEntry != nil {
+		fileEntry.Infof(format, args...)
+	}
+}
+
+func PError(info string) {
+	stdoutLogger.Info("[ERROR] " + info)
+	if fileEntry != nil {
+		fileEntry.Info(info)
+	}
+}
+
+func PErrorf(format string, args ...interface{}) {
+	stdoutLogger.Infof("[ERROR] "+format, args...)
+	if fileEntry != nil {
+		fileEntry.Errorf(format, args...)
+	}
+}

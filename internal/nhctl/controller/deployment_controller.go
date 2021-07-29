@@ -127,9 +127,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 			dep.Spec.Template.Spec.PriorityClassName = priorityClass
 		}
 
-		//if _, ok := dep.Annotations[OriginSpecJson]; !ok {
 		dep.Annotations[OriginSpecJson] = string(originalSpecJson)
-		//}
 
 		log.Info("Updating development container...")
 		_, err = d.Client.UpdateDeployment(dep, true)
@@ -279,10 +277,6 @@ func (d *DeploymentController) RollBack(reset bool) error {
 	}
 	return nil
 }
-
-//func (d *DeploymentController) GetDefaultPodNameWait(ctx context.Context) (string, error) {
-//	return getDefaultPodName(ctx, d)
-//}
 
 func GetDefaultPodName(ctx context.Context, p pod_controller.PodController) (string, error) {
 	var (
