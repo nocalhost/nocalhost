@@ -20,7 +20,9 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/util/homedir"
 	"net/http"
+	"nocalhost/internal/nhctl/fp"
 	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/runner"
@@ -57,6 +59,15 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 		if err := recover(); err != nil {
 			t.Clean(true)
 			t.Alert()
+			log.Infof("=== Nocalhost Logs ===")
+			log.Infof(
+				fp.NewFilePath(homedir.HomeDir()).
+					RelOrAbs(".nh").
+					RelOrAbs("nhctl").
+					RelOrAbs("logs").
+					RelOrAbs("nhctl.log").
+					ReadFile(),
+			)
 			panic(err)
 		}
 	}()
