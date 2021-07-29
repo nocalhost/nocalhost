@@ -26,6 +26,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta/secret_operator"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/fp"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -34,6 +35,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 const (
@@ -168,6 +170,8 @@ type ApplicationMetaSimple struct {
 
 // application meta is the application meta info container
 type ApplicationMeta struct {
+	locker sync.Mutex
+
 	// could not be updated
 	Application string `json:"application"`
 
@@ -283,6 +287,37 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 	return &appMeta, nil
 }
 
+// sometimes meta will not initail the go client, this method
+// can present to use a temp kubeconfig for some K8s's oper
+func (a *ApplicationMeta) DoWithTempOperator(configBytes []byte, funny func() error) error {
+	randomKubeconfigFile := fp.NewRandomTempPath().MkdirThen().RelOrAbs("tmpkubeconfig")
+	if err := randomKubeconfigFile.WriteFile(string(configBytes)); err != nil {
+		return errors.Wrap(err, "Error when gen tempKubeconfig while initialize temp operator for meta ")
+	}
+
+	return a.doMutex(
+		func() error {
+			backup := a.operator
+			defer func() {
+				a.operator = backup
+				_ = randomKubeconfigFile.Doom()
+			}()
+
+			if err := a.InitGoClient(randomKubeconfigFile.Abs()); err != nil {
+				return err
+			}
+
+			return funny()
+		},
+	)
+}
+
+func (a *ApplicationMeta) doMutex(funny func() error) error {
+	defer a.locker.Unlock()
+	a.locker.Lock()
+	return funny()
+}
+
 func (a *ApplicationMeta) GetApplicationConfig() *profile2.ApplicationConfig {
 	if a == nil || a.Config == nil || a.Config.ApplicationConfig == nil {
 		return &profile2.ApplicationConfig{}
@@ -334,22 +369,19 @@ func (a *ApplicationMeta) Initial() error {
 }
 
 func (a *ApplicationMeta) InitGoClient(kubeConfigPath string) error {
-	if a.operator == nil {
-		clientGo, err := clientgoutils.NewClientGoUtils(kubeConfigPath, a.Ns)
-		if kubeConfigPath == "" { // use default config
-			kubeConfigPath = filepath.Join(utils.GetHomePath(), ".kube", "config")
-		}
-		content, err := ioutil.ReadFile(kubeConfigPath)
-		if err != nil {
-			log.Errorf("can not read kubeconfig content, path: %s, err: %v", kubeConfigPath, err)
-		}
-		a.operator = &secret_operator.ClientGoUtilClient{
-			ClientInner:     clientGo,
-			KubeconfigBytes: content,
-		}
-		return err
+	clientGo, err := clientgoutils.NewClientGoUtils(kubeConfigPath, a.Ns)
+	if kubeConfigPath == "" { // use default config
+		kubeConfigPath = filepath.Join(utils.GetHomePath(), ".kube", "config")
 	}
-	return nil
+	content, err := ioutil.ReadFile(kubeConfigPath)
+	if err != nil {
+		log.Errorf("can not read kubeconfig content, path: %s, err: %v", kubeConfigPath, err)
+	}
+	a.operator = &secret_operator.ClientGoUtilClient{
+		ClientInner:     clientGo,
+		KubeconfigBytes: content,
+	}
+	return err
 }
 
 func (a *ApplicationMeta) SvcDevModePossessor(name string, svcType base.SvcType, identifier string) bool {

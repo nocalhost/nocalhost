@@ -17,11 +17,9 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
-	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/fp"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
@@ -93,23 +91,19 @@ func tryDelAppFromHelmRelease(appName, ns string, configBytes []byte) error {
 		return nil
 	}
 
-	random := fp.NewRandomTempPath().RelOrAbs(fmt.Sprintf("%s-%s", appName, ns))
-	if err := random.WriteFile(string(configBytes)); err != nil {
-		log.TLogf("Watcher", "Error while uninstall application %s by managed helm, can not init kubeconfig", appName)
-		return nil
-	}
-
-	if err := meta.InitGoClient(random.Abs()); err != nil {
-		log.TLogf("Watcher", "Error while uninstall application %s by managed helm, can not init go client", appName)
-		return nil
-	}
-
-	if err := meta.Delete(); err != nil {
-		return err
-	} else {
-		log.TLogf("Watcher", "Uninstall application %s by managed helm", appName)
-		return nil
-	}
+	return errors.Wrap(
+		meta.DoWithTempOperator(
+			configBytes, func() error {
+				if err := meta.Delete(); err != nil {
+					return err
+				} else {
+					log.TLogf("Watcher", "Uninstall application %s by managed helm", appName)
+					return nil
+				}
+			},
+		),
+		"Error while uninstall application for helm release",
+	)
 }
 
 func tryNewAppFromHelmRelease(releaseStr, ns string, configBytes []byte) error {
@@ -134,35 +128,31 @@ func tryNewAppFromHelmRelease(releaseStr, ns string, configBytes []byte) error {
 		return nil
 	}
 
-	random := fp.NewRandomTempPath().MkdirThen().RelOrAbs(fmt.Sprintf("%s-%s", release.Name, ns))
-	if err := random.WriteFile(string(configBytes)); err != nil {
-		log.TLogf(
-			"Watcher", "Error while install release %s by managed helm, can not init kubeconfig, Error: %s",
-			release.Name, err.Error(),
-		)
-		return nil
-	}
+	return errors.Wrap(
+		meta.DoWithTempOperator(
+			configBytes,
+			func() error {
 
-	if err := meta.InitGoClient(random.Abs()); err != nil {
-		return err
-	}
+				if err := meta.Initial(); err != nil {
+					return err
+				}
 
-	if err := meta.Initial(); err != nil {
-		return err
-	}
+				meta.ApplicationType = appmeta.HelmLocal
+				meta.ApplicationState = appmeta.INSTALLED
+				meta.HelmReleaseName = release.Name
+				meta.Application = release.Name
+				meta.Config = &profile2.NocalHostAppConfigV2{}
 
-	meta.ApplicationType = appmeta.HelmLocal
-	meta.ApplicationState = appmeta.INSTALLED
-	meta.HelmReleaseName = release.Name
-	meta.Application = release.Name
-	meta.Config = &profile2.NocalHostAppConfigV2{}
-
-	if err := meta.Update(); err != nil {
-		return err
-	} else {
-		log.TLogf("Watcher", "Initial application '%s' by managed helm", release.Name)
-		return nil
-	}
+				if err := meta.Update(); err != nil {
+					return err
+				} else {
+					log.TLogf("Watcher", "Initial application '%s' by managed helm", release.Name)
+					return nil
+				}
+			},
+		),
+		"Error while new application for helm release",
+	)
 }
 
 // DecodeRelease decodes the bytes of data into a release

@@ -124,6 +124,10 @@ func (f *FilePathEnhance) ReadFile() string {
 	return f.content
 }
 
+func (f *FilePathEnhance) Doom() error {
+	return os.Remove(f.absPath)
+}
+
 func (f *FilePathEnhance) ReadFileCompel() (string, error) {
 	f.mu.Lock()
 
