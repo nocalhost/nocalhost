@@ -13,8 +13,7 @@
 package profile
 
 import (
-	"os"
-	"path/filepath"
+	"nocalhost/internal/nhctl/fp"
 	"sort"
 	"strconv"
 )
@@ -67,7 +66,7 @@ type ServiceDevOptions struct {
 	IgnoredPattern        []string               `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
 }
 
-type PreInstallItem struct {
+type WeightablePath struct {
 	Path   string `json:"path" yaml:"path"`
 	Weight string `json:"weight" yaml:"weight"`
 }
@@ -76,18 +75,18 @@ type NocalhostResource interface {
 	Load(resourceDir string) []string
 }
 
-type SortedRelPath []*PreInstallItem
+type SortedRelPath []*WeightablePath
 
-func (c *SortedRelPath) Load(resourceDir string) []string {
+func (c *SortedRelPath) Load(fp *fp.FilePathEnhance) []string {
 	result := make([]string, 0)
 	if c != nil {
 		sort.Sort(c)
 		for _, item := range *c {
-			itemPath := filepath.Join(resourceDir, item.Path)
-			if _, err2 := os.Stat(itemPath); err2 != nil {
+			file := fp.RelOrAbs(item.Path)
+			if err := file.CheckExist(); err != nil {
 				continue
 			}
-			result = append(result, itemPath)
+			result = append(result, file.Abs())
 		}
 	}
 	return result
@@ -95,15 +94,15 @@ func (c *SortedRelPath) Load(resourceDir string) []string {
 
 type RelPath []string
 
-func (c *RelPath) Load(resourceDir string) []string {
+func (c *RelPath) Load(fp *fp.FilePathEnhance) []string {
 	result := make([]string, 0)
 	if c != nil {
 		for _, item := range *c {
-			itemPath := filepath.Join(resourceDir, item)
-			if _, err2 := os.Stat(itemPath); err2 != nil {
+			file := fp.RelOrAbs(item)
+			if err := file.CheckExist(); err != nil {
 				continue
 			}
-			result = append(result, itemPath)
+			result = append(result, file.Abs())
 		}
 	}
 	return result

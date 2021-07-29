@@ -155,17 +155,16 @@ func listBookInfoHelm(c runner.Client, exist bool) error {
 			)
 
 			if exist &&
-				!(strings.Contains(nhctlResult, "bookinfohelm") && strings.Contains(
-					helmResult, "bookinfohelm",
+				!(strings.Contains(nhctlResult, "bookinfohelm") && strings.Contains(helmResult, "bookinfohelm",
 				)) {
-				return errors.New("do not list application named bookinfohelm")
+				return errors.New(fmt.Sprintf("do not list application named bookinfohelm, \nhelmresult: \n%s nhctlresult \n%s", helmResult,nhctlResult))
 			}
 
 			if !exist &&
 				(strings.Contains(nhctlResult, "bookinfohelm") || strings.Contains(
 					helmResult, "bookinfohelm",
 				)) {
-				return errors.New("bookinfohelm is not expect but listed")
+				return errors.New(fmt.Sprintf("bookinfohelm is not expect but listed, \nhelmresult: \n%s nhctlresult \n%s", helmResult,nhctlResult))
 			}
 			return nil
 		},

@@ -13,6 +13,7 @@
 package cmds
 
 import (
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 
@@ -41,8 +42,8 @@ var uninstallCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		applicationName := args[0]
-		if applicationName == nocalhost.DefaultNocalhostApplication {
-			log.Error(nocalhost.DefaultNocalhostApplicationOperateErr)
+		if applicationName == _const.DefaultNocalhostApplication {
+			log.Error(_const.DefaultNocalhostApplicationOperateErr)
 			return
 		}
 

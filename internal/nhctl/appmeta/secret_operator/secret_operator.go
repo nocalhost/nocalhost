@@ -13,64 +13,51 @@
 package secret_operator
 
 import (
-	"context"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 )
 
-type SecretOperator interface {
-	Create(ns string, secret *corev1.Secret) (*corev1.Secret, error)
-	Update(ns string, secret *corev1.Secret) (*corev1.Secret, error)
-	Delete(ns, name string) error
-	GetKubeconfigBytes() []byte
-}
-
-type ClientGoUtilSecretOperator struct {
+type ClientGoUtilClient struct {
 	ClientInner     *clientgoutils.ClientGoUtils
 	KubeconfigBytes []byte
 }
 
-func (cso *ClientGoUtilSecretOperator) Create(ns string, secret *corev1.Secret) (*corev1.Secret, error) {
+func (cso *ClientGoUtilClient) ExecHook(appName, ns, manifests string) error {
+	return cso.ClientInner.ApplyAndWaitFor(
+		manifests, true,
+		clientgoutils.StandardNocalhostMetas(appName, ns).
+			SetDoApply(true).
+			SetBeforeApply(nil),
+	)
+}
+func (cso *ClientGoUtilClient) CleanManifest(manifests string) {
+	resource := clientgoutils.NewResourceFromStr(manifests)
+
+	//goland:noinspection GoNilness
+	infos, err := resource.GetResourceInfo(cso.ClientInner, true)
+	utils.ShouldI(err, "Error while loading the manifest able to be deleted: "+manifests)
+
+	for _, info := range infos {
+		utils.ShouldI(clientgoutils.DeleteResourceInfo(info), "Failed to delete resource "+info.Name)
+	}
+}
+func (cso *ClientGoUtilClient) Create(ns string, secret *corev1.Secret) (*corev1.Secret, error) {
 	return cso.ClientInner.ClientSet.CoreV1().Secrets(ns).Create(
 		cso.ClientInner.GetContext(), secret, metav1.CreateOptions{},
 	)
 }
-func (cso *ClientGoUtilSecretOperator) Update(ns string, secret *corev1.Secret) (*corev1.Secret, error) {
+func (cso *ClientGoUtilClient) Update(ns string, secret *corev1.Secret) (*corev1.Secret, error) {
 	return cso.ClientInner.ClientSet.CoreV1().Secrets(ns).Update(
 		cso.ClientInner.GetContext(), secret, metav1.UpdateOptions{},
 	)
 }
-func (cso *ClientGoUtilSecretOperator) Delete(ns, name string) error {
+func (cso *ClientGoUtilClient) Delete(ns, name string) error {
 	return cso.ClientInner.ClientSet.CoreV1().Secrets(ns).Delete(
 		cso.ClientInner.GetContext(), name, metav1.DeleteOptions{},
 	)
 }
-func (cso *ClientGoUtilSecretOperator) GetKubeconfigBytes() []byte {
-	return cso.KubeconfigBytes
-}
-
-type ClientGoSecretOperator struct {
-	ClientSet       *kubernetes.Clientset
-	KubeconfigBytes []byte
-}
-
-func (cso *ClientGoSecretOperator) Create(ns string, secret *corev1.Secret) (*corev1.Secret, error) {
-	return cso.ClientSet.CoreV1().Secrets(ns).Create(
-		context.TODO(), secret, metav1.CreateOptions{},
-	)
-}
-func (cso *ClientGoSecretOperator) Update(ns string, secret *corev1.Secret) (*corev1.Secret, error) {
-	return cso.ClientSet.CoreV1().Secrets(ns).Update(
-		context.TODO(), secret, metav1.UpdateOptions{},
-	)
-}
-func (cso *ClientGoSecretOperator) Delete(ns, name string) error {
-	return cso.ClientSet.CoreV1().Secrets(ns).Delete(
-		context.TODO(), name, metav1.DeleteOptions{},
-	)
-}
-func (cso *ClientGoSecretOperator) GetKubeconfigBytes() []byte {
+func (cso *ClientGoUtilClient) GetKubeconfigBytes() []byte {
 	return cso.KubeconfigBytes
 }

@@ -18,9 +18,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
-	"k8s.io/client-go/kubernetes"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/fp"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
@@ -86,13 +87,23 @@ func GetRlsNameFromKey(key string) (string, error) {
 	return elems[0], nil
 }
 
-func tryDelAppFromHelmRelease(appName, ns string, configBytes []byte, clientSet *kubernetes.Clientset) error {
+func tryDelAppFromHelmRelease(appName, ns string, configBytes []byte) error {
 	meta := GetApplicationMeta(ns, appName, configBytes)
 	if meta.IsNotInstall() {
 		return nil
 	}
 
-	meta.InjectGoClient(clientSet, configBytes)
+	random := fp.NewRandomTempPath().RelOrAbs(fmt.Sprintf("%s-%s", appName, ns))
+	if err := random.WriteFile(string(configBytes)); err != nil {
+		log.TLogf("Watcher", "Error while uninstall application %s by managed helm, can not init kubeconfig", appName)
+		return nil
+	}
+	defer meta.RemoveGoClient()
+
+	if err := meta.InitGoClient(random.Abs()); err != nil {
+		log.TLogf("Watcher", "Error while uninstall application %s by managed helm, can not init go client", appName)
+		return nil
+	}
 
 	if err := meta.Delete(); err != nil {
 		return err
@@ -102,7 +113,7 @@ func tryDelAppFromHelmRelease(appName, ns string, configBytes []byte, clientSet 
 	}
 }
 
-func tryNewAppFromHelmRelease(releaseStr, ns string, configBytes []byte, clientSet *kubernetes.Clientset) error {
+func tryNewAppFromHelmRelease(releaseStr, ns string, configBytes []byte) error {
 	release, err := DecodeRelease(releaseStr)
 	if err != nil {
 		return err
@@ -116,7 +127,7 @@ func tryNewAppFromHelmRelease(releaseStr, ns string, configBytes []byte, clientS
 	// helm uninstall the Application
 	// and do not delete the cm or secret
 	if release.Info.Deleted != "" {
-		return tryDelAppFromHelmRelease(release.Name, ns, configBytes, clientSet)
+		return tryDelAppFromHelmRelease(release.Name, ns, configBytes)
 	}
 
 	meta := GetApplicationMeta(ns, release.Name, configBytes)
@@ -124,7 +135,12 @@ func tryNewAppFromHelmRelease(releaseStr, ns string, configBytes []byte, clientS
 		return nil
 	}
 
-	meta.InjectGoClient(clientSet, configBytes)
+	random := fp.NewRandomTempPath().RelOrAbs(fmt.Sprintf("%s-%s", releaseStr, ns))
+	if err := random.WriteFile(string(configBytes)); err != nil {
+		log.TLogf("Watcher", "Error while uninstall release %s by managed helm, can not init kubeconfig", releaseStr)
+		return nil
+	}
+	defer meta.RemoveGoClient()
 
 	if err := meta.Initial(); err != nil {
 		return err

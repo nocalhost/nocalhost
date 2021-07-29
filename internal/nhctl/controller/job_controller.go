@@ -19,8 +19,8 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/nocalhost"
 )
 
 type JobController struct {
@@ -55,7 +55,7 @@ func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOpt
 	generatedJob := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   j.getGeneratedJobName(),
-			Labels: map[string]string{nocalhost.DevWorkloadIgnored: "true"},
+			Labels: map[string]string{_const.DevWorkloadIgnored: "true"},
 		},
 		Spec: batchv1.JobSpec{
 			Selector: originJob.Spec.Selector,

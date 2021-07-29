@@ -19,8 +19,8 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/pod_controller"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -224,10 +224,10 @@ func (d *DeploymentController) RollBack(reset bool) error {
 					continue
 				}
 				// Mark the original revision
-				if rs.Annotations[nocalhost.DevImageRevisionAnnotationKey] == nocalhost.DevImageRevisionAnnotationValue {
+				if rs.Annotations[_const.DevImageRevisionAnnotationKey] == _const.DevImageRevisionAnnotationValue {
 					r = rs
-					if rs.Annotations[nocalhost.DevImageOriginalPodReplicasAnnotationKey] != "" {
-						podReplicas, _ := strconv.Atoi(rs.Annotations[nocalhost.DevImageOriginalPodReplicasAnnotationKey])
+					if rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey] != "" {
+						podReplicas, _ := strconv.Atoi(rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey])
 						podReplicas32 := int32(podReplicas)
 						originalPodReplicas = &podReplicas32
 					}
@@ -262,14 +262,14 @@ func (d *DeploymentController) RollBack(reset bool) error {
 		dep.Annotations = make(map[string]string, 0)
 	}
 	dep.Annotations["nocalhost-dep-ignore"] = "true"
-	dep.Annotations[nocalhost.NocalhostApplicationName] = d.AppName
-	dep.Annotations[nocalhost.NocalhostApplicationNamespace] = d.NameSpace
+	dep.Annotations[_const.NocalhostApplicationName] = d.AppName
+	dep.Annotations[_const.NocalhostApplicationNamespace] = d.NameSpace
 
 	// Add labels and annotations
 	if dep.Labels == nil {
 		dep.Labels = make(map[string]string, 0)
 	}
-	dep.Labels[nocalhost.AppManagedByLabel] = nocalhost.AppManagedByNocalhost
+	dep.Labels[_const.AppManagedByLabel] = _const.AppManagedByNocalhost
 
 	if _, err = clientUtils.CreateDeployment(dep); err != nil {
 		if strings.Contains(err.Error(), "initContainers") && strings.Contains(err.Error(), "Duplicate") {
