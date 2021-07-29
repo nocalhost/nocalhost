@@ -5,6 +5,21 @@
 
 set -eu -o pipefail
 
+TMP_VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/\(.*\)-.*/\1/' | sed 's/-[0-9]*$//' || true)}
+TMP_GITCOMMIT=`git describe --match=NeVeRmAtCh --always --abbrev=40 --dirty`
+git clone https://github.com/nocalhost/syncthing.git
+cd syncthing
+go run build.go -nocalhostVersion="${TMP_VERSION}" -nocalhostCommitId="${TMP_GITCOMMIT}" -goarch amd64 -goos linux zip || true
+unzip syncthing-linux-amd64.zip || true
+expand syncthing-linux-amd64.zip || true
+
+mv syncthing-linux-amd64/syncthing ./../internal/nhctl/syncthing/bin/syncthing_linux_amd64 || true
+COPY syncthing-linux-amd64/syncthing ./../internal/nhctl/syncthing/bin/syncthing_linux_amd64 || true
+cd ..
+rm -fr syncthing || true
+rmdir /s/q syncthing || true
+
+
 export GOOS=linux
 export GOARCH=amd64
 
@@ -12,15 +27,6 @@ source ./scripts/build/nhctl/.variables
 
 # Override TARGET
 TARGET="build/nhctl-$GOOS-$GOARCH"
-
-git clone https://github.com/nocalhost/syncthing.git
-cd syncthing
-go run build.go -targetName=syncthing -nocalhostVersion="${VERSION}" -nocalhostCommitId="${GITCOMMIT}"
-mv bin/syncthing ./../internal/nhctl/syncthing/bin/syncthing_linux_amd64 || true
-COPY bin/syncthing ./../internal/nhctl/syncthing/bin/syncthing_linux_amd64 || true
-cd ..
-rm -fr syncthing || true
-rmdir /s/q syncthing || true
 
 echo "Building $TARGET"
 go build -o "${TARGET}" --ldflags "${LDFLAGS}" "${SOURCE}"
