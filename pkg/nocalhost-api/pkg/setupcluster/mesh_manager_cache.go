@@ -13,6 +13,7 @@
 package setupcluster
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -33,6 +34,8 @@ const (
 	VirtualService = "VirtualService"
 	Secret         = "Secret"
 	Deployment     = "Deployment"
+
+	ApplicationIndex = "nocalhostApplication"
 )
 
 type ExtendInformer interface {
@@ -53,6 +56,27 @@ func (informer *Informer) ByIndex(indexName, indexedValue string) []unstructured
 	return ret
 }
 
+func IndexByAppName(obj interface{}) ([]string, error) {
+	r, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return []string{}, nil
+	}
+
+	annot := r.GetAnnotations()
+
+	if len(annot) == 0 {
+		return []string{}, nil
+	}
+	if name := annot[nocalhost.NocalhostApplicationName]; name != "" {
+		return []string{fmt.Sprintf("%s/%s", r.GetNamespace(), name)}, nil
+	}
+	if name := annot[nocalhost.HelmReleaseName]; name != "" {
+		return []string{fmt.Sprintf("%s/%s", r.GetNamespace(), name)}, nil
+	}
+
+	return []string{}, nil
+}
+
 type cache struct {
 	stopCh    chan struct{}
 	informers dynamicinformer.DynamicSharedInformerFactory
@@ -61,7 +85,9 @@ type cache struct {
 func (c *cache) build() {
 	rs := defaultGvr()
 	for _, r := range rs {
-		c.informers.ForResource(r)
+		informer := c.informers.ForResource(r)
+		informer.Informer().
+			AddIndexers(toolscache.Indexers{ApplicationIndex: IndexByAppName})
 	}
 	c.informers.Start(c.stopCh)
 	c.informers.WaitForCacheSync(c.stopCh)
@@ -135,6 +161,26 @@ func (c *cache) GetSecretsListByNamespace(ns string) []unstructured.Unstructured
 
 func (c *cache) GetDeploymentsListByNamespace(ns string) []unstructured.Unstructured {
 	return c.Deployment().ByIndex(toolscache.NamespaceIndex, ns)
+}
+
+func (c *cache) GetConfigMapsListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
+	return c.ConfigMap().ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
+}
+
+func (c *cache) GetServicesListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
+	return c.Service().ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
+}
+
+func (c *cache) GetVirtualServicesListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
+	return c.VirtualService().ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
+}
+
+func (c *cache) GetSecretsListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
+	return c.Secret().ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
+}
+
+func (c *cache) GetDeploymentsListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
+	return c.Deployment().ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
 }
 
 func (c *cache) GetConfigMapByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {

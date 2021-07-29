@@ -180,8 +180,7 @@ func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
 
 		appNames = append(appNames, name)
 		w := make([]MeshDevWorkload, 0)
-		for _, r := range newResourcesMatcher(m.cache.GetDeploymentsListByNamespace(info.BaseNamespace)).
-			app(name).match() {
+		for _, r := range m.cache.GetDeploymentsListByNamespaceAndAppName(info.BaseNamespace, name) {
 			w = append(w, MeshDevWorkload{
 				Kind: r.GetKind(),
 				Name: r.GetName(),
