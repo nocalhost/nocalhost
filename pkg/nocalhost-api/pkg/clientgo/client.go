@@ -16,6 +16,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"math/rand"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	istio "istio.io/client-go/pkg/clientset/versioned"
 	apiappsV1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
@@ -30,22 +38,22 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
-	"math/rand"
+
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const (
 	DepInstaller   = "dep-installer-job"
 	Dep            = "nocalhost-dep"
 	NocalhostLabel = "nocalhost-managed"
+	Api            = "nocalhost-api"
 )
 
 var LimitedRules = &rbacv1.PolicyRule{
@@ -55,8 +63,14 @@ var LimitedRules = &rbacv1.PolicyRule{
 }
 
 type GoClient struct {
+	mu sync.Mutex
+
 	clusterIpAccessMode bool
 	client              *kubernetes.Clientset
+	DynamicClient       dynamic.Interface
+	istioClient         *istio.Clientset
+	mapper              *restmapper.DeferredDiscoveryRESTMapper
+	restConfig          *rest.Config
 	Config              []byte
 }
 
@@ -143,8 +157,16 @@ func newGoClient(kubeconfig []byte) (*GoClient, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	dynamicClient, err := dynamic.NewForConfig(c)
+	if err != nil {
+		return nil, err
+	}
+
 	client := &GoClient{
-		client: clientSet,
+		client:        clientSet,
+		DynamicClient: dynamicClient,
+		restConfig:    c,
 	}
 	return client, nil
 }
@@ -192,8 +214,16 @@ func newGoClientUseCurrentClusterHost(kubeconfig []byte) (*GoClient, error, []by
 	if err != nil {
 		return nil, err, nil
 	}
+
+	dynamicClient, err := dynamic.NewForConfig(c)
+	if err != nil {
+		return nil, err, nil
+	}
+
 	client := &GoClient{
-		client: clientSet,
+		client:        clientSet,
+		DynamicClient: dynamicClient,
+		restConfig:    c,
 	}
 	return client, nil, newConfig
 }
@@ -245,16 +275,17 @@ func (c *GoClient) IfNocalhostNameSpaceExist() (bool, error) {
 
 // When create sub namespace for developer, label should set "nocalhost" for nocalhost-dep admission webhook muting
 // when create nocalhost-reserved namesapce, label should set "nocalhost-reserved"
-func (c *GoClient) CreateNS(namespace, label string) (bool, error) {
-	if label == "" {
+func (c *GoClient) CreateNS(namespace string, labels map[string]string) (bool, error) {
+	if labels == nil {
+		labels = make(map[string]string, 0)
+	}
+	if labels["env"] == "" {
 		if namespace == global.NocalhostSystemNamespace {
-			label = global.NocalhostSystemNamespaceLabel
+			labels["env"] = global.NocalhostSystemNamespaceLabel
 		} else {
-			label = global.NocalhostDevNamespaceLabel
+			labels["env"] = global.NocalhostDevNamespaceLabel
 		}
 	}
-	labels := make(map[string]string, 0)
-	labels["env"] = label
 	nsSpec := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace, Labels: labels}}
 	_, err := c.client.CoreV1().Namespaces().Create(context.TODO(), nsSpec, metav1.CreateOptions{})
 	if err != nil {
@@ -993,7 +1024,7 @@ func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool,
 }
 
 // Initial admin kubeconfig in cluster for admission webhook
-func (c *GoClient) CreateConfigMap(name, namespace, key, value string) (bool, error) {
+func (c *GoClient) CreateConfigMapWithValue(name, namespace, key, value string) (bool, error) {
 	configMapData := make(map[string]string, 0)
 	configMapData[key] = value
 
@@ -1013,11 +1044,6 @@ func (c *GoClient) CreateConfigMap(name, namespace, key, value string) (bool, er
 		return false, err
 	}
 	return true, nil
-}
-
-// Get serviceAccount secret
-func (c *GoClient) GetSecret(name, namespace string) (*corev1.Secret, error) {
-	return c.client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
 
 // Get serviceAccount

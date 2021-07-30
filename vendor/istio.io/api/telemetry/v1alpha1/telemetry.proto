@@ -1,0 +1,226 @@
+// Copyright Istio Authors
+//
+//   Licensed under the Apache License, Version 2.0 (the "License");
+//   you may not use this file except in compliance with the License.
+//   You may obtain a copy of the License at
+//
+//       http://www.apache.org/licenses/LICENSE-2.0
+//
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the License is distributed on an "AS IS" BASIS,
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//   See the License for the specific language governing permissions and
+//   limitations under the License.
+
+syntax = "proto3";
+
+import "type/v1beta1/selector.proto";
+import "google/protobuf/wrappers.proto";
+
+option go_package = "istio.io/api/telemetry/v1alpha1";
+
+package istio.telemetry.v1alpha1;
+
+// $schema: istio.telemetry.v1alpha1.Telemetry
+// $title: Telemetry
+// $description: Telemetry configuration for workloads.
+// $location: https://istio.io/docs/reference/config/telemetry/telemetry.html
+// $aliases: [/docs/reference/config/telemetry/v1alpha1/telemetry]
+
+// Telemetry defines how the telemetry is generated for workloads within a mesh.
+//
+// For mesh level configuration, put the resource in root configuration namespace for 
+// your Istio installation *without* a workload selector.
+//
+// For any namespace, including the root configuration namespace, it is only valid 
+// to have a single workload selector-less Telemetry resource.
+//
+// For resources with a workload selector, it is only valid to have one resource selecting
+// any given workload.
+//
+// Telemetry configuration will use a "shallow merge" semantic for configuration override
+// for each telemetry type (Tracing, Metrics, AccessLogging). For example, Tracing configuration
+// will support overrides of the fields `providers`, `random_sampling_percentage`, `disable_span_reporting`,
+// and `custom_tags` at each level in the configuration hierarchy, with missing values filled in
+// from parent resources. However, when specified, fields like `custom_tags` will
+// fully replace any values provided by parent configuration.
+//
+// The hierarchy of Telemetry configuration is as follows:
+// 1. Workload-specific configuration
+// 1. Namespace-specific configuration
+// 1. Root namespace configuration
+//
+// WARNING: Support for Telemetry policies is under active development and is *not* 
+// stable or supported by Istio at this time.
+//
+// Examples:
+//
+// Policy to enable random sampling for 10% of traffic:
+// ```yaml
+// apiVersion: telemetry.istio.io/v1alpha1
+// kind: Telemetry
+// metadata:
+//   name: mesh-default
+//   namespace: istio-system
+// spec:
+//   tracing:
+//   - randomSamplingPercentage: 10.00
+// ```
+//
+// Policy to disable trace reporting for the "foo" workload (note: tracing
+// context will still be propagated):
+// ```yaml
+// apiVersion: telemetry.istio.io/v1alpha1
+// kind: Telemetry
+// metadata:
+//   name: foo-tracing
+//   namespace: bar
+// spec:
+//   selector:
+//     labels:
+//       service.istio.io/canonical-name: foo
+//   tracing:
+//   - disableSpanReporting: true
+// ```
+//
+// Policy to select the alternate zipkin provider for trace reporting:
+// ```yaml
+// apiVersion: telemetry.istio.io/v1alpha1
+// kind: Telemetry
+// metadata:
+//   name: foo-tracing-alternate
+//   namespace: baz
+// spec:
+//   selector:
+//     labels:
+//       service.istio.io/canonical-name: foo
+//   tracing:
+//   - providers:
+//     - name: "zipkin-alternate"
+//     randomSamplingPercentage: 10.00
+// ```
+//
+// Policy to add a custom tag from a literal value:
+// ```yaml
+// apiVersion: telemetry.istio.io/v1alpha1
+// kind: Telemetry
+// metadata:
+//   name: mesh-default
+//   namespace: istio-system
+// spec:
+//   tracing:
+//   - randomSamplingPercentage: 10.00
+//     customTags:
+//       my_new_foo_tag:
+//         literal:
+//           value: "foo"
+// ```
+//
+// <!-- crd generation tags
+// +cue-gen:Telemetry:groupName:telemetry.istio.io
+// +cue-gen:Telemetry:version:v1alpha1
+// +cue-gen:Telemetry:storageVersion
+// +cue-gen:Telemetry:annotations:helm.sh/resource-policy=keep
+// +cue-gen:Telemetry:labels:app=istio-pilot,chart=istio,istio=telemetry,heritage=Tiller,release=istio
+// +cue-gen:Telemetry:subresource:status
+// +cue-gen:Telemetry:scope:Namespaced
+// +cue-gen:Telemetry:resource:categories=istio-io,telemetry-istio-io,shortNames=telemetry,plural=telemetries
+// +cue-gen:Telemetry:preserveUnknownFields:false
+// +cue-gen:Telemetry:printerColumn:name=Age,type=date,JSONPath=.metadata.creationTimestamp,description="CreationTimestamp is a timestamp
+// representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations.
+// Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+// Populated by the system. Read-only. Null for lists. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata"
+// -->
+//
+// <!-- go code generation tags
+// +kubetype-gen
+// +kubetype-gen:groupVersion=telemetry.istio.io/v1alpha1
+// +genclient
+// +k8s:deepcopy-gen=true
+// -->
+message Telemetry {
+  // Optional. The selector decides where to apply the Telemetry policy.
+  // If not set, the Telemetry policy will be applied to all workloads in the
+  // same namespace as the Telemetry policy.
+  istio.type.v1beta1.WorkloadSelector selector = 1;
+
+  // Optional. Tracing configures the tracing behavior for all
+  // selected workloads.
+  repeated Tracing tracing = 2;
+}
+
+// Tracing configures tracing behavior for workloads within a mesh.
+// It can be used to enable/disable tracing, as well as to set sampling
+// rates and custom tag extraction.
+message Tracing {
+  
+ // Optional. Name of provider(s) to use for span reporting. If a provider is
+  // not specified, the [default tracing provider][istio.mesh.v1alpha1.MeshConfig.default_tracing_provider]
+  // will be used.
+  // NOTE: At the moment, only a single provider can be specified in a given
+  // Tracing rule.
+  repeated ProviderRef providers = 2;
+
+  // Controls the rate at which traffic will be selected for tracing if no
+  // prior sampling decision has been made. If a prior sampling decision has been
+  // made, that decision will be respected. However, if no sampling decision
+  // has been made (example: no `x-b3-sampled` tracing header was present in the
+  // requests), the traffic will be selected for telemetry generation at the
+  // percentage specified.
+  //
+  // Defaults to 0%. Valid values [0.00-100.00]. Can be specified in 0.01%
+  // increments.
+  google.protobuf.DoubleValue random_sampling_percentage = 3;
+
+  // Controls span reporting. If set to true, no spans will be reported for
+  // impacted workloads. This does NOT impact context propagation or trace 
+  // sampling behavior.
+  google.protobuf.BoolValue disable_span_reporting = 4;
+ 
+  // CustomTag defines a tag to be added to a trace span that is based on
+  // an operator-supplied value. This value can either be a hard-coded value,
+  // a value taken from an environment variable known to the sidecar proxy, or
+  // from a request header.
+  message CustomTag {
+    oneof type {
+      // Literal adds the same, hard-coded value to each span.
+      Literal literal = 1;
+      // Environment adds the value of an environment variable to each span.
+      Environment environment = 2;
+      // RequestHeader adds the value of an header from the request to each span.
+      RequestHeader header = 3;
+      // TODO: add support for Metadata tags
+    }
+  }
+
+  message Literal {
+    // The tag value to use.
+    string value = 1;
+  }
+
+  message Environment {
+    // Name of the environment variable from which to extract the tag value.
+    string name = 1;
+    // Optional. If the environment variable is not found, this value will be
+    // used instead.
+    string default_value = 2;
+  }
+
+  message RequestHeader {
+    // Name of the header from which to extract the tag value.
+    string name = 1;
+    // Optional. If the header is not found, this value will be
+    // used instead.
+    string default_value = 2;
+  }
+
+  // Optional. Configures additional custom tags to the generated trace spans.
+  map<string, CustomTag> custom_tags = 5;
+}
+
+// Used to bind Telemetry configuration to specific providers for
+// targeted customization.
+message ProviderRef {
+  // Required. Name of Telemetry provider in MeshConfig.
+  string name = 1;
+} 

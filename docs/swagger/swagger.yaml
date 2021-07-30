@@ -1,3 +1,4 @@
+basePath: '{{.BasePath}}'
 definitions:
   api.Response:
     properties:
@@ -20,6 +21,8 @@ definitions:
       context:
         example: '{"application_url":"git@github.com:nocalhost/bookinfo.git","application_name":"name","source":"git/helm_repo","install_type":"rawManifest/helm_chart","resource_dir":["manifest/templates"],"nocalhost_config_raw":"base64encode(config_templates)","nocalhost_config_path":"./nocalhost/config.yaml"}'
         type: string
+      public:
+        type: integer
       status:
         type: integer
     required:
@@ -68,6 +71,10 @@ definitions:
     properties:
       application_id:
         type: integer
+      base_dev_space_id:
+        type: integer
+      cluster_admin:
+        type: integer
       cluster_id:
         type: integer
       cpu:
@@ -76,6 +83,9 @@ definitions:
         type: integer
       memory:
         type: integer
+      mesh_dev_info:
+        $ref: '#/definitions/setupcluster.MeshDevInfo'
+        type: object
       namespace:
         type: string
       space_name:
@@ -134,11 +144,17 @@ definitions:
     type: object
   model.ApplicationModel:
     properties:
+      application_type:
+        type: string
       context:
         type: string
       created_at:
         type: string
+      editable:
+        type: integer
       id:
+        type: integer
+      public:
         type: integer
       status:
         type: integer
@@ -146,12 +162,15 @@ definitions:
         type: integer
     required:
     - context
+    - public
     - status
     type: object
   model.ClusterList:
     properties:
       created_at:
         type: string
+      has_dev_space:
+        type: boolean
       id:
         type: integer
       info:
@@ -161,6 +180,8 @@ definitions:
       name:
         type: string
       not_ready_message:
+        type: string
+      server:
         type: string
       storage_class:
         type: string
@@ -193,10 +214,8 @@ definitions:
     type: object
   model.ClusterUserJoinClusterAndAppAndUser:
     properties:
-      application_id:
+      cluster_admin:
         type: integer
-      application_name:
-        type: string
       cluster_id:
         type: integer
       cluster_name:
@@ -223,6 +242,11 @@ definitions:
   model.ClusterUserModel:
     properties:
       application_id:
+        description: Deprecated
+        type: integer
+      base_dev_space_id:
+        type: integer
+      cluster_admin:
         type: integer
       cluster_id:
         type: integer
@@ -244,8 +268,18 @@ definitions:
         type: string
       status:
         type: integer
+      trace_header:
+        $ref: '#/definitions/model.Header'
+        type: object
       user_id:
         type: integer
+    type: object
+  model.Header:
+    properties:
+      key:
+        type: string
+      value:
+        type: string
     type: object
   model.PluginApplicationModel:
     properties:
@@ -269,6 +303,8 @@ definitions:
         type: integer
       namespace:
         type: string
+      public:
+        type: integer
       space_name:
         type: string
       status:
@@ -280,6 +316,8 @@ definitions:
     properties:
       avatar:
         type: string
+      cluster_admin:
+        type: integer
       email:
         type: string
       id:
@@ -290,6 +328,8 @@ definitions:
         type: string
       phone:
         type: integer
+      sa_name:
+        type: string
       status:
         type: integer
       username:
@@ -318,6 +358,36 @@ definitions:
         type: integer
       is_admin:
         type: integer
+      name:
+        type: string
+      sa_ame:
+        type: string
+      status:
+        type: integer
+    type: object
+  setupcluster.MeshDevApp:
+    properties:
+      name:
+        type: string
+      workloads:
+        items:
+          $ref: '#/definitions/setupcluster.MeshDevWorkload'
+        type: array
+    type: object
+  setupcluster.MeshDevInfo:
+    properties:
+      apps:
+        items:
+          $ref: '#/definitions/setupcluster.MeshDevApp'
+        type: array
+      header:
+        $ref: '#/definitions/model.Header'
+        type: object
+    type: object
+  setupcluster.MeshDevWorkload:
+    properties:
+      kind:
+        type: string
       name:
         type: string
       status:
@@ -380,9 +450,15 @@ definitions:
       status:
         type: integer
     type: object
+host: '{{.Host}}'
 info:
-  contact: {}
+  contact:
+    name: wangwei
+    url: codingcorp.coding.net
+  description: Nocalhost server api
   license: {}
+  title: Nocalhost docs api
+  version: "1.0"
 paths:
   /v1/application:
     get:
@@ -399,8 +475,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: '{"code":0,"message":"OK","data":[{"id":1,"context":"application
-            info","status":"1"}]}'
+          description: '{"code":0,"message":"OK","data":'
           schema:
             $ref: '#/definitions/api.Response'
             type: object
@@ -615,40 +690,6 @@ paths:
       summary: Get authorized details of the application (obsolete)
       tags:
       - Application
-  /v1/application/{id}/create_space:
-    post:
-      consumes:
-      - application/json
-      description: Create a development environment for application
-      parameters:
-      - description: Authorization
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: cluster user info
-        in: body
-        name: CreateAppRequest
-        required: true
-        schema:
-          $ref: '#/definitions/cluster_user.ClusterUserCreateRequest'
-          type: object
-      - description: Application ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/model.ClusterModel'
-            type: object
-      summary: Create a development environment for application
-      tags:
-      - Application
   /v1/application/{id}/dev_space:
     get:
       consumes:
@@ -669,8 +710,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Application development environment parameters, including kubeconfig,
-            status=0 application not installed, 1 installed
+          description: Application
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
@@ -703,8 +743,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Application development environment parameters, including kubeconfig,
-            status=0 application not installed, 1 installed
+          description: Application development environment parameters,
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
@@ -731,8 +770,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Application development environment parameters, including kubeconfig,
-            status=0 application not installed, 1 installed
+          description: Application development environment parameters,
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
@@ -1019,7 +1057,61 @@ paths:
             type: object
       summary: Completely delete the development environment
       tags:
-      - Application
+      - DevSpace
+    get:
+      consumes:
+      - application/json
+      description: ListAll dev spaces
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: ListAll dev spaces
+      tags:
+      - DevSpace
+    post:
+      consumes:
+      - application/json
+      description: Create dev space
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: cluster user info
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/cluster_user.ClusterUserCreateRequest'
+          type: object
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Create dev space
+      tags:
+      - DevSpace
     put:
       consumes:
       - application/json
@@ -1073,14 +1165,40 @@ paths:
       - application/json
       responses:
         "200":
-          description: Application development environment parameters, including kubeconfig,
-            status=0 application not installed, 1 installed
+          description: Application development environment parameters,
           schema:
             $ref: '#/definitions/model.ClusterUserJoinClusterAndAppAndUser'
             type: object
       summary: Get the details of a development environment of the application
       tags:
-      - Application
+      - DevSpace
+  /v1/dev_space/{id}/mesh_apps_info:
+    get:
+      consumes:
+      - application/json
+      description: Get mesh apps info
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: devspace id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/setupcluster.MeshDevInfo'
+            type: object
+      summary: Get mesh apps info
+      tags:
+      - DevSpace
   /v1/dev_space/{id}/recreate:
     post:
       consumes:
@@ -1107,7 +1225,41 @@ paths:
             type: object
       summary: ReCreate devSpace
       tags:
-      - Application
+      - DevSpace
+  /v1/dev_space/{id}/update_mesh_dev_space_info:
+    put:
+      consumes:
+      - application/json
+      description: Update mesh dev space info
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: devspace id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: mesh dev space info
+        in: body
+        name: MeshDevInfo
+        required: true
+        schema:
+          $ref: '#/definitions/setupcluster.MeshDevInfo'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Update mesh dev space info
+      tags:
+      - DevSpace
   /v1/dev_space/{id}/update_resource_limit:
     put:
       consumes:
@@ -1141,7 +1293,7 @@ paths:
             type: object
       summary: Update dev space
       tags:
-      - Cluster
+      - DevSpace
   /v1/login:
     post:
       description: Web and plug-in login
@@ -1470,8 +1622,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Application development environment parameters, including kubeconfig,
-            status=0 application not installed, 1 installed
+          description: Application development environment parameters,
           schema:
             $ref: '#/definitions/model.ClusterUserJoinClusterAndAppAndUser'
             type: object
@@ -1493,3 +1644,4 @@ paths:
       summary: Get api server version
       tags:
       - Version
+swagger: "2.0"

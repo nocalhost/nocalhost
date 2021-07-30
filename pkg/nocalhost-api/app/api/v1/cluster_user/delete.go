@@ -20,12 +20,13 @@ import (
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
 // Delete Completely delete the development environment
 // @Summary Completely delete the development environment
 // @Description Completely delete the development environment, including deleting the K8S namespace
-// @Tags Application
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
@@ -42,7 +43,6 @@ func Delete(c *gin.Context) {
 	}
 
 	if clusterUser.ClusterAdmin != nil && *clusterUser.ClusterAdmin != 0 {
-
 		if err := service.Svc.UnAuthorizeClusterToUser(clusterUser.ClusterId, clusterUser.UserId); err != nil {
 			api.SendResponse(c, err, nil)
 			return
@@ -56,32 +56,68 @@ func Delete(c *gin.Context) {
 
 		api.SendResponse(c, errno.OK, nil)
 		return
-	} else {
-		clusterData, err := service.Svc.ClusterSvc().Get(c, clusterUser.ClusterId)
+	}
+
+	clusterData, err := service.Svc.ClusterSvc().Get(c, clusterUser.ClusterId)
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterNotFound, nil)
+		return
+	}
+
+	meshDevInfo := &setupcluster.MeshDevInfo{
+		Header: clusterUser.TraceHeader,
+	}
+	req := ClusterUserCreateRequest{
+		ID:             &clusterUser.ID,
+		NameSpace:      clusterUser.Namespace,
+		BaseDevSpaceId: clusterUser.BaseDevSpaceId,
+		MeshDevInfo:    meshDevInfo,
+	}
+	devSpace := NewDevSpace(req, c, []byte(clusterData.KubeConfig))
+
+	if err := devSpace.Delete(); err != nil {
+		api.SendResponse(c, err, nil)
+		return
+	}
+
+	devSpaces, err := service.Svc.ClusterUser().GetList(c, model.ClusterUserModel{BaseDevSpaceId: devSpaceId})
+	if err != nil {
+		// can not find mesh dev space, do nothing
+		api.SendResponse(c, errno.OK, nil)
+		return
+	}
+
+	// delete the dev spaces that the bash space is the one we want to delete
+	for _, space := range devSpaces {
+		clusterData, err := service.Svc.ClusterSvc().Get(c, space.ClusterId)
 		if err != nil {
 			api.SendResponse(c, errno.ErrClusterNotFound, nil)
 			return
 		}
-
+		meshDevInfo := &setupcluster.MeshDevInfo{
+			Header: space.TraceHeader,
+		}
 		req := ClusterUserCreateRequest{
-			ID:        &clusterUser.ID,
-			NameSpace: clusterUser.Namespace,
+			ID:             &space.ID,
+			NameSpace:      space.Namespace,
+			BaseDevSpaceId: space.BaseDevSpaceId,
+			MeshDevInfo:    meshDevInfo,
 		}
 		devSpace := NewDevSpace(req, c, []byte(clusterData.KubeConfig))
-
 		if err := devSpace.Delete(); err != nil {
 			api.SendResponse(c, err, nil)
 			return
 		}
-
-		api.SendResponse(c, errno.OK, nil)
 	}
+
+	api.SendResponse(c, errno.OK, nil)
+
 }
 
 // ReCreate ReCreate devSpace
 // @Summary ReCreate devSpace
 // @Description delete devSpace and create a new one
-// @Tags Application
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
@@ -120,6 +156,9 @@ func ReCreate(c *gin.Context) {
 	res := SpaceResourceLimit{}
 	json.Unmarshal([]byte(clusterUser.SpaceResourceLimit), &res)
 	// create a new dev space
+	meshDevInfo := &setupcluster.MeshDevInfo{
+		Header: clusterUser.TraceHeader,
+	}
 	req := ClusterUserCreateRequest{
 		ClusterId:          &clusterUser.ClusterId,
 		UserId:             &clusterUser.UserId,
@@ -130,6 +169,8 @@ func ReCreate(c *gin.Context) {
 		NameSpace:          clusterUser.Namespace,
 		ID:                 &clusterUser.ID,
 		SpaceResourceLimit: &res,
+		BaseDevSpaceId:     clusterUser.BaseDevSpaceId,
+		MeshDevInfo:        meshDevInfo,
 	}
 
 	// delete devSpace space first, it will delete database record whatever success delete namespace or not

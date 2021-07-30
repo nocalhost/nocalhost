@@ -15,13 +15,17 @@ package cluster_user
 import (
 	"context"
 	"encoding/json"
+	"errors"
+
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
@@ -52,6 +56,14 @@ func (d *DevSpace) Delete() error {
 		}
 	}
 
+	// delete tracing header from base space
+	if d.DevSpaceParams.BaseDevSpaceId > 0 {
+		if err := d.deleteTracingHeader(); err != nil {
+			log.Error(err)
+			return errno.ErrDeleteTracingHeaderFailed
+		}
+	}
+
 	_, _ = goClient.DeleteNS(d.DevSpaceParams.NameSpace)
 
 	// delete database cluster-user dev space
@@ -65,6 +77,26 @@ func (d *DevSpace) Delete() error {
 func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	userId := cast.ToUint64(d.DevSpaceParams.UserId)
 	clusterId := cast.ToUint64(d.DevSpaceParams.ClusterId)
+
+	// check base dev space
+	baseClusterUser := &model.ClusterUserModel{}
+	if d.DevSpaceParams.BaseDevSpaceId > 0 {
+		var err error
+		baseClusterUser, err = service.Svc.ClusterUser().GetFirst(d.c, model.ClusterUserModel{
+			ID: d.DevSpaceParams.BaseDevSpaceId,
+		})
+		if err != nil || baseClusterUser == nil {
+			log.Error(err)
+			return nil, errno.ErrMeshClusterUserNotFound
+		}
+		if baseClusterUser.BaseDevSpaceId > 0 {
+			return nil, errno.ErrUseAsBaseSpace
+		}
+		if baseClusterUser.Namespace == "*" || baseClusterUser.Namespace == "" {
+			log.Error(errors.New("base dev namespace has not found"))
+			return nil, errno.ErrMeshClusterUserNamespaceNotFound
+		}
+	}
 
 	// get user
 	usersRecord, err := service.Svc.UserSvc().GetUserByID(d.c, userId)
@@ -82,11 +114,28 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		d.DevSpaceParams.SpaceName = clusterRecord.Name + "[" + usersRecord.Name + "]"
 	}
 
+	clusterUserModel := &model.ClusterUserModel{}
 	if d.DevSpaceParams.ClusterAdmin == nil || *d.DevSpaceParams.ClusterAdmin == 0 {
-		return d.createDevSpace(clusterRecord, usersRecord)
+		clusterUserModel, err = d.createDevSpace(clusterRecord, usersRecord)
+		if err != nil {
+			return nil, err
+		}
 	} else {
-		return d.createClusterDevSpace(clusterRecord, usersRecord)
+		clusterUserModel, err = d.createClusterDevSpace(clusterRecord, usersRecord)
+		if err != nil {
+			return nil, err
+		}
 	}
+
+	// init mesh dev space
+	if d.DevSpaceParams.BaseDevSpaceId > 0 {
+		if clusterUserModel, err = d.initMeshDevSpace(&clusterRecord, clusterUserModel, baseClusterUser); err != nil {
+			log.Error(err)
+			return nil, errno.ErrInitMeshSpaceFailed
+		}
+	}
+
+	return clusterUserModel, nil
 }
 
 func (d *DevSpace) createClusterDevSpace(
@@ -140,8 +189,13 @@ func (d *DevSpace) createDevSpace(
 	// create cluster devs
 	devNamespace := goClient.GenerateNsName(usersRecord.ID)
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
+	// set labels for istio proxy sidecar injection
+	labels := make(map[string]string)
+	if d.DevSpaceParams.BaseDevSpaceId > 0 {
+		labels["istio-injection"] = "enabled"
+	}
 	secret, err := clusterDevsSetUp.
-		CreateNS(devNamespace, "").
+		CreateNS(devNamespace, labels).
 		CreateServiceAccount("", devNamespace).
 		CreateRole(global.NocalhostDevRoleName, devNamespace).
 		CreateRoleBinding(
@@ -198,4 +252,61 @@ func (d *DevSpace) createDevSpace(
 	}
 
 	return &result, nil
+}
+
+func (d *DevSpace) initMeshDevSpace(
+	clusterRecord *model.ClusterModel, clusterUser, baseClusterUser *model.ClusterUserModel) (
+	*model.ClusterUserModel, error) {
+	// init mesh dev space
+	meshDevInfo := *d.DevSpaceParams.MeshDevInfo
+	meshDevInfo.MeshDevNamespace = clusterUser.Namespace
+
+	meshDevInfo.BaseNamespace = baseClusterUser.Namespace
+
+	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(clusterRecord.KubeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := meshManager.InitMeshDevSpace(&meshDevInfo); err != nil {
+		meshManager.Rollback(&meshDevInfo)
+		return nil, err
+	}
+
+	clusterUser.TraceHeader = d.DevSpaceParams.MeshDevInfo.Header
+	clusterUser.BaseDevSpaceId = d.DevSpaceParams.BaseDevSpaceId
+	return service.Svc.ClusterUser().Update(d.c, clusterUser)
+}
+
+func (d *DevSpace) deleteTracingHeader() error {
+	if d.DevSpaceParams.BaseDevSpaceId == 0 {
+		return nil
+	}
+
+	// check base dev space
+	baseDevspace, err := service.Svc.ClusterUser().GetFirst(d.c, model.ClusterUserModel{
+		ID: d.DevSpaceParams.BaseDevSpaceId,
+	})
+	if err != nil || baseDevspace == nil {
+		log.Debug("can not find base namespace, does not delete tracing header")
+		return nil
+	}
+	if baseDevspace.Namespace == "*" || baseDevspace.Namespace == "" {
+		log.Debug("can not find base namespace, does not delete tracing header")
+		return nil
+	}
+
+	meshDevInfo := d.DevSpaceParams.MeshDevInfo
+	meshDevInfo.MeshDevNamespace = d.DevSpaceParams.NameSpace
+	meshDevInfo.BaseNamespace = baseDevspace.Namespace
+
+	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(string(d.KubeConfig))
+	if err != nil {
+		return err
+	}
+
+	if err := meshManager.DeleteTracingHeader(meshDevInfo); err != nil {
+		return err
+	}
+	return nil
 }

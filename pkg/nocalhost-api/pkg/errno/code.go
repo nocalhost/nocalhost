@@ -163,6 +163,15 @@ var (
 	ErrAlreadyExist = &Errno{
 		Code: 50123, Message: "Current user already authorization current cluster's cluster admin",
 	}
+	// cluster-user errors for mesh space
+	ErrMeshClusterUserNotFound          = &Errno{Code: 50200, Message: "Base dev space has not found"}
+	ErrMeshClusterUserNamespaceNotFound = &Errno{Code: 50201, Message: "Base dev namespace has not found"}
+	ErrInitMeshSpaceFailed              = &Errno{Code: 50202, Message: "Failed to initialize mesh space"}
+	ErrGetDevSpaceAppInfo               = &Errno{Code: 50203, Message: "Failed to get dev space info"}
+	ErrUpdateMeshSpaceFailed            = &Errno{Code: 50204, Message: "Failed to update mesh space"}
+	ErrDeleteTracingHeaderFailed        = &Errno{Code: 50205, Message: "Failed to delete tracing header"}
+	ErrUpdateBaseSpace                  = &Errno{Code: 50206, Message: "Base space can't be updated"}
+	ErrUseAsBaseSpace                   = &Errno{Code: 50207, Message: "Can't be used as base space"}
 
 	// application-user for application-user module request
 	ErrListApplicationUser = &Errno{

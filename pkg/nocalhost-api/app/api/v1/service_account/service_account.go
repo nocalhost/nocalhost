@@ -297,7 +297,7 @@ func getServiceAccountKubeConfigReader(
 		return nil
 	}
 
-	secret, err := clientGo.GetSecret(sa.Secrets[0].Name, service.NocalhostDefaultSaNs)
+	secret, err := clientGo.GetSecret(service.NocalhostDefaultSaNs, sa.Secrets[0].Name)
 	if err != nil {
 		return nil
 	}

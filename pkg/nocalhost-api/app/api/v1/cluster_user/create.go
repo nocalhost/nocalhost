@@ -21,17 +21,17 @@ import (
 	"strings"
 )
 
-// Create Create a development environment for application
-// @Summary Create a development environment for application
-// @Description Create a development environment for application
-// @Tags Application
+// Create Create dev space
+// @Summary Create dev space
+// @Description Create dev space
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param CreateAppRequest body cluster_user.ClusterUserCreateRequest true "cluster user info"
 // @Param id path uint64 true "Application ID"
-// @Success 200 {object} model.ClusterModel
-// @Router /v1/application/{id}/create_space [post]
+// @Success 200 {object} model.ClusterUserModel
+// @Router /v1/dev_space/{id} [post]
 func Create(c *gin.Context) {
 	var req ClusterUserCreateRequest
 	defaultNum := uint64(0)
@@ -76,16 +76,16 @@ func ValidSpaceResourceLimit(resLimit SpaceResourceLimit) (bool, string) {
 
 	var message msgList = []string{}
 	message.appendWhileMatch(resLimit.SpaceReqMem, "space_req_mem", regMem)
-	message.appendWhileMatch(resLimit.SpaceLimitsMem,"space_limits_mem",regMem)
-	message.appendWhileMatch(resLimit.SpaceReqCpu,"space_req_cpu",regCpu)
-	message.appendWhileMatch(resLimit.SpaceLimitsCpu,"space_limits_cpu",regCpu)
-	message.appendWhileMatch(resLimit.SpaceLbCount,"space_lb_count",numReg)
-	message.appendWhileMatch(resLimit.SpacePvcCount,"space_pvc_count",numReg)
-	message.appendWhileMatch(resLimit.SpaceStorageCapacity,"space_storage_capacity",regStorage)
-	message.appendWhileMatch(resLimit.ContainerReqMem,"container_req_mem",regMem)
-	message.appendWhileMatch(resLimit.ContainerReqCpu,"container_req_cpu",regCpu)
-	message.appendWhileMatch(resLimit.ContainerLimitsMem,"container_limits_mem",regMem)
-	message.appendWhileMatch(resLimit.ContainerLimitsCpu,"container_limits_cpu",regCpu)
+	message.appendWhileMatch(resLimit.SpaceLimitsMem, "space_limits_mem", regMem)
+	message.appendWhileMatch(resLimit.SpaceReqCpu, "space_req_cpu", regCpu)
+	message.appendWhileMatch(resLimit.SpaceLimitsCpu, "space_limits_cpu", regCpu)
+	message.appendWhileMatch(resLimit.SpaceLbCount, "space_lb_count", numReg)
+	message.appendWhileMatch(resLimit.SpacePvcCount, "space_pvc_count", numReg)
+	message.appendWhileMatch(resLimit.SpaceStorageCapacity, "space_storage_capacity", regStorage)
+	message.appendWhileMatch(resLimit.ContainerReqMem, "container_req_mem", regMem)
+	message.appendWhileMatch(resLimit.ContainerReqCpu, "container_req_cpu", regCpu)
+	message.appendWhileMatch(resLimit.ContainerLimitsMem, "container_limits_mem", regMem)
+	message.appendWhileMatch(resLimit.ContainerLimitsCpu, "container_limits_cpu", regCpu)
 
 	if len(message) > 0 {
 		return false, strings.Join(message, ",")

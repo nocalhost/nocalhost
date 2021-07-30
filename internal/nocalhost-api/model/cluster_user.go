@@ -13,9 +13,12 @@
 package model
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"time"
 
 	validator "github.com/go-playground/validator/v10"
+	"github.com/pkg/errors"
 )
 
 // ClusterUserModel
@@ -34,6 +37,8 @@ type ClusterUserModel struct {
 	Namespace          string     `gorm:"column:namespace;not null" json:"namespace"`
 	Status             *uint64    `gorm:"column:status;default:0" json:"status"`
 	ClusterAdmin       *uint64    `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
+	BaseDevSpaceId     uint64     `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`
+	TraceHeader        Header     `gorm:"cloumn:trace_header;type:VARCHAR(256);" json:"trace_header"`
 	CreatedAt          time.Time  `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt          time.Time  `gorm:"column:updated_at" json:"-"`
 	DeletedAt          *time.Time `gorm:"column:deleted_at" json:"-"`
@@ -96,4 +101,25 @@ func (u *ClusterUserModel) Validate() error {
 // TableName
 func (u *ClusterUserModel) TableName() string {
 	return "clusters_users"
+}
+
+type Header struct {
+	TraceKey   string `json:"key"`
+	TraceValue string `json:"value"`
+}
+
+func (h *Header) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	b, ok := value.([]byte)
+	if !ok {
+		return errors.Errorf("value is not []byte, value: %v", value)
+	}
+	return json.Unmarshal(b, h)
+}
+
+func (h Header) Value() (driver.Value, error) {
+	return json.Marshal(h)
 }

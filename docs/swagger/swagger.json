@@ -1,8 +1,17 @@
 {
+    "swagger": "2.0",
     "info": {
-        "contact": {},
-        "license": {}
+        "description": "Nocalhost server api",
+        "title": "Nocalhost docs api",
+        "contact": {
+            "name": "wangwei",
+            "url": "codingcorp.coding.net"
+        },
+        "license": {},
+        "version": "1.0"
     },
+    "host": "{{.Host}}",
+    "basePath": "{{.BasePath}}",
     "paths": {
         "/v1/application": {
             "get": {
@@ -28,7 +37,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":[{\"id\":1,\"context\":\"application info\",\"status\":\"1\"}]}",
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/api.Response"
@@ -341,56 +350,6 @@
                 }
             }
         },
-        "/v1/application/{id}/create_space": {
-            "post": {
-                "description": "Create a development environment for application",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Application"
-                ],
-                "summary": "Create a development environment for application",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Authorization",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "description": "cluster user info",
-                        "name": "CreateAppRequest",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/cluster_user.ClusterUserCreateRequest"
-                        }
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Application ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/model.ClusterModel"
-                        }
-                    }
-                }
-            }
-        },
         "/v1/application/{id}/dev_space": {
             "get": {
                 "description": "Get personal application development environment (kubeconfig) (obsolete)",
@@ -422,7 +381,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed",
+                        "description": "Application",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
@@ -469,7 +428,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed",
+                        "description": "Application development environment parameters,",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
@@ -509,7 +468,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed",
+                        "description": "Application development environment parameters,",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterUserModel"
@@ -891,6 +850,37 @@
             }
         },
         "/v1/dev_space/{id}": {
+            "get": {
+                "description": "ListAll dev spaces",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "ListAll dev spaces",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            },
             "put": {
                 "description": "Update dev space",
                 "consumes": [
@@ -939,6 +929,54 @@
                     }
                 }
             },
+            "post": {
+                "description": "Create dev space",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "Create dev space",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "cluster user info",
+                        "name": "CreateAppRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster_user.ClusterUserCreateRequest"
+                        }
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            },
             "delete": {
                 "description": "Completely delete the development environment, including deleting the K8S namespace",
                 "consumes": [
@@ -948,7 +986,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Application"
+                    "DevSpace"
                 ],
                 "summary": "Completely delete the development environment",
                 "parameters": [
@@ -988,7 +1026,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Application"
+                    "DevSpace"
                 ],
                 "summary": "Get the details of a development environment of the application",
                 "parameters": [
@@ -1009,10 +1047,50 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed",
+                        "description": "Application development environment parameters,",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterUserJoinClusterAndAppAndUser"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/dev_space/{id}/mesh_apps_info": {
+            "get": {
+                "description": "Get mesh apps info",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "Get mesh apps info",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "devspace id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/setupcluster.MeshDevInfo"
                         }
                     }
                 }
@@ -1028,7 +1106,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Application"
+                    "DevSpace"
                 ],
                 "summary": "ReCreate devSpace",
                 "parameters": [
@@ -1058,6 +1136,56 @@
                 }
             }
         },
+        "/v1/dev_space/{id}/update_mesh_dev_space_info": {
+            "put": {
+                "description": "Update mesh dev space info",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "Update mesh dev space info",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "devspace id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "mesh dev space info",
+                        "name": "MeshDevInfo",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/setupcluster.MeshDevInfo"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/dev_space/{id}/update_resource_limit": {
             "put": {
                 "description": "Update dev space",
@@ -1068,7 +1196,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Cluster"
+                    "DevSpace"
                 ],
                 "summary": "Update dev space",
                 "parameters": [
@@ -1596,7 +1724,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Application development environment parameters, including kubeconfig, status=0 application not installed, 1 installed",
+                        "description": "Application development environment parameters,",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterUserJoinClusterAndAppAndUser"
@@ -1665,6 +1793,9 @@
                 "context": {
                     "type": "string",
                     "example": "{\"application_url\":\"git@github.com:nocalhost/bookinfo.git\",\"application_name\":\"name\",\"source\":\"git/helm_repo\",\"install_type\":\"rawManifest/helm_chart\",\"resource_dir\":[\"manifest/templates\"],\"nocalhost_config_raw\":\"base64encode(config_templates)\",\"nocalhost_config_path\":\"./nocalhost/config.yaml\"}"
+                },
+                "public": {
+                    "type": "integer"
                 },
                 "status": {
                     "type": "integer"
@@ -1739,6 +1870,12 @@
                 "application_id": {
                     "type": "integer"
                 },
+                "base_dev_space_id": {
+                    "type": "integer"
+                },
+                "cluster_admin": {
+                    "type": "integer"
+                },
                 "cluster_id": {
                     "type": "integer"
                 },
@@ -1750,6 +1887,10 @@
                 },
                 "memory": {
                     "type": "integer"
+                },
+                "mesh_dev_info": {
+                    "type": "object",
+                    "$ref": "#/definitions/setupcluster.MeshDevInfo"
                 },
                 "namespace": {
                     "type": "string"
@@ -1836,16 +1977,26 @@
             "type": "object",
             "required": [
                 "context",
+                "public",
                 "status"
             ],
             "properties": {
+                "application_type": {
+                    "type": "string"
+                },
                 "context": {
                     "type": "string"
                 },
                 "created_at": {
                     "type": "string"
                 },
+                "editable": {
+                    "type": "integer"
+                },
                 "id": {
+                    "type": "integer"
+                },
+                "public": {
                     "type": "integer"
                 },
                 "status": {
@@ -1862,6 +2013,9 @@
                 "created_at": {
                     "type": "string"
                 },
+                "has_dev_space": {
+                    "type": "boolean"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -1875,6 +2029,9 @@
                     "type": "string"
                 },
                 "not_ready_message": {
+                    "type": "string"
+                },
+                "server": {
                     "type": "string"
                 },
                 "storage_class": {
@@ -1924,11 +2081,8 @@
         "model.ClusterUserJoinClusterAndAppAndUser": {
             "type": "object",
             "properties": {
-                "application_id": {
+                "cluster_admin": {
                     "type": "integer"
-                },
-                "application_name": {
-                    "type": "string"
                 },
                 "cluster_id": {
                     "type": "integer"
@@ -1969,6 +2123,13 @@
             "type": "object",
             "properties": {
                 "application_id": {
+                    "description": "Deprecated",
+                    "type": "integer"
+                },
+                "base_dev_space_id": {
+                    "type": "integer"
+                },
+                "cluster_admin": {
                     "type": "integer"
                 },
                 "cluster_id": {
@@ -2001,8 +2162,23 @@
                 "status": {
                     "type": "integer"
                 },
+                "trace_header": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.Header"
+                },
                 "user_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "model.Header": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
                 }
             }
         },
@@ -2039,6 +2215,9 @@
                 "namespace": {
                     "type": "string"
                 },
+                "public": {
+                    "type": "integer"
+                },
                 "space_name": {
                     "type": "string"
                 },
@@ -2056,6 +2235,9 @@
                 "avatar": {
                     "type": "string"
                 },
+                "cluster_admin": {
+                    "type": "integer"
+                },
                 "email": {
                     "type": "string"
                 },
@@ -2070,6 +2252,9 @@
                 },
                 "phone": {
                     "type": "integer"
+                },
+                "sa_name": {
+                    "type": "string"
                 },
                 "status": {
                     "type": "integer"
@@ -2113,6 +2298,52 @@
                 },
                 "is_admin": {
                     "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sa_ame": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "setupcluster.MeshDevApp": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "workloads": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/setupcluster.MeshDevWorkload"
+                    }
+                }
+            }
+        },
+        "setupcluster.MeshDevInfo": {
+            "type": "object",
+            "properties": {
+                "apps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/setupcluster.MeshDevApp"
+                    }
+                },
+                "header": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.Header"
+                }
+            }
+        },
+        "setupcluster.MeshDevWorkload": {
+            "type": "object",
+            "properties": {
+                "kind": {
+                    "type": "string"
                 },
                 "name": {
                     "type": "string"
