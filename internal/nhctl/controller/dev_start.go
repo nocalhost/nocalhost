@@ -18,6 +18,8 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"nocalhost/internal/nhctl/const"
+
 	//"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
@@ -78,7 +80,7 @@ func (c *Controller) markReplicaSetRevision() error {
 			originalPodReplicas = int(*dep0.Spec.Replicas)
 		}
 		for _, rs := range rss {
-			if _, ok := rs.Annotations[nocalhost.DevImageRevisionAnnotationKey]; ok {
+			if _, ok := rs.Annotations[_const.DevImageRevisionAnnotationKey]; ok {
 				// already marked
 				return nil
 			}
@@ -89,8 +91,9 @@ func (c *Controller) markReplicaSetRevision() error {
 			time.Sleep(time.Second * 1)
 			if err = c.Client.Patch("ReplicaSet", rs.Name,
 				fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
-					nocalhost.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
-					nocalhost.DevImageRevisionAnnotationKey, nocalhost.DevImageRevisionAnnotationValue)); err == nil {
+					_const.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
+					_const.DevImageRevisionAnnotationKey, _const.DevImageRevisionAnnotationValue,
+				)); err == nil {
 				break
 			}
 		}
@@ -199,9 +202,9 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 
 			// Check if pvc is already exist
 			labels := map[string]string{}
-			labels[nocalhost.AppLabel] = c.AppName
-			labels[nocalhost.ServiceLabel] = c.Name
-			labels[nocalhost.PersistentVolumeDirLabel] = utils.Sha1ToString(persistentVolume.Path)
+			labels[_const.AppLabel] = c.AppName
+			labels[_const.ServiceLabel] = c.Name
+			labels[_const.PersistentVolumeDirLabel] = utils.Sha1ToString(persistentVolume.Path)
 			claims, err := c.Client.GetPvcByLabels(labels)
 			if err != nil {
 				log.WarnE(err, fmt.Sprintf("Fail to get a pvc for %s", persistentVolume.Path))
@@ -304,7 +307,7 @@ func (c *Controller) createPvcForPersistentVolumeDir(
 	)
 
 	pvcName := fmt.Sprintf("%s-%d", c.AppName, time.Now().UnixNano())
-	annotations := map[string]string{nocalhost.PersistentVolumeDirLabel: persistentVolume.Path}
+	annotations := map[string]string{_const.PersistentVolumeDirLabel: persistentVolume.Path}
 	capacity := persistentVolume.Capacity
 	if persistentVolume.Capacity == "" {
 		capacity = "10Gi"
@@ -369,7 +372,7 @@ func generateSideCarContainer(workDir string) corev1.Container {
 
 	sideCarContainer := corev1.Container{
 		Name:       "nocalhost-sidecar",
-		Image:      nocalhost.DefaultSideCarImage,
+		Image:      _const.DefaultSideCarImage,
 		WorkingDir: workDir,
 	}
 
@@ -475,7 +478,7 @@ func findDevPod(podList []corev1.Pod) (string, error) {
 	for _, pod := range podList {
 		if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
 			for _, container := range pod.Spec.Containers {
-				if container.Name == nocalhost.DefaultNocalhostSideCarName {
+				if container.Name == _const.DefaultNocalhostSideCarName {
 					return pod.Name, nil
 				}
 			}
@@ -515,8 +518,8 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	devContainer.WorkingDir = workDir
 
 	// set image pull policy
-	sideCarContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
-	devContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
+	sideCarContainer.ImagePullPolicy = _const.DefaultSidecarImagePullPolicy
+	devContainer.ImagePullPolicy = _const.DefaultSidecarImagePullPolicy
 
 	// add env
 	devEnv := c.GetDevContainerEnv(containerName)

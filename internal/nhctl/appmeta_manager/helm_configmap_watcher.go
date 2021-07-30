@@ -75,7 +75,6 @@ func (hcmw *helmCmWatcher) join(configMap *v1.ConfigMap) error {
 		configMap.Data["release"],
 		hcmw.ns,
 		hcmw.configBytes,
-		hcmw.clientSet,
 	); err != nil {
 		log.TLogf(
 			"Watcher", "Helm application found from cm: %s,"+
@@ -94,7 +93,6 @@ func (hcmw *helmCmWatcher) left(appName string) error {
 		appName,
 		hcmw.ns,
 		hcmw.configBytes,
-		hcmw.clientSet,
 	); err != nil {
 		log.TLogf(
 			"Watcher", "Helm application '%s' is deleted,"+

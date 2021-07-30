@@ -18,8 +18,8 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -97,7 +97,7 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 	generatedDeployment := &v1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   d.getGeneratedDeploymentName(),
-			Labels: map[string]string{nocalhost.DevWorkloadIgnored: "true"},
+			Labels: map[string]string{_const.DevWorkloadIgnored: "true"},
 		},
 		Spec: v1.DeploymentSpec{
 			Selector: ds.Spec.Selector,

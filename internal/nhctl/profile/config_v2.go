@@ -12,7 +12,11 @@
 
 package profile
 
-import "nocalhost/internal/nhctl/common/base"
+import (
+	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/fp"
+	"nocalhost/pkg/nhctl/clientgoutils"
+)
 
 //type AppType string
 //type SvcType string
@@ -28,11 +32,18 @@ type ConfigProperties struct {
 }
 
 type ApplicationConfig struct {
-	Name           string             `json:"name" yaml:"name,omitempty"`
-	Type           string             `json:"manifestType" yaml:"manifestType,omitempty"`
-	ResourcePath   []string           `json:"resourcePath" yaml:"resourcePath"`
-	IgnoredPath    []string           `json:"ignoredPath" yaml:"ignoredPath"`
-	PreInstall     []*PreInstallItem  `json:"onPreInstall" yaml:"onPreInstall"`
+	Name         string  `json:"name" yaml:"name,omitempty"`
+	Type         string  `json:"manifestType" yaml:"manifestType,omitempty"`
+	ResourcePath RelPath `json:"resourcePath" yaml:"resourcePath"`
+	IgnoredPath  RelPath `json:"ignoredPath" yaml:"ignoredPath"`
+
+	PreInstall  SortedRelPath `json:"onPreInstall" yaml:"onPreInstall"`
+	PostInstall SortedRelPath `json:"onPostInstall" yaml:"onPostInstall"`
+	PreUpgrade  SortedRelPath `json:"onPreUpgrade" yaml:"onPreUpgrade"`
+	PostUpgrade SortedRelPath `json:"onPostUpgrade" yaml:"onPostUpgrade"`
+	PreDelete   SortedRelPath `json:"onPreDelete" yaml:"onPreDelete"`
+	PostDelete  SortedRelPath `json:"onPostDelete" yaml:"onPostDelete"`
+
 	HelmValues     []*HelmValue       `json:"helmValues" yaml:"helmValues"`
 	HelmVals       interface{}        `json:"helmVals" yaml:"helmVals"`
 	HelmVersion    string             `json:"helmVersion" yaml:"helmVersion"`
@@ -126,4 +137,21 @@ func (n *NocalHostAppConfigV2) GetSvcConfigV2(svcName string, svcType base.SvcTy
 		}
 	}
 	return nil
+}
+
+func (c *ApplicationConfig) LoadManifests(tmpDir *fp.FilePathEnhance) []string {
+	if c == nil {
+		return []string{}
+	}
+
+	return clientgoutils.LoadValidManifest(
+		c.ResourcePath.Load(tmpDir),
+		c.PreInstall.Load(tmpDir),
+		c.PostInstall.Load(tmpDir),
+		c.PreUpgrade.Load(tmpDir),
+		c.PostUpgrade.Load(tmpDir),
+		c.IgnoredPath.Load(tmpDir),
+		c.PreDelete.Load(tmpDir),
+		c.PostDelete.Load(tmpDir),
+	)
 }

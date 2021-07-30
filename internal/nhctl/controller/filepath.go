@@ -14,6 +14,7 @@ package controller
 
 import (
 	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/utils"
@@ -22,7 +23,7 @@ import (
 )
 
 func (c *Controller) GetSyncThingPidFile() string {
-	return filepath.Join(c.GetApplicationSyncDir(), nocalhost.DefaultApplicationSyncPidFile)
+	return filepath.Join(c.GetApplicationSyncDir(), _const.DefaultApplicationSyncPidFile)
 }
 
 func (c *Controller) GetApplicationSyncDir() string {

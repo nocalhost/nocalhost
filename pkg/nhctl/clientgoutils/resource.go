@@ -104,7 +104,12 @@ func isMatchingInfo(a, b *resource.Info) bool {
 		a.Mapping.GroupVersionKind.Kind == b.Mapping.GroupVersionKind.Kind
 }
 
-func LoadValidManifest(path, ignorePath []string) []string {
+func LoadValidManifest(path []string, ignorePaths ...[]string) []string {
+	var ignorePath []string
+	for _, ignorePathItem := range ignorePaths {
+		ignorePath = append(ignorePath, ignorePathItem...)
+	}
+
 	result := make([]string, 0)
 	resourcePaths := path
 	for _, eachPath := range resourcePaths {

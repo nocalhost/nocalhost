@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/restmapper"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"nocalhost/pkg/nhctl/log"
+	"strings"
 )
 
 func (c *ClientGoUtils) NewFactory() cmdutil.Factory {
@@ -37,6 +38,10 @@ func (c *ClientGoUtils) NewFactory() cmdutil.Factory {
 	return f
 }
 
+func (c *ClientGoUtils) ApplyAndWaitFor(manifests string, continueOnError bool, flags *ApplyFlags) error {
+	return c.doApplyAndWait(NewResourceFromStr(manifests), continueOnError, flags)
+}
+
 func (c *ClientGoUtils) ApplyAndWait(files []string, continueOnError bool, flags *ApplyFlags) error {
 	reader := NewManifestResourceReader(files)
 
@@ -45,17 +50,25 @@ func (c *ClientGoUtils) ApplyAndWait(files []string, continueOnError bool, flags
 		return err
 	}
 
+	return c.doApplyAndWait(loadResource, continueOnError, flags)
+}
+
+func (c *ClientGoUtils) doApplyAndWait(resource *Resource, continueOnError bool, flags *ApplyFlags) error {
 	//goland:noinspection GoNilness
 	if flags != nil && flags.BeforeApply != nil {
-		if err := (flags.BeforeApply)(loadResource.String()); err != nil {
+		if err := (flags.BeforeApply)(resource.String()); err != nil {
 			return err
 		}
 	}
 
 	if flags != nil && flags.DoApply {
 		//goland:noinspection GoNilness
-		for _, manifest := range loadResource.arr() {
-			if err = c.applyUnstructuredResource(manifest, true, flags); err != nil {
+		for _, manifest := range resource.arr() {
+			if manifest == "" || strings.Trim(manifest, " ") == "" {
+				continue
+			}
+
+			if err := c.applyUnstructuredResource(manifest, true, flags); err != nil {
 				if !continueOnError {
 					return err
 				}
@@ -91,7 +104,7 @@ func (c *ClientGoUtils) Delete(files []string, continueOnError bool, flags *Appl
 			// for now the apply flag used to adding annotations
 			// while apply resource
 			// delete resource need not to do that
-			return c.DeleteResourceInfo(r)
+			return DeleteResourceInfo(r)
 		},
 	)
 }

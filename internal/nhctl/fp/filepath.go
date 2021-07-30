@@ -17,7 +17,6 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/syncthing/network/req"
 	"os"
 	"path/filepath"
@@ -46,7 +45,7 @@ type FilePathEnhance struct {
 	mu      sync.Mutex
 }
 
-func NewRandomTempPath() *FilePathEnhance{
+func NewRandomTempPath() *FilePathEnhance {
 	dir, _ := ioutil.TempDir("", "")
 	return NewFilePath(dir)
 }
@@ -125,6 +124,10 @@ func (f *FilePathEnhance) ReadFile() string {
 	return f.content
 }
 
+func (f *FilePathEnhance) Doom() error {
+	return os.Remove(f.absPath)
+}
+
 func (f *FilePathEnhance) ReadFileCompel() (string, error) {
 	f.mu.Lock()
 
@@ -161,11 +164,11 @@ func (f *FilePathEnhance) CheckExist() error {
 }
 
 func (f *FilePathEnhance) Mkdir() error {
-	return os.MkdirAll(f.absPath, nocalhost.DefaultNewFilePermission)
+	return os.MkdirAll(f.absPath, 0700)
 }
 
-func (f *FilePathEnhance) MkdirThen() *FilePathEnhance{
-	_ = os.MkdirAll(f.absPath, nocalhost.DefaultNewFilePermission)
+func (f *FilePathEnhance) MkdirThen() *FilePathEnhance {
+	_ = os.MkdirAll(f.absPath, 0700)
 	return f
 }
 

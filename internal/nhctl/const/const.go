@@ -10,7 +10,7 @@
  * limitations under the License.
  */
 
-package nocalhost
+package _const
 
 const (
 	NocalhostApplicationName      = "dev.nocalhost/application-name"

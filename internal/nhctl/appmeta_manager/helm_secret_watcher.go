@@ -75,7 +75,6 @@ func (hws *helmSecretWatcher) join(secret *v1.Secret) error {
 		string(secret.Data["release"]),
 		hws.ns,
 		hws.configBytes,
-		hws.clientSet,
 	); err != nil {
 		log.TLogf(
 			"Watcher", "Helm application found from secret: %s,"+
@@ -94,7 +93,6 @@ func (hws *helmSecretWatcher) left(appName string) error {
 		appName,
 		hws.ns,
 		hws.configBytes,
-		hws.clientSet,
 	); err != nil {
 		log.TLogf(
 			"Watcher", "Helm application '%s' is deleted,"+

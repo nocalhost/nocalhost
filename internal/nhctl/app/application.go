@@ -21,6 +21,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -166,7 +167,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 	}
 
 	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() &&
-		a.Name != nocalhost.DefaultNocalhostApplication {
+		a.Name != _const.DefaultNocalhostApplication {
 		a.AppType = profileV2.AppType
 
 		defer func() {
@@ -196,15 +197,15 @@ func (a *Application) generateSecretForEarlierVer() bool {
 
 		_ = a.appMeta.Update()
 
-		a.client, err = a.appMeta.GetClient()
-		if err != nil {
-			log.Error(err)
-		}
+		a.client = a.appMeta.GetClient()
+
+		// for the earlier version, the resource is placed in 'ResourceDir'
+		a.ResourceTmpDir = a.getResourceDir()
 		switch a.AppType {
 		case string(appmeta.Manifest), string(appmeta.ManifestLocal), string(appmeta.ManifestGit):
-			_ = a.InstallManifest(a.appMeta, a.getResourceDir(), false)
+			_ = a.InstallManifest(false)
 		case string(appmeta.KustomizeGit):
-			_ = a.InstallKustomize(a.appMeta, a.getResourceDir(), false)
+			_ = a.InstallKustomize(false)
 		default:
 		}
 

@@ -22,6 +22,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta_manager"
 	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_handler/item"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/fp"
@@ -384,7 +385,7 @@ func InitDefaultAppIfNecessary(namespace, kubeconfigPath string) []*appmeta.Appl
 	applicationMetaList := appmeta_manager.GetApplicationMetas(namespace, kubeconfigBytes)
 	var foundDefaultApp bool
 	for _, meta := range applicationMetaList {
-		if meta.Application == nocalhost.DefaultNocalhostApplication {
+		if meta.Application == _const.DefaultNocalhostApplication {
 			foundDefaultApp = true
 			break
 		}

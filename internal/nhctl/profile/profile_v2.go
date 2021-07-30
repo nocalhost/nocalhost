@@ -20,7 +20,6 @@ import (
 	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
 	"strings"
 )
@@ -71,14 +70,6 @@ type AppProfileV2 struct {
 	dbPath  string
 	appName string
 	ns      string
-}
-
-func (a *AppProfileV2) LoadManifests(tmpDir string) ([]string, []string) {
-	preInstallManifests := a.PreInstall.Load(tmpDir)
-	allManifests := a.ResourcePath.Load(tmpDir)
-	ignore := a.IgnoredPath.Load(tmpDir)
-
-	return preInstallManifests, clientgoutils.LoadValidManifest(allManifests, append(preInstallManifests, ignore...))
 }
 
 func ProfileV2Key(ns, app string) string {

@@ -22,10 +22,25 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/kubectl/pkg/cmd/apply"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"nocalhost/internal/nhctl/const"
 	//"k8s.io/kubectl/pkg/util"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 )
+
+func StandardNocalhostMetas(releaseName, releaseNamespace string) *ApplyFlags {
+	return &ApplyFlags{
+		MergeableLabel: map[string]string{
+			_const.AppManagedByLabel: _const.AppManagedByNocalhost,
+		},
+
+		MergeableAnnotation: map[string]string{
+			_const.NocalhostApplicationName:      releaseName,
+			_const.NocalhostApplicationNamespace: releaseNamespace,
+		},
+		DoApply: true,
+	}
+}
 
 type ApplyFlags struct {
 
@@ -48,7 +63,7 @@ func (a *ApplyFlags) SetDoApply(doApply bool) *ApplyFlags {
 	return a
 }
 
-func (c *ClientGoUtils) DeleteResourceInfo(info *resource.Info) error {
+func DeleteResourceInfo(info *resource.Info) error {
 	helper := resource.NewHelper(info.Client, info.Mapping)
 	propagationPolicy := metav1.DeletePropagationBackground
 	obj, err := helper.DeleteWithOptions(

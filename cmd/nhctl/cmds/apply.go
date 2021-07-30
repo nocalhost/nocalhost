@@ -39,7 +39,7 @@ var applyCmd = &cobra.Command{
 		path := args[1]
 
 		initApp(applicationName)
-		manifests := clientgoutils.LoadValidManifest([]string{path}, []string{})
+		manifests := clientgoutils.LoadValidManifest([]string{path})
 
 		err := nocalhostApp.GetClient().Apply(
 			manifests, false,

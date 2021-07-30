@@ -18,7 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/common/base"
-	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/clientgoutils"
 
 	"github.com/spf13/cobra"
@@ -105,11 +105,11 @@ func makePVCObjectList(pvcList []v1.PersistentVolumeClaim) []*pvcObject {
 		annotations := pvc.Annotations
 		pY := &pvcObject{
 			Name:        pvc.Name,
-			AppName:     labels[nocalhost.AppLabel],
-			ServiceName: labels[nocalhost.ServiceLabel],
+			AppName:     labels[_const.AppLabel],
+			ServiceName: labels[_const.ServiceLabel],
 			Capacity:    quantity.String(),
 			Status:      string(pvc.Status.Phase),
-			MountPath:   annotations[nocalhost.PersistentVolumeDirLabel],
+			MountPath:   annotations[_const.PersistentVolumeDirLabel],
 		}
 		if pvc.Spec.StorageClassName != nil {
 			pY.StorageClass = *pvc.Spec.StorageClassName
@@ -140,7 +140,7 @@ func DisplayPVCs(pvcList []v1.PersistentVolumeClaim) {
 		labels := pvc.Labels
 		quantity := pvc.Spec.Resources.Requests[v1.ResourceStorage]
 		fmt.Printf(
-			"%s %s %s %s %s\n", pvc.Name, labels[nocalhost.AppLabel], labels[nocalhost.ServiceLabel], quantity.String(),
+			"%s %s %s %s %s\n", pvc.Name, labels[_const.AppLabel], labels[_const.ServiceLabel], quantity.String(),
 			pvc.Status.Phase,
 		)
 	}

@@ -152,9 +152,6 @@ func (asw *applicationSecretWatcher) GetApplicationMeta(application, ns string) 
 			ApplicationState:   appmeta.UNINSTALLED,
 			Ns:                 ns,
 			Application:        application,
-			DepConfigName:      "",
-			PreInstallManifest: "",
-			Manifest:           "",
 			DevMeta:            appmeta.ApplicationDevMeta{},
 			Config:             &profile2.NocalHostAppConfigV2{},
 		}

@@ -13,19 +13,19 @@
 package app
 
 import (
-	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/clientgoutils"
 )
 
 func StandardNocalhostMetas(releaseName, releaseNamespace string) *clientgoutils.ApplyFlags {
 	return &clientgoutils.ApplyFlags{
 		MergeableLabel: map[string]string{
-			nocalhost.AppManagedByLabel: nocalhost.AppManagedByNocalhost,
+			_const.AppManagedByLabel: _const.AppManagedByNocalhost,
 		},
 
 		MergeableAnnotation: map[string]string{
-			nocalhost.NocalhostApplicationName:      releaseName,
-			nocalhost.NocalhostApplicationNamespace: releaseNamespace,
+			_const.NocalhostApplicationName:      releaseName,
+			_const.NocalhostApplicationNamespace: releaseNamespace,
 		},
 		DoApply: true,
 	}

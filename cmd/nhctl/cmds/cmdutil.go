@@ -18,8 +18,8 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -38,7 +38,7 @@ func initAppMutate(appName string) error {
 	if err != nil {
 		log.Logf("Get application %s on namespace %s occurs error: %v", appName, nameSpace, err)
 		// if default application not found, try to create one
-		if errors.Is(err, app.ErrNotFound) && appName == nocalhost.DefaultNocalhostApplication {
+		if errors.Is(err, app.ErrNotFound) && appName == _const.DefaultNocalhostApplication {
 			// try init default application
 			if _, err := common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig); err != nil {
 				return errors.Wrap(err, "Error while create default application")

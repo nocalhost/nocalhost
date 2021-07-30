@@ -10,8 +10,8 @@ import (
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/fp"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -43,7 +43,7 @@ func InitDefaultApplicationInCurrentNs(namespace string, kubeconfigPath string) 
 		AppType:   string(appmeta.ManifestLocal),
 		LocalPath: baseDir.Abs(),
 	}
-	application, err := InstallApplication(f, nocalhost.DefaultNocalhostApplication, kubeconfigPath, namespace)
+	application, err := InstallApplication(f, _const.DefaultNocalhostApplication, kubeconfigPath, namespace)
 	if errors.IsServerTimeout(err) || errors.IsAlreadyExists(err) {
 		log.Logf("Create default.application failed, err: %v", err)
 		return application, nil
@@ -120,6 +120,5 @@ func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconf
 	}
 
 	err = nocalhostApp.Install(flag)
-	_ = nocalhostApp.CleanUpTmpResources()
 	return nocalhostApp, err
 }

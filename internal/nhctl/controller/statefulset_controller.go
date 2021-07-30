@@ -19,8 +19,8 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
@@ -107,8 +107,8 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 	devContainer.WorkingDir = workDir
 
 	// set image pull policy
-	sideCarContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
-	devContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
+	sideCarContainer.ImagePullPolicy = _const.DefaultSidecarImagePullPolicy
+	devContainer.ImagePullPolicy = _const.DefaultSidecarImagePullPolicy
 
 	// add env
 	devEnv := s.GetDevContainerEnv(ops.Container)
@@ -298,13 +298,13 @@ func (s *StatefulSetController) RollBack(reset bool) error {
 	if dep.Labels == nil {
 		dep.Labels = make(map[string]string, 0)
 	}
-	dep.Labels[nocalhost.AppManagedByLabel] = nocalhost.AppManagedByNocalhost
+	dep.Labels[_const.AppManagedByLabel] = _const.AppManagedByNocalhost
 
 	if dep.Annotations == nil {
 		dep.Annotations = make(map[string]string, 0)
 	}
-	dep.Annotations[nocalhost.NocalhostApplicationName] = s.AppName
-	dep.Annotations[nocalhost.NocalhostApplicationNamespace] = s.NameSpace
+	dep.Annotations[_const.NocalhostApplicationName] = s.AppName
+	dep.Annotations[_const.NocalhostApplicationNamespace] = s.NameSpace
 
 	_, err = clientUtils.CreateStatefulSet(dep)
 	if err != nil {
