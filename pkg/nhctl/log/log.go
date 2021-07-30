@@ -66,12 +66,13 @@ func Init(level zapcore.Level, dir, fileName string) error {
 	logPath := filepath.Join(dir, fileName)
 	rolling := &lumberjack.Logger{
 		Filename:   logPath,
-		MaxSize:    50, // megabytes
+		MaxSize:    100, // megabytes
 		MaxBackups: 60,
-		MaxAge:     60, //days
+		MaxAge:     120, //days
 		Compress:   true,
 	}
-	writeSyncer := zapcore.AddSync(rolling)
+	rollingLog := &logWriter{rollingLog: rolling}
+	writeSyncer := zapcore.AddSync(rollingLog)
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeTime = CustomTimeEncoder
 	encoderConfig.EncodeLevel = CustomLevelEncoder
