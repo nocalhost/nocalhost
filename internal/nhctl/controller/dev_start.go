@@ -13,7 +13,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -540,10 +539,17 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	if IsResourcesLimitTooLow(&devContainer.Resources) {
 		limits := ""
 		if devContainer.Resources.Limits != nil {
-			bys, _ := json.Marshal(devContainer.Resources.Limits)
-			limits = string(bys)
+			if devContainer.Resources.Limits.Cpu() != nil {
+				limits += devContainer.Resources.Limits.Cpu().String() + " cpu"
+			}
+			if devContainer.Resources.Limits.Memory() != nil && devContainer.Resources.Limits.Memory().String() != "0" {
+				if len(limits) > 0 {
+					limits += ", "
+				}
+				limits += devContainer.Resources.Limits.Memory().String() + " memory"
+			}
 		}
-		log.PWarnf(`Resources Limits %s is less than the recommended minimum {"cpu":"2","memory":"2Gi"}. `+
+		log.PWarnf(`Resources Limits: %s is less than the recommended minimum: 2 cpu, 2Gi memory. `+
 			"Running programs in DevContainer may fail. You can increase Resource Limits in Nocalhost Config", limits)
 	}
 

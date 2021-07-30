@@ -25,6 +25,7 @@ func TestIsResourcesLimitToLow(t *testing.T) {
 		Requests: &profile.QuotaList{Memory: "50Mi", Cpu: "100m"},
 	}
 	rq, _ := convertResourceQuota(r)
+	fmt.Println(rq.Limits.Cpu().String())
 	//bys, _ := json.Marshal(rq)
 	//fmt.Printf("%v\n", string(bys))
 	bys, _ := json.Marshal(rq.Limits)
