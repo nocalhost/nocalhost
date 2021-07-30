@@ -28,7 +28,7 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 
 	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
@@ -166,7 +166,7 @@ func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
 		match()
 	for _, c := range appConfigsTmp {
 		name := c.GetName()[len(appmeta.SecretNamePrefix):]
-		if name == nocalhost.DefaultNocalhostApplication {
+		if name == _const.DefaultNocalhostApplication {
 			continue
 		}
 
@@ -203,7 +203,7 @@ func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
 		})
 	}
 	appInfo = append(appInfo, MeshDevApp{
-		Name:      nocalhost.DefaultNocalhostApplication,
+		Name:      _const.DefaultNocalhostApplication,
 		Workloads: w,
 	})
 
@@ -544,7 +544,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 		match()
 	for _, c := range appConfigsTmp {
 		name := c.GetName()[len(appmeta.SecretNamePrefix):]
-		if name == nocalhost.DefaultNocalhostApplication {
+		if name == _const.DefaultNocalhostApplication {
 			continue
 		}
 		val, found, err := unstructured.NestedString(c.UnstructuredContent(), "type")

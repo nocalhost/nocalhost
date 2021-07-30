@@ -25,7 +25,7 @@ import (
 	"k8s.io/client-go/informers"
 	toolscache "k8s.io/client-go/tools/cache"
 
-	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/const"
 )
 
 const (
@@ -67,10 +67,10 @@ func IndexByAppName(obj interface{}) ([]string, error) {
 	if len(annot) == 0 {
 		return []string{}, nil
 	}
-	if name := annot[nocalhost.NocalhostApplicationName]; name != "" {
+	if name := annot[_const.NocalhostApplicationName]; name != "" {
 		return []string{fmt.Sprintf("%s/%s", r.GetNamespace(), name)}, nil
 	}
-	if name := annot[nocalhost.HelmReleaseName]; name != "" {
+	if name := annot[_const.HelmReleaseName]; name != "" {
 		return []string{fmt.Sprintf("%s/%s", r.GetNamespace(), name)}, nil
 	}
 
@@ -310,10 +310,10 @@ func (m *resourcesMatcher) app(appName string) *resourcesMatcher {
 		if a == nil {
 			return false
 		}
-		if a[nocalhost.NocalhostApplicationName] == appName {
+		if a[_const.NocalhostApplicationName] == appName {
 			return true
 		}
-		if a[nocalhost.HelmReleaseName] == appName {
+		if a[_const.HelmReleaseName] == appName {
 			return true
 		}
 		return false
@@ -328,10 +328,10 @@ func (m *resourcesMatcher) excludeApp(appName string) *resourcesMatcher {
 		if a == nil {
 			return true
 		}
-		if a[nocalhost.NocalhostApplicationName] == appName {
+		if a[_const.NocalhostApplicationName] == appName {
 			return false
 		}
-		if a[nocalhost.HelmReleaseName] == appName {
+		if a[_const.HelmReleaseName] == appName {
 			return false
 		}
 		return true
@@ -352,10 +352,10 @@ func (m *resourcesMatcher) apps(appNames []string) *resourcesMatcher {
 		if a == nil {
 			return false
 		}
-		if _, ok := am[a[nocalhost.NocalhostApplicationName]]; ok {
+		if _, ok := am[a[_const.NocalhostApplicationName]]; ok {
 			return true
 		}
-		if _, ok := am[a[nocalhost.HelmReleaseName]]; ok {
+		if _, ok := am[a[_const.HelmReleaseName]]; ok {
 			return true
 		}
 		return false
@@ -376,10 +376,10 @@ func (m *resourcesMatcher) excludeApps(appNames []string) *resourcesMatcher {
 		if a == nil {
 			return true
 		}
-		if _, ok := am[a[nocalhost.NocalhostApplicationName]]; ok {
+		if _, ok := am[a[_const.NocalhostApplicationName]]; ok {
 			return false
 		}
-		if _, ok := am[a[nocalhost.HelmReleaseName]]; ok {
+		if _, ok := am[a[_const.HelmReleaseName]]; ok {
 			return false
 		}
 		return true

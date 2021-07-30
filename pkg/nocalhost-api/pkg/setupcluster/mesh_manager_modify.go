@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"nocalhost/internal/nhctl/nocalhost"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
@@ -93,11 +93,11 @@ func commonModifier(ns string, rs *unstructured.Unstructured) error {
 
 	// set annotations
 	annotations := rs.GetAnnotations()
-	if annotations != nil && annotations[nocalhost.NocalhostApplicationNamespace] != "" {
-		annotations[nocalhost.NocalhostApplicationNamespace] = ns
+	if annotations != nil && annotations[_const.NocalhostApplicationNamespace] != "" {
+		annotations[_const.NocalhostApplicationNamespace] = ns
 	}
-	if annotations != nil && annotations[nocalhost.HelmReleaseName] != "" {
-		annotations[nocalhost.HelmReleaseName] = ns
+	if annotations != nil && annotations[_const.HelmReleaseName] != "" {
+		annotations[_const.HelmReleaseName] = ns
 	}
 	delete(annotations, "deployment.kubernetes.io/revision")
 	delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
@@ -297,7 +297,7 @@ func genVirtualServiceForMeshDevSpace(baseNs string, r unstructured.Unstructured
 	delete(annotations, "deployment.kubernetes.io/revision")
 	delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
 	delete(annotations, "control-plane.alpha.kubernetes.io/leader")
-	annotations[nocalhost.AppManagedByLabel] = nocalhost.AppManagedByNocalhost
+	annotations[_const.AppManagedByLabel] = _const.AppManagedByNocalhost
 	vs.SetAnnotations(annotations)
 	vs.Spec.Hosts = []string{r.GetName()}
 	vs.Spec.Http = []*istiov1alpha3.HTTPRoute{}
@@ -345,11 +345,11 @@ func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.H
 	vs.SetName(name)
 	vs.SetNamespace(baseNs)
 	vs.SetLabels(map[string]string{
-		nocalhost.AppManagedByLabel:    nocalhost.AppManagedByNocalhost,
+		_const.AppManagedByLabel:       _const.AppManagedByNocalhost,
 		"app.kubernetes.io/created-by": "nocalhost",
 	})
 	vs.SetAnnotations(map[string]string{
-		nocalhost.AppManagedByLabel:    nocalhost.AppManagedByNocalhost,
+		_const.AppManagedByLabel:       _const.AppManagedByNocalhost,
 		"app.kubernetes.io/created-by": "nocalhost",
 	})
 	vs.Spec.Hosts = []string{name}
