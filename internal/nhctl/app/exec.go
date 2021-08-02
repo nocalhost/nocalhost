@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2020 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package app
 
@@ -33,9 +33,6 @@ func (a *Application) Exec(svcName string, container string, commands []string) 
 			name = container
 			break
 		}
-	}
-	if len(name) == 0 {
-		return errors.New(fmt.Sprintf("container: %s not found", name))
 	}
 	return a.client.Exec(pod, name, commands)
 }
