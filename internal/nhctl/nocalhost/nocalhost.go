@@ -7,12 +7,10 @@ package nocalhost
 
 import (
 	"encoding/json"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/nocalhost_path"
-	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
@@ -64,86 +62,7 @@ func Init() error {
 
 		}
 	}
-	return moveApplicationDirToNsDir()
-}
-
-func moveApplicationDirToNsDir() error {
-	if _, err := os.Stat(nocalhost_path.GetNhctlNameSpaceDir()); err != nil {
-		if os.IsNotExist(err) {
-			log.Log("Creating ns home dir...")
-			nsDir := nocalhost_path.GetNhctlNameSpaceDir()
-			err = os.MkdirAll(nsDir, DefaultNewFilePermission)
-			if err != nil {
-				return errors.Wrap(err, "")
-			}
-			// Move application to ns dir
-			appHomeDir := GetAppHomeDir()
-			appDirList, err := ioutil.ReadDir(appHomeDir)
-			if err != nil {
-				return errors.Wrap(err, "")
-			}
-			for _, appDirInfo := range appDirList {
-				if !appDirInfo.IsDir() {
-					continue
-				}
-				appDir := filepath.Join(appHomeDir, appDirInfo.Name())
-				ns := ""
-				// Get ns from v2
-				bytes, err := ioutil.ReadFile(filepath.Join(appDir, DefaultApplicationProfileV2Path))
-				if err == nil {
-					log.Logf("Try to get %s's namespace from v2", appDirInfo.Name())
-					profileV2 := &profile.AppProfileV2{}
-					err = yaml.Unmarshal(bytes, profileV2)
-					if err != nil {
-						log.WarnE(errors.Wrap(err, ""), "")
-					} else {
-						ns = profileV2.Namespace
-					}
-				}
-				if ns == "" {
-					// Get ns from v1
-					log.Logf("Try to get %s's namespace from v1", appDirInfo.Name())
-					bytes, err = ioutil.ReadFile(filepath.Join(appDir, DefaultApplicationProfilePath))
-					if err != nil {
-						log.WarnE(errors.Wrap(err, ""), "")
-						continue
-					}
-					profileV1 := &profile.AppProfile{}
-					err = yaml.Unmarshal(bytes, profileV1)
-					if err != nil {
-						log.WarnE(errors.Wrap(err, ""), "")
-						continue
-					}
-					ns = profileV1.Namespace
-				}
-				if ns == "" {
-					log.Warnf("Fail to get %s's namespace", appDirInfo.Name())
-					continue
-				}
-				// Initial ns dir
-				log.Logf("Initial ns dir %s", ns)
-				err = os.MkdirAll(filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), ns), DefaultNewFilePermission)
-				if err != nil {
-					log.WarnE(errors.Wrap(err, ""), "")
-					continue
-				}
-				// Moving dir
-				utils.Should(
-					utils.CopyDir(
-						appDir, filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), ns, appDirInfo.Name()),
-					),
-				)
-			}
-		} else {
-			return errors.Wrap(err, "")
-		}
-	}
-	return nil
-}
-
-// Deprecated
-func GetAppHomeDir() string {
-	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), DefaultApplicationDirName)
+	return err
 }
 
 func CleanupAppFilesUnderNs(appName string, namespace string) error {
