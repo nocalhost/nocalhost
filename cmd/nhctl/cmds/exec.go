@@ -19,7 +19,8 @@ import (
 
 type ExecFlags struct {
 	CommonFlags
-	Commands []string
+	Commands  []string
+	Container string
 }
 
 var execFlags = ExecFlags{}
@@ -27,6 +28,7 @@ var execFlags = ExecFlags{}
 func init() {
 	execCmd.Flags().StringArrayVarP(&execFlags.Commands, "command", "c", nil,
 		"command to execute in container")
+	execCmd.Flags().StringVarP(&execFlags.Container, "container", "", "", "container name")
 	execCmd.Flags().StringVarP(&execFlags.SvcName, "deployment", "d", "",
 		"k8s deployment which your developing service exists")
 	execCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
@@ -47,6 +49,6 @@ var execCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		execFlags.AppName = args[0]
 		initAppAndCheckIfSvcExist(execFlags.AppName, execFlags.SvcName, serviceType)
-		must(nocalhostApp.Exec(execFlags.SvcName, "", execFlags.Commands))
+		must(nocalhostApp.Exec(execFlags.SvcName, execFlags.Container, execFlags.Commands))
 	},
 }

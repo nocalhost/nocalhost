@@ -28,5 +28,19 @@ func (a *Application) Exec(svcName string, container string, commands []string) 
 		return errors.New(fmt.Sprintf("the number of pods of %s is not 1 ???", svcName))
 	}
 	pod := podList.Items[0].Name
-	return a.client.Exec(pod, container, commands)
+	var name string
+	for _, c := range podList.Items[0].Spec.Containers {
+		if c.Name == "nocalhost-dev" {
+			name = c.Name
+			break
+		}
+		if c.Name == container {
+			name = container
+			break
+		}
+	}
+	if len(name) == 0 {
+		return errors.New(fmt.Sprintf("container: %s not found", name))
+	}
+	return a.client.Exec(pod, name, commands)
 }
