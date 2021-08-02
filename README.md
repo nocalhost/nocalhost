@@ -60,11 +60,11 @@ Full documentation is available on the [Nocalhost](https://nocalhost.dev/)
 
 | Engagement | Link |
 | ---------- | ---- |
-| :video_camera: &nbsp; Videos  | [https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw](https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw) |
+| :video_camera: &nbsp; Nocalhost Youtube  | [https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw](https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw) |
 
 ## Contributing
 
-Check out [CONTRIBUTING](./CONTRIBUTING) to see how to develop with Nocalhost.
+Check out [CONTRIBUTING](./CONTRIBUTING.md) to see how to develop with Nocalhost.
 
 ## Code of Conduct
 
@@ -74,6 +74,6 @@ Nocalhost adopts [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/
 
 Nocalhost is [Apache 2.0 licensed](./LICENSE)
 
-## 🔥 &nbsp; We Are Hiring!
+## Roadmap
 
-If you are interested with Nocalhost, please send resume to email: wangweimax@coding.net (Accept Remote Work)
+See [ROADMAP](./ROADMAP.md)
