@@ -13,6 +13,15 @@
 package _const
 
 const (
+	DefaultNewFilePermission        = 0700
+	DefaultApplicationDirName       = "application"
+	DefaultBinDirName               = "bin"
+	DefaultBinSyncThingDirName      = "syncthing"
+	DefaultLogDirName               = "logs"
+	DefaultLogFileName              = "nhctl.log"
+	DefaultApplicationProfilePath   = ".profile.yaml" // runtime config
+	DefaultApplicationProfileV2Path = ".profile_v2.yaml"
+
 	NocalhostApplicationName      = "dev.nocalhost/application-name"
 	NocalhostApplicationNamespace = "dev.nocalhost/application-namespace"
 	AppManagedByLabel             = "app.kubernetes.io/managed-by"

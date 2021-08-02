@@ -1,0 +1,20 @@
+Aug  2 19:58:15	[INFO]	
+============= Testing (Start)[Compatible]  =============
+	{"TAG": "Compatible"}
+Aug  2 19:58:16	[INFO]	Running command: [[kubectl --kubeconfig /Users/anur/.kube/config create ns hsqazjflyw]]	{"TAG": "Compatible"}
+Aug  2 19:58:16	[INFO]	
+============= Testing (Create Ns)[Compatible]  =============
+	{"TAG": "Compatible"}
+Aug  2 19:58:16	[INFO]	
+============= Testing (Installing BookInfo [0 %!d(string=Compatible)])%!s(MISSING) =============
+	{"TAG": "Compatible"}
+Aug  2 19:58:16	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace hsqazjflyw --kubeconfig /Users/anur/.kube/config install bookinfo -u https://github.com/nocalhost/bookinfo.git -t rawManifest -r test-case --resource-path manifest/templates]]	{"TAG": "Compatible"}
+Aug  2 19:58:29	[INFO]	
+============= Testing (BookInfo Installed, Cost([12.871548 %!f(string=Compatible)]s) %!s(MISSING) =============
+	{"TAG": "Compatible"}
+Aug  2 19:58:29	[INFO]	
+============= Testing (Wait BookInfo [0 %!d(string=Compatible)])%!s(MISSING) =============
+	{"TAG": "Compatible"}
+Aug  2 19:58:38	[INFO]	
+============= Testing (Test)[Compatible] =============
+	{"TAG": "Compatible"}

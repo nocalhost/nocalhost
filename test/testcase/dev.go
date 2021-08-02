@@ -51,7 +51,9 @@ func DevStartT(cli runner.Client, moduleName string, moduleType string) error {
 		// prevent tty to block testcase
 		"--without-terminal",
 	)
-	if stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil); runner.Runner.CheckResult(
+	if stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(
+		cli.SuiteName(), cmd, nil,
+	); runner.Runner.CheckResult(
 		cmd, stdout, stderr, err,
 	) != nil {
 		return err
@@ -72,7 +74,7 @@ func Sync(cli runner.Client, moduleName string) error {
 
 func SyncT(cli runner.Client, moduleName string, moduleType string) error {
 	cmd := cli.GetNhctl().Command(context.Background(), "sync", "bookinfo", "-d", moduleName, "-t", moduleType)
-	return runner.Runner.RunWithCheckResult(cmd)
+	return runner.Runner.RunWithCheckResult(cli.SuiteName(), cmd)
 }
 
 func SyncCheck(cli runner.Client, moduleName string) error {
@@ -141,7 +143,9 @@ func DevEnd(cli runner.Client, moduleName string) error {
 
 func DevEndT(cli runner.Client, moduleName string, moduleType string) error {
 	cmd := cli.GetNhctl().Command(context.Background(), "dev", "end", "bookinfo", "-d", moduleName, "-t", moduleType)
-	if stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil); runner.Runner.CheckResult(
+	if stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(
+		cli.SuiteName(), cmd, nil,
+	); runner.Runner.CheckResult(
 		cmd, stdout, stderr, err,
 	) != nil {
 		return err

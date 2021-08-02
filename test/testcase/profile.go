@@ -38,7 +38,7 @@ func ProfileGetDetailsWithoutJson(nhctl runner.Client) error {
 		"get", "bookinfo",
 		"-d", "details", "-t", "deployment", "--container", "details", "--key", "image",
 	)
-	stdout, stderr, err := runner.Runner.Run(cmd)
+	stdout, stderr, err := runner.Runner.Run(nhctl.SuiteName(), cmd)
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func ProfileSetDetails(nhctl runner.Client) error {
 		"-d", "details", "-t", "deployment", "--container", "details", "--key", "image",
 		"--value", "helloWorld",
 	)
-	err := runner.Runner.RunWithCheckResult(cmd)
+	err := runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func ApplyCmForConfig(nhctl runner.Client, filePath *fp.FilePathEnhance) error {
 		context.TODO(), "apply", "bookinfo", filePath.Abs(),
 	)
 
-	return runner.Runner.RunSimple(
+	return runner.Runner.RunSimple(nhctl.SuiteName(),
 		cmd, func(s string) error {
 			return nil
 		},
@@ -86,7 +86,7 @@ func ValidateImage(nhctl runner.Client, svcName string, svcType string, expectCo
 		"--key", "image",
 	)
 
-	return runner.Runner.RunSimple(
+	return runner.Runner.RunSimple(nhctl.SuiteName(),
 		cmd, func(s string) error {
 			if !strings.Contains(s, expectContain) {
 				return errors.New(
@@ -106,7 +106,7 @@ func ConfigReload(nhctl runner.Client) error {
 		"reload", "bookinfo",
 	)
 
-	return runner.Runner.RunSimple(
+	return runner.Runner.RunSimple(nhctl.SuiteName(),
 		cmd, func(s string) error {
 			return nil
 		},
@@ -120,7 +120,7 @@ func DeAssociate(nhctl runner.Client, svcName string, svcType string) error {
 		"-d", svcName, "-t", svcType, "--de-associate",
 	)
 
-	return runner.Runner.RunSimple(
+	return runner.Runner.RunSimple(nhctl.SuiteName(),
 		cmd, func(s string) error {
 			return nil
 		},
@@ -134,7 +134,7 @@ func Associate(nhctl runner.Client, svcName string, svcType string, dir *fp.File
 		"-d", svcName, "-t", svcType, "--associate", dir.Abs(),
 	)
 
-	return runner.Runner.RunSimple(
+	return runner.Runner.RunSimple(nhctl.SuiteName(),
 		cmd, func(s string) error {
 			return nil
 		},
@@ -149,7 +149,7 @@ func profileGetWithJson(nhctl runner.Client, container string, image string) err
 		"get", "bookinfo",
 		"-d", "details", "-t", "deployment", "--container", container, "--key", "image",
 	)
-	stdout, stderr, err := runner.Runner.Run(cmd)
+	stdout, stderr, err := runner.Runner.Run(nhctl.SuiteName(), cmd)
 	if err != nil {
 		return err
 	}

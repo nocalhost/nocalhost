@@ -1,0 +1,28 @@
+Aug  2 19:53:58	[INFO]	
+============= Testing (Start)[Get]  =============
+	{"TAG": "Get"}
+Aug  2 19:54:00	[INFO]	Running command: [[kubectl --kubeconfig /Users/anur/.kube/config create ns ddzqjthfth]]	{"TAG": "Get"}
+Aug  2 19:54:00	[INFO]	
+============= Testing (Create Ns)[Get]  =============
+	{"TAG": "Get"}
+Aug  2 19:54:00	[INFO]	
+============= Testing (Installing BookInfo [0 %!d(string=Get)])%!s(MISSING) =============
+	{"TAG": "Get"}
+Aug  2 19:54:00	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace ddzqjthfth --kubeconfig /Users/anur/.kube/config install bookinfo -u https://github.com/nocalhost/bookinfo.git -t rawManifest -r test-case --resource-path manifest/templates]]	{"TAG": "Get"}
+Aug  2 19:54:26	[INFO]	
+============= Testing (BookInfo Installed, Cost([26.541818 %!f(string=Get)]s) %!s(MISSING) =============
+	{"TAG": "Get"}
+Aug  2 19:54:26	[INFO]	
+============= Testing (Wait BookInfo [0 %!d(string=Get)])%!s(MISSING) =============
+	{"TAG": "Get"}
+Aug  2 19:54:53	[INFO]	
+============= Testing (Test)[Get] =============
+	{"TAG": "Get"}
+Aug  2 19:54:53	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace ddzqjthfth --kubeconfig /Users/anur/.kube/config get deployments -a bookinfo]]	{"TAG": "Get"}
+Aug  2 19:54:56	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace ddzqjthfth --kubeconfig /Users/anur/.kube/config get jobs -a bookinfo]]	{"TAG": "Get"}
+Aug  2 19:54:56	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace ddzqjthfth --kubeconfig /Users/anur/.kube/config get service -a bookinfo]]	{"TAG": "Get"}
+Aug  2 19:54:57	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace ddzqjthfth --kubeconfig /Users/anur/.kube/config get pods]]	{"TAG": "Get"}
+Aug  2 19:54:57	[INFO]	
+============= Testing done, Cost([58.810027 %!f(string=Get)]s) %!s(MISSING) =============
+	{"TAG": "Get"}
+Aug  2 19:54:57	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace ddzqjthfth --kubeconfig /Users/anur/.kube/config uninstall bookinfo --force]]	{"TAG": "Get"}

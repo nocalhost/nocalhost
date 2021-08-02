@@ -25,8 +25,8 @@ var Runner = &CmdRunner{}
 
 type CmdRunner struct{}
 
-func (r *CmdRunner) RunWithCheckResult(cmd *exec.Cmd) error {
-	if stdout, stderr, err := r.Run(cmd); err != nil {
+func (r *CmdRunner) RunWithCheckResult(suitName string, cmd *exec.Cmd) error {
+	if stdout, stderr, err := r.Run(suitName, cmd); err != nil {
 		return errors.Errorf(
 			"Run command: %s, error: %v, stdout: %s, stderr: %s", cmd.Args, err, stdout, stderr,
 		)
@@ -43,8 +43,8 @@ func (r *CmdRunner) CheckResult(cmd *exec.Cmd, stdout string, stderr string, err
 	return nil
 }
 
-func (r *CmdRunner) RunSimple(cmd *exec.Cmd, stdoutConsumer func(string) error) error {
-	stdout, stderr, err := r.Run(cmd)
+func (r *CmdRunner) RunSimple(suitName string, cmd *exec.Cmd, stdoutConsumer func(string) error) error {
+	stdout, stderr, err := r.Run(suitName, cmd)
 
 	if err != nil {
 		return err
@@ -56,8 +56,8 @@ func (r *CmdRunner) RunSimple(cmd *exec.Cmd, stdoutConsumer func(string) error) 
 	return stdoutConsumer(stdout)
 }
 
-func (r *CmdRunner) Run(cmd *exec.Cmd) (string, string, error) {
-	log.Infof("Running command: %s", cmd.Args)
+func (r *CmdRunner) Run(suitName string, cmd *exec.Cmd) (string, string, error) {
+	log.TestLogger(suitName).Infof("Running command: %s", cmd.Args)
 
 	stdout := bytes.Buffer{}
 	cmd.Stdout = &stdout
@@ -73,14 +73,14 @@ func (r *CmdRunner) Run(cmd *exec.Cmd) (string, string, error) {
 	}
 
 	if stderr.Len() > 0 {
-		log.Infof("Command output: [\n%s\n], stderr: [\n%s\n]", stdout.String(), stderr.String())
+		log.TestLogger(suitName).Infof("Command output: [\n%s\n], stderr: [\n%s\n]", stdout.String(), stderr.String())
 	}
 
 	return stdout.String(), stderr.String(), nil
 }
 
-func (r *CmdRunner) RunWithRollingOutWithChecker(cmd *exec.Cmd, checker func(log string) bool) (string, string, error) {
-	log.Infof("Running command: %s", cmd.Args)
+func (r *CmdRunner) RunWithRollingOutWithChecker(suitName string, cmd *exec.Cmd, checker func(log string) bool) (string, string, error) {
+	log.TestLogger(suitName).Infof("Running command: %s", cmd.Args)
 	stdoutBuf := bytes.NewBuffer(make([]byte, 1024))
 	stderrBuf := bytes.NewBuffer(make([]byte, 1024))
 	stdoutPipe, _ := cmd.StdoutPipe()

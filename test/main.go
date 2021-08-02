@@ -47,27 +47,27 @@ func main() {
 	wg := sync.WaitGroup{}
 
 	DoRun(false, &wg, func() {
-		t.RunWithBookInfo(false, "helm-adaption", suite.HelmAdaption)
+		t.RunWithBookInfo(false, "HelmAdaption", suite.HelmAdaption)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("install", suite.Install)
+		t.Run("Install", suite.Install)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("deployment", suite.Deployment)
+		t.Run("Deployment", suite.Deployment)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("application", suite.Upgrade)
+		t.Run("Application", suite.Upgrade)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("statefulSet", suite.StatefulSet)
+		t.Run("StatefulSet", suite.StatefulSet)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("remove syncthing pid file manually", suite.KillSyncthingProcess)
+		t.Run("RemoveSyncthingPidFile", suite.KillSyncthingProcess)
 	})
 
 	DoRun(false, &wg, func() {
@@ -75,15 +75,13 @@ func main() {
 	})
 
 	DoRun(true, &wg, func() {
-		t.Run("compatible", suite.Compatible)
+		t.Run("Compatible", suite.Compatible)
 		compatibleChan <- "Done"
 	})
 
 	wg.Wait()
 	log.Infof("All Async Test Done")
 	<-compatibleChan
-
-	t.Clean(false)
 
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
 }

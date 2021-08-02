@@ -1,0 +1,98 @@
+Aug  2 19:53:58	[INFO]	
+============= Testing (Start)[Application]  =============
+	{"TAG": "Application"}
+Aug  2 19:53:59	[INFO]	Running command: [[kubectl --kubeconfig /Users/anur/.kube/config create ns fhbarolmec]]	{"TAG": "Application"}
+Aug  2 19:54:00	[INFO]	
+============= Testing (Create Ns)[Application]  =============
+	{"TAG": "Application"}
+Aug  2 19:54:00	[INFO]	
+============= Testing (Installing BookInfo [0 %!d(string=Application)])%!s(MISSING) =============
+	{"TAG": "Application"}
+Aug  2 19:54:00	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config install bookinfo -u https://github.com/nocalhost/bookinfo.git -t rawManifest -r test-case --resource-path manifest/templates]]	{"TAG": "Application"}
+Aug  2 19:54:16	[INFO]	
+============= Testing (BookInfo Installed, Cost([16.098694 %!f(string=Application)]s) %!s(MISSING) =============
+	{"TAG": "Application"}
+Aug  2 19:54:16	[INFO]	
+============= Testing (Wait BookInfo [0 %!d(string=Application)])%!s(MISSING) =============
+	{"TAG": "Application"}
+Aug  2 19:54:43	[INFO]	
+============= Testing (Test)[Application] =============
+	{"TAG": "Application"}
+Aug  2 19:54:43	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config upgrade bookinfo -u https://github.com/nocalhost/bookinfo.git --resource-path manifest/templates]]	{"TAG": "Application"}
+Aug  2 19:54:51	[INFO]	Command output: [
+[cmd: git clone --depth 1 https://github.com/nocalhost/bookinfo.git /var/folders/15/_sp2z3dd0fb8fstvwym6x9lh0000gn/T/989550968 --config core.sshCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
+dir: /var/folders/15/_sp2z3dd0fb8fstvwym6x9lh0000gn/T/989550968
+Executing pre-upgrade hook
+Deleting resource(StatefulSet) web
+Resource(StatefulSet) web deleted
+Updating resource(Job) dep-job
+Resource(Job) dep-job unchanged
+Updating resource(Service) details
+Resource(Service) details unchanged
+Updating resource(Deployment) details
+Resource(Deployment) details configured
+Updating resource(ConfigMap) bookinfo-pre-install-config
+Resource(ConfigMap) bookinfo-pre-install-config unchanged
+Updating resource(Service) productpage
+Resource(Service) productpage unchanged
+Updating resource(Deployment) productpage
+Resource(Deployment) productpage configured
+Updating resource(Service) ratings
+Resource(Service) ratings unchanged
+Updating resource(Deployment) ratings
+Resource(Deployment) ratings configured
+Updating resource(Service) reviews
+Resource(Service) reviews unchanged
+Updating resource(Deployment) reviews
+Resource(Deployment) reviews configured
+Executing post-upgrade hook
+ Cloning into '/var/folders/15/_sp2z3dd0fb8fstvwym6x9lh0000gn/T/989550968'...
+]
+], stderr: [
+%!s(MISSING)
+]	{"TAG": "Application"}
+Aug  2 19:54:51	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config list bookinfo]]	{"TAG": "Application"}
+Aug  2 19:54:52	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config reset bookinfo]]	{"TAG": "Application"}
+Aug  2 19:54:53	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config uninstall bookinfo --force]]	{"TAG": "Application"}
+Aug  2 19:54:58	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config install bookinfo -u https://github.com/nocalhost/bookinfo.git -t rawManifest -r test-case --resource-path manifest/templates]]	{"TAG": "Application"}
+Aug  2 19:55:38	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config list bookinfo]]	{"TAG": "Application"}
+Aug  2 19:55:38	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config apply bookinfo /var/folders/15/_sp2z3dd0fb8fstvwym6x9lh0000gn/T/373077358apply.yaml]]	{"TAG": "Application"}
+Aug  2 19:55:39	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config list bookinfo]]	{"TAG": "Application"}
+Aug  2 19:55:40	[INFO]	Running command: [[kubectl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config delete configmap dev.nocalhost.config.bookinfo]]	{"TAG": "Application"}
+Aug  2 19:55:40	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config dev associate bookinfo -d details -t deployment --de-associate]]	{"TAG": "Application"}
+Aug  2 19:55:43	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config dev associate bookinfo -d ratings -t deployment --de-associate]]	{"TAG": "Application"}
+Aug  2 19:55:43	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d details -t deployment --container ubuntu --key image]]	{"TAG": "Application"}
+Aug  2 19:55:44	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d details -t deployment --container details --key image]]	{"TAG": "Application"}
+Aug  2 19:55:44	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile set bookinfo -d details -t deployment --container details --key image --value helloWorld]]	{"TAG": "Application"}
+Aug  2 19:55:44	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d details -t deployment --container details --key image]]	{"TAG": "Application"}
+Aug  2 19:55:45	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config apply bookinfo /var/folders/15/_sp2z3dd0fb8fstvwym6x9lh0000gn/T/466431618/cm.yaml]]	{"TAG": "Application"}
+Aug  2 19:55:45	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d details -t deployment --container xx --key image]]	{"TAG": "Application"}
+Aug  2 19:55:46	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config apply bookinfo /var/folders/15/_sp2z3dd0fb8fstvwym6x9lh0000gn/T/418660857/cm.yaml]]	{"TAG": "Application"}
+Aug  2 19:55:47	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d details -t deployment --container xx --key image]]	{"TAG": "Application"}
+Aug  2 19:55:48	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d ratings -t deployment --container xx --key image]]	{"TAG": "Application"}
+Aug  2 19:55:48	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config apply bookinfo /var/folders/15/_sp2z3dd0fb8fstvwym6x9lh0000gn/T/356758788/cm.yaml]]	{"TAG": "Application"}
+Aug  2 19:55:50	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d details -t deployment --container xx --key image]]	{"TAG": "Application"}
+Aug  2 19:55:51	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d ratings -t deployment --container xx --key image]]	{"TAG": "Application"}
+Aug  2 19:55:53	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config dev associate bookinfo -d details -t deployment --associate /var/folders/15/_sp2z3dd0fb8fstvwym6x9lh0000gn/T/001303029]]	{"TAG": "Application"}
+Aug  2 19:55:54	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d details -t deployment --container xx --key image]]	{"TAG": "Application"}
+Aug  2 19:55:54	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config dev associate bookinfo -d details -t deployment --associate /var/folders/15/_sp2z3dd0fb8fstvwym6x9lh0000gn/T/188300496]]	{"TAG": "Application"}
+Aug  2 19:55:55	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config dev associate bookinfo -d ratings -t deployment --associate /var/folders/15/_sp2z3dd0fb8fstvwym6x9lh0000gn/T/188300496]]	{"TAG": "Application"}
+Aug  2 19:55:56	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d details -t deployment --container xx --key image]]	{"TAG": "Application"}
+Aug  2 19:55:56	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d ratings -t deployment --container xx --key image]]	{"TAG": "Application"}
+Aug  2 19:55:57	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config dev associate bookinfo -d details -t deployment --associate /var/folders/15/_sp2z3dd0fb8fstvwym6x9lh0000gn/T/737649647]]	{"TAG": "Application"}
+Aug  2 19:55:57	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config dev associate bookinfo -d ratings -t deployment --associate /var/folders/15/_sp2z3dd0fb8fstvwym6x9lh0000gn/T/737649647]]	{"TAG": "Application"}
+Aug  2 19:55:58	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d details -t deployment --container xx --key image]]	{"TAG": "Application"}
+Aug  2 19:55:59	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d ratings -t deployment --container xx --key image]]	{"TAG": "Application"}
+Aug  2 19:55:59	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config dev associate bookinfo -d details -t deployment --de-associate]]	{"TAG": "Application"}
+Aug  2 19:56:00	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config dev associate bookinfo -d ratings -t deployment --de-associate]]	{"TAG": "Application"}
+Aug  2 19:56:00	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d details -t deployment --container xx --key image]]	{"TAG": "Application"}
+Aug  2 19:56:00	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d ratings -t deployment --container xx --key image]]	{"TAG": "Application"}
+Aug  2 19:56:01	[INFO]	Running command: [[kubectl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config delete configmap dev.nocalhost.config.bookinfo]]	{"TAG": "Application"}
+Aug  2 19:56:01	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d details -t deployment --container xx --key image]]	{"TAG": "Application"}
+Aug  2 19:56:01	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config profile get bookinfo -d ratings -t deployment --container xx --key image]]	{"TAG": "Application"}
+Aug  2 19:56:02	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config config reload bookinfo]]	{"TAG": "Application"}
+Aug  2 19:56:03	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config list bookinfo]]	{"TAG": "Application"}
+Aug  2 19:56:03	[INFO]	
+============= Testing done, Cost([124.685958 %!f(string=Application)]s) %!s(MISSING) =============
+	{"TAG": "Application"}
+Aug  2 19:56:03	[INFO]	Running command: [[/Users/anur/.nh/bin/nhctl --namespace fhbarolmec --kubeconfig /Users/anur/.kube/config uninstall bookinfo --force]]	{"TAG": "Application"}

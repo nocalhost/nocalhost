@@ -360,6 +360,11 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 		cancelFunc = t.Delete
 		defer func() {
 			if errs := recover(); errs != nil {
+
+				for _, l := range log.AllTestLogsLocations() {
+					log.Info(fp.NewFilePath(l).ReadFile())
+				}
+
 				t.Delete()
 				panic(errs)
 			}
@@ -370,7 +375,7 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 	util.Retry("Prepare", []func() error{func() error { return testcase.InstallNhctl(currentVersion) }})
 	kubeconfig := util.GetKubeconfig()
 	nocalhost := "nocalhost"
-	tempCli := runner.NewNhctl(nocalhost, kubeconfig)
+	tempCli := runner.NewNhctl(nocalhost, kubeconfig,"Prepare")
 	clientgoutils.Must(testcase.NhctlVersion(tempCli))
 	_ = testcase.StopDaemon(tempCli)
 
