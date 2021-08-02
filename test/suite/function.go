@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package suite
 
@@ -355,6 +355,7 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 			if errs := recover(); errs != nil {
 
 				for _, l := range log.AllTestLogsLocations() {
+					log.Infof("<< == Final Archive Logs %s == >>", l)
 					log.Info(fp.NewFilePath(l).ReadFile())
 				}
 
@@ -368,7 +369,7 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 	util.Retry("Prepare", []func() error{func() error { return testcase.InstallNhctl(currentVersion) }})
 	kubeconfig := util.GetKubeconfig()
 	nocalhost := "nocalhost"
-	tempCli := runner.NewNhctl(nocalhost, kubeconfig,"Prepare")
+	tempCli := runner.NewNhctl(nocalhost, kubeconfig, "Prepare")
 	clientgoutils.Must(testcase.NhctlVersion(tempCli))
 	_ = testcase.StopDaemon(tempCli)
 
@@ -423,14 +424,16 @@ func Get(cli runner.Client) {
 	funcs := []func() error{
 		func() error {
 			for _, item := range cases {
-				err := testcase.Get(cli, item.resource, item.appName, func(result string) error {
-					for _, s := range item.keywords {
-						if !strings.Contains(result, s) {
-							return errors.Errorf("nhctl get %s, result not contains resource: %s", item.resource, s)
+				err := testcase.Get(
+					cli, item.resource, item.appName, func(result string) error {
+						for _, s := range item.keywords {
+							if !strings.Contains(result, s) {
+								return errors.Errorf("nhctl get %s, result not contains resource: %s", item.resource, s)
+							}
 						}
-					}
-					return nil
-				})
+						return nil
+					},
+				)
 				if err != nil {
 					return err
 				}
