@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -49,9 +49,8 @@ var rootCmd = &cobra.Command{
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 
 		if debug {
-			os.Setenv("_NOCALHOST_DEBUG_", "1")
-			_ = log.Init(zapcore.DebugLevel, nocalhost.GetLogDir(),
-			_ = nocalhost.DefaultLogFileName)
+			_ = os.Setenv("_NOCALHOST_DEBUG_", "1")
+			_ = log.Init(zapcore.DebugLevel, nocalhost.GetLogDir(), nocalhost.DefaultLogFileName)
 		} else {
 			_ = log.Init(zapcore.InfoLevel, nocalhost.GetLogDir(), nocalhost.DefaultLogFileName)
 		}
