@@ -30,12 +30,11 @@ func (a *Application) Exec(svcName string, container string, commands []string) 
 	pod := podList.Items[0].Name
 	var name string
 	for _, c := range podList.Items[0].Spec.Containers {
-		if c.Name == container {
-			name = container
-			break
-		}
 		if c.Name == "nocalhost-dev" {
 			name = c.Name
+		}
+		if c.Name == container {
+			name = container
 			break
 		}
 	}
