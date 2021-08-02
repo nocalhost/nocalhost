@@ -72,13 +72,13 @@ Nocalhost 为 JetBrains 和 VSCode 提供易于使用的 IDE 插件，让开发�
 
 | 类型 | 连接 |
 | ---------- | ---- |
-| :video_camera: &nbsp; 视频 | [https://space.bilibili.com/1849382439](https://space.bilibili.com/1849382439) |
+| :video_camera: &nbsp; Nocalhost Youtube | [https://space.bilibili.com/1849382439](https://space.bilibili.com/1849382439) |
 | :video_camera: &nbsp; 开源的云原生开发环境 —— Nocalhost | [https://www.bilibili.com/video/BV1ch411C716](https://www.bilibili.com/video/BV1ch411C716) |
 | :video_camera: &nbsp; Nocalhost - 五星级的云原生开发体验 | [https://cloud.tencent.com/developer/salon/salon-1398/agenda-10004](https://cloud.tencent.com/developer/salon/salon-1398/agenda-10004) |
 
 ## 贡献
 
-查看我们的 [贡献说明](./CONTRIBUTING)
+查看我们的 [贡献说明](./CONTRIBUTING.md)
 
 ## 行为守则
 
@@ -91,7 +91,3 @@ Nocalhost 使用 [Apache 2.0 许可证](./LICENSE)
 ## 路线图
 
 参考 [ROADMAP](./ROADMAP.md)
-
-## 🔥 &nbsp; 招聘
-
-如果你对 Nocalhost 感兴趣，并愿意加入我们，请发送您的简历至：wangweimax@coding.net (我们支持远程工作)
