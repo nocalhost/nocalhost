@@ -32,6 +32,8 @@ const (
 
 	DefaultApplicationSyncPidFile = "syncthing.pid"
 
+	EnableFullLogEnvKey = "NH_FULL_LOG"
+
 	// default is a special app type, it can be uninstalled neither installed
 	// it's a virtual application to managed that those manifest out of Nocalhost management
 	DefaultNocalhostApplication           = "default.application"

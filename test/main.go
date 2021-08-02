@@ -13,6 +13,7 @@
 package main
 
 import (
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/runner"
@@ -25,6 +26,7 @@ import (
 
 func main() {
 	//_ = os.Setenv("LocalTest", "true")
+	_ = os.Setenv(_const.EnableFullLogEnvKey, "true")
 
 	start := time.Now()
 
