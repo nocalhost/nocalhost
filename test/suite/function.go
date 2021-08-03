@@ -181,7 +181,6 @@ func Compatible(cli runner.Client) {
 		func() error { return testcase.InstallBookInfoDifferentType(cli) },
 	}
 	util.Retry(suiteName, funcs)
-	panic("V")
 }
 
 func Reset(cli runner.Client) {
