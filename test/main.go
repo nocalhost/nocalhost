@@ -19,7 +19,7 @@ import (
 )
 
 func main() {
-	//_ = os.Setenv("LocalTest", "true")
+	_ = os.Setenv("LocalTest", "true")
 	_ = os.Setenv(_const.EnableFullLogEnvKey, "true")
 
 	start := time.Now()
@@ -33,7 +33,6 @@ func main() {
 	} else {
 		cancelFunc, ns, kubeconfig := suite.Prepare()
 		t = suite.NewT(ns, kubeconfig, cancelFunc)
-		_, v2 = testcase.GetVersion()
 		if err := suite.WaitForMaterialReady(); err != nil {
 			if cancelFunc != nil {
 				cancelFunc()
