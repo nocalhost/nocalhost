@@ -54,6 +54,7 @@ var rootCmd = &cobra.Command{
 		} else {
 			_ = log.Init(zapcore.InfoLevel, nocalhost.GetLogDir(), nocalhost.DefaultLogFileName)
 		}
+		log.AddField("VERSION", Version)
 		err := nocalhost.Init()
 		if err != nil {
 			log.FatalE(err, "Fail to init nhctl")
