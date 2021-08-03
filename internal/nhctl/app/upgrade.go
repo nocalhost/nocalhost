@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package app
 
@@ -19,6 +12,7 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	flag "nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -70,27 +64,61 @@ func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {
 
 	switch a.GetType() {
 	case appmeta.HelmRepo:
-		return a.upgradeForHelm(installFlags, true)
+
+		if err := a.upgradeForHelm(installFlags, true); err != nil {
+			return err
+		}
 	case appmeta.Helm, appmeta.HelmLocal:
-		return a.upgradeForHelm(installFlags, false)
+
+		if err := a.upgradeForHelm(installFlags, false); err != nil {
+			return err
+		}
 	case appmeta.Manifest, appmeta.ManifestLocal, appmeta.ManifestGit:
-		return a.upgradeForManifest(installFlags)
+
+		log.Infof("dir: " + a.ResourceTmpDir)
+		if err := a.PreUpgradeHook(); err != nil {
+			return err
+		}
+		if err := a.upgradeForManifest(); err != nil {
+			return err
+		}
+		if err := a.PostUpgradeHook(); err != nil {
+			return err
+		}
 	case appmeta.KustomizeGit, appmeta.KustomizeLocal:
-		return a.upgradeForKustomize(installFlags)
+
+		if err := a.PreUpgradeHook(); err != nil {
+			return err
+		}
+		if err := a.upgradeForKustomize(); err != nil {
+			return err
+		}
+		if err := a.PostUpgradeHook(); err != nil {
+			return err
+		}
 	default:
 		return errors.New("Unsupported app type")
 	}
+
+	// prepare and store the delete hook while delete is trigger
+	if err := a.PrepareForPreDeleteHook(); err != nil {
+		return err
+	}
+	if err := a.PrepareForPostDeleteHook(); err != nil {
+		return err
+	}
+
+	return a.CleanUpTmpResources()
 }
 
-func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error {
-	var err error
+func (a *Application) upgradeForKustomize() error {
 	resourcesPath := a.GetResourceDir(a.ResourceTmpDir)
 	if len(resourcesPath) > 1 {
 		log.Warn(`There are multiple resourcesPath settings, will use first one`)
 	}
 	useResourcePath := resourcesPath[0]
 
-	err = a.client.Apply(
+	return a.client.Apply(
 		[]string{}, true,
 		StandardNocalhostMetas(a.Name, a.NameSpace).SetBeforeApply(
 			func(manifest string) error {
@@ -100,20 +128,10 @@ func (a *Application) upgradeForKustomize(installFlags *flag.InstallFlags) error
 		),
 		useResourcePath,
 	)
-	if err != nil {
-		return err
-	}
-	return a.CleanUpTmpResources()
 }
 
-func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error {
-
-	profileV2, err := a.GetProfile()
-	if err != nil {
-		return err
-	}
-	// todo need to refactor
-	_, manifests := profileV2.LoadManifests(a.ResourceTmpDir)
+func (a *Application) upgradeForManifest() error {
+	manifests := a.GetAppMeta().GetApplicationConfig().LoadManifests(fp.NewFilePath(a.ResourceTmpDir))
 
 	// Read upgrade resource obj
 	updateResource, err := clientgoutils.NewManifestResourceReader(manifests).LoadResource()
@@ -137,11 +155,7 @@ func (a *Application) upgradeForManifest(installFlags *flag.InstallFlags) error 
 	}
 
 	a.appMeta.Manifest = updateResource.String()
-	if err := a.appMeta.Update(); err != nil {
-		return err
-	}
-
-	return a.CleanUpTmpResources()
+	return a.appMeta.Update()
 }
 
 func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*resource.Info, continueOnErr bool) error {
@@ -169,7 +183,7 @@ func (a *Application) upgradeInfos(oldInfos []*resource.Info, upgradeInfos []*re
 
 	for _, info := range infosToDelete {
 		log.Infof("Deleting resource(%s) %s", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
-		err := a.client.DeleteResourceInfo(info)
+		err := clientgoutils.DeleteResourceInfo(info)
 		if err != nil {
 			log.WarnE(err, fmt.Sprintf("Failed to delete resource %s , Err: %s ", info.Name, err.Error()))
 			if !continueOnErr {
@@ -217,6 +231,11 @@ func isContainsInfo(info *resource.Info, infos []*resource.Info) bool {
 }
 
 func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo bool) error {
+
+	_, err := tools.ExecCommand(nil, true, false, false, "helm", "repo", "update")
+	if err != nil {
+		log.Info(err.Error())
+	}
 
 	resourceDir := a.ResourceTmpDir
 	appProfile, err := a.GetProfile()
@@ -269,8 +288,10 @@ func (a *Application) upgradeForHelm(installFlags *flag.InstallFlags, fromRepo b
 	if installFlags.HelmWait {
 		params = append(params, "--wait")
 	}
-	if installFlags.HelmValueFile != "" {
-		params = append(params, "-f", installFlags.HelmValueFile)
+	if len(installFlags.HelmValueFile) > 0 {
+		for _, values := range installFlags.HelmValueFile {
+			params = append(params, "-f", values)
+		}
 	}
 	for _, set := range installFlags.HelmSet {
 		params = append(params, "--set", set)

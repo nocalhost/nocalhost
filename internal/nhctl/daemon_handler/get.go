@@ -1,19 +1,13 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package daemon_handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
@@ -21,6 +15,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta_manager"
 	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_handler/item"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/fp"
@@ -32,7 +27,11 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 )
+
+var svcProfileCacheMap = NewCache(time.Second * 2)
 
 func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 	serviceMap := make(map[string]*profile.SvcProfileV2)
@@ -53,7 +52,16 @@ func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 }
 
 func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
-	appProfile, err := nocalhost.GetProfileV2(ns, appName)
+	var appProfile *profile.AppProfileV2
+	var err error
+	appProfileCache, found := svcProfileCacheMap.Get(fmt.Sprintf("%s/%s", ns, appName))
+	if !found || appProfileCache == nil {
+		if appProfile, err = nocalhost.GetProfileV2(ns, appName); err == nil {
+			svcProfileCacheMap.Set(fmt.Sprintf("%s/%s", ns, appName), appProfile)
+		}
+	} else {
+		appProfile = appProfileCache.(*profile.AppProfileV2)
+	}
 	if err != nil {
 		log.Error(err)
 		return nil
@@ -152,19 +160,29 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				result := make([]item.Result, 0, len(nsObjectList))
 				// try to init a cluster level searcher
 				searcher, err2 := resouce_cache.GetSearcher(KubeConfigBytes, "", true)
-				for _, nsObject := range nsObjectList {
-					name := nsObject.(metav1.Object).GetName()
-					if err2 != nil {
-						log.Error(err2)
-						// if cluster level searcher init failed, then try to init a namespace level searcher
-						searcher, err2 = resouce_cache.GetSearcher(KubeConfigBytes, name, false)
-						if err2 != nil {
-							log.Error(err2)
-							continue
-						}
-					}
-					result = append(result, getApplicationByNs(name, request.KubeConfig, searcher, request.Label))
+				if err2 != nil {
+					return nil
 				}
+				var wg sync.WaitGroup
+				wg.Add(len(nsObjectList))
+				okChan := make(chan struct{}, 2)
+				go func() {
+					time.Sleep(time.Second * 10)
+					okChan <- struct{}{}
+				}()
+				for _, nsObject := range nsObjectList {
+					finalNs := nsObject
+					go func() {
+						name := finalNs.(metav1.Object).GetName()
+						result = append(result, getApplicationByNs(name, request.KubeConfig, searcher, request.Label))
+						wg.Done()
+					}()
+				}
+				go func() {
+					wg.Wait()
+					okChan <- struct{}{}
+				}()
+				<-okChan
 				return result
 			}
 		}
@@ -201,13 +219,11 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			}
 			result := make([]item.Item, 0, len(items))
 			for _, i := range items {
-				gvr, _ := s.GetGvr(request.Resource)
-				result = append(
-					result, item.Item{
-						Metadata:    i,
-						Description: serviceMap[gvr.Resource+"/"+i.(metav1.Object).GetName()],
-					},
-				)
+				tempItem := item.Item{Metadata: i}
+				if mapping, err := s.GetRestMapping(request.Resource); err == nil {
+					tempItem.Description = serviceMap[mapping.Resource.Resource+"/"+i.(metav1.Object).GetName()]
+				}
+				result = append(result, tempItem)
 			}
 			return result
 		} else {
@@ -222,8 +238,11 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			if err != nil || one == nil {
 				return nil
 			}
-			gvr, _ := s.GetGvr(request.Resource)
-			return item.Item{Metadata: one, Description: serviceMap[gvr.Resource+"/"+one.(metav1.Object).GetName()]}
+			i := item.Item{Metadata: one}
+			if mapping, err := s.GetRestMapping(request.Resource); err == nil {
+				i.Description = serviceMap[mapping.Resource.Resource+"/"+one.(metav1.Object).GetName()]
+			}
+			return i
 		}
 	}
 }
@@ -244,9 +263,25 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher, label map[string]string) item.Result {
 	result := item.Result{Namespace: namespace}
 	nameList := getAvailableAppName(namespace, kubeconfigPath)
+	var wg sync.WaitGroup
+	wg.Add(len(nameList))
+	okChan := make(chan struct{}, 2)
+	go func() {
+		time.Sleep(time.Second * 10)
+		okChan <- struct{}{}
+	}()
 	for _, name := range nameList {
-		result.Application = append(result.Application, getApp(nameList, namespace, name, search, label))
+		finalName := name
+		go func() {
+			result.Application = append(result.Application, getApp(nameList, namespace, finalName, search, label))
+			wg.Done()
+		}()
 	}
+	go func() {
+		wg.Wait()
+		okChan <- struct{}{}
+	}()
+	<-okChan
 	return result
 }
 
@@ -343,7 +378,7 @@ func InitDefaultAppIfNecessary(namespace, kubeconfigPath string) []*appmeta.Appl
 	applicationMetaList := appmeta_manager.GetApplicationMetas(namespace, kubeconfigBytes)
 	var foundDefaultApp bool
 	for _, meta := range applicationMetaList {
-		if meta.Application == nocalhost.DefaultNocalhostApplication {
+		if meta.Application == _const.DefaultNocalhostApplication {
 			foundDefaultApp = true
 			break
 		}

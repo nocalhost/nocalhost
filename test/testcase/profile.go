@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package testcase
 
@@ -38,7 +31,7 @@ func ProfileGetDetailsWithoutJson(nhctl runner.Client) error {
 		"get", "bookinfo",
 		"-d", "details", "-t", "deployment", "--container", "details", "--key", "image",
 	)
-	stdout, stderr, err := runner.Runner.Run(cmd)
+	stdout, stderr, err := runner.Runner.Run(nhctl.SuiteName(), cmd)
 	if err != nil {
 		return err
 	}
@@ -59,7 +52,7 @@ func ProfileSetDetails(nhctl runner.Client) error {
 		"-d", "details", "-t", "deployment", "--container", "details", "--key", "image",
 		"--value", "helloWorld",
 	)
-	err := runner.Runner.RunWithCheckResult(cmd)
+	err := runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
 	if err != nil {
 		return err
 	}
@@ -72,7 +65,7 @@ func ApplyCmForConfig(nhctl runner.Client, filePath *fp.FilePathEnhance) error {
 		context.TODO(), "apply", "bookinfo", filePath.Abs(),
 	)
 
-	return runner.Runner.RunSimple(
+	return runner.Runner.RunSimple(nhctl.SuiteName(),
 		cmd, func(s string) error {
 			return nil
 		},
@@ -86,7 +79,7 @@ func ValidateImage(nhctl runner.Client, svcName string, svcType string, expectCo
 		"--key", "image",
 	)
 
-	return runner.Runner.RunSimple(
+	return runner.Runner.RunSimple(nhctl.SuiteName(),
 		cmd, func(s string) error {
 			if !strings.Contains(s, expectContain) {
 				return errors.New(
@@ -106,7 +99,7 @@ func ConfigReload(nhctl runner.Client) error {
 		"reload", "bookinfo",
 	)
 
-	return runner.Runner.RunSimple(
+	return runner.Runner.RunSimple(nhctl.SuiteName(),
 		cmd, func(s string) error {
 			return nil
 		},
@@ -120,7 +113,7 @@ func DeAssociate(nhctl runner.Client, svcName string, svcType string) error {
 		"-d", svcName, "-t", svcType, "--de-associate",
 	)
 
-	return runner.Runner.RunSimple(
+	return runner.Runner.RunSimple(nhctl.SuiteName(),
 		cmd, func(s string) error {
 			return nil
 		},
@@ -134,7 +127,7 @@ func Associate(nhctl runner.Client, svcName string, svcType string, dir *fp.File
 		"-d", svcName, "-t", svcType, "--associate", dir.Abs(),
 	)
 
-	return runner.Runner.RunSimple(
+	return runner.Runner.RunSimple(nhctl.SuiteName(),
 		cmd, func(s string) error {
 			return nil
 		},
@@ -149,7 +142,7 @@ func profileGetWithJson(nhctl runner.Client, container string, image string) err
 		"get", "bookinfo",
 		"-d", "details", "-t", "deployment", "--container", container, "--key", "image",
 	)
-	stdout, stderr, err := runner.Runner.Run(cmd)
+	stdout, stderr, err := runner.Runner.Run(nhctl.SuiteName(), cmd)
 	if err != nil {
 		return err
 	}

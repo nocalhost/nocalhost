@@ -1,20 +1,13 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package controller
 
 import (
 	"nocalhost/internal/nhctl/common/base"
-	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/utils"
 	"os"
@@ -22,15 +15,15 @@ import (
 )
 
 func (c *Controller) GetSyncThingPidFile() string {
-	return filepath.Join(c.GetApplicationSyncDir(), nocalhost.DefaultApplicationSyncPidFile)
+	return filepath.Join(c.GetApplicationSyncDir(), _const.DefaultApplicationSyncPidFile)
 }
 
 func (c *Controller) GetApplicationSyncDir() string {
 	dirPath := ""
 	if c.Type == base.Deployment {
-		dirPath = filepath.Join(c.getAppHomeDir(), nocalhost.DefaultBinSyncThingDirName, c.Name)
+		dirPath = filepath.Join(c.getAppHomeDir(), _const.DefaultBinSyncThingDirName, c.Name)
 	} else {
-		dirPath = filepath.Join(c.getAppHomeDir(), nocalhost.DefaultBinSyncThingDirName, string(c.Type)+"-"+c.Name)
+		dirPath = filepath.Join(c.getAppHomeDir(), _const.DefaultBinSyncThingDirName, string(c.Type)+"-"+c.Name)
 	}
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		utils.Should(os.MkdirAll(dirPath, 0700))

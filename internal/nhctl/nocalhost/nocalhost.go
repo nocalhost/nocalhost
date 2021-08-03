@@ -1,25 +1,17 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package nocalhost
 
 import (
 	"encoding/json"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/nocalhost_path"
-	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
@@ -29,128 +21,38 @@ import (
 	"nocalhost/internal/nhctl/utils"
 )
 
-const (
-	DefaultNewFilePermission        = 0700
-	DefaultApplicationDirName       = "application"
-	DefaultBinDirName               = "bin"
-	DefaultBinSyncThingDirName      = "syncthing"
-	DefaultLogDirName               = "logs"
-	DefaultLogFileName              = "nhctl.log"
-	DefaultApplicationProfilePath   = ".profile.yaml" // runtime config
-	DefaultApplicationProfileV2Path = ".profile_v2.yaml"
-)
-
 func Init() error {
 	var err error
 	nhctlHomeDir := nocalhost_path.GetNhctlHomeDir()
 	if _, err = os.Stat(nhctlHomeDir); err != nil {
 		if os.IsNotExist(err) {
-			err = os.MkdirAll(nhctlHomeDir, DefaultNewFilePermission)
+			err = os.MkdirAll(nhctlHomeDir, _const.DefaultNewFilePermission)
 			if err != nil {
 				return errors.Wrap(err, "")
 			}
 
 			// Initial ns dir
 			nsDir := nocalhost_path.GetNhctlNameSpaceDir()
-			err = os.MkdirAll(nsDir, DefaultNewFilePermission)
+			err = os.MkdirAll(nsDir, _const.DefaultNewFilePermission)
 			if err != nil {
 				return errors.Wrap(err, "")
 			}
 
 			binDir := GetSyncThingBinDir()
-			err = os.MkdirAll(binDir, DefaultNewFilePermission) // create .nhctl/bin/syncthing
+			err = os.MkdirAll(binDir, _const.DefaultNewFilePermission) // create .nhctl/bin/syncthing
 			if err != nil {
 				return errors.Wrap(err, "")
 			}
 
 			logDir := GetLogDir()
-			err = os.MkdirAll(logDir, DefaultNewFilePermission) // create .nhctl/logs
+			err = os.MkdirAll(logDir, _const.DefaultNewFilePermission) // create .nhctl/logs
 			if err != nil {
 				return errors.Wrap(err, "")
 			}
 
 		}
 	}
-	return moveApplicationDirToNsDir()
-}
-
-func moveApplicationDirToNsDir() error {
-	if _, err := os.Stat(nocalhost_path.GetNhctlNameSpaceDir()); err != nil {
-		if os.IsNotExist(err) {
-			log.Log("Creating ns home dir...")
-			nsDir := nocalhost_path.GetNhctlNameSpaceDir()
-			err = os.MkdirAll(nsDir, DefaultNewFilePermission)
-			if err != nil {
-				return errors.Wrap(err, "")
-			}
-			// Move application to ns dir
-			appHomeDir := GetAppHomeDir()
-			appDirList, err := ioutil.ReadDir(appHomeDir)
-			if err != nil {
-				return errors.Wrap(err, "")
-			}
-			for _, appDirInfo := range appDirList {
-				if !appDirInfo.IsDir() {
-					continue
-				}
-				appDir := filepath.Join(appHomeDir, appDirInfo.Name())
-				ns := ""
-				// Get ns from v2
-				bytes, err := ioutil.ReadFile(filepath.Join(appDir, DefaultApplicationProfileV2Path))
-				if err == nil {
-					log.Logf("Try to get %s's namespace from v2", appDirInfo.Name())
-					profileV2 := &profile.AppProfileV2{}
-					err = yaml.Unmarshal(bytes, profileV2)
-					if err != nil {
-						log.WarnE(errors.Wrap(err, ""), "")
-					} else {
-						ns = profileV2.Namespace
-					}
-				}
-				if ns == "" {
-					// Get ns from v1
-					log.Logf("Try to get %s's namespace from v1", appDirInfo.Name())
-					bytes, err = ioutil.ReadFile(filepath.Join(appDir, DefaultApplicationProfilePath))
-					if err != nil {
-						log.WarnE(errors.Wrap(err, ""), "")
-						continue
-					}
-					profileV1 := &profile.AppProfile{}
-					err = yaml.Unmarshal(bytes, profileV1)
-					if err != nil {
-						log.WarnE(errors.Wrap(err, ""), "")
-						continue
-					}
-					ns = profileV1.Namespace
-				}
-				if ns == "" {
-					log.Warnf("Fail to get %s's namespace", appDirInfo.Name())
-					continue
-				}
-				// Initial ns dir
-				log.Logf("Initial ns dir %s", ns)
-				err = os.MkdirAll(filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), ns), DefaultNewFilePermission)
-				if err != nil {
-					log.WarnE(errors.Wrap(err, ""), "")
-					continue
-				}
-				// Moving dir
-				utils.Should(
-					utils.CopyDir(
-						appDir, filepath.Join(nocalhost_path.GetNhctlNameSpaceDir(), ns, appDirInfo.Name()),
-					),
-				)
-			}
-		} else {
-			return errors.Wrap(err, "")
-		}
-	}
-	return nil
-}
-
-// Deprecated
-func GetAppHomeDir() string {
-	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), DefaultApplicationDirName)
+	return err
 }
 
 func CleanupAppFilesUnderNs(appName string, namespace string) error {
@@ -167,11 +69,11 @@ func CleanupAppFilesUnderNs(appName string, namespace string) error {
 }
 
 func GetSyncThingBinDir() string {
-	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), DefaultBinDirName, DefaultBinSyncThingDirName)
+	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), _const.DefaultBinDirName, _const.DefaultBinSyncThingDirName)
 }
 
 func GetLogDir() string {
-	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), DefaultLogDirName)
+	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), _const.DefaultLogDirName)
 }
 
 // key: ns, value: app
@@ -255,6 +157,9 @@ func GetApplicationMetas(namespace, kubeConfig string) (appmeta.ApplicationMetas
 		return nil, err
 	}
 	var appMetas []*appmeta.ApplicationMeta
+	if data == nil {
+		return appMetas, nil
+	}
 	marshal, err := json.Marshal(data)
 	err = json.Unmarshal(marshal, &appMetas)
 	if err != nil {

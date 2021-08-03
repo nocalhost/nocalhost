@@ -1,3 +1,8 @@
+/*
+* Copyright (C) 2020 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+ */
+
 package app
 
 import (
@@ -15,7 +20,6 @@ import (
 type MetaWrapper struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 }
-
 
 func (a *Application) GetConfigMap(resourceName string) (*v1.ConfigMap, error) {
 	if result, err := a.getResource(resourceName, "configmaps"); err != nil {
@@ -37,7 +41,7 @@ func (a *Application) GetConfigMap(resourceName string) (*v1.ConfigMap, error) {
 func (a *Application) GetObjectMeta(resourceName, resourceType string) (*MetaWrapper, error) {
 	if any, err := a.getResource(resourceName, resourceType); err != nil {
 		return nil, err
-	}else {
+	} else {
 		if marshal, err := json.Marshal(any); err != nil {
 			return nil, err
 		} else {

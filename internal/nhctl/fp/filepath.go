@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package fp
 
@@ -17,7 +10,6 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/syncthing/network/req"
 	"os"
 	"path/filepath"
@@ -46,7 +38,7 @@ type FilePathEnhance struct {
 	mu      sync.Mutex
 }
 
-func NewRandomTempPath() *FilePathEnhance{
+func NewRandomTempPath() *FilePathEnhance {
 	dir, _ := ioutil.TempDir("", "")
 	return NewFilePath(dir)
 }
@@ -125,6 +117,10 @@ func (f *FilePathEnhance) ReadFile() string {
 	return f.content
 }
 
+func (f *FilePathEnhance) Doom() error {
+	return os.Remove(f.absPath)
+}
+
 func (f *FilePathEnhance) ReadFileCompel() (string, error) {
 	f.mu.Lock()
 
@@ -161,11 +157,11 @@ func (f *FilePathEnhance) CheckExist() error {
 }
 
 func (f *FilePathEnhance) Mkdir() error {
-	return os.MkdirAll(f.absPath, nocalhost.DefaultNewFilePermission)
+	return os.MkdirAll(f.absPath, 0700)
 }
 
-func (f *FilePathEnhance) MkdirThen() *FilePathEnhance{
-	_ = os.MkdirAll(f.absPath, nocalhost.DefaultNewFilePermission)
+func (f *FilePathEnhance) MkdirThen() *FilePathEnhance {
+	_ = os.MkdirAll(f.absPath, 0700)
 	return f
 }
 

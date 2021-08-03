@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package testcase
@@ -24,6 +17,7 @@ import (
 	"net/http"
 	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/test/runner"
+	"nocalhost/test/util"
 	"os"
 	"strings"
 	"time"
@@ -50,7 +44,11 @@ func DevStartT(cli runner.Client, moduleName string, moduleType string) error {
 		// prevent tty to block testcase
 		"--without-terminal",
 	)
-	if stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil); runner.Runner.CheckResult(cmd, stdout, stderr, err) != nil {
+	if stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(
+		cli.SuiteName(), cmd, nil,
+	); runner.Runner.CheckResult(
+		cmd, stdout, stderr, err,
+	) != nil {
 		return err
 	}
 	_ = k8sutils.WaitPod(
@@ -58,7 +56,7 @@ func DevStartT(cli runner.Client, moduleName string, moduleType string) error {
 		cli.GetNhctl().Namespace,
 		metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", moduleName).String()},
 		func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
-		time.Minute*2,
+		time.Minute*30,
 	)
 	return nil
 }
@@ -69,7 +67,7 @@ func Sync(cli runner.Client, moduleName string) error {
 
 func SyncT(cli runner.Client, moduleName string, moduleType string) error {
 	cmd := cli.GetNhctl().Command(context.Background(), "sync", "bookinfo", "-d", moduleName, "-t", moduleType)
-	return runner.Runner.RunWithCheckResult(cmd)
+	return runner.Runner.RunWithCheckResult(cli.SuiteName(), cmd)
 }
 
 func SyncCheck(cli runner.Client, moduleName string) error {
@@ -78,38 +76,43 @@ func SyncCheck(cli runner.Client, moduleName string) error {
 
 func SyncCheckT(cli runner.Client, ns, moduleName string, moduleType string) error {
 	filename := "hello.test"
-	syncFile := fmt.Sprintf("/tmp/%s/%s/%s",ns, moduleName, filename)
+	syncFile := fmt.Sprintf("/tmp/%s/%s/%s", ns, moduleName, filename)
 
 	content := "this is a test, random string: " + uuid.New().String()
 	if err := ioutil.WriteFile(syncFile, []byte(content), 0644); err != nil {
 		return errors.Errorf("test case failed, reason: write file %s error: %v", filename, err)
 	}
-	// wait file to be synchronize
-	time.Sleep(5 * time.Second)
-	if moduleType == "" {
-		moduleType = "deployment"
-	}
-	// not use nhctl exec is just because nhctl exec will stuck while cat file
-	args := []string{
-		"-t", fmt.Sprintf("%s/%s", moduleType, moduleName),
-		"--",
-		"cat",
-		filename,
-	}
-	logStr, _, err := cli.GetKubectl().Run(context.Background(), "exec", args...)
-	if err != nil {
-		return errors.Errorf(
-			"test case failed, reason: cat file %s error, command: %s, log: %v",
-			filename, args, logStr,
-		)
-	}
-	if !strings.Contains(logStr, content) {
-		return errors.Errorf(
-			"test case failed, reason: file content: %s not equals command log: %s",
-			content, logStr,
-		)
-	}
-	return nil
+
+	return util.RetryFunc(
+		func() error {
+			// wait file to be synchronize
+			time.Sleep(5 * time.Second)
+			if moduleType == "" {
+				moduleType = "deployment"
+			}
+			// not use nhctl exec is just because nhctl exec will stuck while cat file
+			args := []string{
+				"-t", fmt.Sprintf("%s/%s", moduleType, moduleName),
+				"--",
+				"cat",
+				filename,
+			}
+			logStr, _, err := cli.GetKubectl().Run(context.Background(), "exec", args...)
+			if err != nil {
+				return errors.Errorf(
+					"test case failed, reason: cat file %s error, command: %s, log: %v",
+					filename, args, logStr,
+				)
+			}
+			if !strings.Contains(logStr, content) {
+				return errors.Errorf(
+					"test case failed, reason: file content: %s not equals command log: %s",
+					content, logStr,
+				)
+			}
+			return nil
+		},
+	)
 }
 
 func PortForwardCheck(port int) error {
@@ -133,7 +136,11 @@ func DevEnd(cli runner.Client, moduleName string) error {
 
 func DevEndT(cli runner.Client, moduleName string, moduleType string) error {
 	cmd := cli.GetNhctl().Command(context.Background(), "dev", "end", "bookinfo", "-d", moduleName, "-t", moduleType)
-	if stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil); runner.Runner.CheckResult(cmd, stdout, stderr, err) != nil {
+	if stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(
+		cli.SuiteName(), cmd, nil,
+	); runner.Runner.CheckResult(
+		cmd, stdout, stderr, err,
+	) != nil {
 		return err
 	}
 	_ = k8sutils.WaitPod(
@@ -144,13 +151,13 @@ func DevEndT(cli runner.Client, moduleName string, moduleType string) error {
 			return i.Status.Phase == v1.PodRunning && func() bool {
 				for _, containerStatus := range i.Status.ContainerStatuses {
 					if containerStatus.Ready {
-						return false
+						return true
 					}
 				}
-				return true
+				return false
 			}()
 		},
-		time.Minute*2,
+		time.Minute*1,
 	)
 	return nil
 }

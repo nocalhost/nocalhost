@@ -1,16 +1,22 @@
+/*
+* Copyright (C) 2020 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+ */
+
 package common
 
 import (
 	"fmt"
 	errors2 "github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/fp"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -42,8 +48,9 @@ func InitDefaultApplicationInCurrentNs(namespace string, kubeconfigPath string) 
 		AppType:   string(appmeta.ManifestLocal),
 		LocalPath: baseDir.Abs(),
 	}
-	application, err := InstallApplication(f, nocalhost.DefaultNocalhostApplication, kubeconfigPath, namespace)
-	if errors.IsServerTimeout(err) {
+	application, err := InstallApplication(f, _const.DefaultNocalhostApplication, kubeconfigPath, namespace)
+	if errors.IsServerTimeout(err) || errors.IsAlreadyExists(err) {
+		log.Logf("Create default.application failed, err: %v", err)
 		return application, nil
 	}
 	return application, err
@@ -91,6 +98,22 @@ func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconf
 		flags.HelmSet = append([]string{fmt.Sprintf("%s=%s", v.Key, v.Value)}, flags.HelmSet...)
 	}
 
+	// the values.yaml config in nocalhost is the most highest priority
+	// -f in helm, append it to the last
+	vals := nocalhostApp.GetApplicationConfigV2().HelmVals
+	if vals != nil && vals != "" {
+		helmvals := fp.NewRandomTempPath().MkdirThen().RelOrAbs("nocalhost.helmvals")
+
+		if marshal, err := yaml.Marshal(vals); err != nil {
+			return nil, err
+		} else {
+			if err := helmvals.WriteFile(string(marshal)); err != nil {
+				return nil, err
+			}
+			flags.HelmValueFile = append(flags.HelmValueFile, helmvals.Abs())
+		}
+	}
+
 	flag := &app.HelmFlags{
 		Values:   flags.HelmValueFile,
 		Set:      flags.HelmSet,
@@ -102,6 +125,5 @@ func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconf
 	}
 
 	err = nocalhostApp.Install(flag)
-	_ = nocalhostApp.CleanUpTmpResources()
 	return nocalhostApp, err
 }

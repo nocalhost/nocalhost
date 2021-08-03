@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package errno
 
@@ -31,35 +24,36 @@ var (
 	InternalServerTimeoutError = &Errno{Code: 10007, Message: "Internal server timeout"}
 
 	// user errors for user module request
-	ErrUserNotFound          = &Errno{Code: 20102, Message: "The user does not found."}
-	ErrTokenInvalid          = &Errno{
+	ErrUserNotFound = &Errno{Code: 20102, Message: "The user does not found."}
+	ErrTokenInvalid = &Errno{
 		Code: 20103, Message: "Token is invalid or login expired, please coloredoutput in again",
 	}
-	ErrPermissionDenied      = &Errno{Code: 20104, Message: "permission denied"}
-	ErrLostPermissionFlag    = &Errno{Code: 20104, Message: "check permission fail, please re-login"}
-	ErrEmailOrPassword       = &Errno{Code: 20111, Message: "Mail or password is incorrect"}
-	ErrTwicePasswordNotMatch = &Errno{Code: 20112, Message: "Two password entries are inconsistent"}
-	ErrRegisterFailed        = &Errno{Code: 20113, Message: "Registration failed"}
-	ErrUserNotAllow          = &Errno{Code: 20114, Message: "User is disabled"}
-	ErrCreateUserDenied      = &Errno{Code: 20115, Message: "No user creation permission"}
-	ErrUpdateUserDenied      = &Errno{Code: 20116, Message: "No modify user permission"}
-	ErrDeleteUser            = &Errno{Code: 20117, Message: "Failed to delete user"}
-	ErrUserLoginWebNotAllow  = &Errno{Code: 20118, Message: "Normal users are not allowed login web interface"}
+	ErrPermissionDenied           = &Errno{Code: 20104, Message: "permission denied"}
+	ErrLostPermissionFlag         = &Errno{Code: 20104, Message: "check permission fail, please re-login"}
+	ErrEmailOrPassword            = &Errno{Code: 20111, Message: "Mail or password is incorrect"}
+	ErrTwicePasswordNotMatch      = &Errno{Code: 20112, Message: "Two password entries are inconsistent"}
+	ErrRegisterFailed             = &Errno{Code: 20113, Message: "Registration failed"}
+	ErrUserNotAllow               = &Errno{Code: 20114, Message: "User is disabled"}
+	ErrCreateUserDenied           = &Errno{Code: 20115, Message: "No user creation permission"}
+	ErrUpdateUserDenied           = &Errno{Code: 20116, Message: "No modify user permission"}
+	ErrDeleteUser                 = &Errno{Code: 20117, Message: "Failed to delete user"}
+	ErrUserLoginWebNotAllow       = &Errno{Code: 20118, Message: "Normal users are not allowed login web interface"}
+	RefreshTokenInvalidOrNotMatch = &Errno{Code: 20119, Message: "Refresh token is invalid or token not matched"}
 
 	// cluster errors for cluster module request
-	ErrClusterCreate          = &Errno{Code: 30100, Message: "Failed to add cluster, please try again"}
-	ErrClusterExistCreate     = &Errno{Code: 30101, Message: "The cluster already exists (Duplicate Server)"}
-	ErrClusterKubeCreate      = &Errno{
-		Code: 30102,
+	ErrClusterCreate      = &Errno{Code: 30100, Message: "Failed to add cluster, please try again"}
+	ErrClusterExistCreate = &Errno{Code: 30101, Message: "The cluster already exists (Duplicate Server)"}
+	ErrClusterKubeCreate  = &Errno{
+		Code:    30102,
 		Message: "It is not allowed to create this type of cluster (there are multiple Kubeconfig Clusters)",
 	}
-	ErrClusterKubeErr         = &Errno{Code: 30103, Message: "Kubeconfig parsing error, please check"}
-	ErrClusterKubeAdmin       = &Errno{Code: 30104, Message: "Please check Kubeconfig Admin permissions"}
-	ErrClusterKubeConnect     = &Errno{Code: 30104, Message: "Connect cluster fail, Please check cluster connectivity"}
-	ErrClusterDepSetup        = &Errno{
+	ErrClusterKubeErr     = &Errno{Code: 30103, Message: "Kubeconfig parsing error, please check"}
+	ErrClusterKubeAdmin   = &Errno{Code: 30104, Message: "Please check Kubeconfig Admin permissions"}
+	ErrClusterKubeConnect = &Errno{Code: 30104, Message: "Connect cluster fail, Please check cluster connectivity"}
+	ErrClusterDepSetup    = &Errno{
 		Code: 30105, Message: "Initialize cluster: Failed to create dependent component Configmap",
 	}
-	ErrClusterDepJobSetup     = &Errno{
+	ErrClusterDepJobSetup = &Errno{
 		Code: 30106, Message: "Initialize the cluster: Initial dependent component Job failed",
 	}
 	ErrClusterNotFound        = &Errno{Code: 30107, Message: "Cluster has not found"}
@@ -69,12 +63,12 @@ var (
 	ErrClusterContext         = &Errno{
 		Code: 30111, Message: "Failed to get current context from kubeconfig, please check context exists",
 	}
-	ErrClusterName            = &Errno{
-		Code: 30112,
+	ErrClusterName = &Errno{
+		Code:    30112,
 		Message: "Failed to get current cluster from kubeconfig, please check cluster exists and manage by current context",
 	}
-	ErrClusterTimeout         = &Errno{
-		Code: 30113,
+	ErrClusterTimeout = &Errno{
+		Code:    30113,
 		Message: "Failed to get the connection from current cluster after short wait, please make sure the cluster exists and check it's network connectivity",
 	}
 
@@ -99,72 +93,72 @@ var (
 	}
 
 	// cluster-user errors for cluster-user module request
-	ErrBindUserApplicationRepeat                 = &Errno{
+	ErrBindUserApplicationRepeat = &Errno{
 		Code: 50099, Message: "The user has authorized this application",
 	}
-	ErrBindNameSpaceCreate                       = &Errno{
+	ErrBindNameSpaceCreate = &Errno{
 		Code: 50101, Message: "Cluster user authorization failed: failed to create namespace",
 	}
-	ErrBindServiceAccountCreateErr               = &Errno{
+	ErrBindServiceAccountCreateErr = &Errno{
 		Code: 50102, Message: "Cluster user authorization failed: Failed to create ServiceAccount",
 	}
-	ErrBindRoleCreateErr                         = &Errno{
+	ErrBindRoleCreateErr = &Errno{
 		Code: 50103, Message: "Cluster user authorization failed: failed to create a role",
 	}
-	ErrBindRoleBindingCreateErr                  = &Errno{
+	ErrBindRoleBindingCreateErr = &Errno{
 		Code: 50105, Message: "Cluster user authorization failed: failed to create RoleBinding",
 	}
-	ErrBindSecretGetErr                          = &Errno{
+	ErrBindSecretGetErr = &Errno{
 		Code: 50106, Message: "Cluster user authorization failed: Failed to obtain ServiceAccount Secret",
 	}
-	ErrBindSecretNameGetErr                      = &Errno{
+	ErrBindSecretNameGetErr = &Errno{
 		Code: 50107, Message: "Cluster user authorization failed: Failed to obtain ServiceAccount SecretName",
 	}
-	ErrBindSecretTokenGetErr                     = &Errno{
+	ErrBindSecretTokenGetErr = &Errno{
 		Code: 50108, Message: "Cluster user authorization failed: Failed to obtain ServiceAccount Token",
 	}
-	ErrBindSecretCAGetErr                        = &Errno{
+	ErrBindSecretCAGetErr = &Errno{
 		Code: 50109, Message: "Cluster user authorization failed: Failed to obtain ServiceAccount CA",
 	}
-	ErrBindServiceAccountStructEncodeErr         = &Errno{
-		Code: 50110,
+	ErrBindServiceAccountStructEncodeErr = &Errno{
+		Code:    50110,
 		Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Json to Yaml failed",
 	}
 	ErrBindServiceAccountKubeConfigJsonEncodeErr = &Errno{
-		Code: 50110,
+		Code:    50110,
 		Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Struct to Json failed",
 	}
-	ErrClusterUserNotFound                       = &Errno{Code: 50111, Message: "Dev space has not found"}
-	ErrDeletedClusterButDatabaseFail             = &Errno{
+	ErrClusterUserNotFound           = &Errno{Code: 50111, Message: "Dev space has not found"}
+	ErrDeletedClusterButDatabaseFail = &Errno{
 		Code: 50112, Message: "Cluster namespace has deleted, but database record delete fail",
 	}
-	ErrDeletedClusterDBButClusterDone            = &Errno{
+	ErrDeletedClusterDBButClusterDone = &Errno{
 		Code: 50113, Message: "Cluster nocalhost resource has deleted, but cluster record delete fail",
 	}
-	ErrDeletedClusterDevSpaceDBButClusterDone    = &Errno{
+	ErrDeletedClusterDevSpaceDBButClusterDone = &Errno{
 		Code: 50114, Message: "Cluster nocalhost develop space has deleted, but space record delete fail",
 	}
-	ErrDeletedClusterRecord                      = &Errno{
+	ErrDeletedClusterRecord = &Errno{
 		Code: 50115, Message: "Delete dev space by application fail, please try again",
 	}
-	ErrResetDevSpaceFail                         = &Errno{
+	ErrResetDevSpaceFail = &Errno{
 		Code: 50116, Message: "reset dev space fail, please try again",
 	}
-	ErrCreateResourceQuota                       = &Errno{Code: 50117, Message: "Initial resource limit failed."}
-	ErrDeleteResourceQuota                       = &Errno{Code: 50118, Message: "Delete resource limit failed."}
-	ErrCreateLimitRange                          = &Errno{Code: 50119, Message: "Initial limit range failed."}
-	ErrDeleteLimitRange                          = &Errno{Code: 50120, Message: "Delete limit range failed."}
-	ErrFormatResourceLimitParam                  = &Errno{Code: 50121, Message: "Incorrect Resource limit parameter."}
-	ErrValidateResourceQuota                     = &Errno{
-		Code: 50122,
+	ErrCreateResourceQuota      = &Errno{Code: 50117, Message: "Initial resource limit failed."}
+	ErrDeleteResourceQuota      = &Errno{Code: 50118, Message: "Delete resource limit failed."}
+	ErrCreateLimitRange         = &Errno{Code: 50119, Message: "Initial limit range failed."}
+	ErrDeleteLimitRange         = &Errno{Code: 50120, Message: "Delete limit range failed."}
+	ErrFormatResourceLimitParam = &Errno{Code: 50121, Message: "Incorrect Resource limit parameter."}
+	ErrValidateResourceQuota    = &Errno{
+		Code:    50122,
 		Message: "If quota is enabled in a namespace for compute resources like cpu and memory, must specify requests or limits for those values.",
 	}
-	ErrAlreadyExist                              = &Errno{
+	ErrAlreadyExist = &Errno{
 		Code: 50123, Message: "Current user already authorization current cluster's cluster admin",
 	}
 
 	// application-user for application-user module request
-	ErrListApplicationUser   = &Errno{
+	ErrListApplicationUser = &Errno{
 		Code: 60000, Message: "Failed to list application_user, please check params and try again",
 	}
 	ErrInsertApplicationUser = &Errno{
@@ -175,19 +169,19 @@ var (
 	}
 
 	// service-account for service-account module request
-	ErrServiceAccountCreate     = &Errno{
+	ErrServiceAccountCreate = &Errno{
 		Code: 70000, Message: "Failed to create service account, please check params and try again",
 	}
-	ErrNameSpaceCreate          = &Errno{
+	ErrNameSpaceCreate = &Errno{
 		Code: 70001, Message: "Failed to create namespace, please check params and try again",
 	}
-	ErrClusterRoleCreate        = &Errno{
+	ErrClusterRoleCreate = &Errno{
 		Code: 70002, Message: "Failed to create nocalhost common cluster role, please check your cluster and try again",
 	}
-	ErrRoleBindingCreate        = &Errno{
+	ErrRoleBindingCreate = &Errno{
 		Code: 70003, Message: "Failed to create role binding, please check your cluster and try again",
 	}
-	ErrRoleBindingRemove        = &Errno{
+	ErrRoleBindingRemove = &Errno{
 		Code: 70004, Message: "Failed to remove role binding, please check your cluster and try again",
 	}
 	ErrClusterRoleBindingCreate = &Errno{

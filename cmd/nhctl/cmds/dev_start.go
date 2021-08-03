@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package cmds
 
@@ -121,14 +114,14 @@ var devStartCmd = &cobra.Command{
 
 			if !devStartOps.NoSyncthing {
 				if nocalhostSvc.IsProcessor() {
-					startSyncthing(podName, true)
+					startSyncthing(podName, devStartOps.Container, true)
 				}
 			} else {
 				coloredoutput.Success("File sync is not resumed caused by --without-sync flag.")
 			}
 
 			if !devStartOps.NoTerminal || shell != "" {
-				must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
+				must(nocalhostSvc.EnterPodTerminal(podName, devStartOps.Container, shell))
 			}
 
 		} else {
@@ -152,13 +145,13 @@ var devStartCmd = &cobra.Command{
 			podName := enterDevMode()
 
 			if !devStartOps.NoSyncthing {
-				startSyncthing(podName, false)
+				startSyncthing(podName, devStartOps.Container, false)
 			} else {
 				coloredoutput.Success("File sync is not started caused by --without-sync flag..")
 			}
 
 			if !devStartOps.NoTerminal || shell != "" {
-				must(nocalhostSvc.EnterPodTerminal(podName, container, shell))
+				must(nocalhostSvc.EnterPodTerminal(podName, devStartOps.Container, shell))
 			}
 		}
 	},
@@ -231,15 +224,15 @@ func stopPreviousSyncthing() {
 	)
 }
 
-func startSyncthing(podName string, resume bool) {
+func startSyncthing(podName, container string, resume bool) {
 	if resume {
-		StartSyncthing(podName, true, false, "", false, true)
+		StartSyncthing(podName, true, false, container, false, false)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync resumed")
 		}()
 	} else {
-		StartSyncthing(podName, false, false, "", false, true)
+		StartSyncthing(podName, false, false, container, false, false)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync started")
@@ -274,25 +267,11 @@ func enterDevMode() string {
 	// Delete service folder
 	dir := nocalhostSvc.GetApplicationSyncDir()
 	if err2 := os.RemoveAll(dir); err2 != nil {
-		log.Warnf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
+		log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
 	}
 
 	newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
 	mustI(err, "Failed to create syncthing process, please try again")
-
-	// try install syncthing
-	var downloadVersion = Version
-
-	// for debug only
-	if devStartOps.SyncthingVersion != "" {
-		downloadVersion = devStartOps.SyncthingVersion
-	}
-
-	_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
-	mustI(
-		err, "Failed to install syncthing, no syncthing available locally in "+
-			newSyncthing.BinPath+" please try again.",
-	)
 
 	// set syncthing secret
 	config, err := newSyncthing.GetRemoteConfigXML()

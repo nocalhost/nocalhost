@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package daemon_server
 
@@ -183,121 +176,148 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 
 	// prevent elder version to send cmd to daemon
 	if clientStack == "" {
-		err = Process(conn, func(conn net.Conn) (interface{}, error) {
-			return nil, errors.New(
-				fmt.Sprintf("There are multiple nhctl detected on your device, and current nhctl's version "+
-					" is too old.  please update the current nhctl's version up to %s and try again.",
-					version))
-		})
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				return nil, errors.New(
+					fmt.Sprintf(
+						"There are multiple nhctl detected on your device, and current nhctl's version "+
+							" is too old.  please update the current nhctl's version up to %s and try again.",
+						version,
+					),
+				)
+			},
+		)
 		return
 	}
 
 	switch cmdType {
 	case command.StartPortForward:
-		err = Process(conn, func(conn net.Conn) (interface{}, error) {
-			startCmd := &command.PortForwardCommand{}
-			if err = json.Unmarshal(bys, startCmd); err != nil {
-				return nil, err
-			}
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				startCmd := &command.PortForwardCommand{}
+				if err = json.Unmarshal(bys, startCmd); err != nil {
+					return nil, err
+				}
 
-			if err = handleStartPortForwardCommand(startCmd); err != nil {
-				return nil, err
-			}
+				if err = handleStartPortForwardCommand(startCmd); err != nil {
+					return nil, err
+				}
 
-			return nil, nil
-		})
+				return nil, nil
+			},
+		)
 
 	case command.StopPortForward:
-		err = Process(conn, func(conn net.Conn) (interface{}, error) {
-			pfCmd := &command.PortForwardCommand{}
-			if err = json.Unmarshal(bys, pfCmd); err != nil {
-				return nil, err
-			}
-			if err = handleStopPortForwardCommand(pfCmd); err != nil {
-				return nil, err
-			}
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				pfCmd := &command.PortForwardCommand{}
+				if err = json.Unmarshal(bys, pfCmd); err != nil {
+					return nil, err
+				}
+				if err = handleStopPortForwardCommand(pfCmd); err != nil {
+					return nil, err
+				}
 
-			return nil, nil
-		})
+				return nil, nil
+			},
+		)
 
 	case command.StopDaemonServer:
-		err = Process(conn, func(conn net.Conn) (interface{}, error) {
-			return nil, nil
-		})
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				return nil, nil
+			},
+		)
 
 		tcpCancelFunc()
 		// todo: clean up resources
 		daemonCancelFunc()
 
 	case command.RestartDaemonServer:
-		err = Process(conn, func(conn net.Conn) (interface{}, error) {
-			if upgrading {
-				return nil, errors.New("DaemonServer is upgrading, please try it later")
-			}
-			baseCmd := &command.BaseCommand{}
-			if err = json.Unmarshal(bys, baseCmd); err != nil {
-				return nil, err
-			}
-			return nil, handlerRestartDaemonServerCommand(isSudo, baseCmd.ClientPath)
-		})
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				if upgrading {
+					return nil, errors.New("DaemonServer is upgrading, please try it later")
+				}
+				baseCmd := &command.BaseCommand{}
+				if err = json.Unmarshal(bys, baseCmd); err != nil {
+					return nil, err
+				}
+				return nil, handlerRestartDaemonServerCommand(isSudo, baseCmd.ClientPath)
+			},
+		)
 
 		log.Log("New daemon server is starting, exit this one")
 		daemonCancelFunc()
 
 	case command.GetDaemonServerInfo:
-		err = Process(conn, func(conn net.Conn) (interface{}, error) {
-			return &daemon_common.DaemonServerInfo{
-				Version: version, CommitId: commitId, NhctlPath: startUpPath, Upgrading: upgrading,
-			}, nil
-		})
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				return &daemon_common.DaemonServerInfo{
+					Version: version, CommitId: commitId, NhctlPath: startUpPath, Upgrading: upgrading,
+				}, nil
+			},
+		)
 
 	case command.GetDaemonServerStatus:
-		err = Process(conn, func(conn net.Conn) (interface{}, error) {
-			return &daemon_common.DaemonServerStatusResponse{
-				PortForwardList: pfManager.ListAllRunningPFGoRoutineProfile(),
-			}, nil
-		})
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				return &daemon_common.DaemonServerStatusResponse{
+					PortForwardList: pfManager.ListAllRunningPFGoRoutineProfile(),
+				}, nil
+			},
+		)
 
 	case command.GetApplicationMeta:
-		err = Process(conn, func(conn net.Conn) (interface{}, error) {
-			gamCmd := &command.GetApplicationMetaCommand{}
-			if err = json.Unmarshal(bys, gamCmd); err != nil {
-				return nil, err
-			}
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				gamCmd := &command.GetApplicationMetaCommand{}
+				if err = json.Unmarshal(bys, gamCmd); err != nil {
+					return nil, err
+				}
 
-			return appmeta_manager.GetApplicationMeta(gamCmd.NameSpace, gamCmd.AppName, []byte(gamCmd.KubeConfigContent)), nil
-		})
+				return appmeta_manager.GetApplicationMeta(
+					gamCmd.NameSpace, gamCmd.AppName, []byte(gamCmd.KubeConfigContent),
+				), nil
+			},
+		)
 
 	case command.GetApplicationMetas:
-		err = Process(conn, func(conn net.Conn) (interface{}, error) {
-			gamsCmd := &command.GetApplicationMetasCommand{}
-			if err = json.Unmarshal(bys, gamsCmd); err != nil {
-				return nil, err
-			}
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				gamsCmd := &command.GetApplicationMetasCommand{}
+				if err = json.Unmarshal(bys, gamsCmd); err != nil {
+					return nil, err
+				}
 
-			return appmeta_manager.GetApplicationMetas(gamsCmd.NameSpace, []byte(gamsCmd.KubeConfigContent)), nil
-		})
+				return appmeta_manager.GetApplicationMetas(gamsCmd.NameSpace, []byte(gamsCmd.KubeConfigContent)), nil
+			},
+		)
 
 	case command.GetResourceInfo:
-		err = Process(conn, func(conn net.Conn) (interface{}, error) {
-			cmd := &command.GetResourceInfoCommand{}
-			if err = json.Unmarshal(bys, cmd); err != nil {
-				return nil, errors.Wrap(err, "")
-			}
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				cmd := &command.GetResourceInfoCommand{}
+				if err = json.Unmarshal(bys, cmd); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
 
-			return daemon_handler.HandleGetResourceInfoRequest(cmd), nil
-		})
+				return daemon_handler.HandleGetResourceInfoRequest(cmd), nil
+			},
+		)
 
 	case command.UpdateApplicationMeta:
-		err = Process(conn, func(conn net.Conn) (interface{}, error) {
-			cmd := &command.UpdateApplicationMetaCommand{}
-			if err = json.Unmarshal(bys, cmd); err != nil {
-				return nil, errors.Wrap(err, "")
-			}
-			return appmeta_manager.UpdateApplicationMetasManually(
-				cmd.Namespace, []byte(cmd.KubeConfig), cmd.SecretName, cmd.Secret,
-			), nil
-		})
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				cmd := &command.UpdateApplicationMetaCommand{}
+				if err = json.Unmarshal(bys, cmd); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+				return appmeta_manager.UpdateApplicationMetasManually(
+					cmd.Namespace, []byte(cmd.KubeConfig), cmd.SecretName, cmd.Secret,
+				), nil
+			},
+		)
 	}
 }
 
@@ -324,6 +344,9 @@ func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error 
 		}
 	}
 
+	//if len(resp.Data) == 0 {
+	//	resp.Data = []byte("{}")
+	//}
 	// try marshal again if fail
 	bys, err := json.Marshal(&resp)
 	if err != nil {
@@ -361,18 +384,20 @@ func handlerRestartDaemonServerCommand(isSudoUser bool, clientPath string) error
 	var nhctlPath string
 	var err error
 
-	if utils.IsWindows() {
-		if clientPath == "" {
-			return errors.New("ClientPath can not be nil in windows")
-		}
-		if nhctlPath, err = daemon_common.CopyNhctlBinaryToTmpDir(clientPath); err != nil {
-			return err
-		}
-	} else {
-		if nhctlPath, err = utils.GetNhctlPath(); err != nil {
-			return err
-		}
+	//if utils.IsWindows() {
+	//	if clientPath == "" {
+	//		return errors.New("ClientPath can not be nil in windows")
+	//	}
+	//	if nhctlPath, err = daemon_common.CopyNhctlBinaryToTmpDir(clientPath); err != nil {
+	//		return err
+	//	}
+	//} else {
+	if clientPath != "" {
+		nhctlPath = clientPath
+	} else if nhctlPath, err = utils.GetNhctlPath(); err != nil {
+		return err
 	}
+	//}
 
 	daemonArgs := []string{nhctlPath, "daemon", "start"}
 	if isSudoUser {

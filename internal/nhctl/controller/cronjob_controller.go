@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package controller
 
@@ -18,9 +11,10 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
+	"strconv"
 )
 
 type CronJobController struct {
@@ -29,7 +23,8 @@ type CronJobController struct {
 
 const (
 	cronjobGeneratedJobPrefix = "cronjob-generated-job-"
-	cronjobScheduleAnnotation = "nocalhost.dev.cronjob.schedule"
+	cronjobScheduleAnnotation = "nocalhost.dev.cronjob.schedule" // deprecated
+	cronjobSuspendAnnotation  = "nocalhost.dev.cronjob.suspend"
 )
 
 func (j *CronJobController) GetNocalhostDevContainerPod() (string, error) {
@@ -57,8 +52,18 @@ func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStar
 	if originJob.Annotations == nil {
 		originJob.Annotations = make(map[string]string, 0)
 	}
-	originJob.Annotations[cronjobScheduleAnnotation] = originJob.Spec.Schedule
-	originJob.Spec.Schedule = "1 1 1 1 1"
+	if _, ok := originJob.Annotations[cronjobScheduleAnnotation]; ok {
+		log.Infof("Removing deprecated annotation %s", cronjobScheduleAnnotation)
+		delete(originJob.Annotations, cronjobScheduleAnnotation)
+	}
+	//originJob.Annotations[cronjobScheduleAnnotation] = originJob.Spec.Schedule
+	if originJob.Spec.Suspend != nil {
+		originJob.Annotations[cronjobSuspendAnnotation] = fmt.Sprintf("%t", *originJob.Spec.Suspend)
+	}
+	//originJob.Spec.Schedule = "1 1 1 1 1"
+	isSuspend := true
+	originJob.Spec.Suspend = &isSuspend
+	log.Info("Suspending cronjob...")
 	if _, err = j.Client.UpdateCronJob(originJob); err != nil {
 		return err
 	}
@@ -67,7 +72,7 @@ func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStar
 	generatedJob := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   j.getGeneratedJobName(),
-			Labels: map[string]string{nocalhost.DevWorkloadIgnored: "true"},
+			Labels: map[string]string{_const.DevWorkloadIgnored: "true"},
 		},
 		Spec: batchv1.JobSpec{
 			Selector: originJob.Spec.JobTemplate.Spec.Selector,
@@ -142,10 +147,20 @@ func (j *CronJobController) RollBack(reset bool) error {
 	if err != nil {
 		return err
 	}
-	schedule, ok := originJob.Annotations[cronjobScheduleAnnotation]
+	schedule, ok := originJob.Annotations[cronjobScheduleAnnotation] // for compatibility
 	if ok {
 		originJob.Spec.Schedule = schedule
 		log.Infof("Recover schedule to %s", schedule)
+		if _, err = j.Client.UpdateCronJob(originJob); err != nil {
+			return err
+		}
+	} else {
+		s := false
+		suspend, ok := originJob.Annotations[cronjobSuspendAnnotation]
+		if ok {
+			s, _ = strconv.ParseBool(suspend)
+		}
+		originJob.Spec.Suspend = &s
 		if _, err = j.Client.UpdateCronJob(originJob); err != nil {
 			return err
 		}

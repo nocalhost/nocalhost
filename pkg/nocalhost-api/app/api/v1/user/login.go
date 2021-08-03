@@ -1,18 +1,12 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package user
 
 import (
+	"nocalhost/pkg/nocalhost-api/pkg/token"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -23,6 +17,27 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
+
+func RefreshToken(c *gin.Context) {
+	t, rt, err := token.RefreshFromRequest(c)
+
+	if err != nil {
+		if strings.Contains(err.Error(), "allow") {
+			api.SendResponse(c, errno.ErrUserNotAllow, nil)
+			return
+		}
+		log.Warnf("refresh token err: %v", err)
+		api.SendResponse(c, errno.RefreshTokenInvalidOrNotMatch, nil)
+		return
+	}
+
+	api.SendResponse(
+		c, nil, model.Token{
+			Token:        t,
+			RefreshToken: rt,
+		},
+	)
+}
 
 // Login Web and plug-in login
 // @Summary Web and plug-in login
@@ -62,7 +77,7 @@ func Login(c *gin.Context) {
 	//	return
 	//}
 
-	t, err := service.Svc.UserSvc().EmailLogin(c, req.Email, req.Password)
+	t, rt, err := service.Svc.UserSvc().EmailLogin(c, req.Email, req.Password)
 	if err != nil {
 		if strings.Contains(err.Error(), "allow") {
 			api.SendResponse(c, errno.ErrUserNotAllow, nil)
@@ -75,7 +90,8 @@ func Login(c *gin.Context) {
 
 	api.SendResponse(
 		c, nil, model.Token{
-			Token: t,
+			Token:        t,
+			RefreshToken: rt,
 		},
 	)
 }

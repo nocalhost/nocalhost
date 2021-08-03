@@ -1,19 +1,13 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package log
 
 import (
 	"fmt"
+	_const "nocalhost/internal/nhctl/const"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -27,59 +21,91 @@ import (
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
-var outLogger *zap.SugaredLogger
+var stdoutLogger *zap.SugaredLogger
+var stderrLogger *zap.SugaredLogger
 var fileEntry *zap.SugaredLogger
-var logFile string
 
 var fields = make(map[string]string, 0)
-var core zapcore.Core
+var fileLogsConfig zapcore.Core
 
 func init() {
 	// if log is not be initiated explicitly (use log.Init()),
 	// the default out logger will be used.
-	outLogger = getDefaultOutLogger()
+	stdoutLogger = getDefaultOutLogger(os.Stdout)
+	stderrLogger = getDefaultOutLogger(os.Stderr)
 	fields["PID"] = strconv.Itoa(os.Getpid())
 	fields["PPID"] = strconv.Itoa(os.Getppid())
 }
 
-func getDefaultOutLogger() *zap.SugaredLogger {
+func getDefaultOutLogger(w zapcore.WriteSyncer) *zap.SugaredLogger {
 	encoderConfig0 := zap.NewProductionEncoderConfig()
 	encoderConfig0.EncodeTime = nil
 	encoderConfig0.EncodeLevel = nil
 	encoder2 := zapcore.NewConsoleEncoder(encoderConfig0)
-	return zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stdout), zap.InfoLevel)).Sugar()
+	return zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stdout), zap.InfoLevel), zap.ErrorOutput(w)).Sugar()
 }
 
 func Init(level zapcore.Level, dir, fileName string) error {
 
-	// stdout logger
-	encoderConfig0 := zap.NewProductionEncoderConfig()
-	encoderConfig0.EncodeTime = nil
-	encoderConfig0.EncodeLevel = nil
-	encoder2 := zapcore.NewConsoleEncoder(encoderConfig0)
-	outLogger = zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stdout), level)).Sugar()
+	// stdout logger cfg
+	cfg := zap.NewProductionEncoderConfig()
+	if fullLog() {
+		cfg.EncodeTime = CustomTimeEncoder
+		cfg.EncodeLevel = CustomLevelEncoder
+	} else {
+		cfg.EncodeTime = nil
+		cfg.EncodeLevel = nil
+	}
 
-	// file logger
+	unFormatEncoder := zapcore.NewConsoleEncoder(cfg)
+	unFormatStdoutConfig := zapcore.NewCore(unFormatEncoder, zapcore.AddSync(os.Stdout), level)
+	unFormatStderrConfig := zapcore.NewCore(unFormatEncoder, zapcore.AddSync(os.Stderr), level)
+
+	// file logger cfg
 	logPath := filepath.Join(dir, fileName)
 	rolling := &lumberjack.Logger{
 		Filename:   logPath,
-		MaxSize:    20, // megabytes
+		MaxSize:    100, // megabytes
 		MaxBackups: 60,
-		MaxAge:     60, //days
+		MaxAge:     120, //days
 		Compress:   true,
 	}
-	writeSyncer := zapcore.AddSync(rolling)
+	rollingLog := &logWriter{rollingLog: rolling}
+	writeSyncer := zapcore.AddSync(rollingLog)
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeTime = CustomTimeEncoder
 	encoderConfig.EncodeLevel = CustomLevelEncoder
 	encoderConfig.EncodeDuration = CustomDurationEncoder
 
 	encoder := zapcore.NewConsoleEncoder(encoderConfig)
-	core = zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
+	fileLogsConfig := zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
 
-	refreshFileLoggerWithFields()
-	logFile = logPath
+	// init
+	initOrReInitStdout(unFormatStdoutConfig)
+	initOrReInitStderr(unFormatStderrConfig)
+	initOrReInitFileEntry(fileLogsConfig, fields)
 	return nil
+}
+
+func fullLog() bool {
+	return os.Getenv(_const.EnableFullLogEnvKey) != ""
+}
+
+func initOrReInitStdout(configuration zapcore.Core) {
+	stdoutLogger = zap.New(configuration).Sugar()
+}
+
+func initOrReInitStderr(configuration zapcore.Core) {
+	stderrLogger = zap.New(configuration).Sugar()
+}
+
+func initOrReInitFileEntry(configuration zapcore.Core, args map[string]string) {
+	fileEntry = zap.New(configuration).Sugar().With(args)
+}
+
+func AddField(key, val string) {
+	fields[key] = val
+	initOrReInitFileEntry(fileLogsConfig, fields)
 }
 
 func CustomDurationEncoder(t time.Duration, enc zapcore.PrimitiveArrayEncoder) {
@@ -87,63 +113,50 @@ func CustomDurationEncoder(t time.Duration, enc zapcore.PrimitiveArrayEncoder) {
 }
 
 func CustomTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-	enc.AppendString(t.Format(time.RFC3339))
+	enc.AppendString(t.Format(time.Stamp))
 }
 
 func CustomLevelEncoder(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
 	enc.AppendString("[" + level.CapitalString() + "]")
 }
 
-func refreshFileLoggerWithFields() {
-	args := make([]interface{}, 0)
-	for key, val := range fields {
-		args = append(args, key, val)
-	}
-	fileEntry = zap.New(core).Sugar().With(args...)
-}
-
-func AddField(key, val string) {
-	fields[key] = val
-	refreshFileLoggerWithFields()
-}
-
 func Debug(args ...interface{}) {
-	outLogger.Debug(args...)
+	stdoutLogger.Debug(args...)
 	if fileEntry != nil {
 		fileEntry.Debug(args...)
 	}
 }
 
 func Debugf(format string, args ...interface{}) {
-	outLogger.Debugf(format, args...)
+	stdoutLogger.Debugf(format, args...)
 	if fileEntry != nil {
 		fileEntry.Debugf(format, args...)
 	}
 }
 
 func Info(args ...interface{}) {
-	outLogger.Info(args...)
+	stdoutLogger.Info(args...)
 	if fileEntry != nil {
 		fileEntry.Info(args...)
 	}
 }
 
 func Infof(format string, args ...interface{}) {
-	outLogger.Infof(format, args...)
+	stdoutLogger.Infof(format, args...)
 	if fileEntry != nil {
 		fileEntry.Infof(format, args...)
 	}
 }
 
 func Warn(args ...interface{}) {
-	outLogger.Warn(args...)
+	stdoutLogger.Warn(args...)
 	if fileEntry != nil {
 		fileEntry.Warn(args...)
 	}
 }
 
 func Warnf(format string, args ...interface{}) {
-	outLogger.Warnf(format, args...)
+	stdoutLogger.Warnf(format, args...)
 	if fileEntry != nil {
 		fileEntry.Warnf(format, args...)
 	}
@@ -155,21 +168,21 @@ func WarnE(err error, message string) {
 	}
 
 	if err != nil {
-		outLogger.Warn(fmt.Sprintf("%s: %s", message, err.Error()))
+		stdoutLogger.Warn(fmt.Sprintf("%s: %s", message, err.Error()))
 	} else {
-		outLogger.Warn(fmt.Sprintf("%s", message))
+		stdoutLogger.Warn(fmt.Sprintf("%s", message))
 	}
 }
 
 func Error(args ...interface{}) {
-	outLogger.Error(args...)
+	stdoutLogger.Error(args...)
 	if fileEntry != nil {
 		fileEntry.Error(args...)
 	}
 }
 
 func Errorf(format string, args ...interface{}) {
-	outLogger.Errorf(format, args...)
+	stdoutLogger.Errorf(format, args...)
 	if fileEntry != nil {
 		fileEntry.Errorf(format, args...)
 	}
@@ -180,9 +193,9 @@ func ErrorE(err error, message string) {
 		fileEntry.Errorf("%s, err: %+v", message, err)
 	}
 	if err != nil {
-		outLogger.Errorf("%s: %s", message, err.Error())
+		stdoutLogger.Errorf("%s: %s", message, err.Error())
 	} else {
-		outLogger.Errorf("%s", message)
+		stdoutLogger.Errorf("%s", message)
 	}
 }
 
@@ -190,23 +203,23 @@ func Fatal(args ...interface{}) {
 	if fileEntry != nil {
 		fileEntry.Error(args...)
 	}
-	outLogger.Fatal(args...)
+	stderrLogger.Fatal(args...)
 }
 
 func Fatalf(format string, args ...interface{}) {
 	if fileEntry != nil {
 		fileEntry.Errorf(format, args...)
 	}
-	outLogger.Fatalf(format, args...)
+	stderrLogger.Fatalf(format, args...)
 }
 
 // log with error
 func FatalE(err error, message string) {
 
 	if err != nil {
-		outLogger.Errorf("%s: %s", message, err.Error())
+		stderrLogger.Errorf("%s: %s", message, err.Error())
 	} else {
-		outLogger.Errorf("%s", message)
+		stderrLogger.Errorf("%s", message)
 	}
 
 	if fileEntry != nil {
@@ -241,5 +254,49 @@ func TLogf(tag, format string, args ...interface{}) {
 func LogStack() {
 	if fileEntry != nil {
 		fileEntry.Debug(string(debug.Stack()))
+	}
+}
+
+// For IDE Plugin
+
+func PWarn(info string) {
+	stdoutLogger.Info("[WARNING] " + info)
+	if fileEntry != nil {
+		fileEntry.Warn(info)
+	}
+}
+
+func PWarnf(format string, args ...interface{}) {
+	stdoutLogger.Warnf("[WARNING] "+format, args...)
+	if fileEntry != nil {
+		fileEntry.Warnf(format, args...)
+	}
+}
+
+func PInfo(info string) {
+	stdoutLogger.Info("[INFO] " + info)
+	if fileEntry != nil {
+		fileEntry.Info(info)
+	}
+}
+
+func PInfof(format string, args ...interface{}) {
+	stdoutLogger.Infof("[INFO] "+format, args...)
+	if fileEntry != nil {
+		fileEntry.Infof(format, args...)
+	}
+}
+
+func PError(info string) {
+	stdoutLogger.Info("[ERROR] " + info)
+	if fileEntry != nil {
+		fileEntry.Info(info)
+	}
+}
+
+func PErrorf(format string, args ...interface{}) {
+	stdoutLogger.Infof("[ERROR] "+format, args...)
+	if fileEntry != nil {
+		fileEntry.Errorf(format, args...)
 	}
 }

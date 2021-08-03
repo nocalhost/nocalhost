@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package utils
 
@@ -93,7 +86,7 @@ func RenderProgressBar(prefix string, current, scalingFactor float64) string {
 func KillSyncthingProcessOnWindows(keyword string) {
 	cmd := exec.Command("wmic", "process", "get", "processid", ",", "commandline")
 	s, err := cmd.CombinedOutput()
-	log.Debugf("execute wmic command, keyword: %s, error: %v", keyword, err)
+	log.Logf("execute wmic command, keyword: %s, error: %v", keyword, err)
 	if err != nil {
 		return
 	}
@@ -102,7 +95,7 @@ func KillSyncthingProcessOnWindows(keyword string) {
 			for _, segment := range strings.Split(item, " ") {
 				if pid, err1 := strconv.Atoi(segment); err1 == nil {
 					err = terminate.Terminate(pid, false)
-					log.Debugf("terminate syncthing pid: %v, error: %v", pid, err)
+					log.Logf("terminate syncthing pid: %v, error: %v", pid, err)
 				}
 			}
 		}
@@ -112,5 +105,5 @@ func KillSyncthingProcessOnWindows(keyword string) {
 func KillSyncthingProcessOnUnix(keyword string) {
 	command := exec.Command("sh", "-c", "ps -ef | grep "+keyword+"  | awk -F ' ' '{print $2}' | xargs kill")
 	err := command.Run()
-	log.Debugf("kill syncthing process, keyword: %s, command: %v, err: %v", keyword, command.Args, err)
+	log.Logf("kill syncthing process, keyword: %s, command: %v, err: %v", keyword, command.Args, err)
 }

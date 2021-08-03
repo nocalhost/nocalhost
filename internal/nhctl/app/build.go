@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package app
 
@@ -75,8 +68,21 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 			return nil, err
 		}
 	} else if flags.LocalPath != "" { // local path of application, copy to nocalhost resource
-		if err = utils.CopyDir(flags.LocalPath, app.ResourceTmpDir); err != nil {
+
+		if err = utils.CopyDir(
+			filepath.Join(flags.LocalPath, ".nocalhost"),
+			filepath.Join(app.ResourceTmpDir, ".nocalhost"),
+		); err != nil {
 			return nil, err
+		}
+
+		for _, needToCopy := range flags.ResourcePath {
+			if err = utils.CopyDir(
+				filepath.Join(flags.LocalPath, needToCopy),
+				filepath.Join(app.ResourceTmpDir, needToCopy),
+			); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -102,9 +108,9 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 
 	if err = appMeta.Initial(); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
-			log.Errorf("Application %s in %s has been installed", app.Name, app.NameSpace)
+			log.Logf("Application %s in %s has been installed", app.Name, app.NameSpace)
 		}
-		return nil, err
+		return app, err
 	}
 
 	appMeta.Config = config

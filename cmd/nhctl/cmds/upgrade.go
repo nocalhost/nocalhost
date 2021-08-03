@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package cmds
 
@@ -31,7 +24,7 @@ func init() {
 	upgradeCmd.Flags().StringVar(&installFlags.Config, "config", "", "specify a config relative to .nocalhost dir")
 	upgradeCmd.Flags().StringVarP(&installFlags.OuterConfig, "outer-config", "c", "",
 		"specify a config.yaml in local path")
-	upgradeCmd.Flags().StringVarP(&installFlags.HelmValueFile, "helm-values", "f", "", "helm's Value.yaml")
+	upgradeCmd.Flags().StringArrayVarP(&installFlags.HelmValueFile, "helm-values", "f", []string{}, "helm's Value.yaml")
 	//installCmd.Flags().StringVarP(&installFlags.AppType, "type", "t", "",
 	//fmt.Sprintf("nocalhost application type: %s or %s or %s", app.HelmRepo, app.Helm, app.Manifest))
 	upgradeCmd.Flags().StringSliceVar(&installFlags.HelmSet, "set", []string{},

@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package app
 
@@ -22,7 +15,7 @@ import (
 func cloneFromGit(gitUrl string, gitRef string, destPath string) error {
 
 	var (
-		err error
+		err        error
 		gitDirName string
 	)
 
@@ -36,10 +29,14 @@ func cloneFromGit(gitUrl string, gitRef string, destPath string) error {
 		gitDirName = strs[len(strs)-1] // todo : for default application name
 		if len(gitRef) > 0 {
 			_, err = tools.ExecCommand(
-				nil, true, true, false, "git", "clone", "--branch", gitRef, "--depth", "1", gitUrl, destPath,
+				nil, true, false, false, "git", "clone", "--branch", gitRef, "--depth", "1", gitUrl, destPath,
+				"--config", "core.sshCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no",
 			)
 		} else {
-			_, err = tools.ExecCommand(nil, true, true, false, "git", "clone", "--depth", "1", gitUrl, destPath)
+			_, err = tools.ExecCommand(
+				nil, true, false, false, "git", "clone", "--depth", "1", gitUrl, destPath,
+				"--config", "core.sshCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no",
+			)
 		}
 		if err != nil {
 			return errors.Wrap(err, err.Error())

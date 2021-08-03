@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package user
 
@@ -41,7 +34,7 @@ type UserService interface {
 	)
 	Delete(ctx context.Context, id uint64) error
 	Register(ctx context.Context, email, password string) error
-	EmailLogin(ctx context.Context, email, password string) (tokenStr string, err error)
+	EmailLogin(ctx context.Context, email, password string) (tokenStr, refreshToken string, err error)
 	GetUserByID(ctx context.Context, id uint64) (*model.UserBaseModel, error)
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
@@ -123,30 +116,28 @@ func (srv *userService) Register(ctx context.Context, email, password string) er
 }
 
 // EmailLogin
-func (srv *userService) EmailLogin(ctx context.Context, email, password string) (tokenStr string, err error) {
+func (srv *userService) EmailLogin(ctx context.Context, email, password string) (tokenStr, refreshToken string, err error) {
 	u, err := srv.GetUserByEmail(ctx, email)
 	if err != nil {
-		return "", errors.Wrapf(err, "get user info err by email")
+		err = errors.Wrapf(err, "get user info err by email")
+		return
 	}
 
 	// Compare the login password with the user password.
 	err = auth.Compare(u.Password, password)
 	if err != nil {
-		return "", errors.Wrapf(err, "password compare err")
+		err = errors.Wrapf(err, "password compare err")
+		return
 	}
 
 	if *u.Status == 0 {
-		return "", errors.New("user not allow")
+		err = errors.New("user not allow")
+		return
 	}
 
-	tokenStr, err = token.Sign(
-		ctx, token.Context{UserID: u.ID, Username: u.Username, Uuid: u.Uuid, Email: u.Email, IsAdmin: *u.IsAdmin}, "",
+	return token.Sign(
+		token.Context{UserID: u.ID, Username: u.Username, Uuid: u.Uuid, Email: u.Email, IsAdmin: *u.IsAdmin},
 	)
-	if err != nil {
-		return "", errors.Wrapf(err, "gen token sign err")
-	}
-
-	return tokenStr, nil
 }
 
 // UpdateUser update user info

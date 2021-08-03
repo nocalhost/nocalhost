@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package daemon_client
 
@@ -35,35 +28,6 @@ type DaemonClient struct {
 	isSudo                 bool
 	daemonServerListenPort int
 }
-
-//func StartDaemonServer(isSudoUser bool) error {
-//	var (
-//		nhctlPath string
-//		err       error
-//	)
-//	if utils.IsWindows() {
-//		daemonDir, err := ioutil.TempDir("", "nhctl-daemon")
-//		if err != nil {
-//			return errors.Wrap(err, "")
-//		}
-//		// cp nhctl to daemonDir
-//		err = utils.CopyFile(os.Args[0], filepath.Join(daemonDir, utils.GetNhctlBinName()))
-//		if err != nil {
-//			return errors.Wrap(err, "")
-//		}
-//		nhctlPath = filepath.Join(daemonDir, utils.GetNhctlBinName())
-//	} else {
-//		nhctlPath, err = utils.GetNhctlPath()
-//		if err != nil {
-//			return err
-//		}
-//	}
-//	daemonArgs := []string{nhctlPath, "daemon", "start"}
-//	if isSudoUser {
-//		daemonArgs = append(daemonArgs, "--sudo", "true")
-//	}
-//	return daemon.RunSubProcess(daemonArgs, nil, false)
-//}
 
 func waitForTCPPortToBeReady(port int, timeout time.Duration) error {
 	return waitTCPPort(false, port, timeout)
@@ -387,7 +351,7 @@ func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 
 // sendAndWaitForResponse send data to daemon and wait for response
 func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) error {
-	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort))
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort), time.Second*30)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
@@ -435,6 +399,9 @@ func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) erro
 		return nil
 	}
 
+	if len(response.Data) == 0 {
+		return nil
+	}
 	if err := json.Unmarshal(response.Data, resp); err != nil {
 		return errors.Wrap(err, "")
 	}

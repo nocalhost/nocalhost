@@ -1,6 +1,6 @@
 module nocalhost
 
-go 1.15
+go 1.16
 
 // require k8s.io/kubernetes v1.16.10
 
@@ -39,6 +39,7 @@ require (
 	github.com/mitchellh/mapstructure v1.3.2 // indirect
 	github.com/moby/term v0.0.0-20200312100748-672ec06f55cd
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
+	github.com/nocalhost/remotecommand v0.0.0-20210713025133-bfbc2d3e1250
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/onsi/ginkgo v1.12.3 // indirect
 	github.com/pkg/errors v0.9.1
@@ -70,12 +71,11 @@ require (
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
-	gopkg.in/yaml.v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
-	k8s.io/api v0.21.0-alpha.1
-	k8s.io/apimachinery v0.21.0-alpha.1
+	k8s.io/api v0.21.2
+	k8s.io/apimachinery v0.21.2
 	k8s.io/cli-runtime v0.21.0-alpha.1
-	k8s.io/client-go v0.21.0-alpha.1
+	k8s.io/client-go v0.21.2
 	k8s.io/kubectl v0.21.0-alpha.1
 	sigs.k8s.io/kustomize v2.0.3+incompatible
 	sigs.k8s.io/yaml v1.2.0

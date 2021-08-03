@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package cmds
 
@@ -16,9 +9,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/common/base"
-	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/clientgoutils"
 
 	"github.com/spf13/cobra"
@@ -105,11 +98,11 @@ func makePVCObjectList(pvcList []v1.PersistentVolumeClaim) []*pvcObject {
 		annotations := pvc.Annotations
 		pY := &pvcObject{
 			Name:        pvc.Name,
-			AppName:     labels[nocalhost.AppLabel],
-			ServiceName: labels[nocalhost.ServiceLabel],
+			AppName:     labels[_const.AppLabel],
+			ServiceName: labels[_const.ServiceLabel],
 			Capacity:    quantity.String(),
 			Status:      string(pvc.Status.Phase),
-			MountPath:   annotations[nocalhost.PersistentVolumeDirLabel],
+			MountPath:   annotations[_const.PersistentVolumeDirLabel],
 		}
 		if pvc.Spec.StorageClassName != nil {
 			pY.StorageClass = *pvc.Spec.StorageClassName
@@ -140,7 +133,7 @@ func DisplayPVCs(pvcList []v1.PersistentVolumeClaim) {
 		labels := pvc.Labels
 		quantity := pvc.Spec.Resources.Requests[v1.ResourceStorage]
 		fmt.Printf(
-			"%s %s %s %s %s\n", pvc.Name, labels[nocalhost.AppLabel], labels[nocalhost.ServiceLabel], quantity.String(),
+			"%s %s %s %s %s\n", pvc.Name, labels[_const.AppLabel], labels[_const.ServiceLabel], quantity.String(),
 			pvc.Status.Phase,
 		)
 	}

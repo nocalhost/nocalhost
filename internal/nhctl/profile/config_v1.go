@@ -1,20 +1,12 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package profile
 
 import (
-	"os"
-	"path/filepath"
+	"nocalhost/internal/nhctl/fp"
 	"sort"
 	"strconv"
 )
@@ -67,7 +59,7 @@ type ServiceDevOptions struct {
 	IgnoredPattern        []string               `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
 }
 
-type PreInstallItem struct {
+type WeightablePath struct {
 	Path   string `json:"path" yaml:"path"`
 	Weight string `json:"weight" yaml:"weight"`
 }
@@ -76,18 +68,18 @@ type NocalhostResource interface {
 	Load(resourceDir string) []string
 }
 
-type SortedRelPath []*PreInstallItem
+type SortedRelPath []*WeightablePath
 
-func (c *SortedRelPath) Load(resourceDir string) []string {
+func (c *SortedRelPath) Load(fp *fp.FilePathEnhance) []string {
 	result := make([]string, 0)
 	if c != nil {
 		sort.Sort(c)
 		for _, item := range *c {
-			itemPath := filepath.Join(resourceDir, item.Path)
-			if _, err2 := os.Stat(itemPath); err2 != nil {
+			file := fp.RelOrAbs(item.Path)
+			if err := file.CheckExist(); err != nil {
 				continue
 			}
-			result = append(result, itemPath)
+			result = append(result, file.Abs())
 		}
 	}
 	return result
@@ -95,15 +87,15 @@ func (c *SortedRelPath) Load(resourceDir string) []string {
 
 type RelPath []string
 
-func (c *RelPath) Load(resourceDir string) []string {
+func (c *RelPath) Load(fp *fp.FilePathEnhance) []string {
 	result := make([]string, 0)
 	if c != nil {
 		for _, item := range *c {
-			itemPath := filepath.Join(resourceDir, item)
-			if _, err2 := os.Stat(itemPath); err2 != nil {
+			file := fp.RelOrAbs(item)
+			if err := file.CheckExist(); err != nil {
 				continue
 			}
-			result = append(result, itemPath)
+			result = append(result, file.Abs())
 		}
 	}
 	return result

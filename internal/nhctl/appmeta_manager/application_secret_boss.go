@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package appmeta_manager
 
@@ -16,6 +9,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding"
+	"errors"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,28 +33,35 @@ type Supervisor struct {
 }
 
 func UpdateApplicationMetasManually(ns string, configBytes []byte, secretName string, secret *v1.Secret) error {
-	aws := supervisor.inDeck(ns, configBytes)
+	asw := supervisor.inDeck(ns, configBytes)
+	if asw == nil {
+		return errors.New("Error while update application manually cause by asw is nil ")
+	}
 	if secret == nil {
-		err := aws.Delete(ns + "/" + secretName)
+		err := asw.Delete(ns + "/" + secretName)
 		log.Infof("receive delete secret operation, name: %s, err: %v", secretName, err)
 		return err
 	} else {
-		err := aws.CreateOrUpdate(ns+"/"+secretName, secret)
+		err := asw.CreateOrUpdate(ns+"/"+secretName, secret)
 		log.Infof("receive update secret operation, name: %s, err: %v", secretName, err)
 		return err
 	}
 }
 
 func GetApplicationMetas(ns string, configBytes []byte) []*appmeta.ApplicationMeta {
-	aws := supervisor.inDeck(ns, configBytes)
-	return aws.GetApplicationMetas()
+	asw := supervisor.inDeck(ns, configBytes)
+
+	if asw == nil {
+		return []*appmeta.ApplicationMeta{}
+	}
+	return asw.GetApplicationMetas()
 }
 
 func GetApplicationMeta(ns, appName string, configBytes []byte) *appmeta.ApplicationMeta {
-	aws := supervisor.inDeck(ns, configBytes)
+	asw := supervisor.inDeck(ns, configBytes)
 
-	// aws may nil if prepare fail
-	meta := aws.GetApplicationMeta(appName, ns)
+	// asw may nil if prepare fail
+	meta := asw.GetApplicationMeta(appName, ns)
 	return meta
 }
 
@@ -89,7 +90,8 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 
 	log.Infof("Prepare SecretWatcher for ns %s", ns)
 	if err := watcher.Prepare(); err != nil {
-		log.ErrorE(err, "Error while prepare watcher for ns "+ns)
+		log.TLogf("MetaSecret", "Error while get application in deck from ns %s.. "+
+			"return empty array.., Error: %s", ns, err.Error())
 		return nil
 	}
 
@@ -159,7 +161,8 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 					if err != nil {
 						// delete the secret that can not be correctly decode
 						log.TLogf(
-							"Watcher", "Application Secret '%s' will be deleted, the secret is broken.",
+							"Watcher", "Application Secret '%s' will be deleted, "+
+								"the secret is broken.",
 							v.Name,
 						)
 
@@ -181,14 +184,14 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 							Secrets(ns).
 							Delete(context.TODO(), v.Name, metav1.DeleteOptions{}); err != nil {
 							log.Error(
-								err, "Application Secret '%s' need to deleted "+
+								err, "Application Secret '%s' from ns %s need to deleted "+
 									"but fail.",
-								v.Name,
+								v.Name, ns,
 							)
 						} else {
 							log.TLogf(
-								"Watcher", "Application Secret '%s' has been be deleted. "+
-									v.Name,
+								"Watcher", "Application Secret '%s' from ns %s has been be deleted. ",
+								v.Name, ns,
 							)
 						}
 					}

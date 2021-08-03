@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package testcase
 
@@ -38,7 +31,7 @@ import (
 
 var StatusChan = make(chan int32, 1)
 
-func GetVersion() (v1 string, v2 string) {
+func GetVersion() (lastVersion string, currentVersion string) {
 	commitId := os.Getenv(util.CommitId)
 	var tags []string
 	if len(os.Getenv(util.Tag)) != 0 {
@@ -48,14 +41,14 @@ func GetVersion() (v1 string, v2 string) {
 		panic(fmt.Sprintf("test case failed, can not found any version, commit_id: %v, tag: %v", commitId, tags))
 	}
 	if len(tags) >= 2 {
-		v1 = tags[0]
-		v2 = tags[1]
+		lastVersion = tags[0]
+		currentVersion = tags[1]
 	} else if len(tags) == 1 {
-		v1 = tags[0]
+		currentVersion = tags[0]
 	} else {
-		v1 = commitId
+		currentVersion = commitId
 	}
-	log.Infof("version info, v1: %s, v2: %s", v1, v2)
+	log.Infof("version info, lastVersion: %s, currentVersion: %s", lastVersion, currentVersion)
 	return
 }
 
@@ -74,17 +67,23 @@ func InstallNhctl(version string) error {
 	}
 	str := "curl --fail -s -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o %s"
 	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, name, version, utils.GetNhctlBinName()))
-	if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
+	if utils.IsWindows() {
+		delCmd := exec.Command("sh", "-c", fmt.Sprintf("rm %s", utils.GetNhctlBinName()))
+		if _, _, err := runner.Runner.RunWithRollingOutWithChecker("Main", delCmd, nil); err != nil {
+			log.Error(err)
+		}
+	}
+	if err := runner.Runner.RunWithCheckResult("Main", cmd); err != nil {
 		return err
 	}
 	// unix and linux needs to add x permission
 	if needChmod {
 		cmd = exec.Command("sh", "-c", "chmod +x nhctl")
-		if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
+		if err := runner.Runner.RunWithCheckResult("Main", cmd); err != nil {
 			return err
 		}
 		cmd = exec.Command("sh", "-c", "sudo mv ./nhctl /usr/local/bin/nhctl")
-		if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
+		if err := runner.Runner.RunWithCheckResult("Main", cmd); err != nil {
 			return err
 		}
 	}
@@ -99,6 +98,7 @@ func Init(nhctl *runner.CLI) error {
 	log.Infof("Running command: %s", cmd.Args)
 	go func() {
 		_, _, err := runner.Runner.RunWithRollingOutWithChecker(
+			nhctl.SuitName(),
 			cmd,
 			func(s string) bool {
 				if strings.Contains(s, "Nocalhost init completed") {
@@ -126,7 +126,7 @@ func StatusCheck(nhctl runner.Client, moduleName string) error {
 	for i := 0; i < retryTimes; i++ {
 		time.Sleep(time.Second * 2)
 		cmd := nhctl.GetNhctl().Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
-		stdout, stderr, err := runner.Runner.Run(cmd)
+		stdout, stderr, err := runner.Runner.Run(nhctl.SuiteName(), cmd)
 		if err != nil {
 			log.Infof("Run command: %s, error: %v, stdout: %s, stderr: %s, retry", cmd.Args, err, stdout, stderr)
 			continue
