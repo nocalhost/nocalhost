@@ -52,9 +52,6 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 
 	defer func() {
 		if err := recover(); err != nil {
-			t.Clean()
-			t.Alert()
-
 			log.Info("")
 			log.Info("")
 			log.Info("<< == K8s Events == >>")
@@ -75,10 +72,12 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 			for _, l := range log.AllTestLogsLocations() {
 				log.Info("")
 				log.Info("")
-				log.Info("<< == Final Archive Logs %s == >>", l)
+				log.Infof("<< == Final Archive Logs %s == >>", l)
 				log.Info(fp.NewFilePath(l).ReadFile())
 			}
 
+			t.Clean()
+			t.Alert()
 			panic(err)
 		}
 	}()

@@ -34,7 +34,7 @@ func main() {
 		t = suite.NewT(ns, kubeconfig, cancelFunc)
 	}
 	// try to prepare bookinfo image, in case of pull image parallel
-	t.RunWithBookInfo(true, "prepare image", func(cli runner.Client) {})
+	t.RunWithBookInfo(true, "PrepareImage", func(cli runner.Client) {})
 
 	compatibleChan := make(chan interface{}, 1)
 	wg := sync.WaitGroup{}

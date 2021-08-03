@@ -4,7 +4,6 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	_const "nocalhost/internal/nhctl/const"
 	"os"
 	"path/filepath"
 	"sync"
@@ -84,5 +83,5 @@ func TestLogger(tag string) *testLogger {
 }
 
 func dirForTestCaseLog(tag string) string {
-	return filepath.Join(os.TempDir(), _const.DefaultLogFileName, "testcase", tag)
+	return filepath.Join("testlog", tag)
 }

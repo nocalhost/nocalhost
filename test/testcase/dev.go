@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package testcase
 
@@ -151,13 +151,13 @@ func DevEndT(cli runner.Client, moduleName string, moduleType string) error {
 			return i.Status.Phase == v1.PodRunning && func() bool {
 				for _, containerStatus := range i.Status.ContainerStatuses {
 					if containerStatus.Ready {
-						return false
+						return true
 					}
 				}
-				return true
+				return false
 			}()
 		},
-		time.Minute*30,
+		time.Minute*1,
 	)
 	return nil
 }
