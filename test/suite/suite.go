@@ -222,9 +222,10 @@ func (t *T) AlertForImagePull() {
 		// some event may not timely
 		time.Sleep(time.Minute)
 
-		s1, s2, _ := t.Cli.GetKubectl().RunClusterScope(context.TODO(), "get", "events", "-A")
+		s1, s2, _ := t.Cli.GetKubectl().RunClusterScope(
+			context.TODO(), "get", "events", "-A", "--field-selector", "type!=Normal",
+		)
 
 		log.Infof("Events show: \n %s%s", s1, s2)
-		time.Sleep(time.Second * 30)
 	}
 }

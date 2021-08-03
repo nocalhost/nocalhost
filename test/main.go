@@ -11,6 +11,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/runner"
 	"nocalhost/test/suite"
+	"nocalhost/test/testcase"
 	"os"
 	"path/filepath"
 	"sync"
@@ -33,6 +34,9 @@ func main() {
 		cancelFunc, ns, kubeconfig := suite.Prepare()
 		t = suite.NewT(ns, kubeconfig, cancelFunc)
 	}
+
+	log.Infof("Init Success, cost: %v", time.Now().Sub(start).Seconds())
+
 	// try to prepare bookinfo image, in case of pull image parallel
 	t.RunWithBookInfo(true, "PrepareImage", func(cli runner.Client) {})
 
@@ -67,7 +71,9 @@ func main() {
 		t.Run("Get", suite.Get)
 	})
 
-	DoRun(true, &wg, func() {
+
+	lastVersion, _ := testcase.GetVersion()
+	DoRun(lastVersion!="", &wg, func() {
 		t.Run("Compatible", suite.Compatible)
 		compatibleChan <- "Done"
 	})
