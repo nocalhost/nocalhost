@@ -20,13 +20,13 @@ type testLogger struct {
 }
 
 func (l *testLogger) Info(args ...interface{}) {
-	l.stdoutLogger.Info(args)
-	l.fileLogger.Info(args)
+	l.stdoutLogger.Info(args...)
+	l.fileLogger.Info(args...)
 }
 
 func (l *testLogger) Infof(template string, args ...interface{}) {
-	l.stdoutLogger.Infof(template, args)
-	l.fileLogger.Infof(template, args)
+	l.stdoutLogger.Infof(template, args...)
+	l.fileLogger.Infof(template, args...)
 }
 
 func AllTestLogsLocations() []string {
@@ -84,5 +84,5 @@ func TestLogger(tag string) *testLogger {
 }
 
 func dirForTestCaseLog(tag string) string {
-	return filepath.Join(_const.DefaultLogFileName, "testcase", tag)
+	return filepath.Join(os.TempDir(), _const.DefaultLogFileName, "testcase", tag)
 }

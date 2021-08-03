@@ -142,9 +142,9 @@ func Info(args ...interface{}) {
 }
 
 func Infof(format string, args ...interface{}) {
-	stdoutLogger.Infof(format, args)
+	stdoutLogger.Infof(format, args...)
 	if fileEntry != nil {
-		fileEntry.Infof(format, args)
+		fileEntry.Infof(format, args...)
 	}
 }
 

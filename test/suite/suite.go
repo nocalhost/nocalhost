@@ -55,15 +55,15 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 			t.Clean()
 			t.Alert()
 
-			log.Infof("")
-			log.Infof("")
-			log.Infof("<< == K8s Events == >>")
+			log.Info("")
+			log.Info("")
+			log.Info("<< == K8s Events == >>")
 			t.AlertForImagePull()
 
-			log.Infof("")
-			log.Infof("")
-			log.Infof("<< == Nocalhost Logs == >>")
-			log.Infof(
+			log.Info("")
+			log.Info("")
+			log.Info("<< == Nocalhost Logs == >>")
+			log.Info(
 				fp.NewFilePath(homedir.HomeDir()).
 					RelOrAbs(".nh").
 					RelOrAbs("nhctl").
@@ -73,9 +73,9 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 			)
 
 			for _, l := range log.AllTestLogsLocations() {
-				log.Infof("")
-				log.Infof("")
-				log.Infof("<< == Final Archive Logs %s == >>", l)
+				log.Info("")
+				log.Info("")
+				log.Info("<< == Final Archive Logs %s == >>", l)
 				log.Info(fp.NewFilePath(l).ReadFile())
 			}
 
@@ -112,7 +112,7 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 		var err error
 		for i := 0; i < retryTimes; i++ {
 			timeBeforeInstall := time.Now()
-			logger.Infof("============= Testing (Installing BookInfo %d)%s =============\n", i, name)
+			logger.Info(fmt.Sprintf("============= Testing (Installing BookInfo %d)%s =============\n", i, name))
 			timeoutCtx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
 			if err = testcase.InstallBookInfo(timeoutCtx, clientForRunner); err != nil {
 				logger.Infof(
