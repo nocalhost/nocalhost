@@ -19,7 +19,7 @@ import (
 )
 
 func main() {
-	_ = os.Setenv("LocalTest", "true")
+	//_ = os.Setenv("LocalTest", "true")
 	_ = os.Setenv(_const.EnableFullLogEnvKey, "true")
 
 	start := time.Now()
