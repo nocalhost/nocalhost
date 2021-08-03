@@ -74,7 +74,7 @@ func InstallBookInfoWithNhctl(c runner.Client) error {
 	_ = runner.Runner.RunWithCheckResult(
 		c.GetNhctl().Command(
 			context.Background(), "install", "bookinfohelm",
-			"-u", "https://github.com/anurnomeru/bookinfo.git", "-t",
+			"-u", "https://github.com/nocalhost/bookinfo.git", "-t",
 			"helmGit", "--resource-path", "charts/bookinfo",
 		),
 	)
@@ -114,7 +114,7 @@ func InstallBookInfoWithNativeHelm(c runner.Client) error {
 	_ = runner.Runner.RunWithCheckResult(
 		exec.Command(
 			"git", "clone", "--depth",
-			"1", "https://github.com/anurnomeru/bookinfo.git",
+			"1", "https://github.com/nocalhost/bookinfo.git",
 			tmpDir,
 		),
 	)
@@ -155,17 +155,16 @@ func listBookInfoHelm(c runner.Client, exist bool) error {
 			)
 
 			if exist &&
-				!(strings.Contains(nhctlResult, "bookinfohelm") && strings.Contains(
-					helmResult, "bookinfohelm",
+				!(strings.Contains(nhctlResult, "bookinfohelm") && strings.Contains(helmResult, "bookinfohelm",
 				)) {
-				return errors.New("do not list application named bookinfohelm")
+				return errors.New(fmt.Sprintf("do not list application named bookinfohelm, \nhelmresult: \n%s nhctlresult \n%s", helmResult,nhctlResult))
 			}
 
 			if !exist &&
 				(strings.Contains(nhctlResult, "bookinfohelm") || strings.Contains(
 					helmResult, "bookinfohelm",
 				)) {
-				return errors.New("bookinfohelm is not expect but listed")
+				return errors.New(fmt.Sprintf("bookinfohelm is not expect but listed, \nhelmresult: \n%s nhctlresult \n%s", helmResult,nhctlResult))
 			}
 			return nil
 		},

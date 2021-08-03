@@ -1,24 +1,18 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package syncthing
 
 import (
-	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/syncthing/bin"
+	"nocalhost/internal/nhctl/utils"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,21 +20,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-getter"
-
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/utils"
 )
 
 var (
 	downloadURLs = map[string]string{
-		"linux": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz" +
+		"linux-amd64": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz" +
 			"?version=%s",
-		"arm64": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-arm64.tar.gz" +
+		"darwin-arm64": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.tar.gz" +
 			"?version=%s",
-		"darwin": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip" +
+		"darwin-amd64": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip" +
 			"?version=%s",
-		"windows": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip" +
+		"windows-amd64": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip" +
 			"?version=%s",
 	}
 
@@ -75,12 +66,15 @@ func (s *SyncthingInstaller) InstallIfNeeded() (bool, error) {
 
 	// first try to download the version matched Version
 	// then try the version matched commit id
-	downloadCandidate := s.needToDownloadByVersionAndCommitId()
+	syncthingCandidate, needCopy := s.getCompatibilityByVersionAndCommitId()
+	if !needCopy {
+		return false, nil
+	}
 
 	// download all the candidates version of syncthing
 	// if download fail at all, use the local binPath's syncthing or else throw the error
-	var maxIndex = len(downloadCandidate) - 1
-	for i, version := range downloadCandidate {
+	var maxIndex = len(syncthingCandidate) - 1
+	for i, version := range syncthingCandidate {
 		errTips, err := s.downloadSyncthing(version)
 		if err != nil {
 			if errTips != "" {
@@ -89,15 +83,15 @@ func (s *SyncthingInstaller) InstallIfNeeded() (bool, error) {
 			}
 
 			if maxIndex == i && !s.isInstalled() {
-				return len(downloadCandidate) != 0, err
+				return len(syncthingCandidate) != 0, err
 			}
 		} else {
 			// return while download success
-			return len(downloadCandidate) != 0, nil
+			return len(syncthingCandidate) != 0, nil
 		}
 	}
 
-	return len(downloadCandidate) != 0, nil
+	return len(syncthingCandidate) != 0, nil
 }
 
 func (s *SyncthingInstaller) downloadSyncthing(version string) (string, error) {
@@ -105,14 +99,14 @@ func (s *SyncthingInstaller) downloadSyncthing(version string) (string, error) {
 	var err error
 	var errorTips string
 	for i := 0; i < 3; i++ {
-		p := &utils.ProgressBar{}
-		d := 20 * time.Second
-		errorTips, err = s.install(version, p, d)
+		//p := &utils.ProgressBar{}
+		//d := 40 * time.Second
+		errorTips, err = s.install(version)
 		if err == nil {
 			return "", nil
 		}
 
-		log.Error("Fail to download syncthing, retry...")
+		log.Error("Fail to copy syncthing, retry...")
 
 		if i < 2 {
 			<-t.C
@@ -123,96 +117,37 @@ func (s *SyncthingInstaller) downloadSyncthing(version string) (string, error) {
 }
 
 // Install installs syncthing
-func (s *SyncthingInstaller) install(version string, p getter.ProgressTracker, d time.Duration) (string, error) {
+func (s *SyncthingInstaller) install(version string) (string, error) {
 	var err error
 
-	ctx, _ := context.WithTimeout(context.Background(), d)
-
 	i := s.BinPath
-	var downloadURL string
-	downloadURL, err = GetDownloadURL(runtime.GOOS, runtime.GOARCH, version)
-	if err != nil {
-		return "", err
-	}
 
-	var errorTips = fmt.Sprintf(downloadErrorTips, downloadURL, i, i)
-
-	opts := []getter.ClientOption{}
-	if p != nil {
-		opts = []getter.ClientOption{getter.WithProgress(p)}
-	}
-
-	var dir string
-	dir, err = ioutil.TempDir("", "")
-	if err != nil {
-		return errorTips, fmt.Errorf("failed to create temp download dir")
-	}
-
-	client := &getter.Client{
-		Ctx:     ctx,
-		Src:     downloadURL,
-		Dst:     dir,
-		Mode:    getter.ClientModeDir,
-		Options: opts,
-	}
-
-	defer os.RemoveAll(dir)
-
-	if err = client.Get(); err != nil {
-		return errorTips, fmt.Errorf("failed to download syncthing from %s: %s", client.Src, err)
-	}
-
-	var dirs []fs.FileInfo
-	dirs, err = ioutil.ReadDir(client.Dst)
-	if err != nil {
-		return errorTips, err
-	}
-	if len(dirs) != 1 {
-		err = fmt.Errorf(
-			"download syncthing from %s and extract multi dirs that are not expected", client.Src,
-		)
-		return errorTips, err
-	}
-
-	info := dirs[0]
-	if !info.IsDir() {
-		err = fmt.Errorf(
-			"download syncthing from %s and "+
-				"there is an unpredictable error occurred during decompression", client.Src,
-		)
-		return errorTips, err
-	}
-
-	b := getBinaryPathInDownload(dir, info.Name())
-
-	if _, err = os.Stat(b); err != nil {
-		err = fmt.Errorf("%s didn't include the syncthing binary: %s", downloadURL, err)
-		return errorTips, err
-	}
-
-	if err = os.Chmod(b, 0700); err != nil {
-		err = fmt.Errorf("failed to set permissions to %s: %s", b, err)
-		return errorTips, err
-	}
+	_ = filepath.WalkDir(filepath.Dir(i), func(path string, d fs.DirEntry, err error) error {
+		_ = os.Remove(path)
+		return nil
+	})
 
 	if FileExists(i) {
-		if err := os.Remove(i); err != nil {
-			log.Debugf("Failed to delete %s, will try to overwrite: %s", i, err)
+		log.Debugf("Failed to delete %s, will try to overwrite: %s", i, err)
+		if err = os.Rename(i, filepath.Join(filepath.Dir(i), uuid.New().String()+filepath.Base(i))); err != nil {
+			log.Debugf(fmt.Sprintf("Can't rename file: %s --> %s", i, uuid.New().String()+filepath.Base(i)))
+			if utils.IsWindows() {
+				return "", nil
+			}
 		}
 	}
 
 	// fix if ~/.nh/nhctl/bin/syncthing not exist
 	if err = os.MkdirAll(GetDir(i), 0700); err != nil {
 		err = fmt.Errorf("failed mkdir for %s: %s", i, err)
-		return errorTips, err
+		return "", err
 	}
 
-	if err = CopyFile(b, i); err != nil {
-		err = fmt.Errorf("failed to write %s: %s", i, err)
-		return errorTips, err
+	if err = bin.CopyToBinPath(i); err != nil {
+		err = fmt.Errorf("failed to copy file to: %s, err: %v", i, err)
 	}
 
-	fmt.Printf("downloaded syncthing %s to %s\n", version, i)
+	log.Infof("copyed syncthing %s to %s\n", version, i)
 	return "", nil
 }
 
@@ -221,7 +156,7 @@ func (s *SyncthingInstaller) isInstalled() bool {
 	return !os.IsNotExist(err)
 }
 
-func (s *SyncthingInstaller) needToDownloadByVersionAndCommitId() []string {
+func (s *SyncthingInstaller) getCompatibilityByVersionAndCommitId() ([]string, bool) {
 	var installCandidate []string
 
 	defer func() {
@@ -234,27 +169,25 @@ func (s *SyncthingInstaller) needToDownloadByVersionAndCommitId() []string {
 	}()
 
 	if s.Version != "" {
-		if s.exec("-nocalhost") == s.Version {
-			return installCandidate
+		if s.exec("serve", "--nocalhost") == s.Version {
+			return installCandidate, false
 		}
 		installCandidate = append(installCandidate, s.Version)
 	}
 
 	if s.CommitId != "" {
-		if s.exec("-nocalhost-commit-id") == s.CommitId {
-			return installCandidate
+		if s.exec("serve", "--nocalhost-commit-id") == s.CommitId {
+			return installCandidate, false
 		}
 		installCandidate = append(installCandidate, s.CommitId)
 	}
 
-	return installCandidate
+	return installCandidate, true
 }
 
-func (s *SyncthingInstaller) exec(flag string) string {
-	cmdArgs := []string{
-		flag,
-	}
-	output, err := exec.Command(s.BinPath, cmdArgs...).Output()
+func (s *SyncthingInstaller) exec(flags ...string) string {
+
+	output, err := exec.Command(s.BinPath, flags...).Output()
 	if err != nil {
 		return ""
 	}
@@ -300,18 +233,11 @@ func FileExists(name string) bool {
 }
 
 func GetDownloadURL(os, arch, version string) (string, error) {
-	src, ok := downloadURLs[os]
-	if !ok {
-		return "", fmt.Errorf("%s is not a supported platform", os)
-	}
+	osArch := fmt.Sprintf("%s-%s", os, arch)
 
-	if os == "linux" {
-		switch arch {
-		case "arm":
-			return downloadURLs["arm"], nil
-		case "arm64":
-			return downloadURLs["arm64"], nil
-		}
+	src, ok := downloadURLs[osArch]
+	if !ok {
+		return "", fmt.Errorf("%s is not supported temporary!! you can contact us to support this version. ", osArch)
 	}
 
 	return fmt.Sprintf(src, version), nil

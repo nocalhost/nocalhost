@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package resouce_cache
 
@@ -27,7 +20,7 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/log"
 	"reflect"
 	"sort"
@@ -183,11 +176,11 @@ func (s *Searcher) GetRestMapping(resourceType string) (*meta.RESTMapping, error
 func getAppName(e interface{}, availableAppName []string) string {
 	annotations := e.(metav1.Object).GetAnnotations()
 	var appName string
-	if annotations != nil && annotations[nocalhost.NocalhostApplicationName] != "" {
-		appName = annotations[nocalhost.NocalhostApplicationName]
+	if annotations != nil && annotations[_const.NocalhostApplicationName] != "" {
+		appName = annotations[_const.NocalhostApplicationName]
 	}
-	if annotations != nil && annotations[nocalhost.HelmReleaseName] != "" {
-		appName = annotations[nocalhost.HelmReleaseName]
+	if annotations != nil && annotations[_const.HelmReleaseName] != "" {
+		appName = annotations[_const.HelmReleaseName]
 	}
 	availableAppNameMap := make(map[string]string)
 	for _, app := range availableAppName {
@@ -196,7 +189,7 @@ func getAppName(e interface{}, availableAppName []string) string {
 	if availableAppNameMap[appName] != "" {
 		return appName
 	}
-	return nocalhost.DefaultNocalhostApplication
+	return _const.DefaultNocalhostApplication
 }
 
 // vendor/k8s.io/client-go/tools/cache/store.go:99, the reason why using ns/resource to get resource
@@ -246,7 +239,7 @@ func (c *criteria) AppName(appName string) *criteria {
 func (c *criteria) AppNameNotIn(appNames ...string) *criteria {
 	var result []string
 	for _, appName := range appNames {
-		if appName != nocalhost.DefaultNocalhostApplication {
+		if appName != _const.DefaultNocalhostApplication {
 			result = append(result, appName)
 		}
 	}
@@ -367,7 +360,7 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		namespace(c.ns).
 		appName(c.availableAppName, c.appName).
 		label(c.label).
-		notLabel(map[string]string{nocalhost.DevWorkloadIgnored: "true"}).
+		notLabel(map[string]string{_const.DevWorkloadIgnored: "true"}).
 		sort().
 		toSlice(), nil
 }
@@ -398,7 +391,7 @@ func (n *filter) appName(availableAppName []string, appName string) *filter {
 	if appName == "" {
 		return n
 	}
-	if appName == nocalhost.DefaultNocalhostApplication {
+	if appName == _const.DefaultNocalhostApplication {
 		return n.appNameNotIn(availableAppName)
 	}
 	var result []interface{}

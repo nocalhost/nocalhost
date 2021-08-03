@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package app
 
@@ -21,6 +14,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -166,7 +160,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 	}
 
 	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() &&
-		a.Name != nocalhost.DefaultNocalhostApplication {
+		a.Name != _const.DefaultNocalhostApplication {
 		a.AppType = profileV2.AppType
 
 		defer func() {
@@ -196,15 +190,15 @@ func (a *Application) generateSecretForEarlierVer() bool {
 
 		_ = a.appMeta.Update()
 
-		a.client, err = a.appMeta.GetClient()
-		if err != nil {
-			log.Error(err)
-		}
+		a.client = a.appMeta.GetClient()
+
+		// for the earlier version, the resource is placed in 'ResourceDir'
+		a.ResourceTmpDir = a.getResourceDir()
 		switch a.AppType {
 		case string(appmeta.Manifest), string(appmeta.ManifestLocal), string(appmeta.ManifestGit):
-			_ = a.InstallManifest(a.appMeta, a.getResourceDir(), false)
+			_ = a.InstallManifest(false)
 		case string(appmeta.KustomizeGit):
-			_ = a.InstallKustomize(a.appMeta, a.getResourceDir(), false)
+			_ = a.InstallKustomize(false)
 		default:
 		}
 
@@ -812,22 +806,21 @@ func (a *Application) IsAnyServiceInDevMode() bool {
 	return false
 }
 
-func (a *Application) PortForwardFollow(podName string, localPort int, remotePort int, kubeconfig, ns string) error {
-	client, err := clientgoutils.NewClientGoUtils(kubeconfig, ns)
+func (a *Application) PortForwardFollow(podName string, localPort int, remotePort int, okChan chan struct{}) error {
+	client, err := clientgoutils.NewClientGoUtils(a.KubeConfig, a.NameSpace)
 	if err != nil {
-		panic(err)
+		return err
 	}
-
 	fps := []*clientgoutils.ForwardPort{{LocalPort: localPort, RemotePort: remotePort}}
-
 	pf, err := client.CreatePortForwarder(podName, fps)
 	if err != nil {
-		panic(err)
+		return err
 	}
-
 	errChan := make(chan error, 1)
 	go func() {
-		errChan <- pf.ForwardPorts()
+		if err = pf.ForwardPorts(); err != nil {
+			errChan <- err
+		}
 	}()
 	go func() {
 		for {
@@ -835,14 +828,12 @@ func (a *Application) PortForwardFollow(podName string, localPort int, remotePor
 			case <-pf.Ready:
 				fmt.Printf("Forwarding from 127.0.0.1:%d -> %d\n", localPort, remotePort)
 				fmt.Printf("Forwarding from [::1]:%d -> %d\n", localPort, remotePort)
+				if okChan != nil {
+					okChan <- struct{}{}
+				}
 				return
 			}
 		}
 	}()
-	for {
-		select {
-		case <-errChan:
-			fmt.Println("err")
-		}
-	}
+	return <-errChan
 }

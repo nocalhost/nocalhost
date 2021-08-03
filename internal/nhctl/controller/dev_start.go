@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package controller
 
@@ -17,6 +10,8 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"nocalhost/internal/nhctl/const"
+
 	//"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
@@ -77,7 +72,7 @@ func (c *Controller) markReplicaSetRevision() error {
 			originalPodReplicas = int(*dep0.Spec.Replicas)
 		}
 		for _, rs := range rss {
-			if _, ok := rs.Annotations[nocalhost.DevImageRevisionAnnotationKey]; ok {
+			if _, ok := rs.Annotations[_const.DevImageRevisionAnnotationKey]; ok {
 				// already marked
 				return nil
 			}
@@ -88,8 +83,9 @@ func (c *Controller) markReplicaSetRevision() error {
 			time.Sleep(time.Second * 1)
 			if err = c.Client.Patch("ReplicaSet", rs.Name,
 				fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
-					nocalhost.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
-					nocalhost.DevImageRevisionAnnotationKey, nocalhost.DevImageRevisionAnnotationValue)); err == nil {
+					_const.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
+					_const.DevImageRevisionAnnotationKey, _const.DevImageRevisionAnnotationValue,
+				)); err == nil {
 				break
 			}
 		}
@@ -198,9 +194,9 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 
 			// Check if pvc is already exist
 			labels := map[string]string{}
-			labels[nocalhost.AppLabel] = c.AppName
-			labels[nocalhost.ServiceLabel] = c.Name
-			labels[nocalhost.PersistentVolumeDirLabel] = utils.Sha1ToString(persistentVolume.Path)
+			labels[_const.AppLabel] = c.AppName
+			labels[_const.ServiceLabel] = c.Name
+			labels[_const.PersistentVolumeDirLabel] = utils.Sha1ToString(persistentVolume.Path)
 			claims, err := c.Client.GetPvcByLabels(labels)
 			if err != nil {
 				log.WarnE(err, fmt.Sprintf("Fail to get a pvc for %s", persistentVolume.Path))
@@ -303,7 +299,7 @@ func (c *Controller) createPvcForPersistentVolumeDir(
 	)
 
 	pvcName := fmt.Sprintf("%s-%d", c.AppName, time.Now().UnixNano())
-	annotations := map[string]string{nocalhost.PersistentVolumeDirLabel: persistentVolume.Path}
+	annotations := map[string]string{_const.PersistentVolumeDirLabel: persistentVolume.Path}
 	capacity := persistentVolume.Capacity
 	if persistentVolume.Capacity == "" {
 		capacity = "10Gi"
@@ -368,14 +364,14 @@ func generateSideCarContainer(workDir string) corev1.Container {
 
 	sideCarContainer := corev1.Container{
 		Name:       "nocalhost-sidecar",
-		Image:      nocalhost.DefaultSideCarImage,
+		Image:      _const.DefaultSideCarImage,
 		WorkingDir: workDir,
 	}
 
 	// over write syncthing command
 	sideCarContainer.Command = []string{"/bin/sh", "-c"}
 	sideCarContainer.Args = []string{
-		"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome +
+		"rc-service sshd restart && unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome +
 			"/* " + secret_config.DefaultSyncthingHome +
 			"/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing",
 	}
@@ -474,7 +470,7 @@ func findDevPod(podList []corev1.Pod) (string, error) {
 	for _, pod := range podList {
 		if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
 			for _, container := range pod.Spec.Containers {
-				if container.Name == nocalhost.DefaultNocalhostSideCarName {
+				if container.Name == _const.DefaultNocalhostSideCarName {
 					return pod.Name, nil
 				}
 			}
@@ -514,8 +510,8 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	devContainer.WorkingDir = workDir
 
 	// set image pull policy
-	sideCarContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
-	devContainer.ImagePullPolicy = nocalhost.DefaultSidecarImagePullPolicy
+	sideCarContainer.ImagePullPolicy = _const.DefaultSidecarImagePullPolicy
+	devContainer.ImagePullPolicy = _const.DefaultSidecarImagePullPolicy
 
 	// add env
 	devEnv := c.GetDevContainerEnv(containerName)
@@ -532,6 +528,24 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	if requirements != nil {
 		devContainer.Resources = *requirements
 	}
+
+	if IsResourcesLimitTooLow(&devContainer.Resources) {
+		limits := ""
+		if devContainer.Resources.Limits != nil {
+			if devContainer.Resources.Limits.Cpu() != nil {
+				limits += devContainer.Resources.Limits.Cpu().String() + " cpu"
+			}
+			if devContainer.Resources.Limits.Memory() != nil && devContainer.Resources.Limits.Memory().String() != "0" {
+				if len(limits) > 0 {
+					limits += ", "
+				}
+				limits += devContainer.Resources.Limits.Memory().String() + " memory"
+			}
+		}
+		log.PWarnf(`Resources Limits: %s is less than the recommended minimum: 2 cpu, 2Gi memory. `+
+			"Running programs in DevContainer may fail. You can increase Resource Limits in Nocalhost Config", limits)
+	}
+
 	r := &profile.ResourceQuota{
 		Limits:   &profile.QuotaList{Memory: "1Gi", Cpu: "1"},
 		Requests: &profile.QuotaList{Memory: "50Mi", Cpu: "100m"},
@@ -539,4 +553,25 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	rq, _ := convertResourceQuota(r)
 	sideCarContainer.Resources = *rq
 	return devContainer, &sideCarContainer, devModeVolumes, nil
+}
+
+// IsResourcesLimitTooLow
+// Check if resource limit is lower than 2 cpu, 2Gi men
+func IsResourcesLimitTooLow(r *corev1.ResourceRequirements) bool {
+	if r == nil || r.Limits == nil {
+		return false
+	}
+	if r.Limits.Memory() != nil {
+		q, _ := resource.ParseQuantity("2Gi")
+		if r.Limits.Memory().Cmp(q) < 0 {
+			return true
+		}
+	}
+	if r.Limits.Cpu() != nil {
+		q, _ := resource.ParseQuantity("2")
+		if r.Limits.Cpu().Cmp(q) < 0 {
+			return true
+		}
+	}
+	return false
 }

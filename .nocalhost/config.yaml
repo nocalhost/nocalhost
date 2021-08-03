@@ -22,7 +22,7 @@ application:
         - name: nocalhost-api
           dev:
             gitUrl: https://github.com/nocalhost/nocalhost.git
-            image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang:latest
+            image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang:zsh
             workDir: /home/nocalhost-dev
             shell: "/bin/zsh"
             sync:

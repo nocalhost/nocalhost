@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package cmds
 
@@ -18,8 +11,8 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -38,7 +31,7 @@ func initAppMutate(appName string) error {
 	if err != nil {
 		log.Logf("Get application %s on namespace %s occurs error: %v", appName, nameSpace, err)
 		// if default application not found, try to create one
-		if errors.Is(err, app.ErrNotFound) && appName == nocalhost.DefaultNocalhostApplication {
+		if errors.Is(err, app.ErrNotFound) && appName == _const.DefaultNocalhostApplication {
 			// try init default application
 			if _, err := common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig); err != nil {
 				return errors.Wrap(err, "Error while create default application")

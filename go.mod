@@ -1,6 +1,6 @@
 module nocalhost
 
-go 1.15
+go 1.16
 
 // require k8s.io/kubernetes v1.16.10
 

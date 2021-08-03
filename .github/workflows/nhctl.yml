@@ -3,11 +3,6 @@ name: nhctl
 on:
   push:
     branches: [ main, dev ]
-#    paths:
-#    - 'cmd/nhctl/**'
-#    - 'internal/nhctl/**'
-#    - 'pkg/nhctl/**'
-#    - '!*/**.md'
   pull_request:
     branches: [ main, dev ]
   workflow_dispatch:
@@ -22,7 +17,7 @@ jobs:
     - name: Set up Go 1.x
       uses: actions/setup-go@v2
       with:
-        go-version: ^1.14
+        go-version: ^1.16
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
@@ -74,7 +69,7 @@ jobs:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
-          go-version: ^1.15.6
+          go-version: ^1.16
 
       - name: Checkout syncthing
         uses: actions/checkout@v2.3.4
@@ -85,7 +80,7 @@ jobs:
 
       - name: Build syncthing-amd64
         working-directory: ./syncthing-source
-        run: go run build.go -targetName=syncthing -cmd=tar -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}"
+        run: go run build.go -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goarch amd64 tar
 
       - name: Push to Coding Articact
         working-directory: ./syncthing-source
@@ -93,14 +88,14 @@ jobs:
           curl -T syncthing-linux-amd64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=${GITHUB_SHA}"
 
   build-syncthing-macos-windows:
-    name: Build syncthing macos
+    name: Build syncthing macos windows
     runs-on: macos-latest
     steps:
 
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
-          go-version: ^1.15.6
+          go-version: ^1.16
 
       - name: Checkout syncthing
         uses: actions/checkout@v2.3.4
@@ -112,11 +107,13 @@ jobs:
       - name: Build syncthing
         working-directory: ./syncthing-source
         run: |
-          go run build.go -targetName=syncthing -cmd=zip -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}"
-          go run build.go -targetName=syncthing -cmd=zip -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goos=windows
+          go run build.go -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goarch amd64 zip
+          go run build.go -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goos=windows -goarch amd64 zip
+          go run build.go -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goarch arm64 zip
 
       - name: Push to Coding Articact
         working-directory: ./syncthing-source
         run: |
           curl -T syncthing-macos-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=${GITHUB_SHA}"
           curl -T syncthing-windows-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=${GITHUB_SHA}"
+          curl -T syncthing-macos-arm64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.zip?version=${GITHUB_SHA}"
