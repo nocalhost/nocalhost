@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package suite
 
@@ -47,7 +47,7 @@ func (t *T) Run(name string, fn func(cli runner.Client)) {
 func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.Client)) {
 	logger := log.TestLogger(name)
 
-	logger.Infof("\n============= Testing (Start)%s  =============\n", name)
+	logger.Infof("============= Testing (Start)%s  =============\n", name)
 	timeBefore := time.Now()
 
 	defer func() {
@@ -55,9 +55,14 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 			t.Clean()
 			t.Alert()
 
-			log.Infof("=== K8s Events ===")
+			log.Infof("")
+			log.Infof("")
+			log.Infof("<< == K8s Events == >>")
 			t.AlertForImagePull()
-			log.Infof("=== Nocalhost Logs ===")
+
+			log.Infof("")
+			log.Infof("")
+			log.Infof("<< == Nocalhost Logs == >>")
 			log.Infof(
 				fp.NewFilePath(homedir.HomeDir()).
 					RelOrAbs(".nh").
@@ -68,6 +73,9 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 			)
 
 			for _, l := range log.AllTestLogsLocations() {
+				log.Infof("")
+				log.Infof("")
+				log.Infof("<< == Final Archive Logs %s == >>", l)
 				log.Info(fp.NewFilePath(l).ReadFile())
 			}
 
@@ -97,25 +105,25 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 		return
 	}
 
-	logger.Infof("\n============= Testing (Create Ns)%s  =============\n", name)
+	logger.Infof("============= Testing (Create Ns)%s  =============\n", name)
 
 	var retryTimes = 10
 	if withBookInfo {
 		var err error
 		for i := 0; i < retryTimes; i++ {
 			timeBeforeInstall := time.Now()
-			logger.Infof("\n============= Testing (Installing BookInfo %d)%s =============\n", i, name)
+			logger.Infof("============= Testing (Installing BookInfo %d)%s =============\n", i, name)
 			timeoutCtx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
 			if err = testcase.InstallBookInfo(timeoutCtx, clientForRunner); err != nil {
-				log.Infof(
-					"\n============= Testing (Install BookInfo Failed)%s =============, Err: \n", name, err.Error(),
+				logger.Infof(
+					"============= Testing (Install BookInfo Failed)%s =============, Err: \n", name, err.Error(),
 				)
 				_ = testcase.UninstallBookInfo(clientForRunner)
 				continue
 			}
 			timeAfterInstall := time.Now()
 			logger.Infof(
-				"\n============= Testing (BookInfo Installed, Cost(%fs) %s =============\n",
+				"============= Testing (BookInfo Installed, Cost(%fs) %s =============\n",
 				timeAfterInstall.Sub(timeBeforeInstall).Seconds(), name,
 			)
 			break
@@ -127,7 +135,7 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 
 		for i := 0; i < retryTimes; i++ {
 
-			logger.Infof("\n============= Testing (Wait BookInfo %d)%s =============\n", i, name)
+			logger.Infof("============= Testing (Wait BookInfo %d)%s =============\n", i, name)
 
 			err = k8sutils.WaitPod(
 				clientForRunner.GetClientset(),
@@ -163,13 +171,13 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 		}
 	}
 
-	logger.Infof("\n============= Testing (Test)%s =============\n", name)
+	logger.Infof("============= Testing (Test)%s =============\n", name)
 
 	fn(clientForRunner)
 
 	timeAfter := time.Now()
 	logger.Infof(
-		"\n============= Testing done, Cost(%fs) %s =============\n", timeAfter.Sub(timeBefore).Seconds(), name,
+		"============= Testing done, Cost(%fs) %s =============\n", timeAfter.Sub(timeBefore).Seconds(), name,
 	)
 
 	if withBookInfo {

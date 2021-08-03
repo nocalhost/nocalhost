@@ -355,6 +355,8 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 			if errs := recover(); errs != nil {
 
 				for _, l := range log.AllTestLogsLocations() {
+					log.Infof("")
+					log.Infof("")
 					log.Infof("<< == Final Archive Logs %s == >>", l)
 					log.Info(fp.NewFilePath(l).ReadFile())
 				}
