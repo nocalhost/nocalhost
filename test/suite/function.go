@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
-	"k8s.io/client-go/util/homedir"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -354,26 +353,7 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 		cancelFunc = t.Delete
 		defer func() {
 			if errs := recover(); errs != nil {
-
-				log.Info("")
-				log.Info("")
-				log.Info("<< == Nocalhost Logs == >>")
-				log.Info(
-					fp.NewFilePath(homedir.HomeDir()).
-						RelOrAbs(".nh").
-						RelOrAbs("nhctl").
-						RelOrAbs("logs").
-						RelOrAbs("nhctl.log").
-						ReadFile(),
-				)
-
-				for _, l := range log.AllTestLogsLocations() {
-					log.Info("")
-					log.Info("")
-					log.Info("<< == Final Archive Logs %s == >>", l)
-					log.Info(fp.NewFilePath(l).ReadFile())
-				}
-
+				LogsForArchive()
 				t.Delete()
 				panic(errs)
 			}

@@ -81,6 +81,7 @@ func main() {
 	log.Infof("All Async Test Done")
 	<-compatibleChan
 
+	suite.LogsForArchive()
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
 }
 

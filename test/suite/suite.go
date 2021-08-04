@@ -52,29 +52,8 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 
 	defer func() {
 		if err := recover(); err != nil {
-			log.Info("")
-			log.Info("")
-			log.Info("<< == K8s Events == >>")
 			t.AlertForImagePull()
-
-			log.Info("")
-			log.Info("")
-			log.Info("<< == Nocalhost Logs == >>")
-			log.Info(
-				fp.NewFilePath(homedir.HomeDir()).
-					RelOrAbs(".nh").
-					RelOrAbs("nhctl").
-					RelOrAbs("logs").
-					RelOrAbs("nhctl.log").
-					ReadFile(),
-			)
-
-			for _, l := range log.AllTestLogsLocations() {
-				log.Info("")
-				log.Info("")
-				log.Infof("<< == Final Archive Logs %s == >>", l)
-				log.Info(fp.NewFilePath(l).ReadFile())
-			}
+			LogsForArchive()
 
 			t.Clean()
 			t.Alert()
@@ -226,6 +205,31 @@ func (t *T) AlertForImagePull() {
 			context.TODO(), "get", "events", "-A", "--field-selector", "type!=Normal",
 		)
 
+		log.Info("")
+		log.Info("")
+		log.Info("<< == K8s Events == >>")
 		log.Infof("Events show: \n %s%s", s1, s2)
+	}
+}
+
+func LogsForArchive(){
+
+	log.Info("")
+	log.Info("")
+	log.Info("<< == Nocalhost Logs == >>")
+	log.Info(
+		fp.NewFilePath(homedir.HomeDir()).
+			RelOrAbs(".nh").
+			RelOrAbs("nhctl").
+			RelOrAbs("logs").
+			RelOrAbs("nhctl.log").
+			ReadFile(),
+	)
+
+	for _, l := range log.AllTestLogsLocations() {
+		log.Info("")
+		log.Info("")
+		log.Infof("<< == Final Archive Logs %s == >>", l)
+		log.Info(fp.NewFilePath(l).ReadFile())
 	}
 }
