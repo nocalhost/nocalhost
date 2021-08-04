@@ -1,15 +1,17 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
- */
+*/
 
 package main
 
 import (
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/runner"
 	"nocalhost/test/suite"
+	"nocalhost/test/testcase"
 	"os"
 	"path/filepath"
 	"sync"
@@ -18,6 +20,7 @@ import (
 
 func main() {
 	//_ = os.Setenv("LocalTest", "true")
+	_ = os.Setenv(_const.EnableFullLogEnvKey, "true")
 
 	start := time.Now()
 
@@ -31,42 +34,46 @@ func main() {
 		cancelFunc, ns, kubeconfig := suite.Prepare()
 		t = suite.NewT(ns, kubeconfig, cancelFunc)
 	}
+
+	log.Infof("Init Success, cost: %v", time.Now().Sub(start).Seconds())
+
 	// try to prepare bookinfo image, in case of pull image parallel
-	t.RunWithBookInfo(true, "prepare image", func(cli runner.Client) {})
+	t.RunWithBookInfo(true, "PrepareImage", func(cli runner.Client) {})
 
 	compatibleChan := make(chan interface{}, 1)
 	wg := sync.WaitGroup{}
 
 	DoRun(false, &wg, func() {
-		t.RunWithBookInfo(false, "helm-adaption", suite.HelmAdaption)
+		t.RunWithBookInfo(false, "HelmAdaption", suite.HelmAdaption)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("install", suite.Install)
+		t.Run("Install", suite.Install)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("deployment", suite.Deployment)
+		t.Run("Deployment", suite.Deployment)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("application", suite.Upgrade)
+		t.Run("Application", suite.Upgrade)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("statefulSet", suite.StatefulSet)
+		t.Run("StatefulSet", suite.StatefulSet)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("remove syncthing pid file manually", suite.KillSyncthingProcess)
+		t.Run("RemoveSyncthingPidFile", suite.KillSyncthingProcess)
 	})
 
 	DoRun(false, &wg, func() {
 		t.Run("Get", suite.Get)
 	})
 
-	DoRun(true, &wg, func() {
-		t.Run("compatible", suite.Compatible)
+	lastVersion, _ := testcase.GetVersion()
+	DoRun(lastVersion!="", &wg, func() {
+		t.Run("Compatible", suite.Compatible)
 		compatibleChan <- "Done"
 	})
 
@@ -74,10 +81,7 @@ func main() {
 	log.Infof("All Async Test Done")
 	<-compatibleChan
 
-	log.Infof("Wait for testing schedule works or not")
-
-	t.Clean(false)
-
+	suite.LogsForArchive()
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
 }
 

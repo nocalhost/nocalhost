@@ -34,6 +34,8 @@ sync_for_test
 /nhctl
 /build
 
+/testlog
+
 /conf/config.local.yaml
 .vscode/settings.json
 

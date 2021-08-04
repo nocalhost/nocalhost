@@ -14,12 +14,14 @@ type CLI struct {
 	KubeConfig string
 	Namespace  string
 	Cmd        string
+	cfg        Config
 }
 
 type Config interface {
 	GetKubeConfig() string
 	GetNamespace() string
 	GetCmd() string
+	SuitName() string
 }
 
 func NewCLI(cfg Config, defaultNamespace string) *CLI {
@@ -31,6 +33,7 @@ func NewCLI(cfg Config, defaultNamespace string) *CLI {
 		KubeConfig: cfg.GetKubeConfig(),
 		Namespace:  namespace,
 		Cmd:        cfg.GetCmd(),
+		cfg:        cfg,
 	}
 }
 
@@ -49,19 +52,23 @@ func (c *CLI) CommandWithNamespace(ctx context.Context, command string, namespac
 	return exec.CommandContext(ctx, c.Cmd, args...)
 }
 
+func (c CLI) SuitName() string {
+	return c.cfg.SuitName()
+}
+
 func (c CLI) Run(ctx context.Context, command string, arg ...string) (string, string, error) {
 	cmd := c.Command(ctx, command, arg...)
-	return Runner.Run(cmd)
+	return Runner.Run(c.SuitName(), cmd)
 }
 
 func (c CLI) RunClusterScope(ctx context.Context, command string, arg ...string) (string, string, error) {
 	cmd := c.CommandWithoutNs(ctx, command, arg...)
-	return Runner.Run(cmd)
+	return Runner.Run(c.SuitName(), cmd)
 }
 
 func (c CLI) RunWithRollingOut(ctx context.Context, command string, arg ...string) (string, string, error) {
 	cmd := c.Command(ctx, command, arg...)
-	return Runner.RunWithRollingOutWithChecker(cmd, nil)
+	return Runner.RunWithRollingOutWithChecker(c.SuitName(), cmd, nil)
 }
 
 func (c *CLI) argsAppendNamespaceAndKubeconfig(clusterScope bool, command string, namespace string, arg ...string) []string {

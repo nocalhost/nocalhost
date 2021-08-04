@@ -7,6 +7,7 @@ package log
 
 import (
 	"fmt"
+	_const "nocalhost/internal/nhctl/const"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -23,10 +24,9 @@ import (
 var stdoutLogger *zap.SugaredLogger
 var stderrLogger *zap.SugaredLogger
 var fileEntry *zap.SugaredLogger
-var logFile string
 
 var fields = make(map[string]string, 0)
-var core zapcore.Core
+var fileLogsConfig zapcore.Core
 
 func init() {
 	// if log is not be initiated explicitly (use log.Init()),
@@ -47,15 +47,21 @@ func getDefaultOutLogger(w zapcore.WriteSyncer) *zap.SugaredLogger {
 
 func Init(level zapcore.Level, dir, fileName string) error {
 
-	// stdout logger
-	encoderConfig0 := zap.NewProductionEncoderConfig()
-	encoderConfig0.EncodeTime = nil
-	encoderConfig0.EncodeLevel = nil
-	encoder2 := zapcore.NewConsoleEncoder(encoderConfig0)
-	stdoutLogger = zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stdout), level)).Sugar()
-	stderrLogger = zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stderr), level)).Sugar()
+	// stdout logger cfg
+	cfg := zap.NewProductionEncoderConfig()
+	if fullLog() {
+		cfg.EncodeTime = CustomTimeEncoder
+		cfg.EncodeLevel = CustomLevelEncoder
+	} else {
+		cfg.EncodeTime = nil
+		cfg.EncodeLevel = nil
+	}
 
-	// file logger
+	unFormatEncoder := zapcore.NewConsoleEncoder(cfg)
+	unFormatStdoutConfig := zapcore.NewCore(unFormatEncoder, zapcore.AddSync(os.Stdout), level)
+	unFormatStderrConfig := zapcore.NewCore(unFormatEncoder, zapcore.AddSync(os.Stderr), level)
+
+	// file logger cfg
 	logPath := filepath.Join(dir, fileName)
 	rolling := &lumberjack.Logger{
 		Filename:   logPath,
@@ -72,11 +78,34 @@ func Init(level zapcore.Level, dir, fileName string) error {
 	encoderConfig.EncodeDuration = CustomDurationEncoder
 
 	encoder := zapcore.NewConsoleEncoder(encoderConfig)
-	core = zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
+	fileLogsConfig := zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
 
-	refreshFileLoggerWithFields()
-	logFile = logPath
+	// init
+	initOrReInitStdout(unFormatStdoutConfig)
+	initOrReInitStderr(unFormatStderrConfig)
+	initOrReInitFileEntry(fileLogsConfig, fields)
 	return nil
+}
+
+func fullLog() bool {
+	return os.Getenv(_const.EnableFullLogEnvKey) != ""
+}
+
+func initOrReInitStdout(configuration zapcore.Core) {
+	stdoutLogger = zap.New(configuration).Sugar()
+}
+
+func initOrReInitStderr(configuration zapcore.Core) {
+	stderrLogger = zap.New(configuration).Sugar()
+}
+
+func initOrReInitFileEntry(configuration zapcore.Core, args map[string]string) {
+	fileEntry = zap.New(configuration).Sugar().With(args)
+}
+
+func AddField(key, val string) {
+	fields[key] = val
+	initOrReInitFileEntry(fileLogsConfig, fields)
 }
 
 func CustomDurationEncoder(t time.Duration, enc zapcore.PrimitiveArrayEncoder) {
@@ -89,19 +118,6 @@ func CustomTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 
 func CustomLevelEncoder(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
 	enc.AppendString("[" + level.CapitalString() + "]")
-}
-
-func refreshFileLoggerWithFields() {
-	args := make([]interface{}, 0)
-	for key, val := range fields {
-		args = append(args, key, val)
-	}
-	fileEntry = zap.New(core).Sugar().With(args...)
-}
-
-func AddField(key, val string) {
-	fields[key] = val
-	refreshFileLoggerWithFields()
 }
 
 func Debug(args ...interface{}) {
