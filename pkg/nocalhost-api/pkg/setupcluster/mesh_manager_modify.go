@@ -461,14 +461,14 @@ func addHeaderToVirtualService(rs *unstructured.Unstructured, svcName string, in
 	return http.DeepCopy(), nil
 }
 
-func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, devNs string, header model.Header) (bool, error) {
+func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, info *MeshDevInfo) (bool, error) {
 	rs.SetManagedFields(nil)
 
 	vs := &v1alpha3.VirtualService{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), vs); err != nil {
 		return false, errors.WithStack(err)
 	}
-	name := global.NocalhostName + "-" + devNs
+	name := global.NocalhostName + "-" + info.MeshDevNamespace
 	route := vs.Spec.Http
 	var ok bool
 	for i := 0; i < len(route); i++ {

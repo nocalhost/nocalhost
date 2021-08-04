@@ -143,7 +143,7 @@ func (m *meshManager) UpdateMeshDevSpace(info *MeshDevInfo) error {
 
 func (m *meshManager) DeleteTracingHeader(info *MeshDevInfo) error {
 	for _, vs := range m.cache.GetVirtualServicesListByNamespace(info.BaseNamespace) {
-		ok, err := deleteHeaderFromVirtualService(&vs, info.MeshDevNamespace, info.Header)
+		ok, err := deleteHeaderFromVirtualService(&vs, info)
 		if err != nil {
 			log.Error(err)
 		}
@@ -161,20 +161,10 @@ func (m *meshManager) DeleteTracingHeader(info *MeshDevInfo) error {
 func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
 	appNames := make([]string, 0)
 	appInfo := make([]MeshDevApp, 0)
-	appConfigsTmp := newResourcesMatcher(m.cache.GetSecretsListByNamespace(info.BaseNamespace)).
-		namePrefix(appmeta.SecretNamePrefix).
-		match()
-	for _, c := range appConfigsTmp {
+	appConfigs := m.cache.GetAppConfigByNamespace(info.BaseNamespace)
+	for _, c := range appConfigs {
 		name := c.GetName()[len(appmeta.SecretNamePrefix):]
 		if name == nocalhost.DefaultNocalhostApplication {
-			continue
-		}
-
-		val, found, err := unstructured.NestedString(c.UnstructuredContent(), "type")
-		if !found || err != nil {
-			continue
-		}
-		if val != appmeta.SecretType {
 			continue
 		}
 
@@ -229,14 +219,14 @@ func (m *meshManager) GetAPPInfo(info *MeshDevInfo) ([]MeshDevApp, error) {
 
 func (m *meshManager) Rollback(info *MeshDevInfo) error {
 	// rollback after add tracing header failure
-	wait.Poll(200*time.Millisecond, 5*time.Second, func() (bool, error) {
+	_ = wait.Poll(200*time.Millisecond, 5*time.Second, func() (bool, error) {
 		for name, route := range info.rollback.header.add {
 			r, err := m.cache.GetVirtualServiceByNamespaceAndName(info.BaseNamespace, name)
-			r.SetManagedFields(nil)
 			if err != nil {
 				log.Error(err)
 				continue
 			}
+			r.SetManagedFields(nil)
 			vs := &v1alpha3.VirtualService{}
 			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(r.UnstructuredContent(), vs); err != nil {
 				log.Error(err)
@@ -264,18 +254,18 @@ func (m *meshManager) Rollback(info *MeshDevInfo) error {
 	})
 
 	// rollback after update tracing header failure
-	wait.Poll(200*time.Millisecond, 5*time.Second, func() (bool, error) {
+	_ = wait.Poll(200*time.Millisecond, 5*time.Second, func() (bool, error) {
 		for name, routes := range info.rollback.header.update {
 			routesMap := make(map[string]*istiov1alpha3.HTTPRoute)
 			for _, route := range routes {
 				routesMap[route.Name] = route
 			}
 			r, err := m.cache.GetVirtualServiceByNamespaceAndName(info.BaseNamespace, name)
-			r.SetManagedFields(nil)
 			if err != nil {
 				log.Error(err)
 				continue
 			}
+			r.SetManagedFields(nil)
 			vs := &v1alpha3.VirtualService{}
 			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(r.UnstructuredContent(), vs); err != nil {
 				log.Error(err)
@@ -399,7 +389,7 @@ func (m *meshManager) deleteHeaderFromVirtualService(info *MeshDevInfo) error {
 			origVs = append(origVs, ovs...)
 		}
 		for _, v := range origVs {
-			ok, err := deleteHeaderFromVirtualService(&v, info.MeshDevNamespace, info.Header)
+			ok, err := deleteHeaderFromVirtualService(&v, info)
 			if err != nil {
 				return err
 			}
@@ -539,19 +529,10 @@ func (m *meshManager) updateVirtualServiceOnBaseDevSpace(info *MeshDevInfo) erro
 func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 	// apply app config
 	log.Debugf("init the dev namespace %s", info.MeshDevNamespace)
-	appConfigsTmp := newResourcesMatcher(m.cache.GetSecretsListByNamespace(info.BaseNamespace)).
-		namePrefix(appmeta.SecretNamePrefix).
-		match()
-	for _, c := range appConfigsTmp {
+	appConfigs := m.cache.GetAppConfigByNamespace(info.BaseNamespace)
+	for _, c := range appConfigs {
 		name := c.GetName()[len(appmeta.SecretNamePrefix):]
 		if name == nocalhost.DefaultNocalhostApplication {
-			continue
-		}
-		val, found, err := unstructured.NestedString(c.UnstructuredContent(), "type")
-		if !found || err != nil {
-			continue
-		}
-		if val != appmeta.SecretType {
 			continue
 		}
 
@@ -559,10 +540,9 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 			return err
 		}
 		log.Debugf("apply the %s/%s to dev namespace %s", c.GetKind(), c.GetName(), c.GetNamespace())
-		_, err = m.client.ApplyForce(&c)
+		_, err := m.client.ApplyForce(&c)
 		if err != nil {
 			return err
-
 		}
 	}
 	// get svc, gen vs
