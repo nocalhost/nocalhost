@@ -75,7 +75,6 @@ func main() {
 	<-compatibleChan
 
 	log.Infof("Wait for testing schedule works or not")
-	select {}
 
 	t.Clean(false)
 
