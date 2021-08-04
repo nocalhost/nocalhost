@@ -3,437 +3,383 @@ name: release
 on:
   push:
     tags:
-    - "v*"
+      - "v*"
 
 jobs:
-  release-nhctl-macos:
-    name: Release nhctl-macos
+  release-nhctl:
+    name: Release nhctl
     runs-on: macos-latest
     steps:
-    - name: Set up Go 1.x
-      uses: actions/setup-go@v2
-      with:
-        go-version: ^1.16
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.16
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
 
-    - name: Get tag
-      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      - name: Get tag
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
-    - name: Build nhctl
-      env:
-        VERSION: ${{ env.RELEASE_VERSION }}
-      run: |
-        make nhctl-osx
-        shasum -a 256 build/nhctl-darwin-amd64 | awk '{print $1}' > build/nhctl-darwin-amd64-SHA256
+      - name: Build nhctl
+        env:
+          VERSION: ${{ env.RELEASE_VERSION }}
+        run: |
+          make nhctl-cross
+          shasum -a 256 build/nhctl-linux-amd64 | awk '{print $1}' > build/nhctl-linux-amd64-SHA256
+          shasum -a 256 build/nhctl-darwin-amd64 | awk '{print $1}' > build/nhctl-darwin-amd64-SHA256
+          shasum -a 256 build/nhctl-windows-amd64.exe | awk '{print $1}' > build/nhctl-windows-amd64-SHA256
+          git reset --hard
 
-    - name: Create nhctl Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        draft: false
-        prerelease: false
+      - name: Create nhctl Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
 
-    - name: Collect Release Info
-      run: |
-        echo "${{ steps.create_release.outputs.upload_url }}" >> UPLOAD_URL
-        echo ${{ env.RELEASE_VERSION }} >> RELEASE_VERSION
+      - name: Collect Release Info
+        run: |
+          echo "${{ steps.create_release.outputs.upload_url }}" >> UPLOAD_URL
+          echo ${{ env.RELEASE_VERSION }} >> RELEASE_VERSION
 
-    - name: Upload RELEASE_VERSION
-      uses: actions/upload-artifact@v2
-      with:
-        name: RELEASE_VERSION
-        path: RELEASE_VERSION
+      - name: Upload RELEASE_VERSION
+        uses: actions/upload-artifact@v2
+        with:
+          name: RELEASE_VERSION
+          path: RELEASE_VERSION
 
-    - name: Upload UPLOAD_URL
-      uses: actions/upload-artifact@v2
-      with:
-        name: UPLOAD_URL
-        path: UPLOAD_URL
+      - name: Upload UPLOAD_URL
+        uses: actions/upload-artifact@v2
+        with:
+          name: UPLOAD_URL
+          path: UPLOAD_URL
 
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: build/nhctl-darwin-amd64
-        asset_name: nhctl-darwin-amd64
-        asset_content_type: application/octet-stream
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/nhctl-windows-amd64.exe
+          asset_name: nhctl-windows-amd64.exe
+          asset_content_type: application/octet-stream
 
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: build/nhctl-darwin-amd64-SHA256
-        asset_name: nhctl-darwin-amd64-SHA256
-        asset_content_type: application/octet-stream
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/nhctl-windows-amd64-SHA256
+          asset_name: nhctl-windows-amd64-SHA256
+          asset_content_type: application/octet-stream
 
-    - name: Push nhctl to Coding Artifacts
-      env:
-        OSX_BINARY: 'nhctl-darwin-amd64'
-      run: |
-        cd build
-        curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${GITHUB_SHA}"
-        curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=latest"
-        curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${{ env.RELEASE_VERSION }}"
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/nhctl-darwin-amd64
+          asset_name: nhctl-darwin-amd64
+          asset_content_type: application/octet-stream
 
-  release-nhctl-linux-windows:
-    name: Release nhctl-linux-windows
-    runs-on: ubuntu-latest
-    steps:
-    - name: Set up Go 1.x
-      uses: actions/setup-go@v2
-      with:
-        go-version: ^1.16
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/nhctl-darwin-amd64-SHA256
+          asset_name: nhctl-darwin-amd64-SHA256
+          asset_content_type: application/octet-stream
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/nhctl-linux-amd64
+          asset_name: nhctl-linux-amd64
+          asset_content_type: application/octet-stream
 
-    - name: Get tag
-      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/nhctl-linux-amd64-SHA256
+          asset_name: nhctl-linux-amd64-SHA256
+          asset_content_type: application/octet-stream
 
-    - name: Build nhctl
-      env:
-        VERSION: ${{ env.RELEASE_VERSION }}
-      run: |
-        make nhctl-linux
-        make nhctl-windows
-        shasum -a 256 build/nhctl-linux-amd64 | awk '{print $1}' > build/nhctl-linux-amd64-SHA256
-        shasum -a 256 build/nhctl-windows-amd64.exe | awk '{print $1}' > build/nhctl-windows-amd64-SHA256
+      - name: Push nhctl to Coding Artifacts
+        env:
+          WINDOWS_BINARY: 'nhctl-windows-amd64.exe'
+          OSX_BINARY: 'nhctl-darwin-amd64'
+          LINUX_BINARY: 'nhctl-linux-amd64'
+        run: |
+          cd build
+          curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${GITHUB_SHA}"
+          curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${GITHUB_SHA}"
+          curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${GITHUB_SHA}"
+          curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=latest"
+          curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=latest"
+          curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=latest"
+          curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${{ env.RELEASE_VERSION }}"
+          curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${{ env.RELEASE_VERSION }}"
+          curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${{ env.RELEASE_VERSION }}"
 
-    - name: Create nhctl Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        draft: false
-        prerelease: false
+      - name: Update Homebrew tap
+        #if: "!contains(github.ref,'rc')"
+        run: |
+          git clone https://github.com/nocalhost/homebrew-repo.git
+          ./scripts/release/tap.rb ${{ env.RELEASE_VERSION }} `cat build/nhctl-darwin-amd64-SHA256` `cat build/nhctl-linux-amd64-SHA256` > homebrew-repo/Formula/nocalhost.rb
+          cd homebrew-repo
+          git config user.email "nocalhost@nocalhost.dev"
+          git config user.name "nocalhost"
+          git add .
+          git commit -m '${{ env.RELEASE_VERSION }}'
+          git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/homebrew-repo.git main
 
-    - name: Collect Release Info
-      run: |
-        echo "${{ steps.create_release.outputs.upload_url }}" >> UPLOAD_URL
-        echo ${{ env.RELEASE_VERSION }} >> RELEASE_VERSION
+      - name: Release Nocalhost Web
+        run: |
+          git clone https://github.com/nocalhost/nocalhost-web.git
+          cd nocalhost-web
+          git config user.email "nocalhost@nocalhost.dev"
+          git config user.name "nocalhost"
+          git checkout main
+          git tag ${{ env.RELEASE_VERSION }}
+          git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost-web.git ${{ env.RELEASE_VERSION }}
 
-    - name: Upload RELEASE_VERSION
-      uses: actions/upload-artifact@v2
-      with:
-        name: RELEASE_VERSION
-        path: RELEASE_VERSION
+      - name: Release api-docker
+        env:
+          VERSION: ${{ env.RELEASE_VERSION }}
+          SERVICE_INITIAL: true
+        run: make api-docker
 
+      - name: Push to Github packages
+        env:
+          GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/nocalhost-api
+        run: |
+          echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
+          docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
+          docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:latest
+          docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+          docker push ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
+          docker push ${GITHUB_IMAGE_NAME}:latest
+          docker push ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
 
-    - name: Upload UPLOAD_URL
-      uses: actions/upload-artifact@v2
-      with:
-        name: UPLOAD_URL
-        path: UPLOAD_URL
+      - name: Push to Coding Artifacts
+        env:
+          CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-api
+        run: |
+          echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
+          docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_SHA}
+          docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+          docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
+          docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
+          docker push ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+          docker push ${CODING_IMAGE_NAME}:latest
 
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: build/nhctl-windows-amd64.exe
-        asset_name: nhctl-windows-amd64.exe
-        asset_content_type: application/octet-stream
+      - name: Release dep-docker
+        run: make dep-docker
 
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: build/nhctl-windows-amd64-SHA256
-        asset_name: nhctl-windows-amd64-SHA256
-        asset_content_type: application/octet-stream
+      - name: Push to Github packages
+        env:
+          GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/nocalhost-dep
+        run: |
+          echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
+          docker tag nocalhost-dep:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
+          docker tag nocalhost-dep:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:latest
+          docker tag nocalhost-dep:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+          docker push ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
+          docker push ${GITHUB_IMAGE_NAME}:latest
+          docker push ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
 
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: build/nhctl-linux-amd64
-        asset_name: nhctl-linux-amd64
-        asset_content_type: application/octet-stream
+      - name: Push to Coding Artifacts
+        env:
+          CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep
+        run: |
+          echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
+          docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_SHA}
+          docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+          docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
+          docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
+          docker push ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+          docker push ${CODING_IMAGE_NAME}:latest
 
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: build/nhctl-linux-amd64-SHA256
-        asset_name: nhctl-linux-amd64-SHA256
-        asset_content_type: application/octet-stream
+      - name: Release dep-installer-job-docker
+        env:
+          VERSION: ${{ env.RELEASE_VERSION }}
+        run: make dep-installer-job-docker
 
-    - name: Push nhctl to Coding Artifacts
-      env:
-        WINDOWS_BINARY: 'nhctl-windows-amd64.exe'
-        LINUX_BINARY: 'nhctl-linux-amd64'
-      run: |
-        cd build
-        curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${GITHUB_SHA}"
-        curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${GITHUB_SHA}"
-        curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=latest"
-        curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=latest"
-        curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${{ env.RELEASE_VERSION }}"
-        curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${{ env.RELEASE_VERSION }}"
+      - name: Push to Github packages
+        env:
+          GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/dep-installer-job
+        run: |
+          echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
+          docker tag dep-installer-job:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
+          docker tag dep-installer-job:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:latest
+          docker tag dep-installer-job:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+          docker push ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
+          docker push ${GITHUB_IMAGE_NAME}:latest
+          docker push ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
 
-    - name: Update Homebrew tap
-      #if: "!contains(github.ref,'rc')"
-      run: |
-        git clone https://github.com/nocalhost/homebrew-repo.git
-        ./scripts/release/tap.rb ${{ env.RELEASE_VERSION }} `cat build/nhctl-darwin-amd64-SHA256` `cat build/nhctl-linux-amd64-SHA256` > homebrew-repo/Formula/nocalhost.rb
-        cd homebrew-repo
-        git config user.email "nocalhost@nocalhost.dev"
-        git config user.name "nocalhost"
-        git add .
-        git commit -m '${{ env.RELEASE_VERSION }}'
-        git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/homebrew-repo.git main
+      - name: Push to Coding Artifacts
+        env:
+          CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job
+        run: |
+          echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
+          docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_SHA}
+          docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+          docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
+          docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
+          docker push ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
+          docker push ${CODING_IMAGE_NAME}:latest
 
-    - name: Release Nocalhost Web
-      run: |
-        git clone https://github.com/nocalhost/nocalhost-web.git
-        cd nocalhost-web
-        git config user.email "nocalhost@nocalhost.dev"
-        git config user.name "nocalhost"
-        git checkout main
-        git tag ${{ env.RELEASE_VERSION }}
-        git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost-web.git ${{ env.RELEASE_VERSION }}
+      - name: Release vscode plugin
+        if: "!contains(github.ref,'rc')"
+        run: |
+          git clone https://github.com/nocalhost/nocalhost-vscode-plugin.git
+          cd nocalhost-vscode-plugin
+          git config user.email "nocalhost@nocalhost.dev"
+          git config user.name "nocalhost"
+          git checkout main
+          git tag ${{ env.RELEASE_VERSION }}
+          git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost-vscode-plugin.git ${{ env.RELEASE_VERSION }}
 
-    - name: Release api-docker
-      env:
-        VERSION: ${{ env.RELEASE_VERSION }}
-        SERVICE_INITIAL: true
-      run: make api-docker
-
-    - name: Push to Github packages
-      env:
-        GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/nocalhost-api
-      run: |
-        echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
-        docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
-        docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:latest
-        docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
-        docker push ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
-        docker push ${GITHUB_IMAGE_NAME}:latest
-        docker push ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
-
-    - name: Push to Coding Artifacts
-      env:
-        CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-api
-      run: |
-        echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
-        docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_SHA}
-        docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
-        docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
-        docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
-        docker push ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
-        docker push ${CODING_IMAGE_NAME}:latest
-
-    - name: Release dep-docker
-      run: make dep-docker
-
-    - name: Push to Github packages
-      env:
-        GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/nocalhost-dep
-      run: |
-        echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
-        docker tag nocalhost-dep:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
-        docker tag nocalhost-dep:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:latest
-        docker tag nocalhost-dep:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
-        docker push ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
-        docker push ${GITHUB_IMAGE_NAME}:latest
-        docker push ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
-
-    - name: Push to Coding Artifacts
-      env:
-        CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep
-      run: |
-        echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
-        docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_SHA}
-        docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
-        docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
-        docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
-        docker push ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
-        docker push ${CODING_IMAGE_NAME}:latest
-
-    - name: Release dep-installer-job-docker
-      env:
-        VERSION: ${{ env.RELEASE_VERSION }}
-      run: make dep-installer-job-docker
-
-    - name: Push to Github packages
-      env:
-        GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/dep-installer-job
-      run: |
-        echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
-        docker tag dep-installer-job:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
-        docker tag dep-installer-job:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:latest
-        docker tag dep-installer-job:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
-        docker push ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
-        docker push ${GITHUB_IMAGE_NAME}:latest
-        docker push ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
-
-    - name: Push to Coding Artifacts
-      env:
-        CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job
-      run: |
-        echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
-        docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_SHA}
-        docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
-        docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
-        docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
-        docker push ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
-        docker push ${CODING_IMAGE_NAME}:latest
-
-    - name: Release vscode plugin
-      if: "!contains(github.ref,'rc')"
-      run: |
-        git clone https://github.com/nocalhost/nocalhost-vscode-plugin.git
-        cd nocalhost-vscode-plugin
-        git config user.email "nocalhost@nocalhost.dev"
-        git config user.name "nocalhost"
-        git checkout main
-        git tag ${{ env.RELEASE_VERSION }}
-        git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost-vscode-plugin.git ${{ env.RELEASE_VERSION }}
-
-    - name: Release Intellij plugin
-      if: "!contains(github.ref,'rc')"
-      run: |
-        git clone https://github.com/nocalhost/nocalhost-intellij-plugin.git
-        cd nocalhost-intellij-plugin
-        git config user.email "nocalhost@nocalhost.dev"
-        git config user.name "nocalhost"
-        git checkout main
-        git tag '${{ env.RELEASE_VERSION }}'
-        git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost-intellij-plugin.git '${{ env.RELEASE_VERSION }}'
+      - name: Release Intellij plugin
+        if: "!contains(github.ref,'rc')"
+        run: |
+          git clone https://github.com/nocalhost/nocalhost-intellij-plugin.git
+          cd nocalhost-intellij-plugin
+          git config user.email "nocalhost@nocalhost.dev"
+          git config user.name "nocalhost"
+          git checkout main
+          git tag '${{ env.RELEASE_VERSION }}'
+          git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost-intellij-plugin.git '${{ env.RELEASE_VERSION }}'
 
   build-syncthing-linux-amd64:
     name: Build syncthing amd64
     runs-on: ubuntu-latest
     steps:
-    - name: Set up Go 1.x
-      uses: actions/setup-go@v2
-      with:
-        go-version: ^1.16
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.16
 
-    - name: Get tag
-      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      - name: Get tag
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
-    - name: Checkout syncthing
-      uses: actions/checkout@v2.3.4
-      with:
-        repository: nocalhost/syncthing
-        path: ./syncthing-source
-        ref: main
+      - name: Checkout syncthing
+        uses: actions/checkout@v2.3.4
+        with:
+          repository: nocalhost/syncthing
+          path: ./syncthing-source
+          ref: main
 
-    - name: Build syncthing-amd64
-      working-directory: ./syncthing-source
-      run: go run build.go -nocalhostVersion=${{ env.RELEASE_VERSION }} -nocalhostCommitId="${GITHUB_SHA}" -goarch amd64 tar
+      - name: Build syncthing-amd64
+        working-directory: ./syncthing-source
+        run: go run build.go -nocalhostVersion=${{ env.RELEASE_VERSION }} -nocalhostCommitId="${GITHUB_SHA}" -goarch amd64 tar
 
-    - name: Push to Coding Articact
-      working-directory: ./syncthing-source
-      run: |
-        curl -T syncthing-linux-amd64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=${{ env.RELEASE_VERSION }}"
+      - name: Push to Coding Articact
+        working-directory: ./syncthing-source
+        run: |
+          curl -T syncthing-linux-amd64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=${{ env.RELEASE_VERSION }}"
 
   build-syncthing-macos-windows:
     name: Build syncthing macos
     runs-on: macos-latest
     steps:
-    - name: Set up Go 1.x
-      uses: actions/setup-go@v2
-      with:
-        go-version: ^1.16
 
-    - name: Get tag
-      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.16
 
-    - name: Checkout syncthing
-      uses: actions/checkout@v2.3.4
-      with:
-        repository: nocalhost/syncthing
-        path: ./syncthing-source
-        ref: main
+      - name: Get tag
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
-    - name: Build syncthing
-      working-directory: ./syncthing-source
-      run: |
-        go run build.go -nocalhostVersion=${{ env.RELEASE_VERSION }} -nocalhostCommitId="${GITHUB_SHA}" -goarch amd64 zip
-        go run build.go -nocalhostVersion=${{ env.RELEASE_VERSION }} -nocalhostCommitId="${GITHUB_SHA}" -goos=windows -goos=windows -goarch amd64 zip
-        go run build.go -nocalhostVersion=${{ env.RELEASE_VERSION }} -nocalhostCommitId="${GITHUB_SHA}" -goarch arm64 zip
+      - name: Checkout syncthing
+        uses: actions/checkout@v2.3.4
+        with:
+          repository: nocalhost/syncthing
+          path: ./syncthing-source
+          ref: main
 
-    - name: Push to Coding Articact
-      working-directory: ./syncthing-source
-      run: |
-        curl -T syncthing-macos-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=${{ env.RELEASE_VERSION }}"
-        curl -T syncthing-macos-arm64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.zip?version=${{ env.RELEASE_VERSION }}"
-        curl -T syncthing-windows-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=${{ env.RELEASE_VERSION }}"
+      - name: Build syncthing
+        working-directory: ./syncthing-source
+        run: |
+          go run build.go -nocalhostVersion=${{ env.RELEASE_VERSION }} -nocalhostCommitId="${GITHUB_SHA}" -goarch amd64 zip
+          go run build.go -nocalhostVersion=${{ env.RELEASE_VERSION }} -nocalhostCommitId="${GITHUB_SHA}" -goos=windows -goos=windows -goarch amd64 zip
+          go run build.go -nocalhostVersion=${{ env.RELEASE_VERSION }} -nocalhostCommitId="${GITHUB_SHA}" -goarch arm64 zip
+
+      - name: Push to Coding Articact
+        working-directory: ./syncthing-source
+        run: |
+          curl -T syncthing-macos-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=${{ env.RELEASE_VERSION }}"
+          curl -T syncthing-macos-arm64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.zip?version=${{ env.RELEASE_VERSION }}"
+          curl -T syncthing-windows-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=${{ env.RELEASE_VERSION }}"
 
   package-windows:
-    needs: release-nhctl-linux-windows
+    needs: release-nhctl
     name: package
     runs-on: windows-latest
     steps:
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
-    - name: Download RELEASE_VERSION
-      uses: actions/download-artifact@v2
-      with:
-        name: RELEASE_VERSION
-    - name: Download UPLOAD_URL
-      uses: actions/download-artifact@v2
-      with:
-        name: UPLOAD_URL
-    - name: package
-      id: package
-      run: |
-        $Version=get-content RELEASE_VERSION
-        $UploadUrl=get-content UPLOAD_URL
-        echo "::set-output name=version::$Version"
-        echo "::set-output name=upload_url::$UploadUrl"
-        md build
-        choco install curl
-        choco install unzip
-        curl -L "https://github.com/nocalhost/nocalhost/releases/download/$Version/nhctl-windows-amd64.exe" -o build/nhctl.exe
-        curl -L https://storage.googleapis.com/kubernetes-release/release/v1.20.0/bin/windows/amd64/kubectl.exe -o build/kubectl.exe
-        curl -L https://get.helm.sh/helm-v3.4.2-windows-amd64.zip -o build/helm.zip
-        unzip build/helm.zip -d build
-        iscc /DAppVersion=$Version scripts/release/nocalhost.iss
-        curl -T build/NocalhostInstaller.exe -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/NocalhostInstaller.exe?version=$Version"
-        curl -T build/NocalhostInstaller.exe -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/NocalhostInstaller.exe?version=latest"
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+      - name: Download RELEASE_VERSION
+        uses: actions/download-artifact@v2
+        with:
+          name: RELEASE_VERSION
+      - name: Download UPLOAD_URL
+        uses: actions/download-artifact@v2
+        with:
+          name: UPLOAD_URL
+      - name: package
+        id: package
+        run: |
+          $Version=get-content RELEASE_VERSION
+          $UploadUrl=get-content UPLOAD_URL
+          echo "::set-output name=version::$Version"
+          echo "::set-output name=upload_url::$UploadUrl"
+          md build
+          choco install curl
+          choco install unzip
+          curl -L "https://github.com/nocalhost/nocalhost/releases/download/$Version/nhctl-windows-amd64.exe" -o build/nhctl.exe
+          curl -L https://storage.googleapis.com/kubernetes-release/release/v1.20.0/bin/windows/amd64/kubectl.exe -o build/kubectl.exe
+          curl -L https://get.helm.sh/helm-v3.4.2-windows-amd64.zip -o build/helm.zip
+          unzip build/helm.zip -d build
+          iscc /DAppVersion=$Version scripts/release/nocalhost.iss
+          curl -T build/NocalhostInstaller.exe -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/NocalhostInstaller.exe?version=$Version"
+          curl -T build/NocalhostInstaller.exe -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/NocalhostInstaller.exe?version=latest"
 
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.package.outputs.upload_url }}
-        asset_path: build/NocalhostInstaller.exe
-        asset_name: NocalhostInstaller.exe
-        asset_content_type: application/octet-stream
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.package.outputs.upload_url }}
+          asset_path: build/NocalhostInstaller.exe
+          asset_name: NocalhostInstaller.exe
+          asset_content_type: application/octet-stream
 
   update-coding-git-repo:
     name: Update CODING git repo
     runs-on: ubuntu-latest
     steps:
-    - name: curl
-      run: |
-        curl --location --request POST 'https://codingcorp.coding.net/api/user/codingcorp/project/nocalhost/depot/nocalhost/git/import' \
-        --header 'Authorization: Basic ${{ secrets.CODING_PERSONAL_KEY }}' \
-        --header 'Content-Type: application/x-www-form-urlencoded' \
-        --data-urlencode 'originUrl=https://github.com/nocalhost/nocalhost.git' \
-        --data-urlencode 'name=nocalhost' \
-        --data-urlencode 'type=1'
+      - name: curl
+        run: |
+          curl --location --request POST 'https://codingcorp.coding.net/api/user/codingcorp/project/nocalhost/depot/nocalhost/git/import' \
+          --header 'Authorization: Basic ${{ secrets.CODING_PERSONAL_KEY }}' \
+          --header 'Content-Type: application/x-www-form-urlencoded' \
+          --data-urlencode 'originUrl=https://github.com/nocalhost/nocalhost.git' \
+          --data-urlencode 'name=nocalhost' \
+          --data-urlencode 'type=1'
