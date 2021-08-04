@@ -296,7 +296,7 @@ func updateAnnotation(target map[string]string, added map[string]string) (patch 
 	return patch
 }
 
-// create mutation patch for resoures
+// create mutation patch for resources
 //func createPatch(pod *corev1.Pod, sidecarConfig *Config, annotations map[string]string) ([]byte, error) {
 //	var patch []patchOperation
 //
