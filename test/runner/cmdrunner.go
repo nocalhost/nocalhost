@@ -111,7 +111,6 @@ func (r *CmdRunner) RunWithRollingOutWithChecker(suitName string, cmd *exec.Cmd,
 	stdoutStr := stdoutBuf.String()
 	stderrStr := stderrBuf.String()
 
-	logger.Infof("Command %s stdout: ", cmd.Args, stdoutStr)
-	logger.Infof("Command %s stderr: ", cmd.Args, stderrStr)
+	logger.Infof("Command %s \n[INFO]stdout:\n%s[INFO]stderr:%s", cmd.Args, stdoutStr, stderrStr)
 	return stdoutStr, stderrStr, err
 }
