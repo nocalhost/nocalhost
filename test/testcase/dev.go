@@ -147,13 +147,13 @@ func DevEndT(cli runner.Client, moduleName string, moduleType string) error {
 			return i.Status.Phase == v1.PodRunning && func() bool {
 				for _, containerStatus := range i.Status.ContainerStatuses {
 					if containerStatus.Ready {
-						return false
+						return true
 					}
 				}
-				return true
+				return false
 			}()
 		},
-		time.Minute*30,
+		time.Minute*1,
 	)
 	return nil
 }
