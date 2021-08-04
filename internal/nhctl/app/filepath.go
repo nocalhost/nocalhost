@@ -6,7 +6,7 @@
 package app
 
 import (
-	"nocalhost/internal/nhctl/nocalhost"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"os"
 	"path/filepath"
@@ -33,12 +33,12 @@ func (a *Application) getConfigPathInGitResourcesDir(configName string) string {
 }
 
 func (a *Application) getProfilePath() string {
-	return filepath.Join(a.GetHomeDir(), nocalhost.DefaultApplicationProfilePath)
+	return filepath.Join(a.GetHomeDir(), _const.DefaultApplicationProfilePath)
 }
 
 // Deprecated
 func (a *Application) getProfileV2Path() string {
-	return filepath.Join(a.GetHomeDir(), nocalhost.DefaultApplicationProfileV2Path)
+	return filepath.Join(a.GetHomeDir(), _const.DefaultApplicationProfileV2Path)
 }
 
 // This path is independent from getConfigPathInGitResourcesDir()

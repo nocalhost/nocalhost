@@ -16,10 +16,11 @@ import (
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
 
-func NewNhctl(namespace, kubeconfig string) *CLI {
+func NewNhctl(namespace, kubeconfig, suitName string) *CLI {
 	c := &Conf{
 		kubeconfig: kubeconfig,
 		namespace:  namespace,
+		suitName:   suitName,
 	}
 	n, err := exec.LookPath("nhctl")
 	if err != nil {
@@ -30,20 +31,22 @@ func NewNhctl(namespace, kubeconfig string) *CLI {
 	return NewCLI(c, namespace)
 }
 
-func NewKubectl(namespace, kubeconfig string) *CLI {
+func NewKubectl(namespace, kubeconfig, suitName string) *CLI {
 	c := &Conf{
 		kubeconfig: kubeconfig,
 		namespace:  namespace,
 		cmd:        "kubectl",
+		suitName:   suitName,
 	}
 	return NewCLI(c, namespace)
 }
 
-func NewHelm(namespace, kubeconfig string) *CLI {
+func NewHelm(namespace, kubeconfig, suitName string) *CLI {
 	c := &Conf{
 		kubeconfig: kubeconfig,
 		namespace:  namespace,
 		cmd:        "helm",
+		suitName:   suitName,
 	}
 	return NewCLI(c, namespace)
 }
@@ -52,6 +55,7 @@ type Conf struct {
 	kubeconfig string
 	namespace  string
 	cmd        string
+	suitName   string
 }
 
 func (c *Conf) GetKubeConfig() string {
@@ -63,6 +67,9 @@ func (c *Conf) GetNamespace() string {
 func (c Conf) GetCmd() string {
 	return c.cmd
 }
+func (c Conf) SuitName()string{
+	return c.suitName
+}
 
 type Client interface {
 	GetNhctl() *CLI
@@ -71,19 +78,22 @@ type Client interface {
 	GetClientset() *kubernetes.Clientset
 
 	NameSpace() string
-	RandomNsCli() Client
+	RandomNsCli(suitName string) Client
+	SuiteName() string
 }
 
-func NewClient(kubeconfig, namespace string) Client {
+func NewClient(kubeconfig, namespace, suitName string) Client {
 	temp, _ := clientgoutils.NewClientGoUtils(kubeconfig, namespace)
 	return &ClientImpl{
 		kubeconfig: kubeconfig,
 		namespace:  namespace,
 
-		Nhctl:     NewNhctl(namespace, kubeconfig),
-		Kubectl:   NewKubectl(namespace, kubeconfig),
-		Helm:      NewHelm(namespace, kubeconfig),
+		Nhctl:     NewNhctl(namespace, kubeconfig, suitName),
+		Kubectl:   NewKubectl(namespace, kubeconfig, suitName),
+		Helm:      NewHelm(namespace, kubeconfig, suitName),
 		Clientset: temp.ClientSet,
+
+		suitName: suitName,
 	}
 }
 
@@ -95,15 +105,21 @@ type ClientImpl struct {
 	Kubectl   *CLI
 	Helm      *CLI
 	Clientset *kubernetes.Clientset
+
+	suitName string
+}
+
+func (i *ClientImpl) SuiteName() string {
+	return i.suitName
 }
 
 func (i *ClientImpl) NameSpace() string {
 	return i.namespace
 }
 
-func (i *ClientImpl) RandomNsCli() Client {
+func (i *ClientImpl) RandomNsCli(suitName string) Client {
 	ns := RandStringRunes()
-	return NewClient(i.kubeconfig, ns)
+	return NewClient(i.kubeconfig, ns, suitName)
 }
 
 func (i *ClientImpl) GetNhctl() *CLI {

@@ -118,7 +118,7 @@ func (c *Controller) generateSyncVolumesAndMounts() ([]corev1.Volume, []corev1.V
 	}
 
 	secretName := c.GetSyncThingSecretName()
-	defaultMode := int32(nocalhost.DefaultNewFilePermission)
+	defaultMode := int32(_const.DefaultNewFilePermission)
 	syncthingSecretVol := corev1.Volume{
 		Name: secret_config.SecretName,
 		VolumeSource: corev1.VolumeSource{

@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap/zapcore"
 	"nocalhost/internal/nhctl/app"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
@@ -50,9 +51,9 @@ var rootCmd = &cobra.Command{
 
 		if debug {
 			_ = os.Setenv("_NOCALHOST_DEBUG_", "1")
-			_ = log.Init(zapcore.DebugLevel, nocalhost.GetLogDir(), nocalhost.DefaultLogFileName)
+			_ = log.Init(zapcore.DebugLevel, nocalhost.GetLogDir(), _const.DefaultLogFileName)
 		} else {
-			_ = log.Init(zapcore.InfoLevel, nocalhost.GetLogDir(), nocalhost.DefaultLogFileName)
+			_ = log.Init(zapcore.InfoLevel, nocalhost.GetLogDir(), _const.DefaultLogFileName)
 		}
 		err := nocalhost.Init()
 		if err != nil {

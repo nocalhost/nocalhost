@@ -18,32 +18,34 @@ import (
 
 func Reset(nhctl runner.Client) error {
 	cmd := nhctl.GetNhctl().Command(context.Background(), "reset", "bookinfo")
-	return runner.Runner.RunWithCheckResult(cmd)
+	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
 }
 
 func Upgrade(nhctl runner.Client) error {
-	cmd := nhctl.GetNhctl().Command(context.Background(), "upgrade",
+	cmd := nhctl.GetNhctl().Command(
+		context.Background(), "upgrade",
 		"bookinfo",
 		"-u",
 		"https://github.com/nocalhost/bookinfo.git",
 		"--resource-path",
-		"manifest/templates")
-	return runner.Runner.RunWithCheckResult(cmd)
+		"manifest/templates",
+	)
+	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
 }
 
 func Config(nhctl runner.Client) error {
 	cmd := nhctl.GetNhctl().Command(context.Background(), "config", "get", "bookinfo")
-	return runner.Runner.RunWithCheckResult(cmd)
+	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
 }
 
 func SyncStatus(nhctl runner.Client, module string) error {
 	cmd := nhctl.GetNhctl().Command(context.Background(), "sync-status", "bookinfo", "-d", module)
-	return runner.Runner.RunWithCheckResult(cmd)
+	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
 }
 
 func List(nhctl runner.Client) error {
 	cmd := nhctl.GetNhctl().Command(context.Background(), "list", "bookinfo")
-	return runner.Runner.RunWithCheckResult(cmd)
+	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
 }
 
 func Get(nhctl runner.Client, types, appName string, checker func(string2 string) error) error {
@@ -52,7 +54,7 @@ func Get(nhctl runner.Client, types, appName string, checker func(string2 string
 		args = append(args, "-a", appName)
 	}
 	cmd := nhctl.GetNhctl().Command(context.Background(), "get", args...)
-	stdout, stderr, err := runner.Runner.Run(cmd)
+	stdout, stderr, err := runner.Runner.Run(nhctl.SuiteName(), cmd)
 	if err != nil {
 		return err
 	}
@@ -64,17 +66,17 @@ func Get(nhctl runner.Client, types, appName string, checker func(string2 string
 
 func Db(nhctl runner.Client) error {
 	cmd := nhctl.GetNhctl().Command(context.Background(), "db", "size", "--app", "bookinfo")
-	return runner.Runner.RunWithCheckResult(cmd)
+	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
 }
 
 func Pvc(nhctl runner.Client) error {
 	cmd := nhctl.GetNhctl().Command(context.Background(), "pvc", "list")
-	return runner.Runner.RunWithCheckResult(cmd)
+	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
 }
 
 func NhctlVersion(nhctl *runner.CLI) error {
 	cmd := nhctl.Command(context.Background(), "version")
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuitName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
@@ -109,7 +111,7 @@ func Apply(nhctl runner.Client) error {
 	defer f.Close()
 
 	cmd := nhctl.GetNhctl().Command(context.Background(), "apply", "bookinfo", f.Name())
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 

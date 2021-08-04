@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package suite
 
@@ -34,7 +34,7 @@ type T struct {
 
 func NewT(namespace, kubeconfig string, f func()) *T {
 	return &T{
-		Cli:       runner.NewClient(kubeconfig, namespace),
+		Cli:       runner.NewClient(kubeconfig, namespace, "Main"),
 		CleanFunc: f,
 	}
 }
@@ -45,27 +45,23 @@ func (t *T) Run(name string, fn func(cli runner.Client)) {
 
 // Run command and clean environment after finished
 func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.Client)) {
-	log.Infof("\n============= Testing (Start)%s  =============\n", name)
+	logger := log.TestLogger(name)
+
+	logger.Infof("============= Testing (Start)%s  =============\n", name)
 	timeBefore := time.Now()
 
 	defer func() {
 		if err := recover(); err != nil {
-			t.Clean(true)
+			t.AlertForImagePull()
+			LogsForArchive()
+
+			t.Clean()
 			t.Alert()
-			log.Infof("=== Nocalhost Logs ===")
-			log.Infof(
-				fp.NewFilePath(homedir.HomeDir()).
-					RelOrAbs(".nh").
-					RelOrAbs("nhctl").
-					RelOrAbs("logs").
-					RelOrAbs("nhctl.log").
-					ReadFile(),
-			)
 			panic(err)
 		}
 	}()
 
-	clientForRunner := t.Cli.RandomNsCli()
+	clientForRunner := t.Cli.RandomNsCli(name)
 	if err := util.RetryFunc(
 		func() error {
 			result, errOutput, err := clientForRunner.GetKubectl().RunClusterScope(
@@ -87,25 +83,25 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 		return
 	}
 
-	log.Infof("\n============= Testing (Create Ns)%s  =============\n", name)
+	logger.Infof("============= Testing (Create Ns)%s  =============\n", name)
 
 	var retryTimes = 10
 	if withBookInfo {
 		var err error
 		for i := 0; i < retryTimes; i++ {
 			timeBeforeInstall := time.Now()
-			log.Infof("\n============= Testing (Installing BookInfo %d)%s =============\n", i, name)
+			logger.Info(fmt.Sprintf("============= Testing (Installing BookInfo %d)%s =============\n", i, name))
 			timeoutCtx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
 			if err = testcase.InstallBookInfo(timeoutCtx, clientForRunner); err != nil {
-				log.Infof(
-					"\n============= Testing (Install BookInfo Failed)%s =============, Err: \n", name, err.Error(),
+				logger.Infof(
+					"============= Testing (Install BookInfo Failed)%s =============, Err: \n", name, err.Error(),
 				)
 				_ = testcase.UninstallBookInfo(clientForRunner)
 				continue
 			}
 			timeAfterInstall := time.Now()
-			log.Infof(
-				"\n============= Testing (BookInfo Installed, Cost(%fs) %s =============\n",
+			logger.Infof(
+				"============= Testing (BookInfo Installed, Cost(%fs) %s =============\n",
 				timeAfterInstall.Sub(timeBeforeInstall).Seconds(), name,
 			)
 			break
@@ -117,7 +113,7 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 
 		for i := 0; i < retryTimes; i++ {
 
-			log.Infof("\n============= Testing (Wait BookInfo %d)%s =============\n", i, name)
+			logger.Infof("============= Testing (Wait BookInfo %d)%s =============\n", i, name)
 
 			err = k8sutils.WaitPod(
 				clientForRunner.GetClientset(),
@@ -153,12 +149,14 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 		}
 	}
 
-	log.Infof("\n============= Testing (Test)%s =============\n", name)
+	logger.Infof("============= Testing (Test)%s =============\n", name)
 
 	fn(clientForRunner)
 
 	timeAfter := time.Now()
-	log.Infof("\n============= Testing done, Cost(%fs) %s =============\n", timeAfter.Sub(timeBefore).Seconds(), name)
+	logger.Infof(
+		"============= Testing done, Cost(%fs) %s =============\n", timeAfter.Sub(timeBefore).Seconds(), name,
+	)
 
 	if withBookInfo {
 		//testcase.Reset(clientForRunner)
@@ -171,8 +169,7 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 	}
 }
 
-func (t *T) Clean(fail bool) {
-	t.AlertForImagePull(fail)
+func (t *T) Clean() {
 	if t.CleanFunc != nil {
 		t.CleanFunc()
 	}
@@ -199,41 +196,40 @@ func (t *T) Alert() {
 }
 
 // cli must be kubectl
-func (t *T) AlertForImagePull(fail bool) {
+func (t *T) AlertForImagePull() {
 	if webhook := os.Getenv(util.TimeoutWebhook); webhook != "" {
-		s := `{"msgtype":"text","text":{"content":"WARN(ImagePullBackOff)：Clusters：%s，Events：%s",
-"mentioned_mobile_list":[""]}}`
-		var req *http.Request
-		var err error
-
 		// some event may not timely
 		time.Sleep(time.Minute)
 
-		s1, s2, _ := t.Cli.GetKubectl().RunClusterScope(context.TODO(), "get", "events", "-A")
-		outPut := s1 + s2
+		s1, s2, _ := t.Cli.GetKubectl().RunClusterScope(
+			context.TODO(), "get", "events", "-A", "--field-selector", "type!=Normal",
+		)
 
-		if fail && strings.Contains(outPut, "ErrImagePull") || strings.Contains(outPut, "ImagePullBackOff") {
-			robotHint := ""
-			for _, event := range strings.Split(outPut, "\n") {
-				if strings.Contains(event, "ErrImagePull") || strings.Contains(event, "ImagePullBackOff") {
-					robotHint += event + "\n"
-				}
-			}
-
-			data := strings.NewReader(fmt.Sprintf(s, os.Getenv("TKE_NAME"), robotHint))
-			if req, err = http.NewRequest("POST", webhook, data); err != nil {
-				log.Info(err)
-				return
-			}
-
-			req.Header.Set("Content-Type", "application/json")
-			if _, err = http.DefaultClient.Do(req); err != nil {
-				log.Info(err)
-			}
-		}
-
+		log.Info("")
+		log.Info("")
+		log.Info("<< == K8s Events == >>")
 		log.Infof("Events show: \n %s%s", s1, s2)
+	}
+}
 
-		time.Sleep(time.Second * 30)
+func LogsForArchive(){
+
+	log.Info("")
+	log.Info("")
+	log.Info("<< == Nocalhost Logs == >>")
+	log.Info(
+		fp.NewFilePath(homedir.HomeDir()).
+			RelOrAbs(".nh").
+			RelOrAbs("nhctl").
+			RelOrAbs("logs").
+			RelOrAbs("nhctl.log").
+			ReadFile(),
+	)
+
+	for _, l := range log.AllTestLogsLocations() {
+		log.Info("")
+		log.Info("")
+		log.Infof("<< == Final Archive Logs %s == >>", l)
+		log.Info(fp.NewFilePath(l).ReadFile())
 	}
 }
