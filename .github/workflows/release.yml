@@ -383,7 +383,7 @@ jobs:
         curl -T syncthing-windows-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=${{ env.RELEASE_VERSION }}"
 
   package-windows:
-    needs: release-nhctl
+    needs: release-nhctl-linux-windows
     name: package
     runs-on: windows-latest
     steps:
