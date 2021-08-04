@@ -1,12 +1,10 @@
 # NOCALHOST Changelog
 
-## 0.4.19 (2021-08-02)
+## 0.4.18(2021-07-23)
 
 ### nhctl
 
-#### :muscle: &npsp; Improvement & Refactor
+#### :bug:  &nbsp; Bug Fixes
 
-- Built syncthing bin package into nhctl
-- Supports multiple hooks in the application life cycle
-- Supports checking cluster status
-- Supported JetBrains PHP debugging
+- Fixed the applications list error caused by unstable network connection
+- Fixed the `get resource` freeze issue
