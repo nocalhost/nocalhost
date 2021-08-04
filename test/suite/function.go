@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package suite
 
@@ -97,7 +97,8 @@ func Deployment(cli runner.Client) {
 			}
 			return nil
 		},
-		func() error { return testcase.SyncCheck(cli, module) },
+		func() error { return testcase.SyncCheck(cli, module, "Sync First") },
+		func() error { return testcase.SyncCheck(cli, module, "Sync Second") },
 		func() error { return testcase.SyncStatus(cli, module) },
 		func() error { return testcase.DevEnd(cli, module) },
 	}
@@ -115,7 +116,8 @@ func StatefulSet(cli runner.Client) {
 			}
 			return nil
 		},
-		func() error { return testcase.SyncCheckT(cli, cli.NameSpace(), module, moduleType) },
+		func() error { return testcase.SyncCheckT(cli, cli.NameSpace(), module, moduleType, "Sync First") },
+		func() error { return testcase.SyncCheckT(cli, cli.NameSpace(), module, moduleType, "Sync Second") },
 		func() error { return testcase.DevEndT(cli, module, moduleType) },
 	}
 	util.Retry("StatefulSet", funcs)
@@ -160,7 +162,8 @@ func Compatible(cli runner.Client) {
 	}
 	funcsList := []func() error{
 		func() error { return testcase.StatusCheck(cli, module) },
-		func() error { return testcase.SyncCheck(cli, module) },
+		func() error { return testcase.SyncCheck(cli, module, "Sync First") },
+		func() error { return testcase.SyncCheck(cli, module, "Sync Second") },
 	}
 	util.Retry(suiteName, funcsList)
 	util.Retry(suiteName, []func() error{func() error { return testcase.PortForwardEnd(cli, module, port) }})
@@ -386,7 +389,8 @@ func KillSyncthingProcess(cli runner.Client) {
 			}
 			return nil
 		},
-		func() error { return testcase.SyncCheck(cli, module) },
+		func() error { return testcase.SyncCheck(cli, module, "Sync First") },
+		func() error { return testcase.SyncCheck(cli, module, "Sync Second") },
 		func() error { return testcase.SyncStatus(cli, module) },
 		func() error { return testcase.RemoveSyncthingPidFile(cli, module) },
 		func() error { return testcase.DevEnd(cli, module) },
@@ -397,7 +401,8 @@ func KillSyncthingProcess(cli runner.Client) {
 			}
 			return nil
 		},
-		func() error { return testcase.SyncCheck(cli, module) },
+		func() error { return testcase.SyncCheck(cli, module, "Sync First") },
+		func() error { return testcase.SyncCheck(cli, module, "Sync Second") },
 		func() error { return testcase.SyncStatus(cli, module) },
 		func() error { return testcase.DevEnd(cli, module) },
 	}
@@ -418,14 +423,16 @@ func Get(cli runner.Client) {
 	funcs := []func() error{
 		func() error {
 			for _, item := range cases {
-				err := testcase.Get(cli, item.resource, item.appName, func(result string) error {
-					for _, s := range item.keywords {
-						if !strings.Contains(result, s) {
-							return errors.Errorf("nhctl get %s, result not contains resource: %s", item.resource, s)
+				err := testcase.Get(
+					cli, item.resource, item.appName, func(result string) error {
+						for _, s := range item.keywords {
+							if !strings.Contains(result, s) {
+								return errors.Errorf("nhctl get %s, result not contains resource: %s", item.resource, s)
+							}
 						}
-					}
-					return nil
-				})
+						return nil
+					},
+				)
 				if err != nil {
 					return err
 				}

@@ -1,14 +1,13 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package testcase
 
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
@@ -68,15 +67,16 @@ func SyncT(cli runner.Client, moduleName string, moduleType string) error {
 	return runner.Runner.RunWithCheckResult(cmd)
 }
 
-func SyncCheck(cli runner.Client, moduleName string) error {
-	return SyncCheckT(cli, cli.NameSpace(), moduleName, "deployment")
+func SyncCheck(cli runner.Client, moduleName string, content string) error {
+	return SyncCheckT(
+		cli, cli.NameSpace(), moduleName, "deployment", content,
+	)
 }
 
-func SyncCheckT(cli runner.Client, ns, moduleName string, moduleType string) error {
+func SyncCheckT(cli runner.Client, ns, moduleName string, moduleType string, content string) error {
 	filename := "hello.test"
 	syncFile := fmt.Sprintf("/tmp/%s/%s/%s", ns, moduleName, filename)
 
-	content := "this is a test, random string: " + uuid.New().String()
 	if err := ioutil.WriteFile(syncFile, []byte(content), 0644); err != nil {
 		return errors.Errorf("test case failed, reason: write file %s error: %v", filename, err)
 	}
