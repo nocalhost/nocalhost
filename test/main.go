@@ -71,7 +71,6 @@ func main() {
 		t.Run("Get", suite.Get)
 	})
 
-
 	lastVersion, _ := testcase.GetVersion()
 	DoRun(lastVersion!="", &wg, func() {
 		t.Run("Compatible", suite.Compatible)

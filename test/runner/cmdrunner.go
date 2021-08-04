@@ -1,16 +1,14 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package runner
 
 import (
 	"bytes"
 	"github.com/pkg/errors"
-	"io"
 	"nocalhost/pkg/nhctl/log"
-	"os"
 	"os/exec"
 )
 
@@ -73,19 +71,12 @@ func (r *CmdRunner) Run(suitName string, cmd *exec.Cmd) (string, string, error) 
 }
 
 func (r *CmdRunner) RunWithRollingOutWithChecker(suitName string, cmd *exec.Cmd, checker func(log string) bool) (string, string, error) {
-	log.TestLogger(suitName).Infof("Running command: %s", cmd.Args)
+	logger := log.TestLogger(suitName)
+	logger.Infof("Running command: %s", cmd.Args)
+
 	stdoutBuf := bytes.NewBuffer(make([]byte, 1024))
 	stderrBuf := bytes.NewBuffer(make([]byte, 1024))
-	stdoutPipe, _ := cmd.StdoutPipe()
-	stderrPipe, _ := cmd.StderrPipe()
-	stdout := io.MultiWriter(os.Stdout, stdoutBuf)
-	stderr := io.MultiWriter(os.Stderr, stderrBuf)
-	go func() {
-		_, _ = io.Copy(stdout, stdoutPipe)
-	}()
-	go func() {
-		_, _ = io.Copy(stderr, stderrPipe)
-	}()
+
 	go func() {
 		if checker != nil {
 			for {
@@ -104,5 +95,11 @@ func (r *CmdRunner) RunWithRollingOutWithChecker(suitName string, cmd *exec.Cmd,
 	if !cmd.ProcessState.Success() {
 		err = errors.New("exit code is not 0")
 	}
-	return stdoutBuf.String(), stderrBuf.String(), err
+
+	stdoutStr := stdoutBuf.String()
+	stderrStr := stderrBuf.String()
+
+	logger.Infof("Command %s stdout: ", cmd.Args, stdoutStr)
+	logger.Infof("Command %s stderr: ", cmd.Args, stderrStr)
+	return stdoutStr, stderrStr, err
 }
