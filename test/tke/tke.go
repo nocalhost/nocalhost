@@ -206,7 +206,7 @@ func (t *task) CreateTKE() {
 		ActionTimer: ActionTimer{
 			Externals:   Externals{ReleaseAddress: true},
 			TimerAction: "TerminateInstances",
-			ActionTime:  time.Now().Add(time.Second * 90).Format("2006-01-02 15:04:05"),
+			ActionTime:  time.Now().Add(time.Hour * 8).Add(time.Second * 90).Format("2006-01-02 15:04:05"),
 		},
 	}
 	bytes, _ := json.Marshal(p)
