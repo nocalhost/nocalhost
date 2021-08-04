@@ -213,28 +213,6 @@ jobs:
         git tag ${{ env.RELEASE_VERSION }}
         git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost-web.git ${{ env.RELEASE_VERSION }}
 
-    - name: Release vscode plugin
-      if: "!contains(github.ref,'rc')"
-      run: |
-        git clone https://github.com/nocalhost/nocalhost-vscode-plugin.git
-        cd nocalhost-vscode-plugin
-        git config user.email "nocalhost@nocalhost.dev"
-        git config user.name "nocalhost"
-        git checkout main
-        git tag ${{ env.RELEASE_VERSION }}
-        git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost-vscode-plugin.git ${{ env.RELEASE_VERSION }}
-
-    - name: Release Intellij plugin
-      if: "!contains(github.ref,'rc')"
-      run: |
-        git clone https://github.com/nocalhost/nocalhost-intellij-plugin.git
-        cd nocalhost-intellij-plugin
-        git config user.email "nocalhost@nocalhost.dev"
-        git config user.name "nocalhost"
-        git checkout main
-        git tag '${{ env.RELEASE_VERSION }}'
-        git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost-intellij-plugin.git '${{ env.RELEASE_VERSION }}'
-
     - name: Release api-docker
       env:
         VERSION: ${{ env.RELEASE_VERSION }}
@@ -320,6 +298,28 @@ jobs:
         docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
         docker push ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
         docker push ${CODING_IMAGE_NAME}:latest
+
+    - name: Release vscode plugin
+      if: "!contains(github.ref,'rc')"
+      run: |
+        git clone https://github.com/nocalhost/nocalhost-vscode-plugin.git
+        cd nocalhost-vscode-plugin
+        git config user.email "nocalhost@nocalhost.dev"
+        git config user.name "nocalhost"
+        git checkout main
+        git tag ${{ env.RELEASE_VERSION }}
+        git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost-vscode-plugin.git ${{ env.RELEASE_VERSION }}
+
+    - name: Release Intellij plugin
+      if: "!contains(github.ref,'rc')"
+      run: |
+        git clone https://github.com/nocalhost/nocalhost-intellij-plugin.git
+        cd nocalhost-intellij-plugin
+        git config user.email "nocalhost@nocalhost.dev"
+        git config user.name "nocalhost"
+        git checkout main
+        git tag '${{ env.RELEASE_VERSION }}'
+        git push https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost-intellij-plugin.git '${{ env.RELEASE_VERSION }}'
 
   build-syncthing-linux-amd64:
     name: Build syncthing amd64
