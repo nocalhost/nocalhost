@@ -9,6 +9,7 @@ TMP_VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed
 TMP_GITCOMMIT=$(git describe --match=NeVeRmAtCh --always --abbrev=40)
 git clone https://github.com/nocalhost/syncthing.git
 cd syncthing
+env CGO_ENABLE=1
 go run build.go -nocalhostVersion="${TMP_VERSION}" -nocalhostCommitId="${TMP_GITCOMMIT}" -goarch amd64 -goos darwin zip || true
 unzip syncthing-macos-amd64.zip || true
 #expand syncthing-macos-amd64.zip || true
