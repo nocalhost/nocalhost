@@ -157,7 +157,7 @@ func DevEndT(cli runner.Client, moduleName string, moduleType string) error {
 				return false
 			}()
 		},
-		time.Minute*1,
+		time.Minute*5,
 	)
 	return nil
 }
