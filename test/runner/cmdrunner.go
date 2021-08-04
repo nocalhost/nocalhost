@@ -8,7 +8,9 @@ package runner
 import (
 	"bytes"
 	"github.com/pkg/errors"
+	"io"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 	"os/exec"
 )
 
@@ -77,6 +79,16 @@ func (r *CmdRunner) RunWithRollingOutWithChecker(suitName string, cmd *exec.Cmd,
 	stdoutBuf := bytes.NewBuffer(make([]byte, 1024))
 	stderrBuf := bytes.NewBuffer(make([]byte, 1024))
 
+	stdoutPipe, _ := cmd.StdoutPipe()
+	stderrPipe, _ := cmd.StderrPipe()
+	stdout := io.MultiWriter(os.Stdout, stdoutBuf)
+	stderr := io.MultiWriter(os.Stderr, stderrBuf)
+	go func() {
+		_, _ = io.Copy(stdout, stdoutPipe)
+	}()
+	go func() {
+		_, _ = io.Copy(stderr, stderrPipe)
+	}()
 	go func() {
 		if checker != nil {
 			for {
