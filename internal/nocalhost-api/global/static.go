@@ -37,6 +37,7 @@ const (
 	NocalhostDefaultPriorityclassName         = "nocalhost-container-critical"
 	NocalhostDefaultPriorityclassDefaultValue = 1000000
 	NocalhostDefaultPriorityclassKey          = "--priority-class"
+	NocalhostCreateByLabel                    = "app.kubernetes.io/created-by"
 )
 
 var (
