@@ -18,7 +18,7 @@ func TestPWarn(t *testing.T) {
 }
 
 func TestES(t *testing.T) {
-	initEs("http://9.135.94.198:30001")
+	InitEs("http://9.135.94.198:30001")
 	writeStackToEs("debug", "ttt2222", "")
 }
 

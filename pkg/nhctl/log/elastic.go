@@ -38,6 +38,8 @@ type esLog struct {
 	Line      string    `json:"line,omitempty"`
 	Func      string    `json:"func,omitempty"`
 	Version   string    `json:"version,omitempty"`
+	Branch    string    `json:"branch,omitempty"`
+	Commit    string    `json:"commit,omitempty"`
 	Svc       string    `json:"svc,omitempty"`
 }
 
@@ -49,24 +51,8 @@ var (
 	address     string
 )
 
-// todo: move to go routine
-func init() {
-	host := os.Getenv("NH_ES_URL")
-	if host == "" {
-		address := os.Getenv("NH_ES_ADDRESS")
-		if address == "" {
-			return
-		}
-		port := os.Getenv("NH_ES_PORT")
-		if port == "" {
-			port = "9200"
-		}
-		host = fmt.Sprintf("http://%s:%s", address, port)
-	}
-	initEs(host)
-}
+func InitEs(host string) {
 
-func initEs(host string) {
 	var (
 		err error
 		ctx = context.TODO()
@@ -99,6 +85,36 @@ func initEs(host string) {
         "type": "text"
       },
 	  "hostname": {
+        "type": "text"
+      },
+	  "app": {
+        "type": "text"
+      },
+	  "svc": {
+        "type": "text"
+      },
+	  "commit": {
+        "type": "text"
+      },
+	  "branch": {
+        "type": "text"
+      },
+	  "version": {
+        "type": "text"
+      },
+	  "line": {
+        "type": "text"
+      },
+	  "func": {
+        "type": "text"
+      },
+	  "os": {
+        "type": "text"
+      },
+	  "arch": {
+        "type": "text"
+      },
+	  "stack": {
         "type": "text"
       },
       "level": {
@@ -143,7 +159,7 @@ func initEs(host string) {
 }
 
 func writeStackToEs(level string, msg string, stack string) {
-	if esProcessor == nil {
+	if esClient == nil {
 		return
 	}
 
@@ -165,6 +181,8 @@ func writeStackToEs(level string, msg string, stack string) {
 			App:       fields["APP"],
 			Svc:       fields["SVC"],
 			Version:   fields["VERSION"],
+			Commit:    fields["COMMIT"],
+			Branch:    fields["BRANCH"],
 			Timestamp: time.Now(),
 			Hostname:  hostname,
 			Level:     level,
