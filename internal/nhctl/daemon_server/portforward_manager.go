@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package daemon_server
 
@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"net"
@@ -20,7 +18,6 @@ import (
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
@@ -342,22 +339,23 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				}()
 
 				select {
-				case errCh <- nocalhostApp.PortForwardAPod(
-					clientgoutils.PortForwardAPodRequest{
-						Listen: []string{"0.0.0.0"},
-						Pod: corev1.Pod{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      startCmd.PodName,
-								Namespace: startCmd.NameSpace,
-							},
-						},
-						LocalPort: localPort,
-						PodPort:   remotePort,
-						Streams:   stream,
-						StopCh:    stopCh,
-						ReadyCh:   readyCh,
-					},
-				):
+				//case errCh <- nocalhostApp.PortForwardAPod(
+				//	clientgoutils.PortForwardAPodRequest{
+				//		Listen: []string{"0.0.0.0"},
+				//		Pod: corev1.Pod{
+				//			ObjectMeta: metav1.ObjectMeta{
+				//				Name:      startCmd.PodName,
+				//				Namespace: startCmd.NameSpace,
+				//			},
+				//		},
+				//		LocalPort: localPort,
+				//		PodPort:   remotePort,
+				//		Streams:   stream,
+				//		StopCh:    stopCh,
+				//		ReadyCh:   readyCh,
+				//	},
+				//):
+				case errCh <- nocalhostApp.PortForward(startCmd.PodName, localPort, remotePort, readyCh, stopCh, stream):
 					log.Logf("Port-forward %d:%d occurs errors", localPort, remotePort)
 				}
 			}()
