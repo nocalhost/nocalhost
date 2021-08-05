@@ -139,7 +139,10 @@ using new version of nhctl to do more operation
 */
 func Compatible(cli runner.Client) {
 	module := "ratings"
-	port := 49080
+	port, err := ports.GetAvailablePort()
+	if err != nil {
+		port = 49080
+	}
 	suiteName := "Compatible"
 	lastVersion, currentVersion := testcase.GetVersion()
 	if lastVersion != "" {
