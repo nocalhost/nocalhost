@@ -45,7 +45,10 @@ func HelmAdaption(client runner.Client) {
 
 func PortForward(client runner.Client) {
 	module := "reviews"
-	port := 49088
+	port, err := ports.GetAvailablePort()
+	if err != nil {
+		port = 49088
+	}
 
 	//funcs := []func() error{func() error { return testcase.PortForwardStart(cli, module, port) }}
 	//util.Retry("PortForward", funcs)
