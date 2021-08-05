@@ -7,14 +7,18 @@ package cluster
 
 import (
 	"encoding/base64"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"strconv"
 	"sync"
 )
 
@@ -40,7 +44,80 @@ type ClusterSafeList struct {
 // @Router /v1/cluster [get]
 func GetList(c *gin.Context) {
 	result, _ := service.Svc.ClusterSvc().GetList(c)
-	api.SendResponse(c, errno.OK, result)
+	vos := make([]model.ClusterListVo, len(result), len(result))
+	var wg sync.WaitGroup
+	wg.Add(len(result))
+	for i, cluster := range result {
+		if cluster == nil {
+			wg.Done()
+			continue
+		}
+		i := i
+		go func() {
+			vos[i] = model.ClusterListVo{
+				ClusterList: *result[i],
+				Resources:   GetResources(result[i].GetKubeConfig()),
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	api.SendResponse(c, errno.OK, vos)
+}
+
+func GetResources(kubeconfig string) (resources []model.Resource) {
+	client, err := clientgo.NewAdminGoClient([]byte(kubeconfig))
+	if err != nil {
+		return
+	}
+	nodeList, err := client.GetClusterNode()
+	if err != nil {
+		return
+	}
+	var cpuTotal, memoryTotal, storageTotal, podTotal int64
+	var cpuAlloc, memoryAlloc, storageAlloc, podAlloc int64
+	for _, node := range nodeList.Items {
+		cpuTotal += node.Status.Capacity.Cpu().MilliValue()
+		memoryTotal += node.Status.Capacity.Memory().ScaledValue(resource.Mega)
+		storageTotal += node.Status.Capacity.StorageEphemeral().ScaledValue(resource.Mega)
+		podTotal += node.Status.Capacity.Pods().Value()
+
+		cpuAlloc += node.Status.Allocatable.Cpu().MilliValue()
+		memoryAlloc += node.Status.Allocatable.Memory().ScaledValue(resource.Mega)
+		storageAlloc += node.Status.Allocatable.StorageEphemeral().ScaledValue(resource.Mega)
+	}
+	podList, _ := client.ListPods(v1.NamespaceAll)
+	podAlloc = int64(len(podList.Items))
+
+	resources = append(resources, model.Resource{
+		ResourceName: v1.ResourcePods,
+		Capacity:     float64(podTotal),
+		Used:         float64(podAlloc),
+		Percentage:   Div(float64(podAlloc), float64(podTotal)),
+	}, model.Resource{
+		ResourceName: v1.ResourceCPU,
+		Capacity:     float64(cpuTotal / 1000),
+		Used:         float64((cpuTotal - cpuAlloc) / 1000),
+		Percentage:   Div(float64((cpuTotal-cpuAlloc)/1000), float64(cpuTotal)),
+	}, model.Resource{
+		ResourceName: v1.ResourceMemory,
+		Capacity:     Div(float64(memoryTotal), 1024),
+		Used:         Div(float64(memoryTotal-memoryAlloc), 1024),
+		Percentage:   Div(Div(float64(memoryTotal-memoryAlloc), 1024), Div(float64(memoryTotal), 1024)),
+	}, model.Resource{
+		ResourceName: v1.ResourceStorage,
+		Capacity:     Div(float64(storageTotal), 1024),
+		Used:         Div(float64(storageTotal-storageAlloc), 1024),
+		Percentage:   Div(Div(float64(storageTotal-storageAlloc), 1024), Div(float64(storageTotal), 1024)),
+	})
+	return
+}
+
+func Div(a float64, b float64) float64 {
+	if float, err := strconv.ParseFloat(fmt.Sprintf("%.2f", a/b), 64); err == nil {
+		return float
+	}
+	return 0
 }
 
 // list permitted dev_space by user

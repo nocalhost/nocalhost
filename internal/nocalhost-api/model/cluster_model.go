@@ -6,6 +6,7 @@
 package model
 
 import (
+	v1 "k8s.io/api/core/v1"
 	"time"
 
 	validator "github.com/go-playground/validator/v10"
@@ -77,6 +78,18 @@ type ClusterList struct {
 	NotReadyMessage string    `json:"not_ready_message"`
 	HasDevSpace     bool      `json:"has_dev_space"`
 	Server          string    `gorm:"column:server;not null" json:"server"`
+}
+
+type ClusterListVo struct {
+	ClusterList
+	Resources []Resource `json:"resources"`
+}
+
+type Resource struct {
+	ResourceName v1.ResourceName `json:"resource_name"`
+	Capacity     float64         `json:"capacity"`
+	Used         float64         `json:"used"`
+	Percentage   float64         `json:"percentage"`
 }
 
 // Validate the fields.
