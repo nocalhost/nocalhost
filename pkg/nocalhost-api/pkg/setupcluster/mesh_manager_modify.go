@@ -31,6 +31,10 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
+const (
+	DefaultClusterDomain = "cluster.local"
+)
+
 func meshDevModifier(ns string, r *unstructured.Unstructured) ([]MeshDevWorkload, error) {
 	dependencies := make([]MeshDevWorkload, 0)
 	var err error
@@ -303,7 +307,7 @@ func genVirtualServiceForMeshDevSpace(baseNs string, r unstructured.Unstructured
 	vs.Spec.Http = []*istiov1alpha3.HTTPRoute{}
 
 	// http route
-	host := fmt.Sprintf("%s.%s.%s.%s", r.GetName(), baseNs, "svc", "cluster.local")
+	host := fmt.Sprintf("%s.%s.%s.%s", r.GetName(), baseNs, "svc", DefaultClusterDomain)
 	httpRoute := make([]*istiov1alpha3.HTTPRoute, 0)
 	httpDsts := make([]*istiov1alpha3.HTTPRouteDestination, 0)
 	httpDst := &istiov1alpha3.HTTPRouteDestination{Destination: &istiov1alpha3.Destination{Host: host}}
@@ -345,18 +349,18 @@ func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.H
 	vs.SetName(name)
 	vs.SetNamespace(baseNs)
 	vs.SetLabels(map[string]string{
-		_const.AppManagedByLabel:       _const.AppManagedByNocalhost,
-		"app.kubernetes.io/created-by": "nocalhost",
+		_const.AppManagedByLabel:      _const.AppManagedByNocalhost,
+		global.NocalhostCreateByLabel: global.NocalhostName,
 	})
 	vs.SetAnnotations(map[string]string{
-		_const.AppManagedByLabel:       _const.AppManagedByNocalhost,
-		"app.kubernetes.io/created-by": "nocalhost",
+		_const.AppManagedByLabel:      _const.AppManagedByNocalhost,
+		global.NocalhostCreateByLabel: global.NocalhostName,
 	})
 	vs.Spec.Hosts = []string{name}
 	vs.Spec.Http = []*istiov1alpha3.HTTPRoute{}
 
 	// http route
-	host := fmt.Sprintf("%s.%s.%s.%s", name, devNs, "svc", "cluster.local")
+	host := fmt.Sprintf("%s.%s.%s.%s", name, devNs, "svc", DefaultClusterDomain)
 	httpRoutes := make([]*istiov1alpha3.HTTPRoute, 0)
 	httpDsts := make([]*istiov1alpha3.HTTPRouteDestination, 0)
 	httpDst := &istiov1alpha3.HTTPRouteDestination{Destination: &istiov1alpha3.Destination{Host: host}}
@@ -382,7 +386,7 @@ func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.H
 	httpRoutes = append(httpRoutes, http)
 
 	//default http route
-	defaultHost := fmt.Sprintf("%s.%s.%s.%s", name, baseNs, "svc", "cluster.local")
+	defaultHost := fmt.Sprintf("%s.%s.%s.%s", name, baseNs, "svc", DefaultClusterDomain)
 	defaultHttpDsts := make([]*istiov1alpha3.HTTPRouteDestination, 0)
 	defaultHttpDst := &istiov1alpha3.HTTPRouteDestination{Destination: &istiov1alpha3.Destination{Host: defaultHost}}
 	defaultHttpDsts = append(defaultHttpDsts, defaultHttpDst)
@@ -426,7 +430,7 @@ func addHeaderToVirtualService(rs *unstructured.Unstructured, svcName string, in
 	}
 
 	// add header
-	host := fmt.Sprintf("%s.%s.%s.%s", name, info.MeshDevNamespace, "svc", "cluster.local")
+	host := fmt.Sprintf("%s.%s.%s.%s", name, info.MeshDevNamespace, "svc", DefaultClusterDomain)
 	httpDsts := make([]*istiov1alpha3.HTTPRouteDestination, 0)
 	httpDst := &istiov1alpha3.HTTPRouteDestination{Destination: &istiov1alpha3.Destination{Host: host}}
 	httpDsts = append(httpDsts, httpDst)
@@ -461,14 +465,14 @@ func addHeaderToVirtualService(rs *unstructured.Unstructured, svcName string, in
 	return http.DeepCopy(), nil
 }
 
-func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, devNs string, header model.Header) (bool, error) {
+func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, info *MeshDevInfo) (bool, error) {
 	rs.SetManagedFields(nil)
 
 	vs := &v1alpha3.VirtualService{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), vs); err != nil {
 		return false, errors.WithStack(err)
 	}
-	name := global.NocalhostName + "-" + devNs
+	name := global.NocalhostName + "-" + info.MeshDevNamespace
 	route := vs.Spec.Http
 	var ok bool
 	for i := 0; i < len(route); i++ {

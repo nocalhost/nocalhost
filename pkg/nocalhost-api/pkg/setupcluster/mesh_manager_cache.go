@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/informers"
 	toolscache "k8s.io/client-go/tools/cache"
 
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/const"
 )
 
@@ -35,7 +36,8 @@ const (
 	Secret         = "Secret"
 	Deployment     = "Deployment"
 
-	ApplicationIndex = "nocalhostApplication"
+	ApplicationIndex       = "nocalhostApplication"
+	ApplicationConfigIndex = "nocalhostApplicationConfig"
 )
 
 type ExtendInformer interface {
@@ -77,6 +79,29 @@ func IndexByAppName(obj interface{}) ([]string, error) {
 	return []string{}, nil
 }
 
+func IndexAppConfig(obj interface{}) ([]string, error) {
+	r, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return []string{}, nil
+	}
+	if r.GetKind() != Secret {
+		return []string{}, nil
+	}
+	if !strings.HasPrefix(r.GetName(), appmeta.SecretNamePrefix) {
+		return []string{}, nil
+	}
+
+	val, found, err := unstructured.NestedString(r.UnstructuredContent(), "type")
+	if !found || err != nil {
+		return []string{}, nil
+	}
+	if val != appmeta.SecretType {
+		return []string{}, nil
+	}
+
+	return []string{r.GetNamespace()}, nil
+}
+
 type cache struct {
 	stopCh    chan struct{}
 	informers dynamicinformer.DynamicSharedInformerFactory
@@ -86,8 +111,10 @@ func (c *cache) build() {
 	rs := defaultGvr()
 	for _, r := range rs {
 		informer := c.informers.ForResource(r)
-		informer.Informer().
-			AddIndexers(toolscache.Indexers{ApplicationIndex: IndexByAppName})
+		_ = informer.Informer().AddIndexers(toolscache.Indexers{ApplicationIndex: IndexByAppName})
+		if r.Resource == "secrets" {
+			_ = informer.Informer().AddIndexers(toolscache.Indexers{ApplicationConfigIndex: IndexAppConfig})
+		}
 	}
 	c.informers.Start(c.stopCh)
 	c.informers.WaitForCacheSync(c.stopCh)
@@ -223,6 +250,10 @@ func (c *cache) GetDeploymentByNamespaceAndName(ns, name string) (unstructured.U
 	return *obj.(*unstructured.Unstructured).DeepCopy(), nil
 }
 
+func (c *cache) GetAppConfigByNamespace(ns string) []unstructured.Unstructured {
+	return c.Secret().ByIndex(ApplicationConfigIndex, ns)
+}
+
 func (c *cache) GetListByKindAndNamespace(kind, ns string) []unstructured.Unstructured {
 	switch kind {
 	case Deployment:
@@ -259,24 +290,27 @@ func (c *cache) MatchVirtualServiceByWorkload(r unstructured.Unstructured) map[s
 		return vmap
 	}
 
-	smap := make(map[string]struct{})
-	svc := c.MatchServicesByWorkload(r)
-	for _, s := range svc {
-		smap[s.GetName()] = struct{}{}
+	smap := make(map[string]string)
+	services := c.MatchServicesByWorkload(r)
+	for _, s := range services {
+		smap[s.GetName()] = s.GetName()
+		smap[fmt.Sprintf("%s.%s.%s.%s",
+			s.GetName(), s.GetNamespace(), "svc", DefaultClusterDomain)] = s.GetName()
 	}
 
 	vs := c.GetVirtualServicesListByNamespace(ns)
 	for _, v := range vs {
 		hosts, _, _ := unstructured.NestedStringSlice(v.UnstructuredContent(), "spec", "hosts")
 		for _, host := range hosts {
-			if _, ok := smap[host]; !ok {
+			svc, ok := smap[host]
+			if !ok {
 				continue
 			}
-			if _, ok := vmap[host]; ok {
-				vmap[host] = append(vmap[host], v)
+			if _, ok := vmap[svc]; ok {
+				vmap[svc] = append(vmap[svc], v)
 				continue
 			}
-			vmap[host] = []unstructured.Unstructured{v}
+			vmap[svc] = []unstructured.Unstructured{v}
 		}
 	}
 	return vmap
