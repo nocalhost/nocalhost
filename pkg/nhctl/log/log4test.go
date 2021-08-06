@@ -37,10 +37,10 @@ func AllTestLogsLocations() []string {
 }
 
 func TestLogger(tag string) *testLogger {
-	if logger, ok := testLoggerMapping[tag]; !ok {
-		initLock.Lock()
-		defer initLock.Unlock()
+	initLock.Lock()
+	defer initLock.Unlock()
 
+	if logger, ok := testLoggerMapping[tag]; !ok {
 		if logger, ok := testLoggerMapping[tag]; ok {
 			return logger
 		}
