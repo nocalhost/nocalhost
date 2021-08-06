@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package log
 
@@ -121,6 +121,7 @@ func CustomLevelEncoder(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) 
 }
 
 func Debug(args ...interface{}) {
+	writeStackToEs("DEBUG", fmt.Sprintln(args...), "")
 	stdoutLogger.Debug(args...)
 	if fileEntry != nil {
 		fileEntry.Debug(args...)
@@ -128,6 +129,7 @@ func Debug(args ...interface{}) {
 }
 
 func Debugf(format string, args ...interface{}) {
+	writeStackToEs("DEBUG", fmt.Sprintf(format, args...), "")
 	stdoutLogger.Debugf(format, args...)
 	if fileEntry != nil {
 		fileEntry.Debugf(format, args...)
@@ -135,6 +137,7 @@ func Debugf(format string, args ...interface{}) {
 }
 
 func Info(args ...interface{}) {
+	writeStackToEs("INFO", fmt.Sprintln(args...), "")
 	stdoutLogger.Info(args...)
 	if fileEntry != nil {
 		fileEntry.Info(args...)
@@ -142,6 +145,7 @@ func Info(args ...interface{}) {
 }
 
 func Infof(format string, args ...interface{}) {
+	writeStackToEs("INFO", fmt.Sprintf(format, args...), "")
 	stdoutLogger.Infof(format, args...)
 	if fileEntry != nil {
 		fileEntry.Infof(format, args...)
@@ -149,6 +153,7 @@ func Infof(format string, args ...interface{}) {
 }
 
 func Warn(args ...interface{}) {
+	writeStackToEs("WARN", fmt.Sprintln(args...), "")
 	stdoutLogger.Warn(args...)
 	if fileEntry != nil {
 		fileEntry.Warn(args...)
@@ -156,6 +161,7 @@ func Warn(args ...interface{}) {
 }
 
 func Warnf(format string, args ...interface{}) {
+	writeStackToEs("WARN", fmt.Sprintf(format, args...), "")
 	stdoutLogger.Warnf(format, args...)
 	if fileEntry != nil {
 		fileEntry.Warnf(format, args...)
@@ -163,6 +169,8 @@ func Warnf(format string, args ...interface{}) {
 }
 
 func WarnE(err error, message string) {
+	writeStackToEs("WARN", message, fmt.Sprintf("%+v", err))
+
 	if fileEntry != nil {
 		fileEntry.Warnf("%s, err: %+v", message, err)
 	}
@@ -175,6 +183,7 @@ func WarnE(err error, message string) {
 }
 
 func Error(args ...interface{}) {
+	writeStackToEs("ERROR", fmt.Sprintln(args...), "")
 	stdoutLogger.Error(args...)
 	if fileEntry != nil {
 		fileEntry.Error(args...)
@@ -182,6 +191,7 @@ func Error(args ...interface{}) {
 }
 
 func Errorf(format string, args ...interface{}) {
+	writeStackToEs("ERROR", fmt.Sprintf(format, args...), "")
 	stdoutLogger.Errorf(format, args...)
 	if fileEntry != nil {
 		fileEntry.Errorf(format, args...)
@@ -189,6 +199,7 @@ func Errorf(format string, args ...interface{}) {
 }
 
 func ErrorE(err error, message string) {
+	writeStackToEs("ERROR", message, fmt.Sprintf("%+v", err))
 	if fileEntry != nil {
 		fileEntry.Errorf("%s, err: %+v", message, err)
 	}
@@ -200,6 +211,7 @@ func ErrorE(err error, message string) {
 }
 
 func Fatal(args ...interface{}) {
+	writeStackToEs("FATAL", fmt.Sprintln(args...), "")
 	if fileEntry != nil {
 		fileEntry.Error(args...)
 	}
@@ -207,6 +219,7 @@ func Fatal(args ...interface{}) {
 }
 
 func Fatalf(format string, args ...interface{}) {
+	writeStackToEs("FATAL", fmt.Sprintf(format, args...), "")
 	if fileEntry != nil {
 		fileEntry.Errorf(format, args...)
 	}
@@ -215,7 +228,7 @@ func Fatalf(format string, args ...interface{}) {
 
 // log with error
 func FatalE(err error, message string) {
-
+	writeStackToEs("FATAL", message, fmt.Sprintf("%+v", err))
 	if err != nil {
 		stderrLogger.Errorf("%s: %s", message, err.Error())
 	} else {
@@ -234,18 +247,21 @@ func LogE(err error) {
 }
 
 func Log(args ...interface{}) {
+	writeStackToEs("LOG", fmt.Sprintln(args...), "")
 	if fileEntry != nil {
 		fileEntry.Info(args...)
 	}
 }
 
 func Logf(format string, args ...interface{}) {
+	writeStackToEs("LOG", fmt.Sprintf(format, args...), "")
 	if fileEntry != nil {
 		fileEntry.Infof(format, args...)
 	}
 }
 
 func TLogf(tag, format string, args ...interface{}) {
+	writeStackToEs("TLOG", fmt.Sprintf(format, args...), "")
 	if fileEntry != nil {
 		fileEntry.With("tag", tag).Infof(format, args...)
 	}
@@ -260,6 +276,7 @@ func LogStack() {
 // For IDE Plugin
 
 func PWarn(info string) {
+	writeStackToEs("[WARNING]", fmt.Sprintln(info), "")
 	stdoutLogger.Info("[WARNING] " + info)
 	if fileEntry != nil {
 		fileEntry.Warn(info)
@@ -267,6 +284,7 @@ func PWarn(info string) {
 }
 
 func PWarnf(format string, args ...interface{}) {
+	writeStackToEs("[WARNING]", fmt.Sprintf(format, args...), "")
 	stdoutLogger.Warnf("[WARNING] "+format, args...)
 	if fileEntry != nil {
 		fileEntry.Warnf(format, args...)

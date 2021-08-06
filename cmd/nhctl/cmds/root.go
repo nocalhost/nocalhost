@@ -9,12 +9,16 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap/zapcore"
+	"io/ioutil"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"nocalhost/internal/nhctl/app"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/pkg/nhctl/log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -25,6 +29,10 @@ var (
 	nocalhostApp *app.Application
 	nocalhostSvc *controller.Controller
 )
+
+type ConfigFile struct {
+	NhEsUrl string `json:"nh_es_url" yaml:"nh_es_url"`
+}
 
 func init() {
 
@@ -49,13 +57,34 @@ var rootCmd = &cobra.Command{
 	Long:  `nhctl is a cloud-native development tool.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 
+		// Init log
 		if debug {
 			_ = os.Setenv("_NOCALHOST_DEBUG_", "1")
 			_ = log.Init(zapcore.DebugLevel, nocalhost.GetLogDir(), _const.DefaultLogFileName)
 		} else {
 			_ = log.Init(zapcore.InfoLevel, nocalhost.GetLogDir(), _const.DefaultLogFileName)
 		}
-		err := nocalhost.Init()
+		log.AddField("VERSION", Version)
+		log.AddField("COMMIT", GitCommit)
+		log.AddField("BRANCH", Branch)
+
+		var esUrl string
+		bys, err := ioutil.ReadFile(filepath.Join(nocalhost_path.GetNhctlHomeDir(), "config"))
+		if err == nil && len(bys) > 0 {
+			configFile := ConfigFile{}
+			err = yaml.Unmarshal(bys, &configFile)
+			if err == nil && configFile.NhEsUrl != "" {
+				esUrl = configFile.NhEsUrl
+			}
+		}
+		if esUrl == "" {
+			esUrl = os.Getenv("NH_ES_URL")
+		}
+		if esUrl != "" {
+			log.InitEs(esUrl)
+		}
+
+		err = nocalhost.Init()
 		if err != nil {
 			log.FatalE(err, "Fail to init nhctl")
 		}
