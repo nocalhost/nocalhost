@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package routers
 
@@ -92,7 +92,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 
 	// Clusters
 	c := g.Group("/v1/cluster")
-	c.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
+	c.Use(middleware.AuthMiddleware(), middleware.GetMethodOnlyForGeneralUserMiddleware())
 	{
 		c.POST("", cluster.Create)
 		c.GET("", cluster.GetList)
