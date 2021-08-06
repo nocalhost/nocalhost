@@ -501,10 +501,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":model.ClusterList}",
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":model.ClusterListVo}",
                         "schema": {
                             "type": "object",
-                            "$ref": "#/definitions/model.ClusterList"
+                            "$ref": "#/definitions/model.ClusterListVo"
                         }
                     }
                 }
@@ -2007,7 +2007,7 @@
                 }
             }
         },
-        "model.ClusterList": {
+        "model.ClusterListVo": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -2030,6 +2030,12 @@
                 },
                 "not_ready_message": {
                     "type": "string"
+                },
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Resource"
+                    }
                 },
                 "server": {
                     "type": "string"
@@ -2229,6 +2235,23 @@
                 }
             }
         },
+        "model.Resource": {
+            "type": "object",
+            "properties": {
+                "capacity": {
+                    "type": "number"
+                },
+                "percentage": {
+                    "type": "number"
+                },
+                "resource_name": {
+                    "type": "string"
+                },
+                "used": {
+                    "type": "number"
+                }
+            }
+        },
         "model.UserBaseModel": {
             "type": "object",
             "properties": {
@@ -2336,6 +2359,17 @@
                 "header": {
                     "type": "object",
                     "$ref": "#/definitions/model.Header"
+                },
+                "mu": {
+                    "type": "string"
+                },
+                "resources": {
+                    "type": "object",
+                    "$ref": "#/definitions/setupcluster.meshDevResources"
+                },
+                "rollback": {
+                    "type": "object",
+                    "$ref": "#/definitions/setupcluster.rollback"
                 }
             }
         },
@@ -2350,6 +2384,37 @@
                 },
                 "status": {
                     "type": "integer"
+                }
+            }
+        },
+        "setupcluster.meshDevResources": {
+            "type": "object",
+            "properties": {
+                "delete": {
+                    "type": "string"
+                },
+                "install": {
+                    "type": "string"
+                }
+            }
+        },
+        "setupcluster.rollback": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "type": "object",
+                    "$ref": "#/definitions/setupcluster.rollbackHeader"
+                }
+            }
+        },
+        "setupcluster.rollbackHeader": {
+            "type": "object",
+            "properties": {
+                "add": {
+                    "type": "object"
+                },
+                "update": {
+                    "type": "object"
                 }
             }
         },

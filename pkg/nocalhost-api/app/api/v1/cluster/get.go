@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster
 
@@ -40,7 +40,7 @@ type ClusterSafeList struct {
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Success 200 {object} model.ClusterList "{"code":0,"message":"OK","data":model.ClusterList}"
+// @Success 200 {object} model.ClusterListVo "{"code":0,"message":"OK","data":model.ClusterListVo}"
 // @Router /v1/cluster [get]
 func GetList(c *gin.Context) {
 	result, _ := service.Svc.ClusterSvc().GetList(c)

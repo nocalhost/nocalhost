@@ -165,7 +165,7 @@ definitions:
     - public
     - status
     type: object
-  model.ClusterList:
+  model.ClusterListVo:
     properties:
       created_at:
         type: string
@@ -181,6 +181,10 @@ definitions:
         type: string
       not_ready_message:
         type: string
+      resources:
+        items:
+          $ref: '#/definitions/model.Resource'
+        type: array
       server:
         type: string
       storage_class:
@@ -312,6 +316,17 @@ definitions:
       storage_class:
         type: string
     type: object
+  model.Resource:
+    properties:
+      capacity:
+        type: number
+      percentage:
+        type: number
+      resource_name:
+        type: string
+      used:
+        type: number
+    type: object
   model.UserBaseModel:
     properties:
       avatar:
@@ -383,6 +398,14 @@ definitions:
       header:
         $ref: '#/definitions/model.Header'
         type: object
+      mu:
+        type: string
+      resources:
+        $ref: '#/definitions/setupcluster.meshDevResources'
+        type: object
+      rollback:
+        $ref: '#/definitions/setupcluster.rollback'
+        type: object
     type: object
   setupcluster.MeshDevWorkload:
     properties:
@@ -392,6 +415,26 @@ definitions:
         type: string
       status:
         type: integer
+    type: object
+  setupcluster.meshDevResources:
+    properties:
+      delete:
+        type: string
+      install:
+        type: string
+    type: object
+  setupcluster.rollback:
+    properties:
+      header:
+        $ref: '#/definitions/setupcluster.rollbackHeader'
+        type: object
+    type: object
+  setupcluster.rollbackHeader:
+    properties:
+      add:
+        type: object
+      update:
+        type: object
     type: object
   user.CreateUserRequest:
     properties:
@@ -792,9 +835,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: '{"code":0,"message":"OK","data":model.ClusterList}'
+          description: '{"code":0,"message":"OK","data":model.ClusterListVo}'
           schema:
-            $ref: '#/definitions/model.ClusterList'
+            $ref: '#/definitions/model.ClusterListVo'
             type: object
       summary: Get the cluster list
       tags:
