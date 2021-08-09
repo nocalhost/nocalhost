@@ -26,6 +26,16 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: wait-for-db
+          image: "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-wait:latest"
+          command:
+            - sh
+            - '-c'
+            - wait_for.sh job -lstatefulset.kubernetes.io/pod-name=nocalhost-mariadb-0
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: Always
       containers:
         - name: {{ .Chart.Name }}-api
           securityContext:
