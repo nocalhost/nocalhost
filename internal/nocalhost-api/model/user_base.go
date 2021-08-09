@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package model
 
@@ -37,6 +37,35 @@ type UserBaseModel struct {
 func (u *UserBaseModel) Validate() error {
 	validate := validator.New()
 	return validate.Struct(u)
+}
+
+// Validate the fields.
+func (u *UserBaseModel) ToUserSimple() *UserSimple {
+	return &UserSimple{
+		ID:           u.ID,
+		Name:         u.Name,
+		Username:     u.Username,
+		Phone:        u.Phone,
+		Email:        u.Email,
+		IsAdmin:      u.IsAdmin,
+		Status:       u.Status,
+		ClusterAdmin: u.ClusterAdmin,
+		Avatar:       u.Avatar,
+		CreatedAt:    u.CreatedAt,
+	}
+}
+
+type UserSimple struct {
+	ID           uint64    `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
+	Name         string    `json:"name" gorm:"column:name;not null" json:"name"`
+	Username     string    `json:"username" gorm:"column:username;not null" validate:"min=1,max=32"`
+	Phone        int64     `gorm:"column:phone" json:"phone"`
+	Email        string    `gorm:"column:email" json:"email"`
+	IsAdmin      *uint64   `gorm:"column:is_admin" json:"is_admin"`
+	Status       *uint64   `gorm:"column:status" json:"status"`
+	ClusterAdmin *uint64   `gorm:"column:cluster_admin" json:"cluster_admin"`
+	Avatar       string    `gorm:"column:avatar" json:"avatar"`
+	CreatedAt    time.Time `gorm:"column:created_at" json:"-"`
 }
 
 // UserInfo

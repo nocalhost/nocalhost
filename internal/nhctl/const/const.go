@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package _const
 
@@ -35,4 +35,17 @@ const (
 	HelmReleaseName = "meta.helm.sh/release-name"
 
 	DevWorkloadIgnored = "nocalhost.dev.workload.ignored"
+
+	NocalhostRoleBindingLabelKey = "owner"
+	NocalhostRoleBindingLabelVal = "nocalhost"
+
+	NocalhostDefaultSaNs        = "default"
+	NocalhostDefaultRoleBinding = "nocalhost-role-binding"
+	NocalhostDevRoleName        = "nocalhost-dev-role"
+
+	NocalhostCooperatorRoleBinding = "nocalhost-cooperator-role-binding"
+	NocalhostCooperatorRoleName    = "nocalhost-cooperator-role"
+
+	NocalhostViewerRoleBinding = "nocalhost-viewer-role-binding"
+	NocalhostViewerRoleName    = "nocalhost-viewer-role"
 )

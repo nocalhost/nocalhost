@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package service_account
 
@@ -9,8 +9,10 @@ import (
 	"context"
 	"github.com/gin-gonic/gin"
 	clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
+	"nocalhost/internal/nocalhost-api/service/cooperator/ns_scope"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
@@ -59,7 +61,7 @@ func ListAuthorization(c *gin.Context) {
 		return
 	}
 
-	user, err := service.Svc.UserSvc().GetUserByID(c, userId)
+	user, err := service.Svc.UserSvc().GetCache(userId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrUserNotFound, nil)
 		return
@@ -136,7 +138,7 @@ func GenKubeconfig(
 	var reader setupcluster.DevKubeConfigReader
 	if reader = getServiceAccountKubeConfigReader(
 		clientGo, saName,
-		service.NocalhostDefaultSaNs, cp.GetClusterServer(),
+		_const.NocalhostDefaultSaNs, cp.GetClusterServer(),
 	); reader == nil {
 		return
 	}
@@ -207,28 +209,34 @@ func GenKubeconfig(
 		}
 
 	} else {
-		for _, ns := range GetAllPermittedNs(string(clientGo.Config), saName) {
-			//var spaceName = fmt.Sprintf("Nocalhost-%s", ns)
-			//var SpaceId = uint64(0)
-			if m, ok := spaceNameMap[cp.GetClusterId()]; ok {
-				if s, ok := m[ns]; ok {
-					kubeConfigStruct.Contexts = append(
-						kubeConfigStruct.Contexts, clientcmdapiv1.NamedContext{
-							Name: s.SpaceName,
-							Context: clientcmdapiv1.Context{
-								Namespace: ns,
-								Cluster:   cp.GetClusterName(),
-								AuthInfo:  authInfo,
-							},
-						},
-					)
 
-					nss = append(
-						nss, NS{SpaceName: s.SpaceName, Namespace: ns, SpaceId: s.ID},
-					)
+		// different kind of namespace's permission with different prefix
+		doForNamespaces := func(namespaces []string, spaceType model.SpaceOwnType) {
+			for _, ns := range namespaces {
+				if m, ok := spaceNameMap[cp.GetClusterId()]; ok {
+					if s, ok := m[ns]; ok {
+						kubeConfigStruct.Contexts = append(
+							kubeConfigStruct.Contexts, clientcmdapiv1.NamedContext{
+								Name: s.SpaceName,
+								Context: clientcmdapiv1.Context{
+									Namespace: ns,
+									Cluster:   cp.GetClusterName(),
+									AuthInfo:  authInfo,
+								},
+							},
+						)
+
+						nss = append(
+							nss, NS{SpaceName: s.SpaceName, Namespace: ns, SpaceId: s.ID, SpaceType: spaceType.Str},
+						)
+					}
 				}
 			}
 		}
+
+		doForNamespaces(ns_scope.GetAllOwnNs(string(clientGo.Config), saName), model.DevSpaceOwnTypeOwner)
+		doForNamespaces(ns_scope.GetAllCoopNs(string(clientGo.Config), saName), model.DevSpaceOwnTypeCooperator)
+		doForNamespaces(ns_scope.GetAllViewNs(string(clientGo.Config), saName), model.DevSpaceOwnTypeViewer)
 
 		if len(nss) > 0 {
 			// sort nss
@@ -245,16 +253,18 @@ func GenKubeconfig(
 				},
 			)
 
-			sort.Slice(kubeConfigStruct.Contexts, func(i, j int) bool {
-				if nss[i].Namespace == specifyNameSpace {
-					return false
-				}
-				if nss[j].Namespace == specifyNameSpace {
-					return true
-				}
+			sort.Slice(
+				kubeConfigStruct.Contexts, func(i, j int) bool {
+					if nss[i].Namespace == specifyNameSpace {
+						return false
+					}
+					if nss[j].Namespace == specifyNameSpace {
+						return true
+					}
 
-				return nss[i].SpaceId > nss[i].SpaceId
-			})
+					return nss[i].SpaceId > nss[i].SpaceId
+				},
+			)
 			kubeConfigStruct.CurrentContext = nss[len(nss)-1].SpaceName
 		}
 	}
@@ -290,7 +300,7 @@ func getServiceAccountKubeConfigReader(
 		return nil
 	}
 
-	secret, err := clientGo.GetSecret(sa.Secrets[0].Name, service.NocalhostDefaultSaNs)
+	secret, err := clientGo.GetSecret(sa.Secrets[0].Name, _const.NocalhostDefaultSaNs)
 	if err != nil {
 		return nil
 	}
@@ -314,4 +324,5 @@ type NS struct {
 	SpaceId   uint64 `json:"space_id"`
 	Namespace string `json:"namespace"`
 	SpaceName string `json:"spacename"`
+	SpaceType string `json:"spacetype"`
 }

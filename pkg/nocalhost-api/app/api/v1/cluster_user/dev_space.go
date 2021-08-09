@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
-	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
@@ -133,29 +132,6 @@ func (d *DevSpace) createDevSpace(
 	// create cluster devs
 	devNamespace := goClient.GenerateNsName(usersRecord.ID)
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
-	secret, err := clusterDevsSetUp.
-		CreateNS(devNamespace, "").
-		CreateServiceAccount("", devNamespace).
-		CreateRole(global.NocalhostDevRoleName, devNamespace).
-		CreateRoleBinding(
-			global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName,
-			global.NocalhostDevServiceAccountName,
-		).
-		CreateRoleBinding(
-			global.NocalhostDevRoleDefaultBindingName, devNamespace, global.NocalhostDevRoleName,
-			global.NocalhostDevDefaultServiceAccountName,
-		).
-		GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).
-		GetServiceAccountSecret("", devNamespace)
-
-	KubeConfigYaml, err, nerrno := setupcluster.
-		NewDevKubeConfigReader(secret, clusterRecord.Server, devNamespace).
-		GetCA().
-		GetToken().
-		AssembleDevKubeConfig().ToYamlString()
-	if err != nil {
-		return nil, nerrno
-	}
 
 	// create namespace ResouceQuota and container limitRange
 	res := d.DevSpaceParams.SpaceResourceLimit
@@ -176,7 +152,7 @@ func (d *DevSpace) createDevSpace(
 	resString, err := json.Marshal(res)
 	result, err := service.Svc.ClusterUser().Create(
 		d.c, *d.DevSpaceParams.ClusterId, usersRecord.ID, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu,
-		KubeConfigYaml, devNamespace, d.DevSpaceParams.SpaceName, string(resString),
+		"", devNamespace, d.DevSpaceParams.SpaceName, string(resString),
 	)
 	if err != nil {
 		return nil, errno.ErrBindApplicationClsuter

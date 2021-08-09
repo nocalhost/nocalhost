@@ -24,7 +24,7 @@ require (
 	github.com/golang/snappy v0.0.2
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/uuid v1.1.2
-	github.com/hashicorp/go-getter v1.5.1
+	github.com/hashicorp/go-getter v1.5.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/imroc/req v0.3.0
@@ -38,6 +38,7 @@ require (
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/mapstructure v1.3.2 // indirect
 	github.com/moby/term v0.0.0-20200312100748-672ec06f55cd
+	github.com/muesli/cache2go v0.0.0-20210519043705-f6c4b2d7bc5d
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/nocalhost/remotecommand v0.0.0-20210713025133-bfbc2d3e1250
 	github.com/olekukonko/tablewriter v0.0.4

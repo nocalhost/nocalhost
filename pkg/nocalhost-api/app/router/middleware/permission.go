@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package middleware
 
@@ -44,6 +44,10 @@ func whiteList(method, path string) bool {
 		"/v1/nocalhost/templates":         "GET",
 		"/v1/dev_space":                   "GET",
 		"/v1/application":                 "GET,POST",
+
+		"/v2/dev_space": "GET",
+		"/v2/share":     "POST",
+		"/v2/unshare":   "POST",
 	}
 
 	for reg, med := range permissions {

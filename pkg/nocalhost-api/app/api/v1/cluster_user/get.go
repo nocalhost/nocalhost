@@ -69,7 +69,6 @@ func GetList(c *gin.Context) {
 }
 
 func ListAll(c *gin.Context) {
-
 	var params ClusterUserListQuery
 
 	err := c.ShouldBindQuery(&params)
