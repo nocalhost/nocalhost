@@ -32,7 +32,7 @@ spec:
           command:
             - sh
             - '-c'
-            - wait_for.sh job -lstatefulset.kubernetes.io/pod-name=nocalhost-mariadb-0
+            - wait_for.sh job -lapp.kubernetes.io/name=mariadb
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           imagePullPolicy: Always
