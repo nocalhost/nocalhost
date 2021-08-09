@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
 #
-# Build a windows binary from linux
+# Build an linux binary
 #
 
 set -eu -o pipefail
+export GOOS=linux
+export GOARCH=arm64
 
 TMP_VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/\(.*\)-.*/\1/' | sed 's/-[0-9]*$//' || true)}
 TMP_GITCOMMIT=$(git describe --match=NeVeRmAtCh --always --abbrev=40)
 git clone --depth 1 https://github.com/nocalhost/syncthing.git
 cd syncthing
-go run build.go -nocalhostVersion="${TMP_VERSION}" -nocalhostCommitId="${TMP_GITCOMMIT}" -goarch amd64 -goos windows zip || true
+go run build.go -nocalhostVersion="${TMP_VERSION}" -nocalhostCommitId="${TMP_GITCOMMIT}" -goarch $GOARCH -goos $GOOS zip || true
+unzip syncthing-$GOOS-$GOARCH.zip || true
+#expand syncthing-linux-amd64.zip || true
 
-unzip syncthing-windows-amd64.zip || true
-#expand syncthing-windows-amd64.zip || true
-mv syncthing-windows-amd64/syncthing.exe ./../internal/nhctl/syncthing/bin/syncthing_windows_amd64 || true
-#COPY syncthing-windows-amd64/syncthing.exe ./../internal/nhctl/syncthing/bin/syncthing_windows_amd64 || true
+mv syncthing-$GOOS-$GOARCH/syncthing ./../internal/nhctl/syncthing/bin/syncthing_$GOOS_$GOARCH || true
+#COPY syncthing-linux-amd64/syncthing ./../internal/nhctl/syncthing/bin/syncthing_linux_amd64 || true
 
-filesize=$(ls -l ./../internal/nhctl/syncthing/bin/syncthing_windows_amd64 | awk '{ print $5 }')
+filesize=$(ls -l ./../internal/nhctl/syncthing/bin/syncthing_$GOOS_$GOARCH | awk '{ print $5 }')
 minsize=$((1024 * 1024 * 10))
 if [ "$filesize" -lt $minsize ]; then
   echo "$filesize < $minsize, syncthing binary is less than 10M, it's not available"
@@ -27,13 +29,10 @@ cd ..
 rm -fr syncthing || true
 #rmdir /s/q syncthing || true
 
-export GOOS=windows
-export GOARCH=amd64
-
 source ./scripts/build/nhctl/.variables
 
 # Override TARGET
-TARGET="build/nhctl-$GOOS-$GOARCH.exe"
+TARGET="build/nhctl-$GOOS-$GOARCH"
 
 echo "Building $TARGET"
 go build -o "${TARGET}" --ldflags "${LDFLAGS}" "${SOURCE}"
