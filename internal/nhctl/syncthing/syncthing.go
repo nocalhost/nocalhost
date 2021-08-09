@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
-	"nocalhost/internal/nhctl/nocalhost"
+	_const "nocalhost/internal/nhctl/const"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -246,7 +246,7 @@ func (s *Syncthing) generateIgnoredFileConfig() (string, error) {
 		return "", fmt.Errorf("failed to write .nhignore configuration template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(ignoreFilePath, buf.Bytes(), nocalhost.DefaultNewFilePermission); err != nil {
+	if err := ioutil.WriteFile(ignoreFilePath, buf.Bytes(), _const.DefaultNewFilePermission); err != nil {
 		return "", fmt.Errorf("failed to generate .nhignore configuration: %w", err)
 	}
 
