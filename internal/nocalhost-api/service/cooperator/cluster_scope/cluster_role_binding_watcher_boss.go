@@ -18,6 +18,67 @@ var (
 	}
 )
 
+func IsCooperOfCluster(clusterId uint64, saName string) bool {
+	cc, err := service.Svc.ClusterSvc().GetCache(clusterId)
+	if err != nil {
+		return false
+	}
+
+	deck := supervisor.getInDeck(cc.KubeConfig)
+
+	var isCooperOfCluster = false
+
+	// map[sa]*saShareContainer
+	deck.cache.Range(
+		func(sa, ssc interface{}) bool {
+			if (ssc.(*saShareContainer)).cooperatorSas.Exist(saName) {
+				isCooperOfCluster = true
+				return false
+			}
+			return true
+		},
+	)
+	return isCooperOfCluster
+}
+
+func IsViewerOfCluster(clusterId uint64, saName string) bool {
+	cc, err := service.Svc.ClusterSvc().GetCache(clusterId)
+	if err != nil {
+		return false
+	}
+
+	deck := supervisor.getInDeck(cc.KubeConfig)
+
+	var isViewerOfCluster = false
+
+	// map[sa]*saShareContainer
+	deck.cache.Range(
+		func(sa, ssc interface{}) bool {
+			if (ssc.(*saShareContainer)).viewerSas.Exist(saName) {
+				isViewerOfCluster = true
+				return false
+			}
+			return true
+		},
+	)
+	return isViewerOfCluster
+}
+
+func IsOwnerOfCluster(clusterId uint64, saName string) bool {
+	cc, err := service.Svc.ClusterSvc().GetCache(clusterId)
+	if err != nil {
+		return false
+	}
+
+	deck := supervisor.getInDeck(cc.KubeConfig)
+	load, ok := deck.cache.Load(saName)
+	if !ok {
+		return false
+	}
+
+	return load.(*saShareContainer).ownerValid
+}
+
 func IsValidOwner(clusterId, fromUserId uint64) bool {
 	ssc := getShareContainer(clusterId, fromUserId)
 
