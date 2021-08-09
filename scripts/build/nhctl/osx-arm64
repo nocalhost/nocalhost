@@ -15,10 +15,10 @@ go run build.go -nocalhostVersion="${TMP_VERSION}" -nocalhostCommitId="${TMP_GIT
 unzip syncthing-$GOOS-$GOARCH.zip || true
 #expand syncthing-linux-amd64.zip || true
 
-mv syncthing-$GOOS-$GOARCH/syncthing ./../internal/nhctl/syncthing/bin/syncthing_$GOOS_$GOARCH || true
+mv syncthing-$GOOS-$GOARCH/syncthing ./../internal/nhctl/syncthing/bin/syncthing_${GOOS}_$GOARCH || true
 #COPY syncthing-linux-amd64/syncthing ./../internal/nhctl/syncthing/bin/syncthing_linux_amd64 || true
 
-filesize=$(ls -l ./../internal/nhctl/syncthing/bin/syncthing_$GOOS_$GOARCH | awk '{ print $5 }')
+filesize=$(ls -l ./../internal/nhctl/syncthing/bin/syncthing_${GOOS}_$GOARCH | awk '{ print $5 }')
 minsize=$((1024 * 1024 * 10))
 if [ "$filesize" -lt $minsize ]; then
   echo "$filesize < $minsize, syncthing binary is less than 10M, it's not available"
