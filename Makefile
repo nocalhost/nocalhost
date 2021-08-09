@@ -48,6 +48,10 @@ nhctl-osx: ## build executable for macOS
 nhctl-linux: ## build executable for Linux
 	@bash ./scripts/build/nhctl/linux
 
+.PHONY: nhctl-linux-arm
+nhctl-linux-arm: ## build executable for Linux
+	@bash ./scripts/build/nhctl/linux-arm
+
 .PHONY: gotool
 gotool: ## run go tool 'fmt' and 'vet'
 	gofmt -w .
