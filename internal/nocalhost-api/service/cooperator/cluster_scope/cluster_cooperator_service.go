@@ -95,7 +95,7 @@ func AsViewer(clusterId, fromUserId, shareUserId uint64) error {
 		clientGo, u.SaName,
 		_const.NocalhostDefaultSaNs,
 		viewerCRB(saName),
-		_const.NocalhostCooperatorRoleName,
+		_const.NocalhostViewerRoleName,
 	); err != nil {
 		log.Error(err)
 		return errno.ErrRoleBindingCreate
