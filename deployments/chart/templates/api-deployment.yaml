@@ -29,13 +29,10 @@ spec:
       initContainers:
         - name: wait-for-db
           image: "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-wait:latest"
-          command:
-            - sh
-            - '-c'
-            - wait_for.sh job -lapp.kubernetes.io/name=mariadb
-          terminationMessagePath: /dev/termination-log
-          terminationMessagePolicy: File
+          command: [ "sh", "-c", "wait_for.sh job -lapp.kubernetes.io/name=mariadb"]
           imagePullPolicy: Always
+      serviceAccountName: nocalhost-mariadb
+      automountServiceAccountToken: false
       containers:
         - name: {{ .Chart.Name }}-api
           securityContext:
