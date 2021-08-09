@@ -263,7 +263,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			if !handlingStreamCreateFailed {
 				k8s_runtime.ErrorHandlers = append(
 					k8s_runtime.ErrorHandlers, func(err error) {
-						if strings.Contains(err.Error(), "error creating error stream for port") {
+						if strings.Contains(err.Error(), "error creating error stream for port") &&
+							!strings.Contains(err.Error(), "Timeout occured") {
 							log.WarnE(err,
 								fmt.Sprintf("Port-forward %d:%d failed to create stream, try to reconnecting", localPort, remotePort),
 							)
