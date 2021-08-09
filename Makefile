@@ -44,12 +44,16 @@ nhctl-windows: ## build executable for Windows
 nhctl-osx: ## build executable for macOS
 	@bash ./scripts/build/nhctl/osx
 
+.PHONY: nhctl-osx-arm64
+nhctl-osx-arm64: ## build executable for M1
+	@bash ./scripts/build/nhctl/osx-arm64
+
 .PHONY: nhctl-linux
 nhctl-linux: ## build executable for Linux
 	@bash ./scripts/build/nhctl/linux
 
 .PHONY: nhctl-linux-arm64
-nhctl-linux-arm: ## build executable for Linux arm64
+nhctl-linux-arm64: ## build executable for Linux arm64
 	@bash ./scripts/build/nhctl/linux-arm64
 
 .PHONY: gotool
