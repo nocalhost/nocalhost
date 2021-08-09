@@ -69,21 +69,21 @@ func InstallNhctl(version string) error {
 	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, name, version, utils.GetNhctlBinName()))
 	if utils.IsWindows() {
 		delCmd := exec.Command("sh", "-c", fmt.Sprintf("rm %s", utils.GetNhctlBinName()))
-		if _, _, err := runner.Runner.RunWithRollingOutWithChecker(delCmd, nil); err != nil {
+		if _, _, err := runner.Runner.RunWithRollingOutWithChecker("Main", delCmd, nil); err != nil {
 			log.Error(err)
 		}
 	}
-	if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
+	if err := runner.Runner.RunWithCheckResult("Main", cmd); err != nil {
 		return err
 	}
 	// unix and linux needs to add x permission
 	if needChmod {
 		cmd = exec.Command("sh", "-c", "chmod +x nhctl")
-		if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
+		if err := runner.Runner.RunWithCheckResult("Main", cmd); err != nil {
 			return err
 		}
 		cmd = exec.Command("sh", "-c", "sudo mv ./nhctl /usr/local/bin/nhctl")
-		if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
+		if err := runner.Runner.RunWithCheckResult("Main", cmd); err != nil {
 			return err
 		}
 	}
@@ -98,6 +98,7 @@ func Init(nhctl *runner.CLI) error {
 	log.Infof("Running command: %s", cmd.Args)
 	go func() {
 		_, _, err := runner.Runner.RunWithRollingOutWithChecker(
+			nhctl.SuitName(),
 			cmd,
 			func(s string) bool {
 				if strings.Contains(s, "Nocalhost init completed") {
@@ -125,7 +126,7 @@ func StatusCheck(nhctl runner.Client, moduleName string) error {
 	for i := 0; i < retryTimes; i++ {
 		time.Sleep(time.Second * 2)
 		cmd := nhctl.GetNhctl().Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
-		stdout, stderr, err := runner.Runner.Run(cmd)
+		stdout, stderr, err := runner.Runner.Run(nhctl.SuiteName(), cmd)
 		if err != nil {
 			log.Infof("Run command: %s, error: %v, stdout: %s, stderr: %s, retry", cmd.Args, err, stdout, stderr)
 			continue

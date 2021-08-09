@@ -68,7 +68,7 @@ func installBookInfoRawManifest(nhctl runner.Client) error {
 		"--resource-path",
 		"manifest/templates",
 	)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
@@ -83,7 +83,7 @@ func installBookInfoKustomizeGit(nhctl runner.Client) error {
 		"--resource-path",
 		"kustomize/base",
 	)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
@@ -98,7 +98,7 @@ func installBookInfoHelmGit(nhctl runner.Client) error {
 		"--resource-path",
 		"charts/bookinfo",
 	)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
@@ -111,7 +111,7 @@ func installBookInfoRawManifestLocal(nhctl runner.Client) error {
 		"https://github.com/nocalhost/bookinfo.git",
 		dir,
 	)
-	if err := runner.Runner.RunWithCheckResult(command); err != nil {
+	if err := runner.Runner.RunWithCheckResult(nhctl.SuiteName(), command); err != nil {
 		return err
 	}
 
@@ -125,7 +125,7 @@ func installBookInfoRawManifestLocal(nhctl runner.Client) error {
 		"--resource-path",
 		"manifest/templates",
 	)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
@@ -138,7 +138,7 @@ func installBookInfoKustomizeGitLocal(nhctl runner.Client) error {
 		"https://github.com/nocalhost/bookinfo.git",
 		dir,
 	)
-	if err := runner.Runner.RunWithCheckResult(command); err != nil {
+	if err := runner.Runner.RunWithCheckResult(nhctl.SuiteName(), command); err != nil {
 		return err
 	}
 
@@ -152,7 +152,7 @@ func installBookInfoKustomizeGitLocal(nhctl runner.Client) error {
 		"--resource-path",
 		"kustomize/base",
 	)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
@@ -165,7 +165,7 @@ func installBookInfoHelmLocal(nhctl runner.Client) error {
 		"https://github.com/nocalhost/bookinfo.git",
 		dir,
 	)
-	if err := runner.Runner.RunWithCheckResult(command); err != nil {
+	if err := runner.Runner.RunWithCheckResult(nhctl.SuiteName(), command); err != nil {
 		return err
 	}
 	cmd := nhctl.GetNhctl().Command(
@@ -178,7 +178,7 @@ func installBookInfoHelmLocal(nhctl runner.Client) error {
 		"--resource-path",
 		"charts/bookinfo",
 	)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
@@ -200,6 +200,6 @@ func installBookInfoHelmRepo(nhctl runner.Client) error {
 		"--outer-config",
 		temp.Name(),
 	)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }

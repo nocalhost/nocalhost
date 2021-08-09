@@ -1,12 +1,13 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package log
 
 import (
 	"fmt"
+	_const "nocalhost/internal/nhctl/const"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -23,10 +24,9 @@ import (
 var stdoutLogger *zap.SugaredLogger
 var stderrLogger *zap.SugaredLogger
 var fileEntry *zap.SugaredLogger
-var logFile string
 
 var fields = make(map[string]string, 0)
-var core zapcore.Core
+var fileLogsConfig zapcore.Core
 
 func init() {
 	// if log is not be initiated explicitly (use log.Init()),
@@ -47,15 +47,21 @@ func getDefaultOutLogger(w zapcore.WriteSyncer) *zap.SugaredLogger {
 
 func Init(level zapcore.Level, dir, fileName string) error {
 
-	// stdout logger
-	encoderConfig0 := zap.NewProductionEncoderConfig()
-	encoderConfig0.EncodeTime = nil
-	encoderConfig0.EncodeLevel = nil
-	encoder2 := zapcore.NewConsoleEncoder(encoderConfig0)
-	stdoutLogger = zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stdout), level)).Sugar()
-	stderrLogger = zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stderr), level)).Sugar()
+	// stdout logger cfg
+	cfg := zap.NewProductionEncoderConfig()
+	if fullLog() {
+		cfg.EncodeTime = CustomTimeEncoder
+		cfg.EncodeLevel = CustomLevelEncoder
+	} else {
+		cfg.EncodeTime = nil
+		cfg.EncodeLevel = nil
+	}
 
-	// file logger
+	unFormatEncoder := zapcore.NewConsoleEncoder(cfg)
+	unFormatStdoutConfig := zapcore.NewCore(unFormatEncoder, zapcore.AddSync(os.Stdout), level)
+	unFormatStderrConfig := zapcore.NewCore(unFormatEncoder, zapcore.AddSync(os.Stderr), level)
+
+	// file logger cfg
 	logPath := filepath.Join(dir, fileName)
 	rolling := &lumberjack.Logger{
 		Filename:   logPath,
@@ -72,11 +78,34 @@ func Init(level zapcore.Level, dir, fileName string) error {
 	encoderConfig.EncodeDuration = CustomDurationEncoder
 
 	encoder := zapcore.NewConsoleEncoder(encoderConfig)
-	core = zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
+	fileLogsConfig := zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
 
-	refreshFileLoggerWithFields()
-	logFile = logPath
+	// init
+	initOrReInitStdout(unFormatStdoutConfig)
+	initOrReInitStderr(unFormatStderrConfig)
+	initOrReInitFileEntry(fileLogsConfig, fields)
 	return nil
+}
+
+func fullLog() bool {
+	return os.Getenv(_const.EnableFullLogEnvKey) != ""
+}
+
+func initOrReInitStdout(configuration zapcore.Core) {
+	stdoutLogger = zap.New(configuration).Sugar()
+}
+
+func initOrReInitStderr(configuration zapcore.Core) {
+	stderrLogger = zap.New(configuration).Sugar()
+}
+
+func initOrReInitFileEntry(configuration zapcore.Core, args map[string]string) {
+	fileEntry = zap.New(configuration).Sugar().With(args)
+}
+
+func AddField(key, val string) {
+	fields[key] = val
+	initOrReInitFileEntry(fileLogsConfig, fields)
 }
 
 func CustomDurationEncoder(t time.Duration, enc zapcore.PrimitiveArrayEncoder) {
@@ -91,20 +120,8 @@ func CustomLevelEncoder(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) 
 	enc.AppendString("[" + level.CapitalString() + "]")
 }
 
-func refreshFileLoggerWithFields() {
-	args := make([]interface{}, 0)
-	for key, val := range fields {
-		args = append(args, key, val)
-	}
-	fileEntry = zap.New(core).Sugar().With(args...)
-}
-
-func AddField(key, val string) {
-	fields[key] = val
-	refreshFileLoggerWithFields()
-}
-
 func Debug(args ...interface{}) {
+	writeStackToEs("DEBUG", fmt.Sprintln(args...), "")
 	stdoutLogger.Debug(args...)
 	if fileEntry != nil {
 		fileEntry.Debug(args...)
@@ -112,6 +129,7 @@ func Debug(args ...interface{}) {
 }
 
 func Debugf(format string, args ...interface{}) {
+	writeStackToEs("DEBUG", fmt.Sprintf(format, args...), "")
 	stdoutLogger.Debugf(format, args...)
 	if fileEntry != nil {
 		fileEntry.Debugf(format, args...)
@@ -119,6 +137,7 @@ func Debugf(format string, args ...interface{}) {
 }
 
 func Info(args ...interface{}) {
+	writeStackToEs("INFO", fmt.Sprintln(args...), "")
 	stdoutLogger.Info(args...)
 	if fileEntry != nil {
 		fileEntry.Info(args...)
@@ -126,6 +145,7 @@ func Info(args ...interface{}) {
 }
 
 func Infof(format string, args ...interface{}) {
+	writeStackToEs("INFO", fmt.Sprintf(format, args...), "")
 	stdoutLogger.Infof(format, args...)
 	if fileEntry != nil {
 		fileEntry.Infof(format, args...)
@@ -133,6 +153,7 @@ func Infof(format string, args ...interface{}) {
 }
 
 func Warn(args ...interface{}) {
+	writeStackToEs("WARN", fmt.Sprintln(args...), "")
 	stdoutLogger.Warn(args...)
 	if fileEntry != nil {
 		fileEntry.Warn(args...)
@@ -140,6 +161,7 @@ func Warn(args ...interface{}) {
 }
 
 func Warnf(format string, args ...interface{}) {
+	writeStackToEs("WARN", fmt.Sprintf(format, args...), "")
 	stdoutLogger.Warnf(format, args...)
 	if fileEntry != nil {
 		fileEntry.Warnf(format, args...)
@@ -147,6 +169,8 @@ func Warnf(format string, args ...interface{}) {
 }
 
 func WarnE(err error, message string) {
+	writeStackToEs("WARN", message, fmt.Sprintf("%+v", err))
+
 	if fileEntry != nil {
 		fileEntry.Warnf("%s, err: %+v", message, err)
 	}
@@ -159,6 +183,7 @@ func WarnE(err error, message string) {
 }
 
 func Error(args ...interface{}) {
+	writeStackToEs("ERROR", fmt.Sprintln(args...), "")
 	stdoutLogger.Error(args...)
 	if fileEntry != nil {
 		fileEntry.Error(args...)
@@ -166,6 +191,7 @@ func Error(args ...interface{}) {
 }
 
 func Errorf(format string, args ...interface{}) {
+	writeStackToEs("ERROR", fmt.Sprintf(format, args...), "")
 	stdoutLogger.Errorf(format, args...)
 	if fileEntry != nil {
 		fileEntry.Errorf(format, args...)
@@ -173,6 +199,7 @@ func Errorf(format string, args ...interface{}) {
 }
 
 func ErrorE(err error, message string) {
+	writeStackToEs("ERROR", message, fmt.Sprintf("%+v", err))
 	if fileEntry != nil {
 		fileEntry.Errorf("%s, err: %+v", message, err)
 	}
@@ -184,6 +211,7 @@ func ErrorE(err error, message string) {
 }
 
 func Fatal(args ...interface{}) {
+	writeStackToEs("FATAL", fmt.Sprintln(args...), "")
 	if fileEntry != nil {
 		fileEntry.Error(args...)
 	}
@@ -191,6 +219,7 @@ func Fatal(args ...interface{}) {
 }
 
 func Fatalf(format string, args ...interface{}) {
+	writeStackToEs("FATAL", fmt.Sprintf(format, args...), "")
 	if fileEntry != nil {
 		fileEntry.Errorf(format, args...)
 	}
@@ -199,7 +228,7 @@ func Fatalf(format string, args ...interface{}) {
 
 // log with error
 func FatalE(err error, message string) {
-
+	writeStackToEs("FATAL", message, fmt.Sprintf("%+v", err))
 	if err != nil {
 		stderrLogger.Errorf("%s: %s", message, err.Error())
 	} else {
@@ -218,18 +247,21 @@ func LogE(err error) {
 }
 
 func Log(args ...interface{}) {
+	writeStackToEs("LOG", fmt.Sprintln(args...), "")
 	if fileEntry != nil {
 		fileEntry.Info(args...)
 	}
 }
 
 func Logf(format string, args ...interface{}) {
+	writeStackToEs("LOG", fmt.Sprintf(format, args...), "")
 	if fileEntry != nil {
 		fileEntry.Infof(format, args...)
 	}
 }
 
 func TLogf(tag, format string, args ...interface{}) {
+	writeStackToEs("TLOG", fmt.Sprintf(format, args...), "")
 	if fileEntry != nil {
 		fileEntry.With("tag", tag).Infof(format, args...)
 	}
@@ -244,6 +276,7 @@ func LogStack() {
 // For IDE Plugin
 
 func PWarn(info string) {
+	writeStackToEs("[WARNING]", fmt.Sprintln(info), "")
 	stdoutLogger.Info("[WARNING] " + info)
 	if fileEntry != nil {
 		fileEntry.Warn(info)
@@ -251,6 +284,7 @@ func PWarn(info string) {
 }
 
 func PWarnf(format string, args ...interface{}) {
+	writeStackToEs("[WARNING]", fmt.Sprintf(format, args...), "")
 	stdoutLogger.Warnf("[WARNING] "+format, args...)
 	if fileEntry != nil {
 		fileEntry.Warnf(format, args...)

@@ -81,7 +81,6 @@ func GetList(c *gin.Context) {
 // @Success 200 {object} model.ClusterUserModel
 // @Router /v1/dev_space/{id} [get]
 func ListAll(c *gin.Context) {
-
 	var params ClusterUserListQuery
 
 	err := c.ShouldBindQuery(&params)

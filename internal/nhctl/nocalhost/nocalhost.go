@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/pkg/nhctl/log"
@@ -20,42 +21,31 @@ import (
 	"nocalhost/internal/nhctl/utils"
 )
 
-const (
-	DefaultNewFilePermission        = 0700
-	DefaultApplicationDirName       = "application"
-	DefaultBinDirName               = "bin"
-	DefaultBinSyncThingDirName      = "syncthing"
-	DefaultLogDirName               = "logs"
-	DefaultLogFileName              = "nhctl.log"
-	DefaultApplicationProfilePath   = ".profile.yaml" // runtime config
-	DefaultApplicationProfileV2Path = ".profile_v2.yaml"
-)
-
 func Init() error {
 	var err error
 	nhctlHomeDir := nocalhost_path.GetNhctlHomeDir()
 	if _, err = os.Stat(nhctlHomeDir); err != nil {
 		if os.IsNotExist(err) {
-			err = os.MkdirAll(nhctlHomeDir, DefaultNewFilePermission)
+			err = os.MkdirAll(nhctlHomeDir, _const.DefaultNewFilePermission)
 			if err != nil {
 				return errors.Wrap(err, "")
 			}
 
 			// Initial ns dir
 			nsDir := nocalhost_path.GetNhctlNameSpaceDir()
-			err = os.MkdirAll(nsDir, DefaultNewFilePermission)
+			err = os.MkdirAll(nsDir, _const.DefaultNewFilePermission)
 			if err != nil {
 				return errors.Wrap(err, "")
 			}
 
 			binDir := GetSyncThingBinDir()
-			err = os.MkdirAll(binDir, DefaultNewFilePermission) // create .nhctl/bin/syncthing
+			err = os.MkdirAll(binDir, _const.DefaultNewFilePermission) // create .nhctl/bin/syncthing
 			if err != nil {
 				return errors.Wrap(err, "")
 			}
 
 			logDir := GetLogDir()
-			err = os.MkdirAll(logDir, DefaultNewFilePermission) // create .nhctl/logs
+			err = os.MkdirAll(logDir, _const.DefaultNewFilePermission) // create .nhctl/logs
 			if err != nil {
 				return errors.Wrap(err, "")
 			}
@@ -79,11 +69,11 @@ func CleanupAppFilesUnderNs(appName string, namespace string) error {
 }
 
 func GetSyncThingBinDir() string {
-	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), DefaultBinDirName, DefaultBinSyncThingDirName)
+	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), _const.DefaultBinDirName, _const.DefaultBinSyncThingDirName)
 }
 
 func GetLogDir() string {
-	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), DefaultLogDirName)
+	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), _const.DefaultLogDirName)
 }
 
 // key: ns, value: app

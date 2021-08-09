@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package app
 
@@ -154,13 +154,13 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 		commonParams = append(commonParams, "--debug")
 	}
 
-	var resourcesPath []string
+	var (
+		resourcesPath []string
+		installParams = []string{"install", releaseName}
+	)
+
 	if !fromRepo {
 		resourcesPath = a.GetResourceDir(a.ResourceTmpDir)
-	}
-
-	installParams := []string{"install", releaseName}
-	if !fromRepo {
 		installParams = append(installParams, resourcesPath[0])
 		log.Info("building dependency...")
 		depParams := []string{"dependency", "build", resourcesPath[0]}

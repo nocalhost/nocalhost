@@ -1,16 +1,17 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster_user
 
 import (
 	"context"
+	"github.com/pkg/errors"
+	"nocalhost/internal/nocalhost-api/cache"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/repository/cluster_user"
-
-	"github.com/pkg/errors"
+	"time"
 )
 
 type ClusterUserService interface {
@@ -22,7 +23,6 @@ type ClusterUserService interface {
 		model.ClusterUserModel, error,
 	)
 	Delete(ctx context.Context, id uint64) error
-	DeleteByWhere(ctx context.Context, models model.ClusterUserModel) error
 	BatchDelete(ctx context.Context, ids []uint64) error
 	GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error)
 	GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error)
@@ -37,6 +37,10 @@ type ClusterUserService interface {
 	) (*model.ClusterUserJoinClusterAndAppAndUser, error)
 	ListByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserPluginModel, error)
 	Close()
+
+	// v2
+	ListV2(models model.ClusterUserModel) ([]*model.ClusterUserV2, error)
+	GetCache(id uint64) (model.ClusterUserModel, error, )
 }
 
 type clusterUserService struct {
@@ -46,6 +50,57 @@ type clusterUserService struct {
 func NewClusterUserService() ClusterUserService {
 	db := model.GetDB()
 	return &clusterUserService{clusterUserRepo: cluster_user.NewApplicationClusterRepo(db)}
+}
+
+func (srv *clusterUserService) Evict(id uint64) {
+	c := cache.Module(cache.CLUSTER_USER)
+	_, _ = c.Delete(id)
+}
+
+func (srv *clusterUserService) GetCache(id uint64) (
+	model.ClusterUserModel, error,
+) {
+	c := cache.Module(cache.CLUSTER_USER)
+	value, err := c.Value(id)
+	if err == nil {
+		clusterUserModel := value.Data().(*model.ClusterUserModel)
+		return *clusterUserModel, nil
+	}
+
+	result, err := srv.clusterUserRepo.GetFirst(
+		model.ClusterUserModel{ID: id},
+	)
+	if err != nil {
+		return model.ClusterUserModel{}, errors.Wrapf(err, "GetCache users_cluster error")
+	}
+
+	c.Add(result.ID, time.Hour, result)
+	return *result, nil
+}
+
+func (srv *clusterUserService) ListV2(models model.ClusterUserModel) (
+	[]*model.ClusterUserV2, error,
+) {
+
+	list, err := srv.clusterUserRepo.ListWithFuzzySpaceName(models)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*model.ClusterUserV2
+	for _, userModel := range list {
+		item := &model.ClusterUserV2{}
+		item.ID = userModel.ID
+		item.UserId = userModel.UserId
+		item.ClusterAdmin = userModel.ClusterAdmin
+		item.Namespace = userModel.Namespace
+		item.SpaceName = userModel.SpaceName
+		item.ClusterId = userModel.ClusterId
+		item.SpaceResourceLimit = userModel.SpaceResourceLimit
+		item.CreatedAt = userModel.CreatedAt
+		result = append(result, item)
+	}
+	return result, nil
 }
 
 func (srv *clusterUserService) UpdateKubeConfig(
@@ -60,25 +115,29 @@ func (srv *clusterUserService) GetJoinCluster(
 	return srv.clusterUserRepo.GetJoinCluster(condition)
 }
 
-func (srv *clusterUserService) DeleteByWhere(ctx context.Context, models model.ClusterUserModel) error {
-	return srv.clusterUserRepo.DeleteByWhere(models)
-}
-
 func (srv *clusterUserService) BatchDelete(ctx context.Context, ids []uint64) error {
+	defer func() {
+		for _, id := range ids {
+			srv.Evict(id)
+		}
+	}()
 	return srv.clusterUserRepo.BatchDelete(ids)
 }
 
 func (srv *clusterUserService) Delete(ctx context.Context, id uint64) error {
+	defer srv.Evict(id)
 	return srv.clusterUserRepo.Delete(id)
 }
 
 func (srv *clusterUserService) Update(ctx context.Context, models *model.ClusterUserModel) (
 	*model.ClusterUserModel, error,
 ) {
-	_, err := srv.clusterUserRepo.Update(models)
+	result, err := srv.clusterUserRepo.Update(models)
 	if err != nil {
 		return models, err
 	}
+
+	srv.Evict(result.ID)
 	return models, nil
 }
 
@@ -122,6 +181,7 @@ func (srv *clusterUserService) Create(
 	if err != nil {
 		return result, errors.Wrapf(err, "create application_cluster")
 	}
+	srv.Evict(result.ID)
 	return result, nil
 }
 
@@ -141,6 +201,7 @@ func (srv *clusterUserService) CreateClusterAdminSpace(
 	if err != nil {
 		return result, errors.Wrapf(err, "create application_cluster")
 	}
+	srv.Evict(result.ID)
 	return result, nil
 }
 
