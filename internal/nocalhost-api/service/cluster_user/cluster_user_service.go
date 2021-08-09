@@ -7,6 +7,7 @@ package cluster_user
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nocalhost-api/cache"
 	"nocalhost/internal/nocalhost-api/model"
@@ -40,7 +41,8 @@ type ClusterUserService interface {
 
 	// v2
 	ListV2(models model.ClusterUserModel) ([]*model.ClusterUserV2, error)
-	GetCache(id uint64) (model.ClusterUserModel, error, )
+	GetCache(id uint64) (model.ClusterUserModel, error)
+	GetCacheByClusterAndNameSpace(clusterId uint64, namespace string) (model.ClusterUserModel, error)
 }
 
 type clusterUserService struct {
@@ -54,7 +56,12 @@ func NewClusterUserService() ClusterUserService {
 
 func (srv *clusterUserService) Evict(id uint64) {
 	c := cache.Module(cache.CLUSTER_USER)
-	_, _ = c.Delete(id)
+	value, err := c.Value(id)
+	if err == nil {
+		cu := value.Data().(*model.ClusterUserModel)
+		_, _ = c.Delete(keyForClusterAndNameSpace(cu.ClusterId, cu.Namespace))
+		_, _ = c.Delete(id)
+	}
 }
 
 func (srv *clusterUserService) GetCache(id uint64) (
@@ -74,8 +81,35 @@ func (srv *clusterUserService) GetCache(id uint64) (
 		return model.ClusterUserModel{}, errors.Wrapf(err, "GetCache users_cluster error")
 	}
 
+	c.Add(keyForClusterAndNameSpace(result.ClusterId, result.Namespace), time.Hour, result)
 	c.Add(result.ID, time.Hour, result)
 	return *result, nil
+}
+
+func (srv *clusterUserService) GetCacheByClusterAndNameSpace(clusterId uint64, namespace string) (
+	model.ClusterUserModel, error,
+) {
+	c := cache.Module(cache.CLUSTER_USER)
+	value, err := c.Value(keyForClusterAndNameSpace(clusterId, namespace))
+	if err == nil {
+		clusterUserModel := value.Data().(*model.ClusterUserModel)
+		return *clusterUserModel, nil
+	}
+
+	result, err := srv.clusterUserRepo.GetFirst(
+		model.ClusterUserModel{ClusterId: clusterId, Namespace: namespace},
+	)
+	if err != nil {
+		return model.ClusterUserModel{}, errors.Wrapf(err, "GetCache users_cluster error")
+	}
+
+	c.Add(keyForClusterAndNameSpace(result.ClusterId, result.Namespace), time.Hour, result)
+	c.Add(result.ID, time.Hour, result)
+	return *result, nil
+}
+
+func keyForClusterAndNameSpace(clusterId uint64, namespace string) string {
+	return fmt.Sprintf("A:%v-%v", clusterId, namespace)
 }
 
 func (srv *clusterUserService) ListV2(models model.ClusterUserModel) (

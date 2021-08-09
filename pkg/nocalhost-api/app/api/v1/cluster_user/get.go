@@ -216,13 +216,11 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 
 	userChan := make(chan *model.UserBaseModel, 1)
 	clusterChan := make(chan model.ClusterPack, 1)
-	spaceNameMapChan := make(chan map[uint64]map[string]*model.ClusterUserModel, 1)
 	configMapChan := make(chan string, 1)
 
 	defer func() {
 		close(userChan)
 		close(clusterChan)
-		close(spaceNameMapChan)
 		close(configMapChan)
 	}()
 
@@ -245,23 +243,12 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 	}()
 
 	go func() {
-		devSpaces, err := service.Svc.ClusterUser().GetList(context.TODO(), model.ClusterUserModel{})
-		if err != nil {
-			return
-		}
-
-		spaceNameMap := service_account.GetCluster2Ns2SpaceNameMapping(devSpaces)
-		spaceNameMapChan <- spaceNameMap
-	}()
-
-	go func() {
 		userModel := <-userChan
 		pack := <-clusterChan
-		m := <-spaceNameMapChan
 
 		service_account.GenKubeconfig(
-			userModel.SaName, pack, m, result.Namespace,
-			func(nss []service_account.NS, privilege bool, kubeConfig string) {
+			userModel.SaName, pack, result.Namespace,
+			func(nss []service_account.NS, privilegeType service_account.PrivilegeType, kubeConfig string) {
 				configMapChan <- kubeConfig
 			},
 		)

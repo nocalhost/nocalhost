@@ -6,12 +6,14 @@
 package service_account
 
 import (
-	"context"
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
+	"nocalhost/internal/nocalhost-api/service/cooperator/cluster_scope"
 	"nocalhost/internal/nocalhost-api/service/cooperator/ns_scope"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
@@ -23,6 +25,17 @@ import (
 
 	"sync"
 )
+
+// the user that has all verbs with all cluster resources
+const CLUSTER_ADMIN PrivilegeType = "CLUSTER_ADMIN"
+
+// the user that has (get, list, watch) verbs with all cluster resources
+const CLUSTER_VIEWER PrivilegeType = "CLUSTER_VIEWER"
+
+// user do not has cluster resources access permissions
+const NONE PrivilegeType = "NONE"
+
+type PrivilegeType string
 
 type SaAuthorizeRequest struct {
 	ClusterId *uint64 `json:"cluster_id" binding:"required"`
@@ -67,14 +80,6 @@ func ListAuthorization(c *gin.Context) {
 		return
 	}
 
-	devSpaces, err := service.Svc.ClusterUser().GetList(context.TODO(), model.ClusterUserModel{})
-	if err != nil {
-		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
-		return
-	}
-
-	spaceNameMap := GetCluster2Ns2SpaceNameMapping(devSpaces)
-
 	result := []*ServiceAccountModel{}
 	var lock sync.Mutex
 	wg := sync.WaitGroup{}
@@ -85,9 +90,9 @@ func ListAuthorization(c *gin.Context) {
 		go func() {
 			defer wg.Done()
 			GenKubeconfig(
-				user.SaName, cluster, spaceNameMap, "",
-				func(nss []NS, privilege bool, kubeConfig string) {
-					if len(nss) != 0 || privilege {
+				user.SaName, cluster, "",
+				func(nss []NS, privilegeType PrivilegeType, kubeConfig string) {
+					if len(nss) != 0 {
 						sort.Slice(
 							nss, func(i, j int) bool {
 								return nss[i].Namespace > nss[j].Namespace
@@ -97,11 +102,12 @@ func ListAuthorization(c *gin.Context) {
 						lock.Lock()
 						result = append(
 							result, &ServiceAccountModel{
-								ClusterId:    cluster.ID,
-								KubeConfig:   kubeConfig,
-								StorageClass: cluster.StorageClass,
-								NS:           nss,
-								Privilege:    privilege,
+								ClusterId:     cluster.ID,
+								KubeConfig:    kubeConfig,
+								StorageClass:  cluster.StorageClass,
+								NS:            nss,
+								Privilege:     privilegeType != NONE,
+								PrivilegeType: privilegeType,
 							},
 						)
 						lock.Unlock()
@@ -123,9 +129,8 @@ func ListAuthorization(c *gin.Context) {
 
 func GenKubeconfig(
 	saName string, cp model.ClusterPack,
-	spaceNameMap map[uint64]map[string]*model.ClusterUserModel,
 	specifyNameSpace string,
-	then func(nss []NS, privilege bool, kubeConfig string),
+	then func(nss []NS, privilegeType PrivilegeType, kubeConfig string),
 ) {
 	// new client go
 	clientGo, err := clientgo.NewAdminGoClient([]byte(cp.GetKubeConfig()))
@@ -158,121 +163,92 @@ func GenKubeconfig(
 	kubeConfigStruct.Contexts = []clientcmdapiv1.NamedContext{}
 
 	// then check if has privilege (cluster admin)
-	privilege := false
+	privilegeType := NONE
 	var nss []NS
 
 	// new admin go client will request authorizationv1.SelfSubjectAccessReview
-	// then did not find any err, means cluster admin
-	if _, err = clientgo.NewAdminGoClient([]byte(kubeConfig)); err == nil {
+	// then did not find any err, means current user is the cluster admin role
+	// todo we should specify the
+	if cluster_scope.IsOwnerOfCluster(cp.GetClusterId(), saName) ||
+		cluster_scope.IsCooperOfCluster(cp.GetClusterId(), saName) {
+		privilegeType = CLUSTER_ADMIN
+	} else if cluster_scope.IsViewerOfCluster(cp.GetClusterId(), saName) {
+		privilegeType = CLUSTER_VIEWER
+	}
 
-		privilege = true
-		// if namespace provided, set the space to current context
+	// different kind of namespace's permission with different prefix
+	doForNamespaces := func(namespaces []string, spaceOwnType model.SpaceOwnType) {
+		for _, ns := range namespaces {
 
-		// if found the specified ns found, set the context to those space
-		// else gen a empty space named default ant set to default
-		found := false
-		kubeConfigStruct.Contexts = []clientcmdapiv1.NamedContext{}
+			cu, err := service.Svc.ClusterUser().
+				GetCacheByClusterAndNameSpace(cp.GetClusterId(), ns)
 
-		if specifyNameSpace != "" && specifyNameSpace != "*" {
-			if m, ok := spaceNameMap[cp.GetClusterId()]; ok {
-				if s, ok := m[specifyNameSpace]; ok {
-					kubeConfigStruct.Contexts = append(
-						kubeConfigStruct.Contexts, clientcmdapiv1.NamedContext{
-							Name: s.SpaceName,
-							Context: clientcmdapiv1.Context{
-								Namespace: specifyNameSpace,
-								Cluster:   cp.GetClusterName(),
-								AuthInfo:  authInfo,
-							},
+			if err != nil {
+				log.Error(
+					errors.Wrap(
+						err, fmt.Sprintf(
+							"Error while gen kubeconfig, can not find "+
+								"devspace by clusterId %v and namespace %v", cp.GetClusterId(), ns,
+						),
+					),
+				)
+			} else {
+				kubeConfigStruct.Contexts = append(
+					kubeConfigStruct.Contexts, clientcmdapiv1.NamedContext{
+						Name: cu.SpaceName,
+						Context: clientcmdapiv1.Context{
+							Namespace: ns,
+							Cluster:   cp.GetClusterName(),
+							AuthInfo:  authInfo,
 						},
-					)
-
-					kubeConfigStruct.CurrentContext = s.SpaceName
-					found = true
-				}
-			}
-		}
-
-		if !found {
-			kubeConfigStruct.Contexts = append(
-				kubeConfigStruct.Contexts, clientcmdapiv1.NamedContext{
-					Name: "default",
-					Context: clientcmdapiv1.Context{
-						Namespace: "default",
-						Cluster:   cp.GetClusterName(),
-						AuthInfo:  authInfo,
 					},
-				},
-			)
+				)
 
-			kubeConfigStruct.CurrentContext = "default"
-		}
-
-	} else {
-
-		// different kind of namespace's permission with different prefix
-		doForNamespaces := func(namespaces []string, spaceType model.SpaceOwnType) {
-			for _, ns := range namespaces {
-				if m, ok := spaceNameMap[cp.GetClusterId()]; ok {
-					if s, ok := m[ns]; ok {
-						kubeConfigStruct.Contexts = append(
-							kubeConfigStruct.Contexts, clientcmdapiv1.NamedContext{
-								Name: s.SpaceName,
-								Context: clientcmdapiv1.Context{
-									Namespace: ns,
-									Cluster:   cp.GetClusterName(),
-									AuthInfo:  authInfo,
-								},
-							},
-						)
-
-						nss = append(
-							nss, NS{SpaceName: s.SpaceName, Namespace: ns, SpaceId: s.ID, SpaceType: spaceType.Str},
-						)
-					}
-				}
+				nss = append(
+					nss, NS{SpaceName: cu.SpaceName, Namespace: ns, SpaceId: cu.ID, SpaceOwnType: spaceOwnType.Str},
+				)
 			}
 		}
+	}
 
-		doForNamespaces(ns_scope.GetAllOwnNs(string(clientGo.Config), saName), model.DevSpaceOwnTypeOwner)
-		doForNamespaces(ns_scope.GetAllCoopNs(string(clientGo.Config), saName), model.DevSpaceOwnTypeCooperator)
-		doForNamespaces(ns_scope.GetAllViewNs(string(clientGo.Config), saName), model.DevSpaceOwnTypeViewer)
+	doForNamespaces(ns_scope.GetAllOwnNs(string(clientGo.Config), saName), model.DevSpaceOwnTypeOwner)
+	doForNamespaces(ns_scope.GetAllCoopNs(string(clientGo.Config), saName), model.DevSpaceOwnTypeCooperator)
+	doForNamespaces(ns_scope.GetAllViewNs(string(clientGo.Config), saName), model.DevSpaceOwnTypeViewer)
 
-		if len(nss) > 0 {
-			// sort nss
-			sort.Slice(
-				nss, func(i, j int) bool {
-					if nss[i].Namespace == specifyNameSpace {
-						return false
-					}
-					if nss[j].Namespace == specifyNameSpace {
-						return true
-					}
+	if len(nss) > 0 {
+		// sort nss
+		sort.Slice(
+			nss, func(i, j int) bool {
+				if nss[i].Namespace == specifyNameSpace {
+					return false
+				}
+				if nss[j].Namespace == specifyNameSpace {
+					return true
+				}
 
-					return nss[i].SpaceId > nss[i].SpaceId
-				},
-			)
+				return nss[i].SpaceId > nss[i].SpaceId
+			},
+		)
 
-			sort.Slice(
-				kubeConfigStruct.Contexts, func(i, j int) bool {
-					if nss[i].Namespace == specifyNameSpace {
-						return false
-					}
-					if nss[j].Namespace == specifyNameSpace {
-						return true
-					}
+		sort.Slice(
+			kubeConfigStruct.Contexts, func(i, j int) bool {
+				if nss[i].Namespace == specifyNameSpace {
+					return false
+				}
+				if nss[j].Namespace == specifyNameSpace {
+					return true
+				}
 
-					return nss[i].SpaceId > nss[i].SpaceId
-				},
-			)
-			kubeConfigStruct.CurrentContext = nss[len(nss)-1].SpaceName
-		}
+				return nss[i].SpaceId > nss[i].SpaceId
+			},
+		)
+		kubeConfigStruct.CurrentContext = nss[len(nss)-1].SpaceName
 	}
 
 	if kubeConfig, _, _ = reader.ToYamlString(); kubeConfig == "" {
 		return
 	}
-	then(nss, privilege, kubeConfig)
+	then(nss, privilegeType, kubeConfig)
 }
 
 func GetCluster2Ns2SpaceNameMapping(
@@ -313,16 +289,17 @@ func getServiceAccountKubeConfigReader(
 }
 
 type ServiceAccountModel struct {
-	ClusterId    uint64 `json:"cluster_id"`
-	KubeConfig   string `json:"kubeconfig"`
-	StorageClass string `json:"storage_class"`
-	NS           []NS   `json:"namespace_packs"`
-	Privilege    bool   `json:"privilege"`
+	ClusterId     uint64        `json:"cluster_id"`
+	KubeConfig    string        `json:"kubeconfig"`
+	StorageClass  string        `json:"storage_class"`
+	NS            []NS          `json:"namespace_packs"`
+	Privilege     bool          `json:"privilege"`
+	PrivilegeType PrivilegeType `json:"privilege_type"`
 }
 
 type NS struct {
-	SpaceId   uint64 `json:"space_id"`
-	Namespace string `json:"namespace"`
-	SpaceName string `json:"spacename"`
-	SpaceType string `json:"spacetype"`
+	SpaceId      uint64 `json:"space_id"`
+	Namespace    string `json:"namespace"`
+	SpaceName    string `json:"spacename"`
+	SpaceOwnType string `json:"space_own_type"`
 }
