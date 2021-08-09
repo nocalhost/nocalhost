@@ -17,7 +17,7 @@ func (a *Application) Exec(svcName string, container string, commands []string) 
 	if err != nil {
 		return err
 	}
-	var runningPod = make([]v1.Pod, 0, 0)
+	var runningPod = make([]v1.Pod, 0, 1)
 	for _, item := range podList.Items {
 		if item.Status.Phase == v1.PodRunning {
 			runningPod = append(runningPod, item)
