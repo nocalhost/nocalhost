@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -13,6 +13,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/log"
 )
 
 var notificationPrefix = `# This is the runtime configuration which stored in the memory. Modifications 
@@ -96,8 +97,10 @@ var configGetCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		commonFlags.AppName = args[0]
-		initApp(commonFlags.AppName)
-
+		if err := initAppMutate(commonFlags.AppName); err != nil {
+			log.Logf("init app:%s on namespace: %s, error: %v", commonFlags.AppName, nameSpace, err)
+			return
+		}
 		// get application config
 		if commonFlags.AppConfig {
 
