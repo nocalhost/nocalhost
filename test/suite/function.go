@@ -356,7 +356,13 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 			}
 			panic(err)
 		}
-		cancelFunc = t.Delete
+		cancelFunc = func() {
+			LogsForArchive()
+			if errs := recover(); errs != nil {
+				log.Infof("ignores timeout archive panic %v", errs)
+			}
+			t.Delete()
+		}
 		defer func() {
 			if errs := recover(); errs != nil {
 				LogsForArchive()
