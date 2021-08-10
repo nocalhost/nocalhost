@@ -37,6 +37,7 @@ func PermissionMiddleware() gin.HandlerFunc {
 
 func whiteList(method, path string) bool {
 	permissions := map[string]string{
+		"/v1/users":                       "GET",
 		"/v1/users/[0-9]+":                "PUT",
 		"/v1/users/[0-9]+/dev_space_list": "GET",
 		"/v1/users/[0-9]+/applications":   "GET",
