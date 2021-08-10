@@ -181,7 +181,17 @@ func (d *DevSpace) createDevSpace(
 	devNamespace := goClient.GenerateNsName(usersRecord.ID)
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
 
-	// create namespace ResouceQuota and container limitRange
+	// set labels for istio proxy sidecar injection
+	labels := make(map[string]string)
+	if d.DevSpaceParams.BaseDevSpaceId > 0 {
+		labels["istio-injection"] = "enabled"
+	}
+	// create namespace
+	_, err = goClient.CreateNS(devNamespace, labels)
+	if err != nil {
+		return nil, errno.ErrNameSpaceCreate
+	}
+	// create namespace ResourceQuota and container limitRange
 	res := d.DevSpaceParams.SpaceResourceLimit
 	if res == nil {
 		res = &SpaceResourceLimit{}
