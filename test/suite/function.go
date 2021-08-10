@@ -369,14 +369,23 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 	_, currentVersion := testcase.GetVersion()
 	util.Retry("Prepare", []func() error{func() error { return testcase.InstallNhctl(currentVersion) }})
 	kubeconfig := util.GetKubeconfig()
-	nocalhost := "nocalhost"
-	tempCli := runner.NewNhctl(nocalhost, kubeconfig, "Prepare")
+	namespace := "nocalhost"
+	tempCli := runner.NewNhctl(namespace, kubeconfig, "Prepare")
 	clientgoutils.Must(testcase.NhctlVersion(tempCli))
 	_ = testcase.StopDaemon(tempCli)
 
-	util.Retry("Prepare", []func() error{func() error { return testcase.Init(tempCli) }})
+	webAddr := ""
+	for i := 2; i >= 0; i-- {
+		addr, err := testcase.Init(tempCli)
+		if err == nil {
+			webAddr = addr
+			break
+		} else if i == 0 {
+			clientgoutils.Must(err)
+		}
+	}
 
-	kubeconfigResult, err := testcase.GetKubeconfig(nocalhost, kubeconfig)
+	kubeconfigResult, err := testcase.GetKubeconfig(webAddr, namespace, kubeconfig)
 	clientgoutils.Must(err)
 	namespaceResult, err = clientgoutils.GetNamespaceFromKubeConfig(kubeconfigResult)
 	clientgoutils.Must(err)

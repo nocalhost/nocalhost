@@ -1,0 +1,6 @@
+dependencies:
+- name: mariadb
+  repository: https://codingcorp-helm.pkg.coding.net/nocalhost/helm
+  version: 9.0.1
+digest: sha256:75fd135a35386d9b133716f1e67d60ab6057073f30a040baf228a20d84772d03
+generated: "2021-08-09T20:58:26.563043+08:00"
