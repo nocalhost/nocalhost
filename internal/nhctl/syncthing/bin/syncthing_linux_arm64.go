@@ -1,4 +1,4 @@
-// +build arm,linux
+// +build arm64,linux
 
 package bin
 
