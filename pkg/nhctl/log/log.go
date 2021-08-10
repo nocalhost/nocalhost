@@ -99,8 +99,12 @@ func initOrReInitStderr(configuration zapcore.Core) {
 	stderrLogger = zap.New(configuration).Sugar()
 }
 
-func initOrReInitFileEntry(configuration zapcore.Core, args map[string]string) {
-	fileEntry = zap.New(configuration).Sugar().With(args)
+func initOrReInitFileEntry(configuration zapcore.Core, fields map[string]string) {
+	args := make([]interface{}, 0)
+	for key, val := range fields {
+		args = append(args, key, val)
+	}
+	fileEntry = zap.New(configuration).Sugar().With(args...)
 }
 
 func AddField(key, val string) {
