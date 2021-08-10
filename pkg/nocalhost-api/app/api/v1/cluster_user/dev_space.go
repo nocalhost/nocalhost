@@ -132,6 +132,7 @@ func (d *DevSpace) createDevSpace(
 	// create cluster devs
 	devNamespace := goClient.GenerateNsName(usersRecord.ID)
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
+	clusterDevsSetUp.CreateNS(devNamespace, "")
 
 	// create namespace ResouceQuota and container limitRange
 	res := d.DevSpaceParams.SpaceResourceLimit
