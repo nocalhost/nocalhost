@@ -398,8 +398,6 @@ definitions:
       header:
         $ref: '#/definitions/model.Header'
         type: object
-      mu:
-        type: string
       resources:
         $ref: '#/definitions/setupcluster.meshDevResources'
         type: object
@@ -1307,7 +1305,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: Update dev space
+      description: update resource limit in dev space
       parameters:
       - description: Authorization
         in: header
@@ -1334,7 +1332,7 @@ paths:
           schema:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
-      summary: Update dev space
+      summary: UpdateResourceLimit
       tags:
       - DevSpace
   /v1/login:

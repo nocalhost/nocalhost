@@ -1188,7 +1188,7 @@
         },
         "/v1/dev_space/{id}/update_resource_limit": {
             "put": {
-                "description": "Update dev space",
+                "description": "update resource limit in dev space",
                 "consumes": [
                     "application/json"
                 ],
@@ -1198,7 +1198,7 @@
                 "tags": [
                     "DevSpace"
                 ],
-                "summary": "Update dev space",
+                "summary": "UpdateResourceLimit",
                 "parameters": [
                     {
                         "type": "string",
@@ -2359,9 +2359,6 @@
                 "header": {
                     "type": "object",
                     "$ref": "#/definitions/model.Header"
-                },
-                "mu": {
-                    "type": "string"
                 },
                 "resources": {
                     "type": "object",
