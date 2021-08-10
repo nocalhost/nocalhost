@@ -221,7 +221,7 @@ func (d *DevSpace) initMeshDevSpace(
 	clusterRecord *model.ClusterModel, clusterUser, baseClusterUser *model.ClusterUserModel) (
 	*model.ClusterUserModel, error) {
 	// init mesh dev space
-	meshDevInfo := *d.DevSpaceParams.MeshDevInfo
+	meshDevInfo := d.DevSpaceParams.MeshDevInfo
 	meshDevInfo.MeshDevNamespace = clusterUser.Namespace
 
 	meshDevInfo.BaseNamespace = baseClusterUser.Namespace
@@ -231,8 +231,8 @@ func (d *DevSpace) initMeshDevSpace(
 		return nil, err
 	}
 
-	if err := meshManager.InitMeshDevSpace(&meshDevInfo); err != nil {
-		meshManager.Rollback(&meshDevInfo)
+	if err := meshManager.InitMeshDevSpace(meshDevInfo); err != nil {
+		_ = meshManager.Rollback(meshDevInfo)
 		return nil, err
 	}
 

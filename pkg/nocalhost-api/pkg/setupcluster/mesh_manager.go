@@ -62,7 +62,6 @@ type MeshDevInfo struct {
 	Apps             []MeshDevApp `json:"apps"`
 	resources        meshDevResources
 	rollback         rollback
-	mu               sync.Mutex
 }
 
 type MeshDevApp struct {

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster_user
 
@@ -25,6 +25,7 @@ type DevSpaceRequest struct {
 	KubeConfig string `json:"kubeconfig"`
 }
 
+// Update
 // @Summary Update dev space
 // @Description Update dev space
 // @Tags Cluster
@@ -61,8 +62,9 @@ func Update(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
-// @Summary Update dev space
-// @Description Update dev space
+// UpdateResourceLimit
+// @Summary UpdateResourceLimit
+// @Description update resource limit in dev space
 // @Tags DevSpace
 // @Accept  json
 // @Produce  json
@@ -227,7 +229,7 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	log.Debugf("update mesh info for dev space %s, the namespace is %s", devspace.SpaceName, devspace.Namespace)
 	if err := meshManager.UpdateMeshDevSpace(&info); err != nil {
 		log.Error(err)
-		meshManager.Rollback(&info)
+		_ = meshManager.Rollback(&info)
 		api.SendResponse(c, errno.ErrUpdateMeshSpaceFailed, nil)
 		return
 	}
