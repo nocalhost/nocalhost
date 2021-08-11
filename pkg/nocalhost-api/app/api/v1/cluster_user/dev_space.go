@@ -180,7 +180,6 @@ func (d *DevSpace) createDevSpace(
 	// create cluster devs
 	devNamespace := goClient.GenerateNsName(usersRecord.ID)
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
-	clusterDevsSetUp.CreateNS(devNamespace, "")
 
 	// set labels for istio proxy sidecar injection
 	labels := make(map[string]string)
