@@ -1,16 +1,41 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package util
 
 import (
+	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"os"
 	"path/filepath"
 	"time"
 )
+
+func TimeoutFunc(d time.Duration, do, compensating func() error) error {
+	ctx, _ := context.WithTimeout(context.Background(), d)
+
+	errorChan := make(chan error, 1)
+	go func() {
+		errorChan <- do()
+	}()
+
+	select {
+	case <-ctx.Done():
+
+		if compensating != nil {
+			if err := compensating(); err != nil {
+				return errors.Wrap(err, "Exec Timeout! And compensating Error! ")
+			}
+		}
+
+		return errors.New("Exec Timeout!")
+	case err := <-errorChan:
+		return err
+	}
+}
 
 func TimeoutChecker(d time.Duration, cancanFunc func()) {
 	tick := time.Tick(d)

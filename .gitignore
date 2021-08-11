@@ -20,6 +20,7 @@
 
 .DS_Store
 .idea
+Chart.lock
 
 /cmd/nhctl/utils/darwin/*
 /cmd/nhctl/build/

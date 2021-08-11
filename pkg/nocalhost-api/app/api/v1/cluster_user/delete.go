@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cast"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
+	"nocalhost/internal/nocalhost-api/service/cooperator/cluster_scope"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 )
@@ -34,7 +35,17 @@ func Delete(c *gin.Context) {
 		return
 	}
 
-	if clusterUser.ClusterAdmin != nil && *clusterUser.ClusterAdmin != 0 {
+	if clusterUser.IsClusterAdmin() {
+
+		if err := cluster_scope.RemoveAllFromViewer(clusterUser.ClusterId, clusterUser.UserId); err != nil {
+			api.SendResponse(c, err, nil)
+			return
+		}
+
+		if err := cluster_scope.RemoveAllFromCooperator(clusterUser.ClusterId, clusterUser.UserId); err != nil {
+			api.SendResponse(c, err, nil)
+			return
+		}
 
 		if err := service.Svc.UnAuthorizeClusterToUser(clusterUser.ClusterId, clusterUser.UserId); err != nil {
 			api.SendResponse(c, err, nil)
@@ -99,7 +110,7 @@ func ReCreate(c *gin.Context) {
 	}
 
 	// refuse to recreate cluster_admin devSpace
-	if clusterUser.ClusterAdmin != nil && *clusterUser.ClusterAdmin != uint64(0) {
+	if clusterUser.IsClusterAdmin() {
 		api.SendResponse(c, nil, nil)
 		return
 	}

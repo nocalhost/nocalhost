@@ -190,4 +190,7 @@ var (
 	ErrClusterRoleBindingRemove = &Errno{
 		Code: 70006, Message: "Failed to remove cluster role binding, please check your cluster and try again",
 	}
+	ErrRoleBindingDelete = &Errno{
+		Code: 70007, Message: "Failed to remove role binding, please check your cluster and try again",
+	}
 )

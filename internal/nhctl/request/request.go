@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package request
 
@@ -93,6 +93,11 @@ func NewReq(baseUrl, kubeConfig, kubectl, namespace string, nocalhostWebPort int
 
 func (q *ApiRequest) CheckPortIsAvailable(port int) bool {
 	return ports.IsPortAvailable("127.0.0.1", port)
+}
+
+func (q *ApiRequest) SpecifyService(addr string) *ApiRequest {
+	q.BaseUrl = addr
+	return q
 }
 
 // need to expose `kubectl port-forward service/nocalhost-web 65124:inits.port -n nocalhost`

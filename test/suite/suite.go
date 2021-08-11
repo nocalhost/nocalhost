@@ -232,4 +232,6 @@ func LogsForArchive(){
 		log.Infof("<< == Final Archive Logs %s == >>", l)
 		log.Info(fp.NewFilePath(l).ReadFile())
 	}
+
+	log.TestLogger("FINAL").Info("Fin!!!")
 }
