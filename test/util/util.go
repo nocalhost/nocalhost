@@ -33,6 +33,13 @@ func TimeoutFunc(d time.Duration, do, compensating func() error) error {
 
 		return errors.New("Exec Timeout!")
 	case err := <-errorChan:
+
+		if compensating != nil && err != nil {
+			if e := compensating(); e != nil {
+				return errors.Wrap(e, fmt.Sprintf("Exec Fail, Error %s! And compensating Error! ", err))
+			}
+		}
+
 		return err
 	}
 }
