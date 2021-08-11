@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package daemon_server
 
@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"net"
@@ -20,7 +18,6 @@ import (
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
@@ -244,6 +241,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			log.LogE(err)
 		}
 
+		handlingStreamCreateFailed := false
 		for {
 			// stopCh control the port forwarding lifecycle. When it gets closed the
 			// port forward will terminate
@@ -262,27 +260,31 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				ErrOut: stdout,
 			}
 
-			k8s_runtime.ErrorHandlers = append(
-				k8s_runtime.ErrorHandlers, func(err error) {
-					if strings.Contains(err.Error(), "error creating error stream for port") {
-						log.Warnf(
-							"Port-forward %d:%d failed to create stream, try to reconnecting", localPort, remotePort,
-						)
-						select {
-						case _, isOpen := <-stopCh:
-							if isOpen {
-								log.Infof("Closing Port-forward %d:%d' by stop chan", localPort, remotePort)
+			if !handlingStreamCreateFailed {
+				k8s_runtime.ErrorHandlers = append(
+					k8s_runtime.ErrorHandlers, func(err error) {
+						if strings.Contains(err.Error(), "error creating error stream for port") &&
+							!strings.Contains(err.Error(), "Timeout occured") {
+							log.WarnE(err,
+								fmt.Sprintf("Port-forward %d:%d failed to create stream, try to reconnecting", localPort, remotePort),
+							)
+							select {
+							case _, isOpen := <-stopCh:
+								if isOpen {
+									log.Infof("Closing Port-forward %d:%d' by stop chan", localPort, remotePort)
+									close(stopCh)
+								} else {
+									log.Infof("Port-forward %d:%d has been closed, do nothing", localPort, remotePort)
+								}
+							default:
+								log.Infof("Closing Port-forward %d:%d'", localPort, remotePort)
 								close(stopCh)
-							} else {
-								log.Infof("Port-forward %d:%d has been closed, do nothing", localPort, remotePort)
 							}
-						default:
-							log.Infof("Closing Port-forward %d:%d'", localPort, remotePort)
-							close(stopCh)
 						}
-					}
-				},
-			)
+					},
+				)
+				handlingStreamCreateFailed = true
+			}
 
 			go func() {
 				defer func() {
@@ -294,43 +296,43 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				select {
 				case <-readyCh:
 					log.Infof("Port forward %d:%d is ready", localPort, remotePort)
-					go func() {
-						defer func() {
-							if r := recover(); r != nil {
-								log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
-							}
-						}()
+					//go func() {
+					//defer func() {
+					//	if r := recover(); r != nil {
+					//		log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
+					//	}
+					//}()
 
-						lastStatus := ""
-						currentStatus := ""
-						for {
-							select {
-							case <-heartbeatCtx.Done():
-								log.Infof("Stop sending heart beat to %d", localPort)
-								return
-							default:
-								log.Debugf("try to send port-forward heartbeat to %d", localPort)
-								err := nocalhostApp.SendPortForwardTCPHeartBeat(
-									fmt.Sprintf(
-										"%s:%v", "127.0.0.1", localPort,
-									),
-								)
-								if err != nil {
-									log.WarnE(err, "")
-									currentStatus = "HeartBeatLoss"
-								} else {
-									currentStatus = "LISTEN"
-								}
-								if lastStatus != currentStatus {
-									lastStatus = currentStatus
-									p.lock.Lock()
-									nhController.UpdatePortForwardStatus(localPort, remotePort, lastStatus, "Heart Beat")
-									p.lock.Unlock()
-								}
-								<-time.After(30 * time.Second)
+					lastStatus := ""
+					currentStatus := ""
+					for {
+						select {
+						case <-heartbeatCtx.Done():
+							log.Infof("Stop sending heart beat to %d", localPort)
+							return
+						default:
+							log.Debugf("try to send port-forward heartbeat to %d", localPort)
+							err := nocalhostApp.SendPortForwardTCPHeartBeat(
+								fmt.Sprintf(
+									"%s:%v", "127.0.0.1", localPort,
+								),
+							)
+							if err != nil {
+								log.WarnE(err, "")
+								currentStatus = "HeartBeatLoss"
+							} else {
+								currentStatus = "LISTEN"
 							}
+							if lastStatus != currentStatus {
+								lastStatus = currentStatus
+								p.lock.Lock()
+								nhController.UpdatePortForwardStatus(localPort, remotePort, lastStatus, "Heart Beat")
+								p.lock.Unlock()
+							}
+							<-time.After(30 * time.Second)
 						}
-					}()
+					}
+					//}()
 				}
 			}()
 
@@ -342,22 +344,23 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				}()
 
 				select {
-				case errCh <- nocalhostApp.PortForwardAPod(
-					clientgoutils.PortForwardAPodRequest{
-						Listen: []string{"0.0.0.0"},
-						Pod: corev1.Pod{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      startCmd.PodName,
-								Namespace: startCmd.NameSpace,
-							},
-						},
-						LocalPort: localPort,
-						PodPort:   remotePort,
-						Streams:   stream,
-						StopCh:    stopCh,
-						ReadyCh:   readyCh,
-					},
-				):
+				//case errCh <- nocalhostApp.PortForwardAPod(
+				//	clientgoutils.PortForwardAPodRequest{
+				//		Listen: []string{"0.0.0.0"},
+				//		Pod: corev1.Pod{
+				//			ObjectMeta: metav1.ObjectMeta{
+				//				Name:      startCmd.PodName,
+				//				Namespace: startCmd.NameSpace,
+				//			},
+				//		},
+				//		LocalPort: localPort,
+				//		PodPort:   remotePort,
+				//		Streams:   stream,
+				//		StopCh:    stopCh,
+				//		ReadyCh:   readyCh,
+				//	},
+				//):
+				case errCh <- nocalhostApp.PortForward(startCmd.PodName, localPort, remotePort, readyCh, stopCh, stream):
 					log.Logf("Port-forward %d:%d occurs errors", localPort, remotePort)
 				}
 			}()

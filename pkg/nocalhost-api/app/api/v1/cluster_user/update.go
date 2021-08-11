@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster_user
 
@@ -21,6 +21,7 @@ import (
 
 type DevSpaceRequest struct {
 	KubeConfig string `json:"kubeconfig"`
+	SpaceName  string `json:"space_name"`
 }
 
 // @Summary Update dev space
@@ -50,6 +51,7 @@ func Update(c *gin.Context) {
 	cu := model.ClusterUserModel{
 		ID:         devSpaceId,
 		KubeConfig: string(sDec),
+		SpaceName:  req.SpaceName,
 	}
 	result, err := service.Svc.ClusterUser().Update(c, &cu)
 	if err != nil {

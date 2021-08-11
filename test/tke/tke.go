@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package tke
 
@@ -203,6 +203,11 @@ func (t *task) CreateTKE() {
 			PublicIPAssigned:        true,
 			InternetMaxBandwidthOut: DefaultConfig.internetMaxBandwidthOut,
 		},
+		ActionTimer: ActionTimer{
+			Externals:   Externals{ReleaseAddress: true},
+			TimerAction: "TerminateInstances",
+			ActionTime:  time.Now().Add(time.Hour * 8).Add(time.Minute * 60).Format("2006-01-02 15:04:05"),
+		},
 	}
 	bytes, _ := json.Marshal(p)
 	configStr := string(bytes)
@@ -402,6 +407,17 @@ type Parameter struct {
 	DataDisks           []DataDisks         `json:"DataDisks"`
 	InstanceCount       int                 `json:"InstanceCount"`
 	InternetAccessible  InternetAccessible  `json:"InternetAccessible"`
+	ActionTimer         ActionTimer         `json:"ActionTimer"`
+}
+
+type ActionTimer struct {
+	Externals   Externals `json:"Externals"`
+	TimerAction string    `json:"TimerAction"`
+	ActionTime  string    `json:"ActionTime"`
+}
+
+type Externals struct {
+	ReleaseAddress bool `json:"ReleaseAddress"`
 }
 
 // VirtualPrivateCloud struct

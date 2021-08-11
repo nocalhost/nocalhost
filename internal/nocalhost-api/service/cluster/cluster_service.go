@@ -1,14 +1,16 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster
 
 import (
 	"context"
+	"nocalhost/internal/nocalhost-api/cache"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/repository/cluster"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -22,6 +24,8 @@ type ClusterService interface {
 	GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error)
 	Update(ctx context.Context, update map[string]interface{}, clusterId uint64) (*model.ClusterModel, error)
 	GetList(ctx context.Context) ([]*model.ClusterList, error)
+
+	GetCache(id uint64) (model.ClusterModel, error)
 	Close()
 }
 
@@ -36,13 +40,37 @@ func NewClusterService() ClusterService {
 	}
 }
 
+func (srv *clusterService) Evict(id uint64) {
+	c := cache.Module(cache.CLUSTER)
+	_, _ = c.Delete(id)
+}
+
+func (srv *clusterService) GetCache(id uint64) (model.ClusterModel, error) {
+	c := cache.Module(cache.CLUSTER)
+	value, err := c.Value(id)
+	if err == nil {
+		clusterModel := value.Data().(*model.ClusterModel)
+		return *clusterModel, nil
+	}
+
+	result, err := srv.Get(context.TODO(), id)
+	if err != nil {
+		return result, errors.Wrapf(err, "get cluster")
+	}
+
+	c.Add(result.ID, time.Hour, &result)
+	return result, nil
+}
+
 func (srv *clusterService) Update(
 	ctx context.Context, update map[string]interface{}, clusterId uint64,
 ) (*model.ClusterModel, error) {
+	defer srv.Evict(clusterId)
 	return srv.clusterRepo.Update(ctx, update, clusterId)
 }
 
 func (srv *clusterService) Delete(ctx context.Context, clusterId uint64) error {
+	defer srv.Evict(clusterId)
 	return srv.clusterRepo.Delete(ctx, clusterId)
 }
 
@@ -65,6 +93,7 @@ func (srv *clusterService) Create(
 	if err != nil {
 		return c, errors.Wrapf(err, "create cluster")
 	}
+	srv.Evict(result.GetClusterId())
 	return result, nil
 }
 

@@ -13,7 +13,6 @@ const (
 	NocalhostDevNamespaceLabel             = "nocalhost"
 	NocalhostDevServiceAccountName         = "nocalhost-dev-account"
 	NocalhostDevDefaultServiceAccountName  = "default"
-	NocalhostDevRoleName                   = "nocalhost-dev-role"
 	NocalhostDevDefaultRoleName            = "nocalhost-dev-default-role"
 	NocalhostDevRoleBindingName            = "nocalhost-role-binding"
 	NocalhostDevRoleDefaultBindingName     = "nocalhost-role-default-biding"
