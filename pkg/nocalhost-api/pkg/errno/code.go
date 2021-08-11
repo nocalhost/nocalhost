@@ -7,7 +7,7 @@ package errno
 
 // managed all Errno for nocalhost-api
 // the message in errno will be displayed
-// by calling api.SendResponse(c, &errno.Errno{Code: 40110, Message: err.Error()}, nil)
+// by calling api.SendResponse(c, &errno.Errno{Code: code, Message: err.Error()}, nil)
 // such as:
 // api.SendResponse(c, ErrBind, nil)
 // frontend will receive "Request fail, Please check request parameters"
@@ -29,7 +29,7 @@ var (
 		Code: 20103, Message: "Token is invalid or login expired, please coloredoutput in again",
 	}
 	ErrPermissionDenied           = &Errno{Code: 20104, Message: "permission denied"}
-	ErrLostPermissionFlag         = &Errno{Code: 20104, Message: "check permission fail, please re-login"}
+	ErrLostPermissionFlag         = &Errno{Code: 20105, Message: "check permission fail, please re-login"}
 	ErrEmailOrPassword            = &Errno{Code: 20111, Message: "Mail or password is incorrect"}
 	ErrTwicePasswordNotMatch      = &Errno{Code: 20112, Message: "Two password entries are inconsistent"}
 	ErrRegisterFailed             = &Errno{Code: 20113, Message: "Registration failed"}
@@ -47,10 +47,9 @@ var (
 		Code:    30102,
 		Message: "It is not allowed to create this type of cluster (there are multiple Kubeconfig Clusters)",
 	}
-	ErrClusterKubeErr     = &Errno{Code: 30103, Message: "Kubeconfig parsing error, please check"}
-	ErrClusterKubeAdmin   = &Errno{Code: 30104, Message: "Please check Kubeconfig Admin permissions"}
-	ErrClusterKubeConnect = &Errno{Code: 30104, Message: "Connect cluster fail, Please check cluster connectivity"}
-	ErrClusterDepSetup    = &Errno{
+	ErrClusterKubeErr   = &Errno{Code: 30103, Message: "Kubeconfig parsing error, please check"}
+	ErrClusterKubeAdmin = &Errno{Code: 30104, Message: "Please check Kubeconfig Admin permissions"}
+	ErrClusterDepSetup  = &Errno{
 		Code: 30105, Message: "Initialize cluster: Failed to create dependent component Configmap",
 	}
 	ErrClusterDepJobSetup = &Errno{
@@ -71,6 +70,7 @@ var (
 		Code:    30113,
 		Message: "Failed to get the connection from current cluster after short wait, please make sure the cluster exists and check it's network connectivity",
 	}
+	ErrClusterKubeConnect = &Errno{Code: 30114, Message: "Connect cluster fail, Please check cluster connectivity"}
 
 	// application errors for application module request
 	ErrApplicationCreate        = &Errno{Code: 40100, Message: "Failed to add app, please try again"}
@@ -85,11 +85,11 @@ var (
 	}
 	ErrApplicationJsonContext   = &Errno{Code: 40108, Message: "Application context Unmarshal JSON fail"}
 	ErrApplicationNameExist     = &Errno{Code: 40109, Message: "Application name already exist"}
-	ErrSensitiveApplicationName = &Errno{Code: 40109, Message: "Application name can't not be 'default.application'"}
+	ErrSensitiveApplicationName = &Errno{Code: 40110, Message: "Application name can't not be 'default.application'"}
 
 	// application-cluster for application-cluster module request
 	ErrApplicationBoundClusterList = &Errno{
-		Code: 40108, Message: "Failed to get application bound cluster list, please try again",
+		Code: 40111, Message: "Failed to get application bound cluster list, please try again",
 	}
 
 	// cluster-user errors for cluster-user module request
@@ -124,10 +124,6 @@ var (
 		Code:    50110,
 		Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Json to Yaml failed",
 	}
-	ErrBindServiceAccountKubeConfigJsonEncodeErr = &Errno{
-		Code:    50110,
-		Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Struct to Json failed",
-	}
 	ErrClusterUserNotFound           = &Errno{Code: 50111, Message: "Dev space has not found"}
 	ErrDeletedClusterButDatabaseFail = &Errno{
 		Code: 50112, Message: "Cluster namespace has deleted, but database record delete fail",
@@ -155,6 +151,10 @@ var (
 	}
 	ErrAlreadyExist = &Errno{
 		Code: 50123, Message: "Current user already authorization current cluster's cluster admin",
+	}
+	ErrBindServiceAccountKubeConfigJsonEncodeErr = &Errno{
+		Code:    50124,
+		Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Struct to Json failed",
 	}
 	// cluster-user errors for mesh space
 	ErrMeshClusterUserNotFound          = &Errno{Code: 50200, Message: "Base dev space has not found"}

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package testcase
 
@@ -28,8 +28,6 @@ import (
 	"strings"
 	"time"
 )
-
-var StatusChan = make(chan int32, 1)
 
 func GetVersion() (lastVersion string, currentVersion string) {
 	commitId := os.Getenv(util.CommitId)
@@ -90,34 +88,45 @@ func InstallNhctl(version string) error {
 	return nil
 }
 
-func Init(nhctl *runner.CLI) error {
+func Init(nhctl *runner.CLI) (string, error) {
 	cmd := nhctl.CommandWithNamespace(
 		context.Background(),
 		"init", "nocalhost", "demo", "-p", "7000", "--force",
 	)
+
+	var addressChan = make(chan string, 1)
+
 	log.Infof("Running command: %s", cmd.Args)
 	go func() {
 		_, _, err := runner.Runner.RunWithRollingOutWithChecker(
 			nhctl.SuitName(),
 			cmd,
 			func(s string) bool {
-				if strings.Contains(s, "Nocalhost init completed") {
-					StatusChan <- 0
+
+				if strings.Contains(s, "Web dashboard:") {
+					for _, line := range strings.Split(s, "\n") {
+						if strings.Contains(line, "Web dashboard:") {
+							addr := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "Web dashboard:"))
+							log.Infof("Init complete and getting addr %s", addr)
+							addressChan <- addr
+						}
+					}
 					return true
 				}
 				return false
 			},
 		)
 		if err != nil {
-			StatusChan <- 1
+			addressChan <- ""
 		}
 	}()
 
-	if i := <-StatusChan; i != 0 {
-		return errors.New("Init nocalhost occurs error, exiting")
+	addr := <-addressChan
+	if addr == "" {
+		return "", errors.New("Init nocalhost occurs error, exiting")
 	}
 	log.Infof("init successfully")
-	return nil
+	return addr, nil
 }
 
 func StatusCheck(nhctl runner.Client, moduleName string) error {
@@ -154,7 +163,7 @@ func StatusCheck(nhctl runner.Client, moduleName string) error {
 	return nil
 }
 
-func GetKubeconfig(ns, kubeconfig string) (string, error) {
+func GetKubeconfig(webAddr, ns, kubeconfig string) (string, error) {
 	client, err := clientgoutils.NewClientGoUtils(kubeconfig, ns)
 	log.Infof("kubeconfig %s", kubeconfig)
 	if err != nil || client == nil {
@@ -165,12 +174,12 @@ func GetKubeconfig(ns, kubeconfig string) (string, error) {
 		return "", errors.Errorf("check kubectl error, err: %v", err)
 	}
 	res := request.NewReq("", kubeconfig, kubectl, ns, 7000)
-	res.ExposeService()
+	res.SpecifyService(webAddr)
 	res.Login(app.DefaultInitAdminUserName, app.DefaultInitPassword)
 
 	header := req.Header{"Accept": "application/json", "Authorization": "Bearer " + res.AuthToken, "content-type": "text/plain"}
 
-	retryTimes := 20
+	retryTimes := 200
 	var config string
 	for i := 0; i < retryTimes; i++ {
 

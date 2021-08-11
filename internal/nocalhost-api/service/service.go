@@ -142,7 +142,9 @@ func (s *Service) migrateClusterUseToRoleBinding() {
 	}
 
 	for _, clusterUser := range list {
-		_ = s.AuthorizeNsToUser(clusterUser.ClusterId, clusterUser.UserId, clusterUser.Namespace)
+		if !clusterUser.IsClusterAdmin(){
+			_ = s.AuthorizeNsToUser(clusterUser.ClusterId, clusterUser.UserId, clusterUser.Namespace)
+		}
 	}
 }
 

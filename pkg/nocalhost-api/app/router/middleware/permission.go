@@ -49,9 +49,10 @@ func whiteList(method, path string) bool {
 		"/v1/dev_space":                   "GET",
 		"/v1/application":                 "GET,POST",
 
-		"/v2/dev_space": "GET",
-		"/v2/share":     "POST",
-		"/v2/unshare":   "POST",
+		"/v1/devspace/[0-9]+": "PUT",
+		"/v2/dev_space":       "GET",
+		"/v2/share":           "POST",
+		"/v2/unshare":         "POST",
 	}
 
 	for reg, med := range permissions {

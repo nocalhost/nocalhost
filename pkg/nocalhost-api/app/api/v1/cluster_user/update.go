@@ -23,6 +23,7 @@ import (
 
 type DevSpaceRequest struct {
 	KubeConfig string `json:"kubeconfig"`
+	SpaceName  string `json:"space_name"`
 }
 
 // Update
@@ -53,6 +54,7 @@ func Update(c *gin.Context) {
 	cu := model.ClusterUserModel{
 		ID:         devSpaceId,
 		KubeConfig: string(sDec),
+		SpaceName:  req.SpaceName,
 	}
 	result, err := service.Svc.ClusterUser().Update(c, &cu)
 	if err != nil {

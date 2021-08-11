@@ -25,20 +25,70 @@ import (
 func HelmAdaption(client runner.Client) {
 	util.Retry(
 		"HelmAdaption", []func() error{
-			func() error { return testcase.InstallBookInfoUseHelmVals(client) },
-			func() error { return testcase.UninstallBookInfoWithNativeHelm(client) },
+			func() error {
+				return util.TimeoutFunc(time.Minute*2, func() error {
+					return testcase.InstallBookInfoUseHelmVals(client)
+				}, func() error {
+					return testcase.UninstallBookInfoWithNativeHelm(client)
+				})
+			},
+			func() error {
+				return util.TimeoutFunc(time.Minute*2, func() error {
+					return testcase.UninstallBookInfoWithNativeHelm(client)
+				}, nil)
+			},
 
-			func() error { return testcase.InstallBookInfoWithNativeHelm(client) },
-			func() error { return testcase.UninstallBookInfoWithNativeHelm(client) },
+			func() error {
+				return util.TimeoutFunc(time.Minute*2, func() error {
+					return testcase.InstallBookInfoWithNativeHelm(client)
+				}, func() error {
+					return testcase.UninstallBookInfoWithNativeHelm(client)
+				})
+			},
+			func() error {
+				return util.TimeoutFunc(time.Minute*2, func() error {
+					return testcase.UninstallBookInfoWithNativeHelm(client)
+				}, nil)
+			},
 
-			func() error { return testcase.InstallBookInfoWithNhctl(client) },
-			func() error { return testcase.UninstallBookInfoWithNhctl(client) },
+			func() error {
+				return util.TimeoutFunc(time.Minute*2, func() error {
+					return testcase.InstallBookInfoWithNhctl(client)
+				}, func() error {
+					return testcase.UninstallBookInfoWithNhctl(client)
+				})
+			},
+			func() error {
+				return util.TimeoutFunc(time.Minute*2, func() error {
+					return testcase.UninstallBookInfoWithNhctl(client)
+				}, nil)
+			},
 
-			func() error { return testcase.InstallBookInfoWithNativeHelm(client) },
-			func() error { return testcase.UninstallBookInfoWithNhctl(client) },
+			func() error {
+				return util.TimeoutFunc(time.Minute*2, func() error {
+					return testcase.InstallBookInfoWithNativeHelm(client)
+				}, func() error {
+					return testcase.UninstallBookInfoWithNhctl(client)
+				})
+			},
+			func() error {
+				return util.TimeoutFunc(time.Minute*2, func() error {
+					return testcase.UninstallBookInfoWithNhctl(client)
+				}, nil)
+			},
 
-			func() error { return testcase.InstallBookInfoWithNhctl(client) },
-			func() error { return testcase.UninstallBookInfoWithNativeHelm(client) },
+			func() error {
+				return util.TimeoutFunc(time.Minute*2, func() error {
+					return testcase.InstallBookInfoWithNhctl(client)
+				}, func() error {
+					return testcase.UninstallBookInfoWithNativeHelm(client)
+				})
+			},
+			func() error {
+				return util.TimeoutFunc(time.Minute*2, func() error {
+					return testcase.UninstallBookInfoWithNativeHelm(client)
+				}, nil)
+			},
 		},
 	)
 }
@@ -356,7 +406,13 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 			}
 			panic(err)
 		}
-		cancelFunc = t.Delete
+		cancelFunc = func() {
+			LogsForArchive()
+			if errs := recover(); errs != nil {
+				log.Infof("ignores timeout archive panic %v", errs)
+			}
+			t.Delete()
+		}
 		defer func() {
 			if errs := recover(); errs != nil {
 				LogsForArchive()
@@ -369,14 +425,23 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 	_, currentVersion := testcase.GetVersion()
 	util.Retry("Prepare", []func() error{func() error { return testcase.InstallNhctl(currentVersion) }})
 	kubeconfig := util.GetKubeconfig()
-	nocalhost := "nocalhost"
-	tempCli := runner.NewNhctl(nocalhost, kubeconfig, "Prepare")
+	namespace := "test"
+	tempCli := runner.NewNhctl(namespace, kubeconfig, "Prepare")
 	clientgoutils.Must(testcase.NhctlVersion(tempCli))
 	_ = testcase.StopDaemon(tempCli)
 
-	util.Retry("Prepare", []func() error{func() error { return testcase.Init(tempCli) }})
+	webAddr := ""
+	for i := 2; i >= 0; i-- {
+		addr, err := testcase.Init(tempCli)
+		if err == nil {
+			webAddr = addr
+			break
+		} else if i == 0 {
+			clientgoutils.Must(err)
+		}
+	}
 
-	kubeconfigResult, err := testcase.GetKubeconfig(nocalhost, kubeconfig)
+	kubeconfigResult, err := testcase.GetKubeconfig(webAddr, namespace, kubeconfig)
 	clientgoutils.Must(err)
 	namespaceResult, err = clientgoutils.GetNamespaceFromKubeConfig(kubeconfigResult)
 	clientgoutils.Must(err)

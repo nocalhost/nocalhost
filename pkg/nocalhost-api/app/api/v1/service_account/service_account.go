@@ -92,7 +92,7 @@ func ListAuthorization(c *gin.Context) {
 			GenKubeconfig(
 				user.SaName, cluster, "",
 				func(nss []NS, privilegeType PrivilegeType, kubeConfig string) {
-					if len(nss) != 0 {
+					if len(nss) != 0 || privilegeType != NONE {
 						sort.Slice(
 							nss, func(i, j int) bool {
 								return nss[i].Namespace > nss[j].Namespace
@@ -243,6 +243,25 @@ func GenKubeconfig(
 			},
 		)
 		kubeConfigStruct.CurrentContext = nss[len(nss)-1].SpaceName
+	} else {
+
+		// while user has cluster - scope permission
+		// and without any namespace - scope custom permission
+		// we should add a default context for him
+		if privilegeType != NONE {
+			kubeConfigStruct.Contexts = append(
+				kubeConfigStruct.Contexts, clientcmdapiv1.NamedContext{
+					Name: "default",
+					Context: clientcmdapiv1.Context{
+						Namespace: "default",
+						Cluster:   cp.GetClusterName(),
+						AuthInfo:  authInfo,
+					},
+				},
+			)
+
+			kubeConfigStruct.CurrentContext = "default"
+		}
 	}
 
 	if kubeConfig, _, _ = reader.ToYamlString(); kubeConfig == "" {
