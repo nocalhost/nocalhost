@@ -84,6 +84,12 @@ func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, 
 		kubeConfigPath = filepath.Join(utils.GetHomePath(), ".kube", "config")
 	}
 
+	abs, err := filepath.Abs(kubeConfigPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "please make sure kubeconfig path is reachable")
+	}
+	kubeConfigPath = abs
+
 	client := &ClientGoUtils{
 		kubeConfigFilePath: kubeConfigPath,
 		namespace:          namespace,

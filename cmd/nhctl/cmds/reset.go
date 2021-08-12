@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -22,11 +22,8 @@ var resetCmd = &cobra.Command{
 	Short: "reset application",
 	Long:  `reset application`,
 	Run: func(cmd *cobra.Command, args []string) {
-		var err error
 
-		if err := Prepare(); err != nil {
-			log.FatalE(err, "")
-		}
+		must(Prepare())
 
 		if len(args) > 0 {
 			applicationName := args[0]

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/mitchellh/go-ps"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
@@ -67,6 +68,19 @@ var syncStatusCmd = &cobra.Command{
 
 		if !nhSvc.IsProcessor() {
 			display(req.NotProcessor)
+			return
+		}
+
+		// check if syncthing exists
+		pid, err := nhSvc.GetSyncThingPid()
+		if err != nil {
+			display(req.NotSyncthingProcessFound)
+			return
+		}
+
+		pro, err := ps.FindProcess(pid)
+		if err != nil || pro == nil {
+			display(req.NotSyncthingProcessFound)
 			return
 		}
 
