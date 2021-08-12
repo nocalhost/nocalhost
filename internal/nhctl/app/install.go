@@ -196,6 +196,8 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 			installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
 		} else*/if flags.RepoName != "" {
 			installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
+		} else {
+			return errors.New("fail to find repo name, please figure out it's a public repo or not.")
 		}
 
 		if flags.Version != "" {
