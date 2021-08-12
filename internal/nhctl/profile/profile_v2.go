@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package profile
 
@@ -52,6 +52,10 @@ type AppProfileV2 struct {
 	Namespace  string `json:"namespace" yaml:"namespace"`
 	Kubeconfig string `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
 	db         *dbutils.LevelDBUtils
+
+	// for previous version, associate path is stored in profile
+	// and now it store in a standalone db
+	AssociateMigrate bool `json:"associate_migrate" yaml:"associate_migrate"`
 
 	// app global status
 	Identifier string `json:"identifier" yaml:"identifier"`
@@ -207,6 +211,7 @@ type SvcProfileV2 struct {
 	CmConfigLoaded bool `json:"cmconfigloaded" yaml:"cmconfigloaded"`
 
 	// associate for the local dir
+	// deprecated
 	Associate string `json:"associate" yaml:"associate"`
 
 	// from app meta

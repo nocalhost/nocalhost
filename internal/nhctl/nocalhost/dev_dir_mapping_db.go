@@ -1,0 +1,205 @@
+package nocalhost
+
+import (
+	"fmt"
+	"github.com/pkg/errors"
+	"github.com/syndtr/goleveldb/leveldb"
+	"gopkg.in/yaml.v3"
+	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/dbutils"
+	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/pkg/nhctl/log"
+	"os"
+	"strings"
+)
+
+var (
+	DefaultKey = "DefaultKey"
+	splitter   = "-/-"
+)
+
+func Update(fun func(dirMapping *DevDirMapping,
+// be careful, this map is immutable !!!!
+// it is a map generate from #PathToDefaultPackKey and #PackToPath
+// when we change #PathToDefaultPackKey or #PackToPath, we should
+// regenerate this map
+	pathToPack map[DevPath][]*SvcPack) error) error {
+	return doGetOrModify(fun, false)
+}
+
+func Get(fun func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error) error {
+	return doGetOrModify(fun, true)
+}
+
+// for test only! it is dangeruas
+func ClearAllData() {
+	doGetOrModify(
+		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
+			dirMapping.PathToDefaultPackKey = map[DevPath]SvcPackKey{}
+			dirMapping.PackToPath = map[SvcPackKey]DevPath{}
+			return nil
+		}, false,
+	)
+}
+
+// getOrModify true is read only, and false will save the [dirMapping *DevDirMapping] into db
+func doGetOrModify(fun func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error, getOrModify bool) error {
+	var path string
+	if os.Getenv("TEST") == "" {
+		path = nocalhost_path.GetNocalhostDevDirMapping()
+	} else {
+		path = nocalhost_path.GetTestNocalhostDevDirMapping()
+	}
+
+	_ = dbutils.CreateLevelDB(path, false)
+	db, err := dbutils.OpenLevelDB(path, getOrModify)
+	if err != nil {
+		_ = db.Close()
+		return err
+	}
+	defer db.Close()
+
+	result := &DevDirMapping{}
+	bys, err := db.Get([]byte(DefaultKey))
+	if err != nil {
+		if errors.Is(err, leveldb.ErrNotFound) {
+			result, err := db.ListAll()
+			if err != nil {
+				_ = db.Close()
+				return err
+			}
+			for key, val := range result {
+				if strings.Contains(key, DefaultKey) {
+					bys = []byte(val)
+					break
+				}
+			}
+		} else {
+			_ = db.Close()
+			return errors.Wrap(err, "")
+		}
+	}
+	if len(bys) == 0 {
+		result = &DevDirMapping{
+		}
+	} else {
+		err = yaml.Unmarshal(bys, result)
+		if err != nil {
+			_ = db.Close()
+			return errors.Wrap(err, "")
+		}
+	}
+
+	if result.PathToDefaultPackKey == nil {
+		result.PathToDefaultPackKey = map[DevPath]SvcPackKey{}
+	}
+	if result.PackToPath == nil {
+		result.PackToPath = map[SvcPackKey]DevPath{}
+	}
+
+	if err := fun(result, result.genPathToPackMap()); err != nil {
+		return err
+	}
+
+	if !getOrModify {
+		bys, err := yaml.Marshal(result)
+		if err != nil {
+			return errors.Wrap(err, "")
+		}
+		return db.Put([]byte(DefaultKey), bys)
+	}
+
+	return nil
+}
+
+type DevDirMapping struct {
+	PathToDefaultPackKey map[DevPath]SvcPackKey `yaml:"path_to_default_pack_key"`
+	PackToPath           map[SvcPackKey]DevPath `yaml:"pack_to_path"`
+}
+
+// be careful, this map is immutable !!!!
+// it is a map generate from #PathToDefaultPackKey and #PackToPath
+// when we change #PathToDefaultPackKey or #PackToPath, we should
+// regenerate this map
+func (devDirMapping *DevDirMapping) genPathToPackMap() map[DevPath][]*SvcPack {
+	pathToPack := make(map[DevPath][]*SvcPack, 0)
+
+	for pack, path := range devDirMapping.PackToPath {
+		if _, ok := pathToPack[path]; !ok {
+			pathToPack[path] = make([]*SvcPack, 0)
+		}
+
+		toPack := pack.toPack()
+		if toPack == nil {
+			log.Error(fmt.Sprintf("Pack can not case to svcPack %v", pack))
+			continue
+		}
+		pathToPack[path] = append(pathToPack[path], toPack)
+	}
+	return pathToPack
+}
+
+type SvcPackKey string
+
+type DevPath string
+
+type AllSvcPackAssociateByPath struct {
+	packs             map[SvcPackKey]*SvcPack
+	defaultSvcPackKey SvcPackKey
+}
+
+func NewSvcPack(ns string,
+	app string,
+	svcType base.SvcType,
+	svc string,
+	container string) *SvcPack {
+	return &SvcPack{
+		ns:        ns,
+		app:       app,
+		svcType:   svcType,
+		svc:       svc,
+		container: container,
+	}
+}
+
+type SvcPack struct {
+	ns        string
+	app       string
+	svcType   base.SvcType
+	svc       string
+	container string
+}
+
+func (svcPackKey *SvcPackKey) toPack() *SvcPack {
+	array := strings.Split(string(*svcPackKey), splitter)
+
+	if len(array) != 5 {
+		return nil
+	}
+
+	return &SvcPack{
+		ns:        array[0],
+		app:       array[1],
+		svcType:   base.SvcTypeOf(array[2]),
+		svc:       array[3],
+		container: array[4],
+	}
+}
+
+func (svcPack SvcPack) key() SvcPackKey {
+	return SvcPackKey(
+		fmt.Sprintf(
+			"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s",
+			svcPack.ns, svcPack.app, svcPack.svcType, svcPack.svc, svcPack.container,
+		),
+	)
+}
+
+func (svcPack SvcPack) keyWithoutContainer() SvcPackKey {
+	return SvcPackKey(
+		fmt.Sprintf(
+			"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s",
+			svcPack.ns, svcPack.app, svcPack.svcType, svcPack.svc, "",
+		),
+	)
+}

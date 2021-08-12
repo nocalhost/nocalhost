@@ -31,7 +31,7 @@ func Init() error {
 				return errors.Wrap(err, "")
 			}
 
-			// Initial ns dir
+			// Initial Ns dir
 			nsDir := nocalhost_path.GetNhctlNameSpaceDir()
 			err = os.MkdirAll(nsDir, _const.DefaultNewFilePermission)
 			if err != nil {
@@ -76,7 +76,7 @@ func GetLogDir() string {
 	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), _const.DefaultLogDirName)
 }
 
-// key: ns, value: app
+// key: Ns, value: App
 // Deprecated
 func GetNsAndApplicationInfo() (map[string][]string, error) {
 	result := make(map[string][]string, 0)

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -191,20 +191,26 @@ func recordingProfile() {
 // nocalhost will load svc config from associate dir if needed
 func loadLocalOrCmConfigIfValid() {
 
+	svcPack := nocalhost.NewSvcPack(
+		nocalhostSvc.NameSpace,
+		nocalhostSvc.AppName,
+		nocalhostSvc.Type,
+		nocalhostSvc.Name,
+		container,
+	)
+
 	switch len(devStartOps.LocalSyncDir) {
 	case 0:
-		p, err := nocalhostSvc.GetProfile()
-		must(err)
-
-		if p.Associate == "" {
+		associatePath := svcPack.GetAssociatePath()
+		if associatePath == "" {
 			must(errors.New("'local-sync(-s)' should specify while svc is not associate with local dir"))
 		}
-		devStartOps.LocalSyncDir = append(devStartOps.LocalSyncDir, p.Associate)
+		devStartOps.LocalSyncDir = append(devStartOps.LocalSyncDir, string(associatePath))
 
 		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
 	case 1:
-		must(nocalhostSvc.Associate(devStartOps.LocalSyncDir[0]))
 
+		must(nocalhost.DevPath(devStartOps.LocalSyncDir[0]).Associate(svcPack))
 		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
 	default:
 		log.Fatal(errors.New("Can not define multi 'local-sync(-s)'"))

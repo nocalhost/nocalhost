@@ -1,13 +1,14 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -22,6 +23,10 @@ func init() {
 	devAssociateCmd.Flags().StringVarP(
 		&serviceType, "controller-type", "t", "",
 		"kind of k8s controller,such as deployment,statefulSet",
+	)
+	devStartCmd.Flags().StringVarP(
+		&container, "container", "c", "",
+		"container to develop",
 	)
 	devAssociateCmd.Flags().StringVarP(&workDir, "associate", "s", "", "dev mode work directory")
 	devAssociateCmd.Flags().BoolVar(&deAssociate, "de-associate", false, "de associate(for test)")
@@ -44,13 +49,21 @@ var devAssociateCmd = &cobra.Command{
 
 		checkIfSvcExist(commonFlags.SvcName, serviceType)
 
+		svcPack := nocalhost.NewSvcPack(
+			nocalhostSvc.NameSpace,
+			nocalhostSvc.AppName,
+			nocalhostSvc.Type,
+			nocalhostSvc.Name,
+			container,
+		)
+
 		if deAssociate {
-			must(nocalhostSvc.Associate(""))
+			svcPack.UnAssociatePath()
 		} else {
 			if workDir == "" {
 				log.Fatal("associate must specify")
 			}
-			must(nocalhostSvc.Associate(workDir))
+			must(nocalhost.DevPath(workDir).Associate(svcPack))
 		}
 
 		must(nocalhostApp.ReloadSvcCfg(nocalhostSvc.Name, nocalhostSvc.Type, false, false))

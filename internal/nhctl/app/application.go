@@ -145,7 +145,41 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		}
 	}
 
+	migrateAssociate(profileV2, app)
 	return app, nil
+}
+
+// for previous version, associate path is stored in profile
+// and now it store in a standalone db
+// we should check if migrate is needed
+func migrateAssociate(appProfile *profile.AppProfileV2, a *Application) {
+	if appProfile.AssociateMigrate {
+		return
+	}
+
+	for _, svcProfile := range appProfile.SvcProfile {
+		if svcProfile.Associate != "" {
+
+			_ = nocalhost.
+				DevPath(svcProfile.Associate).
+				Associate(
+					nocalhost.NewSvcPack(
+						appProfile.Namespace,
+						appProfile.Name,
+						base.SvcTypeOf(svcProfile.Type),
+						svcProfile.Name,
+						"",
+					),
+				)
+		}
+	}
+
+	_ = a.UpdateProfile(
+		func(v2 *profile.AppProfileV2) error {
+			v2.AssociateMigrate = true
+			return nil
+		},
+	)
 }
 
 func (a *Application) generateSecretForEarlierVer() bool {
@@ -412,11 +446,21 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.Sv
 
 	svcProfile := p.SvcProfileV2(svcName, svcType.String())
 
-	if svcProfile.Associate == "" {
+	pack := nocalhost.NewSvcPack(
+		p.Namespace,
+		p.Name,
+		base.SvcTypeOf(svcProfile.Type),
+		svcProfile.Name,
+		"",
+	)
+
+	associatePath := pack.GetAssociatePath()
+
+	if associatePath == "" {
 		return false
 	}
 
-	configFile := fp.NewFilePath(svcProfile.Associate).
+	configFile := fp.NewFilePath(string(associatePath)).
 		RelOrAbs(DefaultGitNocalhostDir).
 		RelOrAbs(DefaultConfigNameInGitNocalhostDir)
 
