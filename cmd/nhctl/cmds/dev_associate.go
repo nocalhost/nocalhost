@@ -6,6 +6,7 @@
 package cmds
 
 import (
+	"encoding/json"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -14,6 +15,7 @@ import (
 
 var workDir string
 var deAssociate bool
+var info bool
 
 func init() {
 	devAssociateCmd.Flags().StringVarP(
@@ -24,19 +26,24 @@ func init() {
 		&serviceType, "controller-type", "t", "",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
-	devStartCmd.Flags().StringVarP(
+	devAssociateCmd.Flags().StringVarP(
 		&container, "container", "c", "",
 		"container to develop",
 	)
 	devAssociateCmd.Flags().StringVarP(&workDir, "associate", "s", "", "dev mode work directory")
-	devAssociateCmd.Flags().BoolVar(&deAssociate, "de-associate", false, "de associate(for test)")
+	devAssociateCmd.Flags().BoolVar(
+		&deAssociate, "de-associate", false, "[exclusive with info flag] de associate(for test)",
+	)
+	devAssociateCmd.Flags().BoolVar(
+		&info, "info", false, "[exclusive with de-associate flag] get all svc associate to the path",
+	)
 	debugCmd.AddCommand(devAssociateCmd)
 }
 
 var devAssociateCmd = &cobra.Command{
-	Use:   "associate [Name]",
+	Use: "associate [Name]",
 	Short: "associate service dev dir",
-	Long:  "associate service dev dir",
+	Long: "associate service dev dir",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
@@ -59,6 +66,13 @@ var devAssociateCmd = &cobra.Command{
 
 		if deAssociate {
 			svcPack.UnAssociatePath()
+		} else if info {
+			if workDir == "" {
+				log.Fatal("associate must specify")
+			}
+			packs := nocalhost.DevPath(workDir).GetAllPacks()
+			marshal, _ := json.Marshal(packs)
+			println(marshal)
 		} else {
 			if workDir == "" {
 				log.Fatal("associate must specify")
