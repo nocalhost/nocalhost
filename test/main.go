@@ -83,6 +83,7 @@ func main() {
 
 	suite.LogsForArchive()
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
+	t.Clean()
 }
 
 func DoRun(doAfterWgDone bool, wg *sync.WaitGroup, do func()) {
