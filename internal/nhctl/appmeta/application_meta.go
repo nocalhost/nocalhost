@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package appmeta
 
@@ -159,6 +159,16 @@ type ApplicationMetaSimple struct {
 	DevMeta            ApplicationDevMeta `json:"dev_meta"`
 	Manifest           string             `json:"manifest"`
 	PreInstallManifest string             `json:"pre_install_manifest"`
+}
+
+func FakeAppMeta(ns, application string) *ApplicationMeta {
+	return &ApplicationMeta{
+		ApplicationState: INSTALLED,
+		Ns:               ns,
+		Application:      application,
+		DevMeta:          ApplicationDevMeta{},
+		Config:           &profile2.NocalHostAppConfigV2{},
+	}
 }
 
 // application meta is the application meta info container

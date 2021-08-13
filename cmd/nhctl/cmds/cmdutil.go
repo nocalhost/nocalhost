@@ -8,6 +8,7 @@ package cmds
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/common/base"
@@ -33,7 +34,19 @@ func initAppMutate(appName string) error {
 		// if default application not found, try to create one
 		if errors.Is(err, app.ErrNotFound) && appName == _const.DefaultNocalhostApplication {
 			// try init default application
-			if _, err := common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig); err != nil {
+			_, err := common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig)
+
+			// if some one can not create default.application
+			// we also return a fake default.application
+			if k8serrors.IsForbidden(err) {
+
+				// if current user has not permission to create secret, we also create a fake 'default.application'
+				// app meta for him
+				nocalhostApp, err = app.NewFakeApplication(appName, nameSpace, kubeConfig, true)
+				return err
+			}
+
+			if err != nil {
 				return errors.Wrap(err, "Error while create default application")
 			}
 
