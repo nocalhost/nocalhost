@@ -135,10 +135,10 @@ func (a *Application) InstallManifest(doApply bool) error {
 func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 	if len(flags.RepoUrl) != 0 && strings.LastIndex(flags.RepoUrl, "/") > 0 {
 		repoName := flags.RepoUrl[strings.LastIndex(flags.RepoUrl, "/")+1:]
-		if _, err := tools.ExecCommand(nil, true, false, true, "helm", "add", repoName, flags.RepoUrl); err != nil {
+		if _, err := tools.ExecCommand(nil, false, false, true, "helm", "repo", "add", repoName, flags.RepoUrl); err != nil {
 			log.Logf("helm add repo %s %s, error: %v, ignore", repoName, flags.RepoUrl, err)
 		}
-		if output, err := tools.ExecCommand(nil, true, false, true, "helm", "repo", "list", "--output", "json"); err == nil {
+		if output, err := tools.ExecCommand(nil, false, false, true, "helm", "repo", "list", "--output", "json"); err == nil {
 			var repoList []RepoDto
 			if err = json.Unmarshal([]byte(output), &repoList); err == nil {
 				for _, dto := range repoList {
