@@ -99,8 +99,8 @@ func GetResources(kubeconfig string) (resources []model.Resource) {
 	}, model.Resource{
 		ResourceName: v1.ResourceCPU,
 		Capacity:     float64(cpuTotal / 1000),
-		Used:         float64((cpuTotal - cpuAlloc) / 1000),
-		Percentage:   Div(float64((cpuTotal-cpuAlloc)/1000), float64(cpuTotal)),
+		Used:         Div(float64(cpuTotal-cpuAlloc), 1000),
+		Percentage:   Div(float64(cpuTotal-cpuAlloc), float64(cpuTotal)),
 	}, model.Resource{
 		ResourceName: v1.ResourceMemory,
 		Capacity:     Div(float64(memoryTotal), 1024),
