@@ -78,6 +78,8 @@ func GetResources(kubeconfig string) (resources []model.Resource) {
 	var cpuAlloc, memoryAlloc, storageAlloc, podAlloc int64
 	for _, node := range nodeList.Items {
 		cpuTotal += node.Status.Capacity.Cpu().MilliValue()
+		// method ScaledValue using 1000, but memory and storage should using 1024,
+		// just because using 1024 is too complex
 		memoryTotal += node.Status.Capacity.Memory().ScaledValue(resource.Mega)
 		storageTotal += node.Status.Capacity.StorageEphemeral().ScaledValue(resource.Mega)
 		podTotal += node.Status.Capacity.Pods().Value()
