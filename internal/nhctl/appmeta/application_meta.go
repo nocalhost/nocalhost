@@ -520,8 +520,8 @@ func (a *ApplicationMeta) Uninstall(force bool) error {
 	preDelete := a.PreDeleteManifest
 	postDelete := a.PostDeleteManifest
 
-	log.Info("Executing pre-uninstall hook")
 	if preDelete != "" {
+		log.Info("Executing pre-uninstall hook")
 		if err := a.operator.ExecHook(a.Application, a.Ns, preDelete); err != nil {
 			return errors.Wrap(err, "Error while exec pre-delete hook ")
 		}
@@ -573,8 +573,8 @@ func (a *ApplicationMeta) Uninstall(force bool) error {
 		return err
 	}
 
-	log.Info("Executing post-uninstall hook")
 	if postDelete != "" {
+		log.Info("Executing post-uninstall hook")
 		if err := a.operator.ExecHook(a.Application, a.Ns, postDelete); err != nil {
 			return errors.Wrap(err, "Error while exec post-delete hook ")
 		}
