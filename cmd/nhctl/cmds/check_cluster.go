@@ -8,11 +8,17 @@ package cmds
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	//"github.com/syncthing/syncthing/lib/discover"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"time"
 )
 
+var timeout int64
+
 func init() {
+	checkClusterCmd.Flags().Int64Var(&timeout, "timeout", 5, "timeout duration of checking cluster")
 	checkCmd.AddCommand(checkClusterCmd)
 }
 
@@ -30,30 +36,35 @@ var checkClusterCmd = &cobra.Command{
 			fmt.Println(string(bys))
 		}()
 
-		err := checkClusterAvailable(kubeConfig)
+		err := checkClusterAvailable(kubeConfig, time.Duration(timeout)*time.Second)
 		if err != nil {
 			jsonResp.Code = 201
 			jsonResp.Info = err.Error()
 			return
 		}
-		//_, err = c.ClientSet.ServerVersion()
-		//if err != nil {
-		//	jsonResp.Code = 201
-		//	jsonResp.Info = err.Error()
-		//	return
-		//}
 		jsonResp.Code = 200
 		jsonResp.Info = "Connected successfully"
 	},
 }
 
-func checkClusterAvailable(kube string) error {
-	c, err := clientgoutils.NewClientGoUtils(kube, "")
-	if err != nil {
+func checkClusterAvailable(kube string, timeout time.Duration) error {
+	var errChan = make(chan error, 1)
+	go func() {
+		c, err := clientgoutils.NewClientGoUtils(kube, "")
+		if err != nil {
+			errChan <- err
+			return
+		}
+		if _, err = c.ClientSet.ServerVersion(); err != nil {
+			errChan <- err
+			return
+		}
+	}()
+
+	select {
+	case err := <-errChan:
 		return err
+	case <-time.After(timeout):
+		return errors.New(fmt.Sprintf("Check cluster available timeout after %s", timeout.String()))
 	}
-	if _, err = c.ClientSet.ServerVersion(); err != nil {
-		return err
-	}
-	return nil
 }
