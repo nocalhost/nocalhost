@@ -1,34 +1,39 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package req
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
 type SyncthingHttpClient struct {
-	guiHost      string
-	apiKey       string
-	remoteDevice string
-	folderName   string
+	guiHost          string
+	apiKey           string
+	remoteDevice     string
+	folderName       string
+	reqTimeoutSecond int
 }
 
 func NewSyncthingHttpClient(
 	guiHost string,
 	apiKey string,
 	remoteDevice string,
-	folderName string) *SyncthingHttpClient {
+	folderName string,
+	reqTimeoutSecond int, ) *SyncthingHttpClient {
 	return &SyncthingHttpClient{
-		guiHost:      guiHost,
-		apiKey:       apiKey,
-		remoteDevice: remoteDevice,
-		folderName:   folderName,
+		guiHost:          guiHost,
+		apiKey:           apiKey,
+		remoteDevice:     remoteDevice,
+		folderName:       folderName,
+		reqTimeoutSecond: reqTimeoutSecond,
 	}
 }
 
@@ -39,7 +44,7 @@ func (s *SyncthingHttpClient) get(path string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.do(req)
+	return s.do(req, s.reqTimeoutSecond)
 }
 
 func (s *SyncthingHttpClient) Post(path, body string) ([]byte, error) {
@@ -47,11 +52,14 @@ func (s *SyncthingHttpClient) Post(path, body string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.do(req)
+	return s.do(req, s.reqTimeoutSecond)
 }
 
-func (s *SyncthingHttpClient) do(req *http.Request) ([]byte, error) {
+func (s *SyncthingHttpClient) do(req *http.Request, reqTimeoutSecond int) ([]byte, error) {
 	req.Header.Add("X-API-Key", s.apiKey)
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*time.Duration(reqTimeoutSecond))
+	req.WithContext(ctx)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

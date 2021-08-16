@@ -7,10 +7,12 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/fp"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -131,6 +133,23 @@ func (a *Application) InstallManifest(doApply bool) error {
 
 // Install different type of Application: Helm
 func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
+	if len(flags.RepoUrl) != 0 && strings.LastIndex(flags.RepoUrl, "/") > 0 {
+		repoName := flags.RepoUrl[strings.LastIndex(flags.RepoUrl, "/")+1:]
+		if _, err := tools.ExecCommand(nil, false, false, true, "helm", "repo", "add", repoName, flags.RepoUrl); err != nil {
+			log.Logf("helm add repo %s %s, error: %v, ignore", repoName, flags.RepoUrl, err)
+		}
+		if output, err := tools.ExecCommand(nil, false, false, true, "helm", "repo", "list", "--output", "json"); err == nil {
+			var repoList []RepoDto
+			if err = json.Unmarshal([]byte(output), &repoList); err == nil {
+				for _, dto := range repoList {
+					if dto.Url == flags.RepoUrl {
+						flags.RepoName = dto.Name
+						break
+					}
+				}
+			}
+		}
+	}
 	log.Info("Updating helm repo...")
 	_, err := tools.ExecCommand(nil, true, false, false, "helm", "repo", "update")
 	if err != nil {
@@ -173,10 +192,12 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 		if a.appMeta.Config != nil && a.appMeta.Config.ApplicationConfig.Name != "" {
 			chartName = a.appMeta.Config.ApplicationConfig.Name
 		}
-		if flags.RepoUrl != "" {
+		/*if flags.RepoUrl != "" {
 			installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
-		} else if flags.RepoName != "" {
+		} else*/if flags.RepoName != "" {
 			installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
+		} else {
+			return errors.New("fail to find repo name, please figure out it's a public repo or not.")
 		}
 
 		if flags.Version != "" {
@@ -280,4 +301,9 @@ func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) erro
 	}
 	log.Logf("Dependency config map installed")
 	return nil
+}
+
+type RepoDto struct {
+	Name string `json:"name"`
+	Url  string `json:"url"`
 }

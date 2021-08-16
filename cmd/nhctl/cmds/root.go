@@ -16,6 +16,7 @@ import (
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
@@ -23,8 +24,11 @@ import (
 )
 
 var (
-	nameSpace    string
-	debug        bool
+	nameSpace string
+	debug     bool
+
+	// pre check the nocalhost commands permissions
+	authCheck    bool
 	kubeConfig   string // the path to the kubeconfig file
 	nocalhostApp *app.Application
 	nocalhostSvc *controller.Controller
@@ -43,6 +47,11 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(
 		&debug, "debug", debug,
 		"enable debug level log",
+	)
+	rootCmd.PersistentFlags().BoolVar(
+		&authCheck, "auth-check", authCheck,
+		"pre check the nocalhost commands permissions, return yes" +
+			" represent having enough permissions to call the command",
 	)
 	rootCmd.PersistentFlags().StringVar(
 		&kubeConfig, "kubeconfig", "",
@@ -89,6 +98,19 @@ var rootCmd = &cobra.Command{
 			log.FatalE(err, "Fail to init nhctl")
 		}
 		serviceType = strings.ToLower(serviceType)
+
+		if authCheck {
+
+			must(Prepare())
+			client, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
+			must(err)
+
+			must(clientgoutils.DoCheck(cmd, nameSpace, client))
+
+			println("yes")
+			os.Exit(0)
+			return
+		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Debug("hello nhctl")

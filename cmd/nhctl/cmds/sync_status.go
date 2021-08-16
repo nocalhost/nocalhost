@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/mitchellh/go-ps"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
@@ -21,11 +22,14 @@ var syncStatusOps = &app.SyncStatusOptions{}
 
 func init() {
 	//syncStatusCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
-	syncStatusCmd.Flags().StringVarP(&deployment, "deployment", "d", string(base.Deployment),
+	syncStatusCmd.Flags().StringVarP(
+		&deployment, "deployment", "d", string(base.Deployment),
 		"k8s deployment which your developing service exists",
 	)
-	syncStatusCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
-		"kind of k8s controller,such as deployment,statefulSet")
+	syncStatusCmd.Flags().StringVarP(
+		&serviceType, "controller-type", "t", "deployment",
+		"kind of k8s controller,such as deployment,statefulSet",
+	)
 	syncStatusCmd.Flags().BoolVar(
 		&syncStatusOps.Override, "override", false,
 		"override the remote changing according to the local sync folder",
@@ -70,13 +74,27 @@ var syncStatusCmd = &cobra.Command{
 			return
 		}
 
-		client := nhSvc.NewSyncthingHttpClient()
+		// check if syncthing exists
+		pid, err := nhSvc.GetSyncThingPid()
+		if err != nil {
+			display(req.NotSyncthingProcessFound)
+			return
+		}
+
+		pro, err := ps.FindProcess(pid)
+		if err != nil || pro == nil {
+			display(req.NotSyncthingProcessFound)
+			return
+		}
+
+		client := nhSvc.NewSyncthingHttpClient(2)
 
 		if syncStatusOps.Override {
 			must(client.FolderOverride())
 			display("Succeed")
 			return
 		}
+
 		if syncStatusOps.WaitForSync {
 			waitForFirstSync(client, time.Second*time.Duration(syncStatusOps.Timeout))
 			return
@@ -97,12 +115,14 @@ func waitForFirstSync(client *req.SyncthingHttpClient, duration time.Duration) {
 	for {
 		select {
 		case <-timeout.Done():
-			display(req.SyncthingStatus{
-				Status:    req.Error,
-				Msg:       "wait for sync finished timeout",
-				Tips:      "",
-				OutOfSync: "",
-			})
+			display(
+				req.SyncthingStatus{
+					Status:    req.Error,
+					Msg:       "wait for sync finished timeout",
+					Tips:      "",
+					OutOfSync: "",
+				},
+			)
 			return
 		default:
 			time.Sleep(time.Millisecond * 100)

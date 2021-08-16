@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -122,11 +122,12 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 
 	// kill syncthing process by find find it with terminal
 	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
-	if utils.IsWindows() {
-		utils2.KillSyncthingProcessOnWindows(str)
-	} else {
-		utils2.KillSyncthingProcessOnUnix(str)
-	}
+	//if utils.IsWindows() {
+	//	utils2.KillSyncthingProcessOnWindows(str)
+	//} else {
+	//	utils2.KillSyncthingProcessOnUnix(str)
+	//}
+	utils2.KillSyncthingProcess(str)
 
 	// Delete service folder
 	dir := nocalhostSvc.GetApplicationSyncDir()
@@ -168,7 +169,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 
 			i--
 			// to force override the remote changing
-			client := nocalhostSvc.NewSyncthingHttpClient()
+			client := nocalhostSvc.NewSyncthingHttpClient(2)
 			err = client.FolderOverride()
 			if err == nil {
 				log.Info("Force overriding workDir's remote changing")

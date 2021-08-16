@@ -11,10 +11,15 @@ type Set struct {
 	inner sync.Map
 }
 
-func NewSet() *Set {
-	return &Set{
+func NewSet(keys ...string) *Set {
+	set := &Set{
 		sync.Map{},
 	}
+
+	for _, key := range keys {
+		set.Put(key)
+	}
+	return set
 }
 
 func (s *Set) ToArray() []string {

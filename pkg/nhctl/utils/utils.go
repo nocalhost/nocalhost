@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package utils
 
@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"nocalhost/internal/nhctl/syncthing/terminate"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"os/exec"
 	"path/filepath"
@@ -81,6 +82,14 @@ func RenderProgressBar(prefix string, current, scalingFactor float64) string {
 	_, _ = sb.WriteString("]")
 	_, _ = sb.WriteString(fmt.Sprintf(" %3v%%", int(current)))
 	return sb.String()
+}
+
+func KillSyncthingProcess(keyword string) {
+	if utils.IsWindows() {
+		KillSyncthingProcessOnWindows(keyword)
+	} else {
+		KillSyncthingProcessOnUnix(keyword)
+	}
 }
 
 func KillSyncthingProcessOnWindows(keyword string) {
