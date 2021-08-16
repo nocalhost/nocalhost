@@ -55,10 +55,8 @@ func checkClusterAvailable(kube string, timeout time.Duration) error {
 			errChan <- err
 			return
 		}
-		if _, err = c.ClientSet.ServerVersion(); err != nil {
-			errChan <- err
-			return
-		}
+		_, err = c.ClientSet.ServerVersion()
+		errChan <- err
 	}()
 
 	select {
