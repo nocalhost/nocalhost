@@ -169,7 +169,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 
 			i--
 			// to force override the remote changing
-			client := nocalhostSvc.NewSyncthingHttpClient()
+			client := nocalhostSvc.NewSyncthingHttpClient(2)
 			err = client.FolderOverride()
 			if err == nil {
 				log.Info("Force overriding workDir's remote changing")
