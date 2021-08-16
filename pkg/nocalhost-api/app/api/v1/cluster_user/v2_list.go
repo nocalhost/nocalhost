@@ -42,7 +42,7 @@ func GetV2(c *gin.Context) {
 	}
 
 	cu.ID = *params.ClusterUserId
-	if result, err := doList(&cu, userId, isAdmin); err != nil {
+	if result, err := DoList(&cu, userId, isAdmin); err != nil {
 		api.SendResponse(c, err, nil)
 	} else {
 		api.SendResponse(c, nil, result)
@@ -76,14 +76,14 @@ func ListV2(c *gin.Context) {
 		cu.SpaceName = params.SpaceName
 	}
 
-	if result, err := doList(&cu, userId, isAdmin); err != nil {
+	if result, err := DoList(&cu, userId, isAdmin); err != nil {
 		api.SendResponse(c, err, nil)
 	} else {
 		api.SendResponse(c, nil, result)
 	}
 }
 
-func doList(params *model.ClusterUserModel, userId uint64, isAdmin bool) ([]*model.ClusterUserV2, *errno.Errno) {
+func DoList(params *model.ClusterUserModel, userId uint64, isAdmin bool) ([]*model.ClusterUserV2, *errno.Errno) {
 	clusterUsers, err := service.Svc.ClusterUser().ListV2(*params)
 	if err != nil {
 		log.Error(err)

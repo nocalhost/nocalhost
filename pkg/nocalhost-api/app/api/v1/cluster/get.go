@@ -15,7 +15,9 @@ import (
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster_user"
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
+	"nocalhost/pkg/nocalhost-api/app/router/middleware"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"strconv"
@@ -44,6 +46,33 @@ type ClusterSafeList struct {
 // @Router /v1/cluster [get]
 func GetList(c *gin.Context) {
 	result, _ := service.Svc.ClusterSvc().GetList(c)
+	tempResult := make([]*model.ClusterList, 0, 0)
+	userId := c.GetUint64("userId")
+	// normal user can only see clusters they created, or devSpace's cluster
+	if isAdmin, _ := middleware.IsAdmin(c); !isAdmin {
+		// cluster --> userid, find cluster which user's devSpace based on
+		clusterToUser := make(map[uint64]uint64)
+		lists, _ := cluster_user.DoList(&model.ClusterUserModel{}, userId, false)
+		for _, i := range lists {
+			clusterToUser[i.ClusterId] = i.UserId
+		}
+		for _, list := range result {
+			// cluster they created, can modify
+			if list.UserId == userId {
+				list.Modifiable = true
+				tempResult = append(tempResult, list)
+				// cluster devSpace based on, can't modify
+			} else if v := clusterToUser[list.GetClusterId()]; v == userId {
+				list.Modifiable = false
+				tempResult = append(tempResult, list)
+			}
+		}
+		result = tempResult[0:]
+	} else {
+		for _, list := range result {
+			list.Modifiable = true
+		}
+	}
 	vos := make([]model.ClusterListVo, len(result), len(result))
 	var wg sync.WaitGroup
 	wg.Add(len(result))
