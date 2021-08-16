@@ -142,7 +142,7 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 	return s, nil
 }
 
-func (c *Controller) NewSyncthingHttpClient() *req.SyncthingHttpClient {
+func (c *Controller) NewSyncthingHttpClient(reqTimeoutSecond int) *req.SyncthingHttpClient {
 	svcProfile, _ := c.GetProfile()
 
 	return req.NewSyncthingHttpClient(
@@ -150,6 +150,7 @@ func (c *Controller) NewSyncthingHttpClient() *req.SyncthingHttpClient {
 		syncthing.DefaultAPIKey,
 		syncthing.DefaultRemoteDeviceID,
 		syncthing.DefaultFolderName,
+		reqTimeoutSecond,
 	)
 }
 
