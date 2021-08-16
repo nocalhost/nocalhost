@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package clientgoutils
 
@@ -83,6 +83,12 @@ func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, 
 	if kubeConfigPath == "" { // use default config
 		kubeConfigPath = filepath.Join(utils.GetHomePath(), ".kube", "config")
 	}
+
+	abs, err := filepath.Abs(kubeConfigPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "please make sure kubeconfig path is reachable")
+	}
+	kubeConfigPath = abs
 
 	client := &ClientGoUtils{
 		kubeConfigFilePath: kubeConfigPath,

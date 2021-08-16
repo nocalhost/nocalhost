@@ -1,13 +1,14 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
 import (
 	"context"
 	"fmt"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/const"
@@ -186,7 +187,10 @@ func must(err error) {
 }
 
 func mustI(err error, info string) {
-	if err != nil {
+	if k8serrors.IsForbidden(err) {
+		log.FatalE(err, "Permission Denied! Please check that"+
+			" your ServiceAccount(KubeConfig) has appropriate permissions.\n\n")
+	} else if err != nil {
 		log.FatalE(err, info)
 	}
 }

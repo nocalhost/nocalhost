@@ -1,34 +1,47 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/mitchellh/go-ps"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/syncthing/network/req"
+	"time"
 )
 
 var syncStatusOps = &app.SyncStatusOptions{}
 
 func init() {
 	//syncStatusCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
-	syncStatusCmd.Flags().StringVarP(&deployment, "deployment", "d", string(base.Deployment),
+	syncStatusCmd.Flags().StringVarP(
+		&deployment, "deployment", "d", string(base.Deployment),
 		"k8s deployment which your developing service exists",
 	)
-	syncStatusCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
-		"kind of k8s controller,such as deployment,statefulSet")
+	syncStatusCmd.Flags().StringVarP(
+		&serviceType, "controller-type", "t", "deployment",
+		"kind of k8s controller,such as deployment,statefulSet",
+	)
 	syncStatusCmd.Flags().BoolVar(
 		&syncStatusOps.Override, "override", false,
 		"override the remote changing according to the local sync folder",
 	)
-
+	syncStatusCmd.Flags().BoolVar(
+		&syncStatusOps.WaitForSync, "wait", false,
+		"wait for first sync process finished, default value is false",
+	)
+	syncStatusCmd.Flags().Int64Var(
+		&syncStatusOps.Timeout, "timeout", 120,
+		"wait for sync process finished timeout, default is 120 seconds, unit is seconds ",
+	)
 	rootCmd.AddCommand(syncStatusCmd)
 }
 
@@ -56,12 +69,25 @@ var syncStatusCmd = &cobra.Command{
 			return
 		}
 
-		if !nhSvc.IsProcessor(){
+		if !nhSvc.IsProcessor() {
 			display(req.NotProcessor)
 			return
 		}
 
-		client := nhSvc.NewSyncthingHttpClient()
+		// check if syncthing exists
+		pid, err := nhSvc.GetSyncThingPid()
+		if err != nil {
+			display(req.NotSyncthingProcessFound)
+			return
+		}
+
+		pro, err := ps.FindProcess(pid)
+		if err != nil || pro == nil {
+			display(req.NotSyncthingProcessFound)
+			return
+		}
+
+		client := nhSvc.NewSyncthingHttpClient(2)
 
 		if syncStatusOps.Override {
 			must(client.FolderOverride())
@@ -69,6 +95,10 @@ var syncStatusCmd = &cobra.Command{
 			return
 		}
 
+		if syncStatusOps.WaitForSync {
+			waitForFirstSync(client, time.Second*time.Duration(syncStatusOps.Timeout))
+			return
+		}
 		display(client.GetSyncthingStatus())
 	},
 }
@@ -76,4 +106,41 @@ var syncStatusCmd = &cobra.Command{
 func display(v interface{}) {
 	marshal, _ := json.Marshal(v)
 	fmt.Printf("%s", string(marshal))
+}
+
+func waitForFirstSync(client *req.SyncthingHttpClient, duration time.Duration) {
+	timeout, cancelFunc := context.WithTimeout(context.Background(), duration)
+	defer cancelFunc()
+
+	for {
+		select {
+		case <-timeout.Done():
+			display(
+				req.SyncthingStatus{
+					Status:    req.Error,
+					Msg:       "wait for sync finished timeout",
+					Tips:      "",
+					OutOfSync: "",
+				},
+			)
+			return
+		default:
+			time.Sleep(time.Millisecond * 100)
+			events, err := client.Events()
+			if err != nil {
+				continue
+			}
+			var found bool
+			for _, event := range events {
+				if event.EventType == "FolderCompletion" && event.Data.Completion == 100 {
+					found = true
+					break
+				}
+			}
+			if found {
+				display(req.SyncthingStatus{Status: req.Idle, Msg: "sync finished", Tips: "", OutOfSync: ""})
+				return
+			}
+		}
+	}
 }

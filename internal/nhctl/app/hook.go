@@ -12,10 +12,12 @@ import (
 )
 
 func (a *Application) PreInstallHook() error {
-	log.Info("Executing pre-install hook")
 	return a.applyManifestAndWaitCompleteThen(
 		a.GetAppMeta().GetApplicationConfig().PreInstall,
 		func(manifest string) error {
+			if manifest != "" {
+				log.Info("Executing pre-install hook")
+			}
 			a.GetAppMeta().PreInstallManifest = a.GetAppMeta().PreInstallManifest + manifest
 			return a.GetAppMeta().Update()
 		}, true,
@@ -23,10 +25,13 @@ func (a *Application) PreInstallHook() error {
 }
 
 func (a *Application) PostInstallHook() error {
-	log.Info("Executing post-install hook")
+
 	return a.applyManifestAndWaitCompleteThen(
 		a.GetAppMeta().GetApplicationConfig().PostInstall,
 		func(manifest string) error {
+			if manifest != "" {
+				log.Info("Executing post-install hook")
+			}
 			a.GetAppMeta().PostInstallManifest = a.GetAppMeta().PostInstallManifest + manifest
 			return a.GetAppMeta().Update()
 		}, true,
@@ -34,10 +39,12 @@ func (a *Application) PostInstallHook() error {
 }
 
 func (a *Application) PreUpgradeHook() error {
-	log.Info("Executing pre-upgrade hook")
 	return a.applyManifestAndWaitCompleteThen(
 		a.GetAppMeta().GetApplicationConfig().PreUpgrade,
 		func(manifest string) error {
+			if manifest != "" {
+				log.Info("Executing pre-upgrade hook")
+			}
 			a.GetAppMeta().PreUpgradeManifest = a.GetAppMeta().PreUpgradeManifest + manifest
 			return a.GetAppMeta().Update()
 		}, true,
@@ -45,10 +52,12 @@ func (a *Application) PreUpgradeHook() error {
 }
 
 func (a *Application) PostUpgradeHook() error {
-	log.Info("Executing post-upgrade hook")
 	return a.applyManifestAndWaitCompleteThen(
 		a.GetAppMeta().GetApplicationConfig().PostUpgrade,
 		func(manifest string) error {
+			if manifest != "" {
+				log.Info("Executing post-upgrade hook")
+			}
 			a.GetAppMeta().PostUpgradeManifest = a.GetAppMeta().PostUpgradeManifest + manifest
 			return a.GetAppMeta().Update()
 		}, true,

@@ -9,21 +9,34 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap/zapcore"
+	"io/ioutil"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"nocalhost/internal/nhctl/app"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
 var (
-	nameSpace    string
-	debug        bool
+	nameSpace string
+	debug     bool
+
+	// pre check the nocalhost commands permissions
+	authCheck    bool
 	kubeConfig   string // the path to the kubeconfig file
 	nocalhostApp *app.Application
 	nocalhostSvc *controller.Controller
 )
+
+type ConfigFile struct {
+	NhEsUrl string `json:"nh_es_url" yaml:"nh_es_url"`
+}
 
 func init() {
 
@@ -34,6 +47,11 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(
 		&debug, "debug", debug,
 		"enable debug level log",
+	)
+	rootCmd.PersistentFlags().BoolVar(
+		&authCheck, "auth-check", authCheck,
+		"pre check the nocalhost commands permissions, return yes" +
+			" represent having enough permissions to call the command",
 	)
 	rootCmd.PersistentFlags().StringVar(
 		&kubeConfig, "kubeconfig", "",
@@ -48,17 +66,51 @@ var rootCmd = &cobra.Command{
 	Long:  `nhctl is a cloud-native development tool.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 
+		// Init log
 		if debug {
 			_ = os.Setenv("_NOCALHOST_DEBUG_", "1")
-			_ = log.Init(zapcore.DebugLevel, nocalhost.GetLogDir(), nocalhost.DefaultLogFileName)
+			_ = log.Init(zapcore.DebugLevel, nocalhost.GetLogDir(), _const.DefaultLogFileName)
 		} else {
-			_ = log.Init(zapcore.InfoLevel, nocalhost.GetLogDir(), nocalhost.DefaultLogFileName)
+			_ = log.Init(zapcore.InfoLevel, nocalhost.GetLogDir(), _const.DefaultLogFileName)
 		}
-		err := nocalhost.Init()
+		log.AddField("VERSION", Version)
+		log.AddField("COMMIT", GitCommit)
+		log.AddField("BRANCH", Branch)
+
+		var esUrl string
+		bys, err := ioutil.ReadFile(filepath.Join(nocalhost_path.GetNhctlHomeDir(), "config"))
+		if err == nil && len(bys) > 0 {
+			configFile := ConfigFile{}
+			err = yaml.Unmarshal(bys, &configFile)
+			if err == nil && configFile.NhEsUrl != "" {
+				esUrl = configFile.NhEsUrl
+			}
+		}
+		if esUrl == "" {
+			esUrl = os.Getenv("NH_ES_URL")
+		}
+		if esUrl != "" {
+			log.InitEs(esUrl)
+		}
+
+		err = nocalhost.Init()
 		if err != nil {
 			log.FatalE(err, "Fail to init nhctl")
 		}
 		serviceType = strings.ToLower(serviceType)
+
+		if authCheck {
+
+			must(Prepare())
+			client, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
+			must(err)
+
+			must(clientgoutils.DoCheck(cmd, nameSpace, client))
+
+			println("yes")
+			os.Exit(0)
+			return
+		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Debug("hello nhctl")

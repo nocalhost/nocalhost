@@ -22,6 +22,7 @@ type BaseRepo interface {
 	Delete(ctx context.Context, id uint64) error
 	GetUserByID(ctx context.Context, id uint64) (*model.UserBaseModel, error)
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
+	GetUserBySa(ctx context.Context, sa string) (*model.UserBaseModel, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
 	GetUserList(ctx context.Context) ([]*model.UserList, error)
 	UpdateServiceAccountName(ctx context.Context, id uint64, saName string) error
@@ -115,6 +116,17 @@ func (repo *userBaseRepo) GetUserByID(ctx context.Context, uid uint64) (userBase
 		return nil, errors.Wrap(err, "[repo.user_base] get user data err")
 	}
 	return data, nil
+}
+
+// GetUserBySa
+func (repo *userBaseRepo) GetUserBySa(ctx context.Context, sa string) (*model.UserBaseModel, error) {
+	user := model.UserBaseModel{}
+	err := repo.db.Where("sa_name = ?", sa).First(&user).Error
+	if err != nil {
+		return nil, errors.Wrap(err, "[user_repo] get user err by sa_name")
+	}
+
+	return &user, nil
 }
 
 // GetUserByPhone

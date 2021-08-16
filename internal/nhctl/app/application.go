@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package app
 
@@ -10,6 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"net"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/coloredoutput"
@@ -75,6 +76,50 @@ func (a *Application) moveProfileFromFileToLeveldb() error {
 
 	//a.profileV2 = profileV2
 	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
+}
+
+func NewFakeApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
+
+	var err error
+	app := &Application{
+		Name:       name,
+		NameSpace:  ns,
+		KubeConfig: kubeconfig,
+	}
+
+	app.appMeta = appmeta.FakeAppMeta(ns, kubeconfig)
+	if err := app.tryLoadProfileFromLocal(); err != nil {
+		return nil, err
+	}
+
+	// if still not present
+	// load from secret
+	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
+	if err != nil {
+		profileV2 = generateProfileFromConfig(app.appMeta.Config)
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, profileV2); err != nil {
+			return nil, err
+		}
+	}
+	app.AppType = profileV2.AppType
+
+	if kubeconfig != "" && kubeconfig != profileV2.Kubeconfig {
+		if err := app.UpdateProfile(
+			func(p *profile.AppProfileV2) error {
+				p.Kubeconfig = kubeconfig
+				return nil
+			},
+		); err != nil {
+			return nil, err
+		}
+	}
+
+	if initClient {
+		if app.client, err = clientgoutils.NewClientGoUtils(app.KubeConfig, app.NameSpace); err != nil {
+			return nil, err
+		}
+	}
+	return app, nil
 }
 
 // When new a application, kubeconfig is required to get meta in k8s cluster
@@ -771,6 +816,10 @@ func (a *Application) PortForwardAPod(req clientgoutils.PortForwardAPodRequest) 
 	return a.client.PortForwardAPod(req)
 }
 
+func (a *Application) PortForward(pod string, localPort, remotePort int, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) error {
+	return a.client.Forward(pod, localPort, remotePort, readyChan, stopChan, g)
+}
+
 // set pid file empty
 func (a *Application) SetPidFileEmpty(filePath string) error {
 	return os.Remove(filePath)
@@ -812,7 +861,7 @@ func (a *Application) PortForwardFollow(podName string, localPort int, remotePor
 		return err
 	}
 	fps := []*clientgoutils.ForwardPort{{LocalPort: localPort, RemotePort: remotePort}}
-	pf, err := client.CreatePortForwarder(podName, fps)
+	pf, err := client.CreatePortForwarder(podName, fps, nil, nil, genericclioptions.IOStreams{})
 	if err != nil {
 		return err
 	}

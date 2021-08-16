@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package testcase
 
@@ -9,33 +9,102 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/runner"
+	"nocalhost/test/util"
 	"os"
 	"os/exec"
 	"strconv"
+	"time"
 )
 
 func InstallBookInfoDifferentType(nhctl runner.Client) error {
 	_ = UninstallBookInfo(nhctl)
 	f := []func() error{
-		func() error { return installBookInfoHelmGit(nhctl) },
-		func() error { return installBookInfoKustomizeGit(nhctl) },
-		func() error { return installBookInfoHelmRepo(nhctl) },
-		func() error { return installBookInfoRawManifestLocal(nhctl) },
-		func() error { return installBookInfoKustomizeGitLocal(nhctl) },
-		func() error { return installBookInfoHelmLocal(nhctl) },
-		func() error { return installBookInfoRawManifest(nhctl) },
+		func() error {
+			return util.TimeoutFunc(
+				time.Minute*2, func() error {
+					return installBookInfoHelmGit(nhctl)
+				}, func() error {
+					return UninstallBookInfo(nhctl)
+				},
+			)
+		},
+		func() error {
+			return util.TimeoutFunc(
+				time.Minute*2, func() error {
+					return installBookInfoKustomizeGit(nhctl)
+				}, func() error {
+					return UninstallBookInfo(nhctl)
+				},
+			)
+		},
+		func() error {
+			return util.TimeoutFunc(
+				time.Minute*2, func() error {
+					return installBookInfoHelmRepo(nhctl)
+				}, func() error {
+					return UninstallBookInfo(nhctl)
+				},
+			)
+		},
+		func() error {
+			return util.TimeoutFunc(
+				time.Minute*2, func() error {
+					return installBookInfoRawManifestLocal(nhctl)
+				}, func() error {
+					return UninstallBookInfo(nhctl)
+				},
+			)
+		},
+		func() error {
+			return util.TimeoutFunc(
+				time.Minute*2, func() error {
+					return installBookInfoKustomizeGitLocal(nhctl)
+				}, func() error {
+					return UninstallBookInfo(nhctl)
+				},
+			)
+		},
+		func() error {
+			return util.TimeoutFunc(
+				time.Minute*2, func() error {
+					return installBookInfoHelmLocal(nhctl)
+				}, func() error {
+					return UninstallBookInfo(nhctl)
+				},
+			)
+		},
+		func() error {
+			return util.TimeoutFunc(
+				time.Minute*2, func() error {
+					return installBookInfoRawManifest(nhctl)
+				}, func() error {
+					return UninstallBookInfo(nhctl)
+				},
+			)
+		},
 	}
 	for i, bookinfoFunc := range f {
-		if err := bookinfoFunc(); err != nil {
-			return errors.Wrap(err, "error on exec function index: "+strconv.Itoa(i))
-		}
-		if err := List(nhctl); err != nil {
-			return err
-		}
-		if err := UninstallBookInfo(nhctl); err != nil {
-			return err
-		}
+		return util.RetryFunc(
+			func() error {
+				logger := log.TestLogger(nhctl.SuiteName())
+
+				if err := bookinfoFunc(); err != nil {
+					logger.Infof("Error on exec INSTALL function index: %v, Err: %s", strconv.Itoa(i), err)
+					return errors.Wrap(err, "error on exec function index: "+strconv.Itoa(i))
+				}
+				if err := List(nhctl); err != nil {
+					logger.Infof("Error on exec INSTALL function index: %v, Err: %s", strconv.Itoa(i), err)
+					return err
+				}
+				if err := UninstallBookInfo(nhctl); err != nil {
+					logger.Infof("Error on exec INSTALL function index: %v, Err: %s", strconv.Itoa(i), err)
+					return err
+				}
+				return nil
+			},
+		)
 	}
 	return nil
 }
@@ -68,7 +137,7 @@ func installBookInfoRawManifest(nhctl runner.Client) error {
 		"--resource-path",
 		"manifest/templates",
 	)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
@@ -83,7 +152,7 @@ func installBookInfoKustomizeGit(nhctl runner.Client) error {
 		"--resource-path",
 		"kustomize/base",
 	)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
@@ -98,20 +167,21 @@ func installBookInfoHelmGit(nhctl runner.Client) error {
 		"--resource-path",
 		"charts/bookinfo",
 	)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
 func installBookInfoRawManifestLocal(nhctl runner.Client) error {
 	dir, _ := os.MkdirTemp("", "")
-	command := exec.Command("git",
+	command := exec.Command(
+		"git",
 		"clone",
 		"-b",
 		"test-case",
 		"https://github.com/nocalhost/bookinfo.git",
 		dir,
 	)
-	if err := runner.Runner.RunWithCheckResult(command); err != nil {
+	if err := runner.Runner.RunWithCheckResult(nhctl.SuiteName(), command); err != nil {
 		return err
 	}
 
@@ -125,20 +195,21 @@ func installBookInfoRawManifestLocal(nhctl runner.Client) error {
 		"--resource-path",
 		"manifest/templates",
 	)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
 func installBookInfoKustomizeGitLocal(nhctl runner.Client) error {
 	dir, _ := os.MkdirTemp("", "")
-	command := exec.Command("git",
+	command := exec.Command(
+		"git",
 		"clone",
 		"-b",
 		"test-case",
 		"https://github.com/nocalhost/bookinfo.git",
 		dir,
 	)
-	if err := runner.Runner.RunWithCheckResult(command); err != nil {
+	if err := runner.Runner.RunWithCheckResult(nhctl.SuiteName(), command); err != nil {
 		return err
 	}
 
@@ -152,20 +223,21 @@ func installBookInfoKustomizeGitLocal(nhctl runner.Client) error {
 		"--resource-path",
 		"kustomize/base",
 	)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
 func installBookInfoHelmLocal(nhctl runner.Client) error {
 	dir, _ := os.MkdirTemp("", "")
-	command := exec.Command("git",
+	command := exec.Command(
+		"git",
 		"clone",
 		"-b",
 		"test-case",
 		"https://github.com/nocalhost/bookinfo.git",
 		dir,
 	)
-	if err := runner.Runner.RunWithCheckResult(command); err != nil {
+	if err := runner.Runner.RunWithCheckResult(nhctl.SuiteName(), command); err != nil {
 		return err
 	}
 	cmd := nhctl.GetNhctl().Command(
@@ -178,7 +250,7 @@ func installBookInfoHelmLocal(nhctl runner.Client) error {
 		"--resource-path",
 		"charts/bookinfo",
 	)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }
 
@@ -200,6 +272,6 @@ func installBookInfoHelmRepo(nhctl runner.Client) error {
 		"--outer-config",
 		temp.Name(),
 	)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(cmd, nil)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
 }

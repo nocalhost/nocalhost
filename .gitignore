@@ -20,6 +20,7 @@
 
 .DS_Store
 .idea
+Chart.lock
 
 /cmd/nhctl/utils/darwin/*
 /cmd/nhctl/build/
@@ -33,6 +34,8 @@ sync_for_test
 /nocalhost-dep
 /nhctl
 /build
+
+/testlog
 
 /conf/config.local.yaml
 .vscode/settings.json

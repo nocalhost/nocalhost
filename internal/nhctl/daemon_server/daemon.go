@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package daemon_server
 
@@ -24,6 +24,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"runtime/debug"
 	"strings"
+	"time"
 )
 
 var (
@@ -49,6 +50,8 @@ func daemonListenPort() int {
 }
 
 func StartDaemon(isSudoUser bool, v string, c string) error {
+
+	log.Log("Starting daemon server...")
 	startUpPath, _ = utils.GetNhctlPath()
 
 	version = v
@@ -134,7 +137,10 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 						log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
 					}
 				}()
+				start := time.Now()
+				log.Infof("Handling %s command", cmdType)
 				handleCommand(conn, bytes, cmdType, clientStack)
+				log.Infof("%s command done, takes %f seconds", cmdType, time.Now().Sub(start).Seconds())
 			}()
 		}
 	}()
@@ -166,7 +172,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType, clientStack string) {
 	var err error
-	log.Infof("Handling %s command", cmdType)
+	//log.Infof("Handling %s command", cmdType)
 
 	defer func() {
 		if err != nil {

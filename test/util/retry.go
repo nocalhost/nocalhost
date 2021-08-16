@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package util
 
@@ -18,13 +18,15 @@ import (
 var retryTimes = 10
 
 func Retry(suiteName string, funcs []func() error) {
+
+	logger := log.TestLogger(suiteName)
 	var err error
 	for i, f := range funcs {
 		for i := 0; i < retryTimes; i++ {
 			if err = f(); err == nil {
 				break
 			}
-			log.Info(err)
+			logger.Infof("Error while exec retry func, %s", err)
 		}
 		clientgoutils.MustI(
 			err, fmt.Sprintf(

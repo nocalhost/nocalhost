@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package testcase
 
@@ -28,8 +28,6 @@ import (
 	"strings"
 	"time"
 )
-
-var StatusChan = make(chan int32, 1)
 
 func GetVersion() (lastVersion string, currentVersion string) {
 	commitId := os.Getenv(util.CommitId)
@@ -69,54 +67,66 @@ func InstallNhctl(version string) error {
 	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, name, version, utils.GetNhctlBinName()))
 	if utils.IsWindows() {
 		delCmd := exec.Command("sh", "-c", fmt.Sprintf("rm %s", utils.GetNhctlBinName()))
-		if _, _, err := runner.Runner.RunWithRollingOutWithChecker(delCmd, nil); err != nil {
+		if _, _, err := runner.Runner.RunWithRollingOutWithChecker("Main", delCmd, nil); err != nil {
 			log.Error(err)
 		}
 	}
-	if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
+	if err := runner.Runner.RunWithCheckResult("Main", cmd); err != nil {
 		return err
 	}
 	// unix and linux needs to add x permission
 	if needChmod {
 		cmd = exec.Command("sh", "-c", "chmod +x nhctl")
-		if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
+		if err := runner.Runner.RunWithCheckResult("Main", cmd); err != nil {
 			return err
 		}
 		cmd = exec.Command("sh", "-c", "sudo mv ./nhctl /usr/local/bin/nhctl")
-		if err := runner.Runner.RunWithCheckResult(cmd); err != nil {
+		if err := runner.Runner.RunWithCheckResult("Main", cmd); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func Init(nhctl *runner.CLI) error {
+func Init(nhctl *runner.CLI) (string, error) {
 	cmd := nhctl.CommandWithNamespace(
 		context.Background(),
 		"init", "nocalhost", "demo", "-p", "7000", "--force",
 	)
+
+	var addressChan = make(chan string, 1)
+
 	log.Infof("Running command: %s", cmd.Args)
 	go func() {
 		_, _, err := runner.Runner.RunWithRollingOutWithChecker(
+			nhctl.SuitName(),
 			cmd,
 			func(s string) bool {
-				if strings.Contains(s, "Nocalhost init completed") {
-					StatusChan <- 0
+
+				if strings.Contains(s, "Web dashboard:") {
+					for _, line := range strings.Split(s, "\n") {
+						if strings.Contains(line, "Web dashboard:") {
+							addr := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "Web dashboard:"))
+							log.Infof("Init complete and getting addr %s", addr)
+							addressChan <- addr
+						}
+					}
 					return true
 				}
 				return false
 			},
 		)
 		if err != nil {
-			StatusChan <- 1
+			addressChan <- ""
 		}
 	}()
 
-	if i := <-StatusChan; i != 0 {
-		return errors.New("Init nocalhost occurs error, exiting")
+	addr := <-addressChan
+	if addr == "" {
+		return "", errors.New("Init nocalhost occurs error, exiting")
 	}
 	log.Infof("init successfully")
-	return nil
+	return addr, nil
 }
 
 func StatusCheck(nhctl runner.Client, moduleName string) error {
@@ -125,7 +135,7 @@ func StatusCheck(nhctl runner.Client, moduleName string) error {
 	for i := 0; i < retryTimes; i++ {
 		time.Sleep(time.Second * 2)
 		cmd := nhctl.GetNhctl().Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
-		stdout, stderr, err := runner.Runner.Run(cmd)
+		stdout, stderr, err := runner.Runner.Run(nhctl.SuiteName(), cmd)
 		if err != nil {
 			log.Infof("Run command: %s, error: %v, stdout: %s, stderr: %s, retry", cmd.Args, err, stdout, stderr)
 			continue
@@ -153,7 +163,7 @@ func StatusCheck(nhctl runner.Client, moduleName string) error {
 	return nil
 }
 
-func GetKubeconfig(ns, kubeconfig string) (string, error) {
+func GetKubeconfig(webAddr, ns, kubeconfig string) (string, error) {
 	client, err := clientgoutils.NewClientGoUtils(kubeconfig, ns)
 	log.Infof("kubeconfig %s", kubeconfig)
 	if err != nil || client == nil {
@@ -164,12 +174,12 @@ func GetKubeconfig(ns, kubeconfig string) (string, error) {
 		return "", errors.Errorf("check kubectl error, err: %v", err)
 	}
 	res := request.NewReq("", kubeconfig, kubectl, ns, 7000)
-	res.ExposeService()
+	res.SpecifyService(webAddr)
 	res.Login(app.DefaultInitAdminUserName, app.DefaultInitPassword)
 
 	header := req.Header{"Accept": "application/json", "Authorization": "Bearer " + res.AuthToken, "content-type": "text/plain"}
 
-	retryTimes := 20
+	retryTimes := 200
 	var config string
 	for i := 0; i < retryTimes; i++ {
 

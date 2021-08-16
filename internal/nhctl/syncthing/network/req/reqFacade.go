@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package req
 
@@ -124,7 +124,6 @@ const (
 	Identifier = "(Nocalhost): "
 )
 
-
 var AppNotInstalledTemplate = &SyncthingStatus{
 	Status: End,
 	Msg:    "Application not installed",
@@ -142,6 +141,12 @@ var NotProcessor = &SyncthingStatus{
 	Msg:    "Not Process File Sync",
 	Tips: Identifier + "File Sync is hold by other device, if you want to take over the file sync, " +
 		"you should end the dev mode and re enter again.",
+}
+
+var NotSyncthingProcessFound = &SyncthingStatus{
+	Status: Disconnected,
+	Msg:    "No syncthing process found",
+	Tips:   Identifier + "No syncthing process found, please restart it.",
 }
 
 var disconnectedTemplate = &SyncthingStatus{
