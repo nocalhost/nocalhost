@@ -136,17 +136,17 @@ var NotInDevModeTemplate = &SyncthingStatus{
 	Tips:   Identifier + "File sync does not working due to the devMode is not enabled.",
 }
 
-var NotSyncthingProcessFound = &SyncthingStatus{
-	Status: End,
-	Msg:    "No syncthing process found",
-	Tips:   Identifier + "No syncthing process found, please restart it.",
-}
-
 var NotProcessor = &SyncthingStatus{
 	Status: End,
 	Msg:    "Not Process File Sync",
 	Tips: Identifier + "File Sync is hold by other device, if you want to take over the file sync, " +
 		"you should end the dev mode and re enter again.",
+}
+
+var NotSyncthingProcessFound = &SyncthingStatus{
+	Status: Disconnected,
+	Msg:    "No syncthing process found",
+	Tips:   Identifier + "No syncthing process found, please restart it.",
 }
 
 var disconnectedTemplate = &SyncthingStatus{
