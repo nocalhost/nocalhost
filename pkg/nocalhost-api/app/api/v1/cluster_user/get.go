@@ -219,11 +219,6 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 		return
 	}
 
-	if !ginbase.IsAdmin(c) {
-		user, _ := ginbase.LoginUser(c)
-		condition.UserId = user
-	}
-
 	result, err := service.Svc.ClusterUser().GetJoinClusterAndAppAndUserDetail(c, condition)
 	if err != nil {
 		api.SendResponse(c, nil, nil)
