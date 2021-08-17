@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package daemon_handler
 
@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
@@ -383,11 +384,33 @@ func InitDefaultAppIfNecessary(namespace, kubeconfigPath string) []*appmeta.Appl
 			break
 		}
 	}
+
 	if !foundDefaultApp {
 		// try init default application
 		_, err := common.InitDefaultApplicationInCurrentNs(namespace, kubeconfigPath)
-		utils.ShouldI(err, "Error while create default application")
 		applicationMetaList = appmeta_manager.GetApplicationMetas(namespace, kubeconfigBytes)
+
+		if err != nil {
+			// if current user has not permission to create secret, we also create a fake 'default.application'
+			// app meta for him
+			if k8serrors.IsForbidden(err) {
+
+				for _, meta := range applicationMetaList {
+					if meta.Application == _const.DefaultNocalhostApplication {
+						foundDefaultApp = true
+						break
+					}
+				}
+
+				if !foundDefaultApp {
+					applicationMetaList = append(
+						applicationMetaList, appmeta.FakeAppMeta(namespace, _const.DefaultNocalhostApplication),
+					)
+				}
+			} else {
+				utils.ShouldI(err, "Error while create default.application")
+			}
+		}
 	}
 	SortApplication(applicationMetaList)
 	return applicationMetaList

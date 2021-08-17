@@ -6,7 +6,6 @@
 package middleware
 
 import (
-	"net/http"
 	"regexp"
 	"strings"
 
@@ -19,7 +18,7 @@ import (
 // PermissionMiddleware
 func PermissionMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		admin, err := isAdmin(c)
+		admin, err := IsAdmin(c)
 		if err != nil {
 			api.SendResponse(c, err, nil)
 			c.Abort()
@@ -46,8 +45,13 @@ func whiteList(method, path string) bool {
 		"/v1/dev_space/[0-9]+/recreate":   "POST",
 		"/v1/application/[0-9]+":          "GET,PUT,DELETE",
 		"/v1/nocalhost/templates":         "GET",
-		"/v1/dev_space":                   "GET",
+		"/v1/dev_space":                   "GET,POST",
+		"/v1/dev_space/[0-9]+":            "PUT",
 		"/v1/application":                 "GET,POST",
+
+		"/v1/cluster":                      "POST,GET",
+		"/v1/cluster/[0-9]+":               "PUT,DELETE",
+		"/v1/cluster/[0-9]+/storage_class": "PUT,DELETE",
 
 		"/v1/devspace/[0-9]+": "PUT",
 		"/v2/dev_space":       "GET",
@@ -65,26 +69,7 @@ func whiteList(method, path string) bool {
 	return false
 }
 
-// GetMethodOnlyForGeneralUserMiddleware general user can only request by "GET"
-func GetMethodOnlyForGeneralUserMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		admin, err := isAdmin(c)
-		if err != nil {
-			api.SendResponse(c, err, nil)
-			c.Abort()
-			return
-		}
-
-		if !admin && c.Request.Method != http.MethodGet {
-			api.SendResponse(c, errno.ErrPermissionDenied, nil)
-			c.Abort()
-			return
-		}
-		c.Next()
-	}
-}
-
-func isAdmin(c *gin.Context) (bool, error) {
+func IsAdmin(c *gin.Context) (bool, error) {
 	id, ok := c.Get("isAdmin")
 	if !ok {
 		return false, errno.ErrLostPermissionFlag

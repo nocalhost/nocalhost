@@ -92,7 +92,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 
 	// Clusters
 	c := g.Group("/v1/cluster")
-	c.Use(middleware.AuthMiddleware(), middleware.GetMethodOnlyForGeneralUserMiddleware())
+	c.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
 	{
 		c.POST("", cluster.Create)
 		c.GET("", cluster.GetList)

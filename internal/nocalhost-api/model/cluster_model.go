@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package model
 
@@ -78,6 +78,7 @@ type ClusterList struct {
 	NotReadyMessage string    `json:"not_ready_message"`
 	HasDevSpace     bool      `json:"has_dev_space"`
 	Server          string    `gorm:"column:server;not null" json:"server"`
+	Modifiable      bool      `json:"modifiable"`
 }
 
 type ClusterListVo struct {
