@@ -55,6 +55,7 @@ type ClusterUserExt struct {
 	ViewerUser       []*UserSimple `json:"viewer_user"`
 	Owner            *UserSimple   `json:"owner"`
 	Modifiable       bool          `json:"modifiable"`
+	Deletable        bool          `json:"deletable"`
 }
 
 // ClusterUserModel

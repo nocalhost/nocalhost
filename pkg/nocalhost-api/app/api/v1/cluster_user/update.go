@@ -76,6 +76,7 @@ func Update(c *gin.Context) {
 // @Success 200 {object} model.ClusterUserModel
 // @Router /v1/dev_space/{id}/update_resource_limit [put]
 func UpdateResourceLimit(c *gin.Context) {
+
 	var req SpaceResourceLimit
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Warnf("bind resource limits params err: %v", err)
@@ -84,6 +85,12 @@ func UpdateResourceLimit(c *gin.Context) {
 	}
 
 	devSpaceId := cast.ToUint64(c.Param("id"))
+
+	_, errn := HasHighPermissionToSomeDevSpace(c, devSpaceId)
+	if errn != nil {
+		api.SendResponse(c, errn, nil)
+		return
+	}
 
 	// Validate DevSpace Resource limit parameter format.
 	flag, message := ValidSpaceResourceLimit(req)

@@ -8,12 +8,10 @@ package cluster_user
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/internal/nocalhost-api/service/cooperator/cluster_scope"
 	"nocalhost/internal/nocalhost-api/service/cooperator/ns_scope"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nocalhost-api/app/api"
-	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 )
 
@@ -26,19 +24,10 @@ func Share(c *gin.Context) {
 		return
 	}
 
-	cu, err := service.Svc.ClusterUser().GetCache(*params.ClusterUserId)
-	if err != nil {
-		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+	cu, errn := HasModifyPermissionToSomeDevSpace(c, *params.ClusterUserId)
+	if errn != nil {
+		api.SendResponse(c, errn, nil)
 		return
-	}
-
-	user, err := ginbase.LoginUser(c)
-	if err != nil {
-		api.SendResponse(c, errno.ErrPermissionDenied, nil)
-	}
-
-	if !ginbase.IsAdmin(c) && cu.UserId != user {
-		api.SendResponse(c, errno.ErrPermissionDenied, nil)
 	}
 
 	// the api to modify sharing RBAC is different
@@ -80,9 +69,9 @@ func UnShare(c *gin.Context) {
 		return
 	}
 
-	cu, err := service.Svc.ClusterUser().GetCache(*params.ClusterUserId)
-	if err != nil {
-		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+	cu, errn := HasModifyPermissionToSomeDevSpace(c, *params.ClusterUserId)
+	if errn != nil {
+		api.SendResponse(c, errn, nil)
 		return
 	}
 

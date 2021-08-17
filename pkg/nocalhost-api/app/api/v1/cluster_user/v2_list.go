@@ -120,6 +120,15 @@ func relatedToSomebody(userId uint64) func(*model.ClusterUserV2) bool {
 				return true
 			}
 		}
+
+		clusterCache, err := service.Svc.ClusterSvc().GetCache(cu.ClusterId)
+		if err != nil {
+			return false
+		}
+		if clusterCache.UserId == userId {
+			return true
+		}
+
 		return false
 	}
 }
@@ -190,6 +199,10 @@ func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, is
 						cu.UserId == currentUser ||
 						// current user is the creator of dev space's cluster
 						cluster.UserId == currentUser
+
+				cu.Deletable = isAdmin ||
+					// current user is the creator of dev space's cluster
+					cluster.UserId == currentUser
 
 				if cu.IsClusterAdmin() {
 					cu.SpaceType = model.IsolateSpace

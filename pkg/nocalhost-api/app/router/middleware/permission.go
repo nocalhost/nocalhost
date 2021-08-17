@@ -46,18 +46,20 @@ func whiteList(method, path string) bool {
 		"/v1/application/[0-9]+":          "GET,PUT,DELETE",
 		"/v1/nocalhost/templates":         "GET",
 		"/v1/dev_space":                   "GET,POST",
-		"/v1/dev_space/[0-9]+":            "PUT",
-		"/v1/application":                 "GET,POST",
+
+		"/v1/application": "GET,POST",
 
 		"/v1/cluster":                      "POST,GET",
 		"/v1/cluster/[0-9]+":               "PUT,DELETE",
 		"/v1/cluster/[0-9]+/storage_class": "PUT,DELETE",
 
-		"/v1/devspace/[0-9]+":   "PUT",
+		"/v1/dev_space/[0-9]+/update_resource_limit": "PUT",
+		"/v1/dev_space/[0-9]+":                       "PUT,DELETE",
+
 		"/v2/dev_space":         "GET",
 		"/v2/dev_space/cluster": "GET",
-		"/v2/dev_space/share":             "POST",
-		"/v2/dev_space/unshare":           "POST",
+		"/v2/dev_space/share":   "POST",
+		"/v2/dev_space/unshare": "POST",
 	}
 
 	for reg, med := range permissions {
