@@ -390,14 +390,6 @@ func handlerRestartDaemonServerCommand(isSudoUser bool, clientPath string) error
 	var nhctlPath string
 	var err error
 
-	//if utils.IsWindows() {
-	//	if clientPath == "" {
-	//		return errors.New("ClientPath can not be nil in windows")
-	//	}
-	//	if nhctlPath, err = daemon_common.CopyNhctlBinaryToTmpDir(clientPath); err != nil {
-	//		return err
-	//	}
-	//} else {
 	if clientPath != "" {
 		nhctlPath = clientPath
 	} else if nhctlPath, err = utils.GetNhctlPath(); err != nil {

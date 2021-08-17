@@ -19,6 +19,7 @@ import (
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	utils2 "nocalhost/pkg/nhctl/utils"
 	"os"
 	"runtime/debug"
 	"time"
@@ -340,12 +341,14 @@ func (d *DaemonClient) SendUpdateApplicationMetaCommand(
 
 // sendDataToDaemonServer send data only to daemon
 func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
-	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort))
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort), time.Second*30)
 	if err != nil {
+		log.WrapAndLogE(err)
 		return errors.Wrap(err, "")
 	}
 	defer conn.Close()
 	_, err = conn.Write(data)
+	log.WrapAndLogE(err)
 	return errors.Wrap(err, "")
 }
 
@@ -353,25 +356,31 @@ func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) error {
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort), time.Second*30)
 	if err != nil {
-		return errors.Wrap(err, "")
+		log.WrapAndLogE(err)
+		return utils2.WrapErr(err)
 	}
 	defer conn.Close()
 	if _, err = conn.Write(req); err != nil {
-		return errors.Wrap(err, "")
+		log.WrapAndLogE(err)
+		return utils2.WrapErr(err)
 	}
 	cw, ok := conn.(interface{ CloseWrite() error })
 	if !ok {
-		return errors.Wrap(err, "Error to close write to daemon server ")
+		err = errors.New("Error to close write to daemon server")
+		log.LogE(err)
+		return err
 	}
-	cw.CloseWrite()
+	log.WrapAndLogE(cw.CloseWrite())
 
 	respBytes, err := ioutil.ReadAll(conn)
 	if err != nil {
+		log.WrapAndLogE(err)
 		return errors.Wrap(err, "")
 	}
 
 	response := command.BaseResponse{}
 	if err := json.Unmarshal(respBytes, &response); err != nil {
+		log.WrapAndLogE(err)
 		return errors.Wrap(err, "")
 	}
 
@@ -384,15 +393,15 @@ func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) erro
 		// may from elder version
 		if err := json.Unmarshal(respBytes, &resp); err == nil {
 			return nil
+		}else {
+			log.WrapAndLogE(err)
 		}
 	default:
-
-		return errors.New(
-			fmt.Sprintf(
-				"Error occur from daemon, status [%d], msg [%s].",
-				response.Status, response.Msg,
-			),
+		err = errors.New(
+			fmt.Sprintf("Error occur from daemon, status [%d], msg [%s].", response.Status, response.Msg ),
 		)
+		log.LogE(err)
+		return err
 	}
 
 	if resp == nil {
@@ -403,6 +412,7 @@ func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) erro
 		return nil
 	}
 	if err := json.Unmarshal(response.Data, resp); err != nil {
+		log.WrapAndLogE(err)
 		return errors.Wrap(err, "")
 	}
 

@@ -7,6 +7,7 @@ package log
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	_const "nocalhost/internal/nhctl/const"
 	"os"
 	"path/filepath"
@@ -244,7 +245,18 @@ func FatalE(err error, message string) {
 	}
 }
 
+func WrapAndLogE(err error) {
+	if err != nil {
+		return
+	}
+	LogE(errors.Wrap(err,""))
+}
+
 func LogE(err error) {
+	if err == nil {
+		return
+	}
+	writeStackToEs("LOG", err.Error(), fmt.Sprintf("%+v", err))
 	if fileEntry != nil {
 		fileEntry.Errorf("%+v", err)
 	}
