@@ -138,6 +138,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	dv2.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
 	{
 		dv2.GET("", cluster_user.ListV2)
+		dv2.GET("/cluster", cluster.GetDevSpaceClusterList)
 		dv2.GET("/detail", cluster_user.GetV2)
 		dv2.POST("/share", cluster_user.Share)
 		dv2.POST("/unshare", cluster_user.UnShare)

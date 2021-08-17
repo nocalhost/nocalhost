@@ -54,7 +54,7 @@ func GetList(c *gin.Context) {
 		clusterToUser := make(map[uint64]uint64)
 		lists, _ := cluster_user.DoList(&model.ClusterUserModel{}, userId, false)
 		for _, i := range lists {
-			clusterToUser[i.ClusterId] = i.UserId
+			clusterToUser[i.ClusterId] = i.ClusterId
 		}
 		for _, list := range result {
 			// cluster they created, can modify
@@ -62,7 +62,7 @@ func GetList(c *gin.Context) {
 				list.Modifiable = true
 				tempResult = append(tempResult, list)
 				// cluster devSpace based on, can't modify
-			} else if v := clusterToUser[list.GetClusterId()]; v == userId {
+			} else if _, ok := clusterToUser[list.GetClusterId()]; ok {
 				list.Modifiable = false
 				tempResult = append(tempResult, list)
 			}
@@ -92,6 +92,23 @@ func GetList(c *gin.Context) {
 	}
 	wg.Wait()
 	api.SendResponse(c, errno.OK, vos)
+}
+
+func GetDevSpaceClusterList(c *gin.Context) {
+	result, _ := service.Svc.ClusterSvc().GetList(c)
+	tempResult := make([]*model.ClusterList, 0, 0)
+	userId := c.GetUint64("userId")
+	// normal user can only see clusters they created, or devSpace's cluster
+	if isAdmin, _ := middleware.IsAdmin(c); !isAdmin {
+		for _, list := range result {
+			// devSpace cluster can be listed which created by normal user
+			if list.UserId == userId {
+				tempResult = append(tempResult, list)
+			}
+		}
+		result = tempResult[0:]
+	}
+	api.SendResponse(c, errno.OK, result)
 }
 
 func GetResources(kubeconfig string) (resources []model.Resource) {
