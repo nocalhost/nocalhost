@@ -83,9 +83,10 @@ func GetList(c *gin.Context) {
 		}
 		i := i
 		go func() {
+			admin, _ := middleware.IsAdmin(c)
 			vos[i] = model.ClusterListVo{
 				ClusterList: *result[i],
-				Resources:   GetResources(result[i].GetKubeConfig()),
+				Resources:   GetResources(result[i].GetKubeConfig(), admin),
 			}
 			wg.Done()
 		}()
@@ -111,31 +112,34 @@ func GetDevSpaceClusterList(c *gin.Context) {
 	api.SendResponse(c, errno.OK, result)
 }
 
-func GetResources(kubeconfig string) (resources []model.Resource) {
+func GetResources(kubeconfig string, admin bool) (resources []model.Resource) {
 	client, err := clientgo.NewAdminGoClient([]byte(kubeconfig))
-	if err != nil {
-		return
-	}
-	nodeList, err := client.GetClusterNode()
 	if err != nil {
 		return
 	}
 	var cpuTotal, memoryTotal, storageTotal, podTotal int64
 	var cpuAlloc, memoryAlloc, storageAlloc, podAlloc int64
-	for _, node := range nodeList.Items {
-		cpuTotal += node.Status.Capacity.Cpu().MilliValue()
-		// method ScaledValue using 1000, but memory and storage should using 1024,
-		// just because using 1024 is too complex
-		memoryTotal += node.Status.Capacity.Memory().ScaledValue(resource.Mega)
-		storageTotal += node.Status.Capacity.StorageEphemeral().ScaledValue(resource.Mega)
-		podTotal += node.Status.Capacity.Pods().Value()
+	if admin {
+		nodeList, err := client.GetClusterNode()
+		if err != nil {
+			return
+		}
+		for _, node := range nodeList.Items {
+			cpuTotal += node.Status.Capacity.Cpu().MilliValue()
+			// method ScaledValue using 1000, but memory and storage should using 1024,
+			// just because using 1024 is too complex
+			memoryTotal += node.Status.Capacity.Memory().ScaledValue(resource.Mega)
+			storageTotal += node.Status.Capacity.StorageEphemeral().ScaledValue(resource.Mega)
+			podTotal += node.Status.Capacity.Pods().Value()
 
-		cpuAlloc += node.Status.Allocatable.Cpu().MilliValue()
-		memoryAlloc += node.Status.Allocatable.Memory().ScaledValue(resource.Mega)
-		storageAlloc += node.Status.Allocatable.StorageEphemeral().ScaledValue(resource.Mega)
+			cpuAlloc += node.Status.Allocatable.Cpu().MilliValue()
+			memoryAlloc += node.Status.Allocatable.Memory().ScaledValue(resource.Mega)
+			storageAlloc += node.Status.Allocatable.StorageEphemeral().ScaledValue(resource.Mega)
+		}
+
+		podList, _ := client.ListPods(v1.NamespaceAll)
+		podAlloc = int64(len(podList.Items))
 	}
-	podList, _ := client.ListPods(v1.NamespaceAll)
-	podAlloc = int64(len(podList.Items))
 
 	resources = append(resources, model.Resource{
 		ResourceName: v1.ResourcePods,
@@ -162,6 +166,9 @@ func GetResources(kubeconfig string) (resources []model.Resource) {
 }
 
 func Div(a float64, b float64) float64 {
+	if b == 0 {
+		b = 1
+	}
 	if float, err := strconv.ParseFloat(fmt.Sprintf("%.2f", a/b), 64); err == nil {
 		return float
 	}
