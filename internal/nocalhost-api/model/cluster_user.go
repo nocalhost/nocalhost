@@ -47,6 +47,7 @@ type SpaceOwnType struct {
 }
 
 type ClusterUserExt struct {
+	ClusterName      string        `json:"cluster_name"`
 	SpaceType        SpaceType     `json:"space_type"`
 	SpaceOwnType     SpaceOwnType  `json:"space_own_type"`
 	ResourceLimitSet bool          `json:"resource_limit_set"`

@@ -182,6 +182,8 @@ func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, is
 				cu.ClusterUserExt = &model.ClusterUserExt{}
 				fillResourceListSet(cu)
 				fillOwner(cu)
+
+				cu.ClusterName = cluster.ClusterName
 				cu.Modifiable =
 					isAdmin ||
 						// current user is the owner of dev space
