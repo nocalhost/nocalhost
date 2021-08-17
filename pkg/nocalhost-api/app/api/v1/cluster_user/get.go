@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster_user
 
@@ -212,6 +212,13 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 		ID: cast.ToUint64(c.Param("id")),
 	}
 
+	var params ClusterUserListQuery
+	err := c.ShouldBindQuery(&params)
+	if err != nil {
+		api.SendResponse(c, errno.ErrBind, nil)
+		return
+	}
+
 	if !ginbase.IsAdmin(c) {
 		user, _ := ginbase.LoginUser(c)
 		condition.UserId = user
@@ -237,7 +244,14 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 	}()
 
 	go func() {
-		userRecord, err := service.Svc.UserSvc().GetUserByID(c, result.UserId)
+		var queryUser uint64
+		if params.UserId == nil {
+			queryUser = result.UserId
+		} else {
+			queryUser = *params.UserId
+		}
+
+		userRecord, err := service.Svc.UserSvc().GetUserByID(c, queryUser)
 		if err != nil {
 			return
 		}
@@ -333,8 +347,10 @@ func GetAppsInfo(c *gin.Context) {
 	if isBasespace {
 		result := setupcluster.MeshDevInfo{
 			Header: devspace.TraceHeader,
-			Apps: meshManager.GetBaseDevSpaceAppInfo(&setupcluster.MeshDevInfo{
-				BaseNamespace: devspace.Namespace}),
+			Apps: meshManager.GetBaseDevSpaceAppInfo(
+				&setupcluster.MeshDevInfo{
+					BaseNamespace: devspace.Namespace},
+			),
 		}
 		result.SortApps()
 		api.SendResponse(c, nil, result)
