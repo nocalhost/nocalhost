@@ -22,72 +22,120 @@ import (
 	"time"
 )
 
+func Hook(client runner.Client) {
+	util.Retry(
+		"Hook", []func() error{
+			func() error {
+				_ = testcase.UninstallBookInfoWithNativeHelm(client)
+				return nil
+			},
+
+			func() error {
+				return util.TimeoutFunc(
+					time.Minute*2, func() error {
+						return testcase.InstallBookInfoHelmForTestHook(client)
+					}, func() error {
+						return testcase.UninstallBookInfoWithNativeHelm(client)
+					},
+				)
+			},
+			func() error { return testcase.ShouldHaveJob(client, "pre-install", "post-install") },
+
+			func() error { return testcase.UpgradeBookInfoHelmForTestHook(client) },
+			func() error { return testcase.ShouldHaveJob(client, "pre-upgrade", "post-upgrade") },
+
+			func() error { return testcase.UninstallBookInfoHelmForTestHook(client) },
+			func() error { return testcase.ShouldNotHaveAnyJob(client) },
+		},
+	)
+}
+
 func HelmAdaption(client runner.Client) {
 	util.Retry(
 		"HelmAdaption", []func() error{
 			func() error {
-				return util.TimeoutFunc(time.Minute*2, func() error {
-					return testcase.InstallBookInfoUseHelmVals(client)
-				}, func() error {
-					return testcase.UninstallBookInfoWithNativeHelm(client)
-				})
+				return util.TimeoutFunc(
+					time.Minute*2, func() error {
+						return testcase.InstallBookInfoUseHelmVals(client, "test-case")
+					}, func() error {
+						return testcase.UninstallBookInfoWithNativeHelm(client)
+					},
+				)
 			},
 			func() error {
-				return util.TimeoutFunc(time.Minute*2, func() error {
-					return testcase.UninstallBookInfoWithNativeHelm(client)
-				}, nil)
-			},
-
-			func() error {
-				return util.TimeoutFunc(time.Minute*2, func() error {
-					return testcase.InstallBookInfoWithNativeHelm(client)
-				}, func() error {
-					return testcase.UninstallBookInfoWithNativeHelm(client)
-				})
-			},
-			func() error {
-				return util.TimeoutFunc(time.Minute*2, func() error {
-					return testcase.UninstallBookInfoWithNativeHelm(client)
-				}, nil)
+				return util.TimeoutFunc(
+					time.Minute*2, func() error {
+						return testcase.UninstallBookInfoWithNativeHelm(client)
+					}, nil,
+				)
 			},
 
 			func() error {
-				return util.TimeoutFunc(time.Minute*2, func() error {
-					return testcase.InstallBookInfoWithNhctl(client)
-				}, func() error {
-					return testcase.UninstallBookInfoWithNhctl(client)
-				})
+				return util.TimeoutFunc(
+					time.Minute*2, func() error {
+						return testcase.InstallBookInfoWithNativeHelm(client)
+					}, func() error {
+						return testcase.UninstallBookInfoWithNativeHelm(client)
+					},
+				)
 			},
 			func() error {
-				return util.TimeoutFunc(time.Minute*2, func() error {
-					return testcase.UninstallBookInfoWithNhctl(client)
-				}, nil)
-			},
-
-			func() error {
-				return util.TimeoutFunc(time.Minute*2, func() error {
-					return testcase.InstallBookInfoWithNativeHelm(client)
-				}, func() error {
-					return testcase.UninstallBookInfoWithNhctl(client)
-				})
-			},
-			func() error {
-				return util.TimeoutFunc(time.Minute*2, func() error {
-					return testcase.UninstallBookInfoWithNhctl(client)
-				}, nil)
+				return util.TimeoutFunc(
+					time.Minute*2, func() error {
+						return testcase.UninstallBookInfoWithNativeHelm(client)
+					}, nil,
+				)
 			},
 
 			func() error {
-				return util.TimeoutFunc(time.Minute*2, func() error {
-					return testcase.InstallBookInfoWithNhctl(client)
-				}, func() error {
-					return testcase.UninstallBookInfoWithNativeHelm(client)
-				})
+				return util.TimeoutFunc(
+					time.Minute*2, func() error {
+						return testcase.InstallBookInfoWithNhctl(client)
+					}, func() error {
+						return testcase.UninstallBookInfoWithNhctl(client)
+					},
+				)
 			},
 			func() error {
-				return util.TimeoutFunc(time.Minute*2, func() error {
-					return testcase.UninstallBookInfoWithNativeHelm(client)
-				}, nil)
+				return util.TimeoutFunc(
+					time.Minute*2, func() error {
+						return testcase.UninstallBookInfoWithNhctl(client)
+					}, nil,
+				)
+			},
+
+			func() error {
+				return util.TimeoutFunc(
+					time.Minute*2, func() error {
+						return testcase.InstallBookInfoWithNativeHelm(client)
+					}, func() error {
+						return testcase.UninstallBookInfoWithNhctl(client)
+					},
+				)
+			},
+			func() error {
+				return util.TimeoutFunc(
+					time.Minute*2, func() error {
+						return testcase.UninstallBookInfoWithNhctl(client)
+					}, nil,
+				)
+			},
+
+			func() error {
+				return util.TimeoutFunc(
+					time.Minute*2, func() error {
+						return testcase.InstallBookInfoWithNhctl(client)
+					}, func() error {
+						return testcase.UninstallBookInfoWithNativeHelm(client)
+					},
+				)
+			},
+			func() error {
+				return util.TimeoutFunc(
+					time.Minute*2, func() error {
+						return testcase.UninstallBookInfoWithNativeHelm(client)
+					}, nil,
+				)
 			},
 		},
 	)

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package testcase
 
@@ -65,8 +65,9 @@ func ApplyCmForConfig(nhctl runner.Client, filePath *fp.FilePathEnhance) error {
 		context.TODO(), "apply", "bookinfo", filePath.Abs(),
 	)
 
-	return runner.Runner.RunSimple(nhctl.SuiteName(),
-		cmd, func(s string) error {
+	return runner.Runner.RunSimple(
+		nhctl.SuiteName(),
+		cmd, false, func(s string) error {
 			return nil
 		},
 	)
@@ -79,8 +80,9 @@ func ValidateImage(nhctl runner.Client, svcName string, svcType string, expectCo
 		"--key", "image",
 	)
 
-	return runner.Runner.RunSimple(nhctl.SuiteName(),
-		cmd, func(s string) error {
+	return runner.Runner.RunSimple(
+		nhctl.SuiteName(),
+		cmd, false, func(s string) error {
 			if !strings.Contains(s, expectContain) {
 				return errors.New(
 					fmt.Sprintf(
@@ -99,8 +101,9 @@ func ConfigReload(nhctl runner.Client) error {
 		"reload", "bookinfo",
 	)
 
-	return runner.Runner.RunSimple(nhctl.SuiteName(),
-		cmd, func(s string) error {
+	return runner.Runner.RunSimple(
+		nhctl.SuiteName(),
+		cmd, false, func(s string) error {
 			return nil
 		},
 	)
@@ -113,8 +116,9 @@ func DeAssociate(nhctl runner.Client, svcName string, svcType string) error {
 		"-d", svcName, "-t", svcType, "--de-associate",
 	)
 
-	return runner.Runner.RunSimple(nhctl.SuiteName(),
-		cmd, func(s string) error {
+	return runner.Runner.RunSimple(
+		nhctl.SuiteName(),
+		cmd, false, func(s string) error {
 			return nil
 		},
 	)
@@ -127,8 +131,9 @@ func Associate(nhctl runner.Client, svcName string, svcType string, dir *fp.File
 		"-d", svcName, "-t", svcType, "--associate", dir.Abs(),
 	)
 
-	return runner.Runner.RunSimple(nhctl.SuiteName(),
-		cmd, func(s string) error {
+	return runner.Runner.RunSimple(
+		nhctl.SuiteName(),
+		cmd, false, func(s string) error {
 			return nil
 		},
 	)
