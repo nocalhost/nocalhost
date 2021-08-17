@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster
 
@@ -18,6 +18,7 @@ type ClusterRepo interface {
 	Create(ctx context.Context, user model.ClusterModel) (model.ClusterModel, error)
 	Get(ctx context.Context, clusterId uint64) (model.ClusterModel, error)
 	Delete(ctx context.Context, clusterId uint64) error
+	DeleteByCreator(ctx context.Context, clusterId uint64) error
 	GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error)
 	Update(ctx context.Context, update map[string]interface{}, clusterId uint64) (*model.ClusterModel, error)
 	GetList(ctx context.Context) ([]*model.ClusterList, error)
@@ -51,6 +52,14 @@ func (repo *clusterBaseRepo) Update(
 
 func (repo *clusterBaseRepo) Delete(ctx context.Context, clusterId uint64) error {
 	result := repo.db.Unscoped().Delete(&model.ClusterModel{}, clusterId)
+	if result.RowsAffected > 0 {
+		return nil
+	}
+	return result.Error
+}
+
+func (repo *clusterBaseRepo) DeleteByCreator(ctx context.Context, userId uint64) error {
+	result := repo.db.Exec("delete from clusters where user_id = ? and deleted_at is null", userId)
 	if result.RowsAffected > 0 {
 		return nil
 	}

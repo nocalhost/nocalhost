@@ -27,6 +27,7 @@ type ClusterService interface {
 
 	GetCache(id uint64) (model.ClusterModel, error)
 	Close()
+	DeleteByCreator(ctx context.Context, id uint64) error
 }
 
 type clusterService struct {
@@ -112,4 +113,8 @@ func (srv *clusterService) Get(ctx context.Context, id uint64) (model.ClusterMod
 
 func (srv *clusterService) Close() {
 	srv.clusterRepo.Close()
+}
+
+func (srv *clusterService) DeleteByCreator(ctx context.Context, userid uint64) error {
+	return srv.clusterRepo.DeleteByCreator(ctx, userid)
 }
