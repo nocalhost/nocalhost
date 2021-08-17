@@ -13,6 +13,7 @@ import (
 	"nocalhost/internal/nocalhost-api/service/cooperator/ns_scope"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 )
 
@@ -31,9 +32,18 @@ func Share(c *gin.Context) {
 		return
 	}
 
+	user, err := ginbase.LoginUser(c)
+	if err != nil {
+		api.SendResponse(c, errno.ErrPermissionDenied, nil)
+	}
+
+	if !ginbase.IsAdmin(c) && cu.UserId != user {
+		api.SendResponse(c, errno.ErrPermissionDenied, nil)
+	}
+
 	// the api to modify sharing RBAC is different
 	// from whether is cluster admin
-	if cu.ClusterAdmin != nil && *cu.ClusterAdmin != uint64(0) {
+	if cu.IsClusterAdmin() {
 		for _, user := range params.Cooperators {
 			if err := cluster_scope.AsCooperator(cu.ClusterId, cu.UserId, user); err != nil {
 				log.ErrorE(err, "Error while add somebody as cluster cooperator")

@@ -90,14 +90,13 @@ func DoList(params *model.ClusterUserModel, userId uint64, isAdmin bool) ([]*mod
 		return nil, errno.ErrClusterNotFound
 	}
 
-	if errn := pipeLine(clusterUsers, userId); errn != nil {
+	if errn := pipeLine(clusterUsers, userId, isAdmin); errn != nil {
 		log.Error(err)
 		return nil, errn
 	}
 
 	// user that not admin can not see other user's data
 	if !isAdmin {
-
 		// todo supports search for SpaceType(only need to deal with filter)
 		clusterUsers = filter(clusterUsers, relatedToSomebody(userId))
 	}
@@ -136,13 +135,13 @@ func filter(clusterUsers []*model.ClusterUserV2, condition func(*model.ClusterUs
 	return result
 }
 
-func pipeLine(clusterUsers []*model.ClusterUserV2, userId uint64) *errno.Errno {
+func pipeLine(clusterUsers []*model.ClusterUserV2, userId uint64, isAdmin bool) *errno.Errno {
 	// First group DevSpace by cluster and dispatch the RBAC via serviceAccount
 	// associate by the current user
 	// Then Filling the ext custom field for current user
 	// Last sort the list
 	// (For different user, may has different ext field and item's sort priority1)
-	if err := fillExtByUser(groupByCLuster(clusterUsers), userId); err != nil {
+	if err := fillExtByUser(groupByCLuster(clusterUsers), userId, isAdmin); err != nil {
 		return err
 	}
 	doSort(clusterUsers)
@@ -163,7 +162,7 @@ func doSort(clusterUsers []*model.ClusterUserV2) {
 	)
 }
 
-func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64) *errno.Errno {
+func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, isAdmin bool) *errno.Errno {
 	list, err := service.Svc.ClusterSvc().GetList(context.TODO())
 	if err != nil {
 		log.ErrorE(err, "Error while list cluster")
@@ -183,6 +182,12 @@ func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64) *e
 				cu.ClusterUserExt = &model.ClusterUserExt{}
 				fillResourceListSet(cu)
 				fillOwner(cu)
+				cu.Modifiable =
+					isAdmin ||
+						// current user is the owner of dev space
+						cu.UserId == currentUser ||
+						// current user is the creator of dev space's cluster
+						cluster.UserId == currentUser
 
 				if cu.IsClusterAdmin() {
 					cu.SpaceType = model.IsolateSpace
