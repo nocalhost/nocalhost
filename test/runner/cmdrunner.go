@@ -36,13 +36,13 @@ func (r *CmdRunner) CheckResult(cmd *exec.Cmd, stdout string, stderr string, err
 	return nil
 }
 
-func (r *CmdRunner) RunSimple(suitName string, cmd *exec.Cmd, stdoutConsumer func(string) error) error {
+func (r *CmdRunner) RunSimple(suitName string, cmd *exec.Cmd, ignoreStdErr bool, stdoutConsumer func(string) error) error {
 	stdout, stderr, err := r.Run(suitName, cmd)
 
 	if err != nil {
 		return err
 	}
-	if stderr != "" {
+	if !ignoreStdErr && stderr != "" {
 		return errors.New(stderr)
 	}
 
