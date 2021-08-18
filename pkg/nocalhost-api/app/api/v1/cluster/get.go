@@ -127,20 +127,13 @@ func GetDevSpaceClusterList(c *gin.Context) {
 	api.SendResponse(c, errno.OK, result)
 }
 
-// resourceCache for cache resources(like cpu, memory, storage, pod number...)
-var resourceCache *cache.Cache
-var DefaultValue []model.Resource
-
-func init() {
-	// init cache with expire 15 seconds
-	resourceCache = cache.NewCache(time.Second * 15)
-	DefaultValue = make([]model.Resource, 0, 4)
-	DefaultValue = append(DefaultValue,
-		model.Resource{ResourceName: v1.ResourcePods, Capacity: 0, Used: 0, Percentage: 0},
-		model.Resource{ResourceName: v1.ResourceCPU, Capacity: 0, Used: 0, Percentage: 0},
-		model.Resource{ResourceName: v1.ResourceMemory, Capacity: 0, Used: 0, Percentage: 0},
-		model.Resource{ResourceName: v1.ResourceStorage, Capacity: 0, Used: 0, Percentage: 0},
-	)
+// resourceCache for cache resources(like cpu, memory, storage, pod number...), init cache with expire 15 seconds
+var resourceCache = cache.NewCache(time.Second * 15)
+var defaultValue = []model.Resource{
+	{ResourceName: v1.ResourcePods, Capacity: 0, Used: 0, Percentage: 0},
+	{ResourceName: v1.ResourceCPU, Capacity: 0, Used: 0, Percentage: 0},
+	{ResourceName: v1.ResourceMemory, Capacity: 0, Used: 0, Percentage: 0},
+	{ResourceName: v1.ResourceStorage, Capacity: 0, Used: 0, Percentage: 0},
 }
 
 // GetResources info by using metrics-api
@@ -151,15 +144,15 @@ func GetResources(kubeconfig string) []model.Resource {
 	}
 	goclient, err := clientgo.NewAdminGoClientWithTimeout([]byte(kubeconfig), time.Second*2)
 	if err != nil {
-		return DefaultValue
+		return defaultValue
 	}
 	restClient, err := goclient.GetRestClient()
 	if err != nil {
-		return DefaultValue
+		return defaultValue
 	}
 	list, err := goclient.GetClusterNode()
 	if err != nil {
-		return DefaultValue
+		return defaultValue
 	}
 	summaries := make([]model.Summary, 0, len(list.Items))
 	wg := sync.WaitGroup{}
