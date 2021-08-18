@@ -154,11 +154,12 @@ func GetResources(kubeconfig string) []model.Resource {
 	if err != nil {
 		return defaultValue
 	}
-	summaries := make([]model.Summary, 0, len(list.Items))
+	summaries := make([]model.Summary, len(list.Items), len(list.Items))
 	wg := sync.WaitGroup{}
 	wg.Add(len(list.Items))
-	for _, node := range list.Items {
+	for i, node := range list.Items {
 		node := node
+		i := i
 		go func() {
 			// using metrics-api to get nodes stats summary
 			defer wg.Done()
@@ -170,7 +171,7 @@ func GetResources(kubeconfig string) []model.Resource {
 					DoRaw(context.Background())
 				var s model.Summary
 				_ = json.Unmarshal(stream, &s)
-				summaries = append(summaries, s)
+				summaries[i] = s
 				c <- struct{}{}
 			}()
 			select {
