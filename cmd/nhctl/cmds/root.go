@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 var (
@@ -32,6 +33,7 @@ var (
 	kubeConfig   string // the path to the kubeconfig file
 	nocalhostApp *app.Application
 	nocalhostSvc *controller.Controller
+	startTime time.Time
 )
 
 type ConfigFile struct {
@@ -39,7 +41,7 @@ type ConfigFile struct {
 }
 
 func init() {
-
+	startTime = time.Now()
 	rootCmd.PersistentFlags().StringVarP(
 		&nameSpace, "namespace", "n", "",
 		"kubernetes namespace",
@@ -64,6 +66,9 @@ var rootCmd = &cobra.Command{
 	Use:   "nhctl",
 	Short: "nhctl is a cloud-native development tool.",
 	Long:  `nhctl is a cloud-native development tool.`,
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		log.Log("Nhctl cmd takes: %s seconds", time.Now().Sub(startTime).Seconds())
+	},
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 
 		// Init log
@@ -76,6 +81,7 @@ var rootCmd = &cobra.Command{
 		log.AddField("VERSION", Version)
 		log.AddField("COMMIT", GitCommit)
 		log.AddField("BRANCH", Branch)
+		log.AddField("ARGS", strings.Join(os.Args," "))
 
 		var esUrl string
 		bys, err := ioutil.ReadFile(filepath.Join(nocalhost_path.GetNhctlHomeDir(), "config"))
@@ -92,6 +98,8 @@ var rootCmd = &cobra.Command{
 		if esUrl != "" {
 			log.InitEs(esUrl)
 		}
+
+		log.Log("Log initiated")
 
 		err = nocalhost.Init()
 		if err != nil {
@@ -130,7 +138,9 @@ func Execute() {
 	}
 
 	if err := rootCmd.Execute(); err != nil {
+		//log.Log("Nhctl cmd takes: %s seconds", time.Now().Sub(startTime).Seconds())
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	//log.Log("Nhctl cmd takes: %s seconds", time.Now().Sub(startTime).Seconds())
 }

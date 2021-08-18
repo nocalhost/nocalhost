@@ -114,18 +114,26 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	}
 
 	go func() {
+		defer func() {
+			log.Log("Exiting tcp listener")
+		}()
 		for {
 			conn, err := listener.Accept()
+			log.Info("Accept a connection...")
 			if err != nil {
 				if strings.Contains(strings.ToLower(err.Error()), "use of closed network connection") {
 					log.Logf("Port %d has been closed", daemonListenPort())
 					return
 				}
-				log.LogE(errors.Wrap(err, ""))
+				log.LogE(errors.Wrap(err, "Failed to accept a connection"))
 				continue
 			}
 
 			bytes, err := ioutil.ReadAll(conn)
+			if err != nil {
+				log.LogE(errors.Wrap(err,"Failed to read data from connection"))
+				continue
+			}
 			cmdType, clientStack, err := command.ParseBaseCommand(bytes)
 			if err != nil {
 				log.LogE(err)
@@ -172,7 +180,6 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType, clientStack string) {
 	var err error
-	//log.Infof("Handling %s command", cmdType)
 
 	defer func() {
 		if err != nil {
@@ -204,7 +211,6 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				if err = json.Unmarshal(bys, startCmd); err != nil {
 					return nil, err
 				}
-
 				if err = handleStartPortForwardCommand(startCmd); err != nil {
 					return nil, err
 				}
@@ -324,6 +330,9 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				), nil
 			},
 		)
+	}
+	if err != nil {
+		log.LogE(err)
 	}
 }
 

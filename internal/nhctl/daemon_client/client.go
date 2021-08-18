@@ -341,6 +341,11 @@ func (d *DaemonClient) SendUpdateApplicationMetaCommand(
 
 // sendDataToDaemonServer send data only to daemon
 func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
+	baseCmd := command.BaseCommand{}
+	err := json.Unmarshal(data, &baseCmd)
+	if err == nil {
+		log.Logf("Sending %v command", baseCmd.CommandType)
+	}
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort), time.Second*30)
 	if err != nil {
 		log.WrapAndLogE(err)
@@ -354,6 +359,11 @@ func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 
 // sendAndWaitForResponse send data to daemon and wait for response
 func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) error {
+	baseCmd := command.BaseCommand{}
+	err := json.Unmarshal(req, &baseCmd)
+	if err == nil {
+		log.Logf("Sending %v command", baseCmd.CommandType)
+	}
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort), time.Second*30)
 	if err != nil {
 		log.WrapAndLogE(err)

@@ -41,6 +41,7 @@ type esLog struct {
 	Branch    string    `json:"branch,omitempty"`
 	Commit    string    `json:"commit,omitempty"`
 	Svc       string    `json:"svc,omitempty"`
+	Args       string `json:"args,omitempty"`
 }
 
 var (
@@ -114,6 +115,9 @@ func InitEs(host string) {
 	  "arch": {
         "type": "text"
       },
+      "args": {
+        "type": "text"
+      },
 	  "stack": {
         "type": "text"
       },
@@ -183,6 +187,7 @@ func writeStackToEs(level string, msg string, stack string) {
 			Version:   fields["VERSION"],
 			Commit:    fields["COMMIT"],
 			Branch:    fields["BRANCH"],
+			Args: fields["ARGS"],
 			Timestamp: time.Now(),
 			Hostname:  hostname,
 			Level:     level,
