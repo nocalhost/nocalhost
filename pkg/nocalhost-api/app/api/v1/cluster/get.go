@@ -6,12 +6,16 @@
 package cluster
 
 import (
+	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+	"io"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"nocalhost/internal/nocalhost-api/cache"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
@@ -22,6 +26,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type ClusterStatus struct {
@@ -83,10 +88,9 @@ func GetList(c *gin.Context) {
 		}
 		i := i
 		go func() {
-			admin, _ := middleware.IsAdmin(c)
 			vos[i] = model.ClusterListVo{
 				ClusterList: *result[i],
-				Resources:   GetResources(result[i].GetKubeConfig(), admin),
+				Resources:   GetResources(result[i].GetKubeConfig()),
 			}
 			wg.Done()
 		}()
@@ -112,56 +116,83 @@ func GetDevSpaceClusterList(c *gin.Context) {
 	api.SendResponse(c, errno.OK, result)
 }
 
-func GetResources(kubeconfig string, admin bool) (resources []model.Resource) {
-	client, err := clientgo.NewAdminGoClient([]byte(kubeconfig))
+var resourceCache *cache.Cache
+
+func init() {
+	resourceCache = cache.NewCache(time.Second * 15)
+}
+
+func GetResources(kubeconfig string) (resources []model.Resource) {
+	get, found := resourceCache.Get(kubeconfig)
+	if found && get != nil {
+		return get.([]model.Resource)
+	}
+	goclient, err := clientgo.NewAdminGoClient([]byte(kubeconfig))
 	if err != nil {
 		return
 	}
+	restClient, err := goclient.GetRestClient()
+	if err != nil {
+		return
+	}
+	list, _ := goclient.GetClusterNode()
+	summaries := make([]model.Summary, 0, len(list.Items))
+	wg := sync.WaitGroup{}
+	wg.Add(len(list.Items))
+	for _, node := range list.Items {
+		node := node
+		go func() {
+			stream, _ := restClient.Get().
+				RequestURI(fmt.Sprintf("/api/v1/nodes/%s/proxy/stats/summary", node.Name)).
+				Stream(context.Background())
+			defer stream.Close()
+			b, _ := io.ReadAll(stream)
+			var s model.Summary
+			_ = json.Unmarshal(b, &s)
+			summaries = append(summaries, s)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	summaries = summaries[0:]
+
 	var cpuTotal, memoryTotal, storageTotal, podTotal int64
-	var cpuAlloc, memoryAlloc, storageAlloc, podAlloc int64
-	if admin {
-		nodeList, err := client.GetClusterNode()
-		if err != nil {
-			return
-		}
-		for _, node := range nodeList.Items {
-			cpuTotal += node.Status.Capacity.Cpu().MilliValue()
-			// method ScaledValue using 1000, but memory and storage should using 1024,
-			// just because using 1024 is too complex
-			memoryTotal += node.Status.Capacity.Memory().ScaledValue(resource.Mega)
-			storageTotal += node.Status.Capacity.StorageEphemeral().ScaledValue(resource.Mega)
-			podTotal += node.Status.Capacity.Pods().Value()
-
-			cpuAlloc += node.Status.Allocatable.Cpu().MilliValue()
-			memoryAlloc += node.Status.Allocatable.Memory().ScaledValue(resource.Mega)
-			storageAlloc += node.Status.Allocatable.StorageEphemeral().ScaledValue(resource.Mega)
-		}
-
-		podList, _ := client.ListPods(v1.NamespaceAll)
-		podAlloc = int64(len(podList.Items))
+	var cpuUsed, memoryUsed, storageUsed, podUsed int64
+	for _, node := range list.Items {
+		cpuTotal += node.Status.Capacity.Cpu().MilliValue()
+		memoryTotal += node.Status.Capacity.Memory().Value() / 1024 / 1024
+		storageTotal += node.Status.Capacity.StorageEphemeral().Value() / 1024 / 1024
+		podTotal += node.Status.Capacity.Pods().Value()
+	}
+	for _, summary := range summaries {
+		cpuUsed += resource.NewScaledQuantity(int64(summary.Node.CPU.UsageNanoCores), resource.Nano).ScaledValue(resource.Milli)
+		memoryUsed += int64(summary.Node.Memory.UsageBytes) / 1024 / 1024 // b --> kb --> mb
+		storageUsed += int64(summary.Node.Fs.UsedBytes) / 1024 / 1024     // b --> kb --> mb
+		podUsed += int64(len(summary.Pods))
 	}
 
 	resources = append(resources, model.Resource{
 		ResourceName: v1.ResourcePods,
 		Capacity:     float64(podTotal),
-		Used:         float64(podAlloc),
-		Percentage:   Div(float64(podAlloc), float64(podTotal)),
+		Used:         float64(podUsed),
+		Percentage:   Div(float64(podUsed), float64(podTotal)),
 	}, model.Resource{
 		ResourceName: v1.ResourceCPU,
-		Capacity:     float64(cpuTotal / 1000),
-		Used:         Div(float64(cpuTotal-cpuAlloc), 1000),
-		Percentage:   Div(float64(cpuTotal-cpuAlloc), float64(cpuTotal)),
+		Capacity:     Div(float64(cpuTotal), 1000),
+		Used:         Div(float64(cpuUsed), 1000),
+		Percentage:   Div(float64(cpuUsed), float64(cpuTotal)),
 	}, model.Resource{
 		ResourceName: v1.ResourceMemory,
 		Capacity:     Div(float64(memoryTotal), 1024),
-		Used:         Div(float64(memoryTotal-memoryAlloc), 1024),
-		Percentage:   Div(Div(float64(memoryTotal-memoryAlloc), 1024), Div(float64(memoryTotal), 1024)),
+		Used:         Div(float64(memoryUsed), 1024),
+		Percentage:   Div(float64(memoryUsed), float64(memoryTotal)),
 	}, model.Resource{
 		ResourceName: v1.ResourceStorage,
 		Capacity:     Div(float64(storageTotal), 1024),
-		Used:         Div(float64(storageTotal-storageAlloc), 1024),
-		Percentage:   Div(Div(float64(storageTotal-storageAlloc), 1024), Div(float64(storageTotal), 1024)),
+		Used:         Div(float64(storageUsed), 1024),
+		Percentage:   Div(float64(storageUsed), float64(storageTotal)),
 	})
+	resourceCache.Set(kubeconfig, resources)
 	return
 }
 
