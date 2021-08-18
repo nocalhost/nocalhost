@@ -249,7 +249,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 
 		for _, svc := range profileV2.SvcProfile {
 			if svc.Developing {
-				_ = a.appMeta.SvcDevStart(svc.Name, base.SvcType(svc.Type), profileV2.Identifier)
+				_ = a.appMeta.SvcDevStartComplete(svc.Name, base.SvcType(svc.Type), profileV2.Identifier)
 			}
 		}
 
@@ -762,7 +762,10 @@ func (a *Application) GetDescription() *profile.AppProfileV2 {
 		for _, svcProfile := range appProfile.SvcProfile {
 			svcType := base.SvcTypeOf(svcProfile.Type)
 
-			svcProfile.Developing = meta.CheckIfSvcDeveloping(svcProfile.ActualName, svcType)
+			devStatus := meta.CheckIfSvcDeveloping(svcProfile.ActualName, svcType)
+			svcProfile.Developing = devStatus != appmeta.NONE
+			svcProfile.DevelopStatus = string(devStatus)
+
 			svcProfile.Possess = a.appMeta.SvcDevModePossessor(
 				svcProfile.ActualName, svcType,
 				appProfile.Identifier,

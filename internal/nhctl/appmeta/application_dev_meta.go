@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package appmeta
 
@@ -14,9 +14,15 @@ import (
 const (
 	DEV_STA EVENT = "DEV_STA"
 	DEV_END EVENT = "DEV_END"
+
+	STARTING DevStartStatus = "STARTING"
+	STARTED  DevStartStatus = "STARTED"
+	NONE     DevStartStatus = "NONE"
 )
 
 type ApplicationDevMeta map[base.SvcType]map[ /* resource name */ string] /* identifier */ string
+
+type DevStartStatus string
 
 //type ApplicationDevType string
 type EVENT string

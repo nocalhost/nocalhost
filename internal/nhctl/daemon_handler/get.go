@@ -104,7 +104,10 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 			}
 			svcType := base.SvcTypeOf(svcProfile.Type)
 
-			svcProfile.Developing = meta.CheckIfSvcDeveloping(svcProfile.ActualName, svcType)
+			devStatus := meta.CheckIfSvcDeveloping(svcProfile.ActualName, svcType)
+			svcProfile.Developing = devStatus != appmeta.NONE
+			svcProfile.DevelopStatus = string(devStatus)
+
 			svcProfile.Possess = meta.SvcDevModePossessor(
 				svcProfile.ActualName, svcType,
 				appProfile.Identifier,

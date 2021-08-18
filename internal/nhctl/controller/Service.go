@@ -24,8 +24,9 @@ type Controller struct {
 	AppMeta   *appmeta.ApplicationMeta
 }
 
+// IsInDevMode return true if under dev starting or start complete
 func (c *Controller) IsInDevMode() bool {
-	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type)
+	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type) != appmeta.NONE
 }
 
 func (c *Controller) IsProcessor() bool {
@@ -67,7 +68,10 @@ func (c *Controller) GetDescription() *profile.SvcProfileV2 {
 	}
 	svcProfile := appProfile.SvcProfileV2(c.Name, string(c.Type))
 	if svcProfile != nil {
-		svcProfile.Developing = c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type)
+		devStatus := c.AppMeta.CheckIfSvcDeveloping(svcProfile.ActualName, c.Type)
+		svcProfile.Developing = devStatus != appmeta.NONE
+		svcProfile.DevelopStatus = string(devStatus)
+
 		svcProfile.Possess = c.IsProcessor()
 		return svcProfile
 	}
