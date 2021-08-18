@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
-	"io"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"nocalhost/internal/nocalhost-api/cache"
@@ -24,6 +23,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/router/middleware"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"strconv"
 	"sync"
 	"time"
@@ -129,27 +129,38 @@ func GetDevSpaceClusterList(c *gin.Context) {
 
 // resourceCache for cache resources(like cpu, memory, storage, pod number...)
 var resourceCache *cache.Cache
+var DefaultValue []model.Resource
 
 func init() {
 	// init cache with expire 15 seconds
 	resourceCache = cache.NewCache(time.Second * 15)
+	DefaultValue = make([]model.Resource, 0, 4)
+	DefaultValue = append(DefaultValue,
+		model.Resource{ResourceName: v1.ResourcePods, Capacity: 0, Used: 0, Percentage: 0},
+		model.Resource{ResourceName: v1.ResourceCPU, Capacity: 0, Used: 0, Percentage: 0},
+		model.Resource{ResourceName: v1.ResourceMemory, Capacity: 0, Used: 0, Percentage: 0},
+		model.Resource{ResourceName: v1.ResourceStorage, Capacity: 0, Used: 0, Percentage: 0},
+	)
 }
 
 // GetResources info by using metrics-api
-func GetResources(kubeconfig string) (resources []model.Resource) {
+func GetResources(kubeconfig string) []model.Resource {
 	get, found := resourceCache.Get(kubeconfig)
 	if found && get != nil {
 		return get.([]model.Resource)
 	}
-	goclient, err := clientgo.NewAdminGoClient([]byte(kubeconfig))
+	goclient, err := clientgo.NewAdminGoClientWithTimeout([]byte(kubeconfig), time.Second*2)
 	if err != nil {
-		return
+		return DefaultValue
 	}
 	restClient, err := goclient.GetRestClient()
 	if err != nil {
-		return
+		return DefaultValue
 	}
-	list, _ := goclient.GetClusterNode()
+	list, err := goclient.GetClusterNode()
+	if err != nil {
+		return DefaultValue
+	}
 	summaries := make([]model.Summary, 0, len(list.Items))
 	wg := sync.WaitGroup{}
 	wg.Add(len(list.Items))
@@ -157,15 +168,23 @@ func GetResources(kubeconfig string) (resources []model.Resource) {
 		node := node
 		go func() {
 			// using metrics-api to get nodes stats summary
-			stream, _ := restClient.Get().
-				RequestURI(fmt.Sprintf("/api/v1/nodes/%s/proxy/stats/summary", node.Name)).
-				Stream(context.Background())
-			defer stream.Close()
-			b, _ := io.ReadAll(stream)
-			var s model.Summary
-			_ = json.Unmarshal(b, &s)
-			summaries = append(summaries, s)
-			wg.Done()
+			defer wg.Done()
+			c := make(chan struct{}, 1)
+			go func() {
+				stream, _ := restClient.Get().
+					Timeout(time.Second * 3).
+					RequestURI(fmt.Sprintf("/api/v1/nodes/%s/proxy/stats/summary", node.Name)).
+					DoRaw(context.Background())
+				var s model.Summary
+				_ = json.Unmarshal(stream, &s)
+				summaries = append(summaries, s)
+				c <- struct{}{}
+			}()
+			select {
+			case <-c:
+			case <-time.After(time.Second * 3):
+				log.Warnf("get cluster info timeout")
+			}
 		}()
 	}
 	wg.Wait()
@@ -189,6 +208,7 @@ func GetResources(kubeconfig string) (resources []model.Resource) {
 		podUsed += int64(len(summary.Pods))
 	}
 
+	resources := make([]model.Resource, 0, 4)
 	resources = append(resources, model.Resource{
 		ResourceName: v1.ResourcePods,
 		Capacity:     float64(podTotal),
@@ -211,7 +231,7 @@ func GetResources(kubeconfig string) (resources []model.Resource) {
 		Percentage:   Div(float64(storageUsed), float64(storageTotal)),
 	})
 	resourceCache.Set(kubeconfig, resources)
-	return
+	return resources
 }
 
 func Div(a float64, b float64) float64 {

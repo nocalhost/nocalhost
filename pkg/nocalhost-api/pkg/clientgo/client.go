@@ -77,6 +77,10 @@ type InitResult struct {
 
 // new client with time out
 func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
+	return NewAdminGoClientWithTimeout(kubeconfig, time.Second*5)
+}
+
+func NewAdminGoClientWithTimeout(kubeconfig []byte, duration time.Duration) (*GoClient, error) {
 	initCh := make(chan *InitResult)
 
 	go func() {
@@ -91,7 +95,7 @@ func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
 	case res := <-initCh:
 		return res.goClient, res.err
 
-	case <-time.After(5 * time.Second):
+	case <-time.After(duration):
 		log.Infof("Initial k8s Go Client timeout!")
 		return nil, errno.ErrClusterTimeout
 	}
