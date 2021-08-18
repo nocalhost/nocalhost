@@ -57,6 +57,7 @@ func GetList(c *gin.Context) {
 	if isAdmin, _ := middleware.IsAdmin(c); !isAdmin {
 		// cluster --> userid, find cluster which user's devSpace based on
 		clusterToUser := make(map[uint64]uint64)
+		// get clusters which associated with current user, like cluster which current user's devSpace based on
 		lists, _ := cluster_user.DoList(&model.ClusterUserModel{}, userId, false)
 		for _, i := range lists {
 			clusterToUser[i.ClusterId] = i.ClusterId
@@ -74,6 +75,7 @@ func GetList(c *gin.Context) {
 		}
 		result = tempResult[0:]
 	} else {
+		// administer have all privilege
 		for _, list := range result {
 			list.Modifiable = true
 		}
@@ -99,6 +101,15 @@ func GetList(c *gin.Context) {
 	api.SendResponse(c, errno.OK, vos)
 }
 
+// GetDevSpaceClusterList Get the devSpace cluster list
+// @Summary Get the cluster list which user can create devSpace
+// @Description Get the cluster list which user can create devSpace
+// @Tags Cluster
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Success 200 {object} model.ClusterList "{"code":0,"message":"OK","data":model.ClusterList}"
+// @Router /v2/dev_space/cluster [get]
 func GetDevSpaceClusterList(c *gin.Context) {
 	result, _ := service.Svc.ClusterSvc().GetList(c)
 	tempResult := make([]*model.ClusterList, 0, 0)
@@ -116,12 +127,15 @@ func GetDevSpaceClusterList(c *gin.Context) {
 	api.SendResponse(c, errno.OK, result)
 }
 
+// resourceCache for cache resources(like cpu, memory, storage, pod number...)
 var resourceCache *cache.Cache
 
 func init() {
+	// init cache with expire 15 seconds
 	resourceCache = cache.NewCache(time.Second * 15)
 }
 
+// GetResources info by using metrics-api
 func GetResources(kubeconfig string) (resources []model.Resource) {
 	get, found := resourceCache.Get(kubeconfig)
 	if found && get != nil {
@@ -142,6 +156,7 @@ func GetResources(kubeconfig string) (resources []model.Resource) {
 	for _, node := range list.Items {
 		node := node
 		go func() {
+			// using metrics-api to get nodes stats summary
 			stream, _ := restClient.Get().
 				RequestURI(fmt.Sprintf("/api/v1/nodes/%s/proxy/stats/summary", node.Name)).
 				Stream(context.Background())
@@ -160,14 +175,17 @@ func GetResources(kubeconfig string) (resources []model.Resource) {
 	var cpuUsed, memoryUsed, storageUsed, podUsed int64
 	for _, node := range list.Items {
 		cpuTotal += node.Status.Capacity.Cpu().MilliValue()
+		// convert bytes to mega bytes (B --> MB)
 		memoryTotal += node.Status.Capacity.Memory().Value() / 1024 / 1024
 		storageTotal += node.Status.Capacity.StorageEphemeral().Value() / 1024 / 1024
 		podTotal += node.Status.Capacity.Pods().Value()
 	}
 	for _, summary := range summaries {
-		cpuUsed += resource.NewScaledQuantity(int64(summary.Node.CPU.UsageNanoCores), resource.Nano).ScaledValue(resource.Milli)
-		memoryUsed += int64(summary.Node.Memory.UsageBytes) / 1024 / 1024 // b --> kb --> mb
-		storageUsed += int64(summary.Node.Fs.UsedBytes) / 1024 / 1024     // b --> kb --> mb
+		cpuUsed += resource.NewScaledQuantity(int64(summary.Node.CPU.UsageNanoCores), resource.Nano).
+			ScaledValue(resource.Milli)
+		// convert bytes to mega bytes (B --> MB)
+		memoryUsed += int64(summary.Node.Memory.UsageBytes) / 1024 / 1024
+		storageUsed += int64(summary.Node.Fs.UsedBytes) / 1024 / 1024
 		podUsed += int64(len(summary.Pods))
 	}
 
