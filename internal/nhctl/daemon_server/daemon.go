@@ -118,34 +118,62 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 			log.Log("Exiting tcp listener")
 		}()
 		for {
+			//log.Info("Before accept a connection in %s", time.Now().String())
 			conn, err := listener.Accept()
 			log.Info("Accept a connection...")
 			if err != nil {
+				log.Log("Accept connection error occurs")
 				if strings.Contains(strings.ToLower(err.Error()), "use of closed network connection") {
 					log.Logf("Port %d has been closed", daemonListenPort())
 					return
 				}
 				log.LogE(errors.Wrap(err, "Failed to accept a connection"))
+				if conn != nil {
+					_ = conn.Close()
+				}
 				continue
 			}
 
-			bytes, err := ioutil.ReadAll(conn)
-			if err != nil {
-				log.LogE(errors.Wrap(err,"Failed to read data from connection"))
-				continue
-			}
-			cmdType, clientStack, err := command.ParseBaseCommand(bytes)
-			if err != nil {
-				log.LogE(err)
-				continue
-			}
 			go func() {
 				defer func() {
+					_ = conn.Close()
 					if r := recover(); r != nil {
 						log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
 					}
 				}()
 				start := time.Now()
+
+				log.Log("Reading data...")
+				errChan := make(chan error, 1)
+				bytesChan := make(chan []byte,1)
+
+				go func() {
+					bytes, err :=  ioutil.ReadAll(conn)
+					errChan <- err
+					bytesChan <-bytes
+				}()
+
+				select {
+				case err = <- errChan:
+					if err != nil {
+						log.LogE(errors.Wrap(err,"Failed to read data from connection"))
+						return
+					}
+				case <- time.After(30 * time.Second):
+					log.LogE(errors.New("Read data from connection timeout after 30s"))
+					return
+				}
+
+				bytes := <- bytesChan
+				if len(bytes) == 0 {
+					log.Log("No data read from connection")
+					return
+				}
+				cmdType, clientStack, err := command.ParseBaseCommand(bytes)
+				if err != nil {
+					log.LogE(err)
+					return
+				}
 				log.Infof("Handling %s command", cmdType)
 				handleCommand(conn, bytes, cmdType, clientStack)
 				log.Infof("%s command done, takes %f seconds", cmdType, time.Now().Sub(start).Seconds())
