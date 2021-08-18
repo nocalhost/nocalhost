@@ -8,12 +8,16 @@ package setupcluster
 import (
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/hashicorp/golang-lru/simplelru"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	toolscache "k8s.io/client-go/tools/cache"
@@ -31,6 +35,8 @@ const (
 
 	ApplicationIndex       = "nocalhostApplication"
 	ApplicationConfigIndex = "nocalhostApplicationConfig"
+
+	defaultResync = 10 * time.Minute
 )
 
 type ExtendInformer interface {
@@ -96,8 +102,17 @@ func IndexAppConfig(obj interface{}) ([]string, error) {
 }
 
 type cache struct {
+	mu        sync.Mutex
 	stopCh    chan struct{}
+	client    dynamic.Interface
+	lru       *simplelru.LRU
 	informers dynamicinformer.DynamicSharedInformerFactory
+}
+
+type informerFactory struct {
+	factory dynamicinformer.DynamicSharedInformerFactory
+	stopCh  chan struct{}
+	started map[schema.GroupVersionResource]bool
 }
 
 func (c *cache) build() {
@@ -111,6 +126,43 @@ func (c *cache) build() {
 	}
 	c.informers.Start(c.stopCh)
 	c.informers.WaitForCacheSync(c.stopCh)
+}
+
+func (c *cache) getInformerFactory(ns string) *informerFactory {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	factory, exist := c.lru.Get(ns)
+	if exist {
+		return factory.(*informerFactory)
+	}
+	f := &informerFactory{
+		factory: dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+			c.client, defaultResync, ns, nil),
+		stopCh: make(chan struct{}),
+	}
+	c.lru.Add(ns, f)
+	return f
+}
+
+func (c *cache) getInformer(ns string, gvr schema.GroupVersionResource) ExtendInformer {
+	f := c.getInformerFactory(ns)
+	informer := f.factory.ForResource(gvr)
+	_ = informer.Informer().AddIndexers(toolscache.Indexers{ApplicationIndex: IndexByAppName})
+	if gvr.Resource == "secrets" {
+		_ = informer.Informer().AddIndexers(toolscache.Indexers{ApplicationConfigIndex: IndexAppConfig})
+	}
+	f.factory.Start(c.stopCh)
+	f.factory.WaitForCacheSync(c.stopCh)
+	return &Informer{informer}
+}
+
+func newCache() *cache {
+	lru, _ := simplelru.NewLRU(12, func(key interface{}, value interface{}) {
+	})
+	return &cache{
+		lru: lru,
+	}
 }
 
 func (c *cache) ConfigMap() ExtendInformer {

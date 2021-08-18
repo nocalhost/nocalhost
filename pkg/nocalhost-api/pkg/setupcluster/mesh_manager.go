@@ -8,7 +8,6 @@ package setupcluster
 import (
 	"context"
 	"sort"
-	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -104,10 +103,8 @@ func (info *MeshDevInfo) SortApps() {
 }
 
 type meshManager struct {
-	mu     sync.Mutex
 	client *clientgo.GoClient
 	cache  cache
-	stopCh chan struct{}
 }
 
 func (m *meshManager) InitMeshDevSpace(info *MeshDevInfo) error {
