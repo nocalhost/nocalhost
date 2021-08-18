@@ -139,7 +139,8 @@ func (c *cache) getInformerFactory(ns string) *informerFactory {
 	f := &informerFactory{
 		factory: dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 			c.client, defaultResync, ns, nil),
-		stopCh: make(chan struct{}),
+		stopCh:  make(chan struct{}),
+		started: make(map[schema.GroupVersionResource]bool),
 	}
 	c.lru.Add(ns, f)
 	return f
@@ -152,8 +153,11 @@ func (c *cache) getInformer(ns string, gvr schema.GroupVersionResource) ExtendIn
 	if gvr.Resource == "secrets" {
 		_ = informer.Informer().AddIndexers(toolscache.Indexers{ApplicationConfigIndex: IndexAppConfig})
 	}
-	f.factory.Start(c.stopCh)
-	f.factory.WaitForCacheSync(c.stopCh)
+	if ok := f.started[gvr]; !ok {
+		informer.Informer().Run(c.stopCh)
+		toolscache.WaitForCacheSync(c.stopCh, informer.Informer().HasSynced)
+		f.started[gvr] = true
+	}
 	return &Informer{informer}
 }
 
