@@ -8,6 +8,7 @@ package cmds
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"go.uber.org/zap/zapcore"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -21,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 var (
@@ -50,7 +52,7 @@ func init() {
 	)
 	rootCmd.PersistentFlags().BoolVar(
 		&authCheck, "auth-check", authCheck,
-		"pre check the nocalhost commands permissions, return yes" +
+		"pre check the nocalhost commands permissions, return yes"+
 			" represent having enough permissions to call the command",
 	)
 	rootCmd.PersistentFlags().StringVar(
@@ -60,11 +62,14 @@ func init() {
 
 }
 
+var cmdStartTime time.Time
+
 var rootCmd = &cobra.Command{
 	Use:   "nhctl",
 	Short: "nhctl is a cloud-native development tool.",
 	Long:  `nhctl is a cloud-native development tool.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		cmdStartTime = time.Now()
 
 		// Init log
 		if debug {
@@ -111,6 +116,18 @@ var rootCmd = &cobra.Command{
 			os.Exit(0)
 			return
 		}
+	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		d := time.Now().Sub(cmdStartTime)
+		cmds := clientgoutils.GetCmd(cmd, nil)
+
+		cmd.Flags().Visit(
+			func(flag *pflag.Flag) {
+				cmds = append(cmds, "-"+flag.Name)
+				cmds = append(cmds, flag.Value.String())
+			},
+		)
+		log.Logf("[TimeMachine] %v, cost: %dms", cmds, d.Milliseconds())
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Debug("hello nhctl")
