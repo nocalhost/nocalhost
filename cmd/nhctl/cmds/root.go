@@ -99,8 +99,6 @@ var rootCmd = &cobra.Command{
 			log.InitEs(esUrl)
 		}
 
-		log.Log("Log initiated")
-
 		err = nocalhost.Init()
 		if err != nil {
 			log.FatalE(err, "Fail to init nhctl")
