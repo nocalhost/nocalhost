@@ -31,17 +31,20 @@ import (
 //            memory: 1Mi
 //
 // and should make sure helm's template is correctly rendered
-func InstallBookInfoUseHelmVals(c runner.Client) error {
-	_ = runner.Runner.RunWithCheckResult(c.SuiteName(),
+func InstallBookInfoUseHelmVals(c runner.Client, branch string) error {
+	_ = runner.Runner.RunWithCheckResult(
+		c.SuiteName(),
 		c.GetNhctl().Command(
 			context.Background(), "install", "bookinfohelm",
 			"-u", "https://github.com/nocalhost/bookinfo.git", "-t",
-			"helmGit", "-r", "test-case", "--resource-path", "charts/bookinfo", "--config", "config.helm.helmvals.yaml",
+			"helmGit", "-r", branch, "--resource-path", "charts/bookinfo", "--config", "config.helm.helmvals.yaml",
 		),
 	)
 
-	if err := runner.Runner.RunSimple(c.SuiteName(),
+	if err := runner.Runner.RunSimple(
+		c.SuiteName(),
 		c.GetKubectl().Command(context.Background(), "get", "deployment", "details", "-o", "yaml"),
+		false,
 		func(sout string) error {
 			if !strings.Contains(sout, "- containerPort: 9082") {
 				return errors.New(
@@ -71,7 +74,8 @@ func InstallBookInfoUseHelmVals(c runner.Client) error {
 // use nhctl install to install bookinfohelm,
 // then check the result on nhctl and helm
 func InstallBookInfoWithNhctl(c runner.Client) error {
-	_ = runner.Runner.RunWithCheckResult(c.SuiteName(),
+	_ = runner.Runner.RunWithCheckResult(
+		c.SuiteName(),
 		c.GetNhctl().Command(
 			context.Background(), "install", "bookinfohelm",
 			"-u", "https://github.com/nocalhost/bookinfo.git", "-t",
@@ -84,7 +88,8 @@ func InstallBookInfoWithNhctl(c runner.Client) error {
 // use nhctl install to install bookinfohelm,
 // then check the result on nhctl and helm
 func UninstallBookInfoWithNhctl(c runner.Client) error {
-	_ = runner.Runner.RunWithCheckResult(c.SuiteName(),
+	_ = runner.Runner.RunWithCheckResult(
+		c.SuiteName(),
 		c.GetNhctl().Command(
 			context.Background(), "uninstall", "bookinfohelm",
 		),
@@ -95,7 +100,8 @@ func UninstallBookInfoWithNhctl(c runner.Client) error {
 // use helm uninstall to uninstall bookinfohelm,
 // then check the result on nhctl and helm
 func UninstallBookInfoWithNativeHelm(c runner.Client) error {
-	_ = runner.Runner.RunWithCheckResult(c.SuiteName(),
+	_ = runner.Runner.RunWithCheckResult(
+		c.SuiteName(),
 		c.GetHelm().Command(
 			context.Background(), "uninstall", "bookinfohelm",
 		),
@@ -111,7 +117,8 @@ func InstallBookInfoWithNativeHelm(c runner.Client) error {
 
 	helmResourceDir := filepath.Join(tmpDir, "charts/bookinfo")
 
-	_ = runner.Runner.RunWithCheckResult(c.SuiteName(),
+	_ = runner.Runner.RunWithCheckResult(
+		c.SuiteName(),
 		exec.Command(
 			"git", "clone", "--depth",
 			"1", "https://github.com/nocalhost/bookinfo.git",
@@ -119,13 +126,15 @@ func InstallBookInfoWithNativeHelm(c runner.Client) error {
 		),
 	)
 
-	_ = runner.Runner.RunWithCheckResult(c.SuiteName(),
+	_ = runner.Runner.RunWithCheckResult(
+		c.SuiteName(),
 		c.GetHelm().Command(
 			context.Background(), "dependency", "build", helmResourceDir,
 		),
 	)
 
-	_ = runner.Runner.RunWithCheckResult(c.SuiteName(),
+	_ = runner.Runner.RunWithCheckResult(
+		c.SuiteName(),
 		c.GetHelm().Command(
 			context.Background(), "install", "bookinfohelm", helmResourceDir,
 		),
@@ -142,29 +151,42 @@ func InstallBookInfoWithNativeHelm(c runner.Client) error {
 func listBookInfoHelm(c runner.Client, exist bool) error {
 	return util.RetryFunc(
 		func() error {
-			nhctlResult, _, _ := runner.Runner.Run(c.SuiteName(),
+			nhctlResult, _, _ := runner.Runner.Run(
+				c.SuiteName(),
 				c.GetNhctl().Command(
 					context.Background(), "list",
 				),
 			)
 
-			helmResult, _, _ := runner.Runner.Run(c.SuiteName(),
+			helmResult, _, _ := runner.Runner.Run(
+				c.SuiteName(),
 				c.GetHelm().Command(
 					context.Background(), "list",
 				),
 			)
 
 			if exist &&
-				!(strings.Contains(nhctlResult, "bookinfohelm") && strings.Contains(helmResult, "bookinfohelm",
+				!(strings.Contains(nhctlResult, "bookinfohelm") && strings.Contains(
+					helmResult, "bookinfohelm",
 				)) {
-				return errors.New(fmt.Sprintf("do not list application named bookinfohelm, \nhelmresult: \n%s nhctlresult \n%s", helmResult,nhctlResult))
+				return errors.New(
+					fmt.Sprintf(
+						"do not list application named bookinfohelm, \nhelmresult: \n%s nhctlresult \n%s", helmResult,
+						nhctlResult,
+					),
+				)
 			}
 
 			if !exist &&
 				(strings.Contains(nhctlResult, "bookinfohelm") || strings.Contains(
 					helmResult, "bookinfohelm",
 				)) {
-				return errors.New(fmt.Sprintf("bookinfohelm is not expect but listed, \nhelmresult: \n%s nhctlresult \n%s", helmResult,nhctlResult))
+				return errors.New(
+					fmt.Sprintf(
+						"bookinfohelm is not expect but listed, \nhelmresult: \n%s nhctlresult \n%s", helmResult,
+						nhctlResult,
+					),
+				)
 			}
 			return nil
 		},

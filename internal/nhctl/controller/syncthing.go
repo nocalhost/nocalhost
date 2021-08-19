@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -142,7 +142,7 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 	return s, nil
 }
 
-func (c *Controller) NewSyncthingHttpClient() *req.SyncthingHttpClient {
+func (c *Controller) NewSyncthingHttpClient(reqTimeoutSecond int) *req.SyncthingHttpClient {
 	svcProfile, _ := c.GetProfile()
 
 	return req.NewSyncthingHttpClient(
@@ -150,6 +150,7 @@ func (c *Controller) NewSyncthingHttpClient() *req.SyncthingHttpClient {
 		syncthing.DefaultAPIKey,
 		syncthing.DefaultRemoteDeviceID,
 		syncthing.DefaultFolderName,
+		reqTimeoutSecond,
 	)
 }
 

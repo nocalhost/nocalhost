@@ -44,6 +44,10 @@ func main() {
 	wg := sync.WaitGroup{}
 
 	DoRun(false, &wg, func() {
+		t.RunWithBookInfo(false, "TestHook", suite.Hook)
+	})
+
+	DoRun(false, &wg, func() {
 		t.RunWithBookInfo(false, "HelmAdaption", suite.HelmAdaption)
 	})
 
@@ -83,6 +87,7 @@ func main() {
 
 	suite.LogsForArchive()
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
+	t.Clean()
 }
 
 func DoRun(doAfterWgDone bool, wg *sync.WaitGroup, do func()) {

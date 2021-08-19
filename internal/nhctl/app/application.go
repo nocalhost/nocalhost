@@ -78,6 +78,50 @@ func (a *Application) moveProfileFromFileToLeveldb() error {
 	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
 }
 
+func NewFakeApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
+
+	var err error
+	app := &Application{
+		Name:       name,
+		NameSpace:  ns,
+		KubeConfig: kubeconfig,
+	}
+
+	app.appMeta = appmeta.FakeAppMeta(ns, kubeconfig)
+	if err := app.tryLoadProfileFromLocal(); err != nil {
+		return nil, err
+	}
+
+	// if still not present
+	// load from secret
+	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
+	if err != nil {
+		profileV2 = generateProfileFromConfig(app.appMeta.Config)
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, profileV2); err != nil {
+			return nil, err
+		}
+	}
+	app.AppType = profileV2.AppType
+
+	if kubeconfig != "" && kubeconfig != profileV2.Kubeconfig {
+		if err := app.UpdateProfile(
+			func(p *profile.AppProfileV2) error {
+				p.Kubeconfig = kubeconfig
+				return nil
+			},
+		); err != nil {
+			return nil, err
+		}
+	}
+
+	if initClient {
+		if app.client, err = clientgoutils.NewClientGoUtils(app.KubeConfig, app.NameSpace); err != nil {
+			return nil, err
+		}
+	}
+	return app, nil
+}
+
 // When new a application, kubeconfig is required to get meta in k8s cluster
 // KubeConfig can be acquired from profile in leveldb
 func NewApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
