@@ -42,6 +42,7 @@ const (
 type ExtendInformer interface {
 	informers.GenericInformer
 	ByIndex(indexName, indexedValue string) []unstructured.Unstructured
+	GetList() []unstructured.Unstructured
 }
 
 type Informer struct {
@@ -111,30 +112,15 @@ func IndexAppConfig(obj interface{}) ([]string, error) {
 }
 
 type cache struct {
-	mu        sync.Mutex
-	stopCh    chan struct{}
-	client    dynamic.Interface
-	lru       *simplelru.LRU
-	informers dynamicinformer.DynamicSharedInformerFactory
+	mu     sync.Mutex
+	client dynamic.Interface
+	lru    *simplelru.LRU
 }
 
 type informerFactory struct {
 	factory dynamicinformer.DynamicSharedInformerFactory
 	stopCh  chan struct{}
 	started map[schema.GroupVersionResource]bool
-}
-
-func (c *cache) build() {
-	rs := defaultGvr()
-	for _, r := range rs {
-		informer := c.informers.ForResource(r)
-		_ = informer.Informer().AddIndexers(toolscache.Indexers{ApplicationIndex: IndexByAppName})
-		if r.Resource == "secrets" {
-			_ = informer.Informer().AddIndexers(toolscache.Indexers{ApplicationConfigIndex: IndexAppConfig})
-		}
-	}
-	c.informers.Start(c.stopCh)
-	c.informers.WaitForCacheSync(c.stopCh)
 }
 
 func (c *cache) getInformerFactory(ns string) *informerFactory {
@@ -163,8 +149,8 @@ func (c *cache) getInformer(ns string, gvr schema.GroupVersionResource) ExtendIn
 		_ = informer.Informer().AddIndexers(toolscache.Indexers{ApplicationConfigIndex: IndexAppConfig})
 	}
 	if ok := f.started[gvr]; !ok {
-		informer.Informer().Run(c.stopCh)
-		toolscache.WaitForCacheSync(c.stopCh, informer.Informer().HasSynced)
+		informer.Informer().Run(f.stopCh)
+		toolscache.WaitForCacheSync(f.stopCh, informer.Informer().HasSynced)
 		f.started[gvr] = true
 	}
 	return &Informer{informer}
@@ -219,23 +205,23 @@ func (c *cache) Deployment(ns string) ExtendInformer {
 }
 
 func (c *cache) GetConfigMapsListByNamespace(ns string) []unstructured.Unstructured {
-	return c.ConfigMap(ns).ByIndex(toolscache.NamespaceIndex, ns)
+	return c.ConfigMap(ns).GetList()
 }
 
 func (c *cache) GetServicesListByNamespace(ns string) []unstructured.Unstructured {
-	return c.Service(ns).ByIndex(toolscache.NamespaceIndex, ns)
+	return c.Service(ns).GetList()
 }
 
 func (c *cache) GetVirtualServicesListByNamespace(ns string) []unstructured.Unstructured {
-	return c.VirtualService(ns).ByIndex(toolscache.NamespaceIndex, ns)
+	return c.VirtualService(ns).GetList()
 }
 
 func (c *cache) GetSecretsListByNamespace(ns string) []unstructured.Unstructured {
-	return c.Secret(ns).ByIndex(toolscache.NamespaceIndex, ns)
+	return c.Secret(ns).GetList()
 }
 
 func (c *cache) GetDeploymentsListByNamespace(ns string) []unstructured.Unstructured {
-	return c.Deployment(ns).ByIndex(toolscache.NamespaceIndex, ns)
+	return c.Deployment(ns).GetList()
 }
 
 func (c *cache) GetConfigMapsListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
@@ -259,7 +245,7 @@ func (c *cache) GetDeploymentsListByNamespaceAndAppName(ns, appName string) []un
 }
 
 func (c *cache) GetConfigMapByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
-	obj, err := c.ConfigMap(ns).Lister().ByNamespace(ns).Get(name)
+	obj, err := c.ConfigMap(ns).Lister().Get(name)
 	if err != nil {
 		return unstructured.Unstructured{}, errors.WithStack(err)
 	}
@@ -305,15 +291,15 @@ func (c *cache) GetAppConfigByNamespace(ns string) []unstructured.Unstructured {
 func (c *cache) GetListByKindAndNamespace(kind, ns string) []unstructured.Unstructured {
 	switch kind {
 	case Deployment:
-		return c.Deployment(ns).ByIndex(toolscache.NamespaceIndex, ns)
+		return c.Deployment(ns).GetList()
 	case Secret:
-		return c.Secret(ns).ByIndex(toolscache.NamespaceIndex, ns)
+		return c.Secret(ns).GetList()
 	case ConfigMap:
-		return c.ConfigMap(ns).ByIndex(toolscache.NamespaceIndex, ns)
+		return c.ConfigMap(ns).GetList()
 	case Service:
-		return c.Service(ns).ByIndex(toolscache.NamespaceIndex, ns)
+		return c.Service(ns).GetList()
 	case VirtualService:
-		return c.VirtualService(ns).ByIndex(toolscache.NamespaceIndex, ns)
+		return c.VirtualService(ns).GetList()
 	}
 	return []unstructured.Unstructured{}
 }
@@ -510,34 +496,4 @@ func resourcesFilter(rs []unstructured.Unstructured, f func(
 		}
 	}
 	return ret
-}
-
-func defaultGvr() []schema.GroupVersionResource {
-	return []schema.GroupVersionResource{
-		{
-			Group:    "networking.istio.io",
-			Version:  "v1alpha3",
-			Resource: "virtualservices",
-		},
-		{
-			Group:    "apps",
-			Version:  "v1",
-			Resource: "deployments",
-		},
-		{
-			Group:    "",
-			Version:  "v1",
-			Resource: "configmaps",
-		},
-		{
-			Group:    "",
-			Version:  "v1",
-			Resource: "services",
-		},
-		{
-			Group:    "",
-			Version:  "v1",
-			Resource: "secrets",
-		},
-	}
 }

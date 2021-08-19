@@ -53,9 +53,6 @@ func (f *sharedMeshManagerFactory) Manager(kubeconfig string) (MeshManager, erro
 		}
 	}
 	manager = NewMeshManager(client)
-	if err := manager.BuildCache(); err != nil {
-		return nil, err
-	}
 	f.manager[kubeconfig] = manager
 	return manager, nil
 }
