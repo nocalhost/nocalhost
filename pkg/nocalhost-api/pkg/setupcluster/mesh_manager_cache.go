@@ -148,19 +148,21 @@ func (c *cache) getInformer(ns string, gvr schema.GroupVersionResource) ExtendIn
 	if gvr.Resource == "secrets" {
 		_ = informer.Informer().AddIndexers(toolscache.Indexers{ApplicationConfigIndex: IndexAppConfig})
 	}
-	if ok := f.started[gvr]; !ok {
-		informer.Informer().Run(f.stopCh)
+	if !f.started[gvr] {
+		go informer.Informer().Run(f.stopCh)
 		toolscache.WaitForCacheSync(f.stopCh, informer.Informer().HasSynced)
 		f.started[gvr] = true
 	}
+
 	return &Informer{informer}
 }
 
-func newCache() *cache {
+func newCache(client dynamic.Interface) *cache {
 	lru, _ := simplelru.NewLRU(12, func(key interface{}, value interface{}) {
 	})
 	return &cache{
-		lru: lru,
+		lru:    lru,
+		client: client,
 	}
 }
 

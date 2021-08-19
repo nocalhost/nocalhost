@@ -570,7 +570,7 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 }
 
 func (m *meshManager) newCache() {
-	m.cache = *newCache()
+	m.cache = *newCache(m.client.DynamicClient)
 }
 
 func (m *meshManager) getMeshDevSpaceWorkloads(info *MeshDevInfo) []MeshDevWorkload {
