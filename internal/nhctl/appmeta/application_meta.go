@@ -401,7 +401,38 @@ func (a *ApplicationMeta) SvcDevModePossessor(name string, svcType base.SvcType,
 	return m[name] == identifier && identifier != ""
 }
 
-func (a *ApplicationMeta) SvcDevStart(name string, svcType base.SvcType, identifier string) error {
+// SvcDevStarting call this func first recode 'name>...starting' as developing
+// while complete enter dev start, should call #SvcDevStartComplete to mark svc completely enter dev mode
+func (a *ApplicationMeta) SvcDevStarting(name string, svcType base.SvcType, identifier string) error {
+	devMeta := a.DevMeta
+	if devMeta == nil {
+		devMeta = ApplicationDevMeta{}
+		a.DevMeta = devMeta
+	}
+
+	if _, ok := devMeta[svcType.Alias()]; !ok {
+		devMeta[svcType.Alias()] = map[ /* resource name */ string] /* identifier */ string{}
+	}
+	m := devMeta[svcType.Alias()]
+
+	if _, ok := m[name]; ok {
+		return ErrAlreadyDev
+	}
+
+	inDevStartingMark := devStartMarkSign(name)
+	if _, ok := m[inDevStartingMark]; ok {
+		return ErrAlreadyDev
+	}
+
+	m[inDevStartingMark] = identifier
+	return a.Update()
+}
+
+func devStartMarkSign(name string) string {
+	return fmt.Sprintf("%s>...Starting", name)
+}
+
+func (a *ApplicationMeta) SvcDevStartComplete(name string, svcType base.SvcType, identifier string) error {
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -433,11 +464,14 @@ func (a *ApplicationMeta) SvcDevEnd(name string, svcType base.SvcType) error {
 	}
 	m := devMeta[svcType.Alias()]
 
+	inDevStartingMark := fmt.Sprintf("%s>...Starting", name)
+
+	delete(m, inDevStartingMark)
 	delete(m, name)
 	return a.Update()
 }
 
-func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType) bool {
+func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType) DevStartStatus {
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -449,8 +483,15 @@ func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType
 	}
 	m := devMeta[svcType.Alias()]
 
-	_, ok := m[name]
-	return ok
+	if _, ok := m[name]; ok {
+		return STARTED
+	}
+
+	if _, ok := m[devStartMarkSign(name)]; ok {
+		return STARTING
+	}
+
+	return NONE
 }
 
 func (a *ApplicationMeta) Update() error {

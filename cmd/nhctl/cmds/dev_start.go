@@ -242,7 +242,7 @@ func startSyncthing(podName, container string, resume bool) {
 
 func enterDevMode() string {
 	must(
-		nocalhostSvc.AppMeta.SvcDevStart(
+		nocalhostSvc.AppMeta.SvcDevStarting(
 			nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier,
 		),
 	)
@@ -308,6 +308,12 @@ func enterDevMode() string {
 		}
 		must(err)
 	}
+
+	must(
+		nocalhostSvc.AppMeta.SvcDevStartComplete(
+			nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier,
+		),
+	)
 
 	// mark dev start as true
 	devStartSuccess = true
