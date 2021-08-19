@@ -214,8 +214,13 @@ type SvcProfileV2 struct {
 	// deprecated
 	Associate string `json:"associate" yaml:"associate"`
 
-	// from app meta
+	// deprecated
+	// for earlier version of nocalhost
+	// from app meta, this status return ture may under start developing (pod not ready, etc..)
 	Developing bool `json:"developing" yaml:"developing"`
+
+	// from app meta
+	DevelopStatus string `json:"develop_status" yaml:"develop_status"`
 
 	// mean the current controller is possess by current nhctl context
 	// and the syncthing process is listen on current device

@@ -171,7 +171,7 @@ func DoCheck(cmd *cobra.Command, namespace string, client *ClientGoUtils) error 
 }
 
 func getAuthChecker(cmd *cobra.Command) []*AuthChecker {
-	route := authCheckCmdRoute(cmd, nil, true)
+	route := authCheckCmdRoute(cmd)
 
 	checkersKey := strings.Join(route, " ")
 	checkers, ok := CheckersMapping[checkersKey]
@@ -182,7 +182,7 @@ func getAuthChecker(cmd *cobra.Command) []*AuthChecker {
 	return checkers
 }
 
-func authCheckCmdRoute(cmd *cobra.Command, from []string, child bool) []string {
+func GetCmd(cmd *cobra.Command, from []string) []string {
 	var cmdRoute []string
 	if from == nil {
 		cmdRoute = make([]string, 0)
@@ -193,33 +193,36 @@ func authCheckCmdRoute(cmd *cobra.Command, from []string, child bool) []string {
 	parentValid := cmd.HasParent() && cmd.Parent().Name() != ""
 
 	if parentValid {
-		cmdRoute = authCheckCmdRoute(cmd.Parent(), cmdRoute, false)
+		cmdRoute = GetCmd(cmd.Parent(), cmdRoute)
 	}
 
 	cmdRoute = append(cmdRoute, cmd.Name())
+	return cmdRoute
+}
+
+func authCheckCmdRoute(cmd *cobra.Command) []string {
+	var cmdRoute = GetCmd(cmd, nil)
 
 	// we should get all flags from child cmd
 	// filter the flags needed, and append to the end
 	// of cmdRoute
-	if child {
-		extArgs := make([]string, 0)
-		flags := cmd.Flags()
-		flags.Visit(
-			func(flag *pflag.Flag) {
-				if ArgsFilter.Exist(flag.Name) {
-					extArgs = append(extArgs, fmt.Sprintf("%s=%s", flag.Name, strings.ToLower(flag.Value.String())))
-				}
-			},
-		)
 
-		sort.Slice(
-			extArgs, func(i, j int) bool {
-				return extArgs[i] > extArgs[j]
-			},
-		)
+	extArgs := make([]string, 0)
+	flags := cmd.Flags()
+	flags.Visit(
+		func(flag *pflag.Flag) {
+			if ArgsFilter.Exist(flag.Name) {
+				extArgs = append(extArgs, fmt.Sprintf("%s=%s", flag.Name, strings.ToLower(flag.Value.String())))
+			}
+		},
+	)
 
-		cmdRoute = append(cmdRoute, extArgs...)
-	}
+	sort.Slice(
+		extArgs, func(i, j int) bool {
+			return extArgs[i] > extArgs[j]
+		},
+	)
 
+	cmdRoute = append(cmdRoute, extArgs...)
 	return cmdRoute
 }
