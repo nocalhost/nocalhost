@@ -8,16 +8,18 @@ package cluster_user
 import (
 	"context"
 	"encoding/json"
+	"sort"
+
 	"github.com/gin-gonic/gin"
+
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/internal/nocalhost-api/service/cooperator/cluster_scope"
 	"nocalhost/internal/nocalhost-api/service/cooperator/ns_scope"
-	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
-	"sort"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
 func GetV2(c *gin.Context) {
@@ -90,7 +92,7 @@ func DoList(params *model.ClusterUserModel, userId uint64, isAdmin bool) ([]*mod
 		return nil, errno.ErrClusterNotFound
 	}
 
-	if errn := pipeLine(clusterUsers, userId, isAdmin); errn != nil {
+	if errn := PipeLine(clusterUsers, userId, isAdmin); errn != nil {
 		log.Error(err)
 		return nil, errn
 	}
@@ -144,7 +146,7 @@ func filter(clusterUsers []*model.ClusterUserV2, condition func(*model.ClusterUs
 	return result
 }
 
-func pipeLine(clusterUsers []*model.ClusterUserV2, userId uint64, isAdmin bool) *errno.Errno {
+func PipeLine(clusterUsers []*model.ClusterUserV2, userId uint64, isAdmin bool) *errno.Errno {
 	// First group DevSpace by cluster and dispatch the RBAC via serviceAccount
 	// associate by the current user
 	// Then Filling the ext custom field for current user
@@ -174,7 +176,7 @@ func doSort(clusterUsers []*model.ClusterUserV2) {
 func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, isAdmin bool) *errno.Errno {
 	list, err := service.Svc.ClusterSvc().GetList(context.TODO())
 	if err != nil {
-		log.ErrorE(err, "Error while list cluster")
+		log.Errorf("Error while list cluster: %+v", err)
 		return errno.ErrClusterNotFound
 	}
 

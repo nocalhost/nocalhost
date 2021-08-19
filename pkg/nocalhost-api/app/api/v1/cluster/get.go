@@ -6,12 +6,15 @@
 package cluster
 
 import (
+	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"nocalhost/internal/nocalhost-api/cache"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
@@ -20,8 +23,10 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/router/middleware"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type ClusterStatus struct {
@@ -52,6 +57,7 @@ func GetList(c *gin.Context) {
 	if isAdmin, _ := middleware.IsAdmin(c); !isAdmin {
 		// cluster --> userid, find cluster which user's devSpace based on
 		clusterToUser := make(map[uint64]uint64)
+		// get clusters which associated with current user, like cluster which current user's devSpace based on
 		lists, _ := cluster_user.DoList(&model.ClusterUserModel{}, userId, false)
 		for _, i := range lists {
 			clusterToUser[i.ClusterId] = i.ClusterId
@@ -69,6 +75,7 @@ func GetList(c *gin.Context) {
 		}
 		result = tempResult[0:]
 	} else {
+		// administer have all privilege
 		for _, list := range result {
 			list.Modifiable = true
 		}
@@ -83,10 +90,9 @@ func GetList(c *gin.Context) {
 		}
 		i := i
 		go func() {
-			admin, _ := middleware.IsAdmin(c)
 			vos[i] = model.ClusterListVo{
 				ClusterList: *result[i],
-				Resources:   GetResources(result[i].GetKubeConfig(), admin),
+				Resources:   GetResources(result[i].GetKubeConfig()),
 			}
 			wg.Done()
 		}()
@@ -95,6 +101,15 @@ func GetList(c *gin.Context) {
 	api.SendResponse(c, errno.OK, vos)
 }
 
+// GetDevSpaceClusterList Get the devSpace cluster list
+// @Summary Get the cluster list which user can create devSpace
+// @Description Get the cluster list which user can create devSpace
+// @Tags Cluster
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Success 200 {object} model.ClusterList "{"code":0,"message":"OK","data":model.ClusterList}"
+// @Router /v2/dev_space/cluster [get]
 func GetDevSpaceClusterList(c *gin.Context) {
 	result, _ := service.Svc.ClusterSvc().GetList(c)
 	tempResult := make([]*model.ClusterList, 0, 0)
@@ -112,57 +127,105 @@ func GetDevSpaceClusterList(c *gin.Context) {
 	api.SendResponse(c, errno.OK, result)
 }
 
-func GetResources(kubeconfig string, admin bool) (resources []model.Resource) {
-	client, err := clientgo.NewAdminGoClient([]byte(kubeconfig))
+// resourceCache for cache resources(like cpu, memory, storage, pod number...), init cache with expire 15 seconds
+var resourceCache = cache.NewCache(time.Second * 15)
+var defaultValue = []model.Resource{
+	{ResourceName: v1.ResourcePods, Capacity: 0, Used: 0, Percentage: 0},
+	{ResourceName: v1.ResourceCPU, Capacity: 0, Used: 0, Percentage: 0},
+	{ResourceName: v1.ResourceMemory, Capacity: 0, Used: 0, Percentage: 0},
+	{ResourceName: v1.ResourceStorage, Capacity: 0, Used: 0, Percentage: 0},
+}
+
+// GetResources info by using metrics-api
+func GetResources(kubeconfig string) []model.Resource {
+	get, found := resourceCache.Get(kubeconfig)
+	if found && get != nil {
+		return get.([]model.Resource)
+	}
+	goclient, err := clientgo.NewAdminGoClientWithTimeout([]byte(kubeconfig), time.Second*2)
 	if err != nil {
-		return
+		return defaultValue
 	}
+	restClient, err := goclient.GetRestClient()
+	if err != nil {
+		return defaultValue
+	}
+	list, err := goclient.GetClusterNode()
+	if err != nil {
+		return defaultValue
+	}
+	summaries := make([]model.Summary, len(list.Items), len(list.Items))
+	wg := sync.WaitGroup{}
+	wg.Add(len(list.Items))
+	for i, node := range list.Items {
+		node := node
+		i := i
+		go func() {
+			// using metrics-api to get nodes stats summary
+			defer wg.Done()
+			c := make(chan struct{}, 1)
+			go func() {
+				stream, _ := restClient.Get().
+					Timeout(time.Second * 3).
+					RequestURI(fmt.Sprintf("/api/v1/nodes/%s/proxy/stats/summary", node.Name)).
+					DoRaw(context.Background())
+				var s model.Summary
+				_ = json.Unmarshal(stream, &s)
+				summaries[i] = s
+				c <- struct{}{}
+			}()
+			select {
+			case <-c:
+			case <-time.After(time.Second * 3):
+				log.Warnf("get cluster info timeout")
+			}
+		}()
+	}
+	wg.Wait()
+	summaries = summaries[0:]
+
 	var cpuTotal, memoryTotal, storageTotal, podTotal int64
-	var cpuAlloc, memoryAlloc, storageAlloc, podAlloc int64
-	if admin {
-		nodeList, err := client.GetClusterNode()
-		if err != nil {
-			return
-		}
-		for _, node := range nodeList.Items {
-			cpuTotal += node.Status.Capacity.Cpu().MilliValue()
-			// method ScaledValue using 1000, but memory and storage should using 1024,
-			// just because using 1024 is too complex
-			memoryTotal += node.Status.Capacity.Memory().ScaledValue(resource.Mega)
-			storageTotal += node.Status.Capacity.StorageEphemeral().ScaledValue(resource.Mega)
-			podTotal += node.Status.Capacity.Pods().Value()
-
-			cpuAlloc += node.Status.Allocatable.Cpu().MilliValue()
-			memoryAlloc += node.Status.Allocatable.Memory().ScaledValue(resource.Mega)
-			storageAlloc += node.Status.Allocatable.StorageEphemeral().ScaledValue(resource.Mega)
-		}
-
-		podList, _ := client.ListPods(v1.NamespaceAll)
-		podAlloc = int64(len(podList.Items))
+	var cpuUsed, memoryUsed, storageUsed, podUsed int64
+	for _, node := range list.Items {
+		cpuTotal += node.Status.Capacity.Cpu().MilliValue()
+		// convert bytes to mega bytes (B --> MB)
+		memoryTotal += node.Status.Capacity.Memory().Value() / 1024 / 1024
+		storageTotal += node.Status.Capacity.StorageEphemeral().Value() / 1024 / 1024
+		podTotal += node.Status.Capacity.Pods().Value()
+	}
+	for _, summary := range summaries {
+		cpuUsed += resource.NewScaledQuantity(int64(summary.Node.CPU.UsageNanoCores), resource.Nano).
+			ScaledValue(resource.Milli)
+		// convert bytes to mega bytes (B --> MB)
+		memoryUsed += int64(summary.Node.Memory.UsageBytes) / 1024 / 1024
+		storageUsed += int64(summary.Node.Fs.UsedBytes) / 1024 / 1024
+		podUsed += int64(len(summary.Pods))
 	}
 
+	resources := make([]model.Resource, 0, 4)
 	resources = append(resources, model.Resource{
 		ResourceName: v1.ResourcePods,
 		Capacity:     float64(podTotal),
-		Used:         float64(podAlloc),
-		Percentage:   Div(float64(podAlloc), float64(podTotal)),
+		Used:         float64(podUsed),
+		Percentage:   Div(float64(podUsed), float64(podTotal)),
 	}, model.Resource{
 		ResourceName: v1.ResourceCPU,
-		Capacity:     float64(cpuTotal / 1000),
-		Used:         Div(float64(cpuTotal-cpuAlloc), 1000),
-		Percentage:   Div(float64(cpuTotal-cpuAlloc), float64(cpuTotal)),
+		Capacity:     Div(float64(cpuTotal), 1000),
+		Used:         Div(float64(cpuUsed), 1000),
+		Percentage:   Div(float64(cpuUsed), float64(cpuTotal)),
 	}, model.Resource{
 		ResourceName: v1.ResourceMemory,
 		Capacity:     Div(float64(memoryTotal), 1024),
-		Used:         Div(float64(memoryTotal-memoryAlloc), 1024),
-		Percentage:   Div(Div(float64(memoryTotal-memoryAlloc), 1024), Div(float64(memoryTotal), 1024)),
+		Used:         Div(float64(memoryUsed), 1024),
+		Percentage:   Div(float64(memoryUsed), float64(memoryTotal)),
 	}, model.Resource{
 		ResourceName: v1.ResourceStorage,
 		Capacity:     Div(float64(storageTotal), 1024),
-		Used:         Div(float64(storageTotal-storageAlloc), 1024),
-		Percentage:   Div(Div(float64(storageTotal-storageAlloc), 1024), Div(float64(storageTotal), 1024)),
+		Used:         Div(float64(storageUsed), 1024),
+		Percentage:   Div(float64(storageUsed), float64(storageTotal)),
 	})
-	return
+	resourceCache.Set(kubeconfig, resources)
+	return resources
 }
 
 func Div(a float64, b float64) float64 {
