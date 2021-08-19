@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"nocalhost/internal/nhctl/app"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
@@ -41,7 +41,6 @@ type ConfigFile struct {
 }
 
 func init() {
-
 	rootCmd.PersistentFlags().StringVarP(
 		&nameSpace, "namespace", "n", "",
 		"kubernetes namespace",
@@ -81,6 +80,7 @@ var rootCmd = &cobra.Command{
 		log.AddField("VERSION", Version)
 		log.AddField("COMMIT", GitCommit)
 		log.AddField("BRANCH", Branch)
+		log.AddField("ARGS", strings.Join(os.Args, " "))
 
 		var esUrl string
 		bys, err := ioutil.ReadFile(filepath.Join(nocalhost_path.GetNhctlHomeDir(), "config"))

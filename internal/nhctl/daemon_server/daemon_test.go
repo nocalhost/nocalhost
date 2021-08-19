@@ -2,6 +2,8 @@ package daemon_server
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/appmeta"
 	profile2 "nocalhost/internal/nhctl/profile"
@@ -37,4 +39,35 @@ func TestUnMar(t *testing.T) {
 			println(string(massss))
 		}
 	}
+}
+
+func TestErr(t *testing.T) {
+	fmt.Println("before")
+	err := errTest()
+	fmt.Printf("after: %v\n", err)
+}
+
+func errTest() (error) {
+	var err error
+	num, err := errTest2("err01")
+	fmt.Printf("%v\n", &num)
+	if num != 0 {
+		fmt.Println("a")
+	}
+	defer func() {
+		err = errors.Wrap(err,"")
+		fmt.Printf("err handling: %v\n", err)
+	}()
+
+	_, err = errTest2("err02")
+	err = errors.Wrap(err,"")
+	fmt.Printf("%v\n",err)
+	//fmt.Printf("%v\n", &num)
+
+	return err
+}
+
+func errTest2(info string)(int, error) {
+	//_, err := strconv.ParseBool("aaa")
+	return 0, errors.New(info)
 }
