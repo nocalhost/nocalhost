@@ -90,7 +90,7 @@ func DoList(params *model.ClusterUserModel, userId uint64, isAdmin bool) ([]*mod
 		return nil, errno.ErrClusterNotFound
 	}
 
-	if errn := pipeLine(clusterUsers, userId, isAdmin); errn != nil {
+	if errn := PipeLine(clusterUsers, userId, isAdmin); errn != nil {
 		log.Error(err)
 		return nil, errn
 	}
@@ -144,7 +144,7 @@ func filter(clusterUsers []*model.ClusterUserV2, condition func(*model.ClusterUs
 	return result
 }
 
-func pipeLine(clusterUsers []*model.ClusterUserV2, userId uint64, isAdmin bool) *errno.Errno {
+func PipeLine(clusterUsers []*model.ClusterUserV2, userId uint64, isAdmin bool) *errno.Errno {
 	// First group DevSpace by cluster and dispatch the RBAC via serviceAccount
 	// associate by the current user
 	// Then Filling the ext custom field for current user

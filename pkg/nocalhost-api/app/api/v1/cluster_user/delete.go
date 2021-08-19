@@ -12,7 +12,10 @@ import (
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/internal/nocalhost-api/service/cooperator/cluster_scope"
+	"nocalhost/internal/nocalhost-api/service/cooperator/ns_scope"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
@@ -133,6 +136,12 @@ func ReCreate(c *gin.Context) {
 	// get devSpace
 	devSpaceId := cast.ToUint64(c.Param("id"))
 
+	user, err := ginbase.LoginUser(g)
+	if err != nil {
+		api.SendResponse(c, errno.ErrPermissionDenied, nil)
+		return
+	}
+
 	clusterUser, errn := HasModifyPermissionToSomeDevSpace(c, devSpaceId)
 	if errn != nil {
 		api.SendResponse(c, errn, nil)
@@ -167,6 +176,17 @@ func ReCreate(c *gin.Context) {
 
 	// delete devSpace space first, it will delete database record whatever success delete namespace or not
 	devSpace := NewDevSpace(req, c, []byte(cluster.KubeConfig))
+
+	list, e := DoList(&model.ClusterUserModel{ID: devSpaceId}, user, false)
+	if e != nil {
+		log.ErrorE(e, "")
+		api.SendResponse(c, err, nil)
+	}
+	if len(list) != 1 {
+		api.SendResponse(c, errno.ErrMeshClusterUserNotFound, nil)
+	}
+	cu := list[0]
+
 	err = devSpace.Delete()
 	if err != nil {
 		api.SendResponse(c, err, nil)
@@ -184,6 +204,14 @@ func ReCreate(c *gin.Context) {
 	if err := service.Svc.AuthorizeNsToUser(result.ClusterId, result.UserId, result.Namespace); err != nil {
 		api.SendResponse(c, err, nil)
 		return
+	}
+
+	for _, viewer := range cu.ViewerUser {
+		_ = ns_scope.AsViewer(result.ClusterId, viewer.ID, result.Namespace)
+	}
+
+	for _, cooper := range cu.CooperUser {
+		_ = ns_scope.AsCooperator(result.ClusterId, cooper.ID, result.Namespace)
 	}
 
 	api.SendResponse(c, nil, result)
