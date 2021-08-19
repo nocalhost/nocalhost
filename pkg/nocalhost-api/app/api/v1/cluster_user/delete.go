@@ -136,7 +136,7 @@ func ReCreate(c *gin.Context) {
 	// get devSpace
 	devSpaceId := cast.ToUint64(c.Param("id"))
 
-	user, err := ginbase.LoginUser(g)
+	user, err := ginbase.LoginUser(c)
 	if err != nil {
 		api.SendResponse(c, errno.ErrPermissionDenied, nil)
 		return
@@ -200,8 +200,12 @@ func ReCreate(c *gin.Context) {
 		return
 	}
 
-	// un authorize namespace to user
 	if err := service.Svc.AuthorizeNsToUser(result.ClusterId, result.UserId, result.Namespace); err != nil {
+		api.SendResponse(c, err, nil)
+		return
+	}
+
+	if err := service.Svc.AuthorizeNsToDefaultSa(result.ClusterId, result.UserId, result.Namespace); err != nil {
 		api.SendResponse(c, err, nil)
 		return
 	}

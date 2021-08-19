@@ -43,23 +43,6 @@ type SaAuthorizeRequest struct {
 	SpaceName string  `json:"space_name" binding:"required"`
 }
 
-func Authorize(c *gin.Context) {
-	var req SaAuthorizeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Warnf("bind service account authorizeRequest params err: %v", err)
-		api.SendResponse(c, errno.ErrBind, nil)
-		return
-	}
-
-	err := service.Svc.AuthorizeNsToUser(*req.ClusterId, *req.UserId, req.SpaceName)
-	if err != nil {
-		api.SendResponse(c, err, nil)
-		return
-	}
-
-	api.SendResponse(c, nil, nil)
-}
-
 func ListAuthorization(c *gin.Context) {
 	userId, err := ginbase.LoginUser(c)
 	if err != nil {

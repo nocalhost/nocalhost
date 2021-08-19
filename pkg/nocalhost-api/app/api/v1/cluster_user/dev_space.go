@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
 	"nocalhost/internal/nocalhost-api/model"
@@ -221,6 +220,10 @@ func (d *DevSpace) createDevSpace(
 
 	// authorize namespace to user
 	if err := service.Svc.AuthorizeNsToUser(clusterRecord.ID, usersRecord.ID, result.Namespace); err != nil {
+		return nil, err
+	}
+
+	if err := service.Svc.AuthorizeNsToDefaultSa(clusterRecord.ID, usersRecord.ID, result.Namespace); err != nil {
 		return nil, err
 	}
 

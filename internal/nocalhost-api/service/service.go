@@ -145,6 +145,7 @@ func (s *Service) migrateClusterUseToRoleBinding() {
 	for _, clusterUser := range list {
 		if !clusterUser.IsClusterAdmin() {
 			_ = s.AuthorizeNsToUser(clusterUser.ClusterId, clusterUser.UserId, clusterUser.Namespace)
+			_ = s.AuthorizeNsToDefaultSa(clusterUser.ClusterId, clusterUser.UserId, clusterUser.Namespace)
 		}
 	}
 }
@@ -373,6 +374,30 @@ func (s *Service) PrepareServiceAccountAndClientGo(clusterId, userId uint64) (
 
 	saName = u.SaName
 	return
+}
+
+func (s *Service) AuthorizeNsToDefaultSa(clusterId, userId uint64, ns string) error {
+	clientGo, _, err := s.PrepareServiceAccountAndClientGo(clusterId, userId)
+	if err != nil {
+		return err
+	}
+
+	if err := CreateNamespaceINE(clientGo, ns); err != nil {
+		log.Error(err)
+		return errno.ErrNameSpaceCreate
+	}
+
+	if err := CreateOrUpdateRoleBindingINE(
+		clientGo, ns, "default",
+		ns,
+		_const.NocalhostDefaultRoleBinding,
+		_const.NocalhostDevRoleName,
+	); err != nil {
+		log.Error(err)
+		return errno.ErrRoleBindingCreate
+	}
+
+	return nil
 }
 
 func (s *Service) AuthorizeNsToUser(clusterId, userId uint64, ns string) error {
