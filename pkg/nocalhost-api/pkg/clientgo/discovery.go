@@ -26,3 +26,7 @@ func (c *GoClient) GetDiscoveryRESTMapper() (*restmapper.DeferredDiscoveryRESTMa
 	c.mapper = restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(discoveryClient))
 	return c.mapper, nil
 }
+
+func (c *GoClient) GetDiscoveryClient() (*discovery.DiscoveryClient, error) {
+	return discovery.NewDiscoveryClientForConfig(c.restConfig)
+}

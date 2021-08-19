@@ -9,7 +9,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/kubernetes/scheme"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -34,6 +36,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	_const "nocalhost/internal/nhctl/const"
@@ -74,6 +77,10 @@ type InitResult struct {
 
 // new client with time out
 func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
+	return NewAdminGoClientWithTimeout(kubeconfig, time.Second*5)
+}
+
+func NewAdminGoClientWithTimeout(kubeconfig []byte, duration time.Duration) (*GoClient, error) {
 	initCh := make(chan *InitResult)
 
 	go func() {
@@ -88,7 +95,7 @@ func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
 	case res := <-initCh:
 		return res.goClient, res.err
 
-	case <-time.After(5 * time.Second):
+	case <-time.After(duration):
 		log.Infof("Initial k8s Go Client timeout!")
 		return nil, errno.ErrClusterTimeout
 	}
@@ -1202,4 +1209,10 @@ func (c *GoClient) ListPods(namespace string) (*corev1.PodList, error) {
 
 func (c *GoClient) DeletePod(namespace, name string) error {
 	return c.client.CoreV1().Pods(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+func (c *GoClient) GetRestClient() (*restclient.RESTClient, error) {
+	c.restConfig.GroupVersion = &schema.GroupVersion{Group: "", Version: "v1"}
+	c.restConfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: scheme.Codecs}
+	return restclient.RESTClientFor(c.restConfig)
 }
