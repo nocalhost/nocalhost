@@ -78,7 +78,7 @@ func Init(level zapcore.Level, dir, fileName string) error {
 	encoderConfig.EncodeDuration = CustomDurationEncoder
 
 	encoder := zapcore.NewConsoleEncoder(encoderConfig)
-	fileLogsConfig := zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
+	fileLogsConfig = zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
 
 	// init
 	initOrReInitStdout(unFormatStdoutConfig)
