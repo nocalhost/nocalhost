@@ -181,15 +181,22 @@ func ReCreate(c *gin.Context) {
 	if e != nil {
 		log.ErrorE(e, "")
 		api.SendResponse(c, err, nil)
+		return
 	}
 	if len(list) != 1 {
 		api.SendResponse(c, errno.ErrMeshClusterUserNotFound, nil)
+		return
 	}
 	cu := list[0]
 
+	if cu.IsClusterAdmin(){
+		api.SendResponse(c, nil, nil)
+		return
+	}
+
 	err = devSpace.Delete()
 	if err != nil {
-		api.SendResponse(c, err, nil)
+		api.SendResponse(c, nil, nil)
 		return
 	}
 
