@@ -136,7 +136,7 @@ func ReCreate(c *gin.Context) {
 	// get devSpace
 	devSpaceId := cast.ToUint64(c.Param("id"))
 
-	user, err := ginbase.LoginUser(g)
+	user, err := ginbase.LoginUser(c)
 	if err != nil {
 		api.SendResponse(c, errno.ErrPermissionDenied, nil)
 		return
