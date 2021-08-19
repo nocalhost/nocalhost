@@ -57,6 +57,15 @@ func (informer *Informer) ByIndex(indexName, indexedValue string) []unstructured
 	return ret
 }
 
+func (informer *Informer) GetList() []unstructured.Unstructured {
+	objs := informer.Informer().GetIndexer().List()
+	ret := make([]unstructured.Unstructured, len(objs))
+	for i := range objs {
+		ret[i] = *objs[i].(*unstructured.Unstructured).DeepCopy()
+	}
+	return ret
+}
+
 func IndexByAppName(obj interface{}) ([]string, error) {
 	r, ok := obj.(*unstructured.Unstructured)
 	if !ok {
@@ -169,98 +178,88 @@ func newCache() *cache {
 	}
 }
 
-func (c *cache) ConfigMap() ExtendInformer {
-	return &Informer{
-		GenericInformer: c.informers.ForResource(schema.GroupVersionResource{
-			Group:    "",
-			Version:  "v1",
-			Resource: "configmaps",
-		}),
-	}
+func (c *cache) ConfigMap(ns string) ExtendInformer {
+	return c.getInformer(ns, schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "configmaps",
+	})
 }
 
-func (c *cache) Service() ExtendInformer {
-	return &Informer{
-		GenericInformer: c.informers.ForResource(schema.GroupVersionResource{
-			Group:    "",
-			Version:  "v1",
-			Resource: "services",
-		}),
-	}
+func (c *cache) Service(ns string) ExtendInformer {
+	return c.getInformer(ns, schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "services",
+	})
 }
 
-func (c *cache) Secret() ExtendInformer {
-	return &Informer{
-		GenericInformer: c.informers.ForResource(schema.GroupVersionResource{
-			Group:    "",
-			Version:  "v1",
-			Resource: "secrets",
-		}),
-	}
+func (c *cache) Secret(ns string) ExtendInformer {
+	return c.getInformer(ns, schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "secrets",
+	})
 }
 
-func (c *cache) VirtualService() ExtendInformer {
-	return &Informer{
-		GenericInformer: c.informers.ForResource(schema.GroupVersionResource{
-			Group:    "networking.istio.io",
-			Version:  "v1alpha3",
-			Resource: "virtualservices",
-		}),
-	}
+func (c *cache) VirtualService(ns string) ExtendInformer {
+	return c.getInformer(ns, schema.GroupVersionResource{
+		Group:    "networking.istio.io",
+		Version:  "v1alpha3",
+		Resource: "virtualservices",
+	})
 }
 
-func (c *cache) Deployment() ExtendInformer {
-	return &Informer{
-		GenericInformer: c.informers.ForResource(schema.GroupVersionResource{
-			Group:    "apps",
-			Version:  "v1",
-			Resource: "deployments",
-		}),
-	}
+func (c *cache) Deployment(ns string) ExtendInformer {
+	return c.getInformer(ns, schema.GroupVersionResource{
+		Group:    "apps",
+		Version:  "v1",
+		Resource: "deployments",
+	})
 }
 
 func (c *cache) GetConfigMapsListByNamespace(ns string) []unstructured.Unstructured {
-	return c.ConfigMap().ByIndex(toolscache.NamespaceIndex, ns)
+	return c.ConfigMap(ns).ByIndex(toolscache.NamespaceIndex, ns)
 }
 
 func (c *cache) GetServicesListByNamespace(ns string) []unstructured.Unstructured {
-	return c.Service().ByIndex(toolscache.NamespaceIndex, ns)
+	return c.Service(ns).ByIndex(toolscache.NamespaceIndex, ns)
 }
 
 func (c *cache) GetVirtualServicesListByNamespace(ns string) []unstructured.Unstructured {
-	return c.VirtualService().ByIndex(toolscache.NamespaceIndex, ns)
+	return c.VirtualService(ns).ByIndex(toolscache.NamespaceIndex, ns)
 }
 
 func (c *cache) GetSecretsListByNamespace(ns string) []unstructured.Unstructured {
-	return c.Secret().ByIndex(toolscache.NamespaceIndex, ns)
+	return c.Secret(ns).ByIndex(toolscache.NamespaceIndex, ns)
 }
 
 func (c *cache) GetDeploymentsListByNamespace(ns string) []unstructured.Unstructured {
-	return c.Deployment().ByIndex(toolscache.NamespaceIndex, ns)
+	return c.Deployment(ns).ByIndex(toolscache.NamespaceIndex, ns)
 }
 
 func (c *cache) GetConfigMapsListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
-	return c.ConfigMap().ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
+	return c.ConfigMap(ns).ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
 }
 
 func (c *cache) GetServicesListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
-	return c.Service().ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
+	return c.Service(ns).ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
 }
 
 func (c *cache) GetVirtualServicesListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
-	return c.VirtualService().ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
+	return c.VirtualService(ns).ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
 }
 
 func (c *cache) GetSecretsListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
-	return c.Secret().ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
+	return c.Secret(ns).ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
 }
 
 func (c *cache) GetDeploymentsListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
-	return c.Deployment().ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
+	return c.Deployment(ns).ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
 }
 
 func (c *cache) GetConfigMapByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
-	obj, err := c.ConfigMap().Lister().ByNamespace(ns).Get(name)
+	obj, err := c.ConfigMap(ns).Lister().ByNamespace(ns).Get(name)
 	if err != nil {
 		return unstructured.Unstructured{}, errors.WithStack(err)
 	}
@@ -268,7 +267,7 @@ func (c *cache) GetConfigMapByNamespaceAndName(ns, name string) (unstructured.Un
 }
 
 func (c *cache) GetServiceByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
-	obj, err := c.Service().Lister().ByNamespace(ns).Get(name)
+	obj, err := c.Service(ns).Lister().Get(name)
 	if err != nil {
 		return unstructured.Unstructured{}, errors.WithStack(err)
 	}
@@ -276,7 +275,7 @@ func (c *cache) GetServiceByNamespaceAndName(ns, name string) (unstructured.Unst
 }
 
 func (c *cache) GetVirtualServiceByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
-	obj, err := c.VirtualService().Lister().ByNamespace(ns).Get(name)
+	obj, err := c.VirtualService(ns).Lister().Get(name)
 	if err != nil {
 		return unstructured.Unstructured{}, errors.WithStack(err)
 	}
@@ -284,7 +283,7 @@ func (c *cache) GetVirtualServiceByNamespaceAndName(ns, name string) (unstructur
 }
 
 func (c *cache) GetSecretByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
-	obj, err := c.Secret().Lister().ByNamespace(ns).Get(name)
+	obj, err := c.Secret(ns).Lister().Get(name)
 	if err != nil {
 		return unstructured.Unstructured{}, errors.WithStack(err)
 	}
@@ -292,7 +291,7 @@ func (c *cache) GetSecretByNamespaceAndName(ns, name string) (unstructured.Unstr
 }
 
 func (c *cache) GetDeploymentByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
-	obj, err := c.Deployment().Lister().ByNamespace(ns).Get(name)
+	obj, err := c.Deployment(ns).Lister().Get(name)
 	if err != nil {
 		return unstructured.Unstructured{}, errors.WithStack(err)
 	}
@@ -300,21 +299,21 @@ func (c *cache) GetDeploymentByNamespaceAndName(ns, name string) (unstructured.U
 }
 
 func (c *cache) GetAppConfigByNamespace(ns string) []unstructured.Unstructured {
-	return c.Secret().ByIndex(ApplicationConfigIndex, ns)
+	return c.Secret(ns).ByIndex(ApplicationConfigIndex, ns)
 }
 
 func (c *cache) GetListByKindAndNamespace(kind, ns string) []unstructured.Unstructured {
 	switch kind {
 	case Deployment:
-		return c.Deployment().ByIndex(toolscache.NamespaceIndex, ns)
+		return c.Deployment(ns).ByIndex(toolscache.NamespaceIndex, ns)
 	case Secret:
-		return c.Secret().ByIndex(toolscache.NamespaceIndex, ns)
+		return c.Secret(ns).ByIndex(toolscache.NamespaceIndex, ns)
 	case ConfigMap:
-		return c.ConfigMap().ByIndex(toolscache.NamespaceIndex, ns)
+		return c.ConfigMap(ns).ByIndex(toolscache.NamespaceIndex, ns)
 	case Service:
-		return c.Service().ByIndex(toolscache.NamespaceIndex, ns)
+		return c.Service(ns).ByIndex(toolscache.NamespaceIndex, ns)
 	case VirtualService:
-		return c.VirtualService().ByIndex(toolscache.NamespaceIndex, ns)
+		return c.VirtualService(ns).ByIndex(toolscache.NamespaceIndex, ns)
 	}
 	return []unstructured.Unstructured{}
 }
