@@ -51,3 +51,15 @@ func HasHighPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.
 	}
 	return nil, errno.ErrPermissionDenied
 }
+
+func IsShareUsersOk(cooperators, viewers []uint64, clusterUser *model.ClusterUserModel) bool {
+	users := make([]uint64, len(cooperators)+len(viewers))
+	copy(users, cooperators)
+	copy(users[len(cooperators):], viewers)
+	for i := range users {
+		if users[i] == clusterUser.UserId {
+			return false
+		}
+	}
+	return true
+}

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package errno
 
@@ -156,6 +156,8 @@ var (
 		Code:    50124,
 		Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Struct to Json failed",
 	}
+	ErrShareUserSameAsOwner = &Errno{Code: 50125, Message: "The share user same as owner"}
+
 	// cluster-user errors for mesh space
 	ErrMeshClusterUserNotFound          = &Errno{Code: 50200, Message: "Base dev space has not found"}
 	ErrMeshClusterUserNamespaceNotFound = &Errno{Code: 50201, Message: "Base dev namespace has not found"}
