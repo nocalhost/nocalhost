@@ -204,7 +204,7 @@ func fetchData(kubeconfig string) ([]model.Resource, error) {
 		cpuUsed += resource.NewScaledQuantity(int64(summary.Node.CPU.UsageNanoCores), resource.Nano).
 			ScaledValue(resource.Milli)
 		// convert bytes to mega bytes (B --> MB)
-		memoryUsed += int64(summary.Node.Memory.UsageBytes) / 1024 / 1024
+		memoryUsed += int64(summary.Node.Memory.WorkingSetBytes) / 1024 / 1024
 		storageUsed += int64(summary.Node.Fs.UsedBytes) / 1024 / 1024
 		podUsed += int64(len(summary.Pods))
 	}
