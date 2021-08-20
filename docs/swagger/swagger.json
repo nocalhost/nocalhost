@@ -809,6 +809,46 @@
                 }
             }
         },
+        "/v1/cluster/{id}/gen_namespace": {
+            "get": {
+                "description": "gen namespace for mesh dev space",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Gen Namespace",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "cluster id",
+                        "name": "cluster",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":cluster.Namespace}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster.Namespace"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/cluster/{id}/storage_class": {
             "get": {
                 "description": "Get cluster storageClass from cluster list",
@@ -1755,6 +1795,39 @@
                     }
                 }
             }
+        },
+        "/v2/dev_space/cluster": {
+            "get": {
+                "description": "Get the cluster list which user can create devSpace",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Get the cluster list which user can create devSpace",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":model.ClusterList}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterList"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1828,6 +1901,14 @@
                     "type": "string"
                 },
                 "storage_class": {
+                    "type": "string"
+                }
+            }
+        },
+        "cluster.Namespace": {
+            "type": "object",
+            "properties": {
+                "namespace": {
                     "type": "string"
                 }
             }
@@ -1911,6 +1992,9 @@
             "type": "object",
             "properties": {
                 "kubeconfig": {
+                    "type": "string"
+                },
+                "space_name": {
                     "type": "string"
                 }
             }
@@ -2007,6 +2091,47 @@
                 }
             }
         },
+        "model.ClusterList": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "has_dev_space": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "info": {
+                    "type": "string"
+                },
+                "is_ready": {
+                    "type": "boolean"
+                },
+                "modifiable": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "not_ready_message": {
+                    "type": "string"
+                },
+                "server": {
+                    "type": "string"
+                },
+                "storage_class": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                },
+                "users_count": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.ClusterListVo": {
             "type": "object",
             "properties": {
@@ -2023,6 +2148,9 @@
                     "type": "string"
                 },
                 "is_ready": {
+                    "type": "boolean"
+                },
+                "modifiable": {
                     "type": "boolean"
                 },
                 "name": {

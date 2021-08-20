@@ -484,7 +484,7 @@ func GetStorageClassByKubeConfig(c *gin.Context) {
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param cluster path string true "cluster id"
-// @Success 200 {object} string
+// @Success 200 {object} cluster.Namespace "{"code":0,"message":"OK","data":cluster.Namespace}"
 // @Router /v1/cluster/{id}/gen_namespace [get]
 func GenNamespace(c *gin.Context) {
 	cluster, err := service.Svc.ClusterSvc().Get(c, cast.ToUint64(c.Param("id")))
