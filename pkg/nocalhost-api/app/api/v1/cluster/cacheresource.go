@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/client-go/util/retry"
@@ -150,6 +149,8 @@ func fetchData(kubeconfig string) ([]model.Resource, error) {
 		return defaultValue, err
 	}
 	summaries := make([]model.Summary, len(list.Items), len(list.Items))
+	// nodes which get data error, those nodes needs to be ignored
+	errorNodes := sync.Map{}
 	wg := sync.WaitGroup{}
 	wg.Add(len(list.Items))
 	for i, node := range list.Items {
@@ -180,11 +181,14 @@ func fetchData(kubeconfig string) ([]model.Resource, error) {
 					return nil
 				}
 			})
-			if err != nil {
+			if err != nil || len(bytes) == 0 {
 				log.Warnf("get stats summary error, err: %v, ignore", err)
+				errorNodes.Store(node.Name, node.Name)
 			}
 			var s model.Summary
-			_ = json.Unmarshal(bytes, &s)
+			if err = json.Unmarshal(bytes, &s); err != nil {
+				errorNodes.Store(node.Name, node.Name)
+			}
 			summaries[i] = s
 		}()
 	}
@@ -192,24 +196,47 @@ func fetchData(kubeconfig string) ([]model.Resource, error) {
 	summaries = summaries[0:]
 
 	var cpuTotal, memoryTotal, storageTotal, podTotal int64
-	var cpuUsed, memoryUsed, storageUsed, podUsed int64
+	cpuTotalMap := make(map[string]int64)
+	memoryTotalMap := make(map[string]int64)
+	storageTotalMap := make(map[string]int64)
+	podTotalMap := make(map[string]int64)
 	for _, node := range list.Items {
-		cpuTotal += node.Status.Capacity.Cpu().MilliValue()
+		cpu := node.Status.Allocatable.Cpu().MilliValue()
 		// convert bytes to mega bytes (B --> MB)
-		memoryTotal += node.Status.Capacity.Memory().Value() / 1024 / 1024
-		storageTotal += node.Status.Capacity.StorageEphemeral().Value() / 1024 / 1024
-		podTotal += node.Status.Capacity.Pods().Value()
+		memory := node.Status.Capacity.Memory().Value() / 1024 / 1024
+		storage := node.Status.Capacity.StorageEphemeral().Value() / 1024 / 1024
+		pod := node.Status.Capacity.Pods().Value()
+
+		cpuTotalMap[node.Name] = cpu
+		memoryTotalMap[node.Name] = memory
+		storageTotalMap[node.Name] = storage
+		podTotalMap[node.Name] = pod
+
+		cpuTotal += cpu
+		memoryTotal += memory
+		storageTotal += storage
+		podTotal += pod
 	}
+
+	cpuAvgs := make([]float64, 0, 0)
+	memoryAvgs := make([]float64, 0, 0)
+	storageAvgs := make([]float64, 0, 0)
+	podAvgs := make([]float64, 0, 0)
 	for _, summary := range summaries {
-		cpuUsed += resource.NewScaledQuantity(int64(summary.Node.CPU.UsageNanoCores), resource.Nano).
-			ScaledValue(resource.Milli)
-		// convert bytes to mega bytes (B --> MB)
-		memoryUsed += int64(summary.Node.Memory.WorkingSetBytes) / 1024 / 1024
-		storageUsed += int64(summary.Node.Fs.UsedBytes) / 1024 / 1024
-		podUsed += int64(len(summary.Pods))
+		cpu := int64(summary.Node.CPU.UsageNanoCores) / int64(1000*1000)
+		memory := int64(summary.Node.Memory.WorkingSetBytes) / 1024 / 1024
+		storage := int64(summary.Node.Fs.UsedBytes) / 1024 / 1024
+		pod := int64(len(summary.Pods))
+
+		if _, found := errorNodes.Load(summary.Node.NodeName); !found {
+			cpuAvgs = append(cpuAvgs, DivInt64(cpu, cpuTotalMap[summary.Node.NodeName]))
+			memoryAvgs = append(memoryAvgs, DivInt64(memory, memoryTotalMap[summary.Node.NodeName]))
+			storageAvgs = append(storageAvgs, DivInt64(storage, storageTotalMap[summary.Node.NodeName]))
+			podAvgs = append(podAvgs, DivInt64(pod, podTotalMap[summary.Node.NodeName]))
+		}
 	}
 	// if all data is 0, then needs to retry
-	if cpuTotal+memoryTotal+storageTotal+podTotal+cpuUsed+memoryUsed+storageUsed+podUsed == 0 {
+	if cpuTotal+memoryTotal+storageTotal+podTotal == 0 {
 		return defaultValue, errors.New("all info is zero")
 	}
 
@@ -217,28 +244,37 @@ func fetchData(kubeconfig string) ([]model.Resource, error) {
 	resources = append(resources, model.Resource{
 		ResourceName: v1.ResourcePods,
 		Capacity:     float64(podTotal),
-		Used:         float64(podUsed),
-		Percentage:   Div(float64(podUsed), float64(podTotal)),
+		Used:         Avg(podAvgs) * float64(podTotal),
+		Percentage:   Avg(podAvgs),
 	}, model.Resource{
 		ResourceName: v1.ResourceCPU,
-		Capacity:     Div(float64(cpuTotal), 1000),
-		Used:         Div(float64(cpuUsed), 1000),
-		Percentage:   Div(float64(cpuUsed), float64(cpuTotal)),
+		Capacity:     DivFloat64(float64(cpuTotal), 1000),
+		Used:         DivFloat64(Avg(cpuAvgs)*DivFloat64(float64(cpuTotal), 1000), 1),
+		Percentage:   Avg(cpuAvgs),
 	}, model.Resource{
 		ResourceName: v1.ResourceMemory,
-		Capacity:     Div(float64(memoryTotal), 1024),
-		Used:         Div(float64(memoryUsed), 1024),
-		Percentage:   Div(float64(memoryUsed), float64(memoryTotal)),
+		Capacity:     DivFloat64(float64(memoryTotal), 1024),
+		Used:         DivFloat64(Avg(memoryAvgs)*DivFloat64(float64(memoryTotal), 1024), 1),
+		Percentage:   Avg(memoryAvgs),
 	}, model.Resource{
 		ResourceName: v1.ResourceStorage,
-		Capacity:     Div(float64(storageTotal), 1024),
-		Used:         Div(float64(storageUsed), 1024),
-		Percentage:   Div(float64(storageUsed), float64(storageTotal)),
+		Capacity:     DivFloat64(float64(storageTotal), 1024),
+		Used:         DivFloat64(Avg(storageAvgs)*DivFloat64(float64(storageTotal), 1024), 1),
+		Percentage:   Avg(storageAvgs),
 	})
 	return resources, nil
 }
 
-func Div(a float64, b float64) float64 {
+func Avg(numbers []float64) float64 {
+	numbers = numbers[0:]
+	total := float64(0)
+	for _, number := range numbers {
+		total += number
+	}
+	return DivFloat64(total, float64(len(numbers)))
+}
+
+func DivFloat64(a float64, b float64) float64 {
 	if b == 0 {
 		b = 1
 	}
@@ -246,6 +282,10 @@ func Div(a float64, b float64) float64 {
 		return float
 	}
 	return 0
+}
+
+func DivInt64(a int64, b int64) float64 {
+	return DivFloat64(float64(a), float64(b))
 }
 
 func isSame(a, b []model.Resource) bool {
