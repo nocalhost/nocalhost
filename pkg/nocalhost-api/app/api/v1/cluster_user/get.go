@@ -288,6 +288,7 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 	}
 }
 
+// GetAppsInfo
 // @Summary Get mesh apps info
 // @Description Get mesh apps info
 // @Tags DevSpace

@@ -68,6 +68,7 @@ func Delete(c *gin.Context) {
 	if !result {
 		return
 	}
+	Remove(cluster.KubeConfig)
 	api.SendResponse(c, errno.OK, nil)
 }
 

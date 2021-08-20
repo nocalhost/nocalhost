@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 // nocalhost-api
 package main
@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"nocalhost/internal/nocalhost-api/global"
+	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -80,7 +81,7 @@ func main() {
 
 	// set global service
 	service.Svc = svc
-
+	cluster.Init()
 	fmt.Printf("current run version %s, tag %s, branch %s \n", global.CommitId, global.Version, global.Branch)
 
 	// start grpc server reserved

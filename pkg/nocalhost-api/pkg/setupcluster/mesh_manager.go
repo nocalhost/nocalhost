@@ -8,7 +8,6 @@ package setupcluster
 import (
 	"context"
 	"sort"
-	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -18,8 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/dynamic/dynamicinformer"
-
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nocalhost-api/model"
@@ -44,7 +41,6 @@ type MeshManager interface {
 	GetBaseDevSpaceAppInfo(*MeshDevInfo) []MeshDevApp
 	GetAPPInfo(*MeshDevInfo) ([]MeshDevApp, error)
 	Rollback(*MeshDevInfo) error
-	BuildCache() error
 }
 
 type MeshDevInfo struct {
@@ -104,10 +100,8 @@ func (info *MeshDevInfo) SortApps() {
 }
 
 type meshManager struct {
-	mu     sync.Mutex
 	client *clientgo.GoClient
 	cache  cache
-	stopCh chan struct{}
 }
 
 func (m *meshManager) InitMeshDevSpace(info *MeshDevInfo) error {
@@ -283,10 +277,6 @@ func (m *meshManager) Rollback(info *MeshDevInfo) error {
 	})
 
 	return nil
-}
-
-func (m *meshManager) BuildCache() error {
-	return m.buildCache()
 }
 
 func (m *meshManager) injectMeshDevSpace(info *MeshDevInfo) error {
@@ -579,14 +569,8 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 	return g.Wait()
 }
 
-func (m *meshManager) setInformerFactory() {
-	m.cache.stopCh = make(chan struct{})
-	m.cache.informers = dynamicinformer.NewDynamicSharedInformerFactory(m.client.DynamicClient, 10*time.Minute)
-}
-
-func (m *meshManager) buildCache() error {
-	m.cache.build()
-	return nil
+func (m *meshManager) newCache() {
+	m.cache = *newCache(m.client.DynamicClient)
 }
 
 func (m *meshManager) getMeshDevSpaceWorkloads(info *MeshDevInfo) []MeshDevWorkload {
@@ -678,6 +662,6 @@ func (m *meshManager) applyDependencyToMeshDevSpace(dependencies []MeshDevWorklo
 func NewMeshManager(client *clientgo.GoClient) MeshManager {
 	m := &meshManager{}
 	m.client = client
-	m.setInformerFactory()
+	m.newCache()
 	return m
 }

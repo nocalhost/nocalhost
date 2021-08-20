@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster
 
@@ -48,4 +48,8 @@ type ClusterDetailResponse struct {
 	KubeConfig   string    `json:"kubeconfig"`
 	StorageClass string    `json:"storage_class"`
 	CreatedAt    time.Time `gorm:"column:created_at" json:"created_at"`
+}
+
+type Namespace struct {
+	Namespace string `json:"namespace"`
 }

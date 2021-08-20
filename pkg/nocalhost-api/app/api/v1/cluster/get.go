@@ -8,13 +8,9 @@ package cluster
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"nocalhost/internal/nocalhost-api/cache"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
@@ -24,7 +20,6 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -81,23 +76,16 @@ func GetList(c *gin.Context) {
 		}
 	}
 	vos := make([]model.ClusterListVo, len(result), len(result))
-	var wg sync.WaitGroup
-	wg.Add(len(result))
 	for i, cluster := range result {
 		if cluster == nil {
-			wg.Done()
 			continue
 		}
-		i := i
-		go func() {
-			vos[i] = model.ClusterListVo{
-				ClusterList: *result[i],
-				Resources:   GetResources(result[i].GetKubeConfig()),
-			}
-			wg.Done()
-		}()
+		Add(result[i].GetKubeConfig())
+		vos[i] = model.ClusterListVo{
+			ClusterList: *result[i],
+			Resources:   GetFromCache(result[i].GetKubeConfig()),
+		}
 	}
-	wg.Wait()
 	api.SendResponse(c, errno.OK, vos)
 }
 
@@ -125,117 +113,6 @@ func GetDevSpaceClusterList(c *gin.Context) {
 		result = tempResult[0:]
 	}
 	api.SendResponse(c, errno.OK, result)
-}
-
-// resourceCache for cache resources(like cpu, memory, storage, pod number...), init cache with expire 15 seconds
-var resourceCache = cache.NewCache(time.Second * 15)
-var defaultValue = []model.Resource{
-	{ResourceName: v1.ResourcePods, Capacity: 0, Used: 0, Percentage: 0},
-	{ResourceName: v1.ResourceCPU, Capacity: 0, Used: 0, Percentage: 0},
-	{ResourceName: v1.ResourceMemory, Capacity: 0, Used: 0, Percentage: 0},
-	{ResourceName: v1.ResourceStorage, Capacity: 0, Used: 0, Percentage: 0},
-}
-
-// GetResources info by using metrics-api
-func GetResources(kubeconfig string) []model.Resource {
-	get, found := resourceCache.Get(kubeconfig)
-	if found && get != nil {
-		return get.([]model.Resource)
-	}
-	goclient, err := clientgo.NewAdminGoClientWithTimeout([]byte(kubeconfig), time.Second*2)
-	if err != nil {
-		return defaultValue
-	}
-	restClient, err := goclient.GetRestClient()
-	if err != nil {
-		return defaultValue
-	}
-	list, err := goclient.GetClusterNode()
-	if err != nil {
-		return defaultValue
-	}
-	summaries := make([]model.Summary, len(list.Items), len(list.Items))
-	wg := sync.WaitGroup{}
-	wg.Add(len(list.Items))
-	for i, node := range list.Items {
-		node := node
-		i := i
-		go func() {
-			// using metrics-api to get nodes stats summary
-			defer wg.Done()
-			c := make(chan struct{}, 1)
-			go func() {
-				stream, _ := restClient.Get().
-					Timeout(time.Second * 3).
-					RequestURI(fmt.Sprintf("/api/v1/nodes/%s/proxy/stats/summary", node.Name)).
-					DoRaw(context.Background())
-				var s model.Summary
-				_ = json.Unmarshal(stream, &s)
-				summaries[i] = s
-				c <- struct{}{}
-			}()
-			select {
-			case <-c:
-			case <-time.After(time.Second * 3):
-				log.Warnf("get cluster info timeout")
-			}
-		}()
-	}
-	wg.Wait()
-	summaries = summaries[0:]
-
-	var cpuTotal, memoryTotal, storageTotal, podTotal int64
-	var cpuUsed, memoryUsed, storageUsed, podUsed int64
-	for _, node := range list.Items {
-		cpuTotal += node.Status.Capacity.Cpu().MilliValue()
-		// convert bytes to mega bytes (B --> MB)
-		memoryTotal += node.Status.Capacity.Memory().Value() / 1024 / 1024
-		storageTotal += node.Status.Capacity.StorageEphemeral().Value() / 1024 / 1024
-		podTotal += node.Status.Capacity.Pods().Value()
-	}
-	for _, summary := range summaries {
-		cpuUsed += resource.NewScaledQuantity(int64(summary.Node.CPU.UsageNanoCores), resource.Nano).
-			ScaledValue(resource.Milli)
-		// convert bytes to mega bytes (B --> MB)
-		memoryUsed += int64(summary.Node.Memory.UsageBytes) / 1024 / 1024
-		storageUsed += int64(summary.Node.Fs.UsedBytes) / 1024 / 1024
-		podUsed += int64(len(summary.Pods))
-	}
-
-	resources := make([]model.Resource, 0, 4)
-	resources = append(resources, model.Resource{
-		ResourceName: v1.ResourcePods,
-		Capacity:     float64(podTotal),
-		Used:         float64(podUsed),
-		Percentage:   Div(float64(podUsed), float64(podTotal)),
-	}, model.Resource{
-		ResourceName: v1.ResourceCPU,
-		Capacity:     Div(float64(cpuTotal), 1000),
-		Used:         Div(float64(cpuUsed), 1000),
-		Percentage:   Div(float64(cpuUsed), float64(cpuTotal)),
-	}, model.Resource{
-		ResourceName: v1.ResourceMemory,
-		Capacity:     Div(float64(memoryTotal), 1024),
-		Used:         Div(float64(memoryUsed), 1024),
-		Percentage:   Div(float64(memoryUsed), float64(memoryTotal)),
-	}, model.Resource{
-		ResourceName: v1.ResourceStorage,
-		Capacity:     Div(float64(storageTotal), 1024),
-		Used:         Div(float64(storageUsed), 1024),
-		Percentage:   Div(float64(storageUsed), float64(storageTotal)),
-	})
-	resourceCache.Set(kubeconfig, resources)
-	return resources
-}
-
-func Div(a float64, b float64) float64 {
-	if b == 0 {
-		b = 1
-	}
-	if float, err := strconv.ParseFloat(fmt.Sprintf("%.2f", a/b), 64); err == nil {
-		return float
-	}
-	return 0
 }
 
 // list permitted dev_space by user
@@ -473,4 +350,71 @@ func GetStorageClass(c *gin.Context) {
 // @Router /v1/cluster/kubeconfig/storage_class [post]
 func GetStorageClassByKubeConfig(c *gin.Context) {
 	GetStorageClass(c)
+}
+
+// in case of resource leak
+func Init() {
+	result, _ := service.Svc.ClusterSvc().GetList(context.TODO())
+	for _, list := range result {
+		Add(list.GetKubeConfig())
+	}
+	go func() {
+		c := make(chan struct{}, 1)
+		c <- struct{}{}
+		tick := time.NewTicker(time.Minute * 30)
+		for {
+			select {
+			case <-tick.C:
+				c <- struct{}{}
+			case <-c:
+				result, _ = service.Svc.ClusterSvc().GetList(context.TODO())
+				kubeconfigMap := make(map[string]string)
+				for _, list := range result {
+					kubeconfigMap[list.GetKubeConfig()] = list.GetKubeConfig()
+				}
+				Merge(kubeconfigMap)
+			}
+		}
+	}()
+}
+
+// GenNamespace
+// @Summary Gen Namespace
+// @Description gen namespace for mesh dev space
+// @Tags Cluster
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param cluster path string true "cluster id"
+// @Success 200 {object} cluster.Namespace "{"code":0,"message":"OK","data":cluster.Namespace}"
+// @Router /v1/cluster/{id}/gen_namespace [get]
+func GenNamespace(c *gin.Context) {
+	cluster, err := service.Svc.ClusterSvc().Get(c, cast.ToUint64(c.Param("id")))
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterNotFound, nil)
+		return
+	}
+	cluster.GetKubeConfig()
+	client, err := clientgo.NewAdminGoClient([]byte(cluster.GetKubeConfig()))
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		return
+	}
+	user, err := ginbase.LoginUser(c)
+	if err != nil {
+		api.SendResponse(c, errno.ErrUserNotFound, nil)
+		return
+	}
+
+	var devNamespace string
+	if err = wait.Poll(200*time.Millisecond, time.Second, func() (bool, error) {
+		devNamespace = client.GenerateNsName(user)
+		ok, err := client.IsNamespaceExist(devNamespace)
+		return !ok, err
+	}); err != nil {
+		log.Error(err)
+		api.SendResponse(c, errno.ErrClusterGenNamespace, nil)
+	}
+
+	api.SendResponse(c, nil, Namespace{devNamespace})
 }

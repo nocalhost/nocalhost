@@ -148,6 +148,9 @@ func newAdminGoClientTimeUnreliable(kubeconfig []byte) (*GoClient, error) {
 	return nil, errors.New("can't not create client go with current kubeconfig")
 }
 
+func NewGoClient(kubeconfig []byte) (*GoClient, error) {
+	return newGoClient(kubeconfig)
+}
 func newGoClient(kubeconfig []byte) (*GoClient, error) {
 	c, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 	if err != nil {
@@ -1215,4 +1218,16 @@ func (c *GoClient) GetRestClient() (*restclient.RESTClient, error) {
 	c.restConfig.GroupVersion = &schema.GroupVersion{Group: "", Version: "v1"}
 	c.restConfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: scheme.Codecs}
 	return restclient.RESTClientFor(c.restConfig)
+}
+
+// IsNamespaceExist check if exist namespace
+func (c *GoClient) IsNamespaceExist(ns string) (bool, error) {
+	_, err := c.client.CoreV1().Namespaces().Get(context.TODO(), ns, metav1.GetOptions{})
+	if err == nil {
+		return true, nil
+	}
+	if k8serrors.IsNotFound(err) {
+		return false, nil
+	}
+	return false, err
 }

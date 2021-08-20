@@ -8,12 +8,16 @@ package setupcluster
 import (
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/hashicorp/golang-lru/simplelru"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	toolscache "k8s.io/client-go/tools/cache"
@@ -31,11 +35,15 @@ const (
 
 	ApplicationIndex       = "nocalhostApplication"
 	ApplicationConfigIndex = "nocalhostApplicationConfig"
+
+	defaultResync  = 10 * time.Minute
+	defaultLRUSize = 12
 )
 
 type ExtendInformer interface {
 	informers.GenericInformer
 	ByIndex(indexName, indexedValue string) []unstructured.Unstructured
+	GetList() []unstructured.Unstructured
 }
 
 type Informer struct {
@@ -44,6 +52,15 @@ type Informer struct {
 
 func (informer *Informer) ByIndex(indexName, indexedValue string) []unstructured.Unstructured {
 	objs, _ := informer.Informer().GetIndexer().ByIndex(indexName, indexedValue)
+	ret := make([]unstructured.Unstructured, len(objs))
+	for i := range objs {
+		ret[i] = *objs[i].(*unstructured.Unstructured).DeepCopy()
+	}
+	return ret
+}
+
+func (informer *Informer) GetList() []unstructured.Unstructured {
+	objs := informer.Informer().GetIndexer().List()
 	ret := make([]unstructured.Unstructured, len(objs))
 	for i := range objs {
 		ret[i] = *objs[i].(*unstructured.Unstructured).DeepCopy()
@@ -96,115 +113,141 @@ func IndexAppConfig(obj interface{}) ([]string, error) {
 }
 
 type cache struct {
-	stopCh    chan struct{}
-	informers dynamicinformer.DynamicSharedInformerFactory
+	mu     sync.Mutex
+	client dynamic.Interface
+	lru    *simplelru.LRU
 }
 
-func (c *cache) build() {
-	rs := defaultGvr()
-	for _, r := range rs {
-		informer := c.informers.ForResource(r)
-		_ = informer.Informer().AddIndexers(toolscache.Indexers{ApplicationIndex: IndexByAppName})
-		if r.Resource == "secrets" {
-			_ = informer.Informer().AddIndexers(toolscache.Indexers{ApplicationConfigIndex: IndexAppConfig})
-		}
+type informerFactory struct {
+	factory dynamicinformer.DynamicSharedInformerFactory
+	stopCh  chan struct{}
+	started map[schema.GroupVersionResource]bool
+}
+
+func (c *cache) getInformerFactory(ns string) *informerFactory {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	factory, exist := c.lru.Get(ns)
+	if exist {
+		return factory.(*informerFactory)
 	}
-	c.informers.Start(c.stopCh)
-	c.informers.WaitForCacheSync(c.stopCh)
-}
-
-func (c *cache) ConfigMap() ExtendInformer {
-	return &Informer{
-		GenericInformer: c.informers.ForResource(schema.GroupVersionResource{
-			Group:    "",
-			Version:  "v1",
-			Resource: "configmaps",
-		}),
+	f := &informerFactory{
+		factory: dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+			c.client, defaultResync, ns, nil),
+		stopCh:  make(chan struct{}),
+		started: make(map[schema.GroupVersionResource]bool),
 	}
+	c.lru.Add(ns, f)
+	return f
 }
 
-func (c *cache) Service() ExtendInformer {
-	return &Informer{
-		GenericInformer: c.informers.ForResource(schema.GroupVersionResource{
-			Group:    "",
-			Version:  "v1",
-			Resource: "services",
-		}),
+func (c *cache) getInformer(ns string, gvr schema.GroupVersionResource) ExtendInformer {
+	f := c.getInformerFactory(ns)
+	informer := f.factory.ForResource(gvr)
+	_ = informer.Informer().AddIndexers(toolscache.Indexers{ApplicationIndex: IndexByAppName})
+	if gvr.Resource == "secrets" {
+		_ = informer.Informer().AddIndexers(toolscache.Indexers{ApplicationConfigIndex: IndexAppConfig})
 	}
-}
-
-func (c *cache) Secret() ExtendInformer {
-	return &Informer{
-		GenericInformer: c.informers.ForResource(schema.GroupVersionResource{
-			Group:    "",
-			Version:  "v1",
-			Resource: "secrets",
-		}),
+	if !f.started[gvr] {
+		go informer.Informer().Run(f.stopCh)
+		toolscache.WaitForCacheSync(f.stopCh, informer.Informer().HasSynced)
+		f.started[gvr] = true
 	}
+
+	return &Informer{informer}
 }
 
-func (c *cache) VirtualService() ExtendInformer {
-	return &Informer{
-		GenericInformer: c.informers.ForResource(schema.GroupVersionResource{
-			Group:    "networking.istio.io",
-			Version:  "v1alpha3",
-			Resource: "virtualservices",
-		}),
+func newCache(client dynamic.Interface) *cache {
+	lru, _ := simplelru.NewLRU(defaultLRUSize, func(key interface{}, value interface{}) {})
+	return &cache{
+		lru:    lru,
+		client: client,
 	}
 }
 
-func (c *cache) Deployment() ExtendInformer {
-	return &Informer{
-		GenericInformer: c.informers.ForResource(schema.GroupVersionResource{
-			Group:    "apps",
-			Version:  "v1",
-			Resource: "deployments",
-		}),
-	}
+func (c *cache) ConfigMap(ns string) ExtendInformer {
+	return c.getInformer(ns, schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "configmaps",
+	})
+}
+
+func (c *cache) Service(ns string) ExtendInformer {
+	return c.getInformer(ns, schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "services",
+	})
+}
+
+func (c *cache) Secret(ns string) ExtendInformer {
+	return c.getInformer(ns, schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "secrets",
+	})
+}
+
+func (c *cache) VirtualService(ns string) ExtendInformer {
+	return c.getInformer(ns, schema.GroupVersionResource{
+		Group:    "networking.istio.io",
+		Version:  "v1alpha3",
+		Resource: "virtualservices",
+	})
+}
+
+func (c *cache) Deployment(ns string) ExtendInformer {
+	return c.getInformer(ns, schema.GroupVersionResource{
+		Group:    "apps",
+		Version:  "v1",
+		Resource: "deployments",
+	})
 }
 
 func (c *cache) GetConfigMapsListByNamespace(ns string) []unstructured.Unstructured {
-	return c.ConfigMap().ByIndex(toolscache.NamespaceIndex, ns)
+	return c.ConfigMap(ns).GetList()
 }
 
 func (c *cache) GetServicesListByNamespace(ns string) []unstructured.Unstructured {
-	return c.Service().ByIndex(toolscache.NamespaceIndex, ns)
+	return c.Service(ns).GetList()
 }
 
 func (c *cache) GetVirtualServicesListByNamespace(ns string) []unstructured.Unstructured {
-	return c.VirtualService().ByIndex(toolscache.NamespaceIndex, ns)
+	return c.VirtualService(ns).GetList()
 }
 
 func (c *cache) GetSecretsListByNamespace(ns string) []unstructured.Unstructured {
-	return c.Secret().ByIndex(toolscache.NamespaceIndex, ns)
+	return c.Secret(ns).GetList()
 }
 
 func (c *cache) GetDeploymentsListByNamespace(ns string) []unstructured.Unstructured {
-	return c.Deployment().ByIndex(toolscache.NamespaceIndex, ns)
+	return c.Deployment(ns).GetList()
 }
 
 func (c *cache) GetConfigMapsListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
-	return c.ConfigMap().ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
+	return c.ConfigMap(ns).ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
 }
 
 func (c *cache) GetServicesListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
-	return c.Service().ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
+	return c.Service(ns).ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
 }
 
 func (c *cache) GetVirtualServicesListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
-	return c.VirtualService().ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
+	return c.VirtualService(ns).ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
 }
 
 func (c *cache) GetSecretsListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
-	return c.Secret().ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
+	return c.Secret(ns).ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
 }
 
 func (c *cache) GetDeploymentsListByNamespaceAndAppName(ns, appName string) []unstructured.Unstructured {
-	return c.Deployment().ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
+	return c.Deployment(ns).ByIndex(ApplicationIndex, fmt.Sprintf("%s/%s", ns, appName))
 }
 
 func (c *cache) GetConfigMapByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
-	obj, err := c.ConfigMap().Lister().ByNamespace(ns).Get(name)
+	obj, err := c.ConfigMap(ns).Lister().Get(name)
 	if err != nil {
 		return unstructured.Unstructured{}, errors.WithStack(err)
 	}
@@ -212,7 +255,7 @@ func (c *cache) GetConfigMapByNamespaceAndName(ns, name string) (unstructured.Un
 }
 
 func (c *cache) GetServiceByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
-	obj, err := c.Service().Lister().ByNamespace(ns).Get(name)
+	obj, err := c.Service(ns).Lister().Get(name)
 	if err != nil {
 		return unstructured.Unstructured{}, errors.WithStack(err)
 	}
@@ -220,7 +263,7 @@ func (c *cache) GetServiceByNamespaceAndName(ns, name string) (unstructured.Unst
 }
 
 func (c *cache) GetVirtualServiceByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
-	obj, err := c.VirtualService().Lister().ByNamespace(ns).Get(name)
+	obj, err := c.VirtualService(ns).Lister().Get(name)
 	if err != nil {
 		return unstructured.Unstructured{}, errors.WithStack(err)
 	}
@@ -228,7 +271,7 @@ func (c *cache) GetVirtualServiceByNamespaceAndName(ns, name string) (unstructur
 }
 
 func (c *cache) GetSecretByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
-	obj, err := c.Secret().Lister().ByNamespace(ns).Get(name)
+	obj, err := c.Secret(ns).Lister().Get(name)
 	if err != nil {
 		return unstructured.Unstructured{}, errors.WithStack(err)
 	}
@@ -236,7 +279,7 @@ func (c *cache) GetSecretByNamespaceAndName(ns, name string) (unstructured.Unstr
 }
 
 func (c *cache) GetDeploymentByNamespaceAndName(ns, name string) (unstructured.Unstructured, error) {
-	obj, err := c.Deployment().Lister().ByNamespace(ns).Get(name)
+	obj, err := c.Deployment(ns).Lister().Get(name)
 	if err != nil {
 		return unstructured.Unstructured{}, errors.WithStack(err)
 	}
@@ -244,21 +287,21 @@ func (c *cache) GetDeploymentByNamespaceAndName(ns, name string) (unstructured.U
 }
 
 func (c *cache) GetAppConfigByNamespace(ns string) []unstructured.Unstructured {
-	return c.Secret().ByIndex(ApplicationConfigIndex, ns)
+	return c.Secret(ns).ByIndex(ApplicationConfigIndex, ns)
 }
 
 func (c *cache) GetListByKindAndNamespace(kind, ns string) []unstructured.Unstructured {
 	switch kind {
 	case Deployment:
-		return c.Deployment().ByIndex(toolscache.NamespaceIndex, ns)
+		return c.Deployment(ns).GetList()
 	case Secret:
-		return c.Secret().ByIndex(toolscache.NamespaceIndex, ns)
+		return c.Secret(ns).GetList()
 	case ConfigMap:
-		return c.ConfigMap().ByIndex(toolscache.NamespaceIndex, ns)
+		return c.ConfigMap(ns).GetList()
 	case Service:
-		return c.Service().ByIndex(toolscache.NamespaceIndex, ns)
+		return c.Service(ns).GetList()
 	case VirtualService:
-		return c.VirtualService().ByIndex(toolscache.NamespaceIndex, ns)
+		return c.VirtualService(ns).GetList()
 	}
 	return []unstructured.Unstructured{}
 }
@@ -455,34 +498,4 @@ func resourcesFilter(rs []unstructured.Unstructured, f func(
 		}
 	}
 	return ret
-}
-
-func defaultGvr() []schema.GroupVersionResource {
-	return []schema.GroupVersionResource{
-		{
-			Group:    "networking.istio.io",
-			Version:  "v1alpha3",
-			Resource: "virtualservices",
-		},
-		{
-			Group:    "apps",
-			Version:  "v1",
-			Resource: "deployments",
-		},
-		{
-			Group:    "",
-			Version:  "v1",
-			Resource: "configmaps",
-		},
-		{
-			Group:    "",
-			Version:  "v1",
-			Resource: "services",
-		},
-		{
-			Group:    "",
-			Version:  "v1",
-			Resource: "secrets",
-		},
-	}
 }

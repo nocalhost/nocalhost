@@ -70,7 +70,8 @@ var (
 		Code:    30113,
 		Message: "Failed to get the connection from current cluster after short wait, please make sure the cluster exists and check it's network connectivity",
 	}
-	ErrClusterKubeConnect = &Errno{Code: 30114, Message: "Connect cluster fail, Please check cluster connectivity"}
+	ErrClusterKubeConnect  = &Errno{Code: 30114, Message: "Connect cluster fail, Please check cluster connectivity"}
+	ErrClusterGenNamespace = &Errno{Code: 30115, Message: "Failed to gen namespace"}
 
 	// application errors for application module request
 	ErrApplicationCreate        = &Errno{Code: 40100, Message: "Failed to add app, please try again"}
