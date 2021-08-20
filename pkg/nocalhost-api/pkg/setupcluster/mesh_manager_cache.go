@@ -36,7 +36,8 @@ const (
 	ApplicationIndex       = "nocalhostApplication"
 	ApplicationConfigIndex = "nocalhostApplicationConfig"
 
-	defaultResync = 10 * time.Minute
+	defaultResync  = 10 * time.Minute
+	defaultLRUSize = 12
 )
 
 type ExtendInformer interface {
@@ -158,8 +159,7 @@ func (c *cache) getInformer(ns string, gvr schema.GroupVersionResource) ExtendIn
 }
 
 func newCache(client dynamic.Interface) *cache {
-	lru, _ := simplelru.NewLRU(12, func(key interface{}, value interface{}) {
-	})
+	lru, _ := simplelru.NewLRU(defaultLRUSize, func(key interface{}, value interface{}) {})
 	return &cache{
 		lru:    lru,
 		client: client,
