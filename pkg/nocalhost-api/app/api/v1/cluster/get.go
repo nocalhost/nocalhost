@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cast"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"nocalhost/internal/nocalhost-api/cache"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
@@ -473,4 +474,45 @@ func GetStorageClass(c *gin.Context) {
 // @Router /v1/cluster/kubeconfig/storage_class [post]
 func GetStorageClassByKubeConfig(c *gin.Context) {
 	GetStorageClass(c)
+}
+
+// GenNamespace
+// @Summary Gen Namespace
+// @Description gen namespace for mesh dev space
+// @Tags Cluster
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param cluster path string true "cluster id"
+// @Success 200 {object} cluster.Namespace "{"code":0,"message":"OK","data":cluster.Namespace}"
+// @Router /v1/cluster/{id}/gen_namespace [get]
+func GenNamespace(c *gin.Context) {
+	cluster, err := service.Svc.ClusterSvc().Get(c, cast.ToUint64(c.Param("id")))
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterNotFound, nil)
+		return
+	}
+	cluster.GetKubeConfig()
+	client, err := clientgo.NewAdminGoClient([]byte(cluster.GetKubeConfig()))
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		return
+	}
+	user, err := ginbase.LoginUser(c)
+	if err != nil {
+		api.SendResponse(c, errno.ErrUserNotFound, nil)
+		return
+	}
+
+	var devNamespace string
+	if err = wait.Poll(200*time.Millisecond, time.Second, func() (bool, error) {
+		devNamespace = client.GenerateNsName(user)
+		ok, err := client.IsNamespaceExist(devNamespace)
+		return !ok, err
+	}); err != nil {
+		log.Error(err)
+		api.SendResponse(c, errno.ErrClusterGenNamespace, nil)
+	}
+
+	api.SendResponse(c, nil, Namespace{devNamespace})
 }

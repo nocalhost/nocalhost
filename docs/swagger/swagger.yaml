@@ -49,6 +49,11 @@ definitions:
     - kubeconfig
     - name
     type: object
+  cluster.Namespace:
+    properties:
+      namespace:
+        type: string
+    type: object
   cluster.StorageClassRequest:
     properties:
       kubeconfig:
@@ -102,6 +107,8 @@ definitions:
   cluster_user.DevSpaceRequest:
     properties:
       kubeconfig:
+        type: string
+      space_name:
         type: string
     type: object
   cluster_user.SpaceResourceLimit:
@@ -165,6 +172,33 @@ definitions:
     - public
     - status
     type: object
+  model.ClusterList:
+    properties:
+      created_at:
+        type: string
+      has_dev_space:
+        type: boolean
+      id:
+        type: integer
+      info:
+        type: string
+      is_ready:
+        type: boolean
+      modifiable:
+        type: boolean
+      name:
+        type: string
+      not_ready_message:
+        type: string
+      server:
+        type: string
+      storage_class:
+        type: string
+      user_id:
+        type: integer
+      users_count:
+        type: integer
+    type: object
   model.ClusterListVo:
     properties:
       created_at:
@@ -176,6 +210,8 @@ definitions:
       info:
         type: string
       is_ready:
+        type: boolean
+      modifiable:
         type: boolean
       name:
         type: string
@@ -1015,6 +1051,33 @@ paths:
       summary: Details of a development environment in the cluster
       tags:
       - Cluster
+  /v1/cluster/{id}/gen_namespace:
+    get:
+      consumes:
+      - application/json
+      description: gen namespace for mesh dev space
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: cluster id
+        in: path
+        name: cluster
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":cluster.Namespace}'
+          schema:
+            $ref: '#/definitions/cluster.Namespace'
+            type: object
+      summary: Gen Namespace
+      tags:
+      - Cluster
   /v1/cluster/{id}/storage_class:
     get:
       consumes:
@@ -1685,4 +1748,26 @@ paths:
       summary: Get api server version
       tags:
       - Version
+  /v2/dev_space/cluster:
+    get:
+      consumes:
+      - application/json
+      description: Get the cluster list which user can create devSpace
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":model.ClusterList}'
+          schema:
+            $ref: '#/definitions/model.ClusterList'
+            type: object
+      summary: Get the cluster list which user can create devSpace
+      tags:
+      - Cluster
 swagger: "2.0"
