@@ -93,6 +93,13 @@ type Resource struct {
 	Percentage   float64         `json:"percentage"`
 }
 
+func (receiver Resource) Equals(resource Resource) bool {
+	return receiver.ResourceName == resource.ResourceName &&
+		receiver.Capacity == resource.Capacity &&
+		receiver.Used == resource.Used &&
+		receiver.Percentage == resource.Percentage
+}
+
 // Validate the fields.
 func (cm *ClusterModel) Validate() error {
 	validate := validator.New()

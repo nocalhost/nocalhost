@@ -148,6 +148,9 @@ func newAdminGoClientTimeUnreliable(kubeconfig []byte) (*GoClient, error) {
 	return nil, errors.New("can't not create client go with current kubeconfig")
 }
 
+func NewGoClient(kubeconfig []byte) (*GoClient, error) {
+	return newGoClient(kubeconfig)
+}
 func newGoClient(kubeconfig []byte) (*GoClient, error) {
 	c, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 	if err != nil {
