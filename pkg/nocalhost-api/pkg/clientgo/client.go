@@ -1216,3 +1216,15 @@ func (c *GoClient) GetRestClient() (*restclient.RESTClient, error) {
 	c.restConfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: scheme.Codecs}
 	return restclient.RESTClientFor(c.restConfig)
 }
+
+// IsNamespaceExist check if exist namespace
+func (c *GoClient) IsNamespaceExist(ns string) (bool, error) {
+	_, err := c.client.CoreV1().Namespaces().Get(context.TODO(), ns, metav1.GetOptions{})
+	if err == nil {
+		return true, nil
+	}
+	if k8serrors.IsNotFound(err) {
+		return false, nil
+	}
+	return false, err
+}
