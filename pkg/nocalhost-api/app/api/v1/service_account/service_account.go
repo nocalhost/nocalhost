@@ -149,24 +149,18 @@ func GenKubeconfig(
 	privilegeType := NONE
 	var nss []NS
 
-	// new admin go client will request authorizationv1.SelfSubjectAccessReview
-	// then did not find any err, means current user is the cluster admin role
-	// todo we should specify the
-	if cluster_scope.IsOwnerOfCluster(cp.GetClusterId(), saName) ||
-		cluster_scope.IsCooperOfCluster(cp.GetClusterId(), saName) {
-		privilegeType = CLUSTER_ADMIN
-	} else if cluster_scope.IsViewerOfCluster(cp.GetClusterId(), saName) {
-		privilegeType = CLUSTER_VIEWER
+	allDevSpace := service.Svc.ClusterUser().GetAllCache()
+	devSpaceMapping := map[string]model.ClusterUserModel{}
+	for _, cu := range allDevSpace {
+		devSpaceMapping[cu.Namespace] = cu
 	}
 
 	// different kind of namespace's permission with different prefix
 	doForNamespaces := func(namespaces []string, spaceOwnType model.SpaceOwnType) {
 		for _, ns := range namespaces {
+			cu, ok := devSpaceMapping[ns]
 
-			cu, err := service.Svc.ClusterUser().
-				GetCacheByClusterAndNameSpace(cp.GetClusterId(), ns)
-
-			if err != nil {
+			if !ok {
 				log.Error(
 					errors.Wrap(
 						err, fmt.Sprintf(
@@ -190,6 +184,7 @@ func GenKubeconfig(
 				nss = append(
 					nss, NS{SpaceName: cu.SpaceName, Namespace: ns, SpaceId: cu.ID, SpaceOwnType: spaceOwnType.Str},
 				)
+				delete(devSpaceMapping, ns)
 			}
 		}
 	}
@@ -197,6 +192,27 @@ func GenKubeconfig(
 	doForNamespaces(ns_scope.GetAllOwnNs(string(clientGo.Config), saName), model.DevSpaceOwnTypeOwner)
 	doForNamespaces(ns_scope.GetAllCoopNs(string(clientGo.Config), saName), model.DevSpaceOwnTypeCooperator)
 	doForNamespaces(ns_scope.GetAllViewNs(string(clientGo.Config), saName), model.DevSpaceOwnTypeViewer)
+
+	remainNs := make([]string, 0)
+	for _, cu := range devSpaceMapping {
+		remainNs = append(remainNs, cu.Namespace)
+	}
+
+	// new admin go client will request authorizationv1.SelfSubjectAccessReview
+	// then did not find any err, means current user is the cluster admin role
+	// todo we should specify the
+	if cluster_scope.IsOwnerOfCluster(cp.GetClusterId(), saName) {
+		privilegeType = CLUSTER_ADMIN
+		doForNamespaces(remainNs, model.DevSpaceOwnTypeOwner)
+	} else if cluster_scope.IsCooperOfCluster(cp.GetClusterId(), saName) {
+		privilegeType = CLUSTER_ADMIN
+		doForNamespaces(remainNs, model.DevSpaceOwnTypeCooperator)
+	} else if cluster_scope.IsViewerOfCluster(cp.GetClusterId(), saName) {
+		privilegeType = CLUSTER_VIEWER
+		doForNamespaces(remainNs, model.DevSpaceOwnTypeViewer)
+	}
+
+	log.Infof("llllll %d", len(nss))
 
 	if len(nss) > 0 {
 		// sort nss

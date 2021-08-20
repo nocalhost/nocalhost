@@ -43,6 +43,7 @@ type ClusterUserService interface {
 	ListV2(models model.ClusterUserModel) ([]*model.ClusterUserV2, error)
 	GetCache(id uint64) (model.ClusterUserModel, error)
 	GetCacheByClusterAndNameSpace(clusterId uint64, namespace string) (model.ClusterUserModel, error)
+	GetAllCache() []model.ClusterUserModel
 }
 
 type clusterUserService struct {
@@ -61,7 +62,35 @@ func (srv *clusterUserService) Evict(id uint64) {
 		cu := value.Data().(*model.ClusterUserModel)
 		_, _ = c.Delete(keyForClusterAndNameSpace(cu.ClusterId, cu.Namespace))
 		_, _ = c.Delete(id)
+		_, _ = c.Delete("*")
 	}
+}
+
+func (srv *clusterUserService) GetAllCache() []model.ClusterUserModel {
+	c := cache.Module(cache.CLUSTER_USER)
+	value, err := c.Value("*")
+
+	resultList := []model.ClusterUserModel{}
+	if err == nil {
+		clusterUserModels := value.Data().([]*model.ClusterUserModel)
+		for _, userModel := range clusterUserModels {
+			resultList = append(resultList, *userModel)
+		}
+		return resultList
+	}
+
+	list, err := srv.clusterUserRepo.GetList(model.ClusterUserModel{})
+	if err != nil {
+		return resultList
+	}
+
+	c.Add("*", time.Hour, list)
+	for _, result := range list {
+		c.Add(keyForClusterAndNameSpace(result.ClusterId, result.Namespace), time.Hour, result)
+		c.Add(result.ID, time.Hour, result)
+		resultList = append(resultList, *result)
+	}
+	return resultList
 }
 
 func (srv *clusterUserService) GetCache(id uint64) (
