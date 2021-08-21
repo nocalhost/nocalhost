@@ -11,8 +11,8 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/fp"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 )
@@ -146,13 +146,15 @@ var configGetCmd = &cobra.Command{
 				bys, err := yaml.Marshal(svcProfile.ServiceConfigV2)
 				must(errors.Wrap(err, "fail to get controller profile"))
 
-				pack := nocalhost.NewSvcPack(
+				pack := dev_dir.NewSvcPack(
 					nocalhostSvc.NameSpace,
 					nocalhostSvc.AppName,
 					nocalhostSvc.Type,
 					nocalhostSvc.Name,
 					"",
 				)
+
+				pack.UnAssociatePath()
 
 				path := fp.NewFilePath(string(pack.GetAssociatePath())).
 					RelOrAbs(".nocalhost").

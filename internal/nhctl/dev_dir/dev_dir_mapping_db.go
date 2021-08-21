@@ -1,4 +1,4 @@
-package nocalhost
+package dev_dir
 
 import (
 	"fmt"
@@ -96,6 +96,9 @@ func doGetOrModify(fun func(dirMapping *DevDirMapping, pathToPack map[DevPath][]
 	if result.PackToPath == nil {
 		result.PackToPath = map[SvcPackKey]DevPath{}
 	}
+	if result.PackToKubeConfigBytes == nil {
+		result.PackToKubeConfigBytes = map[SvcPackKey]string{}
+	}
 
 	if err := fun(result, result.genPathToPackMap()); err != nil {
 		return err
@@ -113,8 +116,9 @@ func doGetOrModify(fun func(dirMapping *DevDirMapping, pathToPack map[DevPath][]
 }
 
 type DevDirMapping struct {
-	PathToDefaultPackKey map[DevPath]SvcPackKey `yaml:"path_to_default_pack_key"`
-	PackToPath           map[SvcPackKey]DevPath `yaml:"pack_to_path"`
+	PathToDefaultPackKey  map[DevPath]SvcPackKey `yaml:"path_to_default_pack_key"`
+	PackToPath            map[SvcPackKey]DevPath `yaml:"pack_to_path"`
+	PackToKubeConfigBytes map[SvcPackKey]string  `yaml:"pack_to_kube_config_bytes"`
 }
 
 // be careful, this map is immutable !!!!
@@ -143,9 +147,14 @@ type SvcPackKey string
 
 type DevPath string
 
+func (d DevPath) ToString() string {
+	return string(d)
+}
+
 type AllSvcPackAssociateByPath struct {
-	packs             map[SvcPackKey]*SvcPack
-	defaultSvcPackKey SvcPackKey
+	Packs             map[SvcPackKey]*SvcPack
+	Kubeconfigs       map[SvcPackKey]string
+	DefaultSvcPackKey SvcPackKey
 }
 
 func NewSvcPack(ns string,
@@ -154,20 +163,20 @@ func NewSvcPack(ns string,
 	svc string,
 	container string) *SvcPack {
 	return &SvcPack{
-		ns:        ns,
-		app:       app,
-		svcType:   svcType,
-		svc:       svc,
-		container: container,
+		Ns:        ns,
+		App:       app,
+		SvcType:   svcType,
+		Svc:       svc,
+		Container: container,
 	}
 }
 
 type SvcPack struct {
-	ns        string
-	app       string
-	svcType   base.SvcType
-	svc       string
-	container string
+	Ns        string
+	App       string
+	SvcType   base.SvcType
+	Svc       string
+	Container string
 }
 
 func (svcPackKey *SvcPackKey) toPack() *SvcPack {
@@ -178,11 +187,11 @@ func (svcPackKey *SvcPackKey) toPack() *SvcPack {
 	}
 
 	return &SvcPack{
-		ns:        array[0],
-		app:       array[1],
-		svcType:   base.SvcTypeOf(array[2]),
-		svc:       array[3],
-		container: array[4],
+		Ns:        array[0],
+		App:       array[1],
+		SvcType:   base.SvcTypeOf(array[2]),
+		Svc:       array[3],
+		Container: array[4],
 	}
 }
 
@@ -190,7 +199,7 @@ func (svcPack SvcPack) key() SvcPackKey {
 	return SvcPackKey(
 		fmt.Sprintf(
 			"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s",
-			svcPack.ns, svcPack.app, svcPack.svcType, svcPack.svc, svcPack.container,
+			svcPack.Ns, svcPack.App, svcPack.SvcType, svcPack.Svc, svcPack.Container,
 		),
 	)
 }
@@ -199,7 +208,7 @@ func (svcPack SvcPack) keyWithoutContainer() SvcPackKey {
 	return SvcPackKey(
 		fmt.Sprintf(
 			"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s",
-			svcPack.ns, svcPack.app, svcPack.svcType, svcPack.svc, "",
+			svcPack.Ns, svcPack.App, svcPack.SvcType, svcPack.Svc, "",
 		),
 	)
 }

@@ -1,4 +1,4 @@
-package nocalhost
+package dev_dir
 
 import (
 	"errors"
@@ -8,6 +8,8 @@ import (
 	"os"
 	"testing"
 )
+
+var fakeKubeconfig = ""
 
 func TestAssociate(t *testing.T) {
 	os.Setenv("TEST", "-")
@@ -24,14 +26,14 @@ func TestAssociate(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack,
+		pack, fakeKubeconfig,
 	); err != nil {
 		t.Fatal(err)
 	}
 
 	nowAllPacks := path.GetAllPacks()
 
-	if len(nowAllPacks.packs) != 1 {
+	if len(nowAllPacks.Packs) != 1 {
 		t.Fatal(errors.New(fmt.Sprintf("Associate fail! %v", nowAllPacks)))
 	}
 
@@ -65,7 +67,7 @@ func TestMultipleAssociate(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack,
+		pack, fakeKubeconfig,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -79,14 +81,14 @@ func TestMultipleAssociate(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack2,
+		pack2, fakeKubeconfig,
 	); err != nil {
 		t.Fatal(err)
 	}
 
 	nowAllPacks := path.GetAllPacks()
 
-	if len(nowAllPacks.packs) != 2 {
+	if len(nowAllPacks.Packs) != 2 {
 		t.Fatal(errors.New(fmt.Sprintf("Associate fail! %v", nowAllPacks)))
 	}
 
@@ -120,7 +122,7 @@ func TestMultipleUnAssociate(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack,
+		pack, fakeKubeconfig,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -134,14 +136,14 @@ func TestMultipleUnAssociate(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack2,
+		pack2, fakeKubeconfig,
 	); err != nil {
 		t.Fatal(err)
 	}
 
 	nowAllPacks := path.GetAllPacks()
 
-	if len(nowAllPacks.packs) != 2 {
+	if len(nowAllPacks.Packs) != 2 {
 		t.Fatal(errors.New(fmt.Sprintf("Associate fail! %v", nowAllPacks)))
 	}
 
@@ -187,7 +189,7 @@ func TestGetAssociatePath(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack,
+		pack, fakeKubeconfig,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +215,7 @@ func TestGetAssociatePathWithNoContainer(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack,
+		pack, fakeKubeconfig,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +249,7 @@ func TestGetAssociatePathWithNoContainerAndUnAssociate(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack,
+		pack, fakeKubeconfig,
 	); err != nil {
 		t.Fatal(err)
 	}

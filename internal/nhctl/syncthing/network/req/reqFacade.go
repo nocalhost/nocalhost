@@ -124,6 +124,12 @@ const (
 	Identifier = "(Nocalhost): "
 )
 
+var AppAssociateTemplate = &SyncthingStatus{
+	Status: End,
+	Msg:    "Nocalhost Sync Manage",
+	Tips:   Identifier + "There is no service associated with the current directory",
+}
+
 var AppNotInstalledTemplate = &SyncthingStatus{
 	Status: End,
 	Msg:    "Application not installed",

@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/mitchellh/go-ps"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common/base"
@@ -50,9 +49,6 @@ var syncStatusCmd = &cobra.Command{
 	Short: "Files sync status",
 	Long:  "Tracing the files sync status, include local folder and remote device",
 	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
-		}
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {

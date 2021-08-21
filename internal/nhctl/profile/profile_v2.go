@@ -210,8 +210,9 @@ type SvcProfileV2 struct {
 	// nocalhost also supports config from cm, lowest priority
 	CmConfigLoaded bool `json:"cmconfigloaded" yaml:"cmconfigloaded"`
 
+	// deprecated, read only, but actually store in
+	// [SvcPack internal/nhctl/nocalhost/dev_dir_mapping_db.go:165]
 	// associate for the local dir
-	// deprecated
 	Associate string `json:"associate" yaml:"associate"`
 
 	// deprecated

@@ -1,8 +1,9 @@
-package nocalhost
+package dev_dir
 
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"nocalhost/internal/nhctl/fp"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -10,7 +11,7 @@ import (
 // if no path match, try with svc with none container
 func (svcPack *SvcPack) GetAssociatePath() DevPath {
 	if !svcPack.valid() {
-		log.Infof("Current svc is invalid to get associate path, %v", svcPack)
+		log.Logf("Current svc is invalid to get associate path, %v", svcPack)
 		return ""
 	}
 
@@ -31,15 +32,39 @@ func (svcPack *SvcPack) GetAssociatePath() DevPath {
 	return path
 }
 
-func (svcPack *SvcPack) UnAssociatePath()  {
+// return "" if error occur
+func (svcPack *SvcPack) GetKubeConfigBytes() string {
+	if !svcPack.valid() {
+		log.Logf("Current svc is invalid to get associate path, %v", svcPack)
+		return ""
+	}
+
+	var kubeconfigContent string
+	if err := Get(
+		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
+			if _, ok := dirMapping.PackToPath[svcPack.key()]; ok {
+				kubeconfigContent = dirMapping.PackToKubeConfigBytes[svcPack.key()]
+			} else {
+				kubeconfigContent = dirMapping.PackToKubeConfigBytes[svcPack.keyWithoutContainer()]
+			}
+			return nil
+		},
+	); err != nil {
+		log.ErrorE(err, fmt.Sprintf("Current svc is fail to get associate path, %v", svcPack))
+		return ""
+	}
+	return kubeconfigContent
+}
+
+func (svcPack *SvcPack) UnAssociatePath() {
 	if !svcPack.valid() {
 		log.Logf("Current svc is invalid to get associate path, %v", svcPack)
 	}
 
 	if err := Update(
 		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
-			delete(dirMapping.PackToPath,svcPack.key())
-			delete(dirMapping.PackToPath,svcPack.keyWithoutContainer())
+			delete(dirMapping.PackToPath, svcPack.key())
+			delete(dirMapping.PackToPath, svcPack.keyWithoutContainer())
 			return nil
 		},
 	); err != nil {
@@ -47,6 +72,7 @@ func (svcPack *SvcPack) UnAssociatePath()  {
 	}
 }
 
+// return error if not found
 func (d DevPath) GetDefaultPack() (*SvcPack, error) {
 	return getDefaultPack(d)
 }
@@ -55,19 +81,26 @@ func (d DevPath) GetAllPacks() *AllSvcPackAssociateByPath {
 	return getAllPacks(d)
 }
 
-func (d DevPath) Associate(specifyPack *SvcPack) error {
+func (d DevPath) Associate(specifyPack *SvcPack, kubeconfig string) error {
 	if !specifyPack.valid() {
 		return errors.New("Svc pack is invalid")
 	}
 
 	// step.1 remove all mapping from specify pack
-	// step.2 build mapping from specifyPack to current path
+	// step.2 build mapping from specifyPack to current path and associate kubeconfig and pack
 	// step.3 mark specifyPack as default pack to current path
 
 	return d.removePackAndThen(
 		specifyPack,
 		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
+			kubeconfigContent := fp.NewFilePath(kubeconfig).ReadFile()
+
+			dirMapping.PackToKubeConfigBytes[specifyPack.key()] = kubeconfigContent
+			dirMapping.PackToKubeConfigBytes[specifyPack.keyWithoutContainer()] = kubeconfigContent
+
 			dirMapping.PackToPath[specifyPack.key()] = d
+			dirMapping.PackToPath[specifyPack.keyWithoutContainer()] = d
+
 			dirMapping.PathToDefaultPackKey[d] = specifyPack.key()
 			return nil
 		},
@@ -101,14 +134,14 @@ func (d DevPath) removePackAndThen(
 			// if specify Svc has been associate with before path and if it is a default
 			// pack of a path, should modify or remove the default Svc pack of the path
 			//
-			if beforePacks.defaultSvcPackKey == specifyPackKey {
+			if beforePacks.DefaultSvcPackKey == specifyPackKey {
 
-				if len(beforePacks.packs) == 1 {
+				if len(beforePacks.Packs) == 1 {
 					delete(dirMapping.PathToDefaultPackKey, d)
 				} else {
 
 					// modify the before path's default packKey to a random packKey
-					for packKey, _ := range beforePacks.packs {
+					for packKey, _ := range beforePacks.Packs {
 						if packKey != specifyPackKey {
 							dirMapping.PathToDefaultPackKey[d] = packKey
 						}
@@ -131,15 +164,15 @@ func (d DevPath) removePackAndThen(
 
 func (svcPack *SvcPack) valid() bool {
 	return svcPack != nil &&
-		svcPack.ns != "" && svcPack.app != "" &&
-		svcPack.svcType != "" && svcPack.svc != ""
+		svcPack.Ns != "" && svcPack.App != "" &&
+		svcPack.SvcType != "" && svcPack.Svc != ""
 }
 
 func getDefaultPack(path DevPath) (*SvcPack, error) {
 	packs := getAllPacks(path)
-	defaultSvcPackKey := packs.defaultSvcPackKey
+	defaultSvcPackKey := packs.DefaultSvcPackKey
 
-	if pack, ok := packs.packs[defaultSvcPackKey]; ok {
+	if pack, ok := packs.Packs[defaultSvcPackKey]; ok {
 		return pack, nil
 	}
 
@@ -152,18 +185,23 @@ func doGetAllPacks(path DevPath, dirMapping *DevDirMapping, pathToPack map[DevPa
 	var r *AllSvcPackAssociateByPath
 
 	packs, ok := pathToPack[path]
+
 	defaultSvcPackKey := dirMapping.PathToDefaultPackKey[path]
 
-	result := make(map[SvcPackKey]*SvcPack, 0)
+	allpacks := make(map[SvcPackKey]*SvcPack, 0)
+	KubeConfigs := make(map[SvcPackKey]string, 0)
 	if ok {
 		for _, pack := range packs {
-			result[pack.key()] = pack
+			packKey := pack.key()
+			allpacks[packKey] = pack
+			KubeConfigs[packKey] = dirMapping.PackToKubeConfigBytes[packKey]
 		}
 	}
 
 	r = &AllSvcPackAssociateByPath{
-		packs:             result,
-		defaultSvcPackKey: defaultSvcPackKey,
+		Packs:             allpacks,
+		DefaultSvcPackKey: defaultSvcPackKey,
+		Kubeconfigs:       KubeConfigs,
 	}
 	return r
 }

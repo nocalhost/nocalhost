@@ -11,11 +11,12 @@ import (
 )
 
 const (
-	DefaultApplicationDbDir      = "db"
-	DefaultNhctlHomeDirName      = ".nh/nhctl"
-	DefaultNhctlNameSpaceDirName = "ns"
-	DefaultNhctlDevDirMappingDir = "devmode/db"
+	DefaultApplicationDbDir          = "db"
+	DefaultNhctlHomeDirName          = ".nh/nhctl"
+	DefaultNhctlNameSpaceDirName     = "ns"
+	DefaultNhctlDevDirMappingDir     = "devmode/db"
 	DefaultNhctlTestDevDirMappingDir = "testdevmode/db"
+	DefaultNhctlKubeconfigDir        = "kubeconfig"
 )
 
 func GetNocalhostDevDirMapping() string {
@@ -36,6 +37,10 @@ func GetAppDirUnderNs(appName string, namespace string) string {
 
 func GetNhctlHomeDir() string {
 	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName)
+}
+
+func GetNhctlKubeconfigDir(name string) string {
+	return filepath.Join(GetNhctlHomeDir(), DefaultNhctlKubeconfigDir, name)
 }
 
 // .nh/nhctl/ns

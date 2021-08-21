@@ -21,3 +21,9 @@ type SyncStatusOptions struct {
 	WaitForSync bool
 	Timeout     int64
 }
+
+type SyncStatusDirOptions struct {
+	Override    bool
+	WaitForSync bool
+	Timeout     int64
+}

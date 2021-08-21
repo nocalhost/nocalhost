@@ -68,11 +68,7 @@ func (c *Controller) GetDescription() *profile.SvcProfileV2 {
 	}
 	svcProfile := appProfile.SvcProfileV2(c.Name, string(c.Type))
 	if svcProfile != nil {
-		devStatus := c.AppMeta.CheckIfSvcDeveloping(svcProfile.ActualName, c.Type)
-		svcProfile.Developing = devStatus != appmeta.NONE
-		svcProfile.DevelopStatus = string(devStatus)
-
-		svcProfile.Possess = c.IsProcessor()
+		appmeta.FillingExtField(svcProfile, c.AppMeta, c.AppName, c.NameSpace, appProfile.Identifier)
 		return svcProfile
 	}
 	return nil

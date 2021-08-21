@@ -6,10 +6,10 @@
 package cmds
 
 import (
-	"encoding/json"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -35,15 +35,15 @@ func init() {
 		&deAssociate, "de-associate", false, "[exclusive with info flag] de associate(for test)",
 	)
 	devAssociateCmd.Flags().BoolVar(
-		&info, "info", false, "[exclusive with de-associate flag] get all svc associate to the path",
+		&info, "info", false, "get associate path from svc ",
 	)
 	debugCmd.AddCommand(devAssociateCmd)
 }
 
 var devAssociateCmd = &cobra.Command{
-	Use: "associate [Name]",
+	Use:   "associate [Name]",
 	Short: "associate service dev dir",
-	Long: "associate service dev dir",
+	Long:  "associate service dev dir",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
@@ -56,7 +56,7 @@ var devAssociateCmd = &cobra.Command{
 
 		checkIfSvcExist(commonFlags.SvcName, serviceType)
 
-		svcPack := nocalhost.NewSvcPack(
+		svcPack := dev_dir.NewSvcPack(
 			nocalhostSvc.NameSpace,
 			nocalhostSvc.AppName,
 			nocalhostSvc.Type,
@@ -64,20 +64,16 @@ var devAssociateCmd = &cobra.Command{
 			container,
 		)
 
-		if deAssociate {
+		if info {
+			fmt.Printf(svcPack.GetAssociatePath().ToString())
+			return
+		} else if deAssociate {
 			svcPack.UnAssociatePath()
-		} else if info {
-			if workDir == "" {
-				log.Fatal("associate must specify")
-			}
-			packs := nocalhost.DevPath(workDir).GetAllPacks()
-			marshal, _ := json.Marshal(packs)
-			println(marshal)
 		} else {
 			if workDir == "" {
 				log.Fatal("associate must specify")
 			}
-			must(nocalhost.DevPath(workDir).Associate(svcPack))
+			must(dev_dir.DevPath(workDir).Associate(svcPack, kubeConfig))
 		}
 
 		must(nocalhostApp.ReloadSvcCfg(nocalhostSvc.Name, nocalhostSvc.Type, false, false))
