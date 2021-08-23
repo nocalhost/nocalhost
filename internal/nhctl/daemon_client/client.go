@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package daemon_client
 
@@ -344,7 +344,7 @@ func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 	baseCmd := command.BaseCommand{}
 	err := json.Unmarshal(data, &baseCmd)
 	if err == nil {
-		log.Logf("Sending %v command", baseCmd.CommandType)
+		log.LogDebugf("Sending %v command", baseCmd.CommandType)
 	}
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort), time.Second*30)
 	if err != nil {
@@ -362,7 +362,7 @@ func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) erro
 	baseCmd := command.BaseCommand{}
 	err := json.Unmarshal(req, &baseCmd)
 	if err == nil {
-		log.Logf("Sending %v command", baseCmd.CommandType)
+		log.LogDebugf("Sending %v command", baseCmd.CommandType)
 	}
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort), time.Second*30)
 	if err != nil {
@@ -403,12 +403,12 @@ func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) erro
 		// may from elder version
 		if err := json.Unmarshal(respBytes, &resp); err == nil {
 			return nil
-		}else {
+		} else {
 			log.WrapAndLogE(err)
 		}
 	default:
 		err = errors.New(
-			fmt.Sprintf("Error occur from daemon, status [%d], msg [%s].", response.Status, response.Msg ),
+			fmt.Sprintf("Error occur from daemon, status [%d], msg [%s].", response.Status, response.Msg),
 		)
 		log.LogE(err)
 		return err

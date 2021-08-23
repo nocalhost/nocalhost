@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -29,8 +29,8 @@ var yamlToJsonCmd = &cobra.Command{
 			log.Fatalf("fail to read from stdin: %v", err)
 		}
 
-		log.Log("Yaml is :")
-		log.Log(string(b))
+		log.LogTrace("Yaml is :")
+		log.LogTrace(string(b))
 		v := make(map[interface{}]interface{})
 		if err := yaml.Unmarshal(b, v); err != nil {
 			log.Fatalf("fail to unmarshal from yaml: %v", err)
