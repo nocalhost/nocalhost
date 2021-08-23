@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/client-go/util/retry"
+	"math"
 	"math/rand"
 	"nocalhost/internal/nocalhost-api/cache"
 	"nocalhost/internal/nocalhost-api/model"
@@ -244,7 +245,7 @@ func fetchData(kubeconfig string) ([]model.Resource, error) {
 	resources = append(resources, model.Resource{
 		ResourceName: v1.ResourcePods,
 		Capacity:     float64(podTotal),
-		Used:         Avg(podAvgs) * float64(podTotal),
+		Used:         math.Floor(Avg(podAvgs) * float64(podTotal)),
 		Percentage:   Avg(podAvgs),
 	}, model.Resource{
 		ResourceName: v1.ResourceCPU,
