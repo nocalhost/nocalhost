@@ -183,6 +183,9 @@ func (d *DevSpace) createDevSpace(
 	// set labels for istio proxy sidecar injection
 	labels := make(map[string]string)
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
+		if d.DevSpaceParams.MeshDevInfo.MeshDevNamespace != "" {
+			devNamespace = d.DevSpaceParams.MeshDevInfo.MeshDevNamespace
+		}
 		labels["istio-injection"] = "enabled"
 	}
 	// create namespace

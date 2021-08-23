@@ -45,7 +45,7 @@ type MeshManager interface {
 
 type MeshDevInfo struct {
 	BaseNamespace    string       `json:"-"`
-	MeshDevNamespace string       `json:"-"`
+	MeshDevNamespace string       `json:"namespace"`
 	IsUpdateHeader   bool         `json:"-"`
 	Header           model.Header `json:"header"`
 	Apps             []MeshDevApp `json:"apps"`
