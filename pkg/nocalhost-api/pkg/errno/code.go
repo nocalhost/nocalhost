@@ -157,7 +157,11 @@ var (
 		Code:    50124,
 		Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Struct to Json failed",
 	}
-	ErrShareUserSameAsOwner = &Errno{Code: 50125, Message: "The share user same as owner"}
+	ErrShareUserSameAsOwner   = &Errno{Code: 50125, Message: "The share user same as owner"}
+	ErrSpaceNameAlreadyExists = &Errno{
+		Code:    50126,
+		Message: "The space name already exists, please change the space name",
+	}
 
 	// cluster-user errors for mesh space
 	ErrMeshClusterUserNotFound          = &Errno{Code: 50200, Message: "Base dev space has not found"}
