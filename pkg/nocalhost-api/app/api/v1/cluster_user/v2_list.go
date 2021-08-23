@@ -207,7 +207,11 @@ func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, is
 					cluster.UserId == currentUser
 
 				if cu.IsClusterAdmin() {
-					cu.SpaceType = model.IsolateSpace
+					if cu.BaseDevSpaceId > 0 {
+						cu.SpaceType = model.ShareSpace
+					} else {
+						cu.SpaceType = model.IsolateSpace
+					}
 
 					if cluster_scope.IsValidOwner(cluster.ID, currentUser) {
 						cu.SpaceOwnType = model.DevSpaceOwnTypeOwner
@@ -222,7 +226,11 @@ func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, is
 					fillClusterCooperator(cu, cluster.ID)
 					fillClusterViewer(cu, cluster.ID)
 				} else {
-					cu.SpaceType = model.IsolateSpace
+					if cu.BaseDevSpaceId > 0 {
+						cu.SpaceType = model.ShareSpace
+					} else {
+						cu.SpaceType = model.IsolateSpace
+					}
 
 					// fill SpaceOwnType
 					if contains(ownNss, cu.Namespace) {
