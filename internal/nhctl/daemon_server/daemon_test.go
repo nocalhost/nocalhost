@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
+	"net"
 	"nocalhost/internal/nhctl/appmeta"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"testing"
@@ -35,7 +36,7 @@ func TestUnMar(t *testing.T) {
 
 		if massss, err := json.Marshal(metas); err != nil {
 			t.Error(err)
-		}else {
+		} else {
 			println(string(massss))
 		}
 	}
@@ -47,7 +48,7 @@ func TestErr(t *testing.T) {
 	fmt.Printf("after: %v\n", err)
 }
 
-func errTest() (error) {
+func errTest() error {
 	var err error
 	num, err := errTest2("err01")
 	fmt.Printf("%v\n", &num)
@@ -55,19 +56,33 @@ func errTest() (error) {
 		fmt.Println("a")
 	}
 	defer func() {
-		err = errors.Wrap(err,"")
+		err = errors.Wrap(err, "")
 		fmt.Printf("err handling: %v\n", err)
 	}()
 
 	_, err = errTest2("err02")
-	err = errors.Wrap(err,"")
-	fmt.Printf("%v\n",err)
+	err = errors.Wrap(err, "")
+	fmt.Printf("%v\n", err)
 	//fmt.Printf("%v\n", &num)
 
 	return err
 }
 
-func errTest2(info string)(int, error) {
+func errTest2(info string) (int, error) {
 	//_, err := strconv.ParseBool("aaa")
 	return 0, errors.New(info)
+}
+
+func TestPortForwardManager_StartPortForwardGoRoutine(t *testing.T) {
+	address := fmt.Sprintf("0.0.0.0:%d", 89)
+	listener, err := net.Listen("tcp4", address)
+	if err != nil {
+		panic(err)
+	}
+	_, err = listener.Accept()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Listen")
+	_ = listener.Close()
 }
