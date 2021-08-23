@@ -151,7 +151,9 @@ func GenKubeconfig(
 	allDevSpace := service.Svc.ClusterUser().GetAllCache()
 	devSpaceMapping := map[string]model.ClusterUserModel{}
 	for _, cu := range allDevSpace {
-		devSpaceMapping[cu.Namespace] = cu
+		if !cu.IsClusterAdmin() {
+			devSpaceMapping[cu.Namespace] = cu
+		}
 	}
 
 	// different kind of namespace's permission with different prefix
@@ -171,7 +173,7 @@ func GenKubeconfig(
 			} else {
 				kubeConfigStruct.Contexts = append(
 					kubeConfigStruct.Contexts, clientcmdapiv1.NamedContext{
-						Name: cu.SpaceName,
+						Name: fmt.Sprintf("%s/%s", cu.SpaceName, cu.Namespace),
 						Context: clientcmdapiv1.Context{
 							Namespace: ns,
 							Cluster:   cp.GetClusterName(),
@@ -211,8 +213,6 @@ func GenKubeconfig(
 		doForNamespaces(remainNs, model.DevSpaceOwnTypeViewer)
 	}
 
-	log.Infof("llllll %d", len(nss))
-
 	if len(nss) > 0 {
 		// sort nss
 		sort.Slice(
@@ -240,7 +240,8 @@ func GenKubeconfig(
 				return nss[i].SpaceId > nss[i].SpaceId
 			},
 		)
-		kubeConfigStruct.CurrentContext = nss[len(nss)-1].SpaceName
+		current := nss[len(nss)-1]
+		kubeConfigStruct.CurrentContext = fmt.Sprintf("%s/%s", current.SpaceName, current.Namespace)
 	} else {
 
 		// while user has cluster - scope permission
@@ -266,22 +267,6 @@ func GenKubeconfig(
 		return
 	}
 	then(nss, privilegeType, kubeConfig)
-}
-
-func GetCluster2Ns2SpaceNameMapping(
-	devSpaces []*model.ClusterUserModel,
-) map[uint64]map[string]*model.ClusterUserModel {
-	spaceNameMap := map[uint64]map[string]*model.ClusterUserModel{}
-	for _, space := range devSpaces {
-		m, ok := spaceNameMap[space.ClusterId]
-		if !ok {
-			m = map[string]*model.ClusterUserModel{}
-		}
-
-		m[space.Namespace] = space
-		spaceNameMap[space.ClusterId] = m
-	}
-	return spaceNameMap
 }
 
 func getServiceAccountKubeConfigReader(
