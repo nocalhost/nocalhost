@@ -65,7 +65,7 @@ func (c *ClientGoUtils) CreatePortForwarder(pod string, fps []*ForwardPort, read
 
 	pf, err := portforward.NewOnAddresses(
 		dialer,
-		[]string{"localhost"},
+		[]string{"0.0.0.0"},
 		ports,
 		stopChan,
 		readyChan,
