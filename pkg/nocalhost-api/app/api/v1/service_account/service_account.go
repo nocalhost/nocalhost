@@ -63,14 +63,13 @@ func ListAuthorization(c *gin.Context) {
 		return
 	}
 
-	result := make([]*ServiceAccountModel, len(clusters), len(clusters))
-	//var lock sync.Mutex
+	result := make([]*ServiceAccountModel, 0, len(clusters))
+	var lock sync.Mutex
 	wg := sync.WaitGroup{}
 	wg.Add(len(clusters))
 
-	for i, cluster := range clusters {
+	for _, cluster := range clusters {
 		cluster := cluster
-		i := i
 		go func() {
 			defer wg.Done()
 			GenKubeconfig(
@@ -83,16 +82,16 @@ func ListAuthorization(c *gin.Context) {
 							},
 						)
 
-						//lock.Lock()
-						result[i] = &ServiceAccountModel{
+						lock.Lock()
+						result = append(result, &ServiceAccountModel{
 							ClusterId:     cluster.ID,
 							KubeConfig:    kubeConfig,
 							StorageClass:  cluster.StorageClass,
 							NS:            nss,
 							Privilege:     privilegeType != NONE,
 							PrivilegeType: privilegeType,
-						}
-						//lock.Unlock()
+						})
+						lock.Unlock()
 					}
 				},
 			)
