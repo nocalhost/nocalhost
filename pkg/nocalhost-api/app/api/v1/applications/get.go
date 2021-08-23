@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package applications
 
@@ -201,7 +201,7 @@ func listOwner(c *gin.Context, userId *uint64) ([]*model.ApplicationModel, error
 // list permitted is list all application user has
 func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, error) {
 	// permitted
-	applicationUsers, err := service.Svc.ApplicationUser().ListByUserId(c, userId)
+	/*applicationUsers, err := service.Svc.ApplicationUser().ListByUserId(c, userId)
 	if err != nil {
 		log.Warnf("get application_user err: %v", err)
 		return nil, err
@@ -210,7 +210,7 @@ func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, er
 	set := map[uint64]interface{}{}
 	for _, au := range applicationUsers {
 		set[au.ApplicationId] = "-"
-	}
+	}*/
 
 	// userId, _ := c.Get("userId")
 	lists, err := service.Svc.ApplicationSvc().GetList(c, nil)
@@ -221,27 +221,27 @@ func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, er
 
 	var result []*model.ApplicationModel
 	for _, app := range lists {
-		_, ok := set[app.ID]
+		//_, ok := set[app.ID]
 
 		// public
-		if app.Public == 1 ||
+		/*if app.Public == 1 ||
 
-			// creator
-			app.UserId == userId ||
+		// creator
+		app.UserId == userId ||
 
-			// has permission
-			ok {
-			var applicationContext ApplicationJsonContext
-			err := json.Unmarshal([]byte(app.Context), &applicationContext)
-			if err != nil {
-				continue
-			}
-			applicationType := getApplicationType(applicationContext.ApplicationSource, applicationContext.ApplicationInstallType)
-			currentUser, _ := ginbase.LoginUser(c)
-			app.FillEditable(ginbase.IsAdmin(c), currentUser)
-			app.FillApplicationType(applicationType)
-			result = append(result, app)
+		// has permission
+		ok*/
+		var applicationContext ApplicationJsonContext
+		err := json.Unmarshal([]byte(app.Context), &applicationContext)
+		if err != nil {
+			continue
 		}
+		applicationType := getApplicationType(applicationContext.ApplicationSource, applicationContext.ApplicationInstallType)
+		currentUser, _ := ginbase.LoginUser(c)
+		app.FillEditable(ginbase.IsAdmin(c), currentUser)
+		app.FillApplicationType(applicationType)
+		result = append(result, app)
+		//}
 	}
 
 	return result, nil
