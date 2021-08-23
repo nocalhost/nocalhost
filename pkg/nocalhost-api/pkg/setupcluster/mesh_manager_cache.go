@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/golang-lru/simplelru"
+	"github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -125,7 +125,7 @@ func (f *informerFactory) close() {
 type cache struct {
 	mu     sync.Mutex
 	client dynamic.Interface
-	lru    *simplelru.LRU
+	lru    *lru.Cache
 }
 
 func (c *cache) getInformerFactory(ns string) *informerFactory {
@@ -136,6 +136,7 @@ func (c *cache) getInformerFactory(ns string) *informerFactory {
 	if exist {
 		return factory.(*informerFactory)
 	}
+
 	f := &informerFactory{
 		factory: dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 			c.client, defaultResync, ns, nil),
@@ -167,11 +168,11 @@ func (c *cache) close() {
 }
 
 func newCache(client dynamic.Interface) *cache {
-	lru, _ := simplelru.NewLRU(defaultLRUSize, func(key interface{}, value interface{}) {
+	lruCache, _ := lru.NewWithEvict(defaultLRUSize, func(key interface{}, value interface{}) {
 		value.(*informerFactory).close()
 	})
 	return &cache{
-		lru:    lru,
+		lru:    lruCache,
 		client: client,
 	}
 }
