@@ -18,8 +18,8 @@ func (svcPack *SvcPack) GetAssociatePath() DevPath {
 	var path DevPath
 	if err := Get(
 		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
-			if _, ok := dirMapping.PackToPath[svcPack.key()]; ok {
-				path = dirMapping.PackToPath[svcPack.key()]
+			if _, ok := dirMapping.PackToPath[svcPack.Key()]; ok {
+				path = dirMapping.PackToPath[svcPack.Key()]
 			} else {
 				path = dirMapping.PackToPath[svcPack.keyWithoutContainer()]
 			}
@@ -42,8 +42,8 @@ func (svcPack *SvcPack) GetKubeConfigBytes() string {
 	var kubeconfigContent string
 	if err := Get(
 		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
-			if _, ok := dirMapping.PackToPath[svcPack.key()]; ok {
-				kubeconfigContent = dirMapping.PackToKubeConfigBytes[svcPack.key()]
+			if _, ok := dirMapping.PackToPath[svcPack.Key()]; ok {
+				kubeconfigContent = dirMapping.PackToKubeConfigBytes[svcPack.Key()]
 			} else {
 				kubeconfigContent = dirMapping.PackToKubeConfigBytes[svcPack.keyWithoutContainer()]
 			}
@@ -63,7 +63,7 @@ func (svcPack *SvcPack) UnAssociatePath() {
 
 	if err := Update(
 		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
-			delete(dirMapping.PackToPath, svcPack.key())
+			delete(dirMapping.PackToPath, svcPack.Key())
 			delete(dirMapping.PackToPath, svcPack.keyWithoutContainer())
 			return nil
 		},
@@ -95,13 +95,13 @@ func (d DevPath) Associate(specifyPack *SvcPack, kubeconfig string) error {
 		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
 			kubeconfigContent := fp.NewFilePath(kubeconfig).ReadFile()
 
-			dirMapping.PackToKubeConfigBytes[specifyPack.key()] = kubeconfigContent
+			dirMapping.PackToKubeConfigBytes[specifyPack.Key()] = kubeconfigContent
 			dirMapping.PackToKubeConfigBytes[specifyPack.keyWithoutContainer()] = kubeconfigContent
 
-			dirMapping.PackToPath[specifyPack.key()] = d
+			dirMapping.PackToPath[specifyPack.Key()] = d
 			dirMapping.PackToPath[specifyPack.keyWithoutContainer()] = d
 
-			dirMapping.PathToDefaultPackKey[d] = specifyPack.key()
+			dirMapping.PathToDefaultPackKey[d] = specifyPack.Key()
 			return nil
 		},
 	)
@@ -121,8 +121,8 @@ func (d DevPath) removePackAndThen(
 
 	return Update(
 		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
-			specifyPackKey := specifyPack.key()
-			devPathBefore := dirMapping.PackToPath[specifyPack.key()]
+			specifyPackKey := specifyPack.Key()
+			devPathBefore := dirMapping.PackToPath[specifyPack.Key()]
 
 			beforePacks := doGetAllPacks(devPathBefore, dirMapping, pathToPack)
 
@@ -150,7 +150,7 @@ func (d DevPath) removePackAndThen(
 			}
 
 			// 2 -
-			delete(dirMapping.PackToPath, specifyPack.key())
+			delete(dirMapping.PackToPath, specifyPack.Key())
 
 			// 3 -
 			if fun == nil {
@@ -192,7 +192,7 @@ func doGetAllPacks(path DevPath, dirMapping *DevDirMapping, pathToPack map[DevPa
 	KubeConfigs := make(map[SvcPackKey]string, 0)
 	if ok {
 		for _, pack := range packs {
-			packKey := pack.key()
+			packKey := pack.Key()
 			allpacks[packKey] = pack
 			KubeConfigs[packKey] = dirMapping.PackToKubeConfigBytes[packKey]
 		}

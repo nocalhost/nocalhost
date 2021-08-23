@@ -9,18 +9,30 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+	"k8s.io/apimachinery/pkg/util/json"
 	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/syncthing/network/req"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 )
 
-var all bool
+var current bool
+var excludeStatus []string
+var jsonOutput bool
 
 func init() {
 	devAssociateQueryerCmd.Flags().StringVarP(&workDir, "associate", "s", "", "dev mode work directory")
 	devAssociateQueryerCmd.Flags().BoolVar(
-		&all, "all", false, "show all svc associate to the path",
+		&current, "current", false, "show the active svc most recently associate to the path",
+	)
+	devAssociateQueryerCmd.Flags().StringArrayVarP(
+		&excludeStatus, "exclude-status", "e", []string{},
+		"exclude some sync status, value: [disconnected, outOfSync, scanning, syncing, error, idle, end]",
+	)
+	devAssociateQueryerCmd.Flags().BoolVar(
+		&jsonOutput, "json", false,
+		"return the json format of results",
 	)
 	debugCmd.AddCommand(devAssociateQueryerCmd)
 }
@@ -39,37 +51,70 @@ var devAssociateQueryerCmd = &cobra.Command{
 		}
 
 		devPath := dev_dir.DevPath(workDir)
-		if all {
-			packs := devPath.GetAllPacks()
-			marshal, _ := yaml.Marshal(packs)
-			println(string(marshal))
+		if current {
+
+			pack, err := devPath.GetDefaultPack()
+			must(err)
+
+			printing(genAssociateSvcPack(pack))
 			return
+		} else {
+
+			set := make(map[string]string, 0)
+			for _, status := range excludeStatus {
+				set[status] = ""
+			}
+
+			allPacks := devPath.GetAllPacks()
+
+			asps := make([]*AssociateSvcPack, 0)
+			for _, pack := range allPacks.Packs {
+				asp := genAssociateSvcPack(pack)
+				if _, exclude := set[string(asp.SyncthingStatus.Status)]; exclude {
+					continue
+				}
+
+				asps = append(asps, asp)
+			}
+
+			printing(asps)
 		}
-
-		pack, err := devPath.GetDefaultPack()
-		must(err)
-		nhctlPath, _ := utils.GetNhctlPath()
-		kubeconfigPath := nocalhost.GetOrGenKubeConfigPath(pack.GetKubeConfigBytes())
-
-		asp := &AssociateSvcPack{
-			pack,
-			kubeconfigPath,
-			fmt.Sprintf(
-				"%s sync-status %s --namespace %s --deployment %s --controller-type %s --kubeconfig %s",
-				nhctlPath, pack.App, pack.Ns, pack.Svc, pack.SvcType, kubeconfigPath,
-			),
-		}
-		pack.GetKubeConfigBytes()
-
-		marshal, err := yaml.Marshal(asp)
-		must(err)
-
-		fmt.Printf(string(marshal))
 	},
 }
 
+func printing(output interface{}) {
+	if jsonOutput {
+		marshal, err := json.Marshal(output)
+		must(err)
+		fmt.Printf(string(marshal))
+	} else {
+		marshal, err := yaml.Marshal(output)
+		must(err)
+		fmt.Printf(string(marshal))
+	}
+}
+
+func genAssociateSvcPack(pack *dev_dir.SvcPack) *AssociateSvcPack {
+	nhctlPath, _ := utils.GetNhctlPath()
+	kubeconfigPath := nocalhost.GetOrGenKubeConfigPath(pack.GetKubeConfigBytes())
+
+	asp := &AssociateSvcPack{
+		pack,
+		utils.Sha1ToString(string(pack.Key())),
+		kubeconfigPath,
+		fmt.Sprintf(
+			"%s sync-status %s --namespace %s --deployment %s --controller-type %s --kubeconfig %s",
+			nhctlPath, pack.App, pack.Ns, pack.Svc, pack.SvcType, kubeconfigPath,
+		),
+		SyncStatus(nil, pack.Ns, pack.App, pack.Svc, pack.SvcType.String(), kubeconfigPath),
+	}
+	return asp
+}
+
 type AssociateSvcPack struct {
-	*dev_dir.SvcPack `yaml:"svc_pack"`
-	KubeconfigPath   string `yaml:"kubeconfig_path"`
-	SyncStatusCmd    string `yaml:"sync_status_cmd"`
+	*dev_dir.SvcPack     `yaml:"svc_pack" json:"svc_pack"`
+	Sha                  string `yaml:"sha" json:"sha"`
+	KubeconfigPath       string `yaml:"kubeconfig_path" json:"kubeconfig_path"`
+	SyncStatusCmd        string `yaml:"sync_status_cmd" json:"sync_status_cmd"`
+	*req.SyncthingStatus `yaml:"syncthing_status" json:"syncthing_status"`
 }

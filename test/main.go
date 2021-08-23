@@ -11,6 +11,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/runner"
 	"nocalhost/test/suite"
+	"nocalhost/test/testcase"
 	"os"
 	"path/filepath"
 	"sync"
@@ -18,7 +19,7 @@ import (
 )
 
 func main() {
-	_ = os.Setenv("LocalTest", "true")
+	//_ = os.Setenv("LocalTest", "true")
 	_ = os.Setenv(_const.EnableFullLogEnvKey, "true")
 
 	start := time.Now()
@@ -42,48 +43,48 @@ func main() {
 	compatibleChan := make(chan interface{}, 1)
 	wg := sync.WaitGroup{}
 
-	//DoRun(false, &wg, func() {
-	//	t.RunWithBookInfo(false, "TestHook", suite.Hook)
-	//})
-	//
-	//DoRun(false, &wg, func() {
-	//	t.RunWithBookInfo(false, "HelmAdaption", suite.HelmAdaption)
-	//})
-	//
-	//DoRun(false, &wg, func() {
-	//	t.Run("Install", suite.Install)
-	//})
-	//
-	//DoRun(false, &wg, func() {
-	//	t.Run("Deployment", suite.Deployment)
-	//})
-	//
-	//DoRun(false, &wg, func() {
-	//	t.Run("Application", suite.Upgrade)
-	//})
+	DoRun(false, &wg, func() {
+		t.RunWithBookInfo(false, "TestHook", suite.Hook)
+	})
+
+	DoRun(false, &wg, func() {
+		t.RunWithBookInfo(false, "HelmAdaption", suite.HelmAdaption)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("Install", suite.Install)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("Deployment", suite.Deployment)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("Application", suite.Upgrade)
+	})
 
 	DoRun(false, &wg, func() {
 		t.Run("ProfileAndAssociate", suite.ProfileAndAssociate)
 	})
 
-	//
-	//DoRun(false, &wg, func() {
-	//	t.Run("StatefulSet", suite.StatefulSet)
-	//})
-	//
-	//DoRun(false, &wg, func() {
-	//	t.Run("RemoveSyncthingPidFile", suite.KillSyncthingProcess)
-	//})
-	//
-	//DoRun(false, &wg, func() {
-	//	t.Run("Get", suite.Get)
-	//})
 
-	//lastVersion, _ := testcase.GetVersion()
-	//DoRun(lastVersion!="", &wg, func() {
-	//	t.Run("Compatible", suite.Compatible)
-	//	compatibleChan <- "Done"
-	//})
+	DoRun(false, &wg, func() {
+		t.Run("StatefulSet", suite.StatefulSet)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("RemoveSyncthingPidFile", suite.KillSyncthingProcess)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("Get", suite.Get)
+	})
+
+	lastVersion, _ := testcase.GetVersion()
+	DoRun(lastVersion!="", &wg, func() {
+		t.Run("Compatible", suite.Compatible)
+		compatibleChan <- "Done"
+	})
 
 	wg.Wait()
 	log.Infof("All Async Test Done")

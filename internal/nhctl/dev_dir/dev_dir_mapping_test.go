@@ -18,11 +18,11 @@ func TestAssociate(t *testing.T) {
 	path := DevPath("testPath1")
 
 	pack := &SvcPack{
-		ns:        "nocalhost",
-		app:       "nh",
-		svcType:   base.StatefulSet,
-		svc:       "mariadb",
-		container: "container1",
+		Ns:        "nocalhost",
+		App:       "nh",
+		SvcType:   base.StatefulSet,
+		Svc:       "mariadb",
+		Container: "container1",
 	}
 
 	if err := path.Associate(
@@ -40,7 +40,7 @@ func TestAssociate(t *testing.T) {
 	if defaultPack, err := path.GetDefaultPack(); err != nil {
 		return
 	} else {
-		if defaultPack.key() != pack.key() {
+		if defaultPack.Key() != pack.Key() {
 			t.Fatal(errors.New("Associate fail! "))
 		}
 	}
@@ -59,11 +59,11 @@ func TestMultipleAssociate(t *testing.T) {
 	path := DevPath("testPath1")
 
 	pack := &SvcPack{
-		ns:        "nocalhost",
-		app:       "nh",
-		svcType:   base.StatefulSet,
-		svc:       "mariadb",
-		container: "container1",
+		Ns:        "nocalhost",
+		App:       "nh",
+		SvcType:   base.StatefulSet,
+		Svc:       "mariadb",
+		Container: "container1",
 	}
 
 	if err := path.Associate(
@@ -73,11 +73,11 @@ func TestMultipleAssociate(t *testing.T) {
 	}
 
 	pack2 := &SvcPack{
-		ns:        "nocalhost",
-		app:       "nh",
-		svcType:   base.StatefulSet,
-		svc:       "mariadb",
-		container: "container2",
+		Ns:        "nocalhost",
+		App:       "nh",
+		SvcType:   base.StatefulSet,
+		Svc:       "mariadb",
+		Container: "container2",
 	}
 
 	if err := path.Associate(
@@ -95,7 +95,7 @@ func TestMultipleAssociate(t *testing.T) {
 	if defaultPack, err := path.GetDefaultPack(); err != nil {
 		return
 	} else {
-		if defaultPack.key() != pack2.key() {
+		if defaultPack.Key() != pack2.Key() {
 			t.Fatal(errors.New("Associate fail! "))
 		}
 	}
@@ -114,11 +114,11 @@ func TestMultipleUnAssociate(t *testing.T) {
 	path := DevPath("testPath1")
 
 	pack := &SvcPack{
-		ns:        "nocalhost",
-		app:       "nh",
-		svcType:   base.StatefulSet,
-		svc:       "mariadb",
-		container: "container1",
+		Ns:        "nocalhost",
+		App:       "nh",
+		SvcType:   base.StatefulSet,
+		Svc:       "mariadb",
+		Container: "container1",
 	}
 
 	if err := path.Associate(
@@ -128,11 +128,11 @@ func TestMultipleUnAssociate(t *testing.T) {
 	}
 
 	pack2 := &SvcPack{
-		ns:        "nocalhost",
-		app:       "nh",
-		svcType:   base.StatefulSet,
-		svc:       "mariadb",
-		container: "container2",
+		Ns:        "nocalhost",
+		App:       "nh",
+		SvcType:   base.StatefulSet,
+		Svc:       "mariadb",
+		Container: "container2",
 	}
 
 	if err := path.Associate(
@@ -150,7 +150,7 @@ func TestMultipleUnAssociate(t *testing.T) {
 	if defaultPack, err := path.GetDefaultPack(); err != nil {
 		return
 	} else {
-		if defaultPack.key() != pack2.key() {
+		if defaultPack.Key() != pack2.Key() {
 			t.Fatal(errors.New("Associate fail! "))
 		}
 	}
@@ -162,7 +162,7 @@ func TestMultipleUnAssociate(t *testing.T) {
 	if defaultPack, err := path.GetDefaultPack(); err != nil {
 		return
 	} else {
-		if defaultPack.key() != pack.key() {
+		if defaultPack.Key() != pack.Key() {
 			t.Fatal(errors.New("Associate fail! "))
 		}
 	}
@@ -181,11 +181,11 @@ func TestGetAssociatePath(t *testing.T) {
 	path := DevPath("testPath1")
 
 	pack := &SvcPack{
-		ns:        "nocalhost",
-		app:       "nh",
-		svcType:   base.StatefulSet,
-		svc:       "mariadb",
-		container: "container1",
+		Ns:        "nocalhost",
+		App:       "nh",
+		SvcType:   base.StatefulSet,
+		Svc:       "mariadb",
+		Container: "container1",
 	}
 
 	if err := path.Associate(
@@ -208,10 +208,10 @@ func TestGetAssociatePathWithNoContainer(t *testing.T) {
 	path := DevPath("testPath1")
 
 	pack := &SvcPack{
-		ns:      "nocalhost",
-		app:     "nh",
-		svcType: base.StatefulSet,
-		svc:     "mariadb",
+		Ns:      "nocalhost",
+		App:     "nh",
+		SvcType: base.StatefulSet,
+		Svc:     "mariadb",
 	}
 
 	if err := path.Associate(
@@ -221,11 +221,11 @@ func TestGetAssociatePathWithNoContainer(t *testing.T) {
 	}
 
 	anotherAssociatePack := &SvcPack{
-		ns:        "nocalhost",
-		app:       "nh",
-		svcType:   base.StatefulSet,
-		svc:       "mariadb",
-		container: "whatever",
+		Ns:        "nocalhost",
+		App:       "nh",
+		SvcType:   base.StatefulSet,
+		Svc:       "mariadb",
+		Container: "whatever",
 	}
 
 	associatePath := anotherAssociatePack.GetAssociatePath()
@@ -242,10 +242,10 @@ func TestGetAssociatePathWithNoContainerAndUnAssociate(t *testing.T) {
 	path := DevPath("testPath1")
 
 	pack := &SvcPack{
-		ns:      "nocalhost",
-		app:     "nh",
-		svcType: base.StatefulSet,
-		svc:     "mariadb",
+		Ns:      "nocalhost",
+		App:     "nh",
+		SvcType: base.StatefulSet,
+		Svc:     "mariadb",
 	}
 
 	if err := path.Associate(
@@ -255,11 +255,11 @@ func TestGetAssociatePathWithNoContainerAndUnAssociate(t *testing.T) {
 	}
 
 	anotherAssociatePack := &SvcPack{
-		ns:        "nocalhost",
-		app:       "nh",
-		svcType:   base.StatefulSet,
-		svc:       "mariadb",
-		container: "whatever",
+		Ns:        "nocalhost",
+		App:       "nh",
+		SvcType:   base.StatefulSet,
+		Svc:       "mariadb",
+		Container: "whatever",
 	}
 
 	associatePath := anotherAssociatePack.GetAssociatePath()

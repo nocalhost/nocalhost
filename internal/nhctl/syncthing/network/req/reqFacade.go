@@ -102,7 +102,7 @@ func (p *SyncthingHttpClient) getSyncthingStatus() *SyncthingStatus {
 
 // the nhctl sync --status result
 type SyncthingStatus struct {
-	Status    StatusEnum `json:"status"`
+	Status    StatusEnum `yaml:"status" json:"status"`
 	Msg       string     `json:"msg"`
 	Tips      string     `json:"tips,omitempty"`
 	OutOfSync string     `json:"outOfSync,omitempty"`
@@ -124,9 +124,9 @@ const (
 	Identifier = "(Nocalhost): "
 )
 
-var AppAssociateTemplate = &SyncthingStatus{
+var WelcomeTemplate = &SyncthingStatus{
 	Status: End,
-	Msg:    "Nocalhost Sync Manage",
+	Msg:    "Welcome to Nocalhost",
 	Tips:   Identifier + "There is no service associated with the current directory",
 }
 

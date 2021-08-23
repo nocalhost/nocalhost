@@ -52,51 +52,60 @@ var syncStatusCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		applicationName := args[0]
-		if err := initAppMutate(applicationName); err != nil {
-			display(req.AppNotInstalledTemplate)
+		if len(args) < 1 {
+			display(req.WelcomeTemplate)
 			return
 		}
 
-		nhSvc := initService(deployment, serviceType)
+		display(SyncStatus(syncStatusOps, nameSpace, args[0], deployment, serviceType, kubeConfig))
+	},
+}
 
-		if !nhSvc.IsInDevMode() {
-			display(req.NotInDevModeTemplate)
-			return
-		}
+func SyncStatus(opt *app.SyncStatusOptions, ns, app, svc, svcType, kubeconfig string) *req.SyncthingStatus {
+	nameSpace = ns
+	kubeConfig = kubeconfig
 
-		if !nhSvc.IsProcessor() {
-			display(req.NotProcessor)
-			return
-		}
+	if err := initAppMutate(app); err != nil {
+		return req.AppNotInstalledTemplate
+	}
 
-		// check if syncthing exists
-		pid, err := nhSvc.GetSyncThingPid()
-		if err != nil {
-			display(req.NotSyncthingProcessFound)
-			return
-		}
+	nhSvc := initService(svc, svcType)
 
-		pro, err := ps.FindProcess(pid)
-		if err != nil || pro == nil {
-			display(req.NotSyncthingProcessFound)
-			return
-		}
+	if !nhSvc.IsInDevMode() {
+		return req.NotInDevModeTemplate
+	}
 
-		client := nhSvc.NewSyncthingHttpClient(2)
+	if !nhSvc.IsProcessor() {
+		return req.NotProcessor
+	}
 
-		if syncStatusOps.Override {
+	// check if syncthing exists
+	pid, err := nhSvc.GetSyncThingPid()
+	if err != nil {
+		return req.NotSyncthingProcessFound
+	}
+
+	pro, err := ps.FindProcess(pid)
+	if err != nil || pro == nil {
+		return req.NotSyncthingProcessFound
+	}
+
+	client := nhSvc.NewSyncthingHttpClient(2)
+
+	if opt != nil {
+		if opt.Override {
 			must(client.FolderOverride())
 			display("Succeed")
-			return
+			return nil
 		}
 
-		if syncStatusOps.WaitForSync {
-			waitForFirstSync(client, time.Second*time.Duration(syncStatusOps.Timeout))
-			return
+		if opt.WaitForSync {
+			waitForFirstSync(client, time.Second*time.Duration(opt.Timeout))
+			return nil
 		}
-		display(client.GetSyncthingStatus())
-	},
+	}
+
+	return client.GetSyncthingStatus()
 }
 
 func display(v interface{}) {

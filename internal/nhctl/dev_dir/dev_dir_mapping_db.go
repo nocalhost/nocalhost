@@ -172,11 +172,11 @@ func NewSvcPack(ns string,
 }
 
 type SvcPack struct {
-	Ns        string
-	App       string
-	SvcType   base.SvcType
-	Svc       string
-	Container string
+	Ns        string       `yaml:"ns" json:"ns"`
+	App       string       `yaml:"app" json:"app"`
+	SvcType   base.SvcType `yaml:"svc_type" json:"svc_type"`
+	Svc       string       `yaml:"svc" json:"svc"`
+	Container string       `yaml:"container" json:"container"`
 }
 
 func (svcPackKey *SvcPackKey) toPack() *SvcPack {
@@ -195,7 +195,7 @@ func (svcPackKey *SvcPackKey) toPack() *SvcPack {
 	}
 }
 
-func (svcPack SvcPack) key() SvcPackKey {
+func (svcPack SvcPack) Key() SvcPackKey {
 	return SvcPackKey(
 		fmt.Sprintf(
 			"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s",
