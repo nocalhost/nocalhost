@@ -68,6 +68,14 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	userId := cast.ToUint64(d.DevSpaceParams.UserId)
 	clusterId := cast.ToUint64(d.DevSpaceParams.ClusterId)
 
+	// check if space name exist
+	_, err := service.Svc.ClusterUser().GetFirst(d.c, model.ClusterUserModel{
+		SpaceName: d.DevSpaceParams.SpaceName,
+	})
+	if err == nil {
+		return nil, errno.ErrSpaceNameAlreadyExists
+	}
+
 	// check base dev space
 	baseClusterUser := &model.ClusterUserModel{}
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
