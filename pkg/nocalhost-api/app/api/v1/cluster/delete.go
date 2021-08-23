@@ -109,8 +109,5 @@ func deleteNocalhostManagedData(c *gin.Context, clusterId uint64, spaceIds []uin
 
 // Delete manager form factory
 func deleteMeshManager(kubeconfig string) {
-	managerFactory := setupcluster.GetSharedMeshManagerFactory()
-	if managerFactory.Check(kubeconfig) {
-		managerFactory.Delete(kubeconfig)
-	}
+	setupcluster.GetSharedMeshManagerFactory().Delete(kubeconfig)
 }

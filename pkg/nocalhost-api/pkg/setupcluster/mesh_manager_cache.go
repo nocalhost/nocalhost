@@ -112,16 +112,20 @@ func IndexAppConfig(obj interface{}) ([]string, error) {
 	return []string{r.GetNamespace()}, nil
 }
 
-type cache struct {
-	mu     sync.Mutex
-	client dynamic.Interface
-	lru    *simplelru.LRU
-}
-
 type informerFactory struct {
 	factory dynamicinformer.DynamicSharedInformerFactory
 	stopCh  chan struct{}
 	started map[schema.GroupVersionResource]bool
+}
+
+func (f *informerFactory) close() {
+	close(f.stopCh)
+}
+
+type cache struct {
+	mu     sync.Mutex
+	client dynamic.Interface
+	lru    *simplelru.LRU
 }
 
 func (c *cache) getInformerFactory(ns string) *informerFactory {
@@ -158,8 +162,14 @@ func (c *cache) getInformer(ns string, gvr schema.GroupVersionResource) ExtendIn
 	return &Informer{informer}
 }
 
+func (c *cache) close() {
+	c.lru.Purge()
+}
+
 func newCache(client dynamic.Interface) *cache {
-	lru, _ := simplelru.NewLRU(defaultLRUSize, func(key interface{}, value interface{}) {})
+	lru, _ := simplelru.NewLRU(defaultLRUSize, func(key interface{}, value interface{}) {
+		value.(*informerFactory).close()
+	})
 	return &cache{
 		lru:    lru,
 		client: client,

@@ -41,6 +41,7 @@ type MeshManager interface {
 	GetBaseDevSpaceAppInfo(*MeshDevInfo) []MeshDevApp
 	GetAPPInfo(*MeshDevInfo) ([]MeshDevApp, error)
 	Rollback(*MeshDevInfo) error
+	close()
 }
 
 type MeshDevInfo struct {
@@ -277,6 +278,10 @@ func (m *meshManager) Rollback(info *MeshDevInfo) error {
 	})
 
 	return nil
+}
+
+func (m *meshManager) close() {
+	m.cache.close()
 }
 
 func (m *meshManager) injectMeshDevSpace(info *MeshDevInfo) error {
