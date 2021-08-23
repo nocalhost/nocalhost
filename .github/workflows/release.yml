@@ -9,6 +9,8 @@ jobs:
   release-nhctl:
     name: Release nhctl
     runs-on: macos-latest
+    environment:
+      name: release
     steps:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
