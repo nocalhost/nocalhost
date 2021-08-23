@@ -434,6 +434,8 @@ definitions:
       header:
         $ref: '#/definitions/model.Header'
         type: object
+      namespace:
+        type: string
       resources:
         $ref: '#/definitions/setupcluster.meshDevResources'
         type: object

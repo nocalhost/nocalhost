@@ -2488,6 +2488,9 @@
                     "type": "object",
                     "$ref": "#/definitions/model.Header"
                 },
+                "namespace": {
+                    "type": "string"
+                },
                 "resources": {
                     "type": "object",
                     "$ref": "#/definitions/setupcluster.meshDevResources"
