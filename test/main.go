@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package main
 
@@ -75,8 +75,12 @@ func main() {
 		t.Run("Get", suite.Get)
 	})
 
+	DoRun(true, &wg, func() {
+		t.Run("Log", suite.TestLog)
+	})
+
 	lastVersion, _ := testcase.GetVersion()
-	DoRun(lastVersion!="", &wg, func() {
+	DoRun(lastVersion != "", &wg, func() {
 		t.Run("Compatible", suite.Compatible)
 		compatibleChan <- "Done"
 	})
