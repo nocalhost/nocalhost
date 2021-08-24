@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
@@ -191,19 +192,27 @@ func recordingProfile() {
 // nocalhost will load svc config from associate dir if needed
 func loadLocalOrCmConfigIfValid() {
 
+	svcPack := dev_dir.NewSvcPack(
+		nocalhostSvc.NameSpace,
+		nocalhostSvc.AppName,
+		nocalhostSvc.Type,
+		nocalhostSvc.Name,
+		container,
+	)
+
 	switch len(devStartOps.LocalSyncDir) {
 	case 0:
-		p, err := nocalhostSvc.GetProfile()
-		must(err)
-
-		if p.Associate == "" {
+		associatePath := svcPack.GetAssociatePath()
+		if associatePath == "" {
 			must(errors.New("'local-sync(-s)' should specify while svc is not associate with local dir"))
 		}
-		devStartOps.LocalSyncDir = append(devStartOps.LocalSyncDir, p.Associate)
+		devStartOps.LocalSyncDir = append(devStartOps.LocalSyncDir, string(associatePath))
 
+		must(associatePath.Associate(svcPack, kubeConfig))
 		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
 	case 1:
-		must(nocalhostSvc.Associate(devStartOps.LocalSyncDir[0]))
+
+		must(dev_dir.DevPath(devStartOps.LocalSyncDir[0]).Associate(svcPack, kubeConfig))
 
 		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
 	default:

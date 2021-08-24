@@ -64,6 +64,11 @@ func main() {
 	})
 
 	DoRun(false, &wg, func() {
+		t.Run("ProfileAndAssociate", suite.ProfileAndAssociate)
+	})
+
+
+	DoRun(false, &wg, func() {
 		t.Run("StatefulSet", suite.StatefulSet)
 	})
 
