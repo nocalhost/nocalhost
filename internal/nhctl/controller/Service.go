@@ -68,29 +68,10 @@ func (c *Controller) GetDescription() *profile.SvcProfileV2 {
 	}
 	svcProfile := appProfile.SvcProfileV2(c.Name, string(c.Type))
 	if svcProfile != nil {
-		devStatus := c.AppMeta.CheckIfSvcDeveloping(svcProfile.ActualName, c.Type)
-		svcProfile.Developing = devStatus != appmeta.NONE
-		svcProfile.DevelopStatus = string(devStatus)
-
-		svcProfile.Possess = c.IsProcessor()
+		appmeta.FillingExtField(svcProfile, c.AppMeta, c.AppName, c.NameSpace, appProfile.Identifier)
 		return svcProfile
 	}
 	return nil
-}
-
-func (c *Controller) Associate(dir string) error {
-
-	return c.UpdateProfile(
-		func(p *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
-			if svcProfile.Associate == dir {
-				return nil
-			}
-
-			svcProfile.Associate = dir
-			svcProfile.LocalConfigLoaded = false
-			return nil
-		},
-	)
 }
 
 func (c *Controller) UpdateSvcProfile(modify func(*profile.SvcProfileV2) error) error {
