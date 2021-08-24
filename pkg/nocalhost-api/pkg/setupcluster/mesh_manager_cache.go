@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -35,6 +36,8 @@ const (
 
 	ApplicationIndex       = "nocalhostApplication"
 	ApplicationConfigIndex = "nocalhostApplicationConfig"
+
+	ClusterInformerFactory = "ClusterInformerFactory"
 
 	defaultResync  = 10 * time.Minute
 	defaultLRUSize = 12
@@ -143,7 +146,11 @@ func (c *cache) getInformerFactory(ns string) *informerFactory {
 		stopCh:  make(chan struct{}),
 		started: make(map[schema.GroupVersionResource]bool),
 	}
-	c.lru.Add(ns, f)
+	if ns == metav1.NamespaceAll {
+		c.lru.Add(ClusterInformerFactory, f)
+	} else {
+		c.lru.Add(ns, f)
+	}
 	return f
 }
 
@@ -198,6 +205,14 @@ func (c *cache) Secret(ns string) ExtendInformer {
 		Group:    "",
 		Version:  "v1",
 		Resource: "secrets",
+	})
+}
+
+func (c *cache) Namespace() ExtendInformer {
+	return c.getInformer(metav1.NamespaceAll, schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "namespaces",
 	})
 }
 
@@ -299,6 +314,17 @@ func (c *cache) GetDeploymentByNamespaceAndName(ns, name string) (unstructured.U
 
 func (c *cache) GetAppConfigByNamespace(ns string) []unstructured.Unstructured {
 	return c.Secret(ns).ByIndex(ApplicationConfigIndex, ns)
+}
+
+func (c *cache) GetNamespaceListBySelector(selector labels.Selector) []unstructured.Unstructured {
+	objs, err := c.Namespace().Lister().List(selector)
+	ret := make([]unstructured.Unstructured, len(objs))
+	if err == nil {
+		for i := range objs {
+			ret[i] = *objs[i].(*unstructured.Unstructured).DeepCopy()
+		}
+	}
+	return ret
 }
 
 func (c *cache) GetListByKindAndNamespace(kind, ns string) []unstructured.Unstructured {

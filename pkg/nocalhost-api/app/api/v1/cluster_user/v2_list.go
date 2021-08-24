@@ -20,6 +20,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
 func GetV2(c *gin.Context) {
@@ -44,7 +45,7 @@ func GetV2(c *gin.Context) {
 	}
 
 	cu.ID = *params.ClusterUserId
-	if result, err := DoList(&cu, userId, isAdmin); err != nil {
+	if result, err := DoList(&cu, userId, isAdmin, false); err != nil {
 		api.SendResponse(c, err, nil)
 	} else {
 		api.SendResponse(c, nil, result)
@@ -78,14 +79,16 @@ func ListV2(c *gin.Context) {
 		cu.SpaceName = params.SpaceName
 	}
 
-	if result, err := DoList(&cu, userId, isAdmin); err != nil {
+	if result, err := DoList(&cu, userId, isAdmin, params.IsCanBeUsedAsBaseSpace); err != nil {
 		api.SendResponse(c, err, nil)
 	} else {
 		api.SendResponse(c, nil, result)
 	}
 }
 
-func DoList(params *model.ClusterUserModel, userId uint64, isAdmin bool) ([]*model.ClusterUserV2, *errno.Errno) {
+func DoList(params *model.ClusterUserModel, userId uint64, isAdmin, isCanBeUsedAsBaseSpace bool) (
+	[]*model.ClusterUserV2, *errno.Errno) {
+
 	clusterUsers, err := service.Svc.ClusterUser().ListV2(*params)
 	if err != nil {
 		log.Error(err)
@@ -101,6 +104,23 @@ func DoList(params *model.ClusterUserModel, userId uint64, isAdmin bool) ([]*mod
 	if !isAdmin {
 		// todo supports search for SpaceType(only need to deal with filter)
 		clusterUsers = filter(clusterUsers, relatedToSomebody(userId))
+	}
+
+	// filter can be used for base space
+	if params.ClusterId > 0 && isCanBeUsedAsBaseSpace {
+		cluster, err := service.Svc.ClusterSvc().GetCache(params.ClusterId)
+		if err != nil {
+			return nil, errno.ErrClusterNotFound
+		}
+		manager, err := setupcluster.GetSharedMeshManagerFactory().Manager(cluster.KubeConfig)
+		if err != nil {
+			return nil, errno.ErrClusterKubeConnect
+		}
+		ns := make(map[string]bool)
+		for _, n := range manager.GetMeshNamespaceNames() {
+			ns[n] = true
+		}
+		clusterUsers = filter(clusterUsers, isCanBeUsedAsBaseSpaceFun(ns))
 	}
 	return clusterUsers, nil
 }
@@ -132,6 +152,12 @@ func relatedToSomebody(userId uint64) func(*model.ClusterUserV2) bool {
 		}
 
 		return false
+	}
+}
+
+func isCanBeUsedAsBaseSpaceFun(ns map[string]bool) func(*model.ClusterUserV2) bool {
+	return func(cu *model.ClusterUserV2) bool {
+		return ns[cu.Namespace] && cu.SpaceType != model.ShareSpace
 	}
 }
 

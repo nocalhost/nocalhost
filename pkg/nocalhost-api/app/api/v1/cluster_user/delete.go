@@ -177,7 +177,7 @@ func ReCreate(c *gin.Context) {
 	// delete devSpace space first, it will delete database record whatever success delete namespace or not
 	devSpace := NewDevSpace(req, c, []byte(cluster.KubeConfig))
 
-	list, e := DoList(&model.ClusterUserModel{ID: devSpaceId}, user, false)
+	list, e := DoList(&model.ClusterUserModel{ID: devSpaceId}, user, false, false)
 	if e != nil {
 		log.ErrorE(e, "")
 		api.SendResponse(c, err, nil)

@@ -15,6 +15,7 @@ import (
 	"istio.io/client-go/pkg/apis/networking/v1alpha3"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"nocalhost/internal/nhctl/appmeta"
@@ -41,6 +42,7 @@ type MeshManager interface {
 	GetBaseDevSpaceAppInfo(*MeshDevInfo) []MeshDevApp
 	GetAPPInfo(*MeshDevInfo) ([]MeshDevApp, error)
 	Rollback(*MeshDevInfo) error
+	GetMeshNamespaceNames() []string
 	close()
 }
 
@@ -278,6 +280,16 @@ func (m *meshManager) Rollback(info *MeshDevInfo) error {
 	})
 
 	return nil
+}
+
+func (m *meshManager) GetMeshNamespaceNames() []string {
+	label := map[string]string{"istio-injection": "enabled"}
+	ns := m.cache.GetNamespaceListBySelector(labels.Set(label).AsSelector())
+	ret := make([]string, len(ns))
+	for i := range ns {
+		ret[i] = ns[i].GetName()
+	}
+	return ret
 }
 
 func (m *meshManager) close() {

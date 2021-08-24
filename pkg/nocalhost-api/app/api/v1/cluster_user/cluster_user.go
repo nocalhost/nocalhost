@@ -44,9 +44,10 @@ type ClusterUserListQuery struct {
 }
 
 type ClusterUserListV2Query struct {
-	OwnerUserId *uint64 `form:"owner_user_id"`
-	ClusterId   *uint64 `form:"cluster_id"`
-	SpaceName   string  `form:"space_name"`
+	OwnerUserId            *uint64 `form:"owner_user_id"`
+	ClusterId              *uint64 `form:"cluster_id"`
+	SpaceName              string  `form:"space_name"`
+	IsCanBeUsedAsBaseSpace bool    `form:"is_can_be_used_as_base_space"`
 }
 
 type SpaceResourceLimit struct {

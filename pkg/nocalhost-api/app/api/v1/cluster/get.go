@@ -53,7 +53,7 @@ func GetList(c *gin.Context) {
 		// cluster --> userid, find cluster which user's devSpace based on
 		clusterToUser := make(map[uint64]uint64)
 		// get clusters which associated with current user, like cluster which current user's devSpace based on
-		lists, _ := cluster_user.DoList(&model.ClusterUserModel{}, userId, false)
+		lists, _ := cluster_user.DoList(&model.ClusterUserModel{}, userId, false, false)
 		for _, i := range lists {
 			clusterToUser[i.ClusterId] = i.ClusterId
 		}
