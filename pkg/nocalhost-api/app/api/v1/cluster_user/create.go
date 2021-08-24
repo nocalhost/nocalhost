@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster_user
 
@@ -49,6 +49,19 @@ func Create(c *gin.Context) {
 			return
 		}
 	}
+
+	// Validate MeshInfo parameter format.
+	if req.BaseDevSpaceId > 0 {
+		if req.MeshDevInfo == nil {
+			api.SendResponse(c, errno.ErrMeshInfoRequired, nil)
+			return
+		}
+		if !req.MeshDevInfo.Validate() {
+			api.SendResponse(c, errno.ErrValidateMeshInfo, nil)
+			return
+		}
+	}
+
 	applicationId := uint64(0)
 	req.ApplicationId = &applicationId
 	devSpace := NewDevSpace(req, c, []byte{})

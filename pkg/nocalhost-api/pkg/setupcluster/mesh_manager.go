@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/const"
@@ -100,6 +101,12 @@ func (info *MeshDevInfo) SortApps() {
 	for i := 0; i < len(info.Apps); i++ {
 		sort.Sort(SortWorkloadsByKindAndName(info.Apps[i].Workloads))
 	}
+}
+
+func (info *MeshDevInfo) Validate() bool {
+	return info.Header.TraceKey != "" &&
+		info.Header.TraceValue != "" &&
+		len(validation.IsDNS1123Label(info.MeshDevNamespace)) == 0
 }
 
 type meshManager struct {
