@@ -2,8 +2,8 @@ package req
 
 import "encoding/json"
 
-func (p *SyncthingHttpClient) Events() ([]event, error) {
-	resp, err := p.get("rest/events")
+func (p *SyncthingHttpClient) EventsFolderCompletion() ([]event, error) {
+	resp, err := p.get("rest/events?events=FolderCompletion")
 	if err != nil {
 		return nil, err
 	}

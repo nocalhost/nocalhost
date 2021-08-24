@@ -126,21 +126,12 @@ func waitForFirstSync(client *req.SyncthingHttpClient, duration time.Duration) {
 			return
 		default:
 			time.Sleep(time.Millisecond * 100)
-			events, err := client.Events()
-			if err != nil {
+			events, err := client.EventsFolderCompletion()
+			if err != nil || len(events) == 0 {
 				continue
 			}
-			var found bool
-			for _, event := range events {
-				if event.EventType == "FolderCompletion" && event.Data.Completion == 100 {
-					found = true
-					break
-				}
-			}
-			if found {
-				display(req.SyncthingStatus{Status: req.Idle, Msg: "sync finished", Tips: "", OutOfSync: ""})
-				return
-			}
+			display(req.SyncthingStatus{Status: req.Idle, Msg: "sync finished", Tips: "", OutOfSync: ""})
+			return
 		}
 	}
 }
