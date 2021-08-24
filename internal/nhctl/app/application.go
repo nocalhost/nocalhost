@@ -17,6 +17,7 @@ import (
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
+	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
@@ -189,7 +190,42 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		}
 	}
 
+	// can not successful migrate because we are not record
+	// the kubeconfig before
+	//migrateAssociate(profileV2, app)
 	return app, nil
+}
+
+// for previous version, associate path is stored in profile
+// and now it store in a standalone db
+// we should check if migrate is needed
+func migrateAssociate(appProfile *profile.AppProfileV2, a *Application) {
+	if appProfile.AssociateMigrate {
+		return
+	}
+
+	for _, svcProfile := range appProfile.SvcProfile {
+		if svcProfile.Associate != "" {
+
+			_ = dev_dir.DevPath(svcProfile.Associate).
+				Associate(
+					dev_dir.NewSvcPack(
+						appProfile.Namespace,
+						appProfile.Name,
+						base.SvcTypeOf(svcProfile.Type),
+						svcProfile.Name,
+						"",
+					), "NotSupported",
+				)
+		}
+	}
+
+	_ = a.UpdateProfile(
+		func(v2 *profile.AppProfileV2) error {
+			v2.AssociateMigrate = true
+			return nil
+		},
+	)
 }
 
 func (a *Application) generateSecretForEarlierVer() bool {
@@ -456,11 +492,22 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.Sv
 
 	svcProfile := p.SvcProfileV2(svcName, svcType.String())
 
-	if svcProfile.Associate == "" {
+	meta := a.GetAppMeta()
+	pack := dev_dir.NewSvcPack(
+		meta.Ns,
+		meta.Application,
+		base.SvcTypeOf(svcProfile.Type),
+		svcProfile.Name,
+		"",
+	)
+
+	associatePath := pack.GetAssociatePath()
+
+	if associatePath == "" {
 		return false
 	}
 
-	configFile := fp.NewFilePath(svcProfile.Associate).
+	configFile := fp.NewFilePath(string(associatePath)).
 		RelOrAbs(DefaultGitNocalhostDir).
 		RelOrAbs(DefaultConfigNameInGitNocalhostDir)
 
@@ -760,18 +807,9 @@ func (a *Application) GetDescription() *profile.AppProfileV2 {
 
 		// first iter from local svcProfile
 		for _, svcProfile := range appProfile.SvcProfile {
-			svcType := base.SvcTypeOf(svcProfile.Type)
+			appmeta.FillingExtField(svcProfile, meta, a.Name, a.NameSpace, appProfile.Identifier)
 
-			devStatus := meta.CheckIfSvcDeveloping(svcProfile.ActualName, svcType)
-			svcProfile.Developing = devStatus != appmeta.NONE
-			svcProfile.DevelopStatus = string(devStatus)
-
-			svcProfile.Possess = a.appMeta.SvcDevModePossessor(
-				svcProfile.ActualName, svcType,
-				appProfile.Identifier,
-			)
-
-			if m := devMeta[svcType.Alias()]; m != nil {
+			if m := devMeta[base.SvcTypeOf(svcProfile.Type).Alias()]; m != nil {
 				delete(m, svcProfile.ActualName)
 			}
 		}
@@ -780,12 +818,13 @@ func (a *Application) GetDescription() *profile.AppProfileV2 {
 		for svcTypeAlias, m := range devMeta {
 			for svcName, _ := range m {
 				svcProfile := appProfile.SvcProfileV2(svcName, string(svcTypeAlias.Origin()))
+				appmeta.FillingExtField(svcProfile, meta, a.Name, a.NameSpace, appProfile.Identifier)
 
-				svcProfile.Developing = true
-				svcProfile.Possess = a.appMeta.SvcDevModePossessor(
-					svcProfile.ActualName, svcTypeAlias.Origin(),
-					appProfile.Identifier,
-				)
+				//svcProfile.Developing = true
+				//svcProfile.Possess = a.appMeta.SvcDevModePossessor(
+				//	svcProfile.ActualName, svcTypeAlias.Origin(),
+				//	appProfile.Identifier,
+				//)
 			}
 		}
 
