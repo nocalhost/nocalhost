@@ -18,27 +18,27 @@ import (
 // use nhctl install to install bookinfohelm,
 // then check the result on nhctl and helm
 func InstallBookInfoHelmForTestHook(c runner.Client) error {
-	_ = runner.Runner.RunWithCheckResult(
+	_, _, _ = runner.Runner.RunWithRollingOutWithChecker(
 		c.SuiteName(),
 		c.GetNhctl().Command(
 			context.Background(), "install", "bookinfohelm",
 			"-u", "https://github.com/nocalhost/bookinfo.git", "-t",
 			"rawManifest", "--config", "config.yaml", "-r", "test-hook",
-		),
+		), nil,
 	)
-	return nil
+	return ShouldHaveJob(c, "pre-install", "post-install")
 }
 
 func UpgradeBookInfoHelmForTestHook(c runner.Client) error {
-	_ = runner.Runner.RunWithCheckResult(
+	_, _, _ = runner.Runner.RunWithRollingOutWithChecker(
 		c.SuiteName(),
 		c.GetNhctl().Command(
 			context.Background(), "upgrade", "bookinfohelm",
 			"--git-url", "https://github.com/nocalhost/bookinfo.git",
 			"--config", "config.yaml", "-r", "test-hook",
-		),
+		), nil,
 	)
-	return nil
+	return ShouldHaveJob(c, "pre-upgrade", "post-upgrade")
 }
 
 // use nhctl install to install bookinfohelm,
@@ -99,7 +99,7 @@ func UninstallBookInfoHelmForTestHook(c runner.Client) error {
 	case e := <-errorChan:
 		return e
 	case <-successChan:
-		return nil
+		return ShouldNotHaveAnyJob(c)
 	}
 }
 

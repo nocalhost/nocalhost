@@ -118,16 +118,18 @@ var rootCmd = &cobra.Command{
 		}
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		d := time.Now().Sub(cmdStartTime)
-		cmds := clientgoutils.GetCmd(cmd, nil)
+		if os.Getenv("_NOCALHOST_DEBUG_") != "" {
+			d := time.Now().Sub(cmdStartTime)
+			cmds := clientgoutils.GetCmd(cmd, nil)
 
-		cmd.Flags().Visit(
-			func(flag *pflag.Flag) {
-				cmds = append(cmds, "-"+flag.Name)
-				cmds = append(cmds, flag.Value.String())
-			},
-		)
-		log.Logf("[TimeMachine] %v, cost: %dms", cmds, d.Milliseconds())
+			cmd.Flags().Visit(
+				func(flag *pflag.Flag) {
+					cmds = append(cmds, "-"+flag.Name)
+					cmds = append(cmds, flag.Value.String())
+				},
+			)
+			log.Logf("[TimeMachine] %v, cost: %dms", cmds, d.Milliseconds())
+		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Debug("hello nhctl")
