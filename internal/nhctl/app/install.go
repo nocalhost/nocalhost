@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/client-go/util/retry"
 	"math/rand"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/fp"
@@ -144,15 +143,7 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 
 	releaseName := a.Name
 	a.GetAppMeta().HelmReleaseName = releaseName
-	err = retry.OnError(retry.DefaultRetry, func(err error) bool {
-		return err != nil
-	}, func() error {
-		if err = a.GetAppMeta().Update(); err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
+	if err = a.GetAppMeta().Update(); err != nil {
 		return err
 	}
 
