@@ -224,9 +224,8 @@ get the information of the helm release`, a.NameSpace,
 
 // judge helm repo already exist or not, if exist, then can install app by using repo name, otherwise using repo url
 func findRepoNameFromLocal(helmRepoUrl string) (repoName string) {
-	withCredential, _ := regexp.MatchString("(.*?):(.*?)@(.*?)", helmRepoUrl)
 	// it's a private repo but provide username and password already
-	if withCredential {
+	if withCredential, _ := regexp.MatchString("(.*?):(.*?)@(.*?)", helmRepoUrl); withCredential {
 		return
 	}
 
