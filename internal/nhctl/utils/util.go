@@ -40,6 +40,10 @@ func GetHomePath() string {
 			return u.HomeDir
 		}
 	} else {
+		d, err := os.UserHomeDir()
+		if err == nil {
+			return d
+		}
 		u, err := user.Current()
 		if err == nil {
 			return u.HomeDir
