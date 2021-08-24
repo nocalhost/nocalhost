@@ -45,11 +45,28 @@ func GetV2(c *gin.Context) {
 	}
 
 	cu.ID = *params.ClusterUserId
-	if result, err := DoList(&cu, userId, isAdmin, false); err != nil {
+	result, err := DoList(&cu, userId, isAdmin, false)
+	if err != nil {
 		api.SendResponse(c, err, nil)
-	} else {
-		api.SendResponse(c, nil, result)
+		return
 	}
+
+	// set base space name
+	for i := range result {
+		if result[i].BaseDevSpaceId > 0 {
+			cu, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: result[i].BaseDevSpaceId})
+			if err != nil {
+				api.SendResponse(c, errno.ErrMeshClusterUserNotFound, nil)
+				return
+			}
+			if result[i].ClusterUserExt == nil {
+				result[i].ClusterUserExt = &model.ClusterUserExt{BaseDevSpaceName: cu.SpaceName}
+			} else {
+				result[i].BaseDevSpaceName = cu.SpaceName
+			}
+		}
+	}
+	api.SendResponse(c, nil, result)
 }
 
 func ListV2(c *gin.Context) {
@@ -87,7 +104,7 @@ func ListV2(c *gin.Context) {
 }
 
 func DoList(params *model.ClusterUserModel, userId uint64, isAdmin, isCanBeUsedAsBaseSpace bool) (
-	[]*model.ClusterUserV2, *errno.Errno) {
+	[]*model.ClusterUserV2, error) {
 
 	clusterUsers, err := service.Svc.ClusterUser().ListV2(*params)
 	if err != nil {

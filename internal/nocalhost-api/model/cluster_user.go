@@ -58,6 +58,7 @@ type ClusterUserExt struct {
 	Owner            *UserSimple   `json:"owner"`
 	Modifiable       bool          `json:"modifiable"`
 	Deletable        bool          `json:"deletable"`
+	BaseDevSpaceName string        `json:"base_dev_space_name"`
 }
 
 // ClusterUserModel
