@@ -503,8 +503,8 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 		}()
 	}
 	go util.TimeoutChecker(1*time.Hour, cancelFunc)
-	//_, currentVersion := testcase.GetVersion()
-	//util.Retry("Prepare", []func() error{func() error { return testcase.InstallNhctl(currentVersion) }})
+	_, currentVersion := testcase.GetVersion()
+	util.Retry("Prepare", []func() error{func() error { return testcase.InstallNhctl(currentVersion) }})
 	kubeconfig := util.GetKubeconfig()
 	namespace := "test"
 	tempCli := runner.NewNhctl(namespace, kubeconfig, "Prepare")
