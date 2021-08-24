@@ -107,7 +107,7 @@ func DoList(params *model.ClusterUserModel, userId uint64, isAdmin, isCanBeUsedA
 	}
 
 	// filter can be used for base space
-	if params.ClusterId > 0 && isCanBeUsedAsBaseSpace {
+	if params.ClusterId > 0 && isCanBeUsedAsBaseSpace && len(clusterUsers) > 0 {
 		cluster, err := service.Svc.ClusterSvc().GetCache(params.ClusterId)
 		if err != nil {
 			return nil, errno.ErrClusterNotFound
