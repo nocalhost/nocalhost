@@ -88,38 +88,10 @@ func Delete(c *gin.Context) {
 		return
 	}
 
-	devSpaces, err := service.Svc.ClusterUser().GetList(c, model.ClusterUserModel{BaseDevSpaceId: devSpaceId})
-	if err != nil {
-		// can not find mesh dev space, do nothing
-		api.SendResponse(c, errno.OK, nil)
-		return
-	}
-
-	// delete the dev spaces that the bash space is the one we want to delete
-	for _, space := range devSpaces {
-		clusterData, err := service.Svc.ClusterSvc().Get(c, space.ClusterId)
-		if err != nil {
-			api.SendResponse(c, errno.ErrClusterNotFound, nil)
-			return
-		}
-		meshDevInfo := &setupcluster.MeshDevInfo{
-			Header: space.TraceHeader,
-		}
-		req := ClusterUserCreateRequest{
-			ID:             &space.ID,
-			NameSpace:      space.Namespace,
-			BaseDevSpaceId: space.BaseDevSpaceId,
-			MeshDevInfo:    meshDevInfo,
-		}
-		devSpace := NewDevSpace(req, c, []byte(clusterData.KubeConfig))
-		if err := devSpace.Delete(); err != nil {
-			api.SendResponse(c, err, nil)
-			return
-		}
-	}
+	// delete share space when deleting base space
+	deleteShareSpaces(c, devSpaceId)
 
 	api.SendResponse(c, errno.OK, nil)
-
 }
 
 // ReCreate ReCreate devSpace
@@ -184,12 +156,12 @@ func ReCreate(c *gin.Context) {
 		return
 	}
 	if len(list) != 1 {
-		api.SendResponse(c, errno.ErrMeshClusterUserNotFound, nil)
+		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		return
 	}
 	cu := list[0]
 
-	if cu.IsClusterAdmin(){
+	if cu.IsClusterAdmin() {
 		api.SendResponse(c, nil, nil)
 		return
 	}
@@ -224,6 +196,9 @@ func ReCreate(c *gin.Context) {
 	for _, cooper := range cu.CooperUser {
 		_ = ns_scope.AsCooperator(result.ClusterId, cooper.ID, result.Namespace)
 	}
+
+	// recreate share space when recreating base space
+	reCreateShareSpaces(c, user, devSpaceId)
 
 	api.SendResponse(c, nil, result)
 }
