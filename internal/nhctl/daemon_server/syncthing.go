@@ -35,7 +35,7 @@ func recoverSyncthing() error {
 			}()
 		}
 	}
-	wg.Done()
+	wg.Wait()
 	return nil
 }
 
