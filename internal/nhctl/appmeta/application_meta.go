@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 	"nocalhost/internal/nhctl/appmeta/secret_operator"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/daemon_client"
@@ -518,19 +519,23 @@ func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType
 }
 
 func (a *ApplicationMeta) Update() error {
-	a.prepare()
-	secret, err := a.operator.Update(a.Ns, a.Secret)
-	if err != nil {
-		return errors.Wrap(err, "Error while update Application meta ")
-	}
-	a.Secret = secret
-	// update daemon application meta manually
-	if client, err := daemon_client.NewDaemonClient(false); err == nil {
-		_, _ = client.SendUpdateApplicationMetaCommand(
-			string(a.operator.GetKubeconfigBytes()), a.Ns, a.Secret.Name, a.Secret,
-		)
-	}
-	return nil
+	return retry.OnError(retry.DefaultRetry, func(err error) bool {
+		return err != nil
+	}, func() error {
+		a.prepare()
+		secret, err := a.operator.Update(a.Ns, a.Secret)
+		if err != nil {
+			return errors.Wrap(err, "Error while update Application meta ")
+		}
+		a.Secret = secret
+		// update daemon application meta manually
+		if client, err := daemon_client.NewDaemonClient(false); err == nil {
+			_, _ = client.SendUpdateApplicationMetaCommand(
+				string(a.operator.GetKubeconfigBytes()), a.Ns, a.Secret.Name, a.Secret,
+			)
+		}
+		return nil
+	})
 }
 
 func (a *ApplicationMeta) prepare() {
