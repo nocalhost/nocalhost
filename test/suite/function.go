@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	"k8s.io/client-go/util/homedir"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -579,4 +580,16 @@ func Get(cli runner.Client) {
 		},
 	}
 	util.Retry("get", funcs)
+}
+
+func TestLog(_ runner.Client) {
+	file := fp.NewFilePath(homedir.HomeDir()).
+		RelOrAbs(".nh").
+		RelOrAbs("nhctl").
+		RelOrAbs("logs").
+		RelOrAbs("nhctl.log").
+		ReadFile()
+	if len(file) == 0 {
+		panic("Daemon log file is empty, please check your log initialize code !!!")
+	}
 }
