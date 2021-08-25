@@ -180,7 +180,7 @@ func watchSyncProcess(client *req.SyncthingHttpClient) {
 				time.Sleep(time.Millisecond * 100)
 				continue
 			}
-			times := 0
+			times := int32(0)
 			for _, event := range events {
 				if event.Data.Completion == 100 {
 					times++
@@ -190,7 +190,7 @@ func watchSyncProcess(client *req.SyncthingHttpClient) {
 				time.Sleep(time.Millisecond * 100)
 				continue
 			}
-			lastId += int32(times)
+			lastId += times
 			displayLn(req.SyncthingStatus{Status: req.Idle, Msg: "sync finished", Tips: "", OutOfSync: ""})
 		}
 	}
