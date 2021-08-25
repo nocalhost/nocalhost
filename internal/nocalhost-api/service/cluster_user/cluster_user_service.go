@@ -18,7 +18,7 @@ import (
 type ClusterUserService interface {
 	Create(
 		ctx context.Context, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string,
-		spaceResourceLimit string,
+		spaceResourceLimit string, isBaseName bool,
 	) (model.ClusterUserModel, error)
 	CreateClusterAdminSpace(ctx context.Context, clusterId, userId uint64, spaceName string) (
 		model.ClusterUserModel, error,
@@ -229,7 +229,7 @@ func (srv *clusterUserService) GetFirst(ctx context.Context, models model.Cluste
 
 func (srv *clusterUserService) Create(
 	ctx context.Context, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string,
-	spaceResourceLimit string,
+	spaceResourceLimit string, isBaseName bool,
 ) (model.ClusterUserModel, error) {
 	c := model.ClusterUserModel{
 
@@ -241,6 +241,7 @@ func (srv *clusterUserService) Create(
 		Namespace:          devNameSpace,
 		SpaceName:          spaceName,
 		SpaceResourceLimit: spaceResourceLimit,
+		IsBaseSpace:        isBaseName,
 	}
 	result, err := srv.clusterUserRepo.Create(c)
 	if err != nil {
