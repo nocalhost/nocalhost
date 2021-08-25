@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	"k8s.io/client-go/util/homedir"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -26,11 +27,6 @@ func Hook(client runner.Client) {
 	util.Retry(
 		"Hook", []func() error{
 			func() error {
-				_ = testcase.UninstallBookInfoWithNativeHelm(client)
-				return nil
-			},
-
-			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
 						return testcase.InstallBookInfoHelmForTestHook(client)
@@ -39,13 +35,8 @@ func Hook(client runner.Client) {
 					},
 				)
 			},
-			func() error { return testcase.ShouldHaveJob(client, "pre-install", "post-install") },
-
 			func() error { return testcase.UpgradeBookInfoHelmForTestHook(client) },
-			func() error { return testcase.ShouldHaveJob(client, "pre-upgrade", "post-upgrade") },
-
 			func() error { return testcase.UninstallBookInfoHelmForTestHook(client) },
-			func() error { return testcase.ShouldNotHaveAnyJob(client) },
 		},
 	)
 }
@@ -315,10 +306,9 @@ func Upgrade(cli runner.Client) {
 	clientgoutils.Must(testcase.List(cli))
 	Reset(cli)
 	Apply(cli)
-	Profile(cli)
 }
 
-func Profile(cli runner.Client) {
+func ProfileAndAssociate(cli runner.Client) {
 
 	singleSvcConfig := fp.NewRandomTempPath()
 	multiSvcConfig := fp.NewRandomTempPath()
@@ -329,16 +319,21 @@ func Profile(cli runner.Client) {
 	fullConfigCm := fp.NewRandomTempPath().MkdirThen().RelOrAbs("cm.yaml")
 
 	util.Retry(
-		"Profile", []func() error{
+		"ProfileAndAssociate", []func() error{
 
 			// clear env
+
+			// 0
 			func() error {
 				_, _, _ = cli.GetKubectl().Run(context.TODO(), "delete", "configmap", "dev.nocalhost.config.bookinfo")
 				return nil
 			},
+			// 1
 			func() error { return testcase.DeAssociate(cli, "details", "deployment") },
+			// 2
 			func() error { return testcase.DeAssociate(cli, "ratings", "deployment") },
 
+			// 3
 			func() error {
 				return singleSvcConfig.
 					RelOrAbs(".nocalhost").
@@ -346,6 +341,7 @@ func Profile(cli runner.Client) {
 					RelOrAbs("config.yaml").
 					WriteFile(testdata.SingleSvcConfig)
 			},
+			// 4
 			func() error {
 				return multiSvcConfig.
 					RelOrAbs(".nocalhost").
@@ -353,6 +349,7 @@ func Profile(cli runner.Client) {
 					RelOrAbs("config.yaml").
 					WriteFile(testdata.MultipleSvcConfig)
 			},
+			// 5
 			func() error {
 				return fullConfig.
 					RelOrAbs(".nocalhost").
@@ -360,67 +357,94 @@ func Profile(cli runner.Client) {
 					RelOrAbs("config.yaml").
 					WriteFile(testdata.FullConfig)
 			},
-
+			// 6
 			func() error {
 				return singleSvcConfigCm.
 					WriteFile(testdata.SingleSvcConfigCm)
 			},
+			// 7
 			func() error {
 				return multiSvcConfigCm.
 					WriteFile(testdata.MultipleSvcConfigCm)
 			},
+			// 8
 			func() error {
 				return fullConfigCm.
 					WriteFile(testdata.FullConfigCm)
 			},
-
+			// 9
 			func() error { return testcase.ProfileGetUbuntuWithJson(cli) },
+			// 10
 			func() error { return testcase.ProfileGetDetailsWithoutJson(cli) },
+			// 11
 			func() error { return testcase.ProfileSetDetails(cli) },
 
 			// test cfg load from cm
+			// 12
 			func() error { return testcase.ApplyCmForConfig(cli, singleSvcConfigCm) },
+			// 13
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "singleSvcConfigCm") },
 
+			// 14
 			func() error { return testcase.ApplyCmForConfig(cli, multiSvcConfigCm) },
+			// 15
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "multipleSvcConfig1Cm") },
+			// 16
 			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "multipleSvcConfig2Cm") },
 
+			// 17
 			func() error { return testcase.ApplyCmForConfig(cli, fullConfigCm) },
+			// 18
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1Cm") },
+			// 19
 			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2Cm") },
 
 			// test cfg load from local
+			// 20
 			func() error { return testcase.Associate(cli, "details", "deployment", singleSvcConfig) },
+			// 21
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "singleSvcConfig") },
-
+			// 22
 			func() error { return testcase.Associate(cli, "details", "deployment", multiSvcConfig) },
+			// 23
 			func() error { return testcase.Associate(cli, "ratings", "deployment", multiSvcConfig) },
+			// 24
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "multipleSvcConfig1") },
+			// 25
 			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "multipleSvcConfig2") },
-
+			// 26
 			func() error { return testcase.Associate(cli, "details", "deployment", fullConfig) },
+			// 27
 			func() error { return testcase.Associate(cli, "ratings", "deployment", fullConfig) },
+			// 28
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1") },
+			// 29
 			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2") },
 
 			// de associate the cfg, then will load from local
+			// 30
 			func() error { return testcase.DeAssociate(cli, "details", "deployment") },
+			// 31
 			func() error { return testcase.DeAssociate(cli, "ratings", "deployment") },
 
+			// 32
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1Cm") },
+			// 33
 			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2Cm") },
 
 			// clean env
+			// 34
 			func() error {
 				_, _, _ = cli.GetKubectl().Run(context.TODO(), "delete", "configmap", "dev.nocalhost.config.bookinfo")
 				return nil
 			},
 
 			// config will not change, after env clean and no local, cm, annotation cfg
+			// 35
 			func() error { return testcase.ValidateImage(cli, "details", "deployment", "fullConfig1Cm") },
+			// 36
 			func() error { return testcase.ValidateImage(cli, "ratings", "deployment", "fullConfig2Cm") },
-
+			// 37
 			func() error { return testcase.ConfigReload(cli) },
 		},
 	)
@@ -556,4 +580,16 @@ func Get(cli runner.Client) {
 		},
 	}
 	util.Retry("get", funcs)
+}
+
+func TestLog(_ runner.Client) {
+	file := fp.NewFilePath(homedir.HomeDir()).
+		RelOrAbs(".nh").
+		RelOrAbs("nhctl").
+		RelOrAbs("logs").
+		RelOrAbs("nhctl.log").
+		ReadFile()
+	if len(file) == 0 {
+		panic("Daemon log file is empty, please check your log initialize code !!!")
+	}
 }

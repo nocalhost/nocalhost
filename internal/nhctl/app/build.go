@@ -120,6 +120,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	appProfileV2 := generateProfileFromConfig(config)
+	appProfileV2.AssociateMigrate = true
 	appProfileV2.Secreted = true
 	appProfileV2.Namespace = namespace
 	appProfileV2.Kubeconfig = kubeconfig
