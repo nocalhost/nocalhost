@@ -164,7 +164,12 @@ func watchSyncProcess(client *req.SyncthingHttpClient) {
 	defer cancelFunc()
 
 	eventList, _ := client.Events(req.EventFolderCompletion, 0)
-	lastId := int32(len(eventList))
+	lastId := int32(0)
+	for _, event := range eventList {
+		if event.Data.Completion == 100 {
+			lastId += 1
+		}
+	}
 	for {
 		select {
 		case <-ctx.Done():
