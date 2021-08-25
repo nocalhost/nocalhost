@@ -149,8 +149,12 @@ func waitForFirstSync(client *req.SyncthingHttpClient, duration time.Duration) {
 			if err != nil || len(events) == 0 {
 				continue
 			}
-			display(req.SyncthingStatus{Status: req.Idle, Msg: "sync finished", Tips: "", OutOfSync: ""})
-			return
+			for _, event := range events {
+				if event.Data.Completion == 100 {
+					display(req.SyncthingStatus{Status: req.Idle, Msg: "sync finished", Tips: "", OutOfSync: ""})
+					return
+				}
+			}
 		}
 	}
 }
@@ -171,7 +175,16 @@ func watchSyncProcess(client *req.SyncthingHttpClient) {
 				time.Sleep(time.Millisecond * 100)
 				continue
 			}
-			lastId += int32(len(events))
+			times := 0
+			for _, event := range events {
+				if event.Data.Completion == 100 {
+					times++
+				}
+			}
+			if times == 0 {
+				continue
+			}
+			lastId += int32(times)
 			displayLn(req.SyncthingStatus{Status: req.Idle, Msg: "sync finished", Tips: "", OutOfSync: ""})
 		}
 	}
