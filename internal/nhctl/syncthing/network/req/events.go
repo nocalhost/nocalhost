@@ -1,9 +1,25 @@
 package req
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strconv"
+)
 
-func (p *SyncthingHttpClient) EventsFolderCompletion() ([]event, error) {
-	resp, err := p.get("rest/events?events=FolderCompletion")
+type EventType string
+
+const (
+	EventFolderCompletion EventType = "FolderCompletion"
+)
+
+func (p *SyncthingHttpClient) Events(eventType EventType, since int32) ([]event, error) {
+	uri := "rest/events"
+	if len(eventType) > 0 {
+		uri += "?events=" + string(eventType)
+	}
+	if since > 0 {
+		uri += "&since=" + strconv.FormatInt(int64(since), 10)
+	}
+	resp, err := p.get(uri)
 	if err != nil {
 		return nil, err
 	}

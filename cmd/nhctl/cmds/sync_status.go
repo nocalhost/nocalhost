@@ -37,6 +37,8 @@ func init() {
 		&syncStatusOps.WaitForSync, "wait", false,
 		"wait for first sync process finished, default value is false",
 	)
+	syncStatusCmd.Flags().BoolVar(&syncStatusOps.Watch, "watch", false,
+		"watch sync process")
 	syncStatusCmd.Flags().Int64Var(
 		&syncStatusOps.Timeout, "timeout", 120,
 		"wait for sync process finished timeout, default is 120 seconds, unit is seconds ",
@@ -103,6 +105,11 @@ func SyncStatus(opt *app.SyncStatusOptions, ns, app, svc, svcType, kubeconfig st
 			waitForFirstSync(client, time.Second*time.Duration(opt.Timeout))
 			return nil
 		}
+
+		if opt.Watch {
+			watchSyncProcess(client)
+			return nil
+		}
 	}
 
 	return client.GetSyncthingStatus()
@@ -111,6 +118,10 @@ func SyncStatus(opt *app.SyncStatusOptions, ns, app, svc, svcType, kubeconfig st
 func display(v interface{}) {
 	marshal, _ := json.Marshal(v)
 	fmt.Printf("%s", string(marshal))
+}
+func displayLn(v interface{}) {
+	marshal, _ := json.Marshal(v)
+	fmt.Printf("%s\n", string(marshal))
 }
 
 func waitForFirstSync(client *req.SyncthingHttpClient, duration time.Duration) {
@@ -131,12 +142,34 @@ func waitForFirstSync(client *req.SyncthingHttpClient, duration time.Duration) {
 			return
 		default:
 			time.Sleep(time.Millisecond * 100)
-			events, err := client.EventsFolderCompletion()
+			events, err := client.Events(req.EventFolderCompletion, 0)
 			if err != nil || len(events) == 0 {
 				continue
 			}
 			display(req.SyncthingStatus{Status: req.Idle, Msg: "sync finished", Tips: "", OutOfSync: ""})
 			return
+		}
+	}
+}
+
+func watchSyncProcess(client *req.SyncthingHttpClient) {
+	ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Hour*24)
+	defer cancelFunc()
+
+	eventList, _ := client.Events(req.EventFolderCompletion, 0)
+	lastId := int32(len(eventList))
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			events, err := client.Events(req.EventFolderCompletion, lastId)
+			if err != nil || len(events) == 0 {
+				time.Sleep(time.Millisecond * 100)
+				continue
+			}
+			lastId += int32(len(events))
+			displayLn(req.SyncthingStatus{Status: req.Idle, Msg: "sync finished", Tips: "", OutOfSync: ""})
 		}
 	}
 }
