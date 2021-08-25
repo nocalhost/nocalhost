@@ -158,6 +158,13 @@ func isSvcConfigInHubMatch(svcConfig *ServiceConfigV2, container, image string) 
 	} else if len(strs) > 1 {
 		imageName = strs[len(strs)-2]
 	}
+	strs = strings.Split(imageName, "/")
+	if len(strs) == 1 {
+		imageName = strs[0]
+	} else if len(strs) > 1 {
+		imageName = strs[len(strs)-1]
+	}
+
 	for _, c := range svcConfig.ContainerConfigs {
 		if c.Name == container {
 			if c.Hub == nil {

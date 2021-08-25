@@ -79,7 +79,7 @@ func findNocalhostSvcConfigInDir(dir, svcName string, svcType base.SvcType, cont
 func findNocalhostConfigByAppName(appName string) (*profile.NocalHostAppConfigV2, error) {
 	config, err := findNocalhostConfigByDirNameAndAppName("incubator", appName)
 	if err != nil {
-		log.WarnE(err, "Failed to get config.yaml in incubator, try to find it in stable")
+		log.LogE(err)
 	} else {
 		return config, err
 	}

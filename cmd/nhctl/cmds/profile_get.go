@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/hub"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 )
@@ -38,6 +39,27 @@ var profileGetCmd = &cobra.Command{
 		}
 		if container == "" {
 			log.Fatal("--container must be specified")
+		}
+
+		originImage, err := nocalhostSvc.GetContainerImage(container)
+		if err == nil {
+			// load config from hub
+			svcConfig, err := hub.FindNocalhostSvcConfig(nocalhostSvc.AppName, nocalhostSvc.Name, nocalhostSvc.Type, container, originImage)
+			if err != nil {
+				log.LogE(err)
+			}
+			if svcConfig != nil {
+				if err := nocalhostSvc.UpdateSvcProfile(
+					func(svcProfile *profile.SvcProfileV2) error {
+						svcConfig.Name = nocalhostSvc.Name
+						svcConfig.Type = string(nocalhostSvc.Type)
+						svcProfile.ServiceConfigV2 = svcConfig
+						return nil
+					},
+				); err != nil {
+					log.Logf("Load nocalhost svc config from hub fail, fail while updating svc profile, err: %s", err.Error())
+				}
+			}
 		}
 
 		_ = nocalhostApp.ReloadSvcCfg(deployment, nocalhostSvc.Type, false, true)
