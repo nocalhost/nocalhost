@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package testcase
 
@@ -30,12 +23,12 @@ import (
 
 func RestartDaemon(nhctl runner.Client) error {
 	cmd := nhctl.GetNhctl().Command(context.Background(), "daemon", "restart")
-	return runner.Runner.RunWithCheckResult(cmd)
+	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
 }
 
 func StopDaemon(nhctl *runner.CLI) error {
 	cmd := nhctl.Command(context.Background(), "daemon", "stop")
-	return runner.Runner.RunWithCheckResult(cmd)
+	return runner.Runner.RunWithCheckResult(nhctl.SuitName(), cmd)
 }
 
 func Exec(client runner.Client) error {
@@ -47,7 +40,7 @@ func Exec(client runner.Client) error {
 		time.Minute*30,
 	)
 	cmd := client.GetNhctl().Command(context.Background(), "exec", "bookinfo", "-d", "reviews", "-c", "ls")
-	return runner.Runner.RunWithCheckResult(cmd)
+	return runner.Runner.RunWithCheckResult(client.SuiteName(), cmd)
 }
 
 func PortForwardStart(nhctl runner.Client, module string, port int) error {
@@ -70,15 +63,17 @@ func PortForwardStart(nhctl runner.Client, module string, port int) error {
 	if name == "" {
 		return errors.New("pods status is not running")
 	}
-	cmd := nhctl.GetNhctl().Command(context.Background(), "port-forward",
+	cmd := nhctl.GetNhctl().Command(
+		context.Background(), "port-forward",
 		"start",
 		"bookinfo",
 		"-d",
 		module,
 		"--pod",
 		name,
-		fmt.Sprintf("-p%d:9080", port))
-	return runner.Runner.RunWithCheckResult(cmd)
+		fmt.Sprintf("-p%d:9080", port),
+	)
+	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
 }
 
 func PortForwardServiceStart(cli runner.Client, module string, port int) error {
@@ -88,18 +83,22 @@ func PortForwardServiceStart(cli runner.Client, module string, port int) error {
 	if err != nil || service == nil {
 		return errors.Errorf("service %s not found", module)
 	}
-	cmd := cli.GetKubectl().Command(context.Background(), "port-forward",
+	cmd := cli.GetKubectl().Command(
+		context.Background(), "port-forward",
 		"service/"+module,
-		fmt.Sprintf("%d:9080", port))
-	return runner.Runner.RunWithCheckResult(cmd)
+		fmt.Sprintf("%d:9080", port),
+	)
+	return runner.Runner.RunWithCheckResult(cli.SuiteName(), cmd)
 }
 
 func StatusCheckPortForward(nhctl runner.Client, moduleName string, port int) error {
 	cmd := nhctl.GetNhctl().Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
-	stdout, stderr, err := runner.Runner.Run(cmd)
+	stdout, stderr, err := runner.Runner.Run(nhctl.SuiteName(), cmd)
 	if err != nil {
-		return errors.Errorf("exec command: %v, error: %v, stdout: %s, stderr: %s",
-			cmd.Args, err, stdout, stderr)
+		return errors.Errorf(
+			"exec command: %v, error: %v, stdout: %s, stderr: %s",
+			cmd.Args, err, stdout, stderr,
+		)
 	}
 	service := profile2.SvcProfileV2{}
 	_ = yaml.Unmarshal([]byte(stdout), &service)
@@ -117,11 +116,13 @@ func StatusCheckPortForward(nhctl runner.Client, moduleName string, port int) er
 }
 
 func PortForwardEnd(nhctl runner.Client, module string, port int) error {
-	cmd := nhctl.GetNhctl().Command(context.Background(), "port-forward",
+	cmd := nhctl.GetNhctl().Command(
+		context.Background(), "port-forward",
 		"end",
 		"bookinfo",
 		"-d",
 		module,
-		fmt.Sprintf("-p%d:9080", port))
-	return runner.Runner.RunWithCheckResult(cmd)
+		fmt.Sprintf("-p%d:9080", port),
+	)
+	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
 }

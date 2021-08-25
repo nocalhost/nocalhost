@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package daemon_handler
@@ -16,12 +9,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
 	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_handler/item"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/fp"
@@ -33,6 +28,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -106,15 +102,10 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 					},
 				}
 			}
-			svcType := base.SvcTypeOf(svcProfile.Type)
 
-			svcProfile.Developing = meta.CheckIfSvcDeveloping(svcProfile.ActualName, svcType)
-			svcProfile.Possess = meta.SvcDevModePossessor(
-				svcProfile.ActualName, svcType,
-				appProfile.Identifier,
-			)
+			appmeta.FillingExtField(svcProfile, &meta, appName, ns, appProfile.Identifier)
 
-			if m := devMeta[svcType.Alias()]; m != nil {
+			if m := devMeta[base.SvcTypeOf(svcProfile.Type).Alias()]; m != nil {
 				delete(m, svcProfile.ActualName)
 			}
 		}
@@ -123,11 +114,12 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 		for svcTypeAlias, m := range devMeta {
 			for svcName, _ := range m {
 				svcProfile := appProfile.SvcProfileV2(svcName, string(svcTypeAlias.Origin()))
-				svcProfile.Developing = true
-				svcProfile.Possess = meta.SvcDevModePossessor(
-					svcProfile.ActualName, svcTypeAlias.Origin(),
-					appProfile.Identifier,
-				)
+				appmeta.FillingExtField(svcProfile, &meta, appName, ns, appProfile.Identifier)
+				//svcProfile.Developing = true
+				//svcProfile.Possess = meta.SvcDevModePossessor(
+				//	svcProfile.ActualName, svcTypeAlias.Origin(),
+				//	appProfile.Identifier,
+				//)
 			}
 		}
 		return appProfile
@@ -165,19 +157,29 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				result := make([]item.Result, 0, len(nsObjectList))
 				// try to init a cluster level searcher
 				searcher, err2 := resouce_cache.GetSearcher(KubeConfigBytes, "", true)
-				for _, nsObject := range nsObjectList {
-					name := nsObject.(metav1.Object).GetName()
-					if err2 != nil {
-						log.Error(err2)
-						// if cluster level searcher init failed, then try to init a namespace level searcher
-						searcher, err2 = resouce_cache.GetSearcher(KubeConfigBytes, name, false)
-						if err2 != nil {
-							log.Error(err2)
-							continue
-						}
-					}
-					result = append(result, getApplicationByNs(name, request.KubeConfig, searcher, request.Label))
+				if err2 != nil {
+					return nil
 				}
+				var wg sync.WaitGroup
+				wg.Add(len(nsObjectList))
+				okChan := make(chan struct{}, 2)
+				go func() {
+					time.Sleep(time.Second * 10)
+					okChan <- struct{}{}
+				}()
+				for _, nsObject := range nsObjectList {
+					finalNs := nsObject
+					go func() {
+						name := finalNs.(metav1.Object).GetName()
+						result = append(result, getApplicationByNs(name, request.KubeConfig, searcher, request.Label))
+						wg.Done()
+					}()
+				}
+				go func() {
+					wg.Wait()
+					okChan <- struct{}{}
+				}()
+				<-okChan
 				return result
 			}
 		}
@@ -214,13 +216,11 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			}
 			result := make([]item.Item, 0, len(items))
 			for _, i := range items {
-				gvr, _ := s.GetGvr(request.Resource)
-				result = append(
-					result, item.Item{
-						Metadata:    i,
-						Description: serviceMap[gvr.Resource+"/"+i.(metav1.Object).GetName()],
-					},
-				)
+				tempItem := item.Item{Metadata: i}
+				if mapping, err := s.GetRestMapping(request.Resource); err == nil {
+					tempItem.Description = serviceMap[mapping.Resource.Resource+"/"+i.(metav1.Object).GetName()]
+				}
+				result = append(result, tempItem)
 			}
 			return result
 		} else {
@@ -235,8 +235,11 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			if err != nil || one == nil {
 				return nil
 			}
-			gvr, _ := s.GetGvr(request.Resource)
-			return item.Item{Metadata: one, Description: serviceMap[gvr.Resource+"/"+one.(metav1.Object).GetName()]}
+			i := item.Item{Metadata: one}
+			if mapping, err := s.GetRestMapping(request.Resource); err == nil {
+				i.Description = serviceMap[mapping.Resource.Resource+"/"+one.(metav1.Object).GetName()]
+			}
+			return i
 		}
 	}
 }
@@ -257,9 +260,25 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher, label map[string]string) item.Result {
 	result := item.Result{Namespace: namespace}
 	nameList := getAvailableAppName(namespace, kubeconfigPath)
+	var wg sync.WaitGroup
+	wg.Add(len(nameList))
+	okChan := make(chan struct{}, 2)
+	go func() {
+		time.Sleep(time.Second * 10)
+		okChan <- struct{}{}
+	}()
 	for _, name := range nameList {
-		result.Application = append(result.Application, getApp(nameList, namespace, name, search, label))
+		finalName := name
+		go func() {
+			result.Application = append(result.Application, getApp(nameList, namespace, finalName, search, label))
+			wg.Done()
+		}()
 	}
+	go func() {
+		wg.Wait()
+		okChan <- struct{}{}
+	}()
+	<-okChan
 	return result
 }
 
@@ -356,16 +375,38 @@ func InitDefaultAppIfNecessary(namespace, kubeconfigPath string) []*appmeta.Appl
 	applicationMetaList := appmeta_manager.GetApplicationMetas(namespace, kubeconfigBytes)
 	var foundDefaultApp bool
 	for _, meta := range applicationMetaList {
-		if meta.Application == nocalhost.DefaultNocalhostApplication {
+		if meta.Application == _const.DefaultNocalhostApplication {
 			foundDefaultApp = true
 			break
 		}
 	}
+
 	if !foundDefaultApp {
 		// try init default application
 		_, err := common.InitDefaultApplicationInCurrentNs(namespace, kubeconfigPath)
-		utils.ShouldI(err, "Error while create default application")
 		applicationMetaList = appmeta_manager.GetApplicationMetas(namespace, kubeconfigBytes)
+
+		if err != nil {
+			// if current user has not permission to create secret, we also create a fake 'default.application'
+			// app meta for him
+			if k8serrors.IsForbidden(err) {
+
+				for _, meta := range applicationMetaList {
+					if meta.Application == _const.DefaultNocalhostApplication {
+						foundDefaultApp = true
+						break
+					}
+				}
+
+				if !foundDefaultApp {
+					applicationMetaList = append(
+						applicationMetaList, appmeta.FakeAppMeta(namespace, _const.DefaultNocalhostApplication),
+					)
+				}
+			} else {
+				utils.ShouldI(err, "Error while create default.application")
+			}
+		}
 	}
 	SortApplication(applicationMetaList)
 	return applicationMetaList

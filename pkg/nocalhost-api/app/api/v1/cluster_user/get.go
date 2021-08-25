@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package cluster_user
 
@@ -76,7 +69,6 @@ func GetList(c *gin.Context) {
 }
 
 func ListAll(c *gin.Context) {
-
 	var params ClusterUserListQuery
 
 	err := c.ShouldBindQuery(&params)
@@ -224,13 +216,11 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 
 	userChan := make(chan *model.UserBaseModel, 1)
 	clusterChan := make(chan model.ClusterPack, 1)
-	spaceNameMapChan := make(chan map[uint64]map[string]*model.ClusterUserModel, 1)
 	configMapChan := make(chan string, 1)
 
 	defer func() {
 		close(userChan)
 		close(clusterChan)
-		close(spaceNameMapChan)
 		close(configMapChan)
 	}()
 
@@ -253,23 +243,12 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 	}()
 
 	go func() {
-		devSpaces, err := service.Svc.ClusterUser().GetList(context.TODO(), model.ClusterUserModel{})
-		if err != nil {
-			return
-		}
-
-		spaceNameMap := service_account.GetCluster2Ns2SpaceNameMapping(devSpaces)
-		spaceNameMapChan <- spaceNameMap
-	}()
-
-	go func() {
 		userModel := <-userChan
 		pack := <-clusterChan
-		m := <-spaceNameMapChan
 
 		service_account.GenKubeconfig(
-			userModel.SaName, pack, m, result.Namespace,
-			func(nss []service_account.NS, privilege bool, kubeConfig string) {
+			userModel.SaName, pack, result.Namespace,
+			func(nss []service_account.NS, privilegeType service_account.PrivilegeType, kubeConfig string) {
 				configMapChan <- kubeConfig
 			},
 		)

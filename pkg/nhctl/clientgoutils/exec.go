@@ -1,24 +1,19 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package clientgoutils
 
 import (
+	"context"
 	"fmt"
 	dockerterm "github.com/moby/term"
 	"github.com/nocalhost/remotecommand"
 	"github.com/pkg/errors"
 	"io"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -27,6 +22,7 @@ import (
 	"k8s.io/client-go/util/exec"
 	"k8s.io/kubectl/pkg/util/term"
 	"net/url"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"time"
 )
@@ -52,6 +48,10 @@ func (c *ClientGoUtils) ExecShell(podName string, containerName string, shell st
 				os.Exit(0)
 			}
 			time.Sleep(time.Second * 1)
+			_, err = c.ClientSet.CoreV1().Pods(c.namespace).Get(context.Background(), podName, metav1.GetOptions{})
+			if k8serrors.IsNotFound(err) {
+				log.Fatal(err)
+			}
 		}
 	}()
 

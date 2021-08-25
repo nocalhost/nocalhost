@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package daemon_server
@@ -31,6 +24,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"runtime/debug"
 	"strings"
+	"time"
 )
 
 var (
@@ -56,6 +50,8 @@ func daemonListenPort() int {
 }
 
 func StartDaemon(isSudoUser bool, v string, c string) error {
+
+	log.Log("Starting daemon server...")
 	startUpPath, _ = utils.GetNhctlPath()
 
 	version = v
@@ -118,30 +114,69 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	}
 
 	go func() {
+		defer func() {
+			log.Log("Exiting tcp listener")
+		}()
 		for {
+			//log.Info("Before accept a connection in %s", time.Now().String())
 			conn, err := listener.Accept()
+			log.Info("Accept a connection...")
 			if err != nil {
+				log.Log("Accept connection error occurs")
 				if strings.Contains(strings.ToLower(err.Error()), "use of closed network connection") {
 					log.Logf("Port %d has been closed", daemonListenPort())
 					return
 				}
-				log.LogE(errors.Wrap(err, ""))
+				log.LogE(errors.Wrap(err, "Failed to accept a connection"))
+				if conn != nil {
+					_ = conn.Close()
+				}
 				continue
 			}
 
-			bytes, err := ioutil.ReadAll(conn)
-			cmdType, clientStack, err := command.ParseBaseCommand(bytes)
-			if err != nil {
-				log.LogE(err)
-				continue
-			}
 			go func() {
 				defer func() {
+					_ = conn.Close()
 					if r := recover(); r != nil {
 						log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
 					}
 				}()
+				start := time.Now()
+
+				log.Log("Reading data...")
+				errChan := make(chan error, 1)
+				bytesChan := make(chan []byte, 1)
+
+				go func() {
+					bytes, err := ioutil.ReadAll(conn)
+					errChan <- err
+					bytesChan <- bytes
+				}()
+
+				select {
+				case err = <-errChan:
+					if err != nil {
+						log.LogE(errors.Wrap(err, "Failed to read data from connection"))
+						return
+					}
+				case <-time.After(30 * time.Second):
+					log.LogE(errors.New("Read data from connection timeout after 30s"))
+					return
+				}
+
+				bytes := <-bytesChan
+				if len(bytes) == 0 {
+					log.Log("No data read from connection")
+					return
+				}
+				cmdType, clientStack, err := command.ParseBaseCommand(bytes)
+				if err != nil {
+					log.LogE(err)
+					return
+				}
+				log.Infof("Handling %s command", cmdType)
 				handleCommand(conn, bytes, cmdType, clientStack)
+				log.Infof("%s command done, takes %f seconds", cmdType, time.Now().Sub(start).Seconds())
 			}()
 		}
 	}()
@@ -173,7 +208,6 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType, clientStack string) {
 	var err error
-	log.Infof("Handling %s command", cmdType)
 
 	defer func() {
 		if err != nil {
@@ -205,7 +239,6 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				if err = json.Unmarshal(bys, startCmd); err != nil {
 					return nil, err
 				}
-
 				if err = handleStartPortForwardCommand(startCmd); err != nil {
 					return nil, err
 				}
@@ -326,6 +359,9 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 			},
 		)
 	}
+	if err != nil {
+		log.LogE(err)
+	}
 }
 
 func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error {
@@ -351,6 +387,9 @@ func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error 
 		}
 	}
 
+	//if len(resp.Data) == 0 {
+	//	resp.Data = []byte("{}")
+	//}
 	// try marshal again if fail
 	bys, err := json.Marshal(&resp)
 	if err != nil {
@@ -388,15 +427,9 @@ func handlerRestartDaemonServerCommand(isSudoUser bool, clientPath string) error
 	var nhctlPath string
 	var err error
 
-	//if utils.IsWindows() {
-	//	if clientPath == "" {
-	//		return errors.New("ClientPath can not be nil in windows")
-	//	}
-	//	if nhctlPath, err = daemon_common.CopyNhctlBinaryToTmpDir(clientPath); err != nil {
-	//		return err
-	//	}
-	//} else {
-	if nhctlPath, err = utils.GetNhctlPath(); err != nil {
+	if clientPath != "" {
+		nhctlPath = clientPath
+	} else if nhctlPath, err = utils.GetNhctlPath(); err != nil {
 		return err
 	}
 	//}

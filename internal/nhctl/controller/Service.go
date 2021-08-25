@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package controller
@@ -31,12 +24,13 @@ type Controller struct {
 	AppMeta   *appmeta.ApplicationMeta
 }
 
+// IsInDevMode return true if under dev starting or start complete
 func (c *Controller) IsInDevMode() bool {
-	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type)
+	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type) != appmeta.NONE
 }
 
 func (c *Controller) IsProcessor() bool {
-	appProfile, err := c.GetAppProfile()
+	appProfile, err := c.GetAppProfile() // todo: move Identifier to directory
 	if err != nil {
 		return false
 	}
@@ -74,26 +68,10 @@ func (c *Controller) GetDescription() *profile.SvcProfileV2 {
 	}
 	svcProfile := appProfile.SvcProfileV2(c.Name, string(c.Type))
 	if svcProfile != nil {
-		svcProfile.Developing = c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type)
-		svcProfile.Possess = c.IsProcessor()
+		appmeta.FillingExtField(svcProfile, c.AppMeta, c.AppName, c.NameSpace, appProfile.Identifier)
 		return svcProfile
 	}
 	return nil
-}
-
-func (c *Controller) Associate(dir string) error {
-
-	return c.UpdateProfile(
-		func(p *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
-			if svcProfile.Associate == dir {
-				return nil
-			}
-
-			svcProfile.Associate = dir
-			svcProfile.LocalConfigLoaded = false
-			return nil
-		},
-	)
 }
 
 func (c *Controller) UpdateSvcProfile(modify func(*profile.SvcProfileV2) error) error {

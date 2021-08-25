@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package controller
 
@@ -19,8 +12,8 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/pod_controller"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -127,9 +120,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 			dep.Spec.Template.Spec.PriorityClassName = priorityClass
 		}
 
-		//if _, ok := dep.Annotations[OriginSpecJson]; !ok {
 		dep.Annotations[OriginSpecJson] = string(originalSpecJson)
-		//}
 
 		log.Info("Updating development container...")
 		_, err = d.Client.UpdateDeployment(dep, true)
@@ -224,10 +215,10 @@ func (d *DeploymentController) RollBack(reset bool) error {
 					continue
 				}
 				// Mark the original revision
-				if rs.Annotations[nocalhost.DevImageRevisionAnnotationKey] == nocalhost.DevImageRevisionAnnotationValue {
+				if rs.Annotations[_const.DevImageRevisionAnnotationKey] == _const.DevImageRevisionAnnotationValue {
 					r = rs
-					if rs.Annotations[nocalhost.DevImageOriginalPodReplicasAnnotationKey] != "" {
-						podReplicas, _ := strconv.Atoi(rs.Annotations[nocalhost.DevImageOriginalPodReplicasAnnotationKey])
+					if rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey] != "" {
+						podReplicas, _ := strconv.Atoi(rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey])
 						podReplicas32 := int32(podReplicas)
 						originalPodReplicas = &podReplicas32
 					}
@@ -262,14 +253,14 @@ func (d *DeploymentController) RollBack(reset bool) error {
 		dep.Annotations = make(map[string]string, 0)
 	}
 	dep.Annotations["nocalhost-dep-ignore"] = "true"
-	dep.Annotations[nocalhost.NocalhostApplicationName] = d.AppName
-	dep.Annotations[nocalhost.NocalhostApplicationNamespace] = d.NameSpace
+	dep.Annotations[_const.NocalhostApplicationName] = d.AppName
+	dep.Annotations[_const.NocalhostApplicationNamespace] = d.NameSpace
 
 	// Add labels and annotations
 	if dep.Labels == nil {
 		dep.Labels = make(map[string]string, 0)
 	}
-	dep.Labels[nocalhost.AppManagedByLabel] = nocalhost.AppManagedByNocalhost
+	dep.Labels[_const.AppManagedByLabel] = _const.AppManagedByNocalhost
 
 	if _, err = clientUtils.CreateDeployment(dep); err != nil {
 		if strings.Contains(err.Error(), "initContainers") && strings.Contains(err.Error(), "Duplicate") {
@@ -279,10 +270,6 @@ func (d *DeploymentController) RollBack(reset bool) error {
 	}
 	return nil
 }
-
-//func (d *DeploymentController) GetDefaultPodNameWait(ctx context.Context) (string, error) {
-//	return getDefaultPodName(ctx, d)
-//}
 
 func GetDefaultPodName(ctx context.Context, p pod_controller.PodController) (string, error) {
 	var (

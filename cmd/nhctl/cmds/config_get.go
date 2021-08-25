@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package cmds
@@ -18,8 +11,10 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/log"
 )
 
 var notificationPrefix = `# This is the runtime configuration which stored in the memory. Modifications 
@@ -103,8 +98,10 @@ var configGetCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		commonFlags.AppName = args[0]
-		initApp(commonFlags.AppName)
-
+		if err := initAppMutate(commonFlags.AppName); err != nil {
+			log.Logf("init app:%s on namespace: %s, error: %v", commonFlags.AppName, nameSpace, err)
+			return
+		}
 		// get application config
 		if commonFlags.AppConfig {
 
@@ -149,7 +146,17 @@ var configGetCmd = &cobra.Command{
 				bys, err := yaml.Marshal(svcProfile.ServiceConfigV2)
 				must(errors.Wrap(err, "fail to get controller profile"))
 
-				path := fp.NewFilePath(svcProfile.Associate).
+				pack := dev_dir.NewSvcPack(
+					nocalhostSvc.NameSpace,
+					nocalhostSvc.AppName,
+					nocalhostSvc.Type,
+					nocalhostSvc.Name,
+					"",
+				)
+
+				pack.UnAssociatePath()
+
+				path := fp.NewFilePath(string(pack.GetAssociatePath())).
 					RelOrAbs(".nocalhost").
 					RelOrAbs("config.yaml").Path
 

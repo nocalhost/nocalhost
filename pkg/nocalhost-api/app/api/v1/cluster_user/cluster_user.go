@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package cluster_user
@@ -25,8 +18,29 @@ type ClusterUserCreateRequest struct {
 	SpaceResourceLimit *SpaceResourceLimit `json:"space_resource_limit"`
 }
 
+type ClusterUserGetRequest struct {
+	ClusterUserId *uint64 `form:"cluster_user_id" binding:"required"`
+}
+
+type ClusterUserShareRequest struct {
+	ClusterUserId *uint64  `json:"cluster_user_id" binding:"required"`
+	Cooperators   []uint64 `json:"cooperators"`
+	Viewers       []uint64 `json:"viewers"`
+}
+
+type ClusterUserUnShareRequest struct {
+	ClusterUserId *uint64  `json:"cluster_user_id" binding:"required"`
+	Users         []uint64 `json:"users"`
+}
+
 type ClusterUserListQuery struct {
 	UserId *uint64 `form:"user_id"`
+}
+
+type ClusterUserListV2Query struct {
+	OwnerUserId *uint64 `form:"owner_user_id"`
+	ClusterId   *uint64 `form:"cluster_id"`
+	SpaceName   string  `form:"space_name"`
 }
 
 type SpaceResourceLimit struct {
@@ -43,6 +57,23 @@ type SpaceResourceLimit struct {
 	ContainerLimitsMem        string `json:"container_limits_mem"`
 	ContainerLimitsCpu        string `json:"container_limits_cpu"`
 	ContainerEphemeralStorage string `json:"container_ephemeral_storage"`
+}
+
+func (srl *SpaceResourceLimit) ResourceLimitIsSet() bool {
+
+	return srl != nil && (srl.SpaceReqMem != "" ||
+		srl.SpaceReqCpu != "" ||
+		srl.SpaceLimitsMem != "" ||
+		srl.SpaceLimitsCpu != "" ||
+		srl.SpaceLbCount != "" ||
+		srl.SpacePvcCount != "" ||
+		srl.SpaceStorageCapacity != "" ||
+		srl.SpaceEphemeralStorage != "" ||
+		srl.ContainerReqMem != "" ||
+		srl.ContainerReqCpu != "" ||
+		srl.ContainerLimitsMem != "" ||
+		srl.ContainerLimitsCpu != "" ||
+		srl.ContainerEphemeralStorage != "")
 }
 
 func (srl *SpaceResourceLimit) Validate() bool {

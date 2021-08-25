@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package cmds
@@ -15,9 +8,11 @@ package cmds
 import (
 	"encoding/json"
 	"fmt"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_handler"
 	"nocalhost/internal/nhctl/model"
 	"os"
@@ -138,11 +133,29 @@ func ListApplications() {
 // and create default application if needed
 func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
-	if err == nil && len(metas) == 0 {
+	var foundDefaultApp bool
+	for _, meta := range metas {
+		if meta.Application == _const.DefaultNocalhostApplication {
+			foundDefaultApp = true
+			break
+		}
+	}
+
+	if !foundDefaultApp {
 		// try init default application
 		nocalhostApp, err = common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig)
-		mustI(err, "Error while create default application")
-		return []*appmeta.ApplicationMeta{nocalhostApp.GetAppMeta()}, nil
+
+		// if current user has not permission to create secret, we also create a fake 'default.application'
+		// app meta for him
+		// or else error occur
+		if !k8serrors.IsForbidden(err) {
+			mustI(err, "Error while create default application")
+			return []*appmeta.ApplicationMeta{nocalhostApp.GetAppMeta()}, nil
+		}else {
+
+			metas = append(metas,appmeta.FakeAppMeta(nameSpace, _const.DefaultNocalhostApplication))
+		}
 	}
+
 	return metas, err
 }

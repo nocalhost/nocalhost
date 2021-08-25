@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 package user
 
 import (
@@ -29,6 +22,7 @@ type BaseRepo interface {
 	Delete(ctx context.Context, id uint64) error
 	GetUserByID(ctx context.Context, id uint64) (*model.UserBaseModel, error)
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
+	GetUserBySa(ctx context.Context, sa string) (*model.UserBaseModel, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
 	GetUserList(ctx context.Context) ([]*model.UserList, error)
 	UpdateServiceAccountName(ctx context.Context, id uint64, saName string) error
@@ -122,6 +116,17 @@ func (repo *userBaseRepo) GetUserByID(ctx context.Context, uid uint64) (userBase
 		return nil, errors.Wrap(err, "[repo.user_base] get user data err")
 	}
 	return data, nil
+}
+
+// GetUserBySa
+func (repo *userBaseRepo) GetUserBySa(ctx context.Context, sa string) (*model.UserBaseModel, error) {
+	user := model.UserBaseModel{}
+	err := repo.db.Where("sa_name = ?", sa).First(&user).Error
+	if err != nil {
+		return nil, errors.Wrap(err, "[user_repo] get user err by sa_name")
+	}
+
+	return &user, nil
 }
 
 // GetUserByPhone

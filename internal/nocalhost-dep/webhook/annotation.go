@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package webhook
 
@@ -19,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
-	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/const"
 	"time"
 )
 
@@ -121,7 +114,7 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 func containsAnnotationSign(annos map[string]string) []string {
 	for k, desiredVal := range annos {
 		glog.Infof("anno key: %s", k)
-		if k == nocalhost.NocalhostApplicationName || k == nocalhost.HelmReleaseName {
+		if k == _const.NocalhostApplicationName || k == _const.HelmReleaseName {
 			return []string{k, desiredVal}
 		}
 	}

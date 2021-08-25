@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package profile
@@ -20,7 +13,6 @@ import (
 	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
 	"strings"
 )
@@ -61,6 +53,10 @@ type AppProfileV2 struct {
 	Kubeconfig string `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
 	db         *dbutils.LevelDBUtils
 
+	// for previous version, associate path is stored in profile
+	// and now it store in a standalone db
+	AssociateMigrate bool `json:"associate_migrate" yaml:"associate_migrate"`
+
 	// app global status
 	Identifier string `json:"identifier" yaml:"identifier"`
 	Secreted   bool   `json:"secreted" yaml:"secreted"` // always true for new versions, but from earlier version, the flag for upload profile to secret
@@ -71,14 +67,6 @@ type AppProfileV2 struct {
 	dbPath  string
 	appName string
 	ns      string
-}
-
-func (a *AppProfileV2) LoadManifests(tmpDir string) ([]string, []string) {
-	preInstallManifests := a.PreInstall.Load(tmpDir)
-	allManifests := a.ResourcePath.Load(tmpDir)
-	ignore := a.IgnoredPath.Load(tmpDir)
-
-	return preInstallManifests, clientgoutils.LoadValidManifest(allManifests, append(preInstallManifests, ignore...))
 }
 
 func ProfileV2Key(ns, app string) string {
@@ -222,11 +210,18 @@ type SvcProfileV2 struct {
 	// nocalhost also supports config from cm, lowest priority
 	CmConfigLoaded bool `json:"cmconfigloaded" yaml:"cmconfigloaded"`
 
+	// deprecated, read only, but actually store in
+	// [SvcPack internal/nhctl/nocalhost/dev_dir_mapping_db.go:165]
 	// associate for the local dir
 	Associate string `json:"associate" yaml:"associate"`
 
-	// from app meta
+	// deprecated
+	// for earlier version of nocalhost
+	// from app meta, this status return ture may under start developing (pod not ready, etc..)
 	Developing bool `json:"developing" yaml:"developing"`
+
+	// from app meta
+	DevelopStatus string `json:"develop_status" yaml:"develop_status"`
 
 	// mean the current controller is possess by current nhctl context
 	// and the syncthing process is listen on current device

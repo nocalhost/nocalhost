@@ -1,23 +1,48 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package util
 
 import (
+	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"os"
 	"path/filepath"
 	"time"
 )
+
+func TimeoutFunc(d time.Duration, do, compensating func() error) error {
+	ctx, _ := context.WithTimeout(context.Background(), d)
+
+	errorChan := make(chan error, 1)
+	go func() {
+		errorChan <- do()
+	}()
+
+	select {
+	case <-ctx.Done():
+
+		if compensating != nil {
+			if err := compensating(); err != nil {
+				return errors.Wrap(err, "Exec Timeout! And compensating Error! ")
+			}
+		}
+
+		return errors.New("Exec Timeout!")
+	case err := <-errorChan:
+
+		if compensating != nil && err != nil {
+			if e := compensating(); e != nil {
+				return errors.Wrap(e, fmt.Sprintf("Exec Fail, Error %s! And compensating Error! ", err))
+			}
+		}
+
+		return err
+	}
+}
 
 func TimeoutChecker(d time.Duration, cancanFunc func()) {
 	tick := time.Tick(d)

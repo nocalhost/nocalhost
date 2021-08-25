@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package daemon_server
@@ -19,6 +12,7 @@ import (
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"sync"
 )
 
 func recoverSyncthing() error {
@@ -28,20 +22,26 @@ func recoverSyncthing() error {
 		return err
 	}
 
+	wg := sync.WaitGroup{}
 	for ns, apps := range appMap {
 		for _, appName := range apps {
-			if err = recoverSyncthingForApplication(ns, appName); err != nil {
-				log.LogE(err)
-			}
+			wg.Add(1)
+			appName := appName
+			go func() {
+				if err = recoverSyncthingForApplication(ns, appName); err != nil {
+					log.LogE(err)
+				}
+			}()
 		}
 	}
+	wg.Done()
 	return nil
 }
 
 func recoverSyncthingForApplication(ns, appName string) error {
 	profile, err := nocalhost.GetProfileV2(ns, appName)
 	if err != nil {
-		if errors.Is(err, nocalhost.ProfileNotFound){
+		if errors.Is(err, nocalhost.ProfileNotFound) {
 			log.Warnf("Profile is not exist, so ignore for recovering for syncthing")
 			return nil
 		}

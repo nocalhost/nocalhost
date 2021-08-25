@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package model
@@ -17,6 +10,47 @@ import (
 
 	validator "github.com/go-playground/validator/v10"
 )
+
+const (
+	IsolateSpace SpaceType = "IsolateSpace"
+)
+
+var DevSpaceOwnTypeOwner SpaceOwnType = SpaceOwnType{"Owner", 1000}
+var DevSpaceOwnTypeCooperator SpaceOwnType = SpaceOwnType{"Cooperator", 100}
+var DevSpaceOwnTypeViewer SpaceOwnType = SpaceOwnType{"Viewer", 10}
+var None SpaceOwnType = SpaceOwnType{"None", 1}
+
+type ClusterUserV2 struct {
+
+	// Intrinsic field
+	ID                 uint64    `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
+	UserId             uint64    `gorm:"column:user_id;not null" json:"user_id"`
+	ClusterAdmin       *uint64   `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
+	Namespace          string    `gorm:"column:namespace;not null" json:"namespace"`
+	SpaceName          string    `gorm:"column:space_name;not null;type:VARCHAR(100);comment:'default is application[username]'" json:"space_name"`
+	ClusterId          uint64    `gorm:"column:cluster_id;not null" json:"cluster_id"`
+	SpaceResourceLimit string    `gorm:"column:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
+	CreatedAt          time.Time `gorm:"column:created_at" json:"created_at"`
+
+	// ext field
+	*ClusterUserExt
+}
+
+type SpaceType string
+
+type SpaceOwnType struct {
+	Str      string
+	Priority int
+}
+
+type ClusterUserExt struct {
+	SpaceType        SpaceType     `json:"space_type"`
+	SpaceOwnType     SpaceOwnType  `json:"space_own_type"`
+	ResourceLimitSet bool          `json:"resource_limit_set"`
+	CooperUser       []*UserSimple `json:"cooper_user"`
+	ViewerUser       []*UserSimple `json:"viewer_user"`
+	Owner            *UserSimple   `json:"owner"`
+}
 
 // ClusterUserModel
 type ClusterUserModel struct {
@@ -30,13 +64,21 @@ type ClusterUserModel struct {
 	KubeConfig         string     `gorm:"column:kubeconfig;not null" json:"kubeconfig"`
 	Memory             uint64     `gorm:"column:memory;not null" json:"memory"`
 	Cpu                uint64     `gorm:"column:cpu;not null" json:"cpu"`
-	SpaceResourceLimit string     `gorm:"cloumn:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
+	SpaceResourceLimit string     `gorm:"column:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
 	Namespace          string     `gorm:"column:namespace;not null" json:"namespace"`
 	Status             *uint64    `gorm:"column:status;default:0" json:"status"`
 	ClusterAdmin       *uint64    `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
 	CreatedAt          time.Time  `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt          time.Time  `gorm:"column:updated_at" json:"-"`
 	DeletedAt          *time.Time `gorm:"column:deleted_at" json:"-"`
+}
+
+func (cu *ClusterUserModel) IsClusterAdmin() bool {
+	return cu != nil && cu.ClusterAdmin != nil && *cu.ClusterAdmin != uint64(0)
+}
+
+func (cu *ClusterUserV2) IsClusterAdmin() bool {
+	return cu != nil && cu.ClusterAdmin != nil && *cu.ClusterAdmin != uint64(0)
 }
 
 type ClusterUserPluginModel struct {

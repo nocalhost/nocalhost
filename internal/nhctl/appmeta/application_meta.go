@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package appmeta
@@ -23,10 +16,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"nocalhost/internal/nhctl/appmeta/secret_operator"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/dev_dir"
+	"nocalhost/internal/nhctl/fp"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -35,6 +30,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 const (
@@ -45,7 +41,12 @@ const (
 	CmConfigKey      = "config"
 
 	SecretHelmReleaseNameKey = "r"
+	SecretPostInstallKey     = "po"
+	SecretPostUpgradeKey     = "pou"
+	SecretPostDeleteKey      = "pod"
 	SecretPreInstallKey      = "p"
+	SecretPreUpgradeKey      = "pu"
+	SecretPreDeleteKey       = "pd"
 	SecretManifestKey        = "m"
 	SecretDevMetaKey         = "v"
 	SecretAppTypeKey         = "t"
@@ -162,8 +163,20 @@ type ApplicationMetaSimple struct {
 	PreInstallManifest string             `json:"pre_install_manifest"`
 }
 
+func FakeAppMeta(ns, application string) *ApplicationMeta {
+	return &ApplicationMeta{
+		ApplicationState: INSTALLED,
+		Ns:               ns,
+		Application:      application,
+		DevMeta:          ApplicationDevMeta{},
+		Config:           &profile2.NocalHostAppConfigV2{},
+	}
+}
+
 // application meta is the application meta info container
 type ApplicationMeta struct {
+	locker sync.Mutex
+
 	// could not be updated
 	Application string `json:"application"`
 
@@ -172,11 +185,18 @@ type ApplicationMeta struct {
 	// could not be updated
 	Ns string `json:"ns"`
 
-	ApplicationType    AppType          `json:"application_type"`
-	ApplicationState   ApplicationState `json:"application_state"`
-	DepConfigName      string           `json:"dep_config_name"`
-	PreInstallManifest string           `json:"pre_install_manifest"`
-	Manifest           string           `json:"manifest"`
+	ApplicationType  AppType          `json:"application_type"`
+	ApplicationState ApplicationState `json:"application_state"`
+	DepConfigName    string           `json:"dep_config_name"`
+
+	PreInstallManifest  string `json:"pre_install_manifest"`
+	PostInstallManifest string `json:"post_install_manifest"`
+	PreUpgradeManifest  string `json:"pre_upgrade_manifest"`
+	PostUpgradeManifest string `json:"post_upgrade_manifest"`
+	PreDeleteManifest   string `json:"pre_delete_manifest"`
+	PostDeleteManifest  string `json:"post_delete_manifest"`
+
+	Manifest string `json:"manifest"`
 
 	// todo the manifest apply by nhctl apply
 	CustomManifest string `json:"custom_manifest"`
@@ -191,7 +211,7 @@ type ApplicationMeta struct {
 	Secret *corev1.Secret `json:"secret"`
 
 	// current client go util is injected, may null, be care!
-	operator secret_operator.SecretOperator
+	operator *secret_operator.ClientGoUtilClient
 }
 
 func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
@@ -224,6 +244,26 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 		appMeta.PreInstallManifest = string(decompress(bs))
 	}
 
+	if bs, ok := secret.Data[SecretPreUpgradeKey]; ok {
+		appMeta.PreUpgradeManifest = string(decompress(bs))
+	}
+
+	if bs, ok := secret.Data[SecretPreDeleteKey]; ok {
+		appMeta.PreDeleteManifest = string(decompress(bs))
+	}
+
+	if bs, ok := secret.Data[SecretPostInstallKey]; ok {
+		appMeta.PostInstallManifest = string(decompress(bs))
+	}
+
+	if bs, ok := secret.Data[SecretPostUpgradeKey]; ok {
+		appMeta.PostUpgradeManifest = string(decompress(bs))
+	}
+
+	if bs, ok := secret.Data[SecretPostDeleteKey]; ok {
+		appMeta.PostDeleteManifest = string(decompress(bs))
+	}
+
 	if bs, ok := secret.Data[SecretManifestKey]; ok {
 		appMeta.Manifest = string(decompress(bs))
 	}
@@ -252,15 +292,69 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 	return &appMeta, nil
 }
 
-func (a *ApplicationMeta) GetClient() (*clientgoutils.ClientGoUtils, error) {
-	if operator, ok := a.operator.(*secret_operator.ClientGoUtilSecretOperator); ok {
-		return operator.ClientInner, nil
+func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, ns, identifier string) {
+	svcType := base.SvcTypeOf(s.Type)
+
+	devStatus := meta.CheckIfSvcDeveloping(s.ActualName, svcType)
+
+	pack := dev_dir.NewSvcPack(
+		ns,
+		appName,
+		svcType,
+		s.Name,
+		"", // describe can not specify container
+	)
+	s.Associate = pack.GetAssociatePath().ToString()
+	s.Developing = devStatus != NONE
+	s.DevelopStatus = string(devStatus)
+
+	s.Possess = meta.SvcDevModePossessor(
+		s.ActualName, svcType,
+		identifier,
+	)
+}
+
+// sometimes meta will not initail the go client, this method
+// can present to use a temp kubeconfig for some K8s's oper
+func (a *ApplicationMeta) DoWithTempOperator(configBytes []byte, funny func() error) error {
+	randomKubeconfigFile := fp.NewRandomTempPath().MkdirThen().RelOrAbs("tmpkubeconfig")
+	if err := randomKubeconfigFile.WriteFile(string(configBytes)); err != nil {
+		return errors.Wrap(err, "Error when gen tempKubeconfig while initialize temp operator for meta ")
 	}
 
-	return nil, errors.New(
-		"Current Application Meta did not hold the ClientGoUtilSecretOperator " +
-			"as SecretOperator",
+	return a.doMutex(
+		func() error {
+			backup := a.operator
+			defer func() {
+				a.operator = backup
+				_ = randomKubeconfigFile.Doom()
+			}()
+
+			if err := a.InitGoClient(randomKubeconfigFile.Abs()); err != nil {
+				return err
+			}
+
+			return funny()
+		},
 	)
+}
+
+func (a *ApplicationMeta) doMutex(funny func() error) error {
+	defer a.locker.Unlock()
+	a.locker.Lock()
+	return funny()
+}
+
+func (a *ApplicationMeta) GetApplicationConfig() *profile2.ApplicationConfig {
+	if a == nil || a.Config == nil || a.Config.ApplicationConfig == nil {
+		return &profile2.ApplicationConfig{}
+	}
+
+	return a.Config.ApplicationConfig
+}
+
+func (a *ApplicationMeta) GetClient() *clientgoutils.ClientGoUtils {
+	return a.operator.ClientInner
 }
 
 func (a *ApplicationMeta) GetApplicationDevMeta() ApplicationDevMeta {
@@ -310,18 +404,11 @@ func (a *ApplicationMeta) InitGoClient(kubeConfigPath string) error {
 	if err != nil {
 		log.Errorf("can not read kubeconfig content, path: %s, err: %v", kubeConfigPath, err)
 	}
-	a.operator = &secret_operator.ClientGoUtilSecretOperator{
+	a.operator = &secret_operator.ClientGoUtilClient{
 		ClientInner:     clientGo,
 		KubeconfigBytes: content,
 	}
 	return err
-}
-
-func (a *ApplicationMeta) InjectGoClient(clientSet *kubernetes.Clientset, configBytes []byte) {
-	a.operator = &secret_operator.ClientGoSecretOperator{
-		ClientSet:       clientSet,
-		KubeconfigBytes: configBytes,
-	}
 }
 
 func (a *ApplicationMeta) SvcDevModePossessor(name string, svcType base.SvcType, identifier string) bool {
@@ -338,7 +425,38 @@ func (a *ApplicationMeta) SvcDevModePossessor(name string, svcType base.SvcType,
 	return m[name] == identifier && identifier != ""
 }
 
-func (a *ApplicationMeta) SvcDevStart(name string, svcType base.SvcType, identifier string) error {
+// SvcDevStarting call this func first recode 'name>...starting' as developing
+// while complete enter dev start, should call #SvcDevStartComplete to mark svc completely enter dev mode
+func (a *ApplicationMeta) SvcDevStarting(name string, svcType base.SvcType, identifier string) error {
+	devMeta := a.DevMeta
+	if devMeta == nil {
+		devMeta = ApplicationDevMeta{}
+		a.DevMeta = devMeta
+	}
+
+	if _, ok := devMeta[svcType.Alias()]; !ok {
+		devMeta[svcType.Alias()] = map[ /* resource name */ string] /* identifier */ string{}
+	}
+	m := devMeta[svcType.Alias()]
+
+	if _, ok := m[name]; ok {
+		return ErrAlreadyDev
+	}
+
+	inDevStartingMark := devStartMarkSign(name)
+	if _, ok := m[inDevStartingMark]; ok {
+		return ErrAlreadyDev
+	}
+
+	m[inDevStartingMark] = identifier
+	return a.Update()
+}
+
+func devStartMarkSign(name string) string {
+	return fmt.Sprintf("%s>...Starting", name)
+}
+
+func (a *ApplicationMeta) SvcDevStartComplete(name string, svcType base.SvcType, identifier string) error {
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -370,11 +488,14 @@ func (a *ApplicationMeta) SvcDevEnd(name string, svcType base.SvcType) error {
 	}
 	m := devMeta[svcType.Alias()]
 
+	inDevStartingMark := fmt.Sprintf("%s>...Starting", name)
+
+	delete(m, inDevStartingMark)
 	delete(m, name)
 	return a.Update()
 }
 
-func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType) bool {
+func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType) DevStartStatus {
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -386,28 +507,45 @@ func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType
 	}
 	m := devMeta[svcType.Alias()]
 
-	_, ok := m[name]
-	return ok
+	if _, ok := m[name]; ok {
+		return STARTED
+	}
+
+	if _, ok := m[devStartMarkSign(name)]; ok {
+		return STARTING
+	}
+
+	return NONE
 }
 
 func (a *ApplicationMeta) Update() error {
-	a.prepare()
-	secret, err := a.operator.Update(a.Ns, a.Secret)
-	if err != nil {
-		return errors.Wrap(err, "Error while update Application meta ")
-	}
-	a.Secret = secret
-	// update daemon application meta manually
-	if client, err := daemon_client.NewDaemonClient(false); err == nil {
-		_, _ = client.SendUpdateApplicationMetaCommand(
-			string(a.operator.GetKubeconfigBytes()), a.Ns, a.Secret.Name, a.Secret,
-		)
-	}
-	return nil
+	return retry.OnError(retry.DefaultRetry, func(err error) bool {
+		return err != nil
+	}, func() error {
+		a.prepare()
+		secret, err := a.operator.Update(a.Ns, a.Secret)
+		if err != nil {
+			return errors.Wrap(err, "Error while update Application meta ")
+		}
+		a.Secret = secret
+		// update daemon application meta manually
+		if client, err := daemon_client.NewDaemonClient(false); err == nil {
+			_, _ = client.SendUpdateApplicationMetaCommand(
+				string(a.operator.GetKubeconfigBytes()), a.Ns, a.Secret.Name, a.Secret,
+			)
+		}
+		return nil
+	})
 }
 
 func (a *ApplicationMeta) prepare() {
 	a.Secret.Data[SecretPreInstallKey] = compress([]byte(a.PreInstallManifest))
+	a.Secret.Data[SecretPreUpgradeKey] = compress([]byte(a.PreUpgradeManifest))
+	a.Secret.Data[SecretPreDeleteKey] = compress([]byte(a.PreDeleteManifest))
+	a.Secret.Data[SecretPostInstallKey] = compress([]byte(a.PostInstallManifest))
+	a.Secret.Data[SecretPostUpgradeKey] = compress([]byte(a.PostUpgradeManifest))
+	a.Secret.Data[SecretPostDeleteKey] = compress([]byte(a.PostDeleteManifest))
+
 	a.Secret.Data[SecretManifestKey] = compress([]byte(a.Manifest))
 
 	config, _ := yaml.Marshal(a.Config)
@@ -448,13 +586,26 @@ func (a *ApplicationMeta) IsHelm() bool {
 
 // Uninstall uninstall the application and delete the secret from k8s cluster
 func (a *ApplicationMeta) Uninstall(force bool) error {
+	preDelete := a.PreDeleteManifest
+	postDelete := a.PostDeleteManifest
+
+	if preDelete != "" {
+		log.Info("Executing pre-uninstall hook")
+		if err := a.operator.ExecHook(a.Application, a.Ns, preDelete); err != nil {
+			return errors.Wrap(err, "Error while exec pre-delete hook ")
+		}
+	}
 
 	if e := a.cleanUpDepConfigMap(); e != nil {
 		log.Error("Error while clean up dep config map %s ", e.Error())
 	}
 
-	// remove pre install manifest
-	a.cleanPreInstallManifest()
+	// remove hook
+	a.operator.CleanManifest(a.PreInstallManifest)
+	a.operator.CleanManifest(a.PostInstallManifest)
+	a.operator.CleanManifest(a.PreUpgradeManifest)
+	a.operator.CleanManifest(a.PostUpgradeManifest)
+	a.operator.CleanManifest(a.PreDeleteManifest)
 
 	// remove manifest
 	a.cleanManifest()
@@ -465,13 +616,9 @@ func (a *ApplicationMeta) Uninstall(force bool) error {
 			commonParams = append(commonParams, "--namespace", a.Ns)
 		}
 
-		if operator, ok := a.operator.(*secret_operator.ClientGoUtilSecretOperator); ok {
-			//appProfile, _ := a.GetProfile()
-			if operator.ClientInner.KubeConfigFilePath() != "" {
-				commonParams = append(commonParams, "--kubeconfig", operator.ClientInner.KubeConfigFilePath())
-			}
-		} else {
-			log.Warnf("Current Application Meta did not hold the ClientGoUtilSecretOperator as SecretOperator")
+		//appProfile, _ := a.GetProfile()
+		if a.operator.ClientInner.KubeConfigFilePath() != "" {
+			commonParams = append(commonParams, "--kubeconfig", a.operator.ClientInner.KubeConfigFilePath())
 		}
 
 		uninstallParams := []string{"uninstall"}
@@ -491,80 +638,64 @@ func (a *ApplicationMeta) Uninstall(force bool) error {
 		}
 	}
 
-	return a.Delete()
+	if err := a.Delete(); err != nil {
+		return err
+	}
+
+	if postDelete != "" {
+		log.Info("Executing post-uninstall hook")
+		if err := a.operator.ExecHook(a.Application, a.Ns, postDelete); err != nil {
+			return errors.Wrap(err, "Error while exec post-delete hook ")
+		}
+	}
+	a.operator.CleanManifest(a.PostDeleteManifest)
+
+	return nil
 }
 
 func (a *ApplicationMeta) cleanManifest() {
-	if operator, ok := a.operator.(*secret_operator.ClientGoUtilSecretOperator); ok {
-		resource := clientgoutils.NewResourceFromStr(a.Manifest)
+	operator := a.operator
 
-		//goland:noinspection GoNilness
-		infos, err := resource.GetResourceInfo(operator.ClientInner, true)
-		if err != nil {
-			log.Error("Error while loading manifest %s, err: %s ", a.Manifest, err)
-		}
-		for _, info := range infos {
-			utils.ShouldI(operator.ClientInner.DeleteResourceInfo(info), "Failed to delete resource "+info.Name)
-		}
-	} else {
-		log.Warnf(
-			"Current Application Meta did not hold the ClientGoUtilSecretOperator as SecretOperator," +
-				" so can not clean manifest. ",
-		)
+	resource := clientgoutils.NewResourceFromStr(a.Manifest)
+
+	//goland:noinspection GoNilness
+	infos, err := resource.GetResourceInfo(operator.ClientInner, true)
+	if err != nil {
+		log.Error("Error while loading manifest %s, err: %s ", a.Manifest, err)
 	}
-}
-
-func (a *ApplicationMeta) cleanPreInstallManifest() {
-	if operator, ok := a.operator.(*secret_operator.ClientGoUtilSecretOperator); ok {
-		resource := clientgoutils.NewResourceFromStr(a.PreInstallManifest)
-
-		//goland:noinspection GoNilness
-		infos, err := resource.GetResourceInfo(operator.ClientInner, true)
-		utils.ShouldI(err, "Error while loading pre install manifest "+a.PreInstallManifest)
-
-		for _, info := range infos {
-			utils.ShouldI(operator.ClientInner.DeleteResourceInfo(info), "Failed to delete resource "+info.Name)
-		}
-	} else {
-		log.Warnf(
-			"Current Application Meta did not hold the ClientGoUtilSecretOperator as SecretOperator," +
-				" so can not clean pre install manifest. ",
-		)
+	for _, info := range infos {
+		utils.ShouldI(clientgoutils.DeleteResourceInfo(info), "Failed to delete resource "+info.Name)
 	}
 }
 
 func (a *ApplicationMeta) cleanUpDepConfigMap() error {
-	if operator, ok := a.operator.(*secret_operator.ClientGoUtilSecretOperator); ok {
-		if a.DepConfigName != "" {
-			log.Debugf("Cleaning up config map %s", a.DepConfigName)
-			err := operator.ClientInner.DeleteConfigMapByName(a.DepConfigName)
-			if err != nil {
-				return err
-			}
-			a.DepConfigName = ""
-		} else {
-			log.Debug("No dependency config map needs to clean up")
-		}
+	operator := a.operator
 
-		// Clean up all dep config map
-		list, err := operator.ClientInner.GetConfigMaps()
+	if a.DepConfigName != "" {
+		log.Debugf("Cleaning up config map %s", a.DepConfigName)
+		err := operator.ClientInner.DeleteConfigMapByName(a.DepConfigName)
 		if err != nil {
 			return err
 		}
-
-		for _, cfg := range list {
-			if strings.HasPrefix(cfg.Name, DependenceConfigMapPrefix) {
-				utils.ShouldI(
-					operator.ClientInner.DeleteConfigMapByName(cfg.Name), "Failed to clean up config map"+cfg.Name,
-				)
-			}
-		}
+		a.DepConfigName = ""
 	} else {
-		log.Warnf(
-			"Current Application Meta did not hold the ClientGoUtilSecretOperator as SecretOperator," +
-				" so can not clean dep cm. ",
-		)
+		log.Debug("No dependency config map needs to clean up")
 	}
+
+	// Clean up all dep config map
+	list, err := operator.ClientInner.GetConfigMaps()
+	if err != nil {
+		return err
+	}
+
+	for _, cfg := range list {
+		if strings.HasPrefix(cfg.Name, DependenceConfigMapPrefix) {
+			utils.ShouldI(
+				operator.ClientInner.DeleteConfigMapByName(cfg.Name), "Failed to clean up config map"+cfg.Name,
+			)
+		}
+	}
+
 	return nil
 }
 

@@ -1,23 +1,19 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/fp"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -32,19 +28,35 @@ import (
 // Install different type of Application: Helm, Manifest, Kustomize
 func (a *Application) Install(flags *HelmFlags) (err error) {
 
-	err = a.InstallDepConfigMap(a.appMeta)
-	if err != nil {
+	if err := a.InstallDepConfigMap(a.appMeta); err != nil {
 		return errors.Wrap(err, "failed to install dep config map")
 	}
+
 	switch a.appMeta.ApplicationType {
 	case appmeta.Helm, appmeta.HelmLocal:
-		err = a.installHelm(a.appMeta, flags, a.ResourceTmpDir, false)
+		err = a.installHelm(flags, false)
 	case appmeta.HelmRepo:
-		err = a.installHelm(a.appMeta, flags, a.ResourceTmpDir, true)
+		err = a.installHelm(flags, true)
 	case appmeta.Manifest, appmeta.ManifestLocal, appmeta.ManifestGit:
-		err = a.InstallManifest(a.appMeta, a.ResourceTmpDir, true)
+		if err := a.PreInstallHook(); err != nil {
+			return err
+		}
+		if err := a.InstallManifest(true); err != nil {
+			return err
+		}
+		if err := a.PostInstallHook(); err != nil {
+			return err
+		}
 	case appmeta.KustomizeGit, appmeta.KustomizeLocal:
-		err = a.InstallKustomize(a.appMeta, a.ResourceTmpDir, true)
+		if err := a.PreInstallHook(); err != nil {
+			return err
+		}
+		if err := a.InstallKustomize(true); err != nil {
+			return err
+		}
+		if err := a.PostInstallHook(); err != nil {
+			return err
+		}
 	default:
 		return errors.New(
 			fmt.Sprintf(
@@ -59,13 +71,27 @@ func (a *Application) Install(flags *HelmFlags) (err error) {
 		return err
 	}
 
+	// prepare and store the delete hook while delete is trigger
+	if err := a.PrepareForPreDeleteHook(); err != nil {
+		return err
+	}
+
+	if err := a.PrepareForPostDeleteHook(); err != nil {
+		return err
+	}
+
 	a.appMeta.ApplicationState = appmeta.INSTALLED
-	return a.appMeta.Update()
+
+	if err := a.appMeta.Update(); err != nil {
+		return err
+	}
+
+	return a.CleanUpTmpResources()
 }
 
 // Install different type of Application: Kustomize
-func (a *Application) InstallKustomize(appMeta *appmeta.ApplicationMeta, resourceDir string, doApply bool) error {
-	resourcesPath := a.GetResourceDir(resourceDir)
+func (a *Application) InstallKustomize(doApply bool) error {
+	resourcesPath := a.GetResourceDir(a.ResourceTmpDir)
 	if len(resourcesPath) > 1 {
 		log.Warn(`There are multiple resourcesPath settings, will use first one`)
 	}
@@ -77,8 +103,8 @@ func (a *Application) InstallKustomize(appMeta *appmeta.ApplicationMeta, resourc
 			SetDoApply(doApply).
 			SetBeforeApply(
 				func(manifest string) error {
-					appMeta.Manifest = appMeta.Manifest + manifest
-					return appMeta.Update()
+					a.GetAppMeta().Manifest = a.GetAppMeta().Manifest + manifest
+					return a.GetAppMeta().Update()
 				},
 			),
 		useResourcePath,
@@ -90,37 +116,17 @@ func (a *Application) InstallKustomize(appMeta *appmeta.ApplicationMeta, resourc
 }
 
 // Install different type of Application: Manifest
-func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta, resourceDir string, doApply bool) error {
-	p, err := a.GetProfile()
-	if err != nil {
-		return err
-	}
-
-	preInstallManifests, manifests := p.LoadManifests(resourceDir)
-
-	err = a.client.ApplyAndWait(
-		preInstallManifests, true,
-		StandardNocalhostMetas(a.Name, a.NameSpace).
-			SetDoApply(doApply).
-			SetBeforeApply(
-				func(manifest string) error {
-					appMeta.PreInstallManifest = appMeta.PreInstallManifest + manifest
-					return appMeta.Update()
-				},
-			),
-	)
-	if err != nil { // that's the error that could not be skip
-		return err
-	}
+func (a *Application) InstallManifest(doApply bool) error {
+	manifestPaths := a.GetAppMeta().GetApplicationConfig().LoadManifests(fp.NewFilePath(a.ResourceTmpDir))
 
 	return a.client.Apply(
-		manifests, true,
+		manifestPaths, true,
 		StandardNocalhostMetas(a.Name, a.NameSpace).
 			SetDoApply(doApply).
 			SetBeforeApply(
 				func(manifest string) error {
-					appMeta.Manifest = appMeta.Manifest + manifest
-					return appMeta.Update()
+					a.GetAppMeta().Manifest = a.GetAppMeta().Manifest + manifest
+					return a.GetAppMeta().Update()
 				},
 			),
 		"",
@@ -128,9 +134,7 @@ func (a *Application) InstallManifest(appMeta *appmeta.ApplicationMeta, resource
 }
 
 // Install different type of Application: Helm
-func (a *Application) installHelm(
-	appMeta *appmeta.ApplicationMeta, flags *HelmFlags, resourceDir string, fromRepo bool,
-) error {
+func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 	log.Info("Updating helm repo...")
 	_, err := tools.ExecCommand(nil, true, false, false, "helm", "repo", "update")
 	if err != nil {
@@ -138,8 +142,8 @@ func (a *Application) installHelm(
 	}
 
 	releaseName := a.Name
-	appMeta.HelmReleaseName = releaseName
-	if err := appMeta.Update(); err != nil {
+	a.GetAppMeta().HelmReleaseName = releaseName
+	if err = a.GetAppMeta().Update(); err != nil {
 		return err
 	}
 
@@ -154,13 +158,13 @@ func (a *Application) installHelm(
 		commonParams = append(commonParams, "--debug")
 	}
 
-	var resourcesPath []string
-	if !fromRepo {
-		resourcesPath = a.GetResourceDir(resourceDir)
-	}
+	var (
+		resourcesPath []string
+		installParams = []string{"install", releaseName}
+	)
 
-	installParams := []string{"install", releaseName}
 	if !fromRepo {
+		resourcesPath = a.GetResourceDir(a.ResourceTmpDir)
 		installParams = append(installParams, resourcesPath[0])
 		log.Info("building dependency...")
 		depParams := []string{"dependency", "build", resourcesPath[0]}
@@ -173,7 +177,9 @@ func (a *Application) installHelm(
 		if a.appMeta.Config != nil && a.appMeta.Config.ApplicationConfig.Name != "" {
 			chartName = a.appMeta.Config.ApplicationConfig.Name
 		}
-		if flags.RepoUrl != "" {
+		if len(findRepoNameFromLocal(flags.RepoUrl)) != 0 {
+			installParams = append(installParams, fmt.Sprintf("%s/%s", findRepoNameFromLocal(flags.RepoUrl), chartName))
+		} else if flags.RepoUrl != "" {
 			installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
 		} else if flags.RepoName != "" {
 			installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
@@ -217,6 +223,30 @@ get the information of the helm release`, a.NameSpace,
 	return nil
 }
 
+// judge helm repo already exist or not, if exist, then can install app by using repo name, otherwise using repo url
+func findRepoNameFromLocal(helmRepoUrl string) (repoName string) {
+	// it's a private repo but provide username and password already
+	if withCredential, _ := regexp.MatchString("(.*?):(.*?)@(.*?)", helmRepoUrl); withCredential {
+		return
+	}
+
+	// remove https:// https:// header
+	if strings.Index(helmRepoUrl, "//") >= 0 {
+		helmRepoUrl = helmRepoUrl[strings.Index(helmRepoUrl, "//")+2:]
+	}
+	if output, err := tools.ExecCommand(nil, false, false, true, "helm", "repo", "list", "--output", "json"); err == nil {
+		var repoList []RepoDto
+		if err = json.Unmarshal([]byte(output), &repoList); err == nil {
+			for _, dto := range repoList {
+				if strings.Contains(dto.Url, helmRepoUrl) {
+					return dto.Name
+				}
+			}
+		}
+	}
+	return
+}
+
 func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) error {
 	appDep := a.GetDependencies()
 	appEnv := a.GetInstallEnvForDep()
@@ -230,13 +260,13 @@ func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) erro
 			InstallEnv: appEnv,
 		}
 
-		if err := a.UpdateProfile(
-			func(_ *profile.AppProfileV2) error {
-				return nil
-			},
-		); err != nil {
-			return err
-		}
+		//if err := a.UpdateProfile(
+		//	func(_ *profile.AppProfileV2) error {
+		//		return nil
+		//	},
+		//); err != nil {
+		//	return err
+		//}
 
 		// release name a.Name
 		if a.appMeta.ApplicationType != appmeta.Manifest && a.appMeta.ApplicationType != appmeta.ManifestGit {
@@ -280,4 +310,9 @@ func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) erro
 	}
 	log.Logf("Dependency config map installed")
 	return nil
+}
+
+type RepoDto struct {
+	Name string `json:"name"`
+	Url  string `json:"url"`
 }

@@ -1,20 +1,13 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package errno
 
 // managed all Errno for nocalhost-api
 // the message in errno will be displayed
-// by calling api.SendResponse(c, &errno.Errno{Code: 40110, Message: err.Error()}, nil)
+// by calling api.SendResponse(c, &errno.Errno{Code: code, Message: err.Error()}, nil)
 // such as:
 // api.SendResponse(c, ErrBind, nil)
 // frontend will receive "Request fail, Please check request parameters"
@@ -36,7 +29,7 @@ var (
 		Code: 20103, Message: "Token is invalid or login expired, please coloredoutput in again",
 	}
 	ErrPermissionDenied           = &Errno{Code: 20104, Message: "permission denied"}
-	ErrLostPermissionFlag         = &Errno{Code: 20104, Message: "check permission fail, please re-login"}
+	ErrLostPermissionFlag         = &Errno{Code: 20105, Message: "check permission fail, please re-login"}
 	ErrEmailOrPassword            = &Errno{Code: 20111, Message: "Mail or password is incorrect"}
 	ErrTwicePasswordNotMatch      = &Errno{Code: 20112, Message: "Two password entries are inconsistent"}
 	ErrRegisterFailed             = &Errno{Code: 20113, Message: "Registration failed"}
@@ -54,10 +47,9 @@ var (
 		Code:    30102,
 		Message: "It is not allowed to create this type of cluster (there are multiple Kubeconfig Clusters)",
 	}
-	ErrClusterKubeErr     = &Errno{Code: 30103, Message: "Kubeconfig parsing error, please check"}
-	ErrClusterKubeAdmin   = &Errno{Code: 30104, Message: "Please check Kubeconfig Admin permissions"}
-	ErrClusterKubeConnect = &Errno{Code: 30104, Message: "Connect cluster fail, Please check cluster connectivity"}
-	ErrClusterDepSetup    = &Errno{
+	ErrClusterKubeErr   = &Errno{Code: 30103, Message: "Kubeconfig parsing error, please check"}
+	ErrClusterKubeAdmin = &Errno{Code: 30104, Message: "Please check Kubeconfig Admin permissions"}
+	ErrClusterDepSetup  = &Errno{
 		Code: 30105, Message: "Initialize cluster: Failed to create dependent component Configmap",
 	}
 	ErrClusterDepJobSetup = &Errno{
@@ -78,6 +70,7 @@ var (
 		Code:    30113,
 		Message: "Failed to get the connection from current cluster after short wait, please make sure the cluster exists and check it's network connectivity",
 	}
+	ErrClusterKubeConnect = &Errno{Code: 30114, Message: "Connect cluster fail, Please check cluster connectivity"}
 
 	// application errors for application module request
 	ErrApplicationCreate        = &Errno{Code: 40100, Message: "Failed to add app, please try again"}
@@ -92,11 +85,11 @@ var (
 	}
 	ErrApplicationJsonContext   = &Errno{Code: 40108, Message: "Application context Unmarshal JSON fail"}
 	ErrApplicationNameExist     = &Errno{Code: 40109, Message: "Application name already exist"}
-	ErrSensitiveApplicationName = &Errno{Code: 40109, Message: "Application name can't not be 'default.application'"}
+	ErrSensitiveApplicationName = &Errno{Code: 40110, Message: "Application name can't not be 'default.application'"}
 
 	// application-cluster for application-cluster module request
 	ErrApplicationBoundClusterList = &Errno{
-		Code: 40108, Message: "Failed to get application bound cluster list, please try again",
+		Code: 40111, Message: "Failed to get application bound cluster list, please try again",
 	}
 
 	// cluster-user errors for cluster-user module request
@@ -131,10 +124,6 @@ var (
 		Code:    50110,
 		Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Json to Yaml failed",
 	}
-	ErrBindServiceAccountKubeConfigJsonEncodeErr = &Errno{
-		Code:    50110,
-		Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Struct to Json failed",
-	}
 	ErrClusterUserNotFound           = &Errno{Code: 50111, Message: "Dev space has not found"}
 	ErrDeletedClusterButDatabaseFail = &Errno{
 		Code: 50112, Message: "Cluster namespace has deleted, but database record delete fail",
@@ -162,6 +151,10 @@ var (
 	}
 	ErrAlreadyExist = &Errno{
 		Code: 50123, Message: "Current user already authorization current cluster's cluster admin",
+	}
+	ErrBindServiceAccountKubeConfigJsonEncodeErr = &Errno{
+		Code:    50124,
+		Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Struct to Json failed",
 	}
 
 	// application-user for application-user module request
@@ -196,5 +189,8 @@ var (
 	}
 	ErrClusterRoleBindingRemove = &Errno{
 		Code: 70006, Message: "Failed to remove cluster role binding, please check your cluster and try again",
+	}
+	ErrRoleBindingDelete = &Errno{
+		Code: 70007, Message: "Failed to remove role binding, please check your cluster and try again",
 	}
 )

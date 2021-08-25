@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package app
@@ -17,11 +10,14 @@ import (
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"net"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
+	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
@@ -81,6 +77,50 @@ func (a *Application) moveProfileFromFileToLeveldb() error {
 
 	//a.profileV2 = profileV2
 	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
+}
+
+func NewFakeApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
+
+	var err error
+	app := &Application{
+		Name:       name,
+		NameSpace:  ns,
+		KubeConfig: kubeconfig,
+	}
+
+	app.appMeta = appmeta.FakeAppMeta(ns, kubeconfig)
+	if err := app.tryLoadProfileFromLocal(); err != nil {
+		return nil, err
+	}
+
+	// if still not present
+	// load from secret
+	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
+	if err != nil {
+		profileV2 = generateProfileFromConfig(app.appMeta.Config)
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, profileV2); err != nil {
+			return nil, err
+		}
+	}
+	app.AppType = profileV2.AppType
+
+	if kubeconfig != "" && kubeconfig != profileV2.Kubeconfig {
+		if err := app.UpdateProfile(
+			func(p *profile.AppProfileV2) error {
+				p.Kubeconfig = kubeconfig
+				return nil
+			},
+		); err != nil {
+			return nil, err
+		}
+	}
+
+	if initClient {
+		if app.client, err = clientgoutils.NewClientGoUtils(app.KubeConfig, app.NameSpace); err != nil {
+			return nil, err
+		}
+	}
+	return app, nil
 }
 
 // When new a application, kubeconfig is required to get meta in k8s cluster
@@ -150,7 +190,42 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		}
 	}
 
+	// can not successful migrate because we are not record
+	// the kubeconfig before
+	//migrateAssociate(profileV2, app)
 	return app, nil
+}
+
+// for previous version, associate path is stored in profile
+// and now it store in a standalone db
+// we should check if migrate is needed
+func migrateAssociate(appProfile *profile.AppProfileV2, a *Application) {
+	if appProfile.AssociateMigrate {
+		return
+	}
+
+	for _, svcProfile := range appProfile.SvcProfile {
+		if svcProfile.Associate != "" {
+
+			_ = dev_dir.DevPath(svcProfile.Associate).
+				Associate(
+					dev_dir.NewSvcPack(
+						appProfile.Namespace,
+						appProfile.Name,
+						base.SvcTypeOf(svcProfile.Type),
+						svcProfile.Name,
+						"",
+					), "NotSupported",
+				)
+		}
+	}
+
+	_ = a.UpdateProfile(
+		func(v2 *profile.AppProfileV2) error {
+			v2.AssociateMigrate = true
+			return nil
+		},
+	)
 }
 
 func (a *Application) generateSecretForEarlierVer() bool {
@@ -166,7 +241,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 	}
 
 	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() &&
-		a.Name != nocalhost.DefaultNocalhostApplication {
+		a.Name != _const.DefaultNocalhostApplication {
 		a.AppType = profileV2.AppType
 
 		defer func() {
@@ -196,21 +271,21 @@ func (a *Application) generateSecretForEarlierVer() bool {
 
 		_ = a.appMeta.Update()
 
-		a.client, err = a.appMeta.GetClient()
-		if err != nil {
-			log.Error(err)
-		}
+		a.client = a.appMeta.GetClient()
+
+		// for the earlier version, the resource is placed in 'ResourceDir'
+		a.ResourceTmpDir = a.getResourceDir()
 		switch a.AppType {
 		case string(appmeta.Manifest), string(appmeta.ManifestLocal), string(appmeta.ManifestGit):
-			_ = a.InstallManifest(a.appMeta, a.getResourceDir(), false)
+			_ = a.InstallManifest(false)
 		case string(appmeta.KustomizeGit):
-			_ = a.InstallKustomize(a.appMeta, a.getResourceDir(), false)
+			_ = a.InstallKustomize(false)
 		default:
 		}
 
 		for _, svc := range profileV2.SvcProfile {
 			if svc.Developing {
-				_ = a.appMeta.SvcDevStart(svc.Name, base.SvcType(svc.Type), profileV2.Identifier)
+				_ = a.appMeta.SvcDevStartComplete(svc.Name, base.SvcType(svc.Type), profileV2.Identifier)
 			}
 		}
 
@@ -417,11 +492,22 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.Sv
 
 	svcProfile := p.SvcProfileV2(svcName, svcType.String())
 
-	if svcProfile.Associate == "" {
+	meta := a.GetAppMeta()
+	pack := dev_dir.NewSvcPack(
+		meta.Ns,
+		meta.Application,
+		base.SvcTypeOf(svcProfile.Type),
+		svcProfile.Name,
+		"",
+	)
+
+	associatePath := pack.GetAssociatePath()
+
+	if associatePath == "" {
 		return false
 	}
 
-	configFile := fp.NewFilePath(svcProfile.Associate).
+	configFile := fp.NewFilePath(string(associatePath)).
 		RelOrAbs(DefaultGitNocalhostDir).
 		RelOrAbs(DefaultConfigNameInGitNocalhostDir)
 
@@ -721,15 +807,9 @@ func (a *Application) GetDescription() *profile.AppProfileV2 {
 
 		// first iter from local svcProfile
 		for _, svcProfile := range appProfile.SvcProfile {
-			svcType := base.SvcTypeOf(svcProfile.Type)
+			appmeta.FillingExtField(svcProfile, meta, a.Name, a.NameSpace, appProfile.Identifier)
 
-			svcProfile.Developing = meta.CheckIfSvcDeveloping(svcProfile.ActualName, svcType)
-			svcProfile.Possess = a.appMeta.SvcDevModePossessor(
-				svcProfile.ActualName, svcType,
-				appProfile.Identifier,
-			)
-
-			if m := devMeta[svcType.Alias()]; m != nil {
+			if m := devMeta[base.SvcTypeOf(svcProfile.Type).Alias()]; m != nil {
 				delete(m, svcProfile.ActualName)
 			}
 		}
@@ -738,12 +818,13 @@ func (a *Application) GetDescription() *profile.AppProfileV2 {
 		for svcTypeAlias, m := range devMeta {
 			for svcName, _ := range m {
 				svcProfile := appProfile.SvcProfileV2(svcName, string(svcTypeAlias.Origin()))
+				appmeta.FillingExtField(svcProfile, meta, a.Name, a.NameSpace, appProfile.Identifier)
 
-				svcProfile.Developing = true
-				svcProfile.Possess = a.appMeta.SvcDevModePossessor(
-					svcProfile.ActualName, svcTypeAlias.Origin(),
-					appProfile.Identifier,
-				)
+				//svcProfile.Developing = true
+				//svcProfile.Possess = a.appMeta.SvcDevModePossessor(
+				//	svcProfile.ActualName, svcTypeAlias.Origin(),
+				//	appProfile.Identifier,
+				//)
 			}
 		}
 
@@ -775,6 +856,10 @@ func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error 
 
 func (a *Application) PortForwardAPod(req clientgoutils.PortForwardAPodRequest) error {
 	return a.client.PortForwardAPod(req)
+}
+
+func (a *Application) PortForward(pod string, localPort, remotePort int, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) error {
+	return a.client.Forward(pod, localPort, remotePort, readyChan, stopChan, g)
 }
 
 // set pid file empty
@@ -812,22 +897,21 @@ func (a *Application) IsAnyServiceInDevMode() bool {
 	return false
 }
 
-func (a *Application) PortForwardFollow(podName string, localPort int, remotePort int, kubeconfig, ns string) error {
-	client, err := clientgoutils.NewClientGoUtils(kubeconfig, ns)
+func (a *Application) PortForwardFollow(podName string, localPort int, remotePort int, okChan chan struct{}) error {
+	client, err := clientgoutils.NewClientGoUtils(a.KubeConfig, a.NameSpace)
 	if err != nil {
-		panic(err)
+		return err
 	}
-
 	fps := []*clientgoutils.ForwardPort{{LocalPort: localPort, RemotePort: remotePort}}
-
-	pf, err := client.CreatePortForwarder(podName, fps)
+	pf, err := client.CreatePortForwarder(podName, fps, nil, nil, genericclioptions.IOStreams{})
 	if err != nil {
-		panic(err)
+		return err
 	}
-
 	errChan := make(chan error, 1)
 	go func() {
-		errChan <- pf.ForwardPorts()
+		if err = pf.ForwardPorts(); err != nil {
+			errChan <- err
+		}
 	}()
 	go func() {
 		for {
@@ -835,14 +919,12 @@ func (a *Application) PortForwardFollow(podName string, localPort int, remotePor
 			case <-pf.Ready:
 				fmt.Printf("Forwarding from 127.0.0.1:%d -> %d\n", localPort, remotePort)
 				fmt.Printf("Forwarding from [::1]:%d -> %d\n", localPort, remotePort)
+				if okChan != nil {
+					okChan <- struct{}{}
+				}
 				return
 			}
 		}
 	}()
-	for {
-		select {
-		case <-errChan:
-			fmt.Println("err")
-		}
-	}
+	return <-errChan
 }

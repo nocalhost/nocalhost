@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package appmeta_manager
@@ -17,9 +10,8 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
+	"github.com/pkg/errors"
 	"io/ioutil"
-	"k8s.io/client-go/kubernetes"
 	"nocalhost/internal/nhctl/appmeta"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
@@ -86,23 +78,28 @@ func GetRlsNameFromKey(key string) (string, error) {
 	return elems[0], nil
 }
 
-func tryDelAppFromHelmRelease(appName, ns string, configBytes []byte, clientSet *kubernetes.Clientset) error {
+func tryDelAppFromHelmRelease(appName, ns string, configBytes []byte) error {
 	meta := GetApplicationMeta(ns, appName, configBytes)
-	if meta.IsNotInstall() {
+	if meta.IsNotInstall() || meta.IsInstalling() {
 		return nil
 	}
 
-	meta.InjectGoClient(clientSet, configBytes)
-
-	if err := meta.Delete(); err != nil {
-		return err
-	} else {
-		log.TLogf("Watcher", "Uninstall application %s by managed helm", appName)
-		return nil
-	}
+	return errors.Wrap(
+		meta.DoWithTempOperator(
+			configBytes, func() error {
+				if err := meta.Delete(); err != nil {
+					return err
+				} else {
+					log.TLogf("Watcher", "Uninstall application %s by managed helm", appName)
+					return nil
+				}
+			},
+		),
+		"Error while uninstall application for helm release",
+	)
 }
 
-func tryNewAppFromHelmRelease(releaseStr, ns string, configBytes []byte, clientSet *kubernetes.Clientset) error {
+func tryNewAppFromHelmRelease(releaseStr, ns string, configBytes []byte) error {
 	release, err := DecodeRelease(releaseStr)
 	if err != nil {
 		return err
@@ -116,7 +113,7 @@ func tryNewAppFromHelmRelease(releaseStr, ns string, configBytes []byte, clientS
 	// helm uninstall the Application
 	// and do not delete the cm or secret
 	if release.Info.Deleted != "" {
-		return tryDelAppFromHelmRelease(release.Name, ns, configBytes, clientSet)
+		return tryDelAppFromHelmRelease(release.Name, ns, configBytes)
 	}
 
 	meta := GetApplicationMeta(ns, release.Name, configBytes)
@@ -124,24 +121,31 @@ func tryNewAppFromHelmRelease(releaseStr, ns string, configBytes []byte, clientS
 		return nil
 	}
 
-	meta.InjectGoClient(clientSet, configBytes)
+	return errors.Wrap(
+		meta.DoWithTempOperator(
+			configBytes,
+			func() error {
 
-	if err := meta.Initial(); err != nil {
-		return err
-	}
+				if err := meta.Initial(); err != nil {
+					return err
+				}
 
-	meta.ApplicationType = appmeta.HelmLocal
-	meta.ApplicationState = appmeta.INSTALLED
-	meta.HelmReleaseName = release.Name
-	meta.Application = release.Name
-	meta.Config = &profile2.NocalHostAppConfigV2{}
+				meta.ApplicationType = appmeta.HelmLocal
+				meta.ApplicationState = appmeta.INSTALLED
+				meta.HelmReleaseName = release.Name
+				meta.Application = release.Name
+				meta.Config = &profile2.NocalHostAppConfigV2{}
 
-	if err := meta.Update(); err != nil {
-		return err
-	} else {
-		log.TLogf("Watcher", "Initial application '%s' by managed helm", release.Name)
-		return nil
-	}
+				if err := meta.Update(); err != nil {
+					return err
+				} else {
+					log.TLogf("Watcher", "Initial application '%s' by managed helm", release.Name)
+					return nil
+				}
+			},
+		),
+		"Error while new application for helm release",
+	)
 }
 
 // DecodeRelease decodes the bytes of data into a release

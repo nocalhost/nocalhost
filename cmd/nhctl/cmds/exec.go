@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2020 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package cmds
@@ -15,11 +8,13 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"regexp"
 )
 
 type ExecFlags struct {
 	CommonFlags
-	Commands []string
+	Commands  []string
+	Container string
 }
 
 var execFlags = ExecFlags{}
@@ -27,6 +22,7 @@ var execFlags = ExecFlags{}
 func init() {
 	execCmd.Flags().StringArrayVarP(&execFlags.Commands, "command", "c", nil,
 		"command to execute in container")
+	execCmd.Flags().StringVarP(&execFlags.Container, "container", "", "", "container name")
 	execCmd.Flags().StringVarP(&execFlags.SvcName, "deployment", "d", "",
 		"k8s deployment which your developing service exists")
 	execCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
@@ -46,7 +42,12 @@ var execCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		execFlags.AppName = args[0]
+		// replace $(XXX) --> ${XXX}, support environment variable
+		compile, _ := regexp.Compile(`\$\((.*?)\)`)
+		for i := 0; i < len(execFlags.Commands); i++ {
+			execFlags.Commands[i] = compile.ReplaceAllString(execFlags.Commands[i], "${$1}")
+		}
 		initAppAndCheckIfSvcExist(execFlags.AppName, execFlags.SvcName, serviceType)
-		must(nocalhostApp.Exec(execFlags.SvcName, "", execFlags.Commands))
+		must(nocalhostApp.Exec(execFlags.SvcName, execFlags.Container, execFlags.Commands))
 	},
 }

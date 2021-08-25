@@ -1,22 +1,15 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package clientgoutils
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"net/http"
 
 	"k8s.io/client-go/tools/portforward"
@@ -28,7 +21,19 @@ type ForwardPort struct {
 	RemotePort int
 }
 
-func (c *ClientGoUtils) CreatePortForwarder(pod string, fps []*ForwardPort) (*portforward.PortForwarder, error) {
+func (c *ClientGoUtils) Forward(pod string, localPort, remotePort int, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) error {
+	pf := ForwardPort{
+		LocalPort:  localPort,
+		RemotePort: remotePort,
+	}
+	fd, err := c.CreatePortForwarder(pod, []*ForwardPort{&pf}, readyChan, stopChan, g)
+	if err != nil {
+		return err
+	}
+	return errors.Wrap(fd.ForwardPorts(), "")
+}
+
+func (c *ClientGoUtils) CreatePortForwarder(pod string, fps []*ForwardPort, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) (*portforward.PortForwarder, error) {
 	if fps == nil || len(fps) < 1 {
 		return nil, errors.New("forward ports can not be nil")
 	}
@@ -45,9 +50,13 @@ func (c *ClientGoUtils) CreatePortForwarder(pod string, fps []*ForwardPort) (*po
 	}
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, "POST", url)
 
-	readyChan := make(chan struct{})
-	stopChan := make(chan struct{})
-	out := new(bytes.Buffer)
+	if readyChan == nil {
+		readyChan = make(chan struct{})
+	}
+	if stopChan == nil {
+		stopChan = make(chan struct{})
+	}
+	//out := new(bytes.Buffer)
 
 	ports := make([]string, 0)
 	for _, fp := range fps {
@@ -56,12 +65,12 @@ func (c *ClientGoUtils) CreatePortForwarder(pod string, fps []*ForwardPort) (*po
 
 	pf, err := portforward.NewOnAddresses(
 		dialer,
-		[]string{"localhost"},
+		[]string{"0.0.0.0"},
 		ports,
 		stopChan,
 		readyChan,
 		ioutil.Discard,
-		out,
+		g.Out,
 	)
 	if err != nil {
 		return nil, err

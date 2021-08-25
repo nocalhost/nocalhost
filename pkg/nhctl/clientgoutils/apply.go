@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 package clientgoutils
 
@@ -22,10 +15,25 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/kubectl/pkg/cmd/apply"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"nocalhost/internal/nhctl/const"
 	//"k8s.io/kubectl/pkg/util"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 )
+
+func StandardNocalhostMetas(releaseName, releaseNamespace string) *ApplyFlags {
+	return &ApplyFlags{
+		MergeableLabel: map[string]string{
+			_const.AppManagedByLabel: _const.AppManagedByNocalhost,
+		},
+
+		MergeableAnnotation: map[string]string{
+			_const.NocalhostApplicationName:      releaseName,
+			_const.NocalhostApplicationNamespace: releaseNamespace,
+		},
+		DoApply: true,
+	}
+}
 
 type ApplyFlags struct {
 
@@ -48,7 +56,7 @@ func (a *ApplyFlags) SetDoApply(doApply bool) *ApplyFlags {
 	return a
 }
 
-func (c *ClientGoUtils) DeleteResourceInfo(info *resource.Info) error {
+func DeleteResourceInfo(info *resource.Info) error {
 	helper := resource.NewHelper(info.Client, info.Mapping)
 	propagationPolicy := metav1.DeletePropagationBackground
 	obj, err := helper.DeleteWithOptions(

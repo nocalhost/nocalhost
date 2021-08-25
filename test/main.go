@@ -1,21 +1,17 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package main
 
 import (
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"nocalhost/test/runner"
 	"nocalhost/test/suite"
+	"nocalhost/test/testcase"
 	"os"
 	"path/filepath"
 	"sync"
@@ -24,6 +20,7 @@ import (
 
 func main() {
 	//_ = os.Setenv("LocalTest", "true")
+	_ = os.Setenv(_const.EnableFullLogEnvKey, "true")
 
 	start := time.Now()
 
@@ -38,31 +35,45 @@ func main() {
 		t = suite.NewT(ns, kubeconfig, cancelFunc)
 	}
 
+	log.Infof("Init Success, cost: %v", time.Now().Sub(start).Seconds())
+
+	// try to prepare bookinfo image, in case of pull image parallel
+	t.RunWithBookInfo(true, "PrepareImage", func(cli runner.Client) {})
+
 	compatibleChan := make(chan interface{}, 1)
 	wg := sync.WaitGroup{}
 
 	DoRun(false, &wg, func() {
-		t.RunWithBookInfo(false, "helm-adaption", suite.HelmAdaption)
+		t.RunWithBookInfo(false, "TestHook", suite.Hook)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("install", suite.Install)
+		t.RunWithBookInfo(false, "HelmAdaption", suite.HelmAdaption)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("deployment", suite.Deployment)
+		t.Run("Install", suite.Install)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("application", suite.Upgrade)
+		t.Run("Deployment", suite.Deployment)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("statefulSet", suite.StatefulSet)
+		t.Run("Application", suite.Upgrade)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("remove syncthing pid file manually", suite.KillSyncthingProcess)
+		t.Run("ProfileAndAssociate", suite.ProfileAndAssociate)
+	})
+
+
+	DoRun(false, &wg, func() {
+		t.Run("StatefulSet", suite.StatefulSet)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("RemoveSyncthingPidFile", suite.KillSyncthingProcess)
 	})
 
 	DoRun(false, &wg, func() {
@@ -70,7 +81,12 @@ func main() {
 	})
 
 	DoRun(true, &wg, func() {
-		t.Run("compatible", suite.Compatible)
+		t.Run("Log", suite.TestLog)
+	})
+
+	lastVersion, _ := testcase.GetVersion()
+	DoRun(lastVersion != "", &wg, func() {
+		t.Run("Compatible", suite.Compatible)
 		compatibleChan <- "Done"
 	})
 
@@ -78,9 +94,9 @@ func main() {
 	log.Infof("All Async Test Done")
 	<-compatibleChan
 
-	t.Clean(false)
-
+	suite.LogsForArchive()
 	log.Infof("Total time: %v", time.Now().Sub(start).Seconds())
+	t.Clean()
 }
 
 func DoRun(doAfterWgDone bool, wg *sync.WaitGroup, do func()) {

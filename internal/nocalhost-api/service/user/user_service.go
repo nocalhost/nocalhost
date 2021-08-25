@@ -1,19 +1,13 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package user
 
 import (
 	"context"
+	"nocalhost/internal/nocalhost-api/cache"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
@@ -48,6 +42,9 @@ type UserService interface {
 	UpdateUser(ctx context.Context, id uint64, user *model.UserBaseModel) (*model.UserBaseModel, error)
 	GetUserList(ctx context.Context) ([]*model.UserList, error)
 	UpdateServiceAccountName(ctx context.Context, id uint64, saName string) error
+
+	GetCache(id uint64) (model.UserBaseModel, error)
+	GetCacheBySa(sa string) (model.UserBaseModel, error)
 	Close()
 }
 
@@ -62,6 +59,55 @@ func NewUserService() UserService {
 	}
 }
 
+func (srv *userService) Evict(id uint64) {
+	c := cache.Module(cache.USER)
+
+	value, err := c.Value(id)
+	if err != nil {
+		return
+	}
+
+	clusterModel := value.Data().(*model.UserBaseModel)
+	_, _ = c.Delete(id)
+	_, _ = c.Delete(clusterModel.SaName)
+}
+
+func (srv *userService) GetCacheBySa(sa string) (model.UserBaseModel, error) {
+	c := cache.Module(cache.USER)
+	value, err := c.Value(sa)
+	if err == nil {
+		clusterModel := value.Data().(*model.UserBaseModel)
+		return *clusterModel, nil
+	}
+
+	result, err := srv.userRepo.GetUserBySa(context.TODO(), sa)
+	if err != nil {
+		return model.UserBaseModel{}, errors.Wrapf(err, "get user")
+	}
+
+	c.Add(result.ID, time.Hour, result)
+	c.Add(result.SaName, time.Hour, result)
+	return *result, nil
+}
+
+func (srv *userService) GetCache(id uint64) (model.UserBaseModel, error) {
+	c := cache.Module(cache.USER)
+	value, err := c.Value(id)
+	if err == nil {
+		clusterModel := value.Data().(*model.UserBaseModel)
+		return *clusterModel, nil
+	}
+
+	result, err := srv.GetUserByID(context.TODO(), id)
+	if err != nil {
+		return model.UserBaseModel{}, errors.Wrapf(err, "get user")
+	}
+
+	c.Add(result.ID, time.Hour, result)
+	c.Add(result.SaName, time.Hour, result)
+	return *result, nil
+}
+
 func (srv *userService) GetUserList(ctx context.Context) ([]*model.UserList, error) {
 	return srv.userRepo.GetUserList(ctx)
 }
@@ -72,6 +118,7 @@ func (srv *userService) Delete(ctx context.Context, id uint64) error {
 	if err != nil {
 		return errors.Wrapf(err, "delete user fail")
 	}
+	srv.Evict(id)
 	return nil
 }
 
@@ -98,6 +145,8 @@ func (srv *userService) Create(
 	if err != nil {
 		return result, errors.Wrapf(err, "create user")
 	}
+
+	srv.Evict(result.ID)
 	return result, nil
 }
 
@@ -115,10 +164,11 @@ func (srv *userService) Register(ctx context.Context, email, password string) er
 		UpdatedAt: time.Time{},
 		Uuid:      uuid.NewV4().String(),
 	}
-	_, err = srv.userRepo.Create(ctx, u)
+	result, err := srv.userRepo.Create(ctx, u)
 	if err != nil {
 		return errors.Wrapf(err, "create user")
 	}
+	srv.Evict(result.ID)
 	return nil
 }
 
@@ -157,6 +207,7 @@ func (srv *userService) UpdateUser(ctx context.Context, id uint64, user *model.U
 		return user, err
 	}
 
+	srv.Evict(id)
 	return user, nil
 }
 
@@ -189,6 +240,7 @@ func (srv *userService) GetUserByEmail(ctx context.Context, email string) (*mode
 }
 
 func (srv *userService) UpdateServiceAccountName(ctx context.Context, id uint64, saName string) error {
+	defer srv.Evict(id)
 	return srv.userRepo.UpdateServiceAccountName(ctx, id, saName)
 }
 

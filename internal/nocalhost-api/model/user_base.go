@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package model
@@ -44,6 +37,35 @@ type UserBaseModel struct {
 func (u *UserBaseModel) Validate() error {
 	validate := validator.New()
 	return validate.Struct(u)
+}
+
+// Validate the fields.
+func (u *UserBaseModel) ToUserSimple() *UserSimple {
+	return &UserSimple{
+		ID:           u.ID,
+		Name:         u.Name,
+		Username:     u.Username,
+		Phone:        u.Phone,
+		Email:        u.Email,
+		IsAdmin:      u.IsAdmin,
+		Status:       u.Status,
+		ClusterAdmin: u.ClusterAdmin,
+		Avatar:       u.Avatar,
+		CreatedAt:    u.CreatedAt,
+	}
+}
+
+type UserSimple struct {
+	ID           uint64    `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
+	Name         string    `json:"name" gorm:"column:name;not null" json:"name"`
+	Username     string    `json:"username" gorm:"column:username;not null" validate:"min=1,max=32"`
+	Phone        int64     `gorm:"column:phone" json:"phone"`
+	Email        string    `gorm:"column:email" json:"email"`
+	IsAdmin      *uint64   `gorm:"column:is_admin" json:"is_admin"`
+	Status       *uint64   `gorm:"column:status" json:"status"`
+	ClusterAdmin *uint64   `gorm:"column:cluster_admin" json:"cluster_admin"`
+	Avatar       string    `gorm:"column:avatar" json:"avatar"`
+	CreatedAt    time.Time `gorm:"column:created_at" json:"-"`
 }
 
 // UserInfo

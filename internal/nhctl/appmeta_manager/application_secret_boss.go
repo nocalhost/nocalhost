@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package appmeta_manager
@@ -97,8 +90,10 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 
 	log.Infof("Prepare SecretWatcher for ns %s", ns)
 	if err := watcher.Prepare(); err != nil {
-		log.TLogf("MetaSecret", "Error while get application in deck from ns %s.. "+
-			"return empty array.., Error: %s", ns, err.Error())
+		log.TLogf(
+			"MetaSecret", "Error while get application in deck from ns %s.. "+
+				"return empty array.., Error: %s", ns, err.Error(),
+		)
 		return nil
 	}
 
@@ -174,7 +169,7 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 						)
 
 						needToDestroy = true
-					} else if _, ok := sets[decode.HelmReleaseName]; !ok && decode.ApplicationType.IsHelm() {
+					} else if _, ok := sets[decode.HelmReleaseName]; !ok && decode.IsInstalled() && decode.ApplicationType.IsHelm() {
 
 						// delete the secret that do not have correspond helm rls
 						log.TLogf(

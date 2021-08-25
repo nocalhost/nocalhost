@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package cluster_user
@@ -17,7 +10,6 @@ import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
-	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
@@ -140,29 +132,7 @@ func (d *DevSpace) createDevSpace(
 	// create cluster devs
 	devNamespace := goClient.GenerateNsName(usersRecord.ID)
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
-	secret, err := clusterDevsSetUp.
-		CreateNS(devNamespace, "").
-		CreateServiceAccount("", devNamespace).
-		CreateRole(global.NocalhostDevRoleName, devNamespace).
-		CreateRoleBinding(
-			global.NocalhostDevRoleBindingName, devNamespace, global.NocalhostDevRoleName,
-			global.NocalhostDevServiceAccountName,
-		).
-		CreateRoleBinding(
-			global.NocalhostDevRoleDefaultBindingName, devNamespace, global.NocalhostDevRoleName,
-			global.NocalhostDevDefaultServiceAccountName,
-		).
-		GetServiceAccount(global.NocalhostDevServiceAccountName, devNamespace).
-		GetServiceAccountSecret("", devNamespace)
-
-	KubeConfigYaml, err, nerrno := setupcluster.
-		NewDevKubeConfigReader(secret, clusterRecord.Server, devNamespace).
-		GetCA().
-		GetToken().
-		AssembleDevKubeConfig().ToYamlString()
-	if err != nil {
-		return nil, nerrno
-	}
+	clusterDevsSetUp.CreateNS(devNamespace, "")
 
 	// create namespace ResouceQuota and container limitRange
 	res := d.DevSpaceParams.SpaceResourceLimit
@@ -183,7 +153,7 @@ func (d *DevSpace) createDevSpace(
 	resString, err := json.Marshal(res)
 	result, err := service.Svc.ClusterUser().Create(
 		d.c, *d.DevSpaceParams.ClusterId, usersRecord.ID, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu,
-		KubeConfigYaml, devNamespace, d.DevSpaceParams.SpaceName, string(resString),
+		"", devNamespace, d.DevSpaceParams.SpaceName, string(resString),
 	)
 	if err != nil {
 		return nil, errno.ErrBindApplicationClsuter

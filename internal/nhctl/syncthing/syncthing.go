@@ -1,14 +1,7 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+*/
 
 // syncthing module: thanks to okteto given our inspired
 
@@ -21,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
-	"nocalhost/internal/nhctl/nocalhost"
+	_const "nocalhost/internal/nhctl/const"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -253,7 +246,7 @@ func (s *Syncthing) generateIgnoredFileConfig() (string, error) {
 		return "", fmt.Errorf("failed to write .nhignore configuration template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(ignoreFilePath, buf.Bytes(), nocalhost.DefaultNewFilePermission); err != nil {
+	if err := ioutil.WriteFile(ignoreFilePath, buf.Bytes(), _const.DefaultNewFilePermission); err != nil {
 		return "", fmt.Errorf("failed to generate .nhignore configuration: %w", err)
 	}
 
@@ -277,13 +270,16 @@ func (s *Syncthing) Run(ctx context.Context) error {
 	pidPath := filepath.Join(s.LocalHome, syncthingPidFile)
 
 	cmdArgs := []string{
-		"-home", s.LocalHome,
-		"-no-browser",
-		"-verbose",
-		"-logfile", s.LogPath,
-		"-log-max-old-files=0",
-		"-ignore-file-path=" + ignoreFilePath,
+		"serve",
+		"--home", s.LocalHome,
+		"--no-browser",
+		"--verbose",
+		"--logfile", s.LogPath,
+		"--log-max-old-files=0",
+		"--ignore-file-path=" + ignoreFilePath,
 	}
+
+	log.Debug(cmdArgs)
 	s.cmd = exec.Command(s.BinPath, cmdArgs...) //nolint: gas, gosec
 	s.cmd.Env = append(os.Environ(), "STNOUPGRADE=1")
 

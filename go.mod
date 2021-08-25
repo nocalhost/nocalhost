@@ -1,6 +1,6 @@
 module nocalhost
 
-go 1.15
+go 1.16
 
 // require k8s.io/kubernetes v1.16.10
 
@@ -24,7 +24,6 @@ require (
 	github.com/golang/snappy v0.0.2
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/uuid v1.1.2
-	github.com/hashicorp/go-getter v1.5.1
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/imroc/req v0.3.0
@@ -38,9 +37,11 @@ require (
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/mapstructure v1.3.2 // indirect
 	github.com/moby/term v0.0.0-20200312100748-672ec06f55cd
+	github.com/muesli/cache2go v0.0.0-20210519043705-f6c4b2d7bc5d
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/nocalhost/remotecommand v0.0.0-20210713025133-bfbc2d3e1250
 	github.com/olekukonko/tablewriter v0.0.4
+	github.com/olivere/elastic/v7 v7.0.27
 	github.com/onsi/ginkgo v1.12.3 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
@@ -64,10 +65,10 @@ require (
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da // indirect
 	go.uber.org/zap v1.15.0
 	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
-	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
-	golang.org/x/sys v0.0.0-20201112073958-5cba982894dd
-	golang.org/x/text v0.3.4
-	google.golang.org/grpc v1.27.1
+	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
+	golang.org/x/sys v0.0.0-20210423082822-04245dca01da
+	golang.org/x/text v0.3.6
+	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0

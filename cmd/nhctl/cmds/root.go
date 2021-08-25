@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package cmds
@@ -15,27 +8,39 @@ package cmds
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/yaml.v3"
+	"io/ioutil"
 	"nocalhost/internal/nhctl/app"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 )
 
 var (
-	//settings     *app_flags.EnvSettings
-	nameSpace    string
-	debug        bool
+	nameSpace string
+	debug     bool
+
+	// pre check the nocalhost commands permissions
+	authCheck    bool
 	kubeConfig   string // the path to the kubeconfig file
 	nocalhostApp *app.Application
 	nocalhostSvc *controller.Controller
 )
 
-func init() {
+type ConfigFile struct {
+	NhEsUrl string `json:"nh_es_url" yaml:"nh_es_url"`
+}
 
-	//settings = app_flags.NewEnvSettings()
+func init() {
 	rootCmd.PersistentFlags().StringVarP(
 		&nameSpace, "namespace", "n", "",
 		"kubernetes namespace",
@@ -44,31 +49,87 @@ func init() {
 		&debug, "debug", debug,
 		"enable debug level log",
 	)
+	rootCmd.PersistentFlags().BoolVar(
+		&authCheck, "auth-check", authCheck,
+		"pre check the nocalhost commands permissions, return yes"+
+			" represent having enough permissions to call the command",
+	)
 	rootCmd.PersistentFlags().StringVar(
 		&kubeConfig, "kubeconfig", "",
 		"the path of the kubeconfig file",
 	)
 
-	//cobra.OnInitialize(func() {
-	//})
 }
+
+var cmdStartTime time.Time
 
 var rootCmd = &cobra.Command{
 	Use:   "nhctl",
-	Short: "nhctl use to deploy coding project",
-	Long:  `nhctl can deploy and develop application on Kubernetes. `,
+	Short: "nhctl is a cloud-native development tool.",
+	Long:  `nhctl is a cloud-native development tool.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		cmdStartTime = time.Now()
 
+		// Init log
 		if debug {
-			log.Init(zapcore.DebugLevel, nocalhost.GetLogDir(), nocalhost.DefaultLogFileName)
+			_ = os.Setenv("_NOCALHOST_DEBUG_", "1")
+			_ = log.Init(zapcore.DebugLevel, nocalhost.GetLogDir(), _const.DefaultLogFileName)
 		} else {
-			log.Init(zapcore.InfoLevel, nocalhost.GetLogDir(), nocalhost.DefaultLogFileName)
+			_ = log.Init(zapcore.InfoLevel, nocalhost.GetLogDir(), _const.DefaultLogFileName)
 		}
-		err := nocalhost.Init()
+		log.AddField("VERSION", Version)
+		log.AddField("COMMIT", GitCommit)
+		log.AddField("BRANCH", Branch)
+		log.AddField("ARGS", strings.Join(os.Args, " "))
+
+		var esUrl string
+		bys, err := ioutil.ReadFile(filepath.Join(nocalhost_path.GetNhctlHomeDir(), "config"))
+		if err == nil && len(bys) > 0 {
+			configFile := ConfigFile{}
+			err = yaml.Unmarshal(bys, &configFile)
+			if err == nil && configFile.NhEsUrl != "" {
+				esUrl = configFile.NhEsUrl
+			}
+		}
+		if esUrl == "" {
+			esUrl = os.Getenv("NH_ES_URL")
+		}
+		if esUrl != "" {
+			log.InitEs(esUrl)
+		}
+
+		err = nocalhost.Init()
 		if err != nil {
 			log.FatalE(err, "Fail to init nhctl")
 		}
 		serviceType = strings.ToLower(serviceType)
+
+		if authCheck {
+
+			must(Prepare())
+			client, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
+			must(err)
+
+			must(clientgoutils.DoCheck(cmd, nameSpace, client))
+
+			println("yes")
+			os.Exit(0)
+			return
+		}
+	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		if os.Getenv("_NOCALHOST_DEBUG_") != "" {
+			d := time.Now().Sub(cmdStartTime)
+			cmds := clientgoutils.GetCmd(cmd, nil)
+
+			cmd.Flags().Visit(
+				func(flag *pflag.Flag) {
+					cmds = append(cmds, "-"+flag.Name)
+					cmds = append(cmds, flag.Value.String())
+				},
+			)
+			log.Logf("[TimeMachine] %v, cost: %dms", cmds, d.Milliseconds())
+		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Debug("hello nhctl")
@@ -76,14 +137,12 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
-
 	//str := "port-forward start bookinfo-coding -d ratings -p 12345:12345 --pod ratings-6848dcd688-wbn8l
 	//--way manual --kubeconfig ~/.nh/plugin/kubeConfigs/10_167_config"
 	//str := "port-forward start coding-cd -d mariadb -p 3306:3306 --pod mariadb-0 --type statefulset
 	//--way manual --kubeconfig /Users/weiwang/.nh/plugin/kubeConfigs/7_73_config"
 	//str := "init dep"
 	//os.Args = append(os.Args, strings.Split(str, " ")...)
-
 	if len(os.Args) == 1 {
 		args := append([]string{"help"}, os.Args[1:]...)
 		rootCmd.SetArgs(args)

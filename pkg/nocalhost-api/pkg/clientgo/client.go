@@ -1,13 +1,6 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package clientgo
@@ -34,6 +27,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"math/rand"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
@@ -378,6 +372,7 @@ func (c *GoClient) CreateServiceAccount(name, namespace string) (bool, error) {
 	}
 
 	m := map[string]string{}
+	m[_const.NocalhostRoleBindingLabelKey] = _const.NocalhostRoleBindingLabelVal
 	m[NocalhostLabel] = time.Now().Format("20060102150405")
 	arg := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: m},
@@ -587,22 +582,56 @@ func (c *GoClient) CreateClusterRoleBinding(name, namespace, role, toServiceAcco
 	return true, nil
 }
 
-func (c *GoClient) UpdateRole(name, namespace string) error {
+func (c *GoClient) UpdateRole(name, namespace string, rbacRule []rbacv1.PolicyRule) error {
 
 	before, err := c.client.RbacV1().Roles(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	before.Rules = []rbacv1.PolicyRule{
-		{
-			Verbs:     []string{"*"},
-			Resources: []string{"*"},
-			APIGroups: []string{"*"},
-		},
-	}
+	before.Rules = rbacRule
 
 	_, err = c.client.RbacV1().Roles(namespace).Update(context.TODO(), before, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *GoClient) UpdateRoleBindingForNocalhostLabel(name, namespace string) error {
+
+	before, err := c.client.RbacV1().RoleBindings(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	labels := before.Labels
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	labels[_const.NocalhostRoleBindingLabelKey] = _const.NocalhostRoleBindingLabelVal
+
+	_, err = c.client.RbacV1().RoleBindings(namespace).Update(context.TODO(), before, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *GoClient) UpdateClusterRoleBindingForNocalhostLabel(name string) error {
+
+	before, err := c.client.RbacV1().ClusterRoleBindings().Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	labels := before.Labels
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	labels[_const.NocalhostRoleBindingLabelKey] = _const.NocalhostRoleBindingLabelVal
+
+	_, err = c.client.RbacV1().ClusterRoleBindings().Update(context.TODO(), before, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -623,6 +652,11 @@ func (c *GoClient) AppendRoleBinding(name, namespace, role, toServiceAccount, to
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: namespace,
+
+				// for role_binding_watcher
+				Labels: map[string]string{
+					_const.NocalhostRoleBindingLabelKey: _const.NocalhostRoleBindingLabelVal,
+				},
 			},
 		}
 
@@ -685,6 +719,11 @@ func (c *GoClient) AppendClusterRoleBinding(name, role, toServiceAccount, toServ
 			TypeMeta: metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "RoleBinding"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
+
+				// for cluster_role_binding_watcher
+				Labels: map[string]string{
+					_const.NocalhostRoleBindingLabelKey: _const.NocalhostRoleBindingLabelVal,
+				},
 			},
 		}
 
@@ -823,26 +862,16 @@ func (c *GoClient) CreateRole(name, namespace string) (bool, error) {
 }
 
 // cluster admin role for nocalhost
-func (c *GoClient) CreateClusterRole(name string) (bool, error) {
+func (c *GoClient) CreateClusterRole(name string, rule []rbacv1.PolicyRule) (bool, error) {
 	role := &rbacv1.ClusterRole{}
 	role.ObjectMeta = metav1.ObjectMeta{
 		Name: name,
-	}
-
-	//// resource quota && role's permission is limited
-	//rule, err := getPolicyRule(c)
-	//if err != nil {
-	//	return false, err
-	//}
-	//role.Rules = append(role.Rules, *rule...)
-
-	role.Rules = []rbacv1.PolicyRule{
-		{
-			Verbs:     []string{"*"},
-			Resources: []string{"*"},
-			APIGroups: []string{"*"},
+		Labels: map[string]string{
+			_const.NocalhostRoleBindingLabelKey: _const.NocalhostRoleBindingLabelVal,
 		},
 	}
+
+	role.Rules = rule
 
 	_, err := c.client.RbacV1().ClusterRoles().Create(context.TODO(), role, metav1.CreateOptions{})
 	if err != nil {
