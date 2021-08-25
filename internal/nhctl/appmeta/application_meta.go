@@ -19,6 +19,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta/secret_operator"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/fp"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
@@ -288,6 +289,28 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 
 	appMeta.Secret = secret
 	return &appMeta, nil
+}
+
+func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, ns, identifier string) {
+	svcType := base.SvcTypeOf(s.Type)
+
+	devStatus := meta.CheckIfSvcDeveloping(s.ActualName, svcType)
+
+	pack := dev_dir.NewSvcPack(
+		ns,
+		appName,
+		svcType,
+		s.Name,
+		"", // describe can not specify container
+	)
+	s.Associate = pack.GetAssociatePath().ToString()
+	s.Developing = devStatus != NONE
+	s.DevelopStatus = string(devStatus)
+
+	s.Possess = meta.SvcDevModePossessor(
+		s.ActualName, svcType,
+		identifier,
+	)
 }
 
 // sometimes meta will not initail the go client, this method

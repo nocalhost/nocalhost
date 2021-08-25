@@ -177,15 +177,6 @@ func (c *Controller) SetSyncthingPort(remotePort, remoteGUIPort, localPort, loca
 	)
 }
 
-func (c *Controller) associateLocalDir(associate string) error {
-	return c.UpdateSvcProfile(
-		func(svcProfile *profile.SvcProfileV2) error {
-			svcProfile.Associate = associate
-			return nil
-		},
-	)
-}
-
 // You need to closeDB for profile explicitly
 func (c *Controller) GetProfileForUpdate() (*profile.AppProfileV2, error) {
 	return profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName)
