@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package nocalhost_path
 
@@ -13,6 +13,7 @@ import (
 const (
 	DefaultApplicationDbDir      = "db"
 	DefaultNhctlHomeDirName      = ".nh/nhctl"
+	DefaultNocalhostHubDirName   = "nocalhost-hub"
 	DefaultNhctlNameSpaceDirName = "ns"
 )
 
@@ -31,4 +32,16 @@ func GetNhctlHomeDir() string {
 // .nh/nhctl/ns
 func GetNhctlNameSpaceDir() string {
 	return filepath.Join(GetNhctlHomeDir(), DefaultNhctlNameSpaceDirName)
+}
+
+func GetNocalhostHubDir() string {
+	return filepath.Join(GetNhctlHomeDir(), DefaultNocalhostHubDirName)
+}
+
+func GetNocalhostIncubatorHubDir() string {
+	return filepath.Join(GetNocalhostHubDir(), "incubator")
+}
+
+func GetNocalhostStableHubDir() string {
+	return filepath.Join(GetNocalhostHubDir(), "stable")
 }

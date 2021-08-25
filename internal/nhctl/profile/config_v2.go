@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package profile
 
@@ -9,6 +9,8 @@ import (
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
+	"strings"
 )
 
 //type AppType string
@@ -55,8 +57,13 @@ type ServiceConfigV2 struct {
 
 type ContainerConfig struct {
 	Name    string                  `json:"name" yaml:"name"`
+	Hub     *HubConfig              `json:"hub" yaml:"hub,omitempty"`
 	Install *ContainerInstallConfig `json:"install,omitempty" yaml:"install,omitempty"`
 	Dev     *ContainerDevConfig     `json:"dev" yaml:"dev"`
+}
+
+type HubConfig struct {
+	Image string `json:"image" yaml:"image"`
 }
 
 type ContainerInstallConfig struct {
@@ -130,6 +137,41 @@ func (n *NocalHostAppConfigV2) GetSvcConfigV2(svcName string, svcType base.SvcTy
 		}
 	}
 	return nil
+}
+
+func (n *NocalHostAppConfigV2) FindSvcConfigInHub(svcName string, svcType base.SvcType, container, image string) *ServiceConfigV2 {
+	svcConfig := n.GetSvcConfigV2(svcName, svcType)
+	if isSvcConfigInHubMatch(svcConfig, container, image) {
+		return svcConfig
+	}
+	return nil
+}
+
+func isSvcConfigInHubMatch(svcConfig *ServiceConfigV2, container, image string) bool {
+	if svcConfig == nil {
+		return false
+	}
+	strs := strings.Split(image, ":")
+	var imageName string
+	if len(strs) == 1 {
+		imageName = strs[0]
+	} else if len(strs) > 1 {
+		imageName = strs[len(strs)-2]
+	}
+	for _, c := range svcConfig.ContainerConfigs {
+		if c.Name == container {
+			if c.Hub == nil {
+				log.Log("hub field missing")
+				return false
+			}
+			if !strings.Contains(c.Hub.Image, imageName) {
+				log.Log("hub's image not match")
+				return false
+			}
+			return true
+		}
+	}
+	return false
 }
 
 func (c *ApplicationConfig) LoadManifests(tmpDir *fp.FilePathEnhance) []string {

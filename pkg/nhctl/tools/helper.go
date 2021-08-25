@@ -7,7 +7,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	"io"
@@ -23,53 +22,6 @@ import (
 )
 
 var logger *zap.Logger
-
-//check os
-func CheckOS() string {
-	sysType := runtime.GOOS
-	switch sysType {
-	case "linux":
-	case "windows":
-	case "darwin":
-		break
-	default:
-		sysType = "unknown"
-		break
-	}
-	return sysType
-}
-
-//check kubernetes version
-func CheckK8s() (string, bool) {
-	//osName := CheckOS()
-	//if osName == "unknown" {
-	//    panic("nonsupport os system. support linux, macos, windows.")
-	//}
-	////kubectl command
-	//kubectl := osName+"/kubectl"
-	//if osName == "windows" {
-	//	kubectl = osName+"/kubectl.exe"
-	//}
-
-	kubectl := "kubectl"
-	///home/coding-cli/
-	//exec command
-	command := exec.Command(kubectl, "version", "-o", "json")
-	versionJson, err := command.CombinedOutput()
-	if err != nil {
-		fmt.Printf("cmds.Run() failed with %s\n", err)
-	}
-	var k8sVersion interface{}
-	errVersion := json.Unmarshal(versionJson, &k8sVersion)
-	if errVersion != nil {
-		//logger.Error("Kubernetes api-server is not connected or Kubernetes is not installed", zap.Error(errVersion))
-		fmt.Println("error: Kubernetes api-server is not connected or Kubernetes is not installed")
-		return "", false
-	}
-
-	version := k8sVersion.(map[string]interface{})["serverVersion"].(map[string]interface{})["gitVersion"].(string)
-	return version, true
-}
 
 //execute command
 func ExecCommand(
@@ -151,26 +103,6 @@ func copyAndCapture(w io.Writer, r io.Reader, isDisplay bool) ([]byte, error) {
 	return nil, nil
 }
 
-//file exist check
-func CheckFile(file string) bool {
-	_, err := os.Stat(file)
-	if err != nil && os.IsNotExist(err) {
-		return false
-	}
-	return true
-}
-
-//check cmds exist
-func CheckCmdExists(cmd string) bool {
-	path, err := exec.LookPath(cmd)
-	if err != nil {
-		logger.Error("check command is not exists ", zap.Error(err))
-		return false
-	} else {
-		logger.Info("check command is exists ", zap.String("command", cmd), zap.String("path", path))
-		return true
-	}
-}
 
 // check kubectl and helm
 func CheckThirdPartyCLI() (string, error) {
@@ -191,13 +123,6 @@ func CheckThirdPartyCLI() (string, error) {
 	return kubectl, nil
 }
 
-//func GetNhctl() string {
-//	nhctl := "nhctl"
-//	if runtime.GOOS == "windows" {
-//		nhctl = "nhctl.exe"
-//	}
-//	return nhctl
-//}
 
 func GenerateRangeNum(min, max int) int {
 	rand.Seed(time.Now().Unix())
