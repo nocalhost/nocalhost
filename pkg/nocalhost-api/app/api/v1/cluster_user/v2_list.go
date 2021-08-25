@@ -197,12 +197,32 @@ func doSort(clusterUsers []*model.ClusterUserV2) {
 		clusterUsers, func(i, j int) bool {
 			cu1 := clusterUsers[i]
 			cu2 := clusterUsers[j]
-
-			// clusterAdmin show at the top
-			return *cu1.ClusterAdmin > *cu2.ClusterAdmin ||
-				cu1.ClusterUserExt.SpaceOwnType.Priority > cu2.ClusterUserExt.SpaceOwnType.Priority ||
-				cu1.UserId > cu2.UserId ||
-				cu1.SpaceName < cu2.SpaceName
+			//clusterAdmin show at the top
+			if *cu1.ClusterAdmin > *cu2.ClusterAdmin {
+				return true
+			}
+			if *cu1.ClusterAdmin < *cu2.ClusterAdmin {
+				return false
+			}
+			if cu1.ClusterUserExt.SpaceOwnType.Priority > cu2.ClusterUserExt.SpaceOwnType.Priority {
+				return true
+			}
+			if cu1.ClusterUserExt.SpaceOwnType.Priority < cu2.ClusterUserExt.SpaceOwnType.Priority {
+				return false
+			}
+			if cu1.ClusterId < cu2.ClusterId {
+				return true
+			}
+			if cu1.ClusterId > cu2.ClusterId {
+				return false
+			}
+			if cu1.UserId < cu2.UserId {
+				return true
+			}
+			if cu1.UserId > cu2.UserId {
+				return false
+			}
+			return cu1.SpaceName < cu2.SpaceName
 		},
 	)
 }
