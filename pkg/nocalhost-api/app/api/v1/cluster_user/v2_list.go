@@ -20,7 +20,6 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
-	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
 func GetV2(c *gin.Context) {
@@ -123,20 +122,8 @@ func DoList(params *model.ClusterUserModel, userId uint64, isAdmin, isCanBeUsedA
 	}
 
 	// filter can be used for base space
-	if params.ClusterId > 0 && isCanBeUsedAsBaseSpace && len(clusterUsers) > 0 {
-		cluster, err := service.Svc.ClusterSvc().GetCache(params.ClusterId)
-		if err != nil {
-			return nil, errno.ErrClusterNotFound
-		}
-		manager, err := setupcluster.GetSharedMeshManagerFactory().Manager(cluster.KubeConfig)
-		if err != nil {
-			return nil, errno.ErrClusterKubeConnect
-		}
-		ns := make(map[string]bool)
-		for _, n := range manager.GetMeshNamespaceNames() {
-			ns[n] = true
-		}
-		clusterUsers = filter(clusterUsers, isCanBeUsedAsBaseSpaceFun(ns))
+	if isCanBeUsedAsBaseSpace && len(clusterUsers) > 0 {
+		clusterUsers = filter(clusterUsers, isCanBeUsedAsBaseSpaceFun())
 	}
 	return clusterUsers, nil
 }
@@ -171,9 +158,9 @@ func relatedToSomebody(userId uint64) func(*model.ClusterUserV2) bool {
 	}
 }
 
-func isCanBeUsedAsBaseSpaceFun(ns map[string]bool) func(*model.ClusterUserV2) bool {
+func isCanBeUsedAsBaseSpaceFun() func(*model.ClusterUserV2) bool {
 	return func(cu *model.ClusterUserV2) bool {
-		return ns[cu.Namespace] && cu.SpaceType != model.ShareSpace
+		return cu.SpaceType != model.ShareSpace && cu.IsBaseSpace
 	}
 }
 
