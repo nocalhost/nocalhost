@@ -162,6 +162,7 @@ func (srv *clusterUserService) ListV2(models model.ClusterUserModel) (
 		item.SpaceResourceLimit = userModel.SpaceResourceLimit
 		item.CreatedAt = userModel.CreatedAt
 		item.BaseDevSpaceId = userModel.BaseDevSpaceId
+		item.IsBaseSpace = userModel.IsBaseSpace
 		result = append(result, item)
 	}
 	return result, nil

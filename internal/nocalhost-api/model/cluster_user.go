@@ -33,6 +33,7 @@ type ClusterUserV2 struct {
 	Namespace          string    `gorm:"column:namespace;not null" json:"namespace"`
 	SpaceName          string    `gorm:"column:space_name;not null;type:VARCHAR(100);comment:'default is application[username]'" json:"space_name"`
 	ClusterId          uint64    `gorm:"column:cluster_id;not null" json:"cluster_id"`
+	IsBaseSpace        bool      `gorm:"column:is_base_space;default:false" json:"is_base_space"`
 	BaseDevSpaceId     uint64    `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`
 	SpaceResourceLimit string    `gorm:"column:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
 	CreatedAt          time.Time `gorm:"column:created_at" json:"created_at"`
@@ -77,6 +78,7 @@ type ClusterUserModel struct {
 	Namespace          string     `gorm:"column:namespace;not null" json:"namespace"`
 	Status             *uint64    `gorm:"column:status;default:0" json:"status"`
 	ClusterAdmin       *uint64    `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
+	IsBaseSpace        bool       `gorm:"column:is_base_space;default:false" json:"is_base_space"`
 	BaseDevSpaceId     uint64     `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`
 	TraceHeader        Header     `gorm:"cloumn:trace_header;type:VARCHAR(256);" json:"trace_header"`
 	CreatedAt          time.Time  `gorm:"column:created_at" json:"created_at"`

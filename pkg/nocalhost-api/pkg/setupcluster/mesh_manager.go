@@ -290,7 +290,10 @@ func (m *meshManager) Rollback(info *MeshDevInfo) error {
 }
 
 func (m *meshManager) GetMeshNamespaceNames() []string {
-	label := map[string]string{"istio-injection": "enabled"}
+	label := map[string]string{
+		"istio-injection":        "enabled",
+		"nocalhost.dev/devspace": "base",
+	}
 	ns := m.cache.GetNamespaceListBySelector(labels.Set(label).AsSelector())
 	ret := make([]string, len(ns))
 	for i := range ns {

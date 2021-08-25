@@ -195,7 +195,14 @@ func (d *DevSpace) createDevSpace(
 			devNamespace = d.DevSpaceParams.MeshDevInfo.MeshDevNamespace
 		}
 		labels["istio-injection"] = "enabled"
+		labels["nocalhost.dev/devspace"] = "share"
 	}
+
+	if d.DevSpaceParams.IsBaseSpace {
+		labels["istio-injection"] = "enabled"
+		labels["nocalhost.dev/devspace"] = "base"
+	}
+
 	// create namespace
 	_, err = goClient.CreateNS(devNamespace, labels)
 	if err != nil {

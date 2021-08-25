@@ -80,6 +80,7 @@ func Delete(c *gin.Context) {
 		NameSpace:      clusterUser.Namespace,
 		BaseDevSpaceId: clusterUser.BaseDevSpaceId,
 		MeshDevInfo:    meshDevInfo,
+		IsBaseSpace:    clusterUser.IsBaseSpace,
 	}
 	devSpace := NewDevSpace(req, c, []byte(clusterData.KubeConfig))
 
@@ -138,6 +139,7 @@ func ReCreate(c *gin.Context) {
 		SpaceResourceLimit: &res,
 		BaseDevSpaceId:     clusterUser.BaseDevSpaceId,
 		MeshDevInfo:        meshDevInfo,
+		IsBaseSpace:        clusterUser.IsBaseSpace,
 	}
 
 	cluster, err := service.Svc.ClusterSvc().GetCache(clusterUser.ClusterId)

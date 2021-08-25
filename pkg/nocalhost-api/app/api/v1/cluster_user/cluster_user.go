@@ -22,6 +22,7 @@ type ClusterUserCreateRequest struct {
 	SpaceResourceLimit *SpaceResourceLimit       `json:"space_resource_limit"`
 	BaseDevSpaceId     uint64                    `json:"base_dev_space_id"`
 	MeshDevInfo        *setupcluster.MeshDevInfo `json:"mesh_dev_info"`
+	IsBaseSpace        bool                      `json:"is_base_space"`
 }
 
 type ClusterUserGetRequest struct {
