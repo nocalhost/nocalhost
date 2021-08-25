@@ -59,9 +59,13 @@ func GetV2(c *gin.Context) {
 				return
 			}
 			if result[i].ClusterUserExt == nil {
-				result[i].ClusterUserExt = &model.ClusterUserExt{BaseDevSpaceName: cu.SpaceName}
+				result[i].ClusterUserExt = &model.ClusterUserExt{
+					BaseDevSpaceName:      cu.SpaceName,
+					BaseDevSpaceNameSpace: cu.Namespace,
+				}
 			} else {
 				result[i].BaseDevSpaceName = cu.SpaceName
+				result[i].BaseDevSpaceNameSpace = cu.Namespace
 			}
 		}
 	}

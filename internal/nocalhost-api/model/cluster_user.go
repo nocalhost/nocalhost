@@ -50,16 +50,17 @@ type SpaceOwnType struct {
 }
 
 type ClusterUserExt struct {
-	ClusterName      string        `json:"cluster_name"`
-	SpaceType        SpaceType     `json:"space_type"`
-	SpaceOwnType     SpaceOwnType  `json:"space_own_type"`
-	ResourceLimitSet bool          `json:"resource_limit_set"`
-	CooperUser       []*UserSimple `json:"cooper_user"`
-	ViewerUser       []*UserSimple `json:"viewer_user"`
-	Owner            *UserSimple   `json:"owner"`
-	Modifiable       bool          `json:"modifiable"`
-	Deletable        bool          `json:"deletable"`
-	BaseDevSpaceName string        `json:"base_dev_space_name"`
+	ClusterName           string        `json:"cluster_name"`
+	SpaceType             SpaceType     `json:"space_type"`
+	SpaceOwnType          SpaceOwnType  `json:"space_own_type"`
+	ResourceLimitSet      bool          `json:"resource_limit_set"`
+	CooperUser            []*UserSimple `json:"cooper_user"`
+	ViewerUser            []*UserSimple `json:"viewer_user"`
+	Owner                 *UserSimple   `json:"owner"`
+	Modifiable            bool          `json:"modifiable"`
+	Deletable             bool          `json:"deletable"`
+	BaseDevSpaceName      string        `json:"base_dev_space_name"`
+	BaseDevSpaceNameSpace string        `json:"base_dev_space_namespace"`
 }
 
 // ClusterUserModel
