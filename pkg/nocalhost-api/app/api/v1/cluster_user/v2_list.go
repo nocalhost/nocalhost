@@ -188,7 +188,7 @@ func filter(clusterUsers []*model.ClusterUserV2, condition func(*model.ClusterUs
 	return result
 }
 
-func PipeLine(clusterUsers []*model.ClusterUserV2, userId uint64, isAdmin bool) *errno.Errno {
+func PipeLine(clusterUsers []*model.ClusterUserV2, userId uint64, isAdmin bool) error {
 	// First group DevSpace by cluster and dispatch the RBAC via serviceAccount
 	// associate by the current user
 	// Then Filling the ext custom field for current user
@@ -216,7 +216,7 @@ func doSort(clusterUsers []*model.ClusterUserV2) {
 	)
 }
 
-func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, isAdmin bool) *errno.Errno {
+func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, isAdmin bool) error {
 	list, err := service.Svc.ClusterSvc().GetList(context.TODO())
 	if err != nil {
 		log.Errorf("Error while list cluster: %+v", err)

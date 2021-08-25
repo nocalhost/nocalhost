@@ -12,7 +12,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
-func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.ClusterUserModel, *errno.Errno) {
+func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.ClusterUserModel, error) {
 	devSpace, err := service.Svc.ClusterUser().GetCache(devSpaceId)
 	if err != nil {
 		return nil, errno.ErrClusterUserNotFound
@@ -34,7 +34,7 @@ func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*mode
 	return nil, errno.ErrPermissionDenied
 }
 
-func HasHighPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.ClusterUserModel, *errno.Errno) {
+func HasHighPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.ClusterUserModel, error) {
 	devSpace, err := service.Svc.ClusterUser().GetCache(devSpaceId)
 	if err != nil {
 		return nil, errno.ErrClusterUserNotFound
