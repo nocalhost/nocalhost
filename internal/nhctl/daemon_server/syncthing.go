@@ -28,6 +28,7 @@ func recoverSyncthing() error {
 			wg.Add(1)
 			appName := appName
 			go func() {
+				defer wg.Done()
 				if err = recoverSyncthingForApplication(ns, appName); err != nil {
 					log.LogE(err)
 				}
