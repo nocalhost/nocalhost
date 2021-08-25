@@ -202,7 +202,7 @@ func doSort(clusterUsers []*model.ClusterUserV2) {
 			return *cu1.ClusterAdmin > *cu2.ClusterAdmin ||
 				cu1.ClusterUserExt.SpaceOwnType.Priority > cu2.ClusterUserExt.SpaceOwnType.Priority ||
 				cu1.UserId > cu2.UserId ||
-				cu1.SpaceName > cu2.SpaceName
+				cu1.SpaceName < cu2.SpaceName
 		},
 	)
 }
