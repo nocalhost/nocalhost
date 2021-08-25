@@ -59,7 +59,10 @@ var syncStatusCmd = &cobra.Command{
 			return
 		}
 
-		display(SyncStatus(syncStatusOps, nameSpace, args[0], deployment, serviceType, kubeConfig))
+		status := SyncStatus(syncStatusOps, nameSpace, args[0], deployment, serviceType, kubeConfig)
+		if status != nil {
+			display(status)
+		}
 	},
 }
 
