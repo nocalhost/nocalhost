@@ -154,8 +154,6 @@ var configGetCmd = &cobra.Command{
 					"",
 				)
 
-				pack.UnAssociatePath()
-
 				path := fp.NewFilePath(string(pack.GetAssociatePath())).
 					RelOrAbs(".nocalhost").
 					RelOrAbs("config.yaml").Path
