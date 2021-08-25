@@ -187,6 +187,7 @@ func watchSyncProcess(client *req.SyncthingHttpClient) {
 				}
 			}
 			if times == 0 {
+				time.Sleep(time.Millisecond * 100)
 				continue
 			}
 			lastId += int32(times)
