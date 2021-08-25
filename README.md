@@ -62,6 +62,10 @@ Full documentation is available on the [Nocalhost](https://nocalhost.dev/)
 | ---------- | ---- |
 | :video_camera: &nbsp; Videos  | [https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw](https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw) |
 
+## Changelogs
+
+Check our [Changelogs](https://nocalhost.dev/docs/changelogs/0.5.x)
+
 ## Contributing
 
 Check out [CONTRIBUTING](./CONTRIBUTING) to see how to develop with Nocalhost.
