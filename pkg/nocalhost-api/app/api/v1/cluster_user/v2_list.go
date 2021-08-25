@@ -116,7 +116,6 @@ func DoList(params *model.ClusterUserModel, userId uint64, isAdmin, isCanBeUsedA
 		log.Error(err)
 		return nil, errn
 	}
-
 	// user that not admin can not see other user's data
 	if !isAdmin {
 		// todo supports search for SpaceType(only need to deal with filter)
@@ -211,7 +210,8 @@ func doSort(clusterUsers []*model.ClusterUserV2) {
 			// clusterAdmin show at the top
 			return *cu1.ClusterAdmin > *cu2.ClusterAdmin ||
 				cu1.ClusterUserExt.SpaceOwnType.Priority > cu2.ClusterUserExt.SpaceOwnType.Priority ||
-				cu1.UserId > cu2.UserId
+				cu1.UserId > cu2.UserId ||
+				cu1.SpaceName > cu2.SpaceName
 		},
 	)
 }
