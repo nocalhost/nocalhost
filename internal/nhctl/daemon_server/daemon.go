@@ -145,26 +145,26 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 				log.Log("Reading data...")
 				errChan := make(chan error, 1)
-				bytesChan := make(chan []byte,1)
+				bytesChan := make(chan []byte, 1)
 
 				go func() {
-					bytes, err :=  ioutil.ReadAll(conn)
+					bytes, err := ioutil.ReadAll(conn)
 					errChan <- err
-					bytesChan <-bytes
+					bytesChan <- bytes
 				}()
 
 				select {
-				case err = <- errChan:
+				case err = <-errChan:
 					if err != nil {
-						log.LogE(errors.Wrap(err,"Failed to read data from connection"))
+						log.LogE(errors.Wrap(err, "Failed to read data from connection"))
 						return
 					}
-				case <- time.After(30 * time.Second):
+				case <-time.After(30 * time.Second):
 					log.LogE(errors.New("Read data from connection timeout after 30s"))
 					return
 				}
 
-				bytes := <- bytesChan
+				bytes := <-bytesChan
 				if len(bytes) == 0 {
 					log.Log("No data read from connection")
 					return
