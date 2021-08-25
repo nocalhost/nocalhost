@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package appmeta_manager
 
@@ -80,7 +80,7 @@ func GetRlsNameFromKey(key string) (string, error) {
 
 func tryDelAppFromHelmRelease(appName, ns string, configBytes []byte) error {
 	meta := GetApplicationMeta(ns, appName, configBytes)
-	if meta.IsNotInstall() {
+	if meta.IsNotInstall() || meta.IsInstalling() {
 		return nil
 	}
 
