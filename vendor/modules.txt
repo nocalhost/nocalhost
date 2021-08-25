@@ -147,8 +147,6 @@ github.com/googleapis/gnostic/openapiv2
 # github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7
 github.com/gregjones/httpcache
 github.com/gregjones/httpcache/diskcache
-# github.com/hashicorp/go-getter v1.5.1
-## explicit
 # github.com/hashicorp/golang-lru v0.5.1
 ## explicit
 github.com/hashicorp/golang-lru
@@ -396,11 +394,7 @@ golang.org/x/crypto/sha3
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/crypto/ssh/terminal
-<<<<<<< HEAD
-# golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
-=======
 # golang.org/x/net v0.0.0-20210614182718-04defd469f4e
->>>>>>> 920c22a259e0ea0c5ca9217f472f6ac823637e60
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -415,11 +409,7 @@ golang.org/x/net/webdav/internal/xml
 # golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-<<<<<<< HEAD
-# golang.org/x/sys v0.0.0-20201112073958-5cba982894dd
-=======
 # golang.org/x/sys v0.0.0-20210423082822-04245dca01da
->>>>>>> 920c22a259e0ea0c5ca9217f472f6ac823637e60
 ## explicit
 golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
@@ -462,11 +452,7 @@ google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
 # google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
 google.golang.org/genproto/googleapis/rpc/status
-<<<<<<< HEAD
-# google.golang.org/grpc v1.27.1
-=======
 # google.golang.org/grpc v1.33.2
->>>>>>> 920c22a259e0ea0c5ca9217f472f6ac823637e60
 ## explicit
 google.golang.org/grpc
 google.golang.org/grpc/attributes
@@ -857,6 +843,7 @@ k8s.io/client-go/util/flowcontrol
 k8s.io/client-go/util/homedir
 k8s.io/client-go/util/jsonpath
 k8s.io/client-go/util/keyutil
+k8s.io/client-go/util/retry
 k8s.io/client-go/util/workqueue
 # k8s.io/component-base v0.0.0-20210115210250-6b412b2ef0d8
 k8s.io/component-base/version

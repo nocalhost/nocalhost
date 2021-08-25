@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package resouce_cache
 
@@ -48,7 +48,7 @@ func GetSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (map[st
 		}
 	}
 	apiResourceLists, err := c.ServerPreferredResources()
-	if err != nil {
+	if err != nil && len(apiResourceLists) == 0 {
 		return nil, err
 	}
 	nameToMapping := make(map[string]*meta.RESTMapping)
