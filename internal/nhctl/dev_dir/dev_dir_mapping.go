@@ -7,6 +7,8 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
+var NO_DEFAULT_PACK = errors.New("Current Svc pack not found ")
+
 // get associate path of svcPack
 // if no path match, try with svc with none container
 func (svcPack *SvcPack) GetAssociatePath() DevPath {
@@ -134,18 +136,22 @@ func (d DevPath) removePackAndThen(
 			// if specify Svc has been associate with before path and if it is a default
 			// pack of a path, should modify or remove the default Svc pack of the path
 			//
-			if beforePacks.DefaultSvcPackKey == specifyPackKey {
-
+			{
+				// remove [path -> defaultSvc] directly if len==1
 				if len(beforePacks.Packs) == 1 {
 					delete(dirMapping.PathToDefaultPackKey, d)
-				} else {
+
+				// modify [path -> defaultSvc] if defaultSvc == specifyPackKey
+				} else if beforePacks.DefaultSvcPackKey == specifyPackKey {
 
 					// modify the before path's default packKey to a random packKey
-					for packKey, _ := range beforePacks.Packs {
-						if packKey != specifyPackKey {
-							dirMapping.PathToDefaultPackKey[d] = packKey
+					for random, _ := range beforePacks.Packs {
+						if random != specifyPackKey {
+							dirMapping.PathToDefaultPackKey[devPathBefore] = random
 						}
 					}
+				} else {
+					// do not need to remove default pack key
 				}
 			}
 
@@ -176,7 +182,7 @@ func getDefaultPack(path DevPath) (*SvcPack, error) {
 		return pack, nil
 	}
 
-	return nil, errors.New("Current Svc pack not found ")
+	return nil, NO_DEFAULT_PACK
 }
 
 // list all pack associate with this path

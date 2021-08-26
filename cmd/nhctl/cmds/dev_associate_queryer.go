@@ -54,10 +54,14 @@ var devAssociateQueryerCmd = &cobra.Command{
 		if current {
 
 			pack, err := devPath.GetDefaultPack()
-			must(err)
-
-			printing(genAssociateSvcPack(pack))
-			return
+			if err == dev_dir.NO_DEFAULT_PACK {
+				println("{}")
+				return
+			} else {
+				must(err)
+				printing(genAssociateSvcPack(pack))
+				return
+			}
 		} else {
 
 			set := make(map[string]string, 0)

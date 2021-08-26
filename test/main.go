@@ -43,9 +43,9 @@ func main() {
 	compatibleChan := make(chan interface{}, 1)
 	wg := sync.WaitGroup{}
 
-	DoRun(false, &wg, func() {
-		t.RunWithBookInfo(false, "TestHook", suite.Hook)
-	})
+	//DoRun(false, &wg, func() {
+	//	t.RunWithBookInfo(false, "TestHook", suite.Hook)
+	//})
 
 	DoRun(false, &wg, func() {
 		t.RunWithBookInfo(false, "HelmAdaption", suite.HelmAdaption)
