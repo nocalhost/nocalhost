@@ -470,6 +470,9 @@ func (ServerTLSSettings_TLSProtocol) EnumDescriptor() ([]byte, []int) {
 // +genclient
 // +k8s:deepcopy-gen=true
 // -->
+// <!-- istio code generation tags
+// +istio.io/sync-from:networking/v1alpha3/gateway.proto
+// -->
 type Gateway struct {
 	// A list of server specifications.
 	Servers []*Server `protobuf:"bytes,1,rep,name=servers,proto3" json:"servers,omitempty"`
@@ -691,17 +694,16 @@ type Server struct {
 	// HTTP services, it can also be used for TCP services using TLS with SNI.
 	// A host is specified as a `dnsName` with an optional `namespace/` prefix.
 	// The `dnsName` should be specified using FQDN format, optionally including
-	// a wildcard character in the left-most component (e.g.,
-	// `prod/*.example.com`). Set the `dnsName` to `*` to select all
-	// `VirtualService` hosts from the specified namespace (e.g.,`prod/*`).
+	// a wildcard character in the left-most component (e.g., `prod/*.example.com`).
+	// Set the `dnsName` to `*` to select all `VirtualService` hosts from the
+	// specified namespace (e.g.,`prod/*`).
 	//
 	// The `namespace` can be set to `*` or `.`, representing any or the current
 	// namespace, respectively. For example, `*/foo.example.com` selects the
 	// service from any available namespace while `./foo.example.com` only selects
-	// the service from the namespace of the sidecar. The default, if no
-	// `namespace/` is specified, is `*/`, that is, select services from any
-	// namespace. Any associated `DestinationRule` in the selected namespace will
-	// also be used.
+	// the service from the namespace of the sidecar. The default, if no `namespace/`
+	// is specified, is `*/`, that is, select services from any namespace.
+	// Any associated `DestinationRule` in the selected namespace will also be used.
 	//
 	// A `VirtualService` must be bound to the gateway and must have one or
 	// more hosts that match the hosts specified in a server. The match

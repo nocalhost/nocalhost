@@ -85,12 +85,12 @@ type JWTRule struct {
 	//
 	// Example: `https://www.googleapis.com/oauth2/v1/certs`
 	//
-	// Note: Only one of jwks_uri and jwks should be used. jwks_uri will be ignored if it does.
+	// Note: Only one of `jwksUri` and `jwks` should be used.
 	JwksUri string `protobuf:"bytes,3,opt,name=jwks_uri,json=jwksUri,proto3" json:"jwks_uri,omitempty"`
 	// JSON Web Key Set of public keys to validate signature of the JWT.
 	// See https://auth0.com/docs/jwks.
 	//
-	// Note: Only one of jwks_uri and jwks should be used. jwks_uri will be ignored if it does.
+	// Note: Only one of `jwksUri` and `jwks` should be used.
 	Jwks string `protobuf:"bytes,10,opt,name=jwks,proto3" json:"jwks,omitempty"`
 	// List of header locations from which JWT is expected. For example, below is the location spec
 	// if JWT is expected to be found in `x-jwt-assertion` header, and have "Bearer " prefix:

@@ -22,7 +22,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// please upgrade the proto package
+//
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Telemetry defines how the telemetry is generated for workloads within a mesh.
@@ -36,20 +36,10 @@ import (
 // For resources with a workload selector, it is only valid to have one resource selecting
 // any given workload.
 //
-// Telemetry configuration will use a "shallow merge" semantic for configuration override
-// for each telemetry type (Tracing, Metrics, AccessLogging). For example, Tracing configuration
-// will support overrides of the fields `providers`, `random_sampling_percentage`, `disable_span_reporting`,
-// and `custom_tags` at each level in the configuration hierarchy, with missing values filled in
-// from parent resources. However, when specified, fields like `custom_tags` will
-// fully replace any values provided by parent configuration.
-//
 // The hierarchy of Telemetry configuration is as follows:
 // 1. Workload-specific configuration
 // 1. Namespace-specific configuration
 // 1. Root namespace configuration
-//
-// WARNING: Support for Telemetry policies is under active development and is *not*
-// stable or supported by Istio at this time.
 //
 // Examples:
 //
@@ -61,6 +51,7 @@ import (
 //   name: mesh-default
 //   namespace: istio-system
 // spec:
+//   # no selector specified, applies to all workloads
 //   tracing:
 //   - randomSamplingPercentage: 10.00
 // ```
@@ -106,12 +97,122 @@ import (
 //   name: mesh-default
 //   namespace: istio-system
 // spec:
+//   # no selector specified, applies to all workloads
 //   tracing:
 //   - randomSamplingPercentage: 10.00
 //     customTags:
 //       my_new_foo_tag:
 //         literal:
 //           value: "foo"
+// ```
+//
+// Policy to disable server-side metrics for Stackdriver for an entire mesh:
+// ```yaml
+// apiVersion: telemetry.istio.io/v1alpha1
+// kind: Telemetry
+// metadata:
+//   name: mesh-default
+//   namespace: istio-system
+// spec:
+//   # no selector specified, applies to all workloads
+//   metrics:
+//   - providers:
+//     - name: stackdriver
+//     overrides:
+//     - match:
+//         metric: ALL_METRICS
+//         mode: SERVER
+//       disabled: true
+// ```
+//
+// Policy to add dimensions to all Prometheus metrics for the `foo` namespace:
+// ```yaml
+// apiVersion: telemetry.istio.io/v1alpha1
+// kind: Telemetry
+// metadata:
+//   name: namespace-metrics
+//   namespace: foo
+// spec:
+//   # no selector specified, applies to all workloads in the namespace
+//   metrics:
+//   - providers:
+//     - name: prometheus
+//     overrides:
+//     # match clause left off matches all istio metrics, client and server
+//     - tagOverrides:
+//         request_method:
+//           value: "request.method"
+//         request_host:
+//           value: "request.host"
+// ```
+//
+// Policy to remove the response_code dimension on some Prometheus metrics for
+// the `bar.foo` workload:
+// ```yaml
+// apiVersion: telemetry.istio.io/v1alpha1
+// kind: Telemetry
+// metadata:
+//   name: remove-response-code
+//   namespace: foo
+// spec:
+//   selector:
+//     labels:
+//       service.istio.io/canonical-name: bar
+//   metrics:
+//   - providers:
+//     - name: prometheus
+//     overrides:
+//     - match:
+//         metric: REQUEST_COUNT
+//       tagOverrides:
+//         response_code:
+//           operation: REMOVE
+//     - match:
+//         metric: REQUEST_DURATION
+//       tagOverrides:
+//         response_code:
+//           operation: REMOVE
+//     - match:
+//         metric: REQUEST_BYTES
+//       tagOverrides:
+//         response_code:
+//           operation: REMOVE
+//     - match:
+//         metric: RESPONSE_BYTES
+//       tagOverrides:
+//         response_code:
+//           operation: REMOVE
+// ```
+//
+// Policy to enable access logging for the entire mesh:
+// ```yaml
+// apiVersion: telemetry.istio.io/v1alpha1
+// kind: Telemetry
+// metadata:
+//   name: mesh-default
+//   namespace: istio-system
+// spec:
+//   # no selector specified, applies to all workloads
+//   accessLogging:
+//   - providers:
+//     - name: envoyFileAccessLogger
+//     # By default, this turns on access logging (no need to set `disabled: false`).
+//     # Unspecified `disabled` will be treated as `disabled: false`, except in
+//     # cases where a parent configuration has marked as `disabled: true`. In
+//     # those cases, `disabled: false` must be set explicitly to override.
+// ```
+//
+// Policy to disable access logging for the `foo` namespace:
+// ```yaml
+// apiVersion: telemetry.istio.io/v1alpha1
+// kind: Telemetry
+// metadata:
+//   name: namespace-no-log
+//   namespace: foo
+// spec:
+//   # no selector specified, applies to all workloads in the namespace
+//   accessLogging:
+//   - disabled: true
 // ```
 //
 // <!-- crd generation tags

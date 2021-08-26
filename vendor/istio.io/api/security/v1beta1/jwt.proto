@@ -89,13 +89,13 @@ message JWTRule {
   //
   // Example: `https://www.googleapis.com/oauth2/v1/certs`
   //
-  // Note: Only one of jwks_uri and jwks should be used. jwks_uri will be ignored if it does.
+  // Note: Only one of `jwksUri` and `jwks` should be used.
   string jwks_uri = 3;
 
   // JSON Web Key Set of public keys to validate signature of the JWT.
   // See https://auth0.com/docs/jwks.
   //
-  // Note: Only one of jwks_uri and jwks should be used. jwks_uri will be ignored if it does.
+  // Note: Only one of `jwksUri` and `jwks` should be used.
   string jwks = 10;
 
   // The next two fields define how to extract the JWT from an HTTP request.
