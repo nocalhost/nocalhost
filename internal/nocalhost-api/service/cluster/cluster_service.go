@@ -7,12 +7,10 @@ package cluster
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"nocalhost/internal/nocalhost-api/cache"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/repository/cluster"
-	"time"
-
-	"github.com/pkg/errors"
 )
 
 type ClusterService interface {
@@ -59,7 +57,7 @@ func (srv *clusterService) GetCache(id uint64) (model.ClusterModel, error) {
 		return result, errors.Wrapf(err, "get cluster")
 	}
 
-	c.Add(result.ID, time.Hour, &result)
+	c.Add(result.ID, cache.OUT_OF_DATE, &result)
 	return result, nil
 }
 

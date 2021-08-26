@@ -12,7 +12,6 @@ import (
 	"nocalhost/internal/nocalhost-api/cache"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/repository/cluster_user"
-	"time"
 )
 
 type ClusterUserService interface {
@@ -84,10 +83,10 @@ func (srv *clusterUserService) GetAllCache() []model.ClusterUserModel {
 		return resultList
 	}
 
-	c.Add("*", time.Hour, list)
+	c.Add("*", cache.OUT_OF_DATE, list)
 	for _, result := range list {
-		c.Add(keyForClusterAndNameSpace(result.ClusterId, result.Namespace), time.Hour, result)
-		c.Add(result.ID, time.Hour, result)
+		c.Add(keyForClusterAndNameSpace(result.ClusterId, result.Namespace), cache.OUT_OF_DATE, result)
+		c.Add(result.ID, cache.OUT_OF_DATE, result)
 		resultList = append(resultList, *result)
 	}
 	return resultList
@@ -110,8 +109,8 @@ func (srv *clusterUserService) GetCache(id uint64) (
 		return model.ClusterUserModel{}, errors.Wrapf(err, "GetCache users_cluster error")
 	}
 
-	c.Add(keyForClusterAndNameSpace(result.ClusterId, result.Namespace), time.Hour, result)
-	c.Add(result.ID, time.Hour, result)
+	c.Add(keyForClusterAndNameSpace(result.ClusterId, result.Namespace), cache.OUT_OF_DATE, result)
+	c.Add(result.ID, cache.OUT_OF_DATE, result)
 	return *result, nil
 }
 
@@ -132,8 +131,8 @@ func (srv *clusterUserService) GetCacheByClusterAndNameSpace(clusterId uint64, n
 		return model.ClusterUserModel{}, errors.Wrapf(err, "GetCache users_cluster error")
 	}
 
-	c.Add(keyForClusterAndNameSpace(result.ClusterId, result.Namespace), time.Hour, result)
-	c.Add(result.ID, time.Hour, result)
+	c.Add(keyForClusterAndNameSpace(result.ClusterId, result.Namespace), cache.OUT_OF_DATE, result)
+	c.Add(result.ID, cache.OUT_OF_DATE, result)
 	return *result, nil
 }
 

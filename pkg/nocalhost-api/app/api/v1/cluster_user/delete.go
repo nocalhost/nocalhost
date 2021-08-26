@@ -218,9 +218,9 @@ func ReCreate(c *gin.Context) {
 // @Router /v1/plugin/{id}/recreate [post]
 func PluginReCreate(c *gin.Context) {
 	// check permission
-	userId, _ := c.Get("userId")
+	//userId, _ := c.Get("userId")
 	devSpaceId := cast.ToUint64(c.Param("id"))
-	_, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId, UserId: userId.(uint64)})
+	_, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId})
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		return

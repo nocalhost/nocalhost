@@ -12,6 +12,12 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
+// HasModifyPermissionToSomeDevSpace
+// those role can modify the devSpace:
+// - is the cooperator of ns
+// - is nocalhost admin
+// - is owner
+// - is devSpace's cluster owner
 func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.ClusterUserModel, error) {
 	devSpace, err := service.Svc.ClusterUser().GetCache(devSpaceId)
 	if err != nil {
@@ -28,12 +34,24 @@ func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*mode
 		return nil, errno.ErrPermissionDenied
 	}
 
+	nss := ns_scope.AllCoopNs(devSpace.ClusterId, loginUser)
+
+	for _, s := range nss {
+		if devSpace.Namespace == s {
+			return &devSpace, nil
+		}
+	}
+
 	if ginbase.IsAdmin(c) || cluster.UserId == loginUser || devSpace.UserId == loginUser {
 		return &devSpace, nil
 	}
 	return nil, errno.ErrPermissionDenied
 }
 
+// HasHighPermissionToSomeDevSpace
+// High Permission include
+// - update resource limit
+// - delete devspace
 func HasHighPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.ClusterUserModel, error) {
 	devSpace, err := service.Svc.ClusterUser().GetCache(devSpaceId)
 	if err != nil {
