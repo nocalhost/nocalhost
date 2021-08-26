@@ -344,7 +344,7 @@ func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 	baseCmd := command.BaseCommand{}
 	err := json.Unmarshal(data, &baseCmd)
 	if err == nil {
-		log.LogDebugf("Sending %v command", baseCmd.CommandType)
+		log.Tracef("Sending %v command", baseCmd.CommandType)
 	}
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort), time.Second*30)
 	if err != nil {
@@ -362,7 +362,7 @@ func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) erro
 	baseCmd := command.BaseCommand{}
 	err := json.Unmarshal(req, &baseCmd)
 	if err == nil {
-		log.LogDebugf("Sending %v command", baseCmd.CommandType)
+		log.Tracef("Sending %v command", baseCmd.CommandType)
 	}
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort), time.Second*30)
 	if err != nil {

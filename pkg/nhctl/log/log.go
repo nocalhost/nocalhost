@@ -157,14 +157,6 @@ func Infof(format string, args ...interface{}) {
 	}
 }
 
-func Trace(args ...interface{}) {
-	writeStackToEs("TRACE", fmt.Sprintln(args...), "")
-	stdoutLogger.Debug(args...)
-	if fileEntry != nil {
-		fileEntry.Debug(args...)
-	}
-}
-
 func Warn(args ...interface{}) {
 	writeStackToEs("WARN", fmt.Sprintln(args...), "")
 	stdoutLogger.Warn(args...)
@@ -288,13 +280,6 @@ func LogDebugf(format string, args ...interface{}) {
 	writeStackToEs("DEBUG", fmt.Sprintf(format, args...), "")
 	if fileEntry != nil {
 		fileEntry.Debugf(format, args...)
-	}
-}
-
-func LogTrace(args ...interface{}) {
-	writeStackToEs("TRACE", fmt.Sprintln(args...), "")
-	if fileEntry != nil {
-		fileEntry.Debug(args...)
 	}
 }
 

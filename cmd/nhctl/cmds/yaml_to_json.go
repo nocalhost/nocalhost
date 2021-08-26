@@ -29,8 +29,7 @@ var yamlToJsonCmd = &cobra.Command{
 			log.Fatalf("fail to read from stdin: %v", err)
 		}
 
-		log.LogTrace("Yaml is :")
-		log.LogTrace(string(b))
+		log.Trace(string(b))
 		v := make(map[interface{}]interface{})
 		if err := yaml.Unmarshal(b, v); err != nil {
 			log.Fatalf("fail to unmarshal from yaml: %v", err)

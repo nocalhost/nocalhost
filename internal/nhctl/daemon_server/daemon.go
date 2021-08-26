@@ -120,7 +120,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		for {
 			//log.Info("Before accept a connection in %s", time.Now().String())
 			conn, err := listener.Accept()
-			log.Trace("Accept a connection...")
+			//log.Trace("Accept a connection...")
 			if err != nil {
 				log.Log("Accept connection error occurs")
 				if strings.Contains(strings.ToLower(err.Error()), "use of closed network connection") {
@@ -174,9 +174,9 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 					log.LogE(err)
 					return
 				}
-				log.Debugf("Handling %s command", cmdType)
+				log.Tracef("Handling %s command", cmdType)
 				handleCommand(conn, bytes, cmdType, clientStack)
-				log.Debugf("%s command done, takes %f seconds", cmdType, time.Now().Sub(start).Seconds())
+				log.Tracef("%s command done, takes %f seconds", cmdType, time.Now().Sub(start).Seconds())
 			}()
 		}
 	}()
