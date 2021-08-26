@@ -7,6 +7,8 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
+var NO_DEFAULT_PACK = errors.New("Current Svc pack not found ")
+
 // get associate path of svcPack
 // if no path match, try with svc with none container
 func (svcPack *SvcPack) GetAssociatePath() DevPath {
@@ -176,7 +178,7 @@ func getDefaultPack(path DevPath) (*SvcPack, error) {
 		return pack, nil
 	}
 
-	return nil, errors.New("Current Svc pack not found ")
+	return nil, NO_DEFAULT_PACK
 }
 
 // list all pack associate with this path
