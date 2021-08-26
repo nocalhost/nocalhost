@@ -41,23 +41,29 @@ var profileGetCmd = &cobra.Command{
 			log.Fatal("--container must be specified")
 		}
 
-		originImage, err := nocalhostSvc.GetContainerImage(container)
-		if err == nil {
-			// load config from hub
-			svcConfig, err := hub.FindNocalhostSvcConfig(nocalhostSvc.AppName, nocalhostSvc.Name, nocalhostSvc.Type, container, originImage)
-			if err != nil {
-				log.LogE(err)
-			}
-			if svcConfig != nil {
-				if err := nocalhostSvc.UpdateSvcProfile(
-					func(svcProfile *profile.SvcProfileV2) error {
-						svcConfig.Name = nocalhostSvc.Name
-						svcConfig.Type = string(nocalhostSvc.Type)
-						svcProfile.ServiceConfigV2 = svcConfig
-						return nil
-					},
-				); err != nil {
-					log.Logf("Load nocalhost svc config from hub fail, fail while updating svc profile, err: %s", err.Error())
+		p, err := nocalhostSvc.GetProfile()
+		must(err)
+		cc := p.GetContainerConfig(container)
+		if cc == nil || cc.Dev == nil || cc.Dev.Image == "" {
+			log.Logf("%s config not found, try to load it from hub", container)
+			originImage, err := nocalhostSvc.GetContainerImage(container)
+			if err == nil {
+				// load config from hub
+				svcConfig, err := hub.FindNocalhostSvcConfig(nocalhostSvc.AppName, nocalhostSvc.Name, nocalhostSvc.Type, container, originImage)
+				if err != nil {
+					log.LogE(err)
+				}
+				if svcConfig != nil {
+					if err := nocalhostSvc.UpdateSvcProfile(
+						func(svcProfile *profile.SvcProfileV2) error {
+							svcConfig.Name = nocalhostSvc.Name
+							svcConfig.Type = string(nocalhostSvc.Type)
+							svcProfile.ServiceConfigV2 = svcConfig
+							return nil
+						},
+					); err != nil {
+						log.Logf("Load nocalhost svc config from hub fail, fail while updating svc profile, err: %s", err.Error())
+					}
 				}
 			}
 		}
