@@ -202,6 +202,9 @@ option go_package = "istio.io/api/networking/v1beta1";
 // +genclient
 // +k8s:deepcopy-gen=true
 // -->
+// <!-- istio code generation tags
+// +istio.io/sync-from:networking/v1alpha3/virtual_service.proto
+// -->
 message VirtualService {
   // The destination hosts to which traffic is being sent. Could
   // be a DNS name with wildcard prefix or an IP address.  Depending on the
@@ -586,7 +589,7 @@ message HTTPRoute {
   // Delegate is used to specify the particular VirtualService which
   // can be used to define delegate HTTPRoute.
   //
-  // It can be set only when `Route` and `Redirect` are empty, and the route 
+  // It can be set only when `Route` and `Redirect` are empty, and the route
   // rules of the delegate VirtualService will be merged with that in the
   // current one.
   //
@@ -647,6 +650,7 @@ message HTTPRoute {
   // $hide_from_docs
   // Next available field number: 21
 }
+
 
 // Describes the delegate VirtualService.
 // The following routing rules forward the traffic to `/productpage` by a delegate VirtualService named `productpage`,
@@ -715,6 +719,7 @@ message Delegate {
   // By default, it is same to the root's.
   string namespace = 2;
 }
+
 
 // Message headers can be manipulated when Envoy forwards requests to,
 // or responses from, a destination service. Header manipulation rules can
@@ -1005,7 +1010,7 @@ message HTTPMatchRequest {
   //
   // - `prefix: "value"` for prefix-based match
   //
-  // - `regex: "value"` for ECMAscript style regex-based match
+  // - `regex: "value"` for RE2 style regex-based match (https://github.com/google/re2/wiki/Syntax).
   //
   // **Note:** Case-insensitive matching could be enabled via the
   // `ignore_uri_case` flag.
@@ -1018,7 +1023,7 @@ message HTTPMatchRequest {
   //
   // - `prefix: "value"` for prefix-based match
   //
-  // - `regex: "value"` for ECMAscript style regex-based match
+  // - `regex: "value"` for RE2 style regex-based match (https://github.com/google/re2/wiki/Syntax).
   //
   StringMatch scheme = 2;
 
@@ -1029,7 +1034,7 @@ message HTTPMatchRequest {
   //
   // - `prefix: "value"` for prefix-based match
   //
-  // - `regex: "value"` for ECMAscript style regex-based match
+  // - `regex: "value"` for RE2 style regex-based match (https://github.com/google/re2/wiki/Syntax).
   //
   StringMatch method = 3;
 
@@ -1040,7 +1045,7 @@ message HTTPMatchRequest {
   //
   // - `prefix: "value"` for prefix-based match
   //
-  // - `regex: "value"` for ECMAscript style regex-based match
+  // - `regex: "value"` for RE2 style regex-based match (https://github.com/google/re2/wiki/Syntax).
   //
   StringMatch authority = 4;
 
@@ -1053,7 +1058,7 @@ message HTTPMatchRequest {
   //
   // - `prefix: "value"` for prefix-based match
   //
-  // - `regex: "value"` for ECMAscript style regex-based match
+  // - `regex: "value"` for RE2 style regex-based match (https://github.com/google/re2/wiki/Syntax).
   //
   // If the value is empty and only the name of header is specfied, presence of the header is checked.
   // **Note:** The keys `uri`, `scheme`, `method`, and `authority` will be ignored.
@@ -1064,9 +1069,9 @@ message HTTPMatchRequest {
   // in these cases it is not required to explicitly select the port.
   uint32 port = 6;
 
-  // One or more labels that constrain the applicability of a rule to
-  // workloads with the given labels. If the VirtualService has a list of
-  // gateways specified in the top-level `gateways` field, it must include the reserved gateway
+  // One or more labels that constrain the applicability of a rule to source (client) workloads
+  // with the given labels. If the VirtualService has a list of gateways specified
+  // in the top-level `gateways` field, it must include the reserved gateway
   // `mesh` for this field to be applicable.
   map<string, string> source_labels = 7;
 

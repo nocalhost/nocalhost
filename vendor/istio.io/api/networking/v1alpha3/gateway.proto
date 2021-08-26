@@ -372,6 +372,9 @@ option go_package = "istio.io/api/networking/v1alpha3";
 // +genclient
 // +k8s:deepcopy-gen=true
 // -->
+// <!-- istio code generation tags
+// +istio.io/sync-start
+// -->
 message Gateway {
   // A list of server specifications.
   repeated Server servers = 1 [(google.api.field_behavior) = REQUIRED];
@@ -675,8 +678,8 @@ message ServerTLSSettings {
   // holds the TLS certs including the CA certificates. Applicable
   // only on Kubernetes. The secret (of type `generic`) should
   // contain the following keys and values: `key:
-  // <privateKey>` and `cert: <serverCert>`. For mutual TLS, 
-  // `cacert: <CACertificate>` can be provided in the same secret or 
+  // <privateKey>` and `cert: <serverCert>`. For mutual TLS,
+  // `cacert: <CACertificate>` can be provided in the same secret or
   // a separate secret named `<secret>-cacert`.
   // Secret of type tls for server certificates along with
   // ca.crt key for CA certificates is also supported.

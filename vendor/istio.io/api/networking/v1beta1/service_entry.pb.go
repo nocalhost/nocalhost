@@ -888,6 +888,9 @@ func (ServiceEntry_Resolution) EnumDescriptor() ([]byte, []int) {
 // +genclient
 // +k8s:deepcopy-gen=true
 // -->
+// <!-- istio code generation tags
+// +istio.io/sync-from:networking/v1alpha3/service_entry.proto
+// -->
 type ServiceEntry struct {
 	// The hosts associated with the ServiceEntry. Could be a DNS
 	// name with wildcard prefix.

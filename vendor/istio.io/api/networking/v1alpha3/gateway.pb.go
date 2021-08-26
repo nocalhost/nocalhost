@@ -471,6 +471,9 @@ func (ServerTLSSettings_TLSProtocol) EnumDescriptor() ([]byte, []int) {
 // +genclient
 // +k8s:deepcopy-gen=true
 // -->
+// <!-- istio code generation tags
+// +istio.io/sync-start
+// -->
 type Gateway struct {
 	// A list of server specifications.
 	Servers []*Server `protobuf:"bytes,1,rep,name=servers,proto3" json:"servers,omitempty"`

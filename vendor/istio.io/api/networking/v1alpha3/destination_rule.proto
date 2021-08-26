@@ -181,8 +181,8 @@ option go_package = "istio.io/api/networking/v1alpha3";
 // +cue-gen:DestinationRule:scope:Namespaced
 // +cue-gen:DestinationRule:resource:categories=istio-io,networking-istio-io,shortNames=dr
 // +cue-gen:DestinationRule:printerColumn:name=Host,type=string,JSONPath=.spec.host,description="The name of a service from the service registry"
-// +cue-gen:DestinationRule:printerColumn:name=Age,type=date,JSONPath=.metadata.creationTimestamp,description="CreationTimestamp is a timestamp 
-// representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. 
+// +cue-gen:DestinationRule:printerColumn:name=Age,type=date,JSONPath=.metadata.creationTimestamp,description="CreationTimestamp is a timestamp
+// representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations.
 // Clients may not set this value. It is represented in RFC3339 form and is in UTC.
 // Populated by the system. Read-only. Null for lists. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata"
 // +cue-gen:DestinationRule:preserveUnknownFields:false
@@ -193,6 +193,9 @@ option go_package = "istio.io/api/networking/v1alpha3";
 // +kubetype-gen:groupVersion=networking.istio.io/v1alpha3
 // +genclient
 // +k8s:deepcopy-gen=true
+// -->
+// <!-- istio code generation tags
+// +istio.io/sync-start
 // -->
 message DestinationRule {
   // The name of a service from the service registry. Service
@@ -615,13 +618,13 @@ message ConnectionPoolSettings {
     // cluster at a given time. Defaults to 2^32-1.
     int32 max_retries = 4;
 
-    // The idle timeout for upstream connection pool connections. The idle timeout 
+    // The idle timeout for upstream connection pool connections. The idle timeout
     // is defined as the period in which there are no active requests.
-    // If not set, the default is 1 hour. When the idle timeout is reached, 
-    // the connection will be closed. If the connection is an HTTP/2 
-    // connection a drain sequence will occur prior to closing the connection. 
-    // Note that request based timeouts mean that HTTP/2 PINGs will not 
-    // keep the connection alive. Applies to both HTTP1.1 and HTTP2 connections. 
+    // If not set, the default is 1 hour. When the idle timeout is reached,
+    // the connection will be closed. If the connection is an HTTP/2
+    // connection a drain sequence will occur prior to closing the connection.
+    // Note that request based timeouts mean that HTTP/2 PINGs will not
+    // keep the connection alive. Applies to both HTTP1.1 and HTTP2 connections.
     google.protobuf.Duration idle_timeout = 5;
 
     // Policy for upgrading http1.1 connections to http2.
@@ -722,8 +725,8 @@ message OutlierDetection {
   int32 consecutive_errors = 1 [deprecated=true];
 
   // Determines whether to distinguish local origin failures from external errors. If set to true
-  // consecutive_local_origin_failure is taken into account for outlier detection calculations. 
-  // This should be used when you want to derive the outlier detection status based on the errors 
+  // consecutive_local_origin_failure is taken into account for outlier detection calculations.
+  // This should be used when you want to derive the outlier detection status based on the errors
   // seen locally such as failure to connect, timeout while connecting etc. rather than the status code
   // retuned by upstream service. This is especially useful when the upstream service explicitly returns
   // a 5xx for some requests and you want to ignore those responses from upstream service while determining
@@ -791,7 +794,7 @@ message OutlierDetection {
 }
 
 // SSL/TLS related settings for upstream connections. See Envoy's [TLS
-// context](https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/auth/cert.proto.html)
+// context](https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/common.proto.html#common-tls-configuration)
 // for more details. These settings are common to both HTTP and TCP upstreams.
 //
 // For example, the following rule configures a client to use mutual TLS

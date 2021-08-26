@@ -194,6 +194,9 @@ option go_package = "istio.io/api/networking/v1beta1";
 // +genclient
 // +k8s:deepcopy-gen=true
 // -->
+// <!-- istio code generation tags
+// +istio.io/sync-from:networking/v1alpha3/destination_rule.proto
+// -->
 message DestinationRule {
   // The name of a service from the service registry. Service
   // names are looked up from the platform's service registry (e.g.,
@@ -722,8 +725,8 @@ message OutlierDetection {
   int32 consecutive_errors = 1 [deprecated=true];
 
   // Determines whether to distinguish local origin failures from external errors. If set to true
-  // consecutive_local_origin_failure is taken into account for outlier detection calculations. 
-  // This should be used when you want to derive the outlier detection status based on the errors 
+  // consecutive_local_origin_failure is taken into account for outlier detection calculations.
+  // This should be used when you want to derive the outlier detection status based on the errors
   // seen locally such as failure to connect, timeout while connecting etc. rather than the status code
   // retuned by upstream service. This is especially useful when the upstream service explicitly returns
   // a 5xx for some requests and you want to ignore those responses from upstream service while determining
@@ -791,7 +794,7 @@ message OutlierDetection {
 }
 
 // SSL/TLS related settings for upstream connections. See Envoy's [TLS
-// context](https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/auth/cert.proto.html)
+// context](https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/common.proto.html#common-tls-configuration)
 // for more details. These settings are common to both HTTP and TCP upstreams.
 //
 // For example, the following rule configures a client to use mutual TLS

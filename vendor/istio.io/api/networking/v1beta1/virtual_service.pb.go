@@ -199,6 +199,9 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 // +genclient
 // +k8s:deepcopy-gen=true
 // -->
+// <!-- istio code generation tags
+// +istio.io/sync-from:networking/v1alpha3/virtual_service.proto
+// -->
 type VirtualService struct {
 	// The destination hosts to which traffic is being sent. Could
 	// be a DNS name with wildcard prefix or an IP address.  Depending on the
@@ -1497,7 +1500,7 @@ type HTTPMatchRequest struct {
 	//
 	// - `prefix: "value"` for prefix-based match
 	//
-	// - `regex: "value"` for ECMAscript style regex-based match
+	// - `regex: "value"` for RE2 style regex-based match (https://github.com/google/re2/wiki/Syntax).
 	//
 	// **Note:** Case-insensitive matching could be enabled via the
 	// `ignore_uri_case` flag.
@@ -1509,7 +1512,7 @@ type HTTPMatchRequest struct {
 	//
 	// - `prefix: "value"` for prefix-based match
 	//
-	// - `regex: "value"` for ECMAscript style regex-based match
+	// - `regex: "value"` for RE2 style regex-based match (https://github.com/google/re2/wiki/Syntax).
 	//
 	Scheme *StringMatch `protobuf:"bytes,2,opt,name=scheme,proto3" json:"scheme,omitempty"`
 	// HTTP Method
@@ -1519,7 +1522,7 @@ type HTTPMatchRequest struct {
 	//
 	// - `prefix: "value"` for prefix-based match
 	//
-	// - `regex: "value"` for ECMAscript style regex-based match
+	// - `regex: "value"` for RE2 style regex-based match (https://github.com/google/re2/wiki/Syntax).
 	//
 	Method *StringMatch `protobuf:"bytes,3,opt,name=method,proto3" json:"method,omitempty"`
 	// HTTP Authority
@@ -1529,7 +1532,7 @@ type HTTPMatchRequest struct {
 	//
 	// - `prefix: "value"` for prefix-based match
 	//
-	// - `regex: "value"` for ECMAscript style regex-based match
+	// - `regex: "value"` for RE2 style regex-based match (https://github.com/google/re2/wiki/Syntax).
 	//
 	Authority *StringMatch `protobuf:"bytes,4,opt,name=authority,proto3" json:"authority,omitempty"`
 	// The header keys must be lowercase and use hyphen as the separator,
@@ -1541,7 +1544,7 @@ type HTTPMatchRequest struct {
 	//
 	// - `prefix: "value"` for prefix-based match
 	//
-	// - `regex: "value"` for ECMAscript style regex-based match
+	// - `regex: "value"` for RE2 style regex-based match (https://github.com/google/re2/wiki/Syntax).
 	//
 	// If the value is empty and only the name of header is specfied, presence of the header is checked.
 	// **Note:** The keys `uri`, `scheme`, `method`, and `authority` will be ignored.
@@ -1550,9 +1553,9 @@ type HTTPMatchRequest struct {
 	// only expose a single port or label ports with the protocols they support,
 	// in these cases it is not required to explicitly select the port.
 	Port uint32 `protobuf:"varint,6,opt,name=port,proto3" json:"port,omitempty"`
-	// One or more labels that constrain the applicability of a rule to
-	// workloads with the given labels. If the VirtualService has a list of
-	// gateways specified in the top-level `gateways` field, it must include the reserved gateway
+	// One or more labels that constrain the applicability of a rule to source (client) workloads
+	// with the given labels. If the VirtualService has a list of gateways specified
+	// in the top-level `gateways` field, it must include the reserved gateway
 	// `mesh` for this field to be applicable.
 	SourceLabels map[string]string `protobuf:"bytes,7,rep,name=source_labels,json=sourceLabels,proto3" json:"source_labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// Names of gateways where the rule should be applied. Gateway names
