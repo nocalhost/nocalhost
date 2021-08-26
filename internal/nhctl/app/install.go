@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/fp"
+	"regexp"
 	"strings"
 	"time"
 
@@ -80,6 +81,7 @@ func (a *Application) Install(flags *HelmFlags) (err error) {
 	}
 
 	a.appMeta.ApplicationState = appmeta.INSTALLED
+
 	if err := a.appMeta.Update(); err != nil {
 		return err
 	}
@@ -133,23 +135,6 @@ func (a *Application) InstallManifest(doApply bool) error {
 
 // Install different type of Application: Helm
 func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
-	if len(flags.RepoUrl) != 0 && strings.LastIndex(flags.RepoUrl, "/") > 0 {
-		repoName := flags.RepoUrl[strings.LastIndex(flags.RepoUrl, "/")+1:]
-		if _, err := tools.ExecCommand(nil, false, false, true, "helm", "repo", "add", repoName, flags.RepoUrl); err != nil {
-			log.Logf("helm add repo %s %s, error: %v, ignore", repoName, flags.RepoUrl, err)
-		}
-		if output, err := tools.ExecCommand(nil, false, false, true, "helm", "repo", "list", "--output", "json"); err == nil {
-			var repoList []RepoDto
-			if err = json.Unmarshal([]byte(output), &repoList); err == nil {
-				for _, dto := range repoList {
-					if dto.Url == flags.RepoUrl {
-						flags.RepoName = dto.Name
-						break
-					}
-				}
-			}
-		}
-	}
 	log.Info("Updating helm repo...")
 	_, err := tools.ExecCommand(nil, true, false, false, "helm", "repo", "update")
 	if err != nil {
@@ -158,7 +143,7 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 
 	releaseName := a.Name
 	a.GetAppMeta().HelmReleaseName = releaseName
-	if err := a.GetAppMeta().Update(); err != nil {
+	if err = a.GetAppMeta().Update(); err != nil {
 		return err
 	}
 
@@ -192,12 +177,12 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 		if a.appMeta.Config != nil && a.appMeta.Config.ApplicationConfig.Name != "" {
 			chartName = a.appMeta.Config.ApplicationConfig.Name
 		}
-		/*if flags.RepoUrl != "" {
+		if len(findRepoNameFromLocal(flags.RepoUrl)) != 0 {
+			installParams = append(installParams, fmt.Sprintf("%s/%s", findRepoNameFromLocal(flags.RepoUrl), chartName))
+		} else if flags.RepoUrl != "" {
 			installParams = append(installParams, chartName, "--repo", flags.RepoUrl)
-		} else*/if flags.RepoName != "" {
+		} else if flags.RepoName != "" {
 			installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
-		} else {
-			return errors.New("fail to find repo name, please figure out it's a public repo or not.")
 		}
 
 		if flags.Version != "" {
@@ -236,6 +221,30 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 get the information of the helm release`, a.NameSpace,
 	)
 	return nil
+}
+
+// judge helm repo already exist or not, if exist, then can install app by using repo name, otherwise using repo url
+func findRepoNameFromLocal(helmRepoUrl string) (repoName string) {
+	// it's a private repo but provide username and password already
+	if withCredential, _ := regexp.MatchString("(.*?):(.*?)@(.*?)", helmRepoUrl); withCredential {
+		return
+	}
+
+	// remove https:// https:// header
+	if strings.Index(helmRepoUrl, "//") >= 0 {
+		helmRepoUrl = helmRepoUrl[strings.Index(helmRepoUrl, "//")+2:]
+	}
+	if output, err := tools.ExecCommand(nil, false, false, true, "helm", "repo", "list", "--output", "json"); err == nil {
+		var repoList []RepoDto
+		if err = json.Unmarshal([]byte(output), &repoList); err == nil {
+			for _, dto := range repoList {
+				if strings.Contains(dto.Url, helmRepoUrl) {
+					return dto.Name
+				}
+			}
+		}
+	}
+	return
 }
 
 func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) error {

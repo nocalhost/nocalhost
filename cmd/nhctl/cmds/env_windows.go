@@ -9,6 +9,7 @@ package cmds
 
 import (
 	"fmt"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -87,6 +88,6 @@ func initializeEnv() error {
 
 func init() {
 	if err := initializeEnv(); err != nil {
-		fmt.Fprintf(os.Stderr, "unable initialize env: %v\n", err)
+		log.Logf("unable initialize env: %v", err)
 	}
 }

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package daemon_server
 
@@ -12,6 +12,7 @@ import (
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"sync"
 )
 
 func recoverSyncthing() error {
@@ -21,20 +22,27 @@ func recoverSyncthing() error {
 		return err
 	}
 
+	wg := sync.WaitGroup{}
 	for ns, apps := range appMap {
 		for _, appName := range apps {
-			if err = recoverSyncthingForApplication(ns, appName); err != nil {
-				log.LogE(err)
-			}
+			wg.Add(1)
+			appName := appName
+			go func() {
+				defer wg.Done()
+				if err = recoverSyncthingForApplication(ns, appName); err != nil {
+					log.LogE(err)
+				}
+			}()
 		}
 	}
+	wg.Wait()
 	return nil
 }
 
 func recoverSyncthingForApplication(ns, appName string) error {
 	profile, err := nocalhost.GetProfileV2(ns, appName)
 	if err != nil {
-		if errors.Is(err, nocalhost.ProfileNotFound){
+		if errors.Is(err, nocalhost.ProfileNotFound) {
 			log.Warnf("Profile is not exist, so ignore for recovering for syncthing")
 			return nil
 		}
