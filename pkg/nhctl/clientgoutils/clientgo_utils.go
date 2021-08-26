@@ -11,6 +11,7 @@ import (
 	"k8s.io/api/batch/v1beta1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/util/flowcontrol"
 	"net/http"
 	"net/url"
 	"nocalhost/internal/nhctl/utils"
@@ -104,6 +105,9 @@ func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, 
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
+
+	// set default rateLimiter to 100, in case of throttling request
+	client.restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(100, 200)
 
 	if client.ClientSet, err = kubernetes.NewForConfig(client.restConfig); err != nil {
 		return nil, errors.Wrap(err, "")

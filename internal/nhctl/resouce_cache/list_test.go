@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/client-go/util/homedir"
 	"nocalhost/pkg/nhctl/log"
 	"path/filepath"
@@ -210,6 +211,11 @@ func TestApiResource(t *testing.T) {
 	config, err := clientcmd.RESTConfigFromKubeConfig(file)
 	if err != nil {
 		log.Fatal(err)
+	}
+	//config.Timeout = time.Second * 5
+	if config.RateLimiter == nil {
+		fmt.Println("rate limiter is empty")
+		config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(100, 200)
 	}
 	clientset, err1 := kubernetes.NewForConfig(config)
 	if err1 != nil {
