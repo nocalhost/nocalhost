@@ -176,6 +176,7 @@ var (
 	ErrUseAsBaseSpace                   = &Errno{Code: 50207, Message: "Can't be used as base space"}
 	ErrValidateMeshInfo                 = &Errno{Code: 50208, Message: "Incorrect share space parameter"}
 	ErrMeshInfoRequired                 = &Errno{Code: 50209, Message: "Share space parameter required"}
+	ErrBaseSpaceReSet                   = &Errno{Code: 50210, Message: "Base space can't be reset"}
 
 	// application-user for application-user module request
 	ErrListApplicationUser = &Errno{
