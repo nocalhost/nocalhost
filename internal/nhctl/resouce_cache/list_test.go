@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
+	"k8s.io/client-go/util/flowcontrol"
 	"nocalhost/pkg/nhctl/log"
 	"path/filepath"
 	"testing"
@@ -205,12 +205,15 @@ func TestNewLRU(t *testing.T) {
 }
 
 func TestApiResource(t *testing.T) {
-	join := filepath.Join(homedir.HomeDir(), ".kube", "dd")
+	join := filepath.Join("/Users/naison/Downloads/app/reviews", "config")
 	file, _ := ioutil.ReadFile(join)
+
 	config, err := clientcmd.RESTConfigFromKubeConfig(file)
 	if err != nil {
 		log.Fatal(err)
 	}
+	//config.Timeout = time.Second * 5
+	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
 	clientset, err1 := kubernetes.NewForConfig(config)
 	if err1 != nil {
 		log.Fatal(err1)
