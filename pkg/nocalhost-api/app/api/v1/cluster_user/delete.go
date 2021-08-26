@@ -90,7 +90,9 @@ func Delete(c *gin.Context) {
 	}
 
 	// delete share space when deleting base space
-	deleteShareSpaces(c, devSpaceId)
+	if clusterUser.IsBaseSpace {
+		deleteShareSpaces(c, devSpaceId)
+	}
 
 	api.SendResponse(c, errno.OK, nil)
 }
@@ -201,7 +203,9 @@ func ReCreate(c *gin.Context) {
 	}
 
 	// recreate share space when recreating base space
-	reCreateShareSpaces(c, user, devSpaceId)
+	if clusterUser.IsBaseSpace {
+		reCreateShareSpaces(c, user, devSpaceId)
+	}
 
 	api.SendResponse(c, nil, result)
 }
