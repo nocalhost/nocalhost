@@ -177,6 +177,11 @@ var (
 	ErrValidateMeshInfo                 = &Errno{Code: 50208, Message: "Incorrect share space parameter"}
 	ErrMeshInfoRequired                 = &Errno{Code: 50209, Message: "Share space parameter required"}
 	ErrBaseSpaceReSet                   = &Errno{Code: 50210, Message: "Base space can't be reset"}
+	ErrAsBothBaseSpaceAndShareSpace     = &Errno{
+		Code:    50211,
+		Message: "Cannot be set as both base space and shared space",
+	}
+	ErrIstioNotFound = &Errno{Code: 50212, Message: "Please ensure the Istio is installed and running in your cluster"}
 
 	// application-user for application-user module request
 	ErrListApplicationUser = &Errno{
