@@ -72,6 +72,8 @@ var (
 	}
 	ErrClusterKubeConnect  = &Errno{Code: 30114, Message: "Connect cluster fail, Please check cluster connectivity"}
 	ErrClusterGenNamespace = &Errno{Code: 30115, Message: "Failed to gen namespace"}
+	ErrUserIdRequired      = &Errno{Code: 50116, Message: "User id parameter required"}
+	ErrUserIdFormat        = &Errno{Code: 50117, Message: "User id must be an unsigned integer greater than zero"}
 
 	// application errors for application module request
 	ErrApplicationCreate        = &Errno{Code: 40100, Message: "Failed to add app, please try again"}
