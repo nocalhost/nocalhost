@@ -72,10 +72,8 @@ var profileGetCmd = &cobra.Command{
 
 		switch configKey {
 		case "image":
-			p, err := nocalhostSvc.GetProfile()
-			if err != nil {
-				log.FatalE(err, "")
-			}
+			p := nocalhostSvc.GetDescription()
+
 			var defaultContainerConfig *profile.ContainerConfig
 			for _, c := range p.ContainerConfigs {
 				if c.Name == container {

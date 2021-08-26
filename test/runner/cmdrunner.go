@@ -12,6 +12,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 var Runner = &CmdRunner{}
@@ -111,6 +112,11 @@ func (r *CmdRunner) RunWithRollingOutWithChecker(suitName string, cmd *exec.Cmd,
 	stdoutStr := stdoutBuf.String()
 	stderrStr := stderrBuf.String()
 
-	logger.Infof("Command %s \n[INFO]stdout:\n%s[INFO]stderr:%s", cmd.Args, stdoutStr, stderrStr)
+	if strings.TrimSpace(stderrStr) == "" {
+		logger.Infof("Command %s \n[INFO]stdout:\n%s", cmd.Args, stdoutStr)
+	} else {
+		logger.Infof("Command %s \n[INFO]stdout:\n%s[INFO]stderr:%s", cmd.Args, stdoutStr, stderrStr)
+	}
+
 	return stdoutStr, stderrStr, err
 }

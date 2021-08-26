@@ -153,7 +153,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		for {
 			//log.Info("Before accept a connection in %s", time.Now().String())
 			conn, err := listener.Accept()
-			log.Info("Accept a connection...")
+			//log.Trace("Accept a connection...")
 			if err != nil {
 				log.Log("Accept connection error occurs")
 				if strings.Contains(strings.ToLower(err.Error()), "use of closed network connection") {
@@ -176,28 +176,28 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 				}()
 				start := time.Now()
 
-				log.Log("Reading data...")
+				log.Trace("Reading data...")
 				errChan := make(chan error, 1)
-				bytesChan := make(chan []byte,1)
+				bytesChan := make(chan []byte, 1)
 
 				go func() {
-					bytes, err :=  ioutil.ReadAll(conn)
+					bytes, err := ioutil.ReadAll(conn)
 					errChan <- err
-					bytesChan <-bytes
+					bytesChan <- bytes
 				}()
 
 				select {
-				case err = <- errChan:
+				case err = <-errChan:
 					if err != nil {
-						log.LogE(errors.Wrap(err,"Failed to read data from connection"))
+						log.LogE(errors.Wrap(err, "Failed to read data from connection"))
 						return
 					}
-				case <- time.After(30 * time.Second):
+				case <-time.After(30 * time.Second):
 					log.LogE(errors.New("Read data from connection timeout after 30s"))
 					return
 				}
 
-				bytes := <- bytesChan
+				bytes := <-bytesChan
 				if len(bytes) == 0 {
 					log.Log("No data read from connection")
 					return
@@ -207,9 +207,9 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 					log.LogE(err)
 					return
 				}
-				log.Infof("Handling %s command", cmdType)
+				log.Tracef("Handling %s command", cmdType)
 				handleCommand(conn, bytes, cmdType, clientStack)
-				log.Infof("%s command done, takes %f seconds", cmdType, time.Now().Sub(start).Seconds())
+				log.Tracef("%s command done, takes %f seconds", cmdType, time.Now().Sub(start).Seconds())
 			}()
 		}
 	}()

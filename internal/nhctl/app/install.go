@@ -81,6 +81,7 @@ func (a *Application) Install(flags *HelmFlags) (err error) {
 	}
 
 	a.appMeta.ApplicationState = appmeta.INSTALLED
+
 	if err := a.appMeta.Update(); err != nil {
 		return err
 	}
@@ -142,7 +143,7 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 
 	releaseName := a.Name
 	a.GetAppMeta().HelmReleaseName = releaseName
-	if err := a.GetAppMeta().Update(); err != nil {
+	if err = a.GetAppMeta().Update(); err != nil {
 		return err
 	}
 

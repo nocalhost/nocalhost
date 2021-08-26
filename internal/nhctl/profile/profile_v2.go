@@ -53,6 +53,10 @@ type AppProfileV2 struct {
 	Kubeconfig string `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
 	db         *dbutils.LevelDBUtils
 
+	// for previous version, associate path is stored in profile
+	// and now it store in a standalone db
+	AssociateMigrate bool `json:"associate_migrate" yaml:"associate_migrate"`
+
 	// app global status
 	Identifier string `json:"identifier" yaml:"identifier"`
 	Secreted   bool   `json:"secreted" yaml:"secreted"` // always true for new versions, but from earlier version, the flag for upload profile to secret
@@ -206,6 +210,8 @@ type SvcProfileV2 struct {
 	// nocalhost also supports config from cm, lowest priority
 	CmConfigLoaded bool `json:"cmconfigloaded" yaml:"cmconfigloaded"`
 
+	// deprecated, read only, but actually store in
+	// [SvcPack internal/nhctl/nocalhost/dev_dir_mapping_db.go:165]
 	// associate for the local dir
 	Associate string `json:"associate" yaml:"associate"`
 

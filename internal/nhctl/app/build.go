@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package app
 
@@ -10,11 +10,13 @@ import (
 	"fmt"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
+	yaml3 "gopkg.in/yaml.v3"
 	"io/ioutil"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/envsubst"
+	"nocalhost/internal/nhctl/envsubst/parse"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
@@ -120,6 +122,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	appProfileV2 := generateProfileFromConfig(config)
+	appProfileV2.AssociateMigrate = true
 	appProfileV2.Secreted = true
 	appProfileV2.Namespace = namespace
 	appProfileV2.Kubeconfig = kubeconfig
@@ -318,8 +321,15 @@ func RenderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) 
 
 	// convert un strict yaml to strict yaml
 	renderedConfig := &profile.NocalHostAppConfigV2{}
-	if err = yaml.Unmarshal([]byte(renderedStr), renderedConfig); err != nil {
-		return nil, err
+
+	if err := parseNocalhostConfigEnvFile(
+		renderedStr, configFile, func(node *yaml3.Node) error {
+			_ = node.Decode(renderedConfig)
+			parseEnvFromIntoEnv(renderedConfig)
+			return nil
+		},
+	); err != nil {
+		return nil, errors.Wrap(err, "")
 	}
 
 	// remove the duplicate service config (we allow users to define duplicate service and keep the last one)
@@ -346,6 +356,162 @@ func RenderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) 
 	}
 
 	return renderedConfig, nil
+}
+
+func parseEnvFromIntoEnv(config *profile.NocalHostAppConfigV2) {
+	if config != nil && config.ApplicationConfig != nil {
+
+		arr := make([]*profile.Env, 0)
+		for k, v := range getEnvFromEnvFileArr(config.ApplicationConfig.EnvFrom.EnvFile) {
+			arr = append(arr, &profile.Env{Name: k, Value: v})
+		}
+
+		// env has high priority than env from
+		for _, env := range config.ApplicationConfig.Env {
+			arr = append(arr, env)
+		}
+
+		config.ApplicationConfig.Env = arr
+
+		for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {
+			parseEnvFromIntoEnvForSvcConfig(svcConfig)
+		}
+
+		config.ApplicationConfig.EnvFrom.EnvFile = nil
+	}
+}
+
+func parseEnvFromIntoEnvForSvcConfig(svcConfig *profile.ServiceConfigV2) {
+	if svcConfig != nil {
+		for _, config := range svcConfig.ContainerConfigs {
+			if config.Dev != nil && config.Dev.EnvFrom != nil {
+
+				arr := make([]*profile.Env, 0)
+				for k, v := range getEnvFromEnvFileArr(config.Dev.EnvFrom.EnvFile) {
+					arr = append(arr, &profile.Env{Name: k, Value: v})
+				}
+
+				// env has high priority than env from
+				for _, env := range config.Dev.Env {
+					arr = append(arr, env)
+				}
+
+				config.Dev.Env = arr
+				config.Dev.EnvFrom = nil
+			}
+
+			if config.Install != nil && config.Install.EnvFrom.EnvFile != nil {
+				arr := make([]*profile.Env, 0)
+				for k, v := range getEnvFromEnvFileArr(config.Install.EnvFrom.EnvFile) {
+					arr = append(arr, &profile.Env{Name: k, Value: v})
+				}
+
+				// env has high priority than env from
+				for _, env := range config.Install.Env {
+					arr = append(arr, env)
+				}
+
+				config.Install.Env = arr
+				config.Install.EnvFrom.EnvFile = nil
+			}
+		}
+	}
+}
+
+func getEnvFromEnvFileArr(envFiles []*profile.EnvFile) map[string]string {
+	envs := make(map[string]string, 0)
+	for _, file := range envFiles {
+		mergeMap(envs, fp.NewFilePath(file.Path).ReadEnvFileKV())
+	}
+	return envs
+}
+
+func mergeMap(front, back map[string]string) {
+	for k, v := range back {
+		front[k] = v
+	}
+}
+
+func parseNocalhostConfigEnvFile(yAml string, currentPath *fp.FilePathEnhance, nodeConsumer func(*yaml3.Node) error) error {
+	n := yaml3.Node{}
+	if err := yaml3.Unmarshal([]byte(yAml), &n); err != nil {
+		return err
+	}
+
+	doParseNode(&n, currentPath, 0, false)
+
+	return nodeConsumer(&n)
+}
+
+// we need to maintain the current absPath
+func doParseNode(node *yaml3.Node, currentPath *fp.FilePathEnhance, envFilePathDepth int, nowHit bool) *fp.FilePathEnhance {
+	hc := node.HeadComment
+	fc := node.FootComment
+
+	if cm := includeComment(hc); cm != nil {
+		currentPath = cm
+	}
+
+	if nowHit {
+		abs := currentPath.RelOrAbs("../").RelOrAbs(node.Value).Abs()
+		node.Value = abs
+	}
+
+	//    envFile:
+	//    - path: /var/folders/15/_sp2z3dd0fb8fstvwym6x9lh0000gn/T/172729671/.nocalhost/config.yaml/dev.env
+	//    - path: /var/folders/15/_sp2z3dd0fb8fstvwym6x9lh0000gn/T/172729671/.nocalhost/config.yaml/dev.env
+	// 1. when we found the tag named envFile, start to finding tag 'path'
+	// 2. `envFile`'s value is an array, so it's Tas is !!seq
+	// 3. then we continue finding node with !!map ( path: xxx )
+	// 4. last, when we found a node named path, mark hit as true
+	// 5. when we get hit, inject path from comment
+	if envFilePathDepth == 1 && node.Tag == "!!seq" {
+		envFilePathDepth++
+	} else if envFilePathDepth == 2 && node.Tag == "!!map" {
+		envFilePathDepth++
+	} else {
+		envFilePathDepth = max(envFilePathDepth-1, 0)
+	}
+
+	hit := false
+	for _, n := range node.Content {
+		currentPath = doParseNode(n, currentPath, envFilePathDepth, hit)
+
+		// when we find a tag named envFile,
+		// then we consider next node as flag envFileTag
+		if n.Value == "envFile" {
+			envFilePathDepth = 1
+		}
+
+		hit = envFilePathDepth == 3 && n.Value == "path"
+	}
+
+	if cm := includeComment(fc); cm != nil {
+		currentPath = cm
+	}
+
+	return currentPath
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func includeComment(comment string) *fp.FilePathEnhance {
+	//scanner := bufio.NewScanner(strings.NewReader(comment))
+
+	var lastFp *fp.FilePathEnhance
+	// only return first line
+	for _, text := range strings.Split(comment, "\n") {
+		if strings.HasPrefix(text, parse.AbsSign) {
+			withoutPrefix := strings.TrimSpace(strings.TrimPrefix(text, parse.AbsSign))
+			lastFp = fp.NewFilePath(withoutPrefix)
+		}
+	}
+	return lastFp
 }
 
 func gettingRenderEnvFile(filepath string) string {
