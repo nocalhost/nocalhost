@@ -1,13 +1,14 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	v1 "k8s.io/api/core/v1"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -47,10 +48,16 @@ var devTerminalCmd = &cobra.Command{
 		if pod == "" {
 			podList, err := nocalhostSvc.BuildPodController().GetPodList()
 			must(err)
-			if len(podList) != 1 {
+			var runningPod = make([]v1.Pod, 0, 1)
+			for _, item := range podList {
+				if item.Status.Phase == v1.PodRunning && item.DeletionTimestamp == nil {
+					runningPod = append(runningPod, item)
+				}
+			}
+			if len(runningPod) != 1 {
 				log.Fatal("Pod num is not 1, please specify one")
 			}
-			pod = podList[0].Name
+			pod = runningPod[0].Name
 		}
 		must(nocalhostSvc.EnterPodTerminal(pod, container, shell))
 	},
