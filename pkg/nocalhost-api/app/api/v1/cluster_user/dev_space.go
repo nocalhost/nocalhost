@@ -9,14 +9,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+	"math/rand"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
+	"time"
 )
 
 type DevSpace struct {
@@ -68,34 +71,6 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	userId := cast.ToUint64(d.DevSpaceParams.UserId)
 	clusterId := cast.ToUint64(d.DevSpaceParams.ClusterId)
 
-	// check if space name exist
-	_, err := service.Svc.ClusterUser().GetFirst(d.c, model.ClusterUserModel{
-		SpaceName: d.DevSpaceParams.SpaceName,
-	})
-	if err == nil {
-		return nil, errno.ErrSpaceNameAlreadyExists
-	}
-
-	// check base dev space
-	baseClusterUser := &model.ClusterUserModel{}
-	if d.DevSpaceParams.BaseDevSpaceId > 0 {
-		var err error
-		baseClusterUser, err = service.Svc.ClusterUser().GetFirst(d.c, model.ClusterUserModel{
-			ID: d.DevSpaceParams.BaseDevSpaceId,
-		})
-		if err != nil || baseClusterUser == nil {
-			log.Error(err)
-			return nil, errno.ErrMeshClusterUserNotFound
-		}
-		if baseClusterUser.BaseDevSpaceId > 0 {
-			return nil, errno.ErrUseAsBaseSpace
-		}
-		if baseClusterUser.Namespace == "*" || baseClusterUser.Namespace == "" {
-			log.Error(errors.New("base dev namespace has not found"))
-			return nil, errno.ErrMeshClusterUserNamespaceNotFound
-		}
-	}
-
 	// get user
 	usersRecord, err := service.Svc.UserSvc().GetUserByID(d.c, userId)
 	if err != nil {
@@ -109,7 +84,44 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	}
 
 	if d.DevSpaceParams.SpaceName == "" {
-		d.DevSpaceParams.SpaceName = clusterRecord.Name + "[" + usersRecord.Name + "]"
+		if genName, err := getUnDuplicateName(
+			0, fmt.Sprintf("%s[%s]", clusterRecord.Name, usersRecord.Name),
+		); err != nil {
+			return nil, err
+		} else {
+			d.DevSpaceParams.SpaceName = genName
+		}
+	} else {
+		// check if space name exist
+		if _, err := service.Svc.ClusterUser().GetFirst(
+			d.c, model.ClusterUserModel{
+				SpaceName: d.DevSpaceParams.SpaceName,
+			},
+		); err == nil {
+			return nil, errno.ErrSpaceNameAlreadyExists
+		}
+	}
+
+	// check base dev space
+	baseClusterUser := &model.ClusterUserModel{}
+	if d.DevSpaceParams.BaseDevSpaceId > 0 {
+		var err error
+		baseClusterUser, err = service.Svc.ClusterUser().GetFirst(
+			d.c, model.ClusterUserModel{
+				ID: d.DevSpaceParams.BaseDevSpaceId,
+			},
+		)
+		if err != nil || baseClusterUser == nil {
+			log.Error(err)
+			return nil, errno.ErrMeshClusterUserNotFound
+		}
+		if baseClusterUser.BaseDevSpaceId > 0 {
+			return nil, errno.ErrUseAsBaseSpace
+		}
+		if baseClusterUser.Namespace == "*" || baseClusterUser.Namespace == "" {
+			log.Error(errors.New("base dev namespace has not found"))
+			return nil, errno.ErrMeshClusterUserNamespaceNotFound
+		}
 	}
 
 	clusterUserModel := &model.ClusterUserModel{}
@@ -136,14 +148,46 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	return clusterUserModel, nil
 }
 
+func getUnDuplicateName(times int, name string) (string, error) {
+	spaceName := name
+	if times > 0 {
+		spaceName += random()
+	}
+
+	// check if space name exist
+	if _, err := service.Svc.ClusterUser().GetFirst(
+		context.TODO(), model.ClusterUserModel{
+			SpaceName: spaceName,
+		},
+	); err == nil {
+		if times < 3 {
+			return getUnDuplicateName(times+1, name)
+		} else {
+			return "", errno.ErrSpaceNameAlreadyExists
+		}
+	}
+
+	return spaceName, nil
+}
+
+func random() string {
+	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
+	rand.Seed(time.Now().UnixNano())
+	b := make([]rune, 4)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
+}
+
 func (d *DevSpace) createClusterDevSpace(
 	clusterRecord model.ClusterModel, usersRecord *model.UserBaseModel,
 ) (*model.ClusterUserModel, error) {
 	trueFlag := uint64(1)
 	list, err := service.Svc.ClusterUser().GetList(
 		context.TODO(), model.ClusterUserModel{
-			ClusterId:    clusterRecord.ID,
-			UserId:       usersRecord.ID,
+			ClusterId: clusterRecord.ID,
+			UserId: usersRecord.ID,
 			ClusterAdmin: &trueFlag,
 		},
 	)
@@ -239,7 +283,8 @@ func (d *DevSpace) createDevSpace(
 	resString, err := json.Marshal(res)
 	result, err := service.Svc.ClusterUser().Create(
 		d.c, *d.DevSpaceParams.ClusterId, usersRecord.ID, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu,
-		"", devNamespace, d.DevSpaceParams.SpaceName, string(resString), d.DevSpaceParams.IsBaseSpace)
+		"", devNamespace, d.DevSpaceParams.SpaceName, string(resString), d.DevSpaceParams.IsBaseSpace,
+	)
 	if err != nil {
 		return nil, errno.ErrBindApplicationClsuter
 	}
@@ -289,9 +334,11 @@ func (d *DevSpace) deleteTracingHeader() error {
 	}
 
 	// check base dev space
-	baseDevspace, err := service.Svc.ClusterUser().GetFirst(d.c, model.ClusterUserModel{
-		ID: d.DevSpaceParams.BaseDevSpaceId,
-	})
+	baseDevspace, err := service.Svc.ClusterUser().GetFirst(
+		d.c, model.ClusterUserModel{
+			ID: d.DevSpaceParams.BaseDevSpaceId,
+		},
+	)
 	if err != nil || baseDevspace == nil {
 		log.Debug("can not find base namespace, does not delete tracing header")
 		return nil
