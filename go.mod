@@ -81,7 +81,6 @@ require (
 	k8s.io/cli-runtime v0.21.0-alpha.1
 	k8s.io/client-go v0.21.2
 	k8s.io/kubectl v0.21.0-alpha.1
-	k8s.io/metrics v0.0.0-20210116051850-08fd6e46d1e4
 	sigs.k8s.io/kustomize v2.0.3+incompatible
 	sigs.k8s.io/yaml v1.2.0
 )

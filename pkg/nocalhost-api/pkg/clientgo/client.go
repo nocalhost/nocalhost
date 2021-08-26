@@ -638,6 +638,22 @@ func (c *GoClient) UpdateRole(name, namespace string, rbacRule []rbacv1.PolicyRu
 	return nil
 }
 
+func (c *GoClient) UpdateClusterRole(name string, rbacRule []rbacv1.PolicyRule) error {
+
+	before, err := c.client.RbacV1().ClusterRoles().Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	before.Rules = rbacRule
+
+	_, err = c.client.RbacV1().ClusterRoles().Update(context.TODO(), before, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *GoClient) UpdateRoleBindingForNocalhostLabel(name, namespace string) error {
 
 	before, err := c.client.RbacV1().RoleBindings(namespace).Get(context.TODO(), name, metav1.GetOptions{})

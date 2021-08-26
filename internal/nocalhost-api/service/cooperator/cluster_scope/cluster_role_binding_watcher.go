@@ -41,10 +41,10 @@ type saShareContainer struct {
 
 	// in normal case, ownerValid must be true
 	// while viewerSas or cooperatorSas is not empty
-	ownerValid             bool
-	viewerSas /* ns */     *util.Set /* serviceAccount */
-	cooperatorSas /* ns */ *util.Set /* serviceAccount */
-	lock                   sync.RWMutex
+	ownerValid                      bool
+	viewerSas/* ns */ *util.Set     /* serviceAccount */
+	cooperatorSas/* ns */ *util.Set /* serviceAccount */
+	lock                            sync.RWMutex
 }
 
 func newSaContainer() *saShareContainer {
@@ -103,6 +103,7 @@ func (crbw *clusterRoleBindingWatcher) join(crb *rbacv1.ClusterRoleBinding) erro
 
 	// parse the owner first
 	if crbName == _const.NocalhostDefaultRoleBinding {
+		existSubject := util.Set{}
 		for _, subject := range crb.Subjects {
 			val, _ := crbw.cache.LoadOrStore(
 				subject.Name,
@@ -111,7 +112,19 @@ func (crbw *clusterRoleBindingWatcher) join(crb *rbacv1.ClusterRoleBinding) erro
 			)
 			ssc := val.(*saShareContainer)
 			ssc.ownerValid = true
+			existSubject.Put(subject.Name)
 		}
+
+		// remove those sa do not as cluster admin
+		crbw.cache.Range(
+			func(key, val interface{}) bool {
+				if !existSubject.Exist(key.(string)) {
+					ssc := val.(*saShareContainer)
+					ssc.ownerValid = false
+				}
+				return true
+			})
+
 		return nil
 	}
 
@@ -170,10 +183,10 @@ func (crbw *clusterRoleBindingWatcher) join(crb *rbacv1.ClusterRoleBinding) erro
 
 func NewClusterRoleBindingWatcher(kubeConfig string) *clusterRoleBindingWatcher {
 	return &clusterRoleBindingWatcher{
-		kubeConfig:    kubeConfig,
-		cache: sync.Map{},
-		lock: sync.RWMutex{},
-		quit:          make(chan bool),
+		kubeConfig: kubeConfig,
+		cache:      sync.Map{},
+		lock:       sync.RWMutex{},
+		quit:       make(chan bool),
 	}
 }
 

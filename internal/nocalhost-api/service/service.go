@@ -536,16 +536,27 @@ func createClusterAdminRoleINE(client *clientgo.GoClient) error {
 
 	go func() {
 		defer wg.Done()
-		if _, err := client.CreateClusterRole(
-			_const.NocalhostViewerRoleName, []rbacv1.PolicyRule{
-				{
-					Verbs:     []string{"get", "list", "watch"},
-					Resources: []string{"*"},
-					APIGroups: []string{"*"},
-				},
+		rule := []rbacv1.PolicyRule{
+			{
+				Verbs:     []string{"get", "list", "watch"},
+				Resources: []string{"*"},
+				APIGroups: []string{"*"},
 			},
-		); err != nil && !k8serrors.IsAlreadyExists(err) {
-			errChan <- err
+			{
+				Verbs:     []string{"*"},
+				Resources: []string{"pods/portforward"},
+				APIGroups: []string{"*"},
+			},
+		}
+
+		if _, err := client.CreateClusterRole(
+			_const.NocalhostViewerRoleName, rule,
+		); err != nil {
+			if !k8serrors.IsAlreadyExists(err) {
+				errChan <- err
+			} else {
+				_ = client.UpdateClusterRole(_const.NocalhostViewerRoleName, rule)
+			}
 		}
 	}()
 
