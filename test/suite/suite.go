@@ -13,7 +13,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/client-go/util/homedir"
 	"net/http"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/pkg/nhctl/k8sutils"
@@ -212,19 +211,20 @@ func (t *T) AlertForImagePull() {
 	}
 }
 
-func LogsForArchive(){
-
-	log.Info("")
-	log.Info("")
-	log.Info("<< == Nocalhost Logs == >>")
-	log.Info(
-		fp.NewFilePath(homedir.HomeDir()).
-			RelOrAbs(".nh").
-			RelOrAbs("nhctl").
-			RelOrAbs("logs").
-			RelOrAbs("nhctl.log").
-			ReadFile(),
-	)
+func LogsForArchive() {
+	if _, ok := os.LookupEnv("LocalTest"); !ok {
+		//log.Info("")
+		//log.Info("")
+		//log.Info("<< == Nocalhost Logs == >>")
+		//log.Info(
+		//	fp.NewFilePath(homedir.HomeDir()).
+		//		RelOrAbs(".nh").
+		//		RelOrAbs("nhctl").
+		//		RelOrAbs("logs").
+		//		RelOrAbs("nhctl.log").
+		//		ReadFile(),
+		//)
+	}
 
 	for _, l := range log.AllTestLogsLocations() {
 		log.Info("")

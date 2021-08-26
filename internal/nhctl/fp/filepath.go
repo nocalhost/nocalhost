@@ -1,16 +1,18 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package fp
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 	"nocalhost/internal/nhctl/syncthing/network/req"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -163,6 +165,72 @@ func (f *FilePathEnhance) Mkdir() error {
 func (f *FilePathEnhance) MkdirThen() *FilePathEnhance {
 	_ = os.MkdirAll(f.absPath, 0700)
 	return f
+}
+
+func (f *FilePathEnhance) ReadEnvFile() []string {
+	var envFiles []string
+
+	if f == nil {
+		return envFiles
+	}
+
+	if err := f.CheckExist(); err != nil {
+		return envFiles
+	}
+
+	file, err := os.Open(f.Abs())
+	if err != nil {
+		log.ErrorE(err, "Can't not reading env file from "+f.Path)
+	}
+
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		text := scanner.Text()
+		if !strings.ContainsAny(text, "=") || strings.HasPrefix(text, "#") {
+			continue
+		}
+		envFiles = append(envFiles, text)
+	}
+	return envFiles
+}
+
+func (f *FilePathEnhance) ReadEnvFileKV() map[string]string {
+	envFiles := make(map[string]string, 0)
+
+	if f == nil {
+		return envFiles
+	}
+
+	if err := f.CheckExist(); err != nil {
+		return envFiles
+	}
+
+	file, err := os.Open(f.Abs())
+	if err != nil {
+		log.ErrorE(err, "Can't not reading env file from "+f.Path)
+	}
+
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		text := scanner.Text()
+		if !strings.ContainsAny(text, "=") || strings.HasPrefix(text, "#") {
+			continue
+		}
+		index := strings.Index(text, "=")
+
+		if len(text)-1 == index {
+			return nil
+		}
+
+		envFiles[text[:index]] = text[index+1:]
+	}
+	return envFiles
 }
 
 // DownloadFile will download a url to a local file. It's efficient because it will

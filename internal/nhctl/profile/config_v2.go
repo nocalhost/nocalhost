@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package profile
 
@@ -41,7 +41,7 @@ type ApplicationConfig struct {
 	HelmVals       interface{}        `json:"helmVals" yaml:"helmVals"`
 	HelmVersion    string             `json:"helmVersion" yaml:"helmVersion"`
 	Env            []*Env             `json:"env" yaml:"env"`
-	EnvFrom        EnvFrom            `json:"envFrom" yaml:"envFrom"`
+	EnvFrom        EnvFrom            `json:"envFrom,omitempty" yaml:"envFrom,omitempty"`
 	ServiceConfigs []*ServiceConfigV2 `json:"services" yaml:"services,omitempty"`
 }
 
@@ -78,7 +78,7 @@ type ContainerDevConfig struct {
 	UseDevContainer       bool                   `json:"useDevContainer" yaml:"useDevContainer"`
 	Sync                  *SyncConfig            `json:"sync" yaml:"sync"`
 	Env                   []*Env                 `json:"env" yaml:"env"`
-	EnvFrom               *EnvFrom               `json:"envFrom" yaml:"envFrom"`
+	EnvFrom               *EnvFrom               `json:"envFrom,omitempty" yaml:"envFrom,omitempty"`
 	PortForward           []string               `json:"portForward" yaml:"portForward"`
 }
 
