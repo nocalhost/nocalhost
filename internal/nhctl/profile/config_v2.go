@@ -151,19 +151,6 @@ func isSvcConfigInHubMatch(svcConfig *ServiceConfigV2, container, image string) 
 	if svcConfig == nil {
 		return false
 	}
-	strs := strings.Split(image, ":")
-	var imageName string
-	if len(strs) == 1 {
-		imageName = strs[0]
-	} else if len(strs) > 1 {
-		imageName = strs[len(strs)-2]
-	}
-	strs = strings.Split(imageName, "/")
-	if len(strs) == 1 {
-		imageName = strs[0]
-	} else if len(strs) > 1 {
-		imageName = strs[len(strs)-1]
-	}
 
 	for _, c := range svcConfig.ContainerConfigs {
 		if c.Name == container {
@@ -171,7 +158,7 @@ func isSvcConfigInHubMatch(svcConfig *ServiceConfigV2, container, image string) 
 				log.Log("hub field missing")
 				return false
 			}
-			if !strings.Contains(c.Hub.Image, imageName) {
+			if !strings.Contains(image, c.Hub.Image) {
 				log.Log("hub's image not match")
 				return false
 			}

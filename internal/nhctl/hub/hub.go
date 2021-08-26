@@ -33,7 +33,7 @@ func FindNocalhostSvcConfig(appName, svcName string, svcType base.SvcType, conta
 		}
 	}
 
-	log.Logf("Finding config in all dir ...", appName)
+	log.Log("Finding config in all dir ...")
 	return findNocalhostSvcConfigInAllDir(svcName, svcType, container, image)
 }
 
