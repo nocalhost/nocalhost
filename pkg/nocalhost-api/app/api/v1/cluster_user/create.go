@@ -35,31 +35,10 @@ func Create(c *gin.Context) {
 		api.SendResponse(c, errno.ErrBind, nil)
 		return
 	}
-	// Validate DevSpace Resource limit parameter format.
-	if req.SpaceResourceLimit != nil {
-		flag, message := ValidSpaceResourceLimit(*req.SpaceResourceLimit)
-		if !flag {
-			log.Errorf("Initial devSpace fail. Incorrect Resource limit parameter [ %v ] format.", message)
-			api.SendResponse(c, errno.ErrFormatResourceLimitParam, message)
-			return
-		}
-
-		if !req.SpaceResourceLimit.Validate() {
-			api.SendResponse(c, errno.ErrValidateResourceQuota, nil)
-			return
-		}
-	}
-
-	// Validate MeshInfo parameter format.
-	if req.BaseDevSpaceId > 0 {
-		if req.MeshDevInfo == nil {
-			api.SendResponse(c, errno.ErrMeshInfoRequired, nil)
-			return
-		}
-		if !req.MeshDevInfo.Validate() {
-			api.SendResponse(c, errno.ErrValidateMeshInfo, nil)
-			return
-		}
+	// Validate request parameter format.
+	if _, errn := req.Validate(); errn != nil {
+		api.SendResponse(c, errn, nil)
+		return
 	}
 
 	applicationId := uint64(0)

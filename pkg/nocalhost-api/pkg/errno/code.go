@@ -72,6 +72,8 @@ var (
 	}
 	ErrClusterKubeConnect  = &Errno{Code: 30114, Message: "Connect cluster fail, Please check cluster connectivity"}
 	ErrClusterGenNamespace = &Errno{Code: 30115, Message: "Failed to gen namespace"}
+	ErrUserIdRequired      = &Errno{Code: 50116, Message: "User id parameter required"}
+	ErrUserIdFormat        = &Errno{Code: 50117, Message: "User id must be an unsigned integer greater than zero"}
 
 	// application errors for application module request
 	ErrApplicationCreate        = &Errno{Code: 40100, Message: "Failed to add app, please try again"}
@@ -174,6 +176,12 @@ var (
 	ErrUseAsBaseSpace                   = &Errno{Code: 50207, Message: "Can't be used as base space"}
 	ErrValidateMeshInfo                 = &Errno{Code: 50208, Message: "Incorrect share space parameter"}
 	ErrMeshInfoRequired                 = &Errno{Code: 50209, Message: "Share space parameter required"}
+	ErrBaseSpaceReSet                   = &Errno{Code: 50210, Message: "Base space can't be reset"}
+	ErrAsBothBaseSpaceAndShareSpace     = &Errno{
+		Code:    50211,
+		Message: "Cannot be set as both base space and shared space",
+	}
+	ErrIstioNotFound = &Errno{Code: 50212, Message: "Please ensure the Istio is installed and running in your cluster"}
 
 	// application-user for application-user module request
 	ErrListApplicationUser = &Errno{

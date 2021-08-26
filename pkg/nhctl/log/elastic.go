@@ -34,6 +34,7 @@ type esLog struct {
 	Branch    string    `json:"branch,omitempty"`
 	Commit    string    `json:"commit,omitempty"`
 	Svc       string    `json:"svc,omitempty"`
+	Args       string `json:"args,omitempty"`
 }
 
 var (
@@ -107,6 +108,9 @@ func InitEs(host string) {
 	  "arch": {
         "type": "text"
       },
+      "args": {
+        "type": "text"
+      },
 	  "stack": {
         "type": "text"
       },
@@ -166,7 +170,7 @@ func writeStackToEs(level string, msg string, stack string) {
 		lineNum = fmt.Sprintf("%s:%d", file, line)
 	}
 
-	go func() {
+	write := func() {
 		data := esLog{
 			Msg:       msg,
 			PID:       fields["PID"],
@@ -176,6 +180,7 @@ func writeStackToEs(level string, msg string, stack string) {
 			Version:   fields["VERSION"],
 			Commit:    fields["COMMIT"],
 			Branch:    fields["BRANCH"],
+			Args: fields["ARGS"],
 			Timestamp: time.Now(),
 			Hostname:  hostname,
 			Level:     level,
@@ -187,13 +192,15 @@ func writeStackToEs(level string, msg string, stack string) {
 			Func:      funName,
 		}
 		esClient.Index().Index(esIndex).BodyJson(&data).Refresh("true").Do(context.Background())
-		//r, err := esClient.Index().Index(esIndex).BodyJson(&data).Refresh("true").Do(context.Background())
-		//if err != nil {
-		//	fmt.Println(err.Error())
-		//}
-		//fmt.Printf("%v\n", r)
-	}()
-	//time.Sleep(1 * time.Second)
+	}
+
+	if os.Getenv("NOCALHOST_TRACE") != "" {
+		write()
+	} else {
+		go func() {
+			write()
+		}()
+	}
 }
 
 func externalIP() (net.IP, error) {

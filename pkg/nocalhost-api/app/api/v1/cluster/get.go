@@ -389,6 +389,14 @@ func Init() {
 // @Success 200 {object} cluster.Namespace "{"code":0,"message":"OK","data":cluster.Namespace}"
 // @Router /v1/cluster/{id}/gen_namespace [get]
 func GenNamespace(c *gin.Context) {
+	userIdstr, ok := c.GetQuery("user_id")
+	if !ok {
+		api.SendResponse(c, errno.ErrUserIdRequired, nil)
+	}
+	userId, err := cast.ToUint64E(userIdstr)
+	if err != nil || userId == 0 {
+		api.SendResponse(c, errno.ErrUserIdFormat, nil)
+	}
 	cluster, err := service.Svc.ClusterSvc().Get(c, cast.ToUint64(c.Param("id")))
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
@@ -400,15 +408,10 @@ func GenNamespace(c *gin.Context) {
 		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
 		return
 	}
-	user, err := ginbase.LoginUser(c)
-	if err != nil {
-		api.SendResponse(c, errno.ErrUserNotFound, nil)
-		return
-	}
 
 	var devNamespace string
 	if err = wait.Poll(200*time.Millisecond, time.Second, func() (bool, error) {
-		devNamespace = client.GenerateNsName(user)
+		devNamespace = client.GenerateNsName(userId)
 		ok, err := client.IsNamespaceExist(devNamespace)
 		return !ok, err
 	}); err != nil {

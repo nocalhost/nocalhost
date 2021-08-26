@@ -8,9 +8,10 @@ package cmds
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"nocalhost/internal/nhctl/app"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
@@ -21,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 var (
@@ -39,7 +41,6 @@ type ConfigFile struct {
 }
 
 func init() {
-
 	rootCmd.PersistentFlags().StringVarP(
 		&nameSpace, "namespace", "n", "",
 		"kubernetes namespace",
@@ -50,7 +51,7 @@ func init() {
 	)
 	rootCmd.PersistentFlags().BoolVar(
 		&authCheck, "auth-check", authCheck,
-		"pre check the nocalhost commands permissions, return yes" +
+		"pre check the nocalhost commands permissions, return yes"+
 			" represent having enough permissions to call the command",
 	)
 	rootCmd.PersistentFlags().StringVar(
@@ -60,11 +61,14 @@ func init() {
 
 }
 
+var cmdStartTime time.Time
+
 var rootCmd = &cobra.Command{
 	Use:   "nhctl",
 	Short: "nhctl is a cloud-native development tool.",
 	Long:  `nhctl is a cloud-native development tool.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		cmdStartTime = time.Now()
 
 		// Init log
 		if debug {
@@ -76,6 +80,7 @@ var rootCmd = &cobra.Command{
 		log.AddField("VERSION", Version)
 		log.AddField("COMMIT", GitCommit)
 		log.AddField("BRANCH", Branch)
+		log.AddField("ARGS", strings.Join(os.Args, " "))
 
 		var esUrl string
 		bys, err := ioutil.ReadFile(filepath.Join(nocalhost_path.GetNhctlHomeDir(), "config"))
@@ -110,6 +115,20 @@ var rootCmd = &cobra.Command{
 			println("yes")
 			os.Exit(0)
 			return
+		}
+	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		if os.Getenv("_NOCALHOST_DEBUG_") != "" {
+			d := time.Now().Sub(cmdStartTime)
+			cmds := clientgoutils.GetCmd(cmd, nil)
+
+			cmd.Flags().Visit(
+				func(flag *pflag.Flag) {
+					cmds = append(cmds, "-"+flag.Name)
+					cmds = append(cmds, flag.Value.String())
+				},
+			)
+			log.Logf("[TimeMachine] %v, cost: %dms", cmds, d.Milliseconds())
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {

@@ -18,7 +18,6 @@ import (
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
-	putils "nocalhost/pkg/nhctl/utils"
 	"strings"
 	"time"
 )
@@ -30,13 +29,6 @@ func (c *Controller) GetDevContainerEnv(container string) *ContainerDevEnv {
 	serviceConfig, _ := c.GetProfile()
 	for _, v := range serviceConfig.ContainerConfigs {
 		if v.Name == container || container == "" {
-			if v.Dev.EnvFrom != nil && len(v.Dev.EnvFrom.EnvFile) > 0 {
-				envFiles := make([]string, 0)
-				for _, f := range v.Dev.EnvFrom.EnvFile {
-					envFiles = append(envFiles, f.Path)
-				}
-				kvMap = putils.GetKVFromEnvFiles(envFiles)
-			}
 			// Env has a higher priority than envFrom
 			for _, env := range v.Dev.Env {
 				kvMap[env.Name] = env.Value

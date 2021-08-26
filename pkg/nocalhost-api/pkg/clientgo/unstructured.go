@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 )
@@ -110,4 +111,15 @@ func (c *GoClient) buildDynamicResourceClient(obj *unstructured.Unstructured) (d
 	}
 
 	return c.DynamicClient.Resource(restMapping.Resource), nil
+}
+
+func (c *GoClient) CheckIstio() (bool, error) {
+	if _, err := c.DynamicClient.Resource(schema.GroupVersionResource{
+		Group:    "apiregistration.k8s.io",
+		Version:  "v1",
+		Resource: "apiservices",
+	}).Get(context.TODO(), "v1alpha3.networking.istio.io", metav1.GetOptions{}); err != nil {
+		return false, err
+	}
+	return true, nil
 }

@@ -6,6 +6,14 @@
 package cluster_user
 
 import (
+	"context"
+
+	"github.com/spf13/cast"
+
+	"nocalhost/internal/nocalhost-api/service"
+	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
+	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
@@ -23,6 +31,55 @@ type ClusterUserCreateRequest struct {
 	BaseDevSpaceId     uint64                    `json:"base_dev_space_id"`
 	MeshDevInfo        *setupcluster.MeshDevInfo `json:"mesh_dev_info"`
 	IsBaseSpace        bool                      `json:"is_base_space"`
+}
+
+func (cu *ClusterUserCreateRequest) Validate() (bool, error) {
+	// Validate DevSpace Resource limit parameter format.
+	if cu.SpaceResourceLimit != nil {
+		flag, message := ValidSpaceResourceLimit(*cu.SpaceResourceLimit)
+		if !flag {
+			log.Errorf("Initial devSpace fail. Incorrect Resource limit parameter [ %v ] format.", message)
+			return false, errno.ErrFormatResourceLimitParam
+		}
+
+		if !cu.SpaceResourceLimit.Validate() {
+			return false, errno.ErrValidateResourceQuota
+		}
+	}
+
+	// Validate MeshInfo parameter format.
+	if cu.BaseDevSpaceId > 0 {
+		if cu.IsBaseSpace {
+			return false, errno.ErrAsBothBaseSpaceAndShareSpace
+		}
+		if cu.MeshDevInfo == nil {
+			return false, errno.ErrMeshInfoRequired
+		}
+		if !cu.MeshDevInfo.Validate() {
+			return false, errno.ErrValidateMeshInfo
+		}
+	}
+
+	// Validate Istio CRD
+	if cu.IsBaseSpace {
+		cluster, err := service.Svc.ClusterSvc().Get(context.TODO(), cast.ToUint64(cu.ClusterId))
+		if err != nil {
+			return false, errno.ErrClusterNotFound
+		}
+		goClient, err := clientgo.NewAdminGoClient([]byte(cluster.KubeConfig))
+		if err != nil {
+			switch err.(type) {
+			case *errno.Errno:
+				return false, err
+			default:
+				return false, errno.ErrClusterKubeErr
+			}
+		}
+		if _, err := goClient.CheckIstio(); err != nil {
+			return false, errno.ErrIstioNotFound
+		}
+	}
+	return true, nil
 }
 
 type ClusterUserGetRequest struct {

@@ -16,9 +16,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 	"nocalhost/internal/nhctl/appmeta/secret_operator"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/fp"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
@@ -290,6 +292,28 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 	return &appMeta, nil
 }
 
+func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, ns, identifier string) {
+	svcType := base.SvcTypeOf(s.Type)
+
+	devStatus := meta.CheckIfSvcDeveloping(s.ActualName, svcType)
+
+	pack := dev_dir.NewSvcPack(
+		ns,
+		appName,
+		svcType,
+		s.Name,
+		"", // describe can not specify container
+	)
+	s.Associate = pack.GetAssociatePath().ToString()
+	s.Developing = devStatus != NONE
+	s.DevelopStatus = string(devStatus)
+
+	s.Possess = meta.SvcDevModePossessor(
+		s.ActualName, svcType,
+		identifier,
+	)
+}
+
 // sometimes meta will not initail the go client, this method
 // can present to use a temp kubeconfig for some K8s's oper
 func (a *ApplicationMeta) DoWithTempOperator(configBytes []byte, funny func() error) error {
@@ -401,7 +425,38 @@ func (a *ApplicationMeta) SvcDevModePossessor(name string, svcType base.SvcType,
 	return m[name] == identifier && identifier != ""
 }
 
-func (a *ApplicationMeta) SvcDevStart(name string, svcType base.SvcType, identifier string) error {
+// SvcDevStarting call this func first recode 'name>...starting' as developing
+// while complete enter dev start, should call #SvcDevStartComplete to mark svc completely enter dev mode
+func (a *ApplicationMeta) SvcDevStarting(name string, svcType base.SvcType, identifier string) error {
+	devMeta := a.DevMeta
+	if devMeta == nil {
+		devMeta = ApplicationDevMeta{}
+		a.DevMeta = devMeta
+	}
+
+	if _, ok := devMeta[svcType.Alias()]; !ok {
+		devMeta[svcType.Alias()] = map[ /* resource name */ string] /* identifier */ string{}
+	}
+	m := devMeta[svcType.Alias()]
+
+	if _, ok := m[name]; ok {
+		return ErrAlreadyDev
+	}
+
+	inDevStartingMark := devStartMarkSign(name)
+	if _, ok := m[inDevStartingMark]; ok {
+		return ErrAlreadyDev
+	}
+
+	m[inDevStartingMark] = identifier
+	return a.Update()
+}
+
+func devStartMarkSign(name string) string {
+	return fmt.Sprintf("%s>...Starting", name)
+}
+
+func (a *ApplicationMeta) SvcDevStartComplete(name string, svcType base.SvcType, identifier string) error {
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -433,11 +488,14 @@ func (a *ApplicationMeta) SvcDevEnd(name string, svcType base.SvcType) error {
 	}
 	m := devMeta[svcType.Alias()]
 
+	inDevStartingMark := fmt.Sprintf("%s>...Starting", name)
+
+	delete(m, inDevStartingMark)
 	delete(m, name)
 	return a.Update()
 }
 
-func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType) bool {
+func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType) DevStartStatus {
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -449,24 +507,35 @@ func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType
 	}
 	m := devMeta[svcType.Alias()]
 
-	_, ok := m[name]
-	return ok
+	if _, ok := m[name]; ok {
+		return STARTED
+	}
+
+	if _, ok := m[devStartMarkSign(name)]; ok {
+		return STARTING
+	}
+
+	return NONE
 }
 
 func (a *ApplicationMeta) Update() error {
-	a.prepare()
-	secret, err := a.operator.Update(a.Ns, a.Secret)
-	if err != nil {
-		return errors.Wrap(err, "Error while update Application meta ")
-	}
-	a.Secret = secret
-	// update daemon application meta manually
-	if client, err := daemon_client.NewDaemonClient(false); err == nil {
-		_, _ = client.SendUpdateApplicationMetaCommand(
-			string(a.operator.GetKubeconfigBytes()), a.Ns, a.Secret.Name, a.Secret,
-		)
-	}
-	return nil
+	return retry.OnError(retry.DefaultRetry, func(err error) bool {
+		return err != nil
+	}, func() error {
+		a.prepare()
+		secret, err := a.operator.Update(a.Ns, a.Secret)
+		if err != nil {
+			return errors.Wrap(err, "Error while update Application meta ")
+		}
+		a.Secret = secret
+		// update daemon application meta manually
+		if client, err := daemon_client.NewDaemonClient(false); err == nil {
+			_, _ = client.SendUpdateApplicationMetaCommand(
+				string(a.operator.GetKubeconfigBytes()), a.Ns, a.Secret.Name, a.Secret,
+			)
+		}
+		return nil
+	})
 }
 
 func (a *ApplicationMeta) prepare() {

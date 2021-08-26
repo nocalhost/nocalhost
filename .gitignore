@@ -39,8 +39,3 @@ sync_for_test
 
 /conf/config.local.yaml
 .vscode/settings.json
-
-/internal/nhctl/syncthing/bin/syncthing_windows_amd64
-/internal/nhctl/syncthing/bin/syncthing_macos_amd64
-/internal/nhctl/syncthing/bin/syncthing_linux_amd64
-/internal/nhctl/syncthing/bin/syncthing_linux_arm64

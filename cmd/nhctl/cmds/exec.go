@@ -8,6 +8,7 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"regexp"
 )
 
 type ExecFlags struct {
@@ -41,6 +42,11 @@ var execCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		execFlags.AppName = args[0]
+		// replace $(XXX) --> ${XXX}, support environment variable
+		compile, _ := regexp.Compile(`\$\((.*?)\)`)
+		for i := 0; i < len(execFlags.Commands); i++ {
+			execFlags.Commands[i] = compile.ReplaceAllString(execFlags.Commands[i], "${$1}")
+		}
 		initAppAndCheckIfSvcExist(execFlags.AppName, execFlags.SvcName, serviceType)
 		must(nocalhostApp.Exec(execFlags.SvcName, execFlags.Container, execFlags.Commands))
 	},

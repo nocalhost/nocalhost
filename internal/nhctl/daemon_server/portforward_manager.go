@@ -127,13 +127,20 @@ func (p *PortForwardManager) RecoverAllPortForward() error {
 		return err
 	}
 
+	wg := sync.WaitGroup{}
 	for ns, apps := range appMap {
 		for _, appName := range apps {
-			if err = p.RecoverPortForwardForApplication(ns, appName); err != nil {
-				log.LogE(err)
-			}
+			wg.Add(1)
+			appName := appName
+			go func() {
+				defer wg.Done()
+				if err = p.RecoverPortForwardForApplication(ns, appName); err != nil {
+					log.LogE(err)
+				}
+			}()
 		}
 	}
+	wg.Wait()
 	return nil
 }
 
@@ -373,7 +380,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 						if found {
 							log.Logf("Pod: %s not found, remove port-forward for this pod", startCmd.PodName)
 						} else {
-							log.Warnf("Unable to listen on port %d", localPort)
+							log.WarnE(err, fmt.Sprintf("Unable to listen on port %d", localPort))
 						}
 						p.lock.Lock()
 						err2 := nhController.UpdatePortForwardStatus(localPort, remotePort, "DISCONNECTED",

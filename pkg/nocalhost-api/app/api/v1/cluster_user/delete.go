@@ -90,7 +90,9 @@ func Delete(c *gin.Context) {
 	}
 
 	// delete share space when deleting base space
-	deleteShareSpaces(c, devSpaceId)
+	if clusterUser.IsBaseSpace {
+		deleteShareSpaces(c, devSpaceId)
+	}
 
 	api.SendResponse(c, errno.OK, nil)
 }
@@ -121,8 +123,14 @@ func ReCreate(c *gin.Context) {
 		return
 	}
 
+	// base space can't be reset
+	if clusterUser.IsBaseSpace {
+		api.SendResponse(c, errno.ErrBaseSpaceReSet, nil)
+		return
+	}
+
 	res := SpaceResourceLimit{}
-	json.Unmarshal([]byte(clusterUser.SpaceResourceLimit), &res)
+	_ = json.Unmarshal([]byte(clusterUser.SpaceResourceLimit), &res)
 	// create a new dev space
 	meshDevInfo := &setupcluster.MeshDevInfo{
 		Header:   clusterUser.TraceHeader,
@@ -199,9 +207,6 @@ func ReCreate(c *gin.Context) {
 	for _, cooper := range cu.CooperUser {
 		_ = ns_scope.AsCooperator(result.ClusterId, cooper.ID, result.Namespace)
 	}
-
-	// recreate share space when recreating base space
-	reCreateShareSpaces(c, user, devSpaceId)
 
 	api.SendResponse(c, nil, result)
 }
