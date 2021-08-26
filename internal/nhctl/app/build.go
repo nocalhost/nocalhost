@@ -447,9 +447,7 @@ func parseNocalhostConfigEnvFile(yAml string, currentPath *fp.FilePathEnhance, n
 func doParseNode(node *yaml3.Node, currentPath *fp.FilePathEnhance, envFilePathDepth int, nowHit bool) *fp.FilePathEnhance {
 	hc := node.HeadComment
 	fc := node.FootComment
-	lc := node.LineComment
 
-	log.Log(lc)
 	if cm := includeComment(hc); cm != nil {
 		currentPath = cm
 	}
@@ -477,7 +475,6 @@ func doParseNode(node *yaml3.Node, currentPath *fp.FilePathEnhance, envFilePathD
 
 	hit := false
 	for _, n := range node.Content {
-		println(n.Value)
 		currentPath = doParseNode(n, currentPath, envFilePathDepth, hit)
 
 		// when we find a tag named envFile,
