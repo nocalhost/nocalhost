@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/flowcontrol"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/log"
 	"reflect"
@@ -92,6 +93,8 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 		if err != nil {
 			return nil, err
 		}
+		// default value is flowcontrol.NewTokenBucketRateLimiter(5, 10)
+		config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
 		clientset, err1 := kubernetes.NewForConfig(config)
 		if err1 != nil {
 			return nil, err1
