@@ -191,7 +191,7 @@ func (d *DevSpace) createDevSpace(
 	// set labels for istio proxy sidecar injection
 	labels := make(map[string]string)
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
-		if d.DevSpaceParams.MeshDevInfo.MeshDevNamespace != "" {
+		if d.DevSpaceParams.MeshDevInfo.MeshDevNamespace != "" && !d.DevSpaceParams.MeshDevInfo.ReCreate {
 			devNamespace = d.DevSpaceParams.MeshDevInfo.MeshDevNamespace
 		}
 		labels["istio-injection"] = "enabled"
@@ -201,6 +201,15 @@ func (d *DevSpace) createDevSpace(
 	if d.DevSpaceParams.IsBaseSpace {
 		labels["istio-injection"] = "enabled"
 		labels["nocalhost.dev/devspace"] = "base"
+	}
+
+	if d.DevSpaceParams.MeshDevInfo.Header.TraceType == "jaeger" {
+		d.DevSpaceParams.MeshDevInfo.Header.TraceKey = "uberctx-trace"
+		d.DevSpaceParams.MeshDevInfo.Header.TraceValue = devNamespace
+	}
+	if d.DevSpaceParams.MeshDevInfo.Header.TraceType == "zipkin" {
+		d.DevSpaceParams.MeshDevInfo.Header.TraceKey = "baggage-trace"
+		d.DevSpaceParams.MeshDevInfo.Header.TraceValue = devNamespace
 	}
 
 	// create namespace

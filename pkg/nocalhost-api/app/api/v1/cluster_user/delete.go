@@ -125,7 +125,8 @@ func ReCreate(c *gin.Context) {
 	json.Unmarshal([]byte(clusterUser.SpaceResourceLimit), &res)
 	// create a new dev space
 	meshDevInfo := &setupcluster.MeshDevInfo{
-		Header: clusterUser.TraceHeader,
+		Header:   clusterUser.TraceHeader,
+		ReCreate: true,
 	}
 	req := ClusterUserCreateRequest{
 		ClusterId:          &clusterUser.ClusterId,

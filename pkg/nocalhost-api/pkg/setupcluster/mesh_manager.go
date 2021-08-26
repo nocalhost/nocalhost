@@ -53,6 +53,7 @@ type MeshDevInfo struct {
 	IsUpdateHeader   bool         `json:"-"`
 	Header           model.Header `json:"header"`
 	Apps             []MeshDevApp `json:"apps"`
+	ReCreate         bool         `json:"-"`
 	resources        meshDevResources
 	rollback         rollback
 }

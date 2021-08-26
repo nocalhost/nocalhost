@@ -157,6 +157,7 @@ func (u *ClusterUserModel) TableName() string {
 type Header struct {
 	TraceKey   string `json:"key"`
 	TraceValue string `json:"value"`
+	TraceType  string `json:"type"`
 }
 
 func (h *Header) Scan(value interface{}) error {
