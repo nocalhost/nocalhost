@@ -61,8 +61,8 @@ func (srv *clusterUserService) Evict(id uint64) {
 		cu := value.Data().(*model.ClusterUserModel)
 		_, _ = c.Delete(keyForClusterAndNameSpace(cu.ClusterId, cu.Namespace))
 		_, _ = c.Delete(id)
-		_, _ = c.Delete("*")
 	}
+	_, _ = c.Delete("*")
 }
 
 func (srv *clusterUserService) GetAllCache() []model.ClusterUserModel {
