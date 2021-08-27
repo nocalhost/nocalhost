@@ -41,9 +41,9 @@ Every team member can enjoy their own independent development space to ensure th
 
 ## Getting Started
 
-* [Installation](https://nocalhost.dev/eng/installation/)
-* [Quick Start](https://nocalhost.dev/eng/getting-started/)
-* [How it works](https://nocalhost.dev/eng/core-concept/)
+* [Installation](https://nocalhost.dev/docs/installation)
+* [Quick Start](https://nocalhost.dev/docs/quick-start)
+* [How it works](https://nocalhost.dev/docs/introduction)
 
 ## Documentation
 
@@ -61,6 +61,10 @@ Full documentation is available on the [Nocalhost](https://nocalhost.dev/)
 | Engagement | Link |
 | ---------- | ---- |
 | :video_camera: &nbsp; Nocalhost Youtube  | [https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw](https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw) |
+
+## Changelogs
+
+Check our [Changelogs](https://nocalhost.dev/docs/changelogs/0.5.x)
 
 ## Contributing
 
