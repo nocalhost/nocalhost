@@ -7,6 +7,7 @@ package testcase
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/pkg/nhctl/log"
@@ -43,6 +44,22 @@ func InstallBookInfoDifferentType(nhctl runner.Client) error {
 			return util.TimeoutFunc(
 				time.Minute*2, func() error {
 					return installBookInfoHelmRepo(nhctl)
+				}, func() error {
+					return UninstallBookInfo(nhctl)
+				},
+			)
+		}, func() error {
+			return util.TimeoutFunc(
+				time.Minute*2, func() error {
+					return installHelmRepoWithCredential(nhctl)
+				}, func() error {
+					return UninstallBookInfo(nhctl)
+				},
+			)
+		}, func() error {
+			return util.TimeoutFunc(
+				time.Minute*2, func() error {
+					return installHelmRepoAlreadyExist(nhctl)
 				}, func() error {
 					return UninstallBookInfo(nhctl)
 				},
@@ -271,6 +288,46 @@ func installBookInfoHelmRepo(nhctl runner.Client) error {
 		"https://codingcorp-helm.pkg.coding.net/naison-test/bookinfo",
 		"--outer-config",
 		temp.Name(),
+	)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
+	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
+}
+
+func installHelmRepoWithCredential(nhctl runner.Client) error {
+	cmd := nhctl.GetNhctl().Command(
+		context.Background(), "install",
+		"helmpod",
+		"--helm-chart-name",
+		"helmpod",
+		"-t",
+		string(appmeta.HelmRepo),
+		"--helm-repo-url",
+		fmt.Sprintf("https://%s:%s@codingcorp-helm.pkg.coding.net/nocalhsot-test/testcase",
+			os.Getenv(util.HelmRepoUsername), os.Getenv(util.HelmRepoPassword)),
+	)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
+	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
+}
+
+func installHelmRepoAlreadyExist(nhctl runner.Client) error {
+	_, _, _ = nhctl.GetHelm().RunWithRollingOut(context.TODO(), "repo",
+		"add",
+		"testcase",
+		"https://codingcorp-helm.pkg.coding.net/nocalhsot-test/testcase",
+		"--username",
+		os.Getenv(util.HelmRepoUsername),
+		"--password",
+		os.Getenv(util.HelmRepoPassword),
+	)
+	cmd := nhctl.GetNhctl().Command(
+		context.Background(), "install",
+		"helmpod",
+		"--helm-chart-name",
+		"helmpod",
+		"-t",
+		string(appmeta.HelmRepo),
+		"--helm-repo-url",
+		"https://codingcorp-helm.pkg.coding.net/nocalhsot-test/testcase",
 	)
 	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
