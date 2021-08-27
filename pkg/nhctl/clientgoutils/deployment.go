@@ -40,6 +40,11 @@ func (c *ClientGoUtils) UpdateDeployment(deployment *v1.Deployment, wait bool) (
 		return dep, nil
 	}
 
+	err = c.WaitLatestRevisionReady(dep.Name)
+	if err != nil {
+		return nil, err
+	}
+
 	// Wait for deployment to be ready
 	ready, _ := isDeploymentReady(dep)
 	if !ready {
@@ -47,11 +52,6 @@ func (c *ClientGoUtils) UpdateDeployment(deployment *v1.Deployment, wait bool) (
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	err = c.WaitLatestRevisionReady(dep.Name)
-	if err != nil {
-		return nil, err
 	}
 
 	return dep, nil

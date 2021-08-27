@@ -318,7 +318,6 @@ func (c *ClientGoUtils) ListLatestRevisionPodsByDeployment(deployName string) ([
 	// Find the latest revision
 	replicaSets, err := c.GetReplicaSetsByDeployment(deployName)
 	if err != nil {
-		log.WarnE(err, "Failed to get replica sets")
 		return nil, err
 	}
 	revisions := make([]int, 0)

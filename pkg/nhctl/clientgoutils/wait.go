@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package clientgoutils
 
@@ -126,11 +126,6 @@ func isStatefulSetReady(obj runtime.Object) (bool, error) {
 		return true, errors.Errorf("expected a *StatefulSet, got %T", obj)
 	}
 
-	//for _, c := range o.Status.Conditions {
-	//	if c.Status == "True" {
-	//		return true, nil
-	//	}
-	//}
 	if o.Status.ReadyReplicas == 1 {
 		return true, nil
 	}
