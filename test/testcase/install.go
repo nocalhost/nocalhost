@@ -103,7 +103,7 @@ func InstallBookInfoDifferentType(nhctl runner.Client) error {
 		},
 	}
 	for i, bookinfoFunc := range f {
-		return util.RetryFunc(
+		err := util.RetryFunc(
 			func() error {
 				logger := log.TestLogger(nhctl.SuiteName())
 
@@ -122,6 +122,9 @@ func InstallBookInfoDifferentType(nhctl runner.Client) error {
 				return nil
 			},
 		)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
