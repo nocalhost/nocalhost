@@ -228,6 +228,18 @@ type SvcProfileV2 struct {
 	Possess bool `json:"possess" yaml:"possess"`
 }
 
+func (s *SvcProfileV2) GetContainerConfig(container string) *ContainerConfig {
+	if s == nil {
+		return nil
+	}
+	for _, c := range s.ContainerConfigs {
+		if c.Name == container {
+		}
+		return c
+	}
+	return nil
+}
+
 type ContainerProfileV2 struct {
 	Name string
 }

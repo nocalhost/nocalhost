@@ -6,7 +6,9 @@
 package controller
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/profile"
@@ -59,6 +61,55 @@ func (c *Controller) CheckIfExist() (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func (c *Controller) GetContainerImage(container string) (string, error) {
+	var podSpec v1.PodSpec
+	switch c.Type {
+	case base.Deployment:
+		d, err := c.Client.GetDeployment(c.Name)
+		if err != nil {
+			return "", err
+		}
+		podSpec = d.Spec.Template.Spec
+	case base.StatefulSet:
+		s, err := c.Client.GetStatefulSet(c.Name)
+		if err != nil {
+			return "", err
+		}
+		podSpec = s.Spec.Template.Spec
+	case base.DaemonSet:
+		d, err := c.Client.GetDaemonSet(c.Name)
+		if err != nil {
+			return "", err
+		}
+		podSpec = d.Spec.Template.Spec
+	case base.Job:
+		j, err := c.Client.GetJobs(c.Name)
+		if err != nil {
+			return "", err
+		}
+		podSpec = j.Spec.Template.Spec
+	case base.CronJob:
+		j, err := c.Client.GetCronJobs(c.Name)
+		if err != nil {
+			return "", err
+		}
+		podSpec = j.Spec.JobTemplate.Spec.Template.Spec
+	case base.Pod:
+		p, err := c.Client.GetPod(c.Name)
+		if err != nil {
+			return "", err
+		}
+		podSpec = p.Spec
+	}
+
+	for _, c := range podSpec.Containers {
+		if c.Name == container {
+			return c.Image, nil
+		}
+	}
+	return "", errors.New(fmt.Sprintf("Container %s not found", container))
 }
 
 func (c *Controller) GetDescription() *profile.SvcProfileV2 {
