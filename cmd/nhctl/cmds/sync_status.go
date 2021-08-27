@@ -161,7 +161,7 @@ func waitForFirstSync(client *req.SyncthingHttpClient, duration time.Duration) {
 
 func watchSyncProcess(client *req.SyncthingHttpClient) {
 	ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Hour*24)
-	ticker := time.NewTicker(time.Second * 5)
+	ticker := time.NewTicker(time.Second * 2)
 	defer cancelFunc()
 	defer ticker.Stop()
 
