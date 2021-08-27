@@ -83,14 +83,16 @@ func ListAuthorization(c *gin.Context) {
 						)
 
 						lock.Lock()
-						result = append(result, &ServiceAccountModel{
-							ClusterId:     cluster.ID,
-							KubeConfig:    kubeConfig,
-							StorageClass:  cluster.StorageClass,
-							NS:            nss,
-							Privilege:     privilegeType != NONE,
-							PrivilegeType: privilegeType,
-						})
+						result = append(
+							result, &ServiceAccountModel{
+								ClusterId:     cluster.ID,
+								KubeConfig:    kubeConfig,
+								StorageClass:  cluster.StorageClass,
+								NS:            nss,
+								Privilege:     privilegeType != NONE,
+								PrivilegeType: privilegeType,
+							},
+						)
 						lock.Unlock()
 					}
 				},
@@ -147,11 +149,11 @@ func GenKubeconfig(
 	privilegeType := NONE
 	var nss []NS
 
-	allDevSpace := service.Svc.ClusterUser().GetAllCache()
-	devSpaceMapping := map[string]model.ClusterUserModel{}
+	allDevSpace, err := service.Svc.ClusterUser().ListV2(model.ClusterUserModel{})
+	devSpaceMapping := map[string]model.ClusterUserV2{}
 	for _, cu := range allDevSpace {
 		if !cu.IsClusterAdmin() {
-			devSpaceMapping[cu.Namespace] = cu
+			devSpaceMapping[cu.Namespace] = *cu
 		}
 	}
 

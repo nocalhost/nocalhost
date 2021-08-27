@@ -42,7 +42,7 @@ type ClusterUserService interface {
 	ListV2(models model.ClusterUserModel) ([]*model.ClusterUserV2, error)
 	GetCache(id uint64) (model.ClusterUserModel, error)
 	GetCacheByClusterAndNameSpace(clusterId uint64, namespace string) (model.ClusterUserModel, error)
-	GetAllCache() []model.ClusterUserModel
+	//GetAllCache() []model.ClusterUserModel
 }
 
 type clusterUserService struct {
