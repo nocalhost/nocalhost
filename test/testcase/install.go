@@ -299,9 +299,9 @@ func installBookInfoHelmRepo(nhctl runner.Client) error {
 func installHelmRepoWithCredential(nhctl runner.Client) error {
 	cmd := nhctl.GetNhctl().Command(
 		context.Background(), "install",
-		"helmpod",
+		"bookinfo",
 		"--helm-chart-name",
-		"helmpod",
+		"bookinfo",
 		"-t",
 		string(appmeta.HelmRepo),
 		"--helm-repo-url",
@@ -324,9 +324,9 @@ func installHelmRepoAlreadyExist(nhctl runner.Client) error {
 	)
 	cmd := nhctl.GetNhctl().Command(
 		context.Background(), "install",
-		"helmpod",
+		"bookinfo",
 		"--helm-chart-name",
-		"helmpod",
+		"bookinfo",
 		"-t",
 		string(appmeta.HelmRepo),
 		"--helm-repo-url",
