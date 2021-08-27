@@ -215,7 +215,7 @@ func migrateAssociate(appProfile *profile.AppProfileV2, a *Application) {
 						base.SvcTypeOf(svcProfile.Type),
 						svcProfile.Name,
 						"",
-					), "NotSupported",
+					), "NotSupported", false,
 				)
 		}
 	}
