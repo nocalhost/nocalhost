@@ -213,6 +213,7 @@ func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, er
 	}*/
 
 	// userId, _ := c.Get("userId")
+	isadmin := ginbase.IsAdmin(c)
 	lists, err := service.Svc.ApplicationSvc().GetList(c, nil)
 	if err != nil {
 		log.Warnf("get Application err: %v", err)
@@ -231,6 +232,10 @@ func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, er
 
 		// has permission
 		ok*/
+		// admin can see all, owner can see public and mine
+		if !isadmin && app.Public != 1 && app.UserId != userId {
+			continue
+		}
 		var applicationContext ApplicationJsonContext
 		err := json.Unmarshal([]byte(app.Context), &applicationContext)
 		if err != nil {
