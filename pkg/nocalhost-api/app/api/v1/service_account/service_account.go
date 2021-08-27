@@ -162,11 +162,9 @@ func GenKubeconfig(
 
 			if !ok {
 				log.Error(
-					errors.Wrap(
-						err, fmt.Sprintf(
-							"Error while gen kubeconfig, can not find "+
-								"devspace by clusterId %v and namespace %v", cp.GetClusterId(), ns,
-						),
+					errors.Errorf(
+						"Error while gen kubeconfig, can not find "+
+							"devspace by clusterId %v and namespace %v", cp.GetClusterId(), ns,
 					),
 				)
 			} else {
