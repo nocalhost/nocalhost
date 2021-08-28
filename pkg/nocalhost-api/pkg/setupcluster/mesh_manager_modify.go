@@ -121,7 +121,8 @@ func initContainersModifier(spec *corev1.PodSpec) {
 	initC := spec.InitContainers
 	for i := 0; i < len(initC); i++ {
 		if strings.HasPrefix(initC[i].Name, "wait-for-pods-") ||
-			strings.HasPrefix(initC[i].Name, "wait-for-jobs-") {
+			strings.HasPrefix(initC[i].Name, "wait-for-jobs-") ||
+			strings.HasPrefix(initC[i].Name, "nocalhost-dependency-waiting-job") {
 			initC = initC[:i+copy(initC[i:], initC[i+1:])]
 			i--
 		}
