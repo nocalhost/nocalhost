@@ -87,6 +87,7 @@ type ContainerDevConfig struct {
 	Env                   []*Env                 `json:"env" yaml:"env"`
 	EnvFrom               *EnvFrom               `json:"envFrom,omitempty" yaml:"envFrom,omitempty"`
 	PortForward           []string               `json:"portForward" yaml:"portForward"`
+	SidecarImage          string                 `json:"sidecar_image" yaml:"sidecar_image"`
 }
 
 type DevCommands struct {
