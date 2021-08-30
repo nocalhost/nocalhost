@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/util/homedir"
 	"nocalhost/test/util"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -359,8 +360,9 @@ func (t *task) GetKubeconfig() {
 			log.Info("Retry to get kubeconfig")
 			continue
 		}
-		_ = os.MkdirAll(clientcmd.RecommendedHomeFile, 644)
-		if err = ioutil.WriteFile(clientcmd.RecommendedHomeFile, []byte(*response.Response.Kubeconfig), 644); err != nil {
+		exec.Command("sh", "-c", "sudo mkdir -p "+clientcmd.RecommendedConfigDir)
+		exec.Command("sh", "-c", "sudo chmod 777 "+clientcmd.RecommendedConfigDir)
+		if err = ioutil.WriteFile(clientcmd.RecommendedFileName, []byte(*response.Response.Kubeconfig), 644); err != nil {
 			log.Infof("write kubeconfig to file error: %v", err)
 			continue
 		}
