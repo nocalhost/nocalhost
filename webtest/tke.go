@@ -13,11 +13,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io/fs"
 	"io/ioutil"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 	"nocalhost/test/util"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -360,13 +358,11 @@ func (t *task) GetKubeconfig() {
 			log.Info("Retry to get kubeconfig")
 			continue
 		}
-		exec.Command("sh", "-c", "sudo mkdir -p "+clientcmd.RecommendedConfigDir)
-		exec.Command("sh", "-c", "sudo chmod 777 "+clientcmd.RecommendedConfigDir)
-		if err = ioutil.WriteFile(clientcmd.RecommendedHomeFile, []byte(*response.Response.Kubeconfig), 644); err != nil {
+		if err = ioutil.WriteFile(filepath.Join(homedir.HomeDir(), "config"), []byte(*response.Response.Kubeconfig), fs.ModePerm); err != nil {
 			log.Infof("write kubeconfig to file error: %v", err)
 			continue
 		}
-		log.Infof("write kubeconfig to file: %s sucessfully", clientcmd.RecommendedHomeFile)
+		log.Infof("write kubeconfig to file: %s sucessfully", filepath.Join(homedir.HomeDir(), "config"))
 		return
 	}
 }
