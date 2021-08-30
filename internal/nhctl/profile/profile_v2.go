@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package profile
 
@@ -52,6 +52,10 @@ type AppProfileV2 struct {
 	Namespace  string `json:"namespace" yaml:"namespace"`
 	Kubeconfig string `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
 	db         *dbutils.LevelDBUtils
+
+	// for previous version, associate path is stored in profile
+	// and now it store in a standalone db
+	AssociateMigrate bool `json:"associate_migrate" yaml:"associate_migrate"`
 
 	// app global status
 	Identifier string `json:"identifier" yaml:"identifier"`
@@ -206,15 +210,34 @@ type SvcProfileV2 struct {
 	// nocalhost also supports config from cm, lowest priority
 	CmConfigLoaded bool `json:"cmconfigloaded" yaml:"cmconfigloaded"`
 
+	// deprecated, read only, but actually store in
+	// [SvcPack internal/nhctl/nocalhost/dev_dir_mapping_db.go:165]
 	// associate for the local dir
 	Associate string `json:"associate" yaml:"associate"`
 
-	// from app meta
+	// deprecated
+	// for earlier version of nocalhost
+	// from app meta, this status return ture may under start developing (pod not ready, etc..)
 	Developing bool `json:"developing" yaml:"developing"`
+
+	// from app meta
+	DevelopStatus string `json:"develop_status" yaml:"develop_status"`
 
 	// mean the current controller is possess by current nhctl context
 	// and the syncthing process is listen on current device
 	Possess bool `json:"possess" yaml:"possess"`
+}
+
+func (s *SvcProfileV2) GetContainerConfig(container string) *ContainerConfig {
+	if s == nil {
+		return nil
+	}
+	for _, c := range s.ContainerConfigs {
+		if c.Name == container {
+		}
+		return c
+	}
+	return nil
 }
 
 type ContainerProfileV2 struct {

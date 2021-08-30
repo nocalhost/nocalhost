@@ -7,6 +7,7 @@ package log
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	_const "nocalhost/internal/nhctl/const"
 	"os"
 	"path/filepath"
@@ -78,7 +79,7 @@ func Init(level zapcore.Level, dir, fileName string) error {
 	encoderConfig.EncodeDuration = CustomDurationEncoder
 
 	encoder := zapcore.NewConsoleEncoder(encoderConfig)
-	fileLogsConfig := zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
+	fileLogsConfig = zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
 
 	// init
 	initOrReInitStdout(unFormatStdoutConfig)
@@ -244,7 +245,18 @@ func FatalE(err error, message string) {
 	}
 }
 
+func WrapAndLogE(err error) {
+	if err != nil {
+		return
+	}
+	LogE(errors.Wrap(err, ""))
+}
+
 func LogE(err error) {
+	if err == nil {
+		return
+	}
+	writeStackToEs("LOG", err.Error(), fmt.Sprintf("%+v", err))
 	if fileEntry != nil {
 		fileEntry.Errorf("%+v", err)
 	}
@@ -261,6 +273,13 @@ func Logf(format string, args ...interface{}) {
 	writeStackToEs("LOG", fmt.Sprintf(format, args...), "")
 	if fileEntry != nil {
 		fileEntry.Infof(format, args...)
+	}
+}
+
+func LogDebugf(format string, args ...interface{}) {
+	writeStackToEs("DEBUG", fmt.Sprintf(format, args...), "")
+	if fileEntry != nil {
+		fileEntry.Debugf(format, args...)
 	}
 }
 

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -78,7 +78,8 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
 	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := s.genWorkDirAndPVAndMounts(
-		ops.Container, ops.StorageClass)
+		ops.Container, ops.StorageClass,
+	)
 	if err != nil {
 		return err
 	}
@@ -92,7 +93,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		return errors.New("Dev image must be specified")
 	}
 
-	sideCarContainer := generateSideCarContainer(workDir)
+	sideCarContainer := generateSideCarContainer(s.GetDevSidecarImage(ops.Container), workDir)
 
 	devContainer.Image = devImage
 	devContainer.Name = "nocalhost-dev"
@@ -245,8 +246,12 @@ func (s *StatefulSetController) Container(containerName string) (*corev1.Contain
 		}
 	} else {
 		if len(ss.Spec.Template.Spec.Containers) > 1 {
-			return nil, errors.New(fmt.Sprintf("There are more than one container defined, " +
-				"please specify one to start developing"))
+			return nil, errors.New(
+				fmt.Sprintf(
+					"There are more than one container defined, " +
+						"please specify one to start developing",
+				),
+			)
 		}
 		if len(ss.Spec.Template.Spec.Containers) == 0 {
 			return nil, errors.New("No container defined ???")

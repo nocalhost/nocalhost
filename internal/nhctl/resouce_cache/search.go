@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package resouce_cache
 
@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/flowcontrol"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/log"
 	"reflect"
@@ -48,7 +49,7 @@ func GetSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (map[st
 		}
 	}
 	apiResourceLists, err := c.ServerPreferredResources()
-	if err != nil {
+	if err != nil && len(apiResourceLists) == 0 {
 		return nil, err
 	}
 	nameToMapping := make(map[string]*meta.RESTMapping)
@@ -92,6 +93,8 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 		if err != nil {
 			return nil, err
 		}
+		// default value is flowcontrol.NewTokenBucketRateLimiter(5, 10)
+		config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
 		clientset, err1 := kubernetes.NewForConfig(config)
 		if err1 != nil {
 			return nil, err1

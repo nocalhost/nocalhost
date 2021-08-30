@@ -102,15 +102,10 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 					},
 				}
 			}
-			svcType := base.SvcTypeOf(svcProfile.Type)
 
-			svcProfile.Developing = meta.CheckIfSvcDeveloping(svcProfile.ActualName, svcType)
-			svcProfile.Possess = meta.SvcDevModePossessor(
-				svcProfile.ActualName, svcType,
-				appProfile.Identifier,
-			)
+			appmeta.FillingExtField(svcProfile, &meta, appName, ns, appProfile.Identifier)
 
-			if m := devMeta[svcType.Alias()]; m != nil {
+			if m := devMeta[base.SvcTypeOf(svcProfile.Type).Alias()]; m != nil {
 				delete(m, svcProfile.ActualName)
 			}
 		}
@@ -119,11 +114,12 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 		for svcTypeAlias, m := range devMeta {
 			for svcName, _ := range m {
 				svcProfile := appProfile.SvcProfileV2(svcName, string(svcTypeAlias.Origin()))
-				svcProfile.Developing = true
-				svcProfile.Possess = meta.SvcDevModePossessor(
-					svcProfile.ActualName, svcTypeAlias.Origin(),
-					appProfile.Identifier,
-				)
+				appmeta.FillingExtField(svcProfile, &meta, appName, ns, appProfile.Identifier)
+				//svcProfile.Developing = true
+				//svcProfile.Possess = meta.SvcDevModePossessor(
+				//	svcProfile.ActualName, svcTypeAlias.Origin(),
+				//	appProfile.Identifier,
+				//)
 			}
 		}
 		return appProfile

@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
@@ -119,10 +120,6 @@ var configGetCmd = &cobra.Command{
 		must(err)
 		if commonFlags.SvcName == "" {
 
-			// need to load latest config
-			// hotfix for v0.4.7 due to plugin blocking
-			//_ = nocalhostApp.ReloadCfg(false, true)
-
 			config := &ConfigForPlugin{}
 			config.Services = make([]*profile.ServiceConfigV2, 0)
 			for _, svcPro := range appProfile.SvcProfile {
@@ -135,6 +132,7 @@ var configGetCmd = &cobra.Command{
 		} else {
 			checkIfSvcExist(commonFlags.SvcName, serviceType)
 
+			_ = nocalhostSvc.LoadConfigFromHub()
 			// need to load latest config
 			_ = nocalhostApp.ReloadSvcCfg(commonFlags.SvcName, nocalhostSvc.Type, false, true)
 
@@ -145,7 +143,15 @@ var configGetCmd = &cobra.Command{
 				bys, err := yaml.Marshal(svcProfile.ServiceConfigV2)
 				must(errors.Wrap(err, "fail to get controller profile"))
 
-				path := fp.NewFilePath(svcProfile.Associate).
+				pack := dev_dir.NewSvcPack(
+					nocalhostSvc.NameSpace,
+					nocalhostSvc.AppName,
+					nocalhostSvc.Type,
+					nocalhostSvc.Name,
+					"",
+				)
+
+				path := fp.NewFilePath(string(pack.GetAssociatePath())).
 					RelOrAbs(".nocalhost").
 					RelOrAbs("config.yaml").Path
 

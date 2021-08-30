@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package profile
 
@@ -9,6 +9,8 @@ import (
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
+	"strings"
 )
 
 //type AppType string
@@ -41,7 +43,7 @@ type ApplicationConfig struct {
 	HelmVals       interface{}        `json:"helmVals" yaml:"helmVals"`
 	HelmVersion    string             `json:"helmVersion" yaml:"helmVersion"`
 	Env            []*Env             `json:"env" yaml:"env"`
-	EnvFrom        EnvFrom            `json:"envFrom" yaml:"envFrom"`
+	EnvFrom        EnvFrom            `json:"envFrom,omitempty" yaml:"envFrom,omitempty"`
 	ServiceConfigs []*ServiceConfigV2 `json:"services" yaml:"services,omitempty"`
 }
 
@@ -55,8 +57,13 @@ type ServiceConfigV2 struct {
 
 type ContainerConfig struct {
 	Name    string                  `json:"name" yaml:"name"`
+	Hub     *HubConfig              `json:"hub" yaml:"hub,omitempty"`
 	Install *ContainerInstallConfig `json:"install,omitempty" yaml:"install,omitempty"`
 	Dev     *ContainerDevConfig     `json:"dev" yaml:"dev"`
+}
+
+type HubConfig struct {
+	Image string `json:"image" yaml:"image"`
 }
 
 type ContainerInstallConfig struct {
@@ -78,8 +85,9 @@ type ContainerDevConfig struct {
 	UseDevContainer       bool                   `json:"useDevContainer" yaml:"useDevContainer"`
 	Sync                  *SyncConfig            `json:"sync" yaml:"sync"`
 	Env                   []*Env                 `json:"env" yaml:"env"`
-	EnvFrom               *EnvFrom               `json:"envFrom" yaml:"envFrom"`
+	EnvFrom               *EnvFrom               `json:"envFrom,omitempty" yaml:"envFrom,omitempty"`
 	PortForward           []string               `json:"portForward" yaml:"portForward"`
+	SidecarImage          string                 `json:"sidecar_image" yaml:"sidecar_image"`
 }
 
 type DevCommands struct {
@@ -130,6 +138,35 @@ func (n *NocalHostAppConfigV2) GetSvcConfigV2(svcName string, svcType base.SvcTy
 		}
 	}
 	return nil
+}
+
+func (n *NocalHostAppConfigV2) FindSvcConfigInHub(svcName string, svcType base.SvcType, container, image string) *ServiceConfigV2 {
+	svcConfig := n.GetSvcConfigV2(svcName, svcType)
+	if isSvcConfigInHubMatch(svcConfig, container, image) {
+		return svcConfig
+	}
+	return nil
+}
+
+func isSvcConfigInHubMatch(svcConfig *ServiceConfigV2, container, image string) bool {
+	if svcConfig == nil {
+		return false
+	}
+
+	for _, c := range svcConfig.ContainerConfigs {
+		if c.Name == container {
+			if c.Hub == nil {
+				log.Log("hub field missing")
+				return false
+			}
+			if !strings.Contains(image, c.Hub.Image) {
+				log.Log("hub's image not match")
+				return false
+			}
+			return true
+		}
+	}
+	return false
 }
 
 func (c *ApplicationConfig) LoadManifests(tmpDir *fp.FilePathEnhance) []string {
