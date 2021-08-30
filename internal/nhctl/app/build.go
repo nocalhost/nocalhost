@@ -321,15 +321,30 @@ func RenderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) 
 
 	// convert un strict yaml to strict yaml
 	renderedConfig := &profile.NocalHostAppConfigV2{}
+	if err = yaml.Unmarshal([]byte(renderedStr), renderedConfig); err != nil {
+		return nil, err
+	}
 
-	if err := parseNocalhostConfigEnvFile(
-		renderedStr, configFile, func(node *yaml3.Node) error {
-			_ = node.Decode(renderedConfig)
-			parseEnvFromIntoEnv(renderedConfig)
-			return nil
-		},
-	); err != nil {
-		return nil, errors.Wrap(err, "")
+	//
+	//// yaml3 can not correctly resolve un standard yaml
+	//afterAdaption, _ := yaml3.Marshal(beforeRender)
+	//renderedConfig := &profile.NocalHostAppConfigV2{}
+	//
+	//if err := parseNocalhostConfigEnvFile(
+	//	string(afterAdaption), configFile, func(node *yaml3.Node) error {
+	//		//in := make(map[string]interface{}, 0)
+	//
+	//		node.Decode(renderedConfig)
+	//		parseEnvFromIntoEnv(renderedConfig)
+	//		return nil
+	//	},
+	//); err != nil {
+	//	return nil, errors.Wrap(err, "")
+	//}
+	//
+	if os.Getenv("_NOCALHOST_DEBUG_") != "" {
+		marshal, _ := yaml3.Marshal(renderedConfig)
+		log.Debug(string(marshal))
 	}
 
 	// remove the duplicate service config (we allow users to define duplicate service and keep the last one)
