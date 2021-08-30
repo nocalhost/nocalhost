@@ -362,10 +362,11 @@ func (t *task) GetKubeconfig() {
 		}
 		exec.Command("sh", "-c", "sudo mkdir -p "+clientcmd.RecommendedConfigDir)
 		exec.Command("sh", "-c", "sudo chmod 777 "+clientcmd.RecommendedConfigDir)
-		if err = ioutil.WriteFile(clientcmd.RecommendedFileName, []byte(*response.Response.Kubeconfig), 644); err != nil {
+		if err = ioutil.WriteFile(clientcmd.RecommendedHomeFile, []byte(*response.Response.Kubeconfig), 644); err != nil {
 			log.Infof("write kubeconfig to file error: %v", err)
 			continue
 		}
+		log.Infof("write kubeconfig to file: %s sucessfully", clientcmd.RecommendedHomeFile)
 		return
 	}
 }
@@ -446,17 +447,18 @@ type InternetAccessible struct {
 
 func main() {
 	if len(os.Args) <= 1 {
-		fmt.Println("please provide a command, supported value are create, destroy")
+		log.Infof("please provide a command, supported value are create, destroy")
 	}
 	if os.Args[1] == "create" {
 		t, err := CreateK8s()
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
-		fmt.Printf("create cluster: %s secuessfully", t.clusterId)
+		log.Infof("create cluster: %s secuessfully", t.clusterId)
 		if err = writeClusterIdToFile(FILENAME, t.clusterId); err != nil {
-			fmt.Printf("write cluster id failed, cluster id is %s", t.clusterId)
+			log.Fatalf("write cluster id failed, cluster id is %s", t.clusterId)
 		}
+		log.Infof("write cluster to file: %s sucessfully", FILENAME)
 	} else if os.Args[1] == "destroy" {
 		file, err := readClusterIdFromFile(FILENAME)
 		if err != nil {
@@ -465,9 +467,9 @@ func main() {
 		t := NewTask(os.Getenv(util.SecretId), os.Getenv(util.SecretKey))
 		t.clusterId = file
 		DeleteTke(t)
-		fmt.Printf("delete cluster: %s secuessfully", file)
+		log.Infof("delete cluster: %s secuessfully", file)
 	} else {
-		fmt.Printf("provide command: %s is not support, supported value are create, destroy", os.Args[1])
+		log.Infof("provide command: %s is not support, supported value are create, destroy", os.Args[1])
 	}
 }
 
