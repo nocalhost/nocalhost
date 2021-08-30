@@ -161,9 +161,9 @@ func waitForFirstSync(client *req.SyncthingHttpClient, duration time.Duration) {
 
 func watchSyncProcess(client *req.SyncthingHttpClient) {
 	ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Hour*24)
-	ticker := time.NewTicker(time.Second * 2)
+	//ticker := time.NewTicker(time.Second * 1)
 	defer cancelFunc()
-	defer ticker.Stop()
+	//defer ticker.Stop()
 
 	eventList, _ := client.Events(req.EventFolderCompletion, 0)
 	lastId := int32(0)
@@ -176,17 +176,17 @@ func watchSyncProcess(client *req.SyncthingHttpClient) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
+		default:
+			//time.Sleep(time.Second * 1)
 			events, err := client.Events(req.EventFolderCompletion, lastId)
 			if err != nil || len(events) == 0 {
 				continue
 			}
 			distinct := req.FolderCompletionDistinct(events)
-			if len(distinct) == 0 {
-				continue
+			for range distinct {
+				lastId += 1
+				displayLn(req.SyncthingStatus{Status: req.Idle, Msg: "sync finished", Tips: "", OutOfSync: ""})
 			}
-			lastId += int32(len(distinct))
-			displayLn(req.SyncthingStatus{Status: req.Idle, Msg: "sync finished", Tips: "", OutOfSync: ""})
 		}
 	}
 }

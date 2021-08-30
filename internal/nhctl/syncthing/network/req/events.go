@@ -24,19 +24,19 @@ func (p *SyncthingHttpClient) Events(eventType EventType, since int32) ([]event,
 	if err != nil {
 		return nil, err
 	}
-	var eventList []event
+	eventList := make([]event, 0)
 	if err = json.Unmarshal(resp, &eventList); err != nil {
 		return nil, err
 	}
-	return eventList, err
+	return eventList[0:], err
 }
 
 type event struct {
-	Id        int64  `json:"id"`
-	GlobalID  int64  `json:"globalID"`
-	EventType string `json:"type"`
-	Time      MyTime `json:"time"`
-	Data      data   `json:"data"`
+	Id        int64     `json:"id"`
+	GlobalID  int64     `json:"globalID"`
+	EventType string    `json:"type"`
+	Time      time.Time `json:"time"`
+	Data      data      `json:"data"`
 }
 
 type data struct {
@@ -45,39 +45,12 @@ type data struct {
 	Folder     string  `json:"folder"`
 }
 
-type MyTime struct {
-	time.Time
-}
-
-func (selfies *MyTime) UnmarshalJSON(b []byte) (err error) {
-	s := string(b)
-
-	// Get rid of the quotes "" around the value.
-	// A second option would be to include them
-	// in the date format string instead, like so below:
-	//   time.Parse(`"`+time.RFC3339Nano+`"`, s)
-	s = s[1 : len(s)-1]
-
-	t, err := time.Parse(time.RFC3339Nano, s)
-	if err != nil {
-		t, err = time.Parse("2006-01-02T15:04:05.999999999Z0700", s)
-	}
-	selfies.Time = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), 0, t.Location())
-	return
-}
-
 func FolderCompletionDistinct(events []event) []event {
-	maps := make(map[MyTime]event)
+	result := make([]event, len(events))
 	for _, e := range events {
 		if e.Data.Completion == 100 {
-			if _, found := maps[e.Time]; !found {
-				maps[e.Time] = e
-			}
+			result = append(result, e)
 		}
-	}
-	result := make([]event, len(maps))
-	for _, e := range maps {
-		result = append(result, e)
 	}
 	return result[0:]
 }
