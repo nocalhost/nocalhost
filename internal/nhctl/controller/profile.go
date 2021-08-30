@@ -1,13 +1,14 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"nocalhost/internal/nhctl/hub"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
@@ -42,6 +43,48 @@ func (c *Controller) GetProfile() (*profile.SvcProfileV2, error) {
 		return nil, err
 	}
 	return p.SvcProfileV2(c.Name, string(c.Type)), nil
+}
+func (c *Controller) LoadConfigFromHub() error {
+	containers, err := c.GetContainers()
+	if err != nil {
+		return err
+	}
+	for _, container := range containers {
+		_ = c.LoadConfigFromHubC(container.Name)
+	}
+	return nil
+}
+
+func (c *Controller) LoadConfigFromHubC(container string) error {
+	p, err := c.GetProfile()
+	if err != nil {
+		return err
+	}
+	cc := p.GetContainerConfig(container)
+	if cc == nil || cc.Dev == nil || cc.Dev.Image == "" {
+		log.Logf("%s config not found, try to load it from hub", container)
+		originImage, err := c.GetContainerImage(container)
+		if err == nil {
+			// load config from hub
+			svcConfig, err := hub.FindNocalhostSvcConfig(c.AppName, c.Name, c.Type, container, originImage)
+			if err != nil {
+				log.LogE(err)
+			}
+			if svcConfig != nil {
+				if err := c.UpdateSvcProfile(
+					func(svcProfile *profile.SvcProfileV2) error {
+						svcConfig.Name = c.Name
+						svcConfig.Type = string(c.Type)
+						svcProfile.ServiceConfigV2 = svcConfig
+						return nil
+					},
+				); err != nil {
+					log.Logf("Load nocalhost svc config from hub fail, fail while updating svc profile, err: %s", err.Error())
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (c *Controller) GetWorkDir(container string) string {

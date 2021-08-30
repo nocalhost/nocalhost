@@ -120,10 +120,6 @@ var configGetCmd = &cobra.Command{
 		must(err)
 		if commonFlags.SvcName == "" {
 
-			// need to load latest config
-			// hotfix for v0.4.7 due to plugin blocking
-			//_ = nocalhostApp.ReloadCfg(false, true)
-
 			config := &ConfigForPlugin{}
 			config.Services = make([]*profile.ServiceConfigV2, 0)
 			for _, svcPro := range appProfile.SvcProfile {
@@ -136,6 +132,7 @@ var configGetCmd = &cobra.Command{
 		} else {
 			checkIfSvcExist(commonFlags.SvcName, serviceType)
 
+			_ = nocalhostSvc.LoadConfigFromHub()
 			// need to load latest config
 			_ = nocalhostApp.ReloadSvcCfg(commonFlags.SvcName, nocalhostSvc.Type, false, true)
 
