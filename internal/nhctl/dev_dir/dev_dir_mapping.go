@@ -112,7 +112,7 @@ func (d DevPath) Associate(specifyPack *SvcPack, kubeconfig string, setAsDefault
 			dirMapping.PackToPath[specifyPack.Key()] = d
 			dirMapping.PackToPath[specifyPack.keyWithoutContainer()] = d
 
-			if _, hasBeenSet := dirMapping.PathToDefaultPackKey[d]; hasBeenSet && setAsDefaultSvc {
+			if _, hasBeenSet := dirMapping.PathToDefaultPackKey[d]; setAsDefaultSvc || !hasBeenSet {
 				dirMapping.PathToDefaultPackKey[d] = specifyPack.Key()
 			}
 

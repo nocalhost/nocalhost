@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package util
 
@@ -16,4 +16,6 @@ const (
 	WebServerServiceAccountApi = "/v1/plugin/service_accounts"
 	TestcaseWebhook            = "TESTCASE_WEBHOOK"
 	TimeoutWebhook             = "TIMEOUT_WEBHOOK"
+	HelmRepoUsername           = "HELM_REPO_USERNAME"
+	HelmRepoPassword           = "HELM_REPO_PASSWORD"
 )
