@@ -112,6 +112,50 @@ func (c *Controller) GetContainerImage(container string) (string, error) {
 	return "", errors.New(fmt.Sprintf("Container %s not found", container))
 }
 
+func (c *Controller) GetContainers() ([]v1.Container, error) {
+	var podSpec v1.PodSpec
+	switch c.Type {
+	case base.Deployment:
+		d, err := c.Client.GetDeployment(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		podSpec = d.Spec.Template.Spec
+	case base.StatefulSet:
+		s, err := c.Client.GetStatefulSet(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		podSpec = s.Spec.Template.Spec
+	case base.DaemonSet:
+		d, err := c.Client.GetDaemonSet(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		podSpec = d.Spec.Template.Spec
+	case base.Job:
+		j, err := c.Client.GetJobs(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		podSpec = j.Spec.Template.Spec
+	case base.CronJob:
+		j, err := c.Client.GetCronJobs(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		podSpec = j.Spec.JobTemplate.Spec.Template.Spec
+	case base.Pod:
+		p, err := c.Client.GetPod(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		podSpec = p.Spec
+	}
+
+	return podSpec.Containers, nil
+}
+
 func (c *Controller) GetDescription() *profile.SvcProfileV2 {
 	appProfile, err := c.GetAppProfile()
 	if err != nil {
