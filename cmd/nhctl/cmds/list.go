@@ -8,6 +8,7 @@ package cmds
 import (
 	"encoding/json"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
@@ -17,8 +18,6 @@ import (
 	"nocalhost/internal/nhctl/model"
 	"os"
 	"strconv"
-
-	"gopkg.in/yaml.v3"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
@@ -41,19 +40,7 @@ var listCmd = &cobra.Command{
 	Short:   "List applications",
 	Long:    `List applications`,
 	Run: func(cmd *cobra.Command, args []string) {
-
 		must(Prepare())
-
-		// for earlier version adaption
-		if info, _ := nocalhost.GetNsAndApplicationInfo(); info != nil {
-			for ns, apps := range info {
-				if ns == nameSpace {
-					for _, application := range apps {
-						_, _ = app.NewApplication(application, nameSpace, kubeConfig, true)
-					}
-				}
-			}
-		}
 
 		if len(args) > 0 { // list application detail
 			applicationName := args[0]
