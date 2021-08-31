@@ -26,13 +26,12 @@ func recoverSyncthing() error {
 	for ns, apps := range appMap {
 		for _, appName := range apps {
 			wg.Add(1)
-			appName := appName
-			go func() {
+			go func(namespace, app string) {
 				defer wg.Done()
-				if err = recoverSyncthingForApplication(ns, appName); err != nil {
+				if err = recoverSyncthingForApplication(namespace, app); err != nil {
 					log.LogE(err)
 				}
-			}()
+			}(ns, appName)
 		}
 	}
 	wg.Wait()
