@@ -1,9 +1,12 @@
 package req
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strconv"
+)
 
-func (p *SyncthingHttpClient) Events() ([]event, error) {
-	resp, err := p.get("rest/events")
+func (p *SyncthingHttpClient) Events(since int) ([]event, error) {
+	resp, err := p.get("rest/events?since=" + strconv.Itoa(since))
 	if err != nil {
 		return nil, err
 	}

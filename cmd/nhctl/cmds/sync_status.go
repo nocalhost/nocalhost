@@ -11,9 +11,11 @@ import (
 	"fmt"
 	"github.com/mitchellh/go-ps"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/util/retry"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/syncthing/network/req"
+	"nocalhost/pkg/nhctl/log"
 	"time"
 )
 
@@ -119,6 +121,30 @@ func waitForFirstSync(client *req.SyncthingHttpClient, duration time.Duration) {
 	timeout, cancelFunc := context.WithTimeout(context.Background(), duration)
 	defer cancelFunc()
 
+	for i := 0; i < 10; i++ {
+		time.Sleep(time.Second * 1)
+		connections, err := client.SystemConnections()
+		if err != nil || !connections {
+			continue
+		}
+		break
+	}
+
+	// get all events before scan
+	lastId := 0
+	if events, err2 := client.Events(0); err2 == nil {
+		lastId += len(events)
+	}
+	// scan folder
+	err2 := retry.OnError(retry.DefaultBackoff, func(err error) bool {
+		return err != nil
+	}, func() error {
+		return client.Scan()
+	})
+	if err2 != nil {
+		log.Fatal(err2)
+	}
+
 	for {
 		select {
 		case <-timeout.Done():
@@ -134,7 +160,7 @@ func waitForFirstSync(client *req.SyncthingHttpClient, duration time.Duration) {
 		default:
 			time.Sleep(time.Second * 1)
 			if status := client.GetSyncthingStatus(); status != nil && status.Status == req.Idle {
-				if events, err := client.Events(); err == nil {
+				if events, err := client.Events(lastId); err == nil {
 					for _, event := range events {
 						if event.EventType == "FolderCompletion" && event.Data.Completion == 100 {
 							display(req.SyncthingStatus{Status: req.Idle, Msg: "sync finished", Tips: "", OutOfSync: ""})
