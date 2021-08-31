@@ -14,6 +14,7 @@ package log
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/olivere/elastic/v7"
 	"github.com/pkg/errors"
@@ -41,7 +42,7 @@ type esLog struct {
 	Branch    string    `json:"branch,omitempty"`
 	Commit    string    `json:"commit,omitempty"`
 	Svc       string    `json:"svc,omitempty"`
-	Args       string `json:"args,omitempty"`
+	Args      string    `json:"args,omitempty"`
 }
 
 var (
@@ -163,6 +164,10 @@ func InitEs(host string) {
 }
 
 func writeStackToEs(level string, msg string, stack string) {
+	writeStackToEsWithField(level, msg, stack, nil)
+}
+
+func writeStackToEsWithField(level string, msg string, stack string, field map[string]interface{}) {
 	if esClient == nil {
 		return
 	}
@@ -187,7 +192,7 @@ func writeStackToEs(level string, msg string, stack string) {
 			Version:   fields["VERSION"],
 			Commit:    fields["COMMIT"],
 			Branch:    fields["BRANCH"],
-			Args: fields["ARGS"],
+			Args:      fields["ARGS"],
 			Timestamp: time.Now(),
 			Hostname:  hostname,
 			Level:     level,
@@ -198,7 +203,18 @@ func writeStackToEs(level string, msg string, stack string) {
 			Line:      lineNum,
 			Func:      funName,
 		}
-		esClient.Index().Index(esIndex).BodyJson(&data).Refresh("true").Do(context.Background())
+
+		if field != nil {
+			mapping := make(map[string]interface{}, 0)
+			if mas, err := json.Marshal(data); err == nil && json.Unmarshal(mas, &mapping) == nil {
+				for k, v := range field {
+					mapping[k] = v
+				}
+			}
+			esClient.Index().Index(esIndex).BodyJson(&mapping).Refresh("true").Do(context.Background())
+		} else {
+			esClient.Index().Index(esIndex).BodyJson(&data).Refresh("true").Do(context.Background())
+		}
 	}
 
 	if os.Getenv("NOCALHOST_TRACE") != "" {

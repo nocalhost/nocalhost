@@ -128,7 +128,10 @@ var rootCmd = &cobra.Command{
 					cmds = append(cmds, flag.Value.String())
 				},
 			)
-			log.Logf("[TimeMachine] %v, cost: %dms", cmds, d.Milliseconds())
+
+			field := make(map[string]interface{}, 0)
+			field["cost"] = d.Milliseconds()
+			log.WriteToEsWithField(field, "[TimeMachine] %v, cost: %dms", cmds, d.Milliseconds())
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
