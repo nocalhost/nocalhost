@@ -148,12 +148,11 @@ func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 		// if current user has not permission to create secret, we also create a fake 'default.application'
 		// app meta for him
 		// or else error occur
-		if !k8serrors.IsForbidden(err) {
+		if !k8serrors.IsForbidden(err) && nocalhostApp != nil {
 			mustI(err, "Error while create default application")
 			return []*appmeta.ApplicationMeta{nocalhostApp.GetAppMeta()}, nil
-		}else {
-
-			metas = append(metas,appmeta.FakeAppMeta(nameSpace, _const.DefaultNocalhostApplication))
+		} else {
+			metas = append(metas, appmeta.FakeAppMeta(nameSpace, _const.DefaultNocalhostApplication))
 		}
 	}
 
