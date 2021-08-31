@@ -121,13 +121,21 @@ func waitForFirstSync(client *req.SyncthingHttpClient, duration time.Duration) {
 	timeout, cancelFunc := context.WithTimeout(context.Background(), duration)
 	defer cancelFunc()
 
-	for i := 0; i < 10; i++ {
-		time.Sleep(time.Second * 1)
-		connections, err := client.SystemConnections()
-		if err != nil || !connections {
-			continue
+out:
+	for {
+		select {
+		case <-timeout.Done():
+			display(
+				req.SyncthingStatus{Status: req.Error, Msg: "wait for sync connect timeout", Tips: "", OutOfSync: ""},
+			)
+			return
+		default:
+			time.Sleep(time.Second * 1)
+			connections, err := client.SystemConnections()
+			if err == nil && connections {
+				break out
+			}
 		}
-		break
 	}
 
 	// get all events before scan
@@ -142,19 +150,14 @@ func waitForFirstSync(client *req.SyncthingHttpClient, duration time.Duration) {
 		return client.Scan()
 	})
 	if err2 != nil {
-		log.Fatal(err2)
+		log.Logf("scan folder manually error, err: %v", err2)
 	}
 
 	for {
 		select {
 		case <-timeout.Done():
 			display(
-				req.SyncthingStatus{
-					Status:    req.Error,
-					Msg:       "wait for sync finished timeout",
-					Tips:      "",
-					OutOfSync: "",
-				},
+				req.SyncthingStatus{Status: req.Error, Msg: "wait for sync finished timeout", Tips: "", OutOfSync: ""},
 			)
 			return
 		default:
