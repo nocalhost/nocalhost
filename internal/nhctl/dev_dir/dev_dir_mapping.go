@@ -83,7 +83,12 @@ func (d DevPath) GetAllPacks() *AllSvcPackAssociateByPath {
 	return getAllPacks(d)
 }
 
-func (d DevPath) Associate(specifyPack *SvcPack, kubeconfig string) error {
+// Associate setAsDefaultSvc:
+// if this dev path has been associate by svc && [setAsDefaultSvc==true]
+// replace the default svc to the path
+//
+// setAsDefaultSvc==false when data migration
+func (d DevPath) Associate(specifyPack *SvcPack, kubeconfig string, setAsDefaultSvc bool) error {
 	if !specifyPack.valid() {
 		return errors.New("Svc pack is invalid")
 	}
@@ -96,6 +101,10 @@ func (d DevPath) Associate(specifyPack *SvcPack, kubeconfig string) error {
 		specifyPack,
 		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
 			kubeconfigContent := fp.NewFilePath(kubeconfig).ReadFile()
+			if kubeconfigContent == "" {
+				log.Log("Associate Svc %s but kubeconfig is nil", specifyPack.Key())
+				return nil
+			}
 
 			dirMapping.PackToKubeConfigBytes[specifyPack.Key()] = kubeconfigContent
 			dirMapping.PackToKubeConfigBytes[specifyPack.keyWithoutContainer()] = kubeconfigContent
@@ -103,7 +112,10 @@ func (d DevPath) Associate(specifyPack *SvcPack, kubeconfig string) error {
 			dirMapping.PackToPath[specifyPack.Key()] = d
 			dirMapping.PackToPath[specifyPack.keyWithoutContainer()] = d
 
-			dirMapping.PathToDefaultPackKey[d] = specifyPack.Key()
+			if _, hasBeenSet := dirMapping.PathToDefaultPackKey[d]; setAsDefaultSvc || !hasBeenSet {
+				dirMapping.PathToDefaultPackKey[d] = specifyPack.Key()
+			}
+
 			return nil
 		},
 	)
@@ -141,7 +153,7 @@ func (d DevPath) removePackAndThen(
 				if len(beforePacks.Packs) == 1 {
 					delete(dirMapping.PathToDefaultPackKey, d)
 
-				// modify [path -> defaultSvc] if defaultSvc == specifyPackKey
+					// modify [path -> defaultSvc] if defaultSvc == specifyPackKey
 				} else if beforePacks.DefaultSvcPackKey == specifyPackKey {
 
 					// modify the before path's default packKey to a random packKey

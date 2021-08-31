@@ -16,6 +16,7 @@ import (
 var workDir string
 var deAssociate bool
 var info bool
+var migrate bool
 
 func init() {
 	devAssociateCmd.Flags().StringVarP(
@@ -33,6 +34,9 @@ func init() {
 	devAssociateCmd.Flags().StringVarP(&workDir, "associate", "s", "", "dev mode work directory")
 	devAssociateCmd.Flags().BoolVar(
 		&deAssociate, "de-associate", false, "[exclusive with info flag] de associate(for test)",
+	)
+	devAssociateCmd.Flags().BoolVar(
+		&migrate, "migrate", false, "associate with a local dir but with low priority",
 	)
 	devAssociateCmd.Flags().BoolVar(
 		&info, "info", false, "get associate path from svc ",
@@ -73,7 +77,7 @@ var devAssociateCmd = &cobra.Command{
 			if workDir == "" {
 				log.Fatal("associate must specify")
 			}
-			must(dev_dir.DevPath(workDir).Associate(svcPack, kubeConfig))
+			must(dev_dir.DevPath(workDir).Associate(svcPack, kubeConfig, !migrate))
 		}
 
 		must(nocalhostApp.ReloadSvcCfg(nocalhostSvc.Name, nocalhostSvc.Type, false, false))

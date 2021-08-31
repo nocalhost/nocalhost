@@ -26,7 +26,7 @@ func TestAssociate(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack, fakeKubeconfig,
+		pack, fakeKubeconfig, true,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestMultipleAssociate(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack, fakeKubeconfig,
+		pack, fakeKubeconfig, true,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestMultipleAssociate(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack2, fakeKubeconfig,
+		pack2, fakeKubeconfig, true,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestMultipleUnAssociate(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack, fakeKubeconfig,
+		pack, fakeKubeconfig, true,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +136,7 @@ func TestMultipleUnAssociate(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack2, fakeKubeconfig,
+		pack2, fakeKubeconfig, true,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +189,7 @@ func TestGetAssociatePath(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack, fakeKubeconfig,
+		pack, fakeKubeconfig, true,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +215,7 @@ func TestGetAssociatePathWithNoContainer(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack, fakeKubeconfig,
+		pack, fakeKubeconfig, true,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +249,7 @@ func TestGetAssociatePathWithNoContainerAndUnAssociate(t *testing.T) {
 	}
 
 	if err := path.Associate(
-		pack, fakeKubeconfig,
+		pack, fakeKubeconfig, true,
 	); err != nil {
 		t.Fatal(err)
 	}

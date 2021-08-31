@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -45,6 +45,21 @@ func (c *Controller) GetDevContainerEnv(container string) *ContainerDevEnv {
 	return &ContainerDevEnv{DevEnv: devEnv}
 }
 
+func (c *Controller) GetDevSidecarImage(container string) string {
+	// Find service env
+	serviceConfig, _ := c.GetProfile()
+	for _, v := range serviceConfig.ContainerConfigs {
+		if v.Name == container || container == "" {
+			// Env has a higher priority than envFrom
+			if v.Dev != nil {
+				return v.Dev.SidecarImage
+			}
+		}
+	}
+
+	return ""
+}
+
 func (c *Controller) markReplicaSetRevision() error {
 
 	dep0, err := c.Client.GetDeployment(c.Name)
@@ -73,11 +88,14 @@ func (c *Controller) markReplicaSetRevision() error {
 		retryTimes := 5
 		for i := 0; i < retryTimes; i++ {
 			time.Sleep(time.Second * 1)
-			if err = c.Client.Patch("ReplicaSet", rs.Name,
-				fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
+			if err = c.Client.Patch(
+				"ReplicaSet", rs.Name,
+				fmt.Sprintf(
+					`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
 					_const.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
 					_const.DevImageRevisionAnnotationKey, _const.DevImageRevisionAnnotationValue,
-				)); err == nil {
+				),
+			); err == nil {
 				break
 			}
 		}
@@ -195,7 +213,11 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 				continue
 			}
 			if len(claims) > 1 {
-				log.Warn(fmt.Sprintf("Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path))
+				log.Warn(
+					fmt.Sprintf(
+						"Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path,
+					),
+				)
 				continue
 			}
 
@@ -207,11 +229,15 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 				if c.GetStorageClass(container) != "" {
 					storageClass = c.GetStorageClass(container)
 				}
-				log.Infof("No PVC for %s found, trying to create one with storage class %s...",
-					persistentVolume.Path, storageClass)
+				log.Infof(
+					"No PVC for %s found, trying to create one with storage class %s...",
+					persistentVolume.Path, storageClass,
+				)
 				pvc, err = c.createPvcForPersistentVolumeDir(persistentVolume, labels, storageClass)
 				if err != nil || pvc == nil {
-					return nil, nil, errors.Wrap(nocalhost.CreatePvcFailed, "Failed to create pvc for "+persistentVolume.Path)
+					return nil, nil, errors.Wrap(
+						nocalhost.CreatePvcFailed, "Failed to create pvc for "+persistentVolume.Path,
+					)
 				}
 				claimName = pvc.Name
 			}
@@ -352,11 +378,14 @@ func (c *Controller) createPvcForPersistentVolumeDir(
 	return nil, errors.New("Failed to create pvc for " + persistentVolume.Path)
 }
 
-func generateSideCarContainer(workDir string) corev1.Container {
+func generateSideCarContainer(sidecarImage, workDir string) corev1.Container {
+	if sidecarImage == "" {
+		sidecarImage = _const.DefaultSideCarImage
+	}
 
 	sideCarContainer := corev1.Container{
 		Name:       "nocalhost-sidecar",
-		Image:      _const.DefaultSideCarImage,
+		Image:      sidecarImage,
 		WorkingDir: workDir,
 	}
 
@@ -483,7 +512,8 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
 	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := c.genWorkDirAndPVAndMounts(
-		containerName, storageClass)
+		containerName, storageClass,
+	)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -494,7 +524,7 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	workDir := c.GetWorkDir(containerName)
 	devImage := c.GetDevImage(containerName) // Default : replace the first container
 
-	sideCarContainer := generateSideCarContainer(workDir)
+	sideCarContainer := generateSideCarContainer(c.GetDevSidecarImage(containerName), workDir)
 
 	devContainer.Image = devImage
 	devContainer.Name = "nocalhost-dev"
@@ -534,8 +564,11 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 				limits += devContainer.Resources.Limits.Memory().String() + " memory"
 			}
 		}
-		log.PWarnf(`Resources Limits: %s is less than the recommended minimum: 2 cpu, 2Gi memory. `+
-			"Running programs in DevContainer may fail. You can increase Resource Limits in Nocalhost Config", limits)
+		log.PWarnf(
+			`Resources Limits: %s is less than the recommended minimum: 2 cpu, 2Gi memory. `+
+				"Running programs in DevContainer may fail. You can increase Resource Limits in Nocalhost Config",
+			limits,
+		)
 	}
 
 	r := &profile.ResourceQuota{

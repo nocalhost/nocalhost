@@ -352,6 +352,12 @@ func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 		return errors.Wrap(err, "")
 	}
 	defer conn.Close()
+	if err = conn.SetDeadline(time.Now().Add(time.Second * 30)); err != nil {
+		log.Logf("set connection deadline, err: %v", err)
+	}
+	if err = conn.SetWriteDeadline(time.Now().Add(time.Second * 30)); err != nil {
+		log.Logf("set connection write deadline, err: %v", err)
+	}
 	_, err = conn.Write(data)
 	log.WrapAndLogE(err)
 	return errors.Wrap(err, "")
@@ -370,6 +376,17 @@ func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) erro
 		return utils2.WrapErr(err)
 	}
 	defer conn.Close()
+
+	if err = conn.SetDeadline(time.Now().Add(time.Second * 30)); err != nil {
+		log.Logf("set connection deadline, err: %v", err)
+	}
+	if err = conn.SetReadDeadline(time.Now().Add(time.Second * 30)); err != nil {
+		log.Logf("set connection read deadline, err: %v", err)
+	}
+	if err = conn.SetWriteDeadline(time.Now().Add(time.Second * 30)); err != nil {
+		log.Logf("set connection write deadline, err: %v", err)
+	}
+
 	if _, err = conn.Write(req); err != nil {
 		log.WrapAndLogE(err)
 		return utils2.WrapErr(err)
