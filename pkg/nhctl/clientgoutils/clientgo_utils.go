@@ -455,48 +455,8 @@ func (c *ClientGoUtils) GetService(name string) (*corev1.Service, error) {
 	return service, nil
 }
 
-func (c *ClientGoUtils) CheckExistNameSpace(name string) error {
-	_, err := c.ClientSet.CoreV1().Namespaces().Get(c.ctx, name, metav1.GetOptions{})
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	return nil
-}
-
-func (c *ClientGoUtils) CreateNameSpace(name string, customLabels map[string]string) error {
-	nsSpec := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name, Labels: customLabels}}
-	_, err := c.ClientSet.CoreV1().Namespaces().Create(context.TODO(), nsSpec, metav1.CreateOptions{})
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	return nil
-}
-
 func (c *ClientGoUtils) GetContext() context.Context {
 	return c.ctx
-}
-
-func (c *ClientGoUtils) DeleteNameSpace(name string, wait bool) error {
-	err := c.ClientSet.CoreV1().Namespaces().Delete(context.TODO(), name, metav1.DeleteOptions{})
-	if wait {
-		timeout := time.After(5 * time.Minute)
-		tick := time.Tick(200 * time.Millisecond)
-		for {
-			select {
-			case <-timeout:
-				return errors.New("timeout with 5 minute")
-			case <-tick:
-				err := c.CheckExistNameSpace(name)
-				if err != nil {
-					return nil
-				}
-			}
-		}
-	}
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (c *ClientGoUtils) DeleteStatefulSetAndPVC(name string) error {
