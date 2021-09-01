@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/golang-lru/simplelru"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -119,10 +120,14 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 		}
 		for _, restMapping := range restMappingList {
 			if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
-				log.Warnf(
-					"Can't create informer for resource: %v, error info: %v, ignored",
-					restMapping.Resource, err.Error(),
-				)
+				if k8serrors.IsForbidden(err) {
+					log.Warnf("user account is forbidden to list resource: %v, ignored", restMapping.Resource)
+				} else {
+					log.Warnf(
+						"Can't create informer for resource: %v, error info: %v, ignored",
+						restMapping.Resource, err.Error(),
+					)
+				}
 				continue
 			}
 		}
