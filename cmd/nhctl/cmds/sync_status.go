@@ -234,7 +234,12 @@ out:
 		case <-ctx.Done():
 			return
 		default:
-			time.Sleep(time.Second * 1)
+			_ = retry.OnError(retry.DefaultBackoff, func(err error) bool {
+				return err != nil
+			}, func() error {
+				return client.Scan()
+			})
+			time.Sleep(time.Second * 2)
 			found := false
 			if status := client.GetSyncthingStatus(); status != nil && status.Status == req.Idle {
 				if events, err := client.Events(lastId); err == nil {
