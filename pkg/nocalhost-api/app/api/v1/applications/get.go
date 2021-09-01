@@ -201,7 +201,7 @@ func listOwner(c *gin.Context, userId *uint64) ([]*model.ApplicationModel, error
 // list permitted is list all application user has
 func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, error) {
 	// permitted
-	/*applicationUsers, err := service.Svc.ApplicationUser().ListByUserId(c, userId)
+	applicationUsers, err := service.Svc.ApplicationUser().ListByUserId(c, userId)
 	if err != nil {
 		log.Warnf("get application_user err: %v", err)
 		return nil, err
@@ -210,7 +210,7 @@ func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, er
 	set := map[uint64]interface{}{}
 	for _, au := range applicationUsers {
 		set[au.ApplicationId] = "-"
-	}*/
+	}
 
 	// userId, _ := c.Get("userId")
 	isadmin := ginbase.IsAdmin(c)
@@ -222,7 +222,7 @@ func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, er
 
 	var result []*model.ApplicationModel
 	for _, app := range lists {
-		//_, ok := set[app.ID]
+		_, ok := set[app.ID]
 
 		// public
 		/*if app.Public == 1 ||
@@ -233,7 +233,7 @@ func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, er
 		// has permission
 		ok*/
 		// admin can see all, owner can see public and mine
-		if !isadmin && app.Public != 1 && app.UserId != userId {
+		if !isadmin && app.Public != 1 && app.UserId != userId && !ok {
 			continue
 		}
 		var applicationContext ApplicationJsonContext
