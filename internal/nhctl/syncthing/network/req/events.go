@@ -17,12 +17,18 @@ func (p *SyncthingHttpClient) Events(since int) ([]event, error) {
 	return eventList, err
 }
 
+type EventType string
+
+const (
+	EventFolderCompletion EventType = "FolderCompletion"
+)
+
 type event struct {
-	Id        int64  `json:"id"`
-	GlobalID  int64  `json:"globalID"`
-	EventType string `json:"type"`
-	Time      string `json:"time"`
-	Data      data   `json:"data"`
+	Id        int64     `json:"id"`
+	GlobalID  int64     `json:"globalID"`
+	EventType EventType `json:"type"`
+	Time      string    `json:"time"`
+	Data      data      `json:"data"`
 }
 
 type data struct {

@@ -139,10 +139,10 @@ out:
 	}
 
 	// get all events before scan
-	lastId := 0
-	if events, err2 := client.Events(0); err2 == nil {
-		lastId += len(events)
-	}
+	//lastId := 0
+	//if events, err2 := client.Events(0); err2 == nil {
+	//	lastId += len(events)
+	//}
 	// scan folder
 	err2 := retry.OnError(retry.DefaultBackoff, func(err error) bool {
 		return err != nil
@@ -163,9 +163,9 @@ out:
 		default:
 			time.Sleep(time.Second * 1)
 			if status := client.GetSyncthingStatus(); status != nil && status.Status == req.Idle {
-				if events, err := client.Events(lastId); err == nil {
+				if events, err := client.Events(0); err == nil {
 					for _, event := range events {
-						if event.EventType == "FolderCompletion" && event.Data.Completion == 100 {
+						if event.EventType == req.EventFolderCompletion && event.Data.Completion == 100 {
 							display(req.SyncthingStatus{Status: req.Idle, Msg: "sync finished", Tips: "", OutOfSync: ""})
 							return
 						}
