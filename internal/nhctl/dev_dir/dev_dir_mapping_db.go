@@ -196,6 +196,10 @@ func (svcPackKey *SvcPackKey) toPack() *SvcPack {
 }
 
 func (svcPack SvcPack) Key() SvcPackKey {
+	if svcPack.Container == "" {
+		return svcPack.keyWithoutContainer()
+	}
+
 	return SvcPackKey(
 		fmt.Sprintf(
 			"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s",
