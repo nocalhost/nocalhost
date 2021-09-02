@@ -30,10 +30,6 @@ var kubeconfigGenerateCmd = &cobra.Command{
 	Short: "Generate a kubeconfig for specify namespace",
 	Long:  `Generate a kubeconfig for specify namespace`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if nameSpace == "" {
-			log.Fatal("--namespace must be specify")
-		}
-
 		if kubeConfig == "" {
 			kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
 		}
@@ -42,7 +38,12 @@ var kubeconfigGenerateCmd = &cobra.Command{
 }
 
 func GenKubeconfig(kube, ns string) {
-
+	if ns == "" {
+		uid, err := uuid.NewUUID()
+		must(err)
+		id := strings.Split(uid.String(), "-")[0]
+		ns = fmt.Sprintf("nh%s", id)
+	}
 	k8sClient, err := clientgoutils.NewClientGoUtils(kube, ns)
 	must(err)
 
