@@ -134,31 +134,26 @@ func displayLn(v interface{}) {
 }
 
 func waitForFirstSync(client *req.SyncthingHttpClient, duration time.Duration) {
-	timeout, cancelFunc := context.WithTimeout(context.Background(), duration)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), duration)
 	defer cancelFunc()
 
 out:
 	for {
 		select {
-		case <-timeout.Done():
+		case <-ctx.Done():
 			display(
 				req.SyncthingStatus{Status: req.Error, Msg: "wait for sync connect timeout", Tips: "", OutOfSync: ""},
 			)
 			return
 		default:
 			time.Sleep(time.Second * 1)
-			connections, err := client.SystemConnections()
-			if err == nil && connections {
+			isConnected, err := client.SystemConnections()
+			if err == nil && isConnected {
 				break out
 			}
 		}
 	}
 
-	// get all events before scan
-	//lastId := 0
-	//if events, err2 := client.Events(0); err2 == nil {
-	//	lastId += len(events)
-	//}
 	// scan folder
 	err2 := retry.OnError(retry.DefaultBackoff, func(err error) bool {
 		return err != nil
@@ -171,7 +166,7 @@ out:
 
 	for {
 		select {
-		case <-timeout.Done():
+		case <-ctx.Done():
 			display(
 				req.SyncthingStatus{Status: req.Error, Msg: "wait for sync finished timeout", Tips: "", OutOfSync: ""},
 			)
@@ -207,8 +202,8 @@ out:
 			return
 		default:
 			time.Sleep(time.Second * 1)
-			connections, err := client.SystemConnections()
-			if err == nil && connections {
+			isConnected, err := client.SystemConnections()
+			if err == nil && isConnected {
 				break out
 			}
 		}
