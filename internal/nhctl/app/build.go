@@ -23,7 +23,7 @@ import (
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
-	customyaml3 "nocalhost/pkg/nhctl/utils/custom.yaml.v3"
+	customyaml3 "nocalhost/pkg/nhctl/utils/custom_yaml_v3"
 	"os"
 	"path/filepath"
 	"regexp"
