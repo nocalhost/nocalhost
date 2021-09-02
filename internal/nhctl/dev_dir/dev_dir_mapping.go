@@ -5,6 +5,7 @@ import (
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/pkg/nhctl/log"
+	"strings"
 )
 
 var NO_DEFAULT_PACK = errors.New("Current Svc pack not found ")
@@ -106,11 +107,25 @@ func (d DevPath) Associate(specifyPack *SvcPack, kubeconfig string, setAsDefault
 				return nil
 			}
 
-			dirMapping.PackToKubeConfigBytes[specifyPack.Key()] = kubeconfigContent
-			dirMapping.PackToKubeConfigBytes[specifyPack.keyWithoutContainer()] = kubeconfigContent
+			key := specifyPack.Key()
+			keyWithoutContainer := specifyPack.keyWithoutContainer()
 
-			dirMapping.PackToPath[specifyPack.Key()] = d
-			dirMapping.PackToPath[specifyPack.keyWithoutContainer()] = d
+			dirMapping.PackToPath[key] = d
+			dirMapping.PackToKubeConfigBytes[key] = kubeconfigContent
+
+			// if container not specified
+			// cover all pack with same ns/app/type/svc
+			if specifyPack.Container == "" {
+				for keyItem, _ := range dirMapping.PackToPath {
+					if strings.HasPrefix(string(keyItem), string(key)) {
+						dirMapping.PackToPath[keyItem] = d
+						dirMapping.PackToKubeConfigBytes[keyItem] = kubeconfigContent
+					}
+				}
+			} else {
+				dirMapping.PackToPath[keyWithoutContainer] = d
+				dirMapping.PackToKubeConfigBytes[keyWithoutContainer] = kubeconfigContent
+			}
 
 			if _, hasBeenSet := dirMapping.PathToDefaultPackKey[d]; setAsDefaultSvc || !hasBeenSet {
 				dirMapping.PathToDefaultPackKey[d] = specifyPack.Key()
