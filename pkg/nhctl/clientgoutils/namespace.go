@@ -22,14 +22,14 @@ func (c *ClientGoUtils) CheckExistNameSpace(name string) error {
 	return nil
 }
 
-func (c *ClientGoUtils) CreateNameSpace(name string, customLabels map[string]string) error {
-	nsSpec := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name, Labels: customLabels}}
+func (c *ClientGoUtils) CreateNameSpace(name string) error {
+	nsSpec := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name, Labels: c.labels}}
 	_, err := c.ClientSet.CoreV1().Namespaces().Create(context.TODO(), nsSpec, metav1.CreateOptions{})
 	return errors.Wrap(err, "")
 }
 
 func (c *ClientGoUtils) CreateNamespaceINE(ns string) error {
-	if err := c.CreateNameSpace(ns, nil); err != nil && !k8serrors.IsAlreadyExists(err) {
+	if err := c.CreateNameSpace(ns); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "")
 	}
 	return nil

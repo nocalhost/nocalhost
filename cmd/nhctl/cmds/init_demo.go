@@ -200,7 +200,9 @@ var InitCommand = &cobra.Command{
 			customLabels := map[string]string{
 				"env": app.DefaultInitCreateNameSpaceLabels,
 			}
-			mustI(client.CreateNameSpace(inits.NameSpace, customLabels), "create namespace fail")
+			client.Labels(customLabels)
+			mustI(client.CreateNameSpace(inits.NameSpace), "create namespace fail")
+			client.Labels(nil)
 		}
 		spinner := utils.NewSpinner(" waiting for get Nocalhost manifest...")
 		spinner.Start()

@@ -16,6 +16,7 @@ import (
 func (c *ClientGoUtils) CreateServiceAccount(name string) (*corev1.ServiceAccount, error) {
 	sa := &corev1.ServiceAccount{}
 	sa.Name = name
+	sa.Labels = c.labels
 	sa, err := c.ClientSet.CoreV1().ServiceAccounts(c.namespace).Create(context.TODO(), sa, metav1.CreateOptions{})
 	return sa, errors.Wrap(err, "")
 }

@@ -12,5 +12,5 @@ import (
 )
 
 func TestGenKubeconfig(t *testing.T) {
-	GenKubeconfig(filepath.Join(utils.GetHomePath(), ".kube", "devcloud-config"), "ingress")
+	GenKubeconfig(filepath.Join(utils.GetHomePath(), ".kube", "devcloud-config"), "bbba")
 }

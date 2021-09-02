@@ -55,6 +55,7 @@ type ClientGoUtils struct {
 	ClientConfig       clientcmd.ClientConfig
 	namespace          string
 	ctx                context.Context
+	labels             map[string]string
 }
 
 type PortForwardAPodRequest struct {
@@ -133,20 +134,24 @@ func (c *ClientGoUtils) KubeConfigFilePath() string {
 	return c.kubeConfigFilePath
 }
 
-// Set ClientGoUtils's namespace
+// NameSpace Set ClientGoUtils's namespace
 func (c *ClientGoUtils) NameSpace(namespace string) *ClientGoUtils {
 	c.namespace = namespace
 	return c
 }
 
-// Set ClientGoUtils's Context
+// Context Set ClientGoUtils's Context
 func (c *ClientGoUtils) Context(ctx context.Context) *ClientGoUtils {
 	c.ctx = ctx
 	return c
 }
 
-func (c *ClientGoUtils) GetDynamicClient() dynamic.Interface {
+func (c *ClientGoUtils) Labels(labels map[string]string) *ClientGoUtils {
+	c.labels = labels
+	return c
+}
 
+func (c *ClientGoUtils) GetDynamicClient() dynamic.Interface {
 	var restConfig *restclient.Config
 	restConfig, _ = clientcmd.BuildConfigFromFlags("", c.kubeConfigFilePath)
 	dyn, _ := dynamic.NewForConfig(restConfig)

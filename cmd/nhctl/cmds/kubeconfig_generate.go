@@ -21,13 +21,14 @@ import (
 )
 
 func init() {
-	rootCmd.AddCommand(kubeconfigGenerateCmd)
+	kubeconfigCmd.AddCommand(kubeconfigGenerateCmd)
 }
 
 var kubeconfigGenerateCmd = &cobra.Command{
-	Use:   "kubeconfig-generate",
-	Short: "Generate a kubeconfig for specified namespace",
-	Long:  `Generate a kubeconfig for specified namespace`,
+	Use:     "generate",
+	Aliases: []string{"gen"},
+	Short:   "Generate a kubeconfig for specified namespace",
+	Long:    `Generate a kubeconfig for specified namespace`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if kubeConfig == "" {
 			kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
@@ -45,6 +46,9 @@ func GenKubeconfig(kube, ns string) {
 	}
 	k8sClient, err := clientgoutils.NewClientGoUtils(kube, ns)
 	must(err)
+
+	labels := map[string]string{"nocalhost.dev/generated-by": "nocalhost"}
+	k8sClient.Labels(labels)
 
 	must(k8sClient.CreateNamespaceINE(ns))
 

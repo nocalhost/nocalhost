@@ -42,6 +42,7 @@ func (c *ClientGoUtils) CreateClusterRole(name string, rule []rbacv1.PolicyRule)
 	role := &rbacv1.ClusterRole{}
 	role.Name = name
 	role.Rules = rule
+	role.Labels = c.labels
 	r, err := c.ClientSet.RbacV1().ClusterRoles().Create(context.TODO(), role, metav1.CreateOptions{})
 	return r, errors.Wrap(err, "")
 }
@@ -54,6 +55,7 @@ func (c *ClientGoUtils) CreateRoleBindingWithClusterRole(name, clusterRoleName s
 		Kind:     "ClusterRole",
 		Name:     clusterRoleName,
 	}
+	rb.Labels = c.labels
 	rb, err := c.ClientSet.RbacV1().RoleBindings(c.namespace).Create(context.TODO(), rb, metav1.CreateOptions{})
 	return rb, errors.Wrap(err, "")
 }
