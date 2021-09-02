@@ -21,14 +21,14 @@ import (
 )
 
 func init() {
-	kubeconfigCmd.AddCommand(kubeconfigGenerateCmd)
+	kubeconfigCmd.AddCommand(kubeconfigCreateCmd)
 }
 
-var kubeconfigGenerateCmd = &cobra.Command{
-	Use:     "generate",
-	Aliases: []string{"gen"},
-	Short:   "Generate a kubeconfig for specified namespace",
-	Long:    `Generate a kubeconfig for specified namespace`,
+var kubeconfigCreateCmd = &cobra.Command{
+	Use:     "create",
+	Aliases: []string{"c"},
+	Short:   "Create a kubeconfig for specified namespace",
+	Long:    `Create a kubeconfig for specified namespace`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if kubeConfig == "" {
 			kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
