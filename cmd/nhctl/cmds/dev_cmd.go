@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	v1 "k8s.io/api/core/v1"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -84,7 +85,19 @@ var devCmdCmd = &cobra.Command{
 		if len(targetCommand) == 0 {
 			log.Fatalf("%s command not defined", commandType)
 		}
-
-		must(nocalhostApp.Exec(deployment, container, targetCommand))
+		podList, err := nocalhostSvc.BuildPodController().GetPodList()
+		if err != nil {
+			log.Fatal(err)
+		}
+		runningPod := make([]v1.Pod, 0, 1)
+		for _, item := range podList {
+			if item.Status.Phase == v1.PodRunning && item.DeletionTimestamp == nil {
+				runningPod = append(runningPod, item)
+			}
+		}
+		if len(runningPod) != 1 {
+			log.Fatalf("pod number: %d, is not 1, please make sure pod number is 1", len(runningPod))
+		}
+		must(nocalhostApp.Exec(runningPod[0], container, targetCommand))
 	},
 }
