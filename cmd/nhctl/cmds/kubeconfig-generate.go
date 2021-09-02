@@ -14,7 +14,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api/v1"
 	"nocalhost/internal/nhctl/utils"
-	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"path/filepath"
@@ -27,8 +26,8 @@ func init() {
 
 var kubeconfigGenerateCmd = &cobra.Command{
 	Use:   "kubeconfig-generate",
-	Short: "Generate a kubeconfig for specify namespace",
-	Long:  `Generate a kubeconfig for specify namespace`,
+	Short: "Generate a kubeconfig for specified namespace",
+	Long:  `Generate a kubeconfig for specified namespace`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if kubeConfig == "" {
 			kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
@@ -80,12 +79,12 @@ func GenKubeconfig(kube, ns string) {
 	secret, err := k8sClient.GetSecret(sa.Secrets[0].Name)
 	must(err)
 
-	ca := secret.Data[global.NocalhostDevServiceAccountSecretCaKey]
+	ca := secret.Data["ca.crt"]
 	if len(ca) == 0 {
 		log.Fatal("Failed to get ca")
 	}
 
-	token := string(secret.Data[global.NocalhostDevServiceAccountTokenKey])
+	token := string(secret.Data["token"])
 	if token == "" {
 		log.Fatal("Failed to get token")
 	}
