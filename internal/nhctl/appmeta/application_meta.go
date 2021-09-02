@@ -68,6 +68,8 @@ const (
 	INSTALLED   ApplicationState = "INSTALLED"
 
 	DependenceConfigMapPrefix = "nocalhost-depends-do-not-overwrite"
+
+	DEV_STARTING_SUFFIX = ">...Starting"
 )
 
 var ErrAlreadyDev = errors.New("Svc already in dev mode")
@@ -452,8 +454,12 @@ func (a *ApplicationMeta) SvcDevStarting(name string, svcType base.SvcType, iden
 	return a.Update()
 }
 
+func HasDevStartingSuffix(name string) bool {
+	return strings.HasSuffix(name, DEV_STARTING_SUFFIX)
+}
+
 func devStartMarkSign(name string) string {
-	return fmt.Sprintf("%s>...Starting", name)
+	return fmt.Sprintf("%s%s", name, DEV_STARTING_SUFFIX)
 }
 
 func (a *ApplicationMeta) SvcDevStartComplete(name string, svcType base.SvcType, identifier string) error {
@@ -488,7 +494,7 @@ func (a *ApplicationMeta) SvcDevEnd(name string, svcType base.SvcType) error {
 	}
 	m := devMeta[svcType.Alias()]
 
-	inDevStartingMark := fmt.Sprintf("%s>...Starting", name)
+	inDevStartingMark := devStartMarkSign(name)
 
 	delete(m, inDevStartingMark)
 	delete(m, name)
@@ -519,23 +525,25 @@ func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType
 }
 
 func (a *ApplicationMeta) Update() error {
-	return retry.OnError(retry.DefaultRetry, func(err error) bool {
-		return err != nil
-	}, func() error {
-		a.prepare()
-		secret, err := a.operator.Update(a.Ns, a.Secret)
-		if err != nil {
-			return errors.Wrap(err, "Error while update Application meta ")
-		}
-		a.Secret = secret
-		// update daemon application meta manually
-		if client, err := daemon_client.NewDaemonClient(false); err == nil {
-			_, _ = client.SendUpdateApplicationMetaCommand(
-				string(a.operator.GetKubeconfigBytes()), a.Ns, a.Secret.Name, a.Secret,
-			)
-		}
-		return nil
-	})
+	return retry.OnError(
+		retry.DefaultRetry, func(err error) bool {
+			return err != nil
+		}, func() error {
+			a.prepare()
+			secret, err := a.operator.Update(a.Ns, a.Secret)
+			if err != nil {
+				return errors.Wrap(err, "Error while update Application meta ")
+			}
+			a.Secret = secret
+			// update daemon application meta manually
+			if client, err := daemon_client.NewDaemonClient(false); err == nil {
+				_, _ = client.SendUpdateApplicationMetaCommand(
+					string(a.operator.GetKubeconfigBytes()), a.Ns, a.Secret.Name, a.Secret,
+				)
+			}
+			return nil
+		},
+	)
 }
 
 func (a *ApplicationMeta) prepare() {

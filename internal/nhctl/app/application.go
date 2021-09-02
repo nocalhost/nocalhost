@@ -817,14 +817,10 @@ func (a *Application) GetDescription() *profile.AppProfileV2 {
 		// then gen the fake profile for remote svc
 		for svcTypeAlias, m := range devMeta {
 			for svcName, _ := range m {
-				svcProfile := appProfile.SvcProfileV2(svcName, string(svcTypeAlias.Origin()))
-				appmeta.FillingExtField(svcProfile, meta, a.Name, a.NameSpace, appProfile.Identifier)
-
-				//svcProfile.Developing = true
-				//svcProfile.Possess = a.appMeta.SvcDevModePossessor(
-				//	svcProfile.ActualName, svcTypeAlias.Origin(),
-				//	appProfile.Identifier,
-				//)
+				if !appmeta.HasDevStartingSuffix(svcName) {
+					svcProfile := appProfile.SvcProfileV2(svcName, string(svcTypeAlias.Origin()))
+					appmeta.FillingExtField(svcProfile, meta, a.Name, a.NameSpace, appProfile.Identifier)
+				}
 			}
 		}
 

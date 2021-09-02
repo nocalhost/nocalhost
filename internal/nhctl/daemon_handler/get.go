@@ -113,13 +113,10 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 		// then gen the fake profile for remote svc
 		for svcTypeAlias, m := range devMeta {
 			for svcName, _ := range m {
-				svcProfile := appProfile.SvcProfileV2(svcName, string(svcTypeAlias.Origin()))
-				appmeta.FillingExtField(svcProfile, &meta, appName, ns, appProfile.Identifier)
-				//svcProfile.Developing = true
-				//svcProfile.Possess = meta.SvcDevModePossessor(
-				//	svcProfile.ActualName, svcTypeAlias.Origin(),
-				//	appProfile.Identifier,
-				//)
+				if !appmeta.HasDevStartingSuffix(svcName) {
+					svcProfile := appProfile.SvcProfileV2(svcName, string(svcTypeAlias.Origin()))
+					appmeta.FillingExtField(svcProfile, &meta, appName, ns, appProfile.Identifier)
+				}
 			}
 		}
 		return appProfile
