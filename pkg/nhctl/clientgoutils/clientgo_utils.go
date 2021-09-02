@@ -386,22 +386,6 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 	return false, nil
 }
 
-func (c *ClientGoUtils) CreateSecret(secret *corev1.Secret, options metav1.CreateOptions) (*corev1.Secret, error) {
-	return c.ClientSet.CoreV1().Secrets(c.namespace).Create(c.ctx, secret, options)
-}
-
-func (c *ClientGoUtils) UpdateSecret(secret *corev1.Secret, options metav1.UpdateOptions) (*corev1.Secret, error) {
-	return c.ClientSet.CoreV1().Secrets(c.namespace).Update(c.ctx, secret, options)
-}
-
-func (c *ClientGoUtils) GetSecret(name string) (*corev1.Secret, error) {
-	return c.ClientSet.CoreV1().Secrets(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
-}
-
-func (c *ClientGoUtils) DeleteSecret(name string) error {
-	return c.ClientSet.CoreV1().Secrets(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{})
-}
-
 func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 	path := fmt.Sprintf(
 		"/api/v1/namespaces/%s/pods/%s/portforward",

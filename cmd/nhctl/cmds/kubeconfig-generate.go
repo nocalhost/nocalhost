@@ -11,14 +11,12 @@ import (
 	yaml2 "github.com/ghodss/yaml"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	"io/ioutil"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api/v1"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"path/filepath"
 	"strings"
 )
@@ -44,11 +42,6 @@ var kubeconfigGenerateCmd = &cobra.Command{
 }
 
 func GenKubeconfig(kube, ns string) {
-	configBytes, err := ioutil.ReadFile(kube)
-	must(err)
-
-	clientGo, err := clientgo.NewAdminGoClient(configBytes)
-	must(err)
 
 	k8sClient, err := clientgoutils.NewClientGoUtils(kube, ns)
 	must(err)
@@ -73,18 +66,17 @@ func GenKubeconfig(kube, ns string) {
 	must(err)
 
 	must(k8sClient.AddClusterRoleToRoleBinding(rb, role, saName))
-	//must(service.CreateOrUpdateRoleBindingINE(clientGo, ns, saName, ns, rb, role))
 
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kube)
 	must(err)
 	serverAddr := restConfig.Host
 
-	sa, err := clientGo.GetServiceAccount(saName, ns)
+	sa, err := k8sClient.GetServiceAccount(saName)
 	if err != nil || len(sa.Secrets) == 0 {
 		return
 	}
 
-	secret, err := clientGo.GetSecret(sa.Secrets[0].Name, ns)
+	secret, err := k8sClient.GetSecret(sa.Secrets[0].Name)
 	must(err)
 
 	ca := secret.Data[global.NocalhostDevServiceAccountSecretCaKey]

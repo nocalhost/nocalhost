@@ -27,3 +27,7 @@ func (c *ClientGoUtils) CreateServiceAccountINE(name string) (*corev1.ServiceAcc
 		return sa, nil
 	}
 }
+
+func (c *ClientGoUtils) GetServiceAccount(name string) (*corev1.ServiceAccount, error) {
+	return c.ClientSet.CoreV1().ServiceAccounts(c.namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}
