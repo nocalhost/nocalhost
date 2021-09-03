@@ -9,11 +9,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"net/http"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
-	yaml "nocalhost/pkg/nhctl/utils/custom_yaml_v3"
 )
 
 type ConfigSaveParams struct {
@@ -31,7 +31,6 @@ type ConfigSaveResp struct {
 }
 
 func startHttpServer() {
-	//http.Handle("/foo", fooHandler)
 	log.Info("Starting http server")
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -91,6 +90,13 @@ func handlingConfigSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	csp.Type = r.PostForm[key][0]
+
+	key = "kubeconfig"
+	if len(r.PostForm[key]) == 0 {
+		fail(w, fmt.Sprintf("%s can not be nil", key))
+		return
+	}
+	csp.Kubeconfig = r.PostForm[key][0]
 
 	key = "config"
 	if len(r.PostForm[key]) == 0 {
