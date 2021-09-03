@@ -31,7 +31,9 @@ func (l *testLogger) Infof(template string, args ...interface{}) {
 func AllTestLogsLocations() []string {
 	result := make([]string, 1)
 	for _, logger := range testLoggerMapping {
-		result = append(result, dirForTestCaseLog(logger.tag))
+		if logger != nil {
+			result = append(result, dirForTestCaseLog(logger.tag))
+		}
 	}
 	return result
 }
