@@ -131,13 +131,12 @@ func (p *PortForwardManager) RecoverAllPortForward() error {
 	for ns, apps := range appMap {
 		for _, appName := range apps {
 			wg.Add(1)
-			appName := appName
-			go func() {
+			go func(namespace, app string) {
 				defer wg.Done()
-				if err = p.RecoverPortForwardForApplication(ns, appName); err != nil {
+				if err = p.RecoverPortForwardForApplication(namespace, app); err != nil {
 					log.LogE(err)
 				}
-			}()
+			}(ns, appName)
 		}
 	}
 	wg.Wait()

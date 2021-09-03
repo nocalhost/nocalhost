@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	yaml3 "gopkg.in/yaml.v3"
 	"io/ioutil"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app_flags"
@@ -24,6 +23,7 @@ import (
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
+	customyaml3 "nocalhost/pkg/nhctl/utils/custom_yaml_v3"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -321,29 +321,20 @@ func RenderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) 
 
 	// convert un strict yaml to strict yaml
 	renderedConfig := &profile.NocalHostAppConfigV2{}
-	if err = yaml.Unmarshal([]byte(renderedStr), renderedConfig); err != nil {
-		return nil, err
+
+	if err := parseNocalhostConfigEnvFile(
+		renderedStr, configFile, func(node *customyaml3.Node) error {
+			_ = node.Decode(renderedConfig)
+
+			parseEnvFromIntoEnv(renderedConfig)
+			return nil
+		},
+	); err != nil {
+		return nil, errors.Wrap(err, "")
 	}
 
-	//
-	//// yaml3 can not correctly resolve un standard yaml
-	//afterAdaption, _ := yaml3.Marshal(beforeRender)
-	//renderedConfig := &profile.NocalHostAppConfigV2{}
-	//
-	//if err := parseNocalhostConfigEnvFile(
-	//	string(afterAdaption), configFile, func(node *yaml3.Node) error {
-	//		//in := make(map[string]interface{}, 0)
-	//
-	//		node.Decode(renderedConfig)
-	//		parseEnvFromIntoEnv(renderedConfig)
-	//		return nil
-	//	},
-	//); err != nil {
-	//	return nil, errors.Wrap(err, "")
-	//}
-	//
 	if os.Getenv("_NOCALHOST_DEBUG_") != "" {
-		marshal, _ := yaml3.Marshal(renderedConfig)
+		marshal, _ := customyaml3.Marshal(renderedConfig)
 		log.Debug(string(marshal))
 	}
 
@@ -447,9 +438,9 @@ func mergeMap(front, back map[string]string) {
 	}
 }
 
-func parseNocalhostConfigEnvFile(yAml string, currentPath *fp.FilePathEnhance, nodeConsumer func(*yaml3.Node) error) error {
-	n := yaml3.Node{}
-	if err := yaml3.Unmarshal([]byte(yAml), &n); err != nil {
+func parseNocalhostConfigEnvFile(yAml string, currentPath *fp.FilePathEnhance, nodeConsumer func(*customyaml3.Node) error) error {
+	n := customyaml3.Node{}
+	if err := customyaml3.Unmarshal([]byte(yAml), &n); err != nil {
 		return err
 	}
 
@@ -459,7 +450,7 @@ func parseNocalhostConfigEnvFile(yAml string, currentPath *fp.FilePathEnhance, n
 }
 
 // we need to maintain the current absPath
-func doParseNode(node *yaml3.Node, currentPath *fp.FilePathEnhance, envFilePathDepth int, nowHit bool) *fp.FilePathEnhance {
+func doParseNode(node *customyaml3.Node, currentPath *fp.FilePathEnhance, envFilePathDepth int, nowHit bool) *fp.FilePathEnhance {
 	hc := node.HeadComment
 	fc := node.FootComment
 

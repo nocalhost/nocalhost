@@ -1,9 +1,12 @@
 package req
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strconv"
+)
 
-func (p *SyncthingHttpClient) Events() ([]event, error) {
-	resp, err := p.get("rest/events")
+func (p *SyncthingHttpClient) Events(since int) ([]event, error) {
+	resp, err := p.get("rest/events?since=" + strconv.Itoa(since))
 	if err != nil {
 		return nil, err
 	}
@@ -14,12 +17,18 @@ func (p *SyncthingHttpClient) Events() ([]event, error) {
 	return eventList, err
 }
 
+type EventType string
+
+const (
+	EventFolderCompletion EventType = "FolderCompletion"
+)
+
 type event struct {
-	Id        int64  `json:"id"`
-	GlobalID  int64  `json:"globalID"`
-	EventType string `json:"type"`
-	Time      string `json:"time"`
-	Data      data   `json:"data"`
+	Id        int64     `json:"id"`
+	GlobalID  int64     `json:"globalID"`
+	EventType EventType `json:"type"`
+	Time      string    `json:"time"`
+	Data      data      `json:"data"`
 }
 
 type data struct {

@@ -85,7 +85,7 @@ var InitCommand = &cobra.Command{
 			log.Fatal("--inject-user-template length should less then 15")
 		}
 		if inits.InjectUserTemplate != "" && !strings.ContainsAny(inits.InjectUserTemplate, "%d") {
-			log.Fatal("--inject-user-template does not contains %d")
+			log.Fatal("--inject-user-template does not contains", "%d")
 		}
 		if inits.InjectUserAmount > 999 {
 			log.Fatal("--inject-user-amount must less then 999")
@@ -200,7 +200,9 @@ var InitCommand = &cobra.Command{
 			customLabels := map[string]string{
 				"env": app.DefaultInitCreateNameSpaceLabels,
 			}
-			mustI(client.CreateNameSpace(inits.NameSpace, customLabels), "create namespace fail")
+			client.Labels(customLabels)
+			mustI(client.CreateNameSpace(inits.NameSpace), "create namespace fail")
+			client.Labels(nil)
 		}
 		spinner := utils.NewSpinner(" waiting for get Nocalhost manifest...")
 		spinner.Start()
