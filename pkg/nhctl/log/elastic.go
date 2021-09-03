@@ -42,6 +42,7 @@ type esLog struct {
 	Branch    string    `json:"branch,omitempty"`
 	Commit    string    `json:"commit,omitempty"`
 	Svc       string    `json:"svc,omitempty"`
+	Bulk      bool      `json:"bulk"`
 	Args      string    `json:"args,omitempty"`
 }
 
@@ -51,7 +52,13 @@ var (
 	esIndex     = "nocalhost"
 	hostname    string
 	address     string
+	useBulk     bool
 )
+
+// UseBulk Used by daemon
+func UseBulk(enable bool) {
+	useBulk = enable
+}
 
 func InitEs(host string) {
 
@@ -154,9 +161,9 @@ func InitEs(host string) {
 
 	esProcessor, err = esClient.BulkProcessor().
 		Name(hostname).
-		BulkActions(-1).
-		BulkSize(-1).
-		FlushInterval(100 * time.Millisecond).
+		//BulkActions(-1).
+		//BulkSize(-1).
+		FlushInterval(10 * time.Second).
 		Do(ctx)
 	if err != nil {
 		fmt.Println("proccessor created failed", err.Error())
@@ -202,22 +209,28 @@ func writeStackToEsWithField(level string, msg string, stack string, field map[s
 			Arch:      runtime.GOARCH,
 			Line:      lineNum,
 			Func:      funName,
+			Bulk:      useBulk,
 		}
 
-		if field != nil {
-			mapping := make(map[string]interface{}, 0)
-			if mas, err := json.Marshal(data); err == nil && json.Unmarshal(mas, &mapping) == nil {
-				for k, v := range field {
-					mapping[k] = v
-				}
+		mapping := make(map[string]interface{}, 0)
+		if mas, err := json.Marshal(data); err == nil {
+			if json.Unmarshal(mas, &mapping) != nil {
+				return
 			}
-			esClient.Index().Index(esIndex).BodyJson(&mapping).Refresh("true").Do(context.Background())
+		}
+
+		for k, v := range field {
+			mapping[k] = v
+		}
+
+		if useBulk && esProcessor != nil {
+			esProcessor.Add(elastic.NewBulkIndexRequest().Index(esIndex).Doc(&mapping))
 		} else {
-			esClient.Index().Index(esIndex).BodyJson(&data).Refresh("true").Do(context.Background())
+			esClient.Index().Index(esIndex).BodyJson(&mapping).Refresh("true").Do(context.Background())
 		}
 	}
 
-	if os.Getenv("NOCALHOST_TRACE") != "" {
+	if os.Getenv("NOCALHOST_TRACE") != "" && !useBulk {
 		write()
 	} else {
 		go func() {
