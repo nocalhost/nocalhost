@@ -19,7 +19,7 @@ if [[ -n ${NAMESPACE} ]] ; then
     echo "replace namespace to ${NAMESPACE}"
     sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/mutating-webhook-ca-bundle.yaml
     sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/sidecar-configmap.yaml
-    sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/sidecar-configmap.yaml
+    sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/service.yaml
     sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/deployment.yaml
 fi
 
