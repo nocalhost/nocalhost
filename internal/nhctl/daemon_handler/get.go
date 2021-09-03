@@ -126,51 +126,46 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 
 func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) interface{} {
 	KubeConfigBytes, _ := ioutil.ReadFile(request.KubeConfig)
-	var s *resouce_cache.Searcher
-	var err error
-	var ns = request.Namespace
-	if request.Namespace == "" {
-		ns = getNamespace("", KubeConfigBytes)
-		s, err = resouce_cache.GetSearcher(KubeConfigBytes, ns, false)
-	} else {
-		s, err = resouce_cache.GetSearcher(KubeConfigBytes, request.Namespace, false)
-	}
+	ns := getNamespace(request.Namespace, KubeConfigBytes)
+	s, err := resouce_cache.GetSearcher(KubeConfigBytes, ns)
 	if err != nil {
 		return nil
 	}
 	switch request.Resource {
 	case "all":
-		if request.AppName != "" {
-			names := getAvailableAppName(ns, request.KubeConfig)
+		if len(request.AppName) != 0 {
+			availableAppName := getAvailableAppName(ns, request.KubeConfig)
 			return item.Result{
 				Namespace:   ns,
-				Application: []item.App{getApp(names, ns, request.AppName, s, request.Label)},
+				Application: []item.App{getApp(availableAppName, ns, request.AppName, s, request.Label)},
 			}
 		}
-		// means it's cluster kubeconfig
-		if request.Namespace == "" {
+		// it's cluster kubeconfig
+		if len(request.Namespace) == 0 {
 			nsObjectList, err := s.Criteria().ResourceType("namespaces").Query()
 			if err == nil && nsObjectList != nil && len(nsObjectList) > 0 {
 				result := make([]item.Result, 0, len(nsObjectList))
 				// try to init a cluster level searcher
-				searcher, err2 := resouce_cache.GetSearcher(KubeConfigBytes, "", true)
+				searcher, err2 := resouce_cache.GetSearcher(KubeConfigBytes, "")
 				if err2 != nil {
 					return nil
 				}
-				var wg sync.WaitGroup
-				wg.Add(len(nsObjectList))
 				okChan := make(chan struct{}, 2)
 				go func() {
 					time.Sleep(time.Second * 10)
 					okChan <- struct{}{}
 				}()
+				var wg sync.WaitGroup
+				var lock sync.Mutex
 				for _, nsObject := range nsObjectList {
-					finalNs := nsObject
-					go func() {
-						name := finalNs.(metav1.Object).GetName()
-						result = append(result, getApplicationByNs(name, request.KubeConfig, searcher, request.Label))
+					wg.Add(1)
+					go func(finalNs metav1.Object) {
+						app := getApplicationByNs(finalNs.GetName(), request.KubeConfig, searcher, request.Label)
+						lock.Lock()
+						result = append(result, app)
+						lock.Unlock()
 						wg.Done()
-					}()
+					}(nsObject.(metav1.Object))
 				}
 				go func() {
 					wg.Wait()
@@ -192,22 +187,23 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	default:
 		ns = getNamespace(request.Namespace, KubeConfigBytes)
 
-		var serviceMap map[string]*profile.SvcProfileV2
-		if request.AppName != "" {
+		serviceMap := make(map[string]*profile.SvcProfileV2)
+		appNameList := make([]string, 0, 0)
+		if len(request.AppName) != 0 {
 			serviceMap = getServiceProfile(ns, request.AppName)
+			appNameList = getAvailableAppName(ns, request.KubeConfig)
 		}
 
-		appNameList := getAvailableAppName(ns, request.KubeConfig)
+		c := s.Criteria().
+			ResourceType(request.Resource).
+			ResourceName(request.ResourceName).
+			AppName(request.AppName).
+			AppNameNotIn(appNameList...).
+			Namespace(ns).
+			Label(request.Label)
 		// get all resource in namespace
-		var items []interface{}
-		if request.ResourceName == "" {
-			items, err = s.Criteria().
-				ResourceType(request.Resource).
-				AppName(request.AppName).
-				AppNameNotIn(appNameList...).
-				Namespace(ns).
-				Label(request.Label).
-				Query()
+		if len(request.ResourceName) == 0 {
+			items, err := c.Query()
 			if err != nil || len(items) == 0 {
 				return nil
 			}
@@ -222,13 +218,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			return result
 		} else {
 			// get specify resource name in namespace
-			one, err := s.Criteria().
-				ResourceType(request.Resource).
-				ResourceName(request.ResourceName).
-				Namespace(ns).
-				AppNameNotIn(appNameList...).
-				AppName(request.AppName).
-				QueryOne()
+			one, err := c.QueryOne()
 			if err != nil || one == nil {
 				return nil
 			}
@@ -257,19 +247,22 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher, label map[string]string) item.Result {
 	result := item.Result{Namespace: namespace}
 	nameList := getAvailableAppName(namespace, kubeconfigPath)
-	var wg sync.WaitGroup
-	wg.Add(len(nameList))
 	okChan := make(chan struct{}, 2)
 	go func() {
 		time.Sleep(time.Second * 10)
 		okChan <- struct{}{}
 	}()
+	var wg sync.WaitGroup
+	var lock sync.Mutex
 	for _, name := range nameList {
-		finalName := name
-		go func() {
-			result.Application = append(result.Application, getApp(nameList, namespace, finalName, search, label))
+		wg.Add(1)
+		go func(finalName string) {
+			app := getApp(nameList, namespace, finalName, search, label)
+			lock.Lock()
+			result.Application = append(result.Application, app)
+			lock.Unlock()
 			wg.Done()
-		}()
+		}(name)
 	}
 	go func() {
 		wg.Wait()
