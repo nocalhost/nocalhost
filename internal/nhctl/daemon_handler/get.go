@@ -145,11 +145,11 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			nsObjectList, err := s.Criteria().ResourceType("namespaces").Query()
 			if err == nil && nsObjectList != nil && len(nsObjectList) > 0 {
 				result := make([]item.Result, 0, len(nsObjectList))
-				// try to init a cluster level searcher
-				searcher, err2 := resouce_cache.GetSearcher(KubeConfigBytes, "")
-				if err2 != nil {
-					return nil
-				}
+				//// try to init a cluster level searcher
+				//searcher, err2 := resouce_cache.GetSearcher(KubeConfigBytes, "")
+				//if err2 != nil {
+				//	return nil
+				//}
 				okChan := make(chan struct{}, 2)
 				go func() {
 					time.Sleep(time.Second * 10)
@@ -160,7 +160,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				for _, nsObject := range nsObjectList {
 					wg.Add(1)
 					go func(finalNs metav1.Object) {
-						app := getApplicationByNs(finalNs.GetName(), request.KubeConfig, searcher, request.Label)
+						app := getApplicationByNs(finalNs.GetName(), request.KubeConfig, s, request.Label)
 						lock.Lock()
 						result = append(result, app)
 						lock.Unlock()
