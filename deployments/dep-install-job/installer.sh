@@ -21,10 +21,13 @@ if [[ -n ${NAMESPACE} ]] ; then
     sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/sidecar-configmap.yaml
     sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/service.yaml
     sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/deployment.yaml
+    sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/sa.yaml
 fi
 
 # apply MutatingWebhookConfiguration
 kubectl apply -f ./webhook/mutating-webhook-ca-bundle.yaml
+
+kubectl apply -f ./webhook/sa.yaml
 
 # apply admission webhook
 kubectl apply -f ./webhook/sidecar-configmap.yaml
