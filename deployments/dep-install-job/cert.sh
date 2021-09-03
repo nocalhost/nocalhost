@@ -46,10 +46,10 @@ done
 [ -z ${namespace} ] && namespace=nocalhost-reserved
 
 
-[ -z ${NAMESPACE} ] && namespace=${NAMESPACE}
+[ -n ${NAMESPACE} ] && namespace=${NAMESPACE}
 
-if kubectl describe secret ${secret}; then
-    echo "secret ${secret} has been created so do not need to create one."
+if kubectl describe secret -n ${namespace} ${secret}; then
+    echo "secret ${namespace}/${secret} has been created so do not need to create one."
     return
 fi
 
