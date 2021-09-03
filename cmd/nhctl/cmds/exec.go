@@ -8,6 +8,8 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	v1 "k8s.io/api/core/v1"
+	"nocalhost/pkg/nhctl/log"
 	"regexp"
 )
 
@@ -48,6 +50,19 @@ var execCmd = &cobra.Command{
 			execFlags.Commands[i] = compile.ReplaceAllString(execFlags.Commands[i], "${$1}")
 		}
 		initAppAndCheckIfSvcExist(execFlags.AppName, execFlags.SvcName, serviceType)
-		must(nocalhostApp.Exec(execFlags.SvcName, execFlags.Container, execFlags.Commands))
+		podList, err := nocalhostSvc.BuildPodController().GetPodList()
+		if err != nil {
+			log.Fatal(err)
+		}
+		runningPod := make([]v1.Pod, 0, 1)
+		for _, item := range podList {
+			if item.Status.Phase == v1.PodRunning && item.DeletionTimestamp == nil {
+				runningPod = append(runningPod, item)
+			}
+		}
+		if len(runningPod) != 1 {
+			log.Fatalf("pod number: %d, is not 1, please make sure pod number is 1", len(runningPod))
+		}
+		must(nocalhostApp.Exec(runningPod[0], execFlags.Container, execFlags.Commands))
 	},
 }

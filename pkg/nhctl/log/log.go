@@ -125,6 +125,13 @@ func CustomLevelEncoder(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) 
 	enc.AppendString("[" + level.CapitalString() + "]")
 }
 
+func WriteToEsWithField(field map[string]interface{}, format string, args ...interface{}) {
+	writeStackToEsWithField("INFO", fmt.Sprintf(format, args...), "", field)
+	if fileEntry != nil {
+		fileEntry.Debugf(format, args...)
+	}
+}
+
 func Debug(args ...interface{}) {
 	writeStackToEs("DEBUG", fmt.Sprintln(args...), "")
 	stdoutLogger.Debug(args...)

@@ -55,6 +55,7 @@ type ClientGoUtils struct {
 	ClientConfig       clientcmd.ClientConfig
 	namespace          string
 	ctx                context.Context
+	labels             map[string]string
 }
 
 type PortForwardAPodRequest struct {
@@ -133,20 +134,24 @@ func (c *ClientGoUtils) KubeConfigFilePath() string {
 	return c.kubeConfigFilePath
 }
 
-// Set ClientGoUtils's namespace
+// NameSpace Set ClientGoUtils's namespace
 func (c *ClientGoUtils) NameSpace(namespace string) *ClientGoUtils {
 	c.namespace = namespace
 	return c
 }
 
-// Set ClientGoUtils's Context
+// Context Set ClientGoUtils's Context
 func (c *ClientGoUtils) Context(ctx context.Context) *ClientGoUtils {
 	c.ctx = ctx
 	return c
 }
 
-func (c *ClientGoUtils) GetDynamicClient() dynamic.Interface {
+func (c *ClientGoUtils) Labels(labels map[string]string) *ClientGoUtils {
+	c.labels = labels
+	return c
+}
 
+func (c *ClientGoUtils) GetDynamicClient() dynamic.Interface {
 	var restConfig *restclient.Config
 	restConfig, _ = clientcmd.BuildConfigFromFlags("", c.kubeConfigFilePath)
 	dyn, _ := dynamic.NewForConfig(restConfig)
@@ -386,22 +391,6 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 	return false, nil
 }
 
-func (c *ClientGoUtils) CreateSecret(secret *corev1.Secret, options metav1.CreateOptions) (*corev1.Secret, error) {
-	return c.ClientSet.CoreV1().Secrets(c.namespace).Create(c.ctx, secret, options)
-}
-
-func (c *ClientGoUtils) UpdateSecret(secret *corev1.Secret, options metav1.UpdateOptions) (*corev1.Secret, error) {
-	return c.ClientSet.CoreV1().Secrets(c.namespace).Update(c.ctx, secret, options)
-}
-
-func (c *ClientGoUtils) GetSecret(name string) (*corev1.Secret, error) {
-	return c.ClientSet.CoreV1().Secrets(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
-}
-
-func (c *ClientGoUtils) DeleteSecret(name string) error {
-	return c.ClientSet.CoreV1().Secrets(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{})
-}
-
 func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 	path := fmt.Sprintf(
 		"/api/v1/namespaces/%s/pods/%s/portforward",
@@ -455,48 +444,8 @@ func (c *ClientGoUtils) GetService(name string) (*corev1.Service, error) {
 	return service, nil
 }
 
-func (c *ClientGoUtils) CheckExistNameSpace(name string) error {
-	_, err := c.ClientSet.CoreV1().Namespaces().Get(c.ctx, name, metav1.GetOptions{})
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	return nil
-}
-
-func (c *ClientGoUtils) CreateNameSpace(name string, customLabels map[string]string) error {
-	nsSpec := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name, Labels: customLabels}}
-	_, err := c.ClientSet.CoreV1().Namespaces().Create(context.TODO(), nsSpec, metav1.CreateOptions{})
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	return nil
-}
-
 func (c *ClientGoUtils) GetContext() context.Context {
 	return c.ctx
-}
-
-func (c *ClientGoUtils) DeleteNameSpace(name string, wait bool) error {
-	err := c.ClientSet.CoreV1().Namespaces().Delete(context.TODO(), name, metav1.DeleteOptions{})
-	if wait {
-		timeout := time.After(5 * time.Minute)
-		tick := time.Tick(200 * time.Millisecond)
-		for {
-			select {
-			case <-timeout:
-				return errors.New("timeout with 5 minute")
-			case <-tick:
-				err := c.CheckExistNameSpace(name)
-				if err != nil {
-					return nil
-				}
-			}
-		}
-	}
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (c *ClientGoUtils) DeleteStatefulSetAndPVC(name string) error {

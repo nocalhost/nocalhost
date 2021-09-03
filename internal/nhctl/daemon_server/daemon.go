@@ -19,12 +19,9 @@ import (
 	"nocalhost/internal/nhctl/daemon_handler"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/pkg/nhctl/tools"
-	"os"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -54,6 +51,7 @@ func daemonListenPort() int {
 
 func StartDaemon(isSudoUser bool, v string, c string) error {
 
+	log.UseBulk(true)
 	log.Log("Starting daemon server...")
 	startUpPath, _ = utils.GetNhctlPath()
 
@@ -63,7 +61,6 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		return errors.New("Failed to start daemon server with sudo")
 	}
 	isSudo = isSudoUser // Mark daemon server if it is run as sudo
-	//ports.IsPortAvailable("0.0.0.0", daemonListenPort())
 	address := fmt.Sprintf("%s:%d", "0.0.0.0", daemonListenPort())
 	listener, err := net.Listen("tcp4", address)
 	if err != nil {
@@ -117,43 +114,14 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	}
 
 	// update nocalhost-hub
-	go func() {
-		for {
-			hubDir := nocalhost_path.GetNocalhostHubDir()
-			_, err := os.Stat(hubDir)
-			if err != nil {
-				if os.IsNotExist(err){
-					// git clone
-					log.Log("Cloning nocalhost hub...")
-					gitCloneParams := []string{"clone", "--depth","1","https://github.com/nocalhost/nocalhost-hub.git",hubDir}
-					out, err := tools.ExecCommand(context.Background(),false,false, false,"git", gitCloneParams...)
-					if err != nil {
-						log.ErrorE(err,out)
-					}
-				}else {
-					log.WarnE(errors.Wrap(err,""),"Failed to stat nocalhost hub dir")
-				}
-			}else {
-				// git pull
-				log.Log("Pulling nocalhost hub...")
-				gitPullParams := []string{"-C", hubDir, "pull"}
-				out, err := tools.ExecCommand(context.Background(),false,false, false,"git", gitPullParams...)
-				if err != nil {
-					log.ErrorE(err,out)
-				}
-			}
-			<- time.Tick(time.Minute * 2)
-		}
-	}()
+	go cronJobForUpdatingHub()
 
 	go func() {
 		defer func() {
 			log.Log("Exiting tcp listener")
 		}()
 		for {
-			//log.Info("Before accept a connection in %s", time.Now().String())
 			conn, err := listener.Accept()
-			//log.Trace("Accept a connection...")
 			if err != nil {
 				log.Log("Accept connection error occurs")
 				if strings.Contains(strings.ToLower(err.Error()), "use of closed network connection") {
@@ -209,9 +177,15 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 				}
 				log.Tracef("Handling %s command", cmdType)
 				handleCommand(conn, bytes, cmdType, clientStack)
-				log.Tracef("%s command done, takes %f seconds", cmdType, time.Now().Sub(start).Seconds())
+				takes := time.Now().Sub(start).Seconds()
+				log.WriteToEsWithField(map[string]interface{}{"take": takes}, "%s command done", cmdType)
 			}()
 		}
+	}()
+
+	// Listen http
+	go func() {
+
 	}()
 
 	go func() {

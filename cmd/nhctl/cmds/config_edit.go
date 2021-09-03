@@ -7,9 +7,12 @@ package cmds
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/profile"
+	"strings"
 
 	"nocalhost/pkg/nhctl/log"
 )
@@ -67,6 +70,11 @@ var configEditCmd = &cobra.Command{
 		checkIfSvcExist(configEditFlags.SvcName, serviceType)
 
 		must(errors.Wrap(json.Unmarshal(bys, svcConfig), "fail to unmarshal content"))
+		ot := svcConfig.Type
+		svcConfig.Type = strings.ToLower(svcConfig.Type)
+		if !controller.CheckIfControllerTypeSupport(svcConfig.Type) {
+			must(errors.New(fmt.Sprintf("Service Type %s is unsupported", ot)))
+		}
 		must(nocalhostSvc.SaveConfigToProfile(svcConfig))
 	},
 }
