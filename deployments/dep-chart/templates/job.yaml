@@ -1,8 +1,8 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  generateName: nocalhost-dep-installer-
-  namespace: {{ .Values.namespace | default "nocalhost-reserved" }}
+  name: nocalhost-dep-installer-{{ .Release.Revision }}
+  namespace: {{ .Values.depNamespace | default "nocalhost-reserved" }}
 spec:
   template:
     spec:
