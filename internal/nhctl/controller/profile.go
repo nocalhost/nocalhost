@@ -224,3 +224,14 @@ func (c *Controller) SetSyncthingPort(remotePort, remoteGUIPort, localPort, loca
 func (c *Controller) GetProfileForUpdate() (*profile.AppProfileV2, error) {
 	return profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName)
 }
+
+func UpdateSvcConfigToProfile(ns, appName, svcName, svcType string, config *profile.ServiceConfigV2) error {
+	profileV2, err := profile.NewAppProfileV2ForUpdate(ns, appName)
+	if err != nil {
+		return err
+	}
+	defer profileV2.CloseDb()
+	svcPro := profileV2.SvcProfileV2(svcName, svcType)
+	svcPro.ServiceConfigV2 = config
+	return profileV2.Save()
+}
