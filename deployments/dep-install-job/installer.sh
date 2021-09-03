@@ -15,7 +15,8 @@ source ./cert.sh
 cat ./webhook/mutating-webhook.yaml | ./webhook-patch-ca-bundle.sh > ./webhook/mutating-webhook-ca-bundle.yaml
 
 # replace namespace
-if [ -z ${NAMESPACE} ] ; then
+if [[ -n ${NAMESPACE} ]] ; then
+    echo "replace namespace to ${NAMESPACE}"
     sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/mutating-webhook-ca-bundle.yaml
     sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/sidecar-configmap.yaml
     sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/sidecar-configmap.yaml
