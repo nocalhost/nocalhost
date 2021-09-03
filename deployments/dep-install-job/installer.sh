@@ -7,12 +7,20 @@
 #fi
 
 # enter workdir
-cd /nocalhost
+cd /nocalhost || exit 1
 # run and create admission webhook cert shell
 source ./cert.sh
 
 # replace CA_BUNDLE
 cat ./webhook/mutating-webhook.yaml | ./webhook-patch-ca-bundle.sh > ./webhook/mutating-webhook-ca-bundle.yaml
+
+# replace namespace
+if [ -z ${NAMESPACE} ] ; then
+    sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/mutating-webhook-ca-bundle.yaml
+    sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/sidecar-configmap.yaml
+    sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/sidecar-configmap.yaml
+    sed -i "s|namespace: nocalhost-reserved|namespace: ${NAMESPACE}|" ./webhook/deployment.yaml
+fi
 
 # apply MutatingWebhookConfiguration
 kubectl apply -f ./webhook/mutating-webhook-ca-bundle.yaml

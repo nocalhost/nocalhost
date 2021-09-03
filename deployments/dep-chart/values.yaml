@@ -1,0 +1,8 @@
+
+image:
+  repository: codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job
+  # Overrides the image tag whose default latest.
+  tag: "v0.5.4"
+
+namespace: nocalhost-reserved
+
