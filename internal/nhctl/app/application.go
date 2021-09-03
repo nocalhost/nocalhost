@@ -18,6 +18,7 @@ import (
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/dev_dir"
+	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
@@ -387,7 +388,8 @@ func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType ba
 	if v, ok := mw.GetObjectMeta().GetAnnotations()[appmeta.AnnotationKey]; !ok || v == "" {
 		return false
 	} else {
-		svcCfg, err := loadSvcCfgFromStrIfValid(v, svcName, svcType)
+		_, // local config should not contain app config
+		svcCfg, err := LoadSvcCfgFromStrIfValid(v, svcName, svcType)
 		if err != nil {
 			hint(
 				"Load nocalhost svc config from [Resource:%s, Name:%s] annotation fail, err: %s",
@@ -433,7 +435,8 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcTy
 		return false
 	}
 
-	svcCfg, err := loadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
+	_, // local config should not contain app config
+	svcCfg, err := LoadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
 	if err != nil {
 		hint("Load nocalhost svc config from cm fail, err: %s", err.Error())
 		return false
@@ -459,27 +462,21 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcTy
 	return true
 }
 
-func loadSvcCfgFromStrIfValid(config string, svcName string, svcType base.SvcType) (*profile.ServiceConfigV2, error) {
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		return nil, err
-	}
-
-	tmpFp := fp.NewFilePath(dir).RelOrAbs("config.yaml")
-
-	err = tmpFp.WriteFile(config)
-	if err != nil {
-		return nil, err
-	}
-
+// LoadSvcCfgFromStrIfValid
+// CAUTION: appCfg may nil!
+func LoadSvcCfgFromStrIfValid(config string, svcName string, svcType base.SvcType) (
+	*profile.NocalHostAppConfigV2, *profile.ServiceConfigV2, error) {
 	var svcCfg *profile.ServiceConfigV2
-	if svcCfg, err = doLoadProfileFromSvcConfig(tmpFp, svcName, svcType); svcCfg == nil {
-		if svcCfg, _ = doLoadProfileFromAppConfig(tmpFp, svcName, svcType); svcCfg == nil {
-			return nil, errors.New("can not load cfg, may has syntax error! ")
+	var appCfg *profile.NocalHostAppConfigV2
+	if svcCfg, _ = doLoadProfileFromSvcConfig(envsubst.TextRenderItem(config), svcName, svcType); svcCfg == nil {
+		if appCfg, svcCfg, _ = doLoadProfileFromAppConfig(
+			envsubst.TextRenderItem(config), svcName, svcType,
+		); svcCfg == nil {
+			return nil, nil, errors.New("can not load cfg, may has syntax error! ")
 		}
 	}
 
-	return svcCfg, nil
+	return appCfg, svcCfg, nil
 }
 
 func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.SvcType, silence bool) bool {
@@ -516,9 +513,15 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.Sv
 	}
 
 	var svcCfg *profile.ServiceConfigV2
-	if svcCfg, err = doLoadProfileFromSvcConfig(configFile, svcName, svcType); svcCfg == nil {
-		if svcCfg, _ = doLoadProfileFromAppConfig(configFile, svcName, svcType); svcCfg == nil {
+	if svcCfg, err = doLoadProfileFromSvcConfig(
+		envsubst.LocalFileRenderItem{FilePathEnhance: configFile}, svcName, svcType,
+	); svcCfg == nil {
+		if _, // local config should not contain app config
+		svcCfg, _ := doLoadProfileFromAppConfig(
+			envsubst.LocalFileRenderItem{FilePathEnhance: configFile}, svcName, svcType,
+		); svcCfg == nil {
 			if err != nil {
+
 				hint("Load nocalhost svc config from local fail, err: %s", err.Error())
 			}
 			return false
@@ -565,10 +568,10 @@ func hintFunc(svcName string, svcType base.SvcType, silence bool) func(string, .
 	}
 }
 
-func doLoadProfileFromSvcConfig(configFile *fp.FilePathEnhance, svcName string, svcType base.SvcType) (
+func doLoadProfileFromSvcConfig(renderItem envsubst.RenderItem, svcName string, svcType base.SvcType) (
 	*profile.ServiceConfigV2, error,
 ) {
-	config, err := RenderConfigForSvc(configFile.Path)
+	config, err := RenderConfigForSvc(renderItem)
 	if err != nil {
 		return nil, err
 	}
@@ -586,15 +589,15 @@ func doLoadProfileFromSvcConfig(configFile *fp.FilePathEnhance, svcName string, 
 	return nil, errors.New("Local config loaded, but no valid config found")
 }
 
-func doLoadProfileFromAppConfig(configFile *fp.FilePathEnhance, svcName string, svcType base.SvcType) (
-	*profile.ServiceConfigV2, error,
+func doLoadProfileFromAppConfig(configFile envsubst.RenderItem, svcName string, svcType base.SvcType) (
+	*profile.NocalHostAppConfigV2, *profile.ServiceConfigV2, error,
 ) {
-	appConfig, err := RenderConfig(configFile.Path)
+	appConfig, err := RenderConfig(configFile)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return appConfig.GetSvcConfigV2(svcName, svcType), nil
+	return appConfig, appConfig.GetSvcConfigV2(svcName, svcType), nil
 }
 
 func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {

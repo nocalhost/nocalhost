@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package webhook
 
@@ -24,6 +24,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/restmapper"
 	"net/http"
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/common/base"
+	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nocalhost-dep/cm"
 	service_account "nocalhost/internal/nocalhost-dep/serviceaccount"
 	nocalhost "nocalhost/pkg/nocalhost-dep/go-client"
 	"strings"
@@ -133,6 +139,7 @@ var clientset *kubernetes.Clientset
 var cachedRestMapper *restmapper.DeferredDiscoveryRESTMapper
 var lock = sync.Mutex{}
 var watchers = map[string]*service_account.ServiceAccountWatcher{}
+var cmWatchers = map[string]*cm.CmWatcher{}
 
 func init() {
 	_ = corev1.AddToScheme(runtimeScheme)
@@ -144,13 +151,32 @@ func init() {
 	cachedRestMapper = nocalhost.InitCachedRestMapper()
 }
 
-func getWatcher(ns string) *service_account.ServiceAccountWatcher {
-	if watcher, ok := watchers[ns]; ok {
+func getCmWatcher(ns string) *cm.CmWatcher {
+	lock.Lock()
+	defer lock.Unlock()
+
+	if watcher, ok := cmWatchers[ns]; ok {
 		return watcher
 	}
 
+	watcher := cm.NewCmWatcher(clientset)
+	_ = watcher.Prepare(ns)
+
+	go func() {
+		watcher.Watch()
+	}()
+
+	cmWatchers[ns] = watcher
+	return watcher
+}
+
+func getWatcher(ns string) *service_account.ServiceAccountWatcher {
 	lock.Lock()
 	defer lock.Unlock()
+
+	if watcher, ok := watchers[ns]; ok {
+		return watcher
+	}
 
 	watcher := service_account.NewServiceAccountWatcher(clientset)
 	_ = watcher.Prepare(ns)
@@ -222,78 +248,6 @@ func mutationRequired(ignoredList []string, metadata *metav1.ObjectMeta) bool {
 
 	glog.Infof("Mutation policy for %v/%v: status: %q required:%v", metadata.Namespace, metadata.Name, status, required)
 	return required
-}
-
-func addContainer(target, added []corev1.Container, basePath string) (patch []patchOperation) {
-	first := len(target) == 0
-	var value interface{}
-	for _, add := range added {
-		value = add
-		path := basePath
-		if first {
-			first = false
-			value = []corev1.Container{add}
-		} else {
-			path = path + "/-"
-		}
-		patch = append(
-			patch, patchOperation{
-				Op:    "add",
-				Path:  path,
-				Value: value,
-			},
-		)
-	}
-	return patch
-}
-
-func addVolume(target, added []corev1.Volume, basePath string) (patch []patchOperation) {
-	first := len(target) == 0
-	var value interface{}
-	for _, add := range added {
-		value = add
-		path := basePath
-		if first {
-			first = false
-			value = []corev1.Volume{add}
-		} else {
-			path = path + "/-"
-		}
-		patch = append(
-			patch, patchOperation{
-				Op:    "add",
-				Path:  path,
-				Value: value,
-			},
-		)
-	}
-	return patch
-}
-
-func updateAnnotation(target map[string]string, added map[string]string) (patch []patchOperation) {
-	for key, value := range added {
-		if target == nil || target[key] == "" {
-			target = map[string]string{}
-			patch = append(
-				patch, patchOperation{
-					Op:   "add",
-					Path: "/metadata/annotations",
-					Value: map[string]string{
-						key: value,
-					},
-				},
-			)
-		} else {
-			patch = append(
-				patch, patchOperation{
-					Op:    "replace",
-					Path:  "/metadata/annotations/" + key,
-					Value: value,
-				},
-			)
-		}
-	}
-	return patch
 }
 
 // create mutation patch for resources
@@ -519,17 +473,91 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 		)
 	}
 
-	// configmap
-	initContainers, EnvVar, err := nocalhostDepConfigmap(
-		nocalhostNamespace, resourceName, resourceType, objectMeta, containers,
-	)
+	var appName string
+
+	// getting application name from owner ref
+	ap := <-annotationPair
+	if len(ap) == 2 {
+		appName = ap[1]
+	} else {
+		appName = _const.DefaultNocalhostApplication
+		ap = []string{_const.NocalhostApplicationName, _const.DefaultNocalhostApplication}
+	}
+
+	var initContainers []corev1.Container
+	var EnvVar []envVar
+	var err error
+	var configSuccussLoaded = false
+
+	// inject nocalhost config from
+	// 1. annotations (dev.nocalhost)
+	// 2. cm ()
+	// 3. nocalhost-dep-map
+	if v, ok := omh.Annotations[appmeta.AnnotationKey]; ok && v == "" {
+		initContainers, EnvVar, err = nocalhostDepConfigmapCustom(
+			func() (*profile.NocalHostAppConfigV2, *profile.ServiceConfigV2, error) {
+				return app.LoadSvcCfgFromStrIfValid(v, resourceName, base.SvcTypeOf(resourceType))
+			}, containers,
+		)
+
+		if err != nil {
+			glog.Infof(
+				"Admission Config Resolve Err from annotation for Kind=%v, Namespace=%v Name=%v, Error: %v",
+				req.Kind, req.Namespace, req.Name, err,
+			)
+			err = nil
+		} else {
+			configSuccussLoaded = true
+		}
+	}
+
+	if !configSuccussLoaded {
+		if appCfg, svcCfg, err := getCmWatcher(req.Namespace).GetNocalhostConfig(
+			appName, resourceType, resourceName,
+		); err != nil {
+			glog.Infof(
+				"Admission Config Resolve Err from configmap for Kind=%v, Namespace=%v Name=%v, Error: %v",
+				req.Kind, req.Namespace, req.Name, err,
+			)
+			err = nil
+		} else {
+
+			if initContainers, EnvVar, err = nocalhostDepConfigmapCustom(
+				func() (*profile.NocalHostAppConfigV2, *profile.ServiceConfigV2, error) {
+					return appCfg, svcCfg, nil
+				}, containers,
+			); err != nil {
+				glog.Infof(
+					"Admission Config Resolve Err from configmap while load svc for Kind=%v, Namespace=%v Name=%v, Error: %v",
+					req.Kind, req.Namespace, req.Name, err,
+				)
+				err = nil
+			} else {
+				configSuccussLoaded = true
+			}
+		}
+	}
+
+	if !configSuccussLoaded {
+		// configmap
+		if initContainers, EnvVar, err = nocalhostDepConfigmap(
+			nocalhostNamespace, resourceName, resourceType, objectMeta, containers,
+		); err != nil {
+			glog.Infof(
+				"Admission Config Resolve Err for Kind=%v, Namespace=%v Name=%v, Error: %v",
+				req.Kind, req.Namespace, req.Name, err,
+			)
+			err = nil
+		} else {
+			configSuccussLoaded = true
+		}
+	}
+
 	glog.Infof("initContainers %v", initContainers)
 	glog.Infof("EnvVar %v", EnvVar)
 
 	// Workaround: https://github.com/kubernetes/kubernetes/issues/57982
 	applyDefaultsWorkaround(whsvr.SidecarConfig.Containers, whsvr.SidecarConfig.Volumes)
-
-	ap := <-annotationPair
 
 	p := Patcher{}
 	p.patchAnnotations(omh.Annotations, ap)

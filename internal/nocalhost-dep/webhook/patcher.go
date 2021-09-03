@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package webhook
 
@@ -14,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"nocalhost/internal/nhctl/profile"
 	"strconv"
 	"strings"
 	"time"
@@ -92,6 +93,107 @@ func addContainerEnvVar(k int, target []corev1.EnvVar, envVar []envVar) (patch [
 	return patch
 }
 
+func nocalhostDepConfigmapCustom(
+	configSupplier func() (*profile.NocalHostAppConfigV2, *profile.ServiceConfigV2, error),
+	containers []corev1.Container,
+) ([]corev1.Container, []envVar, error) {
+	appConfig, svcConfig, err := configSupplier()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	initContainers := make([]corev1.Container, 0)
+	envVarArray := make([]envVar, 0)
+
+	// First get all global env
+	if appConfig != nil && appConfig.ApplicationConfig != nil && appConfig.ApplicationConfig.Env != nil {
+		for _, env := range appConfig.ApplicationConfig.Env {
+			for k := range containers {
+				envVarArray = append(
+					envVarArray, envVar{
+						EnvVar: []corev1.EnvVar{{
+							Name:  env.Name,
+							Value: env.Value,
+						}},
+						ContainerIndex: k,
+					},
+				)
+			}
+		}
+	}
+
+	// Then inject svc env
+	if svcConfig.ContainerConfigs != nil {
+
+		mapping := make(map[string]*profile.ContainerConfig, 1)
+		for _, config := range svcConfig.ContainerConfigs {
+			mapping[config.Name] = config
+		}
+
+		for index, container := range containers {
+			if cfg, ok := mapping[container.Name]; ok && cfg.Install != nil && cfg.Install.Env != nil {
+
+				for _, env := range cfg.Install.Env {
+					envVarArray = append(
+						envVarArray, envVar{
+							EnvVar: []corev1.EnvVar{{
+								Name:  env.Name,
+								Value: env.Value,
+							}},
+							ContainerIndex: index,
+						},
+					)
+				}
+			}
+		}
+	}
+
+	var waitCmd string
+
+	if svcConfig.DependLabelSelector != nil {
+		if svcConfig.DependLabelSelector.Pods != nil && len(svcConfig.DependLabelSelector.Pods) > 0 {
+			args := waitForPodArgs(svcConfig.DependLabelSelector.Pods)
+
+			if waitCmd != "" {
+				waitCmd += " && "
+			}
+
+			if waitCmd != "" {
+				waitCmd += " && "
+			}
+			waitCmd += strings.Join(args, " ")
+		}
+
+		if svcConfig.DependLabelSelector.Jobs != nil && len(svcConfig.DependLabelSelector.Jobs) > 0 {
+			args := waitForJobArgs(svcConfig.DependLabelSelector.Jobs)
+
+			if waitCmd != "" {
+				waitCmd += " && "
+			}
+
+			if waitCmd != "" {
+				waitCmd += " && "
+			}
+			waitCmd += strings.Join(args, " ")
+		}
+	}
+
+	if waitCmd != "" {
+		var cmd []string
+		cmd = append(cmd, "sh", "-c", waitCmd)
+
+		initContainer := corev1.Container{
+			Name:            "nocalhost-dependency-waiting-job",
+			Image:           waitImages,
+			ImagePullPolicy: corev1.PullPolicy("Always"),
+			Command:         cmd,
+		}
+		initContainers = append(initContainers, initContainer)
+	}
+
+	return containers, envVarArray, nil
+}
+
 // get nocalhost dependents configmaps, this will get from specify namespace by labels
 // nhctl will create dependency configmap in users dev space
 func nocalhostDepConfigmap(
@@ -104,6 +206,8 @@ func nocalhostDepConfigmap(
 	}
 	setLabelSelector := labels.Set(labelSelector)
 	startTime := time.Now()
+
+	// TODO need to refactor, do not need to list all cm
 	configMaps, err := clientset.CoreV1().ConfigMaps(namespace).List(
 		context.TODO(), metav1.ListOptions{LabelSelector: setLabelSelector.AsSelector().String()},
 	)
@@ -187,24 +291,7 @@ func nocalhostDepConfigmap(
 							dep.ReleaseName+"-"+dependency.Name == resourceName) {
 						// initContainer
 						if dependency.Pods != nil {
-							args := func(podsList []string) []string {
-								var args []string
-								// args = append(args, "sh", "-c")
-								for key, pod := range podsList {
-									if key != 0 {
-										args = append(args, "&&")
-									}
-									args = append(args, "wait_for.sh", "pod")
-									if strings.ContainsAny(
-										pod, "=",
-									) { // means define label, such as app.kubernetes.io/name=nginx
-										args = append(args, fmt.Sprintf("-l%s", pod))
-									} else { // has not define label, default app label
-										args = append(args, fmt.Sprintf("-lapp=%s", pod))
-									}
-								}
-								return args
-							}(dependency.Pods)
+							args := waitForPodArgs(dependency.Pods)
 
 							if waitCmd != "" {
 								waitCmd += " && "
@@ -212,24 +299,7 @@ func nocalhostDepConfigmap(
 							waitCmd += strings.Join(args, " ")
 						}
 						if dependency.Jobs != nil {
-							args := func(jobsList []string) []string {
-								var args []string
-								// args = append(args, "sh", "-c")
-								for key, job := range jobsList {
-									if key != 0 {
-										args = append(args, "&&")
-									}
-									args = append(args, "wait_for.sh", "job")
-									if strings.ContainsAny(
-										job, "=",
-									) { // means define label, such as app.kubernetes.io/name=nginx
-										args = append(args, fmt.Sprintf("-l%s", job))
-									} else { // has not define label, default app label
-										args = append(args, fmt.Sprintf("-lapp=%s", job))
-									}
-								}
-								return args
-							}(dependency.Jobs)
+							args := waitForJobArgs(dependency.Jobs)
 
 							if waitCmd != "" {
 								waitCmd += " && "
@@ -255,6 +325,42 @@ func nocalhostDepConfigmap(
 		}
 	}
 	return initContainers, envVarArray, err
+}
+
+func waitForPodArgs(pods []string) []string {
+	var args []string
+	for key, pod := range pods {
+		if key != 0 {
+			args = append(args, "&&")
+		}
+		args = append(args, "wait_for.sh", "pod")
+		if strings.ContainsAny(
+			pod, "=",
+		) { // means define label, such as app.kubernetes.io/name=nginx
+			args = append(args, fmt.Sprintf("-l%s", pod))
+		} else { // has not define label, default app label
+			args = append(args, fmt.Sprintf("-lapp=%s", pod))
+		}
+	}
+	return args
+}
+
+func waitForJobArgs(jobs []string) []string {
+	var args []string
+	for key, job := range jobs {
+		if key != 0 {
+			args = append(args, "&&")
+		}
+		args = append(args, "wait_for.sh", "job")
+		if strings.ContainsAny(
+			job, "=",
+		) { // means define label, such as app.kubernetes.io/name=nginx
+			args = append(args, fmt.Sprintf("-l%s", job))
+		} else { // has not define label, default app label
+			args = append(args, fmt.Sprintf("-lapp=%s", job))
+		}
+	}
+	return args
 }
 
 // add initContainers

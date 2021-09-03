@@ -74,6 +74,17 @@ const (
 
 var ErrAlreadyDev = errors.New("Svc already in dev mode")
 
+func GetAppNameFromConfigMapName(cmName string) string {
+	if HasConfigMapPrefix(cmName) {
+		return strings.TrimPrefix(cmName, CmNamePrefix)
+	}
+	return ""
+}
+
+func HasConfigMapPrefix(key string) bool {
+	return strings.HasPrefix(key, CmNamePrefix)
+}
+
 func ConfigMapName(appName string) string {
 	return CmNamePrefix + appName
 }
