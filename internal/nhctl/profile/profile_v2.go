@@ -183,9 +183,9 @@ func (a *AppProfileV2) CloseDb() error {
 }
 
 type SvcProfileV2 struct {
-	*ServiceConfigV2 `json:"rawConfig" yaml:"rawConfig"`
-	ContainerProfile []*ContainerProfileV2 `json:"containerProfile" yaml:"containerProfile"`
-	ActualName       string                `json:"actualName" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
+	*ServiceConfigV2 `json:"rawConfig" yaml:"rawConfig"` // deprecated, move to app mate
+	//ContainerProfile []*ContainerProfileV2 `json:"containerProfile" yaml:"containerProfile"`
+	ActualName string `json:"actualName" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
 
 	PortForwarded bool     `json:"portForwarded" yaml:"portForwarded"`
 	Syncing       bool     `json:"syncing" yaml:"syncing"`
