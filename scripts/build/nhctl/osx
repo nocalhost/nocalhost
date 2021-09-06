@@ -7,6 +7,7 @@ set -eu -o pipefail
 
 TMP_VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/\(.*\)-.*/\1/' | sed 's/-[0-9]*$//' || true)}
 TMP_GITCOMMIT=$(git describe --match=NeVeRmAtCh --always --abbrev=40)
+rm -fr syncthing || true
 git clone --depth 1 https://github.com/nocalhost/syncthing.git
 cd syncthing
 go run build.go -nocalhostVersion="${TMP_VERSION}" -nocalhostCommitId="${TMP_GITCOMMIT}" -goarch amd64 -goos darwin zip || true
