@@ -56,6 +56,10 @@ fi
 
 kubectl apply -f ./webhook/deployment.yaml
 
+# waiting for dep pod ready
+ns=${DEP_NAMESPACE:-"nocalhost-reserved"}
+echo "waiting for dep pod ready"
+bash ./wait-for/wait_for.sh pod -lapp=nocalhost-dep -n "${ns}"
+
 # done
 echo "admission webhook install done!"
-
