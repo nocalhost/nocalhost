@@ -9,12 +9,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
-	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_handler/item"
@@ -24,7 +22,6 @@ import (
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/resouce_cache"
-	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"sort"
 	"strings"
@@ -179,7 +176,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	case "app", "application":
 		ns = getNamespace(request.Namespace, KubeConfigBytes)
 		if request.ResourceName == "" {
-			return ParseApplicationsResult(ns, InitDefaultAppIfNecessary(ns, request.KubeConfig))
+			return ParseApplicationsResult(ns, GetAllApplicationWithDefaultApp(ns, request.KubeConfig))
 		} else {
 			meta := appmeta_manager.GetApplicationMeta(ns, request.ResourceName, KubeConfigBytes)
 			return ParseApplicationsResult(ns, []*appmeta.ApplicationMeta{meta})
@@ -349,7 +346,7 @@ func ParseApplicationsResult(namespace string, metas []*appmeta.ApplicationMeta)
 }
 
 func getAvailableAppName(namespace, kubeconfig string) []string {
-	applicationMetaList := InitDefaultAppIfNecessary(namespace, kubeconfig)
+	applicationMetaList := GetAllApplicationWithDefaultApp(namespace, kubeconfig)
 	var availableAppName []string
 	for _, meta := range applicationMetaList {
 		if meta != nil {
@@ -360,7 +357,8 @@ func getAvailableAppName(namespace, kubeconfig string) []string {
 	return availableAppName
 }
 
-func InitDefaultAppIfNecessary(namespace, kubeconfigPath string) []*appmeta.ApplicationMeta {
+// GetAllApplicationWithDefaultApp will not to create default application if default application not found
+func GetAllApplicationWithDefaultApp(namespace, kubeconfigPath string) []*appmeta.ApplicationMeta {
 	kubeconfigBytes, _ := ioutil.ReadFile(kubeconfigPath)
 	applicationMetaList := appmeta_manager.GetApplicationMetas(namespace, kubeconfigBytes)
 	var foundDefaultApp bool
@@ -370,33 +368,10 @@ func InitDefaultAppIfNecessary(namespace, kubeconfigPath string) []*appmeta.Appl
 			break
 		}
 	}
-
 	if !foundDefaultApp {
-		// try init default application
-		_, err := common.InitDefaultApplicationInCurrentNs(namespace, kubeconfigPath)
-		applicationMetaList = appmeta_manager.GetApplicationMetas(namespace, kubeconfigBytes)
-
-		if err != nil {
-			// if current user has not permission to create secret, we also create a fake 'default.application'
-			// app meta for him
-			if k8serrors.IsForbidden(err) {
-
-				for _, meta := range applicationMetaList {
-					if meta.Application == _const.DefaultNocalhostApplication {
-						foundDefaultApp = true
-						break
-					}
-				}
-
-				if !foundDefaultApp {
-					applicationMetaList = append(
-						applicationMetaList, appmeta.FakeAppMeta(namespace, _const.DefaultNocalhostApplication),
-					)
-				}
-			} else {
-				utils.ShouldI(err, "Error while create default.application")
-			}
-		}
+		applicationMetaList = append(
+			applicationMetaList, appmeta.FakeAppMeta(namespace, _const.DefaultNocalhostApplication),
+		)
 	}
 	SortApplication(applicationMetaList)
 	return applicationMetaList
