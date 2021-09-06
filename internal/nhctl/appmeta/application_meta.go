@@ -27,7 +27,6 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -53,6 +52,7 @@ const (
 	SecretConfigKey          = "c"
 	SecretStateKey           = "s"
 	SecretDepKey             = "d"
+	SecretNamespaceId        = "nid"
 
 	Helm           AppType = "helmGit"
 	HelmRepo       AppType = "helmRepo"
@@ -166,12 +166,14 @@ type ApplicationMetaSimple struct {
 }
 
 func FakeAppMeta(ns, application string) *ApplicationMeta {
+	nid, _ := utils.GetShortUuid()
 	return &ApplicationMeta{
 		ApplicationState: INSTALLED,
 		Ns:               ns,
 		Application:      application,
 		DevMeta:          ApplicationDevMeta{},
 		Config:           &profile2.NocalHostAppConfigV2{},
+		NamespaceId:      nid,
 	}
 }
 
@@ -211,6 +213,8 @@ type ApplicationMeta struct {
 
 	// something like database
 	Secret *corev1.Secret `json:"secret"`
+
+	NamespaceId string `json:"namespace_id"`
 
 	// current client go util is injected, may null, be care!
 	operator *secret_operator.ClientGoUtilClient
@@ -288,6 +292,10 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 
 	if bs, ok := secret.Data[SecretHelmReleaseNameKey]; ok {
 		appMeta.HelmReleaseName = string(bs)
+	}
+
+	if bs, ok := secret.Data[SecretNamespaceId]; ok {
+		appMeta.NamespaceId = string(bs)
 	}
 
 	appMeta.Secret = secret
@@ -399,12 +407,13 @@ func (a *ApplicationMeta) Initial() error {
 
 func (a *ApplicationMeta) InitGoClient(kubeConfigPath string) error {
 	clientGo, err := clientgoutils.NewClientGoUtils(kubeConfigPath, a.Ns)
-	if kubeConfigPath == "" { // use default config
-		kubeConfigPath = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	if err != nil {
+		return err
 	}
+
 	content, err := ioutil.ReadFile(kubeConfigPath)
 	if err != nil {
-		log.Errorf("can not read kubeconfig content, path: %s, err: %v", kubeConfigPath, err)
+		return errors.Wrap(err, "can not read kubeconfig content, path: "+kubeConfigPath)
 	}
 	a.operator = &secret_operator.ClientGoUtilClient{
 		ClientInner:     clientGo,
@@ -553,6 +562,7 @@ func (a *ApplicationMeta) prepare() {
 	a.Secret.Data[SecretPostInstallKey] = compress([]byte(a.PostInstallManifest))
 	a.Secret.Data[SecretPostUpgradeKey] = compress([]byte(a.PostUpgradeManifest))
 	a.Secret.Data[SecretPostDeleteKey] = compress([]byte(a.PostDeleteManifest))
+	a.Secret.Data[SecretNamespaceId] = []byte(a.NamespaceId)
 
 	a.Secret.Data[SecretManifestKey] = compress([]byte(a.Manifest))
 

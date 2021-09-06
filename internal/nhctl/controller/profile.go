@@ -34,7 +34,7 @@ import (
 //}
 
 func (c *Controller) GetAppProfile() (*profile.AppProfileV2, error) {
-	return nocalhost.GetProfileV2(c.NameSpace, c.AppName)
+	return nocalhost.GetProfileV2(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
 }
 
 func (c *Controller) GetProfile() (*profile.SvcProfileV2, error) {
@@ -191,7 +191,7 @@ func (c *Controller) SetSyncthingPort(remotePort, remoteGUIPort, localPort, loca
 	)
 }
 
-// You need to closeDB for profile explicitly
+// GetProfileForUpdate You need to closeDB for profile explicitly
 func (c *Controller) GetProfileForUpdate() (*profile.AppProfileV2, error) {
-	return profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName)
+	return profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
 }

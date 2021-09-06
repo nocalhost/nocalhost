@@ -33,7 +33,7 @@ func Init() error {
 			}
 
 			// Initial Ns dir
-			nsDir := nocalhost_path.GetNhctlNameSpaceDir()
+			nsDir := nocalhost_path.GetNhctlNameSpaceBaseDir()
 			err = os.MkdirAll(nsDir, _const.DefaultNewFilePermission)
 			if err != nil {
 				return errors.Wrap(err, "")
@@ -56,8 +56,8 @@ func Init() error {
 	return err
 }
 
-func CleanupAppFilesUnderNs(appName string, namespace string) error {
-	appDir := nocalhost_path.GetAppDirUnderNs(appName, namespace)
+func CleanupAppFilesUnderNs(appName, namespace, nid string) error {
+	appDir := nocalhost_path.GetAppDirUnderNs(appName, namespace, nid)
 	if f, err := os.Stat(appDir); err == nil {
 		if f.IsDir() {
 			err = os.RemoveAll(appDir)
@@ -95,7 +95,7 @@ func GetOrGenKubeConfigPath(kubeconfigContent string) string {
 // Deprecated
 func GetNsAndApplicationInfo() (map[string][]string, error) {
 	result := make(map[string][]string, 0)
-	nsDir := nocalhost_path.GetNhctlNameSpaceDir()
+	nsDir := nocalhost_path.GetNhctlNameSpaceBaseDir()
 	nsList, err := ioutil.ReadDir(nsDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "")

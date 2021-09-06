@@ -34,12 +34,12 @@ import (
 
 var svcProfileCacheMap = NewCache(time.Second * 2)
 
-func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
+func getServiceProfile(ns, appName, nid string) map[string]*profile.SvcProfileV2 {
 	serviceMap := make(map[string]*profile.SvcProfileV2)
 	if appName == "" || ns == "" {
 		return serviceMap
 	}
-	description := GetDescriptionDaemon(ns, appName)
+	description := GetDescriptionDaemon(ns, appName, nid)
 	if description != nil {
 		for _, svcProfileV2 := range description.SvcProfile {
 			if svcProfileV2 != nil {
@@ -52,12 +52,12 @@ func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 	return serviceMap
 }
 
-func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
+func GetDescriptionDaemon(ns, appName, nid string) *profile.AppProfileV2 {
 	var appProfile *profile.AppProfileV2
 	var err error
 	appProfileCache, found := svcProfileCacheMap.Get(fmt.Sprintf("%s/%s", ns, appName))
 	if !found || appProfileCache == nil {
-		if appProfile, err = nocalhost.GetProfileV2(ns, appName); err == nil {
+		if appProfile, err = nocalhost.GetProfileV2(ns, appName, nid); err == nil {
 			svcProfileCacheMap.Set(fmt.Sprintf("%s/%s", ns, appName), appProfile)
 		}
 	} else {
@@ -279,9 +279,9 @@ func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.
 	return result
 }
 
-func getApp(name []string, namespace, appName string, search *resouce_cache.Searcher, label map[string]string) item.App {
+func getApp(name []string, namespace, appName, nid string, search *resouce_cache.Searcher, label map[string]string) item.App {
 	result := item.App{Name: appName}
-	profileMap := getServiceProfile(namespace, appName)
+	profileMap := getServiceProfile(namespace, appName, nid)
 	for _, entry := range resouce_cache.GroupToTypeMap {
 		resources := make([]item.Resource, 0, len(entry.V))
 		for _, resource := range entry.V {
@@ -355,15 +355,20 @@ func ParseApplicationsResult(namespace string, metas []*appmeta.ApplicationMeta)
 	return result
 }
 
-func getAvailableAppName(namespace, kubeconfig string) []string {
+type AppNameAndNid struct {
+	Name string
+	Nid  string
+}
+
+func getAvailableAppName(namespace, kubeconfig string) []AppNameAndNid {
 	applicationMetaList := InitDefaultAppIfNecessary(namespace, kubeconfig)
-	var availableAppName []string
+	var availableAppName []AppNameAndNid
 	for _, meta := range applicationMetaList {
 		if meta != nil {
-			availableAppName = append(availableAppName, meta.Application)
+			availableAppName = append(availableAppName, AppNameAndNid{Name: meta.Application, Nid: meta.NamespaceId})
 		}
 	}
-	sort.SliceStable(availableAppName, func(i, j int) bool { return availableAppName[i] < availableAppName[j] })
+	sort.SliceStable(availableAppName, func(i, j int) bool { return availableAppName[i].Name < availableAppName[j].Name })
 	return availableAppName
 }
 

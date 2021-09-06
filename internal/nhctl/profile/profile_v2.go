@@ -77,8 +77,8 @@ func ProfileV2Key(ns, app string) string {
 	return fmt.Sprintf("%s.%s.profile.v2", ns, app)
 }
 
-func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
-	path := nocalhost_path.GetAppDbDir(ns, name)
+func NewAppProfileV2ForUpdate(ns, name, nid string) (*AppProfileV2, error) {
+	path := nocalhost_path.GetAppDbDir(ns, name, nid)
 	db, err := dbutils.OpenLevelDB(path, false)
 	if err != nil {
 		_ = db.Close()

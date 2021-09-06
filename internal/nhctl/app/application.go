@@ -22,6 +22,7 @@ import (
 	"nocalhost/internal/nhctl/nocalhost"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -62,67 +63,67 @@ func (a *Application) GetAppMeta() *appmeta.ApplicationMeta {
 	return a.appMeta
 }
 
-func (a *Application) moveProfileFromFileToLeveldb() error {
-	profileV2 := &profile.AppProfileV2{}
+//func (a *Application) moveProfileFromFileToLeveldb() error {
+//	profileV2 := &profile.AppProfileV2{}
+//
+//	fBytes, err := ioutil.ReadFile(a.getProfileV2Path())
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//	err = yaml.Unmarshal(fBytes, profileV2)
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//	log.Log("Move profile to leveldb")
+//
+//	//a.profileV2 = profileV2
+//	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
+//}
 
-	fBytes, err := ioutil.ReadFile(a.getProfileV2Path())
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	err = yaml.Unmarshal(fBytes, profileV2)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	log.Log("Move profile to leveldb")
-
-	//a.profileV2 = profileV2
-	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
-}
-
-func NewFakeApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
-
-	var err error
-	app := &Application{
-		Name:       name,
-		NameSpace:  ns,
-		KubeConfig: kubeconfig,
-	}
-
-	app.appMeta = appmeta.FakeAppMeta(ns, kubeconfig)
-	if err := app.tryLoadProfileFromLocal(); err != nil {
-		return nil, err
-	}
-
-	// if still not present
-	// load from secret
-	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
-	if err != nil {
-		profileV2 = &profile.AppProfileV2{}
-		profileV2.ConfigMigrated = true
-		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, profileV2); err != nil {
-			return nil, err
-		}
-	}
-	app.AppType = profileV2.AppType
-
-	if kubeconfig != "" && kubeconfig != profileV2.Kubeconfig {
-		if err := app.UpdateProfile(
-			func(p *profile.AppProfileV2) error {
-				p.Kubeconfig = kubeconfig
-				return nil
-			},
-		); err != nil {
-			return nil, err
-		}
-	}
-
-	if initClient {
-		if app.client, err = clientgoutils.NewClientGoUtils(app.KubeConfig, app.NameSpace); err != nil {
-			return nil, err
-		}
-	}
-	return app, nil
-}
+//func NewFakeApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
+//
+//	var err error
+//	app := &Application{
+//		Name:       name,
+//		NameSpace:  ns,
+//		KubeConfig: kubeconfig,
+//	}
+//
+//	app.appMeta = appmeta.FakeAppMeta(ns, kubeconfig)
+//	if err := app.tryLoadProfileFromLocal(); err != nil {
+//		return nil, err
+//	}
+//
+//	// if still not present
+//	// load from secret
+//	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
+//	if err != nil {
+//		profileV2 = &profile.AppProfileV2{}
+//		profileV2.ConfigMigrated = true
+//		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, profileV2); err != nil {
+//			return nil, err
+//		}
+//	}
+//	app.AppType = profileV2.AppType
+//
+//	if kubeconfig != "" && kubeconfig != profileV2.Kubeconfig {
+//		if err := app.UpdateProfile(
+//			func(p *profile.AppProfileV2) error {
+//				p.Kubeconfig = kubeconfig
+//				return nil
+//			},
+//		); err != nil {
+//			return nil, err
+//		}
+//	}
+//
+//	if initClient {
+//		if app.client, err = clientgoutils.NewClientGoUtils(app.KubeConfig, app.NameSpace); err != nil {
+//			return nil, err
+//		}
+//	}
+//	return app, nil
+//}
 
 // When new a application, kubeconfig is required to get meta in k8s cluster
 // KubeConfig can be acquired from profile in leveldb
@@ -163,14 +164,26 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		return nil, errors.Wrap(ErrNotFound, fmt.Sprintf("%s-%s not found", app.NameSpace, app.Name))
 	}
 
-	// if still not present
+	if app.appMeta.NamespaceId == "" {
+		id, err := utils.GetShortUuid()
+		if err != nil {
+			return nil, err
+		}
+		app.appMeta.NamespaceId = id
+		if err = app.appMeta.Update(); err != nil {
+			return nil, err
+		}
+	}
+
+	app.migrateNsDirToSupportNidIfNeeded()
+
 	// load from secret
-	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
+	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId)
 	if err != nil {
 		//profileV2 = generateProfileFromConfig(app.appMeta.Config)
 		profileV2 = &profile.AppProfileV2{}
 		profileV2.ConfigMigrated = true
-		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, profileV2); err != nil {
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
 			return nil, err
 		}
 	}
@@ -183,7 +196,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 			return nil, err
 		}
 		profileV2.ConfigMigrated = true
-		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, profileV2); err != nil {
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
 			return nil, err
 		}
 	}
@@ -210,6 +223,10 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	// the kubeconfig before
 	//migrateAssociate(profileV2, app)
 	return app, nil
+}
+
+func (a Application) migrateNsDirToSupportNidIfNeeded() {
+
 }
 
 // for previous version, associate path is stored in profile
@@ -277,7 +294,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 		log.Logf("Earlier version installed application found, generate a secret...")
 
 		profileV2.GenerateIdentifierIfNeeded()
-		_ = nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
+		_ = nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.appMeta.NamespaceId, profileV2)
 
 		// config、manifest is missing while adaption update
 		a.appMeta.Config = a.newConfigFromProfile()
@@ -666,8 +683,8 @@ func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.
 }
 
 func (a *Application) tryLoadProfileFromLocal() (err error) {
-	if db, err := nocalhostDb.OpenApplicationLevelDB(a.NameSpace, a.Name, true); err != nil {
-		if err = nocalhostDb.CreateApplicationLevelDB(a.NameSpace, a.Name, true); err != nil { // Init leveldb dir
+	if db, err := nocalhostDb.OpenApplicationLevelDB(a.NameSpace, a.Name, a.appMeta.NamespaceId, true); err != nil {
+		if err = nocalhostDb.CreateApplicationLevelDB(a.NameSpace, a.Name, a.appMeta.NamespaceId, true); err != nil { // Init leveldb dir
 			return err
 		}
 	} else {
@@ -687,11 +704,11 @@ func (a *Application) tryLoadProfileFromLocal() (err error) {
 }
 
 func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
-	return nocalhost.GetProfileV2(a.NameSpace, a.Name)
+	return nocalhost.GetProfileV2(a.NameSpace, a.Name, a.appMeta.NamespaceId)
 }
 
 func (a *Application) GetProfileCompel() *profile.AppProfileV2 {
-	v2, err := nocalhost.GetProfileV2(a.NameSpace, a.Name)
+	v2, err := nocalhost.GetProfileV2(a.NameSpace, a.Name, a.appMeta.NamespaceId)
 	clientgoutils.Must(err)
 	return v2
 }
@@ -711,7 +728,7 @@ func (a *Application) UpdateProfile(modify func(*profile.AppProfileV2) error) er
 
 // You need to closeDB for profile explicitly
 func (a *Application) getProfileForUpdate() (*profile.AppProfileV2, error) {
-	return profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
+	return profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name, a.appMeta.NamespaceId)
 }
 
 func (a *Application) LoadConfigFromLocalV2() (*profile.NocalHostAppConfigV2, error) {

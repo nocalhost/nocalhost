@@ -60,6 +60,17 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing", name, namespace))
 	}
 
+	if appMeta.NamespaceId == "" {
+		id, err := utils.GetShortUuid()
+		if err != nil {
+			return nil, err
+		}
+		appMeta.NamespaceId = id
+		if err = appMeta.Update(); err != nil {
+			return nil, err
+		}
+	}
+
 	if err = app.initDir(); err != nil {
 		return nil, err
 	}
@@ -69,7 +80,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, errors.New("Fail to create tmp dir for install")
 	}
 
-	if err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name, false); err != nil {
+	if err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name, app.appMeta.NamespaceId, false); err != nil {
 		return nil, err
 	}
 
@@ -135,7 +146,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 
 	app.AppType = appProfileV2.AppType
 
-	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
+	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, appProfileV2)
 }
 
 func (a *Application) loadOrGenerateConfig(
