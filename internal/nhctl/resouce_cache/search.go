@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/golang-lru/simplelru"
 	"github.com/pkg/errors"
 	authorizationv1 "k8s.io/api/authorization/v1"
-	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -180,11 +179,12 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 	return newSearcher, nil
 }
 
-// Start
+// Start wait searcher to close
 func (s *Searcher) Start() {
 	<-s.stopChannel
 }
 
+// Stop to stop the searcher
 func (s *Searcher) Stop() {
 	for i := 0; i < len(s.supportSchema); i++ {
 		s.stopChannel <- struct{}{}
@@ -198,7 +198,7 @@ func (s *Searcher) GetRestMapping(resourceType string) (*meta.RESTMapping, error
 	return nil, errors.New(fmt.Sprintf("Can't get restMapping, resource type: %s", resourceType))
 }
 
-// e's annotation appName must in appNameRange, other wise app name is not available
+// e's annotation appName must in appNameRange, otherwise app name is not available
 func getAppName(e interface{}, availableAppName []string) string {
 	annotations := e.(metav1.Object).GetAnnotations()
 	if annotations == nil {
@@ -242,7 +242,7 @@ type criteria struct {
 	kind         runtime.Object
 	resourceType string
 
-	namespaced       bool
+	namespaceScope   bool
 	resourceName     string
 	appName          string
 	ns               string
@@ -277,7 +277,7 @@ func (c *criteria) AppNameNotIn(appNames ...string) *criteria {
 func (c *criteria) ResourceType(resourceType string) *criteria {
 	if mapping, err := c.search.GetRestMapping(resourceType); err == nil {
 		c.resourceType = resourceType
-		c.namespaced = mapping.Scope.Name() == meta.RESTScopeNameNamespace
+		c.namespaceScope = mapping.Scope.Name() == meta.RESTScopeNameNamespace
 	} else {
 		log.Logf("Can not found restMapping for resource type: %s", resourceType)
 	}
@@ -286,9 +286,10 @@ func (c *criteria) ResourceType(resourceType string) *criteria {
 
 func (c *criteria) Kind(object runtime.Object) *criteria {
 	c.kind = object
-	// how to make it more elegant
-	if reflect.TypeOf(object).AssignableTo(reflect.TypeOf(&corev1.Namespace{})) {
-		c.namespaced = false
+	if info, err := c.search.GetRestMapping(reflect.TypeOf(object).Name()); err == nil {
+		c.namespaceScope = info.Scope.Name() == meta.RESTScopeNameNamespace
+	} else {
+		log.Logf("Can not found restMapping for resource: %s", reflect.TypeOf(object).Name())
 	}
 	return c
 }
@@ -339,7 +340,7 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	if c.search == nil {
 		return nil, errors.New("search should not be null")
 	}
-	if c.resourceType == "" && c.kind == nil {
+	if len(c.resourceType) == 0 && c.kind == nil {
 		return nil, errors.New("resource type and kind should not be null at the same time")
 	}
 	var informer cache.SharedIndexInformer
@@ -361,7 +362,7 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	}
 
 	// resource is clusterScope, not belong to application or namespace
-	if !c.namespaced {
+	if !c.namespaceScope {
 		list := informer.GetStore().List()
 		if len(c.resourceName) != 0 {
 			for _, i := range list {
@@ -369,7 +370,7 @@ func (c *criteria) Query() (data []interface{}, e error) {
 					return []interface{}{i}, nil
 				}
 			}
-			return nil, e
+			return []interface{}{}, nil
 		}
 		SortByNameAsc(list)
 		return list, nil
