@@ -39,6 +39,15 @@ func (c *Controller) IsProcessor() bool {
 	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, appProfile.Identifier)
 }
 
+func CheckIfControllerTypeSupport(t string) bool {
+	tt := base.SvcType(t)
+	if tt == base.Deployment || tt == base.StatefulSet || tt == base.DaemonSet || tt == base.Job ||
+		tt == base.CronJob || tt == base.Pod {
+		return true
+	}
+	return false
+}
+
 func (c *Controller) CheckIfExist() (bool, error) {
 	var err error
 	switch c.Type {

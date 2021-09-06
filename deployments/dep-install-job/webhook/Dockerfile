@@ -27,7 +27,7 @@
 # 从项目根目录 build ：docker build -t nocalhost-admission-webhook:v51 -f deployments/dep-install-job/webhook/Dockerfile .
 
 # Compile stage
-FROM golang:1.13.8 AS build-env
+FROM golang:1.16.7 AS build-env
 
 # Build Delve
 #RUN go get github.com/go-delve/delve/cmd/dlv
