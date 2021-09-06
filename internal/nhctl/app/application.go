@@ -97,7 +97,8 @@ func NewFakeApplication(name string, ns string, kubeconfig string, initClient bo
 	// load from secret
 	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
 	if err != nil {
-		profileV2 = generateProfileFromConfig(app.appMeta.Config)
+		profileV2 = &profile.AppProfileV2{}
+		profileV2.ConfigMigrated = true
 		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, profileV2); err != nil {
 			return nil, err
 		}
@@ -166,7 +167,18 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	// load from secret
 	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
 	if err != nil {
-		profileV2 = generateProfileFromConfig(app.appMeta.Config)
+		//profileV2 = generateProfileFromConfig(app.appMeta.Config)
+		profileV2 = &profile.AppProfileV2{}
+		profileV2.ConfigMigrated = true
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, profileV2); err != nil {
+			return nil, err
+		}
+	}
+	// Migrate config to meta
+	if !profileV2.ConfigMigrated {
+		c := app.newConfigFromProfile()
+		app.appMeta.Config = c
+		profileV2.ConfigMigrated = true
 		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, profileV2); err != nil {
 			return nil, err
 		}
@@ -301,6 +313,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 	return false
 }
 
+// Deprecated: this method is no need any more, because config is always load from secrets now
 func (a *Application) ReloadCfg(reloadFromMeta, silence bool) error {
 	secretCfg := a.appMeta.Config
 	for _, config := range secretCfg.ApplicationConfig.ServiceConfigs {
@@ -328,45 +341,46 @@ func (a *Application) ReloadSvcCfg(svcName string, svcType base.SvcType, reloadF
 	if a.loadSvcCfgFromCmIfValid(svcName, svcType, silence) {
 		return nil
 	}
-
-	return a.loadSvcCfgFromMetaIfNeeded(svcName, svcType, reloadFromMeta, silence)
+	return nil
+	//return a.loadSvcCfgFromMetaIfNeeded(svcName, svcType, reloadFromMeta, silence)
 }
 
-func (a *Application) loadSvcCfgFromMetaIfNeeded(svcName string, svcType base.SvcType, reloadFromMeta, silence bool) error {
-	preCheck, err := a.Controller(svcName, svcType).GetProfile()
-	if err != nil {
-		return err
-	}
-
-	// skip the case do not need to reload cfg
-	if preCheck.LocalConfigLoaded == false && preCheck.CmConfigLoaded == false && !reloadFromMeta {
-		return nil
-	}
-
-	return a.Controller(svcName, svcType).UpdateSvcProfile(
-		func(svcProfile *profile.SvcProfileV2) error {
-
-			if reloadFromMeta {
-				svcProfile.ServiceConfigV2 = a.appMeta.Config.GetSvcConfigV2(svcName, svcType)
-				if !silence {
-					metaInfo := fmt.Sprintf("[name: %s serviceType: %s]", svcName, svcType)
-					log.Infof(
-						fmt.Sprintf(
-							"%-"+strconv.Itoa(indent)+"s %s",
-							metaInfo,
-							"Load nocalhost svc config from application config (secret)",
-						),
-					)
-				}
-			}
-
-			svcProfile.LocalConfigLoaded = false
-			svcProfile.AnnotationsConfigLoaded = false
-			svcProfile.CmConfigLoaded = false
-			return nil
-		},
-	)
-}
+// Deprecated: this method is no need any more, because config is always load from meta now
+//func (a *Application) loadSvcCfgFromMetaIfNeeded(svcName string, svcType base.SvcType, reloadFromMeta, silence bool) error {
+//	preCheck, err := a.Controller(svcName, svcType).GetProfile()
+//	if err != nil {
+//		return err
+//	}
+//
+//	// skip the case do not need to reload cfg
+//	if preCheck.LocalConfigLoaded == false && preCheck.CmConfigLoaded == false && !reloadFromMeta {
+//		return nil
+//	}
+//
+//	return a.Controller(svcName, svcType).UpdateSvcProfile(
+//		func(svcProfile *profile.SvcProfileV2) error {
+//
+//			if reloadFromMeta {
+//				svcProfile.ServiceConfigV2 = a.appMeta.Config.GetSvcConfigV2(svcName, svcType)
+//				if !silence {
+//					metaInfo := fmt.Sprintf("[name: %s serviceType: %s]", svcName, svcType)
+//					log.Infof(
+//						fmt.Sprintf(
+//							"%-"+strconv.Itoa(indent)+"s %s",
+//							metaInfo,
+//							"Load nocalhost svc config from application config (secret)",
+//						),
+//					)
+//				}
+//			}
+//
+//			svcProfile.LocalConfigLoaded = false
+//			svcProfile.AnnotationsConfigLoaded = false
+//			svcProfile.CmConfigLoaded = false
+//			return nil
+//		},
+//	)
+//}
 
 func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType base.SvcType, silence bool) bool {
 	hint := hintFunc(svcName, svcType, silence)
@@ -396,11 +410,17 @@ func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType ba
 			return false
 		}
 
+		a.appMeta.Config.SetSvcConfigV2(*svcCfg)
+		if a.appMeta.Update() != nil {
+			log.WarnE(err, "Failed to update svc config to meta")
+			return false
+		}
+
 		// means should cm cfg is valid, persist to profile
 		if err := a.Controller(svcName, svcType).UpdateSvcProfile(
 			func(svcProfile *profile.SvcProfileV2) error {
 				hint("Success load svc config from annotation")
-				svcProfile.ServiceConfigV2 = svcCfg
+				//svcProfile.ServiceConfigV2 = svcCfg
 
 				svcProfile.Name = svcName
 				svcProfile.Type = svcType.String()
@@ -439,11 +459,17 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcTy
 		return false
 	}
 
+	a.appMeta.Config.SetSvcConfigV2(*svcCfg)
+	if a.appMeta.Update() != nil {
+		log.WarnE(err, "Failed to update svc config to meta")
+		return false
+	}
+
 	// means should cm cfg is valid, persist to profile
 	if err := a.Controller(svcName, svcType).UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
 			hint("Success load svc config from cm")
-			svcProfile.ServiceConfigV2 = svcCfg
+			//svcProfile.ServiceConfigV2 = svcCfg
 
 			svcProfile.Name = svcName
 			svcProfile.Type = svcType.String()
@@ -484,20 +510,14 @@ func loadSvcCfgFromStrIfValid(config string, svcName string, svcType base.SvcTyp
 
 func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.SvcType, silence bool) bool {
 	hint := hintFunc(svcName, svcType, silence)
-
-	p, err := a.GetProfile()
-	if err != nil {
-		return false
-	}
-
-	svcProfile := p.SvcProfileV2(svcName, svcType.String())
+	var err error
 
 	meta := a.GetAppMeta()
 	pack := dev_dir.NewSvcPack(
 		meta.Ns,
 		meta.Application,
-		base.SvcTypeOf(svcProfile.Type),
-		svcProfile.Name,
+		svcType,
+		svcName,
 		"",
 	)
 
@@ -525,6 +545,12 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.Sv
 		}
 	}
 
+	a.appMeta.Config.SetSvcConfigV2(*svcCfg)
+	if a.appMeta.Update() != nil {
+		log.WarnE(err, "Failed to update svc config to meta")
+		return false
+	}
+
 	// means should load svc cfg from local
 	if err := a.Controller(svcName, svcType).UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
@@ -532,7 +558,7 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.Sv
 			svcCfg.Name = svcName
 			svcCfg.Type = svcType.String()
 
-			svcProfile.ServiceConfigV2 = svcCfg
+			//svcProfile.ServiceConfigV2 = svcCfg
 			svcProfile.LocalConfigLoaded = true
 			svcProfile.AnnotationsConfigLoaded = false
 			svcProfile.CmConfigLoaded = false
@@ -598,12 +624,7 @@ func doLoadProfileFromAppConfig(configFile *fp.FilePathEnhance, svcName string, 
 }
 
 func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {
-	if bys, err := ioutil.ReadFile(a.GetConfigV2Path()); err == nil {
-		p := &profile.NocalHostAppConfigV2{}
-		if err = yaml.Unmarshal(bys, p); err == nil {
-			return p
-		}
-	}
+
 	profileV2, _ := a.GetProfile()
 	return &profile.NocalHostAppConfigV2{
 		ConfigProperties: &profile.ConfigProperties{
@@ -651,14 +672,13 @@ func (a *Application) tryLoadProfileFromLocal() (err error) {
 
 	// try load from db first
 	// then try load from disk(to supports earlier version)
-	if _, err = nocalhost.GetProfileV2(a.NameSpace, a.Name); err != nil {
-		if _, err := os.Stat(a.getProfileV2Path()); err == nil {
-
-			// need not care what happen
-			_ = a.moveProfileFromFileToLeveldb()
-		}
-	}
-
+	//if _, err = nocalhost.GetProfileV2(a.NameSpace, a.Name); err != nil {
+	//	if _, err := os.Stat(a.getProfileV2Path()); err == nil {
+	//
+	//		// need not care what happen
+	//		_ = a.moveProfileFromFileToLeveldb()
+	//	}
+	//}
 	return nil
 }
 
@@ -736,16 +756,16 @@ func (a *Application) GetApplicationConfigV2() *profile.ApplicationConfig {
 	return a.appMeta.Config.ApplicationConfig
 }
 
-func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
-	profileV2, _ := a.GetProfile()
-	return &profile.ApplicationConfig{
-		ResourcePath: profileV2.ResourcePath,
-		IgnoredPath:  profileV2.IgnoredPath,
-		PreInstall:   profileV2.PreInstall,
-		Env:          profileV2.Env,
-		EnvFrom:      profileV2.EnvFrom,
-	}
-}
+//func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
+//	profileV2, _ := a.GetProfile()
+//	return &profile.ApplicationConfig{
+//		ResourcePath: profileV2.ResourcePath,
+//		IgnoredPath:  profileV2.IgnoredPath,
+//		PreInstall:   profileV2.PreInstall,
+//		Env:          profileV2.Env,
+//		EnvFrom:      profileV2.EnvFrom,
+//	}
+//}
 
 func (a *Application) SaveAppProfileV2(config *profile.ApplicationConfig) error {
 	return a.UpdateProfile(

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package model
 
@@ -14,10 +14,10 @@ type NocalHostResource struct {
 }
 
 type DevStartOptions struct {
-	WorkDir      string
+	//WorkDir      string
 	SideCarImage string
-	DevImage     string
-	Container    string
+	//DevImage     string
+	Container string
 
 	// for debug
 	SyncthingVersion string
@@ -27,6 +27,6 @@ type DevStartOptions struct {
 	StorageClass  string
 	PriorityClass string
 
-	NoTerminal bool
+	NoTerminal  bool
 	NoSyncthing bool
 }

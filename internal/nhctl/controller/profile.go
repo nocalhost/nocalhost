@@ -14,24 +14,24 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-func (c *Controller) SaveConfigToProfile(config *profile.ServiceConfigV2) error {
-	return c.UpdateProfile(
-		func(profileV2 *profile.AppProfileV2, svcPro *profile.SvcProfileV2) error {
-			if svcPro != nil {
-				config.Name = c.Name
-				svcPro.ServiceConfigV2 = config
-			} else {
-				config.Name = c.Name
-				svcPro = &profile.SvcProfileV2{
-					ServiceConfigV2: config,
-					ActualName:      c.Name,
-				}
-				profileV2.SvcProfile = append(profileV2.SvcProfile, svcPro)
-			}
-			return nil
-		},
-	)
-}
+//func (c *Controller) SaveConfigToProfile(config *profile.ServiceConfigV2) error {
+//	return c.UpdateProfile(
+//		func(profileV2 *profile.AppProfileV2, svcPro *profile.SvcProfileV2) error {
+//			if svcPro != nil {
+//				config.Name = c.Name
+//				svcPro.ServiceConfigV2 = config
+//			} else {
+//				config.Name = c.Name
+//				svcPro = &profile.SvcProfileV2{
+//					ServiceConfigV2: config,
+//					ActualName:      c.Name,
+//				}
+//				profileV2.SvcProfile = append(profileV2.SvcProfile, svcPro)
+//			}
+//			return nil
+//		},
+//	)
+//}
 
 func (c *Controller) GetAppProfile() (*profile.AppProfileV2, error) {
 	return nocalhost.GetProfileV2(c.NameSpace, c.AppName)
@@ -56,7 +56,7 @@ func (c *Controller) LoadConfigFromHub() error {
 }
 
 func (c *Controller) LoadConfigFromHubC(container string) error {
-	p, err := c.GetProfile()
+	p, err := c.GetConfig()
 	if err != nil {
 		return err
 	}
@@ -71,44 +71,15 @@ func (c *Controller) LoadConfigFromHubC(container string) error {
 				log.LogE(err)
 			}
 			if svcConfig != nil {
-				if err := c.UpdateSvcProfile(
-					func(svcProfile *profile.SvcProfileV2) error {
-						svcConfig.Name = c.Name
-						svcConfig.Type = string(c.Type)
-						svcProfile.ServiceConfigV2 = svcConfig
-						return nil
-					},
-				); err != nil {
+				svcConfig.Name = c.Name
+				svcConfig.Type = string(c.Type)
+				if err := c.UpdateConfig(*svcConfig); err != nil {
 					log.Logf("Load nocalhost svc config from hub fail, fail while updating svc profile, err: %s", err.Error())
 				}
 			}
 		}
 	}
 	return nil
-}
-
-func (c *Controller) GetWorkDir(container string) string {
-	svcProfile, _ := c.GetProfile()
-	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).WorkDir != "" {
-		return svcProfile.GetContainerDevConfigOrDefault(container).WorkDir
-	}
-	return profile.DefaultWorkDir
-}
-
-func (c *Controller) GetStorageClass(container string) string {
-	svcProfile, _ := c.GetProfile()
-	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).StorageClass != "" {
-		return svcProfile.GetContainerDevConfigOrDefault(container).StorageClass
-	}
-	return ""
-}
-
-func (c *Controller) GetDevImage(container string) string {
-	svcProfile, _ := c.GetProfile()
-	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).Image != "" {
-		return svcProfile.GetContainerDevConfigOrDefault(container).Image
-	}
-	return profile.DefaultDevImage
 }
 
 func (c *Controller) GetPortForwardForSync() (*profile.DevPortForward, error) {

@@ -9,7 +9,6 @@ import (
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/pkg/nhctl/clientgoutils"
-	"nocalhost/pkg/nhctl/log"
 	"strings"
 )
 
@@ -45,21 +44,6 @@ type ApplicationConfig struct {
 	Env            []*Env             `json:"env" yaml:"env"`
 	EnvFrom        EnvFrom            `json:"envFrom,omitempty" yaml:"envFrom,omitempty"`
 	ServiceConfigs []*ServiceConfigV2 `json:"services" yaml:"services,omitempty"`
-}
-
-type ServiceConfigV2 struct {
-	Name                string               `json:"name" yaml:"name"`
-	Type                string               `json:"serviceType" yaml:"serviceType"`
-	PriorityClass       string               `json:"priorityClass,omitempty" yaml:"priorityClass,omitempty"`
-	DependLabelSelector *DependLabelSelector `json:"dependLabelSelector,omitempty" yaml:"dependLabelSelector,omitempty"`
-	ContainerConfigs    []*ContainerConfig   `json:"containers" yaml:"containers"`
-}
-
-type ContainerConfig struct {
-	Name    string                  `json:"name" yaml:"name"`
-	Hub     *HubConfig              `json:"hub" yaml:"hub,omitempty"`
-	Install *ContainerInstallConfig `json:"install,omitempty" yaml:"install,omitempty"`
-	Dev     *ContainerDevConfig     `json:"dev" yaml:"dev"`
 }
 
 type HubConfig struct {
@@ -140,10 +124,38 @@ func (n *NocalHostAppConfigV2) GetSvcConfigV2(svcName string, svcType base.SvcTy
 	return nil
 }
 
+// GetSvcConfigS If ServiceConfig not found, return a default one
+func (n *NocalHostAppConfigV2) GetSvcConfigS(svcName string, svcType base.SvcType) ServiceConfigV2 {
+	for _, config := range n.ApplicationConfig.ServiceConfigs {
+		if config.Name == svcName && base.SvcTypeOf(config.Type) == svcType {
+			return *config
+		}
+	}
+	return ServiceConfigV2{Name: svcName, Type: string(svcType)}
+}
+
+func (n *NocalHostAppConfigV2) SetSvcConfigV2(svcConfig ServiceConfigV2) {
+	if svcConfig.Name == "" || svcConfig.Type == "" {
+		return
+	}
+	foundIndex := -1
+	for index, config := range n.ApplicationConfig.ServiceConfigs {
+		if config.Name == svcConfig.Name && config.Type == svcConfig.Type {
+			foundIndex = index
+			break
+		}
+	}
+	if foundIndex >= 0 {
+		n.ApplicationConfig.ServiceConfigs[foundIndex] = &svcConfig
+		return
+	}
+	n.ApplicationConfig.ServiceConfigs = append(n.ApplicationConfig.ServiceConfigs, &svcConfig)
+}
+
 func (n *NocalHostAppConfigV2) FindSvcConfigInHub(svcName string, svcType base.SvcType, container, image string) *ServiceConfigV2 {
-	svcConfig := n.GetSvcConfigV2(svcName, svcType)
-	if isSvcConfigInHubMatch(svcConfig, container, image) {
-		return svcConfig
+	svcConfig := n.GetSvcConfigS(svcName, svcType)
+	if isSvcConfigInHubMatch(&svcConfig, container, image) {
+		return &svcConfig
 	}
 	return nil
 }
@@ -156,11 +168,9 @@ func isSvcConfigInHubMatch(svcConfig *ServiceConfigV2, container, image string) 
 	for _, c := range svcConfig.ContainerConfigs {
 		if c.Name == container {
 			if c.Hub == nil {
-				log.Log("hub field missing")
 				return false
 			}
 			if !strings.Contains(image, c.Hub.Image) {
-				log.Log("hub's image not match")
 				return false
 			}
 			return true

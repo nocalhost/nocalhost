@@ -6,6 +6,7 @@
 package app
 
 import (
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/profile"
 )
 
@@ -52,18 +53,20 @@ func (a *Application) GetInstallEnvForDep() *InstallEnvForDep {
 		)
 	}
 
+	appConfig := a.appMeta.Config
 	// Find service env
 	servcesEnv := make([]*ServiceEnvForDep, 0)
 	for _, svcProfile := range appProfileV2.SvcProfile {
-		if svcProfile.ServiceConfigV2 == nil || len(svcProfile.ServiceConfigV2.ContainerConfigs) == 0 {
+		svcConfig := appConfig.GetSvcConfigS(svcProfile.Name, base.SvcType(svcProfile.Type))
+		if len(svcConfig.ContainerConfigs) == 0 {
 			continue
 		}
 		svcEnv := &ServiceEnvForDep{
 			Name:      svcProfile.ActualName,
-			Type:      string(svcProfile.Type),
+			Type:      svcProfile.Type,
 			Container: make([]*ContainerEnvForDep, 0),
 		}
-		for _, config := range svcProfile.ServiceConfigV2.ContainerConfigs {
+		for _, config := range svcConfig.ContainerConfigs {
 			if config.Install == nil {
 				continue
 			}

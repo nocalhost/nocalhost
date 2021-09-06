@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -112,7 +112,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		// PriorityClass
 		priorityClass := ops.PriorityClass
 		if priorityClass == "" {
-			svcProfile, _ := d.GetProfile()
+			svcProfile, _ := d.GetConfig()
 			priorityClass = svcProfile.PriorityClass
 		}
 		if priorityClass != "" {

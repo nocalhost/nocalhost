@@ -57,6 +57,10 @@ type AppProfileV2 struct {
 	// and now it store in a standalone db
 	AssociateMigrate bool `json:"associate_migrate" yaml:"associate_migrate"`
 
+	// for previous version, config is stored in profile
+	// and now it store in app meta
+	ConfigMigrated bool `json:"configMigrated" yaml:"configMigrated"`
+
 	// app global status
 	Identifier string `json:"identifier" yaml:"identifier"`
 	Secreted   bool   `json:"secreted" yaml:"secreted"` // always true for new versions, but from earlier version, the flag for upload profile to secret
@@ -132,18 +136,18 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 		a.SvcProfile = make([]*SvcProfileV2, 0)
 	}
 	svcProfile := &SvcProfileV2{
-		ServiceConfigV2: &ServiceConfigV2{
-			Name: svcName,
-			Type: svcType,
-			ContainerConfigs: []*ContainerConfig{
-				{
-					Dev: &ContainerDevConfig{
-						Image:   DefaultDevImage,
-						WorkDir: DefaultWorkDir,
-					},
-				},
-			},
-		},
+		//ServiceConfigV2: &ServiceConfigV2{
+		//	Name: svcName,
+		//	Type: svcType,
+		//	ContainerConfigs: []*ContainerConfig{
+		//		{
+		//			Dev: &ContainerDevConfig{
+		//				Image:   DefaultDevImage,
+		//				WorkDir: DefaultWorkDir,
+		//			},
+		//		},
+		//	},
+		//},
 		ActualName: svcName,
 	}
 	a.SvcProfile = append(a.SvcProfile, svcProfile)
@@ -187,6 +191,10 @@ type SvcProfileV2 struct {
 	//ContainerProfile []*ContainerProfileV2 `json:"containerProfile" yaml:"containerProfile"`
 	ActualName string `json:"actualName" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
 
+	// todo: Is this will conflict with ServiceConfigV2 ? by hxx
+	Name string `json:"name" yaml:"name"`
+	Type string `json:"serviceType" yaml:"serviceType"`
+
 	PortForwarded bool     `json:"portForwarded" yaml:"portForwarded"`
 	Syncing       bool     `json:"syncing" yaml:"syncing"`
 	SyncDirs      []string `json:"syncDirs" yaml:"syncDirs,omitempty"` // dev start -s
@@ -228,17 +236,17 @@ type SvcProfileV2 struct {
 	Possess bool `json:"possess" yaml:"possess"`
 }
 
-func (s *SvcProfileV2) GetContainerConfig(container string) *ContainerConfig {
-	if s == nil {
-		return nil
-	}
-	for _, c := range s.ContainerConfigs {
-		if c.Name == container {
-		}
-		return c
-	}
-	return nil
-}
+//func (s *SvcProfileV2) GetContainerConfig(container string) *ContainerConfig {
+//	if s == nil {
+//		return nil
+//	}
+//	for _, c := range s.ContainerConfigs {
+//		if c.Name == container {
+//		}
+//		return c
+//	}
+//	return nil
+//}
 
 type ContainerProfileV2 struct {
 	Name string
@@ -261,29 +269,29 @@ type DevPortForward struct {
 
 // Compatible for v1
 // Finding `containerName` config, if not found, use the first container config
-func (s *SvcProfileV2) GetContainerDevConfigOrDefault(containerName string) *ContainerDevConfig {
-	if containerName == "" {
-		return s.GetDefaultContainerDevConfig()
-	}
-	config := s.GetContainerDevConfig(containerName)
-	if config == nil {
-		config = s.GetDefaultContainerDevConfig()
-	}
-	return config
-}
+//func (s *SvcProfileV2) GetContainerDevConfigOrDefault(containerName string) *ContainerDevConfig {
+//	if containerName == "" {
+//		return s.GetDefaultContainerDevConfig()
+//	}
+//	config := s.GetContainerDevConfig(containerName)
+//	if config == nil {
+//		config = s.GetDefaultContainerDevConfig()
+//	}
+//	return config
+//}
 
-func (s *SvcProfileV2) GetDefaultContainerDevConfig() *ContainerDevConfig {
-	if len(s.ContainerConfigs) == 0 {
-		return nil
-	}
-	return s.ContainerConfigs[0].Dev
-}
+//func (s *SvcProfileV2) GetDefaultContainerDevConfig() *ContainerDevConfig {
+//	if len(s.ContainerConfigs) == 0 {
+//		return nil
+//	}
+//	return s.ContainerConfigs[0].Dev
+//}
 
-func (s *SvcProfileV2) GetContainerDevConfig(containerName string) *ContainerDevConfig {
-	for _, devConfig := range s.ContainerConfigs {
-		if devConfig.Name == containerName {
-			return devConfig.Dev
-		}
-	}
-	return nil
-}
+//func (s *SvcProfileV2) GetContainerDevConfig(containerName string) *ContainerDevConfig {
+//	for _, devConfig := range s.ContainerConfigs {
+//		if devConfig.Name == containerName {
+//			return devConfig.Dev
+//		}
+//	}
+//	return nil
+//}

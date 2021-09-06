@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -142,23 +142,20 @@ func (c *Controller) GetPortForward(localPort, remotePort int) (*profile.DevPort
 
 func (c *Controller) PortForwardAfterDevStart(podName, containerName string) error {
 
-	profileV2, err := c.GetProfile()
+	p, err := c.GetConfig()
 	if err != nil {
 		return err
 	}
 
-	p := profileV2
 	if p.ContainerConfigs == nil {
 		return nil
 	}
+
 	cc := p.GetContainerDevConfigOrDefault(containerName)
 	if cc == nil {
 		return nil
 	}
-	//podName, err := c.GetNocalhostDevContainerPod()
-	//if err != nil {
-	//	return err
-	//}
+
 	for _, pf := range cc.PortForward {
 		lPort, rPort, err := GetPortForwardForString(pf)
 		if err != nil {
