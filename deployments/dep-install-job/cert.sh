@@ -46,7 +46,7 @@ done
 [ -z ${namespace} ] && namespace=nocalhost-reserved
 
 
-[ -n ${NAMESPACE} ] && namespace=${NAMESPACE}
+[ -n "${DEP_NAMESPACE}" ] && namespace=${DEP_NAMESPACE}
 
 if kubectl describe secret -n ${namespace} ${secret}; then
     echo "secret ${namespace}/${secret} has been created so do not need to create one."

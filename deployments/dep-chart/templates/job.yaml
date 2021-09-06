@@ -1,22 +1,21 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: nocalhost-dep-installer-{{ .Release.Revision }}
-  namespace: {{ .Values.depNamespace | default "nocalhost-reserved" }}
+  name: nocalhost-dep-installer
 spec:
   template:
     spec:
       containers:
       - command:
         - /nocalhost/installer.sh
-        image: {{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: IfNotPresent
         name: nocalhost-dep-installer
         env:
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
+          - name: DEP_NAMESPACE
+            value: "{{ .Values.dep.namespace }}"
+          - name: DEP_IMAGE
+            value: "{{ .Values.dep.image.repository }}:{{ .Values.dep.image.tag }}"
+        imagePullPolicy: Always
       restartPolicy: Never
-      serviceAccount: nocalhost-dep-admin
-      serviceAccountName: nocalhost-dep-admin
+      serviceAccountName: nocalhost-dep-installer
