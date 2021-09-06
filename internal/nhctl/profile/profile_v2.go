@@ -126,7 +126,7 @@ func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
 func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV2 {
 
 	for _, svcProfile := range a.SvcProfile {
-		if svcProfile.ActualName == svcName && svcProfile.Type == svcType {
+		if svcProfile.GetName() == svcName && svcProfile.GetType() == svcType {
 			return svcProfile
 		}
 	}
@@ -148,7 +148,8 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 		//		},
 		//	},
 		//},
-		ActualName: svcName,
+		//ActualName: svcName,
+		Name: svcName,
 	}
 	a.SvcProfile = append(a.SvcProfile, svcProfile)
 
@@ -189,7 +190,7 @@ func (a *AppProfileV2) CloseDb() error {
 type SvcProfileV2 struct {
 	*ServiceConfigV2 `json:"rawConfig" yaml:"rawConfig"` // deprecated, move to app mate
 	//ContainerProfile []*ContainerProfileV2 `json:"containerProfile" yaml:"containerProfile"`
-	ActualName string `json:"actualName" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
+	ActualName string `json:"actualName" yaml:"actualName"` // deprecated - for helm, actualName may be ReleaseName-Name
 
 	// todo: Is this will conflict with ServiceConfigV2 ? by hxx
 	Name string `json:"name" yaml:"name"`
@@ -235,18 +236,6 @@ type SvcProfileV2 struct {
 	// and the syncthing process is listen on current device
 	Possess bool `json:"possess" yaml:"possess"`
 }
-
-//func (s *SvcProfileV2) GetContainerConfig(container string) *ContainerConfig {
-//	if s == nil {
-//		return nil
-//	}
-//	for _, c := range s.ContainerConfigs {
-//		if c.Name == container {
-//		}
-//		return c
-//	}
-//	return nil
-//}
 
 type ContainerProfileV2 struct {
 	Name string
@@ -295,3 +284,23 @@ type DevPortForward struct {
 //	}
 //	return nil
 //}
+
+func (s *SvcProfileV2) GetName() string {
+	if s.Name == "" {
+		if s.ActualName != "" {
+			s.Name = s.ActualName
+		} else {
+			if s.ServiceConfigV2 == nil {
+				s.Name = s.ServiceConfigV2.Name
+			}
+		}
+	}
+	return s.Name
+}
+
+func (s *SvcProfileV2) GetType() string {
+	if s.Type == "" {
+		s.Type = s.ServiceConfigV2.Type
+	}
+	return s.Type
+}

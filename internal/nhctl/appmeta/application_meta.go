@@ -295,15 +295,15 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 }
 
 func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, ns, identifier string) {
-	svcType := base.SvcTypeOf(s.Type)
+	svcType := base.SvcTypeOf(s.GetType())
 
-	devStatus := meta.CheckIfSvcDeveloping(s.ActualName, svcType)
+	devStatus := meta.CheckIfSvcDeveloping(s.GetName(), svcType)
 
 	pack := dev_dir.NewSvcPack(
 		ns,
 		appName,
 		svcType,
-		s.Name,
+		s.GetName(),
 		"", // describe can not specify container
 	)
 	s.Associate = pack.GetAssociatePath().ToString()
@@ -311,7 +311,7 @@ func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, n
 	s.DevelopStatus = string(devStatus)
 
 	s.Possess = meta.SvcDevModePossessor(
-		s.ActualName, svcType,
+		s.GetName(), svcType,
 		identifier,
 	)
 }

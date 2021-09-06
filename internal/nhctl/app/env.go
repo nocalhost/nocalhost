@@ -57,13 +57,13 @@ func (a *Application) GetInstallEnvForDep() *InstallEnvForDep {
 	// Find service env
 	servcesEnv := make([]*ServiceEnvForDep, 0)
 	for _, svcProfile := range appProfileV2.SvcProfile {
-		svcConfig := appConfig.GetSvcConfigS(svcProfile.Name, base.SvcType(svcProfile.Type))
+		svcConfig := appConfig.GetSvcConfigS(svcProfile.GetName(), base.SvcType(svcProfile.GetType()))
 		if len(svcConfig.ContainerConfigs) == 0 {
 			continue
 		}
 		svcEnv := &ServiceEnvForDep{
-			Name:      svcProfile.ActualName,
-			Type:      svcProfile.Type,
+			Name:      svcProfile.GetName(),
+			Type:      svcProfile.GetType(),
 			Container: make([]*ContainerEnvForDep, 0),
 		}
 		for _, config := range svcConfig.ContainerConfigs {

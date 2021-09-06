@@ -119,7 +119,7 @@ func (c *Controller) GetPortForward(localPort, remotePort int) (*profile.DevPort
 			return pf, nil
 		}
 	}
-	log.Logf("type %s, name %s", c.Type, svcProfile.ActualName)
+	log.Logf("type %s, name %s", c.Type, svcProfile.GetName())
 	return nil, errors.New(fmt.Sprintf("Pf %d:%d not found", localPort, remotePort))
 }
 

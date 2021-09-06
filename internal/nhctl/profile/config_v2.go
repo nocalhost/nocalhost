@@ -17,6 +17,7 @@ import (
 
 type NocalHostAppConfigV2 struct {
 	ConfigProperties  *ConfigProperties  `json:"configProperties" yaml:"configProperties"`
+	Migrated          bool               `json:"migrated" yaml:"migrated"` // Only used for checking if config has migrate in meta
 	ApplicationConfig *ApplicationConfig `json:"application" yaml:"application"`
 }
 

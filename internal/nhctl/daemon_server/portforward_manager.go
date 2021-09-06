@@ -92,7 +92,7 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string
 				svcType := pf.ServiceType
 				// For compatibility
 				if svcType == "" {
-					svcType = svcProfile.Type
+					svcType = svcProfile.GetType()
 				}
 				if svcType == "" {
 					svcType = "deployment"
@@ -102,7 +102,7 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string
 						CommandType: command.StartPortForward,
 						NameSpace:   ns,
 						AppName:     appName,
-						Service:     svcProfile.ActualName,
+						Service:     svcProfile.GetName(),
 						ServiceType: svcType,
 						PodName:     pf.PodName,
 						LocalPort:   pf.LocalPort,

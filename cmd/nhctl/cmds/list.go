@@ -66,7 +66,7 @@ func ListApplicationSvc(napp *app.Application) {
 	appProfile, _ := napp.GetProfile()
 	for _, svcProfile := range appProfile.SvcProfile {
 		rols := []string{
-			svcProfile.ActualName, strconv.FormatBool(svcProfile.Developing), strconv.FormatBool(svcProfile.Syncing),
+			svcProfile.GetName(), strconv.FormatBool(svcProfile.Developing), strconv.FormatBool(svcProfile.Syncing),
 			fmt.Sprintf("%v", svcProfile.DevPortForwardList),
 			fmt.Sprintf("%s", svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin),
 			strconv.Itoa(svcProfile.LocalSyncthingGUIPort),
@@ -138,9 +138,9 @@ func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 		if !k8serrors.IsForbidden(err) {
 			mustI(err, "Error while create default application")
 			return []*appmeta.ApplicationMeta{nocalhostApp.GetAppMeta()}, nil
-		}else {
+		} else {
 
-			metas = append(metas,appmeta.FakeAppMeta(nameSpace, _const.DefaultNocalhostApplication))
+			metas = append(metas, appmeta.FakeAppMeta(nameSpace, _const.DefaultNocalhostApplication))
 		}
 	}
 

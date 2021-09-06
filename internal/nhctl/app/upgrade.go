@@ -47,6 +47,7 @@ func (a *Application) PrepareForUpgrade(flags *flag.InstallFlags) error {
 	}
 
 	a.appMeta.Config = config
+	a.appMeta.Config.Migrated = true
 	return a.appMeta.Update()
 }
 

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -63,18 +63,18 @@ var upgradeCmd = &cobra.Command{
 
 		pfListMap := make(map[string][]*profile.DevPortForward, 0)
 		for _, svcProfile := range appProfile.SvcProfile {
-			nhSvc := initService(svcProfile.ActualName, svcProfile.Type)
+			nhSvc := initService(svcProfile.GetName(), svcProfile.GetType())
 			pfList := make([]*profile.DevPortForward, 0)
 			for _, pf := range svcProfile.DevPortForwardList {
 				if pf.ServiceType == "" {
-					pf.ServiceType = svcProfile.Type
+					pf.ServiceType = svcProfile.GetType()
 				}
 				pfList = append(pfList, pf)
 				log.Infof("Stopping pf: %d:%d", pf.LocalPort, pf.RemotePort)
 				utils.Should(nhSvc.EndDevPortForward(pf.LocalPort, pf.RemotePort))
 			}
 			if len(pfList) > 0 {
-				pfListMap[svcProfile.ActualName] = pfList
+				pfListMap[svcProfile.GetName()] = pfList
 			}
 		}
 

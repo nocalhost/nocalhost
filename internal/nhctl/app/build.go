@@ -116,6 +116,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	appMeta.Config = config
+	appMeta.Config.Migrated = true
 	appMeta.ApplicationType = appmeta.AppType(flags.AppType)
 	if err := appMeta.Update(); err != nil {
 		return nil, err

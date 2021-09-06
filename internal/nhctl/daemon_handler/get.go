@@ -43,8 +43,8 @@ func getServiceProfile(ns, appName string) map[string]*profile.SvcProfileV2 {
 	if description != nil {
 		for _, svcProfileV2 := range description.SvcProfile {
 			if svcProfileV2 != nil {
-				name := strings.ToLower(svcProfileV2.Type) + "s"
-				serviceMap[name+"/"+svcProfileV2.Name] = svcProfileV2
+				name := strings.ToLower(svcProfileV2.GetType()) + "s"
+				serviceMap[name+"/"+svcProfileV2.GetName()] = svcProfileV2
 			}
 		}
 	}
@@ -90,7 +90,7 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 			}
 			if svcProfile.ServiceConfigV2 == nil {
 				svcProfile.ServiceConfigV2 = &profile.ServiceConfigV2{
-					Name: svcProfile.Name,
+					Name: svcProfile.GetName(),
 					Type: base.Deployment.String(),
 					ContainerConfigs: []*profile.ContainerConfig{
 						{
@@ -105,8 +105,8 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 
 			appmeta.FillingExtField(svcProfile, &meta, appName, ns, appProfile.Identifier)
 
-			if m := devMeta[base.SvcTypeOf(svcProfile.Type).Alias()]; m != nil {
-				delete(m, svcProfile.ActualName)
+			if m := devMeta[base.SvcTypeOf(svcProfile.GetType()).Alias()]; m != nil {
+				delete(m, svcProfile.GetName())
 			}
 		}
 

@@ -175,9 +175,13 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		}
 	}
 	// Migrate config to meta
-	if !profileV2.ConfigMigrated {
+	if !profileV2.ConfigMigrated && !app.appMeta.Config.Migrated {
 		c := app.newConfigFromProfile()
 		app.appMeta.Config = c
+		app.appMeta.Config.Migrated = true
+		if err = app.appMeta.Update(); err != nil {
+			return nil, err
+		}
 		profileV2.ConfigMigrated = true
 		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, profileV2); err != nil {
 			return nil, err
@@ -224,8 +228,8 @@ func migrateAssociate(appProfile *profile.AppProfileV2, a *Application) {
 					dev_dir.NewSvcPack(
 						appProfile.Namespace,
 						appProfile.Name,
-						base.SvcTypeOf(svcProfile.Type),
-						svcProfile.Name,
+						base.SvcTypeOf(svcProfile.GetType()),
+						svcProfile.GetName(),
 						"",
 					), "NotSupported", false,
 				)
@@ -297,7 +301,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 
 		for _, svc := range profileV2.SvcProfile {
 			if svc.Developing {
-				_ = a.appMeta.SvcDevStartComplete(svc.Name, base.SvcType(svc.Type), profileV2.Identifier)
+				_ = a.appMeta.SvcDevStartComplete(svc.GetName(), base.SvcType(svc.GetType()), profileV2.Identifier)
 			}
 		}
 
@@ -649,8 +653,8 @@ func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.
 	for _, p := range profiles {
 		configs = append(
 			configs, &profile.ServiceConfigV2{
-				Name:                p.Name,
-				Type:                p.Type,
+				Name:                p.GetName(),
+				Type:                p.GetType(),
 				PriorityClass:       p.PriorityClass,
 				DependLabelSelector: p.DependLabelSelector,
 				ContainerConfigs:    p.ContainerConfigs,
@@ -829,8 +833,8 @@ func (a *Application) GetDescription() *profile.AppProfileV2 {
 		for _, svcProfile := range appProfile.SvcProfile {
 			appmeta.FillingExtField(svcProfile, meta, a.Name, a.NameSpace, appProfile.Identifier)
 
-			if m := devMeta[base.SvcTypeOf(svcProfile.Type).Alias()]; m != nil {
-				delete(m, svcProfile.ActualName)
+			if m := devMeta[base.SvcTypeOf(svcProfile.GetType()).Alias()]; m != nil {
+				delete(m, svcProfile.GetName())
 			}
 		}
 
