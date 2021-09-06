@@ -45,7 +45,7 @@ type Searcher struct {
 	stopChannel     chan struct{}
 }
 
-// GetSupportedSchema
+// GetSupportedSchema return restMapping of each resource
 func GetSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (map[string]*meta.RESTMapping, error) {
 	var resourceNeeded = map[string]string{"namespaces": "namespaces"}
 	for _, v := range GroupToTypeMap {
@@ -90,87 +90,94 @@ func GetSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (map[st
 	return nameToMapping, nil
 }
 
-// GetSearcher
+// GetSearcher GetSearchWithLRU will cache kubeconfig with LRU
 func GetSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
+	lock.Lock()
+	defer lock.Unlock()
 	// calculate kubeconfig content's sha value as unique cluster id
 	h := sha1.New()
 	h.Write(kubeconfigBytes)
 	key := string(h.Sum(nil))
-	lock.Lock()
-	defer lock.Unlock()
 	searcher, exist := searchMap.Get(key)
 	if !exist || searcher == nil {
-		config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
+		newSearcher, err := initSearcher(kubeconfigBytes, namespace)
 		if err != nil {
 			return nil, err
 		}
-		// default value is flowcontrol.NewTokenBucketRateLimiter(5, 10)
-		config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
-		clientset, err1 := kubernetes.NewForConfig(config)
-		if err1 != nil {
-			return nil, err1
-		}
-
-		var informerFactory informers.SharedInformerFactory
-
-		if isClusterAdmin(kubeconfigBytes) {
-			informerFactory = informers.NewSharedInformerFactory(clientset, time.Second*5)
-		} else {
-			informerFactory = informers.NewSharedInformerFactoryWithOptions(
-				clientset, time.Second*5, informers.WithNamespace(namespace),
-			)
-		}
-		gr, err2 := restmapper.GetAPIGroupResources(clientset)
-		if err2 != nil {
-			return nil, err2
-		}
-		mapper := restmapper.NewDiscoveryRESTMapper(gr)
-		restMappingList, err3 := GetSupportedSchema(clientset, mapper)
-		if err3 != nil {
-			return nil, err3
-		}
-		for _, restMapping := range restMappingList {
-			if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
-				if k8serrors.IsForbidden(err) {
-					log.Warnf("user account is forbidden to list resource: %v, ignored", restMapping.Resource)
-				} else {
-					log.Warnf(
-						"Can't create informer for resource: %v, error info: %v, ignored",
-						restMapping.Resource, err.Error(),
-					)
-				}
-				continue
-			}
-		}
-		stopChannel := make(chan struct{}, len(restMappingList))
-		firstSyncChannel := make(chan struct{}, 2)
-		informerFactory.Start(stopChannel)
-		go func() {
-			informerFactory.WaitForCacheSync(firstSyncChannel)
-			firstSyncChannel <- struct{}{}
-		}()
-		go func() {
-			t := time.NewTicker(time.Second * 3)
-			<-t.C
-			firstSyncChannel <- struct{}{}
-		}()
-		<-firstSyncChannel
-
-		newSearcher := &Searcher{
-			kubeconfig:      kubeconfigBytes,
-			informerFactory: informerFactory,
-			supportSchema:   restMappingList,
-			mapper:          mapper,
-			stopChannel:     stopChannel,
-		}
-		if searcher, exist = searchMap.Get(key); !exist || searcher == nil {
-			searchMap.Add(key, newSearcher)
-		}
+		searchMap.Add(key, newSearcher)
 	}
 	if searcher, exist = searchMap.Get(key); exist && searcher != nil {
 		return searcher.(*Searcher), nil
 	}
 	return nil, errors.New("Error occurs while init informer searcher")
+}
+
+// initSearcher return a searcher which use informer to cache resource
+func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
+	config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
+	if err != nil {
+		return nil, err
+	}
+	// default value is flowcontrol.NewTokenBucketRateLimiter(5, 10)
+	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
+	clientset, err1 := kubernetes.NewForConfig(config)
+	if err1 != nil {
+		return nil, err1
+	}
+
+	var informerFactory informers.SharedInformerFactory
+
+	if isClusterAdmin(kubeconfigBytes) {
+		informerFactory = informers.NewSharedInformerFactory(clientset, time.Second*5)
+	} else {
+		informerFactory = informers.NewSharedInformerFactoryWithOptions(
+			clientset, time.Second*5, informers.WithNamespace(namespace),
+		)
+	}
+	gr, err2 := restmapper.GetAPIGroupResources(clientset)
+	if err2 != nil {
+		return nil, err2
+	}
+	mapper := restmapper.NewDiscoveryRESTMapper(gr)
+	restMappingList, err3 := GetSupportedSchema(clientset, mapper)
+	if err3 != nil {
+		return nil, err3
+	}
+	for _, restMapping := range restMappingList {
+		if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
+			if k8serrors.IsForbidden(err) {
+				log.Warnf("user account is forbidden to list resource: %v, ignored", restMapping.Resource)
+			} else {
+				log.Warnf(
+					"Can't create informer for resource: %v, error info: %v, ignored",
+					restMapping.Resource, err.Error(),
+				)
+			}
+			continue
+		}
+	}
+	stopChannel := make(chan struct{}, len(restMappingList))
+	firstSyncChannel := make(chan struct{}, 2)
+	informerFactory.Start(stopChannel)
+	go func() {
+		informerFactory.WaitForCacheSync(firstSyncChannel)
+		firstSyncChannel <- struct{}{}
+	}()
+	go func() {
+		t := time.NewTicker(time.Second * 3)
+		<-t.C
+		firstSyncChannel <- struct{}{}
+	}()
+	<-firstSyncChannel
+
+	newSearcher := &Searcher{
+		kubeconfig:      kubeconfigBytes,
+		informerFactory: informerFactory,
+		supportSchema:   restMappingList,
+		mapper:          mapper,
+		stopChannel:     stopChannel,
+	}
+	return newSearcher, nil
 }
 
 // Start
@@ -493,6 +500,7 @@ func (n *filter) toSlice() []interface{} {
 	return n.element[0:]
 }
 
+// isClusterAdmin judge weather is cluster scope kubeconfig or not
 func isClusterAdmin(kubeconfigBytes []byte) bool {
 	c, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
 	if err != nil {

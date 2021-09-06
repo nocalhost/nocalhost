@@ -124,12 +124,12 @@ func GetDescriptionDaemon(ns, appName string) *profile.AppProfileV2 {
 func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) interface{} {
 	KubeConfigBytes, _ := ioutil.ReadFile(request.KubeConfig)
 	ns := getNamespace(request.Namespace, KubeConfigBytes)
-	s, err := resouce_cache.GetSearcher(KubeConfigBytes, ns)
-	if err != nil {
-		return nil
-	}
 	switch request.Resource {
 	case "all":
+		s, err := resouce_cache.GetSearcher(KubeConfigBytes, ns)
+		if err != nil {
+			return nil
+		}
 		if len(request.AppName) != 0 {
 			availableAppName := getAvailableAppName(ns, request.KubeConfig)
 			return item.Result{
@@ -174,7 +174,6 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		}
 		return getApplicationByNs(ns, request.KubeConfig, s, request.Label)
 	case "app", "application":
-		ns = getNamespace(request.Namespace, KubeConfigBytes)
 		if request.ResourceName == "" {
 			return ParseApplicationsResult(ns, GetAllApplicationWithDefaultApp(ns, request.KubeConfig))
 		} else {
@@ -182,8 +181,10 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			return ParseApplicationsResult(ns, []*appmeta.ApplicationMeta{meta})
 		}
 	default:
-		ns = getNamespace(request.Namespace, KubeConfigBytes)
-
+		s, err := resouce_cache.GetSearcher(KubeConfigBytes, ns)
+		if err != nil {
+			return nil
+		}
 		serviceMap := make(map[string]*profile.SvcProfileV2)
 		appNameList := make([]string, 0, 0)
 		if len(request.AppName) != 0 {
