@@ -5,8 +5,8 @@ import (
 	"strconv"
 )
 
-func (p *SyncthingHttpClient) Events(since int) ([]event, error) {
-	resp, err := p.get("rest/events?since=" + strconv.Itoa(since))
+func (p *SyncthingHttpClient) Events(since int64) ([]event, error) {
+	resp, err := p.get("rest/events?since=" + strconv.FormatInt(since, 10))
 	if err != nil {
 		return nil, err
 	}
