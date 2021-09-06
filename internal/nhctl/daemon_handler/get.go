@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
@@ -173,6 +174,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			}
 		}
 		return getApplicationByNs(ns, request.KubeConfig, s, request.Label)
+
 	case "app", "application":
 		if request.ResourceName == "" {
 			return ParseApplicationsResult(ns, GetAllApplicationWithDefaultApp(ns, request.KubeConfig))
@@ -180,6 +182,37 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			meta := appmeta_manager.GetApplicationMeta(ns, request.ResourceName, KubeConfigBytes)
 			return ParseApplicationsResult(ns, []*appmeta.ApplicationMeta{meta})
 		}
+
+	case "ns", "namespace", "namespaces":
+		s, err := resouce_cache.GetSearcher(KubeConfigBytes, ns)
+		if err != nil {
+			return nil
+		}
+		data, err := s.Criteria().
+			ResourceType(request.Resource).
+			ResourceName(request.ResourceName).
+			Label(request.Label).
+			Query()
+		// resource namespace filter status is active
+		availableData := make([]interface{}, 0, 0)
+		for _, datum := range data {
+			if datum.(*v1.Namespace).Status.Phase == v1.NamespaceActive {
+				availableData = append(availableData, datum)
+			}
+		}
+		if err != nil || len(availableData) == 0 {
+			return nil
+		}
+		if len(request.ResourceName) == 0 {
+			result := make([]item.Item, 0, len(availableData))
+			for _, datum := range availableData {
+				result = append(result, item.Item{Metadata: datum})
+			}
+			return result[0:]
+		} else {
+			return item.Item{Metadata: availableData[0]}
+		}
+
 	default:
 		s, err := resouce_cache.GetSearcher(KubeConfigBytes, ns)
 		if err != nil {
