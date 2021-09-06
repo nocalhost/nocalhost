@@ -149,6 +149,7 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 		//	},
 		//},
 		//ActualName: svcName,
+		Type: svcType,
 		Name: svcName,
 	}
 	a.SvcProfile = append(a.SvcProfile, svcProfile)
@@ -300,7 +301,9 @@ func (s *SvcProfileV2) GetName() string {
 
 func (s *SvcProfileV2) GetType() string {
 	if s.Type == "" {
-		s.Type = s.ServiceConfigV2.Type
+		if s.ServiceConfigV2 != nil {
+			s.Type = s.ServiceConfigV2.Type
+		}
 	}
 	return s.Type
 }
