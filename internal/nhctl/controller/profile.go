@@ -60,6 +60,13 @@ func (c *Controller) LoadConfigFromHubC(container string) error {
 	if err != nil {
 		return err
 	}
+
+	for _, cc := range p.ContainerConfigs {
+		if cc != nil && cc.Dev != nil && cc.Dev.Image != "" {
+			return nil
+		}
+	}
+
 	cc := p.GetContainerConfig(container)
 	if cc == nil || cc.Dev == nil || cc.Dev.Image == "" {
 		log.Logf("%s config not found, try to load it from hub", container)
