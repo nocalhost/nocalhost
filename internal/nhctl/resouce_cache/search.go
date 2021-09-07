@@ -535,3 +535,32 @@ func isClusterAdmin(kubeconfigBytes []byte) bool {
 	}
 	return response.Status.Allowed
 }
+
+// RemoveSearcherByKubeconfig remove informer from cache
+func RemoveSearcherByKubeconfig(kubeconfigBytes []byte) error {
+	lock.Lock()
+	defer lock.Unlock()
+	h := sha1.New()
+	h.Write(kubeconfigBytes)
+	key := string(h.Sum(nil))
+	if searcher, exist := searchMap.Get(key); exist && searcher != nil {
+		go func() { searcher.(*Searcher).Stop() }()
+		searchMap.Remove(key)
+	}
+	return nil
+}
+
+// AddSearcherByKubeconfig init informer in advance
+func AddSearcherByKubeconfig(kubeconfigBytes []byte, namespace string) error {
+	h := sha1.New()
+	h.Write(kubeconfigBytes)
+	key := string(h.Sum(nil))
+	lock.Lock()
+	if searcher, exist := searchMap.Get(key); exist && searcher != nil {
+		lock.Unlock()
+		return nil
+	}
+	lock.Unlock()
+	go func() { _, _ = GetSearcher(kubeconfigBytes, namespace) }()
+	return nil
+}

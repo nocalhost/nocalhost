@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package command
 
@@ -25,6 +25,7 @@ const (
 	GetApplicationMetas   DaemonCommandType = "GetApplicationMetas"
 	GetResourceInfo       DaemonCommandType = "GetResourceInfo"
 	UpdateApplicationMeta DaemonCommandType = "UpdateApplicationMeta"
+	KubeconfigOperation   DaemonCommandType = "KubeconfigOperationCommand"
 
 	PREVIEW_VERSION = 0
 	SUCCESS         = 200
@@ -97,6 +98,22 @@ type UpdateApplicationMetaCommand struct {
 	SecretName string     `json:"secretName" yaml:"secretName"`
 	Secret     *v1.Secret `json:"secret" yaml:"secret"`
 }
+
+type KubeconfigOperationCommand struct {
+	CommandType DaemonCommandType
+	ClientStack string
+
+	KubeConfigBytes []byte    `json:"kubeConfigBytes" yaml:"kubeConfigBytes"`
+	Namespace       string    `json:"namespace" yaml:"namespace"`
+	Operation       Operation `json:"operation" yaml:"operation"`
+}
+
+type Operation string
+
+const (
+	OperationAdd    Operation = "add"
+	OperationRemove Operation = "remove"
+)
 
 func ParseBaseCommand(bys []byte) (DaemonCommandType, string, error) {
 	base := &BaseCommand{}

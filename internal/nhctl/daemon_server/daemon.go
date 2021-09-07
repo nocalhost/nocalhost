@@ -365,6 +365,15 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				), nil
 			},
 		)
+
+	case command.KubeconfigOperation:
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			cmd := &command.KubeconfigOperationCommand{}
+			if err = json.Unmarshal(bys, cmd); err != nil {
+				return nil, errors.Wrap(err, "")
+			}
+			return nil, daemon_handler.HandleKubeconfigOperationRequest(cmd)
+		})
 	}
 	if err != nil {
 		log.LogE(err)

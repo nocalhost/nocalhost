@@ -338,6 +338,23 @@ func (d *DaemonClient) SendUpdateApplicationMetaCommand(
 	return true, nil
 }
 
+// SendKubeconfigOperationCommand send add/remove kubeconfig request to daemon
+func (d *DaemonClient) SendKubeconfigOperationCommand(kubeconfigBytes []byte, ns string, operation command.Operation) error {
+	cmd := &command.KubeconfigOperationCommand{
+		CommandType: command.KubeconfigOperation,
+		ClientStack: string(debug.Stack()),
+
+		KubeConfigBytes: kubeconfigBytes,
+		Namespace:       ns,
+		Operation:       operation,
+	}
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	return d.sendDataToDaemonServer(bys)
+}
+
 // sendDataToDaemonServer send data only to daemon
 func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 	baseCmd := command.BaseCommand{}
