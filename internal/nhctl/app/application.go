@@ -397,6 +397,10 @@ func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType ba
 			)
 			return false
 		}
+		if svcCfg == nil {
+			hint("Load nocalhost svc config from annotations success, but can not find corresponding config.")
+			return false
+		}
 
 		// means should cm cfg is valid, persist to profile
 		if err := a.Controller(svcName, svcType).UpdateSvcProfile(
@@ -441,6 +445,10 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcTy
 		hint("Load nocalhost svc config from cm fail, err: %s", err.Error())
 		return false
 	}
+	if svcCfg == nil {
+		hint("Load nocalhost svc config from cm success, but can not find corresponding config.")
+		return false
+	}
 
 	// means should cm cfg is valid, persist to profile
 	if err := a.Controller(svcName, svcType).UpdateSvcProfile(
@@ -468,11 +476,14 @@ func LoadSvcCfgFromStrIfValid(config string, svcName string, svcType base.SvcTyp
 	*profile.NocalHostAppConfigV2, *profile.ServiceConfigV2, error) {
 	var svcCfg *profile.ServiceConfigV2
 	var appCfg *profile.NocalHostAppConfigV2
-	if svcCfg, _ = doLoadProfileFromSvcConfig(envsubst.TextRenderItem(config), svcName, svcType); svcCfg == nil {
-		if appCfg, svcCfg, _ = doLoadProfileFromAppConfig(
+	var err error
+	if svcCfg, _ = doLoadProfileFromSvcConfig(
+		envsubst.TextRenderItem(config), svcName, svcType,
+	); svcCfg == nil {
+		if appCfg, svcCfg, err = doLoadProfileFromAppConfig(
 			envsubst.TextRenderItem(config), svcName, svcType,
-		); svcCfg == nil {
-			return nil, nil, errors.New("can not load cfg, may has syntax error! ")
+		); err != nil {
+			return nil, nil, errors.New(fmt.Sprintf("can not load cfg, may has syntax error, Content: %s", config))
 		}
 	}
 

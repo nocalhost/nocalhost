@@ -17,7 +17,6 @@ import (
 	"nocalhost/internal/nhctl/profile"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type Patcher struct {
@@ -49,7 +48,13 @@ func (p *Patcher) patchAnnotations(currentAnnos map[string]string, kvPair []stri
 			currentAnnos = map[string]string{}
 		}
 
+		if v, ok := currentAnnos[kvPair[0]]; ok && v == kvPair[1] {
+			// no need to patch if already present
+			return
+		}
+
 		currentAnnos[kvPair[0]] = kvPair[1]
+
 		p.patch = append(
 			p.patch, patchOperation{
 				Op:    "add",
@@ -61,7 +66,6 @@ func (p *Patcher) patchAnnotations(currentAnnos map[string]string, kvPair []stri
 }
 
 func (p *Patcher) patchBytes() ([]byte, error) {
-	fmt.Printf("patch %+v\n", p.patch)
 	return json.Marshal(p.patch)
 }
 
@@ -101,6 +105,9 @@ func nocalhostDepConfigmapCustom(
 	if err != nil {
 		return nil, nil, err
 	}
+	if svcConfig == nil {
+		return nil, nil, nil
+	}
 
 	initContainers := make([]corev1.Container, 0)
 	envVarArray := make([]envVar, 0)
@@ -134,6 +141,26 @@ func nocalhostDepConfigmapCustom(
 			if cfg, ok := mapping[container.Name]; ok && cfg.Install != nil && cfg.Install.Env != nil {
 
 				for _, env := range cfg.Install.Env {
+					envVarArray = append(
+						envVarArray, envVar{
+							EnvVar: []corev1.EnvVar{{
+								Name:  env.Name,
+								Value: env.Value,
+							}},
+							ContainerIndex: index,
+						},
+					)
+				}
+
+			} else if len(containers) == 1 &&
+				len(svcConfig.ContainerConfigs) == 1 &&
+				svcConfig.ContainerConfigs[0].Name == "" {
+
+				// CAUTION: this is a special case of nocalhost config
+				// while nocalhost config's container has a single config with empty name
+				// and only one container from workloads
+				// we will use this container config as container's config
+				for _, env := range svcConfig.ContainerConfigs[0].Install.Env {
 					envVarArray = append(
 						envVarArray, envVar{
 							EnvVar: []corev1.EnvVar{{
@@ -191,7 +218,7 @@ func nocalhostDepConfigmapCustom(
 		initContainers = append(initContainers, initContainer)
 	}
 
-	return containers, envVarArray, nil
+	return initContainers, envVarArray, nil
 }
 
 // get nocalhost dependents configmaps, this will get from specify namespace by labels
@@ -205,14 +232,14 @@ func nocalhostDepConfigmap(
 		"use-for": "nocalhost-dep",
 	}
 	setLabelSelector := labels.Set(labelSelector)
-	startTime := time.Now()
+	//startTime := time.Now()
 
 	// TODO need to refactor, do not need to list all cm
 	configMaps, err := clientset.CoreV1().ConfigMaps(namespace).List(
 		context.TODO(), metav1.ListOptions{LabelSelector: setLabelSelector.AsSelector().String()},
 	)
-	duration := time.Now().Sub(startTime)
-	glog.Infof("get configmap total cost %d", duration.Milliseconds())
+	//duration := time.Now().Sub(startTime)
+	//glog.Infof("get configmap total cost %d", duration.Milliseconds())
 	initContainers := make([]corev1.Container, 0)
 	envVarArray := make([]envVar, 0)
 	if err != nil {

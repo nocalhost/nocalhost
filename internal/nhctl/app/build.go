@@ -243,7 +243,7 @@ func RenderConfigForSvc(renderItem envsubst.RenderItem) ([]*profile.ServiceConfi
 	if err = yaml.Unmarshal([]byte(renderedStr), &renderedConfig); err != nil {
 		var singleSvcConfig profile.ServiceConfigV2
 		if err = yaml.Unmarshal([]byte(renderedStr), &singleSvcConfig); err == nil {
-			if len(singleSvcConfig.ContainerConfigs) > 0 {
+			if len(singleSvcConfig.ContainerConfigs) > 0 || singleSvcConfig.DependLabelSelector != nil {
 				renderedConfig = append(renderedConfig, &singleSvcConfig)
 			}
 		}

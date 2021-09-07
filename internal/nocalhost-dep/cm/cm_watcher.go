@@ -7,9 +7,9 @@ package cm
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/golang/glog"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kblabels "k8s.io/apimachinery/pkg/labels"
@@ -25,6 +25,8 @@ import (
 	"strings"
 	"sync"
 )
+
+var NOT_FOUND = errors.New("Not found")
 
 type CmWatcher struct {
 	namespace string
@@ -48,7 +50,7 @@ func (cmw *CmWatcher) CreateOrUpdate(key string, obj interface{}) error {
 			)
 			return nil
 		}
-		return cmw.join(cm.Namespace, appName, cm)
+		return cmw.join(appName, cm)
 	} else {
 		errInfo := fmt.Sprintf("Fetching cm with key %s but could not cast to cm: %v", key, obj)
 		glog.Error(errInfo)
@@ -58,7 +60,7 @@ func (cmw *CmWatcher) CreateOrUpdate(key string, obj interface{}) error {
 
 func (cmw *CmWatcher) Delete(key string) error {
 	var namespace string
-	var app string
+	var appName string
 
 	// if key name has namespace/xxx prefix, prefix is the namespace
 	if idx := strings.Index(key, "/"); idx > 0 {
@@ -66,12 +68,12 @@ func (cmw *CmWatcher) Delete(key string) error {
 			namespace = key[:idx]
 			cmName := key[idx+1:]
 
-			app = appmeta.GetAppNameFromConfigMapName(cmName)
+			appName = appmeta.GetAppNameFromConfigMapName(cmName)
 		}
 	}
 
-	if app != "" && namespace != "" {
-		cmw.left(namespace, app)
+	if appName != "" && namespace != "" {
+		cmw.left(appName)
 	} else {
 		log.Info(
 			"[Delete Event] cm %s is not standard nocalhost "+
@@ -86,13 +88,13 @@ func (cmw *CmWatcher) WatcherInfo() string {
 	return fmt.Sprintf("'Cm'")
 }
 
-func (cmw *CmWatcher) join(ns, app string, cm *corev1.ConfigMap) error {
-	cmw.cache.Store(fmt.Sprintf("%s/%s", ns, app), &cm)
+func (cmw *CmWatcher) join(app string, cm *corev1.ConfigMap) error {
+	cmw.cache.Store(app, cm)
 	return nil
 }
 
-func (cmw *CmWatcher) left(ns, app string) {
-	cmw.cache.Delete(fmt.Sprintf("%s/%s", ns, app))
+func (cmw *CmWatcher) left(app string) {
+	cmw.cache.Delete(app)
 }
 
 func NewCmWatcher(clientset *kubernetes.Clientset) *CmWatcher {
@@ -106,7 +108,7 @@ func NewCmWatcher(clientset *kubernetes.Clientset) *CmWatcher {
 func (cmw *CmWatcher) Prepare(namespace string) error {
 	cmw.namespace = namespace
 
-	// create the service account watcher
+	//create the service account watcher
 	saWatcher := cache.NewFilteredListWatchFromClient(
 		cmw.clientset.CoreV1().RESTClient(), "configmaps", namespace,
 		func(options *metav1.ListOptions) {
@@ -116,7 +118,7 @@ func (cmw *CmWatcher) Prepare(namespace string) error {
 		},
 	)
 
-	controller := watcher.NewController(cmw, saWatcher, &corev1.ServiceAccount{})
+	controller := watcher.NewController(cmw, saWatcher, &corev1.ConfigMap{})
 
 	listOpt := metav1.ListOptions{}
 	listOpt.LabelSelector = kblabels.Set{
@@ -127,7 +129,7 @@ func (cmw *CmWatcher) Prepare(namespace string) error {
 		context.TODO(), listOpt,
 	); err == nil {
 		for _, item := range list.Items {
-			if err := cmw.CreateOrUpdate(item.Name, item); err != nil {
+			if err := cmw.CreateOrUpdate(item.Name, &item); err != nil {
 				glog.Infof(
 					"CmCache: load nocalhost cm config in ns: %s error: %s", item.Namespace,
 					err.Error(),
@@ -144,8 +146,10 @@ func (cmw *CmWatcher) Prepare(namespace string) error {
 // CAUTION: appCfg may nil!
 func (cmw *CmWatcher) GetNocalhostConfig(application, svcType, svcName string) (
 	*profile.NocalHostAppConfigV2, *profile.ServiceConfigV2, error) {
+
+	glog.Infof("App: %s, svcType: %s, svcName: %s", application, svcType, svcName)
 	if load, ok := cmw.cache.Load(application); ok {
-		if cm, ok := load.(corev1.ConfigMap); ok {
+		if cm, ok := load.(*corev1.ConfigMap); ok {
 			cfgStr := cm.Data[appmeta.CmConfigKey]
 			if cfgStr == "" {
 				return nil, nil, errors.New(
@@ -156,23 +160,14 @@ func (cmw *CmWatcher) GetNocalhostConfig(application, svcType, svcName string) (
 				)
 			}
 
-			appConfig, svcCfg, err := app.LoadSvcCfgFromStrIfValid(
+			return app.LoadSvcCfgFromStrIfValid(
 				cfgStr, svcName,
 				base.SvcTypeOf(strings.ToLower(svcType)),
 			)
-			if err != nil {
-				return nil, nil, err
-			}
-			return appConfig, svcCfg, nil
 		}
 	}
 
-	return nil, nil, errors.New(
-		fmt.Sprintf(
-			"Nocalhost cm %s-%s not found",
-			cmw.namespace, application,
-		),
-	)
+	return nil, nil, NOT_FOUND
 }
 
 // this method will block until error occur

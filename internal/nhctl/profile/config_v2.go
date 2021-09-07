@@ -132,9 +132,11 @@ type EnvFile struct {
 }
 
 func (n *NocalHostAppConfigV2) GetSvcConfigV2(svcName string, svcType base.SvcType) *ServiceConfigV2 {
-	for _, config := range n.ApplicationConfig.ServiceConfigs {
-		if config.Name == svcName && base.SvcTypeOf(config.Type) == svcType {
-			return config
+	if n != nil && n.ApplicationConfig != nil {
+		for _, config := range n.ApplicationConfig.ServiceConfigs {
+			if config.Name == svcName && base.SvcTypeOf(config.Type) == svcType {
+				return config
+			}
 		}
 	}
 	return nil

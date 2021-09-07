@@ -241,12 +241,12 @@ func mutationRequired(ignoredList []string, metadata *metav1.ObjectMeta) bool {
 		return false
 	}
 
-	status := annotations[admissionWebhookAnnotationStatusKey]
+	//status := annotations[admissionWebhookAnnotationStatusKey]
 
 	// determine whether to perform mutation based on annotation for the target resource
 	var required = true
 
-	glog.Infof("Mutation policy for %v/%v: status: %q required:%v", metadata.Namespace, metadata.Name, status, required)
+	//glog.Infof("Mutation policy for %v/%v: status: %q required:%v", metadata.Namespace, metadata.Name, status, required)
 	return required
 }
 
@@ -319,8 +319,8 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 			annotationPair <- ap
 			if len(ap) > 0 {
 				glog.Infof(
-					"Kind: `%s` Name: `%s` in ns `%s` should patching his signed anno: [%s], meta: %s", req.Kind,
-					req.Name, req.Namespace, strings.Join(ap, ", "), string(req.Object.Raw),
+					"Kind: `%s` Name: `%s` in ns `%s` should patching his signed anno: [%s]", req.Kind,
+					req.Name, req.Namespace, strings.Join(ap, ", "),
 				)
 			}
 		}
@@ -412,7 +412,7 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 
 		glog.Infof(
 			fmt.Sprintf(
-				"request for ns %s, resourcename %s, reqName %s, uuid %s", namespace, omh.Name, req.Name,
+				"request for ns %s, req.Name %s, reqName %s, uuid %s", namespace, omh.Name, req.Name,
 				req.UserInfo.UID,
 			),
 		)
@@ -434,8 +434,8 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 		if isClusterAdmin == nil {
 			glog.Infof(
 				fmt.Sprintf(
-					"request for ns %s, resourcename %s, reqName %s, isClusteradmin is null, uid %s", namespace,
-					omh.Name, req.Name, req.UserInfo.UID,
+					"request for ns %s, resourcename %s, reqName %s, isClusteradmin is null, uid %s",
+					namespace, resourceName, req.Name, req.UserInfo.UID,
 				),
 			)
 			marshal, _ := json.Marshal(req)
@@ -464,12 +464,8 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 
 	if resourceType != "ResourceQuota" {
 		glog.Infof(
-			"AdmissionReview for Kind=%v, Namespace=%v Name=%v UID=%v patchOperation=%v UserInfo=%v",
-			req.Kind, req.Namespace, req.Name, req.UID, req.Operation, req.UserInfo,
-		)
-		glog.Infof(
-			"unmarshal for Kind=%v, Namespace=%v Name=%v",
-			req.Kind, req.Namespace, req.Name,
+			"AdmissionReview for Kind=%v, Namespace=%v Name=%v ReqName=%v UID=%v patchOperation=%v UserInfo=%v",
+			req.Kind, req.Namespace, resourceName, req.Name, req.UID, req.Operation, req.UserInfo,
 		)
 	}
 
@@ -484,17 +480,20 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 		ap = []string{_const.NocalhostApplicationName, _const.DefaultNocalhostApplication}
 	}
 
-	var initContainers []corev1.Container
+	var injectInitContainers []corev1.Container
 	var EnvVar []envVar
 	var err error
-	var configSuccussLoaded = false
+	var configSuccessfulLoaded = false
+
+	// caution, should use resourceName instead of req.Name to inject initContainer and env
+	// or inject container into configmap、service or something, it's unexpected!!
 
 	// inject nocalhost config from
 	// 1. annotations (dev.nocalhost)
-	// 2. cm ()
+	// 2. cm (dev.nocalhost.config.${appName})
 	// 3. nocalhost-dep-map
-	if v, ok := omh.Annotations[appmeta.AnnotationKey]; ok && v == "" {
-		initContainers, EnvVar, err = nocalhostDepConfigmapCustom(
+	if v, ok := omh.Annotations[appmeta.AnnotationKey]; ok && v != "" && resourceName != "" {
+		injectInitContainers, EnvVar, err = nocalhostDepConfigmapCustom(
 			func() (*profile.NocalHostAppConfigV2, *profile.ServiceConfigV2, error) {
 				return app.LoadSvcCfgFromStrIfValid(v, resourceName, base.SvcTypeOf(resourceType))
 			}, containers,
@@ -502,66 +501,77 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 
 		if err != nil {
 			glog.Infof(
-				"Admission Config Resolve Err from annotation for Kind=%v, Namespace=%v Name=%v, Error: %v",
-				req.Kind, req.Namespace, req.Name, err,
+				"Admission Config Resolve Err from annotation for Kind=%v, Namespace=%v, Name=%v, Error: %v",
+				req.Kind, req.Namespace, resourceName, err,
 			)
 			err = nil
 		} else {
-			configSuccussLoaded = true
+			configSuccessfulLoaded = true
+			glog.Infof(
+				"Admission Config Success Resolve from annotation for Kind=%v, Namespace=%v Name=%v",
+				req.Kind, req.Namespace, resourceName,
+			)
 		}
 	}
 
-	if !configSuccussLoaded {
+	if !configSuccessfulLoaded && resourceName != "" {
 		if appCfg, svcCfg, err := getCmWatcher(req.Namespace).GetNocalhostConfig(
 			appName, resourceType, resourceName,
 		); err != nil {
-			glog.Infof(
-				"Admission Config Resolve Err from configmap for Kind=%v, Namespace=%v Name=%v, Error: %v",
-				req.Kind, req.Namespace, req.Name, err,
-			)
+			if err != cm.NOT_FOUND {
+				glog.Infof(
+					"Admission Config Resolve Err from configmap for Kind=%v, Namespace=%v, Name=%v, Error: %v",
+					req.Kind, req.Namespace, resourceName, err,
+				)
+			}
 			err = nil
 		} else {
 
-			if initContainers, EnvVar, err = nocalhostDepConfigmapCustom(
+			if injectInitContainers, EnvVar, err = nocalhostDepConfigmapCustom(
 				func() (*profile.NocalHostAppConfigV2, *profile.ServiceConfigV2, error) {
 					return appCfg, svcCfg, nil
 				}, containers,
 			); err != nil {
 				glog.Infof(
-					"Admission Config Resolve Err from configmap while load svc for Kind=%v, Namespace=%v Name=%v, Error: %v",
-					req.Kind, req.Namespace, req.Name, err,
+					"Admission Config Resolve Err from configmap while load svc for Kind=%v, Namespace=%v, Name=%v, Error: %v",
+					req.Kind, req.Namespace, resourceName, err,
 				)
 				err = nil
 			} else {
-				configSuccussLoaded = true
+				configSuccessfulLoaded = true
+				glog.Infof(
+					"Admission Config Success Resolve from configmap for Kind=%v, Namespace=%v Name=%v",
+					req.Kind, req.Namespace, resourceName,
+				)
 			}
 		}
 	}
 
-	if !configSuccussLoaded {
+	if !configSuccessfulLoaded {
 		// configmap
-		if initContainers, EnvVar, err = nocalhostDepConfigmap(
+		if injectInitContainers, EnvVar, err = nocalhostDepConfigmap(
 			nocalhostNamespace, resourceName, resourceType, objectMeta, containers,
 		); err != nil {
 			glog.Infof(
-				"Admission Config Resolve Err for Kind=%v, Namespace=%v Name=%v, Error: %v",
-				req.Kind, req.Namespace, req.Name, err,
+				"Admission Config Resolve Err for Kind=%v, Namespace=%v, Name=%v, Error: %v",
+				req.Kind, req.Namespace, resourceName, err,
 			)
 			err = nil
 		} else {
-			configSuccussLoaded = true
+			configSuccessfulLoaded = true
+			glog.Infof(
+				"Admission Config Success Resolve from nocalhostDepConfigmap for Kind=%v, Namespace=%v, Name=%v",
+				req.Kind, req.Namespace, resourceName,
+			)
 		}
 	}
-
-	glog.Infof("initContainers %v", initContainers)
-	glog.Infof("EnvVar %v", EnvVar)
 
 	// Workaround: https://github.com/kubernetes/kubernetes/issues/57982
 	applyDefaultsWorkaround(whsvr.SidecarConfig.Containers, whsvr.SidecarConfig.Volumes)
 
 	p := Patcher{}
 	p.patchAnnotations(omh.Annotations, ap)
-	p.patchInitContainer(initContainer, initContainers)
+	p.patchInitContainer(initContainer, injectInitContainers)
 	p.patchEnv(containers, EnvVar)
 	patchBytes, err := p.patchBytes()
 
