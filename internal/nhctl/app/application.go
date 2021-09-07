@@ -21,6 +21,7 @@ import (
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -233,7 +234,31 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	return app, nil
 }
 
-func (a Application) migrateNsDirToSupportNidIfNeeded() {
+func (a *Application) migrateNsDirToSupportNidIfNeeded() {
+	//
+	newDir := nocalhost_path.GetAppDirUnderNs(a.NameSpace, a.Name, a.appMeta.NamespaceId)
+	_, err := os.Stat(newDir)
+	if os.IsNotExist(err) {
+		oldDir := nocalhost_path.GetAppDirUnderNsWithoutNid(a.NameSpace, a.Name)
+		ss, err := os.Stat(oldDir)
+		if err != nil {
+			log.LogE(errors.Wrap(err, ""))
+			return
+		}
+		if !ss.IsDir() {
+			return
+		}
+		err = utils.CopyDir(oldDir, newDir)
+		if err != nil {
+			log.LogE(err)
+		} else {
+			log.Logf("app %s in %s has been migrated", a.Name, a.NameSpace)
+			err = os.RemoveAll(oldDir)
+			if err != nil {
+				log.LogE(errors.Wrap(err, ""))
+			}
+		}
+	}
 
 }
 
