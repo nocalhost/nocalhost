@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package webhook
 
@@ -26,6 +26,7 @@ import (
 	"net/http"
 	service_account "nocalhost/internal/nocalhost-dep/serviceaccount"
 	nocalhost "nocalhost/pkg/nocalhost-dep/go-client"
+	"os"
 	"strings"
 	"sync"
 )
@@ -193,12 +194,29 @@ func LoadConfig(configFile string) (*Config, error) {
 // Check whether the target resoured need to be mutated
 func mutationRequired(ignoredList []string, metadata *metav1.ObjectMeta) bool {
 
-	// skip special kubernete system namespaces
-	for _, namespace := range ignoredList {
-		if metadata == nil {
+	if metadata == nil {
+		return false
+	}
+
+	// If the environment variable MATCH_NAMESPACE exists,
+	// only the namespaces in the environment variable will be matched
+	e := os.Getenv("MATCH_NAMESPACE")
+	e = strings.Replace(e, " ", "", -1)
+	matchNamespaces := strings.Split(e, ",")
+	if len(matchNamespaces) > 0 {
+		matchNamespacesMap := make(map[string]struct{})
+		for _, ns := range matchNamespaces {
+			matchNamespacesMap[ns] = struct{}{}
+		}
+		if _, ok := matchNamespacesMap[metadata.Namespace]; !ok {
+			glog.Infof("Skip mutation %s/%s, it's not in the MATCH_NAMESPACE %v",
+				metadata.Namespace, metadata.Name, matchNamespaces)
 			return false
 		}
+	}
 
+	// skip special kubernete system namespaces
+	for _, namespace := range ignoredList {
 		if metadata.Namespace == namespace {
 			glog.Infof("Skip mutation for %v for it's in special namespace:%v", metadata.Name, metadata.Namespace)
 			return false
