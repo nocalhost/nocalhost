@@ -50,7 +50,10 @@ func GetAppDirUnderNsWithoutNid(appName string, namespace string) string {
 }
 
 func GetAppDbDir(ns, app, nid string) string {
-	return filepath.Join(GetAppDirUnderNs(app, ns, nid), DefaultApplicationDbDir)
+	if nid != "" {
+		return filepath.Join(GetAppDirUnderNs(app, ns, nid), DefaultApplicationDbDir)
+	}
+	return filepath.Join(GetAppDirUnderNsWithoutNid(app, ns), DefaultApplicationDbDir)
 }
 
 func GetAppDbDirWithoutNid(ns, app string) string {

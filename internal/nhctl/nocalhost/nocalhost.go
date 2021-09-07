@@ -97,9 +97,80 @@ type AppInfo struct {
 	Nid       string
 }
 
-// key: Ns, value: App
-// Deprecated
+// MoveAppFromNsToNid For compatibility
+func MoveAppFromNsToNid() error {
+	nsBaseDir := nocalhost_path.GetNhctlNameSpaceBaseDir()
+	nsList, err := ioutil.ReadDir(nsBaseDir)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	for _, ns := range nsList {
+		if !ns.IsDir() {
+			continue
+		}
+		appList, err := ioutil.ReadDir(filepath.Join(nsBaseDir, ns.Name()))
+		if err != nil {
+			continue
+		}
+		for _, a := range appList {
+			oldAppDir := filepath.Join(nsBaseDir, ns.Name(), a.Name())
+			if !IsNocalhostAppDir(oldAppDir) {
+				continue
+			}
+			log.Logf("Move %s-%s to nid dir", a.Name(), ns.Name())
+			kube, err := GetKubeConfigFromProfile(ns.Name(), a.Name(), "")
+			if err != nil {
+				continue
+			}
+			meta, err := GetApplicationMeta(a.Name(), ns.Name(), kube)
+			if err != nil {
+				log.LogE(err)
+				continue
+			}
+			if !meta.IsInstalled() || meta.GenerateNidINE() != nil {
+				continue
+			}
+			if err = MigrateNsDirToSupportNidIfNeeded(a.Name(), ns.Name(), meta.NamespaceId); err != nil {
+				log.LogE(err)
+			} else {
+				log.Logf("Success to move %s-%s to nid %s dir", a.Name(), ns.Name(), meta.NamespaceId)
+			}
+		}
+	}
+	return nil
+}
+
+func MigrateNsDirToSupportNidIfNeeded(app, ns, nid string) error {
+	newDir := nocalhost_path.GetAppDirUnderNs(app, ns, nid)
+	_, err := os.Stat(newDir)
+	if os.IsNotExist(err) {
+		oldDir := nocalhost_path.GetAppDirUnderNsWithoutNid(app, ns)
+		ss, err := os.Stat(oldDir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return errors.Wrap(err, "")
+		}
+		if !ss.IsDir() {
+			return nil
+		}
+		if err = utils.CopyDir(oldDir, newDir); err != nil {
+			return err
+		} else {
+			log.Logf("app %s in %s has been migrated", app, ns)
+			if err = os.RemoveAll(oldDir); err != nil {
+				return errors.Wrap(err, "")
+			}
+		}
+	}
+	return nil
+}
+
 func GetNsAndApplicationInfo() ([]AppInfo, error) {
+	if err := MoveAppFromNsToNid(); err != nil {
+		log.LogE(err)
+	}
 	result := make([]AppInfo, 0)
 	nsDir := nocalhost_path.GetNhctlNameSpaceBaseDir()
 	nsList, err := ioutil.ReadDir(nsDir)

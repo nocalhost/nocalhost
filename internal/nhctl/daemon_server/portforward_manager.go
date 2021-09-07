@@ -121,6 +121,11 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 }
 
 func (p *PortForwardManager) RecoverAllPortForward() error {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("DAEMON-RECOVER in RecoverAllPortForward: %s", string(debug.Stack()))
+		}
+	}()
 	log.Info("Recovering port-forward")
 	// Find all app
 	appMap, err := nocalhost.GetNsAndApplicationInfo()

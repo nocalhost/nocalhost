@@ -355,6 +355,18 @@ func (a *ApplicationMeta) doMutex(funny func() error) error {
 	return funny()
 }
 
+func (a *ApplicationMeta) GenerateNidINE() error {
+	if a.NamespaceId == "" {
+		id, err := utils.GetShortUuid()
+		if err != nil {
+			return err
+		}
+		a.NamespaceId = id
+		return a.Update()
+	}
+	return nil
+}
+
 func (a *ApplicationMeta) GetApplicationConfig() *profile2.ApplicationConfig {
 	if a == nil || a.Config == nil || a.Config.ApplicationConfig == nil {
 		return &profile2.ApplicationConfig{}

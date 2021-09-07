@@ -21,7 +21,6 @@ import (
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
-	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -173,18 +172,11 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		return nil, errors.Wrap(ErrNotFound, fmt.Sprintf("%s-%s not found", app.NameSpace, app.Name))
 	}
 
-	if app.appMeta.NamespaceId == "" {
-		id, err := utils.GetShortUuid()
-		if err != nil {
-			return nil, err
-		}
-		app.appMeta.NamespaceId = id
-		if err = app.appMeta.Update(); err != nil {
-			return nil, err
-		}
+	if err = app.appMeta.GenerateNidINE(); err != nil {
+		return nil, err
 	}
 
-	app.migrateNsDirToSupportNidIfNeeded()
+	_ = nocalhost.MigrateNsDirToSupportNidIfNeeded(app.Name, app.NameSpace, app.appMeta.NamespaceId)
 
 	// load from secret
 	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId)
@@ -234,36 +226,32 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	return app, nil
 }
 
-func (a *Application) migrateNsDirToSupportNidIfNeeded() {
-	//
-	newDir := nocalhost_path.GetAppDirUnderNs(a.Name, a.NameSpace, a.appMeta.NamespaceId)
-	_, err := os.Stat(newDir)
-	if os.IsNotExist(err) {
-		oldDir := nocalhost_path.GetAppDirUnderNsWithoutNid(a.Name, a.NameSpace)
-		ss, err := os.Stat(oldDir)
-		if err != nil {
-			if os.IsNotExist(err) {
-				return
-			}
-			log.LogE(errors.Wrap(err, ""))
-			return
-		}
-		if !ss.IsDir() {
-			return
-		}
-		err = utils.CopyDir(oldDir, newDir)
-		if err != nil {
-			log.LogE(err)
-		} else {
-			log.Logf("app %s in %s has been migrated", a.Name, a.NameSpace)
-			err = os.RemoveAll(oldDir)
-			if err != nil {
-				log.LogE(errors.Wrap(err, ""))
-			}
-		}
-	}
-
-}
+//func (a *Application) migrateNsDirToSupportNidIfNeeded() {
+//	newDir := nocalhost_path.GetAppDirUnderNs(a.Name, a.NameSpace, a.appMeta.NamespaceId)
+//	_, err := os.Stat(newDir)
+//	if os.IsNotExist(err) {
+//		oldDir := nocalhost_path.GetAppDirUnderNsWithoutNid(a.Name, a.NameSpace)
+//		ss, err := os.Stat(oldDir)
+//		if err != nil {
+//			if os.IsNotExist(err) {
+//				return
+//			}
+//			log.LogE(errors.Wrap(err, ""))
+//			return
+//		}
+//		if !ss.IsDir() {
+//			return
+//		}
+//		if err = utils.CopyDir(oldDir, newDir); err != nil {
+//			log.LogE(err)
+//		} else {
+//			log.Logf("app %s in %s has been migrated", a.Name, a.NameSpace)
+//			if err = os.RemoveAll(oldDir); err != nil {
+//				log.LogE(errors.Wrap(err, ""))
+//			}
+//		}
+//	}
+//}
 
 // for previous version, associate path is stored in profile
 // and now it store in a standalone db
