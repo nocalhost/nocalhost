@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -e
 # if nocalhost-dep exist but create cert again, nocalhost-dep will use old cert and will fail to decode body
 #if [[ `kubectl get deployment -n nocalhost-reserved -o jsonpath='{.items[*].metadata.labels.app}' -l app=nocalhost-dep` == "nocalhost-dep" ]]; then
 #    echo "nocalhost-dep already install, exit now...."
@@ -8,6 +9,22 @@
 
 # enter workdir
 cd /nocalhost || exit 1
+
+match_namespace_label='- key: __match_namespace_label_key__\n          operator: In\n          values: [ \"__match_namespace_label_values__\" ]'
+match_namespace_name='- name: MATCH_NAMESPACE\n              value: "__match_namespace_values__"'
+
+if [[ ${DEP_MATCH_WITH} == "namespaceName" && -n ${DEP_NAMESPACE} ]]; then
+    match_namespace_name=${match_namespace_name//__match_namespace_values__/${MATCH_NAMESPACE_NAME}}
+    sed -i "s|#__MATCH_NAMESPACE__#|${match_namespace_name}|" ./webhook/deployment.yaml
+else
+    MATCH_NAMESPACE_LABEL_KEY=${MATCH_NAMESPACE_LABEL_KEY:-"env"}
+    MATCH_NAMESPACE_LABEL_VALUE=${MATCH_NAMESPACE_LABEL_VALUE:-"nocalhost"}
+    match_namespace_label=${match_namespace_label//__match_namespace_label_key__/${MATCH_NAMESPACE_LABEL_KEY}}
+    match_namespace_label=${match_namespace_label//__match_namespace_label_values__/${MATCH_NAMESPACE_LABEL_VALUE}}
+
+    sed -i "s|#__NAMESPACE_MATCH_KEY__#|${match_namespace_label}|" ./webhook/mutating-webhook.yaml
+fi
+
 
 # replace namespace
 if [[ -n ${DEP_NAMESPACE} ]] ; then
