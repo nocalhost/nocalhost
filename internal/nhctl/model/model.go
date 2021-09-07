@@ -7,6 +7,7 @@ package model
 
 type NocalHostResource struct {
 	NameSpace   string
+	Nid         string
 	Application string
 	Service     string
 	ServiceType string

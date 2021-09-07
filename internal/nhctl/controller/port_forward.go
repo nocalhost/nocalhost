@@ -35,6 +35,7 @@ func (c *Controller) EndDevPortForward(localPort int, remotePort int) error {
 			return client.SendStopPortForwardCommand(
 				&model.NocalHostResource{
 					NameSpace:   c.NameSpace,
+					Nid:         c.AppMeta.NamespaceId,
 					Application: c.AppName,
 					Service:     c.Name,
 					ServiceType: string(c.Type),
@@ -184,7 +185,7 @@ func (c *Controller) PortForward(podName string, localPort, remotePort int, role
 		PodName:     podName,
 	}
 
-	if err = client.SendStartPortForwardCommand(nhResource, localPort, remotePort, role); err != nil {
+	if err = client.SendStartPortForwardCommand(nhResource, localPort, remotePort, role, c.AppMeta.NamespaceId); err != nil {
 		return err
 	} else {
 		log.Infof("Port-forward %d:%d has been started", localPort, remotePort)

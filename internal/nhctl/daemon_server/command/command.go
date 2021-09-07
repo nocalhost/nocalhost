@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package command
 
@@ -57,6 +57,7 @@ type PortForwardCommand struct {
 	LocalPort   int    `json:"localPort"`
 	RemotePort  int    `json:"remotePort"`
 	Role        string `json:"role"`
+	Nid         string `json:"nid"`
 }
 
 type GetApplicationMetaCommand struct {

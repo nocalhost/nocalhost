@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package appmeta_manager
 
@@ -83,7 +83,8 @@ func (asw *applicationSecretWatcher) join(secret *v1.Secret) error {
 	for _, event := range *devMetaBefore.Events(devMetaCurrent) {
 		EventPush(
 			&ApplicationEventPack{
-				Event:           event,
+				Event: event,
+				//Nid:             current.NamespaceId,
 				Ns:              asw.ns,
 				AppName:         appName,
 				KubeConfigBytes: asw.configBytes,
@@ -104,13 +105,15 @@ func (asw *applicationSecretWatcher) left(appName string) {
 	if before, ok := asw.applicationMetas[appName]; ok {
 		devMetaBefore = before.GetApplicationDevMeta()
 	}
+	//m := asw.applicationMetas[appName]
 	delete(asw.applicationMetas, appName)
 
 	for _, event := range *devMetaBefore.Events(devMetaCurrent) {
 		EventPush(
 			&ApplicationEventPack{
-				Event:           event,
-				Ns:              asw.ns,
+				Event: event,
+				Ns:    asw.ns,
+				//Nid:             m.NamespaceId,
 				AppName:         appName,
 				KubeConfigBytes: asw.configBytes,
 			},
@@ -142,11 +145,11 @@ func (asw *applicationSecretWatcher) GetApplicationMeta(application, ns string) 
 	} else {
 
 		return &appmeta.ApplicationMeta{
-			ApplicationState:   appmeta.UNINSTALLED,
-			Ns:                 ns,
-			Application:        application,
-			DevMeta:            appmeta.ApplicationDevMeta{},
-			Config:             &profile2.NocalHostAppConfigV2{},
+			ApplicationState: appmeta.UNINSTALLED,
+			Ns:               ns,
+			Application:      application,
+			DevMeta:          appmeta.ApplicationDevMeta{},
+			Config:           &profile2.NocalHostAppConfigV2{},
 		}
 	}
 }
@@ -179,7 +182,7 @@ func (asw *applicationSecretWatcher) Prepare() error {
 	// first get all nocalhost secrets for initial
 	// ignore error prevent kubeconfig has not permission for get secret
 	// ignore fail
-	searcher, err := resouce_cache.GetSearcher(asw.configBytes, asw.ns, false)
+	searcher, err := resouce_cache.GetSearcher(asw.configBytes, asw.ns)
 	if err != nil {
 		log.ErrorE(err, "")
 		return nil
@@ -200,7 +203,7 @@ func (asw *applicationSecretWatcher) Prepare() error {
 				}
 				return nil
 			},
-	)
+		)
 }
 
 // todo stop while Ns deleted

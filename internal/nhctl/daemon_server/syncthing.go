@@ -28,9 +28,10 @@ func recoverSyncthing() error {
 			wg.Add(1)
 			go func(namespace, app string) {
 				defer wg.Done()
-				if err = recoverSyncthingForApplication(namespace, app); err != nil {
-					log.LogE(err)
-				}
+				// todo: by hxx
+				//if err = recoverSyncthingForApplication(namespace, app); err != nil {
+				//	log.LogE(err)
+				//}
 			}(ns, appName)
 		}
 	}
@@ -38,8 +39,8 @@ func recoverSyncthing() error {
 	return nil
 }
 
-func recoverSyncthingForApplication(ns, appName string) error {
-	profile, err := nocalhost.GetProfileV2(ns, appName)
+func recoverSyncthingForApplication(ns, appName, nid string) error {
+	profile, err := nocalhost.GetProfileV2(ns, appName, nid)
 	if err != nil {
 		if errors.Is(err, nocalhost.ProfileNotFound) {
 			log.Warnf("Profile is not exist, so ignore for recovering for syncthing")

@@ -227,7 +227,7 @@ func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]
 }
 
 func (d *DaemonClient) SendStartPortForwardCommand(
-	nhSvc *model.NocalHostResource, localPort, remotePort int, role string,
+	nhSvc *model.NocalHostResource, localPort, remotePort int, role, nid string,
 ) error {
 
 	startPFCmd := &command.PortForwardCommand{
@@ -242,6 +242,7 @@ func (d *DaemonClient) SendStartPortForwardCommand(
 		LocalPort:   localPort,
 		RemotePort:  remotePort,
 		Role:        role,
+		Nid:         nid,
 	}
 
 	bys, err := json.Marshal(startPFCmd)
@@ -260,6 +261,7 @@ func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource
 		ClientStack: string(debug.Stack()),
 
 		NameSpace:   nhSvc.NameSpace,
+		Nid:         nhSvc.Nid,
 		AppName:     nhSvc.Application,
 		Service:     nhSvc.Service,
 		ServiceType: nhSvc.ServiceType,

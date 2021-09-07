@@ -67,6 +67,7 @@ type ContainerDevConfig struct {
 	PersistentVolumeDirs  []*PersistentVolumeDir `json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
 	Command               *DevCommands           `json:"command" yaml:"command"`
 	DebugConfig           *DebugConfig           `json:"debug" yaml:"debug"`
+	HotReload             bool                   `json:"hotReload" yaml:"hotReload"`
 	UseDevContainer       bool                   `json:"useDevContainer" yaml:"useDevContainer"`
 	Sync                  *SyncConfig            `json:"sync" yaml:"sync"`
 	Env                   []*Env                 `json:"env" yaml:"env"`
