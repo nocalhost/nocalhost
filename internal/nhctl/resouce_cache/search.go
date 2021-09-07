@@ -6,11 +6,12 @@
 package resouce_cache
 
 import (
+	"context"
 	"crypto/sha1"
 	"fmt"
 	"github.com/hashicorp/golang-lru/simplelru"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
+	authorizationv1 "k8s.io/api/authorization/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,11 +28,13 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
 // cache Searcher for each kubeconfig
-var searchMap, _ = simplelru.NewLRU(15, func(_ interface{}, value interface{}) { value.(*Searcher).Stop() })
+var searchMap, _ = simplelru.NewLRU(10000, func(_ interface{}, value interface{}) { value.(*Searcher).Stop() })
+var lock sync.Mutex
 
 type Searcher struct {
 	kubeconfig      []byte
@@ -41,7 +44,7 @@ type Searcher struct {
 	stopChannel     chan struct{}
 }
 
-// GetSupportedSchema
+// GetSupportedSchema return restMapping of each resource
 func GetSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (map[string]*meta.RESTMapping, error) {
 	var resourceNeeded = map[string]string{"namespaces": "namespaces"}
 	for _, v := range GroupToTypeMap {
@@ -86,79 +89,21 @@ func GetSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (map[st
 	return nameToMapping, nil
 }
 
-// GetSearcher
-func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Searcher, error) {
+// GetSearcher GetSearchWithLRU will cache kubeconfig with LRU
+func GetSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
+	lock.Lock()
+	defer lock.Unlock()
 	// calculate kubeconfig content's sha value as unique cluster id
 	h := sha1.New()
 	h.Write(kubeconfigBytes)
-	key := string(h.Sum([]byte(namespace)))
+	key := string(h.Sum(nil))
 	searcher, exist := searchMap.Get(key)
 	if !exist || searcher == nil {
-		config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
+		newSearcher, err := initSearcher(kubeconfigBytes, namespace)
 		if err != nil {
 			return nil, err
 		}
-		// default value is flowcontrol.NewTokenBucketRateLimiter(5, 10)
-		config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
-		clientset, err1 := kubernetes.NewForConfig(config)
-		if err1 != nil {
-			return nil, err1
-		}
-
-		var informerFactory informers.SharedInformerFactory
-		if !isCluster {
-			informerFactory = informers.NewSharedInformerFactoryWithOptions(
-				clientset, time.Second*5, informers.WithNamespace(namespace),
-			)
-		} else {
-			informerFactory = informers.NewSharedInformerFactory(clientset, time.Second*5)
-		}
-		gr, err2 := restmapper.GetAPIGroupResources(clientset)
-		if err2 != nil {
-			return nil, err2
-		}
-		mapper := restmapper.NewDiscoveryRESTMapper(gr)
-		restMappingList, err3 := GetSupportedSchema(clientset, mapper)
-		if err3 != nil {
-			return nil, err3
-		}
-		for _, restMapping := range restMappingList {
-			if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
-				if k8serrors.IsForbidden(err) {
-					log.Warnf("user account is forbidden to list resource: %v, ignored", restMapping.Resource)
-				} else {
-					log.Warnf(
-						"Can't create informer for resource: %v, error info: %v, ignored",
-						restMapping.Resource, err.Error(),
-					)
-				}
-				continue
-			}
-		}
-		stopChannel := make(chan struct{}, len(restMappingList))
-		firstSyncChannel := make(chan struct{}, 2)
-		informerFactory.Start(stopChannel)
-		go func() {
-			informerFactory.WaitForCacheSync(firstSyncChannel)
-			firstSyncChannel <- struct{}{}
-		}()
-		go func() {
-			t := time.NewTicker(time.Second * 3)
-			<-t.C
-			firstSyncChannel <- struct{}{}
-		}()
-		<-firstSyncChannel
-
-		newSearcher := &Searcher{
-			kubeconfig:      kubeconfigBytes,
-			informerFactory: informerFactory,
-			supportSchema:   restMappingList,
-			mapper:          mapper,
-			stopChannel:     stopChannel,
-		}
-		if searcher, exist = searchMap.Get(key); !exist || searcher == nil {
-			searchMap.Add(key, newSearcher)
-		}
+		searchMap.Add(key, newSearcher)
 	}
 	if searcher, exist = searchMap.Get(key); exist && searcher != nil {
 		return searcher.(*Searcher), nil
@@ -166,11 +111,80 @@ func GetSearcher(kubeconfigBytes []byte, namespace string, isCluster bool) (*Sea
 	return nil, errors.New("Error occurs while init informer searcher")
 }
 
-// Start
+// initSearcher return a searcher which use informer to cache resource
+func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
+	config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
+	if err != nil {
+		return nil, err
+	}
+	// default value is flowcontrol.NewTokenBucketRateLimiter(5, 10)
+	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
+	clientset, err1 := kubernetes.NewForConfig(config)
+	if err1 != nil {
+		return nil, err1
+	}
+
+	var informerFactory informers.SharedInformerFactory
+
+	if isClusterAdmin(kubeconfigBytes) {
+		informerFactory = informers.NewSharedInformerFactory(clientset, time.Second*5)
+	} else {
+		informerFactory = informers.NewSharedInformerFactoryWithOptions(
+			clientset, time.Second*5, informers.WithNamespace(namespace),
+		)
+	}
+	gr, err2 := restmapper.GetAPIGroupResources(clientset)
+	if err2 != nil {
+		return nil, err2
+	}
+	mapper := restmapper.NewDiscoveryRESTMapper(gr)
+	restMappingList, err3 := GetSupportedSchema(clientset, mapper)
+	if err3 != nil {
+		return nil, err3
+	}
+	for _, restMapping := range restMappingList {
+		if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
+			if k8serrors.IsForbidden(err) {
+				log.Warnf("user account is forbidden to list resource: %v, ignored", restMapping.Resource)
+			} else {
+				log.Warnf(
+					"Can't create informer for resource: %v, error info: %v, ignored",
+					restMapping.Resource, err.Error(),
+				)
+			}
+			continue
+		}
+	}
+	stopChannel := make(chan struct{}, len(restMappingList))
+	firstSyncChannel := make(chan struct{}, 2)
+	informerFactory.Start(stopChannel)
+	go func() {
+		informerFactory.WaitForCacheSync(firstSyncChannel)
+		firstSyncChannel <- struct{}{}
+	}()
+	go func() {
+		t := time.NewTicker(time.Second * 3)
+		<-t.C
+		firstSyncChannel <- struct{}{}
+	}()
+	<-firstSyncChannel
+
+	newSearcher := &Searcher{
+		kubeconfig:      kubeconfigBytes,
+		informerFactory: informerFactory,
+		supportSchema:   restMappingList,
+		mapper:          mapper,
+		stopChannel:     stopChannel,
+	}
+	return newSearcher, nil
+}
+
+// Start wait searcher to close
 func (s *Searcher) Start() {
 	<-s.stopChannel
 }
 
+// Stop to stop the searcher
 func (s *Searcher) Stop() {
 	for i := 0; i < len(s.supportSchema); i++ {
 		s.stopChannel <- struct{}{}
@@ -184,22 +198,23 @@ func (s *Searcher) GetRestMapping(resourceType string) (*meta.RESTMapping, error
 	return nil, errors.New(fmt.Sprintf("Can't get restMapping, resource type: %s", resourceType))
 }
 
-// e's annotation appName must in appNameRange, other wise app name is not available
+// e's annotation appName must in appNameRange, otherwise app name is not available
 func getAppName(e interface{}, availableAppName []string) string {
 	annotations := e.(metav1.Object).GetAnnotations()
+	if annotations == nil {
+		return _const.DefaultNocalhostApplication
+	}
 	var appName string
-	if annotations != nil && annotations[_const.NocalhostApplicationName] != "" {
+	if len(annotations[_const.NocalhostApplicationName]) != 0 {
 		appName = annotations[_const.NocalhostApplicationName]
 	}
-	if annotations != nil && annotations[_const.HelmReleaseName] != "" {
+	if len(annotations[_const.HelmReleaseName]) != 0 {
 		appName = annotations[_const.HelmReleaseName]
 	}
-	availableAppNameMap := make(map[string]string)
 	for _, app := range availableAppName {
-		availableAppNameMap[app] = app
-	}
-	if availableAppNameMap[appName] != "" {
-		return appName
+		if app == appName {
+			return appName
+		}
 	}
 	return _const.DefaultNocalhostApplication
 }
@@ -227,7 +242,7 @@ type criteria struct {
 	kind         runtime.Object
 	resourceType string
 
-	namespaced       bool
+	namespaceScope   bool
 	resourceName     string
 	appName          string
 	ns               string
@@ -262,7 +277,7 @@ func (c *criteria) AppNameNotIn(appNames ...string) *criteria {
 func (c *criteria) ResourceType(resourceType string) *criteria {
 	if mapping, err := c.search.GetRestMapping(resourceType); err == nil {
 		c.resourceType = resourceType
-		c.namespaced = mapping.Scope.Name() == meta.RESTScopeNameNamespace
+		c.namespaceScope = mapping.Scope.Name() == meta.RESTScopeNameNamespace
 	} else {
 		log.Logf("Can not found restMapping for resource type: %s", resourceType)
 	}
@@ -271,9 +286,10 @@ func (c *criteria) ResourceType(resourceType string) *criteria {
 
 func (c *criteria) Kind(object runtime.Object) *criteria {
 	c.kind = object
-	// how to make it more elegant
-	if reflect.TypeOf(object).AssignableTo(reflect.TypeOf(&corev1.Namespace{})) {
-		c.namespaced = false
+	if info, err := c.search.GetRestMapping(reflect.TypeOf(object).Name()); err == nil {
+		c.namespaceScope = info.Scope.Name() == meta.RESTScopeNameNamespace
+	} else {
+		log.Logf("Can not found restMapping for resource: %s", reflect.TypeOf(object).Name())
 	}
 	return c
 }
@@ -324,7 +340,7 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	if c.search == nil {
 		return nil, errors.New("search should not be null")
 	}
-	if c.resourceType == "" && c.kind == nil {
+	if len(c.resourceType) == 0 && c.kind == nil {
 		return nil, errors.New("resource type and kind should not be null at the same time")
 	}
 	var informer cache.SharedIndexInformer
@@ -345,13 +361,23 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		return nil, errors.New("create informer failed, please check your code")
 	}
 
-	if !c.namespaced {
+	// resource is clusterScope, not belong to application or namespace
+	if !c.namespaceScope {
 		list := informer.GetStore().List()
+		if len(c.resourceName) != 0 {
+			for _, i := range list {
+				if i.(metav1.Object).GetName() == c.resourceName {
+					return []interface{}{i}, nil
+				}
+			}
+			return []interface{}{}, nil
+		}
 		SortByNameAsc(list)
 		return list, nil
 	}
 
-	if c.ns != "" && c.resourceName != "" {
+	// if namespace and resourceName is not empty both, using indexer to query data
+	if len(c.ns) != 0 && len(c.resourceName) != 0 {
 		item, exists, err1 := informer.GetIndexer().GetByKey(nsResource(c.ns, c.resourceName))
 		if !exists {
 			return nil, errors.Errorf(
@@ -362,8 +388,8 @@ func (c *criteria) Query() (data []interface{}, e error) {
 			return nil, errors.Wrap(err1, "search occur error")
 		}
 
-		// this is a filter
-		if c.appName == "" || c.appName == getAppName(item, c.availableAppName) {
+		// this is a filter, if appName is empty, just return value
+		if len(c.appName) == 0 || c.appName == getAppName(item, c.availableAppName) {
 			return append(data, item), nil
 		}
 		return
@@ -386,7 +412,7 @@ func newFilter(element []interface{}) *filter {
 }
 
 func (n *filter) namespace(namespace string) *filter {
-	if namespace == "" {
+	if len(namespace) == 0 {
 		return n
 	}
 	var result []interface{}
@@ -400,7 +426,7 @@ func (n *filter) namespace(namespace string) *filter {
 }
 
 func (n *filter) appName(availableAppName []string, appName string) *filter {
-	if appName == "" {
+	if len(appName) == 0 {
 		return n
 	}
 	if appName == _const.DefaultNocalhostApplication {
@@ -416,15 +442,15 @@ func (n *filter) appName(availableAppName []string, appName string) *filter {
 	return n
 }
 
-func (n *filter) appNameNotIn(appNames []string) *filter {
-	m := make(map[string]string)
-	for _, appName := range appNames {
-		m[appName] = appName
+func (n *filter) appNameNotIn(appNamesDefaultAppExclude []string) *filter {
+	appNameMap := make(map[string]string)
+	for _, appName := range appNamesDefaultAppExclude {
+		appNameMap[appName] = appName
 	}
 	var result []interface{}
 	for _, e := range n.element {
-		appName := getAppName(e, appNames)
-		if m[appName] == "" {
+		appName := getAppName(e, appNamesDefaultAppExclude)
+		if appName == _const.DefaultNocalhostApplication || len(appNameMap[appName]) == 0 {
 			result = append(result, e)
 		}
 	}
@@ -473,4 +499,39 @@ func (n *filter) sort() *filter {
 
 func (n *filter) toSlice() []interface{} {
 	return n.element[0:]
+}
+
+// isClusterAdmin judge weather is cluster scope kubeconfig or not
+func isClusterAdmin(kubeconfigBytes []byte) bool {
+	c, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
+	if err != nil {
+		return false
+	}
+	clientSet, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		return false
+	}
+	arg := &authorizationv1.SelfSubjectAccessReview{
+		Spec: authorizationv1.SelfSubjectAccessReviewSpec{
+			ResourceAttributes: &authorizationv1.ResourceAttributes{
+				Namespace: "*",
+				Group:     "*",
+				Verb:      "*",
+				Name:      "*",
+				Version:   "*",
+				Resource:  "*",
+			},
+		},
+	}
+
+	response, err := clientSet.AuthorizationV1().SelfSubjectAccessReviews().Create(
+		context.TODO(), arg, metav1.CreateOptions{},
+	)
+	if err != nil {
+		return false
+	}
+	if response == nil {
+		return false
+	}
+	return response.Status.Allowed
 }
