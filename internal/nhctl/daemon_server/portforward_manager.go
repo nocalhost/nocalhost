@@ -81,9 +81,9 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 		}
 		return err
 	}
-	if profile == nil {
-		return errors.New(fmt.Sprintf("Profile not found %s-%s", ns, appName))
-	}
+	//if profile == nil {
+	//	return errors.New(fmt.Sprintf("Profile not found %s-%s", ns, appName))
+	//}
 
 	for _, svcProfile := range profile.SvcProfile {
 		for _, pf := range svcProfile.DevPortForwardList {
@@ -108,6 +108,7 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 						LocalPort:   pf.LocalPort,
 						RemotePort:  pf.RemotePort,
 						Role:        pf.Role,
+						Nid:         nid,
 					}, false,
 				)
 				if err != nil {
@@ -128,17 +129,15 @@ func (p *PortForwardManager) RecoverAllPortForward() error {
 	}
 
 	wg := sync.WaitGroup{}
-	for ns, apps := range appMap {
-		for _, appName := range apps {
-			wg.Add(1)
-			go func(namespace, app string) {
-				defer wg.Done()
-				// todo: by hxx
-				//if err = p.RecoverPortForwardForApplication(namespace, app); err != nil {
-				//	log.LogE(err)
-				//}
-			}(ns, appName)
-		}
+	for _, app := range appMap {
+		wg.Add(1)
+		go func(namespace, app, nid string) {
+			defer wg.Done()
+			log.Logf("Recovering %s-%s-%s", app, namespace, nid)
+			if err = p.RecoverPortForwardForApplication(namespace, app, nid); err != nil {
+				log.LogE(err)
+			}
+		}(app.Namespace, app.Name, app.Nid)
 	}
 	wg.Wait()
 	return nil

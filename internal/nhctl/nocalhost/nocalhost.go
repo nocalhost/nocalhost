@@ -91,33 +91,80 @@ func GetOrGenKubeConfigPath(kubeconfigContent string) string {
 	}
 }
 
+type AppInfo struct {
+	Name      string
+	Namespace string
+	Nid       string
+}
+
 // key: Ns, value: App
 // Deprecated
-func GetNsAndApplicationInfo() (map[string][]string, error) {
-	result := make(map[string][]string, 0)
+func GetNsAndApplicationInfo() ([]AppInfo, error) {
+	result := make([]AppInfo, 0)
 	nsDir := nocalhost_path.GetNhctlNameSpaceBaseDir()
 	nsList, err := ioutil.ReadDir(nsDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
 	for _, ns := range nsList {
-		appList := make([]string, 0)
 		if !ns.IsDir() {
 			continue
 		}
-		appDirList, err := ioutil.ReadDir(filepath.Join(nsDir, ns.Name()))
+		nidDirList, err := ioutil.ReadDir(filepath.Join(nsDir, ns.Name()))
 		if err != nil {
 			log.WarnE(errors.Wrap(err, ""), "Failed to read dir")
 			continue
 		}
-		for _, appDir := range appDirList {
-			if appDir.IsDir() {
-				appList = append(appList, appDir.Name())
+		for _, nidDir := range nidDirList {
+			if nidDir.IsDir() {
+				nidPath := filepath.Join(nsDir, ns.Name(), nidDir.Name())
+				appDirList, err := ioutil.ReadDir(nidPath)
+				if err != nil {
+					log.LogE(errors.Wrap(err, "Failed to get app dir list"))
+					continue
+				}
+				for _, appDir := range appDirList {
+					if !appDir.IsDir() {
+						continue
+					}
+					appPath := filepath.Join(nidPath, appDir.Name())
+					if !IsNocalhostAppDir(appPath) {
+						continue
+					}
+					result = append(result, AppInfo{
+						Name:      appDir.Name(),
+						Namespace: ns.Name(),
+						Nid:       nidDir.Name(),
+					})
+				}
 			}
 		}
-		result[ns.Name()] = appList
 	}
 	return result, nil
+}
+
+// IsNocalhostAppDir Check if a dir is a nocalhost dir
+func IsNocalhostAppDir(dir string) bool {
+	s, err := os.Stat(dir)
+	if err != nil {
+		return false
+	}
+	if !s.IsDir() {
+		return false
+	}
+	appDirItems, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, item := range appDirItems {
+		if !item.IsDir() {
+			continue
+		}
+		if item.Name() == "db" {
+			return true
+		}
+	}
+	return false
 }
 
 func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.ApplicationMeta, error) {

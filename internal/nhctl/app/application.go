@@ -236,12 +236,15 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 
 func (a *Application) migrateNsDirToSupportNidIfNeeded() {
 	//
-	newDir := nocalhost_path.GetAppDirUnderNs(a.NameSpace, a.Name, a.appMeta.NamespaceId)
+	newDir := nocalhost_path.GetAppDirUnderNs(a.Name, a.NameSpace, a.appMeta.NamespaceId)
 	_, err := os.Stat(newDir)
 	if os.IsNotExist(err) {
-		oldDir := nocalhost_path.GetAppDirUnderNsWithoutNid(a.NameSpace, a.Name)
+		oldDir := nocalhost_path.GetAppDirUnderNsWithoutNid(a.Name, a.NameSpace)
 		ss, err := os.Stat(oldDir)
 		if err != nil {
+			if os.IsNotExist(err) {
+				return
+			}
 			log.LogE(errors.Wrap(err, ""))
 			return
 		}

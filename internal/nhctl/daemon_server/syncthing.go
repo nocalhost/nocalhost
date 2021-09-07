@@ -23,17 +23,14 @@ func recoverSyncthing() error {
 	}
 
 	wg := sync.WaitGroup{}
-	for ns, apps := range appMap {
-		for _, appName := range apps {
-			wg.Add(1)
-			go func(namespace, app string) {
-				defer wg.Done()
-				// todo: by hxx
-				//if err = recoverSyncthingForApplication(namespace, app); err != nil {
-				//	log.LogE(err)
-				//}
-			}(ns, appName)
-		}
+	for _, a := range appMap {
+		wg.Add(1)
+		go func(namespace, app, nid string) {
+			defer wg.Done()
+			if err = recoverSyncthingForApplication(namespace, app, nid); err != nil {
+				log.LogE(err)
+			}
+		}(a.Namespace, a.Name, a.Nid)
 	}
 	wg.Wait()
 	return nil
