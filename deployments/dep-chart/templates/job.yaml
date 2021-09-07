@@ -12,7 +12,6 @@ spec:
       - command:
         - /nocalhost/installer.sh
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-        imagePullPolicy: IfNotPresent
         name: nocalhost-dep-installer
         env:
           - name: DEP_NAMESPACE
