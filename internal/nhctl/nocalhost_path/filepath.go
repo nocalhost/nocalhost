@@ -37,6 +37,10 @@ func GetTestNocalhostDevDirMapping() string {
 	return filepath.Join(GetNhctlHomeDir(), DefaultNhctlTestDevDirMappingDir)
 }
 
+func GetNidDir(namespace, nid string) string {
+	return filepath.Join(GetNhctlNameSpaceBaseDir(), namespace, nid)
+}
+
 func GetAppDirUnderNs(appName, namespace, nid string) string {
 	return filepath.Join(GetNhctlNameSpaceBaseDir(), namespace, nid, appName)
 }

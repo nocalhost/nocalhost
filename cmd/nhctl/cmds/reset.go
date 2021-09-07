@@ -58,7 +58,7 @@ func resetApplication(applicationName string) {
 
 	// Remove files
 	time.Sleep(1 * time.Second)
-	if err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace, nocalhostApp.GetAppMeta().NamespaceId); err != nil {
+	if err = nocalhost.CleanupAppFilesUnderNs(nameSpace, nocalhostApp.GetAppMeta().NamespaceId); err != nil {
 		log.WarnE(err, "")
 	} else {
 		log.Info("Files have been clean up")

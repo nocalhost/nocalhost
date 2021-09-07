@@ -60,6 +60,15 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing", name, namespace))
 	}
 
+	if err = appMeta.Initial(); err != nil {
+		if k8serrors.IsAlreadyExists(err) {
+			log.Logf("Application %s in %s has been installed", app.Name, app.NameSpace)
+		}
+		return app, err
+	}
+	app.appMeta = appMeta
+	appMeta.ApplicationType = appmeta.AppType(flags.AppType)
+
 	if appMeta.NamespaceId == "" {
 		id, err := utils.GetShortUuid()
 		if err != nil {
@@ -117,18 +126,8 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, err
 	}
 
-	app.appMeta = appMeta
-
-	if err = appMeta.Initial(); err != nil {
-		if k8serrors.IsAlreadyExists(err) {
-			log.Logf("Application %s in %s has been installed", app.Name, app.NameSpace)
-		}
-		return app, err
-	}
-
 	appMeta.Config = config
 	appMeta.Config.Migrated = true
-	appMeta.ApplicationType = appmeta.AppType(flags.AppType)
 	if err := appMeta.Update(); err != nil {
 		return nil, err
 	}

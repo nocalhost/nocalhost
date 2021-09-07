@@ -56,8 +56,8 @@ func Init() error {
 	return err
 }
 
-func CleanupAppFilesUnderNs(appName, namespace, nid string) error {
-	appDir := nocalhost_path.GetAppDirUnderNs(appName, namespace, nid)
+func CleanupAppFilesUnderNs(namespace, nid string) error {
+	appDir := nocalhost_path.GetNidDir(namespace, nid)
 	if f, err := os.Stat(appDir); err == nil {
 		if f.IsDir() {
 			err = os.RemoveAll(appDir)
