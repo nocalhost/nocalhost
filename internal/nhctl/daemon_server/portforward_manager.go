@@ -76,7 +76,7 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 	profile, err := nocalhost.GetProfileV2(ns, appName, nid)
 	if err != nil {
 		if errors.Is(err, nocalhost.ProfileNotFound) {
-			log.Warnf("Profile is not exist, so ignore for recovering port forward")
+			log.Warn("Profile is not exist, so ignore for recovering port forward")
 			return nil
 		}
 		return err
@@ -88,7 +88,7 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 	for _, svcProfile := range profile.SvcProfile {
 		for _, pf := range svcProfile.DevPortForwardList {
 			if pf.Sudo == isSudo { // Only recover port-forward managed by this daemon server
-				log.Logf("Recovering port-forward %d:%d of %s-%s", pf.LocalPort, pf.RemotePort, ns, appName)
+				log.Logf("Recovering port-forward %d:%d of %s-%s-%s", pf.LocalPort, pf.RemotePort, nid, ns, appName)
 				svcType := pf.ServiceType
 				// For compatibility
 				if svcType == "" {
@@ -126,7 +126,7 @@ func (p *PortForwardManager) RecoverAllPortForward() error {
 			log.Errorf("DAEMON-RECOVER in RecoverAllPortForward: %s", string(debug.Stack()))
 		}
 	}()
-	log.Info("Recovering port-forward")
+	log.Info("Recovering all port-forward")
 	// Find all app
 	appMap, err := nocalhost.GetNsAndApplicationInfo()
 	if err != nil {
@@ -138,7 +138,6 @@ func (p *PortForwardManager) RecoverAllPortForward() error {
 		wg.Add(1)
 		go func(namespace, app, nid string) {
 			defer wg.Done()
-			log.Logf("Recovering %s-%s-%s", app, namespace, nid)
 			if err = p.RecoverPortForwardForApplication(namespace, app, nid); err != nil {
 				log.LogE(err)
 			}

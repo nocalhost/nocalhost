@@ -137,7 +137,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	appProfileV2.Secreted = true
 	appProfileV2.Namespace = namespace
 	appProfileV2.Kubeconfig = kubeconfig
-	appProfileV2.ConfigMigrated = true
+	//appProfileV2.ConfigMigrated = true
 
 	if len(flags.ResourcePath) != 0 {
 		appProfileV2.ResourcePath = flags.ResourcePath

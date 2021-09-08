@@ -59,7 +59,7 @@ type AppProfileV2 struct {
 
 	// for previous version, config is stored in profile
 	// and now it store in app meta
-	ConfigMigrated bool `json:"configMigrated" yaml:"configMigrated"`
+	//ConfigMigrated bool `json:"configMigrated" yaml:"configMigrated"`
 
 	// app global status
 	Identifier string `json:"identifier" yaml:"identifier"`

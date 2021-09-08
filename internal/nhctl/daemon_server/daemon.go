@@ -145,7 +145,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 				}()
 				start := time.Now()
 
-				log.Trace("Reading data...")
+				//log.Trace("Reading data...")
 				errChan := make(chan error, 1)
 				bytesChan := make(chan []byte, 1)
 

@@ -104,7 +104,7 @@ func NewFakeApplication(name string, ns string, kubeconfig string, initClient bo
 	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId)
 	if err != nil {
 		profileV2 = &profile.AppProfileV2{}
-		profileV2.ConfigMigrated = true
+		//profileV2.ConfigMigrated = true
 		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
 			return nil, err
 		}
@@ -176,29 +176,33 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		return nil, err
 	}
 
-	_ = nocalhost.MigrateNsDirToSupportNidIfNeeded(app.Name, app.NameSpace, app.appMeta.NamespaceId)
+	if err = nocalhost.MigrateNsDirToSupportNidIfNeeded(app.Name, app.NameSpace, app.appMeta.NamespaceId); err != nil {
+		return nil, err
+	}
 
 	// load from secret
 	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId)
 	if err != nil {
 		//profileV2 = generateProfileFromConfig(app.appMeta.Config)
 		profileV2 = &profile.AppProfileV2{}
-		profileV2.ConfigMigrated = true
+		//profileV2.ConfigMigrated = true
 		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
 			return nil, err
 		}
 	}
 	// Migrate config to meta
-	if !profileV2.ConfigMigrated && !app.appMeta.Config.Migrated {
-		c := app.newConfigFromProfile()
-		app.appMeta.Config = c
-		app.appMeta.Config.Migrated = true
-		if err = app.appMeta.Update(); err != nil {
-			return nil, err
-		}
-		profileV2.ConfigMigrated = true
-		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
-			return nil, err
+	if !app.appMeta.Config.Migrated {
+		if len(profileV2.SvcProfile) > 0 || app.appMeta.Config == nil {
+			c := app.newConfigFromProfile()
+			app.appMeta.Config = c
+			app.appMeta.Config.Migrated = true
+			if err = app.appMeta.Update(); err != nil {
+				return nil, err
+			}
+			//profileV2.ConfigMigrated = true
+			if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
+				return nil, err
+			}
 		}
 	}
 	app.AppType = profileV2.AppType

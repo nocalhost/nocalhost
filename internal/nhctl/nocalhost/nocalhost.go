@@ -7,6 +7,8 @@ package nocalhost
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/appmeta"
 	_const "nocalhost/internal/nhctl/const"
@@ -16,6 +18,8 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 
@@ -104,6 +108,7 @@ func MoveAppFromNsToNid() error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
+	wg := sync.WaitGroup{}
 	for _, ns := range nsList {
 		if !ns.IsDir() {
 			continue
@@ -117,30 +122,38 @@ func MoveAppFromNsToNid() error {
 			if !IsNocalhostAppDir(oldAppDir) {
 				continue
 			}
-			log.Logf("Move %s-%s to nid dir", a.Name(), ns.Name())
-			kube, err := GetKubeConfigFromProfile(ns.Name(), a.Name(), "")
-			if err != nil {
-				continue
-			}
-			meta, err := GetApplicationMeta(a.Name(), ns.Name(), kube)
-			if err != nil {
-				log.LogE(err)
-				continue
-			}
-			if !meta.IsInstalled() || meta.GenerateNidINE() != nil {
-				continue
-			}
-			if err = MigrateNsDirToSupportNidIfNeeded(a.Name(), ns.Name(), meta.NamespaceId); err != nil {
-				log.LogE(err)
-			} else {
-				log.Logf("Success to move %s-%s to nid %s dir", a.Name(), ns.Name(), meta.NamespaceId)
-			}
+			wg.Add(1)
+			go func(a fs.FileInfo, ns fs.FileInfo) {
+				defer wg.Done()
+				log.Logf("Move %s-%s to nid dir", a.Name(), ns.Name())
+				kube, err := GetKubeConfigFromProfile(ns.Name(), a.Name(), "")
+				if err != nil {
+					log.Logf("Moving %s-%s pass: %s ", a.Name(), ns.Name(), err.Error())
+					return
+				}
+				meta, err := GetApplicationMeta(a.Name(), ns.Name(), kube)
+				if err != nil {
+					log.Logf("Moving %s-%s pass: %s ", a.Name(), ns.Name(), err.Error())
+					return
+				}
+				if !meta.IsInstalled() || meta.GenerateNidINE() != nil {
+					log.Logf("Moving %s-%s pass: %s ", a.Name(), ns.Name(), "meta is not installed")
+					return
+				}
+				if err = MigrateNsDirToSupportNidIfNeeded(a.Name(), ns.Name(), meta.NamespaceId); err != nil {
+					log.Logf("Moving %s-%s pass: %s ", a.Name(), ns.Name(), err.Error())
+				} else {
+					log.Logf("Success to move %s-%s to nid %s dir", a.Name(), ns.Name(), meta.NamespaceId)
+				}
+			}(a, ns)
 		}
 	}
+	wg.Wait()
 	return nil
 }
 
 func MigrateNsDirToSupportNidIfNeeded(app, ns, nid string) error {
+
 	newDir := nocalhost_path.GetAppDirUnderNs(app, ns, nid)
 	_, err := os.Stat(newDir)
 	if os.IsNotExist(err) {
@@ -150,17 +163,33 @@ func MigrateNsDirToSupportNidIfNeeded(app, ns, nid string) error {
 			if os.IsNotExist(err) {
 				return nil
 			}
-			return errors.Wrap(err, "")
+			return errors.Wrap(err, "Old Dir occurs errors")
 		}
 		if !ss.IsDir() {
 			return nil
 		}
+
+		markedFileName := strings.Join([]string{app, ns, nid, "migrating"}, "-")
+		markedFilePath := filepath.Join(nocalhost_path.GetNhctlNameSpaceBaseDir(), ns, markedFileName)
+		if _, err = os.Stat(markedFilePath); err == nil {
+			return errors.New(fmt.Sprintf("Another process is migrating %s-%s-%s", app, ns, nid))
+		}
+		if _, err = os.Create(markedFilePath); err != nil {
+			return errors.Wrap(err, "Failed to create marked file")
+		}
+		defer func() {
+			if err = os.Remove(markedFilePath); err != nil {
+				log.LogE(errors.Wrap(err, "Migrating err"))
+			}
+		}()
+
 		if err = utils.CopyDir(oldDir, newDir); err != nil {
-			return err
+			_ = os.RemoveAll(newDir)
+			return errors.Wrap(err, "Migrating err: failed to copy")
 		} else {
-			log.Logf("app %s in %s has been migrated", app, ns)
+			log.Logf("app %s in %s has been copied", app, ns)
 			if err = os.RemoveAll(oldDir); err != nil {
-				return errors.Wrap(err, "")
+				return errors.Wrap(err, "Migrating err")
 			}
 		}
 	}
