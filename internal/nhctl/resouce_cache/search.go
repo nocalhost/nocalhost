@@ -44,6 +44,9 @@ type Searcher struct {
 	supportSchema   map[string]*meta.RESTMapping
 	mapper          meta.RESTMapper
 	stopChannel     chan struct{}
+	// last used this searcher, for release informer resource
+	lastUsedTime time.Time
+	timeoutCheck bool
 }
 
 // GetSupportedSchema return restMapping of each resource
@@ -91,8 +94,17 @@ func GetSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (map[st
 	return nameToMapping, nil
 }
 
-// GetSearcher GetSearchWithLRU will cache kubeconfig with LRU
-func GetSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
+// GetSearcherWithTimeoutCheck GetSearchWithLRU will cache kubeconfig with LRU
+func GetSearcherWithTimeoutCheck(kubeconfigBytes []byte, namespace string) (search *Searcher, err error) {
+	return getSearcherWithCache(kubeconfigBytes, namespace, true)
+}
+
+func getSearcherWithCache(kubeconfigBytes []byte, namespace string, timeoutCheck bool) (search *Searcher, err error) {
+	defer func() {
+		if search != nil {
+			search.lastUsedTime = time.Now()
+		}
+	}()
 	lock.Lock()
 	defer lock.Unlock()
 	searcher, exist := searchMap.Get(generateKey(kubeconfigBytes, namespace))
@@ -101,10 +113,13 @@ func GetSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 		if err != nil {
 			return nil, err
 		}
+		newSearcher.timeoutCheck = timeoutCheck
 		searchMap.Add(generateKey(kubeconfigBytes, namespace), newSearcher)
 	}
 	if searcher, exist = searchMap.Get(generateKey(kubeconfigBytes, namespace)); exist && searcher != nil {
-		return searcher.(*Searcher), nil
+		search = searcher.(*Searcher)
+		err = nil
+		return
 	}
 	return nil, errors.New("Error occurs while init informer searcher")
 }
@@ -123,7 +138,15 @@ func generateKey(kubeconfigBytes []byte, namespace string) string {
 	}
 }
 
-// initSearcher return a searcher which use informer to cache resource
+func GetSearcherWithoutTimeoutCheck(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
+	searcher, err := getSearcherWithCache(kubeconfigBytes, namespace, false)
+	if err == nil && searcher != nil {
+		searcher.timeoutCheck = false
+	}
+	return searcher, nil
+}
+
+// initSearcher return a searcher which use informer to cache resource, without cache
 func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 	config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
 	if err != nil {
@@ -588,6 +611,39 @@ func AddSearcherByKubeconfig(kubeconfigBytes []byte, namespace string) error {
 		return nil
 	}
 	lock.Unlock()
-	go func() { _, _ = GetSearcher(kubeconfigBytes, namespace) }()
+	go func() { _, _ = GetSearcherWithTimeoutCheck(kubeconfigBytes, namespace) }()
 	return nil
+}
+
+func init() {
+	go func() {
+		for {
+			select {
+			case <-time.Tick(time.Minute * 5):
+				go func() {
+					defer func() {
+						lock.Unlock()
+						if err := recover(); err != nil {
+							log.Warnf("check informer occurs error, err: %v", err)
+						}
+					}()
+					lock.Lock()
+					if searchMap != nil && searchMap.Len() > 0 {
+						keys := searchMap.Keys()
+						for _, key := range keys {
+							if get, found := searchMap.Get(key); found && get != nil {
+								if s, ok := get.(*Searcher); ok && s != nil {
+									t := time.Time{}
+									if s.timeoutCheck && s.lastUsedTime != t && time.Now().Sub(s.lastUsedTime).Hours() >= 24 {
+										go func() { s.Stop() }()
+										searchMap.Remove(key)
+									}
+								}
+							}
+						}
+					}
+				}()
+			}
+		}
+	}()
 }

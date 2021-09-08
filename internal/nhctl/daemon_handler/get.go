@@ -127,7 +127,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	ns := getNamespace(request.Namespace, KubeConfigBytes)
 	switch request.Resource {
 	case "all":
-		s, err := resouce_cache.GetSearcher(KubeConfigBytes, ns)
+		s, err := resouce_cache.GetSearcherWithTimeoutCheck(KubeConfigBytes, ns)
 		if err != nil {
 			return nil
 		}
@@ -176,8 +176,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		return getApplicationByNs(ns, request.KubeConfig, s, request.Label)
 
 	case "app", "application":
-		// init searcher for cache async
-		go func() { _, _ = resouce_cache.GetSearcher(KubeConfigBytes, ns) }()
+		//// init searcher for cache async
+		//go func() { _, _ = resouce_cache.GetSearcherWithTimeoutCheck(KubeConfigBytes, ns) }()
 		if request.ResourceName == "" {
 			return ParseApplicationsResult(ns, GetAllApplicationWithDefaultApp(ns, request.KubeConfig))
 		} else {
@@ -186,7 +186,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		}
 
 	case "ns", "namespace", "namespaces":
-		s, err := resouce_cache.GetSearcher(KubeConfigBytes, ns)
+		s, err := resouce_cache.GetSearcherWithTimeoutCheck(KubeConfigBytes, ns)
 		if err != nil {
 			return nil
 		}
@@ -216,7 +216,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		}
 
 	default:
-		s, err := resouce_cache.GetSearcher(KubeConfigBytes, ns)
+		s, err := resouce_cache.GetSearcherWithTimeoutCheck(KubeConfigBytes, ns)
 		if err != nil {
 			return nil
 		}

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package appmeta_manager
 
@@ -142,11 +142,11 @@ func (asw *applicationSecretWatcher) GetApplicationMeta(application, ns string) 
 	} else {
 
 		return &appmeta.ApplicationMeta{
-			ApplicationState:   appmeta.UNINSTALLED,
-			Ns:                 ns,
-			Application:        application,
-			DevMeta:            appmeta.ApplicationDevMeta{},
-			Config:             &profile2.NocalHostAppConfigV2{},
+			ApplicationState: appmeta.UNINSTALLED,
+			Ns:               ns,
+			Application:      application,
+			DevMeta:          appmeta.ApplicationDevMeta{},
+			Config:           &profile2.NocalHostAppConfigV2{},
 		}
 	}
 }
@@ -179,7 +179,7 @@ func (asw *applicationSecretWatcher) Prepare() error {
 	// first get all nocalhost secrets for initial
 	// ignore error prevent kubeconfig has not permission for get secret
 	// ignore fail
-	searcher, err := resouce_cache.GetSearcher(asw.configBytes, asw.ns)
+	searcher, err := resouce_cache.GetSearcherWithoutTimeoutCheck(asw.configBytes, asw.ns)
 	if err != nil {
 		log.ErrorE(err, "")
 		return nil
@@ -200,7 +200,7 @@ func (asw *applicationSecretWatcher) Prepare() error {
 				}
 				return nil
 			},
-	)
+		)
 }
 
 // todo stop while Ns deleted
