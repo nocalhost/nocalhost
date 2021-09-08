@@ -394,7 +394,7 @@ jobs:
     steps:
       - name: curl
         run: |
-          curl --location --request POST 'https://https://nocalhost.coding.net/api/user/nocalhost/project/nocalhost/depot/nocalhost/git/import' \
+          curl --location --request POST 'https://nocalhost.coding.net/api/user/nocalhost/project/nocalhost/depot/nocalhost/git/import' \
           --header 'Authorization: Basic ${{ secrets.CODING_PERSONAL_KEY }}' \
           --header 'Content-Type: application/x-www-form-urlencoded' \
           --data-urlencode 'originUrl=https://github.com/nocalhost/nocalhost.git' \
