@@ -203,13 +203,14 @@ func (c *Controller) GetProfileForUpdate() (*profile.AppProfileV2, error) {
 	return profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
 }
 
-func UpdateSvcConfigToProfile(ns, appName, svcName, svcType string, config *profile.ServiceConfigV2) error {
-	profileV2, err := profile.NewAppProfileV2ForUpdate(ns, appName)
+func UpdateSvcConfig(ns, appName, kubeconfig string, config *profile.ServiceConfigV2) error {
+	meta, err := nocalhost.GetApplicationMeta(appName, ns, kubeconfig)
 	if err != nil {
 		return err
 	}
-	defer profileV2.CloseDb()
-	svcPro := profileV2.SvcProfileV2(svcName, svcType)
-	svcPro.ServiceConfigV2 = config
-	return profileV2.Save()
+	if !meta.IsInstalled() {
+		return errors.New(fmt.Sprintf("AppMeta %s-%s is not installed", appName, ns))
+	}
+	meta.Config.SetSvcConfigV2(*config)
+	return meta.Update()
 }

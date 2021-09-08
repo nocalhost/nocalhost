@@ -117,8 +117,10 @@ func handlingConfigSave(w http.ResponseWriter, r *http.Request) {
 		fail(w, err.Error())
 		return
 	}
+	svcConfig.Name = csp.Name
+	svcConfig.Type = csp.Type
 
-	err = controller.UpdateSvcConfigToProfile(csp.Namespace, csp.Application, csp.Name, csp.Type, svcConfig)
+	err = controller.UpdateSvcConfig(csp.Namespace, csp.Application, csp.Kubeconfig, svcConfig)
 	if err != nil {
 		fail(w, err.Error())
 		return
