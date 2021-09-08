@@ -176,8 +176,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		return getApplicationByNs(ns, request.KubeConfig, s, request.Label)
 
 	case "app", "application":
-		//// init searcher for cache async
-		//go func() { _, _ = resouce_cache.GetSearcherWithTimeoutCheck(KubeConfigBytes, ns) }()
+		// init searcher for cache async
+		go func() { _, _ = resouce_cache.GetSearcherWithTimeoutCheck(KubeConfigBytes, ns) }()
 		if request.ResourceName == "" {
 			return ParseApplicationsResult(ns, GetAllApplicationWithDefaultApp(ns, request.KubeConfig))
 		} else {

@@ -41,16 +41,17 @@ var clusterMapLock sync.Mutex
 type Searcher struct {
 	kubeconfig      []byte
 	informerFactory informers.SharedInformerFactory
-	supportSchema   map[string]*meta.RESTMapping
-	mapper          meta.RESTMapper
-	stopChannel     chan struct{}
+	// [string]*meta.RESTMapping
+	supportSchema *sync.Map
+	mapper        meta.RESTMapper
+	stopChannel   chan struct{}
 	// last used this searcher, for release informer resource
 	lastUsedTime time.Time
 	timeoutCheck bool
 }
 
-// GetSupportedSchema return restMapping of each resource
-func GetSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (map[string]*meta.RESTMapping, error) {
+// getSupportedSchema return restMapping of each resource, [string]*meta.RESTMapping
+func getSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (*sync.Map, error) {
 	var resourceNeeded = map[string]string{"namespaces": "namespaces"}
 	for _, v := range GroupToTypeMap {
 		for _, s := range v.V {
@@ -91,7 +92,11 @@ func GetSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (map[st
 	if len(nameToMapping) == 0 {
 		return nil, errors.New("RestMapping is empty, this should not happened")
 	}
-	return nameToMapping, nil
+	result := &sync.Map{}
+	for k, v := range nameToMapping {
+		result.Store(k, v)
+	}
+	return result, nil
 }
 
 // GetSearcherWithTimeoutCheck GetSearchWithLRU will cache kubeconfig with LRU
@@ -176,24 +181,47 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 		return nil, err2
 	}
 	mapper := restmapper.NewDiscoveryRESTMapper(gr)
-	restMappingList, err3 := GetSupportedSchema(clientset, mapper)
+	restMappingList, err3 := getSupportedSchema(clientset, mapper)
 	if err3 != nil {
 		return nil, err3
 	}
-	for _, restMapping := range restMappingList {
-		if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
-			if k8serrors.IsForbidden(err) {
-				log.Warnf("user account is forbidden to list resource: %v, ignored", restMapping.Resource)
-			} else {
-				log.Warnf(
-					"Can't create informer for resource: %v, error info: %v, ignored",
-					restMapping.Resource, err.Error(),
-				)
+
+	restMappingList.Range(func(key, value interface{}) bool {
+		if value != nil {
+			if restMapping, convert := value.(*meta.RESTMapping); convert && restMapping != nil {
+				if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
+					if k8serrors.IsForbidden(err) {
+						log.Warnf("user account is forbidden to list resource: %v, ignored", restMapping.Resource)
+					} else {
+						log.Warnf(
+							"Can't create informer for resource: %v, error info: %v, ignored",
+							restMapping.Resource, err.Error(),
+						)
+					}
+				}
 			}
-			continue
 		}
-	}
-	stopChannel := make(chan struct{}, len(restMappingList))
+		return true
+	})
+	//for _, restMapping := range restMappingList {
+	//	if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
+	//		if k8serrors.IsForbidden(err) {
+	//			log.Warnf("user account is forbidden to list resource: %v, ignored", restMapping.Resource)
+	//		} else {
+	//			log.Warnf(
+	//				"Can't create informer for resource: %v, error info: %v, ignored",
+	//				restMapping.Resource, err.Error(),
+	//			)
+	//		}
+	//		continue
+	//	}
+	//}
+	length := 0
+	restMappingList.Range(func(key, value interface{}) bool {
+		length++
+		return true
+	})
+	stopChannel := make(chan struct{}, length)
 	firstSyncChannel := make(chan struct{}, 2)
 	informerFactory.Start(stopChannel)
 	go func() {
@@ -224,14 +252,21 @@ func (s *Searcher) Start() {
 
 // Stop to stop the searcher
 func (s *Searcher) Stop() {
-	for i := 0; i < len(s.supportSchema); i++ {
+	length := 0
+	s.supportSchema.Range(func(key, value interface{}) bool {
+		length++
+		return true
+	})
+	for i := 0; i < length; i++ {
 		s.stopChannel <- struct{}{}
 	}
 }
 
 func (s *Searcher) GetRestMapping(resourceType string) (*meta.RESTMapping, error) {
-	if s.supportSchema[strings.ToLower(resourceType)] != nil {
-		return s.supportSchema[strings.ToLower(resourceType)], nil
+	if value, found := s.supportSchema.Load(strings.ToLower(resourceType)); found && value != nil {
+		if restMapping, convert := value.(*meta.RESTMapping); convert && restMapping != nil {
+			return restMapping, nil
+		}
 	}
 	return nil, errors.New(fmt.Sprintf("Can't get restMapping, resource type: %s", resourceType))
 }
@@ -636,6 +671,17 @@ func init() {
 									t := time.Time{}
 									if s.timeoutCheck && s.lastUsedTime != t && time.Now().Sub(s.lastUsedTime).Hours() >= 24 {
 										go func() { s.Stop() }()
+										searchMap.Remove(key)
+									}
+								}
+							}
+						}
+						// keep more used 20 informer
+						for i := 0; i < searchMap.Len()-20; i++ {
+							if key, value, ok := searchMap.GetOldest(); ok && value != nil {
+								if s, convert := value.(*Searcher); convert && s != nil {
+									if s.timeoutCheck {
+										go func() { value.(*Searcher).Stop() }()
 										searchMap.Remove(key)
 									}
 								}

@@ -13,7 +13,7 @@ import (
 
 // HandleKubeconfigOperationRequest this method will operate informer cache, remove or add informer
 func HandleKubeconfigOperationRequest(request *command.KubeconfigOperationCommand) error {
-	defer log.Infof("receive kubeconfig operation: %s, kubeconfig: %v", request.Operation, string(request.KubeConfigBytes))
+	defer log.Infof("receive kubeconfig operation: %s, namespace: %v", request.Operation, request.Namespace)
 	switch request.Operation {
 	case command.OperationAdd:
 		return resouce_cache.AddSearcherByKubeconfig(request.KubeConfigBytes, request.Namespace)
