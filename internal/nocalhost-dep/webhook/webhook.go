@@ -201,9 +201,9 @@ func mutationRequired(ignoredList []string, metadata *metav1.ObjectMeta) bool {
 	// If the environment variable MATCH_NAMESPACE exists,
 	// only the namespaces in the environment variable will be matched
 	e := os.Getenv("MATCH_NAMESPACE")
-	e = strings.Replace(e, " ", "", -1)
-	matchNamespaces := strings.Split(e, ",")
-	if len(matchNamespaces) > 0 {
+	if e != "" {
+		e = strings.Replace(e, " ", "", -1)
+		matchNamespaces := strings.Split(e, ",")
 		matchNamespacesMap := make(map[string]struct{})
 		for _, ns := range matchNamespaces {
 			matchNamespacesMap[ns] = struct{}{}
