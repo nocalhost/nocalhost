@@ -27,7 +27,7 @@ services:
   - name: productpage
     serviceType: deployment
     gitUrl: https://github.com/nocalhost/bookinfo-productpage
-    devContainerImage: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/python:3.7.7-slim-productpage
+    devContainerImage: nocalhost-docker.pkg.coding.net/nocalhost/dev-images/python:3.7.7-slim-productpage
     workDir: /root/nocalhost-dev
     devContainerShell: "bash"
     devPorts:
@@ -44,7 +44,7 @@ services:
   - name: ratings
     serviceType: deployment
     gitUrl: https://github.com/nocalhost/bookinfo-ratings.git
-    devContainerImage: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/node:12.18.1-slim
+    devContainerImage: nocalhost-docker.pkg.coding.net/nocalhost/dev-images/node:12.18.1-slim
     workDir: /root/nocalhost-dev
     devContainerShell: "bash"
     devPorts:
@@ -63,7 +63,7 @@ services:
   - name: reviews
     serviceType: deployment
     gitUrl: https://github.com/nocalhost/bookinfo-reviews.git
-    devContainerImage: codingcorp-docker.pkg.coding.net/nocalhost/public/coding-java:latest
+    devContainerImage: nocalhost-docker.pkg.coding.net/nocalhost/public/coding-java:latest
     workDir: /root/reviews
     devContainerShell: "bash"
     devPorts:
