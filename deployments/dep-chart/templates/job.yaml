@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nocalhost-dep-installer
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    spec:
+      containers:
+      - command:
+        - /nocalhost/installer.sh
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        name: nocalhost-dep-installer
+        env:
+          - name: DEP_NAMESPACE
+            value: "{{ .Values.dep.namespace }}"
+          - name: DEP_IMAGE
+            value: "{{ .Values.dep.image.repository }}:{{ .Values.dep.image.tag }}"
+          - name: MY_POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: DEP_MATCH_WITH
+            value: "{{ .Values.dep.matchWith }}"
+          {{- if eq .Values.dep.matchWith "namespaceName" }}
+          - name: MATCH_NAMESPACE_NAME
+            value: "{{ .Values.dep.match.namespace.name | default .Release.Namespace }}"
+          {{- end }}
+          {{- if eq .Values.dep.matchWith "namespaceLabel" }}
+          - name: MATCH_NAMESPACE_LABEL_KEY
+            value: "{{ .Values.dep.match.namespace.label.key | default "env" }}"
+          - name: MATCH_NAMESPACE_LABEL_VALUE
+            value: "{{ .Values.dep.match.namespace.label.value | default "nocalhost" }}"
+          {{- end }}
+        imagePullPolicy: Always
+      restartPolicy: Never
+      serviceAccountName: nocalhost-dep-installer

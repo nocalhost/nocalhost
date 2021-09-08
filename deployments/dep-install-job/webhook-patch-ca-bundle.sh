@@ -4,7 +4,9 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-CA_BUNDLE=$(kubectl get secrets -o jsonpath="{.items[?(@.metadata.annotations['kubernetes\.io/service-account\.name']=='nocalhost-admin-service-account')].data.ca\.crt}")
+ns=${DEP_NAMESPACE:-"nocalhost-reserved"}
+
+CA_BUNDLE=$(kubectl -n "${ns}" get secrets -o jsonpath="{.items[?(@.metadata.annotations['kubernetes\.io/service-account\.name']=='nocalhost-admin-service-account')].data.ca\.crt}")
 
 export CA_BUNDLE
 
