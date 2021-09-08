@@ -1002,7 +1002,7 @@ func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool,
 					Containers: []corev1.Container{
 						{
 							Name:  "kubectl",
-							Image: "codingcorp-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
+							Image: "nocalhost-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
 							Command: []string{
 								"kubectl", "delete", "ds", global.NocalhostPrePullDSName, "-n",
 								global.NocalhostSystemNamespace,
@@ -1160,7 +1160,7 @@ func (c *GoClient) MatchedArtifactVersion(artifact, tags string) string {
 		tag = tags
 	}
 
-	return fmt.Sprintf("codingcorp-docker.pkg.coding.net/nocalhost/public/%s:%s", artifact, tag)
+	return fmt.Sprintf("nocalhost-docker.pkg.coding.net/nocalhost/public/%s:%s", artifact, tag)
 }
 
 func (c *GoClient) ListJobs(namespace string) (*batchv1.JobList, error) {

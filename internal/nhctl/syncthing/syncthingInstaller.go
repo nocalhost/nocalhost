@@ -25,13 +25,13 @@ import (
 
 var (
 	downloadURLs = map[string]string{
-		"linux-amd64": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz" +
+		"linux-amd64": "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz" +
 			"?version=%s",
-		"darwin-arm64": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.tar.gz" +
+		"darwin-arm64": "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.tar.gz" +
 			"?version=%s",
-		"darwin-amd64": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip" +
+		"darwin-amd64": "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip" +
 			"?version=%s",
-		"windows-amd64": "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip" +
+		"windows-amd64": "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip" +
 			"?version=%s",
 	}
 

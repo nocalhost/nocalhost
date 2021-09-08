@@ -288,7 +288,7 @@ func installBookInfoHelmRepo(nhctl runner.Client) error {
 		"--helm-chart-name",
 		"bookinfo/nocalhost-bookinfo",
 		"--helm-repo-url",
-		"https://codingcorp-helm.pkg.coding.net/naison-test/bookinfo",
+		"https://nocalhost-helm.pkg.coding.net/naison-test/bookinfo",
 		"--outer-config",
 		temp.Name(),
 	)
@@ -305,7 +305,7 @@ func installHelmRepoWithCredential(nhctl runner.Client) error {
 		"-t",
 		string(appmeta.HelmRepo),
 		"--helm-repo-url",
-		fmt.Sprintf("https://%s:%s@codingcorp-helm.pkg.coding.net/nocalhsot-test/testcase",
+		fmt.Sprintf("https://%s:%s@nocalhost-helm.pkg.coding.net/nocalhsot-test/testcase",
 			os.Getenv(util.HelmRepoUsername), os.Getenv(util.HelmRepoPassword)),
 	)
 	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
@@ -316,7 +316,7 @@ func installHelmRepoAlreadyExist(nhctl runner.Client) error {
 	_, _, _ = nhctl.GetHelm().RunWithRollingOut(context.TODO(), "repo",
 		"add",
 		"testcase",
-		"https://codingcorp-helm.pkg.coding.net/nocalhsot-test/testcase",
+		"https://nocalhost-helm.pkg.coding.net/nocalhsot-test/testcase",
 		"--username",
 		os.Getenv(util.HelmRepoUsername),
 		"--password",
@@ -330,7 +330,7 @@ func installHelmRepoAlreadyExist(nhctl runner.Client) error {
 		"-t",
 		string(appmeta.HelmRepo),
 		"--helm-repo-url",
-		"https://codingcorp-helm.pkg.coding.net/nocalhsot-test/testcase",
+		"https://nocalhost-helm.pkg.coding.net/nocalhsot-test/testcase",
 	)
 	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)

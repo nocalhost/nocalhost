@@ -34,8 +34,8 @@ jobs:
           LINUX_BINARY: 'nhctl-linux-amd64'
         run: |
           cd build
-          curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${GITHUB_SHA}"
-          curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${GITHUB_SHA}"
+          curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${GITHUB_SHA}"
+          curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${GITHUB_SHA}"
 
       - name: Push to Coding Artifacts
         if: ${{ github.ref == 'refs/heads/main' && github.repository == 'nocalhost/nocalhost' }}
@@ -44,8 +44,8 @@ jobs:
           LINUX_BINARY: 'nhctl-linux-amd64'
         run: |
           cd build
-          curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=main"
-          curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=main"
+          curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=main"
+          curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=main"
 
       - name: Push to Coding Artifacts
         if: ${{ github.ref == 'refs/heads/dev' && github.repository == 'nocalhost/nocalhost' }}
@@ -54,8 +54,8 @@ jobs:
           LINUX_BINARY: 'nhctl-linux-amd64'
         run: |
           cd build
-          curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=dev"
-          curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=dev"
+          curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=dev"
+          curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=dev"
 
   build-nhctl-macos:
     name: Build nhctl
@@ -79,7 +79,7 @@ jobs:
           OSX_BINARY: 'nhctl-darwin-amd64'
         run: |
           cd build
-          curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${GITHUB_SHA}"
+          curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${GITHUB_SHA}"
 
       - name: Push to Coding Artifacts
         if: ${{ github.ref == 'refs/heads/main' && github.repository == 'nocalhost/nocalhost' }}
@@ -87,7 +87,7 @@ jobs:
           OSX_BINARY: 'nhctl-darwin-amd64'
         run: |
           cd build
-          curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=main"
+          curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=main"
 
       - name: Push to Coding Artifacts
         if: ${{ github.ref == 'refs/heads/dev' && github.repository == 'nocalhost/nocalhost' }}
@@ -95,7 +95,7 @@ jobs:
           OSX_BINARY: 'nhctl-darwin-amd64'
         run: |
           cd build
-          curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=dev"
+          curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=dev"
 
   build-syncthing-linux-amd64:
     name: Build syncthing amd64
@@ -121,7 +121,7 @@ jobs:
       - name: Push to Coding Articact
         working-directory: ./syncthing-source
         run: |
-          curl -T syncthing-linux-amd64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=${GITHUB_SHA}"
+          curl -T syncthing-linux-amd64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=${GITHUB_SHA}"
 
   build-syncthing-macos-windows:
     name: Build syncthing macos windows
@@ -150,6 +150,6 @@ jobs:
       - name: Push to Coding Articact
         working-directory: ./syncthing-source
         run: |
-          curl -T syncthing-macos-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=${GITHUB_SHA}"
-          curl -T syncthing-windows-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=${GITHUB_SHA}"
-          curl -T syncthing-macos-arm64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.zip?version=${GITHUB_SHA}"
+          curl -T syncthing-macos-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=${GITHUB_SHA}"
+          curl -T syncthing-windows-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=${GITHUB_SHA}"
+          curl -T syncthing-macos-arm64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.zip?version=${GITHUB_SHA}"

@@ -1,4 +1,4 @@
-FROM codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:master
+FROM nocalhost-docker.pkg.coding.net/nocalhost/public/minideb:master
 
 MAINTAINER "Nocalhost"
 
@@ -13,7 +13,7 @@ RUN mkdir -p /var/run/sshd && sed -ri 's/UsePAM yes/#UsePAM yes/g' /etc/ssh/sshd
   && echo "UsePAM no\nAllowAgentForwarding yes\nPermitRootLogin yes\nPubkeyAuthentication yes\nAuthorizedKeysFile /root/.ssh/authorized_keys\n" >> /etc/ssh/sshd_config && echo "root:root" | chpasswd \
   && touch /root/.hushlogin \
   && true
-RUN wget https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/mutagen_linux_amd64_v0.11.8.tar.gz --no-check-certificate && tar -xvzf mutagen_linux_amd64_v0.11.8.tar.gz && mv mutagen /usr/local/bin/ && rm mutagen_linux_amd64_v0.11.8.tar.gz mutagen-agents.tar.gz
+RUN wget https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/mutagen_linux_amd64_v0.11.8.tar.gz --no-check-certificate && tar -xvzf mutagen_linux_amd64_v0.11.8.tar.gz && mv mutagen /usr/local/bin/ && rm mutagen_linux_amd64_v0.11.8.tar.gz mutagen-agents.tar.gz
 #RUN tar -xvzf mutagen_linux_amd64_v0.11.8.tar.gz && mv mutagen /usr/local/bin/
 #RUN rm mutagen_linux_amd64_v0.11.8.tar.gz mutagen-agents.tar.gz
 

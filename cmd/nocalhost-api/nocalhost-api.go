@@ -37,7 +37,7 @@ var (
 // @description Nocalhost server api
 
 // @contact.name wangwei
-// @contact.url codingcorp.coding.net
+// @contact.url nocalhost.coding.net
 // @contact.email
 
 func main() {

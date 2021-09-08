@@ -81,9 +81,9 @@ jobs:
         OSX_BINARY: 'nhctl-darwin-amd64'
       run: |
         cd build
-        curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${GITHUB_SHA}"
-        curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=latest"
-        curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${{ env.RELEASE_VERSION }}"
+        curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${GITHUB_SHA}"
+        curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=latest"
+        curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${{ env.RELEASE_VERSION }}"
 
   release-nhctl-linux-windows:
     name: Release nhctl-linux-windows
@@ -184,12 +184,12 @@ jobs:
         LINUX_BINARY: 'nhctl-linux-amd64'
       run: |
         cd build
-        curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${GITHUB_SHA}"
-        curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${GITHUB_SHA}"
-        curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=latest"
-        curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=latest"
-        curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${{ env.RELEASE_VERSION }}"
-        curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${{ env.RELEASE_VERSION }}"
+        curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${GITHUB_SHA}"
+        curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${GITHUB_SHA}"
+        curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=latest"
+        curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=latest"
+        curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${{ env.RELEASE_VERSION }}"
+        curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${{ env.RELEASE_VERSION }}"
 
     - name: Update Homebrew tap
       #if: "!contains(github.ref,'rc')"
@@ -233,9 +233,9 @@ jobs:
 
     - name: Push to Coding Artifacts
       env:
-        CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-api
+        CODING_IMAGE_NAME: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-api
       run: |
-        echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
+        echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login nocalhost-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
         docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_SHA}
         docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
         docker tag nocalhost-api:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
@@ -260,9 +260,9 @@ jobs:
 
     - name: Push to Coding Artifacts
       env:
-        CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep
+        CODING_IMAGE_NAME: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-dep
       run: |
-        echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
+        echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login nocalhost-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
         docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_SHA}
         docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
         docker tag nocalhost-dep:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
@@ -289,9 +289,9 @@ jobs:
 
     - name: Push to Coding Artifacts
       env:
-        CODING_IMAGE_NAME: codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job
+        CODING_IMAGE_NAME: nocalhost-docker.pkg.coding.net/nocalhost/public/dep-installer-job
       run: |
-        echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login codingcorp-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
+        echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login nocalhost-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
         docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_SHA}
         docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
         docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
@@ -347,7 +347,7 @@ jobs:
     - name: Push to Coding Articact
       working-directory: ./syncthing-source
       run: |
-        curl -T syncthing-linux-amd64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=${{ env.RELEASE_VERSION }}"
+        curl -T syncthing-linux-amd64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=${{ env.RELEASE_VERSION }}"
 
   build-syncthing-macos-windows:
     name: Build syncthing macos
@@ -378,9 +378,9 @@ jobs:
     - name: Push to Coding Articact
       working-directory: ./syncthing-source
       run: |
-        curl -T syncthing-macos-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=${{ env.RELEASE_VERSION }}"
-        curl -T syncthing-macos-arm64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.zip?version=${{ env.RELEASE_VERSION }}"
-        curl -T syncthing-windows-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=${{ env.RELEASE_VERSION }}"
+        curl -T syncthing-macos-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=${{ env.RELEASE_VERSION }}"
+        curl -T syncthing-macos-arm64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.zip?version=${{ env.RELEASE_VERSION }}"
+        curl -T syncthing-windows-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=${{ env.RELEASE_VERSION }}"
 
   package-windows:
     needs: release-nhctl
@@ -412,8 +412,8 @@ jobs:
         curl -L https://get.helm.sh/helm-v3.4.2-windows-amd64.zip -o build/helm.zip
         unzip build/helm.zip -d build
         iscc /DAppVersion=$Version scripts/release/nocalhost.iss
-        curl -T build/NocalhostInstaller.exe -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/NocalhostInstaller.exe?version=$Version"
-        curl -T build/NocalhostInstaller.exe -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/NocalhostInstaller.exe?version=latest"
+        curl -T build/NocalhostInstaller.exe -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/NocalhostInstaller.exe?version=$Version"
+        curl -T build/NocalhostInstaller.exe -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/NocalhostInstaller.exe?version=latest"
 
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
@@ -431,7 +431,7 @@ jobs:
     steps:
     - name: curl
       run: |
-        curl --location --request POST 'https://codingcorp.coding.net/api/user/codingcorp/project/nocalhost/depot/nocalhost/git/import' \
+        curl --location --request POST 'https://nocalhost.coding.net/api/user/nocalhost/project/nocalhost/depot/nocalhost/git/import' \
         --header 'Authorization: Basic ${{ secrets.CODING_PERSONAL_KEY }}' \
         --header 'Content-Type: application/x-www-form-urlencoded' \
         --data-urlencode 'originUrl=https://github.com/nocalhost/nocalhost.git' \

@@ -23,7 +23,7 @@ var doc = `{
 		"title": "Nocalhost docs api",
 		"contact": {
 			"name": "wangwei",
-			"url": "codingcorp.coding.net"
+			"url": "nocalhost.coding.net"
 		},
 		"license": {},
 		"version": "1.0"
