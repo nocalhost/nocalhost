@@ -18,7 +18,7 @@ func HandleKubeconfigOperationRequest(request *command.KubeconfigOperationComman
 	case command.OperationAdd:
 		return resouce_cache.AddSearcherByKubeconfig(request.KubeConfigBytes, request.Namespace)
 	case command.OperationRemove:
-		return resouce_cache.RemoveSearcherByKubeconfig(request.KubeConfigBytes)
+		return resouce_cache.RemoveSearcherByKubeconfig(request.KubeConfigBytes, request.Namespace)
 	default:
 		return nil
 	}

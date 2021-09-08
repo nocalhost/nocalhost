@@ -35,6 +35,8 @@ import (
 // cache Searcher for each kubeconfig
 var searchMap, _ = simplelru.NewLRU(10000, func(_ interface{}, value interface{}) { value.(*Searcher).Stop() })
 var lock sync.Mutex
+var clusterMap = make(map[string]bool)
+var clusterMapLock sync.Mutex
 
 type Searcher struct {
 	kubeconfig      []byte
@@ -93,22 +95,32 @@ func GetSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (map[st
 func GetSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 	lock.Lock()
 	defer lock.Unlock()
-	// calculate kubeconfig content's sha value as unique cluster id
-	h := sha1.New()
-	h.Write(kubeconfigBytes)
-	key := string(h.Sum(nil))
-	searcher, exist := searchMap.Get(key)
+	searcher, exist := searchMap.Get(generateKey(kubeconfigBytes, namespace))
 	if !exist || searcher == nil {
 		newSearcher, err := initSearcher(kubeconfigBytes, namespace)
 		if err != nil {
 			return nil, err
 		}
-		searchMap.Add(key, newSearcher)
+		searchMap.Add(generateKey(kubeconfigBytes, namespace), newSearcher)
 	}
-	if searcher, exist = searchMap.Get(key); exist && searcher != nil {
+	if searcher, exist = searchMap.Get(generateKey(kubeconfigBytes, namespace)); exist && searcher != nil {
 		return searcher.(*Searcher), nil
 	}
 	return nil, errors.New("Error occurs while init informer searcher")
+}
+
+// calculate kubeconfig content's sha value as unique cluster id
+func generateKey(kubeconfigBytes []byte, namespace string) string {
+	h := sha1.New()
+	h.Write(kubeconfigBytes)
+	// if it's a cluster admin kubeconfig, then generate key without namespace
+	clusterMapLock.Lock()
+	defer clusterMapLock.Unlock()
+	if _, found := clusterMap[string(kubeconfigBytes)]; found {
+		return string(h.Sum(nil))
+	} else {
+		return string(h.Sum([]byte(namespace)))
+	}
 }
 
 // initSearcher return a searcher which use informer to cache resource
@@ -128,6 +140,9 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 
 	if isClusterAdmin(kubeconfigBytes) {
 		informerFactory = informers.NewSharedInformerFactory(clientset, time.Second*5)
+		clusterMapLock.Lock()
+		clusterMap[string(kubeconfigBytes)] = true
+		clusterMapLock.Unlock()
 	} else {
 		informerFactory = informers.NewSharedInformerFactoryWithOptions(
 			clientset, time.Second*5, informers.WithNamespace(namespace),
@@ -537,26 +552,38 @@ func isClusterAdmin(kubeconfigBytes []byte) bool {
 }
 
 // RemoveSearcherByKubeconfig remove informer from cache
-func RemoveSearcherByKubeconfig(kubeconfigBytes []byte) error {
-	lock.Lock()
-	defer lock.Unlock()
-	h := sha1.New()
-	h.Write(kubeconfigBytes)
-	key := string(h.Sum(nil))
-	if searcher, exist := searchMap.Get(key); exist && searcher != nil {
-		go func() { searcher.(*Searcher).Stop() }()
-		searchMap.Remove(key)
+func RemoveSearcherByKubeconfig(kubeconfigBytes []byte, namespace string) error {
+	removeInformer(generateKey(kubeconfigBytes, namespace))
+	c, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
+	if err != nil {
+		return err
+	}
+	clientset, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		return err
+	}
+	list, err := clientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+	if err == nil && list != nil {
+		for _, item := range list.Items {
+			removeInformer(generateKey(kubeconfigBytes, item.Namespace))
+		}
 	}
 	return nil
 }
 
+func removeInformer(key string) {
+	lock.Lock()
+	lock.Unlock()
+	if searcher, exist := searchMap.Get(key); exist && searcher != nil {
+		go func() { searcher.(*Searcher).Stop() }()
+		searchMap.Remove(key)
+	}
+}
+
 // AddSearcherByKubeconfig init informer in advance
 func AddSearcherByKubeconfig(kubeconfigBytes []byte, namespace string) error {
-	h := sha1.New()
-	h.Write(kubeconfigBytes)
-	key := string(h.Sum(nil))
 	lock.Lock()
-	if searcher, exist := searchMap.Get(key); exist && searcher != nil {
+	if searcher, exist := searchMap.Get(generateKey(kubeconfigBytes, namespace)); exist && searcher != nil {
 		lock.Unlock()
 		return nil
 	}
