@@ -69,16 +69,9 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	app.appMeta = appMeta
 	appMeta.ApplicationType = appmeta.AppType(flags.AppType)
 
-	if appMeta.NamespaceId == "" {
-		id, err := utils.GetShortUuid()
-		if err != nil {
-			return nil, err
-		}
-		appMeta.NamespaceId = id
-		if err = appMeta.Update(); err != nil {
-			return nil, err
-		}
-	}
+	//if err = appMeta.GenerateNidINE(); err != nil {
+	//	return nil, err
+	//}
 
 	if err = app.initDir(); err != nil {
 		return nil, err

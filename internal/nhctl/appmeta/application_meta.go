@@ -404,7 +404,11 @@ func (a *ApplicationMeta) Initial() error {
 			Namespace: a.Ns,
 		},
 	}
-
+	id, err := utils.GetShortUuid()
+	if err != nil {
+		return err
+	}
+	a.NamespaceId = id
 	createSecret, err := a.operator.Create(a.Ns, &secret)
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
