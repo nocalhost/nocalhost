@@ -185,9 +185,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	}()
 
 	// Listen http
-	go func() {
-
-	}()
+	go startHttpServer()
 
 	go func() {
 		select {
