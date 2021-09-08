@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    use-for: nocalhost-dep
+  name: nocalhost-depends-do-not-overwrite-foo
+data:
+  nocalhost: |
+    env:
+      global:
+        - name: DEBUG
+          value: "true"
+        - name: DOMAIN
+          value: coding.com
+        - name: foo
+          value: bar
+      service: []
