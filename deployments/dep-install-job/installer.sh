@@ -23,8 +23,10 @@ else
     match_namespace_label=${match_namespace_label//__match_namespace_label_values__/${MATCH_NAMESPACE_LABEL_VALUE}}
 
     sed -i "s|#__NAMESPACE_MATCH_KEY__#|${match_namespace_label}|" ./webhook/mutating-webhook.yaml
-fi
 
+    # set label on MY_POD_NAMESPACE
+    kubectl label namespaces "${MY_POD_NAMESPACE}" "${MATCH_NAMESPACE_LABEL_KEY}=${MATCH_NAMESPACE_LABEL_VALUE}" --overwrite
+fi
 
 # replace namespace
 if [[ -n ${DEP_NAMESPACE} ]] ; then
