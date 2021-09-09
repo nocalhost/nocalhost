@@ -30,7 +30,7 @@ const (
 	ServiceLabel             = "nocalhost.dev/service"
 	AppLabel                 = "nocalhost.dev/app"
 
-	DefaultSideCarImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:sshversion"
+	DefaultSideCarImage = "nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:sshversion"
 
 	DefaultApplicationSyncPidFile = "syncthing.pid"
 
