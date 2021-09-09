@@ -14,6 +14,7 @@ import (
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
+	"runtime/debug"
 )
 
 type ConfigSaveParams struct {
@@ -31,6 +32,11 @@ type ConfigSaveResp struct {
 }
 
 func startHttpServer() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("Http Server occurs panic: %s", string(debug.Stack()))
+		}
+	}()
 	log.Info("Starting http server")
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
