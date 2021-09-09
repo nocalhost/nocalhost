@@ -33,19 +33,30 @@ import (
 )
 
 // cache Searcher for each kubeconfig
-var searchMap, _ = simplelru.NewLRU(10000, func(_ interface{}, value interface{}) { value.(*Searcher).Stop() })
+var searchMap, _ = simplelru.NewLRU(20, func(_ interface{}, value interface{}) {
+	if value != nil {
+		if s, ok := value.(*Searcher); ok && s != nil {
+			go func() { s.Stop() }()
+		}
+	}
+})
 var lock sync.Mutex
+var clusterMap = make(map[string]bool)
+var clusterMapLock sync.Mutex
 
 type Searcher struct {
 	kubeconfig      []byte
 	informerFactory informers.SharedInformerFactory
-	supportSchema   map[string]*meta.RESTMapping
-	mapper          meta.RESTMapper
-	stopChannel     chan struct{}
+	// [string]*meta.RESTMapping
+	supportSchema *sync.Map
+	mapper        meta.RESTMapper
+	stopChannel   chan struct{}
+	// last used this searcher, for release informer resource
+	lastUsedTime time.Time
 }
 
-// GetSupportedSchema return restMapping of each resource
-func GetSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (map[string]*meta.RESTMapping, error) {
+// getSupportedSchema return restMapping of each resource, [string]*meta.RESTMapping
+func getSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (*sync.Map, error) {
 	var resourceNeeded = map[string]string{"namespaces": "namespaces"}
 	for _, v := range GroupToTypeMap {
 		for _, s := range v.V {
@@ -86,32 +97,53 @@ func GetSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (map[st
 	if len(nameToMapping) == 0 {
 		return nil, errors.New("RestMapping is empty, this should not happened")
 	}
-	return nameToMapping, nil
+	result := &sync.Map{}
+	for k, v := range nameToMapping {
+		result.Store(k, v)
+	}
+	return result, nil
 }
 
-// GetSearcher GetSearchWithLRU will cache kubeconfig with LRU
-func GetSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
+// GetSearcherWithLRU GetSearchWithLRU will cache kubeconfig with LRU
+func GetSearcherWithLRU(kubeconfigBytes []byte, namespace string) (search *Searcher, err error) {
+	defer func() {
+		if search != nil {
+			search.lastUsedTime = time.Now()
+		}
+	}()
 	lock.Lock()
 	defer lock.Unlock()
-	// calculate kubeconfig content's sha value as unique cluster id
-	h := sha1.New()
-	h.Write(kubeconfigBytes)
-	key := string(h.Sum(nil))
-	searcher, exist := searchMap.Get(key)
+	searcher, exist := searchMap.Get(generateKey(kubeconfigBytes, namespace))
 	if !exist || searcher == nil {
 		newSearcher, err := initSearcher(kubeconfigBytes, namespace)
 		if err != nil {
 			return nil, err
 		}
-		searchMap.Add(key, newSearcher)
+		searchMap.Add(generateKey(kubeconfigBytes, namespace), newSearcher)
 	}
-	if searcher, exist = searchMap.Get(key); exist && searcher != nil {
-		return searcher.(*Searcher), nil
+	if searcher, exist = searchMap.Get(generateKey(kubeconfigBytes, namespace)); exist && searcher != nil {
+		search = searcher.(*Searcher)
+		err = nil
+		return
 	}
 	return nil, errors.New("Error occurs while init informer searcher")
 }
 
-// initSearcher return a searcher which use informer to cache resource
+// calculate kubeconfig content's sha value as unique cluster id
+func generateKey(kubeconfigBytes []byte, namespace string) string {
+	h := sha1.New()
+	h.Write(kubeconfigBytes)
+	// if it's a cluster admin kubeconfig, then generate key without namespace
+	clusterMapLock.Lock()
+	defer clusterMapLock.Unlock()
+	if _, found := clusterMap[string(kubeconfigBytes)]; found {
+		return string(h.Sum(nil))
+	} else {
+		return string(h.Sum([]byte(namespace)))
+	}
+}
+
+// initSearcher return a searcher which use informer to cache resource, without cache
 func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 	config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
 	if err != nil {
@@ -128,6 +160,9 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 
 	if isClusterAdmin(kubeconfigBytes) {
 		informerFactory = informers.NewSharedInformerFactory(clientset, time.Second*5)
+		clusterMapLock.Lock()
+		clusterMap[string(kubeconfigBytes)] = true
+		clusterMapLock.Unlock()
 	} else {
 		informerFactory = informers.NewSharedInformerFactoryWithOptions(
 			clientset, time.Second*5, informers.WithNamespace(namespace),
@@ -138,24 +173,47 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 		return nil, err2
 	}
 	mapper := restmapper.NewDiscoveryRESTMapper(gr)
-	restMappingList, err3 := GetSupportedSchema(clientset, mapper)
+	restMappingList, err3 := getSupportedSchema(clientset, mapper)
 	if err3 != nil {
 		return nil, err3
 	}
-	for _, restMapping := range restMappingList {
-		if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
-			if k8serrors.IsForbidden(err) {
-				log.Warnf("user account is forbidden to list resource: %v, ignored", restMapping.Resource)
-			} else {
-				log.Warnf(
-					"Can't create informer for resource: %v, error info: %v, ignored",
-					restMapping.Resource, err.Error(),
-				)
+
+	restMappingList.Range(func(key, value interface{}) bool {
+		if value != nil {
+			if restMapping, convert := value.(*meta.RESTMapping); convert && restMapping != nil {
+				if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
+					if k8serrors.IsForbidden(err) {
+						log.Warnf("user account is forbidden to list resource: %v, ignored", restMapping.Resource)
+					} else {
+						log.Warnf(
+							"Can't create informer for resource: %v, error info: %v, ignored",
+							restMapping.Resource, err.Error(),
+						)
+					}
+				}
 			}
-			continue
 		}
-	}
-	stopChannel := make(chan struct{}, len(restMappingList))
+		return true
+	})
+	//for _, restMapping := range restMappingList {
+	//	if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
+	//		if k8serrors.IsForbidden(err) {
+	//			log.Warnf("user account is forbidden to list resource: %v, ignored", restMapping.Resource)
+	//		} else {
+	//			log.Warnf(
+	//				"Can't create informer for resource: %v, error info: %v, ignored",
+	//				restMapping.Resource, err.Error(),
+	//			)
+	//		}
+	//		continue
+	//	}
+	//}
+	length := 0
+	restMappingList.Range(func(key, value interface{}) bool {
+		length++
+		return true
+	})
+	stopChannel := make(chan struct{}, length)
 	firstSyncChannel := make(chan struct{}, 2)
 	informerFactory.Start(stopChannel)
 	go func() {
@@ -186,14 +244,21 @@ func (s *Searcher) Start() {
 
 // Stop to stop the searcher
 func (s *Searcher) Stop() {
-	for i := 0; i < len(s.supportSchema); i++ {
+	length := 0
+	s.supportSchema.Range(func(key, value interface{}) bool {
+		length++
+		return true
+	})
+	for i := 0; i < length; i++ {
 		s.stopChannel <- struct{}{}
 	}
 }
 
 func (s *Searcher) GetRestMapping(resourceType string) (*meta.RESTMapping, error) {
-	if s.supportSchema[strings.ToLower(resourceType)] != nil {
-		return s.supportSchema[strings.ToLower(resourceType)], nil
+	if value, found := s.supportSchema.Load(strings.ToLower(resourceType)); found && value != nil {
+		if restMapping, convert := value.(*meta.RESTMapping); convert && restMapping != nil {
+			return restMapping, nil
+		}
 	}
 	return nil, errors.New(fmt.Sprintf("Can't get restMapping, resource type: %s", resourceType))
 }
@@ -534,4 +599,78 @@ func isClusterAdmin(kubeconfigBytes []byte) bool {
 		return false
 	}
 	return response.Status.Allowed
+}
+
+// RemoveSearcherByKubeconfig remove informer from cache
+func RemoveSearcherByKubeconfig(kubeconfigBytes []byte, namespace string) error {
+	removeInformer(generateKey(kubeconfigBytes, namespace))
+	c, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
+	if err != nil {
+		return err
+	}
+	clientset, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		return err
+	}
+	list, err := clientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+	if err == nil && list != nil {
+		for _, item := range list.Items {
+			removeInformer(generateKey(kubeconfigBytes, item.Namespace))
+		}
+	}
+	return nil
+}
+
+func removeInformer(key string) {
+	lock.Lock()
+	lock.Unlock()
+	if searcher, exist := searchMap.Get(key); exist && searcher != nil {
+		go func() { searcher.(*Searcher).Stop() }()
+		searchMap.Remove(key)
+	}
+}
+
+// AddSearcherByKubeconfig init informer in advance
+func AddSearcherByKubeconfig(kubeconfigBytes []byte, namespace string) error {
+	lock.Lock()
+	if searcher, exist := searchMap.Get(generateKey(kubeconfigBytes, namespace)); exist && searcher != nil {
+		lock.Unlock()
+		return nil
+	}
+	lock.Unlock()
+	go func() { _, _ = GetSearcherWithLRU(kubeconfigBytes, namespace) }()
+	return nil
+}
+
+func init() {
+	go func() {
+		for {
+			select {
+			case <-time.Tick(time.Minute * 5):
+				go func() {
+					defer func() {
+						lock.Unlock()
+						if err := recover(); err != nil {
+							log.Warnf("check informer occurs error, err: %v", err)
+						}
+					}()
+					lock.Lock()
+					if searchMap != nil && searchMap.Len() > 0 {
+						keys := searchMap.Keys()
+						for _, key := range keys {
+							if get, found := searchMap.Get(key); found && get != nil {
+								if s, ok := get.(*Searcher); ok && s != nil {
+									t := time.Time{}
+									if s.lastUsedTime != t && time.Now().Sub(s.lastUsedTime).Hours() >= 24 {
+										go func() { s.Stop() }()
+										searchMap.Remove(key)
+									}
+								}
+							}
+						}
+					}
+				}()
+			}
+		}
+	}()
 }

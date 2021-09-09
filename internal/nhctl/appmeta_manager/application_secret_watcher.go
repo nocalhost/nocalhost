@@ -182,7 +182,7 @@ func (asw *applicationSecretWatcher) Prepare() error {
 	// first get all nocalhost secrets for initial
 	// ignore error prevent kubeconfig has not permission for get secret
 	// ignore fail
-	searcher, err := resouce_cache.GetSearcher(asw.configBytes, asw.ns)
+	searcher, err := resouce_cache.GetSearcherWithLRU(asw.configBytes, asw.ns)
 	if err != nil {
 		log.ErrorE(err, "")
 		return nil
