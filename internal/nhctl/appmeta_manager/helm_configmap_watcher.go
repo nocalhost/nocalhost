@@ -141,7 +141,7 @@ func (hcmw *helmCmWatcher) Prepare() (existRelease []string, err error) {
 	// first get all configmaps for initial
 	// and find out the invalid nocalhost application
 	// then delete it
-	searcher, err := resouce_cache.GetSearcherWithoutTimeoutCheck(hcmw.configBytes, hcmw.ns)
+	searcher, err := resouce_cache.GetSearcherWithLRU(hcmw.configBytes, hcmw.ns)
 	if err != nil {
 		log.ErrorE(err, "")
 		return

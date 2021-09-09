@@ -26,7 +26,7 @@ import (
 
 func TestName(t *testing.T) {
 	b, _ := ioutil.ReadFile("/Users/naison/t")
-	search, err := GetSearcherWithTimeoutCheck(b, "nh7wump")
+	search, err := GetSearcherWithLRU(b, "nh7wump")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestName(t *testing.T) {
 
 func TestGetDeployment(t *testing.T) {
 	bytes, _ := ioutil.ReadFile("/Users/naison/zzz")
-	s, _ := GetSearcherWithTimeoutCheck(bytes, "")
+	s, _ := GetSearcherWithLRU(bytes, "")
 
 	i, _ := s.Criteria().ResourceType("Pods").Namespace("default").Query()
 	for _, dep := range i {
@@ -115,7 +115,7 @@ func TestGetDeployment(t *testing.T) {
 
 func TestGetPods(t *testing.T) {
 	bytes, _ := ioutil.ReadFile("/Users/naison/zzz")
-	s, _ := GetSearcherWithTimeoutCheck(bytes, "")
+	s, _ := GetSearcherWithLRU(bytes, "")
 	i, e := s.Criteria().ResourceType("pods").Namespace("default").Query()
 	if e != nil {
 		log.Error(e)
@@ -133,7 +133,7 @@ func TestGetPods(t *testing.T) {
 
 func TestGetDefault(t *testing.T) {
 	bytes, _ := ioutil.ReadFile("/Users/naison/zzz")
-	s, _ := GetSearcherWithTimeoutCheck(bytes, "nocalhost")
+	s, _ := GetSearcherWithLRU(bytes, "nocalhost")
 	i, e := s.Criteria().ResourceType("deployments").
 		ResourceName("nocalhost-api").
 		AppName("nocalhost").
@@ -156,7 +156,7 @@ func TestGetDefault(t *testing.T) {
 
 func TestGetWithNsHaveNoPermission(t *testing.T) {
 	bytes, _ := ioutil.ReadFile("/Users/naison/ZZZ")
-	s, _ := GetSearcherWithTimeoutCheck(bytes, "nh2qpiv")
+	s, _ := GetSearcherWithLRU(bytes, "nh2qpiv")
 	i, e := s.Criteria().ResourceType("deployments").
 		AppName("bookinfo").ResourceName("details").QueryOne()
 	if e != nil {
@@ -170,7 +170,7 @@ func TestGetWithNsHaveNoPermission(t *testing.T) {
 
 func TestGetNamespace(t *testing.T) {
 	kubeconfigBytes, _ := ioutil.ReadFile("/Users/naison/.kube/config")
-	s, _ := GetSearcherWithTimeoutCheck(kubeconfigBytes, "default")
+	s, _ := GetSearcherWithLRU(kubeconfigBytes, "default")
 	list, er := s.Criteria().ResourceType("pods").Namespace("test").Query()
 	if er != nil {
 		fmt.Println(er)
@@ -182,7 +182,7 @@ func TestGetNamespace(t *testing.T) {
 
 func TestGetDeploy(t *testing.T) {
 	kubeconfigBytes, _ := ioutil.ReadFile("/Users/naison/.kube/config")
-	s, _ := GetSearcherWithTimeoutCheck(kubeconfigBytes, "")
+	s, _ := GetSearcherWithLRU(kubeconfigBytes, "")
 	list, er := s.Criteria().Kind(&v1.Deployment{}).Namespace("default").Query()
 	if er != nil {
 		fmt.Println(er)
@@ -235,7 +235,7 @@ func TestApiResource(t *testing.T) {
 func TestNoListNamespacePermission(t *testing.T) {
 	join := filepath.Join(homedir.HomeDir(), ".nh", "bin", "listnstest")
 	kubeconfigBytes, _ := ioutil.ReadFile(join)
-	s, _ := GetSearcherWithTimeoutCheck(kubeconfigBytes, "nh99virm")
+	s, _ := GetSearcherWithLRU(kubeconfigBytes, "nh99virm")
 	list, er := s.Criteria().Kind(&corev1.Namespace{}).Namespace("default").Query()
 	if er != nil {
 		fmt.Println(er)

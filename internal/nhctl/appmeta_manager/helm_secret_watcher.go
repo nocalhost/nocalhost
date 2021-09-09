@@ -138,7 +138,7 @@ func (hws *helmSecretWatcher) Prepare() (existRelease []string, err error) {
 
 	// first get all secrets for initial
 	// and find out the invalid nocalhost application
-	searcher, err := resouce_cache.GetSearcherWithoutTimeoutCheck(hws.configBytes, hws.ns)
+	searcher, err := resouce_cache.GetSearcherWithLRU(hws.configBytes, hws.ns)
 	if err != nil {
 		log.ErrorE(err, "")
 		return

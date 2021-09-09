@@ -123,7 +123,7 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 		return watcher
 	}
 
-	searcher, err := resouce_cache.GetSearcherWithoutTimeoutCheck(configBytes, ns)
+	searcher, err := resouce_cache.GetSearcherWithLRU(configBytes, ns)
 	if err != nil {
 		log.ErrorE(err, "Fail to init searcher, and helm watch feature will not be enable")
 		return watcher
