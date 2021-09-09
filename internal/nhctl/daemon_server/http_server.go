@@ -39,7 +39,7 @@ func startHttpServer() {
 
 	http.HandleFunc("/config-save", handlingConfigSave)
 
-	err := http.ListenAndServe(":30125", nil)
+	err := http.ListenAndServe("127.0.0.1:30125", nil)
 	if err != nil {
 		log.ErrorE(err, "Http Server occur errors")
 	}
