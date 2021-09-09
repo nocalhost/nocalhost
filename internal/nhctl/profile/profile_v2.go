@@ -289,7 +289,7 @@ func (s *SvcProfileV2) GetName() string {
 		if s.ActualName != "" {
 			s.Name = s.ActualName
 		} else {
-			if s.ServiceConfigV2 == nil {
+			if s.ServiceConfigV2 != nil {
 				s.Name = s.ServiceConfigV2.Name
 			}
 		}
