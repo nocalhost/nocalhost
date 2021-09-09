@@ -10,7 +10,8 @@ TMP_GITCOMMIT=$(git describe --match=NeVeRmAtCh --always --abbrev=40)
 
 TMP_TAG=$(git tag -l --sort=v:refname | tail -1)
 for version in $TMP_GITCOMMIT $TMP_TAG; do
-  curl -fLs "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=""$version" -o syncthing-macos-amd64.zip || true
+  echo "version: ""$version"
+  curl -fL "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=""$version" -o syncthing-macos-amd64.zip || true
   if [[ -e "syncthing-macos-amd64.zip" ]]; then
     filesize=$(ls -l syncthing-macos-amd64.zip | awk '{ print $5 }')
     minsize=$((1024 * 1024 * 5))
@@ -20,7 +21,7 @@ for version in $TMP_GITCOMMIT $TMP_TAG; do
   fi
 done
 rm -fr syncthing-macos-amd64
-unzip syncthing-macos-amd64.zip > /dev/null
+unzip syncthing-macos-amd64.zip
 mv syncthing-macos-amd64/syncthing ./internal/nhctl/syncthing/bin/syncthing_macos_amd64
 rm -fr syncthing-macos-amd64 syncthing-macos-amd64.zip
 
