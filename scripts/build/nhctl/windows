@@ -3,7 +3,7 @@
 # Build a windows binary from linux
 #
 
-set -eu -o pipefail
+#set -eu -o pipefail
 
 TMP_VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/\(.*\)-.*/\1/' | sed 's/-[0-9]*$//' || true)}
 TMP_GITCOMMIT=$(git describe --match=NeVeRmAtCh --always --abbrev=40)
@@ -13,11 +13,11 @@ for version in $TMP_GITCOMMIT $TMP_TAG; do
   echo "version: ""$version"
   curl -fL "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=""$version" -o syncthing-windows-amd64.zip || true
   if [[ -e "syncthing-windows-amd64.zip" ]]; then
-        filesize=$(ls -l syncthing-windows-amd64.zip | awk '{ print $5 }')
-        minsize=$((1024 * 1024 * 5))
-        if [ "$filesize" -gt $minsize ]; then
-          break
-        fi
+    filesize=$(ls -l syncthing-windows-amd64.zip | awk '{ print $5 }')
+    minsize=$((1024 * 1024 * 5))
+    if [ "$filesize" -gt $minsize ]; then
+      break
+    fi
   fi
 done
 rm -fr syncthing-windows-amd64 || true
