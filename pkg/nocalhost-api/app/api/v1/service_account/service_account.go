@@ -223,20 +223,13 @@ func GenKubeconfig(
 					return true
 				}
 
-				return nss[i].SpaceId > nss[i].SpaceId
+				return nss[i].SpaceId > nss[j].SpaceId
 			},
 		)
 
 		sort.Slice(
 			kubeConfigStruct.Contexts, func(i, j int) bool {
-				if nss[i].Namespace == specifyNameSpace {
-					return false
-				}
-				if nss[j].Namespace == specifyNameSpace {
-					return true
-				}
-
-				return nss[i].SpaceId > nss[i].SpaceId
+				return kubeConfigStruct.Contexts[i].Name > kubeConfigStruct.Contexts[j].Name
 			},
 		)
 		current := nss[len(nss)-1]
