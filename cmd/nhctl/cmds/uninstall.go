@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -45,15 +45,20 @@ var uninstallCmd = &cobra.Command{
 		appMeta, err := nocalhost.GetApplicationMeta(applicationName, nameSpace, kubeConfig)
 		must(err)
 
+		nid = appMeta.NamespaceId
+
 		if appMeta.IsNotInstall() {
-			log.Fatalf(appMeta.NotInstallTips())
-			return
+			log.Fatal(appMeta.NotInstallTips())
 		}
 
 		log.Info("Uninstalling application...")
 
 		//goland:noinspection ALL
 		mustI(appMeta.Uninstall(true), "Error while uninstall application")
+
+		if err = nocalhost.CleanupAppFilesUnderNs(nameSpace, nid); err != nil {
+			log.WarnE(err, "")
+		}
 
 		log.Infof("Application \"%s\" is uninstalled", applicationName)
 	},

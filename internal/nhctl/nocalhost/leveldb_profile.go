@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package nocalhost
 
@@ -19,9 +19,9 @@ import (
 
 var ProfileNotFound = errors.New("Profile Not Found")
 
-func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2) error {
+func UpdateProfileV2(ns, app, nid string, profileV2 *profile.AppProfileV2) error {
 	var err error
-	db, err := nocalhostDb.OpenApplicationLevelDB(ns, app, false)
+	db, err := nocalhostDb.OpenApplicationLevelDB(ns, app, nid, false)
 	if err != nil {
 		return err
 	}
@@ -31,23 +31,23 @@ func UpdateProfileV2(ns, app string, profileV2 *profile.AppProfileV2) error {
 		return errors.Wrap(err, "")
 	}
 	// Double check
-	if _, err = os.Stat(nocalhost_path.GetAppDbDir(ns, app)); err != nil {
+	if _, err = os.Stat(nocalhost_path.GetAppDbDir(ns, app, nid)); err != nil {
 		return errors.Wrap(err, "")
 	}
 	return db.Put([]byte(profile.ProfileV2Key(ns, app)), bys)
 }
 
-func GetKubeConfigFromProfile(ns, app string) (string, error) {
-	p, err := GetProfileV2(ns, app)
+func GetKubeConfigFromProfile(ns, app, nid string) (string, error) {
+	p, err := GetProfileV2(ns, app, nid)
 	if err != nil {
 		return "", err
 	}
 	return p.Kubeconfig, nil
 }
 
-func GetProfileV2(ns, app string) (*profile.AppProfileV2, error) {
+func GetProfileV2(ns, app, nid string) (*profile.AppProfileV2, error) {
 	var err error
-	db, err := nocalhostDb.OpenApplicationLevelDB(ns, app, true)
+	db, err := nocalhostDb.OpenApplicationLevelDB(ns, app, nid, true)
 	if err != nil {
 		return nil, err
 	}
