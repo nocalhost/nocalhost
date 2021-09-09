@@ -8,6 +8,7 @@ package daemon_server
 import (
 	"context"
 	"github.com/pkg/errors"
+	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
@@ -41,5 +42,6 @@ func cronJobForUpdatingHub() {
 			}
 		}
 		<-time.Tick(time.Minute * 2)
+		log.Logf("K8s runtime error handler len: %d", len(k8s_runtime.ErrorHandlers))
 	}
 }

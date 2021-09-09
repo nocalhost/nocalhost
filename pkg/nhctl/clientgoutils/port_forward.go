@@ -8,7 +8,6 @@ package clientgoutils
 import (
 	"fmt"
 	"github.com/pkg/errors"
-	"io/ioutil"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"net/http"
 
@@ -69,7 +68,7 @@ func (c *ClientGoUtils) CreatePortForwarder(pod string, fps []*ForwardPort, read
 		ports,
 		stopChan,
 		readyChan,
-		ioutil.Discard,
+		g.Out,
 		g.Out,
 	)
 	if err != nil {
