@@ -10,6 +10,7 @@ on:
 jobs:
 
   build-nhctl-windows-linux:
+    needs: [build-syncthing-linux-amd64, build-syncthing-macos-windows]
     name: Build nhctl
     runs-on: ubuntu-latest
     steps:
@@ -58,6 +59,7 @@ jobs:
           curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=dev"
 
   build-nhctl-macos:
+    needs: build-syncthing-macos-windows
     name: Build nhctl
     runs-on: macos-latest
     steps:
