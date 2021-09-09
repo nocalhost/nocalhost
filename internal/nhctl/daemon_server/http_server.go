@@ -14,6 +14,7 @@ import (
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
+	"runtime/debug"
 )
 
 type ConfigSaveParams struct {
@@ -31,6 +32,11 @@ type ConfigSaveResp struct {
 }
 
 func startHttpServer() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("Http Server occurs panic: %s", string(debug.Stack()))
+		}
+	}()
 	log.Info("Starting http server")
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -39,13 +45,19 @@ func startHttpServer() {
 
 	http.HandleFunc("/config-save", handlingConfigSave)
 
-	err := http.ListenAndServe(":30125", nil)
+	err := http.ListenAndServe("127.0.0.1:30125", nil)
 	if err != nil {
 		log.ErrorE(err, "Http Server occur errors")
 	}
 }
 
 func handlingConfigSave(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("content-type", "application/json")
+	w.Header().Set("Access-Control-Allow-Methods", "*")
+	w.Header().Set("Access-Control-Max-Age", "300")
+
 	if r.Method != "POST" {
 		w.WriteHeader(405)
 		return
