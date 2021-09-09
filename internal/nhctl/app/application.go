@@ -7,6 +7,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
@@ -29,8 +30,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
-
-	"github.com/pkg/errors"
 )
 
 var (
@@ -194,6 +193,17 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	if !app.appMeta.Config.Migrated {
 		if len(profileV2.SvcProfile) > 0 || app.appMeta.Config == nil {
 			c := app.newConfigFromProfile()
+			// replace image
+			if c.ApplicationConfig != nil {
+				for _, sc := range c.ApplicationConfig.ServiceConfigs {
+					for _, scc := range sc.ContainerConfigs {
+						if scc.Dev != nil && scc.Dev.Image != "" {
+							re3, _ := regexp.Compile("codingcorp-docker.pkg.coding.net")
+							scc.Dev.Image = re3.ReplaceAllString(scc.Dev.Image, "nocalhost-docker.pkg.coding.net")
+						}
+					}
+				}
+			}
 			app.appMeta.Config = c
 			app.appMeta.Config.Migrated = true
 			if err = app.appMeta.Update(); err != nil {
