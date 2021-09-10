@@ -17,7 +17,7 @@ func Trace(args ...interface{}) {
 
 func Tracef(format string, args ...interface{}) {
 	writeStackToEs("TRACE", fmt.Sprintf(format, args...), "")
-	if fileEntry != nil {
-		fileEntry.Debugf(format, args...)
-	}
+	//if fileEntry != nil {
+	//	fileEntry.Debugf(format, args...)
+	//}
 }

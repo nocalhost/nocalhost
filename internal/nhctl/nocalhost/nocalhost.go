@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -169,6 +170,8 @@ func MigrateNsDirToSupportNidIfNeeded(app, ns, nid string) error {
 			return nil
 		}
 
+		startTime := time.Now()
+		log.Trace("Starting migrating...")
 		markedFileName := strings.Join([]string{app, ns, nid, "migrating"}, "-")
 		markedFilePath := filepath.Join(nocalhost_path.GetNhctlNameSpaceBaseDir(), ns, markedFileName)
 		if _, err = os.Stat(markedFilePath); err == nil {
@@ -181,6 +184,7 @@ func MigrateNsDirToSupportNidIfNeeded(app, ns, nid string) error {
 			if err = os.Remove(markedFilePath); err != nil {
 				log.LogE(errors.Wrap(err, "Migrating err"))
 			}
+			log.Tracef("Migrating completed, takes %s", time.Now().Sub(startTime).Seconds())
 		}()
 
 		if err = utils.CopyDir(oldDir, newDir); err != nil {

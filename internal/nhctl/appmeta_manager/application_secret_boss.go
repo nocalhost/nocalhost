@@ -19,6 +19,7 @@ import (
 	"nocalhost/internal/nhctl/resouce_cache"
 	"nocalhost/pkg/nhctl/log"
 	"sync"
+	"time"
 )
 
 var (
@@ -73,6 +74,7 @@ func (s *Supervisor) getIDeck(ns string, configBytes []byte) *applicationSecretW
 }
 
 func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWatcher {
+	// todo : replace with sync.Map
 	if asw := s.getIDeck(ns, configBytes); asw != nil {
 		return asw
 	}
@@ -88,14 +90,17 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 
 	watcher := NewApplicationSecretWatcher(configBytes, ns)
 
+	start := time.Now()
 	log.Infof("Prepare SecretWatcher for ns %s", ns)
 	if err := watcher.Prepare(); err != nil {
 		log.TLogf(
 			"MetaSecret", "Error while get application in deck from ns %s.. "+
 				"return empty array.., Error: %s", ns, err.Error(),
 		)
+		log.Tracef("Prepare SecretWatcher for ns %s takes %v", ns, time.Now().Sub(start).Seconds())
 		return nil
 	}
+	log.Tracef("Prepare SecretWatcher for ns %s takes %v", ns, time.Now().Sub(start).Seconds())
 
 	log.Infof("Prepare complete, start to watch for ns %s", ns)
 	go func() {
@@ -104,110 +109,117 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 	}()
 	s.deck[watchDeck] = watcher
 
-	helmSecretWatcher := NewHelmSecretWatcher(configBytes, ns)
-	log.Infof("Prepare HelmSecretWatcher for ns %s", ns)
-	installedSecretRls, err := helmSecretWatcher.Prepare()
+	go func() {
+		startTime := time.Now()
+		log.Tracef("Meta prepare for %s starting", ns)
+		defer func() {
+			log.Tracef("Meta prepare for %s takes %v", ns, time.Now().Sub(startTime).Seconds())
+		}()
+		helmSecretWatcher := NewHelmSecretWatcher(configBytes, ns)
+		log.Infof("Prepare HelmSecretWatcher for ns %s", ns)
+		installedSecretRls, err := helmSecretWatcher.Prepare()
 
-	// prevent appmeta watcher initial fail
-	if err != nil {
-		log.ErrorE(err, "Fail to init helm secret Watcher, and helm watch feature will not be enable")
-		return watcher
-	}
+		// prevent appmeta watcher initial fail
+		if err != nil {
+			log.ErrorE(err, "Fail to init helm secret Watcher, and helm watch feature will not be enable")
+			return
+		}
 
-	helmConfigmapWatcher := NewHelmCmWatcher(configBytes, ns)
-	log.Infof("Prepare HelmCmWatcher for ns %s", ns)
-	installedCmRls, err := helmConfigmapWatcher.Prepare()
-	// prevent appmeta watcher initial fail
-	if err != nil {
-		log.ErrorE(err, "Fail to init helm cm Watcher, and helm watch feature will not be enable")
-		return watcher
-	}
+		helmConfigmapWatcher := NewHelmCmWatcher(configBytes, ns)
+		log.Infof("Prepare HelmCmWatcher for ns %s", ns)
+		installedCmRls, err := helmConfigmapWatcher.Prepare()
+		// prevent appmeta watcher initial fail
+		if err != nil {
+			log.ErrorE(err, "Fail to init helm cm Watcher, and helm watch feature will not be enable")
+			return
+		}
 
-	searcher, err := resouce_cache.GetSearcherWithLRU(configBytes, ns)
-	if err != nil {
-		log.ErrorE(err, "Fail to init searcher, and helm watch feature will not be enable")
-		return watcher
-	}
+		searcher, err := resouce_cache.GetSearcherWithLRU(configBytes, ns)
+		if err != nil {
+			log.ErrorE(err, "Fail to init searcher, and helm watch feature will not be enable")
+			return
+		}
 
-	// for o(1)
-	sets := make(map[string]interface{})
-	for _, rl := range installedSecretRls {
-		sets[rl] = ""
-	}
-	for _, rl := range installedCmRls {
-		sets[rl] = ""
-	}
+		// for o(1)
+		sets := make(map[string]interface{})
+		for _, rl := range installedSecretRls {
+			sets[rl] = ""
+		}
+		for _, rl := range installedCmRls {
+			sets[rl] = ""
+		}
 
-	c, err := clientcmd.RESTConfigFromKubeConfig(configBytes)
-	if err != nil {
-		log.ErrorE(err, "Fail to init clientSet, and helm watch feature will not be enable")
-		return watcher
-	}
+		c, err := clientcmd.RESTConfigFromKubeConfig(configBytes)
+		if err != nil {
+			log.ErrorE(err, "Fail to init clientSet, and helm watch feature will not be enable")
+			return
+		}
 
-	clientSet, err := kubernetes.NewForConfig(c)
-	if err != nil {
-		log.ErrorE(err, "Fail to init clientSet, and helm watch feature will not be enable")
-		return watcher
-	}
+		clientSet, err := kubernetes.NewForConfig(c)
+		if err != nil {
+			log.ErrorE(err, "Fail to init clientSet, and helm watch feature will not be enable")
+			return
+		}
 
-	// we should delete those application installed by helm (still record in secrets)
-	// but already deleted
-	_ = searcher.Criteria().Namespace(ns).ResourceType("secrets").Consume(
-		func(secrets []interface{}) error {
-			for _, secret := range secrets {
-				v := secret.(*v1.Secret)
-				if v.Type == appmeta.SecretType {
-					needToDestroy := false
+		// we should delete those application installed by helm (still record in secrets)
+		// but already deleted
+		_ = searcher.Criteria().Namespace(ns).ResourceType("secrets").Consume(
+			func(secrets []interface{}) error {
+				for _, secret := range secrets {
+					v := secret.(*v1.Secret)
+					if v.Type == appmeta.SecretType {
+						needToDestroy := false
 
-					decode, err := appmeta.Decode(v)
-					if err != nil {
-						// delete the secret that can not be correctly decode
-						log.TLogf(
-							"Watcher", "Application Secret '%s' will be deleted, "+
-								"the secret is broken.",
-							v.Name,
-						)
-
-						needToDestroy = true
-					} else if _, ok := sets[decode.HelmReleaseName]; !ok && decode.IsInstalled() && decode.ApplicationType.IsHelm() {
-
-						// delete the secret that do not have correspond helm rls
-						log.TLogf(
-							"Watcher", "Application Secret '%s' will be deleted, "+
-								"correspond helm rls is deleted.",
-							v.Name,
-						)
-
-						needToDestroy = true
-					}
-
-					if needToDestroy {
-						if err := clientSet.CoreV1().
-							Secrets(ns).
-							Delete(context.TODO(), v.Name, metav1.DeleteOptions{}); err != nil {
-							log.Error(
-								err, "Application Secret '%s' from ns %s need to deleted "+
-									"but fail.",
-								v.Name, ns,
-							)
-						} else {
+						decode, err := appmeta.Decode(v)
+						if err != nil {
+							// delete the secret that can not be correctly decode
 							log.TLogf(
-								"Watcher", "Application Secret '%s' from ns %s has been be deleted. ",
-								v.Name, ns,
+								"Watcher", "Application Secret '%s' will be deleted, "+
+									"the secret is broken.",
+								v.Name,
 							)
+
+							needToDestroy = true
+						} else if _, ok := sets[decode.HelmReleaseName]; !ok && decode.IsInstalled() && decode.ApplicationType.IsHelm() {
+
+							// delete the secret that do not have correspond helm rls
+							log.TLogf(
+								"Watcher", "Application Secret '%s' will be deleted, "+
+									"correspond helm rls is deleted.",
+								v.Name,
+							)
+
+							needToDestroy = true
+						}
+
+						if needToDestroy {
+							if err := clientSet.CoreV1().
+								Secrets(ns).
+								Delete(context.TODO(), v.Name, metav1.DeleteOptions{}); err != nil {
+								log.Error(
+									err, "Application Secret '%s' from ns %s need to deleted "+
+										"but fail.",
+									v.Name, ns,
+								)
+							} else {
+								log.TLogf(
+									"Watcher", "Application Secret '%s' from ns %s has been be deleted. ",
+									v.Name, ns,
+								)
+							}
 						}
 					}
 				}
-			}
-			return nil
-		},
-	)
+				return nil
+			},
+		)
 
-	go func() {
-		helmSecretWatcher.Watch()
-	}()
-	go func() {
-		helmConfigmapWatcher.Watch()
+		go func() {
+			helmSecretWatcher.Watch()
+		}()
+		go func() {
+			helmConfigmapWatcher.Watch()
+		}()
 	}()
 
 	return watcher

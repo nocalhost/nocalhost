@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"time"
 
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
@@ -179,15 +180,22 @@ func (asw *applicationSecretWatcher) Prepare() error {
 	controller := watcher.NewController(asw, listWatcher, &v1.Secret{})
 	asw.watchController = controller
 
+	start := time.Now()
+	log.Infof("Prepare Searcher for ns %s", asw.ns)
 	// first get all nocalhost secrets for initial
 	// ignore error prevent kubeconfig has not permission for get secret
 	// ignore fail
 	searcher, err := resouce_cache.GetSearcherWithLRU(asw.configBytes, asw.ns)
 	if err != nil {
 		log.ErrorE(err, "")
+		log.Tracef("Prepare Searcher for ns %s takes %v", asw.ns, time.Now().Sub(start).Seconds())
 		return nil
 	}
-
+	start2 := time.Now()
+	log.Tracef("Prepare Searcher for ns %s takes %v", asw.ns, start2.Sub(start).Seconds())
+	defer func() {
+		log.Tracef("Searcher consume for ns %s takes %v", asw.ns, time.Now().Sub(start2).Seconds())
+	}()
 	return searcher.Criteria().
 		Namespace(asw.ns).
 		ResourceType("secrets").
