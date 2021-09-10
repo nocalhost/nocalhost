@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/controller"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/runner"
 	"os"
 	"sigs.k8s.io/yaml"
@@ -116,6 +117,11 @@ func Apply(nhctl runner.Client) error {
 }
 
 func RemoveSyncthingPidFile(nhctl runner.Client, module string) error {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Warnf("remove syncthing pid file failed, err: %v", err)
+		}
+	}()
 	c := &controller.Controller{
 		NameSpace: nhctl.GetKubectl().Namespace,
 		AppName:   "bookinfo",
