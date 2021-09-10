@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package dbutils
 
@@ -11,6 +11,7 @@ import (
 	leveldb_errors "github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 	"strconv"
 	"syscall"
 	"time"
@@ -19,6 +20,7 @@ import (
 // Initial a level db
 // If leveldb already exists, return error
 func CreateLevelDB(path string, errorIfExist bool) error {
+	_ = os.MkdirAll(path, 0700)
 	db, err := leveldb.OpenFile(path, &opt.Options{
 		ErrorIfExist: errorIfExist,
 	})
