@@ -61,7 +61,7 @@ jobs:
   build-nhctl-macos:
     needs: build-syncthing-macos-windows
     name: Build nhctl
-    runs-on: macos-10.15
+    runs-on: macos-11
     steps:
 
       - name: Set up Go 1.x
