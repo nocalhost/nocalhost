@@ -179,7 +179,7 @@ func (c *Controller) GetDescription() *profile.SvcProfileV2 {
 }
 
 func (c *Controller) UpdateSvcProfile(modify func(*profile.SvcProfileV2) error) error {
-	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
 	if err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func (c *Controller) UpdateSvcProfile(modify func(*profile.SvcProfileV2) error) 
 }
 
 func (c *Controller) UpdateProfile(modify func(*profile.AppProfileV2, *profile.SvcProfileV2) error) error {
-	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName)
+	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
 	if err != nil {
 		return err
 	}

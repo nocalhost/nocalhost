@@ -48,6 +48,31 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		KubeConfig: kubeconfig,
 	}
 
+	// try to create a new application meta
+	appMeta, err := nocalhost.GetApplicationMeta(name, namespace, kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+
+	if appMeta.IsInstalled() {
+		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s has already been installed", name, namespace))
+	} else if appMeta.IsInstalling() {
+		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing", name, namespace))
+	}
+
+	if err = appMeta.Initial(); err != nil {
+		if k8serrors.IsAlreadyExists(err) {
+			log.Logf("Application %s in %s has been installed", app.Name, app.NameSpace)
+		}
+		return app, err
+	}
+	app.appMeta = appMeta
+	appMeta.ApplicationType = appmeta.AppType(flags.AppType)
+
+	//if err = appMeta.GenerateNidINE(); err != nil {
+	//	return nil, err
+	//}
+
 	if err = app.initDir(); err != nil {
 		return nil, err
 	}
@@ -57,7 +82,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, errors.New("Fail to create tmp dir for install")
 	}
 
-	if err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name, false); err != nil {
+	if err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name, app.appMeta.NamespaceId, false); err != nil {
 		return nil, err
 	}
 
@@ -94,38 +119,18 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, err
 	}
 
-	// try to create a new application meta
-	appMeta, err := nocalhost.GetApplicationMeta(name, namespace, kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-
-	if appMeta.IsInstalled() {
-		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s has already been installed", name, namespace))
-	} else if appMeta.IsInstalling() {
-		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing", name, namespace))
-	}
-
-	app.appMeta = appMeta
-
-	if err = appMeta.Initial(); err != nil {
-		if k8serrors.IsAlreadyExists(err) {
-			log.Logf("Application %s in %s has been installed", app.Name, app.NameSpace)
-		}
-		return app, err
-	}
-
 	appMeta.Config = config
-	appMeta.ApplicationType = appmeta.AppType(flags.AppType)
+	appMeta.Config.Migrated = true
 	if err := appMeta.Update(); err != nil {
 		return nil, err
 	}
 
-	appProfileV2 := generateProfileFromConfig(config)
+	appProfileV2 := &profile.AppProfileV2{}
 	appProfileV2.AssociateMigrate = true
 	appProfileV2.Secreted = true
 	appProfileV2.Namespace = namespace
 	appProfileV2.Kubeconfig = kubeconfig
+	//appProfileV2.ConfigMigrated = true
 
 	if len(flags.ResourcePath) != 0 {
 		appProfileV2.ResourcePath = flags.ResourcePath
@@ -133,7 +138,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 
 	app.AppType = appProfileV2.AppType
 
-	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
+	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, appProfileV2)
 }
 
 func (a *Application) loadOrGenerateConfig(
@@ -180,56 +185,56 @@ func (a *Application) loadOrGenerateConfig(
 	return nocalhostConfig, nil
 }
 
-func updateProfileFromConfig(appProfileV2 *profile.AppProfileV2, config *profile.NocalHostAppConfigV2) {
-	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
-	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
-	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
-	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
-	appProfileV2.Env = config.ApplicationConfig.Env
+//func updateProfileFromConfig(appProfileV2 *profile.AppProfileV2, config *profile.NocalHostAppConfigV2) {
+//	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
+//	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
+//	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
+//	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
+//	appProfileV2.Env = config.ApplicationConfig.Env
+//
+//	if len(appProfileV2.SvcProfile) == 0 {
+//		appProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
+//	}
+//	for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {
+//		var f bool
+//		for _, svcP := range appProfileV2.SvcProfile {
+//			if svcP.ActualName == svcConfig.Name {
+//				svcP.ServiceConfigV2 = svcConfig
+//				f = true
+//				break
+//			}
+//		}
+//		if !f {
+//			svcProfile := &profile.SvcProfileV2{
+//				ActualName:      svcConfig.Name,
+//				ServiceConfigV2: svcConfig,
+//			}
+//			appProfileV2.SvcProfile = append(appProfileV2.SvcProfile, svcProfile)
+//		}
+//	}
+//}
 
-	if len(appProfileV2.SvcProfile) == 0 {
-		appProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
-	}
-	for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {
-		var f bool
-		for _, svcP := range appProfileV2.SvcProfile {
-			if svcP.ActualName == svcConfig.Name {
-				svcP.ServiceConfigV2 = svcConfig
-				f = true
-				break
-			}
-		}
-		if !f {
-			svcProfile := &profile.SvcProfileV2{
-				ActualName:      svcConfig.Name,
-				ServiceConfigV2: svcConfig,
-			}
-			appProfileV2.SvcProfile = append(appProfileV2.SvcProfile, svcProfile)
-		}
-	}
-}
-
-func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.AppProfileV2 {
-	appProfileV2 := &profile.AppProfileV2{}
-	if config == nil || config.ApplicationConfig == nil {
-		return appProfileV2
-	}
-	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
-	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
-	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
-	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
-	appProfileV2.Env = config.ApplicationConfig.Env
-
-	appProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
-	for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {
-		svcProfile := &profile.SvcProfileV2{
-			ActualName: svcConfig.Name,
-		}
-		svcProfile.ServiceConfigV2 = svcConfig
-		appProfileV2.SvcProfile = append(appProfileV2.SvcProfile, svcProfile)
-	}
-	return appProfileV2
-}
+//func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.AppProfileV2 {
+//	appProfileV2 := &profile.AppProfileV2{}
+//	if config == nil || config.ApplicationConfig == nil {
+//		return appProfileV2
+//	}
+//	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
+//	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
+//	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
+//	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
+//	appProfileV2.Env = config.ApplicationConfig.Env
+//
+//	appProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
+//	for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {
+//		svcProfile := &profile.SvcProfileV2{
+//			ActualName: svcConfig.Name,
+//		}
+//		svcProfile.ServiceConfigV2 = svcConfig
+//		appProfileV2.SvcProfile = append(appProfileV2.SvcProfile, svcProfile)
+//	}
+//	return appProfileV2
+//}
 
 func RenderConfigForSvc(configFilePath string) ([]*profile.ServiceConfigV2, error) {
 	configFile := fp.NewFilePath(configFilePath)

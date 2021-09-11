@@ -75,6 +75,7 @@ func (c *ClientGoUtils) PortForward(af *PortForwardFlags) error {
 	if af.ReadyChannel != nil {
 		o.ReadyChannel = af.ReadyChannel
 	}
+	o.Address = []string{"0.0.0.0"}
 	if err = o.Validate(); err != nil {
 		return errors.Wrap(err, "")
 	}
