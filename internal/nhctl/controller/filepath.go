@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -32,5 +32,5 @@ func (c *Controller) GetApplicationSyncDir() string {
 }
 
 func (c *Controller) getAppHomeDir() string {
-	return nocalhost_path.GetAppDirUnderNs(c.AppName, c.NameSpace)
+	return nocalhost_path.GetAppDirUnderNs(c.AppName, c.NameSpace, c.AppMeta.NamespaceId)
 }

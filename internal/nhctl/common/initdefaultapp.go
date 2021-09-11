@@ -59,11 +59,11 @@ func InitDefaultApplicationInCurrentNs(namespace string, kubeconfigPath string) 
 func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconfig, namespace string) (*app.Application, error) {
 	var err error
 
-	log.Logf("KubeConfig path: %s", kubeconfig)
-	_, err = ioutil.ReadFile(kubeconfig)
-	if err != nil {
-		return nil, errors2.Wrap(err, "")
-	}
+	//log.Logf("KubeConfig path: %s", kubeconfig)
+	//_, err = ioutil.ReadFile(kubeconfig)
+	//if err != nil {
+	//	return nil, errors2.Wrap(err, "")
+	//}
 
 	// build Application will create the application meta and it's secret
 	// init the application's config
