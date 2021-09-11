@@ -263,15 +263,9 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				ErrOut: stdout,
 			}
 
-			//recoverPort := clientgoutils.ForwardPort{
-			//	LocalPort:  startCmd.LocalPort,
-			//	RemotePort: startCmd.RemotePort,
-			//}
-
 			recoverFunc := func(err error) {
 				if strings.Contains(err.Error(), "error creating error stream for port") && !strings.Contains(err.Error(), "Timeout occured") {
 					defer RecoverDaemonFromPanic()
-					// error creating error stream for port 20153 -> 20153: Timeout occured
 					p, err := ParseErrToForwardPort(err.Error())
 					if err != nil {
 						log.LogE(err)

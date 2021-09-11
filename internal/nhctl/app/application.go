@@ -855,13 +855,13 @@ func (a *Application) PortForwardAPod(req clientgoutils.PortForwardAPodRequest) 
 }
 
 func (a *Application) PortForward(pod string, localPort, remotePort int, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) error {
-	return a.client.Forward(pod, localPort, remotePort, readyChan, stopChan, g)
+	return a.client.ForwardPortForwardByPod(pod, localPort, remotePort, readyChan, stopChan, g)
 }
 
 // set pid file empty
-func (a *Application) SetPidFileEmpty(filePath string) error {
-	return os.Remove(filePath)
-}
+//func (a *Application) SetPidFileEmpty(filePath string) error {
+//	return os.Remove(filePath)
+//}
 
 func (a *Application) CleanUpTmpResources() error {
 	log.Log("Clean up tmp resources...")
