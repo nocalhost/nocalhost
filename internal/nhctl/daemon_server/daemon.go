@@ -72,10 +72,11 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		appmeta_manager.Init()
 		appmeta_manager.RegisterListener(
 			func(pack *appmeta_manager.ApplicationEventPack) error {
-				kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
-				if err != nil {
-					return nil
-				}
+				//kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
+				//if err != nil {
+				//	return nil
+				//}
+				kubeconfig := nocalhost.GetOrGenKubeConfigPath(string(pack.KubeConfigBytes))
 				nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, true)
 				if err != nil {
 					return nil
@@ -144,7 +145,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 				}()
 				start := time.Now()
 
-				log.Trace("Reading data...")
+				//log.Trace("Reading data...")
 				errChan := make(chan error, 1)
 				bytesChan := make(chan []byte, 1)
 
@@ -363,6 +364,15 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				), nil
 			},
 		)
+
+	case command.KubeconfigOperation:
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			cmd := &command.KubeconfigOperationCommand{}
+			if err = json.Unmarshal(bys, cmd); err != nil {
+				return nil, errors.Wrap(err, "")
+			}
+			return nil, daemon_handler.HandleKubeconfigOperationRequest(cmd)
+		})
 	}
 	if err != nil {
 		log.LogE(err)

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package appmeta_manager
 
@@ -141,7 +141,7 @@ func (hcmw *helmCmWatcher) Prepare() (existRelease []string, err error) {
 	// first get all configmaps for initial
 	// and find out the invalid nocalhost application
 	// then delete it
-	searcher, err := resouce_cache.GetSearcher(hcmw.configBytes, hcmw.ns)
+	searcher, err := resouce_cache.GetSearcherWithLRU(hcmw.configBytes, hcmw.ns)
 	if err != nil {
 		log.ErrorE(err, "")
 		return
