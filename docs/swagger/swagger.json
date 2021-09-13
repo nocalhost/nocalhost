@@ -5,7 +5,7 @@
         "title": "Nocalhost docs api",
         "contact": {
             "name": "wangwei",
-            "url": "codingcorp.coding.net"
+            "url": "nocalhost.coding.net"
         },
         "license": {},
         "version": "1.0"
@@ -1966,6 +1966,9 @@
                 "id": {
                     "type": "integer"
                 },
+                "is_base_space": {
+                    "type": "boolean"
+                },
                 "memory": {
                     "type": "integer"
                 },
@@ -2278,6 +2281,9 @@
                 "id": {
                     "type": "integer"
                 },
+                "is_base_space": {
+                    "type": "boolean"
+                },
                 "kubeconfig": {
                     "type": "string"
                 },
@@ -2309,6 +2315,9 @@
             "type": "object",
             "properties": {
                 "key": {
+                    "type": "string"
+                },
+                "type": {
                     "type": "string"
                 },
                 "value": {
