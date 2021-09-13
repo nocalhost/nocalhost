@@ -158,7 +158,7 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 
 	var informerFactory informers.SharedInformerFactory
 
-	if isClusterAdmin(kubeconfigBytes) {
+	if isClusterAdmin(clientset) {
 		informerFactory = informers.NewSharedInformerFactory(clientset, time.Second*5)
 		clusterMapLock.Lock()
 		clusterMap[string(kubeconfigBytes)] = true
@@ -567,15 +567,7 @@ func (n *filter) toSlice() []interface{} {
 }
 
 // isClusterAdmin judge weather is cluster scope kubeconfig or not
-func isClusterAdmin(kubeconfigBytes []byte) bool {
-	c, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
-	if err != nil {
-		return false
-	}
-	clientSet, err := kubernetes.NewForConfig(c)
-	if err != nil {
-		return false
-	}
+func isClusterAdmin(clientset *kubernetes.Clientset) bool {
 	arg := &authorizationv1.SelfSubjectAccessReview{
 		Spec: authorizationv1.SelfSubjectAccessReviewSpec{
 			ResourceAttributes: &authorizationv1.ResourceAttributes{
@@ -589,13 +581,10 @@ func isClusterAdmin(kubeconfigBytes []byte) bool {
 		},
 	}
 
-	response, err := clientSet.AuthorizationV1().SelfSubjectAccessReviews().Create(
+	response, err := clientset.AuthorizationV1().SelfSubjectAccessReviews().Create(
 		context.TODO(), arg, metav1.CreateOptions{},
 	)
-	if err != nil {
-		return false
-	}
-	if response == nil {
+	if err != nil || response == nil {
 		return false
 	}
 	return response.Status.Allowed
