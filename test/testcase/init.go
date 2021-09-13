@@ -63,7 +63,7 @@ func InstallNhctl(version string) error {
 		name = "nhctl-linux-amd64"
 		needChmod = true
 	}
-	str := "curl --fail -s -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o %s"
+	str := "curl --fail -s -L \"https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o %s"
 	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, name, version, utils.GetNhctlBinName()))
 	if utils.IsWindows() {
 		delCmd := exec.Command("sh", "-c", fmt.Sprintf("rm %s", utils.GetNhctlBinName()))

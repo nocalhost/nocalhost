@@ -3,7 +3,7 @@ APPNAME=test-bookinfo-manifest-outer-config-01
 kubectl delete ns $APPNAME >> /dev/null
 kubectl create ns $APPNAME
 nhctl uninstall $APPNAME >> /dev/null
-nhctl install $APPNAME -u https://e.coding.net/codingcorp/nocalhost/mini-bookinfo-noconfig.git --debug -n $APPNAME --config config.yaml
+nhctl install $APPNAME -u https://e.coding.net/nocalhost/nocalhost/mini-bookinfo-noconfig.git --debug -n $APPNAME --config config.yaml
 if [ "$?" != 0 ]; then
     echo "fail"
     exit 1

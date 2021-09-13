@@ -97,11 +97,11 @@ func SyncCheckT(cli runner.Client, ns, moduleName string, moduleType string) err
 				"cat",
 				filename,
 			}
-			logStr, _, err := cli.GetKubectl().Run(context.Background(), "exec", args...)
+			logStr, errStr, err := cli.GetKubectl().Run(context.Background(), "exec", args...)
 			if err != nil {
 				return errors.Errorf(
-					"test case failed, reason: cat file %s error, command: %s, log: %v",
-					filename, args, logStr,
+					"test case failed, reason: cat file %s error, command: %s, stdout: %v, stderr: %v",
+					filename, args, logStr, errStr,
 				)
 			}
 			if !strings.Contains(logStr, content) {
