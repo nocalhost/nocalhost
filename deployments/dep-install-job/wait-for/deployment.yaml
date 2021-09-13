@@ -13,6 +13,6 @@ spec:
     spec:
       containers:
         - name: wait-for
-          image: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-wait:master
+          image: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-wait:master
           command: ["/bin/sleep","36000"]
           imagePullPolicy: Always

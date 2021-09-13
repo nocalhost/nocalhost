@@ -1,7 +1,7 @@
 - name: coding
   serviceType: deployment
-  gitUrl: git@e.coding.net:codingcorp/coding-dev.git
-  devContainerImage: codingcorp-docker.pkg.coding.net/nocalhost/public/coding-java:latest
+  gitUrl: git@e.coding.net:nocalhost/coding-dev.git
+  devContainerImage: nocalhost-docker.pkg.coding.net/nocalhost/public/coding-java:latest
   workDir: /root/coding
   dependPodsLabelSelector: ${_INCLUDE_:- ../component/selector.yaml | nindent 4 }
   dependJobsLabelSelector:
