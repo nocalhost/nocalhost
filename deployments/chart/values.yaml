@@ -6,14 +6,14 @@ replicaCount: 1
 
 api:
   image:
-    repository: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-api
+    repository: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-api
     pullPolicy: Always
     # Overrides the image tag whose default is the chart appVersion.
     tag: latest
 
 web:
   image:
-    repository: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-web
+    repository: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-web
     pullPolicy: Always
     # Overrides the image tag whose default is the chart appVersion.
     tag: latest
@@ -68,7 +68,7 @@ mariadb:
   fullnameOverride: nocalhost-mariadb
   commonAnnotations: {"helm.sh/hook":"pre-install","helm.sh/hook-weight":"1"}
   image:
-    registry: codingcorp-docker.pkg.coding.net/nocalhost/public
+    registry: nocalhost-docker.pkg.coding.net/nocalhost/public
     repository: mariadb
   auth:
     rootPassword: root

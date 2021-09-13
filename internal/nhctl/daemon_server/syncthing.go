@@ -23,24 +23,21 @@ func recoverSyncthing() error {
 	}
 
 	wg := sync.WaitGroup{}
-	for ns, apps := range appMap {
-		for _, appName := range apps {
-			wg.Add(1)
-			appName := appName
-			go func() {
-				defer wg.Done()
-				if err = recoverSyncthingForApplication(ns, appName); err != nil {
-					log.LogE(err)
-				}
-			}()
-		}
+	for _, a := range appMap {
+		wg.Add(1)
+		go func(namespace, app, nid string) {
+			defer wg.Done()
+			if err = recoverSyncthingForApplication(namespace, app, nid); err != nil {
+				log.LogE(err)
+			}
+		}(a.Namespace, a.Name, a.Nid)
 	}
 	wg.Wait()
 	return nil
 }
 
-func recoverSyncthingForApplication(ns, appName string) error {
-	profile, err := nocalhost.GetProfileV2(ns, appName)
+func recoverSyncthingForApplication(ns, appName, nid string) error {
+	profile, err := nocalhost.GetProfileV2(ns, appName, nid)
 	if err != nil {
 		if errors.Is(err, nocalhost.ProfileNotFound) {
 			log.Warnf("Profile is not exist, so ignore for recovering for syncthing")
@@ -61,8 +58,8 @@ func recoverSyncthingForApplication(ns, appName string) error {
 	for _, svcProfile := range profile.SvcProfile {
 		if svcProfile.Syncing {
 			// nhctl sync bookinfo -d productpage --resume --kubeconfig
-			args := []string{nhctlPath, "sync", appName, "-d", svcProfile.ActualName, "--resume", "-n", ns}
-			log.Logf("Resuming syncthing of %s-%s-%s", ns, appName, svcProfile.ActualName)
+			args := []string{nhctlPath, "sync", appName, "-d", svcProfile.GetName(), "--resume", "-n", ns}
+			log.Logf("Resuming syncthing of %s-%s-%s", ns, appName, svcProfile.GetName())
 			if err = daemon.RunSubProcess(args, nil, false); err != nil {
 				log.LogE(err)
 			}

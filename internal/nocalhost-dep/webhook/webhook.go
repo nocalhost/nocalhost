@@ -45,7 +45,7 @@ var ignoredNamespaces = []string{
 }
 
 var nocalhostNamespace = "nocalhost-reserved"
-var waitImages = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-wait:latest"
+var waitImages = "nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-wait:latest"
 var imagePullPolicy = "Always"
 
 const (

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package appmeta_manager
 
@@ -138,7 +138,7 @@ func (hws *helmSecretWatcher) Prepare() (existRelease []string, err error) {
 
 	// first get all secrets for initial
 	// and find out the invalid nocalhost application
-	searcher, err := resouce_cache.GetSearcher(hws.configBytes, hws.ns, false)
+	searcher, err := resouce_cache.GetSearcherWithLRU(hws.configBytes, hws.ns)
 	if err != nil {
 		log.ErrorE(err, "")
 		return

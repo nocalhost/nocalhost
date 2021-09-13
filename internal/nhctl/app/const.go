@@ -20,7 +20,7 @@ const (
 	// nhctl init
 	// TODO when release
 	DefaultInitHelmGitRepo             = "https://github.com/nocalhost/nocalhost.git"
-	DefaultInitHelmCODINGGitRepo       = "https://e.coding.net/codingcorp/nocalhost/nocalhost.git"
+	DefaultInitHelmCODINGGitRepo       = "https://e.coding.net/nocalhost/nocalhost/nocalhost.git"
 	DefaultInitHelmType                = "helmGit"
 	DefaultInitWatchDeployment         = "nocalhost-api"
 	DefaultInitWatchWebDeployment      = "nocalhost-web"
@@ -52,10 +52,10 @@ const (
 	DefaultInitApplicationCODING = "{\"source\":\"git\",\"install_type\":" +
 		"\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\"" +
 		":\"bookinfo\",\"application_url\":" +
-		"\"https://e.coding.net/codingcorp/nocalhost/bookinfo.git\"}"
+		"\"https://e.coding.net/nocalhost/nocalhost/bookinfo.git\"}"
 	// Init Component Version Control, HEAD means build from tag
 	DefaultNocalhostMainBranch        = "HEAD"
-	DefaultNocalhostDepDockerRegistry = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep"
+	DefaultNocalhostDepDockerRegistry = "nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-dep"
 
 	DefaultDevContainerShell = "(zsh || bash || sh)"
 

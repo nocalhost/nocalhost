@@ -8,17 +8,16 @@ package cmds
 import (
 	"encoding/json"
 	"fmt"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_handler"
 	"nocalhost/internal/nhctl/model"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"strconv"
-
-	"gopkg.in/yaml.v3"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
@@ -41,19 +40,7 @@ var listCmd = &cobra.Command{
 	Short:   "List applications",
 	Long:    `List applications`,
 	Run: func(cmd *cobra.Command, args []string) {
-
 		must(Prepare())
-
-		// for earlier version adaption
-		if info, _ := nocalhost.GetNsAndApplicationInfo(); info != nil {
-			for ns, apps := range info {
-				if ns == nameSpace {
-					for _, application := range apps {
-						_, _ = app.NewApplication(application, nameSpace, kubeConfig, true)
-					}
-				}
-			}
-		}
 
 		if len(args) > 0 { // list application detail
 			applicationName := args[0]
@@ -79,7 +66,7 @@ func ListApplicationSvc(napp *app.Application) {
 	appProfile, _ := napp.GetProfile()
 	for _, svcProfile := range appProfile.SvcProfile {
 		rols := []string{
-			svcProfile.ActualName, strconv.FormatBool(svcProfile.Developing), strconv.FormatBool(svcProfile.Syncing),
+			svcProfile.GetName(), strconv.FormatBool(svcProfile.Developing), strconv.FormatBool(svcProfile.Syncing),
 			fmt.Sprintf("%v", svcProfile.DevPortForwardList),
 			fmt.Sprintf("%s", svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin),
 			strconv.Itoa(svcProfile.LocalSyncthingGUIPort),
@@ -144,16 +131,17 @@ func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 	if !foundDefaultApp {
 		// try init default application
 		nocalhostApp, err = common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig)
+		if err != nil {
+			log.Logf("failed to init default application in namespace: %s", nameSpace)
+		}
 
 		// if current user has not permission to create secret, we also create a fake 'default.application'
 		// app meta for him
 		// or else error occur
-		if !k8serrors.IsForbidden(err) {
-			mustI(err, "Error while create default application")
+		if nocalhostApp != nil {
 			return []*appmeta.ApplicationMeta{nocalhostApp.GetAppMeta()}, nil
-		}else {
-
-			metas = append(metas,appmeta.FakeAppMeta(nameSpace, _const.DefaultNocalhostApplication))
+		} else {
+			metas = append(metas, appmeta.FakeAppMeta(nameSpace, _const.DefaultNocalhostApplication))
 		}
 	}
 

@@ -22,7 +22,7 @@ application:
         - name: nocalhost-api
           dev:
             gitUrl: https://github.com/nocalhost/nocalhost.git
-            image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang:zsh
+            image: nocalhost-docker.pkg.coding.net/nocalhost/dev-images/golang:zsh
             workDir: /home/nocalhost-dev
             shell: "/bin/zsh"
             sync:
@@ -55,8 +55,8 @@ application:
             portForward:
               - 8000:80
           dev:
-            gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost-web.git
-            image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/node:12.18.1-slim
+            gitUrl: https://e.coding.net/nocalhost/nocalhost/nocalhost-web.git
+            image: nocalhost-docker.pkg.coding.net/nocalhost/dev-images/node:12.18.1-slim
             workDir: /home/nocalhost-dev
             shell: "bash"
             sync:

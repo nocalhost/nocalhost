@@ -48,7 +48,7 @@ func resetApplication(applicationName string) {
 	// Stop BackGroup Process
 	appProfile, _ := nocalhostApp.GetProfile()
 	for _, profile := range appProfile.SvcProfile {
-		nhSvc := initService(profile.ActualName, profile.Type)
+		nhSvc := initService(profile.GetName(), profile.GetType())
 		if nhSvc.IsInDevMode() {
 			utils.Should(nhSvc.StopSyncAndPortForwardProcess(true))
 		} else if len(profile.DevPortForwardList) > 0 {
@@ -58,7 +58,7 @@ func resetApplication(applicationName string) {
 
 	// Remove files
 	time.Sleep(1 * time.Second)
-	if err = nocalhost.CleanupAppFilesUnderNs(applicationName, nameSpace); err != nil {
+	if err = nocalhost.CleanupAppFilesUnderNs(nameSpace, nocalhostApp.GetAppMeta().NamespaceId); err != nil {
 		log.WarnE(err, "")
 	} else {
 		log.Info("Files have been clean up")
