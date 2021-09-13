@@ -2,10 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Chart.Name }}-api
-{{- with .Values.podAnnotations }}
-  annotations:
-    {{- toYaml . | nindent 8 }}
-{{- end }}
   labels:
     app: {{ .Chart.Name }}-api
 spec:

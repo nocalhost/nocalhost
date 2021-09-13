@@ -22,46 +22,6 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-podAnnotations:
-  dev.nocalhost: |-
-    name: nocalhost-api
-    serviceType: deployment
-    dependLabelSelector:
-      pods:
-        - "app.kubernetes.io/name=mariadb"
-        - "app=nocalhost-web"
-    portForward:
-      - 9999:9999
-    containers:
-      - name: nocalhost-api
-        install:
-          env:
-            - name: FFFFF
-              value: ZZZZZZ
-            - name: UUUUU
-              value: QQQQQ
-        dev:
-          gitUrl: https://github.com/nocalhost/nocalhost.git
-          image: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang:zsh
-          workDir: /home/nocalhost-dev
-          shell: "/bin/zsh"
-          sync:
-            type: send
-            filePattern:
-              - .
-            ignoreFilePattern:
-              - "./build"
-          command:
-            build: [ "make", "api" ]
-            run: [ "make", "api", "&&", "./build/nocalhost-api", "-c", "/app/config/config.yaml" ]
-            debug: [ "make", "api", "&&", "dlv", "--listen=:2345", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "./build/nocalhost-api", "--", "-c", "/app/config/config.yaml" ]
-          debug:
-            remoteDebugPort: 2345
-          env:
-            - name: NOCALHOST_INJECT_DEV_ENV
-              value: WHATEVER
-          portForward:
-            - 8080:8080
 
 podSecurityContext: {}
   # fsGroup: 2000
