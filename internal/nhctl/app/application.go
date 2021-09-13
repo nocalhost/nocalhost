@@ -607,7 +607,7 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.Sv
 		envsubst.LocalFileRenderItem{FilePathEnhance: configFile}, svcName, svcType,
 	); svcCfg == nil {
 		if _, // local config should not contain app config
-		svcCfg, _ := doLoadProfileFromAppConfig(
+		svcCfg, _ = doLoadProfileFromAppConfig(
 			envsubst.LocalFileRenderItem{FilePathEnhance: configFile}, svcName, svcType,
 		); svcCfg == nil {
 			if err != nil {
