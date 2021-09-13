@@ -151,9 +151,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 			go func() {
 				defer func() {
 					_ = conn.Close()
-					if r := recover(); r != nil {
-						log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
-					}
+					RecoverDaemonFromPanic()
 				}()
 				start := time.Now()
 

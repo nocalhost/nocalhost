@@ -23,7 +23,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -123,11 +122,8 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 }
 
 func (p *PortForwardManager) RecoverAllPortForward() error {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("DAEMON-RECOVER in RecoverAllPortForward: %s", string(debug.Stack()))
-		}
-	}()
+	defer RecoverDaemonFromPanic()
+
 	log.Info("Recovering all port-forward")
 	// Find all app
 	appMap, err := nocalhost.GetNsAndApplicationInfo()
@@ -149,9 +145,7 @@ func (p *PortForwardManager) RecoverAllPortForward() error {
 	return nil
 }
 
-var handlingStreamCreateFailed = false
-
-// Start a port-forward
+// StartPortForwardGoRoutine Start a port-forward
 // If saveToDB is true, record it to leveldb
 func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortForwardCommand, saveToDB bool) error {
 
@@ -231,8 +225,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		logDir := filepath.Join(nocalhost.GetLogDir(), "port-forward")
 		if _, err = os.Stat(logDir); err != nil {
 			if os.IsNotExist(err) {
-				err = os.MkdirAll(logDir, 0644)
-				if err != nil {
+				if err = os.MkdirAll(logDir, 0644); err != nil {
 					log.LogE(errors.Wrap(err, ""))
 				}
 			} else {
