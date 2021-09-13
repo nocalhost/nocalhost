@@ -19,9 +19,9 @@ jobs:
         run: |
           COMMIT_ID=${GITHUB_SHA}
           ProjectId=${{ secrets.coding_project_id }}
-          Token=${{ secrets.coding_token }}
+          Token=${{ secrets.CODING_PERSONAL_KEY }}
           while true; do
-            url='https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/nhctl-linux-amd64?version='$COMMIT_ID''
+            url='https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/nhctl-linux-amd64?version='$COMMIT_ID''
             echo "url: ""$url"
             a=$(curl -s "$url") || true
             echo "response: ""$a"
@@ -37,7 +37,7 @@ jobs:
             Package=$3
             PackageVersion=$4
             while true; do
-              res=$(curl -X POST -s 'https://codingcorp.coding.net/open-api' \
+              res=$(curl -X POST -s 'https://nocalhost.coding.net/open-api' \
                 --header 'Authorization: token '$Token'' \
                 --header 'Content-Type: text/plain' \
                 --data-raw '{

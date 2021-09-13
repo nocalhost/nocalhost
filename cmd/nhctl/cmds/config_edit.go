@@ -75,6 +75,8 @@ var configEditCmd = &cobra.Command{
 		if !controller.CheckIfControllerTypeSupport(svcConfig.Type) {
 			must(errors.New(fmt.Sprintf("Service Type %s is unsupported", ot)))
 		}
-		must(nocalhostSvc.SaveConfigToProfile(svcConfig))
+		svcConfig.Name = nocalhostSvc.Name
+		must(nocalhostSvc.UpdateConfig(*svcConfig))
+		//must(nocalhostSvc.SaveConfigToProfile(svcConfig))
 	},
 }

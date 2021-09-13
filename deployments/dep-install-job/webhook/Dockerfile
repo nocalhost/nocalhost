@@ -40,7 +40,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -gcflags="all=-N -l"
 
 # Final stage
 # FROM debian:buster
-FROM codingcorp-docker.pkg.coding.net/nocalhost/public/ubuntu:stable
+FROM nocalhost-docker.pkg.coding.net/nocalhost/public/ubuntu:stable
 
 WORKDIR /
 #COPY --from=build-env /go/bin/dlv /

@@ -68,7 +68,7 @@ kubectl apply -f ./webhook/service.yaml
 
 # sed dep docker image version
 echo "dep version is"${DEP_VERSION}
-sed -i "s|image:.*$|image: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep:${DEP_VERSION}|" ./webhook/deployment.yaml
+sed -i "s|image:.*$|image: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-dep:${DEP_VERSION}|" ./webhook/deployment.yaml
 
 if [[ -n ${DEP_IMAGE} ]] ; then
     echo "replace image to: ${DEP_IMAGE}"

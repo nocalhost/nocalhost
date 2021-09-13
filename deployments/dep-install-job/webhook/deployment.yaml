@@ -18,7 +18,7 @@ spec:
       serviceAccountName: nocalhost-admin-service-account
       containers:
         - name: nocalhost-dep
-          image: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep:latest
+          image: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-dep:latest
           resources:
             requests:
               cpu: 100m

@@ -58,6 +58,7 @@ type PortForwardCommand struct {
 	LocalPort   int    `json:"localPort"`
 	RemotePort  int    `json:"remotePort"`
 	Role        string `json:"role"`
+	Nid         string `json:"nid"`
 }
 
 type GetApplicationMetaCommand struct {
