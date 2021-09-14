@@ -720,15 +720,19 @@ func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.
 	var configs = []*profile.ServiceConfigV2{}
 
 	for _, p := range profiles {
-		configs = append(
-			configs, &profile.ServiceConfigV2{
-				Name:                p.GetName(),
-				Type:                p.GetType(),
-				PriorityClass:       p.PriorityClass,
-				DependLabelSelector: p.DependLabelSelector,
-				ContainerConfigs:    p.ContainerConfigs,
-			},
-		)
+		if p.ServiceConfigV2 != nil {
+			configs = append(configs, p.ServiceConfigV2)
+		} else {
+			configs = append(
+				configs, &profile.ServiceConfigV2{
+					Name: p.GetName(),
+					Type: p.GetType(),
+					//PriorityClass:       p.PriorityClass,
+					//DependLabelSelector: p.DependLabelSelector,
+					//ContainerConfigs:    p.ContainerConfigs,
+				},
+			)
+		}
 	}
 
 	return configs
