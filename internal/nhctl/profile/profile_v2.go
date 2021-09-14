@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	// codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
+	// nocalhost-docker.pkg.coding.net/nocalhost/public/minideb:latest"
 	DefaultDevImage = ""
 	DefaultWorkDir  = "/home/nocalhost-dev"
 )
@@ -53,6 +53,14 @@ type AppProfileV2 struct {
 	Kubeconfig string `json:"kubeconfig" yaml:"kubeconfig,omitempty"`
 	db         *dbutils.LevelDBUtils
 
+	// for previous version, associate path is stored in profile
+	// and now it store in a standalone db
+	AssociateMigrate bool `json:"associate_migrate" yaml:"associate_migrate"`
+
+	// for previous version, config is stored in profile
+	// and now it store in app meta
+	//ConfigMigrated bool `json:"configMigrated" yaml:"configMigrated"`
+
 	// app global status
 	Identifier string `json:"identifier" yaml:"identifier"`
 	Secreted   bool   `json:"secreted" yaml:"secreted"` // always true for new versions, but from earlier version, the flag for upload profile to secret
@@ -69,8 +77,8 @@ func ProfileV2Key(ns, app string) string {
 	return fmt.Sprintf("%s.%s.profile.v2", ns, app)
 }
 
-func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
-	path := nocalhost_path.GetAppDbDir(ns, name)
+func NewAppProfileV2ForUpdate(ns, name, nid string) (*AppProfileV2, error) {
+	path := nocalhost_path.GetAppDbDir(ns, name, nid)
 	db, err := dbutils.OpenLevelDB(path, false)
 	if err != nil {
 		_ = db.Close()
@@ -118,7 +126,7 @@ func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
 func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV2 {
 
 	for _, svcProfile := range a.SvcProfile {
-		if svcProfile.ActualName == svcName && svcProfile.Type == svcType {
+		if svcProfile.GetName() == svcName && svcProfile.GetType() == svcType {
 			return svcProfile
 		}
 	}
@@ -128,19 +136,21 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 		a.SvcProfile = make([]*SvcProfileV2, 0)
 	}
 	svcProfile := &SvcProfileV2{
-		ServiceConfigV2: &ServiceConfigV2{
-			Name: svcName,
-			Type: svcType,
-			ContainerConfigs: []*ContainerConfig{
-				{
-					Dev: &ContainerDevConfig{
-						Image:   DefaultDevImage,
-						WorkDir: DefaultWorkDir,
-					},
-				},
-			},
-		},
-		ActualName: svcName,
+		//ServiceConfigV2: &ServiceConfigV2{
+		//	Name: svcName,
+		//	Type: svcType,
+		//	ContainerConfigs: []*ContainerConfig{
+		//		{
+		//			Dev: &ContainerDevConfig{
+		//				Image:   DefaultDevImage,
+		//				WorkDir: DefaultWorkDir,
+		//			},
+		//		},
+		//	},
+		//},
+		//ActualName: svcName,
+		Type: svcType,
+		Name: svcName,
 	}
 	a.SvcProfile = append(a.SvcProfile, svcProfile)
 
@@ -179,9 +189,13 @@ func (a *AppProfileV2) CloseDb() error {
 }
 
 type SvcProfileV2 struct {
-	*ServiceConfigV2 `json:"rawConfig" yaml:"rawConfig"`
-	ContainerProfile []*ContainerProfileV2 `json:"containerProfile" yaml:"containerProfile"`
-	ActualName       string                `json:"actualName" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
+	*ServiceConfigV2 `json:"rawConfig" yaml:"rawConfig"` // deprecated, move to app mate
+	//ContainerProfile []*ContainerProfileV2 `json:"containerProfile" yaml:"containerProfile"`
+	ActualName string `json:"actualName" yaml:"actualName"` // deprecated - for helm, actualName may be ReleaseName-Name
+
+	// todo: Is this will conflict with ServiceConfigV2 ? by hxx
+	Name string `json:"name" yaml:"name"`
+	Type string `json:"serviceType" yaml:"serviceType"`
 
 	PortForwarded bool     `json:"portForwarded" yaml:"portForwarded"`
 	Syncing       bool     `json:"syncing" yaml:"syncing"`
@@ -206,6 +220,8 @@ type SvcProfileV2 struct {
 	// nocalhost also supports config from cm, lowest priority
 	CmConfigLoaded bool `json:"cmconfigloaded" yaml:"cmconfigloaded"`
 
+	// deprecated, read only, but actually store in
+	// [SvcPack internal/nhctl/nocalhost/dev_dir_mapping_db.go:165]
 	// associate for the local dir
 	Associate string `json:"associate" yaml:"associate"`
 
@@ -227,15 +243,13 @@ type ContainerProfileV2 struct {
 }
 
 type DevPortForward struct {
-	LocalPort  int    `json:"localport" yaml:"localport"`
-	RemotePort int    `json:"remoteport" yaml:"remoteport"`
-	Role       string `json:"role" yaml:"role"`
-	Status     string `json:"status" yaml:"status"`
-	Reason     string `json:"reason" yaml:"reason"`
-	PodName    string `json:"podName" yaml:"podName"`
-	Updated    string `json:"updated" yaml:"updated"`
-	//Pid        int    `json:"pid" yaml:"pid"`
-	//RunByDaemonServer bool   `json:"runByDaemonServer" yaml:"runByDaemonServer"`
+	LocalPort       int    `json:"localport" yaml:"localport"`
+	RemotePort      int    `json:"remoteport" yaml:"remoteport"`
+	Role            string `json:"role" yaml:"role"`
+	Status          string `json:"status" yaml:"status"`
+	Reason          string `json:"reason" yaml:"reason"`
+	PodName         string `json:"podName" yaml:"podName"`
+	Updated         string `json:"updated" yaml:"updated"`
 	Sudo            bool   `json:"sudo" yaml:"sudo"`
 	DaemonServerPid int    `json:"daemonserverpid" yaml:"daemonserverpid"`
 	ServiceType     string `json:"servicetype" yaml:"servicetype"`
@@ -243,29 +257,51 @@ type DevPortForward struct {
 
 // Compatible for v1
 // Finding `containerName` config, if not found, use the first container config
-func (s *SvcProfileV2) GetContainerDevConfigOrDefault(containerName string) *ContainerDevConfig {
-	if containerName == "" {
-		return s.GetDefaultContainerDevConfig()
-	}
-	config := s.GetContainerDevConfig(containerName)
-	if config == nil {
-		config = s.GetDefaultContainerDevConfig()
-	}
-	return config
-}
+//func (s *SvcProfileV2) GetContainerDevConfigOrDefault(containerName string) *ContainerDevConfig {
+//	if containerName == "" {
+//		return s.GetDefaultContainerDevConfig()
+//	}
+//	config := s.GetContainerDevConfig(containerName)
+//	if config == nil {
+//		config = s.GetDefaultContainerDevConfig()
+//	}
+//	return config
+//}
 
-func (s *SvcProfileV2) GetDefaultContainerDevConfig() *ContainerDevConfig {
-	if len(s.ContainerConfigs) == 0 {
-		return nil
-	}
-	return s.ContainerConfigs[0].Dev
-}
+//func (s *SvcProfileV2) GetDefaultContainerDevConfig() *ContainerDevConfig {
+//	if len(s.ContainerConfigs) == 0 {
+//		return nil
+//	}
+//	return s.ContainerConfigs[0].Dev
+//}
 
-func (s *SvcProfileV2) GetContainerDevConfig(containerName string) *ContainerDevConfig {
-	for _, devConfig := range s.ContainerConfigs {
-		if devConfig.Name == containerName {
-			return devConfig.Dev
+//func (s *SvcProfileV2) GetContainerDevConfig(containerName string) *ContainerDevConfig {
+//	for _, devConfig := range s.ContainerConfigs {
+//		if devConfig.Name == containerName {
+//			return devConfig.Dev
+//		}
+//	}
+//	return nil
+//}
+
+func (s *SvcProfileV2) GetName() string {
+	if s.Name == "" {
+		if s.ActualName != "" {
+			s.Name = s.ActualName
+		} else {
+			if s.ServiceConfigV2 != nil {
+				s.Name = s.ServiceConfigV2.Name
+			}
 		}
 	}
-	return nil
+	return s.Name
+}
+
+func (s *SvcProfileV2) GetType() string {
+	if s.Type == "" {
+		if s.ServiceConfigV2 != nil {
+			s.Type = s.ServiceConfigV2.Type
+		}
+	}
+	return s.Type
 }

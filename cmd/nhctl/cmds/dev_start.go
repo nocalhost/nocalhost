@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
@@ -46,15 +47,15 @@ func init() {
 		&serviceType, "controller-type", "t", "",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
-	devStartCmd.Flags().StringVarP(
-		&devStartOps.DevImage, "image", "i", "",
-		"image of DevContainer",
-	)
+	//devStartCmd.Flags().StringVarP(
+	//	&devStartOps.DevImage, "image", "i", "",
+	//	"image of DevContainer",
+	//)
 	devStartCmd.Flags().StringVarP(
 		&devStartOps.Container, "container", "c", "",
 		"container to develop",
 	)
-	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory")
+	//devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory")
 	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "StorageClass used by PV")
 	devStartCmd.Flags().StringVar(
 		&devStartOps.PriorityClass, "priority-class", "", "PriorityClass used by devContainer",
@@ -168,12 +169,12 @@ func recordingProfile() {
 						),
 					)
 				}
-				if devStartOps.WorkDir != "" {
-					svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).WorkDir = devStartOps.WorkDir
-				}
-				if devStartOps.DevImage != "" {
-					svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).Image = devStartOps.DevImage
-				}
+				//if devStartOps.WorkDir != "" {
+				//	svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).WorkDir = devStartOps.WorkDir
+				//}
+				//if devStartOps.DevImage != "" {
+				//	svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).Image = devStartOps.DevImage
+				//}
 				if len(devStartOps.LocalSyncDir) == 1 {
 					svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 				} else {
@@ -191,19 +192,27 @@ func recordingProfile() {
 // nocalhost will load svc config from associate dir if needed
 func loadLocalOrCmConfigIfValid() {
 
+	svcPack := dev_dir.NewSvcPack(
+		nocalhostSvc.NameSpace,
+		nocalhostSvc.AppName,
+		nocalhostSvc.Type,
+		nocalhostSvc.Name,
+		container,
+	)
+
 	switch len(devStartOps.LocalSyncDir) {
 	case 0:
-		p, err := nocalhostSvc.GetProfile()
-		must(err)
-
-		if p.Associate == "" {
+		associatePath := svcPack.GetAssociatePath()
+		if associatePath == "" {
 			must(errors.New("'local-sync(-s)' should specify while svc is not associate with local dir"))
 		}
-		devStartOps.LocalSyncDir = append(devStartOps.LocalSyncDir, p.Associate)
+		devStartOps.LocalSyncDir = append(devStartOps.LocalSyncDir, string(associatePath))
 
+		must(associatePath.Associate(svcPack, kubeConfig, true))
 		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
 	case 1:
-		must(nocalhostSvc.Associate(devStartOps.LocalSyncDir[0]))
+
+		must(dev_dir.DevPath(devStartOps.LocalSyncDir[0]).Associate(svcPack, kubeConfig, true))
 
 		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
 	default:

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster_user
 
@@ -12,14 +12,18 @@ import (
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/internal/nocalhost-api/service/cooperator/cluster_scope"
+	"nocalhost/internal/nocalhost-api/service/cooperator/ns_scope"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
 // Delete Completely delete the development environment
 // @Summary Completely delete the development environment
 // @Description Completely delete the development environment, including deleting the K8S namespace
-// @Tags Application
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
@@ -29,9 +33,9 @@ import (
 func Delete(c *gin.Context) {
 
 	devSpaceId := cast.ToUint64(c.Param("id"))
-	clusterUser, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId})
-	if err != nil {
-		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+	clusterUser, errn := HasHighPermissionToSomeDevSpace(c, devSpaceId)
+	if errn != nil {
+		api.SendResponse(c, errn, nil)
 		return
 	}
 
@@ -60,32 +64,43 @@ func Delete(c *gin.Context) {
 
 		api.SendResponse(c, errno.OK, nil)
 		return
-	} else {
-		clusterData, err := service.Svc.ClusterSvc().Get(c, clusterUser.ClusterId)
-		if err != nil {
-			api.SendResponse(c, errno.ErrClusterNotFound, nil)
-			return
-		}
-
-		req := ClusterUserCreateRequest{
-			ID:        &clusterUser.ID,
-			NameSpace: clusterUser.Namespace,
-		}
-		devSpace := NewDevSpace(req, c, []byte(clusterData.KubeConfig))
-
-		if err := devSpace.Delete(); err != nil {
-			api.SendResponse(c, err, nil)
-			return
-		}
-
-		api.SendResponse(c, errno.OK, nil)
 	}
+
+	clusterData, err := service.Svc.ClusterSvc().Get(c, clusterUser.ClusterId)
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterNotFound, nil)
+		return
+	}
+
+	meshDevInfo := &setupcluster.MeshDevInfo{
+		Header: clusterUser.TraceHeader,
+	}
+	req := ClusterUserCreateRequest{
+		ID:             &clusterUser.ID,
+		NameSpace:      clusterUser.Namespace,
+		BaseDevSpaceId: clusterUser.BaseDevSpaceId,
+		MeshDevInfo:    meshDevInfo,
+		IsBaseSpace:    clusterUser.IsBaseSpace,
+	}
+	devSpace := NewDevSpace(req, c, []byte(clusterData.KubeConfig))
+
+	if err := devSpace.Delete(); err != nil {
+		api.SendResponse(c, err, nil)
+		return
+	}
+
+	// delete share space when deleting base space
+	if clusterUser.IsBaseSpace {
+		deleteShareSpaces(c, devSpaceId)
+	}
+
+	api.SendResponse(c, errno.OK, nil)
 }
 
 // ReCreate ReCreate devSpace
 // @Summary ReCreate devSpace
 // @Description delete devSpace and create a new one
-// @Tags Application
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
@@ -95,35 +110,32 @@ func Delete(c *gin.Context) {
 func ReCreate(c *gin.Context) {
 	// get devSpace
 	devSpaceId := cast.ToUint64(c.Param("id"))
-	condition := model.ClusterUserModel{
-		ID: devSpaceId,
-	}
-	isAdmin, _ := c.Get("isAdmin")
-	if isAdmin.(uint64) != 1 {
-		userId, _ := c.Get("userId")
-		condition.UserId = cast.ToUint64(userId)
-	}
-	clusterUser, err := service.Svc.ClusterUser().GetFirst(c, condition)
+
+	user, err := ginbase.LoginUser(c)
 	if err != nil {
-		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+		api.SendResponse(c, errno.ErrPermissionDenied, nil)
 		return
 	}
 
-	// refuse to recreate cluster_admin devSpace
-	if clusterUser.IsClusterAdmin() {
-		api.SendResponse(c, nil, nil)
+	clusterUser, errn := HasModifyPermissionToSomeDevSpace(c, devSpaceId)
+	if errn != nil {
+		api.SendResponse(c, errn, nil)
 		return
 	}
 
-	clusterData, err := service.Svc.ClusterSvc().Get(c, clusterUser.ClusterId)
-	if err != nil {
-		api.SendResponse(c, errno.ErrClusterNotFound, nil)
+	// base space can't be reset
+	if clusterUser.IsBaseSpace {
+		api.SendResponse(c, errno.ErrBaseSpaceReSet, nil)
 		return
 	}
 
 	res := SpaceResourceLimit{}
-	json.Unmarshal([]byte(clusterUser.SpaceResourceLimit), &res)
+	_ = json.Unmarshal([]byte(clusterUser.SpaceResourceLimit), &res)
 	// create a new dev space
+	meshDevInfo := &setupcluster.MeshDevInfo{
+		Header:   clusterUser.TraceHeader,
+		ReCreate: true,
+	}
 	req := ClusterUserCreateRequest{
 		ClusterId:          &clusterUser.ClusterId,
 		UserId:             &clusterUser.UserId,
@@ -134,13 +146,40 @@ func ReCreate(c *gin.Context) {
 		NameSpace:          clusterUser.Namespace,
 		ID:                 &clusterUser.ID,
 		SpaceResourceLimit: &res,
+		BaseDevSpaceId:     clusterUser.BaseDevSpaceId,
+		MeshDevInfo:        meshDevInfo,
+		IsBaseSpace:        clusterUser.IsBaseSpace,
+	}
+
+	cluster, err := service.Svc.ClusterSvc().GetCache(clusterUser.ClusterId)
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterNotFound, nil)
+		return
 	}
 
 	// delete devSpace space first, it will delete database record whatever success delete namespace or not
-	devSpace := NewDevSpace(req, c, []byte(clusterData.KubeConfig))
+	devSpace := NewDevSpace(req, c, []byte(cluster.KubeConfig))
+
+	list, e := DoList(&model.ClusterUserModel{ID: devSpaceId}, user, false, false)
+	if e != nil {
+		log.ErrorE(e, "")
+		api.SendResponse(c, err, nil)
+		return
+	}
+	if len(list) != 1 {
+		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+		return
+	}
+	cu := list[0]
+
+	if cu.IsClusterAdmin() {
+		api.SendResponse(c, nil, nil)
+		return
+	}
+
 	err = devSpace.Delete()
 	if err != nil {
-		api.SendResponse(c, err, nil)
+		api.SendResponse(c, nil, nil)
 		return
 	}
 
@@ -151,10 +190,22 @@ func ReCreate(c *gin.Context) {
 		return
 	}
 
-	// un authorize namespace to user
 	if err := service.Svc.AuthorizeNsToUser(result.ClusterId, result.UserId, result.Namespace); err != nil {
 		api.SendResponse(c, err, nil)
 		return
+	}
+
+	if err := service.Svc.AuthorizeNsToDefaultSa(result.ClusterId, result.UserId, result.Namespace); err != nil {
+		api.SendResponse(c, err, nil)
+		return
+	}
+
+	for _, viewer := range cu.ViewerUser {
+		_ = ns_scope.AsViewer(result.ClusterId, viewer.ID, result.Namespace)
+	}
+
+	for _, cooper := range cu.CooperUser {
+		_ = ns_scope.AsCooperator(result.ClusterId, cooper.ID, result.Namespace)
 	}
 
 	api.SendResponse(c, nil, result)
@@ -172,9 +223,9 @@ func ReCreate(c *gin.Context) {
 // @Router /v1/plugin/{id}/recreate [post]
 func PluginReCreate(c *gin.Context) {
 	// check permission
-	userId, _ := c.Get("userId")
+	//userId, _ := c.Get("userId")
 	devSpaceId := cast.ToUint64(c.Param("id"))
-	_, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId, UserId: userId.(uint64)})
+	_, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId})
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		return

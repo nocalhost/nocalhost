@@ -51,6 +51,7 @@ func daemonListenPort() int {
 
 func StartDaemon(isSudoUser bool, v string, c string) error {
 
+	log.UseBulk(true)
 	log.Log("Starting daemon server...")
 	startUpPath, _ = utils.GetNhctlPath()
 
@@ -60,7 +61,6 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		return errors.New("Failed to start daemon server with sudo")
 	}
 	isSudo = isSudoUser // Mark daemon server if it is run as sudo
-	//ports.IsPortAvailable("0.0.0.0", daemonListenPort())
 	address := fmt.Sprintf("%s:%d", "0.0.0.0", daemonListenPort())
 	listener, err := net.Listen("tcp4", address)
 	if err != nil {
@@ -72,10 +72,11 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		appmeta_manager.Init()
 		appmeta_manager.RegisterListener(
 			func(pack *appmeta_manager.ApplicationEventPack) error {
-				kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
-				if err != nil {
-					return nil
-				}
+				//kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
+				//if err != nil {
+				//	return nil
+				//}
+				kubeconfig := nocalhost.GetOrGenKubeConfigPath(string(pack.KubeConfigBytes))
 				nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, true)
 				if err != nil {
 					return nil
@@ -113,14 +114,15 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		appmeta_manager.Start()
 	}
 
+	// update nocalhost-hub
+	go cronJobForUpdatingHub()
+
 	go func() {
 		defer func() {
 			log.Log("Exiting tcp listener")
 		}()
 		for {
-			//log.Info("Before accept a connection in %s", time.Now().String())
 			conn, err := listener.Accept()
-			log.Info("Accept a connection...")
 			if err != nil {
 				log.Log("Accept connection error occurs")
 				if strings.Contains(strings.ToLower(err.Error()), "use of closed network connection") {
@@ -143,28 +145,28 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 				}()
 				start := time.Now()
 
-				log.Log("Reading data...")
+				//log.Trace("Reading data...")
 				errChan := make(chan error, 1)
-				bytesChan := make(chan []byte,1)
+				bytesChan := make(chan []byte, 1)
 
 				go func() {
-					bytes, err :=  ioutil.ReadAll(conn)
+					bytes, err := ioutil.ReadAll(conn)
 					errChan <- err
-					bytesChan <-bytes
+					bytesChan <- bytes
 				}()
 
 				select {
-				case err = <- errChan:
+				case err = <-errChan:
 					if err != nil {
-						log.LogE(errors.Wrap(err,"Failed to read data from connection"))
+						log.LogE(errors.Wrap(err, "Failed to read data from connection"))
 						return
 					}
-				case <- time.After(30 * time.Second):
+				case <-time.After(30 * time.Second):
 					log.LogE(errors.New("Read data from connection timeout after 30s"))
 					return
 				}
 
-				bytes := <- bytesChan
+				bytes := <-bytesChan
 				if len(bytes) == 0 {
 					log.Log("No data read from connection")
 					return
@@ -174,12 +176,16 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 					log.LogE(err)
 					return
 				}
-				log.Infof("Handling %s command", cmdType)
+				log.Tracef("Handling %s command", cmdType)
 				handleCommand(conn, bytes, cmdType, clientStack)
-				log.Infof("%s command done, takes %f seconds", cmdType, time.Now().Sub(start).Seconds())
+				takes := time.Now().Sub(start).Seconds()
+				log.WriteToEsWithField(map[string]interface{}{"take": takes}, "%s command done", cmdType)
 			}()
 		}
 	}()
+
+	// Listen http
+	go startHttpServer()
 
 	go func() {
 		select {
@@ -358,6 +364,15 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				), nil
 			},
 		)
+
+	case command.KubeconfigOperation:
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			cmd := &command.KubeconfigOperationCommand{}
+			if err = json.Unmarshal(bys, cmd); err != nil {
+				return nil, errors.Wrap(err, "")
+			}
+			return nil, daemon_handler.HandleKubeconfigOperationRequest(cmd)
+		})
 	}
 	if err != nil {
 		log.LogE(err)

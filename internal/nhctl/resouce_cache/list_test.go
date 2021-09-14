@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package resouce_cache
 
@@ -11,15 +11,22 @@ import (
 	"io/ioutil"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/restmapper"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/flowcontrol"
+	"k8s.io/client-go/util/homedir"
 	"nocalhost/pkg/nhctl/log"
+	"path/filepath"
 	"testing"
 	"time"
 )
 
 func TestName(t *testing.T) {
 	b, _ := ioutil.ReadFile("/Users/naison/t")
-	search, err := GetSearcher(b, "nh7wump", false)
+	search, err := GetSearcherWithLRU(b, "nh7wump")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -90,7 +97,7 @@ func TestName(t *testing.T) {
 
 func TestGetDeployment(t *testing.T) {
 	bytes, _ := ioutil.ReadFile("/Users/naison/zzz")
-	s, _ := GetSearcher(bytes, "", false)
+	s, _ := GetSearcherWithLRU(bytes, "")
 
 	i, _ := s.Criteria().ResourceType("Pods").Namespace("default").Query()
 	for _, dep := range i {
@@ -108,7 +115,7 @@ func TestGetDeployment(t *testing.T) {
 
 func TestGetPods(t *testing.T) {
 	bytes, _ := ioutil.ReadFile("/Users/naison/zzz")
-	s, _ := GetSearcher(bytes, "", false)
+	s, _ := GetSearcherWithLRU(bytes, "")
 	i, e := s.Criteria().ResourceType("pods").Namespace("default").Query()
 	if e != nil {
 		log.Error(e)
@@ -126,7 +133,7 @@ func TestGetPods(t *testing.T) {
 
 func TestGetDefault(t *testing.T) {
 	bytes, _ := ioutil.ReadFile("/Users/naison/zzz")
-	s, _ := GetSearcher(bytes, "nocalhost", false)
+	s, _ := GetSearcherWithLRU(bytes, "nocalhost")
 	i, e := s.Criteria().ResourceType("deployments").
 		ResourceName("nocalhost-api").
 		AppName("nocalhost").
@@ -149,7 +156,7 @@ func TestGetDefault(t *testing.T) {
 
 func TestGetWithNsHaveNoPermission(t *testing.T) {
 	bytes, _ := ioutil.ReadFile("/Users/naison/ZZZ")
-	s, _ := GetSearcher(bytes, "nh2qpiv", false)
+	s, _ := GetSearcherWithLRU(bytes, "nh2qpiv")
 	i, e := s.Criteria().ResourceType("deployments").
 		AppName("bookinfo").ResourceName("details").QueryOne()
 	if e != nil {
@@ -162,9 +169,9 @@ func TestGetWithNsHaveNoPermission(t *testing.T) {
 }
 
 func TestGetNamespace(t *testing.T) {
-	kubeconfigBytes, _ := ioutil.ReadFile("/Users/naison/zzz")
-	s, _ := GetSearcher(kubeconfigBytes, "", false)
-	list, er := s.Criteria().ResourceType("namespaces").Namespace("default").Query()
+	kubeconfigBytes, _ := ioutil.ReadFile("/Users/naison/.kube/config")
+	s, _ := GetSearcherWithLRU(kubeconfigBytes, "default")
+	list, er := s.Criteria().ResourceType("pods").Namespace("test").Query()
 	if er != nil {
 		fmt.Println(er)
 	}
@@ -175,7 +182,7 @@ func TestGetNamespace(t *testing.T) {
 
 func TestGetDeploy(t *testing.T) {
 	kubeconfigBytes, _ := ioutil.ReadFile("/Users/naison/.kube/config")
-	s, _ := GetSearcher(kubeconfigBytes, "", false)
+	s, _ := GetSearcherWithLRU(kubeconfigBytes, "")
 	list, er := s.Criteria().Kind(&v1.Deployment{}).Namespace("default").Query()
 	if er != nil {
 		fmt.Println(er)
@@ -196,4 +203,44 @@ func TestNewLRU(t *testing.T) {
 	lru.Add("c", 2)
 	lru.Get("a")
 	fmt.Println(lru.Keys())
+}
+
+func TestApiResource(t *testing.T) {
+	join := filepath.Join("/Users/naison/Downloads/app/reviews", "config")
+	file, _ := ioutil.ReadFile(join)
+
+	config, err := clientcmd.RESTConfigFromKubeConfig(file)
+	if err != nil {
+		log.Fatal(err)
+	}
+	//config.Timeout = time.Second * 5
+	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
+	clientset, err1 := kubernetes.NewForConfig(config)
+	if err1 != nil {
+		log.Fatal(err1)
+	}
+	_, err2 := restmapper.GetAPIGroupResources(clientset)
+	if err2 != nil {
+		log.Fatal(err2)
+	}
+
+	cc, err := clientset.ServerPreferredResources()
+	fmt.Println(len(cc))
+	fmt.Println(k8serrors.IsServiceUnavailable(err))
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func TestNoListNamespacePermission(t *testing.T) {
+	join := filepath.Join(homedir.HomeDir(), ".nh", "bin", "listnstest")
+	kubeconfigBytes, _ := ioutil.ReadFile(join)
+	s, _ := GetSearcherWithLRU(kubeconfigBytes, "nh99virm")
+	list, er := s.Criteria().Kind(&corev1.Namespace{}).Namespace("default").Query()
+	if er != nil {
+		fmt.Println(er)
+	}
+	for _, dep := range list {
+		fmt.Println(dep.(metav1.Object).GetName())
+	}
 }

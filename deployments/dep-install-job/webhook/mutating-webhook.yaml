@@ -9,9 +9,10 @@ webhooks:
     failurePolicy: Ignore # 调用 webhook 的错误导致准入失败并且 API 请求被拒绝，默认 Ignore
     namespaceSelector:
       matchExpressions:
-        - key: env
-          operator: In
-          values: [ "nocalhost" ]  # 只对有 label env=nocalhost 的 namespace 处理，避免 kube-system istio-system
+        - key: nocalhost-dep-ignore
+          operator: NotIn
+          values: [ "true" ] # 忽略 label nocalhost-dep-ignore=true 的 namespace
+        #__NAMESPACE_MATCH_KEY__#
     clientConfig:
       service:
         name: nocalhost-sidecar-injector-controller

@@ -1,19 +1,13 @@
 /*
- * Tencent is pleased to support the open source community by making Nocalhost available.,
- * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
- * Licensed under the MIT License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- * http://opensource.org/licenses/MIT
- * Unless required by applicable law or agreed to in writing, software distributed under,
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
  */
 
 package log
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/olivere/elastic/v7"
 	"github.com/pkg/errors"
@@ -41,7 +35,8 @@ type esLog struct {
 	Branch    string    `json:"branch,omitempty"`
 	Commit    string    `json:"commit,omitempty"`
 	Svc       string    `json:"svc,omitempty"`
-	Args       string `json:"args,omitempty"`
+	Bulk      bool      `json:"bulk"`
+	Args      string    `json:"args,omitempty"`
 }
 
 var (
@@ -50,7 +45,13 @@ var (
 	esIndex     = "nocalhost"
 	hostname    string
 	address     string
+	useBulk     bool
 )
+
+// UseBulk Used by daemon
+func UseBulk(enable bool) {
+	useBulk = enable
+}
 
 func InitEs(host string) {
 
@@ -153,9 +154,9 @@ func InitEs(host string) {
 
 	esProcessor, err = esClient.BulkProcessor().
 		Name(hostname).
-		BulkActions(-1).
-		BulkSize(-1).
-		FlushInterval(100 * time.Millisecond).
+		//BulkActions(-1).
+		//BulkSize(-1).
+		FlushInterval(10 * time.Second).
 		Do(ctx)
 	if err != nil {
 		fmt.Println("proccessor created failed", err.Error())
@@ -163,6 +164,10 @@ func InitEs(host string) {
 }
 
 func writeStackToEs(level string, msg string, stack string) {
+	writeStackToEsWithField(level, msg, stack, nil)
+}
+
+func writeStackToEsWithField(level string, msg string, stack string, field map[string]interface{}) {
 	if esClient == nil {
 		return
 	}
@@ -187,7 +192,7 @@ func writeStackToEs(level string, msg string, stack string) {
 			Version:   fields["VERSION"],
 			Commit:    fields["COMMIT"],
 			Branch:    fields["BRANCH"],
-			Args: fields["ARGS"],
+			Args:      fields["ARGS"],
 			Timestamp: time.Now(),
 			Hostname:  hostname,
 			Level:     level,
@@ -197,11 +202,28 @@ func writeStackToEs(level string, msg string, stack string) {
 			Arch:      runtime.GOARCH,
 			Line:      lineNum,
 			Func:      funName,
+			Bulk:      useBulk,
 		}
-		esClient.Index().Index(esIndex).BodyJson(&data).Refresh("true").Do(context.Background())
+
+		mapping := make(map[string]interface{}, 0)
+		if mas, err := json.Marshal(data); err == nil {
+			if json.Unmarshal(mas, &mapping) != nil {
+				return
+			}
+		}
+
+		for k, v := range field {
+			mapping[k] = v
+		}
+
+		if useBulk && esProcessor != nil {
+			esProcessor.Add(elastic.NewBulkIndexRequest().Index(esIndex).Doc(&mapping))
+		} else {
+			esClient.Index().Index(esIndex).BodyJson(&mapping).Refresh("true").Do(context.Background())
+		}
 	}
 
-	if os.Getenv("NOCALHOST_TRACE") != "" {
+	if os.Getenv("NOCALHOST_TRACE") != "" && !useBulk {
 		write()
 	} else {
 		go func() {

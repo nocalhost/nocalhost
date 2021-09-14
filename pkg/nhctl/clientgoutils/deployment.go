@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package clientgoutils
 
@@ -124,7 +124,7 @@ func (c *ClientGoUtils) ScaleDeploymentReplicasToOne(name string) error {
 		return errors.Wrap(err, "")
 	}
 
-	if scale.Spec.Replicas > 1 {
+	if scale.Spec.Replicas > 1 || scale.Spec.Replicas == 0 {
 		log.Infof("Deployment %s replicas is %d now, scaling it to 1", name, scale.Spec.Replicas)
 		scale.Spec.Replicas = 1
 		_, err = deploymentsClient.UpdateScale(c.ctx, name, scale, metav1.UpdateOptions{})

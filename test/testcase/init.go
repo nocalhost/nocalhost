@@ -63,7 +63,7 @@ func InstallNhctl(version string) error {
 		name = "nhctl-linux-amd64"
 		needChmod = true
 	}
-	str := "curl --fail -s -L \"https://codingcorp-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o %s"
+	str := "curl --fail -s -L \"https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/%s?version=%s\" -o %s"
 	cmd := exec.Command("sh", "-c", fmt.Sprintf(str, name, version, utils.GetNhctlBinName()))
 	if utils.IsWindows() {
 		delCmd := exec.Command("sh", "-c", fmt.Sprintf("rm %s", utils.GetNhctlBinName()))
@@ -182,11 +182,18 @@ func GetKubeconfig(webAddr, ns, kubeconfig string) (string, error) {
 	retryTimes := 200
 	var config string
 	for i := 0; i < retryTimes; i++ {
-
-		resp, _ := req.New().Post(
+		resp, err := req.New().Post(
 			res.BaseUrl+util.WebDevSpace, header,
 			`{"cluster_id":1,"space_name":"suuuper","user_id":1,"cluster_admin":1,"cpu":0,"memory":0,"isLimit":false,"space_resource_limit":{}}`,
 		)
+		if err != nil {
+			log.Infof("Get kubeconfig error, err: %v", err)
+			continue
+		}
+		if resp == nil {
+			log.Infof("Get kubeconfig response is nil, retrying")
+			continue
+		}
 		log.Infof(resp.String())
 
 		time.Sleep(time.Second * 2)

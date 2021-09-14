@@ -1,55 +1,52 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package envsubst
 
 import (
-	"bufio"
 	"nocalhost/internal/nhctl/envsubst/parse"
 	"nocalhost/internal/nhctl/fp"
-	"nocalhost/pkg/nhctl/log"
 	"os"
-	"strings"
 )
 
-func Render(fp, envFile *fp.FilePathEnhance) (string, error) {
-	envs := [][]string{os.Environ()}
-	envs = append(envs, readEnvFile(envFile)[:])
-
-	return parse.New("string", envs,
-		&parse.Restrictions{NoUnset: false, NoEmpty: false}).
-		Parse(fp.ReadFile(), fp.Abs(), []string{})
+type RenderItem interface {
+	GetContent() string
+	GetLocation() string
 }
 
-func readEnvFile(envFile *fp.FilePathEnhance) []string {
-	var envFiles []string
+// LocalFileRenderItem can parse the includation by rel path
+// we should use LocalFileRenderItem if a config may contain any other config from local path
+type LocalFileRenderItem struct {
+	*fp.FilePathEnhance
+}
 
-	if envFile == nil {
-		return envFiles
-	}
+func (lfri LocalFileRenderItem) GetContent() string {
+	return lfri.ReadFile()
+}
 
-	if err := envFile.CheckExist(); err != nil {
-		return envFiles
-	}
+func (lfri LocalFileRenderItem) GetLocation() string {
+	return lfri.Abs()
+}
 
-	file, err := os.Open(envFile.Abs())
-	if err != nil {
-		log.ErrorE(err, "Can't not reading env file from "+envFile.Path)
-	}
+type TextRenderItem string
 
-	defer file.Close()
+func (tri TextRenderItem) GetContent() string {
+	return string(tri)
+}
 
-	scanner := bufio.NewScanner(file)
+func (tri TextRenderItem) GetLocation() string {
+	return ""
+}
 
-	for scanner.Scan() {
-		text := scanner.Text()
-		if !strings.ContainsAny(text, "=") || strings.HasPrefix(text, "#") {
-			continue
-		}
-		envFiles = append(envFiles, text)
-	}
+func Render(fp RenderItem, envFile *fp.FilePathEnhance) (string, error) {
+	envs := [][]string{os.Environ()}
+	envs = append(envs, envFile.ReadEnvFile()[:])
 
-	return envFiles
+	return parse.New(
+		"string", envs,
+		&parse.Restrictions{NoUnset: false, NoEmpty: false},
+	).
+		Parse(fp.GetContent(), fp.GetLocation(), []string{})
 }

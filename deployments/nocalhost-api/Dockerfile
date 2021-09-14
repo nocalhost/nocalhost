@@ -12,7 +12,7 @@ WORKDIR /opt/src
 RUN ["make", "api"]
 
 #FROM ubuntu:20.04
-FROM codingcorp-docker.pkg.coding.net/nocalhost/public/ubuntu:stable
+FROM nocalhost-docker.pkg.coding.net/nocalhost/public/ubuntu:stable
 
 RUN ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 RUN apt-get update && DEBIAN_FRONTEND="noninteractive" apt-get install -y tzdata

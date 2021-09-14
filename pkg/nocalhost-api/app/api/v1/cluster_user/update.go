@@ -8,8 +8,10 @@ package cluster_user
 import (
 	"encoding/base64"
 	"encoding/json"
+
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
@@ -24,6 +26,7 @@ type DevSpaceRequest struct {
 	SpaceName  string `json:"space_name"`
 }
 
+// Update
 // @Summary Update dev space
 // @Description Update dev space
 // @Tags Cluster
@@ -61,9 +64,10 @@ func Update(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
-// @Summary Update dev space
-// @Description Update dev space
-// @Tags Cluster
+// UpdateResourceLimit
+// @Summary UpdateResourceLimit
+// @Description update resource limit in dev space
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
@@ -72,6 +76,7 @@ func Update(c *gin.Context) {
 // @Success 200 {object} model.ClusterUserModel
 // @Router /v1/dev_space/{id}/update_resource_limit [put]
 func UpdateResourceLimit(c *gin.Context) {
+
 	var req SpaceResourceLimit
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Warnf("bind resource limits params err: %v", err)
@@ -80,6 +85,12 @@ func UpdateResourceLimit(c *gin.Context) {
 	}
 
 	devSpaceId := cast.ToUint64(c.Param("id"))
+
+	_, errn := HasHighPermissionToSomeDevSpace(c, devSpaceId)
+	if errn != nil {
+		api.SendResponse(c, errn, nil)
+		return
+	}
 
 	// Validate DevSpace Resource limit parameter format.
 	flag, message := ValidSpaceResourceLimit(req)
@@ -150,6 +161,93 @@ func UpdateResourceLimit(c *gin.Context) {
 	result, err := service.Svc.ClusterUser().Update(c, devspace)
 	if err != nil {
 		api.SendResponse(c, nil, nil)
+		return
+	}
+	api.SendResponse(c, nil, result)
+}
+
+// UpdateMeshDevSpaceInfo update mesh dev space info
+// @Summary Update mesh dev space info
+// @Description Update mesh dev space info
+// @Tags DevSpace
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path string true "devspace id"
+// @Param MeshDevInfo body setupcluster.MeshDevInfo true "mesh dev space info"
+// @Success 200 {object} model.ClusterUserModel
+// @Router /v1/dev_space/{id}/update_mesh_dev_space_info [put]
+func UpdateMeshDevSpaceInfo(c *gin.Context) {
+	var req setupcluster.MeshDevInfo
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Warnf("bind resource limits params err: %v", err)
+		api.SendResponse(c, errno.ErrBind, nil)
+		return
+	}
+
+	devSpaceId := cast.ToUint64(c.Param("id"))
+
+	condition := model.ClusterUserModel{
+		ID: devSpaceId,
+	}
+	devspace, err := service.Svc.ClusterUser().GetFirst(c, condition)
+	if err != nil || devspace == nil {
+		log.Errorf("Dev space has not found")
+		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+		return
+	}
+
+	if devspace.BaseDevSpaceId == 0 {
+		log.Errorf("Base space can't be updated")
+		api.SendResponse(c, errno.ErrUpdateBaseSpace, nil)
+		return
+	}
+
+	// check base dev space
+	baseCondition := model.ClusterUserModel{
+		ID: devspace.BaseDevSpaceId,
+	}
+	basespace, err := service.Svc.ClusterUser().GetFirst(c, baseCondition)
+	if err != nil || basespace == nil {
+		log.Errorf("Base space has not found")
+		api.SendResponse(c, errno.ErrMeshClusterUserNotFound, nil)
+		return
+	}
+
+	// Build goclient with administrator kubeconfig
+	clusterData, err := service.Svc.ClusterSvc().Get(c, devspace.ClusterId)
+	if err != nil {
+		log.Errorf("Getting cluster information failed, cluster id = [ %v ] ", devspace.ClusterId)
+		api.SendResponse(c, errno.ErrPermissionCluster, nil)
+		return
+	}
+
+	info := req
+	info.MeshDevNamespace = devspace.Namespace
+	info.BaseNamespace = basespace.Namespace
+	info.IsUpdateHeader = basespace.TraceHeader.TraceKey != info.Header.TraceKey ||
+		basespace.TraceHeader.TraceValue != info.Header.TraceValue
+
+	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(clusterData.KubeConfig)
+	if err != nil {
+		log.Error(err)
+		api.SendResponse(c, errno.ErrUpdateMeshSpaceFailed, nil)
+		return
+	}
+
+	log.Debugf("update mesh info for dev space %s, the namespace is %s", devspace.SpaceName, devspace.Namespace)
+	if err := meshManager.UpdateMeshDevSpace(&info); err != nil {
+		log.Error(err)
+		_ = meshManager.Rollback(&info)
+		api.SendResponse(c, errno.ErrUpdateMeshSpaceFailed, nil)
+		return
+	}
+
+	devspace.TraceHeader = info.Header
+	result, err := service.Svc.ClusterUser().Update(c, devspace)
+	if err != nil {
+		log.Error(err)
+		api.SendResponse(c, errno.ErrUpdateMeshSpaceFailed, nil)
 		return
 	}
 	api.SendResponse(c, nil, result)
