@@ -43,23 +43,6 @@ type SaAuthorizeRequest struct {
 	SpaceName string  `json:"space_name" binding:"required"`
 }
 
-func Authorize(c *gin.Context) {
-	var req SaAuthorizeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Warnf("bind service account authorizeRequest params err: %v", err)
-		api.SendResponse(c, errno.ErrBind, nil)
-		return
-	}
-
-	err := service.Svc.AuthorizeNsToUser(*req.ClusterId, *req.UserId, req.SpaceName)
-	if err != nil {
-		api.SendResponse(c, err, nil)
-		return
-	}
-
-	api.SendResponse(c, nil, nil)
-}
-
 func ListAuthorization(c *gin.Context) {
 	userId, err := ginbase.LoginUser(c)
 	if err != nil {
@@ -80,7 +63,7 @@ func ListAuthorization(c *gin.Context) {
 		return
 	}
 
-	result := []*ServiceAccountModel{}
+	result := make([]*ServiceAccountModel, 0, len(clusters))
 	var lock sync.Mutex
 	wg := sync.WaitGroup{}
 	wg.Add(len(clusters))
@@ -166,36 +149,30 @@ func GenKubeconfig(
 	privilegeType := NONE
 	var nss []NS
 
-	// new admin go client will request authorizationv1.SelfSubjectAccessReview
-	// then did not find any err, means current user is the cluster admin role
-	// todo we should specify the
-	if cluster_scope.IsOwnerOfCluster(cp.GetClusterId(), saName) ||
-		cluster_scope.IsCooperOfCluster(cp.GetClusterId(), saName) {
-		privilegeType = CLUSTER_ADMIN
-	} else if cluster_scope.IsViewerOfCluster(cp.GetClusterId(), saName) {
-		privilegeType = CLUSTER_VIEWER
+	allDevSpace, err := service.Svc.ClusterUser().ListV2(model.ClusterUserModel{})
+	devSpaceMapping := map[string]model.ClusterUserV2{}
+	for _, cu := range allDevSpace {
+		if !cu.IsClusterAdmin() {
+			devSpaceMapping[cu.Namespace] = *cu
+		}
 	}
 
 	// different kind of namespace's permission with different prefix
 	doForNamespaces := func(namespaces []string, spaceOwnType model.SpaceOwnType) {
 		for _, ns := range namespaces {
+			cu, ok := devSpaceMapping[ns]
 
-			cu, err := service.Svc.ClusterUser().
-				GetCacheByClusterAndNameSpace(cp.GetClusterId(), ns)
-
-			if err != nil {
+			if !ok {
 				log.Error(
-					errors.Wrap(
-						err, fmt.Sprintf(
-							"Error while gen kubeconfig, can not find "+
-								"devspace by clusterId %v and namespace %v", cp.GetClusterId(), ns,
-						),
+					errors.Errorf(
+						"Error while gen kubeconfig, can not find "+
+							"devspace by clusterId %v and namespace %v", cp.GetClusterId(), ns,
 					),
 				)
 			} else {
 				kubeConfigStruct.Contexts = append(
 					kubeConfigStruct.Contexts, clientcmdapiv1.NamedContext{
-						Name: cu.SpaceName,
+						Name: fmt.Sprintf("%s/%s", cu.SpaceName, cu.Namespace),
 						Context: clientcmdapiv1.Context{
 							Namespace: ns,
 							Cluster:   cp.GetClusterName(),
@@ -207,6 +184,7 @@ func GenKubeconfig(
 				nss = append(
 					nss, NS{SpaceName: cu.SpaceName, Namespace: ns, SpaceId: cu.ID, SpaceOwnType: spaceOwnType.Str},
 				)
+				delete(devSpaceMapping, ns)
 			}
 		}
 	}
@@ -214,6 +192,25 @@ func GenKubeconfig(
 	doForNamespaces(ns_scope.GetAllOwnNs(string(clientGo.Config), saName), model.DevSpaceOwnTypeOwner)
 	doForNamespaces(ns_scope.GetAllCoopNs(string(clientGo.Config), saName), model.DevSpaceOwnTypeCooperator)
 	doForNamespaces(ns_scope.GetAllViewNs(string(clientGo.Config), saName), model.DevSpaceOwnTypeViewer)
+
+	remainNs := make([]string, 0)
+	for _, cu := range devSpaceMapping {
+		remainNs = append(remainNs, cu.Namespace)
+	}
+
+	// new admin go client will request authorizationv1.SelfSubjectAccessReview
+	// then did not find any err, means current user is the cluster admin role
+	// todo we should specify the
+	if cluster_scope.IsOwnerOfCluster(cp.GetClusterId(), saName) {
+		privilegeType = CLUSTER_ADMIN
+		doForNamespaces(remainNs, model.DevSpaceOwnTypeOwner)
+	} else if cluster_scope.IsCooperOfCluster(cp.GetClusterId(), saName) {
+		privilegeType = CLUSTER_ADMIN
+		doForNamespaces(remainNs, model.DevSpaceOwnTypeCooperator)
+	} else if cluster_scope.IsViewerOfCluster(cp.GetClusterId(), saName) {
+		privilegeType = CLUSTER_VIEWER
+		doForNamespaces(remainNs, model.DevSpaceOwnTypeViewer)
+	}
 
 	if len(nss) > 0 {
 		// sort nss
@@ -226,23 +223,17 @@ func GenKubeconfig(
 					return true
 				}
 
-				return nss[i].SpaceId > nss[i].SpaceId
+				return nss[i].SpaceId > nss[j].SpaceId
 			},
 		)
 
 		sort.Slice(
 			kubeConfigStruct.Contexts, func(i, j int) bool {
-				if nss[i].Namespace == specifyNameSpace {
-					return false
-				}
-				if nss[j].Namespace == specifyNameSpace {
-					return true
-				}
-
-				return nss[i].SpaceId > nss[i].SpaceId
+				return kubeConfigStruct.Contexts[i].Name > kubeConfigStruct.Contexts[j].Name
 			},
 		)
-		kubeConfigStruct.CurrentContext = nss[len(nss)-1].SpaceName
+		current := nss[len(nss)-1]
+		kubeConfigStruct.CurrentContext = fmt.Sprintf("%s/%s", current.SpaceName, current.Namespace)
 	} else {
 
 		// while user has cluster - scope permission
@@ -270,22 +261,6 @@ func GenKubeconfig(
 	then(nss, privilegeType, kubeConfig)
 }
 
-func GetCluster2Ns2SpaceNameMapping(
-	devSpaces []*model.ClusterUserModel,
-) map[uint64]map[string]*model.ClusterUserModel {
-	spaceNameMap := map[uint64]map[string]*model.ClusterUserModel{}
-	for _, space := range devSpaces {
-		m, ok := spaceNameMap[space.ClusterId]
-		if !ok {
-			m = map[string]*model.ClusterUserModel{}
-		}
-
-		m[space.Namespace] = space
-		spaceNameMap[space.ClusterId] = m
-	}
-	return spaceNameMap
-}
-
 func getServiceAccountKubeConfigReader(
 	clientGo *clientgo.GoClient,
 	saName, saNs, serverAddr string,
@@ -295,7 +270,7 @@ func getServiceAccountKubeConfigReader(
 		return nil
 	}
 
-	secret, err := clientGo.GetSecret(sa.Secrets[0].Name, _const.NocalhostDefaultSaNs)
+	secret, err := clientGo.GetSecret(_const.NocalhostDefaultSaNs, sa.Secrets[0].Name)
 	if err != nil {
 		return nil
 	}

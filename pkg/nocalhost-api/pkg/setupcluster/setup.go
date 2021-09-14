@@ -21,7 +21,7 @@ import (
 
 type SetUpCluster interface {
 	IsAdmin() (bool, error)
-	CreateNs(namespace, label string) *setUpCluster
+	CreateNs(namespace string, labels map[string]string) *setUpCluster
 	CreateConfigMap(name, namespace, key, value string) *setUpCluster
 	DeployNocalhostDep(namespace, serviceAccount, tag string) *setUpCluster
 	GetClusterNode() *setUpCluster
@@ -62,8 +62,8 @@ func (c *setUpCluster) IsAdmin() (bool, error) {
 	return c.clientGo.IsAdmin()
 }
 
-func (c *setUpCluster) CreateNs(namespace, label string) *setUpCluster {
-	_, _ = c.clientGo.CreateNS(namespace, label)
+func (c *setUpCluster) CreateNs(namespace string, labels map[string]string) *setUpCluster {
+	_, _ = c.clientGo.CreateNS(namespace, labels)
 	return c
 }
 
@@ -84,7 +84,7 @@ func (c *setUpCluster) CreateClusterRoleBinding(name, namespace, role, toService
 }
 
 func (c *setUpCluster) CreateConfigMap(name, namespace, key, value string) *setUpCluster {
-	_, c.err = c.clientGo.CreateConfigMap(name, namespace, key, value)
+	_, c.err = c.clientGo.CreateConfigMapWithValue(name, namespace, key, value)
 	if c.err != nil {
 		c.errCode = errno.ErrClusterDepSetup
 	}
@@ -139,7 +139,7 @@ func (c *setUpCluster) GetClusterInfo() *setUpCluster {
 }
 
 func (c *setUpCluster) InitCluster(tag string) (string, error, error) {
-	return c.CreateNs(global.NocalhostSystemNamespace, "").
+	return c.CreateNs(global.NocalhostSystemNamespace, map[string]string{}).
 		CreateServiceAccount(global.NocalhostSystemNamespaceServiceAccount, global.NocalhostSystemNamespace).
 		CreateClusterRoleBinding(
 			global.NocalhostSystemRoleBindingName, global.NocalhostSystemNamespace, "cluster-admin",
@@ -169,7 +169,7 @@ func (c *setUpCluster) UpgradeCluster() (bool, error) {
 	if !existNs {
 
 		log.Info("Namespace " + global.NocalhostSystemNamespace + " is not exist so creat one.")
-		c.CreateNs(global.NocalhostSystemNamespace, "")
+		c.CreateNs(global.NocalhostSystemNamespace, map[string]string{})
 
 		if c.err != nil {
 			return false, c.err
