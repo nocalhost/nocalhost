@@ -462,7 +462,7 @@ func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType ba
 		return false
 	} else {
 		_, // local config should not contain app config
-		svcCfg, err := LoadSvcCfgFromStrIfValid(v, svcName, svcType)
+			svcCfg, err := LoadSvcCfgFromStrIfValid(v, svcName, svcType)
 		if err != nil {
 			hint(
 				"Load nocalhost svc config from [Resource:%s, Name:%s] annotation fail, err: %s",
@@ -519,7 +519,7 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcTy
 	}
 
 	_, // local config should not contain app config
-	svcCfg, err := LoadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
+		svcCfg, err := LoadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
 	if err != nil {
 		hint("Load nocalhost svc config from cm fail, err: %s", err.Error())
 		return false
@@ -607,7 +607,7 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.Sv
 		envsubst.LocalFileRenderItem{FilePathEnhance: configFile}, svcName, svcType,
 	); svcCfg == nil {
 		if _, // local config should not contain app config
-		svcCfg, _ = doLoadProfileFromAppConfig(
+			svcCfg, _ = doLoadProfileFromAppConfig(
 			envsubst.LocalFileRenderItem{FilePathEnhance: configFile}, svcName, svcType,
 		); svcCfg == nil {
 			if err != nil {
@@ -704,13 +704,13 @@ func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {
 			Version: "v2",
 		},
 		ApplicationConfig: &profile.ApplicationConfig{
-			Name:           a.Name,
-			Type:           profileV2.AppType,
-			ResourcePath:   profileV2.ResourcePath,
-			IgnoredPath:    profileV2.IgnoredPath,
-			PreInstall:     profileV2.PreInstall,
-			Env:            profileV2.Env,
-			EnvFrom:        profileV2.EnvFrom,
+			Name:         a.Name,
+			Type:         profileV2.AppType,
+			ResourcePath: profileV2.ResourcePath,
+			IgnoredPath:  profileV2.IgnoredPath,
+			PreInstall:   profileV2.PreInstall,
+			//Env:            profileV2.Env,
+			//EnvFrom:        profileV2.EnvFrom,
 			ServiceConfigs: loadServiceConfigsFromProfile(profileV2.SvcProfile),
 		},
 	}
@@ -850,8 +850,8 @@ func (a *Application) SaveAppProfileV2(config *profile.ApplicationConfig) error 
 			p.ResourcePath = config.ResourcePath
 			p.IgnoredPath = config.IgnoredPath
 			p.PreInstall = config.PreInstall
-			p.Env = config.Env
-			p.EnvFrom = config.EnvFrom
+			//p.Env = config.Env
+			//p.EnvFrom = config.EnvFrom
 			return nil
 		},
 	)
