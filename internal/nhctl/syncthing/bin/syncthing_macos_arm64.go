@@ -1,5 +1,5 @@
-//go:build darwin && amd64
-// +build darwin,amd64
+//go:build darwin && arm64
+// +build darwin,arm64
 
 package bin
 
@@ -8,10 +8,10 @@ import (
 	"io/ioutil"
 )
 
-//go:embed syncthing_macos_amd64
+//go:embed syncthing_macos_arm64
 var f embed.FS
 
-var binName = "syncthing_macos_amd64"
+var binName = "syncthing_macos_arm64"
 
 func CopyToBinPath(dst string) error {
 	file, err := f.ReadFile(binName)
