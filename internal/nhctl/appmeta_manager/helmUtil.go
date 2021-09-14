@@ -134,7 +134,11 @@ func tryNewAppFromHelmRelease(releaseStr, ns string, configBytes []byte) error {
 				meta.ApplicationState = appmeta.INSTALLED
 				meta.HelmReleaseName = release.Name
 				meta.Application = release.Name
-				meta.Config = &profile2.NocalHostAppConfigV2{}
+				meta.Config = &profile2.NocalHostAppConfigV2{
+					Migrated:          true,
+					ApplicationConfig: &profile2.ApplicationConfig{},
+					ConfigProperties:  &profile2.ConfigProperties{},
+				}
 
 				if err := meta.Update(); err != nil {
 					return err
