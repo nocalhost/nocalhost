@@ -13,7 +13,6 @@ import (
 	"github.com/pkg/errors"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -49,47 +48,58 @@ type Searcher struct {
 	informerFactory informers.SharedInformerFactory
 	// [string]*meta.RESTMapping
 	supportSchema *sync.Map
-	mapper        meta.RESTMapper
 	stopChannel   chan struct{}
 	// last used this searcher, for release informer resource
 	lastUsedTime time.Time
 }
 
+type GvkGvrWithAlias struct {
+	Gvr   schema.GroupVersionResource
+	Gvk   schema.GroupVersionKind
+	alias []string
+	// namespaced indicates if a resource is namespaced or not.
+	Namespaced bool
+}
+
 // getSupportedSchema return restMapping of each resource, [string]*meta.RESTMapping
-func getSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (*sync.Map, error) {
+func getSupportedSchema(apiResources []*restmapper.APIGroupResources) (map[string][]GvkGvrWithAlias, error) {
 	var resourceNeeded = map[string]string{"namespaces": "namespaces"}
 	for _, v := range GroupToTypeMap {
 		for _, s := range v.V {
 			resourceNeeded[s] = s
 		}
 	}
-	apiResourceLists, err := c.ServerPreferredResources()
-	if err != nil && len(apiResourceLists) == 0 {
-		return nil, err
-	}
-	nameToMapping := make(map[string]*meta.RESTMapping)
-	for _, resourceList := range apiResourceLists {
-		for _, resource := range resourceList.APIResources {
-			if resourceNeeded[resource.Name] == "" {
-				continue
-			}
-			if nameToMapping[resource.Name] != nil {
-				log.Logf("Already exist resource type: %s, restMapping: %v",
-					resource.Name, nameToMapping[resource.Name])
-				continue
-			}
-			if groupVersion, err := schema.ParseGroupVersion(resourceList.GroupVersion); err == nil {
-				gvk := groupVersion.WithKind(resource.Kind)
-				mapping, _ := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
-				if mapping == nil {
-					log.Tracef("RESTMapping is nil, gvc is %v", gvk)
-					continue
-				}
-				nameToMapping[resource.Name] = mapping
-				nameToMapping[resource.Kind] = mapping
-				nameToMapping[strings.ToLower(resource.Kind)] = mapping
-				for _, name := range resource.ShortNames {
-					nameToMapping[name] = mapping
+
+	nameToMapping := make(map[string][]GvkGvrWithAlias)
+	for _, resourceList := range apiResources {
+		for version, resource := range resourceList.VersionedResources {
+			for _, apiResource := range resource {
+				if _, need := resourceNeeded[apiResource.Name]; need {
+					r := GvkGvrWithAlias{
+						Gvr: schema.GroupVersionResource{
+							Group:    resourceList.Group.Name,
+							Version:  version,
+							Resource: apiResource.Name,
+						},
+						Gvk: schema.GroupVersionKind{
+							Group:   resourceList.Group.Name,
+							Version: version,
+							Kind:    apiResource.Kind,
+						},
+						alias:      []string{},
+						Namespaced: apiResource.Namespaced,
+					}
+					if apiResource.ShortNames != nil {
+						r.alias = append(r.alias, apiResource.ShortNames...)
+					}
+					r.alias = append(r.alias, strings.ToLower(apiResource.Kind))
+					r.alias = append(r.alias, strings.ToLower(apiResource.Name))
+					v := nameToMapping[apiResource.Name]
+					if v == nil {
+						v = make([]GvkGvrWithAlias, 0)
+					}
+					v = append(v, r)
+					nameToMapping[apiResource.Name] = v
 				}
 			}
 		}
@@ -97,11 +107,7 @@ func getSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (*sync.
 	if len(nameToMapping) == 0 {
 		return nil, errors.New("RestMapping is empty, this should not happened")
 	}
-	result := &sync.Map{}
-	for k, v := range nameToMapping {
-		result.Store(k, v)
-	}
-	return result, nil
+	return nameToMapping, nil
 }
 
 // GetSearcherWithLRU GetSearchWithLRU will cache kubeconfig with LRU
@@ -172,48 +178,38 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 	if err2 != nil {
 		return nil, err2
 	}
-	mapper := restmapper.NewDiscoveryRESTMapper(gr)
-	restMappingList, err3 := getSupportedSchema(clientset, mapper)
+	restMappingList, err3 := getSupportedSchema(gr)
 	if err3 != nil {
 		return nil, err3
 	}
 
-	restMappingList.Range(func(key, value interface{}) bool {
-		if value != nil {
-			if restMapping, convert := value.(*meta.RESTMapping); convert && restMapping != nil {
-				if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
-					if k8serrors.IsForbidden(err) {
-						log.Warnf("user account is forbidden to list resource: %v, ignored", restMapping.Resource)
-					} else {
-						log.Warnf(
-							"Can't create informer for resource: %v, error info: %v, ignored",
-							restMapping.Resource, err.Error(),
-						)
-					}
+	result := sync.Map{}
+
+	for name, groupVersionResourceList := range restMappingList {
+		createInformerSecuess := false
+		for _, resource := range groupVersionResourceList {
+			if _, err = informerFactory.ForResource(resource.Gvr); err != nil {
+				if k8serrors.IsForbidden(err) {
+					log.Warnf("user account is forbidden to list resource: %v, ignored", resource)
+					createInformerSecuess = true
+				} else if strings.Contains(err.Error(), "no informer found for") {
+					continue
+				} else {
+					log.Warnf("Can't create informer for resource: %v, error info: %v, ignored", resource, err)
 				}
+			} else {
+				createInformerSecuess = true
+				for _, alias := range resource.alias {
+					result.Store(alias, resource)
+				}
+				break
 			}
 		}
-		return true
-	})
-	//for _, restMapping := range restMappingList {
-	//	if _, err = informerFactory.ForResource(restMapping.Resource); err != nil {
-	//		if k8serrors.IsForbidden(err) {
-	//			log.Warnf("user account is forbidden to list resource: %v, ignored", restMapping.Resource)
-	//		} else {
-	//			log.Warnf(
-	//				"Can't create informer for resource: %v, error info: %v, ignored",
-	//				restMapping.Resource, err.Error(),
-	//			)
-	//		}
-	//		continue
-	//	}
-	//}
-	length := 0
-	restMappingList.Range(func(key, value interface{}) bool {
-		length++
-		return true
-	})
-	stopChannel := make(chan struct{}, length)
+		if !createInformerSecuess {
+			log.Warnf("Can't create informer for resource: %v, this should not happened", name)
+		}
+	}
+	stopChannel := make(chan struct{}, len(restMappingList))
 	firstSyncChannel := make(chan struct{}, 2)
 	informerFactory.Start(stopChannel)
 	go func() {
@@ -230,8 +226,7 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 	newSearcher := &Searcher{
 		kubeconfig:      kubeconfigBytes,
 		informerFactory: informerFactory,
-		supportSchema:   restMappingList,
-		mapper:          mapper,
+		supportSchema:   &result,
 		stopChannel:     stopChannel,
 	}
 	return newSearcher, nil
@@ -244,23 +239,18 @@ func (s *Searcher) Start() {
 
 // Stop to stop the searcher
 func (s *Searcher) Stop() {
-	length := 0
-	s.supportSchema.Range(func(key, value interface{}) bool {
-		length++
-		return true
-	})
-	for i := 0; i < length; i++ {
+	for i := 0; i < cap(s.stopChannel); i++ {
 		s.stopChannel <- struct{}{}
 	}
 }
 
-func (s *Searcher) GetRestMapping(resourceType string) (*meta.RESTMapping, error) {
+func (s *Searcher) GetResourceInfo(resourceType string) (GvkGvrWithAlias, error) {
 	if value, found := s.supportSchema.Load(strings.ToLower(resourceType)); found && value != nil {
-		if restMapping, convert := value.(*meta.RESTMapping); convert && restMapping != nil {
+		if restMapping, convert := value.(GvkGvrWithAlias); convert {
 			return restMapping, nil
 		}
 	}
-	return nil, errors.New(fmt.Sprintf("Can't get restMapping, resource type: %s", resourceType))
+	return GvkGvrWithAlias{}, errors.New(fmt.Sprintf("Can't get restMapping, resource type: %s", resourceType))
 }
 
 // e's annotation appName must in appNameRange, otherwise app name is not available
@@ -340,9 +330,9 @@ func (c *criteria) AppNameNotIn(appNames ...string) *criteria {
 }
 
 func (c *criteria) ResourceType(resourceType string) *criteria {
-	if mapping, err := c.search.GetRestMapping(resourceType); err == nil {
+	if mapping, err := c.search.GetResourceInfo(resourceType); err == nil {
 		c.resourceType = resourceType
-		c.namespaceScope = mapping.Scope.Name() == meta.RESTScopeNameNamespace
+		c.namespaceScope = mapping.Namespaced
 	} else {
 		log.Logf("Can not found restMapping for resource type: %s", resourceType)
 	}
@@ -351,8 +341,8 @@ func (c *criteria) ResourceType(resourceType string) *criteria {
 
 func (c *criteria) Kind(object runtime.Object) *criteria {
 	c.kind = object
-	if info, err := c.search.GetRestMapping(reflect.TypeOf(object).Name()); err == nil {
-		c.namespaceScope = info.Scope.Name() == meta.RESTScopeNameNamespace
+	if info, err := c.search.GetResourceInfo(reflect.TypeOf(object).Name()); err == nil {
+		c.namespaceScope = info.Namespaced
 	} else {
 		log.Logf("Can not found restMapping for resource: %s", reflect.TypeOf(object).Name())
 	}
@@ -395,9 +385,9 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		if err := recover(); err != nil {
 			e = err.(error)
 		}
-		if mapping, errs := c.search.GetRestMapping(c.resourceType); errs == nil {
+		if mapping, errs := c.search.GetResourceInfo(c.resourceType); errs == nil {
 			for _, d := range data {
-				d.(runtime.Object).GetObjectKind().SetGroupVersionKind(mapping.GroupVersionKind)
+				d.(runtime.Object).GetObjectKind().SetGroupVersionKind(mapping.Gvk)
 			}
 		}
 	}()
@@ -412,11 +402,11 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	if c.kind != nil {
 		informer = c.search.informerFactory.InformerFor(c.kind, nil)
 	} else {
-		mapping, err := c.search.GetRestMapping(c.resourceType)
+		mapping, err := c.search.GetResourceInfo(c.resourceType)
 		if err != nil {
 			return nil, errors.Wrapf(err, "not support resource type: %v", c.resourceType)
 		}
-		genericInformer, err := c.search.informerFactory.ForResource(mapping.Resource)
+		genericInformer, err := c.search.informerFactory.ForResource(mapping.Gvr)
 		if err != nil {
 			return nil, errors.Wrapf(err, "get informer failed for resource type: %v", c.resourceType)
 		}

@@ -233,9 +233,9 @@ func TestApiResource(t *testing.T) {
 }
 
 func TestNoListNamespacePermission(t *testing.T) {
-	join := filepath.Join(homedir.HomeDir(), ".nh", "bin", "listnstest")
+	join := filepath.Join(homedir.HomeDir(), ".kube", "minikube")
 	kubeconfigBytes, _ := ioutil.ReadFile(join)
-	s, _ := GetSearcherWithLRU(kubeconfigBytes, "nh99virm")
+	s, _ := GetSearcherWithLRU(kubeconfigBytes, "default")
 	list, er := s.Criteria().Kind(&corev1.Namespace{}).Namespace("default").Query()
 	if er != nil {
 		fmt.Println(er)
