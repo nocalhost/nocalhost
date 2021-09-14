@@ -33,6 +33,8 @@ spec:
             - -alsologtostderr
             - -v=4
             - 2>&1
+          env:
+            #__MATCH_NAMESPACE__#
           volumeMounts:
             - name: webhook-certs
               mountPath: /etc/webhook/certs

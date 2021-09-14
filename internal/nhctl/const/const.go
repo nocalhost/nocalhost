@@ -47,6 +47,9 @@ const (
 
 	DevWorkloadIgnored = "nocalhost.dev.workload.ignored"
 
+	NocalhostCmLabelKey = "dep-management"
+	NocalhostCmLabelValue = "nocalhost"
+
 	NocalhostRoleBindingLabelKey = "owner"
 	NocalhostRoleBindingLabelVal = "nocalhost"
 
