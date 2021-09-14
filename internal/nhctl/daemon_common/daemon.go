@@ -32,6 +32,12 @@ type DaemonServerInfo struct {
 	Upgrading bool
 }
 
+type CheckClusterStatus struct {
+	Available bool
+	Info      string
+	//FailedCount int
+}
+
 type PortForwardProfile struct {
 	Cancel     context.CancelFunc `json:"-"` // For canceling a port forward
 	StopCh     chan error         `json:"-"`
@@ -42,10 +48,6 @@ type PortForwardProfile struct {
 	Role       string             `json:"role"`
 	LocalPort  int                `json:"localPort"`
 	RemotePort int                `json:"remotePort"`
-}
-
-func NewDaemonServerInfo() *DaemonServerInfo {
-	return &DaemonServerInfo{Version: Version}
 }
 
 type DaemonServerStatusResponse struct {

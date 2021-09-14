@@ -8,6 +8,7 @@ package clientgoutils
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"k8s.io/api/batch/v1beta1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/watch"
@@ -128,6 +129,20 @@ func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, 
 	client.ctx = context.TODO()
 
 	return client, nil
+}
+
+func GetKubeContentFromPath(kubePath string) ([]byte, error) {
+	if kubePath == "" { // use default config
+		kubePath = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	}
+
+	abs, err := filepath.Abs(kubePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "please make sure kubeconfig path is reachable")
+	}
+
+	bys, err := ioutil.ReadFile(abs)
+	return bys, errors.Wrap(err, "")
 }
 
 func (c *ClientGoUtils) KubeConfigFilePath() string {

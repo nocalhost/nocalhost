@@ -144,6 +144,25 @@ func (d *DaemonClient) SendGetDaemonServerInfoCommand() (*daemon_common.DaemonSe
 	return daemonServerInfo, err
 }
 
+func (d *DaemonClient) SendCheckClusterStatusCommand(kubeContent string) (*daemon_common.CheckClusterStatus, error) {
+	cmd := &command.CheckClusterStatusCommand{
+		CommandType:       command.CheckClusterStatus,
+		ClientStack:       string(debug.Stack()),
+		KubeConfigContent: kubeContent,
+	}
+
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+
+	r := &daemon_common.CheckClusterStatus{}
+	if err := d.sendAndWaitForResponse(bys, r); err != nil {
+		return nil, err
+	}
+	return r, err
+}
+
 // SendRestartDaemonServerCommand
 // This command tells DaemonServer to run a newer version(by sub progress) with nhctl binary
 // in ClientPath and then stops itself.
