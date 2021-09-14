@@ -48,6 +48,14 @@ var checkClusterCmd = &cobra.Command{
 }
 
 func checkClusterAvailable(kube string, timeout time.Duration) error {
+	//client, err := daemon_client.NewDaemonClient(false)
+	//must(err)
+	//
+	//daemonServerInfo, err := client.SendGetDaemonServerInfoCommand()
+	//must(err)
+	//
+	//marshal, err := json.Marshal(daemonServerInfo)
+	//must(err)
 	var errChan = make(chan error, 1)
 	go func() {
 		c, err := clientgoutils.NewClientGoUtils(kube, "")
