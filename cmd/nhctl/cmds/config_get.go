@@ -122,8 +122,10 @@ var configGetCmd = &cobra.Command{
 			appConfig := nocalhostApp.GetApplicationConfigV2()
 			config := &ConfigForPlugin{}
 			config.Services = make([]*profile.ServiceConfigV2, 0)
-			for _, svcPro := range appConfig.ServiceConfigs {
-				config.Services = append(config.Services, svcPro)
+			if appConfig != nil {
+				for _, svcPro := range appConfig.ServiceConfigs {
+					config.Services = append(config.Services, svcPro)
+				}
 			}
 			bys, err := yaml.Marshal(config)
 			must(errors.Wrap(err, "fail to get application config"))
