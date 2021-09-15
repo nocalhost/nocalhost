@@ -41,6 +41,11 @@ jobs:
             synchthing-linux
             synchthing
 
+      - name: list file linux
+        run: |
+          ls -lha
+          pwd
+
       - name: Build
         run: |
           export GITHUB_ACTION=true
@@ -96,6 +101,10 @@ jobs:
         with:
           path: ./
           key: synchthing-macos-windows-cache
+      - name: list file
+        run: |
+          ls -lha
+          pwd
 
       - name: Build
         run: |
