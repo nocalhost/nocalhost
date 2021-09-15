@@ -11,16 +11,19 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/fp"
+	customyaml3 "nocalhost/pkg/nhctl/utils/custom_yaml_v3"
 )
 
 var renderOps = &RenderOps{}
 
 type RenderOps struct {
 	envPath string
+	origin  bool
 }
 
 func init() {
 	renderCmd.Flags().StringVarP(&renderOps.envPath, "env path", "e", "", "the env file for render injection")
+	renderCmd.Flags().BoolVar(&renderOps.origin, "origin", false, "return the origin result after rendered")
 	rootCmd.AddCommand(renderCmd)
 }
 
@@ -35,11 +38,21 @@ var renderCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+
 		render, err := envsubst.Render(
 			envsubst.LocalFileRenderItem{FilePathEnhance: fp.NewFilePath(args[0])},
 			fp.NewFilePath(renderOps.envPath),
 		)
 		must(errors.Wrap(err, ""))
-		fmt.Print(render)
+
+		if renderOps.origin {
+			fmt.Print(render)
+		} else {
+			m := map[string]interface{}{}
+			_ = customyaml3.Unmarshal([]byte(render), m)
+
+			marshal, _ := customyaml3.Marshal(m)
+			fmt.Print(string(marshal))
+		}
 	},
 }
