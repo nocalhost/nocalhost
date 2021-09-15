@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package testcase
 
@@ -73,7 +73,8 @@ func PortForwardStart(nhctl runner.Client, module string, port int) error {
 		name,
 		fmt.Sprintf("-p%d:9080", port),
 	)
-	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
+	_, _, err = runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
+	return err
 }
 
 func PortForwardServiceStart(cli runner.Client, module string, port int) error {
@@ -93,7 +94,7 @@ func PortForwardServiceStart(cli runner.Client, module string, port int) error {
 
 func StatusCheckPortForward(nhctl runner.Client, moduleName string, port int) error {
 	cmd := nhctl.GetNhctl().Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
-	stdout, stderr, err := runner.Runner.Run(nhctl.SuiteName(), cmd)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	if err != nil {
 		return errors.Errorf(
 			"exec command: %v, error: %v, stdout: %s, stderr: %s",
