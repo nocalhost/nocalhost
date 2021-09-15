@@ -15,6 +15,7 @@ import (
 	"nocalhost/test/util"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -215,7 +216,7 @@ func (t *task) CreateTKE() {
 		if err != nil {
 			var s string
 			if strings.Contains(err.Error(), "CIDR_CONFLICT_WITH") {
-				s = "cidr conflicted, retrying " + string(rune(i))
+				s = "cidr conflicted, retrying " + strconv.Itoa(i)
 			} else if strings.Contains(err.Error(), "ResourceInsufficient.SpecifiedInstanceType") {
 				goto instanceTypeRetry
 			} else {
