@@ -28,12 +28,18 @@ jobs:
         with:
           path: ./
           key: synchthing-macos-windows-cache
+          restore-keys: |
+            synchthing-linux
+            synchthing
 
       - name: Get synchting linux cache
         uses: actions/cache@v2
         with:
           path: ./
           key: synchthing-linux-cache
+          restore-keys: |
+            synchthing-linux
+            synchthing
 
       - name: Build
         run: |
