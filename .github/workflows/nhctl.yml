@@ -35,11 +35,6 @@ jobs:
           name: synchthing-linux-cache
           path: ./
 
-      - name: list file linux
-        run: |
-          ls -lha
-          pwd
-
       - name: Build
         run: |
           export GITHUB_ACTION=true
@@ -95,10 +90,6 @@ jobs:
         with:
           name: synchthing-macos-windows-cache
           path: ./
-      - name: list file
-        run: |
-          ls -lha
-          pwd
 
       - name: Build
         run: |
@@ -155,7 +146,7 @@ jobs:
         run: |
           curl -T syncthing-linux-amd64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=${GITHUB_SHA}" --retry 5
 
-      - name: upload linux syncthing to artifact
+      - name: Upload linux syncthing to artifact
         uses: actions/upload-artifact@v2
         with:
           path: ./syncthing-source/syncthing-linux-amd64.tar.gz
@@ -192,7 +183,7 @@ jobs:
           curl -T syncthing-windows-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=${GITHUB_SHA}" --retry 5
           curl -T syncthing-macos-arm64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.zip?version=${GITHUB_SHA}" --retry 5
 
-      - name: update macos and windows synchting to artifact
+      - name: Update macos and windows synchting to artifact
         uses: actions/upload-artifact@v2
         with:
           path: |
