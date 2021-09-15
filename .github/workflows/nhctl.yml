@@ -26,13 +26,13 @@ jobs:
       - name: Get synchting macos and windows cache
         uses: actions/download-artifact@v2
         with:
-          name: synchthing-macos-windows-cache
+          name: synchthing-macos-windows-cache-${GITHUB_SHA}
           path: ./
 
       - name: Get synchting linux cache
         uses: actions/download-artifact@v2
         with:
-          name: synchthing-linux-cache
+          name: synchthing-linux-cache-${GITHUB_SHA}
           path: ./
 
       - name: Build
@@ -88,7 +88,7 @@ jobs:
       - name: Get synchting macos and windows cache
         uses: actions/download-artifact@v2
         with:
-          name: synchthing-macos-windows-cache
+          name: synchthing-macos-windows-cache-${GITHUB_SHA}
           path: ./
 
       - name: Build
@@ -150,7 +150,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           path: ./syncthing-source/syncthing-linux-amd64.tar.gz
-          name: synchthing-linux-cache
+          name: synchthing-linux-cache-${GITHUB_SHA}
 
   build-syncthing-macos-windows:
     name: Build syncthing macos windows
@@ -190,5 +190,5 @@ jobs:
             ./syncthing-source/syncthing-macos-amd64.zip
             ./syncthing-source/syncthing-windows-amd64.zip
             ./syncthing-source/syncthing-macos-arm64.zip
-          name: synchthing-macos-windows-cache
+          name: synchthing-macos-windows-cache-${GITHUB_SHA}
 
