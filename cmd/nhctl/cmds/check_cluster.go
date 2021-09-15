@@ -65,7 +65,7 @@ func checkClusterAvailable(kube string) error {
 		return err
 	}
 	if checkClusterStatus.Available == false {
-		return errors.New(err.Error())
+		return errors.New(checkClusterStatus.Info)
 	}
 	return nil
 }

@@ -6,13 +6,17 @@
 package model
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"time"
 
 	validator "github.com/go-playground/validator/v10"
+	"github.com/pkg/errors"
 )
 
 const (
 	IsolateSpace SpaceType = "IsolateSpace"
+	ShareSpace   SpaceType = "ShareSpace"
 )
 
 var DevSpaceOwnTypeOwner SpaceOwnType = SpaceOwnType{"Owner", 1000}
@@ -29,6 +33,8 @@ type ClusterUserV2 struct {
 	Namespace          string    `gorm:"column:namespace;not null" json:"namespace"`
 	SpaceName          string    `gorm:"column:space_name;not null;type:VARCHAR(100);comment:'default is application[username]'" json:"space_name"`
 	ClusterId          uint64    `gorm:"column:cluster_id;not null" json:"cluster_id"`
+	IsBaseSpace        bool      `gorm:"column:is_base_space;default:false" json:"is_base_space"`
+	BaseDevSpaceId     uint64    `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`
 	SpaceResourceLimit string    `gorm:"column:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
 	CreatedAt          time.Time `gorm:"column:created_at" json:"created_at"`
 
@@ -44,12 +50,17 @@ type SpaceOwnType struct {
 }
 
 type ClusterUserExt struct {
-	SpaceType        SpaceType     `json:"space_type"`
-	SpaceOwnType     SpaceOwnType  `json:"space_own_type"`
-	ResourceLimitSet bool          `json:"resource_limit_set"`
-	CooperUser       []*UserSimple `json:"cooper_user"`
-	ViewerUser       []*UserSimple `json:"viewer_user"`
-	Owner            *UserSimple   `json:"owner"`
+	ClusterName           string        `json:"cluster_name"`
+	SpaceType             SpaceType     `json:"space_type"`
+	SpaceOwnType          SpaceOwnType  `json:"space_own_type"`
+	ResourceLimitSet      bool          `json:"resource_limit_set"`
+	CooperUser            []*UserSimple `json:"cooper_user"`
+	ViewerUser            []*UserSimple `json:"viewer_user"`
+	Owner                 *UserSimple   `json:"owner"`
+	Modifiable            bool          `json:"modifiable"`
+	Deletable             bool          `json:"deletable"`
+	BaseDevSpaceName      string        `json:"base_dev_space_name"`
+	BaseDevSpaceNameSpace string        `json:"base_dev_space_namespace"`
 }
 
 // ClusterUserModel
@@ -68,6 +79,9 @@ type ClusterUserModel struct {
 	Namespace          string     `gorm:"column:namespace;not null" json:"namespace"`
 	Status             *uint64    `gorm:"column:status;default:0" json:"status"`
 	ClusterAdmin       *uint64    `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
+	IsBaseSpace        bool       `gorm:"column:is_base_space;default:false" json:"is_base_space"`
+	BaseDevSpaceId     uint64     `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`
+	TraceHeader        Header     `gorm:"cloumn:trace_header;type:VARCHAR(256);" json:"trace_header"`
 	CreatedAt          time.Time  `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt          time.Time  `gorm:"column:updated_at" json:"-"`
 	DeletedAt          *time.Time `gorm:"column:deleted_at" json:"-"`
@@ -138,4 +152,26 @@ func (u *ClusterUserModel) Validate() error {
 // TableName
 func (u *ClusterUserModel) TableName() string {
 	return "clusters_users"
+}
+
+type Header struct {
+	TraceKey   string `json:"key"`
+	TraceValue string `json:"value"`
+	TraceType  string `json:"type"`
+}
+
+func (h *Header) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	b, ok := value.([]byte)
+	if !ok {
+		return errors.Errorf("value is not []byte, value: %v", value)
+	}
+	return json.Unmarshal(b, h)
+}
+
+func (h Header) Value() (driver.Value, error) {
+	return json.Marshal(h)
 }

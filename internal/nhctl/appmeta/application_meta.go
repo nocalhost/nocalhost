@@ -74,6 +74,17 @@ const (
 
 var ErrAlreadyDev = errors.New("Svc already in dev mode")
 
+func GetAppNameFromConfigMapName(cmName string) string {
+	if HasConfigMapPrefix(cmName) {
+		return strings.TrimPrefix(cmName, CmNamePrefix)
+	}
+	return ""
+}
+
+func HasConfigMapPrefix(key string) bool {
+	return strings.HasPrefix(key, CmNamePrefix)
+}
+
 func ConfigMapName(appName string) string {
 	return CmNamePrefix + appName
 }
@@ -317,6 +328,13 @@ func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, n
 	s.Associate = pack.GetAssociatePath().ToString()
 	s.Developing = devStatus != NONE
 	s.DevelopStatus = string(devStatus)
+
+	if meta.Config != nil {
+		svcConfig := meta.Config.GetSvcConfigV2(s.GetName(), svcType)
+		if svcConfig != nil {
+			s.ServiceConfigV2 = svcConfig
+		}
+	}
 
 	s.Possess = meta.SvcDevModePossessor(
 		s.GetName(), svcType,

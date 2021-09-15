@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -35,7 +35,10 @@ var renderCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		render, err := envsubst.Render(fp.NewFilePath(args[0]), fp.NewFilePath(renderOps.envPath))
+		render, err := envsubst.Render(
+			envsubst.LocalFileRenderItem{FilePathEnhance: fp.NewFilePath(args[0])},
+			fp.NewFilePath(renderOps.envPath),
+		)
 		must(errors.Wrap(err, ""))
 		fmt.Print(render)
 	},

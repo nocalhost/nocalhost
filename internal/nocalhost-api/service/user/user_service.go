@@ -85,8 +85,8 @@ func (srv *userService) GetCacheBySa(sa string) (model.UserBaseModel, error) {
 		return model.UserBaseModel{}, errors.Wrapf(err, "get user")
 	}
 
-	c.Add(result.ID, time.Hour, result)
-	c.Add(result.SaName, time.Hour, result)
+	c.Add(result.ID, cache.OUT_OF_DATE, result)
+	c.Add(result.SaName, cache.OUT_OF_DATE, result)
 	return *result, nil
 }
 
@@ -103,8 +103,8 @@ func (srv *userService) GetCache(id uint64) (model.UserBaseModel, error) {
 		return model.UserBaseModel{}, errors.Wrapf(err, "get user")
 	}
 
-	c.Add(result.ID, time.Hour, result)
-	c.Add(result.SaName, time.Hour, result)
+	c.Add(result.ID, cache.OUT_OF_DATE, result)
+	c.Add(result.SaName, cache.OUT_OF_DATE, result)
 	return *result, nil
 }
 

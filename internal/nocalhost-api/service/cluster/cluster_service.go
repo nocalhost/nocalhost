@@ -7,12 +7,10 @@ package cluster
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"nocalhost/internal/nocalhost-api/cache"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/repository/cluster"
-	"time"
-
-	"github.com/pkg/errors"
 )
 
 type ClusterService interface {
@@ -27,6 +25,7 @@ type ClusterService interface {
 
 	GetCache(id uint64) (model.ClusterModel, error)
 	Close()
+	DeleteByCreator(ctx context.Context, id uint64) error
 }
 
 type clusterService struct {
@@ -58,7 +57,7 @@ func (srv *clusterService) GetCache(id uint64) (model.ClusterModel, error) {
 		return result, errors.Wrapf(err, "get cluster")
 	}
 
-	c.Add(result.ID, time.Hour, &result)
+	c.Add(result.ID, cache.OUT_OF_DATE, &result)
 	return result, nil
 }
 
@@ -112,4 +111,8 @@ func (srv *clusterService) Get(ctx context.Context, id uint64) (model.ClusterMod
 
 func (srv *clusterService) Close() {
 	srv.clusterRepo.Close()
+}
+
+func (srv *clusterService) DeleteByCreator(ctx context.Context, userid uint64) error {
+	return srv.clusterRepo.DeleteByCreator(ctx, userid)
 }

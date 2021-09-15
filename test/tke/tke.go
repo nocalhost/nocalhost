@@ -36,18 +36,8 @@ func CreateK8s() (*task, error) {
 	t.CreateTKE()
 	t.WaitClusterToBeReady()
 	t.WaitInstanceToBeReady()
-	retryTimes := 250
-	var ok = false
-	for i := 0; i < retryTimes; i++ {
-		t.EnableInternetAccess()
-		if t.WaitNetworkToBeReady() {
-			ok = true
-			break
-		}
-		time.Sleep(time.Second * 2)
-	}
-	if !ok {
-		return t, errors.New("enable internet access error, please checkout you tke cluster")
+	t.EnableInternetAccess()
+	for !t.WaitNetworkToBeReady() {
 	}
 	t.GetKubeconfig()
 	return t, nil
@@ -226,6 +216,8 @@ func (t *task) CreateTKE() {
 			var s string
 			if strings.Contains(err.Error(), "CIDR_CONFLICT_WITH") {
 				s = "cidr conflicted, retrying " + string(rune(i))
+			} else if strings.Contains(err.Error(), "ResourceInsufficient.SpecifiedInstanceType") {
+				goto instanceTypeRetry
 			} else {
 				s = fmt.Sprintf("error has returned: %s, retrying", err.Error())
 			}
@@ -238,6 +230,32 @@ func (t *task) CreateTKE() {
 			return
 		} else {
 			log.Info("response is null, retrying " + string(rune(i)))
+		}
+	}
+
+instanceTypeRetry:
+	for _, instanceType := range []string{"SA2.MEDIUM8", "SA2.MEDIUM4", "SA2.LARGE8", "S2.MEDIUM8", "S2.LARGE8", "S2.MEDIUM4", "S5.MEDIUM8", "S5.LARGE8", "S5.MEDIUM4"} {
+		for {
+			p.InstanceType = instanceType
+			bytes, _ = json.Marshal(p)
+			configStr = string(bytes)
+			request.RunInstancesForNode = []*tke.RunInstancesForNode{{
+				NodeRole:         &DefaultConfig.nodeRole,
+				RunInstancesPara: []*string{&configStr},
+			}}
+			response, err := t.GetClient().CreateCluster(request)
+			if err != nil {
+				if strings.Contains(err.Error(), "ResourceInsufficient.SpecifiedInstanceType") {
+					log.Infof("The specified type: %s of instance is understocked", instanceType)
+					break
+				}
+				continue
+			}
+			if response != nil && response.Response != nil && response.Response.ClusterId != nil {
+				t.clusterId = *response.Response.ClusterId
+				log.Infof("create tke successfully, clusterId: %s, instanceType: %s", t.clusterId, instanceType)
+				return
+			}
 		}
 	}
 }

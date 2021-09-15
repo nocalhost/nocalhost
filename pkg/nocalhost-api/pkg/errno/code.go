@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package errno
 
@@ -70,7 +70,10 @@ var (
 		Code:    30113,
 		Message: "Failed to get the connection from current cluster after short wait, please make sure the cluster exists and check it's network connectivity",
 	}
-	ErrClusterKubeConnect = &Errno{Code: 30114, Message: "Connect cluster fail, Please check cluster connectivity"}
+	ErrClusterKubeConnect  = &Errno{Code: 30114, Message: "Connect cluster fail, Please check cluster connectivity"}
+	ErrClusterGenNamespace = &Errno{Code: 30115, Message: "Failed to gen namespace"}
+	ErrUserIdRequired      = &Errno{Code: 50116, Message: "User id parameter required"}
+	ErrUserIdFormat        = &Errno{Code: 50117, Message: "User id must be an unsigned integer greater than zero"}
 
 	// application errors for application module request
 	ErrApplicationCreate        = &Errno{Code: 40100, Message: "Failed to add app, please try again"}
@@ -156,6 +159,29 @@ var (
 		Code:    50124,
 		Message: "Cluster user authorization failed: encoding ServiceAccount Kubeconfig Struct to Json failed",
 	}
+	ErrShareUserSameAsOwner   = &Errno{Code: 50125, Message: "The share user same as owner"}
+	ErrSpaceNameAlreadyExists = &Errno{
+		Code:    50126,
+		Message: "The space name already exists, please change the space name",
+	}
+
+	// cluster-user errors for mesh space
+	ErrMeshClusterUserNotFound          = &Errno{Code: 50200, Message: "Base dev space has not found"}
+	ErrMeshClusterUserNamespaceNotFound = &Errno{Code: 50201, Message: "Base dev namespace has not found"}
+	ErrInitMeshSpaceFailed              = &Errno{Code: 50202, Message: "Failed to initialize share space"}
+	ErrGetDevSpaceAppInfo               = &Errno{Code: 50203, Message: "Failed to get share space info"}
+	ErrUpdateMeshSpaceFailed            = &Errno{Code: 50204, Message: "Failed to update share space"}
+	ErrDeleteTracingHeaderFailed        = &Errno{Code: 50205, Message: "Failed to delete tracing header"}
+	ErrUpdateBaseSpace                  = &Errno{Code: 50206, Message: "Base space can't be updated"}
+	ErrUseAsBaseSpace                   = &Errno{Code: 50207, Message: "Can't be used as base space"}
+	ErrValidateMeshInfo                 = &Errno{Code: 50208, Message: "Incorrect share space parameter"}
+	ErrMeshInfoRequired                 = &Errno{Code: 50209, Message: "Share space parameter required"}
+	ErrBaseSpaceReSet                   = &Errno{Code: 50210, Message: "Base space can't be reset"}
+	ErrAsBothBaseSpaceAndShareSpace     = &Errno{
+		Code:    50211,
+		Message: "Cannot be set as both base space and shared space",
+	}
+	ErrIstioNotFound = &Errno{Code: 50212, Message: "Please ensure the Istio is installed and running in your cluster"}
 
 	// application-user for application-user module request
 	ErrListApplicationUser = &Errno{
