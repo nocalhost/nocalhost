@@ -156,6 +156,8 @@ func installBookInfoRawManifest(nhctl runner.Client) error {
 		"-r", "test-case",
 		"--resource-path",
 		"manifest/templates",
+		"--config",
+		"config.manifest.git.yaml",
 	)
 	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
@@ -171,6 +173,8 @@ func installBookInfoKustomizeGit(nhctl runner.Client) error {
 		string(appmeta.KustomizeGit),
 		"--resource-path",
 		"kustomize/base",
+		"--config",
+		"config.kustomize.yaml",
 	)
 	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
@@ -186,6 +190,8 @@ func installBookInfoHelmGit(nhctl runner.Client) error {
 		string(appmeta.Helm),
 		"--resource-path",
 		"charts/bookinfo",
+		"--config",
+		"config.helm.yaml",
 	)
 	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
@@ -214,6 +220,8 @@ func installBookInfoRawManifestLocal(nhctl runner.Client) error {
 		dir,
 		"--resource-path",
 		"manifest/templates",
+		"--config",
+		"config.manifest.local.yaml",
 	)
 	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
@@ -242,6 +250,8 @@ func installBookInfoKustomizeGitLocal(nhctl runner.Client) error {
 		dir,
 		"--resource-path",
 		"kustomize/base",
+		"--config",
+		"config.kustomize.local.yaml",
 	)
 	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
@@ -269,6 +279,8 @@ func installBookInfoHelmLocal(nhctl runner.Client) error {
 		dir,
 		"--resource-path",
 		"charts/bookinfo",
+		"--config",
+		"config.helm.local.yaml",
 	)
 	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
