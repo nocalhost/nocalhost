@@ -354,7 +354,7 @@ func (c *ClientGoUtils) ListLatestRevisionPodsByDeployment(deployName string) ([
 
 OuterLoop:
 	for _, pod := range podList.Items {
-		if pod.OwnerReferences == nil {
+		if pod.OwnerReferences == nil || pod.DeletionTimestamp != nil {
 			continue
 		}
 		for _, ref := range pod.OwnerReferences {

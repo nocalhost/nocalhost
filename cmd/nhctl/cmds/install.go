@@ -164,11 +164,31 @@ var installCmd = &cobra.Command{
 					log.WarnE(errors.New("Pod controller is nil"), "")
 					continue
 				}
-				podName, err := controller.GetDefaultPodName(ctx, nhSvc.BuildPodController())
-				if err != nil {
-					log.WarnE(err, "")
+
+				var i int
+				for i = 0; i < 60; i++ {
+					<-time.After(time.Second)
+					podName, err := controller.GetDefaultPodName(ctx, nhSvc.BuildPodController())
+					if err != nil {
+						log.WarnE(err, "")
+						continue
+					}
+					log.Infof("Waiting pod %s to be ready", podName)
+					pod, err := nocalhostApp.GetClient().GetPod(podName)
+					if err != nil {
+						log.Info(err.Error())
+						continue
+					}
+					if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
+						log.Infof("Pod %s is ready", podName)
+						break
+					}
+				}
+				if i == 60 {
+					log.Warn("Waiting pod to be ready timeout, continue...")
 					continue
 				}
+
 				for _, pf := range cc.Install.PortForward {
 					lPort, rPort, err := controller.GetPortForwardForString(pf)
 					if err != nil {
