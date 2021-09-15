@@ -10,7 +10,7 @@ on:
 jobs:
 
   build-nhctl-windows-linux:
-    needs: [build-syncthing-linux-amd64, build-syncthing-macos-windows]
+    needs: [ build-syncthing-linux-amd64, build-syncthing-macos-windows ]
     name: Build nhctl
     runs-on: ubuntu-latest
     steps:
@@ -23,8 +23,21 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
 
+      - name: Get synchting macos and windows cache
+        uses: actions/cache@v2
+        with:
+          path: ./
+          key: synchthing-macos-windows-cache
+
+      - name: Get synchting linux cache
+        uses: actions/cache@v2
+        with:
+          path: ./
+          key: synchthing-linux-cache
+
       - name: Build
         run: |
+          export GITHUB_ACTION=true
           make nhctl-linux
           make nhctl-windows
 
@@ -72,8 +85,16 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
 
+      - name: Get synchting macos and windows cache
+        uses: actions/cache@v2
+        with:
+          path: ./
+          key: synchthing-macos-windows-cache
+
       - name: Build
-        run: make nhctl-osx
+        run: |
+          export GITHUB_ACTION=true
+          make nhctl-osx
 
       - name: Push to Coding Artifacts
         if: ${{ github.repository == 'nocalhost/nocalhost' }}
@@ -125,6 +146,13 @@ jobs:
         run: |
           curl -T syncthing-linux-amd64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=${GITHUB_SHA}" --retry 5
 
+      - name: Add to cache
+        uses: actions/cache@v2
+        id: nhctl-cache
+        with:
+          path: ./syncthing-source
+          key: synchthing-linux-cache
+
   build-syncthing-macos-windows:
     name: Build syncthing macos windows
     runs-on: macos-latest
@@ -155,3 +183,11 @@ jobs:
           curl -T syncthing-macos-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=${GITHUB_SHA}" --retry 5
           curl -T syncthing-windows-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=${GITHUB_SHA}" --retry 5
           curl -T syncthing-macos-arm64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.zip?version=${GITHUB_SHA}" --retry 5
+
+      - name: Add macos and windows synchting to cache
+        uses: actions/cache@v2
+        id: nhctl-cache
+        with:
+          path: ./syncthing-source
+          key: synchthing-macos-windows-cache
+
