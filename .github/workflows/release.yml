@@ -24,10 +24,23 @@ jobs:
       - name: Get tag
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
+      - name: Get synchting macos and windows cache
+        uses: actions/download-artifact@v2
+        with:
+          name: synchthing-macos-windows-cache-${GITHUB_SHA}
+          path: ./
+
+      - name: Get synchting linux cache
+        uses: actions/download-artifact@v2
+        with:
+          name: synchthing-linux-cache-${GITHUB_SHA}
+          path: ./
+
       - name: Build nhctl
         env:
           VERSION: ${{ env.RELEASE_VERSION }}
         run: |
+          export GITHUB_ACTION=true
           make nhctl-cross
           shasum -a 256 build/nhctl-linux-amd64 | awk '{print $1}' > build/nhctl-linux-amd64-SHA256
           shasum -a 256 build/nhctl-darwin-amd64 | awk '{print $1}' > build/nhctl-darwin-amd64-SHA256
@@ -355,6 +368,12 @@ jobs:
         run: |
           curl -T syncthing-linux-amd64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=${{ env.RELEASE_VERSION }}"
 
+      - name: Upload linux syncthing to artifact
+        uses: actions/upload-artifact@v2
+        with:
+          path: ./syncthing-source/syncthing-linux-amd64.tar.gz
+          name: synchthing-linux-cache-${GITHUB_SHA}
+
   build-syncthing-macos-windows:
     name: Build syncthing macos
     runs-on: macos-latest
@@ -387,6 +406,14 @@ jobs:
           curl -T syncthing-macos-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=${{ env.RELEASE_VERSION }}"
           curl -T syncthing-macos-arm64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.zip?version=${{ env.RELEASE_VERSION }}"
           curl -T syncthing-windows-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=${{ env.RELEASE_VERSION }}"
+      - name: Update macos and windows synchting to artifact
+        uses: actions/upload-artifact@v2
+        with:
+          path: |
+            ./syncthing-source/syncthing-macos-amd64.zip
+            ./syncthing-source/syncthing-windows-amd64.zip
+            ./syncthing-source/syncthing-macos-arm64.zip
+          name: synchthing-macos-windows-cache-${GITHUB_SHA}
 
 
   update-coding-git-repo:
