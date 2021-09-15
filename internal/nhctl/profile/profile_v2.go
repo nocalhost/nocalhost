@@ -44,9 +44,9 @@ type AppProfileV2 struct {
 	// Deprecated
 	AppType string `json:"appType" yaml:"appType"`
 	// Deprecated
-	Env []*Env `json:"env" yaml:"env"`
-	// Deprecated
-	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
+	//Env []*Env `json:"env" yaml:"env"`
+	//// Deprecated
+	//EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
 
 	// app global field
 	Namespace  string `json:"namespace" yaml:"namespace"`
