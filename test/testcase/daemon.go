@@ -94,7 +94,7 @@ func PortForwardServiceStart(cli runner.Client, module string, port int) error {
 
 func StatusCheckPortForward(nhctl runner.Client, moduleName string, port int) error {
 	cmd := nhctl.GetNhctl().Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
-	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
+	stdout, stderr, err := runner.Runner.Run(nhctl.SuiteName(), cmd)
 	if err != nil {
 		return errors.Errorf(
 			"exec command: %v, error: %v, stdout: %s, stderr: %s",
@@ -104,7 +104,7 @@ func StatusCheckPortForward(nhctl runner.Client, moduleName string, port int) er
 	service := profile2.SvcProfileV2{}
 	_ = yaml.Unmarshal([]byte(stdout), &service)
 	bytes, _ := json.Marshal(service)
-	log.Info(string(bytes))
+	log.TestLogger(nhctl.SuiteName()).Info(string(bytes))
 	if !service.PortForwarded {
 		return errors.New("test case failed, should be port forwarding")
 	}
