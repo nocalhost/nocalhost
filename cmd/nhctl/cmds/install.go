@@ -169,6 +169,20 @@ var installCmd = &cobra.Command{
 					log.WarnE(err, "")
 					continue
 				}
+				log.Infof("Waiting pod %s to be ready", podName)
+				for i := 0; i < 300; i++ {
+					<-time.After(time.Second)
+					pod, err := nocalhostApp.GetClient().GetPod(podName)
+					if err != nil {
+						log.Info(err.Error())
+						continue
+					}
+					if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
+						log.Infof("Pod %s is ready", podName)
+						break
+					}
+				}
+
 				for _, pf := range cc.Install.PortForward {
 					lPort, rPort, err := controller.GetPortForwardForString(pf)
 					if err != nil {
