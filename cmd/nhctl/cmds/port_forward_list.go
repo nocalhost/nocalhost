@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -52,8 +52,8 @@ var portForwardListCmd = &cobra.Command{
 		for _, sp := range p.SvcProfile {
 			for _, pf := range sp.DevPortForwardList {
 				pfList = append(pfList, PortForwardItem{
-					SvcName:         sp.ActualName,
-					ServiceType:     sp.Type,
+					SvcName:         sp.GetName(),
+					ServiceType:     sp.GetType(),
 					Port:            fmt.Sprintf("%d:%d", pf.LocalPort, pf.RemotePort),
 					Status:          pf.Status,
 					Role:            pf.Role,

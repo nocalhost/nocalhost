@@ -47,7 +47,7 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(cmd *command.PortForwardCo
 		return err
 	}
 
-	kube, err := nocalhost.GetKubeConfigFromProfile(cmd.NameSpace, cmd.AppName)
+	kube, err := nocalhost.GetKubeConfigFromProfile(cmd.NameSpace, cmd.AppName, cmd.Nid)
 	if err != nil {
 		return err
 	}
@@ -72,27 +72,27 @@ func (p *PortForwardManager) ListAllRunningPFGoRoutineProfile() []*daemon_common
 	return result
 }
 
-func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string) error {
-	profile, err := nocalhost.GetProfileV2(ns, appName)
+func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid string) error {
+	profile, err := nocalhost.GetProfileV2(ns, appName, nid)
 	if err != nil {
 		if errors.Is(err, nocalhost.ProfileNotFound) {
-			log.Warnf("Profile is not exist, so ignore for recovering port forward")
+			log.Warn("Profile is not exist, so ignore for recovering port forward")
 			return nil
 		}
 		return err
 	}
-	if profile == nil {
-		return errors.New(fmt.Sprintf("Profile not found %s-%s", ns, appName))
-	}
+	//if profile == nil {
+	//	return errors.New(fmt.Sprintf("Profile not found %s-%s", ns, appName))
+	//}
 
 	for _, svcProfile := range profile.SvcProfile {
 		for _, pf := range svcProfile.DevPortForwardList {
 			if pf.Sudo == isSudo { // Only recover port-forward managed by this daemon server
-				log.Logf("Recovering port-forward %d:%d of %s-%s", pf.LocalPort, pf.RemotePort, ns, appName)
+				log.Logf("Recovering port-forward %d:%d of %s-%s-%s", pf.LocalPort, pf.RemotePort, nid, ns, appName)
 				svcType := pf.ServiceType
 				// For compatibility
 				if svcType == "" {
-					svcType = svcProfile.Type
+					svcType = svcProfile.GetType()
 				}
 				if svcType == "" {
 					svcType = "deployment"
@@ -102,12 +102,13 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string
 						CommandType: command.StartPortForward,
 						NameSpace:   ns,
 						AppName:     appName,
-						Service:     svcProfile.ActualName,
+						Service:     svcProfile.GetName(),
 						ServiceType: svcType,
 						PodName:     pf.PodName,
 						LocalPort:   pf.LocalPort,
 						RemotePort:  pf.RemotePort,
 						Role:        pf.Role,
+						Nid:         nid,
 					}, false,
 				)
 				if err != nil {
@@ -120,7 +121,12 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName string
 }
 
 func (p *PortForwardManager) RecoverAllPortForward() error {
-	log.Info("Recovering port-forward")
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("DAEMON-RECOVER in RecoverAllPortForward: %s", string(debug.Stack()))
+		}
+	}()
+	log.Info("Recovering all port-forward")
 	// Find all app
 	appMap, err := nocalhost.GetNsAndApplicationInfo()
 	if err != nil {
@@ -128,16 +134,14 @@ func (p *PortForwardManager) RecoverAllPortForward() error {
 	}
 
 	wg := sync.WaitGroup{}
-	for ns, apps := range appMap {
-		for _, appName := range apps {
-			wg.Add(1)
-			go func(namespace, app string) {
-				defer wg.Done()
-				if err = p.RecoverPortForwardForApplication(namespace, app); err != nil {
-					log.LogE(err)
-				}
-			}(ns, appName)
-		}
+	for _, app := range appMap {
+		wg.Add(1)
+		go func(namespace, app, nid string) {
+			defer wg.Done()
+			if err = p.RecoverPortForwardForApplication(namespace, app, nid); err != nil {
+				log.LogE(err)
+			}
+		}(app.Namespace, app.Name, app.Nid)
 	}
 	wg.Wait()
 	return nil
@@ -156,7 +160,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		}
 	}
 
-	kube, err := nocalhost.GetKubeConfigFromProfile(startCmd.NameSpace, startCmd.AppName)
+	kube, err := nocalhost.GetKubeConfigFromProfile(startCmd.NameSpace, startCmd.AppName, startCmd.Nid)
 	if err != nil {
 		return err
 	}
@@ -391,7 +395,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 						delete(p.pfList, key)
 						return
 					}
-					log.WarnE(err, "Port-forward failed, reconnecting after 30 seconds...")
+					log.WarnE(err, fmt.Sprintf("Port-forward %d:%d failed, reconnecting after 30 seconds...", localPort, remotePort))
 					heartBeatCancel()
 					p.lock.Lock()
 					err = nhController.UpdatePortForwardStatus(localPort, remotePort, "RECONNECTING",

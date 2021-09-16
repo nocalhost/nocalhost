@@ -9,6 +9,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/kubernetes/scheme"
+	"math/rand"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	istio "istio.io/client-go/pkg/clientset/versioned"
 	apiappsV1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
@@ -23,23 +33,23 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
-	"math/rand"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const (
 	DepInstaller   = "dep-installer-job"
 	Dep            = "nocalhost-dep"
 	NocalhostLabel = "nocalhost-managed"
+	Api            = "nocalhost-api"
 )
 
 var LimitedRules = &rbacv1.PolicyRule{
@@ -49,8 +59,14 @@ var LimitedRules = &rbacv1.PolicyRule{
 }
 
 type GoClient struct {
+	mu sync.Mutex
+
 	clusterIpAccessMode bool
 	client              *kubernetes.Clientset
+	DynamicClient       dynamic.Interface
+	istioClient         *istio.Clientset
+	mapper              *restmapper.DeferredDiscoveryRESTMapper
+	restConfig          *rest.Config
 	Config              []byte
 }
 
@@ -61,6 +77,10 @@ type InitResult struct {
 
 // new client with time out
 func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
+	return NewAdminGoClientWithTimeout(kubeconfig, time.Second*5)
+}
+
+func NewAdminGoClientWithTimeout(kubeconfig []byte, duration time.Duration) (*GoClient, error) {
 	initCh := make(chan *InitResult)
 
 	go func() {
@@ -75,7 +95,7 @@ func NewAdminGoClient(kubeconfig []byte) (*GoClient, error) {
 	case res := <-initCh:
 		return res.goClient, res.err
 
-	case <-time.After(5 * time.Second):
+	case <-time.After(duration):
 		log.Infof("Initial k8s Go Client timeout!")
 		return nil, errno.ErrClusterTimeout
 	}
@@ -128,6 +148,9 @@ func newAdminGoClientTimeUnreliable(kubeconfig []byte) (*GoClient, error) {
 	return nil, errors.New("can't not create client go with current kubeconfig")
 }
 
+func NewGoClient(kubeconfig []byte) (*GoClient, error) {
+	return newGoClient(kubeconfig)
+}
 func newGoClient(kubeconfig []byte) (*GoClient, error) {
 	c, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 	if err != nil {
@@ -137,8 +160,16 @@ func newGoClient(kubeconfig []byte) (*GoClient, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	dynamicClient, err := dynamic.NewForConfig(c)
+	if err != nil {
+		return nil, err
+	}
+
 	client := &GoClient{
-		client: clientSet,
+		client:        clientSet,
+		DynamicClient: dynamicClient,
+		restConfig:    c,
 	}
 	return client, nil
 }
@@ -186,8 +217,16 @@ func newGoClientUseCurrentClusterHost(kubeconfig []byte) (*GoClient, error, []by
 	if err != nil {
 		return nil, err, nil
 	}
+
+	dynamicClient, err := dynamic.NewForConfig(c)
+	if err != nil {
+		return nil, err, nil
+	}
+
 	client := &GoClient{
-		client: clientSet,
+		client:        clientSet,
+		DynamicClient: dynamicClient,
+		restConfig:    c,
 	}
 	return client, nil, newConfig
 }
@@ -239,16 +278,17 @@ func (c *GoClient) IfNocalhostNameSpaceExist() (bool, error) {
 
 // When create sub namespace for developer, label should set "nocalhost" for nocalhost-dep admission webhook muting
 // when create nocalhost-reserved namesapce, label should set "nocalhost-reserved"
-func (c *GoClient) CreateNS(namespace, label string) (bool, error) {
-	if label == "" {
+func (c *GoClient) CreateNS(namespace string, labels map[string]string) (bool, error) {
+	if labels == nil {
+		labels = make(map[string]string, 0)
+	}
+	if labels["env"] == "" {
 		if namespace == global.NocalhostSystemNamespace {
-			label = global.NocalhostSystemNamespaceLabel
+			labels["env"] = global.NocalhostSystemNamespaceLabel
 		} else {
-			label = global.NocalhostDevNamespaceLabel
+			labels["env"] = global.NocalhostDevNamespaceLabel
 		}
 	}
-	labels := make(map[string]string, 0)
-	labels["env"] = label
 	nsSpec := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace, Labels: labels}}
 	_, err := c.client.CoreV1().Namespaces().Create(context.TODO(), nsSpec, metav1.CreateOptions{})
 	if err != nil {
@@ -592,6 +632,22 @@ func (c *GoClient) UpdateRole(name, namespace string, rbacRule []rbacv1.PolicyRu
 	before.Rules = rbacRule
 
 	_, err = c.client.RbacV1().Roles(namespace).Update(context.TODO(), before, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *GoClient) UpdateClusterRole(name string, rbacRule []rbacv1.PolicyRule) error {
+
+	before, err := c.client.RbacV1().ClusterRoles().Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	before.Rules = rbacRule
+
+	_, err = c.client.RbacV1().ClusterRoles().Update(context.TODO(), before, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -1002,7 +1058,7 @@ func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool,
 					Containers: []corev1.Container{
 						{
 							Name:  "kubectl",
-							Image: "codingcorp-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
+							Image: "nocalhost-docker.pkg.coding.net/nocalhost/public/kubectl:latest",
 							Command: []string{
 								"kubectl", "delete", "ds", global.NocalhostPrePullDSName, "-n",
 								global.NocalhostSystemNamespace,
@@ -1022,7 +1078,7 @@ func (c *GoClient) DeployPrePullImages(images []string, namespace string) (bool,
 }
 
 // Initial admin kubeconfig in cluster for admission webhook
-func (c *GoClient) CreateConfigMap(name, namespace, key, value string) (bool, error) {
+func (c *GoClient) CreateConfigMapWithValue(name, namespace, key, value string) (bool, error) {
 	configMapData := make(map[string]string, 0)
 	configMapData[key] = value
 
@@ -1042,11 +1098,6 @@ func (c *GoClient) CreateConfigMap(name, namespace, key, value string) (bool, er
 		return false, err
 	}
 	return true, nil
-}
-
-// Get serviceAccount secret
-func (c *GoClient) GetSecret(name, namespace string) (*corev1.Secret, error) {
-	return c.client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
 
 // Get serviceAccount
@@ -1160,7 +1211,7 @@ func (c *GoClient) MatchedArtifactVersion(artifact, tags string) string {
 		tag = tags
 	}
 
-	return fmt.Sprintf("codingcorp-docker.pkg.coding.net/nocalhost/public/%s:%s", artifact, tag)
+	return fmt.Sprintf("nocalhost-docker.pkg.coding.net/nocalhost/public/%s:%s", artifact, tag)
 }
 
 func (c *GoClient) ListJobs(namespace string) (*batchv1.JobList, error) {
@@ -1177,4 +1228,22 @@ func (c *GoClient) ListPods(namespace string) (*corev1.PodList, error) {
 
 func (c *GoClient) DeletePod(namespace, name string) error {
 	return c.client.CoreV1().Pods(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+func (c *GoClient) GetRestClient() (*restclient.RESTClient, error) {
+	c.restConfig.GroupVersion = &schema.GroupVersion{Group: "", Version: "v1"}
+	c.restConfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: scheme.Codecs}
+	return restclient.RESTClientFor(c.restConfig)
+}
+
+// IsNamespaceExist check if exist namespace
+func (c *GoClient) IsNamespaceExist(ns string) (bool, error) {
+	_, err := c.client.CoreV1().Namespaces().Get(context.TODO(), ns, metav1.GetOptions{})
+	if err == nil {
+		return true, nil
+	}
+	if k8serrors.IsNotFound(err) {
+		return false, nil
+	}
+	return false, err
 }

@@ -269,14 +269,6 @@ func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) erro
 			InstallEnv: appEnv,
 		}
 
-		//if err := a.UpdateProfile(
-		//	func(_ *profile.AppProfileV2) error {
-		//		return nil
-		//	},
-		//); err != nil {
-		//	return err
-		//}
-
 		// release name a.Name
 		if a.appMeta.ApplicationType != appmeta.Manifest && a.appMeta.ApplicationType != appmeta.ManifestGit {
 			depForYaml.ReleaseName = a.Name

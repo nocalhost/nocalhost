@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -35,6 +35,7 @@ func (c *Controller) EndDevPortForward(localPort int, remotePort int) error {
 			return client.SendStopPortForwardCommand(
 				&model.NocalHostResource{
 					NameSpace:   c.NameSpace,
+					Nid:         c.AppMeta.NamespaceId,
 					Application: c.AppName,
 					Service:     c.Name,
 					ServiceType: string(c.Type),
@@ -44,6 +45,23 @@ func (c *Controller) EndDevPortForward(localPort int, remotePort int) error {
 		}
 	}
 	return nil
+}
+
+func StopPortForward(ns, nid, app, svc string, portForward *profile.DevPortForward) error {
+	client, err := daemon_client.NewDaemonClient(portForward.Sudo)
+	if err != nil {
+		return err
+	}
+	return client.SendStopPortForwardCommand(
+		&model.NocalHostResource{
+			NameSpace:   ns,
+			Nid:         nid,
+			Application: app,
+			Service:     svc,
+			ServiceType: portForward.ServiceType,
+			PodName:     portForward.PodName,
+		}, portForward.LocalPort, portForward.RemotePort,
+	)
 }
 
 func (c *Controller) StopAllPortForward() error {
@@ -119,7 +137,7 @@ func (c *Controller) GetPortForward(localPort, remotePort int) (*profile.DevPort
 			return pf, nil
 		}
 	}
-	log.Logf("type %s, name %s", c.Type, svcProfile.ActualName)
+	log.Logf("type %s, name %s", c.Type, svcProfile.GetName())
 	return nil, errors.New(fmt.Sprintf("Pf %d:%d not found", localPort, remotePort))
 }
 
@@ -142,23 +160,20 @@ func (c *Controller) GetPortForward(localPort, remotePort int) (*profile.DevPort
 
 func (c *Controller) PortForwardAfterDevStart(podName, containerName string) error {
 
-	profileV2, err := c.GetProfile()
+	p, err := c.GetConfig()
 	if err != nil {
 		return err
 	}
 
-	p := profileV2
 	if p.ContainerConfigs == nil {
 		return nil
 	}
+
 	cc := p.GetContainerDevConfigOrDefault(containerName)
 	if cc == nil {
 		return nil
 	}
-	//podName, err := c.GetNocalhostDevContainerPod()
-	//if err != nil {
-	//	return err
-	//}
+
 	for _, pf := range cc.PortForward {
 		lPort, rPort, err := GetPortForwardForString(pf)
 		if err != nil {
@@ -187,7 +202,7 @@ func (c *Controller) PortForward(podName string, localPort, remotePort int, role
 		PodName:     podName,
 	}
 
-	if err = client.SendStartPortForwardCommand(nhResource, localPort, remotePort, role); err != nil {
+	if err = client.SendStartPortForwardCommand(nhResource, localPort, remotePort, role, c.AppMeta.NamespaceId); err != nil {
 		return err
 	} else {
 		log.Infof("Port-forward %d:%d has been started", localPort, remotePort)

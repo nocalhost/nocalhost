@@ -229,7 +229,7 @@ func LogsForArchive() {
 	for _, l := range log.AllTestLogsLocations() {
 		log.Info("")
 		log.Info("")
-		log.Infof("<< == Final Archive Logs %s == >>", l)
+		log.Infof("<< == Final Archive %s == >>", l)
 		log.Info(fp.NewFilePath(l).ReadFile())
 	}
 

@@ -19,6 +19,7 @@ type FileSyncOptions struct {
 type SyncStatusOptions struct {
 	Override    bool
 	WaitForSync bool
+	Watch       bool
 	Timeout     int64
 }
 

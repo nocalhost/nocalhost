@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -16,7 +16,7 @@ func (c *Controller) EnterPodTerminal(podName, container string, shell string) e
 	pod := podName
 
 	if shell == "" {
-		profile, _ := c.GetProfile()
+		profile, _ := c.GetConfig()
 		if profile != nil {
 			devConfig := profile.GetContainerDevConfigOrDefault(container)
 			if devConfig != nil {
