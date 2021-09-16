@@ -7,7 +7,7 @@ on:
 
 jobs:
   release-nhctl:
-    needs: [build-syncthing-macos-windows, build-syncthing-linux-amd64]
+    needs: [ build-syncthing-macos-windows, build-syncthing-linux-amd64 ]
     name: Release nhctl
     runs-on: macos-latest
     environment:
@@ -275,6 +275,25 @@ jobs:
           docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
           docker push ${CODING_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
           docker push ${CODING_IMAGE_NAME}:latest
+
+      - name: Update changelog
+        run: |
+          git clone -b dev https://github.com/nocalhost/nocalhost.github.io.git
+          cd nocalhost.github.io
+          git checkout -b release/${{ env.RELEASE_VERSION }} || true
+          git checkout release/${{ env.RELEASE_VERSION }} || true
+          cd docs/changelogs
+          git config user.email "nocalhost@nocalhost.dev"
+          git config user.name "nocalhost"
+          time=${{ env.RELEASE_VERSION }}" ("$(date "+%Y-%m-%d")")"
+          echo $time
+          sed -i "s/{{Next}}/$time/g" *.md
+          head *.md
+          cd ../../
+          git add .
+          git commit -m "update changelog"
+          git remote set-url origin https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost.github.io.git
+          git push origin release/${{ env.RELEASE_VERSION }} -f
 
       - name: Release vscode plugin
         if: "!contains(github.ref,'rc')"
