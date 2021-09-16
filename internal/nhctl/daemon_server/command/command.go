@@ -26,6 +26,7 @@ const (
 	GetResourceInfo       DaemonCommandType = "GetResourceInfo"
 	UpdateApplicationMeta DaemonCommandType = "UpdateApplicationMeta"
 	KubeconfigOperation   DaemonCommandType = "KubeconfigOperationCommand"
+	CheckClusterStatus    DaemonCommandType = "CheckClusterStatus"
 
 	PREVIEW_VERSION = 0
 	SUCCESS         = 200
@@ -67,6 +68,13 @@ type GetApplicationMetaCommand struct {
 
 	NameSpace         string `json:"nameSpace"`
 	AppName           string `json:"appName"`
+	KubeConfigContent string `json:"kubeConfig"`
+}
+
+type CheckClusterStatusCommand struct {
+	CommandType DaemonCommandType
+	ClientStack string
+
 	KubeConfigContent string `json:"kubeConfig"`
 }
 

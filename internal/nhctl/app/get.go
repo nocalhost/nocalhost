@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package app
 
@@ -38,7 +38,8 @@ func (a *Application) GetDependencies() []*SvcDependency {
 // Get local path of resource dirs
 // If resource path undefined, use git url
 func (a *Application) GetResourceDir(tmpDir string) []string {
-	appProfile, _ := a.GetProfile()
+	//appProfile, _ := a.GetProfile()
+	appProfile := a.GetApplicationConfigV2()
 	var resourcePath []string
 	if len(appProfile.ResourcePath) != 0 {
 		for _, path := range appProfile.ResourcePath {
@@ -51,7 +52,8 @@ func (a *Application) GetResourceDir(tmpDir string) []string {
 }
 
 func (a *Application) getIgnoredPath() []string {
-	appProfile, _ := a.GetProfile()
+	//appProfile, _ := a.GetProfile()
+	appProfile := a.GetApplicationConfigV2()
 	results := make([]string, 0)
 	for _, path := range appProfile.IgnoredPath {
 		results = append(results, filepath.Join(a.ResourceTmpDir, path))

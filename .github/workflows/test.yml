@@ -68,7 +68,7 @@ jobs:
         timeout-minutes: 10
       - uses: actions/setup-go@v2
         with:
-          go-version: '^1.16.4'
+          go-version: '1.16.7'
       - run: go version
       - name: git tag
         timeout-minutes: 10
@@ -93,6 +93,7 @@ jobs:
           export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
           export HELM_REPO_USERNAME=${{ secrets.HELM_REPO_USERNAME }}
           export HELM_REPO_PASSWORD=${{ secrets.HELM_REPO_PASSWORD }}
+          export DISABLE_SPINNER=true
           cd test
           go build
           ./test
@@ -104,7 +105,7 @@ jobs:
         timeout-minutes: 10
       - uses: actions/setup-go@v2
         with:
-          go-version: '^1.16.4'
+          go-version: '1.16.7'
       - run: go version
       - name: git tag
         if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -130,6 +131,7 @@ jobs:
           export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
           export HELM_REPO_USERNAME=${{ secrets.HELM_REPO_USERNAME }}
           export HELM_REPO_PASSWORD=${{ secrets.HELM_REPO_PASSWORD }}
+          export DISABLE_SPINNER=true
           cd test
           go build
           ./test
@@ -141,7 +143,7 @@ jobs:
         timeout-minutes: 10
       - uses: actions/setup-go@v2
         with:
-          go-version: '^1.16.4'
+          go-version: '1.16.7'
       - run: go version
       - name: git tag
         if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -168,6 +170,7 @@ jobs:
           export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
           export HELM_REPO_USERNAME=${{ secrets.HELM_REPO_USERNAME }}
           export HELM_REPO_PASSWORD=${{ secrets.HELM_REPO_PASSWORD }}
+          export DISABLE_SPINNER=true
           cd test
           go build
           ./test
@@ -180,7 +183,7 @@ jobs:
 #        timeout-minutes: 10
 #      - uses: actions/setup-go@v2
 #        with:
-#          go-version: '^1.16.4'
+#          go-version: '1.16.7'
 #      - run: go version
 #      - name: git tag
 #        timeout-minutes: 10

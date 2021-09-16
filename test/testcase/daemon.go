@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package testcase
 
@@ -73,7 +73,8 @@ func PortForwardStart(nhctl runner.Client, module string, port int) error {
 		name,
 		fmt.Sprintf("-p%d:9080", port),
 	)
-	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
+	_, _, err = runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
+	return err
 }
 
 func PortForwardServiceStart(cli runner.Client, module string, port int) error {
@@ -103,7 +104,7 @@ func StatusCheckPortForward(nhctl runner.Client, moduleName string, port int) er
 	service := profile2.SvcProfileV2{}
 	_ = yaml.Unmarshal([]byte(stdout), &service)
 	bytes, _ := json.Marshal(service)
-	log.Info(string(bytes))
+	log.TestLogger(nhctl.SuiteName()).Info(string(bytes))
 	if !service.PortForwarded {
 		return errors.New("test case failed, should be port forwarding")
 	}
