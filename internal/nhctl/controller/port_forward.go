@@ -47,6 +47,23 @@ func (c *Controller) EndDevPortForward(localPort int, remotePort int) error {
 	return nil
 }
 
+func StopPortForward(ns, nid, app, svc string, portForward *profile.DevPortForward) error {
+	client, err := daemon_client.NewDaemonClient(portForward.Sudo)
+	if err != nil {
+		return err
+	}
+	return client.SendStopPortForwardCommand(
+		&model.NocalHostResource{
+			NameSpace:   ns,
+			Nid:         nid,
+			Application: app,
+			Service:     svc,
+			ServiceType: portForward.ServiceType,
+			PodName:     portForward.PodName,
+		}, portForward.LocalPort, portForward.RemotePort,
+	)
+}
+
 func (c *Controller) StopAllPortForward() error {
 	svcProfile, err := c.GetProfile()
 	if err != nil {

@@ -168,7 +168,7 @@ var installCmd = &cobra.Command{
 				var i int
 				for i = 0; i < 60; i++ {
 					<-time.After(time.Second)
-					podName, err := controller.GetDefaultPodName(ctx, nhSvc.BuildPodController())
+					podName, err = controller.GetDefaultPodName(ctx, nhSvc.BuildPodController())
 					if err != nil {
 						log.WarnE(err, "")
 						continue

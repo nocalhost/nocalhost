@@ -121,6 +121,11 @@ func (asw *applicationSecretWatcher) left(appName string) {
 			},
 		)
 	}
+
+	// todo stop all port forward
+	//go func() {
+	//
+	//}()
 }
 
 func NewApplicationSecretWatcher(configBytes []byte, ns string) *applicationSecretWatcher {
