@@ -735,7 +735,7 @@ func (a *ApplicationMeta) cleanUpDepConfigMap() error {
 	}
 
 	// Clean up all dep config map
-	list, err := operator.ClientInner.GetConfigMaps()
+	list, err := operator.ClientInner.ListConfigMaps()
 	if err != nil {
 		return err
 	}

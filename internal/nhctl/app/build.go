@@ -119,6 +119,13 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, err
 	}
 
+	if len(flags.ResourcePath) != 0 {
+		if config.ApplicationConfig == nil {
+			config.ApplicationConfig = &profile.ApplicationConfig{}
+		}
+		config.ApplicationConfig.ResourcePath = flags.ResourcePath
+	}
+
 	appMeta.Config = config
 	appMeta.Config.Migrated = true
 	if err := appMeta.Update(); err != nil {
@@ -131,10 +138,6 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	appProfileV2.Namespace = namespace
 	appProfileV2.Kubeconfig = kubeconfig
 	//appProfileV2.ConfigMigrated = true
-
-	if len(flags.ResourcePath) != 0 {
-		appProfileV2.ResourcePath = flags.ResourcePath
-	}
 
 	app.AppType = appProfileV2.AppType
 
