@@ -198,9 +198,11 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 			if c.ApplicationConfig != nil {
 				for _, sc := range c.ApplicationConfig.ServiceConfigs {
 					for _, scc := range sc.ContainerConfigs {
-						if scc.Dev != nil && scc.Dev.Image != "" {
-							re3, _ := regexp.Compile("codingcorp-docker.pkg.coding.net")
-							scc.Dev.Image = re3.ReplaceAllString(scc.Dev.Image, "nocalhost-docker.pkg.coding.net")
+						if scc.Dev != nil {
+							//re3, _ := regexp.Compile("codingcorp-docker.pkg.coding.net")
+							scc.Dev.Image = utils.ReplaceCodingcorpString(scc.Dev.Image)
+							scc.Dev.GitUrl = utils.ReplaceCodingcorpString(scc.Dev.GitUrl)
+							//scc.Dev.Image = re3.ReplaceAllString(scc.Dev.Image, "nocalhost-docker.pkg.coding.net")
 						}
 					}
 				}

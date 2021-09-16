@@ -8,6 +8,7 @@ package cmds
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"regexp"
@@ -82,27 +83,26 @@ func upgradeDeployToVersion(client *clientgoutils.ClientGoUtils, deployName stri
 		cm, err := client.GetConfigMaps("nocalhost-nginx-config")
 		must(err)
 		cm.Data = make(map[string]string)
-		cm.Data["nocalhost-nginx.conf"] = `
-    server {
-        listen       80;
-        listen  [::]:80;
-        server_name  localhost;
-        location / {
-            root   /usr/share/nginx/html;
-            index  index.html index.htm;
-            try_files $uri /index.html;
-        }
-        location /v1 {
-            proxy_pass http://nocalhost-api:8080;
-        }
-        location /v2 {
-            proxy_pass http://nocalhost-api:8080;
-        }
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   /usr/share/nginx/html;
-        }
+		cm.Data["nocalhost-nginx.conf"] = `server {
+    listen       80;
+    listen  [::]:80;
+    server_name  localhost;
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.html index.htm;
+        try_files $uri /index.html;
     }
+    location /v1 {
+        proxy_pass http://nocalhost-api:8080;
+    }
+    location /v2 {
+        proxy_pass http://nocalhost-api:8080;
+    }
+    error_page   500 502 503 504  /50x.html;
+    location = /50x.html {
+        root   /usr/share/nginx/html;
+    }
+}
 `
 		_, err = client.UpdateConfigMaps(cm)
 		must(err)
@@ -112,6 +112,7 @@ func upgradeDeployToVersion(client *clientgoutils.ClientGoUtils, deployName stri
 	log.Infof("Upgrading %s to %s", deployName, nhToVersion)
 	versionSlice[len(versionSlice)-1] = nhToVersion
 	newImage := strings.Join(versionSlice, ":")
+	newImage = utils.ReplaceCodingcorpString(newImage)
 	deploy.Spec.Template.Spec.Containers[0].Image = newImage
 	if _, err = client.UpdateDeployment(deploy, wait); err != nil {
 		log.FatalE(err, fmt.Sprintf("Failed to update deployment %s", deployName))
