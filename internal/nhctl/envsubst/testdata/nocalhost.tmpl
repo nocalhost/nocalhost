@@ -5,7 +5,7 @@
     - "app=rabbitmq"
     dependJobsLabelSelector:
       - "job-name=init-data-job"
-    gitUrl:${CODING_GIT_URL:-git@e.coding.net:codingcorp/collaboration.git}
+    gitUrl:${CODING_GIT_URL:-git@e.coding.net:nocalhost/collaboration.git}
     devContainerImage:$CODING_GIT_SERVER_IMAGE
     workDir:${WORK_DIR}
     persistentVolumeDirs:

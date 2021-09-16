@@ -48,6 +48,31 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		KubeConfig: kubeconfig,
 	}
 
+	// try to create a new application meta
+	appMeta, err := nocalhost.GetApplicationMeta(name, namespace, kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+
+	if appMeta.IsInstalled() {
+		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s has already been installed", name, namespace))
+	} else if appMeta.IsInstalling() {
+		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing", name, namespace))
+	}
+
+	if err = appMeta.Initial(); err != nil {
+		if k8serrors.IsAlreadyExists(err) {
+			log.Logf("Application %s in %s has been installed", app.Name, app.NameSpace)
+		}
+		return app, err
+	}
+	app.appMeta = appMeta
+	appMeta.ApplicationType = appmeta.AppType(flags.AppType)
+
+	//if err = appMeta.GenerateNidINE(); err != nil {
+	//	return nil, err
+	//}
+
 	if err = app.initDir(); err != nil {
 		return nil, err
 	}
@@ -57,7 +82,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, errors.New("Fail to create tmp dir for install")
 	}
 
-	if err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name, false); err != nil {
+	if err = nocalhostDb.CreateApplicationLevelDB(app.NameSpace, app.Name, app.appMeta.NamespaceId, false); err != nil {
 		return nil, err
 	}
 
@@ -94,46 +119,29 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, err
 	}
 
-	// try to create a new application meta
-	appMeta, err := nocalhost.GetApplicationMeta(name, namespace, kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-
-	if appMeta.IsInstalled() {
-		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s has already been installed", name, namespace))
-	} else if appMeta.IsInstalling() {
-		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing", name, namespace))
-	}
-
-	app.appMeta = appMeta
-
-	if err = appMeta.Initial(); err != nil {
-		if k8serrors.IsAlreadyExists(err) {
-			log.Logf("Application %s in %s has been installed", app.Name, app.NameSpace)
+	if len(flags.ResourcePath) != 0 {
+		if config.ApplicationConfig == nil {
+			config.ApplicationConfig = &profile.ApplicationConfig{}
 		}
-		return app, err
+		config.ApplicationConfig.ResourcePath = flags.ResourcePath
 	}
 
 	appMeta.Config = config
-	appMeta.ApplicationType = appmeta.AppType(flags.AppType)
+	appMeta.Config.Migrated = true
 	if err := appMeta.Update(); err != nil {
 		return nil, err
 	}
 
-	appProfileV2 := generateProfileFromConfig(config)
+	appProfileV2 := &profile.AppProfileV2{}
 	appProfileV2.AssociateMigrate = true
 	appProfileV2.Secreted = true
 	appProfileV2.Namespace = namespace
 	appProfileV2.Kubeconfig = kubeconfig
-
-	if len(flags.ResourcePath) != 0 {
-		appProfileV2.ResourcePath = flags.ResourcePath
-	}
+	//appProfileV2.ConfigMigrated = true
 
 	app.AppType = appProfileV2.AppType
 
-	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, appProfileV2)
+	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, appProfileV2)
 }
 
 func (a *Application) loadOrGenerateConfig(
@@ -172,7 +180,9 @@ func (a *Application) loadOrGenerateConfig(
 
 	// config.yaml found
 	if configFilePath != "" {
-		if nocalhostConfig, err = RenderConfig(configFilePath); err != nil {
+		if nocalhostConfig, err = RenderConfig(
+			envsubst.LocalFileRenderItem{FilePathEnhance: fp.NewFilePath(configFilePath)},
+		); err != nil {
 			return nil, err
 		}
 	}
@@ -180,74 +190,59 @@ func (a *Application) loadOrGenerateConfig(
 	return nocalhostConfig, nil
 }
 
-func updateProfileFromConfig(appProfileV2 *profile.AppProfileV2, config *profile.NocalHostAppConfigV2) {
-	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
-	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
-	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
-	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
-	appProfileV2.Env = config.ApplicationConfig.Env
+//func updateProfileFromConfig(appProfileV2 *profile.AppProfileV2, config *profile.NocalHostAppConfigV2) {
+//	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
+//	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
+//	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
+//	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
+//	appProfileV2.Env = config.ApplicationConfig.Env
+//
+//	if len(appProfileV2.SvcProfile) == 0 {
+//		appProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
+//	}
+//	for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {
+//		var f bool
+//		for _, svcP := range appProfileV2.SvcProfile {
+//			if svcP.ActualName == svcConfig.Name {
+//				svcP.ServiceConfigV2 = svcConfig
+//				f = true
+//				break
+//			}
+//		}
+//		if !f {
+//			svcProfile := &profile.SvcProfileV2{
+//				ActualName:      svcConfig.Name,
+//				ServiceConfigV2: svcConfig,
+//			}
+//			appProfileV2.SvcProfile = append(appProfileV2.SvcProfile, svcProfile)
+//		}
+//	}
+//}
 
-	if len(appProfileV2.SvcProfile) == 0 {
-		appProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
-	}
-	for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {
-		var f bool
-		for _, svcP := range appProfileV2.SvcProfile {
-			if svcP.ActualName == svcConfig.Name {
-				svcP.ServiceConfigV2 = svcConfig
-				f = true
-				break
-			}
-		}
-		if !f {
-			svcProfile := &profile.SvcProfileV2{
-				ActualName:      svcConfig.Name,
-				ServiceConfigV2: svcConfig,
-			}
-			appProfileV2.SvcProfile = append(appProfileV2.SvcProfile, svcProfile)
-		}
-	}
-}
+//func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.AppProfileV2 {
+//	appProfileV2 := &profile.AppProfileV2{}
+//	if config == nil || config.ApplicationConfig == nil {
+//		return appProfileV2
+//	}
+//	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
+//	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
+//	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
+//	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
+//	appProfileV2.Env = config.ApplicationConfig.Env
+//
+//	appProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
+//	for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {
+//		svcProfile := &profile.SvcProfileV2{
+//			ActualName: svcConfig.Name,
+//		}
+//		svcProfile.ServiceConfigV2 = svcConfig
+//		appProfileV2.SvcProfile = append(appProfileV2.SvcProfile, svcProfile)
+//	}
+//	return appProfileV2
+//}
 
-func generateProfileFromConfig(config *profile.NocalHostAppConfigV2) *profile.AppProfileV2 {
-	appProfileV2 := &profile.AppProfileV2{}
-	if config == nil || config.ApplicationConfig == nil {
-		return appProfileV2
-	}
-	appProfileV2.EnvFrom = config.ApplicationConfig.EnvFrom
-	appProfileV2.ResourcePath = config.ApplicationConfig.ResourcePath
-	appProfileV2.IgnoredPath = config.ApplicationConfig.IgnoredPath
-	appProfileV2.PreInstall = config.ApplicationConfig.PreInstall
-	appProfileV2.Env = config.ApplicationConfig.Env
-
-	appProfileV2.SvcProfile = make([]*profile.SvcProfileV2, 0)
-	for _, svcConfig := range config.ApplicationConfig.ServiceConfigs {
-		svcProfile := &profile.SvcProfileV2{
-			ActualName: svcConfig.Name,
-		}
-		svcProfile.ServiceConfigV2 = svcConfig
-		appProfileV2.SvcProfile = append(appProfileV2.SvcProfile, svcProfile)
-	}
-	return appProfileV2
-}
-
-func RenderConfigForSvc(configFilePath string) ([]*profile.ServiceConfigV2, error) {
-	configFile := fp.NewFilePath(configFilePath)
-
-	var envFile *fp.FilePathEnhance
-	envFile = configFile.RelOrAbs("../").RelOrAbs(".env")
-
-	if e := envFile.CheckExist(); e != nil {
-		log.Logf(
-			`Render %s Nocalhost config without env files, you can put your env file in %s`,
-			configFile.Abs(), envFile.Abs(),
-		)
-		envFile = nil
-	} else {
-		log.Logf("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
-	}
-
-	renderedStr, err := envsubst.Render(configFile, envFile)
+func RenderConfigForSvc(renderItem envsubst.RenderItem) ([]*profile.ServiceConfigV2, error) {
+	renderedStr, err := envsubst.Render(renderItem, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +251,7 @@ func RenderConfigForSvc(configFilePath string) ([]*profile.ServiceConfigV2, erro
 	if err = yaml.Unmarshal([]byte(renderedStr), &renderedConfig); err != nil {
 		var singleSvcConfig profile.ServiceConfigV2
 		if err = yaml.Unmarshal([]byte(renderedStr), &singleSvcConfig); err == nil {
-			if len(singleSvcConfig.ContainerConfigs) > 0 {
+			if len(singleSvcConfig.ContainerConfigs) > 0 || singleSvcConfig.DependLabelSelector != nil {
 				renderedConfig = append(renderedConfig, &singleSvcConfig)
 			}
 		}
@@ -265,65 +260,89 @@ func RenderConfigForSvc(configFilePath string) ([]*profile.ServiceConfigV2, erro
 }
 
 // V2
-func RenderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) {
-	configFile := fp.NewFilePath(configFilePath)
+func RenderConfig(renderItem envsubst.RenderItem) (*profile.NocalHostAppConfigV2, error) {
+	configFileLocation := renderItem.GetLocation()
 
 	var envFile *fp.FilePathEnhance
-	if relPath := gettingRenderEnvFile(configFilePath); relPath != "" {
-		envFile = configFile.RelOrAbs("../").RelOrAbs(relPath)
+	var renderedStr string
+	var err error
 
-		if e := envFile.CheckExist(); e != nil {
-			log.Logf(
-				`Render %s Nocalhost config without env files, we found the env file 
+	// means the config is from local files
+	if configFileLocation != "" {
+
+		// 1. load local env file if exist
+		// 2. try render first time
+		// 3. convert v1 to v2 if needed
+		// 4. re render
+		configFile := fp.NewFilePath(renderItem.GetLocation())
+
+		if relPath := gettingRenderEnvFile(renderItem.GetLocation()); relPath != "" {
+			envFile = configFile.RelOrAbs("../").RelOrAbs(relPath)
+
+			if e := envFile.CheckExist(); e != nil {
+				log.Logf(
+					`Render %s Nocalhost config without env files, we found the env file 
 				had been configured as %s, but we can not found in %s`,
-				configFile.Abs(), relPath, envFile.Abs(),
-			)
+					configFile.Abs(), relPath, envFile.Abs(),
+				)
+			} else {
+				log.Logf("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
+			}
 		} else {
-			log.Logf("Render %s Nocalhost config with env files %s", configFile.Abs(), envFile.Abs())
+			log.Logf(
+				"Render %s Nocalhost config without env files, you config your Nocalhost "+
+					"configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2",
+				configFile.Abs(),
+			)
+		}
+
+		renderedStr, err = envsubst.Render(renderItem, envFile)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check If config version
+		configVersion, err := checkConfigVersion(renderedStr)
+		if err != nil {
+			return nil, err
+		}
+
+		if configVersion == "v1" {
+			v2TmpDir, _ := ioutil.TempDir("", "")
+			if err = os.MkdirAll(v2TmpDir, DefaultNewFilePermission); err != nil {
+				return nil, errors.Wrap(err, "Fail to create tmp dir")
+			}
+			defer func() {
+				_ = os.RemoveAll(v2TmpDir)
+			}()
+
+			v2Path := filepath.Join(v2TmpDir, DefaultApplicationConfigV2Path)
+			if err = ConvertConfigFileV1ToV2(configFileLocation, v2Path); err != nil {
+				return nil, err
+			}
+
+			if renderedStr, err = envsubst.Render(
+				envsubst.LocalFileRenderItem{FilePathEnhance: fp.NewFilePath(v2Path)},
+				envFile,
+			); err != nil {
+				return nil, err
+			}
 		}
 	} else {
-		log.Logf(
-			"Render %s Nocalhost config without env files, you config your Nocalhost "+
-				"configuration such as: \nconfigProperties:\n  envFile: ./envs/env\n  version: v2",
-			configFile.Abs(),
-		)
-	}
-
-	renderedStr, err := envsubst.Render(configFile, envFile)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check If config version
-	configVersion, err := checkConfigVersion(renderedStr)
-	if err != nil {
-		return nil, err
-	}
-
-	if configVersion == "v1" {
-		v2TmpDir, _ := ioutil.TempDir("", "")
-		if err = os.MkdirAll(v2TmpDir, DefaultNewFilePermission); err != nil {
-			return nil, errors.Wrap(err, "Fail to create tmp dir")
-		}
-		defer func() {
-			_ = os.RemoveAll(v2TmpDir)
-		}()
-
-		v2Path := filepath.Join(v2TmpDir, DefaultApplicationConfigV2Path)
-		if err = ConvertConfigFileV1ToV2(configFilePath, v2Path); err != nil {
-			return nil, err
-		}
-
-		if renderedStr, err = envsubst.Render(fp.NewFilePath(v2Path), envFile); err != nil {
+		renderedStr, err = envsubst.Render(renderItem, envFile)
+		if err != nil {
 			return nil, err
 		}
 	}
+
+	// ------
+	// Render end, start to unmarshal the config
+	// ------
 
 	// convert un strict yaml to strict yaml
 	renderedConfig := &profile.NocalHostAppConfigV2{}
-
 	if err := parseNocalhostConfigEnvFile(
-		renderedStr, configFile, func(node *customyaml3.Node) error {
+		renderedStr, fp.NewFilePath(configFileLocation), func(node *customyaml3.Node) error {
 			_ = node.Decode(renderedConfig)
 
 			parseEnvFromIntoEnv(renderedConfig)
@@ -338,7 +357,11 @@ func RenderConfig(configFilePath string) (*profile.NocalHostAppConfigV2, error) 
 		log.Debug(string(marshal))
 	}
 
-	// remove the duplicate service config (we allow users to define duplicate service and keep the last one)
+	// ------
+	// Unmarshal end, remove the duplicate service config (we allow users to define
+	// duplicate service and keep the last one)
+	// ------
+
 	if renderedConfig.ApplicationConfig != nil && renderedConfig.ApplicationConfig.ServiceConfigs != nil {
 		var maps = make(map[string]int)
 

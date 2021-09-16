@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package webhook
 
@@ -54,12 +54,16 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 
 				// adapt the gvk to gvr
 				// gvr can use to list the resources
-				mapping, err := cachedRestMapper.RESTMapping(schema.GroupKind{
-					Group: gv.Group,
-					Kind:  reference.Kind,
-				}, gv.Version)
+				mapping, err := cachedRestMapper.RESTMapping(
+					schema.GroupKind{
+						Group: gv.Group,
+						Kind:  reference.Kind,
+					}, gv.Version,
+				)
 				if err != nil {
-					glog.Infof("Fail to find gvr by gvk g(%s) v(%s) k(%s): %v", gv.Group, gv.Version, reference.Kind, err)
+					glog.Infof(
+						"Fail to find gvr by gvk g(%s) v(%s) k(%s): %v", gv.Group, gv.Version, reference.Kind, err,
+					)
 					continue
 				}
 				if mapping == nil {
@@ -91,7 +95,9 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 							recover()
 						}
 					} else {
-						glog.Infof("Fail to find by gvr(%v) with name(%s) ns(%s): %v", mapping.Resource.Resource, name, ns, err)
+						glog.Infof(
+							"Fail to find by gvr(%v) with name(%s) ns(%s): %v", mapping.Resource.Resource, name, ns, err,
+						)
 					}
 				}()
 			}
@@ -105,15 +111,17 @@ func (o *ObjectMetaHolder) getOwnRefSignedAnnotation(ns string) []string {
 			return group
 		case <-ctx.Done():
 			glog.Infof("timeout while getting owner ref")
+			cancel()
+			close(dataCh)
 		}
 	}
 
-	return nil
+	// if can not find anything, try find anno from current obj
+	return containsAnnotationSign(o.GetAnnotations())
 }
 
 func containsAnnotationSign(annos map[string]string) []string {
 	for k, desiredVal := range annos {
-		glog.Infof("anno key: %s", k)
 		if k == _const.NocalhostApplicationName || k == _const.HelmReleaseName {
 			return []string{k, desiredVal}
 		}

@@ -30,7 +30,7 @@ const (
 	ServiceLabel             = "nocalhost.dev/service"
 	AppLabel                 = "nocalhost.dev/app"
 
-	DefaultSideCarImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:sshversion"
+	DefaultSideCarImage = "nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:sshversion"
 
 	DefaultApplicationSyncPidFile = "syncthing.pid"
 
@@ -46,6 +46,9 @@ const (
 	HelmReleaseName = "meta.helm.sh/release-name"
 
 	DevWorkloadIgnored = "nocalhost.dev.workload.ignored"
+
+	NocalhostCmLabelKey = "dep-management"
+	NocalhostCmLabelValue = "nocalhost"
 
 	NocalhostRoleBindingLabelKey = "owner"
 	NocalhostRoleBindingLabelVal = "nocalhost"

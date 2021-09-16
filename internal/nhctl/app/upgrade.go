@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package app
 
@@ -13,7 +13,6 @@ import (
 	flag "nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/fp"
-	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -48,16 +47,8 @@ func (a *Application) PrepareForUpgrade(flags *flag.InstallFlags) error {
 	}
 
 	a.appMeta.Config = config
-	if err := a.appMeta.Update(); err != nil {
-		return err
-	}
-
-	return a.UpdateProfile(
-		func(p *profile.AppProfileV2) error {
-			updateProfileFromConfig(p, config)
-			return nil
-		},
-	)
+	a.appMeta.Config.Migrated = true
+	return a.appMeta.Update()
 }
 
 func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {

@@ -1,0 +1,25 @@
+## installer-job image
+image:
+  repository: nocalhost-docker.pkg.coding.net/nocalhost/images/dep-installer-job
+  tag: "latest"
+
+## dep
+dep:
+  # the namespace of dep
+  namespace: nocalhost-reserved
+  image:
+    repository: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-dep
+    tag: "latest"
+  # match namespace method, "namespaceLabel" or "namespaceName"
+  matchWith: "namespaceLabel"
+  match:
+    namespace:
+      # when dep.matchWith=namespaceName
+      # default {{ Release.Namespace }}
+      name: ""
+      # when dep.matchWith=namespaceLabel
+      label:
+        # default "env"
+        key: ""
+        # default "nocalhost"
+        value: ""

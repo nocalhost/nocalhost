@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package daemon_common
 
@@ -17,6 +17,7 @@ import (
 const (
 	DefaultDaemonPort = 30123
 	SudoDaemonPort    = 30124
+	DaemonHttpPort    = 30125
 )
 
 var (

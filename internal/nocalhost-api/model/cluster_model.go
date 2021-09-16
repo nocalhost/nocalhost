@@ -1,11 +1,12 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package model
 
 import (
+	v1 "k8s.io/api/core/v1"
 	"time"
 
 	validator "github.com/go-playground/validator/v10"
@@ -77,6 +78,26 @@ type ClusterList struct {
 	NotReadyMessage string    `json:"not_ready_message"`
 	HasDevSpace     bool      `json:"has_dev_space"`
 	Server          string    `gorm:"column:server;not null" json:"server"`
+	Modifiable      bool      `json:"modifiable"`
+}
+
+type ClusterListVo struct {
+	ClusterList
+	Resources []Resource `json:"resources"`
+}
+
+type Resource struct {
+	ResourceName v1.ResourceName `json:"resource_name"`
+	Capacity     float64         `json:"capacity"`
+	Used         float64         `json:"used"`
+	Percentage   float64         `json:"percentage"`
+}
+
+func (receiver Resource) Equals(resource Resource) bool {
+	return receiver.ResourceName == resource.ResourceName &&
+		receiver.Capacity == resource.Capacity &&
+		receiver.Used == resource.Used &&
+		receiver.Percentage == resource.Percentage
 }
 
 // Validate the fields.

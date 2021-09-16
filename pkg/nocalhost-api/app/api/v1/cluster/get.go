@@ -1,21 +1,27 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster
 
 import (
+	"context"
 	"encoding/base64"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster_user"
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
+	"nocalhost/pkg/nocalhost-api/app/router/middleware"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"sync"
+	"time"
 )
 
 type ClusterStatus struct {
@@ -36,10 +42,76 @@ type ClusterSafeList struct {
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Success 200 {object} model.ClusterList "{"code":0,"message":"OK","data":model.ClusterList}"
+// @Success 200 {object} model.ClusterListVo "{"code":0,"message":"OK","data":model.ClusterListVo}"
 // @Router /v1/cluster [get]
 func GetList(c *gin.Context) {
 	result, _ := service.Svc.ClusterSvc().GetList(c)
+	tempResult := make([]*model.ClusterList, 0, 0)
+	userId := c.GetUint64("userId")
+	// normal user can only see clusters they created, or devSpace's cluster
+	if isAdmin, _ := middleware.IsAdmin(c); !isAdmin {
+		// cluster --> userid, find cluster which user's devSpace based on
+		clusterToUser := make(map[uint64]uint64)
+		// get clusters which associated with current user, like cluster which current user's devSpace based on
+		lists, _ := cluster_user.DoList(&model.ClusterUserModel{}, userId, false, false)
+		for _, i := range lists {
+			clusterToUser[i.ClusterId] = i.ClusterId
+		}
+		for _, list := range result {
+			// cluster they created, can modify
+			if list.UserId == userId {
+				list.Modifiable = true
+				tempResult = append(tempResult, list)
+				// cluster devSpace based on, can't modify
+			} else if _, ok := clusterToUser[list.GetClusterId()]; ok {
+				list.Modifiable = false
+				tempResult = append(tempResult, list)
+			}
+		}
+		result = tempResult[0:]
+	} else {
+		// administer have all privilege
+		for _, list := range result {
+			list.Modifiable = true
+		}
+	}
+	vos := make([]model.ClusterListVo, len(result), len(result))
+	for i, cluster := range result {
+		if cluster == nil {
+			continue
+		}
+		Add(result[i].GetKubeConfig())
+		vos[i] = model.ClusterListVo{
+			ClusterList: *result[i],
+			Resources:   GetFromCache(result[i].GetKubeConfig()),
+		}
+	}
+	api.SendResponse(c, errno.OK, vos)
+}
+
+// GetDevSpaceClusterList Get the devSpace cluster list
+// @Summary Get the cluster list which user can create devSpace
+// @Description Get the cluster list which user can create devSpace
+// @Tags Cluster
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Success 200 {object} model.ClusterList "{"code":0,"message":"OK","data":model.ClusterList}"
+// @Router /v2/dev_space/cluster [get]
+func GetDevSpaceClusterList(c *gin.Context) {
+	result, _ := service.Svc.ClusterSvc().GetList(c)
+	tempResult := make([]*model.ClusterList, 0, 0)
+	userId := c.GetUint64("userId")
+	// normal user can only see clusters they created, or devSpace's cluster
+	if isAdmin, _ := middleware.IsAdmin(c); !isAdmin {
+		for _, list := range result {
+			// devSpace cluster can be listed which created by normal user
+			if list.UserId == userId {
+				tempResult = append(tempResult, list)
+			}
+		}
+		result = tempResult[0:]
+	}
 	api.SendResponse(c, errno.OK, result)
 }
 
@@ -278,4 +350,74 @@ func GetStorageClass(c *gin.Context) {
 // @Router /v1/cluster/kubeconfig/storage_class [post]
 func GetStorageClassByKubeConfig(c *gin.Context) {
 	GetStorageClass(c)
+}
+
+// in case of resource leak
+func Init() {
+	result, _ := service.Svc.ClusterSvc().GetList(context.TODO())
+	for _, list := range result {
+		Add(list.GetKubeConfig())
+	}
+	go func() {
+		c := make(chan struct{}, 1)
+		c <- struct{}{}
+		tick := time.NewTicker(time.Minute * 30)
+		for {
+			select {
+			case <-tick.C:
+				c <- struct{}{}
+			case <-c:
+				result, _ = service.Svc.ClusterSvc().GetList(context.TODO())
+				kubeconfigMap := make(map[string]string)
+				for _, list := range result {
+					kubeconfigMap[list.GetKubeConfig()] = list.GetKubeConfig()
+				}
+				Merge(kubeconfigMap)
+			}
+		}
+	}()
+}
+
+// GenNamespace
+// @Summary Gen Namespace
+// @Description gen namespace for mesh dev space
+// @Tags Cluster
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param cluster path string true "cluster id"
+// @Success 200 {object} cluster.Namespace "{"code":0,"message":"OK","data":cluster.Namespace}"
+// @Router /v1/cluster/{id}/gen_namespace [get]
+func GenNamespace(c *gin.Context) {
+	userIdstr, ok := c.GetQuery("user_id")
+	if !ok {
+		api.SendResponse(c, errno.ErrUserIdRequired, nil)
+	}
+	userId, err := cast.ToUint64E(userIdstr)
+	if err != nil || userId == 0 {
+		api.SendResponse(c, errno.ErrUserIdFormat, nil)
+	}
+	cluster, err := service.Svc.ClusterSvc().Get(c, cast.ToUint64(c.Param("id")))
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterNotFound, nil)
+		return
+	}
+	cluster.GetKubeConfig()
+	client, err := clientgo.NewAdminGoClient([]byte(cluster.GetKubeConfig()))
+	if err != nil {
+		api.SendResponse(c, errno.ErrClusterKubeErr, nil)
+		return
+	}
+
+	var devNamespace string
+	if err = wait.Poll(200*time.Millisecond, time.Second, func() (bool, error) {
+		devNamespace = client.GenerateNsName(userId)
+		ok, err := client.IsNamespaceExist(devNamespace)
+		return !ok, err
+	}); err != nil {
+		log.Error(err)
+		api.SendResponse(c, errno.ErrClusterGenNamespace, nil)
+	}
+
+	api.SendResponse(c, nil, Namespace{devNamespace})
 }
