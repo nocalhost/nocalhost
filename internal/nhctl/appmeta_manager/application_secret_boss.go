@@ -15,8 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/flowcontrol"
 	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/resouce_cache"
 	"nocalhost/pkg/nhctl/log"
 	"sync"
 )
@@ -123,12 +123,6 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 		return watcher
 	}
 
-	searcher, err := resouce_cache.GetSearcher(configBytes, ns, false)
-	if err != nil {
-		log.ErrorE(err, "Fail to init searcher, and helm watch feature will not be enable")
-		return watcher
-	}
-
 	// for o(1)
 	sets := make(map[string]interface{})
 	for _, rl := range installedSecretRls {
@@ -143,7 +137,7 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 		log.ErrorE(err, "Fail to init clientSet, and helm watch feature will not be enable")
 		return watcher
 	}
-
+	c.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
 	clientSet, err := kubernetes.NewForConfig(c)
 	if err != nil {
 		log.ErrorE(err, "Fail to init clientSet, and helm watch feature will not be enable")
@@ -152,56 +146,55 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 
 	// we should delete those application installed by helm (still record in secrets)
 	// but already deleted
-	_ = searcher.Criteria().Namespace(ns).ResourceType("secrets").Consume(
-		func(secrets []interface{}) error {
-			for _, secret := range secrets {
-				v := secret.(*v1.Secret)
-				if v.Type == appmeta.SecretType {
-					needToDestroy := false
+	list, err := clientSet.CoreV1().Secrets(ns).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		log.ErrorE(err, "Fail to init searcher, and helm watch feature will not be enable")
+		return watcher
+	}
+	for _, v := range list.Items {
+		if v.Type == appmeta.SecretType {
+			needToDestroy := false
 
-					decode, err := appmeta.Decode(v)
-					if err != nil {
-						// delete the secret that can not be correctly decode
-						log.TLogf(
-							"Watcher", "Application Secret '%s' will be deleted, "+
-								"the secret is broken.",
-							v.Name,
-						)
+			decode, err := appmeta.Decode(&v)
+			if err != nil {
+				// delete the secret that can not be correctly decode
+				log.TLogf(
+					"Watcher", "Application Secret '%s' will be deleted, "+
+						"the secret is broken.",
+					v.Name,
+				)
 
-						needToDestroy = true
-					} else if _, ok := sets[decode.HelmReleaseName]; !ok && decode.IsInstalled() && decode.ApplicationType.IsHelm() {
+				needToDestroy = true
+			} else if _, ok := sets[decode.HelmReleaseName]; !ok && decode.IsInstalled() && decode.ApplicationType.IsHelm() {
 
-						// delete the secret that do not have correspond helm rls
-						log.TLogf(
-							"Watcher", "Application Secret '%s' will be deleted, "+
-								"correspond helm rls is deleted.",
-							v.Name,
-						)
+				// delete the secret that do not have correspond helm rls
+				log.TLogf(
+					"Watcher", "Application Secret '%s' will be deleted, "+
+						"correspond helm rls is deleted.",
+					v.Name,
+				)
 
-						needToDestroy = true
-					}
+				needToDestroy = true
+			}
 
-					if needToDestroy {
-						if err := clientSet.CoreV1().
-							Secrets(ns).
-							Delete(context.TODO(), v.Name, metav1.DeleteOptions{}); err != nil {
-							log.Error(
-								err, "Application Secret '%s' from ns %s need to deleted "+
-									"but fail.",
-								v.Name, ns,
-							)
-						} else {
-							log.TLogf(
-								"Watcher", "Application Secret '%s' from ns %s has been be deleted. ",
-								v.Name, ns,
-							)
-						}
-					}
+			if needToDestroy {
+				if err := clientSet.CoreV1().
+					Secrets(ns).
+					Delete(context.TODO(), v.Name, metav1.DeleteOptions{}); err != nil {
+					log.Error(
+						err, "Application Secret '%s' from ns %s need to deleted "+
+							"but fail.",
+						v.Name, ns,
+					)
+				} else {
+					log.TLogf(
+						"Watcher", "Application Secret '%s' from ns %s has been be deleted. ",
+						v.Name, ns,
+					)
 				}
 			}
-			return nil
-		},
-	)
+		}
+	}
 
 	go func() {
 		helmSecretWatcher.Watch()

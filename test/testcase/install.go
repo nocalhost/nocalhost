@@ -275,22 +275,15 @@ func installBookInfoHelmLocal(nhctl runner.Client) error {
 }
 
 func installBookInfoHelmRepo(nhctl runner.Client) error {
-	// this is nocalhost bug, chart name not work
-	temp, _ := os.CreateTemp("", "")
-	_, _ = temp.WriteString("name: nocalhost-bookinfo")
-	_ = temp.Sync()
-	_ = temp.Close()
 	cmd := nhctl.GetNhctl().Command(
 		context.Background(), "install",
 		"bookinfo",
 		"-t",
 		string(appmeta.HelmRepo),
 		"--helm-chart-name",
-		"bookinfo/nocalhost-bookinfo",
+		"bookinfo-public/bookinfo",
 		"--helm-repo-url",
-		"https://codingcorp-helm.pkg.coding.net/naison-test/bookinfo",
-		"--outer-config",
-		temp.Name(),
+		"https://nocalhost-helm.pkg.coding.net/nocalhost-test/bookinfo-public",
 	)
 	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
@@ -305,7 +298,7 @@ func installHelmRepoWithCredential(nhctl runner.Client) error {
 		"-t",
 		string(appmeta.HelmRepo),
 		"--helm-repo-url",
-		fmt.Sprintf("https://%s:%s@codingcorp-helm.pkg.coding.net/nocalhsot-test/testcase",
+		fmt.Sprintf("https://%s:%s@nocalhost-helm.pkg.coding.net/nocalhost-test/bookinfo-public",
 			os.Getenv(util.HelmRepoUsername), os.Getenv(util.HelmRepoPassword)),
 	)
 	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
@@ -315,8 +308,8 @@ func installHelmRepoWithCredential(nhctl runner.Client) error {
 func installHelmRepoAlreadyExist(nhctl runner.Client) error {
 	_, _, _ = nhctl.GetHelm().RunWithRollingOut(context.TODO(), "repo",
 		"add",
-		"testcase",
-		"https://codingcorp-helm.pkg.coding.net/nocalhsot-test/testcase",
+		"bookinfo",
+		"https://nocalhost-helm.pkg.coding.net/nocalhost-test/bookinfo",
 		"--username",
 		os.Getenv(util.HelmRepoUsername),
 		"--password",
@@ -330,7 +323,7 @@ func installHelmRepoAlreadyExist(nhctl runner.Client) error {
 		"-t",
 		string(appmeta.HelmRepo),
 		"--helm-repo-url",
-		"https://codingcorp-helm.pkg.coding.net/nocalhsot-test/testcase",
+		"https://nocalhost-helm.pkg.coding.net/nocalhost-test/bookinfo",
 	)
 	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)

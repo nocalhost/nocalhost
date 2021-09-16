@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package nocalhost
 
@@ -10,8 +10,8 @@ import (
 	nocalhost_db "nocalhost/internal/nhctl/nocalhost/db"
 )
 
-func ListAllFromApplicationDb(ns, appName string) (map[string]string, error) {
-	db, err := nocalhost_db.OpenApplicationLevelDB(ns, appName, true)
+func ListAllFromApplicationDb(ns, appName, nid string) (map[string]string, error) {
+	db, err := nocalhost_db.OpenApplicationLevelDB(ns, appName, nid, true)
 	if err != nil {
 		return nil, err
 	}
@@ -19,8 +19,8 @@ func ListAllFromApplicationDb(ns, appName string) (map[string]string, error) {
 	return db.ListAll()
 }
 
-func CompactApplicationDb(ns, appName, key string) error {
-	db, err := nocalhost_db.OpenApplicationLevelDB(ns, appName, false)
+func CompactApplicationDb(ns, appName, nid, key string) error {
+	db, err := nocalhost_db.OpenApplicationLevelDB(ns, appName, nid, false)
 	if err != nil {
 		return err
 	}
@@ -41,8 +41,8 @@ func CompactApplicationDb(ns, appName, key string) error {
 	return db.CompactKey([]byte(key))
 }
 
-func GetApplicationDbSize(ns, appName string) (int, error) {
-	db, err := nocalhost_db.OpenApplicationLevelDB(ns, appName, true)
+func GetApplicationDbSize(ns, appName, nid string) (int, error) {
+	db, err := nocalhost_db.OpenApplicationLevelDB(ns, appName, nid, true)
 	if err != nil {
 		return 0, err
 	}

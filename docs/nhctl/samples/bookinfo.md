@@ -3,13 +3,13 @@
 ### 编译
 
 ```shell
-git clone https://e.coding.net/codingcorp/nocalhost/nocalhost.git
+git clone https://e.coding.net/nocalhost/nocalhost/nocalhost.git
 go build nocalhost/cmd/nhctl/nhctl.go
 ```
 
 将 nhctl 可执行文件拷贝到 /usr/local/bin 目录下
 
-[mutagen](https://codingcorp.coding.net/p/nocalhost/d/nocalhost-resources/git/tree/master/darwin/mutagen) 和 [mutagen-agents.tar.gz](https://codingcorp.coding.net/p/nocalhost/d/nocalhost-resources/git/tree/master/darwin/mutagen-agents.tar.gz) 也要拷到 /usr/local/bin 目录下 // 这个有点麻烦，后面看看有没有更好一点的方案
+[mutagen](https://nocalhost.coding.net/p/nocalhost/d/nocalhost-resources/git/tree/master/darwin/mutagen) 和 [mutagen-agents.tar.gz](https://nocalhost.coding.net/p/nocalhost/d/nocalhost-resources/git/tree/master/darwin/mutagen-agents.tar.gz) 也要拷到 /usr/local/bin 目录下 // 这个有点麻烦，后面看看有没有更好一点的方案
 
 ### 前置工作
 

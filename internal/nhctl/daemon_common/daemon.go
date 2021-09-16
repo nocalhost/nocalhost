@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package daemon_common
 
@@ -17,6 +17,7 @@ import (
 const (
 	DefaultDaemonPort = 30123
 	SudoDaemonPort    = 30124
+	DaemonHttpPort    = 30125
 )
 
 var (
@@ -31,6 +32,12 @@ type DaemonServerInfo struct {
 	Upgrading bool
 }
 
+type CheckClusterStatus struct {
+	Available bool
+	Info      string
+	//FailedCount int
+}
+
 type PortForwardProfile struct {
 	Cancel     context.CancelFunc `json:"-"` // For canceling a port forward
 	StopCh     chan error         `json:"-"`
@@ -41,10 +48,6 @@ type PortForwardProfile struct {
 	Role       string             `json:"role"`
 	LocalPort  int                `json:"localPort"`
 	RemotePort int                `json:"remotePort"`
-}
-
-func NewDaemonServerInfo() *DaemonServerInfo {
-	return &DaemonServerInfo{Version: Version}
 }
 
 type DaemonServerStatusResponse struct {

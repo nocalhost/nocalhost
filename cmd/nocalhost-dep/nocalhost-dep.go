@@ -17,7 +17,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 )
 
 var GIT_COMMIT_SHA string
@@ -85,10 +84,11 @@ func main() {
 func timer(h http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			startTime := time.Now()
+			//startTime := time.Now()
 			h.ServeHTTP(w, r)
-			duration := time.Now().Sub(startTime)
-			glog.Infof("total cost time %d", duration.Milliseconds())
+			//duration := time.Now(/**/).Sub(startTime)
+			//glog.Infof("total cost time %d", duration.Milliseconds())
+
 		},
 	)
 }

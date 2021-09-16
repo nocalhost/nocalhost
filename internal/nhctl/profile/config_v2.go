@@ -9,7 +9,6 @@ import (
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/pkg/nhctl/clientgoutils"
-	"nocalhost/pkg/nhctl/log"
 	"strings"
 )
 
@@ -18,6 +17,7 @@ import (
 
 type NocalHostAppConfigV2 struct {
 	ConfigProperties  *ConfigProperties  `json:"configProperties" yaml:"configProperties"`
+	Migrated          bool               `json:"migrated" yaml:"migrated"` // Only used for checking if config has migrate in meta
 	ApplicationConfig *ApplicationConfig `json:"application" yaml:"application"`
 }
 
@@ -47,21 +47,6 @@ type ApplicationConfig struct {
 	ServiceConfigs []*ServiceConfigV2 `json:"services" yaml:"services,omitempty"`
 }
 
-type ServiceConfigV2 struct {
-	Name                string               `json:"name" yaml:"name"`
-	Type                string               `json:"serviceType" yaml:"serviceType"`
-	PriorityClass       string               `json:"priorityClass,omitempty" yaml:"priorityClass,omitempty"`
-	DependLabelSelector *DependLabelSelector `json:"dependLabelSelector,omitempty" yaml:"dependLabelSelector,omitempty"`
-	ContainerConfigs    []*ContainerConfig   `json:"containers" yaml:"containers"`
-}
-
-type ContainerConfig struct {
-	Name    string                  `json:"name" yaml:"name"`
-	Hub     *HubConfig              `json:"hub" yaml:"hub,omitempty"`
-	Install *ContainerInstallConfig `json:"install,omitempty" yaml:"install,omitempty"`
-	Dev     *ContainerDevConfig     `json:"dev" yaml:"dev"`
-}
-
 type HubConfig struct {
 	Image string `json:"image" yaml:"image"`
 }
@@ -82,20 +67,21 @@ type ContainerDevConfig struct {
 	PersistentVolumeDirs  []*PersistentVolumeDir `json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
 	Command               *DevCommands           `json:"command" yaml:"command"`
 	DebugConfig           *DebugConfig           `json:"debug" yaml:"debug"`
-	UseDevContainer       bool                   `json:"useDevContainer" yaml:"useDevContainer"`
+	HotReload             bool                   `json:"hotReload" yaml:"hotReload"`
+	UseDevContainer       bool                   `json:"useDevContainer,omitempty" yaml:"useDevContainer,omitempty"`
 	Sync                  *SyncConfig            `json:"sync" yaml:"sync"`
 	Env                   []*Env                 `json:"env" yaml:"env"`
 	EnvFrom               *EnvFrom               `json:"envFrom,omitempty" yaml:"envFrom,omitempty"`
 	PortForward           []string               `json:"portForward" yaml:"portForward"`
-	SidecarImage          string                 `json:"sidecar_image" yaml:"sidecar_image"`
+	SidecarImage          string                 `json:"sidecarImage,omitempty" yaml:"sidecarImage,omitempty"`
 }
 
 type DevCommands struct {
-	Build          []string `json:"build" yaml:"build"`
+	Build          []string `json:"build,omitempty" yaml:"build,omitempty"`
 	Run            []string `json:"run" yaml:"run"`
 	Debug          []string `json:"debug" yaml:"debug"`
-	HotReloadRun   []string `json:"hotReloadRun" yaml:"hotReloadRun"`
-	HotReloadDebug []string `json:"hotReloadDebug" yaml:"hotReloadDebug"`
+	HotReloadRun   []string `json:"hotReloadRun,omitempty" yaml:"hotReloadRun,omitempty"`
+	HotReloadDebug []string `json:"hotReloadDebug,omitempty" yaml:"hotReloadDebug,omitempty"`
 }
 
 type SyncConfig struct {
@@ -132,18 +118,48 @@ type EnvFile struct {
 }
 
 func (n *NocalHostAppConfigV2) GetSvcConfigV2(svcName string, svcType base.SvcType) *ServiceConfigV2 {
-	for _, config := range n.ApplicationConfig.ServiceConfigs {
-		if config.Name == svcName && base.SvcTypeOf(config.Type) == svcType {
-			return config
+	if n != nil && n.ApplicationConfig != nil {
+		for _, config := range n.ApplicationConfig.ServiceConfigs {
+			if config.Name == svcName && base.SvcTypeOf(config.Type) == svcType {
+				return config
+			}
 		}
 	}
 	return nil
 }
 
+// GetSvcConfigS If ServiceConfig not found, return a default one
+func (n *NocalHostAppConfigV2) GetSvcConfigS(svcName string, svcType base.SvcType) ServiceConfigV2 {
+	for _, config := range n.ApplicationConfig.ServiceConfigs {
+		if config.Name == svcName && base.SvcTypeOf(config.Type) == svcType {
+			return *config
+		}
+	}
+	return ServiceConfigV2{Name: svcName, Type: string(svcType)}
+}
+
+func (n *NocalHostAppConfigV2) SetSvcConfigV2(svcConfig ServiceConfigV2) {
+	if svcConfig.Name == "" || svcConfig.Type == "" {
+		return
+	}
+	foundIndex := -1
+	for index, config := range n.ApplicationConfig.ServiceConfigs {
+		if config.Name == svcConfig.Name && config.Type == svcConfig.Type {
+			foundIndex = index
+			break
+		}
+	}
+	if foundIndex >= 0 {
+		n.ApplicationConfig.ServiceConfigs[foundIndex] = &svcConfig
+		return
+	}
+	n.ApplicationConfig.ServiceConfigs = append(n.ApplicationConfig.ServiceConfigs, &svcConfig)
+}
+
 func (n *NocalHostAppConfigV2) FindSvcConfigInHub(svcName string, svcType base.SvcType, container, image string) *ServiceConfigV2 {
-	svcConfig := n.GetSvcConfigV2(svcName, svcType)
-	if isSvcConfigInHubMatch(svcConfig, container, image) {
-		return svcConfig
+	svcConfig := n.GetSvcConfigS(svcName, svcType)
+	if isSvcConfigInHubMatch(&svcConfig, container, image) {
+		return &svcConfig
 	}
 	return nil
 }
@@ -156,11 +172,9 @@ func isSvcConfigInHubMatch(svcConfig *ServiceConfigV2, container, image string) 
 	for _, c := range svcConfig.ContainerConfigs {
 		if c.Name == container {
 			if c.Hub == nil {
-				log.Log("hub field missing")
 				return false
 			}
 			if !strings.Contains(image, c.Hub.Image) {
-				log.Log("hub's image not match")
 				return false
 			}
 			return true

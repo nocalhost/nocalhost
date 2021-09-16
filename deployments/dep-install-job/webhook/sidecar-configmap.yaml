@@ -7,6 +7,6 @@ data:
   sidecarconfig.yaml: |
     initContainers:
     - name: nocalhost-wait
-      image: codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-wait:v1
+      image: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-wait:v1
       imagePullPolicy: Always
       args:
