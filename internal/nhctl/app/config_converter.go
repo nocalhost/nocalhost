@@ -44,11 +44,11 @@ func convertConfigV1ToV2(configV1 *profile2.NocalHostAppConfig) (*profile2.Nocal
 	}
 
 	configV2 := &profile2.NocalHostAppConfigV2{
-		ConfigProperties: &profile2.ConfigProperties{
+		ConfigProperties: profile2.ConfigProperties{
 			Version: "v2",
 			EnvFile: "",
 		},
-		ApplicationConfig: &profile2.ApplicationConfig{
+		ApplicationConfig: profile2.ApplicationConfig{
 			Name:           configV1.Name,
 			Type:           configV1.Type,
 			ResourcePath:   configV1.ResourcePath,
@@ -124,8 +124,8 @@ func checkConfigVersion(content string) (string, error) {
 	// ignored err to prevent un strict yaml
 	_ = yaml.Unmarshal([]byte(content), config)
 
-	if config.ConfigProperties != nil {
-		return config.ConfigProperties.Version, nil
+	if config.ConfigProperties.Version == "" {
+		return "v1", nil
 	}
-	return "v1", nil
+	return config.ConfigProperties.Version, nil
 }
