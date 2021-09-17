@@ -205,7 +205,12 @@ compression="metadata" introducer="false" skipIntroductionRemovals="false" intro
 //
 // the last block is **
 // means, if we did not specify any pattern, no file will be synced
-const IgnoredFileTemplate = `// Ignored pattern block, the priority of ignored pattern is highest, default is ""
+const IgnoredFileTemplate = `
+// Whether to enable the parse the gitignore from the home directory 
+// While enabled, the configuration of "ignoredPattern" or "syncedPattern" will not take effect.
+{{.enableParseFromGitIgnore}}
+
+// Ignored pattern block, the priority of ignored pattern is highest, default is ""
 {{.ignoredPattern}}
 
 // Synced pattern block, default is "!**"

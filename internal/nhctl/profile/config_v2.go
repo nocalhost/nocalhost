@@ -85,9 +85,10 @@ type DevCommands struct {
 }
 
 type SyncConfig struct {
-	Type              string   `json:"type" yaml:"type"`
-	FilePattern       []string `json:"filePattern" yaml:"filePattern"`
-	IgnoreFilePattern []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
+	Type               string   `json:"type" yaml:"type"`
+	ParseFromGitIgnore bool     `json:"parseFromGitIgnore" yaml:"parseFromGitIgnore"`
+	FilePattern        []string `json:"filePattern" yaml:"filePattern"`
+	IgnoreFilePattern  []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
 }
 
 type DebugConfig struct {
