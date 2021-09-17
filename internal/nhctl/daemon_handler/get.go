@@ -260,8 +260,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			result := make([]item.Item, 0, len(items))
 			for _, i := range items {
 				tempItem := item.Item{Metadata: i}
-				if mapping, err := s.GetRestMapping(request.Resource); err == nil {
-					tempItem.Description = serviceMap[mapping.Resource.Resource+"/"+i.(metav1.Object).GetName()]
+				if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
+					tempItem.Description = serviceMap[mapping.Gvr.Resource+"/"+i.(metav1.Object).GetName()]
 				}
 				result = append(result, tempItem)
 			}
@@ -273,8 +273,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				return nil
 			}
 			i := item.Item{Metadata: one}
-			if mapping, err := s.GetRestMapping(request.Resource); err == nil {
-				i.Description = serviceMap[mapping.Resource.Resource+"/"+one.(metav1.Object).GetName()]
+			if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
+				i.Description = serviceMap[mapping.Gvr.Resource+"/"+one.(metav1.Object).GetName()]
 			}
 			return i
 		}
