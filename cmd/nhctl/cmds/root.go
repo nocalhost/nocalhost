@@ -112,7 +112,7 @@ var rootCmd = &cobra.Command{
 
 			must(clientgoutils.DoCheck(cmd, nameSpace, client))
 
-			println("yes")
+			fmt.Printf("yes")
 			os.Exit(0)
 			return
 		}
