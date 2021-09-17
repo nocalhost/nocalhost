@@ -55,7 +55,7 @@ func OpenLevelDB(path string, readonly bool) (*LevelDBUtils, error) {
 		} else /*if errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EBUSY)*/ {
 			log.Logf("Another process is accessing leveldb: %s, wait for 0.002s to retry, err: %v", path, err)
 			for i := 0; i < 3000; i++ {
-				time.Sleep(20 * time.Millisecond)
+				time.Sleep(10 * time.Millisecond)
 				db, err = leveldb.OpenFile(path, o)
 				if err == nil {
 					log.Logf("Success after %v times, open leveldb: %s", i, path)
