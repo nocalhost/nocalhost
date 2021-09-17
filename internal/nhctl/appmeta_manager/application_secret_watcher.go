@@ -6,16 +6,18 @@
 package appmeta_manager
 
 import (
+	"context"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/flowcontrol"
 
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
 	profile2 "nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/resouce_cache"
 	"nocalhost/internal/nhctl/watcher"
 	"nocalhost/pkg/nhctl/log"
 	"sync"
@@ -119,6 +121,11 @@ func (asw *applicationSecretWatcher) left(appName string) {
 			},
 		)
 	}
+
+	// todo stop all port forward
+	//go func() {
+	//
+	//}()
 }
 
 func NewApplicationSecretWatcher(configBytes []byte, ns string) *applicationSecretWatcher {
@@ -165,6 +172,7 @@ func (asw *applicationSecretWatcher) Prepare() error {
 	}
 
 	// creates the clientset
+	c.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
 	clientset, err := kubernetes.NewForConfig(c)
 	if err != nil {
 		return err
@@ -182,28 +190,21 @@ func (asw *applicationSecretWatcher) Prepare() error {
 	// first get all nocalhost secrets for initial
 	// ignore error prevent kubeconfig has not permission for get secret
 	// ignore fail
-	searcher, err := resouce_cache.GetSearcherWithLRU(asw.configBytes, asw.ns)
+	list, err := clientset.CoreV1().Secrets(asw.ns).List(context.TODO(), v12.ListOptions{})
 	if err != nil {
 		log.ErrorE(err, "")
 		return nil
 	}
 
-	return searcher.Criteria().
-		Namespace(asw.ns).
-		ResourceType("secrets").
-		Consume(
-			func(i []interface{}) error {
-				for _, secret := range i {
-					v := secret.(*v1.Secret)
-					if v.Type == appmeta.SecretType {
-						if err := asw.join(v); err != nil {
-							return err
-						}
-					}
-				}
-				return nil
-			},
-		)
+	for _, v := range list.Items {
+		if v.Type == appmeta.SecretType {
+			if err := asw.join(&v); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // todo stop while Ns deleted

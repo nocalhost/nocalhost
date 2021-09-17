@@ -20,6 +20,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -218,4 +219,12 @@ func GetShortUuid() (string, error) {
 		return "", errors.New("Failed to get a uuid")
 	}
 	return strs[0], nil
+}
+
+func ReplaceCodingcorpString(old string) string {
+	if !strings.Contains(old, "codingcorp-docker.pkg.coding.net") {
+		return old
+	}
+	re3, _ := regexp.Compile("codingcorp-docker.pkg.coding.net")
+	return re3.ReplaceAllString(old, "nocalhost-docker.pkg.coding.net")
 }

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster
 
@@ -12,9 +12,11 @@ import (
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/app/router/middleware"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
 // GetList Delete the cluster completely
@@ -28,13 +30,20 @@ import (
 // @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
 // @Router /v1/cluster/{id} [delete]
 func Delete(c *gin.Context) {
-	// userId, _ := c.Get("userId")
+	userId, _ := c.Get("userId")
 	clusterId := cast.ToUint64(c.Param("id"))
 	cluster, err := service.Svc.ClusterSvc().Get(c, clusterId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
 		return
 	}
+	// admin can delete all cluster, but normal user can delete cluster they created only
+	if isAdmin, _ := middleware.IsAdmin(c); !isAdmin && (userId != cluster.UserId) {
+		api.SendResponse(c, errno.ErrPermissionDenied, nil)
+		return
+	}
+
+	deleteMeshManager(cluster.KubeConfig)
 
 	goClient, err := clientgo.NewAdminGoClient([]byte(cluster.KubeConfig))
 	if err != nil {
@@ -59,6 +68,7 @@ func Delete(c *gin.Context) {
 	if !result {
 		return
 	}
+	Remove(cluster.KubeConfig)
 	api.SendResponse(c, errno.OK, nil)
 }
 
@@ -95,4 +105,9 @@ func deleteNocalhostManagedData(c *gin.Context, clusterId uint64, spaceIds []uin
 		}
 	}
 	return true
+}
+
+// Delete manager form factory
+func deleteMeshManager(kubeconfig string) {
+	setupcluster.GetSharedMeshManagerFactory().Delete(kubeconfig)
 }

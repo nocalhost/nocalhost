@@ -7,7 +7,9 @@ package cmds
 
 import (
 	"nocalhost/internal/nhctl/const"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
@@ -55,6 +57,16 @@ var uninstallCmd = &cobra.Command{
 
 		//goland:noinspection ALL
 		mustI(appMeta.Uninstall(true), "Error while uninstall application")
+
+		p, _ := nocalhost.GetProfileV2(nameSpace, applicationName, nid)
+		if p != nil {
+			for _, sv := range p.SvcProfile {
+				for _, pf := range sv.DevPortForwardList {
+					log.Infof("Stopping %s-%s's port-forward %d:%d", nameSpace, applicationName, pf.LocalPort, pf.RemotePort)
+					utils.Should(controller.StopPortForward(nameSpace, nid, applicationName, sv.Name, pf))
+				}
+			}
+		}
 
 		if err = nocalhost.CleanupAppFilesUnderNs(nameSpace, nid); err != nil {
 			log.WarnE(err, "")

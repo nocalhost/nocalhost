@@ -371,7 +371,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 						delete(p.pfList, key)
 						return
 					}
-					log.WarnE(err, "Port-forward failed, reconnecting after 30 seconds...")
+					log.WarnE(err, fmt.Sprintf("Port-forward %d:%d failed, reconnecting after 30 seconds...", localPort, remotePort))
 					heartBeatCancel()
 					p.lock.Lock()
 					err = nhController.UpdatePortForwardStatus(localPort, remotePort, "RECONNECTING",

@@ -197,6 +197,8 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	// Listen http
 	go startHttpServer()
 
+	go checkClusterStatusCronJob()
+
 	go func() {
 		select {
 		case <-tcpCtx.Done():
@@ -258,7 +260,6 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				if err = handleStartPortForwardCommand(startCmd); err != nil {
 					return nil, err
 				}
-
 				return nil, nil
 			},
 		)
@@ -382,6 +383,14 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				return nil, errors.Wrap(err, "")
 			}
 			return nil, daemon_handler.HandleKubeconfigOperationRequest(cmd)
+		})
+	case command.CheckClusterStatus:
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			cmd := &command.CheckClusterStatusCommand{}
+			if err = json.Unmarshal(bys, cmd); err != nil {
+				return nil, errors.Wrap(err, "")
+			}
+			return HandleCheckClusterStatus(cmd)
 		})
 	}
 	if err != nil {
