@@ -4,6 +4,7 @@ description: A cloud-native development tool
 type: application
 version: 0.6.2
 appVersion: "v0.5.6"
+kubeVersion: '>= 1.16.0-0'
 keywords:
 - nocalhost
 - nhctl
