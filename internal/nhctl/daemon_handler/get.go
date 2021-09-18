@@ -6,6 +6,7 @@
 package daemon_handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -34,20 +35,26 @@ var svcProfileCacheMap = NewCache(time.Second * 2)
 
 func getServiceProfile(ns, appName, nid string) map[string]*profile.SvcProfileV2 {
 	serviceMap := make(map[string]*profile.SvcProfileV2)
-	if appName == "" || ns == "" {
-		return serviceMap
-	}
-	description := GetDescriptionDaemon(ns, appName, nid)
-	if description != nil {
-		for _, svcProfileV2 := range description.SvcProfile {
-			if svcProfileV2 != nil {
-				name := strings.ToLower(svcProfileV2.GetType()) + "s"
-				serviceMap[name+"/"+svcProfileV2.GetName()] = svcProfileV2
+	ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Second*5)
+	defer cancelFunc()
+	for {
+		select {
+		case <-ctx.Done():
+			if appName == "" || ns == "" {
+				return serviceMap
 			}
+			description := GetDescriptionDaemon(ns, appName, nid)
+			if description != nil {
+				for _, svcProfileV2 := range description.SvcProfile {
+					if svcProfileV2 != nil {
+						name := strings.ToLower(svcProfileV2.GetType()) + "s"
+						serviceMap[name+"/"+svcProfileV2.GetName()] = svcProfileV2
+					}
+				}
+			}
+			return serviceMap
 		}
 	}
-
-	return serviceMap
 }
 
 func GetDescriptionDaemon(ns, appName, nid string) *profile.AppProfileV2 {
