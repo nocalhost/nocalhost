@@ -86,3 +86,11 @@ func TestPortForwardManager_StartPortForwardGoRoutine(t *testing.T) {
 	fmt.Println("Listen")
 	_ = listener.Close()
 }
+
+func TestParseErrToForwardPort(t *testing.T) {
+	p, err := ParseErrToForwardPort("error creating error stream for port 20153 -> 20153: Timeout occured")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%v", p)
+}
