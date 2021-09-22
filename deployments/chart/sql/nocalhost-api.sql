@@ -149,12 +149,12 @@ LOCK TABLES `pre_pull` WRITE;
 
 INSERT INTO `pre_pull` (`id`, `images`, `deleted_at`)
 VALUES
-	(1,'codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:latest',NULL),
-	(2,'codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-wait:latest',NULL),
-	(3,'codingcorp-docker.pkg.coding.net/nocalhost/bookinfo/productpage:latest',NULL),
-	(4,'codingcorp-docker.pkg.coding.net/nocalhost/bookinfo/reviews:latest',NULL),
-	(5,'codingcorp-docker.pkg.coding.net/nocalhost/bookinfo/details:latest',NULL),
-	(6,'codingcorp-docker.pkg.coding.net/nocalhost/bookinfo/ratings:latest',NULL);
+	(1,'nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:latest',NULL),
+	(2,'nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-wait:latest',NULL),
+	(3,'nocalhost-docker.pkg.coding.net/nocalhost/bookinfo/productpage:latest',NULL),
+	(4,'nocalhost-docker.pkg.coding.net/nocalhost/bookinfo/reviews:latest',NULL),
+	(5,'nocalhost-docker.pkg.coding.net/nocalhost/bookinfo/details:latest',NULL),
+	(6,'nocalhost-docker.pkg.coding.net/nocalhost/bookinfo/ratings:latest',NULL);
 
 /*!40000 ALTER TABLE `pre_pull` ENABLE KEYS */;
 UNLOCK TABLES;

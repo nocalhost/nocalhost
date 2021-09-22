@@ -17,7 +17,10 @@ func initialIncludeEnv() {
 func TestInclude(t *testing.T) {
 	initialIncludeEnv()
 
-	result, err := Render(fp.NewFilePath("testdata/include/nocalhostIncludeRenderTmpl.yaml"), nil)
+	result, err := Render(
+		LocalFileRenderItem{fp.NewFilePath("testdata/include/nocalhostIncludeRenderTmpl.yaml")},
+		nil,
+	)
 	if err != nil {
 		fmt.Printf("%+v", err)
 		t.Error(err)
@@ -34,7 +37,10 @@ func TestInclude(t *testing.T) {
 func TestCircularInclude(t *testing.T) {
 	initialIncludeEnv()
 
-	result, err := Render(fp.NewFilePath("testdata/circularDependency/renderTmpl.yaml"), nil)
+	result, err := Render(
+		LocalFileRenderItem{fp.NewFilePath("testdata/circularDependency/renderTmpl.yaml")},
+		nil,
+	)
 	if err != nil {
 		fmt.Printf("%+v", err)
 		t.Error(err)
@@ -69,4 +75,3 @@ func IsSameYaml(src, dst string) error {
 
 	return nil
 }
-

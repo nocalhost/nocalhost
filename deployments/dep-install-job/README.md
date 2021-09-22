@@ -15,7 +15,7 @@
 ```
 make dep-docker
 ```
-对应镜像：codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep
+对应镜像：nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-dep
 
 ## dep-installer
 
@@ -23,4 +23,4 @@ make dep-docker
 make dep-installer-job-docker
 ```
 
-对应镜像：codingcorp-docker.pkg.coding.net/nocalhost/public/dep-installer-job
+对应镜像：nocalhost-docker.pkg.coding.net/nocalhost/public/dep-installer-job

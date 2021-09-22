@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package user
 
@@ -69,14 +69,12 @@ func Update(c *gin.Context) {
 		}
 	} else {
 		uid, _ := c.Get("userId")
-		userId = cast.ToUint64(uid)
+		if cast.ToUint64(uid) != userId {
+			api.SendResponse(c, errno.ErrPermissionDenied, nil)
+			return
+		}
 	}
 
-	//userMap := make(map[string]interface{})
-	//userMap["email"] = req.Email
-	//userMap["name"] = req.Name
-	//userMap["password"] = pwd
-	//userMap["status"] = req.Status
 	result, err := service.Svc.UserSvc().UpdateUser(context.TODO(), userId, &userMap)
 	if err != nil {
 		log.Warnf("[user] update user err, %v", err)

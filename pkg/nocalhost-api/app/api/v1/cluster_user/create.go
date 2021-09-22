@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster_user
 
@@ -14,17 +14,17 @@ import (
 	"strings"
 )
 
-// Create Create a development environment for application
-// @Summary Create a development environment for application
-// @Description Create a development environment for application
-// @Tags Application
+// Create Create dev space
+// @Summary Create dev space
+// @Description Create dev space
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param CreateAppRequest body cluster_user.ClusterUserCreateRequest true "cluster user info"
 // @Param id path uint64 true "Application ID"
-// @Success 200 {object} model.ClusterModel
-// @Router /v1/application/{id}/create_space [post]
+// @Success 200 {object} model.ClusterUserModel
+// @Router /v1/dev_space/{id} [post]
 func Create(c *gin.Context) {
 	var req ClusterUserCreateRequest
 	defaultNum := uint64(0)
@@ -35,20 +35,12 @@ func Create(c *gin.Context) {
 		api.SendResponse(c, errno.ErrBind, nil)
 		return
 	}
-	// Validate DevSpace Resource limit parameter format.
-	if req.SpaceResourceLimit != nil {
-		flag, message := ValidSpaceResourceLimit(*req.SpaceResourceLimit)
-		if !flag {
-			log.Errorf("Initial devSpace fail. Incorrect Resource limit parameter [ %v ] format.", message)
-			api.SendResponse(c, errno.ErrFormatResourceLimitParam, message)
-			return
-		}
-
-		if !req.SpaceResourceLimit.Validate() {
-			api.SendResponse(c, errno.ErrValidateResourceQuota, nil)
-			return
-		}
+	// Validate request parameter format.
+	if _, errn := req.Validate(); errn != nil {
+		api.SendResponse(c, errn, nil)
+		return
 	}
+
 	applicationId := uint64(0)
 	req.ApplicationId = &applicationId
 	devSpace := NewDevSpace(req, c, []byte{})
@@ -69,16 +61,16 @@ func ValidSpaceResourceLimit(resLimit SpaceResourceLimit) (bool, string) {
 
 	var message msgList = []string{}
 	message.appendWhileMatch(resLimit.SpaceReqMem, "space_req_mem", regMem)
-	message.appendWhileMatch(resLimit.SpaceLimitsMem,"space_limits_mem",regMem)
-	message.appendWhileMatch(resLimit.SpaceReqCpu,"space_req_cpu",regCpu)
-	message.appendWhileMatch(resLimit.SpaceLimitsCpu,"space_limits_cpu",regCpu)
-	message.appendWhileMatch(resLimit.SpaceLbCount,"space_lb_count",numReg)
-	message.appendWhileMatch(resLimit.SpacePvcCount,"space_pvc_count",numReg)
-	message.appendWhileMatch(resLimit.SpaceStorageCapacity,"space_storage_capacity",regStorage)
-	message.appendWhileMatch(resLimit.ContainerReqMem,"container_req_mem",regMem)
-	message.appendWhileMatch(resLimit.ContainerReqCpu,"container_req_cpu",regCpu)
-	message.appendWhileMatch(resLimit.ContainerLimitsMem,"container_limits_mem",regMem)
-	message.appendWhileMatch(resLimit.ContainerLimitsCpu,"container_limits_cpu",regCpu)
+	message.appendWhileMatch(resLimit.SpaceLimitsMem, "space_limits_mem", regMem)
+	message.appendWhileMatch(resLimit.SpaceReqCpu, "space_req_cpu", regCpu)
+	message.appendWhileMatch(resLimit.SpaceLimitsCpu, "space_limits_cpu", regCpu)
+	message.appendWhileMatch(resLimit.SpaceLbCount, "space_lb_count", numReg)
+	message.appendWhileMatch(resLimit.SpacePvcCount, "space_pvc_count", numReg)
+	message.appendWhileMatch(resLimit.SpaceStorageCapacity, "space_storage_capacity", regStorage)
+	message.appendWhileMatch(resLimit.ContainerReqMem, "container_req_mem", regMem)
+	message.appendWhileMatch(resLimit.ContainerReqCpu, "container_req_cpu", regCpu)
+	message.appendWhileMatch(resLimit.ContainerLimitsMem, "container_limits_mem", regMem)
+	message.appendWhileMatch(resLimit.ContainerLimitsCpu, "container_limits_cpu", regCpu)
 
 	if len(message) > 0 {
 		return false, strings.Join(message, ",")

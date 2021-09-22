@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package utils
 
@@ -9,6 +9,7 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"io"
 	"io/ioutil"
@@ -19,8 +20,10 @@ import (
 	"os/user"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 )
 
 func Should(err error) {
@@ -204,4 +207,24 @@ func CheckKubectlVersion(compareMinor int) error {
 		return errors.New(fmt.Sprintf("kubectl version required %d+", compareMinor))
 	}
 	return nil
+}
+
+func GetShortUuid() (string, error) {
+	uid, err := uuid.NewUUID()
+	if err != nil {
+		return "", errors.Wrap(err, "")
+	}
+	strs := strings.Split(uid.String(), "-")
+	if len(strs) == 0 {
+		return "", errors.New("Failed to get a uuid")
+	}
+	return strs[0], nil
+}
+
+func ReplaceCodingcorpString(old string) string {
+	if !strings.Contains(old, "codingcorp-docker.pkg.coding.net") {
+		return old
+	}
+	re3, _ := regexp.Compile("codingcorp-docker.pkg.coding.net")
+	return re3.ReplaceAllString(old, "nocalhost-docker.pkg.coding.net")
 }

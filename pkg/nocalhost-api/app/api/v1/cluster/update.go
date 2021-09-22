@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster
 
@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cast"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/app/router/middleware"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 )
 
@@ -32,6 +33,15 @@ func Update(c *gin.Context) {
 	clusterId := cast.ToUint64(c.Param("id"))
 	updateCol := map[string]interface{}{
 		"storage_class": req.StorageClass,
+	}
+	cluster, err2 := service.Svc.ClusterSvc().Get(c, clusterId)
+	if err2 != nil {
+		api.SendResponse(c, errno.ErrUpdateCluster, nil)
+		return
+	}
+	if admin, _ := middleware.IsAdmin(c); !admin && cluster.UserId != c.GetUint64("userId") {
+		api.SendResponse(c, errno.ErrPermissionDenied, nil)
+		return
 	}
 	result, err := service.Svc.ClusterSvc().Update(c, updateCol, clusterId)
 	if err != nil {

@@ -7,6 +7,7 @@ package service
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	_const "nocalhost/internal/nhctl/const"
@@ -142,8 +143,9 @@ func (s *Service) migrateClusterUseToRoleBinding() {
 	}
 
 	for _, clusterUser := range list {
-		if !clusterUser.IsClusterAdmin(){
+		if !clusterUser.IsClusterAdmin() {
 			_ = s.AuthorizeNsToUser(clusterUser.ClusterId, clusterUser.UserId, clusterUser.Namespace)
+			_ = s.AuthorizeNsToDefaultSa(clusterUser.ClusterId, clusterUser.UserId, clusterUser.Namespace)
 		}
 	}
 }
@@ -191,7 +193,7 @@ func (s *Service) init() {
 		log.Errorf("Error while updating role: %s", err)
 	}
 
-	// todo update all rolebinding
+	// todo update all role binding
 	if err := s.updateAllRoleBinding(); err != nil {
 		log.Errorf("Error while updating role binding: %s", err)
 	}
@@ -238,13 +240,12 @@ func (s *Service) upgradeAllClusters() error {
 
 // elder version of nocalhost may not has nocalhost label
 func (s *Service) updateAllRoleBinding() error {
-	cu := model.ClusterUserModel{}
-
 	var results []*model.ClusterUserModel
-	results, err := s.ClusterUser().GetList(context.TODO(), cu)
+	results, err := s.ClusterUser().GetList(context.TODO(), model.ClusterUserModel{})
 
+	log.Info("1")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "")
 	}
 
 	group := map[uint64][]*model.ClusterUserModel{}
@@ -258,11 +259,7 @@ func (s *Service) updateAllRoleBinding() error {
 		group[result.ClusterId] = list
 	}
 
-	wg := sync.WaitGroup{}
-	wg.Add(len(group))
-
 	go func() {
-		defer wg.Done()
 		for clusterId, cus := range group {
 
 			clusterModel, err := s.ClusterSvc().GetCache(clusterId)
@@ -277,18 +274,13 @@ func (s *Service) updateAllRoleBinding() error {
 				return
 			}
 
-			err = goClient.UpdateClusterRoleBindingForNocalhostLabel(_const.NocalhostDevRoleName)
-
-			wgInner := sync.WaitGroup{}
-			wg.Add(len(cus))
+			_ = goClient.UpdateClusterRoleBindingForNocalhostLabel(_const.NocalhostDefaultRoleBinding)
 
 			for _, result := range cus {
 				result := result
 				go func() {
-					defer wgInner.Done()
-
 					err = goClient.UpdateRoleBindingForNocalhostLabel(
-						_const.NocalhostDevRoleName, result.Namespace,
+						_const.NocalhostDefaultRoleBinding, result.Namespace,
 					)
 					if err != nil {
 						log.Error(err)
@@ -296,33 +288,24 @@ func (s *Service) updateAllRoleBinding() error {
 					}
 				}()
 			}
-
-			wgInner.Wait()
 		}
 	}()
 
-	wg.Wait()
 	return nil
 }
 
 func (s *Service) updateAllRole() error {
-	cu := model.ClusterUserModel{}
-
 	var results []*model.ClusterUserModel
-	results, err := s.ClusterUser().GetList(context.TODO(), cu)
+	results, err := s.ClusterUser().GetList(context.TODO(), model.ClusterUserModel{})
 
 	if err != nil {
 		return err
 	}
 
-	wg := sync.WaitGroup{}
-	wg.Add(len(results))
-
 	for _, result := range results {
 
 		result := result
 		go func() {
-			defer wg.Done()
 
 			clusterModel, err := s.ClusterSvc().GetCache(result.ClusterId)
 			if err != nil {
@@ -344,12 +327,11 @@ func (s *Service) updateAllRole() error {
 				},
 			)
 			if err != nil {
+				log.Error(err)
 				return
 			}
 		}()
 	}
-
-	wg.Wait()
 	return nil
 }
 
@@ -392,6 +374,30 @@ func (s *Service) PrepareServiceAccountAndClientGo(clusterId, userId uint64) (
 
 	saName = u.SaName
 	return
+}
+
+func (s *Service) AuthorizeNsToDefaultSa(clusterId, userId uint64, ns string) error {
+	clientGo, _, err := s.PrepareServiceAccountAndClientGo(clusterId, userId)
+	if err != nil {
+		return err
+	}
+
+	if err := CreateNamespaceINE(clientGo, ns); err != nil {
+		log.Error(err)
+		return errno.ErrNameSpaceCreate
+	}
+
+	if err := CreateOrUpdateRoleBindingINE(
+		clientGo, ns, "default",
+		ns,
+		_const.NocalhostDefaultRoleBinding,
+		_const.NocalhostDevRoleName,
+	); err != nil {
+		log.Error(err)
+		return errno.ErrRoleBindingCreate
+	}
+
+	return nil
 }
 
 func (s *Service) AuthorizeNsToUser(clusterId, userId uint64, ns string) error {
@@ -481,7 +487,7 @@ func createOrUpdateServiceAccountINE(client *clientgo.GoClient, saName string, s
 }
 
 func CreateNamespaceINE(client *clientgo.GoClient, ns string) error {
-	if _, err := client.CreateNS(ns, ""); err != nil && !k8serrors.IsAlreadyExists(err) {
+	if _, err := client.CreateNS(ns, map[string]string{}); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return err
 	}
 	return nil
@@ -530,16 +536,27 @@ func createClusterAdminRoleINE(client *clientgo.GoClient) error {
 
 	go func() {
 		defer wg.Done()
-		if _, err := client.CreateClusterRole(
-			_const.NocalhostViewerRoleName, []rbacv1.PolicyRule{
-				{
-					Verbs:     []string{"get", "list", "watch"},
-					Resources: []string{"*"},
-					APIGroups: []string{"*"},
-				},
+		rule := []rbacv1.PolicyRule{
+			{
+				Verbs:     []string{"get", "list", "watch"},
+				Resources: []string{"*"},
+				APIGroups: []string{"*"},
 			},
-		); err != nil && !k8serrors.IsAlreadyExists(err) {
-			errChan <- err
+			{
+				Verbs:     []string{"*"},
+				Resources: []string{"pods/portforward"},
+				APIGroups: []string{"*"},
+			},
+		}
+
+		if _, err := client.CreateClusterRole(
+			_const.NocalhostViewerRoleName, rule,
+		); err != nil {
+			if !k8serrors.IsAlreadyExists(err) {
+				errChan <- err
+			} else {
+				_ = client.UpdateClusterRole(_const.NocalhostViewerRoleName, rule)
+			}
 		}
 	}()
 

@@ -1,4 +1,4 @@
-FROM codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing
+FROM nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing
 
 RUN apk add openrc openssh
 VOLUME [ "/sys/fs/cgroup" ]

@@ -1,11 +1,12 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package appmeta_manager
 
 import (
+	"context"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,7 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"nocalhost/internal/nhctl/resouce_cache"
+	"k8s.io/client-go/util/flowcontrol"
 	"nocalhost/internal/nhctl/watcher"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
@@ -116,6 +117,7 @@ func (hcmw *helmCmWatcher) Prepare() (existRelease []string, err error) {
 	}
 
 	// creates the clientset
+	c.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
 	clientset, err := kubernetes.NewForConfig(c)
 	if err != nil {
 		return
@@ -133,31 +135,18 @@ func (hcmw *helmCmWatcher) Prepare() (existRelease []string, err error) {
 	hcmw.watchController = controller
 
 	// creates the clientset
-	hcmw.clientSet, err = kubernetes.NewForConfig(c)
-	if err != nil {
-		return
-	}
+	hcmw.clientSet = clientset
 
 	// first get all configmaps for initial
 	// and find out the invalid nocalhost application
 	// then delete it
-	searcher, err := resouce_cache.GetSearcher(hcmw.configBytes, hcmw.ns, false)
+	list, err := clientset.CoreV1().ConfigMaps(hcmw.ns).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		log.ErrorE(err, "")
 		return
 	}
 
-	cms, err := searcher.Criteria().
-		Namespace(hcmw.ns).
-		ResourceType("configmaps").Query()
-	if err != nil {
-		log.ErrorE(err, "")
-		return
-	}
-
-	for _, configmap := range cms {
-		v := configmap.(*v1.ConfigMap)
-
+	for _, v := range list.Items {
 		// this may cause bug that contains sh.helm.release
 		// may not managed by helm
 		if strings.Contains(v.Name, "sh.helm.release.v1") {

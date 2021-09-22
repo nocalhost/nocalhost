@@ -11,8 +11,12 @@ data:
         location / {
             root   /usr/share/nginx/html;
             index  index.html index.htm;
+            try_files $uri /index.html;
         }
         location /v1 {
+            proxy_pass http://nocalhost-api:8080;
+        }
+        location /v2 {
             proxy_pass http://nocalhost-api:8080;
         }
         error_page   500 502 503 504  /50x.html;

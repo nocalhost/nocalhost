@@ -269,7 +269,7 @@ func Compatible(cli runner.Client) {
 		func() error { return testcase.Upgrade(cli) },
 		func() error { return testcase.Config(cli) },
 		func() error { return testcase.List(cli) },
-		func() error { return testcase.Db(cli) },
+		//func() error { return testcase.Db(cli) },
 		func() error { return testcase.Pvc(cli) },
 		func() error { return testcase.Reset(cli) },
 		func() error { return testcase.InstallBookInfoDifferentType(cli) },

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package user
 
@@ -60,12 +60,21 @@ func Delete(c *gin.Context) {
 	if err != nil {
 		log.Warnf("try to delete dev spaceId %s fail", clusterUserIds)
 	}
-
+	user, err := service.Svc.UserSvc().GetCache(userId)
 	err = service.Svc.UserSvc().Delete(c, userId)
 	if err != nil {
 		log.Warnf("user delete error: %v", err)
 		api.SendResponse(c, errno.ErrDeleteUser, nil)
 		return
+	}
+	// if delete normal user, needs to delete cluster which added by this user
+	if user.IsAdmin != nil && *user.IsAdmin != 1 {
+		err = service.Svc.ClusterSvc().DeleteByCreator(c, userId)
+		if err != nil {
+			log.Warnf("delete cluster which created by this user error: %v", err)
+			api.SendResponse(c, errno.ErrDeleteUser, nil)
+			return
+		}
 	}
 
 	api.SendResponse(c, errno.OK, nil)

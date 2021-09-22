@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package applications
 
@@ -25,12 +25,18 @@ func PublicSwitch(c *gin.Context) {
 		return
 	}
 
-	if !ginbase.IsAdmin(c) {
+	//userId, _ := c.Get("userId")
+	applicationId := cast.ToUint64(c.Param("id"))
+	app, err2 := service.Svc.ApplicationSvc().Get(c, applicationId)
+	if err2 != nil {
+		api.SendResponse(c, errno.ErrApplicationGet, nil)
+		return
+	}
+	if !ginbase.IsAdmin(c) && !ginbase.IsCurrentUser(c, app.UserId) {
 		api.SendResponse(c, errno.ErrPermissionDenied, nil)
+		return
 	}
 
-	// userId, _ := c.Get("userId")
-	applicationId := cast.ToUint64(c.Param("id"))
 	err := service.Svc.ApplicationSvc().PublicSwitch(c, applicationId, *req.Public)
 	if err != nil {
 		log.Warnf("update Application err: %v", err)
