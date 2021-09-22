@@ -139,9 +139,6 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 				case syncthing.DefaultSyncMode:
 					flag = true
 
-				case syncthing.SendOnlySyncMode:
-					flag = false
-
 				default:
 					flag = false
 				}
