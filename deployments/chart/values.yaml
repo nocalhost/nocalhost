@@ -18,6 +18,19 @@ web:
     # Overrides the image tag whose default is the chart appVersion.
     tag: "v0.5.6"
 
+imagePullSecrets: []
+
+podSecurityContext: {}
+#  fsGroup: 2000
+
+securityContext: {}
+#  capabilities:
+#    drop:
+#    - ALL
+#  readOnlyRootFilesystem: true
+#  runAsNonRoot: true
+#  runAsUser: 1000
+
 service:
   type: LoadBalancer
   port: 80
