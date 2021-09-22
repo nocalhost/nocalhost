@@ -6,6 +6,7 @@
 package daemon_handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -34,20 +35,26 @@ var svcProfileCacheMap = NewCache(time.Second * 2)
 
 func getServiceProfile(ns, appName, nid string) map[string]*profile.SvcProfileV2 {
 	serviceMap := make(map[string]*profile.SvcProfileV2)
-	if appName == "" || ns == "" {
-		return serviceMap
-	}
-	description := GetDescriptionDaemon(ns, appName, nid)
-	if description != nil {
-		for _, svcProfileV2 := range description.SvcProfile {
-			if svcProfileV2 != nil {
-				name := strings.ToLower(svcProfileV2.GetType()) + "s"
-				serviceMap[name+"/"+svcProfileV2.GetName()] = svcProfileV2
+	ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Second*5)
+	defer cancelFunc()
+	for {
+		select {
+		case <-ctx.Done():
+			if appName == "" || ns == "" {
+				return serviceMap
 			}
+			description := GetDescriptionDaemon(ns, appName, nid)
+			if description != nil {
+				for _, svcProfileV2 := range description.SvcProfile {
+					if svcProfileV2 != nil {
+						name := strings.ToLower(svcProfileV2.GetType()) + "s"
+						serviceMap[name+"/"+svcProfileV2.GetName()] = svcProfileV2
+					}
+				}
+			}
+			return serviceMap
 		}
 	}
-
-	return serviceMap
 }
 
 func GetDescriptionDaemon(ns, appName, nid string) *profile.AppProfileV2 {
@@ -260,8 +267,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			result := make([]item.Item, 0, len(items))
 			for _, i := range items {
 				tempItem := item.Item{Metadata: i}
-				if mapping, err := s.GetRestMapping(request.Resource); err == nil {
-					tempItem.Description = serviceMap[mapping.Resource.Resource+"/"+i.(metav1.Object).GetName()]
+				if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
+					tempItem.Description = serviceMap[mapping.Gvr.Resource+"/"+i.(metav1.Object).GetName()]
 				}
 				result = append(result, tempItem)
 			}
@@ -273,8 +280,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				return nil
 			}
 			i := item.Item{Metadata: one}
-			if mapping, err := s.GetRestMapping(request.Resource); err == nil {
-				i.Description = serviceMap[mapping.Resource.Resource+"/"+one.(metav1.Object).GetName()]
+			if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
+				i.Description = serviceMap[mapping.Gvr.Resource+"/"+one.(metav1.Object).GetName()]
 			}
 			return i
 		}

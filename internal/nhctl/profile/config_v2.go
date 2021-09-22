@@ -16,9 +16,9 @@ import (
 //type SvcType string
 
 type NocalHostAppConfigV2 struct {
-	ConfigProperties  *ConfigProperties  `json:"configProperties" yaml:"configProperties"`
-	Migrated          bool               `json:"migrated" yaml:"migrated"` // Only used for checking if config has migrate in meta
-	ApplicationConfig *ApplicationConfig `json:"application" yaml:"application"`
+	ConfigProperties  ConfigProperties  `json:"configProperties" yaml:"configProperties"`
+	Migrated          bool              `json:"migrated" yaml:"migrated"` // Only used for checking if config has migrate in meta
+	ApplicationConfig ApplicationConfig `json:"application" yaml:"application"`
 }
 
 type ConfigProperties struct {
@@ -68,20 +68,20 @@ type ContainerDevConfig struct {
 	Command               *DevCommands           `json:"command" yaml:"command"`
 	DebugConfig           *DebugConfig           `json:"debug" yaml:"debug"`
 	HotReload             bool                   `json:"hotReload" yaml:"hotReload"`
-	UseDevContainer       bool                   `json:"useDevContainer" yaml:"useDevContainer"`
+	UseDevContainer       bool                   `json:"useDevContainer,omitempty" yaml:"useDevContainer,omitempty"`
 	Sync                  *SyncConfig            `json:"sync" yaml:"sync"`
 	Env                   []*Env                 `json:"env" yaml:"env"`
 	EnvFrom               *EnvFrom               `json:"envFrom,omitempty" yaml:"envFrom,omitempty"`
 	PortForward           []string               `json:"portForward" yaml:"portForward"`
-	SidecarImage          string                 `json:"sidecar_image" yaml:"sidecar_image"`
+	SidecarImage          string                 `json:"sidecarImage,omitempty" yaml:"sidecarImage,omitempty"`
 }
 
 type DevCommands struct {
-	Build          []string `json:"build" yaml:"build"`
+	Build          []string `json:"build,omitempty" yaml:"build,omitempty"`
 	Run            []string `json:"run" yaml:"run"`
 	Debug          []string `json:"debug" yaml:"debug"`
-	HotReloadRun   []string `json:"hotReloadRun" yaml:"hotReloadRun"`
-	HotReloadDebug []string `json:"hotReloadDebug" yaml:"hotReloadDebug"`
+	HotReloadRun   []string `json:"hotReloadRun,omitempty" yaml:"hotReloadRun,omitempty"`
+	HotReloadDebug []string `json:"hotReloadDebug,omitempty" yaml:"hotReloadDebug,omitempty"`
 }
 
 type SyncConfig struct {
@@ -118,7 +118,7 @@ type EnvFile struct {
 }
 
 func (n *NocalHostAppConfigV2) GetSvcConfigV2(svcName string, svcType base.SvcType) *ServiceConfigV2 {
-	if n != nil && n.ApplicationConfig != nil {
+	if n != nil {
 		for _, config := range n.ApplicationConfig.ServiceConfigs {
 			if config.Name == svcName && base.SvcTypeOf(config.Type) == svcType {
 				return config

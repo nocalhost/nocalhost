@@ -113,7 +113,7 @@ func nocalhostDepConfigmapCustom(
 	envVarArray := make([]envVar, 0)
 
 	// First get all global env
-	if appConfig != nil && appConfig.ApplicationConfig != nil && appConfig.ApplicationConfig.Env != nil {
+	if appConfig != nil && appConfig.ApplicationConfig.Env != nil {
 		for _, env := range appConfig.ApplicationConfig.Env {
 			for k := range containers {
 				envVarArray = append(

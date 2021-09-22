@@ -386,11 +386,11 @@ func (a *ApplicationMeta) GenerateNidINE() error {
 }
 
 func (a *ApplicationMeta) GetApplicationConfig() *profile2.ApplicationConfig {
-	if a == nil || a.Config == nil || a.Config.ApplicationConfig == nil {
+	if a == nil || a.Config == nil {
 		return &profile2.ApplicationConfig{}
 	}
 
-	return a.Config.ApplicationConfig
+	return &a.Config.ApplicationConfig
 }
 
 func (a *ApplicationMeta) GetClient() *clientgoutils.ClientGoUtils {
@@ -735,7 +735,7 @@ func (a *ApplicationMeta) cleanUpDepConfigMap() error {
 	}
 
 	// Clean up all dep config map
-	list, err := operator.ClientInner.GetConfigMaps()
+	list, err := operator.ClientInner.ListConfigMaps()
 	if err != nil {
 		return err
 	}

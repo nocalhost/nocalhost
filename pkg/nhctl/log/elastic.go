@@ -60,7 +60,8 @@ func InitEs(host string) {
 		ctx = context.TODO()
 	)
 
-	esClient, err = elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(host))
+	esClient, err = elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(host),
+		elastic.SetHealthcheckTimeoutStartup(1*time.Second))
 	if err != nil {
 		esClient = nil
 		return
