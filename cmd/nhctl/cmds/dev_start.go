@@ -235,13 +235,13 @@ func stopPreviousSyncthing() {
 
 func startSyncthing(podName, container string, resume bool) {
 	if resume {
-		StartSyncthing(podName, true, false, container, false, false)
+		StartSyncthing(podName, true, false, container, nil, false)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync resumed")
 		}()
 	} else {
-		StartSyncthing(podName, false, false, container, false, false)
+		StartSyncthing(podName, false, false, container, nil, false)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync started")
