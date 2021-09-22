@@ -177,12 +177,12 @@ func NewOnAddresses(dialer httpstream.Dialer, addresses []string, ports []string
 func (pf *PortForwarder) ForwardPorts() error {
 	defer pf.Close()
 
-	var err error
-	pf.streamConn, _, err = pf.dialer.Dial(PortForwardProtocolV1Name)
-	if err != nil {
-		return fmt.Errorf("error upgrading connection: %s", err)
-	}
-	defer pf.streamConn.Close()
+	//var err error
+	//pf.streamConn, _, err = pf.dialer.Dial(PortForwardProtocolV1Name)
+	//if err != nil {
+	//	return fmt.Errorf("error upgrading connection: %s", err)
+	//}
+	//defer pf.streamConn.Close()
 
 	return pf.forward()
 }
@@ -218,8 +218,8 @@ func (pf *PortForwarder) forward() error {
 	// wait for interrupt or conn closure
 	select {
 	case <-pf.stopChan:
-	case <-pf.streamConn.CloseChan():
-		runtime.HandleError(errors.New("lost connection to pod"))
+		//case <-pf.streamConn.CloseChan():
+		//	runtime.HandleError(errors.New("lost connection to pod"))
 	}
 
 	return nil
@@ -325,12 +325,13 @@ func (pf *PortForwarder) handleConnection(conn net.Conn, port ForwardedPort) {
 	headers.Set(v1.PortHeader, fmt.Sprintf("%d", port.Remote))
 	headers.Set(v1.PortForwardRequestIDHeader, strconv.Itoa(requestID))
 	var err error
-	pf.streamConn, _, err = pf.dialer.Dial(PortForwardProtocolV1Name)
+	streamConn, _, err := pf.dialer.Dial(PortForwardProtocolV1Name)
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error upgrading connection: %s", err))
 		return
 	}
-	errorStream, err := pf.streamConn.CreateStream(headers)
+	defer streamConn.Close()
+	errorStream, err := streamConn.CreateStream(headers)
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error creating error stream for port %d -> %d: %v", port.Local, port.Remote, err))
 		return
@@ -352,7 +353,7 @@ func (pf *PortForwarder) handleConnection(conn net.Conn, port ForwardedPort) {
 
 	// create data stream
 	headers.Set(v1.StreamType, v1.StreamTypeData)
-	dataStream, err := pf.streamConn.CreateStream(headers)
+	dataStream, err := streamConn.CreateStream(headers)
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error creating forwarding stream for port %d -> %d: %v", port.Local, port.Remote, err))
 		return
