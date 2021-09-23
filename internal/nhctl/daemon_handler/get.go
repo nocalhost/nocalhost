@@ -19,7 +19,6 @@ import (
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_handler/item"
 	"nocalhost/internal/nhctl/daemon_server/command"
-	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
@@ -33,7 +32,7 @@ import (
 
 var svcProfileCacheMap = NewCache(time.Second * 2)
 
-func getServiceProfile(ns, appName, nid string) map[string]*profile.SvcProfileV2 {
+func getServiceProfile(ns, appName, nid string, kubeconfigBytes []byte) map[string]*profile.SvcProfileV2 {
 	serviceMap := make(map[string]*profile.SvcProfileV2)
 	ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Second*5)
 	defer cancelFunc()
@@ -43,7 +42,7 @@ func getServiceProfile(ns, appName, nid string) map[string]*profile.SvcProfileV2
 			if appName == "" || ns == "" {
 				return serviceMap
 			}
-			description := GetDescriptionDaemon(ns, appName, nid)
+			description := GetDescriptionDaemon(ns, appName, nid, kubeconfigBytes)
 			if description != nil {
 				for _, svcProfileV2 := range description.SvcProfile {
 					if svcProfileV2 != nil {
@@ -57,7 +56,7 @@ func getServiceProfile(ns, appName, nid string) map[string]*profile.SvcProfileV2
 	}
 }
 
-func GetDescriptionDaemon(ns, appName, nid string) *profile.AppProfileV2 {
+func GetDescriptionDaemon(ns, appName, nid string, kubeconfigBytes []byte) *profile.AppProfileV2 {
 	var appProfile *profile.AppProfileV2
 	var err error
 	appProfileCache, found := svcProfileCacheMap.Get(fmt.Sprintf("%s/%s", ns, appName))
@@ -73,9 +72,8 @@ func GetDescriptionDaemon(ns, appName, nid string) *profile.AppProfileV2 {
 		return nil
 	}
 	if appProfile != nil {
-		kubeConfigContent := fp.NewFilePath(appProfile.Kubeconfig).ReadFile()
 		// deep copy
-		marshal, err := json.Marshal(appmeta_manager.GetApplicationMeta(ns, appName, []byte(kubeConfigContent)))
+		marshal, err := json.Marshal(appmeta_manager.GetApplicationMeta(ns, appName, kubeconfigBytes))
 		if err != nil {
 			return nil
 		}
@@ -248,7 +246,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 					nid = an.Nid
 				}
 			}
-			serviceMap = getServiceProfile(ns, request.AppName, nid)
+			serviceMap = getServiceProfile(ns, request.AppName, nid, KubeConfigBytes)
 		}
 
 		c := s.Criteria().
@@ -335,7 +333,7 @@ func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.
 
 func getApp(name []string, namespace, appName, nid string, search *resouce_cache.Searcher, label map[string]string) item.App {
 	result := item.App{Name: appName}
-	profileMap := getServiceProfile(namespace, appName, nid)
+	profileMap := getServiceProfile(namespace, appName, nid, search.GetKubeconfigBytes())
 	for _, entry := range resouce_cache.GroupToTypeMap {
 		resources := make([]item.Resource, 0, len(entry.V))
 		for _, resource := range entry.V {
