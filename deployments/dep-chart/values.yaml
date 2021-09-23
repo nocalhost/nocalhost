@@ -1,7 +1,7 @@
 ## installer-job image
 image:
   repository: nocalhost-docker.pkg.coding.net/nocalhost/images/dep-installer-job
-  tag: "latest"
+  tag: "v0.5.6"
 
 ## dep
 dep:
@@ -9,7 +9,7 @@ dep:
   namespace: nocalhost-reserved
   image:
     repository: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-dep
-    tag: "latest"
+    tag: "v0.5.6"
   # match namespace method, "namespaceLabel" or "namespaceName"
   matchWith: "namespaceLabel"
   match:
