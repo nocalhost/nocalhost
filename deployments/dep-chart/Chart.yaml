@@ -15,7 +15,7 @@ keywords:
   - telepresence
   - skaffold
 home: https://nocalhost.dev
-icon: https://nocalhost.dev/img/favicon.ico
+icon: https://nocalhost.dev/img/icon_helmchart.png
 annotations:
   category: App Definition and Development
 maintainers:
