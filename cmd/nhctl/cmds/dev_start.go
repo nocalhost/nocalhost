@@ -142,23 +142,69 @@ var devStartCmd = &cobra.Command{
 
 			loadLocalOrCmConfigIfValid()
 			stopPreviousSyncthing()
-			recordingProfile()
-			podName := enterDevMode()
+			recordLocalSyncDirToProfile()
+			prepareSyncThing()
+			stopPreviousPortForward()
+			enterDevMode()
+
+			devPodName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
+			must(err)
+
+			startPortForwardAfterDevStart(devPodName)
 
 			if !devStartOps.NoSyncthing {
-				startSyncthing(podName, devStartOps.Container, false)
+				startSyncthing(devPodName, devStartOps.Container, false)
 			} else {
 				coloredoutput.Success("File sync is not started caused by --without-sync flag..")
 			}
 
 			if !devStartOps.NoTerminal || shell != "" {
-				must(nocalhostSvc.EnterPodTerminal(podName, devStartOps.Container, shell))
+				must(nocalhostSvc.EnterPodTerminal(devPodName, devStartOps.Container, shell))
 			}
 		}
 	},
 }
 
-func recordingProfile() {
+var pfListBeforeDevStart []*profile.DevPortForward
+
+func stopPreviousPortForward() {
+	appProfile, _ := nocalhostApp.GetProfile()
+	pfListBeforeDevStart = appProfile.SvcProfileV2(deployment, string(nocalhostSvc.Type)).DevPortForwardList
+	for _, pf := range pfListBeforeDevStart {
+		log.Infof("Stopping %d:%d", pf.LocalPort, pf.RemotePort)
+		utils.Should(nocalhostSvc.EndDevPortForward(pf.LocalPort, pf.RemotePort))
+	}
+}
+
+func prepareSyncThing() {
+	// Delete service folder
+	dir := nocalhostSvc.GetApplicationSyncDir()
+	if err2 := os.RemoveAll(dir); err2 != nil {
+		log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
+	}
+
+	newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
+	mustI(err, "Failed to create syncthing process, please try again")
+
+	// set syncthing secret
+	config, err := newSyncthing.GetRemoteConfigXML()
+	must(err)
+
+	syncSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nocalhostSvc.GetSyncThingSecretName(),
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			"config.xml": config,
+			"cert.pem":   []byte(secret_config.CertPEM),
+			"key.pem":    []byte(secret_config.KeyPEM),
+		},
+	}
+	must(nocalhostSvc.CreateSyncThingSecret(syncSecret))
+}
+
+func recordLocalSyncDirToProfile() {
 	must(
 		nocalhostSvc.UpdateProfile(
 			func(p *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
@@ -169,12 +215,6 @@ func recordingProfile() {
 						),
 					)
 				}
-				//if devStartOps.WorkDir != "" {
-				//	svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).WorkDir = devStartOps.WorkDir
-				//}
-				//if devStartOps.DevImage != "" {
-				//	svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).Image = devStartOps.DevImage
-				//}
 				if len(devStartOps.LocalSyncDir) == 1 {
 					svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 				} else {
@@ -231,25 +271,28 @@ func stopPreviousSyncthing() {
 			},
 		),
 	)
+	// kill syncthing process by find find it with terminal
+	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
+	utils2.KillSyncthingProcess(str)
 }
 
 func startSyncthing(podName, container string, resume bool) {
 	if resume {
 		StartSyncthing(podName, true, false, container, false, false)
 		defer func() {
-			fmt.Println()
+			//fmt.Println()
 			coloredoutput.Success("File sync resumed")
 		}()
 	} else {
 		StartSyncthing(podName, false, false, container, false, false)
 		defer func() {
-			fmt.Println()
+			//fmt.Println()
 			coloredoutput.Success("File sync started")
 		}()
 	}
 }
 
-func enterDevMode() string {
+func enterDevMode() {
 	must(
 		nocalhostSvc.AppMeta.SvcDevStarting(
 			nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier,
@@ -265,49 +308,7 @@ func enterDevMode() string {
 		}
 	}()
 
-	// kill syncthing process by find find it with terminal
-	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
-	//if utils.IsWindows() {
-	//	utils2.KillSyncthingProcessOnWindows(str)
-	//} else {
-	//	utils2.KillSyncthingProcessOnUnix(str)
-	//}
-	utils2.KillSyncthingProcess(str)
-
-	// Delete service folder
-	dir := nocalhostSvc.GetApplicationSyncDir()
-	if err2 := os.RemoveAll(dir); err2 != nil {
-		log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
-	}
-
-	newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
-	mustI(err, "Failed to create syncthing process, please try again")
-
-	// set syncthing secret
-	config, err := newSyncthing.GetRemoteConfigXML()
-	must(err)
-
-	syncSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: nocalhostSvc.GetSyncThingSecretName(),
-		},
-		Type: corev1.SecretTypeOpaque,
-		Data: map[string][]byte{
-			"config.xml": config,
-			"cert.pem":   []byte(secret_config.CertPEM),
-			"key.pem":    []byte(secret_config.KeyPEM),
-		},
-	}
-	must(nocalhostSvc.CreateSyncThingSecret(syncSecret))
-
-	// Stop port-forward
-	appProfile, _ := nocalhostApp.GetProfile()
-	pfList := appProfile.SvcProfileV2(deployment, string(nocalhostSvc.Type)).DevPortForwardList
-	for _, pf := range pfList {
-		log.Infof("Stopping %d:%d", pf.LocalPort, pf.RemotePort)
-		utils.Should(nocalhostSvc.EndDevPortForward(pf.LocalPort, pf.RemotePort))
-	}
-
+	var err error
 	if err = nocalhostSvc.BuildPodController().ReplaceImage(context.TODO(), devStartOps); err != nil {
 		log.WarnE(err, "Failed to replace dev container")
 		log.Info("Resetting workload...")
@@ -326,18 +327,12 @@ func enterDevMode() string {
 
 	// mark dev start as true
 	devStartSuccess = true
-
-	podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
-	must(err)
-
-	for _, pf := range pfList {
-		utils.Should(nocalhostSvc.PortForward(podName, pf.LocalPort, pf.RemotePort, pf.Role))
-	}
-	must(nocalhostSvc.PortForwardAfterDevStart(podName, devStartOps.Container))
-
-	fmt.Println()
 	coloredoutput.Success("Dev container has been updated")
-	fmt.Println()
+}
 
-	return podName
+func startPortForwardAfterDevStart(devPodName string) {
+	for _, pf := range pfListBeforeDevStart {
+		utils.Should(nocalhostSvc.PortForward(devPodName, pf.LocalPort, pf.RemotePort, pf.Role))
+	}
+	must(nocalhostSvc.PortForwardAfterDevStart(devPodName, devStartOps.Container))
 }

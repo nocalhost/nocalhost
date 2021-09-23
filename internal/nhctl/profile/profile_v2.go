@@ -160,7 +160,7 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 // this method will not save the Identifier,
 // make sure it will be saving while use
 func (a *AppProfileV2) GenerateIdentifierIfNeeded() string {
-	if a.Identifier == "" && a != nil {
+	if a != nil && a.Identifier == "" {
 		u, _ := uuid.NewRandom()
 		a.Identifier = u.String()
 	}
