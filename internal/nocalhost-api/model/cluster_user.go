@@ -16,7 +16,7 @@ import (
 
 const (
 	IsolateSpace SpaceType = "IsolateSpace"
-	ShareSpace   SpaceType = "ShareSpace"
+	MeshSpace    SpaceType = "MeshSpace"
 )
 
 var DevSpaceOwnTypeOwner SpaceOwnType = SpaceOwnType{"Owner", 1000}
