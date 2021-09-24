@@ -15,6 +15,7 @@ import (
 	"nocalhost/internal/nhctl/syncthing/network/req"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"sort"
 )
 
 var current bool
@@ -22,9 +23,14 @@ var excludeStatus []string
 var jsonOutput bool
 
 func init() {
-	devAssociateQueryerCmd.Flags().StringVarP(&workDir, "associate", "s", "", "dev mode work directory")
+	devAssociateQueryerCmd.Flags().StringVarP(
+		&workDir,
+		"local-sync", "s", "",
+		"the local directory synchronized to the remote container under dev mode",
+	)
 	devAssociateQueryerCmd.Flags().BoolVar(
-		&current, "current", false, "show the active svc most recently associate to the path",
+		&current, "current", false,
+		"show the active svc most recently associate to the path",
 	)
 	devAssociateQueryerCmd.Flags().StringArrayVarP(
 		&excludeStatus, "exclude-status", "e", []string{},
@@ -55,7 +61,6 @@ var devAssociateQueryerCmd = &cobra.Command{
 
 			pack, err := devPath.GetDefaultPack()
 			if err == dev_dir.NO_DEFAULT_PACK {
-				fmt.Printf("{}")
 				return
 			} else {
 				must(err)
@@ -72,6 +77,11 @@ var devAssociateQueryerCmd = &cobra.Command{
 			allPacks := devPath.GetAllPacks()
 
 			asps := make([]*AssociateSvcPack, 0)
+
+			// if a svc pack has a container
+			// then remove the svc with same define(without container)
+			uniqueMapForRemoveNoneContainerSvcPack := map[string]string{}
+
 			for _, pack := range allPacks.Packs {
 				asp := genAssociateSvcPack(pack)
 				if _, exclude := set[string(asp.SyncthingStatus.Status)]; exclude {
@@ -79,7 +89,25 @@ var devAssociateQueryerCmd = &cobra.Command{
 				}
 
 				asps = append(asps, asp)
+
+				if asp.Container != "" {
+					uniqueMapForRemoveNoneContainerSvcPack[string(asp.KeyWithoutContainer())] = ""
+				}
 			}
+
+		loop:
+			for index, currentAsp := range asps {
+				if _, ok := uniqueMapForRemoveNoneContainerSvcPack[string(currentAsp.Key())]; ok {
+					asps = append(asps[:index], asps[index+1:]...)
+					goto loop
+				}
+			}
+
+			sort.Slice(
+				asps, func(i, j int) bool {
+					return asps[i].Sha > asps[j].Sha
+				},
+			)
 
 			printing(asps)
 		}

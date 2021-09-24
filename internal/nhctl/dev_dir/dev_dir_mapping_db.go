@@ -197,7 +197,7 @@ func (svcPackKey *SvcPackKey) toPack() *SvcPack {
 
 func (svcPack SvcPack) Key() SvcPackKey {
 	if svcPack.Container == "" {
-		return svcPack.keyWithoutContainer()
+		return svcPack.KeyWithoutContainer()
 	}
 
 	return SvcPackKey(
@@ -208,7 +208,7 @@ func (svcPack SvcPack) Key() SvcPackKey {
 	)
 }
 
-func (svcPack SvcPack) keyWithoutContainer() SvcPackKey {
+func (svcPack SvcPack) KeyWithoutContainer() SvcPackKey {
 	return SvcPackKey(
 		fmt.Sprintf(
 			"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s",
