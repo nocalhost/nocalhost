@@ -326,10 +326,6 @@ func (pf *PortForwarder) handleConnection(conn net.Conn, port ForwardedPort) {
 	headers.Set(v1.PortHeader, fmt.Sprintf("%d", port.Remote))
 	headers.Set(v1.PortForwardRequestIDHeader, strconv.Itoa(requestID))
 	var err error
-	if err != nil {
-		runtime.HandleError(fmt.Errorf("error upgrading connection: %s", err))
-		return
-	}
 	errorStream, err := pf.tryToCreateStream(headers)
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error creating error stream for port %d -> %d: %v", port.Local, port.Remote, err))
