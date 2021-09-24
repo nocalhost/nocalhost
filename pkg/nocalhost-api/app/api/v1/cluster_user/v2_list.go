@@ -150,14 +150,6 @@ func relatedToSomebody(userId uint64) func(*model.ClusterUserV2) bool {
 			}
 		}
 
-		clusterCache, err := service.Svc.ClusterSvc().GetCache(cu.ClusterId)
-		if err != nil {
-			return false
-		}
-		if clusterCache.UserId == userId {
-			return true
-		}
-
 		return false
 	}
 }
