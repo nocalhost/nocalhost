@@ -24,9 +24,9 @@ func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*mode
 		return nil, errno.ErrClusterUserNotFound
 	}
 
-	cluster, err := service.Svc.ClusterSvc().GetCache(devSpace.ClusterId)
+	_, err = service.Svc.ClusterSvc().GetCache(devSpace.ClusterId)
 	if err != nil {
-		return nil, errno.ErrClusterKubeErr
+		return nil, errno.ErrClusterNotFound
 	}
 
 	loginUser, err := ginbase.LoginUser(c)
@@ -42,7 +42,7 @@ func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*mode
 		}
 	}
 
-	if ginbase.IsAdmin(c) || cluster.UserId == loginUser || devSpace.UserId == loginUser {
+	if ginbase.IsAdmin(c) || devSpace.UserId == loginUser {
 		return &devSpace, nil
 	}
 	return nil, errno.ErrPermissionDenied
@@ -148,7 +148,7 @@ func reCreateShareSpaces(c *gin.Context, user, baseSpaceId uint64) {
 		// delete devSpace space first, it will delete database record whatever success delete namespace or not
 		devSpace := NewDevSpace(req, c, []byte(cluster.KubeConfig))
 
-		list, e := DoList(&model.ClusterUserModel{ID: baseSpaceId}, user, false, false)
+		list, e := DoList(&model.ClusterUserModel{ID: baseSpaceId}, user, ginbase.IsAdmin(c), false)
 		if e != nil {
 			log.Error(e)
 			return
