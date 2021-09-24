@@ -441,6 +441,8 @@ func (pf *PortForwarder) tryToCreateStream(header http.Header) (httpstream.Strea
 	if err := <-errorChan; err == nil {
 		return <-resultChan, nil
 	}
+	// close old connection in case of resource leak
+	_ = pf.streamConn.Close()
 	var err error
 	pf.streamConn, _, err = pf.dialer.Dial(PortForwardProtocolV1Name)
 	if err != nil {
