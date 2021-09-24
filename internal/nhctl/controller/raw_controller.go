@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -24,7 +24,7 @@ type RawPodController struct {
 }
 
 func (r *RawPodController) GetNocalhostDevContainerPod() (string, error) {
-	pod, err := r.Client.GetPod(r.Name())
+	pod, err := r.Client.GetPod(r.GetName())
 	if err != nil {
 		return "", err
 	}
@@ -35,14 +35,14 @@ func (r *RawPodController) GetNocalhostDevContainerPod() (string, error) {
 func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 
 	r.Client.Context(ctx)
-	originalPod, err := r.Client.GetPod(r.Name())
+	originalPod, err := r.Client.GetPod(r.GetName())
 	if err != nil {
 		return err
 	}
 
 	// Check if pod managed by controller
 	if len(originalPod.OwnerReferences) > 0 {
-		return errors.New(fmt.Sprintf("Pod %s is manged by a controller, can not enter DevMode", r.Name()))
+		return errors.New(fmt.Sprintf("Pod %s is manged by a controller, can not enter DevMode", r.GetName()))
 	}
 
 	originalPod.Status = corev1.PodStatus{}
@@ -100,7 +100,7 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 	originalPod.Spec.Containers = append(originalPod.Spec.Containers, *sideCarContainer)
 
 	log.Info("Delete original pod...")
-	if err = r.Client.DeletePodByName(r.Name(), 0); err != nil {
+	if err = r.Client.DeletePodByName(r.GetName(), 0); err != nil {
 		return err
 	}
 
@@ -122,12 +122,12 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 	return waitingPodToBeReady(r.GetNocalhostDevContainerPod)
 }
 
-func (r *RawPodController) Name() string {
-	return r.Controller.Name
-}
+//func (r *RawPodController) Name() string {
+//	return r.Controller.Name
+//}
 
 func (r *RawPodController) RollBack(reset bool) error {
-	originPod, err := r.Client.GetPod(r.Name())
+	originPod, err := r.Client.GetPod(r.GetName())
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func (r *RawPodController) RollBack(reset bool) error {
 	}
 
 	log.Info(" Deleting current revision...")
-	if err = r.Client.DeletePodByName(r.Name(), 0); err != nil {
+	if err = r.Client.DeletePodByName(r.GetName(), 0); err != nil {
 		return err
 	}
 
@@ -160,7 +160,7 @@ func (r *RawPodController) RollBack(reset bool) error {
 }
 
 func (r *RawPodController) GetPodList() ([]corev1.Pod, error) {
-	pod, err := r.Client.GetPod(r.Name())
+	pod, err := r.Client.GetPod(r.GetName())
 	if err != nil {
 		return nil, err
 	}

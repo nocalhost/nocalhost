@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -69,8 +69,12 @@ var portForwardStartCmd = &cobra.Command{
 
 		log.Info("Starting port-forwarding")
 
+		p, err := nocalhostSvc.GetProfile()
+		if err != nil {
+			must(err)
+		}
 		// find deployment pods
-		podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
+		podName, err := nocalhostSvc.BuildPodController(p.LocalDevMode).GetNocalhostDevContainerPod()
 		if err != nil {
 			// use serviceType get pods name
 			// can not find devContainer, means need port-forward normal service, get pods from command flags

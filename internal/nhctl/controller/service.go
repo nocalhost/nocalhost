@@ -28,7 +28,12 @@ type Controller struct {
 
 // IsInDevMode return true if under dev starting or start complete
 func (c *Controller) IsInDevMode() bool {
-	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type) != appmeta.NONE
+	if c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type) != appmeta.NONE {
+		return true
+	}
+	// todo: considering err != nil - by hxx
+	p, _ := c.GetProfile()
+	return p.LocalDevModeStarted
 }
 
 func (c *Controller) IsProcessor() bool {
@@ -191,6 +196,7 @@ func (c *Controller) UpdateSvcProfile(modify func(*profile.SvcProfileV2) error) 
 	return profileV2.Save()
 }
 
+// UpdateProfile The second param of modify will not be nil
 func (c *Controller) UpdateProfile(modify func(*profile.AppProfileV2, *profile.SvcProfileV2) error) error {
 	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
 	if err != nil {
@@ -202,4 +208,8 @@ func (c *Controller) UpdateProfile(modify func(*profile.AppProfileV2, *profile.S
 		return err
 	}
 	return profileV2.Save()
+}
+
+func (c *Controller) GetName() string {
+	return c.Name
 }

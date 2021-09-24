@@ -7,7 +7,6 @@ package cmds
 
 import (
 	"context"
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -86,6 +85,10 @@ func init() {
 		&devStartOps.NoSyncthing, "without-sync", false,
 		"do not start file-sync while dev start success",
 	)
+	devStartCmd.Flags().StringVarP(
+		&devStartOps.LocalDevModeType, "local-dev-mode", "m", "",
+		"localDevMode can be started in every local desktop and not influence each other",
+	)
 	debugCmd.AddCommand(devStartCmd)
 }
 
@@ -110,7 +113,8 @@ var devStartCmd = &cobra.Command{
 		if nocalhostSvc.IsInDevMode() {
 			coloredoutput.Hint("Already in DevMode...")
 
-			podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
+			p, _ := nocalhostSvc.GetProfile()
+			podName, err := nocalhostSvc.BuildPodController(p.LocalDevMode).GetNocalhostDevContainerPod()
 			must(err)
 
 			if !devStartOps.NoSyncthing {
@@ -145,9 +149,10 @@ var devStartCmd = &cobra.Command{
 			recordLocalSyncDirToProfile()
 			prepareSyncThing()
 			stopPreviousPortForward()
-			enterDevMode()
+			enterDevMode(devStartOps.LocalDevModeType)
 
-			devPodName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
+			devPodName, err := nocalhostSvc.BuildPodController(profile.LocalDevModeType(devStartOps.LocalDevModeType)).
+				GetNocalhostDevContainerPod()
 			must(err)
 
 			startPortForwardAfterDevStart(devPodName)
@@ -185,7 +190,6 @@ func prepareSyncThing() {
 
 	newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
 	mustI(err, "Failed to create syncthing process, please try again")
-
 	// set syncthing secret
 	config, err := newSyncthing.GetRemoteConfigXML()
 	must(err)
@@ -208,19 +212,11 @@ func recordLocalSyncDirToProfile() {
 	must(
 		nocalhostSvc.UpdateProfile(
 			func(p *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
-				if svcProfile == nil {
-					return errors.New(
-						fmt.Sprintf(
-							"Svc Profile not found %s-%s-%s", p.Namespace, nocalhostSvc.Type, nocalhostSvc.Name,
-						),
-					)
-				}
 				if len(devStartOps.LocalSyncDir) == 1 {
 					svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 				} else {
 					return errors.New("Can not define multi 'local-sync(-s)'")
 				}
-
 				p.GenerateIdentifierIfNeeded()
 				return nil
 			},
@@ -292,7 +288,7 @@ func startSyncthing(podName, container string, resume bool) {
 	}
 }
 
-func enterDevMode() {
+func enterDevMode(localDevMode string) {
 	must(
 		nocalhostSvc.AppMeta.SvcDevStarting(
 			nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier,
@@ -309,7 +305,7 @@ func enterDevMode() {
 	}()
 
 	var err error
-	if err = nocalhostSvc.BuildPodController().ReplaceImage(context.TODO(), devStartOps); err != nil {
+	if err = nocalhostSvc.BuildPodController(profile.LocalDevModeType(localDevMode)).ReplaceImage(context.TODO(), devStartOps); err != nil {
 		log.WarnE(err, "Failed to replace dev container")
 		log.Info("Resetting workload...")
 		_ = nocalhostSvc.DevEnd(true)

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -36,7 +36,7 @@ func (j *CronJobController) GetNocalhostDevContainerPod() (string, error) {
 }
 
 func (j *CronJobController) getGeneratedJobName() string {
-	return fmt.Sprintf("%s%s", cronjobGeneratedJobPrefix, j.Name())
+	return fmt.Sprintf("%s%s", cronjobGeneratedJobPrefix, j.GetName())
 }
 
 // ReplaceImage For Job, we can't replace the Job' image
@@ -44,7 +44,7 @@ func (j *CronJobController) getGeneratedJobName() string {
 func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 
 	j.Client.Context(ctx)
-	originJob, err := j.Client.GetCronJobs(j.Name())
+	originJob, err := j.Client.GetCronJobs(j.GetName())
 	if err != nil {
 		return err
 	}
@@ -138,12 +138,12 @@ func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStar
 	return waitingPodToBeReady(j.GetNocalhostDevContainerPod)
 }
 
-func (j *CronJobController) Name() string {
-	return j.Controller.Name
-}
+//func (j *CronJobController) Name() string {
+//	return j.Controller.Name
+//}
 
 func (j *CronJobController) RollBack(reset bool) error {
-	originJob, err := j.Client.GetCronJobs(j.Name())
+	originJob, err := j.Client.GetCronJobs(j.GetName())
 	if err != nil {
 		return err
 	}
@@ -185,7 +185,7 @@ func (j *CronJobController) GetPodList() ([]corev1.Pod, error) {
 		}
 		return pl.Items, nil
 	}
-	pl, err := j.Client.ListPodsByCronJob(j.Name())
+	pl, err := j.Client.ListPodsByCronJob(j.GetName())
 	if err != nil {
 		return nil, err
 	}

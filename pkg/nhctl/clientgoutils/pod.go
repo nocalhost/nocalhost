@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package clientgoutils
 
@@ -26,6 +26,18 @@ func (c *ClientGoUtils) ListPodsByDeployment(name string) (*corev1.PodList, erro
 		return nil, errors.Wrap(err, "")
 	}
 	return pods, nil
+}
+
+func (c *ClientGoUtils) ListPods() ([]corev1.Pod, error) {
+	ops := metav1.ListOptions{}
+	if len(c.labels) > 0 {
+		ops.LabelSelector = labels.Set(c.labels).String()
+	}
+	pods, err := c.ClientSet.CoreV1().Pods(c.namespace).List(c.ctx, ops)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	return pods.Items, nil
 }
 
 func (c *ClientGoUtils) ListPodsByStatefulSet(name string) (*corev1.PodList, error) {

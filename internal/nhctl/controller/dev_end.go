@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -18,14 +18,20 @@ func (c *Controller) DevEnd(reset bool) error {
 		}
 		log.WarnE(err, "StopSyncAndPortForwardProcess failed")
 	}
+	p, err := c.GetProfile()
+	if err != nil {
+		return err
+	}
 
-	if err := c.BuildPodController().RollBack(reset); err != nil {
+	if err := c.BuildPodController(p.LocalDevMode).RollBack(reset); err != nil {
 		if !reset {
 			return err
 		}
 		log.WarnE(err, "something incorrect occurs when rolling back")
 	}
 
-	utils.ShouldI(c.AppMeta.SvcDevEnd(c.Name, c.Type), "something incorrect occurs when updating secret")
+	if !p.LocalDevModeStarted {
+		utils.ShouldI(c.AppMeta.SvcDevEnd(c.Name, c.Type), "something incorrect occurs when updating secret")
+	}
 	return nil
 }

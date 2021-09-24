@@ -57,6 +57,30 @@ func (c *ClientGoUtils) UpdateDeployment(deployment *v1.Deployment, wait bool) (
 	return dep, nil
 }
 
+func (c *ClientGoUtils) CreateDeploymentAndWait(deployment *v1.Deployment) (*v1.Deployment, error) {
+
+	dep, err := c.GetDeploymentClient().Create(c.ctx, deployment, metav1.CreateOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+
+	// Wait for deployment to be ready
+	ready, _ := isDeploymentReady(dep)
+	if !ready {
+		err = c.WaitDeploymentToBeReady(dep.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = c.WaitLatestRevisionReady(dep.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	return dep, nil
+}
+
 func CheckIfDeploymentIsReplicaFailure(deploy *v1.Deployment) (bool, string, string, error) {
 	if deploy == nil {
 		return false, "", "", errors.New("failed to check a nil deployment")

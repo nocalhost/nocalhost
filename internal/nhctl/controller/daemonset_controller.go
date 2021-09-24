@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -67,7 +67,7 @@ func scaleDaemonSetReplicasToZero(name string, client *clientgoutils.ClientGoUti
 }
 
 func (d *DaemonSetController) getGeneratedDeploymentName() string {
-	return fmt.Sprintf("%s%s", daemonSetGenDeployPrefix, d.Name())
+	return fmt.Sprintf("%s%s", daemonSetGenDeployPrefix, d.GetName())
 }
 
 // ReplaceImage For DaemonSet, we don't replace the DaemonSet' image
@@ -75,13 +75,13 @@ func (d *DaemonSetController) getGeneratedDeploymentName() string {
 func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 
 	d.Client.Context(ctx)
-	ds, err := d.Client.GetDaemonSet(d.Name())
+	ds, err := d.Client.GetDaemonSet(d.GetName())
 	if err != nil {
 		return err
 	}
 
 	// Scale pod to 0
-	err = scaleDaemonSetReplicasToZero(d.Name(), d.Client)
+	err = scaleDaemonSetReplicasToZero(d.GetName(), d.Client)
 	if err != nil {
 		return err
 	}
@@ -148,9 +148,9 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
 }
 
-func (d *DaemonSetController) Name() string {
-	return d.Controller.Name
-}
+//func (d *DaemonSetController) Name() string {
+//	return d.Controller.Name
+//}
 
 func (d *DaemonSetController) RollBack(reset bool) error {
 	// Delete generated Deployment
@@ -160,7 +160,7 @@ func (d *DaemonSetController) RollBack(reset bool) error {
 	}
 
 	// Remove nodeName in pod spec
-	ds, err := d.Client.GetDaemonSet(d.Name())
+	ds, err := d.Client.GetDaemonSet(d.GetName())
 	if err != nil {
 		return err
 	}
@@ -177,5 +177,5 @@ func (d *DaemonSetController) GetPodList() ([]corev1.Pod, error) {
 	if d.IsInDevMode() {
 		return d.Client.ListLatestRevisionPodsByDeployment(d.getGeneratedDeploymentName())
 	}
-	return d.Client.ListPodsByDaemonSet(d.Name())
+	return d.Client.ListPodsByDaemonSet(d.GetName())
 }

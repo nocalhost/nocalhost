@@ -17,10 +17,13 @@ import (
 	"strings"
 )
 
+type LocalDevModeType string
+
 const (
 	// nocalhost-docker.pkg.coding.net/nocalhost/public/minideb:latest"
-	DefaultDevImage = ""
-	DefaultWorkDir  = "/home/nocalhost-dev"
+	DefaultDevImage  = ""
+	DefaultWorkDir   = "/home/nocalhost-dev"
+	DuplicateDevMode = LocalDevModeType("duplicate")
 )
 
 type AppProfileV2 struct {
@@ -123,6 +126,7 @@ func NewAppProfileV2ForUpdate(ns, name, nid string) (*AppProfileV2, error) {
 	return result, nil
 }
 
+// SvcProfileV2 The result will not be nil
 func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV2 {
 
 	for _, svcProfile := range a.SvcProfile {
@@ -236,6 +240,10 @@ type SvcProfileV2 struct {
 	// mean the current controller is possess by current nhctl context
 	// and the syncthing process is listen on current device
 	Possess bool `json:"possess" yaml:"possess"`
+
+	// LocalDevMode can be started in every local desktop and not influence each other
+	LocalDevModeStarted bool             `json:"localDevModeStarted" yaml:"localDevModeStarted"`
+	LocalDevMode        LocalDevModeType `json:"localDevMode" yaml:"localDevMode"`
 }
 
 type ContainerProfileV2 struct {

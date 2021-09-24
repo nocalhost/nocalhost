@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -31,7 +31,7 @@ func (j *JobController) GetNocalhostDevContainerPod() (string, error) {
 }
 
 func (j *JobController) getGeneratedJobName() string {
-	return fmt.Sprintf("%s%s", jobGeneratedJobPrefix, j.Name())
+	return fmt.Sprintf("%s%s", jobGeneratedJobPrefix, j.GetName())
 }
 
 // ReplaceImage For Job, we can't replace the Job' image
@@ -39,7 +39,7 @@ func (j *JobController) getGeneratedJobName() string {
 func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 
 	j.Client.Context(ctx)
-	originJob, err := j.Client.GetJobs(j.Name())
+	originJob, err := j.Client.GetJobs(j.GetName())
 	if err != nil {
 		return err
 	}
@@ -114,9 +114,9 @@ func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOpt
 	return waitingPodToBeReady(j.GetNocalhostDevContainerPod)
 }
 
-func (j *JobController) Name() string {
-	return j.Controller.Name
-}
+//func (j *JobController) Name() string {
+//	return j.Controller.Name
+//}
 
 func (j *JobController) RollBack(reset bool) error {
 	return j.Client.DeleteJob(j.getGeneratedJobName())
@@ -133,7 +133,7 @@ func (j *JobController) GetPodList() ([]corev1.Pod, error) {
 		}
 		return pl.Items, nil
 	}
-	pl, err := j.Client.ListPodsByJob(j.Name())
+	pl, err := j.Client.ListPodsByJob(j.GetName())
 	if err != nil {
 		return nil, err
 	}

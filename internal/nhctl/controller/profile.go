@@ -137,10 +137,6 @@ func (c *Controller) setSyncthingProfileEndStatus() error {
 func (c *Controller) AddPortForwardToDB(port *profile.DevPortForward) error {
 	return c.UpdateProfile(
 		func(profileV2 *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
-			if svcProfile == nil {
-				return errors.New("Failed to get controller profile")
-			}
-
 			svcProfile.DevPortForwardList = append(svcProfile.DevPortForwardList, port)
 			return nil
 		},

@@ -108,15 +108,15 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 		}
 	}
 
+	svcProfile, _ := nocalhostSvc.GetProfile()
 	if podName == "" {
 		var err error
-		if podName, err = nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod(); err != nil {
+		if podName, err = nocalhostSvc.BuildPodController(svcProfile.LocalDevMode).GetNocalhostDevContainerPod(); err != nil {
 			must(err)
 		}
 	}
 	log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.NameSpace)
 
-	svcProfile, _ := nocalhostSvc.GetProfile()
 	// Start a pf for syncthing
 	must(nocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC"))
 
