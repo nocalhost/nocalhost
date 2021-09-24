@@ -44,7 +44,7 @@ var clusterMap = make(map[string]bool)
 var clusterMapLock sync.Mutex
 
 type Searcher struct {
-	kubeconfig      []byte
+	kubeconfigBytes []byte
 	informerFactory informers.SharedInformerFactory
 	// [string]*meta.RESTMapping
 	supportSchema *sync.Map
@@ -224,7 +224,7 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 	<-firstSyncChannel
 
 	newSearcher := &Searcher{
-		kubeconfig:      kubeconfigBytes,
+		kubeconfigBytes: kubeconfigBytes,
 		informerFactory: informerFactory,
 		supportSchema:   &result,
 		stopChannel:     stopChannel,
@@ -242,6 +242,10 @@ func (s *Searcher) Stop() {
 	for i := 0; i < cap(s.stopChannel); i++ {
 		s.stopChannel <- struct{}{}
 	}
+}
+
+func (s *Searcher) GetKubeconfigBytes() []byte {
+	return s.kubeconfigBytes
 }
 
 func (s *Searcher) GetResourceInfo(resourceType string) (GvkGvrWithAlias, error) {
