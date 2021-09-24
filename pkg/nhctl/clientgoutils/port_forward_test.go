@@ -2,22 +2,25 @@ package clientgoutils
 
 import (
 	"fmt"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"nocalhost/internal/nhctl/utils"
+	"os"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
 func TestClientGoUtils_PortForward(t *testing.T) {
 	//utils.GetHomePath()
-	client, err := NewClientGoUtils(filepath.Join(utils.GetHomePath(), ".kube", "admin-config"), "")
+	client, err := NewClientGoUtils(filepath.Join(utils.GetHomePath(), ".kube", "devpool"), "")
 	if err != nil {
 		panic(err)
 	}
 
-	fps := []*ForwardPort{{LocalPort: 11223, RemotePort: 22}}
+	fps := []*ForwardPort{{LocalPort: 39080, RemotePort: 9080}}
 
-	pf, err := client.CreatePortForwarder("details-77cc4f49fd-nl7kn", fps)
+	pf, err := client.CreatePortForwarder("authors-788bb4cf5c-76968", fps, nil, nil, genericclioptions.IOStreams{
+		Out: os.Stdout,
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -26,17 +29,13 @@ func TestClientGoUtils_PortForward(t *testing.T) {
 	go func() {
 		errChan <- pf.ForwardPorts()
 	}()
-
+	defer pf.Close()
 	for {
 		select {
 		case <-pf.Ready:
-			fmt.Println("port forward is ready")
+			//fmt.Println("port forward is ready")
 		case <-errChan:
 			fmt.Println("err")
 		}
 	}
-
-	time.Sleep(time.Minute)
-	pf.Close()
-
 }

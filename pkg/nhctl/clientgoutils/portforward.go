@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/httpstream"
@@ -177,12 +178,12 @@ func NewOnAddresses(dialer httpstream.Dialer, addresses []string, ports []string
 func (pf *PortForwarder) ForwardPorts() error {
 	defer pf.Close()
 
-	//var err error
-	//pf.streamConn, _, err = pf.dialer.Dial(PortForwardProtocolV1Name)
-	//if err != nil {
-	//	return fmt.Errorf("error upgrading connection: %s", err)
-	//}
-	//defer pf.streamConn.Close()
+	var err error
+	pf.streamConn, _, err = pf.dialer.Dial(PortForwardProtocolV1Name)
+	if err != nil {
+		return fmt.Errorf("error upgrading connection: %s", err)
+	}
+	defer pf.streamConn.Close()
 
 	return pf.forward()
 }
@@ -325,13 +326,11 @@ func (pf *PortForwarder) handleConnection(conn net.Conn, port ForwardedPort) {
 	headers.Set(v1.PortHeader, fmt.Sprintf("%d", port.Remote))
 	headers.Set(v1.PortForwardRequestIDHeader, strconv.Itoa(requestID))
 	var err error
-	streamConn, _, err := pf.dialer.Dial(PortForwardProtocolV1Name)
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error upgrading connection: %s", err))
 		return
 	}
-	defer streamConn.Close()
-	errorStream, err := streamConn.CreateStream(headers)
+	errorStream, err := pf.tryToCreateStream(headers)
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error creating error stream for port %d -> %d: %v", port.Local, port.Remote, err))
 		return
@@ -353,7 +352,7 @@ func (pf *PortForwarder) handleConnection(conn net.Conn, port ForwardedPort) {
 
 	// create data stream
 	headers.Set(v1.StreamType, v1.StreamTypeData)
-	dataStream, err := streamConn.CreateStream(headers)
+	dataStream, err := pf.tryToCreateStream(headers)
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error creating forwarding stream for port %d -> %d: %v", port.Local, port.Remote, err))
 		return
@@ -422,4 +421,34 @@ func (pf *PortForwarder) GetPorts() ([]ForwardedPort, error) {
 	default:
 		return nil, fmt.Errorf("listeners not ready")
 	}
+}
+
+func (pf *PortForwarder) tryToCreateStream(header http.Header) (httpstream.Stream, error) {
+	errorChan := make(chan error)
+	resultChan := make(chan httpstream.Stream)
+	time.AfterFunc(time.Second*1, func() {
+		errorChan <- errors.New("timeout")
+	})
+	go func() {
+		stream, err := pf.streamConn.CreateStream(header)
+		if err == nil {
+			errorChan <- nil
+			resultChan <- stream
+		} else {
+			errorChan <- err
+		}
+	}()
+	if err := <-errorChan; err == nil {
+		return <-resultChan, nil
+	}
+	var err error
+	pf.streamConn, _, err = pf.dialer.Dial(PortForwardProtocolV1Name)
+	if err != nil {
+		runtime.HandleError(fmt.Errorf("error upgrading connection: %s", err))
+		return nil, err
+	}
+	if stream, err := pf.streamConn.CreateStream(header); err == nil {
+		return stream, nil
+	}
+	return nil, err
 }
