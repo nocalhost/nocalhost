@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	portforward2 "k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 	"k8s.io/kubectl/pkg/cmd/portforward"
 	"net/http"
@@ -38,7 +39,7 @@ func (f *clientgoPortForwarder) ForwardPorts(method string, url *url.URL, opts p
 		return err
 	}
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, method, url)
-	fw, err := NewOnAddresses(dialer, opts.Address, opts.Ports, opts.StopChannel, opts.ReadyChannel, f.Out, f.ErrOut)
+	fw, err := portforward2.NewOnAddresses(dialer, opts.Address, opts.Ports, opts.StopChannel, opts.ReadyChannel, f.Out, f.ErrOut)
 	if err != nil {
 		return err
 	}
@@ -93,7 +94,7 @@ func (c *ClientGoUtils) Forward(pod string, localPort, remotePort int, readyChan
 	return errors.Wrap(fd.ForwardPorts(), "")
 }
 
-func (c *ClientGoUtils) CreatePortForwarder(pod string, fps []*ForwardPort, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) (*PortForwarder, error) {
+func (c *ClientGoUtils) CreatePortForwarder(pod string, fps []*ForwardPort, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) (*portforward2.PortForwarder, error) {
 	if fps == nil || len(fps) < 1 {
 		return nil, errors.New("forward ports can not be nil")
 	}
@@ -123,7 +124,7 @@ func (c *ClientGoUtils) CreatePortForwarder(pod string, fps []*ForwardPort, read
 		ports = append(ports, fmt.Sprintf("%d:%d", fp.LocalPort, fp.RemotePort))
 	}
 
-	pf, err := NewOnAddresses(
+	pf, err := portforward2.NewOnAddresses(
 		dialer,
 		[]string{"0.0.0.0"},
 		ports,
