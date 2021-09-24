@@ -9,7 +9,7 @@ TMP_VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed
 TMP_GITCOMMIT=$(git describe --match=NeVeRmAtCh --always --abbrev=40)
 
 TMP_TAG=$(git tag -l --sort=v:refname | tail -1)
-if [ -z "$GITHUB_ACTION" ]; then
+if [ -z "${GITHUB_ACTION:-}" ]; then
   for version in $TMP_GITCOMMIT $TMP_TAG; do
     echo "version: ""$version"
     curl -fL "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=""$version" -o syncthing-linux-amd64.tar.gz --retry 5 || true
