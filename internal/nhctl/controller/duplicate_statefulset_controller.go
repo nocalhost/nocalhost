@@ -21,24 +21,20 @@ import (
 	"time"
 )
 
-const (
-	OriginSpecJson = "nocalhost.origin.spec.json"
-)
-
-type StatefulSetController struct {
+type DuplicateStatefulSetController struct {
 	*Controller
 }
 
-func (s *StatefulSetController) GetNocalhostDevContainerPod() (string, error) {
-	checkPodsList, err := s.Client.ListPodsByStatefulSet(s.GetName())
+func (s *DuplicateStatefulSetController) GetNocalhostDevContainerPod() (string, error) {
+	pods, err := s.GetPodList()
 	if err != nil {
 		return "", err
 	}
 
-	return findDevPod(checkPodsList.Items)
+	return findDevPod(pods)
 }
 
-func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
+func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 	var err error
 	s.Client.Context(ctx)
 
@@ -47,16 +43,20 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		return err
 	}
 
-	originalSpecJson, err := json.Marshal(&dep.Spec)
-	if err != nil {
-		return errors.Wrap(err, "")
+	if s.IsInDevMode() {
+		osj, ok := dep.Annotations[OriginSpecJson]
+		if ok {
+			log.Info("Annotation nocalhost.origin.spec.json found, use it")
+			dep.Spec = v1.StatefulSetSpec{}
+			if err = json.Unmarshal([]byte(osj), &dep.Spec); err != nil {
+				return errors.Wrap(err, "")
+			}
+		} else {
+			return errors.New("Annotation nocalhost.origin.spec.json not found?")
+		}
 	}
 
-	if err = s.Client.ScaleStatefulSetReplicasToOne(s.GetName()); err != nil {
-		return err
-	}
-
-	devContainer, err := s.Container(ops.Container)
+	devContainer, err := findContainerInStatefulSetsSpec(dep, ops.Container)
 	if err != nil {
 		return err
 	}
@@ -161,11 +161,6 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 
 		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
 
-		if len(dep.Annotations) == 0 {
-			dep.Annotations = make(map[string]string, 0)
-		}
-		dep.Annotations[OriginSpecJson] = string(originalSpecJson)
-
 		log.Info("Updating development container...")
 
 		_, err = s.Client.UpdateStatefulSet(dep, true)
@@ -220,13 +215,8 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 // If containerName not specified:
 // 	 if there is only one container defined in spec, return it
 //	 if there are more than one container defined in spec, return err
-func (s *StatefulSetController) Container(containerName string) (*corev1.Container, error) {
+func findContainerInStatefulSetsSpec(ss *v1.StatefulSet, containerName string) (*corev1.Container, error) {
 	var devContainer *corev1.Container
-
-	ss, err := s.Client.GetStatefulSet(s.GetName())
-	if err != nil {
-		return nil, err
-	}
 	if containerName != "" {
 		for index, c := range ss.Spec.Template.Spec.Containers {
 			if c.Name == containerName {
@@ -253,7 +243,7 @@ func (s *StatefulSetController) Container(containerName string) (*corev1.Contain
 	return devContainer, nil
 }
 
-func (s *StatefulSetController) RollBack(reset bool) error {
+func (s *DuplicateStatefulSetController) RollBack(reset bool) error {
 	clientUtils := s.Client
 
 	dep, err := clientUtils.GetStatefulSet(s.GetName())
@@ -306,13 +296,11 @@ func (s *StatefulSetController) RollBack(reset bool) error {
 	return nil
 }
 
-func (s *StatefulSetController) GetPodList() ([]corev1.Pod, error) {
-	list, err := s.Client.ListPodsByStatefulSet(s.GetName())
+func (s *DuplicateStatefulSetController) GetPodList() ([]corev1.Pod, error) {
+	labelsMap, err := s.getDuplicateLabelsMap()
 	if err != nil {
 		return nil, err
 	}
-	if list == nil || len(list.Items) == 0 {
-		return nil, errors.New("no pod found")
-	}
-	return list.Items, nil
+	s.Client.Labels(labelsMap)
+	return s.Client.ListPods()
 }

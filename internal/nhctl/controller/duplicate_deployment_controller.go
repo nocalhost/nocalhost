@@ -12,7 +12,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
@@ -36,29 +35,7 @@ func (d *DuplicateDeploymentController) GetNocalhostDevContainerPod() (string, e
 		return "", err
 	}
 
-	podName, err := findDevPod(pods)
-	if err != nil {
-		return "", err
-	}
-	return podName, nil
-}
-
-func (d *DuplicateDeploymentController) getLabelsMap() (map[string]string, error) {
-	p, err := d.GetAppProfile()
-	if err != nil {
-		return nil, err
-	}
-	if p.Identifier == "" {
-		return nil, errors.New("Identifier can not be nil ")
-	}
-
-	labelsMap := map[string]string{
-		IdentifierKey:             p.Identifier,
-		OriginWorkloadNameKey:     d.Name,
-		OriginWorkloadTypeKey:     string(d.Type),
-		_const.DevWorkloadIgnored: "true",
-	}
-	return labelsMap, nil
+	return findDevPod(pods)
 }
 
 // ReplaceImage Create a duplicate deployment instead of replacing image
@@ -96,7 +73,7 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 	}
 
 	suffix := p.Identifier[0:5]
-	labelsMap, err := d.getLabelsMap()
+	labelsMap, err := d.getDuplicateLabelsMap()
 	if err != nil {
 		return err
 	}
@@ -192,7 +169,7 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 
 func (d *DuplicateDeploymentController) RollBack(reset bool) error {
 	//todo
-	lmap, err := d.getLabelsMap()
+	lmap, err := d.getDuplicateLabelsMap()
 	if err != nil {
 		return err
 	}
@@ -209,14 +186,14 @@ func (d *DuplicateDeploymentController) RollBack(reset bool) error {
 	}
 	return d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
 		svcProfileV2.LocalDevMode = ""
-		svcProfileV2.LocalDevModeStarted = false
+		svcProfileV2.LocalDeveloping = false
 		return nil
 	})
 }
 
 // GetPodList todo: Do not list pods already deleted - by hxx
 func (d *DuplicateDeploymentController) GetPodList() ([]corev1.Pod, error) {
-	labelsMap, err := d.getLabelsMap()
+	labelsMap, err := d.getDuplicateLabelsMap()
 	if err != nil {
 		return nil, err
 	}

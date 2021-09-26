@@ -11,6 +11,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common/base"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
 )
@@ -34,7 +35,7 @@ func (c *Controller) IsInDevMode() bool {
 func (c *Controller) IsInLocalDevMode() bool {
 	// todo: considering err != nil - by hxx
 	p, _ := c.GetProfile()
-	return p.LocalDevModeStarted
+	return p.LocalDeveloping
 }
 
 func (c *Controller) IsProcessor() bool {
@@ -42,7 +43,7 @@ func (c *Controller) IsProcessor() bool {
 	if err != nil {
 		return false
 	}
-	if sp.LocalDevModeStarted {
+	if sp.LocalDeveloping {
 		return true
 	}
 
@@ -221,4 +222,22 @@ func (c *Controller) UpdateProfile(modify func(*profile.AppProfileV2, *profile.S
 
 func (c *Controller) GetName() string {
 	return c.Name
+}
+
+func (c *Controller) getDuplicateLabelsMap() (map[string]string, error) {
+	p, err := c.GetAppProfile()
+	if err != nil {
+		return nil, err
+	}
+	if p.Identifier == "" {
+		return nil, errors.New("Identifier can not be nil ")
+	}
+
+	labelsMap := map[string]string{
+		IdentifierKey:             p.Identifier,
+		OriginWorkloadNameKey:     c.Name,
+		OriginWorkloadTypeKey:     string(c.Type),
+		_const.DevWorkloadIgnored: "true",
+	}
+	return labelsMap, nil
 }

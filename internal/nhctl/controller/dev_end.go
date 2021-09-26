@@ -30,7 +30,7 @@ func (c *Controller) DevEnd(reset bool) error {
 		log.WarnE(err, "something incorrect occurs when rolling back")
 	}
 
-	if !p.LocalDevModeStarted {
+	if !p.LocalDeveloping {
 		utils.ShouldI(c.AppMeta.SvcDevEnd(c.Name, c.Type), "something incorrect occurs when updating secret")
 	}
 	return nil

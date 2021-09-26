@@ -28,6 +28,7 @@ func (c *ClientGoUtils) ListPodsByDeployment(name string) (*corev1.PodList, erro
 	return pods, nil
 }
 
+// ListPods Do not list pods which has been deleted
 func (c *ClientGoUtils) ListPods() ([]corev1.Pod, error) {
 	ops := metav1.ListOptions{}
 	if len(c.labels) > 0 {
@@ -37,7 +38,13 @@ func (c *ClientGoUtils) ListPods() ([]corev1.Pod, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
-	return pods.Items, nil
+	result := make([]corev1.Pod, 0)
+	for _, pod := range pods.Items {
+		if pod.DeletionTimestamp == nil {
+			result = append(result, pod)
+		}
+	}
+	return result, nil
 }
 
 func (c *ClientGoUtils) ListPodsByStatefulSet(name string) (*corev1.PodList, error) {
