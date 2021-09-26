@@ -24,9 +24,9 @@ func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*mode
 		return nil, errno.ErrClusterUserNotFound
 	}
 
-	_, err = service.Svc.ClusterSvc().GetCache(devSpace.ClusterId)
+	cluster, err := service.Svc.ClusterSvc().GetCache(devSpace.ClusterId)
 	if err != nil {
-		return nil, errno.ErrClusterNotFound
+		return nil, errno.ErrClusterKubeErr
 	}
 
 	loginUser, err := ginbase.LoginUser(c)
@@ -42,7 +42,7 @@ func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*mode
 		}
 	}
 
-	if ginbase.IsAdmin(c) || devSpace.UserId == loginUser {
+	if ginbase.IsAdmin(c) || cluster.UserId == loginUser || devSpace.UserId == loginUser {
 		return &devSpace, nil
 	}
 	return nil, errno.ErrPermissionDenied
