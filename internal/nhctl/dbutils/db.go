@@ -40,8 +40,7 @@ func OpenLevelDB(path string, readonly bool) (*LevelDBUtils, error) {
 	}
 	if readonly {
 		o.ReadOnly = true
-		_, err := os.Stat(path)
-		if err != nil {
+		if _, err := os.Stat(path); err != nil {
 			return nil, err
 		}
 	}
