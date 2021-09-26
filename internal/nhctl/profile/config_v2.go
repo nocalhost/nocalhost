@@ -16,9 +16,9 @@ import (
 //type SvcType string
 
 type NocalHostAppConfigV2 struct {
-	ConfigProperties  *ConfigProperties  `json:"configProperties" yaml:"configProperties"`
-	Migrated          bool               `json:"migrated" yaml:"migrated"` // Only used for checking if config has migrate in meta
-	ApplicationConfig *ApplicationConfig `json:"application" yaml:"application"`
+	ConfigProperties  ConfigProperties  `json:"configProperties" yaml:"configProperties"`
+	Migrated          bool              `json:"migrated" yaml:"migrated"` // Only used for checking if config has migrate in meta
+	ApplicationConfig ApplicationConfig `json:"application" yaml:"application"`
 }
 
 type ConfigProperties struct {
@@ -118,7 +118,7 @@ type EnvFile struct {
 }
 
 func (n *NocalHostAppConfigV2) GetSvcConfigV2(svcName string, svcType base.SvcType) *ServiceConfigV2 {
-	if n != nil && n.ApplicationConfig != nil {
+	if n != nil {
 		for _, config := range n.ApplicationConfig.ServiceConfigs {
 			if config.Name == svcName && base.SvcTypeOf(config.Type) == svcType {
 				return config

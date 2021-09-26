@@ -148,7 +148,7 @@ func reCreateShareSpaces(c *gin.Context, user, baseSpaceId uint64) {
 		// delete devSpace space first, it will delete database record whatever success delete namespace or not
 		devSpace := NewDevSpace(req, c, []byte(cluster.KubeConfig))
 
-		list, e := DoList(&model.ClusterUserModel{ID: baseSpaceId}, user, false, false)
+		list, e := DoList(&model.ClusterUserModel{ID: baseSpaceId}, user, ginbase.IsAdmin(c), false)
 		if e != nil {
 			log.Error(e)
 			return
