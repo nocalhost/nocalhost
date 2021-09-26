@@ -24,8 +24,8 @@ jobs:
 
       - name: Add helm repo
         run: |
-          helm repo add --username ${{ secrets.CODING_NOCALHOST_HELM_NAME }} --password ${{ secrets.CODING_NOCALHOST_HELM_PASS }} nocalhost "https://nocalhost-helm.pkg.coding.net/nocalhost/nocalhost"
-          helm repo add --username ${{ secrets.CODING_DEP_HELM_NAME }} --password ${{ secrets.CODING_DEP_HELM_PASS }} nocalhost-dep "https://nocalhost-helm.pkg.coding.net/nocalhost/helm"
+          helm repo add --username ${{ secrets.CODING_ARTIFACTS_USER }} --password ${{ secrets.CODING_ARTIFACTS_PASS }} nocalhost "https://nocalhost-helm.pkg.coding.net/nocalhost/nocalhost"
+          helm repo add --username ${{ secrets.CODING_ARTIFACTS_USER }} --password ${{ secrets.CODING_ARTIFACTS_PASS }} nocalhost-dep "https://nocalhost-helm.pkg.coding.net/nocalhost/helm"
 
       - name: Change chart version
         env:
