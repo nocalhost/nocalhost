@@ -16,6 +16,6 @@ const (
 	WebServerServiceAccountApi = "/v1/plugin/service_accounts"
 	TestcaseWebhook            = "TESTCASE_WEBHOOK"
 	TimeoutWebhook             = "TIMEOUT_WEBHOOK"
-	HelmRepoUsername           = "HELM_REPO_USERNAME"
-	HelmRepoPassword           = "HELM_REPO_PASSWORD"
+	HelmRepoUsername           = "CODING_ARTIFACTS_USER"
+	HelmRepoPassword           = "CODING_ARTIFACTS_PASS"
 )
