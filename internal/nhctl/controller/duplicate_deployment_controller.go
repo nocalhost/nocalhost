@@ -7,6 +7,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -68,6 +69,19 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 	dep, err := d.Client.GetDeployment(d.Name)
 	if err != nil {
 		return err
+	}
+
+	if d.IsInDevMode() {
+		osj, ok := dep.Annotations[OriginSpecJson]
+		if ok {
+			log.Info("Annotation nocalhost.origin.spec.json found, use it")
+			dep.Spec = appsv1.DeploymentSpec{}
+			if err = json.Unmarshal([]byte(osj), &dep.Spec); err != nil {
+				return errors.Wrap(err, "")
+			}
+		} else {
+			return errors.New("Annotation nocalhost.origin.spec.json not found?")
+		}
 	}
 
 	var rs int32 = 1

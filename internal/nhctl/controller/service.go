@@ -28,9 +28,10 @@ type Controller struct {
 
 // IsInDevMode return true if under dev starting or start complete
 func (c *Controller) IsInDevMode() bool {
-	if c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type) != appmeta.NONE {
-		return true
-	}
+	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type) != appmeta.NONE
+}
+
+func (c *Controller) IsInLocalDevMode() bool {
 	// todo: considering err != nil - by hxx
 	p, _ := c.GetProfile()
 	return p.LocalDevModeStarted

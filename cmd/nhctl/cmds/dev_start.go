@@ -110,7 +110,7 @@ var devStartCmd = &cobra.Command{
 			log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
 
-		if nocalhostSvc.IsInDevMode() {
+		if nocalhostSvc.IsInDevMode() || nocalhostSvc.IsInLocalDevMode() {
 			coloredoutput.Hint("Already in DevMode...")
 
 			p, _ := nocalhostSvc.GetProfile()
@@ -129,44 +129,50 @@ var devStartCmd = &cobra.Command{
 				must(nocalhostSvc.EnterPodTerminal(podName, devStartOps.Container, shell))
 			}
 
-		} else {
-
-			// 1) reload svc config from local if needed
-			// 2) stop previous syncthing
-			// 3) recording profile
-			// 4) mark app meta as developing
-			// 5) initial syncthing runtime env
-			// 6) stop port-forward
-			// 7) enter developing (replace image)
-			// 8) port forward for dev-container
-			// 9) start syncthing
-			// 10) entering dev container
-
-			coloredoutput.Hint("Starting DevMode...")
-
-			loadLocalOrCmConfigIfValid()
-			stopPreviousSyncthing()
-			recordLocalSyncDirToProfile()
-			prepareSyncThing()
-			stopPreviousPortForward()
-			enterDevMode(devStartOps.LocalDevModeType)
-
-			devPodName, err := nocalhostSvc.BuildPodController(profile.LocalDevModeType(devStartOps.LocalDevModeType)).
-				GetNocalhostDevContainerPod()
-			must(err)
-
-			startPortForwardAfterDevStart(devPodName)
-
-			if !devStartOps.NoSyncthing {
-				startSyncthing(devPodName, devStartOps.Container, false)
-			} else {
-				coloredoutput.Success("File sync is not started caused by --without-sync flag..")
-			}
-
-			if !devStartOps.NoTerminal || shell != "" {
-				must(nocalhostSvc.EnterPodTerminal(devPodName, devStartOps.Container, shell))
+			// can not use "replace" starting DevMode again
+			// can not use "duplicate" in a local "replace" DevMode has been started
+			// can not starting any kind of DevMode when a "duplicate" DevMode has been started
+			if devStartOps.LocalDevModeType == "" || nocalhostSvc.IsProcessor() || nocalhostSvc.IsInLocalDevMode() {
+				return
 			}
 		}
+
+		// 1) reload svc config from local if needed
+		// 2) stop previous syncthing
+		// 3) recording profile
+		// 4) mark app meta as developing
+		// 5) initial syncthing runtime env
+		// 6) stop port-forward
+		// 7) enter developing (replace image)
+		// 8) port forward for dev-container
+		// 9) start syncthing
+		// 10) entering dev container
+
+		coloredoutput.Hint("Starting DevMode...")
+
+		loadLocalOrCmConfigIfValid()
+		stopPreviousSyncthing()
+		recordLocalSyncDirToProfile()
+		prepareSyncThing()
+		stopPreviousPortForward()
+		enterDevMode(devStartOps.LocalDevModeType)
+
+		devPodName, err := nocalhostSvc.BuildPodController(profile.LocalDevModeType(devStartOps.LocalDevModeType)).
+			GetNocalhostDevContainerPod()
+		must(err)
+
+		startPortForwardAfterDevStart(devPodName)
+
+		if !devStartOps.NoSyncthing {
+			startSyncthing(devPodName, devStartOps.Container, false)
+		} else {
+			coloredoutput.Success("File sync is not started caused by --without-sync flag..")
+		}
+
+		if !devStartOps.NoTerminal || shell != "" {
+			must(nocalhostSvc.EnterPodTerminal(devPodName, devStartOps.Container, shell))
+		}
+
 	},
 }
 
