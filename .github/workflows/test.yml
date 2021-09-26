@@ -91,8 +91,8 @@ jobs:
           export TKE_SECRET_KEY=${{ secrets.TKE_SECRET_KEY }}
           export TIMEOUT_WEBHOOK=${{ secrets.TIMEOUT_WEBHOOK }}
           export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
-          export HELM_REPO_USERNAME=${{ secrets.HELM_REPO_USERNAME }}
-          export HELM_REPO_PASSWORD=${{ secrets.HELM_REPO_PASSWORD }}
+          export HELM_REPO_USERNAME=${{ secrets.CODING_ARTIFACTS_USER }}
+          export HELM_REPO_PASSWORD=${{ secrets.CODING_ARTIFACTS_PASS }}
           export DISABLE_SPINNER=true
           cd test
           go build
@@ -129,8 +129,8 @@ jobs:
           export TKE_SECRET_KEY=${{ secrets.TKE_SECRET_KEY }}
           export TIMEOUT_WEBHOOK=${{ secrets.TIMEOUT_WEBHOOK }}
           export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
-          export HELM_REPO_USERNAME=${{ secrets.HELM_REPO_USERNAME }}
-          export HELM_REPO_PASSWORD=${{ secrets.HELM_REPO_PASSWORD }}
+          export HELM_REPO_USERNAME=${{ secrets.CODING_ARTIFACTS_USER }}
+          export HELM_REPO_PASSWORD=${{ secrets.CODING_ARTIFACTS_PASS }}
           export DISABLE_SPINNER=true
           cd test
           go build
@@ -168,8 +168,8 @@ jobs:
           export TKE_SECRET_KEY=${{ secrets.TKE_SECRET_KEY }}
           export TIMEOUT_WEBHOOK=${{ secrets.TIMEOUT_WEBHOOK }}
           export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
-          export HELM_REPO_USERNAME=${{ secrets.HELM_REPO_USERNAME }}
-          export HELM_REPO_PASSWORD=${{ secrets.HELM_REPO_PASSWORD }}
+          export HELM_REPO_USERNAME=${{ secrets.CODING_ARTIFACTS_USER }}
+          export HELM_REPO_PASSWORD=${{ secrets.CODING_ARTIFACTS_PASS }}
           export DISABLE_SPINNER=true
           cd test
           go build
