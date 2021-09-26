@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"k8s.io/client-go/tools/portforward"
 	"net"
 	"net/http"
 	"sort"
@@ -179,7 +180,7 @@ func (pf *PortForwarder) ForwardPorts() error {
 	defer pf.Close()
 
 	var err error
-	pf.streamConn, _, err = pf.dialer.Dial(PortForwardProtocolV1Name)
+	pf.streamConn, _, err = pf.dialer.Dial(portforward.PortForwardProtocolV1Name)
 	if err != nil {
 		return fmt.Errorf("error upgrading connection: %s", err)
 	}
@@ -440,7 +441,7 @@ func (pf *PortForwarder) tryToCreateStream(header http.Header) (httpstream.Strea
 	// close old connection in case of resource leak
 	_ = pf.streamConn.Close()
 	var err error
-	pf.streamConn, _, err = pf.dialer.Dial(PortForwardProtocolV1Name)
+	pf.streamConn, _, err = pf.dialer.Dial(portforward.PortForwardProtocolV1Name)
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error upgrading connection: %s", err))
 		return nil, err
