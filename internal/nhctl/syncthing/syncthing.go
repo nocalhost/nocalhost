@@ -242,13 +242,16 @@ func (s *Syncthing) generateIgnoredFileConfig() (string, error) {
 		syncedPatternAdaption = []string{"!**"}
 	}
 
-	ignoredPattern := strings.Join(ignoredPatternAdaption, "\n")
-	syncedPattern := strings.Join(syncedPatternAdaption, "\n")
+	ignoredPattern := ""
+	syncedPattern := ""
 
 	if s.EnableParseFromGitIgnore {
 		log.Infof("\n Enable parsing file's ignore/sync from git ignore\n")
 		enableParseFromGitIgnore = EnableParseFromGitIgnore
 	} else {
+		ignoredPattern = strings.Join(ignoredPatternAdaption, "\n")
+		syncedPattern = strings.Join(syncedPatternAdaption, "\n")
+
 		log.Infof("IgnoredPattern: \n" + ignoredPattern)
 		log.Infof("SyncedPattern: \n" + syncedPattern)
 	}
