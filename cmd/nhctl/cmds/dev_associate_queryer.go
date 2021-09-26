@@ -28,6 +28,10 @@ func init() {
 		"local-sync", "s", "",
 		"the local directory synchronized to the remote container under dev mode",
 	)
+	devAssociateQueryerCmd.Flags().StringVar(
+		&workDirDeprecated, "associate", "",
+		"the local directory synchronized to the remote container under dev mode(deprecated)",
+	)
 	devAssociateQueryerCmd.Flags().BoolVar(
 		&current, "current", false,
 		"show the active svc most recently associate to the path",
@@ -54,6 +58,10 @@ var devAssociateQueryerCmd = &cobra.Command{
 		if workDir == "" {
 			log.Fatal("associate must specify")
 			return
+		}
+
+		if workDirDeprecated != "" {
+			workDir = workDirDeprecated
 		}
 
 		devPath := dev_dir.DevPath(workDir)

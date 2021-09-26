@@ -15,11 +15,20 @@ import (
 )
 
 var workDir string
+var workDirDeprecated string
 var deAssociate bool
 var info bool
 var migrate bool
 
 func init() {
+	devAssociateCmd.Flags().StringVarP(
+		&workDir, "local-sync", "s", "",
+		"the local directory synchronized to the remote container under dev mode",
+	)
+	devAssociateCmd.Flags().StringVar(
+		&workDirDeprecated, "associate", "",
+		"the local directory synchronized to the remote container under dev mode(deprecated)",
+	)
 	devAssociateCmd.Flags().StringVarP(
 		&commonFlags.SvcName, "deployment", "d", "",
 		"k8s deployment which your developing service exists",
@@ -31,10 +40,6 @@ func init() {
 	devAssociateCmd.Flags().StringVarP(
 		&container, "container", "c", "",
 		"container to develop",
-	)
-	devAssociateCmd.Flags().StringVarP(
-		&workDir, "local-sync", "s", "",
-		"the local directory synchronized to the remote container under dev mode",
 	)
 	devAssociateCmd.Flags().BoolVar(
 		&deAssociate, "de-associate", false,
@@ -81,8 +86,12 @@ var devAssociateCmd = &cobra.Command{
 			svcPack.UnAssociatePath()
 			return
 		} else {
+			if workDirDeprecated != "" {
+				workDir = workDirDeprecated
+			}
+
 			if workDir == "" {
-				log.Fatal("associate must specify")
+				log.Fatal("--local-sync must specify")
 			}
 			must(dev_dir.DevPath(workDir).Associate(svcPack, kubeConfig, !migrate))
 		}
