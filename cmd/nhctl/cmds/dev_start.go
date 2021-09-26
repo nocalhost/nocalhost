@@ -289,18 +289,32 @@ func startSyncthing(podName, container string, resume bool) {
 }
 
 func enterDevMode(localDevMode string) {
-	must(
-		nocalhostSvc.AppMeta.SvcDevStarting(
-			nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier,
-		),
-	)
+	if localDevMode == "" {
+		must(
+			nocalhostSvc.AppMeta.SvcDevStarting(nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier),
+		)
+	} else {
+		must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
+			v2.LocalDevModeStarted = true
+			v2.LocalDevMode = profile.LocalDevModeType(localDevMode)
+			return nil
+		}))
+	}
 
 	// prevent dev status modified but not actually enter dev mode
 	var devStartSuccess = false
 	defer func() {
 		if !devStartSuccess {
-			log.Infof("Roll backing dev mode... \n")
-			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type)
+			if localDevMode == "" {
+				log.Infof("Roll backing dev mode... \n")
+				_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type)
+			} else {
+				nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
+					v2.LocalDevModeStarted = false
+					v2.LocalDevMode = ""
+					return nil
+				})
+			}
 		}
 	}()
 
@@ -315,11 +329,13 @@ func enterDevMode(localDevMode string) {
 		must(err)
 	}
 
-	must(
-		nocalhostSvc.AppMeta.SvcDevStartComplete(
-			nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier,
-		),
-	)
+	if localDevMode == "" {
+		must(
+			nocalhostSvc.AppMeta.SvcDevStartComplete(
+				nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier,
+			),
+		)
+	}
 
 	// mark dev start as true
 	devStartSuccess = true

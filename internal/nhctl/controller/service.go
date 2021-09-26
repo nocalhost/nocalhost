@@ -37,6 +37,14 @@ func (c *Controller) IsInDevMode() bool {
 }
 
 func (c *Controller) IsProcessor() bool {
+	sp, err := c.GetProfile()
+	if err != nil {
+		return false
+	}
+	if sp.LocalDevModeStarted {
+		return true
+	}
+
 	appProfile, err := c.GetAppProfile() // todo: move Identifier to directory
 	if err != nil {
 		return false

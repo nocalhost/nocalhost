@@ -11,6 +11,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
@@ -28,15 +29,12 @@ type DuplicateDeploymentController struct {
 }
 
 func (d *DuplicateDeploymentController) GetNocalhostDevContainerPod() (string, error) {
-	labelsMap, err := d.getLabelsMap()
+
+	pods, err := d.GetPodList()
 	if err != nil {
 		return "", err
 	}
-	d.Client.Labels(labelsMap)
-	pods, err := d.Client.ListPods()
-	if err != nil {
-		return "", err
-	}
+
 	podName, err := findDevPod(pods)
 	if err != nil {
 		return "", err
@@ -54,9 +52,10 @@ func (d *DuplicateDeploymentController) getLabelsMap() (map[string]string, error
 	}
 
 	labelsMap := map[string]string{
-		IdentifierKey:         p.Identifier,
-		OriginWorkloadNameKey: d.Name,
-		OriginWorkloadTypeKey: string(d.Type),
+		IdentifierKey:             p.Identifier,
+		OriginWorkloadNameKey:     d.Name,
+		OriginWorkloadTypeKey:     string(d.Type),
+		_const.DevWorkloadIgnored: "true",
 	}
 	return labelsMap, nil
 }
@@ -92,6 +91,7 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 	dep.Status = appsv1.DeploymentStatus{}
 	dep.Spec.Selector = &metav1.LabelSelector{MatchLabels: labelsMap}
 	dep.Spec.Template.Labels = labelsMap
+	dep.ResourceVersion = ""
 
 	devContainer, err := findContainerInDeploySpec(dep, ops.Container)
 	if err != nil {
@@ -178,19 +178,34 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 
 func (d *DuplicateDeploymentController) RollBack(reset bool) error {
 	//todo
-	err := d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
+	lmap, err := d.getLabelsMap()
+	if err != nil {
+		return err
+	}
+	d.Client.Labels(lmap)
+	deploys, err := d.Client.ListDeployments()
+	if err != nil {
+		return err
+	}
+	if len(deploys) != 1 {
+		return errors.New("Deployment num is not 1?")
+	}
+	if err = d.Client.DeleteDeployment(deploys[0].Name, false); err != nil {
+		return err
+	}
+	return d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
 		svcProfileV2.LocalDevMode = ""
 		svcProfileV2.LocalDevModeStarted = false
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-
-	panic("")
 }
 
+// GetPodList todo: Do not list pods already deleted - by hxx
 func (d *DuplicateDeploymentController) GetPodList() ([]corev1.Pod, error) {
-	//todo
-	panic("")
+	labelsMap, err := d.getLabelsMap()
+	if err != nil {
+		return nil, err
+	}
+	d.Client.Labels(labelsMap)
+	return d.Client.ListPods()
 }

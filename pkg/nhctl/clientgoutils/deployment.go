@@ -9,13 +9,18 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"time"
 )
 
 func (c *ClientGoUtils) ListDeployments() ([]v1.Deployment, error) {
-	deps, err := c.GetDeploymentClient().List(c.ctx, metav1.ListOptions{})
+	ops := metav1.ListOptions{}
+	if len(c.labels) > 0 {
+		ops.LabelSelector = labels.Set(c.labels).String()
+	}
+	deps, err := c.GetDeploymentClient().List(c.ctx, ops)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
