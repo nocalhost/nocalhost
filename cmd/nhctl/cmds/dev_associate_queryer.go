@@ -55,7 +55,7 @@ var devAssociateQueryerCmd = &cobra.Command{
 
 			pack, err := devPath.GetDefaultPack()
 			if err == dev_dir.NO_DEFAULT_PACK {
-				println("{}")
+				fmt.Printf("{}")
 				return
 			} else {
 				must(err)
