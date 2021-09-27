@@ -85,7 +85,7 @@ var InitCommand = &cobra.Command{
 			log.Fatal("--inject-user-template length should less then 15")
 		}
 		if inits.InjectUserTemplate != "" && !strings.ContainsAny(inits.InjectUserTemplate, "%d") {
-			log.Fatalf("--inject-user-template does not contains", "%s", inits.InjectUserTemplate)
+			log.Fatalf("--inject-user-template does not contains %s", inits.InjectUserTemplate)
 		}
 		if inits.InjectUserAmount > 999 {
 			log.Fatal("--inject-user-amount must less then 999")

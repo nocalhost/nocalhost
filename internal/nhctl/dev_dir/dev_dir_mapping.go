@@ -24,7 +24,7 @@ func (svcPack *SvcPack) GetAssociatePath() DevPath {
 			if _, ok := dirMapping.PackToPath[svcPack.Key()]; ok {
 				path = dirMapping.PackToPath[svcPack.Key()]
 			} else {
-				path = dirMapping.PackToPath[svcPack.keyWithoutContainer()]
+				path = dirMapping.PackToPath[svcPack.KeyWithoutContainer()]
 			}
 			return nil
 		},
@@ -48,7 +48,7 @@ func (svcPack *SvcPack) GetKubeConfigBytes() string {
 			if _, ok := dirMapping.PackToPath[svcPack.Key()]; ok {
 				kubeconfigContent = dirMapping.PackToKubeConfigBytes[svcPack.Key()]
 			} else {
-				kubeconfigContent = dirMapping.PackToKubeConfigBytes[svcPack.keyWithoutContainer()]
+				kubeconfigContent = dirMapping.PackToKubeConfigBytes[svcPack.KeyWithoutContainer()]
 			}
 			return nil
 		},
@@ -67,7 +67,7 @@ func (svcPack *SvcPack) UnAssociatePath() {
 	if err := Update(
 		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
 			delete(dirMapping.PackToPath, svcPack.Key())
-			delete(dirMapping.PackToPath, svcPack.keyWithoutContainer())
+			delete(dirMapping.PackToPath, svcPack.KeyWithoutContainer())
 			return nil
 		},
 	); err != nil {
@@ -108,7 +108,7 @@ func (d DevPath) Associate(specifyPack *SvcPack, kubeconfig string, setAsDefault
 			}
 
 			key := specifyPack.Key()
-			keyWithoutContainer := specifyPack.keyWithoutContainer()
+			keyWithoutContainer := specifyPack.KeyWithoutContainer()
 
 			dirMapping.PackToPath[key] = d
 			dirMapping.PackToKubeConfigBytes[key] = kubeconfigContent
