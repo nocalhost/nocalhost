@@ -1,32 +1,27 @@
 apiVersion: v2
 name: nocalhost
-description: A Helm chart for Kubernetes
-
-# A chart can be either an 'application' or a 'library' chart.
-#
-# Application charts are a collection of templates that can be packaged into versioned archives
-# to be deployed.
-#
-# Library charts provide useful utilities or functions for the chart developer. They're included as
-# a dependency of application charts to inject those utilities and functions into the rendering
-# pipeline. Library charts do not define any templates and therefore cannot be deployed.
+description: Nocalhost is Cloud Native Dev Environment.
 type: application
-
-# This is the chart version. This version number should be incremented each time you make changes
-# to the chart and its templates, including the app version.
-# Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 0.1.0
-
-# This is the version number of the application being deployed. This version number should be
-# incremented each time you make changes to the application. Versions are not expected to
-# follow Semantic Versioning. They should reflect the version the application is using.
-appVersion: 1.16.0
-
-# Chart.yaml
+version: 0.5.6
+appVersion: "v0.5.6"
+kubeVersion: '>= 1.16.0-0'
+sources:
+  - https://github.com/nocalhost/nocalhost
+keywords:
+- nocalhost
+- nhctl
+- kubernetes
+- develop
+- telepresence
+- skaffold
+home: https://nocalhost.dev
+icon: https://nocalhost.dev/img/icon_helmchart.png
+annotations:
+  category: App Definition and Development
 dependencies:
 - name: mariadb
   version: "9.0.1"
   repository: "https://nocalhost-helm.pkg.coding.net/nocalhost/helm"
-#- name: redis
-#  version: "12.0.0"
-#  repository: "https://charts.bitnami.com/bitnami"
+maintainers:
+  - name: Nocalhost
+    url: https://github.com/nocalhost/nocalhost

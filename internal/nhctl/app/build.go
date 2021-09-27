@@ -120,9 +120,9 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 
 	if len(flags.ResourcePath) != 0 {
-		if config.ApplicationConfig == nil {
-			config.ApplicationConfig = &profile.ApplicationConfig{}
-		}
+		//if config.ApplicationConfig == nil {
+		//	config.ApplicationConfig = &profile.ApplicationConfig{}
+		//}
 		config.ApplicationConfig.ResourcePath = flags.ResourcePath
 	}
 
@@ -159,8 +159,8 @@ func (a *Application) loadOrGenerateConfig(
 			}
 			// no config.yaml
 			renderedConfig := &profile.NocalHostAppConfigV2{
-				ConfigProperties: &profile.ConfigProperties{Version: "v2"},
-				ApplicationConfig: &profile.ApplicationConfig{
+				ConfigProperties: profile.ConfigProperties{Version: "v2"},
+				ApplicationConfig: profile.ApplicationConfig{
 					Name:           a.Name,
 					Type:           appType,
 					ResourcePath:   resourcePath,
@@ -362,7 +362,7 @@ func RenderConfig(renderItem envsubst.RenderItem) (*profile.NocalHostAppConfigV2
 	// duplicate service and keep the last one)
 	// ------
 
-	if renderedConfig.ApplicationConfig != nil && renderedConfig.ApplicationConfig.ServiceConfigs != nil {
+	if renderedConfig.ApplicationConfig.ServiceConfigs != nil {
 		var maps = make(map[string]int)
 
 		for i, config := range renderedConfig.ApplicationConfig.ServiceConfigs {
@@ -388,7 +388,7 @@ func RenderConfig(renderItem envsubst.RenderItem) (*profile.NocalHostAppConfigV2
 }
 
 func parseEnvFromIntoEnv(config *profile.NocalHostAppConfigV2) {
-	if config != nil && config.ApplicationConfig != nil {
+	if config != nil {
 
 		arr := make([]*profile.Env, 0)
 		for k, v := range getEnvFromEnvFileArr(config.ApplicationConfig.EnvFrom.EnvFile) {

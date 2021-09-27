@@ -74,12 +74,12 @@ var fileSyncCmd = &cobra.Command{
 
 		StartSyncthing(
 			"", fileSyncOps.Resume, fileSyncOps.Stop, fileSyncOps.Container,
-			fileSyncOps.SyncDouble, fileSyncOps.Override,
+			&fileSyncOps.SyncDouble, fileSyncOps.Override,
 		)
 	},
 }
 
-func StartSyncthing(podName string, resume bool, stop bool, container string, syncDouble bool, override bool) {
+func StartSyncthing(podName string, resume bool, stop bool, container string, syncDouble *bool, override bool) {
 	if !nocalhostSvc.IsInDevMode() {
 		log.Fatalf("Service \"%s\" is not in developing", deployment)
 	}
@@ -124,6 +124,25 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	
 	utils2.KillSyncthingProcess(str)
 
+	if syncDouble == nil {
+		flag := false
+
+		if config, err := nocalhostSvc.GetConfig(); err == nil {
+			if cfg := config.GetContainerDevConfig(container); cfg != nil && cfg.Sync != nil {
+				switch cfg.Sync.Type {
+
+				case syncthing.DefaultSyncMode:
+					flag = true
+
+				default:
+					flag = false
+				}
+			}
+		}
+
+		syncDouble = &flag
+	}
+
 	// Delete service folder
 	dir := nocalhostSvc.GetApplicationSyncDir()
 	if err2 := os.RemoveAll(dir); err2 != nil {
@@ -134,7 +153,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished),
 	// the files that have been synchronized will not be synchronized.
 	newSyncthing, err := nocalhostSvc.NewSyncthing(
-		container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, syncDouble,
+		container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, *syncDouble,
 	)
 	utils.ShouldI(err, "Failed to new syncthing")
 

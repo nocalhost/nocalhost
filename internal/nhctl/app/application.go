@@ -195,18 +195,18 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		if len(profileV2.SvcProfile) > 0 || app.appMeta.Config == nil {
 			c := app.newConfigFromProfile()
 			// replace image
-			if c.ApplicationConfig != nil {
-				for _, sc := range c.ApplicationConfig.ServiceConfigs {
-					for _, scc := range sc.ContainerConfigs {
-						if scc.Dev != nil {
-							//re3, _ := regexp.Compile("codingcorp-docker.pkg.coding.net")
-							scc.Dev.Image = utils.ReplaceCodingcorpString(scc.Dev.Image)
-							scc.Dev.GitUrl = utils.ReplaceCodingcorpString(scc.Dev.GitUrl)
-							//scc.Dev.Image = re3.ReplaceAllString(scc.Dev.Image, "nocalhost-docker.pkg.coding.net")
-						}
+			//if c.ApplicationConfig != nil {
+			for _, sc := range c.ApplicationConfig.ServiceConfigs {
+				for _, scc := range sc.ContainerConfigs {
+					if scc.Dev != nil {
+						//re3, _ := regexp.Compile("codingcorp-docker.pkg.coding.net")
+						scc.Dev.Image = utils.ReplaceCodingcorpString(scc.Dev.Image)
+						scc.Dev.GitUrl = utils.ReplaceCodingcorpString(scc.Dev.GitUrl)
+						//scc.Dev.Image = re3.ReplaceAllString(scc.Dev.Image, "nocalhost-docker.pkg.coding.net")
 					}
 				}
 			}
+			//}
 			app.appMeta.Config = c
 			app.appMeta.Config.Migrated = true
 			if err = app.appMeta.Update(); err != nil {
@@ -702,10 +702,10 @@ func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {
 
 	profileV2, _ := a.GetProfile()
 	return &profile.NocalHostAppConfigV2{
-		ConfigProperties: &profile.ConfigProperties{
+		ConfigProperties: profile.ConfigProperties{
 			Version: "v2",
 		},
-		ApplicationConfig: &profile.ApplicationConfig{
+		ApplicationConfig: profile.ApplicationConfig{
 			Name:         a.Name,
 			Type:         profileV2.AppType,
 			ResourcePath: profileV2.ResourcePath,
@@ -832,7 +832,7 @@ type HelmFlags struct {
 }
 
 func (a *Application) GetApplicationConfigV2() *profile.ApplicationConfig {
-	return a.appMeta.Config.ApplicationConfig
+	return &a.appMeta.Config.ApplicationConfig
 }
 
 //func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
@@ -954,13 +954,13 @@ func (a *Application) PortForwardAPod(req clientgoutils.PortForwardAPodRequest) 
 }
 
 func (a *Application) PortForward(pod string, localPort, remotePort int, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) error {
-	return a.client.Forward(pod, localPort, remotePort, readyChan, stopChan, g)
+	return a.client.ForwardPortForwardByPod(pod, localPort, remotePort, readyChan, stopChan, g)
 }
 
 // set pid file empty
-func (a *Application) SetPidFileEmpty(filePath string) error {
-	return os.Remove(filePath)
-}
+//func (a *Application) SetPidFileEmpty(filePath string) error {
+//	return os.Remove(filePath)
+//}
 
 func (a *Application) CleanUpTmpResources() error {
 	log.Log("Clean up tmp resources...")
