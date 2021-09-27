@@ -168,18 +168,18 @@ var (
 	// cluster-user errors for mesh space
 	ErrMeshClusterUserNotFound          = &Errno{Code: 50200, Message: "Base dev space has not found"}
 	ErrMeshClusterUserNamespaceNotFound = &Errno{Code: 50201, Message: "Base dev namespace has not found"}
-	ErrInitMeshSpaceFailed              = &Errno{Code: 50202, Message: "Failed to initialize share space"}
-	ErrGetDevSpaceAppInfo               = &Errno{Code: 50203, Message: "Failed to get share space info"}
-	ErrUpdateMeshSpaceFailed            = &Errno{Code: 50204, Message: "Failed to update share space"}
+	ErrInitMeshSpaceFailed              = &Errno{Code: 50202, Message: "Failed to initialize mesh space"}
+	ErrGetDevSpaceAppInfo               = &Errno{Code: 50203, Message: "Failed to get mesh space info"}
+	ErrUpdateMeshSpaceFailed            = &Errno{Code: 50204, Message: "Failed to update mesh space"}
 	ErrDeleteTracingHeaderFailed        = &Errno{Code: 50205, Message: "Failed to delete tracing header"}
 	ErrUpdateBaseSpace                  = &Errno{Code: 50206, Message: "Base space can't be updated"}
 	ErrUseAsBaseSpace                   = &Errno{Code: 50207, Message: "Can't be used as base space"}
-	ErrValidateMeshInfo                 = &Errno{Code: 50208, Message: "Incorrect share space parameter"}
-	ErrMeshInfoRequired                 = &Errno{Code: 50209, Message: "Share space parameter required"}
+	ErrValidateMeshInfo                 = &Errno{Code: 50208, Message: "Incorrect mesh space parameter"}
+	ErrMeshInfoRequired                 = &Errno{Code: 50209, Message: "Mesh space parameter required"}
 	ErrBaseSpaceReSet                   = &Errno{Code: 50210, Message: "Base space can't be reset"}
-	ErrAsBothBaseSpaceAndShareSpace     = &Errno{
+	ErrAsBothBaseSpaceAndMeshSpace      = &Errno{
 		Code:    50211,
-		Message: "Cannot be set as both base space and shared space",
+		Message: "Cannot be set as both base space and mesh space",
 	}
 	ErrIstioNotFound = &Errno{Code: 50212, Message: "Please ensure the Istio is installed and running in your cluster"}
 

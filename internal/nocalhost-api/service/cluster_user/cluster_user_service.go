@@ -162,6 +162,7 @@ func (srv *clusterUserService) ListV2(models model.ClusterUserModel) (
 		item.CreatedAt = userModel.CreatedAt
 		item.BaseDevSpaceId = userModel.BaseDevSpaceId
 		item.IsBaseSpace = userModel.IsBaseSpace
+		item.TraceHeader = userModel.TraceHeader
 		result = append(result, item)
 	}
 	return result, nil
