@@ -115,6 +115,7 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 	svcConfig, _ := c.GetConfig()
 	devConfig := svcConfig.GetContainerDevConfigOrDefault(container)
 	if devConfig.Sync != nil {
+		s.EnableParseFromGitIgnore = devConfig.Sync.ParseFromGitIgnore
 		s.SyncedPattern = devConfig.Sync.FilePattern
 		s.IgnoredPattern = devConfig.Sync.IgnoreFilePattern
 	}
