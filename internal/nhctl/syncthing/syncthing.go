@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 // syncthing module: thanks to okteto given our inspired
 
@@ -45,7 +45,7 @@ const (
 	LogFile          = "syncthing.log"
 	IgnoredFIle      = ".nhignore"
 	syncthingPidFile = "syncthing.pid"
-	DefaultSyncMode  = "sendreceive" // default sync mode
+	DefaultSyncMode  = "sendReceive" // default sync mode
 	SendOnlySyncMode = "sendonly"    // default sync mode
 
 	// Use to access syncthing API
