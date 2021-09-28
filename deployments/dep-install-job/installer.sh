@@ -48,7 +48,8 @@ kubectl apply -f ./webhook/sa.yaml
 source ./cert.sh
 
 # replace CA_BUNDLE
-cat ./webhook/mutating-webhook.yaml | ./webhook-patch-ca-bundle.sh > ./webhook/mutating-webhook-ca-bundle.yaml
+cp ./webhook/mutating-webhook.yaml ./webhook/mutating-webhook-ca-bundle.yaml
+source ./webhook-patch-ca-bundle.sh
 
 # replace namespace
 if [[ -n ${DEP_NAMESPACE} ]] ; then

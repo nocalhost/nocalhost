@@ -48,7 +48,7 @@ done
 
 [ -n "${DEP_NAMESPACE}" ] && namespace=${DEP_NAMESPACE}
 
-if kubectl get secrets -n ${namespace} ${secret} -o json|grep 'ca-cert.pem' > /dev/null; then
+if kubectl get secrets -n ${namespace} ${secret} -o json|grep '"ca-cert.pem":' > /dev/null; then
     echo "secret ${namespace}/${secret} has been created so do not need to create one."
     return
 fi
@@ -90,7 +90,7 @@ openssl x509 -req -in ${tmpdir}/server.csr -CA ${tmpdir}/ca-cert.pem -CAkey ${tm
 
 # create the secret with CA cert and server cert/key
 kubectl create secret generic ${secret} \
-        --from-file=ca-cert.pem=${tmpdir}/server-key.pem \
+        --from-file=ca-cert.pem=${tmpdir}/ca-cert.pem \
         --from-file=key.pem=${tmpdir}/server-key.pem \
         --from-file=cert.pem=${tmpdir}/server-cert.pem \
         --dry-run=client -o yaml |
