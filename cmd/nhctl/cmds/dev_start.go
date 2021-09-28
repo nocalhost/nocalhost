@@ -197,7 +197,7 @@ func loadLocalOrCmConfigIfValid() {
 		nocalhostSvc.AppName,
 		nocalhostSvc.Type,
 		nocalhostSvc.Name,
-		container,
+		devStartOps.Container,
 	)
 
 	switch len(devStartOps.LocalSyncDir) {
