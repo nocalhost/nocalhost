@@ -6,7 +6,19 @@ set -o pipefail
 
 ns=${DEP_NAMESPACE:-"nocalhost-reserved"}
 
-CA_BUNDLE=$(kubectl -n "${ns}" get secrets -o jsonpath="{.items[?(@.metadata.annotations['kubernetes\.io/service-account\.name']=='nocalhost-admin-service-account')].data.ca\.crt}")
+CA_BUNDLE=''
+for x in $(seq 10); do
+    CA_BUNDLE=$(kubectl -n "${ns}" get secrets -o jsonpath='{.data.ca-cert\.pem}')
+    if [[ ${CA_BUNDLE} != '' ]]; then
+        break
+    fi
+    sleep 1
+done
+
+if [[ ${CA_BUNDLE} != '' ]]; then
+    echo "failed to get ca-cert.pem form secret"
+    exit 1
+fi
 
 export CA_BUNDLE
 
