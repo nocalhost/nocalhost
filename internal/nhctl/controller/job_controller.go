@@ -70,7 +70,7 @@ func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOpt
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		j.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass)
+		j.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}

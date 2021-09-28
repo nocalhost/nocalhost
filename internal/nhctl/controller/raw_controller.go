@@ -64,7 +64,7 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		r.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass)
+		r.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}

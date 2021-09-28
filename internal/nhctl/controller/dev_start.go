@@ -179,7 +179,7 @@ func (c *Controller) generateSyncVolumesAndMounts() ([]corev1.Volume, []corev1.V
 // If PVC exists, use it directly
 // If PVC not exists, try to create one
 // If PVC failed to create, the whole process of entering DevMode will fail
-func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
+func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, localDevMode bool) (
 	[]corev1.Volume, []corev1.VolumeMount, error) {
 
 	volumes := make([]corev1.Volume, 0)
@@ -195,6 +195,7 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 
 	var workDirDefinedInPersistVolume bool // if workDir is specified in persistentVolumeDirs
 	var workDirResideInPersistVolumeDirs bool
+	var err error
 	persistentVolumes := c.GetPersistentVolumeDirs(container)
 	if len(persistentVolumes) > 0 {
 		for index, persistentVolume := range persistentVolumes {
@@ -205,8 +206,18 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 
 			// Check if pvc is already exist
 			labels := map[string]string{}
-			labels[_const.AppLabel] = c.AppName
-			labels[_const.ServiceLabel] = c.Name
+			if localDevMode {
+				labels, err = c.getDuplicateLabelsMap()
+				if err != nil {
+					log.WarnE(err, "")
+					continue
+				}
+				labels[_const.DevWorkloadIgnored] = "false"
+				labels[_const.AppLabel] = c.AppName
+			} else {
+				labels[_const.AppLabel] = c.AppName
+				labels[_const.ServiceLabel] = c.Name
+			}
 			labels[_const.PersistentVolumeDirLabel] = utils.Sha1ToString(persistentVolume.Path)
 			claims, err := c.Client.GetPvcByLabels(labels)
 			if err != nil {
@@ -494,7 +505,8 @@ func findDevPod(podList []corev1.Pod) (string, error) {
 }
 
 func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
-	containerName, storageClass string) (*corev1.Container, *corev1.Container, []corev1.Volume, error) {
+	containerName, storageClass string, localDevMode bool) (*corev1.Container,
+	*corev1.Container, []corev1.Volume, error) {
 
 	devModeVolumes := make([]corev1.Volume, 0)
 	devModeMounts := make([]corev1.VolumeMount, 0)
@@ -505,8 +517,7 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
 	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := c.genWorkDirAndPVAndMounts(
-		containerName, storageClass,
-	)
+		containerName, storageClass, localDevMode)
 	if err != nil {
 		return nil, nil, nil, err
 	}

@@ -61,7 +61,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		d.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass)
+		d.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}

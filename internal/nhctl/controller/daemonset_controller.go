@@ -104,7 +104,7 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		d.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass)
+		d.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}
@@ -147,10 +147,6 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
 }
-
-//func (d *DaemonSetController) Name() string {
-//	return d.Controller.Name
-//}
 
 func (d *DaemonSetController) RollBack(reset bool) error {
 	// Delete generated Deployment
