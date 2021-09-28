@@ -7,7 +7,10 @@ import (
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
 	authorizationv1 "k8s.io/api/authorization/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"nocalhost/internal/nocalhost-api/service/cooperator/util"
 	"nocalhost/pkg/nhctl/log"
 	"sort"
@@ -15,6 +18,9 @@ import (
 )
 
 var (
+	// holds all the server-supported resources that cannot be discovered by clients. i.e. users and groups for the impersonate verb
+	nonStandardResourceNames = sets.NewString("users", "groups")
+
 	CheckersMapping = map[string][]*AuthChecker{
 		"nhctl dev start controller-type=deployment": {
 			AllPermissionForSecret,
@@ -59,68 +65,46 @@ var (
 	ArgsFilter = util.NewSet("controller-type")
 
 	AllPermissionForSecret = &AuthChecker{
-		Group:    "*",
-		Verb:     "*",
-		Name:     "*",
-		Version:  "*",
-		Resource: "secrets",
+		Verb:        []string{"get", "list", "watch", "create", "patch", "delete"},
+		ResourceArg: "Secrets",
 	}
 
 	AllPermissionForDeployment = &AuthChecker{
-		Group:    "*",
-		Verb:     "*",
-		Name:     "*",
-		Version:  "*",
-		Resource: "deployments",
+		Verb:        []string{"get", "list", "watch", "create", "patch", "delete"},
+		ResourceArg: "Deployments",
 	}
 
 	AllPermissionForStatefulSet = &AuthChecker{
-		Group:    "*",
-		Verb:     "*",
-		Name:     "*",
-		Version:  "*",
-		Resource: "statefulsets",
+		Verb:        []string{"get", "list", "watch", "create", "patch", "delete"},
+		ResourceArg: "Statefulsets",
 	}
 
 	AllPermissionForDaemonSet = &AuthChecker{
-		Group:    "*",
-		Verb:     "*",
-		Name:     "*",
-		Version:  "*",
-		Resource: "daemonsets",
+		Verb:        []string{"get", "list", "watch", "create", "patch", "delete"},
+		ResourceArg: "Daemonsets",
 	}
 
 	AllPermissionForPod = &AuthChecker{
-		Group:    "*",
-		Verb:     "*",
-		Name:     "*",
-		Version:  "*",
-		Resource: "pods",
+		Verb:        []string{"get", "list", "watch", "create", "patch", "delete"},
+		ResourceArg: "pods",
 	}
 
 	AllPermissionForJob = &AuthChecker{
-		Group:    "*",
-		Verb:     "*",
-		Name:     "*",
-		Version:  "*",
-		Resource: "jobs",
+		Verb:        []string{"get", "list", "watch", "create", "patch", "delete"},
+		ResourceArg: "jobs",
 	}
 
 	AllPermissionForCronJob = &AuthChecker{
-		Group:    "*",
-		Verb:     "*",
-		Name:     "*",
-		Version:  "*",
-		Resource: "cronjobs",
+		Verb:        []string{"get", "list", "watch", "create", "patch", "delete"},
+		ResourceArg: "cronjobs",
 	}
 )
 
 type AuthChecker struct {
-	Group    string
-	Verb     string
-	Name     string
-	Version  string
-	Resource string
+	Verb        []string
+	Name        string
+	Version     string
+	ResourceArg string
 }
 
 // should call after Prepare()
@@ -128,31 +112,44 @@ type AuthChecker struct {
 func DoCheck(cmd *cobra.Command, namespace string, client *ClientGoUtils) error {
 	authCheckers := getAuthChecker(cmd)
 
-	forbiddenCheckers := make([]*AuthChecker, 0)
+	mapper, err := client.NewFactory().ToRESTMapper()
+	if err != nil {
+		return err
+	}
+
+	forbiddenCheckers := make([]*authorizationv1.ResourceAttributes, 0)
 	if authCheckers != nil {
 		for _, checker := range authCheckers {
-			arg := &authorizationv1.SelfSubjectAccessReview{
-				Spec: authorizationv1.SelfSubjectAccessReviewSpec{
-					ResourceAttributes: &authorizationv1.ResourceAttributes{
-						Namespace: namespace,
-						Group:     checker.Group,
-						Verb:      checker.Verb,
-						Name:      checker.Name,
-						Version:   checker.Version,
-						Resource:  checker.Resource,
+
+			for _, verb := range checker.Verb {
+
+				r := resourceFor(mapper, checker.ResourceArg)
+
+				ra := &authorizationv1.ResourceAttributes{
+					Namespace: namespace,
+					Group:     r.Group,
+					Verb:      verb,
+					Name:      checker.Name,
+					Version:   checker.Version,
+					Resource:  r.Resource,
+				}
+
+				arg := &authorizationv1.SelfSubjectAccessReview{
+					Spec: authorizationv1.SelfSubjectAccessReviewSpec{
+						ResourceAttributes: ra,
 					},
-				},
-			}
+				}
 
-			resp, err := client.ClientSet.AuthorizationV1().SelfSubjectAccessReviews().
-				Create(context.TODO(), arg, metav1.CreateOptions{})
+				resp, err := client.ClientSet.AuthorizationV1().SelfSubjectAccessReviews().
+					Create(context.TODO(), arg, metav1.CreateOptions{})
 
-			if err != nil {
-				return err
-			}
+				if err != nil {
+					return err
+				}
 
-			if !resp.Status.Allowed {
-				forbiddenCheckers = append(forbiddenCheckers, checker)
+				if !resp.Status.Allowed {
+					forbiddenCheckers = append(forbiddenCheckers, ra)
+				}
 			}
 		}
 	}
@@ -168,6 +165,37 @@ func DoCheck(cmd *cobra.Command, namespace string, client *ClientGoUtils) error 
 	}
 
 	return nil
+}
+
+func resourceFor(mapper meta.RESTMapper, resourceArg string) schema.GroupVersionResource {
+	if resourceArg == "*" {
+		return schema.GroupVersionResource{Resource: resourceArg}
+	}
+
+	fullySpecifiedGVR, groupResource := schema.ParseResourceArg(strings.ToLower(resourceArg))
+	gvr := schema.GroupVersionResource{}
+	if fullySpecifiedGVR != nil {
+		gvr, _ = mapper.ResourceFor(*fullySpecifiedGVR)
+	}
+	if gvr.Empty() {
+		var err error
+		gvr, err = mapper.ResourceFor(groupResource.WithVersion(""))
+		if err != nil {
+			if !nonStandardResourceNames.Has(groupResource.String()) {
+				if len(groupResource.Group) == 0 {
+					log.Logf("Warning: the server doesn't have a resource type '%s'\n", groupResource.Resource)
+				} else {
+					log.Logf(
+						"Warning: the server doesn't have a resource type '%s' in group '%s'\n", groupResource.Resource,
+						groupResource.Group,
+					)
+				}
+			}
+			return schema.GroupVersionResource{Resource: resourceArg}
+		}
+	}
+
+	return gvr
 }
 
 func getAuthChecker(cmd *cobra.Command) []*AuthChecker {
