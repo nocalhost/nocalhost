@@ -15,9 +15,8 @@ type NocalHostResource struct {
 }
 
 type DevStartOptions struct {
-	//WorkDir      string
 	SideCarImage string
-	//DevImage     string
+	DevImage     string
 	Container string
 
 	// for debug
