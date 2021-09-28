@@ -249,7 +249,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			stopCh := make(chan struct{}, 1)
 			// readyCh communicate when the port forward is ready to get traffic
 			readyCh := make(chan struct{})
-			heartbeatCtx, heartBeatCancel := context.WithCancel(ctx)
+			//heartbeatCtx, heartBeatCancel := context.WithCancel(ctx)
 			errCh := make(chan error, 1)
 
 			// stream is used to tell the port forwarder where to place its output or
@@ -297,31 +297,31 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				case <-readyCh:
 					log.Infof("Port forward %d:%d is ready", localPort, remotePort)
 
-					lastStatus := ""
-					currentStatus := ""
-					for {
-						select {
-						case <-heartbeatCtx.Done():
-							log.Infof("Stop sending heart beat to %d", localPort)
-							return
-						default:
-							log.Debugf("try to send port-forward heartbeat to %d", localPort)
-							err := nocalhostApp.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", "127.0.0.1", localPort))
-							if err != nil {
-								log.WarnE(err, "")
-								currentStatus = "HeartBeatLoss"
-							} else {
-								currentStatus = "LISTEN"
-							}
-							if lastStatus != currentStatus {
-								lastStatus = currentStatus
-								p.lock.Lock()
-								nhController.UpdatePortForwardStatus(localPort, remotePort, lastStatus, "Heart Beat")
-								p.lock.Unlock()
-							}
-							<-time.After(30 * time.Second)
-						}
-					}
+					//lastStatus := ""
+					//currentStatus := ""
+					//for {
+					//	select {
+					//	case <-heartbeatCtx.Done():
+					//		log.Infof("Stop sending heart beat to %d", localPort)
+					//		return
+					//	default:
+					//		log.Debugf("try to send port-forward heartbeat to %d", localPort)
+					//		err := nocalhostApp.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", "127.0.0.1", localPort))
+					//		if err != nil {
+					//			log.WarnE(err, "")
+					//			currentStatus = "HeartBeatLoss"
+					//		} else {
+					//			currentStatus = "LISTEN"
+					//		}
+					//		if lastStatus != currentStatus {
+					//			lastStatus = currentStatus
+					//			p.lock.Lock()
+					//			nhController.UpdatePortForwardStatus(localPort, remotePort, lastStatus, "Heart Beat")
+					//			p.lock.Unlock()
+					//		}
+					//		<-time.After(30 * time.Second)
+					//	}
+					//}
 				}
 			}()
 
@@ -372,7 +372,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 						return
 					}
 					log.WarnE(err, fmt.Sprintf("Port-forward %d:%d failed, reconnecting after 30 seconds...", localPort, remotePort))
-					heartBeatCancel()
+					//heartBeatCancel()
 					p.lock.Lock()
 					err = nhController.UpdatePortForwardStatus(localPort, remotePort, "RECONNECTING",
 						"Port-forward failed, reconnecting after 30 seconds...")
@@ -382,7 +382,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 					}
 				} else {
 					log.Warn("Reconnecting after 30 seconds...")
-					heartBeatCancel()
+					//heartBeatCancel()
 					p.lock.Lock()
 					err = nhController.UpdatePortForwardStatus(localPort, remotePort, "RECONNECTING",
 						"Reconnecting after 30 seconds...")
