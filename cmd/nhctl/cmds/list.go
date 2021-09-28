@@ -130,7 +130,7 @@ func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 
 	if !foundDefaultApp {
 		// try init default application
-		nocalhostApp, err = common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig)
+		nocalhostApp, err = common.InitDefaultApplicationInCurrentNs(appName, nameSpace, kubeConfig)
 		if err != nil {
 			log.Logf("failed to init default application in namespace: %s", nameSpace)
 		}
