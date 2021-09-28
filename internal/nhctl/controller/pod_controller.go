@@ -19,6 +19,9 @@ func (c *Controller) BuildPodController(devMode profile.LocalDevModeType) pod_co
 		}
 		return &DeploymentController{Controller: c}
 	case base.StatefulSet:
+		if devMode == profile.DuplicateDevMode {
+			return &DuplicateStatefulSetController{Controller: c}
+		}
 		return &StatefulSetController{Controller: c}
 	case base.DaemonSet:
 		return &DaemonSetController{Controller: c}

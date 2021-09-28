@@ -29,12 +29,10 @@ type DuplicateDeploymentController struct {
 }
 
 func (d *DuplicateDeploymentController) GetNocalhostDevContainerPod() (string, error) {
-
 	pods, err := d.GetPodList()
 	if err != nil {
 		return "", err
 	}
-
 	return findDevPod(pods)
 }
 
@@ -197,6 +195,5 @@ func (d *DuplicateDeploymentController) GetPodList() ([]corev1.Pod, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.Client.Labels(labelsMap)
-	return d.Client.ListPods()
+	return d.Client.Labels(labelsMap).ListPods()
 }

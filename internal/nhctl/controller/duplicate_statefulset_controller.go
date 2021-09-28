@@ -12,13 +12,12 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
-	"time"
 )
 
 type DuplicateStatefulSetController struct {
@@ -55,6 +54,29 @@ func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *
 			return errors.New("Annotation nocalhost.origin.spec.json not found?")
 		}
 	}
+
+	var rs int32 = 1
+	dep.Spec.Replicas = &rs
+
+	p, err := s.GetAppProfile()
+	if err != nil {
+		return err
+	}
+	if p.Identifier == "" {
+		return errors.New("Identifier can not be nil ")
+	}
+
+	suffix := p.Identifier[0:5]
+	labelsMap, err := s.getDuplicateLabelsMap()
+	if err != nil {
+		return err
+	}
+	dep.Name = strings.Join([]string{dep.Name, suffix}, "-")
+	dep.Labels = labelsMap
+	dep.Status = v1.StatefulSetStatus{}
+	dep.Spec.Selector = &metav1.LabelSelector{MatchLabels: labelsMap}
+	dep.Spec.Template.Labels = labelsMap
+	dep.ResourceVersion = ""
 
 	devContainer, err := findContainerInStatefulSetsSpec(dep, ops.Container)
 	if err != nil {
@@ -118,95 +140,42 @@ func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *
 	rq, _ := convertResourceQuota(r)
 	sideCarContainer.Resources = *rq
 
-	needToRemovePriorityClass := false
-	for i := 0; i < 10; i++ {
-		events, err := s.Client.ListEventsByStatefulSet(s.GetName())
-		utils.Should(err)
-		_ = s.Client.DeleteEvents(events, true)
-
-		// Get the latest stateful set
-		dep, err = s.Client.GetStatefulSet(s.GetName())
-		if err != nil {
-			return err
-		}
-
-		if ops.Container != "" {
-			for index, c := range dep.Spec.Template.Spec.Containers {
-				if c.Name == ops.Container {
-					dep.Spec.Template.Spec.Containers[index] = *devContainer
-					break
-				}
-			}
-		} else {
-			dep.Spec.Template.Spec.Containers[0] = *devContainer
-		}
-
-		// Add volumes to deployment spec
-		if dep.Spec.Template.Spec.Volumes == nil {
-			log.Debugf("Service %s has no volume", dep.Name)
-			dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
-		}
-		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
-
-		// delete user's SecurityContext
-		dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
-
-		// disable readiness probes
-		for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
-			dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
-			dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
-			dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
-			dep.Spec.Template.Spec.Containers[i].SecurityContext = nil
-		}
-
-		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
-
-		log.Info("Updating development container...")
-
-		_, err = s.Client.UpdateStatefulSet(dep, true)
-		if err != nil {
-			if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
-				log.Warn("StatefulSet has been modified, retrying...")
-				continue
-			}
-			return err
-		} else {
-			// Check if priorityClass exists
-		outer:
-			for i := 0; i < 20; i++ {
-				time.Sleep(1 * time.Second)
-				events, err = s.Client.ListEventsByStatefulSet(s.GetName())
-				for _, event := range events {
-					if strings.Contains(event.Message, "no PriorityClass") {
-						log.Warn("PriorityClass not found, disable it...")
-						needToRemovePriorityClass = true
-						break outer
-					} else if event.Reason == "SuccessfulCreate" {
-						log.Infof("Pod SuccessfulCreate")
-						break outer
-					}
-				}
-			}
-
-			if needToRemovePriorityClass {
-				dep, err = s.Client.GetStatefulSet(s.GetName())
-				if err != nil {
-					return err
-				}
-				dep.Spec.Template.Spec.PriorityClassName = ""
-				log.Info("Removing priorityClass")
-				_, err = s.Client.UpdateStatefulSet(dep, true)
-				if err != nil {
-					if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
-						log.Warn("StatefulSet has been modified, retrying...")
-						continue
-					}
-					return err
-				}
+	if ops.Container != "" {
+		for index, c := range dep.Spec.Template.Spec.Containers {
+			if c.Name == ops.Container {
+				dep.Spec.Template.Spec.Containers[index] = *devContainer
 				break
 			}
 		}
-		break
+	} else {
+		dep.Spec.Template.Spec.Containers[0] = *devContainer
+	}
+
+	// Add volumes to deployment spec
+	if dep.Spec.Template.Spec.Volumes == nil {
+		log.Debugf("Service %s has no volume", dep.Name)
+		dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
+	}
+	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
+
+	// delete user's SecurityContext
+	dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
+
+	// disable readiness probes
+	for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
+		dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
+		dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
+		dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
+		dep.Spec.Template.Spec.Containers[i].SecurityContext = nil
+	}
+
+	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
+
+	log.Info("Create duplicate StateFulSets...")
+
+	_, err = s.Client.CreateStatefulSetAndWait(dep)
+	if err != nil {
+		return err
 	}
 	return waitingPodToBeReady(s.GetNocalhostDevContainerPod)
 }
@@ -244,56 +213,26 @@ func findContainerInStatefulSetsSpec(ss *v1.StatefulSet, containerName string) (
 }
 
 func (s *DuplicateStatefulSetController) RollBack(reset bool) error {
-	clientUtils := s.Client
-
-	dep, err := clientUtils.GetStatefulSet(s.GetName())
+	lmap, err := s.getDuplicateLabelsMap()
 	if err != nil {
 		return err
 	}
-
-	osj, ok := dep.Annotations[OriginSpecJson]
-	if !ok {
-		return errors.New("No spec json found to rollback")
-	}
-
-	log.Info(" Deleting current revision...")
-	if err = clientUtils.DeleteStatefulSet(dep.Name); err != nil {
-		return err
-	}
-
-	dep.Spec = v1.StatefulSetSpec{}
-	if err = json.Unmarshal([]byte(osj), &dep.Spec); err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	log.Info(" Recreating original revision...")
-	dep.ResourceVersion = ""
-	if len(dep.Annotations) == 0 {
-		dep.Annotations = make(map[string]string, 0)
-	}
-	dep.Annotations["nocalhost-dep-ignore"] = "true"
-	dep.Annotations[OriginSpecJson] = osj
-
-	// Add labels and annotations
-	if dep.Labels == nil {
-		dep.Labels = make(map[string]string, 0)
-	}
-	dep.Labels[_const.AppManagedByLabel] = _const.AppManagedByNocalhost
-
-	if dep.Annotations == nil {
-		dep.Annotations = make(map[string]string, 0)
-	}
-	dep.Annotations[_const.NocalhostApplicationName] = s.AppName
-	dep.Annotations[_const.NocalhostApplicationNamespace] = s.NameSpace
-
-	_, err = clientUtils.CreateStatefulSet(dep)
+	s.Client.Labels(lmap)
+	ss, err := s.Client.ListStatefulSets()
 	if err != nil {
-		if strings.Contains(err.Error(), "initContainers") && strings.Contains(err.Error(), "Duplicate") {
-			log.Warn("[Warning] Nocalhost-dep needs to update")
-		}
 		return err
 	}
-	return nil
+	if len(ss) != 1 {
+		return errors.New("StatefulSets num is not 1?")
+	}
+	if err = s.Client.DeleteStatefulSet(ss[0].Name); err != nil {
+		return err
+	}
+	return s.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
+		svcProfileV2.LocalDevMode = ""
+		svcProfileV2.LocalDeveloping = false
+		return nil
+	})
 }
 
 func (s *DuplicateStatefulSetController) GetPodList() ([]corev1.Pod, error) {
