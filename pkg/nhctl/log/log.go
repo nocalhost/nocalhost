@@ -242,7 +242,12 @@ func Fatalf(format string, args ...interface{}) {
 func FatalE(err error, message string) {
 	writeStackToEs("FATAL", message, fmt.Sprintf("%+v", err))
 	if err != nil {
-		stderrLogger.Errorf("%s: %s", message, err.Error())
+		errStr := ""
+		if message != "" {
+			errStr = message + ": "
+		}
+		errStr += err.Error()
+		stderrLogger.Error(errStr)
 	} else {
 		stderrLogger.Errorf("%s", message)
 	}
