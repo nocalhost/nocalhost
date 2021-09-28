@@ -55,8 +55,8 @@ var devAssociateQueryerCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		if workDir == "" {
-			log.Fatal("associate must specify")
+		if workDir == "" && workDirDeprecated == "" {
+			log.Fatal("--local-sync must specify")
 			return
 		}
 
@@ -136,17 +136,19 @@ func printing(output interface{}) {
 
 func genAssociateSvcPack(pack *dev_dir.SvcPack) *AssociateSvcPack {
 	nhctlPath, _ := utils.GetNhctlPath()
-	kubeconfigPath := nocalhost.GetOrGenKubeConfigPath(pack.GetKubeConfigBytes())
+	kubeConfigBytes, server := pack.GetKubeConfigBytesAndServer()
+	kubeConfigPath := nocalhost.GetOrGenKubeConfigPath(kubeConfigBytes)
 
 	asp := &AssociateSvcPack{
 		pack,
 		utils.Sha1ToString(string(pack.Key())),
-		kubeconfigPath,
+		kubeConfigPath,
+		server,
 		fmt.Sprintf(
 			"%s sync-status %s --namespace %s --deployment %s --controller-type %s --kubeconfig %s",
-			nhctlPath, pack.App, pack.Ns, pack.Svc, pack.SvcType, kubeconfigPath,
+			nhctlPath, pack.App, pack.Ns, pack.Svc, pack.SvcType, kubeConfigPath,
 		),
-		SyncStatus(nil, pack.Ns, pack.App, pack.Svc, pack.SvcType.String(), kubeconfigPath),
+		SyncStatus(nil, pack.Ns, pack.App, pack.Svc, pack.SvcType.String(), kubeConfigPath),
 	}
 	return asp
 }
@@ -155,6 +157,7 @@ type AssociateSvcPack struct {
 	*dev_dir.SvcPack     `yaml:"svc_pack" json:"svc_pack"`
 	Sha                  string `yaml:"sha" json:"sha"`
 	KubeconfigPath       string `yaml:"kubeconfig_path" json:"kubeconfig_path"`
+	Server               string `yaml:"server" json:"server"`
 	SyncStatusCmd        string `yaml:"sync_status_cmd" json:"sync_status_cmd"`
 	*req.SyncthingStatus `yaml:"syncthing_status" json:"syncthing_status"`
 }
