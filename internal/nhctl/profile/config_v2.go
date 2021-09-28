@@ -15,6 +15,11 @@ import (
 //type AppType string
 //type SvcType string
 
+var (
+	gitIgnoreMode = "gitIgnore"
+	PatternMode   = "pattern"
+)
+
 type NocalHostAppConfigV2 struct {
 	ConfigProperties  ConfigProperties  `json:"configProperties" yaml:"configProperties"`
 	Migrated          bool              `json:"migrated" yaml:"migrated"` // Only used for checking if config has migrate in meta
@@ -85,10 +90,10 @@ type DevCommands struct {
 }
 
 type SyncConfig struct {
-	Type               string   `json:"type" yaml:"type"`
-	ParseFromGitIgnore bool     `json:"parseFromGitIgnore" yaml:"parseFromGitIgnore"`
-	FilePattern        []string `json:"filePattern" yaml:"filePattern"`
-	IgnoreFilePattern  []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
+	Type              string   `json:"type" yaml:"type"`
+	Mode              string   `json:"mode,omitempty" yaml:"mode,omitempty"`
+	FilePattern       []string `json:"filePattern" yaml:"filePattern"`
+	IgnoreFilePattern []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
 }
 
 type DebugConfig struct {
