@@ -327,7 +327,7 @@ func (pf *PortForwarder) handleConnection(conn net.Conn, port ForwardedPort) {
 	headers.Set(v1.PortHeader, fmt.Sprintf("%d", port.Remote))
 	headers.Set(v1.PortForwardRequestIDHeader, strconv.Itoa(requestID))
 	var err error
-	errorStream, err := pf.tryToCreateStream(headers)
+	errorStream, err := pf.tryToCreateStream(&headers)
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error creating error stream for port %d -> %d: %v", port.Local, port.Remote, err))
 		return
@@ -349,7 +349,7 @@ func (pf *PortForwarder) handleConnection(conn net.Conn, port ForwardedPort) {
 
 	// create data stream
 	headers.Set(v1.StreamType, v1.StreamTypeData)
-	dataStream, err := pf.tryToCreateStream(headers)
+	dataStream, err := pf.streamConn.CreateStream(headers)
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error creating forwarding stream for port %d -> %d: %v", port.Local, port.Remote, err))
 		return
@@ -420,14 +420,14 @@ func (pf *PortForwarder) GetPorts() ([]ForwardedPort, error) {
 	}
 }
 
-func (pf *PortForwarder) tryToCreateStream(header http.Header) (httpstream.Stream, error) {
+func (pf *PortForwarder) tryToCreateStream(header *http.Header) (httpstream.Stream, error) {
 	errorChan := make(chan error)
 	resultChan := make(chan httpstream.Stream)
 	time.AfterFunc(time.Second*1, func() {
 		errorChan <- errors.New("timeout")
 	})
 	go func() {
-		stream, err := pf.streamConn.CreateStream(header)
+		stream, err := pf.streamConn.CreateStream(*header)
 		if err == nil {
 			errorChan <- nil
 			resultChan <- stream
@@ -446,7 +446,8 @@ func (pf *PortForwarder) tryToCreateStream(header http.Header) (httpstream.Strea
 		runtime.HandleError(fmt.Errorf("error upgrading connection: %s", err))
 		return nil, err
 	}
-	if stream, err := pf.streamConn.CreateStream(header); err == nil {
+	header.Set(v1.PortForwardRequestIDHeader, strconv.Itoa(pf.nextRequestID()))
+	if stream, err := pf.streamConn.CreateStream(*header); err == nil {
 		return stream, nil
 	}
 	return nil, err
