@@ -118,9 +118,6 @@ func (c *Controller) SetPortForwardedStatus(is bool) error {
 func (c *Controller) setSyncthingProfileEndStatus() error {
 	return c.UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
-			if svcProfile == nil {
-				return errors.New("Failed to get controller profile")
-			}
 			svcProfile.RemoteSyncthingPort = 0
 			svcProfile.RemoteSyncthingGUIPort = 0
 			svcProfile.LocalSyncthingPort = 0

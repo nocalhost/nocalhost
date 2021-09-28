@@ -19,12 +19,13 @@ import (
 // Controller presents a k8s controller
 // https://kubernetes.io/docs/concepts/architecture/controller
 type Controller struct {
-	NameSpace string
-	AppName   string
-	Name      string
-	Type      base.SvcType
-	Client    *clientgoutils.ClientGoUtils
-	AppMeta   *appmeta.ApplicationMeta
+	NameSpace  string
+	AppName    string
+	Name       string
+	Identifier string
+	Type       base.SvcType
+	Client     *clientgoutils.ClientGoUtils
+	AppMeta    *appmeta.ApplicationMeta
 }
 
 // IsInDevMode return true if under dev starting or start complete

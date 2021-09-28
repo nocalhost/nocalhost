@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -34,7 +34,7 @@ var devEndCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
-		if !nocalhostSvc.IsInDevMode() {
+		if !nocalhostSvc.IsInDevMode() && !nocalhostSvc.IsInLocalDevMode() {
 			log.Fatalf("Service %s is not in DevMode", deployment)
 		}
 

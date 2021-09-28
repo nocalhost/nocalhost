@@ -44,6 +44,7 @@ type Application struct {
 	NameSpace  string
 	KubeConfig string
 	AppType    string
+	Identifier string
 
 	// may be nil, only for install or upgrade
 	// dir use to load the user's resource
@@ -219,6 +220,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		}
 	}
 	app.AppType = profileV2.AppType
+	app.Identifier = profileV2.Identifier
 
 	if kubeconfig != "" && kubeconfig != profileV2.Kubeconfig {
 		if err := app.UpdateProfile(
@@ -876,12 +878,13 @@ type PortForwardEndOptions struct {
 
 func (a *Application) Controller(name string, svcType base.SvcType) *controller.Controller {
 	return &controller.Controller{
-		NameSpace: a.NameSpace,
-		AppName:   a.Name,
-		Name:      name,
-		Type:      svcType,
-		Client:    a.client,
-		AppMeta:   a.appMeta,
+		NameSpace:  a.NameSpace,
+		AppName:    a.Name,
+		Name:       name,
+		Type:       svcType,
+		Client:     a.client,
+		AppMeta:    a.appMeta,
+		Identifier: a.Identifier,
 	}
 }
 

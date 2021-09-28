@@ -7,12 +7,15 @@ package controller
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/network/req"
 	"nocalhost/internal/nhctl/syncthing/ports"
+	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
+	"os"
 	"path/filepath"
 	"strconv"
 
@@ -156,7 +159,35 @@ func (c *Controller) NewSyncthingHttpClient(reqTimeoutSecond int) *req.Syncthing
 	)
 }
 
-func (c *Controller) CreateSyncThingSecret(syncSecret *corev1.Secret) error {
+func (c *Controller) CreateSyncThingSecret(container string, localSyncDir []string, localDevMode bool) error {
+
+	// Delete service folder
+	dir := c.GetApplicationSyncDir()
+	if err2 := os.RemoveAll(dir); err2 != nil {
+		log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
+	}
+
+	newSyncthing, err := c.NewSyncthing(container, localSyncDir, false)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create syncthing process, please try again")
+	}
+	// set syncthing secret
+	config, err := newSyncthing.GetRemoteConfigXML()
+	if err != nil {
+		return err
+	}
+
+	syncSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: c.GetSyncThingSecretName(),
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			"config.xml": config,
+			"cert.pem":   []byte(secret_config.CertPEM),
+			"key.pem":    []byte(secret_config.KeyPEM),
+		},
+	}
 
 	// check if secret exist
 	exist, err := c.Client.GetSecret(syncSecret.Name)
@@ -175,5 +206,4 @@ func (c *Controller) CreateSyncThingSecret(syncSecret *corev1.Secret) error {
 			return nil
 		},
 	)
-
 }
