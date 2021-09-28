@@ -400,8 +400,16 @@ func (c *Controller) genResourceReq(container string) *corev1.ResourceRequiremen
 	)
 
 	svcProfile, _ := c.GetConfig()
-	resourceQuota := svcProfile.GetContainerDevConfigOrDefault(container).DevContainerResources
+	if svcProfile == nil {
+		return requirements
+	}
 
+	containerConfig := svcProfile.GetContainerDevConfigOrDefault(container)
+	if containerConfig == nil {
+		return requirements
+	}
+
+	resourceQuota := containerConfig.DevContainerResources
 	if resourceQuota != nil {
 		log.Debug("DevContainer uses resource limits defined in config")
 		requirements, err = convertResourceQuota(resourceQuota)
@@ -494,7 +502,7 @@ func findDevPod(podList []corev1.Pod) (string, error) {
 }
 
 func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
-	containerName, storageClass string) (*corev1.Container, *corev1.Container, []corev1.Volume, error) {
+	containerName, devImage, storageClass string) (*corev1.Container, *corev1.Container, []corev1.Volume, error) {
 
 	devModeVolumes := make([]corev1.Volume, 0)
 	devModeMounts := make([]corev1.VolumeMount, 0)
@@ -515,7 +523,10 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	devModeMounts = append(devModeMounts, workDirAndPersistVolumeMounts...)
 
 	workDir := c.GetWorkDir(containerName)
-	devImage := c.GetDevImage(containerName) // Default : replace the first container
+
+	if devImage == "" {
+		devImage = c.GetDevImage(containerName) // Default : replace the first container
+	}
 
 	sideCarContainer := generateSideCarContainer(c.GetDevSidecarImage(containerName), workDir)
 

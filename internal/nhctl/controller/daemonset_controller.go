@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -89,7 +89,7 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 	// Create a deployment from DaemonSet spec
 	generatedDeployment := &v1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   d.getGeneratedDeploymentName(),
+			Name: d.getGeneratedDeploymentName(),
 			Labels: map[string]string{_const.DevWorkloadIgnored: "true"},
 		},
 		Spec: v1.DeploymentSpec{
@@ -104,7 +104,7 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		d.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass)
+		d.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass)
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,9 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 	if generatedDeployment.Spec.Template.Spec.Volumes == nil {
 		generatedDeployment.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
 	}
-	generatedDeployment.Spec.Template.Spec.Volumes = append(generatedDeployment.Spec.Template.Spec.Volumes, devModeVolumes...)
+	generatedDeployment.Spec.Template.Spec.Volumes = append(
+		generatedDeployment.Spec.Template.Spec.Volumes, devModeVolumes...,
+	)
 
 	// delete user's SecurityContext
 	generatedDeployment.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}

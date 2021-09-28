@@ -66,7 +66,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		d.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass)
+		d.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass)
 	if err != nil {
 		return err
 	}
@@ -173,8 +173,12 @@ func findContainerInDeploySpec(dep *v1.Deployment, containerName string) (*corev
 		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
 	} else {
 		if len(dep.Spec.Template.Spec.Containers) > 1 {
-			return nil, errors.New(fmt.Sprintf("There are more than one container defined, " +
-				"please specify one to start developing"))
+			return nil, errors.New(
+				fmt.Sprintf(
+					"There are more than one container defined, " +
+						"please specify one to start developing",
+				),
+			)
 		}
 		if len(dep.Spec.Template.Spec.Containers) == 0 {
 			return nil, errors.New("No container defined ???")
