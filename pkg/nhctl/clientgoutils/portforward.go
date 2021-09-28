@@ -319,8 +319,10 @@ func (pf *PortForwarder) handleConnection(conn net.Conn, port ForwardedPort) {
 		fmt.Fprintf(pf.out, "Handling connection for %d\n", port.Local)
 	}
 
-	requestID := pf.nextRequestID()
+	defaultRetry := 5
 
+firstCreateStream:
+	requestID := pf.nextRequestID()
 	// create error stream
 	headers := http.Header{}
 	headers.Set(v1.StreamType, v1.StreamTypeError)
@@ -351,6 +353,10 @@ func (pf *PortForwarder) handleConnection(conn net.Conn, port ForwardedPort) {
 	headers.Set(v1.StreamType, v1.StreamTypeData)
 	dataStream, err := pf.streamConn.CreateStream(headers)
 	if err != nil {
+		defaultRetry--
+		if defaultRetry > 0 {
+			goto firstCreateStream
+		}
 		runtime.HandleError(fmt.Errorf("error creating forwarding stream for port %d -> %d: %v", port.Local, port.Remote, err))
 		return
 	}
@@ -447,8 +453,5 @@ func (pf *PortForwarder) tryToCreateStream(header *http.Header) (httpstream.Stre
 		return nil, err
 	}
 	header.Set(v1.PortForwardRequestIDHeader, strconv.Itoa(pf.nextRequestID()))
-	if stream, err := pf.streamConn.CreateStream(*header); err == nil {
-		return stream, nil
-	}
-	return nil, err
+	return pf.streamConn.CreateStream(*header)
 }
