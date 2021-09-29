@@ -208,37 +208,28 @@ ready() {
 }
 
 readiness_probe() {
-    if [ "${READINESS_PROBE}" == true ]; then
-        # tcp
-        if [ "${TCP_SOCKET_ADDRESS}" != "" ]; then
-            until nc -vz -w 3 "${TCP_SOCKET_ADDRESS%:*}" "${TCP_SOCKET_ADDRESS#*:}"; do
-              echo "Waiting for ${TCP_SOCKET_ADDRESS} ..."
-              sleep 5
-            done
-            echo "${TCP_SOCKET_ADDRESS} is ready"
-        fi
-        # http
-        if [ "${HTTP_URL}" != "" ]; then
-            # http
-            until [ "$(curl -sw '%{http_code}' "${HTTP_URL}" -o /dev/null)" -eq 200 ]; do
-              echo "Waiting for ${HTTP_URL} ..."
-              sleep 5
-            done
-            echo "${HTTP_URL} is ready"
-        fi
+    probe_type=$1
+    address=$2
+    # tcp
+    if [ "${probe_type}" == "tcp" ] && [ "${address}" != "" ]; then
+        until nc -vz -w 3 "${address%:*}" "${address#*:}"; do
+          echo "waiting for ${address} ..."
+          sleep 5
+        done
+        echo "${address} is ready"
+    fi
+    # http
+    if [ "${probe_type}" == "http" ] && [ "${address}" != "" ]; then
+        until [ "$(curl -sw '%{http_code}' "${address}" -o /dev/null)" -eq 200 ]; do
+          echo "waiting for ${address} ..."
+          sleep 5
+        done
+        echo "${address} is ready"
     fi
 }
 
 main() {
-    if [ $# -eq 0 ]; then
-        if [ "${READINESS_PROBE}" == true ]; then
-            readiness_probe
-            exit 0
-        fi
-        usage
-    fi
-
-    if [ $# -eq 1 ]; then
+    if [ $# -lt 2 ]; then
         usage
     fi
 
@@ -252,6 +243,10 @@ main() {
             TREAT_ERRORS_AS_READY=1
             shift
             ;;
+        tcp|http)
+            main_resource=$1
+            shift
+            ;;
         *)
             printf 'ERROR: Unknown resource type: %s\n' "$1" >&2
             exit 1
@@ -263,9 +258,11 @@ main() {
 
     KUBECTL_ARGS="${*}"
 
-    readiness_probe
-
-    wait_for_resource "$main_resource" "$main_name"
+    if [ "$main_resource" == "tcp" ] || [ "$main_resource" == "http" ]; then
+        readiness_probe "$main_resource" "$main_name"
+    else
+        wait_for_resource "$main_resource" "$main_name"
+    fi
 
     exit 0
 }
