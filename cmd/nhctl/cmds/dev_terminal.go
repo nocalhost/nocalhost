@@ -48,7 +48,7 @@ var devTerminalCmd = &cobra.Command{
 		p, err := nocalhostSvc.GetProfile()
 		must(err)
 		if pod == "" {
-			podList, err := nocalhostSvc.BuildPodController(p.LocalDevMode).GetPodList()
+			podList, err := nocalhostSvc.BuildPodController(p.DevModeType).GetPodList()
 			must(err)
 			var runningPod = make([]v1.Pod, 0, 1)
 			for _, item := range podList {

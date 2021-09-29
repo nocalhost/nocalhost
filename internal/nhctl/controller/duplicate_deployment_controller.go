@@ -62,15 +62,7 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 	var rs int32 = 1
 	dep.Spec.Replicas = &rs
 
-	p, err := d.GetAppProfile()
-	if err != nil {
-		return err
-	}
-	if p.Identifier == "" {
-		return errors.New("Identifier can not be nil ")
-	}
-
-	suffix := p.Identifier[0:5]
+	suffix := d.Identifier[0:5]
 	labelsMap, err := d.getDuplicateLabelsMap()
 	if err != nil {
 		return err
@@ -183,7 +175,7 @@ func (d *DuplicateDeploymentController) RollBack(reset bool) error {
 		return err
 	}
 	return d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-		svcProfileV2.LocalDevMode = ""
+		svcProfileV2.DevModeType = ""
 		svcProfileV2.DuplicateDevMode = false
 		return nil
 	})

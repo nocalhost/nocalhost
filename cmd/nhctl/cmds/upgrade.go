@@ -95,7 +95,7 @@ var upgradeCmd = &cobra.Command{
 					log.WarnE(err, "")
 					continue
 				}
-				podName, err := controller.GetDefaultPodName(ctx, nhSvc.BuildPodController(p.LocalDevMode))
+				podName, err := controller.GetDefaultPodName(ctx, nhSvc.BuildPodController(p.DevModeType))
 				if err != nil {
 					log.WarnE(err, "")
 					continue

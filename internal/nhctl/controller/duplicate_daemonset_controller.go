@@ -133,7 +133,7 @@ func (d *DuplicateDaemonSetController) RollBack(reset bool) error {
 		return err
 	}
 	return d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-		svcProfileV2.LocalDevMode = ""
+		svcProfileV2.DevModeType = ""
 		svcProfileV2.DuplicateDevMode = false
 		return nil
 	})

@@ -23,7 +23,7 @@ func (c *Controller) DevEnd(reset bool) error {
 		return err
 	}
 
-	if err := c.BuildPodController(p.LocalDevMode).RollBack(reset); err != nil {
+	if err := c.BuildPodController(p.DevModeType).RollBack(reset); err != nil {
 		if !reset {
 			return err
 		}

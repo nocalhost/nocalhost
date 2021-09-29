@@ -52,7 +52,7 @@ var execCmd = &cobra.Command{
 		initAppAndCheckIfSvcExist(execFlags.AppName, execFlags.SvcName, serviceType)
 		p, err := nocalhostSvc.GetProfile()
 		must(err)
-		podList, err := nocalhostSvc.BuildPodController(p.LocalDevMode).GetPodList()
+		podList, err := nocalhostSvc.BuildPodController(p.DevModeType).GetPodList()
 		if err != nil {
 			log.Fatal(err)
 		}

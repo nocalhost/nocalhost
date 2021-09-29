@@ -111,7 +111,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	svcProfile, _ := nocalhostSvc.GetProfile()
 	if podName == "" {
 		var err error
-		if podName, err = nocalhostSvc.BuildPodController(svcProfile.LocalDevMode).GetNocalhostDevContainerPod(); err != nil {
+		if podName, err = nocalhostSvc.BuildPodController(svcProfile.DevModeType).GetNocalhostDevContainerPod(); err != nil {
 			must(err)
 		}
 	}

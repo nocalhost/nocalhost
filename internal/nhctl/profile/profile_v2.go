@@ -17,13 +17,13 @@ import (
 	"strings"
 )
 
-type LocalDevModeType string
+type DevModeType string
 
 const (
 	// nocalhost-docker.pkg.coding.net/nocalhost/public/minideb:latest"
 	DefaultDevImage  = ""
 	DefaultWorkDir   = "/home/nocalhost-dev"
-	DuplicateDevMode = LocalDevModeType("duplicate")
+	DuplicateDevMode = DevModeType("duplicate")
 )
 
 type AppProfileV2 struct {
@@ -243,8 +243,8 @@ type SvcProfileV2 struct {
 	Possess bool `json:"possess" yaml:"possess"`
 
 	// LocalDevMode can be started in every local desktop and not influence each other
-	DuplicateDevMode bool             `json:"duplicateDevMode" yaml:"duplicateDevMode"`
-	LocalDevMode     LocalDevModeType `json:"localDevMode" yaml:"localDevMode"`
+	DuplicateDevMode bool        `json:"duplicateDevMode" yaml:"duplicateDevMode"`
+	DevModeType      DevModeType `json:"devModeType" yaml:"devModeType"`
 }
 
 type ContainerProfileV2 struct {

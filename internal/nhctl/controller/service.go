@@ -226,16 +226,9 @@ func (c *Controller) GetName() string {
 }
 
 func (c *Controller) getDuplicateLabelsMap() (map[string]string, error) {
-	p, err := c.GetAppProfile()
-	if err != nil {
-		return nil, err
-	}
-	if p.Identifier == "" {
-		return nil, errors.New("Identifier can not be nil ")
-	}
 
 	labelsMap := map[string]string{
-		IdentifierKey:             p.Identifier,
+		IdentifierKey:             c.Identifier,
 		OriginWorkloadNameKey:     c.Name,
 		OriginWorkloadTypeKey:     string(c.Type),
 		_const.DevWorkloadIgnored: "true",

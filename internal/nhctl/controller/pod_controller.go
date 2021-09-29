@@ -11,7 +11,7 @@ import (
 	"nocalhost/internal/nhctl/profile"
 )
 
-func (c *Controller) BuildPodController(devMode profile.LocalDevModeType) pod_controller.PodController {
+func (c *Controller) BuildPodController(devMode profile.DevModeType) pod_controller.PodController {
 	switch c.Type {
 	case base.Deployment:
 		if devMode == profile.DuplicateDevMode {
