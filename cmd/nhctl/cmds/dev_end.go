@@ -34,7 +34,7 @@ var devEndCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
-		if !nocalhostSvc.IsInDevMode() && !nocalhostSvc.IsInDuplicateDevMode() {
+		if !nocalhostSvc.IsInReplaceDevMode() && !nocalhostSvc.IsInDuplicateDevMode() {
 			log.Fatalf("Service %s is not in DevMode", deployment)
 		}
 

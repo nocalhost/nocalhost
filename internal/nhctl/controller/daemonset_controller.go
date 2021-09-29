@@ -172,7 +172,7 @@ func (d *DaemonSetController) RollBack(reset bool) error {
 // In DevMode, return pod list of generated Deployment.
 // Otherwise, return pod list of DaemonSet
 func (d *DaemonSetController) GetPodList() ([]corev1.Pod, error) {
-	if d.IsInDevMode() {
+	if d.IsInReplaceDevMode() {
 		return d.Client.ListLatestRevisionPodsByDeployment(d.getGeneratedDeploymentName())
 	}
 	return d.Client.ListPodsByDaemonSet(d.GetName())

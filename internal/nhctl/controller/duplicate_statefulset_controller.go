@@ -42,7 +42,7 @@ func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *
 		return err
 	}
 
-	if s.IsInDevMode() {
+	if s.IsInReplaceDevMode() {
 		osj, ok := dep.Annotations[OriginSpecJson]
 		if ok {
 			log.Info("Annotation nocalhost.origin.spec.json found, use it")
@@ -229,7 +229,7 @@ func (s *DuplicateStatefulSetController) RollBack(reset bool) error {
 	}
 	return s.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
 		svcProfileV2.DevModeType = ""
-		svcProfileV2.DuplicateDevMode = false
+		//svcProfileV2.DuplicateDevMode = false
 		return nil
 	})
 }

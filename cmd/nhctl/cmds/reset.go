@@ -49,7 +49,7 @@ func resetApplication(applicationName string) {
 	appProfile, _ := nocalhostApp.GetProfile()
 	for _, profile := range appProfile.SvcProfile {
 		nhSvc := initService(profile.GetName(), profile.GetType())
-		if nhSvc.IsInDevMode() {
+		if nhSvc.IsInReplaceDevMode() {
 			utils.Should(nhSvc.StopSyncAndPortForwardProcess(true))
 		} else if len(profile.DevPortForwardList) > 0 {
 			utils.Should(nhSvc.StopAllPortForward())

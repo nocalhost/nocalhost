@@ -29,22 +29,19 @@ type Controller struct {
 	AppMeta     *appmeta.ApplicationMeta
 }
 
-// IsInDevMode return true if under dev starting or start complete
-func (c *Controller) IsInDevMode() bool {
-	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type) != appmeta.NONE
+// IsInReplaceDevMode return true if under dev starting or start complete
+func (c *Controller) IsInReplaceDevMode() bool {
+	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type, "") != appmeta.NONE
 }
 
 func (c *Controller) IsInDuplicateDevMode() bool {
-	// todo: considering err != nil - by hxx
 	p, _ := c.GetProfile()
-	return p.DuplicateDevMode
+	return p.DevModeType.IsDuplicateDevMode() &&
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type, p.DevModeType) != appmeta.NONE
 }
 
 func (c *Controller) IsProcessor() bool {
-	if c.IsInDuplicateDevMode() {
-		return true
-	}
-	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier)
+	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, c.DevModeType)
 }
 
 func CheckIfControllerTypeSupport(t string) bool {

@@ -46,7 +46,7 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 		return err
 	}
 
-	if d.IsInDevMode() {
+	if d.IsInReplaceDevMode() {
 		osj, ok := dep.Annotations[OriginSpecJson]
 		if ok {
 			log.Info("Annotation nocalhost.origin.spec.json found, use it")
@@ -176,7 +176,7 @@ func (d *DuplicateDeploymentController) RollBack(reset bool) error {
 	}
 	return d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
 		svcProfileV2.DevModeType = ""
-		svcProfileV2.DuplicateDevMode = false
+		//svcProfileV2.DuplicateDevMode = false
 		return nil
 	})
 }

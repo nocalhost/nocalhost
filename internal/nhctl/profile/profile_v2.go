@@ -24,7 +24,19 @@ const (
 	DefaultDevImage  = ""
 	DefaultWorkDir   = "/home/nocalhost-dev"
 	DuplicateDevMode = DevModeType("duplicate")
+	ReplaceDevMode   = DevModeType("replace")
 )
+
+func (d DevModeType) IsReplaceDevMode() bool {
+	if d == ReplaceDevMode || d == "" {
+		return true
+	}
+	return false
+}
+
+func (d DevModeType) IsDuplicateDevMode() bool {
+	return d == DuplicateDevMode
+}
 
 type AppProfileV2 struct {
 	Name string `json:"name" yaml:"name"`
@@ -243,8 +255,8 @@ type SvcProfileV2 struct {
 	Possess bool `json:"possess" yaml:"possess"`
 
 	// LocalDevMode can be started in every local desktop and not influence each other
-	DuplicateDevMode bool        `json:"duplicateDevMode" yaml:"duplicateDevMode"`
-	DevModeType      DevModeType `json:"devModeType" yaml:"devModeType"`
+	//DuplicateDevMode bool        `json:"duplicateDevMode" yaml:"duplicateDevMode"`
+	DevModeType DevModeType `json:"devModeType" yaml:"devModeType"`
 }
 
 type ContainerProfileV2 struct {

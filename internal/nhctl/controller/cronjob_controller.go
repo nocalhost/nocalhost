@@ -178,7 +178,7 @@ func (j *CronJobController) RollBack(reset bool) error {
 // In DevMode, return pod list of generated Job.
 // Otherwise, return pod list of original Job
 func (j *CronJobController) GetPodList() ([]corev1.Pod, error) {
-	if j.IsInDevMode() {
+	if j.IsInReplaceDevMode() {
 		pl, err := j.Client.ListPodsByJob(j.getGeneratedJobName())
 		if err != nil {
 			return nil, err

@@ -80,7 +80,7 @@ var fileSyncCmd = &cobra.Command{
 }
 
 func StartSyncthing(podName string, resume bool, stop bool, container string, syncDouble *bool, override bool) {
-	if !nocalhostSvc.IsInDevMode() && !nocalhostSvc.IsInDuplicateDevMode() {
+	if !nocalhostSvc.IsInReplaceDevMode() && !nocalhostSvc.IsInDuplicateDevMode() {
 		log.Fatalf("Service \"%s\" is not in developing", deployment)
 	}
 

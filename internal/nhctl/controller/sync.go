@@ -96,7 +96,7 @@ func (c *Controller) StopSyncAndPortForwardProcess(cleanRemoteSecret bool) error
 	svcProfile, _ := c.GetProfile()
 	if cleanRemoteSecret {
 		secretName := svcProfile.SyncthingSecret
-		if svcProfile.DuplicateDevMode {
+		if svcProfile.DevModeType.IsDuplicateDevMode() {
 			secretName = svcProfile.DuplicateDevModeSyncthingSecretName
 		}
 		if secretName != "" {
@@ -108,7 +108,7 @@ func (c *Controller) StopSyncAndPortForwardProcess(cleanRemoteSecret bool) error
 		}
 	}
 
-	return c.setSyncthingProfileEndStatus(svcProfile.DuplicateDevMode)
+	return c.setSyncthingProfileEndStatus(svcProfile.DevModeType.IsDuplicateDevMode())
 }
 
 func (c *Controller) SetSyncingStatus(is bool) error {

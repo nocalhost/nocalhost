@@ -12,7 +12,7 @@ import (
 )
 
 type CommonController interface {
-	IsInDevMode() bool
+	IsInReplaceDevMode() bool
 	GetName() string // Controller name
 }
 

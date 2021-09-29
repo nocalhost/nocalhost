@@ -99,6 +99,12 @@ var devStartCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+
+		dt := profile.DevModeType(devStartOps.DevModeType)
+		if !dt.IsDuplicateDevMode() && !dt.IsReplaceDevMode() {
+			log.Fatalf("Unsupported DevModeType %s", dt)
+		}
+
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
@@ -106,7 +112,7 @@ var devStartCmd = &cobra.Command{
 			log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
 
-		if nocalhostSvc.IsInDevMode() || nocalhostSvc.IsInDuplicateDevMode() {
+		if nocalhostSvc.IsInReplaceDevMode() || nocalhostSvc.IsInDuplicateDevMode() {
 			coloredoutput.Hint("Already in DevMode...")
 
 			podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
@@ -120,14 +126,14 @@ var devStartCmd = &cobra.Command{
 				coloredoutput.Success("File sync is not resumed caused by --without-sync flag.")
 			}
 
-			if !devStartOps.NoTerminal || shell != "" {
-				must(nocalhostSvc.EnterPodTerminal(podName, devStartOps.Container, shell))
+			if nocalhostSvc.IsInReplaceDevMode() && !dt.IsDuplicateDevMode() {
+				if !devStartOps.NoTerminal || shell != "" {
+					must(nocalhostSvc.EnterPodTerminal(podName, devStartOps.Container, shell))
+					return
+				}
 			}
 
-			// can not use "replace" starting DevMode again
-			// can not use "duplicate" in a local "replace" DevMode has been started
-			// can not starting any kind of DevMode when a "duplicate" DevMode has been started
-			if devStartOps.DevModeType == "" || nocalhostSvc.IsProcessor() || nocalhostSvc.IsInDuplicateDevMode() {
+			if nocalhostSvc.IsProcessor() {
 				return
 			}
 		}
@@ -150,7 +156,7 @@ var devStartCmd = &cobra.Command{
 		recordLocalSyncDirToProfile()
 		prepareSyncThing()
 		stopPreviousPortForward()
-		enterDevMode(devStartOps.DevModeType)
+		enterDevMode(dt)
 
 		devPodName, err := nocalhostSvc.BuildPodController().
 			GetNocalhostDevContainerPod()
@@ -293,33 +299,30 @@ func startSyncthing(podName, container string, resume bool) {
 	}
 }
 
-func enterDevMode(devModeType string) {
-	if devModeType == "" {
-		must(
-			nocalhostSvc.AppMeta.SvcDevStarting(nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier),
-		)
-	} else {
+func enterDevMode(devModeType profile.DevModeType) {
+	if devModeType != "" {
 		must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-			v2.DuplicateDevMode = true
-			v2.DevModeType = profile.DevModeType(devModeType)
+			v2.DevModeType = devModeType
 			return nil
 		}))
 	}
+	must(
+		nocalhostSvc.AppMeta.SvcDevStarting(nocalhostSvc.Name, nocalhostSvc.Type,
+			nocalhostApp.GetProfileCompel().Identifier, devModeType),
+	)
 
 	// prevent dev status modified but not actually enter dev mode
 	var devStartSuccess = false
 	defer func() {
 		if !devStartSuccess {
-			if devModeType == "" {
-				log.Infof("Roll backing dev mode... \n")
-				_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type)
-			} else {
+			log.Infof("Roll backing dev mode... \n")
+			if devModeType != "" {
 				nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-					v2.DuplicateDevMode = false
 					v2.DevModeType = ""
 					return nil
 				})
 			}
+			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type, devModeType)
 		}
 	}()
 
@@ -335,13 +338,11 @@ func enterDevMode(devModeType string) {
 		must(err)
 	}
 
-	if devModeType == "" {
-		must(
-			nocalhostSvc.AppMeta.SvcDevStartComplete(
-				nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier,
-			),
-		)
-	}
+	must(
+		nocalhostSvc.AppMeta.SvcDevStartComplete(
+			nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier, devModeType,
+		),
+	)
 
 	// mark dev start as true
 	devStartSuccess = true

@@ -30,8 +30,7 @@ func (c *Controller) DevEnd(reset bool) error {
 		log.WarnE(err, "something incorrect occurs when rolling back")
 	}
 
-	if !p.DuplicateDevMode {
-		utils.ShouldI(c.AppMeta.SvcDevEnd(c.Name, c.Type), "something incorrect occurs when updating secret")
-	}
+	utils.ShouldI(c.AppMeta.SvcDevEnd(c.Name, c.Type, p.DevModeType), "something incorrect occurs when updating secret")
+
 	return nil
 }
