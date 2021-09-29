@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
-	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"net"
 	"nocalhost/internal/nhctl/app"
@@ -261,36 +260,6 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				ErrOut: stdout,
 			}
 
-			recoverFunc := func(err error) {
-				if strings.Contains(err.Error(), "error creating error stream for port") && !strings.Contains(err.Error(), "Timeout occured") {
-					defer RecoverDaemonFromPanic()
-					p, err := ParseErrToForwardPort(err.Error())
-					if err != nil {
-						log.LogE(err)
-						return
-					}
-					if p.LocalPort != localPort || p.RemotePort != remotePort {
-						return
-					}
-					log.WarnE(err, fmt.Sprintf("[RuntimeErrorHandler]Port-forward %d:%d failed to create stream,"+
-						" try to reconnecting", localPort, remotePort))
-					select {
-					case _, isOpen := <-stopCh:
-						if isOpen {
-							log.Infof("[RuntimeErrorHandler]Closing Port-forward %d:%d by stop chan", localPort, remotePort)
-							close(stopCh)
-						} else {
-							log.Infof("[RuntimeErrorHandler]Port-forward %d:%d has been closed, do nothing", localPort, remotePort)
-						}
-					default:
-						log.Infof("[RuntimeErrorHandler]Closing Port-forward %d:%d'", localPort, remotePort)
-						close(stopCh)
-					}
-				}
-			}
-
-			k8s_runtime.ErrorHandlers = append(k8s_runtime.ErrorHandlers, recoverFunc)
-
 			go func() {
 				defer RecoverDaemonFromPanic()
 				select {
@@ -299,31 +268,6 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 					p.lock.Lock()
 					_ = nhController.UpdatePortForwardStatus(localPort, remotePort, "LISTEN", "listen")
 					p.lock.Unlock()
-					//lastStatus := ""
-					//currentStatus := ""
-					//for {
-					//	select {
-					//	case <-heartbeatCtx.Done():
-					//		log.Infof("Stop sending heart beat to %d", localPort)
-					//		return
-					//	default:
-					//		log.Debugf("try to send port-forward heartbeat to %d", localPort)
-					//		err := nocalhostApp.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", "127.0.0.1", localPort))
-					//		if err != nil {
-					//			log.WarnE(err, "")
-					//			currentStatus = "HeartBeatLoss"
-					//		} else {
-					//			currentStatus = "LISTEN"
-					//		}
-					//		if lastStatus != currentStatus {
-					//			lastStatus = currentStatus
-					//			p.lock.Lock()
-					//			nhController.UpdatePortForwardStatus(localPort, remotePort, lastStatus, "Heart Beat")
-					//			p.lock.Unlock()
-					//		}
-					//		<-time.After(30 * time.Second)
-					//	}
-					//}
 				}
 			}()
 
@@ -368,7 +312,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 						}
 						p.lock.Lock()
 						err2 := nhController.UpdatePortForwardStatus(localPort, remotePort, "DISCONNECTED",
-							fmt.Sprintf("Unable to listen on port %d", localPort))
+							fmt.Sprintf("Unable to found pod %s", startCmd.PodName))
 						p.lock.Unlock()
 						if err2 != nil {
 							log.LogE(err2)
@@ -377,7 +321,6 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 						return
 					}
 					log.WarnE(err, fmt.Sprintf("Port-forward %d:%d failed, reconnecting after 30 seconds...", localPort, remotePort))
-					//heartBeatCancel()
 					p.lock.Lock()
 					err = nhController.UpdatePortForwardStatus(localPort, remotePort, "RECONNECTING",
 						"Port-forward failed, reconnecting after 30 seconds...")
@@ -387,7 +330,6 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 					}
 				} else {
 					log.Warn("Reconnecting after 30 seconds...")
-					//heartBeatCancel()
 					p.lock.Lock()
 					err = nhController.UpdatePortForwardStatus(localPort, remotePort, "RECONNECTING",
 						"Reconnecting after 30 seconds...")
