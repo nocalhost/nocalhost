@@ -60,7 +60,10 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(cmd *command.PortForwardCo
 	if cmd.ServiceType == "" {
 		cmd.ServiceType = "deployment"
 	}
-	nhController := nocalhostApp.Controller(cmd.Service, base.SvcType(cmd.ServiceType))
+	nhController, err := nocalhostApp.Controller(cmd.Service, base.SvcType(cmd.ServiceType))
+	if err != nil {
+		return err
+	}
 	return nhController.DeletePortForwardFromDB(cmd.LocalPort, cmd.RemotePort)
 }
 
@@ -174,7 +177,10 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 	}
 	_ = listener.Close()
 
-	nhController := nocalhostApp.Controller(startCmd.Service, base.SvcType(startCmd.ServiceType))
+	nhController, err := nocalhostApp.Controller(startCmd.Service, base.SvcType(startCmd.ServiceType))
+	if err != nil {
+		return err
+	}
 
 	if saveToDB {
 		// Check if port forward already exists

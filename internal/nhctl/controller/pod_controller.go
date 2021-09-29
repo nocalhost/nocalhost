@@ -11,25 +11,31 @@ import (
 	"nocalhost/internal/nhctl/profile"
 )
 
-func (c *Controller) BuildPodController(devMode profile.DevModeType) pod_controller.PodController {
+func (c *Controller) BuildPodController() pod_controller.PodController {
 	switch c.Type {
 	case base.Deployment:
-		if devMode == profile.DuplicateDevMode {
+		if c.DevModeType == profile.DuplicateDevMode {
 			return &DuplicateDeploymentController{Controller: c}
 		}
 		return &DeploymentController{Controller: c}
 	case base.StatefulSet:
-		if devMode == profile.DuplicateDevMode {
+		if c.DevModeType == profile.DuplicateDevMode {
 			return &DuplicateStatefulSetController{Controller: c}
 		}
 		return &StatefulSetController{Controller: c}
 	case base.DaemonSet:
+		if c.DevModeType == profile.DuplicateDevMode {
+			return &DuplicateDaemonSetController{Controller: c}
+		}
 		return &DaemonSetController{Controller: c}
 	case base.Job:
 		return &JobController{Controller: c}
 	case base.CronJob:
 		return &CronJobController{Controller: c}
 	case base.Pod:
+		if c.DevModeType == profile.DuplicateDevMode {
+			return &DuplicateRawPodController{Controller: c}
+		}
 		return &RawPodController{Controller: c}
 	}
 	return nil

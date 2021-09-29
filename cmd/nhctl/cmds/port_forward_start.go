@@ -69,12 +69,8 @@ var portForwardStartCmd = &cobra.Command{
 
 		log.Info("Starting port-forwarding")
 
-		p, err := nocalhostSvc.GetProfile()
-		if err != nil {
-			must(err)
-		}
 		// find deployment pods
-		podName, err := nocalhostSvc.BuildPodController(p.DevModeType).GetNocalhostDevContainerPod()
+		podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
 		if err != nil {
 			// use serviceType get pods name
 			// can not find devContainer, means need port-forward normal service, get pods from command flags

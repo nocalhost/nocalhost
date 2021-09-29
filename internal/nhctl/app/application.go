@@ -486,19 +486,23 @@ func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType ba
 		}
 
 		// means should cm cfg is valid, persist to profile
-		if err := a.Controller(svcName, svcType).UpdateSvcProfile(
-			func(svcProfile *profile.SvcProfileV2) error {
-				hint("Success load svc config from annotation")
-				//svcProfile.ServiceConfigV2 = svcCfg
+		var c *controller.Controller
+		if c, err = a.Controller(svcName, svcType); err == nil {
+			err = c.UpdateSvcProfile(
+				func(svcProfile *profile.SvcProfileV2) error {
+					hint("Success load svc config from annotation")
+					//svcProfile.ServiceConfigV2 = svcCfg
 
-				svcProfile.Name = svcName
-				svcProfile.Type = svcType.String()
-				svcProfile.LocalConfigLoaded = false
-				svcProfile.AnnotationsConfigLoaded = true
-				svcProfile.CmConfigLoaded = false
-				return nil
-			},
-		); err != nil {
+					svcProfile.Name = svcName
+					svcProfile.Type = svcType.String()
+					svcProfile.LocalConfigLoaded = false
+					svcProfile.AnnotationsConfigLoaded = true
+					svcProfile.CmConfigLoaded = false
+					return nil
+				},
+			)
+		}
+		if err != nil {
 			hint(
 				"Load nocalhost svc config from [Resource:%s, Name:%s] annotation fail, fail while updating svc profile, err: %s",
 				mw.GetObjectMeta().GetResourceVersion(), mw.GetObjectMeta().GetName(), err.Error(),
@@ -540,19 +544,23 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcTy
 	}
 
 	// means should cm cfg is valid, persist to profile
-	if err := a.Controller(svcName, svcType).UpdateSvcProfile(
-		func(svcProfile *profile.SvcProfileV2) error {
-			hint("Success load svc config from cm")
-			//svcProfile.ServiceConfigV2 = svcCfg
+	var c *controller.Controller
+	if c, err = a.Controller(svcName, svcType); err == nil {
+		err = c.UpdateSvcProfile(
+			func(svcProfile *profile.SvcProfileV2) error {
+				hint("Success load svc config from cm")
+				//svcProfile.ServiceConfigV2 = svcCfg
 
-			svcProfile.Name = svcName
-			svcProfile.Type = svcType.String()
-			svcProfile.LocalConfigLoaded = false
-			svcProfile.AnnotationsConfigLoaded = false
-			svcProfile.CmConfigLoaded = true
-			return nil
-		},
-	); err != nil {
+				svcProfile.Name = svcName
+				svcProfile.Type = svcType.String()
+				svcProfile.LocalConfigLoaded = false
+				svcProfile.AnnotationsConfigLoaded = false
+				svcProfile.CmConfigLoaded = true
+				return nil
+			},
+		)
+	}
+	if err != nil {
 		hint("Load nocalhost svc config from cm fail, fail while updating svc profile, err: %s", err.Error())
 		return false
 	}
@@ -629,19 +637,23 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.Sv
 	}
 
 	// means should load svc cfg from local
-	if err := a.Controller(svcName, svcType).UpdateSvcProfile(
-		func(svcProfile *profile.SvcProfileV2) error {
-			hint("Success load svc config from local file %s", configFile.Abs())
-			svcCfg.Name = svcName
-			svcCfg.Type = svcType.String()
+	var c *controller.Controller
+	if c, err = a.Controller(svcName, svcType); err == nil {
+		err = c.UpdateSvcProfile(
+			func(svcProfile *profile.SvcProfileV2) error {
+				hint("Success load svc config from local file %s", configFile.Abs())
+				svcCfg.Name = svcName
+				svcCfg.Type = svcType.String()
 
-			//svcProfile.ServiceConfigV2 = svcCfg
-			svcProfile.LocalConfigLoaded = true
-			svcProfile.AnnotationsConfigLoaded = false
-			svcProfile.CmConfigLoaded = false
-			return nil
-		},
-	); err != nil {
+				//svcProfile.ServiceConfigV2 = svcCfg
+				svcProfile.LocalConfigLoaded = true
+				svcProfile.AnnotationsConfigLoaded = false
+				svcProfile.CmConfigLoaded = false
+				return nil
+			},
+		)
+	}
+	if err != nil {
 		hint("Load nocalhost svc config from local fail, fail while updating svc profile, err: %s", err.Error())
 		return false
 	}
@@ -876,8 +888,8 @@ type PortForwardEndOptions struct {
 	Port string // 8080:8080
 }
 
-func (a *Application) Controller(name string, svcType base.SvcType) *controller.Controller {
-	return &controller.Controller{
+func (a *Application) Controller(name string, svcType base.SvcType) (*controller.Controller, error) {
+	c := &controller.Controller{
 		NameSpace:  a.NameSpace,
 		AppName:    a.Name,
 		Name:       name,
@@ -886,6 +898,12 @@ func (a *Application) Controller(name string, svcType base.SvcType) *controller.
 		AppMeta:    a.appMeta,
 		Identifier: a.Identifier,
 	}
+	p, err := c.GetProfile()
+	if err != nil {
+		return nil, err
+	}
+	c.DevModeType = p.DevModeType
+	return c, nil
 }
 
 func (a *Application) GetConfigFile() (string, error) {

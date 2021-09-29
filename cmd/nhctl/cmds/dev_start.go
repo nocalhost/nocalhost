@@ -109,8 +109,7 @@ var devStartCmd = &cobra.Command{
 		if nocalhostSvc.IsInDevMode() || nocalhostSvc.IsInDuplicateDevMode() {
 			coloredoutput.Hint("Already in DevMode...")
 
-			p, _ := nocalhostSvc.GetProfile()
-			podName, err := nocalhostSvc.BuildPodController(p.DevModeType).GetNocalhostDevContainerPod()
+			podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
 			must(err)
 
 			if !devStartOps.NoSyncthing {
@@ -153,7 +152,7 @@ var devStartCmd = &cobra.Command{
 		stopPreviousPortForward()
 		enterDevMode(devStartOps.DevModeType)
 
-		devPodName, err := nocalhostSvc.BuildPodController(profile.DevModeType(devStartOps.DevModeType)).
+		devPodName, err := nocalhostSvc.BuildPodController().
 			GetNocalhostDevContainerPod()
 		must(err)
 
@@ -294,15 +293,15 @@ func startSyncthing(podName, container string, resume bool) {
 	}
 }
 
-func enterDevMode(localDevMode string) {
-	if localDevMode == "" {
+func enterDevMode(devModeType string) {
+	if devModeType == "" {
 		must(
 			nocalhostSvc.AppMeta.SvcDevStarting(nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier),
 		)
 	} else {
 		must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
 			v2.DuplicateDevMode = true
-			v2.DevModeType = profile.DevModeType(localDevMode)
+			v2.DevModeType = profile.DevModeType(devModeType)
 			return nil
 		}))
 	}
@@ -311,7 +310,7 @@ func enterDevMode(localDevMode string) {
 	var devStartSuccess = false
 	defer func() {
 		if !devStartSuccess {
-			if localDevMode == "" {
+			if devModeType == "" {
 				log.Infof("Roll backing dev mode... \n")
 				_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type)
 			} else {
@@ -325,7 +324,8 @@ func enterDevMode(localDevMode string) {
 	}()
 
 	var err error
-	if err = nocalhostSvc.BuildPodController(profile.DevModeType(localDevMode)).ReplaceImage(context.TODO(), devStartOps); err != nil {
+	nocalhostSvc.DevModeType = profile.DevModeType(devModeType)
+	if err = nocalhostSvc.BuildPodController().ReplaceImage(context.TODO(), devStartOps); err != nil {
 		log.WarnE(err, "Failed to replace dev container")
 		log.Info("Resetting workload...")
 		_ = nocalhostSvc.DevEnd(true)
@@ -335,7 +335,7 @@ func enterDevMode(localDevMode string) {
 		must(err)
 	}
 
-	if localDevMode == "" {
+	if devModeType == "" {
 		must(
 			nocalhostSvc.AppMeta.SvcDevStartComplete(
 				nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier,

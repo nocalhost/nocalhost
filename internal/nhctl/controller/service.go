@@ -19,13 +19,14 @@ import (
 // Controller presents a k8s controller
 // https://kubernetes.io/docs/concepts/architecture/controller
 type Controller struct {
-	NameSpace  string
-	AppName    string
-	Name       string
-	Identifier string
-	Type       base.SvcType
-	Client     *clientgoutils.ClientGoUtils
-	AppMeta    *appmeta.ApplicationMeta
+	NameSpace   string
+	AppName     string
+	Name        string
+	Identifier  string
+	DevModeType profile.DevModeType
+	Type        base.SvcType
+	Client      *clientgoutils.ClientGoUtils
+	AppMeta     *appmeta.ApplicationMeta
 }
 
 // IsInDevMode return true if under dev starting or start complete
@@ -40,19 +41,10 @@ func (c *Controller) IsInDuplicateDevMode() bool {
 }
 
 func (c *Controller) IsProcessor() bool {
-	sp, err := c.GetProfile()
-	if err != nil {
-		return false
-	}
-	if sp.DuplicateDevMode {
+	if c.IsInDuplicateDevMode() {
 		return true
 	}
-
-	appProfile, err := c.GetAppProfile() // todo: move Identifier to directory
-	if err != nil {
-		return false
-	}
-	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, appProfile.Identifier)
+	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier)
 }
 
 func CheckIfControllerTypeSupport(t string) bool {
