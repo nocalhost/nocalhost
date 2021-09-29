@@ -6,19 +6,16 @@
 package cmds
 
 import (
+	dockerterm "github.com/moby/term"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"nocalhost/pkg/nhctl/clientgoutils"
-	"os"
 	"time"
 )
 
 var options = &exec.ExecOptions{
-	StreamOptions: exec.StreamOptions{
-		IOStreams: genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr},
-	},
 	Executor: &exec.DefaultRemoteExecutor{},
 }
 
@@ -30,6 +27,8 @@ var cmdExec = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		clientGoUtils, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
 		must(err)
+		stdin, stdout, stderr := dockerterm.StdStreams()
+		options.IOStreams = genericclioptions.IOStreams{In: stdin, Out: stdout, ErrOut: stderr}
 		cmdutil.AddPodRunningTimeoutFlag(cmd, 60*time.Second)
 		cmdutil.AddJsonFilenameFlag(cmd.Flags(), &options.FilenameOptions.Filenames, "to use to exec into the resource")
 		argsLenAtDash := cmd.ArgsLenAtDash()
