@@ -296,7 +296,9 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				select {
 				case <-readyCh:
 					log.Infof("Port forward %d:%d is ready", localPort, remotePort)
-
+					p.lock.Lock()
+					_ = nhController.UpdatePortForwardStatus(localPort, remotePort, "LISTEN", "listen")
+					p.lock.Unlock()
 					//lastStatus := ""
 					//currentStatus := ""
 					//for {
