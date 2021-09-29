@@ -207,6 +207,27 @@ ready() {
     printf "[%s] %s %s%s is ready.\\n" "$(date +'%Y-%m-%d %H:%M:%S')" "$1" "$2" "$print_KUBECTL_ARGS"
 }
 
+readiness_probe() {
+    if [ "${READINESS_PROBE}" == true ]; then
+        # tcp
+        if [ "${TCP_SOCKET_ADDRESS}" != "" ]; then
+            until nc -vz "${TCP_SOCKET_ADDRESS}" 3000; do
+              echo "Waiting for ${TCP_SOCKET_ADDRESS} ..."
+              sleep 5
+            done
+            echo ""
+        fi
+        # http
+        if [ "${HTTP_URL}" != "" ]; then
+            # http
+            until [ "$(curl -sw '%{http_code}' "${HTTP_URL}" -o /dev/null)" -eq 200 ]; do
+              echo "Waiting for ${HTTP_URL} ..."
+              sleep 5
+            done
+        fi
+    fi
+}
+
 main() {
     if [ $# -lt 2 ]; then
         usage
@@ -232,6 +253,8 @@ main() {
     shift
 
     KUBECTL_ARGS="${*}"
+
+    readiness_probe
 
     wait_for_resource "$main_resource" "$main_name"
 
