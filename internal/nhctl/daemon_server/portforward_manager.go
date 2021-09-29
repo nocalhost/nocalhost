@@ -353,6 +353,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				}
 			}()
 
+		out:
 			select {
 			case err := <-errCh:
 				if err != nil {
@@ -361,7 +362,9 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 						if found {
 							log.Logf("Pod: %s not found, remove port-forward for this pod", startCmd.PodName)
 						} else {
-							log.WarnE(err, fmt.Sprintf("Unable to listen on port %d", localPort))
+							log.WarnE(err, fmt.Sprintf("Unable to listen on port %d, will retry in 15 seconds", localPort))
+							time.Sleep(time.Second * 15)
+							break out
 						}
 						p.lock.Lock()
 						err2 := nhController.UpdatePortForwardStatus(localPort, remotePort, "DISCONNECTED",
