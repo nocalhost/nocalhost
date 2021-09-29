@@ -9,8 +9,6 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/dev_dir"
@@ -19,11 +17,9 @@ import (
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
-	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	utils2 "nocalhost/pkg/nhctl/utils"
-	"os"
 	"strings"
 )
 
@@ -86,8 +82,8 @@ func init() {
 		"do not start file-sync while dev start success",
 	)
 	devStartCmd.Flags().StringVarP(
-		&devStartOps.LocalDevModeType, "local-dev-mode", "m", "",
-		"localDevMode can be started in every local desktop and not influence each other",
+		&devStartOps.DevModeType, "dev-mode", "m", "",
+		"devMode which can be started in every local desktop and not influence each other",
 	)
 	debugCmd.AddCommand(devStartCmd)
 }
@@ -110,7 +106,7 @@ var devStartCmd = &cobra.Command{
 			log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
 
-		if nocalhostSvc.IsInDevMode() || nocalhostSvc.IsInLocalDevMode() {
+		if nocalhostSvc.IsInDevMode() || nocalhostSvc.IsInDuplicateDevMode() {
 			coloredoutput.Hint("Already in DevMode...")
 
 			p, _ := nocalhostSvc.GetProfile()
@@ -132,7 +128,7 @@ var devStartCmd = &cobra.Command{
 			// can not use "replace" starting DevMode again
 			// can not use "duplicate" in a local "replace" DevMode has been started
 			// can not starting any kind of DevMode when a "duplicate" DevMode has been started
-			if devStartOps.LocalDevModeType == "" || nocalhostSvc.IsProcessor() || nocalhostSvc.IsInLocalDevMode() {
+			if devStartOps.DevModeType == "" || nocalhostSvc.IsProcessor() || nocalhostSvc.IsInDuplicateDevMode() {
 				return
 			}
 		}
@@ -155,9 +151,9 @@ var devStartCmd = &cobra.Command{
 		recordLocalSyncDirToProfile()
 		prepareSyncThing()
 		stopPreviousPortForward()
-		enterDevMode(devStartOps.LocalDevModeType)
+		enterDevMode(devStartOps.DevModeType)
 
-		devPodName, err := nocalhostSvc.BuildPodController(profile.LocalDevModeType(devStartOps.LocalDevModeType)).
+		devPodName, err := nocalhostSvc.BuildPodController(profile.LocalDevModeType(devStartOps.DevModeType)).
 			GetNocalhostDevContainerPod()
 		must(err)
 
@@ -211,7 +207,11 @@ func prepareSyncThing() {
 	//		"key.pem":    []byte(secret_config.KeyPEM),
 	//	},
 	//}
-	must(nocalhostSvc.CreateSyncThingSecret(devStartOps.Container, devStartOps.LocalSyncDir))
+	var duplicateDevMode bool
+	if devStartOps.DevModeType == string(profile.DuplicateDevMode) {
+		duplicateDevMode = true
+	}
+	must(nocalhostSvc.CreateSyncThingSecret(devStartOps.Container, devStartOps.LocalSyncDir, duplicateDevMode))
 }
 
 func recordLocalSyncDirToProfile() {

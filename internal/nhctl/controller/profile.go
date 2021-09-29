@@ -115,9 +115,14 @@ func (c *Controller) SetPortForwardedStatus(is bool) error {
 	)
 }
 
-func (c *Controller) setSyncthingProfileEndStatus() error {
+func (c *Controller) setSyncthingProfileEndStatus(duplicateDevMode bool) error {
 	return c.UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
+			if duplicateDevMode {
+				svcProfile.DuplicateDevModeSyncthingSecretName = ""
+			} else {
+				svcProfile.SyncthingSecret = ""
+			}
 			svcProfile.RemoteSyncthingPort = 0
 			svcProfile.RemoteSyncthingGUIPort = 0
 			svcProfile.LocalSyncthingPort = 0

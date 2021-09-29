@@ -65,7 +65,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 	devModeMounts := make([]corev1.VolumeMount, 0)
 
 	// Set volumes
-	syncthingVolumes, syncthingVolumeMounts := s.generateSyncVolumesAndMounts()
+	syncthingVolumes, syncthingVolumeMounts := s.generateSyncVolumesAndMounts(false)
 	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 

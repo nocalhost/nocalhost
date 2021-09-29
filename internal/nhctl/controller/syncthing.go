@@ -159,7 +159,7 @@ func (c *Controller) NewSyncthingHttpClient(reqTimeoutSecond int) *req.Syncthing
 	)
 }
 
-func (c *Controller) CreateSyncThingSecret(container string, localSyncDir []string, localDevMode bool) error {
+func (c *Controller) CreateSyncThingSecret(container string, localSyncDir []string, duplicateDevMode bool) error {
 
 	// Delete service folder
 	dir := c.GetApplicationSyncDir()
@@ -179,7 +179,7 @@ func (c *Controller) CreateSyncThingSecret(container string, localSyncDir []stri
 
 	syncSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: c.GetSyncThingSecretName(),
+			Name: c.GetSyncThingSecretName(duplicateDevMode),
 		},
 		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{
@@ -191,7 +191,6 @@ func (c *Controller) CreateSyncThingSecret(container string, localSyncDir []stri
 
 	// check if secret exist
 	exist, err := c.Client.GetSecret(syncSecret.Name)
-
 	if exist.Name != "" {
 		_ = c.Client.DeleteSecret(syncSecret.Name)
 	}
@@ -202,7 +201,11 @@ func (c *Controller) CreateSyncThingSecret(container string, localSyncDir []stri
 
 	return c.UpdateSvcProfile(
 		func(svcPro *profile.SvcProfileV2) error {
-			svcPro.SyncthingSecret = sc.Name
+			if duplicateDevMode {
+				svcPro.DuplicateDevModeSyncthingSecretName = sc.Name
+			} else {
+				svcPro.SyncthingSecret = sc.Name
+			}
 			return nil
 		},
 	)

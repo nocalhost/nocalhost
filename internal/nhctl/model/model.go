@@ -31,5 +31,5 @@ type DevStartOptions struct {
 	NoTerminal  bool
 	NoSyncthing bool
 
-	LocalDevModeType string
+	DevModeType string
 }

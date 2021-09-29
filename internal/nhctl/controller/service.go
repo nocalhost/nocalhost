@@ -33,7 +33,7 @@ func (c *Controller) IsInDevMode() bool {
 	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type) != appmeta.NONE
 }
 
-func (c *Controller) IsInLocalDevMode() bool {
+func (c *Controller) IsInDuplicateDevMode() bool {
 	// todo: considering err != nil - by hxx
 	p, _ := c.GetProfile()
 	return p.DuplicateDevMode

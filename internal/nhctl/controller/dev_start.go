@@ -108,14 +108,17 @@ func (c *Controller) markReplicaSetRevision() error {
 	return nil
 }
 
-func (c *Controller) GetSyncThingSecretName() string {
-	return c.Name + "-" + c.Type.String() + "-" + secret_config.SecretName
+func (c *Controller) GetSyncThingSecretName(duplicateDevMode bool) string {
+	if duplicateDevMode {
+		return strings.Join([]string{c.Name, c.Type.String(), secret_config.SecretName, "dup", c.Identifier}, "-")
+	}
+	return strings.Join([]string{c.Name, c.Type.String(), secret_config.SecretName}, "-")
 }
 
 // There are two volume used by syncthing in sideCarContainer:
 // 1. A EmptyDir volume mounts to /var/syncthing in sideCarContainer
 // 2. A volume mounts Secret to /var/syncthing/secret in sideCarContainer
-func (c *Controller) generateSyncVolumesAndMounts() ([]corev1.Volume, []corev1.VolumeMount) {
+func (c *Controller) generateSyncVolumesAndMounts(duplicateDevMode bool) ([]corev1.Volume, []corev1.VolumeMount) {
 
 	syncthingVolumes := make([]corev1.Volume, 0)
 	syncthingVolumeMounts := make([]corev1.VolumeMount, 0)
@@ -128,7 +131,7 @@ func (c *Controller) generateSyncVolumesAndMounts() ([]corev1.Volume, []corev1.V
 		},
 	}
 
-	secretName := c.GetSyncThingSecretName()
+	secretName := c.GetSyncThingSecretName(duplicateDevMode)
 	defaultMode := int32(_const.DefaultNewFilePermission)
 	syncthingSecretVol := corev1.Volume{
 		Name: secret_config.SecretName,
@@ -179,7 +182,7 @@ func (c *Controller) generateSyncVolumesAndMounts() ([]corev1.Volume, []corev1.V
 // If PVC exists, use it directly
 // If PVC not exists, try to create one
 // If PVC failed to create, the whole process of entering DevMode will fail
-func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, localDevMode bool) (
+func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, duplicateDevMode bool) (
 	[]corev1.Volume, []corev1.VolumeMount, error) {
 
 	volumes := make([]corev1.Volume, 0)
@@ -206,7 +209,7 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, lo
 
 			// Check if pvc is already exist
 			labels := map[string]string{}
-			if localDevMode {
+			if duplicateDevMode {
 				labels, err = c.getDuplicateLabelsMap()
 				if err != nil {
 					log.WarnE(err, "")
@@ -505,19 +508,19 @@ func findDevPod(podList []corev1.Pod) (string, error) {
 }
 
 func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
-	containerName, storageClass string, localDevMode bool) (*corev1.Container,
+	containerName, storageClass string, duplicateDevMode bool) (*corev1.Container,
 	*corev1.Container, []corev1.Volume, error) {
 
 	devModeVolumes := make([]corev1.Volume, 0)
 	devModeMounts := make([]corev1.VolumeMount, 0)
 
 	// Set volumes
-	syncthingVolumes, syncthingVolumeMounts := c.generateSyncVolumesAndMounts()
+	syncthingVolumes, syncthingVolumeMounts := c.generateSyncVolumesAndMounts(duplicateDevMode)
 	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
 	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := c.genWorkDirAndPVAndMounts(
-		containerName, storageClass, localDevMode)
+		containerName, storageClass, duplicateDevMode)
 	if err != nil {
 		return nil, nil, nil, err
 	}
