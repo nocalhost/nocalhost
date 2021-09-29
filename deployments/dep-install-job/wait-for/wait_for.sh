@@ -211,7 +211,7 @@ readiness_probe() {
     if [ "${READINESS_PROBE}" == true ]; then
         # tcp
         if [ "${TCP_SOCKET_ADDRESS}" != "" ]; then
-            until nc -vz "${TCP_SOCKET_ADDRESS%:*}" "${TCP_SOCKET_ADDRESS#*:}"; do
+            until nc -vz -w 3 "${TCP_SOCKET_ADDRESS%:*}" "${TCP_SOCKET_ADDRESS#*:}"; do
               echo "Waiting for ${TCP_SOCKET_ADDRESS} ..."
               sleep 5
             done
@@ -230,7 +230,15 @@ readiness_probe() {
 }
 
 main() {
-    if [ $# -lt 2 ]; then
+    if [ $# -eq 0 ]; then
+        if [ "${READINESS_PROBE}" == true ]; then
+            readiness_probe
+            exit 0
+        fi
+        usage
+    fi
+
+    if [ $# -eq 1 ]; then
         usage
     fi
 
