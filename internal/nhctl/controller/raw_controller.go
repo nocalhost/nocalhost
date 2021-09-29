@@ -64,7 +64,7 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		r.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass, false)
+		r.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}
@@ -179,8 +179,12 @@ func findContainerInPodSpec(pod *corev1.Pod, containerName string) (*corev1.Cont
 		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
 	} else {
 		if len(pod.Spec.Containers) > 1 {
-			return nil, errors.New(fmt.Sprintf("There are more than one container defined," +
-				"please specify one to start developing"))
+			return nil, errors.New(
+				fmt.Sprintf(
+					"There are more than one container defined," +
+						"please specify one to start developing",
+				),
+			)
 		}
 		if len(pod.Spec.Containers) == 0 {
 			return nil, errors.New("No container defined ???")

@@ -42,10 +42,10 @@ func init() {
 		&serviceType, "controller-type", "t", "",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
-	//devStartCmd.Flags().StringVarP(
-	//	&devStartOps.DevImage, "image", "i", "",
-	//	"image of DevContainer",
-	//)
+	devStartCmd.Flags().StringVarP(
+		&devStartOps.DevImage, "image", "i", "",
+		"image of DevContainer",
+	)
 	devStartCmd.Flags().StringVarP(
 		&devStartOps.Container, "container", "c", "",
 		"container to develop",
@@ -239,7 +239,7 @@ func loadLocalOrCmConfigIfValid() {
 		nocalhostSvc.AppName,
 		nocalhostSvc.Type,
 		nocalhostSvc.Name,
-		container,
+		devStartOps.Container,
 	)
 
 	switch len(devStartOps.LocalSyncDir) {
@@ -280,13 +280,13 @@ func stopPreviousSyncthing() {
 
 func startSyncthing(podName, container string, resume bool) {
 	if resume {
-		StartSyncthing(podName, true, false, container, false, false)
+		StartSyncthing(podName, true, false, container, nil, false)
 		defer func() {
 			//fmt.Println()
 			coloredoutput.Success("File sync resumed")
 		}()
 	} else {
-		StartSyncthing(podName, false, false, container, false, false)
+		StartSyncthing(podName, false, false, container, nil, false)
 		defer func() {
 			//fmt.Println()
 			coloredoutput.Success("File sync started")

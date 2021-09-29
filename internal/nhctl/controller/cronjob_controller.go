@@ -94,7 +94,7 @@ func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStar
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		j.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass, false)
+		j.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}

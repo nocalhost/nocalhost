@@ -72,7 +72,7 @@ func (d *DuplicateDaemonSetController) ReplaceImage(ctx context.Context, ops *mo
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		d.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass, true)
+		d.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, true)
 	if err != nil {
 		return err
 	}

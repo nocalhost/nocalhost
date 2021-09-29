@@ -104,7 +104,7 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		d.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass, false)
+		d.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,9 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 	if generatedDeployment.Spec.Template.Spec.Volumes == nil {
 		generatedDeployment.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
 	}
-	generatedDeployment.Spec.Template.Spec.Volumes = append(generatedDeployment.Spec.Template.Spec.Volumes, devModeVolumes...)
+	generatedDeployment.Spec.Template.Spec.Volumes = append(
+		generatedDeployment.Spec.Template.Spec.Volumes, devModeVolumes...,
+	)
 
 	// delete user's SecurityContext
 	generatedDeployment.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
