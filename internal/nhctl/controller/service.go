@@ -36,7 +36,7 @@ func (c *Controller) IsInDevMode() bool {
 func (c *Controller) IsInLocalDevMode() bool {
 	// todo: considering err != nil - by hxx
 	p, _ := c.GetProfile()
-	return p.LocalDeveloping
+	return p.DuplicateDevMode
 }
 
 func (c *Controller) IsProcessor() bool {
@@ -44,7 +44,7 @@ func (c *Controller) IsProcessor() bool {
 	if err != nil {
 		return false
 	}
-	if sp.LocalDeveloping {
+	if sp.DuplicateDevMode {
 		return true
 	}
 

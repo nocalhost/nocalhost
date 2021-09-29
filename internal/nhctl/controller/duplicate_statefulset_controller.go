@@ -229,7 +229,7 @@ func (s *DuplicateStatefulSetController) RollBack(reset bool) error {
 	}
 	return s.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
 		svcProfileV2.LocalDevMode = ""
-		svcProfileV2.LocalDeveloping = false
+		svcProfileV2.DuplicateDevMode = false
 		return nil
 	})
 }

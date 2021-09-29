@@ -184,7 +184,7 @@ func (d *DuplicateDeploymentController) RollBack(reset bool) error {
 	}
 	return d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
 		svcProfileV2.LocalDevMode = ""
-		svcProfileV2.LocalDeveloping = false
+		svcProfileV2.DuplicateDevMode = false
 		return nil
 	})
 }

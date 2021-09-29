@@ -242,8 +242,8 @@ type SvcProfileV2 struct {
 	Possess bool `json:"possess" yaml:"possess"`
 
 	// LocalDevMode can be started in every local desktop and not influence each other
-	LocalDeveloping bool             `json:"localDeveloping" yaml:"localDeveloping"`
-	LocalDevMode    LocalDevModeType `json:"localDevMode" yaml:"localDevMode"`
+	DuplicateDevMode bool             `json:"duplicateDevMode" yaml:"duplicateDevMode"`
+	LocalDevMode     LocalDevModeType `json:"localDevMode" yaml:"localDevMode"`
 }
 
 type ContainerProfileV2 struct {

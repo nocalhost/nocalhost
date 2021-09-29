@@ -301,7 +301,7 @@ func enterDevMode(localDevMode string) {
 		)
 	} else {
 		must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-			v2.LocalDeveloping = true
+			v2.DuplicateDevMode = true
 			v2.LocalDevMode = profile.LocalDevModeType(localDevMode)
 			return nil
 		}))
@@ -316,7 +316,7 @@ func enterDevMode(localDevMode string) {
 				_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type)
 			} else {
 				nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-					v2.LocalDeveloping = false
+					v2.DuplicateDevMode = false
 					v2.LocalDevMode = ""
 					return nil
 				})
