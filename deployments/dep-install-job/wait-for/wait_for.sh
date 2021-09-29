@@ -211,11 +211,11 @@ readiness_probe() {
     if [ "${READINESS_PROBE}" == true ]; then
         # tcp
         if [ "${TCP_SOCKET_ADDRESS}" != "" ]; then
-            until nc -vz "${TCP_SOCKET_ADDRESS}" 3000; do
+            until nc -vz "${TCP_SOCKET_ADDRESS%:*}" "${TCP_SOCKET_ADDRESS#*:}"; do
               echo "Waiting for ${TCP_SOCKET_ADDRESS} ..."
               sleep 5
             done
-            echo ""
+            echo "${TCP_SOCKET_ADDRESS} is ready"
         fi
         # http
         if [ "${HTTP_URL}" != "" ]; then
@@ -224,6 +224,7 @@ readiness_probe() {
               echo "Waiting for ${HTTP_URL} ..."
               sleep 5
             done
+            echo "${HTTP_URL} is ready"
         fi
     fi
 }
