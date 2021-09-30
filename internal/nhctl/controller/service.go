@@ -35,9 +35,16 @@ func (c *Controller) IsInReplaceDevMode() bool {
 }
 
 func (c *Controller) IsInDuplicateDevMode() bool {
-	p, _ := c.GetProfile()
-	return p.DevModeType.IsDuplicateDevMode() &&
-		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type, p.DevModeType) != appmeta.NONE
+	//p, _ := c.GetProfile()
+	return c.DevModeType.IsDuplicateDevMode() &&
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type, c.DevModeType) != appmeta.NONE
+}
+
+func (c *Controller) IsInDevMode() bool {
+	if c.IsInDuplicateDevMode() {
+		return true
+	}
+	return c.IsInReplaceDevMode()
 }
 
 func (c *Controller) IsProcessor() bool {
