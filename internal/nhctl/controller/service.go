@@ -8,7 +8,11 @@ package controller
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
@@ -75,6 +79,25 @@ func (c *Controller) CheckIfExist() (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func (c *Controller) GetTypeMeta() (metav1.TypeMeta, error) {
+	switch c.Type {
+	case base.Deployment:
+		return appsv1.Deployment{}.TypeMeta, nil
+	case base.StatefulSet:
+		return appsv1.StatefulSet{}.TypeMeta, nil
+	case base.DaemonSet:
+		return appsv1.DaemonSet{}.TypeMeta, nil
+	case base.Job:
+		return batchv1.Job{}.TypeMeta, nil
+	case base.CronJob:
+		return batchv1beta1.CronJob{}.TypeMeta, nil
+	case base.Pod:
+		return v1.Pod{}.TypeMeta, nil
+	default:
+		return metav1.TypeMeta{}, errors.New("unsupported controller type")
+	}
 }
 
 func (c *Controller) GetContainerImage(container string) (string, error) {

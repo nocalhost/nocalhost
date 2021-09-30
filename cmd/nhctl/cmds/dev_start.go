@@ -326,8 +326,10 @@ func enterDevMode(devModeType profile.DevModeType) {
 		}
 	}()
 
+	// disable hpa
+	nocalhostSvc.GetWorkDir()
 	var err error
-	nocalhostSvc.DevModeType = profile.DevModeType(devModeType)
+	nocalhostSvc.DevModeType = devModeType
 	if err = nocalhostSvc.BuildPodController().ReplaceImage(context.TODO(), devStartOps); err != nil {
 		log.WarnE(err, "Failed to replace dev container")
 		log.Info("Resetting workload...")

@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"k8s.io/api/batch/v1beta1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/flowcontrol"
 	"net/http"
@@ -49,14 +50,16 @@ import (
 )
 
 type ClientGoUtils struct {
-	kubeConfigFilePath string
-	restConfig         *restclient.Config
-	ClientSet          *kubernetes.Clientset
-	dynamicClient      dynamic.Interface //
-	ClientConfig       clientcmd.ClientConfig
-	namespace          string
-	ctx                context.Context
-	labels             map[string]string
+	kubeConfigFilePath      string
+	restConfig              *restclient.Config
+	ClientSet               *kubernetes.Clientset
+	dynamicClient           dynamic.Interface //
+	ClientConfig            clientcmd.ClientConfig
+	namespace               string
+	includeDeletedResources bool
+	ctx                     context.Context
+	labels                  map[string]string
+	fieldSelector           string
 }
 
 type PortForwardAPodRequest struct {
@@ -164,6 +167,27 @@ func (c *ClientGoUtils) Context(ctx context.Context) *ClientGoUtils {
 func (c *ClientGoUtils) Labels(labels map[string]string) *ClientGoUtils {
 	c.labels = labels
 	return c
+}
+
+func (c *ClientGoUtils) FieldSelector(f string) *ClientGoUtils {
+	c.fieldSelector = f
+	return c
+}
+
+func (c *ClientGoUtils) IncludeDeletedResources(i bool) *ClientGoUtils {
+	c.includeDeletedResources = i
+	return c
+}
+
+func (c *ClientGoUtils) getListOptions() metav1.ListOptions {
+	ops := metav1.ListOptions{}
+	if len(c.labels) > 0 {
+		ops.LabelSelector = labels.Set(c.labels).String()
+	}
+	if len(c.fieldSelector) > 0 {
+		ops.FieldSelector = c.fieldSelector
+	}
+	return ops
 }
 
 func (c *ClientGoUtils) GetDynamicClient() dynamic.Interface {
