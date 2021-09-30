@@ -213,18 +213,18 @@ readiness_probe() {
     # tcp
     if [ "${probe_type}" == "tcp" ] && [ "${address}" != "" ]; then
         until nc -vz -w 3 "${address%:*}" "${address#*:}"; do
-          echo "waiting for ${address} ..."
+          echo "Waiting for ${address} ..."
           sleep 5
         done
-        echo "${address} is ready"
+        ready "${probe_type}" "${address}"
     fi
     # http
     if [ "${probe_type}" == "http" ] && [ "${address}" != "" ]; then
         until [ "$(curl -sw '%{http_code}' "${address}" -o /dev/null)" -eq 200 ]; do
-          echo "waiting for ${address} ..."
+          echo "Waiting for ${address} ..."
           sleep 5
         done
-        echo "${address} is ready"
+        ready "${probe_type}" "${address}"
     fi
 }
 
