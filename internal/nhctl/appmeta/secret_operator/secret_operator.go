@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package secret_operator
 
@@ -41,6 +41,12 @@ func (cso *ClientGoUtilClient) Create(ns string, secret *corev1.Secret) (*corev1
 		cso.ClientInner.GetContext(), secret, metav1.CreateOptions{},
 	)
 }
+func (cso *ClientGoUtilClient) ReObtainSecret(ns string, secret *corev1.Secret) (*corev1.Secret, error) {
+	return cso.ClientInner.ClientSet.CoreV1().Secrets(ns).Get(
+		cso.ClientInner.GetContext(), secret.Name, metav1.GetOptions{},
+	)
+}
+
 func (cso *ClientGoUtilClient) Update(ns string, secret *corev1.Secret) (*corev1.Secret, error) {
 	return cso.ClientInner.ClientSet.CoreV1().Secrets(ns).Update(
 		cso.ClientInner.GetContext(), secret, metav1.UpdateOptions{},

@@ -112,9 +112,12 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 		Folders:          []*syncthing.Folder{},
 		RescanInterval:   "300",
 	}
-	if svcProfile.GetContainerDevConfigOrDefault(container).Sync != nil {
-		s.SyncedPattern = svcProfile.GetContainerDevConfigOrDefault(container).Sync.FilePattern
-		s.IgnoredPattern = svcProfile.GetContainerDevConfigOrDefault(container).Sync.IgnoreFilePattern
+	svcConfig, _ := c.GetConfig()
+	devConfig := svcConfig.GetContainerDevConfigOrDefault(container)
+	if devConfig != nil && devConfig.Sync != nil {
+		s.EnableParseFromGitIgnore = devConfig.Sync.Mode == profile.PatternMode
+		s.SyncedPattern = devConfig.Sync.FilePattern
+		s.IgnoredPattern = devConfig.Sync.IgnoreFilePattern
 	}
 
 	// TODO, warn: multi local sync dir is Deprecated, now it's implement by IgnoreFiles

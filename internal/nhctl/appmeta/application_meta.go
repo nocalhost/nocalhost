@@ -27,7 +27,6 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -53,6 +52,7 @@ const (
 	SecretConfigKey          = "c"
 	SecretStateKey           = "s"
 	SecretDepKey             = "d"
+	SecretNamespaceId        = "nid"
 
 	Helm           AppType = "helmGit"
 	HelmRepo       AppType = "helmRepo"
@@ -73,6 +73,17 @@ const (
 )
 
 var ErrAlreadyDev = errors.New("Svc already in dev mode")
+
+func GetAppNameFromConfigMapName(cmName string) string {
+	if HasConfigMapPrefix(cmName) {
+		return strings.TrimPrefix(cmName, CmNamePrefix)
+	}
+	return ""
+}
+
+func HasConfigMapPrefix(key string) bool {
+	return strings.HasPrefix(key, CmNamePrefix)
+}
 
 func ConfigMapName(appName string) string {
 	return CmNamePrefix + appName
@@ -166,12 +177,14 @@ type ApplicationMetaSimple struct {
 }
 
 func FakeAppMeta(ns, application string) *ApplicationMeta {
+	nid, _ := utils.GetShortUuid()
 	return &ApplicationMeta{
 		ApplicationState: INSTALLED,
 		Ns:               ns,
 		Application:      application,
 		DevMeta:          ApplicationDevMeta{},
 		Config:           &profile2.NocalHostAppConfigV2{},
+		NamespaceId:      nid,
 	}
 }
 
@@ -211,6 +224,8 @@ type ApplicationMeta struct {
 
 	// something like database
 	Secret *corev1.Secret `json:"secret"`
+
+	NamespaceId string `json:"namespace_id"`
 
 	// current client go util is injected, may null, be care!
 	operator *secret_operator.ClientGoUtilClient
@@ -290,28 +305,39 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 		appMeta.HelmReleaseName = string(bs)
 	}
 
+	if bs, ok := secret.Data[SecretNamespaceId]; ok {
+		appMeta.NamespaceId = string(bs)
+	}
+
 	appMeta.Secret = secret
 	return &appMeta, nil
 }
 
 func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, ns, identifier string) {
-	svcType := base.SvcTypeOf(s.Type)
+	svcType := base.SvcTypeOf(s.GetType())
 
-	devStatus := meta.CheckIfSvcDeveloping(s.ActualName, svcType)
+	devStatus := meta.CheckIfSvcDeveloping(s.GetName(), svcType)
 
 	pack := dev_dir.NewSvcPack(
 		ns,
 		appName,
 		svcType,
-		s.Name,
+		s.GetName(),
 		"", // describe can not specify container
 	)
 	s.Associate = pack.GetAssociatePath().ToString()
 	s.Developing = devStatus != NONE
 	s.DevelopStatus = string(devStatus)
 
+	if meta.Config != nil {
+		svcConfig := meta.Config.GetSvcConfigV2(s.GetName(), svcType)
+		if svcConfig != nil {
+			s.ServiceConfigV2 = svcConfig
+		}
+	}
+
 	s.Possess = meta.SvcDevModePossessor(
-		s.ActualName, svcType,
+		s.GetName(), svcType,
 		identifier,
 	)
 }
@@ -347,12 +373,24 @@ func (a *ApplicationMeta) doMutex(funny func() error) error {
 	return funny()
 }
 
+func (a *ApplicationMeta) GenerateNidINE() error {
+	if a.NamespaceId == "" {
+		id, err := utils.GetShortUuid()
+		if err != nil {
+			return err
+		}
+		a.NamespaceId = id
+		return a.Update()
+	}
+	return nil
+}
+
 func (a *ApplicationMeta) GetApplicationConfig() *profile2.ApplicationConfig {
-	if a == nil || a.Config == nil || a.Config.ApplicationConfig == nil {
+	if a == nil || a.Config == nil {
 		return &profile2.ApplicationConfig{}
 	}
 
-	return a.Config.ApplicationConfig
+	return &a.Config.ApplicationConfig
 }
 
 func (a *ApplicationMeta) GetClient() *clientgoutils.ClientGoUtils {
@@ -384,7 +422,11 @@ func (a *ApplicationMeta) Initial() error {
 			Namespace: a.Ns,
 		},
 	}
-
+	id, err := utils.GetShortUuid()
+	if err != nil {
+		return err
+	}
+	a.NamespaceId = id
 	createSecret, err := a.operator.Create(a.Ns, &secret)
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
@@ -399,12 +441,13 @@ func (a *ApplicationMeta) Initial() error {
 
 func (a *ApplicationMeta) InitGoClient(kubeConfigPath string) error {
 	clientGo, err := clientgoutils.NewClientGoUtils(kubeConfigPath, a.Ns)
-	if kubeConfigPath == "" { // use default config
-		kubeConfigPath = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	if err != nil {
+		return err
 	}
+
 	content, err := ioutil.ReadFile(kubeConfigPath)
 	if err != nil {
-		log.Errorf("can not read kubeconfig content, path: %s, err: %v", kubeConfigPath, err)
+		return errors.Wrap(err, "can not read kubeconfig content, path: "+kubeConfigPath)
 	}
 	a.operator = &secret_operator.ClientGoUtilClient{
 		ClientInner:     clientGo,
@@ -527,7 +570,15 @@ func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType
 func (a *ApplicationMeta) Update() error {
 	return retry.OnError(
 		retry.DefaultRetry, func(err error) bool {
-			return err != nil
+			if err != nil {
+				if secret, err := a.operator.ReObtainSecret(a.Ns, a.Secret); err != nil {
+					return false
+				} else {
+					a.Secret = secret
+					return true
+				}
+			}
+			return false
 		}, func() error {
 			a.prepare()
 			secret, err := a.operator.Update(a.Ns, a.Secret)
@@ -553,6 +604,7 @@ func (a *ApplicationMeta) prepare() {
 	a.Secret.Data[SecretPostInstallKey] = compress([]byte(a.PostInstallManifest))
 	a.Secret.Data[SecretPostUpgradeKey] = compress([]byte(a.PostUpgradeManifest))
 	a.Secret.Data[SecretPostDeleteKey] = compress([]byte(a.PostDeleteManifest))
+	a.Secret.Data[SecretNamespaceId] = []byte(a.NamespaceId)
 
 	a.Secret.Data[SecretManifestKey] = compress([]byte(a.Manifest))
 
@@ -691,7 +743,7 @@ func (a *ApplicationMeta) cleanUpDepConfigMap() error {
 	}
 
 	// Clean up all dep config map
-	list, err := operator.ClientInner.GetConfigMaps()
+	list, err := operator.ClientInner.ListConfigMaps()
 	if err != nil {
 		return err
 	}

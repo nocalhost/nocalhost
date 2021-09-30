@@ -144,6 +144,25 @@ func (d *DaemonClient) SendGetDaemonServerInfoCommand() (*daemon_common.DaemonSe
 	return daemonServerInfo, err
 }
 
+func (d *DaemonClient) SendCheckClusterStatusCommand(kubeContent string) (*daemon_common.CheckClusterStatus, error) {
+	cmd := &command.CheckClusterStatusCommand{
+		CommandType:       command.CheckClusterStatus,
+		ClientStack:       string(debug.Stack()),
+		KubeConfigContent: kubeContent,
+	}
+
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+
+	r := &daemon_common.CheckClusterStatus{}
+	if err := d.sendAndWaitForResponse(bys, r); err != nil {
+		return nil, err
+	}
+	return r, err
+}
+
 // SendRestartDaemonServerCommand
 // This command tells DaemonServer to run a newer version(by sub progress) with nhctl binary
 // in ClientPath and then stops itself.
@@ -227,7 +246,7 @@ func (d *DaemonClient) SendGetApplicationMetasCommand(ns, kubeConfig string) ([]
 }
 
 func (d *DaemonClient) SendStartPortForwardCommand(
-	nhSvc *model.NocalHostResource, localPort, remotePort int, role string,
+	nhSvc *model.NocalHostResource, localPort, remotePort int, role, nid string,
 ) error {
 
 	startPFCmd := &command.PortForwardCommand{
@@ -242,6 +261,7 @@ func (d *DaemonClient) SendStartPortForwardCommand(
 		LocalPort:   localPort,
 		RemotePort:  remotePort,
 		Role:        role,
+		Nid:         nid,
 	}
 
 	bys, err := json.Marshal(startPFCmd)
@@ -260,6 +280,7 @@ func (d *DaemonClient) SendStopPortForwardCommand(nhSvc *model.NocalHostResource
 		ClientStack: string(debug.Stack()),
 
 		NameSpace:   nhSvc.NameSpace,
+		Nid:         nhSvc.Nid,
 		AppName:     nhSvc.Application,
 		Service:     nhSvc.Service,
 		ServiceType: nhSvc.ServiceType,
@@ -336,6 +357,23 @@ func (d *DaemonClient) SendUpdateApplicationMetaCommand(
 		return false, err
 	}
 	return true, nil
+}
+
+// SendKubeconfigOperationCommand send add/remove kubeconfig request to daemon
+func (d *DaemonClient) SendKubeconfigOperationCommand(kubeconfigBytes []byte, ns string, operation command.Operation) error {
+	cmd := &command.KubeconfigOperationCommand{
+		CommandType: command.KubeconfigOperation,
+		ClientStack: string(debug.Stack()),
+
+		KubeConfigBytes: kubeconfigBytes,
+		Namespace:       ns,
+		Operation:       operation,
+	}
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	return d.sendDataToDaemonServer(bys)
 }
 
 // sendDataToDaemonServer send data only to daemon

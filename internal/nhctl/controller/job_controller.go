@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -70,7 +70,7 @@ func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOpt
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		j.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass)
+		j.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass)
 	if err != nil {
 		return err
 	}
@@ -152,8 +152,12 @@ func findContainerInJobSpec(job *batchv1.Job, containerName string) (*corev1.Con
 		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
 	} else {
 		if len(job.Spec.Template.Spec.Containers) > 1 {
-			return nil, errors.New(fmt.Sprintf("There are more than one container defined," +
-				"please specify one to start developing"))
+			return nil, errors.New(
+				fmt.Sprintf(
+					"There are more than one container defined," +
+						"please specify one to start developing",
+				),
+			)
 		}
 		if len(job.Spec.Template.Spec.Containers) == 0 {
 			return nil, errors.New("No container defined ???")

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"net"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
@@ -53,6 +54,17 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 	log.UseBulk(true)
 	log.Log("Starting daemon server...")
+
+	k8s_runtime.ErrorHandlers = append(
+		k8s_runtime.ErrorHandlers, func(err error) {
+			if strings.Contains(err.Error(), "watch") {
+				log.Tracef("[RuntimeErrorHandler] %s", err.Error())
+			} else {
+				log.ErrorE(errors.Wrap(err, ""), fmt.Sprintf("[RuntimeErrorHandler] Stderr: %s", err.Error()))
+			}
+		},
+	)
+
 	startUpPath, _ = utils.GetNhctlPath()
 
 	version = v
@@ -72,10 +84,11 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		appmeta_manager.Init()
 		appmeta_manager.RegisterListener(
 			func(pack *appmeta_manager.ApplicationEventPack) error {
-				kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
-				if err != nil {
-					return nil
-				}
+				//kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
+				//if err != nil {
+				//	return nil
+				//}
+				kubeconfig := nocalhost.GetOrGenKubeConfigPath(string(pack.KubeConfigBytes))
 				nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, true)
 				if err != nil {
 					return nil
@@ -138,13 +151,11 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 			go func() {
 				defer func() {
 					_ = conn.Close()
-					if r := recover(); r != nil {
-						log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
-					}
+					RecoverDaemonFromPanic()
 				}()
 				start := time.Now()
 
-				log.Trace("Reading data...")
+				//log.Trace("Reading data...")
 				errChan := make(chan error, 1)
 				bytesChan := make(chan []byte, 1)
 
@@ -185,6 +196,8 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 	// Listen http
 	go startHttpServer()
+
+	go checkClusterStatusCronJob()
 
 	go func() {
 		select {
@@ -247,7 +260,6 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				if err = handleStartPortForwardCommand(startCmd); err != nil {
 					return nil, err
 				}
-
 				return nil, nil
 			},
 		)
@@ -363,6 +375,23 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				), nil
 			},
 		)
+
+	case command.KubeconfigOperation:
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			cmd := &command.KubeconfigOperationCommand{}
+			if err = json.Unmarshal(bys, cmd); err != nil {
+				return nil, errors.Wrap(err, "")
+			}
+			return nil, daemon_handler.HandleKubeconfigOperationRequest(cmd)
+		})
+	case command.CheckClusterStatus:
+		err = Process(conn, func(conn net.Conn) (interface{}, error) {
+			cmd := &command.CheckClusterStatusCommand{}
+			if err = json.Unmarshal(bys, cmd); err != nil {
+				return nil, errors.Wrap(err, "")
+			}
+			return HandleCheckClusterStatus(cmd)
+		})
 	}
 	if err != nil {
 		log.LogE(err)
@@ -455,4 +484,10 @@ func handleStopPortForwardCommand(cmd *command.PortForwardCommand) error {
 // If a port-forward already exist, skip it(don't do anything), and return an error
 func handleStartPortForwardCommand(startCmd *command.PortForwardCommand) error {
 	return pfManager.StartPortForwardGoRoutine(startCmd, true)
+}
+
+func RecoverDaemonFromPanic() {
+	if r := recover(); r != nil {
+		log.Errorf("DAEMON-RECOVER: %s", string(debug.Stack()))
+	}
 }

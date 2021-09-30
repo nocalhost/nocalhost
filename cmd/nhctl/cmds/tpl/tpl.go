@@ -123,7 +123,7 @@ containers:
 
 		# develop container image
 		# type: string
-		# default value: codingcorp-docker.pkg.coding.net/nocalhost/dev-images/golang:latest
+		# default value: nocalhost-docker.pkg.coding.net/nocalhost/dev-images/golang:latest
 		# required
 		image: java:8-jdk
 

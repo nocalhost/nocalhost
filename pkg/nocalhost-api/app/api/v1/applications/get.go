@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package applications
 
@@ -213,6 +213,7 @@ func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, er
 	}
 
 	// userId, _ := c.Get("userId")
+	isadmin := ginbase.IsAdmin(c)
 	lists, err := service.Svc.ApplicationSvc().GetList(c, nil)
 	if err != nil {
 		log.Warnf("get Application err: %v", err)
@@ -224,24 +225,28 @@ func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, er
 		_, ok := set[app.ID]
 
 		// public
-		if app.Public == 1 ||
+		/*if app.Public == 1 ||
 
-			// creator
-			app.UserId == userId ||
+		// creator
+		app.UserId == userId ||
 
-			// has permission
-			ok {
-			var applicationContext ApplicationJsonContext
-			err := json.Unmarshal([]byte(app.Context), &applicationContext)
-			if err != nil {
-				continue
-			}
-			applicationType := getApplicationType(applicationContext.ApplicationSource, applicationContext.ApplicationInstallType)
-			currentUser, _ := ginbase.LoginUser(c)
-			app.FillEditable(ginbase.IsAdmin(c), currentUser)
-			app.FillApplicationType(applicationType)
-			result = append(result, app)
+		// has permission
+		ok*/
+		// admin can see all, owner can see public and mine
+		if !isadmin && app.Public != 1 && app.UserId != userId && !ok {
+			continue
 		}
+		var applicationContext ApplicationJsonContext
+		err := json.Unmarshal([]byte(app.Context), &applicationContext)
+		if err != nil {
+			continue
+		}
+		applicationType := getApplicationType(applicationContext.ApplicationSource, applicationContext.ApplicationInstallType)
+		currentUser, _ := ginbase.LoginUser(c)
+		app.FillEditable(ginbase.IsAdmin(c), currentUser)
+		app.FillApplicationType(applicationType)
+		result = append(result, app)
+		//}
 	}
 
 	return result, nil

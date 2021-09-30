@@ -55,7 +55,7 @@ func init() {
 		&devStartOps.Container, "container", "c", "",
 		"container to develop",
 	)
-	devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory")
+	//devStartCmd.Flags().StringVar(&devStartOps.WorkDir, "work-dir", "", "container's work directory")
 	devStartCmd.Flags().StringVar(&devStartOps.StorageClass, "storage-class", "", "StorageClass used by PV")
 	devStartCmd.Flags().StringVar(
 		&devStartOps.PriorityClass, "priority-class", "", "PriorityClass used by devContainer",
@@ -169,12 +169,12 @@ func recordingProfile() {
 						),
 					)
 				}
-				if devStartOps.WorkDir != "" {
-					svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).WorkDir = devStartOps.WorkDir
-				}
-				if devStartOps.DevImage != "" {
-					svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).Image = devStartOps.DevImage
-				}
+				//if devStartOps.WorkDir != "" {
+				//	svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).WorkDir = devStartOps.WorkDir
+				//}
+				//if devStartOps.DevImage != "" {
+				//	svcProfile.GetContainerDevConfigOrDefault(devStartOps.Container).Image = devStartOps.DevImage
+				//}
 				if len(devStartOps.LocalSyncDir) == 1 {
 					svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 				} else {
@@ -197,7 +197,7 @@ func loadLocalOrCmConfigIfValid() {
 		nocalhostSvc.AppName,
 		nocalhostSvc.Type,
 		nocalhostSvc.Name,
-		container,
+		devStartOps.Container,
 	)
 
 	switch len(devStartOps.LocalSyncDir) {
@@ -235,13 +235,13 @@ func stopPreviousSyncthing() {
 
 func startSyncthing(podName, container string, resume bool) {
 	if resume {
-		StartSyncthing(podName, true, false, container, false, false)
+		StartSyncthing(podName, true, false, container, nil, false)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync resumed")
 		}()
 	} else {
-		StartSyncthing(podName, false, false, container, false, false)
+		StartSyncthing(podName, false, false, container, nil, false)
 		defer func() {
 			fmt.Println()
 			coloredoutput.Success("File sync started")

@@ -7,26 +7,33 @@ set -eu -o pipefail
 
 TMP_VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/\(.*\)-.*/\1/' | sed 's/-[0-9]*$//' || true)}
 TMP_GITCOMMIT=$(git describe --match=NeVeRmAtCh --always --abbrev=40)
-rm -fr syncthing || true
-git clone --depth 1 https://github.com/nocalhost/syncthing.git
-cd syncthing
-go run build.go -nocalhostVersion="${TMP_VERSION}" -nocalhostCommitId="${TMP_GITCOMMIT}" -goarch amd64 -goos darwin zip || true
-unzip syncthing-macos-amd64.zip || true
-#expand syncthing-macos-amd64.zip || true
 
-#copy syncthing-macos-amd64/syncthing ./../internal/nhctl/syncthing/bin/syncthing_macos_amd64 || true
-mv syncthing-macos-amd64/syncthing ./../internal/nhctl/syncthing/bin/syncthing_macos_amd64 || true
+TMP_TAG=$(git tag -l --sort=v:refname | tail -1)
 
-filesize=$(ls -l ./../internal/nhctl/syncthing/bin/syncthing_macos_amd64 | awk '{ print $5 }')
+if [ -z "${GITHUB_ACTION:-}" ]; then
+  for version in $TMP_GITCOMMIT $TMP_TAG; do
+    echo "version: ""$version"
+    curl -fL "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=""$version" -o syncthing-macos-amd64.zip --retry 5 || true
+    if [[ -e "syncthing-macos-amd64.zip" ]]; then
+      filesize=$(ls -l syncthing-macos-amd64.zip | awk '{ print $5 }')
+      minsize=$((1024 * 1024 * 5))
+      if [ "$filesize" -gt $minsize ]; then
+        break
+      fi
+    fi
+  done
+fi
+rm -fr syncthing-macos-amd64
+unzip syncthing-macos-amd64.zip
+mv syncthing-macos-amd64/syncthing ./internal/nhctl/syncthing/bin/syncthing_macos_amd64
+rm -fr syncthing-macos-amd64 syncthing-macos-amd64.zip
+
+filesize=$(ls -l ./internal/nhctl/syncthing/bin/syncthing_macos_amd64 | awk '{ print $5 }')
 minsize=$((1024 * 1024 * 10))
 if [ "$filesize" -lt $minsize ]; then
   echo "$filesize < $minsize, syncthing binary is less than 10M, it's not available"
   exit 1
 fi
-
-cd ..
-rm -fr syncthing || true
-#rmdir /s/q syncthing || true
 
 export GOOS=darwin
 export GOARCH=amd64

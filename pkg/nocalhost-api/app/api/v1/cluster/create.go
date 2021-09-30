@@ -80,7 +80,7 @@ func Create(c *gin.Context) {
 	//has checkout this condition and will exit
 	// 2. use admin Kubeconfig create configmap for nocalhost-dep-job to create admission webhook cert
 	// 3. deploy nocalhost-dep-job and pull on nocalhost-dep
-	// see https://codingcorp.coding.net/p/nocalhost/wiki/115
+	// see https://nocalhost.coding.net/p/nocalhost/wiki/115
 	clusterSetUp := setupcluster.NewSetUpCluster(goClient)
 
 	clusterInfo, err, errRes := clusterSetUp.InitCluster("")

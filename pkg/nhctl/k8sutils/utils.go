@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package k8sutils
 
@@ -110,7 +110,10 @@ func WaitResource(client *kubernetes.Clientset, g cache.Getter, namespace string
 
 	groupResources, _ := restmapper.GetAPIGroupResources(client)
 	mapper := restmapper.NewDiscoveryRESTMapper(groupResources)
-	restMapping, _ := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	restMapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return err
+	}
 
 	watchlist := cache.NewFilteredListWatchFromClient(
 		g,

@@ -26,7 +26,8 @@ func (c *Controller) GetDevContainerEnv(container string) *ContainerDevEnv {
 	// Find service env
 	devEnv := make([]*profile.Env, 0)
 	kvMap := make(map[string]string, 0)
-	serviceConfig, _ := c.GetProfile()
+	//serviceConfig, _ := c.GetProfile()
+	serviceConfig, _ := c.GetConfig()
 	for _, v := range serviceConfig.ContainerConfigs {
 		if v.Name == container || container == "" {
 			// Env has a higher priority than envFrom
@@ -47,7 +48,7 @@ func (c *Controller) GetDevContainerEnv(container string) *ContainerDevEnv {
 
 func (c *Controller) GetDevSidecarImage(container string) string {
 	// Find service env
-	serviceConfig, _ := c.GetProfile()
+	serviceConfig, _ := c.GetConfig()
 	for _, v := range serviceConfig.ContainerConfigs {
 		if v.Name == container || container == "" {
 			// Env has a higher priority than envFrom
@@ -298,14 +299,6 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 	return volumes, volumeMounts, nil
 }
 
-func (c *Controller) GetPersistentVolumeDirs(container string) []*profile.PersistentVolumeDir {
-	svcProfile, _ := c.GetProfile()
-	if svcProfile != nil {
-		return svcProfile.GetContainerDevConfigOrDefault(container).PersistentVolumeDirs
-	}
-	return nil
-}
-
 // Initial a pvc for persistent volume dir, and waiting util pvc succeed to bound to a pv
 // If pvc failed to bound to a pv, the pvc will been deleted, and return nil
 func (c *Controller) createPvcForPersistentVolumeDir(
@@ -406,9 +399,17 @@ func (c *Controller) genResourceReq(container string) *corev1.ResourceRequiremen
 		requirements *corev1.ResourceRequirements
 	)
 
-	svcProfile, _ := c.GetProfile()
-	resourceQuota := svcProfile.GetContainerDevConfigOrDefault(container).DevContainerResources
+	svcProfile, _ := c.GetConfig()
+	if svcProfile == nil {
+		return requirements
+	}
 
+	containerConfig := svcProfile.GetContainerDevConfigOrDefault(container)
+	if containerConfig == nil {
+		return requirements
+	}
+
+	resourceQuota := containerConfig.DevContainerResources
 	if resourceQuota != nil {
 		log.Debug("DevContainer uses resource limits defined in config")
 		requirements, err = convertResourceQuota(resourceQuota)
@@ -501,7 +502,7 @@ func findDevPod(podList []corev1.Pod) (string, error) {
 }
 
 func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
-	containerName, storageClass string) (*corev1.Container, *corev1.Container, []corev1.Volume, error) {
+	containerName, devImage, storageClass string) (*corev1.Container, *corev1.Container, []corev1.Volume, error) {
 
 	devModeVolumes := make([]corev1.Volume, 0)
 	devModeMounts := make([]corev1.VolumeMount, 0)
@@ -522,7 +523,10 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	devModeMounts = append(devModeMounts, workDirAndPersistVolumeMounts...)
 
 	workDir := c.GetWorkDir(containerName)
-	devImage := c.GetDevImage(containerName) // Default : replace the first container
+
+	if devImage == "" {
+		devImage = c.GetDevImage(containerName) // Default : replace the first container
+	}
 
 	sideCarContainer := generateSideCarContainer(c.GetDevSidecarImage(containerName), workDir)
 

@@ -12,13 +12,12 @@ import (
 	"nocalhost/internal/nocalhost-api/cache"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/repository/cluster_user"
-	"time"
 )
 
 type ClusterUserService interface {
 	Create(
 		ctx context.Context, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string,
-		spaceResourceLimit string,
+		spaceResourceLimit string, isBaseName bool,
 	) (model.ClusterUserModel, error)
 	CreateClusterAdminSpace(ctx context.Context, clusterId, userId uint64, spaceName string) (
 		model.ClusterUserModel, error,
@@ -43,6 +42,7 @@ type ClusterUserService interface {
 	ListV2(models model.ClusterUserModel) ([]*model.ClusterUserV2, error)
 	GetCache(id uint64) (model.ClusterUserModel, error)
 	GetCacheByClusterAndNameSpace(clusterId uint64, namespace string) (model.ClusterUserModel, error)
+	//GetAllCache() []model.ClusterUserModel
 }
 
 type clusterUserService struct {
@@ -62,6 +62,34 @@ func (srv *clusterUserService) Evict(id uint64) {
 		_, _ = c.Delete(keyForClusterAndNameSpace(cu.ClusterId, cu.Namespace))
 		_, _ = c.Delete(id)
 	}
+	_, _ = c.Delete("*")
+}
+
+func (srv *clusterUserService) GetAllCache() []model.ClusterUserModel {
+	c := cache.Module(cache.CLUSTER_USER)
+	value, err := c.Value("*")
+
+	resultList := []model.ClusterUserModel{}
+	if err == nil {
+		clusterUserModels := value.Data().([]*model.ClusterUserModel)
+		for _, userModel := range clusterUserModels {
+			resultList = append(resultList, *userModel)
+		}
+		return resultList
+	}
+
+	list, err := srv.clusterUserRepo.GetList(model.ClusterUserModel{})
+	if err != nil {
+		return resultList
+	}
+
+	c.Add("*", cache.OUT_OF_DATE, list)
+	for _, result := range list {
+		c.Add(keyForClusterAndNameSpace(result.ClusterId, result.Namespace), cache.OUT_OF_DATE, result)
+		c.Add(result.ID, cache.OUT_OF_DATE, result)
+		resultList = append(resultList, *result)
+	}
+	return resultList
 }
 
 func (srv *clusterUserService) GetCache(id uint64) (
@@ -81,8 +109,8 @@ func (srv *clusterUserService) GetCache(id uint64) (
 		return model.ClusterUserModel{}, errors.Wrapf(err, "GetCache users_cluster error")
 	}
 
-	c.Add(keyForClusterAndNameSpace(result.ClusterId, result.Namespace), time.Hour, result)
-	c.Add(result.ID, time.Hour, result)
+	c.Add(keyForClusterAndNameSpace(result.ClusterId, result.Namespace), cache.OUT_OF_DATE, result)
+	c.Add(result.ID, cache.OUT_OF_DATE, result)
 	return *result, nil
 }
 
@@ -103,8 +131,8 @@ func (srv *clusterUserService) GetCacheByClusterAndNameSpace(clusterId uint64, n
 		return model.ClusterUserModel{}, errors.Wrapf(err, "GetCache users_cluster error")
 	}
 
-	c.Add(keyForClusterAndNameSpace(result.ClusterId, result.Namespace), time.Hour, result)
-	c.Add(result.ID, time.Hour, result)
+	c.Add(keyForClusterAndNameSpace(result.ClusterId, result.Namespace), cache.OUT_OF_DATE, result)
+	c.Add(result.ID, cache.OUT_OF_DATE, result)
 	return *result, nil
 }
 
@@ -132,6 +160,9 @@ func (srv *clusterUserService) ListV2(models model.ClusterUserModel) (
 		item.ClusterId = userModel.ClusterId
 		item.SpaceResourceLimit = userModel.SpaceResourceLimit
 		item.CreatedAt = userModel.CreatedAt
+		item.BaseDevSpaceId = userModel.BaseDevSpaceId
+		item.IsBaseSpace = userModel.IsBaseSpace
+		item.TraceHeader = userModel.TraceHeader
 		result = append(result, item)
 	}
 	return result, nil
@@ -198,7 +229,7 @@ func (srv *clusterUserService) GetFirst(ctx context.Context, models model.Cluste
 
 func (srv *clusterUserService) Create(
 	ctx context.Context, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string,
-	spaceResourceLimit string,
+	spaceResourceLimit string, isBaseName bool,
 ) (model.ClusterUserModel, error) {
 	c := model.ClusterUserModel{
 
@@ -210,6 +241,7 @@ func (srv *clusterUserService) Create(
 		Namespace:          devNameSpace,
 		SpaceName:          spaceName,
 		SpaceResourceLimit: spaceResourceLimit,
+		IsBaseSpace:        isBaseName,
 	}
 	result, err := srv.clusterUserRepo.Create(c)
 	if err != nil {
