@@ -47,7 +47,7 @@ const (
 
 	DevWorkloadIgnored = "nocalhost.dev.workload.ignored"
 
-	NocalhostCmLabelKey = "dep-management"
+	NocalhostCmLabelKey   = "dep-management"
 	NocalhostCmLabelValue = "nocalhost"
 
 	NocalhostRoleBindingLabelKey = "owner"
@@ -62,4 +62,7 @@ const (
 
 	NocalhostViewerRoleBinding = "nocalhost-viewer-role-binding"
 	NocalhostViewerRoleName    = "nocalhost-viewer-role"
+
+	HPAOriginalMaxReplicasKey = "nocalhost.dev.hpa.origin.max.replicas"
+	HPAOriginalMinReplicasKey = "nocalhost.dev.hpa.origin.min.replicas"
 )

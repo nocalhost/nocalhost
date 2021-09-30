@@ -5,20 +5,22 @@
 
 package controller
 
-import "k8s.io/apimachinery/pkg/fields"
+import (
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	"k8s.io/apimachinery/pkg/fields"
+)
 
-func (c *Controller) GetHpa() error {
+func (c *Controller) ListHPA() ([]autoscalingv1.HorizontalPodAutoscaler, error) {
 	typeMeta, err := c.GetTypeMeta()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	c.Client.FieldSelector(
+	return c.Client.FieldSelector(
 		fields.AndSelectors(
 			fields.OneTermEqualSelector("spec.scaleTargetRef.apiVersion", typeMeta.APIVersion),
 			fields.OneTermEqualSelector("spec.scaleTargetRef.kind", typeMeta.Kind),
 			fields.OneTermEqualSelector("spec.scaleTargetRef.name", c.Name),
 		).String(),
-	)
-
+	).ListHPA()
 }

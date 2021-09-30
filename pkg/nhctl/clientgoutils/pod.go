@@ -36,10 +36,14 @@ func (c *ClientGoUtils) ListPods() ([]corev1.Pod, error) {
 		return nil, errors.Wrap(err, "")
 	}
 	result := make([]corev1.Pod, 0)
-	for _, pod := range pods.Items {
-		if pod.DeletionTimestamp == nil {
-			result = append(result, pod)
+	if !c.includeDeletedResources {
+		for _, pod := range pods.Items {
+			if pod.DeletionTimestamp == nil {
+				result = append(result, pod)
+			}
 		}
+	} else {
+		result = pods.Items
 	}
 	return result, nil
 }

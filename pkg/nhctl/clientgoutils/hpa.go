@@ -12,6 +12,12 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
+func (c *ClientGoUtils) UpdateHPA(hpa *autoscalingv1.HorizontalPodAutoscaler) (*autoscalingv1.HorizontalPodAutoscaler, error) {
+	hpa2, err := c.ClientSet.AutoscalingV1().HorizontalPodAutoscalers(c.namespace).
+		Update(c.ctx, hpa, metav1.UpdateOptions{})
+	return hpa2, errors.Wrap(err, "")
+}
+
 func (c *ClientGoUtils) ListHPA() ([]autoscalingv1.HorizontalPodAutoscaler, error) {
 	ops := metav1.ListOptions{}
 	if len(c.labels) > 0 {
@@ -22,10 +28,14 @@ func (c *ClientGoUtils) ListHPA() ([]autoscalingv1.HorizontalPodAutoscaler, erro
 		return nil, errors.Wrap(err, "")
 	}
 	result := make([]autoscalingv1.HorizontalPodAutoscaler, 0)
-	for _, hpa := range hpaList.Items {
-		if hpa.DeletionTimestamp == nil {
-			result = append(result, hpa)
+	if !c.includeDeletedResources {
+		for _, hpa := range hpaList.Items {
+			if hpa.DeletionTimestamp == nil {
+				result = append(result, hpa)
+			}
 		}
+	} else {
+		result = hpaList.Items
 	}
 	return result, nil
 }
