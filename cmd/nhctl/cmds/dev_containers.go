@@ -6,9 +6,10 @@
 package cmds
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/api/core/v1"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -40,20 +41,19 @@ var devContainersCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
-		if pod == "" {
-			podList, err := nocalhostSvc.BuildPodController().GetPodList()
-			must(err)
-			var runningPod = make([]v1.Pod, 0, 1)
-			for _, item := range podList {
-				if item.Status.Phase == v1.PodRunning && item.DeletionTimestamp == nil {
-					runningPod = append(runningPod, item)
-				}
-			}
-			if len(runningPod) != 1 {
-				log.Fatal("Pod num is not 1, please specify one")
-			}
-			pod = runningPod[0].Name
+		containerList, err := nocalhostSvc.GetOriginalContainers()
+		must(err)
+		var containers = make([]string, 0)
+		for _, item := range containerList {
+			containers = append(containers, item.Name)
 		}
-		must(nocalhostSvc.EnterPodTerminal(pod, container, shell))
+		if len(containers) == 0 {
+			log.Fatal("Container num is not 0??")
+		}
+		c, err := json.Marshal(containers)
+		if err != nil {
+			log.FatalE(err, "")
+		}
+		fmt.Println(string(c))
 	},
 }

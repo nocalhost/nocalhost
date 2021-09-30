@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	v1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common/base"
@@ -151,11 +152,27 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 		if err != nil {
 			return nil, err
 		}
+		if len(j.Annotations) > 0 {
+			if osj, ok := j.Annotations[OriginSpecJson]; ok {
+				j.Spec = batchv1beta1.CronJobSpec{}
+				if err = json.Unmarshal([]byte(osj), &j.Spec); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+			}
+		}
 		podSpec = j.Spec.JobTemplate.Spec.Template.Spec
 	case base.Pod:
 		p, err := c.Client.GetPod(c.Name)
 		if err != nil {
 			return nil, err
+		}
+		if len(p.Annotations) > 0 {
+			if osj, ok := p.Annotations[OriginSpecJson]; ok {
+				p.Spec = v1.PodSpec{}
+				if err = json.Unmarshal([]byte(osj), &p.Spec); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+			}
 		}
 		podSpec = p.Spec
 	}
