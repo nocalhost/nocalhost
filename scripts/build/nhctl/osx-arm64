@@ -37,6 +37,8 @@ fi
 
 source ./scripts/build/nhctl/.variables
 
+export GOOS=darwin
+export GOARCH=arm64
 # Override TARGET
 TARGET="build/nhctl-$GOOS-$GOARCH"
 
