@@ -276,8 +276,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			}()
 
 			select {
-			case err := <-errCh:
-				if err != nil && k8serrors.IsNotFound(err) {
+			case errs := <-errCh:
+				if errs != nil && k8serrors.IsNotFound(errs) {
 					log.Logf("Pod: %s not found, remove port-forward for this pod", startCmd.PodName)
 					p.lock.Lock()
 					err2 := nhController.UpdatePortForwardStatus(localPort, remotePort, "DISCONNECTED",

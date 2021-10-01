@@ -427,25 +427,28 @@ func (pf *PortForwarder) GetPorts() ([]ForwardedPort, error) {
 }
 
 func (pf *PortForwarder) tryToCreateStream(header *http.Header) (httpstream.Stream, error) {
-	errorChan := make(chan error)
+	errorChan := make(chan error, 2)
 	resultChan := make(chan httpstream.Stream)
 	time.AfterFunc(time.Second*1, func() {
 		errorChan <- errors.New("timeout")
 	})
 	go func() {
-		stream, err := pf.streamConn.CreateStream(*header)
-		if err == nil {
-			errorChan <- nil
-			resultChan <- stream
-		} else {
-			errorChan <- err
+		if pf.streamConn != nil {
+			if stream, err := pf.streamConn.CreateStream(*header); err == nil && stream != nil {
+				errorChan <- nil
+				resultChan <- stream
+				return
+			}
 		}
+		errorChan <- errors.New("")
 	}()
 	if err := <-errorChan; err == nil {
 		return <-resultChan, nil
 	}
 	// close old connection in case of resource leak
-	_ = pf.streamConn.Close()
+	if pf.streamConn != nil {
+		_ = pf.streamConn.Close()
+	}
 	var err error
 	pf.streamConn, _, err = pf.dialer.Dial(portforward.PortForwardProtocolV1Name)
 	if err != nil {
