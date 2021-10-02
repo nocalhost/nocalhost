@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"k8s.io/api/core/v1"
@@ -431,7 +432,7 @@ func (pf *PortForwarder) GetPorts() ([]ForwardedPort, error) {
 
 func (pf *PortForwarder) tryToCreateStream(header *http.Header) (httpstream.Stream, error) {
 	errorChan := make(chan error, 2)
-	resultChan := make(chan httpstream.Stream)
+	var resultChan atomic.Value
 	time.AfterFunc(time.Second*1, func() {
 		errorChan <- errors.New("timeout")
 	})
@@ -439,14 +440,14 @@ func (pf *PortForwarder) tryToCreateStream(header *http.Header) (httpstream.Stre
 		if pf.streamConn != nil {
 			if stream, err := pf.streamConn.CreateStream(*header); err == nil && stream != nil {
 				errorChan <- nil
-				resultChan <- stream
+				resultChan.Store(stream)
 				return
 			}
 		}
 		errorChan <- errors.New("")
 	}()
-	if err := <-errorChan; err == nil {
-		return <-resultChan, nil
+	if err := <-errorChan; err == nil && resultChan.Load() != nil {
+		return resultChan.Load().(httpstream.Stream), nil
 	}
 	// close old connection in case of resource leak
 	if pf.streamConn != nil {
