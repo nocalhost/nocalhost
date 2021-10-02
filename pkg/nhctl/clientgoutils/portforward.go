@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/tools/portforward"
 	"net"
 	"net/http"
@@ -31,9 +32,10 @@ const PortForwardProtocolV1Name = "portforward.k8s.io"
 // PortForwarder knows how to listen for local connections and forward them to
 // a remote pod via an upgraded HTTP request.
 type PortForwarder struct {
-	addresses []listenAddress
-	ports     []ForwardedPort
-	stopChan  <-chan struct{}
+	addresses       []listenAddress
+	ports           []ForwardedPort
+	stopChan        <-chan struct{}
+	podNotFoundChan chan struct{}
 
 	dialer        httpstream.Dialer
 	streamConn    httpstream.Connection
@@ -164,13 +166,14 @@ func NewOnAddresses(dialer httpstream.Dialer, addresses []string, ports []string
 		return nil, err
 	}
 	return &PortForwarder{
-		dialer:    dialer,
-		addresses: parsedAddresses,
-		ports:     parsedPorts,
-		stopChan:  stopChan,
-		Ready:     readyChan,
-		out:       out,
-		errOut:    errOut,
+		dialer:          dialer,
+		addresses:       parsedAddresses,
+		ports:           parsedPorts,
+		stopChan:        stopChan,
+		podNotFoundChan: make(chan struct{}, 1),
+		Ready:           readyChan,
+		out:             out,
+		errOut:          errOut,
 	}, nil
 }
 
@@ -220,8 +223,8 @@ func (pf *PortForwarder) forward() error {
 	// wait for interrupt or conn closure
 	select {
 	case <-pf.stopChan:
-		//case <-pf.streamConn.CloseChan():
-		//	runtime.HandleError(errors.New("lost connection to pod"))
+	case <-pf.podNotFoundChan:
+		runtime.HandleError(errors.New("lost connection to pod"))
 	}
 
 	return nil
@@ -452,7 +455,12 @@ func (pf *PortForwarder) tryToCreateStream(header *http.Header) (httpstream.Stre
 	var err error
 	pf.streamConn, _, err = pf.dialer.Dial(portforward.PortForwardProtocolV1Name)
 	if err != nil {
-		runtime.HandleError(fmt.Errorf("error upgrading connection: %s", err))
+		if k8serrors.IsNotFound(err) {
+			runtime.HandleError(fmt.Errorf("pod not found: %s", err))
+			close(pf.podNotFoundChan)
+		} else {
+			runtime.HandleError(fmt.Errorf("error upgrading connection: %s", err))
+		}
 		return nil, err
 	}
 	header.Set(v1.PortForwardRequestIDHeader, strconv.Itoa(pf.nextRequestID()))
