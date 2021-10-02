@@ -32,10 +32,10 @@ const PortForwardProtocolV1Name = "portforward.k8s.io"
 // PortForwarder knows how to listen for local connections and forward them to
 // a remote pod via an upgraded HTTP request.
 type PortForwarder struct {
-	addresses       []listenAddress
-	ports           []ForwardedPort
-	stopChan        <-chan struct{}
-	podNotFoundChan chan struct{}
+	addresses     []listenAddress
+	ports         []ForwardedPort
+	stopChan      <-chan struct{}
+	innerStopChan chan struct{}
 
 	dialer        httpstream.Dialer
 	streamConn    httpstream.Connection
@@ -166,14 +166,14 @@ func NewOnAddresses(dialer httpstream.Dialer, addresses []string, ports []string
 		return nil, err
 	}
 	return &PortForwarder{
-		dialer:          dialer,
-		addresses:       parsedAddresses,
-		ports:           parsedPorts,
-		stopChan:        stopChan,
-		podNotFoundChan: make(chan struct{}, 1),
-		Ready:           readyChan,
-		out:             out,
-		errOut:          errOut,
+		dialer:        dialer,
+		addresses:     parsedAddresses,
+		ports:         parsedPorts,
+		stopChan:      stopChan,
+		innerStopChan: make(chan struct{}, 1),
+		Ready:         readyChan,
+		out:           out,
+		errOut:        errOut,
 	}, nil
 }
 
@@ -223,7 +223,7 @@ func (pf *PortForwarder) forward() error {
 	// wait for interrupt or conn closure
 	select {
 	case <-pf.stopChan:
-	case <-pf.podNotFoundChan:
+	case <-pf.innerStopChan:
 		runtime.HandleError(errors.New("lost connection to pod"))
 	}
 
@@ -457,7 +457,7 @@ func (pf *PortForwarder) tryToCreateStream(header *http.Header) (httpstream.Stre
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			runtime.HandleError(fmt.Errorf("pod not found: %s", err))
-			close(pf.podNotFoundChan)
+			close(pf.innerStopChan)
 		} else {
 			runtime.HandleError(fmt.Errorf("error upgrading connection: %s", err))
 		}
