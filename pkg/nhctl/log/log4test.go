@@ -30,6 +30,8 @@ func (l *testLogger) Infof(template string, args ...interface{}) {
 
 func AllTestLogsLocations() []string {
 	result := make([]string, 1)
+	initLock.Lock()
+	defer initLock.Unlock()
 	for _, logger := range testLoggerMapping {
 		if logger != nil {
 			result = append(result, dirForTestCaseLog(logger.tag))

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -94,7 +94,7 @@ func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStar
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		j.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass)
+		j.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass)
 	if err != nil {
 		return err
 	}

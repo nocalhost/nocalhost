@@ -149,7 +149,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	}
 
 	// 1. first try load profile from local or earlier version
-	// 2. check should generate secret for adapt earlier version
+	// 2. (x deprecated) check should generate secret for adapt earlier version
 	// 3. try load application meta from secret
 	// 4. update kubeconfig for profile
 	// 5. init go client inner Application
@@ -160,13 +160,13 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 
 	// if appMeta is not installed but application installed in earlier version
 	// should make a fake installation and generate an application meta
-	if app.generateSecretForEarlierVer() {
-
-		// load app meta if generate secret for earlier verion
-		if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
-			return nil, err
-		}
-	}
+	//if app.generateSecretForEarlierVer() {
+	//
+	//	// load app meta if generate secret for earlier verion
+	//	if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
+	//		return nil, err
+	//	}
+	//}
 
 	if !app.appMeta.IsInstalled() {
 		return nil, errors.Wrap(ErrNotFound, fmt.Sprintf("%s-%s not found", app.NameSpace, app.Name))
@@ -954,13 +954,13 @@ func (a *Application) PortForwardAPod(req clientgoutils.PortForwardAPodRequest) 
 }
 
 func (a *Application) PortForward(pod string, localPort, remotePort int, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) error {
-	return a.client.Forward(pod, localPort, remotePort, readyChan, stopChan, g)
+	return a.client.ForwardPortForwardByPod(pod, localPort, remotePort, readyChan, stopChan, g)
 }
 
 // set pid file empty
-func (a *Application) SetPidFileEmpty(filePath string) error {
-	return os.Remove(filePath)
-}
+//func (a *Application) SetPidFileEmpty(filePath string) error {
+//	return os.Remove(filePath)
+//}
 
 func (a *Application) CleanUpTmpResources() error {
 	log.Log("Clean up tmp resources...")

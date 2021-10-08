@@ -47,10 +47,10 @@ func init() {
 		&serviceType, "controller-type", "t", "",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
-	//devStartCmd.Flags().StringVarP(
-	//	&devStartOps.DevImage, "image", "i", "",
-	//	"image of DevContainer",
-	//)
+	devStartCmd.Flags().StringVarP(
+		&devStartOps.DevImage, "image", "i", "",
+		"image of DevContainer",
+	)
 	devStartCmd.Flags().StringVarP(
 		&devStartOps.Container, "container", "c", "",
 		"container to develop",
@@ -197,7 +197,7 @@ func loadLocalOrCmConfigIfValid() {
 		nocalhostSvc.AppName,
 		nocalhostSvc.Type,
 		nocalhostSvc.Name,
-		container,
+		devStartOps.Container,
 	)
 
 	switch len(devStartOps.LocalSyncDir) {

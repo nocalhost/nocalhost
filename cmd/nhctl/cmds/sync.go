@@ -120,13 +120,8 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	// Start a pf for syncthing
 	must(nocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC"))
 
-	// kill syncthing process by find find it with terminal
 	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
-	//if utils.IsWindows() {
-	//	utils2.KillSyncthingProcessOnWindows(str)
-	//} else {
-	//	utils2.KillSyncthingProcessOnUnix(str)
-	//}
+	
 	utils2.KillSyncthingProcess(str)
 
 	if syncDouble == nil {

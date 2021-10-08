@@ -8,17 +8,78 @@ package clientgoutils
 import (
 	"fmt"
 	"github.com/pkg/errors"
-	"io/ioutil"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"net/http"
-
-	"k8s.io/client-go/tools/portforward"
+	portforward2 "k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
+	"k8s.io/kubectl/pkg/cmd/portforward"
+	"net/http"
+	"net/url"
 )
 
 type ForwardPort struct {
 	LocalPort  int
 	RemotePort int
+}
+
+type PortForwardFlags struct {
+	ResourcesName string // eg: "pod/pod-01", "deployment/d1"
+	ForwardPort   string // eg: 1110:1110, :1234
+	Streams       genericclioptions.IOStreams
+	StopChannel   chan struct{}
+	ReadyChannel  chan struct{}
+}
+
+type clientgoPortForwarder struct {
+	genericclioptions.IOStreams
+}
+
+func (f *clientgoPortForwarder) ForwardPorts(method string, url *url.URL, opts portforward.PortForwardOptions) error {
+	transport, upgrader, err := spdy.RoundTripperFor(opts.Config)
+	if err != nil {
+		return err
+	}
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, method, url)
+	fw, err := portforward2.NewOnAddresses(dialer, opts.Address, opts.Ports, opts.StopChannel, opts.ReadyChannel, f.Out, f.ErrOut)
+	if err != nil {
+		return err
+	}
+	return fw.ForwardPorts()
+}
+
+func (c *ClientGoUtils) ForwardPortForwardByPod(pod string, localPort, remotePort int, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) error {
+	return c.PortForward(&PortForwardFlags{
+		ResourcesName: fmt.Sprintf("pod/%s", pod),
+		ForwardPort:   fmt.Sprintf("%d:%d", localPort, remotePort),
+		ReadyChannel:  readyChan,
+		Streams:       g,
+		StopChannel:   stopChan,
+	})
+}
+
+func (c *ClientGoUtils) PortForward(af *PortForwardFlags) error {
+
+	var err error
+	o := &portforward.PortForwardOptions{
+		PortForwarder: &clientgoPortForwarder{
+			IOStreams: af.Streams,
+		},
+	}
+	f := c.NewFactory()
+	pfCmd := portforward.NewCmdPortForward(f, af.Streams)
+	if err = o.Complete(f, pfCmd, []string{af.ResourcesName, af.ForwardPort}); err != nil {
+		return errors.Wrap(err, "")
+	}
+	if af.StopChannel != nil {
+		o.StopChannel = af.StopChannel
+	}
+	if af.ReadyChannel != nil {
+		o.ReadyChannel = af.ReadyChannel
+	}
+	o.Address = []string{"0.0.0.0"}
+	if err = o.Validate(); err != nil {
+		return errors.Wrap(err, "")
+	}
+	return errors.Wrap(o.RunPortForward(), "")
 }
 
 func (c *ClientGoUtils) Forward(pod string, localPort, remotePort int, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) error {
@@ -33,7 +94,7 @@ func (c *ClientGoUtils) Forward(pod string, localPort, remotePort int, readyChan
 	return errors.Wrap(fd.ForwardPorts(), "")
 }
 
-func (c *ClientGoUtils) CreatePortForwarder(pod string, fps []*ForwardPort, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) (*portforward.PortForwarder, error) {
+func (c *ClientGoUtils) CreatePortForwarder(pod string, fps []*ForwardPort, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) (*portforward2.PortForwarder, error) {
 	if fps == nil || len(fps) < 1 {
 		return nil, errors.New("forward ports can not be nil")
 	}
@@ -63,13 +124,13 @@ func (c *ClientGoUtils) CreatePortForwarder(pod string, fps []*ForwardPort, read
 		ports = append(ports, fmt.Sprintf("%d:%d", fp.LocalPort, fp.RemotePort))
 	}
 
-	pf, err := portforward.NewOnAddresses(
+	pf, err := portforward2.NewOnAddresses(
 		dialer,
 		[]string{"0.0.0.0"},
 		ports,
 		stopChan,
 		readyChan,
-		ioutil.Discard,
+		g.Out,
 		g.Out,
 	)
 	if err != nil {
