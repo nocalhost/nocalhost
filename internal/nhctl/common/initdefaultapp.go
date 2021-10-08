@@ -23,7 +23,6 @@ import (
 func InitDefaultApplicationInCurrentNs(appName, namespace, kubeconfigPath string) (*app.Application, error) {
 	var err error
 	meta := appmeta.FakeAppMeta(namespace, appName)
-
 	if err := meta.InitGoClient(kubeconfigPath); err != nil {
 		return nil, err
 	}
