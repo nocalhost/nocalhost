@@ -167,9 +167,9 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 			return nil, err
 		}
 		if len(p.Annotations) > 0 {
-			if osj, ok := p.Annotations[OriginSpecJson]; ok {
+			if osj, ok := p.Annotations[originalPodDefine]; ok {
 				p.Spec = v1.PodSpec{}
-				if err = json.Unmarshal([]byte(osj), &p.Spec); err != nil {
+				if err = json.Unmarshal([]byte(osj), p); err != nil {
 					return nil, errors.Wrap(err, "")
 				}
 			}
