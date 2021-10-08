@@ -29,6 +29,8 @@ const (
 	NocalhostDefaultPriorityclassDefaultValue = 1000000
 	NocalhostDefaultPriorityclassKey          = "--priority-class"
 	NocalhostCreateByLabel                    = "app.kubernetes.io/created-by"
+	NocalhostRegistry                         = "nocalhost-docker.pkg.coding.net"
+	Nocalhostrepository                       = "nocalhost/public/nocalhost-api"
 )
 
 var (
