@@ -386,11 +386,11 @@ func (a *ApplicationMeta) GenerateNidINE() error {
 }
 
 func (a *ApplicationMeta) GetApplicationConfig() *profile2.ApplicationConfig {
-	if a == nil || a.Config == nil || a.Config.ApplicationConfig == nil {
+	if a == nil || a.Config == nil {
 		return &profile2.ApplicationConfig{}
 	}
 
-	return a.Config.ApplicationConfig
+	return &a.Config.ApplicationConfig
 }
 
 func (a *ApplicationMeta) GetClient() *clientgoutils.ClientGoUtils {
@@ -570,7 +570,7 @@ func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType
 func (a *ApplicationMeta) Update() error {
 	return retry.OnError(
 		retry.DefaultRetry, func(err error) bool {
-			return err != nil
+			return err != nil && a.reObtainSecret()
 		}, func() error {
 			a.prepare()
 			secret, err := a.operator.Update(a.Ns, a.Secret)
@@ -587,6 +587,15 @@ func (a *ApplicationMeta) Update() error {
 			return nil
 		},
 	)
+}
+
+func (a *ApplicationMeta) reObtainSecret() bool {
+	if secret, err := a.operator.ReObtainSecret(a.Ns, a.Secret); err != nil {
+		return false
+	} else {
+		a.Secret = secret
+		return true
+	}
 }
 
 func (a *ApplicationMeta) prepare() {
