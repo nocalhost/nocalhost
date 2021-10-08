@@ -241,9 +241,7 @@ func (s *StatefulSetController) Container(containerName string) (*corev1.Contain
 				return &ss.Spec.Template.Spec.Containers[index], nil
 			}
 		}
-		if devContainer == nil {
-			return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
-		}
+		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
 	} else {
 		if len(ss.Spec.Template.Spec.Containers) > 1 {
 			return nil, errors.New(
