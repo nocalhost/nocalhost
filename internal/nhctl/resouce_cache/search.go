@@ -82,7 +82,7 @@ func getSupportedSchema(c *kubernetes.Clientset, mapper meta.RESTMapper) (*sync.
 				gvk := groupVersion.WithKind(resource.Kind)
 				mapping, _ := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 				if mapping == nil {
-					log.Tracef("RESTMapping is nil, gvc is %v", gvk)
+					log.Tracef("RESTMapping is nil, gvk is %v", gvk)
 					continue
 				}
 				nameToMapping[resource.Name] = mapping
