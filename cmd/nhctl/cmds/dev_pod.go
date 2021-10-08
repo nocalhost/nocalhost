@@ -41,6 +41,6 @@ var devPodCmd = &cobra.Command{
 		if err != nil || len(podList) != 1 {
 			return
 		}
-		fmt.Println(podList[0].Name)
+		fmt.Print(podList[0].Name)
 	},
 }
