@@ -38,15 +38,7 @@ func (d *DuplicateDaemonSetController) ReplaceImage(ctx context.Context, ops *mo
 		return err
 	}
 
-	p, err := d.GetAppProfile()
-	if err != nil {
-		return err
-	}
-	if p.Identifier == "" {
-		return errors.New("Identifier can not be nil ")
-	}
-
-	suffix := p.Identifier[0:5]
+	suffix := d.Identifier[0:5]
 	labelsMap, err := d.getDuplicateLabelsMap()
 	if err != nil {
 		return err
@@ -65,6 +57,7 @@ func (d *DuplicateDaemonSetController) ReplaceImage(ctx context.Context, ops *mo
 	generatedDeployment.Spec.Selector = &metav1.LabelSelector{MatchLabels: labelsMap}
 	generatedDeployment.Spec.Template.Labels = labelsMap
 	generatedDeployment.ResourceVersion = ""
+	generatedDeployment.Spec.Template.Spec.NodeName = ""
 
 	devContainer, err := findContainerInDeploySpec(generatedDeployment, ops.Container)
 	if err != nil {
