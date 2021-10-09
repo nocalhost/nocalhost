@@ -570,7 +570,15 @@ func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType
 func (a *ApplicationMeta) Update() error {
 	return retry.OnError(
 		retry.DefaultRetry, func(err error) bool {
-			return err != nil
+			if err != nil {
+				if secret, err := a.operator.ReObtainSecret(a.Ns, a.Secret); err != nil {
+					return false
+				} else {
+					a.Secret = secret
+					return true
+				}
+			}
+			return false
 		}, func() error {
 			a.prepare()
 			secret, err := a.operator.Update(a.Ns, a.Secret)
@@ -587,6 +595,15 @@ func (a *ApplicationMeta) Update() error {
 			return nil
 		},
 	)
+}
+
+func (a *ApplicationMeta) reObtainSecret() bool {
+	if secret, err := a.operator.ReObtainSecret(a.Ns, a.Secret); err != nil {
+		return false
+	} else {
+		a.Secret = secret
+		return true
+	}
 }
 
 func (a *ApplicationMeta) prepare() {
