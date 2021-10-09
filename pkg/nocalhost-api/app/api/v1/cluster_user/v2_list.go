@@ -100,6 +100,11 @@ func ListV2(c *gin.Context) {
 	}
 
 	if result, err := DoList(&cu, userId, isAdmin, params.IsCanBeUsedAsBaseSpace); err != nil {
+		if err == errno.ErrClusterNotFound {
+			log.Error(err)
+			api.SendResponse(c, nil, []model.ClusterUserV2{})
+			return
+		}
 		api.SendResponse(c, err, nil)
 	} else {
 		api.SendResponse(c, nil, result)
