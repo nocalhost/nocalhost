@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package clientgoutils
 
@@ -174,7 +174,7 @@ func (c *ClientGoUtils) GetResourceInfoFromReader(reader io.Reader, continueOnEr
 	validate, err := f.Validator(true)
 	if err != nil {
 		if continueOnError {
-			log.Warnf("Build validator err:", err.Error())
+			log.Warnf("Build validator err: %v", err.Error())
 		} else {
 			return nil, errors.Wrap(err, "")
 		}
