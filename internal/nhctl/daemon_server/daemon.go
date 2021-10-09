@@ -13,16 +13,23 @@ import (
 	"io/ioutil"
 	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"net"
+	"nocalhost/cmd/nhctl/cmds"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_handler"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/internal/nhctl/syncthing/daemon"
+	"nocalhost/internal/nhctl/syncthing/network/req"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	utils2 "nocalhost/pkg/nhctl/utils"
+	"os"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -198,6 +205,37 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	go startHttpServer()
 
 	go checkClusterStatusCronJob()
+
+	go func() {
+		for {
+			//off := flowcontrol.NewBackOff(0*time.Second, 0*time.Second)
+			//retry.OnError()
+			time.Sleep(time.Second * 60)
+			clone := appmeta_manager.GetAllApplicationMetasWithDeepClone()
+			if clone == nil {
+				continue
+			}
+			for _, meta := range clone {
+				if meta.DevMeta == nil {
+					continue
+				}
+				v2, err2 := nocalhost.GetProfileV2(meta.Ns, meta.Application, meta.NamespaceId)
+				if err2 != nil {
+					continue
+				}
+				for svcType, m := range meta.DevMeta {
+					for resourceName, identifier := range m {
+						if v2.Identifier == identifier {
+							status := cmds.SyncStatus(nil, meta.Ns, meta.Application, svcType.String(), resourceName, identifier)
+							if status.Status == req.Disconnected || status.Status == req.End {
+								reconnect("nocalhost-dev")
+							}
+						}
+					}
+				}
+			}
+		}
+	}()
 
 	go func() {
 		select {
@@ -490,4 +528,52 @@ func RecoverDaemonFromPanic() {
 	if r := recover(); r != nil {
 		log.Errorf("DAEMON-RECOVER: %s", string(debug.Stack()))
 	}
+}
+
+func reconnect(container string) error {
+	// resume port-forward and syncthing
+	nocalhostSvc := controller.Controller{}
+	utils.ShouldI(nocalhostSvc.StopFileSyncOnly(), "Error occurs when stopping sync process")
+	podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
+	if err != nil {
+		return err
+	}
+	svcProfile, _ := nocalhostSvc.GetProfile()
+	// Start a pf for syncthing
+	nocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC")
+
+	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
+
+	utils2.KillSyncthingProcess(str)
+
+	flag := false
+	if config, err := nocalhostSvc.GetConfig(); err == nil {
+		if cfg := config.GetContainerDevConfig(container); cfg != nil && cfg.Sync != nil {
+			switch cfg.Sync.Type {
+
+			case syncthing.DefaultSyncMode:
+				flag = true
+
+			default:
+				flag = false
+			}
+		}
+	}
+	syncDouble := &flag
+
+	// Delete service folder
+	dir := nocalhostSvc.GetApplicationSyncDir()
+	if err2 := os.RemoveAll(dir); err2 != nil {
+		log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
+	}
+	newSyncthing, err := nocalhostSvc.NewSyncthing(
+		container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, *syncDouble,
+	)
+	utils.ShouldI(err, "Failed to new syncthing")
+
+	// starts up a local syncthing
+	utils.ShouldI(newSyncthing.Run(context.TODO()), "Failed to run syncthing")
+
+	nocalhostSvc.SetSyncingStatus(true)
+	return nil
 }

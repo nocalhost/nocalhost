@@ -228,3 +228,22 @@ func (s *Supervisor) key(ns string, configBytes []byte) string {
 
 	return fmt.Sprintf("%s[%s]", ns, string(state))
 }
+
+func GetAllApplicationMetasWithDeepClone() []*appmeta.ApplicationMeta {
+	if supervisor == nil {
+		return nil
+	}
+	supervisor.lock.Lock()
+	defer supervisor.lock.Unlock()
+	metas := make([]*appmeta.ApplicationMeta, len(supervisor.deck))
+	for _, watcher := range supervisor.deck {
+		if watcher != nil {
+			for _, meta := range watcher.applicationMetas {
+				if meta != nil {
+					metas = append(metas, meta)
+				}
+			}
+		}
+	}
+	return metas
+}
