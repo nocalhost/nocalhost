@@ -51,10 +51,10 @@ func getServiceProfile(ns, appName, nid string, kubeconfigBytes []byte) map[stri
 func GetDescriptionDaemon(ns, appName, nid string, kubeconfigBytes []byte) *profile.AppProfileV2 {
 	var appProfile *profile.AppProfileV2
 	var err error
-	appProfileCache, found := svcProfileCacheMap.Get(fmt.Sprintf("%s/%s", ns, appName))
+	appProfileCache, found := svcProfileCacheMap.Get(fmt.Sprintf("%s/%s/%s", ns, nid, appName))
 	if !found || appProfileCache == nil {
 		if appProfile, err = nocalhost.GetProfileV2(ns, appName, nid); err == nil {
-			svcProfileCacheMap.Set(fmt.Sprintf("%s/%s", ns, appName), appProfile)
+			svcProfileCacheMap.Set(fmt.Sprintf("%s/%s/%s", ns, nid, appName), appProfile)
 		}
 	} else {
 		appProfile = appProfileCache.(*profile.AppProfileV2)
