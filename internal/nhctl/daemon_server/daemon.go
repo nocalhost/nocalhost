@@ -11,18 +11,24 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"io/ioutil"
-	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
+	k8sruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"net"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
+	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_handler"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/internal/nhctl/syncthing/daemon"
+	"nocalhost/internal/nhctl/syncthing/network/req"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	utils2 "nocalhost/pkg/nhctl/utils"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -55,8 +61,8 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	log.UseBulk(true)
 	log.Log("Starting daemon server...")
 
-	k8s_runtime.ErrorHandlers = append(
-		k8s_runtime.ErrorHandlers, func(err error) {
+	k8sruntime.ErrorHandlers = append(
+		k8sruntime.ErrorHandlers, func(err error) {
 			if strings.Contains(err.Error(), "watch") {
 				log.Tracef("[RuntimeErrorHandler] %s", err.Error())
 			} else {
@@ -204,6 +210,55 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	go startHttpServer()
 
 	go checkClusterStatusCronJob()
+
+	go func() {
+		for {
+			func() {
+				defer RecoverDaemonFromPanic()
+				time.Sleep(time.Second * 30)
+				clone := appmeta_manager.GetAllApplicationMetasWithDeepClone()
+				if clone == nil {
+					return
+				}
+				for _, meta := range clone {
+					if meta == nil || meta.DevMeta == nil {
+						continue
+					}
+					v2, err2 := nocalhost.GetProfileV2(meta.Ns, meta.Application, meta.NamespaceId)
+					if err2 != nil {
+						continue
+					}
+					for svcType, devMeta := range meta.DevMeta {
+						for resourceName, identifier := range devMeta {
+							if strings.Contains(resourceName, appmeta.DEV_STARTING_SUFFIX) {
+								continue
+							}
+							if v2.Identifier == identifier && len(identifier) != 0 {
+								svc := &controller.Controller{
+									NameSpace: meta.Ns,
+									AppName:   meta.Application,
+									Name:      resourceName,
+									Type:      svcType.Origin(),
+									AppMeta:   meta,
+								}
+								status := svc.NewSyncthingHttpClient(2).GetSyncthingStatus()
+								// syncthing status is req.Disconnected, needs to reconnect
+								if status.Status == req.Disconnected {
+									log.LogDebugf("prepare to restore syncthing, name: %s\n", resourceName)
+									// TODO using developing container, otherwise will using default containerDevConfig
+									if err = reconnectSyncthing(svc, ""); err != nil {
+										log.PErrorf(
+											"error while reconnect syncthing, ns: %s, app: %s, svc: %s, type: %s, err: %v",
+											meta.Ns, meta.Application, resourceName, string(svcType), err)
+									}
+								}
+							}
+						}
+					}
+				}
+			}()
+		}
+	}()
 
 	go func() {
 		select {
@@ -496,4 +551,28 @@ func RecoverDaemonFromPanic() {
 	if r := recover(); r != nil {
 		log.Errorf("DAEMON-RECOVER: %s", string(debug.Stack()))
 	}
+}
+
+// reconnectSyncthing will reconnect syncthing without stop port-forward, just kill syncthing process and start a new one
+func reconnectSyncthing(svc *controller.Controller, container string) error {
+	svcProfile, err := svc.GetProfile()
+	if err != nil {
+		return err
+	}
+	// stop syncthing process with pid
+	_ = svc.FindOutSyncthingProcess(func(pid int) error { return syncthing.Stop(pid, true) })
+	// stop syncthing process with keywords
+	str := strings.ReplaceAll(svc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
+	utils2.KillSyncthingProcess(str)
+	flag := false
+	if config, err := svc.GetConfig(); err == nil {
+		if cfg := config.GetContainerDevConfig(container); cfg != nil && cfg.Sync != nil {
+			flag = cfg.Sync.Type == _const.DefaultSyncType
+		}
+	}
+	newSyncthing, err := svc.NewSyncthing(container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, flag)
+	utils.ShouldI(err, "Failed to new a syncthing")
+	// starts up a local syncthing
+	utils.ShouldI(newSyncthing.Run(context.TODO()), "Failed to run a syncthing")
+	return svc.SetSyncingStatus(true)
 }
