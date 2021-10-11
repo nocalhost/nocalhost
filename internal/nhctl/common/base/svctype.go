@@ -30,7 +30,7 @@ func SvcTypeOf(svcType string) SvcType {
 	if svcType != "" {
 		svcTypeLower := strings.ToLower(svcType)
 		switch svcTypeLower {
-		case strings.ToLower(string(Deployment)), strings.ToLower(string(DEPLOYMENT)):
+		case strings.ToLower(string(Deployment)):
 			serviceType = Deployment
 		case strings.ToLower(string(StatefulSet)):
 			serviceType = StatefulSet
