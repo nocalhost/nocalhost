@@ -176,12 +176,10 @@ func (d *DuplicateDeploymentController) RollBack(reset bool) error {
 	}
 	return d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
 		svcProfileV2.DevModeType = ""
-		//svcProfileV2.DuplicateDevMode = false
 		return nil
 	})
 }
 
-// GetPodList todo: Do not list pods already deleted - by hxx
 func (d *DuplicateDeploymentController) GetPodList() ([]corev1.Pod, error) {
 	labelsMap, err := d.getDuplicateLabelsMap()
 	if err != nil {
