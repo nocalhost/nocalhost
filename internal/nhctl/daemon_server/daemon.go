@@ -16,6 +16,7 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_handler"
@@ -566,7 +567,7 @@ func reconnectSyncthing(svc *controller.Controller, container string) error {
 	flag := false
 	if config, err := svc.GetConfig(); err == nil {
 		if cfg := config.GetContainerDevConfig(container); cfg != nil && cfg.Sync != nil {
-			flag = cfg.Sync.Type == syncthing.DefaultSyncMode
+			flag = cfg.Sync.Type == _const.DefaultSyncType
 		}
 	}
 	newSyncthing, err := svc.NewSyncthing(container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, flag)
