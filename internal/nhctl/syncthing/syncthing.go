@@ -45,8 +45,7 @@ const (
 	LogFile          = "syncthing.log"
 	IgnoredFIle      = ".nhignore"
 	syncthingPidFile = "syncthing.pid"
-	DefaultSyncMode  = "sendReceive" // default sync mode
-	SendOnlySyncMode = "sendonly"    // default sync mode
+
 
 	// Use to access syncthing API
 	DefaultAPIKey = "nocalhost"
