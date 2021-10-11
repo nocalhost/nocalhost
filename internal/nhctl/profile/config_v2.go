@@ -16,7 +16,7 @@ import (
 //type SvcType string
 
 var (
-	gitIgnoreMode = "gitIgnore"
+	GitIgnoreMode = "gitIgnore"
 	PatternMode   = "pattern"
 )
 
