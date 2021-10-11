@@ -6,19 +6,45 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/resource"
 	flag "nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/fp"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"os"
 )
+
+// some validation relies on K8s resource, etc.
+// so we should query them first
+// and use os.setEnv to pass those condition
+func (a *Application) PrepareForConfigurationValidate() {
+	client := a.GetClient()
+	if client == nil || client.ClientSet == nil {
+		return
+	}
+
+	if list, err := client.ClientSet.StorageV1().StorageClasses().List(
+		context.TODO(), metav1.ListOptions{},
+	); err != nil {
+		return
+	} else {
+		storageClasses := ""
+		for _, item := range list.Items {
+			storageClasses += item.Name + "\n"
+		}
+		log.Info(storageClasses)
+		_ = os.Setenv(profile.SUPPORT_SC, storageClasses)
+	}
+}
 
 func (a *Application) PrepareForUpgrade(flags *flag.InstallFlags) error {
 

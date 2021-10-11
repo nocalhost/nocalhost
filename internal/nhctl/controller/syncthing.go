@@ -7,12 +7,16 @@ package controller
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/network/req"
 	"nocalhost/internal/nhctl/syncthing/ports"
+	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
+	"os"
 	"path/filepath"
 	"strconv"
 
@@ -79,9 +83,9 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 		log.Debugf("couldn't hash the password %s", err)
 		hash = []byte("")
 	}
-	sendMode := syncthing.DefaultSyncMode
+	sendMode := _const.DefaultSyncType
 	if !syncDouble {
-		sendMode = syncthing.SendOnlySyncMode
+		sendMode = _const.SendOnlySyncType
 	}
 	localHomeDir := c.GetApplicationSyncDir()
 	logPath := filepath.Join(c.GetApplicationSyncDir(), syncthing.LogFile)
@@ -115,7 +119,7 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 	svcConfig, _ := c.GetConfig()
 	devConfig := svcConfig.GetContainerDevConfigOrDefault(container)
 	if devConfig != nil && devConfig.Sync != nil {
-		s.EnableParseFromGitIgnore = devConfig.Sync.Mode == profile.GitIgnoreMode
+		s.EnableParseFromGitIgnore = devConfig.Sync.Mode == _const.GitIgnoreMode
 		s.SyncedPattern = devConfig.Sync.FilePattern
 		s.IgnoredPattern = devConfig.Sync.IgnoreFilePattern
 	}
@@ -157,11 +161,38 @@ func (c *Controller) NewSyncthingHttpClient(reqTimeoutSecond int) *req.Syncthing
 	)
 }
 
-func (c *Controller) CreateSyncThingSecret(syncSecret *corev1.Secret) error {
+func (c *Controller) CreateSyncThingSecret(container string, localSyncDir []string, duplicateDevMode bool) error {
+
+	// Delete service folder
+	dir := c.GetApplicationSyncDir()
+	if err2 := os.RemoveAll(dir); err2 != nil {
+		log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
+	}
+
+	newSyncthing, err := c.NewSyncthing(container, localSyncDir, false)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create syncthing process, please try again")
+	}
+	// set syncthing secret
+	config, err := newSyncthing.GetRemoteConfigXML()
+	if err != nil {
+		return err
+	}
+
+	syncSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: c.GetSyncThingSecretName(duplicateDevMode),
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			"config.xml": config,
+			"cert.pem":   []byte(secret_config.CertPEM),
+			"key.pem":    []byte(secret_config.KeyPEM),
+		},
+	}
 
 	// check if secret exist
 	exist, err := c.Client.GetSecret(syncSecret.Name)
-
 	if exist.Name != "" {
 		_ = c.Client.DeleteSecret(syncSecret.Name)
 	}
@@ -172,9 +203,12 @@ func (c *Controller) CreateSyncThingSecret(syncSecret *corev1.Secret) error {
 
 	return c.UpdateSvcProfile(
 		func(svcPro *profile.SvcProfileV2) error {
-			svcPro.SyncthingSecret = sc.Name
+			if duplicateDevMode {
+				svcPro.DuplicateDevModeSyncthingSecretName = sc.Name
+			} else {
+				svcPro.SyncthingSecret = sc.Name
+			}
 			return nil
 		},
 	)
-
 }

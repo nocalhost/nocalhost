@@ -9,13 +9,18 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"time"
 )
 
 func (c *ClientGoUtils) ListDeployments() ([]v1.Deployment, error) {
-	deps, err := c.GetDeploymentClient().List(c.ctx, metav1.ListOptions{})
+	ops := metav1.ListOptions{}
+	if len(c.labels) > 0 {
+		ops.LabelSelector = labels.Set(c.labels).String()
+	}
+	deps, err := c.GetDeploymentClient().List(c.ctx, ops)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
@@ -38,6 +43,30 @@ func (c *ClientGoUtils) UpdateDeployment(deployment *v1.Deployment, wait bool) (
 
 	if !wait {
 		return dep, nil
+	}
+
+	// Wait for deployment to be ready
+	ready, _ := isDeploymentReady(dep)
+	if !ready {
+		err = c.WaitDeploymentToBeReady(dep.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = c.WaitLatestRevisionReady(dep.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	return dep, nil
+}
+
+func (c *ClientGoUtils) CreateDeploymentAndWait(deployment *v1.Deployment) (*v1.Deployment, error) {
+
+	dep, err := c.GetDeploymentClient().Create(c.ctx, deployment, metav1.CreateOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "")
 	}
 
 	// Wait for deployment to be ready

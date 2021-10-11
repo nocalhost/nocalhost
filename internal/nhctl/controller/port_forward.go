@@ -11,7 +11,6 @@ import (
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
@@ -175,7 +174,7 @@ func (c *Controller) PortForwardAfterDevStart(podName, containerName string) err
 	}
 
 	for _, pf := range cc.PortForward {
-		lPort, rPort, err := GetPortForwardForString(pf)
+		lPort, rPort, err := profile.GetPortForwardForString(pf)
 		if err != nil {
 			log.WarnE(err, "")
 			continue
@@ -208,29 +207,6 @@ func (c *Controller) PortForward(podName string, localPort, remotePort int, role
 		log.Infof("Port-forward %d:%d has been started", localPort, remotePort)
 		return c.SetPortForwardedStatus(true) //  todo: move port-forward start
 	}
-}
-
-// portStr is like 8080:80 or :80
-func GetPortForwardForString(portStr string) (int, int, error) {
-	var err error
-	s := strings.Split(portStr, ":")
-	if len(s) < 2 {
-		return 0, 0, errors.New(fmt.Sprintf("Wrong format of port: %s", portStr))
-	}
-	var localPort, remotePort int
-	sLocalPort := s[0]
-	if sLocalPort == "" {
-		// get random port in local
-		if localPort, err = ports.GetAvailablePort(); err != nil {
-			return 0, 0, err
-		}
-	} else if localPort, err = strconv.Atoi(sLocalPort); err != nil {
-		return 0, 0, errors.Wrap(err, fmt.Sprintf("Wrong format of local port: %s.", sLocalPort))
-	}
-	if remotePort, err = strconv.Atoi(s[1]); err != nil {
-		return 0, 0, errors.Wrap(err, fmt.Sprintf("wrong format of remote port: %s, skipped", s[1]))
-	}
-	return localPort, remotePort, nil
 }
 
 func (c *Controller) CheckIfPortForwardExists(localPort, remotePort int) (bool, error) {
