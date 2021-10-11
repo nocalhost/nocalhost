@@ -46,6 +46,12 @@ func NewRandomTempPath() *FilePathEnhance {
 }
 
 func NewFilePath(path string) *FilePathEnhance {
+	if strings.HasPrefix(path, "~") {
+		if home, err := os.UserHomeDir(); err == nil {
+			path = home + path[1:]
+		}
+	}
+
 	absPath, _ := filepath.Abs(path)
 
 	return &FilePathEnhance{

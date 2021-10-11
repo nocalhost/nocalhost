@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/profile"
+	"os"
 	"strings"
 
 	"nocalhost/pkg/nhctl/log"
@@ -70,6 +71,12 @@ var configEditCmd = &cobra.Command{
 		checkIfSvcExist(configEditFlags.SvcName, serviceType)
 
 		must(errors.Wrap(json.Unmarshal(bys, svcConfig), "fail to unmarshal content"))
+
+		nocalhostApp.PrepareForConfigurationValidate()
+		if err := svcConfig.Validate(); err != nil {
+			os.Exit(1)
+		}
+
 		ot := svcConfig.Type
 		svcConfig.Type = strings.ToLower(svcConfig.Type)
 		if !controller.CheckIfControllerTypeSupport(svcConfig.Type) {
