@@ -48,7 +48,7 @@ done
 
 [ -n "${DEP_NAMESPACE}" ] && namespace=${DEP_NAMESPACE}
 
-if kubectl describe secret -n ${namespace} ${secret}; then
+if kubectl get secrets -n ${namespace} ${secret} -o json|grep '"ca-cert.pem":' > /dev/null; then
     echo "secret ${namespace}/${secret} has been created so do not need to create one."
     return
 fi
@@ -78,56 +78,19 @@ DNS.2 = ${service}.${namespace}
 DNS.3 = ${service}.${namespace}.svc
 EOF
 
+# Create ca
+openssl genrsa -out ${tmpdir}/ca-key.pem 2048
+openssl req -x509 -new -nodes -key ${tmpdir}/ca-key.pem -days 36500 -out ${tmpdir}/ca-cert.pem -subj "/CN=${service}.${namespace}.svc"
+
+# Create a server certificate.
 openssl genrsa -out ${tmpdir}/server-key.pem 2048
-openssl req -new -key ${tmpdir}/server-key.pem -subj "/CN=${service}.${namespace}.svc" -out ${tmpdir}/server.csr -config ${tmpdir}/csr.conf
-
-# clean-up any previously created CSR for our service. Ignore errors if not present.
-kubectl delete csr ${csrName} 2>/dev/null || true
-
-# create  server cert/key CSR and  send to k8s API
-cat <<EOF | kubectl create -f -
-apiVersion: certificates.k8s.io/v1beta1
-kind: CertificateSigningRequest
-metadata:
-  name: ${csrName}
-spec:
-  groups:
-  - system:authenticated
-  request: $(cat ${tmpdir}/server.csr | base64 | tr -d '\n')
-  usages:
-  - digital signature
-  - key encipherment
-  - server auth
-EOF
-
-# verify CSR has been created
-while true; do
-    kubectl get csr ${csrName}
-    if [ "$?" -eq 0 ]; then
-        break
-    fi
-done
-
-# approve and fetch the signed certificate
-kubectl certificate approve ${csrName}
-# verify certificate has been signed
-for x in $(seq 10); do
-    serverCert=$(kubectl get csr ${csrName} -o jsonpath='{.status.certificate}')
-    if [[ ${serverCert} != '' ]]; then
-        break
-    fi
-    sleep 1
-done
-if [[ ${serverCert} == '' ]]; then
-    echo "ERROR: After approving csr ${csrName}, the signed certificate did not appear on the resource. Giving up after 10 attempts." >&2
-    echo "See https://istio.io/docs/setup/kubernetes/sidecar-injection.html for more details on troubleshooting." >&2
-    exit 1
-fi
-echo ${serverCert} | openssl base64 -d -A -out ${tmpdir}/server-cert.pem
-
+# Note the CN is the DNS name of the service of the webhook.
+openssl req -new -key ${tmpdir}/server-key.pem -out ${tmpdir}/server.csr -subj "/CN=${service}.${namespace}.svc" -config ${tmpdir}/csr.conf
+openssl x509 -req -in ${tmpdir}/server.csr -CA ${tmpdir}/ca-cert.pem -CAkey ${tmpdir}/ca-key.pem -CAcreateserial -out ${tmpdir}/server-cert.pem -days 36500 -extensions v3_req -extfile ${tmpdir}/csr.conf
 
 # create the secret with CA cert and server cert/key
 kubectl create secret generic ${secret} \
+        --from-file=ca-cert.pem=${tmpdir}/ca-cert.pem \
         --from-file=key.pem=${tmpdir}/server-key.pem \
         --from-file=cert.pem=${tmpdir}/server-cert.pem \
         --dry-run=client -o yaml |
