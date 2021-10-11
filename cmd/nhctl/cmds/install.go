@@ -145,10 +145,10 @@ var installCmd = &cobra.Command{
 		must(err)
 		log.Infof("Application %s installed", applicationName)
 
-		profileV2 := nocalhostApp.GetApplicationConfigV2()
+		configV2 := nocalhostApp.GetApplicationConfigV2()
 
 		// Start port forward
-		for _, svcProfile := range profileV2.ServiceConfigs {
+		for _, svcProfile := range configV2.ServiceConfigs {
 			//nhSvc := initService(svcProfile.Name, svcProfile.Type)
 			checkIfSvcExist(svcProfile.Name, svcProfile.Type)
 			nhSvc := nocalhostSvc
@@ -169,7 +169,7 @@ var installCmd = &cobra.Command{
 				var i int
 				for i = 0; i < 60; i++ {
 					<-time.After(time.Second)
-					podName, err = controller.GetDefaultPodName(ctx, nhSvc.BuildPodController())
+					podName, err = controller.GetDefaultPodName(ctx, podController)
 					if err != nil {
 						log.WarnE(err, "")
 						continue

@@ -19,11 +19,26 @@ import (
 	"strings"
 )
 
+type DevModeType string
+
 const (
 	// nocalhost-docker.pkg.coding.net/nocalhost/public/minideb:latest"
-	DefaultDevImage = ""
-	DefaultWorkDir  = "/home/nocalhost-dev"
+	DefaultDevImage  = ""
+	DefaultWorkDir   = "/home/nocalhost-dev"
+	DuplicateDevMode = DevModeType("duplicate")
+	ReplaceDevMode   = DevModeType("replace")
 )
+
+func (d DevModeType) IsReplaceDevMode() bool {
+	if d == ReplaceDevMode || d == "" {
+		return true
+	}
+	return false
+}
+
+func (d DevModeType) IsDuplicateDevMode() bool {
+	return d == DuplicateDevMode
+}
 
 type AppProfileV2 struct {
 	Name string `json:"name" yaml:"name"`
@@ -125,6 +140,7 @@ func NewAppProfileV2ForUpdate(ns, name, nid string) (*AppProfileV2, error) {
 	return result, nil
 }
 
+// SvcProfileV2 The result will not be nil
 func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV2 {
 
 	for _, svcProfile := range a.SvcProfile {
@@ -162,7 +178,7 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 // this method will not save the Identifier,
 // make sure it will be saving while use
 func (a *AppProfileV2) GenerateIdentifierIfNeeded() string {
-	if a.Identifier == "" && a != nil {
+	if a != nil && a.Identifier == "" {
 		u, _ := uuid.NewRandom()
 		a.Identifier = u.String()
 	}
@@ -205,8 +221,9 @@ type SvcProfileV2 struct {
 	// same as local available port, use for port-forward
 	RemoteSyncthingPort int `json:"remoteSyncthingPort" yaml:"remoteSyncthingPort"`
 	// same as local available port, use for port-forward
-	RemoteSyncthingGUIPort int    `json:"remoteSyncthingGUIPort" yaml:"remoteSyncthingGUIPort"`
-	SyncthingSecret        string `json:"syncthingSecret" yaml:"syncthingSecret"` // secret name
+	RemoteSyncthingGUIPort              int    `json:"remoteSyncthingGUIPort" yaml:"remoteSyncthingGUIPort"`
+	SyncthingSecret                     string `json:"syncthingSecret" yaml:"syncthingSecret"` // secret name
+	DuplicateDevModeSyncthingSecretName string `json:"duplicateDevModeSyncthingSecretName" yaml:"duplicateDevModeSyncthingSecretName"`
 	// syncthing local port
 	LocalSyncthingPort                     int               `json:"localSyncthingPort" yaml:"localSyncthingPort"`
 	LocalSyncthingGUIPort                  int               `json:"localSyncthingGUIPort" yaml:"localSyncthingGUIPort"`
@@ -238,6 +255,10 @@ type SvcProfileV2 struct {
 	// mean the current controller is possess by current nhctl context
 	// and the syncthing process is listen on current device
 	Possess bool `json:"possess" yaml:"possess"`
+
+	// LocalDevMode can be started in every local desktop and not influence each other
+	//DuplicateDevMode bool        `json:"duplicateDevMode" yaml:"duplicateDevMode"`
+	DevModeType DevModeType `json:"devModeType" yaml:"devModeType"`
 }
 
 type ContainerProfileV2 struct {

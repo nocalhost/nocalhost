@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -60,7 +60,11 @@ var pvcCleanCmd = &cobra.Command{
 
 		// Clean up PVCs of specified service
 		if pvcFlags.Svc != "" {
-			exist, err := nocalhostApp.Controller(pvcFlags.Svc, base.Deployment).CheckIfExist()
+			c, err := nocalhostApp.Controller(pvcFlags.Svc, base.Deployment)
+			if err != nil {
+				log.FatalE(err, "")
+			}
+			exist, err := c.CheckIfExist()
 			if err != nil {
 				log.FatalE(err, "failed to check if controller exists")
 			} else if !exist {

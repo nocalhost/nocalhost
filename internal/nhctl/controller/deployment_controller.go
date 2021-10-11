@@ -27,15 +27,11 @@ type DeploymentController struct {
 }
 
 func (d *DeploymentController) GetNocalhostDevContainerPod() (string, error) {
-	checkPodsList, err := d.Client.ListPodsByDeployment(d.Name())
+	checkPodsList, err := d.Client.ListPodsByDeployment(d.GetName())
 	if err != nil {
 		return "", err
 	}
 	return findDevPod(checkPodsList.Items)
-}
-
-func (d *DeploymentController) Name() string {
-	return d.Controller.Name
 }
 
 // ReplaceImage In DevMode, nhctl will replace the container of your workload with two containers:
@@ -45,7 +41,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 	var err error
 	d.Client.Context(ctx)
 
-	dep, err := d.Client.GetDeployment(d.Name())
+	dep, err := d.Client.GetDeployment(d.GetName())
 	if err != nil {
 		return err
 	}
@@ -55,25 +51,24 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		return errors.Wrap(err, "")
 	}
 
-	d.Client.Context(ctx)
-	if err = d.Client.ScaleDeploymentReplicasToOne(d.Name()); err != nil {
+	if err = d.Client.ScaleDeploymentReplicasToOne(d.GetName()); err != nil {
 		return err
 	}
 
-	devContainer, err := findContainerInDeployment(d.Name(), ops.Container, d.Client)
+	devContainer, err := findContainerInDeployment(d.GetName(), ops.Container, d.Client)
 	if err != nil {
 		return err
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		d.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass)
+		d.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}
 
 	for i := 0; i < 10; i++ {
 		// Get latest deployment
-		dep, err := d.Client.GetDeployment(d.Name())
+		dep, err := d.Client.GetDeployment(d.GetName())
 		if err != nil {
 			return err
 		}
@@ -127,7 +122,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		if err != nil {
 			if strings.Contains(err.Error(), "no PriorityClass") {
 				log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
-				dep, err = d.Client.GetDeployment(d.Name())
+				dep, err = d.Client.GetDeployment(d.GetName())
 				if err != nil {
 					return err
 				}
@@ -150,7 +145,6 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		break
 	}
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
-
 }
 
 func findContainerInDeployment(deployName, containerName string, client *clientgoutils.ClientGoUtils) (*corev1.Container, error) {
@@ -191,7 +185,7 @@ func findContainerInDeploySpec(dep *v1.Deployment, containerName string) (*corev
 func (d *DeploymentController) RollBack(reset bool) error {
 	clientUtils := d.Client
 
-	dep, err := clientUtils.GetDeployment(d.Name())
+	dep, err := clientUtils.GetDeployment(d.GetName())
 	if err != nil {
 		return err
 	}
@@ -210,7 +204,7 @@ func (d *DeploymentController) RollBack(reset bool) error {
 		dep.Annotations[OriginSpecJson] = osj
 	} else {
 		log.Info("Annotation nocalhost.origin.spec.json not found, try to find it from rs")
-		rss, _ := clientUtils.GetSortedReplicaSetsByDeployment(d.Name())
+		rss, _ := clientUtils.GetSortedReplicaSetsByDeployment(d.GetName())
 		if len(rss) >= 1 {
 			var r *v1.ReplicaSet
 			var originalPodReplicas *int32
@@ -283,12 +277,12 @@ func GetDefaultPodName(ctx context.Context, p pod_controller.PodController) (str
 	for {
 		select {
 		case <-ctx.Done():
-			return "", errors.New(fmt.Sprintf("Fail to get %s' pod", p.Name()))
+			return "", errors.New(fmt.Sprintf("Fail to get %s' pod", p.GetName()))
 		default:
 			podList, err = p.GetPodList()
 		}
 		if err != nil || len(podList) == 0 {
-			log.Infof("Pod of %s has not been ready, waiting for it...", p.Name())
+			log.Infof("Pod of %s has not been ready, waiting for it...", p.GetName())
 			time.Sleep(time.Second)
 		} else {
 			return podList[0].Name, nil
@@ -297,5 +291,5 @@ func GetDefaultPodName(ctx context.Context, p pod_controller.PodController) (str
 }
 
 func (d *DeploymentController) GetPodList() ([]corev1.Pod, error) {
-	return d.Client.ListLatestRevisionPodsByDeployment(d.Name())
+	return d.Client.ListLatestRevisionPodsByDeployment(d.GetName())
 }

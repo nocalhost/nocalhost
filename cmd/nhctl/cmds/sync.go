@@ -81,7 +81,7 @@ var fileSyncCmd = &cobra.Command{
 }
 
 func StartSyncthing(podName string, resume bool, stop bool, container string, syncDouble *bool, override bool) {
-	if !nocalhostSvc.IsInDevMode() {
+	if !nocalhostSvc.IsInReplaceDevMode() && !nocalhostSvc.IsInDuplicateDevMode() {
 		log.Fatalf("Service \"%s\" is not in developing", deployment)
 	}
 
@@ -109,6 +109,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 		}
 	}
 
+	svcProfile, _ := nocalhostSvc.GetProfile()
 	if podName == "" {
 		var err error
 		if podName, err = nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod(); err != nil {
@@ -117,12 +118,11 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	}
 	log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.NameSpace)
 
-	svcProfile, _ := nocalhostSvc.GetProfile()
 	// Start a pf for syncthing
 	must(nocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC"))
 
 	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
-	
+
 	utils2.KillSyncthingProcess(str)
 
 	if syncDouble == nil {

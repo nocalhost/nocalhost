@@ -45,6 +45,7 @@ var devTerminalCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
+
 		if pod == "" {
 			podList, err := nocalhostSvc.BuildPodController().GetPodList()
 			must(err)
