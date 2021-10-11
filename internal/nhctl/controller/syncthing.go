@@ -9,6 +9,7 @@ import (
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/network/req"
@@ -79,9 +80,9 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 		log.Debugf("couldn't hash the password %s", err)
 		hash = []byte("")
 	}
-	sendMode := syncthing.DefaultSyncMode
+	sendMode := _const.DefaultSyncType
 	if !syncDouble {
-		sendMode = syncthing.SendOnlySyncMode
+		sendMode = _const.SendOnlySyncType
 	}
 	localHomeDir := c.GetApplicationSyncDir()
 	logPath := filepath.Join(c.GetApplicationSyncDir(), syncthing.LogFile)
@@ -115,7 +116,7 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 	svcConfig, _ := c.GetConfig()
 	devConfig := svcConfig.GetContainerDevConfigOrDefault(container)
 	if devConfig != nil && devConfig.Sync != nil {
-		s.EnableParseFromGitIgnore = devConfig.Sync.Mode == profile.PatternMode
+		s.EnableParseFromGitIgnore = devConfig.Sync.Mode == _const.PatternMode
 		s.SyncedPattern = devConfig.Sync.FilePattern
 		s.IgnoredPattern = devConfig.Sync.IgnoreFilePattern
 	}
