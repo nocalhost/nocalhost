@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/coloredoutput"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/internal/nhctl/utils"
@@ -131,7 +132,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 			if cfg := config.GetContainerDevConfig(container); cfg != nil && cfg.Sync != nil {
 				switch cfg.Sync.Type {
 
-				case syncthing.DefaultSyncMode:
+				case _const.DefaultSyncType:
 					flag = true
 
 				default:

@@ -47,7 +47,7 @@ const (
 
 	DevWorkloadIgnored = "nocalhost.dev.workload.ignored"
 
-	NocalhostCmLabelKey = "dep-management"
+	NocalhostCmLabelKey   = "dep-management"
 	NocalhostCmLabelValue = "nocalhost"
 
 	NocalhostRoleBindingLabelKey = "owner"
@@ -62,4 +62,15 @@ const (
 
 	NocalhostViewerRoleBinding = "nocalhost-viewer-role-binding"
 	NocalhostViewerRoleName    = "nocalhost-viewer-role"
+
+	// sycnthing
+
+	// sync type
+	DefaultSyncType       = "sendReceive" // default sync mode
+	SendOnlySyncType      = "sendonly"
+	SendOnlySyncTypeAlias = "send"
+
+	// sync mode
+	GitIgnoreMode = "gitIgnore"
+	PatternMode   = "pattern"
 )

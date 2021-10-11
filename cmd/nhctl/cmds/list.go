@@ -35,10 +35,10 @@ func init() {
 }
 
 var listCmd = &cobra.Command{
-	Use:     "list [NAME]",
+	Use: "list [NAME]",
 	Aliases: []string{"ls"},
-	Short:   "List applications",
-	Long:    `List applications`,
+	Short: "List applications",
+	Long: `List applications`,
 	Run: func(cmd *cobra.Command, args []string) {
 		must(Prepare())
 
@@ -122,7 +122,7 @@ func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
 	var foundDefaultApp bool
 	for _, meta := range metas {
-		if meta.Application == _const.DefaultNocalhostApplication {
+		if meta.Application == _const.DefaultNocalhostApplication && meta.IsInstalled() {
 			foundDefaultApp = true
 			break
 		}
@@ -130,7 +130,9 @@ func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 
 	if !foundDefaultApp {
 		// try init default application
-		nocalhostApp, err = common.InitDefaultApplicationInCurrentNs(nameSpace, kubeConfig)
+		nocalhostApp, err = common.InitDefaultApplicationInCurrentNs(
+			_const.DefaultNocalhostApplication, nameSpace, kubeConfig,
+		)
 		if err != nil {
 			log.Logf("failed to init default application in namespace: %s", nameSpace)
 		}

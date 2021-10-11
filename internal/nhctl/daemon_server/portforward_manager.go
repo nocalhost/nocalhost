@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
-	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"net"
 	"nocalhost/internal/nhctl/app"
@@ -22,7 +22,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -220,7 +219,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 	go func() {
 		defer RecoverDaemonFromPanic()
 
-		log.Logf("Forwarding %d:%d", localPort, localPort)
+		log.Logf("Forwarding %d:%d", localPort, remotePort)
 
 		logDir := filepath.Join(nocalhost.GetLogDir(), "port-forward")
 		if _, err = os.Stat(logDir); err != nil {
@@ -249,7 +248,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			stopCh := make(chan struct{}, 1)
 			// readyCh communicate when the port forward is ready to get traffic
 			readyCh := make(chan struct{})
-			heartbeatCtx, heartBeatCancel := context.WithCancel(ctx)
+			//heartbeatCtx, heartBeatCancel := context.WithCancel(ctx)
 			errCh := make(chan error, 1)
 
 			// stream is used to tell the port forwarder where to place its output or
@@ -261,137 +260,46 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				ErrOut: stdout,
 			}
 
-			recoverFunc := func(err error) {
-				if strings.Contains(err.Error(), "error creating error stream for port") && !strings.Contains(err.Error(), "Timeout occured") {
-					defer RecoverDaemonFromPanic()
-					p, err := ParseErrToForwardPort(err.Error())
-					if err != nil {
-						log.LogE(err)
-						return
-					}
-					if p.LocalPort != localPort || p.RemotePort != remotePort {
-						return
-					}
-					log.WarnE(err, fmt.Sprintf("[RuntimeErrorHandler]Port-forward %d:%d failed to create stream,"+
-						" try to reconnecting", localPort, remotePort))
-					select {
-					case _, isOpen := <-stopCh:
-						if isOpen {
-							log.Infof("[RuntimeErrorHandler]Closing Port-forward %d:%d by stop chan", localPort, remotePort)
-							close(stopCh)
-						} else {
-							log.Infof("[RuntimeErrorHandler]Port-forward %d:%d has been closed, do nothing", localPort, remotePort)
-						}
-					default:
-						log.Infof("[RuntimeErrorHandler]Closing Port-forward %d:%d'", localPort, remotePort)
-						close(stopCh)
-					}
-				}
-			}
-
-			k8s_runtime.ErrorHandlers = append(k8s_runtime.ErrorHandlers, recoverFunc)
-
 			go func() {
 				defer RecoverDaemonFromPanic()
-				select {
-				case <-readyCh:
-					log.Infof("Port forward %d:%d is ready", localPort, remotePort)
-
-					lastStatus := ""
-					currentStatus := ""
-					for {
-						select {
-						case <-heartbeatCtx.Done():
-							log.Infof("Stop sending heart beat to %d", localPort)
-							return
-						default:
-							log.Debugf("try to send port-forward heartbeat to %d", localPort)
-							err := nocalhostApp.SendPortForwardTCPHeartBeat(fmt.Sprintf("%s:%v", "127.0.0.1", localPort))
-							if err != nil {
-								log.WarnE(err, "")
-								currentStatus = "HeartBeatLoss"
-							} else {
-								currentStatus = "LISTEN"
-							}
-							if lastStatus != currentStatus {
-								lastStatus = currentStatus
-								p.lock.Lock()
-								nhController.UpdatePortForwardStatus(localPort, remotePort, lastStatus, "Heart Beat")
-								p.lock.Unlock()
-							}
-							<-time.After(30 * time.Second)
-						}
-					}
-				}
+				<-readyCh
+				log.Infof("Port forward %d:%d is ready", localPort, remotePort)
+				p.lock.Lock()
+				_ = nhController.UpdatePortForwardStatus(localPort, remotePort, "LISTEN", "listen")
+				p.lock.Unlock()
 			}()
 
 			go func() {
 				defer RecoverDaemonFromPanic()
-
-				select {
-				//case errCh <- nocalhostApp.PortForwardAPod(
-				//	clientgoutils.PortForwardAPodRequest{
-				//		Listen: []string{"0.0.0.0"},
-				//		Pod: corev1.Pod{
-				//			ObjectMeta: metav1.ObjectMeta{
-				//				Name:      startCmd.PodName,
-				//				Namespace: startCmd.NameSpace,
-				//			},
-				//		},
-				//		LocalPort: localPort,
-				//		PodPort:   remotePort,
-				//		Streams:   stream,
-				//		StopCh:    stopCh,
-				//		ReadyCh:   readyCh,
-				//	},
-				//):
-				//	log.Logf("Port-forward %d:%d occurs errors", localPort, remotePort)
-				case errCh <- nocalhostApp.PortForward(startCmd.PodName, localPort, remotePort, readyCh, stopCh, stream):
-					log.Logf("Port-forward %d:%d occurs errors", localPort, remotePort)
-				}
+				errCh <- nocalhostApp.PortForward(startCmd.PodName, localPort, remotePort, readyCh, stopCh, stream)
+				log.Logf("Port-forward %d:%d occurs errors", localPort, remotePort)
 			}()
 
 			select {
-			case err := <-errCh:
-				if err != nil {
-					found, _ := regexp.Match("pods \"(.*?)\" not found", []byte(err.Error()))
-					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") || found {
-						if found {
-							log.Logf("Pod: %s not found, remove port-forward for this pod", startCmd.PodName)
-						} else {
-							log.WarnE(err, fmt.Sprintf("Unable to listen on port %d", localPort))
-						}
-						p.lock.Lock()
-						err2 := nhController.UpdatePortForwardStatus(localPort, remotePort, "DISCONNECTED",
-							fmt.Sprintf("Unable to listen on port %d", localPort))
-						p.lock.Unlock()
-						if err2 != nil {
-							log.LogE(err2)
-						}
-						delete(p.pfList, key)
-						return
-					}
-					log.WarnE(err, fmt.Sprintf("Port-forward %d:%d failed, reconnecting after 30 seconds...", localPort, remotePort))
-					heartBeatCancel()
+			case errs := <-errCh:
+				if errs != nil && k8serrors.IsNotFound(errs) {
+					log.Logf("Pod: %s not found, remove port-forward for this pod", startCmd.PodName)
 					p.lock.Lock()
-					err = nhController.UpdatePortForwardStatus(localPort, remotePort, "RECONNECTING",
-						"Port-forward failed, reconnecting after 30 seconds...")
+					err2 := nhController.UpdatePortForwardStatus(localPort, remotePort, "DISCONNECTED",
+						fmt.Sprintf("Unable to found pod %s", startCmd.PodName))
 					p.lock.Unlock()
-					if err != nil {
-						log.LogE(err)
+					if err2 != nil {
+						log.LogE(err2)
 					}
+					delete(p.pfList, key)
+					close(stopCh)
+					return
 				} else {
-					log.Warn("Reconnecting after 30 seconds...")
-					heartBeatCancel()
+					log.Warn("Reconnecting after 15 seconds...")
 					p.lock.Lock()
 					err = nhController.UpdatePortForwardStatus(localPort, remotePort, "RECONNECTING",
-						"Reconnecting after 30 seconds...")
+						"Reconnecting after 15 seconds...")
 					p.lock.Unlock()
 					if err != nil {
 						log.LogE(err)
 					}
 				}
-				<-time.After(30 * time.Second)
+				<-time.After(15 * time.Second)
 				log.Info("Reconnecting...")
 			case <-ctx.Done():
 				log.Logf("Port-forward %d:%d done", localPort, remotePort)
