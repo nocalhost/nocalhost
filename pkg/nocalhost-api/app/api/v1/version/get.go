@@ -53,17 +53,19 @@ func UpgradeInfo(c *gin.Context) {
 }
 
 func getVersionInfo() (model.VersionUpgradeInfo, error) {
+	version := model.VersionUpgradeInfo{
+		CurrentVersion: global.Version,
+	}
+
 	reg, err := registry.New(fmt.Sprintf("https://%s", global.NocalhostRegistry), "", "")
 	if err != nil {
-		return model.VersionUpgradeInfo{}, err
+		return version, err
 	}
 	tags, err := reg.Tags(global.Nocalhostrepository)
 	if err != nil {
-		return model.VersionUpgradeInfo{}, err
+		return version, err
 	}
 
-	version := model.VersionUpgradeInfo{}
-	version.CurrentVersion = global.Version
 	v := global.Version
 	for _, tag := range tags {
 		if semver.IsValid(tag) && semver.IsValid(v) {
