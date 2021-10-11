@@ -208,7 +208,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		for {
 			func() {
 				defer RecoverDaemonFromPanic()
-				time.Sleep(time.Second * 60)
+				time.Sleep(time.Second * 30)
 				clone := appmeta_manager.GetAllApplicationMetasWithDeepClone()
 				if clone == nil {
 					return
