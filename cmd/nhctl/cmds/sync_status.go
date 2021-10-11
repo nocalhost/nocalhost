@@ -79,7 +79,7 @@ func SyncStatus(opt *app.SyncStatusOptions, ns, app, svc, svcType, kubeconfig st
 
 	nhSvc := initService(svc, svcType)
 
-	if !nhSvc.IsInReplaceDevMode() {
+	if !nhSvc.IsInReplaceDevMode() && !nhSvc.IsInDuplicateDevMode() {
 		return req.NotInDevModeTemplate
 	}
 

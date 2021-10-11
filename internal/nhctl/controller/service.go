@@ -6,6 +6,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
@@ -39,9 +40,16 @@ func (c *Controller) IsInReplaceDevMode() bool {
 }
 
 func (c *Controller) IsInDuplicateDevMode() bool {
-	p, _ := c.GetProfile()
-	return p.DevModeType.IsDuplicateDevMode() &&
-		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type, p.DevModeType) != appmeta.NONE
+	//p, _ := c.GetProfile()
+	return c.DevModeType.IsDuplicateDevMode() &&
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type, c.DevModeType) != appmeta.NONE
+}
+
+func (c *Controller) IsInDevMode() bool {
+	if c.IsInDuplicateDevMode() {
+		return true
+	}
+	return c.IsInReplaceDevMode()
 }
 
 func (c *Controller) IsProcessor() bool {
@@ -79,6 +87,98 @@ func (c *Controller) CheckIfExist() (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
+	var podSpec v1.PodSpec
+	switch c.Type {
+	case base.Deployment:
+		d, err := c.Client.GetDeployment(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		if len(d.Annotations) > 0 {
+			if osj, ok := d.Annotations[OriginSpecJson]; ok {
+				d.Spec = appsv1.DeploymentSpec{}
+				if err = json.Unmarshal([]byte(osj), &d.Spec); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+			}
+		}
+		podSpec = d.Spec.Template.Spec
+	case base.StatefulSet:
+		s, err := c.Client.GetStatefulSet(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		if len(s.Annotations) > 0 {
+			if osj, ok := s.Annotations[OriginSpecJson]; ok {
+				s.Spec = appsv1.StatefulSetSpec{}
+				if err = json.Unmarshal([]byte(osj), &s.Spec); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+			}
+		}
+		podSpec = s.Spec.Template.Spec
+	case base.DaemonSet:
+		d, err := c.Client.GetDaemonSet(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		if len(d.Annotations) > 0 {
+			if osj, ok := d.Annotations[OriginSpecJson]; ok {
+				d.Spec = appsv1.DaemonSetSpec{}
+				if err = json.Unmarshal([]byte(osj), &d.Spec); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+			}
+		}
+		podSpec = d.Spec.Template.Spec
+	case base.Job:
+		j, err := c.Client.GetJobs(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		if len(j.Annotations) > 0 {
+			if osj, ok := j.Annotations[OriginSpecJson]; ok {
+				j.Spec = batchv1.JobSpec{}
+				if err = json.Unmarshal([]byte(osj), &j.Spec); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+			}
+		}
+		podSpec = j.Spec.Template.Spec
+	case base.CronJob:
+		j, err := c.Client.GetCronJobs(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		if len(j.Annotations) > 0 {
+			if osj, ok := j.Annotations[OriginSpecJson]; ok {
+				j.Spec = batchv1beta1.CronJobSpec{}
+				if err = json.Unmarshal([]byte(osj), &j.Spec); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+			}
+		}
+		podSpec = j.Spec.JobTemplate.Spec.Template.Spec
+	case base.Pod:
+		p, err := c.Client.GetPod(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		if len(p.Annotations) > 0 {
+			if osj, ok := p.Annotations[originalPodDefine]; ok {
+				p.Spec = v1.PodSpec{}
+				if err = json.Unmarshal([]byte(osj), p); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+			}
+		}
+		podSpec = p.Spec
+	}
+
+	return podSpec.Containers, nil
 }
 
 func (c *Controller) GetTypeMeta() (metav1.TypeMeta, error) {
