@@ -229,6 +229,7 @@ func (s *Supervisor) key(ns string, configBytes []byte) string {
 	return fmt.Sprintf("%s[%s]", ns, string(state))
 }
 
+// GetAllApplicationMetasWithDeepClone get all developing application, will not update appmeta.ApplicationMeta
 func GetAllApplicationMetasWithDeepClone() []*appmeta.ApplicationMeta {
 	if supervisor == nil {
 		return nil
