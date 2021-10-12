@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/resource"
 	flag "nocalhost/internal/nhctl/app_flags"
@@ -26,7 +27,16 @@ import (
 // some validation relies on K8s resource, etc.
 // so we should query them first
 // and use os.setEnv to pass those condition
-func (a *Application) PrepareForConfigurationValidate() {
+func (a *Application) PrepareForConfigurationValidate(containers []v1.Container) {
+	if len(containers) > 0 {
+		cs := ""
+		for _, container := range containers {
+			cs += container.Name + "\n"
+		}
+		_ = os.Setenv(profile.CONTAINERS, cs)
+	}
+
+
 	client := a.GetClient()
 	if client == nil || client.ClientSet == nil {
 		return
@@ -41,7 +51,6 @@ func (a *Application) PrepareForConfigurationValidate() {
 		for _, item := range list.Items {
 			storageClasses += item.Name + "\n"
 		}
-		log.Info(storageClasses)
 		_ = os.Setenv(profile.SUPPORT_SC, storageClasses)
 	}
 }
