@@ -35,7 +35,8 @@ type Controller struct {
 
 // IsInReplaceDevMode return true if under dev starting or start complete
 func (c *Controller) IsInReplaceDevMode() bool {
-	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, "") != appmeta.NONE
+	return c.DevModeType.IsReplaceDevMode() &&
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) != appmeta.NONE
 }
 
 func (c *Controller) IsInDuplicateDevMode() bool {
@@ -44,10 +45,7 @@ func (c *Controller) IsInDuplicateDevMode() bool {
 }
 
 func (c *Controller) IsInDevMode() bool {
-	if c.IsInDuplicateDevMode() {
-		return true
-	}
-	return c.IsInReplaceDevMode()
+	return c.IsInDuplicateDevMode() || c.IsInReplaceDevMode()
 }
 
 func (c *Controller) IsProcessor() bool {

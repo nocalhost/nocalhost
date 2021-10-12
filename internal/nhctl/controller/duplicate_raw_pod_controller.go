@@ -55,6 +55,16 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 		} else {
 			return errors.New(fmt.Sprintf("Annotation %s not found, failed to rollback", originalPodDefine))
 		}
+	} else {
+		if len(originalPod.Annotations) > 0 {
+			podSpec, ok := originalPod.Annotations[originalPodDefine]
+			var oPodSpec = corev1.Pod{}
+			if ok {
+				if err = json.Unmarshal([]byte(podSpec), &oPodSpec); err == nil {
+					originalPod = &oPodSpec
+				}
+			}
+		}
 	}
 
 	suffix := r.Identifier[0:5]

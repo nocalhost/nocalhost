@@ -144,7 +144,7 @@ var NotInDevModeTemplate = &SyncthingStatus{
 
 var NotProcessor = &SyncthingStatus{
 	Status: End,
-	Msg:    "Not Process File Sync",
+	Msg:    "Other device is developing",
 	Tips: Identifier + "File Sync is hold by other device, if you want to take over the file sync, " +
 		"you should end the dev mode and re enter again.",
 }

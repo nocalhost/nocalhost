@@ -113,8 +113,8 @@ var devStartCmd = &cobra.Command{
 			log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
 
-		if nocalhostSvc.IsInReplaceDevMode() || nocalhostSvc.IsInDuplicateDevMode() {
-			coloredoutput.Hint(fmt.Sprintf("Already in %s DevMode...", nocalhostSvc.DevModeType))
+		if nocalhostSvc.IsInDevMode() {
+			coloredoutput.Hint(fmt.Sprintf("Already in %s DevMode...", nocalhostSvc.DevModeType.ToString()))
 
 			podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
 			must(err)

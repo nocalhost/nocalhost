@@ -17,15 +17,15 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-var notificationPrefix = `# This is the runtime configuration which stored in the memory. Modifications 
+var notificationPrefix = `# This is the runtime configuration which stored in K8s cluster. Modifications 
 # to the development configuration will take effect the next time you enter
-# the DevMode, but any modification will not be persisted.
+# the DevMode, and modification will share with all those who use this cluster.
 #
-# If you want to persist the configuration, you can create a configuration
+# If you want to customized personal configuration, you can create a configuration
 # file named config.yaml in the root directory of your project under the
 # folder .nocalhost (/.nocalhost/config.yaml). It will become part of your 
 # project, you can easily share configuration with other developers, or
-# develop on any other devices
+# develop on any other devices using this personal configuration.
 #`
 
 var svcNotificationTips = `
@@ -37,7 +37,7 @@ var notificationSuffix = `
 # In addition, if you want to config multi service in same config.yaml, or use
 # the Server-version of Nocalhost, you can also configure under the definition 
 # of the application, such as:
-# https://github.com/nocalhost/bookinfo/blob/main/.nocalhost/config.yaml
+# https://nocalhost.dev/docs/config/config-deployment-quickstart
 #`
 
 var svcNotificationTipsLocalLoaded = `# Tips: This configuration is a in-memory replica of local file: 

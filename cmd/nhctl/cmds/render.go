@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/fp"
+	"nocalhost/pkg/nhctl/log"
 	customyaml3 "nocalhost/pkg/nhctl/utils/custom_yaml_v3"
 )
 
@@ -28,9 +30,9 @@ func init() {
 }
 
 var renderCmd = &cobra.Command{
-	Use:   "render [NAME]",
+	Use: "render [NAME]",
 	Short: "Render the file for debugging",
-	Long:  `Render the file for debugging`,
+	Long: `Render the file for debugging`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
@@ -51,8 +53,17 @@ var renderCmd = &cobra.Command{
 			m := map[string]interface{}{}
 			_ = customyaml3.Unmarshal([]byte(render), m)
 
-			marshal, _ := customyaml3.Marshal(m)
-			fmt.Print(string(marshal))
+			if len(m) == 0 {
+				err := yaml.Unmarshal([]byte(render), m)
+				if err != nil {
+					log.Fatalf(
+						"%s\n\n======\n\nRender Error: %s, Please check the render result above", render, err.Error(),
+					)
+				}
+			} else {
+				marshal, _ := customyaml3.Marshal(m)
+				fmt.Print(string(marshal))
+			}
 		}
 	},
 }
