@@ -83,7 +83,7 @@ func init() {
 	)
 	devStartCmd.Flags().StringVarP(
 		&devStartOps.DevModeType, "dev-mode", "m", "",
-		"devMode which can be started in every local desktop and not influence each other",
+		"specify which DevMode you want to enter, such as: replace,duplicate. Default: replace",
 	)
 	debugCmd.AddCommand(devStartCmd)
 }
@@ -300,12 +300,10 @@ func startSyncthing(podName, container string, resume bool) {
 }
 
 func enterDevMode(devModeType profile.DevModeType) {
-	if devModeType != "" {
-		must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-			v2.DevModeType = devModeType
-			return nil
-		}))
-	}
+	must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
+		v2.DevModeType = devModeType
+		return nil
+	}))
 	must(
 		nocalhostSvc.AppMeta.SvcDevStarting(nocalhostSvc.Name, nocalhostSvc.Type,
 			nocalhostApp.GetProfileCompel().Identifier, devModeType),
@@ -317,17 +315,17 @@ func enterDevMode(devModeType profile.DevModeType) {
 		if !devStartSuccess {
 			log.Infof("Roll backing dev mode... \n")
 			if devModeType != "" {
-				nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
+				_ = nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
 					v2.DevModeType = ""
 					return nil
 				})
 			}
-			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type, devModeType)
+			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Identifier, nocalhostSvc.Type, devModeType)
 		}
 	}()
 
 	var err error
-	nocalhostSvc.DevModeType = profile.DevModeType(devModeType)
+	nocalhostSvc.DevModeType = devModeType
 	if err = nocalhostSvc.BuildPodController().ReplaceImage(context.TODO(), devStartOps); err != nil {
 		log.WarnE(err, "Failed to replace dev container")
 		log.Info("Resetting workload...")
@@ -340,7 +338,7 @@ func enterDevMode(devModeType profile.DevModeType) {
 
 	must(
 		nocalhostSvc.AppMeta.SvcDevStartComplete(
-			nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier, devModeType,
+			nocalhostSvc.Name, nocalhostSvc.Type, nocalhostSvc.Identifier, devModeType,
 		),
 	)
 

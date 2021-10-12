@@ -316,7 +316,7 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, ns, identifier string) {
 	svcType := base.SvcTypeOf(s.GetType())
 
-	devStatus := meta.CheckIfSvcDeveloping(s.GetName(), svcType, s.DevModeType)
+	devStatus := meta.CheckIfSvcDeveloping(s.GetName(), identifier, svcType, s.DevModeType)
 
 	pack := dev_dir.NewSvcPack(
 		ns,
@@ -457,9 +457,7 @@ func (a *ApplicationMeta) InitGoClient(kubeConfigPath string) error {
 }
 
 func (a *ApplicationMeta) SvcDevModePossessor(name string, svcType base.SvcType, identifier string, modeType profile2.DevModeType) bool {
-	if !modeType.IsReplaceDevMode() {
-		name = name + "-" + string(modeType)
-	}
+	name = devModeName(name, identifier, modeType)
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -476,9 +474,7 @@ func (a *ApplicationMeta) SvcDevModePossessor(name string, svcType base.SvcType,
 // SvcDevStarting call this func first recode 'name>...starting' as developing
 // while complete enter dev start, should call #SvcDevStartComplete to mark svc completely enter dev mode
 func (a *ApplicationMeta) SvcDevStarting(name string, svcType base.SvcType, identifier string, modeType profile2.DevModeType) error {
-	if !modeType.IsReplaceDevMode() {
-		name = name + "-" + string(modeType)
-	}
+	name = devModeName(name, identifier, modeType)
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -511,10 +507,15 @@ func devStartMarkSign(name string) string {
 	return fmt.Sprintf("%s%s", name, DEV_STARTING_SUFFIX)
 }
 
-func (a *ApplicationMeta) SvcDevStartComplete(name string, svcType base.SvcType, identifier string, modeType profile2.DevModeType) error {
+func devModeName(name, identifier string, modeType profile2.DevModeType) string {
 	if !modeType.IsReplaceDevMode() {
-		name = name + "-" + string(modeType)
+		return name + "-" + string(modeType) + "-" + identifier
 	}
+	return name
+}
+
+func (a *ApplicationMeta) SvcDevStartComplete(name string, svcType base.SvcType, identifier string, modeType profile2.DevModeType) error {
+	name = devModeName(name, identifier, modeType)
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -534,10 +535,8 @@ func (a *ApplicationMeta) SvcDevStartComplete(name string, svcType base.SvcType,
 	return a.Update()
 }
 
-func (a *ApplicationMeta) SvcDevEnd(name string, svcType base.SvcType, modeType profile2.DevModeType) error {
-	if !modeType.IsReplaceDevMode() {
-		name = name + "-" + string(modeType)
-	}
+func (a *ApplicationMeta) SvcDevEnd(name, identifier string, svcType base.SvcType, modeType profile2.DevModeType) error {
+	name = devModeName(name, identifier, modeType)
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -556,10 +555,8 @@ func (a *ApplicationMeta) SvcDevEnd(name string, svcType base.SvcType, modeType 
 	return a.Update()
 }
 
-func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType, modeType profile2.DevModeType) DevStartStatus {
-	if !modeType.IsReplaceDevMode() {
-		name = name + "-duplicate"
-	}
+func (a *ApplicationMeta) CheckIfSvcDeveloping(name, identifier string, svcType base.SvcType, modeType profile2.DevModeType) DevStartStatus {
+	name = devModeName(name, identifier, modeType)
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
