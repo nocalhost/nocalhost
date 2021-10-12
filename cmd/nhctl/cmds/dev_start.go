@@ -7,6 +7,7 @@ package cmds
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/coloredoutput"
@@ -113,7 +114,7 @@ var devStartCmd = &cobra.Command{
 		}
 
 		if nocalhostSvc.IsInReplaceDevMode() || nocalhostSvc.IsInDuplicateDevMode() {
-			coloredoutput.Hint("Already in DevMode...")
+			coloredoutput.Hint(fmt.Sprintf("Already in %s DevMode...", nocalhostSvc.DevModeType))
 
 			podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
 			must(err)

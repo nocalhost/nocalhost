@@ -117,11 +117,7 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 }
 
 func (r *DuplicateRawPodController) RollBack(reset bool) error {
-	lmap, err := r.getDuplicateLabelsMap()
-	if err != nil {
-		return err
-	}
-	deploys, err := r.Client.Labels(lmap).ListPods()
+	deploys, err := r.GetPodList()
 	if err != nil {
 		return err
 	}
@@ -133,7 +129,6 @@ func (r *DuplicateRawPodController) RollBack(reset bool) error {
 	}
 	return r.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
 		svcProfileV2.DevModeType = ""
-		//svcProfileV2.DuplicateDevMode = false
 		return nil
 	})
 

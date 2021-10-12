@@ -896,6 +896,9 @@ type PortForwardEndOptions struct {
 }
 
 func (a *Application) Controller(name string, svcType base.SvcType) (*controller.Controller, error) {
+	if a.Identifier == "" {
+		return nil, errors.New("Application's identifier cannot be nil")
+	}
 	c := &controller.Controller{
 		NameSpace:  a.NameSpace,
 		AppName:    a.Name,
