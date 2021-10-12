@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	k8sruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/util/retry"
 	"net"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
@@ -246,20 +247,26 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 								// after 2 seconds, check it again, if it's still not available
 								// the second will stop old port-forward, using same port to port-forward, and create a new syncthing process
 								for i := 0; i < 2; i++ {
-									status := svc.NewSyncthingHttpClient(2).GetSyncthingStatus()
-									// syncthing status is req.Disconnected, needs to reconnect
-									if status.Status != req.Disconnected {
+									errs := retry.OnError(retry.DefaultBackoff, func(err error) bool {
+										return err != nil
+									}, func() error {
+										status := svc.NewSyncthingHttpClient(2).GetSyncthingStatus()
+										// syncthing status is req.Disconnected, needs to reconnect
+										if status.Status != req.Disconnected {
+											return nil
+										}
+										return errors.New("")
+									})
+									if errs == nil {
 										break
 									}
 									log.LogDebugf("prepare to restore syncthing, name: %s\n", resourceName)
+									fmt.Printf("prepare to restore syncthing, name: %s\n", resourceName)
 									// TODO using developing container, otherwise will using default containerDevConfig
 									if err = reconnectSyncthing(svc, "", v2.Kubeconfig, i == 1); err != nil {
 										log.PErrorf(
 											"error while reconnect syncthing, ns: %s, app: %s, svc: %s, type: %s, err: %v",
 											meta.Ns, meta.Application, resourceName, string(svcType), err)
-									}
-									if i == 0 {
-										time.Sleep(time.Second * 2)
 									}
 								}
 							}
