@@ -6,6 +6,7 @@
 package profile
 
 import (
+	"errors"
 	"fmt"
 	"github.com/go-playground/validator/v10"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -13,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
-	"nocalhost/pkg/nhctl/log"
 	"os"
 	"reflect"
 	"strings"
@@ -28,8 +28,10 @@ var (
 	StorageClass = "StorageClass"
 	PortForward  = "PortForward"
 	Port         = "Port"
+	Container    = "Container"
 
 	SUPPORT_SC = "NOCALHOST_SUPPORT_SC"
+	CONTAINERS = "NOCALHOST_CONTAINERS"
 
 	validate = validator.New()
 )
@@ -43,6 +45,7 @@ func init() {
 	_ = validate.RegisterValidationWithErrorMsg(StorageClass, StorageClassSupported)
 	_ = validate.RegisterValidationWithErrorMsg(PortForward, PortForwardCheck)
 	_ = validate.RegisterValidationWithErrorMsg(Port, PortCheck)
+	_ = validate.RegisterValidationWithErrorMsg(Container, ContainerCheck)
 
 	validate.RegisterTagNameFunc(
 		func(field reflect.StructField) string {
@@ -61,7 +64,7 @@ type ServiceConfigV2 struct {
 }
 
 type ContainerConfig struct {
-	Name    string                  `validate:"DNS1123,required" json:"name" yaml:"name"`
+	Name    string                  `validate:"DNS1123,Container" json:"name" yaml:"name"`
 	Hub     *HubConfig              `json:"hub" yaml:"hub,omitempty"`
 	Install *ContainerInstallConfig `json:"install,omitempty" yaml:"install,omitempty"`
 	Dev     *ContainerDevConfig     `json:"dev" yaml:"dev"`
@@ -124,13 +127,13 @@ func (s *ServiceConfigV2) Validate() error {
 		for i, validationError := range validationErrors {
 			errMsg +=
 				fmt.Sprintf(
-					"<br>(%v) Error on field '%s', value '%s', hint: %s. ",
+					"<br>(%v) Error on field '%s', value '%v', hint: %s. ",
 					i, validationError.Namespace(), validationError.Value(), validationError.Msg(),
 				)
 		}
 
 		if errMsg != "" {
-			log.PWarn(errMsg)
+			return errors.New(errMsg)
 		}
 	}
 	return err
@@ -216,8 +219,31 @@ func StorageClassSupported(fl validator.FieldLevel) string {
 			set.Has(val),
 			func() string {
 				return fmt.Sprintf(
-					"we found your cluster only supports storage class {%s},"+
+					"we found your cluster only supports storage class %s,"+
 						" config for storageclass %v do not matched", split, val,
+				)
+			},
+		)
+	} else {
+		return ""
+	}
+}
+
+func ContainerCheck(fl validator.FieldLevel) string {
+	val := fl.Field().String()
+
+	// if can not get storage class, escape to validate it
+	supportsEnv, ok := os.LookupEnv(CONTAINERS)
+	if ok {
+		split := strings.Split(supportsEnv, "\n")
+
+		set := sets.NewString(split...)
+		return hintIfNoPass(
+			set.Has(val),
+			func() string {
+				return fmt.Sprintf(
+					"we found your workloads with container %s,"+
+						" container specified named '%v' do not matched", split, val,
 				)
 			},
 		)
