@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/common/base"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -21,6 +22,7 @@ import (
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	utils2 "nocalhost/pkg/nhctl/utils"
+	"strconv"
 	"strings"
 )
 
@@ -288,6 +290,7 @@ func enterDevMode(devModeType profile.DevModeType) {
 
 	// prevent dev status modified but not actually enter dev mode
 	var devStartSuccess = false
+	var err error
 	defer func() {
 		if !devStartSuccess {
 			log.Infof("Roll backing dev mode... \n")
@@ -301,7 +304,35 @@ func enterDevMode(devModeType profile.DevModeType) {
 		}
 	}()
 
-	var err error
+	// Only `replace` DevMode needs to disable hpa
+	if devModeType.IsReplaceDevMode() {
+		log.Info("Disabling hpa...")
+		hl, err := nocalhostSvc.ListHPA()
+		if err != nil {
+			log.WarnE(err, "Failed to find hpa")
+		}
+		if len(hl) == 0 {
+			log.Info("No hpa found")
+		}
+		for _, h := range hl {
+			if len(h.Annotations) == 0 {
+				h.Annotations = make(map[string]string)
+			}
+			h.Annotations[_const.HPAOriginalMaxReplicasKey] = strconv.Itoa(int(h.Spec.MaxReplicas))
+			h.Spec.MaxReplicas = 1
+			if h.Spec.MinReplicas != nil {
+				h.Annotations[_const.HPAOriginalMinReplicasKey] = strconv.Itoa(int(*h.Spec.MinReplicas))
+				var i int32 = 1
+				h.Spec.MinReplicas = &i
+			}
+			if _, err = nocalhostSvc.Client.UpdateHPA(&h); err != nil {
+				log.WarnE(err, fmt.Sprintf("Failed to update hpa %s", h.Name))
+			} else {
+				log.Infof("HPA %s has been disabled", h.Name)
+			}
+		}
+	}
+
 	nocalhostSvc.DevModeType = devModeType
 	if err = nocalhostSvc.BuildPodController().ReplaceImage(context.TODO(), devStartOps); err != nil {
 		log.WarnE(err, "Failed to replace dev container")

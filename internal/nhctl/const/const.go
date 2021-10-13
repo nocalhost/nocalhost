@@ -63,6 +63,9 @@ const (
 	NocalhostViewerRoleBinding = "nocalhost-viewer-role-binding"
 	NocalhostViewerRoleName    = "nocalhost-viewer-role"
 
+	HPAOriginalMaxReplicasKey = "nocalhost.dev.hpa.origin.max.replicas"
+	HPAOriginalMinReplicasKey = "nocalhost.dev.hpa.origin.min.replicas"
+
 	// sycnthing
 
 	// sync type
