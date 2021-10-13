@@ -17,6 +17,7 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
+	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/daemon_common"
@@ -24,6 +25,7 @@ import (
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/syncthing/network/req"
@@ -230,44 +232,55 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 					if err2 != nil {
 						continue
 					}
+					m := make(map[string]profile.DevModeType)
+					for _, profileV2 := range v2.SvcProfile {
+						m[fmt.Sprintf("%s/%s", base.SvcTypeOf(profileV2.GetType()), profileV2.GetName())] =
+							profileV2.DevModeType
+					}
 					for svcType, devMeta := range meta.DevMeta {
 						for resourceName, identifier := range devMeta {
 							if strings.Contains(resourceName, appmeta.DEV_STARTING_SUFFIX) {
 								continue
 							}
-							if v2.Identifier == identifier && len(identifier) != 0 {
-								svc := &controller.Controller{
-									NameSpace: meta.Ns,
-									AppName:   meta.Application,
-									Name:      resourceName,
-									Type:      svcType.Origin(),
-									AppMeta:   meta,
+							if strings.Contains(resourceName, appmeta.DuplicateSuffix) {
+								resourceName = strings.ReplaceAll(resourceName, appmeta.DuplicateSuffix, "")
+							}
+							if len(identifier) == 0 || v2.Identifier != identifier {
+								continue
+							}
+							svc := &controller.Controller{
+								NameSpace:   meta.Ns,
+								AppName:     meta.Application,
+								Name:        resourceName,
+								Type:        svcType.Origin(),
+								Identifier:  identifier,
+								DevModeType: m[fmt.Sprintf("%s/%s", svcType.Origin(), resourceName)],
+								AppMeta:     meta,
+							}
+							// reconnect two times:
+							// the first time: using old port-forward, just create a new syncthing process
+							//   detect syncthing service is available or not, if it's still not available
+							// the second time: redo port-forward, and create a new syncthing process
+							for i := 0; i < 2; i++ {
+								errs := retry.OnError(retry.DefaultBackoff, func(err error) bool {
+									return err != nil
+								}, func() error {
+									status := svc.NewSyncthingHttpClient(2).GetSyncthingStatus()
+									// syncthing status is req.Disconnected, needs to reconnect
+									if status.Status == req.Disconnected {
+										return errors.New("needs to reconnect")
+									}
+									return nil
+								})
+								if errs == nil {
+									break
 								}
-								// reconnect two times, the first time is using old port-forward, just create a new syncthing process
-								// after 2 seconds, check it again, if it's still not available
-								// the second will stop old port-forward, using same port to port-forward, and create a new syncthing process
-								for i := 0; i < 2; i++ {
-									errs := retry.OnError(retry.DefaultBackoff, func(err error) bool {
-										return err != nil
-									}, func() error {
-										status := svc.NewSyncthingHttpClient(2).GetSyncthingStatus()
-										// syncthing status is req.Disconnected, needs to reconnect
-										if status.Status != req.Disconnected {
-											return nil
-										}
-										return errors.New("")
-									})
-									if errs == nil {
-										break
-									}
-									log.LogDebugf("prepare to restore syncthing, name: %s\n", resourceName)
-									fmt.Printf("prepare to restore syncthing, name: %s\n", resourceName)
-									// TODO using developing container, otherwise will using default containerDevConfig
-									if err = reconnectSyncthing(svc, "", v2.Kubeconfig, i == 1); err != nil {
-										log.PErrorf(
-											"error while reconnect syncthing, ns: %s, app: %s, svc: %s, type: %s, err: %v",
-											meta.Ns, meta.Application, resourceName, string(svcType), err)
-									}
+								log.LogDebugf("prepare to restore syncthing, name: %s\n", resourceName)
+								// TODO using developing container, otherwise will using default containerDevConfig
+								if err = reconnectSyncthing(svc, "", v2.Kubeconfig, i == 1); err != nil {
+									log.PErrorf(
+										"error while reconnect syncthing, ns: %s, app: %s, svc: %s, type: %s, err: %v",
+										meta.Ns, meta.Application, resourceName, string(svcType), err)
 								}
 							}
 						}
