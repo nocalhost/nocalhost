@@ -55,6 +55,16 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 		} else {
 			return errors.New(fmt.Sprintf("Annotation %s not found, failed to rollback", originalPodDefine))
 		}
+	} else {
+		if len(originalPod.Annotations) > 0 {
+			podSpec, ok := originalPod.Annotations[originalPodDefine]
+			var oPodSpec = corev1.Pod{}
+			if ok {
+				if err = json.Unmarshal([]byte(podSpec), &oPodSpec); err == nil {
+					originalPod = &oPodSpec
+				}
+			}
+		}
 	}
 
 	suffix := r.Identifier[0:5]
@@ -117,11 +127,7 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 }
 
 func (r *DuplicateRawPodController) RollBack(reset bool) error {
-	lmap, err := r.getDuplicateLabelsMap()
-	if err != nil {
-		return err
-	}
-	deploys, err := r.Client.Labels(lmap).ListPods()
+	deploys, err := r.GetPodList()
 	if err != nil {
 		return err
 	}
@@ -133,7 +139,6 @@ func (r *DuplicateRawPodController) RollBack(reset bool) error {
 	}
 	return r.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
 		svcProfileV2.DevModeType = ""
-		//svcProfileV2.DuplicateDevMode = false
 		return nil
 	})
 

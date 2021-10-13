@@ -37,12 +37,12 @@ type Controller struct {
 // IsInReplaceDevMode return true if under dev starting or start complete
 func (c *Controller) IsInReplaceDevMode() bool {
 	return c.DevModeType.IsReplaceDevMode() &&
-		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type, c.DevModeType) != appmeta.NONE
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) != appmeta.NONE
 }
 
 func (c *Controller) IsInDuplicateDevMode() bool {
 	return c.DevModeType.IsDuplicateDevMode() &&
-		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type, c.DevModeType) != appmeta.NONE
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) != appmeta.NONE
 }
 
 func (c *Controller) IsInDevMode() bool {
@@ -313,22 +313,24 @@ func (c *Controller) UpdateSvcProfile(modify func(*profile.SvcProfileV2) error) 
 	if err := modify(profileV2.SvcProfileV2(c.Name, c.Type.String())); err != nil {
 		return err
 	}
+	profileV2.GenerateIdentifierIfNeeded()
 	return profileV2.Save()
 }
 
 // UpdateProfile The second param of modify will not be nil
-func (c *Controller) UpdateProfile(modify func(*profile.AppProfileV2, *profile.SvcProfileV2) error) error {
-	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
-	if err != nil {
-		return err
-	}
-	defer profileV2.CloseDb()
-
-	if err := modify(profileV2, profileV2.SvcProfileV2(c.Name, c.Type.String())); err != nil {
-		return err
-	}
-	return profileV2.Save()
-}
+//func (c *Controller) UpdateProfile(modify func(*profile.AppProfileV2, *profile.SvcProfileV2) error) error {
+//	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
+//	if err != nil {
+//		return err
+//	}
+//	defer profileV2.CloseDb()
+//
+//	if err := modify(profileV2, profileV2.SvcProfileV2(c.Name, c.Type.String())); err != nil {
+//		return err
+//	}
+//	profileV2.GenerateIdentifierIfNeeded()
+//	return profileV2.Save()
+//}
 
 func (c *Controller) GetName() string {
 	return c.Name

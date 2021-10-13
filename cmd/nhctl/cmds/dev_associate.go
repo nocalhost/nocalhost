@@ -99,7 +99,7 @@ var devAssociateCmd = &cobra.Command{
 		checkIfSvcExist(commonFlags.SvcName, serviceType)
 
 		if (nocalhostSvc.IsInReplaceDevMode() && nocalhostSvc.IsProcessor()) || nocalhostSvc.IsInDuplicateDevMode() {
-			log.PWarn("Current svc is already in DevMode, so can not switch associate dir, please exit the DevMode and try again.")
+			log.PWarn(fmt.Sprintf("Current svc is already in %s DevMode, so can not switch associate dir, please exit the DevMode and try again.", nocalhostSvc.DevModeType.ToString()))
 			os.Exit(1)
 		}
 

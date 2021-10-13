@@ -86,7 +86,7 @@ func init() {
 	)
 	devStartCmd.Flags().StringVarP(
 		&devStartOps.DevModeType, "dev-mode", "m", "",
-		"devMode which can be started in every local desktop and not influence each other",
+		"specify which DevMode you want to enter, such as: replace,duplicate. Default: replace",
 	)
 	debugCmd.AddCommand(devStartCmd)
 }
@@ -115,8 +115,8 @@ var devStartCmd = &cobra.Command{
 			log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
 
-		if nocalhostSvc.IsInReplaceDevMode() || nocalhostSvc.IsInDuplicateDevMode() {
-			coloredoutput.Hint("Already in DevMode...")
+		if nocalhostSvc.IsInDevMode() {
+			coloredoutput.Hint(fmt.Sprintf("Already in %s DevMode...", nocalhostSvc.DevModeType.ToString()))
 
 			podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
 			must(err)
@@ -192,29 +192,6 @@ func stopPreviousPortForward() {
 }
 
 func prepareSyncThing() {
-	//// Delete service folder
-	//dir := nocalhostSvc.GetApplicationSyncDir()
-	//if err2 := os.RemoveAll(dir); err2 != nil {
-	//	log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
-	//}
-	//
-	//newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
-	//mustI(err, "Failed to create syncthing process, please try again")
-	//// set syncthing secret
-	//config, err := newSyncthing.GetRemoteConfigXML()
-	//must(err)
-	//
-	//syncSecret := &corev1.Secret{
-	//	ObjectMeta: metav1.ObjectMeta{
-	//		Name: nocalhostSvc.GetSyncThingSecretName(),
-	//	},
-	//	Type: corev1.SecretTypeOpaque,
-	//	Data: map[string][]byte{
-	//		"config.xml": config,
-	//		"cert.pem":   []byte(secret_config.CertPEM),
-	//		"key.pem":    []byte(secret_config.KeyPEM),
-	//	},
-	//}
 	var duplicateDevMode bool
 	if devStartOps.DevModeType == string(profile.DuplicateDevMode) {
 		duplicateDevMode = true
@@ -224,14 +201,13 @@ func prepareSyncThing() {
 
 func recordLocalSyncDirToProfile() {
 	must(
-		nocalhostSvc.UpdateProfile(
-			func(p *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
+		nocalhostSvc.UpdateSvcProfile(
+			func(svcProfile *profile.SvcProfileV2) error {
 				if len(devStartOps.LocalSyncDir) == 1 {
 					svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 				} else {
 					return errors.New("Can not define multi 'local-sync(-s)'")
 				}
-				p.GenerateIdentifierIfNeeded()
 				return nil
 			},
 		),
@@ -303,12 +279,10 @@ func startSyncthing(podName, container string, resume bool) {
 }
 
 func enterDevMode(devModeType profile.DevModeType) {
-	if devModeType != "" {
-		must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-			v2.DevModeType = devModeType
-			return nil
-		}))
-	}
+	must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
+		v2.DevModeType = devModeType
+		return nil
+	}))
 	must(
 		nocalhostSvc.AppMeta.SvcDevStarting(nocalhostSvc.Name, nocalhostSvc.Type,
 			nocalhostApp.GetProfileCompel().Identifier, devModeType),
@@ -321,12 +295,12 @@ func enterDevMode(devModeType profile.DevModeType) {
 		if !devStartSuccess {
 			log.Infof("Roll backing dev mode... \n")
 			if devModeType != "" {
-				nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
+				_ = nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
 					v2.DevModeType = ""
 					return nil
 				})
 			}
-			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type, devModeType)
+			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Identifier, nocalhostSvc.Type, devModeType)
 		}
 	}()
 
@@ -372,7 +346,7 @@ func enterDevMode(devModeType profile.DevModeType) {
 
 	must(
 		nocalhostSvc.AppMeta.SvcDevStartComplete(
-			nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier, devModeType,
+			nocalhostSvc.Name, nocalhostSvc.Type, nocalhostSvc.Identifier, devModeType,
 		),
 	)
 
