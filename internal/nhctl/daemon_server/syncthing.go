@@ -108,41 +108,36 @@ func reconnectedSyncthingIfNeeded() {
 		if meta == nil || meta.DevMeta == nil {
 			continue
 		}
-		v2, err2 := nocalhost.GetProfileV2(meta.Ns, meta.Application, meta.NamespaceId)
-		if err2 != nil {
+		appProfile, err := nocalhost.GetProfileV2(meta.Ns, meta.Application, meta.NamespaceId)
+		if err != nil {
 			continue
 		}
-		m := make(map[string]profile.DevModeType)
-		for _, profileV2 := range v2.SvcProfile {
-			m[fmt.Sprintf("%s/%s", base.SvcTypeOf(profileV2.GetType()), profileV2.GetName())] =
-				profileV2.DevModeType
-		}
-		for svcType, devMeta := range meta.DevMeta {
-			for resourceName, identifier := range devMeta {
-				if strings.Contains(resourceName, appmeta.DEV_STARTING_SUFFIX) {
-					continue
-				}
-				if strings.Contains(resourceName, appmeta.DuplicateSuffix) {
-					resourceName = strings.ReplaceAll(resourceName, appmeta.DuplicateSuffix, "")
-				}
-				if len(identifier) == 0 || v2.Identifier != identifier {
-					continue
-				}
-				svc := &controller.Controller{
-					NameSpace:   meta.Ns,
-					AppName:     meta.Application,
-					Name:        resourceName,
-					Type:        svcType.Origin(),
-					Identifier:  identifier,
-					DevModeType: m[fmt.Sprintf("%s/%s", svcType.Origin(), resourceName)],
-					AppMeta:     meta,
-				}
-				// reconnect two times:
-				// the first time: using old port-forward, just create a new syncthing process
-				//   detect syncthing service is available or not, if it's still not available
-				// the second time: redo port-forward, and create a new syncthing process
+		for _, svcProfile := range appProfile.SvcProfile {
+			svcType, err1 := base.SvcTypeOfMutate(svcProfile.GetType())
+			if err1 != nil {
+				continue
+			}
+			svc := &controller.Controller{
+				NameSpace:   meta.Ns,
+				AppName:     meta.Application,
+				Name:        svcProfile.GetName(),
+				Type:        svcType,
+				Identifier:  appProfile.Identifier,
+				DevModeType: svcProfile.DevModeType,
+				AppMeta:     meta,
+			}
+			if !svc.IsProcessor() || !svc.IsInDevMode() {
+				continue
+			}
+			// reconnect two times:
+			// the first time: using old port-forward, just create a new syncthing process
+			//   detect syncthing service is available or not, if it's still not available
+			// the second time: redo port-forward, and create a new syncthing process
+			go func(svc *controller.Controller, appProfile *profile.AppProfileV2, svcProfile *profile.SvcProfileV2,
+				meta *appmeta.ApplicationMeta) {
+				defer RecoverDaemonFromPanic()
 				for i := 0; i < 2; i++ {
-					if err := retry.OnError(wait.Backoff{
+					if err = retry.OnError(wait.Backoff{
 						Steps:    4,
 						Duration: 10 * time.Millisecond,
 						Factor:   50,
@@ -158,15 +153,15 @@ func reconnectedSyncthingIfNeeded() {
 					}); err == nil {
 						break
 					}
-					log.LogDebugf("prepare to restore syncthing, name: %s\n", resourceName)
+					log.LogDebugf("prepare to restore syncthing, name: %s\n", svcProfile.GetName())
 					// TODO using developing container, otherwise will using default containerDevConfig
-					if err := doReconnectSyncthing(svc, "", v2.Kubeconfig, i == 1); err != nil {
+					if err = doReconnectSyncthing(svc, "", appProfile.Kubeconfig, true); err != nil {
 						log.PErrorf(
 							"error while reconnect syncthing, ns: %s, app: %s, svc: %s, type: %s, err: %v",
-							meta.Ns, meta.Application, resourceName, string(svcType), err)
+							meta.Ns, meta.Application, svcProfile.GetName(), svcProfile.GetType(), err)
 					}
 				}
-			}
+			}(svc, appProfile, svcProfile, meta)
 		}
 	}
 }
