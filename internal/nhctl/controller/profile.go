@@ -137,8 +137,8 @@ func (c *Controller) setSyncthingProfileEndStatus(duplicateDevMode bool) error {
 
 // You should `CheckIfPortForwardExists` before adding a port-forward to db
 func (c *Controller) AddPortForwardToDB(port *profile.DevPortForward) error {
-	return c.UpdateProfile(
-		func(profileV2 *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
+	return c.UpdateSvcProfile(
+		func(svcProfile *profile.SvcProfileV2) error {
 			svcProfile.DevPortForwardList = append(svcProfile.DevPortForwardList, port)
 			return nil
 		},

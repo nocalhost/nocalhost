@@ -7,10 +7,12 @@ package cmds
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/common/base"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -20,6 +22,7 @@ import (
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	utils2 "nocalhost/pkg/nhctl/utils"
+	"strconv"
 	"strings"
 )
 
@@ -83,7 +86,7 @@ func init() {
 	)
 	devStartCmd.Flags().StringVarP(
 		&devStartOps.DevModeType, "dev-mode", "m", "",
-		"devMode which can be started in every local desktop and not influence each other",
+		"specify which DevMode you want to enter, such as: replace,duplicate. Default: replace",
 	)
 	debugCmd.AddCommand(devStartCmd)
 }
@@ -112,8 +115,8 @@ var devStartCmd = &cobra.Command{
 			log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
 
-		if nocalhostSvc.IsInReplaceDevMode() || nocalhostSvc.IsInDuplicateDevMode() {
-			coloredoutput.Hint("Already in DevMode...")
+		if nocalhostSvc.IsInDevMode() {
+			coloredoutput.Hint(fmt.Sprintf("Already in %s DevMode...", nocalhostSvc.DevModeType.ToString()))
 
 			podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
 			must(err)
@@ -189,29 +192,6 @@ func stopPreviousPortForward() {
 }
 
 func prepareSyncThing() {
-	//// Delete service folder
-	//dir := nocalhostSvc.GetApplicationSyncDir()
-	//if err2 := os.RemoveAll(dir); err2 != nil {
-	//	log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
-	//}
-	//
-	//newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
-	//mustI(err, "Failed to create syncthing process, please try again")
-	//// set syncthing secret
-	//config, err := newSyncthing.GetRemoteConfigXML()
-	//must(err)
-	//
-	//syncSecret := &corev1.Secret{
-	//	ObjectMeta: metav1.ObjectMeta{
-	//		Name: nocalhostSvc.GetSyncThingSecretName(),
-	//	},
-	//	Type: corev1.SecretTypeOpaque,
-	//	Data: map[string][]byte{
-	//		"config.xml": config,
-	//		"cert.pem":   []byte(secret_config.CertPEM),
-	//		"key.pem":    []byte(secret_config.KeyPEM),
-	//	},
-	//}
 	var duplicateDevMode bool
 	if devStartOps.DevModeType == string(profile.DuplicateDevMode) {
 		duplicateDevMode = true
@@ -221,14 +201,13 @@ func prepareSyncThing() {
 
 func recordLocalSyncDirToProfile() {
 	must(
-		nocalhostSvc.UpdateProfile(
-			func(p *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
+		nocalhostSvc.UpdateSvcProfile(
+			func(svcProfile *profile.SvcProfileV2) error {
 				if len(devStartOps.LocalSyncDir) == 1 {
 					svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 				} else {
 					return errors.New("Can not define multi 'local-sync(-s)'")
 				}
-				p.GenerateIdentifierIfNeeded()
 				return nil
 			},
 		),
@@ -300,12 +279,10 @@ func startSyncthing(podName, container string, resume bool) {
 }
 
 func enterDevMode(devModeType profile.DevModeType) {
-	if devModeType != "" {
-		must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-			v2.DevModeType = devModeType
-			return nil
-		}))
-	}
+	must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
+		v2.DevModeType = devModeType
+		return nil
+	}))
 	must(
 		nocalhostSvc.AppMeta.SvcDevStarting(nocalhostSvc.Name, nocalhostSvc.Type,
 			nocalhostApp.GetProfileCompel().Identifier, devModeType),
@@ -313,21 +290,50 @@ func enterDevMode(devModeType profile.DevModeType) {
 
 	// prevent dev status modified but not actually enter dev mode
 	var devStartSuccess = false
+	var err error
 	defer func() {
 		if !devStartSuccess {
 			log.Infof("Roll backing dev mode... \n")
 			if devModeType != "" {
-				nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
+				_ = nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
 					v2.DevModeType = ""
 					return nil
 				})
 			}
-			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Type, devModeType)
+			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Identifier, nocalhostSvc.Type, devModeType)
 		}
 	}()
 
-	var err error
-	nocalhostSvc.DevModeType = profile.DevModeType(devModeType)
+	// Only `replace` DevMode needs to disable hpa
+	if devModeType.IsReplaceDevMode() {
+		log.Info("Disabling hpa...")
+		hl, err := nocalhostSvc.ListHPA()
+		if err != nil {
+			log.WarnE(err, "Failed to find hpa")
+		}
+		if len(hl) == 0 {
+			log.Info("No hpa found")
+		}
+		for _, h := range hl {
+			if len(h.Annotations) == 0 {
+				h.Annotations = make(map[string]string)
+			}
+			h.Annotations[_const.HPAOriginalMaxReplicasKey] = strconv.Itoa(int(h.Spec.MaxReplicas))
+			h.Spec.MaxReplicas = 1
+			if h.Spec.MinReplicas != nil {
+				h.Annotations[_const.HPAOriginalMinReplicasKey] = strconv.Itoa(int(*h.Spec.MinReplicas))
+				var i int32 = 1
+				h.Spec.MinReplicas = &i
+			}
+			if _, err = nocalhostSvc.Client.UpdateHPA(&h); err != nil {
+				log.WarnE(err, fmt.Sprintf("Failed to update hpa %s", h.Name))
+			} else {
+				log.Infof("HPA %s has been disabled", h.Name)
+			}
+		}
+	}
+
+	nocalhostSvc.DevModeType = devModeType
 	if err = nocalhostSvc.BuildPodController().ReplaceImage(context.TODO(), devStartOps); err != nil {
 		log.WarnE(err, "Failed to replace dev container")
 		log.Info("Resetting workload...")
@@ -340,7 +346,7 @@ func enterDevMode(devModeType profile.DevModeType) {
 
 	must(
 		nocalhostSvc.AppMeta.SvcDevStartComplete(
-			nocalhostSvc.Name, nocalhostSvc.Type, nocalhostApp.GetProfileCompel().Identifier, devModeType,
+			nocalhostSvc.Name, nocalhostSvc.Type, nocalhostSvc.Identifier, devModeType,
 		),
 	)
 
