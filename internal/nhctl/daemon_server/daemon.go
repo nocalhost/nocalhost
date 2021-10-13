@@ -12,25 +12,17 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	k8sruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/util/retry"
 	"net"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
-	_const "nocalhost/internal/nhctl/const"
-	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_handler"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/internal/nhctl/nocalhost_path"
-	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/internal/nhctl/syncthing/daemon"
-	"nocalhost/internal/nhctl/syncthing/network/req"
 	"nocalhost/internal/nhctl/utils"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
-	utils2 "nocalhost/pkg/nhctl/utils"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -213,69 +205,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 	go checkClusterStatusCronJob()
 
-	go func() {
-		for {
-			func() {
-				defer RecoverDaemonFromPanic()
-				time.Sleep(time.Second * 30)
-				clone := appmeta_manager.GetAllApplicationMetasWithDeepClone()
-				if clone == nil {
-					return
-				}
-				for _, meta := range clone {
-					if meta == nil || meta.DevMeta == nil {
-						continue
-					}
-					v2, err2 := nocalhost.GetProfileV2(meta.Ns, meta.Application, meta.NamespaceId)
-					if err2 != nil {
-						continue
-					}
-					for svcType, devMeta := range meta.DevMeta {
-						for resourceName, identifier := range devMeta {
-							if strings.Contains(resourceName, appmeta.DEV_STARTING_SUFFIX) {
-								continue
-							}
-							if v2.Identifier == identifier && len(identifier) != 0 {
-								svc := &controller.Controller{
-									NameSpace: meta.Ns,
-									AppName:   meta.Application,
-									Name:      resourceName,
-									Type:      svcType.Origin(),
-									AppMeta:   meta,
-								}
-								// reconnect two times, the first time is using old port-forward, just create a new syncthing process
-								// after 2 seconds, check it again, if it's still not available
-								// the second will stop old port-forward, using same port to port-forward, and create a new syncthing process
-								for i := 0; i < 2; i++ {
-									errs := retry.OnError(retry.DefaultBackoff, func(err error) bool {
-										return err != nil
-									}, func() error {
-										status := svc.NewSyncthingHttpClient(2).GetSyncthingStatus()
-										// syncthing status is req.Disconnected, needs to reconnect
-										if status.Status != req.Disconnected {
-											return nil
-										}
-										return errors.New("")
-									})
-									if errs == nil {
-										break
-									}
-									log.LogDebugf("prepare to restore syncthing, name: %s\n", resourceName)
-									fmt.Printf("prepare to restore syncthing, name: %s\n", resourceName)
-									// TODO using developing container, otherwise will using default containerDevConfig
-									if err = reconnectSyncthing(svc, "", v2.Kubeconfig, i == 1); err != nil {
-										log.PErrorf(
-											"error while reconnect syncthing, ns: %s, app: %s, svc: %s, type: %s, err: %v",
-											meta.Ns, meta.Application, resourceName, string(svcType), err)
-									}
-								}
-							}
-						}
-					}
-				}
-			}()
-		}
-	}()
+	go reconnectSyncthingIfNeededWithPeriod(time.Second * 25)
 
 	go func() {
 		select {
@@ -567,65 +497,4 @@ func RecoverDaemonFromPanic() {
 	if r := recover(); r != nil {
 		log.Errorf("DAEMON-RECOVER: %s", string(debug.Stack()))
 	}
-}
-
-// reconnectSyncthing will reconnect syncthing without stop port-forward, just kill syncthing process and start a new one
-func reconnectSyncthing(svc *controller.Controller, container string, kubeconfigPath string, reconnected bool) error {
-	svcProfile, err := svc.GetProfile()
-	if err != nil {
-		return err
-	}
-	// stop syncthing process with pid
-	_ = svc.FindOutSyncthingProcess(func(pid int) error { return syncthing.Stop(pid, true) })
-	// stop syncthing process with keywords
-	str := strings.ReplaceAll(svc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
-	utils2.KillSyncthingProcess(str)
-	flag := false
-	if config, err := svc.GetConfig(); err == nil {
-		if cfg := config.GetContainerDevConfig(container); cfg != nil && cfg.Sync != nil {
-			flag = cfg.Sync.Type == _const.DefaultSyncType
-		}
-	}
-	// if reconnected is true, means needs to stop port-forward
-	if reconnected {
-		pf, err := svc.GetPortForwardForSync()
-		utils.Should(err)
-		if pf != nil {
-			key := fmt.Sprintf("%d:%d", pf.LocalPort, pf.RemotePort)
-			pfProfile, ok := pfManager.pfList[key]
-			if ok {
-				pfProfile.Cancel()
-				err := <-pfProfile.StopCh
-				delete(pfManager.pfList, key)
-				if err != nil {
-					fmt.Println(err)
-				}
-			}
-			_ = svc.DeletePortForwardFromDB(pf.LocalPort, pf.RemotePort)
-		}
-		svc.Client, err = clientgoutils.NewClientGoUtils(kubeconfigPath, svc.NameSpace)
-		pod, err := svc.BuildPodController().GetNocalhostDevContainerPod()
-		if err != nil {
-			return err
-		}
-		err = pfManager.StartPortForwardGoRoutine(&command.PortForwardCommand{
-			NameSpace:   svc.NameSpace,
-			AppName:     svc.AppName,
-			Service:     svc.Name,
-			ServiceType: svc.Type.String(),
-			PodName:     pod,
-			LocalPort:   svcProfile.RemoteSyncthingPort,
-			RemotePort:  svcProfile.RemoteSyncthingPort,
-			Role:        "SYNC",
-			Nid:         svc.AppMeta.NamespaceId,
-		}, true)
-		if err != nil {
-			log.LogE(err)
-		}
-	}
-	newSyncthing, err := svc.NewSyncthing(container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, flag)
-	utils.ShouldI(err, "Failed to new a syncthing")
-	// starts up a local syncthing
-	utils.ShouldI(newSyncthing.Run(context.TODO()), "Failed to run a syncthing")
-	return svc.SetSyncingStatus(true)
 }

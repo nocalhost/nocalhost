@@ -70,6 +70,7 @@ const (
 	DependenceConfigMapPrefix = "nocalhost-depends-do-not-overwrite"
 
 	DEV_STARTING_SUFFIX = ">...Starting"
+	DuplicateSuffix     = "-duplicate"
 )
 
 var ErrAlreadyDev = errors.New("Svc already in dev mode")
