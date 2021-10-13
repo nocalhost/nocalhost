@@ -138,7 +138,9 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	appProfileV2.Namespace = namespace
 	appProfileV2.Kubeconfig = kubeconfig
 	//appProfileV2.ConfigMigrated = true
+	appProfileV2.GenerateIdentifierIfNeeded()
 
+	app.Identifier = appProfileV2.Identifier
 	app.AppType = appProfileV2.AppType
 
 	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, appProfileV2)

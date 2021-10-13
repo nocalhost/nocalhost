@@ -40,6 +40,13 @@ func (d DevModeType) IsDuplicateDevMode() bool {
 	return d == DuplicateDevMode
 }
 
+func (d DevModeType) ToString() string {
+	if d == "" {
+		return string(ReplaceDevMode)
+	}
+	return string(d)
+}
+
 type AppProfileV2 struct {
 	Name string `json:"name" yaml:"name"`
 
@@ -328,7 +335,6 @@ func (s *SvcProfileV2) GetType() string {
 	}
 	return s.Type
 }
-
 
 // portStr is like 8080:80, :80 or 80
 func GetPortForwardForString(portStr string) (int, int, error) {

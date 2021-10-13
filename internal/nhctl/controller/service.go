@@ -13,6 +13,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
@@ -36,12 +37,12 @@ type Controller struct {
 // IsInReplaceDevMode return true if under dev starting or start complete
 func (c *Controller) IsInReplaceDevMode() bool {
 	return c.DevModeType.IsReplaceDevMode() &&
-		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type, c.DevModeType) != appmeta.NONE
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) != appmeta.NONE
 }
 
 func (c *Controller) IsInDuplicateDevMode() bool {
 	return c.DevModeType.IsDuplicateDevMode() &&
-		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type, c.DevModeType) != appmeta.NONE
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) != appmeta.NONE
 }
 
 func (c *Controller) IsInDevMode() bool {
@@ -177,6 +178,25 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 	return podSpec.Containers, nil
 }
 
+func (c *Controller) GetTypeMeta() (metav1.TypeMeta, error) {
+	switch c.Type {
+	case base.Deployment:
+		return appsv1.Deployment{}.TypeMeta, nil
+	case base.StatefulSet:
+		return appsv1.StatefulSet{}.TypeMeta, nil
+	case base.DaemonSet:
+		return appsv1.DaemonSet{}.TypeMeta, nil
+	case base.Job:
+		return batchv1.Job{}.TypeMeta, nil
+	case base.CronJob:
+		return batchv1beta1.CronJob{}.TypeMeta, nil
+	case base.Pod:
+		return v1.Pod{}.TypeMeta, nil
+	default:
+		return metav1.TypeMeta{}, errors.New("unsupported controller type")
+	}
+}
+
 func (c *Controller) GetContainerImage(container string) (string, error) {
 	var podSpec v1.PodSpec
 	switch c.Type {
@@ -293,22 +313,24 @@ func (c *Controller) UpdateSvcProfile(modify func(*profile.SvcProfileV2) error) 
 	if err := modify(profileV2.SvcProfileV2(c.Name, c.Type.String())); err != nil {
 		return err
 	}
+	profileV2.GenerateIdentifierIfNeeded()
 	return profileV2.Save()
 }
 
 // UpdateProfile The second param of modify will not be nil
-func (c *Controller) UpdateProfile(modify func(*profile.AppProfileV2, *profile.SvcProfileV2) error) error {
-	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
-	if err != nil {
-		return err
-	}
-	defer profileV2.CloseDb()
-
-	if err := modify(profileV2, profileV2.SvcProfileV2(c.Name, c.Type.String())); err != nil {
-		return err
-	}
-	return profileV2.Save()
-}
+//func (c *Controller) UpdateProfile(modify func(*profile.AppProfileV2, *profile.SvcProfileV2) error) error {
+//	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
+//	if err != nil {
+//		return err
+//	}
+//	defer profileV2.CloseDb()
+//
+//	if err := modify(profileV2, profileV2.SvcProfileV2(c.Name, c.Type.String())); err != nil {
+//		return err
+//	}
+//	profileV2.GenerateIdentifierIfNeeded()
+//	return profileV2.Save()
+//}
 
 func (c *Controller) GetName() string {
 	return c.Name

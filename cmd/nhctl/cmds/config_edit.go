@@ -17,7 +17,6 @@ import (
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/profile"
-	"os"
 	"strings"
 
 	"nocalhost/pkg/nhctl/log"
@@ -117,16 +116,14 @@ var configEditCmd = &cobra.Command{
 		svcConfig := &profile.ServiceConfigV2{}
 		checkIfSvcExist(configEditFlags.SvcName, serviceType)
 
-		if err := errors.Wrap(unmashaler(svcConfig), "fail to unmarshal content"); err != nil {
-			log.PWarnf(err.Error())
-			os.Exit(1)
+		if err := errors.Wrap(json.Unmarshal(bys, svcConfig), "fail to unmarshal content"); err != nil {
+			log.Fatal(err)
 		}
 
 		containers, _ := nocalhostSvc.GetOriginalContainers()
 		nocalhostApp.PrepareForConfigurationValidate(containers)
 		if err := svcConfig.Validate(); err != nil {
-			log.PWarn(err.Error())
-			os.Exit(1)
+			log.Fatal(err)
 		}
 
 		ot := svcConfig.Type

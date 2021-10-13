@@ -57,6 +57,15 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 		} else {
 			return errors.New("Annotation nocalhost.origin.spec.json not found?")
 		}
+	} else {
+		osj, ok := dep.Annotations[OriginSpecJson]
+		if ok {
+			log.Info("Annotation nocalhost.origin.spec.json found, use it")
+			oSpec := appsv1.DeploymentSpec{}
+			if err = json.Unmarshal([]byte(osj), &oSpec); err == nil {
+				dep.Spec = oSpec
+			}
+		}
 	}
 
 	var rs int32 = 1

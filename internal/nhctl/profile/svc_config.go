@@ -127,7 +127,7 @@ func (s *ServiceConfigV2) Validate() error {
 		for i, validationError := range validationErrors {
 			errMsg +=
 				fmt.Sprintf(
-					"<br>(%v) Error on field '%s', value '%v', hint: %s. ",
+					"\n\n(%v) Error on field '%s', value '%v', hint: %s. ",
 					i, validationError.Namespace(), validationError.Value(), validationError.Msg(),
 				)
 		}
