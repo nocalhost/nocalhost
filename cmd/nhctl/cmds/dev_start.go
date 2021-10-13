@@ -190,29 +190,6 @@ func stopPreviousPortForward() {
 }
 
 func prepareSyncThing() {
-	//// Delete service folder
-	//dir := nocalhostSvc.GetApplicationSyncDir()
-	//if err2 := os.RemoveAll(dir); err2 != nil {
-	//	log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
-	//}
-	//
-	//newSyncthing, err := nocalhostSvc.NewSyncthing(devStartOps.Container, devStartOps.LocalSyncDir, false)
-	//mustI(err, "Failed to create syncthing process, please try again")
-	//// set syncthing secret
-	//config, err := newSyncthing.GetRemoteConfigXML()
-	//must(err)
-	//
-	//syncSecret := &corev1.Secret{
-	//	ObjectMeta: metav1.ObjectMeta{
-	//		Name: nocalhostSvc.GetSyncThingSecretName(),
-	//	},
-	//	Type: corev1.SecretTypeOpaque,
-	//	Data: map[string][]byte{
-	//		"config.xml": config,
-	//		"cert.pem":   []byte(secret_config.CertPEM),
-	//		"key.pem":    []byte(secret_config.KeyPEM),
-	//	},
-	//}
 	var duplicateDevMode bool
 	if devStartOps.DevModeType == string(profile.DuplicateDevMode) {
 		duplicateDevMode = true
@@ -222,14 +199,13 @@ func prepareSyncThing() {
 
 func recordLocalSyncDirToProfile() {
 	must(
-		nocalhostSvc.UpdateProfile(
-			func(p *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
+		nocalhostSvc.UpdateSvcProfile(
+			func(svcProfile *profile.SvcProfileV2) error {
 				if len(devStartOps.LocalSyncDir) == 1 {
 					svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 				} else {
 					return errors.New("Can not define multi 'local-sync(-s)'")
 				}
-				p.GenerateIdentifierIfNeeded()
 				return nil
 			},
 		),
