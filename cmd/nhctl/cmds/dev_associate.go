@@ -12,6 +12,7 @@ import (
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 )
 
 var workDir string
@@ -85,20 +86,24 @@ var devAssociateCmd = &cobra.Command{
 		} else if deAssociate {
 			svcPack.UnAssociatePath()
 			return
-		} else {
-			if workDirDeprecated != "" {
-				workDir = workDirDeprecated
-			}
+		}
+		if workDirDeprecated != "" {
+			workDir = workDirDeprecated
+		}
 
-			if workDir == "" {
-				log.Fatal("--local-sync must specify")
-			}
-			must(dev_dir.DevPath(workDir).Associate(svcPack, kubeConfig, !migrate))
+		if workDir == "" {
+			log.Fatal("--local-sync must specify")
 		}
 
 		initApp(commonFlags.AppName)
 		checkIfSvcExist(commonFlags.SvcName, serviceType)
 
+		if (nocalhostSvc.IsInReplaceDevMode() && nocalhostSvc.IsProcessor()) || nocalhostSvc.IsInDuplicateDevMode() {
+			log.PWarn("Current svc is already in DevMode, so can not switch associate dir, please exit the DevMode and try again.")
+			os.Exit(1)
+		}
+
+		must(dev_dir.DevPath(workDir).Associate(svcPack, kubeConfig, !migrate))
 		must(nocalhostApp.ReloadSvcCfg(nocalhostSvc.Name, nocalhostSvc.Type, false, false))
 	},
 }

@@ -65,4 +65,15 @@ const (
 
 	HPAOriginalMaxReplicasKey = "nocalhost.dev.hpa.origin.max.replicas"
 	HPAOriginalMinReplicasKey = "nocalhost.dev.hpa.origin.min.replicas"
+
+	// sycnthing
+
+	// sync type
+	DefaultSyncType       = "sendReceive" // default sync mode
+	SendOnlySyncType      = "sendonly"
+	SendOnlySyncTypeAlias = "send"
+
+	// sync mode
+	GitIgnoreMode = "gitIgnore"
+	PatternMode   = "pattern"
 )

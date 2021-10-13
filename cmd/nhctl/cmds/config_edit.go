@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/profile"
+	"os"
 	"strings"
 
 	"nocalhost/pkg/nhctl/log"
@@ -26,12 +27,18 @@ type ConfigEditFlags struct {
 var configEditFlags = ConfigEditFlags{}
 
 func init() {
-	configEditCmd.Flags().StringVarP(&configEditFlags.SvcName, "deployment", "d", "",
-		"k8s deployment which your developing service exists")
-	configEditCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
-		"kind of k8s controller,such as deployment,statefulSet")
-	configEditCmd.Flags().StringVarP(&configEditFlags.Content, "content", "c", "",
-		"base64 encode json content")
+	configEditCmd.Flags().StringVarP(
+		&configEditFlags.SvcName, "deployment", "d", "",
+		"k8s deployment which your developing service exists",
+	)
+	configEditCmd.Flags().StringVarP(
+		&serviceType, "controller-type", "t", "deployment",
+		"kind of k8s controller,such as deployment,statefulSet",
+	)
+	configEditCmd.Flags().StringVarP(
+		&configEditFlags.Content, "content", "c", "",
+		"base64 encode json content",
+	)
 	configEditCmd.Flags().BoolVar(&configEditFlags.AppConfig, "app-config", false, "edit application config")
 	configCmd.AddCommand(configEditCmd)
 }
@@ -69,7 +76,18 @@ var configEditCmd = &cobra.Command{
 		svcConfig := &profile.ServiceConfigV2{}
 		checkIfSvcExist(configEditFlags.SvcName, serviceType)
 
-		must(errors.Wrap(json.Unmarshal(bys, svcConfig), "fail to unmarshal content"))
+		if err := errors.Wrap(json.Unmarshal(bys, svcConfig), "fail to unmarshal content"); err != nil {
+			log.PWarnf(err.Error())
+			os.Exit(1)
+		}
+
+		containers, _ := nocalhostSvc.GetOriginalContainers()
+		nocalhostApp.PrepareForConfigurationValidate(containers)
+		if err := svcConfig.Validate(); err != nil {
+			log.PWarn(err.Error())
+			os.Exit(1)
+		}
+
 		ot := svcConfig.Type
 		svcConfig.Type = strings.ToLower(svcConfig.Type)
 		if !controller.CheckIfControllerTypeSupport(svcConfig.Type) {

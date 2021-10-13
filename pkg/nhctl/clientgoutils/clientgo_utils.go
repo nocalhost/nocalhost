@@ -43,7 +43,6 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 
 	"nocalhost/pkg/nhctl/log"
@@ -457,7 +456,7 @@ func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
 	)
 	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh,
 	//req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
-	fw, err := portforward.NewOnAddresses(
+	fw, err := NewOnAddresses(
 		dialer, req.Listen, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh,
 		req.Streams.Out, req.Streams.ErrOut,
 	)

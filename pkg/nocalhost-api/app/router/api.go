@@ -133,6 +133,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	n.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
 	{
 		n.GET("/templates", applications.GetNocalhostConfigTemplate)
+		n.GET("/version/upgrade_info", version.UpgradeInfo)
 	}
 
 	dv2 := g.Group("/v2/dev_space")

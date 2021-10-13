@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package log
 
@@ -17,8 +17,9 @@ func (l *logWriter) Write(p []byte) (n int, err error) {
 	}
 	n, err = l.rollingLog.Write(p)
 	if err != nil {
-		l.rollingLog.MaxSize += 10 // add 10m
-		return l.rollingLog.Write(p)
+		l.rollingLog.MaxSize += 100 // add 100m
+		n, _ = l.rollingLog.Write(p)
+		return n, nil
 	}
 	return n, err
 }

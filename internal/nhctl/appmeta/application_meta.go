@@ -612,6 +612,15 @@ func (a *ApplicationMeta) Update() error {
 	)
 }
 
+func (a *ApplicationMeta) reObtainSecret() bool {
+	if secret, err := a.operator.ReObtainSecret(a.Ns, a.Secret); err != nil {
+		return false
+	} else {
+		a.Secret = secret
+		return true
+	}
+}
+
 func (a *ApplicationMeta) prepare() {
 	a.Secret.Data[SecretPreInstallKey] = compress([]byte(a.PreInstallManifest))
 	a.Secret.Data[SecretPreUpgradeKey] = compress([]byte(a.PreUpgradeManifest))
