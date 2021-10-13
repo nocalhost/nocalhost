@@ -304,7 +304,6 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType, clientStack string) {
 	var err error
-
 	defer func() {
 		if err != nil {
 			log.Log("Client Stack: " + clientStack)
