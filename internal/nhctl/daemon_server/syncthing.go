@@ -138,10 +138,9 @@ func reconnectedSyncthingIfNeeded() {
 				defer RecoverDaemonFromPanic()
 				for i := 0; i < 2; i++ {
 					if err = retry.OnError(wait.Backoff{
-						Steps:    4,
+						Steps:    3,
 						Duration: 10 * time.Millisecond,
-						Factor:   50,
-						Jitter:   0.1,
+						Factor:   5,
 					}, func(err error) bool {
 						return err != nil
 					}, func() error {
@@ -155,7 +154,7 @@ func reconnectedSyncthingIfNeeded() {
 					}
 					log.LogDebugf("prepare to restore syncthing, name: %s\n", svcProfile.GetName())
 					// TODO using developing container, otherwise will using default containerDevConfig
-					if err = doReconnectSyncthing(svc, "", appProfile.Kubeconfig, true); err != nil {
+					if err = doReconnectSyncthing(svc, "", appProfile.Kubeconfig, i == 1); err != nil {
 						log.PErrorf(
 							"error while reconnect syncthing, ns: %s, app: %s, svc: %s, type: %s, err: %v",
 							meta.Ns, meta.Application, svcProfile.GetName(), svcProfile.GetType(), err)
