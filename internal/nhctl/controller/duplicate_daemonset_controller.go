@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
-	"strings"
+	"nocalhost/pkg/nhctl/log"
 )
 
 type DuplicateDaemonSetController struct {
@@ -39,7 +39,6 @@ func (d *DuplicateDaemonSetController) ReplaceImage(ctx context.Context, ops *mo
 		return err
 	}
 
-	suffix := d.Identifier[0:5]
 	labelsMap, err := d.getDuplicateLabelsMap()
 	if err != nil {
 		return err
@@ -48,7 +47,7 @@ func (d *DuplicateDaemonSetController) ReplaceImage(ctx context.Context, ops *mo
 	// Create a deployment from DaemonSet spec
 	generatedDeployment := &v1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   strings.Join([]string{d.Name, "daemonset", suffix}, "-"),
+			Name:   d.getDuplicateResourceName(),
 			Labels: labelsMap,
 		},
 		Spec: v1.DeploymentSpec{
@@ -120,9 +119,20 @@ func (d *DuplicateDaemonSetController) RollBack(reset bool) error {
 	if err != nil {
 		return err
 	}
+
 	if len(ss) != 1 {
-		return errors.New(fmt.Sprintf("Generated Deployment num is %d (not 1)?", len(ss)))
+		if !reset {
+			return errors.New(fmt.Sprintf("Generated Deployment num is %d (not 1)?", len(ss)))
+		} else if len(ss) == 0 {
+			log.Warnf("Generated Deployment num is %d (not 1)?", len(ss))
+			_ = d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
+				svcProfileV2.DevModeType = ""
+				return nil
+			})
+			return nil
+		}
 	}
+
 	if err = d.Client.DeleteDeployment(ss[0].Name, false); err != nil {
 		return err
 	}

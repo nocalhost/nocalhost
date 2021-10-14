@@ -8,6 +8,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -71,12 +72,12 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 	var rs int32 = 1
 	dep.Spec.Replicas = &rs
 
-	suffix := d.Identifier[0:5]
+	//suffix := d.Identifier[0:5]
 	labelsMap, err := d.getDuplicateLabelsMap()
 	if err != nil {
 		return err
 	}
-	dep.Name = strings.Join([]string{dep.Name, suffix}, "-")
+	dep.Name = d.getDuplicateResourceName()
 	dep.Labels = labelsMap
 	dep.Status = appsv1.DeploymentStatus{}
 	dep.Spec.Selector = &metav1.LabelSelector{MatchLabels: labelsMap}
@@ -167,7 +168,6 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 }
 
 func (d *DuplicateDeploymentController) RollBack(reset bool) error {
-	//todo
 	lmap, err := d.getDuplicateLabelsMap()
 	if err != nil {
 		return err
@@ -177,15 +177,25 @@ func (d *DuplicateDeploymentController) RollBack(reset bool) error {
 	if err != nil {
 		return err
 	}
+
 	if len(deploys) != 1 {
-		return errors.New("Deployment num is not 1?")
+		if !reset {
+			return errors.New(fmt.Sprintf("Duplicate Deployment num is %d (not 1)?", len(deploys)))
+		} else if len(deploys) == 0 {
+			log.Warnf("Duplicate Deployment num is %d (not 1)?", len(deploys))
+			_ = d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
+				svcProfileV2.DevModeType = ""
+				return nil
+			})
+			return nil
+		}
 	}
+
 	if err = d.Client.DeleteDeployment(deploys[0].Name, false); err != nil {
 		return err
 	}
 	return d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
 		svcProfileV2.DevModeType = ""
-		//svcProfileV2.DuplicateDevMode = false
 		return nil
 	})
 }
