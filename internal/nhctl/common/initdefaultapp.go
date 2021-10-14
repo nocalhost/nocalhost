@@ -27,10 +27,12 @@ func InitDefaultApplicationInCurrentNs(appName, namespace, kubeconfigPath string
 		return nil, err
 	}
 
+	// continue initial when secret already exist
 	if err := meta.Initial(); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return nil, err
 	}
 
+	// re get from daemon
 	if meta, err = nocalhost.GetApplicationMeta(appName, namespace, kubeconfigPath); err != nil {
 		return nil, err
 	}
@@ -39,6 +41,7 @@ func InitDefaultApplicationInCurrentNs(appName, namespace, kubeconfigPath string
 		return nil, errors2.New("already installed")
 	}
 
+	// set status as INSTALLED if not installed
 	meta.ApplicationState = appmeta.INSTALLED
 	if err := meta.Update(); err != nil {
 		return nil, err
