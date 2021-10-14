@@ -7,6 +7,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -120,14 +121,13 @@ func (d *DuplicateDaemonSetController) RollBack(reset bool) error {
 		return err
 	}
 	if len(ss) != 1 {
-		return errors.New("Generated Deployment num is not 1?")
+		return errors.New(fmt.Sprintf("Generated Deployment num is %d (not 1)?", len(ss)))
 	}
 	if err = d.Client.DeleteDeployment(ss[0].Name, false); err != nil {
 		return err
 	}
 	return d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
 		svcProfileV2.DevModeType = ""
-		//svcProfileV2.DuplicateDevMode = false
 		return nil
 	})
 }

@@ -84,13 +84,20 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		appmeta_manager.Init()
 		appmeta_manager.RegisterListener(
 			func(pack *appmeta_manager.ApplicationEventPack) error {
-				//kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
-				//if err != nil {
-				//	return nil
-				//}
 				kubeconfig := nocalhost.GetOrGenKubeConfigPath(string(pack.KubeConfigBytes))
 				nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, true)
 				if err != nil {
+					return nil
+				}
+
+				nhController, err := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
+				if err != nil {
+					return nil
+				}
+
+				// Only replace DevMode's DEV_END event needs to handling
+				// Because duplicate DevMode will not be affected by other user
+				if nhController.IsInDuplicateDevMode() {
 					return nil
 				}
 
@@ -99,10 +106,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 						"Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName,
 						pack.Event.ResourceName,
 					)
-					nhController, err := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
-					if err != nil {
-						return nil
-					}
+
 					if err := nhController.StopSyncAndPortForwardProcess(true); err != nil {
 						return nil
 					}
@@ -118,10 +122,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 						"Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName,
 						pack.Event.ResourceName,
 					)
-					nhController, err := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
-					if err != nil {
-						return nil
-					}
+
 					if err := nhController.StopAllPortForward(); err != nil {
 						return nil
 					}

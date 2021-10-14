@@ -85,8 +85,7 @@ var devEndCmd = &cobra.Command{
 				}
 			}
 		}
-
-		fmt.Println()
+		//fmt.Println()
 		coloredoutput.Success("DevMode has been ended")
 	},
 }
