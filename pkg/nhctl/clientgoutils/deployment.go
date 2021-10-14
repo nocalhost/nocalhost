@@ -24,7 +24,17 @@ func (c *ClientGoUtils) ListDeployments() ([]v1.Deployment, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
-	return deps.Items, nil
+	result := make([]v1.Deployment, 0)
+	if !c.includeDeletedResources {
+		for _, d := range deps.Items {
+			if d.DeletionTimestamp == nil {
+				result = append(result, d)
+			}
+		}
+	} else {
+		result = deps.Items
+	}
+	return result, nil
 }
 
 // UpdateDeployment Update deployment

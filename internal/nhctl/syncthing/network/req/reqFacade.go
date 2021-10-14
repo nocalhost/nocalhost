@@ -142,6 +142,12 @@ var NotInDevModeTemplate = &SyncthingStatus{
 	Tips:   Identifier + "File sync does not working due to the devMode is not enabled.",
 }
 
+var DevModeStarting = &SyncthingStatus{
+	Status: End,
+	Msg:    "DevMode Starting...",
+	Tips:   Identifier + "File sync in preparation.",
+}
+
 var NotProcessor = &SyncthingStatus{
 	Status: End,
 	Msg:    "Other device is developing",
