@@ -205,7 +205,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 	go checkClusterStatusCronJob()
 
-	go reconnectSyncthingIfNeededWithPeriod(time.Second * 25)
+	go reconnectSyncthingIfNeededWithPeriod(time.Second * 15)
 
 	go func() {
 		select {
