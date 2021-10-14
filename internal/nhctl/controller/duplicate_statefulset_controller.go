@@ -17,7 +17,6 @@ import (
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
-	"strings"
 )
 
 type DuplicateStatefulSetController struct {
@@ -66,12 +65,11 @@ func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *
 		return errors.New("Identifier can not be nil ")
 	}
 
-	suffix := p.Identifier[0:5]
 	labelsMap, err := s.getDuplicateLabelsMap()
 	if err != nil {
 		return err
 	}
-	dep.Name = strings.Join([]string{dep.Name, suffix}, "-")
+	dep.Name = s.getDuplicateResourceName()
 	dep.Labels = labelsMap
 	dep.Status = v1.StatefulSetStatus{}
 	dep.Spec.Selector = &metav1.LabelSelector{MatchLabels: labelsMap}
@@ -221,15 +219,25 @@ func (s *DuplicateStatefulSetController) RollBack(reset bool) error {
 	if err != nil {
 		return err
 	}
+
 	if len(ss) != 1 {
-		return errors.New("StatefulSets num is not 1?")
+		if !reset {
+			return errors.New(fmt.Sprintf("Duplicate StatefulSet num is %d (not 1)?", len(ss)))
+		} else if len(ss) == 0 {
+			log.Warnf("Duplicate StatefulSet num is %d (not 1)?", len(ss))
+			_ = s.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
+				svcProfileV2.DevModeType = ""
+				return nil
+			})
+			return nil
+		}
 	}
+
 	if err = s.Client.DeleteStatefulSet(ss[0].Name); err != nil {
 		return err
 	}
 	return s.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
 		svcProfileV2.DevModeType = ""
-		//svcProfileV2.DuplicateDevMode = false
 		return nil
 	})
 }
