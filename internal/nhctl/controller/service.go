@@ -40,13 +40,27 @@ func (c *Controller) IsInReplaceDevMode() bool {
 		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) != appmeta.NONE
 }
 
+func (c *Controller) IsInReplaceDevModeStarting() bool {
+	return c.DevModeType.IsReplaceDevMode() &&
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) == appmeta.STARTING
+}
+
 func (c *Controller) IsInDuplicateDevMode() bool {
 	return c.DevModeType.IsDuplicateDevMode() &&
 		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) != appmeta.NONE
 }
 
+func (c *Controller) IsInDuplicateDevModeStarting() bool {
+	return c.DevModeType.IsDuplicateDevMode() &&
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) == appmeta.STARTING
+}
+
 func (c *Controller) IsInDevMode() bool {
 	return c.IsInDuplicateDevMode() || c.IsInReplaceDevMode()
+}
+
+func (c *Controller) IsInDevModeStarting() bool {
+	return c.IsInDuplicateDevModeStarting() || c.IsInReplaceDevModeStarting()
 }
 
 func (c *Controller) IsProcessor() bool {
