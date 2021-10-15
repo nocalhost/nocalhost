@@ -580,19 +580,21 @@ func (a *ApplicationMeta) CheckIfSvcDeveloping(name, identifier string, svcType 
 	return NONE
 }
 
+// Update if update occurs errors, it will get a new secret from k8s, and retry update again, default retry times is 5
 func (a *ApplicationMeta) Update() error {
 	return retry.OnError(
 		retry.DefaultRetry, func(err error) bool {
 			if err != nil {
-				if secret, err := a.operator.ReObtainSecret(a.Ns, a.Secret); err != nil {
-					return false
-				} else {
+				if secret, _ := a.operator.ReObtainSecret(a.Ns, SecretNamePrefix+a.Application); secret != nil {
 					a.Secret = secret
-					return true
 				}
+				return true
 			}
 			return false
 		}, func() error {
+			if a.Secret == nil {
+				return errors.New("secret not found")
+			}
 			a.prepare()
 			secret, err := a.operator.Update(a.Ns, a.Secret)
 			if err != nil {
@@ -608,15 +610,6 @@ func (a *ApplicationMeta) Update() error {
 			return nil
 		},
 	)
-}
-
-func (a *ApplicationMeta) reObtainSecret() bool {
-	if secret, err := a.operator.ReObtainSecret(a.Ns, a.Secret); err != nil {
-		return false
-	} else {
-		a.Secret = secret
-		return true
-	}
 }
 
 func (a *ApplicationMeta) prepare() {

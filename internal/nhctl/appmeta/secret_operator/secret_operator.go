@@ -41,9 +41,9 @@ func (cso *ClientGoUtilClient) Create(ns string, secret *corev1.Secret) (*corev1
 		cso.ClientInner.GetContext(), secret, metav1.CreateOptions{},
 	)
 }
-func (cso *ClientGoUtilClient) ReObtainSecret(ns string, secret *corev1.Secret) (*corev1.Secret, error) {
+func (cso *ClientGoUtilClient) ReObtainSecret(ns string, secretName string) (*corev1.Secret, error) {
 	return cso.ClientInner.ClientSet.CoreV1().Secrets(ns).Get(
-		cso.ClientInner.GetContext(), secret.Name, metav1.GetOptions{},
+		cso.ClientInner.GetContext(), secretName, metav1.GetOptions{},
 	)
 }
 
