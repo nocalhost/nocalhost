@@ -64,8 +64,8 @@ type task struct {
 	client    *tke.Client
 }
 
-// guangzhou area
-var _ = defaultConfig{
+//	guangzhou area
+var DefaultConfig = defaultConfig{
 	vpcId:                     "vpc-6z0motnx",
 	subNet:                    "subnet-g7vr4qce",
 	k8sVersion:                "1.18.4",
@@ -102,7 +102,7 @@ var _ = defaultConfig{
 	cidrPattern:               "10.%d.0.0/16",
 }
 
-var DefaultConfig = defaultConfig{
+var _ = defaultConfig{
 	vpcId:                     "vpc-93iqnk7q",
 	subNet:                    "subnet-d7m18ag1",
 	k8sVersion:                "1.18.4",
