@@ -19,6 +19,9 @@ import (
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // Controller presents a k8s controller
@@ -359,4 +362,8 @@ func (c *Controller) getDuplicateLabelsMap() (map[string]string, error) {
 		_const.DevWorkloadIgnored: "true",
 	}
 	return labelsMap, nil
+}
+
+func (c *Controller) getDuplicateResourceName() string {
+	return strings.Join([]string{c.Name, string(c.Type), c.Identifier[0:5], strconv.Itoa(int(time.Now().Unix()))}, "-")
 }

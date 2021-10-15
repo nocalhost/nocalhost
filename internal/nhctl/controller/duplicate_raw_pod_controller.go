@@ -14,7 +14,6 @@ import (
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
-	"strings"
 	"time"
 )
 
@@ -67,12 +66,11 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 		}
 	}
 
-	suffix := r.Identifier[0:5]
 	labelsMap, err := r.getDuplicateLabelsMap()
 	if err != nil {
 		return err
 	}
-	originalPod.Name = strings.Join([]string{originalPod.Name, suffix}, "-")
+	originalPod.Name = r.getDuplicateResourceName()
 	originalPod.Labels = labelsMap
 	originalPod.Status = corev1.PodStatus{}
 	originalPod.ResourceVersion = ""
@@ -131,9 +129,20 @@ func (r *DuplicateRawPodController) RollBack(reset bool) error {
 	if err != nil {
 		return err
 	}
+
 	if len(deploys) != 1 {
-		return errors.New("Duplicated dev pod num is not 1?")
+		if !reset {
+			return errors.New(fmt.Sprintf("Duplicate pod num is %d (not 1)?", len(deploys)))
+		} else if len(deploys) == 0 {
+			log.Warnf("Duplicate pod num is %d (not 1)?", len(deploys))
+			_ = r.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
+				svcProfileV2.DevModeType = ""
+				return nil
+			})
+			return nil
+		}
 	}
+
 	if err = r.Client.DeletePod(deploys[0].Name, false, 1*time.Second); err != nil {
 		return err
 	}
@@ -141,37 +150,6 @@ func (r *DuplicateRawPodController) RollBack(reset bool) error {
 		svcProfileV2.DevModeType = ""
 		return nil
 	})
-
-	//originPod, err := r.Client.GetPod(r.GetName())
-	//if err != nil {
-	//	return err
-	//}
-	//podSpec, ok := originPod.Annotations[originalPodDefine]
-	//if !ok {
-	//	err1 := errors.New(fmt.Sprintf("Annotation %s not found, failed to rollback", originalPodDefine))
-	//	if reset {
-	//		log.WarnE(err1, "")
-	//		return nil
-	//	}
-	//	return err1
-	//}
-	//
-	//originPod = &corev1.Pod{}
-	//
-	//if err = json.Unmarshal([]byte(podSpec), originPod); err != nil {
-	//	return err
-	//}
-	//
-	//log.Info(" Deleting current revision...")
-	//if err = r.Client.DeletePodByName(r.GetName(), 0); err != nil {
-	//	return err
-	//}
-	//
-	//log.Info(" Recreating original revision...")
-	//if _, err = r.Client.CreatePod(originPod); err != nil {
-	//	return err
-	//}
-	//return nil
 }
 
 func (r *DuplicateRawPodController) GetPodList() ([]corev1.Pod, error) {
