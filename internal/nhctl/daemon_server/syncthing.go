@@ -97,7 +97,7 @@ func reconnectSyncthingIfNeededWithPeriod(duration time.Duration) {
 
 // reconnectedSyncthingIfNeeded will reconnect syncthing immediately if syncthing service is not available
 func reconnectedSyncthingIfNeeded() {
-	defer RecoverDaemonFromPanic()
+	defer recoverDaemonFromPanic()
 	clone := appmeta_manager.GetAllApplicationMetasWithDeepClone()
 	if clone == nil {
 		return
@@ -131,7 +131,7 @@ func reconnectedSyncthingIfNeeded() {
 			//   detect syncthing service is available or not, if it's still not available
 			// the second time: redo port-forward, and create a new syncthing process
 			go func(svc *controller.Controller) {
-				defer RecoverDaemonFromPanic()
+				defer recoverDaemonFromPanic()
 				for i := 0; i < 2; i++ {
 					if err = retry.OnError(wait.Backoff{
 						Steps:    3,
