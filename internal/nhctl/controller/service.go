@@ -19,6 +19,9 @@ import (
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // Controller presents a k8s controller
@@ -40,13 +43,27 @@ func (c *Controller) IsInReplaceDevMode() bool {
 		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) != appmeta.NONE
 }
 
+func (c *Controller) IsInReplaceDevModeStarting() bool {
+	return c.DevModeType.IsReplaceDevMode() &&
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) == appmeta.STARTING
+}
+
 func (c *Controller) IsInDuplicateDevMode() bool {
 	return c.DevModeType.IsDuplicateDevMode() &&
 		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) != appmeta.NONE
 }
 
+func (c *Controller) IsInDuplicateDevModeStarting() bool {
+	return c.DevModeType.IsDuplicateDevMode() &&
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) == appmeta.STARTING
+}
+
 func (c *Controller) IsInDevMode() bool {
 	return c.IsInDuplicateDevMode() || c.IsInReplaceDevMode()
+}
+
+func (c *Controller) IsInDevModeStarting() bool {
+	return c.IsInDuplicateDevModeStarting() || c.IsInReplaceDevModeStarting()
 }
 
 func (c *Controller) IsProcessor() bool {
@@ -345,4 +362,8 @@ func (c *Controller) getDuplicateLabelsMap() (map[string]string, error) {
 		_const.DevWorkloadIgnored: "true",
 	}
 	return labelsMap, nil
+}
+
+func (c *Controller) getDuplicateResourceName() string {
+	return strings.Join([]string{c.Name, string(c.Type), c.Identifier[0:5], strconv.Itoa(int(time.Now().Unix()))}, "-")
 }

@@ -34,15 +34,15 @@ func (f *FolderCompletion) isComplete() bool {
 }
 
 func (f *FolderCompletion) UploadPct() string {
-	var compl float64
-	if f == nil {
-		compl = 0
+	var compl string
+	if f == nil || 1 > f.Completion {
+		compl = "0.00%"
 	} else {
-		compl = f.Completion
+		compl = fmt.Sprintf("%.2f%%", f.Completion)
 	}
 
 	return fmt.Sprintf(
-		"Upload to remote: %.2f%%",compl,
+		"Upload to remote: %s", compl,
 	)
 }
 

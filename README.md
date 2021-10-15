@@ -43,7 +43,7 @@ Every team member can enjoy their own independent development space to ensure th
 
 * [Installation](https://nocalhost.dev/docs/installation)
 * [Quick Start](https://nocalhost.dev/docs/quick-start)
-* [How it works](https://nocalhost.dev/docs/introduction)
+* [How it works](https://nocalhost.dev/docs/introduction/#how-does-it-work)
 
 ## Documentation
 
