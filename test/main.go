@@ -106,7 +106,7 @@ func DoRun(doAfterWgDone bool, wg *sync.WaitGroup, do func()) {
 			wg.Done()
 		}()
 	} else {
-		func() {
+		go func() {
 			wg.Wait()
 			do()
 		}()
