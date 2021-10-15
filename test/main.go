@@ -67,7 +67,6 @@ func main() {
 		t.Run("ProfileAndAssociate", suite.ProfileAndAssociate)
 	})
 
-
 	DoRun(false, &wg, func() {
 		t.Run("StatefulSet", suite.StatefulSet)
 	})
@@ -102,12 +101,12 @@ func main() {
 func DoRun(doAfterWgDone bool, wg *sync.WaitGroup, do func()) {
 	if !doAfterWgDone {
 		wg.Add(1)
-		go func() {
+		func() {
 			do()
 			wg.Done()
 		}()
 	} else {
-		go func() {
+		func() {
 			wg.Wait()
 			do()
 		}()
