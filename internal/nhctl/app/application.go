@@ -786,11 +786,11 @@ func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
 	return nocalhost.GetProfileV2(a.NameSpace, a.Name, a.appMeta.NamespaceId)
 }
 
-func (a *Application) GetProfileCompel() *profile.AppProfileV2 {
-	v2, err := nocalhost.GetProfileV2(a.NameSpace, a.Name, a.appMeta.NamespaceId)
-	clientgoutils.Must(err)
-	return v2
-}
+//func (a *Application) GetProfileCompel() *profile.AppProfileV2 {
+//	v2, err := nocalhost.GetProfileV2(a.NameSpace, a.Name, a.appMeta.NamespaceId)
+//	clientgoutils.Must(err)
+//	return v2
+//}
 
 func (a *Application) UpdateProfile(modify func(*profile.AppProfileV2) error) error {
 	p, err := a.getProfileForUpdate()
