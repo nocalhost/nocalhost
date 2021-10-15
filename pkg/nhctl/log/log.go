@@ -188,7 +188,11 @@ func WarnE(err error, message string) {
 	}
 
 	if err != nil {
-		stdoutLogger.Warn(fmt.Sprintf("%s: %s", message, err.Error()))
+		if message != "" {
+			stdoutLogger.Warnf("%s: %s", message, err.Error())
+		} else {
+			stdoutLogger.Warn(err.Error())
+		}
 	} else {
 		stdoutLogger.Warn(fmt.Sprintf("%s", message))
 	}
@@ -242,7 +246,11 @@ func Fatalf(format string, args ...interface{}) {
 func FatalE(err error, message string) {
 	writeStackToEs("FATAL", message, fmt.Sprintf("%+v", err))
 	if err != nil {
-		stderrLogger.Errorf("%s: %s", message, err.Error())
+		if message != "" {
+			stderrLogger.Errorf("%s: %s", message, err.Error())
+		} else {
+			stderrLogger.Errorf("%s", err.Error())
+		}
 	} else {
 		stderrLogger.Errorf("%s", message)
 	}
