@@ -422,6 +422,15 @@ definitions:
       status:
         type: integer
     type: object
+  model.VersionUpgradeInfo:
+    properties:
+      current_version:
+        type: string
+      has_new_version:
+        type: boolean
+      upgrade_version:
+        type: string
+    type: object
   setupcluster.MeshDevApp:
     properties:
       name:
@@ -1471,6 +1480,22 @@ paths:
       summary: get nocalhost config template
       tags:
       - Application
+  /v1/nocalhost/version/upgrade_info:
+    get:
+      consumes:
+      - application/json
+      description: UpgradeInfo api server version update info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":model.VersionUpgradeInfo}'
+          schema:
+            $ref: '#/definitions/model.VersionUpgradeInfo'
+            type: object
+      summary: UpgradeInfo api server version update info
+      tags:
+      - Version
   /v1/plugin/{id}/recreate:
     post:
       consumes:

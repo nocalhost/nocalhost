@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"net/http"
+	_ "net/http/pprof"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"

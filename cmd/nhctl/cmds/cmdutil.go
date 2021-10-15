@@ -78,7 +78,11 @@ func initService(svcName string, svcType string) *controller.Controller {
 	if svcName == "" {
 		log.Fatal("please use -d to specify a k8s workload")
 	}
-	return nocalhostApp.Controller(svcName, base.SvcTypeOf(svcType))
+	c, err := nocalhostApp.Controller(svcName, base.SvcTypeOf(svcType))
+	if err != nil {
+		log.FatalE(err, "")
+	}
+	return c
 }
 
 func checkIfSvcExist(svcName string, svcType string) {

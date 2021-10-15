@@ -23,7 +23,7 @@ type NocalHostAppConfig struct {
 
 type PersistentVolumeDir struct {
 	Path     string `json:"path" yaml:"path"`
-	Capacity string `json:"capacity,omitempty" yaml:"capacity,omitempty"`
+	Capacity string `validate:"Quantity" json:"capacity,omitempty" yaml:"capacity,omitempty"`
 }
 
 type ResourceQuota struct {
@@ -32,8 +32,8 @@ type ResourceQuota struct {
 }
 
 type QuotaList struct {
-	Memory string `json:"memory" yaml:"memory"`
-	Cpu    string `json:"cpu" yaml:"cpu"`
+	Memory string `validate:"Quantity" json:"memory" yaml:"memory"`
+	Cpu    string `validate:"Quantity" json:"cpu" yaml:"cpu"`
 }
 
 type ServiceDevOptions struct {

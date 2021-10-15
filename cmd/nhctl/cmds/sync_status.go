@@ -83,6 +83,10 @@ func SyncStatus(opt *app.SyncStatusOptions, ns, app, svc, svcType, kubeconfig st
 		return req.NotInDevModeTemplate
 	}
 
+	if nhSvc.IsInDevModeStarting() {
+		return req.DevModeStarting
+	}
+
 	if !nhSvc.IsProcessor() {
 		return req.NotProcessor
 	}
@@ -155,11 +159,13 @@ out:
 	}
 
 	// scan folder
-	err2 := retry.OnError(retry.DefaultBackoff, func(err error) bool {
-		return err != nil
-	}, func() error {
-		return client.Scan()
-	})
+	err2 := retry.OnError(
+		retry.DefaultBackoff, func(err error) bool {
+			return err != nil
+		}, func() error {
+			return client.Scan()
+		},
+	)
 	if err2 != nil {
 		log.Logf("scan folder manually error, err: %v", err2)
 	}
@@ -215,11 +221,13 @@ out:
 		lastId += int64(len(events))
 	}
 	// scan folder
-	err2 := retry.OnError(retry.DefaultBackoff, func(err error) bool {
-		return err != nil
-	}, func() error {
-		return client.Scan()
-	})
+	err2 := retry.OnError(
+		retry.DefaultBackoff, func(err error) bool {
+			return err != nil
+		}, func() error {
+			return client.Scan()
+		},
+	)
 	if err2 != nil {
 		log.Logf("scan folder manually error, err: %v", err2)
 	}
@@ -229,11 +237,13 @@ out:
 		case <-ctx.Done():
 			return
 		default:
-			_ = retry.OnError(retry.DefaultBackoff, func(err error) bool {
-				return err != nil
-			}, func() error {
-				return client.Scan()
-			})
+			_ = retry.OnError(
+				retry.DefaultBackoff, func(err error) bool {
+					return err != nil
+				}, func() error {
+					return client.Scan()
+				},
+			)
 			time.Sleep(time.Second * 2)
 			found := false
 			if status := client.GetSyncthingStatus(); status != nil && status.Status == req.Idle {

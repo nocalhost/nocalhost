@@ -27,7 +27,7 @@ func NewSyncthingHttpClient(
 	apiKey string,
 	remoteDevice string,
 	folderName string,
-	reqTimeoutSecond int, ) *SyncthingHttpClient {
+	reqTimeoutSecond int) *SyncthingHttpClient {
 	return &SyncthingHttpClient{
 		guiHost:          guiHost,
 		apiKey:           apiKey,
@@ -58,8 +58,9 @@ func (s *SyncthingHttpClient) Post(path, body string) ([]byte, error) {
 func (s *SyncthingHttpClient) do(req *http.Request, reqTimeoutSecond int) ([]byte, error) {
 	req.Header.Add("X-API-Key", s.apiKey)
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Second*time.Duration(reqTimeoutSecond))
-	req.WithContext(ctx)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(reqTimeoutSecond))
+	defer cancel()
+	req = req.WithContext(ctx)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

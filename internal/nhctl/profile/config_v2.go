@@ -62,9 +62,9 @@ type ContainerDevConfig struct {
 	Image                 string                 `json:"image" yaml:"image"`
 	Shell                 string                 `json:"shell" yaml:"shell"`
 	WorkDir               string                 `json:"workDir" yaml:"workDir"`
-	StorageClass          string                 `json:"storageClass" yaml:"storageClass"`
+	StorageClass          string                 `validate:"StorageClass" json:"storageClass" yaml:"storageClass"`
 	DevContainerResources *ResourceQuota         `json:"resources" yaml:"resources"`
-	PersistentVolumeDirs  []*PersistentVolumeDir `json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
+	PersistentVolumeDirs  []*PersistentVolumeDir `validate:"dive" json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
 	Command               *DevCommands           `json:"command" yaml:"command"`
 	DebugConfig           *DebugConfig           `json:"debug" yaml:"debug"`
 	HotReload             bool                   `json:"hotReload" yaml:"hotReload"`
@@ -72,7 +72,7 @@ type ContainerDevConfig struct {
 	Sync                  *SyncConfig            `json:"sync" yaml:"sync"`
 	Env                   []*Env                 `json:"env" yaml:"env"`
 	EnvFrom               *EnvFrom               `json:"envFrom,omitempty" yaml:"envFrom,omitempty"`
-	PortForward           []string               `json:"portForward" yaml:"portForward"`
+	PortForward           []string               `validate:"dive,PortForward" json:"portForward" yaml:"portForward"`
 	SidecarImage          string                 `json:"sidecarImage,omitempty" yaml:"sidecarImage,omitempty"`
 }
 
@@ -85,18 +85,21 @@ type DevCommands struct {
 }
 
 type SyncConfig struct {
-	Type              string   `json:"type" yaml:"type"`
+	Type              string   `validate:"SyncType" json:"type" yaml:"type"`
+	Mode              string   `validate:"SyncMode" json:"mode,omitempty" yaml:"mode,omitempty"`
 	FilePattern       []string `json:"filePattern" yaml:"filePattern"`
 	IgnoreFilePattern []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
 }
 
 type DebugConfig struct {
-	RemoteDebugPort int `json:"remoteDebugPort" yaml:"remoteDebugPort"`
+	RemoteDebugPort int `validate:"Port" json:"remoteDebugPort" yaml:"remoteDebugPort"`
 }
 
 type DependLabelSelector struct {
 	Pods []string `json:"pods" yaml:"pods"`
 	Jobs []string `json:"jobs" yaml:"jobs"`
+	TCP  []string `json:"tcp" yaml:"tcp"`
+	HTTP []string `json:"http" yaml:"http"`
 }
 
 type HelmValue struct {

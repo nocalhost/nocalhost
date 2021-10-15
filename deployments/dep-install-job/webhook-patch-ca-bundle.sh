@@ -1,17 +1,24 @@
 #!/bin/bash
 
-set -o errexit
-set -o nounset
-set -o pipefail
+set -e
 
 ns=${DEP_NAMESPACE:-"nocalhost-reserved"}
+secret="nocalhost-sidecar-injector-certs"
 
-CA_BUNDLE=$(kubectl -n "${ns}" get secrets -o jsonpath="{.items[?(@.metadata.annotations['kubernetes\.io/service-account\.name']=='nocalhost-admin-service-account')].data.ca\.crt}")
+CA_BUNDLE=''
+for x in $(seq 10); do
+    CA_BUNDLE=$(kubectl -n "${ns}" get secrets ${secret} -o jsonpath='{.data.ca-cert\.pem}')
+    echo "failed to get ca-cert.pem form secret, try again..."
+    if [[ ${CA_BUNDLE} != '' ]]; then
+        break
+    fi
+    sleep 1
+done
 
-export CA_BUNDLE
-
-if command -v envsubst >/dev/null 2>&1; then
-    envsubst
-else
-    sed -e "s|\${CA_BUNDLE}|${CA_BUNDLE}|g"
+if [[ ${CA_BUNDLE} == '' ]]; then
+    echo "failed to get ca-cert.pem form secret, exit"
+    exit 1
 fi
+
+echo "replace CA_BUNDLE"
+sed -i "s|\${CA_BUNDLE}|${CA_BUNDLE}|g" ./webhook/mutating-webhook-ca-bundle.yaml

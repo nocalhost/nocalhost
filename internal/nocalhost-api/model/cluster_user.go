@@ -16,7 +16,7 @@ import (
 
 const (
 	IsolateSpace SpaceType = "IsolateSpace"
-	ShareSpace   SpaceType = "ShareSpace"
+	MeshSpace    SpaceType = "MeshSpace"
 )
 
 var DevSpaceOwnTypeOwner SpaceOwnType = SpaceOwnType{"Owner", 1000}
@@ -35,6 +35,7 @@ type ClusterUserV2 struct {
 	ClusterId          uint64    `gorm:"column:cluster_id;not null" json:"cluster_id"`
 	IsBaseSpace        bool      `gorm:"column:is_base_space;default:false" json:"is_base_space"`
 	BaseDevSpaceId     uint64    `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`
+	TraceHeader        Header    `gorm:"cloumn:trace_header;type:VARCHAR(256);" json:"trace_header"`
 	SpaceResourceLimit string    `gorm:"column:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
 	CreatedAt          time.Time `gorm:"column:created_at" json:"created_at"`
 

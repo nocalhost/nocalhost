@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -67,7 +67,7 @@ func scaleDaemonSetReplicasToZero(name string, client *clientgoutils.ClientGoUti
 }
 
 func (d *DaemonSetController) getGeneratedDeploymentName() string {
-	return fmt.Sprintf("%s%s", daemonSetGenDeployPrefix, d.Name())
+	return fmt.Sprintf("%s%s", daemonSetGenDeployPrefix, d.GetName())
 }
 
 // ReplaceImage For DaemonSet, we don't replace the DaemonSet' image
@@ -75,13 +75,13 @@ func (d *DaemonSetController) getGeneratedDeploymentName() string {
 func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 
 	d.Client.Context(ctx)
-	ds, err := d.Client.GetDaemonSet(d.Name())
+	ds, err := d.Client.GetDaemonSet(d.GetName())
 	if err != nil {
 		return err
 	}
 
 	// Scale pod to 0
-	err = scaleDaemonSetReplicasToZero(d.Name(), d.Client)
+	err = scaleDaemonSetReplicasToZero(d.GetName(), d.Client)
 	if err != nil {
 		return err
 	}
@@ -104,7 +104,7 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		d.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass)
+		d.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,9 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 	if generatedDeployment.Spec.Template.Spec.Volumes == nil {
 		generatedDeployment.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
 	}
-	generatedDeployment.Spec.Template.Spec.Volumes = append(generatedDeployment.Spec.Template.Spec.Volumes, devModeVolumes...)
+	generatedDeployment.Spec.Template.Spec.Volumes = append(
+		generatedDeployment.Spec.Template.Spec.Volumes, devModeVolumes...,
+	)
 
 	// delete user's SecurityContext
 	generatedDeployment.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
@@ -148,10 +150,6 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
 }
 
-func (d *DaemonSetController) Name() string {
-	return d.Controller.Name
-}
-
 func (d *DaemonSetController) RollBack(reset bool) error {
 	// Delete generated Deployment
 	err := d.Client.DeleteDeployment(d.getGeneratedDeploymentName(), false)
@@ -160,7 +158,7 @@ func (d *DaemonSetController) RollBack(reset bool) error {
 	}
 
 	// Remove nodeName in pod spec
-	ds, err := d.Client.GetDaemonSet(d.Name())
+	ds, err := d.Client.GetDaemonSet(d.GetName())
 	if err != nil {
 		return err
 	}
@@ -174,8 +172,8 @@ func (d *DaemonSetController) RollBack(reset bool) error {
 // In DevMode, return pod list of generated Deployment.
 // Otherwise, return pod list of DaemonSet
 func (d *DaemonSetController) GetPodList() ([]corev1.Pod, error) {
-	if d.IsInDevMode() {
+	if d.IsInReplaceDevMode() {
 		return d.Client.ListLatestRevisionPodsByDeployment(d.getGeneratedDeploymentName())
 	}
-	return d.Client.ListPodsByDaemonSet(d.Name())
+	return d.Client.ListPodsByDaemonSet(d.GetName())
 }

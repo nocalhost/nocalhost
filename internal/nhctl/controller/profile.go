@@ -115,11 +115,13 @@ func (c *Controller) SetPortForwardedStatus(is bool) error {
 	)
 }
 
-func (c *Controller) setSyncthingProfileEndStatus() error {
+func (c *Controller) setSyncthingProfileEndStatus(duplicateDevMode bool) error {
 	return c.UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
-			if svcProfile == nil {
-				return errors.New("Failed to get controller profile")
+			if duplicateDevMode {
+				svcProfile.DuplicateDevModeSyncthingSecretName = ""
+			} else {
+				svcProfile.SyncthingSecret = ""
 			}
 			svcProfile.RemoteSyncthingPort = 0
 			svcProfile.RemoteSyncthingGUIPort = 0
@@ -135,12 +137,8 @@ func (c *Controller) setSyncthingProfileEndStatus() error {
 
 // You should `CheckIfPortForwardExists` before adding a port-forward to db
 func (c *Controller) AddPortForwardToDB(port *profile.DevPortForward) error {
-	return c.UpdateProfile(
-		func(profileV2 *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
-			if svcProfile == nil {
-				return errors.New("Failed to get controller profile")
-			}
-
+	return c.UpdateSvcProfile(
+		func(svcProfile *profile.SvcProfileV2) error {
 			svcProfile.DevPortForwardList = append(svcProfile.DevPortForwardList, port)
 			return nil
 		},

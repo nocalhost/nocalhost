@@ -31,9 +31,9 @@ func TestReg(t *testing.T) {
 }
 
 func TestCompareVersion(t *testing.T) {
-	fmt.Println(CompareVersion("v0.0.1","v0.0.2"))
-	fmt.Println(CompareVersion("v0.1.1","v0.0.2"))
-	fmt.Println(CompareVersion("v0.1.1","v0.1.1"))
-	fmt.Println(CompareVersion("v0.1.1-rc1","v0.1.1"))
-	fmt.Println(CompareVersion("v0.1.1-rc1","v0.1.1-rc2"))
+	fmt.Println(CompareVersion("v0.0.1", "v0.0.2"))
+	fmt.Println(CompareVersion("v0.1.1", "v0.0.2"))
+	fmt.Println(CompareVersion("v0.1.1", "v0.1.1"))
+	fmt.Println(CompareVersion("v0.1.1-rc1", "v0.1.1"))
+	fmt.Println(CompareVersion("v0.1.1-rc1", "v0.1.1-rc2"))
 }

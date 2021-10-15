@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"nocalhost/pkg/nhctl/log"
 	"time"
 )
@@ -44,6 +45,22 @@ func (c *ClientGoUtils) CreateStatefulSet(s *v1.StatefulSet) (*v1.StatefulSet, e
 	return ss, errors.Wrap(err, "")
 }
 
+func (c *ClientGoUtils) CreateStatefulSetAndWait(s *v1.StatefulSet) (*v1.StatefulSet, error) {
+	ss, err := c.CreateStatefulSet(s)
+	if err != nil {
+		return nil, err
+	}
+	if ss.Status.ReadyReplicas == 1 {
+		return ss, nil
+	}
+	log.Debug("StatefulSet has not been ready yet")
+
+	if err = c.WaitStatefulSetToBeReady(ss.Name); err != nil {
+		return nil, err
+	}
+	return ss, nil
+}
+
 func (c *ClientGoUtils) ScaleStatefulSetReplicasToOne(name string) error {
 	scale, err := c.GetStatefulSetClient().GetScale(c.ctx, name, metav1.GetOptions{})
 	if err != nil {
@@ -73,4 +90,16 @@ func (c *ClientGoUtils) ScaleStatefulSetReplicasToOne(name string) error {
 		log.Info("Replicas has already been scaled to 1")
 	}
 	return nil
+}
+
+func (c *ClientGoUtils) ListStatefulSets() ([]v1.StatefulSet, error) {
+	ops := metav1.ListOptions{}
+	if len(c.labels) > 0 {
+		ops.LabelSelector = labels.Set(c.labels).String()
+	}
+	deps, err := c.GetStatefulSetClient().List(c.ctx, ops)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	return deps.Items, nil
 }

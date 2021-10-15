@@ -50,7 +50,7 @@ func (cu *ClusterUserCreateRequest) Validate() (bool, error) {
 	// Validate MeshInfo parameter format.
 	if cu.BaseDevSpaceId > 0 {
 		if cu.IsBaseSpace {
-			return false, errno.ErrAsBothBaseSpaceAndShareSpace
+			return false, errno.ErrAsBothBaseSpaceAndMeshSpace
 		}
 		if cu.MeshDevInfo == nil {
 			return false, errno.ErrMeshInfoRequired

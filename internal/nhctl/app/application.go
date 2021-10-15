@@ -44,6 +44,7 @@ type Application struct {
 	NameSpace  string
 	KubeConfig string
 	AppType    string
+	Identifier string
 
 	// may be nil, only for install or upgrade
 	// dir use to load the user's resource
@@ -149,7 +150,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	}
 
 	// 1. first try load profile from local or earlier version
-	// 2. check should generate secret for adapt earlier version
+	// 2. (x deprecated) check should generate secret for adapt earlier version
 	// 3. try load application meta from secret
 	// 4. update kubeconfig for profile
 	// 5. init go client inner Application
@@ -160,13 +161,13 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 
 	// if appMeta is not installed but application installed in earlier version
 	// should make a fake installation and generate an application meta
-	if app.generateSecretForEarlierVer() {
-
-		// load app meta if generate secret for earlier verion
-		if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
-			return nil, err
-		}
-	}
+	//if app.generateSecretForEarlierVer() {
+	//
+	//	// load app meta if generate secret for earlier verion
+	//	if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
+	//		return nil, err
+	//	}
+	//}
 
 	if !app.appMeta.IsInstalled() {
 		return nil, errors.Wrap(ErrNotFound, fmt.Sprintf("%s-%s not found", app.NameSpace, app.Name))
@@ -218,7 +219,15 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 			}
 		}
 	}
+
+	if profileV2.Identifier == "" {
+		profileV2.GenerateIdentifierIfNeeded()
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
+			return nil, err
+		}
+	}
 	app.AppType = profileV2.AppType
+	app.Identifier = profileV2.Identifier
 
 	if kubeconfig != "" && kubeconfig != profileV2.Kubeconfig {
 		if err := app.UpdateProfile(
@@ -359,7 +368,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 
 		for _, svc := range profileV2.SvcProfile {
 			if svc.Developing {
-				_ = a.appMeta.SvcDevStartComplete(svc.GetName(), base.SvcType(svc.GetType()), profileV2.Identifier)
+				_ = a.appMeta.SvcDevStartComplete(svc.GetName(), base.SvcType(svc.GetType()), profileV2.Identifier, svc.DevModeType)
 			}
 		}
 
@@ -484,19 +493,23 @@ func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType ba
 		}
 
 		// means should cm cfg is valid, persist to profile
-		if err := a.Controller(svcName, svcType).UpdateSvcProfile(
-			func(svcProfile *profile.SvcProfileV2) error {
-				hint("Success load svc config from annotation")
-				//svcProfile.ServiceConfigV2 = svcCfg
+		var c *controller.Controller
+		if c, err = a.Controller(svcName, svcType); err == nil {
+			err = c.UpdateSvcProfile(
+				func(svcProfile *profile.SvcProfileV2) error {
+					hint("Success load svc config from annotation")
+					//svcProfile.ServiceConfigV2 = svcCfg
 
-				svcProfile.Name = svcName
-				svcProfile.Type = svcType.String()
-				svcProfile.LocalConfigLoaded = false
-				svcProfile.AnnotationsConfigLoaded = true
-				svcProfile.CmConfigLoaded = false
-				return nil
-			},
-		); err != nil {
+					svcProfile.Name = svcName
+					svcProfile.Type = svcType.String()
+					svcProfile.LocalConfigLoaded = false
+					svcProfile.AnnotationsConfigLoaded = true
+					svcProfile.CmConfigLoaded = false
+					return nil
+				},
+			)
+		}
+		if err != nil {
 			hint(
 				"Load nocalhost svc config from [Resource:%s, Name:%s] annotation fail, fail while updating svc profile, err: %s",
 				mw.GetObjectMeta().GetResourceVersion(), mw.GetObjectMeta().GetName(), err.Error(),
@@ -538,19 +551,23 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcTy
 	}
 
 	// means should cm cfg is valid, persist to profile
-	if err := a.Controller(svcName, svcType).UpdateSvcProfile(
-		func(svcProfile *profile.SvcProfileV2) error {
-			hint("Success load svc config from cm")
-			//svcProfile.ServiceConfigV2 = svcCfg
+	var c *controller.Controller
+	if c, err = a.Controller(svcName, svcType); err == nil {
+		err = c.UpdateSvcProfile(
+			func(svcProfile *profile.SvcProfileV2) error {
+				hint("Success load svc config from cm")
+				//svcProfile.ServiceConfigV2 = svcCfg
 
-			svcProfile.Name = svcName
-			svcProfile.Type = svcType.String()
-			svcProfile.LocalConfigLoaded = false
-			svcProfile.AnnotationsConfigLoaded = false
-			svcProfile.CmConfigLoaded = true
-			return nil
-		},
-	); err != nil {
+				svcProfile.Name = svcName
+				svcProfile.Type = svcType.String()
+				svcProfile.LocalConfigLoaded = false
+				svcProfile.AnnotationsConfigLoaded = false
+				svcProfile.CmConfigLoaded = true
+				return nil
+			},
+		)
+	}
+	if err != nil {
 		hint("Load nocalhost svc config from cm fail, fail while updating svc profile, err: %s", err.Error())
 		return false
 	}
@@ -627,19 +644,23 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.Sv
 	}
 
 	// means should load svc cfg from local
-	if err := a.Controller(svcName, svcType).UpdateSvcProfile(
-		func(svcProfile *profile.SvcProfileV2) error {
-			hint("Success load svc config from local file %s", configFile.Abs())
-			svcCfg.Name = svcName
-			svcCfg.Type = svcType.String()
+	var c *controller.Controller
+	if c, err = a.Controller(svcName, svcType); err == nil {
+		err = c.UpdateSvcProfile(
+			func(svcProfile *profile.SvcProfileV2) error {
+				hint("Success load svc config from local file %s", configFile.Abs())
+				svcCfg.Name = svcName
+				svcCfg.Type = svcType.String()
 
-			//svcProfile.ServiceConfigV2 = svcCfg
-			svcProfile.LocalConfigLoaded = true
-			svcProfile.AnnotationsConfigLoaded = false
-			svcProfile.CmConfigLoaded = false
-			return nil
-		},
-	); err != nil {
+				//svcProfile.ServiceConfigV2 = svcCfg
+				svcProfile.LocalConfigLoaded = true
+				svcProfile.AnnotationsConfigLoaded = false
+				svcProfile.CmConfigLoaded = false
+				return nil
+			},
+		)
+	}
+	if err != nil {
 		hint("Load nocalhost svc config from local fail, fail while updating svc profile, err: %s", err.Error())
 		return false
 	}
@@ -765,11 +786,11 @@ func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
 	return nocalhost.GetProfileV2(a.NameSpace, a.Name, a.appMeta.NamespaceId)
 }
 
-func (a *Application) GetProfileCompel() *profile.AppProfileV2 {
-	v2, err := nocalhost.GetProfileV2(a.NameSpace, a.Name, a.appMeta.NamespaceId)
-	clientgoutils.Must(err)
-	return v2
-}
+//func (a *Application) GetProfileCompel() *profile.AppProfileV2 {
+//	v2, err := nocalhost.GetProfileV2(a.NameSpace, a.Name, a.appMeta.NamespaceId)
+//	clientgoutils.Must(err)
+//	return v2
+//}
 
 func (a *Application) UpdateProfile(modify func(*profile.AppProfileV2) error) error {
 	p, err := a.getProfileForUpdate()
@@ -874,15 +895,25 @@ type PortForwardEndOptions struct {
 	Port string // 8080:8080
 }
 
-func (a *Application) Controller(name string, svcType base.SvcType) *controller.Controller {
-	return &controller.Controller{
-		NameSpace: a.NameSpace,
-		AppName:   a.Name,
-		Name:      name,
-		Type:      svcType,
-		Client:    a.client,
-		AppMeta:   a.appMeta,
+func (a *Application) Controller(name string, svcType base.SvcType) (*controller.Controller, error) {
+	if a.Identifier == "" {
+		return nil, errors.New("Application's identifier cannot be nil")
 	}
+	c := &controller.Controller{
+		NameSpace:  a.NameSpace,
+		AppName:    a.Name,
+		Name:       name,
+		Type:       svcType,
+		Client:     a.client,
+		AppMeta:    a.appMeta,
+		Identifier: a.Identifier,
+	}
+	p, err := c.GetProfile()
+	if err != nil {
+		return nil, err
+	}
+	c.DevModeType = p.DevModeType
+	return c, nil
 }
 
 func (a *Application) GetConfigFile() (string, error) {
@@ -954,13 +985,13 @@ func (a *Application) PortForwardAPod(req clientgoutils.PortForwardAPodRequest) 
 }
 
 func (a *Application) PortForward(pod string, localPort, remotePort int, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) error {
-	return a.client.Forward(pod, localPort, remotePort, readyChan, stopChan, g)
+	return a.client.ForwardPortForwardByPod(pod, localPort, remotePort, readyChan, stopChan, g)
 }
 
 // set pid file empty
-func (a *Application) SetPidFileEmpty(filePath string) error {
-	return os.Remove(filePath)
-}
+//func (a *Application) SetPidFileEmpty(filePath string) error {
+//	return os.Remove(filePath)
+//}
 
 func (a *Application) CleanUpTmpResources() error {
 	log.Log("Clean up tmp resources...")
