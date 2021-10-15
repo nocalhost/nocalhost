@@ -1,6 +1,6 @@
 ## installer-job image
 image:
-  repository: nocalhost-docker.pkg.coding.net/nocalhost/images/dep-installer-job
+  repository: nocalhost-docker.pkg.coding.net/nocalhost/public/dep-installer-job
   tag: "v0.5.6"
 
 ## dep

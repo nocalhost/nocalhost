@@ -98,6 +98,8 @@ type DebugConfig struct {
 type DependLabelSelector struct {
 	Pods []string `json:"pods" yaml:"pods"`
 	Jobs []string `json:"jobs" yaml:"jobs"`
+	TCP  []string `json:"tcp" yaml:"tcp"`
+	HTTP []string `json:"http" yaml:"http"`
 }
 
 type HelmValue struct {
