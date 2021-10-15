@@ -220,7 +220,11 @@ func ErrorE(err error, message string) {
 		fileEntry.Errorf("%s, err: %+v", message, err)
 	}
 	if err != nil {
-		stdoutLogger.Errorf("%s: %s", message, err.Error())
+		if message != "" {
+			stdoutLogger.Errorf("%s: %s", message, err.Error())
+		} else {
+			stdoutLogger.Error(err.Error())
+		}
 	} else {
 		stdoutLogger.Errorf("%s", message)
 	}
