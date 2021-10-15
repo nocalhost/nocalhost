@@ -26,8 +26,7 @@ func (c *Controller) GetDevContainerEnv(container string) *ContainerDevEnv {
 	// Find service env
 	devEnv := make([]*profile.Env, 0)
 	kvMap := make(map[string]string, 0)
-	//serviceConfig, _ := c.GetProfile()
-	serviceConfig, _ := c.GetConfig()
+	serviceConfig := c.Config()
 	for _, v := range serviceConfig.ContainerConfigs {
 		if v.Name == container || container == "" {
 			// Env has a higher priority than envFrom
@@ -48,7 +47,7 @@ func (c *Controller) GetDevContainerEnv(container string) *ContainerDevEnv {
 
 func (c *Controller) GetDevSidecarImage(container string) string {
 	// Find service env
-	serviceConfig, _ := c.GetConfig()
+	serviceConfig := c.Config()
 	for _, v := range serviceConfig.ContainerConfigs {
 		if v.Name == container || container == "" {
 			// Env has a higher priority than envFrom
@@ -413,10 +412,7 @@ func (c *Controller) genResourceReq(container string) *corev1.ResourceRequiremen
 		requirements *corev1.ResourceRequirements
 	)
 
-	svcProfile, _ := c.GetConfig()
-	if svcProfile == nil {
-		return requirements
-	}
+	svcProfile := c.Config()
 
 	containerConfig := svcProfile.GetContainerDevConfigOrDefault(container)
 	if containerConfig == nil {

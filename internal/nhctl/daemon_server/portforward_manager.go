@@ -201,8 +201,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			ServiceType:     startCmd.ServiceType,
 		}
 
-		p.lock.Lock()
 		log.Logf("Saving port-forward %d:%d to db", pf.LocalPort, pf.RemotePort)
+		p.lock.Lock()
 		err = nhController.AddPortForwardToDB(pf)
 		p.lock.Unlock()
 		if err != nil {

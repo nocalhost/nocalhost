@@ -16,7 +16,7 @@ func (c *Controller) EnterPodTerminal(podName, container string, shell string) e
 	pod := podName
 
 	if shell == "" {
-		profile, _ := c.GetConfig()
+		profile := c.Config()
 		if profile != nil {
 			devConfig := profile.GetContainerDevConfigOrDefault(container)
 			if devConfig != nil {

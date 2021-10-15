@@ -899,21 +899,7 @@ func (a *Application) Controller(name string, svcType base.SvcType) (*controller
 	if a.Identifier == "" {
 		return nil, errors.New("Application's identifier cannot be nil")
 	}
-	c := &controller.Controller{
-		NameSpace:  a.NameSpace,
-		AppName:    a.Name,
-		Name:       name,
-		Type:       svcType,
-		Client:     a.client,
-		AppMeta:    a.appMeta,
-		Identifier: a.Identifier,
-	}
-	p, err := c.GetProfile()
-	if err != nil {
-		return nil, err
-	}
-	c.DevModeType = p.DevModeType
-	return c, nil
+	return controller.NewController(a.NameSpace, name, a.Name, a.Identifier, svcType, a.client, a.appMeta)
 }
 
 func (a *Application) GetConfigFile() (string, error) {

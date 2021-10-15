@@ -108,6 +108,12 @@ var devStartCmd = &cobra.Command{
 			log.Fatalf("Unsupported DevModeType %s", dt)
 		}
 
+		if len(devStartOps.LocalSyncDir) > 1 {
+			log.Fatal("Can not define multi 'local-sync(-s)'")
+		} else if len(devStartOps.LocalSyncDir) == 0 {
+			log.Fatal("'local-sync(-s)' must be specified")
+		}
+
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
@@ -129,14 +135,10 @@ var devStartCmd = &cobra.Command{
 				coloredoutput.Success("File sync is not resumed caused by --without-sync flag.")
 			}
 
-			if nocalhostSvc.IsInReplaceDevMode() && !dt.IsDuplicateDevMode() {
+			if nocalhostSvc.IsProcessor() {
 				if !devStartOps.NoTerminal || shell != "" {
 					must(nocalhostSvc.EnterPodTerminal(podName, devStartOps.Container, shell))
-					return
 				}
-			}
-
-			if nocalhostSvc.IsProcessor() {
 				return
 			}
 		}
@@ -192,22 +194,15 @@ func stopPreviousPortForward() {
 }
 
 func prepareSyncThing() {
-	var duplicateDevMode bool
-	if devStartOps.DevModeType == string(profile.DuplicateDevMode) {
-		duplicateDevMode = true
-	}
-	must(nocalhostSvc.CreateSyncThingSecret(devStartOps.Container, devStartOps.LocalSyncDir, duplicateDevMode))
+	dt := profile.DevModeType(devStartOps.DevModeType)
+	must(nocalhostSvc.CreateSyncThingSecret(devStartOps.Container, devStartOps.LocalSyncDir, dt.IsDuplicateDevMode()))
 }
 
 func recordLocalSyncDirToProfile() {
 	must(
 		nocalhostSvc.UpdateSvcProfile(
 			func(svcProfile *profile.SvcProfileV2) error {
-				if len(devStartOps.LocalSyncDir) == 1 {
-					svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
-				} else {
-					return errors.New("Can not define multi 'local-sync(-s)'")
-				}
+				svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 				return nil
 			},
 		),

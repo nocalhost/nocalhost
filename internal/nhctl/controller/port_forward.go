@@ -106,15 +106,10 @@ func (c *Controller) UpdatePortForwardStatus(localPort int, remotePort int, port
 
 	return c.UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
-			if svcProfile == nil {
-				return errors.New("Failed to get controller profile")
-			}
-
 			for _, portForward := range svcProfile.DevPortForwardList {
 				if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
 					portForward.Status = portStatus
 					portForward.Reason = reason
-					//portForward.Pid = os.Getpid()
 					portForward.Updated = time.Now().Format("2006-01-02 15:04:05")
 					break
 				}
@@ -126,7 +121,6 @@ func (c *Controller) UpdatePortForwardStatus(localPort int, remotePort int, port
 
 // GetPortForward If not found return err
 func (c *Controller) GetPortForward(localPort, remotePort int) (*profile.DevPortForward, error) {
-	var err error
 	svcProfile, err := c.GetProfile()
 	if err != nil {
 		return nil, err
@@ -136,33 +130,12 @@ func (c *Controller) GetPortForward(localPort, remotePort int) (*profile.DevPort
 			return pf, nil
 		}
 	}
-	log.Logf("type %s, name %s", c.Type, svcProfile.GetName())
 	return nil, errors.New(fmt.Sprintf("Pf %d:%d not found", localPort, remotePort))
 }
 
-//func (c *Controller) CheckPidPortStatus(ctx context.Context, sLocalPort, sRemotePort int, lock *sync.Mutex) {
-//	for {
-//		select {
-//		case <-ctx.Done():
-//			log.Info("Stop Checking port status")
-//			return
-//		default:
-//			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
-//			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
-//			lock.Lock()
-//			_ = c.UpdatePortForwardStatus(sLocalPort, sRemotePort, portStatus, "Check Pid")
-//			lock.Unlock()
-//			<-time.After(2 * time.Minute)
-//		}
-//	}
-//}
-
 func (c *Controller) PortForwardAfterDevStart(podName, containerName string) error {
 
-	p, err := c.GetConfig()
-	if err != nil {
-		return err
-	}
+	p := c.Config()
 
 	if p.ContainerConfigs == nil {
 		return nil
