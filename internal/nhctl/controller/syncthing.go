@@ -193,7 +193,7 @@ func (c *Controller) CreateSyncThingSecret(container string, localSyncDir []stri
 
 	// check if secret exist
 	exist, err := c.Client.GetSecret(syncSecret.Name)
-	if exist.Name != "" {
+	if exist != nil && exist.Name != "" {
 		_ = c.Client.DeleteSecret(syncSecret.Name)
 	}
 	sc, err := c.Client.CreateSecret(syncSecret, metav1.CreateOptions{})

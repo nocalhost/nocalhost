@@ -15,6 +15,8 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 )
 
 var (
@@ -107,6 +109,7 @@ type AuthChecker struct {
 	ResourceArg string
 }
 
+// todo adding timed cache for this
 // should call after Prepare()
 // fatal if haven't such permission
 func DoCheck(cmd *cobra.Command, namespace string, client *ClientGoUtils) error {
@@ -118,40 +121,68 @@ func DoCheck(cmd *cobra.Command, namespace string, client *ClientGoUtils) error 
 	}
 
 	forbiddenCheckers := make([]*authorizationv1.ResourceAttributes, 0)
+	wg := sync.WaitGroup{}
+	lock := sync.Mutex{}
+	errChan := make(chan error)
+	okChan := make(chan int)
+
 	if authCheckers != nil {
 		for _, checker := range authCheckers {
 
 			for _, verb := range checker.Verb {
+				verb := verb
 
-				r := resourceFor(mapper, checker.ResourceArg)
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
 
-				ra := &authorizationv1.ResourceAttributes{
-					Namespace: namespace,
-					Group:     r.Group,
-					Verb:      verb,
-					Name:      checker.Name,
-					Version:   checker.Version,
-					Resource:  r.Resource,
-				}
+					r := resourceFor(mapper, checker.ResourceArg)
 
-				arg := &authorizationv1.SelfSubjectAccessReview{
-					Spec: authorizationv1.SelfSubjectAccessReviewSpec{
-						ResourceAttributes: ra,
-					},
-				}
+					ra := &authorizationv1.ResourceAttributes{
+						Namespace: namespace,
+						Group:     r.Group,
+						Verb:      verb,
+						Name:      checker.Name,
+						Version:   checker.Version,
+						Resource:  r.Resource,
+					}
 
-				resp, err := client.ClientSet.AuthorizationV1().SelfSubjectAccessReviews().
-					Create(context.TODO(), arg, metav1.CreateOptions{})
+					arg := &authorizationv1.SelfSubjectAccessReview{
+						Spec: authorizationv1.SelfSubjectAccessReviewSpec{
+							ResourceAttributes: ra,
+						},
+					}
 
-				if err != nil {
-					return err
-				}
+					resp, err := client.ClientSet.AuthorizationV1().SelfSubjectAccessReviews().
+						Create(context.TODO(), arg, metav1.CreateOptions{})
 
-				if !resp.Status.Allowed {
-					forbiddenCheckers = append(forbiddenCheckers, ra)
-				}
+					if err != nil {
+						errChan <- err
+						return
+					}
+
+					if !resp.Status.Allowed {
+						lock.Lock()
+						defer lock.Unlock()
+						forbiddenCheckers = append(forbiddenCheckers, ra)
+					}
+				}()
 			}
 		}
+	}
+
+	go func() {
+		wg.Wait()
+		okChan <- 0
+	}()
+
+	select {
+	case <-okChan:
+
+		// if check over 5 second, stopping to check the result
+	case <-time.NewTicker(time.Second * 5).C:
+	case e := <-errChan:
+		return e
 	}
 
 	if len(forbiddenCheckers) > 0 {
