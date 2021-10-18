@@ -90,7 +90,7 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		if _, err := ioutil.ReadFile(kubeConfig); err != nil {
 			log.FatalE(err, "")
 		}
-		cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
+		cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
 		if err != nil {
 			log.FatalE(err, "")
 		}

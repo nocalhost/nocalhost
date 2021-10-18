@@ -24,7 +24,7 @@ var kubeconfigAddCmd = &cobra.Command{
 	Short: "Add kubeconfig",
 	Long:  `Add kubeconfig`,
 	Run: func(cmd *cobra.Command, args []string) {
-		daemonClient, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
+		daemonClient, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
 		if err != nil {
 			log.FatalE(err, "")
 		}

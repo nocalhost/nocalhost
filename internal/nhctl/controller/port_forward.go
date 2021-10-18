@@ -27,7 +27,7 @@ func (c *Controller) EndDevPortForward(localPort int, remotePort int) error {
 
 	for _, portForward := range svcProfile.DevPortForwardList {
 		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
-			client, err := daemon_client.NewDaemonClient(portForward.Sudo)
+			client, err := daemon_client.GetDaemonClient(portForward.Sudo)
 			if err != nil {
 				return err
 			}
@@ -47,7 +47,7 @@ func (c *Controller) EndDevPortForward(localPort int, remotePort int) error {
 }
 
 func StopPortForward(ns, nid, app, svc string, portForward *profile.DevPortForward) error {
-	client, err := daemon_client.NewDaemonClient(portForward.Sudo)
+	client, err := daemon_client.GetDaemonClient(portForward.Sudo)
 	if err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func (c *Controller) PortForwardAfterDevStart(podName, containerName string) err
 func (c *Controller) PortForward(podName string, localPort, remotePort int, role string) error {
 
 	isAdmin := utils.IsSudoUser()
-	client, err := daemon_client.NewDaemonClient(isAdmin)
+	client, err := daemon_client.GetDaemonClient(isAdmin)
 	if err != nil {
 		return err
 	}
