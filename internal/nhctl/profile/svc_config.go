@@ -64,7 +64,7 @@ type ServiceConfigV2 struct {
 }
 
 type ContainerConfig struct {
-	Name    string                  `validate:"DNS1123,Container" json:"name" yaml:"name"`
+	Name    string                  `validate:"Container" json:"name" yaml:"name"`
 	Hub     *HubConfig              `json:"hub" yaml:"hub,omitempty"`
 	Install *ContainerInstallConfig `json:"install,omitempty" yaml:"install,omitempty"`
 	Dev     *ContainerDevConfig     `json:"dev" yaml:"dev"`
