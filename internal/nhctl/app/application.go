@@ -111,9 +111,17 @@ func NewFakeApplication(name string, ns string, kubeconfig string, initClient bo
 	return app, nil
 }
 
-// When new a application, kubeconfig is required to get meta in k8s cluster
+// NewApplication When new a application, kubeconfig is required to get meta in k8s cluster
 // KubeConfig can be acquired from profile in leveldb
 func NewApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
+	return newApplication(name, ns, kubeconfig, nil, initClient)
+}
+
+func NewApplicationM(name string, ns string, kubeconfig string, meta *appmeta.ApplicationMeta, initClient bool) (*Application, error) {
+	return newApplication(name, ns, kubeconfig, meta, initClient)
+}
+
+func newApplication(name string, ns string, kubeconfig string, meta *appmeta.ApplicationMeta, initClient bool) (*Application, error) {
 
 	var err error
 	if kubeconfig == "" { // use default config
@@ -125,8 +133,12 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		KubeConfig: kubeconfig,
 	}
 
-	if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
-		return nil, err
+	if meta == nil {
+		if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
+			return nil, err
+		}
+	} else {
+		app.appMeta = meta
 	}
 
 	// 1. first try load profile from local or earlier version
@@ -138,16 +150,6 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	if err := app.tryLoadProfileFromLocal(); err != nil {
 		return nil, err
 	}
-
-	// if appMeta is not installed but application installed in earlier version
-	// should make a fake installation and generate an application meta
-	//if app.generateSecretForEarlierVer() {
-	//
-	//	// load app meta if generate secret for earlier verion
-	//	if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
-	//		return nil, err
-	//	}
-	//}
 
 	if !app.appMeta.IsInstalled() {
 		return nil, errors.Wrap(ErrNotFound, fmt.Sprintf("%s-%s not found", app.NameSpace, app.Name))
@@ -192,12 +194,6 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		}
 	}
 
-	//if profileV2.Identifier == "" {
-	//	profileV2.GenerateIdentifierIfNeeded()
-	//	if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
-	//		return nil, err
-	//	}
-	//}
 	app.AppType = profileV2.AppType
 	app.Identifier = profileV2.Identifier
 
