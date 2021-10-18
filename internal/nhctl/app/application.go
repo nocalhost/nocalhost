@@ -110,7 +110,15 @@ func NewFakeApplication(name string, ns string, kubeconfig string, initClient bo
 			return nil, err
 		}
 	}
+
+	if profileV2.Identifier == "" {
+		profileV2.GenerateIdentifierIfNeeded()
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
+			return nil, err
+		}
+	}
 	app.AppType = profileV2.AppType
+	app.Identifier = profileV2.Identifier
 
 	if kubeconfig != "" && kubeconfig != profileV2.Kubeconfig {
 		if err := app.UpdateProfile(
