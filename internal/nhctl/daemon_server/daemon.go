@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"io/ioutil"
-	k8sruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"net"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
@@ -55,15 +54,15 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	log.UseBulk(true)
 	log.Log("Starting daemon server...")
 
-	k8sruntime.ErrorHandlers = append(
-		k8sruntime.ErrorHandlers, func(err error) {
-			if strings.Contains(err.Error(), "watch") {
-				log.Tracef("[RuntimeErrorHandler] %s", err.Error())
-			} else {
-				log.ErrorE(errors.Wrap(err, ""), fmt.Sprintf("[RuntimeErrorHandler] Stderr: %s", err.Error()))
-			}
-		},
-	)
+	//k8sruntime.ErrorHandlers = append(
+	//	k8sruntime.ErrorHandlers, func(err error) {
+	//		if strings.Contains(err.Error(), "watch") {
+	//			log.Tracef("[RuntimeErrorHandler] %s", err.Error())
+	//		} else {
+	//			log.ErrorE(errors.Wrap(err, ""), fmt.Sprintf("[RuntimeErrorHandler] Stderr: %s", err.Error()))
+	//		}
+	//	},
+	//)
 
 	startUpPath, _ = utils.GetNhctlPath()
 
