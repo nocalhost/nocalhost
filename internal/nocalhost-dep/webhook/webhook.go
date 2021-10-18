@@ -28,6 +28,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nocalhost-dep/cm"
 	service_account "nocalhost/internal/nocalhost-dep/serviceaccount"
@@ -235,8 +236,10 @@ func mutationRequired(ignoredList []string, metadata *metav1.ObjectMeta) bool {
 			matchNamespacesMap[ns] = struct{}{}
 		}
 		if _, ok := matchNamespacesMap[metadata.Namespace]; !ok {
-			glog.Infof("Skip mutation %s/%s, it's not in the MATCH_NAMESPACE %v",
-				metadata.Namespace, metadata.Name, matchNamespaces)
+			glog.Infof(
+				"Skip mutation %s/%s, it's not in the MATCH_NAMESPACE %v",
+				metadata.Namespace, metadata.Name, matchNamespaces,
+			)
 			return false
 		}
 	}
@@ -513,7 +516,13 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 	if v, ok := omh.Annotations[appmeta.AnnotationKey]; ok && v != "" && resourceName != "" {
 		injectInitContainers, EnvVar, err = nocalhostDepConfigmapCustom(
 			func() (*profile.NocalHostAppConfigV2, *profile.ServiceConfigV2, error) {
-				return app.LoadSvcCfgFromStrIfValid(v, resourceName, base.SvcTypeOf(resourceType))
+				if cfg, err := app.DoLoadProfileFromDevConfig(
+					envsubst.TextRenderItem(v), resourceName, base.SvcTypeOf(resourceType),
+				); err != nil {
+					return app.LoadSvcCfgFromStrIfValid(v, resourceName, base.SvcTypeOf(resourceType))
+				} else {
+					return nil, cfg, nil
+				}
 			}, containers,
 		)
 
