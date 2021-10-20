@@ -89,6 +89,9 @@ func SyncCheck(cli runner.Client, moduleName string) error {
 }
 
 func SyncCheckT(cli runner.Client, ns, moduleName string, moduleType string) error {
+	if moduleType == "" {
+		moduleType = "deployment"
+	}
 	filename := "hello.test"
 	syncFile := fmt.Sprintf("/tmp/%s/%s/%s", ns, moduleName, filename)
 
@@ -96,17 +99,18 @@ func SyncCheckT(cli runner.Client, ns, moduleName string, moduleType string) err
 	if err := ioutil.WriteFile(syncFile, []byte(content), 0644); err != nil {
 		return errors.Errorf("test case failed, reason: write file %s error: %v", filename, err)
 	}
+	// get pod
+	podName, _, _ := cli.GetNhctl().RunWithRollingOut(context.TODO(), "dev", []string{
+		"pod", "bookinfo", "-t", moduleType, "-d", moduleName,
+	}...)
 
 	return util.RetryFunc(
 		func() error {
 			// wait file to be synchronize
 			time.Sleep(5 * time.Second)
-			if moduleType == "" {
-				moduleType = "deployment"
-			}
 			// not use nhctl exec is just because nhctl exec will stuck while cat file
 			args := []string{
-				"-t", fmt.Sprintf("%s/%s", moduleType, moduleName),
+				"-t", fmt.Sprintf("pods/%s", podName),
 				"--",
 				"cat",
 				filename,
