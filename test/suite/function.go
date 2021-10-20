@@ -14,6 +14,7 @@ import (
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
+	utils2 "nocalhost/pkg/nhctl/utils"
 	"nocalhost/test/runner"
 	"nocalhost/test/testcase"
 	"nocalhost/test/testdata"
@@ -520,7 +521,7 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 	return
 }
 
-func KillSyncthingProcess(cli runner.Client) {
+func RemoveSyncthingPid(cli runner.Client) {
 	module := "ratings"
 	funcs := []func() error{
 		func() error {
@@ -546,6 +547,27 @@ func KillSyncthingProcess(cli runner.Client) {
 		func() error { return testcase.DevEnd(cli, module) },
 	}
 	util.Retry("remove syncthing pid file", funcs)
+}
+
+func KillSyncthingProcess(cli runner.Client) {
+	module := "ratings"
+	funcs := []func() error{
+		func() error {
+			if err := testcase.DevStart(cli, module); err != nil {
+				_ = testcase.DevEnd(cli, module)
+				return err
+			}
+			return nil
+		},
+		func() error { return testcase.SyncCheck(cli, module) },
+		func() error { return testcase.SyncStatus(cli, module) },
+		func() error { utils2.KillSyncthingProcess(cli.GetKubectl().Namespace); return nil },
+		func() error { time.Sleep(time.Second * 2); return nil },
+		func() error { return testcase.SyncCheck(cli, module) },
+		func() error { return testcase.SyncStatus(cli, module) },
+		func() error { return testcase.DevEnd(cli, module) },
+	}
+	util.Retry("kill syncthing process", funcs)
 }
 
 func Get(cli runner.Client) {

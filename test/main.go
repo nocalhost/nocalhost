@@ -67,13 +67,16 @@ func main() {
 		t.Run("ProfileAndAssociate", suite.ProfileAndAssociate)
 	})
 
-
 	DoRun(false, &wg, func() {
 		t.Run("StatefulSet", suite.StatefulSet)
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("RemoveSyncthingPidFile", suite.KillSyncthingProcess)
+		t.Run("RemoveSyncthingPidFile", suite.RemoveSyncthingPid)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("KillSyncthingProcess", suite.KillSyncthingProcess)
 	})
 
 	DoRun(false, &wg, func() {
