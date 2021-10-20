@@ -184,17 +184,36 @@ func Deployment(cli runner.Client) {
 	funcs := []func() error{
 
 		func() error {
-			if err := testcase.DevStart(cli, module); err != nil {
-				_ = testcase.DevEnd(cli, module)
+			if err := testcase.DevStartDeployment(cli, module); err != nil {
+				_ = testcase.DevEndDeployment(cli, module)
 				return err
 			}
 			return nil
 		},
 		func() error { return testcase.SyncCheck(cli, module) },
 		func() error { return testcase.SyncStatus(cli, module) },
-		func() error { return testcase.DevEnd(cli, module) },
+		func() error { return testcase.DevEndDeployment(cli, module) },
 	}
 	util.Retry("Dev", funcs)
+}
+
+func DeploymentDuplicate(cli runner.Client) {
+	PortForward(cli)
+	PortForwardService(cli)
+	module := "ratings"
+	funcs := []func() error{
+		func() error {
+			if err := testcase.DevStartDeploymentDuplicate(cli, module); err != nil {
+				_ = testcase.DevEndDeployment(cli, module)
+				return err
+			}
+			return nil
+		},
+		func() error { return testcase.SyncCheck(cli, module) },
+		func() error { return testcase.SyncStatus(cli, module) },
+		func() error { return testcase.DevEndDeployment(cli, module) },
+	}
+	util.Retry("deployment duplicate", funcs)
 }
 
 func StatefulSet(cli runner.Client) {
@@ -202,16 +221,33 @@ func StatefulSet(cli runner.Client) {
 	moduleType := "statefulset"
 	funcs := []func() error{
 		func() error {
-			if err := testcase.DevStartT(cli, module, moduleType); err != nil {
-				_ = testcase.DevEndT(cli, module, moduleType)
+			if err := testcase.DevStartStatefulSet(cli, module); err != nil {
+				_ = testcase.DevEndStatefulSet(cli, module)
 				return err
 			}
 			return nil
 		},
 		func() error { return testcase.SyncCheckT(cli, cli.NameSpace(), module, moduleType) },
-		func() error { return testcase.DevEndT(cli, module, moduleType) },
+		func() error { return testcase.DevEndStatefulSet(cli, module) },
 	}
 	util.Retry("StatefulSet", funcs)
+}
+
+func StatefulSetDuplicate(cli runner.Client) {
+	module := "web"
+	moduleType := "statefulset"
+	funcs := []func() error{
+		func() error {
+			if err := testcase.DevStartStatefulSetDuplicate(cli, module); err != nil {
+				_ = testcase.DevEndStatefulSet(cli, module)
+				return err
+			}
+			return nil
+		},
+		func() error { return testcase.SyncCheckT(cli, cli.NameSpace(), module, moduleType) },
+		func() error { return testcase.DevEndStatefulSet(cli, module) },
+	}
+	util.Retry("StatefulSet duplicate", funcs)
 }
 
 /**
@@ -242,7 +278,7 @@ func Compatible(cli runner.Client) {
 	}
 	util.Retry(suiteName, []func() error{func() error { return testcase.Exec(cli) }})
 	m := []func() error{
-		func() error { return testcase.DevStart(cli, module) },
+		func() error { return testcase.DevStartDeployment(cli, module) },
 		func() error { return testcase.Sync(cli, module) },
 	}
 	util.Retry(suiteName, m)
@@ -264,7 +300,7 @@ func Compatible(cli runner.Client) {
 	//	map[string]func(*nhctlcli.CLI, string) error{"DevEnd": testcase.DevEnd},
 	//	cli,
 	//	module)
-	clientgoutils.Must(testcase.DevEnd(cli, module))
+	clientgoutils.Must(testcase.DevEndDeployment(cli, module))
 	// for temporary
 	funcs := []func() error{
 		func() error { return testcase.Upgrade(cli) },
@@ -525,8 +561,8 @@ func RemoveSyncthingPid(cli runner.Client) {
 	module := "ratings"
 	funcs := []func() error{
 		func() error {
-			if err := testcase.DevStart(cli, module); err != nil {
-				_ = testcase.DevEnd(cli, module)
+			if err := testcase.DevStartDeployment(cli, module); err != nil {
+				_ = testcase.DevEndDeployment(cli, module)
 				return err
 			}
 			return nil
@@ -534,17 +570,17 @@ func RemoveSyncthingPid(cli runner.Client) {
 		func() error { return testcase.SyncCheck(cli, module) },
 		func() error { return testcase.SyncStatus(cli, module) },
 		func() error { return testcase.RemoveSyncthingPidFile(cli, module) },
-		func() error { return testcase.DevEnd(cli, module) },
+		func() error { return testcase.DevEndDeployment(cli, module) },
 		func() error {
-			if err := testcase.DevStart(cli, module); err != nil {
-				_ = testcase.DevEnd(cli, module)
+			if err := testcase.DevStartDeployment(cli, module); err != nil {
+				_ = testcase.DevEndDeployment(cli, module)
 				return err
 			}
 			return nil
 		},
 		func() error { return testcase.SyncCheck(cli, module) },
 		func() error { return testcase.SyncStatus(cli, module) },
-		func() error { return testcase.DevEnd(cli, module) },
+		func() error { return testcase.DevEndDeployment(cli, module) },
 	}
 	util.Retry("remove syncthing pid file", funcs)
 }
@@ -553,8 +589,8 @@ func KillSyncthingProcess(cli runner.Client) {
 	module := "ratings"
 	funcs := []func() error{
 		func() error {
-			if err := testcase.DevStart(cli, module); err != nil {
-				_ = testcase.DevEnd(cli, module)
+			if err := testcase.DevStartDeployment(cli, module); err != nil {
+				_ = testcase.DevEndDeployment(cli, module)
 				return err
 			}
 			return nil
@@ -565,7 +601,7 @@ func KillSyncthingProcess(cli runner.Client) {
 		func() error { time.Sleep(time.Second * 2); return nil },
 		func() error { return testcase.SyncCheck(cli, module) },
 		func() error { return testcase.SyncStatus(cli, module) },
-		func() error { return testcase.DevEnd(cli, module) },
+		func() error { return testcase.DevEndDeployment(cli, module) },
 	}
 	util.Retry("kill syncthing process", funcs)
 }

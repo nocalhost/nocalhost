@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"net/http"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/test/runner"
 	"nocalhost/test/util"
@@ -23,11 +24,23 @@ import (
 	"time"
 )
 
-func DevStart(cli runner.Client, moduleName string) error {
-	return DevStartT(cli, moduleName, "")
+func DevStartDeployment(cli runner.Client, moduleName string) error {
+	return DevStartT(cli, moduleName, "deployment", profile.ReplaceDevMode)
 }
 
-func DevStartT(cli runner.Client, moduleName string, moduleType string) error {
+func DevStartStatefulSet(cli runner.Client, moduleName string) error {
+	return DevStartT(cli, moduleName, "statefulset", profile.ReplaceDevMode)
+}
+
+func DevStartDeploymentDuplicate(cli runner.Client, moduleName string) error {
+	return DevStartT(cli, moduleName, "deployment", profile.DuplicateDevMode)
+}
+
+func DevStartStatefulSetDuplicate(cli runner.Client, moduleName string) error {
+	return DevStartT(cli, moduleName, "statefulset", profile.DuplicateDevMode)
+}
+
+func DevStartT(cli runner.Client, moduleName string, moduleType string, modeType profile.DevModeType) error {
 	syncDir := fmt.Sprintf("/tmp/%s/%s", cli.NameSpace(), moduleName)
 
 	if err := os.MkdirAll(syncDir, 0777); err != nil {
@@ -40,6 +53,7 @@ func DevStartT(cli runner.Client, moduleName string, moduleType string) error {
 		"-d", moduleName,
 		"-s", syncDir,
 		"-t", moduleType,
+		"--dev-mode", modeType.ToString(),
 		"--priority-class", "nocalhost-container-critical",
 		// prevent tty to block testcase
 		"--without-terminal",
@@ -130,8 +144,12 @@ func PortForwardCheck(port int) error {
 	return errors.Errorf("test case failed, reason: can't access endpoint: %s", endpoint)
 }
 
-func DevEnd(cli runner.Client, moduleName string) error {
-	return DevEndT(cli, moduleName, "")
+func DevEndDeployment(cli runner.Client, moduleName string) error {
+	return DevEndT(cli, moduleName, "deployment")
+}
+
+func DevEndStatefulSet(cli runner.Client, moduleName string) error {
+	return DevEndT(cli, moduleName, "statefulset")
 }
 
 func DevEndT(cli runner.Client, moduleName string, moduleType string) error {

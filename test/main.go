@@ -60,6 +60,10 @@ func main() {
 	})
 
 	DoRun(false, &wg, func() {
+		t.Run("Deployment Duplicate", suite.DeploymentDuplicate)
+	})
+
+	DoRun(false, &wg, func() {
 		t.Run("Application", suite.Upgrade)
 	})
 
@@ -69,6 +73,10 @@ func main() {
 
 	DoRun(false, &wg, func() {
 		t.Run("StatefulSet", suite.StatefulSet)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("StatefulSet Duplicate", suite.StatefulSetDuplicate)
 	})
 
 	DoRun(false, &wg, func() {
