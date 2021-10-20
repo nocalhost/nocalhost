@@ -99,16 +99,16 @@ func SyncCheckT(cli runner.Client, ns, moduleName string, moduleType string) err
 	if err := ioutil.WriteFile(syncFile, []byte(content), 0644); err != nil {
 		return errors.Errorf("test case failed, reason: write file %s error: %v", filename, err)
 	}
-	// get pod
-	podName, _, _ := cli.GetNhctl().RunWithRollingOut(context.TODO(), "dev", []string{
-		"pod", "bookinfo", "-t", moduleType, "-d", moduleName,
-	}...)
 
 	return util.RetryFunc(
 		func() error {
 			// wait file to be synchronize
 			time.Sleep(5 * time.Second)
 			// not use nhctl exec is just because nhctl exec will stuck while cat file
+			// get pod
+			podName, _, _ := cli.GetNhctl().Run(context.TODO(), "dev", []string{
+				"pod", "bookinfo", "-t", moduleType, "-d", moduleName,
+			}...)
 			args := []string{
 				"-t", fmt.Sprintf("pods/%s", podName),
 				"--",
