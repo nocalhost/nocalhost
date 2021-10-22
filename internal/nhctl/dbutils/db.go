@@ -49,7 +49,7 @@ func OpenLevelDB(path string, readonly bool) (*LevelDBUtils, error) {
 		if leveldb_errors.IsCorrupted(err) {
 			log.Log("Recovering leveldb file...")
 			db, err = leveldb.RecoverFile(path, nil)
-		} else if errors.Is(err, syscall.ENOENT) {
+		} else if errors.Is(err, syscall.ENOENT) || os.IsNotExist(err) {
 			return nil, errors.Wrap(err, "File not exist, not need to retry")
 		} else /*if errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EBUSY)*/ {
 			log.Logf("Another process is accessing leveldb: %s, wait for 0.002s to retry, err: %v", path, err)
