@@ -89,10 +89,14 @@ func recoverSyncthingForApplication(ns, appName, nid string) error {
 // reconnectSyncthingIfNeededWithPeriod will reconnect syncthing period if syncthing service is not available
 func reconnectSyncthingIfNeededWithPeriod(duration time.Duration) {
 	tick := time.NewTicker(duration)
+	c := make(chan struct{}, 1)
+	c <- struct{}{}
 	for {
 		select {
-		case <-tick.C:
+		case <-c:
 			reconnectedSyncthingIfNeeded()
+		case <-tick.C:
+			c <- struct{}{}
 		}
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"text/template"
 
 	ps "github.com/mitchellh/go-ps"
@@ -45,7 +46,6 @@ const (
 	LogFile          = "syncthing.log"
 	IgnoredFIle      = ".nhignore"
 	syncthingPidFile = "syncthing.pid"
-
 
 	// Use to access syncthing API
 	DefaultAPIKey = "nocalhost"
@@ -301,6 +301,9 @@ func (s *Syncthing) Run(ctx context.Context) error {
 
 	log.Debug(cmdArgs)
 	s.cmd = exec.Command(s.BinPath, cmdArgs...) //nolint: gas, gosec
+	s.cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setsid: true,
+	}
 	s.cmd.Env = append(os.Environ(), "STNOUPGRADE=1")
 
 	if err := s.cmd.Start(); err != nil {

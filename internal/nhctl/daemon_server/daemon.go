@@ -220,10 +220,10 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		log.LogE(err)
 	}
 
-	// Recovering syncthing
-	if err = recoverSyncthing(); err != nil {
-		log.LogE(err)
-	}
+	//// Recovering syncthing
+	//if err = recoverSyncthing(); err != nil {
+	//	log.LogE(err)
+	//}
 
 	select {
 	case <-daemonCtx.Done():
