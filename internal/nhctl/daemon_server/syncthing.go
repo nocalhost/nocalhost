@@ -22,7 +22,6 @@ import (
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/internal/nhctl/syncthing/daemon"
-	"nocalhost/internal/nhctl/syncthing/network/req"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -134,6 +133,8 @@ func reconnectedSyncthingIfNeeded() {
 				continue
 			}
 			// reconnect two times:
+			// pre each time, check syncthing connections, if remote device connection is connected, no needs to recover
+			// if remote device connection is not connected, but have this connection, just to do port-forward
 			// the first time: using old port-forward, just create a new syncthing process
 			//   detect syncthing service is available or not, if it's still not available
 			// the second time: redo port-forward, and create a new syncthing process
@@ -148,8 +149,8 @@ func reconnectedSyncthingIfNeeded() {
 					}, func(err error) bool {
 						return err != nil
 					}, func() error {
-						status := svc.NewSyncthingHttpClient(2).GetSyncthingStatus()
-						if status.Status != req.Disconnected {
+						connected, err := svc.NewSyncthingHttpClient(2).SystemConnections()
+						if connected && err == nil {
 							return nil
 						}
 						return errors.New("needs to reconnect")
@@ -175,6 +176,18 @@ func doReconnectSyncthing(svc *controller.Controller, container string, kubeconf
 	if err != nil {
 		return err
 	}
+	client := svc.NewSyncthingHttpClient(2)
+	if isConnected, err := client.SystemConnections(); isConnected {
+		return nil
+	} else
+	// have connections but status is not connected, just to do port-forward, not needs to create a new syncthing process
+	if !isConnected && err == nil {
+		return doPortForward(svc, svcProfile, kubeconfigPath)
+	}
+	// using api to showdown server gracefully
+	for i := 0; i < 5; i++ {
+		_, _ = client.Post("/rest/system/shutdown", "")
+	}
 	// stop syncthing process with pid
 	_ = svc.FindOutSyncthingProcess(func(pid int) error { return syncthing.Stop(pid, true) })
 	// stop syncthing process with keywords
@@ -188,28 +201,8 @@ func doReconnectSyncthing(svc *controller.Controller, container string, kubeconf
 	}
 	// if reconnected is true, means needs to stop port-forward
 	if redoPortForward {
-		p := &command.PortForwardCommand{
-			NameSpace:   svc.NameSpace,
-			AppName:     svc.AppName,
-			Service:     svc.Name,
-			ServiceType: svc.Type.String(),
-			LocalPort:   svcProfile.RemoteSyncthingPort,
-			RemotePort:  svcProfile.RemoteSyncthingPort,
-			Role:        "SYNC",
-			Nid:         svc.AppMeta.NamespaceId,
-		}
-		err = pfManager.StopPortForwardGoRoutine(p)
-		if err != nil {
-			log.LogE(err)
-		}
-		if svc.Client, err = clientgoutils.NewClientGoUtils(kubeconfigPath, svc.NameSpace); err != nil {
+		if err = doPortForward(svc, svcProfile, kubeconfigPath); err != nil {
 			return err
-		}
-		if p.PodName, err = svc.BuildPodController().GetNocalhostDevContainerPod(); err != nil {
-			return err
-		}
-		if err = pfManager.StartPortForwardGoRoutine(p, true); err != nil {
-			log.LogE(err)
 		}
 	}
 	newSyncthing, err := svc.NewSyncthing(container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, flag)
@@ -221,4 +214,31 @@ func doReconnectSyncthing(svc *controller.Controller, container string, kubeconf
 		return err
 	}
 	return svc.SetSyncingStatus(true)
+}
+
+func doPortForward(svc *controller.Controller, svcProfile *profile.SvcProfileV2, kubeconfigPath string) error {
+	p := &command.PortForwardCommand{
+		NameSpace:   svc.NameSpace,
+		AppName:     svc.AppName,
+		Service:     svc.Name,
+		ServiceType: svc.Type.String(),
+		LocalPort:   svcProfile.RemoteSyncthingPort,
+		RemotePort:  svcProfile.RemoteSyncthingPort,
+		Role:        "SYNC",
+		Nid:         svc.AppMeta.NamespaceId,
+	}
+	var err error
+	if err = pfManager.StopPortForwardGoRoutine(p); err != nil {
+		log.LogE(err)
+	}
+	if svc.Client, err = clientgoutils.NewClientGoUtils(kubeconfigPath, svc.NameSpace); err != nil {
+		return err
+	}
+	if p.PodName, err = svc.BuildPodController().GetNocalhostDevContainerPod(); err != nil {
+		return err
+	}
+	if err = pfManager.StartPortForwardGoRoutine(p, true); err != nil {
+		log.LogE(err)
+	}
+	return nil
 }
