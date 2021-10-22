@@ -6,12 +6,9 @@
 package cmds
 
 import (
-	context2 "context"
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -70,15 +67,20 @@ var kubeconfigCheckCmd = &cobra.Command{
 			os.Exit(1)
 		} else {
 			if ctx.Namespace == "" {
-				_, err := utils.ClientSet.CoreV1().Namespaces().
-					List(context2.TODO(), v1.ListOptions{})
 
-				if k8serrors.IsForbidden(err) {
+				err := clientgoutils.DoAuthCheck(
+					utils, "", &clientgoutils.AuthChecker{
+						Verb:        []string{"list", "get", "watch"},
+						ResourceArg: "namespaces",
+					},
+				)
+
+				if errors.Is(err, clientgoutils.PermissionDenied) {
 
 					log.PWarn(
 						fmt.Sprintf(
 							"Context [%s] can not asscess the cluster scope resources, so you should specify a namespace by using "+
-								"'kubectl config set-context %s --namespace=${your_namespace} --kubeconfig=${your_kubeconfig}', or you can add" +
+								"'kubectl config set-context %s --namespace=${your_namespace} --kubeconfig=${your_kubeconfig}', or you can add"+
 								" a namespace to this context manually. ",
 							config.CurrentContext, contextSpecified,
 						),
