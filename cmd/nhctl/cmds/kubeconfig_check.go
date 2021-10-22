@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
-	"os"
 )
 
 var (
@@ -38,13 +37,20 @@ var kubeconfigCheckCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		utils, err := clientgoutils.NewClientGoUtils(kubeConfig, "")
-		must(err)
+		if err != nil {
+			log.PWarn(err.Error())
+			return
+		}
 
 		config, err := utils.NewFactory().ToRawKubeConfigLoader().RawConfig()
-		must(err)
+		if err != nil {
+			log.PWarn(err.Error())
+			return
+		}
 
 		if len(config.Contexts) == 0 {
-			must(errors.New("Please make sure your kubeconfig contains one context at least "))
+			log.PWarn("Please make sure your kubeconfig contains one context at least ")
+			return
 		}
 
 		if contextSpecified == "" {
@@ -64,7 +70,6 @@ var kubeconfigCheckCmd = &cobra.Command{
 					contextSpecified, set.UnsortedList(),
 				),
 			)
-			os.Exit(1)
 		} else {
 			if ctx.Namespace == "" {
 
@@ -85,8 +90,6 @@ var kubeconfigCheckCmd = &cobra.Command{
 							config.CurrentContext, contextSpecified,
 						),
 					)
-
-					os.Exit(1)
 				}
 			}
 		}
