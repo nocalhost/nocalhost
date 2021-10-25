@@ -106,9 +106,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 						pack.Event.ResourceName,
 					)
 
-					if err := nhController.StopSyncAndPortForwardProcess(true); err != nil {
-						return nil
-					}
+					_ = nhController.StopSyncAndPortForwardProcess(true)
 				} else if pack.Event.EventType == appmeta.DEV_STA {
 					profile, _ := nhApp.GetProfile()
 
@@ -122,9 +120,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 						pack.Event.ResourceName,
 					)
 
-					if err := nhController.StopAllPortForward(); err != nil {
-						return nil
-					}
+					_ = nhController.StopAllPortForward()
 				}
 				return nil
 			},
@@ -142,9 +138,9 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				log.Log("Accept connection error occurs")
+				log.Logf("Accept connection error occurs: %s", err.Error())
 				if strings.Contains(strings.ToLower(err.Error()), "use of closed network connection") {
-					log.Logf("Port %d has been closed", daemonListenPort())
+					log.Logf("Port %d has been closed: %s", daemonListenPort(), err.Error())
 					return
 				}
 				log.LogE(errors.Wrap(err, "Failed to accept a connection"))
@@ -157,11 +153,12 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 			go func() {
 				defer func() {
 					_ = conn.Close()
-					RecoverDaemonFromPanic()
+					recoverDaemonFromPanic()
 				}()
-				start := time.Now()
 
-				//log.Trace("Reading data...")
+				var err error
+
+				start := time.Now()
 				errChan := make(chan error, 1)
 				bytesChan := make(chan []byte, 1)
 
@@ -401,7 +398,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 		})
 	}
 	if err != nil {
-		log.LogE(err)
+		log.WarnE(err, "Processing command occurs error")
 	}
 }
 
@@ -428,9 +425,6 @@ func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error 
 		}
 	}
 
-	//if len(resp.Data) == 0 {
-	//	resp.Data = []byte("{}")
-	//}
 	// try marshal again if fail
 	bys, err := json.Marshal(&resp)
 	if err != nil {
@@ -440,20 +434,17 @@ func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error 
 		resp.Msg = resp.Msg + fmt.Sprintf(" | INTERNAL_FAIL:[%s]", err.Error())
 
 		if bys, err = json.Marshal(&resp); err != nil {
-			log.LogE(errors.Wrap(err, ""))
 			return err
 		}
 	}
 
 	if _, err = conn.Write(bys); err != nil {
-		log.LogE(errors.Wrap(err, ""))
 		return err
 	}
 
 	cw, ok := conn.(interface{ CloseWrite() error })
 	if ok {
-		err := cw.CloseWrite()
-		return err
+		return cw.CloseWrite()
 	}
 
 	return errFromFun
@@ -493,7 +484,7 @@ func handleStartPortForwardCommand(startCmd *command.PortForwardCommand) error {
 	return pfManager.StartPortForwardGoRoutine(startCmd, true)
 }
 
-func RecoverDaemonFromPanic() {
+func recoverDaemonFromPanic() {
 	if r := recover(); r != nil {
 		log.Errorf("DAEMON-RECOVER: %s", string(debug.Stack()))
 	}

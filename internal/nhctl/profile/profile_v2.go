@@ -161,19 +161,6 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 		a.SvcProfile = make([]*SvcProfileV2, 0)
 	}
 	svcProfile := &SvcProfileV2{
-		//ServiceConfigV2: &ServiceConfigV2{
-		//	Name: svcName,
-		//	Type: svcType,
-		//	ContainerConfigs: []*ContainerConfig{
-		//		{
-		//			Dev: &ContainerDevConfig{
-		//				Image:   DefaultDevImage,
-		//				WorkDir: DefaultWorkDir,
-		//			},
-		//		},
-		//	},
-		//},
-		//ActualName: svcName,
 		Type: svcType,
 		Name: svcName,
 	}

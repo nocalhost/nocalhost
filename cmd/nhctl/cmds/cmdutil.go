@@ -70,7 +70,7 @@ func Prepare() error {
 		}
 	}
 
-	log.Tracef("Nocalhost Prepare successful, getting kubeconfig from %s, namespace %s", kubeConfig, nameSpace)
+	//log.Tracef("Nocalhost Prepare successful, getting kubeconfig from %s, namespace %s", kubeConfig, nameSpace)
 	return nil
 }
 
