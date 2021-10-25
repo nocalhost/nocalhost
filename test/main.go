@@ -64,6 +64,14 @@ func main() {
 	})
 
 	DoRun(false, &wg, func() {
+		t.Run("Deployment duplicate and Duplicate", suite.DeploymentDuplicateAndDuplicate)
+	})
+
+	DoRun(false, &wg, func() {
+		t.Run("Deployment Replace and Duplicate", suite.DeploymentReplaceAndDuplicate)
+	})
+
+	DoRun(false, &wg, func() {
 		t.Run("Application", suite.Upgrade)
 	})
 
