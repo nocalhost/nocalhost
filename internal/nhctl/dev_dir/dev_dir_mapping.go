@@ -7,9 +7,70 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
+	"sync"
+	"time"
 )
 
-var NO_DEFAULT_PACK = errors.New("Current Svc pack not found ")
+var (
+	NO_DEFAULT_PACK = errors.New("Current Svc pack not found ")
+	cacheLock       = sync.Mutex{}
+	cache           *DevDirMapping
+)
+
+func init() {
+
+	flushCache()
+
+	go func() {
+		for {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Errorf("Fail to flush dir-svc cache in cacher ", r)
+					}
+				}()
+
+				time.Tick(time.Second * 5)
+				flushCache()
+			}()
+		}
+	}()
+}
+
+func flushCache() {
+	cacheLock.Lock()
+	defer cacheLock.Unlock()
+
+	var cacheOuter *DevDirMapping
+	if err := Get(
+		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
+			cacheOuter = dirMapping
+			return nil
+		},
+	); err != nil {
+		log.ErrorE(err, fmt.Sprintf("Fail to flush dir-svc cache"))
+	} else {
+		cache = cacheOuter
+	}
+}
+
+func (svcPack *SvcPack) GetAssociatePathCache() DevPath {
+	if !svcPack.valid() {
+		log.Logf("Current svc is invalid to get associate path, %v", svcPack)
+		return ""
+	}
+
+	cacheLock.Lock()
+	defer cacheLock.Unlock()
+
+	var path DevPath
+	if _, ok := cache.PackToPath[svcPack.Key()]; ok {
+		path = cache.PackToPath[svcPack.Key()]
+	} else {
+		path = cache.PackToPath[svcPack.KeyWithoutContainer()]
+	}
+	return path
+}
 
 // get associate path of svcPack
 // if no path match, try with svc with none container

@@ -43,7 +43,9 @@ func ClearAllData() {
 }
 
 // getOrModify true is read only, and false will save the [dirMapping *DevDirMapping] into db
-func doGetOrModify(fun func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error, getOrModify bool) error {
+func doGetOrModify(fun func(dirMapping *DevDirMapping,
+	pathToPack map[DevPath][]*SvcPack) error,
+	readOnly bool) error {
 	var path string
 	if os.Getenv("TEST") == "" {
 		path = nocalhost_path.GetNocalhostDevDirMapping()
@@ -52,7 +54,7 @@ func doGetOrModify(fun func(dirMapping *DevDirMapping, pathToPack map[DevPath][]
 	}
 
 	_ = dbutils.CreateLevelDB(path, false)
-	db, err := dbutils.OpenLevelDB(path, getOrModify)
+	db, err := dbutils.OpenLevelDB(path, readOnly)
 	if err != nil {
 		_ = db.Close()
 		return err
@@ -107,7 +109,7 @@ func doGetOrModify(fun func(dirMapping *DevDirMapping, pathToPack map[DevPath][]
 		return err
 	}
 
-	if !getOrModify {
+	if !readOnly {
 		bys, err := yaml.Marshal(result)
 		if err != nil {
 			return errors.Wrap(err, "")
