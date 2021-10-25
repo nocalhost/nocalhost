@@ -126,11 +126,11 @@ func printing(output interface{}) {
 	if jsonOutput {
 		marshal, err := json.Marshal(output)
 		must(err)
-		fmt.Printf(string(marshal))
+		fmt.Print(string(marshal))
 	} else {
 		marshal, err := yaml.Marshal(output)
 		must(err)
-		fmt.Printf(string(marshal))
+		fmt.Print(string(marshal))
 	}
 }
 

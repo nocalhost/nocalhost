@@ -81,7 +81,7 @@ var devAssociateCmd = &cobra.Command{
 		)
 
 		if info {
-			fmt.Printf(svcPack.GetAssociatePath().ToString())
+			fmt.Print(svcPack.GetAssociatePath().ToString())
 			return
 		} else if deAssociate {
 			svcPack.UnAssociatePath()
@@ -104,6 +104,7 @@ var devAssociateCmd = &cobra.Command{
 		}
 
 		must(dev_dir.DevPath(workDir).Associate(svcPack, kubeConfig, !migrate))
+
 		must(nocalhostApp.ReloadSvcCfg(nocalhostSvc.Name, nocalhostSvc.Type, false, false))
 	},
 }

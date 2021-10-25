@@ -231,11 +231,13 @@ func GetNsAndApplicationInfo() ([]AppInfo, error) {
 					if !IsNocalhostAppDir(appPath) {
 						continue
 					}
-					result = append(result, AppInfo{
-						Name:      appDir.Name(),
-						Namespace: ns.Name(),
-						Nid:       nidDir.Name(),
-					})
+					result = append(
+						result, AppInfo{
+							Name:      appDir.Name(),
+							Namespace: ns.Name(),
+							Nid:       nidDir.Name(),
+						},
+					)
 				}
 			}
 		}

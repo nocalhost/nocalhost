@@ -17,9 +17,8 @@ var (
 	cache           *DevDirMapping
 )
 
-func init() {
-
-	flushCache()
+func Initial() {
+	FlushCache()
 
 	go func() {
 		for {
@@ -31,26 +30,22 @@ func init() {
 				}()
 
 				time.Tick(time.Second * 5)
-				flushCache()
+				FlushCache()
 			}()
 		}
 	}()
 }
 
-func flushCache() {
-	cacheLock.Lock()
-	defer cacheLock.Unlock()
-
-	var cacheOuter *DevDirMapping
+func FlushCache() {
 	if err := Get(
 		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
-			cacheOuter = dirMapping
+			cacheLock.Lock()
+			defer cacheLock.Unlock()
+			cache = dirMapping
 			return nil
 		},
 	); err != nil {
 		log.ErrorE(err, fmt.Sprintf("Fail to flush dir-svc cache"))
-	} else {
-		cache = cacheOuter
 	}
 }
 
@@ -58,6 +53,10 @@ func (svcPack *SvcPack) GetAssociatePathCache() DevPath {
 	if !svcPack.valid() {
 		log.Logf("Current svc is invalid to get associate path, %v", svcPack)
 		return ""
+	}
+
+	if cache == nil {
+		FlushCache()
 	}
 
 	cacheLock.Lock()
@@ -303,6 +302,16 @@ func getDefaultPack(path DevPath) (*SvcPack, error) {
 
 	if pack, ok := packs.Packs[defaultSvcPackKey]; ok {
 		return pack, nil
+	}
+
+	// some dirty data may cause defaultSvcPackKey to nil mapping
+	// so return random one
+	if len(packs.Packs) > 0 {
+		for _, pack := range packs.Packs {
+			if pack.Key() != pack.KeyWithoutContainer() {
+				return pack, nil
+			}
+		}
 	}
 
 	return nil, NO_DEFAULT_PACK

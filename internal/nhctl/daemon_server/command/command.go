@@ -27,6 +27,7 @@ const (
 	UpdateApplicationMeta DaemonCommandType = "UpdateApplicationMeta"
 	KubeconfigOperation   DaemonCommandType = "KubeconfigOperationCommand"
 	CheckClusterStatus    DaemonCommandType = "CheckClusterStatus"
+	FlushDirMappingCache  DaemonCommandType = "FlushDirMappingCache"
 
 	PREVIEW_VERSION = 0
 	SUCCESS         = 200

@@ -235,6 +235,7 @@ func loadLocalOrCmConfigIfValid() {
 		devStartOps.LocalSyncDir = append(devStartOps.LocalSyncDir, string(associatePath))
 
 		must(associatePath.Associate(svcPack, kubeConfig, true))
+
 		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
 	case 1:
 

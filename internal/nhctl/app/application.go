@@ -279,38 +279,6 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 //	}
 //}
 
-// for previous version, associate path is stored in profile
-// and now it store in a standalone db
-// we should check if migrate is needed
-func migrateAssociate(appProfile *profile.AppProfileV2, a *Application) {
-	if appProfile.AssociateMigrate {
-		return
-	}
-
-	for _, svcProfile := range appProfile.SvcProfile {
-		if svcProfile.Associate != "" {
-
-			_ = dev_dir.DevPath(svcProfile.Associate).
-				Associate(
-					dev_dir.NewSvcPack(
-						appProfile.Namespace,
-						appProfile.Name,
-						base.SvcTypeOf(svcProfile.GetType()),
-						svcProfile.GetName(),
-						"",
-					), "NotSupported", false,
-				)
-		}
-	}
-
-	_ = a.UpdateProfile(
-		func(v2 *profile.AppProfileV2) error {
-			v2.AssociateMigrate = true
-			return nil
-		},
-	)
-}
-
 func (a *Application) generateSecretForEarlierVer() bool {
 
 	a.GetHomeDir()
