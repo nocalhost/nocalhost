@@ -123,28 +123,24 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 	return nil
 }
 
-func (p *PortForwardManager) RecoverAllPortForward() error {
+func (p *PortForwardManager) RecoverAllPortForward() {
 	defer RecoverDaemonFromPanic()
 
 	log.Info("Recovering all port-forward")
 	// Find all app
 	appMap, err := nocalhost.GetNsAndApplicationInfo()
 	if err != nil {
-		return err
+		log.LogE(err)
+		return
 	}
 
-	wg := sync.WaitGroup{}
-	for _, app := range appMap {
-		wg.Add(1)
+	for _, application := range appMap {
 		go func(namespace, app, nid string) {
-			defer wg.Done()
 			if err = p.RecoverPortForwardForApplication(namespace, app, nid); err != nil {
 				log.LogE(err)
 			}
-		}(app.Namespace, app.Name, app.Nid)
+		}(application.Namespace, application.Name, application.Nid)
 	}
-	wg.Wait()
-	return nil
 }
 
 // StartPortForwardGoRoutine Start a port-forward

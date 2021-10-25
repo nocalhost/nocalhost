@@ -6,16 +6,11 @@
 package appmeta_manager
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding"
 	"errors"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/flowcontrol"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/pkg/nhctl/log"
 	"sync"
@@ -23,13 +18,13 @@ import (
 
 var (
 	supervisor = &Supervisor{
-		deck: map[string]*applicationSecretWatcher{},
+		deck: sync.Map{},
 	}
 )
 
 type Supervisor struct {
-	deck map[string]*applicationSecretWatcher
-	lock sync.Mutex
+	// deck map[string]*applicationSecretWatcher
+	deck sync.Map
 }
 
 func UpdateApplicationMetasManually(ns string, configBytes []byte, secretName string, secret *v1.Secret) error {
@@ -66,21 +61,15 @@ func GetApplicationMeta(ns, appName string, configBytes []byte) *appmeta.Applica
 }
 
 func (s *Supervisor) getIDeck(ns string, configBytes []byte) *applicationSecretWatcher {
-	if asw, ok := s.deck[s.key(ns, configBytes)]; ok {
-		return asw
+	if loaded, ok := s.deck.Load(s.key(ns, configBytes)); ok {
+		if asw, ok := loaded.(*applicationSecretWatcher); ok {
+			return asw
+		}
 	}
 	return nil
 }
 
 func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWatcher {
-	if asw := s.getIDeck(ns, configBytes); asw != nil {
-		return asw
-	}
-
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	// double check
 	if asw := s.getIDeck(ns, configBytes); asw != nil {
 		return asw
 	}
@@ -102,7 +91,10 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 		watcher.Watch()
 		s.outDeck(ns, configBytes)
 	}()
-	s.deck[watchDeck] = watcher
+
+	if _, hasBeenStored := s.deck.LoadOrStore(watchDeck, watcher); hasBeenStored {
+		watcher.Quit()
+	}
 
 	helmSecretWatcher := NewHelmSecretWatcher(configBytes, ns)
 	log.Infof("Prepare HelmSecretWatcher for ns %s", ns)
@@ -132,69 +124,69 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 		sets[rl] = ""
 	}
 
-	c, err := clientcmd.RESTConfigFromKubeConfig(configBytes)
-	if err != nil {
-		log.ErrorE(err, "Fail to init clientSet, and helm watch feature will not be enable")
-		return watcher
-	}
-	c.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
-	clientSet, err := kubernetes.NewForConfig(c)
-	if err != nil {
-		log.ErrorE(err, "Fail to init clientSet, and helm watch feature will not be enable")
-		return watcher
-	}
+	//c, err := clientcmd.RESTConfigFromKubeConfig(configBytes)
+	//if err != nil {
+	//	log.ErrorE(err, "Fail to init clientSet, and helm watch feature will not be enable")
+	//	return watcher
+	//}
+	//c.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
+	//clientSet, err := kubernetes.NewForConfig(c)
+	//if err != nil {
+	//	log.ErrorE(err, "Fail to init clientSet, and helm watch feature will not be enable")
+	//	return watcher
+	//}
 
 	// we should delete those application installed by helm (still record in secrets)
 	// but already deleted
-	list, err := clientSet.CoreV1().Secrets(ns).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		log.ErrorE(err, "Fail to init searcher, and helm watch feature will not be enable")
-		return watcher
-	}
-	for _, v := range list.Items {
-		if v.Type == appmeta.SecretType {
-			needToDestroy := false
-
-			decode, err := appmeta.Decode(&v)
-			if err != nil {
-				// delete the secret that can not be correctly decode
-				log.TLogf(
-					"Watcher", "Application Secret '%s' will be deleted, "+
-						"the secret is broken.",
-					v.Name,
-				)
-
-				needToDestroy = true
-			} else if _, ok := sets[decode.HelmReleaseName]; !ok && decode.IsInstalled() && decode.ApplicationType.IsHelm() {
-
-				// delete the secret that do not have correspond helm rls
-				log.TLogf(
-					"Watcher", "Application Secret '%s' will be deleted, "+
-						"correspond helm rls is deleted.",
-					v.Name,
-				)
-
-				needToDestroy = true
-			}
-
-			if needToDestroy {
-				if err := clientSet.CoreV1().
-					Secrets(ns).
-					Delete(context.TODO(), v.Name, metav1.DeleteOptions{}); err != nil {
-					log.Error(
-						err, "Application Secret '%s' from ns %s need to deleted "+
-							"but fail.",
-						v.Name, ns,
-					)
-				} else {
-					log.TLogf(
-						"Watcher", "Application Secret '%s' from ns %s has been be deleted. ",
-						v.Name, ns,
-					)
-				}
-			}
-		}
-	}
+	//list, err := clientSet.CoreV1().Secrets(ns).List(context.TODO(), metav1.ListOptions{})
+	//if err != nil {
+	//	log.ErrorE(err, "Fail to init searcher, and helm watch feature will not be enable")
+	//	return watcher
+	//}
+	//for _, v := range list.Items {
+	//	if v.Type == appmeta.SecretType {
+	//		needToDestroy := false
+	//
+	//		decode, err := appmeta.Decode(&v)
+	//		if err != nil {
+	//			// delete the secret that can not be correctly decode
+	//			log.TLogf(
+	//				"Watcher", "Application Secret '%s' will be deleted, "+
+	//					"the secret is broken.",
+	//				v.Name,
+	//			)
+	//
+	//			needToDestroy = true
+	//		} else if _, ok := sets[decode.HelmReleaseName]; !ok && decode.IsInstalled() && decode.ApplicationType.IsHelm() {
+	//
+	//			// delete the secret that do not have correspond helm rls
+	//			log.TLogf(
+	//				"Watcher", "Application Secret '%s' will be deleted, "+
+	//					"correspond helm rls is deleted.",
+	//				v.Name,
+	//			)
+	//
+	//			needToDestroy = true
+	//		}
+	//
+	//		if needToDestroy {
+	//			if err := clientSet.CoreV1().
+	//				Secrets(ns).
+	//				Delete(context.TODO(), v.Name, metav1.DeleteOptions{}); err != nil {
+	//				log.Error(
+	//					err, "Application Secret '%s' from ns %s need to deleted "+
+	//						"but fail.",
+	//					v.Name, ns,
+	//				)
+	//			} else {
+	//				log.TLogf(
+	//					"Watcher", "Application Secret '%s' from ns %s has been be deleted. ",
+	//					v.Name, ns,
+	//				)
+	//			}
+	//		}
+	//	}
+	//}
 
 	go func() {
 		helmSecretWatcher.Watch()
@@ -207,9 +199,7 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 }
 
 func (s *Supervisor) outDeck(ns string, configBytes []byte) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	delete(s.deck, s.key(ns, configBytes))
+	s.deck.Delete(s.key(ns, configBytes))
 }
 
 func (s *Supervisor) key(ns string, configBytes []byte) string {
@@ -230,21 +220,21 @@ func (s *Supervisor) key(ns string, configBytes []byte) string {
 }
 
 // GetAllApplicationMetasWithDeepClone get all developing application, will not update appmeta.ApplicationMeta
-func GetAllApplicationMetasWithDeepClone() []*appmeta.ApplicationMeta {
+func GetAllApplicationMetas() []*appmeta.ApplicationMeta {
 	if supervisor == nil {
 		return nil
 	}
-	supervisor.lock.Lock()
-	defer supervisor.lock.Unlock()
-	metas := make([]*appmeta.ApplicationMeta, len(supervisor.deck))
-	for _, watcher := range supervisor.deck {
-		if watcher != nil {
-			for _, meta := range watcher.applicationMetas {
-				if meta != nil {
-					metas = append(metas, meta)
+	metas := make([]*appmeta.ApplicationMeta, 0)
+
+	supervisor.deck.Range(
+		func(key, value interface{}) bool {
+			if value != nil {
+				if asw, ok := value.(*applicationSecretWatcher); ok {
+					metas = append(metas, asw.GetApplicationMetas()...)
 				}
 			}
-		}
-	}
+			return true
+		},
+	)
 	return metas
 }
