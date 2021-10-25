@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"net/http"
 	_ "net/http/pprof"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
@@ -21,10 +22,10 @@ import (
 type ConfigSaveParams struct {
 	Application string
 	Kubeconfig  string
-	Name        string
+	Name        string // svcName
 	Namespace   string
-	Type        string
-	Config      string
+	Type        string // svcType
+	Config      string // config content
 }
 
 type ConfigSaveResp struct {
@@ -45,6 +46,7 @@ func startHttpServer() {
 	})
 
 	http.HandleFunc("/config-save", handlingConfigSave)
+	http.HandleFunc("/config-get", handlingConfigGet)
 
 	err := http.ListenAndServe("127.0.0.1:30125", nil)
 	if err != nil {
@@ -52,12 +54,16 @@ func startHttpServer() {
 	}
 }
 
-func handlingConfigSave(w http.ResponseWriter, r *http.Request) {
+func crossOriginFilter(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "Content-Type")
 	w.Header().Set("content-type", "application/json")
 	w.Header().Set("Access-Control-Allow-Methods", "*")
 	w.Header().Set("Access-Control-Max-Age", "300")
+}
+
+func handlingConfigSave(w http.ResponseWriter, r *http.Request) {
+	crossOriginFilter(w)
 
 	if r.Method != "POST" {
 		w.WriteHeader(405)
@@ -141,6 +147,76 @@ func handlingConfigSave(w http.ResponseWriter, r *http.Request) {
 	success(w, "Service config has been update")
 }
 
+func handlingConfigGet(w http.ResponseWriter, r *http.Request) {
+	crossOriginFilter(w)
+
+	if r.Method != "POST" {
+		w.WriteHeader(405)
+		return
+	}
+
+	csp := &ConfigSaveParams{}
+	err := r.ParseForm()
+	if err != nil {
+		fail(w, err.Error())
+		return
+	}
+
+	if len(r.PostForm) == 0 {
+		fail(w, "Post form can not be nil")
+		return
+	}
+
+	key := "application"
+	if len(r.PostForm[key]) == 0 {
+		fail(w, fmt.Sprintf("%s can not be nil", key))
+		return
+	}
+	csp.Application = r.PostForm[key][0]
+
+	key = "name"
+	if len(r.PostForm[key]) == 0 {
+		fail(w, fmt.Sprintf("%s can not be nil", key))
+		return
+	}
+	csp.Name = r.PostForm[key][0]
+
+	key = "namespace"
+	if len(r.PostForm[key]) == 0 {
+		fail(w, fmt.Sprintf("%s can not be nil", key))
+		return
+	}
+	csp.Namespace = r.PostForm[key][0]
+
+	key = "type"
+	if len(r.PostForm[key]) == 0 {
+		fail(w, fmt.Sprintf("%s can not be nil", key))
+		return
+	}
+	csp.Type = r.PostForm[key][0]
+
+	key = "kubeconfig"
+	if len(r.PostForm[key]) == 0 {
+		fail(w, fmt.Sprintf("%s can not be nil", key))
+		return
+	}
+	csp.Kubeconfig = r.PostForm[key][0]
+
+	c, err := controller.GetSvcConfig(csp.Namespace, csp.Application, csp.Name, csp.Kubeconfig, base.SvcType(csp.Type))
+	if err != nil {
+		fail(w, err.Error())
+		return
+	}
+
+	//bys, err := json.Marshal(c)
+	//if err != nil {
+	//	fail(w, err.Error())
+	//	return
+	//}
+
+	writeJsonResp(w, 200, c)
+}
+
 func success(w http.ResponseWriter, mes string) {
 	c := &ConfigSaveResp{
 		Success: true,
@@ -154,11 +230,17 @@ func fail(w http.ResponseWriter, mes string) {
 		Success: false,
 		Message: mes,
 	}
-	writeResp(w, 200, c)
+	writeResp(w, 201, c)
 }
 
 func writeResp(w http.ResponseWriter, statusCode int, c *ConfigSaveResp) {
-	w.Header().Set("Content-Type", "application/json")
+	//w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(c)
+}
+
+func writeJsonResp(w http.ResponseWriter, statusCode int, i interface{}) {
+	//w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(i)
 }

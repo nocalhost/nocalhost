@@ -8,6 +8,7 @@ package controller
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/hub"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
@@ -205,4 +206,15 @@ func UpdateSvcConfig(ns, appName, kubeconfig string, config *profile.ServiceConf
 	}
 	meta.Config.SetSvcConfigV2(*config)
 	return meta.Update()
+}
+
+func GetSvcConfig(ns, appName, svcName, kubeconfig string, svcType base.SvcType) (*profile.ServiceConfigV2, error) {
+	meta, err := nocalhost.GetApplicationMeta(appName, ns, kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+	if !meta.IsInstalled() {
+		return nil, errors.New(fmt.Sprintf("AppMeta %s-%s is not installed", appName, ns))
+	}
+	return meta.Config.GetSvcConfigV2(svcName, svcType), nil
 }
