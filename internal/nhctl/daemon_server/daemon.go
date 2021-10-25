@@ -216,7 +216,6 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		}
 	}()
 
-<<<<<<< Updated upstream
 	// Recovering port forward
 	if err = pfManager.RecoverAllPortForward(); err != nil {
 		log.LogE(err)
@@ -226,13 +225,6 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	if err = recoverSyncthing(); err != nil {
 		log.LogE(err)
 	}
-=======
-	//// Recovering port forward
-	//go pfManager.RecoverAllPortForward()
-	//
-	//// Recovering syncthing
-	//go recoverSyncthing()
->>>>>>> Stashed changes
 
 	select {
 	case <-daemonCtx.Done():
