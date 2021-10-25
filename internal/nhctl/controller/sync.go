@@ -52,19 +52,19 @@ func (c *Controller) StopFileSyncOnly() error {
 
 func (c *Controller) FindOutSyncthingProcess(whileProcessFound func(int) error) error {
 	previousSyncThingPid, err := c.GetSyncThingPid()
-
 	if err != nil {
 		log.LogE(err)
-	} else {
-		pro, err := ps.FindProcess(previousSyncThingPid)
-		if err != nil {
-			return errors.Wrap(err, "")
-		}
-		if pro == nil {
-		} else {
-			return whileProcessFound(previousSyncThingPid)
-		}
+		return nil
 	}
+
+	pro, err := ps.FindProcess(previousSyncThingPid)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	if pro != nil {
+		return whileProcessFound(previousSyncThingPid)
+	}
+
 	return nil
 }
 

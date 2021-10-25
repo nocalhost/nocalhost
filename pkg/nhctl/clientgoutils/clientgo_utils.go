@@ -14,8 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/flowcontrol"
-	"net/http"
-	"net/url"
 	"nocalhost/internal/nhctl/utils"
 	"path/filepath"
 	"sort"
@@ -43,8 +41,6 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"k8s.io/client-go/transport/spdy"
-
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -429,42 +425,42 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 	return false, nil
 }
 
-func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
-	path := fmt.Sprintf(
-		"/api/v1/namespaces/%s/pods/%s/portforward",
-		req.Pod.Namespace, req.Pod.Name,
-	)
-	clientConfig, err := c.ClientConfig.ClientConfig()
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	transport, upgrader, err := spdy.RoundTripperFor(clientConfig)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	parseUrl, err := url.Parse(clientConfig.Host)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	parseUrl.Path = path
-	dialer := spdy.NewDialer(
-		upgrader, &http.Client{Transport: transport}, http.MethodPost,
-		//&url.URL{Scheme: schema, Path: path, Host: hostIP},
-		parseUrl,
-	)
-	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh,
-	//req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
-	fw, err := NewOnAddresses(
-		dialer, req.Listen, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh,
-		req.Streams.Out, req.Streams.ErrOut,
-	)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	return errors.Wrap(fw.ForwardPorts(), "")
-}
+//func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
+//	path := fmt.Sprintf(
+//		"/api/v1/namespaces/%s/pods/%s/portforward",
+//		req.Pod.Namespace, req.Pod.Name,
+//	)
+//	clientConfig, err := c.ClientConfig.ClientConfig()
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//
+//	transport, upgrader, err := spdy.RoundTripperFor(clientConfig)
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//
+//	parseUrl, err := url.Parse(clientConfig.Host)
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//	parseUrl.Path = path
+//	dialer := spdy.NewDialer(
+//		upgrader, &http.Client{Transport: transport}, http.MethodPost,
+//		//&url.URL{Scheme: schema, Path: path, Host: hostIP},
+//		parseUrl,
+//	)
+//	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh,
+//	//req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
+//	fw, err := NewOnAddresses(
+//		dialer, req.Listen, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh,
+//		req.Streams.Out, req.Streams.ErrOut,
+//	)
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//	return errors.Wrap(fw.ForwardPorts(), "")
+//}
 
 func (c *ClientGoUtils) GetNodesList() (*corev1.NodeList, error) {
 	nodes, err := c.ClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})

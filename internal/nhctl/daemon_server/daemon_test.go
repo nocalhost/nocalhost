@@ -15,7 +15,7 @@ func TestUnMar(t *testing.T) {
 	meta := &appmeta.ApplicationMeta{}
 
 	meta.Config = &profile2.NocalHostAppConfigV2{}
-	meta.Config.ApplicationConfig = &profile2.ApplicationConfig{}
+	meta.Config.ApplicationConfig = profile2.ApplicationConfig{}
 
 	meta.Config.ApplicationConfig.HelmVals = map[string]interface{}{
 		"service": map[interface{}]interface{}{"port": "9082"},

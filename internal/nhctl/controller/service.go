@@ -35,6 +35,30 @@ type Controller struct {
 	Type        base.SvcType
 	Client      *clientgoutils.ClientGoUtils
 	AppMeta     *appmeta.ApplicationMeta
+	config      *profile.ServiceConfigV2
+}
+
+func NewController(ns, name, appName, identifier string, svcType base.SvcType,
+	client *clientgoutils.ClientGoUtils, appMeta *appmeta.ApplicationMeta) (*Controller, error) {
+	c := &Controller{
+		NameSpace:  ns,
+		AppName:    appName,
+		Name:       name,
+		Type:       svcType,
+		Client:     client,
+		AppMeta:    appMeta,
+		Identifier: identifier,
+	}
+	p, err := c.GetProfile()
+	if err != nil {
+		return nil, err
+	}
+	c.DevModeType = p.DevModeType
+
+	a := c.GetAppConfig().GetSvcConfigS(c.Name, c.Type)
+	c.config = &a
+
+	return c, nil
 }
 
 // IsInReplaceDevMode return true if under dev starting or start complete
@@ -66,6 +90,7 @@ func (c *Controller) IsInDevModeStarting() bool {
 	return c.IsInDuplicateDevModeStarting() || c.IsInReplaceDevModeStarting()
 }
 
+// IsProcessor Check if service is developing in this device
 func (c *Controller) IsProcessor() bool {
 	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, c.DevModeType)
 }

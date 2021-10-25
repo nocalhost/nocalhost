@@ -15,11 +15,6 @@ import (
 	"time"
 )
 
-//type ClusterStatus struct {
-//	Available bool
-//	Info      string
-//}
-
 // key: string
 // val: *daemon_common.CheckClusterStatus
 var clusterStatusMap sync.Map

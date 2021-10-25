@@ -25,6 +25,8 @@ var (
 type Supervisor struct {
 	// deck map[string]*applicationSecretWatcher
 	deck sync.Map
+	// lock map[string]*sync.lock
+	lock sync.Map
 }
 
 func UpdateApplicationMetasManually(ns string, configBytes []byte, secretName string, secret *v1.Secret) error {
@@ -56,8 +58,7 @@ func GetApplicationMeta(ns, appName string, configBytes []byte) *appmeta.Applica
 	asw := supervisor.inDeck(ns, configBytes)
 
 	// asw may nil if prepare fail
-	meta := asw.GetApplicationMeta(appName, ns)
-	return meta
+	return asw.GetApplicationMeta(appName, ns)
 }
 
 func (s *Supervisor) getIDeck(ns string, configBytes []byte) *applicationSecretWatcher {
@@ -69,12 +70,29 @@ func (s *Supervisor) getIDeck(ns string, configBytes []byte) *applicationSecretW
 	return nil
 }
 
+func (s *Supervisor) getLock(ns string, configBytes []byte) *sync.Mutex {
+	key := s.key(ns, configBytes)
+
+	store, _ := s.lock.LoadOrStore(key, &sync.Mutex{})
+	if asw, ok := store.(*sync.Mutex); ok {
+		return asw
+	}else {
+
+		// that's cloud not happened
+		return &sync.Mutex{}
+	}
+}
+
 func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWatcher {
 	if asw := s.getIDeck(ns, configBytes); asw != nil {
 		return asw
 	}
-	watchDeck := s.key(ns, configBytes)
 
+	lock := s.getLock(ns, configBytes)
+	lock.Lock()
+	defer lock.Unlock()
+
+	watchDeck := s.key(ns, configBytes)
 	watcher := NewApplicationSecretWatcher(configBytes, ns)
 
 	log.Infof("Prepare SecretWatcher for ns %s", ns)

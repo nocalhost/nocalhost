@@ -96,6 +96,7 @@ func Init() {
 	}
 	lock.L.Lock()
 	if isInit {
+		lock.L.Unlock()
 		return
 	}
 	isInit = true

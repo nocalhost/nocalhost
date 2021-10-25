@@ -268,7 +268,7 @@ func IsNocalhostAppDir(dir string) bool {
 }
 
 func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.ApplicationMeta, error) {
-	cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
+	cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +303,7 @@ func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.Applica
 }
 
 func GetApplicationMetas(namespace, kubeConfig string) (appmeta.ApplicationMetas, error) {
-	cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
+	cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
 	if err != nil {
 		return nil, err
 	}

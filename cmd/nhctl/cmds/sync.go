@@ -128,16 +128,15 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	if syncDouble == nil {
 		flag := false
 
-		if config, err := nocalhostSvc.GetConfig(); err == nil {
-			if cfg := config.GetContainerDevConfig(container); cfg != nil && cfg.Sync != nil {
-				switch cfg.Sync.Type {
+		config := nocalhostSvc.Config()
+		if cfg := config.GetContainerDevConfig(container); cfg != nil && cfg.Sync != nil {
+			switch cfg.Sync.Type {
 
-				case _const.DefaultSyncType:
-					flag = true
+			case _const.DefaultSyncType:
+				flag = true
 
-				default:
-					flag = false
-				}
+			default:
+				flag = false
 			}
 		}
 

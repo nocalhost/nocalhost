@@ -10,9 +10,13 @@ import (
 )
 
 // GetConfig The result will not be nil
-func (c *Controller) GetConfig() (*profile.ServiceConfigV2, error) {
-	svcConfig := c.GetAppConfig().GetSvcConfigS(c.Name, c.Type)
-	return &svcConfig, nil
+//func (c *Controller) GetConfig() (*profile.ServiceConfigV2, error) {
+//	svcConfig := c.GetAppConfig().GetSvcConfigS(c.Name, c.Type)
+//	return &svcConfig, nil
+//}
+
+func (c *Controller) Config() *profile.ServiceConfigV2 {
+	return c.config
 }
 
 func (c *Controller) GetAppConfig() *profile.NocalHostAppConfigV2 {
@@ -25,8 +29,7 @@ func (c *Controller) UpdateConfig(config profile.ServiceConfigV2) error {
 }
 
 func (c *Controller) GetWorkDir(container string) string {
-	svcConfig, _ := c.GetConfig()
-	devConfig := svcConfig.GetContainerDevConfigOrDefault(container)
+	devConfig := c.config.GetContainerDevConfigOrDefault(container)
 	if devConfig != nil && devConfig.WorkDir != "" {
 		return devConfig.WorkDir
 	}
@@ -34,8 +37,7 @@ func (c *Controller) GetWorkDir(container string) string {
 }
 
 func (c *Controller) GetStorageClass(container string) string {
-	svcProfile, _ := c.GetConfig()
-	devConfig := svcProfile.GetContainerDevConfigOrDefault(container)
+	devConfig := c.config.GetContainerDevConfigOrDefault(container)
 	if devConfig != nil && devConfig.StorageClass != "" {
 		return devConfig.StorageClass
 	}
@@ -43,8 +45,7 @@ func (c *Controller) GetStorageClass(container string) string {
 }
 
 func (c *Controller) GetDevImage(container string) string {
-	svcProfile, _ := c.GetConfig()
-	devConfig := svcProfile.GetContainerDevConfigOrDefault(container)
+	devConfig := c.config.GetContainerDevConfigOrDefault(container)
 	if devConfig != nil && devConfig.Image != "" {
 		return devConfig.Image
 	}
@@ -52,8 +53,7 @@ func (c *Controller) GetDevImage(container string) string {
 }
 
 func (c *Controller) GetPersistentVolumeDirs(container string) []*profile.PersistentVolumeDir {
-	svcProfile, _ := c.GetConfig()
-	devConfig := svcProfile.GetContainerDevConfigOrDefault(container)
+	devConfig := c.config.GetContainerDevConfigOrDefault(container)
 	if devConfig != nil {
 		return devConfig.PersistentVolumeDirs
 	}
