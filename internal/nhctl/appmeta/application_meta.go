@@ -70,6 +70,7 @@ const (
 	DependenceConfigMapPrefix = "nocalhost-depends-do-not-overwrite"
 
 	DEV_STARTING_SUFFIX = ">...Starting"
+	DuplicateSuffix     = "-duplicate"
 )
 
 var ErrAlreadyDev = errors.New("Svc already in dev mode")
@@ -316,7 +317,7 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, ns, identifier string) {
 	svcType := base.SvcTypeOf(s.GetType())
 
-	devStatus := meta.CheckIfSvcDeveloping(s.GetName(), svcType)
+	devStatus := meta.CheckIfSvcDeveloping(s.GetName(), identifier, svcType, s.DevModeType)
 
 	pack := dev_dir.NewSvcPack(
 		ns,
@@ -338,7 +339,7 @@ func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, n
 
 	s.Possess = meta.SvcDevModePossessor(
 		s.GetName(), svcType,
-		identifier,
+		identifier, s.DevModeType,
 	)
 }
 
@@ -456,7 +457,8 @@ func (a *ApplicationMeta) InitGoClient(kubeConfigPath string) error {
 	return err
 }
 
-func (a *ApplicationMeta) SvcDevModePossessor(name string, svcType base.SvcType, identifier string) bool {
+func (a *ApplicationMeta) SvcDevModePossessor(name string, svcType base.SvcType, identifier string, modeType profile2.DevModeType) bool {
+	name = devModeName(name, identifier, modeType)
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -472,7 +474,8 @@ func (a *ApplicationMeta) SvcDevModePossessor(name string, svcType base.SvcType,
 
 // SvcDevStarting call this func first recode 'name>...starting' as developing
 // while complete enter dev start, should call #SvcDevStartComplete to mark svc completely enter dev mode
-func (a *ApplicationMeta) SvcDevStarting(name string, svcType base.SvcType, identifier string) error {
+func (a *ApplicationMeta) SvcDevStarting(name string, svcType base.SvcType, identifier string, modeType profile2.DevModeType) error {
+	name = devModeName(name, identifier, modeType)
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -505,7 +508,15 @@ func devStartMarkSign(name string) string {
 	return fmt.Sprintf("%s%s", name, DEV_STARTING_SUFFIX)
 }
 
-func (a *ApplicationMeta) SvcDevStartComplete(name string, svcType base.SvcType, identifier string) error {
+func devModeName(name, identifier string, modeType profile2.DevModeType) string {
+	if !modeType.IsReplaceDevMode() {
+		return name + "-" + string(modeType) + "-" + identifier
+	}
+	return name
+}
+
+func (a *ApplicationMeta) SvcDevStartComplete(name string, svcType base.SvcType, identifier string, modeType profile2.DevModeType) error {
+	name = devModeName(name, identifier, modeType)
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -525,7 +536,8 @@ func (a *ApplicationMeta) SvcDevStartComplete(name string, svcType base.SvcType,
 	return a.Update()
 }
 
-func (a *ApplicationMeta) SvcDevEnd(name string, svcType base.SvcType) error {
+func (a *ApplicationMeta) SvcDevEnd(name, identifier string, svcType base.SvcType, modeType profile2.DevModeType) error {
+	name = devModeName(name, identifier, modeType)
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -544,7 +556,8 @@ func (a *ApplicationMeta) SvcDevEnd(name string, svcType base.SvcType) error {
 	return a.Update()
 }
 
-func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType) DevStartStatus {
+func (a *ApplicationMeta) CheckIfSvcDeveloping(name, identifier string, svcType base.SvcType, modeType profile2.DevModeType) DevStartStatus {
+	name = devModeName(name, identifier, modeType)
 	devMeta := a.DevMeta
 	if devMeta == nil {
 		devMeta = ApplicationDevMeta{}
@@ -567,19 +580,21 @@ func (a *ApplicationMeta) CheckIfSvcDeveloping(name string, svcType base.SvcType
 	return NONE
 }
 
+// Update if update occurs errors, it will get a new secret from k8s, and retry update again, default retry times is 5
 func (a *ApplicationMeta) Update() error {
 	return retry.OnError(
 		retry.DefaultRetry, func(err error) bool {
 			if err != nil {
-				if secret, err := a.operator.ReObtainSecret(a.Ns, a.Secret); err != nil {
-					return false
-				} else {
+				if secret, _ := a.operator.ReObtainSecret(a.Ns, SecretNamePrefix+a.Application); secret != nil {
 					a.Secret = secret
-					return true
 				}
+				return true
 			}
 			return false
 		}, func() error {
+			if a.Secret == nil {
+				return errors.New("secret not found")
+			}
 			a.prepare()
 			secret, err := a.operator.Update(a.Ns, a.Secret)
 			if err != nil {
@@ -587,7 +602,7 @@ func (a *ApplicationMeta) Update() error {
 			}
 			a.Secret = secret
 			// update daemon application meta manually
-			if client, err := daemon_client.NewDaemonClient(false); err == nil {
+			if client, err := daemon_client.GetDaemonClient(false); err == nil {
 				_, _ = client.SendUpdateApplicationMetaCommand(
 					string(a.operator.GetKubeconfigBytes()), a.Ns, a.Secret.Name, a.Secret,
 				)
@@ -772,7 +787,7 @@ func (a *ApplicationMeta) Delete() error {
 	}
 	a.Secret = nil
 	// update daemon application meta manually
-	if client, err := daemon_client.NewDaemonClient(false); err == nil {
+	if client, err := daemon_client.GetDaemonClient(false); err == nil {
 		_, _ = client.SendUpdateApplicationMetaCommand(
 			string(a.operator.GetKubeconfigBytes()), a.Ns, name, nil,
 		)

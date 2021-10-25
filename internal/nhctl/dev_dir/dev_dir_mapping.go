@@ -88,6 +88,15 @@ func (d DevPath) GetAllPacks() *AllSvcPackAssociateByPath {
 	return getAllPacks(d)
 }
 
+func (d DevPath) AlreadyAssociate(specifyPack *SvcPack) bool {
+	for key, _ := range d.GetAllPacks().Packs {
+		if key == specifyPack.Key() {
+			return true
+		}
+	}
+	return false
+}
+
 // Associate setAsDefaultSvc:
 // if this dev path has been associate by svc && [setAsDefaultSvc==true]
 // replace the default svc to the path

@@ -180,11 +180,6 @@ func nocalhostDepConfigmapCustom(
 	if svcConfig.DependLabelSelector != nil {
 		if svcConfig.DependLabelSelector.Pods != nil && len(svcConfig.DependLabelSelector.Pods) > 0 {
 			args := waitForPodArgs(svcConfig.DependLabelSelector.Pods)
-
-			if waitCmd != "" {
-				waitCmd += " && "
-			}
-
 			if waitCmd != "" {
 				waitCmd += " && "
 			}
@@ -193,11 +188,22 @@ func nocalhostDepConfigmapCustom(
 
 		if svcConfig.DependLabelSelector.Jobs != nil && len(svcConfig.DependLabelSelector.Jobs) > 0 {
 			args := waitForJobArgs(svcConfig.DependLabelSelector.Jobs)
-
 			if waitCmd != "" {
 				waitCmd += " && "
 			}
+			waitCmd += strings.Join(args, " ")
+		}
 
+		if svcConfig.DependLabelSelector.TCP != nil && len(svcConfig.DependLabelSelector.TCP) > 0 {
+			args := waitForTCPArgs(svcConfig.DependLabelSelector.TCP)
+			if waitCmd != "" {
+				waitCmd += " && "
+			}
+			waitCmd += strings.Join(args, " ")
+		}
+
+		if svcConfig.DependLabelSelector.HTTP != nil && len(svcConfig.DependLabelSelector.HTTP) > 0 {
+			args := waitForHTTPArgs(svcConfig.DependLabelSelector.HTTP)
 			if waitCmd != "" {
 				waitCmd += " && "
 			}
@@ -386,6 +392,28 @@ func waitForJobArgs(jobs []string) []string {
 		} else { // has not define label, default app label
 			args = append(args, fmt.Sprintf("-lapp=%s", job))
 		}
+	}
+	return args
+}
+
+func waitForTCPArgs(tcp []string) []string {
+	var args []string
+	for key, t := range tcp {
+		if key != 0 {
+			args = append(args, "&&")
+		}
+		args = append(args, "wait_for.sh", "tcp", t)
+	}
+	return args
+}
+
+func waitForHTTPArgs(http []string) []string {
+	var args []string
+	for key, h := range http {
+		if key != 0 {
+			args = append(args, "&&")
+		}
+		args = append(args, "wait_for.sh", "http", h)
 	}
 	return args
 }

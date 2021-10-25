@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
@@ -29,7 +30,7 @@ import (
 	"time"
 )
 
-var svcProfileCacheMap = NewCache(time.Second * 2)
+var svcProfileCacheMap = cache.NewLRUExpireCache(10000)
 
 func getServiceProfile(ns, appName, nid string, kubeconfigBytes []byte) map[string]*profile.SvcProfileV2 {
 	serviceMap := make(map[string]*profile.SvcProfileV2)
@@ -51,10 +52,10 @@ func getServiceProfile(ns, appName, nid string, kubeconfigBytes []byte) map[stri
 func GetDescriptionDaemon(ns, appName, nid string, kubeconfigBytes []byte) *profile.AppProfileV2 {
 	var appProfile *profile.AppProfileV2
 	var err error
-	appProfileCache, found := svcProfileCacheMap.Get(fmt.Sprintf("%s/%s", ns, appName))
+	appProfileCache, found := svcProfileCacheMap.Get(fmt.Sprintf("%s/%s/%s", ns, nid, appName))
 	if !found || appProfileCache == nil {
 		if appProfile, err = nocalhost.GetProfileV2(ns, appName, nid); err == nil {
-			svcProfileCacheMap.Set(fmt.Sprintf("%s/%s", ns, appName), appProfile)
+			svcProfileCacheMap.Add(fmt.Sprintf("%s/%s/%s", ns, nid, appName), appProfile, time.Second*2)
 		}
 	} else {
 		appProfile = appProfileCache.(*profile.AppProfileV2)

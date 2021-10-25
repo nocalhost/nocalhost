@@ -26,8 +26,7 @@ func (c *Controller) GetDevContainerEnv(container string) *ContainerDevEnv {
 	// Find service env
 	devEnv := make([]*profile.Env, 0)
 	kvMap := make(map[string]string, 0)
-	//serviceConfig, _ := c.GetProfile()
-	serviceConfig, _ := c.GetConfig()
+	serviceConfig := c.Config()
 	for _, v := range serviceConfig.ContainerConfigs {
 		if v.Name == container || container == "" {
 			// Env has a higher priority than envFrom
@@ -48,7 +47,7 @@ func (c *Controller) GetDevContainerEnv(container string) *ContainerDevEnv {
 
 func (c *Controller) GetDevSidecarImage(container string) string {
 	// Find service env
-	serviceConfig, _ := c.GetConfig()
+	serviceConfig := c.Config()
 	for _, v := range serviceConfig.ContainerConfigs {
 		if v.Name == container || container == "" {
 			// Env has a higher priority than envFrom
@@ -108,14 +107,17 @@ func (c *Controller) markReplicaSetRevision() error {
 	return nil
 }
 
-func (c *Controller) GetSyncThingSecretName() string {
-	return c.Name + "-" + c.Type.String() + "-" + secret_config.SecretName
+func (c *Controller) GetSyncThingSecretName(duplicateDevMode bool) string {
+	if duplicateDevMode {
+		return strings.Join([]string{c.Name, c.Type.String(), secret_config.SecretName, "dup", c.Identifier}, "-")
+	}
+	return strings.Join([]string{c.Name, c.Type.String(), secret_config.SecretName}, "-")
 }
 
 // There are two volume used by syncthing in sideCarContainer:
 // 1. A EmptyDir volume mounts to /var/syncthing in sideCarContainer
 // 2. A volume mounts Secret to /var/syncthing/secret in sideCarContainer
-func (c *Controller) generateSyncVolumesAndMounts() ([]corev1.Volume, []corev1.VolumeMount) {
+func (c *Controller) generateSyncVolumesAndMounts(duplicateDevMode bool) ([]corev1.Volume, []corev1.VolumeMount) {
 
 	syncthingVolumes := make([]corev1.Volume, 0)
 	syncthingVolumeMounts := make([]corev1.VolumeMount, 0)
@@ -128,7 +130,7 @@ func (c *Controller) generateSyncVolumesAndMounts() ([]corev1.Volume, []corev1.V
 		},
 	}
 
-	secretName := c.GetSyncThingSecretName()
+	secretName := c.GetSyncThingSecretName(duplicateDevMode)
 	defaultMode := int32(_const.DefaultNewFilePermission)
 	syncthingSecretVol := corev1.Volume{
 		Name: secret_config.SecretName,
@@ -179,7 +181,7 @@ func (c *Controller) generateSyncVolumesAndMounts() ([]corev1.Volume, []corev1.V
 // If PVC exists, use it directly
 // If PVC not exists, try to create one
 // If PVC failed to create, the whole process of entering DevMode will fail
-func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
+func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, duplicateDevMode bool) (
 	[]corev1.Volume, []corev1.VolumeMount, error) {
 
 	volumes := make([]corev1.Volume, 0)
@@ -195,6 +197,7 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 
 	var workDirDefinedInPersistVolume bool // if workDir is specified in persistentVolumeDirs
 	var workDirResideInPersistVolumeDirs bool
+	var err error
 	persistentVolumes := c.GetPersistentVolumeDirs(container)
 	if len(persistentVolumes) > 0 {
 		for index, persistentVolume := range persistentVolumes {
@@ -205,8 +208,18 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 
 			// Check if pvc is already exist
 			labels := map[string]string{}
-			labels[_const.AppLabel] = c.AppName
-			labels[_const.ServiceLabel] = c.Name
+			if duplicateDevMode {
+				labels, err = c.getDuplicateLabelsMap()
+				if err != nil {
+					log.WarnE(err, "")
+					continue
+				}
+				labels[_const.DevWorkloadIgnored] = "false"
+				labels[_const.AppLabel] = c.AppName
+			} else {
+				labels[_const.AppLabel] = c.AppName
+				labels[_const.ServiceLabel] = c.Name
+			}
 			labels[_const.PersistentVolumeDirLabel] = utils.Sha1ToString(persistentVolume.Path)
 			claims, err := c.Client.GetPvcByLabels(labels)
 			if err != nil {
@@ -399,10 +412,7 @@ func (c *Controller) genResourceReq(container string) *corev1.ResourceRequiremen
 		requirements *corev1.ResourceRequirements
 	)
 
-	svcProfile, _ := c.GetConfig()
-	if svcProfile == nil {
-		return requirements
-	}
+	svcProfile := c.Config()
 
 	containerConfig := svcProfile.GetContainerDevConfigOrDefault(container)
 	if containerConfig == nil {
@@ -502,19 +512,19 @@ func findDevPod(podList []corev1.Pod) (string, error) {
 }
 
 func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
-	containerName, devImage, storageClass string) (*corev1.Container, *corev1.Container, []corev1.Volume, error) {
+	containerName, devImage, storageClass string, duplicateDevMode bool) (*corev1.Container,
+	*corev1.Container, []corev1.Volume, error) {
 
 	devModeVolumes := make([]corev1.Volume, 0)
 	devModeMounts := make([]corev1.VolumeMount, 0)
 
 	// Set volumes
-	syncthingVolumes, syncthingVolumeMounts := c.generateSyncVolumesAndMounts()
+	syncthingVolumes, syncthingVolumeMounts := c.generateSyncVolumesAndMounts(duplicateDevMode)
 	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
 	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := c.genWorkDirAndPVAndMounts(
-		containerName, storageClass,
-	)
+		containerName, storageClass, duplicateDevMode)
 	if err != nil {
 		return nil, nil, nil, err
 	}

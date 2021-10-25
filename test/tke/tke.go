@@ -235,7 +235,8 @@ func (t *task) CreateTKE() {
 	}
 
 instanceTypeRetry:
-	for _, instanceType := range []string{"SA2.MEDIUM8", "SA2.MEDIUM4", "SA2.LARGE8", "S2.MEDIUM8", "S2.LARGE8", "S2.MEDIUM4", "S5.MEDIUM8", "S5.LARGE8", "S5.MEDIUM4"} {
+	for _, instanceType := range []string{"SA2.MEDIUM8", "SA2.MEDIUM4", "SA2.LARGE8", "S2.MEDIUM8", "S2.LARGE8",
+		"S2.MEDIUM4", "S5.MEDIUM8", "S5.LARGE8", "S5.MEDIUM4", "SA2.SMALL4", "SA2.SMALL2"} {
 		for {
 			p.InstanceType = instanceType
 			bytes, _ = json.Marshal(p)

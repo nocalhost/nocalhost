@@ -36,7 +36,7 @@ func (j *CronJobController) GetNocalhostDevContainerPod() (string, error) {
 }
 
 func (j *CronJobController) getGeneratedJobName() string {
-	return fmt.Sprintf("%s%s", cronjobGeneratedJobPrefix, j.Name())
+	return fmt.Sprintf("%s%s", cronjobGeneratedJobPrefix, j.GetName())
 }
 
 // ReplaceImage For Job, we can't replace the Job' image
@@ -44,7 +44,7 @@ func (j *CronJobController) getGeneratedJobName() string {
 func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 
 	j.Client.Context(ctx)
-	originJob, err := j.Client.GetCronJobs(j.Name())
+	originJob, err := j.Client.GetCronJobs(j.GetName())
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStar
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		j.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass)
+		j.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}
@@ -138,12 +138,12 @@ func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStar
 	return waitingPodToBeReady(j.GetNocalhostDevContainerPod)
 }
 
-func (j *CronJobController) Name() string {
-	return j.Controller.Name
-}
+//func (j *CronJobController) Name() string {
+//	return j.Controller.Name
+//}
 
 func (j *CronJobController) RollBack(reset bool) error {
-	originJob, err := j.Client.GetCronJobs(j.Name())
+	originJob, err := j.Client.GetCronJobs(j.GetName())
 	if err != nil {
 		return err
 	}
@@ -178,14 +178,14 @@ func (j *CronJobController) RollBack(reset bool) error {
 // In DevMode, return pod list of generated Job.
 // Otherwise, return pod list of original Job
 func (j *CronJobController) GetPodList() ([]corev1.Pod, error) {
-	if j.IsInDevMode() {
+	if j.IsInReplaceDevMode() {
 		pl, err := j.Client.ListPodsByJob(j.getGeneratedJobName())
 		if err != nil {
 			return nil, err
 		}
 		return pl.Items, nil
 	}
-	pl, err := j.Client.ListPodsByCronJob(j.Name())
+	pl, err := j.Client.ListPodsByCronJob(j.GetName())
 	if err != nil {
 		return nil, err
 	}

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package req
 
@@ -34,8 +34,16 @@ func (f *FolderCompletion) isComplete() bool {
 }
 
 func (f *FolderCompletion) UploadPct() string {
+	var compl string
+	if f == nil || 1 > f.Completion {
+		compl = "0.00%"
+	} else {
+		compl = fmt.Sprintf("%.2f%%", f.Completion)
+	}
+
 	return fmt.Sprintf(
-		"Upload to remote: %.2f%%", f.Completion)
+		"Upload to remote: %s", compl,
+	)
 }
 
 type FolderCompletion struct {

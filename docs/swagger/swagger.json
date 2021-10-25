@@ -1374,6 +1374,30 @@
                 }
             }
         },
+        "/v1/nocalhost/version/upgrade_info": {
+            "get": {
+                "description": "UpgradeInfo api server version update info",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Version"
+                ],
+                "summary": "UpgradeInfo api server version update info",
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":model.VersionUpgradeInfo}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.VersionUpgradeInfo"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/plugin/application/{id}/dev_space/{spaceId}/plugin_sync": {
             "put": {
                 "description": "Plug-in Update app installation status",
@@ -2467,6 +2491,20 @@
                 },
                 "status": {
                     "type": "integer"
+                }
+            }
+        },
+        "model.VersionUpgradeInfo": {
+            "type": "object",
+            "properties": {
+                "current_version": {
+                    "type": "string"
+                },
+                "has_new_version": {
+                    "type": "boolean"
+                },
+                "upgrade_version": {
+                    "type": "string"
                 }
             }
         },

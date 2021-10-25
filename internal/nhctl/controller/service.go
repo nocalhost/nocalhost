@@ -6,37 +6,93 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common/base"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // Controller presents a k8s controller
 // https://kubernetes.io/docs/concepts/architecture/controller
 type Controller struct {
-	NameSpace string
-	AppName   string
-	Name      string
-	Type      base.SvcType
-	Client    *clientgoutils.ClientGoUtils
-	AppMeta   *appmeta.ApplicationMeta
+	NameSpace   string
+	AppName     string
+	Name        string
+	Identifier  string
+	DevModeType profile.DevModeType
+	Type        base.SvcType
+	Client      *clientgoutils.ClientGoUtils
+	AppMeta     *appmeta.ApplicationMeta
+	config      *profile.ServiceConfigV2
 }
 
-// IsInDevMode return true if under dev starting or start complete
-func (c *Controller) IsInDevMode() bool {
-	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Type) != appmeta.NONE
-}
-
-func (c *Controller) IsProcessor() bool {
-	appProfile, err := c.GetAppProfile() // todo: move Identifier to directory
-	if err != nil {
-		return false
+func NewController(ns, name, appName, identifier string, svcType base.SvcType,
+	client *clientgoutils.ClientGoUtils, appMeta *appmeta.ApplicationMeta) (*Controller, error) {
+	c := &Controller{
+		NameSpace:  ns,
+		AppName:    appName,
+		Name:       name,
+		Type:       svcType,
+		Client:     client,
+		AppMeta:    appMeta,
+		Identifier: identifier,
 	}
-	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, appProfile.Identifier)
+	p, err := c.GetProfile()
+	if err != nil {
+		return nil, err
+	}
+	c.DevModeType = p.DevModeType
+
+	a := c.GetAppConfig().GetSvcConfigS(c.Name, c.Type)
+	c.config = &a
+
+	return c, nil
+}
+
+// IsInReplaceDevMode return true if under dev starting or start complete
+func (c *Controller) IsInReplaceDevMode() bool {
+	return c.DevModeType.IsReplaceDevMode() &&
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) != appmeta.NONE
+}
+
+func (c *Controller) IsInReplaceDevModeStarting() bool {
+	return c.DevModeType.IsReplaceDevMode() &&
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) == appmeta.STARTING
+}
+
+func (c *Controller) IsInDuplicateDevMode() bool {
+	return c.DevModeType.IsDuplicateDevMode() &&
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) != appmeta.NONE
+}
+
+func (c *Controller) IsInDuplicateDevModeStarting() bool {
+	return c.DevModeType.IsDuplicateDevMode() &&
+		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) == appmeta.STARTING
+}
+
+func (c *Controller) IsInDevMode() bool {
+	return c.IsInDuplicateDevMode() || c.IsInReplaceDevMode()
+}
+
+func (c *Controller) IsInDevModeStarting() bool {
+	return c.IsInDuplicateDevModeStarting() || c.IsInReplaceDevModeStarting()
+}
+
+// IsProcessor Check if service is developing in this device
+func (c *Controller) IsProcessor() bool {
+	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, c.DevModeType)
 }
 
 func CheckIfControllerTypeSupport(t string) bool {
@@ -70,6 +126,117 @@ func (c *Controller) CheckIfExist() (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
+	var podSpec v1.PodSpec
+	switch c.Type {
+	case base.Deployment:
+		d, err := c.Client.GetDeployment(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		if len(d.Annotations) > 0 {
+			if osj, ok := d.Annotations[OriginSpecJson]; ok {
+				d.Spec = appsv1.DeploymentSpec{}
+				if err = json.Unmarshal([]byte(osj), &d.Spec); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+			}
+		}
+		podSpec = d.Spec.Template.Spec
+	case base.StatefulSet:
+		s, err := c.Client.GetStatefulSet(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		if len(s.Annotations) > 0 {
+			if osj, ok := s.Annotations[OriginSpecJson]; ok {
+				s.Spec = appsv1.StatefulSetSpec{}
+				if err = json.Unmarshal([]byte(osj), &s.Spec); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+			}
+		}
+		podSpec = s.Spec.Template.Spec
+	case base.DaemonSet:
+		d, err := c.Client.GetDaemonSet(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		if len(d.Annotations) > 0 {
+			if osj, ok := d.Annotations[OriginSpecJson]; ok {
+				d.Spec = appsv1.DaemonSetSpec{}
+				if err = json.Unmarshal([]byte(osj), &d.Spec); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+			}
+		}
+		podSpec = d.Spec.Template.Spec
+	case base.Job:
+		j, err := c.Client.GetJobs(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		if len(j.Annotations) > 0 {
+			if osj, ok := j.Annotations[OriginSpecJson]; ok {
+				j.Spec = batchv1.JobSpec{}
+				if err = json.Unmarshal([]byte(osj), &j.Spec); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+			}
+		}
+		podSpec = j.Spec.Template.Spec
+	case base.CronJob:
+		j, err := c.Client.GetCronJobs(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		if len(j.Annotations) > 0 {
+			if osj, ok := j.Annotations[OriginSpecJson]; ok {
+				j.Spec = batchv1beta1.CronJobSpec{}
+				if err = json.Unmarshal([]byte(osj), &j.Spec); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+			}
+		}
+		podSpec = j.Spec.JobTemplate.Spec.Template.Spec
+	case base.Pod:
+		p, err := c.Client.GetPod(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		if len(p.Annotations) > 0 {
+			if osj, ok := p.Annotations[originalPodDefine]; ok {
+				p.Spec = v1.PodSpec{}
+				if err = json.Unmarshal([]byte(osj), p); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+			}
+		}
+		podSpec = p.Spec
+	}
+
+	return podSpec.Containers, nil
+}
+
+func (c *Controller) GetTypeMeta() (metav1.TypeMeta, error) {
+	switch c.Type {
+	case base.Deployment:
+		return appsv1.Deployment{}.TypeMeta, nil
+	case base.StatefulSet:
+		return appsv1.StatefulSet{}.TypeMeta, nil
+	case base.DaemonSet:
+		return appsv1.DaemonSet{}.TypeMeta, nil
+	case base.Job:
+		return batchv1.Job{}.TypeMeta, nil
+	case base.CronJob:
+		return batchv1beta1.CronJob{}.TypeMeta, nil
+	case base.Pod:
+		return v1.Pod{}.TypeMeta, nil
+	default:
+		return metav1.TypeMeta{}, errors.New("unsupported controller type")
+	}
 }
 
 func (c *Controller) GetContainerImage(container string) (string, error) {
@@ -188,18 +355,40 @@ func (c *Controller) UpdateSvcProfile(modify func(*profile.SvcProfileV2) error) 
 	if err := modify(profileV2.SvcProfileV2(c.Name, c.Type.String())); err != nil {
 		return err
 	}
+	profileV2.GenerateIdentifierIfNeeded()
 	return profileV2.Save()
 }
 
-func (c *Controller) UpdateProfile(modify func(*profile.AppProfileV2, *profile.SvcProfileV2) error) error {
-	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
-	if err != nil {
-		return err
-	}
-	defer profileV2.CloseDb()
+// UpdateProfile The second param of modify will not be nil
+//func (c *Controller) UpdateProfile(modify func(*profile.AppProfileV2, *profile.SvcProfileV2) error) error {
+//	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
+//	if err != nil {
+//		return err
+//	}
+//	defer profileV2.CloseDb()
+//
+//	if err := modify(profileV2, profileV2.SvcProfileV2(c.Name, c.Type.String())); err != nil {
+//		return err
+//	}
+//	profileV2.GenerateIdentifierIfNeeded()
+//	return profileV2.Save()
+//}
 
-	if err := modify(profileV2, profileV2.SvcProfileV2(c.Name, c.Type.String())); err != nil {
-		return err
+func (c *Controller) GetName() string {
+	return c.Name
+}
+
+func (c *Controller) getDuplicateLabelsMap() (map[string]string, error) {
+
+	labelsMap := map[string]string{
+		IdentifierKey:             c.Identifier,
+		OriginWorkloadNameKey:     c.Name,
+		OriginWorkloadTypeKey:     string(c.Type),
+		_const.DevWorkloadIgnored: "true",
 	}
-	return profileV2.Save()
+	return labelsMap, nil
+}
+
+func (c *Controller) getDuplicateResourceName() string {
+	return strings.Join([]string{c.Name, string(c.Type), c.Identifier[0:5], strconv.Itoa(int(time.Now().Unix()))}, "-")
 }

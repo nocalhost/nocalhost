@@ -29,4 +29,6 @@ type DevStartOptions struct {
 
 	NoTerminal  bool
 	NoSyncthing bool
+
+	DevModeType string
 }

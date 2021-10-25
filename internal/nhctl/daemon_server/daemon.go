@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"io/ioutil"
-	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
 	"net"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
@@ -55,15 +54,15 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	log.UseBulk(true)
 	log.Log("Starting daemon server...")
 
-	k8s_runtime.ErrorHandlers = append(
-		k8s_runtime.ErrorHandlers, func(err error) {
-			if strings.Contains(err.Error(), "watch") {
-				log.Tracef("[RuntimeErrorHandler] %s", err.Error())
-			} else {
-				log.ErrorE(errors.Wrap(err, ""), fmt.Sprintf("[RuntimeErrorHandler] Stderr: %s", err.Error()))
-			}
-		},
-	)
+	//k8sruntime.ErrorHandlers = append(
+	//	k8sruntime.ErrorHandlers, func(err error) {
+	//		if strings.Contains(err.Error(), "watch") {
+	//			log.Tracef("[RuntimeErrorHandler] %s", err.Error())
+	//		} else {
+	//			log.ErrorE(errors.Wrap(err, ""), fmt.Sprintf("[RuntimeErrorHandler] Stderr: %s", err.Error()))
+	//		}
+	//	},
+	//)
 
 	startUpPath, _ = utils.GetNhctlPath()
 
@@ -84,13 +83,20 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		appmeta_manager.Init()
 		appmeta_manager.RegisterListener(
 			func(pack *appmeta_manager.ApplicationEventPack) error {
-				//kubeconfig, err := nocalhost.GetKubeConfigFromProfile(pack.Ns, pack.AppName)
-				//if err != nil {
-				//	return nil
-				//}
 				kubeconfig := nocalhost.GetOrGenKubeConfigPath(string(pack.KubeConfigBytes))
 				nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, true)
 				if err != nil {
+					return nil
+				}
+
+				nhController, err := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
+				if err != nil {
+					return nil
+				}
+
+				// Only replace DevMode's DEV_END event needs to handling
+				// Because duplicate DevMode will not be affected by other user
+				if nhController.IsInDuplicateDevMode() {
 					return nil
 				}
 
@@ -99,10 +105,8 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 						"Receive dev end event, stopping sync and pf for %s-%s-%s", pack.Ns, pack.AppName,
 						pack.Event.ResourceName,
 					)
-					nhController := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
-					if err := nhController.StopSyncAndPortForwardProcess(true); err != nil {
-						return nil
-					}
+
+					_ = nhController.StopSyncAndPortForwardProcess(true)
 				} else if pack.Event.EventType == appmeta.DEV_STA {
 					profile, _ := nhApp.GetProfile()
 
@@ -115,10 +119,8 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 						"Receive dev start event, stopping pf for %s-%s-%s", pack.Ns, pack.AppName,
 						pack.Event.ResourceName,
 					)
-					nhController := nhApp.Controller(pack.Event.ResourceName, pack.Event.DevType.Origin())
-					if err := nhController.StopAllPortForward(); err != nil {
-						return nil
-					}
+
+					_ = nhController.StopAllPortForward()
 				}
 				return nil
 			},
@@ -136,9 +138,9 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				log.Log("Accept connection error occurs")
+				log.Logf("Accept connection error occurs: %s", err.Error())
 				if strings.Contains(strings.ToLower(err.Error()), "use of closed network connection") {
-					log.Logf("Port %d has been closed", daemonListenPort())
+					log.Logf("Port %d has been closed: %s", daemonListenPort(), err.Error())
 					return
 				}
 				log.LogE(errors.Wrap(err, "Failed to accept a connection"))
@@ -151,11 +153,12 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 			go func() {
 				defer func() {
 					_ = conn.Close()
-					RecoverDaemonFromPanic()
+					recoverDaemonFromPanic()
 				}()
-				start := time.Now()
 
-				//log.Trace("Reading data...")
+				var err error
+
+				start := time.Now()
 				errChan := make(chan error, 1)
 				bytesChan := make(chan []byte, 1)
 
@@ -199,6 +202,8 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 	go checkClusterStatusCronJob()
 
+	go reconnectSyncthingIfNeededWithPeriod(time.Second * 30)
+
 	go func() {
 		select {
 		case <-tcpCtx.Done():
@@ -226,7 +231,6 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType, clientStack string) {
 	var err error
-
 	defer func() {
 		if err != nil {
 			log.Log("Client Stack: " + clientStack)
@@ -394,7 +398,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 		})
 	}
 	if err != nil {
-		log.LogE(err)
+		log.WarnE(err, "Processing command occurs error")
 	}
 }
 
@@ -421,9 +425,6 @@ func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error 
 		}
 	}
 
-	//if len(resp.Data) == 0 {
-	//	resp.Data = []byte("{}")
-	//}
 	// try marshal again if fail
 	bys, err := json.Marshal(&resp)
 	if err != nil {
@@ -433,20 +434,17 @@ func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error 
 		resp.Msg = resp.Msg + fmt.Sprintf(" | INTERNAL_FAIL:[%s]", err.Error())
 
 		if bys, err = json.Marshal(&resp); err != nil {
-			log.LogE(errors.Wrap(err, ""))
 			return err
 		}
 	}
 
 	if _, err = conn.Write(bys); err != nil {
-		log.LogE(errors.Wrap(err, ""))
 		return err
 	}
 
 	cw, ok := conn.(interface{ CloseWrite() error })
 	if ok {
-		err := cw.CloseWrite()
-		return err
+		return cw.CloseWrite()
 	}
 
 	return errFromFun
@@ -486,7 +484,7 @@ func handleStartPortForwardCommand(startCmd *command.PortForwardCommand) error {
 	return pfManager.StartPortForwardGoRoutine(startCmd, true)
 }
 
-func RecoverDaemonFromPanic() {
+func recoverDaemonFromPanic() {
 	if r := recover(); r != nil {
 		log.Errorf("DAEMON-RECOVER: %s", string(debug.Stack()))
 	}

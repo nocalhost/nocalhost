@@ -11,10 +11,9 @@ import (
 	"io/ioutil"
 	"k8s.io/api/batch/v1beta1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/flowcontrol"
-	"net/http"
-	"net/url"
 	"nocalhost/internal/nhctl/utils"
 	"path/filepath"
 	"sort"
@@ -42,21 +41,20 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"k8s.io/client-go/tools/portforward"
-	"k8s.io/client-go/transport/spdy"
-
 	"nocalhost/pkg/nhctl/log"
 )
 
 type ClientGoUtils struct {
-	kubeConfigFilePath string
-	restConfig         *restclient.Config
-	ClientSet          *kubernetes.Clientset
-	dynamicClient      dynamic.Interface //
-	ClientConfig       clientcmd.ClientConfig
-	namespace          string
-	ctx                context.Context
-	labels             map[string]string
+	kubeConfigFilePath      string
+	restConfig              *restclient.Config
+	ClientSet               *kubernetes.Clientset
+	dynamicClient           dynamic.Interface //
+	ClientConfig            clientcmd.ClientConfig
+	namespace               string
+	includeDeletedResources bool
+	ctx                     context.Context
+	labels                  map[string]string
+	fieldSelector           string
 }
 
 type PortForwardAPodRequest struct {
@@ -164,6 +162,27 @@ func (c *ClientGoUtils) Context(ctx context.Context) *ClientGoUtils {
 func (c *ClientGoUtils) Labels(labels map[string]string) *ClientGoUtils {
 	c.labels = labels
 	return c
+}
+
+func (c *ClientGoUtils) FieldSelector(f string) *ClientGoUtils {
+	c.fieldSelector = f
+	return c
+}
+
+func (c *ClientGoUtils) IncludeDeletedResources(i bool) *ClientGoUtils {
+	c.includeDeletedResources = i
+	return c
+}
+
+func (c *ClientGoUtils) getListOptions() metav1.ListOptions {
+	ops := metav1.ListOptions{}
+	if len(c.labels) > 0 {
+		ops.LabelSelector = labels.Set(c.labels).String()
+	}
+	if len(c.fieldSelector) > 0 {
+		ops.FieldSelector = c.fieldSelector
+	}
+	return ops
 }
 
 func (c *ClientGoUtils) GetDynamicClient() dynamic.Interface {
@@ -406,42 +425,42 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 	return false, nil
 }
 
-func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
-	path := fmt.Sprintf(
-		"/api/v1/namespaces/%s/pods/%s/portforward",
-		req.Pod.Namespace, req.Pod.Name,
-	)
-	clientConfig, err := c.ClientConfig.ClientConfig()
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	transport, upgrader, err := spdy.RoundTripperFor(clientConfig)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	parseUrl, err := url.Parse(clientConfig.Host)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	parseUrl.Path = path
-	dialer := spdy.NewDialer(
-		upgrader, &http.Client{Transport: transport}, http.MethodPost,
-		//&url.URL{Scheme: schema, Path: path, Host: hostIP},
-		parseUrl,
-	)
-	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh,
-	//req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
-	fw, err := portforward.NewOnAddresses(
-		dialer, req.Listen, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh,
-		req.Streams.Out, req.Streams.ErrOut,
-	)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	return errors.Wrap(fw.ForwardPorts(), "")
-}
+//func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
+//	path := fmt.Sprintf(
+//		"/api/v1/namespaces/%s/pods/%s/portforward",
+//		req.Pod.Namespace, req.Pod.Name,
+//	)
+//	clientConfig, err := c.ClientConfig.ClientConfig()
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//
+//	transport, upgrader, err := spdy.RoundTripperFor(clientConfig)
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//
+//	parseUrl, err := url.Parse(clientConfig.Host)
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//	parseUrl.Path = path
+//	dialer := spdy.NewDialer(
+//		upgrader, &http.Client{Transport: transport}, http.MethodPost,
+//		//&url.URL{Scheme: schema, Path: path, Host: hostIP},
+//		parseUrl,
+//	)
+//	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh,
+//	//req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
+//	fw, err := NewOnAddresses(
+//		dialer, req.Listen, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh,
+//		req.Streams.Out, req.Streams.ErrOut,
+//	)
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//	return errors.Wrap(fw.ForwardPorts(), "")
+//}
 
 func (c *ClientGoUtils) GetNodesList() (*corev1.NodeList, error) {
 	nodes, err := c.ClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})

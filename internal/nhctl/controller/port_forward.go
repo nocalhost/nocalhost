@@ -11,7 +11,6 @@ import (
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
@@ -28,7 +27,7 @@ func (c *Controller) EndDevPortForward(localPort int, remotePort int) error {
 
 	for _, portForward := range svcProfile.DevPortForwardList {
 		if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
-			client, err := daemon_client.NewDaemonClient(portForward.Sudo)
+			client, err := daemon_client.GetDaemonClient(portForward.Sudo)
 			if err != nil {
 				return err
 			}
@@ -48,7 +47,7 @@ func (c *Controller) EndDevPortForward(localPort int, remotePort int) error {
 }
 
 func StopPortForward(ns, nid, app, svc string, portForward *profile.DevPortForward) error {
-	client, err := daemon_client.NewDaemonClient(portForward.Sudo)
+	client, err := daemon_client.GetDaemonClient(portForward.Sudo)
 	if err != nil {
 		return err
 	}
@@ -107,15 +106,10 @@ func (c *Controller) UpdatePortForwardStatus(localPort int, remotePort int, port
 
 	return c.UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
-			if svcProfile == nil {
-				return errors.New("Failed to get controller profile")
-			}
-
 			for _, portForward := range svcProfile.DevPortForwardList {
 				if portForward.LocalPort == localPort && portForward.RemotePort == remotePort {
 					portForward.Status = portStatus
 					portForward.Reason = reason
-					//portForward.Pid = os.Getpid()
 					portForward.Updated = time.Now().Format("2006-01-02 15:04:05")
 					break
 				}
@@ -127,7 +121,6 @@ func (c *Controller) UpdatePortForwardStatus(localPort int, remotePort int, port
 
 // GetPortForward If not found return err
 func (c *Controller) GetPortForward(localPort, remotePort int) (*profile.DevPortForward, error) {
-	var err error
 	svcProfile, err := c.GetProfile()
 	if err != nil {
 		return nil, err
@@ -137,33 +130,12 @@ func (c *Controller) GetPortForward(localPort, remotePort int) (*profile.DevPort
 			return pf, nil
 		}
 	}
-	log.Logf("type %s, name %s", c.Type, svcProfile.GetName())
 	return nil, errors.New(fmt.Sprintf("Pf %d:%d not found", localPort, remotePort))
 }
 
-//func (c *Controller) CheckPidPortStatus(ctx context.Context, sLocalPort, sRemotePort int, lock *sync.Mutex) {
-//	for {
-//		select {
-//		case <-ctx.Done():
-//			log.Info("Stop Checking port status")
-//			return
-//		default:
-//			portStatus := port_forward.PidPortStatus(os.Getpid(), sLocalPort)
-//			log.Infof("Checking Port %d:%d's status: %s", sLocalPort, sRemotePort, portStatus)
-//			lock.Lock()
-//			_ = c.UpdatePortForwardStatus(sLocalPort, sRemotePort, portStatus, "Check Pid")
-//			lock.Unlock()
-//			<-time.After(2 * time.Minute)
-//		}
-//	}
-//}
-
 func (c *Controller) PortForwardAfterDevStart(podName, containerName string) error {
 
-	p, err := c.GetConfig()
-	if err != nil {
-		return err
-	}
+	p := c.Config()
 
 	if p.ContainerConfigs == nil {
 		return nil
@@ -175,7 +147,7 @@ func (c *Controller) PortForwardAfterDevStart(podName, containerName string) err
 	}
 
 	for _, pf := range cc.PortForward {
-		lPort, rPort, err := GetPortForwardForString(pf)
+		lPort, rPort, err := profile.GetPortForwardForString(pf)
 		if err != nil {
 			log.WarnE(err, "")
 			continue
@@ -190,7 +162,7 @@ func (c *Controller) PortForwardAfterDevStart(podName, containerName string) err
 func (c *Controller) PortForward(podName string, localPort, remotePort int, role string) error {
 
 	isAdmin := utils.IsSudoUser()
-	client, err := daemon_client.NewDaemonClient(isAdmin)
+	client, err := daemon_client.GetDaemonClient(isAdmin)
 	if err != nil {
 		return err
 	}
@@ -208,29 +180,6 @@ func (c *Controller) PortForward(podName string, localPort, remotePort int, role
 		log.Infof("Port-forward %d:%d has been started", localPort, remotePort)
 		return c.SetPortForwardedStatus(true) //  todo: move port-forward start
 	}
-}
-
-// portStr is like 8080:80 or :80
-func GetPortForwardForString(portStr string) (int, int, error) {
-	var err error
-	s := strings.Split(portStr, ":")
-	if len(s) < 2 {
-		return 0, 0, errors.New(fmt.Sprintf("Wrong format of port: %s", portStr))
-	}
-	var localPort, remotePort int
-	sLocalPort := s[0]
-	if sLocalPort == "" {
-		// get random port in local
-		if localPort, err = ports.GetAvailablePort(); err != nil {
-			return 0, 0, err
-		}
-	} else if localPort, err = strconv.Atoi(sLocalPort); err != nil {
-		return 0, 0, errors.Wrap(err, fmt.Sprintf("Wrong format of local port: %s.", sLocalPort))
-	}
-	if remotePort, err = strconv.Atoi(s[1]); err != nil {
-		return 0, 0, errors.Wrap(err, fmt.Sprintf("wrong format of remote port: %s, skipped", s[1]))
-	}
-	return localPort, remotePort, nil
 }
 
 func (c *Controller) CheckIfPortForwardExists(localPort, remotePort int) (bool, error) {

@@ -34,6 +34,7 @@ func UpdateProfileV2(ns, app, nid string, profileV2 *profile.AppProfileV2) error
 	if _, err = os.Stat(nocalhost_path.GetAppDbDir(ns, app, nid)); err != nil {
 		return errors.Wrap(err, "")
 	}
+	profileV2.GenerateIdentifierIfNeeded()
 	return db.Put([]byte(profile.ProfileV2Key(ns, app)), bys)
 }
 

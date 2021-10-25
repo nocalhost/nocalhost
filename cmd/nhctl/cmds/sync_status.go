@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/mitchellh/go-ps"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/util/retry"
 	"nocalhost/internal/nhctl/app"
@@ -83,20 +82,24 @@ func SyncStatus(opt *app.SyncStatusOptions, ns, app, svc, svcType, kubeconfig st
 		return req.NotInDevModeTemplate
 	}
 
+	if nhSvc.IsInDevModeStarting() {
+		return req.DevModeStarting
+	}
+
 	if !nhSvc.IsProcessor() {
 		return req.NotProcessor
 	}
 
 	// check if syncthing exists
-	pid, err := nhSvc.GetSyncThingPid()
-	if err != nil {
-		return req.NotSyncthingProcessFound
-	}
-
-	pro, err := ps.FindProcess(pid)
-	if err != nil || pro == nil {
-		return req.NotSyncthingProcessFound
-	}
+	//pid, err := nhSvc.GetSyncThingPid()
+	//if err != nil {
+	//	return req.NotSyncthingProcessFound
+	//}
+	//
+	//pro, err := ps.FindProcess(pid)
+	//if err != nil || pro == nil {
+	//	return req.NotSyncthingProcessFound
+	//}
 
 	client := nhSvc.NewSyncthingHttpClient(2)
 

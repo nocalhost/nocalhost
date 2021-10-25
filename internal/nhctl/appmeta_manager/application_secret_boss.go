@@ -61,8 +61,7 @@ func GetApplicationMeta(ns, appName string, configBytes []byte) *appmeta.Applica
 	asw := supervisor.inDeck(ns, configBytes)
 
 	// asw may nil if prepare fail
-	meta := asw.GetApplicationMeta(appName, ns)
-	return meta
+	return asw.GetApplicationMeta(appName, ns)
 }
 
 func (s *Supervisor) getIDeck(ns string, configBytes []byte) *applicationSecretWatcher {
@@ -227,4 +226,21 @@ func (s *Supervisor) key(ns string, configBytes []byte) string {
 	}
 
 	return fmt.Sprintf("%s[%s]", ns, string(state))
+}
+
+// GetAllApplicationMetasWithDeepClone get all developing application, will not update appmeta.ApplicationMeta
+func GetAllApplicationMetasWithDeepClone() []*appmeta.ApplicationMeta {
+	supervisor.lock.Lock()
+	defer supervisor.lock.Unlock()
+	metas := make([]*appmeta.ApplicationMeta, len(supervisor.deck))
+	for _, watcher := range supervisor.deck {
+		if watcher != nil {
+			for _, meta := range watcher.applicationMetas {
+				if meta != nil {
+					metas = append(metas, meta)
+				}
+			}
+		}
+	}
+	return metas
 }
