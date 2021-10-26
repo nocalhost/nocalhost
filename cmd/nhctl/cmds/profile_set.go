@@ -56,7 +56,7 @@ var profileSetCmd = &cobra.Command{
 			log.Fatalf("Config key %s is unsupported", configKey)
 		}
 
-		svcConfig, _ := nocalhostSvc.GetConfig()
+		svcConfig := nocalhostSvc.Config()
 		var defaultContainerConfig, targetContainerConfig *profile.ContainerConfig
 		for _, c := range svcConfig.ContainerConfigs {
 			if c.Name == "" {

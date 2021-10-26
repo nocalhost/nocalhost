@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -22,7 +22,7 @@ var daemonInfoCmd = &cobra.Command{
 	Short: "Get nhctl daemon info",
 	Long:  `Get nhctl daemon info`,
 	Run: func(cmd *cobra.Command, args []string) {
-		client, err := daemon_client.NewDaemonClient(isSudoUser)
+		client, err := daemon_client.GetDaemonClient(isSudoUser)
 		must(err)
 
 		daemonServerInfo, err := client.SendGetDaemonServerInfoCommand()

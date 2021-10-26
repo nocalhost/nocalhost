@@ -18,10 +18,6 @@ func (c *Controller) DevEnd(reset bool) error {
 		}
 		log.WarnE(err, "StopSyncAndPortForwardProcess failed")
 	}
-	p, err := c.GetProfile()
-	if err != nil {
-		return err
-	}
 
 	if err := c.BuildPodController().RollBack(reset); err != nil {
 		if !reset {
@@ -30,7 +26,7 @@ func (c *Controller) DevEnd(reset bool) error {
 		log.WarnE(err, "something incorrect occurs when rolling back")
 	}
 
-	utils.ShouldI(c.AppMeta.SvcDevEnd(c.Name, c.Identifier, c.Type, p.DevModeType), "something incorrect occurs when updating secret")
+	utils.ShouldI(c.AppMeta.SvcDevEnd(c.Name, c.Identifier, c.Type, c.DevModeType), "something incorrect occurs when updating secret")
 
 	return nil
 }

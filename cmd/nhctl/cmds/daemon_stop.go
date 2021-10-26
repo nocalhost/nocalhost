@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -20,7 +20,7 @@ var daemonStopCmd = &cobra.Command{
 	Short: "Stop nhctl daemon",
 	Long:  `Stop nhctl daemon`,
 	Run: func(cmd *cobra.Command, args []string) {
-		client, err := daemon_client.NewDaemonClient(isSudoUser)
+		client, err := daemon_client.GetDaemonClient(isSudoUser)
 		must(err)
 		must(client.SendStopDaemonServerCommand())
 	},

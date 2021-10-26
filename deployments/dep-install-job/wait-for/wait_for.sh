@@ -207,6 +207,27 @@ ready() {
     printf "[%s] %s %s%s is ready.\\n" "$(date +'%Y-%m-%d %H:%M:%S')" "$1" "$2" "$print_KUBECTL_ARGS"
 }
 
+readiness_probe() {
+    probe_type=$1
+    address=$2
+    # tcp
+    if [ "${probe_type}" == "tcp" ] && [ "${address}" != "" ]; then
+        until nc -vz -w 3 "${address%:*}" "${address#*:}"; do
+          echo "Waiting for ${address} ..."
+          sleep 5
+        done
+        ready "${probe_type}" "${address}"
+    fi
+    # http
+    if [ "${probe_type}" == "http" ] && [ "${address}" != "" ]; then
+        until [ "$(curl -sw '%{http_code}' "${address}" -o /dev/null)" -eq 200 ]; do
+          echo "Waiting for ${address} ..."
+          sleep 5
+        done
+        ready "${probe_type}" "${address}"
+    fi
+}
+
 main() {
     if [ $# -lt 2 ]; then
         usage
@@ -222,6 +243,10 @@ main() {
             TREAT_ERRORS_AS_READY=1
             shift
             ;;
+        tcp|http)
+            main_resource=$1
+            shift
+            ;;
         *)
             printf 'ERROR: Unknown resource type: %s\n' "$1" >&2
             exit 1
@@ -233,7 +258,11 @@ main() {
 
     KUBECTL_ARGS="${*}"
 
-    wait_for_resource "$main_resource" "$main_name"
+    if [ "$main_resource" == "tcp" ] || [ "$main_resource" == "http" ]; then
+        readiness_probe "$main_resource" "$main_name"
+    else
+        wait_for_resource "$main_resource" "$main_name"
+    fi
 
     exit 0
 }

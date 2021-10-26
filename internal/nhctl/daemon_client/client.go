@@ -21,6 +21,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"runtime/debug"
+	"sync"
 	"time"
 )
 
@@ -63,7 +64,54 @@ func CheckIfDaemonServerRunning(isSudoUser bool) bool {
 	return !ports.IsTCP4PortAvailable("0.0.0.0", listenPort)
 }
 
-func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
+var (
+	client     *DaemonClient
+	sudoClient *DaemonClient
+	lock       sync.Mutex
+)
+
+func GetDaemonClient(isSudoUser bool) (*DaemonClient, error) {
+	var (
+		c   *DaemonClient
+		err error
+	)
+
+	if c, err = getCachedDaemonClient(isSudoUser); err == nil {
+		return c, nil
+	}
+
+	if c, err = newDaemonClient(isSudoUser); err != nil {
+		return nil, err
+	}
+
+	lock.Lock()
+	defer lock.Unlock()
+	if isSudoUser {
+		if sudoClient == nil {
+			sudoClient = c
+		}
+		return sudoClient, nil
+	}
+	if client == nil {
+		client = c
+	}
+	return client, nil
+}
+
+func getCachedDaemonClient(isSudoUser bool) (*DaemonClient, error) {
+	lock.Lock()
+	defer lock.Unlock()
+	if !isSudoUser && client != nil {
+		log.Log("Cached daemon client get")
+		return client, nil
+	}
+	if isSudoUser && sudoClient != nil {
+		return sudoClient, nil
+	}
+	return nil, errors.New("No cached daemon client")
+}
+
+func newDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 	var err error
 	client := &DaemonClient{
 		isSudo: isSudoUser,

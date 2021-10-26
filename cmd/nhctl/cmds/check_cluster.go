@@ -55,7 +55,7 @@ func checkClusterAvailable(kube string) error {
 		return err
 	}
 
-	client, err := daemon_client.NewDaemonClient(false)
+	client, err := daemon_client.GetDaemonClient(false)
 	if err != nil {
 		return err
 	}

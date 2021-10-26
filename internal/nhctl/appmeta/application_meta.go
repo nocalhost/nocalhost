@@ -604,7 +604,7 @@ func (a *ApplicationMeta) Update() error {
 			}
 			a.Secret = secret
 			// update daemon application meta manually
-			if client, err := daemon_client.NewDaemonClient(false); err == nil {
+			if client, err := daemon_client.GetDaemonClient(false); err == nil {
 				_, _ = client.SendUpdateApplicationMetaCommand(
 					string(a.operator.GetKubeconfigBytes()), a.Ns, a.Secret.Name, a.Secret,
 				)
@@ -789,7 +789,7 @@ func (a *ApplicationMeta) Delete() error {
 	}
 	a.Secret = nil
 	// update daemon application meta manually
-	if client, err := daemon_client.NewDaemonClient(false); err == nil {
+	if client, err := daemon_client.GetDaemonClient(false); err == nil {
 		_, _ = client.SendUpdateApplicationMetaCommand(
 			string(a.operator.GetKubeconfigBytes()), a.Ns, name, nil,
 		)

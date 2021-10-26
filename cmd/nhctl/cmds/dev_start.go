@@ -108,6 +108,12 @@ var devStartCmd = &cobra.Command{
 			log.Fatalf("Unsupported DevModeType %s", dt)
 		}
 
+		if len(devStartOps.LocalSyncDir) > 1 {
+			log.Fatal("Can not define multi 'local-sync(-s)'")
+		} else if len(devStartOps.LocalSyncDir) == 0 {
+			log.Fatal("'local-sync(-s)' must be specified")
+		}
+
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
@@ -129,14 +135,10 @@ var devStartCmd = &cobra.Command{
 				coloredoutput.Success("File sync is not resumed caused by --without-sync flag.")
 			}
 
-			if nocalhostSvc.IsInReplaceDevMode() && !dt.IsDuplicateDevMode() {
+			if nocalhostSvc.IsProcessor() {
 				if !devStartOps.NoTerminal || shell != "" {
 					must(nocalhostSvc.EnterPodTerminal(podName, devStartOps.Container, shell))
-					return
 				}
-			}
-
-			if nocalhostSvc.IsProcessor() {
 				return
 			}
 		}
@@ -152,7 +154,7 @@ var devStartCmd = &cobra.Command{
 		// 9) start syncthing
 		// 10) entering dev container
 
-		coloredoutput.Hint("Starting DevMode...")
+		coloredoutput.Hint(fmt.Sprintf("Starting %s DevMode...", dt.ToString()))
 
 		loadLocalOrCmConfigIfValid()
 		stopPreviousSyncthing()
@@ -192,22 +194,15 @@ func stopPreviousPortForward() {
 }
 
 func prepareSyncThing() {
-	var duplicateDevMode bool
-	if devStartOps.DevModeType == string(profile.DuplicateDevMode) {
-		duplicateDevMode = true
-	}
-	must(nocalhostSvc.CreateSyncThingSecret(devStartOps.Container, devStartOps.LocalSyncDir, duplicateDevMode))
+	dt := profile.DevModeType(devStartOps.DevModeType)
+	must(nocalhostSvc.CreateSyncThingSecret(devStartOps.Container, devStartOps.LocalSyncDir, dt.IsDuplicateDevMode()))
 }
 
 func recordLocalSyncDirToProfile() {
 	must(
 		nocalhostSvc.UpdateSvcProfile(
 			func(svcProfile *profile.SvcProfileV2) error {
-				if len(devStartOps.LocalSyncDir) == 1 {
-					svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
-				} else {
-					return errors.New("Can not define multi 'local-sync(-s)'")
-				}
+				svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = devStartOps.LocalSyncDir
 				return nil
 			},
 		),
@@ -264,18 +259,11 @@ func stopPreviousSyncthing() {
 }
 
 func startSyncthing(podName, container string, resume bool) {
+	StartSyncthing(podName, resume, false, container, nil, false)
 	if resume {
-		StartSyncthing(podName, true, false, container, nil, false)
-		defer func() {
-			//fmt.Println()
-			coloredoutput.Success("File sync resumed")
-		}()
+		coloredoutput.Success("File sync resumed")
 	} else {
-		StartSyncthing(podName, false, false, container, nil, false)
-		defer func() {
-			//fmt.Println()
-			coloredoutput.Success("File sync started")
-		}()
+		coloredoutput.Success("File sync started")
 	}
 }
 
@@ -286,7 +274,7 @@ func enterDevMode(devModeType profile.DevModeType) {
 	}))
 	must(
 		nocalhostSvc.AppMeta.SvcDevStarting(nocalhostSvc.Name, nocalhostSvc.Type,
-			nocalhostApp.GetProfileCompel().Identifier, devModeType),
+			nocalhostApp.Identifier, devModeType),
 	)
 
 	// prevent dev status modified but not actually enter dev mode
@@ -294,12 +282,13 @@ func enterDevMode(devModeType profile.DevModeType) {
 	var err error
 	defer func() {
 		if !devStartSuccess {
-			log.Infof("Roll backing dev mode... \n")
+			log.Infof("Roll backing dev mode...")
 			if devModeType != "" {
-				_ = nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
+				err = nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
 					v2.DevModeType = ""
 					return nil
 				})
+				log.WarnE(err, "")
 			}
 			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Identifier, nocalhostSvc.Type, devModeType)
 		}
@@ -342,10 +331,10 @@ func enterDevMode(devModeType profile.DevModeType) {
 		if errors.Is(err, nocalhost.CreatePvcFailed) {
 			log.Info("Failed to provision persistent volume due to insufficient resources")
 		}
-		must(err)
+		mustP(err)
 	}
 
-	must(
+	mustP(
 		nocalhostSvc.AppMeta.SvcDevStartComplete(
 			nocalhostSvc.Name, nocalhostSvc.Type, nocalhostSvc.Identifier, devModeType,
 		),

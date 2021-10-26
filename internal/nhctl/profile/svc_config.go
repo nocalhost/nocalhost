@@ -56,15 +56,15 @@ func init() {
 }
 
 type ServiceConfigV2 struct {
-	Name                string               `validate:"DNS1123,required" json:"name" yaml:"name"`
-	Type                string               `validate:"WorkLoads,required" json:"serviceType" yaml:"serviceType"`
-	PriorityClass       string               `validate:"DNS1123" json:"priorityClass,omitempty" yaml:"priorityClass,omitempty"`
+	Name                string               `validate:"required" json:"name" yaml:"name"`
+	Type                string               `validate:"required" json:"serviceType" yaml:"serviceType"`
+	PriorityClass       string               `json:"priorityClass,omitempty" yaml:"priorityClass,omitempty"`
 	DependLabelSelector *DependLabelSelector `json:"dependLabelSelector,omitempty" yaml:"dependLabelSelector,omitempty"`
 	ContainerConfigs    []*ContainerConfig   `validate:"dive" json:"containers" yaml:"containers"`
 }
 
 type ContainerConfig struct {
-	Name    string                  `validate:"DNS1123,Container" json:"name" yaml:"name"`
+	Name    string                  `validate:"Container" json:"name" yaml:"name"`
 	Hub     *HubConfig              `json:"hub" yaml:"hub,omitempty"`
 	Install *ContainerInstallConfig `json:"install,omitempty" yaml:"install,omitempty"`
 	Dev     *ContainerDevConfig     `json:"dev" yaml:"dev"`
