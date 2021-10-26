@@ -15,6 +15,7 @@ import (
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
+	"time"
 )
 
 type DuplicateDaemonSetController struct {
@@ -105,6 +106,14 @@ func (d *DuplicateDaemonSetController) ReplaceImage(ctx context.Context, ops *mo
 	if _, err = d.Client.CreateDeploymentAndWait(generatedDeployment); err != nil {
 		return err
 	}
+
+	for _, patch := range d.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
+		log.Infof("Patching %s", patch.Patch)
+		if err = d.Client.Patch(d.Type.String(), generatedDeployment.Name, patch.Patch, patch.Type); err != nil {
+			log.WarnE(err, "")
+		}
+	}
+	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
 }

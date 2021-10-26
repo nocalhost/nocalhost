@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"nocalhost/internal/nhctl/const"
+	"strconv"
 
 	//"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -94,7 +95,7 @@ func (c *Controller) markReplicaSetRevision() error {
 					`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
 					_const.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
 					_const.DevImageRevisionAnnotationKey, _const.DevImageRevisionAnnotationValue,
-				),
+				), "",
 			); err == nil {
 				break
 			}
@@ -473,8 +474,7 @@ func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) 
 
 func waitingPodToBeReady(f func() (string, error)) error {
 	// Wait podList to be ready
-	spinner := utils.NewSpinner(" Waiting pod to start...")
-	spinner.Start()
+	log.Info(" Waiting pod to start...")
 
 	for i := 0; i < 300; i++ {
 		<-time.NewTimer(time.Second * 1).C
@@ -482,7 +482,6 @@ func waitingPodToBeReady(f func() (string, error)) error {
 			break
 		}
 	}
-	spinner.Stop()
 	return nil
 }
 
@@ -499,14 +498,30 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 }
 
 func findDevPod(podList []corev1.Pod) (string, error) {
+	resultPodList := make([]corev1.Pod, 0)
 	for _, pod := range podList {
-		if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
+		//if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
+		if pod.DeletionTimestamp == nil {
 			for _, container := range pod.Spec.Containers {
 				if container.Name == _const.DefaultNocalhostSideCarName {
-					return pod.Name, nil
+					resultPodList = append(resultPodList, pod)
 				}
 			}
 		}
+	}
+	if len(resultPodList) > 0 {
+		latestPod := resultPodList[0]
+		for i := 1; i < len(resultPodList); i++ {
+			rv1, _ := strconv.Atoi(resultPodList[i].ResourceVersion)
+			rv2, _ := strconv.Atoi(latestPod.ResourceVersion)
+			if rv1 > rv2 {
+				latestPod = resultPodList[i]
+			}
+		}
+		if latestPod.Status.Phase == "Running" {
+			return latestPod.Name, nil
+		}
+		return "", errors.New("dev container has not be ready")
 	}
 	return "", errors.New("dev container not found")
 }
