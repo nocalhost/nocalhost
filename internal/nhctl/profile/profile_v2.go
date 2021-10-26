@@ -253,6 +253,10 @@ type SvcProfileV2 struct {
 	// LocalDevMode can be started in every local desktop and not influence each other
 	//DuplicateDevMode bool        `json:"duplicateDevMode" yaml:"duplicateDevMode"`
 	DevModeType DevModeType `json:"devModeType" yaml:"devModeType"`
+
+	// recorded the container that enter the devmode
+	// notice: exit devmode will not set this value to null
+	OriginDevContainer string `json:"originDevContainer" yaml:"originDevContainer"`
 }
 
 type ContainerProfileV2 struct {
@@ -333,7 +337,11 @@ func GetPortForwardForString(portStr string) (int, int, error) {
 		if port, err := strconv.Atoi(portStr); err != nil {
 			return 0, 0, errors.Wrap(err, fmt.Sprintf("Wrong format of port: %s.", portStr))
 		} else if port > 65535 || port < 0 {
-			return 0, 0, errors.New(fmt.Sprintf("The range of TCP port number is [0, 65535], wrong defined of port: %s.", portStr))
+			return 0, 0, errors.New(
+				fmt.Sprintf(
+					"The range of TCP port number is [0, 65535], wrong defined of port: %s.", portStr,
+				),
+			)
 		} else {
 			return port, port, nil
 		}
@@ -352,10 +360,18 @@ func GetPortForwardForString(portStr string) (int, int, error) {
 			return 0, 0, errors.Wrap(err, fmt.Sprintf("wrong format of remote port: %s, skipped", s[1]))
 		}
 		if localPort > 65535 || localPort < 0 {
-			return 0, 0, errors.New(fmt.Sprintf("The range of TCP port number is [0, 65535], wrong defined of local port: %s.", portStr))
+			return 0, 0, errors.New(
+				fmt.Sprintf(
+					"The range of TCP port number is [0, 65535], wrong defined of local port: %s.", portStr,
+				),
+			)
 		}
 		if remotePort > 65535 || localPort < 0 {
-			return 0, 0, errors.New(fmt.Sprintf("The range of TCP port number is [0, 65535], wrong defined of remote port: %s.", portStr))
+			return 0, 0, errors.New(
+				fmt.Sprintf(
+					"The range of TCP port number is [0, 65535], wrong defined of remote port: %s.", portStr,
+				),
+			)
 		}
 		return localPort, remotePort, nil
 	}

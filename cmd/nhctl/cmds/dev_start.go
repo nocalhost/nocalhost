@@ -58,10 +58,6 @@ func init() {
 	devStartCmd.Flags().StringVar(
 		&devStartOps.PriorityClass, "priority-class", "", "PriorityClass used by devContainer",
 	)
-	devStartCmd.Flags().StringVar(
-		&devStartOps.SideCarImage, "sidecar-image", "",
-		"image of nocalhost-sidecar container",
-	)
 	// for debug only
 	devStartCmd.Flags().StringVar(
 		&devStartOps.SyncthingVersion, "syncthing-version", "",
@@ -268,14 +264,15 @@ func startSyncthing(podName, container string, resume bool) {
 }
 
 func enterDevMode(devModeType profile.DevModeType) {
-	must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-		v2.DevModeType = devModeType
-		return nil
-	}))
 	must(
 		nocalhostSvc.AppMeta.SvcDevStarting(nocalhostSvc.Name, nocalhostSvc.Type,
 			nocalhostApp.Identifier, devModeType),
 	)
+	must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
+		v2.DevModeType = devModeType
+		v2.OriginDevContainer = devStartOps.Container
+		return nil
+	}))
 
 	// prevent dev status modified but not actually enter dev mode
 	var devStartSuccess = false
