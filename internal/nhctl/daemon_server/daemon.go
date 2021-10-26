@@ -213,14 +213,10 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	}()
 
 	// Recovering port forward
-	if err = pfManager.RecoverAllPortForward(); err != nil {
-		log.LogE(err)
-	}
+	go pfManager.RecoverAllPortForward()
 
 	// Recovering syncthing
-	if err = recoverSyncthing(); err != nil {
-		log.LogE(err)
-	}
+	go recoverSyncthing()
 
 	select {
 	case <-daemonCtx.Done():

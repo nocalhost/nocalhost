@@ -30,11 +30,11 @@ import (
 	"time"
 )
 
-func recoverSyncthing() error {
+func recoverSyncthing() {
 	log.Log("Recovering syncthing")
 	appMap, err := nocalhost.GetNsAndApplicationInfo()
 	if err != nil {
-		return err
+		return
 	}
 
 	wg := sync.WaitGroup{}
@@ -48,7 +48,6 @@ func recoverSyncthing() error {
 		}(a.Namespace, a.Name, a.Nid)
 	}
 	wg.Wait()
-	return nil
 }
 
 func recoverSyncthingForApplication(ns, appName, nid string) error {
@@ -97,11 +96,14 @@ func reconnectSyncthingIfNeededWithPeriod(duration time.Duration) {
 
 // reconnectedSyncthingIfNeeded will reconnect syncthing immediately if syncthing service is not available
 func reconnectedSyncthingIfNeeded() {
+
 	defer recoverDaemonFromPanic()
-	clone := appmeta_manager.GetAllApplicationMetasWithDeepClone()
+	clone := appmeta_manager.GetAllApplicationMetas()
+
 	if clone == nil {
 		return
 	}
+	
 	for _, meta := range clone {
 		if meta == nil || meta.DevMeta == nil {
 			continue

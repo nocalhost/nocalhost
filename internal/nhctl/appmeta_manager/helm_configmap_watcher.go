@@ -6,7 +6,6 @@
 package appmeta_manager
 
 import (
-	"context"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,7 +16,6 @@ import (
 	"k8s.io/client-go/util/flowcontrol"
 	"nocalhost/internal/nhctl/watcher"
 	"nocalhost/pkg/nhctl/log"
-	"strings"
 	"sync"
 )
 
@@ -137,26 +135,26 @@ func (hcmw *helmCmWatcher) Prepare() (existRelease []string, err error) {
 	// creates the clientset
 	hcmw.clientSet = clientset
 
-	// first get all configmaps for initial
-	// and find out the invalid nocalhost application
-	// then delete it
-	list, err := clientset.CoreV1().ConfigMaps(hcmw.ns).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		log.ErrorE(err, "")
-		return
-	}
-
-	for _, v := range list.Items {
-		// this may cause bug that contains sh.helm.release
-		// may not managed by helm
-		if strings.Contains(v.Name, "sh.helm.release.v1") {
-			if release, err := DecodeRelease(v.Data["release"]); err == nil && release.Info.Deleted == "" {
-				if rlsName, err := GetRlsNameFromKey(v.Name); err == nil {
-					existRelease = append(existRelease, rlsName)
-				}
-			}
-		}
-	}
+	//// first get all configmaps for initial
+	//// and find out the invalid nocalhost application
+	//// then delete it
+	//list, err := clientset.CoreV1().ConfigMaps(hcmw.ns).List(context.TODO(), metav1.ListOptions{})
+	//if err != nil {
+	//	log.ErrorE(err, "")
+	//	return
+	//}
+	//
+	//for _, v := range list.Items {
+	//	// this may cause bug that contains sh.helm.release
+	//	// may not managed by helm
+	//	if strings.Contains(v.Name, "sh.helm.release.v1") {
+	//		if release, err := DecodeRelease(v.Data["release"]); err == nil && release.Info.Deleted == "" {
+	//			if rlsName, err := GetRlsNameFromKey(v.Name); err == nil {
+	//				existRelease = append(existRelease, rlsName)
+	//			}
+	//		}
+	//	}
+	//}
 
 	return
 }
