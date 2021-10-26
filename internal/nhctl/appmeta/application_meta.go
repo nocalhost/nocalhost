@@ -326,7 +326,9 @@ func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, n
 		s.GetName(),
 		"", // describe can not specify container
 	)
-	s.Associate = pack.GetAssociatePath().ToString()
+
+	// associate
+	s.Associate = pack.GetAssociatePathCache().ToString()
 	s.Developing = devStatus != NONE
 	s.DevelopStatus = string(devStatus)
 

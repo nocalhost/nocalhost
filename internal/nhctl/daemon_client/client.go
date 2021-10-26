@@ -211,6 +211,19 @@ func (d *DaemonClient) SendCheckClusterStatusCommand(kubeContent string) (*daemo
 	return r, err
 }
 
+func (d *DaemonClient) SendFlushDirMappingCacheCommand() error {
+	cmd := &command.CheckClusterStatusCommand{
+		CommandType: command.FlushDirMappingCache,
+		ClientStack: string(debug.Stack()),
+	}
+
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	return d.sendDataToDaemonServer(bys)
+}
+
 // SendRestartDaemonServerCommand
 // This command tells DaemonServer to run a newer version(by sub progress) with nhctl binary
 // in ClientPath and then stops itself.

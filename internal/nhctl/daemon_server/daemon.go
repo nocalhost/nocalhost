@@ -18,6 +18,7 @@ import (
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_handler"
 	"nocalhost/internal/nhctl/daemon_server/command"
+	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/utils"
@@ -127,6 +128,8 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		)
 		appmeta_manager.Start()
 	}
+
+	dev_dir.Initial()
 
 	// update nocalhost-hub
 	go cronJobForUpdatingHub()
@@ -377,22 +380,36 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 		)
 
 	case command.KubeconfigOperation:
-		err = Process(conn, func(conn net.Conn) (interface{}, error) {
-			cmd := &command.KubeconfigOperationCommand{}
-			if err = json.Unmarshal(bys, cmd); err != nil {
-				return nil, errors.Wrap(err, "")
-			}
-			return nil, daemon_handler.HandleKubeconfigOperationRequest(cmd)
-		})
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				cmd := &command.KubeconfigOperationCommand{}
+				if err = json.Unmarshal(bys, cmd); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+				return nil, daemon_handler.HandleKubeconfigOperationRequest(cmd)
+			},
+		)
+
+	case command.FlushDirMappingCache:
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				dev_dir.FlushCache()
+				return nil, nil
+			},
+		)
+
 	case command.CheckClusterStatus:
-		err = Process(conn, func(conn net.Conn) (interface{}, error) {
-			cmd := &command.CheckClusterStatusCommand{}
-			if err = json.Unmarshal(bys, cmd); err != nil {
-				return nil, errors.Wrap(err, "")
-			}
-			return HandleCheckClusterStatus(cmd)
-		})
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				cmd := &command.CheckClusterStatusCommand{}
+				if err = json.Unmarshal(bys, cmd); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+				return HandleCheckClusterStatus(cmd)
+			},
+		)
 	}
+
 	if err != nil {
 		log.WarnE(err, "Processing command occurs error")
 	}
