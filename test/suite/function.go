@@ -7,13 +7,11 @@ package suite
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/homedir"
-	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/fp"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -136,27 +134,21 @@ func HelmAdaption(client runner.Client) {
 	)
 }
 
-func PortForward(client runner.Client) {
-	module := "reviews"
+func PortForward(client runner.Client, module, moduleType string) {
 	port, err := ports.GetAvailablePort()
 	if err != nil {
 		port = 49088
 	}
 
-	//funcs := []func() error{func() error { return testcase.PortForwardStart(cli, module, port) }}
-	//util.Retry("PortForward", funcs)
-
-	//clientgoutils.Must(testcase.PortForwardCheck(port))
+	util.Retry(fmt.Sprintf("PortForward-%s-%s", moduleType, module), []func() error{
+		func() error { return testcase.PortForwardStartT(client, module, moduleType, port) },
+	})
 	funcs := []func() error{
-		func() error { return testcase.PortForwardStart(client, module, port) },
 		func() error { return testcase.PortForwardCheck(port) },
-		func() error { return testcase.StatusCheckPortForward(client, module, port) },
-		func() error { return testcase.PortForwardEnd(client, module, port) },
+		func() error { return testcase.StatusCheckPortForward(client, module, moduleType, port) },
+		func() error { return testcase.PortForwardEndT(client, module, moduleType, port) },
 	}
-	util.Retry("PortForward", funcs)
-
-	//funcs = []func() error{func() error { return testcase.PortForwardEnd(cli, module, port) }}
-	//util.Retry("PortForward", funcs)
+	util.Retry(fmt.Sprintf("PortForward-%s-%s", moduleType, module), funcs)
 }
 
 func PortForwardService(client runner.Client) {
@@ -180,245 +172,38 @@ func PortForwardService(client runner.Client) {
 	_ = cmd.Process.Kill()
 }
 
-func Deployment(cli runner.Client) {
-	PortForward(cli)
+func test(cli runner.Client, moduleName, moduleType string, modeType profile.DevModeType) {
+	PortForward(cli, moduleName, moduleType)
 	PortForwardService(cli)
-	module := "ratings"
 	funcs := []func() error{
-
 		func() error {
-			if err := testcase.DevStartDeployment(cli, module); err != nil {
-				_ = testcase.DevEndDeployment(cli, module)
+			if err := testcase.DevStartT(cli, moduleName, moduleType, modeType); err != nil {
+				_ = testcase.DevEndT(cli, moduleName, moduleType)
 				return err
 			}
 			return nil
 		},
-		func() error { return testcase.SyncCheck(cli, module) },
-		func() error { return testcase.SyncStatus(cli, module) },
-		func() error { return testcase.DevEndDeployment(cli, module) },
+		func() error { return testcase.SyncCheckT(cli, moduleName, moduleType) },
+		func() error { return testcase.SyncStatusT(cli, moduleName, moduleType) },
+		func() error { return testcase.DevEndT(cli, moduleName, moduleType) },
 	}
-	util.Retry("Dev", funcs)
+	util.Retry(fmt.Sprintf("Dev-%s-%s-%s", modeType, moduleName, moduleType), funcs)
+}
+
+func Deployment(cli runner.Client) {
+	test(cli, "ratings", "deployment", profile.ReplaceDevMode)
 }
 
 func DeploymentDuplicate(cli runner.Client) {
-	PortForward(cli)
-	PortForwardService(cli)
-	module := "ratings"
-	funcs := []func() error{
-		func() error {
-			if err := testcase.DevStartDeploymentDuplicate(cli, module); err != nil {
-				_ = testcase.DevEndDeployment(cli, module)
-				return err
-			}
-			return nil
-		},
-		func() error { return testcase.SyncCheck(cli, module) },
-		func() error { return testcase.SyncStatus(cli, module) },
-		func() error { return testcase.DevEndDeployment(cli, module) },
-	}
-	util.Retry("deployment duplicate", funcs)
-}
-
-// DeploymentDuplicateAndDuplicate two users into duplicate mode
-func DeploymentDuplicateAndDuplicate(cli runner.Client) {
-	module := "reviews"
-	port, _ := ports.GetAvailablePort()
-
-	funcs := []func() error{
-		func() error {
-			if err := testcase.DevStartDeploymentDuplicate(cli, module); err != nil {
-				_ = testcase.DevEndDeployment(cli, module)
-				return err
-			}
-			return nil
-		},
-		func() error {
-			funcs := []func() error{
-				func() error { return testcase.PortForwardStart(cli, module, port) },
-				func() error { return testcase.PortForwardCheck(port) },
-				func() error { return testcase.StatusCheckPortForward(cli, module, port) },
-			}
-			util.Retry("PortForward", funcs)
-			return nil
-		},
-		func() error { return testcase.SyncCheck(cli, module) },
-		func() error { return testcase.SyncStatus(cli, module) },
-	}
-	util.Retry("deployment first user into duplicate", funcs)
-	util.Retry("deployment do some magic operation", []func() error{
-		func() error { return secretBackup(cli) },
-		func() error { time.Sleep(time.Second * 5); return nil },
-	})
-	secondPort, _ := ports.GetAvailablePort()
-	util.Retry("deployment second user into duplicate", []func() error{
-		func() error {
-			if err := testcase.DevStartDeploymentDuplicate(cli, module); err != nil {
-				_ = testcase.DevEndDeployment(cli, module)
-				return err
-			}
-			return nil
-		},
-		func() error {
-			funcs = []func() error{
-				func() error { return testcase.PortForwardStart(cli, module, secondPort) },
-				func() error { return testcase.PortForwardCheck(secondPort) },
-				func() error { return testcase.StatusCheckPortForward(cli, module, secondPort) },
-			}
-			util.Retry("PortForward", funcs)
-			return nil
-		},
-		func() error { return testcase.SyncCheck(cli, module) },
-		func() error { return testcase.SyncStatus(cli, module) },
-	})
-	util.Retry("deployment second user check first user port-forward duplicate", []func() error{
-		func() error { return testcase.PortForwardCheck(port) },
-	})
-	util.Retry("deployment second user check exit duplicate", []func() error{
-		func() error { return testcase.DevEndDeployment(cli, module) },
-	})
-	// wait for 30 second for syncthing auto reconnect because syncthing will be killed if directory is the same
-	time.Sleep(time.Second * 30)
-	util.Retry("deployment rollback secret", []func() error{func() error { return secretRollback(cli) }})
-	util.Retry("deployment second user check first user again duplicate", []func() error{
-		func() error { return testcase.PortForwardCheck(port) },
-		func() error { return testcase.SyncCheck(cli, module) },
-		func() error { return testcase.SyncStatus(cli, module) },
-	})
-	_ = testcase.DevEndDeployment(cli, module)
-}
-
-func secretBackup(cli runner.Client) error {
-	secret, err2 := cli.GetClientset().CoreV1().Secrets(cli.GetNhctl().Namespace).
-		Get(context.TODO(), appmeta.SecretNamePrefix+"bookinfo", metav1.GetOptions{})
-	if err2 != nil {
-		return err2
-	}
-	marshal, err2 := json.Marshal(secret.Data)
-	if err2 != nil {
-		return err2
-	}
-	secret.Data = map[string][]byte{}
-	secret.Data["backup"] = marshal
-	_, err := cli.GetClientset().CoreV1().Secrets(cli.GetNhctl().Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
-	return err
-}
-
-func secretRollback(cli runner.Client) error {
-	secret, err2 := cli.GetClientset().CoreV1().Secrets(cli.GetNhctl().Namespace).
-		Get(context.TODO(), appmeta.SecretNamePrefix+"bookinfo", metav1.GetOptions{})
-	if err2 != nil {
-		return err2
-	}
-	m := make(map[string][]byte)
-	if err2 = json.Unmarshal(secret.Data["backup"], &secret); err2 != nil {
-		return err2
-	}
-	delete(secret.Data, "backup")
-	secret.Data = m
-	_, err := cli.GetClientset().CoreV1().Secrets(cli.GetNhctl().Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
-	return err
-}
-
-// DeploymentReplaceAndDuplicate one replace one duplicate mode
-func DeploymentReplaceAndDuplicate(cli runner.Client) {
-	module := "reviews"
-	port, _ := ports.GetAvailablePort()
-
-	funcs := []func() error{
-		func() error {
-			if err := testcase.DevStartDeployment(cli, module); err != nil {
-				_ = testcase.DevEndDeployment(cli, module)
-				return err
-			}
-			return nil
-		},
-		func() error {
-			funcs := []func() error{
-				func() error { return testcase.PortForwardStart(cli, module, port) },
-				func() error { return testcase.PortForwardCheck(port) },
-				func() error { return testcase.StatusCheckPortForward(cli, module, port) },
-			}
-			util.Retry("PortForward", funcs)
-			return nil
-		},
-		func() error { return testcase.SyncCheck(cli, module) },
-		func() error { return testcase.SyncStatus(cli, module) },
-	}
-	util.Retry("deployment first user into duplicate", funcs)
-	util.Retry("deployment do some magic operation", []func() error{
-		func() error { return secretBackup(cli) },
-		func() error { time.Sleep(time.Second * 5); return nil },
-	})
-	secondPort, _ := ports.GetAvailablePort()
-	util.Retry("deployment second user into duplicate", []func() error{
-		func() error {
-			if err := testcase.DevStartDeploymentDuplicate(cli, module); err != nil {
-				_ = testcase.DevEndDeployment(cli, module)
-				return err
-			}
-			return nil
-		},
-		func() error {
-			funcs = []func() error{
-				func() error { return testcase.PortForwardStart(cli, module, secondPort) },
-				func() error { return testcase.PortForwardCheck(secondPort) },
-				func() error { return testcase.StatusCheckPortForward(cli, module, secondPort) },
-			}
-			util.Retry("PortForward", funcs)
-			return nil
-		},
-		func() error { return testcase.SyncCheck(cli, module) },
-		func() error { return testcase.SyncStatus(cli, module) },
-	})
-	util.Retry("deployment second user check first user port-forward duplicate", []func() error{
-		func() error { return testcase.PortForwardCheck(port) },
-	})
-	util.Retry("deployment second user check exit duplicate", []func() error{
-		func() error { return testcase.DevEndDeployment(cli, module) },
-	})
-	// wait for 30 second for syncthing auto reconnect because syncthing will be killed if directory is the same
-	time.Sleep(time.Second * 30)
-	util.Retry("deployment rollback secret", []func() error{func() error { return secretRollback(cli) }})
-	util.Retry("deployment second user check first user again duplicate", []func() error{
-		func() error { return testcase.PortForwardCheck(port) },
-		func() error { return testcase.SyncCheck(cli, module) },
-		func() error { return testcase.SyncStatus(cli, module) },
-	})
-	_ = testcase.DevEndDeployment(cli, module)
+	test(cli, "ratings", "deployment", profile.DuplicateDevMode)
 }
 
 func StatefulSet(cli runner.Client) {
-	module := "web"
-	moduleType := "statefulset"
-	funcs := []func() error{
-		func() error {
-			if err := testcase.DevStartStatefulSet(cli, module); err != nil {
-				_ = testcase.DevEndStatefulSet(cli, module)
-				return err
-			}
-			return nil
-		},
-		func() error { return testcase.SyncCheckT(cli, cli.NameSpace(), module, moduleType) },
-		func() error { return testcase.DevEndStatefulSet(cli, module) },
-	}
-	util.Retry("StatefulSet", funcs)
+	test(cli, "web", "statefulset", profile.ReplaceDevMode)
 }
 
 func StatefulSetDuplicate(cli runner.Client) {
-	module := "web"
-	moduleType := "statefulset"
-	funcs := []func() error{
-		func() error {
-			if err := testcase.DevStartStatefulSetDuplicate(cli, module); err != nil {
-				_ = testcase.DevEndStatefulSet(cli, module)
-				return err
-			}
-			return nil
-		},
-		func() error { return testcase.SyncCheckT(cli, cli.NameSpace(), module, moduleType) },
-		func() error { return testcase.DevEndStatefulSet(cli, module) },
-	}
-	util.Retry("StatefulSet duplicate", funcs)
+	test(cli, "web", "statefulset", profile.DuplicateDevMode)
 }
 
 /**

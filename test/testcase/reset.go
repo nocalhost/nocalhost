@@ -40,7 +40,11 @@ func Config(nhctl runner.Client) error {
 }
 
 func SyncStatus(nhctl runner.Client, module string) error {
-	cmd := nhctl.GetNhctl().Command(context.Background(), "sync-status", "bookinfo", "-d", module)
+	return SyncStatusT(nhctl, module, "deployment")
+}
+
+func SyncStatusT(nhctl runner.Client, module, moduleType string) error {
+	cmd := nhctl.GetNhctl().Command(context.Background(), "sync-status", "bookinfo", "-d", module, "-t", moduleType)
 	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
 }
 
