@@ -188,7 +188,11 @@ func WarnE(err error, message string) {
 	}
 
 	if err != nil {
-		stdoutLogger.Warn(fmt.Sprintf("%s: %s", message, err.Error()))
+		if message != "" {
+			stdoutLogger.Warnf("%s: %s", message, err.Error())
+		} else {
+			stdoutLogger.Warn(err.Error())
+		}
 	} else {
 		stdoutLogger.Warn(fmt.Sprintf("%s", message))
 	}
@@ -216,7 +220,11 @@ func ErrorE(err error, message string) {
 		fileEntry.Errorf("%s, err: %+v", message, err)
 	}
 	if err != nil {
-		stdoutLogger.Errorf("%s: %s", message, err.Error())
+		if message != "" {
+			stdoutLogger.Errorf("%s: %s", message, err.Error())
+		} else {
+			stdoutLogger.Error(err.Error())
+		}
 	} else {
 		stdoutLogger.Errorf("%s", message)
 	}
@@ -242,7 +250,11 @@ func Fatalf(format string, args ...interface{}) {
 func FatalE(err error, message string) {
 	writeStackToEs("FATAL", message, fmt.Sprintf("%+v", err))
 	if err != nil {
-		stderrLogger.Errorf("%s: %s", message, err.Error())
+		if message != "" {
+			stderrLogger.Errorf("%s: %s", message, err.Error())
+		} else {
+			stderrLogger.Errorf("%s", err.Error())
+		}
 	} else {
 		stderrLogger.Errorf("%s", message)
 	}

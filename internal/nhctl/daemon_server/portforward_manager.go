@@ -123,28 +123,24 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 	return nil
 }
 
-func (p *PortForwardManager) RecoverAllPortForward() error {
-	defer RecoverDaemonFromPanic()
+func (p *PortForwardManager) RecoverAllPortForward() {
+	defer recoverDaemonFromPanic()
 
 	log.Info("Recovering all port-forward")
 	// Find all app
 	appMap, err := nocalhost.GetNsAndApplicationInfo()
 	if err != nil {
-		return err
+		log.LogE(err)
+		return
 	}
 
-	wg := sync.WaitGroup{}
-	for _, app := range appMap {
-		wg.Add(1)
+	for _, application := range appMap {
 		go func(namespace, app, nid string) {
-			defer wg.Done()
 			if err = p.RecoverPortForwardForApplication(namespace, app, nid); err != nil {
 				log.LogE(err)
 			}
-		}(app.Namespace, app.Name, app.Nid)
+		}(application.Namespace, application.Name, application.Nid)
 	}
-	wg.Wait()
-	return nil
 }
 
 // StartPortForwardGoRoutine Start a port-forward
@@ -201,8 +197,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			ServiceType:     startCmd.ServiceType,
 		}
 
-		p.lock.Lock()
 		log.Logf("Saving port-forward %d:%d to db", pf.LocalPort, pf.RemotePort)
+		p.lock.Lock()
 		err = nhController.AddPortForwardToDB(pf)
 		p.lock.Unlock()
 		if err != nil {
@@ -223,7 +219,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		RemotePort: startCmd.RemotePort,
 	}
 	go func() {
-		defer RecoverDaemonFromPanic()
+		defer recoverDaemonFromPanic()
 
 		log.Logf("Forwarding %d:%d", localPort, remotePort)
 
@@ -267,7 +263,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			}
 
 			go func() {
-				defer RecoverDaemonFromPanic()
+				defer recoverDaemonFromPanic()
 				<-readyCh
 				log.Infof("Port forward %d:%d is ready", localPort, remotePort)
 				p.lock.Lock()
@@ -276,7 +272,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			}()
 
 			go func() {
-				defer RecoverDaemonFromPanic()
+				defer recoverDaemonFromPanic()
 				errCh <- nocalhostApp.PortForward(startCmd.PodName, localPort, remotePort, readyCh, stopCh, stream)
 				log.Logf("Port-forward %d:%d occurs errors", localPort, remotePort)
 			}()

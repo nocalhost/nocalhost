@@ -129,7 +129,7 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 	// PriorityClass
 	priorityClass := ops.PriorityClass
 	if priorityClass == "" {
-		svcProfile, _ := d.GetConfig()
+		svcProfile := d.Config()
 		priorityClass = svcProfile.PriorityClass
 	}
 	if priorityClass != "" {

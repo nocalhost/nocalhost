@@ -107,8 +107,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		// PriorityClass
 		priorityClass := ops.PriorityClass
 		if priorityClass == "" {
-			svcProfile, _ := d.GetConfig()
-			priorityClass = svcProfile.PriorityClass
+			priorityClass = d.config.PriorityClass
 		}
 		if priorityClass != "" {
 			log.Infof("Using priorityClass: %s...", priorityClass)
