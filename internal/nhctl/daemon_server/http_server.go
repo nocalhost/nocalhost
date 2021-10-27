@@ -17,6 +17,7 @@ import (
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"runtime/debug"
+	"strings"
 )
 
 type ConfigSaveParams struct {
@@ -193,7 +194,7 @@ func handlingConfigGet(w http.ResponseWriter, r *http.Request) {
 		fail(w, fmt.Sprintf("%s can not be nil", key))
 		return
 	}
-	csp.Type = r.PostForm[key][0]
+	csp.Type = strings.ToLower(r.PostForm[key][0])
 
 	key = "kubeconfig"
 	if len(r.PostForm[key]) == 0 {
