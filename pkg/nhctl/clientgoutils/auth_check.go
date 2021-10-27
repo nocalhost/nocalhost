@@ -3,6 +3,7 @@ package clientgoutils
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
@@ -102,6 +103,8 @@ var (
 	}
 )
 
+var PermissionDenied = errors.New("Permission Denied")
+
 type AuthChecker struct {
 	Verb        []string
 	Name        string
@@ -112,8 +115,11 @@ type AuthChecker struct {
 // todo adding timed cache for this
 // should call after Prepare()
 // fatal if haven't such permission
-func DoCheck(cmd *cobra.Command, namespace string, client *ClientGoUtils) error {
-	authCheckers := getAuthChecker(cmd)
+func DoCheck(client *ClientGoUtils, namespace string, cmd *cobra.Command) error {
+	return DoAuthCheck(client, namespace, getAuthChecker(cmd)...)
+}
+
+func DoAuthCheck(client *ClientGoUtils, namespace string, authCheckers ...*AuthChecker) error {
 
 	mapper, err := client.NewFactory().ToRESTMapper()
 	if err != nil {
@@ -187,7 +193,8 @@ func DoCheck(cmd *cobra.Command, namespace string, client *ClientGoUtils) error 
 
 	if len(forbiddenCheckers) > 0 {
 		marshal, _ := yaml.Marshal(forbiddenCheckers)
-		log.Fatal(
+		return errors.Wrap(
+			PermissionDenied,
 			fmt.Sprintf(
 				"Permission denied when pre check! "+
 					"please make sure you have such permission in current namespace: \n\n%s", marshal,

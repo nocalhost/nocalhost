@@ -56,10 +56,7 @@ func (c *Controller) LoadConfigFromHub() error {
 }
 
 func (c *Controller) LoadConfigFromHubC(container string) error {
-	p, err := c.GetConfig()
-	if err != nil {
-		return err
-	}
+	p := c.Config()
 
 	for _, cc := range p.ContainerConfigs {
 		if cc != nil && cc.Dev != nil && cc.Dev.Image != "" {
@@ -106,9 +103,6 @@ func (c *Controller) GetPortForwardForSync() (*profile.DevPortForward, error) {
 func (c *Controller) SetPortForwardedStatus(is bool) error {
 	return c.UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
-			if svcProfile == nil {
-				return errors.New("Failed to get controller profile")
-			}
 			svcProfile.PortForwarded = is
 			return nil
 		},

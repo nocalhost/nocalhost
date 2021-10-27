@@ -9,7 +9,7 @@ import (
 	"context"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -121,11 +121,6 @@ func (asw *applicationSecretWatcher) left(appName string) {
 			},
 		)
 	}
-
-	// todo stop all port forward
-	//go func() {
-	//
-	//}()
 }
 
 func NewApplicationSecretWatcher(configBytes []byte, ns string) *applicationSecretWatcher {
@@ -138,6 +133,9 @@ func NewApplicationSecretWatcher(configBytes []byte, ns string) *applicationSecr
 }
 
 func (asw *applicationSecretWatcher) GetApplicationMetas() (result []*appmeta.ApplicationMeta) {
+	asw.lock.Lock()
+	defer asw.lock.Unlock()
+
 	for _, meta := range asw.applicationMetas {
 		result = append(result, meta)
 	}
@@ -190,17 +188,19 @@ func (asw *applicationSecretWatcher) Prepare() error {
 	// first get all nocalhost secrets for initial
 	// ignore error prevent kubeconfig has not permission for get secret
 	// ignore fail
-	list, err := clientset.CoreV1().Secrets(asw.ns).List(context.TODO(), v12.ListOptions{})
+	list, err := clientset.CoreV1().Secrets(asw.ns).List(
+		context.TODO(), metav1.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector("type", appmeta.SecretType).String(),
+		},
+	)
 	if err != nil {
 		log.ErrorE(err, "")
 		return nil
 	}
 
 	for _, v := range list.Items {
-		if v.Type == appmeta.SecretType {
-			if err := asw.join(&v); err != nil {
-				return err
-			}
+		if err := asw.join(&v); err != nil {
+			return err
 		}
 	}
 

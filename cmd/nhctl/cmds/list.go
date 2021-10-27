@@ -35,10 +35,10 @@ func init() {
 }
 
 var listCmd = &cobra.Command{
-	Use: "list [NAME]",
+	Use:     "list [NAME]",
 	Aliases: []string{"ls"},
-	Short: "List applications",
-	Long: `List applications`,
+	Short:   "List applications",
+	Long:    `List applications`,
 	Run: func(cmd *cobra.Command, args []string) {
 		must(Prepare())
 
@@ -135,6 +135,7 @@ func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 		)
 		if err != nil {
 			log.Logf("failed to init default application in namespace: %s", nameSpace)
+			err = nil
 		}
 
 		// if current user has not permission to create secret, we also create a fake 'default.application'

@@ -231,11 +231,13 @@ func GetNsAndApplicationInfo() ([]AppInfo, error) {
 					if !IsNocalhostAppDir(appPath) {
 						continue
 					}
-					result = append(result, AppInfo{
-						Name:      appDir.Name(),
-						Namespace: ns.Name(),
-						Nid:       nidDir.Name(),
-					})
+					result = append(
+						result, AppInfo{
+							Name:      appDir.Name(),
+							Namespace: ns.Name(),
+							Nid:       nidDir.Name(),
+						},
+					)
 				}
 			}
 		}
@@ -268,7 +270,7 @@ func IsNocalhostAppDir(dir string) bool {
 }
 
 func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.ApplicationMeta, error) {
-	cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
+	cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +305,7 @@ func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.Applica
 }
 
 func GetApplicationMetas(namespace, kubeConfig string) (appmeta.ApplicationMetas, error) {
-	cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
+	cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
 	if err != nil {
 		return nil, err
 	}
