@@ -15,6 +15,7 @@ import (
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
+	"time"
 )
 
 type CronJobController struct {
@@ -134,6 +135,14 @@ func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStar
 	if _, err = j.Client.CreateJob(generatedJob); err != nil {
 		return err
 	}
+
+	for _, patch := range j.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
+		log.Infof("Patching %s", patch.Patch)
+		if err = j.Client.Patch(j.Type.String(), generatedJob.Name, patch.Patch, patch.Type); err != nil {
+			log.WarnE(err, "")
+		}
+	}
+	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(j.GetNocalhostDevContainerPod)
 }

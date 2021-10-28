@@ -121,6 +121,14 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 		return err
 	}
 
+	for _, patch := range r.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
+		log.Infof("Patching %s", patch.Patch)
+		if err = r.Client.Patch(r.Type.String(), originalPod.Name, patch.Patch, patch.Type); err != nil {
+			log.WarnE(err, "")
+		}
+	}
+	<-time.Tick(time.Second)
+
 	return waitingPodToBeReady(r.GetNocalhostDevContainerPod)
 }
 

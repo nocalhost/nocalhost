@@ -105,19 +105,19 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 	}
 
 	time.Sleep(1 * time.Second)
-	//log.Info("Waiting pod to be deleted")
-	//if err = k8sutils.WaitPodDeleted(r.Client.ClientSet, r.NameSpace, r.Name(), 10*time.Minute); err != nil {
-	//	log.Info("Recovering pod...")
-	//	if _, err := r.Client.CreatePod(originalPod); err != nil {
-	//		return err
-	//	}
-	//	return err
-	//}
 
 	log.Info("Create dev pod...")
 	if _, err = r.Client.CreatePod(originalPod); err != nil {
 		return err
 	}
+
+	for _, patch := range r.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
+		log.Infof("Patching %s", patch.Patch)
+		if err = r.Client.Patch(r.Type.String(), originalPod.Name, patch.Patch, patch.Type); err != nil {
+			log.WarnE(err, "")
+		}
+	}
+	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(r.GetNocalhostDevContainerPod)
 }

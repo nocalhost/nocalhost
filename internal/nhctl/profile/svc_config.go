@@ -89,7 +89,7 @@ func (s *ServiceConfigV2) GetDefaultContainerDevConfig() *ContainerDevConfig {
 	return s.ContainerConfigs[0].Dev
 }
 
-// Compatible for v1
+// GetContainerDevConfigOrDefault Compatible for v1
 // Finding `containerName` config, if not found, use the first container config
 func (s *ServiceConfigV2) GetContainerDevConfigOrDefault(containerName string) *ContainerDevConfig {
 	if containerName == "" {
