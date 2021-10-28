@@ -28,7 +28,6 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
-	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nocalhost-dep/cm"
 	service_account "nocalhost/internal/nocalhost-dep/serviceaccount"
@@ -516,13 +515,7 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 	if v, ok := omh.Annotations[appmeta.AnnotationKey]; ok && v != "" && resourceName != "" {
 		injectInitContainers, EnvVar, err = nocalhostDepConfigmapCustom(
 			func() (*profile.NocalHostAppConfigV2, *profile.ServiceConfigV2, error) {
-				if cfg, err := app.DoLoadProfileFromDevConfig(
-					envsubst.TextRenderItem(v), resourceName, base.SvcTypeOf(resourceType),
-				); err != nil {
-					return app.LoadSvcCfgFromStrIfValid(v, resourceName, base.SvcTypeOf(resourceType))
-				} else {
-					return nil, cfg, nil
-				}
+				return app.LoadSvcCfgFromStrIfValid(v, resourceName, base.SvcTypeOf(resourceType))
 			}, containers,
 		)
 
