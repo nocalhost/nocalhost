@@ -200,98 +200,96 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, du
 	var workDirResideInPersistVolumeDirs bool
 	var err error
 	persistentVolumes := c.GetPersistentVolumeDirs(container)
-	if len(persistentVolumes) > 0 {
-		for index, persistentVolume := range persistentVolumes {
-			if persistentVolume.Path == "" {
-				log.Warnf("PersistentVolume's path should be set")
-				continue
-			}
-
-			// Check if pvc is already exist
-			labels := map[string]string{}
-			if duplicateDevMode {
-				labels, err = c.getDuplicateLabelsMap()
-				if err != nil {
-					log.WarnE(err, "")
-					continue
-				}
-				labels[_const.DevWorkloadIgnored] = "false"
-				labels[_const.AppLabel] = c.AppName
-			} else {
-				labels[_const.AppLabel] = c.AppName
-				labels[_const.ServiceLabel] = c.Name
-			}
-			labels[_const.PersistentVolumeDirLabel] = utils.Sha1ToString(persistentVolume.Path)
-			claims, err := c.Client.GetPvcByLabels(labels)
-			if err != nil {
-				log.WarnE(err, fmt.Sprintf("Fail to get a pvc for %s", persistentVolume.Path))
-				continue
-			}
-			if len(claims) > 1 {
-				log.Warn(
-					fmt.Sprintf(
-						"Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path,
-					),
-				)
-				continue
-			}
-
-			var claimName string
-			if len(claims) == 1 { // pvc for this path found
-				claimName = claims[0].Name
-			} else { // no pvc for this path, create one
-				var pvc *corev1.PersistentVolumeClaim
-				if c.GetStorageClass(container) != "" {
-					storageClass = c.GetStorageClass(container)
-				}
-				log.Infof(
-					"No PVC for %s found, trying to create one with storage class %s...",
-					persistentVolume.Path, storageClass,
-				)
-				pvc, err = c.createPvcForPersistentVolumeDir(persistentVolume, labels, storageClass)
-				if err != nil || pvc == nil {
-					return nil, nil, errors.Wrap(
-						nocalhost.CreatePvcFailed, "Failed to create pvc for "+persistentVolume.Path,
-					)
-				}
-				claimName = pvc.Name
-			}
-
-			// Do not use emptyDir for workDir
-			if persistentVolume.Path == workDir {
-				workDirDefinedInPersistVolume = true
-				workDirVol.EmptyDir = nil
-				workDirVol.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: claimName,
-				}
-
-				log.Info("WorkDir uses persistent volume defined in persistVolumeDirs")
-				continue
-			} else if strings.HasPrefix(workDir, persistentVolume.Path) && !workDirDefinedInPersistVolume {
-				log.Infof("WorkDir:%s resides in the persist dir: %s", workDir, persistentVolume.Path)
-				// No need to mount workDir
-				workDirResideInPersistVolumeDirs = true
-			}
-
-			persistVolName := fmt.Sprintf("persist-volume-%d", index)
-			persistentVol := corev1.Volume{
-				Name: persistVolName,
-				VolumeSource: corev1.VolumeSource{
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: claimName,
-					},
-				},
-			}
-			persistentMount := corev1.VolumeMount{
-				Name:      persistVolName,
-				MountPath: persistentVolume.Path,
-			}
-
-			volumes = append(volumes, persistentVol)
-			volumeMounts = append(volumeMounts, persistentMount)
-
-			log.Infof("%s mounts a pvc successfully", persistentVolume.Path)
+	for index, persistentVolume := range persistentVolumes {
+		if persistentVolume.Path == "" {
+			log.Warnf("PersistentVolume's path should be set")
+			continue
 		}
+
+		// Check if pvc is already exist
+		labels := map[string]string{}
+		if duplicateDevMode {
+			labels, err = c.getDuplicateLabelsMap()
+			if err != nil {
+				log.WarnE(err, "")
+				continue
+			}
+			labels[_const.DevWorkloadIgnored] = "false"
+			labels[_const.AppLabel] = c.AppName
+		} else {
+			labels[_const.AppLabel] = c.AppName
+			labels[_const.ServiceLabel] = c.Name
+		}
+		labels[_const.PersistentVolumeDirLabel] = utils.Sha1ToString(persistentVolume.Path)
+		claims, err := c.Client.GetPvcByLabels(labels)
+		if err != nil {
+			log.WarnE(err, fmt.Sprintf("Fail to get a pvc for %s", persistentVolume.Path))
+			continue
+		}
+		if len(claims) > 1 {
+			log.Warn(
+				fmt.Sprintf(
+					"Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path,
+				),
+			)
+			continue
+		}
+
+		var claimName string
+		if len(claims) == 1 { // pvc for this path found
+			claimName = claims[0].Name
+		} else { // no pvc for this path, create one
+			var pvc *corev1.PersistentVolumeClaim
+			if c.GetStorageClass(container) != "" {
+				storageClass = c.GetStorageClass(container)
+			}
+			log.Infof(
+				"No PVC for %s found, trying to create one with storage class %s...",
+				persistentVolume.Path, storageClass,
+			)
+			pvc, err = c.createPvcForPersistentVolumeDir(persistentVolume, labels, storageClass)
+			if err != nil || pvc == nil {
+				return nil, nil, errors.Wrap(
+					nocalhost.CreatePvcFailed, "Failed to create pvc for "+persistentVolume.Path,
+				)
+			}
+			claimName = pvc.Name
+		}
+
+		// Do not use emptyDir for workDir
+		if persistentVolume.Path == workDir {
+			workDirDefinedInPersistVolume = true
+			workDirVol.EmptyDir = nil
+			workDirVol.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: claimName,
+			}
+
+			log.Info("WorkDir uses persistent volume defined in persistVolumeDirs")
+			continue
+		} else if strings.HasPrefix(workDir, persistentVolume.Path) && !workDirDefinedInPersistVolume {
+			log.Infof("WorkDir:%s resides in the persist dir: %s", workDir, persistentVolume.Path)
+			// No need to mount workDir
+			workDirResideInPersistVolumeDirs = true
+		}
+
+		persistVolName := fmt.Sprintf("persist-volume-%d", index)
+		persistentVol := corev1.Volume{
+			Name: persistVolName,
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: claimName,
+				},
+			},
+		}
+		persistentMount := corev1.VolumeMount{
+			Name:      persistVolName,
+			MountPath: persistentVolume.Path,
+		}
+
+		volumes = append(volumes, persistentVol)
+		volumeMounts = append(volumeMounts, persistentMount)
+
+		log.Infof("%s mounts a pvc successfully", persistentVolume.Path)
 	}
 
 	if workDirDefinedInPersistVolume || !workDirResideInPersistVolumeDirs {
@@ -338,6 +336,11 @@ func (c *Controller) createPvcForPersistentVolumeDir(
 	if err != nil {
 		return nil, err
 	}
+	if persistentVolume.WaitForFirstConsumer {
+		log.Infof("The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer, "+
+			"we don't need to wait it for being bounded", persistentVolume.Path)
+		return pvc, nil
+	}
 	// wait pvc to be ready
 	var pvcBounded bool
 	var errorMes string
@@ -354,16 +357,14 @@ func (c *Controller) createPvcForPersistentVolumeDir(
 			pvcBounded = true
 			return pvc, nil
 		} else {
-			if len(pvc.Status.Conditions) > 0 {
-				for _, condition := range pvc.Status.Conditions {
-					errorMes = condition.Message
-					if condition.Reason == "ProvisioningFailed" {
-						log.Warnf(
-							"Failed to create a pvc for %s, check if your StorageClass is set correctly",
-							persistentVolume.Path,
-						)
-						break
-					}
+			for _, condition := range pvc.Status.Conditions {
+				errorMes = condition.Message
+				if condition.Reason == "ProvisioningFailed" {
+					log.Warnf(
+						"Failed to create a pvc for %s, check if your StorageClass is set correctly",
+						persistentVolume.Path,
+					)
+					break
 				}
 			}
 			log.Infof("PVC %s's status is %s, waiting it to be bounded", pvc.Name, pvc.Status.Phase)
@@ -374,13 +375,10 @@ func (c *Controller) createPvcForPersistentVolumeDir(
 			errorMes = "timeout"
 		}
 		log.Warnf("Failed to wait %s to be bounded: %s", pvc.Name, errorMes)
-		err = c.Client.DeletePVC(pvc.Name)
-		if err != nil {
-			log.Warnf("Fail to clean pvc %s", pvc.Name)
+		if err = c.Client.DeletePVC(pvc.Name); err != nil {
 			return nil, err
-		} else {
-			log.Infof("PVC %s is cleaned up", pvc.Name)
 		}
+		log.Infof("PVC %s is cleaned up", pvc.Name)
 	}
 	return nil, errors.New("Failed to create pvc for " + persistentVolume.Path)
 }
