@@ -342,44 +342,52 @@ func (c *Controller) createPvcForPersistentVolumeDir(
 		return pvc, nil
 	}
 	// wait pvc to be ready
-	var pvcBounded bool
+	//var pvcBounded bool
 	var errorMes string
 
 	for i := 0; i < 30; i++ {
 		time.Sleep(time.Second * 2)
 		pvc, err = c.Client.GetPvcByName(pvc.Name)
 		if err != nil {
-			log.Warnf("Failed to update pvc's status: %s", err.Error())
+			log.Warnf("Failed to get pvc's status: %s", err.Error())
 			continue
 		}
 		if pvc.Status.Phase == corev1.ClaimBound {
 			log.Infof("PVC %s has bounded to a pv", pvc.Name)
-			pvcBounded = true
 			return pvc, nil
-		} else {
-			for _, condition := range pvc.Status.Conditions {
-				errorMes = condition.Message
-				if condition.Reason == "ProvisioningFailed" {
-					log.Warnf(
-						"Failed to create a pvc for %s, check if your StorageClass is set correctly",
-						persistentVolume.Path,
-					)
-					break
+		}
+		for _, condition := range pvc.Status.Conditions {
+			errorMes = condition.Message
+			if condition.Reason == "ProvisioningFailed" {
+				log.Warnf(
+					"Failed to create a pvc for %s, check if your StorageClass is set correctly",
+					persistentVolume.Path)
+				break
+			} else if condition.Reason == "WaitForFirstConsumer" {
+				log.Infof("The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer. "+
+					"We don't need to wait it for being bounded", persistentVolume.Path)
+				return pvc, nil
+			}
+		}
+		if es, err := c.Client.SearchEvents(pvc); err == nil {
+			for _, item := range es.Items {
+				if item.Reason == "WaitForFirstConsumer" {
+					log.Infof("The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer. "+
+						"We don't need to wait it for being bounded", persistentVolume.Path)
+					return pvc, nil
 				}
 			}
-			log.Infof("PVC %s's status is %s, waiting it to be bounded", pvc.Name, pvc.Status.Phase)
 		}
+		log.Infof("PVC %s's status is %s, waiting it to be bounded", pvc.Name, pvc.Status.Phase)
 	}
-	if !pvcBounded {
-		if errorMes == "" {
-			errorMes = "timeout"
-		}
-		log.Warnf("Failed to wait %s to be bounded: %s", pvc.Name, errorMes)
-		if err = c.Client.DeletePVC(pvc.Name); err != nil {
-			return nil, err
-		}
-		log.Infof("PVC %s is cleaned up", pvc.Name)
+	if errorMes == "" {
+		errorMes = "timeout"
 	}
+	log.Warnf("Failed to wait %s to be bounded: %s", pvc.Name, errorMes)
+	if err = c.Client.DeletePVC(pvc.Name); err != nil {
+		return nil, err
+	}
+	log.Infof("PVC %s is cleaned up", pvc.Name)
 	return nil, errors.New("Failed to create pvc for " + persistentVolume.Path)
 }
 

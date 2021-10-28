@@ -24,7 +24,7 @@ type NocalHostAppConfig struct {
 type PersistentVolumeDir struct {
 	Path                 string `json:"path" yaml:"path"`
 	Capacity             string `validate:"Quantity" json:"capacity,omitempty" yaml:"capacity,omitempty"`
-	WaitForFirstConsumer bool   `json:"waitForFirstConsumer" yaml:"waitForFirstConsumer"`
+	WaitForFirstConsumer bool   `json:"waitForFirstConsumer,omitempty" yaml:"waitForFirstConsumer,omitempty"`
 }
 
 type ResourceQuota struct {

@@ -157,7 +157,9 @@ var devStartCmd = &cobra.Command{
 		recordLocalSyncDirToProfile()
 		prepareSyncThing()
 		stopPreviousPortForward()
-		enterDevMode(dt)
+		if err := enterDevMode(dt); err != nil {
+			log.FatalE(err, "")
+		}
 
 		devPodName, err := nocalhostSvc.BuildPodController().
 			GetNocalhostDevContainerPod()
@@ -263,7 +265,7 @@ func startSyncthing(podName, container string, resume bool) {
 	}
 }
 
-func enterDevMode(devModeType profile.DevModeType) {
+func enterDevMode(devModeType profile.DevModeType) error {
 	must(
 		nocalhostSvc.AppMeta.SvcDevStarting(nocalhostSvc.Name, nocalhostSvc.Type,
 			nocalhostApp.Identifier, devModeType),
@@ -328,18 +330,19 @@ func enterDevMode(devModeType profile.DevModeType) {
 		if errors.Is(err, nocalhost.CreatePvcFailed) {
 			log.Info("Failed to provision persistent volume due to insufficient resources")
 		}
-		mustP(err)
+		return err
 	}
 
-	mustP(
-		nocalhostSvc.AppMeta.SvcDevStartComplete(
-			nocalhostSvc.Name, nocalhostSvc.Type, nocalhostSvc.Identifier, devModeType,
-		),
-	)
+	if err = nocalhostSvc.AppMeta.SvcDevStartComplete(
+		nocalhostSvc.Name, nocalhostSvc.Type, nocalhostSvc.Identifier, devModeType,
+	); err != nil {
+		return err
+	}
 
 	// mark dev start as true
 	devStartSuccess = true
 	coloredoutput.Success("Dev container has been updated")
+	return nil
 }
 
 func startPortForwardAfterDevStart(devPodName string) {
