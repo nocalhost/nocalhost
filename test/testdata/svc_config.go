@@ -6,7 +6,7 @@ serviceType: deployment
 containers:
 - name: ""
   dev:
-    gitUrl: https://e.coding.net/codingcorp/nocalhost/bookinfo-details.git
+    gitUrl: https://e.coding.net/nocalhost/nocalhost/bookinfo-details.git
     image: singleSvcConfig
     shell: bash
     workDir: /home/nocalhost-dev
@@ -36,7 +36,7 @@ const MultipleSvcConfig = `
   containers:
   - name: ""
     dev:
-      gitUrl: https://e.coding.net/codingcorp/nocalhost/bookinfo-details.git
+      gitUrl: https://e.coding.net/nocalhost/nocalhost/bookinfo-details.git
       image: multipleSvcConfig1
       shell: bash
       workDir: /home/nocalhost-dev
@@ -64,7 +64,7 @@ const MultipleSvcConfig = `
   containers:
   - name: ""
     dev:
-      gitUrl: https://e.coding.net/codingcorp/nocalhost/bookinfo-details.git
+      gitUrl: https://e.coding.net/nocalhost/nocalhost/bookinfo-details.git
       image: multipleSvcConfig2
       shell: bash
       workDir: /home/nocalhost-dev
@@ -145,7 +145,7 @@ application:
             portForward:
               - 8000:80
           dev:
-            gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost-web.git
+            gitUrl: https://e.coding.net/nocalhost/nocalhost/nocalhost-web.git
             image: fullConfig2
             workDir: /home/nocalhost-dev
             shell: "bash"
@@ -181,7 +181,7 @@ data:
      containers:
        - name: ""
          dev:
-           gitUrl: https://e.coding.net/codingcorp/nocalhost/bookinfo-details.git
+           gitUrl: https://e.coding.net/nocalhost/nocalhost/bookinfo-details.git
            image: singleSvcConfigCm
            shell: bash
            workDir: /home/nocalhost-dev`
@@ -198,7 +198,7 @@ data:
       containers:
       - name: ""
         dev:
-          gitUrl: https://e.coding.net/codingcorp/nocalhost/bookinfo-details.git
+          gitUrl: https://e.coding.net/nocalhost/nocalhost/bookinfo-details.git
           image: multipleSvcConfig1Cm
           shell: bash
           workDir: /home/nocalhost-dev
@@ -226,7 +226,7 @@ data:
       containers:
       - name: ""
         dev:
-          gitUrl: https://e.coding.net/codingcorp/nocalhost/bookinfo-details.git
+          gitUrl: https://e.coding.net/nocalhost/nocalhost/bookinfo-details.git
           image: multipleSvcConfig2Cm
           shell: bash
           workDir: /home/nocalhost-dev
@@ -314,7 +314,7 @@ data:
                 portForward:
                   - 8000:80
               dev:
-                gitUrl: https://e.coding.net/codingcorp/nocalhost/nocalhost-web.git
+                gitUrl: https://e.coding.net/nocalhost/nocalhost/nocalhost-web.git
                 image: fullConfig2Cm
                 workDir: /home/nocalhost-dev
                 shell: "bash"

@@ -74,7 +74,7 @@ func (v *validate) validateStruct(ctx context.Context, parent reflect.Value, cur
 				}
 			}
 
-			v.traverseField(ctx, parent, current.Field(f.idx), ns, structNs, f, f.cTags)
+			v.traverseField(ctx, current, current.Field(f.idx), ns, structNs, f, f.cTags)
 		}
 	}
 
@@ -118,7 +118,8 @@ func (v *validate) traverseField(ctx context.Context, parent reflect.Value, curr
 				} else {
 					v.str2 = v.str1
 				}
-				v.errs = append(v.errs,
+				v.errs = append(
+					v.errs,
 					&fieldError{
 						v:              v.v,
 						tag:            ct.aliasTag,
@@ -141,7 +142,8 @@ func (v *validate) traverseField(ctx context.Context, parent reflect.Value, curr
 				v.str2 = v.str1
 			}
 			if !ct.runValidationWhenNil {
-				v.errs = append(v.errs,
+				v.errs = append(
+					v.errs,
 					&fieldError{
 						v:              v.v,
 						tag:            ct.aliasTag,
@@ -177,7 +179,7 @@ func (v *validate) traverseField(ctx context.Context, parent reflect.Value, curr
 					v.cf = cf
 					v.ct = ct
 
-					if !ct.fn(ctx, v) {
+					if errMsg := ct.fn(ctx, v); errMsg != "" {
 						v.str1 = string(append(ns, cf.altName...))
 
 						if v.v.hasTagNameFunc {
@@ -186,7 +188,8 @@ func (v *validate) traverseField(ctx context.Context, parent reflect.Value, curr
 							v.str2 = v.str1
 						}
 
-						v.errs = append(v.errs,
+						v.errs = append(
+							v.errs,
 							&fieldError{
 								v:              v.v,
 								tag:            ct.aliasTag,
@@ -199,6 +202,7 @@ func (v *validate) traverseField(ctx context.Context, parent reflect.Value, curr
 								param:          ct.param,
 								kind:           kind,
 								typ:            typ,
+								msg:            errMsg,
 							},
 						)
 						return
@@ -222,12 +226,12 @@ func (v *validate) traverseField(ctx context.Context, parent reflect.Value, curr
 				structNs = append(append(structNs, cf.name...), '.')
 			}
 
-			v.validateStruct(ctx, current, current, typ, ns, structNs, ct)
+			v.validateStruct(ctx, parent, current, typ, ns, structNs, ct)
 			return
 		}
 	}
 
-	if !ct.hasTag {
+	if ct == nil || !ct.hasTag {
 		return
 	}
 
@@ -354,7 +358,8 @@ OUTER:
 				v.cf = cf
 				v.ct = ct
 
-				if ct.fn(ctx, v) {
+				errMsg := ct.fn(ctx, v)
+				if errMsg == "" {
 
 					// drain rest of the 'or' values, then continue or leave
 					for {
@@ -391,7 +396,8 @@ OUTER:
 
 					if ct.hasAlias {
 
-						v.errs = append(v.errs,
+						v.errs = append(
+							v.errs,
 							&fieldError{
 								v:              v.v,
 								tag:            ct.aliasTag,
@@ -404,6 +410,7 @@ OUTER:
 								param:          ct.param,
 								kind:           kind,
 								typ:            typ,
+								msg:            errMsg,
 							},
 						)
 
@@ -411,7 +418,8 @@ OUTER:
 
 						tVal := string(v.misc)[1:]
 
-						v.errs = append(v.errs,
+						v.errs = append(
+							v.errs,
 							&fieldError{
 								v:              v.v,
 								tag:            tVal,
@@ -424,6 +432,7 @@ OUTER:
 								param:          ct.param,
 								kind:           kind,
 								typ:            typ,
+								msg:            errMsg,
 							},
 						)
 					}
@@ -442,7 +451,7 @@ OUTER:
 			v.cf = cf
 			v.ct = ct
 
-			if !ct.fn(ctx, v) {
+			if errMsg := ct.fn(ctx, v); errMsg != "" {
 
 				v.str1 = string(append(ns, cf.altName...))
 
@@ -452,7 +461,8 @@ OUTER:
 					v.str2 = v.str1
 				}
 
-				v.errs = append(v.errs,
+				v.errs = append(
+					v.errs,
 					&fieldError{
 						v:              v.v,
 						tag:            ct.aliasTag,
@@ -465,6 +475,7 @@ OUTER:
 						param:          ct.param,
 						kind:           kind,
 						typ:            typ,
+						msg:            errMsg,
 					},
 				)
 

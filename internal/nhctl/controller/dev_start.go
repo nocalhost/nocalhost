@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"nocalhost/internal/nhctl/const"
+	"strconv"
 
 	//"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -26,7 +27,7 @@ func (c *Controller) GetDevContainerEnv(container string) *ContainerDevEnv {
 	// Find service env
 	devEnv := make([]*profile.Env, 0)
 	kvMap := make(map[string]string, 0)
-	serviceConfig, _ := c.GetProfile()
+	serviceConfig := c.Config()
 	for _, v := range serviceConfig.ContainerConfigs {
 		if v.Name == container || container == "" {
 			// Env has a higher priority than envFrom
@@ -43,6 +44,21 @@ func (c *Controller) GetDevContainerEnv(container string) *ContainerDevEnv {
 		devEnv = append(devEnv, env)
 	}
 	return &ContainerDevEnv{DevEnv: devEnv}
+}
+
+func (c *Controller) GetDevSidecarImage(container string) string {
+	// Find service env
+	serviceConfig := c.Config()
+	for _, v := range serviceConfig.ContainerConfigs {
+		if v.Name == container || container == "" {
+			// Env has a higher priority than envFrom
+			if v.Dev != nil {
+				return v.Dev.SidecarImage
+			}
+		}
+	}
+
+	return ""
 }
 
 func (c *Controller) markReplicaSetRevision() error {
@@ -73,11 +89,14 @@ func (c *Controller) markReplicaSetRevision() error {
 		retryTimes := 5
 		for i := 0; i < retryTimes; i++ {
 			time.Sleep(time.Second * 1)
-			if err = c.Client.Patch("ReplicaSet", rs.Name,
-				fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
+			if err = c.Client.Patch(
+				"ReplicaSet", rs.Name,
+				fmt.Sprintf(
+					`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
 					_const.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
 					_const.DevImageRevisionAnnotationKey, _const.DevImageRevisionAnnotationValue,
-				)); err == nil {
+				), "",
+			); err == nil {
 				break
 			}
 		}
@@ -89,14 +108,17 @@ func (c *Controller) markReplicaSetRevision() error {
 	return nil
 }
 
-func (c *Controller) GetSyncThingSecretName() string {
-	return c.Name + "-" + c.Type.String() + "-" + secret_config.SecretName
+func (c *Controller) GetSyncThingSecretName(duplicateDevMode bool) string {
+	if duplicateDevMode {
+		return strings.Join([]string{c.Name, c.Type.String(), secret_config.SecretName, "dup", c.Identifier}, "-")
+	}
+	return strings.Join([]string{c.Name, c.Type.String(), secret_config.SecretName}, "-")
 }
 
 // There are two volume used by syncthing in sideCarContainer:
 // 1. A EmptyDir volume mounts to /var/syncthing in sideCarContainer
 // 2. A volume mounts Secret to /var/syncthing/secret in sideCarContainer
-func (c *Controller) generateSyncVolumesAndMounts() ([]corev1.Volume, []corev1.VolumeMount) {
+func (c *Controller) generateSyncVolumesAndMounts(duplicateDevMode bool) ([]corev1.Volume, []corev1.VolumeMount) {
 
 	syncthingVolumes := make([]corev1.Volume, 0)
 	syncthingVolumeMounts := make([]corev1.VolumeMount, 0)
@@ -109,7 +131,7 @@ func (c *Controller) generateSyncVolumesAndMounts() ([]corev1.Volume, []corev1.V
 		},
 	}
 
-	secretName := c.GetSyncThingSecretName()
+	secretName := c.GetSyncThingSecretName(duplicateDevMode)
 	defaultMode := int32(_const.DefaultNewFilePermission)
 	syncthingSecretVol := corev1.Volume{
 		Name: secret_config.SecretName,
@@ -160,7 +182,7 @@ func (c *Controller) generateSyncVolumesAndMounts() ([]corev1.Volume, []corev1.V
 // If PVC exists, use it directly
 // If PVC not exists, try to create one
 // If PVC failed to create, the whole process of entering DevMode will fail
-func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
+func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, duplicateDevMode bool) (
 	[]corev1.Volume, []corev1.VolumeMount, error) {
 
 	volumes := make([]corev1.Volume, 0)
@@ -176,6 +198,7 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 
 	var workDirDefinedInPersistVolume bool // if workDir is specified in persistentVolumeDirs
 	var workDirResideInPersistVolumeDirs bool
+	var err error
 	persistentVolumes := c.GetPersistentVolumeDirs(container)
 	if len(persistentVolumes) > 0 {
 		for index, persistentVolume := range persistentVolumes {
@@ -186,8 +209,18 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 
 			// Check if pvc is already exist
 			labels := map[string]string{}
-			labels[_const.AppLabel] = c.AppName
-			labels[_const.ServiceLabel] = c.Name
+			if duplicateDevMode {
+				labels, err = c.getDuplicateLabelsMap()
+				if err != nil {
+					log.WarnE(err, "")
+					continue
+				}
+				labels[_const.DevWorkloadIgnored] = "false"
+				labels[_const.AppLabel] = c.AppName
+			} else {
+				labels[_const.AppLabel] = c.AppName
+				labels[_const.ServiceLabel] = c.Name
+			}
 			labels[_const.PersistentVolumeDirLabel] = utils.Sha1ToString(persistentVolume.Path)
 			claims, err := c.Client.GetPvcByLabels(labels)
 			if err != nil {
@@ -195,7 +228,11 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 				continue
 			}
 			if len(claims) > 1 {
-				log.Warn(fmt.Sprintf("Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path))
+				log.Warn(
+					fmt.Sprintf(
+						"Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path,
+					),
+				)
 				continue
 			}
 
@@ -207,11 +244,15 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 				if c.GetStorageClass(container) != "" {
 					storageClass = c.GetStorageClass(container)
 				}
-				log.Infof("No PVC for %s found, trying to create one with storage class %s...",
-					persistentVolume.Path, storageClass)
+				log.Infof(
+					"No PVC for %s found, trying to create one with storage class %s...",
+					persistentVolume.Path, storageClass,
+				)
 				pvc, err = c.createPvcForPersistentVolumeDir(persistentVolume, labels, storageClass)
 				if err != nil || pvc == nil {
-					return nil, nil, errors.Wrap(nocalhost.CreatePvcFailed, "Failed to create pvc for "+persistentVolume.Path)
+					return nil, nil, errors.Wrap(
+						nocalhost.CreatePvcFailed, "Failed to create pvc for "+persistentVolume.Path,
+					)
 				}
 				claimName = pvc.Name
 			}
@@ -270,14 +311,6 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string) (
 	}
 
 	return volumes, volumeMounts, nil
-}
-
-func (c *Controller) GetPersistentVolumeDirs(container string) []*profile.PersistentVolumeDir {
-	svcProfile, _ := c.GetProfile()
-	if svcProfile != nil {
-		return svcProfile.GetContainerDevConfigOrDefault(container).PersistentVolumeDirs
-	}
-	return nil
 }
 
 // Initial a pvc for persistent volume dir, and waiting util pvc succeed to bound to a pv
@@ -352,11 +385,14 @@ func (c *Controller) createPvcForPersistentVolumeDir(
 	return nil, errors.New("Failed to create pvc for " + persistentVolume.Path)
 }
 
-func generateSideCarContainer(workDir string) corev1.Container {
+func generateSideCarContainer(sidecarImage, workDir string) corev1.Container {
+	if sidecarImage == "" {
+		sidecarImage = _const.DefaultSideCarImage
+	}
 
 	sideCarContainer := corev1.Container{
 		Name:       "nocalhost-sidecar",
-		Image:      _const.DefaultSideCarImage,
+		Image:      sidecarImage,
 		WorkingDir: workDir,
 	}
 
@@ -377,9 +413,14 @@ func (c *Controller) genResourceReq(container string) *corev1.ResourceRequiremen
 		requirements *corev1.ResourceRequirements
 	)
 
-	svcProfile, _ := c.GetProfile()
-	resourceQuota := svcProfile.GetContainerDevConfigOrDefault(container).DevContainerResources
+	svcProfile := c.Config()
 
+	containerConfig := svcProfile.GetContainerDevConfigOrDefault(container)
+	if containerConfig == nil {
+		return requirements
+	}
+
+	resourceQuota := containerConfig.DevContainerResources
 	if resourceQuota != nil {
 		log.Debug("DevContainer uses resource limits defined in config")
 		requirements, err = convertResourceQuota(resourceQuota)
@@ -433,8 +474,7 @@ func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) 
 
 func waitingPodToBeReady(f func() (string, error)) error {
 	// Wait podList to be ready
-	spinner := utils.NewSpinner(" Waiting pod to start...")
-	spinner.Start()
+	log.Info(" Waiting pod to start...")
 
 	for i := 0; i < 300; i++ {
 		<-time.NewTimer(time.Second * 1).C
@@ -442,7 +482,6 @@ func waitingPodToBeReady(f func() (string, error)) error {
 			break
 		}
 	}
-	spinner.Stop()
 	return nil
 }
 
@@ -459,31 +498,48 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 }
 
 func findDevPod(podList []corev1.Pod) (string, error) {
+	resultPodList := make([]corev1.Pod, 0)
 	for _, pod := range podList {
-		if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
+		//if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
+		if pod.DeletionTimestamp == nil {
 			for _, container := range pod.Spec.Containers {
 				if container.Name == _const.DefaultNocalhostSideCarName {
-					return pod.Name, nil
+					resultPodList = append(resultPodList, pod)
 				}
 			}
 		}
+	}
+	if len(resultPodList) > 0 {
+		latestPod := resultPodList[0]
+		for i := 1; i < len(resultPodList); i++ {
+			rv1, _ := strconv.Atoi(resultPodList[i].ResourceVersion)
+			rv2, _ := strconv.Atoi(latestPod.ResourceVersion)
+			if rv1 > rv2 {
+				latestPod = resultPodList[i]
+			}
+		}
+		if latestPod.Status.Phase == "Running" {
+			return latestPod.Name, nil
+		}
+		return "", errors.New("dev container has not be ready")
 	}
 	return "", errors.New("dev container not found")
 }
 
 func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
-	containerName, storageClass string) (*corev1.Container, *corev1.Container, []corev1.Volume, error) {
+	containerName, devImage, storageClass string, duplicateDevMode bool) (*corev1.Container,
+	*corev1.Container, []corev1.Volume, error) {
 
 	devModeVolumes := make([]corev1.Volume, 0)
 	devModeMounts := make([]corev1.VolumeMount, 0)
 
 	// Set volumes
-	syncthingVolumes, syncthingVolumeMounts := c.generateSyncVolumesAndMounts()
+	syncthingVolumes, syncthingVolumeMounts := c.generateSyncVolumesAndMounts(duplicateDevMode)
 	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
 	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := c.genWorkDirAndPVAndMounts(
-		containerName, storageClass)
+		containerName, storageClass, duplicateDevMode)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -492,9 +548,12 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	devModeMounts = append(devModeMounts, workDirAndPersistVolumeMounts...)
 
 	workDir := c.GetWorkDir(containerName)
-	devImage := c.GetDevImage(containerName) // Default : replace the first container
 
-	sideCarContainer := generateSideCarContainer(workDir)
+	if devImage == "" {
+		devImage = c.GetDevImage(containerName) // Default : replace the first container
+	}
+
+	sideCarContainer := generateSideCarContainer(c.GetDevSidecarImage(containerName), workDir)
 
 	devContainer.Image = devImage
 	devContainer.Name = "nocalhost-dev"
@@ -534,8 +593,11 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 				limits += devContainer.Resources.Limits.Memory().String() + " memory"
 			}
 		}
-		log.PWarnf(`Resources Limits: %s is less than the recommended minimum: 2 cpu, 2Gi memory. `+
-			"Running programs in DevContainer may fail. You can increase Resource Limits in Nocalhost Config", limits)
+		log.PWarnf(
+			`Resources Limits: %s is less than the recommended minimum: 2 cpu, 2Gi memory. `+
+				"Running programs in DevContainer may fail. You can increase Resource Limits in Nocalhost Config",
+			limits,
+		)
 	}
 
 	r := &profile.ResourceQuota{

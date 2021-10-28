@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package appmeta_manager
 
@@ -13,10 +13,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"nocalhost/internal/nhctl/resouce_cache"
+	"k8s.io/client-go/util/flowcontrol"
 	"nocalhost/internal/nhctl/watcher"
 	"nocalhost/pkg/nhctl/log"
-	"strings"
 	"sync"
 )
 
@@ -116,6 +115,7 @@ func (hcmw *helmCmWatcher) Prepare() (existRelease []string, err error) {
 	}
 
 	// creates the clientset
+	c.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
 	clientset, err := kubernetes.NewForConfig(c)
 	if err != nil {
 		return
@@ -133,41 +133,28 @@ func (hcmw *helmCmWatcher) Prepare() (existRelease []string, err error) {
 	hcmw.watchController = controller
 
 	// creates the clientset
-	hcmw.clientSet, err = kubernetes.NewForConfig(c)
-	if err != nil {
-		return
-	}
+	hcmw.clientSet = clientset
 
-	// first get all configmaps for initial
-	// and find out the invalid nocalhost application
-	// then delete it
-	searcher, err := resouce_cache.GetSearcher(hcmw.configBytes, hcmw.ns, false)
-	if err != nil {
-		log.ErrorE(err, "")
-		return
-	}
-
-	cms, err := searcher.Criteria().
-		Namespace(hcmw.ns).
-		ResourceType("configmaps").Query()
-	if err != nil {
-		log.ErrorE(err, "")
-		return
-	}
-
-	for _, configmap := range cms {
-		v := configmap.(*v1.ConfigMap)
-
-		// this may cause bug that contains sh.helm.release
-		// may not managed by helm
-		if strings.Contains(v.Name, "sh.helm.release.v1") {
-			if release, err := DecodeRelease(v.Data["release"]); err == nil && release.Info.Deleted == "" {
-				if rlsName, err := GetRlsNameFromKey(v.Name); err == nil {
-					existRelease = append(existRelease, rlsName)
-				}
-			}
-		}
-	}
+	//// first get all configmaps for initial
+	//// and find out the invalid nocalhost application
+	//// then delete it
+	//list, err := clientset.CoreV1().ConfigMaps(hcmw.ns).List(context.TODO(), metav1.ListOptions{})
+	//if err != nil {
+	//	log.ErrorE(err, "")
+	//	return
+	//}
+	//
+	//for _, v := range list.Items {
+	//	// this may cause bug that contains sh.helm.release
+	//	// may not managed by helm
+	//	if strings.Contains(v.Name, "sh.helm.release.v1") {
+	//		if release, err := DecodeRelease(v.Data["release"]); err == nil && release.Info.Deleted == "" {
+	//			if rlsName, err := GetRlsNameFromKey(v.Name); err == nil {
+	//				existRelease = append(existRelease, rlsName)
+	//			}
+	//		}
+	//	}
+	//}
 
 	return
 }

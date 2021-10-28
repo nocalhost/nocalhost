@@ -110,15 +110,15 @@ var rootCmd = &cobra.Command{
 			client, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
 			must(err)
 
-			must(clientgoutils.DoCheck(cmd, nameSpace, client))
+			must(clientgoutils.DoCheck(client, nameSpace, cmd))
 
-			println("yes")
+			fmt.Printf("yes")
 			os.Exit(0)
 			return
 		}
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		if os.Getenv("_NOCALHOST_DEBUG_") != "" {
+		if os.Getenv("_NOCALHOST_DEBUG_") != "" || os.Getenv("NH_ES_URL") != "" {
 			d := time.Now().Sub(cmdStartTime)
 			cmds := clientgoutils.GetCmd(cmd, nil)
 
@@ -128,7 +128,10 @@ var rootCmd = &cobra.Command{
 					cmds = append(cmds, flag.Value.String())
 				},
 			)
-			log.Logf("[TimeMachine] %v, cost: %dms", cmds, d.Milliseconds())
+
+			field := make(map[string]interface{}, 0)
+			field["cost"] = d.Milliseconds()
+			log.WriteToEsWithField(field, "[TimeMachine] %v, cost: %dms", cmds, d.Milliseconds())
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {

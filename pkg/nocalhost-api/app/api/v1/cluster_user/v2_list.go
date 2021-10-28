@@ -8,16 +8,18 @@ package cluster_user
 import (
 	"context"
 	"encoding/json"
+	"sort"
+
 	"github.com/gin-gonic/gin"
+
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/internal/nocalhost-api/service/cooperator/cluster_scope"
 	"nocalhost/internal/nocalhost-api/service/cooperator/ns_scope"
-	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
-	"sort"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
 func GetV2(c *gin.Context) {
@@ -42,11 +44,32 @@ func GetV2(c *gin.Context) {
 	}
 
 	cu.ID = *params.ClusterUserId
-	if result, err := doList(&cu, userId, isAdmin); err != nil {
+	result, err := DoList(&cu, userId, isAdmin, false)
+	if err != nil {
 		api.SendResponse(c, err, nil)
-	} else {
-		api.SendResponse(c, nil, result)
+		return
 	}
+
+	// set base space name
+	for i := range result {
+		if result[i].BaseDevSpaceId > 0 {
+			cu, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: result[i].BaseDevSpaceId})
+			if err != nil {
+				api.SendResponse(c, errno.ErrMeshClusterUserNotFound, nil)
+				return
+			}
+			if result[i].ClusterUserExt == nil {
+				result[i].ClusterUserExt = &model.ClusterUserExt{
+					BaseDevSpaceName:      cu.SpaceName,
+					BaseDevSpaceNameSpace: cu.Namespace,
+				}
+			} else {
+				result[i].BaseDevSpaceName = cu.SpaceName
+				result[i].BaseDevSpaceNameSpace = cu.Namespace
+			}
+		}
+	}
+	api.SendResponse(c, nil, result)
 }
 
 func ListV2(c *gin.Context) {
@@ -76,30 +99,40 @@ func ListV2(c *gin.Context) {
 		cu.SpaceName = params.SpaceName
 	}
 
-	if result, err := doList(&cu, userId, isAdmin); err != nil {
+	if result, err := DoList(&cu, userId, isAdmin, params.IsCanBeUsedAsBaseSpace); err != nil {
+		if err == errno.ErrClusterNotFound {
+			log.Error(err)
+			api.SendResponse(c, nil, []model.ClusterUserV2{})
+			return
+		}
 		api.SendResponse(c, err, nil)
 	} else {
 		api.SendResponse(c, nil, result)
 	}
 }
 
-func doList(params *model.ClusterUserModel, userId uint64, isAdmin bool) ([]*model.ClusterUserV2, *errno.Errno) {
+func DoList(params *model.ClusterUserModel, userId uint64, isAdmin, isCanBeUsedAsBaseSpace bool) (
+	[]*model.ClusterUserV2, error) {
+
 	clusterUsers, err := service.Svc.ClusterUser().ListV2(*params)
 	if err != nil {
 		log.Error(err)
 		return nil, errno.ErrClusterNotFound
 	}
 
-	if errn := pipeLine(clusterUsers, userId); errn != nil {
+	if errn := PipeLine(clusterUsers, userId, isAdmin); errn != nil {
 		log.Error(err)
 		return nil, errn
 	}
-
 	// user that not admin can not see other user's data
 	if !isAdmin {
-
 		// todo supports search for SpaceType(only need to deal with filter)
 		clusterUsers = filter(clusterUsers, relatedToSomebody(userId))
+	}
+
+	// filter can be used for base space
+	if isCanBeUsedAsBaseSpace && len(clusterUsers) > 0 {
+		clusterUsers = filter(clusterUsers, isCanBeUsedAsBaseSpaceFun())
 	}
 	return clusterUsers, nil
 }
@@ -121,7 +154,22 @@ func relatedToSomebody(userId uint64) func(*model.ClusterUserV2) bool {
 				return true
 			}
 		}
+
+		clusterCache, err := service.Svc.ClusterSvc().GetCache(cu.ClusterId)
+		if err != nil {
+			return false
+		}
+		if clusterCache.UserId == userId {
+			return true
+		}
+
 		return false
+	}
+}
+
+func isCanBeUsedAsBaseSpaceFun() func(*model.ClusterUserV2) bool {
+	return func(cu *model.ClusterUserV2) bool {
+		return cu.SpaceType != model.MeshSpace && cu.IsBaseSpace
 	}
 }
 
@@ -136,13 +184,13 @@ func filter(clusterUsers []*model.ClusterUserV2, condition func(*model.ClusterUs
 	return result
 }
 
-func pipeLine(clusterUsers []*model.ClusterUserV2, userId uint64) *errno.Errno {
+func PipeLine(clusterUsers []*model.ClusterUserV2, userId uint64, isAdmin bool) error {
 	// First group DevSpace by cluster and dispatch the RBAC via serviceAccount
 	// associate by the current user
 	// Then Filling the ext custom field for current user
 	// Last sort the list
 	// (For different user, may has different ext field and item's sort priority1)
-	if err := fillExtByUser(groupByCLuster(clusterUsers), userId); err != nil {
+	if err := fillExtByUser(groupByCLuster(clusterUsers), userId, isAdmin); err != nil {
 		return err
 	}
 	doSort(clusterUsers)
@@ -154,19 +202,40 @@ func doSort(clusterUsers []*model.ClusterUserV2) {
 		clusterUsers, func(i, j int) bool {
 			cu1 := clusterUsers[i]
 			cu2 := clusterUsers[j]
-
-			// clusterAdmin show at the top
-			return *cu1.ClusterAdmin > *cu2.ClusterAdmin ||
-				cu1.ClusterUserExt.SpaceOwnType.Priority > cu2.ClusterUserExt.SpaceOwnType.Priority ||
-				cu1.UserId > cu2.UserId
+			//clusterAdmin show at the top
+			if *cu1.ClusterAdmin > *cu2.ClusterAdmin {
+				return true
+			}
+			if *cu1.ClusterAdmin < *cu2.ClusterAdmin {
+				return false
+			}
+			if cu1.ClusterUserExt.SpaceOwnType.Priority > cu2.ClusterUserExt.SpaceOwnType.Priority {
+				return true
+			}
+			if cu1.ClusterUserExt.SpaceOwnType.Priority < cu2.ClusterUserExt.SpaceOwnType.Priority {
+				return false
+			}
+			if cu1.ClusterId < cu2.ClusterId {
+				return true
+			}
+			if cu1.ClusterId > cu2.ClusterId {
+				return false
+			}
+			if cu1.UserId < cu2.UserId {
+				return true
+			}
+			if cu1.UserId > cu2.UserId {
+				return false
+			}
+			return cu1.SpaceName < cu2.SpaceName
 		},
 	)
 }
 
-func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64) *errno.Errno {
+func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, isAdmin bool) error {
 	list, err := service.Svc.ClusterSvc().GetList(context.TODO())
 	if err != nil {
-		log.ErrorE(err, "Error while list cluster")
+		log.Errorf("Error while list cluster: %+v", err)
 		return errno.ErrClusterNotFound
 	}
 
@@ -184,8 +253,24 @@ func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64) *e
 				fillResourceListSet(cu)
 				fillOwner(cu)
 
+				cu.ClusterName = cluster.ClusterName
+				cu.Modifiable =
+					isAdmin ||
+						// current user is the owner of dev space
+						cu.UserId == currentUser ||
+						// current user is the creator of dev space's cluster
+						cluster.UserId == currentUser
+
+				cu.Deletable = isAdmin ||
+					// current user is the creator of dev space's cluster
+					cluster.UserId == currentUser
+
 				if cu.IsClusterAdmin() {
-					cu.SpaceType = model.IsolateSpace
+					if cu.BaseDevSpaceId > 0 {
+						cu.SpaceType = model.MeshSpace
+					} else {
+						cu.SpaceType = model.IsolateSpace
+					}
 
 					if cluster_scope.IsValidOwner(cluster.ID, currentUser) {
 						cu.SpaceOwnType = model.DevSpaceOwnTypeOwner
@@ -200,7 +285,11 @@ func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64) *e
 					fillClusterCooperator(cu, cluster.ID)
 					fillClusterViewer(cu, cluster.ID)
 				} else {
-					cu.SpaceType = model.IsolateSpace
+					if cu.BaseDevSpaceId > 0 {
+						cu.SpaceType = model.MeshSpace
+					} else {
+						cu.SpaceType = model.IsolateSpace
+					}
 
 					// fill SpaceOwnType
 					if contains(ownNss, cu.Namespace) {

@@ -1,14 +1,17 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package app
 
 import (
+	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/resource"
 	flag "nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
@@ -20,6 +23,37 @@ import (
 	"nocalhost/pkg/nhctl/tools"
 	"os"
 )
+
+// some validation relies on K8s resource, etc.
+// so we should query them first
+// and use os.setEnv to pass those condition
+func (a *Application) PrepareForConfigurationValidate(containers []v1.Container) {
+	if len(containers) > 0 {
+		cs := ""
+		for _, container := range containers {
+			cs += container.Name + "\n"
+		}
+		_ = os.Setenv(profile.CONTAINERS, cs)
+	}
+
+
+	client := a.GetClient()
+	if client == nil || client.ClientSet == nil {
+		return
+	}
+
+	if list, err := client.ClientSet.StorageV1().StorageClasses().List(
+		context.TODO(), metav1.ListOptions{},
+	); err != nil {
+		return
+	} else {
+		storageClasses := ""
+		for _, item := range list.Items {
+			storageClasses += item.Name + "\n"
+		}
+		_ = os.Setenv(profile.SUPPORT_SC, storageClasses)
+	}
+}
 
 func (a *Application) PrepareForUpgrade(flags *flag.InstallFlags) error {
 
@@ -48,16 +82,8 @@ func (a *Application) PrepareForUpgrade(flags *flag.InstallFlags) error {
 	}
 
 	a.appMeta.Config = config
-	if err := a.appMeta.Update(); err != nil {
-		return err
-	}
-
-	return a.UpdateProfile(
-		func(p *profile.AppProfileV2) error {
-			updateProfileFromConfig(p, config)
-			return nil
-		},
-	)
+	a.appMeta.Config.Migrated = true
+	return a.appMeta.Update()
 }
 
 func (a *Application) Upgrade(installFlags *flag.InstallFlags) error {

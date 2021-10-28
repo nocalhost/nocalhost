@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package appmeta_manager
 
@@ -13,10 +13,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"nocalhost/internal/nhctl/resouce_cache"
+	"k8s.io/client-go/util/flowcontrol"
 	"nocalhost/internal/nhctl/watcher"
 	"nocalhost/pkg/nhctl/log"
-	"strings"
 	"sync"
 )
 
@@ -114,6 +113,7 @@ func (hws *helmSecretWatcher) Prepare() (existRelease []string, err error) {
 	}
 
 	// creates the clientset
+	c.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
 	clientset, err := kubernetes.NewForConfig(c)
 	if err != nil {
 		return
@@ -131,40 +131,27 @@ func (hws *helmSecretWatcher) Prepare() (existRelease []string, err error) {
 	hws.watchController = controller
 
 	// creates the clientset
-	hws.clientSet, err = kubernetes.NewForConfig(c)
-	if err != nil {
-		return
-	}
+	hws.clientSet = clientset
 
-	// first get all secrets for initial
-	// and find out the invalid nocalhost application
-	searcher, err := resouce_cache.GetSearcher(hws.configBytes, hws.ns, false)
-	if err != nil {
-		log.ErrorE(err, "")
-		return
-	}
-
-	ss, err := searcher.Criteria().
-		Namespace(hws.ns).
-		ResourceType("secrets").Query()
-	if err != nil {
-		log.ErrorE(err, "")
-		return
-	}
-
-	for _, secret := range ss {
-		v := secret.(*v1.Secret)
-
-		// this may cause bug that contains sh.helm.release
-		// may not managed by helm
-		if strings.Contains(v.Name, "sh.helm.release.v1") {
-			if release, err := DecodeRelease(string(v.Data["release"])); err == nil && release.Info.Deleted == "" {
-				if rlsName, err := GetRlsNameFromKey(v.Name); err == nil {
-					existRelease = append(existRelease, rlsName)
-				}
-			}
-		}
-	}
+	//// first get all secrets for initial
+	//// and find out the invalid nocalhost application
+	//ss, err := clientset.CoreV1().Secrets(hws.ns).List(context.TODO(), metav1.ListOptions{})
+	//if err != nil {
+	//	log.ErrorE(err, "")
+	//	return
+	//}
+	//
+	//for _, v := range ss.Items {
+	//	// this may cause bug that contains sh.helm.release
+	//	// may not managed by helm
+	//	if strings.Contains(v.Name, "sh.helm.release.v1") {
+	//		if release, err := DecodeRelease(string(v.Data["release"])); err == nil && release.Info.Deleted == "" {
+	//			if rlsName, err := GetRlsNameFromKey(v.Name); err == nil {
+	//				existRelease = append(existRelease, rlsName)
+	//			}
+	//		}
+	//	}
+	//}
 
 	return
 }

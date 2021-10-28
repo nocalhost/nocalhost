@@ -43,7 +43,7 @@ Nocalhost 为 JetBrains 和 VSCode 提供易于使用的 IDE 插件，让开发�
 
 * [安装](https://nocalhost.dev/zh-CN/docs/installation)
 * [快速开始](https://nocalhost.dev/zh-CN/docs/quick-start)
-* [核心概念](https://nocalhost.dev/zh-CN/docs/introduction)
+* [核心概念](https://nocalhost.dev/zh-CN/docs/introduction/#nocalhost-%E6%98%AF%E5%A6%82%E4%BD%95%E5%B7%A5%E4%BD%9C%E7%9A%84%EF%BC%9F)
 
 ## 文档
 

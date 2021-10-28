@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -56,43 +56,79 @@ var profileSetCmd = &cobra.Command{
 			log.Fatalf("Config key %s is unsupported", configKey)
 		}
 
-		nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-			var defaultContainerConfig, targetContainerConfig *profile.ContainerConfig
-			for _, c := range v2.ContainerConfigs {
-				if c.Name == "" {
-					defaultContainerConfig = c
-				} else if c.Name == container {
-					targetContainerConfig = c
-					break
-				}
+		svcConfig := nocalhostSvc.Config()
+		var defaultContainerConfig, targetContainerConfig *profile.ContainerConfig
+		for _, c := range svcConfig.ContainerConfigs {
+			if c.Name == "" {
+				defaultContainerConfig = c
+			} else if c.Name == container {
+				targetContainerConfig = c
+				break
 			}
-			if targetContainerConfig == nil && defaultContainerConfig != nil {
-				defaultContainerConfig.Name = container
-				targetContainerConfig = defaultContainerConfig
+		}
+		if targetContainerConfig == nil && defaultContainerConfig != nil {
+			defaultContainerConfig.Name = container
+			targetContainerConfig = defaultContainerConfig
+		}
+		if targetContainerConfig != nil {
+			if targetContainerConfig.Dev == nil {
+				targetContainerConfig.Dev = &profile.ContainerDevConfig{}
 			}
-
-			if targetContainerConfig != nil {
-				if targetContainerConfig.Dev == nil {
-					targetContainerConfig.Dev = &profile.ContainerDevConfig{}
-				}
-				if configKey == imageKey {
-					targetContainerConfig.Dev.Image = configVal
-				} else if configKey == gitUrlKey {
-					targetContainerConfig.Dev.GitUrl = configVal
-				}
-				return nil
-			}
-			// Create one
-			targetContainerConfig = &profile.ContainerConfig{Dev: &profile.ContainerDevConfig{}, Name: container}
-			switch configKey {
-			case imageKey:
+			if configKey == imageKey {
 				targetContainerConfig.Dev.Image = configVal
-			case gitUrlKey:
+			} else if configKey == gitUrlKey {
 				targetContainerConfig.Dev.GitUrl = configVal
 			}
-			v2.ContainerConfigs = append(v2.ContainerConfigs, targetContainerConfig)
-			return nil
-		})
+			must(nocalhostSvc.UpdateConfig(*svcConfig))
+			return
+		}
+		targetContainerConfig = &profile.ContainerConfig{Dev: &profile.ContainerDevConfig{}, Name: container}
+		switch configKey {
+		case imageKey:
+			targetContainerConfig.Dev.Image = configVal
+		case gitUrlKey:
+			targetContainerConfig.Dev.GitUrl = configVal
+		}
+		svcConfig.ContainerConfigs = append(svcConfig.ContainerConfigs, targetContainerConfig)
+		must(nocalhostSvc.UpdateConfig(*svcConfig))
+
+		//nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
+		//	var defaultContainerConfig, targetContainerConfig *profile.ContainerConfig
+		//	for _, c := range v2.ContainerConfigs {
+		//		if c.Name == "" {
+		//			defaultContainerConfig = c
+		//		} else if c.Name == container {
+		//			targetContainerConfig = c
+		//			break
+		//		}
+		//	}
+		//	if targetContainerConfig == nil && defaultContainerConfig != nil {
+		//		defaultContainerConfig.Name = container
+		//		targetContainerConfig = defaultContainerConfig
+		//	}
+		//
+		//	if targetContainerConfig != nil {
+		//		if targetContainerConfig.Dev == nil {
+		//			targetContainerConfig.Dev = &profile.ContainerDevConfig{}
+		//		}
+		//		if configKey == imageKey {
+		//			targetContainerConfig.Dev.Image = configVal
+		//		} else if configKey == gitUrlKey {
+		//			targetContainerConfig.Dev.GitUrl = configVal
+		//		}
+		//		return nil
+		//	}
+		//	// Create one
+		//	targetContainerConfig = &profile.ContainerConfig{Dev: &profile.ContainerDevConfig{}, Name: container}
+		//	switch configKey {
+		//	case imageKey:
+		//		targetContainerConfig.Dev.Image = configVal
+		//	case gitUrlKey:
+		//		targetContainerConfig.Dev.GitUrl = configVal
+		//	}
+		//	v2.ContainerConfigs = append(v2.ContainerConfigs, targetContainerConfig)
+		//	return nil
+		//})
 	},
 }
 

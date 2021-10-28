@@ -8,12 +8,12 @@ package clientgoutils
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"k8s.io/api/batch/v1beta1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/flowcontrol"
-	"net/http"
-	"net/url"
 	"nocalhost/internal/nhctl/utils"
 	"path/filepath"
 	"sort"
@@ -41,20 +41,20 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"k8s.io/client-go/tools/portforward"
-	"k8s.io/client-go/transport/spdy"
-
 	"nocalhost/pkg/nhctl/log"
 )
 
 type ClientGoUtils struct {
-	kubeConfigFilePath string
-	restConfig         *restclient.Config
-	ClientSet          *kubernetes.Clientset
-	dynamicClient      dynamic.Interface //
-	ClientConfig       clientcmd.ClientConfig
-	namespace          string
-	ctx                context.Context
+	kubeConfigFilePath      string
+	restConfig              *restclient.Config
+	ClientSet               *kubernetes.Clientset
+	dynamicClient           dynamic.Interface //
+	ClientConfig            clientcmd.ClientConfig
+	namespace               string
+	includeDeletedResources bool
+	ctx                     context.Context
+	labels                  map[string]string
+	fieldSelector           string
 }
 
 type PortForwardAPodRequest struct {
@@ -129,24 +129,63 @@ func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, 
 	return client, nil
 }
 
+func GetKubeContentFromPath(kubePath string) ([]byte, error) {
+	if kubePath == "" { // use default config
+		kubePath = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	}
+
+	abs, err := filepath.Abs(kubePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "please make sure kubeconfig path is reachable")
+	}
+
+	bys, err := ioutil.ReadFile(abs)
+	return bys, errors.Wrap(err, "")
+}
+
 func (c *ClientGoUtils) KubeConfigFilePath() string {
 	return c.kubeConfigFilePath
 }
 
-// Set ClientGoUtils's namespace
+// NameSpace Set ClientGoUtils's namespace
 func (c *ClientGoUtils) NameSpace(namespace string) *ClientGoUtils {
 	c.namespace = namespace
 	return c
 }
 
-// Set ClientGoUtils's Context
+// Context Set ClientGoUtils's Context
 func (c *ClientGoUtils) Context(ctx context.Context) *ClientGoUtils {
 	c.ctx = ctx
 	return c
 }
 
-func (c *ClientGoUtils) GetDynamicClient() dynamic.Interface {
+func (c *ClientGoUtils) Labels(labels map[string]string) *ClientGoUtils {
+	c.labels = labels
+	return c
+}
 
+func (c *ClientGoUtils) FieldSelector(f string) *ClientGoUtils {
+	c.fieldSelector = f
+	return c
+}
+
+func (c *ClientGoUtils) IncludeDeletedResources(i bool) *ClientGoUtils {
+	c.includeDeletedResources = i
+	return c
+}
+
+func (c *ClientGoUtils) getListOptions() metav1.ListOptions {
+	ops := metav1.ListOptions{}
+	if len(c.labels) > 0 {
+		ops.LabelSelector = labels.Set(c.labels).String()
+	}
+	if len(c.fieldSelector) > 0 {
+		ops.FieldSelector = c.fieldSelector
+	}
+	return ops
+}
+
+func (c *ClientGoUtils) GetDynamicClient() dynamic.Interface {
 	var restConfig *restclient.Config
 	restConfig, _ = clientcmd.BuildConfigFromFlags("", c.kubeConfigFilePath)
 	dyn, _ := dynamic.NewForConfig(restConfig)
@@ -348,7 +387,7 @@ func (c *ClientGoUtils) ListLatestRevisionPodsByDeployment(deployName string) ([
 
 OuterLoop:
 	for _, pod := range podList.Items {
-		if pod.OwnerReferences == nil {
+		if pod.OwnerReferences == nil || pod.DeletionTimestamp != nil {
 			continue
 		}
 		for _, ref := range pod.OwnerReferences {
@@ -385,58 +424,42 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 	return false, nil
 }
 
-func (c *ClientGoUtils) CreateSecret(secret *corev1.Secret, options metav1.CreateOptions) (*corev1.Secret, error) {
-	return c.ClientSet.CoreV1().Secrets(c.namespace).Create(c.ctx, secret, options)
-}
-
-func (c *ClientGoUtils) UpdateSecret(secret *corev1.Secret, options metav1.UpdateOptions) (*corev1.Secret, error) {
-	return c.ClientSet.CoreV1().Secrets(c.namespace).Update(c.ctx, secret, options)
-}
-
-func (c *ClientGoUtils) GetSecret(name string) (*corev1.Secret, error) {
-	return c.ClientSet.CoreV1().Secrets(c.namespace).Get(c.ctx, name, metav1.GetOptions{})
-}
-
-func (c *ClientGoUtils) DeleteSecret(name string) error {
-	return c.ClientSet.CoreV1().Secrets(c.namespace).Delete(c.ctx, name, metav1.DeleteOptions{})
-}
-
-func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
-	path := fmt.Sprintf(
-		"/api/v1/namespaces/%s/pods/%s/portforward",
-		req.Pod.Namespace, req.Pod.Name,
-	)
-	clientConfig, err := c.ClientConfig.ClientConfig()
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	transport, upgrader, err := spdy.RoundTripperFor(clientConfig)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	parseUrl, err := url.Parse(clientConfig.Host)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	parseUrl.Path = path
-	dialer := spdy.NewDialer(
-		upgrader, &http.Client{Transport: transport}, http.MethodPost,
-		//&url.URL{Scheme: schema, Path: path, Host: hostIP},
-		parseUrl,
-	)
-	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh,
-	//req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
-	fw, err := portforward.NewOnAddresses(
-		dialer, req.Listen, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh,
-		req.Streams.Out, req.Streams.ErrOut,
-	)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	return errors.Wrap(fw.ForwardPorts(), "")
-}
+//func (c *ClientGoUtils) PortForwardAPod(req PortForwardAPodRequest) error {
+//	path := fmt.Sprintf(
+//		"/api/v1/namespaces/%s/pods/%s/portforward",
+//		req.Pod.Namespace, req.Pod.Name,
+//	)
+//	clientConfig, err := c.ClientConfig.ClientConfig()
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//
+//	transport, upgrader, err := spdy.RoundTripperFor(clientConfig)
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//
+//	parseUrl, err := url.Parse(clientConfig.Host)
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//	parseUrl.Path = path
+//	dialer := spdy.NewDialer(
+//		upgrader, &http.Client{Transport: transport}, http.MethodPost,
+//		//&url.URL{Scheme: schema, Path: path, Host: hostIP},
+//		parseUrl,
+//	)
+//	// fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh,
+//	//req.ReadyCh, req.Streams.Out, req.Streams.ErrOut)
+//	fw, err := NewOnAddresses(
+//		dialer, req.Listen, []string{fmt.Sprintf("%d:%d", req.LocalPort, req.PodPort)}, req.StopCh, req.ReadyCh,
+//		req.Streams.Out, req.Streams.ErrOut,
+//	)
+//	if err != nil {
+//		return errors.Wrap(err, "")
+//	}
+//	return errors.Wrap(fw.ForwardPorts(), "")
+//}
 
 func (c *ClientGoUtils) GetNodesList() (*corev1.NodeList, error) {
 	nodes, err := c.ClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
@@ -454,48 +477,8 @@ func (c *ClientGoUtils) GetService(name string) (*corev1.Service, error) {
 	return service, nil
 }
 
-func (c *ClientGoUtils) CheckExistNameSpace(name string) error {
-	_, err := c.ClientSet.CoreV1().Namespaces().Get(c.ctx, name, metav1.GetOptions{})
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	return nil
-}
-
-func (c *ClientGoUtils) CreateNameSpace(name string, customLabels map[string]string) error {
-	nsSpec := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name, Labels: customLabels}}
-	_, err := c.ClientSet.CoreV1().Namespaces().Create(context.TODO(), nsSpec, metav1.CreateOptions{})
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	return nil
-}
-
 func (c *ClientGoUtils) GetContext() context.Context {
 	return c.ctx
-}
-
-func (c *ClientGoUtils) DeleteNameSpace(name string, wait bool) error {
-	err := c.ClientSet.CoreV1().Namespaces().Delete(context.TODO(), name, metav1.DeleteOptions{})
-	if wait {
-		timeout := time.After(5 * time.Minute)
-		tick := time.Tick(200 * time.Millisecond)
-		for {
-			select {
-			case <-timeout:
-				return errors.New("timeout with 5 minute")
-			case <-tick:
-				err := c.CheckExistNameSpace(name)
-				if err != nil {
-					return nil
-				}
-			}
-		}
-	}
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (c *ClientGoUtils) DeleteStatefulSetAndPVC(name string) error {

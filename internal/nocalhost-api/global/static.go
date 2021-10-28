@@ -10,6 +10,7 @@ const (
 	NocalhostSystemRoleBindingName         = "nocalhost-reserved-role-binding"
 	NocalhostSystemNamespaceLabel          = "nocalhost-reserved"
 	NocalhostDepName                       = "nocalhost-dep"
+	NocalhostName                          = "nocalhost"
 	NocalhostDevNamespaceLabel             = "nocalhost"
 	NocalhostDevServiceAccountName         = "nocalhost-dev-account"
 	NocalhostDevDefaultServiceAccountName  = "default"
@@ -27,6 +28,9 @@ const (
 	NocalhostDefaultPriorityclassName         = "nocalhost-container-critical"
 	NocalhostDefaultPriorityclassDefaultValue = 1000000
 	NocalhostDefaultPriorityclassKey          = "--priority-class"
+	NocalhostCreateByLabel                    = "app.kubernetes.io/created-by"
+	NocalhostRegistry                         = "nocalhost-docker.pkg.coding.net"
+	Nocalhostrepository                       = "nocalhost/public/nocalhost-api"
 )
 
 var (

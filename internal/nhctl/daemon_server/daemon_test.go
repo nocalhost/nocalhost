@@ -15,7 +15,7 @@ func TestUnMar(t *testing.T) {
 	meta := &appmeta.ApplicationMeta{}
 
 	meta.Config = &profile2.NocalHostAppConfigV2{}
-	meta.Config.ApplicationConfig = &profile2.ApplicationConfig{}
+	meta.Config.ApplicationConfig = profile2.ApplicationConfig{}
 
 	meta.Config.ApplicationConfig.HelmVals = map[string]interface{}{
 		"service": map[interface{}]interface{}{"port": "9082"},
@@ -85,4 +85,12 @@ func TestPortForwardManager_StartPortForwardGoRoutine(t *testing.T) {
 	}
 	fmt.Println("Listen")
 	_ = listener.Close()
+}
+
+func TestParseErrToForwardPort(t *testing.T) {
+	p, err := ParseErrToForwardPort("error creating error stream for port 20153 -> 20153: Timeout occured")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%v", p)
 }

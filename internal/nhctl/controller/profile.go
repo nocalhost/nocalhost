@@ -1,39 +1,41 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/hub"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 )
 
-func (c *Controller) SaveConfigToProfile(config *profile.ServiceConfigV2) error {
-	return c.UpdateProfile(
-		func(profileV2 *profile.AppProfileV2, svcPro *profile.SvcProfileV2) error {
-			if svcPro != nil {
-				config.Name = c.Name
-				svcPro.ServiceConfigV2 = config
-			} else {
-				config.Name = c.Name
-				svcPro = &profile.SvcProfileV2{
-					ServiceConfigV2: config,
-					ActualName:      c.Name,
-				}
-				profileV2.SvcProfile = append(profileV2.SvcProfile, svcPro)
-			}
-			return nil
-		},
-	)
-}
+//func (c *Controller) SaveConfigToProfile(config *profile.ServiceConfigV2) error {
+//	return c.UpdateProfile(
+//		func(profileV2 *profile.AppProfileV2, svcPro *profile.SvcProfileV2) error {
+//			if svcPro != nil {
+//				config.Name = c.Name
+//				svcPro.ServiceConfigV2 = config
+//			} else {
+//				config.Name = c.Name
+//				svcPro = &profile.SvcProfileV2{
+//					ServiceConfigV2: config,
+//					ActualName:      c.Name,
+//				}
+//				profileV2.SvcProfile = append(profileV2.SvcProfile, svcPro)
+//			}
+//			return nil
+//		},
+//	)
+//}
 
 func (c *Controller) GetAppProfile() (*profile.AppProfileV2, error) {
-	return nocalhost.GetProfileV2(c.NameSpace, c.AppName)
+	return nocalhost.GetProfileV2(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
 }
 
 func (c *Controller) GetProfile() (*profile.SvcProfileV2, error) {
@@ -43,29 +45,46 @@ func (c *Controller) GetProfile() (*profile.SvcProfileV2, error) {
 	}
 	return p.SvcProfileV2(c.Name, string(c.Type)), nil
 }
-
-func (c *Controller) GetWorkDir(container string) string {
-	svcProfile, _ := c.GetProfile()
-	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).WorkDir != "" {
-		return svcProfile.GetContainerDevConfigOrDefault(container).WorkDir
+func (c *Controller) LoadConfigFromHub() error {
+	containers, err := c.GetContainers()
+	if err != nil {
+		return err
 	}
-	return profile.DefaultWorkDir
+	for _, container := range containers {
+		_ = c.LoadConfigFromHubC(container.Name)
+	}
+	return nil
 }
 
-func (c *Controller) GetStorageClass(container string) string {
-	svcProfile, _ := c.GetProfile()
-	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).StorageClass != "" {
-		return svcProfile.GetContainerDevConfigOrDefault(container).StorageClass
-	}
-	return ""
-}
+func (c *Controller) LoadConfigFromHubC(container string) error {
+	p := c.Config()
 
-func (c *Controller) GetDevImage(container string) string {
-	svcProfile, _ := c.GetProfile()
-	if svcProfile != nil && svcProfile.GetContainerDevConfigOrDefault(container).Image != "" {
-		return svcProfile.GetContainerDevConfigOrDefault(container).Image
+	for _, cc := range p.ContainerConfigs {
+		if cc != nil && cc.Dev != nil && cc.Dev.Image != "" {
+			return nil
+		}
 	}
-	return profile.DefaultDevImage
+
+	cc := p.GetContainerConfig(container)
+	if cc == nil || cc.Dev == nil || cc.Dev.Image == "" {
+		log.Logf("%s config not found, try to load it from hub", container)
+		originImage, err := c.GetContainerImage(container)
+		if err == nil {
+			// load config from hub
+			svcConfig, err := hub.FindNocalhostSvcConfig(c.AppName, c.Name, c.Type, container, originImage)
+			if err != nil {
+				log.LogE(err)
+			}
+			if svcConfig != nil {
+				svcConfig.Name = c.Name
+				svcConfig.Type = string(c.Type)
+				if err := c.UpdateConfig(*svcConfig); err != nil {
+					log.Logf("Load nocalhost svc config from hub fail, fail while updating svc profile, err: %s", err.Error())
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (c *Controller) GetPortForwardForSync() (*profile.DevPortForward, error) {
@@ -85,20 +104,19 @@ func (c *Controller) GetPortForwardForSync() (*profile.DevPortForward, error) {
 func (c *Controller) SetPortForwardedStatus(is bool) error {
 	return c.UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
-			if svcProfile == nil {
-				return errors.New("Failed to get controller profile")
-			}
 			svcProfile.PortForwarded = is
 			return nil
 		},
 	)
 }
 
-func (c *Controller) setSyncthingProfileEndStatus() error {
+func (c *Controller) setSyncthingProfileEndStatus(duplicateDevMode bool) error {
 	return c.UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
-			if svcProfile == nil {
-				return errors.New("Failed to get controller profile")
+			if duplicateDevMode {
+				svcProfile.DuplicateDevModeSyncthingSecretName = ""
+			} else {
+				svcProfile.SyncthingSecret = ""
 			}
 			svcProfile.RemoteSyncthingPort = 0
 			svcProfile.RemoteSyncthingGUIPort = 0
@@ -114,12 +132,8 @@ func (c *Controller) setSyncthingProfileEndStatus() error {
 
 // You should `CheckIfPortForwardExists` before adding a port-forward to db
 func (c *Controller) AddPortForwardToDB(port *profile.DevPortForward) error {
-	return c.UpdateProfile(
-		func(profileV2 *profile.AppProfileV2, svcProfile *profile.SvcProfileV2) error {
-			if svcProfile == nil {
-				return errors.New("Failed to get controller profile")
-			}
-
+	return c.UpdateSvcProfile(
+		func(svcProfile *profile.SvcProfileV2) error {
 			svcProfile.DevPortForwardList = append(svcProfile.DevPortForwardList, port)
 			return nil
 		},
@@ -177,7 +191,30 @@ func (c *Controller) SetSyncthingPort(remotePort, remoteGUIPort, localPort, loca
 	)
 }
 
-// You need to closeDB for profile explicitly
+// GetProfileForUpdate You need to closeDB for profile explicitly
 func (c *Controller) GetProfileForUpdate() (*profile.AppProfileV2, error) {
-	return profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName)
+	return profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
+}
+
+func UpdateSvcConfig(ns, appName, kubeconfig string, config *profile.ServiceConfigV2) error {
+	meta, err := nocalhost.GetApplicationMeta(appName, ns, kubeconfig)
+	if err != nil {
+		return err
+	}
+	if !meta.IsInstalled() {
+		return errors.New(fmt.Sprintf("AppMeta %s-%s is not installed", appName, ns))
+	}
+	meta.Config.SetSvcConfigV2(*config)
+	return meta.Update()
+}
+
+func GetSvcConfig(ns, appName, svcName, kubeconfig string, svcType base.SvcType) (*profile.ServiceConfigV2, error) {
+	meta, err := nocalhost.GetApplicationMeta(appName, ns, kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+	if !meta.IsInstalled() {
+		return nil, errors.New(fmt.Sprintf("AppMeta %s-%s is not installed", appName, ns))
+	}
+	return meta.Config.GetSvcConfigV2(svcName, svcType), nil
 }

@@ -13,15 +13,39 @@ import (
 	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/internal/nhctl/syncthing/ports"
 	"os"
+	"strconv"
 	"strings"
 )
 
+type DevModeType string
+
 const (
-	// codingcorp-docker.pkg.coding.net/nocalhost/public/minideb:latest"
-	DefaultDevImage = ""
-	DefaultWorkDir  = "/home/nocalhost-dev"
+	// nocalhost-docker.pkg.coding.net/nocalhost/public/minideb:latest"
+	DefaultDevImage  = ""
+	DefaultWorkDir   = "/home/nocalhost-dev"
+	DuplicateDevMode = DevModeType("duplicate")
+	ReplaceDevMode   = DevModeType("replace")
 )
+
+func (d DevModeType) IsReplaceDevMode() bool {
+	if d == ReplaceDevMode || d == "" {
+		return true
+	}
+	return false
+}
+
+func (d DevModeType) IsDuplicateDevMode() bool {
+	return d == DuplicateDevMode
+}
+
+func (d DevModeType) ToString() string {
+	if d == "" {
+		return string(ReplaceDevMode)
+	}
+	return string(d)
+}
 
 type AppProfileV2 struct {
 	Name string `json:"name" yaml:"name"`
@@ -44,9 +68,9 @@ type AppProfileV2 struct {
 	// Deprecated
 	AppType string `json:"appType" yaml:"appType"`
 	// Deprecated
-	Env []*Env `json:"env" yaml:"env"`
-	// Deprecated
-	EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
+	//Env []*Env `json:"env" yaml:"env"`
+	//// Deprecated
+	//EnvFrom EnvFrom `json:"envFrom" yaml:"envFrom"`
 
 	// app global field
 	Namespace  string `json:"namespace" yaml:"namespace"`
@@ -56,6 +80,10 @@ type AppProfileV2 struct {
 	// for previous version, associate path is stored in profile
 	// and now it store in a standalone db
 	AssociateMigrate bool `json:"associate_migrate" yaml:"associate_migrate"`
+
+	// for previous version, config is stored in profile
+	// and now it store in app meta
+	//ConfigMigrated bool `json:"configMigrated" yaml:"configMigrated"`
 
 	// app global status
 	Identifier string `json:"identifier" yaml:"identifier"`
@@ -73,8 +101,8 @@ func ProfileV2Key(ns, app string) string {
 	return fmt.Sprintf("%s.%s.profile.v2", ns, app)
 }
 
-func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
-	path := nocalhost_path.GetAppDbDir(ns, name)
+func NewAppProfileV2ForUpdate(ns, name, nid string) (*AppProfileV2, error) {
+	path := nocalhost_path.GetAppDbDir(ns, name, nid)
 	db, err := dbutils.OpenLevelDB(path, false)
 	if err != nil {
 		_ = db.Close()
@@ -119,10 +147,11 @@ func NewAppProfileV2ForUpdate(ns, name string) (*AppProfileV2, error) {
 	return result, nil
 }
 
+// SvcProfileV2 The result will not be nil
 func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV2 {
 
 	for _, svcProfile := range a.SvcProfile {
-		if svcProfile.ActualName == svcName && svcProfile.Type == svcType {
+		if svcProfile.GetName() == svcName && svcProfile.GetType() == svcType {
 			return svcProfile
 		}
 	}
@@ -132,19 +161,8 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 		a.SvcProfile = make([]*SvcProfileV2, 0)
 	}
 	svcProfile := &SvcProfileV2{
-		ServiceConfigV2: &ServiceConfigV2{
-			Name: svcName,
-			Type: svcType,
-			ContainerConfigs: []*ContainerConfig{
-				{
-					Dev: &ContainerDevConfig{
-						Image:   DefaultDevImage,
-						WorkDir: DefaultWorkDir,
-					},
-				},
-			},
-		},
-		ActualName: svcName,
+		Type: svcType,
+		Name: svcName,
 	}
 	a.SvcProfile = append(a.SvcProfile, svcProfile)
 
@@ -154,7 +172,7 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 // this method will not save the Identifier,
 // make sure it will be saving while use
 func (a *AppProfileV2) GenerateIdentifierIfNeeded() string {
-	if a.Identifier == "" && a != nil {
+	if a != nil && a.Identifier == "" {
 		u, _ := uuid.NewRandom()
 		a.Identifier = u.String()
 	}
@@ -183,9 +201,13 @@ func (a *AppProfileV2) CloseDb() error {
 }
 
 type SvcProfileV2 struct {
-	*ServiceConfigV2 `json:"rawConfig" yaml:"rawConfig"`
-	ContainerProfile []*ContainerProfileV2 `json:"containerProfile" yaml:"containerProfile"`
-	ActualName       string                `json:"actualName" yaml:"actualName"` // for helm, actualName may be ReleaseName-Name
+	*ServiceConfigV2 `json:"rawConfig" yaml:"rawConfig"` // deprecated, move to app mate
+	//ContainerProfile []*ContainerProfileV2 `json:"containerProfile" yaml:"containerProfile"`
+	ActualName string `json:"actualName" yaml:"actualName"` // deprecated - for helm, actualName may be ReleaseName-Name
+
+	// todo: Is this will conflict with ServiceConfigV2 ? by hxx
+	Name string `json:"name" yaml:"name"`
+	Type string `json:"serviceType" yaml:"serviceType"`
 
 	PortForwarded bool     `json:"portForwarded" yaml:"portForwarded"`
 	Syncing       bool     `json:"syncing" yaml:"syncing"`
@@ -193,8 +215,9 @@ type SvcProfileV2 struct {
 	// same as local available port, use for port-forward
 	RemoteSyncthingPort int `json:"remoteSyncthingPort" yaml:"remoteSyncthingPort"`
 	// same as local available port, use for port-forward
-	RemoteSyncthingGUIPort int    `json:"remoteSyncthingGUIPort" yaml:"remoteSyncthingGUIPort"`
-	SyncthingSecret        string `json:"syncthingSecret" yaml:"syncthingSecret"` // secret name
+	RemoteSyncthingGUIPort              int    `json:"remoteSyncthingGUIPort" yaml:"remoteSyncthingGUIPort"`
+	SyncthingSecret                     string `json:"syncthingSecret" yaml:"syncthingSecret"` // secret name
+	DuplicateDevModeSyncthingSecretName string `json:"duplicateDevModeSyncthingSecretName" yaml:"duplicateDevModeSyncthingSecretName"`
 	// syncthing local port
 	LocalSyncthingPort                     int               `json:"localSyncthingPort" yaml:"localSyncthingPort"`
 	LocalSyncthingGUIPort                  int               `json:"localSyncthingGUIPort" yaml:"localSyncthingGUIPort"`
@@ -226,18 +249,14 @@ type SvcProfileV2 struct {
 	// mean the current controller is possess by current nhctl context
 	// and the syncthing process is listen on current device
 	Possess bool `json:"possess" yaml:"possess"`
-}
 
-func (s *SvcProfileV2) GetContainerConfig(container string) *ContainerConfig {
-	if s == nil {
-		return nil
-	}
-	for _, c := range s.ContainerConfigs {
-		if c.Name == container {
-		}
-		return c
-	}
-	return nil
+	// LocalDevMode can be started in every local desktop and not influence each other
+	//DuplicateDevMode bool        `json:"duplicateDevMode" yaml:"duplicateDevMode"`
+	DevModeType DevModeType `json:"devModeType" yaml:"devModeType"`
+
+	// recorded the container that enter the devmode
+	// notice: exit devmode will not set this value to null
+	OriginDevContainer string `json:"originDevContainer" yaml:"originDevContainer"`
 }
 
 type ContainerProfileV2 struct {
@@ -245,15 +264,13 @@ type ContainerProfileV2 struct {
 }
 
 type DevPortForward struct {
-	LocalPort  int    `json:"localport" yaml:"localport"`
-	RemotePort int    `json:"remoteport" yaml:"remoteport"`
-	Role       string `json:"role" yaml:"role"`
-	Status     string `json:"status" yaml:"status"`
-	Reason     string `json:"reason" yaml:"reason"`
-	PodName    string `json:"podName" yaml:"podName"`
-	Updated    string `json:"updated" yaml:"updated"`
-	//Pid        int    `json:"pid" yaml:"pid"`
-	//RunByDaemonServer bool   `json:"runByDaemonServer" yaml:"runByDaemonServer"`
+	LocalPort       int    `json:"localport" yaml:"localport"`
+	RemotePort      int    `json:"remoteport" yaml:"remoteport"`
+	Role            string `json:"role" yaml:"role"`
+	Status          string `json:"status" yaml:"status"`
+	Reason          string `json:"reason" yaml:"reason"`
+	PodName         string `json:"podName" yaml:"podName"`
+	Updated         string `json:"updated" yaml:"updated"`
 	Sudo            bool   `json:"sudo" yaml:"sudo"`
 	DaemonServerPid int    `json:"daemonserverpid" yaml:"daemonserverpid"`
 	ServiceType     string `json:"servicetype" yaml:"servicetype"`
@@ -261,29 +278,101 @@ type DevPortForward struct {
 
 // Compatible for v1
 // Finding `containerName` config, if not found, use the first container config
-func (s *SvcProfileV2) GetContainerDevConfigOrDefault(containerName string) *ContainerDevConfig {
-	if containerName == "" {
-		return s.GetDefaultContainerDevConfig()
-	}
-	config := s.GetContainerDevConfig(containerName)
-	if config == nil {
-		config = s.GetDefaultContainerDevConfig()
-	}
-	return config
-}
+//func (s *SvcProfileV2) GetContainerDevConfigOrDefault(containerName string) *ContainerDevConfig {
+//	if containerName == "" {
+//		return s.GetDefaultContainerDevConfig()
+//	}
+//	config := s.GetContainerDevConfig(containerName)
+//	if config == nil {
+//		config = s.GetDefaultContainerDevConfig()
+//	}
+//	return config
+//}
 
-func (s *SvcProfileV2) GetDefaultContainerDevConfig() *ContainerDevConfig {
-	if len(s.ContainerConfigs) == 0 {
-		return nil
-	}
-	return s.ContainerConfigs[0].Dev
-}
+//func (s *SvcProfileV2) GetDefaultContainerDevConfig() *ContainerDevConfig {
+//	if len(s.ContainerConfigs) == 0 {
+//		return nil
+//	}
+//	return s.ContainerConfigs[0].Dev
+//}
 
-func (s *SvcProfileV2) GetContainerDevConfig(containerName string) *ContainerDevConfig {
-	for _, devConfig := range s.ContainerConfigs {
-		if devConfig.Name == containerName {
-			return devConfig.Dev
+//func (s *SvcProfileV2) GetContainerDevConfig(containerName string) *ContainerDevConfig {
+//	for _, devConfig := range s.ContainerConfigs {
+//		if devConfig.Name == containerName {
+//			return devConfig.Dev
+//		}
+//	}
+//	return nil
+//}
+
+func (s *SvcProfileV2) GetName() string {
+	if s.Name == "" {
+		if s.ActualName != "" {
+			s.Name = s.ActualName
+		} else {
+			if s.ServiceConfigV2 != nil {
+				s.Name = s.ServiceConfigV2.Name
+			}
 		}
 	}
-	return nil
+	return s.Name
+}
+
+func (s *SvcProfileV2) GetType() string {
+	if s.Type == "" {
+		if s.ServiceConfigV2 != nil {
+			s.Type = s.ServiceConfigV2.Type
+		}
+	}
+	return s.Type
+}
+
+// portStr is like 8080:80, :80 or 80
+func GetPortForwardForString(portStr string) (int, int, error) {
+	var err error
+	s := strings.Split(portStr, ":")
+
+	switch len(s) {
+	case 1:
+		if port, err := strconv.Atoi(portStr); err != nil {
+			return 0, 0, errors.Wrap(err, fmt.Sprintf("Wrong format of port: %s.", portStr))
+		} else if port > 65535 || port < 0 {
+			return 0, 0, errors.New(
+				fmt.Sprintf(
+					"The range of TCP port number is [0, 65535], wrong defined of port: %s.", portStr,
+				),
+			)
+		} else {
+			return port, port, nil
+		}
+	default:
+		var localPort, remotePort int
+		sLocalPort := s[0]
+		if sLocalPort == "" {
+			// get random port in local
+			if localPort, err = ports.GetAvailablePort(); err != nil {
+				return 0, 0, err
+			}
+		} else if localPort, err = strconv.Atoi(sLocalPort); err != nil {
+			return 0, 0, errors.Wrap(err, fmt.Sprintf("Wrong format of local port: %s.", sLocalPort))
+		}
+		if remotePort, err = strconv.Atoi(s[1]); err != nil {
+			return 0, 0, errors.Wrap(err, fmt.Sprintf("wrong format of remote port: %s, skipped", s[1]))
+		}
+		if localPort > 65535 || localPort < 0 {
+			return 0, 0, errors.New(
+				fmt.Sprintf(
+					"The range of TCP port number is [0, 65535], wrong defined of local port: %s.", portStr,
+				),
+			)
+		}
+		if remotePort > 65535 || localPort < 0 {
+			return 0, 0, errors.New(
+				fmt.Sprintf(
+					"The range of TCP port number is [0, 65535], wrong defined of remote port: %s.", portStr,
+				),
+			)
+		}
+		return localPort, remotePort, nil
+	}
 }

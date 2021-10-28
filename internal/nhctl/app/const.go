@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package app
 
@@ -20,7 +20,7 @@ const (
 	// nhctl init
 	// TODO when release
 	DefaultInitHelmGitRepo             = "https://github.com/nocalhost/nocalhost.git"
-	DefaultInitHelmCODINGGitRepo       = "https://e.coding.net/codingcorp/nocalhost/nocalhost.git"
+	DefaultInitHelmCODINGGitRepo       = "https://e.coding.net/nocalhost/nocalhost/nocalhost.git"
 	DefaultInitHelmType                = "helmGit"
 	DefaultInitWatchDeployment         = "nocalhost-api"
 	DefaultInitWatchWebDeployment      = "nocalhost-web"
@@ -52,10 +52,13 @@ const (
 	DefaultInitApplicationCODING = "{\"source\":\"git\",\"install_type\":" +
 		"\"rawManifest\",\"resource_dir\":[\"manifest/templates\"],\"application_name\"" +
 		":\"bookinfo\",\"application_url\":" +
-		"\"https://e.coding.net/codingcorp/nocalhost/bookinfo.git\"}"
+		"\"https://e.coding.net/nocalhost/nocalhost/bookinfo.git\"}"
+	DefaultInitApplicationBookinfoTracing = "{\"source\":\"git\",\"install_type\":\"rawManifest\"," +
+		"\"resource_dir\":[\"manifest/templates\"],\"application_name\":\"bookinfo-tracing\"," +
+		"\"application_url\":\"https://github.com/nocalhost/bookinfo-tracing.git\"}"
 	// Init Component Version Control, HEAD means build from tag
 	DefaultNocalhostMainBranch        = "HEAD"
-	DefaultNocalhostDepDockerRegistry = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-dep"
+	DefaultNocalhostDepDockerRegistry = "nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-dep"
 
 	DefaultDevContainerShell = "(zsh || bash || sh)"
 

@@ -7,28 +7,28 @@ package app
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"net"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/dev_dir"
+	"nocalhost/internal/nhctl/envsubst"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
-
-	"github.com/pkg/errors"
 )
 
 var (
@@ -42,6 +42,7 @@ type Application struct {
 	NameSpace  string
 	KubeConfig string
 	AppType    string
+	Identifier string
 
 	// may be nil, only for install or upgrade
 	// dir use to load the user's resource
@@ -62,26 +63,12 @@ func (a *Application) GetAppMeta() *appmeta.ApplicationMeta {
 	return a.appMeta
 }
 
-func (a *Application) moveProfileFromFileToLeveldb() error {
-	profileV2 := &profile.AppProfileV2{}
-
-	fBytes, err := ioutil.ReadFile(a.getProfileV2Path())
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	err = yaml.Unmarshal(fBytes, profileV2)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	log.Log("Move profile to leveldb")
-
-	//a.profileV2 = profileV2
-	return nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
-}
-
 func NewFakeApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
 
 	var err error
+	if kubeconfig == "" { // use default config
+		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	}
 	app := &Application{
 		Name:       name,
 		NameSpace:  ns,
@@ -95,14 +82,23 @@ func NewFakeApplication(name string, ns string, kubeconfig string, initClient bo
 
 	// if still not present
 	// load from secret
-	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
+	// todo: check if this has err.
+	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId)
 	if err != nil {
-		profileV2 = generateProfileFromConfig(app.appMeta.Config)
-		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, profileV2); err != nil {
+		profileV2 = &profile.AppProfileV2{}
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
+			return nil, err
+		}
+	}
+
+	if profileV2.Identifier == "" {
+		profileV2.GenerateIdentifierIfNeeded()
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
 			return nil, err
 		}
 	}
 	app.AppType = profileV2.AppType
+	app.Identifier = profileV2.Identifier
 
 	if kubeconfig != "" && kubeconfig != profileV2.Kubeconfig {
 		if err := app.UpdateProfile(
@@ -123,23 +119,38 @@ func NewFakeApplication(name string, ns string, kubeconfig string, initClient bo
 	return app, nil
 }
 
-// When new a application, kubeconfig is required to get meta in k8s cluster
+// NewApplication When new a application, kubeconfig is required to get meta in k8s cluster
 // KubeConfig can be acquired from profile in leveldb
 func NewApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
+	return newApplication(name, ns, kubeconfig, nil, initClient)
+}
+
+func NewApplicationM(name string, ns string, kubeconfig string, meta *appmeta.ApplicationMeta, initClient bool) (*Application, error) {
+	return newApplication(name, ns, kubeconfig, meta, initClient)
+}
+
+func newApplication(name string, ns string, kubeconfig string, meta *appmeta.ApplicationMeta, initClient bool) (*Application, error) {
 
 	var err error
+	if kubeconfig == "" { // use default config
+		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+	}
 	app := &Application{
 		Name:       name,
 		NameSpace:  ns,
 		KubeConfig: kubeconfig,
 	}
 
-	if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
-		return nil, err
+	if meta == nil {
+		if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
+			return nil, err
+		}
+	} else {
+		app.appMeta = meta
 	}
 
 	// 1. first try load profile from local or earlier version
-	// 2. check should generate secret for adapt earlier version
+	// 2. (x deprecated) check should generate secret for adapt earlier version
 	// 3. try load application meta from secret
 	// 4. update kubeconfig for profile
 	// 5. init go client inner Application
@@ -148,30 +159,51 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		return nil, err
 	}
 
-	// if appMeta is not installed but application installed in earlier version
-	// should make a fake installation and generate an application meta
-	if app.generateSecretForEarlierVer() {
-
-		// load app meta if generate secret for earlier verion
-		if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
-			return nil, err
-		}
-	}
-
 	if !app.appMeta.IsInstalled() {
 		return nil, errors.Wrap(ErrNotFound, fmt.Sprintf("%s-%s not found", app.NameSpace, app.Name))
 	}
 
-	// if still not present
+	if err = app.appMeta.GenerateNidINE(); err != nil {
+		return nil, err
+	}
+
+	if err = nocalhost.MigrateNsDirToSupportNidIfNeeded(app.Name, app.NameSpace, app.appMeta.NamespaceId); err != nil {
+		return nil, err
+	}
+
 	// load from secret
-	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name)
+	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId)
 	if err != nil {
-		profileV2 = generateProfileFromConfig(app.appMeta.Config)
-		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, profileV2); err != nil {
+		profileV2 = &profile.AppProfileV2{}
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
 			return nil, err
 		}
 	}
+	// Migrate config to meta
+	if !app.appMeta.Config.Migrated {
+		if len(profileV2.SvcProfile) > 0 || app.appMeta.Config == nil {
+			c := app.newConfigFromProfile()
+			for _, sc := range c.ApplicationConfig.ServiceConfigs {
+				for _, scc := range sc.ContainerConfigs {
+					if scc.Dev != nil {
+						scc.Dev.Image = utils.ReplaceCodingcorpString(scc.Dev.Image)
+						scc.Dev.GitUrl = utils.ReplaceCodingcorpString(scc.Dev.GitUrl)
+					}
+				}
+			}
+			app.appMeta.Config = c
+			app.appMeta.Config.Migrated = true
+			if err = app.appMeta.Update(); err != nil {
+				return nil, err
+			}
+			if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	app.AppType = profileV2.AppType
+	app.Identifier = profileV2.Identifier
 
 	if kubeconfig != "" && kubeconfig != profileV2.Kubeconfig {
 		if err := app.UpdateProfile(
@@ -196,37 +228,32 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 	return app, nil
 }
 
-// for previous version, associate path is stored in profile
-// and now it store in a standalone db
-// we should check if migrate is needed
-func migrateAssociate(appProfile *profile.AppProfileV2, a *Application) {
-	if appProfile.AssociateMigrate {
-		return
-	}
-
-	for _, svcProfile := range appProfile.SvcProfile {
-		if svcProfile.Associate != "" {
-
-			_ = dev_dir.DevPath(svcProfile.Associate).
-				Associate(
-					dev_dir.NewSvcPack(
-						appProfile.Namespace,
-						appProfile.Name,
-						base.SvcTypeOf(svcProfile.Type),
-						svcProfile.Name,
-						"",
-					), "NotSupported",
-				)
-		}
-	}
-
-	_ = a.UpdateProfile(
-		func(v2 *profile.AppProfileV2) error {
-			v2.AssociateMigrate = true
-			return nil
-		},
-	)
-}
+//func (a *Application) migrateNsDirToSupportNidIfNeeded() {
+//	newDir := nocalhost_path.GetAppDirUnderNs(a.Name, a.NameSpace, a.appMeta.NamespaceId)
+//	_, err := os.Stat(newDir)
+//	if os.IsNotExist(err) {
+//		oldDir := nocalhost_path.GetAppDirUnderNsWithoutNid(a.Name, a.NameSpace)
+//		ss, err := os.Stat(oldDir)
+//		if err != nil {
+//			if os.IsNotExist(err) {
+//				return
+//			}
+//			log.LogE(errors.Wrap(err, ""))
+//			return
+//		}
+//		if !ss.IsDir() {
+//			return
+//		}
+//		if err = utils.CopyDir(oldDir, newDir); err != nil {
+//			log.LogE(err)
+//		} else {
+//			log.Logf("app %s in %s has been migrated", a.Name, a.NameSpace)
+//			if err = os.RemoveAll(oldDir); err != nil {
+//				log.LogE(errors.Wrap(err, ""))
+//			}
+//		}
+//	}
+//}
 
 func (a *Application) generateSecretForEarlierVer() bool {
 
@@ -261,7 +288,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 		log.Logf("Earlier version installed application found, generate a secret...")
 
 		profileV2.GenerateIdentifierIfNeeded()
-		_ = nocalhost.UpdateProfileV2(a.NameSpace, a.Name, profileV2)
+		_ = nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.appMeta.NamespaceId, profileV2)
 
 		// config、manifest is missing while adaption update
 		a.appMeta.Config = a.newConfigFromProfile()
@@ -285,7 +312,9 @@ func (a *Application) generateSecretForEarlierVer() bool {
 
 		for _, svc := range profileV2.SvcProfile {
 			if svc.Developing {
-				_ = a.appMeta.SvcDevStartComplete(svc.Name, base.SvcType(svc.Type), profileV2.Identifier)
+				_ = a.appMeta.SvcDevStartComplete(
+					svc.GetName(), base.SvcType(svc.GetType()), profileV2.Identifier, svc.DevModeType,
+				)
 			}
 		}
 
@@ -301,6 +330,7 @@ func (a *Application) generateSecretForEarlierVer() bool {
 	return false
 }
 
+// Deprecated: this method is no need any more, because config is always load from secrets now
 func (a *Application) ReloadCfg(reloadFromMeta, silence bool) error {
 	secretCfg := a.appMeta.Config
 	for _, config := range secretCfg.ApplicationConfig.ServiceConfigs {
@@ -325,47 +355,8 @@ func (a *Application) ReloadSvcCfg(svcName string, svcType base.SvcType, reloadF
 		return nil
 	}
 
-	if a.loadSvcCfgFromCmIfValid(svcName, svcType, silence) {
-		return nil
-	}
-
-	return a.loadSvcCfgFromMetaIfNeeded(svcName, svcType, reloadFromMeta, silence)
-}
-
-func (a *Application) loadSvcCfgFromMetaIfNeeded(svcName string, svcType base.SvcType, reloadFromMeta, silence bool) error {
-	preCheck, err := a.Controller(svcName, svcType).GetProfile()
-	if err != nil {
-		return err
-	}
-
-	// skip the case do not need to reload cfg
-	if preCheck.LocalConfigLoaded == false && preCheck.CmConfigLoaded == false && !reloadFromMeta {
-		return nil
-	}
-
-	return a.Controller(svcName, svcType).UpdateSvcProfile(
-		func(svcProfile *profile.SvcProfileV2) error {
-
-			if reloadFromMeta {
-				svcProfile.ServiceConfigV2 = a.appMeta.Config.GetSvcConfigV2(svcName, svcType)
-				if !silence {
-					metaInfo := fmt.Sprintf("[name: %s serviceType: %s]", svcName, svcType)
-					log.Infof(
-						fmt.Sprintf(
-							"%-"+strconv.Itoa(indent)+"s %s",
-							metaInfo,
-							"Load nocalhost svc config from application config (secret)",
-						),
-					)
-				}
-			}
-
-			svcProfile.LocalConfigLoaded = false
-			svcProfile.AnnotationsConfigLoaded = false
-			svcProfile.CmConfigLoaded = false
-			return nil
-		},
-	)
+	a.loadSvcCfgFromCmIfValid(svcName, svcType, silence)
+	return nil
 }
 
 func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType base.SvcType, silence bool) bool {
@@ -387,7 +378,8 @@ func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType ba
 	if v, ok := mw.GetObjectMeta().GetAnnotations()[appmeta.AnnotationKey]; !ok || v == "" {
 		return false
 	} else {
-		svcCfg, err := loadSvcCfgFromStrIfValid(v, svcName, svcType)
+		_, // local config should not contain app config
+		svcCfg, err := LoadSvcCfgFromStrIfValid(v, svcName, svcType)
 		if err != nil {
 			hint(
 				"Load nocalhost svc config from [Resource:%s, Name:%s] annotation fail, err: %s",
@@ -395,21 +387,34 @@ func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType ba
 			)
 			return false
 		}
+		if svcCfg == nil {
+			hint("Load nocalhost svc config from annotations success, but can not find corresponding config.")
+			return false
+		}
+
+		a.appMeta.Config.SetSvcConfigV2(*svcCfg)
+		if a.appMeta.Update() != nil {
+			log.WarnE(err, "Failed to update svc config to meta")
+			return false
+		}
 
 		// means should cm cfg is valid, persist to profile
-		if err := a.Controller(svcName, svcType).UpdateSvcProfile(
-			func(svcProfile *profile.SvcProfileV2) error {
-				hint("Success load svc config from annotation")
-				svcProfile.ServiceConfigV2 = svcCfg
+		var c *controller.Controller
+		if c, err = a.Controller(svcName, svcType); err == nil {
+			err = c.UpdateSvcProfile(
+				func(svcProfile *profile.SvcProfileV2) error {
+					hint("Success load svc config from annotation")
 
-				svcProfile.Name = svcName
-				svcProfile.Type = svcType.String()
-				svcProfile.LocalConfigLoaded = false
-				svcProfile.AnnotationsConfigLoaded = true
-				svcProfile.CmConfigLoaded = false
-				return nil
-			},
-		); err != nil {
+					svcProfile.Name = svcName
+					svcProfile.Type = svcType.String()
+					svcProfile.LocalConfigLoaded = false
+					svcProfile.AnnotationsConfigLoaded = true
+					svcProfile.CmConfigLoaded = false
+					return nil
+				},
+			)
+		}
+		if err != nil {
 			hint(
 				"Load nocalhost svc config from [Resource:%s, Name:%s] annotation fail, fail while updating svc profile, err: %s",
 				mw.GetObjectMeta().GetResourceVersion(), mw.GetObjectMeta().GetName(), err.Error(),
@@ -433,71 +438,76 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcTy
 		return false
 	}
 
-	svcCfg, err := loadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
+	_, // local config should not contain app config
+	svcCfg, err := LoadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
 	if err != nil {
 		hint("Load nocalhost svc config from cm fail, err: %s", err.Error())
 		return false
 	}
+	if svcCfg == nil {
+		hint("Load nocalhost svc config from cm success, but can not find corresponding config.")
+		return false
+	}
+
+	a.appMeta.Config.SetSvcConfigV2(*svcCfg)
+	if a.appMeta.Update() != nil {
+		log.WarnE(err, "Failed to update svc config to meta")
+		return false
+	}
 
 	// means should cm cfg is valid, persist to profile
-	if err := a.Controller(svcName, svcType).UpdateSvcProfile(
-		func(svcProfile *profile.SvcProfileV2) error {
-			hint("Success load svc config from cm")
-			svcProfile.ServiceConfigV2 = svcCfg
+	var c *controller.Controller
+	if c, err = a.Controller(svcName, svcType); err == nil {
+		err = c.UpdateSvcProfile(
+			func(svcProfile *profile.SvcProfileV2) error {
+				hint("Success load svc config from cm")
 
-			svcProfile.Name = svcName
-			svcProfile.Type = svcType.String()
-			svcProfile.LocalConfigLoaded = false
-			svcProfile.AnnotationsConfigLoaded = false
-			svcProfile.CmConfigLoaded = true
-			return nil
-		},
-	); err != nil {
+				svcProfile.Name = svcName
+				svcProfile.Type = svcType.String()
+				svcProfile.LocalConfigLoaded = false
+				svcProfile.AnnotationsConfigLoaded = false
+				svcProfile.CmConfigLoaded = true
+				return nil
+			},
+		)
+	}
+	if err != nil {
 		hint("Load nocalhost svc config from cm fail, fail while updating svc profile, err: %s", err.Error())
 		return false
 	}
 	return true
 }
 
-func loadSvcCfgFromStrIfValid(config string, svcName string, svcType base.SvcType) (*profile.ServiceConfigV2, error) {
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		return nil, err
-	}
-
-	tmpFp := fp.NewFilePath(dir).RelOrAbs("config.yaml")
-
-	err = tmpFp.WriteFile(config)
-	if err != nil {
-		return nil, err
-	}
-
+// LoadSvcCfgFromStrIfValid
+// CAUTION: appCfg may nil!
+func LoadSvcCfgFromStrIfValid(config string, svcName string, svcType base.SvcType) (
+	*profile.NocalHostAppConfigV2, *profile.ServiceConfigV2, error) {
 	var svcCfg *profile.ServiceConfigV2
-	if svcCfg, err = doLoadProfileFromSvcConfig(tmpFp, svcName, svcType); svcCfg == nil {
-		if svcCfg, _ = doLoadProfileFromAppConfig(tmpFp, svcName, svcType); svcCfg == nil {
-			return nil, errors.New("can not load cfg, may has syntax error! ")
+	var appCfg *profile.NocalHostAppConfigV2
+	var err error
+	if svcCfg, _ = doLoadProfileFromSvcConfig(
+		envsubst.TextRenderItem(config), svcName, svcType,
+	); svcCfg == nil {
+		if appCfg, svcCfg, err = doLoadProfileFromAppConfig(
+			envsubst.TextRenderItem(config), svcName, svcType,
+		); err != nil {
+			return nil, nil, errors.New(fmt.Sprintf("can not load cfg, may has syntax error, Content: %s", config))
 		}
 	}
 
-	return svcCfg, nil
+	return appCfg, svcCfg, nil
 }
 
 func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.SvcType, silence bool) bool {
 	hint := hintFunc(svcName, svcType, silence)
-
-	p, err := a.GetProfile()
-	if err != nil {
-		return false
-	}
-
-	svcProfile := p.SvcProfileV2(svcName, svcType.String())
+	var err error
 
 	meta := a.GetAppMeta()
 	pack := dev_dir.NewSvcPack(
 		meta.Ns,
 		meta.Application,
-		base.SvcTypeOf(svcProfile.Type),
-		svcProfile.Name,
+		svcType,
+		svcName,
 		"",
 	)
 
@@ -516,29 +526,45 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.Sv
 	}
 
 	var svcCfg *profile.ServiceConfigV2
-	if svcCfg, err = doLoadProfileFromSvcConfig(configFile, svcName, svcType); svcCfg == nil {
-		if svcCfg, _ = doLoadProfileFromAppConfig(configFile, svcName, svcType); svcCfg == nil {
+	if svcCfg, err = doLoadProfileFromSvcConfig(
+		envsubst.LocalFileRenderItem{FilePathEnhance: configFile}, svcName, svcType,
+	); svcCfg == nil {
+		if _, // local config should not contain app config
+			svcCfg, _ = doLoadProfileFromAppConfig(
+			envsubst.LocalFileRenderItem{FilePathEnhance: configFile}, svcName, svcType,
+		); svcCfg == nil {
 			if err != nil {
+
 				hint("Load nocalhost svc config from local fail, err: %s", err.Error())
 			}
 			return false
 		}
 	}
 
-	// means should load svc cfg from local
-	if err := a.Controller(svcName, svcType).UpdateSvcProfile(
-		func(svcProfile *profile.SvcProfileV2) error {
-			hint("Success load svc config from local file %s", configFile.Abs())
-			svcCfg.Name = svcName
-			svcCfg.Type = svcType.String()
+	a.appMeta.Config.SetSvcConfigV2(*svcCfg)
+	if a.appMeta.Update() != nil {
+		log.WarnE(err, "Failed to update svc config to meta")
+		return false
+	}
 
-			svcProfile.ServiceConfigV2 = svcCfg
-			svcProfile.LocalConfigLoaded = true
-			svcProfile.AnnotationsConfigLoaded = false
-			svcProfile.CmConfigLoaded = false
-			return nil
-		},
-	); err != nil {
+	// means should load svc cfg from local
+	var c *controller.Controller
+	if c, err = a.Controller(svcName, svcType); err == nil {
+		err = c.UpdateSvcProfile(
+			func(svcProfile *profile.SvcProfileV2) error {
+				hint("Success load svc config from local file %s", configFile.Abs())
+				svcCfg.Name = svcName
+				svcCfg.Type = svcType.String()
+
+				//svcProfile.ServiceConfigV2 = svcCfg
+				svcProfile.LocalConfigLoaded = true
+				svcProfile.AnnotationsConfigLoaded = false
+				svcProfile.CmConfigLoaded = false
+				return nil
+			},
+		)
+	}
+	if err != nil {
 		hint("Load nocalhost svc config from local fail, fail while updating svc profile, err: %s", err.Error())
 		return false
 	}
@@ -565,10 +591,24 @@ func hintFunc(svcName string, svcType base.SvcType, silence bool) func(string, .
 	}
 }
 
-func doLoadProfileFromSvcConfig(configFile *fp.FilePathEnhance, svcName string, svcType base.SvcType) (
+func DoLoadProfileFromDevConfig(renderItem envsubst.RenderItem, svcName string, svcType base.SvcType) (
 	*profile.ServiceConfigV2, error,
 ) {
-	config, err := RenderConfigForSvc(configFile.Path)
+	if containersCfg, err := RenderConfigFromDev(renderItem); err != nil {
+		return nil, err
+	} else {
+		return &profile.ServiceConfigV2{
+			Name:             svcName,
+			Type:             svcType.String(),
+			ContainerConfigs: containersCfg,
+		}, nil
+	}
+}
+
+func doLoadProfileFromSvcConfig(renderItem envsubst.RenderItem, svcName string, svcType base.SvcType) (
+	*profile.ServiceConfigV2, error,
+) {
+	config, err := RenderConfigForSvc(renderItem)
 	if err != nil {
 		return nil, err
 	}
@@ -586,37 +626,32 @@ func doLoadProfileFromSvcConfig(configFile *fp.FilePathEnhance, svcName string, 
 	return nil, errors.New("Local config loaded, but no valid config found")
 }
 
-func doLoadProfileFromAppConfig(configFile *fp.FilePathEnhance, svcName string, svcType base.SvcType) (
-	*profile.ServiceConfigV2, error,
+func doLoadProfileFromAppConfig(configFile envsubst.RenderItem, svcName string, svcType base.SvcType) (
+	*profile.NocalHostAppConfigV2, *profile.ServiceConfigV2, error,
 ) {
-	appConfig, err := RenderConfig(configFile.Path)
+	appConfig, err := RenderConfig(configFile)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return appConfig.GetSvcConfigV2(svcName, svcType), nil
+	return appConfig, appConfig.GetSvcConfigV2(svcName, svcType), nil
 }
 
 func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {
-	if bys, err := ioutil.ReadFile(a.GetConfigV2Path()); err == nil {
-		p := &profile.NocalHostAppConfigV2{}
-		if err = yaml.Unmarshal(bys, p); err == nil {
-			return p
-		}
-	}
+
 	profileV2, _ := a.GetProfile()
 	return &profile.NocalHostAppConfigV2{
-		ConfigProperties: &profile.ConfigProperties{
+		ConfigProperties: profile.ConfigProperties{
 			Version: "v2",
 		},
-		ApplicationConfig: &profile.ApplicationConfig{
-			Name:           a.Name,
-			Type:           profileV2.AppType,
-			ResourcePath:   profileV2.ResourcePath,
-			IgnoredPath:    profileV2.IgnoredPath,
-			PreInstall:     profileV2.PreInstall,
-			Env:            profileV2.Env,
-			EnvFrom:        profileV2.EnvFrom,
+		ApplicationConfig: profile.ApplicationConfig{
+			Name:         a.Name,
+			Type:         profileV2.AppType,
+			ResourcePath: profileV2.ResourcePath,
+			IgnoredPath:  profileV2.IgnoredPath,
+			PreInstall:   profileV2.PreInstall,
+			//Env:            profileV2.Env,
+			//EnvFrom:        profileV2.EnvFrom,
 			ServiceConfigs: loadServiceConfigsFromProfile(profileV2.SvcProfile),
 		},
 	}
@@ -626,50 +661,39 @@ func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.
 	var configs = []*profile.ServiceConfigV2{}
 
 	for _, p := range profiles {
-		configs = append(
-			configs, &profile.ServiceConfigV2{
-				Name:                p.Name,
-				Type:                p.Type,
-				PriorityClass:       p.PriorityClass,
-				DependLabelSelector: p.DependLabelSelector,
-				ContainerConfigs:    p.ContainerConfigs,
-			},
-		)
+		if p.ServiceConfigV2 != nil {
+			configs = append(configs, p.ServiceConfigV2)
+		} else {
+			configs = append(
+				configs, &profile.ServiceConfigV2{
+					Name: p.GetName(),
+					Type: p.GetType(),
+					//PriorityClass:       p.PriorityClass,
+					//DependLabelSelector: p.DependLabelSelector,
+					//ContainerConfigs:    p.ContainerConfigs,
+				},
+			)
+		}
 	}
 
 	return configs
 }
 
 func (a *Application) tryLoadProfileFromLocal() (err error) {
-	if db, err := nocalhostDb.OpenApplicationLevelDB(a.NameSpace, a.Name, true); err != nil {
-		if err = nocalhostDb.CreateApplicationLevelDB(a.NameSpace, a.Name, true); err != nil { // Init leveldb dir
+	if db, err := nocalhostDb.OpenApplicationLevelDB(a.NameSpace, a.Name, a.appMeta.NamespaceId, true); err != nil {
+		if err = nocalhostDb.CreateApplicationLevelDB(
+			a.NameSpace, a.Name, a.appMeta.NamespaceId, true,
+		); err != nil { // Init leveldb dir
 			return err
 		}
 	} else {
 		_ = db.Close()
 	}
-
-	// try load from db first
-	// then try load from disk(to supports earlier version)
-	if _, err = nocalhost.GetProfileV2(a.NameSpace, a.Name); err != nil {
-		if _, err := os.Stat(a.getProfileV2Path()); err == nil {
-
-			// need not care what happen
-			_ = a.moveProfileFromFileToLeveldb()
-		}
-	}
-
 	return nil
 }
 
 func (a *Application) GetProfile() (*profile.AppProfileV2, error) {
-	return nocalhost.GetProfileV2(a.NameSpace, a.Name)
-}
-
-func (a *Application) GetProfileCompel() *profile.AppProfileV2 {
-	v2, err := nocalhost.GetProfileV2(a.NameSpace, a.Name)
-	clientgoutils.Must(err)
-	return v2
+	return nocalhost.GetProfileV2(a.NameSpace, a.Name, a.appMeta.NamespaceId)
 }
 
 func (a *Application) UpdateProfile(modify func(*profile.AppProfileV2) error) error {
@@ -687,7 +711,7 @@ func (a *Application) UpdateProfile(modify func(*profile.AppProfileV2) error) er
 
 // You need to closeDB for profile explicitly
 func (a *Application) getProfileForUpdate() (*profile.AppProfileV2, error) {
-	return profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name)
+	return profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name, a.appMeta.NamespaceId)
 }
 
 func (a *Application) LoadConfigFromLocalV2() (*profile.NocalHostAppConfigV2, error) {
@@ -733,18 +757,7 @@ type HelmFlags struct {
 }
 
 func (a *Application) GetApplicationConfigV2() *profile.ApplicationConfig {
-	return a.appMeta.Config.ApplicationConfig
-}
-
-func (a *Application) GetAppProfileV2() *profile.ApplicationConfig {
-	profileV2, _ := a.GetProfile()
-	return &profile.ApplicationConfig{
-		ResourcePath: profileV2.ResourcePath,
-		IgnoredPath:  profileV2.IgnoredPath,
-		PreInstall:   profileV2.PreInstall,
-		Env:          profileV2.Env,
-		EnvFrom:      profileV2.EnvFrom,
-	}
+	return &a.appMeta.Config.ApplicationConfig
 }
 
 func (a *Application) SaveAppProfileV2(config *profile.ApplicationConfig) error {
@@ -753,8 +766,8 @@ func (a *Application) SaveAppProfileV2(config *profile.ApplicationConfig) error 
 			p.ResourcePath = config.ResourcePath
 			p.IgnoredPath = config.IgnoredPath
 			p.PreInstall = config.PreInstall
-			p.Env = config.Env
-			p.EnvFrom = config.EnvFrom
+			//p.Env = config.Env
+			//p.EnvFrom = config.EnvFrom
 			return nil
 		},
 	)
@@ -775,15 +788,11 @@ type PortForwardEndOptions struct {
 	Port string // 8080:8080
 }
 
-func (a *Application) Controller(name string, svcType base.SvcType) *controller.Controller {
-	return &controller.Controller{
-		NameSpace: a.NameSpace,
-		AppName:   a.Name,
-		Name:      name,
-		Type:      svcType,
-		Client:    a.client,
-		AppMeta:   a.appMeta,
+func (a *Application) Controller(name string, svcType base.SvcType) (*controller.Controller, error) {
+	if a.Identifier == "" {
+		return nil, errors.New("Application's identifier cannot be nil")
 	}
+	return controller.NewController(a.NameSpace, name, a.Name, a.Identifier, svcType, a.client, a.appMeta)
 }
 
 func (a *Application) GetConfigFile() (string, error) {
@@ -797,11 +806,7 @@ func (a *Application) GetConfigFile() (string, error) {
 func (a *Application) GetDescription() *profile.AppProfileV2 {
 	appProfile, _ := a.GetProfile()
 	if appProfile != nil {
-		meta, err := nocalhost.GetApplicationMeta(a.Name, a.NameSpace, a.KubeConfig)
-		if err != nil {
-			log.LogE(err)
-			return nil
-		}
+		meta := a.appMeta
 		appProfile.Installed = meta.IsInstalled()
 		devMeta := meta.DevMeta
 
@@ -809,22 +814,18 @@ func (a *Application) GetDescription() *profile.AppProfileV2 {
 		for _, svcProfile := range appProfile.SvcProfile {
 			appmeta.FillingExtField(svcProfile, meta, a.Name, a.NameSpace, appProfile.Identifier)
 
-			if m := devMeta[base.SvcTypeOf(svcProfile.Type).Alias()]; m != nil {
-				delete(m, svcProfile.ActualName)
+			if m := devMeta[base.SvcTypeOf(svcProfile.GetType()).Alias()]; m != nil {
+				delete(m, svcProfile.GetName())
 			}
 		}
 
 		// then gen the fake profile for remote svc
 		for svcTypeAlias, m := range devMeta {
 			for svcName, _ := range m {
-				svcProfile := appProfile.SvcProfileV2(svcName, string(svcTypeAlias.Origin()))
-				appmeta.FillingExtField(svcProfile, meta, a.Name, a.NameSpace, appProfile.Identifier)
-
-				//svcProfile.Developing = true
-				//svcProfile.Possess = a.appMeta.SvcDevModePossessor(
-				//	svcProfile.ActualName, svcTypeAlias.Origin(),
-				//	appProfile.Identifier,
-				//)
+				if !appmeta.HasDevStartingSuffix(svcName) {
+					svcProfile := appProfile.SvcProfileV2(svcName, string(svcTypeAlias.Origin()))
+					appmeta.FillingExtField(svcProfile, meta, a.Name, a.NameSpace, appProfile.Identifier)
+				}
 			}
 		}
 
@@ -833,38 +834,22 @@ func (a *Application) GetDescription() *profile.AppProfileV2 {
 	return nil
 }
 
-func (a *Application) ListContainersByDeployment(depName string) ([]corev1.Container, error) {
-	pods, err := a.client.ListPodsByDeployment(depName)
-	if err != nil {
-		return nil, err
-	}
-	if pods == nil || len(pods.Items) == 0 {
-		return nil, errors.New("No pod found in deployment ???")
-	}
-	return pods.Items[0].Spec.Containers, nil
-}
+//func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error {
+//	conn, err := net.Dial("tcp", addressWithPort)
+//	if err != nil || conn == nil {
+//		return errors.New(fmt.Sprintf("connect port-forward heartbeat address fail, %s", addressWithPort))
+//	}
+//	// GET /heartbeat HTTP/1.1
+//	_, err = conn.Write([]byte("ping"))
+//	return errors.Wrap(err, "send port-forward heartbeat fail")
+//}
 
-func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error {
-	conn, err := net.Dial("tcp", addressWithPort)
-	if err != nil || conn == nil {
-		return errors.New(fmt.Sprintf("connect port-forward heartbeat address fail, %s", addressWithPort))
-	}
-	// GET /heartbeat HTTP/1.1
-	_, err = conn.Write([]byte("ping"))
-	return errors.Wrap(err, "send port-forward heartbeat fail")
-}
-
-func (a *Application) PortForwardAPod(req clientgoutils.PortForwardAPodRequest) error {
-	return a.client.PortForwardAPod(req)
-}
+//func (a *Application) PortForwardAPod(req clientgoutils.PortForwardAPodRequest) error {
+//	return a.client.PortForwardAPod(req)
+//}
 
 func (a *Application) PortForward(pod string, localPort, remotePort int, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) error {
-	return a.client.Forward(pod, localPort, remotePort, readyChan, stopChan, g)
-}
-
-// set pid file empty
-func (a *Application) SetPidFileEmpty(filePath string) error {
-	return os.Remove(filePath)
+	return a.client.ForwardPortForwardByPod(pod, localPort, remotePort, readyChan, stopChan, g)
 }
 
 func (a *Application) CleanUpTmpResources() error {

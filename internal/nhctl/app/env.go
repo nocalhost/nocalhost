@@ -27,7 +27,7 @@ type ContainerEnvForDep struct {
 }
 
 func (a *Application) GetInstallEnvForDep() *InstallEnvForDep {
-	appProfileV2, _ := a.GetProfile()
+	appProfileV2 := a.GetApplicationConfigV2()
 
 	envFiles := make([]string, 0)
 	for _, f := range appProfileV2.EnvFrom.EnvFile {
@@ -52,18 +52,20 @@ func (a *Application) GetInstallEnvForDep() *InstallEnvForDep {
 		)
 	}
 
+	//appConfig := a.appMeta.Config
 	// Find service env
 	servcesEnv := make([]*ServiceEnvForDep, 0)
-	for _, svcProfile := range appProfileV2.SvcProfile {
-		if svcProfile.ServiceConfigV2 == nil || len(svcProfile.ServiceConfigV2.ContainerConfigs) == 0 {
+	for _, svcConfig := range appProfileV2.ServiceConfigs {
+		//svcConfig := appConfig.GetSvcConfigS(svcProfile.GetName(), base.SvcType(svcProfile.GetType()))
+		if len(svcConfig.ContainerConfigs) == 0 {
 			continue
 		}
 		svcEnv := &ServiceEnvForDep{
-			Name:      svcProfile.ActualName,
-			Type:      string(svcProfile.Type),
+			Name:      svcConfig.Name,
+			Type:      svcConfig.Type,
 			Container: make([]*ContainerEnvForDep, 0),
 		}
-		for _, config := range svcProfile.ServiceConfigV2.ContainerConfigs {
+		for _, config := range svcConfig.ContainerConfigs {
 			if config.Install == nil {
 				continue
 			}

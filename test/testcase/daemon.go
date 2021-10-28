@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package testcase
 
@@ -44,36 +44,45 @@ func Exec(client runner.Client) error {
 }
 
 func PortForwardStart(nhctl runner.Client, module string, port int) error {
-	pods, err := nhctl.GetClientset().CoreV1().
-		Pods(nhctl.GetNhctl().Namespace).
-		List(context.Background(), metav1.ListOptions{LabelSelector: "app=" + module})
-	if err != nil {
-		return errors.Wrap(err, "List pods error")
-	}
-	if pods == nil || len(pods.Items) < 1 {
-		return errors.Errorf("Not found pods of module %v", module)
-	}
-	var name string
-	for _, pod := range pods.Items {
-		if v1.PodRunning == pod.Status.Phase {
-			name = pod.Name
-			break
-		}
-	}
-	if name == "" {
-		return errors.New("pods status is not running")
-	}
+	return PortForwardStartT(nhctl, module, "deployment", port)
+}
+
+func PortForwardStartT(nhctl runner.Client, module, moduleType string, port int) error {
+	podName, _ := nhctl.GetNhctl().Command(
+		context.Background(), "dev", "pod", "bookinfo", "-d", module, "-t", moduleType).Output()
+
+	//pods, err := nhctl.GetClientset().CoreV1().Pods(nhctl.GetNhctl().Namespace).List(
+	//	context.Background(), metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", module).String()})
+	//if err != nil {
+	//	return errors.Wrap(err, "List pods error")
+	//}
+	//if pods == nil || len(pods.Items) < 1 {
+	//	return errors.Errorf("Not found pods of module %v", module)
+	//}
+	//var name string
+	//for _, pod := range pods.Items {
+	//	if v1.PodRunning == pod.Status.Phase && pod.DeletionTimestamp == nil {
+	//		name = pod.Name
+	//		break
+	//	}
+	//}
+	//if name == "" {
+	//	return errors.New("pods status is not running")
+	//}
 	cmd := nhctl.GetNhctl().Command(
 		context.Background(), "port-forward",
 		"start",
 		"bookinfo",
 		"-d",
 		module,
+		"-t",
+		moduleType,
 		"--pod",
-		name,
+		string(podName),
 		fmt.Sprintf("-p%d:9080", port),
 	)
-	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
+	_, _, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
+	return err
 }
 
 func PortForwardServiceStart(cli runner.Client, module string, port int) error {
@@ -91,19 +100,18 @@ func PortForwardServiceStart(cli runner.Client, module string, port int) error {
 	return runner.Runner.RunWithCheckResult(cli.SuiteName(), cmd)
 }
 
-func StatusCheckPortForward(nhctl runner.Client, moduleName string, port int) error {
-	cmd := nhctl.GetNhctl().Command(context.Background(), "describe", "bookinfo", "-d", moduleName)
+func StatusCheckPortForward(nhctl runner.Client, moduleName, moduleType string, port int) error {
+	cmd := nhctl.GetNhctl().Command(context.Background(), "describe", "bookinfo", "-d", moduleName, "-t", moduleType)
 	stdout, stderr, err := runner.Runner.Run(nhctl.SuiteName(), cmd)
 	if err != nil {
 		return errors.Errorf(
-			"exec command: %v, error: %v, stdout: %s, stderr: %s",
-			cmd.Args, err, stdout, stderr,
+			"exec command: %v, error: %v, stdout: %s, stderr: %s", cmd.Args, err, stdout, stderr,
 		)
 	}
 	service := profile2.SvcProfileV2{}
 	_ = yaml.Unmarshal([]byte(stdout), &service)
 	bytes, _ := json.Marshal(service)
-	log.Info(string(bytes))
+	log.TestLogger(nhctl.SuiteName()).Info(string(bytes))
 	if !service.PortForwarded {
 		return errors.New("test case failed, should be port forwarding")
 	}
@@ -116,12 +124,17 @@ func StatusCheckPortForward(nhctl runner.Client, moduleName string, port int) er
 }
 
 func PortForwardEnd(nhctl runner.Client, module string, port int) error {
+	return PortForwardEndT(nhctl, module, "deployment", port)
+}
+func PortForwardEndT(nhctl runner.Client, module, moduleType string, port int) error {
 	cmd := nhctl.GetNhctl().Command(
 		context.Background(), "port-forward",
 		"end",
 		"bookinfo",
 		"-d",
 		module,
+		"-t",
+		moduleType,
 		fmt.Sprintf("-p%d:9080", port),
 	)
 	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)

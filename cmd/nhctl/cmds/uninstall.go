@@ -1,13 +1,15 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
 import (
 	"nocalhost/internal/nhctl/const"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
@@ -45,15 +47,30 @@ var uninstallCmd = &cobra.Command{
 		appMeta, err := nocalhost.GetApplicationMeta(applicationName, nameSpace, kubeConfig)
 		must(err)
 
+		nid = appMeta.NamespaceId
+
 		if appMeta.IsNotInstall() {
-			log.Fatalf(appMeta.NotInstallTips())
-			return
+			log.Fatal(appMeta.NotInstallTips())
 		}
 
 		log.Info("Uninstalling application...")
 
 		//goland:noinspection ALL
 		mustI(appMeta.Uninstall(true), "Error while uninstall application")
+
+		p, _ := nocalhost.GetProfileV2(nameSpace, applicationName, nid)
+		if p != nil {
+			for _, sv := range p.SvcProfile {
+				for _, pf := range sv.DevPortForwardList {
+					log.Infof("Stopping %s-%s's port-forward %d:%d", nameSpace, applicationName, pf.LocalPort, pf.RemotePort)
+					utils.Should(controller.StopPortForward(nameSpace, nid, applicationName, sv.Name, pf))
+				}
+			}
+		}
+
+		if err = nocalhost.CleanupAppFilesUnderNs(nameSpace, nid); err != nil {
+			log.WarnE(err, "")
+		}
 
 		log.Infof("Application \"%s\" is uninstalled", applicationName)
 	},

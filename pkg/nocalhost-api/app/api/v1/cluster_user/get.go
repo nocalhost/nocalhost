@@ -1,23 +1,26 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster_user
 
 import (
 	"context"
-	"github.com/spf13/cast"
-	"nocalhost/internal/nocalhost-api/global"
-	"nocalhost/internal/nocalhost-api/model"
-	"nocalhost/pkg/nocalhost-api/app/api/v1/service_account"
-	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
-	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/cast"
+
+	"nocalhost/internal/nocalhost-api/global"
+	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
+	"nocalhost/pkg/nocalhost-api/app/api/v1/service_account"
+	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
+	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
 // @Summary Plug-in Get personal application development environment (kubeconfig) (obsolete)
@@ -68,6 +71,15 @@ func GetList(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
+// ListAll dev spaces
+// @Summary ListAll dev spaces
+// @Description ListAll dev spaces
+// @Tags DevSpace
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Success 200 {object} model.ClusterUserModel
+// @Router /v1/dev_space/{id} [get]
 func ListAll(c *gin.Context) {
 	var params ClusterUserListQuery
 
@@ -187,7 +199,7 @@ func GetJoinClusterAndAppAndUser(c *gin.Context) {
 
 // @Summary Get the details of a development environment of the application
 // @Description Get dev space detail from application
-// @Tags Application
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
@@ -200,9 +212,11 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 		ID: cast.ToUint64(c.Param("id")),
 	}
 
-	if !ginbase.IsAdmin(c) {
-		user, _ := ginbase.LoginUser(c)
-		condition.UserId = user
+	var params ClusterUserListQuery
+	err := c.ShouldBindQuery(&params)
+	if err != nil {
+		api.SendResponse(c, errno.ErrBind, nil)
+		return
 	}
 
 	result, err := service.Svc.ClusterUser().GetJoinClusterAndAppAndUserDetail(c, condition)
@@ -225,7 +239,14 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 	}()
 
 	go func() {
-		userRecord, err := service.Svc.UserSvc().GetUserByID(c, result.UserId)
+		var queryUser uint64
+		if params.UserId == nil {
+			queryUser = result.UserId
+		} else {
+			queryUser = *params.UserId
+		}
+
+		userRecord, err := service.Svc.UserSvc().GetUserByID(c, queryUser)
 		if err != nil {
 			return
 		}
@@ -265,4 +286,87 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 			api.SendResponse(c, errno.InternalServerError, nil)
 		}
 	}
+}
+
+// GetAppsInfo
+// @Summary Get mesh apps info
+// @Description Get mesh apps info
+// @Tags DevSpace
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path string true "devspace id"
+// @Success 200 {object} setupcluster.MeshDevInfo
+// @Router /v1/dev_space/{id}/mesh_apps_info [get]
+func GetAppsInfo(c *gin.Context) {
+	devSpaceId := cast.ToUint64(c.Param("id"))
+
+	condition := model.ClusterUserModel{
+		ID: devSpaceId,
+	}
+	devspace, err := service.Svc.ClusterUser().GetFirst(c, condition)
+	if err != nil || devspace == nil {
+		log.Errorf("Dev space has not found")
+		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+		return
+	}
+	isBasespace := devspace.BaseDevSpaceId == 0
+
+	// check base dev space
+	basespace := &model.ClusterUserModel{}
+	if !isBasespace {
+		baseCondition := model.ClusterUserModel{
+			ID: devspace.BaseDevSpaceId,
+		}
+		basespace, err = service.Svc.ClusterUser().GetFirst(c, baseCondition)
+		if err != nil || basespace == nil {
+			log.Errorf("Base space has not found")
+			api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+			return
+		}
+	}
+
+	// Build goclient with administrator kubeconfig
+	clusterData, err := service.Svc.ClusterSvc().Get(c, devspace.ClusterId)
+	if err != nil {
+		log.Errorf("Getting cluster information failed, cluster id = [ %v ] ", devspace.ClusterId)
+		api.SendResponse(c, errno.ErrPermissionCluster, nil)
+		return
+	}
+
+	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(clusterData.KubeConfig)
+	if err != nil {
+		log.Error(err)
+		api.SendResponse(c, errno.ErrGetDevSpaceAppInfo, nil)
+		return
+	}
+	if isBasespace {
+		result := setupcluster.MeshDevInfo{
+			Header: devspace.TraceHeader,
+			Apps: meshManager.GetBaseDevSpaceAppInfo(
+				&setupcluster.MeshDevInfo{
+					BaseNamespace: devspace.Namespace},
+			),
+		}
+		result.SortApps()
+		api.SendResponse(c, nil, result)
+		return
+	}
+
+	info := &setupcluster.MeshDevInfo{
+		BaseNamespace:    basespace.Namespace,
+		MeshDevNamespace: devspace.Namespace,
+	}
+	apps, err := meshManager.GetAPPInfo(info)
+	if err != nil {
+		log.Error(err)
+		api.SendResponse(c, errno.ErrGetDevSpaceAppInfo, nil)
+		return
+	}
+	result := setupcluster.MeshDevInfo{
+		Header: devspace.TraceHeader,
+		Apps:   apps,
+	}
+	result.SortApps()
+	api.SendResponse(c, nil, result)
 }

@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package clientgoutils
 
@@ -31,4 +31,16 @@ func (c *ClientGoUtils) ListPodsByDaemonSet(name string) ([]corev1.Pod, error) {
 		return nil, errors.Wrap(err, "")
 	}
 	return pods.Items, nil
+}
+
+func (c *ClientGoUtils) ListDaemonSets() ([]v1.DaemonSet, error) {
+	ops := metav1.ListOptions{}
+	if len(c.labels) > 0 {
+		ops.LabelSelector = labels.Set(c.labels).String()
+	}
+	deps, err := c.GetDaemonSetClient().List(c.ctx, ops)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	return deps.Items, nil
 }

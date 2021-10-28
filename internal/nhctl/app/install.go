@@ -185,6 +185,15 @@ func (a *Application) installHelm(flags *HelmFlags, fromRepo bool) error {
 			installParams = append(installParams, fmt.Sprintf("%s/%s", flags.RepoName, chartName))
 		}
 
+		if withCredential, _ := regexp.MatchString(`//(?P<username>.*?):(?P<password>[a-zA-Z0-9+]+)@`, flags.RepoUrl); withCredential {
+			if compile, err := regexp.Compile(`//(?P<username>.*?):(?P<password>[a-zA-Z0-9+]+)@`); err == nil {
+				if submatch := compile.FindStringSubmatch(flags.RepoUrl); len(submatch) == 3 {
+					installParams = append(installParams, "--username", submatch[1])
+					installParams = append(installParams, "--password", submatch[2])
+				}
+			}
+		}
+
 		if flags.Version != "" {
 			installParams = append(installParams, "--version", flags.Version)
 		} else {
@@ -259,14 +268,6 @@ func (a *Application) InstallDepConfigMap(appMeta *appmeta.ApplicationMeta) erro
 			Dependency: appDep,
 			InstallEnv: appEnv,
 		}
-
-		//if err := a.UpdateProfile(
-		//	func(_ *profile.AppProfileV2) error {
-		//		return nil
-		//	},
-		//); err != nil {
-		//	return err
-		//}
 
 		// release name a.Name
 		if a.appMeta.ApplicationType != appmeta.Manifest && a.appMeta.ApplicationType != appmeta.ManifestGit {

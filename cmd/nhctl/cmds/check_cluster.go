@@ -10,9 +10,10 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/daemon_client"
+
 	//"github.com/syncthing/syncthing/lib/discover"
 	"nocalhost/pkg/nhctl/clientgoutils"
-	"time"
 )
 
 var timeout int64
@@ -36,7 +37,7 @@ var checkClusterCmd = &cobra.Command{
 			fmt.Println(string(bys))
 		}()
 
-		err := checkClusterAvailable(kubeConfig, time.Duration(timeout)*time.Second)
+		err := checkClusterAvailable(kubeConfig)
 		if err != nil {
 			jsonResp.Code = 201
 			jsonResp.Info = err.Error()
@@ -47,22 +48,24 @@ var checkClusterCmd = &cobra.Command{
 	},
 }
 
-func checkClusterAvailable(kube string, timeout time.Duration) error {
-	var errChan = make(chan error, 1)
-	go func() {
-		c, err := clientgoutils.NewClientGoUtils(kube, "")
-		if err != nil {
-			errChan <- err
-			return
-		}
-		_, err = c.ClientSet.ServerVersion()
-		errChan <- err
-	}()
+func checkClusterAvailable(kube string) error {
 
-	select {
-	case err := <-errChan:
+	kubeContent, err := clientgoutils.GetKubeContentFromPath(kube)
+	if err != nil {
 		return err
-	case <-time.After(timeout):
-		return errors.New(fmt.Sprintf("Check cluster available timeout after %s", timeout.String()))
 	}
+
+	client, err := daemon_client.GetDaemonClient(false)
+	if err != nil {
+		return err
+	}
+
+	checkClusterStatus, err := client.SendCheckClusterStatusCommand(string(kubeContent))
+	if err != nil {
+		return err
+	}
+	if checkClusterStatus.Available == false {
+		return errors.New(checkClusterStatus.Info)
+	}
+	return nil
 }

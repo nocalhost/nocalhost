@@ -30,7 +30,7 @@ const (
 	ServiceLabel             = "nocalhost.dev/service"
 	AppLabel                 = "nocalhost.dev/app"
 
-	DefaultSideCarImage = "codingcorp-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:sshversion"
+	DefaultSideCarImage = "nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:sshversion"
 
 	DefaultApplicationSyncPidFile = "syncthing.pid"
 
@@ -47,6 +47,9 @@ const (
 
 	DevWorkloadIgnored = "nocalhost.dev.workload.ignored"
 
+	NocalhostCmLabelKey   = "dep-management"
+	NocalhostCmLabelValue = "nocalhost"
+
 	NocalhostRoleBindingLabelKey = "owner"
 	NocalhostRoleBindingLabelVal = "nocalhost"
 
@@ -59,4 +62,18 @@ const (
 
 	NocalhostViewerRoleBinding = "nocalhost-viewer-role-binding"
 	NocalhostViewerRoleName    = "nocalhost-viewer-role"
+
+	HPAOriginalMaxReplicasKey = "nocalhost.dev.hpa.origin.max.replicas"
+	HPAOriginalMinReplicasKey = "nocalhost.dev.hpa.origin.min.replicas"
+
+	// sycnthing
+
+	// sync type
+	DefaultSyncType       = "sendReceive" // default sync mode
+	SendOnlySyncType      = "sendonly"
+	SendOnlySyncTypeAlias = "send"
+
+	// sync mode
+	GitIgnoreMode = "gitIgnore"
+	PatternMode   = "pattern"
 )

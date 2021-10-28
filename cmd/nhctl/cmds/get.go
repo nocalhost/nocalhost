@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -75,10 +75,11 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 			resourceName = args[1]
 		}
 		if appName != "" {
-			if err := initAppMutate(appName); err != nil {
-				log.Logf("error while init app: %s on namespace: %s, error: %v", appName, nameSpace, err)
-				return
-			}
+			go func() {
+				if err := initAppMutate(appName); err != nil {
+					log.Logf("error while init app: %s on namespace: %s, error: %v", appName, nameSpace, err)
+				}
+			}()
 		}
 		if kubeConfig == "" {
 			kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
@@ -89,7 +90,7 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		if _, err := ioutil.ReadFile(kubeConfig); err != nil {
 			log.FatalE(err, "")
 		}
-		cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
+		cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
 		if err != nil {
 			log.FatalE(err, "")
 		}

@@ -1,21 +1,20 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
 import (
+	dockerterm "github.com/moby/term"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/logs"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"nocalhost/pkg/nhctl/clientgoutils"
-	"os"
 )
 
-var logOptions = logs.NewLogsOptions(
-	genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}, false)
+var logOptions *logs.LogsOptions
 
 var cmdLogs = &cobra.Command{
 	Use:     "logs",
@@ -32,6 +31,9 @@ var cmdLogs = &cobra.Command{
 	}}
 
 func init() {
+	stdIn, stdOut, stderr := dockerterm.StdStreams()
+	logOptions = logs.NewLogsOptions(
+		genericclioptions.IOStreams{In: stdIn, Out: stdOut, ErrOut: stderr}, false)
 	logOptions.AddFlags(cmdLogs)
 	kubectlCmd.AddCommand(cmdLogs)
 }

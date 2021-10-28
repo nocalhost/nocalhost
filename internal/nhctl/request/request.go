@@ -251,6 +251,7 @@ func (q *ApiRequest) AddBookInfoApplicationForThree() *ApiRequest {
 	q.AddBookInfoApplication(app.DefaultInitApplicationGithub)
 	q.AddBookInfoApplication(app.DefaultInitApplicationHelm)
 	q.AddBookInfoApplication(app.DefaultInitApplicationKustomize)
+	q.AddBookInfoApplication(app.DefaultInitApplicationBookinfoTracing)
 	return q
 }
 

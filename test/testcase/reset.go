@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package testcase
 
@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/controller"
+	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/runner"
 	"os"
 	"sigs.k8s.io/yaml"
@@ -39,7 +40,11 @@ func Config(nhctl runner.Client) error {
 }
 
 func SyncStatus(nhctl runner.Client, module string) error {
-	cmd := nhctl.GetNhctl().Command(context.Background(), "sync-status", "bookinfo", "-d", module)
+	return SyncStatusT(nhctl, module, "deployment")
+}
+
+func SyncStatusT(nhctl runner.Client, module, moduleType string) error {
+	cmd := nhctl.GetNhctl().Command(context.Background(), "sync-status", "bookinfo", "-d", module, "-t", moduleType)
 	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
 }
 
@@ -116,7 +121,12 @@ func Apply(nhctl runner.Client) error {
 }
 
 func RemoveSyncthingPidFile(nhctl runner.Client, module string) error {
-	c := controller.Controller{
+	defer func() {
+		if err := recover(); err != nil {
+			log.Warnf("remove syncthing pid file failed, err: %v", err)
+		}
+	}()
+	c := &controller.Controller{
 		NameSpace: nhctl.GetKubectl().Namespace,
 		AppName:   "bookinfo",
 		Name:      module,

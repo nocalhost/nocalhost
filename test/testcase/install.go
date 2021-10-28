@@ -7,6 +7,7 @@ package testcase
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/pkg/nhctl/log"
@@ -43,6 +44,22 @@ func InstallBookInfoDifferentType(nhctl runner.Client) error {
 			return util.TimeoutFunc(
 				time.Minute*2, func() error {
 					return installBookInfoHelmRepo(nhctl)
+				}, func() error {
+					return UninstallBookInfo(nhctl)
+				},
+			)
+		}, func() error {
+			return util.TimeoutFunc(
+				time.Minute*2, func() error {
+					return installHelmRepoWithCredential(nhctl)
+				}, func() error {
+					return UninstallBookInfo(nhctl)
+				},
+			)
+		}, func() error {
+			return util.TimeoutFunc(
+				time.Minute*2, func() error {
+					return installHelmRepoAlreadyExist(nhctl)
 				}, func() error {
 					return UninstallBookInfo(nhctl)
 				},
@@ -86,7 +103,7 @@ func InstallBookInfoDifferentType(nhctl runner.Client) error {
 		},
 	}
 	for i, bookinfoFunc := range f {
-		return util.RetryFunc(
+		err := util.RetryFunc(
 			func() error {
 				logger := log.TestLogger(nhctl.SuiteName())
 
@@ -105,6 +122,9 @@ func InstallBookInfoDifferentType(nhctl runner.Client) error {
 				return nil
 			},
 		)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -255,22 +275,55 @@ func installBookInfoHelmLocal(nhctl runner.Client) error {
 }
 
 func installBookInfoHelmRepo(nhctl runner.Client) error {
-	// this is nocalhost bug, chart name not work
-	temp, _ := os.CreateTemp("", "")
-	_, _ = temp.WriteString("name: nocalhost-bookinfo")
-	_ = temp.Sync()
-	_ = temp.Close()
 	cmd := nhctl.GetNhctl().Command(
 		context.Background(), "install",
 		"bookinfo",
 		"-t",
 		string(appmeta.HelmRepo),
 		"--helm-chart-name",
-		"bookinfo/nocalhost-bookinfo",
+		"helm/bookinfo",
 		"--helm-repo-url",
-		"https://codingcorp-helm.pkg.coding.net/naison-test/bookinfo",
-		"--outer-config",
-		temp.Name(),
+		"https://nocalhost-helm.pkg.coding.net/nocalhost/helm",
+	)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
+	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
+}
+
+func installHelmRepoWithCredential(nhctl runner.Client) error {
+	cmd := nhctl.GetNhctl().Command(
+		context.Background(), "install",
+		"bookinfo",
+		"--helm-chart-name",
+		"bookinfo",
+		"-t",
+		string(appmeta.HelmRepo),
+		"--helm-repo-url",
+		fmt.Sprintf("https://%s:%s@nocalhost-helm.pkg.coding.net/nocalhost/test",
+			os.Getenv(util.HelmRepoUsername), os.Getenv(util.HelmRepoPassword)),
+	)
+	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
+	return runner.Runner.CheckResult(cmd, stdout, stderr, err)
+}
+
+func installHelmRepoAlreadyExist(nhctl runner.Client) error {
+	_, _, _ = nhctl.GetHelm().RunWithRollingOut(context.TODO(), "repo",
+		"add",
+		"bookinfo",
+		"https://nocalhost-helm.pkg.coding.net/nocalhost/test",
+		"--username",
+		os.Getenv(util.HelmRepoUsername),
+		"--password",
+		os.Getenv(util.HelmRepoPassword),
+	)
+	cmd := nhctl.GetNhctl().Command(
+		context.Background(), "install",
+		"bookinfo",
+		"--helm-chart-name",
+		"bookinfo",
+		"-t",
+		string(appmeta.HelmRepo),
+		"--helm-repo-url",
+		"https://nocalhost-helm.pkg.coding.net/nocalhost/test",
 	)
 	stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(nhctl.SuiteName(), cmd, nil)
 	return runner.Runner.CheckResult(cmd, stdout, stderr, err)

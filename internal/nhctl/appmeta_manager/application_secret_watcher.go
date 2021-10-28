@@ -1,21 +1,23 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package appmeta_manager
 
 import (
+	"context"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/flowcontrol"
 
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
 	profile2 "nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/resouce_cache"
 	"nocalhost/internal/nhctl/watcher"
 	"nocalhost/pkg/nhctl/log"
 	"sync"
@@ -83,7 +85,8 @@ func (asw *applicationSecretWatcher) join(secret *v1.Secret) error {
 	for _, event := range *devMetaBefore.Events(devMetaCurrent) {
 		EventPush(
 			&ApplicationEventPack{
-				Event:           event,
+				Event: event,
+				//Nid:             current.NamespaceId,
 				Ns:              asw.ns,
 				AppName:         appName,
 				KubeConfigBytes: asw.configBytes,
@@ -104,13 +107,15 @@ func (asw *applicationSecretWatcher) left(appName string) {
 	if before, ok := asw.applicationMetas[appName]; ok {
 		devMetaBefore = before.GetApplicationDevMeta()
 	}
+	//m := asw.applicationMetas[appName]
 	delete(asw.applicationMetas, appName)
 
 	for _, event := range *devMetaBefore.Events(devMetaCurrent) {
 		EventPush(
 			&ApplicationEventPack{
-				Event:           event,
-				Ns:              asw.ns,
+				Event: event,
+				Ns:    asw.ns,
+				//Nid:             m.NamespaceId,
 				AppName:         appName,
 				KubeConfigBytes: asw.configBytes,
 			},
@@ -128,6 +133,9 @@ func NewApplicationSecretWatcher(configBytes []byte, ns string) *applicationSecr
 }
 
 func (asw *applicationSecretWatcher) GetApplicationMetas() (result []*appmeta.ApplicationMeta) {
+	asw.lock.Lock()
+	defer asw.lock.Unlock()
+
 	for _, meta := range asw.applicationMetas {
 		result = append(result, meta)
 	}
@@ -142,11 +150,11 @@ func (asw *applicationSecretWatcher) GetApplicationMeta(application, ns string) 
 	} else {
 
 		return &appmeta.ApplicationMeta{
-			ApplicationState:   appmeta.UNINSTALLED,
-			Ns:                 ns,
-			Application:        application,
-			DevMeta:            appmeta.ApplicationDevMeta{},
-			Config:             &profile2.NocalHostAppConfigV2{},
+			ApplicationState: appmeta.UNINSTALLED,
+			Ns:               ns,
+			Application:      application,
+			DevMeta:          appmeta.ApplicationDevMeta{},
+			Config:           &profile2.NocalHostAppConfigV2{},
 		}
 	}
 }
@@ -162,6 +170,7 @@ func (asw *applicationSecretWatcher) Prepare() error {
 	}
 
 	// creates the clientset
+	c.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
 	clientset, err := kubernetes.NewForConfig(c)
 	if err != nil {
 		return err
@@ -179,28 +188,23 @@ func (asw *applicationSecretWatcher) Prepare() error {
 	// first get all nocalhost secrets for initial
 	// ignore error prevent kubeconfig has not permission for get secret
 	// ignore fail
-	searcher, err := resouce_cache.GetSearcher(asw.configBytes, asw.ns, false)
+	list, err := clientset.CoreV1().Secrets(asw.ns).List(
+		context.TODO(), metav1.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector("type", appmeta.SecretType).String(),
+		},
+	)
 	if err != nil {
 		log.ErrorE(err, "")
 		return nil
 	}
 
-	return searcher.Criteria().
-		Namespace(asw.ns).
-		ResourceType("secrets").
-		Consume(
-			func(i []interface{}) error {
-				for _, secret := range i {
-					v := secret.(*v1.Secret)
-					if v.Type == appmeta.SecretType {
-						if err := asw.join(v); err != nil {
-							return err
-						}
-					}
-				}
-				return nil
-			},
-	)
+	for _, v := range list.Items {
+		if err := asw.join(&v); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // todo stop while Ns deleted

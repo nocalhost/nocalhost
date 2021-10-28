@@ -103,6 +103,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		c.GET("/:id/storage_class", cluster.GetStorageClass)
 		c.POST("/:id/storage_class", cluster.GetStorageClassByKubeConfig)
 		c.PUT("/:id", cluster.Update)
+		c.GET("/:id/gen_namespace", cluster.GenNamespace)
 	}
 
 	// Applications
@@ -132,12 +133,14 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	n.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
 	{
 		n.GET("/templates", applications.GetNocalhostConfigTemplate)
+		n.GET("/version/upgrade_info", version.UpgradeInfo)
 	}
 
 	dv2 := g.Group("/v2/dev_space")
 	dv2.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
 	{
 		dv2.GET("", cluster_user.ListV2)
+		dv2.GET("/cluster", cluster.GetDevSpaceClusterList)
 		dv2.GET("/detail", cluster_user.GetV2)
 		dv2.POST("/share", cluster_user.Share)
 		dv2.POST("/unshare", cluster_user.UnShare)
@@ -154,6 +157,8 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		dv.POST("/:id/recreate", cluster_user.ReCreate)
 		dv.GET("/:id/detail", cluster_user.GetJoinClusterAndAppAndUserDetail)
 		dv.PUT("/:id/update_resource_limit", cluster_user.UpdateResourceLimit)
+		dv.PUT("/:id/update_mesh_dev_space_info", cluster_user.UpdateMeshDevSpaceInfo)
+		dv.GET("/:id/mesh_apps_info", cluster_user.GetAppsInfo)
 	}
 
 	// Plug-in
