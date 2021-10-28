@@ -76,7 +76,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	address := fmt.Sprintf("%s:%d", "0.0.0.0", daemonListenPort())
 	listener, err := net.Listen("tcp4", address)
 	if err != nil {
-		return errors.Wrap(err, "")
+		return errors.New("Daemon is already running in the background")
 	}
 
 	// run the dev event listener
