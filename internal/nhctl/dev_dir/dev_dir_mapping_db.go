@@ -19,10 +19,10 @@ var (
 )
 
 func Update(fun func(dirMapping *DevDirMapping,
-// be careful, this map is immutable !!!!
-// it is a map generate from #PathToDefaultPackKey and #PackToPath
-// when we change #PathToDefaultPackKey or #PackToPath, we should
-// regenerate this map
+	// be careful, this map is immutable !!!!
+	// it is a map generate from #PathToDefaultPackKey and #PackToPath
+	// when we change #PathToDefaultPackKey or #PackToPath, we should
+	// regenerate this map
 	pathToPack map[DevPath][]*SvcPack) error) error {
 	return doGetOrModify(fun, false)
 }
@@ -82,8 +82,7 @@ func doGetOrModify(fun func(dirMapping *DevDirMapping,
 		}
 	}
 	if len(bys) == 0 {
-		result = &DevDirMapping{
-		}
+		result = &DevDirMapping{}
 	} else {
 		err = yaml.Unmarshal(bys, result)
 		if err != nil {

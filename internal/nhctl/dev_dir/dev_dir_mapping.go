@@ -238,7 +238,7 @@ func (d DevPath) RemovePack(specifyPack *SvcPack) error {
 func (d DevPath) removePackAndThen(
 	specifyPack *SvcPack,
 	fun func(dirMapping *DevDirMapping,
-	pathToPack map[DevPath][]*SvcPack) error) error {
+		pathToPack map[DevPath][]*SvcPack) error) error {
 	if !specifyPack.valid() {
 		return errors.New("Svc pack is invalid")
 	}

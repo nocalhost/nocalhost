@@ -76,7 +76,7 @@ func (s *Supervisor) getLock(ns string, configBytes []byte) *sync.Mutex {
 	store, _ := s.lock.LoadOrStore(key, &sync.Mutex{})
 	if asw, ok := store.(*sync.Mutex); ok {
 		return asw
-	}else {
+	} else {
 
 		// that's cloud not happened
 		return &sync.Mutex{}

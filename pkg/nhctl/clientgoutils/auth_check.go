@@ -115,7 +115,7 @@ type AuthChecker struct {
 // todo adding timed cache for this
 // should call after Prepare()
 // fatal if haven't such permission
-func DoCheck(client *ClientGoUtils, namespace string, cmd *cobra.Command, ) error {
+func DoCheck(client *ClientGoUtils, namespace string, cmd *cobra.Command) error {
 	return DoAuthCheck(client, namespace, getAuthChecker(cmd)...)
 }
 
