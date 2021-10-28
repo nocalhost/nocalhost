@@ -92,7 +92,7 @@ func NewFakeApplication(name string, ns string, kubeconfig string, initClient bo
 	}
 
 	if profileV2.Identifier == "" {
-		profileV2.GenerateIdentifierIfNeeded()
+		//profileV2.GenerateIdentifierIfNeeded()
 		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
 			return nil, err
 		}
@@ -199,6 +199,12 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 			if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
 				return nil, err
 			}
+		}
+	}
+
+	if profileV2.Identifier == "" {
+		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
+			return nil, err
 		}
 	}
 
@@ -379,7 +385,7 @@ func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType ba
 		return false
 	} else {
 		_, // local config should not contain app config
-		svcCfg, err := LoadSvcCfgFromStrIfValid(v, svcName, svcType)
+			svcCfg, err := LoadSvcCfgFromStrIfValid(v, svcName, svcType)
 		if err != nil {
 			hint(
 				"Load nocalhost svc config from [Resource:%s, Name:%s] annotation fail, err: %s",
@@ -439,7 +445,7 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcTy
 	}
 
 	_, // local config should not contain app config
-	svcCfg, err := LoadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
+		svcCfg, err := LoadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
 	if err != nil {
 		hint("Load nocalhost svc config from cm fail, err: %s", err.Error())
 		return false
