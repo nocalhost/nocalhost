@@ -196,7 +196,9 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 			if err = app.appMeta.Update(); err != nil {
 				return nil, err
 			}
-			if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
+			if err = nocalhost.UpdateProfileV2(
+				app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2,
+			); err != nil {
 				return nil, err
 			}
 		}
@@ -597,20 +599,6 @@ func hintFunc(svcName string, svcType base.SvcType, silence bool) func(string, .
 	}
 }
 
-func DoLoadProfileFromDevConfig(renderItem envsubst.RenderItem, svcName string, svcType base.SvcType) (
-	*profile.ServiceConfigV2, error,
-) {
-	if containersCfg, err := RenderConfigFromDev(renderItem); err != nil {
-		return nil, err
-	} else {
-		return &profile.ServiceConfigV2{
-			Name:             svcName,
-			Type:             svcType.String(),
-			ContainerConfigs: containersCfg,
-		}, nil
-	}
-}
-
 func doLoadProfileFromSvcConfig(renderItem envsubst.RenderItem, svcName string, svcType base.SvcType) (
 	*profile.ServiceConfigV2, error,
 ) {
@@ -620,6 +608,8 @@ func doLoadProfileFromSvcConfig(renderItem envsubst.RenderItem, svcName string, 
 	}
 
 	if len(config) == 1 && config[0].Name == "" {
+		config[0].Name = svcName
+		config[0].Type = svcType.String()
 		return config[0], nil
 	}
 

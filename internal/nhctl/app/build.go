@@ -192,24 +192,6 @@ func (a *Application) loadOrGenerateConfig(
 	return nocalhostConfig, nil
 }
 
-func RenderConfigFromDev(renderItem envsubst.RenderItem) ([]*profile.ContainerConfig, error) {
-	renderedStr, err := envsubst.Render(renderItem, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var renderedConfig []*profile.ContainerConfig
-	if err = yaml.Unmarshal([]byte(renderedStr), &renderedConfig); err != nil || len(renderedConfig) == 0 {
-		var singleSvcConfig profile.ContainerConfig
-		if err = yaml.Unmarshal([]byte(renderedStr), &singleSvcConfig); err == nil {
-			if singleSvcConfig.Dev != nil {
-				renderedConfig = append(renderedConfig, &singleSvcConfig)
-			}
-		}
-	}
-	return renderedConfig, nil
-}
-
 func RenderConfigForSvc(renderItem envsubst.RenderItem) ([]*profile.ServiceConfigV2, error) {
 	renderedStr, err := envsubst.Render(renderItem, nil)
 	if err != nil {
