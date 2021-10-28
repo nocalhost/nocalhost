@@ -128,7 +128,7 @@ func MoveAppFromNsToNid() error {
 				log.Logf("Move %s-%s to nid dir", a.Name(), ns.Name())
 				kube, err := GetKubeConfigFromProfile(ns.Name(), a.Name(), "")
 				if err != nil {
-					log.Logf("Moving %s-%s pass: %s ", a.Name(), ns.Name(), err.Error())
+					log.Logf("Moving %s-%s pass: %s , get kubeconfig failed", a.Name(), ns.Name(), err.Error())
 					return
 				}
 				meta, err := GetApplicationMeta(a.Name(), ns.Name(), kube)

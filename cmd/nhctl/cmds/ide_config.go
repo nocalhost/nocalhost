@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"os"
+	"nocalhost/pkg/nhctl/log"
 )
 
 var configAction string
@@ -45,10 +45,9 @@ var ideConfigCmd = &cobra.Command{
 					return
 				}
 			}
-			os.Exit(1)
+			fmt.Print("false")
 		} else {
-			fmt.Printf("Unsupport action %s", configAction)
-			os.Exit(1)
+			log.Fatalf("Unsupported action %s", configAction)
 		}
 
 	},
