@@ -312,7 +312,9 @@ func (a *Application) generateSecretForEarlierVer() bool {
 
 		for _, svc := range profileV2.SvcProfile {
 			if svc.Developing {
-				_ = a.appMeta.SvcDevStartComplete(svc.GetName(), base.SvcType(svc.GetType()), profileV2.Identifier, svc.DevModeType)
+				_ = a.appMeta.SvcDevStartComplete(
+					svc.GetName(), base.SvcType(svc.GetType()), profileV2.Identifier, svc.DevModeType,
+				)
 			}
 		}
 
@@ -377,7 +379,7 @@ func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType ba
 		return false
 	} else {
 		_, // local config should not contain app config
-			svcCfg, err := LoadSvcCfgFromStrIfValid(v, svcName, svcType)
+		svcCfg, err := LoadSvcCfgFromStrIfValid(v, svcName, svcType)
 		if err != nil {
 			hint(
 				"Load nocalhost svc config from [Resource:%s, Name:%s] annotation fail, err: %s",
@@ -437,7 +439,7 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcTy
 	}
 
 	_, // local config should not contain app config
-		svcCfg, err := LoadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
+	svcCfg, err := LoadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
 	if err != nil {
 		hint("Load nocalhost svc config from cm fail, err: %s", err.Error())
 		return false
@@ -589,6 +591,20 @@ func hintFunc(svcName string, svcType base.SvcType, silence bool) func(string, .
 	}
 }
 
+func DoLoadProfileFromDevConfig(renderItem envsubst.RenderItem, svcName string, svcType base.SvcType) (
+	*profile.ServiceConfigV2, error,
+) {
+	if containersCfg, err := RenderConfigFromDev(renderItem); err != nil {
+		return nil, err
+	} else {
+		return &profile.ServiceConfigV2{
+			Name:             svcName,
+			Type:             svcType.String(),
+			ContainerConfigs: containersCfg,
+		}, nil
+	}
+}
+
 func doLoadProfileFromSvcConfig(renderItem envsubst.RenderItem, svcName string, svcType base.SvcType) (
 	*profile.ServiceConfigV2, error,
 ) {
@@ -665,7 +681,9 @@ func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.
 
 func (a *Application) tryLoadProfileFromLocal() (err error) {
 	if db, err := nocalhostDb.OpenApplicationLevelDB(a.NameSpace, a.Name, a.appMeta.NamespaceId, true); err != nil {
-		if err = nocalhostDb.CreateApplicationLevelDB(a.NameSpace, a.Name, a.appMeta.NamespaceId, true); err != nil { // Init leveldb dir
+		if err = nocalhostDb.CreateApplicationLevelDB(
+			a.NameSpace, a.Name, a.appMeta.NamespaceId, true,
+		); err != nil { // Init leveldb dir
 			return err
 		}
 	} else {
