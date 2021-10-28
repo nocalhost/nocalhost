@@ -100,6 +100,11 @@ func ListV2(c *gin.Context) {
 	}
 
 	if result, err := DoList(&cu, userId, isAdmin, params.IsCanBeUsedAsBaseSpace); err != nil {
+		if err == errno.ErrClusterNotFound {
+			log.Error(err)
+			api.SendResponse(c, nil, []model.ClusterUserV2{})
+			return
+		}
 		api.SendResponse(c, err, nil)
 	} else {
 		api.SendResponse(c, nil, result)
@@ -164,7 +169,7 @@ func relatedToSomebody(userId uint64) func(*model.ClusterUserV2) bool {
 
 func isCanBeUsedAsBaseSpaceFun() func(*model.ClusterUserV2) bool {
 	return func(cu *model.ClusterUserV2) bool {
-		return cu.SpaceType != model.ShareSpace && cu.IsBaseSpace
+		return cu.SpaceType != model.MeshSpace && cu.IsBaseSpace
 	}
 }
 
@@ -262,7 +267,7 @@ func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, is
 
 				if cu.IsClusterAdmin() {
 					if cu.BaseDevSpaceId > 0 {
-						cu.SpaceType = model.ShareSpace
+						cu.SpaceType = model.MeshSpace
 					} else {
 						cu.SpaceType = model.IsolateSpace
 					}
@@ -281,7 +286,7 @@ func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, is
 					fillClusterViewer(cu, cluster.ID)
 				} else {
 					if cu.BaseDevSpaceId > 0 {
-						cu.SpaceType = model.ShareSpace
+						cu.SpaceType = model.MeshSpace
 					} else {
 						cu.SpaceType = model.IsolateSpace
 					}

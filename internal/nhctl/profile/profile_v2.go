@@ -13,15 +13,39 @@ import (
 	"gopkg.in/yaml.v3"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/internal/nhctl/syncthing/ports"
 	"os"
+	"strconv"
 	"strings"
 )
 
+type DevModeType string
+
 const (
 	// nocalhost-docker.pkg.coding.net/nocalhost/public/minideb:latest"
-	DefaultDevImage = ""
-	DefaultWorkDir  = "/home/nocalhost-dev"
+	DefaultDevImage  = ""
+	DefaultWorkDir   = "/home/nocalhost-dev"
+	DuplicateDevMode = DevModeType("duplicate")
+	ReplaceDevMode   = DevModeType("replace")
 )
+
+func (d DevModeType) IsReplaceDevMode() bool {
+	if d == ReplaceDevMode || d == "" {
+		return true
+	}
+	return false
+}
+
+func (d DevModeType) IsDuplicateDevMode() bool {
+	return d == DuplicateDevMode
+}
+
+func (d DevModeType) ToString() string {
+	if d == "" {
+		return string(ReplaceDevMode)
+	}
+	return string(d)
+}
 
 type AppProfileV2 struct {
 	Name string `json:"name" yaml:"name"`
@@ -123,6 +147,7 @@ func NewAppProfileV2ForUpdate(ns, name, nid string) (*AppProfileV2, error) {
 	return result, nil
 }
 
+// SvcProfileV2 The result will not be nil
 func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV2 {
 
 	for _, svcProfile := range a.SvcProfile {
@@ -136,19 +161,6 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 		a.SvcProfile = make([]*SvcProfileV2, 0)
 	}
 	svcProfile := &SvcProfileV2{
-		//ServiceConfigV2: &ServiceConfigV2{
-		//	Name: svcName,
-		//	Type: svcType,
-		//	ContainerConfigs: []*ContainerConfig{
-		//		{
-		//			Dev: &ContainerDevConfig{
-		//				Image:   DefaultDevImage,
-		//				WorkDir: DefaultWorkDir,
-		//			},
-		//		},
-		//	},
-		//},
-		//ActualName: svcName,
 		Type: svcType,
 		Name: svcName,
 	}
@@ -160,7 +172,7 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 // this method will not save the Identifier,
 // make sure it will be saving while use
 func (a *AppProfileV2) GenerateIdentifierIfNeeded() string {
-	if a.Identifier == "" && a != nil {
+	if a != nil && a.Identifier == "" {
 		u, _ := uuid.NewRandom()
 		a.Identifier = u.String()
 	}
@@ -203,8 +215,9 @@ type SvcProfileV2 struct {
 	// same as local available port, use for port-forward
 	RemoteSyncthingPort int `json:"remoteSyncthingPort" yaml:"remoteSyncthingPort"`
 	// same as local available port, use for port-forward
-	RemoteSyncthingGUIPort int    `json:"remoteSyncthingGUIPort" yaml:"remoteSyncthingGUIPort"`
-	SyncthingSecret        string `json:"syncthingSecret" yaml:"syncthingSecret"` // secret name
+	RemoteSyncthingGUIPort              int    `json:"remoteSyncthingGUIPort" yaml:"remoteSyncthingGUIPort"`
+	SyncthingSecret                     string `json:"syncthingSecret" yaml:"syncthingSecret"` // secret name
+	DuplicateDevModeSyncthingSecretName string `json:"duplicateDevModeSyncthingSecretName" yaml:"duplicateDevModeSyncthingSecretName"`
 	// syncthing local port
 	LocalSyncthingPort                     int               `json:"localSyncthingPort" yaml:"localSyncthingPort"`
 	LocalSyncthingGUIPort                  int               `json:"localSyncthingGUIPort" yaml:"localSyncthingGUIPort"`
@@ -236,6 +249,14 @@ type SvcProfileV2 struct {
 	// mean the current controller is possess by current nhctl context
 	// and the syncthing process is listen on current device
 	Possess bool `json:"possess" yaml:"possess"`
+
+	// LocalDevMode can be started in every local desktop and not influence each other
+	//DuplicateDevMode bool        `json:"duplicateDevMode" yaml:"duplicateDevMode"`
+	DevModeType DevModeType `json:"devModeType" yaml:"devModeType"`
+
+	// recorded the container that enter the devmode
+	// notice: exit devmode will not set this value to null
+	OriginDevContainer string `json:"originDevContainer" yaml:"originDevContainer"`
 }
 
 type ContainerProfileV2 struct {
@@ -304,4 +325,54 @@ func (s *SvcProfileV2) GetType() string {
 		}
 	}
 	return s.Type
+}
+
+// portStr is like 8080:80, :80 or 80
+func GetPortForwardForString(portStr string) (int, int, error) {
+	var err error
+	s := strings.Split(portStr, ":")
+
+	switch len(s) {
+	case 1:
+		if port, err := strconv.Atoi(portStr); err != nil {
+			return 0, 0, errors.Wrap(err, fmt.Sprintf("Wrong format of port: %s.", portStr))
+		} else if port > 65535 || port < 0 {
+			return 0, 0, errors.New(
+				fmt.Sprintf(
+					"The range of TCP port number is [0, 65535], wrong defined of port: %s.", portStr,
+				),
+			)
+		} else {
+			return port, port, nil
+		}
+	default:
+		var localPort, remotePort int
+		sLocalPort := s[0]
+		if sLocalPort == "" {
+			// get random port in local
+			if localPort, err = ports.GetAvailablePort(); err != nil {
+				return 0, 0, err
+			}
+		} else if localPort, err = strconv.Atoi(sLocalPort); err != nil {
+			return 0, 0, errors.Wrap(err, fmt.Sprintf("Wrong format of local port: %s.", sLocalPort))
+		}
+		if remotePort, err = strconv.Atoi(s[1]); err != nil {
+			return 0, 0, errors.Wrap(err, fmt.Sprintf("wrong format of remote port: %s, skipped", s[1]))
+		}
+		if localPort > 65535 || localPort < 0 {
+			return 0, 0, errors.New(
+				fmt.Sprintf(
+					"The range of TCP port number is [0, 65535], wrong defined of local port: %s.", portStr,
+				),
+			)
+		}
+		if remotePort > 65535 || localPort < 0 {
+			return 0, 0, errors.New(
+				fmt.Sprintf(
+					"The range of TCP port number is [0, 65535], wrong defined of remote port: %s.", portStr,
+				),
+			)
+		}
+		return localPort, remotePort, nil
+	}
 }

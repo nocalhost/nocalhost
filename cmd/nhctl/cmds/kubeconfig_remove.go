@@ -25,7 +25,7 @@ var kubeconfigRemoveCmd = &cobra.Command{
 	Short: "Remove kubeconfig",
 	Long:  `Remove kubeconfig`,
 	Run: func(cmd *cobra.Command, args []string) {
-		daemonClient, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
+		daemonClient, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
 		if err != nil {
 			log.FatalE(err, "")
 		}

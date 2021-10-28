@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -10,7 +10,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/coloredoutput"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/log"
+	"strconv"
 )
 
 func init() {
@@ -34,13 +36,56 @@ var devEndCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
-		if !nocalhostSvc.IsInDevMode() {
+		if !nocalhostSvc.IsInReplaceDevMode() && !nocalhostSvc.IsInDuplicateDevMode() {
 			log.Fatalf("Service %s is not in DevMode", deployment)
+		}
+
+		var needToRecoverHPA bool
+		if !nocalhostSvc.IsInDuplicateDevMode() {
+			needToRecoverHPA = true
 		}
 
 		must(nocalhostSvc.DevEnd(false))
 
-		fmt.Println()
+		// Recover hpa
+		if needToRecoverHPA {
+			log.Info("Recovering HPA...")
+			hl, err := nocalhostSvc.ListHPA()
+			if err != nil {
+				log.WarnE(err, "Failed to find HPA")
+			}
+			if len(hl) == 0 {
+				log.Info("No HPA found")
+			}
+			for _, h := range hl {
+				if len(h.Annotations) == 0 {
+					continue
+				}
+				if max, ok := h.Annotations[_const.HPAOriginalMaxReplicasKey]; ok {
+					maxInt, err := strconv.ParseInt(max, 0, 0)
+					if err != nil {
+						log.WarnE(err, "")
+						continue
+					}
+					h.Spec.MaxReplicas = int32(maxInt)
+				}
+				if min, ok := h.Annotations[_const.HPAOriginalMinReplicasKey]; ok {
+					minInt, err := strconv.ParseInt(min, 0, 0)
+					if err != nil {
+						log.WarnE(err, "")
+						continue
+					}
+					minInt32 := int32(minInt)
+					h.Spec.MinReplicas = &minInt32
+				}
+				if _, err = nocalhostSvc.Client.UpdateHPA(&h); err != nil {
+					log.WarnE(err, fmt.Sprintf("Failed to update hpa %s", h.Name))
+				} else {
+					log.Infof("HPA %s has been recovered", h.Name)
+				}
+			}
+		}
+		//fmt.Println()
 		coloredoutput.Success("DevMode has been ended")
 	},
 }

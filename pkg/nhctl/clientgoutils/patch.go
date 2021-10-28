@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package clientgoutils
 
@@ -12,7 +12,7 @@ import (
 	"os"
 )
 
-func (c *ClientGoUtils) Patch(resourceType string, name string, jsonStr string) error {
+func (c *ClientGoUtils) Patch(resourceType string, name string, path string, pathType string) error {
 	ioStreams := genericclioptions.IOStreams{
 		In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr,
 	} // don't print log to stderr
@@ -21,6 +21,7 @@ func (c *ClientGoUtils) Patch(resourceType string, name string, jsonStr string) 
 	if err := o.Complete(c.NewFactory(), cmd, []string{resourceType, name}); err != nil {
 		return errors.Wrap(err, "")
 	}
-	o.Patch = jsonStr
+	o.Patch = path
+	o.PatchType = pathType
 	return errors.Wrap(o.RunPatch(), "")
 }

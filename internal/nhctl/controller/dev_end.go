@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -26,6 +26,7 @@ func (c *Controller) DevEnd(reset bool) error {
 		log.WarnE(err, "something incorrect occurs when rolling back")
 	}
 
-	utils.ShouldI(c.AppMeta.SvcDevEnd(c.Name, c.Type), "something incorrect occurs when updating secret")
+	utils.ShouldI(c.AppMeta.SvcDevEnd(c.Name, c.Identifier, c.Type, c.DevModeType), "something incorrect occurs when updating secret")
+
 	return nil
 }

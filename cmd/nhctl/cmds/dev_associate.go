@@ -9,16 +9,27 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 )
 
 var workDir string
+var workDirDeprecated string
 var deAssociate bool
 var info bool
 var migrate bool
 
 func init() {
+	devAssociateCmd.Flags().StringVarP(
+		&workDir, "local-sync", "s", "",
+		"the local directory synchronized to the remote container under dev mode",
+	)
+	devAssociateCmd.Flags().StringVar(
+		&workDirDeprecated, "associate", "",
+		"the local directory synchronized to the remote container under dev mode(deprecated)",
+	)
 	devAssociateCmd.Flags().StringVarP(
 		&commonFlags.SvcName, "deployment", "d", "",
 		"k8s deployment which your developing service exists",
@@ -31,15 +42,17 @@ func init() {
 		&container, "container", "c", "",
 		"container to develop",
 	)
-	devAssociateCmd.Flags().StringVarP(&workDir, "associate", "s", "", "dev mode work directory")
 	devAssociateCmd.Flags().BoolVar(
-		&deAssociate, "de-associate", false, "[exclusive with info flag] de associate(for test)",
+		&deAssociate, "de-associate", false,
+		"[exclusive with info flag] de associate a svc from associated work dir",
 	)
 	devAssociateCmd.Flags().BoolVar(
-		&migrate, "migrate", false, "associate with a local dir but with low priority",
+		&migrate, "migrate", false,
+		"associate the local directory synchronized but with low priority",
 	)
 	devAssociateCmd.Flags().BoolVar(
-		&info, "info", false, "get associate path from svc ",
+		&info, "info", false,
+		"get associated path from svc ",
 	)
 	debugCmd.AddCommand(devAssociateCmd)
 }
@@ -56,29 +69,56 @@ var devAssociateCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		commonFlags.AppName = args[0]
-		initApp(commonFlags.AppName)
 
-		checkIfSvcExist(commonFlags.SvcName, serviceType)
+		must(Prepare())
 
 		svcPack := dev_dir.NewSvcPack(
-			nocalhostSvc.NameSpace,
-			nocalhostSvc.AppName,
-			nocalhostSvc.Type,
-			nocalhostSvc.Name,
+			nameSpace,
+			commonFlags.AppName,
+			base.SvcTypeOf(serviceType),
+			commonFlags.SvcName,
 			container,
 		)
 
 		if info {
-			fmt.Printf(svcPack.GetAssociatePath().ToString())
+			fmt.Print(svcPack.GetAssociatePath().ToString())
 			return
 		} else if deAssociate {
 			svcPack.UnAssociatePath()
-		} else {
-			if workDir == "" {
-				log.Fatal("associate must specify")
-			}
-			must(dev_dir.DevPath(workDir).Associate(svcPack, kubeConfig, !migrate))
+			return
 		}
+		if workDirDeprecated != "" {
+			workDir = workDirDeprecated
+		}
+
+		if workDir == "" {
+			log.Fatal("--local-sync must specify")
+		}
+
+		initApp(commonFlags.AppName)
+		checkIfSvcExist(commonFlags.SvcName, serviceType)
+
+		if (nocalhostSvc.IsInReplaceDevMode() && nocalhostSvc.IsProcessor()) || nocalhostSvc.IsInDuplicateDevMode() {
+			if !dev_dir.DevPath(workDir).AlreadyAssociate(svcPack) {
+				log.PWarn("Current svc is already in DevMode, so can not switch associate dir, please exit the DevMode and try again.")
+				os.Exit(1)
+			} else {
+				if profile, err := nocalhostSvc.GetProfile(); err != nil {
+					log.PWarn("Fail to get profile of current svc, please exit the DevMode and try again.")
+					os.Exit(1)
+				} else {
+					svcPack = dev_dir.NewSvcPack(
+						nameSpace,
+						commonFlags.AppName,
+						base.SvcTypeOf(serviceType),
+						commonFlags.SvcName,
+						profile.OriginDevContainer,
+					)
+				}
+			}
+		}
+
+		must(dev_dir.DevPath(workDir).Associate(svcPack, kubeConfig, !migrate))
 
 		must(nocalhostApp.ReloadSvcCfg(nocalhostSvc.Name, nocalhostSvc.Type, false, false))
 	},

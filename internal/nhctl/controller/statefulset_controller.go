@@ -30,7 +30,7 @@ type StatefulSetController struct {
 }
 
 func (s *StatefulSetController) GetNocalhostDevContainerPod() (string, error) {
-	checkPodsList, err := s.Client.ListPodsByStatefulSet(s.Name())
+	checkPodsList, err := s.Client.ListPodsByStatefulSet(s.GetName())
 	if err != nil {
 		return "", err
 	}
@@ -38,15 +38,11 @@ func (s *StatefulSetController) GetNocalhostDevContainerPod() (string, error) {
 	return findDevPod(checkPodsList.Items)
 }
 
-func (s *StatefulSetController) Name() string {
-	return s.Controller.Name
-}
-
 func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 	var err error
 	s.Client.Context(ctx)
 
-	dep, err := s.Client.GetStatefulSet(s.Name())
+	dep, err := s.Client.GetStatefulSet(s.Name)
 	if err != nil {
 		return err
 	}
@@ -56,11 +52,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		return errors.Wrap(err, "")
 	}
 
-	//if err = s.ScaleReplicasToOne(ctx); err != nil {
-	//	return err
-	//}
-	s.Client.Context(ctx)
-	if err = s.Client.ScaleStatefulSetReplicasToOne(s.Name()); err != nil {
+	if err = s.Client.ScaleStatefulSetReplicasToOne(s.GetName()); err != nil {
 		return err
 	}
 
@@ -73,13 +65,12 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 	devModeMounts := make([]corev1.VolumeMount, 0)
 
 	// Set volumes
-	syncthingVolumes, syncthingVolumeMounts := s.generateSyncVolumesAndMounts()
+	syncthingVolumes, syncthingVolumeMounts := s.generateSyncVolumesAndMounts(false)
 	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
 	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := s.genWorkDirAndPVAndMounts(
-		ops.Container, ops.StorageClass,
-	)
+		ops.Container, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}
@@ -128,12 +119,12 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 
 	needToRemovePriorityClass := false
 	for i := 0; i < 10; i++ {
-		events, err := s.Client.ListEventsByStatefulSet(s.Name())
+		events, err := s.Client.ListEventsByStatefulSet(s.GetName())
 		utils.Should(err)
 		_ = s.Client.DeleteEvents(events, true)
 
 		// Get the latest stateful set
-		dep, err = s.Client.GetStatefulSet(s.Name())
+		dep, err = s.Client.GetStatefulSet(s.GetName())
 		if err != nil {
 			return err
 		}
@@ -188,7 +179,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		outer:
 			for i := 0; i < 20; i++ {
 				time.Sleep(1 * time.Second)
-				events, err = s.Client.ListEventsByStatefulSet(s.Name())
+				events, err = s.Client.ListEventsByStatefulSet(s.GetName())
 				for _, event := range events {
 					if strings.Contains(event.Message, "no PriorityClass") {
 						log.Warn("PriorityClass not found, disable it...")
@@ -202,7 +193,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 			}
 
 			if needToRemovePriorityClass {
-				dep, err = s.Client.GetStatefulSet(s.Name())
+				dep, err = s.Client.GetStatefulSet(s.GetName())
 				if err != nil {
 					return err
 				}
@@ -221,6 +212,15 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		}
 		break
 	}
+
+	for _, patch := range s.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
+		log.Infof("Patching %s", patch.Patch)
+		if err = s.Client.Patch(s.Type.String(), dep.Name, patch.Patch, patch.Type); err != nil {
+			log.WarnE(err, "")
+		}
+	}
+	<-time.Tick(time.Second)
+
 	return waitingPodToBeReady(s.GetNocalhostDevContainerPod)
 }
 
@@ -231,7 +231,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 func (s *StatefulSetController) Container(containerName string) (*corev1.Container, error) {
 	var devContainer *corev1.Container
 
-	ss, err := s.Client.GetStatefulSet(s.Name())
+	ss, err := s.Client.GetStatefulSet(s.GetName())
 	if err != nil {
 		return nil, err
 	}
@@ -241,9 +241,7 @@ func (s *StatefulSetController) Container(containerName string) (*corev1.Contain
 				return &ss.Spec.Template.Spec.Containers[index], nil
 			}
 		}
-		if devContainer == nil {
-			return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
-		}
+		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
 	} else {
 		if len(ss.Spec.Template.Spec.Containers) > 1 {
 			return nil, errors.New(
@@ -264,7 +262,7 @@ func (s *StatefulSetController) Container(containerName string) (*corev1.Contain
 func (s *StatefulSetController) RollBack(reset bool) error {
 	clientUtils := s.Client
 
-	dep, err := clientUtils.GetStatefulSet(s.Name())
+	dep, err := clientUtils.GetStatefulSet(s.GetName())
 	if err != nil {
 		return err
 	}
@@ -315,7 +313,7 @@ func (s *StatefulSetController) RollBack(reset bool) error {
 }
 
 func (s *StatefulSetController) GetPodList() ([]corev1.Pod, error) {
-	list, err := s.Client.ListPodsByStatefulSet(s.Name())
+	list, err := s.Client.ListPodsByStatefulSet(s.GetName())
 	if err != nil {
 		return nil, err
 	}

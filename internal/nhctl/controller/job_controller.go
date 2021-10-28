@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
@@ -31,7 +31,7 @@ func (j *JobController) GetNocalhostDevContainerPod() (string, error) {
 }
 
 func (j *JobController) getGeneratedJobName() string {
-	return fmt.Sprintf("%s%s", jobGeneratedJobPrefix, j.Name())
+	return fmt.Sprintf("%s%s", jobGeneratedJobPrefix, j.GetName())
 }
 
 // ReplaceImage For Job, we can't replace the Job' image
@@ -39,7 +39,7 @@ func (j *JobController) getGeneratedJobName() string {
 func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 
 	j.Client.Context(ctx)
-	originJob, err := j.Client.GetJobs(j.Name())
+	originJob, err := j.Client.GetJobs(j.GetName())
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOpt
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		j.genContainersAndVolumes(devContainer, ops.Container, ops.StorageClass)
+		j.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}
@@ -114,9 +114,9 @@ func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOpt
 	return waitingPodToBeReady(j.GetNocalhostDevContainerPod)
 }
 
-func (j *JobController) Name() string {
-	return j.Controller.Name
-}
+//func (j *JobController) Name() string {
+//	return j.Controller.Name
+//}
 
 func (j *JobController) RollBack(reset bool) error {
 	return j.Client.DeleteJob(j.getGeneratedJobName())
@@ -126,14 +126,14 @@ func (j *JobController) RollBack(reset bool) error {
 // In DevMode, return pod list of generated Job.
 // Otherwise, return pod list of original Job
 func (j *JobController) GetPodList() ([]corev1.Pod, error) {
-	if j.IsInDevMode() {
+	if j.IsInReplaceDevMode() {
 		pl, err := j.Client.ListPodsByJob(j.getGeneratedJobName())
 		if err != nil {
 			return nil, err
 		}
 		return pl.Items, nil
 	}
-	pl, err := j.Client.ListPodsByJob(j.Name())
+	pl, err := j.Client.ListPodsByJob(j.GetName())
 	if err != nil {
 		return nil, err
 	}
@@ -152,8 +152,12 @@ func findContainerInJobSpec(job *batchv1.Job, containerName string) (*corev1.Con
 		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
 	} else {
 		if len(job.Spec.Template.Spec.Containers) > 1 {
-			return nil, errors.New(fmt.Sprintf("There are more than one container defined," +
-				"please specify one to start developing"))
+			return nil, errors.New(
+				fmt.Sprintf(
+					"There are more than one container defined," +
+						"please specify one to start developing",
+				),
+			)
 		}
 		if len(job.Spec.Template.Spec.Containers) == 0 {
 			return nil, errors.New("No container defined ???")

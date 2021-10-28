@@ -26,6 +26,14 @@ const (
 )
 
 func SvcTypeOf(svcType string) SvcType {
+	mutate, err := SvcTypeOfMutate(svcType)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return mutate
+}
+
+func SvcTypeOfMutate(svcType string) (SvcType, error) {
 	serviceType := Deployment
 	if svcType != "" {
 		svcTypeLower := strings.ToLower(svcType)
@@ -43,10 +51,10 @@ func SvcTypeOf(svcType string) SvcType {
 		case strings.ToLower(string(Pod)):
 			serviceType = Pod
 		default:
-			log.FatalE(errors.New(fmt.Sprintf("Unsupported SvcType %s", svcType)), "")
+			return serviceType, errors.New(fmt.Sprintf("Unsupported SvcType %s", svcType))
 		}
 	}
-	return serviceType
+	return serviceType, nil
 }
 
 // Alias For compatibility with meta

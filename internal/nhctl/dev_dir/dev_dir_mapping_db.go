@@ -19,10 +19,10 @@ var (
 )
 
 func Update(fun func(dirMapping *DevDirMapping,
-// be careful, this map is immutable !!!!
-// it is a map generate from #PathToDefaultPackKey and #PackToPath
-// when we change #PathToDefaultPackKey or #PackToPath, we should
-// regenerate this map
+	// be careful, this map is immutable !!!!
+	// it is a map generate from #PathToDefaultPackKey and #PackToPath
+	// when we change #PathToDefaultPackKey or #PackToPath, we should
+	// regenerate this map
 	pathToPack map[DevPath][]*SvcPack) error) error {
 	return doGetOrModify(fun, false)
 }
@@ -43,7 +43,9 @@ func ClearAllData() {
 }
 
 // getOrModify true is read only, and false will save the [dirMapping *DevDirMapping] into db
-func doGetOrModify(fun func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error, getOrModify bool) error {
+func doGetOrModify(fun func(dirMapping *DevDirMapping,
+	pathToPack map[DevPath][]*SvcPack) error,
+	readOnly bool) error {
 	var path string
 	if os.Getenv("TEST") == "" {
 		path = nocalhost_path.GetNocalhostDevDirMapping()
@@ -52,7 +54,7 @@ func doGetOrModify(fun func(dirMapping *DevDirMapping, pathToPack map[DevPath][]
 	}
 
 	_ = dbutils.CreateLevelDB(path, false)
-	db, err := dbutils.OpenLevelDB(path, getOrModify)
+	db, err := dbutils.OpenLevelDB(path, readOnly)
 	if err != nil {
 		_ = db.Close()
 		return err
@@ -80,8 +82,7 @@ func doGetOrModify(fun func(dirMapping *DevDirMapping, pathToPack map[DevPath][]
 		}
 	}
 	if len(bys) == 0 {
-		result = &DevDirMapping{
-		}
+		result = &DevDirMapping{}
 	} else {
 		err = yaml.Unmarshal(bys, result)
 		if err != nil {
@@ -99,12 +100,15 @@ func doGetOrModify(fun func(dirMapping *DevDirMapping, pathToPack map[DevPath][]
 	if result.PackToKubeConfigBytes == nil {
 		result.PackToKubeConfigBytes = map[SvcPackKey]string{}
 	}
+	if result.PackToKubeConfigServer == nil {
+		result.PackToKubeConfigServer = map[SvcPackKey]string{}
+	}
 
 	if err := fun(result, result.genPathToPackMap()); err != nil {
 		return err
 	}
 
-	if !getOrModify {
+	if !readOnly {
 		bys, err := yaml.Marshal(result)
 		if err != nil {
 			return errors.Wrap(err, "")
@@ -116,9 +120,10 @@ func doGetOrModify(fun func(dirMapping *DevDirMapping, pathToPack map[DevPath][]
 }
 
 type DevDirMapping struct {
-	PathToDefaultPackKey  map[DevPath]SvcPackKey `yaml:"path_to_default_pack_key"`
-	PackToPath            map[SvcPackKey]DevPath `yaml:"pack_to_path"`
-	PackToKubeConfigBytes map[SvcPackKey]string  `yaml:"pack_to_kube_config_bytes"`
+	PathToDefaultPackKey   map[DevPath]SvcPackKey `yaml:"path_to_default_pack_key"`
+	PackToPath             map[SvcPackKey]DevPath `yaml:"pack_to_path"`
+	PackToKubeConfigBytes  map[SvcPackKey]string  `yaml:"pack_to_kube_config_bytes"`
+	PackToKubeConfigServer map[SvcPackKey]string  `yaml:"pack_to_kube_config_server"`
 }
 
 // be careful, this map is immutable !!!!
@@ -154,6 +159,7 @@ func (d DevPath) ToString() string {
 type AllSvcPackAssociateByPath struct {
 	Packs             map[SvcPackKey]*SvcPack
 	Kubeconfigs       map[SvcPackKey]string
+	ServerMapping     map[SvcPackKey]string
 	DefaultSvcPackKey SvcPackKey
 }
 
@@ -197,7 +203,7 @@ func (svcPackKey *SvcPackKey) toPack() *SvcPack {
 
 func (svcPack SvcPack) Key() SvcPackKey {
 	if svcPack.Container == "" {
-		return svcPack.keyWithoutContainer()
+		return svcPack.KeyWithoutContainer()
 	}
 
 	return SvcPackKey(
@@ -208,7 +214,7 @@ func (svcPack SvcPack) Key() SvcPackKey {
 	)
 }
 
-func (svcPack SvcPack) keyWithoutContainer() SvcPackKey {
+func (svcPack SvcPack) KeyWithoutContainer() SvcPackKey {
 	return SvcPackKey(
 		fmt.Sprintf(
 			"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s",

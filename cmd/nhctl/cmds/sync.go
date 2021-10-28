@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/coloredoutput"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/internal/nhctl/utils"
@@ -80,7 +81,7 @@ var fileSyncCmd = &cobra.Command{
 }
 
 func StartSyncthing(podName string, resume bool, stop bool, container string, syncDouble *bool, override bool) {
-	if !nocalhostSvc.IsInDevMode() {
+	if !nocalhostSvc.IsInReplaceDevMode() && !nocalhostSvc.IsInDuplicateDevMode() {
 		log.Fatalf("Service \"%s\" is not in developing", deployment)
 	}
 
@@ -108,6 +109,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 		}
 	}
 
+	svcProfile, _ := nocalhostSvc.GetProfile()
 	if podName == "" {
 		var err error
 		if podName, err = nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod(); err != nil {
@@ -116,32 +118,25 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	}
 	log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.NameSpace)
 
-	svcProfile, _ := nocalhostSvc.GetProfile()
 	// Start a pf for syncthing
 	must(nocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC"))
 
-	// kill syncthing process by find find it with terminal
 	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
-	//if utils.IsWindows() {
-	//	utils2.KillSyncthingProcessOnWindows(str)
-	//} else {
-	//	utils2.KillSyncthingProcessOnUnix(str)
-	//}
+
 	utils2.KillSyncthingProcess(str)
 
 	if syncDouble == nil {
 		flag := false
 
-		if config, err := nocalhostSvc.GetConfig(); err == nil {
-			if cfg := config.GetContainerDevConfig(container); cfg != nil && cfg.Sync != nil {
-				switch cfg.Sync.Type {
+		config := nocalhostSvc.Config()
+		if cfg := config.GetContainerDevConfig(container); cfg != nil && cfg.Sync != nil {
+			switch cfg.Sync.Type {
 
-				case syncthing.DefaultSyncMode:
-					flag = true
+			case _const.DefaultSyncType:
+				flag = true
 
-				default:
-					flag = false
-				}
+			default:
+				flag = false
 			}
 		}
 

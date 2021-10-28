@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
-	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"net"
 	"nocalhost/internal/nhctl/app"
@@ -18,11 +18,11 @@ import (
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
-	"regexp"
-	"runtime/debug"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -59,7 +59,10 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(cmd *command.PortForwardCo
 	if cmd.ServiceType == "" {
 		cmd.ServiceType = "deployment"
 	}
-	nhController := nocalhostApp.Controller(cmd.Service, base.SvcType(cmd.ServiceType))
+	nhController, err := nocalhostApp.Controller(cmd.Service, base.SvcType(cmd.ServiceType))
+	if err != nil {
+		return err
+	}
 	return nhController.DeletePortForwardFromDB(cmd.LocalPort, cmd.RemotePort)
 }
 
@@ -120,34 +123,27 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 	return nil
 }
 
-func (p *PortForwardManager) RecoverAllPortForward() error {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("DAEMON-RECOVER in RecoverAllPortForward: %s", string(debug.Stack()))
-		}
-	}()
+func (p *PortForwardManager) RecoverAllPortForward() {
+	defer recoverDaemonFromPanic()
+
 	log.Info("Recovering all port-forward")
 	// Find all app
 	appMap, err := nocalhost.GetNsAndApplicationInfo()
 	if err != nil {
-		return err
+		log.LogE(err)
+		return
 	}
 
-	wg := sync.WaitGroup{}
-	for _, app := range appMap {
-		wg.Add(1)
+	for _, application := range appMap {
 		go func(namespace, app, nid string) {
-			defer wg.Done()
 			if err = p.RecoverPortForwardForApplication(namespace, app, nid); err != nil {
 				log.LogE(err)
 			}
-		}(app.Namespace, app.Name, app.Nid)
+		}(application.Namespace, application.Name, application.Nid)
 	}
-	wg.Wait()
-	return nil
 }
 
-// Start a port-forward
+// StartPortForwardGoRoutine Start a port-forward
 // If saveToDB is true, record it to leveldb
 func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortForwardCommand, saveToDB bool) error {
 
@@ -176,7 +172,10 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 	}
 	_ = listener.Close()
 
-	nhController := nocalhostApp.Controller(startCmd.Service, base.SvcType(startCmd.ServiceType))
+	nhController, err := nocalhostApp.Controller(startCmd.Service, base.SvcType(startCmd.ServiceType))
+	if err != nil {
+		return err
+	}
 
 	if saveToDB {
 		// Check if port forward already exists
@@ -198,8 +197,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			ServiceType:     startCmd.ServiceType,
 		}
 
-		p.lock.Lock()
 		log.Logf("Saving port-forward %d:%d to db", pf.LocalPort, pf.RemotePort)
+		p.lock.Lock()
 		err = nhController.AddPortForwardToDB(pf)
 		p.lock.Unlock()
 		if err != nil {
@@ -220,19 +219,14 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		RemotePort: startCmd.RemotePort,
 	}
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
-			}
-		}()
+		defer recoverDaemonFromPanic()
 
-		log.Logf("Forwarding %d:%d", localPort, localPort)
+		log.Logf("Forwarding %d:%d", localPort, remotePort)
 
 		logDir := filepath.Join(nocalhost.GetLogDir(), "port-forward")
 		if _, err = os.Stat(logDir); err != nil {
 			if os.IsNotExist(err) {
-				err = os.MkdirAll(logDir, 0644)
-				if err != nil {
+				if err = os.MkdirAll(logDir, 0644); err != nil {
 					log.LogE(errors.Wrap(err, ""))
 				}
 			} else {
@@ -245,20 +239,18 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				logDir, fmt.Sprintf(
 					"%s_%s_%s_%d_%d", startCmd.NameSpace, startCmd.AppName, startCmd.Service, localPort, remotePort,
 				),
-			), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0755,
-		)
+			), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0755)
 		if err != nil {
 			log.LogE(err)
 		}
 
-		handlingStreamCreateFailed := false
 		for {
 			// stopCh control the port forwarding lifecycle. When it gets closed the
 			// port forward will terminate
 			stopCh := make(chan struct{}, 1)
 			// readyCh communicate when the port forward is ready to get traffic
 			readyCh := make(chan struct{})
-			heartbeatCtx, heartBeatCancel := context.WithCancel(ctx)
+			//heartbeatCtx, heartBeatCancel := context.WithCancel(ctx)
 			errCh := make(chan error, 1)
 
 			// stream is used to tell the port forwarder where to place its output or
@@ -270,152 +262,46 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				ErrOut: stdout,
 			}
 
-			if !handlingStreamCreateFailed {
-				k8s_runtime.ErrorHandlers = append(
-					k8s_runtime.ErrorHandlers, func(err error) {
-						if strings.Contains(err.Error(), "error creating error stream for port") &&
-							!strings.Contains(err.Error(), "Timeout occured") {
-							log.WarnE(err,
-								fmt.Sprintf("Port-forward %d:%d failed to create stream, try to reconnecting", localPort, remotePort),
-							)
-							select {
-							case _, isOpen := <-stopCh:
-								if isOpen {
-									log.Infof("Closing Port-forward %d:%d' by stop chan", localPort, remotePort)
-									close(stopCh)
-								} else {
-									log.Infof("Port-forward %d:%d has been closed, do nothing", localPort, remotePort)
-								}
-							default:
-								log.Infof("Closing Port-forward %d:%d'", localPort, remotePort)
-								close(stopCh)
-							}
-						}
-					},
-				)
-				handlingStreamCreateFailed = true
-			}
-
 			go func() {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
-					}
-				}()
-
-				select {
-				case <-readyCh:
-					log.Infof("Port forward %d:%d is ready", localPort, remotePort)
-					//go func() {
-					//defer func() {
-					//	if r := recover(); r != nil {
-					//		log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
-					//	}
-					//}()
-
-					lastStatus := ""
-					currentStatus := ""
-					for {
-						select {
-						case <-heartbeatCtx.Done():
-							log.Infof("Stop sending heart beat to %d", localPort)
-							return
-						default:
-							log.Debugf("try to send port-forward heartbeat to %d", localPort)
-							err := nocalhostApp.SendPortForwardTCPHeartBeat(
-								fmt.Sprintf(
-									"%s:%v", "127.0.0.1", localPort,
-								),
-							)
-							if err != nil {
-								log.WarnE(err, "")
-								currentStatus = "HeartBeatLoss"
-							} else {
-								currentStatus = "LISTEN"
-							}
-							if lastStatus != currentStatus {
-								lastStatus = currentStatus
-								p.lock.Lock()
-								nhController.UpdatePortForwardStatus(localPort, remotePort, lastStatus, "Heart Beat")
-								p.lock.Unlock()
-							}
-							<-time.After(30 * time.Second)
-						}
-					}
-					//}()
-				}
+				defer recoverDaemonFromPanic()
+				<-readyCh
+				log.Infof("Port forward %d:%d is ready", localPort, remotePort)
+				p.lock.Lock()
+				_ = nhController.UpdatePortForwardStatus(localPort, remotePort, "LISTEN", "listen")
+				p.lock.Unlock()
 			}()
 
 			go func() {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Fatalf("DAEMON-RECOVER: %s", string(debug.Stack()))
-					}
-				}()
-
-				select {
-				//case errCh <- nocalhostApp.PortForwardAPod(
-				//	clientgoutils.PortForwardAPodRequest{
-				//		Listen: []string{"0.0.0.0"},
-				//		Pod: corev1.Pod{
-				//			ObjectMeta: metav1.ObjectMeta{
-				//				Name:      startCmd.PodName,
-				//				Namespace: startCmd.NameSpace,
-				//			},
-				//		},
-				//		LocalPort: localPort,
-				//		PodPort:   remotePort,
-				//		Streams:   stream,
-				//		StopCh:    stopCh,
-				//		ReadyCh:   readyCh,
-				//	},
-				//):
-				case errCh <- nocalhostApp.PortForward(startCmd.PodName, localPort, remotePort, readyCh, stopCh, stream):
-					log.Logf("Port-forward %d:%d occurs errors", localPort, remotePort)
-				}
+				defer recoverDaemonFromPanic()
+				errCh <- nocalhostApp.PortForward(startCmd.PodName, localPort, remotePort, readyCh, stopCh, stream)
+				log.Logf("Port-forward %d:%d occurs errors", localPort, remotePort)
 			}()
 
 			select {
-			case err := <-errCh:
-				if err != nil {
-					found, _ := regexp.Match("pods \"(.*?)\" not found", []byte(err.Error()))
-					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") || found {
-						if found {
-							log.Logf("Pod: %s not found, remove port-forward for this pod", startCmd.PodName)
-						} else {
-							log.WarnE(err, fmt.Sprintf("Unable to listen on port %d", localPort))
-						}
-						p.lock.Lock()
-						err2 := nhController.UpdatePortForwardStatus(localPort, remotePort, "DISCONNECTED",
-							fmt.Sprintf("Unable to listen on port %d", localPort))
-						p.lock.Unlock()
-						if err2 != nil {
-							log.LogE(err2)
-						}
-						delete(p.pfList, key)
-						return
-					}
-					log.WarnE(err, fmt.Sprintf("Port-forward %d:%d failed, reconnecting after 30 seconds...", localPort, remotePort))
-					heartBeatCancel()
+			case errs := <-errCh:
+				if errs != nil && k8serrors.IsNotFound(errs) {
+					log.Logf("Pod: %s not found, remove port-forward for this pod", startCmd.PodName)
 					p.lock.Lock()
-					err = nhController.UpdatePortForwardStatus(localPort, remotePort, "RECONNECTING",
-						"Port-forward failed, reconnecting after 30 seconds...")
+					err2 := nhController.UpdatePortForwardStatus(localPort, remotePort, "DISCONNECTED",
+						fmt.Sprintf("Unable to found pod %s", startCmd.PodName))
 					p.lock.Unlock()
-					if err != nil {
-						log.LogE(err)
+					if err2 != nil {
+						log.LogE(err2)
 					}
+					delete(p.pfList, key)
+					close(stopCh)
+					return
 				} else {
-					log.Warn("Reconnecting after 30 seconds...")
-					heartBeatCancel()
+					log.Warn("Reconnecting after 15 seconds...")
 					p.lock.Lock()
 					err = nhController.UpdatePortForwardStatus(localPort, remotePort, "RECONNECTING",
-						"Reconnecting after 30 seconds...")
+						"Reconnecting after 15 seconds...")
 					p.lock.Unlock()
 					if err != nil {
 						log.LogE(err)
 					}
 				}
-				<-time.After(30 * time.Second)
+				<-time.After(15 * time.Second)
 				log.Info("Reconnecting...")
 			case <-ctx.Done():
 				log.Logf("Port-forward %d:%d done", localPort, remotePort)
@@ -446,4 +332,26 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		}
 	}()
 	return nil
+}
+
+func ParseErrToForwardPort(errStr string) (*clientgoutils.ForwardPort, error) {
+	// error creating error stream for port 20153 -> 20153: Timeout occured
+	s1 := strings.Split(errStr, ":")[0]
+	s1 = strings.Split(s1, "port")[1]
+	ps := strings.Split(s1, "->")
+	if len(ps) != 2 {
+		return nil, errors.New(fmt.Sprintf("Failed to parse fp from %s", errStr))
+	}
+	for i := 0; i < len(ps); i++ {
+		ps[i] = strings.TrimSpace(ps[i])
+	}
+	localPort, err := strconv.ParseInt(ps[0], 0, 0)
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("Failed to parse fp from %s", errStr))
+	}
+	remotePort, err := strconv.ParseInt(ps[1], 0, 0)
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("Failed to parse fp from %s", errStr))
+	}
+	return &clientgoutils.ForwardPort{LocalPort: int(localPort), RemotePort: int(remotePort)}, nil
 }

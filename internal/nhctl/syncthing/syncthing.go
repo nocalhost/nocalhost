@@ -45,8 +45,6 @@ const (
 	LogFile          = "syncthing.log"
 	IgnoredFIle      = ".nhignore"
 	syncthingPidFile = "syncthing.pid"
-	DefaultSyncMode  = "sendReceive" // default sync mode
-	SendOnlySyncMode = "sendonly"    // default sync mode
 
 	// Use to access syncthing API
 	DefaultAPIKey = "nocalhost"
@@ -66,6 +64,9 @@ const (
 
 	// GUIPort is the port used by syncthing in the cluster for the http endpoint
 	GUIPort = 8384
+
+	EnableParseFromGitIgnore  = "#enableParseFromGitIgnore"
+	DisableParseFromGitIgnore = "#disableParseFromGitIgnore"
 )
 
 //Folder represents a sync folder
@@ -110,8 +111,13 @@ type Syncthing struct {
 	SyncthingBackGroundPid   int          `yaml:"-"`
 	pid                      int          `yaml:"-"`
 	RescanInterval           string       `yaml:"-"`
-	SyncedPattern            []string     `yaml:"-"`
-	IgnoredPattern           []string     `yaml:"-"`
+
+	// resolve ignore/sync from pattern
+	SyncedPattern  []string `yaml:"-"`
+	IgnoredPattern []string `yaml:"-"`
+
+	// resolve ignore/sync from gitignore
+	EnableParseFromGitIgnore bool `yaml:"-"`
 }
 
 //IsSubPathFolder checks if a sync folder is a subpath of another sync folder
@@ -196,8 +202,9 @@ func (s *Syncthing) UpdateConfig() error {
 // Generate s.LocalHome/.nhignore by file sync option
 func (s *Syncthing) generateIgnoredFileConfig() (string, error) {
 	var ignoreFilePath = filepath.Join(s.LocalHome, IgnoredFIle)
-
 	var syncedPatternAdaption = make([]string, len(s.SyncedPattern))
+	var enableParseFromGitIgnore = DisableParseFromGitIgnore
+
 	for i, synced := range s.SyncedPattern {
 		var afterAdapt = synced
 
@@ -233,13 +240,25 @@ func (s *Syncthing) generateIgnoredFileConfig() (string, error) {
 		syncedPatternAdaption = []string{"!**"}
 	}
 
-	var values = map[string]string{
-		"ignoredPattern": strings.Join(ignoredPatternAdaption, "\n"),
-		"syncedPattern":  strings.Join(syncedPatternAdaption, "\n"),
+	ignoredPattern := ""
+	syncedPattern := ""
+
+	if s.EnableParseFromGitIgnore {
+		log.Infof("\n Enable parsing file's ignore/sync from git ignore\n")
+		enableParseFromGitIgnore = EnableParseFromGitIgnore
+	} else {
+		ignoredPattern = strings.Join(ignoredPatternAdaption, "\n")
+		syncedPattern = strings.Join(syncedPatternAdaption, "\n")
+
+		log.Infof("IgnoredPattern: \n" + ignoredPattern)
+		log.Infof("SyncedPattern: \n" + syncedPattern)
 	}
 
-	log.Infof("ignoredPattern: \n" + values["ignoredPattern"])
-	log.Infof("syncedPattern: \n" + values["syncedPattern"])
+	var values = map[string]string{
+		"enableParseFromGitIgnore": enableParseFromGitIgnore,
+		"ignoredPattern":           ignoredPattern,
+		"syncedPattern":            syncedPattern,
+	}
 
 	buf := new(bytes.Buffer)
 	if err := ignoredFileTemplate.Execute(buf, values); err != nil {
