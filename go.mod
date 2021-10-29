@@ -21,7 +21,7 @@ require (
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/protobuf v1.4.3
-	github.com/golang/snappy v0.0.2
+	github.com/golang/snappy v0.0.4
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/uuid v1.1.2
 	github.com/hashicorp/golang-lru v0.5.1
