@@ -45,6 +45,7 @@ jobs:
           shasum -a 256 build/nhctl-linux-amd64 | awk '{print $1}' > build/nhctl-linux-amd64-SHA256
           shasum -a 256 build/nhctl-darwin-amd64 | awk '{print $1}' > build/nhctl-darwin-amd64-SHA256
           shasum -a 256 build/nhctl-windows-amd64.exe | awk '{print $1}' > build/nhctl-windows-amd64-SHA256
+          shasum -a 256 build/nhctl-darwin-arm64 | awk '{print $1}' > build/nhctl-darwin-arm64-SHA256
           git reset --hard
 
       - name: Create nhctl Release
@@ -121,6 +122,26 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/nhctl-darwin-arm64
+          asset_name: nhctl-darwin-arm64
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/nhctl-darwin-arm64-SHA256
+          asset_name: nhctl-darwin-arm64-SHA256
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: build/nhctl-linux-amd64
           asset_name: nhctl-linux-amd64
           asset_content_type: application/octet-stream
@@ -139,17 +160,21 @@ jobs:
         env:
           WINDOWS_BINARY: 'nhctl-windows-amd64.exe'
           OSX_BINARY: 'nhctl-darwin-amd64'
+          OSX_ARM64_BINARY: 'nhctl-darwin-arm64'
           LINUX_BINARY: 'nhctl-linux-amd64'
         run: |
           cd build
           curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${GITHUB_SHA}"
           curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${GITHUB_SHA}"
+          curl -T ${OSX_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_ARM64_BINARY}?version=${GITHUB_SHA}"
           curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${GITHUB_SHA}"
           curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=latest"
           curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=latest"
+          curl -T ${OSX_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_ARM64_BINARY}?version=latest"
           curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=latest"
           curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${{ env.RELEASE_VERSION }}"
           curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${{ env.RELEASE_VERSION }}"
+          curl -T ${OSX_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_ARM64_BINARY}?version=${{ env.RELEASE_VERSION }}"
           curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${{ env.RELEASE_VERSION }}"
 
       - name: Update Homebrew tap
