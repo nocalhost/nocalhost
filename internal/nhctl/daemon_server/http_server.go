@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"net/http"
 	_ "net/http/pprof"
+	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/profile"
@@ -209,11 +210,26 @@ func handlingConfigGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//bys, err := json.Marshal(c)
-	//if err != nil {
-	//	fail(w, err.Error())
-	//	return
-	//}
+	if c == nil {
+		c = &profile.ServiceConfigV2{
+			Name: csp.Name,
+			Type: csp.Type,
+		}
+		if nhApp, err := app.NewApplication(csp.Application, csp.Namespace, csp.Kubeconfig, true); err != nil {
+			log.LogE(err)
+		} else if nhSvc, err := nhApp.Controller(csp.Name, base.SvcType(csp.Type)); err != nil {
+			log.LogE(err)
+		} else if cs, err := nhSvc.GetOriginalContainers(); err != nil {
+			log.LogE(err)
+		} else {
+			c.ContainerConfigs = make([]*profile.ContainerConfig, 0)
+			for _, container := range cs {
+				c.ContainerConfigs = append(c.ContainerConfigs, &profile.ContainerConfig{
+					Name: container.Name,
+				})
+			}
+		}
+	}
 
 	writeJsonResp(w, 200, c)
 }
