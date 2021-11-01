@@ -128,7 +128,7 @@ func MoveAppFromNsToNid() error {
 				log.Logf("Move %s-%s to nid dir", a.Name(), ns.Name())
 				kube, err := GetKubeConfigFromProfile(ns.Name(), a.Name(), "")
 				if err != nil {
-					log.Logf("Moving %s-%s pass: %s ", a.Name(), ns.Name(), err.Error())
+					log.Logf("Moving %s-%s pass: %s , get kubeconfig failed", a.Name(), ns.Name(), err.Error())
 					return
 				}
 				meta, err := GetApplicationMeta(a.Name(), ns.Name(), kube)
@@ -231,11 +231,13 @@ func GetNsAndApplicationInfo() ([]AppInfo, error) {
 					if !IsNocalhostAppDir(appPath) {
 						continue
 					}
-					result = append(result, AppInfo{
-						Name:      appDir.Name(),
-						Namespace: ns.Name(),
-						Nid:       nidDir.Name(),
-					})
+					result = append(
+						result, AppInfo{
+							Name:      appDir.Name(),
+							Namespace: ns.Name(),
+							Nid:       nidDir.Name(),
+						},
+					)
 				}
 			}
 		}
@@ -268,7 +270,7 @@ func IsNocalhostAppDir(dir string) bool {
 }
 
 func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.ApplicationMeta, error) {
-	cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
+	cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +305,7 @@ func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.Applica
 }
 
 func GetApplicationMetas(namespace, kubeConfig string) (appmeta.ApplicationMetas, error) {
-	cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
+	cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
 	if err != nil {
 		return nil, err
 	}

@@ -17,6 +17,7 @@ import (
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
+	"time"
 )
 
 const (
@@ -129,7 +130,7 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 	// PriorityClass
 	priorityClass := ops.PriorityClass
 	if priorityClass == "" {
-		svcProfile, _ := d.GetConfig()
+		svcProfile := d.Config()
 		priorityClass = svcProfile.PriorityClass
 	}
 	if priorityClass != "" {
@@ -164,6 +165,15 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 			return err
 		}
 	}
+
+	for _, patch := range d.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
+		log.Infof("Patching %s", patch.Patch)
+		if err = d.Client.Patch(d.Type.String(), dep.Name, patch.Patch, patch.Type); err != nil {
+			log.WarnE(err, "")
+		}
+	}
+	<-time.Tick(time.Second)
+
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
 }
 

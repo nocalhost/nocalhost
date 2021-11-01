@@ -110,7 +110,7 @@ var rootCmd = &cobra.Command{
 			client, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
 			must(err)
 
-			must(clientgoutils.DoCheck(cmd, nameSpace, client))
+			must(clientgoutils.DoCheck(client, nameSpace, cmd))
 
 			fmt.Printf("yes")
 			os.Exit(0)

@@ -107,8 +107,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		// PriorityClass
 		priorityClass := ops.PriorityClass
 		if priorityClass == "" {
-			svcProfile, _ := d.GetConfig()
-			priorityClass = svcProfile.PriorityClass
+			priorityClass = d.config.PriorityClass
 		}
 		if priorityClass != "" {
 			log.Infof("Using priorityClass: %s...", priorityClass)
@@ -144,6 +143,16 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		}
 		break
 	}
+
+	// patch
+	for _, patch := range d.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
+		log.Infof("Patching %s", patch.Patch)
+		if err = d.Client.Patch(d.Type.String(), dep.Name, patch.Patch, patch.Type); err != nil {
+			log.WarnE(err, "")
+		}
+	}
+	<-time.Tick(time.Second)
+
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
 }
 

@@ -11,28 +11,40 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"io/ioutil"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"net/http"
-	"nocalhost/pkg/nhctl/k8sutils"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/test/runner"
 	"nocalhost/test/util"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
 
-func DevStart(cli runner.Client, moduleName string) error {
-	return DevStartT(cli, moduleName, "")
+func DevStartDeployment(cli runner.Client, moduleName string) error {
+	return DevStartT(cli, moduleName, "deployment", profile.ReplaceDevMode)
 }
 
-func DevStartT(cli runner.Client, moduleName string, moduleType string) error {
+func DevStartStatefulSet(cli runner.Client, moduleName string) error {
+	return DevStartT(cli, moduleName, "statefulset", profile.ReplaceDevMode)
+}
+
+func DevStartDeploymentDuplicate(cli runner.Client, moduleName string) error {
+	return DevStartT(cli, moduleName, "deployment", profile.DuplicateDevMode)
+}
+
+func DevStartStatefulSetDuplicate(cli runner.Client, moduleName string) error {
+	return DevStartT(cli, moduleName, "statefulset", profile.DuplicateDevMode)
+}
+
+func DevStartT(cli runner.Client, moduleName string, moduleType string, modeType profile.DevModeType) error {
 	syncDir := fmt.Sprintf("/tmp/%s/%s", cli.NameSpace(), moduleName)
 
 	if err := os.MkdirAll(syncDir, 0777); err != nil {
 		return errors.Errorf("test case failed, reason: create directory error, error: %v", err)
 	}
+	_ = exec.Command("git", "clone", "--depth", "1", "https://github.com/nocalhost/bookinfo-details.git", syncDir).Run()
+
 	cmd := cli.GetNhctl().Command(
 		context.Background(), "dev",
 		"start",
@@ -40,9 +52,12 @@ func DevStartT(cli runner.Client, moduleName string, moduleType string) error {
 		"-d", moduleName,
 		"-s", syncDir,
 		"-t", moduleType,
+		"--dev-mode", modeType.ToString(),
 		"--priority-class", "nocalhost-container-critical",
 		// prevent tty to block testcase
 		"--without-terminal",
+		//"--sidecar-image",
+		//"nocalhost-docker.pkg.coding.net/nocalhost/dev-images/golang:latest",
 	)
 	if stdout, stderr, err := runner.Runner.RunWithRollingOutWithChecker(
 		cli.SuiteName(), cmd, nil,
@@ -51,13 +66,28 @@ func DevStartT(cli runner.Client, moduleName string, moduleType string) error {
 	) != nil {
 		return err
 	}
-	_ = k8sutils.WaitPod(
-		cli.GetClientset(),
-		cli.GetNhctl().Namespace,
-		metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", moduleName).String()},
-		func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
-		time.Minute*30,
-	)
+	//_ = k8sutils.WaitPod(
+	//	cli.GetClientset(),
+	//	cli.GetNhctl().Namespace,
+	//	metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", moduleName).String()},
+	//	func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
+	//	time.Minute*30,
+	//)
+	// wait for file to be synchronized
+	cmd = cli.GetNhctl().Command(context.TODO(), "sync-status", "bookinfo", "-d", moduleName, "-t", moduleType, "--wait")
+	_, _, _ = runner.Runner.RunWithRollingOutWithChecker("wait for author source code to be synchronized", cmd, nil)
+	time.Sleep(time.Second * 5)
+	//go func() {
+	//	podName, _ := cli.GetNhctl().Command(
+	//		context.Background(), "dev",
+	//		"pod",
+	//		"bookinfo",
+	//		"-d", moduleName,
+	//		"-t", moduleType,
+	//	).Output()
+	//	cmd = cli.GetKubectl().Command(context.TODO(), "exec", "pods/"+string(podName), "--", "sh -c /home/nocalhost-dev/run.sh")
+	//	_, _, _ = runner.Runner.Run("startup main process", cmd)
+	//}()
 	return nil
 }
 
@@ -71,12 +101,15 @@ func SyncT(cli runner.Client, moduleName string, moduleType string) error {
 }
 
 func SyncCheck(cli runner.Client, moduleName string) error {
-	return SyncCheckT(cli, cli.NameSpace(), moduleName, "deployment")
+	return SyncCheckT(cli, moduleName, "deployment")
 }
 
-func SyncCheckT(cli runner.Client, ns, moduleName string, moduleType string) error {
+func SyncCheckT(cli runner.Client, moduleName, moduleType string) error {
+	if moduleType == "" {
+		moduleType = "deployment"
+	}
 	filename := "hello.test"
-	syncFile := fmt.Sprintf("/tmp/%s/%s/%s", ns, moduleName, filename)
+	syncFile := fmt.Sprintf("/tmp/%s/%s/%s", cli.NameSpace(), moduleName, filename)
 
 	content := "this is a test, random string: " + uuid.New().String()
 	if err := ioutil.WriteFile(syncFile, []byte(content), 0644); err != nil {
@@ -87,12 +120,14 @@ func SyncCheckT(cli runner.Client, ns, moduleName string, moduleType string) err
 		func() error {
 			// wait file to be synchronize
 			time.Sleep(5 * time.Second)
-			if moduleType == "" {
-				moduleType = "deployment"
-			}
 			// not use nhctl exec is just because nhctl exec will stuck while cat file
+			// get pod
+			podName, _, _ := cli.GetNhctl().Run(context.TODO(), "dev", []string{
+				"pod", "bookinfo", "-t", moduleType, "-d", moduleName}...)
 			args := []string{
-				"-t", fmt.Sprintf("%s/%s", moduleType, moduleName),
+				"-t", fmt.Sprintf("pods/%s", podName),
+				"-c",
+				"nocalhost-dev",
 				"--",
 				"cat",
 				filename,
@@ -130,8 +165,12 @@ func PortForwardCheck(port int) error {
 	return errors.Errorf("test case failed, reason: can't access endpoint: %s", endpoint)
 }
 
-func DevEnd(cli runner.Client, moduleName string) error {
-	return DevEndT(cli, moduleName, "")
+func DevEndDeployment(cli runner.Client, moduleName string) error {
+	return DevEndT(cli, moduleName, "deployment")
+}
+
+func DevEndStatefulSet(cli runner.Client, moduleName string) error {
+	return DevEndT(cli, moduleName, "statefulset")
 }
 
 func DevEndT(cli runner.Client, moduleName string, moduleType string) error {
@@ -143,21 +182,21 @@ func DevEndT(cli runner.Client, moduleName string, moduleType string) error {
 	) != nil {
 		return err
 	}
-	_ = k8sutils.WaitPod(
-		cli.GetClientset(),
-		cli.GetNhctl().Namespace,
-		metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", moduleName).String()},
-		func(i *v1.Pod) bool {
-			return i.Status.Phase == v1.PodRunning && func() bool {
-				for _, containerStatus := range i.Status.ContainerStatuses {
-					if containerStatus.Ready {
-						return true
-					}
-				}
-				return false
-			}()
-		},
-		time.Minute*5,
-	)
+	//_ = k8sutils.WaitPod(
+	//	cli.GetClientset(),
+	//	cli.GetNhctl().Namespace,
+	//	metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", moduleName).String()},
+	//	func(i *v1.Pod) bool {
+	//		return i.Status.Phase == v1.PodRunning && func() bool {
+	//			for _, containerStatus := range i.Status.ContainerStatuses {
+	//				if containerStatus.Ready {
+	//					return true
+	//				}
+	//			}
+	//			return false
+	//		}()
+	//	},
+	//	time.Minute*5,
+	//)
 	return nil
 }

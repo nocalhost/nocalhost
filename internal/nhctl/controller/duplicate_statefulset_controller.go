@@ -17,6 +17,7 @@ import (
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
+	"time"
 )
 
 type DuplicateStatefulSetController struct {
@@ -174,6 +175,15 @@ func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *
 	if err != nil {
 		return err
 	}
+
+	for _, patch := range s.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
+		log.Infof("Patching %s", patch.Patch)
+		if err = s.Client.Patch(s.Type.String(), dep.Name, patch.Patch, patch.Type); err != nil {
+			log.WarnE(err, "")
+		}
+	}
+	<-time.Tick(time.Second)
+
 	return waitingPodToBeReady(s.GetNocalhostDevContainerPod)
 }
 

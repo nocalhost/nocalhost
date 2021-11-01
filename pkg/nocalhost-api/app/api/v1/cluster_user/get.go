@@ -219,6 +219,11 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 		return
 	}
 
+	user, err := ginbase.LoginUser(c)
+	if err != nil {
+		api.SendResponse(c, errno.ErrPermissionDenied, nil)
+	}
+
 	result, err := service.Svc.ClusterUser().GetJoinClusterAndAppAndUserDetail(c, condition)
 	if err != nil {
 		api.SendResponse(c, nil, nil)
@@ -227,6 +232,17 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	_, errn := HasHighPermissionToSomeDevSpace(c, result.ID)
+	var noPermissionToViewOtherKubeconfig = false
+	if errn != nil {
+		if errn != errno.ErrPermissionDenied {
+			api.SendResponse(c, errn, nil)
+			return
+		}
+
+		noPermissionToViewOtherKubeconfig = true
+	}
 
 	userChan := make(chan *model.UserBaseModel, 1)
 	clusterChan := make(chan model.ClusterPack, 1)
@@ -244,6 +260,10 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 			queryUser = result.UserId
 		} else {
 			queryUser = *params.UserId
+		}
+
+		if noPermissionToViewOtherKubeconfig {
+			queryUser = user
 		}
 
 		userRecord, err := service.Svc.UserSvc().GetUserByID(c, queryUser)

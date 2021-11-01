@@ -74,6 +74,7 @@ type ContainerDevConfig struct {
 	EnvFrom               *EnvFrom               `json:"envFrom,omitempty" yaml:"envFrom,omitempty"`
 	PortForward           []string               `validate:"dive,PortForward" json:"portForward" yaml:"portForward"`
 	SidecarImage          string                 `json:"sidecarImage,omitempty" yaml:"sidecarImage,omitempty"`
+	Patches               []PatchItem            `json:"patches,omitempty" yaml:"patches,omitempty"`
 }
 
 type DevCommands struct {
