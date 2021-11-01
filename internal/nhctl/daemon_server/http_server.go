@@ -209,6 +209,10 @@ func handlingConfigGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if c == nil {
+		c = &profile.ServiceConfigV2{Name: csp.Name, Type: csp.Type, ContainerConfigs: []*profile.ContainerConfig{}}
+	}
+
 	//bys, err := json.Marshal(c)
 	//if err != nil {
 	//	fail(w, err.Error())
