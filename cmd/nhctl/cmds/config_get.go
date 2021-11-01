@@ -134,6 +134,15 @@ var configGetCmd = &cobra.Command{
 			must(err)
 			svcConfig := nocalhostSvc.Config()
 
+			// to avoid empty config
+			if svcConfig == nil {
+					svcConfig = &profile.ServiceConfigV2{
+						Name: commonFlags.SvcName,
+						Type: nocalhostSvc.Type.String(),
+						ContainerConfigs: []*profile.ContainerConfig{},
+					}
+			}
+
 			if svcProfile != nil {
 				bys, err := yaml.Marshal(svcConfig)
 				must(errors.Wrap(err, "fail to marshal svc config"))
