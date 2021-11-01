@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/util/retry"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -439,6 +440,17 @@ func (c *GoClient) RefreshServiceAccount(name, namespace string) {
 
 		sa.Labels[NocalhostLabel] = time.Now().Format("20060102150405")
 		_, _ = c.client.CoreV1().ServiceAccounts(namespace).Update(context.TODO(), sa, metav1.UpdateOptions{})
+	} else {
+		err = retry.OnError(
+			retry.DefaultBackoff, func(err error) bool {
+				return !k8serrors.IsAlreadyExists(err)
+			}, func() error {
+				_, err = c.CreateServiceAccount(name, namespace)
+				return err
+			},
+		)
+
+		log.Errorf("Error while create sa %s after multiple retry!", name)
 	}
 }
 
