@@ -24,8 +24,14 @@ func (c *Controller) GetAppConfig() *profile.NocalHostAppConfigV2 {
 }
 
 func (c *Controller) UpdateConfig(config profile.ServiceConfigV2) error {
+	config.Name = c.Name
+	config.Type = string(c.Type)
 	c.AppMeta.Config.SetSvcConfigV2(config)
-	return c.AppMeta.Update()
+	if err := c.AppMeta.Update(); err != nil {
+		return err
+	}
+	c.config = &config
+	return nil
 }
 
 func (c *Controller) GetWorkDir(container string) string {
