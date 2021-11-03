@@ -38,6 +38,19 @@ func (c *Controller) GetAppProfile() (*profile.AppProfileV2, error) {
 	return nocalhost.GetProfileV2(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
 }
 
+func (c *Controller) IsPortForwarding() bool {
+	v2, err := nocalhost.GetProfileV2(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
+	if err != nil {
+		return true
+	}
+	for _, profileV2 := range v2.SvcProfile {
+		if len(profileV2.DevPortForwardList) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *Controller) GetProfile() (*profile.SvcProfileV2, error) {
 	p, err := c.GetAppProfile()
 	if err != nil {

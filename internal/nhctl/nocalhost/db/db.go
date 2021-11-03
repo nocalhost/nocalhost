@@ -8,6 +8,7 @@ package db
 import (
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"path/filepath"
 )
 
 func OpenApplicationLevelDB(ns, app, nid string, readonly bool) (*dbutils.LevelDBUtils, error) {
@@ -18,4 +19,10 @@ func OpenApplicationLevelDB(ns, app, nid string, readonly bool) (*dbutils.LevelD
 func CreateApplicationLevelDB(ns, app, nid string, errorIfExist bool) error {
 	path := nocalhost_path.GetAppDbDir(ns, app, nid)
 	return dbutils.CreateLevelDB(path, errorIfExist)
+}
+
+func GetOrCreatePortForwardLevelDB(readOnly bool) (*dbutils.LevelDBUtils, error) {
+	path := filepath.Join(nocalhost_path.GetNhctlHomeDir(), nocalhost_path.DefaultNhctlPortForward)
+	_ = dbutils.CreateLevelDB(path, true)
+	return dbutils.OpenLevelDB(path, readOnly)
 }
