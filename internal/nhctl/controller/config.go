@@ -19,6 +19,12 @@ func (c *Controller) Config() *profile.ServiceConfigV2 {
 	return c.config
 }
 
+func (c *Controller) ReloadConfig() profile.ServiceConfigV2 {
+	config := c.AppMeta.Config.GetSvcConfigS(c.Name, c.Type)
+	c.config = &config
+	return config
+}
+
 func (c *Controller) GetAppConfig() *profile.NocalHostAppConfigV2 {
 	return c.AppMeta.Config
 }
