@@ -41,11 +41,11 @@ var cleanupCmd = &cobra.Command{
 				continue
 			}
 			if nocalhostApp.GetAppMeta().NamespaceId != a.Nid {
-				log.Logf("Remove application %s, nid %s, ns %s", a.Name, a.Nid, a.Namespace)
+				log.Infof("Remove application %s, nid %s, ns %s", a.Name, a.Nid, a.Namespace)
 				if err = nocalhost.CleanupAppFilesUnderNs(a.Namespace, a.Nid); err != nil {
-					log.Logf("Clean application %s, nid %s, ns %s failed: %s ", a.Name, a.Nid, a.Namespace, err.Error())
+					log.Infof("Clean application %s, nid %s, ns %s failed: %s ", a.Name, a.Nid, a.Namespace, err.Error())
 				} else {
-					log.Logf("Clean application %s, nid %s, ns %s success", a.Name, a.Nid, a.Namespace)
+					log.Infof("Clean application %s, nid %s, ns %s success", a.Name, a.Nid, a.Namespace)
 				}
 			} else {
 				log.Infof("No need to processing app %s, nid %s, namespace %s", a.Name, a.Nid, a.Namespace)

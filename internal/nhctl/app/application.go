@@ -141,6 +141,10 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 		KubeConfig: kubeconfig,
 	}
 
+	if _, err = os.Stat(app.KubeConfig); err != nil {
+		return nil, err
+	}
+
 	if meta == nil {
 		if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
 			return nil, err

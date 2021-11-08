@@ -150,10 +150,10 @@ func (p *PortForwardManager) RecoverAllPortForward() {
 	//		if err != nil {
 	//			continue
 	//		}
-	//		nocalhostApp, err := app.NewApplication(a.Name, a.Namespace, kube, true)
-	//		if err != nil {
-	//			continue
-	//		}
+	//nocalhostApp, err := app.NewApplication(a.Name, a.Namespace, kube, true)
+	//if err != nil {
+	//	continue
+	//}
 	//		if nocalhostApp.GetAppMeta().NamespaceId != a.Nid {
 	//			log.Logf("Remove application %s, nid %s, ns %s", a.Name, a.Nid, a.Namespace)
 	//			if err = nocalhost.CleanupAppFilesUnderNs(a.Namespace, a.Nid); err != nil {
