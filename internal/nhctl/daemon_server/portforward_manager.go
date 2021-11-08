@@ -128,50 +128,50 @@ func (p *PortForwardManager) RecoverAllPortForward() {
 
 	log.Info("Recovering all port-forward")
 	// Find all app
-	appMap, err := nocalhost.GetNsAndApplicationInfo()
-	if err != nil {
-		log.LogE(err)
-		return
-	}
+	//appMap, err := nocalhost.GetNsAndApplicationInfo()
+	//if err != nil {
+	//	log.LogE(err)
+	//	return
+	//}
 
 	// remove useless profile
-	go func(apps []nocalhost.AppInfo) {
-		for _, a := range appMap {
-			time.Sleep(1 * time.Second)
-			//profile, err := nocalhost.GetProfileV2(a.Namespace, a.Name, a.Nid)
-			//if err != nil {
-			//	if errors.Is(err, nocalhost.ProfileNotFound) {
-			//		log.Warn("Profile is not exist, so ignore for recovering port forward")
-			//		continue
-			//	}
-			//}
+	//go func(apps []nocalhost.AppInfo) {
+	//	for _, a := range appMap {
+	//		time.Sleep(1 * time.Second)
+	//		//profile, err := nocalhost.GetProfileV2(a.Namespace, a.Name, a.Nid)
+	//		//if err != nil {
+	//		//	if errors.Is(err, nocalhost.ProfileNotFound) {
+	//		//		log.Warn("Profile is not exist, so ignore for recovering port forward")
+	//		//		continue
+	//		//	}
+	//		//}
+	//
+	//		kube, err := nocalhost.GetKubeConfigFromProfile(a.Namespace, a.Name, a.Nid)
+	//		if err != nil {
+	//			continue
+	//		}
+	//		nocalhostApp, err := app.NewApplication(a.Name, a.Namespace, kube, true)
+	//		if err != nil {
+	//			continue
+	//		}
+	//		if nocalhostApp.GetAppMeta().NamespaceId != a.Nid {
+	//			log.Logf("Remove application %s, nid %s, ns %s", a.Name, a.Nid, a.Namespace)
+	//			if err = nocalhost.CleanupAppFilesUnderNs(a.Namespace, a.Nid); err != nil {
+	//				log.Logf("Clean application %s, nid %s, ns %s failed: %s ", a.Name, a.Nid, a.Namespace, err.Error())
+	//			} else {
+	//				log.Logf("Clean application %s, nid %s, ns %s success", a.Name, a.Nid, a.Namespace)
+	//			}
+	//		}
+	//	}
+	//}(appMap)
 
-			kube, err := nocalhost.GetKubeConfigFromProfile(a.Namespace, a.Name, a.Nid)
-			if err != nil {
-				continue
-			}
-			nocalhostApp, err := app.NewApplication(a.Name, a.Namespace, kube, true)
-			if err != nil {
-				continue
-			}
-			if nocalhostApp.GetAppMeta().NamespaceId != a.Nid {
-				log.Logf("Remove application %s, nid %s, ns %s", a.Name, a.Nid, a.Namespace)
-				if err = nocalhost.CleanupAppFilesUnderNs(a.Namespace, a.Nid); err != nil {
-					log.Logf("Clean application %s, nid %s, ns %s failed: %s ", a.Name, a.Nid, a.Namespace, err.Error())
-				} else {
-					log.Logf("Clean application %s, nid %s, ns %s success", a.Name, a.Nid, a.Namespace)
-				}
-			}
-		}
-	}(appMap)
-
-	go func() {
-		for _, application := range appMap {
-			if err = p.RecoverPortForwardForApplication(application.Namespace, application.Name, application.Nid); err != nil {
-				log.LogE(err)
-			}
-		}
-	}()
+	//go func() {
+	//	for _, application := range appMap {
+	//		if err = p.RecoverPortForwardForApplication(application.Namespace, application.Name, application.Nid); err != nil {
+	//			log.LogE(err)
+	//		}
+	//	}
+	//}()
 }
 
 // StartPortForwardGoRoutine Start a port-forward
