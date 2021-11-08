@@ -145,18 +145,21 @@ func (asw *applicationSecretWatcher) GetApplicationMetas() (result []*appmeta.Ap
 // prevent other func change the application meta
 // caution!!!!!
 func (asw *applicationSecretWatcher) GetApplicationMeta(application, ns string) *appmeta.ApplicationMeta {
-	if asw != nil && asw.applicationMetas[application] != nil {
-		return asw.applicationMetas[application]
-	} else {
-
-		return &appmeta.ApplicationMeta{
+	if asw == nil || asw.applicationMetas[application] == nil {
+		r := &appmeta.ApplicationMeta{
 			ApplicationState: appmeta.UNINSTALLED,
 			Ns:               ns,
 			Application:      application,
 			DevMeta:          appmeta.ApplicationDevMeta{},
 			Config:           &profile2.NocalHostAppConfigV2{},
 		}
+		if asw == nil {
+			r.ApplicationState = appmeta.UNKNOWN
+		}
+		return r
 	}
+
+	return asw.applicationMetas[application]
 }
 
 func (asw *applicationSecretWatcher) Quit() {

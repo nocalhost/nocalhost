@@ -6,6 +6,7 @@
 package cmds
 
 import (
+	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
@@ -38,6 +39,14 @@ var cleanupCmd = &cobra.Command{
 			nocalhostApp, err := app.NewApplication(a.Name, a.Namespace, kube, true)
 			if err != nil {
 				log.WarnE(err, fmt.Sprintf("Failed to newApplication for app %s, nid %s, namespace %s", a.Name, a.Nid, a.Namespace))
+				if errors.Is(err, app.ErrNotFound) {
+					log.Infof("Remove UNINSTALLED application %s, nid %s, ns %s", a.Name, a.Nid, a.Namespace)
+					if err = nocalhost.CleanupAppFilesUnderNs(a.Namespace, a.Nid); err != nil {
+						log.Infof("Clean application %s, nid %s, ns %s failed: %s ", a.Name, a.Nid, a.Namespace, err.Error())
+					} else {
+						log.Infof("Clean application %s, nid %s, ns %s success", a.Name, a.Nid, a.Namespace)
+					}
+				}
 				continue
 			}
 			if nocalhostApp.GetAppMeta().NamespaceId != a.Nid {
