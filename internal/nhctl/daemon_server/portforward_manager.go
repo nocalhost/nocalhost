@@ -18,7 +18,6 @@ import (
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -137,16 +136,16 @@ func (p *PortForwardManager) RecoverAllPortForward() {
 	defer recoverDaemonFromPanic()
 
 	log.Info("Recovering all port-forward")
-	var scanned bool
-	if levelDB, err := db.GetOrCreatePortForwardLevelDB(true); err == nil {
-		if v, err := levelDB.Get([]byte("scanned")); err == nil && len(v) != 0 {
-			scanned = true
-		}
-		levelDB.Close()
-	}
+	//var scanned bool
+	//if levelDB, err := db.GetOrCreatePortForwardLevelDB(true); err == nil {
+	//	if v, err := levelDB.Get([]byte("scanned")); err == nil && len(v) != 0 {
+	//		scanned = true
+	//	}
+	//	levelDB.Close()
+	//}
 
 	// Find all app
-	appMap, err := nocalhost.GetNsAndApplicationInfo(scanned)
+	appMap, err := nocalhost.GetNsAndApplicationInfo(true)
 	if err != nil {
 		log.LogE(err)
 		return
@@ -164,10 +163,10 @@ func (p *PortForwardManager) RecoverAllPortForward() {
 		}(application.Namespace, application.Name, application.Nid, &lock)
 	}
 	lock.Wait()
-	if levelDB, err := db.GetOrCreatePortForwardLevelDB(false); err == nil {
-		levelDB.Put([]byte("scanned"), []byte("true"))
-		levelDB.Close()
-	}
+	//if levelDB, err := db.GetOrCreatePortForwardLevelDB(false); err == nil {
+	//	levelDB.Put([]byte("scanned"), []byte("true"))
+	//	levelDB.Close()
+	//}
 }
 
 func (p *PortForwardManager) recordPortForward(ns, nid, app string, isPortForwarding func() bool) error {
