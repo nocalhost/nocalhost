@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"io/ioutil"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"net"
@@ -16,9 +17,9 @@ import (
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
-	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost/db"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -32,7 +33,6 @@ import (
 
 type PortForwardManager struct {
 	pfList map[string]*daemon_common.PortForwardProfile
-	db     *dbutils.LevelDBUtils
 	lock   sync.Mutex
 }
 
@@ -134,31 +134,19 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 }
 
 func (p *PortForwardManager) RecoverAllPortForward() {
-	var err error
-	p.db, err = db.GetOrCreatePortForwardLevelDB(false)
-	if err == nil {
-		get, err := p.db.Get([]byte("migrate"))
-		// not needs recovered
-		if err == nil && len(get) != 0 {
-			all, _ := p.db.ListAll()
-			for k := range all {
-				split := strings.Split(k, "/")
-				if len(split) == 3 {
-					namespace := split[0]
-					nid := split[1]
-					appName := split[2]
-					go p.RecoverPortForwardForApplication(namespace, appName, nid)
-				}
-			}
-			return
-		}
-	}
-
 	defer recoverDaemonFromPanic()
 
 	log.Info("Recovering all port-forward")
+	var scanned bool
+	if levelDB, err := db.GetOrCreatePortForwardLevelDB(true); err == nil {
+		if v, err := levelDB.Get([]byte("scanned")); err == nil && len(v) != 0 {
+			scanned = true
+		}
+		levelDB.Close()
+	}
+
 	// Find all app
-	appMap, err := nocalhost.GetNsAndApplicationInfo()
+	appMap, err := nocalhost.GetNsAndApplicationInfo(scanned)
 	if err != nil {
 		log.LogE(err)
 		return
@@ -167,25 +155,28 @@ func (p *PortForwardManager) RecoverAllPortForward() {
 	var lock sync.WaitGroup
 	for _, application := range appMap {
 		lock.Add(1)
-		go func(namespace, app, nid string) {
+		func(namespace, app, nid string, lock *sync.WaitGroup) {
 			defer lock.Done()
+			time.Sleep(time.Millisecond * 10)
 			if err = p.RecoverPortForwardForApplication(namespace, app, nid); err != nil {
 				log.LogE(err)
 			}
-		}(application.Namespace, application.Name, application.Nid)
+		}(application.Namespace, application.Name, application.Nid, &lock)
 	}
 	lock.Wait()
-	if err = p.db.Put([]byte("migrate"), []byte("true")); err != nil {
-		log.LogE(err)
+	if levelDB, err := db.GetOrCreatePortForwardLevelDB(false); err == nil {
+		levelDB.Put([]byte("scanned"), []byte("true"))
+		levelDB.Close()
 	}
 }
 
-func (p *PortForwardManager) recordPortForward(ns, nid, app string, bool2 func() bool) error {
-	var b byte = 0
-	if bool2() {
-		b = 1
+func (p *PortForwardManager) recordPortForward(ns, nid, app string, isPortForwarding func() bool) error {
+	path := filepath.Join(nocalhost_path.GetAppDbDir(ns, app, nid), "portforward")
+	if isPortForwarding() {
+		return ioutil.WriteFile(path, nil, 0644)
+	} else {
+		return os.Remove(path)
 	}
-	return p.db.Put([]byte(fmt.Sprintf("%s/%s/%s", ns, nid, app)), []byte{b})
 }
 
 // StartPortForwardGoRoutine Start a port-forward
