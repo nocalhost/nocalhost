@@ -92,6 +92,10 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 	lock.Lock()
 	defer lock.Unlock()
 
+	if asw := s.getIDeck(ns, configBytes); asw != nil {
+		return asw
+	}
+
 	watchDeck := s.key(ns, configBytes)
 	watcher := NewApplicationSecretWatcher(configBytes, ns)
 
