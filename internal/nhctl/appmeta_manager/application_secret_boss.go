@@ -84,13 +84,13 @@ func (s *Supervisor) getLock(ns string, configBytes []byte) *sync.Mutex {
 }
 
 func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWatcher {
-	if asw := s.getIDeck(ns, configBytes); asw != nil {
-		return asw
-	}
-
 	lock := s.getLock(ns, configBytes)
 	lock.Lock()
 	defer lock.Unlock()
+
+	if asw := s.getIDeck(ns, configBytes); asw != nil {
+		return asw
+	}
 
 	watchDeck := s.key(ns, configBytes)
 	watcher := NewApplicationSecretWatcher(configBytes, ns)
