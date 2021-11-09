@@ -120,6 +120,11 @@ func ListApplications() {
 // and create default application if needed
 func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
+
+	if metas == nil {
+		metas = make(appmeta.ApplicationMetas, 0)
+	}
+
 	var foundDefaultApp bool
 	for _, meta := range metas {
 		if meta.Application == _const.DefaultNocalhostApplication && meta.IsInstalled() {
@@ -133,18 +138,15 @@ func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 		nocalhostApp, err = common.InitDefaultApplicationInCurrentNs(
 			_const.DefaultNocalhostApplication, nameSpace, kubeConfig,
 		)
+
+		// if current user has not permission to create secret,
+		// we also create a fake 'default.application'
+		// app meta for him
 		if err != nil {
 			log.Logf("failed to init default application in namespace: %s", nameSpace)
-			err = nil
-		}
-
-		// if current user has not permission to create secret, we also create a fake 'default.application'
-		// app meta for him
-		// or else error occur
-		if nocalhostApp != nil {
-			return []*appmeta.ApplicationMeta{nocalhostApp.GetAppMeta()}, nil
-		} else {
 			metas = append(metas, appmeta.FakeAppMeta(nameSpace, _const.DefaultNocalhostApplication))
+		} else {
+			metas = append(metas, nocalhostApp.GetAppMeta())
 		}
 	}
 
