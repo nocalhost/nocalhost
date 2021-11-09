@@ -18,6 +18,7 @@ const (
 	DefaultNhctlDevDirMappingDir     = "devmode/db"
 	DefaultNhctlTestDevDirMappingDir = "testdevmode/db"
 	DefaultNhctlKubeconfigDir        = "kubeconfig"
+	DefaultNhctlPortForward          = "portforward"
 )
 
 func GetNhctlHomeDir() string {

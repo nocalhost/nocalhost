@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"io/ioutil"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"net"
@@ -16,7 +17,10 @@ import (
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
+	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost/db"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -88,9 +92,11 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 	//	return errors.New(fmt.Sprintf("Profile not found %s-%s", ns, appName))
 	//}
 
+	var found bool
 	for _, svcProfile := range profile.SvcProfile {
 		for _, pf := range svcProfile.DevPortForwardList {
 			if pf.Sudo == isSudo { // Only recover port-forward managed by this daemon server
+				found = true
 				log.Logf("Recovering port-forward %d:%d of %s-%s-%s", pf.LocalPort, pf.RemotePort, nid, ns, appName)
 				svcType := pf.ServiceType
 				// For compatibility
@@ -120,6 +126,11 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 			}
 		}
 	}
+	if found {
+		if err = p.recordPortForward(ns, nid, appName, func() bool { return true }); err != nil {
+			log.Info(err)
+		}
+	}
 	return nil
 }
 
@@ -127,19 +138,52 @@ func (p *PortForwardManager) RecoverAllPortForward() {
 	defer recoverDaemonFromPanic()
 
 	log.Info("Recovering all port-forward")
+	var scanned bool
+	if err := db.GetOrCreatePortForwardLevelDBFunc(
+		true, func(utils *dbutils.LevelDBUtils) {
+			if v, err := utils.Get([]byte("scanned")); err == nil && len(v) != 0 {
+				scanned = true
+			}
+		},
+	); err != nil {
+		log.Infof("Error while opening port-forward level-db")
+	}
+
 	// Find all app
-	appMap, err := nocalhost.GetNsAndApplicationInfo()
+	appMap, err := nocalhost.GetNsAndApplicationInfo(scanned)
 	if err != nil {
 		log.LogE(err)
 		return
 	}
 
+	var lock sync.WaitGroup
 	for _, application := range appMap {
-		go func(namespace, app, nid string) {
+		lock.Add(1)
+		func(namespace, app, nid string, lock *sync.WaitGroup) {
+			defer lock.Done()
+			time.Sleep(time.Millisecond * 50)
 			if err = p.RecoverPortForwardForApplication(namespace, app, nid); err != nil {
 				log.LogE(err)
 			}
-		}(application.Namespace, application.Name, application.Nid)
+		}(application.Namespace, application.Name, application.Nid, &lock)
+	}
+	lock.Wait()
+
+	if err := db.GetOrCreatePortForwardLevelDBFunc(
+		false, func(utils *dbutils.LevelDBUtils) {
+			_ = utils.Put([]byte("scanned"), []byte("true"))
+		},
+	); err != nil {
+		log.Infof("Error while writing port-forward level-db")
+	}
+}
+
+func (p *PortForwardManager) recordPortForward(ns, nid, app string, isPortForwarding func() bool) error {
+	path := filepath.Join(nocalhost_path.GetAppDbDir(ns, app, nid), "portforward")
+	if isPortForwarding() {
+		return ioutil.WriteFile(path, nil, 0644)
+	} else {
+		return os.Remove(path)
 	}
 }
 
@@ -176,6 +220,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 	if err != nil {
 		return err
 	}
+
+	p.recordPortForward(startCmd.NameSpace, startCmd.Nid, startCmd.AppName, func() bool { return true })
 
 	if saveToDB {
 		// Check if port forward already exists
@@ -239,7 +285,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				logDir, fmt.Sprintf(
 					"%s_%s_%s_%d_%d", startCmd.NameSpace, startCmd.AppName, startCmd.Service, localPort, remotePort,
 				),
-			), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0755)
+			), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0755,
+		)
 		if err != nil {
 			log.LogE(err)
 		}
@@ -282,8 +329,10 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				if errs != nil && k8serrors.IsNotFound(errs) {
 					log.Logf("Pod: %s not found, remove port-forward for this pod", startCmd.PodName)
 					p.lock.Lock()
-					err2 := nhController.UpdatePortForwardStatus(localPort, remotePort, "DISCONNECTED",
-						fmt.Sprintf("Unable to found pod %s", startCmd.PodName))
+					err2 := nhController.UpdatePortForwardStatus(
+						localPort, remotePort, "DISCONNECTED",
+						fmt.Sprintf("Unable to found pod %s", startCmd.PodName),
+					)
 					p.lock.Unlock()
 					if err2 != nil {
 						log.LogE(err2)
@@ -294,8 +343,10 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				} else {
 					log.Warn("Reconnecting after 15 seconds...")
 					p.lock.Lock()
-					err = nhController.UpdatePortForwardStatus(localPort, remotePort, "RECONNECTING",
-						"Reconnecting after 15 seconds...")
+					err = nhController.UpdatePortForwardStatus(
+						localPort, remotePort, "RECONNECTING",
+						"Reconnecting after 15 seconds...",
+					)
 					p.lock.Unlock()
 					if err != nil {
 						log.LogE(err)
@@ -324,6 +375,13 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				if err != nil {
 					log.LogE(err)
 				}
+
+				p.recordPortForward(
+					startCmd.NameSpace, startCmd.Nid, startCmd.AppName, func() bool {
+						return nhController.IsPortForwarding()
+					},
+				)
+
 				if pfProfile, ok := p.pfList[key]; ok {
 					pfProfile.StopCh <- err
 				}
