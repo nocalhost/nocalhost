@@ -11,10 +11,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"gopkg.in/yaml.v3"
+	"io/ioutil"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -190,6 +192,14 @@ func (a *AppProfileV2) Save() error {
 	if _, err = os.Stat(a.dbPath); err != nil {
 		return errors.Wrap(err, "")
 	}
+	defer func() {
+		for _, profileV2 := range a.SvcProfile {
+			if len(profileV2.DevPortForwardList) != 0 {
+				ioutil.WriteFile(filepath.Join(filepath.Dir(a.dbPath), "portforward"), nil, 0644)
+				break
+			}
+		}
+	}()
 	return a.db.Put([]byte(ProfileV2Key(a.ns, a.appName)), bys)
 }
 
