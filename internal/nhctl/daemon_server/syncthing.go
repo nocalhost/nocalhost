@@ -32,7 +32,7 @@ import (
 
 func recoverSyncthing() {
 	log.Log("Recovering syncthing")
-	appMap, err := nocalhost.GetNsAndApplicationInfo()
+	appMap, err := nocalhost.GetNsAndApplicationInfo(true)
 	if err != nil {
 		return
 	}

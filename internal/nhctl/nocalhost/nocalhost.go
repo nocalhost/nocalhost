@@ -196,7 +196,7 @@ func MigrateNsDirToSupportNidIfNeeded(app, ns, nid string) error {
 	return nil
 }
 
-func GetNsAndApplicationInfo() ([]AppInfo, error) {
+func GetNsAndApplicationInfo(portForwardFilter bool) ([]AppInfo, error) {
 	if err := MoveAppFromNsToNid(); err != nil {
 		log.LogE(err)
 	}
@@ -231,6 +231,11 @@ func GetNsAndApplicationInfo() ([]AppInfo, error) {
 					if !IsNocalhostAppDir(appPath) {
 						continue
 					}
+					if portForwardFilter {
+						if !IsPortForwarding(appPath) {
+							continue
+						}
+					}
 					result = append(
 						result, AppInfo{
 							Name:      appDir.Name(),
@@ -263,6 +268,26 @@ func IsNocalhostAppDir(dir string) bool {
 			continue
 		}
 		if item.Name() == "db" {
+			return true
+		}
+	}
+	return false
+}
+
+func IsPortForwarding(dir string) bool {
+	s, err := os.Stat(dir)
+	if err != nil {
+		return false
+	}
+	if !s.IsDir() {
+		return false
+	}
+	appDirItems, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, item := range appDirItems {
+		if item.Name() == "portforward" {
 			return true
 		}
 	}
