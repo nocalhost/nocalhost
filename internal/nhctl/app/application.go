@@ -167,7 +167,7 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 		return nil, err
 	}
 
-	if err := app.tryLoadProfileFromLocal(); err != nil {
+	if err := app.createLevelDbIfNotExists(); err != nil {
 		return nil, err
 	}
 
@@ -675,7 +675,7 @@ func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.
 	return configs
 }
 
-func (a *Application) tryLoadProfileFromLocal() (err error) {
+func (a *Application) createLevelDbIfNotExists() (err error) {
 	if db, err := nocalhostDb.OpenApplicationLevelDB(a.NameSpace, a.Name, a.appMeta.NamespaceId, true); err != nil {
 		return nocalhostDb.CreateApplicationLevelDB(
 			a.NameSpace, a.Name, a.appMeta.NamespaceId, true,
