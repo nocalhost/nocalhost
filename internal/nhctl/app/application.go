@@ -155,10 +155,6 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 	// 4. update kubeconfig for profile
 	// 5. init go client inner Application
 
-	if err := app.tryLoadProfileFromLocal(); err != nil {
-		return nil, err
-	}
-
 	if !app.appMeta.IsInstalled() {
 		return nil, errors.Wrap(ErrNotFound, fmt.Sprintf("%s-%s not found", app.NameSpace, app.Name))
 	}
@@ -168,6 +164,10 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 	}
 
 	if err = nocalhost.MigrateNsDirToSupportNidIfNeeded(app.Name, app.NameSpace, app.appMeta.NamespaceId); err != nil {
+		return nil, err
+	}
+
+	if err := app.tryLoadProfileFromLocal(); err != nil {
 		return nil, err
 	}
 
@@ -677,11 +677,9 @@ func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.
 
 func (a *Application) tryLoadProfileFromLocal() (err error) {
 	if db, err := nocalhostDb.OpenApplicationLevelDB(a.NameSpace, a.Name, a.appMeta.NamespaceId, true); err != nil {
-		if err = nocalhostDb.CreateApplicationLevelDB(
+		return nocalhostDb.CreateApplicationLevelDB(
 			a.NameSpace, a.Name, a.appMeta.NamespaceId, true,
-		); err != nil { // Init leveldb dir
-			return err
-		}
+		)
 	} else {
 		_ = db.Close()
 	}
