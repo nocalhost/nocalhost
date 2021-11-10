@@ -22,31 +22,34 @@ import (
 
 func InitDefaultApplicationInCurrentNs(appName, namespace, kubeconfigPath string) (*app.Application, error) {
 	var err error
-	meta := appmeta.FakeAppMeta(namespace, appName)
-	if err := meta.InitGoClient(kubeconfigPath); err != nil {
+	fakedMeta := appmeta.FakeAppMeta(namespace, appName)
+	if err := fakedMeta.InitGoClient(kubeconfigPath); err != nil {
 		return nil, err
 	}
 
 	// continue initial when secret already exist
-	if err := meta.Initial(); err != nil && !k8serrors.IsAlreadyExists(err) {
-		return nil, err
+	if err := fakedMeta.Initial(); err != nil && !k8serrors.IsAlreadyExists(err) {
+		log.Logf("Init default.application meta failed: %v", err)
+		return app.NewApplicationM(appName, namespace, kubeconfigPath, fakedMeta, true)
 	}
 
+	var actualMeta *appmeta.ApplicationMeta
 	// re get from daemon
-	if meta, err = nocalhost.GetApplicationMeta(appName, namespace, kubeconfigPath); err != nil {
-		return nil, err
+	if actualMeta, err = nocalhost.GetApplicationMeta(appName, namespace, kubeconfigPath); err != nil {
+		log.Logf("Get default.application meta failed: %v", err)
+		return app.NewApplicationM(appName, namespace, kubeconfigPath, fakedMeta, true)
 	}
 
-	if meta.IsInstalled() {
-		return nil, errors2.New("already installed")
+	if actualMeta.IsInstalled() {
+		return app.NewApplicationM(appName, namespace, kubeconfigPath, actualMeta, true)
 	}
 
 	// set status as INSTALLED if not installed
-	meta.ApplicationState = appmeta.INSTALLED
-	if err := meta.Update(); err != nil {
-		return nil, err
+	actualMeta.ApplicationState = appmeta.INSTALLED
+	if err := actualMeta.Update(); err != nil {
+		return app.NewApplicationM(appName, namespace, kubeconfigPath, actualMeta, true)
 	}
-	return nil, nil
+	return app.NewApplicationM(appName, namespace, kubeconfigPath, actualMeta, true)
 }
 
 func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconfig, namespace string) (*app.Application, error) {
