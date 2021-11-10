@@ -182,14 +182,13 @@ type ApplicationMetaSimple struct {
 }
 
 func FakeAppMeta(ns, application string) *ApplicationMeta {
-	nid, _ := utils.GetShortUuid()
 	return &ApplicationMeta{
 		ApplicationState: INSTALLED,
 		Ns:               ns,
 		Application:      application,
 		DevMeta:          ApplicationDevMeta{},
-		Config:           &profile2.NocalHostAppConfigV2{},
-		NamespaceId:      nid,
+		Config:           &profile2.NocalHostAppConfigV2{Migrated: true},
+		NamespaceId:      "fakedNid",
 	}
 }
 
