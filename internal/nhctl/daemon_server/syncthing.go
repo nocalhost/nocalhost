@@ -148,12 +148,6 @@ func reconnectedSyncthingIfNeeded() {
 			if !svc.IsProcessor() {
 				continue
 			}
-
-			if v, ok := maps.Load(toKey(svc)); ok {
-				if time.Now().Sub(v.(*name).lastTime).Minutes() > 5 && v.(*name).times > 5 {
-					continue
-				}
-			}
 			// reconnect two times:
 			// pre each time, check syncthing connections, if remote device connection is connected, no needs to recover
 			// if remote device connection is not connected, but have this connection, just to do port-forward
@@ -177,7 +171,13 @@ func reconnectedSyncthingIfNeeded() {
 						}
 						return errors.New("needs to reconnect")
 					}); err == nil {
-						break
+						maps.Delete(toKey(svc))
+						return
+					}
+					if v, ok := maps.Load(toKey(svc)); ok {
+						if time.Now().Sub(v.(*name).lastTime).Minutes() > 5 && v.(*name).times > 5 {
+							continue
+						}
 					}
 					log.LogDebugf("prepare to restore syncthing, name: %s", svc.Name)
 					// TODO using developing container, otherwise will using default containerDevConfig
