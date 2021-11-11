@@ -94,6 +94,26 @@ func reconnectSyncthingIfNeededWithPeriod(duration time.Duration) {
 	}
 }
 
+// namespace-nid-appName-serviceType-serviceName
+var maps sync.Map
+
+func toKey(controller2 *controller.Controller) key {
+	return key(fmt.Sprintf("%s-%s-%s-%s-%s",
+		controller2.NameSpace,
+		controller2.AppMeta.NamespaceId,
+		controller2.AppName,
+		controller2.Type,
+		controller2.Name,
+	))
+}
+
+type key string
+
+type name struct {
+	times    int
+	lastTime time.Time
+}
+
 // reconnectedSyncthingIfNeeded will reconnect syncthing immediately if syncthing service is not available
 func reconnectedSyncthingIfNeeded() {
 
@@ -128,6 +148,12 @@ func reconnectedSyncthingIfNeeded() {
 			if !svc.IsProcessor() {
 				continue
 			}
+
+			if v, ok := maps.Load(toKey(svc)); ok {
+				if time.Now().Sub(v.(*name).lastTime).Minutes() > 5 && v.(*name).times > 5 {
+					continue
+				}
+			}
 			// reconnect two times:
 			// pre each time, check syncthing connections, if remote device connection is connected, no needs to recover
 			// if remote device connection is not connected, but have this connection, just to do port-forward
@@ -136,6 +162,7 @@ func reconnectedSyncthingIfNeeded() {
 			// the second time: redo port-forward, and create a new syncthing process
 			go func(svc *controller.Controller) {
 				defer recoverDaemonFromPanic()
+				var err error
 				for i := 0; i < 2; i++ {
 					if err = retry.OnError(wait.Backoff{
 						Steps:    3,
@@ -159,6 +186,16 @@ func reconnectedSyncthingIfNeeded() {
 							"error while reconnect syncthing, ns: %s, app: %s, svc: %s, type: %s, err: %v",
 							svc.AppMeta.Ns, svc.AppMeta.Application, svc.Name, svc.Type, err)
 					}
+				}
+				if err != nil {
+					if v, ok := maps.Load(toKey(svc)); ok {
+						v.(*name).lastTime = time.Now()
+						v.(*name).times++
+					} else {
+						maps.Store(toKey(svc), &name{times: 1, lastTime: time.Now()})
+					}
+				} else {
+					maps.Delete(toKey(svc))
 				}
 			}(svc)
 		}
