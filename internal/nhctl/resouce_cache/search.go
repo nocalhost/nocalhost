@@ -258,22 +258,16 @@ func (s *Searcher) GetResourceInfo(resourceType string) (GvkGvrWithAlias, error)
 }
 
 // e's annotation appName must in appNameRange, otherwise app name is not available
-func getAppName(e interface{}, availableAppName []string) string {
+func getAppName(e interface{}) string {
 	annotations := e.(metav1.Object).GetAnnotations()
 	if annotations == nil {
 		return _const.DefaultNocalhostApplication
 	}
-	var appName string
 	if len(annotations[_const.NocalhostApplicationName]) != 0 {
-		appName = annotations[_const.NocalhostApplicationName]
+		return annotations[_const.NocalhostApplicationName]
 	}
 	if len(annotations[_const.HelmReleaseName]) != 0 {
-		appName = annotations[_const.HelmReleaseName]
-	}
-	for _, app := range availableAppName {
-		if app == appName {
-			return appName
-		}
+		return annotations[_const.HelmReleaseName]
 	}
 	return _const.DefaultNocalhostApplication
 }
@@ -301,12 +295,11 @@ type criteria struct {
 	kind         runtime.Object
 	resourceType string
 
-	namespaceScope   bool
-	resourceName     string
-	appName          string
-	ns               string
-	availableAppName []string
-	label            map[string]string
+	namespaceScope bool
+	resourceName   string
+	appName        string
+	ns             string
+	label          map[string]string
 }
 
 func newCriteria(search *Searcher) *criteria {
@@ -319,17 +312,6 @@ func (c *criteria) Namespace(namespace string) *criteria {
 
 func (c *criteria) AppName(appName string) *criteria {
 	c.appName = appName
-	return c
-}
-
-func (c *criteria) AppNameNotIn(appNames ...string) *criteria {
-	var result []string
-	for _, appName := range appNames {
-		if appName != _const.DefaultNocalhostApplication {
-			result = append(result, appName)
-		}
-	}
-	c.availableAppName = result
 	return c
 }
 
@@ -448,14 +430,14 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		}
 
 		// this is a filter, if appName is empty, just return value
-		if len(c.appName) == 0 || c.appName == getAppName(item, c.availableAppName) {
+		if len(c.appName) == 0 || c.appName == getAppName(item) {
 			return append(data, item), nil
 		}
 		return
 	}
 	return newFilter(informer.GetIndexer().List()).
 		namespace(c.ns).
-		appName(c.availableAppName, c.appName).
+		appName(c.appName).
 		label(c.label).
 		notLabel(map[string]string{_const.DevWorkloadIgnored: "true"}).
 		sort().
@@ -484,36 +466,17 @@ func (n *filter) namespace(namespace string) *filter {
 	return n
 }
 
-func (n *filter) appName(availableAppName []string, appName string) *filter {
+func (n *filter) appName(appName string) *filter {
 	if len(appName) == 0 {
 		return n
 	}
-	if appName == _const.DefaultNocalhostApplication {
-		return n.appNameNotIn(availableAppName)
-	}
 	var result []interface{}
 	for _, e := range n.element {
-		if getAppName(e, availableAppName) == appName {
+		if getAppName(e) == appName {
 			result = append(result, e)
 		}
 	}
 	n.element = result[0:]
-	return n
-}
-
-func (n *filter) appNameNotIn(appNamesDefaultAppExclude []string) *filter {
-	appNameMap := make(map[string]string)
-	for _, appName := range appNamesDefaultAppExclude {
-		appNameMap[appName] = appName
-	}
-	var result []interface{}
-	for _, e := range n.element {
-		appName := getAppName(e, appNamesDefaultAppExclude)
-		if appName == _const.DefaultNocalhostApplication || len(appNameMap[appName]) == 0 {
-			result = append(result, e)
-		}
-	}
-	n.element = result
 	return n
 }
 
