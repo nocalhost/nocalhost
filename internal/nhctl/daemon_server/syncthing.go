@@ -112,6 +112,7 @@ type key string
 type name struct {
 	times    int
 	lastTime time.Time
+	nextTime time.Time
 }
 
 // reconnectedSyncthingIfNeeded will reconnect syncthing immediately if syncthing service is not available
@@ -175,8 +176,20 @@ func reconnectedSyncthingIfNeeded() {
 						return
 					}
 					if v, ok := maps.Load(toKey(svc)); ok {
-						if time.Now().Sub(v.(*name).lastTime).Minutes() > 5 && v.(*name).times > 5 {
-							continue
+						v.(*name).lastTime = time.Now()
+						v.(*name).times++
+						if v.(*name).times >= 5 {
+							v.(*name).nextTime = time.Now().Add(time.Minute * 2)
+						}
+					} else {
+						maps.Store(toKey(svc), &name{times: 1, lastTime: time.Now()})
+					}
+					// if last 5 min failed 5 times, will not retry
+					if v, ok := maps.Load(toKey(svc)); ok {
+						if time.Now().Sub(v.(*name).lastTime).Minutes() >= 5 && v.(*name).times >= 5 {
+							if v.(*name).nextTime.Sub(time.Now()).Seconds() > 0 {
+								return
+							}
 						}
 					}
 					log.LogDebugf("prepare to restore syncthing, name: %s", svc.Name)
@@ -186,16 +199,6 @@ func reconnectedSyncthingIfNeeded() {
 							"error while reconnect syncthing, ns: %s, app: %s, svc: %s, type: %s, err: %v",
 							svc.AppMeta.Ns, svc.AppMeta.Application, svc.Name, svc.Type, err)
 					}
-				}
-				if err != nil {
-					if v, ok := maps.Load(toKey(svc)); ok {
-						v.(*name).lastTime = time.Now()
-						v.(*name).times++
-					} else {
-						maps.Store(toKey(svc), &name{times: 1, lastTime: time.Now()})
-					}
-				} else {
-					maps.Delete(toKey(svc))
 				}
 			}(svc)
 		}
