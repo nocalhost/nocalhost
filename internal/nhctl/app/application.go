@@ -63,62 +63,6 @@ func (a *Application) GetAppMeta() *appmeta.ApplicationMeta {
 	return a.appMeta
 }
 
-//func NewFakeApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
-//
-//	var err error
-//	if kubeconfig == "" { // use default config
-//		kubeconfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
-//	}
-//	app := &Application{
-//		Name:       name,
-//		NameSpace:  ns,
-//		KubeConfig: kubeconfig,
-//	}
-//
-//	app.appMeta = appmeta.FakeAppMeta(ns, kubeconfig)
-//	if err := app.tryLoadProfileFromLocal(); err != nil {
-//		return nil, err
-//	}
-//
-//	// if still not present
-//	// load from secret
-//	// todo: check if this has err.
-//	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId)
-//	if err != nil {
-//		profileV2 = &profile.AppProfileV2{}
-//		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
-//			return nil, err
-//		}
-//	}
-//
-//	if profileV2.Identifier == "" {
-//		//profileV2.GenerateIdentifierIfNeeded()
-//		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
-//			return nil, err
-//		}
-//	}
-//	app.AppType = profileV2.AppType
-//	app.Identifier = profileV2.Identifier
-//
-//	if kubeconfig != "" && kubeconfig != profileV2.Kubeconfig {
-//		if err := app.UpdateProfile(
-//			func(p *profile.AppProfileV2) error {
-//				p.Kubeconfig = kubeconfig
-//				return nil
-//			},
-//		); err != nil {
-//			return nil, err
-//		}
-//	}
-//
-//	if initClient {
-//		if app.client, err = clientgoutils.NewClientGoUtils(app.KubeConfig, app.NameSpace); err != nil {
-//			return nil, err
-//		}
-//	}
-//	return app, nil
-//}
-
 // NewApplication When new a application, kubeconfig is required to get meta in k8s cluster
 // KubeConfig can be acquired from profile in leveldb
 func NewApplication(name string, ns string, kubeconfig string, initClient bool) (*Application, error) {
@@ -235,33 +179,6 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 	//migrateAssociate(profileV2, app)
 	return app, nil
 }
-
-//func (a *Application) migrateNsDirToSupportNidIfNeeded() {
-//	newDir := nocalhost_path.GetAppDirUnderNs(a.Name, a.NameSpace, a.appMeta.NamespaceId)
-//	_, err := os.Stat(newDir)
-//	if os.IsNotExist(err) {
-//		oldDir := nocalhost_path.GetAppDirUnderNsWithoutNid(a.Name, a.NameSpace)
-//		ss, err := os.Stat(oldDir)
-//		if err != nil {
-//			if os.IsNotExist(err) {
-//				return
-//			}
-//			log.LogE(errors.Wrap(err, ""))
-//			return
-//		}
-//		if !ss.IsDir() {
-//			return
-//		}
-//		if err = utils.CopyDir(oldDir, newDir); err != nil {
-//			log.LogE(err)
-//		} else {
-//			log.Logf("app %s in %s has been migrated", a.Name, a.NameSpace)
-//			if err = os.RemoveAll(oldDir); err != nil {
-//				log.LogE(errors.Wrap(err, ""))
-//			}
-//		}
-//	}
-//}
 
 func (a *Application) generateSecretForEarlierVer() bool {
 

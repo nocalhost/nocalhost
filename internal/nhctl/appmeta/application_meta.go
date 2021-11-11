@@ -17,7 +17,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
-	"nocalhost/internal/nhctl/appmeta/secret_operator"
+	"nocalhost/internal/nhctl/appmeta/operator"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/dev_dir"
@@ -228,7 +228,7 @@ type ApplicationMeta struct {
 	NamespaceId string `json:"namespace_id"`
 
 	// current client go util is injected, may null, be care!
-	operator *secret_operator.ClientGoUtilClient
+	operator *operator.ClientGoUtilClient
 }
 
 func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
@@ -451,7 +451,7 @@ func (a *ApplicationMeta) InitGoClient(kubeConfigPath string) error {
 	if err != nil {
 		return errors.Wrap(err, "can not read kubeconfig content, path: "+kubeConfigPath)
 	}
-	a.operator = &secret_operator.ClientGoUtilClient{
+	a.operator = &operator.ClientGoUtilClient{
 		ClientInner:     clientGo,
 		KubeconfigBytes: content,
 	}
@@ -725,17 +725,18 @@ func (a *ApplicationMeta) Uninstall(force bool) error {
 		}
 	}
 	a.operator.CleanManifest(a.PostDeleteManifest)
+	a.operator.CleanCustomResource(a.Ns, a.Application)
 
 	return nil
 }
 
 func (a *ApplicationMeta) cleanManifest() {
-	operator := a.operator
+	op := a.operator
 
 	resource := clientgoutils.NewResourceFromStr(a.Manifest)
 
 	//goland:noinspection GoNilness
-	infos, err := resource.GetResourceInfo(operator.ClientInner, true)
+	infos, err := resource.GetResourceInfo(op.ClientInner, true)
 	if err != nil {
 		log.Error("Error while loading manifest %s, err: %s ", a.Manifest, err)
 	}
@@ -745,11 +746,11 @@ func (a *ApplicationMeta) cleanManifest() {
 }
 
 func (a *ApplicationMeta) cleanUpDepConfigMap() error {
-	operator := a.operator
+	op := a.operator
 
 	if a.DepConfigName != "" {
 		log.Debugf("Cleaning up config map %s", a.DepConfigName)
-		err := operator.ClientInner.DeleteConfigMapByName(a.DepConfigName)
+		err := op.ClientInner.DeleteConfigMapByName(a.DepConfigName)
 		if err != nil {
 			return err
 		}
@@ -759,7 +760,7 @@ func (a *ApplicationMeta) cleanUpDepConfigMap() error {
 	}
 
 	// Clean up all dep config map
-	list, err := operator.ClientInner.ListConfigMaps()
+	list, err := op.ClientInner.ListConfigMaps()
 	if err != nil {
 		return err
 	}
@@ -767,7 +768,7 @@ func (a *ApplicationMeta) cleanUpDepConfigMap() error {
 	for _, cfg := range list {
 		if strings.HasPrefix(cfg.Name, DependenceConfigMapPrefix) {
 			utils.ShouldI(
-				operator.ClientInner.DeleteConfigMapByName(cfg.Name), "Failed to clean up config map"+cfg.Name,
+				op.ClientInner.DeleteConfigMapByName(cfg.Name), "Failed to clean up config map"+cfg.Name,
 			)
 		}
 	}
