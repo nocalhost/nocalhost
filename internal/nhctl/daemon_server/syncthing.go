@@ -94,6 +94,25 @@ func reconnectSyncthingIfNeededWithPeriod(duration time.Duration) {
 	}
 }
 
+// namespace-nid-appName-serviceType-serviceName
+var maps sync.Map
+
+func toKey(controller2 *controller.Controller) string {
+	return fmt.Sprintf("%s-%s-%s-%s-%s",
+		controller2.NameSpace,
+		controller2.AppMeta.NamespaceId,
+		controller2.AppName,
+		controller2.Type,
+		controller2.Name,
+	)
+}
+
+type backoff struct {
+	times    int
+	lastTime time.Time
+	nextTime time.Time
+}
+
 // reconnectedSyncthingIfNeeded will reconnect syncthing immediately if syncthing service is not available
 func reconnectedSyncthingIfNeeded() {
 
@@ -136,6 +155,7 @@ func reconnectedSyncthingIfNeeded() {
 			// the second time: redo port-forward, and create a new syncthing process
 			go func(svc *controller.Controller) {
 				defer recoverDaemonFromPanic()
+				var err error
 				for i := 0; i < 2; i++ {
 					if err = retry.OnError(wait.Backoff{
 						Steps:    3,
@@ -150,8 +170,21 @@ func reconnectedSyncthingIfNeeded() {
 						}
 						return errors.New("needs to reconnect")
 					}); err == nil {
-						break
+						maps.Delete(toKey(svc))
+						return
 					}
+					v, _ := maps.LoadOrStore(toKey(svc), &backoff{times: 0, lastTime: time.Now(), nextTime: time.Now()})
+					if v.(*backoff).nextTime.Sub(time.Now()).Seconds() > 0 {
+						return
+					}
+					v.(*backoff).times++
+					// if last 5 min failed 5 times, will delay 3 min to retry
+					if time.Now().Sub(v.(*backoff).lastTime).Minutes() >= 5 && v.(*backoff).times >= 5 {
+						v.(*backoff).nextTime = time.Now().Add(time.Minute * 3)
+					} else {
+						v.(*backoff).lastTime = time.Now()
+					}
+
 					log.LogDebugf("prepare to restore syncthing, name: %s", svc.Name)
 					// TODO using developing container, otherwise will using default containerDevConfig
 					if err = doReconnectSyncthing(svc, "", appProfile.Kubeconfig, i == 1); err != nil {
