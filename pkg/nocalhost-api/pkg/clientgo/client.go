@@ -9,16 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/util/retry"
-	"math/rand"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
-
 	istio "istio.io/client-go/pkg/clientset/versioned"
 	apiappsV1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
@@ -32,18 +22,27 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/retry"
+	"math/rand"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 )
 
 const (
@@ -1246,6 +1245,10 @@ func (c *GoClient) GetRestClient() (*restclient.RESTClient, error) {
 	c.restConfig.GroupVersion = &schema.GroupVersion{Group: "", Version: "v1"}
 	c.restConfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: scheme.Codecs}
 	return restclient.RESTClientFor(c.restConfig)
+}
+
+func (c *GoClient) GetClientset() *kubernetes.Clientset {
+	return c.client
 }
 
 // IsNamespaceExist check if exist namespace

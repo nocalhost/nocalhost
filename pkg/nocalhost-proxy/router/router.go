@@ -1,19 +1,23 @@
 package router
 
 import (
-	"crypto/tls"
-	"crypto/x509"
+	"context"
+	"encoding/json"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/clientcmd"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"net"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"nocalhost/internal/nocalhost-api/service"
+	"nocalhost/internal/nocalhost-proxy/utils"
+	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"regexp"
+	"strconv"
 	"time"
 )
 
@@ -30,25 +34,25 @@ func handler(c *gin.Context) {
 	id := cast.ToUint64(c.Param("id"))
 	cm, err := service.Svc.ClusterSvc().GetCache(id)
 	if err != nil {
-		failure(c, err)
+		utils.Failure(c, err)
 		return
 	}
 
 	kc, err := clientcmd.Load([]byte(cm.KubeConfig))
 	if err != nil {
-		failure(c, err)
+		utils.Failure(c, err)
 		return
 	}
 
 	cx, ok := kc.Contexts[kc.CurrentContext]
 	if !ok {
-		failure(c, errors.New("cannot find current context"))
+		utils.Failure(c, errors.New("cannot find current context"))
 		return
 	}
 
 	cs, ok := kc.Clusters[cx.Cluster]
 	if !ok {
-		failure(c, errors.New("cannot find current cluster"))
+		utils.Failure(c, errors.New("cannot find current cluster"))
 		return
 	}
 
@@ -56,19 +60,19 @@ func handler(c *gin.Context) {
 	// https://github.com/kubernetes/kubectl/issues/744#issuecomment-545757997
 	target, err := url.Parse(cs.Server)
 	if err != nil {
-		failure(c, err)
+		utils.Failure(c, err)
 		return
 	}
 
-	transport, err := newTransport(cs)
+	transport, err := utils.NewTransport(cs)
 	if err != nil {
-		failure(c, err)
+		utils.Failure(c, err)
 		return
 	}
 
 	ns := c.Param("namespace")
 	if len(ns) > 0 {
-		// TODO: update the annotations of namespace
+		go lastActivity(cm.KubeConfig, ns)
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
@@ -76,7 +80,7 @@ func handler(c *gin.Context) {
 	director := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		director(req)
-		// strip prefix
+		// strip the path prefix
 		path := prefix.ReplaceAllString(req.URL.Path, "/")
 		req.URL.Path = path
 		req.URL.RawPath = path
@@ -86,38 +90,28 @@ func handler(c *gin.Context) {
 	proxy.ServeHTTP(c.Writer, c.Request)
 }
 
-func newTransport(cs *clientcmdapi.Cluster) (*http.Transport, error) {
-	pool := x509.NewCertPool()
-	ok := pool.AppendCertsFromPEM(cs.CertificateAuthorityData)
-	if !ok {
-		return nil, errors.New("failed to parse CA")
+func lastActivity(config string, namespace string) {
+	// init client-go
+	client, err := clientgo.NewAdminGoClient([]byte(config))
+	if err != nil {
+		log.Printf("Failed to update `nocalhost.dev.sleep/last-activity`: %v\n\n", err)
+		return
 	}
-
-	return &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-		TLSClientConfig: &tls.Config{
-			RootCAs: pool,
+	// update the annotations of namespace
+	patch, _ := json.Marshal(map[string]map[string]map[string]string {
+		"metadata": {
+			"annotations": {
+				"nocalhost.dev.sleep/last-activity": strconv.FormatInt(time.Now().Unix(), 10),
+			},
 		},
-	}, nil
-}
-
-type Response struct {
-	Status		string	`json:"status"`
-	Message		string	`json:"message"`
-}
-
-func failure(c *gin.Context, err error) {
-	c.JSON(http.StatusInternalServerError, Response{
-		Message: err.Error(),
-		Status:  "Failure",
 	})
+	_, err = client.
+		GetClientset().
+		CoreV1().
+		Namespaces().
+		Patch(context.TODO(), namespace, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+	if err != nil {
+		log.Printf("Failed to update `nocalhost.dev.sleep/last-activity`: %v\n\n", err)
+		return
+	}
 }
