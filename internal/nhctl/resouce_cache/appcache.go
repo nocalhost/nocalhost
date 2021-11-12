@@ -6,6 +6,7 @@
 package resouce_cache
 
 import (
+	"crypto/sha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/informers"
@@ -21,8 +22,14 @@ type value struct {
 	lock *sync.RWMutex
 }
 
+func toKey(kubeconfigBytes []byte, ns string) string {
+	h := sha1.New()
+	h.Write(kubeconfigBytes)
+	return string(h.Sum([]byte(ns)))
+}
+
 func GetAllAppNameByNamespace(kubeconfigBytes []byte, ns string) []string {
-	load, _ := maps.Load(generateKey(kubeconfigBytes, ns))
+	load, _ := maps.Load(toKey(kubeconfigBytes, ns))
 	if load != nil {
 		return load.(*value).allKeys()
 	}
@@ -56,7 +63,7 @@ func NewResourceEventHandlerFuncs(resource informers.GenericInformer, kubeconfig
 }
 
 func (r *ResourceEventHandlerFuncs) toKey(ns string) string {
-	return generateKey(r.kubeconfigBytes, ns)
+	return toKey(r.kubeconfigBytes, ns)
 }
 
 func (r *ResourceEventHandlerFuncs) timeUp(f func()) {
