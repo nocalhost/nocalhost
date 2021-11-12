@@ -13,7 +13,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"nocalhost/internal/nocalhost-api/service"
+	"nocalhost/internal/nocalhost-api/service/cluster"
 	"nocalhost/internal/nocalhost-proxy/utils"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"regexp"
@@ -25,14 +25,14 @@ var (
 	prefix, _ = regexp.Compile("/kubernetes/clusters/\\d+/")
 )
 
-func Attach(g *gin.Engine) {
+func AttachTo(g *gin.Engine) {
 	g.Any("/kubernetes/clusters/:id/api/:version/namespaces/:namespace/*rest", handler)
 	g.NoRoute(handler)
 }
 
 func handler(c *gin.Context) {
 	id := cast.ToUint64(c.Param("id"))
-	cm, err := service.Svc.ClusterSvc().GetCache(id)
+	cm, err := cluster.NewClusterService().GetCache(id)
 	if err != nil {
 		utils.Failure(c, err)
 		return
