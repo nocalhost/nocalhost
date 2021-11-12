@@ -3,17 +3,16 @@ package router
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"nocalhost/internal/nocalhost-api/service"
-	yaml "nocalhost/pkg/nhctl/utils/custom_yaml_v3"
-	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster"
 	"regexp"
 	"time"
 )
@@ -35,29 +34,27 @@ func handler(c *gin.Context) {
 		return
 	}
 
-	kc := &cluster.KubeConfig{}
-	err = yaml.Unmarshal([]byte(cm.KubeConfig), kc)
+	kc, err := clientcmd.Load([]byte(cm.KubeConfig))
 	if err != nil {
 		failure(c, err)
 		return
 	}
 
-	var cs *cluster.Cluster = nil
-	for _, v := range kc.Clusters {
-		if v.Name == cm.Name {
-			cs = &v.Cluster
-			break
-		}
+	cx, ok := kc.Contexts[kc.CurrentContext]
+	if !ok {
+		failure(c, errors.New("cannot find current context"))
+		return
 	}
 
-	if cs == nil {
-		failure(c, errors.New("cannot find the cluster"))
+	cs, ok := kc.Clusters[cx.Cluster]
+	if !ok {
+		failure(c, errors.New("cannot find current cluster"))
 		return
 	}
 
 	// kubectl does not send `Authorization` header over plain HTTP
 	// https://github.com/kubernetes/kubectl/issues/744#issuecomment-545757997
-	uri, err := url.Parse(cs.Server)
+	target, err := url.Parse(cs.Server)
 	if err != nil {
 		failure(c, err)
 		return
@@ -74,7 +71,7 @@ func handler(c *gin.Context) {
 		// TODO: update the annotations of namespace
 	}
 
-	proxy := httputil.NewSingleHostReverseProxy(uri)
+	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
 	director := proxy.Director
 	proxy.Director = func(req *http.Request) {
@@ -85,18 +82,13 @@ func handler(c *gin.Context) {
 		req.URL.RawPath = path
 	}
 
-	c.Request.Host = uri.Host
+	c.Request.Host = target.Host
 	proxy.ServeHTTP(c.Writer, c.Request)
 }
 
-func newTransport(cs *cluster.Cluster) (*http.Transport, error) {
-	ca, err := base64.StdEncoding.DecodeString(cs.CertificateAuthorityData)
-	if err != nil {
-		return nil, err
-	}
-
+func newTransport(cs *clientcmdapi.Cluster) (*http.Transport, error) {
 	pool := x509.NewCertPool()
-	ok := pool.AppendCertsFromPEM(ca)
+	ok := pool.AppendCertsFromPEM(cs.CertificateAuthorityData)
 	if !ok {
 		return nil, errors.New("failed to parse CA")
 	}
