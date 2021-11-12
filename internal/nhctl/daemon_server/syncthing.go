@@ -97,19 +97,17 @@ func reconnectSyncthingIfNeededWithPeriod(duration time.Duration) {
 // namespace-nid-appName-serviceType-serviceName
 var maps sync.Map
 
-func toKey(controller2 *controller.Controller) key {
-	return key(fmt.Sprintf("%s-%s-%s-%s-%s",
+func toKey(controller2 *controller.Controller) string {
+	return fmt.Sprintf("%s-%s-%s-%s-%s",
 		controller2.NameSpace,
 		controller2.AppMeta.NamespaceId,
 		controller2.AppName,
 		controller2.Type,
 		controller2.Name,
-	))
+	)
 }
 
-type key string
-
-type name struct {
+type backoff struct {
 	times    int
 	lastTime time.Time
 	nextTime time.Time
@@ -175,23 +173,18 @@ func reconnectedSyncthingIfNeeded() {
 						maps.Delete(toKey(svc))
 						return
 					}
-					if v, ok := maps.Load(toKey(svc)); ok {
-						v.(*name).lastTime = time.Now()
-						v.(*name).times++
-						if v.(*name).times >= 5 {
-							v.(*name).nextTime = time.Now().Add(time.Minute * 3)
-						}
-					} else {
-						maps.Store(toKey(svc), &name{times: 1, lastTime: time.Now()})
+					v, _ := maps.LoadOrStore(toKey(svc), &backoff{times: 0, lastTime: time.Now(), nextTime: time.Now()})
+					if v.(*backoff).nextTime.Sub(time.Now()).Seconds() > 0 {
+						return
 					}
+					v.(*backoff).times++
 					// if last 5 min failed 5 times, will delay 3 min to retry
-					if v, ok := maps.Load(toKey(svc)); ok {
-						if time.Now().Sub(v.(*name).lastTime).Minutes() >= 5 && v.(*name).times >= 5 {
-							if v.(*name).nextTime.Sub(time.Now()).Seconds() > 0 {
-								return
-							}
-						}
+					if time.Now().Sub(v.(*backoff).lastTime).Minutes() >= 5 && v.(*backoff).times >= 5 {
+						v.(*backoff).nextTime = time.Now().Add(time.Minute * 3)
+					} else {
+						v.(*backoff).lastTime = time.Now()
 					}
+
 					log.LogDebugf("prepare to restore syncthing, name: %s", svc.Name)
 					// TODO using developing container, otherwise will using default containerDevConfig
 					if err = doReconnectSyncthing(svc, "", appProfile.Kubeconfig, i == 1); err != nil {
