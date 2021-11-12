@@ -177,6 +177,7 @@ var (
 	ErrValidateMeshInfo                 = &Errno{Code: 50208, Message: "Incorrect mesh space parameter"}
 	ErrMeshInfoRequired                 = &Errno{Code: 50209, Message: "Mesh space parameter required"}
 	ErrBaseSpaceReSet                   = &Errno{Code: 50210, Message: "Base space can't be reset"}
+	ErrProtectedSpaceReSet              = &Errno{Code: 50211, Message: "Protected space can't be reset or delete"}
 	ErrAsBothBaseSpaceAndMeshSpace      = &Errno{
 		Code:    50211,
 		Message: "Cannot be set as both base space and mesh space",

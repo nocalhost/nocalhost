@@ -871,7 +871,7 @@ func (c *GoClient) RemoveClusterRoleBinding(name, toServiceAccount, toServiceAcc
 
 func (c *GoClient) RemoveRoleBinding(name, namespace, toServiceAccount, toServiceAccountNs string) error {
 	rb, err := c.client.RbacV1().RoleBindings(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
+	if err != nil && k8serrors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
 		return err

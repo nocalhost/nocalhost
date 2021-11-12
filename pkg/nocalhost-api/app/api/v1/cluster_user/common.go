@@ -26,7 +26,7 @@ func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*mode
 
 	cluster, err := service.Svc.ClusterSvc().GetCache(devSpace.ClusterId)
 	if err != nil {
-		return nil, errno.ErrClusterKubeErr
+		return nil, errno.ErrClusterNotFound
 	}
 
 	loginUser, err := ginbase.LoginUser(c)
@@ -48,11 +48,11 @@ func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*mode
 	return nil, errno.ErrPermissionDenied
 }
 
-// HasHighPermissionToSomeDevSpace
-// High Permission include
+// HasPrivilegeToSomeDevSpace
+// Include
 // - update resource limit
 // - delete devspace
-func HasHighPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.ClusterUserModel, error) {
+func HasPrivilegeToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.ClusterUserModel, error) {
 	devSpace, err := service.Svc.ClusterUser().GetCache(devSpaceId)
 	if err != nil {
 		return nil, errno.ErrClusterUserNotFound
@@ -60,7 +60,7 @@ func HasHighPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.
 
 	cluster, err := service.Svc.ClusterSvc().GetCache(devSpace.ClusterId)
 	if err != nil {
-		return nil, errno.ErrClusterKubeErr
+		return nil, errno.ErrClusterNotFound
 	}
 
 	loginUser, err := ginbase.LoginUser(c)

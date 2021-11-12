@@ -6,6 +6,11 @@
 package _const
 
 const (
+	UintEnable = uint64(1)
+	UintDisable = uint64(0)
+
+	DefaultEmailSuffix = "@nocalhost.dev"
+
 	DefaultNewFilePermission        = 0700
 	DefaultApplicationDirName       = "application"
 	DefaultBinDirName               = "bin"
