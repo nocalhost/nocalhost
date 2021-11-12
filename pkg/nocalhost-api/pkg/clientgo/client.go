@@ -405,6 +405,18 @@ func (c *GoClient) IsAdmin() (bool, error) {
 	return response.Status.Allowed, nil
 }
 
+func (c *GoClient) DeleteServiceAccount(name, namespace string) error {
+	if name == "" {
+		name = global.NocalhostDevServiceAccountName
+	}
+
+	err := c.client.CoreV1().ServiceAccounts(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil && !k8serrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
 // create serviceAccount for namespace(Authorization cluster for developer)
 // default name is nocalhost
 func (c *GoClient) CreateServiceAccount(name, namespace string) (bool, error) {

@@ -164,6 +164,7 @@ var (
 		Code:    50126,
 		Message: "The space name already exists, please change the space name",
 	}
+	ErrDeleteServiceAccount = &Errno{Code: 50127, Message: "Delete sa failed."}
 
 	// cluster-user errors for mesh space
 	ErrMeshClusterUserNotFound          = &Errno{Code: 50200, Message: "Base dev space has not found"}
