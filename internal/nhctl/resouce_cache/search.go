@@ -188,7 +188,7 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 	for name, groupVersionResourceList := range restMappingList {
 		createInformerSuccess := false
 		for _, resource := range groupVersionResourceList {
-			if _, err = informerFactory.ForResource(resource.Gvr); err != nil {
+			if informer, err := informerFactory.ForResource(resource.Gvr); err != nil {
 				if k8serrors.IsForbidden(err) {
 					log.Warnf("user account is forbidden to list resource: %v, ignored", resource)
 					createInformerSuccess = true
@@ -198,6 +198,7 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 					log.Warnf("Can't create informer for resource: %v, error info: %v, ignored", resource, err)
 				}
 			} else {
+				informer.Informer().AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes))
 				createInformerSuccess = true
 				for _, alias := range resource.alias {
 					result.Store(alias, resource)

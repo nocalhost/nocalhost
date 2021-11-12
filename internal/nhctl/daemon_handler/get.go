@@ -177,7 +177,11 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		// init searcher for cache async
 		go func() { _, _ = resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns) }()
 		if request.ResourceName == "" {
-			return ParseApplicationsResult(ns, GetAllApplicationWithDefaultApp(ns, request.KubeConfig))
+			app := GetAllApplicationWithDefaultApp(ns, request.KubeConfig)
+			for _, s := range resouce_cache.GetAllAppNameByNamespace(KubeConfigBytes, ns) {
+				app = append(app, &appmeta.ApplicationMeta{ApplicationType: appmeta.Manifest, Application: s})
+			}
+			return ParseApplicationsResult(ns, app)
 		} else {
 			meta := appmeta_manager.GetApplicationMeta(ns, request.ResourceName, KubeConfigBytes)
 			return ParseApplicationsResult(ns, []*appmeta.ApplicationMeta{meta})
