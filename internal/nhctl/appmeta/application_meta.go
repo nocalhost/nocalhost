@@ -41,7 +41,7 @@ const (
 	AnnotationKey    = "dev.nocalhost"
 	CmConfigKey      = "config"
 
-	SecretUninstallBackOffKey = "t"
+	SecretUninstallBackOffKey = "time"
 	SecretHelmReleaseNameKey  = "r"
 	SecretNamespaceIdKey      = "nid"
 	SecretPostInstallKey      = "po"
@@ -817,7 +817,6 @@ func (a *ApplicationMeta) Uninstall(force bool) error {
 			commonParams = append(commonParams, "--namespace", a.Ns)
 		}
 
-		//appProfile, _ := a.GetProfile()
 		if a.operator.ClientInner.KubeConfigFilePath() != "" {
 			commonParams = append(commonParams, "--kubeconfig", a.operator.ClientInner.KubeConfigFilePath())
 		}

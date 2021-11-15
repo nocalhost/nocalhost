@@ -78,10 +78,12 @@ func (r *ResourceEventHandlerFuncs) timeUp(f func()) {
 func (r *ResourceEventHandlerFuncs) handle() {
 	for _, i := range r.informer.Informer().GetStore().List() {
 		object := i.(metav1.Object)
-		store, _ := maps.LoadOrStore(r.toKey(object.GetNamespace()), newValue())
-		store.(*value).lock.Lock()
-		store.(*value).Insert(getAppName(i))
-		store.(*value).lock.Unlock()
+		if len(object.GetNamespace()) != 0 {
+			store, _ := maps.LoadOrStore(r.toKey(object.GetNamespace()), newValue())
+			store.(*value).lock.Lock()
+			store.(*value).Insert(getAppName(i))
+			store.(*value).lock.Unlock()
+		}
 	}
 }
 
