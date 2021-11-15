@@ -12,6 +12,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/cache"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
@@ -177,9 +178,15 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		// init searcher for cache async
 		go func() { _, _ = resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns) }()
 		if request.ResourceName == "" {
-			app := GetAllApplicationWithDefaultApp(ns, request.KubeConfig)
-			for _, s := range resouce_cache.GetAllAppNameByNamespace(KubeConfigBytes, ns) {
-				app = append(app, &appmeta.ApplicationMeta{ApplicationType: appmeta.Manifest, Application: s})
+			app, appSets := GetAllApplicationWithDefaultApp(ns, request.KubeConfig)
+
+			appList := resouce_cache.GetAllAppNameByNamespace(KubeConfigBytes, ns).UnsortedList()
+			sort.Strings(appList)
+
+			for _, s := range appList {
+				if !appSets.Has(s) {
+					app = append(app, &appmeta.ApplicationMeta{ApplicationType: appmeta.ManifestLocal, Application: s})
+				}
 			}
 			return ParseApplicationsResult(ns, app)
 		} else {
@@ -279,7 +286,7 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 
 func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher, label map[string]string) item.Result {
 	result := item.Result{Namespace: namespace}
-	nameAndNidList := GetAllApplicationWithDefaultApp(namespace, kubeconfigPath)
+	nameAndNidList, _ := GetAllApplicationWithDefaultApp(namespace, kubeconfigPath)
 	okChan := make(chan struct{}, 2)
 	go func() {
 		time.Sleep(time.Second * 10)
@@ -392,21 +399,24 @@ func getNidByAppName(namespace, kubeconfig, appName string) string {
 }
 
 // GetAllApplicationWithDefaultApp will not to create default application if default application not found
-func GetAllApplicationWithDefaultApp(namespace, kubeconfigPath string) []*appmeta.ApplicationMeta {
+func GetAllApplicationWithDefaultApp(namespace, kubeconfigPath string) ([]*appmeta.ApplicationMeta, sets.String) {
 	kubeconfigBytes, _ := ioutil.ReadFile(kubeconfigPath)
 	applicationMetaList := appmeta_manager.GetApplicationMetas(namespace, kubeconfigBytes)
+	appSet := sets.NewString()
 	var foundDefaultApp bool
 	for _, meta := range applicationMetaList {
+		appSet.Insert(meta.Application)
 		if meta.Application == _const.DefaultNocalhostApplication {
 			foundDefaultApp = true
 			break
 		}
 	}
 	if !foundDefaultApp {
+		appSet.Insert(_const.DefaultNocalhostApplication)
 		applicationMetaList = append(
 			applicationMetaList, appmeta.FakeAppMeta(namespace, _const.DefaultNocalhostApplication),
 		)
 	}
 	SortApplication(applicationMetaList)
-	return applicationMetaList
+	return applicationMetaList, appSet
 }

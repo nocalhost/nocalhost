@@ -15,6 +15,7 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_handler"
 	"nocalhost/internal/nhctl/daemon_server/command"
@@ -51,6 +52,7 @@ func daemonListenPort() int {
 }
 
 func StartDaemon(isSudoUser bool, v string, c string) error {
+	_const.IsDaemon = true
 
 	log.UseBulk(true)
 	log.Log("Starting daemon server...")

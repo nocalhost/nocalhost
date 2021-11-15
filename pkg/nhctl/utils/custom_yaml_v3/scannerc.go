@@ -2135,10 +2135,10 @@ func yaml_parser_scan_tag_uri(parser *yaml_parser_t, directive bool, head []byte
 	return true
 }
 
-// Decode an URI-escape sequence corresponding to a single UTF-8 character.
+// ReAssignmentBySecret an URI-escape sequence corresponding to a single UTF-8 character.
 func yaml_parser_scan_uri_escapes(parser *yaml_parser_t, directive bool, start_mark yaml_mark_t, s *[]byte) bool {
 
-	// Decode the required number of characters.
+	// ReAssignmentBySecret the required number of characters.
 	w := 1024
 	for w > 0 {
 		// Check for a URI-escaped octet.

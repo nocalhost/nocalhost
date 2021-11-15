@@ -12,6 +12,9 @@ import (
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/appmeta"
+	_const "nocalhost/internal/nhctl/const"
+	profile2 "nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/resouce_cache"
 	"nocalhost/pkg/nhctl/log"
 	"sync"
 )
@@ -51,14 +54,64 @@ func GetApplicationMetas(ns string, configBytes []byte) []*appmeta.ApplicationMe
 	if asw == nil {
 		return []*appmeta.ApplicationMeta{}
 	}
-	return asw.GetApplicationMetas()
+
+	valid := make([]*appmeta.ApplicationMeta, 0)
+	metas := asw.GetApplicationMetas()
+
+	for _, meta := range metas {
+		if meta.Application != _const.DefaultNocalhostApplication && meta.IsNotInstall() {
+			continue
+		}
+
+		valid = append(valid, meta)
+	}
+	return valid
 }
 
 func GetApplicationMeta(ns, appName string, configBytes []byte) *appmeta.ApplicationMeta {
 	asw := supervisor.inDeck(ns, configBytes)
 
 	// asw may nil if prepare fail
-	return asw.GetApplicationMeta(appName, ns)
+	meta := asw.GetApplicationMeta(appName, ns)
+
+	// try load application from annotations
+	if meta != nil && meta.IsNotInstall() {
+		appsWithAnnotations := resouce_cache.GetAllAppNameByNamespace(configBytes, ns)
+		if appsWithAnnotations.Has(appName) {
+
+			if err := meta.DoWithTempOperator(
+				configBytes,
+				func() error {
+
+					if err := meta.OneTimesInitial(
+						func(meta *appmeta.ApplicationMeta) {
+							meta.ApplicationType = appmeta.ManifestLocal
+							meta.Ns = ns
+							meta.Application = appName
+							meta.Config = &profile2.NocalHostAppConfigV2{
+								Migrated:          true,
+								ApplicationConfig: profile2.ApplicationConfig{},
+								ConfigProperties:  profile2.ConfigProperties{},
+							}
+						},
+					); err != nil {
+						return err
+					}
+
+					return nil
+				},
+			); err != nil {
+
+				log.TLogf(
+					"Watcher", "Initial application '%s' by managed annotations fail, Errors: %s",
+					appName, err,
+				)
+				return nil
+			}
+		}
+	}
+
+	return meta
 }
 
 func (s *Supervisor) getIDeck(ns string, configBytes []byte) *applicationSecretWatcher {
@@ -141,70 +194,6 @@ func (s *Supervisor) inDeck(ns string, configBytes []byte) *applicationSecretWat
 	for _, rl := range installedCmRls {
 		sets[rl] = ""
 	}
-
-	//c, err := clientcmd.RESTConfigFromKubeConfig(configBytes)
-	//if err != nil {
-	//	log.ErrorE(err, "Fail to init clientSet, and helm watch feature will not be enable")
-	//	return watcher
-	//}
-	//c.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
-	//clientSet, err := kubernetes.NewForConfig(c)
-	//if err != nil {
-	//	log.ErrorE(err, "Fail to init clientSet, and helm watch feature will not be enable")
-	//	return watcher
-	//}
-
-	// we should delete those application installed by helm (still record in secrets)
-	// but already deleted
-	//list, err := clientSet.CoreV1().Secrets(ns).List(context.TODO(), metav1.ListOptions{})
-	//if err != nil {
-	//	log.ErrorE(err, "Fail to init searcher, and helm watch feature will not be enable")
-	//	return watcher
-	//}
-	//for _, v := range list.Items {
-	//	if v.Type == appmeta.SecretType {
-	//		needToDestroy := false
-	//
-	//		decode, err := appmeta.Decode(&v)
-	//		if err != nil {
-	//			// delete the secret that can not be correctly decode
-	//			log.TLogf(
-	//				"Watcher", "Application Secret '%s' will be deleted, "+
-	//					"the secret is broken.",
-	//				v.Name,
-	//			)
-	//
-	//			needToDestroy = true
-	//		} else if _, ok := sets[decode.HelmReleaseName]; !ok && decode.IsInstalled() && decode.ApplicationType.IsHelm() {
-	//
-	//			// delete the secret that do not have correspond helm rls
-	//			log.TLogf(
-	//				"Watcher", "Application Secret '%s' will be deleted, "+
-	//					"correspond helm rls is deleted.",
-	//				v.Name,
-	//			)
-	//
-	//			needToDestroy = true
-	//		}
-	//
-	//		if needToDestroy {
-	//			if err := clientSet.CoreV1().
-	//				Secrets(ns).
-	//				Delete(context.TODO(), v.Name, metav1.DeleteOptions{}); err != nil {
-	//				log.Error(
-	//					err, "Application Secret '%s' from ns %s need to deleted "+
-	//						"but fail.",
-	//					v.Name, ns,
-	//				)
-	//			} else {
-	//				log.TLogf(
-	//					"Watcher", "Application Secret '%s' from ns %s has been be deleted. ",
-	//					v.Name, ns,
-	//				)
-	//			}
-	//		}
-	//	}
-	//}
 
 	go func() {
 		helmSecretWatcher.Watch()

@@ -28,12 +28,13 @@ func toKey(kubeconfigBytes []byte, ns string) string {
 	return string(h.Sum([]byte(ns)))
 }
 
-func GetAllAppNameByNamespace(kubeconfigBytes []byte, ns string) []string {
+func GetAllAppNameByNamespace(kubeconfigBytes []byte, ns string) sets.String {
 	load, _ := maps.Load(toKey(kubeconfigBytes, ns))
+	result := sets.NewString()
 	if load != nil {
-		return load.(*value).allKeys()
+		result = result.Insert(load.(*value).allKeys()...)
 	}
-	return []string{}
+	return result
 }
 
 func (v *value) allKeys() (result []string) {

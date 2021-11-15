@@ -77,3 +77,5 @@ const (
 	GitIgnoreMode = "gitIgnore"
 	PatternMode   = "pattern"
 )
+
+var IsDaemon = false

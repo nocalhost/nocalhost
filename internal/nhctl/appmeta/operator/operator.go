@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_handler/item"
 	"nocalhost/internal/nhctl/resouce_cache"
@@ -25,9 +26,8 @@ var ErrorButSkip = "rror while uninstall application but skipped,"
 
 type ClientGoUtilClient struct {
 	ClientInner     *clientgoutils.ClientGoUtils
-	dc              dynamic.Interface
+	Dc              dynamic.Interface
 	KubeconfigBytes []byte
-	daemon          bool
 }
 
 func (cso *ClientGoUtilClient) ExecHook(appName, ns, manifests string) error {
@@ -54,7 +54,8 @@ func (cso *ClientGoUtilClient) Create(ns string, secret *corev1.Secret) (*corev1
 		cso.ClientInner.GetContext(), secret, metav1.CreateOptions{},
 	)
 }
-func (cso *ClientGoUtilClient) ReObtainSecret(ns string, secretName string) (*corev1.Secret, error) {
+
+func (cso *ClientGoUtilClient) Get(ns string, secretName string) (*corev1.Secret, error) {
 	return cso.ClientInner.ClientSet.CoreV1().Secrets(ns).Get(
 		cso.ClientInner.GetContext(), secretName, metav1.GetOptions{},
 	)
@@ -153,7 +154,7 @@ func (cso *ClientGoUtilClient) getCustomResource(app, ns string) (result item.Ap
 
 func (cso *ClientGoUtilClient) CleanCustomResource(app, ns string) {
 	var applicationPack item.App
-	if cso.daemon {
+	if _const.IsDaemon {
 		applicationPack = cso.getCustomResourceDaemon(app, ns)
 	} else {
 		applicationPack = cso.getCustomResource(app, ns)
@@ -162,7 +163,7 @@ func (cso *ClientGoUtilClient) CleanCustomResource(app, ns string) {
 	for _, group := range applicationPack.Groups {
 		for _, resource := range group.List {
 			for _, omItem := range resource.List {
-				objectMeta := k8sutil.GetObjectMetaData(omItem)
+				objectMeta := k8sutil.GetObjectMetaData(omItem.Metadata)
 
 				if objectMeta == nil {
 					log.Infof(
@@ -174,10 +175,10 @@ func (cso *ClientGoUtilClient) CleanCustomResource(app, ns string) {
 
 				cso.doCleanCustomResource(
 					schema.GroupVersionResource{
-						Group:    group.GroupName,
+						Group:    objectMeta.GroupVersionKind().Group,
 						Version:  objectMeta.GroupVersionKind().Version,
 						Resource: resource.Name,
-					}, ns, objectMeta.Name,
+					}, objectMeta.Namespace, objectMeta.Name,
 				)
 			}
 		}
@@ -186,12 +187,16 @@ func (cso *ClientGoUtilClient) CleanCustomResource(app, ns string) {
 
 // delete all resources with specify annotations
 func (cso *ClientGoUtilClient) doCleanCustomResource(gvr schema.GroupVersionResource, ns, name string) {
-	if cso.dc == nil {
+	if ns == "" || name == "" {
+		return
+	}
+
+	if cso.Dc == nil {
 		log.Infof("%s dynamic client init fail", ErrorButSkip)
 		return
 	}
 
-	if err := cso.dc.Resource(gvr).Namespace(ns).Delete(context.TODO(), name, metav1.DeleteOptions{}); err != nil {
+	if err := cso.Dc.Resource(gvr).Namespace(ns).Delete(context.TODO(), name, metav1.DeleteOptions{}); err != nil {
 		log.Infof("%s custom resources %s-%s deleting fail, %s", ErrorButSkip, gvr.String(), name, err)
 		return
 	}
