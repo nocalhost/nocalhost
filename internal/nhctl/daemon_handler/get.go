@@ -180,14 +180,22 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		if request.ResourceName == "" {
 			app, appSets := GetAllApplicationWithDefaultApp(ns, request.KubeConfig)
 
+			for key, _ := range appSets {
+				log.Infof("--- App from ApplicationMeta: %s", key)
+			}
+
 			appList := resouce_cache.GetAllAppNameByNamespace(KubeConfigBytes, ns).UnsortedList()
 			sort.Strings(appList)
 
+			for _, s := range appList {
+				log.Infof("--- App from Pika: %s", s)
+			}
 			for _, s := range appList {
 				if !appSets.Has(s) {
 					app = append(app, &appmeta.ApplicationMeta{ApplicationType: appmeta.ManifestLocal, Application: s})
 				}
 			}
+
 			return ParseApplicationsResult(ns, app)
 		} else {
 			meta := appmeta_manager.GetApplicationMeta(ns, request.ResourceName, KubeConfigBytes)
@@ -408,7 +416,6 @@ func GetAllApplicationWithDefaultApp(namespace, kubeconfigPath string) ([]*appme
 		appSet.Insert(meta.Application)
 		if meta.Application == _const.DefaultNocalhostApplication {
 			foundDefaultApp = true
-			break
 		}
 	}
 	if !foundDefaultApp {

@@ -57,16 +57,6 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 	log.UseBulk(true)
 	log.Log("Starting daemon server...")
 
-	//k8sruntime.ErrorHandlers = append(
-	//	k8sruntime.ErrorHandlers, func(err error) {
-	//		if strings.Contains(err.Error(), "watch") {
-	//			log.Tracef("[RuntimeErrorHandler] %s", err.Error())
-	//		} else {
-	//			log.ErrorE(errors.Wrap(err, ""), fmt.Sprintf("[RuntimeErrorHandler] Stderr: %s", err.Error()))
-	//		}
-	//	},
-	//)
-
 	startUpPath, _ = utils.GetNhctlPath()
 
 	version = v

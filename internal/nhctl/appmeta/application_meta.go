@@ -318,6 +318,10 @@ func (a *ApplicationMeta) ReAssignmentBySecret(secret *corev1.Secret) error {
 		a.Config = config
 	}
 
+	if a.Config == nil {
+		a.Config = &profile2.NocalHostAppConfigV2{}
+	}
+
 	if bs, ok := secret.Data[SecretHelmReleaseNameKey]; ok {
 		a.HelmReleaseName = string(bs)
 	}

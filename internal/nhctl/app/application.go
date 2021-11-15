@@ -124,8 +124,8 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 		}
 	}
 	// Migrate config to meta
-	if !app.appMeta.Config.Migrated {
-		if len(profileV2.SvcProfile) > 0 || app.appMeta.Config == nil {
+	if app.appMeta.Config == nil || !app.appMeta.Config.Migrated {
+		if len(profileV2.SvcProfile) > 0  {
 			c := app.newConfigFromProfile()
 			for _, sc := range c.ApplicationConfig.ServiceConfigs {
 				for _, scc := range sc.ContainerConfigs {

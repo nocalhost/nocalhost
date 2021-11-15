@@ -178,7 +178,7 @@ func (cso *ClientGoUtilClient) CleanCustomResource(app, ns string) {
 						Group:    objectMeta.GroupVersionKind().Group,
 						Version:  objectMeta.GroupVersionKind().Version,
 						Resource: resource.Name,
-					}, objectMeta.Namespace, objectMeta.Name,
+					}, objectMeta.Namespace, objectMeta.GroupVersionKind().Kind, objectMeta.Name,
 				)
 			}
 		}
@@ -186,7 +186,7 @@ func (cso *ClientGoUtilClient) CleanCustomResource(app, ns string) {
 }
 
 // delete all resources with specify annotations
-func (cso *ClientGoUtilClient) doCleanCustomResource(gvr schema.GroupVersionResource, ns, name string) {
+func (cso *ClientGoUtilClient) doCleanCustomResource(gvr schema.GroupVersionResource, ns, kind, name string) {
 	if ns == "" || name == "" {
 		return
 	}
@@ -201,5 +201,5 @@ func (cso *ClientGoUtilClient) doCleanCustomResource(gvr schema.GroupVersionReso
 		return
 	}
 
-	log.Infof("Custom resources %s-%s deleted ", gvr.String(), name)
+	log.Infof("Resource(%s) %s deleted ", kind, name)
 }
