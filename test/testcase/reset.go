@@ -17,11 +17,6 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func Reset(nhctl runner.Client) error {
-	cmd := nhctl.GetNhctl().Command(context.Background(), "reset", "bookinfo")
-	return runner.Runner.RunWithCheckResult(nhctl.SuiteName(), cmd)
-}
-
 func Upgrade(nhctl runner.Client) error {
 	cmd := nhctl.GetNhctl().Command(
 		context.Background(), "upgrade",

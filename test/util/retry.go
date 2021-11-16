@@ -20,7 +20,6 @@ var retryTimes = 10
 func Retry(suiteName string, funcs []func() error) {
 
 	logger := log.TestLogger(suiteName)
-	logger.Info(suiteName)
 	var err error
 	for i, f := range funcs {
 		for i := 0; i < retryTimes; i++ {
