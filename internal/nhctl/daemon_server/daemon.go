@@ -408,6 +408,17 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				return HandleCheckClusterStatus(cmd)
 			},
 		)
+	case command.VPNOperate:
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				cmd := &command.VPNOperateCommand{}
+				if err = json.Unmarshal(bys, cmd); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+				err = daemon_handler.HandleVPNOperate(cmd)
+				return nil, err
+			},
+		)
 	}
 
 	if err != nil {

@@ -177,6 +177,11 @@ type Cmsghdr struct {
 	Type  int32
 }
 
+type ifreq struct {
+	Ifrn [16]byte
+	Ifru [24]byte
+}
+
 const (
 	SizeofSockaddrNFCLLCP = 0x60
 	SizeofIovec           = 0x10
@@ -633,7 +638,31 @@ const (
 	PPS_FETCH     = 0xc00870a4
 )
 
-type ifreq struct {
-	Ifrn [16]byte
-	Ifru [24]byte
+const (
+	PIDFD_NONBLOCK = 0x4000
+)
+
+type SysvIpcPerm struct {
+	Key  int32
+	Uid  uint32
+	Gid  uint32
+	Cuid uint32
+	Cgid uint32
+	Mode uint32
+	_    uint16
+	Seq  uint16
+	_    uint64
+	_    uint64
+}
+type SysvShmDesc struct {
+	Perm   SysvIpcPerm
+	Atime  int64
+	Dtime  int64
+	Ctime  int64
+	Segsz  uint64
+	Cpid   int32
+	Lpid   int32
+	Nattch uint64
+	_      uint64
+	_      uint64
 }

@@ -28,6 +28,7 @@ const (
 	KubeconfigOperation   DaemonCommandType = "KubeconfigOperationCommand"
 	CheckClusterStatus    DaemonCommandType = "CheckClusterStatus"
 	FlushDirMappingCache  DaemonCommandType = "FlushDirMappingCache"
+	VPNOperate            DaemonCommandType = "VPNOperate"
 
 	PREVIEW_VERSION = 0
 	SUCCESS         = 200
@@ -117,6 +118,25 @@ type KubeconfigOperationCommand struct {
 	Namespace       string    `json:"namespace" yaml:"namespace"`
 	Operation       Operation `json:"operation" yaml:"operation"`
 }
+
+type VPNOperateCommand struct {
+	CommandType DaemonCommandType
+	ClientStack string
+
+	KubeConfig  string `json:"kubeConfig" yaml:"kubeConfig"`
+	Namespace   string `json:"namespace" yaml:"namespace"`
+	Application string
+	Resource    string
+	Action      VPNOperation `json:"operation" yaml:"operation"`
+}
+
+type VPNOperation string
+
+const (
+	Connect    VPNOperation = "connect"
+	DisConnect VPNOperation = "disConnect"
+	Reconnect  VPNOperation = "reconnect"
+)
 
 type Operation string
 
