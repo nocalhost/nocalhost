@@ -32,13 +32,15 @@ import (
 )
 
 // cache Searcher for each kubeconfig
-var searchMap, _ = simplelru.NewLRU(20, func(_ interface{}, value interface{}) {
-	if value != nil {
-		if s, ok := value.(*Searcher); ok && s != nil {
-			go func() { s.Stop() }()
+var searchMap, _ = simplelru.NewLRU(
+	20, func(_ interface{}, value interface{}) {
+		if value != nil {
+			if s, ok := value.(*Searcher); ok && s != nil {
+				go func() { s.Stop() }()
+			}
 		}
-	}
-})
+	},
+)
 var lock sync.Mutex
 var clusterMap = make(map[string]bool)
 var clusterMapLock sync.Mutex
@@ -198,7 +200,11 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 					log.Warnf("Can't create informer for resource: %v, error info: %v, ignored", resource, err)
 				}
 			} else {
-				informer.Informer().AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes))
+				informer.Informer().AddEventHandlerWithResyncPeriod(
+					NewResourceEventHandlerFuncs(
+						informer, kubeconfigBytes,
+					), time.Second*5,
+				)
 				createInformerSuccess = true
 				for _, alias := range resource.alias {
 					result.Store(alias, resource)

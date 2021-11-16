@@ -76,9 +76,14 @@ func (r *ResourceEventHandlerFuncs) timeUp(f func()) {
 }
 
 func (r *ResourceEventHandlerFuncs) handle() {
+	var first = true
 	for _, i := range r.informer.Informer().GetStore().List() {
 		object := i.(metav1.Object)
 		if len(object.GetNamespace()) != 0 {
+			if first {
+				maps.Delete(r.toKey(object.GetNamespace()))
+				first = false
+			}
 			store, _ := maps.LoadOrStore(r.toKey(object.GetNamespace()), newValue())
 			store.(*value).lock.Lock()
 			store.(*value).Insert(getAppName(i))

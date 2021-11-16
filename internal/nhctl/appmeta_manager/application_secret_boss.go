@@ -48,7 +48,11 @@ func UpdateApplicationMetasManually(ns string, configBytes []byte, secretName st
 	}
 }
 
-func GetApplicationMetas(ns string, configBytes []byte) []*appmeta.ApplicationMeta {
+func VALID_APPLICATION(meta *appmeta.ApplicationMeta) bool {
+	return !(meta.Application != _const.DefaultNocalhostApplication && meta.IsNotInstall())
+}
+
+func GetApplicationMetas(ns string, configBytes []byte, filter func(*appmeta.ApplicationMeta) bool) []*appmeta.ApplicationMeta {
 	asw := supervisor.inDeck(ns, configBytes)
 
 	if asw == nil {
@@ -59,11 +63,9 @@ func GetApplicationMetas(ns string, configBytes []byte) []*appmeta.ApplicationMe
 	metas := asw.GetApplicationMetas()
 
 	for _, meta := range metas {
-		if meta.Application != _const.DefaultNocalhostApplication && meta.IsNotInstall() {
-			continue
+		if filter(meta) {
+			valid = append(valid, meta)
 		}
-
-		valid = append(valid, meta)
 	}
 	return valid
 }

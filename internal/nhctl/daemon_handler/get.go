@@ -24,6 +24,7 @@ import (
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/resouce_cache"
+	k8sutil "nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
 	"sort"
 	"strings"
@@ -178,25 +179,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		// init searcher for cache async
 		go func() { _, _ = resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns) }()
 		if request.ResourceName == "" {
-			app, appSets := GetAllApplicationWithDefaultApp(ns, request.KubeConfig)
-
-			for key, _ := range appSets {
-				log.Infof("--- App from ApplicationMeta: %s", key)
-			}
-
-			appList := resouce_cache.GetAllAppNameByNamespace(KubeConfigBytes, ns).UnsortedList()
-			sort.Strings(appList)
-
-			for _, s := range appList {
-				log.Infof("--- App from Pika: %s", s)
-			}
-			for _, s := range appList {
-				if !appSets.Has(s) {
-					app = append(app, &appmeta.ApplicationMeta{ApplicationType: appmeta.ManifestLocal, Application: s})
-				}
-			}
-
-			return ParseApplicationsResult(ns, app)
+			return ParseApplicationsResult(ns, GetAllValidApplicationWithDefaultApp(ns, KubeConfigBytes))
 		} else {
 			meta := appmeta_manager.GetApplicationMeta(ns, request.ResourceName, KubeConfigBytes)
 			return ParseApplicationsResult(ns, []*appmeta.ApplicationMeta{meta})
@@ -406,10 +389,41 @@ func getNidByAppName(namespace, kubeconfig, appName string) string {
 	return meta.NamespaceId
 }
 
+func GetAllValidApplicationWithDefaultApp(ns string, KubeConfigBytes []byte) []*appmeta.ApplicationMeta {
+	// first get apps from secret
+	// then get apps from annotations
+	// merge then
+	// and remove all apps invalid(uninstalled)
+	app, appSets := GetAllApplicationWithDefaultApp(ns, k8sutil.GetOrGenKubeConfigPath(string(KubeConfigBytes)))
+
+	appList := resouce_cache.GetAllAppNameByNamespace(KubeConfigBytes, ns).UnsortedList()
+	sort.Strings(appList)
+
+	for _, s := range appList {
+		if !appSets.Has(s) {
+			app = append(app, &appmeta.ApplicationMeta{ApplicationType: appmeta.ManifestLocal, Application: s})
+		}
+	}
+
+	result := make([]*appmeta.ApplicationMeta, 0)
+	for _, meta := range app {
+		if appmeta_manager.VALID_APPLICATION(meta) {
+			result = append(result, meta)
+		}
+	}
+	return result
+}
+
 // GetAllApplicationWithDefaultApp will not to create default application if default application not found
+// note: this func will return all app meta, includes invalid application(uninstalled)
 func GetAllApplicationWithDefaultApp(namespace, kubeconfigPath string) ([]*appmeta.ApplicationMeta, sets.String) {
 	kubeconfigBytes, _ := ioutil.ReadFile(kubeconfigPath)
-	applicationMetaList := appmeta_manager.GetApplicationMetas(namespace, kubeconfigBytes)
+	applicationMetaList := appmeta_manager.GetApplicationMetas(
+		namespace, kubeconfigBytes,
+		func(meta *appmeta.ApplicationMeta) bool {
+			return true
+		},
+	)
 	appSet := sets.NewString()
 	var foundDefaultApp bool
 	for _, meta := range applicationMetaList {

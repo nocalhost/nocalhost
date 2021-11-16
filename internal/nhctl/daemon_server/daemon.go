@@ -342,7 +342,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 					return nil, err
 				}
 
-				return appmeta_manager.GetApplicationMetas(gamsCmd.NameSpace, []byte(gamsCmd.KubeConfigContent)), nil
+				return daemon_handler.GetAllValidApplicationWithDefaultApp(gamsCmd.NameSpace, []byte(gamsCmd.KubeConfigContent)), nil
 			},
 		)
 
