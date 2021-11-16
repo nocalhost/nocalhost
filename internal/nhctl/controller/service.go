@@ -129,10 +129,14 @@ func (c *Controller) CheckIfExist() (bool, error) {
 }
 
 func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
+	return GetOriginalContainers(c.Name, c.Type, c.Client)
+}
+
+func GetOriginalContainers(name string, workloadType base.SvcType, client *clientgoutils.ClientGoUtils) ([]v1.Container, error) {
 	var podSpec v1.PodSpec
-	switch c.Type {
+	switch workloadType {
 	case base.Deployment:
-		d, err := c.Client.GetDeployment(c.Name)
+		d, err := client.GetDeployment(name)
 		if err != nil {
 			return nil, err
 		}
@@ -146,7 +150,7 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 		}
 		podSpec = d.Spec.Template.Spec
 	case base.StatefulSet:
-		s, err := c.Client.GetStatefulSet(c.Name)
+		s, err := client.GetStatefulSet(name)
 		if err != nil {
 			return nil, err
 		}
@@ -160,7 +164,7 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 		}
 		podSpec = s.Spec.Template.Spec
 	case base.DaemonSet:
-		d, err := c.Client.GetDaemonSet(c.Name)
+		d, err := client.GetDaemonSet(name)
 		if err != nil {
 			return nil, err
 		}
@@ -174,7 +178,7 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 		}
 		podSpec = d.Spec.Template.Spec
 	case base.Job:
-		j, err := c.Client.GetJobs(c.Name)
+		j, err := client.GetJobs(name)
 		if err != nil {
 			return nil, err
 		}
@@ -188,7 +192,7 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 		}
 		podSpec = j.Spec.Template.Spec
 	case base.CronJob:
-		j, err := c.Client.GetCronJobs(c.Name)
+		j, err := client.GetCronJobs(name)
 		if err != nil {
 			return nil, err
 		}
@@ -202,7 +206,7 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 		}
 		podSpec = j.Spec.JobTemplate.Spec.Template.Spec
 	case base.Pod:
-		p, err := c.Client.GetPod(c.Name)
+		p, err := client.GetPod(name)
 		if err != nil {
 			return nil, err
 		}

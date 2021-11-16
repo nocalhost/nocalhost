@@ -5,6 +5,7 @@ go 1.16
 // require k8s.io/kubernetes v1.16.10
 
 require (
+	github.com/AlecAivazis/survey/v2 v2.3.2
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/alicebob/miniredis v2.5.0+incompatible

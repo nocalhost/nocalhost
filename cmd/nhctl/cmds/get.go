@@ -21,7 +21,6 @@ import (
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
-	"path/filepath"
 	"reflect"
 )
 
@@ -81,80 +80,91 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 				}
 			}()
 		}
-		if kubeConfig == "" {
-			kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
-		}
-		if abs, err := filepath.Abs(kubeConfig); err == nil {
-			kubeConfig = abs
-		}
-		if _, err := ioutil.ReadFile(kubeConfig); err != nil {
-			log.FatalE(err, "")
-		}
-		cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
-		if err != nil {
-			log.FatalE(err, "")
-		}
-		data, err := cli.SendGetResourceInfoCommand(kubeConfig, nameSpace, appName, resourceType, resourceName, label)
-		if err != nil {
-			log.FatalE(err, "")
-		}
-		if data == nil {
-			return
-		}
+		must(Prepare())
+		//if kubeConfig == "" {
+		//	kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+		//}
+		//if abs, err := filepath.Abs(kubeConfig); err == nil {
+		//	kubeConfig = abs
+		//}
+		get(resourceType, resourceName, true)
 
-		switch outputType {
-		case JSON:
-			out(json.Marshal, data)
-		case YAML:
-			out(yaml.Marshal, data)
-		default:
-			bytes, err := json.Marshal(data)
-			if err != nil {
-				log.Fatal(err)
-			}
-			switch resourceType {
-			case "all":
-				multiple := reflect.ValueOf(data).Kind() == reflect.Slice
-				var results []item.Result
-				var result item.Result
-				if multiple {
-					_ = json.Unmarshal(bytes, &results)
-				} else {
-					_ = json.Unmarshal(bytes, &result)
-				}
-				if !multiple {
-					results = append(results, result)
-				}
-				printResult(results)
-			case "app", "application":
-				multiple := reflect.ValueOf(data).Kind() == reflect.Slice
-				var metas []*model.Namespace
-				var meta *model.Namespace
-				if multiple {
-					_ = json.Unmarshal(bytes, &metas)
-				} else {
-					_ = json.Unmarshal(bytes, &meta)
-				}
-				if !multiple {
-					metas = append(metas, meta)
-				}
-				printMeta(metas)
-			default:
-				multiple := reflect.ValueOf(data).Kind() == reflect.Slice
-				var items []item.Item
-				var item item.Item
-				if multiple {
-					_ = json.Unmarshal(bytes, &items)
-				} else {
-					_ = json.Unmarshal(bytes, &item)
-				}
-				if !multiple {
-					items = append(items, item)
-				}
-				printItem(items)
-			}
-		}
 	},
+}
+
+func get(resourceType, resourceName string, display bool) []item.Result {
+	if _, err := ioutil.ReadFile(kubeConfig); err != nil {
+		log.FatalE(err, "")
+	}
+	cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
+	if err != nil {
+		log.FatalE(err, "")
+	}
+	data, err := cli.SendGetResourceInfoCommand(kubeConfig, nameSpace, appName, resourceType, resourceName, label)
+	if err != nil {
+		log.FatalE(err, "")
+	}
+	if data == nil {
+		return nil
+	}
+
+	switch outputType {
+	case JSON:
+		out(json.Marshal, data)
+	case YAML:
+		out(yaml.Marshal, data)
+	default:
+		bytes, err := json.Marshal(data)
+		if err != nil {
+			log.Fatal(err)
+		}
+		switch resourceType {
+		case "all":
+			multiple := reflect.ValueOf(data).Kind() == reflect.Slice
+			var results []item.Result
+			var result item.Result
+			if multiple {
+				_ = json.Unmarshal(bytes, &results)
+			} else {
+				_ = json.Unmarshal(bytes, &result)
+			}
+			if !multiple {
+				results = append(results, result)
+			}
+			if display {
+				printResult(results)
+			} else {
+				return results
+			}
+		case "app", "application":
+			multiple := reflect.ValueOf(data).Kind() == reflect.Slice
+			var metas []*model.Namespace
+			var meta *model.Namespace
+			if multiple {
+				_ = json.Unmarshal(bytes, &metas)
+			} else {
+				_ = json.Unmarshal(bytes, &meta)
+			}
+			if !multiple {
+				metas = append(metas, meta)
+			}
+			printMeta(metas)
+		default:
+			multiple := reflect.ValueOf(data).Kind() == reflect.Slice
+			var items []item.Item
+			var item item.Item
+			if multiple {
+				_ = json.Unmarshal(bytes, &items)
+			} else {
+				_ = json.Unmarshal(bytes, &item)
+			}
+			if !multiple {
+				items = append(items, item)
+			}
+			printItem(items)
+		}
+	}
+	return nil
 }
 
 func out(f func(interface{}) ([]byte, error), data interface{}) {

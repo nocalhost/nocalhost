@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
+	"io/ioutil"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
@@ -22,6 +24,7 @@ import (
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	utils2 "nocalhost/pkg/nhctl/utils"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -91,13 +94,33 @@ var devStartCmd = &cobra.Command{
 	Use:   "start [NAME]",
 	Short: "Start DevMode",
 	Long:  `Start DevMode`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
-		}
-		return nil
-	},
+	//Args: func(cmd *cobra.Command, args []string) error {
+	//	if len(args) < 1 {
+	//		return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
+	//	}
+	//	return nil
+	//},
 	Run: func(cmd *cobra.Command, args []string) {
+
+		var applicationName string
+		if len(args) < 1 {
+			bys, err := ioutil.ReadFile("nocalhost.yaml")
+			if err != nil {
+				log.FatalE(errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath()), "")
+			}
+			devConfig := &DevConfig{}
+			if err = yaml.Unmarshal(bys, devConfig); err != nil {
+				log.FatalE(err, "")
+			}
+			applicationName = devConfig.Application
+			deployment = devConfig.WorkLoad
+			serviceType = devConfig.Type
+			devStartOps.Container = devConfig.Container
+			wd, _ := os.Getwd()
+			devStartOps.LocalSyncDir = []string{wd}
+		} else {
+			applicationName = args[0]
+		}
 
 		dt := profile.DevModeType(devStartOps.DevModeType)
 		if !dt.IsDuplicateDevMode() && !dt.IsReplaceDevMode() {
@@ -110,74 +133,89 @@ var devStartCmd = &cobra.Command{
 			log.Fatal("'local-sync(-s)' must be specified")
 		}
 
-		applicationName := args[0]
+		//applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
-
-		if !nocalhostApp.GetAppMeta().IsInstalled() {
-			log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
-		}
-
-		if nocalhostSvc.IsInDevMode() {
-			coloredoutput.Hint(fmt.Sprintf("Already in %s DevMode...", nocalhostSvc.DevModeType.ToString()))
-
-			podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
-			must(err)
-
-			if !devStartOps.NoSyncthing {
-				if nocalhostSvc.IsProcessor() {
-					startSyncthing(podName, devStartOps.Container, true)
-				}
-			} else {
-				coloredoutput.Success("File sync is not resumed caused by --without-sync flag.")
-			}
-
-			if nocalhostSvc.IsProcessor() {
-				if !devStartOps.NoTerminal || shell != "" {
-					must(nocalhostSvc.EnterPodTerminal(podName, devStartOps.Container, shell))
-				}
-				return
-			}
-		}
-
-		// 1) reload svc config from local if needed
-		// 2) stop previous syncthing
-		// 3) recording profile
-		// 4) mark app meta as developing
-		// 5) initial syncthing runtime env
-		// 6) stop port-forward
-		// 7) enter developing (replace image)
-		// 8) port forward for dev-container
-		// 9) start syncthing
-		// 10) entering dev container
-
-		coloredoutput.Hint(fmt.Sprintf("Starting %s DevMode...", dt.ToString()))
-
-		loadLocalOrCmConfigIfValid()
-		stopPreviousSyncthing()
-		recordLocalSyncDirToProfile()
-		prepareSyncThing()
-		stopPreviousPortForward()
-		if err := enterDevMode(dt); err != nil {
-			log.FatalE(err, "")
-		}
-
-		devPodName, err := nocalhostSvc.BuildPodController().
-			GetNocalhostDevContainerPod()
-		must(err)
-
-		startPortForwardAfterDevStart(devPodName)
-
-		if !devStartOps.NoSyncthing {
-			startSyncthing(devPodName, devStartOps.Container, false)
-		} else {
-			coloredoutput.Success("File sync is not started caused by --without-sync flag..")
-		}
-
-		if !devStartOps.NoTerminal || shell != "" {
-			must(nocalhostSvc.EnterPodTerminal(devPodName, devStartOps.Container, shell))
-		}
+		startDev()
 
 	},
+}
+
+func startDev() {
+
+	dt := profile.DevModeType(devStartOps.DevModeType)
+	if !dt.IsDuplicateDevMode() && !dt.IsReplaceDevMode() {
+		log.Fatalf("Unsupported DevModeType %s", dt)
+	}
+
+	if len(devStartOps.LocalSyncDir) > 1 {
+		log.Fatal("Can not define multi 'local-sync(-s)'")
+	} else if len(devStartOps.LocalSyncDir) == 0 {
+		log.Fatal("'local-sync(-s)' must be specified")
+	}
+
+	if !nocalhostApp.GetAppMeta().IsInstalled() {
+		log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
+	}
+
+	if nocalhostSvc.IsInDevMode() {
+		coloredoutput.Hint(fmt.Sprintf("Already in %s DevMode...", nocalhostSvc.DevModeType.ToString()))
+
+		podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
+		must(err)
+
+		if !devStartOps.NoSyncthing {
+			if nocalhostSvc.IsProcessor() {
+				startSyncthing(podName, devStartOps.Container, true)
+			}
+		} else {
+			coloredoutput.Success("File sync is not resumed caused by --without-sync flag.")
+		}
+
+		if nocalhostSvc.IsProcessor() {
+			if !devStartOps.NoTerminal || shell != "" {
+				must(nocalhostSvc.EnterPodTerminal(podName, devStartOps.Container, shell))
+			}
+			return
+		}
+	}
+
+	// 1) reload svc config from local if needed
+	// 2) stop previous syncthing
+	// 3) recording profile
+	// 4) mark app meta as developing
+	// 5) initial syncthing runtime env
+	// 6) stop port-forward
+	// 7) enter developing (replace image)
+	// 8) port forward for dev-container
+	// 9) start syncthing
+	// 10) entering dev container
+
+	coloredoutput.Hint(fmt.Sprintf("Starting %s DevMode...", dt.ToString()))
+
+	loadLocalOrCmConfigIfValid()
+	stopPreviousSyncthing()
+	recordLocalSyncDirToProfile()
+	prepareSyncThing()
+	stopPreviousPortForward()
+	if err := enterDevMode(dt); err != nil {
+		log.FatalE(err, "")
+	}
+
+	devPodName, err := nocalhostSvc.BuildPodController().
+		GetNocalhostDevContainerPod()
+	must(err)
+
+	startPortForwardAfterDevStart(devPodName)
+
+	if !devStartOps.NoSyncthing {
+		startSyncthing(devPodName, devStartOps.Container, false)
+	} else {
+		coloredoutput.Success("File sync is not started caused by --without-sync flag..")
+	}
+
+	if !devStartOps.NoTerminal || shell != "" {
+		must(nocalhostSvc.EnterPodTerminal(devPodName, "nocalhost-dev", shell))
+	}
 }
 
 var pfListBeforeDevStart []*profile.DevPortForward

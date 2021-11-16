@@ -33,27 +33,27 @@ func (c *ClientGoUtils) ExecShell(podName string, containerName string, shell st
 	// remove log eof
 	k8sruntime.ErrorHandlers = k8sruntime.ErrorHandlers[1:]
 	first := true
-	go func() {
-		for {
-			cmd := shell
-			if first {
-				cmd = fmt.Sprintf("clear; %s", shell)
-				first = false
-			}
-			err := c.Exec(podName, containerName, []string{"sh", "-c", cmd})
-			if err == nil {
-				os.Exit(0)
-			}
-			if e, ok := err.(exec.CodeExitError); ok && e.Code == 0 {
-				os.Exit(0)
-			}
-			time.Sleep(time.Second * 1)
-			_, err = c.ClientSet.CoreV1().Pods(c.namespace).Get(context.Background(), podName, metav1.GetOptions{})
-			if k8serrors.IsNotFound(err) {
-				log.Fatal(err)
-			}
-		}
-	}()
+	//go func() {
+	//	for {
+	cmd := shell
+	if first {
+		cmd = fmt.Sprintf("clear; %s", shell)
+		first = false
+	}
+	err := c.Exec(podName, containerName, []string{"sh", "-c", cmd})
+	if err == nil {
+		os.Exit(0)
+	}
+	if e, ok := err.(exec.CodeExitError); ok && e.Code == 0 {
+		os.Exit(0)
+	}
+	time.Sleep(time.Second * 1)
+	_, err = c.ClientSet.CoreV1().Pods(c.namespace).Get(context.Background(), podName, metav1.GetOptions{})
+	if k8serrors.IsNotFound(err) {
+		log.Fatal(err)
+	}
+	//}
+	//}()
 
 	return t.Safe(func() error { select {} })
 }
