@@ -16,6 +16,7 @@ import (
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"runtime/debug"
 	"strings"
@@ -140,6 +141,30 @@ func handlingConfigSave(w http.ResponseWriter, r *http.Request) {
 	}
 	svcConfig.Name = csp.Name
 	svcConfig.Type = csp.Type
+
+	client, err := clientgoutils.NewClientGoUtils(csp.Kubeconfig, csp.Namespace)
+	if err != nil {
+		fail(w, err.Error())
+		return
+	}
+	containers, err := controller.GetOriginalContainers(client, base.SvcType(csp.Type), csp.Name)
+	if err != nil {
+		fail(w, err.Error())
+		return
+	}
+
+	profile.PrepareForConfigurationValidate(client, containers)
+	if err := svcConfig.Validate(); err != nil {
+		fail(w, err.Error())
+		return
+	}
+
+	ot := svcConfig.Type
+	svcConfig.Type = strings.ToLower(svcConfig.Type)
+	if !controller.CheckIfControllerTypeSupport(svcConfig.Type) {
+		fail(w, fmt.Sprintf("Service Type %s is unsupported", ot))
+		return
+	}
 
 	err = controller.UpdateSvcConfig(csp.Namespace, csp.Application, csp.Kubeconfig, svcConfig)
 	if err != nil {
