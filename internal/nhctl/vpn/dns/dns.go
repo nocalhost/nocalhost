@@ -31,15 +31,14 @@ func GetDNSServiceIPFromPod(clientset *kubernetes.Clientset, restclient *rest.RE
 				for i := range ipp {
 					resolvConf.Servers[i] = ipp[i]
 				}
-				return resolvConf, nil
 			}
+			return resolvConf, nil
 		} else {
 			return nil, err
 		}
 	} else {
 		return nil, err
 	}
-	return nil, errors.New("this should not happened")
 }
 
 func getDNSIPFromDnsPod(clientset *kubernetes.Clientset) (ips []string, err error) {

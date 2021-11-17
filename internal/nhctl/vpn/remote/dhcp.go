@@ -35,13 +35,11 @@ func NewDHCPManager(client *kubernetes.Clientset, namespace string, addr *net.IP
 }
 
 //	todo optimize dhcp, using mac address, ip and deadline as unit
-func (d *DHCPManager) InitDHCP() error {
+func (d *DHCPManager) InitDHCPIfNecessary() error {
 	get, err := d.client.CoreV1().ConfigMaps(d.namespace).Get(context.Background(), util.TrafficManager, metav1.GetOptions{})
+	// already exists, do nothing
 	if err == nil && get != nil {
 		return nil
-	}
-	if d.cidr == nil {
-		d.cidr = &net.IPNet{IP: net.IPv4(254, 254, 254, 100), Mask: net.IPv4Mask(255, 255, 255, 0)}
 	}
 	var ips []string
 	for i := 2; i < 254; i++ {

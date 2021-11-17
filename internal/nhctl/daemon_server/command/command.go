@@ -136,6 +136,7 @@ const (
 	Connect    VPNOperation = "connect"
 	DisConnect VPNOperation = "disConnect"
 	Reconnect  VPNOperation = "reconnect"
+	Reset      VPNOperation = "reset"
 )
 
 type Operation string

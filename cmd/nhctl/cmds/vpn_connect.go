@@ -16,7 +16,7 @@ func init() {
 	connectCmd.Flags().StringVar(&kubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
 	connectCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "namespace")
 	connectCmd.Flags().StringVarP(&workloads, "workloads", "", "", "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
-	VPNCmd.AddCommand(connectCmd)
+	vpnCmd.AddCommand(connectCmd)
 }
 
 var connectCmd = &cobra.Command{

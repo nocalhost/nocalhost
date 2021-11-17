@@ -11,20 +11,20 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-var reconnect pkg.ConnectOptions
+var reset pkg.ConnectOptions
 
 func init() {
-	reconnectCmd.Flags().StringVar(&kubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
-	reconnectCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "namespace")
-	reconnectCmd.PersistentFlags().StringArrayVar(&reconnect.Workloads, "workloads", []string{}, "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
-	reconnectCmd.Flags().BoolVar(&util.Debug, "debug", false, "true/false")
-	vpnCmd.AddCommand(reconnectCmd)
+	vpnResetCmd.Flags().StringVar(&kubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
+	vpnResetCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "namespace")
+	vpnResetCmd.PersistentFlags().StringArrayVar(&reconnect.Workloads, "workloads", []string{}, "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
+	vpnResetCmd.Flags().BoolVar(&util.Debug, "debug", false, "true/false")
+	vpnCmd.AddCommand(vpnResetCmd)
 }
 
-var reconnectCmd = &cobra.Command{
-	Use:   "reconnect",
-	Short: "reconnect",
-	Long:  `reconnect`,
+var vpnResetCmd = &cobra.Command{
+	Use:   "reset",
+	Short: "reset",
+	Long:  `reset`,
 	PreRun: func(*cobra.Command, []string) {
 		util.InitLogger(util.Debug)
 		if util.IsWindows() {

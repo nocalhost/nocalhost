@@ -21,7 +21,7 @@ func init() {
 	disconnectCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "namespace")
 	disconnectCmd.PersistentFlags().StringArrayVar(&disconnect.Workloads, "workloads", []string{}, "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
 	disconnectCmd.Flags().BoolVar(&util.Debug, "debug", false, "true/false")
-	VPNCmd.AddCommand(disconnectCmd)
+	vpnCmd.AddCommand(disconnectCmd)
 }
 
 var disconnectCmd = &cobra.Command{

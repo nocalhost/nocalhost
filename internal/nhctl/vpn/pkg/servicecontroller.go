@@ -63,3 +63,12 @@ func (s *ServiceController) ScaleToZero() (map[string]string, []v1.ContainerPort
 func (s *ServiceController) Cancel() error {
 	return s.f()
 }
+
+func (s ServiceController) getResource() string {
+	return "services"
+}
+
+func (s *ServiceController) Reset() error {
+	podController := NewPodController(s.factory, s.clientset, s.namespace, "pods", s.name)
+	return podController.Reset()
+}

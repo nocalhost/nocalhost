@@ -36,11 +36,6 @@ type ConnectOptions struct {
 	ipUsed         []*net.IPNet
 }
 
-var trafficManager = net.IPNet{
-	IP:   net.IPv4(223, 254, 254, 100),
-	Mask: net.CIDRMask(24, 32),
-}
-
 func (c *ConnectOptions) GetClientSet() *kubernetes.Clientset {
 	return c.clientset
 }
@@ -97,7 +92,7 @@ func (c *ConnectOptions) createRemoteInboundPod() error {
 					tunIp.IP.String(),
 					c.routerIP,
 					virtualShadowIp.String(),
-					strings.Join(list, ","),
+					util.RouterIP.String(),
 				)
 
 				if err != nil {
@@ -113,7 +108,7 @@ func (c *ConnectOptions) createRemoteInboundPod() error {
 		tunIp.Mask = net.CIDRMask(24, 32)
 	}
 
-	list = append(list, trafficManager.String())
+	list = append(list, util.RouterIP.String())
 
 	c.nodeConfig.ChainNode = "tcp://127.0.0.1:10800"
 	c.nodeConfig.ServeNodes = []string{fmt.Sprintf("tun://:8421/127.0.0.1:8421?net=%s&route=%s", tunIp.String(), strings.Join(list, ","))}
@@ -128,12 +123,12 @@ func (c *ConnectOptions) DoConnect(ctx context.Context) (chan error, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.routerIP, err = CreateOutboundRouterPod(c.clientset, c.Namespace, &trafficManager, c.cidrs)
+	c.routerIP, err = CreateOutboundRouterPodIfNecessary(c.clientset, c.Namespace, &util.RouterIP, c.cidrs)
 	if err != nil {
 		return nil, err
 	}
-	c.dhcp = remote.NewDHCPManager(c.clientset, c.Namespace, &trafficManager)
-	if err = c.dhcp.InitDHCP(); err != nil {
+	c.dhcp = remote.NewDHCPManager(c.clientset, c.Namespace, &util.RouterIP)
+	if err = c.dhcp.InitDHCPIfNecessary(); err != nil {
 		return nil, err
 	}
 	if err = c.createRemoteInboundPod(); err != nil {
@@ -155,7 +150,7 @@ func (c *ConnectOptions) heartbeats(ctx context.Context) {
 			case <-tick:
 				c2 <- struct{}{}
 			case <-c2:
-				_ = exec.Command("ping", "-c", "4", "223.254.254.100").Run()
+				_ = exec.Command("ping", "-c", "4", util.IpRange.String()).Run()
 			}
 		}
 	}()
@@ -326,4 +321,8 @@ func (c *ConnectOptions) InitClient() {
 		}
 	}
 	log.Infof("kubeconfig path: %s, namespace: %s, serivces: %v", c.KubeconfigPath, c.Namespace, c.Workloads)
+}
+
+func (c *ConnectOptions) reset() error {
+	return nil
 }

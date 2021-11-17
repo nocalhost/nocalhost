@@ -3,6 +3,7 @@ package pkg
 import (
 	"context"
 	"errors"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -20,7 +21,7 @@ import (
 	"time"
 )
 
-func CreateOutboundRouterPod(clientset *kubernetes.Clientset, namespace string, serverIp *net.IPNet, nodeCIDR []*net.IPNet) (string, error) {
+func CreateOutboundRouterPodIfNecessary(clientset *kubernetes.Clientset, namespace string, serverIp *net.IPNet, nodeCIDR []*net.IPNet) (string, error) {
 	firstPod, i, err3 := polymorphichelpers.GetFirstPod(clientset.CoreV1(),
 		namespace,
 		fields.OneTermEqualSelector("app", util.TrafficManager).String(),
@@ -39,12 +40,12 @@ func CreateOutboundRouterPod(clientset *kubernetes.Clientset, namespace string, 
 		"iptables -F",
 		"iptables -P INPUT ACCEPT",
 		"iptables -P FORWARD ACCEPT",
-		"iptables -t nat -A POSTROUTING -s 223.254.254.0/24 -o eth0 -j MASQUERADE",
+		fmt.Sprintf("iptables -t nat -A POSTROUTING -s %s -o eth0 -j MASQUERADE", util.RouterIP.String()),
 	}
 	for _, ipNet := range nodeCIDR {
-		args = append(args, "iptables -t nat -A POSTROUTING -s "+ipNet.String()+" -o eth0 -j MASQUERADE")
+		args = append(args, fmt.Sprintf("iptables -t nat -A POSTROUTING -s %s -o eth0 -j MASQUERADE", ipNet.String()))
 	}
-	args = append(args, "kubevpn serve -L tcp://:10800 -L tun://:8421?net="+serverIp.String()+" --debug=true")
+	args = append(args, fmt.Sprintf("kubevpn serve -L tcp://:10800 -L tun://:8421?net=%s --debug=true", serverIp.String()))
 
 	t := true
 	zero := int64(0)
@@ -112,6 +113,10 @@ func CreateOutboundRouterPod(clientset *kubernetes.Clientset, namespace string, 
 			return "", errors.New("timeout")
 		}
 	}
+}
+
+func getController() Scalable {
+	return nil
 }
 
 func CreateInboundPod(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, workloads, virtualLocalIp, realRouterIP, virtualShadowIp, routes string) error {

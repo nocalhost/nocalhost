@@ -61,12 +61,19 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand) error {
 		if a.Load() == nil || !a.Load().(bool) {
 			return nil
 		}
-		for _, function := range remote.CancelFunctions {
-			if function != nil {
-				go function()
+		// stop reverse resource
+		if len(cmd.Resource) != 0 {
+
+		} else // stop traffic manager
+		{
+			for _, function := range remote.CancelFunctions {
+				if function != nil {
+					go function()
+				}
 			}
 		}
 	case command.Reconnect:
+	case command.Reset:
 
 	}
 	return nil

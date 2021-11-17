@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"os/exec"
 )
@@ -24,7 +25,7 @@ func AddFirewallRule() {
 		"dir=in",
 		"action=allow",
 		"enable=yes",
-		"remoteip=223.254.254.1/24,LocalSubnet",
+		fmt.Sprintf("remoteip=%s,LocalSubnet", RouterIP.String()),
 	}...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		log.Infof("error while exec command: %s, out: %s, err: %v", cmd.Args, string(out), err)
