@@ -1,3 +1,4 @@
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5381/badge)](https://bestpractices.coreinfrastructure.org/projects/5381)
 ![api-docker](https://github.com/nocalhost/nocalhost/workflows/api-docker/badge.svg?branch=main)
 ![nhctl](https://github.com/nocalhost/nocalhost/workflows/nhctl/badge.svg?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nocalhost/nocalhost)](https://goreportcard.com/report/github.com/nocalhost/nocalhost)
