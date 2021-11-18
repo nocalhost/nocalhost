@@ -366,6 +366,7 @@ func (d *DaemonClient) SendGetResourceInfoCommand(
 	resource,
 	resourceName string,
 	label map[string]string,
+	showHidden bool,
 ) (interface{}, error) {
 	cmd := &command.GetResourceInfoCommand{
 		CommandType: command.GetResourceInfo,
@@ -377,6 +378,7 @@ func (d *DaemonClient) SendGetResourceInfoCommand(
 		Resource:     resource,
 		ResourceName: resourceName,
 		Label:        label,
+		ShowHidden:   showHidden,
 	}
 
 	bys, err := json.Marshal(cmd)

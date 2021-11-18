@@ -307,6 +307,7 @@ type criteria struct {
 	appName        string
 	ns             string
 	label          map[string]string
+	showHidden     bool
 }
 
 func newCriteria(search *Searcher) *criteria {
@@ -349,6 +350,11 @@ func (c *criteria) ResourceName(resourceName string) *criteria {
 
 func (c *criteria) Label(label map[string]string) *criteria {
 	c.label = label
+	return c
+}
+
+func (c *criteria) ShowHidden(showHidden bool) *criteria {
+	c.showHidden = showHidden
 	return c
 }
 
@@ -442,13 +448,14 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		}
 		return
 	}
-	return newFilter(informer.GetIndexer().List()).
+	result := newFilter(informer.GetIndexer().List()).
 		namespace(c.ns).
 		appName(c.appName).
-		label(c.label).
-		notLabel(map[string]string{_const.DevWorkloadIgnored: "true"}).
-		sort().
-		toSlice(), nil
+		label(c.label)
+	if !c.showHidden {
+		result.notLabel(map[string]string{_const.DevWorkloadIgnored: "true"})
+	}
+	return result.sort().toSlice(), nil
 }
 
 type filter struct {
