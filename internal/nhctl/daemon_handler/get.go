@@ -135,7 +135,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			nid := getNidByAppName(ns, request.KubeConfig, request.AppName)
 			return item.Result{
 				Namespace:   ns,
-				Application: []item.App{getApp(ns, request.AppName, nid, s, request.Label)},
+				Application: []item.App{getApp(ns, request.AppName, nid, s, request.Label, request.ShowHidden)},
 			}
 		}
 		// it's cluster kubeconfig
@@ -158,7 +158,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				for _, nsObject := range nsObjectList {
 					wg.Add(1)
 					go func(finalNs metav1.Object) {
-						app := getApplicationByNs(finalNs.GetName(), request.KubeConfig, s, request.Label)
+						app := getApplicationByNs(finalNs.GetName(), request.KubeConfig, s, request.Label, request.ShowHidden)
 						lock.Lock()
 						result = append(result, app)
 						lock.Unlock()
@@ -173,7 +173,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				return result
 			}
 		}
-		return getApplicationByNs(ns, request.KubeConfig, s, request.Label)
+		return getApplicationByNs(ns, request.KubeConfig, s, request.Label, request.ShowHidden)
 
 	case "app", "application":
 		// init searcher for cache async
@@ -194,6 +194,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			ResourceType(request.Resource).
 			ResourceName(request.ResourceName).
 			Label(request.Label).
+			ShowHidden(request.ShowHidden).
 			Query()
 		// resource namespace filter status is active
 		availableData := make([]interface{}, 0, 0)
@@ -231,6 +232,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			ResourceName(request.ResourceName).
 			AppName(request.AppName).
 			Namespace(ns).
+			ShowHidden(request.ShowHidden).
 			Label(request.Label)
 		// get all resource in namespace
 		if len(request.ResourceName) == 0 {
@@ -275,7 +277,7 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 	return ""
 }
 
-func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher, label map[string]string) item.Result {
+func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher, label map[string]string, showHidden bool) item.Result {
 	result := item.Result{Namespace: namespace}
 	nameAndNidList, _ := GetAllApplicationWithDefaultApp(namespace, kubeconfigPath)
 	okChan := make(chan struct{}, 2)
@@ -288,7 +290,7 @@ func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.
 	for _, name := range nameAndNidList {
 		wg.Add(1)
 		go func(finalName, nid string) {
-			app := getApp(namespace, finalName, nid, search, label)
+			app := getApp(namespace, finalName, nid, search, label, showHidden)
 			lock.Lock()
 			result.Application = append(result.Application, app)
 			lock.Unlock()
@@ -303,7 +305,7 @@ func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.
 	return result
 }
 
-func getApp(namespace, appName, nid string, search *resouce_cache.Searcher, label map[string]string) item.App {
+func getApp(namespace, appName, nid string, search *resouce_cache.Searcher, label map[string]string, showHidden bool) item.App {
 	result := item.App{Name: appName}
 	profileMap := getServiceProfile(namespace, appName, nid, search.GetKubeconfigBytes())
 	for _, entry := range resouce_cache.GroupToTypeMap {
@@ -314,6 +316,7 @@ func getApp(namespace, appName, nid string, search *resouce_cache.Searcher, labe
 				AppName(appName).
 				Namespace(namespace).
 				Label(label).
+				ShowHidden(showHidden).
 				Query()
 			if err == nil {
 				items := make([]item.Item, 0, len(resourceList))

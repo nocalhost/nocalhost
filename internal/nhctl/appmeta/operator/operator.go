@@ -92,6 +92,7 @@ func (cso *ClientGoUtilClient) getCustomResourceDaemon(app, ns string) item.App 
 				ResourceType(resource).
 				AppName(app).
 				Namespace(ns).
+				ShowHidden(true).
 				Query()
 			if err == nil {
 				items := make([]item.Item, 0, len(resourceList))
@@ -122,7 +123,7 @@ func (cso *ClientGoUtilClient) getCustomResource(app, ns string) (result item.Ap
 
 	data, err := cli.SendGetResourceInfoCommand(
 		k8sutil.GetOrGenKubeConfigPath(string(cso.KubeconfigBytes)),
-		ns, app, "all", "", map[string]string{},
+		ns, app, "all", "", map[string]string{}, true,
 	)
 
 	if err != nil {

@@ -93,7 +93,9 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		if err != nil {
 			log.FatalE(err, "")
 		}
-		data, err := cli.SendGetResourceInfoCommand(kubeConfig, nameSpace, appName, resourceType, resourceName, label)
+		data, err := cli.SendGetResourceInfoCommand(
+			kubeConfig, nameSpace, appName, resourceType, resourceName, label, false,
+		)
 		if err != nil {
 			log.FatalE(err, "")
 		}
