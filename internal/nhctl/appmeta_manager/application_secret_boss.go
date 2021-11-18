@@ -39,11 +39,11 @@ func UpdateApplicationMetasManually(ns string, configBytes []byte, secretName st
 	}
 	if secret == nil {
 		err := asw.Delete(ns + "/" + secretName)
-		log.Infof("receive delete secret operation, name: %s, err: %v", secretName, err)
+		log.Debugf("receive delete secret operation, name: %s, err: %v", secretName, err)
 		return err
 	} else {
 		err := asw.CreateOrUpdate(ns+"/"+secretName, secret)
-		log.Infof("receive update secret operation, name: %s, err: %v", secretName, err)
+		log.Debugf("receive update secret operation, name: %s, err: %v", secretName, err)
 		return err
 	}
 }
@@ -95,7 +95,7 @@ func GetApplicationMeta(ns, appName string, configBytes []byte) *appmeta.Applica
 								ApplicationConfig: profile2.ApplicationConfig{},
 								ConfigProperties:  profile2.ConfigProperties{},
 							}
-						},
+						}, false,
 					); err != nil {
 						return err
 					}

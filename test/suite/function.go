@@ -33,7 +33,7 @@ func Hook(client runner.Client) {
 					time.Minute*2, func() error {
 						return testcase.InstallBookInfoHelmForTestHook(client)
 					}, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client)
+						return testcase.UninstallBookInfoWithNativeHelm(client,"HelmHook")
 					},
 				)
 			},
@@ -49,16 +49,16 @@ func HelmAdaption(client runner.Client) {
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.InstallBookInfoUseHelmVals(client, "test-case")
+						return testcase.InstallBookInfoUseHelmVals(client, "test-case", "bookinfohelm")
 					}, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client)
+						return testcase.UninstallBookInfoWithNativeHelm(client, "bookinfohelm")
 					},
 				)
 			},
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client)
+						return testcase.UninstallBookInfoWithNativeHelm(client, "bookinfohelm")
 					}, nil,
 				)
 			},
@@ -66,16 +66,16 @@ func HelmAdaption(client runner.Client) {
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.InstallBookInfoWithNativeHelm(client)
+						return testcase.InstallBookInfoWithNativeHelm(client, "bookinfohelmnative")
 					}, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client)
+						return testcase.UninstallBookInfoWithNativeHelm(client, "bookinfohelmnative")
 					},
 				)
 			},
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client)
+						return testcase.UninstallBookInfoWithNativeHelm(client, "bookinfohelmnative")
 					}, nil,
 				)
 			},
@@ -83,16 +83,16 @@ func HelmAdaption(client runner.Client) {
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.InstallBookInfoWithNhctl(client)
+						return testcase.InstallBookInfoWithNhctl(client, "bookinfohelmnhctl")
 					}, func() error {
-						return testcase.UninstallBookInfoWithNhctl(client)
+						return testcase.UninstallBookInfoWithNhctl(client, "bookinfohelmnhctl")
 					},
 				)
 			},
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.UninstallBookInfoWithNhctl(client)
+						return testcase.UninstallBookInfoWithNhctl(client, "bookinfohelmnhctl")
 					}, nil,
 				)
 			},
@@ -100,16 +100,16 @@ func HelmAdaption(client runner.Client) {
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.InstallBookInfoWithNativeHelm(client)
+						return testcase.InstallBookInfoWithNativeHelm(client, "bookinfohelmnativeother")
 					}, func() error {
-						return testcase.UninstallBookInfoWithNhctl(client)
+						return testcase.UninstallBookInfoWithNhctl(client, "bookinfohelmnativeother")
 					},
 				)
 			},
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.UninstallBookInfoWithNhctl(client)
+						return testcase.UninstallBookInfoWithNhctl(client, "bookinfohelmnativeother")
 					}, nil,
 				)
 			},
@@ -117,16 +117,16 @@ func HelmAdaption(client runner.Client) {
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.InstallBookInfoWithNhctl(client)
+						return testcase.InstallBookInfoWithNhctl(client, "bookinfohelmnativenhctlother")
 					}, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client)
+						return testcase.UninstallBookInfoWithNativeHelm(client, "bookinfohelmnativenhctlother")
 					},
 				)
 			},
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client)
+						return testcase.UninstallBookInfoWithNativeHelm(client, "bookinfohelmnativenhctlother")
 					}, nil,
 				)
 			},
@@ -140,9 +140,11 @@ func PortForward(client runner.Client, module, moduleType string) {
 		port = 49088
 	}
 
-	util.Retry(fmt.Sprintf("PortForward-%s-%s", moduleType, module), []func() error{
-		func() error { return testcase.PortForwardStartT(client, module, moduleType, port) },
-	})
+	util.Retry(
+		fmt.Sprintf("PortForward-%s-%s", moduleType, module), []func() error{
+			func() error { return testcase.PortForwardStartT(client, module, moduleType, port) },
+		},
+	)
 	funcs := []func() error{
 		func() error { return testcase.PortForwardCheck(port) },
 		func() error { return testcase.StatusCheckPortForward(client, module, moduleType, port) },

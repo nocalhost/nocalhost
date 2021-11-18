@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // InstallBookInfoUseHelmVals install bookinfo use .nocalhost cfg:
@@ -31,11 +32,11 @@ import (
 //            memory: 1Mi
 //
 // and should make sure helm's template is correctly rendered
-func InstallBookInfoUseHelmVals(c runner.Client, branch string) error {
+func InstallBookInfoUseHelmVals(c runner.Client, branch string, appName string) error {
 	_ = runner.Runner.RunWithCheckResult(
 		c.SuiteName(),
 		c.GetNhctl().Command(
-			context.Background(), "install", "bookinfohelm",
+			context.Background(), "install", appName,
 			"-u", "https://github.com/nocalhost/bookinfo.git", "-t",
 			"helmGit", "-r", branch, "--resource-path", "charts/bookinfo", "--config", "config.helm.helmvals.yaml",
 		),
@@ -68,50 +69,50 @@ func InstallBookInfoUseHelmVals(c runner.Client, branch string) error {
 		return err
 	}
 
-	return listBookInfoHelm(c, true)
+	return listBookInfoHelm(c, true, appName)
 }
 
 // use nhctl install to install bookinfohelm,
 // then check the result on nhctl and helm
-func InstallBookInfoWithNhctl(c runner.Client) error {
+func InstallBookInfoWithNhctl(c runner.Client, appName string) error {
 	_ = runner.Runner.RunWithCheckResult(
 		c.SuiteName(),
 		c.GetNhctl().Command(
-			context.Background(), "install", "bookinfohelm",
+			context.Background(), "install", appName,
 			"-u", "https://github.com/nocalhost/bookinfo.git", "-t",
 			"helmGit", "--resource-path", "charts/bookinfo",
 		),
 	)
-	return listBookInfoHelm(c, true)
+	return listBookInfoHelm(c, true, appName)
 }
 
 // use nhctl install to install bookinfohelm,
 // then check the result on nhctl and helm
-func UninstallBookInfoWithNhctl(c runner.Client) error {
+func UninstallBookInfoWithNhctl(c runner.Client, appName string) error {
 	_ = runner.Runner.RunWithCheckResult(
 		c.SuiteName(),
 		c.GetNhctl().Command(
-			context.Background(), "uninstall", "bookinfohelm",
+			context.Background(), "uninstall", appName,
 		),
 	)
-	return listBookInfoHelm(c, false)
+	return listBookInfoHelm(c, false, appName)
 }
 
 // use helm uninstall to uninstall bookinfohelm,
 // then check the result on nhctl and helm
-func UninstallBookInfoWithNativeHelm(c runner.Client) error {
+func UninstallBookInfoWithNativeHelm(c runner.Client, appName string) error {
 	_ = runner.Runner.RunWithCheckResult(
 		c.SuiteName(),
 		c.GetHelm().Command(
-			context.Background(), "uninstall", "bookinfohelm",
+			context.Background(), "uninstall", appName,
 		),
 	)
-	return listBookInfoHelm(c, false)
+	return listBookInfoHelm(c, false, appName)
 }
 
 // use helm install to install bookinfohelm,
 // then check the result on nhctl and helm
-func InstallBookInfoWithNativeHelm(c runner.Client) error {
+func InstallBookInfoWithNativeHelm(c runner.Client, appName string) error {
 	tmpDir, _ := ioutil.TempDir("", "")
 	_ = os.MkdirAll(tmpDir, 0644)
 
@@ -136,11 +137,11 @@ func InstallBookInfoWithNativeHelm(c runner.Client) error {
 	_ = runner.Runner.RunWithCheckResult(
 		c.SuiteName(),
 		c.GetHelm().Command(
-			context.Background(), "install", "bookinfohelm", helmResourceDir,
+			context.Background(), "install", appName, helmResourceDir,
 		),
 	)
 
-	return listBookInfoHelm(c, true)
+	return listBookInfoHelm(c, true, appName)
 }
 
 // while helm application is installed,
@@ -148,9 +149,12 @@ func InstallBookInfoWithNativeHelm(c runner.Client) error {
 //
 // also when a helm application is uninstalled,
 // then either helm nor nhctl can not list it out.
-func listBookInfoHelm(c runner.Client, exist bool) error {
+func listBookInfoHelm(c runner.Client, exist bool, appName string) error {
 	return util.RetryFunc(
 		func() error {
+
+			time.Sleep(2 * time.Second)
+
 			nhctlResult, _, _ := runner.Runner.Run(
 				c.SuiteName(),
 				c.GetNhctl().Command(
@@ -166,25 +170,25 @@ func listBookInfoHelm(c runner.Client, exist bool) error {
 			)
 
 			if exist &&
-				!(strings.Contains(nhctlResult, "bookinfohelm") && strings.Contains(
-					helmResult, "bookinfohelm",
+				!(strings.Contains(nhctlResult, appName) && strings.Contains(
+					helmResult, appName,
 				)) {
 				return errors.New(
 					fmt.Sprintf(
-						"do not list application named bookinfohelm, \nhelmresult: \n%s nhctlresult \n%s", helmResult,
-						nhctlResult,
+						"do not list application named %s, \nhelmresult: \n%s nhctlresult \n%s", helmResult,
+						appName, nhctlResult,
 					),
 				)
 			}
 
 			if !exist &&
-				(strings.Contains(nhctlResult, "bookinfohelm") || strings.Contains(
-					helmResult, "bookinfohelm",
+				(strings.Contains(nhctlResult, appName) || strings.Contains(
+					helmResult, appName,
 				)) {
 				return errors.New(
 					fmt.Sprintf(
-						"bookinfohelm is not expect but listed, \nhelmresult: \n%s nhctlresult \n%s", helmResult,
-						nhctlResult,
+						"app %s is not expect but listed, \nhelmresult: \n%snhctlresult: \n%s", helmResult,
+						appName, nhctlResult,
 					),
 				)
 			}

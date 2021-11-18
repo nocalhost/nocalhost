@@ -136,7 +136,7 @@ func tryNewAppFromHelmRelease(releaseStr, ns string, configBytes []byte) error {
 							ApplicationConfig: profile2.ApplicationConfig{},
 							ConfigProperties:  profile2.ConfigProperties{},
 						}
-					},
+					}, true,
 				); err != nil {
 					log.TLogf(
 						"Watcher", "Initial application '%s' by managed helm fail, Error: %s",

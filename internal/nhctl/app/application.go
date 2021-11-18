@@ -14,7 +14,6 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/common/base"
-	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/envsubst"
@@ -178,81 +177,6 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 	// the kubeconfig before
 	//migrateAssociate(profileV2, app)
 	return app, nil
-}
-
-func (a *Application) generateSecretForEarlierVer() bool {
-
-	a.GetHomeDir()
-	profileV2, err := a.GetProfile()
-	if err != nil {
-		return false
-	}
-
-	if a.HasBeenGenerateSecret() {
-		return false
-	}
-
-	if profileV2 != nil && !profileV2.Secreted && a.appMeta.IsNotInstall() &&
-		a.Name != _const.DefaultNocalhostApplication {
-		a.AppType = profileV2.AppType
-
-		defer func() {
-			log.Logf("Mark application %s in ns %s has been secreted", a.Name, a.NameSpace)
-			_ = a.UpdateProfile(
-				func(p *profile.AppProfileV2) error {
-					p.Secreted = true
-					return nil
-				},
-			)
-		}()
-
-		if err := a.appMeta.Initial(); err != nil {
-			log.ErrorE(err, "")
-			return true
-		}
-		log.Logf("Earlier version installed application found, generate a secret...")
-
-		profileV2.GenerateIdentifierIfNeeded()
-		_ = nocalhost.UpdateProfileV2(a.NameSpace, a.Name, a.appMeta.NamespaceId, profileV2)
-
-		// config、manifest is missing while adaption update
-		a.appMeta.Config = a.newConfigFromProfile()
-		a.appMeta.DepConfigName = profileV2.DependencyConfigMapName
-		a.appMeta.Ns = a.NameSpace
-		a.appMeta.ApplicationType = appmeta.AppTypeOf(a.AppType)
-
-		_ = a.appMeta.Update()
-
-		a.client = a.appMeta.GetClient()
-
-		// for the earlier version, the resource is placed in 'ResourceDir'
-		a.ResourceTmpDir = a.getResourceDir()
-		switch a.AppType {
-		case string(appmeta.Manifest), string(appmeta.ManifestLocal), string(appmeta.ManifestGit):
-			_ = a.InstallManifest(false)
-		case string(appmeta.KustomizeGit):
-			_ = a.InstallKustomize(false)
-		default:
-		}
-
-		for _, svc := range profileV2.SvcProfile {
-			if svc.Developing {
-				_ = a.appMeta.SvcDevStartComplete(
-					svc.GetName(), base.SvcType(svc.GetType()), profileV2.Identifier, svc.DevModeType,
-				)
-			}
-		}
-
-		a.appMeta.ApplicationState = appmeta.INSTALLED
-		_ = a.appMeta.Update()
-
-		log.Logf("Application %s in ns %s is completed secreted", a.Name, a.NameSpace)
-		return false
-	}
-
-	a.MarkAsGenerated()
-
-	return false
 }
 
 // Deprecated: this method is no need any more, because config is always load from secrets now

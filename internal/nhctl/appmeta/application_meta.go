@@ -463,7 +463,9 @@ func (a *ApplicationMeta) initialFreshSecret() (*corev1.Secret, error) {
 // Initial initial the application,
 // try to create a secret if not exist and it's state is INSTALLING
 // or modify the exists secret as INSTALLING if the secret state is UNINSTALL
-func (a *ApplicationMeta) Initial() error {
+// params: force - force to re initial the appmeta, (while app uninstall, there is 10s re initial protect)
+// if want to disable the protect, set force as true
+func (a *ApplicationMeta) Initial(force bool) error {
 	return a.doInitial(
 		func(exists bool) error {
 			if exists {
@@ -488,15 +490,14 @@ func (a *ApplicationMeta) Initial() error {
 				}
 				return nil
 			}
-		},
+		}, force,
 	)
 }
 
 // Initial initial the application,
 // try to create a secret if not exist and it's state is INSTALLED
 // or modify the exists secret as INSTALLED if the secret state is UNINSTALL
-func (a *ApplicationMeta) OneTimesInitial(fun func(meta *ApplicationMeta)) error {
-
+func (a *ApplicationMeta) OneTimesInitial(fun func(meta *ApplicationMeta), force bool) error {
 
 	return a.doInitial(
 		func(exists bool) error {
@@ -531,12 +532,12 @@ func (a *ApplicationMeta) OneTimesInitial(fun func(meta *ApplicationMeta)) error
 				}
 				return nil
 			}
-		},
+		}, force,
 	)
 }
 
 // do some pre check of initial a secret
-func (a *ApplicationMeta) doInitial(howToPersistMeta func(bool) error) error {
+func (a *ApplicationMeta) doInitial(howToPersistMeta func(bool) error, force bool) error {
 	exists := true
 	get, err := a.operator.Get(a.Ns, SecretNamePrefix+a.Application)
 	if err != nil {
@@ -559,7 +560,7 @@ func (a *ApplicationMeta) doInitial(howToPersistMeta func(bool) error) error {
 
 		if a.IsNotInstall() {
 
-			if a.UninstallBackOff > time.Now().UnixNano() {
+			if a.ProtectedFromReInstall(force) {
 				return errors.New(
 					"Application may uninstalling, " +
 						"the secret is protected to re initial, please try again later ",
@@ -778,6 +779,10 @@ func (a *ApplicationMeta) IsInstalling() bool {
 
 func (a *ApplicationMeta) IsNotInstall() bool {
 	return a.ApplicationState == UNINSTALLED
+}
+
+func (a *ApplicationMeta) ProtectedFromReInstall(force bool) bool {
+	return !force && a.UninstallBackOff > time.Now().UnixNano()
 }
 
 func (a *ApplicationMeta) NotInstallTips() string {
