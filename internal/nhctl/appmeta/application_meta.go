@@ -28,6 +28,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -544,7 +545,13 @@ func (a *ApplicationMeta) doInitial(howToPersistMeta func(bool) error, force boo
 		if k8serrors.IsNotFound(err) {
 			exists = false
 		} else {
-			return errors.Wrap(err, "Error while Initial Application meta, fail to get secret ")
+			return errors.Wrap(
+				err, fmt.Sprintf(
+					"Error while Initial Application meta, fail to get secret , appometa: %v, error: %s\n%s", a,
+					err.Error(),
+					debug.Stack(),
+				),
+			)
 		}
 	}
 

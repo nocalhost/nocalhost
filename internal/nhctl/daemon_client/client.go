@@ -102,7 +102,6 @@ func getCachedDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	if !isSudoUser && client != nil {
-		log.Log("Cached daemon client get")
 		return client, nil
 	}
 	if isSudoUser && sudoClient != nil {
