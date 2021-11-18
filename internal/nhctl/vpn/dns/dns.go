@@ -23,22 +23,23 @@ func GetDNSServiceIPFromPod(clientset *kubernetes.Clientset, restclient *rest.RE
 	if ips, err := getDNSIPFromDnsPod(clientset); err == nil && len(ips) != 0 {
 		ipp = ips
 	}
-	if ip, err := util.Shell(clientset, restclient, config, podName, namespace, "cat /etc/resolv.conf"); err == nil {
-		if resolvConf, err := miekgdns.ClientConfigFromReader(bytes.NewBufferString(ip)); err == nil {
-			if len(ipp) != 0 {
-				resolvConf.Servers = append(resolvConf.Servers, make([]string, len(ipp))...)
-				copy(resolvConf.Servers[len(ipp):], resolvConf.Servers[:len(resolvConf.Servers)-len(ipp)])
-				for i := range ipp {
-					resolvConf.Servers[i] = ipp[i]
-				}
-			}
-			return resolvConf, nil
-		} else {
-			return nil, err
-		}
-	} else {
+	ip, err := util.Shell(clientset, restclient, config, podName, namespace, "cat /etc/resolv.conf")
+	if err != nil {
 		return nil, err
 	}
+	resolvConf, err := miekgdns.ClientConfigFromReader(bytes.NewBufferString(ip))
+	if err != nil {
+		return nil, err
+	}
+	if len(ipp) != 0 {
+		resolvConf.Servers = append(resolvConf.Servers, make([]string, len(ipp))...)
+		copy(resolvConf.Servers[len(ipp):], resolvConf.Servers[:len(resolvConf.Servers)-len(ipp)])
+		for i := range ipp {
+			resolvConf.Servers[i] = ipp[i]
+		}
+	}
+	return resolvConf, nil
+
 }
 
 func getDNSIPFromDnsPod(clientset *kubernetes.Clientset) (ips []string, err error) {
