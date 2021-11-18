@@ -154,6 +154,7 @@ func (srv *clusterUserService) ListV2(models model.ClusterUserModel) (
 		item := &model.ClusterUserV2{}
 		item.ID = userModel.ID
 		item.UserId = userModel.UserId
+		item.Status = *userModel.Status
 		item.ClusterAdmin = userModel.ClusterAdmin
 		item.Namespace = userModel.Namespace
 		item.SpaceName = userModel.SpaceName
