@@ -154,7 +154,7 @@ func listBookInfoHelm(c runner.Client, exist bool) error {
 			nhctlResult, _, _ := runner.Runner.Run(
 				c.SuiteName(),
 				c.GetNhctl().Command(
-					context.Background(), "list",
+					context.Background(), "get", "app",
 				),
 			)
 

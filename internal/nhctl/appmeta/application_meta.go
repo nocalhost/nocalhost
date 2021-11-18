@@ -265,7 +265,7 @@ func (a *ApplicationMeta) ReAssignmentBySecret(secret *corev1.Secret) error {
 	a.ApplicationState = ApplicationStateOf(string(bs))
 
 	if bs, ok := secret.Data[SecretUninstallBackOffKey]; ok {
-		str := string(decompress(bs))
+		str := string(bs)
 		valInt, err := strconv.Atoi(str)
 		if err != nil {
 			a.UninstallBackOff = 0
@@ -464,30 +464,32 @@ func (a *ApplicationMeta) initialFreshSecret() (*corev1.Secret, error) {
 // try to create a secret if not exist and it's state is INSTALLING
 // or modify the exists secret as INSTALLING if the secret state is UNINSTALL
 func (a *ApplicationMeta) Initial() error {
-	return a.doInitial(func(exists bool) error {
-		if exists {
-			a.ApplicationState = INSTALLING
-			return a.Update()
-		} else {
-			if secret, err := a.initialFreshSecret(); err != nil {
-				return err
+	return a.doInitial(
+		func(exists bool) error {
+			if exists {
+				a.ApplicationState = INSTALLING
+				return a.Update()
 			} else {
+				if secret, err := a.initialFreshSecret(); err != nil {
+					return err
+				} else {
 
-				createSecret, err := a.operator.Create(a.Ns, secret)
-				if err != nil {
-					if k8serrors.IsAlreadyExists(err) {
-						return err
+					createSecret, err := a.operator.Create(a.Ns, secret)
+					if err != nil {
+						if k8serrors.IsAlreadyExists(err) {
+							return err
+						}
+						return errors.Wrap(err, "Error while Initial Application meta, fail to create secret ")
 					}
-					return errors.Wrap(err, "Error while Initial Application meta, fail to create secret ")
-				}
 
-				if err := a.ReAssignmentBySecret(createSecret); err != nil {
-					return errors.Wrap(err, "Error while Initial Application meta, fail to decode secret ")
+					if err := a.ReAssignmentBySecret(createSecret); err != nil {
+						return errors.Wrap(err, "Error while Initial Application meta, fail to decode secret ")
+					}
 				}
+				return nil
 			}
-			return nil
-		}
-	})
+		},
+	)
 }
 
 // Initial initial the application,
@@ -495,39 +497,42 @@ func (a *ApplicationMeta) Initial() error {
 // or modify the exists secret as INSTALLED if the secret state is UNINSTALL
 func (a *ApplicationMeta) OneTimesInitial(fun func(meta *ApplicationMeta)) error {
 
-	return a.doInitial(func(exists bool) error {
-		if exists {
-			a.ApplicationState = INSTALLED
 
-			fun(a)
-
-			return a.Update()
-		} else {
-			if secret, err := a.initialFreshSecret(); err != nil {
-				return err
-			} else {
+	return a.doInitial(
+		func(exists bool) error {
+			if exists {
 				a.ApplicationState = INSTALLED
-				a.Secret = secret
 
 				fun(a)
 
-				a.prepare()
+				return a.Update()
+			} else {
+				if secret, err := a.initialFreshSecret(); err != nil {
+					return err
+				} else {
+					a.ApplicationState = INSTALLED
+					a.Secret = secret
 
-				createSecret, err := a.operator.Create(a.Ns, secret)
-				if err != nil {
-					if k8serrors.IsAlreadyExists(err) {
-						return err
+					fun(a)
+
+					a.prepare()
+
+					createSecret, err := a.operator.Create(a.Ns, secret)
+					if err != nil {
+						if k8serrors.IsAlreadyExists(err) {
+							return err
+						}
+						return errors.Wrap(err, "Error while Initial Application meta, fail to create secret ")
 					}
-					return errors.Wrap(err, "Error while Initial Application meta, fail to create secret ")
-				}
 
-				if err := a.ReAssignmentBySecret(createSecret); err != nil {
-					return errors.Wrap(err, "Error while Initial Application meta, fail to decode secret ")
+					if err := a.ReAssignmentBySecret(createSecret); err != nil {
+						return errors.Wrap(err, "Error while Initial Application meta, fail to decode secret ")
+					}
 				}
+				return nil
 			}
-			return nil
-		}
-	})
+		},
+	)
 }
 
 // do some pre check of initial a secret
@@ -555,8 +560,10 @@ func (a *ApplicationMeta) doInitial(howToPersistMeta func(bool) error) error {
 		if a.IsNotInstall() {
 
 			if a.UninstallBackOff > time.Now().UnixNano() {
-				return errors.New("Application may uninstalling, " +
-					"the secret is protected to re initial, please try again later ")
+				return errors.New(
+					"Application may uninstalling, " +
+						"the secret is protected to re initial, please try again later ",
+				)
 			}
 		}
 	}
@@ -948,6 +955,10 @@ func compress(input []byte) []byte {
 }
 
 func decompress(input []byte) []byte {
+	if input == nil || len(input) == 0 {
+		return input
+	}
+
 	var buf bytes.Buffer
 
 	buf.Write(input)
