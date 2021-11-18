@@ -51,7 +51,7 @@ Nocalhost 为 JetBrains 和 VSCode 提供易于使用的 IDE 插件，让开发�
 
 ## 社区
 
-* Slack: [Nocalhost Slack Channel](https://nocalhost.slack.com/)
+* Slack: [Nocalhost Slack Channel](https://cloud-native.slack.com/archives/C02MNCR8R5H)
 * 微信群：扫码添加小助手，发送 **Nocalhost**，小助手会拉您进群
 
 ![nocal-host-wechat](https://user-images.githubusercontent.com/3713305/123894953-a2d0a480-d991-11eb-88af-9082d14b0c2c.png)
