@@ -22,6 +22,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/portforward"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/daemon_common"
 	"strconv"
 
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
@@ -418,4 +420,36 @@ func BytesToInt(b []byte) uint32 {
 		log.Warn(err)
 	}
 	return u
+}
+
+func IsPortListening(int2 int) bool {
+	l, err := net.Listen("tcp", fmt.Sprintf(":%v", int2))
+	if err == nil {
+		l.Close()
+		return false
+	}
+	if strings.Contains(err.Error(), "address already in use") {
+		return true
+	}
+	return false
+}
+
+func IsSudoDaemonServing() bool {
+	if !IsPortListening(daemon_common.SudoDaemonPort) {
+		return false
+	}
+	if _, err := daemon_client.GetDaemonClient(true); err != nil {
+		return false
+	}
+	return true
+}
+
+func GetMacAddress() net.HardwareAddr {
+	for i := 0; i < 10; i++ {
+		if name, err := net.InterfaceByName(fmt.Sprintf("en%v", i)); err == nil {
+			return name.HardwareAddr
+		}
+	}
+	index, _ := net.InterfaceByIndex(0)
+	return index.HardwareAddr
 }

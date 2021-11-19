@@ -8,7 +8,6 @@ package core
 import (
 	"context"
 	"errors"
-	"github.com/shadowsocks/go-shadowsocks2/shadowaead"
 	log "github.com/sirupsen/logrus"
 	"github.com/songgao/water/waterutil"
 	"golang.org/x/net/ipv4"
@@ -198,7 +197,7 @@ func (h *tunHandler) transportTun(tun net.Conn, conn net.PacketConn, raddr net.A
 				defer util.SPool.Put(b)
 
 				n, addr, err := conn.ReadFrom(b)
-				if err != nil && err != shadowaead.ErrShortPacket {
+				if err != nil {
 					return err
 				}
 

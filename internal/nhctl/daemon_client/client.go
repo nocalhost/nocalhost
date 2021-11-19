@@ -454,6 +454,23 @@ func (d *DaemonClient) SendVPNOperateCommand(kubeconfig, ns string, operation co
 	return d.sendAndWaitForResponse(bys, nil)
 }
 
+func (d *DaemonClient) SendToSudoDaemonVPNOperateCommand(kubeconfig, ns string, operation command.VPNOperation, workloads string) error {
+	cmd := &command.VPNOperateCommand{
+		CommandType: command.SudoVPNOperate,
+		ClientStack: string(debug.Stack()),
+
+		KubeConfig: kubeconfig,
+		Namespace:  ns,
+		Action:     operation,
+		Resource:   workloads,
+	}
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	return d.sendAndWaitForResponse(bys, nil)
+}
+
 // sendDataToDaemonServer send data only to daemon
 func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 	baseCmd := command.BaseCommand{}

@@ -32,7 +32,7 @@ var disconnectCmd = &cobra.Command{
 		util.InitLogger(util.Debug)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		client, err := daemon_client.GetDaemonClient(true)
+		client, err := daemon_client.GetDaemonClient(false)
 		if err != nil {
 			log.Warn(err)
 			return

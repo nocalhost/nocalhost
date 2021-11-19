@@ -300,27 +300,27 @@ func getCIDR(clientset *kubernetes.Clientset, namespace string) ([]*net.IPNet, e
 	return nil, fmt.Errorf("can not found cidr")
 }
 
-func (c *ConnectOptions) InitClient() {
-	var err error
+func (c *ConnectOptions) InitClient() (err error) {
 	configFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
 	configFlags.KubeConfig = &c.KubeconfigPath
 	c.factory = cmdutil.NewFactory(cmdutil.NewMatchVersionFlags(configFlags))
 
 	if c.config, err = c.factory.ToRESTConfig(); err != nil {
-		log.Fatal(err)
+		return
 	}
 	if c.restclient, err = c.factory.RESTClient(); err != nil {
-		log.Fatal(err)
+		return
 	}
 	if c.clientset, err = c.factory.KubernetesClientSet(); err != nil {
-		log.Fatal(err)
+		return
 	}
 	if len(c.Namespace) == 0 {
 		if c.Namespace, _, err = c.factory.ToRawKubeConfigLoader().Namespace(); err != nil {
-			log.Fatal(err)
+			return
 		}
 	}
 	log.Infof("kubeconfig path: %s, namespace: %s, serivces: %v", c.KubeconfigPath, c.Namespace, c.Workloads)
+	return
 }
 
 func (c *ConnectOptions) reset() error {
