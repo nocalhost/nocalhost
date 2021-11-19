@@ -85,8 +85,12 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 
 	logger.Infof("============= Testing (Create Ns)%s  =============\n", name)
 
-	var retryTimes = 10
+	var retryTimes = 5
 	if withBookInfo {
+		defer func() {
+			_ = testcase.UninstallBookInfo(clientForRunner)
+		}()
+
 		var err error
 		for i := 0; i < retryTimes; i++ {
 			timeBeforeInstall := time.Now()
@@ -157,16 +161,6 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 	logger.Infof(
 		"============= Testing done, Cost(%fs) %s =============\n", timeAfter.Sub(timeBefore).Seconds(), name,
 	)
-
-	if withBookInfo {
-		//testcase.Reset(clientForRunner)
-		for i := 0; i < retryTimes; i++ {
-			if err := testcase.UninstallBookInfo(clientForRunner); err != nil {
-				continue
-			}
-			break
-		}
-	}
 }
 
 func (t *T) Clean() {
