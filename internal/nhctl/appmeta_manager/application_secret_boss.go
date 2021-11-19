@@ -74,7 +74,7 @@ func GetApplicationMeta(ns, appName string, configBytes []byte) *appmeta.Applica
 	asw := supervisor.inDeck(ns, configBytes)
 
 	// asw may nil if prepare fail
-	meta := asw.GetApplicationMeta(appName, ns)
+	meta := asw.GetApplicationMeta(appName)
 
 	// try load application from annotations
 	if meta != nil && meta.IsNotInstall() {
@@ -103,13 +103,21 @@ func GetApplicationMeta(ns, appName string, configBytes []byte) *appmeta.Applica
 					return nil
 				},
 			); err != nil {
-
 				log.TLogf(
 					"Watcher", "Initial application '%s' by managed annotations fail, Errors: %s",
 					appName, err,
 				)
-				return nil
 			}
+		}
+	}
+
+	if meta == nil || meta.Application == "" {
+		return &appmeta.ApplicationMeta{
+			ApplicationState: appmeta.UNINSTALLED,
+			Ns:               ns,
+			Application:      appName,
+			DevMeta:          appmeta.ApplicationDevMeta{},
+			Config:           &profile2.NocalHostAppConfigV2{},
 		}
 	}
 

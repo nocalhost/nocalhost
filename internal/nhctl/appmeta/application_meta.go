@@ -28,7 +28,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"regexp"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -239,8 +238,6 @@ type ApplicationMeta struct {
 
 func (a *ApplicationMeta) ReAssignmentBySecret(secret *corev1.Secret) error {
 	a.Secret = secret
-
-	time.Now().UnixNano()
 
 	if secret == nil {
 		return fmt.Errorf("Error while decode Secret, Secret is null. ")
@@ -547,9 +544,8 @@ func (a *ApplicationMeta) doInitial(howToPersistMeta func(bool) error, force boo
 		} else {
 			return errors.Wrap(
 				err, fmt.Sprintf(
-					"Error while Initial Application meta, fail to get secret , appometa: %v, error: %s\n%s", a,
+					"Error while Initial Application meta, fail to get secret , error: %s\n",
 					err.Error(),
-					debug.Stack(),
 				),
 			)
 		}

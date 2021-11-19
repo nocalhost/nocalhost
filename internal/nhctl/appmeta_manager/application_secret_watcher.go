@@ -17,7 +17,6 @@ import (
 
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
-	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/watcher"
 	"nocalhost/pkg/nhctl/log"
 	"sync"
@@ -144,19 +143,11 @@ func (asw *applicationSecretWatcher) GetApplicationMetas() (result []*appmeta.Ap
 
 // prevent other func change the application meta
 // caution!!!!!
-func (asw *applicationSecretWatcher) GetApplicationMeta(application, ns string) *appmeta.ApplicationMeta {
-	if asw != nil && asw.applicationMetas[application] != nil {
-		return asw.applicationMetas[application]
-	} else {
+func (asw *applicationSecretWatcher) GetApplicationMeta(application string) *appmeta.ApplicationMeta {
+	asw.lock.Lock()
+	defer asw.lock.Unlock()
 
-		return &appmeta.ApplicationMeta{
-			ApplicationState: appmeta.UNINSTALLED,
-			Ns:               ns,
-			Application:      application,
-			DevMeta:          appmeta.ApplicationDevMeta{},
-			Config:           &profile2.NocalHostAppConfigV2{},
-		}
-	}
+	return asw.applicationMetas[application]
 }
 
 func (asw *applicationSecretWatcher) Quit() {
