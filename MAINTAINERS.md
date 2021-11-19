@@ -8,9 +8,9 @@ Please keep the below list sorted in ascending order.
 
 | Maintainer | GitHub ID | Affiliation | Email |
 | --------------- | --------- | ----------- | ----------- |
-| Zhenwei Wang | @jack230230 | Tencent | <wangzhenwei@coding.net> |
-| Wei Wang | @lyzhang1999 | Tencent | <wangweimax@coding.net> |
-| Jinhao Huang | @anurnomeru | Tencent | <huangjinhao@coding.net> |
-| Xinxin Huang | @xinxinh2020 | Tencent | <huangxinxin@coding.net> |
-| Yicai Yu | @yuyicai | Tencent | <yuyicai@coding.net> |
-| Caiwen Feng | @wencaiwulue | Tencent | <fengcaiwen@coding.net> |
+| Zhenwei Wang | @jack230230 | Tencent | <jack230230@gmail.com> |
+| Wei Wang | @lyzhang1999 | Tencent | <wangwei27494731@gmail.com> |
+| Jinhao Huang | @anurnomeru | Tencent | <anurnomeru@163.com> |
+| Xinxin Huang | @xinxinh2020 | Tencent | <2011150377@email.szu.edu.cn> |
+| Yicai Yu | @yuyicai | Tencent | <yuyicai@hotmail.com> |
+| Caiwen Feng | @wencaiwulue | Tencent | <wencaiwulue@gmail.com> |
