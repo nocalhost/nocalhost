@@ -111,7 +111,7 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 		LocalPort:        localListenPort,
 		ListenAddress:    fmt.Sprintf("%s:%d", syncthing.Bind, localListenPort),
 		Type:             sendMode, // sendonly mode
-		IgnoreDelete:     true,
+		IgnoreDelete:     false,
 		Folders:          []*syncthing.Folder{},
 		RescanInterval:   "300",
 	}

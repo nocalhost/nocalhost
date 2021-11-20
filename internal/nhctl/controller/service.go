@@ -49,11 +49,7 @@ func NewController(ns, name, appName, identifier string, svcType base.SvcType,
 		AppMeta:    appMeta,
 		Identifier: identifier,
 	}
-	p, err := c.GetProfile()
-	if err != nil {
-		return nil, err
-	}
-	c.DevModeType = p.DevModeType
+	c.DevModeType = c.GetCurrentDevModeType()
 
 	a := c.GetAppConfig().GetSvcConfigS(c.Name, c.Type)
 	c.config = &a
@@ -63,23 +59,19 @@ func NewController(ns, name, appName, identifier string, svcType base.SvcType,
 
 // IsInReplaceDevMode return true if under dev starting or start complete
 func (c *Controller) IsInReplaceDevMode() bool {
-	return c.DevModeType.IsReplaceDevMode() &&
-		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) != appmeta.NONE
+	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, profile.ReplaceDevMode) != appmeta.NONE
 }
 
 func (c *Controller) IsInReplaceDevModeStarting() bool {
-	return c.DevModeType.IsReplaceDevMode() &&
-		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) == appmeta.STARTING
+	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, profile.ReplaceDevMode) == appmeta.STARTING
 }
 
 func (c *Controller) IsInDuplicateDevMode() bool {
-	return c.DevModeType.IsDuplicateDevMode() &&
-		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) != appmeta.NONE
+	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, profile.DuplicateDevMode) != appmeta.NONE
 }
 
 func (c *Controller) IsInDuplicateDevModeStarting() bool {
-	return c.DevModeType.IsDuplicateDevMode() &&
-		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) == appmeta.STARTING
+	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, profile.DuplicateDevMode) == appmeta.STARTING
 }
 
 func (c *Controller) IsInDevMode() bool {
@@ -92,7 +84,11 @@ func (c *Controller) IsInDevModeStarting() bool {
 
 // IsProcessor Check if service is developing in this device
 func (c *Controller) IsProcessor() bool {
-	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, c.DevModeType)
+	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, profile.DuplicateDevMode) || c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, profile.ReplaceDevMode)
+}
+
+func (c *Controller) GetCurrentDevModeType() profile.DevModeType {
+	return c.AppMeta.GetCurrentDevModeTypeOfWorkload(c.Name, c.Type, c.Identifier)
 }
 
 func CheckIfControllerTypeSupport(t string) bool {

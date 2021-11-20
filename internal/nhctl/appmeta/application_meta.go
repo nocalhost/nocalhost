@@ -317,6 +317,7 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, ns, identifier string) {
 	svcType := base.SvcTypeOf(s.GetType())
 
+	s.DevModeType = meta.GetCurrentDevModeTypeOfWorkload(s.GetName(), base.SvcTypeOf(s.GetType()), identifier)
 	devStatus := meta.CheckIfSvcDeveloping(s.GetName(), identifier, svcType, s.DevModeType)
 
 	pack := dev_dir.NewSvcPack(
@@ -795,6 +796,16 @@ func (a *ApplicationMeta) Delete() error {
 		)
 	}
 	return nil
+}
+
+func (a *ApplicationMeta) GetCurrentDevModeTypeOfWorkload(workloadName string, workloadType base.SvcType, identifier string) profile2.DevModeType {
+	if a.CheckIfSvcDeveloping(workloadName, identifier, workloadType, profile2.DuplicateDevMode) != NONE {
+		return profile2.DuplicateDevMode
+	}
+	if a.CheckIfSvcDeveloping(workloadName, identifier, workloadType, profile2.ReplaceDevMode) != NONE {
+		return profile2.ReplaceDevMode
+	}
+	return profile2.NoneDevMode
 }
 
 func (a *ApplicationMeta) NewResourceReader() *clientgoutils.Resource {
