@@ -1248,6 +1248,10 @@ func (c *GoClient) GetRestClient() (*restclient.RESTClient, error) {
 	return restclient.RESTClientFor(c.restConfig)
 }
 
+func (c *GoClient) Clientset() *kubernetes.Clientset {
+	return c.client
+}
+
 // IsNamespaceExist check if exist namespace
 func (c *GoClient) IsNamespaceExist(ns string) (bool, error) {
 	_, err := c.client.CoreV1().Namespaces().Get(context.TODO(), ns, metav1.GetOptions{})

@@ -181,7 +181,8 @@ var (
 		Code:    50211,
 		Message: "Cannot be set as both base space and mesh space",
 	}
-	ErrIstioNotFound = &Errno{Code: 50212, Message: "Please ensure the Istio is installed and running in your cluster"}
+	ErrIstioNotFound     = &Errno{Code: 50212, Message: "Please ensure the Istio is installed and running in your cluster"}
+	ErrUpdateSleepConfig = &Errno{Code: 50213, Message: "Failed to update sleep config"}
 
 	// application-user for application-user module request
 	ErrListApplicationUser = &Errno{

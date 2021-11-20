@@ -88,8 +88,8 @@ type ClusterUserModel struct {
 	SpaceResourceLimit string          `gorm:"column:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
 	Namespace          string          `gorm:"column:namespace;not null" json:"namespace"`
 	Status             *DevSpaceStatus `gorm:"column:status;default:0" json:"status"`
-	SleepAt            *time.Time      `gorm:"column:deleted_at" json:"sleep_at"`
-	SleepConf          string          `gorm:"column:sleep_conf;type:VARCHAR(1024);" json:"sleep_conf"`
+	SleepAt            *time.Time      `gorm:"column:sleep_at" json:"sleep_at"`
+	SleepConfig        string          `gorm:"column:sleep_config;type:VARCHAR(1024);" json:"sleep_conf"`
 	ClusterAdmin       *uint64         `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
 	IsBaseSpace        bool            `gorm:"column:is_base_space;default:false" json:"is_base_space"`
 	BaseDevSpaceId     uint64          `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`

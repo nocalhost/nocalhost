@@ -108,6 +108,16 @@ type ClusterUserListV2Query struct {
 	IsCanBeUsedAsBaseSpace bool    `form:"is_can_be_used_as_base_space"`
 }
 
+type SleepRule struct {
+	Day      uint64 `json:"day"`
+	SleepAt  string `json:"sleep_at"`
+	WakeupAt string `json:"wakeup_at"`
+}
+
+type SleepConfig struct {
+	Rules []SleepRule `json:"rules"`
+}
+
 type SpaceResourceLimit struct {
 	SpaceReqMem               string `json:"space_req_mem"`
 	SpaceReqCpu               string `json:"space_req_cpu"`
