@@ -14,6 +14,7 @@ import (
 type ClusterUserRepo interface {
 	Create(model model.ClusterUserModel) (model.ClusterUserModel, error)
 	Delete(id uint64) error
+	Modify(id uint64, attrs map[string]interface{}) error
 	DeleteByWhere(models model.ClusterUserModel) error
 	BatchDelete(id []uint64) error
 	GetFirst(models model.ClusterUserModel) (*model.ClusterUserModel, error)
@@ -117,6 +118,15 @@ func (repo *clusterUserRepo) Update(models *model.ClusterUserModel) (
 		return models, nil
 	}
 	return models, errors.New("update dev space err")
+}
+
+func (repo *clusterUserRepo) Modify(id uint64, attrs map[string]interface{}) error {
+	criteria := model.ClusterUserModel{ID: id}
+	affected := repo.db.Model(&criteria).Update(attrs).RowsAffected
+	if affected == 0 {
+		return errors.New("0 rows affected")
+	}
+	return nil
 }
 
 // GetList

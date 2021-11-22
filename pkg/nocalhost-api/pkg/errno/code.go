@@ -183,6 +183,8 @@ var (
 	}
 	ErrIstioNotFound     = &Errno{Code: 50212, Message: "Please ensure the Istio is installed and running in your cluster"}
 	ErrUpdateSleepConfig = &Errno{Code: 50213, Message: "Failed to update sleep config"}
+	ErrForceSleep        = &Errno{Code: 50214, Message: "Failed to force sleep"}
+	ErrForceWakeup       = &Errno{Code: 50215, Message: "Failed to force wakeup"}
 
 	// application-user for application-user module request
 	ErrListApplicationUser = &Errno{

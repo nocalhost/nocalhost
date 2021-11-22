@@ -3,16 +3,41 @@ package sleep
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
+	"strconv"
+	"time"
 )
 
-func CreateSleepConfig(c *clientgo.GoClient, ns string, config string) error {
-	marshal, _ := json.Marshal(map[string]map[string]map[string]string{
-		"metadata": {
-			"annotations": {
-				"nocalhost.dev.sleep/config": config,
+const (
+	kActive = "active"
+	kAsleep = "asleep"
+	kConfig = "nocalhost.dev.sleep/config"
+	kStatus = "nocalhost.dev.sleep/status"
+	kReplicas = "nocalhost.dev.sleep/replicas"
+	kForceSleep = "nocalhost.dev.sleep/force-sleep"
+	kForceWakeup = "nocalhost.dev.sleep/force-wakeup"
+)
+
+func stringify(v interface{}) string {
+	marshal, _ := json.Marshal(v)
+	return string(marshal)
+}
+
+func ForceSleep(c* clientgo.GoClient, ns string) error {
+	// TODO: purging all pods
+
+	replicas := make(map[string]int)
+	patch, _ := json.Marshal(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"annotations": map[string]string{
+				kStatus: kAsleep,
+				kReplicas: stringify(replicas),
+				kForceSleep: strconv.FormatInt(time.Now().Unix(), 10),
+				kForceWakeup: "",
 			},
 		},
 	})
@@ -21,11 +46,11 @@ func CreateSleepConfig(c *clientgo.GoClient, ns string, config string) error {
 		Clientset().
 		CoreV1().
 		Namespaces().
-		Patch(context.TODO(), ns, types.StrategicMergePatchType, marshal, metav1.PatchOptions{})
+		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 	return err
 }
 
-func DeleteSleepConfig(c *clientgo.GoClient, ns string) error {
+func ForceWakeup(c* clientgo.GoClient, ns string) error {
 	namespace, err := c.
 		Clientset().
 		CoreV1().
@@ -36,16 +61,68 @@ func DeleteSleepConfig(c *clientgo.GoClient, ns string) error {
 		return err
 	}
 
-	delete(namespace.Annotations, "nocalhost.dev.sleep/config")
-	delete(namespace.Annotations, "nocalhost.dev.sleep/status")
-	delete(namespace.Annotations, "nocalhost.dev.sleep/force-sleep")
-	delete(namespace.Annotations, "nocalhost.dev.sleep/force-wakeup")
-	delete(namespace.Annotations, "nocalhost.dev.sleep/origin-replicas")
+	if namespace.Annotations == nil || len(namespace.Annotations[kReplicas]) == 0 {
+		return errors.New(fmt.Sprintf("cannot find `%s` from annotations", kReplicas))
+	}
+
+	var replicas map[string]int
+	err = json.Unmarshal([]byte(namespace.Annotations[kReplicas]), &replicas)
+	if err != nil {
+		return err
+	}
+
+	// TODO: restore all pods
+
+	patch, _ := json.Marshal(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"annotations": map[string]string{
+				kStatus: kActive,
+				kForceSleep: "",
+				kForceWakeup: strconv.FormatInt(time.Now().Unix(), 10),
+			},
+		},
+	})
 
 	_, err = c.
 		Clientset().
 		CoreV1().
 		Namespaces().
-		Update(context.TODO(), namespace, metav1.UpdateOptions{})
+		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+	return err
+}
+
+func CreateSleepConfig(c *clientgo.GoClient, ns string, config string) error {
+	patch, _ := json.Marshal(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"annotations": map[string]string{
+				kConfig: config,
+				kStatus: "",
+			},
+		},
+	})
+
+	_, err := c.
+		Clientset().
+		CoreV1().
+		Namespaces().
+		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+	return err
+}
+
+func DeleteSleepConfig(c *clientgo.GoClient, ns string) error {
+	patch, _ := json.Marshal(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"annotations": map[string]string{
+				kConfig: "",
+				kStatus: "",
+			},
+		},
+	})
+
+	_, err := c.
+		Clientset().
+		CoreV1().
+		Namespaces().
+		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 	return err
 }

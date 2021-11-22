@@ -7,7 +7,6 @@ package cluster_user
 
 import (
 	"context"
-
 	"github.com/spf13/cast"
 
 	"nocalhost/internal/nocalhost-api/service"
@@ -106,16 +105,6 @@ type ClusterUserListV2Query struct {
 	ClusterId              *uint64 `form:"cluster_id"`
 	SpaceName              string  `form:"space_name"`
 	IsCanBeUsedAsBaseSpace bool    `form:"is_can_be_used_as_base_space"`
-}
-
-type SleepRule struct {
-	Day      uint64 `json:"day"`
-	SleepAt  string `json:"sleep_at"`
-	WakeupAt string `json:"wakeup_at"`
-}
-
-type SleepConfig struct {
-	Rules []SleepRule `json:"rules"`
 }
 
 type SpaceResourceLimit struct {

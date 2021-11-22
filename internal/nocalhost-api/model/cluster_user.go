@@ -27,18 +27,20 @@ var None SpaceOwnType = SpaceOwnType{"None", 1}
 type ClusterUserV2 struct {
 
 	// Intrinsic field
-	ID                 uint64         `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
-	UserId             uint64         `gorm:"column:user_id;not null" json:"user_id"`
-	ClusterAdmin       *uint64        `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
-	Namespace          string         `gorm:"column:namespace;not null" json:"namespace"`
-	SpaceName          string         `gorm:"column:space_name;not null;type:VARCHAR(100);comment:'default is application[username]'" json:"space_name"`
-	ClusterId          uint64         `gorm:"column:cluster_id;not null" json:"cluster_id"`
-	IsBaseSpace        bool           `gorm:"column:is_base_space;default:false" json:"is_base_space"`
-	BaseDevSpaceId     uint64         `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`
-	TraceHeader        Header         `gorm:"cloumn:trace_header;type:VARCHAR(256);" json:"trace_header"`
-	SpaceResourceLimit string         `gorm:"column:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
-	CreatedAt          time.Time      `gorm:"column:created_at" json:"created_at"`
-	Status             DevSpaceStatus `gorm:"column:status" json:"status"`
+	ID                 uint64       `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
+	UserId             uint64       `gorm:"column:user_id;not null" json:"user_id"`
+	ClusterAdmin       *uint64      `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
+	Namespace          string       `gorm:"column:namespace;not null" json:"namespace"`
+	SpaceName          string       `gorm:"column:space_name;not null;type:VARCHAR(100);comment:'default is application[username]'" json:"space_name"`
+	ClusterId          uint64       `gorm:"column:cluster_id;not null" json:"cluster_id"`
+	IsBaseSpace        bool         `gorm:"column:is_base_space;default:false" json:"is_base_space"`
+	BaseDevSpaceId     uint64       `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`
+	TraceHeader        Header       `gorm:"column:trace_header;type:VARCHAR(256);" json:"trace_header"`
+	SpaceResourceLimit string       `gorm:"column:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
+	CreatedAt          time.Time    `gorm:"column:created_at" json:"created_at"`
+	SleepAt            *time.Time   `gorm:"column:sleep_at;type:timestamp" json:"sleep_at"`
+	IsAsleep           bool         `gorm:"column:is_asleep;not null;default:false" json:"is_asleep"`
+	SleepConfig        *SleepConfig `gorm:"column:sleep_config;type:VARCHAR(1024);" json:"sleep_config"`
 
 	// ext field
 	*ClusterUserExt
@@ -66,37 +68,30 @@ type ClusterUserExt struct {
 }
 
 // ClusterUserModel
-
-type DevSpaceStatus uint64
-
-const (
-	Normal DevSpaceStatus = 0
-	Sleepy DevSpaceStatus = 1
-)
-
 type ClusterUserModel struct {
 	ID uint64 `gorm:"primary_key;AUTO_INCREMENT;column:id" json:"id"`
 
 	// Deprecated
-	ApplicationId      uint64          `gorm:"column:application_id;not null" json:"application_id"`
-	UserId             uint64          `gorm:"column:user_id;not null" json:"user_id"`
-	SpaceName          string          `gorm:"column:space_name;not null;type:VARCHAR(100);comment:'default is application[username]'" json:"space_name"`
-	ClusterId          uint64          `gorm:"column:cluster_id;not null" json:"cluster_id"`
-	KubeConfig         string          `gorm:"column:kubeconfig;not null" json:"kubeconfig"`
-	Memory             uint64          `gorm:"column:memory;not null" json:"memory"`
-	Cpu                uint64          `gorm:"column:cpu;not null" json:"cpu"`
-	SpaceResourceLimit string          `gorm:"column:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
-	Namespace          string          `gorm:"column:namespace;not null" json:"namespace"`
-	Status             *DevSpaceStatus `gorm:"column:status;default:0" json:"status"`
-	SleepAt            *time.Time      `gorm:"column:sleep_at" json:"sleep_at"`
-	SleepConfig        string          `gorm:"column:sleep_config;type:VARCHAR(1024);" json:"sleep_conf"`
-	ClusterAdmin       *uint64         `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
-	IsBaseSpace        bool            `gorm:"column:is_base_space;default:false" json:"is_base_space"`
-	BaseDevSpaceId     uint64          `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`
-	TraceHeader        Header          `gorm:"cloumn:trace_header;type:VARCHAR(256);" json:"trace_header"`
-	CreatedAt          time.Time       `gorm:"column:created_at" json:"created_at"`
-	UpdatedAt          time.Time       `gorm:"column:updated_at" json:"-"`
-	DeletedAt          *time.Time      `gorm:"column:deleted_at" json:"-"`
+	ApplicationId      uint64       `gorm:"column:application_id;not null" json:"application_id"`
+	UserId             uint64       `gorm:"column:user_id;not null" json:"user_id"`
+	SpaceName          string       `gorm:"column:space_name;not null;type:VARCHAR(100);comment:'default is application[username]'" json:"space_name"`
+	ClusterId          uint64       `gorm:"column:cluster_id;not null" json:"cluster_id"`
+	KubeConfig         string       `gorm:"column:kubeconfig;not null" json:"kubeconfig"`
+	Memory             uint64       `gorm:"column:memory;not null" json:"memory"`
+	Cpu                uint64       `gorm:"column:cpu;not null" json:"cpu"`
+	SpaceResourceLimit string       `gorm:"column:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
+	Namespace          string       `gorm:"column:namespace;not null" json:"namespace"`
+	Status             *uint64      `gorm:"column:status;default:0" json:"status"`
+	ClusterAdmin       *uint64      `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
+	IsBaseSpace        bool         `gorm:"column:is_base_space;default:false" json:"is_base_space"`
+	BaseDevSpaceId     uint64       `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`
+	TraceHeader        Header       `gorm:"cloumn:trace_header;type:VARCHAR(256);" json:"trace_header"`
+	CreatedAt          time.Time    `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt          time.Time    `gorm:"column:updated_at" json:"-"`
+	DeletedAt          *time.Time   `gorm:"column:deleted_at" json:"-"`
+	SleepAt            *time.Time   `gorm:"column:sleep_at;type:timestamp" json:"sleep_at"`
+	IsAsleep           bool         `gorm:"column:is_asleep;not null;default:false" json:"is_asleep"`
+	SleepConfig        *SleepConfig `gorm:"column:sleep_config;type:VARCHAR(1024);" json:"sleep_config"`
 }
 
 func (cu *ClusterUserModel) IsClusterAdmin() bool {
@@ -185,5 +180,35 @@ func (h *Header) Scan(value interface{}) error {
 }
 
 func (h Header) Value() (driver.Value, error) {
+	return json.Marshal(h)
+}
+
+type SleepRule struct {
+	Day      uint64 `json:"day" binding:"required"`
+	SleepAt  string `json:"sleep_at" binding:"required"`
+	WakeupAt string `json:"wakeup_at" binding:"required"`
+}
+
+type SleepConfig struct {
+	Rules []SleepRule `json:"rules" binding:"required,dive"`
+}
+
+func (h *SleepConfig) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+	// check value for byte slice
+	b, ok := value.([]byte)
+	if !ok {
+		return errors.Errorf("value is not []byte, value: %v", value)
+	}
+	// check value for empty string
+	if len(string(value.([]byte))) == 0 {
+		return nil
+	}
+	return json.Unmarshal(b, h)
+}
+
+func (h SleepConfig) Value() (driver.Value, error) {
 	return json.Marshal(h)
 }
