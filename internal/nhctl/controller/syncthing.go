@@ -111,13 +111,15 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 		LocalPort:        localListenPort,
 		ListenAddress:    fmt.Sprintf("%s:%d", syncthing.Bind, localListenPort),
 		Type:             sendMode, // sendonly mode
-		IgnoreDelete:     false,
 		Folders:          []*syncthing.Folder{},
 		RescanInterval:   "300",
 	}
 	svcConfig := c.Config()
 	devConfig := svcConfig.GetContainerDevConfigOrDefault(container)
 	if devConfig != nil && devConfig.Sync != nil {
+		// enable delete protection by default
+		// or use the val user specify
+		s.IgnoreDelete = devConfig.Sync.DeleteProtection == nil || *devConfig.Sync.DeleteProtection
 		s.EnableParseFromGitIgnore = devConfig.Sync.Mode == _const.GitIgnoreMode
 		s.SyncedPattern = devConfig.Sync.FilePattern
 		s.IgnoredPattern = devConfig.Sync.IgnoreFilePattern
