@@ -39,8 +39,10 @@ func getServiceProfile(ns, appName, nid string, kubeconfigBytes []byte) map[stri
 	}
 	description := GetDescriptionDaemon(ns, appName, nid, kubeconfigBytes)
 	if description != nil {
+		appMeta := appmeta_manager.GetApplicationMeta(ns, appName, kubeconfigBytes)
 		for _, svcProfileV2 := range description.SvcProfile {
 			if svcProfileV2 != nil {
+				svcProfileV2.DevModeType = appMeta.GetCurrentDevModeTypeOfWorkload(svcProfileV2.Name, base.SvcTypeOf(svcProfileV2.Type), description.Identifier)
 				name := strings.ToLower(svcProfileV2.GetType()) + "s"
 				serviceMap[name+"/"+svcProfileV2.GetName()] = svcProfileV2
 			}

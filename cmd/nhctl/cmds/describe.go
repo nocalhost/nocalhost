@@ -1,16 +1,16 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
+	"nocalhost/internal/nhctl/common/base"
 )
 
 var deploy string
@@ -38,14 +38,17 @@ var describeCmd = &cobra.Command{
 		initApp(applicationName)
 		if deploy == "" {
 			appProfile := nocalhostApp.GetDescription()
+			for _, svcProfileV2 := range appProfile.SvcProfile {
+				svcProfileV2.DevModeType = nocalhostApp.GetAppMeta().GetCurrentDevModeTypeOfWorkload(svcProfileV2.Name, base.SvcTypeOf(svcProfileV2.Type), appProfile.Identifier)
+			}
 			bytes, err := yaml.Marshal(appProfile)
 			if err == nil {
 				fmt.Print(string(bytes))
 			}
 		} else {
 			checkIfSvcExist(deploy, serviceType)
-			appProfile := nocalhostSvc.GetDescription()
-			bytes, err := yaml.Marshal(appProfile)
+			svcProfile := nocalhostSvc.GetDescription()
+			bytes, err := yaml.Marshal(svcProfile)
 			if err == nil {
 				fmt.Print(string(bytes))
 			}
