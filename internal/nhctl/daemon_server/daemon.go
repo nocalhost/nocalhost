@@ -20,6 +20,7 @@ import (
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost_cleanup"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
@@ -220,6 +221,12 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 	//// Recovering syncthing
 	//go recoverSyncthing()
+	go func() {
+		time.Sleep(30 * time.Second)
+		if err := nocalhost_cleanup.CleanUp(false); err != nil {
+			log.Logf("Clean up application in daemon failed: %s", err.Error())
+		}
+	}()
 
 	select {
 	case <-daemonCtx.Done():

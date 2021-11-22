@@ -196,10 +196,13 @@ func MigrateNsDirToSupportNidIfNeeded(app, ns, nid string) error {
 	return nil
 }
 
-func GetNsAndApplicationInfo(portForwardFilter bool) ([]AppInfo, error) {
-	if err := MoveAppFromNsToNid(); err != nil {
-		log.LogE(err)
+func GetNsAndApplicationInfo(portForwardFilter, nidMigrate bool) ([]AppInfo, error) {
+	if nidMigrate {
+		if err := MoveAppFromNsToNid(); err != nil {
+			log.LogE(err)
+		}
 	}
+
 	result := make([]AppInfo, 0)
 	nsDir := nocalhost_path.GetNhctlNameSpaceBaseDir()
 	nsList, err := ioutil.ReadDir(nsDir)

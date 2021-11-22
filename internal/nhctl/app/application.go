@@ -141,6 +141,10 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 		KubeConfig: kubeconfig,
 	}
 
+	if _, err = os.Stat(app.KubeConfig); err != nil {
+		return nil, err
+	}
+
 	if meta == nil {
 		if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
 			return nil, err
@@ -154,6 +158,10 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 	// 3. try load application meta from secret
 	// 4. update kubeconfig for profile
 	// 5. init go client inner Application
+
+	if app.appMeta.IsUnknown() {
+		return nil, errors.New(fmt.Sprintf("%s-%s state is UNKNOWN", app.NameSpace, app.Name))
+	}
 
 	if !app.appMeta.IsInstalled() {
 		return nil, errors.Wrap(ErrNotFound, fmt.Sprintf("%s-%s not found", app.NameSpace, app.Name))

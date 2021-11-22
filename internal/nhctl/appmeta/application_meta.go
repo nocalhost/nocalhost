@@ -67,6 +67,8 @@ const (
 	INSTALLING  ApplicationState = "INSTALLING"
 	INSTALLED   ApplicationState = "INSTALLED"
 
+	UNKNOWN ApplicationState = "UNKNOWN"
+
 	DependenceConfigMapPrefix = "nocalhost-depends-do-not-overwrite"
 
 	DEV_STARTING_SUFFIX = ">...Starting"
@@ -143,6 +145,8 @@ func ApplicationStateOf(s string) ApplicationState {
 		return INSTALLING
 	case string(INSTALLED):
 		return INSTALLED
+	case string(UNKNOWN):
+		return UNKNOWN
 	}
 	return UNINSTALLED
 }
@@ -638,6 +642,10 @@ func (a *ApplicationMeta) prepare() {
 
 func (a *ApplicationMeta) IsInstalled() bool {
 	return a.ApplicationState == INSTALLED
+}
+
+func (a *ApplicationMeta) IsUnknown() bool {
+	return a.ApplicationState == UNKNOWN
 }
 
 func (a *ApplicationMeta) IsInstalling() bool {
