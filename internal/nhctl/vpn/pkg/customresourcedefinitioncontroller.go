@@ -13,7 +13,7 @@ import (
 	"nocalhost/internal/nhctl/vpn/util"
 )
 
-type PodController struct {
+type CustomResourceDefinitionController struct {
 	factory   cmdutil.Factory
 	clientset *kubernetes.Clientset
 	namespace string
@@ -21,54 +21,53 @@ type PodController struct {
 	name      string
 }
 
-func NewPodController(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, resource, name string) *PodController {
-	return &PodController{
+func NewCustomResourceDefinitionController(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, resource, name string) *CustomResourceDefinitionController {
+	return &CustomResourceDefinitionController{
 		factory:   factory,
 		clientset: clientset,
-		resource:  resource,
 		namespace: namespace,
+		resource:  resource,
 		name:      name,
 	}
 }
 
 // ScaleToZero TODO needs to create a same pod name, but with different labels for using to click
-func (pod *PodController) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
-	topController := util.GetTopController(pod.factory, pod.clientset, pod.namespace, fmt.Sprintf("%s/%s", pod.getResource(), pod.name))
+func (crd *CustomResourceDefinitionController) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
+	topController := util.GetTopController(crd.factory, crd.clientset, crd.namespace, fmt.Sprintf("%s/%s", crd.getResource(), crd.name))
 	// controllerBy is empty
 	if len(topController.Name) == 0 || len(topController.Resource) == 0 {
-		get, err := pod.clientset.CoreV1().Pods(pod.namespace).Get(context.TODO(), pod.name, metav1.GetOptions{})
+		get, err := crd.clientset.CoreV1().Pods(crd.namespace).Get(context.TODO(), crd.name, metav1.GetOptions{})
 		if err != nil {
 			return nil, nil, "", err
 		}
-		marshal, _ := json.Marshal(get)
-		_ = pod.clientset.CoreV1().Pods(pod.namespace).Delete(context.TODO(), pod.name, metav1.DeleteOptions{})
-		return get.GetLabels(), get.Spec.Containers[0].Ports, string(marshal), nil
+		_ = crd.clientset.CoreV1().Pods(crd.namespace).Delete(context.TODO(), crd.name, metav1.DeleteOptions{})
+		return get.GetLabels(), get.Spec.Containers[0].Ports, "", nil
 	}
-	object, err := util.GetUnstructuredObject(pod.factory, pod.namespace, fmt.Sprintf("%s/%s", topController.Resource, topController.Name))
+	object, err := util.GetUnstructuredObject(crd.factory, crd.namespace, fmt.Sprintf("%s/%s", topController.Resource, topController.Name))
 	helper := resource.NewHelper(object.Client, object.Mapping)
-	//pod.f = func() error {
-	//	_, err = helper.Create(pod.namespace, true, object.Object)
+	//crd.f = func() error {
+	//	_, err = helper.Create(crd.namespace, true, object.Object)
 	//	return err
 	//}
-	if _, err = helper.Delete(pod.namespace, object.Name); err != nil {
+	if _, err = helper.Delete(crd.namespace, object.Name); err != nil {
 		return nil, nil, "", err
 	}
 	marshal, _ := json.Marshal(object.Object)
 	return util.GetLabelSelector(object.Object).MatchLabels, util.GetPorts(object.Object), string(marshal), err
 }
 
-func (pod *PodController) Cancel() error {
-	return pod.Reset()
+func (crd *CustomResourceDefinitionController) Cancel() error {
+	return crd.Reset()
 }
 
-func (pod PodController) getResource() string {
-	return pod.resource
+func (crd CustomResourceDefinitionController) getResource() string {
+	return crd.resource
 }
 
-func (pod *PodController) Reset() error {
-	get, err := pod.clientset.CoreV1().
-		Pods(pod.namespace).
-		Get(context.TODO(), toInboundPodName(pod.getResource(), pod.name), metav1.GetOptions{})
+func (crd *CustomResourceDefinitionController) Reset() error {
+	get, err := crd.clientset.CoreV1().
+		Pods(crd.namespace).
+		Get(context.TODO(), toInboundPodName(crd.getResource(), crd.name), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -77,12 +76,11 @@ func (pod *PodController) Reset() error {
 		if err = json.Unmarshal([]byte(a), &r); err != nil {
 			return err
 		}
-		r.SetResourceVersion("")
-		client, err := pod.factory.DynamicClient()
+		client, err := crd.factory.DynamicClient()
 		if err != nil {
 			return err
 		}
-		mapper, err := pod.factory.ToRESTMapper()
+		mapper, err := crd.factory.ToRESTMapper()
 		if err != nil {
 			return err
 		}

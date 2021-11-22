@@ -15,7 +15,7 @@ var workloads string
 func init() {
 	connectCmd.Flags().StringVar(&kubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
 	connectCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "namespace")
-	connectCmd.Flags().StringVarP(&workloads, "workloads", "", "", "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
+	connectCmd.Flags().StringVar(&workloads, "workloads", "", "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
 	vpnCmd.AddCommand(connectCmd)
 }
 

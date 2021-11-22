@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"context"
-	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -16,7 +15,6 @@ type DeploymentController struct {
 	clientset *kubernetes.Clientset
 	namespace string
 	name      string
-	f         func() error
 }
 
 func NewDeploymentController(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, name string) *DeploymentController {
@@ -28,49 +26,28 @@ func NewDeploymentController(factory cmdutil.Factory, clientset *kubernetes.Clie
 	}
 }
 
-func (d *DeploymentController) ScaleToZero() (map[string]string, []v1.ContainerPort, error) {
+func (d *DeploymentController) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
 	scale, err2 := d.clientset.AppsV1().Deployments(d.namespace).GetScale(context.TODO(), d.name, metav1.GetOptions{})
 	if err2 != nil {
-		return nil, nil, err2
+		return nil, nil, "", err2
 	}
-	d.f = func() error {
-		_, err := d.clientset.AppsV1().Deployments(d.namespace).UpdateScale(
-			context.TODO(),
-			d.name,
-			&autoscalingv1.Scale{
-				ObjectMeta: metav1.ObjectMeta{Name: d.name, Namespace: d.namespace},
-				Spec:       autoscalingv1.ScaleSpec{Replicas: scale.Spec.Replicas},
-			},
-			metav1.UpdateOptions{},
-		)
-		return err
-	}
-	_, err := d.clientset.AppsV1().Deployments(d.namespace).UpdateScale(
-		context.TODO(),
-		d.name,
-		&autoscalingv1.Scale{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      d.name,
-				Namespace: d.namespace,
-			},
-			Spec: autoscalingv1.ScaleSpec{
-				Replicas: int32(0),
-			},
-		},
-		metav1.UpdateOptions{},
-	)
-	if err != nil {
-		return nil, nil, err
+	if err := util.UpdateReplicasScale(d.clientset, d.namespace, util.ResourceTupleWithScale{
+		Resource: d.getResource(),
+		Name:     d.name,
+		Scale:    0,
+	}); err != nil {
+		return nil, nil, "", err
 	}
 	get, err := d.clientset.AppsV1().Deployments(d.namespace).Get(context.TODO(), d.name, metav1.GetOptions{})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
-	return get.Spec.Template.GetLabels(), get.Spec.Template.Spec.Containers[0].Ports, nil
+	formatInt := strconv.FormatInt(int64(scale.Spec.Replicas), 10)
+	return get.Spec.Template.GetLabels(), get.Spec.Template.Spec.Containers[0].Ports, formatInt, nil
 }
 
 func (d *DeploymentController) Cancel() error {
-	return d.f()
+	return d.Reset()
 }
 
 func (d *DeploymentController) getResource() string {
@@ -78,19 +55,21 @@ func (d *DeploymentController) getResource() string {
 }
 
 func (d *DeploymentController) Reset() error {
-	get, err := d.clientset.CoreV1().
+	pod, err := d.clientset.CoreV1().
 		Pods(d.namespace).
 		Get(context.TODO(), toInboundPodName(d.getResource(), d.name), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
-	if o := get.GetAnnotations()[util.OriginData]; len(o) != 0 {
+	if o := pod.GetAnnotations()[util.OriginData]; len(o) != 0 {
 		if n, err := strconv.Atoi(o); err == nil {
-			util.UpdateReplicasScale(d.clientset, d.namespace, util.ResourceTupleWithScale{
+			if err = util.UpdateReplicasScale(d.clientset, d.namespace, util.ResourceTupleWithScale{
 				Resource: d.getResource(),
 				Name:     d.name,
 				Scale:    n,
-			})
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

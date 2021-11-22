@@ -120,33 +120,28 @@ func getController() Scalable {
 }
 
 func CreateInboundPod(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, workloads, virtualLocalIp, realRouterIP, virtualShadowIp, routes string) error {
-	resourceTuple, parsed, err2 := util.SplitResourceTypeName(workloads)
+	tuple, parsed, err2 := util.SplitResourceTypeName(workloads)
 	if !parsed || err2 != nil {
 		return errors.New("not need")
 	}
-	newName := resourceTuple.Name + "-" + "shadow"
+	newName := toInboundPodName(tuple.Resource, tuple.Name)
 	util.DeletePod(clientset, namespace, newName)
 	var sc Scalable
-	switch strings.ToLower(resourceTuple.Resource) {
+	switch strings.ToLower(tuple.Resource) {
 	case "deployment", "deployments":
-		sc = NewDeploymentController(factory, clientset, namespace, resourceTuple.Name)
+		sc = NewDeploymentController(factory, clientset, namespace, tuple.Name)
 	case "statefulset", "statefulsets":
-		sc = NewStatefulsetController(factory, clientset, namespace, resourceTuple.Name)
+		sc = NewStatefulsetController(factory, clientset, namespace, tuple.Name)
 	case "replicaset", "replicasets":
-		sc = NewReplicasController(factory, clientset, namespace, resourceTuple.Name)
+		sc = NewReplicasController(factory, clientset, namespace, tuple.Name)
 	case "service", "services":
-		sc = NewServiceController(factory, clientset, namespace, resourceTuple.Name)
+		sc = NewServiceController(factory, clientset, namespace, tuple.Name)
 	case "pod", "pods":
-		sc = NewPodController(factory, clientset, namespace, "pods", resourceTuple.Name)
+		sc = NewPodController(factory, clientset, namespace, "pods", tuple.Name)
 	default:
-		sc = NewPodController(factory, clientset, namespace, resourceTuple.Resource, resourceTuple.Name)
+		sc = NewCustomResourceDefinitionController(factory, clientset, namespace, tuple.Resource, tuple.Name)
 	}
-	remote.CancelFunctions = append(remote.CancelFunctions, func() {
-		if err := sc.Cancel(); err != nil {
-			log.Warnln(err)
-		}
-	})
-	labels, ports, err2 := sc.ScaleToZero()
+	labels, ports, str, err2 := sc.ScaleToZero()
 	t := true
 	zero := int64(0)
 	pod := v1.Pod{
@@ -154,6 +149,8 @@ func CreateInboundPod(factory cmdutil.Factory, clientset *kubernetes.Clientset, 
 			Name:      newName,
 			Namespace: namespace,
 			Labels:    labels,
+			// for restore
+			Annotations: map[string]string{util.OriginData: str},
 		},
 		Spec: v1.PodSpec{
 			RestartPolicy: v1.RestartPolicyAlways,

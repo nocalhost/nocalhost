@@ -8,18 +8,17 @@ import (
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/driver"
-	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/util"
 	"os"
 	"path/filepath"
 )
 
-var disconnect pkg.ConnectOptions
+//var disconnect pkg.ConnectOptions
 
 func init() {
 	disconnectCmd.Flags().StringVar(&kubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
 	disconnectCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "namespace")
-	disconnectCmd.PersistentFlags().StringArrayVar(&disconnect.Workloads, "workloads", []string{}, "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
+	disconnectCmd.Flags().StringVar(&workloads, "workloads", "", "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
 	disconnectCmd.Flags().BoolVar(&util.Debug, "debug", false, "true/false")
 	vpnCmd.AddCommand(disconnectCmd)
 }

@@ -6,7 +6,7 @@ import (
 )
 
 type Scalable interface {
-	ScaleToZero() (map[string]string, []v1.ContainerPort, error)
+	ScaleToZero() (map[string]string, []v1.ContainerPort, string, error)
 	Cancel() error
 	Reset() error
 }

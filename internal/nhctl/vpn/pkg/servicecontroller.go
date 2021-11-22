@@ -15,7 +15,6 @@ type ServiceController struct {
 	clientset *kubernetes.Clientset
 	namespace string
 	name      string
-	f         func() error
 }
 
 func NewServiceController(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, name string) *ServiceController {
@@ -27,15 +26,15 @@ func NewServiceController(factory cmdutil.Factory, clientset *kubernetes.Clients
 	}
 }
 
-func (s *ServiceController) ScaleToZero() (map[string]string, []v1.ContainerPort, error) {
+func (s *ServiceController) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
 	get, err := s.clientset.CoreV1().Services(s.namespace).Get(context.TODO(), s.name, metav1.GetOptions{})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 
 	object, err := util.GetUnstructuredObject(s.factory, s.namespace, fmt.Sprintf("services/%s", s.name))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 	asSelector, _ := metav1.LabelSelectorAsSelector(util.GetLabelSelector(object.Object))
 	podList, _ := s.clientset.CoreV1().Pods(s.namespace).List(context.Background(), metav1.ListOptions{
@@ -50,18 +49,15 @@ func (s *ServiceController) ScaleToZero() (map[string]string, []v1.ContainerPort
 				Protocol:      port.Protocol,
 			})
 		}
-		return get.Spec.Selector, ports, nil
+		return get.Spec.Selector, ports, "", nil
 	}
 	// if podList is not one, needs to merge ???
-	podController := NewPodController(s.factory, s.clientset, s.namespace, "pods", podList.Items[0].Name)
-
-	zero, ports, err := podController.ScaleToZero()
-	s.f = podController.f
-	return zero, ports, err
+	podController := NewPodController(s.factory, s.clientset, s.namespace, s.getResource(), podList.Items[0].Name)
+	return podController.ScaleToZero()
 }
 
 func (s *ServiceController) Cancel() error {
-	return s.f()
+	return s.Reset()
 }
 
 func (s ServiceController) getResource() string {
@@ -69,6 +65,6 @@ func (s ServiceController) getResource() string {
 }
 
 func (s *ServiceController) Reset() error {
-	podController := NewPodController(s.factory, s.clientset, s.namespace, "pods", s.name)
+	podController := NewPodController(s.factory, s.clientset, s.namespace, s.getResource(), s.name)
 	return podController.Reset()
 }

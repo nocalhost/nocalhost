@@ -133,10 +133,12 @@ type VPNOperateCommand struct {
 type VPNOperation string
 
 const (
-	Connect    VPNOperation = "connect"
-	DisConnect VPNOperation = "disConnect"
-	Reconnect  VPNOperation = "reconnect"
-	Reset      VPNOperation = "reset"
+	Connect           VPNOperation = "connect"
+	Reverse           VPNOperation = "reverse"
+	ReverseDisConnect VPNOperation = "reverseDisConnect"
+	DisConnect        VPNOperation = "disConnect"
+	Reconnect         VPNOperation = "reconnect"
+	Reset             VPNOperation = "reset"
 )
 
 type Operation string

@@ -3,6 +3,7 @@ package remote
 import (
 	"context"
 	"crypto/md5"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type DHCP interface {
@@ -188,4 +190,62 @@ func (d *DHCPManager) ReleaseIpToDHCP(ip *net.IPNet) error {
 		return err
 	}
 	return nil
+}
+
+type DHCPRecordMap struct {
+	innerMap map[string]DHCPRecord
+}
+
+type DHCPRecord struct {
+	Mac      string
+	Ip       string
+	Deadline time.Time
+}
+
+// ToDHCP Mac --> DHCPRecord
+func ToDHCP(str string) (result DHCPRecordMap) {
+	result.innerMap = map[string]DHCPRecord{}
+	for _, s := range strings.Split(str, "\n") {
+		// mac:ip:deadline
+		split := strings.Split(s, "#")
+		if len(split) == 3 {
+			parse, err := time.Parse(time.RFC3339, split[2])
+			if err != nil {
+				// default deadline is 30min
+				parse = time.Now().Add(time.Minute * 30)
+			}
+			result.innerMap[split[0]] = DHCPRecord{Mac: split[0], Ip: split[1], Deadline: parse}
+		}
+	}
+	return
+}
+
+func (maps *DHCPRecordMap) ToString() string {
+	var sb strings.Builder
+	for _, v := range maps.innerMap {
+		sb.WriteString(fmt.Sprintf("%s#%s#%s\n", v.Mac, v.Ip, v.Deadline.String()))
+	}
+	return sb.String()
+}
+
+func (maps *DHCPRecordMap) GetIP() (ip string) {
+	if record, ok := maps.innerMap[util.GetMacAddress().String()]; ok {
+		return record.Ip
+	}
+	return
+}
+
+func (maps *DHCPRecordMap) RentIP(ip net.IP) *DHCPRecordMap {
+	s := util.GetMacAddress().String()
+	maps.innerMap[s] = DHCPRecord{
+		Mac:      s,
+		Ip:       ip.String(),
+		Deadline: time.Now().Add(time.Second * 30),
+	}
+	return maps
+}
+
+// TODO rent ip daadline
+func (maps *DHCPRecordMap) RentDeadline(duration time.Duration) {
+
 }

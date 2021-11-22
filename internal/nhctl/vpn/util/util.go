@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	dockerterm "github.com/moby/term"
 	"github.com/pkg/errors"
@@ -14,6 +15,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	json2 "k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -173,7 +175,7 @@ func GetTopController(factory cmdutil.Factory, clientset *kubernetes.Clientset, 
 	return
 }
 
-func UpdateReplicasScale(clientset *kubernetes.Clientset, namespace string, controller ResourceTupleWithScale) {
+func UpdateReplicasScale(clientset *kubernetes.Clientset, namespace string, controller ResourceTupleWithScale) error {
 	err := retry.OnError(
 		retry.DefaultRetry,
 		func(err error) bool { return err != nil },
@@ -201,6 +203,7 @@ func UpdateReplicasScale(clientset *kubernetes.Clientset, namespace string, cont
 	if err != nil {
 		log.Errorf("update scale: %s-%s's replicas to %d failed, error: %v", controller.Resource, controller.Name, controller.Scale, err)
 	}
+	return err
 }
 
 func Shell(clientset *kubernetes.Clientset, restclient *rest.RESTClient, config *rest.Config, podName, namespace, cmd string) (string, error) {
@@ -428,10 +431,7 @@ func IsPortListening(int2 int) bool {
 		l.Close()
 		return false
 	}
-	if strings.Contains(err.Error(), "address already in use") {
-		return true
-	}
-	return false
+	return strings.Contains(err.Error(), "address already in use")
 }
 
 func IsSudoDaemonServing() bool {
@@ -452,4 +452,26 @@ func GetMacAddress() net.HardwareAddr {
 	}
 	index, _ := net.InterfaceByIndex(0)
 	return index.HardwareAddr
+}
+
+func MergeOrReplaceAnnotation(c rest.Interface, namespace, resource, name, k, v string) error {
+	marshal, _ := json.Marshal([]PatchOperation{{
+		Op:    "replace",
+		Path:  "/metadata/annotations/" + k,
+		Value: v,
+	}})
+	return c.
+		Patch(types.JSONPatchType).
+		Namespace(namespace).
+		Resource(resource).
+		Name(name).
+		Body(marshal).
+		Do(context.TODO()).
+		Error()
+}
+
+type PatchOperation struct {
+	Op    string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value,omitempty"`
 }

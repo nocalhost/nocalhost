@@ -6,17 +6,16 @@ import (
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/driver"
-	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/log"
 )
 
-var reconnect pkg.ConnectOptions
+//var reconnect pkg.ConnectOptions
 
 func init() {
 	reconnectCmd.Flags().StringVar(&kubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
 	reconnectCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "namespace")
-	reconnectCmd.PersistentFlags().StringArrayVar(&reconnect.Workloads, "workloads", []string{}, "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
+	reconnectCmd.Flags().StringVar(&workloads, "workloads", "", "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
 	reconnectCmd.Flags().BoolVar(&util.Debug, "debug", false, "true/false")
 	vpnCmd.AddCommand(reconnectCmd)
 }

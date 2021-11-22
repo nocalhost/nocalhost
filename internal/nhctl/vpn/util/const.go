@@ -5,6 +5,8 @@ import "net"
 const (
 	TrafficManager string = "kubevpn.traffic.manager"
 	OriginData     string = "origin_data"
+	REVERSE        string = "REVERSE"
+	MacToIP        string = "MAC_TO_IP"
 )
 
 var IpRange net.IP

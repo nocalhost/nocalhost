@@ -1,17 +1,15 @@
 package util
 
 import (
-	"context"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubectl/pkg/cmd/util"
 	"net"
+	"path/filepath"
 	"testing"
 )
 
@@ -26,7 +24,8 @@ func TestShell(t *testing.T) {
 	var err error
 
 	configFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
-	configFlags.KubeConfig = &clientcmd.RecommendedHomeFile
+	join := filepath.Join(clientcmd.RecommendedConfigDir, "config_backup")
+	configFlags.KubeConfig = &join
 	f := util.NewFactory(util.NewMatchVersionFlags(configFlags))
 
 	if config, err = f.ToRESTConfig(); err != nil {
@@ -42,12 +41,12 @@ func TestShell(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	out, err := Shell(clientset, restclient, config, TrafficManager, namespace, "cat /etc/resolv.conf | grep nameserver | awk '{print$2}'")
-	serviceList, err := clientset.CoreV1().Services(v1.NamespaceSystem).List(context.Background(), v1.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector("metadata.name", "kube-dns").String(),
-	})
-
-	fmt.Println(out == serviceList.Items[0].Spec.ClusterIP)
+	//out, err := Shell(clientset, restclient, config, TrafficManager, namespace, "cat /etc/resolv.conf | grep nameserver | awk '{print$2}'")
+	//serviceList, err := clientset.CoreV1().Services(v1.NamespaceSystem).List(context.Background(), v1.ListOptions{
+	//	FieldSelector: fields.OneTermEqualSelector("metadata.name", "kube-dns").String(),
+	//})
+	//
+	//fmt.Println(out == serviceList.Items[0].Spec.ClusterIP)
 }
 
 func TestDeleteRule(t *testing.T) {
@@ -61,4 +60,17 @@ func TestUDP(t *testing.T) {
 	}
 	fmt.Println(relay.LocalAddr())
 	fmt.Println(relay.RemoteAddr())
+}
+
+func TestPatchAnnotation(t *testing.T) {
+	TestShell(t)
+	err := MergeOrReplaceAnnotation(
+		clientset.CoreV1().RESTClient(),
+		namespace,
+		"pods",
+		"productpage-shadow",
+		"backup",
+		"testing",
+	)
+	fmt.Println(err)
 }

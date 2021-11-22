@@ -7,6 +7,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
+	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
@@ -27,16 +28,27 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand) error {
 		return err
 	}
 	_ = remote.NewDHCPManager(clientSet, cmd.Namespace, &util.RouterIP).InitDHCPIfNecessary()
+	client, err := daemon_client.GetDaemonClient(true)
 	switch cmd.Action {
 	case command.Connect:
+		if len(cmd.Resource) != 0 {
+			err = client.SendToSudoDaemonVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Reverse, cmd.Resource)
+		} else {
+			err = client.SendToSudoDaemonVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource)
+		}
 		err = Update(clientSet, cmd, func(r *ReverseTotal, record ReverseRecord) { r.AddRecord(record) })
 	case command.Reconnect:
-
+		err = client.SendToSudoDaemonVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource)
+		err = client.SendToSudoDaemonVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource)
+		err = Update(clientSet, cmd, func(r *ReverseTotal, record ReverseRecord) { r.AddRecord(record) })
 	case command.DisConnect:
+		if len(cmd.Resource) != 0 {
+			err = client.SendToSudoDaemonVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.ReverseDisConnect, cmd.Resource)
+		} else {
+			err = client.SendToSudoDaemonVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource)
+		}
 		err = Update(clientSet, cmd, func(r *ReverseTotal, record ReverseRecord) { r.RemoveRecord(record) })
 	}
-	client, err := daemon_client.GetDaemonClient(true)
-	err = client.SendToSudoDaemonVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, cmd.Action, cmd.Resource)
 	return err
 }
 
@@ -45,9 +57,9 @@ func Update(clientSet *kubernetes.Clientset, cmd *command.VPNOperateCommand, f f
 	if err != nil {
 		return err
 	}
-	t := FromStringToReverseTotal(get.Data["REVERSE"])
+	t := FromStringToReverseTotal(get.Data[util.REVERSE])
 	f(&t, NewReverseRecordWithWorkloads(cmd.Resource))
-	get.Data["REVERSE"] = t.ToString()
+	get.Data[util.REVERSE] = t.ToString()
 	_, err = clientSet.CoreV1().ConfigMaps(cmd.Namespace).Update(context.TODO(), get, v1.UpdateOptions{})
 	return err
 }
@@ -73,6 +85,14 @@ func (t *ReverseTotal) RemoveRecord(r ReverseRecord) *ReverseTotal {
 		}
 	}
 	return t
+}
+
+func (t *ReverseTotal) GetBelongToMeResources() sets.String {
+	s := t.ele[util.GetMacAddress().String()]
+	if s != nil {
+		return s
+	}
+	return sets.NewString()
 }
 
 type ReverseRecord struct {
@@ -104,8 +124,10 @@ func FromStringToReverseTotal(s string) (t ReverseTotal) {
 	}
 	itemList := strings.Split(s, "\n")
 	for _, item := range itemList {
-		i := strings.Split(item, ":")
-		t.AddRecord(ReverseRecord{MacAddress: i[0], Resources: sets.NewString(strings.Split(i[1], ",")...)})
+		if strings.Count(item, ":") == 1 {
+			i := strings.Split(item, ":")
+			t.AddRecord(ReverseRecord{MacAddress: i[0], Resources: sets.NewString(strings.Split(i[1], ",")...)})
+		}
 	}
 	return
 }
@@ -116,4 +138,17 @@ func (t *ReverseTotal) ToString() string {
 		sb.WriteString(fmt.Sprintf("%s:%s\n", k, strings.Join(v.List(), ",")))
 	}
 	return sb.String()
+}
+
+func IsBelongToMe(configMapInterface coreV1.ConfigMapInterface, resources string) (bool, error) {
+	get, err := configMapInterface.Get(context.TODO(), util.TrafficManager, v1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+	s := get.Data[util.REVERSE]
+	if len(s) == 0 {
+		return false, nil
+	}
+	t := FromStringToReverseTotal(get.Data[util.REVERSE])
+	return t.GetBelongToMeResources().Has(resources), nil
 }
