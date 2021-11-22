@@ -15,7 +15,6 @@ import (
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/pod_controller"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
 	"strings"
@@ -55,7 +54,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		return err
 	}
 
-	devContainer, err := findContainerInDeployment(d.GetName(), ops.Container, d.Client)
+	devContainer, err := findDevContainerInPodSpec(&dep.Spec.Template.Spec, ops.Container)
 	if err != nil {
 		return err
 	}
@@ -154,41 +153,6 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
-}
-
-func findContainerInDeployment(deployName, containerName string, client *clientgoutils.ClientGoUtils) (*corev1.Container, error) {
-	dep, err := client.GetDeployment(deployName)
-	if err != nil {
-		return nil, err
-	}
-	return findContainerInDeploySpec(dep, containerName)
-}
-
-func findContainerInDeploySpec(dep *v1.Deployment, containerName string) (*corev1.Container, error) {
-	var devContainer *corev1.Container
-
-	if containerName != "" {
-		for index, c := range dep.Spec.Template.Spec.Containers {
-			if c.Name == containerName {
-				return &dep.Spec.Template.Spec.Containers[index], nil
-			}
-		}
-		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
-	} else {
-		if len(dep.Spec.Template.Spec.Containers) > 1 {
-			return nil, errors.New(
-				fmt.Sprintf(
-					"There are more than one container defined, " +
-						"please specify one to start developing",
-				),
-			)
-		}
-		if len(dep.Spec.Template.Spec.Containers) == 0 {
-			return nil, errors.New("No container defined ???")
-		}
-		devContainer = &dep.Spec.Template.Spec.Containers[0]
-	}
-	return devContainer, nil
 }
 
 func (d *DeploymentController) RollBack(reset bool) error {

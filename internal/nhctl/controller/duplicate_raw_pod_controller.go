@@ -75,7 +75,7 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 	originalPod.Status = corev1.PodStatus{}
 	originalPod.ResourceVersion = ""
 
-	devContainer, err := findContainerInPodSpec(originalPod, ops.Container)
+	devContainer, err := findDevContainerInPodSpec(&originalPod.Spec, ops.Container)
 	if err != nil {
 		return err
 	}

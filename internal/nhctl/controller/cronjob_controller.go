@@ -89,7 +89,7 @@ func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStar
 		delete(generatedJob.Spec.Selector.MatchLabels, "controller-uid")
 	}
 
-	devContainer, err := findContainerInJobSpec(generatedJob, ops.Container)
+	devContainer, err := findDevContainerInPodSpec(&generatedJob.Spec.Template.Spec, ops.Container)
 	if err != nil {
 		return err
 	}

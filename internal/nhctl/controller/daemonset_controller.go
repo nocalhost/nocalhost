@@ -98,7 +98,7 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 		},
 	}
 
-	devContainer, err := findContainerInDeploySpec(generatedDeployment, ops.Container)
+	devContainer, err := findDevContainerInPodSpec(&generatedDeployment.Spec.Template.Spec, ops.Container)
 	if err != nil {
 		return err
 	}

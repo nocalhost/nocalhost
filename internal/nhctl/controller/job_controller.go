@@ -8,7 +8,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,7 +63,7 @@ func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOpt
 		delete(generatedJob.Spec.Selector.MatchLabels, "controller-uid")
 	}
 
-	devContainer, err := findContainerInJobSpec(generatedJob, ops.Container)
+	devContainer, err := findDevContainerInPodSpec(&generatedJob.Spec.Template.Spec, ops.Container)
 	if err != nil {
 		return err
 	}
@@ -138,31 +137,4 @@ func (j *JobController) GetPodList() ([]corev1.Pod, error) {
 		return nil, err
 	}
 	return pl.Items, nil
-}
-
-func findContainerInJobSpec(job *batchv1.Job, containerName string) (*corev1.Container, error) {
-	var devContainer *corev1.Container
-
-	if containerName != "" {
-		for index, c := range job.Spec.Template.Spec.Containers {
-			if c.Name == containerName {
-				return &job.Spec.Template.Spec.Containers[index], nil
-			}
-		}
-		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
-	} else {
-		if len(job.Spec.Template.Spec.Containers) > 1 {
-			return nil, errors.New(
-				fmt.Sprintf(
-					"There are more than one container defined," +
-						"please specify one to start developing",
-				),
-			)
-		}
-		if len(job.Spec.Template.Spec.Containers) == 0 {
-			return nil, errors.New("No container defined ???")
-		}
-		devContainer = &job.Spec.Template.Spec.Containers[0]
-	}
-	return devContainer, nil
 }

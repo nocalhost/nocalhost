@@ -77,7 +77,7 @@ func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *
 	dep.Spec.Template.Labels = labelsMap
 	dep.ResourceVersion = ""
 
-	devContainer, err := findContainerInStatefulSetsSpec(dep, ops.Container)
+	devContainer, err := findDevContainerInPodSpec(&dep.Spec.Template.Spec, ops.Container)
 	if err != nil {
 		return err
 	}
@@ -185,38 +185,6 @@ func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *
 	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(s.GetNocalhostDevContainerPod)
-}
-
-// Container Get specify container
-// If containerName not specified:
-// 	 if there is only one container defined in spec, return it
-//	 if there are more than one container defined in spec, return err
-func findContainerInStatefulSetsSpec(ss *v1.StatefulSet, containerName string) (*corev1.Container, error) {
-	var devContainer *corev1.Container
-	if containerName != "" {
-		for index, c := range ss.Spec.Template.Spec.Containers {
-			if c.Name == containerName {
-				return &ss.Spec.Template.Spec.Containers[index], nil
-			}
-		}
-		if devContainer == nil {
-			return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
-		}
-	} else {
-		if len(ss.Spec.Template.Spec.Containers) > 1 {
-			return nil, errors.New(
-				fmt.Sprintf(
-					"There are more than one container defined, " +
-						"please specify one to start developing",
-				),
-			)
-		}
-		if len(ss.Spec.Template.Spec.Containers) == 0 {
-			return nil, errors.New("No container defined ???")
-		}
-		devContainer = &ss.Spec.Template.Spec.Containers[0]
-	}
-	return devContainer, nil
 }
 
 func (s *DuplicateStatefulSetController) RollBack(reset bool) error {

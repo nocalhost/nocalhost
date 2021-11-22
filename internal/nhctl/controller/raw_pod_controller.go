@@ -58,7 +58,7 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 	}
 	originalPod.Annotations[originalPodDefine] = string(bys)
 
-	devContainer, err := findContainerInPodSpec(originalPod, ops.Container)
+	devContainer, err := findDevContainerInPodSpec(&originalPod.Spec, ops.Container)
 	if err != nil {
 		return err
 	}
@@ -167,18 +167,18 @@ func (r *RawPodController) GetPodList() ([]corev1.Pod, error) {
 	return []corev1.Pod{*pod}, nil
 }
 
-func findContainerInPodSpec(pod *corev1.Pod, containerName string) (*corev1.Container, error) {
+func findDevContainerInPodSpec(pod *corev1.PodSpec, containerName string) (*corev1.Container, error) {
 	var devContainer *corev1.Container
 
 	if containerName != "" {
-		for index, c := range pod.Spec.Containers {
+		for index, c := range pod.Containers {
 			if c.Name == containerName {
-				return &pod.Spec.Containers[index], nil
+				return &pod.Containers[index], nil
 			}
 		}
 		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
 	} else {
-		if len(pod.Spec.Containers) > 1 {
+		if len(pod.Containers) > 1 {
 			return nil, errors.New(
 				fmt.Sprintf(
 					"There are more than one container defined," +
@@ -186,10 +186,10 @@ func findContainerInPodSpec(pod *corev1.Pod, containerName string) (*corev1.Cont
 				),
 			)
 		}
-		if len(pod.Spec.Containers) == 0 {
+		if len(pod.Containers) == 0 {
 			return nil, errors.New("No container defined ???")
 		}
-		devContainer = &pod.Spec.Containers[0]
+		devContainer = &pod.Containers[0]
 	}
 	return devContainer, nil
 }

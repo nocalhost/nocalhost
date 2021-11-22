@@ -85,7 +85,7 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 	dep.Spec.Template.Labels = labelsMap
 	dep.ResourceVersion = ""
 
-	devContainer, err := findContainerInDeploySpec(dep, ops.Container)
+	devContainer, err := findDevContainerInPodSpec(&dep.Spec.Template.Spec, ops.Container)
 	if err != nil {
 		return err
 	}

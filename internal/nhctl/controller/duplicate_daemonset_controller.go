@@ -60,7 +60,7 @@ func (d *DuplicateDaemonSetController) ReplaceImage(ctx context.Context, ops *mo
 	generatedDeployment.ResourceVersion = ""
 	generatedDeployment.Spec.Template.Spec.NodeName = ""
 
-	devContainer, err := findContainerInDeploySpec(generatedDeployment, ops.Container)
+	devContainer, err := findDevContainerInPodSpec(&generatedDeployment.Spec.Template.Spec, ops.Container)
 	if err != nil {
 		return err
 	}
