@@ -16,6 +16,7 @@ const (
 	kActive = "active"
 	kAsleep = "asleep"
 	kDeployment = "Deployment"
+	kStatefulSet = "StatefulSet"
 	kConfig = "nocalhost.dev.sleep/config"
 	kStatus = "nocalhost.dev.sleep/status"
 	kReplicas = "nocalhost.dev.sleep/replicas"
@@ -24,6 +25,7 @@ const (
 )
 
 func Sleep(c* clientgo.GoClient, ns string, force bool) error {
+	// 1. check namespace
 	namespace, err := c.Clientset().
 		CoreV1().
 		Namespaces().
@@ -43,7 +45,8 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 		}
 	}
 
-	// purging all pods
+	// 2. purging Deployment
+	var zero int32 = 0
 	dps, err := c.Clientset().
 		AppsV1().
 		Deployments(ns).
@@ -51,7 +54,6 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 	if err != nil {
 		return err
 	}
-	var zero int32 = 0
 	for _, dp := range dps.Items {
 		if *dp.Spec.Replicas > 0 {
 			replicas[kDeployment + ":" + dp.Name] = *dp.Spec.Replicas
@@ -65,7 +67,28 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 			}
 		}
 	}
-
+	// 3. purging StatefulSet
+	sts, err := c.Clientset().
+		AppsV1().
+		StatefulSets(ns).
+		List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, st := range sts.Items {
+		if *st.Spec.Replicas > 0 {
+			replicas[kStatefulSet + ":" + st.Name] = *st.Spec.Replicas
+			st.Spec.Replicas = &zero
+			_, err = c.Clientset().
+				AppsV1().
+				StatefulSets(ns).
+				Update(context.TODO(), &st, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	// 4. update annotations
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
@@ -76,7 +99,6 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 			},
 		},
 	})
-
 	_, err = c.Clientset().
 		CoreV1().
 		Namespaces().
@@ -85,6 +107,7 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 }
 
 func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
+	// 1. check namespace
 	namespace, err := c.Clientset().
 		CoreV1().
 		Namespaces().
@@ -104,7 +127,7 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 		return err
 	}
 
-	// restore all pods
+	// 2. restore Deployment
 	dps, err := c.Clientset().
 		AppsV1().
 		Deployments(ns).
@@ -125,7 +148,28 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 			}
 		}
 	}
-
+	// 3. restore StatefulSet
+	sts, err := c.Clientset().
+		AppsV1().
+		StatefulSets(ns).
+		List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, st := range sts.Items {
+		n, ok := replicas[kDeployment + ":" + st.Name]
+		if ok {
+			st.Spec.Replicas = &n
+			_, err = c.Clientset().
+				AppsV1().
+				StatefulSets(ns).
+				Update(context.TODO(), &st, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	// 4. update annotations
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
@@ -135,7 +179,6 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 			},
 		},
 	})
-
 	_, err = c.Clientset().
 		CoreV1().
 		Namespaces().
