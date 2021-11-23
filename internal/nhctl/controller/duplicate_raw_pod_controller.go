@@ -81,35 +81,7 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 		return err
 	}
 
-	if ops.Container != "" {
-		for index, c := range originalPod.Spec.Containers {
-			if c.Name == ops.Container {
-				originalPod.Spec.Containers[index] = *devContainer
-				break
-			}
-		}
-	} else {
-		originalPod.Spec.Containers[0] = *devContainer
-	}
-
-	// Add volumes to spec
-	if originalPod.Spec.Volumes == nil {
-		originalPod.Spec.Volumes = make([]corev1.Volume, 0)
-	}
-	originalPod.Spec.Volumes = append(originalPod.Spec.Volumes, devModeVolumes...)
-
-	// delete user's SecurityContext
-	originalPod.Spec.SecurityContext = &corev1.PodSecurityContext{}
-
-	// disable readiness probes
-	for i := 0; i < len(originalPod.Spec.Containers); i++ {
-		originalPod.Spec.Containers[i].LivenessProbe = nil
-		originalPod.Spec.Containers[i].ReadinessProbe = nil
-		originalPod.Spec.Containers[i].StartupProbe = nil
-		originalPod.Spec.Containers[i].SecurityContext = nil
-	}
-
-	originalPod.Spec.Containers = append(originalPod.Spec.Containers, *sideCarContainer)
+	patchDevContainerToPodSpec(&originalPod.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 
 	log.Info("Create duplicate dev pod...")
 	if _, err = r.Client.CreatePod(originalPod); err != nil {

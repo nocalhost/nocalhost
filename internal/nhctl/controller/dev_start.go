@@ -620,6 +620,39 @@ func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 	return devContainer, &sideCarContainer, devModeVolumes, nil
 }
 
+func patchDevContainerToPodSpec(podSpec *corev1.PodSpec, containerName string, devContainer,
+	sidecarContainer *corev1.Container, devModeVolumes []corev1.Volume) {
+	if containerName != "" {
+		for index, c := range podSpec.Containers {
+			if c.Name == containerName {
+				podSpec.Containers[index] = *devContainer
+				break
+			}
+		}
+	} else {
+		podSpec.Containers[0] = *devContainer
+	}
+
+	// Add volumes to deployment spec
+	if podSpec.Volumes == nil {
+		podSpec.Volumes = make([]corev1.Volume, 0)
+	}
+	podSpec.Volumes = append(podSpec.Volumes, devModeVolumes...)
+
+	// delete user's SecurityContext
+	podSpec.SecurityContext = &corev1.PodSecurityContext{}
+
+	// disable readiness probes
+	for i := 0; i < len(podSpec.Containers); i++ {
+		podSpec.Containers[i].LivenessProbe = nil
+		podSpec.Containers[i].ReadinessProbe = nil
+		podSpec.Containers[i].StartupProbe = nil
+		podSpec.Containers[i].SecurityContext = nil
+	}
+
+	podSpec.Containers = append(podSpec.Containers, *sidecarContainer)
+}
+
 // IsResourcesLimitTooLow
 // Check if resource limit is lower than 2 cpu, 2Gi men
 func IsResourcesLimitTooLow(r *corev1.ResourceRequirements) bool {

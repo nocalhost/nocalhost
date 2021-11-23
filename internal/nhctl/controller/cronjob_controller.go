@@ -95,36 +95,7 @@ func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStar
 		return err
 	}
 
-	if ops.Container != "" {
-		for index, c := range generatedJob.Spec.Template.Spec.Containers {
-			if c.Name == ops.Container {
-				generatedJob.Spec.Template.Spec.Containers[index] = *devContainer
-				break
-			}
-		}
-	} else {
-		generatedJob.Spec.Template.Spec.Containers[0] = *devContainer
-	}
-
-	// Add volumes to deployment spec
-	if generatedJob.Spec.Template.Spec.Volumes == nil {
-		generatedJob.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
-	}
-	generatedJob.Spec.Template.Spec.Volumes = append(generatedJob.Spec.Template.Spec.Volumes, devModeVolumes...)
-
-	// delete user's SecurityContext
-	generatedJob.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
-
-	// disable readiness probes
-	for i := 0; i < len(generatedJob.Spec.Template.Spec.Containers); i++ {
-		generatedJob.Spec.Template.Spec.Containers[i].LivenessProbe = nil
-		generatedJob.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
-		generatedJob.Spec.Template.Spec.Containers[i].StartupProbe = nil
-		generatedJob.Spec.Template.Spec.Containers[i].SecurityContext = nil
-	}
-
-	generatedJob.Spec.Template.Spec.Containers =
-		append(generatedJob.Spec.Template.Spec.Containers, *sideCarContainer)
+	patchDevContainerToPodSpec(&generatedJob.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 
 	// Create generated deployment
 	if _, err = j.Client.CreateJob(generatedJob); err != nil {

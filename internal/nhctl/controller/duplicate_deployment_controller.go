@@ -73,7 +73,6 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 	var rs int32 = 1
 	dep.Spec.Replicas = &rs
 
-	//suffix := d.Identifier[0:5]
 	labelsMap, err := d.getDuplicateLabelsMap()
 	if err != nil {
 		return err

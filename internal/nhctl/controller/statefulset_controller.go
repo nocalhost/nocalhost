@@ -72,36 +72,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 			return err
 		}
 
-		if ops.Container != "" {
-			for index, c := range dep.Spec.Template.Spec.Containers {
-				if c.Name == ops.Container {
-					dep.Spec.Template.Spec.Containers[index] = *devContainer
-					break
-				}
-			}
-		} else {
-			dep.Spec.Template.Spec.Containers[0] = *devContainer
-		}
-
-		// Add volumes to deployment spec
-		if dep.Spec.Template.Spec.Volumes == nil {
-			log.Debugf("Service %s has no volume", dep.Name)
-			dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
-		}
-		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
-
-		// delete user's SecurityContext
-		dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
-
-		// disable readiness probes
-		for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
-			dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
-			dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
-			dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
-			dep.Spec.Template.Spec.Containers[i].SecurityContext = nil
-		}
-
-		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, *sideCarContainer)
+		patchDevContainerToPodSpec(&dep.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 
 		if len(dep.Annotations) == 0 {
 			dep.Annotations = make(map[string]string, 0)

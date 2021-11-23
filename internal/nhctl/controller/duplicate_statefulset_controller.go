@@ -57,14 +57,6 @@ func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *
 	var rs int32 = 1
 	dep.Spec.Replicas = &rs
 
-	p, err := s.GetAppProfile()
-	if err != nil {
-		return err
-	}
-	if p.Identifier == "" {
-		return errors.New("Identifier can not be nil ")
-	}
-
 	labelsMap, err := s.getDuplicateLabelsMap()
 	if err != nil {
 		return err
