@@ -79,7 +79,6 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 	}
 
 	r.patchAfterDevContainerReplaced(ops.Container, originalPod.Kind, originalPod.Name)
-	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(r.GetNocalhostDevContainerPod)
 }

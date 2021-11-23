@@ -386,4 +386,5 @@ func (c *Controller) patchAfterDevContainerReplaced(containerName, resourceType,
 			log.WarnE(err, "")
 		}
 	}
+	<-time.Tick(time.Second)
 }

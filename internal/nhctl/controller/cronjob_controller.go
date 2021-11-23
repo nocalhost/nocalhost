@@ -15,7 +15,6 @@ import (
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
-	"time"
 )
 
 type CronJobController struct {
@@ -103,7 +102,6 @@ func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStar
 	}
 
 	j.patchAfterDevContainerReplaced(ops.Container, generatedJob.Kind, generatedJob.Name)
-	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(j.GetNocalhostDevContainerPod)
 }

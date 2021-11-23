@@ -128,7 +128,6 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 	}
 
 	s.patchAfterDevContainerReplaced(ops.Container, dep.Kind, dep.Name)
-	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(s.GetNocalhostDevContainerPod)
 }

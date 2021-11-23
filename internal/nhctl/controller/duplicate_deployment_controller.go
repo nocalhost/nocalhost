@@ -16,7 +16,6 @@ import (
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
-	"time"
 )
 
 const (
@@ -160,7 +159,6 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 	}
 
 	d.patchAfterDevContainerReplaced(ops.Container, dep.Kind, dep.Name)
-	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
 }

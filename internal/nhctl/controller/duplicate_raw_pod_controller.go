@@ -88,7 +88,6 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 	}
 
 	r.patchAfterDevContainerReplaced(ops.Container, originalPod.Kind, originalPod.Name)
-	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(r.GetNocalhostDevContainerPod)
 }

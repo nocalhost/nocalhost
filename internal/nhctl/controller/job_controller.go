@@ -13,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
-	"time"
 )
 
 type JobController struct {
@@ -78,7 +77,6 @@ func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOpt
 	}
 
 	j.patchAfterDevContainerReplaced(ops.Container, generatedJob.Kind, generatedJob.Name)
-	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(j.GetNocalhostDevContainerPod)
 }

@@ -15,7 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/pkg/nhctl/log"
-	"time"
 )
 
 type DuplicateStatefulSetController struct {
@@ -112,7 +111,6 @@ func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *
 	}
 
 	s.patchAfterDevContainerReplaced(ops.Container, dep.Kind, dep.Name)
-	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(s.GetNocalhostDevContainerPod)
 }

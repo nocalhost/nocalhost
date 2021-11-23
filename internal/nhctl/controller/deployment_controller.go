@@ -82,17 +82,14 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		dep.Annotations[OriginSpecJson] = string(originalSpecJson)
 
 		log.Info("Updating development container...")
-		_, err = d.Client.UpdateDeployment(dep, true)
-		if err != nil {
+		if _, err = d.Client.UpdateDeployment(dep, true); err != nil {
 			if strings.Contains(err.Error(), "no PriorityClass") {
 				log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
-				dep, err = d.Client.GetDeployment(d.GetName())
-				if err != nil {
+				if dep, err = d.Client.GetDeployment(d.GetName()); err != nil {
 					return err
 				}
 				dep.Spec.Template.Spec.PriorityClassName = ""
-				_, err = d.Client.UpdateDeployment(dep, true)
-				if err != nil {
+				if _, err = d.Client.UpdateDeployment(dep, true); err != nil {
 					if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
 						log.Warn("Deployment has been modified, retrying...")
 						continue
@@ -110,7 +107,6 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 	}
 
 	d.patchAfterDevContainerReplaced(ops.Container, d.Type.String(), dep.Name)
-	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
 }
