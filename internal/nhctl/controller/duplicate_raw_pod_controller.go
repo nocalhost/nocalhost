@@ -75,13 +75,8 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 	originalPod.Status = corev1.PodStatus{}
 	originalPod.ResourceVersion = ""
 
-	devContainer, err := findDevContainerInPodSpec(&originalPod.Spec, ops.Container)
-	if err != nil {
-		return err
-	}
-
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		r.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, true)
+		r.genContainersAndVolumes(&originalPod.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
 	if err != nil {
 		return err
 	}

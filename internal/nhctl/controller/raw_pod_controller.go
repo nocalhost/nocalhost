@@ -58,13 +58,8 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 	}
 	originalPod.Annotations[originalPodDefine] = string(bys)
 
-	devContainer, err := findDevContainerInPodSpec(&originalPod.Spec, ops.Container)
-	if err != nil {
-		return err
-	}
-
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		r.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, false)
+		r.genContainersAndVolumes(&originalPod.Spec, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}

@@ -532,9 +532,14 @@ func findDevPod(podList []corev1.Pod) (string, error) {
 	return "", errors.New("dev container not found")
 }
 
-func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
+func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 	containerName, devImage, storageClass string, duplicateDevMode bool) (*corev1.Container,
 	*corev1.Container, []corev1.Volume, error) {
+
+	devContainer, err := findDevContainerInPodSpec(podSpec, containerName)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
 	devModeVolumes := make([]corev1.Volume, 0)
 	devModeMounts := make([]corev1.VolumeMount, 0)

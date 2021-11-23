@@ -63,13 +63,8 @@ func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOpt
 		delete(generatedJob.Spec.Selector.MatchLabels, "controller-uid")
 	}
 
-	devContainer, err := findDevContainerInPodSpec(&generatedJob.Spec.Template.Spec, ops.Container)
-	if err != nil {
-		return err
-	}
-
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		j.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, false)
+		j.genContainersAndVolumes(&generatedJob.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}

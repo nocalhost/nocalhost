@@ -13,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
@@ -55,66 +54,11 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		return err
 	}
 
-	devContainer, err := findDevContainerInPodSpec(&dep.Spec.Template.Spec, ops.Container)
+	devContainer, sideCarContainer, devModeVolumes, err :=
+		s.genContainersAndVolumes(&dep.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}
-
-	devModeVolumes := make([]corev1.Volume, 0)
-	devModeMounts := make([]corev1.VolumeMount, 0)
-
-	// Set volumes
-	syncthingVolumes, syncthingVolumeMounts := s.generateSyncVolumesAndMounts(false)
-	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
-	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
-
-	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := s.genWorkDirAndPVAndMounts(
-		ops.Container, ops.StorageClass, false)
-	if err != nil {
-		return err
-	}
-
-	devModeVolumes = append(devModeVolumes, workDirAndPersistVolumes...)
-	devModeMounts = append(devModeMounts, workDirAndPersistVolumeMounts...)
-
-	workDir := s.GetWorkDir(ops.Container)
-	devImage := s.GetDevImage(ops.Container) // Default : replace the first container
-	if devImage == "" {
-		return errors.New("Dev image must be specified")
-	}
-
-	sideCarContainer := generateSideCarContainer(s.GetDevSidecarImage(ops.Container), workDir)
-
-	devContainer.Image = devImage
-	devContainer.Name = "nocalhost-dev"
-	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
-	devContainer.WorkingDir = workDir
-
-	// set image pull policy
-	sideCarContainer.ImagePullPolicy = _const.DefaultSidecarImagePullPolicy
-	devContainer.ImagePullPolicy = _const.DefaultSidecarImagePullPolicy
-
-	// add env
-	devEnv := s.GetDevContainerEnv(ops.Container)
-	for _, v := range devEnv.DevEnv {
-		env := corev1.EnvVar{Name: v.Name, Value: v.Value}
-		devContainer.Env = append(devContainer.Env, env)
-	}
-
-	// Add volumeMounts to containers
-	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
-	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, devModeMounts...)
-
-	requirements := s.genResourceReq(ops.Container)
-	if requirements != nil {
-		devContainer.Resources = *requirements
-	}
-	r := &profile.ResourceQuota{
-		Limits:   &profile.QuotaList{Memory: "1Gi", Cpu: "1"},
-		Requests: &profile.QuotaList{Memory: "50Mi", Cpu: "100m"},
-	}
-	rq, _ := convertResourceQuota(r)
-	sideCarContainer.Resources = *rq
 
 	needToRemovePriorityClass := false
 	for i := 0; i < 10; i++ {
@@ -157,7 +101,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 			dep.Spec.Template.Spec.Containers[i].SecurityContext = nil
 		}
 
-		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
+		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, *sideCarContainer)
 
 		if len(dep.Annotations) == 0 {
 			dep.Annotations = make(map[string]string, 0)

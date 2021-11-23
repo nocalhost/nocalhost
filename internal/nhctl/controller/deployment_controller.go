@@ -54,13 +54,13 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		return err
 	}
 
-	devContainer, err := findDevContainerInPodSpec(&dep.Spec.Template.Spec, ops.Container)
-	if err != nil {
-		return err
-	}
+	//devContainer, err := findDevContainerInPodSpec(&dep.Spec.Template.Spec, ops.Container)
+	//if err != nil {
+	//	return err
+	//}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		d.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, false)
+		d.genContainersAndVolumes(&dep.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}
