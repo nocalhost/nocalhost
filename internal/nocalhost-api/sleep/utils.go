@@ -15,6 +15,7 @@ import (
 const (
 	kActive = "active"
 	kAsleep = "asleep"
+	kDeployment = "Deployment"
 	kConfig = "nocalhost.dev.sleep/config"
 	kStatus = "nocalhost.dev.sleep/status"
 	kReplicas = "nocalhost.dev.sleep/replicas"
@@ -23,9 +24,47 @@ const (
 )
 
 func Sleep(c* clientgo.GoClient, ns string, force bool) error {
-	replicas := make(map[string]int)
+	namespace, err := c.Clientset().
+		CoreV1().
+		Namespaces().
+		Get(context.TODO(), ns, metav1.GetOptions{})
 
-	// TODO: purging all pods
+	if err != nil {
+		return err
+	}
+
+	var replicas map[string]int32
+	if namespace.Annotations == nil || len(namespace.Annotations[kReplicas]) == 0 {
+		replicas = make(map[string]int32)
+	} else {
+		err = json.Unmarshal([]byte(namespace.Annotations[kReplicas]), &replicas)
+		if err != nil {
+			return err
+		}
+	}
+
+	// purging all pods
+	dps, err := c.Clientset().
+		AppsV1().
+		Deployments(ns).
+		List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	var zero int32 = 0
+	for _, dp := range dps.Items {
+		if *dp.Spec.Replicas > 0 {
+			replicas[kDeployment + ":" + dp.Name] = *dp.Spec.Replicas
+			dp.Spec.Replicas = &zero
+			_, err = c.Clientset().
+				AppsV1().
+				Deployments(ns).
+				Update(context.TODO(), &dp, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
@@ -38,8 +77,7 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 		},
 	})
 
-	_, err := c.
-		Clientset().
+	_, err = c.Clientset().
 		CoreV1().
 		Namespaces().
 		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
@@ -47,8 +85,7 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 }
 
 func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
-	namespace, err := c.
-		Clientset().
+	namespace, err := c.Clientset().
 		CoreV1().
 		Namespaces().
 		Get(context.TODO(), ns, metav1.GetOptions{})
@@ -61,13 +98,33 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 		return errors.New(fmt.Sprintf("cannot find `%s` from annotations", kReplicas))
 	}
 
-	var replicas map[string]int
+	var replicas map[string]int32
 	err = json.Unmarshal([]byte(namespace.Annotations[kReplicas]), &replicas)
 	if err != nil {
 		return err
 	}
 
-	// TODO: restore all pods
+	// restore all pods
+	dps, err := c.Clientset().
+		AppsV1().
+		Deployments(ns).
+		List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, dp := range dps.Items {
+		n, ok := replicas[kDeployment + ":" + dp.Name]
+		if ok {
+			dp.Spec.Replicas = &n
+			_, err = c.Clientset().
+				AppsV1().
+				Deployments(ns).
+				Update(context.TODO(), &dp, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
@@ -79,8 +136,7 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 		},
 	})
 
-	_, err = c.
-		Clientset().
+	_, err = c.Clientset().
 		CoreV1().
 		Namespaces().
 		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
@@ -97,8 +153,7 @@ func CreateSleepConfig(c *clientgo.GoClient, ns string, config string) error {
 		},
 	})
 
-	_, err := c.
-		Clientset().
+	_, err := c.Clientset().
 		CoreV1().
 		Namespaces().
 		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
@@ -115,8 +170,7 @@ func DeleteSleepConfig(c *clientgo.GoClient, ns string) error {
 		},
 	})
 
-	_, err := c.
-		Clientset().
+	_, err := c.Clientset().
 		CoreV1().
 		Namespaces().
 		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
