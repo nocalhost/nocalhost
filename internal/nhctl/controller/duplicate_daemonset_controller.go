@@ -13,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"time"
 )
@@ -73,12 +72,7 @@ func (d *DuplicateDaemonSetController) ReplaceImage(ctx context.Context, ops *mo
 		return err
 	}
 
-	for _, patch := range d.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
-		log.Infof("Patching %s", patch.Patch)
-		if err = d.Client.Patch(d.Type.String(), generatedDeployment.Name, patch.Patch, patch.Type); err != nil {
-			log.WarnE(err, "")
-		}
-	}
+	d.patchAfterDevContainerReplaced(ops.Container, generatedDeployment.Kind, generatedDeployment.Name)
 	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
@@ -100,21 +94,11 @@ func (d *DuplicateDaemonSetController) RollBack(reset bool) error {
 			return errors.New(fmt.Sprintf("Generated Deployment num is %d (not 1)?", len(ss)))
 		} else if len(ss) == 0 {
 			log.Warnf("Generated Deployment num is %d (not 1)?", len(ss))
-			_ = d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-				svcProfileV2.DevModeType = ""
-				return nil
-			})
 			return nil
 		}
 	}
 
-	if err = d.Client.DeleteDeployment(ss[0].Name, false); err != nil {
-		return err
-	}
-	return d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-		svcProfileV2.DevModeType = ""
-		return nil
-	})
+	return d.Client.DeleteDeployment(ss[0].Name, false)
 }
 
 // GetPodList

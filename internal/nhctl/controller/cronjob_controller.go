@@ -102,20 +102,11 @@ func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStar
 		return err
 	}
 
-	for _, patch := range j.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
-		log.Infof("Patching %s", patch.Patch)
-		if err = j.Client.Patch(j.Type.String(), generatedJob.Name, patch.Patch, patch.Type); err != nil {
-			log.WarnE(err, "")
-		}
-	}
+	j.patchAfterDevContainerReplaced(ops.Container, generatedJob.Kind, generatedJob.Name)
 	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(j.GetNocalhostDevContainerPod)
 }
-
-//func (j *CronJobController) Name() string {
-//	return j.Controller.Name
-//}
 
 func (j *CronJobController) RollBack(reset bool) error {
 	originJob, err := j.Client.GetCronJobs(j.GetName())

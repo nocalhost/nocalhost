@@ -127,51 +127,11 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		break
 	}
 
-	for _, patch := range s.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
-		log.Infof("Patching %s", patch.Patch)
-		if err = s.Client.Patch(s.Type.String(), dep.Name, patch.Patch, patch.Type); err != nil {
-			log.WarnE(err, "")
-		}
-	}
+	s.patchAfterDevContainerReplaced(ops.Container, dep.Kind, dep.Name)
 	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(s.GetNocalhostDevContainerPod)
 }
-
-// Container Get specify container
-// If containerName not specified:
-// 	 if there is only one container defined in spec, return it
-//	 if there are more than one container defined in spec, return err
-//func (s *StatefulSetController) Container(containerName string) (*corev1.Container, error) {
-//	var devContainer *corev1.Container
-//
-//	ss, err := s.Client.GetStatefulSet(s.GetName())
-//	if err != nil {
-//		return nil, err
-//	}
-//	if containerName != "" {
-//		for index, c := range ss.Spec.Template.Spec.Containers {
-//			if c.Name == containerName {
-//				return &ss.Spec.Template.Spec.Containers[index], nil
-//			}
-//		}
-//		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
-//	} else {
-//		if len(ss.Spec.Template.Spec.Containers) > 1 {
-//			return nil, errors.New(
-//				fmt.Sprintf(
-//					"There are more than one container defined, " +
-//						"please specify one to start developing",
-//				),
-//			)
-//		}
-//		if len(ss.Spec.Template.Spec.Containers) == 0 {
-//			return nil, errors.New("No container defined ???")
-//		}
-//		devContainer = &ss.Spec.Template.Spec.Containers[0]
-//	}
-//	return devContainer, nil
-//}
 
 func (s *StatefulSetController) RollBack(reset bool) error {
 	clientUtils := s.Client

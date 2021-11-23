@@ -273,7 +273,6 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 
 func (a *Application) generateSecretForEarlierVer() bool {
 
-	a.GetHomeDir()
 	profileV2, err := a.GetProfile()
 	if err != nil {
 		return false

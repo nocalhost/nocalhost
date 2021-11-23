@@ -78,20 +78,11 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 		return err
 	}
 
-	for _, patch := range r.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
-		log.Infof("Patching %s", patch.Patch)
-		if err = r.Client.Patch(r.Type.String(), originalPod.Name, patch.Patch, patch.Type); err != nil {
-			log.WarnE(err, "")
-		}
-	}
+	r.patchAfterDevContainerReplaced(ops.Container, originalPod.Kind, originalPod.Name)
 	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(r.GetNocalhostDevContainerPod)
 }
-
-//func (r *RawPodController) Name() string {
-//	return r.Controller.Name
-//}
 
 func (r *RawPodController) RollBack(reset bool) error {
 	originPod, err := r.Client.GetPod(r.GetName())

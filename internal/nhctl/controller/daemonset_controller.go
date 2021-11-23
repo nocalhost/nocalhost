@@ -111,12 +111,7 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 		return err
 	}
 
-	for _, patch := range d.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
-		log.Infof("Patching %s", patch.Patch)
-		if err = d.Client.Patch(generatedDeployment.Kind, generatedDeployment.Name, patch.Patch, patch.Type); err != nil {
-			log.WarnE(err, "")
-		}
-	}
+	d.patchAfterDevContainerReplaced(ops.Container, generatedDeployment.Kind, generatedDeployment.Name)
 	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)

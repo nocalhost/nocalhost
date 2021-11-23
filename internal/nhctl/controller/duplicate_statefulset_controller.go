@@ -14,7 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"time"
 )
@@ -112,12 +111,7 @@ func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *
 		return err
 	}
 
-	for _, patch := range s.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
-		log.Infof("Patching %s", patch.Patch)
-		if err = s.Client.Patch(s.Type.String(), dep.Name, patch.Patch, patch.Type); err != nil {
-			log.WarnE(err, "")
-		}
-	}
+	s.patchAfterDevContainerReplaced(ops.Container, dep.Kind, dep.Name)
 	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(s.GetNocalhostDevContainerPod)
@@ -139,21 +133,11 @@ func (s *DuplicateStatefulSetController) RollBack(reset bool) error {
 			return errors.New(fmt.Sprintf("Duplicate StatefulSet num is %d (not 1)?", len(ss)))
 		} else if len(ss) == 0 {
 			log.Warnf("Duplicate StatefulSet num is %d (not 1)?", len(ss))
-			_ = s.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-				svcProfileV2.DevModeType = ""
-				return nil
-			})
 			return nil
 		}
 	}
 
-	if err = s.Client.DeleteStatefulSet(ss[0].Name); err != nil {
-		return err
-	}
-	return s.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-		svcProfileV2.DevModeType = ""
-		return nil
-	})
+	return s.Client.DeleteStatefulSet(ss[0].Name)
 }
 
 func (s *DuplicateStatefulSetController) GetPodList() ([]corev1.Pod, error) {

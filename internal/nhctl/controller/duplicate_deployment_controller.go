@@ -14,7 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
 	"time"
@@ -160,12 +159,7 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 		}
 	}
 
-	for _, patch := range d.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
-		log.Infof("Patching %s", patch.Patch)
-		if err = d.Client.Patch(d.Type.String(), dep.Name, patch.Patch, patch.Type); err != nil {
-			log.WarnE(err, "")
-		}
-	}
+	d.patchAfterDevContainerReplaced(ops.Container, dep.Kind, dep.Name)
 	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
@@ -187,21 +181,11 @@ func (d *DuplicateDeploymentController) RollBack(reset bool) error {
 			return errors.New(fmt.Sprintf("Duplicate Deployment num is %d (not 1)?", len(deploys)))
 		} else if len(deploys) == 0 {
 			log.Warnf("Duplicate Deployment num is %d (not 1)?", len(deploys))
-			_ = d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-				svcProfileV2.DevModeType = ""
-				return nil
-			})
 			return nil
 		}
 	}
 
-	if err = d.Client.DeleteDeployment(deploys[0].Name, false); err != nil {
-		return err
-	}
-	return d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-		svcProfileV2.DevModeType = ""
-		return nil
-	})
+	return d.Client.DeleteDeployment(deploys[0].Name, false)
 }
 
 // GetPodList todo: Do not list pods already deleted - by hxx

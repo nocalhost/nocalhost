@@ -12,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"time"
 )
@@ -88,12 +87,7 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 		return err
 	}
 
-	for _, patch := range r.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
-		log.Infof("Patching %s", patch.Patch)
-		if err = r.Client.Patch(r.Type.String(), originalPod.Name, patch.Patch, patch.Type); err != nil {
-			log.WarnE(err, "")
-		}
-	}
+	r.patchAfterDevContainerReplaced(ops.Container, originalPod.Kind, originalPod.Name)
 	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(r.GetNocalhostDevContainerPod)
@@ -110,21 +104,11 @@ func (r *DuplicateRawPodController) RollBack(reset bool) error {
 			return errors.New(fmt.Sprintf("Duplicate pod num is %d (not 1)?", len(deploys)))
 		} else if len(deploys) == 0 {
 			log.Warnf("Duplicate pod num is %d (not 1)?", len(deploys))
-			_ = r.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-				svcProfileV2.DevModeType = ""
-				return nil
-			})
 			return nil
 		}
 	}
 
-	if err = r.Client.DeletePod(deploys[0].Name, false, 1*time.Second); err != nil {
-		return err
-	}
-	return r.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-		svcProfileV2.DevModeType = ""
-		return nil
-	})
+	return r.Client.DeletePod(deploys[0].Name, false, 1*time.Second)
 }
 
 func (r *DuplicateRawPodController) GetPodList() ([]corev1.Pod, error) {

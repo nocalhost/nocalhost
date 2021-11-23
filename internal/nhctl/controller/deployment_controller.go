@@ -109,13 +109,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		break
 	}
 
-	// patch
-	for _, patch := range d.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
-		log.Infof("Patching %s", patch.Patch)
-		if err = d.Client.Patch(d.Type.String(), dep.Name, patch.Patch, patch.Type); err != nil {
-			log.WarnE(err, "")
-		}
-	}
+	d.patchAfterDevContainerReplaced(ops.Container, d.Type.String(), dep.Name)
 	<-time.Tick(time.Second)
 
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)

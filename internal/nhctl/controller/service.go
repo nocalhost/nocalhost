@@ -19,6 +19,7 @@ import (
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
 	"strconv"
 	"strings"
 	"time"
@@ -359,21 +360,6 @@ func (c *Controller) UpdateSvcProfile(modify func(*profile.SvcProfileV2) error) 
 	return profileV2.Save()
 }
 
-// UpdateProfile The second param of modify will not be nil
-//func (c *Controller) UpdateProfile(modify func(*profile.AppProfileV2, *profile.SvcProfileV2) error) error {
-//	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
-//	if err != nil {
-//		return err
-//	}
-//	defer profileV2.CloseDb()
-//
-//	if err := modify(profileV2, profileV2.SvcProfileV2(c.Name, c.Type.String())); err != nil {
-//		return err
-//	}
-//	profileV2.GenerateIdentifierIfNeeded()
-//	return profileV2.Save()
-//}
-
 func (c *Controller) GetName() string {
 	return c.Name
 }
@@ -391,4 +377,13 @@ func (c *Controller) getDuplicateLabelsMap() (map[string]string, error) {
 
 func (c *Controller) getDuplicateResourceName() string {
 	return strings.Join([]string{c.Name, string(c.Type), c.Identifier[0:5], strconv.Itoa(int(time.Now().Unix()))}, "-")
+}
+
+func (c *Controller) patchAfterDevContainerReplaced(containerName, resourceType, resourceName string) {
+	for _, patch := range c.config.GetContainerDevConfigOrDefault(containerName).Patches {
+		log.Infof("Patching %s", patch.Patch)
+		if err := c.Client.Patch(resourceType, resourceName, patch.Patch, patch.Type); err != nil {
+			log.WarnE(err, "")
+		}
+	}
 }
