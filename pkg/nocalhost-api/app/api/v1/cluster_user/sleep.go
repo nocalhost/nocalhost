@@ -37,7 +37,7 @@ func Sleep(c *gin.Context) {
 		return
 	}
 	// 4. force sleep
-	err = sleep.ForceSleep(client, space.Namespace)
+	err = sleep.Sleep(client, space.Namespace, true)
 	if err != nil {
 		api.SendResponse(c, err, nil)
 		return
@@ -83,7 +83,7 @@ func Wakeup(c *gin.Context) {
 		return
 	}
 	// 4. force sleep
-	err = sleep.ForceWakeup(client, space.Namespace)
+	err = sleep.Wakeup(client, space.Namespace, true)
 	if err != nil {
 		api.SendResponse(c, err, nil)
 		return

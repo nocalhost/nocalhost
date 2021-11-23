@@ -22,21 +22,17 @@ const (
 	kForceWakeup = "nocalhost.dev.sleep/force-wakeup"
 )
 
-func stringify(v interface{}) string {
-	marshal, _ := json.Marshal(v)
-	return string(marshal)
-}
+func Sleep(c* clientgo.GoClient, ns string, force bool) error {
+	replicas := make(map[string]int)
 
-func ForceSleep(c* clientgo.GoClient, ns string) error {
 	// TODO: purging all pods
 
-	replicas := make(map[string]int)
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
 				kStatus: kAsleep,
 				kReplicas: stringify(replicas),
-				kForceSleep: strconv.FormatInt(time.Now().Unix(), 10),
+				kForceSleep: ternary(force, timestamp(), "").(string),
 				kForceWakeup: "",
 			},
 		},
@@ -50,7 +46,7 @@ func ForceSleep(c* clientgo.GoClient, ns string) error {
 	return err
 }
 
-func ForceWakeup(c* clientgo.GoClient, ns string) error {
+func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 	namespace, err := c.
 		Clientset().
 		CoreV1().
@@ -78,7 +74,7 @@ func ForceWakeup(c* clientgo.GoClient, ns string) error {
 			"annotations": map[string]string{
 				kStatus: kActive,
 				kForceSleep: "",
-				kForceWakeup: strconv.FormatInt(time.Now().Unix(), 10),
+				kForceWakeup: ternary(force, timestamp(), "").(string),
 			},
 		},
 	})
@@ -125,4 +121,20 @@ func DeleteSleepConfig(c *clientgo.GoClient, ns string) error {
 		Namespaces().
 		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 	return err
+}
+
+func stringify(v interface{}) string {
+	marshal, _ := json.Marshal(v)
+	return string(marshal)
+}
+
+func timestamp() string {
+	return strconv.FormatInt(time.Now().Unix(), 10)
+}
+
+func ternary(a bool, b, c interface{}) interface{} {
+	if a {
+		return b
+	}
+	return c
 }
