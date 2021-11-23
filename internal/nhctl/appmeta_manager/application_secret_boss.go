@@ -73,6 +73,16 @@ func GetApplicationMetas(ns string, configBytes []byte, filter func(*appmeta.App
 func GetApplicationMeta(ns, appName string, configBytes []byte) *appmeta.ApplicationMeta {
 	asw := supervisor.inDeck(ns, configBytes)
 
+	if asw == nil {
+		return &appmeta.ApplicationMeta{
+			ApplicationState: appmeta.UNKNOWN,
+			Ns:               ns,
+			Application:      appName,
+			DevMeta:          appmeta.ApplicationDevMeta{},
+			Config:           &profile2.NocalHostAppConfigV2{},
+		}
+	}
+
 	// asw may nil if prepare fail
 	meta := asw.GetApplicationMeta(appName)
 

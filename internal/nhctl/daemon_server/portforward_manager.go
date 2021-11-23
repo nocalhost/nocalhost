@@ -150,7 +150,7 @@ func (p *PortForwardManager) RecoverAllPortForward() {
 	}
 
 	// Find all app
-	appMap, err := nocalhost.GetNsAndApplicationInfo(scanned)
+	appMap, err := nocalhost.GetNsAndApplicationInfo(scanned, true)
 	if err != nil {
 		log.LogE(err)
 		return
