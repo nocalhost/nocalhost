@@ -202,7 +202,7 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 			} else {
 				informer.Informer().AddEventHandlerWithResyncPeriod(
 					NewResourceEventHandlerFuncs(
-						informer, kubeconfigBytes,
+						informer, kubeconfigBytes, resource.Gvr,
 					), time.Second*5,
 				)
 				createInformerSuccess = true

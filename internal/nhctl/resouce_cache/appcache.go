@@ -7,7 +7,9 @@ package resouce_cache
 
 import (
 	"crypto/sha1"
+	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -15,10 +17,11 @@ import (
 	"time"
 )
 
+// key: ns+kubeconfigBytes --> 1: map[resourceType]appSet
 var maps sync.Map
 
-type value struct {
-	sets.String
+type appSet struct {
+	set  sets.String
 	lock *sync.RWMutex
 }
 
@@ -29,23 +32,27 @@ func toKey(kubeconfigBytes []byte, ns string) string {
 }
 
 func GetAllAppNameByNamespace(kubeconfigBytes []byte, ns string) sets.String {
-	load, _ := maps.Load(toKey(kubeconfigBytes, ns))
 	result := sets.NewString()
-	if load != nil {
-		result = result.Insert(load.(*value).allKeys()...)
+	if load, ok := maps.Load(toKey(kubeconfigBytes, ns)); ok {
+		load.(*sync.Map).Range(func(_, value interface{}) bool {
+			if value != nil {
+				result.Insert(value.(*appSet).allKeys()...)
+			}
+			return true
+		})
 	}
 	return result
 }
 
-func (v *value) allKeys() (result []string) {
+func (v *appSet) allKeys() (result []string) {
 	v.lock.RLock()
-	result = v.List()
+	result = v.set.List()
 	v.lock.RUnlock()
 	return
 }
 
-func newValue() *value {
-	return &value{String: sets.NewString(), lock: &sync.RWMutex{}}
+func newAppSet() *appSet {
+	return &appSet{set: sets.NewString(), lock: &sync.RWMutex{}}
 }
 
 type ResourceEventHandlerFuncs struct {
@@ -53,13 +60,15 @@ type ResourceEventHandlerFuncs struct {
 	informer        informers.GenericInformer
 	kubeconfigBytes []byte
 	nextTime        time.Time
+	Gvr             schema.GroupVersionResource
 }
 
-func NewResourceEventHandlerFuncs(resource informers.GenericInformer, kubeconfigBytes []byte) *ResourceEventHandlerFuncs {
+func NewResourceEventHandlerFuncs(resource informers.GenericInformer, kubeconfigBytes []byte, gvr schema.GroupVersionResource) *ResourceEventHandlerFuncs {
 	return &ResourceEventHandlerFuncs{
 		informer:        resource,
 		kubeconfigBytes: kubeconfigBytes,
 		nextTime:        time.Now(),
+		Gvr:             gvr,
 	}
 }
 
@@ -76,20 +85,28 @@ func (r *ResourceEventHandlerFuncs) timeUp(f func()) {
 }
 
 func (r *ResourceEventHandlerFuncs) handle() {
-	var first = true
+	var m sync.Map
 	for _, i := range r.informer.Informer().GetStore().List() {
 		object := i.(metav1.Object)
 		if len(object.GetNamespace()) != 0 {
-			if first {
-				maps.Delete(r.toKey(object.GetNamespace()))
-				first = false
+			kindToAppMap, _ := maps.LoadOrStore(r.toKey(object.GetNamespace()), &sync.Map{})
+			kindApp, _ := kindToAppMap.(*sync.Map).LoadOrStore(r.Gvr.Resource, newAppSet())
+			set := kindApp.(*appSet)
+			set.lock.Lock()
+			if _, loaded := m.LoadOrStore(object.GetNamespace(), true); !loaded {
+				set.set = sets.NewString()
 			}
-			store, _ := maps.LoadOrStore(r.toKey(object.GetNamespace()), newValue())
-			store.(*value).lock.Lock()
-			store.(*value).Insert(getAppName(i))
-			store.(*value).lock.Unlock()
+			set.set.Insert(getAppName(i))
+			set.lock.Unlock()
 		}
 	}
+	maps.Range(func(key, value interface{}) bool {
+		value.(*sync.Map).Range(func(key, value interface{}) bool {
+			fmt.Println(value)
+			return true
+		})
+		return true
+	})
 }
 
 func (r *ResourceEventHandlerFuncs) OnAdd(interface{}) {

@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/restmapper"
@@ -254,18 +255,22 @@ func TestEventHandler(t *testing.T) {
 	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
 	clientset, _ := kubernetes.NewForConfig(config)
 	informerFactory := informers.NewSharedInformerFactoryWithOptions(
-		clientset, time.Second*5, informers.WithNamespace("default"),
+		clientset, time.Second*5, informers.WithNamespace("kubevela-foo1"),
 	)
 	resource, _ := informerFactory.ForResource(corev1.SchemeGroupVersion.WithResource("pods"))
-	resource.Informer().AddEventHandler(NewResourceEventHandlerFuncs(resource, kubeconfigBytes))
+	resource.Informer().AddEventHandler(NewResourceEventHandlerFuncs(
+		resource, kubeconfigBytes, schema.GroupVersionResource{Resource: "pods"}),
+	)
 	resource1, _ := informerFactory.ForResource(v1.SchemeGroupVersion.WithResource("deployments"))
-	resource1.Informer().AddEventHandler(NewResourceEventHandlerFuncs(resource1, kubeconfigBytes))
+	resource1.Informer().AddEventHandler(
+		NewResourceEventHandlerFuncs(resource1, kubeconfigBytes, schema.GroupVersionResource{Resource: "deployments"}),
+	)
 	informerFactory.Start(make(chan struct{}))
 	informerFactory.WaitForCacheSync(make(chan struct{}))
 	for {
 		select {
 		default:
-			fmt.Println(GetAllAppNameByNamespace(kubeconfigBytes, "default"))
+			fmt.Println(GetAllAppNameByNamespace(kubeconfigBytes, "kubevela-foo1"))
 			time.Sleep(time.Second * 5)
 		}
 	}
