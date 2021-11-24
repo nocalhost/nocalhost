@@ -54,24 +54,40 @@ type VirtualCluster struct {
 	Status VirtualClusterStatus `json:"status,omitempty"`
 }
 
-func (in VirtualCluster) GetValues() string {
+func (in *VirtualCluster) GetValues() string {
 	return in.Spec.Helm.Values
 }
 
-func (in VirtualCluster) GetReleaseName() string {
+func (in *VirtualCluster) GetReleaseName() string {
 	return in.GetName()
 }
 
-func (in VirtualCluster) GetChartName() string {
+func (in *VirtualCluster) GetChartName() string {
 	return in.Spec.Helm.Chart.Name
 }
 
-func (in VirtualCluster) GetChartVersion() string {
+func (in *VirtualCluster) GetChartVersion() string {
 	return in.Spec.Helm.Chart.Version
 }
 
-func (in VirtualCluster) GetChartRepo() string {
+func (in *VirtualCluster) GetChartRepo() string {
 	return in.Spec.Helm.Chart.Repo
+}
+
+func (in *VirtualCluster) SetValues(values string) {
+	in.Spec.Helm.Values = values
+}
+
+func (in *VirtualCluster) SetChartName(name string) {
+	in.Spec.Helm.Chart.Name = name
+}
+
+func (in *VirtualCluster) SetChartVersion(version string) {
+	in.Spec.Helm.Chart.Version = version
+}
+
+func (in *VirtualCluster) SetChartRepo(repo string) {
+	in.Spec.Helm.Chart.Repo = repo
 }
 
 //+kubebuilder:object:root=true

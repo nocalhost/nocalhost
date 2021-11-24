@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/spf13/cast"
+	corev1 "k8s.io/api/core/v1"
 
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
@@ -28,9 +29,17 @@ type ClusterUserCreateRequest struct {
 	ClusterAdmin       *uint64                   `json:"cluster_admin"`
 	NameSpace          string                    `json:"namespace"`
 	SpaceResourceLimit *SpaceResourceLimit       `json:"space_resource_limit"`
+	DevSpaceType       uint64                    `json:"dev_space_type"`
+	VirtualCluster     *VirtualCluster           `json:"virtual_cluster"`
 	BaseDevSpaceId     uint64                    `json:"base_dev_space_id"`
 	MeshDevInfo        *setupcluster.MeshDevInfo `json:"mesh_dev_info"`
 	IsBaseSpace        bool                      `json:"is_base_space"`
+}
+
+type VirtualCluster struct {
+	ServiceType corev1.ServiceType `json:"service_type"`
+	Version     string             `json:"version"`
+	Values      string             `json:"values"`
 }
 
 func (cu *ClusterUserCreateRequest) Validate() (bool, error) {

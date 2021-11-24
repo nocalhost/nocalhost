@@ -183,6 +183,9 @@ var (
 	}
 	ErrIstioNotFound = &Errno{Code: 50212, Message: "Please ensure the Istio is installed and running in your cluster"}
 
+	// cluster-user errors for VirtualCluster
+	ErrCreateVirtualClusterFailed = &Errno{Code: 50301, Message: "Failed to create virtual cluster"}
+
 	// application-user for application-user module request
 	ErrListApplicationUser = &Errno{
 		Code: 60000, Message: "Failed to list application_user, please check params and try again",

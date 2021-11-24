@@ -15,6 +15,7 @@ import (
 	"math/rand"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
+	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
@@ -141,7 +142,17 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
 		if clusterUserModel, err = d.initMeshDevSpace(&clusterRecord, clusterUserModel, baseClusterUser); err != nil {
 			log.Error(err)
+			// TODO delete space if failed
 			return nil, errno.ErrInitMeshSpaceFailed
+		}
+	}
+
+	// init
+	if d.DevSpaceParams.DevSpaceType == model.VirtualClusterType {
+		if err := d.initVirtualCluster(&clusterRecord, clusterUserModel); err != nil {
+			log.Error(err)
+			// TODO delete space if failed
+			return nil, errno.ErrCreateVirtualClusterFailed
 		}
 	}
 
@@ -186,8 +197,8 @@ func (d *DevSpace) createClusterDevSpace(
 	trueFlag := uint64(1)
 	list, err := service.Svc.ClusterUser().GetList(
 		context.TODO(), model.ClusterUserModel{
-			ClusterId: clusterRecord.ID,
-			UserId: usersRecord.ID,
+			ClusterId:    clusterRecord.ID,
+			UserId:       usersRecord.ID,
 			ClusterAdmin: &trueFlag,
 		},
 	)
@@ -259,6 +270,10 @@ func (d *DevSpace) createDevSpace(
 		labels["nocalhost.dev/devspace"] = "base"
 	}
 
+	if d.DevSpaceParams.VirtualCluster != nil && d.DevSpaceParams.DevSpaceType == model.VirtualClusterType {
+		labels["nocalhost.dev/devspace"] = "vcluster"
+	}
+
 	// create namespace
 	_, err = goClient.CreateNS(devNamespace, labels)
 	if err != nil {
@@ -283,7 +298,8 @@ func (d *DevSpace) createDevSpace(
 	resString, err := json.Marshal(res)
 	result, err := service.Svc.ClusterUser().Create(
 		d.c, *d.DevSpaceParams.ClusterId, usersRecord.ID, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu,
-		"", devNamespace, d.DevSpaceParams.SpaceName, string(resString), d.DevSpaceParams.IsBaseSpace,
+		"", devNamespace, d.DevSpaceParams.SpaceName, string(resString),
+		d.DevSpaceParams.IsBaseSpace, d.DevSpaceParams.DevSpaceType,
 	)
 	if err != nil {
 		return nil, errno.ErrBindApplicationClsuter
@@ -361,4 +377,26 @@ func (d *DevSpace) deleteTracingHeader() error {
 		return err
 	}
 	return nil
+}
+
+func (d *DevSpace) initVirtualCluster(clusterRecord *model.ClusterModel, clusterUser *model.ClusterUserModel) error {
+	v := d.DevSpaceParams.VirtualCluster
+	if v == nil {
+		return errors.New("can not find virtual cluster info")
+	}
+
+	vc := &v1alpha1.VirtualCluster{}
+	vc.SetName(clusterUser.SpaceName)
+	vc.SetNamespace(clusterUser.Namespace)
+	vc.SetValues(v.Values)
+	vc.SetChartName("vcluster")
+	vc.SetChartRepo("https://charts.loft.sh")
+
+	goClient, err := clientgo.NewAdminGoClient([]byte(clusterRecord.KubeConfig))
+	if err != nil {
+		return err
+	}
+
+	_, err = goClient.Apply(vc)
+	return err
 }
