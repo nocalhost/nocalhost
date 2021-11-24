@@ -86,8 +86,18 @@ func GetApplicationMeta(ns, appName string, configBytes []byte) *appmeta.Applica
 	// asw may nil if prepare fail
 	meta := asw.GetApplicationMeta(appName)
 
+	if meta == nil {
+		meta = &appmeta.ApplicationMeta{
+			ApplicationState: appmeta.UNINSTALLED,
+			Ns:               ns,
+			Application:      appName,
+			DevMeta:          appmeta.ApplicationDevMeta{},
+			Config:           &profile2.NocalHostAppConfigV2{},
+		}
+	}
+
 	// try load application from annotations
-	if meta != nil && meta.IsNotInstall() {
+	if meta.IsNotInstall() {
 		appsWithAnnotations := resouce_cache.GetAllAppNameByNamespace(configBytes, ns)
 		if appsWithAnnotations.Has(appName) {
 
