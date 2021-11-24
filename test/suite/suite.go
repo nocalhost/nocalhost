@@ -155,7 +155,20 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 
 	logger.Infof("============= Testing (Test)%s =============\n", name)
 
-	fn(clientForRunner)
+	doneChan := make(chan struct{}, 1)
+	go func() {
+		fn(clientForRunner)
+		doneChan <- struct{}{}
+	}()
+	select {
+	case <-doneChan:
+	case <-time.After(30 * time.Minute):
+		timeAfter := time.Now()
+		logger.Infof(
+			"============= Testing timeout, Cost(%fs) %s =============\n", timeAfter.Sub(timeBefore).Seconds(), name,
+		)
+		panic(errors.New(fmt.Sprintf("Test %s timeout", name)))
+	}
 
 	timeAfter := time.Now()
 	logger.Infof(

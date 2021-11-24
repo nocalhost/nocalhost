@@ -33,7 +33,7 @@ func Hook(client runner.Client) {
 					time.Minute*2, func() error {
 						return testcase.InstallBookInfoHelmForTestHook(client)
 					}, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client,"HelmHook")
+						return testcase.UninstallBookInfoWithNativeHelm(client, "HelmHook")
 					},
 				)
 			},
@@ -484,7 +484,9 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 			}
 		}()
 	}
+
 	go util.TimeoutChecker(1*time.Hour, cancelFunc)
+
 	_, currentVersion := testcase.GetVersion()
 	util.Retry("Prepare", []func() error{func() error { return testcase.InstallNhctl(currentVersion) }})
 	kubeconfig := util.GetKubeconfig()
