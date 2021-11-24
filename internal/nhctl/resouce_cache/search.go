@@ -240,7 +240,10 @@ func (s *Searcher) Start() {
 // Stop to stop the searcher
 func (s *Searcher) Stop() {
 	for i := 0; i < cap(s.stopChannel); i++ {
-		s.stopChannel <- struct{}{}
+		select {
+		case s.stopChannel <- struct{}{}:
+		default:
+		}
 	}
 }
 

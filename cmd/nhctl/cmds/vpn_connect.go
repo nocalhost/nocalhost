@@ -65,7 +65,7 @@ var connectCmd = &cobra.Command{
 				if strings.Contains(string(line), util.EndSignOK) {
 					readClose.Close()
 					return
-				} else if strings.Contains(string(line), util.EndSingleFailed) {
+				} else if strings.Contains(string(line), util.EndSignFailed) {
 					readClose.Close()
 					return
 				}

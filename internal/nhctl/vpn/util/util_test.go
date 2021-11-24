@@ -13,7 +13,9 @@ import (
 	"k8s.io/kubectl/pkg/cmd/util"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 )
@@ -104,4 +106,85 @@ func TestLogger(t *testing.T) {
 	cancel.Value("logger").(*log.Logger).Infoln("this is a test3")
 
 	time.Sleep(time.Second * 5)
+}
+
+func TestExecCommand(t *testing.T) {
+	var err error
+
+	configFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
+	join := filepath.Join(clientcmd.RecommendedConfigDir, "config")
+	configFlags.KubeConfig = &join
+	f := util.NewFactory(util.NewMatchVersionFlags(configFlags))
+
+	if config, err = f.ToRESTConfig(); err != nil {
+		log.Fatal(err)
+	}
+	if restclient, err = rest.RESTClientFor(config); err != nil {
+		log.Fatal(err)
+	}
+	if clientset, err = kubernetes.NewForConfig(config); err != nil {
+		log.Fatal(err)
+	}
+	if namespace, _, err = f.ToRawKubeConfigLoader().Namespace(); err != nil {
+		log.Fatal(err)
+	}
+
+	errors := make(chan error, 2)
+	reader, writer := io.Pipe()
+	go func() {
+		if err = ShellWithStream(
+			clientset,
+			restclient,
+			config,
+			"deployments-details-shadow",
+			namespace,
+			"ping 223.254.254.2",
+			writer,
+		); err != nil {
+			errors <- err
+		}
+	}()
+	newReader := bufio.NewReader(reader)
+	//icmp_seq=5 ttl=64 time=55.8
+	compile, _ := regexp.Compile("icmp_seq=(.*?) ttl=(.*?) time=(.*?)")
+
+	go func() {
+		for {
+			line, _, err := newReader.ReadLine()
+			if err != nil {
+				errors <- err
+				return
+			}
+			fmt.Printf("%s --> %v\n", string(line), compile.MatchString(string(line)))
+		}
+	}()
+	<-errors
+	fmt.Println("failed")
+}
+
+func TestPing(t *testing.T) {
+	var cmd *exec.Cmd
+	if IsWindows() {
+		cmd = exec.Command("ping", "223.254.254.100")
+	} else {
+		cmd = exec.Command("ping", "-c", "4", "223.254.254.100")
+	}
+	compile, _ := regexp.Compile("icmp_seq=(.*?) ttl=(.*?) time=(.*?)")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println(false)
+		return
+	}
+	if compile.MatchString(string(output)) {
+		fmt.Println(true)
+		return
+	}
+	fmt.Println(string(output))
+}
+
+func BenchmarkName(b *testing.B) {
+	b.N = 10000
+	for i := 0; i < b.N; i++ {
+		TestPing(nil)
+	}
 }

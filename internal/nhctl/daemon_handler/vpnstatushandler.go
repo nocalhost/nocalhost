@@ -3,20 +3,38 @@ package daemon_handler
 import (
 	"context"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/typed/core/v1"
+	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/util"
 	"strings"
 	"sync"
 )
 
+type Health string
+
+const (
+	DisConnected     Health = "DisConnected"
+	ConnectHealth    Health = "ConnectHealth"
+	ConnectUnHealth  Health = "ConnectUnHealth"
+	NotReversed      Health = "NotReversed"
+	ReversedHealth   Health = "ReversedHealth"
+	ReversedUnHealth Health = "ReversedUnHealth"
+)
+
 var status *VPNStatus
+
+// status of mine
+var connectHealthStatus *Func
+
+// resources --> health
+var reverseHeathStatus sync.Map
+
+type Func struct {
+	health Health
+	f      context.CancelFunc
+}
 
 type VPNStatus struct {
 	Reverse ReverseTotal
@@ -24,50 +42,46 @@ type VPNStatus struct {
 }
 
 type ReverseTotal struct {
+	// mac address --> resources
 	ele map[string]sets.String
 }
 
 type ConnectTotal struct {
+	// mac address list
 	list sets.String
 }
 
-// map[string]context.CancelFunc
-var maps sync.Map
-
-// status
-var statusMap sync.Map
-
-func HandleVPNStatus(ns, kubeconfig, resource string, clientset kubernetes.Clientset) error {
-	id := util.GenerateKey(ns, kubeconfig)
-	if _, found := maps.Load(id); !found {
-		maps.Store(id, true)
-		go func() {
-			defer maps.Delete(id)
-			w, err := clientset.
-				CoreV1().
-				ConfigMaps(ns).
-				Watch(context.TODO(),
-					v12.ListOptions{
-						FieldSelector: fields.OneTermEqualSelector("metadata.name", util.TrafficManager).String(),
-					},
-				)
-			if errors.IsNotFound(err) {
-				return
-			}
-			for {
-				select {
-				case e := <-w.ResultChan():
-					switch e.Type {
-					case watch.Deleted:
-						return
-					case watch.Modified, watch.Added:
-						statusMap.Store(id, ToStatus(e.Object.(*corev1.ConfigMap).Data))
-					}
-				}
-			}
-		}()
+func HandleVPNStatus(cmd *command.VPNOperateCommand) (HealthStatus, error) {
+	if status == nil {
+		return HealthStatus{ConnectStatus: DisConnected, ReserveStatus: NotReversed}, nil
 	}
-	return nil
+	var reverseStatus, connectStatus Health
+	if status.Reverse.GetBelongToMeResources().Has(cmd.Resource) {
+		if v, found := reverseHeathStatus.Load(cmd.Resource); found && v != nil {
+			f := v.(*Func)
+			reverseStatus = f.health
+		} else {
+			reverseStatus = ReversedUnHealth
+		}
+	} else {
+		reverseStatus = NotReversed
+	}
+	if status.Connect.list.Has(util.GetMacAddress().String()) {
+		if connectHealthStatus != nil {
+			connectStatus = connectHealthStatus.health
+		} else {
+			connectStatus = ConnectUnHealth
+		}
+	} else {
+		connectStatus = DisConnected
+	}
+
+	return HealthStatus{ConnectStatus: connectStatus, ReserveStatus: reverseStatus}, nil
+}
+
+type HealthStatus struct {
+	ConnectStatus Health `json:"connectStatus" yaml:"connectStatus"`
+	ReserveStatus Health `json:"reserveStatus" yaml:"reserveStatus"`
 }
 
 func FromStrToConnectTotal(string2 string) ConnectTotal {

@@ -126,7 +126,7 @@ func CreateInboundPod(factory cmdutil.Factory, clientset *kubernetes.Clientset, 
 	if !parsed || err2 != nil {
 		return errors.New("not need")
 	}
-	newName := toInboundPodName(tuple.Resource, tuple.Name)
+	newName := ToInboundPodName(tuple.Resource, tuple.Name)
 	util.DeletePod(clientset, namespace, newName)
 	var sc Scalable
 	switch strings.ToLower(tuple.Resource) {

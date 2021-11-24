@@ -67,7 +67,7 @@ func (crd CustomResourceDefinitionController) getResource() string {
 func (crd *CustomResourceDefinitionController) Reset() error {
 	get, err := crd.clientset.CoreV1().
 		Pods(crd.namespace).
-		Get(context.TODO(), toInboundPodName(crd.getResource(), crd.name), metav1.GetOptions{})
+		Get(context.TODO(), ToInboundPodName(crd.getResource(), crd.name), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

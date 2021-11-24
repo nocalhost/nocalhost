@@ -68,7 +68,7 @@ func (pod PodController) getResource() string {
 func (pod *PodController) Reset() error {
 	get, err := pod.clientset.CoreV1().
 		Pods(pod.namespace).
-		Get(context.TODO(), toInboundPodName(pod.getResource(), pod.name), metav1.GetOptions{})
+		Get(context.TODO(), ToInboundPodName(pod.getResource(), pod.name), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

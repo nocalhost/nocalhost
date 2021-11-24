@@ -12,9 +12,8 @@ import (
 	"nocalhost/internal/nhctl/vpn/driver"
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/log"
+	"strings"
 )
-
-//var reset pkg.ConnectOptions
 
 func init() {
 	vpnResetCmd.Flags().StringVar(&kubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
@@ -56,6 +55,13 @@ var vpnResetCmd = &cobra.Command{
 				return
 			} else {
 				fmt.Println(string(line))
+				if strings.Contains(string(line), util.EndSignOK) {
+					readClose.Close()
+					return
+				} else if strings.Contains(string(line), util.EndSignFailed) {
+					readClose.Close()
+					return
+				}
 			}
 		}
 	},

@@ -206,6 +206,11 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 	go checkClusterStatusCronJob()
 
+	// recover
+	go func() {
+
+	}()
+
 	go reconnectSyncthingIfNeededWithPeriod(time.Second * 30)
 
 	go func() {
@@ -431,6 +436,16 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				reader, writer := io.Pipe()
 				go daemon_handler.HandleSudoVPNOperate(cmd, writer)
 				return reader, err
+			},
+		)
+	case command.VPNStatus:
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				cmd := &command.VPNOperateCommand{}
+				if err = json.Unmarshal(bys, cmd); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+				return daemon_handler.HandleVPNStatus(cmd)
 			},
 		)
 	}

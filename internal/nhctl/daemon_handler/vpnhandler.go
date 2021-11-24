@@ -3,64 +3,69 @@ package daemon_handler
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
+	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
 )
 
 // HandleVPNOperate not sudo daemon, vpn controller
 func HandleVPNOperate(cmd *command.VPNOperateCommand, writer *io.PipeWriter) error {
-	ctx := util.GetContextWithLogger(writer)
-	file, _ := ioutil.ReadFile(cmd.KubeConfig)
-	c, err := clientcmd.RESTConfigFromKubeConfig(file)
-	if err != nil {
+	logCtx := util.GetContextWithLogger(writer)
+	logger := util.GetLoggerFromContext(logCtx)
+	connect := &pkg.ConnectOptions{
+		Logger:         logger,
+		KubeconfigPath: cmd.KubeConfig,
+		Namespace:      cmd.Namespace,
+		Workloads:      []string{cmd.Resource},
+	}
+	if err := connect.InitClient(logCtx); err != nil {
+		logger.Error(util.EndSignFailed)
 		return err
 	}
-	clientSet, err := kubernetes.NewForConfig(c)
-	if err != nil {
+	if err := connect.Prepare(logCtx); err != nil {
+		logger.Error(util.EndSignFailed)
 		return err
 	}
-	_ = remote.NewDHCPManager(clientSet, cmd.Namespace, &util.RouterIP).InitDHCPIfNecessary(ctx)
+	_ = remote.NewDHCPManager(connect.GetClientSet(), cmd.Namespace, &util.RouterIP).InitDHCPIfNecessary(logCtx)
 	client, err := daemon_client.GetDaemonClient(true)
 	switch cmd.Action {
 	case command.Connect:
 		if len(cmd.Resource) != 0 {
-			if r, err := client.SendToSudoDaemonVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Reverse, cmd.Resource); err == nil {
+			if r, err := client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Reverse, cmd.Resource); err == nil {
 				if r != nil {
 					go io.Copy(writer, r)
 				}
 			}
-			err = Update(clientSet, cmd, func(r *ReverseTotal, record ReverseRecord) { r.AddRecord(record) })
+			err = Update(connect.GetClientSet(), cmd, func(r *ReverseTotal, record ReverseRecord) { r.AddRecord(record) })
 		} else {
-			if r, err := client.SendToSudoDaemonVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource); err == nil {
+			if r, err := client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource); err == nil {
 				if r != nil {
 					go io.Copy(writer, r)
 				}
 			}
 		}
 	case command.Reconnect:
-		//err = client.SendToSudoDaemonVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource)
-		//err = client.SendToSudoDaemonVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource)
+		//err = client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource)
+		//err = client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource)
 	case command.DisConnect:
 		if len(cmd.Resource) != 0 {
-			if r, err := client.SendToSudoDaemonVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.ReverseDisConnect, cmd.Resource); err == nil {
+			if r, err := client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.ReverseDisConnect, cmd.Resource); err == nil {
 				if r != nil {
 					go io.Copy(writer, r)
 				}
 			}
 		} else {
-			if r, err := client.SendToSudoDaemonVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource); err == nil {
+			if r, err := client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource); err == nil {
 				if r != nil {
 					go io.Copy(writer, r)
 				}
 			}
 		}
-		err = Update(clientSet, cmd, func(r *ReverseTotal, record ReverseRecord) { r.RemoveRecord(record) })
+		err = Update(connect.GetClientSet(), cmd, func(r *ReverseTotal, record ReverseRecord) { r.RemoveRecord(record) })
 	}
 	return err
 }

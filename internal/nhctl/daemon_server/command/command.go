@@ -30,6 +30,7 @@ const (
 	FlushDirMappingCache  DaemonCommandType = "FlushDirMappingCache"
 	VPNOperate            DaemonCommandType = "VPNOperate"
 	SudoVPNOperate        DaemonCommandType = "SudoVPNOperate"
+	VPNStatus             DaemonCommandType = "VPNStatus"
 
 	PREVIEW_VERSION = 0
 	SUCCESS         = 200
@@ -139,6 +140,7 @@ const (
 	DisConnect        VPNOperation = "disConnect"
 	Reconnect         VPNOperation = "reconnect"
 	Reset             VPNOperation = "reset"
+	Status            VPNOperation = "status"
 )
 
 type Operation string

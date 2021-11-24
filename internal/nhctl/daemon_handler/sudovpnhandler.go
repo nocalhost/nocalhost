@@ -10,10 +10,10 @@ import (
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/log"
 	"sync"
-	"sync/atomic"
 )
 
-var a atomic.Value
+// keep it in memory
+var connectNamespace string
 var lock sync.Mutex
 
 // HandleSudoVPNOperate sudo daemon, vpn executor
@@ -27,31 +27,18 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.Writer) erro
 		Workloads:      []string{cmd.Resource},
 	}
 	if err := connect.InitClient(logCtx); err != nil {
-		log.Error(util.EndSingleFailed)
+		log.Error(util.EndSignFailed)
 		return err
 	}
 	if err := connect.Prepare(logCtx); err != nil {
-		log.Error(util.EndSingleFailed)
+		log.Error(util.EndSignFailed)
 		return err
 	}
 	switch cmd.Action {
 	case command.Connect:
-		lock.Lock()
-		defer lock.Unlock()
-		//if a.Load() != nil && a.Load().(bool) {
-		//
-		//} else {
-		//
-		//}
-		a.Store(true)
-
-		if util.IsPortListening(10800) {
-			return nil
-		}
-
 		ctx, cancelFunc := context.WithCancel(context.TODO())
 		remote.CancelFunctions = append(remote.CancelFunctions, cancelFunc)
-		go func(namespace string, c *pkg.ConnectOptions, a *atomic.Value) {
+		go func(namespace string, c *pkg.ConnectOptions) {
 			for {
 				select {
 				case <-ctx.Done():
@@ -62,7 +49,6 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.Writer) erro
 					}
 					remote.CleanUpTrafficManagerIfRefCountIsZero(c.GetClientSet(), namespace)
 					logger.Info("clean up successful")
-					a.Store(nil)
 					return
 				default:
 					errChan, err := connect.DoConnect(ctx)
@@ -75,7 +61,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.Writer) erro
 					<-errChan
 				}
 			}
-		}(cmd.Namespace, connect, &a)
+		}(cmd.Namespace, connect)
 	case command.DisConnect:
 		//lock.Lock()
 		//defer lock.Unlock()
@@ -100,7 +86,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.Writer) erro
 		//}
 		if err := connect.DoReverse(context.TODO()); err != nil {
 			logger.Errorln(err)
-			logger.Info(util.EndSingleFailed)
+			logger.Info(util.EndSignFailed)
 			return err
 		}
 		logger.Info(util.EndSignOK)
@@ -110,7 +96,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.Writer) erro
 		//}
 		if err := connect.RemoveInboundPod(); err != nil {
 			logger.Errorln(err)
-			logger.Info(util.EndSingleFailed)
+			logger.Info(util.EndSignFailed)
 			return err
 		}
 		logger.Info(util.EndSignOK)

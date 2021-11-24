@@ -18,8 +18,6 @@ import (
 	"strings"
 )
 
-//var disconnect pkg.ConnectOptions
-
 func init() {
 	disconnectCmd.Flags().StringVar(&kubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
 	disconnectCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "namespace")
@@ -56,7 +54,7 @@ var disconnectCmd = &cobra.Command{
 				if strings.Contains(string(line), util.EndSignOK) {
 					readClose.Close()
 					return
-				} else if strings.Contains(string(line), util.EndSingleFailed) {
+				} else if strings.Contains(string(line), util.EndSignFailed) {
 					readClose.Close()
 					return
 				}

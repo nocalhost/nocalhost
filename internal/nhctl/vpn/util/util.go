@@ -263,6 +263,56 @@ func Shell(clientset *kubernetes.Clientset, restclient *rest.RESTClient, config 
 	return strings.TrimRight(stdoutBuf.String(), "\n"), err
 }
 
+func ShellWithStream(clientset *kubernetes.Clientset, restclient *rest.RESTClient, config *rest.Config, podName, namespace, cmd string, writer io.Writer) error {
+	pod, err := clientset.CoreV1().Pods(namespace).Get(context.Background(), podName, metav1.GetOptions{})
+
+	if err != nil {
+		return err
+	}
+	if pod.Status.Phase == v1.PodSucceeded || pod.Status.Phase == v1.PodFailed {
+		err = fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
+		return err
+	}
+	containerName := pod.Spec.Containers[0].Name
+	stdin, _, stderr := dockerterm.StdStreams()
+
+	StreamOptions := exec.StreamOptions{
+		Namespace:     namespace,
+		PodName:       podName,
+		ContainerName: containerName,
+		IOStreams:     genericclioptions.IOStreams{In: stdin, Out: writer, ErrOut: stderr},
+	}
+	Executor := &exec.DefaultRemoteExecutor{}
+	// ensure we can recover the terminal while attached
+	tt := StreamOptions.SetupTTY()
+
+	var sizeQueue remotecommand.TerminalSizeQueue
+	if tt.Raw {
+		// this call spawns a goroutine to monitor/update the terminal size
+		sizeQueue = tt.MonitorSize(tt.GetSize())
+
+		// unset p.Err if it was previously set because both stdout and stderr go over p.Out when tty is
+		// true
+		StreamOptions.ErrOut = nil
+	}
+	return tt.Safe(func() error {
+		req := restclient.Post().
+			Resource("pods").
+			Name(pod.Name).
+			Namespace(pod.Namespace).
+			SubResource("exec")
+		req.VersionedParams(&v1.PodExecOptions{
+			Container: containerName,
+			Command:   []string{"sh", "-c", cmd},
+			Stdin:     StreamOptions.Stdin,
+			Stdout:    StreamOptions.Out != nil,
+			Stderr:    StreamOptions.ErrOut != nil,
+			TTY:       tt.Raw,
+		}, scheme.ParameterCodec)
+		return Executor.Execute("POST", req.URL(), config, StreamOptions.In, StreamOptions.Out, StreamOptions.ErrOut, tt.Raw, sizeQueue)
+	})
+}
+
 func IsWindows() bool {
 	return runtime.GOOS == "windows"
 }
@@ -477,9 +527,9 @@ type PatchOperation struct {
 	Value interface{} `json:"value,omitempty"`
 }
 
-func GenerateKey(ns, kubeconfig string) string {
+func GenerateKey(ns string, kubeconfigBytes []byte) string {
 	h := sha1.New()
-	h.Write([]byte(kubeconfig))
+	h.Write(kubeconfigBytes)
 	return string(h.Sum([]byte(ns)))
 }
 

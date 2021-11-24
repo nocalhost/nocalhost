@@ -53,7 +53,7 @@ func (c *ReplicasController) getResource() string {
 func (c *ReplicasController) Reset() error {
 	get, err := c.clientset.CoreV1().
 		Pods(c.namespace).
-		Get(context.TODO(), toInboundPodName(c.getResource(), c.name), metav1.GetOptions{})
+		Get(context.TODO(), ToInboundPodName(c.getResource(), c.name), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

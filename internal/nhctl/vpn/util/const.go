@@ -9,8 +9,8 @@ const (
 	Connect         string = "Connect"
 	MacToIP         string = "MAC_TO_IP"
 	Splitter        string = "#"
-	EndSignOK       string = "EndSingleOk"
-	EndSingleFailed string = "EndSingleFailed"
+	EndSignOK     string = "EndSignOk"
+	EndSignFailed string = "EndSignFailed"
 )
 
 var IpRange net.IP

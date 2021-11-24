@@ -20,6 +20,7 @@ import (
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
 	"os/exec"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -112,7 +113,7 @@ func (c *ConnectOptions) RemoveInboundPod() error {
 	if !parsed || err2 != nil {
 		return errors.New("not need")
 	}
-	newName := toInboundPodName(tuple.Resource, tuple.Name)
+	newName := ToInboundPodName(tuple.Resource, tuple.Name)
 	var sc Scalable
 	switch strings.ToLower(tuple.Resource) {
 	case "deployment", "deployments":
@@ -422,4 +423,32 @@ func (c *ConnectOptions) GenerateTunIP(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (c *ConnectOptions) ConnectPingRemote() bool {
+	var cmd *exec.Cmd
+	if util.IsWindows() {
+		cmd = exec.Command("ping", util.IpRange.String())
+	} else {
+		cmd = exec.Command("ping", "-c", "4", util.IpRange.String())
+	}
+	compile, _ := regexp.Compile("icmp_seq=(.*?) ttl=(.*?) time=(.*?)")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return false
+	}
+	return compile.MatchString(string(output))
+}
+
+func (c *ConnectOptions) ReverePingLocal() bool {
+	tuple, _, _ := util.SplitResourceTypeName(c.Workloads[0])
+	_, err := util.Shell(
+		c.clientset,
+		c.restclient,
+		c.config,
+		ToInboundPodName(tuple.Resource, tuple.Name),
+		c.Namespace,
+		fmt.Sprintf("ping %s -c 4", c.tunIP),
+	)
+	return err == nil
 }

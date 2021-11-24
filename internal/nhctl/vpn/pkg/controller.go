@@ -11,6 +11,6 @@ type Scalable interface {
 	Reset() error
 }
 
-func toInboundPodName(resourceType, resourceName string) string {
+func ToInboundPodName(resourceType, resourceName string) string {
 	return fmt.Sprintf("%s-%s-shadow", resourceType, resourceName)
 }
