@@ -24,7 +24,7 @@ require (
 	github.com/golang/snappy v0.0.4
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/uuid v1.1.2
-	github.com/hashicorp/golang-lru v0.5.1
+	github.com/hashicorp/golang-lru v0.5.4
 	github.com/heroku/docker-registry-client v0.0.0-20190909225348-afc9e1acc3d5
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/imroc/req v0.3.0
@@ -41,13 +41,14 @@ require (
 	github.com/nocalhost/remotecommand v0.0.0-20210713025133-bfbc2d3e1250
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/olivere/elastic/v7 v7.0.27
-	github.com/onsi/ginkgo v1.12.3 // indirect
+	github.com/onsi/ginkgo v1.14.1
+	github.com/onsi/gomega v1.10.2
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
 	github.com/qiniu/api.v7 v0.0.0-20190520053455-bea02cd22bf4
 	github.com/satori/go.uuid v1.2.0
-	github.com/sirupsen/logrus v1.6.0
+	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/cast v1.3.1
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
@@ -67,13 +68,14 @@ require (
 	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97
 	golang.org/x/mod v0.3.0
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
-	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
+	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
 	golang.org/x/sys v0.0.0-20210806184541-e5e7981a1069
 	golang.org/x/text v0.3.6
 	google.golang.org/grpc v1.35.0
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+	helm.sh/helm/v3 v3.5.4
 	istio.io/api v0.0.0-20210809175348-eff556fb5d8a
 	istio.io/client-go v1.11.0
 	k8s.io/api v0.21.2
@@ -81,11 +83,14 @@ require (
 	k8s.io/cli-runtime v0.21.0-alpha.1
 	k8s.io/client-go v0.21.2
 	k8s.io/kubectl v0.21.0-alpha.1
+	sigs.k8s.io/controller-runtime v0.8.3
 	sigs.k8s.io/kustomize v2.0.3+incompatible
 	sigs.k8s.io/yaml v1.2.0
 )
 
 replace (
+	github.com/docker/distribution => github.com/docker/distribution v0.0.0-20191216044856-a8371794149d
+	github.com/docker/docker => github.com/moby/moby v17.12.0-ce-rc1.0.20200618181300-9dc6525e6118+incompatible
 	github.com/go-playground/validator/v10 => github.com/nocalhost/validator/v10 v10.9.0-nocalhost
 	k8s.io/api => k8s.io/api v0.0.0-20210115125903-c873f2e8ab25
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.0-alpha.1.0.20210121071119-460d10991a52
