@@ -28,7 +28,7 @@ func InitDefaultApplicationInCurrentNs(appName, namespace, kubeconfigPath string
 	}
 
 	// continue initial when secret already exist
-	if err := fakedMeta.Initial(); err != nil && !k8serrors.IsAlreadyExists(err) {
+	if err := fakedMeta.Initial(true); err != nil && !k8serrors.IsAlreadyExists(err) {
 		log.Logf("Init default.application meta failed: %v", err)
 		return app.NewApplicationM(appName, namespace, kubeconfigPath, fakedMeta, true)
 	}
@@ -54,12 +54,6 @@ func InitDefaultApplicationInCurrentNs(appName, namespace, kubeconfigPath string
 
 func InstallApplication(flags *app_flags.InstallFlags, applicationName, kubeconfig, namespace string) (*app.Application, error) {
 	var err error
-
-	//log.Logf("KubeConfig path: %s", kubeconfig)
-	//_, err = ioutil.ReadFile(kubeconfig)
-	//if err != nil {
-	//	return nil, errors2.Wrap(err, "")
-	//}
 
 	// build Application will create the application meta and it's secret
 	// init the application's config

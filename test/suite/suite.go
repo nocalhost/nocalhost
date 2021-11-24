@@ -53,6 +53,7 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 		if err := recover(); err != nil {
 			t.AlertForImagePull()
 			LogsForArchive()
+			logger.Infof(">>> Panic on suit %s <<<", name)
 
 			t.Clean()
 			t.Alert()
@@ -84,8 +85,12 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 
 	logger.Infof("============= Testing (Create Ns)%s  =============\n", name)
 
-	var retryTimes = 10
+	var retryTimes = 5
 	if withBookInfo {
+		defer func() {
+			_ = testcase.UninstallBookInfo(clientForRunner)
+		}()
+
 		var err error
 		for i := 0; i < retryTimes; i++ {
 			timeBeforeInstall := time.Now()
@@ -156,16 +161,6 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 	logger.Infof(
 		"============= Testing done, Cost(%fs) %s =============\n", timeAfter.Sub(timeBefore).Seconds(), name,
 	)
-
-	if withBookInfo {
-		//testcase.Reset(clientForRunner)
-		for i := 0; i < retryTimes; i++ {
-			if err := testcase.UninstallBookInfo(clientForRunner); err != nil {
-				continue
-			}
-			break
-		}
-	}
 }
 
 func (t *T) Clean() {
@@ -212,19 +207,6 @@ func (t *T) AlertForImagePull() {
 }
 
 func LogsForArchive() {
-	if _, ok := os.LookupEnv("LocalTest"); !ok {
-		//log.Info("")
-		//log.Info("")
-		//log.Info("<< == Nocalhost Logs == >>")
-		//log.Info(
-		//	fp.NewFilePath(homedir.HomeDir()).
-		//		RelOrAbs(".nh").
-		//		RelOrAbs("nhctl").
-		//		RelOrAbs("logs").
-		//		RelOrAbs("nhctl.log").
-		//		ReadFile(),
-		//)
-	}
 
 	for _, l := range log.AllTestLogsLocations() {
 		log.Info("")

@@ -20,14 +20,13 @@ var retryTimes = 10
 func Retry(suiteName string, funcs []func() error) {
 
 	logger := log.TestLogger(suiteName)
-	logger.Info(suiteName)
 	var err error
 	for i, f := range funcs {
 		for i := 0; i < retryTimes; i++ {
 			if err = f(); err == nil {
 				break
 			}
-			logger.Infof("Error while exec retry func, %s", err)
+			logger.Infof("Error while exec retry func, %v", err)
 		}
 		clientgoutils.MustI(
 			err, fmt.Sprintf(
