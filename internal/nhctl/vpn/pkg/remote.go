@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-func CreateOutboundRouterPodIfNecessary(clientset *kubernetes.Clientset, namespace string, serverIp *net.IPNet, nodeCIDR []*net.IPNet) (string, error) {
+func CreateOutboundRouterPodIfNecessary(clientset *kubernetes.Clientset, namespace string, serverIp *net.IPNet, nodeCIDR []*net.IPNet, logger *log.Logger) (string, error) {
 	firstPod, i, err3 := polymorphichelpers.GetFirstPod(clientset.CoreV1(),
 		namespace,
 		fields.OneTermEqualSelector("app", util.TrafficManager).String(),
@@ -93,11 +93,13 @@ func CreateOutboundRouterPodIfNecessary(clientset *kubernetes.Clientset, namespa
 	}
 	_, err2 := clientset.CoreV1().Pods(namespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
 	if err2 != nil {
-		log.Fatal(err2)
+		logger.Errorln(err2)
+		return "", err2
 	}
 	watch, err := clientset.CoreV1().Pods(namespace).Watch(context.TODO(), metav1.SingleObject(metav1.ObjectMeta{Name: name}))
 	if err != nil {
-		log.Fatal(err)
+		logger.Errorln(err)
+		return "", err
 	}
 	tick := time.Tick(time.Minute * 2)
 	for {
@@ -109,7 +111,7 @@ func CreateOutboundRouterPodIfNecessary(clientset *kubernetes.Clientset, namespa
 			}
 		case <-tick:
 			watch.Stop()
-			log.Error("timeout")
+			logger.Error("timeout")
 			return "", errors.New("timeout")
 		}
 	}

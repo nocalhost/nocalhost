@@ -3,10 +3,14 @@ package util
 import "net"
 
 const (
-	TrafficManager string = "kubevpn.traffic.manager"
-	OriginData     string = "origin_data"
-	REVERSE        string = "REVERSE"
-	MacToIP        string = "MAC_TO_IP"
+	TrafficManager  string = "kubevpn.traffic.manager"
+	OriginData      string = "origin_data"
+	REVERSE         string = "REVERSE"
+	Connect         string = "Connect"
+	MacToIP         string = "MAC_TO_IP"
+	Splitter        string = "#"
+	EndSignOK       string = "EndSingleOk"
+	EndSingleFailed string = "EndSingleFailed"
 )
 
 var IpRange net.IP

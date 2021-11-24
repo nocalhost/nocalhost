@@ -1,16 +1,21 @@
 package util
 
 import (
+	"bufio"
+	"context"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubectl/pkg/cmd/util"
 	"net"
+	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 var (
@@ -73,4 +78,30 @@ func TestPatchAnnotation(t *testing.T) {
 		"testing",
 	)
 	fmt.Println(err)
+}
+
+func TestLogger(t *testing.T) {
+	reader, writer := io.Pipe()
+	cancel, _ := context.WithCancel(context.WithValue(context.TODO(), "logger", &log.Logger{
+		Out:          writer,
+		Formatter:    new(log.TextFormatter),
+		Hooks:        make(log.LevelHooks),
+		Level:        log.InfoLevel,
+		ExitFunc:     os.Exit,
+		ReportCaller: false,
+	}))
+	dial, _ := net.Dial("", "")
+	go func() {
+		newReader := bufio.NewReader(reader)
+		for {
+			line, _, _ := newReader.ReadLine()
+			fmt.Println(string(line))
+			io.WriteString(dial, string(line))
+		}
+	}()
+	cancel.Value("logger").(*log.Logger).Infoln("this is a test1")
+	cancel.Value("logger").(*log.Logger).Infoln("this is a test2")
+	cancel.Value("logger").(*log.Logger).Infoln("this is a test3")
+
+	time.Sleep(time.Second * 5)
 }

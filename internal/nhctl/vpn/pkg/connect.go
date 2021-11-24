@@ -40,6 +40,7 @@ type ConnectOptions struct {
 	routerIP       string
 	dhcp           *remote.DHCPManager
 	ipUsed         []*net.IPNet
+	Logger         *log.Logger
 }
 
 func (c *ConnectOptions) GetClientSet() *kubernetes.Clientset {
@@ -135,22 +136,23 @@ func (c *ConnectOptions) RemoveInboundPod() error {
 	return nil
 }
 
-func (c *ConnectOptions) InitDHCP() error {
+func (c *ConnectOptions) InitDHCP(ctx context.Context) error {
 	c.dhcp = remote.NewDHCPManager(c.clientset, c.Namespace, &util.RouterIP)
-	err := c.dhcp.InitDHCPIfNecessary()
+	err := c.dhcp.InitDHCPIfNecessary(ctx)
 	if err != nil {
 		return err
 	}
-	return c.GenerateTunIP()
+	return c.GenerateTunIP(ctx)
 }
 
-func (c *ConnectOptions) Prepare() error {
+func (c *ConnectOptions) Prepare(ctx context.Context) error {
 	var err error
 	c.cidrs, err = getCIDR(c.clientset, c.Namespace)
 	if err != nil {
+		util.GetLoggerFromContext(ctx).Warnln(err)
 		return err
 	}
-	if err = c.InitDHCP(); err != nil {
+	if err = c.InitDHCP(ctx); err != nil {
 		return err
 	}
 	var list []string
@@ -168,11 +170,11 @@ func (c *ConnectOptions) Prepare() error {
 
 func (c *ConnectOptions) DoConnect(ctx context.Context) (chan error, error) {
 	var err error
-	c.routerIP, err = CreateOutboundRouterPodIfNecessary(c.clientset, c.Namespace, &util.RouterIP, c.cidrs)
+	c.routerIP, err = CreateOutboundRouterPodIfNecessary(c.clientset, c.Namespace, &util.RouterIP, c.cidrs, c.Logger)
 	if err != nil {
 		return nil, err
 	}
-	log.Info("your ip is " + c.tunIP.String())
+	c.Logger.Info("your ip is " + c.tunIP.String())
 	if !util.IsPortListening(10800) {
 		c.portForward(ctx)
 	}
@@ -223,7 +225,7 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 			func() {
 				defer func() {
 					if err := recover(); err != nil {
-						log.Warnf("recover error: %v, ignore", err)
+						c.Logger.Warnf("recover error: %v, ignore", err)
 					}
 				}()
 				readChan := make(chan struct{})
@@ -240,12 +242,12 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 					stopChan,
 				)
 				if apierrors.IsNotFound(err) {
-					log.Errorln("can not found port-forward resource, err: %v, exiting", err)
+					c.Logger.Errorln("can not found port-forward resource, err: %v, exiting", err)
 					return
 				}
 				if err != nil {
-					log.Errorf("port-forward occurs error, err: %v, retrying", err)
-					time.Sleep(time.Second * 2)
+					c.Logger.Errorf("port-forward occurs error, err: %v, retrying", err)
+					//time.Sleep(time.Second * 2)
 				}
 			}()
 		}
@@ -253,7 +255,7 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 	for readyChanRef == nil {
 	}
 	<-*readyChanRef
-	log.Info("port forward ready")
+	c.Logger.Info("port forward ready")
 }
 
 func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, error) {
@@ -360,7 +362,7 @@ func getCIDR(clientset *kubernetes.Clientset, namespace string) ([]*net.IPNet, e
 	return nil, fmt.Errorf("can not found cidr")
 }
 
-func (c *ConnectOptions) InitClient() (err error) {
+func (c *ConnectOptions) InitClient(ctx context.Context) (err error) {
 	configFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
 	configFlags.KubeConfig = &c.KubeconfigPath
 	c.factory = cmdutil.NewFactory(cmdutil.NewMatchVersionFlags(configFlags))
@@ -379,7 +381,7 @@ func (c *ConnectOptions) InitClient() (err error) {
 			return
 		}
 	}
-	log.Infof("kubeconfig path: %s, namespace: %s, serivces: %v", c.KubeconfigPath, c.Namespace, c.Workloads)
+	util.GetLoggerFromContext(ctx).Infof("kubeconfig path: %s, namespace: %s, serivces: %v", c.KubeconfigPath, c.Namespace, c.Workloads)
 	return
 }
 
@@ -388,7 +390,7 @@ func (c *ConnectOptions) reset() error {
 }
 
 // GenerateTunIP TODO optimize code, can use patch ?
-func (c *ConnectOptions) GenerateTunIP() error {
+func (c *ConnectOptions) GenerateTunIP(ctx context.Context) error {
 	defer func() {
 		if c.tunIP != nil {
 			if util.IsWindows() {

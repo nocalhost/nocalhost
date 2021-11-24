@@ -3,6 +3,7 @@ package util
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -22,7 +23,6 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	runtimeresource "k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/portforward"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_common"
@@ -129,6 +129,7 @@ func PortForwardPod(config *rest.Config, clientset *rest.RESTClient, podName, na
 		Namespace(namespace).
 		Name(podName).
 		SubResource("portforward").
+		//Timeout(time.Second * 30).
 		URL()
 	transport, upgrader, err := spdy.RoundTripperFor(config)
 	if err != nil {
@@ -137,7 +138,7 @@ func PortForwardPod(config *rest.Config, clientset *rest.RESTClient, podName, na
 	}
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, "POST", url)
 	p := []string{portPair}
-	forwarder, err := portforward.NewOnAddresses(dialer, []string{"0.0.0.0"}, p, stopChan, readyChan, os.Stdout, os.Stderr)
+	forwarder, err := NewOnAddresses(dialer, []string{"0.0.0.0"}, p, stopChan, readyChan, os.Stdout, os.Stderr)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -474,4 +475,30 @@ type PatchOperation struct {
 	Op    string      `json:"op"`
 	Path  string      `json:"path"`
 	Value interface{} `json:"value,omitempty"`
+}
+
+func GenerateKey(ns, kubeconfig string) string {
+	h := sha1.New()
+	h.Write([]byte(kubeconfig))
+	return string(h.Sum([]byte(ns)))
+}
+
+func GetContextWithLogger(writer io.Writer) context.Context {
+	ctx, _ := context.WithCancel(context.WithValue(context.TODO(), "logger", &log.Logger{
+		Out:          writer,
+		Formatter:    new(log.TextFormatter),
+		Hooks:        make(log.LevelHooks),
+		Level:        log.InfoLevel,
+		ExitFunc:     os.Exit,
+		ReportCaller: false,
+	}))
+	return ctx
+}
+
+func GetLoggerFromContext(ctx context.Context) *log.Logger {
+	if l := ctx.Value("logger"); l != nil {
+		return l.(*log.Logger)
+	} else {
+		return log.New()
+	}
 }

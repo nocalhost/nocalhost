@@ -2,40 +2,48 @@ package daemon_handler
 
 import (
 	"context"
+	"io"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/dns"
 	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/log"
+	"sync"
+	"sync/atomic"
 )
 
-//var a atomic.Value
-//var lock sync.Mutex
+var a atomic.Value
+var lock sync.Mutex
 
 // HandleSudoVPNOperate sudo daemon, vpn executor
-func HandleSudoVPNOperate(cmd *command.VPNOperateCommand) error {
+func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.Writer) error {
+	logCtx := util.GetContextWithLogger(writer)
+	logger := util.GetLoggerFromContext(logCtx)
 	connect := &pkg.ConnectOptions{
+		Logger:         logger,
 		KubeconfigPath: cmd.KubeConfig,
 		Namespace:      cmd.Namespace,
 		Workloads:      []string{cmd.Resource},
 	}
-	if err := connect.InitClient(); err != nil {
+	if err := connect.InitClient(logCtx); err != nil {
+		log.Error(util.EndSingleFailed)
 		return err
 	}
-	if err := connect.Prepare(); err != nil {
+	if err := connect.Prepare(logCtx); err != nil {
+		log.Error(util.EndSingleFailed)
 		return err
 	}
 	switch cmd.Action {
 	case command.Connect:
-		//lock.Lock()
-		//defer lock.Unlock()
+		lock.Lock()
+		defer lock.Unlock()
 		//if a.Load() != nil && a.Load().(bool) {
 		//
 		//} else {
 		//
 		//}
-		//a.Store(true)
+		a.Store(true)
 
 		if util.IsPortListening(10800) {
 			return nil
@@ -43,18 +51,18 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand) error {
 
 		ctx, cancelFunc := context.WithCancel(context.TODO())
 		remote.CancelFunctions = append(remote.CancelFunctions, cancelFunc)
-		go func(namespace string, c *pkg.ConnectOptions /*, a *atomic.Value*/) {
+		go func(namespace string, c *pkg.ConnectOptions, a *atomic.Value) {
 			for {
 				select {
 				case <-ctx.Done():
-					log.Info("prepare to exit, cleaning up")
+					logger.Info("prepare to exit, cleaning up")
 					dns.CancelDNS()
 					if err := c.ReleaseIP(); err != nil {
-						log.Errorf("failed to release ip to dhcp, err: %v", err)
+						logger.Errorf("failed to release ip to dhcp, err: %v", err)
 					}
 					remote.CleanUpTrafficManagerIfRefCountIsZero(c.GetClientSet(), namespace)
-					log.Info("clean up successful")
-					//a.Store(false)
+					logger.Info("clean up successful")
+					a.Store(nil)
 					return
 				default:
 					errChan, err := connect.DoConnect(ctx)
@@ -62,11 +70,12 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand) error {
 						log.Warn(err)
 						continue
 					}
+					c.Logger.Infoln(util.EndSignOK)
 					// wait for exit
 					<-errChan
 				}
 			}
-		}(cmd.Namespace, connect /*, &a*/)
+		}(cmd.Namespace, connect, &a)
 	case command.DisConnect:
 		//lock.Lock()
 		//defer lock.Unlock()
@@ -80,21 +89,37 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand) error {
 				go function()
 			}
 		}
+		logger.Info(util.EndSignOK)
 	case command.Reconnect:
 
 	case command.Reverse:
+		//if a.Load() == nil {
+		//	if _, err := connect.DoConnect(context.TODO()); err != nil {
+		//		return err
+		//	}
+		//}
 		if err := connect.DoReverse(context.TODO()); err != nil {
+			logger.Errorln(err)
+			logger.Info(util.EndSingleFailed)
 			return err
 		}
+		logger.Info(util.EndSignOK)
 	case command.ReverseDisConnect:
-		if ok, err := IsBelongToMe(connect.GetClientSet().CoreV1().ConfigMaps(connect.Namespace), cmd.Resource); !ok || err != nil {
-			return nil
-		}
+		//if ok, err := IsBelongToMe(connect.GetClientSet().CoreV1().ConfigMaps(connect.Namespace), cmd.Resource); !ok || err != nil {
+		//	return nil
+		//}
 		if err := connect.RemoveInboundPod(); err != nil {
+			logger.Errorln(err)
+			logger.Info(util.EndSingleFailed)
 			return err
 		}
+		logger.Info(util.EndSignOK)
 	case command.Reset:
 
 	}
 	return nil
+}
+
+func init() {
+	util.InitLogger(util.Debug)
 }

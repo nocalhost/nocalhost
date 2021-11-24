@@ -18,7 +18,3 @@ type key string
 func toKey(resourceName, resourceType, app, nid, ns string) key {
 	return key(fmt.Sprintf("%s-%s-%s-%s-%s", ns, nid, app, resourceType, resourceName))
 }
-
-// VPNStatus for get vpn status, sync with secret
-type VPNStatus struct {
-}

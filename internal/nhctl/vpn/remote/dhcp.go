@@ -37,7 +37,7 @@ func NewDHCPManager(client *kubernetes.Clientset, namespace string, addr *net.IP
 }
 
 //	todo optimize dhcp, using mac address, ip and deadline as unit
-func (d *DHCPManager) InitDHCPIfNecessary() error {
+func (d *DHCPManager) InitDHCPIfNecessary(ctx context.Context) error {
 	get, err := d.client.CoreV1().ConfigMaps(d.namespace).Get(context.Background(), util.TrafficManager, metav1.GetOptions{})
 	// already exists, do nothing
 	if err == nil && get != nil {
@@ -59,7 +59,7 @@ func (d *DHCPManager) InitDHCPIfNecessary() error {
 	}
 	_, err = d.client.CoreV1().ConfigMaps(d.namespace).Create(context.Background(), result, metav1.CreateOptions{})
 	if err != nil {
-		log.Errorf("create dhcp error, err: %v", err)
+		util.GetLoggerFromContext(ctx).Errorf("create dhcp error, err: %v", err)
 		return err
 	}
 	return nil
@@ -223,7 +223,9 @@ func ToDHCP(str string) (result DHCPRecordMap) {
 func (maps *DHCPRecordMap) ToString() string {
 	var sb strings.Builder
 	for _, v := range maps.innerMap {
-		sb.WriteString(fmt.Sprintf("%s#%s#%s\n", v.Mac, v.Ip, v.Deadline.String()))
+		sb.WriteString(
+			fmt.Sprintf("%s%s%s%s%s\n", v.Mac, util.Splitter, v.Ip, util.Splitter, v.Deadline.String()),
+		)
 	}
 	return sb.String()
 }

@@ -1,7 +1,11 @@
 package cmds
 
 import (
+	"bufio"
+	"fmt"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"io"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
@@ -41,9 +45,18 @@ var vpnResetCmd = &cobra.Command{
 			return
 		}
 		must(Prepare())
-		err = client.SendVPNOperateCommand(kubeConfig, nameSpace, command.Reconnect, workloads)
+		readClose, err := client.SendVPNOperateCommand(kubeConfig, nameSpace, command.Reconnect, workloads)
 		if err != nil {
 			log.Warn(err)
+			return
+		}
+		stream := bufio.NewReader(readClose)
+		for {
+			if line, _, err := stream.ReadLine(); errors.Is(err, io.EOF) {
+				return
+			} else {
+				fmt.Println(string(line))
+			}
 		}
 	},
 }

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"io"
 	"io/ioutil"
 	"net"
 	"nocalhost/internal/nhctl/app"
@@ -409,25 +410,27 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 			},
 		)
 	case command.VPNOperate:
-		err = Process(
-			conn, func(conn net.Conn) (interface{}, error) {
+		err = ProcessStream(
+			conn, func(conn net.Conn) (io.ReadCloser, error) {
 				cmd := &command.VPNOperateCommand{}
 				if err = json.Unmarshal(bys, cmd); err != nil {
 					return nil, errors.Wrap(err, "")
 				}
-				err = daemon_handler.HandleVPNOperate(cmd)
-				return nil, err
+				reader, writer := io.Pipe()
+				go daemon_handler.HandleVPNOperate(cmd, writer)
+				return reader, err
 			},
 		)
 	case command.SudoVPNOperate:
-		err = Process(
-			conn, func(conn net.Conn) (interface{}, error) {
+		err = ProcessStream(
+			conn, func(conn net.Conn) (io.ReadCloser, error) {
 				cmd := &command.VPNOperateCommand{}
 				if err = json.Unmarshal(bys, cmd); err != nil {
 					return nil, errors.Wrap(err, "")
 				}
-				err = daemon_handler.HandleSudoVPNOperate(cmd)
-				return nil, err
+				reader, writer := io.Pipe()
+				go daemon_handler.HandleSudoVPNOperate(cmd, writer)
+				return reader, err
 			},
 		)
 	}
@@ -437,6 +440,23 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 	}
 }
 
+func ProcessStream(conn net.Conn, fun func(conn net.Conn) (io.ReadCloser, error)) error {
+	n, err := fun(conn)
+	if err != nil {
+		if conn != nil {
+			conn.Close()
+		}
+		return err
+	}
+	defer n.Close()
+	c := make(chan error, 2)
+	go func() {
+		if _, err = io.Copy(conn, n); err != nil {
+			c <- err
+		}
+	}()
+	return <-c
+}
 func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error {
 	defer conn.Close()
 

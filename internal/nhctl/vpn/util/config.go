@@ -38,7 +38,7 @@ var (
 	// KeepAliveTime is the keep alive time period for TCP connection.
 	KeepAliveTime = 180 * time.Second
 	// DialTimeout is the timeout of dial.
-	DialTimeout = 15 * time.Second
+	DialTimeout = 10 * time.Second
 	// HandshakeTimeout is the timeout of handshake.
 	HandshakeTimeout = 5 * time.Second
 	// ConnectTimeout is the timeout for connect.
