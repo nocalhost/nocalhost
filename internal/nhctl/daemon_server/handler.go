@@ -9,8 +9,8 @@ import (
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	k8sutil "nocalhost/pkg/nhctl/k8sutils"
 	"sync"
 	"time"
 )
@@ -20,7 +20,7 @@ import (
 var clusterStatusMap sync.Map
 
 func HandleCheckClusterStatus(cmd *command.CheckClusterStatusCommand) (*daemon_common.CheckClusterStatus, error) {
-	kubeDir := nocalhost.GetOrGenKubeConfigPath(cmd.KubeConfigContent)
+	kubeDir := k8sutil.GetOrGenKubeConfigPath(cmd.KubeConfigContent)
 
 	c, ok := clusterStatusMap.Load(kubeDir)
 	if ok {

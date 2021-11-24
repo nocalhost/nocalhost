@@ -11,6 +11,7 @@ import (
 	_const "nocalhost/internal/nhctl/const"
 	"os"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"strconv"
 	"time"
@@ -128,7 +129,8 @@ func CustomLevelEncoder(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) 
 func WriteToEsWithField(field map[string]interface{}, format string, args ...interface{}) {
 	writeStackToEsWithField("INFO", fmt.Sprintf(format, args...), "", field)
 	if fileEntry != nil {
-		fileEntry.Debugf(format, args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Debugf(format, args...)
 	}
 }
 
@@ -136,7 +138,8 @@ func Debug(args ...interface{}) {
 	writeStackToEs("DEBUG", fmt.Sprintln(args...), "")
 	stdoutLogger.Debug(args...)
 	if fileEntry != nil {
-		fileEntry.Debug(args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Debug(args...)
 	}
 }
 
@@ -144,7 +147,8 @@ func Debugf(format string, args ...interface{}) {
 	writeStackToEs("DEBUG", fmt.Sprintf(format, args...), "")
 	stdoutLogger.Debugf(format, args...)
 	if fileEntry != nil {
-		fileEntry.Debugf(format, args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Debugf(format, args...)
 	}
 }
 
@@ -152,7 +156,8 @@ func Info(args ...interface{}) {
 	writeStackToEs("INFO", fmt.Sprintln(args...), "")
 	stdoutLogger.Info(args...)
 	if fileEntry != nil {
-		fileEntry.Info(args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Info(args...)
 	}
 }
 
@@ -160,7 +165,8 @@ func Infof(format string, args ...interface{}) {
 	writeStackToEs("INFO", fmt.Sprintf(format, args...), "")
 	stdoutLogger.Infof(format, args...)
 	if fileEntry != nil {
-		fileEntry.Infof(format, args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Infof(format, args...)
 	}
 }
 
@@ -168,7 +174,8 @@ func Warn(args ...interface{}) {
 	writeStackToEs("WARN", fmt.Sprintln(args...), "")
 	stdoutLogger.Warn(args...)
 	if fileEntry != nil {
-		fileEntry.Warn(args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Warn(args...)
 	}
 }
 
@@ -176,7 +183,8 @@ func Warnf(format string, args ...interface{}) {
 	writeStackToEs("WARN", fmt.Sprintf(format, args...), "")
 	stdoutLogger.Warnf(format, args...)
 	if fileEntry != nil {
-		fileEntry.Warnf(format, args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Warnf(format, args...)
 	}
 }
 
@@ -184,7 +192,8 @@ func WarnE(err error, message string) {
 	writeStackToEs("WARN", message, fmt.Sprintf("%+v", err))
 
 	if fileEntry != nil {
-		fileEntry.Warnf("%s, err: %+v", message, err)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Warnf("%s, err: %+v", message, err)
 	}
 
 	if err != nil {
@@ -202,7 +211,8 @@ func Error(args ...interface{}) {
 	writeStackToEs("ERROR", fmt.Sprintln(args...), "")
 	stdoutLogger.Error(args...)
 	if fileEntry != nil {
-		fileEntry.Error(args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Error(args...)
 	}
 }
 
@@ -210,14 +220,16 @@ func Errorf(format string, args ...interface{}) {
 	writeStackToEs("ERROR", fmt.Sprintf(format, args...), "")
 	stdoutLogger.Errorf(format, args...)
 	if fileEntry != nil {
-		fileEntry.Errorf(format, args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Errorf(format, args...)
 	}
 }
 
 func ErrorE(err error, message string) {
 	writeStackToEs("ERROR", message, fmt.Sprintf("%+v", err))
 	if fileEntry != nil {
-		fileEntry.Errorf("%s, err: %+v", message, err)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Errorf("%s, err: %+v", message, err)
 	}
 	if err != nil {
 		if message != "" {
@@ -233,7 +245,8 @@ func ErrorE(err error, message string) {
 func Fatal(args ...interface{}) {
 	writeStackToEs("FATAL", fmt.Sprintln(args...), "")
 	if fileEntry != nil {
-		fileEntry.Error(args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Error(args...)
 	}
 	stderrLogger.Fatal(args...)
 }
@@ -241,7 +254,8 @@ func Fatal(args ...interface{}) {
 func Fatalf(format string, args ...interface{}) {
 	writeStackToEs("FATAL", fmt.Sprintf(format, args...), "")
 	if fileEntry != nil {
-		fileEntry.Errorf(format, args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Errorf(format, args...)
 	}
 	stderrLogger.Fatalf(format, args...)
 }
@@ -260,7 +274,8 @@ func FatalE(err error, message string) {
 	}
 
 	if fileEntry != nil {
-		fileEntry.Fatalf("%s, err: %+v", message, err)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Fatalf("%s, err: %+v", message, err)
 	}
 }
 
@@ -277,41 +292,47 @@ func LogE(err error) {
 	}
 	writeStackToEs("LOG", err.Error(), fmt.Sprintf("%+v", err))
 	if fileEntry != nil {
-		fileEntry.Errorf("%+v", err)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Errorf("%+v", err)
 	}
 }
 
 func Log(args ...interface{}) {
 	writeStackToEs("LOG", fmt.Sprintln(args...), "")
 	if fileEntry != nil {
-		fileEntry.Info(args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Info(args...)
 	}
 }
 
 func Logf(format string, args ...interface{}) {
 	writeStackToEs("LOG", fmt.Sprintf(format, args...), "")
 	if fileEntry != nil {
-		fileEntry.Infof(format, args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Infof(format, args...)
 	}
 }
 
 func LogDebugf(format string, args ...interface{}) {
 	writeStackToEs("DEBUG", fmt.Sprintf(format, args...), "")
 	if fileEntry != nil {
-		fileEntry.Debugf(format, args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Debugf(format, args...)
 	}
 }
 
 func TLogf(tag, format string, args ...interface{}) {
 	writeStackToEs("TLOG", fmt.Sprintf(format, args...), "")
 	if fileEntry != nil {
-		fileEntry.With("tag", tag).Infof(format, args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).With("tag", tag).Infof(format, args...)
 	}
 }
 
 func LogStack() {
 	if fileEntry != nil {
-		fileEntry.Debug(string(debug.Stack()))
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Debug(string(debug.Stack()))
 	}
 }
 
@@ -321,7 +342,8 @@ func PWarn(info string) {
 	writeStackToEs("[WARNING]", fmt.Sprintln(info), "")
 	stdoutLogger.Info("[WARNING] " + info)
 	if fileEntry != nil {
-		fileEntry.Warn(info)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Warn(info)
 	}
 }
 
@@ -329,34 +351,39 @@ func PWarnf(format string, args ...interface{}) {
 	writeStackToEs("[WARNING]", fmt.Sprintf(format, args...), "")
 	stdoutLogger.Warnf("[WARNING] "+format, args...)
 	if fileEntry != nil {
-		fileEntry.Warnf(format, args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Warnf(format, args...)
 	}
 }
 
 func PInfo(info string) {
 	stdoutLogger.Info("[INFO] " + info)
 	if fileEntry != nil {
-		fileEntry.Info(info)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Info(info)
 	}
 }
 
 func PInfof(format string, args ...interface{}) {
 	stdoutLogger.Infof("[INFO] "+format, args...)
 	if fileEntry != nil {
-		fileEntry.Infof(format, args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Infof(format, args...)
 	}
 }
 
 func PError(info string) {
 	stdoutLogger.Info("[ERROR] " + info)
 	if fileEntry != nil {
-		fileEntry.Info(info)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Info(info)
 	}
 }
 
 func PErrorf(format string, args ...interface{}) {
 	stdoutLogger.Infof("[ERROR] "+format, args...)
 	if fileEntry != nil {
-		fileEntry.Errorf(format, args...)
+		_, fn, line, _ := runtime.Caller(1)
+		fileEntry.With("fn", fn, "line", line).Errorf(format, args...)
 	}
 }

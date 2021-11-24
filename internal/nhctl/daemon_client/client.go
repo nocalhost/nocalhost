@@ -102,7 +102,6 @@ func getCachedDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	if !isSudoUser && client != nil {
-		log.Log("Cached daemon client get")
 		return client, nil
 	}
 	if isSudoUser && sudoClient != nil {
@@ -366,6 +365,7 @@ func (d *DaemonClient) SendGetResourceInfoCommand(
 	resource,
 	resourceName string,
 	label map[string]string,
+	showHidden bool,
 ) (interface{}, error) {
 	cmd := &command.GetResourceInfoCommand{
 		CommandType: command.GetResourceInfo,
@@ -377,6 +377,7 @@ func (d *DaemonClient) SendGetResourceInfoCommand(
 		Resource:     resource,
 		ResourceName: resourceName,
 		Label:        label,
+		ShowHidden:   showHidden,
 	}
 
 	bys, err := json.Marshal(cmd)
