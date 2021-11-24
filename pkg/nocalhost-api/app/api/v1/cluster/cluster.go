@@ -53,3 +53,12 @@ type ClusterDetailResponse struct {
 type Namespace struct {
 	Namespace string `json:"namespace"`
 }
+
+type ClusterUserMigrateRequest struct {
+	Migrate []NsAndUsers
+}
+
+type NsAndUsers struct {
+	Namespace string
+	Users     []string
+}
