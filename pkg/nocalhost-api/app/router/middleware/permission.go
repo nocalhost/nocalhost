@@ -54,6 +54,7 @@ func whiteList(method, path string) bool {
 		"/v1/cluster/[0-9]+":               "PUT,DELETE",
 		"/v1/cluster/[0-9]+/storage_class": "PUT,DELETE",
 		"/v1/cluster/[0-9]+/gen_namespace": "GET",
+		"/v1/cluster/[0-9]+/migrate":       "POST",
 
 		"/v1/dev_space/[0-9]+/update_resource_limit": "PUT",
 		"/v1/dev_space/[0-9]+":                       "PUT,DELETE",

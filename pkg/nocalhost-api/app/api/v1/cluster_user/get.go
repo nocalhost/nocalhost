@@ -233,7 +233,7 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	_, errn := HasHighPermissionToSomeDevSpace(c, result.ID)
+	_, errn := HasPrivilegeToSomeDevSpace(c, result.ID)
 	var noPermissionToViewOtherKubeconfig = false
 	if errn != nil {
 		if errn != errno.ErrPermissionDenied {

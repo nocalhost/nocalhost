@@ -1,15 +1,15 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 package user
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"time"
 
 	"github.com/jinzhu/gorm"
-	"github.com/pkg/errors"
 
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
@@ -145,7 +145,7 @@ func (repo *userBaseRepo) GetUserByEmail(ctx context.Context, phone string) (*mo
 	user := model.UserBaseModel{}
 	err := repo.db.Where("email = ?", phone).First(&user).Error
 	if err != nil {
-		return nil, errors.Wrap(err, "[user_repo] get user err by email")
+		return nil, err
 	}
 
 	return &user, nil
