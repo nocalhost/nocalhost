@@ -25,8 +25,7 @@ type HelmTemplate struct {
 	Chart ChartTemplate `json:"chart"`
 
 	// +optional
-	Values      string `json:"values"`
-	ReleaseName string `json:"releaseName"`
+	Values string `json:"values"`
 }
 
 type ChartTemplate struct {
