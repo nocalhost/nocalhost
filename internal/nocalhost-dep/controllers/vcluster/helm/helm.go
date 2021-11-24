@@ -91,7 +91,6 @@ func (c *Client) loadChart(chartRef, repoRUL string) (*chart.Chart, error) {
 		Getters: getter.All(c.Settings),
 		Options: []getter.Option{
 			getter.WithBasicAuth(c.Username, c.Password),
-			getter.WithPassCredentialsAll(c.PassCredentialsAll),
 			getter.WithTLSClientConfig(c.CertFile, c.KeyFile, c.CaFile),
 			getter.WithInsecureSkipVerifyTLS(c.InsecureSkipTLSverify),
 		},
@@ -102,9 +101,9 @@ func (c *Client) loadChart(chartRef, repoRUL string) (*chart.Chart, error) {
 	c.setRepo(repoRUL)
 
 	if c.RepoURL != "" {
-		chartURL, err := repo.FindChartInAuthAndTLSAndPassRepoURL(
+		chartURL, err := repo.FindChartInAuthAndTLSRepoURL(
 			c.RepoURL, c.Username, c.Password, chartRef, c.Version, c.CertFile,
-			c.KeyFile, c.CaFile, c.InsecureSkipTLSverify, c.PassCredentialsAll, getter.All(c.Settings))
+			c.KeyFile, c.CaFile, c.InsecureSkipTLSverify, getter.All(c.Settings))
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
