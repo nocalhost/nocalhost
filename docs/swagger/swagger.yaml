@@ -84,6 +84,8 @@ definitions:
         type: integer
       cpu:
         type: integer
+      dev_space_type:
+        type: integer
       id:
         type: integer
       is_base_space:
@@ -102,6 +104,9 @@ definitions:
         type: object
       user_id:
         type: integer
+      virtual_cluster:
+        $ref: '#/definitions/cluster_user.VirtualCluster'
+        type: object
     required:
     - cluster_id
     - user_id
@@ -140,6 +145,15 @@ definitions:
       space_req_mem:
         type: string
       space_storage_capacity:
+        type: string
+    type: object
+  cluster_user.VirtualCluster:
+    properties:
+      service_type:
+        type: string
+      values:
+        type: string
+      version:
         type: string
     type: object
   model.ApplicationClusterModel:
@@ -296,6 +310,8 @@ definitions:
         type: integer
       created_at:
         type: string
+      dev_space_type:
+        type: integer
       id:
         type: integer
       is_base_space:
@@ -1151,6 +1167,35 @@ paths:
       summary: Get cluster storageClass from create cluster
       tags:
       - Cluster
+  /v1/dev_space:
+    post:
+      consumes:
+      - application/json
+      description: Create dev space
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: dev space info
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/cluster_user.ClusterUserCreateRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Create dev space
+      tags:
+      - DevSpace
   /v1/dev_space/{id}:
     delete:
       consumes:
@@ -1198,39 +1243,6 @@ paths:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
       summary: ListAll dev spaces
-      tags:
-      - DevSpace
-    post:
-      consumes:
-      - application/json
-      description: Create dev space
-      parameters:
-      - description: Authorization
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: cluster user info
-        in: body
-        name: CreateAppRequest
-        required: true
-        schema:
-          $ref: '#/definitions/cluster_user.ClusterUserCreateRequest'
-          type: object
-      - description: Application ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/model.ClusterUserModel'
-            type: object
-      summary: Create dev space
       tags:
       - DevSpace
     put:

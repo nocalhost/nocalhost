@@ -889,6 +889,49 @@
                 }
             }
         },
+        "/v1/dev_space": {
+            "post": {
+                "description": "Create dev space",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "Create dev space",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "dev space info",
+                        "name": "CreateAppRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster_user.ClusterUserCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/dev_space/{id}": {
             "get": {
                 "description": "ListAll dev spaces",
@@ -957,54 +1000,6 @@
                             "type": "object",
                             "$ref": "#/definitions/cluster_user.DevSpaceRequest"
                         }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/model.ClusterUserModel"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Create dev space",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "DevSpace"
-                ],
-                "summary": "Create dev space",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Authorization",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "description": "cluster user info",
-                        "name": "CreateAppRequest",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/cluster_user.ClusterUserCreateRequest"
-                        }
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Application ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -1987,6 +1982,9 @@
                 "cpu": {
                     "type": "integer"
                 },
+                "dev_space_type": {
+                    "type": "integer"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -2012,6 +2010,10 @@
                 },
                 "user_id": {
                     "type": "integer"
+                },
+                "virtual_cluster": {
+                    "type": "object",
+                    "$ref": "#/definitions/cluster_user.VirtualCluster"
                 }
             }
         },
@@ -2066,6 +2068,20 @@
                     "type": "string"
                 },
                 "space_storage_capacity": {
+                    "type": "string"
+                }
+            }
+        },
+        "cluster_user.VirtualCluster": {
+            "type": "object",
+            "properties": {
+                "service_type": {
+                    "type": "string"
+                },
+                "values": {
+                    "type": "string"
+                },
+                "version": {
                     "type": "string"
                 }
             }
@@ -2301,6 +2317,9 @@
                 },
                 "created_at": {
                     "type": "string"
+                },
+                "dev_space_type": {
+                    "type": "integer"
                 },
                 "id": {
                     "type": "integer"

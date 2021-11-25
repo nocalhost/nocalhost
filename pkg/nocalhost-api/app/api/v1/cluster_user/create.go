@@ -21,10 +21,9 @@ import (
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
-// @Param CreateAppRequest body cluster_user.ClusterUserCreateRequest true "cluster user info"
-// @Param id path uint64 true "Application ID"
+// @Param CreateAppRequest body cluster_user.ClusterUserCreateRequest true "dev space info"
 // @Success 200 {object} model.ClusterUserModel
-// @Router /v1/dev_space/{id} [post]
+// @Router /v1/dev_space [post]
 func Create(c *gin.Context) {
 	var req ClusterUserCreateRequest
 	defaultNum := uint64(0)
