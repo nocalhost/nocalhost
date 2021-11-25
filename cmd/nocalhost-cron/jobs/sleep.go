@@ -27,22 +27,24 @@ func task() {
 		return
 	}
 	for _, cs := range clusters {
-		// 2. init client-go
-		client, err := clientgo.NewAdminGoClient([]byte(cs.KubeConfig))
-		if err != nil {
-			log.Errorf("Failed to resolve client-go, err: %v", err)
-			continue
-		}
-		// 2. obtain namespaces
-		namespaces, err := client.Clientset().CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			log.Errorf("Failed to resolve namespace list, cluster: %s, err: %v", cs.ClusterName, err)
-			continue
-		}
-		for _, ns := range namespaces.Items {
-			// 3. exec
-			exec(client, &ns)
-		}
+		go func() {
+			// 2. init client-go
+			client, err := clientgo.NewAdminGoClient([]byte(cs.KubeConfig))
+			if err != nil {
+				log.Errorf("Failed to resolve client-go, err: %v", err)
+				return
+			}
+			// 3. obtain namespaces
+			namespaces, err := client.Clientset().CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+			if err != nil {
+				log.Errorf("Failed to resolve namespace list, cluster: %s, err: %v", cs.ClusterName, err)
+				return
+			}
+			for _, ns := range namespaces.Items {
+				// 4. exec
+				exec(client, &ns)
+			}
+		}()
 	}
 }
 
