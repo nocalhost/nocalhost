@@ -13,8 +13,18 @@ import (
 	"time"
 )
 
+// Sleep
+// @Summary Sleep
+// @Description Forced dev space into sleep mode
+// @Tags DevSpace
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path string true "dev space id"
+// @Success 200
+// @Router /v2/dev_space/{id}/sleep [post]
 func Sleep(c *gin.Context) {
-	// 1. obtain devspace
+	// 1. obtain dev space
 	id := cast.ToUint64(c.Param("id"))
 	space, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: id})
 	if err != nil || space == nil {
@@ -58,6 +68,16 @@ func Sleep(c *gin.Context) {
 	api.SendResponse(c, errno.OK, nil)
 }
 
+// Wakeup
+// @Summary Wakeup
+// @Description Forced awakens the dev space
+// @Tags DevSpace
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path string true "dev space id"
+// @Success 200
+// @Router /v2/dev_space/{id}/wakeup [post]
 func Wakeup(c *gin.Context) {
 	// 1. obtain devspace
 	id := cast.ToUint64(c.Param("id"))
@@ -102,6 +122,17 @@ func Wakeup(c *gin.Context) {
 	api.SendResponse(c, errno.OK, nil)
 }
 
+// UpdateSleepConfig
+// @Summary UpdateSleepConfig
+// @Description update sleep config in dev space
+// @Tags DevSpace
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Param id path string true "dev space id"
+// @Param sleep_config body model.SleepConfig true "Sleep Config"
+// @Success 200 {object} model.ClusterUserModel
+// @Router /v2/dev_space/{id}/sleep_config [put]
 func UpdateSleepConfig(c *gin.Context) {
 	// 1. binding
 	var payload model.SleepConfig
