@@ -20,7 +20,7 @@ type ToBe int
 const (
 	ToBeIgnore ToBe = iota
 	ToBeWakeup
-	ToBeSleep
+	ToBeAsleep
 )
 
 const (
@@ -34,6 +34,8 @@ const (
 	kForceSleep = "nocalhost.dev.sleep/force-sleep"
 	kForceWakeup = "nocalhost.dev.sleep/force-wakeup"
 )
+
+var zero int32 = 0
 
 func Inspect(ns *v1.Namespace) (ToBe, error) {
 	if ns.Annotations == nil {
@@ -77,7 +79,7 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 				return ToBeIgnore, nil
 			}
 			println(ns.Name, " Sleep:【" + t1.String() + "】", "Wakeup:【" + t2.String() + "】")
-			return ToBeSleep, nil
+			return ToBeAsleep, nil
 		}
 	}
 	if ns.Annotations[kStatus] == kActive {
@@ -108,7 +110,6 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 	}
 
 	// 2. purging Deployment
-	var zero int32 = 0
 	dps, err := c.Clientset().
 		AppsV1().
 		Deployments(ns).

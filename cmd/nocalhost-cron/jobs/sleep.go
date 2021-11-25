@@ -1,9 +1,7 @@
-package main
+package jobs
 
 import (
 	"context"
-	"github.com/robfig/cron/v3"
-	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service/cluster"
@@ -11,45 +9,16 @@ import (
 	"time"
 
 	"nocalhost/internal/nocalhost-api/sleep"
-	"nocalhost/pkg/nocalhost-agent/tools"
-	"nocalhost/pkg/nocalhost-api/conf"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
-var (
-	config = pflag.StringP("config", "c", "", "config file path.")
-)
-
-func main() {
-	pflag.Parse()
-	// init config
-	if err := conf.Init(*config); err != nil {
-		panic(err)
-	}
-	// init logger
-	conf.InitLog()
-	// init database
-	model.Init()
-	// migrate database
-	model.MigrateDB()
-	// init cron
-	c := cron.New()
-	_, err := c.AddFunc("@every 30s", func() {
-		go handler()
-	})
-	if err != nil {
-		log.Errorf("Failed to start nocalhost-agent, err: %v", err)
-		return
-	}
-	c.Start()
-	log.Info("nocalhost-agent was started successfully.")
-
-	g := tools.Graceful{}
-	g.Wait()
+var Sleep = &Job{
+	Spec: "@every 30s",
+	Task: task,
 }
 
-func handler() {
+func task() {
 	// 1. obtain clusters
 	clusters, err := cluster.NewClusterService().GetList(context.TODO())
 	if err != nil {
@@ -75,7 +44,7 @@ func handler() {
 				continue
 			}
 			// 3. should sleep
-			if act == sleep.ToBeSleep {
+			if act == sleep.ToBeAsleep {
 				// 4. check database
 				record, err := cluster_user.NewClusterUserService().GetFirst(context.TODO(), model.ClusterUserModel{Namespace: ns.Name})
 				if err != nil {
@@ -93,7 +62,7 @@ func handler() {
 				err = cluster_user.
 					NewClusterUserService().
 					Modify(context.TODO(), record.ID, map[string]interface{}{
-						"SleepAt": &now,
+						"SleepAt":  &now,
 						"IsAsleep": true,
 					})
 				if err != nil {
@@ -101,7 +70,6 @@ func handler() {
 					continue
 				}
 				log.Infof("Sleep, ns: %s", ns.Name)
-				continue
 			}
 			// 7. should wakeup
 			if act == sleep.ToBeWakeup {
@@ -121,7 +89,7 @@ func handler() {
 				err = cluster_user.
 					NewClusterUserService().
 					Modify(context.TODO(), record.ID, map[string]interface{}{
-						"SleepAt": nil,
+						"SleepAt":  nil,
 						"IsAsleep": false,
 					})
 				if err != nil {
@@ -133,4 +101,3 @@ func handler() {
 		}
 	}
 }
-

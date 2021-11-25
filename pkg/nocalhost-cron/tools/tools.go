@@ -10,11 +10,11 @@ import (
 // Graceful shutdown
 type Graceful struct {
 	ch    chan os.Signal
-	funcs []func(os.Signal)
+	queue []func(os.Signal)
 }
 
 func (g *Graceful) AddFunc(fn func(os.Signal)) {
-	g.funcs = append(g.funcs, fn)
+	g.queue = append(g.queue, fn)
 }
 
 func (g *Graceful) Wait() {
@@ -24,7 +24,7 @@ func (g *Graceful) Wait() {
 	s := <- g.ch
 	log.Printf("Received os signal: %s", s)
 
-	for _, fn := range g.funcs {
+	for _, fn := range g.queue {
 		fn(s)
 	}
 }
