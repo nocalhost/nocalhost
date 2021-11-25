@@ -249,11 +249,11 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 	return err
 }
 
-func CreateSleepConfig(c *clientgo.GoClient, ns string, config string) error {
+func CreateSleepConfig(c *clientgo.GoClient, ns string, conf model.SleepConfig) error {
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
-				kConfig: config,
+				kConfig: stringify(conf),
 				kStatus: "",
 			},
 		},

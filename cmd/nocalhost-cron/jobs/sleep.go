@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service/cluster"
@@ -38,66 +39,72 @@ func task() {
 			continue
 		}
 		for _, ns := range namespaces.Items {
-			act, err := sleep.Inspect(&ns)
-			if err != nil {
-				log.Errorf("Failed to call `ShouldSleep`, ns: %s, err: %v", ns.Name, err)
-				continue
-			}
-			// 3. should sleep
-			if act == sleep.ToBeAsleep {
-				// 4. check database
-				record, err := cluster_user.NewClusterUserService().GetFirst(context.TODO(), model.ClusterUserModel{Namespace: ns.Name})
-				if err != nil {
-					log.Errorf("Failed to resolve record, ns: %s, err: %v", ns.Name, err)
-					continue
-				}
-				// 5. exec sleep
-				err = sleep.Sleep(client, ns.Name, false)
-				if err != nil {
-					log.Errorf("Failed to sleep, ns: %s, err: %v", ns.Name, err)
-					continue
-				}
-				// 6. update database
-				now := time.Now().UTC()
-				err = cluster_user.
-					NewClusterUserService().
-					Modify(context.TODO(), record.ID, map[string]interface{}{
-						"SleepAt":  &now,
-						"IsAsleep": true,
-					})
-				if err != nil {
-					log.Errorf("Failed to update database, ns: %s, err: %v", ns.Name, err)
-					continue
-				}
-				log.Infof("Sleep, ns: %s", ns.Name)
-			}
-			// 7. should wakeup
-			if act == sleep.ToBeWakeup {
-				// 8. check database
-				record, err := cluster_user.NewClusterUserService().GetFirst(context.TODO(), model.ClusterUserModel{Namespace: ns.Name})
-				if err != nil {
-					log.Errorf("Failed to resolve record, ns: %s, err: %v", ns.Name, err)
-					continue
-				}
-				// 9. exec wakeup
-				err = sleep.Wakeup(client, ns.Name, false)
-				if err != nil {
-					log.Errorf("Failed to wakeup, ns: %s, err: %v", ns.Name, err)
-					continue
-				}
-				// 10. update database
-				err = cluster_user.
-					NewClusterUserService().
-					Modify(context.TODO(), record.ID, map[string]interface{}{
-						"SleepAt":  nil,
-						"IsAsleep": false,
-					})
-				if err != nil {
-					log.Errorf("Failed to update database, ns: %s, err: %v", ns.Name, err)
-					continue
-				}
-				log.Infof("Wakeup, ns: %s", ns.Name)
-			}
+			// 3. exec
+			exec(client, &ns)
 		}
+	}
+}
+
+func exec(c *clientgo.GoClient, ns *v1.Namespace) {
+	// 1. inspect
+	act, err := sleep.Inspect(ns)
+	if err != nil {
+		log.Errorf("Failed to call `ShouldSleep`, ns: %s, err: %v", ns.Name, err)
+		return
+	}
+	// 2. should sleep
+	if act == sleep.ToBeAsleep {
+		// 4. check database
+		record, err := cluster_user.NewClusterUserService().GetFirst(context.TODO(), model.ClusterUserModel{Namespace: ns.Name})
+		if err != nil {
+			log.Errorf("Failed to resolve record, ns: %s, err: %v", ns.Name, err)
+			return
+		}
+		// 3. exec sleep
+		err = sleep.Sleep(c, ns.Name, false)
+		if err != nil {
+			log.Errorf("Failed to sleep, ns: %s, err: %v", ns.Name, err)
+			return
+		}
+		// 4. write to database
+		now := time.Now().UTC()
+		err = cluster_user.
+			NewClusterUserService().
+			Modify(context.TODO(), record.ID, map[string]interface{}{
+				"SleepAt":  &now,
+				"IsAsleep": true,
+			})
+		if err != nil {
+			log.Errorf("Failed to update database, ns: %s, err: %v", ns.Name, err)
+			return
+		}
+		log.Infof("Sleep, ns: %s", ns.Name)
+	}
+	// 5. should wakeup
+	if act == sleep.ToBeWakeup {
+		// 6. check database
+		record, err := cluster_user.NewClusterUserService().GetFirst(context.TODO(), model.ClusterUserModel{Namespace: ns.Name})
+		if err != nil {
+			log.Errorf("Failed to resolve record, ns: %s, err: %v", ns.Name, err)
+			return
+		}
+		// 7. exec wakeup
+		err = sleep.Wakeup(c, ns.Name, false)
+		if err != nil {
+			log.Errorf("Failed to wakeup, ns: %s, err: %v", ns.Name, err)
+			return
+		}
+		// 8. update database
+		err = cluster_user.
+			NewClusterUserService().
+			Modify(context.TODO(), record.ID, map[string]interface{}{
+				"SleepAt":  nil,
+				"IsAsleep": false,
+			})
+		if err != nil {
+			log.Errorf("Failed to update database, ns: %s, err: %v", ns.Name, err)
+			return
+		}
+		log.Infof("Wakeup, ns: %s", ns.Name)
 	}
 }

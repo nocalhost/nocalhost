@@ -1,7 +1,6 @@
 package cluster_user
 
 import (
-	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
 	"nocalhost/internal/nocalhost-api/model"
@@ -140,8 +139,7 @@ func UpdateSleepConfig(c *gin.Context) {
 			return
 		}
 	} else {
-		marshal, _ := json.Marshal(payload)
-		err = sleep.CreateSleepConfig(client, space.Namespace, string(marshal))
+		err = sleep.CreateSleepConfig(client, space.Namespace, payload)
 		if err != nil {
 			api.SendResponse(c, err, nil)
 			return
