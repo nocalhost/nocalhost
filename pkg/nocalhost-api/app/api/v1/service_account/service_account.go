@@ -20,6 +20,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"nocalhost/pkg/nocalhost-api/pkg/manager/vcluster"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 	"sort"
 
@@ -259,6 +260,13 @@ func GenKubeconfig(
 		return
 	}
 	then(nss, privilegeType, kubeConfig)
+}
+
+func GenVirtualClusterKubeconfig(cp model.ClusterPack, cu *model.ClusterUserJoinClusterAndAppAndUser,
+	f func(kubeConfig string)) {
+
+	kubeConfig, _ := vcluster.GetKubeConfig(cp.GetKubeConfig(), cu.SpaceName, cu.Namespace)
+	f(kubeConfig)
 }
 
 func getServiceAccountKubeConfigReader(
