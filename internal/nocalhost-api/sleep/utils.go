@@ -56,8 +56,7 @@ func Inspect(ns *v1.Namespace) (Action, error) {
 		return ToBeWakeup, nil
 	}
 	for _, f := range conf.Schedules {
-		tz := time.FixedZone(strconv.Itoa(*f.UtcOffset), *f.UtcOffset * 60)
-		now := time.Now().In(tz)
+		now := time.Now().In(f.TimeZone())
 		d1 := time.Duration(*f.SleepDay - now.Weekday())
 		d2 := time.Duration(*f.WakeupDay - now.Weekday())
 
@@ -66,10 +65,10 @@ func Inspect(ns *v1.Namespace) (Action, error) {
 		}
 
 		t1 := now.Add(d1 * 24 * time.Hour)
-		t1 = time.Date(t1.Year(), t1.Month(), t1.Day(), f.Hour(f.SleepTime), f.Minute(f.SleepTime), 0,0, tz)
+		t1 = time.Date(t1.Year(), t1.Month(), t1.Day(), f.Hour(f.SleepTime), f.Minute(f.SleepTime), 0, 0, f.TimeZone())
 
 		t2 := now.Add(d2 * 24 * time.Hour)
-		t2 = time.Date(t2.Year(), t2.Month(), t2.Day(), f.Hour(f.WakeupTime), f.Minute(f.WakeupTime), 0,0, tz)
+		t2 = time.Date(t2.Year(), t2.Month(), t2.Day(), f.Hour(f.WakeupTime), f.Minute(f.WakeupTime), 0, 0, f.TimeZone())
 
 		println(ns.Name, " Sleep:【" + t1.String() + "】", "Wakeup:【" + t2.String() + "】")
 		if now.After(t1) && now.Before(t2) {
