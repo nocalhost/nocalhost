@@ -43,6 +43,7 @@ func main() {
 		return
 	}
 	c.Start()
+	log.Info("nocalhost-agent was started successfully.")
 
 	g := tools.Graceful{}
 	g.Wait()

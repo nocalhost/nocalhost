@@ -1,6 +1,7 @@
 package model
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"github.com/pkg/errors"
 	"strconv"
@@ -49,4 +50,8 @@ func (h *SleepConfig) Scan(value interface{}) error {
 		return nil
 	}
 	return json.Unmarshal(b, h)
+}
+
+func (h SleepConfig) Value() (driver.Value, error) {
+	return json.Marshal(h)
 }

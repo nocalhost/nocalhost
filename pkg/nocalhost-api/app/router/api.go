@@ -146,6 +146,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		dv2.POST("/unshare", cluster_user.UnShare)
 		dv2.POST("/:id/sleep", cluster_user.Sleep)
 		dv2.POST("/:id/wakeup", cluster_user.Wakeup)
+		dv2.PUT("/:id/sleep_config", cluster_user.UpdateSleepConfig)
 	}
 
 	// DevSpace
@@ -161,7 +162,6 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		dv.PUT("/:id/update_resource_limit", cluster_user.UpdateResourceLimit)
 		dv.PUT("/:id/update_mesh_dev_space_info", cluster_user.UpdateMeshDevSpaceInfo)
 		dv.GET("/:id/mesh_apps_info", cluster_user.GetAppsInfo)
-		dv.PUT("/:id/sleep_config", cluster_user.UpdateSleepConfig)
 	}
 
 	// Plug-in

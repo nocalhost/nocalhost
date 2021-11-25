@@ -15,11 +15,13 @@ import (
 	"time"
 )
 
-type Action int
+type ToBe int
 
-var ToBeIgnore Action = 0
-var ToBeWakeup Action = 1
-var ToBeSleep  Action = 2
+const (
+	ToBeIgnore ToBe = iota
+	ToBeWakeup
+	ToBeSleep
+)
 
 const (
 	kActive = "active"
@@ -33,7 +35,7 @@ const (
 	kForceWakeup = "nocalhost.dev.sleep/force-wakeup"
 )
 
-func Inspect(ns *v1.Namespace) (Action, error) {
+func Inspect(ns *v1.Namespace) (ToBe, error) {
 	if ns.Annotations == nil {
 		return ToBeIgnore, nil
 	}
@@ -70,11 +72,11 @@ func Inspect(ns *v1.Namespace) (Action, error) {
 		t2 := now.Add(d2 * 24 * time.Hour)
 		t2 = time.Date(t2.Year(), t2.Month(), t2.Day(), f.Hour(f.WakeupTime), f.Minute(f.WakeupTime), 0, 0, f.TimeZone())
 
-		println(ns.Name, " Sleep:【" + t1.String() + "】", "Wakeup:【" + t2.String() + "】")
 		if now.After(t1) && now.Before(t2) {
 			if ns.Annotations[kStatus] == kAsleep {
 				return ToBeIgnore, nil
 			}
+			println(ns.Name, " Sleep:【" + t1.String() + "】", "Wakeup:【" + t2.String() + "】")
 			return ToBeSleep, nil
 		}
 	}
