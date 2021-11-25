@@ -15,15 +15,15 @@ import (
 )
 
 const (
-	IsolateSpace   SpaceType = "IsolateSpace"
-	BadeSpace      SpaceType = "BadeSpace"
-	MeshSpace      SpaceType = "MeshSpace"
-	VirtualCluster SpaceType = "VirtualCluster"
-
 	IsolateSpaceType uint64 = iota
 	BadeSpaceType
 	MeshSpaceType
 	VirtualClusterType
+
+	IsolateSpace   SpaceType = "IsolateSpace"
+	BadeSpace      SpaceType = "BadeSpace"
+	MeshSpace      SpaceType = "MeshSpace"
+	VirtualCluster SpaceType = "VirtualCluster"
 )
 
 var DevSpaceOwnTypeOwner SpaceOwnType = SpaceOwnType{"Owner", 1000}

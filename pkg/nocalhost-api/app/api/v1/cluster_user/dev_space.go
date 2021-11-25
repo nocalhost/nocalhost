@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"math/rand"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
@@ -386,6 +387,11 @@ func (d *DevSpace) initVirtualCluster(clusterRecord *model.ClusterModel, cluster
 	}
 
 	vc := &v1alpha1.VirtualCluster{}
+	vc.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "helm.nocalhost.dev",
+		Version: "v1alpha1",
+		Kind:    "VirtualCluster",
+	})
 	vc.SetName(clusterUser.SpaceName)
 	vc.SetNamespace(clusterUser.Namespace)
 	vc.SetValues(v.Values)
