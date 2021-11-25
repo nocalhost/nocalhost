@@ -19,9 +19,9 @@ func init() {
 }
 
 var vpnStatusCmd = &cobra.Command{
-	Use:   "reset",
-	Short: "reset",
-	Long:  `reset`,
+	Use:   "status",
+	Short: "status",
+	Long:  `status`,
 	PreRun: func(*cobra.Command, []string) {
 		util.InitLogger(util.Debug)
 		if util.IsWindows() {
@@ -29,11 +29,7 @@ var vpnStatusCmd = &cobra.Command{
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		if !util.IsAdmin() {
-			util.RunWithElevated()
-			return
-		}
-		client, err := daemon_client.GetDaemonClient(true)
+		client, err := daemon_client.GetDaemonClient(false)
 		if err != nil {
 			log.Warn(err)
 			return

@@ -3,9 +3,12 @@ package daemon_handler
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/util"
 	"strings"
@@ -23,7 +26,8 @@ const (
 	ReversedUnHealth Health = "ReversedUnHealth"
 )
 
-var status *VPNStatus
+//var status *VPNStatus
+//var statusLock sync.Mutex
 
 // status of mine
 var connectHealthStatus *Func
@@ -51,12 +55,28 @@ type ConnectTotal struct {
 	list sets.String
 }
 
+func (c *ConnectTotal) IsConnected() bool {
+	return c.list.Has(util.GetMacAddress().String())
+}
+
+var defaultStatus = HealthStatus{ConnectStatus: DisConnected, ReserveStatus: NotReversed}
+
 func HandleVPNStatus(cmd *command.VPNOperateCommand) (HealthStatus, error) {
-	if status == nil {
-		return HealthStatus{ConnectStatus: DisConnected, ReserveStatus: NotReversed}, nil
+	kubeconfigBytes, _ := ioutil.ReadFile(cmd.KubeConfig)
+	config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
+	if err != nil {
+		return defaultStatus, err
+	}
+	clientset, err1 := kubernetes.NewForConfig(config)
+	if err1 != nil {
+		return defaultStatus, err1
+	}
+	GetOrGenerateConfigMapWatcher(kubeconfigBytes, cmd.Namespace, clientset.CoreV1().RESTClient())
+	if connectInfo.IsEmpty() {
+		return defaultStatus, nil
 	}
 	var reverseStatus, connectStatus Health
-	if status.Reverse.GetBelongToMeResources().Has(cmd.Resource) {
+	if Reverse(kubeconfigBytes, cmd.Namespace, cmd.Resource) {
 		if v, found := reverseHeathStatus.Load(cmd.Resource); found && v != nil {
 			f := v.(*Func)
 			reverseStatus = f.health
@@ -66,7 +86,9 @@ func HandleVPNStatus(cmd *command.VPNOperateCommand) (HealthStatus, error) {
 	} else {
 		reverseStatus = NotReversed
 	}
-	if status.Connect.list.Has(util.GetMacAddress().String()) {
+	if !connectInfo.IsEmpty() &&
+		(string(connectInfo.kubeconfigBytes) == string(kubeconfigBytes)) &&
+		connectInfo.namespace == cmd.Namespace {
 		if connectHealthStatus != nil {
 			connectStatus = connectHealthStatus.health
 		} else {
@@ -94,10 +116,18 @@ func FromStrToConnectTotal(string2 string) ConnectTotal {
 	return result
 }
 
-func ToStatus(string2 map[string]string) VPNStatus {
+func (c *ConnectTotal) ToString() string {
+	var sb strings.Builder
+	for _, s := range c.list.List() {
+		sb.WriteString(s + "\n")
+	}
+	return sb.String()
+}
+
+func ToStatus(m map[string]string) VPNStatus {
 	return VPNStatus{
-		Reverse: FromStringToReverseTotal(string2[util.REVERSE]),
-		Connect: FromStrToConnectTotal(string2[util.Connect]),
+		Reverse: FromStringToReverseTotal(m[util.REVERSE]),
+		Connect: FromStrToConnectTotal(m[util.Connect]),
 	}
 }
 

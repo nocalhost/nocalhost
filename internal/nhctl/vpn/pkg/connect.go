@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,20 +29,21 @@ import (
 )
 
 type ConnectOptions struct {
-	KubeconfigPath string
-	Namespace      string
-	Workloads      []string
-	nodeConfig     Route
-	clientset      *kubernetes.Clientset
-	restclient     *rest.RESTClient
-	config         *rest.Config
-	factory        cmdutil.Factory
-	cidrs          []*net.IPNet
-	tunIP          *net.IPNet
-	routerIP       string
-	dhcp           *remote.DHCPManager
-	ipUsed         []*net.IPNet
-	Logger         *log.Logger
+	KubeconfigPath  string
+	KubeconfigBytes []byte
+	Namespace       string
+	Workloads       []string
+	nodeConfig      Route
+	clientset       *kubernetes.Clientset
+	restclient      *rest.RESTClient
+	config          *rest.Config
+	factory         cmdutil.Factory
+	cidrs           []*net.IPNet
+	tunIP           *net.IPNet
+	routerIP        string
+	dhcp            *remote.DHCPManager
+	ipUsed          []*net.IPNet
+	Logger          *log.Logger
 }
 
 func (c *ConnectOptions) GetClientSet() *kubernetes.Clientset {
@@ -382,6 +384,7 @@ func (c *ConnectOptions) InitClient(ctx context.Context) (err error) {
 			return
 		}
 	}
+	c.KubeconfigBytes, _ = ioutil.ReadFile(c.KubeconfigPath)
 	util.GetLoggerFromContext(ctx).Infof("kubeconfig path: %s, namespace: %s, serivces: %v", c.KubeconfigPath, c.Namespace, c.Workloads)
 	return
 }

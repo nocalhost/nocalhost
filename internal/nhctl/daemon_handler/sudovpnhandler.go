@@ -13,7 +13,7 @@ import (
 )
 
 // keep it in memory
-var connectNamespace string
+var connected bool
 var lock sync.Mutex
 
 // HandleSudoVPNOperate sudo daemon, vpn executor
@@ -36,6 +36,12 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.Writer) erro
 	}
 	switch cmd.Action {
 	case command.Connect:
+		lock.Lock()
+		defer lock.Unlock()
+		if connected {
+			return nil
+		}
+		connected = true
 		ctx, cancelFunc := context.WithCancel(context.TODO())
 		remote.CancelFunctions = append(remote.CancelFunctions, cancelFunc)
 		go func(namespace string, c *pkg.ConnectOptions) {
@@ -63,11 +69,6 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.Writer) erro
 			}
 		}(cmd.Namespace, connect)
 	case command.DisConnect:
-		//lock.Lock()
-		//defer lock.Unlock()
-		//if a.Load() == nil || !a.Load().(bool) {
-		//	return nil
-		//}
 		// stop reverse resource
 		// stop traffic manager
 		for _, function := range remote.CancelFunctions {
@@ -75,6 +76,9 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.Writer) erro
 				go function()
 			}
 		}
+		lock.Lock()
+		defer lock.Unlock()
+		connected = false
 		logger.Info(util.EndSignOK)
 	case command.Reconnect:
 
