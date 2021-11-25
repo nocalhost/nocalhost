@@ -39,6 +39,8 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.Writer) erro
 		lock.Lock()
 		defer lock.Unlock()
 		if connected {
+			logger.Errorln("already connected")
+			logger.Infoln(util.EndSignFailed)
 			return nil
 		}
 		connected = true

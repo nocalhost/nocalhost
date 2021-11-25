@@ -41,8 +41,8 @@ type Func struct {
 }
 
 type VPNStatus struct {
-	Reverse ReverseTotal
-	Connect ConnectTotal
+	Reverse *ReverseTotal
+	Connect *ConnectTotal
 }
 
 type ReverseTotal struct {
@@ -106,8 +106,8 @@ type HealthStatus struct {
 	ReserveStatus Health `json:"reserveStatus" yaml:"reserveStatus"`
 }
 
-func FromStrToConnectTotal(string2 string) ConnectTotal {
-	result := ConnectTotal{list: sets.NewString()}
+func FromStrToConnectTotal(string2 string) *ConnectTotal {
+	result := &ConnectTotal{list: sets.NewString()}
 	for _, s := range strings.Split(string2, "\n") {
 		if len(s) != 0 {
 			result.list.Insert(s)
@@ -169,8 +169,8 @@ func NewReverseRecordWithWorkloads(workloads string) ReverseRecord {
 	}
 }
 
-func FromStringToReverseTotal(s string) (t ReverseTotal) {
-	t.ele = map[string]sets.String{}
+func FromStringToReverseTotal(s string) (t *ReverseTotal) {
+	t = &ReverseTotal{ele: map[string]sets.String{}}
 	if len(s) == 0 {
 		return
 	}

@@ -23,6 +23,7 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	runtimeresource "k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_common"
@@ -551,4 +552,12 @@ func GetLoggerFromContext(ctx context.Context) *log.Logger {
 	} else {
 		return log.New()
 	}
+}
+
+func GetClientSetByKubeconfigBytes(kubeconfigBytes []byte) (*kubernetes.Clientset, error) {
+	config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
+	if err != nil {
+		return nil, err
+	}
+	return kubernetes.NewForConfig(config)
 }

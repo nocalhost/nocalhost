@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/util/homedir"
 	"nocalhost/pkg/nhctl/log"
 	"path/filepath"
+	"sigs.k8s.io/yaml"
 	"testing"
 	"time"
 )
@@ -243,4 +244,21 @@ func TestNoListNamespacePermission(t *testing.T) {
 	for _, dep := range list {
 		fmt.Println(dep.(metav1.Object).GetName())
 	}
+}
+
+func TestName111(t *testing.T) {
+	s := `spec:
+  template:
+    spec:
+      hostAliases:
+        - hostnames:
+            - aaa
+            - bbb
+          ip: 127.0.0.1
+        - hostnames:
+            - aaa
+            - bbb
+          ip: 127.0.0.1`
+	json, _ := yaml.YAMLToJSON([]byte(s))
+	fmt.Println(string(json))
 }

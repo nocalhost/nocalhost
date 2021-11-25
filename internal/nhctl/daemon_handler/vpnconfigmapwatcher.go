@@ -66,6 +66,10 @@ func (c *ConnectInfo) IsEmpty() bool {
 	return c == nil || len(c.namespace) == 0 || len(c.kubeconfigBytes) == 0
 }
 
+func (c *ConnectInfo) IsSame(kubeconfigBytes []byte, namespace string) bool {
+	return string(kubeconfigBytes) == string(c.kubeconfigBytes) && namespace == c.namespace
+}
+
 type ConfigMapWatcher struct {
 	informer        cache.SharedInformer
 	kubeconfigBytes []byte
@@ -133,9 +137,8 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 }
 
 func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
-	configMap := newObj.(*corev1.ConfigMap)
-	status := ToStatus(configMap.Data)
-	if status.Connect.IsConnected() {
+	newStatus := ToStatus(newObj.(*corev1.ConfigMap).Data)
+	if newStatus.Connect.IsConnected() {
 		if generateKey(connectInfo.kubeconfigBytes, connectInfo.namespace) !=
 			generateKey(h.kubeconfigBytes, h.namespace) && !connectInfo.IsEmpty() {
 			// needs to notify sudo daemon to update connect namespace
@@ -146,9 +149,14 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 		connectInfo.kubeconfigBytes = h.kubeconfigBytes
 		if len(connectInfo.namespace) != 0 {
 			lock.Lock()
-			h.reverseInfo.Insert(status.Reverse.GetBelongToMeResources().List()...)
+			h.reverseInfo.Insert(newStatus.Reverse.GetBelongToMeResources().List()...)
 			lock.Unlock()
 		}
+	}
+	oldStatus := ToStatus(oldObj.(*corev1.ConfigMap).Data)
+	// if connected --> disconnected
+	if oldStatus.Connect.IsConnected() && !newStatus.Connect.IsConnected() {
+		go h.notifyDaemonToDisConnect()
 	}
 }
 
@@ -169,6 +177,18 @@ func (h *resourceHandler) notifyDaemonToConnect() error {
 	}
 	path := nocalhost.GetOrGenKubeConfigPath(string(h.kubeconfigBytes))
 	if _, err = client.SendVPNOperateCommand(path, h.namespace, command.Connect, ""); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (h *resourceHandler) notifyDaemonToDisConnect() error {
+	client, err := daemon_client.GetDaemonClient(true)
+	if err != nil {
+		return err
+	}
+	path := nocalhost.GetOrGenKubeConfigPath(string(h.kubeconfigBytes))
+	if _, err = client.SendVPNOperateCommand(path, h.namespace, command.DisConnect, ""); err != nil {
 		return err
 	}
 	return nil
