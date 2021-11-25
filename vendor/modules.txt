@@ -302,6 +302,9 @@ github.com/qiniu/api.v7/conf
 github.com/qiniu/api.v7/internal/log
 github.com/qiniu/api.v7/reqid
 github.com/qiniu/api.v7/storage
+# github.com/robfig/cron/v3 v3.0.1
+## explicit
+github.com/robfig/cron/v3
 # github.com/russross/blackfriday v1.5.2
 github.com/russross/blackfriday
 # github.com/satori/go.uuid v1.2.0

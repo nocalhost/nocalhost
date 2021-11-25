@@ -47,7 +47,6 @@ func Sleep(c *gin.Context) {
 	err = service.Svc.
 		ClusterUser().
 		Modify(c, id, map[string]interface{}{
-			"ID": id,
 			"SleepAt": &now,
 			"IsAsleep": true,
 		})
@@ -92,7 +91,6 @@ func Wakeup(c *gin.Context) {
 	err = service.Svc.
 		ClusterUser().
 		Modify(c, id, map[string]interface{}{
-			"ID": id,
 			"SleepAt": nil,
 			"IsAsleep": false,
 		})
@@ -135,7 +133,7 @@ func UpdateSleepConfig(c *gin.Context) {
 		return
 	}
 	// 5. update annotations
-	if len(payload.Rules) == 0 {
+	if len(payload.Schedules) == 0 {
 		err = sleep.DeleteSleepConfig(client, space.Namespace)
 		if err != nil {
 			api.SendResponse(c, err, nil)

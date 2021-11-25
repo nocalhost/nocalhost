@@ -5,12 +5,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/spf13/cast"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"strconv"
 	"time"
 )
+
+type Action int
+
+var ToBeIgnore Action = 0
+var ToBeWakeup Action = 1
+var ToBeSleep  Action = 2
 
 const (
 	kActive = "active"
@@ -23,6 +32,58 @@ const (
 	kForceSleep = "nocalhost.dev.sleep/force-sleep"
 	kForceWakeup = "nocalhost.dev.sleep/force-wakeup"
 )
+
+func Inspect(ns *v1.Namespace) (Action, error) {
+	if ns.Annotations == nil {
+		return ToBeIgnore, nil
+	}
+	if len(ns.Annotations[kConfig]) == 0 {
+		return ToBeIgnore, nil
+	}
+	if len(ns.Annotations[kForceWakeup]) > 0 {
+		now := time.Now().UTC()
+		t := time.Unix(cast.ToInt64(ns.Annotations[kForceWakeup]), 0).UTC()
+		if t.Month() == now.Month() && t.Day() == now.Day() {
+			return ToBeIgnore, nil
+		}
+	}
+	var conf model.SleepConfig
+	err := json.Unmarshal([]byte(ns.Annotations[kConfig]), &conf)
+	if err != nil {
+		return ToBeIgnore, err
+	}
+	if len(conf.Schedules) == 0 {
+		return ToBeWakeup, nil
+	}
+	for _, f := range conf.Schedules {
+		tz := time.FixedZone(strconv.Itoa(*f.UtcOffset), *f.UtcOffset * 60)
+		now := time.Now().In(tz)
+		d1 := time.Duration(*f.SleepDay - now.Weekday())
+		d2 := time.Duration(*f.WakeupDay - now.Weekday())
+
+		if *f.WakeupDay < *f.SleepDay {
+			d2 = time.Duration(time.Saturday - *f.SleepDay + *f.WakeupDay + 1)
+		}
+
+		t1 := now.Add(d1 * 24 * time.Hour)
+		t1 = time.Date(t1.Year(), t1.Month(), t1.Day(), f.Hour(f.SleepTime), f.Minute(f.SleepTime), 0,0, tz)
+
+		t2 := now.Add(d2 * 24 * time.Hour)
+		t2 = time.Date(t2.Year(), t2.Month(), t2.Day(), f.Hour(f.WakeupTime), f.Minute(f.WakeupTime), 0,0, tz)
+
+		println(ns.Name, " Sleep:【" + t1.String() + "】", "Wakeup:【" + t2.String() + "】")
+		if now.After(t1) && now.Before(t2) {
+			if ns.Annotations[kStatus] == kAsleep {
+				return ToBeIgnore, nil
+			}
+			return ToBeSleep, nil
+		}
+	}
+	if ns.Annotations[kStatus] == kActive {
+		return ToBeIgnore, nil
+	}
+	return ToBeWakeup, nil
+}
 
 func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 	// 1. check namespace
@@ -157,7 +218,7 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 		return err
 	}
 	for _, st := range sts.Items {
-		n, ok := replicas[kDeployment + ":" + st.Name]
+		n, ok := replicas[kStatefulSet + ":" + st.Name]
 		if ok {
 			st.Spec.Replicas = &n
 			_, err = c.Clientset().
