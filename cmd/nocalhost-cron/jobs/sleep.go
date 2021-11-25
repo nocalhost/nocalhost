@@ -27,6 +27,7 @@ func task() {
 		return
 	}
 	for _, cs := range clusters {
+		// 2. init client-go
 		client, err := clientgo.NewAdminGoClient([]byte(cs.KubeConfig))
 		if err != nil {
 			log.Errorf("Failed to resolve client-go, err: %v", err)

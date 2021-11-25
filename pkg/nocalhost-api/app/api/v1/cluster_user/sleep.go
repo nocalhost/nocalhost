@@ -29,7 +29,7 @@ func Sleep(c *gin.Context) {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
 		return
 	}
-	// 3. obtain client-go
+	// 3. init client-go
 	client, err := clientgo.NewAdminGoClient([]byte(cluster.KubeConfig))
 	if err != nil {
 		api.SendResponse(c, err, nil)
@@ -74,7 +74,7 @@ func Wakeup(c *gin.Context) {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
 		return
 	}
-	// 3. obtain client-go
+	// 3. init client-go
 	client, err := clientgo.NewAdminGoClient([]byte(cluster.KubeConfig))
 	if err != nil {
 		api.SendResponse(c, err, nil)
@@ -125,7 +125,7 @@ func UpdateSleepConfig(c *gin.Context) {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
 		return
 	}
-	// 4. obtain client-go
+	// 4. init client-go
 	client, err := clientgo.NewAdminGoClient([]byte(cluster.KubeConfig))
 	if err != nil {
 		api.SendResponse(c, err, nil)

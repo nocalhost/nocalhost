@@ -38,12 +38,15 @@ const (
 var zero int32 = 0
 
 func Inspect(ns *v1.Namespace) (ToBe, error) {
+	// 1. check annotations
 	if ns.Annotations == nil {
 		return ToBeIgnore, nil
 	}
+	// 2. check sleep config
 	if len(ns.Annotations[kConfig]) == 0 {
 		return ToBeIgnore, nil
 	}
+	// 3. check force sleep
 	if len(ns.Annotations[kForceWakeup]) > 0 {
 		now := time.Now().UTC()
 		t := time.Unix(cast.ToInt64(ns.Annotations[kForceWakeup]), 0).UTC()
@@ -51,6 +54,7 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 			return ToBeIgnore, nil
 		}
 	}
+	// parse sleep config
 	var conf model.SleepConfig
 	err := json.Unmarshal([]byte(ns.Annotations[kConfig]), &conf)
 	if err != nil {
@@ -67,18 +71,18 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 		if *f.WakeupDay < *f.SleepDay {
 			d2 = time.Duration(time.Saturday - *f.SleepDay + *f.WakeupDay + 1)
 		}
-
+		// sleep time
 		t1 := now.Add(d1 * 24 * time.Hour)
 		t1 = time.Date(t1.Year(), t1.Month(), t1.Day(), f.Hour(f.SleepTime), f.Minute(f.SleepTime), 0, 0, f.TimeZone())
-
+		// wakeup time
 		t2 := now.Add(d2 * 24 * time.Hour)
 		t2 = time.Date(t2.Year(), t2.Month(), t2.Day(), f.Hour(f.WakeupTime), f.Minute(f.WakeupTime), 0, 0, f.TimeZone())
 
+		println(ns.Name, " Sleep:【" + t1.String() + "】", "Wakeup:【" + t2.String() + "】")
 		if now.After(t1) && now.Before(t2) {
 			if ns.Annotations[kStatus] == kAsleep {
 				return ToBeIgnore, nil
 			}
-			println(ns.Name, " Sleep:【" + t1.String() + "】", "Wakeup:【" + t2.String() + "】")
 			return ToBeAsleep, nil
 		}
 	}
