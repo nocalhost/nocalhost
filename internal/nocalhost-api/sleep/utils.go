@@ -42,11 +42,15 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 	if ns.Annotations == nil {
 		return ToBeIgnore, nil
 	}
-	// 2. check sleep config
-	if len(ns.Annotations[kConfig]) == 0 {
-		return ToBeIgnore, nil
+	// 2. check force sleep
+	if len(ns.Annotations[kForceSleep]) > 0 {
+		now := time.Now().UTC()
+		t := time.Unix(cast.ToInt64(ns.Annotations[kForceSleep]), 0).UTC()
+		if t.Month() == now.Month() && t.Day() == now.Day() {
+			return ToBeIgnore, nil
+		}
 	}
-	// 3. check force sleep
+	// 3. check force wakeup
 	if len(ns.Annotations[kForceWakeup]) > 0 {
 		now := time.Now().UTC()
 		t := time.Unix(cast.ToInt64(ns.Annotations[kForceWakeup]), 0).UTC()
@@ -54,7 +58,14 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 			return ToBeIgnore, nil
 		}
 	}
-	// parse sleep config
+	// 4. check sleep config
+	if len(ns.Annotations[kConfig]) == 0 {
+		if ns.Annotations[kStatus] == kAsleep {
+			return ToBeWakeup, nil
+		}
+		return ToBeIgnore, nil
+	}
+	// 5. parse sleep config
 	var conf model.SleepConfig
 	err := json.Unmarshal([]byte(ns.Annotations[kConfig]), &conf)
 	if err != nil {
@@ -63,6 +74,7 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 	if len(conf.Schedules) == 0 {
 		return ToBeWakeup, nil
 	}
+	// 6. match sleep config
 	for _, f := range conf.Schedules {
 		now := time.Now().In(f.TimeZone())
 		d1 := time.Duration(*f.SleepDay - now.Weekday())
@@ -79,6 +91,7 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 		t2 = time.Date(t2.Year(), t2.Month(), t2.Day(), f.Hour(f.WakeupTime), f.Minute(f.WakeupTime), 0, 0, f.TimeZone())
 
 		println(ns.Name, " Sleep:【" + t1.String() + "】", "Wakeup:【" + t2.String() + "】")
+
 		if now.After(t1) && now.Before(t2) {
 			if ns.Annotations[kStatus] == kAsleep {
 				return ToBeIgnore, nil
@@ -86,6 +99,7 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 			return ToBeAsleep, nil
 		}
 	}
+	// 7. there are no matching rules, then dev space need to be woken up.
 	if ns.Annotations[kStatus] == kActive {
 		return ToBeIgnore, nil
 	}
