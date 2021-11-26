@@ -473,3 +473,75 @@ jobs:
           --data-urlencode 'originUrl=https://github.com/nocalhost/nocalhost.git' \
           --data-urlencode 'name=nocalhost' \
           --data-urlencode 'type=1'
+
+  release-helm-chart:
+    name: Release Nocalhost Helm Chart
+    needs: [release-nhctl, release-docker-image]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Helm tool installer
+        uses: Azure/setup-helm@v1
+        with:
+          version: "v3.6.3"
+
+      - name: Helm plugin installer
+        run: |
+          helm plugin install https://e.coding.net/coding-public/helm-push
+
+      - name: Add helm repo
+        run: |
+          helm repo add --username ${{ secrets.CODING_ARTIFACTS_USER }} --password ${{ secrets.CODING_ARTIFACTS_PASS }} nocalhost "https://nocalhost-helm.pkg.coding.net/nocalhost/nocalhost"
+          helm repo add --username ${{ secrets.CODING_ARTIFACTS_USER }} --password ${{ secrets.CODING_ARTIFACTS_PASS }} nocalhost-dep "https://nocalhost-helm.pkg.coding.net/nocalhost/helm"
+
+      - name: Change chart version
+        run: |
+          VERSION=${GITHUB_REF#refs/*/}
+          CHART_VERSION=${VERSION/#v/}
+          sed -i "s/^appVersion:.*$/appVersion: \"${VERSION}\"/;s/^version:.*$/version: ${CHART_VERSION}/" deployments/chart/Chart.yaml
+          sed -i "s/tag:.*$/tag: \"${VERSION}\"/" deployments/chart/values.yaml
+          sed -i "s/^appVersion:.*$/appVersion: \"${VERSION}\"/;s/^version:.*$/version: ${CHART_VERSION}/" deployments/dep-chart/Chart.yaml
+          sed -i "s/tag:.*$/tag: \"${VERSION}\"/" deployments/dep-chart/values.yaml
+
+      - name: Push to helm repo
+        run: |
+          helm push deployments/chart nocalhost
+          helm push deployments/dep-chart nocalhost-dep
+
+      - name: Tar chart
+        run: |
+          tar --transform 's/^deployments\/chart/nocalhost/' -zcf nocalhost-server-chart.tar.gz deployments/chart
+          shasum -a 256 nocalhost-server-chart.tar.gz | awk '{print $1}' > nocalhost-server-chart.tar.gz-SHA256
+
+      - name: Download UPLOAD_URL
+        uses: actions/download-artifact@v2
+        with:
+          name: UPLOAD_URL
+
+      - name: Get Release UPLOAD_URL
+        id: get_release_info
+        run: |
+          UploadUrl=$(cat ./UPLOAD_URL)
+          echo "::set-output name=upload_url::$UploadUrl"
+
+      - name: Upload Release Asset Nocalhost Server Chart
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          asset_path: nocalhost-server-chart.tar.gz
+          asset_name: nocalhost-server-chart.tar.gz
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Asset Nocalhost Server Chart SHA256
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          asset_path: nocalhost-server-chart.tar.gz-SHA256
+          asset_name: nocalhost-server-chart.tar.gz-SHA256
+          asset_content_type: application/octet-stream
