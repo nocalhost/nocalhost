@@ -7,7 +7,6 @@ package resouce_cache
 
 import (
 	"crypto/sha1"
-	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -100,13 +99,6 @@ func (r *ResourceEventHandlerFuncs) handle() {
 			set.lock.Unlock()
 		}
 	}
-	maps.Range(func(key, value interface{}) bool {
-		value.(*sync.Map).Range(func(key, value interface{}) bool {
-			fmt.Println(value)
-			return true
-		})
-		return true
-	})
 }
 
 func (r *ResourceEventHandlerFuncs) OnAdd(interface{}) {
