@@ -1398,63 +1398,6 @@
                 }
             }
         },
-        "/v1/plugin/application/{id}/dev_space/{spaceId}/plugin_sync": {
-            "put": {
-                "description": "Plug-in Update app installation status",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Plug-in"
-                ],
-                "summary": "Plug-in Update app installation status",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Authorization",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Application ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "DevSpace ID",
-                        "name": "spaceId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "The application update info",
-                        "name": "CreateAppRequest",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/applications.UpdateApplicationInstallRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/api.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/v1/plugin/dev_space": {
             "get": {
                 "description": "Plug-in access to applications (including installation status)",
@@ -1852,6 +1795,128 @@
                     }
                 }
             }
+        },
+        "/v2/dev_space/{id}/sleep": {
+            "post": {
+                "description": "Forced dev space into sleep mode",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "Sleep",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "dev space id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/v2/dev_space/{id}/sleep_config": {
+            "put": {
+                "description": "update sleep config in dev space",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "UpdateSleepConfig",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "dev space id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Sleep Config",
+                        "name": "sleep_config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.SleepConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v2/dev_space/{id}/wakeup": {
+            "post": {
+                "description": "Forced awakens the dev space",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "Wakeup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "dev space id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1894,17 +1959,6 @@
                 "public": {
                     "type": "integer"
                 },
-                "status": {
-                    "type": "integer"
-                }
-            }
-        },
-        "applications.UpdateApplicationInstallRequest": {
-            "type": "object",
-            "required": [
-                "status"
-            ],
-            "properties": {
                 "status": {
                     "type": "integer"
                 }
@@ -2305,6 +2359,9 @@
                 "id": {
                     "type": "integer"
                 },
+                "is_asleep": {
+                    "type": "boolean"
+                },
                 "is_base_space": {
                     "type": "boolean"
                 },
@@ -2316,6 +2373,13 @@
                 },
                 "namespace": {
                     "type": "string"
+                },
+                "sleep_at": {
+                    "type": "string"
+                },
+                "sleep_config": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.SleepConfig"
                 },
                 "space_name": {
                     "type": "string"
@@ -2410,6 +2474,65 @@
                 },
                 "used": {
                     "type": "number"
+                }
+            }
+        },
+        "model.Schedule": {
+            "type": "object",
+            "required": [
+                "sleep_day",
+                "sleep_time",
+                "utc_offset",
+                "wakeup_day",
+                "wakeup_time"
+            ],
+            "properties": {
+                "sleep_day": {
+                    "type": "integer",
+                    "enum": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ]
+                },
+                "sleep_time": {
+                    "description": "eg. 20:00, 23:55",
+                    "type": "string"
+                },
+                "utc_offset": {
+                    "description": "minutes east of UTC",
+                    "type": "integer"
+                },
+                "wakeup_day": {
+                    "type": "integer",
+                    "enum": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ]
+                },
+                "wakeup_time": {
+                    "description": "eg. 08:00, 09:30",
+                    "type": "string"
+                }
+            }
+        },
+        "model.SleepConfig": {
+            "type": "object",
+            "properties": {
+                "schedules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Schedule"
+                    }
                 }
             }
         },
