@@ -9,10 +9,12 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strconv"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubectl/pkg/scheme"
 
@@ -72,6 +74,54 @@ func GetKubeConfig(ClusterKubeConfig, name, namespace string) (string, error) {
 	}); err != nil {
 		return "", err
 	}
+	kubeConfig, err := clientcmd.Load(stdout.Bytes())
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
 
-	return stdout.String(), nil
+	svc, err := goClient.GetService(namespace, name)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+
+	var addr, port string
+	if svc.Spec.Type == corev1.ServiceTypeNodePort {
+		nodes, err := goClient.GetClusterNode()
+		if err != nil {
+			return "", errors.WithStack(err)
+		}
+		if len(nodes.Items) == 0 {
+			return "", errors.New("can not find nodes")
+		}
+
+		addrs := nodes.Items[0].Status.Addresses
+
+		for _, a := range addrs {
+			if a.Type == corev1.NodeExternalIP {
+				addr = a.Address
+				break
+			}
+		}
+	}
+	if addr != "" {
+		ports := svc.Spec.Ports
+		for _, p := range ports {
+			if p.TargetPort.String() == "8443" {
+				port = strconv.Itoa(int(p.NodePort))
+			}
+		}
+	}
+
+	if addr != "" && port != "" {
+		for cluster := range kubeConfig.Clusters {
+			kubeConfig.Clusters[cluster].Server = fmt.Sprintf("https://%s:%s", addr, port)
+		}
+	}
+
+	out, err := clientcmd.Write(*kubeConfig)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+
+	return string(out), nil
 }
