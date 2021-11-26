@@ -57,19 +57,19 @@ func exec(c *clientgo.GoClient, ns *v1.Namespace) {
 	}
 	// 2. should sleep
 	if act == sleep.ToBeAsleep {
-		// 4. check database
+		// 3. check database
 		record, err := cluster_user.NewClusterUserService().GetFirst(context.TODO(), model.ClusterUserModel{Namespace: ns.Name})
 		if err != nil {
 			log.Errorf("Failed to resolve record, ns: %s, err: %v", ns.Name, err)
 			return
 		}
-		// 3. exec sleep
+		// 4. exec sleep
 		err = sleep.Sleep(c, ns.Name, false)
 		if err != nil {
 			log.Errorf("Failed to sleep, ns: %s, err: %v", ns.Name, err)
 			return
 		}
-		// 4. write to database
+		// 5. write to database
 		now := time.Now().UTC()
 		err = cluster_user.
 			NewClusterUserService().
@@ -83,21 +83,21 @@ func exec(c *clientgo.GoClient, ns *v1.Namespace) {
 		}
 		log.Infof("Sleep, ns: %s", ns.Name)
 	}
-	// 5. should wakeup
+	// 6. should wakeup
 	if act == sleep.ToBeWakeup {
-		// 6. check database
+		// 7. check database
 		record, err := cluster_user.NewClusterUserService().GetFirst(context.TODO(), model.ClusterUserModel{Namespace: ns.Name})
 		if err != nil {
 			log.Errorf("Failed to resolve record, ns: %s, err: %v", ns.Name, err)
 			return
 		}
-		// 7. exec wakeup
+		// 8. exec wakeup
 		err = sleep.Wakeup(c, ns.Name, false)
 		if err != nil {
 			log.Errorf("Failed to wakeup, ns: %s, err: %v", ns.Name, err)
 			return
 		}
-		// 8. update database
+		// 9. update database
 		err = cluster_user.
 			NewClusterUserService().
 			Modify(context.TODO(), record.ID, map[string]interface{}{
