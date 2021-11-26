@@ -40,6 +40,12 @@ jobs:
           name: synchthing-linux-cache-${GITHUB_SHA}
           path: ./
 
+      - name: Get synchting linux arm64 cache
+        uses: actions/download-artifact@v2
+        with:
+          name: synchthing-linux-arm64-cache-${GITHUB_SHA}
+          path: ./
+
       - name: Build nhctl
         env:
           VERSION: ${{ env.RELEASE_VERSION }}
@@ -55,7 +61,7 @@ jobs:
       - name: Release Note
         id: release-note
         run: |
-          echo "$(./release-note.sh ${{ env.PREVERSION }} ${{ env.RELEASE_VERSION }})" > release_note.md
+          echo "$(./scripts/release/release-note.sh ${{ env.PREVERSION }} ${{ env.RELEASE_VERSION }})" > release_note.md
 
       - name: Create nhctl Pre Release
         id: create_pre_release
@@ -177,6 +183,16 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: build/nhctl-linux-amd64-SHA256
           asset_name: nhctl-linux-amd64-SHA256
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/nhctl-linux-arm64
+          asset_name: nhctl-linux-arm64
           asset_content_type: application/octet-stream
 
       - name: Push nhctl to Coding Artifacts
@@ -431,6 +447,10 @@ jobs:
         working-directory: ./syncthing-source
         run: go run build.go -nocalhostVersion=${{ env.RELEASE_VERSION }} -nocalhostCommitId="${GITHUB_SHA}" -goarch amd64 tar
 
+      - name: Build syncthing-arm64
+        working-directory: ./syncthing-source
+        run: go run build.go -nocalhostVersion=${{ env.RELEASE_VERSION }} -nocalhostCommitId="${GITHUB_SHA}" -goarch arm64 tar
+
       - name: Push to Coding Articact
         working-directory: ./syncthing-source
         run: |
@@ -441,6 +461,12 @@ jobs:
         with:
           path: ./syncthing-source/syncthing-linux-amd64.tar.gz
           name: synchthing-linux-cache-${GITHUB_SHA}
+
+      - name: Upload linux syncthing to artifact
+        uses: actions/upload-artifact@v2
+        with:
+          path: ./syncthing-source/syncthing-linux-arm64.tar.gz
+          name: synchthing-linux-arm64-cache-${GITHUB_SHA}
 
   build-syncthing-macos-windows:
     name: Build syncthing macos
