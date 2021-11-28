@@ -146,7 +146,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		dv2.POST("/unshare", cluster_user.UnShare)
 		dv2.POST("/:id/sleep", cluster_user.Sleep)
 		dv2.POST("/:id/wakeup", cluster_user.Wakeup)
-		dv2.PUT("/:id/sleep_config", cluster_user.UpdateSleepConfig)
+		dv2.PUT("/:id/sleep_config", cluster_user.ApplySleepConfig)
 	}
 
 	// DevSpace

@@ -10,6 +10,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"nocalhost/internal/nocalhost-api/model"
+	"nocalhost/internal/nocalhost-api/service"
+	"nocalhost/internal/nocalhost-api/service/cluster_user"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"strconv"
 	"time"
@@ -107,16 +109,20 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 }
 
 func Sleep(c* clientgo.GoClient, ns string, force bool) error {
-	// 1. check namespace
+	// 1. check record
+	record, err := cluster_user.NewClusterUserService().GetFirst(context.TODO(), model.ClusterUserModel{Namespace: ns})
+	if err != nil {
+		return err
+	}
+	// 2. check namespace
 	namespace, err := c.Clientset().
 		CoreV1().
 		Namespaces().
 		Get(context.TODO(), ns, metav1.GetOptions{})
-
 	if err != nil {
 		return err
 	}
-
+	// 3. check replicas
 	var replicas map[string]int32
 	if namespace.Annotations == nil || len(namespace.Annotations[kReplicas]) == 0 {
 		replicas = make(map[string]int32)
@@ -126,8 +132,7 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 			return err
 		}
 	}
-
-	// 2. purging Deployment
+	// 4. purging Deployment
 	dps, err := c.Clientset().
 		AppsV1().
 		Deployments(ns).
@@ -148,7 +153,7 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 			}
 		}
 	}
-	// 3. purging StatefulSet
+	// 5. purging StatefulSet
 	sts, err := c.Clientset().
 		AppsV1().
 		StatefulSets(ns).
@@ -169,7 +174,7 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 			}
 		}
 	}
-	// 4. update annotations
+	// 6. update annotations
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
@@ -184,31 +189,43 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 		CoreV1().
 		Namespaces().
 		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
-	return err
+	if err != nil {
+		return err
+	}
+	// 7. write to database
+	now := time.Now().UTC()
+	return cluster_user.
+		NewClusterUserService().
+		Modify(context.TODO(), record.ID, map[string]interface{}{
+			"SleepAt":  &now,
+			"IsAsleep": true,
+		})
 }
 
 func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
-	// 1. check namespace
+	// 1. check record
+	record, err := cluster_user.NewClusterUserService().GetFirst(context.TODO(), model.ClusterUserModel{Namespace: ns})
+	if err != nil {
+		return err
+	}
+	// 2. check namespace
 	namespace, err := c.Clientset().
 		CoreV1().
 		Namespaces().
 		Get(context.TODO(), ns, metav1.GetOptions{})
-
 	if err != nil {
 		return err
 	}
-
+	// 3. check replicas
 	if namespace.Annotations == nil || len(namespace.Annotations[kReplicas]) == 0 {
 		return errors.New(fmt.Sprintf("cannot find `%s` from annotations", kReplicas))
 	}
-
 	var replicas map[string]int32
 	err = json.Unmarshal([]byte(namespace.Annotations[kReplicas]), &replicas)
 	if err != nil {
 		return err
 	}
-
-	// 2. restore Deployment
+	// 4. restore Deployment
 	dps, err := c.Clientset().
 		AppsV1().
 		Deployments(ns).
@@ -229,7 +246,7 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 			}
 		}
 	}
-	// 3. restore StatefulSet
+	// 5. restore StatefulSet
 	sts, err := c.Clientset().
 		AppsV1().
 		StatefulSets(ns).
@@ -250,7 +267,7 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 			}
 		}
 	}
-	// 4. update annotations
+	// 6. update annotations
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
@@ -264,41 +281,42 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 		CoreV1().
 		Namespaces().
 		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
-	return err
+	if err != nil {
+		return err
+	}
+	// 7. write to database
+	return cluster_user.
+		NewClusterUserService().
+		Modify(context.TODO(), record.ID, map[string]interface{}{
+			"SleepAt":  nil,
+			"IsAsleep": false,
+		})
 }
 
-func CreateSleepConfig(c *clientgo.GoClient, ns string, conf model.SleepConfig) error {
+func ApplySleepConfig(c *clientgo.GoClient, id uint64, ns string, conf model.SleepConfig) (*model.ClusterUserModel, error) {
+	// 1. update annotations
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
-				kConfig: stringify(conf),
+				kConfig: ternary(len(conf.Schedules) == 0, "" , stringify(conf)).(string),
 				kStatus: "",
 			},
 		},
 	})
-
 	_, err := c.Clientset().
 		CoreV1().
 		Namespaces().
 		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
-	return err
-}
 
-func DeleteSleepConfig(c *clientgo.GoClient, ns string) error {
-	patch, _ := json.Marshal(map[string]interface{}{
-		"metadata": map[string]interface{}{
-			"annotations": map[string]string{
-				kConfig: "",
-				kStatus: "",
-			},
-		},
+	// 2. write to database
+	result, err := service.Svc.ClusterUser().Update(context.TODO(), &model.ClusterUserModel{
+		ID: id,
+		SleepConfig: &conf,
 	})
-
-	_, err := c.Clientset().
-		CoreV1().
-		Namespaces().
-		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func stringify(v interface{}) string {
