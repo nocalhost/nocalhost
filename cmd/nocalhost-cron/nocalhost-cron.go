@@ -55,7 +55,7 @@ func health() {
 	app := gin.Default()
 	app.GET("/health", func (c *gin.Context) {
 		c.JSON(http.StatusOK, map[string]string{
-			"Message": "nocalhost-cron is healthy",
+			"message": "nocalhost-cron is healthy",
 		})
 	})
 
