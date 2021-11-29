@@ -20,11 +20,11 @@ import (
 )
 
 func init() {
-	InitCmd.AddCommand(initConfigCommand)
+	rootCmd.AddCommand(cliCommand)
 }
 
-var initConfigCommand = &cobra.Command{
-	Use:   "config",
+var cliCommand = &cobra.Command{
+	Use:   "cli",
 	Short: "",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
