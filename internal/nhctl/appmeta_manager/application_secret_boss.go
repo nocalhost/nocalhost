@@ -100,6 +100,7 @@ func GetApplicationMeta(ns, appName string, configBytes []byte) *appmeta.Applica
 	if meta.IsNotInstall() {
 		appsWithAnnotations := resouce_cache.GetAllAppNameByNamespace(configBytes, ns)
 		if appsWithAnnotations.Has(appName) {
+			log.Infof("fffuck3 able to creat app %s",appName)
 
 			if err := meta.DoWithTempOperator(
 				configBytes,
@@ -120,6 +121,7 @@ func GetApplicationMeta(ns, appName string, configBytes []byte) *appmeta.Applica
 						return err
 					}
 
+					log.Infof("fffuck4 success to creat app %s",appName)
 					return nil
 				},
 			); err != nil {

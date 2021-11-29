@@ -7,6 +7,7 @@ package resouce_cache
 
 import (
 	"crypto/sha1"
+	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -92,6 +93,8 @@ func (r *ResourceEventHandlerFuncs) handle() {
 		object := i.(metav1.Object)
 		if len(object.GetNamespace()) != 0 {
 			v, _ := namespaceToApp.LoadOrStore(object.GetNamespace(), sets.NewString())
+			name := getAppName(i)
+			fmt.Printf("fffuck1 add app: %s, resource info: %s-%s\n", name, object.GetName(), r.Gvr.Resource)
 			v.(sets.String).Insert(getAppName(i))
 		}
 	}
@@ -103,6 +106,7 @@ func (r *ResourceEventHandlerFuncs) handle() {
 			kindApp, _ := kindToAppMap.(*sync.Map).LoadOrStore(r.Gvr.Resource, newAppSet())
 			set := kindApp.(*appSet)
 			if value, loaded := namespaceToApp.LoadAndDelete(object.GetNamespace()); loaded {
+				fmt.Printf("fffuck2 namespace: %s, apps: %v\n", object.GetNamespace(), value.(sets.String))
 				set.lock.Lock()
 				set.set, _ = value.(sets.String)
 				set.lock.Unlock()
