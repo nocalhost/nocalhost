@@ -266,8 +266,9 @@ func (s *Searcher) GetResourceInfo(resourceType string) (GvkGvrWithAlias, error)
 
 // e's annotation appName must in appNameRange, otherwise app name is not available
 func getAppName(e interface{}) string {
-	annotations := e.(metav1.Object).GetAnnotations()
-	if annotations == nil {
+	object := e.(metav1.Object)
+	annotations := object.GetAnnotations()
+	if object.GetDeletionTimestamp() != nil || annotations == nil {
 		return _const.DefaultNocalhostApplication
 	}
 	if len(annotations[_const.NocalhostApplicationName]) != 0 {
