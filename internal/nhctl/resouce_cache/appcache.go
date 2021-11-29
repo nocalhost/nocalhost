@@ -83,7 +83,7 @@ func (r *ResourceEventHandlerFuncs) timeUp(f func()) {
 	r.nextTime = time.Now().Add(time.Second * 5)
 }
 
-func (r *ResourceEventHandlerFuncs) handle() {
+func (r *ResourceEventHandlerFuncs) handleAddOrUpdate() {
 	// namespace --> appName
 	var namespaceToApp = sync.Map{}
 	list := r.informer.Informer().GetStore().List()
@@ -112,13 +112,34 @@ func (r *ResourceEventHandlerFuncs) handle() {
 }
 
 func (r *ResourceEventHandlerFuncs) OnAdd(interface{}) {
-	r.timeUp(r.handle)
+	r.timeUp(r.handleAddOrUpdate)
 }
 
 func (r *ResourceEventHandlerFuncs) OnUpdate(_, _ interface{}) {
-	r.timeUp(r.handle)
+	r.timeUp(r.handleAddOrUpdate)
 }
 
 func (r *ResourceEventHandlerFuncs) OnDelete(interface{}) {
-	r.timeUp(r.handle)
+	// kubeconfig+namespace --> appName
+	var namespaceToApp = sync.Map{}
+	for _, i := range r.informer.Informer().GetStore().List() {
+		object := i.(metav1.Object)
+		if len(object.GetNamespace()) != 0 {
+			v, _ := namespaceToApp.LoadOrStore(r.toKey(object.GetNamespace()), sets.NewString())
+			v.(sets.String).Insert(getAppName(i))
+		}
+	}
+	maps.Range(func(uniqueKey, resourcesMap interface{}) bool {
+		// resource --> appName
+		resourcesMap.(*sync.Map).Range(func(resource, apps interface{}) bool {
+			if r.Gvr.Resource == resource.(string) {
+				v, _ := namespaceToApp.LoadOrStore(uniqueKey, sets.NewString())
+				apps.(*appSet).lock.Lock()
+				apps.(*appSet).set = sets.NewString(v.(sets.String).List()...)
+				apps.(*appSet).lock.Unlock()
+			}
+			return true
+		})
+		return true
+	})
 }
