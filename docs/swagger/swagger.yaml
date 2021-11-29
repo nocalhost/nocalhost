@@ -167,6 +167,44 @@ definitions:
     - public
     - status
     type: object
+  model.ByWeek:
+    properties:
+      sleep_day:
+        enum:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+        type: integer
+      sleep_time:
+        description: eg. 20:00, 23:55
+        type: string
+      utc_offset:
+        description: minutes east of UTC
+        type: integer
+      wakeup_day:
+        enum:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+        type: integer
+      wakeup_time:
+        description: eg. 08:00, 09:30
+        type: string
+    required:
+    - sleep_day
+    - sleep_time
+    - utc_offset
+    - wakeup_day
+    - wakeup_time
+    type: object
   model.ClusterList:
     properties:
       created_at:
@@ -369,49 +407,11 @@ definitions:
       used:
         type: number
     type: object
-  model.Schedule:
-    properties:
-      sleep_day:
-        enum:
-        - 0
-        - 1
-        - 2
-        - 3
-        - 4
-        - 5
-        - 6
-        type: integer
-      sleep_time:
-        description: eg. 20:00, 23:55
-        type: string
-      utc_offset:
-        description: minutes east of UTC
-        type: integer
-      wakeup_day:
-        enum:
-        - 0
-        - 1
-        - 2
-        - 3
-        - 4
-        - 5
-        - 6
-        type: integer
-      wakeup_time:
-        description: eg. 08:00, 09:30
-        type: string
-    required:
-    - sleep_day
-    - sleep_time
-    - utc_offset
-    - wakeup_day
-    - wakeup_time
-    type: object
   model.SleepConfig:
     properties:
-      schedules:
+      by_week:
         items:
-          $ref: '#/definitions/model.Schedule'
+          $ref: '#/definitions/model.ByWeek'
         type: array
     type: object
   model.UserBaseModel:

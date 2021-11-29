@@ -2172,6 +2172,54 @@
                 }
             }
         },
+        "model.ByWeek": {
+            "type": "object",
+            "required": [
+                "sleep_day",
+                "sleep_time",
+                "utc_offset",
+                "wakeup_day",
+                "wakeup_time"
+            ],
+            "properties": {
+                "sleep_day": {
+                    "type": "integer",
+                    "enum": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ]
+                },
+                "sleep_time": {
+                    "description": "eg. 20:00, 23:55",
+                    "type": "string"
+                },
+                "utc_offset": {
+                    "description": "minutes east of UTC",
+                    "type": "integer"
+                },
+                "wakeup_day": {
+                    "type": "integer",
+                    "enum": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ]
+                },
+                "wakeup_time": {
+                    "description": "eg. 08:00, 09:30",
+                    "type": "string"
+                }
+            }
+        },
         "model.ClusterList": {
             "type": "object",
             "properties": {
@@ -2477,61 +2525,13 @@
                 }
             }
         },
-        "model.Schedule": {
-            "type": "object",
-            "required": [
-                "sleep_day",
-                "sleep_time",
-                "utc_offset",
-                "wakeup_day",
-                "wakeup_time"
-            ],
-            "properties": {
-                "sleep_day": {
-                    "type": "integer",
-                    "enum": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5,
-                        6
-                    ]
-                },
-                "sleep_time": {
-                    "description": "eg. 20:00, 23:55",
-                    "type": "string"
-                },
-                "utc_offset": {
-                    "description": "minutes east of UTC",
-                    "type": "integer"
-                },
-                "wakeup_day": {
-                    "type": "integer",
-                    "enum": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5,
-                        6
-                    ]
-                },
-                "wakeup_time": {
-                    "description": "eg. 08:00, 09:30",
-                    "type": "string"
-                }
-            }
-        },
         "model.SleepConfig": {
             "type": "object",
             "properties": {
-                "schedules": {
+                "by_week": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/model.Schedule"
+                        "$ref": "#/definitions/model.ByWeek"
                     }
                 }
             }
