@@ -94,7 +94,9 @@ func (r *ResourceEventHandlerFuncs) handle() {
 		if len(object.GetNamespace()) != 0 {
 			v, _ := namespaceToApp.LoadOrStore(object.GetNamespace(), sets.NewString())
 			name := getAppName(i)
-			log.Infof("fffuck1 add app: %s, resource info: %s-%s\n", name, object.GetName(), r.Gvr.Resource)
+			if object.GetNamespace() == "ambassador" {
+				log.Infof("fffuck1 add app: %s, resource info: %s-%s\n", name, object.GetName(), r.Gvr.Resource)
+			}
 			v.(sets.String).Insert(getAppName(i))
 		}
 	}
@@ -106,7 +108,9 @@ func (r *ResourceEventHandlerFuncs) handle() {
 			kindApp, _ := kindToAppMap.(*sync.Map).LoadOrStore(r.Gvr.Resource, newAppSet())
 			set := kindApp.(*appSet)
 			if value, loaded := namespaceToApp.LoadAndDelete(object.GetNamespace()); loaded {
-				log.Infof("fffuck2 namespace: %s, apps: %v\n", object.GetNamespace(), value.(sets.String))
+				if object.GetNamespace() == "ambassador" {
+					log.Infof("fffuck2 namespace: %s, apps: %v\n", object.GetNamespace(), value.(sets.String))
+				}
 				set.lock.Lock()
 				set.set, _ = value.(sets.String)
 				set.lock.Unlock()
