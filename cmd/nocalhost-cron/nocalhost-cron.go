@@ -1,8 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/robfig/cron/v3"
 	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+	"net/http"
 	"nocalhost/internal/nocalhost-api/model"
 
 	"nocalhost/cmd/nocalhost-cron/jobs"
@@ -40,6 +44,24 @@ func main() {
 	c.Start()
 	log.Info("nocalhost-cron was started successfully.")
 
+	go health()
+
 	g := tools.Graceful{}
 	g.Wait()
+}
+
+func health() {
+	gin.SetMode(gin.ReleaseMode)
+	app := gin.Default()
+	app.GET("/health", func (c *gin.Context) {
+		c.JSON(http.StatusOK, map[string]string{
+			"Message": "nocalhost-cron is healthy",
+		})
+	})
+
+	err := app.Run(viper.GetString("cron.addr"))
+	if err != nil {
+		log.Errorf("Failed to listen `/health`, err: %v", err)
+		panic(fmt.Sprintf("Failed to listen `/health`, err: %v", err))
+	}
 }
