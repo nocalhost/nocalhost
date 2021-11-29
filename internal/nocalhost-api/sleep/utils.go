@@ -73,11 +73,11 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 	if err != nil {
 		return ToBeIgnore, err
 	}
-	if len(conf.Schedules) == 0 {
+	if len(conf.ByWeek) == 0 {
 		return ToBeWakeup, nil
 	}
 	// 6. match sleep config
-	for _, f := range conf.Schedules {
+	for _, f := range conf.ByWeek {
 		now := time.Now().In(f.TimeZone())
 		d1 := time.Duration(*f.SleepDay - now.Weekday())
 		d2 := time.Duration(*f.WakeupDay - now.Weekday())
@@ -365,7 +365,7 @@ func ApplySleepConfig(c *clientgo.GoClient, id uint64, ns string, conf model.Sle
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
-				kConfig: ternary(len(conf.Schedules) == 0, "" , stringify(conf)).(string),
+				kConfig: ternary(len(conf.ByWeek) == 0, "" , stringify(conf)).(string),
 				kStatus: "",
 			},
 		},

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-type Schedule struct {
+type ByWeek struct {
 	// minutes east of UTC
 	UtcOffset  *int          `json:"utc_offset" binding:"required"`
 	SleepDay   *time.Weekday `json:"sleep_day" binding:"gte=0,max=6,required" swaggertype:"integer" enums:"0,1,2,3,4,5,6"`
@@ -20,22 +20,22 @@ type Schedule struct {
 	WakeupTime string        `json:"wakeup_time" binding:"required,timing"`
 }
 
-func (s *Schedule) Hour(fmt string) int {
+func (s *ByWeek) Hour(fmt string) int {
 	v, _ := strconv.Atoi(strings.Split(fmt, ":")[0])
 	return v
 }
 
-func (s *Schedule) Minute(fmt string) int {
+func (s *ByWeek) Minute(fmt string) int {
 	v, _ := strconv.Atoi(strings.Split(fmt, ":")[1])
 	return v
 }
 
-func (s *Schedule) TimeZone() *time.Location {
+func (s *ByWeek) TimeZone() *time.Location {
 	return time.FixedZone(strconv.Itoa(*s.UtcOffset), *s.UtcOffset * 60)
 }
 
 type SleepConfig struct {
-	Schedules []Schedule `json:"schedules" binding:"required,dive"`
+	ByWeek []ByWeek `json:"by_week" binding:"required,dive"`
 }
 
 func (h *SleepConfig) Scan(value interface{}) error {
