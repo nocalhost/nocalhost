@@ -67,7 +67,7 @@ func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *
 	dep.ResourceVersion = ""
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		s.genContainersAndVolumes(&dep.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, false)
+		s.genContainersAndVolumes(&dep.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
 	if err != nil {
 		return err
 	}
