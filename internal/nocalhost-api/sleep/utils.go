@@ -132,7 +132,26 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 			return err
 		}
 	}
-	// 4. purging Deployment
+	// 4. purging CronJob
+	jobs, err := c.Clientset().
+		BatchV1beta1().
+		CronJobs(ns).
+		List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, jb := range jobs.Items {
+		ok := true
+		jb.Spec.Suspend = &ok
+		_, err = c.Clientset().
+			BatchV1beta1().
+			CronJobs(ns).
+			Update(context.TODO(), &jb, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	// 5. purging Deployment
 	dps, err := c.Clientset().
 		AppsV1().
 		Deployments(ns).
@@ -153,7 +172,7 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 			}
 		}
 	}
-	// 5. purging StatefulSet
+	// 6. purging StatefulSet
 	sts, err := c.Clientset().
 		AppsV1().
 		StatefulSets(ns).
@@ -174,7 +193,7 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 			}
 		}
 	}
-	// 6. update annotations
+	// 7. update annotations
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
@@ -192,7 +211,7 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 	if err != nil {
 		return err
 	}
-	// 7. write to database
+	// 8. write to database
 	now := time.Now().UTC()
 	return cluster_user.
 		NewClusterUserService().
@@ -204,7 +223,9 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 
 func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 	// 1. check record
-	record, err := cluster_user.NewClusterUserService().GetFirst(context.TODO(), model.ClusterUserModel{Namespace: ns})
+	record, err := cluster_user.
+		NewClusterUserService().
+		GetFirst(context.TODO(), model.ClusterUserModel{Namespace: ns})
 	if err != nil {
 		return err
 	}
@@ -267,7 +288,26 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 			}
 		}
 	}
-	// 6. update annotations
+	// 6. restore CronJob
+	jobs, err := c.Clientset().
+		BatchV1beta1().
+		CronJobs(ns).
+		List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, jb := range jobs.Items {
+		ok := false
+		jb.Spec.Suspend = &ok
+		_, err = c.Clientset().
+			BatchV1beta1().
+			CronJobs(ns).
+			Update(context.TODO(), &jb, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	// 7. update annotations
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
@@ -284,7 +324,7 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 	if err != nil {
 		return err
 	}
-	// 7. write to database
+	// 8. write to database
 	return cluster_user.
 		NewClusterUserService().
 		Modify(context.TODO(), record.ID, map[string]interface{}{
