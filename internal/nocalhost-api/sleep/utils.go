@@ -110,7 +110,9 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 
 func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 	// 1. check record
-	record, err := cluster_user.NewClusterUserService().GetFirst(context.TODO(), model.ClusterUserModel{Namespace: ns})
+	record, err := cluster_user.
+		NewClusterUserService().
+		GetFirst(context.TODO(), model.ClusterUserModel{Namespace: ns})
 	if err != nil {
 		return err
 	}
@@ -141,8 +143,8 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 		return err
 	}
 	for _, jb := range jobs.Items {
-		ok := true
-		jb.Spec.Suspend = &ok
+		suspend := true
+		jb.Spec.Suspend = &suspend
 		_, err = c.Clientset().
 			BatchV1beta1().
 			CronJobs(ns).
@@ -160,8 +162,14 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 		return err
 	}
 	for _, dp := range dps.Items {
-		if *dp.Spec.Replicas > 0 {
-			replicas[kDeployment + ":" + dp.Name] = *dp.Spec.Replicas
+		var count int32 = 0
+		if dp.Spec.Replicas == nil {
+			count = 1
+		} else {
+			count = *dp.Spec.Replicas
+		}
+		if count > 0 {
+			replicas[kDeployment + ":" + dp.Name] = count
 			dp.Spec.Replicas = &zero
 			_, err = c.Clientset().
 				AppsV1().
@@ -181,8 +189,14 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 		return err
 	}
 	for _, st := range sts.Items {
-		if *st.Spec.Replicas > 0 {
-			replicas[kStatefulSet + ":" + st.Name] = *st.Spec.Replicas
+		var count int32 = 0
+		if st.Spec.Replicas == nil {
+			count = 1
+		} else {
+			count = *st.Spec.Replicas
+		}
+		if count > 0 {
+			replicas[kStatefulSet + ":" + st.Name] = count
 			st.Spec.Replicas = &zero
 			_, err = c.Clientset().
 				AppsV1().
@@ -193,7 +207,20 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 			}
 		}
 	}
-	// 7. update annotations
+	// 7. purging static pods
+	pods, err := c.Clientset().
+		CoreV1().
+		Pods(ns).
+		List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, pod := range pods.Items {
+		if len(pod.OwnerReferences) ==0 {
+			// TODO
+		}
+	}
+	// 8. update annotations
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
@@ -297,8 +324,8 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 		return err
 	}
 	for _, jb := range jobs.Items {
-		ok := false
-		jb.Spec.Suspend = &ok
+		suspend := false
+		jb.Spec.Suspend = &suspend
 		_, err = c.Clientset().
 			BatchV1beta1().
 			CronJobs(ns).
