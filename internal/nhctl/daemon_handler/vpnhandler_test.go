@@ -6,6 +6,7 @@ import (
 	"io"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_server/command"
+	"sync"
 	"testing"
 )
 
@@ -27,4 +28,22 @@ func TestName(t *testing.T) {
 			fmt.Println(string(line))
 		}
 	}
+}
+
+func TestMap(t *testing.T) {
+	var a = sync.Map{}
+	a.Store(ConnectInfo1{
+		kubeconfigBytes: []byte("aa"),
+		namespace:       "bb",
+	}, "value_a")
+	load, _ := a.Load(ConnectInfo1{
+		kubeconfigBytes: []byte("aa"),
+		namespace:       "bb",
+	})
+	fmt.Println(load)
+}
+
+type ConnectInfo1 struct {
+	kubeconfigBytes []byte
+	namespace       string
 }

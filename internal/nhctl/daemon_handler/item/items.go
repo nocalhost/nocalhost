@@ -30,4 +30,11 @@ type Resource struct {
 type Item struct {
 	Metadata    interface{}           `json:"info,omitempty" yaml:"info"`
 	Description *profile.SvcProfileV2 `json:"description,omitempty" yaml:"description"`
+	VPN         *VPNInfo              `json:"vpn,omitempty" yaml:"vpn"`
+}
+
+type VPNInfo struct {
+	BelongsToMe bool   `json:"belongsToMe" yaml:"belongsToMe"`
+	Status      string `json:"status" yaml:"status"`
+	IP          string `json:"ip" yaml:"ip"`
 }

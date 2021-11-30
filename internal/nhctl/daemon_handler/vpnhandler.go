@@ -54,25 +54,31 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 			}
 			// cleanup all reverse
 			path := nocalhost.GetOrGenKubeConfigPath(string(connectInfo.kubeconfigBytes))
-			for _, d := range GetReverseInfo().List() {
-				_ = UpdateReverseConfigMap(clientset, connectInfo.namespace, d, func(r *ReverseTotal, record ReverseRecord) {
-					r.RemoveRecord(record)
-				})
+			GetReverseInfo().Range(func(key, value interface{}) bool {
+				if value == nil {
+					return true
+				}
 				connectOptions := &pkg.ConnectOptions{
 					Logger:         logger,
 					KubeconfigPath: path,
 					Namespace:      connectInfo.namespace,
-					Workloads:      []string{d},
 				}
 				connectOptions.InitClient(context.TODO())
-				if err = connectOptions.RemoveInboundPod(); err != nil {
-					logger.Errorln(fmt.Sprintf(
-						"delete reverse resource %s-%s error, err: %v", connectInfo.namespace, d, err))
-				} else {
-					logger.Infoln(fmt.Sprintf(
-						"delete reverse resource %s-%s successfully", connectInfo.namespace, d))
+				for _, d := range value.(*name).resources.List() {
+					_ = UpdateReverseConfigMap(clientset, connectInfo.namespace, d, func(r *ReverseTotal, record ReverseRecord) {
+						r.RemoveRecord(record)
+					})
+					connectOptions.Workloads = []string{d}
+					if err = connectOptions.RemoveInboundPod(); err != nil {
+						logger.Errorln(fmt.Sprintf(
+							"delete reverse resource %s-%s error, err: %v", connectInfo.namespace, d, err))
+					} else {
+						logger.Infoln(fmt.Sprintf(
+							"delete reverse resource %s-%s successfully", connectInfo.namespace, d))
+					}
 				}
-			}
+				return true
+			})
 			// disconnect from old cluster or namespace
 			if err = UpdateConnect(clientset, connectInfo.namespace, func(list sets.String, item string) {
 				list.Delete(item)
@@ -140,14 +146,26 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 			_ = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
 				list.Delete(address)
 			})
-			for _, d := range GetReverseInfo().List() {
-				_ = UpdateReverseConfigMap(connect.GetClientSet(), connectInfo.namespace, d, func(r *ReverseTotal, record ReverseRecord) {
-					r.RemoveRecord(record)
-				})
-				if r, err := client.SendSudoVPNOperateCommand(cmd.KubeConfig, connectInfo.namespace, command.ReverseDisConnect, d); err == nil {
-					transStreamToWriter(writer, r)
+			GetReverseInfo().Range(func(key, value interface{}) bool {
+				if value == nil {
+					return true
 				}
-			}
+				bytes, err := util.GetClientSetByKubeconfigBytes(value.(*name).kubeconfigBytes)
+				if err != nil {
+					return true
+				}
+				for _, d := range value.(*name).resources.List() {
+					_ = UpdateReverseConfigMap(bytes, value.(*name).namespace, d, func(r *ReverseTotal, record ReverseRecord) {
+						r.RemoveRecord(record)
+					})
+					if r, err := client.SendSudoVPNOperateCommand(
+						string(value.(*name).kubeconfigBytes), value.(*name).namespace, command.ReverseDisConnect, d,
+					); err == nil {
+						transStreamToWriter(writer, r)
+					}
+				}
+				return true
+			})
 			if r, err := client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource); err == nil {
 				io.Copy(writer, r)
 			}

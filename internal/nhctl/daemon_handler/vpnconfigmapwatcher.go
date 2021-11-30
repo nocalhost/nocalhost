@@ -47,14 +47,18 @@ func GetOrGenerateConfigMapWatcher(kubeconfigBytes []byte, namespace string, get
 
 var connectInfo = &ConnectInfo{}
 var reverseInfoLock = sync.Mutex{}
-var reverseInfo = sets.NewString()
 
-func GetReverseInfo() sets.String {
-	data := sets.NewString()
-	reverseInfoLock.Lock()
-	data.Insert(reverseInfo.List()...)
-	reverseInfoLock.Unlock()
-	return data
+// kubeconfig+ns --> name
+var reverseInfo = &sync.Map{}
+
+type name struct {
+	kubeconfigBytes []byte
+	namespace       string
+	resources       sets.String
+}
+
+func GetReverseInfo() *sync.Map {
+	return reverseInfo
 }
 
 type ConnectInfo struct {
@@ -70,8 +74,10 @@ func (c *ConnectInfo) Cleanup() {
 func Reverse(kubeconfigBytes []byte, namespace string, resource string) bool {
 	reverseInfoLock.Lock()
 	defer reverseInfoLock.Unlock()
-	if connectInfo.IsSame(kubeconfigBytes, namespace) && reverseInfo.Has(resource) {
-		return true
+	if connectInfo.IsSame(kubeconfigBytes, namespace) {
+		if load, ok := reverseInfo.Load(resource); ok && load.(*name).resources.Has(resource) {
+			return true
+		}
 	}
 	return false
 }
@@ -131,7 +137,11 @@ type resourceHandler struct {
 	kubeconfigBytes []byte
 	lock            *sync.Mutex
 	connectInfo     *ConnectInfo
-	reverseInfo     sets.String
+	reverseInfo     *sync.Map
+}
+
+func (h *resourceHandler) ToKey() string {
+	return generateKey(h.kubeconfigBytes, h.namespace)
 }
 
 func (h *resourceHandler) OnAdd(obj interface{}) {
@@ -145,7 +155,11 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 			connectInfo.kubeconfigBytes = h.kubeconfigBytes
 			if len(connectInfo.namespace) != 0 {
 				lock.Lock()
-				h.reverseInfo.Insert(status.Reverse.GetBelongToMeResources().List()...)
+				h.reverseInfo.Store(h.ToKey(), &name{
+					kubeconfigBytes: h.kubeconfigBytes,
+					namespace:       h.namespace,
+					resources:       status.Reverse.GetBelongToMeResources(),
+				})
 				lock.Unlock()
 			}
 		} else {
@@ -168,7 +182,11 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 			connectInfo.kubeconfigBytes = h.kubeconfigBytes
 			if len(connectInfo.namespace) != 0 {
 				lock.Lock()
-				h.reverseInfo.Insert(newStatus.Reverse.GetBelongToMeResources().List()...)
+				h.reverseInfo.Store(h.ToKey(), &name{
+					kubeconfigBytes: h.kubeconfigBytes,
+					namespace:       h.namespace,
+					resources:       newStatus.Reverse.GetBelongToMeResources(),
+				})
 				lock.Unlock()
 			}
 		} else {
@@ -176,7 +194,8 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 			fmt.Println("needs to notify sudo daemon to update connect namespace, this should not to be happen")
 			ReleaseWatcher(h.kubeconfigBytes, h.namespace)
 			if bytes, err := util.GetClientSetByKubeconfigBytes(h.kubeconfigBytes); err == nil {
-				_ = bytes.CoreV1().ConfigMaps(h.namespace).
+				_ = bytes.CoreV1().
+					ConfigMaps(h.namespace).
 					Delete(context.TODO(), util.TrafficManager, v1.DeleteOptions{})
 			}
 		}
@@ -193,7 +212,7 @@ func (h *resourceHandler) OnDelete(obj interface{}) {
 	if status.Connect.IsConnected() && connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
 		connectInfo.namespace = ""
 		connectInfo.kubeconfigBytes = []byte{}
-		h.reverseInfo.Delete(status.Reverse.GetBelongToMeResources().List()...)
+		h.reverseInfo.Delete(h.ToKey())
 	}
 }
 
