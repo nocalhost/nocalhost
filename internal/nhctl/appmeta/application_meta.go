@@ -336,8 +336,7 @@ func (a *ApplicationMeta) ReAssignmentBySecret(secret *corev1.Secret) error {
 }
 
 func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
-	appMeta := &ApplicationMeta{
-	}
+	appMeta := &ApplicationMeta{}
 
 	if err := appMeta.ReAssignmentBySecret(secret); err != nil {
 		return nil, err
@@ -735,6 +734,9 @@ func (a *ApplicationMeta) Update() error {
 		}, func() error {
 			if a.Secret == nil {
 				return errors.New("secret not found")
+			}
+			if a.Secret.Data == nil {
+				return errors.New("secret data is nil")
 			}
 			a.prepare()
 			secret, err := a.operator.Update(a.Ns, a.Secret)
