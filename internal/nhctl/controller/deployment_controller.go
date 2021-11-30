@@ -15,7 +15,6 @@ import (
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/pod_controller"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
 	"strings"
@@ -55,13 +54,8 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		return err
 	}
 
-	devContainer, err := findContainerInDeployment(d.GetName(), ops.Container, d.Client)
-	if err != nil {
-		return err
-	}
-
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		d.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, false)
+		d.genContainersAndVolumes(&dep.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}
@@ -73,36 +67,7 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 			return err
 		}
 
-		if ops.Container != "" {
-			for index, c := range dep.Spec.Template.Spec.Containers {
-				if c.Name == ops.Container {
-					dep.Spec.Template.Spec.Containers[index] = *devContainer
-					break
-				}
-			}
-		} else {
-			dep.Spec.Template.Spec.Containers[0] = *devContainer
-		}
-
-		// Add volumes to deployment spec
-		if dep.Spec.Template.Spec.Volumes == nil {
-			log.Debugf("Service %s has no volume", dep.Name)
-			dep.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
-		}
-		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, devModeVolumes...)
-
-		// delete user's SecurityContext
-		dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
-
-		// disable readiness probes
-		for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
-			dep.Spec.Template.Spec.Containers[i].LivenessProbe = nil
-			dep.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
-			dep.Spec.Template.Spec.Containers[i].StartupProbe = nil
-			dep.Spec.Template.Spec.Containers[i].SecurityContext = nil
-		}
-
-		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, *sideCarContainer)
+		patchDevContainerToPodSpec(&dep.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 
 		// PriorityClass
 		priorityClass := ops.PriorityClass
@@ -117,17 +82,14 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		dep.Annotations[OriginSpecJson] = string(originalSpecJson)
 
 		log.Info("Updating development container...")
-		_, err = d.Client.UpdateDeployment(dep, true)
-		if err != nil {
+		if _, err = d.Client.UpdateDeployment(dep, true); err != nil {
 			if strings.Contains(err.Error(), "no PriorityClass") {
 				log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
-				dep, err = d.Client.GetDeployment(d.GetName())
-				if err != nil {
+				if dep, err = d.Client.GetDeployment(d.GetName()); err != nil {
 					return err
 				}
 				dep.Spec.Template.Spec.PriorityClassName = ""
-				_, err = d.Client.UpdateDeployment(dep, true)
-				if err != nil {
+				if _, err = d.Client.UpdateDeployment(dep, true); err != nil {
 					if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
 						log.Warn("Deployment has been modified, retrying...")
 						continue
@@ -144,51 +106,9 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		break
 	}
 
-	// patch
-	for _, patch := range d.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
-		log.Infof("Patching %s", patch.Patch)
-		if err = d.Client.Patch(d.Type.String(), dep.Name, patch.Patch, patch.Type); err != nil {
-			log.WarnE(err, "")
-		}
-	}
-	<-time.Tick(time.Second)
+	d.patchAfterDevContainerReplaced(ops.Container, d.Type.String(), dep.Name)
 
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
-}
-
-func findContainerInDeployment(deployName, containerName string, client *clientgoutils.ClientGoUtils) (*corev1.Container, error) {
-	dep, err := client.GetDeployment(deployName)
-	if err != nil {
-		return nil, err
-	}
-	return findContainerInDeploySpec(dep, containerName)
-}
-
-func findContainerInDeploySpec(dep *v1.Deployment, containerName string) (*corev1.Container, error) {
-	var devContainer *corev1.Container
-
-	if containerName != "" {
-		for index, c := range dep.Spec.Template.Spec.Containers {
-			if c.Name == containerName {
-				return &dep.Spec.Template.Spec.Containers[index], nil
-			}
-		}
-		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
-	} else {
-		if len(dep.Spec.Template.Spec.Containers) > 1 {
-			return nil, errors.New(
-				fmt.Sprintf(
-					"There are more than one container defined, " +
-						"please specify one to start developing",
-				),
-			)
-		}
-		if len(dep.Spec.Template.Spec.Containers) == 0 {
-			return nil, errors.New("No container defined ???")
-		}
-		devContainer = &dep.Spec.Template.Spec.Containers[0]
-	}
-	return devContainer, nil
 }
 
 func (d *DeploymentController) RollBack(reset bool) error {

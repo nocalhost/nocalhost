@@ -15,7 +15,6 @@ import (
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
-	"time"
 )
 
 type CronJobController struct {
@@ -89,67 +88,23 @@ func (j *CronJobController) ReplaceImage(ctx context.Context, ops *model.DevStar
 		delete(generatedJob.Spec.Selector.MatchLabels, "controller-uid")
 	}
 
-	devContainer, err := findContainerInJobSpec(generatedJob, ops.Container)
-	if err != nil {
-		return err
-	}
-
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		j.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, false)
+		j.genContainersAndVolumes(&generatedJob.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}
 
-	if ops.Container != "" {
-		for index, c := range generatedJob.Spec.Template.Spec.Containers {
-			if c.Name == ops.Container {
-				generatedJob.Spec.Template.Spec.Containers[index] = *devContainer
-				break
-			}
-		}
-	} else {
-		generatedJob.Spec.Template.Spec.Containers[0] = *devContainer
-	}
-
-	// Add volumes to deployment spec
-	if generatedJob.Spec.Template.Spec.Volumes == nil {
-		generatedJob.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
-	}
-	generatedJob.Spec.Template.Spec.Volumes = append(generatedJob.Spec.Template.Spec.Volumes, devModeVolumes...)
-
-	// delete user's SecurityContext
-	generatedJob.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
-
-	// disable readiness probes
-	for i := 0; i < len(generatedJob.Spec.Template.Spec.Containers); i++ {
-		generatedJob.Spec.Template.Spec.Containers[i].LivenessProbe = nil
-		generatedJob.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
-		generatedJob.Spec.Template.Spec.Containers[i].StartupProbe = nil
-		generatedJob.Spec.Template.Spec.Containers[i].SecurityContext = nil
-	}
-
-	generatedJob.Spec.Template.Spec.Containers =
-		append(generatedJob.Spec.Template.Spec.Containers, *sideCarContainer)
+	patchDevContainerToPodSpec(&generatedJob.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 
 	// Create generated deployment
 	if _, err = j.Client.CreateJob(generatedJob); err != nil {
 		return err
 	}
 
-	for _, patch := range j.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
-		log.Infof("Patching %s", patch.Patch)
-		if err = j.Client.Patch(j.Type.String(), generatedJob.Name, patch.Patch, patch.Type); err != nil {
-			log.WarnE(err, "")
-		}
-	}
-	<-time.Tick(time.Second)
+	j.patchAfterDevContainerReplaced(ops.Container, generatedJob.Kind, generatedJob.Name)
 
 	return waitingPodToBeReady(j.GetNocalhostDevContainerPod)
 }
-
-//func (j *CronJobController) Name() string {
-//	return j.Controller.Name
-//}
 
 func (j *CronJobController) RollBack(reset bool) error {
 	originJob, err := j.Client.GetCronJobs(j.GetName())
