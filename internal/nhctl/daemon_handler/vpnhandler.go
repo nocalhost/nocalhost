@@ -80,7 +80,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 				logger.Infof("error while remove connection info of %s\n", connectInfo.namespace)
 			}
 			if r, err := client.SendSudoVPNOperateCommand(path, connectInfo.namespace, command.DisConnect, cmd.Resource); err == nil {
-				printStreamToOut(r)
+				transStreamToWriter(writer, r)
 			}
 			// let informer notify daemon to take effect
 			time.Sleep(time.Second * 2)
@@ -195,24 +195,6 @@ func init() {
 	util.InitLogger(util.Debug)
 }
 
-func printStreamToOut(r io.ReadCloser) {
-	if r == nil {
-		return
-	}
-	defer r.Close()
-	reader := bufio.NewReader(r)
-	for {
-		line, _, err := reader.ReadLine()
-		if err != nil {
-			return
-		}
-		fmt.Println(string(line))
-		if strings.Contains(string(line), util.EndSignOK) || strings.Contains(string(line), util.EndSignFailed) {
-			return
-		}
-	}
-}
-
 func transStreamToWriter(writer io.Writer, r io.ReadCloser) {
 	if r == nil {
 		return
@@ -224,7 +206,6 @@ func transStreamToWriter(writer io.Writer, r io.ReadCloser) {
 		if err != nil {
 			return
 		}
-		fmt.Println(string(line))
 		writer.Write(line)
 		writer.Write([]byte("\n"))
 		if strings.Contains(string(line), util.EndSignOK) || strings.Contains(string(line), util.EndSignFailed) {
