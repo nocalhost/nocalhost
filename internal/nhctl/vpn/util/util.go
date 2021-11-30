@@ -534,7 +534,7 @@ func GenerateKey(ns string, kubeconfigBytes []byte) string {
 	return string(h.Sum([]byte(ns)))
 }
 
-func GetContextWithLogger(writer io.Writer) context.Context {
+func GetContextWithLogger(writer io.WriteCloser) context.Context {
 	ctx, _ := context.WithCancel(context.WithValue(context.TODO(), "logger", &log.Logger{
 		Out:          writer,
 		Formatter:    new(log.TextFormatter),

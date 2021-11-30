@@ -63,6 +63,9 @@ func (c *ConnectOptions) RentIP(random bool) (ip *net.IPNet, err error) {
 }
 
 func (c *ConnectOptions) ReleaseIP() error {
+	if c.ipUsed == nil {
+		return nil
+	}
 	var err error
 	for _, ip := range c.ipUsed {
 		if err = c.dhcp.ReleaseIpToDHCP(ip); err != nil {

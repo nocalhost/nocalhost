@@ -13,11 +13,11 @@ import (
 )
 
 // keep it in memory
-var connected bool
+var connected *pkg.ConnectOptions
 var lock sync.Mutex
 
 // HandleSudoVPNOperate sudo daemon, vpn executor
-func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.Writer) error {
+func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) error {
 	logCtx := util.GetContextWithLogger(writer)
 	logger := util.GetLoggerFromContext(logCtx)
 	connect := &pkg.ConnectOptions{
@@ -38,12 +38,12 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.Writer) erro
 	case command.Connect:
 		lock.Lock()
 		defer lock.Unlock()
-		if connected {
+		if connected != nil {
 			logger.Errorln("already connected")
 			logger.Infoln(util.EndSignFailed)
 			return nil
 		}
-		connected = true
+		connected = connect
 		ctx, cancelFunc := context.WithCancel(context.TODO())
 		remote.CancelFunctions = append(remote.CancelFunctions, cancelFunc)
 		go func(namespace string, c *pkg.ConnectOptions) {
@@ -57,6 +57,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.Writer) erro
 					}
 					remote.CleanUpTrafficManagerIfRefCountIsZero(c.GetClientSet(), namespace)
 					logger.Info("clean up successful")
+					connected = nil
 					return
 				default:
 					errChan, err := connect.DoConnect(ctx)
@@ -78,36 +79,23 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.Writer) erro
 				go function()
 			}
 		}
-		lock.Lock()
-		defer lock.Unlock()
-		connected = false
+		//lock.Lock()
+		//defer lock.Unlock()
+		//for connected != nil {
+		//	time.Sleep(time.Second * 2)
+		//	logger.Info("wait for disconnect")
+		//}
+		logger.Info("prepare to exit, cleaning up")
+		dns.CancelDNS()
+		if err := connected.ReleaseIP(); err != nil {
+			logger.Errorf("failed to release ip to dhcp, err: %v", err)
+		}
+		remote.CleanUpTrafficManagerIfRefCountIsZero(connected.GetClientSet(), connected.Namespace)
+		logger.Info("clean up successful")
+		connected = nil
 		logger.Info(util.EndSignOK)
 	case command.Reconnect:
-
-	case command.Reverse:
-		//if a.Load() == nil {
-		//	if _, err := connect.DoConnect(context.TODO()); err != nil {
-		//		return err
-		//	}
-		//}
-		if err := connect.DoReverse(context.TODO()); err != nil {
-			logger.Errorln(err)
-			logger.Info(util.EndSignFailed)
-			return err
-		}
-		logger.Info(util.EndSignOK)
-	case command.ReverseDisConnect:
-		//if ok, err := IsBelongToMe(connect.GetClientSet().CoreV1().ConfigMaps(connect.Namespace), cmd.Resource); !ok || err != nil {
-		//	return nil
-		//}
-		if err := connect.RemoveInboundPod(); err != nil {
-			logger.Errorln(err)
-			logger.Info(util.EndSignFailed)
-			return err
-		}
-		logger.Info(util.EndSignOK)
 	case command.Reset:
-
 	}
 	return nil
 }
