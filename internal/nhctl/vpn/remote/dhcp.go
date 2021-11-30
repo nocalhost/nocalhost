@@ -196,6 +196,14 @@ type DHCPRecordMap struct {
 	innerMap map[string]DHCPRecord
 }
 
+func (maps DHCPRecordMap) MacToIP() map[string]string {
+	result := make(map[string]string)
+	for _, record := range maps.innerMap {
+		result[record.Mac] = record.Ip
+	}
+	return result
+}
+
 type DHCPRecord struct {
 	Mac      string
 	Ip       string

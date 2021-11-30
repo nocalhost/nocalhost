@@ -64,11 +64,13 @@ func GetReverseInfo() *sync.Map {
 type ConnectInfo struct {
 	kubeconfigBytes []byte
 	namespace       string
+	ip              string
 }
 
-func (c *ConnectInfo) Cleanup() {
+func (c *ConnectInfo) cleanup() {
 	c.namespace = ""
 	c.kubeconfigBytes = []byte{}
+	c.ip = ""
 }
 
 func Reverse(kubeconfigBytes []byte, namespace string, resource string) bool {
@@ -88,6 +90,13 @@ func (c *ConnectInfo) IsEmpty() bool {
 
 func (c *ConnectInfo) IsSame(kubeconfigBytes []byte, namespace string) bool {
 	return string(kubeconfigBytes) == string(c.kubeconfigBytes) && namespace == c.namespace
+}
+
+func (c *ConnectInfo) getIPIfIsMe(kubeconfigBytes []byte, namespace string) (ip string) {
+	if c.IsSame(kubeconfigBytes, namespace) {
+		ip = c.ip
+	}
+	return
 }
 
 type ConfigMapWatcher struct {
@@ -136,11 +145,10 @@ type resourceHandler struct {
 	namespace       string
 	kubeconfigBytes []byte
 	lock            *sync.Mutex
-	connectInfo     *ConnectInfo
 	reverseInfo     *sync.Map
 }
 
-func (h *resourceHandler) ToKey() string {
+func (h *resourceHandler) toKey() string {
 	return generateKey(h.kubeconfigBytes, h.namespace)
 }
 
@@ -153,9 +161,10 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 
 			connectInfo.namespace = h.namespace
 			connectInfo.kubeconfigBytes = h.kubeconfigBytes
+			connectInfo.ip = status.MacToIP[util.GetMacAddress().String()]
 			if len(connectInfo.namespace) != 0 {
 				lock.Lock()
-				h.reverseInfo.Store(h.ToKey(), &name{
+				h.reverseInfo.Store(h.toKey(), &name{
 					kubeconfigBytes: h.kubeconfigBytes,
 					namespace:       h.namespace,
 					resources:       status.Reverse.GetBelongToMeResources(),
@@ -180,9 +189,10 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 			go h.notifySudoDaemonToConnect()
 			connectInfo.namespace = h.namespace
 			connectInfo.kubeconfigBytes = h.kubeconfigBytes
+			connectInfo.ip = newStatus.MacToIP[util.GetMacAddress().String()]
 			if len(connectInfo.namespace) != 0 {
 				lock.Lock()
-				h.reverseInfo.Store(h.ToKey(), &name{
+				h.reverseInfo.Store(h.toKey(), &name{
 					kubeconfigBytes: h.kubeconfigBytes,
 					namespace:       h.namespace,
 					resources:       newStatus.Reverse.GetBelongToMeResources(),
@@ -210,9 +220,8 @@ func (h *resourceHandler) OnDelete(obj interface{}) {
 	configMap := obj.(*corev1.ConfigMap)
 	status := ToStatus(configMap.Data)
 	if status.Connect.IsConnected() && connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
-		connectInfo.namespace = ""
-		connectInfo.kubeconfigBytes = []byte{}
-		h.reverseInfo.Delete(h.ToKey())
+		connectInfo.cleanup()
+		h.reverseInfo.Delete(h.toKey())
 	}
 }
 

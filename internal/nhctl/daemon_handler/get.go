@@ -12,6 +12,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/cache"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
@@ -241,6 +242,10 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			}
 			serviceMap = getServiceProfile(ns, request.AppName, nid, KubeConfigBytes)
 		}
+		var vpnMaps = sets.NewString()
+		if load, ok := GetReverseInfo().Load(generateKey(KubeConfigBytes, ns)); ok {
+			vpnMaps.Insert(load.(*name).resources.List()...)
+		}
 
 		c := s.Criteria().
 			ResourceType(request.Resource).
@@ -259,7 +264,15 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			for _, i := range items {
 				tempItem := item.Item{Metadata: i}
 				if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
-					tempItem.Description = serviceMap[mapping.Gvr.Resource+"/"+i.(metav1.Object).GetName()]
+					n := mapping.Gvr.Resource + "/" + i.(metav1.Object).GetName()
+					tempItem.Description = serviceMap[n]
+					if vpnMaps.Has(n) {
+						tempItem.VPN = &item.VPNInfo{
+							BelongsToMe: true,
+							Status:      ReversedHealth.String(),
+							IP:          connectInfo.getIPIfIsMe(KubeConfigBytes, ns),
+						}
+					}
 				}
 				result = append(result, tempItem)
 			}
@@ -272,7 +285,15 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			}
 			i := item.Item{Metadata: one}
 			if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
-				i.Description = serviceMap[mapping.Gvr.Resource+"/"+one.(metav1.Object).GetName()]
+				n := mapping.Gvr.Resource + "/" + one.(metav1.Object).GetName()
+				i.Description = serviceMap[n]
+				if vpnMaps.Has(n) {
+					i.VPN = &item.VPNInfo{
+						BelongsToMe: true,
+						Status:      ReversedHealth.String(),
+						IP:          connectInfo.getIPIfIsMe(KubeConfigBytes, ns),
+					}
+				}
 			}
 			return i
 		}

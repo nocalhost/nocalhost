@@ -90,7 +90,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 			}
 			// let informer notify daemon to take effect
 			time.Sleep(time.Second * 2)
-			connectInfo.Cleanup()
+			connectInfo.cleanup()
 		}
 		// connect to new cluster or namespace
 		//if connectInfo.IsEmpty() {
@@ -185,7 +185,7 @@ func UpdateReverseConfigMap(clientSet *kubernetes.Clientset, namespace, resource
 	t := FromStringToReverseTotal(get.Data[util.REVERSE])
 	f(t, NewReverseRecordWithWorkloads(resource))
 	get.Data[util.REVERSE] = t.ToString()
-	_, err = clientSet.CoreV1().ConfigMaps(resource).Update(context.TODO(), get, v1.UpdateOptions{})
+	_, err = clientSet.CoreV1().ConfigMaps(namespace).Update(context.TODO(), get, v1.UpdateOptions{})
 	return err
 }
 

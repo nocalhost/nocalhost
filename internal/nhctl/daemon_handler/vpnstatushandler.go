@@ -10,21 +10,26 @@ import (
 	"k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_server/command"
+	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
 	"strings"
 	"sync"
 )
 
-type Health string
+type HealthEnum string
 
 const (
-	DisConnected     Health = "DisConnected"
-	ConnectHealth    Health = "ConnectHealth"
-	ConnectUnHealth  Health = "ConnectUnHealth"
-	NotReversed      Health = "NotReversed"
-	ReversedHealth   Health = "ReversedHealth"
-	ReversedUnHealth Health = "ReversedUnHealth"
+	DisConnected     HealthEnum = "DisConnected"
+	ConnectHealth    HealthEnum = "ConnectHealth"
+	ConnectUnHealth  HealthEnum = "ConnectUnHealth"
+	NotReversed      HealthEnum = "NotReversed"
+	ReversedHealth   HealthEnum = "ReversedHealth"
+	ReversedUnHealth HealthEnum = "ReversedUnHealth"
 )
+
+func (e HealthEnum) String() string {
+	return string(e)
+}
 
 //var status *VPNStatus
 //var statusLock sync.Mutex
@@ -36,13 +41,14 @@ var connectHealthStatus *Func
 var reverseHeathStatus sync.Map
 
 type Func struct {
-	health Health
+	health HealthEnum
 	f      context.CancelFunc
 }
 
 type VPNStatus struct {
 	Reverse *ReverseTotal
 	Connect *ConnectTotal
+	MacToIP map[string]string
 }
 
 type ReverseTotal struct {
@@ -75,7 +81,7 @@ func HandleVPNStatus(cmd *command.VPNOperateCommand) (HealthStatus, error) {
 	if connectInfo.IsEmpty() {
 		return defaultStatus, nil
 	}
-	var reverseStatus, connectStatus Health
+	var reverseStatus, connectStatus HealthEnum
 	if Reverse(kubeconfigBytes, cmd.Namespace, cmd.Resource) {
 		if v, found := reverseHeathStatus.Load(cmd.Resource); found && v != nil {
 			f := v.(*Func)
@@ -102,8 +108,8 @@ func HandleVPNStatus(cmd *command.VPNOperateCommand) (HealthStatus, error) {
 }
 
 type HealthStatus struct {
-	ConnectStatus Health `json:"connectStatus" yaml:"connectStatus"`
-	ReserveStatus Health `json:"reserveStatus" yaml:"reserveStatus"`
+	ConnectStatus HealthEnum `json:"connectStatus" yaml:"connectStatus"`
+	ReserveStatus HealthEnum `json:"reserveStatus" yaml:"reserveStatus"`
 }
 
 func FromStrToConnectTotal(string2 string) *ConnectTotal {
@@ -128,6 +134,7 @@ func ToStatus(m map[string]string) VPNStatus {
 	return VPNStatus{
 		Reverse: FromStringToReverseTotal(m[util.REVERSE]),
 		Connect: FromStrToConnectTotal(m[util.Connect]),
+		MacToIP: remote.ToDHCP(m[util.MacToIP]).MacToIP(),
 	}
 }
 
