@@ -115,6 +115,8 @@ func GetKubeConfig(ClusterKubeConfig, name, namespace string) (string, error) {
 	if addr != "" && port != "" {
 		for cluster := range kubeConfig.Clusters {
 			kubeConfig.Clusters[cluster].Server = fmt.Sprintf("https://%s:%s", addr, port)
+			kubeConfig.Clusters[cluster].InsecureSkipTLSVerify = true
+			kubeConfig.Clusters[cluster].CertificateAuthorityData = nil
 		}
 	}
 
