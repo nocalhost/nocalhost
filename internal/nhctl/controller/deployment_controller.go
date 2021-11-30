@@ -60,94 +60,12 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 		return err
 	}
 
-	//for i := 0; i < 10; i++ {
-	//	// Get latest deployment
-	//	dep, err := d.Client.GetDeployment(d.GetName())
-	//	if err != nil {
-	//		return err
-	//	}
-
 	patchDevContainerToPodSpec(&dep.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 
-	// PriorityClass
-	//priorityClass := ops.PriorityClass
-	//if priorityClass == "" {
-	//	priorityClass = d.config.PriorityClass
-	//}
-	//if priorityClass != "" {
-	//	log.Infof("Using priorityClass: %s...", priorityClass)
-	//	dep.Spec.Template.Spec.PriorityClassName = priorityClass
-	//}
+	log.Info("Patching development container...")
 
-	//dep.Annotations[OriginSpecJson] = string(originalSpecJson)
-
-	log.Info("Updating development container...")
-	//if _, err = d.Client.UpdateDeployment(dep, true); err != nil {
-	//	if strings.Contains(err.Error(), "no PriorityClass") {
-	//		log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
-	//		if dep, err = d.Client.GetDeployment(d.GetName()); err != nil {
-	//			return err
-	//		}
-	//		dep.Spec.Template.Spec.PriorityClassName = ""
-	//		if _, err = d.Client.UpdateDeployment(dep, true); err != nil {
-	//			if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
-	//				log.Warn("Deployment has been modified, retrying...")
-	//				continue
-	//			}
-	//			return err
-	//		}
-	//		break
-	//	} else if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
-	//		log.Warn("Deployment has been modified, retrying...")
-	//		continue
-	//	}
-	//	return err
-	//}
-	path := "/spec/template/spec"
-
-	type jsonPatch struct {
-		Op    string      `json:"op"`
-		Path  string      `json:"path"`
-		Value interface{} `json:"value"`
-	}
-
-	jsonPatches := make([]jsonPatch, 0)
-	jsonPatches = append(jsonPatches, jsonPatch{
-		Op:    "replace",
-		Path:  path,
-		Value: &dep.Spec.Template.Spec,
-	})
-
-	jsonPatches = append(jsonPatches, jsonPatch{
-		Op:    "add",
-		Path:  fmt.Sprintf("/metadata/annotations/%s", OriginSpecJson),
-		Value: string(originalSpecJson),
-	})
-
-	//for _, volume := range devModeVolumes {
-	//	jsonPatches = append(jsonPatches, jsonPatch{
-	//		Op:    "add",
-	//		Path:  volumePath,
-	//		Value: volume.DeepCopy(),
-	//	})
-	//}
-
-	//containers := make([]*corev1.Container, 0)
-	//for _, container := range dep.Spec.Template.Spec.Containers {
-	//	containers = append(containers, container.DeepCopy())
-	//}
-	//jsonPatches = append(jsonPatches, jsonPatch{
-	//	Op:    "replace",
-	//	Path:  containerPath,
-	//	Value: containers,
-	//})
-
-	bys, err := json.Marshal(jsonPatches)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	if err := d.Client.Patch(d.Type.String(), dep.Name, string(bys), "json"); err != nil {
+	ps := genDevContainerPatches(&dep.Spec.Template.Spec, string(originalSpecJson))
+	if err := d.Client.Patch(d.Type.String(), dep.Name, ps, "json"); err != nil {
 		return err
 	}
 

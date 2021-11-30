@@ -13,10 +13,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
-	"time"
 )
 
 const (
@@ -60,71 +58,77 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		return err
 	}
 
-	needToRemovePriorityClass := false
-	for i := 0; i < 10; i++ {
-		events, err := s.Client.ListEventsByStatefulSet(s.GetName())
-		utils.Should(err)
-		_ = s.Client.DeleteEvents(events, true)
+	patchDevContainerToPodSpec(&dep.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
+	//needToRemovePriorityClass := false
+	//for i := 0; i < 10; i++ {
+	//	events, err := s.Client.ListEventsByStatefulSet(s.GetName())
+	//	utils.Should(err)
+	//	_ = s.Client.DeleteEvents(events, true)
+	//
+	//	// Get the latest stateful set
+	//	dep, err = s.Client.GetStatefulSet(s.GetName())
+	//	if err != nil {
+	//		return err
+	//	}
+	//
+	//	patchDevContainerToPodSpec(&dep.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
+	//
+	//	if len(dep.Annotations) == 0 {
+	//		dep.Annotations = make(map[string]string, 0)
+	//	}
+	//	dep.Annotations[OriginSpecJson] = string(originalSpecJson)
+	//
+	//	log.Info("Updating development container...")
+	//
+	//	_, err = s.Client.UpdateStatefulSet(dep, true)
+	//	if err != nil {
+	//		if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
+	//			log.Warn("StatefulSet has been modified, retrying...")
+	//			continue
+	//		}
+	//		return err
+	//	} else {
+	//		// Check if priorityClass exists
+	//	outer:
+	//		for i := 0; i < 20; i++ {
+	//			time.Sleep(1 * time.Second)
+	//			events, err = s.Client.ListEventsByStatefulSet(s.GetName())
+	//			for _, event := range events {
+	//				if strings.Contains(event.Message, "no PriorityClass") {
+	//					log.Warn("PriorityClass not found, disable it...")
+	//					needToRemovePriorityClass = true
+	//					break outer
+	//				} else if event.Reason == "SuccessfulCreate" {
+	//					log.Infof("Pod SuccessfulCreate")
+	//					break outer
+	//				}
+	//			}
+	//		}
+	//
+	//		if needToRemovePriorityClass {
+	//			dep, err = s.Client.GetStatefulSet(s.GetName())
+	//			if err != nil {
+	//				return err
+	//			}
+	//			dep.Spec.Template.Spec.PriorityClassName = ""
+	//			log.Info("Removing priorityClass")
+	//			_, err = s.Client.UpdateStatefulSet(dep, true)
+	//			if err != nil {
+	//				if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
+	//					log.Warn("StatefulSet has been modified, retrying...")
+	//					continue
+	//				}
+	//				return err
+	//			}
+	//			break
+	//		}
+	//	}
+	//	break
+	//}
 
-		// Get the latest stateful set
-		dep, err = s.Client.GetStatefulSet(s.GetName())
-		if err != nil {
-			return err
-		}
-
-		patchDevContainerToPodSpec(&dep.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
-
-		if len(dep.Annotations) == 0 {
-			dep.Annotations = make(map[string]string, 0)
-		}
-		dep.Annotations[OriginSpecJson] = string(originalSpecJson)
-
-		log.Info("Updating development container...")
-
-		_, err = s.Client.UpdateStatefulSet(dep, true)
-		if err != nil {
-			if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
-				log.Warn("StatefulSet has been modified, retrying...")
-				continue
-			}
-			return err
-		} else {
-			// Check if priorityClass exists
-		outer:
-			for i := 0; i < 20; i++ {
-				time.Sleep(1 * time.Second)
-				events, err = s.Client.ListEventsByStatefulSet(s.GetName())
-				for _, event := range events {
-					if strings.Contains(event.Message, "no PriorityClass") {
-						log.Warn("PriorityClass not found, disable it...")
-						needToRemovePriorityClass = true
-						break outer
-					} else if event.Reason == "SuccessfulCreate" {
-						log.Infof("Pod SuccessfulCreate")
-						break outer
-					}
-				}
-			}
-
-			if needToRemovePriorityClass {
-				dep, err = s.Client.GetStatefulSet(s.GetName())
-				if err != nil {
-					return err
-				}
-				dep.Spec.Template.Spec.PriorityClassName = ""
-				log.Info("Removing priorityClass")
-				_, err = s.Client.UpdateStatefulSet(dep, true)
-				if err != nil {
-					if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
-						log.Warn("StatefulSet has been modified, retrying...")
-						continue
-					}
-					return err
-				}
-				break
-			}
-		}
-		break
+	ps := genDevContainerPatches(&dep.Spec.Template.Spec, string(originalSpecJson))
+	if err := s.Client.Patch(s.Type.String(), dep.Name, ps, "json"); err != nil {
+		return err
 	}
 
 	s.patchAfterDevContainerReplaced(ops.Container, dep.Kind, dep.Name)

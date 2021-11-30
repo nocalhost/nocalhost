@@ -388,3 +388,30 @@ func (c *Controller) patchAfterDevContainerReplaced(containerName, resourceType,
 	}
 	<-time.Tick(time.Second)
 }
+
+func genDevContainerPatches(podSpec *v1.PodSpec, originalSpecJson string) string {
+	path := "/spec/template/spec"
+
+	type jsonPatch struct {
+		Op    string      `json:"op"`
+		Path  string      `json:"path"`
+		Value interface{} `json:"value"`
+	}
+
+	jsonPatches := make([]jsonPatch, 0)
+	jsonPatches = append(jsonPatches, jsonPatch{
+		Op:    "replace",
+		Path:  path,
+		Value: &podSpec,
+	})
+
+	jsonPatches = append(jsonPatches, jsonPatch{
+		Op:    "add",
+		Path:  fmt.Sprintf("/metadata/annotations/%s", OriginSpecJson),
+		Value: originalSpecJson,
+	})
+
+	bys, _ := json.Marshal(jsonPatches)
+
+	return string(bys)
+}
