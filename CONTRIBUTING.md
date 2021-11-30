@@ -10,6 +10,28 @@ Please search the existing issues to see if any similar issue or feature request
 ### Reporting New Issues
 If you open an issue, the more information the better. Such as detailed description, screenshot or video of your problem, logcat or code blocks for your crash.
 
+## <a name="commit-signing">Signing-off on Commits (Developer Certificate of Origin)</a>
+
+To contribute to this project, you must agree to the Developer Certificate of
+Origin (DCO) for each commit you make. The DCO is a simple statement that you,
+as a contributor, have the legal right to make the contribution.
+
+See the [DCO](https://developercertificate.org) file for the full text of what you must agree to
+and how it works [here](https://github.com/probot/dco#how-it-works).
+To signify that you agree to the DCO for contributions, you simply add a line to each of your
+git commit messages:
+
+```
+Signed-off-by: Tom <tom@example.com>
+```
+
+In most cases, you can add this signoff to your commit automatically with the
+`-s` or `--signoff` flag to `git commit`. You must use your real name and a reachable email
+address (sorry, no pseudonyms or anonymous contributions). An example of signing off on a commit:
+```
+$ commit -s -m “my commit message w/signoff”
+```
+
 ## Pull Requests
 We strongly welcome your pull request to make Nocalhost better. 
 

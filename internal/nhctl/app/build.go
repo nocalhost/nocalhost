@@ -60,7 +60,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing", name, namespace))
 	}
 
-	if err = appMeta.Initial(); err != nil {
+	if err = appMeta.Initial(true); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
 			log.Logf("Application %s in %s has been installed", app.Name, app.NameSpace)
 		}
@@ -68,10 +68,6 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	}
 	app.appMeta = appMeta
 	appMeta.ApplicationType = appmeta.AppType(flags.AppType)
-
-	//if err = appMeta.GenerateNidINE(); err != nil {
-	//	return nil, err
-	//}
 
 	if err = app.initDir(); err != nil {
 		return nil, err
@@ -190,24 +186,6 @@ func (a *Application) loadOrGenerateConfig(
 	}
 
 	return nocalhostConfig, nil
-}
-
-func RenderConfigFromDev(renderItem envsubst.RenderItem) ([]*profile.ContainerConfig, error) {
-	renderedStr, err := envsubst.Render(renderItem, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var renderedConfig []*profile.ContainerConfig
-	if err = yaml.Unmarshal([]byte(renderedStr), &renderedConfig); err != nil || len(renderedConfig) == 0 {
-		var singleSvcConfig profile.ContainerConfig
-		if err = yaml.Unmarshal([]byte(renderedStr), &singleSvcConfig); err == nil {
-			if singleSvcConfig.Dev != nil {
-				renderedConfig = append(renderedConfig, &singleSvcConfig)
-			}
-		}
-	}
-	return renderedConfig, nil
 }
 
 func RenderConfigForSvc(renderItem envsubst.RenderItem) ([]*profile.ServiceConfigV2, error) {

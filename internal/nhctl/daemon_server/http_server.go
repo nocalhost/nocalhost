@@ -12,9 +12,11 @@ import (
 	"gopkg.in/yaml.v3"
 	"net/http"
 	_ "net/http/pprof"
+	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"runtime/debug"
 	"strings"
@@ -140,6 +142,30 @@ func handlingConfigSave(w http.ResponseWriter, r *http.Request) {
 	svcConfig.Name = csp.Name
 	svcConfig.Type = csp.Type
 
+	client, err := clientgoutils.NewClientGoUtils(csp.Kubeconfig, csp.Namespace)
+	if err != nil {
+		fail(w, err.Error())
+		return
+	}
+	containers, err := controller.GetOriginalContainers(client, base.SvcType(csp.Type), csp.Name)
+	if err != nil {
+		fail(w, err.Error())
+		return
+	}
+
+	profile.PrepareForConfigurationValidate(client, containers)
+	if err := svcConfig.Validate(); err != nil {
+		fail(w, err.Error())
+		return
+	}
+
+	ot := svcConfig.Type
+	svcConfig.Type = strings.ToLower(svcConfig.Type)
+	if !controller.CheckIfControllerTypeSupport(svcConfig.Type) {
+		fail(w, fmt.Sprintf("Service Type %s is unsupported", ot))
+		return
+	}
+
 	err = controller.UpdateSvcConfig(csp.Namespace, csp.Application, csp.Kubeconfig, svcConfig)
 	if err != nil {
 		fail(w, err.Error())
@@ -203,17 +229,36 @@ func handlingConfigGet(w http.ResponseWriter, r *http.Request) {
 	}
 	csp.Kubeconfig = r.PostForm[key][0]
 
-	c, err := controller.GetSvcConfig(csp.Namespace, csp.Application, csp.Name, csp.Kubeconfig, base.SvcType(csp.Type))
+	nhApp, err := app.NewApplication(csp.Application, csp.Namespace, csp.Kubeconfig, true)
+	if err != nil {
+		fail(w, err.Error())
+		return
+	}
+	nhSvc, err := nhApp.Controller(csp.Name, base.SvcType(csp.Type))
 	if err != nil {
 		fail(w, err.Error())
 		return
 	}
 
-	//bys, err := json.Marshal(c)
-	//if err != nil {
-	//	fail(w, err.Error())
-	//	return
-	//}
+	_ = nhSvc.LoadConfigFromHub()
+	// need to load latest config
+	_ = nhApp.ReloadSvcCfg(csp.Name, base.SvcTypeOf(csp.Type), false, true)
+	nhSvc.ReloadConfig()
+
+	c := nhSvc.Config()
+
+	if len(c.ContainerConfigs) == 0 {
+		if cs, err := nhSvc.GetOriginalContainers(); err != nil {
+			log.LogE(err)
+		} else {
+			c.ContainerConfigs = make([]*profile.ContainerConfig, 0)
+			for _, container := range cs {
+				c.ContainerConfigs = append(c.ContainerConfigs, &profile.ContainerConfig{
+					Name: container.Name,
+				})
+			}
+		}
+	}
 
 	writeJsonResp(w, 200, c)
 }

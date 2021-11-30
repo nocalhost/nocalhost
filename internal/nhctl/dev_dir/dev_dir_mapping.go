@@ -19,7 +19,7 @@ var (
 
 func Initial() {
 	FlushCache()
-
+	tick := time.NewTicker(time.Second * 5)
 	go func() {
 		for {
 			func() {
@@ -28,8 +28,7 @@ func Initial() {
 						log.Errorf("Fail to flush dir-svc cache in cacher ", r)
 					}
 				}()
-
-				time.Tick(time.Second * 5)
+				<-tick.C
 				FlushCache()
 			}()
 		}

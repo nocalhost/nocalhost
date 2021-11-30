@@ -122,7 +122,7 @@ var configEditCmd = &cobra.Command{
 		}
 
 		containers, _ := nocalhostSvc.GetOriginalContainers()
-		nocalhostApp.PrepareForConfigurationValidate(containers)
+		profile.PrepareForConfigurationValidate(nocalhostApp.GetClient(), containers)
 		if err := svcConfig.Validate(); err != nil {
 			log.Fatal(err)
 		}
@@ -132,8 +132,6 @@ var configEditCmd = &cobra.Command{
 		if !controller.CheckIfControllerTypeSupport(svcConfig.Type) {
 			must(errors.New(fmt.Sprintf("Service Type %s is unsupported", ot)))
 		}
-		svcConfig.Name = nocalhostSvc.Name
 		must(nocalhostSvc.UpdateConfig(*svcConfig))
-		//must(nocalhostSvc.SaveConfigToProfile(svcConfig))
 	},
 }

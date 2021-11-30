@@ -40,9 +40,6 @@ github.com/cheggaaa/pb/v3
 github.com/cheggaaa/pb/v3/termutil
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
-# github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
-## explicit
-github.com/dgrijalva/jwt-go/v4
 # github.com/docker/distribution v2.7.1+incompatible
 github.com/docker/distribution
 github.com/docker/distribution/digestset
@@ -123,6 +120,9 @@ github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/protoc-gen-gogo/descriptor
 github.com/gogo/protobuf/sortkeys
 github.com/gogo/protobuf/types
+# github.com/golang-jwt/jwt/v4 v4.1.0
+## explicit
+github.com/golang-jwt/jwt/v4
 # github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 ## explicit
 github.com/golang/glog
@@ -133,7 +133,7 @@ github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
-# github.com/golang/snappy v0.0.2
+# github.com/golang/snappy v0.0.4
 ## explicit
 github.com/golang/snappy
 # github.com/gomodule/redigo v2.0.0+incompatible
@@ -267,7 +267,7 @@ github.com/olivere/elastic/v7/uritemplates
 ## explicit
 # github.com/opencontainers/go-digest v1.0.0
 github.com/opencontainers/go-digest
-# github.com/opencontainers/image-spec v1.0.1
+# github.com/opencontainers/image-spec v1.0.2
 ## explicit
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1

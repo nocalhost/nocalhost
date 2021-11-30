@@ -19,6 +19,7 @@ import (
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
 	"strconv"
 	"strings"
 	"time"
@@ -49,11 +50,7 @@ func NewController(ns, name, appName, identifier string, svcType base.SvcType,
 		AppMeta:    appMeta,
 		Identifier: identifier,
 	}
-	p, err := c.GetProfile()
-	if err != nil {
-		return nil, err
-	}
-	c.DevModeType = p.DevModeType
+	c.DevModeType = c.GetCurrentDevModeType()
 
 	a := c.GetAppConfig().GetSvcConfigS(c.Name, c.Type)
 	c.config = &a
@@ -63,23 +60,19 @@ func NewController(ns, name, appName, identifier string, svcType base.SvcType,
 
 // IsInReplaceDevMode return true if under dev starting or start complete
 func (c *Controller) IsInReplaceDevMode() bool {
-	return c.DevModeType.IsReplaceDevMode() &&
-		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) != appmeta.NONE
+	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, profile.ReplaceDevMode) != appmeta.NONE
 }
 
 func (c *Controller) IsInReplaceDevModeStarting() bool {
-	return c.DevModeType.IsReplaceDevMode() &&
-		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) == appmeta.STARTING
+	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, profile.ReplaceDevMode) == appmeta.STARTING
 }
 
 func (c *Controller) IsInDuplicateDevMode() bool {
-	return c.DevModeType.IsDuplicateDevMode() &&
-		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) != appmeta.NONE
+	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, profile.DuplicateDevMode) != appmeta.NONE
 }
 
 func (c *Controller) IsInDuplicateDevModeStarting() bool {
-	return c.DevModeType.IsDuplicateDevMode() &&
-		c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, c.DevModeType) == appmeta.STARTING
+	return c.AppMeta.CheckIfSvcDeveloping(c.Name, c.Identifier, c.Type, profile.DuplicateDevMode) == appmeta.STARTING
 }
 
 func (c *Controller) IsInDevMode() bool {
@@ -92,7 +85,11 @@ func (c *Controller) IsInDevModeStarting() bool {
 
 // IsProcessor Check if service is developing in this device
 func (c *Controller) IsProcessor() bool {
-	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, c.DevModeType)
+	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, profile.DuplicateDevMode) || c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, profile.ReplaceDevMode)
+}
+
+func (c *Controller) GetCurrentDevModeType() profile.DevModeType {
+	return c.AppMeta.GetCurrentDevModeTypeOfWorkload(c.Name, c.Type, c.Identifier)
 }
 
 func CheckIfControllerTypeSupport(t string) bool {
@@ -129,10 +126,14 @@ func (c *Controller) CheckIfExist() (bool, error) {
 }
 
 func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
+	return GetOriginalContainers(c.Client, c.Type, c.Name)
+}
+
+func GetOriginalContainers(client *clientgoutils.ClientGoUtils, workloadType base.SvcType, workloadName string) ([]v1.Container, error) {
 	var podSpec v1.PodSpec
-	switch c.Type {
+	switch workloadType {
 	case base.Deployment:
-		d, err := c.Client.GetDeployment(c.Name)
+		d, err := client.GetDeployment(workloadName)
 		if err != nil {
 			return nil, err
 		}
@@ -146,7 +147,7 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 		}
 		podSpec = d.Spec.Template.Spec
 	case base.StatefulSet:
-		s, err := c.Client.GetStatefulSet(c.Name)
+		s, err := client.GetStatefulSet(workloadName)
 		if err != nil {
 			return nil, err
 		}
@@ -160,7 +161,7 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 		}
 		podSpec = s.Spec.Template.Spec
 	case base.DaemonSet:
-		d, err := c.Client.GetDaemonSet(c.Name)
+		d, err := client.GetDaemonSet(workloadName)
 		if err != nil {
 			return nil, err
 		}
@@ -174,7 +175,7 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 		}
 		podSpec = d.Spec.Template.Spec
 	case base.Job:
-		j, err := c.Client.GetJobs(c.Name)
+		j, err := client.GetJobs(workloadName)
 		if err != nil {
 			return nil, err
 		}
@@ -188,7 +189,7 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 		}
 		podSpec = j.Spec.Template.Spec
 	case base.CronJob:
-		j, err := c.Client.GetCronJobs(c.Name)
+		j, err := client.GetCronJobs(workloadName)
 		if err != nil {
 			return nil, err
 		}
@@ -202,7 +203,7 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 		}
 		podSpec = j.Spec.JobTemplate.Spec.Template.Spec
 	case base.Pod:
-		p, err := c.Client.GetPod(c.Name)
+		p, err := client.GetPod(workloadName)
 		if err != nil {
 			return nil, err
 		}
@@ -359,21 +360,6 @@ func (c *Controller) UpdateSvcProfile(modify func(*profile.SvcProfileV2) error) 
 	return profileV2.Save()
 }
 
-// UpdateProfile The second param of modify will not be nil
-//func (c *Controller) UpdateProfile(modify func(*profile.AppProfileV2, *profile.SvcProfileV2) error) error {
-//	profileV2, err := profile.NewAppProfileV2ForUpdate(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
-//	if err != nil {
-//		return err
-//	}
-//	defer profileV2.CloseDb()
-//
-//	if err := modify(profileV2, profileV2.SvcProfileV2(c.Name, c.Type.String())); err != nil {
-//		return err
-//	}
-//	profileV2.GenerateIdentifierIfNeeded()
-//	return profileV2.Save()
-//}
-
 func (c *Controller) GetName() string {
 	return c.Name
 }
@@ -391,4 +377,14 @@ func (c *Controller) getDuplicateLabelsMap() (map[string]string, error) {
 
 func (c *Controller) getDuplicateResourceName() string {
 	return strings.Join([]string{c.Name, string(c.Type), c.Identifier[0:5], strconv.Itoa(int(time.Now().Unix()))}, "-")
+}
+
+func (c *Controller) patchAfterDevContainerReplaced(containerName, resourceType, resourceName string) {
+	for _, patch := range c.config.GetContainerDevConfigOrDefault(containerName).Patches {
+		log.Infof("Patching %s", patch.Patch)
+		if err := c.Client.Patch(resourceType, resourceName, patch.Patch, patch.Type); err != nil {
+			log.WarnE(err, "")
+		}
+	}
+	<-time.Tick(time.Second)
 }

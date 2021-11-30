@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	runtimejson "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -19,6 +20,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 	toolswatch "k8s.io/client-go/tools/watch"
 	"k8s.io/kubectl/pkg/scheme"
+	"nocalhost/internal/nhctl/fp"
+	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"time"
 )
@@ -149,4 +153,41 @@ func WaitResource(client *kubernetes.Clientset, g cache.Getter, namespace string
 		return err
 	}
 	return nil
+}
+
+// gen or get kubeconfig from local path by kubeconfig content
+// we would gen or get kubeconfig file named by hash
+func GetOrGenKubeConfigPath(kubeconfigContent string) string {
+	dir := nocalhost_path.GetNhctlKubeconfigDir(utils.Sha1ToString(kubeconfigContent))
+	path := fp.NewFilePath(dir)
+	if path.ReadFile() != "" {
+		return dir
+	} else {
+		_ = path.RelOrAbs("../").Mkdir()
+		_ = path.WriteFile(kubeconfigContent)
+		return dir
+	}
+}
+
+func GetObjectMetaData(obj interface{}) *metadataOnlyObject {
+	var caseSensitiveJsonIterator = runtimejson.CaseSensitiveJSONIterator()
+	marshal, errs := caseSensitiveJsonIterator.Marshal(obj)
+	if errs != nil {
+		return nil
+	}
+	v := &metadataOnlyObject{}
+	if errs = caseSensitiveJsonIterator.Unmarshal(marshal, v); errs != nil {
+		return nil
+	}
+	return v
+}
+
+func GetNamespaceAndNameFromObjectMeta(obj interface{}) (namespace, name string, errs error) {
+	v := GetObjectMetaData(obj)
+	return v.Namespace, v.Name, nil
+}
+
+type metadataOnlyObject struct {
+	v1.TypeMeta   `json:",inline"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
 }

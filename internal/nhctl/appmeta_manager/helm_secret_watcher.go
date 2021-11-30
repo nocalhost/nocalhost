@@ -68,8 +68,8 @@ func (hws *helmSecretWatcher) join(secret *v1.Secret) error {
 		hws.ns,
 		hws.configBytes,
 	); err != nil {
-		log.TLogf(
-			"Watcher", "Helm application found from secret: %s,"+
+		log.Debugf(
+			"Helm application found from secret: %s,"+
 				" but error occur while processing: %s", secret.Name, err,
 		)
 	}

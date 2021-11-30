@@ -56,7 +56,7 @@ var uninstallCmd = &cobra.Command{
 		log.Info("Uninstalling application...")
 
 		//goland:noinspection ALL
-		mustI(appMeta.Uninstall(true), "Error while uninstall application")
+		mustI(appMeta.Uninstall(true), "error while uninstall application")
 
 		p, _ := nocalhost.GetProfileV2(nameSpace, applicationName, nid)
 		if p != nil {
