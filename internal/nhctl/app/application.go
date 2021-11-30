@@ -32,8 +32,9 @@ import (
 
 var (
 	// do not change this error message
-	ErrNotFound = errors.New("Application not found")
-	indent      = 70
+	ErrNotFound   = errors.New("Application not found")
+	ErrInstalling = errors.New("Application is installing")
+	indent        = 70
 )
 
 type Application struct {
@@ -106,6 +107,10 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 		return nil, errors.New(fmt.Sprintf("%s-%s state is UNKNOWN", app.NameSpace, app.Name))
 	}
 
+	if app.appMeta.IsInstalling() {
+		return nil, errors.Wrap(ErrInstalling, fmt.Sprintf("%s-%s state is installing", app.NameSpace, app.Name))
+	}
+
 	if !app.appMeta.IsInstalled() {
 		return nil, errors.Wrap(ErrNotFound, fmt.Sprintf("%s-%s not found", app.NameSpace, app.Name))
 	}
@@ -132,7 +137,7 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 	}
 	// Migrate config to meta
 	if app.appMeta.Config == nil || !app.appMeta.Config.Migrated {
-		if len(profileV2.SvcProfile) > 0  {
+		if len(profileV2.SvcProfile) > 0 {
 			c := app.newConfigFromProfile()
 			for _, sc := range c.ApplicationConfig.ServiceConfigs {
 				for _, scc := range sc.ContainerConfigs {
