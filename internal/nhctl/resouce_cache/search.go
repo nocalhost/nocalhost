@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/restmapper"
@@ -200,11 +201,10 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 					log.Warnf("Can't create informer for resource: %v, error info: %v, ignored", resource, err)
 				}
 			} else {
-				informer.Informer().AddEventHandlerWithResyncPeriod(
-					NewResourceEventHandlerFuncs(
-						informer, kubeconfigBytes, resource.Gvr,
-					), time.Second*5,
-				)
+				if sets.NewString(GroupToTypeMap[0].V...).Has(resource.Gvr.Resource) {
+					informer.Informer().
+						AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes, resource.Gvr))
+				}
 				createInformerSuccess = true
 				for _, alias := range resource.alias {
 					result.Store(alias, resource)
