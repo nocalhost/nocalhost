@@ -1,4 +1,4 @@
-package tools
+package cron
 
 import (
 	"log"
@@ -9,7 +9,6 @@ import (
 
 // Graceful shutdown
 type Graceful struct {
-	ch    chan os.Signal
 	queue []func(os.Signal)
 }
 
@@ -17,12 +16,12 @@ func (g *Graceful) AddFunc(fn func(os.Signal)) {
 	g.queue = append(g.queue, fn)
 }
 
-func (g *Graceful) Wait() {
-	g.ch = make(chan os.Signal)
-	signal.Notify(g.ch, syscall.SIGINT, syscall.SIGTERM)
+func (g *Graceful) Wait(hint string) {
+	ch := make(chan os.Signal)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 
-	s := <- g.ch
-	log.Printf("Received os signal: %s", s)
+	s := <-ch
+	log.Printf(hint)
 
 	for _, fn := range g.queue {
 		fn(s)

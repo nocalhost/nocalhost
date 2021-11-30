@@ -108,7 +108,7 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 	return ToBeWakeup, nil
 }
 
-func Sleep(c* clientgo.GoClient, ns string, force bool) error {
+func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 	// 1. check record
 	record, err := cluster_user.
 		NewClusterUserService().
@@ -207,20 +207,7 @@ func Sleep(c* clientgo.GoClient, ns string, force bool) error {
 			}
 		}
 	}
-	// 7. purging static pods
-	pods, err := c.Clientset().
-		CoreV1().
-		Pods(ns).
-		List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	for _, pod := range pods.Items {
-		if len(pod.OwnerReferences) ==0 {
-			// TODO
-		}
-	}
-	// 8. update annotations
+	// 7. update annotations
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{

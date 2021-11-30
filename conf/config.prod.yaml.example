@@ -16,8 +16,8 @@ log:
   #log_rotate_date: 1              # rollingPolicy: daily use
   #log_rotate_size: 1              # rollingPolicy: size use
   #log_backup_count: 7             # When the log file reaches the rollover standard, the log system will call the log file for compressed backup, where the maximum number of backup files is specified.
-cron:
-  addr: :8081
+sleep:
+  cron: 10s
 mysql:
   name: nocalhost
   addr: nocalhost-mariadb:3306

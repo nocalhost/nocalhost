@@ -63,22 +63,24 @@ type ClusterModel struct {
 	CreatedAt    time.Time  `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt    time.Time  `gorm:"column:updated_at" json:"-"`
 	DeletedAt    *time.Time `gorm:"column:deleted_at" json:"-"`
+	InspectAt    *time.Time `gorm:"column:inspect_at;type:timestamp" json:"inspect_at"`
 }
 
 type ClusterList struct {
-	ID              uint64    `gorm:"column:id" json:"id"`
-	ClusterName     string    `gorm:"column:name" json:"name"`
-	UsersCount      uint64    `gorm:"column:users_count" json:"users_count"`
-	KubeConfig      string    `gorm:"column:kubeconfig" json:"-"`
-	StorageClass    string    `json:"storage_class" gorm:"column:storage_class;not null"`
-	Info            string    `gorm:"column:info" json:"info"`
-	UserId          uint64    `gorm:"column:user_id;not null" json:"user_id"`
-	CreatedAt       time.Time `gorm:"column:created_at" json:"created_at"`
-	IsReady         bool      `json:"is_ready"`
-	NotReadyMessage string    `json:"not_ready_message"`
-	HasDevSpace     bool      `json:"has_dev_space"`
-	Server          string    `gorm:"column:server;not null" json:"server"`
-	Modifiable      bool      `json:"modifiable"`
+	ID              uint64     `gorm:"column:id" json:"id"`
+	ClusterName     string     `gorm:"column:name" json:"name"`
+	UsersCount      uint64     `gorm:"column:users_count" json:"users_count"`
+	KubeConfig      string     `gorm:"column:kubeconfig" json:"-"`
+	StorageClass    string     `json:"storage_class" gorm:"column:storage_class;not null"`
+	Info            string     `gorm:"column:info" json:"info"`
+	UserId          uint64     `gorm:"column:user_id;not null" json:"user_id"`
+	CreatedAt       time.Time  `gorm:"column:created_at" json:"created_at"`
+	IsReady         bool       `json:"is_ready"`
+	NotReadyMessage string     `json:"not_ready_message"`
+	HasDevSpace     bool       `json:"has_dev_space"`
+	Server          string     `gorm:"column:server;not null" json:"server"`
+	Modifiable      bool       `json:"modifiable"`
+	InspectAt       *time.Time `gorm:"column:inspect_at;type:timestamp" json:"inspect_at"`
 }
 
 type ClusterListVo struct {

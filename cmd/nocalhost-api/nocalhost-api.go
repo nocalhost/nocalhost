@@ -9,6 +9,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"nocalhost/internal/nocalhost-api/cron"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster"
 	"os"
@@ -86,6 +87,9 @@ func main() {
 
 	// start grpc server reserved
 	//go server.New(controller)
+
+	// start cron
+	cron.Start()
 
 	// start server
 	napp.App.Run()
