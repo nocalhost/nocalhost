@@ -21,8 +21,8 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 )
 
-func GetKubeConfig(ClusterKubeConfig, name, namespace string) (string, error) {
-	goClient, err := clientgo.NewAdminGoClient([]byte(ClusterKubeConfig))
+func GetKubeConfig(clusterKubeConfig, name, namespace string) (string, error) {
+	goClient, err := clientgo.NewAdminGoClient([]byte(clusterKubeConfig))
 	if err != nil {
 		return "", err
 	}

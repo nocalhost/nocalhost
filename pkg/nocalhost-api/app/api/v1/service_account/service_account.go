@@ -64,6 +64,11 @@ func ListAuthorization(c *gin.Context) {
 		return
 	}
 
+	devSpaces, _ := service.Svc.ClusterUser().GetList(c, model.ClusterUserModel{
+		UserId:       userId,
+		DevSpaceType: model.VirtualClusterType},
+	)
+
 	result := make([]*ServiceAccountModel, 0, len(clusters))
 	var lock sync.Mutex
 	wg := sync.WaitGroup{}
@@ -101,8 +106,43 @@ func ListAuthorization(c *gin.Context) {
 		}()
 	}
 
+	if len(devSpaces) != 0 {
+		for _, space := range devSpaces {
+			clusterKubeConfig := ""
+			for i2, cluster := range clusters {
+				if cluster.ID == space.ClusterId {
+					clusterKubeConfig = clusters[i2].GetKubeConfig()
+					break
+				}
+
+			}
+			if clusterKubeConfig == "" {
+				continue
+			}
+
+			GenVirtualClusterKubeconfig(clusterKubeConfig, space.SpaceName, space.Namespace, func(kubeConfig string) {
+				if kubeConfig == "" {
+					return
+				}
+				result = append(result, &ServiceAccountModel{
+					ClusterId:     space.ClusterId + 1<<16,
+					KubeConfig:    kubeConfig,
+					StorageClass:  "",
+					NS:            []NS{},
+					Privilege:     true,
+					PrivilegeType: CLUSTER_ADMIN,
+					DevSpaceType:  model.VirtualClusterType,
+				})
+			})
+		}
+
+	}
+
 	sort.Slice(
 		result, func(i, j int) bool {
+			if result[i].DevSpaceType != result[j].DevSpaceType {
+				return result[i].DevSpaceType < result[j].DevSpaceType
+			}
 			return result[i].ClusterId > result[j].ClusterId
 		},
 	)
@@ -262,10 +302,9 @@ func GenKubeconfig(
 	then(nss, privilegeType, kubeConfig)
 }
 
-func GenVirtualClusterKubeconfig(cp model.ClusterPack, cu *model.ClusterUserJoinClusterAndAppAndUser,
-	f func(kubeConfig string)) {
+func GenVirtualClusterKubeconfig(clusterKubeConfig, spaceName, namespace string, f func(kubeConfig string)) {
 
-	kubeConfig, _ := vcluster.GetKubeConfig(cp.GetKubeConfig(), cu.SpaceName, cu.Namespace)
+	kubeConfig, _ := vcluster.GetKubeConfig(clusterKubeConfig, spaceName, namespace)
 	f(kubeConfig)
 }
 
@@ -297,6 +336,7 @@ type ServiceAccountModel struct {
 	NS            []NS          `json:"namespace_packs"`
 	Privilege     bool          `json:"privilege"`
 	PrivilegeType PrivilegeType `json:"privilege_type"`
+	DevSpaceType  uint64        `json:"dev_space_type"`
 }
 
 type NS struct {
