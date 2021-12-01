@@ -64,7 +64,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 					Namespace:      connectInfo.namespace,
 				}
 				connectOptions.InitClient(context.TODO())
-				for _, d := range value.(*name).resources.List() {
+				for _, d := range value.(*name).resources.GetBelongToMeResources().List() {
 					_ = UpdateReverseConfigMap(clientset, connectInfo.namespace, d, func(r *ReverseTotal, record ReverseRecord) {
 						r.RemoveRecord(record)
 					})
@@ -154,7 +154,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 				if err != nil {
 					return true
 				}
-				for _, d := range value.(*name).resources.List() {
+				for _, d := range value.(*name).resources.GetBelongToMeResources().List() {
 					_ = UpdateReverseConfigMap(bytes, value.(*name).namespace, d, func(r *ReverseTotal, record ReverseRecord) {
 						r.RemoveRecord(record)
 					})

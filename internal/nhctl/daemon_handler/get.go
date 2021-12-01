@@ -242,9 +242,11 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			}
 			serviceMap = getServiceProfile(ns, request.AppName, nid, KubeConfigBytes)
 		}
-		var vpnMaps = sets.NewString()
+		var belongsToMe = sets.NewString()
+		var reverseReversed = sets.NewString()
 		if load, ok := GetReverseInfo().Load(generateKey(KubeConfigBytes, ns)); ok {
-			vpnMaps.Insert(load.(*name).resources.List()...)
+			belongsToMe.Insert(load.(*name).resources.GetBelongToMeResources().List()...)
+			reverseReversed.Insert(load.(*name).resources.ReversedResource().List()...)
 		}
 
 		c := s.Criteria().
@@ -266,9 +268,9 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
 					n := mapping.Gvr.Resource + "/" + i.(metav1.Object).GetName()
 					tempItem.Description = serviceMap[n]
-					if vpnMaps.Has(n) {
+					if belongsToMe.Has(n) || reverseReversed.Has(n) {
 						tempItem.VPN = &item.VPNInfo{
-							BelongsToMe: true,
+							BelongsToMe: belongsToMe.Has(n),
 							Status:      ReversedHealth.String(),
 							IP:          connectInfo.getIPIfIsMe(KubeConfigBytes, ns),
 						}
@@ -287,7 +289,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
 				n := mapping.Gvr.Resource + "/" + one.(metav1.Object).GetName()
 				i.Description = serviceMap[n]
-				if vpnMaps.Has(n) {
+				if belongsToMe.Has(n) {
 					i.VPN = &item.VPNInfo{
 						BelongsToMe: true,
 						Status:      ReversedHealth.String(),

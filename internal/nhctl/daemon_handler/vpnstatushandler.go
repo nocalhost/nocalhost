@@ -56,6 +56,16 @@ type ReverseTotal struct {
 	ele map[string]sets.String
 }
 
+func (t *ReverseTotal) ReversedResource() sets.String {
+	result := sets.NewString()
+	if t != nil && t.ele != nil {
+		for _, v := range t.ele {
+			result.Insert(v.List()...)
+		}
+	}
+	return result
+}
+
 type ConnectTotal struct {
 	// mac address list
 	list sets.String
@@ -200,6 +210,9 @@ func (t *ReverseTotal) ToString() string {
 }
 
 func (t *ReverseTotal) GetBelongToMeResources() sets.String {
+	if t.ele == nil {
+		return sets.NewString()
+	}
 	s := t.ele[util.GetMacAddress().String()]
 	if s != nil {
 		return s

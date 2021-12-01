@@ -7,7 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_client"
@@ -54,7 +53,8 @@ var reverseInfo = &sync.Map{}
 type name struct {
 	kubeconfigBytes []byte
 	namespace       string
-	resources       sets.String
+	// mac --> resources
+	resources *ReverseTotal
 }
 
 func GetReverseInfo() *sync.Map {
@@ -77,7 +77,8 @@ func Reverse(kubeconfigBytes []byte, namespace string, resource string) bool {
 	reverseInfoLock.Lock()
 	defer reverseInfoLock.Unlock()
 	if connectInfo.IsSame(kubeconfigBytes, namespace) {
-		if load, ok := reverseInfo.Load(resource); ok && load.(*name).resources.Has(resource) {
+		if load, ok := reverseInfo.Load(generateKey(kubeconfigBytes, namespace)); ok &&
+			load.(*name).resources.GetBelongToMeResources().Has(resource) {
 			return true
 		}
 	}
@@ -167,7 +168,7 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 				h.reverseInfo.Store(h.toKey(), &name{
 					kubeconfigBytes: h.kubeconfigBytes,
 					namespace:       h.namespace,
-					resources:       status.Reverse.GetBelongToMeResources(),
+					resources:       status.Reverse,
 				})
 				lock.Unlock()
 			}
@@ -195,7 +196,7 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 				h.reverseInfo.Store(h.toKey(), &name{
 					kubeconfigBytes: h.kubeconfigBytes,
 					namespace:       h.namespace,
-					resources:       newStatus.Reverse.GetBelongToMeResources(),
+					resources:       newStatus.Reverse,
 				})
 				lock.Unlock()
 			}
