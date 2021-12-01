@@ -139,7 +139,7 @@ func ApplySleepConfig(c *gin.Context) {
 		return
 	}
 	// 5. update annotations
-	result, err := sleep.ApplySleepConfig(client, space.ID, space.Namespace, payload)
+	result, err := sleep.Update(client, space.ID, space.Namespace, payload)
 	if err != nil {
 		log.Error(err)
 		api.SendResponse(c, errno.ErrUpdateSleepConfig, nil)
