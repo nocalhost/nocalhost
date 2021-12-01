@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubectl/pkg/scheme"
 
@@ -112,12 +113,27 @@ func GetKubeConfig(clusterKubeConfig, name, namespace string) (string, error) {
 		}
 	}
 
+	newName := "vcluster-" + name
+	newCluster := api.NewCluster()
+	newCtx := api.NewContext()
 	if addr != "" && port != "" {
-		for cluster := range kubeConfig.Clusters {
-			kubeConfig.Clusters[cluster].Server = fmt.Sprintf("https://%s:%s", addr, port)
-			kubeConfig.Clusters[cluster].InsecureSkipTLSVerify = true
-			kubeConfig.Clusters[cluster].CertificateAuthorityData = nil
+		for _, cluster := range kubeConfig.Clusters {
+			cluster.Server = fmt.Sprintf("https://%s:%s", addr, port)
+			cluster.InsecureSkipTLSVerify = true
+			cluster.CertificateAuthorityData = nil
+			newCluster = cluster
 		}
+	}
+	for _, context := range kubeConfig.Contexts {
+		context.Cluster = newName
+		newCtx = context
+	}
+	kubeConfig.CurrentContext = newName
+	kubeConfig.Contexts = map[string]*api.Context{
+		newName: newCtx,
+	}
+	kubeConfig.Clusters = map[string]*api.Cluster{
+		newName: newCluster,
 	}
 
 	out, err := clientcmd.Write(*kubeConfig)
