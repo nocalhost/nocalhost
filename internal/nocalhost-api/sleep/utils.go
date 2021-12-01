@@ -230,8 +230,8 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 	return cluster_user.
 		NewClusterUserService().
 		Modify(context.TODO(), record.ID, map[string]interface{}{
-			"SleepAt":  &now,
-			"IsAsleep": true,
+			"sleep_at":  &now,
+			"is_asleep": true,
 		})
 }
 
@@ -342,8 +342,8 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 	return cluster_user.
 		NewClusterUserService().
 		Modify(context.TODO(), record.ID, map[string]interface{}{
-			"SleepAt":  nil,
-			"IsAsleep": false,
+			"sleep_at":  nil,
+			"is_asleep": false,
 		})
 }
 

@@ -121,12 +121,9 @@ func (repo *clusterUserRepo) Update(models *model.ClusterUserModel) (
 }
 
 func (repo *clusterUserRepo) Modify(id uint64, attrs map[string]interface{}) error {
-	criteria := model.ClusterUserModel{ID: id}
-	affected := repo.db.Model(&criteria).Update(attrs).RowsAffected
-	if affected == 0 {
-		return errors.New("0 rows affected")
-	}
-	return nil
+	cu := model.ClusterUserModel{ID: id}
+	db := repo.db.Model(&cu).Update(attrs)
+	return db.Error
 }
 
 // GetList

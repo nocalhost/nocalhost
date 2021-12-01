@@ -41,10 +41,7 @@ func execCluster(cs *model.ClusterList) {
 		}
 	}()
 	// 2. create lock
-	now := time.Now().UTC()
-	_, err := cluster.NewClusterService().Update(context.TODO(), map[string]interface{}{
-		"InspectAt": &now,
-	}, cs.ID)
+	err := cluster.NewClusterService().Lockup(context.TODO(), cs.ID, cs.InspectAt)
 	if err != nil {
 		log.Errorf("Failed to create lock, cluster: %s, err: %v", cs.ClusterName, err)
 		return
@@ -66,9 +63,7 @@ func execCluster(cs *model.ClusterList) {
 		execNamespace(client, &ns)
 	}
 	// 6. remove lock
-	_, err = cluster.NewClusterService().Update(context.TODO(), map[string]interface{}{
-		"InspectAt": nil,
-	}, cs.ID)
+	err = cluster.NewClusterService().Unlock(context.TODO(), cs.ID)
 	if err != nil {
 		log.Errorf("Failed to remove lock, cluster: %s, err: %v", cs.ClusterName, err)
 		return
