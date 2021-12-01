@@ -158,6 +158,7 @@ func (srv *clusterUserService) ListV2(models model.ClusterUserModel) (
 		item.SleepAt = userModel.SleepAt
 		item.IsAsleep = userModel.IsAsleep
 		item.SleepConfig = userModel.SleepConfig
+		item.SleepSaving = userModel.SleepSaving
 		item.ClusterAdmin = userModel.ClusterAdmin
 		item.Namespace = userModel.Namespace
 		item.SpaceName = userModel.SpaceName

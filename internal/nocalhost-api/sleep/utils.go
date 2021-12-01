@@ -113,7 +113,7 @@ func Calc(items *[]model.ByWeek) float32 {
 	for _, it := range *items {
 		a := it.ToInt(*it.SleepDay, it.SleepTime)
 		b := it.ToInt(*it.WakeupDay, it.WakeupTime)
-
+		// extend into next week
 		if b < a {
 			for i := a; i < 10080; i++ {
 				x[i] =1
