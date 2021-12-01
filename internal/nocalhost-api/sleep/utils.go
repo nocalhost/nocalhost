@@ -108,6 +108,35 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 	return ToBeWakeup, nil
 }
 
+func Calc(items *[]model.ByWeek) float32 {
+	var x [10080]uint8
+	for _, it := range *items {
+		a := it.ToInt(*it.SleepDay, it.SleepTime)
+		b := it.ToInt(*it.WakeupDay, it.WakeupTime)
+
+		if b < a {
+			for i := a; i < 10080; i++ {
+				x[i] =1
+			}
+			for i := 0; i < b; i++ {
+				x[i] = 1
+			}
+		} else {
+			for i := a; i < b; i++ {
+				x[i] = 1
+			}
+		}
+	}
+
+	var c float32 = 0
+	for _, v := range x {
+		if v == 1 {
+			c++
+		}
+	}
+	return c / 10080
+}
+
 func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 	// 1. check record
 	record, err := cluster_user.
@@ -368,6 +397,7 @@ func ApplySleepConfig(c *clientgo.GoClient, id uint64, ns string, conf model.Sle
 	result, err := service.Svc.ClusterUser().Update(context.TODO(), &model.ClusterUserModel{
 		ID: id,
 		SleepConfig: &conf,
+		SleepSaving: Calc(&conf.ByWeek),
 	})
 	if err != nil {
 		return nil, err

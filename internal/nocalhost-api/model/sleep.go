@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"github.com/pkg/errors"
+	"github.com/spf13/cast"
 	"strconv"
 	"strings"
 	"time"
@@ -20,14 +21,18 @@ type ByWeek struct {
 	WakeupTime string        `json:"wakeup_time" binding:"required,timing"`
 }
 
-func (s *ByWeek) Hour(fmt string) int {
-	v, _ := strconv.Atoi(strings.Split(fmt, ":")[0])
-	return v
+func (s *ByWeek) Hour(hm string) int {
+	return cast.ToInt(strings.Split(hm, ":")[0])
 }
 
-func (s *ByWeek) Minute(fmt string) int {
-	v, _ := strconv.Atoi(strings.Split(fmt, ":")[1])
-	return v
+func (s *ByWeek) Minute(hm string) int {
+	return cast.ToInt(strings.Split(hm, ":")[1])
+}
+
+func (s *ByWeek) ToInt(day time.Weekday, hm string) int {
+	h := cast.ToInt(strings.Split(hm, ":")[0])
+	m := cast.ToInt(strings.Split(hm, ":")[1])
+	return int(day) * 24 * 60 + h * 60 + m
 }
 
 func (s *ByWeek) TimeZone() *time.Location {
