@@ -13,7 +13,6 @@ import (
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/internal/nocalhost-api/service/cluster_user"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
-	"strconv"
 	"time"
 )
 
@@ -106,35 +105,6 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 		return ToBeIgnore, nil
 	}
 	return ToBeWakeup, nil
-}
-
-func Calc(items *[]model.ByWeek) float32 {
-	var x [10080]uint8
-	for _, it := range *items {
-		a := it.ToInt(*it.SleepDay, it.SleepTime)
-		b := it.ToInt(*it.WakeupDay, it.WakeupTime)
-		// extend into next week
-		if b < a {
-			for i := a; i < 10080; i++ {
-				x[i] =1
-			}
-			for i := 0; i < b; i++ {
-				x[i] = 1
-			}
-		} else {
-			for i := a; i < b; i++ {
-				x[i] = 1
-			}
-		}
-	}
-
-	var c float32 = 0
-	for _, v := range x {
-		if v == 1 {
-			c++
-		}
-	}
-	return c / 10080
 }
 
 func Asleep(c *clientgo.GoClient, ns string, force bool) error {
@@ -241,8 +211,8 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
 				kStatus: kAsleep,
-				kReplicas: stringify(replicas),
-				kForceSleep: ternary(force, timestamp(), "").(string),
+				kReplicas: Stringify(replicas),
+				kForceSleep: Ternary(force, Timestamp(), "").(string),
 				kForceWakeup: "",
 			},
 		},
@@ -356,7 +326,7 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 			"annotations": map[string]string{
 				kStatus: kActive,
 				kForceSleep: "",
-				kForceWakeup: ternary(force, timestamp(), "").(string),
+				kForceWakeup: Ternary(force, Timestamp(), "").(string),
 			},
 		},
 	})
@@ -381,7 +351,7 @@ func ApplySleepConfig(c *clientgo.GoClient, id uint64, ns string, conf model.Sle
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
-				kConfig: ternary(len(conf.ByWeek) == 0, "" , stringify(conf)).(string),
+				kConfig: Ternary(len(conf.ByWeek) == 0, "" , Stringify(conf)).(string),
 				kStatus: "",
 				kForceSleep: "",
 				kForceWakeup: "",
@@ -403,20 +373,4 @@ func ApplySleepConfig(c *clientgo.GoClient, id uint64, ns string, conf model.Sle
 		return nil, err
 	}
 	return result, nil
-}
-
-func stringify(v interface{}) string {
-	marshal, _ := json.Marshal(v)
-	return string(marshal)
-}
-
-func timestamp() string {
-	return strconv.FormatInt(time.Now().Unix(), 10)
-}
-
-func ternary(a bool, b, c interface{}) interface{} {
-	if a {
-		return b
-	}
-	return c
 }
