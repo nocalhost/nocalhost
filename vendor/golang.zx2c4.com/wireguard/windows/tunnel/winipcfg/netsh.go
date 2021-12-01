@@ -10,12 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
-
-	"golang.zx2c4.com/go118/netip"
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
@@ -58,7 +57,7 @@ const (
 	netshCmdTemplateAdd6   = "interface ipv6 add dnsservers name=%d address=%s validate=no"
 )
 
-func (luid LUID) fallbackSetDNSForFamily(family AddressFamily, dnses []netip.Addr) error {
+func (luid LUID) fallbackSetDNSForFamily(family AddressFamily, dnses []net.IP) error {
 	var templateFlush string
 	if family == windows.AF_INET {
 		templateFlush = netshCmdTemplateFlush4
@@ -73,10 +72,10 @@ func (luid LUID) fallbackSetDNSForFamily(family AddressFamily, dnses []netip.Add
 	}
 	cmds = append(cmds, fmt.Sprintf(templateFlush, ipif.InterfaceIndex))
 	for i := 0; i < len(dnses); i++ {
-		if dnses[i].Is4() && family == windows.AF_INET {
-			cmds = append(cmds, fmt.Sprintf(netshCmdTemplateAdd4, ipif.InterfaceIndex, dnses[i].String()))
-		} else if dnses[i].Is6() && family == windows.AF_INET6 {
-			cmds = append(cmds, fmt.Sprintf(netshCmdTemplateAdd6, ipif.InterfaceIndex, dnses[i].String()))
+		if v4 := dnses[i].To4(); v4 != nil && family == windows.AF_INET {
+			cmds = append(cmds, fmt.Sprintf(netshCmdTemplateAdd4, ipif.InterfaceIndex, v4.String()))
+		} else if v6 := dnses[i].To16(); v4 == nil && v6 != nil && family == windows.AF_INET6 {
+			cmds = append(cmds, fmt.Sprintf(netshCmdTemplateAdd6, ipif.InterfaceIndex, v6.String()))
 		}
 	}
 	return runNetsh(cmds)

@@ -23,6 +23,7 @@ import (
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/utils"
+	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/log"
 	"runtime/debug"
 	"strings"
@@ -70,7 +71,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 	version = v
 	commitId = c
-	if isSudoUser && !utils.IsSudoUser() {
+	if isSudoUser && !util.IsAdmin() {
 		return errors.New("Failed to start daemon server with sudo")
 	}
 	isSudo = isSudoUser // Mark daemon server if it is run as sudo

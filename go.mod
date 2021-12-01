@@ -30,7 +30,6 @@ require (
 	github.com/googleapis/gnostic v0.5.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/heroku/docker-registry-client v0.0.0-20190909225348-afc9e1acc3d5
-	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/imroc/req v0.3.0
 	github.com/jehiah/go-strftime v0.0.0-20171201141054-1d33003b3869 // indirect
 	github.com/jinzhu/gorm v1.9.16
@@ -48,12 +47,8 @@ require (
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/olivere/elastic/v7 v7.0.27
 	github.com/onsi/ginkgo v1.14.1 // indirect
-	github.com/onsi/gomega v1.10.3 // indirect
-	github.com/opencontainers/image-spec v1.0.1 // indirect
-	github.com/pelletier/go-toml v1.8.1 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
-	github.com/prometheus/procfs v0.6.0 // indirect
 	github.com/qiniu/api.v7 v0.0.0-20190520053455-bea02cd22bf4
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.8.1
@@ -80,26 +75,22 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20211110154304-99a53858aa08
 	golang.org/x/text v0.3.8-0.20211105212822-18b340fc7af2
-	golang.zx2c4.com/wireguard v0.0.0-20211111141719-cad0ff2cfbd9
-	golang.zx2c4.com/wireguard/windows v0.5.2
+	golang.zx2c4.com/wireguard v0.0.0-20210927201915-bb745b2ea326
+	golang.zx2c4.com/wireguard/windows v0.4.10
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20201110150050-8816d57aaa9a // indirect
 	google.golang.org/grpc v1.35.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-	gotest.tools/v3 v3.0.3 // indirect
 	istio.io/api v0.0.0-20210809175348-eff556fb5d8a
 	istio.io/client-go v1.11.0
 	k8s.io/api v0.21.2
 	k8s.io/apimachinery v0.21.2
 	k8s.io/cli-runtime v0.21.2
 	k8s.io/client-go v0.21.2
-	k8s.io/component-base v0.20.6 // indirect
 	k8s.io/klog/v2 v2.10.0 // indirect
 	k8s.io/kubectl v0.21.2
 	sigs.k8s.io/kustomize v2.0.3+incompatible
-	sigs.k8s.io/structured-merge-diff/v4 v4.0.3 // indirect
 	sigs.k8s.io/yaml v1.2.0
 )
 
